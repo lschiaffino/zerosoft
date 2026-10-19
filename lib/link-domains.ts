@@ -19,6 +19,10 @@ export interface LinkDomainRow {
   verified: number;
   verified_at: string | null;
   root_url: string | null;
+  /** A dónde va un slug que no existe (o archivado) en este dominio. */
+  not_found_url?: string | null;
+  /** Default para links vencidos de este dominio sin expired_url propio. */
+  expired_url?: string | null;
   /** Token del TXT de propiedad (null en dominios verificados antes del TXT). */
   verify_token: string | null;
   created_at: string;
@@ -289,9 +293,18 @@ export async function deleteDomain(
   return { ok: true };
 }
 
-export async function setDomainRootUrl(userId: string, id: string, rootUrl: string | null): Promise<boolean> {
+export interface DomainUrls {
+  root_url?: string | null;
+  not_found_url?: string | null;
+  expired_url?: string | null;
+}
+
+/** Actualiza los redirects del dominio (raíz, slug inexistente, link vencido). Solo toca los que vienen. */
+export async function setDomainUrls(userId: string, id: string, urls: DomainUrls): Promise<boolean> {
+  const cols = (['root_url', 'not_found_url', 'expired_url'] as const).filter((c) => urls[c] !== undefined);
+  if (cols.length === 0) return Boolean(await getUserDomain(userId, id));
   const res = await getDb()
-    .prepare('UPDATE link_domains SET root_url = ? WHERE id = ? AND user_id = ?')
-    .run(rootUrl, id, userId);
+    .prepare(`UPDATE link_domains SET ${cols.map((c) => `${c} = ?`).join(', ')} WHERE id = ? AND user_id = ?`)
+    .run(...cols.map((c) => urls[c] ?? null), id, userId);
   return res.changes > 0;
 }

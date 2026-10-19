@@ -41,6 +41,8 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
   const [ogTitle, setOgTitle] = useState('');
   const [ogDescription, setOgDescription] = useState('');
   const [ogImage, setOgImage] = useState('');
+  const [expiredUrl, setExpiredUrl] = useState('');
+  const [forwardParams, setForwardParams] = useState(true);
   const slugState = useSlugCheck(slug, domainId);
 
   // Con ?url= el foco va al slug (la URL ya está); si no, a la URL.
@@ -81,6 +83,8 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
     if (ogTitle.trim()) payload.ogTitle = ogTitle.trim();
     if (ogDescription.trim()) payload.ogDescription = ogDescription.trim();
     if (ogImage.trim()) payload.ogImage = ogImage.trim();
+    if (expiredUrl.trim()) payload.expiredUrl = expiredUrl.trim();
+    if (!forwardParams) payload.forwardParams = false;
 
     try {
       const res = await fetch('/api/links', {
@@ -277,6 +281,41 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
               autoComplete="new-password"
             />
           </div>
+        </div>
+
+        <div className="ui-field">
+          <label className="label" htmlFor="nl-expired-url">
+            {t('new.expiredUrlLabel')}
+          </label>
+          <input
+            id="nl-expired-url"
+            className="input mono"
+            type="text"
+            inputMode="url"
+            maxLength={2000}
+            value={expiredUrl}
+            onChange={(e) => setExpiredUrl(e.target.value)}
+            placeholder={t('new.expiredUrlPlaceholder')}
+            aria-describedby="nl-expired-url-help"
+          />
+          <p id="nl-expired-url-help" className="ui-help">
+            {t('new.expiredUrlHelp')}
+          </p>
+        </div>
+
+        <div className="ui-field">
+          <label className="ui-check">
+            <input
+              type="checkbox"
+              checked={forwardParams}
+              onChange={(e) => setForwardParams(e.target.checked)}
+              aria-describedby="nl-forward-help"
+            />
+            {t('new.forwardParamsLabel')}
+          </label>
+          <p id="nl-forward-help" className="ui-help">
+            {t('new.forwardParamsHelp')}
+          </p>
         </div>
 
         <fieldset className="lk-fieldset">

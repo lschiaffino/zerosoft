@@ -138,7 +138,13 @@
     "utmMediumPlaceholder": "email",
     "utmCampaignPlaceholder": "lanzamiento-q4",
     "maxClicksPlaceholder": "Sin límite",
-    "ogHelp": "Cómo se ve el link en WhatsApp, X o Slack. Vacío, se usa la de la página de destino."
+    "ogHelp": "Cómo se ve el link en WhatsApp, X o Slack. Vacío, se usa la de la página de destino.",
+    "forwardParamsLabel": "Pasar los parámetros de la URL al destino",
+    "forwardParamsHelp": "Si alguien abre el link corto con ?utm_source=newsletter, el destino lo recibe. Si el destino ya tiene ese parámetro, gana el del link corto.",
+    "expiredUrlLabel": "Redirect al vencer",
+    "expiredUrlPlaceholder": "https://ejemplo.com/promo-terminada (opcional)",
+    "expiredUrlHelp": "A dónde va la visita cuando el link vence o llega al máximo de clicks. Si lo dejás vacío se muestra la página por defecto.",
+    "utmSyncHelp": "Al cambiar un campo se actualiza la URL de destino, y al editar la URL se actualizan estos campos."
   },
   "detail": {
     "back": "Links",
@@ -229,7 +235,7 @@
     "settingsDesc": "Destino, slug, título y tags.",
     "saveChanges": "Guardar cambios",
     "slugHelp": "Si lo cambiás, el link corto anterior deja de andar.",
-    "advancedHint": "Redirect, vencimiento, límite, contraseña, vista previa",
+    "advancedHint": "UTM, redirect, vencimiento, límite, contraseña, vista previa",
     "archiveTitle": "Archivar",
     "unarchiveTitle": "Desarchivar",
     "unarchiveDesc": "Vuelve a redirigir al destino.",
@@ -343,7 +349,8 @@
     "self_link": "Un link corto no puede apuntar a otro link corto nuestro.",
     "quota_exceeded": "Llegaste al límite de links nuevos de hoy. Probá de nuevo mañana.",
     "forbidden": "Solo los admins del workspace pueden hacer esto.",
-    "already_imported": "Ya estaba importado."
+    "already_imported": "Ya estaba importado.",
+    "invalid_expired_url": "El redirect al vencer no parece una URL válida."
   },
   "webhooks": {
     "desc": "Enviamos un JSON firmado (POST) a tu URL cuando pasan estos eventos. Verificá el header Zerosoft-Signature (t=…,v1=HMAC-SHA256 de \"t.body\") con tu secret. Las entregas fallidas se reintentan con backoff.",
@@ -401,7 +408,13 @@
     "listTitle": "Tus dominios",
     "emptyBody": "Mientras tanto, tus links usan el dominio de zerosoft.",
     "removeConfirm": "¿Quitar {hostname}?",
-    "dnsCaption": "Registros DNS para {hostname}"
+    "dnsCaption": "Registros DNS para {hostname}",
+    "redirectsTitle": "Redirects de {hostname}",
+    "notFound": "Redirect de links inexistentes",
+    "notFoundPlaceholder": "A dónde va un go.tuempresa.com/slug que no existe (opcional)",
+    "expired": "Redirect de links vencidos",
+    "expiredPlaceholder": "Default para links vencidos sin redirect propio (opcional)",
+    "redirectsHelp": "Dejá un campo vacío para usar la página por defecto."
   },
   "export": {
     "title": "Tus datos",

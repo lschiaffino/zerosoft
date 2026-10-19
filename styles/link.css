@@ -558,7 +558,7 @@ section.lk-block { padding-bottom: 0; }
 .lk-domain-actions { margin-left: auto; display: flex; gap: 6px; }
 .lk-domain-dns { display: flex; flex-direction: column; gap: 8px; }
 .lk-dns-value { word-break: break-all; }
-.lk-domain-root { display: flex; flex-direction: column; gap: 6px; }
+.lk-domain-root { display: flex; flex-direction: column; gap: 12px; }
 
 /* Bio (editor) */
 .lk-bio-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }

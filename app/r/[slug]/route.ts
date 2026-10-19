@@ -13,6 +13,7 @@ import {
   VISITOR_COOKIE,
 } from '@/lib/link-targeting';
 import { requestLocale } from '@/lib/request-locale';
+import { forwardQueryParams } from '@/lib/link-url';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,10 +35,20 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   const { slug } = params;
   const locale = localeFrom(req);
   const origin = requestOrigin(req);
-  const gone = (reason: string) =>
-    NextResponse.redirect(new URL(`/${locale}/gone?reason=${reason}`, origin));
-
   const host = req.headers.get('host');
+
+  // Link vencido, sin clicks o inexistente: el fallback del link, después el
+  // del dominio propio, y si no hay ninguno la página /gone de zerosoft.
+  const gone = async (reason: 'notfound' | 'expired' | 'limit', linkFallback?: string | null) => {
+    let target = linkFallback || null;
+    if (!target && !isAppHost(host)) {
+      const domain = await getVerifiedDomainByHost(host ?? '');
+      target = (reason === 'notfound' ? domain?.not_found_url : domain?.expired_url) || null;
+    }
+    const res = NextResponse.redirect(target ?? new URL(`/${locale}/gone?reason=${reason}`, origin), 302);
+    res.headers.set('cache-control', 'no-store');
+    return res;
+  };
 
   // Raíz de un dominio propio: su redirect configurado, o la home de zerosoft.
   if (slug === '__root' && !isAppHost(host)) {
@@ -47,8 +58,12 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
 
   const link = await getLinkForHost(host, slug);
   if (!link || link.archived === 1) return gone('notfound');
-  if (isExpired(link)) return gone('expired');
-  if (link.max_clicks !== null && link.clicks >= link.max_clicks) return gone('limit');
+  if (isExpired(link)) return gone('expired', link.expired_url);
+  if (link.max_clicks !== null && link.clicks >= link.max_clicks) return gone('limit', link.expired_url);
+
+  // Los params del link corto (?utm_source=mail) viajan al destino, salvo que el link lo apague.
+  const incoming = req.nextUrl.searchParams;
+  const withParams = (url: string) => (link.forward_params === 0 ? url : forwardQueryParams(url, incoming));
 
   const source = req.nextUrl.searchParams.get('qr') === '1' ? 'qr' : 'link';
 
@@ -77,7 +92,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
         headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
       });
     }
-    return NextResponse.redirect(link.url, 302);
+    return NextResponse.redirect(withParams(link.url), 302);
   }
 
   const ctx = contextFromHeaders(req.headers);
@@ -103,7 +118,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
 
   // Incremento atómico: si otra request se llevó el último click, no hay redirect.
   const clicks = await recordClick(link.id, ctx, { source, variant: dest.variant });
-  if (clicks === null) return gone('limit');
+  if (clicks === null) return gone('limit', link.expired_url);
   // El webhook sale después de responder: el redirect no espera a nadie.
   after(() =>
     emitEvent(
@@ -121,10 +136,10 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
 
   const res =
     dest.kind === 'deeplink'
-      ? new NextResponse(deepLinkHtml(dest.appUrl, dest.fallbackUrl), {
+      ? new NextResponse(deepLinkHtml(dest.appUrl, withParams(dest.fallbackUrl)), {
           headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
         })
-      : NextResponse.redirect(dest.url, targeting ? 302 : link.redirect_type === 301 ? 301 : 302);
+      : NextResponse.redirect(withParams(dest.url), targeting ? 302 : link.redirect_type === 301 ? 301 : 302);
   // Sin esto el navegador cachea el 301 para siempre: archivar, vencer,
   // max_clicks, cambiar el destino y contar el click dejarían de aplicar.
   res.headers.set('cache-control', 'no-store');

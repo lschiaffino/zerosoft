@@ -27,6 +27,8 @@ const createSchema = z.object({
   ogTitle: z.string().max(200).optional(),
   ogDescription: z.string().max(500).optional(),
   ogImage: z.string().max(500).optional(),
+  forwardParams: z.boolean().optional(),
+  expiredUrl: z.string().max(2000).nullish(),
 });
 
 export async function GET(req: NextRequest) {

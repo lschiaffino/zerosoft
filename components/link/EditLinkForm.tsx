@@ -7,8 +7,20 @@ import type { LinkDto } from '@/lib/links';
 import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import TagsInput from './TagsInput';
+import { readUtm, syncUtm, type UtmField } from '@/lib/link-url';
 
 const SLUG_RE = /^[A-Za-z0-9_-]{2,32}$/;
+
+const UTM_FIELDS: ReadonlyArray<readonly [UtmField, 'utmSource' | 'utmMedium' | 'utmCampaign']> = [
+  ['source', 'utmSource'],
+  ['medium', 'utmMedium'],
+  ['campaign', 'utmCampaign'],
+];
+
+function utmDrafts(url: string): Record<UtmField, string> {
+  const u = readUtm(url);
+  return { source: u.source ?? '', medium: u.medium ?? '', campaign: u.campaign ?? '' };
+}
 
 function toLocalInput(iso: string): string {
   const d = new Date(iso);
@@ -18,14 +30,18 @@ function toLocalInput(iso: string): string {
 
 /**
  * Ajustes de un link: lo que se toca seguido (destino, slug, título, tags)
- * arriba; redirect, vencimiento, límite, contraseña y vista previa social en
- * "Avanzado". Un solo Guardar.
+ * arriba; UTM, redirect, vencimiento, límite, contraseña, params y vista
+ * previa social en "Avanzado". Un solo Guardar. Los UTM viven en la URL: los
+ * campos y el destino se editan en espejo.
  */
 export default function EditLinkForm({ link }: { link: LinkDto }) {
   const t = useTranslations('link');
   const router = useRouter();
 
   const [url, setUrl] = useState(link.url);
+  const [utm, setUtm] = useState(() => utmDrafts(link.url));
+  const [forwardParams, setForwardParams] = useState(link.forward_params);
+  const [expiredUrl, setExpiredUrl] = useState(link.expired_url ?? '');
   const [slug, setSlug] = useState(link.slug);
   const [title, setTitle] = useState(link.title ?? '');
   const [tags, setTags] = useState<string[]>(link.tags);
@@ -40,6 +56,16 @@ export default function EditLinkForm({ link }: { link: LinkDto }) {
 
   const slugInvalid = slug.trim() !== '' && !SLUG_RE.test(slug.trim());
 
+  function changeUrl(value: string) {
+    setUrl(value);
+    setUtm(utmDrafts(value));
+  }
+
+  function changeUtm(field: UtmField, value: string) {
+    setUtm((prev) => ({ ...prev, [field]: value }));
+    setUrl((prev) => syncUtm(prev, { [field]: value }).url);
+  }
+
   async function save(): Promise<string | void> {
     if (slugInvalid) return t('errors.invalid_slug');
 
@@ -53,6 +79,8 @@ export default function EditLinkForm({ link }: { link: LinkDto }) {
       ogTitle: ogTitle.trim() || null,
       ogDescription: ogDescription.trim() || null,
       ogImage: ogImage.trim() || null,
+      forwardParams,
+      expiredUrl: expiredUrl.trim() || null,
     };
     if (slug.trim() && slug.trim() !== link.slug) payload.slug = slug.trim();
     if (clearPassword) payload.password = '';
@@ -89,7 +117,7 @@ export default function EditLinkForm({ link }: { link: LinkDto }) {
         <label className="label" htmlFor="el-url">
           {t('detail.urlLabel')}
         </label>
-        <input id="el-url" className="input" type="text" inputMode="url" required value={url} onChange={(e) => setUrl(e.target.value)} />
+        <input id="el-url" className="input" type="text" inputMode="url" required value={url} onChange={(e) => changeUrl(e.target.value)} />
       </div>
 
       <div className="ui-fields-2">
@@ -130,6 +158,32 @@ export default function EditLinkForm({ link }: { link: LinkDto }) {
       </div>
 
       <AdvancedSection storageKey="link.edit" hint={t('detail.advancedHint')}>
+        <fieldset className="lk-fieldset">
+          <legend className="label">{t('new.utmTitle')}</legend>
+          <p className="ui-help">{t('new.utmSyncHelp')}</p>
+          <div className="lk-utm">
+            {UTM_FIELDS.map(([field, key]) => (
+              <div className="ui-field" key={field}>
+                <label className="label" htmlFor={`el-utm-${field}`}>
+                  {t(`new.${key}`)}
+                </label>
+                <input
+                  id={`el-utm-${field}`}
+                  className="input mono"
+                  type="text"
+                  maxLength={100}
+                  value={utm[field]}
+                  onChange={(e) => changeUtm(field, e.target.value)}
+                  placeholder={t(`new.${key}Placeholder`)}
+                  disabled={!url.trim()}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </div>
+            ))}
+          </div>
+        </fieldset>
+
         <div className="ui-fields-2">
           <div className="ui-field">
             <label className="label" htmlFor="el-redirect">
@@ -188,6 +242,41 @@ export default function EditLinkForm({ link }: { link: LinkDto }) {
               </label>
             )}
           </div>
+        </div>
+
+        <div className="ui-field">
+          <label className="label" htmlFor="el-expired-url">
+            {t('new.expiredUrlLabel')}
+          </label>
+          <input
+            id="el-expired-url"
+            className="input mono"
+            type="text"
+            inputMode="url"
+            maxLength={2000}
+            value={expiredUrl}
+            onChange={(e) => setExpiredUrl(e.target.value)}
+            placeholder={t('new.expiredUrlPlaceholder')}
+            aria-describedby="el-expired-url-help"
+          />
+          <p id="el-expired-url-help" className="ui-help">
+            {t('new.expiredUrlHelp')}
+          </p>
+        </div>
+
+        <div className="ui-field">
+          <label className="ui-check">
+            <input
+              type="checkbox"
+              checked={forwardParams}
+              onChange={(e) => setForwardParams(e.target.checked)}
+              aria-describedby="el-forward-help"
+            />
+            {t('new.forwardParamsLabel')}
+          </label>
+          <p id="el-forward-help" className="ui-help">
+            {t('new.forwardParamsHelp')}
+          </p>
         </div>
 
         <fieldset className="lk-fieldset">

@@ -16,6 +16,8 @@ export default async function LinkDomainsPage(props: { params: Promise<{ locale:
     hostname: d.hostname,
     verified: d.verified,
     root_url: d.root_url,
+    not_found_url: d.not_found_url ?? null,
+    expired_url: d.expired_url ?? null,
     dns: dnsInstructions(d.hostname, d.verified === 1 ? null : d.verify_token),
   }));
 

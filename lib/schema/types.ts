@@ -35,6 +35,10 @@ export interface LinkRow {
   /** JSON LinkTargeting (lib/link-targeting.ts); null = sin reglas. */
   targeting?: string | null;
   qr_scans?: number;
+  /** 1 = los query params del link corto viajan al destino (default). */
+  forward_params?: number;
+  /** A dónde va el link vencido o sin clicks disponibles (null = página de zerosoft). */
+  expired_url?: string | null;
   created_at: string;
   updated_at: string;
 }
