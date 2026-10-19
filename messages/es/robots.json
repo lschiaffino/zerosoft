@@ -241,7 +241,8 @@
     "logDetail": "Detalle",
     "logTime": "Tiempo",
     "view": "Vista de los datos",
-    "copied": "Copiado"
+    "copied": "Copiado",
+    "queuedNotice": "En cola: hay otro robot corriendo en este workspace. Esta corrida arranca cuando termine."
   },
   "settings": {
     "enabled": "Permitir corridas automáticas",
@@ -325,7 +326,7 @@
     "runner_unavailable": "Los robots no pueden correr en este servidor (no hay runner configurado).",
     "quota_exceeded": "Usaste todos los minutos de robots de este mes.",
     "rate_limited": "Demasiadas corridas en esta hora. Probá más tarde.",
-    "busy": "Hay otro robot corriendo en este workspace. Esperá a que termine.",
+    "busy": "Hay demasiadas corridas esperando en este workspace. Probá de nuevo cuando se libere la cola.",
     "missing_input": "Completá la entrada obligatoria “{name}”.",
     "no_steps": "Agregá al menos un paso antes de correr.",
     "disabled": "Este robot está apagado para corridas automáticas.",

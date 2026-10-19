@@ -155,7 +155,7 @@
     "private": "Private",
     "privateWarn": "You selected private pages: anyone who talks to this agent may see their content.",
     "urlsTitle": "Web pages",
-    "urlsHint": "Up to 20 URLs. Their text is saved and searched together with your docs; refresh to fetch changes.",
+    "urlsHint": "Up to 20 URLs. Their text is saved when you save and refreshed every day, and searched together with your docs.",
     "refresh": "Refresh",
     "refreshing": "Fetching…",
     "saveFirst": "Save to fetch the new URLs.",
@@ -173,7 +173,8 @@
       "pending": "Pending"
     },
     "urlsEmpty": "No web pages yet.",
-    "advancedHint": "Saved replies from Chat"
+    "advancedHint": "Saved replies from Chat",
+    "syncedAt": "synced {when}"
   },
   "tools": {
     "intro": "Tools let the agent act across the suite. Each one only reaches this workspace and is logged with input, output and duration.",
@@ -293,7 +294,9 @@
     "input": "Input",
     "output": "Output",
     "toolError": "Error",
-    "running": "Running"
+    "running": "Running",
+    "handedOffNotice": "A person from the team will reply here. You can keep writing; they will see your messages.",
+    "teammate": "Team"
   },
   "conversations": {
     "filter": "Channel",
@@ -315,7 +318,12 @@
     "tryPlayground": "Try it in the playground",
     "retry": "Retry",
     "back": "Conversations",
-    "loadingDetail": "Loading conversation"
+    "loadingDetail": "Loading conversation",
+    "replyLabel": "Reply as the team",
+    "replyPlaceholder": "Write a reply to the visitor…",
+    "replyHintPublic": "The visitor sees it on the public page. The agent stops replying in this conversation.",
+    "replyHintApi": "It is saved in the conversation for your integration to read. The agent stops replying here.",
+    "replySend": "Send reply"
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
@@ -336,7 +344,8 @@
     "invalid_event_type": "That event type is not in this workspace.",
     "invalid_project": "That Track project is not in this workspace.",
     "invalid_flow": "One of the selected flows is not in this workspace.",
-    "invalid_url": "Enter a full http(s) URL."
+    "invalid_url": "Enter a full http(s) URL.",
+    "unsupported_channel": "Reply to Chat conversations from the inbox."
   },
   "public": {
     "subtitle": "AI assistant",

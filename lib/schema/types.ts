@@ -983,6 +983,8 @@ export interface ChatWidgetRow {
   office_hours: string | null; // JSON OfficeHoursConfig
   /** Pestaña "Ayuda" del widget con artículos publicados de Docs. */
   help_enabled?: 0 | 1;
+  /** Idioma del widget embebido: 'auto' (página / navegador) o fijo. */
+  locale?: 'auto' | 'en' | 'es' | 'pt';
   created_at: string;
   updated_at: string;
 }
@@ -1390,6 +1392,8 @@ export interface AgentMessageRow {
   role: 'user' | 'assistant' | 'system';
   content: string;
   run_id: string | null;
+  /** Persona del equipo que respondió (después de una derivación); NULL = el agente. */
+  author_id?: string | null;
   created_at: string;
 }
 

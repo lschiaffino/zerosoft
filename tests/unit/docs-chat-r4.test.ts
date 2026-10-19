@@ -255,12 +255,14 @@ describe('Widget: envío, adjuntos y recibos de lectura', () => {
       appendMessage: (m: unknown) => appended.push(m),
       showSendError: (msg: string, body: string) => errors.push([msg, body]),
       sendFile: () => {},
+      // Textos del widget (chat.visitorWidget): acá alcanza con la clave.
+      T: (key: string) => key,
     });
     send('hola');
     await new Promise((r) => setTimeout(r, 0));
     expect(appended).toEqual([]);
     expect(errors).toHaveLength(1);
-    expect(errors[0][1]).toBe('hola');
+    expect(errors[0]).toEqual(['tooMany', 'hola']);
   });
 
   it('sendMessage espera al formulario pre-chat antes de mandar', async () => {

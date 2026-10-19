@@ -1,10 +1,12 @@
 /**
  * Robots — datos (robots, corridas, uso) y orquestación de una corrida:
- * cuota mensual, rate limit, una corrida a la vez por workspace, ejecución
+ * cuota mensual, rate limit, una corrida a la vez por workspace (las demás
+ * esperan en cola: status 'queued', drainRobotQueue), ejecución
  * en el backend (lib/robots-runner.ts), capturas y eventos. Server-only.
  *
  * user_id = workspace (dueño); created_by = persona real.
  */
+import { after } from 'next/server';
 import { getDb, type RobotRow, type RobotRunRow, type RobotRunStatus, type RobotRunTrigger } from './db';
 import { emitEvent } from './events';
 import { computeNextRun, sameJson } from './flow';
@@ -483,20 +485,113 @@ async function storeFiles(files: RobotFile[], vars: Record<string, unknown>): Pr
   }
 }
 
-export type StartRunResult = { ok: true; run: RobotRunDto } | { ok: false; error: RunErrorCode; name?: string };
+export type StartRunResult =
+  | { ok: true; run: RobotRunDto; queued?: boolean }
+  | { ok: false; error: RunErrorCode; name?: string };
 
 export type { RobotFile };
 
+/** Corridas en cola por workspace (más que esto: 'busy'). */
+export function maxQueuedRuns(): number {
+  return envInt('ROBOTS_MAX_QUEUED', 20);
+}
+
+/** Edad máxima de una corrida en cola: pasada, se marca fallida (queue_expired). */
+export function queueMaxAgeMs(): number {
+  return envInt('ROBOTS_QUEUE_MAX_AGE_MIN', 60) * 60_000;
+}
+
+/** Timeout efectivo de la corrida (acotado a lo que queda de la cuota). null = sin cuota. */
+async function effectiveTimeoutMs(workspaceId: string, robot: RobotDto): Promise<number | null> {
+  const limitMin = freeMinutesPerMonth();
+  const timeoutMs = Math.min(Math.max(robot.timeoutSec, 10), MAX_TIMEOUT_SEC) * 1000;
+  if (limitMin === null) return timeoutMs;
+  const left = limitMin * 60_000 - (await usedMs(workspaceId));
+  if (left <= 0) return null;
+  // Una corrida no puede pasarse de lo que queda de la cuota (mínimo 10 s).
+  return Math.max(10_000, Math.min(timeoutMs, left));
+}
+
 /**
- * Corre un robot ahora y espera el resultado (≤ timeout del robot).
- * - manual: lo pide un admin desde la app (corre aunque esté deshabilitado).
- * - flow / schedule: solo si el robot está habilitado.
+ * Pasa una corrida de 'queued' a 'running' si no hay otra viva en el
+ * workspace y es la más vieja de la cola (FIFO). Compare-and-set: de dos que
+ * intentan a la vez, gana una.
+ */
+async function claimQueuedRun(workspaceId: string, runId: string, timeoutMs: number, backend: string): Promise<boolean> {
+  const ts = nowIso();
+  const lock = new Date(Date.now() + timeoutMs + 3 * 60_000).toISOString();
+  const res = await getDb()
+    .prepare(
+      `UPDATE robot_runs SET status = 'running', started_at = ?, locked_until = ?, backend = ?
+       WHERE id = ? AND status = 'queued'
+         AND NOT EXISTS (SELECT 1 FROM robot_runs WHERE user_id = ? AND status = 'running')
+         AND id = (SELECT id FROM robot_runs WHERE user_id = ? AND status = 'queued' ORDER BY created_at, rowid LIMIT 1)`,
+    )
+    .run(ts, lock, backend, runId, workspaceId, workspaceId);
+  return res.changes === 1;
+}
+
+/** Cierra una corrida (en cola o recién reclamada) como fallida y avisa a Flow. */
+async function failRun(
+  robot: Pick<RobotRow, 'id' | 'name' | 'user_id'>,
+  run: Pick<RobotRunRow, 'id' | 'trigger'>,
+  error: string,
+  fromStatus: RobotRunStatus,
+): Promise<boolean> {
+  const ts = nowIso();
+  const res = await getDb()
+    .prepare(
+      `UPDATE robot_runs SET status = 'failed', error = ?, locked_until = NULL, started_at = COALESCE(started_at, ?),
+         finished_at = ?, duration_ms = 0 WHERE id = ? AND status = ?`,
+    )
+    .run(error, ts, ts, run.id, fromStatus);
+  if (res.changes !== 1) return false;
+  await emitEvent(robot.user_id, 'robot.run.failed', {
+    robot: { id: robot.id, name: robot.name },
+    run: { id: run.id, status: 'failed', trigger: run.trigger, durationMs: 0, error },
+    output: {},
+  });
+  return true;
+}
+
+/** Corridas en cola más viejas que queueMaxAgeMs(): fallidas con queue_expired. */
+export async function expireQueuedRobotRuns(workspaceId?: string, now = Date.now()): Promise<number> {
+  const cutoff = new Date(now - queueMaxAgeMs()).toISOString();
+  const rows = (await getDb()
+    .prepare(
+      `SELECT r.id, r.trigger, r.user_id, b.id AS robot_id, b.name AS robot_name FROM robot_runs r JOIN robots b ON b.id = r.robot_id
+       WHERE r.status = 'queued' AND r.created_at < ?${workspaceId ? ' AND r.user_id = ?' : ''} LIMIT 200`,
+    )
+    .all(...(workspaceId ? [cutoff, workspaceId] : [cutoff]))) as Array<{
+    id: string;
+    trigger: RobotRunTrigger;
+    user_id: string;
+    robot_id: string;
+    robot_name: string;
+  }>;
+  let n = 0;
+  for (const r of rows) {
+    if (await failRun({ id: r.robot_id, name: r.robot_name, user_id: r.user_id }, r, 'queue_expired', 'queued')) n++;
+  }
+  return n;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Corre un robot. Si el workspace ya tiene una corrida viva (una a la vez),
+ * la corrida queda en cola ('queued') en vez de fallar:
+ * - sin `waitMs` (manual, schedule): devuelve la corrida en cola; arranca
+ *   cuando termina la actual (drainRobotQueue, también desde el cron).
+ * - con `waitMs` (Flow): espera su turno hasta ese tiempo y devuelve el
+ *   resultado; si no le tocó, sale de la cola y devuelve 'busy'.
+ * manual corre aunque el robot esté deshabilitado; flow / schedule, no.
  */
 export async function startRobotRun(
   workspaceId: string,
   robotId: string,
   values: Record<string, unknown> | undefined,
-  opts: { trigger: RobotRunTrigger; actorId?: string | null },
+  opts: { trigger: RobotRunTrigger; actorId?: string | null; waitMs?: number; pollMs?: number },
 ): Promise<StartRunResult> {
   const row = await getRobotRow(workspaceId, robotId);
   if (!row) return { ok: false, error: 'not_found' };
@@ -510,45 +605,72 @@ export async function startRobotRun(
   const creds = await resolveRobotCredentials(workspaceId, robot.steps);
   if (!creds.ok) return { ok: false, error: 'missing_credential', name: creds.name };
 
-  const limitMin = freeMinutesPerMonth();
-  let timeoutMs = Math.min(Math.max(robot.timeoutSec, 10), MAX_TIMEOUT_SEC) * 1000;
-  if (limitMin !== null) {
-    const left = limitMin * 60_000 - (await usedMs(workspaceId));
-    if (left <= 0) return { ok: false, error: 'quota_exceeded' };
-    // Una corrida no puede pasarse de lo que queda de la cuota (mínimo 10 s).
-    timeoutMs = Math.max(10_000, Math.min(timeoutMs, left));
-  }
+  const timeoutMs = await effectiveTimeoutMs(workspaceId, robot);
+  if (timeoutMs === null) return { ok: false, error: 'quota_exceeded' };
   if (process.env.RATE_LIMIT_DISABLED !== 'true') {
     const rl = await rateLimit(`robot-runs:${workspaceId}`, runsPerHour(), 3600);
     if (!rl.ok) return { ok: false, error: 'rate_limited' };
   }
 
-  // Una corrida a la vez por workspace: se inserta solo si no hay otra viva.
   await failStaleRobotRuns(workspaceId);
-  const id = crypto.randomUUID();
-  const started = nowIso();
-  const lock = new Date(Date.now() + timeoutMs + 3 * 60_000).toISOString();
-  const claim = await getDb()
-    .prepare(
-      `INSERT INTO robot_runs (id, robot_id, user_id, status, trigger, input, backend, created_by, locked_until, created_at, started_at)
-       SELECT ?, ?, ?, 'running', ?, ?, ?, ?, ?, ?, ?
-       WHERE NOT EXISTS (SELECT 1 FROM robot_runs WHERE user_id = ? AND status = 'running')`,
-    )
-    .run(
-      id,
-      robot.id,
-      workspaceId,
-      opts.trigger,
-      JSON.stringify(resolved.inputs).slice(0, 100_000),
-      backend.name,
-      opts.actorId ?? null,
-      lock,
-      started,
-      started,
-      workspaceId,
-    );
-  if (claim.changes !== 1) return { ok: false, error: 'busy' };
+  await expireQueuedRobotRuns(workspaceId);
+  const db = getDb();
+  const depth = (await db
+    .prepare("SELECT COUNT(*) AS n FROM robot_runs WHERE user_id = ? AND status = 'queued'")
+    .get(workspaceId)) as { n: number };
+  if (Number(depth.n) >= maxQueuedRuns()) return { ok: false, error: 'busy' };
 
+  // Entra a la cola y, si no hay otra viva ni otra antes, arranca ya.
+  const id = crypto.randomUUID();
+  await db
+    .prepare(
+      `INSERT INTO robot_runs (id, robot_id, user_id, status, trigger, input, created_by, created_at)
+       VALUES (?, ?, ?, 'queued', ?, ?, ?, ?)`,
+    )
+    .run(id, robot.id, workspaceId, opts.trigger, JSON.stringify(resolved.inputs).slice(0, 100_000), opts.actorId ?? null, nowIso());
+  if (await claimQueuedRun(workspaceId, id, timeoutMs, backend.name)) {
+    return { ok: true, run: await executeClaimedRun(row, id, resolved.inputs, creds, timeoutMs, backend) };
+  }
+
+  const waitMs = Math.max(0, opts.waitMs ?? 0);
+  if (!waitMs) return { ok: true, run: (await getRobotRun(workspaceId, id))!, queued: true };
+
+  // Flow: espera su turno. Si otro proceso (cron, fin de otra corrida) la
+  // reclama, espera a que termine.
+  const pollMs = Math.max(10, opts.pollMs ?? 2000);
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    await sleep(pollMs);
+    const current = (await db.prepare('SELECT * FROM robot_runs WHERE id = ?').get(id)) as RobotRunRow | undefined;
+    if (!current) return { ok: false, error: 'not_found' };
+    if (current.status === 'success' || current.status === 'failed') return { ok: true, run: toRunDto(current) };
+    if (current.status === 'queued') {
+      if (await claimQueuedRun(workspaceId, id, timeoutMs, backend.name)) {
+        return { ok: true, run: await executeClaimedRun(row, id, resolved.inputs, creds, timeoutMs, backend) };
+      }
+      if (Date.now() >= deadline) {
+        // Sale de la cola: el nodo reintenta (o falla) como busy.
+        const res = await db.prepare("DELETE FROM robot_runs WHERE id = ? AND status = 'queued'").run(id);
+        if (res.changes === 1) return { ok: false, error: 'busy' };
+      }
+    } else if (Date.now() >= deadline + timeoutMs + 3 * 60_000) {
+      // La reclamó otro proceso y no terminó: failStaleRobotRuns la cerrará.
+      return { ok: false, error: 'busy' };
+    }
+  }
+}
+
+/** Ejecuta una corrida ya reclamada ('running') y guarda el resultado. */
+async function executeClaimedRun(
+  row: RobotRow,
+  id: string,
+  inputs: Record<string, unknown>,
+  creds: { credentials: Record<string, Record<string, string>>; secrets: string[] },
+  timeoutMs: number,
+  backend: NonNullable<ReturnType<typeof getRobotBackend>>,
+): Promise<RobotRunDto> {
+  const workspaceId = row.user_id;
+  const robot = toRobotDto(row);
   const t0 = Date.now();
   const persist = row.persist_session === 1;
   let result: Awaited<ReturnType<typeof backend.run>>;
@@ -556,7 +678,7 @@ export async function startRobotRun(
     result = await backend.run({
       robotName: robot.name,
       steps: robot.steps,
-      inputs: resolved.inputs,
+      inputs,
       timeoutMs,
       credentials: creds.credentials,
       storageState: persist ? await loadSession(workspaceId, robot.id) : undefined,
@@ -612,7 +734,86 @@ export async function startRobotRun(
     run: { id: run.id, status: run.status, trigger: run.trigger, durationMs: run.durationMs, error: run.error },
     output: run.output,
   });
-  return { ok: true, run };
+  kickRobotQueue(workspaceId);
+  return run;
+}
+
+/**
+ * Al terminar una corrida, arranca la siguiente de la cola del workspace en
+ * segundo plano (after). Si la función se corta, la levanta el cron.
+ */
+function kickRobotQueue(workspaceId: string): void {
+  if (process.env.ROBOTS_QUEUE_KICK === 'false' || process.env.VITEST) return;
+  const job = async () => {
+    await drainRobotQueue({ workspaceId, budgetMs: 240_000 });
+  };
+  try {
+    after(job);
+  } catch {
+    void job().catch(() => {});
+  }
+}
+
+/** Arranca una corrida de la cola (si le toca): chequeos de nuevo y ejecución. */
+async function startQueuedRun(run: RobotRunRow): Promise<boolean> {
+  const row = await getRobotRow(run.user_id, run.robot_id);
+  if (!row) return false;
+  const backend = getRobotBackend();
+  if (!backend) return false;
+  if (run.trigger !== 'manual' && row.enabled !== 1) return failRun(row, run, 'disabled', 'queued');
+  const robot = toRobotDto(row);
+  const timeoutMs = await effectiveTimeoutMs(run.user_id, robot);
+  if (timeoutMs === null) return failRun(row, run, 'quota_exceeded', 'queued');
+  if (!(await claimQueuedRun(run.user_id, run.id, timeoutMs, backend.name))) return false;
+  const creds = await resolveRobotCredentials(run.user_id, robot.steps);
+  if (!creds.ok) {
+    await failRun(row, run, 'missing_credential', 'running');
+    return true;
+  }
+  await executeClaimedRun(row, run.id, parseJson<Record<string, unknown>>(run.input, {}), creds, timeoutMs, backend);
+  return true;
+}
+
+/**
+ * Vacía la cola: por cada workspace sin corrida viva arranca la más vieja en
+ * cola, en paralelo (hasta `concurrency` workspaces) y en pasadas sucesivas
+ * mientras quede tiempo. Devuelve las corridas arrancadas.
+ */
+export async function drainRobotQueue(
+  opts: { workspaceId?: string; budgetMs?: number; concurrency?: number } = {},
+): Promise<number> {
+  if (!getRobotBackend()) return 0;
+  const budgetMs = opts.budgetMs ?? 240_000;
+  const concurrency = opts.concurrency ?? cronConcurrency();
+  const ws = opts.workspaceId;
+  await failStaleRobotRuns(ws);
+  await expireQueuedRobotRuns(ws);
+  const t0 = Date.now();
+  let ran = 0;
+  for (let pass = 0; pass < 50; pass++) {
+    const rows = (await getDb()
+      .prepare(
+        `SELECT r.* FROM robot_runs r
+         WHERE r.status = 'queued'${ws ? ' AND r.user_id = ?' : ''}
+           AND NOT EXISTS (SELECT 1 FROM robot_runs x WHERE x.user_id = r.user_id AND x.status = 'running')
+         ORDER BY r.created_at, r.rowid LIMIT 500`,
+      )
+      .all(...(ws ? [ws] : []))) as RobotRunRow[];
+    const batch: RobotRunRow[] = [];
+    const seen = new Set<string>();
+    for (const r of rows) {
+      if (batch.length >= concurrency) break;
+      if (seen.has(r.user_id)) continue;
+      seen.add(r.user_id);
+      batch.push(r);
+    }
+    if (!batch.length) break;
+    const results = await Promise.all(batch.map((r) => startQueuedRun(r).catch(() => false)));
+    const started = results.filter(Boolean).length;
+    ran += started;
+    if (!started || Date.now() - t0 + MAX_TIMEOUT_SEC * 1000 > budgetMs) break;
+  }
+  return ran;
 }
 
 /** Robots programados que corren a la vez en una pasada del cron (uno por workspace). */
@@ -638,7 +839,9 @@ export async function runDueRobots(now: Date = new Date(), limit = 100, budgetMs
   if (budgetMs < 60_000) return 0;
   const concurrency = cronConcurrency();
   const t0 = Date.now();
-  let ran = 0;
+  // Primero la cola (corridas que esperaban turno), después los schedules.
+  let ran = await drainRobotQueue({ budgetMs, concurrency });
+  if (budgetMs - (Date.now() - t0) < 60_000) return ran;
   let attempted = 0;
   while (attempted < limit) {
     const rows = (await getDb()
@@ -675,11 +878,14 @@ export async function runDueRobots(now: Date = new Date(), limit = 100, budgetMs
     attempted += batch.length;
     ran += results.filter(Boolean).length;
   }
+  // Los schedules que chocaron con otra corrida del workspace quedaron en cola.
+  const left = budgetMs - (Date.now() - t0);
+  if (left >= 60_000) ran += await drainRobotQueue({ budgetMs: left, concurrency });
   return ran;
 }
 
 /**
- * Una corrida programada que no pudo arrancar (ocupado, sin cuota, rate limit,
+ * Una corrida programada que no pudo arrancar (cola llena, sin cuota, rate limit,
  * credencial faltante…) queda en el historial como fallida con el código y
  * emite robot.run.failed: no se pierde en silencio.
  */

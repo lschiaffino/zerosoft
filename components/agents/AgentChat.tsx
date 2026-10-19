@@ -15,7 +15,8 @@ export interface ChatToolCall {
 
 export interface ChatTurn {
   key: string;
-  role: 'user' | 'assistant';
+  /** teammate: respuesta de una persona del equipo después de derivar. */
+  role: 'user' | 'assistant' | 'teammate';
   text: string;
   tools: ChatToolCall[];
   pending?: boolean;
@@ -35,6 +36,10 @@ export interface AgentChatLabels {
   output: string;
   toolError: string;
   running: string;
+  /** Aviso fijo cuando la conversación ya está con una persona del equipo. */
+  handedOffNotice?: string;
+  /** Etiqueta de las respuestas de una persona del equipo. */
+  teammate?: string;
   /** Mensaje para un código de error (agents.errors.*). */
   error: (code: string) => string;
   toolName: (tool: string) => string;
@@ -54,7 +59,20 @@ interface Props {
   /** Avisa el id de conversación (playground → refrescar historial). */
   onConversation?: (id: string | null) => void;
   variant?: 'panel' | 'page';
+  /**
+   * URL del historial de la conversación (página pública). Con ella el chat
+   * recupera la conversación guardada y, si está derivada, consulta cada
+   * pocos segundos las respuestas del equipo.
+   */
+  historyUrl?: (conversationId: string) => string;
 }
+
+interface HistoryResponse {
+  handedOff: boolean;
+  messages: Array<{ id: string; role: 'user' | 'assistant' | 'teammate'; content: string }>;
+}
+
+const POLL_MS = 5000;
 
 function storageGet(key: string): string | null {
   try {
@@ -95,18 +113,50 @@ export default function AgentChat({
   disabledReason,
   onConversation,
   variant = 'panel',
+  historyUrl,
 }: Props) {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [handedOff, setHandedOff] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const busyRef = useRef(false);
+  const historyRef = useRef(historyUrl);
+  historyRef.current = historyUrl;
 
   useEffect(() => {
     if (storageKey) setConversationId(storageGet(storageKey));
     return () => abortRef.current?.abort();
   }, [storageKey]);
+
+  // Historial del servidor (fuente de verdad): al volver a la página y, con
+  // la conversación derivada, cada POLL_MS para traer las respuestas del equipo.
+  async function loadHistory(id: string): Promise<void> {
+    const url = historyRef.current?.(id);
+    if (!url || busyRef.current) return;
+    const res = await fetch(url, { cache: 'no-store' }).catch(() => null);
+    if (!res?.ok) return;
+    const data = (await res.json().catch(() => null)) as HistoryResponse | null;
+    if (!data || busyRef.current) return;
+    setHandedOff(data.handedOff);
+    setTurns(data.messages.map((m) => ({ key: m.id, role: m.role, text: m.content, tools: [] })));
+  }
+
+  const canLoad = Boolean(historyUrl);
+  useEffect(() => {
+    if (conversationId && canLoad) void loadHistory(conversationId);
+    // Solo al recuperar la conversación guardada (no en cada mensaje).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canLoad, storageKey, conversationId === null]);
+
+  useEffect(() => {
+    if (!handedOff || !conversationId || !canLoad) return;
+    const timer = window.setInterval(() => void loadHistory(conversationId), POLL_MS);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handedOff, conversationId, canLoad]);
 
   useEffect(() => {
     const el = listRef.current;
@@ -144,6 +194,15 @@ export default function AgentChat({
         }));
         break;
       case 'done':
+        if (e.handoff) setHandedOff(true);
+        if (e.status === 'handed_off') {
+          // Ya está con una persona: no hay respuesta del agente que mostrar.
+          setTurns((list) => {
+            const last = list[list.length - 1];
+            return last && last.role === 'assistant' && !last.text ? list.slice(0, -1) : list;
+          });
+          break;
+        }
         patchLast((t) => ({ ...t, text: e.text || t.text, pending: false, status: e.status, handoff: e.handoff }));
         break;
       case 'error':
@@ -156,6 +215,7 @@ export default function AgentChat({
     const message = text.trim();
     if (!message || busy || disabledReason) return;
     setBusy(true);
+    busyRef.current = true;
     setDraft('');
     const stamp = Date.now();
     setTurns((list) => [
@@ -203,6 +263,7 @@ export default function AgentChat({
       if ((err as Error)?.name !== 'AbortError') handle({ type: 'error', code: 'network' });
     } finally {
       setBusy(false);
+      busyRef.current = false;
       abortRef.current = null;
     }
   }
@@ -210,6 +271,7 @@ export default function AgentChat({
   function reset() {
     abortRef.current?.abort();
     setTurns([]);
+    setHandedOff(false);
     setConversationId(null);
     if (storageKey) storageSet(storageKey, null);
     onConversation?.(null);
@@ -236,7 +298,8 @@ export default function AgentChat({
           </div>
         )}
         {turns.map((t) => (
-          <div key={t.key} className={`ag-msg is-${t.role}`}>
+          <div key={t.key} className={`ag-msg is-${t.role === 'teammate' ? 'assistant' : t.role}`}>
+            {t.role === 'teammate' && labels.teammate && <p className="ag-msg-author label">{labels.teammate}</p>}
             {showTools && t.tools.length > 0 && (
               <ToolCalls
                 calls={t.tools}
@@ -257,6 +320,11 @@ export default function AgentChat({
           </div>
         ))}
       </div>
+      {handedOff && labels.handedOffNotice && (
+        <p className="ag-chat-handed ui-help" role="status">
+          {labels.handedOffNotice}
+        </p>
+      )}
       {disabledReason ? (
         <p className="ag-chat-disabled">{disabledReason}</p>
       ) : (

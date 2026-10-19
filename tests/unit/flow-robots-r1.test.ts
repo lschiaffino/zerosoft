@@ -297,7 +297,7 @@ describe('Robots: timeout, schedule y sandbox', () => {
     expect(res.ok && res.robot.timeoutSec).toBe(MAX_TIMEOUT_SEC);
   });
 
-  it('una corrida programada que no puede arrancar queda registrada como fallida', async () => {
+  it('una corrida programada que choca con otra queda en cola y arranca cuando termina la otra', async () => {
     const ws = (await makeUser('rbskip')).id;
     const id = await robotFor(ws, { schedule: { mode: 'interval', every: 1, unit: 'hours', time: '09:00', timezone: 'UTC' } });
     await getDb().prepare('UPDATE robots SET next_run_at = ? WHERE id = ?').run(new Date(Date.now() - 1000).toISOString(), id);
@@ -310,8 +310,11 @@ describe('Robots: timeout, schedule y sandbox', () => {
       .run(crypto.randomUUID(), id, ws, new Date(Date.now() + 600_000).toISOString(), new Date().toISOString(), new Date().toISOString());
     setRobotBackendForTests(stubBackend());
     await runDueRobots(new Date());
-    const runs = await listRobotRuns(ws, id);
-    expect(runs.find((r) => r.trigger === 'schedule')).toMatchObject({ status: 'failed', error: 'busy' });
+    expect((await listRobotRuns(ws, id)).find((r) => r.trigger === 'schedule')).toMatchObject({ status: 'queued', error: null });
+    // Termina la otra: el próximo tick del cron la arranca (no se pierde).
+    await getDb().prepare("UPDATE robot_runs SET status = 'success' WHERE user_id = ? AND status = 'running'").run(ws);
+    await runDueRobots(new Date());
+    expect((await listRobotRuns(ws, id)).find((r) => r.trigger === 'schedule')).toMatchObject({ status: 'success' });
   });
 
   it('el filtro de IPs privadas reconoce IPv4 embebidas en hex (como las normaliza new URL)', () => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import {
   AGENT_MAX_URLS,
@@ -65,6 +65,7 @@ const lines = (raw: string) =>
 export default function AgentEditor(props: Props) {
   const { canEdit, aiEnabled, origin } = props;
   const t = useTranslations('agents');
+  const format = useFormatter();
   const router = useRouter();
   const [agent, setAgent] = useState(props.agent);
   const [draft, setDraft] = useState<Draft>(() => toDraft(props.agent));
@@ -834,6 +835,14 @@ export default function AgentEditor(props: Props) {
                               : status === 'error'
                                 ? t('knowledge.failed', { error: row?.error ?? '' })
                                 : t('knowledge.pending')}
+                            {row?.fetchedAt && (
+                              <>
+                                {' · '}
+                                <time dateTime={row.fetchedAt} suppressHydrationWarning>
+                                  {t('knowledge.syncedAt', { when: format.relativeTime(new Date(row.fetchedAt)) })}
+                                </time>
+                              </>
+                            )}
                           </span>
                         </div>
                         <span className={`badge${status === 'ok' ? ' badge-ok' : status === 'error' ? ' badge-bad' : ''}`}>

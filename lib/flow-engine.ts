@@ -411,6 +411,17 @@ async function aiNode(ws: string, cfg: Record<string, unknown>, tctx: Record<str
   }
 }
 
+/** Cuánto espera el nodo Robot su turno si otra corrida ocupa el workspace. */
+function robotWaitMs(): number {
+  const n = Number(process.env.ROBOTS_FLOW_WAIT_SEC);
+  return (Number.isFinite(n) && n >= 0 ? Math.floor(n) : 90) * 1000;
+}
+
+function robotPollMs(): number {
+  const n = Number(process.env.ROBOTS_FLOW_POLL_MS);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 2000;
+}
+
 /**
  * Corre un robot y espera el resultado (sincrónico, con el timeout del robot).
  * Las corridas de Flow ya van en segundo plano (worker), así que esperar
@@ -427,12 +438,14 @@ async function robotNode(state: RunState, cfg: Record<string, unknown>, tctx: Re
     if (k && k !== '__proto__' && k !== 'constructor' && k !== 'prototype') inputs[k] = renderValue(f?.value ?? '', tctx);
   }
   const { startRobotRun } = await import('./robots');
+  // Si hay otra corrida del workspace, espera su turno en la cola (no falla como busy).
+  const waitMs = robotWaitMs();
   await getDb()
     .prepare('UPDATE flow_runs SET locked_until = ? WHERE id = ?')
-    .run(new Date(Date.now() + 10 * 60_000).toISOString(), state.run.id);
-  const res = await startRobotRun(ws, robotId, inputs, { trigger: 'flow' });
+    .run(new Date(Date.now() + waitMs + 10 * 60_000).toISOString(), state.run.id);
+  const res = await startRobotRun(ws, robotId, inputs, { trigger: 'flow', waitMs, pollMs: robotPollMs() });
   if (!res.ok) {
-    // Ocupado o con rate limit: reintentable con los reintentos del nodo.
+    // Cola llena, sin turno a tiempo o rate limit: reintentable con los reintentos del nodo.
     throw new StepError(`robot_${res.error}`, res.error === 'busy' || res.error === 'rate_limited');
   }
   const output = {

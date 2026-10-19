@@ -73,7 +73,15 @@
     "hoursTitle": "Horario de atención",
     "deleteConfirmTitle": "¿Borrar {name}?",
     "deleteConfirmBody": "{count, plural, =0 {El widget no tiene conversaciones.} one {Se borra # conversación con todo su historial.} other {Se borran # conversaciones con todo su historial.}} El chat deja de aparecer en tu sitio. No se puede deshacer.",
-    "deleteConfirmAction": "Borrar widget"
+    "deleteConfirmAction": "Borrar widget",
+    "locale": "Idioma del widget",
+    "localeHint": "Automático usa el idioma de la página donde está el widget y, si no hay, el del navegador del visitante.",
+    "locales": {
+      "auto": "Automático",
+      "en": "Inglés",
+      "es": "Español",
+      "pt": "Portugués"
+    }
   },
   "embed": {
     "title": "Código de instalación",
@@ -108,7 +116,7 @@
       "mine": "Mías",
       "anyone": "De cualquiera"
     },
-    "search": "Buscar visitantes o asuntos…",
+    "search": "Buscar personas, asuntos o mensajes…",
     "empty": "Ninguna conversación coincide con tus filtros.",
     "loadMore": "Cargar más",
     "unread": "No leída",
@@ -462,5 +470,40 @@
     "alwaysOn": "Siempre en línea",
     "created": "Creado",
     "openInbox": "{count, plural, =0 {Abrir bandeja} one {# abierta en la bandeja} other {{formatted} abiertas en la bandeja}}"
+  },
+  "visitorWidget": {
+    "defaultWelcome": "Hola. ¿En qué te podemos ayudar?",
+    "openChat": "Abrir chat",
+    "closeChat": "Cerrar chat",
+    "close": "Cerrar",
+    "chat": "Chat",
+    "help": "Ayuda",
+    "csatQuestion": "¿Cómo calificarías tu experiencia?",
+    "csatComment": "¿Algo más para contarnos? (opcional)",
+    "csatSend": "Enviar opinión",
+    "csatThanks": "¡Gracias por tu opinión!",
+    "stars": "{n} estrellas",
+    "removeFile": "Quitar archivo",
+    "attachFile": "Adjuntar archivo",
+    "placeholder": "Escribí un mensaje…",
+    "message": "Mensaje",
+    "send": "Enviar",
+    "searchArticles": "Buscar artículos…",
+    "searchArticlesLabel": "Buscar artículos",
+    "untitled": "Sin título",
+    "noArticlesFound": "No encontramos artículos.",
+    "noArticles": "Todavía no hay artículos.",
+    "helpCenter": "Ir al centro de ayuda",
+    "read": "Leído",
+    "away": "Ahora no estamos disponibles.",
+    "backAt": "Volvemos el {when}.",
+    "startChat": "Iniciar chat",
+    "fileTooLarge": "Archivo demasiado grande (máx. 10 MB)",
+    "tooMany": "Demasiados mensajes. Esperá un momento y probá de nuevo.",
+    "tooLong": "Mensaje demasiado largo (máx. {max} caracteres)",
+    "sendFailed": "No pudimos enviar tu mensaje. Probá de nuevo.",
+    "fileType": "Este tipo de archivo no está permitido",
+    "fileFailed": "No pudimos enviar el archivo. Probá de nuevo.",
+    "suggestions": "Estos artículos te pueden ayudar:"
   }
 }

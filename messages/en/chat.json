@@ -73,7 +73,15 @@
     "hoursTitle": "Opening hours",
     "deleteConfirmTitle": "Delete {name}?",
     "deleteConfirmBody": "{count, plural, =0 {The widget has no conversations.} one {# conversation is deleted with its full history.} other {# conversations are deleted with their full history.}} The chat stops showing on your site. This cannot be undone.",
-    "deleteConfirmAction": "Delete widget"
+    "deleteConfirmAction": "Delete widget",
+    "locale": "Widget language",
+    "localeHint": "Automatic uses the language of the page the widget is on, then the visitor's browser.",
+    "locales": {
+      "auto": "Automatic",
+      "en": "English",
+      "es": "Spanish",
+      "pt": "Portuguese"
+    }
   },
   "embed": {
     "title": "Install code",
@@ -108,7 +116,7 @@
       "mine": "Mine",
       "anyone": "Anyone"
     },
-    "search": "Search visitors or subjects…",
+    "search": "Search people, subjects or messages…",
     "empty": "No conversations match your filters.",
     "loadMore": "Load more",
     "unread": "Unread",
@@ -462,5 +470,40 @@
     "alwaysOn": "Always online",
     "created": "Created",
     "openInbox": "{count, plural, =0 {Open inbox} one {# open in inbox} other {{formatted} open in inbox}}"
+  },
+  "visitorWidget": {
+    "defaultWelcome": "Hi there. How can we help?",
+    "openChat": "Open chat",
+    "closeChat": "Close chat",
+    "close": "Close",
+    "chat": "Chat",
+    "help": "Help",
+    "csatQuestion": "How would you rate your experience?",
+    "csatComment": "Anything to add? (optional)",
+    "csatSend": "Send feedback",
+    "csatThanks": "Thanks for your feedback!",
+    "stars": "{n} stars",
+    "removeFile": "Remove file",
+    "attachFile": "Attach file",
+    "placeholder": "Type a message…",
+    "message": "Message",
+    "send": "Send",
+    "searchArticles": "Search articles…",
+    "searchArticlesLabel": "Search articles",
+    "untitled": "Untitled",
+    "noArticlesFound": "No articles found.",
+    "noArticles": "No articles yet.",
+    "helpCenter": "Visit help center",
+    "read": "Read",
+    "away": "We're away right now.",
+    "backAt": "Back {when}.",
+    "startChat": "Start chat",
+    "fileTooLarge": "File too large (max 10 MB)",
+    "tooMany": "Too many messages. Wait a moment and try again.",
+    "tooLong": "Message too long (max {max} characters)",
+    "sendFailed": "Could not send your message. Try again.",
+    "fileType": "This file type is not allowed",
+    "fileFailed": "Could not send the file. Try again.",
+    "suggestions": "These articles might help:"
   }
 }

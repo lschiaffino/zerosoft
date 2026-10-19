@@ -134,6 +134,7 @@ function RunDetail({ run }: { run: RobotRunDto }) {
         </span>
         <span>{t(`trigger.${run.trigger}`)}</span>
       </div>
+      {run.status === 'queued' && <p className="ui-help">{t('queuedNotice')}</p>}
       {run.error && (
         <div className="robots-run-error" role="alert">
           <strong>{t('error')}</strong>

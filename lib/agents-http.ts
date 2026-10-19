@@ -43,8 +43,9 @@ export function runErrorCode(err: unknown): { code: string; status: number } {
 export function streamAgentReply(
   opts: Omit<SendAgentMessageOptions, 'onEvent' | 'stream'>,
 ): Response {
-  // Sin AI no hay stream: el cliente muestra el error directamente.
-  if (!aiEnabled()) return agentError(503, 'ai_disabled');
+  // Sin AI no hay stream (salvo en una conversación existente, que puede estar
+  // derivada a una persona: sendAgentMessage decide).
+  if (!aiEnabled() && !opts.conversationId) return agentError(503, 'ai_disabled');
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {

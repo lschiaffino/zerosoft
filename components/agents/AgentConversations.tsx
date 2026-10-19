@@ -55,6 +55,9 @@ export default function AgentConversations({
   const [error, setError] = useState<string | null>(null);
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
+  const [reply, setReply] = useState('');
+  const [replying, setReplying] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
   // Los cambios de feedback se mandan en orden (pulgar y después la nota).
   const queue = useRef<Promise<unknown>>(Promise.resolve());
 
@@ -143,6 +146,24 @@ export default function AgentConversations({
         }
       />
     );
+  }
+
+  async function sendReply() {
+    if (!detail || replying || !reply.trim()) return;
+    setReplying(true);
+    setReplyError(null);
+    const res = await api<{ message?: AgentMessageDto }>(`/api/agents/${agentId}/conversations/${detail.conversation.id}`, {
+      method: 'POST',
+      body: JSON.stringify({ message: reply }),
+    });
+    setReplying(false);
+    if (!res.ok || !res.data.message) {
+      setReplyError(errorText(t, res.data.error));
+      return;
+    }
+    const message = res.data.message;
+    setReply('');
+    setDetail((d) => (d ? { ...d, conversation: { ...d.conversation, handedOff: true }, messages: [...d.messages, message] } : d));
   }
 
   return (
@@ -240,9 +261,10 @@ export default function AgentConversations({
             <div className="ag-transcript">
               {detail.messages.map((m) => (
                 <div key={m.id} className={`ag-msg is-${m.role}`}>
+                  {m.teammate && <p className="ag-msg-author label">{t('chat.teammate')}</p>}
                   {m.runId && callsByRun.get(m.runId) && <ToolCalls calls={callsByRun.get(m.runId)!} labels={toolLabels} />}
                   <p className="ag-msg-text">{m.content}</p>
-                  {m.role === 'assistant' && (
+                  {m.role === 'assistant' && !m.teammate && (
                     <div className="ag-rate">
                       <button
                         type="button"
@@ -302,6 +324,41 @@ export default function AgentConversations({
                 </div>
               ))}
             </div>
+            {(detail.conversation.channel === 'public' || detail.conversation.channel === 'api') && (
+              <form
+                className="ag-reply ag-pad"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void sendReply();
+                }}
+              >
+                <label className="label" htmlFor="ag-reply-text">
+                  {t('conversations.replyLabel')}
+                </label>
+                <textarea
+                  id="ag-reply-text"
+                  className="textarea"
+                  rows={3}
+                  maxLength={4000}
+                  value={reply}
+                  placeholder={t('conversations.replyPlaceholder')}
+                  onChange={(e) => setReply(e.target.value)}
+                />
+                <p className="ui-help">
+                  {detail.conversation.channel === 'public' ? t('conversations.replyHintPublic') : t('conversations.replyHintApi')}
+                </p>
+                {replyError && (
+                  <p className="ui-error" role="alert">
+                    {replyError}
+                  </p>
+                )}
+                <div className="ag-reply-actions">
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={!reply.trim()} aria-busy={replying || undefined}>
+                    {t('conversations.replySend')}
+                  </button>
+                </div>
+              </form>
+            )}
             {unmatched.length > 0 && (
               <div className="ag-calllog">
                 <h4 className="label">{t('conversations.toolLog')}</h4>

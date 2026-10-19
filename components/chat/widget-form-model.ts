@@ -25,6 +25,7 @@ export interface WidgetFormValues {
   botGreeting: string;
   botSource: 'canned' | 'docs' | 'ai' | 'agent';
   helpEnabled: boolean;
+  locale: 'auto' | 'en' | 'es' | 'pt';
 }
 
 export interface OfficeHoursState {
@@ -55,6 +56,7 @@ export function initialValues(w: ChatWidgetRow): WidgetFormValues {
     botGreeting: w.bot_greeting ?? '',
     botSource: w.bot_source ?? 'canned',
     helpEnabled: w.help_enabled === 1,
+    locale: w.locale ?? 'auto',
   };
 }
 
@@ -143,5 +145,6 @@ export function buildWidgetPayload(values: WidgetFormValues, fields: WidgetFormF
     botSource: values.botSource,
     officeHours: office.enabled ? { timezone: office.timezone.trim() || 'UTC', days: office.days } : null,
     helpEnabled: values.helpEnabled,
+    locale: values.locale,
   };
 }

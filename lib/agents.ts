@@ -446,43 +446,80 @@ export function htmlToText(html: string): { title: string; text: string } {
 const URL_MAX_BYTES = 1_000_000;
 const URL_MAX_CHARS = 60_000;
 
-/** Descarga (safeFetch: sin SSRF) y guarda el texto de cada URL del agente. */
-export async function refreshKnowledgeUrls(workspaceId: string, agentId: string): Promise<AgentKnowledgeUrlDto[]> {
+type KnowledgeUrlRef = { id: string; url: string };
+
+/** Descarga (safeFetch: sin SSRF) una URL de conocimiento y guarda su texto o el error. */
+async function fetchKnowledgeRow(row: KnowledgeUrlRef): Promise<void> {
+  const db = getDb();
+  try {
+    const res = await safeFetch(row.url, { headers: { 'user-agent': 'Zerosoft-Agents/1', accept: 'text/html,text/plain' } }, 10_000);
+    if (!res.ok) throw new Error(res.status >= 300 && res.status < 400 ? 'redirect_not_followed' : `http_${res.status}`);
+    const type = res.headers.get('content-type') ?? '';
+    if (type && !/text\/|html|xml|json/.test(type)) throw new Error('unsupported_type');
+    const raw = (await res.text()).slice(0, URL_MAX_BYTES);
+    const { title, text } = /html|xml/.test(type) || /<html|<body/i.test(raw) ? htmlToText(raw) : { title: '', text: raw.trim() };
+    if (!text) throw new Error('empty');
+    await db
+      .prepare("UPDATE agent_knowledge_urls SET title = ?, content = ?, status = 'ok', error = NULL, fetched_at = ? WHERE id = ?")
+      .run(title || new URL(row.url).hostname, text.slice(0, URL_MAX_CHARS), nowIso(), row.id);
+  } catch (err) {
+    const code =
+      err instanceof UnsafeUrlError
+        ? err.message
+        : err instanceof Error && err.name === 'TimeoutError'
+          ? 'timeout'
+          : err instanceof Error
+            ? err.message.slice(0, 60)
+            : 'fetch_failed';
+    // Si ya tenía contenido, lo conserva (el agente sigue usando la última versión buena).
+    await db
+      .prepare("UPDATE agent_knowledge_urls SET status = 'error', error = ?, fetched_at = ? WHERE id = ?")
+      .run(code, nowIso(), row.id);
+  }
+}
+
+/**
+ * Descarga las URLs de conocimiento del agente. `onlyPending`: solo las que
+ * nunca se descargaron (al guardar URLs nuevas, para que el agente las use ya).
+ */
+export async function refreshKnowledgeUrls(
+  workspaceId: string,
+  agentId: string,
+  opts: { onlyPending?: boolean } = {},
+): Promise<AgentKnowledgeUrlDto[]> {
   const agent = await getAgentRow(workspaceId, agentId);
   if (!agent) return [];
-  const db = getDb();
-  const rows = (await db
-    .prepare('SELECT id, url FROM agent_knowledge_urls WHERE agent_id = ?')
-    .all(agentId)) as Array<{ id: string; url: string }>;
-  await Promise.all(
-    rows.map(async (row) => {
-      try {
-        const res = await safeFetch(row.url, { headers: { 'user-agent': 'Zerosoft-Agents/1', accept: 'text/html,text/plain' } }, 10_000);
-        if (!res.ok) throw new Error(res.status >= 300 && res.status < 400 ? 'redirect_not_followed' : `http_${res.status}`);
-        const type = res.headers.get('content-type') ?? '';
-        if (type && !/text\/|html|xml|json/.test(type)) throw new Error('unsupported_type');
-        const raw = (await res.text()).slice(0, URL_MAX_BYTES);
-        const { title, text } = /html|xml/.test(type) || /<html|<body/i.test(raw) ? htmlToText(raw) : { title: '', text: raw.trim() };
-        if (!text) throw new Error('empty');
-        await db
-          .prepare("UPDATE agent_knowledge_urls SET title = ?, content = ?, status = 'ok', error = NULL, fetched_at = ? WHERE id = ?")
-          .run(title || new URL(row.url).hostname, text.slice(0, URL_MAX_CHARS), nowIso(), row.id);
-      } catch (err) {
-        const code =
-          err instanceof UnsafeUrlError
-            ? err.message
-            : err instanceof Error && err.name === 'TimeoutError'
-              ? 'timeout'
-              : err instanceof Error
-                ? err.message.slice(0, 60)
-                : 'fetch_failed';
-        await db
-          .prepare("UPDATE agent_knowledge_urls SET status = 'error', error = ?, fetched_at = ? WHERE id = ?")
-          .run(code, nowIso(), row.id);
-      }
-    }),
-  );
+  const rows = (await getDb()
+    .prepare(
+      `SELECT id, url FROM agent_knowledge_urls WHERE agent_id = ?${opts.onlyPending ? " AND status = 'pending'" : ''}`,
+    )
+    .all(agentId)) as KnowledgeUrlRef[];
+  await Promise.all(rows.map(fetchKnowledgeRow));
   return listKnowledgeUrls(agentId);
+}
+
+/** Antigüedad máxima del contenido de una URL antes de re-descargarla (cron). */
+export const KNOWLEDGE_RESYNC_MS = 24 * 3_600_000;
+
+/**
+ * Cron: re-descarga las URLs de conocimiento pendientes o con más de 24 h,
+ * las más viejas primero, de a pocas por tick (`limit`). Devuelve cuántas.
+ */
+export async function resyncStaleKnowledgeUrls(opts: { now?: Date; limit?: number; concurrency?: number } = {}): Promise<number> {
+  const now = opts.now ?? new Date();
+  const cutoff = new Date(now.getTime() - KNOWLEDGE_RESYNC_MS).toISOString();
+  const rows = (await getDb()
+    .prepare(
+      `SELECT k.id, k.url FROM agent_knowledge_urls k JOIN agents a ON a.id = k.agent_id
+       WHERE k.status = 'pending' OR k.fetched_at IS NULL OR k.fetched_at < ?
+       ORDER BY COALESCE(k.fetched_at, '') ASC LIMIT ?`,
+    )
+    .all(cutoff, Math.min(Math.max(opts.limit ?? 30, 1), 500))) as KnowledgeUrlRef[];
+  const concurrency = Math.max(1, opts.concurrency ?? 5);
+  for (let i = 0; i < rows.length; i += concurrency) {
+    await Promise.all(rows.slice(i, i + concurrency).map(fetchKnowledgeRow));
+  }
+  return rows.length;
 }
 
 // ---------- Conversaciones ----------
@@ -608,7 +645,14 @@ export async function getConversationDetail(
     const rows = (await db
       .prepare('SELECT * FROM agent_messages WHERE conversation_id = ? ORDER BY created_at, rowid')
       .all(conv.id)) as AgentMessageRow[];
-    messages = rows.map((r) => ({ id: r.id, role: r.role, content: r.content, runId: r.run_id, createdAt: r.created_at }));
+    messages = rows.map((r) => ({
+      id: r.id,
+      role: r.role,
+      content: r.content,
+      runId: r.run_id,
+      createdAt: r.created_at,
+      ...(r.author_id ? { teammate: true } : {}),
+    }));
   }
   for (const m of messages) {
     const f = fb.get(m.id);
@@ -626,11 +670,12 @@ async function addMessage(
   role: AgentMessageRow['role'],
   content: string,
   runId: string | null = null,
+  authorId: string | null = null,
 ): Promise<AgentMessageRow> {
   const id = crypto.randomUUID();
   await getDb()
-    .prepare('INSERT INTO agent_messages (id, conversation_id, role, content, run_id, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(id, conversationId, role, content, runId, nowIso());
+    .prepare('INSERT INTO agent_messages (id, conversation_id, role, content, run_id, author_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(id, conversationId, role, content, runId, authorId, nowIso());
   return (await getDb().prepare('SELECT * FROM agent_messages WHERE id = ?').get(id)) as AgentMessageRow;
 }
 
@@ -639,6 +684,73 @@ async function touchConversation(conv: AgentConversationRow, firstUserText?: str
   await getDb()
     .prepare('UPDATE agent_conversations SET updated_at = ?, title = ? WHERE id = ?')
     .run(nowIso(), title, conv.id);
+}
+
+/** Canales donde una persona del equipo responde desde la pestaña Conversaciones. */
+const TEAMMATE_CHANNELS: AgentChannel[] = ['public', 'api'];
+
+/**
+ * Respuesta de una persona del equipo en una conversación de la página
+ * pública o la API (en Chat se responde desde el inbox). La conversación
+ * queda derivada: el agente deja de contestar ahí. El visitante la ve en la
+ * página pública (polling de listVisitorMessages).
+ */
+export async function addTeammateReply(
+  workspaceId: string,
+  agentId: string,
+  conversationId: string,
+  text: string,
+  authorId: string,
+): Promise<{ ok: true; message: AgentMessageDto } | { ok: false; error: string }> {
+  const body = text.trim().slice(0, 4000);
+  if (!body) return { ok: false, error: 'empty_message' };
+  const conv = await getConversationRow(conversationId);
+  if (!conv || conv.user_id !== workspaceId || conv.agent_id !== agentId) return { ok: false, error: 'not_found' };
+  if (!TEAMMATE_CHANNELS.includes(conv.channel)) return { ok: false, error: 'unsupported_channel' };
+  const row = await addMessage(conv.id, 'assistant', body, null, authorId);
+  await getDb()
+    .prepare('UPDATE agent_conversations SET handed_off = 1, updated_at = ? WHERE id = ?')
+    .run(nowIso(), conv.id);
+  return {
+    ok: true,
+    message: { id: row.id, role: 'assistant', content: row.content, runId: null, createdAt: row.created_at, teammate: true },
+  };
+}
+
+export interface VisitorMessageDto {
+  id: string;
+  role: 'user' | 'assistant' | 'teammate';
+  content: string;
+  createdAt: string;
+}
+
+/**
+ * Página pública: la conversación del visitante (solo con su visitorKey),
+ * para recuperar el historial y recibir las respuestas del equipo.
+ */
+export async function listVisitorMessages(
+  agent: Pick<AgentRow, 'id'>,
+  conversationId: string,
+  visitorKey: string,
+): Promise<{ handedOff: boolean; messages: VisitorMessageDto[] } | null> {
+  const conv = await getConversationRow(conversationId);
+  if (!conv || conv.agent_id !== agent.id || conv.channel !== 'public' || !conv.visitor_key || conv.visitor_key !== visitorKey) {
+    return null;
+  }
+  const rows = (await getDb()
+    .prepare(
+      "SELECT * FROM agent_messages WHERE conversation_id = ? AND role IN ('user', 'assistant') ORDER BY created_at, rowid LIMIT 500",
+    )
+    .all(conv.id)) as AgentMessageRow[];
+  return {
+    handedOff: conv.handed_off === 1,
+    messages: rows.map((m) => ({
+      id: m.id,
+      role: m.role === 'user' ? 'user' : m.author_id ? 'teammate' : 'assistant',
+      content: m.content,
+      createdAt: m.created_at,
+    })),
+  };
 }
 
 export async function markConversationHandoff(conversationId: string): Promise<void> {
@@ -661,7 +773,7 @@ export async function setMessageFeedback(
         .prepare("SELECT 1 AS x FROM chat_messages WHERE id = ? AND conversation_id = ? AND sender_type = 'bot'")
         .get(input.messageId, conv.chat_conversation_id)
     : await db
-        .prepare("SELECT 1 AS x FROM agent_messages WHERE id = ? AND conversation_id = ? AND role = 'assistant'")
+        .prepare("SELECT 1 AS x FROM agent_messages WHERE id = ? AND conversation_id = ? AND role = 'assistant' AND author_id IS NULL")
         .get(input.messageId, conv.id);
   if (!belongs) return false;
   if (input.rating === 0) {
@@ -781,7 +893,8 @@ export function buildAgentInstructions(
 
 // ---------- Runtime ----------
 
-export type AgentRunStatus = 'replied' | 'handoff' | 'step_limit';
+/** handed_off: la conversación ya está con una persona; el agente no corrió. */
+export type AgentRunStatus = 'replied' | 'handoff' | 'step_limit' | 'handed_off';
 
 export interface RunAgentOptions {
   agent: AgentRow;
@@ -834,7 +947,7 @@ function defaultHandoffMessage(lastUser: string): string {
   if (/\b(ola|obrigad|preciso|pessoa|atendente|ajuda|voce)\b/.test(t)) {
     return 'Vou chamar alguém da equipe: vão te responder por aqui em breve.';
   }
-  return 'I’m bringing in a teammate — they’ll follow up here shortly.';
+  return 'I’m bringing in a teammate. They’ll follow up here shortly.';
 }
 
 /**
@@ -951,6 +1064,21 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
   };
 }
 
+/** Aviso al equipo: el visitante escribió en una conversación ya derivada. */
+async function notifyVisitorWaiting(agent: AgentRow, conversationId: string, text: string): Promise<void> {
+  const { createNotification } = await import('./notifications');
+  await createNotification({
+    userId: agent.user_id,
+    type: 'chat_message',
+    title: `${agent.name}: a visitor is waiting for a reply`,
+    body: text.replace(/\s+/g, ' ').slice(0, 140),
+    href: `/app/agents/${agent.id}?tab=conversations&c=${conversationId}`,
+    sourceType: 'agent_conversation',
+    sourceId: conversationId,
+    meta: { handoff: true, agentId: agent.id },
+  }).catch(() => {});
+}
+
 export interface SendAgentMessageOptions {
   agent: AgentRow;
   channel: Exclude<AgentChannel, 'chat'>;
@@ -981,7 +1109,8 @@ export async function sendAgentMessage(opts: SendAgentMessageOptions): Promise<S
   const text = opts.text.trim().slice(0, 4000);
   if (!text) throw new AgentError('empty_message');
   if (agent.enabled !== 1 && channel !== 'playground') throw new AgentError('agent_disabled', 403);
-  if (!aiEnabled()) throw new AgentError('ai_disabled', 503);
+  // Una conversación nueva no puede estar derivada: sin AI no hay nada que hacer.
+  if (!opts.conversationId && !aiEnabled()) throw new AgentError('ai_disabled', 503);
 
   let conversation: AgentConversationRow | null = null;
   if (opts.conversationId) {
@@ -995,6 +1124,25 @@ export async function sendAgentMessage(opts: SendAgentMessageOptions): Promise<S
     createdBy: opts.createdBy ?? null,
   });
   await assertAgentLimits(agent.user_id, conversation.id);
+
+  // Derivada a una persona: el agente no vuelve a contestar en ningún canal.
+  // Se guarda el mensaje para el equipo (pestaña Conversaciones) y se avisa.
+  if (conversation.handed_off === 1) {
+    opts.onEvent?.({ type: 'start', conversationId: conversation.id });
+    const prev = (await getDb()
+      .prepare('SELECT role FROM agent_messages WHERE conversation_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1')
+      .get(conversation.id)) as { role: string } | undefined;
+    const userMessage = await addMessage(conversation.id, 'user', text);
+    await touchConversation(conversation, text);
+    if (channel !== 'playground' && prev?.role !== 'user') await notifyVisitorWaiting(agent, conversation.id, text);
+    return {
+      conversation: (await getConversationRow(conversation.id)) as AgentConversationRow,
+      userMessage,
+      reply: null,
+      result: { status: 'handed_off', text: '', handoff: true, runId: '', toolCalls: [], steps: 0 },
+    };
+  }
+  if (!aiEnabled()) throw new AgentError('ai_disabled', 503);
   opts.onEvent?.({ type: 'start', conversationId: conversation.id });
 
   const userMessage = await addMessage(conversation.id, 'user', text);
