@@ -450,7 +450,7 @@
     "subject": "Asunto",
     "body": "Mensaje",
     "variables": "Variables: {vars}",
-    "cronNote": "Se envían cada hora; pueden llegar hasta una hora tarde.",
+    "cronNote": "Se revisan cada minuto, así que llegan a tiempo. Un paso antes de la reunión que sale un poco tarde se envía igual mientras la reunión no haya empezado.",
     "defaultSubject": "Recordatorio: {{event.title}}",
     "defaultBody": "Hola {{guest.name}},\n\nTe esperamos en {{event.title}} el {{start}}.\n\n{{link}}"
   },

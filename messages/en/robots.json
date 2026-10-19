@@ -273,7 +273,7 @@
     "cronHint": "5 fields: minute hour day month weekday. E.g. 0 9 * * 1-5",
     "cronInvalid": "Invalid cron expression.",
     "cronPreview": "Next runs",
-    "granularity": "In the cloud, schedules are checked once an hour: a run can start up to an hour after its time.",
+    "granularity": "In the cloud, schedules are checked every 5 minutes: a run can start up to 5 minutes after its time.",
     "session": "Keep session between runs",
     "sessionHint": "Keeps cookies and localStorage (encrypted) so the robot stays logged in.",
     "sessionSaved": "A session is saved.",

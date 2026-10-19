@@ -5,7 +5,7 @@ import { bookingUpdateSchema } from '@/lib/calendar-schema';
 import { invalidBody, notFound, unauthorized, crmError } from '@/lib/crm-http';
 import { getDb, type CalendarBookingRow } from '@/lib/db';
 import { expireCheckoutForBooking, refundCancelledBooking } from '@/lib/calendar-payments';
-import { afterBookingCancelled } from '@/lib/calendar-lifecycle';
+import { afterBookingCancelled, afterBookingNoShow } from '@/lib/calendar-lifecycle';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -84,6 +84,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       booking = await refundCancelledBooking(booking);
       await afterBookingCancelled(booking, parsed.data.cancelReason ?? null);
     }
+    // No-show recién marcado: webhook booking.no_show y trigger de Flow.
+    if (before.status !== 'no_show' && booking.status === 'no_show') await afterBookingNoShow(booking);
     // Hold cancelado por el anfitrión: la sesión de Checkout deja de aceptar el pago.
     if (before.status === 'pending' && booking.status === 'cancelled') await expireCheckoutForBooking(before);
     return NextResponse.json(booking);

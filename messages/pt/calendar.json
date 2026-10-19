@@ -450,7 +450,7 @@
     "subject": "Assunto",
     "body": "Mensagem",
     "variables": "Variáveis: {vars}",
-    "cronNote": "São enviados a cada hora; podem chegar até uma hora depois.",
+    "cronNote": "São verificados a cada minuto, então chegam no horário. Um passo antes da reunião que sai um pouco atrasado é enviado mesmo assim enquanto a reunião não tiver começado.",
     "defaultSubject": "Lembrete: {{event.title}}",
     "defaultBody": "Olá {{guest.name}},\n\nTe esperamos em {{event.title}} em {{start}}.\n\n{{link}}"
   },

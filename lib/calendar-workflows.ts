@@ -6,8 +6,10 @@
  *
  * Por reserva confirmada se programa una corrida por paso
  * (calendar_workflow_runs); el cron de recordatorios
- * (/api/calendar/reminders/due, dentro de /api/cron/tick) despacha las
- * vencidas. Este módulo solo importa db/email para no crear ciclos con
+ * (/api/calendar/reminders/due, dentro de /api/cron/minute cada minuto y
+ * de /api/cron/tick) despacha las vencidas. Cada corrida se reclama con un
+ * UPDATE condicional sobre sent_at, así dos crons a la vez no la mandan dos
+ * veces. Este módulo solo importa db/email para no crear ciclos con
  * lib/calendar.ts.
  */
 import { getDb, getUserById, type CalendarWorkflowStepRow } from './db';
@@ -201,6 +203,18 @@ function baseUrl(): string {
   return (process.env.NEXTAUTH_URL ?? 'https://zerosoft.ai').replace(/\/$/, '');
 }
 
+/**
+ * Si un paso vencido todavía tiene sentido. Un paso "antes" que el cron
+ * levanta tarde (el envío se atrasó unos minutos) sale igual mientras la
+ * reunión no haya empezado; solo se descarta si ya empezó. Los pasos
+ * "después" salen siempre.
+ */
+export function shouldSendWorkflowRun(run: { send_at: string; starts_at: string }, now: Date): boolean {
+  const start = Date.parse(run.starts_at);
+  const isBefore = Date.parse(run.send_at) < start;
+  return !isBefore || now.getTime() < start;
+}
+
 export async function processDueWorkflowRuns(
   now = new Date(),
   limit = 100,
@@ -226,20 +240,16 @@ export async function processDueWorkflowRuns(
   let failed = 0;
   let skipped = 0;
   for (const run of due) {
-    // Un paso "antes" que el cron levanta con la reunión ya empezada (corre
-    // cada hora) llegaría tarde: se descarta sin enviar.
-    if (Date.parse(run.send_at) < Date.parse(run.starts_at) && Date.parse(run.starts_at) <= now.getTime()) {
-      await markRunSent(run.id);
+    // Se reclama antes de mandar: si otro cron ya la tomó, se sigue de largo.
+    if (!(await claimRun(run.id))) continue;
+    if (!shouldSendWorkflowRun(run, now)) {
       skipped += 1;
       continue;
     }
     const host = await getUserById(run.host_user_id ?? run.owner_id);
     const toGuest = run.recipient === 'guest';
     const to = toGuest ? run.invitee_email : host?.email;
-    if (!to) {
-      await markRunSent(run.id);
-      continue;
-    }
+    if (!to) continue;
     const tz = toGuest ? run.timezone : (run.host_timezone ?? run.timezone);
     const lang = run.locale === 'es' || run.locale === 'pt' ? run.locale : 'en';
     const manage = run.manage_token ? `${baseUrl()}/${lang}/book/manage/${run.manage_token}` : '';
@@ -271,7 +281,6 @@ export async function processDueWorkflowRuns(
       }),
     });
     if (res.ok) {
-      await markRunSent(run.id);
       sent += 1;
     } else {
       await markRunFailed(run.id);
@@ -284,17 +293,25 @@ export async function processDueWorkflowRuns(
 /** Intentos de envío de un paso antes de abandonarlo (falla siempre: email inválido, rechazo del proveedor). */
 export const MAX_WORKFLOW_RUN_ATTEMPTS = 5;
 
-/** Suma un intento fallido; al llegar al máximo el paso queda abandonado (failed_at) y deja de reintentarse. */
+/**
+ * Suma un intento fallido y libera el claim (sent_at vuelve a NULL) para que
+ * el próximo cron lo reintente; al llegar al máximo el paso queda abandonado
+ * (failed_at) y deja de reintentarse.
+ */
 async function markRunFailed(id: string): Promise<void> {
   await getDb()
     .prepare(
-      `UPDATE calendar_workflow_runs SET attempts = attempts + 1,
+      `UPDATE calendar_workflow_runs SET sent_at = NULL, attempts = attempts + 1,
          failed_at = CASE WHEN attempts + 1 >= ? THEN ? ELSE NULL END
        WHERE id = ?`,
     )
     .run(MAX_WORKFLOW_RUN_ATTEMPTS, new Date().toISOString(), id);
 }
 
-async function markRunSent(id: string): Promise<void> {
-  await getDb().prepare('UPDATE calendar_workflow_runs SET sent_at = ? WHERE id = ?').run(new Date().toISOString(), id);
+/** Compare-and-set sobre sent_at: true solo para quien tomó la corrida. */
+async function claimRun(id: string): Promise<boolean> {
+  const res = await getDb()
+    .prepare('UPDATE calendar_workflow_runs SET sent_at = ? WHERE id = ? AND sent_at IS NULL')
+    .run(new Date().toISOString(), id);
+  return res.changes === 1;
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { expireUnpaidHolds, listDueReminders, markReminderSent } from '@/lib/calendar';
+import { claimReminder, expireUnpaidHolds, listDueReminders, releaseReminder } from '@/lib/calendar';
 import { processDueWorkflowRuns } from '@/lib/calendar-workflows';
 import { sendBookingReminder } from '@/lib/email';
 import { manageUrl } from '@/lib/calendar-notify';
@@ -16,8 +16,8 @@ const BUDGET_MS = 45_000;
  * Envía los recordatorios de bookings vencidos (calendar_reminders.send_at <= now,
  * no enviados, booking confirmado) y los marca como enviados.
  *
- * Pensado para un cron externo (ej. `curl -X POST .../api/calendar/reminders/due`
- * cada hora). Si CRON_SECRET está definido, exige `Authorization: Bearer <secret>`
+ * Lo llaman /api/cron/minute (cada minuto en Vercel) y /api/cron/tick; también
+ * sirve para un cron externo (ej. `curl -X POST .../api/calendar/reminders/due`). Si CRON_SECRET está definido, exige `Authorization: Bearer <secret>`
  * (Vercel Cron lo manda solo). En producción sin CRON_SECRET se niega a correr;
  * fuera de producción queda abierto para desarrollo.
  */
@@ -33,7 +33,7 @@ async function run(req: NextRequest) {
     }
   }
 
-  // Tandas hasta vaciar la cola (con un cron horario, un solo LIMIT dejaría
+  // Tandas hasta vaciar la cola (si el cron se atrasa, un solo LIMIT dejaría
   // atrasados los que no entran). Se corta si una tanda no envió ninguno
   // (los fallidos siguen pendientes y se repetirían) o se acaba el tiempo.
   const startedAt = Date.now();
@@ -46,6 +46,8 @@ async function run(req: NextRequest) {
     total += due.length;
     const sentBefore = sent;
     for (const reminder of due) {
+      // Otro cron (el de cada minuto o el tick) puede estar en la misma tanda.
+      if (!(await claimReminder(reminder.id))) continue;
       const res = await sendBookingReminder({
         to: reminder.invitee_email,
         guestName: reminder.invitee_name,
@@ -57,10 +59,10 @@ async function run(req: NextRequest) {
         locale: reminder.locale,
       });
       if (res.ok) {
-        await markReminderSent(reminder.id);
         sent += 1;
       } else {
-        // No se marca: el próximo run del cron lo reintenta.
+        // Se libera: el próximo run del cron lo reintenta.
+        await releaseReminder(reminder.id);
         failed += 1;
       }
     }

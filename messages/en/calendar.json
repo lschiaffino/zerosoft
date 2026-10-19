@@ -450,7 +450,7 @@
     "subject": "Subject",
     "body": "Message",
     "variables": "Variables: {vars}",
-    "cronNote": "They are sent every hour; they can arrive up to an hour late.",
+    "cronNote": "They are checked every minute, so they arrive on time. A step before the meeting that runs a little late still goes out as long as the meeting has not started.",
     "defaultSubject": "Reminder: {{event.title}}",
     "defaultBody": "Hi {{guest.name}},\n\nSee you at {{event.title}} on {{start}}.\n\n{{link}}"
   },

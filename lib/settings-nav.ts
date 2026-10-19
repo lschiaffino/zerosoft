@@ -41,7 +41,7 @@ export function settingsTabs(isAdmin: boolean): RouteTab[] {
 
 export type WebhookGroupKey = 'booking' | 'link' | 'contact' | 'deal' | 'robot';
 
-/** Los 14 eventos agrupados por recurso (el prefijo antes del primer punto), en el orden de WEBHOOK_EVENTS. */
+/** Los 15 eventos agrupados por recurso (el prefijo antes del primer punto), en el orden de WEBHOOK_EVENTS. */
 export function webhookEventGroups(
   events: readonly WebhookEvent[] = WEBHOOK_EVENTS,
 ): Array<{ key: WebhookGroupKey; events: WebhookEvent[] }> {

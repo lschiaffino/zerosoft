@@ -31,7 +31,7 @@ describe('settings: eventos de webhooks agrupados', () => {
     const groups = webhookEventGroups();
     expect(groups.map((g) => g.key)).toEqual(['booking', 'link', 'contact', 'deal', 'robot']);
     expect(groups.flatMap((g) => g.events)).toEqual([...WEBHOOK_EVENTS]);
-    expect(WEBHOOK_EVENTS).toHaveLength(14);
+    expect(WEBHOOK_EVENTS).toHaveLength(15);
   });
 
   it('el checkbox del grupo es todos, ninguno o indeterminado', () => {

@@ -576,12 +576,6 @@ export async function setEventHosts(eventTypeId: string, userIds: string[]): Pro
     .run(eventTypeId, Math.max(position, 1));
 }
 
-/**
- * Asigna el próximo host del pool en orden round-robin (cursor persistente en
- * calendar_event_types.rr_cursor) y avanza el cursor. Devuelve null si el
- * evento no tiene hosts. Simplificación: el check de slot no es atómico con el
- * avance del cursor, así que dos bookings concurrentes pueden repetir host.
- */
 // ---------- Availability ----------
 
 export async function listAvailability(eventTypeId: string): Promise<CalendarAvailabilityRow[]> {
@@ -794,9 +788,39 @@ export async function findOfferedSlot(
 }
 
 /**
- * Primer host libre para [start, end), recorriendo el pool desde el cursor
- * round-robin. `preferHost` (el host actual de una reserva que se mueve) se
- * prueba primero si sigue en el pool: reprogramar no la reasigna sin motivo.
+ * Orden en que se prueba el pool round-robin: primero quien hace más que no
+ * recibe una reserva de este evento (o nunca recibió), y a igualdad el orden
+ * del pool desde el cursor. Así, si el host al que le tocaba estaba ocupado,
+ * no pierde el turno: es el primero de la próxima reserva. `lastAssigned`:
+ * host → ISO de su última reserva viva del evento.
+ */
+export function roundRobinOrder(pool: string[], cursor: number, lastAssigned: Map<string, string>): string[] {
+  const n = pool.length;
+  const rotated = pool.map((_, i) => pool[(((cursor + i) % n) + n) % n]);
+  return rotated
+    .map((host, i) => ({ host, i, last: lastAssigned.get(host) ?? '' }))
+    .sort((a, b) => (a.last === b.last ? a.i - b.i : a.last < b.last ? -1 : 1))
+    .map((x) => x.host);
+}
+
+/** Última reserva (no cancelada) de cada host en este event type. */
+async function lastAssignedByHost(eventTypeId: string): Promise<Map<string, string>> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT host_user_id, MAX(created_at) AS last FROM calendar_bookings
+       WHERE event_type_id = ? AND host_user_id IS NOT NULL AND status != 'cancelled'
+       GROUP BY host_user_id`,
+    )
+    .all(eventTypeId)) as Array<{ host_user_id: string; last: string }>;
+  return new Map(rows.map((r) => [r.host_user_id, String(r.last)]));
+}
+
+/**
+ * Primer host libre para [start, end), en orden round-robin justo
+ * (roundRobinOrder). `preferHost` (el host actual de una reserva que se
+ * mueve) se prueba primero si sigue en el pool: reprogramar no la reasigna
+ * sin motivo. Simplificación: el check no es atómico con la asignación, así
+ * que dos reservas concurrentes pueden repetir host.
  */
 async function pickFreeHost(
   eventType: EventTypeWithRules,
@@ -805,15 +829,16 @@ async function pickFreeHost(
   preferHost?: string | null,
 ): Promise<string | null> {
   const pool = await candidateHosts(eventType);
-  const rotated = pool.map((_, i) => pool[(eventType.rr_cursor + i) % pool.length]);
+  const rotated = pool.length > 1 ? roundRobinOrder(pool, eventType.rr_cursor, await lastAssignedByHost(eventType.id)) : pool;
   const hosts =
     preferHost && rotated.includes(preferHost) ? [preferHost, ...rotated.filter((h) => h !== preferHost)] : rotated;
   const calendarUser = await getCalendarUser(eventType.user_id);
+  const buffer = bufferMinutes(eventType, calendarUser);
   const buffered = applyBuffer(slot, eventType, calendarUser);
   const from = new Date(slot.start.getTime() - 24 * 60 * 60 * 1000);
   const to = new Date(slot.end.getTime() + 24 * 60 * 60 * 1000);
   for (const host of hosts) {
-    const busy = await listBusyRanges(host, from, to, { excludeBookingId });
+    const busy = await listBusyRanges(host, from, to, { excludeBookingId, buffer });
     if (!hasOverlap(buffered, busy)) return host;
   }
   return null;
@@ -830,23 +855,29 @@ export async function hostSlotFree(booking: CalendarBookingRow): Promise<boolean
     new Date(slot.start.getTime() - 24 * 60 * 60 * 1000),
     new Date(slot.end.getTime() + 24 * 60 * 60 * 1000),
     // Sin calendarios externos: la propia reserva sigue en el Google Calendar del host.
-    { excludeBookingId: booking.id, internalOnly: true },
+    { excludeBookingId: booking.id, internalOnly: true, buffer: bufferMinutes(eventType, calendarUser) },
   );
   return !hasOverlap(applyBuffer(slot, eventType, calendarUser), busy);
 }
 
 /**
  * Condición SQL (para un WHERE) de que el host no tiene otra reserva viva que
- * se superponga con [start, end) ya con buffers. Va en el mismo INSERT/UPDATE
- * que toma el horario: la verificación y la escritura son atómicas, así dos
- * requests simultáneas con inicios distintos no se superponen (el índice
- * único solo cubre inicios idénticos). Args: host, ahora, fin, inicio, id excluido.
+ * choque con [start, end): ni la nueva cae en los buffers de la existente ni
+ * la existente en los de la nueva (cada reserva guarda los suyos). Por eso
+ * cada lado se estira con el mayor de los dos buffers enfrentados: el
+ * resultado no depende de cuál se reservó primero. Va en el mismo
+ * INSERT/UPDATE que toma el horario: la verificación y la escritura son
+ * atómicas, así dos requests simultáneas con inicios distintos no se
+ * superponen (el índice único solo cubre inicios idénticos).
+ * Args: host, ahora, inicio, buffer antes, fin, buffer después, id excluido.
  */
 const HOST_FREE_SQL = `NOT EXISTS (
   SELECT 1 FROM calendar_bookings o
   WHERE o.host_user_id = ? AND o.status IN ('confirmed', 'pending')
     AND (o.status = 'confirmed' OR o.hold_expires_at > ?)
-    AND o.starts_at < ? AND o.ends_at > ? AND o.id != ?
+    AND ? < strftime('%Y-%m-%dT%H:%M:%fZ', o.ends_at, '+' || MAX(?, o.buffer_after_min) || ' minutes')
+    AND ? > strftime('%Y-%m-%dT%H:%M:%fZ', o.starts_at, '-' || MAX(?, o.buffer_before_min) || ' minutes')
+    AND o.id != ?
 )`;
 
 async function hostFreeArgs(
@@ -854,9 +885,9 @@ async function hostFreeArgs(
   hostUserId: string,
   slot: TimeRange,
   excludeId: string,
-): Promise<string[]> {
-  const buffered = applyBuffer(slot, eventType, await getCalendarUser(eventType.user_id));
-  return [hostUserId, new Date().toISOString(), iso(buffered.end), iso(buffered.start), excludeId];
+): Promise<Array<string | number>> {
+  const buffer = bufferMinutes(eventType, await getCalendarUser(eventType.user_id));
+  return [hostUserId, new Date().toISOString(), iso(slot.start), buffer.before, iso(slot.end), buffer.after, excludeId];
 }
 
 /**
@@ -936,6 +967,7 @@ export async function createBooking(
   const id = crypto.randomUUID();
   const ts = now();
   const freeArgs = await hostFreeArgs(eventType, hostUserId, { start, end }, id);
+  const buffer = bufferMinutes(eventType, await getCalendarUser(eventType.user_id));
   const singleUse = eventType.single_use === 1;
   let inserted: number;
   try {
@@ -943,8 +975,8 @@ export async function createBooking(
       .prepare(
         `INSERT INTO calendar_bookings
          (id, event_type_id, invitee_email, invitee_name, starts_at, ends_at, timezone, status, answers, host_user_id, manage_token, locale, created_at, updated_at,
-          payment_status, hold_expires_at, amount_cents, currency)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          payment_status, hold_expires_at, amount_cents, currency, buffer_before_min, buffer_after_min)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          WHERE ${HOST_FREE_SQL}${singleUse ? ` AND ${SINGLE_USE_FREE_SQL}` : ''}`,
       )
       .run(
@@ -966,6 +998,8 @@ export async function createBooking(
         opts.hold ? opts.hold.expiresAt.toISOString() : null,
         opts.hold?.amountCents ?? 0,
         opts.hold?.currency ?? '',
+        buffer.before,
+        buffer.after,
         ...freeArgs,
         ...(singleUse ? [eventType.id, new Date().toISOString()] : []),
       )).changes;
@@ -980,10 +1014,17 @@ export async function createBooking(
     // Otra reserva superpuesta (con otro inicio) entró entre la lectura y el INSERT.
     throw new CalendarError('slot_unavailable', 409);
   }
-  if ((await listEventHosts(eventType.id)).length > 0) {
-    await getDb()
-      .prepare('UPDATE calendar_event_types SET rr_cursor = rr_cursor + 1 WHERE id = ?')
-      .run(eventType.id);
+  // El cursor (desempate entre hosts que todavía no recibieron reservas) solo
+  // avanza si la reserva fue para el host del turno: si estaba ocupado, sigue
+  // siendo su turno y no lo pierde (antes era +1 a ciegas).
+  const pool = await listEventHosts(eventType.id);
+  if (pool.length > 0) {
+    const cursor = ((eventType.rr_cursor % pool.length) + pool.length) % pool.length;
+    if (pool[cursor]?.user_id === hostUserId) {
+      await getDb()
+        .prepare('UPDATE calendar_event_types SET rr_cursor = ? WHERE id = ?')
+        .run((cursor + 1) % pool.length, eventType.id);
+    }
   }
   if (!opts.hold) await onBookingConfirmed(id, eventType, start);
   return (await getDb().prepare('SELECT * FROM calendar_bookings WHERE id = ?').get(id)) as CalendarBookingRow;
@@ -1106,13 +1147,14 @@ export async function revivePaidBooking(
   try {
     await releaseExpiredHoldAt(hostUserId, start, id);
     const freeArgs = await hostFreeArgs(eventType, hostUserId, { start, end: new Date(booking.ends_at) }, id);
+    const buffer = bufferMinutes(eventType, await getCalendarUser(eventType.user_id));
     const res = await getDb()
       .prepare(
         `UPDATE calendar_bookings SET status = 'confirmed', payment_status = 'paid', hold_expires_at = NULL, cancel_reason = NULL,
-           host_user_id = ?, stripe_session_id = COALESCE(?, stripe_session_id), updated_at = ?
+           host_user_id = ?, stripe_session_id = COALESCE(?, stripe_session_id), buffer_before_min = ?, buffer_after_min = ?, updated_at = ?
          WHERE id = ? AND status = 'cancelled' AND cancel_reason = 'payment_expired' AND ${HOST_FREE_SQL}`,
       )
-      .run(hostUserId, payment.sessionId ?? null, now(), id, ...freeArgs);
+      .run(hostUserId, payment.sessionId ?? null, buffer.before, buffer.after, now(), id, ...freeArgs);
     if (res.changes === 0) {
       await release();
       return null;
@@ -1257,6 +1299,7 @@ export async function rescheduleBooking(id: string, newStart: Date): Promise<Cal
   if (!hostUserId) throw new CalendarError('slot_unavailable', 409);
   await releaseExpiredHoldAt(hostUserId, newStart, id);
   const freeArgs = await hostFreeArgs(eventType, hostUserId, { start: newStart, end: newEnd }, id);
+  const buffer = bufferMinutes(eventType, await getCalendarUser(eventType.user_id));
   let changes: number;
   try {
     // status = 'confirmed' en el mismo UPDATE: una cancelación simultánea gana
@@ -1264,10 +1307,11 @@ export async function rescheduleBooking(id: string, newStart: Date): Promise<Cal
     changes = (
       await getDb()
         .prepare(
-          `UPDATE calendar_bookings SET starts_at = ?, ends_at = ?, host_user_id = ?, rescheduled_from = ?, updated_at = ?
+          `UPDATE calendar_bookings SET starts_at = ?, ends_at = ?, host_user_id = ?, rescheduled_from = ?,
+             buffer_before_min = ?, buffer_after_min = ?, updated_at = ?
            WHERE id = ? AND status = 'confirmed' AND ${HOST_FREE_SQL}`,
         )
-        .run(newStart.toISOString(), newEnd.toISOString(), hostUserId, booking.starts_at, now(), id, ...freeArgs)
+        .run(newStart.toISOString(), newEnd.toISOString(), hostUserId, booking.starts_at, buffer.before, buffer.after, now(), id, ...freeArgs)
     ).changes;
   } catch (err) {
     if (isUniqueViolation(err)) throw new CalendarError('slot_unavailable', 409);
@@ -1405,10 +1449,20 @@ export async function listDueReminders(limit = 50): Promise<DueReminderRow[]> {
     .all(nowIso, limit)) as DueReminderRow[];
 }
 
-export async function markReminderSent(id: string): Promise<void> {
-  await getDb()
-    .prepare('UPDATE calendar_reminders SET sent_at = ? WHERE id = ?')
+/**
+ * Reclama un recordatorio antes de mandarlo (compare-and-set sobre sent_at):
+ * true solo para quien lo tomó, así dos crons a la vez no lo mandan dos veces.
+ */
+export async function claimReminder(id: string): Promise<boolean> {
+  const res = await getDb()
+    .prepare('UPDATE calendar_reminders SET sent_at = ? WHERE id = ? AND sent_at IS NULL')
     .run(new Date().toISOString(), id);
+  return res.changes === 1;
+}
+
+/** Libera un recordatorio reclamado cuyo envío falló: el próximo cron lo reintenta. */
+export async function releaseReminder(id: string): Promise<void> {
+  await getDb().prepare('UPDATE calendar_reminders SET sent_at = NULL WHERE id = ?').run(id);
 }
 
 /**
@@ -1556,10 +1610,36 @@ function getBookingRules(eventType: EventTypeWithRules): Partial<CalendarBooking
   return (eventType.bookingRulesParsed ?? {}) as Partial<CalendarBookingRules>;
 }
 
-export function applyBuffer(slot: TimeRange, eventType: EventTypeWithRules, calendarUser?: CalendarUserRow): TimeRange {
+/** Buffers efectivos (minutos) de un event type: los propios o, si no tiene, los del workspace. */
+export function bufferMinutes(eventType: EventTypeWithRules, calendarUser?: CalendarUserRow): BufferMinutes {
   const rules = getBookingRules(eventType);
-  const before = rules.bufferBeforeMin ?? calendarUser?.buffer_before_min ?? 0;
-  const after = rules.bufferAfterMin ?? calendarUser?.buffer_after_min ?? 0;
+  return {
+    before: Math.max(0, rules.bufferBeforeMin ?? calendarUser?.buffer_before_min ?? 0),
+    after: Math.max(0, rules.bufferAfterMin ?? calendarUser?.buffer_after_min ?? 0),
+  };
+}
+
+export interface BufferMinutes {
+  before: number;
+  after: number;
+}
+
+/**
+ * Tramo ocupado de una reserva existente, para comparar contra un slot nuevo
+ * ya estirado con SUS buffers (`candidate`). Cada lado se estira lo que su
+ * propio buffer excede al buffer enfrentado del slot nuevo: así ninguna de
+ * las dos reservas cae en los buffers de la otra, y el resultado no depende
+ * del orden en que se reservaron.
+ */
+export function bookingBusyRange(booking: TimeRange, own: BufferMinutes, candidate: BufferMinutes): TimeRange {
+  return {
+    start: new Date(booking.start.getTime() - Math.max(0, own.before - candidate.after) * 60_000),
+    end: new Date(booking.end.getTime() + Math.max(0, own.after - candidate.before) * 60_000),
+  };
+}
+
+export function applyBuffer(slot: TimeRange, eventType: EventTypeWithRules, calendarUser?: CalendarUserRow): TimeRange {
+  const { before, after } = bufferMinutes(eventType, calendarUser);
   return {
     start: new Date(slot.start.getTime() - before * 60_000),
     end: new Date(slot.end.getTime() + after * 60_000),
@@ -1579,19 +1659,22 @@ export function registerBusyProvider(provider: ExternalBusyProvider): void {
 /**
  * Horarios ocupados de una PERSONA (no de un event type): todas sus reservas
  * confirmadas en cualquier event type, sus bloqueos y calendarios externos.
+ * `buffer`: los buffers del slot que se va a comparar (estirado con
+ * applyBuffer); las reservas se devuelven estiradas con sus propios buffers
+ * (bookingBusyRange), así se respetan también los de las reservas existentes.
  */
 export async function listBusyRanges(
   userId: string,
   from: Date,
   to: Date,
-  opts: { excludeBookingId?: string; internalOnly?: boolean } = {},
+  opts: { excludeBookingId?: string; internalOnly?: boolean; buffer?: BufferMinutes } = {},
 ): Promise<TimeRange[]> {
   const db = getDb();
   const bookings = (await db
     .prepare(
       // host_user_id se completa siempre (backfill en la migración): filtrar
       // por la columna, sin COALESCE, deja usar el índice (host, inicio).
-      `SELECT b.starts_at, b.ends_at FROM calendar_bookings b
+      `SELECT b.starts_at, b.ends_at, b.buffer_before_min, b.buffer_after_min FROM calendar_bookings b
        WHERE b.host_user_id = ? AND b.status IN ('confirmed', 'pending')
          AND (b.status = 'confirmed' OR b.hold_expires_at > ?)
          AND b.starts_at < ? AND b.ends_at > ? AND b.id != ?`,
@@ -1599,14 +1682,23 @@ export async function listBusyRanges(
     .all(userId, new Date().toISOString(), iso(to), iso(from), opts.excludeBookingId ?? '')) as Array<{
     starts_at: string;
     ends_at: string;
+    buffer_before_min: number | null;
+    buffer_after_min: number | null;
   }>;
   const blocked = (await db
     .prepare('SELECT starts_at, ends_at FROM calendar_blocked_slots WHERE user_id = ? AND starts_at < ? AND ends_at > ?')
     .all(userId, iso(to), iso(from))) as Array<{ starts_at: string; ends_at: string }>;
-  const ranges: TimeRange[] = [...bookings, ...blocked].map((r) => ({
-    start: new Date(r.starts_at),
-    end: new Date(r.ends_at),
-  }));
+  const candidate = opts.buffer ?? { before: 0, after: 0 };
+  const ranges: TimeRange[] = [
+    ...bookings.map((r) =>
+      bookingBusyRange(
+        { start: new Date(r.starts_at), end: new Date(r.ends_at) },
+        { before: Number(r.buffer_before_min ?? 0), after: Number(r.buffer_after_min ?? 0) },
+        candidate,
+      ),
+    ),
+    ...blocked.map((r) => ({ start: new Date(r.starts_at), end: new Date(r.ends_at) })),
+  ];
   if (opts.internalOnly) return ranges;
   // Al mover una reserva, su propio evento sigue en el calendario externo del
   // host: ese horario se descuenta para que no choque consigo misma.
@@ -1735,7 +1827,8 @@ function slotsForDay(ctx: SlotContext, timezone: string, date: string, busyByHos
 
 /** Ocupación de cada host candidato en [from, to); un slot sirve si al menos uno está libre. */
 function busyForHosts(ctx: SlotContext, from: Date, to: Date, opts: { excludeBookingId?: string }): Promise<TimeRange[][]> {
-  return Promise.all(ctx.hosts.map((h) => listBusyRanges(h, from, to, opts)));
+  const buffer = bufferMinutes(ctx.eventType, ctx.calendarUser);
+  return Promise.all(ctx.hosts.map((h) => listBusyRanges(h, from, to, { ...opts, buffer })));
 }
 
 export async function getAvailableSlots(

@@ -118,6 +118,7 @@
       "booking_created": "Booking created",
       "booking_rescheduled": "Booking rescheduled",
       "booking_cancelled": "Booking cancelled",
+      "booking_no_show": "Booking no-show",
       "link_created": "Link created",
       "link_clicked": "Link clicked",
       "contact_created": "Contact created",
