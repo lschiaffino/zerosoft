@@ -111,6 +111,16 @@ export async function afterBookingCancelled(booking: CalendarBookingRow, reason:
   await emitEvent(eventType.user_id, 'booking.cancelled', bookingPayload(booking, eventType));
 }
 
+/**
+ * El invitado no se presentó (lo marca el anfitrión o la API v1): webhook
+ * booking.no_show y trigger de Flow, para que un seguimiento pueda reaccionar.
+ */
+export async function afterBookingNoShow(booking: CalendarBookingRow): Promise<void> {
+  const eventType = await getEventTypeById(booking.event_type_id);
+  if (!eventType) return;
+  await emitEvent(eventType.user_id, 'booking.no_show', bookingPayload(booking, eventType));
+}
+
 /** Pago que llegó tarde y se reembolsó: la reserva sigue cancelada, se avisa al invitado y al anfitrión. */
 export async function afterPaymentRefunded(booking: CalendarBookingRow): Promise<void> {
   await safely('notify-refunded', () => notifyBooking(booking, 'cancelled', { reason: refundReason(booking.locale) }), undefined);

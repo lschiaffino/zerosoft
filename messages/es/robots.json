@@ -273,7 +273,7 @@
     "cronHint": "5 campos: minuto hora día mes día-de-semana. Ej.: 0 9 * * 1-5",
     "cronInvalid": "Expresión cron inválida.",
     "cronPreview": "Próximas corridas",
-    "granularity": "En la nube los schedules se revisan una vez por hora: una corrida puede salir hasta una hora después de lo programado.",
+    "granularity": "En la nube los schedules se revisan cada 5 minutos: una corrida puede salir hasta 5 minutos después de lo programado.",
     "session": "Guardar sesión entre corridas",
     "sessionHint": "Conserva cookies y localStorage (cifrados) para no loguearse en cada corrida.",
     "sessionSaved": "Hay una sesión guardada.",

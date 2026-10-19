@@ -1,5 +1,5 @@
 /**
- * Flow — worker de la cola. Lo llaman el cron (app/api/cron/tick) y after()
+ * Flow — worker de la cola. Lo llaman los crons (app/api/cron/minute cada minuto y app/api/cron/tick) y after()
  * cuando se encola una corrida. Varias invocaciones concurrentes no ejecutan
  * dos veces lo mismo: cada corrida/job se reclama con un UPDATE condicional
  * (compare-and-set sobre status/locked_until) y solo sigue quien lo ganó.

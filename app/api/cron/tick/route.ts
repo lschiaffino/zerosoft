@@ -24,7 +24,9 @@ const FLOW_BUDGET_MS = 150_000;
  * por fila; corre cada hora, esa es la granularidad de las secuencias), la
  * cola de Flow con presupuesto de tiempo (schedules vencidos, corridas en
  * cola, delays y reintentos) y al final los robots programados
- * (lib/robots.ts → runDueRobots). También carga al backlog las ideas nuevas
+ * (lib/robots.ts → runDueRobots). En Vercel los recordatorios de Cal y la
+ * cola de Flow corren además cada minuto en /api/cron/minute (claims por fila
+ * evitan dobles envíos); acá quedan para self-host con un solo cron. También carga al backlog las ideas nuevas
  * de research/ideas.json (una vez por título). Misma autorización que el cron de
  * recordatorios (CRON_SECRET).
  */

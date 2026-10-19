@@ -118,6 +118,7 @@
       "booking_created": "Reserva criada",
       "booking_rescheduled": "Reserva remarcada",
       "booking_cancelled": "Reserva cancelada",
+      "booking_no_show": "Convidado não compareceu",
       "link_created": "Link criado",
       "link_clicked": "Clique em um link",
       "contact_created": "Contato criado",

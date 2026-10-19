@@ -273,7 +273,7 @@
     "cronHint": "5 campos: minuto hora dia mês dia-da-semana. Ex.: 0 9 * * 1-5",
     "cronInvalid": "Expressão cron inválida.",
     "cronPreview": "Próximas execuções",
-    "granularity": "Na nuvem os agendamentos são verificados uma vez por hora: uma execução pode sair até uma hora depois do horário.",
+    "granularity": "Na nuvem os agendamentos são verificados a cada 5 minutos: uma execução pode sair até 5 minutos depois do horário.",
     "session": "Manter sessão entre execuções",
     "sessionHint": "Guarda cookies e localStorage (criptografados) para não fazer login a cada execução.",
     "sessionSaved": "Há uma sessão salva.",

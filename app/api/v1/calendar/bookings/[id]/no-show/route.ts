@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { apiError, requireApiUser } from '@/lib/api-auth';
 import { CalendarError, getEventTypeById, ownedBooking, updateBooking } from '@/lib/calendar';
-import { bookingPayload } from '@/lib/calendar-lifecycle';
+import { afterBookingNoShow, bookingPayload } from '@/lib/calendar-lifecycle';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     throw err;
   }
   if (!updated) return apiError(404, 'not_found', 'Booking not found.');
+  await afterBookingNoShow(updated);
   const eventType = await getEventTypeById(updated.event_type_id);
   return NextResponse.json(bookingPayload(updated, eventType ?? { id: updated.event_type_id, slug: '', title: '' }));
 }

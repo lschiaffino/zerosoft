@@ -5,6 +5,10 @@
       "schedule": "17 * * * *"
     },
     {
+      "path": "/api/cron/minute",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/robots",
       "schedule": "*/5 * * * *"
     }

@@ -2300,6 +2300,31 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE link_domains ADD COLUMN expired_url TEXT');
     },
   },
+  {
+    // Cal: cada reserva guarda sus buffers (los del event type o, si no
+    // tiene, los del workspace) para que la próxima reserva respete también
+    // los de la existente, no solo los propios. Backfill de las vivas.
+    id: '040_cal_booking_buffers',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN buffer_before_min INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN buffer_after_min INTEGER NOT NULL DEFAULT 0');
+      for (const [rule, column] of [
+        ['bufferBeforeMin', 'buffer_before_min'],
+        ['bufferAfterMin', 'buffer_after_min'],
+      ] as const) {
+        await client.execute({
+          sql: `UPDATE calendar_bookings SET ${column} = COALESCE(
+                  (SELECT CASE WHEN json_valid(e.booking_rules) THEN CAST(json_extract(e.booking_rules, '$.${rule}') AS INTEGER) END
+                     FROM calendar_event_types e WHERE e.id = calendar_bookings.event_type_id),
+                  (SELECT cu.${column} FROM calendar_event_types e JOIN calendar_users cu ON cu.user_id = e.user_id
+                     WHERE e.id = calendar_bookings.event_type_id),
+                  0)
+                WHERE status IN ('confirmed', 'pending') AND ends_at > ?`,
+          args: [new Date().toISOString()],
+        });
+      }
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
