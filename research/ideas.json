@@ -177,7 +177,9 @@
     "title": "Docs: Make [[ page links real links instead of inserting the title as plain text",
     "description": "Notion inserts a live page mention when you type [[ or @page, which navigates on click, follows renames and creates a backlink (https://www.notion.com/en-gb/help/create-links-and-backlinks). Our onSelectMention in components/docs/DocsEditor.tsx (around line 1362) deletes the [[query and inserts the escaped text \"[Page title] \", so nothing is clickable and the feature map's claim that [[ links another page is not true. For a small team wiki, cross-linking pages is the core navigation pattern, and today every link silently becomes dead text. First scope: insert an anchor via wrapLink with href /app/docs/<id> (or a data-page-id mention element allowed by the sanitizer), render it as a page chip with icon, and resolve the current title on render so renames do not break it.\n\nPriority: high. Effort: S. Compared with Notion.",
     "product": "docs",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-mejoras"
   },
   {
     "title": "Docs: Move the caret between blocks with Arrow Up/Down",
@@ -621,7 +623,9 @@
     "title": "Docs: Show backlinks ('Linked from') under the page title",
     "description": "Notion automatically lists every page that links to the current one, visible under the title and filtered by what the viewer can access (https://www.notion.com/en-gb/help/create-links-and-backlinks). We have no backlinks anywhere in components/docs or lib/docs*.ts, and the [[ picker does not even store a link (see the related bug). Backlinks turn a pile of pages into a navigable wiki and show which docs reference an outdated policy. First scope: after fixing [[ to store page ids, compute 'Linked from' on page load by scanning workspace pages for that id (or maintain a docs_links table on save) and render it as a collapsible line under the title.\n\nPriority: medium. Effort: S. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-19-mejoras"
   },
   {
     "title": "Docs: Expose a public Docs API with docs:read and docs:write scopes",

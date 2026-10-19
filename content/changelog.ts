@@ -29,6 +29,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-19-mejoras',
+    date: '2026-10-19',
+    title: {
+      en: 'Page links in Docs, security fixes and requests under review on the board',
+      es: 'Links entre páginas en Docs, arreglos de seguridad y pedidos en revisión en el board',
+      pt: 'Links entre páginas no Docs, correções de segurança e pedidos em revisão no board',
+    },
+    items: [
+      { product: 'docs', en: 'Typing [[ and picking a page inserts a real link that keeps the page\'s current title. Each page lists the pages that link to it under its title.', es: 'Escribir [[ y elegir una página inserta un link real que muestra el título actual de esa página. Cada página lista, bajo su título, las páginas que la enlazan.', pt: 'Digitar [[ e escolher uma página insere um link real que mostra o título atual dessa página. Cada página lista, abaixo do título, as páginas que apontam para ela.' },
+      { product: 'chat', en: 'Visitor emails are marked as verified or not, and the widget supports signed identity verification. An unverified email no longer attaches a chat to an existing CRM contact without confirmation.', es: 'Los emails de visitantes quedan marcados como verificados o no, y el widget acepta verificación de identidad firmada. Un email sin verificar ya no asocia el chat a un contacto existente del CRM sin confirmación.', pt: 'Os emails de visitantes ficam marcados como verificados ou não, e o widget aceita verificação de identidade assinada. Um email não verificado não associa mais o chat a um contato existente do CRM sem confirmação.' },
+      { product: 'board', en: 'Feedback you send from the app shows on the board under your requests under review until it is published.', es: 'Lo que mandás desde la burbuja de feedback aparece en el board, en tus pedidos en revisión, hasta que se publica.', pt: 'O que você envia pela bolha de feedback aparece no board, nos seus pedidos em revisão, até ser publicado.' },
+    ],
+  },
+  {
     id: '2026-10-13-cal-track-link',
     date: '2026-10-13',
     title: {
