@@ -44,6 +44,7 @@ import {
   wrapLink,
   type DocsMarkTag,
 } from '@/lib/docs-richtext';
+import { pageLinkHtml } from '@/lib/docs-page-links';
 import DocsBlockEditor from './DocsBlockEditor';
 import MentionPopover from './MentionPopover';
 import UserMentionPopover from './UserMentionPopover';
@@ -76,6 +77,8 @@ interface DocsEditorProps {
   menuExtra?: (close: () => void) => ReactNode;
   /** Muestra los toggles de layout (texto chico / ancho completo); solo el dueño. */
   layoutToggles?: boolean;
+  /** Debajo del título (p. ej. "Enlazada desde"). */
+  belowTitle?: ReactNode;
 }
 
 const BLOCK_COMMANDS: {
@@ -226,6 +229,7 @@ export default function DocsEditor({
   commentCounts,
   onBlockComment,
   embedded = false,
+  belowTitle,
   topActions,
   menuExtra,
   layoutToggles = true,
@@ -1369,21 +1373,18 @@ export default function DocsEditor({
         return;
       }
       // Se borra el `[[query` tipeado (rango plano capturado al tipear, en
-      // cualquier posición del bloque) y se inserta el título como texto
-      // escapado en ese punto (insertTextAtOffset escapa).
-      const insert = `[${selected.title || t('untitled')}] `;
-      const newContent = insertTextAtOffset(
-        removeHtmlRange(block.content, start, end),
-        start,
-        insert,
-      );
+      // cualquier posición del bloque) y se inserta un link a la página (el
+      // título va escapado) más un espacio para seguir escribiendo afuera.
+      const title = selected.title || t('untitled');
+      const [before, after] = splitHtmlAt(removeHtmlRange(block.content, start, end), start);
+      const newContent = `${before}${pageLinkHtml(selected.id, title)} ${after}`;
       setBlocks((prev) => {
         const next = prev.map((b, i) => (i === index ? { ...b, content: newContent } : b));
         triggerSave(next);
         return next;
       });
       setMention(null);
-      pendingCaret.current = { index, offset: start + insert.length };
+      pendingCaret.current = { index, offset: start + title.length + 1 };
       setFocusIndex(index);
       setFocusTick((v) => v + 1);
     },
@@ -1744,6 +1745,7 @@ export default function DocsEditor({
             }
           }}
         />
+        {!embedded && belowTitle}
       </div>
 
       <div className="docs-blocks" ref={blocksWrapRef}>

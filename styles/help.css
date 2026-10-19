@@ -334,6 +334,36 @@
 .dbv hr { width: 100%; margin: 0.5em 0; border: 0; border-top: 1px solid var(--line); }
 .dbv a { color: var(--help-accent-ink, var(--accent-ink, var(--c-docs-ink))); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .dbv a:hover { text-decoration-thickness: 2px; }
+
+/* Link a otra página (`[[`): mención estilo Notion, ícono de página + título
+   con subrayado tenue, sin pill. */
+.dbv a[data-page],
+.dbv a.docs-page-link {
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--ink) 28%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  border-radius: 3px;
+  padding: 0 2px;
+  cursor: pointer;
+  transition: background-color var(--ui-dur, 160ms) ease;
+}
+.dbv a[data-page]:hover,
+.dbv a.docs-page-link:hover { background: var(--ui-hover, color-mix(in srgb, var(--ink) 6%, transparent)); text-decoration-thickness: 1px; }
+.dbv a[data-page]::before,
+.dbv a.docs-page-link::before {
+  content: "";
+  display: inline-block;
+  width: 1.05em;
+  height: 1.05em;
+  margin-right: 3px;
+  vertical-align: -0.16em;
+  background: var(--dim);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h5'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 .dbv .dbv-todo { display: flex; align-items: flex-start; gap: 10px; }
 .dbv .dbv-todo input {
   flex-shrink: 0;

@@ -20,6 +20,8 @@
  * Los bloques de código NO usan este modelo: su content es texto escapado.
  */
 
+import { isPageLinkId, pageLinkHref } from './docs-page-links';
+
 export type DocsMarkTag = 'strong' | 'em' | 'u' | 's' | 'code';
 
 /** Aliases aceptados al sanitizar (paste desde la web, HTML de otros editores). */
@@ -146,6 +148,18 @@ function serializeNode(
     }
     // Anchor sin texto (resto de un split en el borde): se descarta.
     if ((el.textContent ?? '') === '') return;
+    // Link a otra página (`[[`): el href se rehace desde el id, nunca se copia.
+    const page = el.getAttribute('data-page');
+    if (page !== null) {
+      if (!isPageLinkId(page)) {
+        serializeChildren(el, out, parentMark, stripMark);
+        return;
+      }
+      out.push(`<a href="${pageLinkHref(page)}" data-page="${page}">`);
+      serializeChildren(el, out, null, stripMark);
+      out.push('</a>');
+      return;
+    }
     const href = sanitizeHref(el.getAttribute('href') ?? '');
     if (!href) {
       serializeChildren(el, out, parentMark, stripMark);

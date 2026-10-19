@@ -118,3 +118,37 @@ test('Centro de ayuda: colecciones en lista, artículo con feedback y búsqueda 
   await expect(page.getByRole('heading', { name: `No articles match “zzz${tag}”` })).toBeVisible();
   await expect(page.getByRole('link', { name: 'See all articles' })).toHaveAttribute('href', helpHref!);
 });
+
+test('Docs: [[ inserta un link a la página que sobrevive al recargar y navega al click', async ({ request, page }) => {
+  const tag = uid();
+  const target = await createPage(request, { title: `Destino ${tag}` });
+  const source = await createPage(request, { title: `Origen ${tag}` });
+  await page.goto(`/en/app/docs/${source.id}`, { waitUntil: 'networkidle' });
+
+  await page.locator('.docs-editable').first().click();
+  await page.keyboard.type(`Ver [[Destino ${tag}`);
+  const option = page.locator('.docs-mention-item', { hasText: `Destino ${tag}` });
+  await expect(option).toBeVisible();
+  await option.click();
+
+  const link = page.locator('.docs-editable a[data-page]');
+  await expect(link).toHaveText(`Destino ${tag}`);
+  await expect(link).toHaveAttribute('data-page', target.id);
+  await expect(page.locator('.docs-editable').first()).not.toContainText('[[');
+  // Se guarda como link (no como texto "[Título]").
+  await expect
+    .poll(async () => JSON.stringify((await (await request.get(`/api/docs/pages/${source.id}`)).json()).content), {
+      timeout: 10_000,
+    })
+    .toContain(`data-page=\\"${target.id}\\"`);
+
+  await page.reload({ waitUntil: 'networkidle' });
+  const saved = page.locator('.docs-editable a[data-page]');
+  await expect(saved).toHaveText(`Destino ${tag}`);
+  await expect(saved).toHaveAttribute('href', `/en/app/docs/${target.id}`);
+  await saved.click();
+  await expect(page).toHaveURL(new RegExp(`/en/app/docs/${target.id}$`));
+  await expect(page.locator('.docs-title')).toHaveText(`Destino ${tag}`);
+  // La página destino lista quién la enlaza.
+  await expect(page.locator('.docs-backlinks')).toContainText(`Origen ${tag}`);
+});

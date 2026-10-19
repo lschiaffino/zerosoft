@@ -1,5 +1,6 @@
 import { getDb, getUserById, type DocsCommentRow, type DocsPageRow, type DocsShareRow, type TeamRow, type UserRow } from './db';
 import { sanitizeBlocks } from './docs-sanitize';
+import { pageLinkIds } from './docs-page-links';
 import { isMember, listMembers, listOwnedTeams } from './teams';
 import {
   type DocsAccess,
@@ -225,6 +226,27 @@ export async function listDocPageSummaries(
     position: r.position ?? null,
     updated_at: r.updated_at,
   }));
+}
+
+/**
+ * "Enlazada desde": páginas del workspace (no archivadas) con un link `[[` a
+ * esta. El LIKE es un prefiltro barato; se confirma parseando los bloques.
+ */
+export async function listDocBacklinks(
+  ownerId: string,
+  pageId: string,
+): Promise<Array<Pick<DocsPageSummary, 'id' | 'title' | 'icon'>>> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT id, title, icon, content FROM docs_pages
+       WHERE user_id = ? AND archived = 0 AND id != ? AND content LIKE ?
+       ORDER BY updated_at DESC LIMIT 200`,
+    )
+    .all(ownerId, pageId, `%data-page=%${pageId}%`)) as Array<Pick<DocsPageRow, 'id' | 'title' | 'icon' | 'content'>>;
+  return rows
+    .filter((r) => parseBlocks(r.content).some((b) => pageLinkIds(b.content).includes(pageId)))
+    .slice(0, 50)
+    .map((r) => ({ id: r.id, title: r.title, icon: r.icon ?? null }));
 }
 
 /** Páginas en la papelera (solo el número, para el link del sidebar). */

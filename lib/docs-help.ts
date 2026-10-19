@@ -42,6 +42,11 @@ export interface HelpArticle extends HelpArticleSummary {
   children: HelpCollection[];
   prev: HelpArticleSummary | null;
   next: HelpArticleSummary | null;
+  /**
+   * Páginas publicadas del workspace (id → slug y título): destinos válidos de
+   * los links `[[` del artículo. Un link a otra página se muestra como texto.
+   */
+  linkTargets: Record<string, { slug: string; title: string }>;
 }
 
 type PublishedRow = Pick<DocsPageRow, 'id' | 'parent_id' | 'title' | 'icon' | 'content' | 'slug' | 'updated_at'>;
@@ -219,6 +224,7 @@ export async function getHelpArticle(ownerId: string, slug: string): Promise<Hel
     children: await withHelpExcerpts(ownerId, subtree),
     prev: idx > 0 ? order[idx - 1].item : null,
     next: idx >= 0 && idx < order.length - 1 ? order[idx + 1].item : null,
+    linkTargets: Object.fromEntries(rows.map((r) => [r.id, { slug: r.slug as string, title: r.title }])),
   };
 }
 

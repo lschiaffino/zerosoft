@@ -1,23 +1,27 @@
 import sanitizeHtml from 'sanitize-html';
 import type { DocsBlock } from './docs-types';
+import { isPageLinkId, pageLinkHref } from './docs-page-links';
 
 /**
  * Sanitización de Docs en el servidor. El editor ya sanitiza en el navegador
  * (lib/docs-richtext.ts), pero la API acepta cualquier JSON: sin esto se podía
  * guardar HTML arbitrario que luego se renderiza con innerHTML (XSS almacenado).
  * Mismo subset que el editor: strong/em/u/s/code y links http(s)/mailto/tel/relativos.
+ * Links a página (`[[`): <a data-page="<id>">; el href se rehace desde el id
+ * (lib/docs-page-links.ts), así que nunca queda otro destino que /app/docs/<id>.
  */
 const OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: ['strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del', 'code', 'a', 'br'],
-  allowedAttributes: { a: ['href', 'target', 'rel'] },
+  allowedAttributes: { a: ['href', 'target', 'rel', 'data-page'] },
   allowedSchemes: ['http', 'https', 'mailto', 'tel'],
   allowProtocolRelative: false,
   disallowedTagsMode: 'discard',
   transformTags: {
-    a: (tagName, attribs) => ({
-      tagName,
-      attribs: { href: attribs.href ?? '', target: '_blank', rel: 'noopener noreferrer' },
-    }),
+    a: (tagName, attribs): sanitizeHtml.Tag => {
+      const page = attribs['data-page'];
+      if (isPageLinkId(page)) return { tagName, attribs: { href: pageLinkHref(page), 'data-page': page } };
+      return { tagName, attribs: { href: attribs.href ?? '', target: '_blank', rel: 'noopener noreferrer' } };
+    },
   },
 };
 

@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { getHelpArticle as loadHelpArticle, getHelpWorkspace as loadHelpWorkspace } from '@/lib/docs-help';
 import { sanitizeBlocks } from '@/lib/docs-sanitize';
+import { resolveBlocksPageLinks } from '@/lib/docs-page-links';
 import { buildToc } from '@/lib/docs-toc';
 import { helpAccentStyle } from '@/lib/docs-accent';
 import DocsBlocksView from '@/components/docs/DocsBlocksView';
@@ -43,10 +44,15 @@ export default async function HelpArticlePage(props: Props) {
   if (!article) notFound();
   const t = await getTranslations({ locale, namespace: 'docs.help' });
   const format = await getFormatter({ locale });
-  // Defensa en profundidad: se re-sanitiza al servir una página pública.
-  const blocks = sanitizeBlocks(article.content);
-  const toc = buildToc(blocks);
   const base = `/${locale}/h/${ws.handle}`;
+  // Defensa en profundidad: se re-sanitiza al servir una página pública. Los
+  // links `[[` van al artículo publicado; a una página sin publicar quedan
+  // como texto plano (ni id ni href: no se filtra qué hay en el workspace).
+  const blocks = resolveBlocksPageLinks(sanitizeBlocks(article.content), (pageId) => {
+    const target = article.linkTargets[pageId];
+    return target ? { href: `${base}/${target.slug}`, title: target.title || t('untitled'), keepId: false } : null;
+  });
+  const toc = buildToc(blocks);
   const style = helpAccentStyle(ws.accent) as CSSProperties;
 
   return (

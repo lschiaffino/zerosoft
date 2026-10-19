@@ -6,6 +6,7 @@ import {
   DOC_INTERNAL_READ,
   getDocAccess,
   getDocPageAncestors,
+  listDocBacklinks,
   listDocComments,
   listDocPageSummaries,
   listDocShares,
@@ -15,6 +16,7 @@ import {
 } from '@/lib/docs';
 import { getHelpFeedbackStats } from '@/lib/docs-help';
 import { sanitizeBlocks } from '@/lib/docs-sanitize';
+import { pageLinkHref, resolveBlocksPageLinks } from '@/lib/docs-page-links';
 import {
   createDocPageAction,
   moveDocPageAction,
@@ -61,9 +63,20 @@ export default async function DocsPageEditor(
   // A un invitado no se le muestran los ancestros (títulos de otro workspace).
   const ancestors = isOwner ? await getDocPageAncestors(user.id, id) : [];
   const shares = isOwner ? await listDocShares(id) : [];
+  const backlinks = isOwner ? await listDocBacklinks(user.id, id) : [];
   const feedback = isOwner && page.published ? await getHelpFeedbackStats(user.id, id) : null;
   const helpBase = isOwner && user.handle ? `/${locale}/h/${user.handle}` : null;
   const t = await getTranslations({ locale, namespace: 'docs' });
+
+  // Links `[[` con el título actual de la página linkeada (si es del
+  // workspace de quien mira; si no, queda el título con que se insertó).
+  const titles = new Map(allPages.map((p) => [p.id, p.title || t('untitled')]));
+  // El editor recibe el content tal cual (ya se sanitizó al guardar); la lectura se re-sanitiza.
+  const base = access === 'view' ? sanitizeBlocks(page.content) : page.content;
+  const content = resolveBlocksPageLinks(base, (pageId) => ({
+    href: access === 'view' ? `/${locale}${pageLinkHref(pageId)}` : pageLinkHref(pageId),
+    title: titles.get(pageId) ?? null,
+  }));
 
   const owner = isOwner ? null : await getUserById(row.user_id);
   const sharedBy = owner ? owner.name || owner.email : null;
@@ -87,7 +100,7 @@ export default async function DocsPageEditor(
       <div className="docs-main">
         {access === 'view' ? (
           <DocsReadOnlyView
-            page={{ ...page, content: sanitizeBlocks(page.content) }}
+            page={{ ...page, content }}
             sharedBy={sharedBy}
             showVersions={canSeeVersions}
           />
@@ -99,13 +112,14 @@ export default async function DocsPageEditor(
               </p>
             )}
             <DocsEditorClient
-              page={page}
+              page={{ ...page, content }}
               ancestors={ancestors}
               shares={shares}
               comments={comments}
               access={isOwner ? 'owner' : 'edit'}
               helpBase={helpBase}
               feedback={feedback}
+              backlinks={backlinks}
               currentUserId={user.actingUser?.id ?? user.id}
               commentsLabels={{
                 title: t('comments.title'),
