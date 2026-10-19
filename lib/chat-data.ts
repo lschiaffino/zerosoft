@@ -80,6 +80,7 @@ export interface WidgetCreatePayload {
   botSource?: 'canned' | 'docs' | 'ai' | 'agent';
   officeHours?: OfficeHoursConfig | null;
   helpEnabled?: boolean;
+  locale?: 'auto' | 'en' | 'es' | 'pt';
 }
 
 export interface WidgetUpdatePayload {
@@ -93,6 +94,7 @@ export interface WidgetUpdatePayload {
   botSource?: 'canned' | 'docs' | 'ai' | 'agent';
   officeHours?: OfficeHoursConfig | null;
   helpEnabled?: boolean;
+  locale?: 'auto' | 'en' | 'es' | 'pt';
 }
 
 export async function listChatWidgets(
@@ -126,7 +128,7 @@ export async function createChatWidget(
   const now = nowIso();
   await db
     .prepare(
-      'INSERT INTO chat_widgets (id, team_id, user_id, name, color, position, welcome_message, fields, bot_enabled, bot_greeting, bot_source, office_hours, help_enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO chat_widgets (id, team_id, user_id, name, color, position, welcome_message, fields, bot_enabled, bot_greeting, bot_source, office_hours, help_enabled, locale, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(
       id,
@@ -142,6 +144,7 @@ export async function createChatWidget(
       payload.botSource ?? 'canned',
       payload.officeHours ? JSON.stringify(payload.officeHours) : null,
       payload.helpEnabled ? 1 : 0,
+      payload.locale ?? 'auto',
       now,
       now,
     );
@@ -198,6 +201,10 @@ export async function updateChatWidget(
   if (payload.helpEnabled !== undefined) {
     fields.push('help_enabled = ?');
     args.push(payload.helpEnabled ? 1 : 0);
+  }
+  if (payload.locale !== undefined) {
+    fields.push('locale = ?');
+    args.push(payload.locale);
   }
 
   if (fields.length > 0) {
@@ -794,6 +801,8 @@ export interface ChatConversationListRow extends ChatConversationRow, SlaCompute
   assigned_email: string | null;
   /** Tags separados por coma (GROUP_CONCAT); ver ConversationList. */
   tags: string | null;
+  /** Con búsqueda (q): fragmento del mensaje más reciente que coincide. */
+  match_snippet?: string | null;
 }
 
 export interface ChatConversationWithVisitor extends ChatConversationRow, SlaComputedFields {
@@ -806,6 +815,31 @@ export interface ChatConversationWithVisitor extends ChatConversationRow, SlaCom
   assigned_email: string | null;
   assigned_image: string | null;
   crm_contact: CrmContactRow | null;
+}
+
+/**
+ * Búsqueda del inbox: asunto, nombre y email del visitante, y el texto de
+ * cualquier mensaje de la conversación (notas internas incluidas: el inbox
+ * lo ven solo los agentes).
+ */
+function conversationSearch(q: string): { sql: string; args: string[] } {
+  const like = `%${escapeLike(q.trim())}%`;
+  return {
+    sql: `(c.subject LIKE ? ESCAPE '\\' OR v.name LIKE ? ESCAPE '\\' OR v.email LIKE ? ESCAPE '\\'
+      OR EXISTS (SELECT 1 FROM chat_messages sm WHERE sm.conversation_id = c.id AND sm.body LIKE ? ESCAPE '\\'))`,
+    args: [like, like, like, like],
+  };
+}
+
+/** Fragmento del texto alrededor de la primera coincidencia (para la fila del inbox). */
+export function matchSnippet(body: string, q: string, radius = 60): string {
+  const text = body.replace(/\s+/g, ' ').trim();
+  const needle = q.trim().toLowerCase();
+  const at = needle ? text.toLowerCase().indexOf(needle) : -1;
+  if (at < 0) return text.length > radius * 2 ? `${text.slice(0, radius * 2).trimEnd()}…` : text;
+  const start = Math.max(0, at - radius);
+  const end = Math.min(text.length, at + needle.length + radius);
+  return `${start > 0 ? '…' : ''}${text.slice(start, end).trim()}${end < text.length ? '…' : ''}`;
 }
 
 export async function listChatConversations(
@@ -832,9 +866,9 @@ export async function listChatConversations(
     args.push(options.tag);
   }
   if (options.q) {
-    where.push('(c.subject LIKE ? OR v.name LIKE ? OR v.email LIKE ?)');
-    const like = `%${escapeLike(options.q)}%`;
-    args.push(like, like, like);
+    const search = conversationSearch(options.q);
+    where.push(search.sql);
+    args.push(...search.args);
   }
 
   const limit = Math.min(Math.max(options.limit ?? 50, 1), 200);
@@ -849,7 +883,12 @@ export async function listChatConversations(
         u.name AS assigned_name,
         u.email AS assigned_email,
         (SELECT body FROM chat_messages m WHERE m.conversation_id = c.id AND m.is_note = 0 ORDER BY m.created_at DESC LIMIT 1) AS last_message_body,
-        (SELECT GROUP_CONCAT(tag, ',') FROM (SELECT tag FROM chat_conversation_tags t WHERE t.conversation_id = c.id ORDER BY tag)) AS tags
+        (SELECT GROUP_CONCAT(tag, ',') FROM (SELECT tag FROM chat_conversation_tags t WHERE t.conversation_id = c.id ORDER BY tag)) AS tags${
+          options.q
+            ? `,
+        (SELECT body FROM chat_messages sm WHERE sm.conversation_id = c.id AND sm.body LIKE ? ESCAPE '\\' ORDER BY sm.created_at DESC LIMIT 1) AS match_body`
+            : ''
+        }
        FROM chat_conversations c
        JOIN chat_visitors v ON v.id = c.visitor_id
        LEFT JOIN users u ON u.id = c.assigned_to
@@ -857,13 +896,17 @@ export async function listChatConversations(
        ORDER BY c.updated_at DESC
        LIMIT ? OFFSET ?`,
     )
-    .all(...args, limit, offset)) as Array<
-    Omit<ChatConversationListRow, keyof SlaComputedFields>
+    .all(...(options.q ? [`%${escapeLike(options.q.trim())}%`] : []), ...args, limit, offset)) as Array<
+    Omit<ChatConversationListRow, keyof SlaComputedFields> & { match_body?: string | null }
   >;
 
   const policies = await loadActiveSlaPolicies(widgetIds);
   const now = new Date();
-  return rows.map((row) => ({ ...row, ...computeSlaFields(row, policies, now) }));
+  return rows.map(({ match_body, ...row }) => ({
+    ...row,
+    match_snippet: match_body && options.q ? matchSnippet(match_body, options.q) : null,
+    ...computeSlaFields(row, policies, now),
+  }));
 }
 
 export async function countChatConversations(
@@ -890,9 +933,9 @@ export async function countChatConversations(
     args.push(options.tag);
   }
   if (options.q) {
-    where.push('(c.subject LIKE ? OR v.name LIKE ? OR v.email LIKE ?)');
-    const like = `%${escapeLike(options.q)}%`;
-    args.push(like, like, like);
+    const search = conversationSearch(options.q);
+    where.push(search.sql);
+    args.push(...search.args);
   }
 
   const row = (await db

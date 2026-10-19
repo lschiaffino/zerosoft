@@ -218,6 +218,8 @@ export interface AgentMessageDto {
   createdAt: string;
   rating?: number | null;
   note?: string;
+  /** Lo escribió una persona del equipo (después de derivar), no el agente. */
+  teammate?: boolean;
 }
 
 export interface AgentConversationDto {

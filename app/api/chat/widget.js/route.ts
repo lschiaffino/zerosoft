@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getChatWidget } from '@/lib/chat-data';
 import { CHAT_MESSAGE_MAX } from '@/lib/chat-schema';
+import { pickWidgetLocale, WIDGET_STRINGS } from '@/lib/chat-widget-i18n';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +9,9 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   const id = widget!.id;
   const color = widget!.color;
   const position = widget!.position;
-  const welcomeMessage = widget!.welcome_message || 'Hi there. How can we help?';
+  // Sin mensaje propio: el saludo por defecto en el idioma del visitante.
+  const welcomeMessage = widget!.welcome_message || null;
+  const localeSetting = widget!.locale ?? 'auto';
   const fields = (() => {
     try {
       const parsed = JSON.parse(widget!.fields);
@@ -22,7 +25,26 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   var WIDGET_ID = ${JSON.stringify(id)};
   var COLOR = ${JSON.stringify(color)};
   var POSITION = ${JSON.stringify(position)};
-  var WELCOME = ${JSON.stringify(welcomeMessage)};
+  // Idioma: data-locale / zsChatSettings.locale, idioma fijo del widget,
+  // <html lang> de la página o el navegador. Textos de chat.visitorWidget.
+  var STRINGS = ${JSON.stringify(WIDGET_STRINGS)};
+  var pickLocale = ${pickWidgetLocale.toString()};
+  var LOCALE = (function () {
+    var el = document.currentScript;
+    var override = el && el.getAttribute ? el.getAttribute('data-locale') : null;
+    try {
+      if (!override && window.zsChatSettings && window.zsChatSettings.locale) override = window.zsChatSettings.locale;
+    } catch (e) {}
+    var htmlLang = document.documentElement ? document.documentElement.getAttribute('lang') : null;
+    var nav = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language]);
+    return pickLocale(override, ${JSON.stringify(localeSetting)}, htmlLang, nav);
+  })();
+  function T(key, vars) {
+    var s = (STRINGS[LOCALE] && STRINGS[LOCALE][key]) || STRINGS.en[key] || key;
+    for (var k in vars || {}) s = s.split('{' + k + '}').join(String(vars[k]));
+    return s;
+  }
+  var WELCOME = ${JSON.stringify(welcomeMessage)} || T('defaultWelcome');
   var FIELDS = ${JSON.stringify(fields)};
   var ORIGIN = ${JSON.stringify(origin)};
   // Pestaña "Help": artículos publicados del centro de ayuda (Docs).
@@ -163,7 +185,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
 
   var btn = dom('button', {
     id: 'zs-chat-btn',
-    'aria-label': 'Open chat',
+    'aria-label': T('openChat'),
     style:
       'position:fixed;bottom:20px;' +
       (POSITION === 'bottom-left' ? 'left:20px;' : 'right:20px;') +
@@ -193,15 +215,15 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   if (HELP) {
     var tabs = dom('div', { style: 'display:flex;gap:4px;', role: 'tablist' });
     var tabStyle = 'background:none;border:none;color:#fff;font:inherit;font-weight:600;cursor:pointer;padding:2px 8px;border-radius:4px;';
-    tabChat = dom('button', { type: 'button', role: 'tab', 'aria-selected': 'true', style: tabStyle + 'background:rgba(255,255,255,0.18);' }, ['Chat']);
-    tabHelp = dom('button', { type: 'button', role: 'tab', 'aria-selected': 'false', style: tabStyle + 'opacity:0.75;' }, ['Help']);
+    tabChat = dom('button', { type: 'button', role: 'tab', 'aria-selected': 'true', style: tabStyle + 'background:rgba(255,255,255,0.18);' }, [T('chat')]);
+    tabHelp = dom('button', { type: 'button', role: 'tab', 'aria-selected': 'false', style: tabStyle + 'opacity:0.75;' }, [T('help')]);
     tabs.appendChild(tabChat);
     tabs.appendChild(tabHelp);
     header.appendChild(tabs);
   } else {
-    header.appendChild(dom('span', {}, ['Chat']));
+    header.appendChild(dom('span', {}, [T('chat')]));
   }
-  var closeBtn = dom('button', { style: 'background:none;border:none;color:#fff;font-size:18px;cursor:pointer;line-height:1;', 'aria-label': 'Close' }, ['×']);
+  var closeBtn = dom('button', { style: 'background:none;border:none;color:#fff;font-size:18px;cursor:pointer;line-height:1;', 'aria-label': T('close') }, ['×']);
   header.appendChild(closeBtn);
 
   var messages = dom('div', { style: 'flex:1;overflow-y:auto;padding:16px;background:#f8f8f8;' });
@@ -214,10 +236,10 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   var csatWrap = dom('div', {
     style: 'display:none;padding:14px 16px;background:#fff;border-top:1px solid rgba(0,0,0,0.06);',
   });
-  var csatQuestion = dom('p', { style: 'margin:0 0 8px;font-size:13px;font-weight:600;color:#111;' }, ['How would you rate your experience?']);
+  var csatQuestion = dom('p', { style: 'margin:0 0 8px;font-size:13px;font-weight:600;color:#111;' }, [T('csatQuestion')]);
   var csatStars = dom('div', { style: 'display:flex;gap:4px;margin-bottom:8px;' });
   var csatComment = dom('textarea', {
-    placeholder: 'Anything to add? (optional)',
+    placeholder: T('csatComment'),
     rows: '2',
     style:
       'width:100%;box-sizing:border-box;border:1px solid rgba(0,0,0,0.1);border-radius:8px;padding:6px 8px;font-size:12px;margin-bottom:8px;resize:none;font-family:inherit;',
@@ -226,7 +248,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     type: 'button',
     style:
       'background:' + COLOR + ';color:#fff;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:500;opacity:0.4;',
-  }, ['Send feedback']);
+  }, [T('csatSend')]);
   csatWrap.appendChild(csatQuestion);
   csatWrap.appendChild(csatStars);
   csatWrap.appendChild(csatComment);
@@ -248,7 +270,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     type: 'button',
     style:
       'background:none;border:none;color:#888;cursor:pointer;font-size:16px;line-height:1;padding:4px;',
-    'aria-label': 'Remove file',
+    'aria-label': T('removeFile'),
   }, ['×']);
   previewWrap.appendChild(previewBody);
   previewWrap.appendChild(previewRemove);
@@ -258,22 +280,22 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     type: 'button',
     style:
       'background:none;border:none;color:#666;cursor:pointer;font-size:18px;line-height:1;padding:4px;',
-    'aria-label': 'Attach file',
-    title: 'Attach file',
+    'aria-label': T('attachFile'),
+    title: T('attachFile'),
   }, ['⊕']);
   var fileInput = dom('input', { type: 'file', style: 'display:none;' });
   var input = dom('input', {
     type: 'text',
-    placeholder: 'Type a message…',
-    'aria-label': 'Message',
+    placeholder: T('placeholder'),
+    'aria-label': T('message'),
     maxlength: String(MAX_MESSAGE),
     style: 'flex:1;border:1px solid rgba(0,0,0,0.1);border-radius:8px;padding:8px 10px;outline:none;',
   });
   var send = dom('button', {
     type: 'button',
     style: 'background:' + COLOR + ';color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:500;',
-    'aria-label': 'Send',
-  }, ['Send']);
+    'aria-label': T('send'),
+  }, [T('send')]);
   inputWrap.appendChild(attachBtn);
   inputWrap.appendChild(fileInput);
   inputWrap.appendChild(input);
@@ -292,8 +314,8 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   var helpPane = dom('div', { style: 'flex:1;display:none;flex-direction:column;min-height:0;background:#fff;' });
   var helpSearch = dom('input', {
     type: 'search',
-    placeholder: 'Search articles…',
-    'aria-label': 'Search articles',
+    placeholder: T('searchArticles'),
+    'aria-label': T('searchArticlesLabel'),
     style: 'margin:12px 12px 4px;border:1px solid rgba(0,0,0,0.1);border-radius:8px;padding:8px 10px;outline:none;font:inherit;',
   });
   var helpList = dom('div', { style: 'flex:1;overflow-y:auto;padding:4px 12px 8px;' });
@@ -325,7 +347,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       row.setAttribute('target', '_blank');
       row.setAttribute('rel', 'noopener noreferrer');
     }
-    row.appendChild(dom('div', { style: 'font-weight:600;font-size:13px;' }, [a.title || 'Untitled']));
+    row.appendChild(dom('div', { style: 'font-weight:600;font-size:13px;' }, [a.title || T('untitled')]));
     if (!compact && a.excerpt) {
       row.appendChild(dom('div', { style: 'font-size:12px;color:#666;margin-top:2px;line-height:1.4;' }, [a.excerpt]));
     }
@@ -342,12 +364,12 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     helpList.innerHTML = '';
     var list = (data && data.articles) || [];
     if (!list.length) {
-      helpList.appendChild(dom('p', { style: 'color:#666;font-size:13px;margin:12px 0;' }, [q ? 'No articles found.' : 'No articles yet.']));
+      helpList.appendChild(dom('p', { style: 'color:#666;font-size:13px;margin:12px 0;' }, [q ? T('noArticlesFound') : T('noArticles')]));
     }
     list.forEach(function (a) { helpList.appendChild(articleRow(a, false)); });
     if (data && data.helpCenterUrl) {
       helpFoot.innerHTML = '';
-      helpFoot.appendChild(dom('a', { href: data.helpCenterUrl, target: '_blank', rel: 'noopener noreferrer', style: 'color:' + COLOR + ';' }, ['Visit help center']));
+      helpFoot.appendChild(dom('a', { href: data.helpCenterUrl, target: '_blank', rel: 'noopener noreferrer', style: 'color:' + COLOR + ';' }, [T('helpCenter')]));
       helpFoot.style.display = 'block';
     }
   }
@@ -407,7 +429,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
           suggestWrap.style.display = 'none';
           return;
         }
-        suggestWrap.appendChild(dom('div', { style: 'color:#666;margin-bottom:2px;' }, ['These articles might help:']));
+        suggestWrap.appendChild(dom('div', { style: 'color:#666;margin-bottom:2px;' }, [T('suggestions')]));
         list.forEach(function (a) { suggestWrap.appendChild(articleRow(a, true)); });
         suggestWrap.style.display = 'block';
       });
@@ -473,7 +495,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     bubble.setAttribute('data-read', '1');
     bubble.appendChild(dom('div', {
       style: 'font-size:10px;opacity:0.8;text-align:right;margin-top:4px;',
-    }, ['Read']));
+    }, [T('read')]));
     if (id) messageReadMap[id] = true;
   }
 
@@ -495,19 +517,20 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       awayBanner.style.display = 'none';
       return;
     }
-    var msg = "We're away right now.";
+    var msg = T('away');
     if (office.nextOpenAt) {
       try {
         msg +=
-          ' Back ' +
-          new Date(office.nextOpenAt).toLocaleString([], {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          }) +
-          '.';
+          ' ' +
+          T('backAt', {
+            when: new Date(office.nextOpenAt).toLocaleString(LOCALE, {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+          });
       } catch (e) {}
     }
     awayBanner.textContent = msg;
@@ -526,7 +549,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
           'button',
           {
             type: 'button',
-            'aria-label': n + ' stars',
+            'aria-label': T('stars', { n: n }),
             style:
               'background:none;border:none;cursor:pointer;font-size:20px;padding:0 2px;line-height:1;color:' +
               (n <= csatScore ? COLOR : '#bbb') +
@@ -551,7 +574,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     csatSubmitted = false;
     csatComment.value = '';
     csatSend.style.opacity = '0.4';
-    csatQuestion.textContent = 'How would you rate your experience?';
+    csatQuestion.textContent = T('csatQuestion');
     csatStars.style.display = 'flex';
     csatComment.style.display = 'block';
     csatSend.style.display = 'inline-block';
@@ -590,7 +613,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         csatStars.style.display = 'none';
         csatComment.style.display = 'none';
         csatSend.style.display = 'none';
-        csatQuestion.textContent = 'Thanks for your feedback!';
+        csatQuestion.textContent = T('csatThanks');
       })
       .catch(function () {});
   });
@@ -612,7 +635,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       formWrap.appendChild(inp);
       inputs.push({ id: f.id, el: inp, required: f.required });
     });
-    var submit = dom('button', { style: 'background:' + COLOR + ';color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;width:100%;' }, ['Start chat']);
+    var submit = dom('button', { style: 'background:' + COLOR + ';color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;width:100%;' }, [T('startChat')]);
     formWrap.appendChild(submit);
     return { inputs: inputs, submit: submit };
   }
@@ -628,7 +651,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     previewBody.innerHTML = '';
     previewBody.appendChild(document.createTextNode('📎 ' + selectedFile.name + ' (' + formatBytes(selectedFile.size) + ')'));
     if (selectedFile.size > MAX_FILE_SIZE) {
-      var warn = dom('span', { style: 'color:#b00020;display:block;margin-top:2px;' }, ['File too large (max 10 MB)']);
+      var warn = dom('span', { style: 'color:#b00020;display:block;margin-top:2px;' }, [T('fileTooLarge')]);
       previewBody.appendChild(warn);
     }
   }
@@ -763,10 +786,10 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         if (!res.ok || !data) {
           showSendError(
             res.status === 429
-              ? 'Too many messages. Wait a moment and try again.'
+              ? T('tooMany')
               : res.status === 400 && body.length > MAX_MESSAGE
-                ? 'Message too long (max ' + MAX_MESSAGE + ' characters)'
-                : 'Could not send your message. Try again.',
+                ? T('tooLong', { max: MAX_MESSAGE })
+                : T('sendFailed'),
             body,
           );
           return;
@@ -780,7 +803,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         }
       })
       .catch(function () {
-        showSendError('Could not send your message. Try again.', body);
+        showSendError(T('sendFailed'), body);
       });
   }
 
@@ -809,10 +832,10 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
           // Se conserva la vista previa para que el visitante pueda reintentar.
           showUploadError(
             res.status === 413
-              ? 'File too large (max 10 MB)'
+              ? T('fileTooLarge')
               : res.status === 415
-                ? 'This file type is not allowed'
-                : 'Could not send the file. Try again.',
+                ? T('fileType')
+                : T('fileFailed'),
           );
           return;
         }
@@ -827,14 +850,14 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       })
       .catch(function () {
         uploading = false;
-        showUploadError('Could not send the file. Try again.');
+        showUploadError(T('fileFailed'));
       });
   }
 
   function openChat() {
     open = true;
     box.style.display = 'flex';
-    btn.setAttribute('aria-label', 'Close chat');
+    btn.setAttribute('aria-label', T('closeChat'));
     messages.innerHTML = '';
     loadMessages();
     if (!pollTimer) pollTimer = setInterval(poll, 5000);
@@ -843,7 +866,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   function closeChat() {
     open = false;
     box.style.display = 'none';
-    btn.setAttribute('aria-label', 'Open chat');
+    btn.setAttribute('aria-label', T('openChat'));
     if (pollTimer) {
       clearInterval(pollTimer);
       pollTimer = null;

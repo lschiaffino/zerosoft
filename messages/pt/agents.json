@@ -155,7 +155,7 @@
     "private": "Privada",
     "privateWarn": "Você escolheu páginas privadas: qualquer pessoa que conversar com este agente pode ver o conteúdo delas.",
     "urlsTitle": "Páginas web",
-    "urlsHint": "Até 20 URLs. O texto é salvo e pesquisado junto com seus docs; atualize para buscar mudanças.",
+    "urlsHint": "Até 20 URLs. O texto é baixado ao salvar, atualizado todos os dias e pesquisado junto com seus docs.",
     "refresh": "Atualizar",
     "refreshing": "Baixando…",
     "saveFirst": "Salve para baixar as novas URLs.",
@@ -173,7 +173,8 @@
       "pending": "Pendente"
     },
     "urlsEmpty": "Ainda não há páginas web.",
-    "advancedHint": "Respostas salvas do Chat"
+    "advancedHint": "Respostas salvas do Chat",
+    "syncedAt": "atualizada {when}"
   },
   "tools": {
     "intro": "As ferramentas permitem que o agente aja na suíte. Cada uma só alcança este workspace e fica registrada com entrada, saída e duração.",
@@ -293,7 +294,9 @@
     "input": "Entrada",
     "output": "Saída",
     "toolError": "Erro",
-    "running": "Em andamento"
+    "running": "Em andamento",
+    "handedOffNotice": "Uma pessoa da equipe vai responder por aqui. Você pode continuar escrevendo: ela vai ver suas mensagens.",
+    "teammate": "Equipe"
   },
   "conversations": {
     "filter": "Canal",
@@ -315,7 +318,12 @@
     "tryPlayground": "Testar no playground",
     "retry": "Tentar de novo",
     "back": "Conversas",
-    "loadingDetail": "Carregando conversa"
+    "loadingDetail": "Carregando conversa",
+    "replyLabel": "Responder como equipe",
+    "replyPlaceholder": "Escreva uma resposta para o visitante…",
+    "replyHintPublic": "O visitante vê na página pública. O agente para de responder nesta conversa.",
+    "replyHintApi": "Fica na conversa para sua integração ler. O agente para de responder aqui.",
+    "replySend": "Enviar resposta"
   },
   "errors": {
     "generic": "Algo deu errado. Tente de novo.",
@@ -336,7 +344,8 @@
     "invalid_event_type": "Esse tipo de evento não é deste workspace.",
     "invalid_project": "Esse projeto do Track não é deste workspace.",
     "invalid_flow": "Um dos flows escolhidos não é deste workspace.",
-    "invalid_url": "Digite uma URL completa http(s)."
+    "invalid_url": "Digite uma URL completa http(s).",
+    "unsupported_channel": "Responda às conversas do Chat pela caixa de entrada."
   },
   "public": {
     "subtitle": "Assistente de AI",

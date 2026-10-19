@@ -41,6 +41,12 @@ export default function PublicAgentChat({
       storageKey={`zs-agent-conv:${handle}`}
       disabledReason={offline ? t('public.offline') : key ? null : t('chat.thinking')}
       variant="page"
+      historyUrl={
+        key
+          ? (id) =>
+              `/api/agents/public/${encodeURIComponent(handle)}?conversationId=${encodeURIComponent(id)}&visitorKey=${encodeURIComponent(key)}`
+          : undefined
+      }
     />
   );
 }

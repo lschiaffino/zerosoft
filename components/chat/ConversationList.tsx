@@ -16,7 +16,8 @@ interface ConversationListProps {
 }
 
 function preview(c: ChatConversationListRow): string {
-  return c.last_message_body || c.subject || '';
+  // Con búsqueda: el fragmento del mensaje que coincide (si no, la última línea del hilo).
+  return c.match_snippet || c.last_message_body || c.subject || '';
 }
 
 /**

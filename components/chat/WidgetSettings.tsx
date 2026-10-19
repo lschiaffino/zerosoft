@@ -207,6 +207,24 @@ export default function WidgetSettings({
               />
             </div>
             <div className="ui-field">
+              <label className="label" htmlFor={`${uid}-locale`}>
+                {t('widgetForm.locale')}
+              </label>
+              <select
+                id={`${uid}-locale`}
+                className="select"
+                value={values.locale}
+                onChange={(e) => set('locale', e.target.value as WidgetFormValues['locale'])}
+              >
+                {(['auto', 'en', 'es', 'pt'] as const).map((l) => (
+                  <option key={l} value={l}>
+                    {t(`widgetForm.locales.${l}`)}
+                  </option>
+                ))}
+              </select>
+              <p className="ui-help">{t('widgetForm.localeHint')}</p>
+            </div>
+            <div className="ui-field">
               <label className="ui-switch">
                 <input
                   type="checkbox"

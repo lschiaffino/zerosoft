@@ -241,7 +241,8 @@
     "logDetail": "Detalhe",
     "logTime": "Tempo",
     "view": "Visualização dos dados",
-    "copied": "Copiado"
+    "copied": "Copiado",
+    "queuedNotice": "Na fila: outro robô está em execução neste workspace. Esta execução começa quando ele terminar."
   },
   "settings": {
     "enabled": "Permitir execuções automáticas",
@@ -325,7 +326,7 @@
     "runner_unavailable": "Os robôs não podem ser executados neste servidor (nenhum runner configurado).",
     "quota_exceeded": "Você usou todos os minutos de robôs deste mês.",
     "rate_limited": "Execuções demais nesta hora. Tente mais tarde.",
-    "busy": "Outro robô está em execução neste workspace. Espere terminar.",
+    "busy": "Há execuções demais esperando neste workspace. Tente de novo quando a fila liberar.",
     "missing_input": "Preencha a entrada obrigatória “{name}”.",
     "no_steps": "Adicione pelo menos um passo antes de executar.",
     "disabled": "Este robô está desligado para execuções automáticas.",

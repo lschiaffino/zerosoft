@@ -241,7 +241,8 @@
     "logDetail": "Detail",
     "logTime": "Time",
     "view": "Data view",
-    "copied": "Copied"
+    "copied": "Copied",
+    "queuedNotice": "Waiting in line: another robot is running in this workspace. This run starts when it finishes."
   },
   "settings": {
     "enabled": "Allow automatic runs",
@@ -325,7 +326,7 @@
     "runner_unavailable": "Robots can't run on this server (no runner configured).",
     "quota_exceeded": "You used all the robot minutes for this month.",
     "rate_limited": "Too many runs this hour. Try again later.",
-    "busy": "Another robot is running in this workspace. Wait for it to finish.",
+    "busy": "Too many runs are waiting in this workspace. Try again when the queue clears.",
     "missing_input": "Fill in the required input “{name}”.",
     "no_steps": "Add at least one step before running.",
     "disabled": "This robot is turned off for automatic runs.",

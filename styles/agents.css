@@ -233,6 +233,10 @@
 .ag-chat-input::placeholder { color: var(--brand-gray-3); }
 .ag-chat-actions { display: flex; align-items: center; gap: 8px; }
 .ag-chat-disabled { margin: 0; padding: 14px 16px; border-top: 1px solid var(--line); font-size: 0.875rem; color: var(--brand-gray-2); background: var(--brand-enamel); }
+.ag-chat-handed { margin: 0; padding: 10px 16px; border-top: 1px solid var(--line); font-size: 0.8125rem; }
+.ag-msg-author { margin: 0 0 4px; }
+.ag-reply { display: grid; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.ag-reply-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 
 /* ---------- Conversaciones ---------- */
 .ag-convs {

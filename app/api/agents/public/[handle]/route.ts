@@ -1,6 +1,6 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getAgentByHandle } from '@/lib/agents';
+import { getAgentByHandle, listVisitorMessages } from '@/lib/agents';
 import { agentError, streamAgentReply } from '@/lib/agents-http';
 import { limitByIp } from '@/lib/rate-limit';
 
@@ -37,4 +37,24 @@ export async function POST(req: NextRequest, props: { params: Promise<{ handle: 
     visitorKey: parsed.data.visitorKey,
     abortSignal: req.signal,
   });
+}
+
+/**
+ * Página pública: historial de la conversación del visitante (con su
+ * visitorKey) y si está derivada. El chat lo consulta cada pocos segundos
+ * mientras espera la respuesta de una persona del equipo.
+ */
+export async function GET(req: NextRequest, props: { params: Promise<{ handle: string }> }) {
+  const { handle } = await props.params;
+  const limited = await limitByIp(req, 'agent-public-poll', 60, 60, handle.toLowerCase());
+  if (limited) return limited;
+  const agent = await getAgentByHandle(handle);
+  if (!agent || agent.enabled !== 1) return agentError(404, 'not_found');
+  const sp = req.nextUrl.searchParams;
+  const conversationId = sp.get('conversationId') ?? '';
+  const visitorKey = sp.get('visitorKey') ?? '';
+  if (!conversationId || visitorKey.length < 16) return agentError(400, 'invalid_input');
+  const data = await listVisitorMessages(agent, conversationId, visitorKey);
+  if (!data) return agentError(404, 'conversation_not_found');
+  return NextResponse.json(data, { headers: { 'cache-control': 'no-store' } });
 }

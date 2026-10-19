@@ -3,6 +3,7 @@ import { retryDueWebhooks } from '@/lib/webhooks';
 import { fireDueTasks } from '@/lib/crm';
 import { processFlowQueue } from '@/lib/flow-worker';
 import { runDueRobots } from '@/lib/robots';
+import { resyncStaleKnowledgeUrls } from '@/lib/agents';
 import { syncDueMailboxes } from '@/lib/crm-email-sync';
 import { processSequences } from '@/lib/crm-sequences';
 import { runNightlyScoring } from '@/lib/crm-scoring';
@@ -26,8 +27,10 @@ const FLOW_BUDGET_MS = 150_000;
  * cola, delays y reintentos) y al final los robots programados
  * (lib/robots.ts → runDueRobots). En Vercel los recordatorios de Cal y la
  * cola de Flow corren además cada minuto en /api/cron/minute (claims por fila
- * evitan dobles envíos); acá quedan para self-host con un solo cron. También carga al backlog las ideas nuevas
- * de research/ideas.json (una vez por título). Misma autorización que el cron de
+ * evitan dobles envíos); acá quedan para self-host con un solo cron. También
+ * carga al backlog las ideas nuevas de research/ideas.json (una vez por
+ * título) y re-descarga las URLs de conocimiento de Agents con más de 24 h.
+ * Misma autorización que el cron de
  * recordatorios (CRON_SECRET).
  */
 export async function GET(req: NextRequest) {
@@ -44,6 +47,8 @@ export async function GET(req: NextRequest) {
   const scoring = await runNightlyScoring(new Date(), 10).catch(() => null);
   // Flow con presupuesto: no empieza corridas nuevas pasados ~150 s del tick
   // (lo que quede sigue en cola para el próximo tick o el worker).
+  // Agents: re-descarga las URLs de conocimiento con más de 24 h (de a pocas por tick).
+  const agentKnowledge = await resyncStaleKnowledgeUrls({ limit: 30 }).catch(() => null);
   const flow = await processFlowQueue({ limit: 200, budgetMs: Math.max(0, FLOW_BUDGET_MS - (Date.now() - tickStart)) });
   // Robots al final: son lo más lento y usan el tiempo que queda (con margen).
   // En Vercel también los corre /api/cron/robots cada 5 min; self-host puede
@@ -57,5 +62,5 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, flow, emailSync, sequences, scoring, robots, ideas });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, flow, emailSync, sequences, scoring, agentKnowledge, robots, ideas });
 }

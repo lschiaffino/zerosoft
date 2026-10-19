@@ -51,6 +51,7 @@ const widgetBase = {
   botSource: z.enum(['canned', 'docs', 'ai', 'agent']).optional(),
   officeHours: officeHoursSchema.nullable().optional(),
   helpEnabled: z.boolean().optional(),
+  locale: z.enum(['auto', 'en', 'es', 'pt']).optional(),
 };
 
 export const widgetCreateSchema = z.object({

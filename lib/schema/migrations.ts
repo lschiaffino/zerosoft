@@ -2339,6 +2339,16 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE track_issue_comments ADD COLUMN updated_at TEXT');
     },
   },
+  {
+    // Idioma del widget de Chat ('auto' = el de la página / navegador) y
+    // respuestas de personas del equipo en conversaciones de Agents derivadas
+    // (agent_messages.author_id = quien respondió; NULL = el agente).
+    id: '043_chat_widget_locale_agent_replies',
+    async up(client) {
+      await addColumn(client, "ALTER TABLE chat_widgets ADD COLUMN locale TEXT NOT NULL DEFAULT 'auto'");
+      await addColumn(client, 'ALTER TABLE agent_messages ADD COLUMN author_id TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -4,7 +4,18 @@ import { getDb } from '@/lib/db';
 import { createFlow, getRunWithSteps } from '@/lib/flow';
 import { runFlowNow } from '@/lib/flow-http';
 import { emitEvent } from '@/lib/events';
-import { createRobot, getRobot, getUsage, listRobotRuns, listRobots, runDueRobots, startRobotRun, updateRobot } from '@/lib/robots';
+import {
+  createRobot,
+  drainRobotQueue,
+  expireQueuedRobotRuns,
+  getRobot,
+  getUsage,
+  listRobotRuns,
+  listRobots,
+  runDueRobots,
+  startRobotRun,
+  updateRobot,
+} from '@/lib/robots';
 import {
   isPrivateAddress,
   robotInterpreter,
@@ -435,7 +446,9 @@ describe('robot runs', () => {
     });
     const first = startRobotRun(user.id, id, {}, { trigger: 'manual' });
     await new Promise((r) => setTimeout(r, 50));
-    expect(await startRobotRun(user.id, id, {}, { trigger: 'manual' })).toEqual({ ok: false, error: 'busy' });
+    // La segunda no falla como busy: queda en cola.
+    const second = await startRobotRun(user.id, id, {}, { trigger: 'manual' });
+    expect(second).toMatchObject({ ok: true, queued: true, run: { status: 'queued' } });
     // Otro workspace no se bloquea.
     const other = await makeUser('rb2');
     const otherId = await robotFor(other.id);
@@ -443,6 +456,74 @@ describe('robot runs', () => {
     release();
     expect((await first).ok).toBe(true);
     expect((await otherRun).ok).toBe(true);
+    // Terminó la primera: la cola la arranca (después de cada corrida y desde el cron).
+    expect(await drainRobotQueue({ workspaceId: user.id })).toBe(1);
+    const queuedId = second.ok ? second.run.id : '';
+    expect((await listRobotRuns(user.id, id)).find((r) => r.id === queuedId)).toMatchObject({ status: 'success' });
+  });
+
+  it('queues in FIFO order, caps the queue and expires old queued runs', async () => {
+    const user = await makeUser('rbq');
+    const id = await robotFor(user.id, { inputs: [{ name: 'n' }] });
+    const order: unknown[] = [];
+    setRobotBackendForTests(stubBackend({}, (j) => order.push(j.inputs.n)));
+    await getDb()
+      .prepare(
+        `INSERT INTO robot_runs (id, robot_id, user_id, status, trigger, locked_until, created_at, started_at)
+         VALUES (?, ?, ?, 'running', 'manual', ?, ?, ?)`,
+      )
+      .run('blocker-' + user.id, id, user.id, new Date(Date.now() + 600_000).toISOString(), new Date().toISOString(), new Date().toISOString());
+    vi.stubEnv('ROBOTS_MAX_QUEUED', '2');
+    expect((await startRobotRun(user.id, id, { n: 1 }, { trigger: 'manual' })).ok).toBe(true);
+    expect((await startRobotRun(user.id, id, { n: 2 }, { trigger: 'manual' })).ok).toBe(true);
+    expect(await startRobotRun(user.id, id, { n: 3 }, { trigger: 'manual' })).toEqual({ ok: false, error: 'busy' });
+    await getDb().prepare("UPDATE robot_runs SET status = 'success' WHERE id = ?").run('blocker-' + user.id);
+    expect(await drainRobotQueue({ workspaceId: user.id })).toBe(2);
+    expect(order).toEqual(['1', '2']);
+
+    // Una corrida que esperó más que la edad máxima se marca fallida.
+    await getDb()
+      .prepare(`INSERT INTO robot_runs (id, robot_id, user_id, status, trigger, created_at) VALUES (?, ?, ?, 'queued', 'schedule', ?)`)
+      .run('old-' + user.id, id, user.id, new Date(Date.now() - 2 * 3_600_000).toISOString());
+    expect(await expireQueuedRobotRuns(user.id)).toBe(1);
+    expect((await listRobotRuns(user.id, id)).find((r) => r.id === 'old-' + user.id)).toMatchObject({
+      status: 'failed',
+      error: 'queue_expired',
+    });
+  });
+
+  it('with waitMs (Flow) waits for its turn instead of failing', async () => {
+    const user = await makeUser('rbw');
+    const id = await robotFor(user.id);
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    let calls = 0;
+    setRobotBackendForTests({
+      name: 'local',
+      async run() {
+        calls++;
+        if (calls === 1) await gate;
+        return { status: 'success', error: null, vars: { n: calls }, logs: [], screenshots: [], pages: 0 };
+      },
+    });
+    const first = startRobotRun(user.id, id, {}, { trigger: 'manual' });
+    await new Promise((r) => setTimeout(r, 30));
+    const waiting = startRobotRun(user.id, id, {}, { trigger: 'flow', waitMs: 5000, pollMs: 20 });
+    await new Promise((r) => setTimeout(r, 60));
+    release();
+    expect((await first).ok).toBe(true);
+    const res = await waiting;
+    expect(res).toMatchObject({ ok: true, run: { status: 'success', trigger: 'flow', output: { n: 2 } } });
+
+    // Sin turno a tiempo: sale de la cola y devuelve busy (sin dejar la corrida colgada).
+    await getDb()
+      .prepare(
+        `INSERT INTO robot_runs (id, robot_id, user_id, status, trigger, locked_until, created_at, started_at)
+         VALUES (?, ?, ?, 'running', 'manual', ?, ?, ?)`,
+      )
+      .run('blk-' + user.id, id, user.id, new Date(Date.now() + 600_000).toISOString(), new Date().toISOString(), new Date().toISOString());
+    expect(await startRobotRun(user.id, id, {}, { trigger: 'flow', waitMs: 60, pollMs: 20 })).toEqual({ ok: false, error: 'busy' });
+    expect((await listRobotRuns(user.id, id)).filter((r) => r.status === 'queued')).toHaveLength(0);
   });
 
   it('disabled robots only run by hand; missing inputs are reported', async () => {
@@ -542,6 +623,38 @@ describe('Flow node app.robot_run', () => {
       expect(run?.status).toBe('failed');
       expect(run?.error).toBe(expected);
     }
+  });
+
+  it('waits for its turn when another robot of the workspace is running (no busy failure)', async () => {
+    const user = await makeUser('rbflowq');
+    const id = await robotFor(user.id);
+    setRobotBackendForTests(stubBackend({ vars: { ok: 'yes' } }));
+    vi.stubEnv('ROBOTS_FLOW_WAIT_SEC', '5');
+    vi.stubEnv('ROBOTS_FLOW_POLL_MS', '20');
+    await getDb()
+      .prepare(
+        `INSERT INTO robot_runs (id, robot_id, user_id, status, trigger, locked_until, created_at, started_at)
+         VALUES (?, ?, ?, 'running', 'manual', ?, ?, ?)`,
+      )
+      .run('fq-' + user.id, id, user.id, new Date(Date.now() + 600_000).toISOString(), new Date().toISOString(), new Date().toISOString());
+    const flow = await createFlow(user.id, user.id, {
+      name: 'waits',
+      graph: {
+        nodes: [
+          { id: 't', type: 'trigger.manual', position: { x: 0, y: 0 }, config: {} },
+          { id: 'rb', type: 'app.robot_run', position: { x: 0, y: 0 }, config: { robotId: id } },
+        ],
+        edges: [{ id: 'e1', source: 't', target: 'rb' }],
+      },
+    });
+    if (!flow.ok) throw new Error(flow.error);
+    setTimeout(() => {
+      void getDb().prepare("UPDATE robot_runs SET status = 'success' WHERE id = ?").run('fq-' + user.id);
+    }, 150);
+    const res = await runFlowNow(user.id, flow.flow.id, undefined);
+    if (!res.ok) throw new Error(res.error);
+    expect(res.run?.status).toBe('success');
+    expect(res.run?.steps.find((s) => s.nodeId === 'rb')?.output).toMatchObject({ status: 'success', output: { ok: 'yes' } });
   });
 
   it('emitEvent accepts robot events', async () => {
