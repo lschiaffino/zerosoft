@@ -197,7 +197,14 @@
     "emailVerified": "Verificado",
     "emailUnverified": "Sin verificar",
     "confirmUnverified": "Este email no está verificado y coincide con un contacto del CRM. Guardá el chat ahí solo si confirmaste que es esa persona.",
-    "confirmLog": "Confirmar y guardar en el contacto"
+    "confirmLog": "Confirmar y guardar en el contacto",
+    "context": "Contexto",
+    "page": "Página",
+    "pageSeen": "Visto {when}",
+    "referrer": "Llegó desde",
+    "browser": "Navegador",
+    "language": "Idioma",
+    "formNote": "Respuestas del formulario pre-chat."
   },
   "priorities": {
     "low": "Baja",
@@ -504,6 +511,52 @@
     "sendFailed": "No pudimos enviar tu mensaje. Probá de nuevo.",
     "fileType": "Este tipo de archivo no está permitido",
     "fileFailed": "No pudimos enviar el archivo. Probá de nuevo.",
-    "suggestions": "Estos artículos te pueden ayudar:"
+    "suggestions": "Estos artículos te pueden ayudar:",
+    "edited": "Editado"
+  },
+  "bulk": {
+    "label": "Acciones en lote",
+    "select": "Elegir la conversación con {name}",
+    "selected": "{count, plural, one {# elegida} other {# elegidas}}",
+    "clear": "Limpiar",
+    "assign": "Asignar a…",
+    "tag": "Sumar un tag",
+    "addTag": "Sumar",
+    "done": "{count, plural, =0 {No cambió nada.} one {# conversación actualizada.} other {# conversaciones actualizadas.}}",
+    "doneSkipped": "{count, plural, =0 {No cambió nada} one {# conversación actualizada} other {# conversaciones actualizadas}}, {skipped} salteadas."
+  },
+  "away": {
+    "label": "Tu estado",
+    "available": "Disponible",
+    "away": "Ausente",
+    "awayReassign": "Ausente y reasignar mis chats",
+    "awayHint": "Las reglas de round-robin no te asignan mientras estás ausente.",
+    "reassigned": "{count, plural, =0 {Estás ausente. No tenías chats abiertos para reasignar.} one {Estás ausente. # chat pasó a otra persona del equipo.} other {Estás ausente. # chats pasaron a otras personas del equipo.}}"
+  },
+  "edit": {
+    "edited": "Editado",
+    "deleted": "Mensaje borrado. El visitante ya no lo ve.",
+    "deletedNote": "Nota borrada.",
+    "confirmDelete": "Borrar mensaje",
+    "confirmDeleteNote": "Borrar nota",
+    "label": "Editar mensaje",
+    "visitorSees": "El visitante ve el texto nuevo con la marca \"editado\"."
+  },
+  "offlineEmail": {
+    "setting": "Mandar por email las respuestas que el visitante no vio",
+    "off": "Nunca",
+    "after": "A los {minutes} minutos sin leer",
+    "hint": "Si el visitante dejó su email y no lee a tiempo una respuesta del equipo, se la mandamos con un link para volver al chat. Responder ese email no llega a la bandeja.",
+    "subject": "Nueva respuesta de {widget}",
+    "subjectAgent": "{agent} respondió tu chat con {widget}",
+    "heading": "Tenés una respuesta nueva",
+    "hi": "Hola {name},",
+    "hiAnonymous": "Hola,",
+    "intro": "{agent} respondió tu chat con {widget}:",
+    "attachment": "Adjunto: {file}",
+    "cta": "Seguir en el chat",
+    "noLink": "Para responder, abrí el chat en el sitio donde nos escribiste.",
+    "noReply": "Las respuestas a este email no le llegan al equipo; contestá en el chat.",
+    "why": "Te llega este email porque dejaste tu dirección en el chat y todavía no viste esta respuesta."
   }
 }

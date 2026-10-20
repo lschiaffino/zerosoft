@@ -51,3 +51,12 @@ export function formatSlaAge(minutes: number): string {
   if (minutes < 1440) return `${Math.floor(minutes / 60)}h`;
   return `${Math.floor(minutes / 1440)}d`;
 }
+
+/** Duraciones de "posponer" (en la conversación y en lote). */
+export const SNOOZE_OPTIONS = [
+  { value: 60 * 60 * 1000, key: '1h' },
+  { value: 4 * 60 * 60 * 1000, key: '4h' },
+  { value: 24 * 60 * 60 * 1000, key: '24h' },
+  { value: 3 * 24 * 60 * 60 * 1000, key: '3d' },
+  { value: 7 * 24 * 60 * 60 * 1000, key: '7d' },
+] as const;

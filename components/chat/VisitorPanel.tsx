@@ -4,7 +4,28 @@ import { useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import type { ChatConversationWithVisitor } from '@/lib/chat-data';
-import { formatDateTime } from '@/lib/datetime';
+import { formatDateTime, formatTimeAgo } from '@/lib/datetime';
+import { readVisitorForm, readVisitorPage } from '@/lib/chat-visitor-context';
+
+/** "acme.com/precios": la URL sin protocolo para leerla de un vistazo. */
+function shortUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const path = `${u.pathname}${u.search}`;
+    return `${u.host}${path === '/' ? '' : path}`;
+  } catch {
+    return url;
+  }
+}
+
+/** Nombre del idioma en el idioma del inbox ("es-AR" → "español (Argentina)"). */
+function languageName(tag: string, locale: string): string {
+  try {
+    return new Intl.DisplayNames([locale], { type: 'language' }).of(tag) ?? tag;
+  } catch {
+    return tag;
+  }
+}
 
 interface VisitorPanelProps {
   conversation: ChatConversationWithVisitor;
@@ -42,6 +63,8 @@ export default function VisitorPanel({ conversation }: VisitorPanelProps) {
   }
 
   const visitor = conversation.visitor;
+  const page = readVisitorPage(visitor.metadata);
+  const formAnswers = readVisitorForm(visitor.metadata);
   const contact = conversation.crm_contact;
   const contactId = contact?.id ?? linkedId;
   const contactName = contact
@@ -92,6 +115,61 @@ export default function VisitorPanel({ conversation }: VisitorPanelProps) {
           )}
         </dl>
       </section>
+
+      {(page || formAnswers.length > 0) && (
+        <section className="chat-details-section" aria-labelledby="chat-details-context">
+          <h3 id="chat-details-context" className="chat-details-label">
+            {t('visitorPanel.context')}
+          </h3>
+          <dl className="chat-dl">
+            {page?.url && (
+              <div>
+                <dt>{t('visitorPanel.page')}</dt>
+                <dd>
+                  <a href={page.url} target="_blank" rel="noopener noreferrer nofollow" title={page.url}>
+                    {page.title || shortUrl(page.url)}
+                  </a>
+                </dd>
+                {page.title && <dd className="ui-help data">{shortUrl(page.url)}</dd>}
+                {page.seenAt && (
+                  <dd className="ui-help" suppressHydrationWarning>
+                    {t('visitorPanel.pageSeen', { when: formatTimeAgo(page.seenAt, locale) })}
+                  </dd>
+                )}
+              </div>
+            )}
+            {page?.referrer && (
+              <div>
+                <dt>{t('visitorPanel.referrer')}</dt>
+                <dd className="data">
+                  <a href={page.referrer} target="_blank" rel="noopener noreferrer nofollow" title={page.referrer}>
+                    {shortUrl(page.referrer)}
+                  </a>
+                </dd>
+              </div>
+            )}
+            {page?.browser && (
+              <div>
+                <dt>{t('visitorPanel.browser')}</dt>
+                <dd>{page.browser}</dd>
+              </div>
+            )}
+            {page?.language && (
+              <div>
+                <dt>{t('visitorPanel.language')}</dt>
+                <dd>{languageName(page.language, locale)}</dd>
+              </div>
+            )}
+            {formAnswers.map((a) => (
+              <div key={a.label}>
+                <dt>{a.label}</dt>
+                <dd>{a.value}</dd>
+              </div>
+            ))}
+          </dl>
+          {formAnswers.length > 0 && <p className="ui-help">{t('visitorPanel.formNote')}</p>}
+        </section>
+      )}
 
       <section className="chat-details-section" aria-labelledby="chat-details-crm">
         <h3 id="chat-details-crm" className="chat-details-label">

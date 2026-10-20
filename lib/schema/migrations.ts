@@ -2377,6 +2377,30 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE agent_conversations ADD COLUMN source TEXT');
     },
   },
+  {
+    // Chat: estado "ausente" de cada agente (el round-robin lo saltea),
+    // edición y borrado de mensajes y notas del agente (edited_at, deleted_at)
+    // y aviso por email de respuestas no leídas: minutos de espera por widget
+    // (0 = apagado) y offline_email_at como claim por mensaje. Las respuestas
+    // sin leer que ya existían quedan marcadas, así el deploy no manda emails
+    // de conversaciones viejas.
+    id: '047_chat_away_edits_offline_email',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE chat_widgets ADD COLUMN offline_email_minutes INTEGER NOT NULL DEFAULT 10');
+      await addColumn(client, 'ALTER TABLE chat_messages ADD COLUMN edited_at TEXT');
+      await addColumn(client, 'ALTER TABLE chat_messages ADD COLUMN deleted_at TEXT');
+      await addColumn(client, 'ALTER TABLE chat_messages ADD COLUMN offline_email_at TEXT');
+      await client.execute(
+        "UPDATE chat_messages SET offline_email_at = created_at WHERE sender_type = 'user' AND read_at IS NULL AND offline_email_at IS NULL",
+      );
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS chat_agent_status (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          away INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )`);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

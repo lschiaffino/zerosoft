@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { realUserId, requireUser } from '@/lib/session';
-import { listChatWidgets } from '@/lib/chat-data';
+import { isChatAgentAway, listChatAgents, listChatWidgets } from '@/lib/chat-data';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import InboxShell from '@/components/chat/InboxShell';
@@ -34,8 +34,12 @@ export default async function ChatInboxLayout(props: { children: ReactNode; para
     );
   }
 
+  // Los widgets del workspace comparten agentes (el dueño o los miembros del team).
+  const agents = await listChatAgents(widgets[0].user_id, widgets[0].team_id);
+  const away = await isChatAgentAway(realUserId(user));
+
   return (
-    <InboxShell widgetIds={widgets.map((w) => w.id)} currentUserId={realUserId(user)}>
+    <InboxShell widgetIds={widgets.map((w) => w.id)} currentUserId={realUserId(user)} agents={agents} initialAway={away}>
       {props.children}
     </InboxShell>
   );

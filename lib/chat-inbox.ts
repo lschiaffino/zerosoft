@@ -154,6 +154,81 @@ export async function applyCannedMacro(
   return { conversation: updated, tags: tags ?? (await listConversationTags(conversationId)) };
 }
 
+// ---------- Acciones en lote ----------
+
+/** Tope de conversaciones por acción en lote (una página larga del inbox). */
+export const BULK_MAX = 100;
+
+/** Las mismas acciones que existen de a una en la conversación. */
+export type BulkAction =
+  | { type: 'assign'; assignedTo: string | null }
+  | { type: 'tag'; tag: string }
+  | { type: 'snooze'; until: string }
+  | { type: 'resolve' };
+
+/** Valida el cuerpo del POST /api/chat/conversations/bulk. */
+export function parseBulkRequest(raw: unknown, now = new Date()): { ids: string[]; action: BulkAction } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const body = raw as { ids?: unknown; action?: unknown };
+  if (!Array.isArray(body.ids)) return null;
+  const ids = [
+    ...new Set(body.ids.filter((id): id is string => typeof id === 'string' && id.length > 0 && id.length <= 64)),
+  ];
+  if (ids.length === 0 || ids.length > BULK_MAX) return null;
+  const a = body.action as Record<string, unknown> | null | undefined;
+  if (!a || typeof a !== 'object') return null;
+  switch (a.type) {
+    case 'assign':
+      if (a.assignedTo === null || (typeof a.assignedTo === 'string' && a.assignedTo.length <= 64 && a.assignedTo)) {
+        return { ids, action: { type: 'assign', assignedTo: a.assignedTo as string | null } };
+      }
+      return null;
+    case 'tag': {
+      const tag = typeof a.tag === 'string' ? normalizeTag(a.tag) : '';
+      return tag ? { ids, action: { type: 'tag', tag } } : null;
+    }
+    case 'snooze': {
+      const at = typeof a.until === 'string' ? Date.parse(a.until) : NaN;
+      // Solo a futuro y como mucho 30 días (igual que los snoozes de macro).
+      if (!Number.isFinite(at) || at <= now.getTime() || at - now.getTime() > 30 * 86_400_000) return null;
+      return { ids, action: { type: 'snooze', until: new Date(at).toISOString() } };
+    }
+    case 'resolve':
+      return { ids, action: { type: 'resolve' } };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Aplica una acción a una conversación ya validada (acceso lo chequea la
+ * ruta). Asignar solo a agentes del widget de esa conversación: si no lo es,
+ * se saltea. Devuelve la conversación tal como quedó o null si se salteó.
+ */
+export async function applyBulkAction(
+  conversation: ChatConversationRow,
+  action: BulkAction,
+): Promise<ChatConversationRow | null> {
+  switch (action.type) {
+    case 'assign': {
+      if (action.assignedTo) {
+        const widget = await getChatWidget(conversation.widget_id);
+        const agents = widget ? await listChatAgents(widget.user_id, widget.team_id) : [];
+        if (!agents.some((a) => a.id === action.assignedTo)) return null;
+      }
+      return (await updateChatConversation(conversation.id, { assignedTo: action.assignedTo })) ?? null;
+    }
+    case 'tag':
+      await addConversationTag(conversation.id, action.tag);
+      return conversation;
+    case 'snooze':
+      if (conversation.status === 'resolved') return null;
+      return (await updateChatConversation(conversation.id, { status: 'snoozed', snoozedUntil: action.until })) ?? null;
+    case 'resolve':
+      return (await updateChatConversation(conversation.id, { status: 'resolved' })) ?? null;
+  }
+}
+
 // ---------- Reportes ----------
 
 export interface ReportRange {

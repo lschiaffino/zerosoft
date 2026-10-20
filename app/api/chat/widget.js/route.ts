@@ -161,7 +161,21 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     if (identity.email) payload.email = identity.email;
     if (identity.name) payload.name = identity.name;
     if (identity.email && identity.userHash) payload.userHash = identity.userHash;
+    payload.context = pageContext();
     return payload;
+  }
+
+  // Página desde la que escribe el visitante (la ve el equipo en el inbox y
+  // sirve de link de vuelta en el email de respuestas sin leer). Sin el hash.
+  function pageContext() {
+    var ctx = {};
+    try {
+      ctx.url = String(location.href).split('#')[0].slice(0, 1000);
+      ctx.title = String(document.title || '').slice(0, 200);
+      if (document.referrer) ctx.referrer = String(document.referrer).slice(0, 1000);
+      if (navigator.language) ctx.language = String(navigator.language).slice(0, 35);
+    } catch (e) {}
+    return ctx;
   }
 
   var visitorId = getVisitorId();
@@ -175,6 +189,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   var uploading = false;
   var messageReadMap = {};
   var visitorBubbles = {};
+  var renderedEdits = {};
   var formRequest = null;
 
   var root = dom('div', {
@@ -475,6 +490,11 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       var p = dom('p', { style: 'margin:0 0 4px;white-space:pre-wrap;word-break:break-word;' }, [m.body]);
       bubble.appendChild(p);
     }
+    if (m.edited_at) {
+      bubble.appendChild(dom('div', { style: 'font-size:10px;opacity:0.6;margin-top:2px;' }, [T('edited')]));
+    }
+    // Lo que ya se mostró y su versión: si el agente edita o borra, el poll re-dibuja.
+    if (m.id) renderedEdits[m.id] = m.edited_at || '';
     var attachments = messageAttachments(m);
     attachments.forEach(function (a) {
       var el = renderAttachment(a);
@@ -676,18 +696,43 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         conversationId = data.conversation ? data.conversation.id : null;
         // Con una conversación abierta el formulario pre-chat ya se completó.
         if (conversationId) formWrap.style.display = 'none';
-        messages.innerHTML = '';
-        visitorBubbles = {};
-        if (!conversationId) showWelcome();
-        else {
-          data.messages.forEach(function (m) {
-            appendMessage(m);
-            if (m.id) lastMessageId = m.id;
-          });
+        if (!conversationId) {
+          messages.innerHTML = '';
+          visitorBubbles = {};
+          renderedEdits = {};
+          showWelcome();
+        } else {
+          renderAll(data.messages);
           markRead();
         }
       })
       .catch(function () {});
+  }
+
+  function renderAll(list) {
+    messages.innerHTML = '';
+    visitorBubbles = {};
+    renderedEdits = {};
+    (list || []).forEach(function (m) {
+      appendMessage(m);
+      if (m.id) lastMessageId = m.id;
+    });
+  }
+
+  // Un mensaje ya mostrado que el agente editó o borró (o el último visto
+  // que ya no está): hay que re-dibujar el hilo en vez de sumar al final.
+  function threadChanged(list) {
+    var present = {};
+    for (var i = 0; i < list.length; i++) {
+      var m = list[i];
+      if (!m.id) continue;
+      present[m.id] = true;
+      if (Object.prototype.hasOwnProperty.call(renderedEdits, m.id) && renderedEdits[m.id] !== (m.edited_at || '')) return true;
+    }
+    for (var id in renderedEdits) {
+      if (Object.prototype.hasOwnProperty.call(renderedEdits, id) && !present[id]) return true;
+    }
+    return false;
   }
 
   function poll() {
@@ -698,6 +743,12 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         if (!data || !data.messages) return;
         updateAway(data.office);
         updateCsat(data.csat);
+        if (threadChanged(data.messages)) {
+          renderAll(data.messages);
+          markRead();
+          pollTyping();
+          return;
+        }
         var newMessages = data.messages;
         if (lastMessageId) {
           var seen = false;
@@ -818,6 +869,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     if (identity.email) formData.append('email', identity.email);
     if (identity.name) formData.append('name', identity.name);
     if (identity.email && identity.userHash) formData.append('userHash', identity.userHash);
+    formData.append('context', JSON.stringify(pageContext()));
 
     api('/api/chat/messages/upload', { method: 'POST', body: formData })
       .then(function (r) {
@@ -938,6 +990,11 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   }
 
   document.body.appendChild(root);
+
+  // Link del email de respuestas sin leer: la página con #zs-chat abre el chat.
+  try {
+    if (location.hash === '#zs-chat') openChat();
+  } catch (e) {}
 })();`;
 }
 

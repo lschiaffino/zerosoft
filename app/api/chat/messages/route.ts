@@ -9,13 +9,14 @@ import {
   getOfficeHoursState,
   getOrCreateChatVisitor,
   getVisitorConversationWithMessages,
+  saveVisitorContext,
   toPublicMessage,
   toPublicVisitor,
   updateChatConversation,
-  updateChatVisitor,
   visitorFormAnswers,
 } from '@/lib/chat-data';
 import { verifyVisitorIdentity } from '@/lib/chat-identity';
+import { visitorPageContext } from '@/lib/chat-visitor-context';
 import { afterVisitorMessage } from '@/lib/chat-visitor-message';
 import { visitorMessageLimitsSchema } from '@/lib/chat-schema';
 
@@ -84,17 +85,11 @@ export async function POST(req: Request) {
   const verified = await verifyVisitorIdentity(widgetId, identity.email, body.userHash);
   if (!identity.email && answers.email) identity.email = answers.email;
   let visitor = await getOrCreateChatVisitor(widgetId, visitorExternalId, { ...identity, verified });
-  if (answers.entries.length > 0) {
-    let metadata: Record<string, unknown> = {};
-    try {
-      const parsed = JSON.parse(visitor.metadata || '{}') as unknown;
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) metadata = parsed as Record<string, unknown>;
-    } catch {
-      // metadata inválida: se reemplaza.
-    }
-    const form = Object.fromEntries(answers.entries.map((e) => [e.label, e.value]));
-    visitor = (await updateChatVisitor(visitor.id, { metadata: { ...metadata, form } })) ?? visitor;
-  }
+  // Respuestas del formulario y la página desde la que escribe (panel del inbox).
+  visitor = await saveVisitorContext(visitor, {
+    form: answers.entries.length > 0 ? Object.fromEntries(answers.entries.map((e) => [e.label, e.value])) : undefined,
+    page: visitorPageContext(body.context, req.headers.get('user-agent')),
+  });
 
   let conversation = (await getVisitorConversationWithMessages(widgetId, visitorExternalId))?.conversation ?? null;
   let isNewConversation = false;

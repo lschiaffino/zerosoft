@@ -131,7 +131,7 @@ export function toModelMessages(rows: ChatMessageRow[]): ModelMessage[] {
 
 export async function recentMessages(conversationId: string, limit = HISTORY_LIMIT): Promise<ChatMessageRow[]> {
   const rows = (await getDb()
-    .prepare('SELECT * FROM chat_messages WHERE conversation_id = ? AND is_note = 0 ORDER BY created_at DESC, rowid DESC LIMIT ?')
+    .prepare('SELECT * FROM chat_messages WHERE conversation_id = ? AND is_note = 0 AND deleted_at IS NULL ORDER BY created_at DESC, rowid DESC LIMIT ?')
     .all(conversationId, limit)) as ChatMessageRow[];
   return rows.reverse();
 }

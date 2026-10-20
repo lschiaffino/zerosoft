@@ -7,6 +7,7 @@ import { resyncStaleKnowledgeUrls } from '@/lib/agents';
 import { syncDueMailboxes } from '@/lib/crm-email-sync';
 import { processSequences } from '@/lib/crm-sequences';
 import { runNightlyScoring } from '@/lib/crm-scoring';
+import { sendOfflineReplyEmails } from '@/lib/chat-offline-email';
 import { importResearchIdeas, researchIdeaSchema } from '@/lib/roadmap';
 import researchIdeas from '@/research/ideas.json';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
@@ -39,6 +40,8 @@ export async function GET(req: NextRequest) {
   if (!reminders.ok) return reminders;
   const webhookRetries = await retryDueWebhooks();
   const dueTasks = await fireDueTasks();
+  // Respuestas de Chat sin leer → email al visitante (también cada minuto en Vercel).
+  const chatEmails = await sendOfflineReplyEmails({ limit: 200 }).catch(() => null);
   // Primero el sync (detecta respuestas → salen de la secuencia), después los envíos.
   // Van antes de la cola de Flow: son acotados y no pueden quedar sin correr.
   const emailSync = await syncDueMailboxes({ limit: 25, maxMessages: 50 }).catch(() => null);
@@ -62,5 +65,5 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, flow, emailSync, sequences, scoring, agentKnowledge, robots, ideas });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, flow, emailSync, sequences, scoring, agentKnowledge, robots, ideas });
 }

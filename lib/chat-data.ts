@@ -1,5 +1,6 @@
 import { getDb, getUserById } from './db';
 import { inlineHtmlToText } from './docs-markdown';
+import { mergeVisitorMetadata, type VisitorContextPatch } from './chat-visitor-context';
 import type {
   ChatAssignmentRuleRow,
   ChatCannedResponseRow,
@@ -81,6 +82,8 @@ export interface WidgetCreatePayload {
   officeHours?: OfficeHoursConfig | null;
   helpEnabled?: boolean;
   locale?: 'auto' | 'en' | 'es' | 'pt';
+  /** Minutos sin leer antes de avisar por email al visitante (0 = nunca). */
+  offlineEmailMinutes?: number;
 }
 
 export interface WidgetUpdatePayload {
@@ -95,7 +98,12 @@ export interface WidgetUpdatePayload {
   officeHours?: OfficeHoursConfig | null;
   helpEnabled?: boolean;
   locale?: 'auto' | 'en' | 'es' | 'pt';
+  /** Minutos sin leer antes de avisar por email al visitante (0 = nunca). */
+  offlineEmailMinutes?: number;
 }
+
+/** Espera por defecto antes de mandar por email una respuesta sin leer. */
+export const DEFAULT_OFFLINE_EMAIL_MINUTES = 10;
 
 export async function listChatWidgets(
   userId: string,
@@ -128,7 +136,7 @@ export async function createChatWidget(
   const now = nowIso();
   await db
     .prepare(
-      'INSERT INTO chat_widgets (id, team_id, user_id, name, color, position, welcome_message, fields, bot_enabled, bot_greeting, bot_source, office_hours, help_enabled, locale, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO chat_widgets (id, team_id, user_id, name, color, position, welcome_message, fields, bot_enabled, bot_greeting, bot_source, office_hours, help_enabled, locale, offline_email_minutes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(
       id,
@@ -145,6 +153,7 @@ export async function createChatWidget(
       payload.officeHours ? JSON.stringify(payload.officeHours) : null,
       payload.helpEnabled ? 1 : 0,
       payload.locale ?? 'auto',
+      payload.offlineEmailMinutes ?? DEFAULT_OFFLINE_EMAIL_MINUTES,
       now,
       now,
     );
@@ -205,6 +214,10 @@ export async function updateChatWidget(
   if (payload.locale !== undefined) {
     fields.push('locale = ?');
     args.push(payload.locale);
+  }
+  if (payload.offlineEmailMinutes !== undefined) {
+    fields.push('offline_email_minutes = ?');
+    args.push(payload.offlineEmailMinutes);
   }
 
   if (fields.length > 0) {
@@ -671,6 +684,13 @@ export async function updateChatVisitor(
   return getChatVisitor(id);
 }
 
+/** Guarda en la metadata del visitante el formulario pre-chat y/o la página desde la que escribe. */
+export async function saveVisitorContext(visitor: ChatVisitorRow, patch: VisitorContextPatch): Promise<ChatVisitorRow> {
+  const metadata = mergeVisitorMetadata(visitor.metadata, patch);
+  if (!metadata) return visitor;
+  return (await updateChatVisitor(visitor.id, { metadata })) ?? visitor;
+}
+
 // ---------- Conversations ----------
 
 export interface ConversationListOptions {
@@ -826,7 +846,7 @@ function conversationSearch(q: string): { sql: string; args: string[] } {
   const like = `%${escapeLike(q.trim())}%`;
   return {
     sql: `(c.subject LIKE ? ESCAPE '\\' OR v.name LIKE ? ESCAPE '\\' OR v.email LIKE ? ESCAPE '\\'
-      OR EXISTS (SELECT 1 FROM chat_messages sm WHERE sm.conversation_id = c.id AND sm.body LIKE ? ESCAPE '\\'))`,
+      OR EXISTS (SELECT 1 FROM chat_messages sm WHERE sm.conversation_id = c.id AND sm.deleted_at IS NULL AND sm.body LIKE ? ESCAPE '\\'))`,
     args: [like, like, like, like],
   };
 }
@@ -882,11 +902,11 @@ export async function listChatConversations(
         v.external_id AS visitor_external_id,
         u.name AS assigned_name,
         u.email AS assigned_email,
-        (SELECT body FROM chat_messages m WHERE m.conversation_id = c.id AND m.is_note = 0 ORDER BY m.created_at DESC LIMIT 1) AS last_message_body,
+        (SELECT body FROM chat_messages m WHERE m.conversation_id = c.id AND m.is_note = 0 AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 1) AS last_message_body,
         (SELECT GROUP_CONCAT(tag, ',') FROM (SELECT tag FROM chat_conversation_tags t WHERE t.conversation_id = c.id ORDER BY tag)) AS tags${
           options.q
             ? `,
-        (SELECT body FROM chat_messages sm WHERE sm.conversation_id = c.id AND sm.body LIKE ? ESCAPE '\\' ORDER BY sm.created_at DESC LIMIT 1) AS match_body`
+        (SELECT body FROM chat_messages sm WHERE sm.conversation_id = c.id AND sm.deleted_at IS NULL AND sm.body LIKE ? ESCAPE '\\' ORDER BY sm.created_at DESC LIMIT 1) AS match_body`
             : ''
         }
        FROM chat_conversations c
@@ -1178,6 +1198,8 @@ export interface ChatAgent {
   email: string;
   name: string | null;
   image: string | null;
+  /** Marcó "ausente": el round-robin no le asigna conversaciones nuevas. */
+  away?: boolean;
 }
 
 export async function listChatAgents(
@@ -1187,18 +1209,104 @@ export async function listChatAgents(
   const db = getDb();
   if (!teamId) {
     const u = await getUserById(userId);
-    return u ? [{ id: u.id, email: u.email, name: u.name, image: u.image }] : [];
+    return u ? [{ id: u.id, email: u.email, name: u.name, image: u.image, away: await isChatAgentAway(u.id) }] : [];
   }
   const rows = (await db
     .prepare(
-      `SELECT u.id, u.email, u.name, u.image
+      `SELECT u.id, u.email, u.name, u.image, COALESCE(s.away, 0) AS away
        FROM team_members m
        JOIN users u ON u.id = m.user_id
+       LEFT JOIN chat_agent_status s ON s.user_id = u.id
        WHERE m.team_id = ?
        ORDER BY m.role = 'owner' DESC, m.created_at ASC`,
     )
-    .all(teamId)) as ChatAgent[];
-  return rows;
+    .all(teamId)) as Array<Omit<ChatAgent, 'away'> & { away: number }>;
+  return rows.map((r) => ({ ...r, away: Number(r.away) === 1 }));
+}
+
+// ---------- Estado del agente (ausente) ----------
+
+export async function isChatAgentAway(userId: string): Promise<boolean> {
+  const row = (await getDb().prepare('SELECT away FROM chat_agent_status WHERE user_id = ?').get(userId)) as
+    | { away: number }
+    | undefined;
+  return Number(row?.away ?? 0) === 1;
+}
+
+/**
+ * Marca al agente como ausente o disponible. Con reassign (solo al pasar a
+ * ausente), sus conversaciones abiertas o pendientes en los widgets dados se
+ * reparten por round-robin entre los agentes disponibles de cada widget; si
+ * no queda nadie disponible, quedan sin asignar. Devuelve cuántas se movieron.
+ */
+export async function setChatAgentAway(
+  userId: string,
+  away: boolean,
+  opts: { reassign?: boolean; widgets?: ChatWidgetRow[] } = {},
+): Promise<{ away: boolean; reassigned: number }> {
+  const db = getDb();
+  await db
+    .prepare(
+      `INSERT INTO chat_agent_status (user_id, away, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT (user_id) DO UPDATE SET away = excluded.away, updated_at = excluded.updated_at`,
+    )
+    .run(userId, away ? 1 : 0, nowIso());
+  let reassigned = 0;
+  if (away && opts.reassign && opts.widgets?.length) {
+    for (const widget of opts.widgets) {
+      const agents = (await listChatAgents(widget.user_id, widget.team_id)).filter((a) => a.id !== userId);
+      const rows = (await db
+        .prepare(
+          `SELECT id FROM chat_conversations
+           WHERE widget_id = ? AND assigned_to = ? AND status IN ('open', 'pending')
+           ORDER BY created_at ASC`,
+        )
+        .all(widget.id, userId)) as Array<{ id: string }>;
+      for (const row of rows) {
+        const next = await pickRoundRobinAgent(widget.id, row.id, agents);
+        // Compare-and-set: si otro agente la tomó mientras tanto, no se pisa.
+        const res = await db
+          .prepare('UPDATE chat_conversations SET assigned_to = ?, updated_at = ? WHERE id = ? AND assigned_to = ?')
+          .run(next, nowIso(), row.id, userId);
+        reassigned += res.changes;
+      }
+    }
+  }
+  return { away, reassigned };
+}
+
+/**
+ * Siguiente agente del round-robin: el de menos carga ACTIVA (open/pending),
+ * no el histórico (si no, un agente nuevo absorbería todas las entrantes
+ * hasta emparejar el total). Empate: a quien le tocó hace más tiempo (o
+ * nunca). Los ausentes no entran.
+ */
+export async function pickRoundRobinAgent(
+  widgetId: string,
+  conversationId: string,
+  candidates: ChatAgent[],
+): Promise<string | null> {
+  const available = candidates.filter((a) => !a.away);
+  if (available.length === 0) return null;
+  const rows = (await getDb()
+    .prepare(
+      `SELECT assigned_to,
+              SUM(CASE WHEN status IN ('open', 'pending') THEN 1 ELSE 0 END) AS active,
+              MAX(created_at) AS last_at
+       FROM chat_conversations
+       WHERE widget_id = ? AND assigned_to IS NOT NULL AND id != ?
+       GROUP BY assigned_to`,
+    )
+    .all(widgetId, conversationId)) as Array<{ assigned_to: string; active: number; last_at: string | null }>;
+  const stats = new Map(rows.map((r) => [r.assigned_to, r]));
+  const sorted = [...available].sort((a, b) => {
+    const sa = stats.get(a.id);
+    const sb = stats.get(b.id);
+    const diff = Number(sa?.active ?? 0) - Number(sb?.active ?? 0);
+    if (diff !== 0) return diff;
+    return (sa?.last_at ?? '').localeCompare(sb?.last_at ?? '');
+  });
+  return sorted[0]?.id ?? null;
 }
 
 /** El usuario atiende el widget (owner en un workspace personal o miembro del team). */
@@ -1397,28 +1505,9 @@ export async function applyAssignmentRules(
       rule.assign_to && teamMembers.some((m) => m.id === rule.assign_to) ? rule.assign_to : null;
 
     if (rule.match_type === 'round_robin' && teamMembers.length > 0) {
-      // Rota por carga ACTIVA (open/pending), no por el histórico: si no, un
-      // agente nuevo absorbería todas las entrantes hasta emparejar el total.
-      // Empate: a quien le tocó hace más tiempo (o nunca).
-      const rows = (await db
-        .prepare(
-          `SELECT assigned_to,
-                  SUM(CASE WHEN status IN ('open', 'pending') THEN 1 ELSE 0 END) AS active,
-                  MAX(created_at) AS last_at
-           FROM chat_conversations
-           WHERE widget_id = ? AND assigned_to IS NOT NULL AND id != ?
-           GROUP BY assigned_to`,
-        )
-        .all(widgetId, conversationId)) as Array<{ assigned_to: string; active: number; last_at: string | null }>;
-      const stats = new Map(rows.map((r) => [r.assigned_to, r]));
-      const sorted = [...teamMembers].sort((a, b) => {
-        const sa = stats.get(a.id);
-        const sb = stats.get(b.id);
-        const diff = Number(sa?.active ?? 0) - Number(sb?.active ?? 0);
-        if (diff !== 0) return diff;
-        return (sa?.last_at ?? '').localeCompare(sb?.last_at ?? '');
-      });
-      assignTo = sorted[0]?.id ?? null;
+      // Saltea a los ausentes; si están todos ausentes, la regla no asigna
+      // y sigue la próxima.
+      assignTo = await pickRoundRobinAgent(widgetId, conversationId, teamMembers);
     }
 
     if (assignTo) {
@@ -1830,7 +1919,8 @@ export async function listChatMessages(
 ): Promise<ChatMessageRow[]> {
   return (await getDb()
     .prepare(
-      `SELECT * FROM chat_messages WHERE conversation_id = ?${opts.includeNotes ? '' : ' AND is_note = 0'} ORDER BY created_at ASC`,
+      // Los borrados por su autor no salen nunca de acá (visitante, CRM, roadmap).
+      `SELECT * FROM chat_messages WHERE conversation_id = ? AND deleted_at IS NULL${opts.includeNotes ? '' : ' AND is_note = 0'} ORDER BY created_at ASC`,
     )
     .all(conversationId)) as ChatMessageRow[];
 }
@@ -1876,6 +1966,74 @@ export async function createChatMessage(
   return (await db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(id)) as ChatMessageRow;
 }
 
+// ---------- Editar y borrar (solo el autor) ----------
+
+export type ChatMessageEditError = 'not_found' | 'forbidden' | 'deleted' | 'invalid_input';
+
+/**
+ * Solo quien escribió un mensaje o una nota del equipo puede editarlo o
+ * borrarlo (no los del visitante, el bot ni el sistema).
+ */
+export function canEditChatMessage(
+  message: Pick<ChatMessageRow, 'sender_type' | 'user_id'>,
+  userId: string,
+): boolean {
+  return message.sender_type === 'user' && !!message.user_id && message.user_id === userId;
+}
+
+async function getOwnMessage(
+  conversationId: string,
+  messageId: string,
+  userId: string,
+): Promise<{ message?: ChatMessageRow; error?: ChatMessageEditError }> {
+  const message = (await getDb()
+    .prepare('SELECT * FROM chat_messages WHERE id = ? AND conversation_id = ?')
+    .get(messageId, conversationId)) as ChatMessageRow | undefined;
+  if (!message) return { error: 'not_found' };
+  if (!canEditChatMessage(message, userId)) return { error: 'forbidden' };
+  if (message.deleted_at) return { error: 'deleted' };
+  return { message };
+}
+
+/** Cambia el texto de un mensaje o nota propio y lo marca como editado. */
+export async function editChatMessage(
+  conversationId: string,
+  messageId: string,
+  userId: string,
+  body: string,
+): Promise<{ message?: ChatMessageRow; error?: ChatMessageEditError }> {
+  const text = body.trim();
+  const own = await getOwnMessage(conversationId, messageId, userId);
+  if (!own.message) return own;
+  // Un adjunto puede quedarse sin texto; un mensaje solo de texto, no.
+  const hasAttachments = parseJson<unknown[]>(own.message.attachments ?? '[]', []).length > 0;
+  if ((!text && !hasAttachments) || text.length > 5000) return { error: 'invalid_input' };
+  if (text === own.message.body) return { message: own.message };
+  await getDb()
+    .prepare('UPDATE chat_messages SET body = ?, edited_at = ? WHERE id = ?')
+    .run(text, nowIso(), messageId);
+  return { message: (await getDb().prepare('SELECT * FROM chat_messages WHERE id = ?').get(messageId)) as ChatMessageRow };
+}
+
+/**
+ * Borra un mensaje o nota propio: queda la fila con la marca (el inbox
+ * muestra "mensaje borrado") pero sin texto ni adjuntos, y el visitante deja
+ * de verlo (listChatMessages filtra deleted_at).
+ */
+export async function deleteChatMessage(
+  conversationId: string,
+  messageId: string,
+  userId: string,
+): Promise<{ message?: ChatMessageRow; error?: ChatMessageEditError }> {
+  const own = await getOwnMessage(conversationId, messageId, userId);
+  if (!own.message) return own;
+  await getDb()
+    .prepare("UPDATE chat_messages SET body = '', attachments = '[]', deleted_at = ? WHERE id = ?")
+    .run(nowIso(), messageId);
+  await markConversationUpdated(conversationId);
+  return { message: (await getDb().prepare('SELECT * FROM chat_messages WHERE id = ?').get(messageId)) as ChatMessageRow };
+}
+
 export async function markMessagesRead(
   conversationId: string,
   readerType: 'visitor' | 'user',
@@ -1887,7 +2045,7 @@ export async function markMessagesRead(
       .prepare(
         `UPDATE chat_messages
          SET read_at = COALESCE(read_at, ?)
-         WHERE conversation_id = ? AND sender_type IN ('user', 'bot') AND is_note = 0 AND read_at IS NULL`,
+         WHERE conversation_id = ? AND sender_type IN ('user', 'bot') AND is_note = 0 AND deleted_at IS NULL AND read_at IS NULL`,
       )
       .run(nowIso(), conversationId);
     return;
@@ -1968,6 +2126,8 @@ export function toPublicVisitor(visitor: ChatVisitorRow): Pick<ChatVisitorRow, '
 
 export type PublicChatMessage = Pick<ChatMessageRow, 'id' | 'conversation_id' | 'sender_type' | 'body' | 'read_at' | 'created_at'> & {
   attachments: ChatAttachment[];
+  /** El agente editó el mensaje (el widget muestra "editado"). */
+  edited_at: string | null;
 };
 
 /**
@@ -1983,6 +2143,7 @@ export function toPublicMessage(message: ChatMessageRow): PublicChatMessage {
     body: message.body,
     attachments: Array.isArray(parsed) ? (parsed as ChatAttachment[]) : [],
     read_at: message.read_at,
+    edited_at: message.edited_at ?? null,
     created_at: message.created_at,
   };
 }

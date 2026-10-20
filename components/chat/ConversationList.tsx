@@ -13,6 +13,9 @@ interface ConversationListProps {
   currentId?: string;
   emptyTitle?: string;
   emptyBody?: string;
+  /** Selección para acciones en lote (sin esto la lista no muestra casillas). */
+  selected?: ReadonlySet<string>;
+  onToggle?: (id: string, checked: boolean) => void;
 }
 
 function preview(c: ChatConversationListRow): string {
@@ -26,7 +29,14 @@ function preview(c: ChatConversationListRow): string {
  * (prioridad, SLA, estado distinto de abierta) va en tinta; la única placa
  * es Urgente.
  */
-export default function ConversationList({ conversations, currentId, emptyTitle, emptyBody }: ConversationListProps) {
+export default function ConversationList({
+  conversations,
+  currentId,
+  emptyTitle,
+  emptyBody,
+  selected,
+  onToggle,
+}: ConversationListProps) {
   const t = useTranslations('chat');
   const locale = useLocale();
 
@@ -35,15 +45,26 @@ export default function ConversationList({ conversations, currentId, emptyTitle,
   }
 
   return (
-    <ul className="chat-list" aria-label={t('inbox.listLabel')}>
+    <ul className="chat-list" aria-label={t('inbox.listLabel')} data-selecting={selected && selected.size > 0 ? true : undefined}>
       {conversations.map((c) => {
         const active = c.id === currentId;
         const assignee = c.assigned_name || c.assigned_email;
         const name = c.visitor_name || c.visitor_email || t('conversation.anonymous');
         const text = preview(c);
         const tags = c.tags ? c.tags.split(',').filter(Boolean) : [];
+        const isSelected = selected?.has(c.id) ?? false;
         return (
-          <li key={c.id}>
+          <li key={c.id} data-selected={isSelected || undefined}>
+            {onToggle && (
+              <label className="chat-row-check">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(e) => onToggle(c.id, e.target.checked)}
+                  aria-label={t('bulk.select', { name })}
+                />
+              </label>
+            )}
             <Link
               href={`/app/chat/inbox/${c.id}`}
               className="chat-row"
