@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import type { EventTypeWithRules } from '@/lib/calendar';
 import CalIcon from './cal-icons';
 import { formatTimezone, type PublicBrand } from './cal-utils';
+import { guestLimit, isValidPhone, parseQuestions, type Question } from '@/lib/calendar-questions';
 
 interface Props {
   eventType: EventTypeWithRules;
@@ -26,13 +27,6 @@ interface Props {
 interface Slot {
   start: string;
   end: string;
-}
-
-interface CustomField {
-  name: string;
-  label: string;
-  type: 'text' | 'number' | 'boolean';
-  required?: boolean;
 }
 
 type Step = 'date' | 'form' | 'confirm';
@@ -63,20 +57,22 @@ const COMMON_TIMEZONES = [
   'Pacific/Auckland',
 ];
 
-function parseFields(eventType: EventTypeWithRules): CustomField[] {
-  const list = eventType.fieldsParsed;
-  if (!Array.isArray(list)) return [];
-  return list
-    .filter((f): f is Record<string, unknown> => typeof f === 'object' && f !== null)
-    .map((f) => ({
-      name: typeof f.name === 'string' ? f.name : '',
-      label: typeof f.label === 'string' ? f.label : '',
-      type: ['text', 'number', 'boolean'].includes(typeof f.type === 'string' ? f.type : '')
-        ? (f.type as 'text' | 'number' | 'boolean')
-        : 'text',
-      required: f.required === true,
-    }))
-    .filter((f) => f.name && f.label);
+/** Primer inicio futuro de una reunión única (JSON de ISO), o null. */
+function firstOfferedTime(json: string | null | undefined): Date | null {
+  if (!json) return null;
+  try {
+    const list: unknown = JSON.parse(json);
+    if (!Array.isArray(list)) return null;
+    const now = Date.now();
+    const future = list
+      .filter((v): v is string => typeof v === 'string')
+      .map((v) => new Date(v))
+      .filter((d) => !Number.isNaN(d.getTime()) && d.getTime() > now)
+      .sort((a, b) => a.getTime() - b.getTime());
+    return future[0] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function isoDate(d: Date): string {
@@ -122,7 +118,8 @@ export default function PublicBookingPage({
   utm,
 }: Props) {
   const t = useTranslations('calendar');
-  const fields = useMemo(() => parseFields(eventType), [eventType]);
+  const fields = useMemo(() => parseQuestions(eventType.fieldsParsed).filter((f) => f.name && f.label), [eventType]);
+  const maxGuests = guestLimit(eventType.bookingRulesParsed);
   const maxDays = useMemo(() => {
     const rules = (eventType.bookingRulesParsed ?? {}) as Record<string, unknown>;
     return Math.max(1, Number(maxFutureDays ?? rules.maxFutureDays ?? 30));
@@ -142,7 +139,12 @@ export default function PublicBookingPage({
   }, [eventType, locale, reschedule]);
 
   const [timezone, setTimezone] = useState('UTC');
-  const [currentMonth, setCurrentMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  // Reunión única: arranca en el mes del primer horario ofrecido que todavía no pasó.
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const first = firstOfferedTime(eventType.one_off_times);
+    const base = first ?? new Date();
+    return new Date(base.getFullYear(), base.getMonth(), 1);
+  });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -153,6 +155,7 @@ export default function PublicBookingPage({
   const [email, setEmail] = useState(reschedule?.email ?? prefillEmail);
   const [manageUrl, setManageUrl] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [guests, setGuests] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** Embebido: Stripe no se deja enmarcar, así que el pago se abre fuera del iframe. */
@@ -311,7 +314,17 @@ export default function PublicBookingPage({
       : await fetch('/api/calendar/bookings', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ eventTypeId: eventType.id, start: selectedSlot.start, email, name, timezone, answers, locale, utm }),
+          body: JSON.stringify({
+            eventTypeId: eventType.id,
+            start: selectedSlot.start,
+            email,
+            name,
+            timezone,
+            answers,
+            locale,
+            utm,
+            guests: guests.map((g) => g.trim()).filter(Boolean),
+          }),
         }).catch(() => null);
     setBusy(false);
 
@@ -473,32 +486,31 @@ export default function PublicBookingPage({
                       required
                     />
                   </div>
-                  {fields.map((field) =>
-                    field.type === 'boolean' ? (
-                      <label key={field.name} className="ui-check">
-                        <input
-                          type="checkbox"
-                          checked={!!answers[field.name]}
-                          onChange={(e) => setAnswers((p) => ({ ...p, [field.name]: e.target.checked }))}
-                          required={field.required}
-                        />
-                        <span>{field.label}</span>
-                      </label>
-                    ) : (
-                      <div key={field.name} className="ui-field">
-                        <label className="label" htmlFor={`bk-f-${field.name}`}>
-                          {field.label} {!field.required && <span className="ui-optional">{t('editor.optional')}</span>}
-                        </label>
-                        <input
-                          id={`bk-f-${field.name}`}
-                          className="input"
-                          type={field.type === 'number' ? 'number' : 'text'}
-                          value={String(answers[field.name] ?? '')}
-                          onChange={(e) => setAnswers((p) => ({ ...p, [field.name]: e.target.value }))}
-                          required={field.required}
-                        />
-                      </div>
-                    ),
+                  {fields.map((field) => (
+                    <QuestionInput
+                      key={field.name}
+                      field={field}
+                      value={answers[field.name]}
+                      onChange={(v) => setAnswers((p) => ({ ...p, [field.name]: v }))}
+                      optionalLabel={t('editor.optional')}
+                      phoneInvalid={t('booking.phoneInvalid')}
+                      choose={t('booking.choose')}
+                    />
+                  ))}
+                  {maxGuests > 0 && (
+                    <GuestsInput
+                      value={guests}
+                      onChange={setGuests}
+                      max={maxGuests}
+                      labels={{
+                        add: t('booking.addGuests'),
+                        title: t('booking.guests'),
+                        help: t('booking.guestsHelp', { max: maxGuests }),
+                        another: t('booking.addAnotherGuest'),
+                        remove: (n: number) => t('booking.removeGuest', { n }),
+                        guestN: (n: number) => t('booking.guestN', { n }),
+                      }}
+                    />
                   )}
                 </>
               )}
@@ -708,5 +720,172 @@ export function BookingInfo({
       {description && <p className="bk-desc">{description}</p>}
       {children}
     </aside>
+  );
+}
+
+/** Una pregunta del formulario de reserva según su tipo. */
+function QuestionInput({
+  field,
+  value,
+  onChange,
+  optionalLabel,
+  phoneInvalid,
+  choose,
+}: {
+  field: Question;
+  value: unknown;
+  onChange: (v: unknown) => void;
+  optionalLabel: string;
+  phoneInvalid: string;
+  choose: string;
+}) {
+  const id = `bk-f-${field.name}`;
+  const label = (
+    <>
+      {field.label} {!field.required && <span className="ui-optional">{optionalLabel}</span>}
+    </>
+  );
+  if (field.type === 'boolean') {
+    return (
+      <label className="ui-check">
+        <input type="checkbox" checked={!!value} onChange={(e) => onChange(e.target.checked)} required={field.required} />
+        <span>{field.label}</span>
+      </label>
+    );
+  }
+  if (field.type === 'radio' || field.type === 'checkbox') {
+    const list = Array.isArray(value) ? (value as string[]) : [];
+    return (
+      <fieldset className="bk-choices">
+        <legend className="label">{label}</legend>
+        {field.options.map((opt, i) =>
+          field.type === 'radio' ? (
+            <label key={opt} className="ui-check">
+              <input
+                type="radio"
+                name={id}
+                value={opt}
+                checked={value === opt}
+                onChange={() => onChange(opt)}
+                required={field.required && i === 0}
+              />
+              <span>{opt}</span>
+            </label>
+          ) : (
+            <label key={opt} className="ui-check">
+              <input
+                type="checkbox"
+                checked={list.includes(opt)}
+                onChange={(e) => onChange(e.target.checked ? [...list, opt] : list.filter((x) => x !== opt))}
+              />
+              <span>{opt}</span>
+            </label>
+          ),
+        )}
+      </fieldset>
+    );
+  }
+  const text = typeof value === 'string' || typeof value === 'number' ? String(value) : '';
+  return (
+    <div className="ui-field">
+      <label className="label" htmlFor={id}>
+        {label}
+      </label>
+      {field.type === 'select' ? (
+        <select id={id} className="select" value={text} onChange={(e) => onChange(e.target.value)} required={field.required}>
+          <option value="">{choose}</option>
+          {field.options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      ) : field.type === 'textarea' ? (
+        <textarea
+          id={id}
+          className="textarea"
+          rows={4}
+          maxLength={2000}
+          value={text}
+          onChange={(e) => onChange(e.target.value)}
+          required={field.required}
+        />
+      ) : (
+        <input
+          id={id}
+          className="input"
+          type={field.type === 'number' ? 'number' : field.type === 'phone' ? 'tel' : 'text'}
+          autoComplete={field.type === 'phone' ? 'tel' : undefined}
+          maxLength={field.type === 'number' ? undefined : 2000}
+          value={text}
+          onChange={(e) => {
+            onChange(e.target.value);
+            if (field.type === 'phone') {
+              e.target.setCustomValidity(e.target.value && !isValidPhone(e.target.value) ? phoneInvalid : '');
+            }
+          }}
+          required={field.required}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Invitados extra: emails que reciben la invitación con el invitado principal. */
+function GuestsInput({
+  value,
+  onChange,
+  max,
+  labels,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+  max: number;
+  labels: {
+    add: string;
+    title: string;
+    help: string;
+    another: string;
+    remove: (n: number) => string;
+    guestN: (n: number) => string;
+  };
+}) {
+  if (value.length === 0) {
+    return (
+      <button type="button" className="btn btn-ghost btn-sm bk-add-guests" onClick={() => onChange([''])}>
+        {labels.add}
+      </button>
+    );
+  }
+  return (
+    <fieldset className="bk-guests">
+      <legend className="label">{labels.title}</legend>
+      {value.map((g, i) => (
+        <div key={i} className="bk-guest-row">
+          <input
+            className="input"
+            type="email"
+            autoComplete="off"
+            value={g}
+            aria-label={labels.guestN(i + 1)}
+            onChange={(e) => onChange(value.map((x, k) => (k === i ? e.target.value : x)))}
+          />
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            aria-label={labels.remove(i + 1)}
+            onClick={() => onChange(value.filter((_, k) => k !== i))}
+          >
+            <CalIcon name="trash" />
+          </button>
+        </div>
+      ))}
+      <p className="ui-help">{labels.help}</p>
+      {value.length < max && (
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange([...value, ''])}>
+          {labels.another}
+        </button>
+      )}
+    </fieldset>
   );
 }

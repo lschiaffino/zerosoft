@@ -17,12 +17,15 @@
  * - las actividades propias: las que solo apuntan a registros que se borran
  *   en la misma operación (las que además apuntan a otro registro vivo se
  *   quedan con él);
- * - en empresas, las hijas que pierden su empresa madre.
+ * - en empresas, las hijas que pierden su empresa madre;
+ * - los adjuntos (crm_task_files, crm_record_files) entran por sus FKs: el
+ *   archivo se conserva hasta que la entrada se purga, y ahí se borra.
  */
 import { getDb, type Db } from './db';
 import { syncContactPrimary, syncDealPrimary } from './crm-assoc';
 import { activityDatesUpdateSql, type ActivityDateTable } from './crm-activity-dates';
 import { ownerScopeSql, type OwnerScope } from './crm-visibility';
+import { deleteUploads } from './uploads';
 
 export const TRASH_RETENTION_DAYS = 90;
 
@@ -529,16 +532,44 @@ export async function listTrash(userId: string, f: TrashFilter = {}, db: Db = ge
     .all(...args, Math.min(Math.max(f.limit ?? 200, 1), 500))) as TrashListRow[];
 }
 
+/** Tablas de adjuntos: sus archivos viven en el almacenamiento mientras la entrada siga en la papelera. */
+const FILE_TABLES = new Set(['crm_task_files', 'crm_record_files']);
+
+/** URLs de los adjuntos guardados en un snapshot (para borrar los archivos al purgar). */
+export function snapshotFileUrls(snapshot: string): string[] {
+  try {
+    const snap = JSON.parse(snapshot) as TrashSnapshot;
+    return snap.tables
+      .filter((t) => FILE_TABLES.has(t.table))
+      .flatMap((t) => t.rows.map((r) => r.url))
+      .filter((u): u is string => typeof u === 'string' && u.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+/** Borra las entradas que cumplen `where` y después los archivos de sus adjuntos. */
+async function purgeWhere(db: Db, where: string, args: Array<string | number>): Promise<number> {
+  const rows = (await db.prepare(`SELECT id, snapshot FROM crm_trash WHERE ${where}`).all(...args)) as Array<{
+    id: string;
+    snapshot: string;
+  }>;
+  if (!rows.length) return 0;
+  let n = 0;
+  for (const part of chunks(rows.map((r) => r.id))) {
+    n += (await db.prepare(`DELETE FROM crm_trash WHERE id IN (${part.map(() => '?').join(',')})`).run(...part)).changes;
+  }
+  const urls = rows.flatMap((r) => snapshotFileUrls(r.snapshot));
+  if (urls.length) await deleteUploads(urls);
+  return n;
+}
+
 /** Borra definitivamente entradas de la papelera (solo admins; lo decide la ruta). */
 export async function purgeTrash(userId: string, ids: string[] | 'all', db: Db = getDb()): Promise<number> {
-  if (ids === 'all') return (await db.prepare('DELETE FROM crm_trash WHERE user_id = ?').run(userId)).changes;
+  if (ids === 'all') return purgeWhere(db, 'user_id = ?', [userId]);
   let n = 0;
   for (const part of chunks(ids)) {
-    n += (
-      await db
-        .prepare(`DELETE FROM crm_trash WHERE user_id = ? AND id IN (${part.map(() => '?').join(',')})`)
-        .run(userId, ...part)
-    ).changes;
+    n += await purgeWhere(db, `user_id = ? AND id IN (${part.map(() => '?').join(',')})`, [userId, ...part]);
   }
   return n;
 }
@@ -546,7 +577,7 @@ export async function purgeTrash(userId: string, ids: string[] | 'all', db: Db =
 /** Cron: descarta lo que lleva más de TRASH_RETENTION_DAYS días en la papelera. */
 export async function purgeExpiredTrash(now: Date = new Date(), db: Db = getDb()): Promise<number> {
   const cutoff = new Date(now.getTime() - TRASH_RETENTION_DAYS * 86_400_000).toISOString().slice(0, 19).replace('T', ' ');
-  return (await db.prepare('DELETE FROM crm_trash WHERE deleted_at < ?').run(cutoff)).changes;
+  return purgeWhere(db, 'deleted_at < ?', [cutoff]);
 }
 
 /** Días que le quedan a una entrada antes de la purga (0 = se purga en el próximo tick). */

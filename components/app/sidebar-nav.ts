@@ -67,6 +67,7 @@ export interface SidebarLabels {
     bookings: string;
     routing: string;
     availability: string;
+    analytics: string;
     settings: string;
   };
   track: {
@@ -247,6 +248,12 @@ export function buildNav(
             { href: '/app/calendar/routing', label: labels.calendar.routing, active: at('/app/calendar/routing'), icon: 'lists' },
             { href: '/app/calendar/bookings', label: labels.calendar.bookings, active: at('/app/calendar/bookings'), icon: 'contacts' },
             { href: '/app/calendar/availability', label: labels.calendar.availability, active: at('/app/calendar/availability'), icon: 'myTasks' },
+          ],
+        },
+        {
+          section: labels.activity,
+          items: [
+            { href: '/app/calendar/analytics', label: labels.calendar.analytics, active: at('/app/calendar/analytics'), icon: 'reports' },
           ],
         },
         {

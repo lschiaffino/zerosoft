@@ -18,6 +18,7 @@ import {
   updateDeal,
 } from './crm';
 import { getDb, type CrmCustomFieldRow } from './db';
+import { coerceCustomFieldValue } from './crm-custom-fields';
 
 const TABLE: Record<BulkEntity, string> = { contact: 'crm_contacts', company: 'crm_companies', deal: 'crm_deals' };
 const FIELD_ENTITY: Record<BulkEntity, string> = { contact: 'contacts', company: 'companies', deal: 'deals' };
@@ -27,32 +28,9 @@ export type BulkPatch =
   | { kind: 'stage'; stageId: string }
   | { kind: 'custom'; name: string; value: unknown };
 
-/** Valor de un custom field normalizado a su tipo (undefined = inválido). */
+/** Valor de un custom field normalizado a su tipo (undefined = inválido; ver lib/crm-custom-fields.ts). */
 export function coerceCustomValue(def: Pick<CrmCustomFieldRow, 'type' | 'options'>, value: unknown): unknown {
-  if (value === null || value === '') return null;
-  switch (def.type) {
-    case 'number': {
-      const n = typeof value === 'number' ? value : Number(value);
-      return Number.isFinite(n) ? n : undefined;
-    }
-    case 'boolean':
-      if (value === true || value === 'true') return true;
-      if (value === false || value === 'false') return false;
-      return undefined;
-    case 'date':
-      return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
-    case 'select': {
-      let options: unknown = [];
-      try {
-        options = JSON.parse(def.options);
-      } catch {
-        options = [];
-      }
-      return Array.isArray(options) && options.includes(value) ? value : undefined;
-    }
-    default:
-      return typeof value === 'string' ? value.trim().slice(0, 500) : typeof value === 'number' ? String(value) : undefined;
-  }
+  return coerceCustomFieldValue(def, value);
 }
 
 /**

@@ -6,6 +6,9 @@ import { useRouter } from '@/i18n/navigation';
 import type { EmailThreadView } from '@/lib/crm-email';
 import EmailThread from './EmailThread';
 import CrmIcon from './CrmIcon';
+import FilesPanel, { type FileItem } from './FilesPanel';
+import MentionTextarea, { MentionText } from './MentionTextarea';
+import type { Mentionable } from '@/lib/crm-mentions';
 
 export type TimelineRecordType = 'contact' | 'company' | 'deal';
 
@@ -28,6 +31,8 @@ export interface TimelineItem {
   external?: boolean;
   from_email?: string;
   thread?: EmailThreadView;
+  /** Adjuntos de la actividad. */
+  files?: FileItem[];
 }
 
 /** Herramientas del composer de email: templates/snippets, IA y tracking. */
@@ -49,7 +54,12 @@ interface TimelineProps {
   /** Email precargado en el composer cuando type === email. */
   defaultEmail?: string;
   emailTools?: EmailTools;
+  /** Personas del workspace que se pueden @mencionar en notas y tareas. */
+  mentionables?: Mentionable[];
 }
+
+/** Tipos donde el texto acepta @menciones (y avisan). */
+const MENTION_TYPES = new Set(['note', 'task']);
 
 const TYPES = ['note', 'task', 'call', 'meeting', 'email'] as const;
 type ActivityType = (typeof TYPES)[number];
@@ -93,6 +103,7 @@ export default function Timeline({
   locale,
   defaultEmail = '',
   emailTools,
+  mentionables = [],
 }: TimelineProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -377,14 +388,27 @@ export default function Timeline({
           placeholder={type === 'email' ? t('common.subject') : t('tasks.form.subject')}
           maxLength={500}
         />
-        <textarea
-          className="textarea"
-          rows={type === 'email' ? 6 : 3}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder={type === 'email' ? t('common.body') : t('tasks.form.body')}
-          maxLength={type === 'email' ? 20000 : 5000}
-        />
+        {MENTION_TYPES.has(type) && mentionables.length > 1 ? (
+          <MentionTextarea
+            className="textarea"
+            rows={3}
+            value={body}
+            onChange={setBody}
+            people={mentionables}
+            placeholder={t('mentions.placeholder')}
+            maxLength={5000}
+            aria-label={t('tasks.form.body')}
+          />
+        ) : (
+          <textarea
+            className="textarea"
+            rows={type === 'email' ? 6 : 3}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder={type === 'email' ? t('common.body') : t('tasks.form.body')}
+            maxLength={type === 'email' ? 20000 : 5000}
+          />
+        )}
         {type === 'email' && emailTools && (
           <div className="em-tools">
             {templates.length > 0 && (
@@ -533,14 +557,27 @@ export default function Timeline({
                     placeholder={t('tasks.form.subject')}
                     maxLength={500}
                   />
-                  <textarea
-                    className="textarea"
-                    rows={3}
-                    value={editBody}
-                    onChange={(e) => setEditBody(e.target.value)}
-                    placeholder={t('tasks.form.body')}
-                    maxLength={5000}
-                  />
+                  {MENTION_TYPES.has(item.type) && mentionables.length > 1 ? (
+                    <MentionTextarea
+                      className="textarea"
+                      rows={3}
+                      value={editBody}
+                      onChange={setEditBody}
+                      people={mentionables}
+                      placeholder={t('tasks.form.body')}
+                      maxLength={5000}
+                      aria-label={t('tasks.form.body')}
+                    />
+                  ) : (
+                    <textarea
+                      className="textarea"
+                      rows={3}
+                      value={editBody}
+                      onChange={(e) => setEditBody(e.target.value)}
+                      placeholder={t('tasks.form.body')}
+                      maxLength={5000}
+                    />
+                  )}
                   <div className="form-actions">
                     <button
                       type="button"
@@ -573,7 +610,11 @@ export default function Timeline({
                       {formatWhen(item.due_at ?? item.created_at, locale)}
                     </span>
                   </div>
-                  {item.body && <p className="tl-body">{item.body}</p>}
+                  {item.body && (
+                    <p className="tl-body">
+                      <MentionText text={item.body} people={mentionables} />
+                    </p>
+                  )}
                   <div className="tl-meta">
                     {item.type === 'task' && item.due_at && (
                       <span>
@@ -639,6 +680,9 @@ export default function Timeline({
                       </>
                     )}
                   </div>
+                  {!item.external && (
+                    <FilesPanel compact endpoint={`/api/crm/activities/${item.id}/files`} files={item.files ?? []} />
+                  )}
                 </>
               )}
             </div>

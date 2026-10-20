@@ -199,6 +199,7 @@ export default async function AppLayout(
             bookings: tCalendar('sidebar.bookings'),
             routing: tCalendar('sidebar.routing'),
             availability: tCalendar('sidebar.availability'),
+            analytics: tCalendar('sidebar.analytics'),
             settings: tCalendar('sidebar.settings'),
           },
           track: {

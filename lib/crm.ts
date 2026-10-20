@@ -4,6 +4,7 @@
  * paginación con clamp, ids crypto.randomUUID(), timestamps UTC.
  */
 import { assertRefs, CrmRefError, ownedContactIds } from './crm-refs';
+import { deleteUploads } from './uploads';
 import { dayRangeUtc, getUserTimeZone } from './user-tz';
 import type { WebhookEvent } from './webhooks';
 import { emitEvent } from './events';
@@ -44,6 +45,7 @@ import {
   type CrmCompanyRow,
   type CrmContactRow,
   type CrmCustomFieldRow,
+  type CrmCustomFieldType,
   type CrmDealRow,
   type CrmEmailRow,
   type CrmListRow,
@@ -139,7 +141,7 @@ export interface FilterRule {
   v2?: string;
 }
 
-export type FilterFieldType = 'text' | 'number' | 'select' | 'date' | 'boolean';
+export type FilterFieldType = 'text' | 'number' | 'select' | 'date' | 'boolean' | 'multiselect';
 
 interface AdvancedFieldDef {
   /** Expresión SQL ya aliaseada; sale solo de nuestros mapas internos (nunca del usuario). */
@@ -232,6 +234,13 @@ function buildRuleCondition(
     if (!v || Number.isNaN(n)) return null;
     const op = rule.o === 'eq' ? '=' : rule.o === 'neq' ? '!=' : rule.o === 'gt' ? '>' : '<';
     return { sql: `${expr} ${op} ?`, args: [n] };
+  }
+
+  if (type === 'multiselect') {
+    // Lista JSON: "es" = la contiene; "no es" = no la contiene (o está vacía).
+    if (!v || !SELECT_OPS.has(rule.o) || !rule.f.startsWith('custom:')) return null;
+    const has = `EXISTS (SELECT 1 FROM json_each(${alias}.custom, '$.${rule.f.slice(7)}') WHERE value = ?)`;
+    return { sql: rule.o === 'is' ? has : `NOT ${has}`, args: [v] };
   }
 
   if (type === 'select' || type === 'boolean') {
@@ -2336,12 +2345,16 @@ export async function createTaskFile(
   return (await db.prepare('SELECT * FROM crm_task_files WHERE id = ?').get(id)) as CrmTaskFileRow;
 }
 
+/** Borra el adjunto y su archivo del almacenamiento (en la papelera, en cambio, se conserva). */
 export async function deleteTaskFile(activityId: string, fileId: string): Promise<boolean> {
-  return (
-    (await getDb()
-      .prepare('DELETE FROM crm_task_files WHERE id = ? AND activity_id = ?')
-      .run(fileId, activityId)).changes > 0
-  );
+  const db = getDb();
+  const row = (await db
+    .prepare('SELECT url FROM crm_task_files WHERE id = ? AND activity_id = ?')
+    .get(fileId, activityId)) as { url: string } | undefined;
+  if (!row) return false;
+  await db.prepare('DELETE FROM crm_task_files WHERE id = ? AND activity_id = ?').run(fileId, activityId);
+  await deleteUploads([row.url]);
+  return true;
 }
 
 export interface TimelineFilter {
@@ -2799,7 +2812,7 @@ export interface CustomFieldInput {
   entity?: string;
   name?: string;
   label?: string;
-  type?: 'text' | 'number' | 'date' | 'select' | 'boolean';
+  type?: CrmCustomFieldType;
   options?: string[];
   position?: number;
 }

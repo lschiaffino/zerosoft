@@ -70,7 +70,9 @@ function bookingBody(booking: CalendarBookingRow): string {
   try {
     const answers = JSON.parse(booking.answers || '{}') as Record<string, unknown>;
     for (const [key, value] of Object.entries(answers)) {
-      if (value !== '' && value !== null && value !== undefined) lines.push(`${key}: ${String(value)}`);
+      if (value !== '' && value !== null && value !== undefined) {
+        lines.push(`${key}: ${Array.isArray(value) ? value.join(', ') : String(value)}`);
+      }
     }
   } catch {
     /* respuestas corruptas: se ignoran */

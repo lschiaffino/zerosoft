@@ -2,12 +2,17 @@
  * Formularios de alta del CRM (contacto, empresa, deal): FormData → body del
  * POST. Puro, sin React, para testearlo y usarlo desde server o client.
  */
+import type { CrmCustomFieldType } from '@/lib/schema/types';
+import { normalizeFieldUrl } from '@/lib/crm-custom-fields';
 
 export interface CustomFieldDef {
   name: string;
   label: string;
-  type: 'text' | 'number' | 'date' | 'select' | 'boolean';
+  type: CrmCustomFieldType;
+  /** Opciones (select, multiselect) o [moneda] (currency). */
   options: string[];
+  /** Personas elegibles para el tipo user (id + nombre). */
+  choices?: Array<{ value: string; label: string }>;
 }
 
 export const CUSTOM_PREFIX = 'custom.';
@@ -26,11 +31,18 @@ export function readCustomFields(fd: FormData, defs: CustomFieldDef[]): Record<s
       if (fd.get(key) !== null) out[f.name] = true;
       continue;
     }
+    if (f.type === 'multiselect') {
+      const picked = fd.getAll(key).filter((v): v is string => typeof v === 'string' && f.options.includes(v));
+      if (picked.length) out[f.name] = f.options.filter((o) => picked.includes(o));
+      continue;
+    }
     const v = str(fd, key);
     if (v === undefined) continue;
-    if (f.type === 'number') {
+    if (f.type === 'number' || f.type === 'currency') {
       const n = Number(v);
       if (Number.isFinite(n)) out[f.name] = n;
+    } else if (f.type === 'url') {
+      out[f.name] = normalizeFieldUrl(v);
     } else {
       out[f.name] = v;
     }

@@ -803,3 +803,59 @@ html.zs-embed .bk-card { border-color: transparent; border-top-color: var(--bk);
 .custom-field-row { display: grid; grid-template-columns: 1fr 1fr auto auto auto; gap: 8px; align-items: center; }
 @media (max-width: 640px) { .custom-field-row { grid-template-columns: 1fr 1fr; } }
 .calendar-embed-tabs { display: flex; gap: 8px; margin: 4px 0 12px; }
+
+/* Preguntas con opciones (desplegable, elegir una, elegir varias). */
+.cal-q-item { display: flex; flex-direction: column; gap: 8px; }
+.cal-q-options { padding-left: 12px; border-left: 2px solid var(--line); max-width: 480px; }
+.cal-input-short { max-width: 120px; }
+
+/* Reunión única: una fila por horario ofrecido. */
+.cal-oneoff-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cal-oneoff-row { display: grid; grid-template-columns: minmax(0, 260px) 28px; gap: 8px; align-items: center; }
+.cal-oneoff-row .input { width: 100%; }
+
+/* Página pública: opciones a la vista e invitados extra. */
+.bk-choices { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.bk-choices > legend { margin-bottom: 6px; padding: 0; }
+.bk-guests { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.bk-guests > legend { margin-bottom: 6px; padding: 0; }
+.bk-guest-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.bk-guests > .btn,
+.bk-add-guests { align-self: flex-start; }
+
+/* Analítica de reservas. */
+.cal-range { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; }
+.cal-range .btn[aria-current='true'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); z-index: 1; }
+.cal-range-custom { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px; }
+.cal-range-custom .input { width: 160px; }
+.cal-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  margin: 0;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+.cal-count { padding: 12px 16px 14px; background: var(--bg); }
+.cal-count dt { font-size: 0.8125rem; color: var(--brand-gray-1); }
+.cal-count dd { display: flex; align-items: baseline; gap: 8px; margin: 4px 0 0; font-size: 1.5rem; line-height: 1.1; color: var(--ink); }
+.cal-count-note { font-size: 0.8125rem; color: var(--brand-gray-2); }
+.cal-top-slots { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); max-width: 480px; }
+.cal-top-slots li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 0;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--line);
+}
+.cal-heat-wrap { overflow-x: auto; max-width: 100%; }
+.cal-heat { border-collapse: separate; border-spacing: 2px; font-size: 0.6875rem; }
+.cal-heat th { padding: 0 4px; font-weight: 500; color: var(--brand-gray-2); text-align: left; white-space: nowrap; }
+.cal-heat thead th { height: 18px; vertical-align: bottom; }
+.cal-heat td { width: 18px; min-width: 18px; height: 18px; padding: 0; background: var(--brand-enamel); border-radius: 2px; }
+.cal-heat td.has { background: color-mix(in srgb, var(--ink) calc(var(--v, 0) * 100%), var(--brand-enamel)); }
+@media (max-width: 560px) {
+  .cal-range-custom .input { width: 140px; }
+  .cal-oneoff-row { grid-template-columns: minmax(0, 1fr) 28px; }
+}

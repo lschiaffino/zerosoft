@@ -10,10 +10,11 @@ import {
   listCustomFields,
   parseFilterRules,
   type CompanyFilter,
-  type FilterFieldType,
+  parseCustom,
 } from '@/lib/crm';
 import type { BulkEditField } from '@/components/crm/BulkEditControls';
 import { customBulkFields } from '@/components/crm/bulkFields';
+import { customBuilderFields, customCells, customColumns, customFilterTypes } from '@/components/crm/customFieldViews';
 import { formatActivityDate } from '@/lib/crm-activity-dates';
 import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
@@ -82,9 +83,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   const advancedRules = parseFilterRules(rawFilters);
 
   const customFieldDefs = await listCustomFields(user.id, 'companies');
-  const customTypes: Record<string, FilterFieldType> = Object.fromEntries(
-    customFieldDefs.map((cf) => [cf.name, cf.type]),
-  );
+  const customTypes = customFilterTypes(customFieldDefs);
 
   const { rows, total } = await listCompanies(user.id, {
     ownerScope: scope,
@@ -190,40 +189,10 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
       type: 'select',
       options: allTags.map((x) => ({ value: x.id, label: x.name })),
     },
-    ...customFieldDefs.map((cf): FilterBuilderField => {
-      if (cf.type === 'boolean') {
-        return {
-          key: `custom:${cf.name}`,
-          label: cf.label,
-          type: 'select',
-          options: [
-            { value: '1', label: t('common.yes') },
-            { value: '0', label: t('common.no') },
-          ],
-        };
-      }
-      if (cf.type === 'select') {
-        let options: Array<{ value: string; label: string }> = [];
-        try {
-          const parsed: unknown = JSON.parse(cf.options);
-          if (Array.isArray(parsed)) {
-            options = parsed
-              .filter((o): o is string => typeof o === 'string')
-              .map((o) => ({ value: o, label: o }));
-          }
-        } catch {
-          options = [];
-        }
-        return { key: `custom:${cf.name}`, label: cf.label, type: 'select', options };
-      }
-      return {
-        key: `custom:${cf.name}`,
-        label: cf.label,
-        type: cf.type === 'number' ? 'number' : cf.type === 'date' ? 'date' : 'text',
-      };
-    }),
+    ...customBuilderFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }, owners),
   ];
 
+  const cellCtx = { locale, yes: t('common.yes'), no: t('common.no'), users: new Map(owners.map((o) => [o.value, o.label])) };
   const tableRows: CompanyRow[] = rows.map((c) => ({
     id: c.id,
     name: c.name,
@@ -240,6 +209,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     lastContacted: formatActivityDate(c.last_contacted_at, locale),
     nextActivity: formatActivityDate(c.next_activity_at, locale),
     tags: rowTags.get(c.id) ?? [],
+    custom: customCells(customFieldDefs, parseCustom(c.custom), cellCtx),
     parentName: c.parent_company_id ? parentNames.get(c.parent_company_id) ?? null : null,
   }));
 
@@ -251,7 +221,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     { key: 'employees', label: t('companies.form.employees'), type: 'number', nullable: true },
     { key: 'city', label: t('companies.form.city'), type: 'text' },
     { key: 'country', label: t('companies.form.country'), type: 'text' },
-    ...customBulkFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }),
+    ...customBulkFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }, owners),
   ];
 
   const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
@@ -326,6 +296,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
         <>
           <CompaniesTable
             rows={tableRows}
+            customColumns={customColumns(customFieldDefs)}
             sort={sort}
             lifecycles={[...LIFECYCLE_STAGES]}
             locale={locale}

@@ -9,6 +9,7 @@
  * lista/tags/secuencia, avisa al owner y a los emails configurados y dispara
  * el trigger de workflows `form_submitted` y el evento de Flow `form.submitted`.
  */
+import { typedCustomValues } from './crm-custom-fields';
 import { createHash } from 'crypto';
 import { getDb, type CrmContactRow, type CrmFormRow, type CrmFormSubmissionRow, type Db } from './db';
 import {
@@ -393,6 +394,13 @@ export async function submitForm(
   const email = (mapped.contact.email ?? '').trim().toLowerCase();
 
   const crm = await import('./crm');
+  // Valores de custom fields con el tipo de cada campo (número, lista, URL…).
+  const [contactDefs, companyDefs] = await Promise.all([
+    crm.listCustomFields(workspaceId, 'contacts'),
+    crm.listCustomFields(workspaceId, 'companies'),
+  ]);
+  const contactCustom = typedCustomValues(contactDefs, mapped.contactCustom);
+  const companyCustom = typedCustomValues(companyDefs, mapped.companyCustom);
   const { findContactByEmail } = await import('./crm-integrations');
 
   // Empresa: por nombre o dominio (se crea si no existe).
@@ -421,7 +429,7 @@ export async function submitForm(
         phone: mapped.company.phone,
         city: mapped.company.city,
         country: mapped.company.country,
-        custom: Object.keys(mapped.companyCustom).length ? mapped.companyCustom : undefined,
+        custom: Object.keys(companyCustom).length ? companyCustom : undefined,
       });
       companyId = co.id;
     }
@@ -436,8 +444,8 @@ export async function submitForm(
     // Dedupe: completa/actualiza solo lo que vino (nunca borra con vacíos).
     const patch: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(mapped.contact)) if (v && k !== 'email') patch[k] = v;
-    if (Object.keys(mapped.contactCustom).length) {
-      patch.custom = { ...crm.parseCustom(existing.custom), ...mapped.contactCustom };
+    if (Object.keys(contactCustom).length) {
+      patch.custom = { ...crm.parseCustom(existing.custom), ...contactCustom };
     }
     if (companyId && !existing.company_id) patch.companyId = companyId;
     // Lifecycle solo avanza (nunca retrocede un customer a lead).
@@ -465,7 +473,7 @@ export async function submitForm(
         source: s.source || 'form',
         companyId,
         ownerId: ownerValid,
-        custom: Object.keys(mapped.contactCustom).length ? mapped.contactCustom : undefined,
+        custom: Object.keys(contactCustom).length ? contactCustom : undefined,
       },
       db,
     );

@@ -7,6 +7,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import { scheduleDisplayName } from '@/lib/calendar-schedule-name';
 import { isZeroDecimal, minimumPriceCents, parsePriceInput, priceInputValue, priceProblem } from '@/lib/calendar-price';
 import { isValidRedirectUrl } from '@/lib/calendar-redirect';
+import { cleanOptions, MAX_GUESTS, OPTION_QUESTION_TYPES, QUESTION_TYPES, type Question } from '@/lib/calendar-questions';
 import CalIcon from './cal-icons';
 import CalCopyButton from './CalCopyButton';
 import CalDeleteButton from './CalDeleteButton';
@@ -28,12 +29,7 @@ import {
   type MeetingLimitsDraft,
 } from './cal-utils';
 
-export interface QuestionDef {
-  name: string;
-  label: string;
-  type: 'text' | 'number' | 'boolean';
-  required: boolean;
-}
+export type QuestionDef = Question;
 
 export interface ScheduleOption {
   id: string;
@@ -76,6 +72,8 @@ export interface EventTypeEditorProps {
     scheduleId: string | null;
     priceCents: number;
     currency: string;
+    /** Reunión única: inicios ISO elegidos a mano (null = evento normal). */
+    oneOffTimes: string[] | null;
   };
   schedules: ScheduleOption[];
   /** Marca del workspace (Ajustes > Perfil): la que usa la página si el evento no la cambia. */
@@ -172,6 +170,30 @@ interface Draft {
   requiresConfirmation: boolean;
   redirectUrl: string;
   redirectPassDetails: boolean;
+  allowGuests: boolean;
+  /** Tope de invitados extra ('' = el máximo). */
+  maxGuests: string;
+  /** Reunión única: inicios como valor de <input type="datetime-local"> (hora local del navegador). */
+  oneOffTimes: string[];
+}
+
+/** Horarios que puede ofrecer una reunión única (igual que el schema). */
+const MAX_ONE_OFF_TIMES = 30;
+
+/** Próximo horario sugerido al agregar una fila: una hora después del último, o mañana a las 10. */
+function nextOneOffDefault(list: string[]): string {
+  const last = [...list].reverse().find(Boolean);
+  const base = last ? new Date(new Date(last).getTime() + 60 * 60_000) : new Date(Date.now() + 86_400_000);
+  if (!last) base.setHours(10, 0, 0, 0);
+  return toLocalInput(base.toISOString());
+}
+
+/** ISO → valor de datetime-local en la zona del navegador. */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export default function EventTypeEditor(props: EventTypeEditorProps) {
@@ -210,12 +232,16 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
       requiresConfirmation: et.bookingRules.requiresConfirmation === true,
       redirectUrl: typeof et.bookingRules.redirectUrl === 'string' ? et.bookingRules.redirectUrl : '',
       redirectPassDetails: et.bookingRules.redirectPassDetails === true,
+      allowGuests: et.bookingRules.allowGuests === true,
+      maxGuests: typeof et.bookingRules.maxGuests === 'number' ? String(et.bookingRules.maxGuests) : '',
+      oneOffTimes: (et.oneOffTimes ?? []).map(toLocalInput),
     }),
     // El borrador arranca una vez; después de guardar, `baseline` toma el valor guardado.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
   const [d, setD] = useState<Draft>(initial);
+  const oneOff = et.oneOffTimes !== null;
   const [baseline, setBaseline] = useState<Draft>(initial);
   const [tab, setTab] = useState<Tab>(
     TABS.includes(props.initialTab as Tab) ? (props.initialTab as Tab) : 'general',
@@ -306,10 +332,19 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
     if (!d.title.trim()) return fail('general', t('editor.titleRequired'));
     if (!Number.isFinite(d.durationMin) || d.durationMin < 1) return fail('general', t('editor.durationInvalid'));
     if (!/^[a-z0-9-]+$/.test(d.slug)) return fail('share', t('errors.invalid_slug'));
-    if (d.schedule === CUSTOM && d.customRules.some((r) => r.endTime <= r.startTime)) {
+    if (!oneOff && d.schedule === CUSTOM && d.customRules.some((r) => r.endTime <= r.startTime)) {
       return fail('availability', t('errors.invalid_range'));
     }
     if (d.fields.some((f) => !f.label.trim())) return fail('questions', t('editor.questionLabelRequired'));
+    if (d.fields.some((f) => OPTION_QUESTION_TYPES.has(f.type) && cleanOptions(f.options).length === 0)) {
+      return fail('questions', t('editor.questionOptionsRequired'));
+    }
+    const maxGuests = d.maxGuests.trim() ? Number(d.maxGuests) : undefined;
+    if (maxGuests !== undefined && !(Number.isInteger(maxGuests) && maxGuests >= 1 && maxGuests <= MAX_GUESTS)) {
+      return fail('questions', t('editor.maxGuestsInvalid', { max: MAX_GUESTS }));
+    }
+    const oneOffIso = oneOff ? d.oneOffTimes.filter(Boolean).map((v) => new Date(v)).filter((x) => !Number.isNaN(x.getTime())) : [];
+    if (oneOff && oneOffIso.length === 0) return fail('availability', t('oneOff.timesRequired'));
     const meetingLimits = meetingLimitsPayload(d.meetingLimits);
     const hostMeetingLimits = meetingLimitsPayload(d.hostMeetingLimits);
     if (meetingLimits === null || hostMeetingLimits === null) return fail('availability', t('editor.meetingLimitsInvalid'));
@@ -325,7 +360,8 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
     const fields = d.fields.map((f) => {
       const name = f.name || fieldKeyFromLabel(f.label, [...taken, ...d.fields.map((x) => x.name).filter(Boolean)]);
       taken.push(name);
-      return { name, label: f.label.trim(), type: f.type, required: f.required };
+      const options = OPTION_QUESTION_TYPES.has(f.type) ? cleanOptions(f.options) : [];
+      return { name, label: f.label.trim(), type: f.type, required: f.required, options };
     });
     const orderedHosts = teamMembers ? teamMembers.filter((m) => d.hostIds.includes(m.user_id)).map((m) => m.user_id) : undefined;
     const priceChanged = d.amount !== baseline.amount || d.currency !== baseline.currency;
@@ -350,6 +386,8 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
           requiresConfirmation: d.requiresConfirmation || undefined,
           redirectUrl: redirectUrl || undefined,
           redirectPassDetails: redirectUrl && d.redirectPassDetails ? true : undefined,
+          allowGuests: d.allowGuests || undefined,
+          maxGuests: d.allowGuests ? maxGuests : undefined,
         },
         singleUse: d.singleUse,
         fields,
@@ -358,7 +396,8 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
         welcomeMessage: d.welcomeMessage.trim(),
         hostIds: orderedHosts,
         teamId: orderedHosts && orderedHosts.length > 0 ? (teamId ?? undefined) : undefined,
-        scheduleId: d.schedule === CUSTOM ? undefined : d.schedule,
+        scheduleId: oneOff || d.schedule === CUSTOM ? undefined : d.schedule,
+        ...(oneOff ? { oneOffTimes: oneOffIso.map((x) => x.toISOString()) } : {}),
         ...(priceChanged ? { priceCents: priceCents ?? 0, currency: d.currency } : {}),
       }),
     }).catch(() => null);
@@ -371,7 +410,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
     }
 
     // Horas propias: se guardan si cambiaron o si el evento venía de un horario reutilizable.
-    if (d.schedule === CUSTOM && (baseline.schedule !== CUSTOM || JSON.stringify(d.customRules) !== JSON.stringify(baseline.customRules))) {
+    if (!oneOff && d.schedule === CUSTOM && (baseline.schedule !== CUSTOM || JSON.stringify(d.customRules) !== JSON.stringify(baseline.customRules))) {
       const r = await fetch(`/api/calendar/event-types/${et.id}/availability`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -573,6 +612,15 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
 
           {/* ---------- Disponibilidad ---------- */}
           <Panel id={idFor('panel-availability')} labelledBy={idFor('tab-availability')} hidden={tab !== 'availability'}>
+            {oneOff ? (
+              <OneOffTimesEditor
+                idPrefix={idFor('oneoff')}
+                value={d.oneOffTimes}
+                onChange={(next) => set('oneOffTimes', next)}
+                used={et.used}
+              />
+            ) : (
+              <>
             <div className="ui-field">
               <label className="label" htmlFor={idFor('schedule')}>
                 {t('schedules.pick')}
@@ -648,6 +696,8 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                 </>
               )}
             </SubSection>
+              </>
+            )}
           </Panel>
 
           {/* ---------- Preguntas ---------- */}
@@ -662,59 +712,110 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                 <span>{t('booking.email')}</span>
                 <span className="badge badge-outline">{t('editor.always')}</span>
               </li>
-              {d.fields.map((f, i) => (
-                <li key={i} className="cal-q-row">
-                  <input
-                    className="input"
-                    value={f.label}
-                    aria-label={t('editor.questionN', { n: i + 1 })}
-                    placeholder={t('editor.questionPlaceholder')}
-                    aria-invalid={state === 'error' && error?.tab === 'questions' && !f.label.trim() ? true : undefined}
-                    onChange={(e) => set('fields', d.fields.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
-                  />
-                  <select
-                    className="select"
-                    value={f.type}
-                    aria-label={t('editor.answerType')}
-                    onChange={(e) =>
-                      set('fields', d.fields.map((x, j) => (j === i ? { ...x, type: e.target.value as QuestionDef['type'] } : x)))
-                    }
-                  >
-                    <option value="text">{t('form.fieldTypeText')}</option>
-                    <option value="number">{t('form.fieldTypeNumber')}</option>
-                    <option value="boolean">{t('form.fieldTypeBoolean')}</option>
-                  </select>
-                  <label className="ui-check">
-                    <input
-                      type="checkbox"
-                      checked={f.required}
-                      onChange={(e) => set('fields', d.fields.map((x, j) => (j === i ? { ...x, required: e.target.checked } : x)))}
-                    />
-                    <span>{t('form.fieldRequired')}</span>
-                  </label>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-icon btn-sm"
-                    aria-label={t('editor.removeQuestion', { n: i + 1 })}
-                    title={t('common.remove')}
-                    onClick={() => set('fields', d.fields.filter((_, j) => j !== i))}
-                  >
-                    <CalIcon name="trash" />
-                  </button>
-                </li>
-              ))}
+              {d.fields.map((f, i) => {
+                const update = (patch: Partial<QuestionDef>) =>
+                  set('fields', d.fields.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+                const withOptions = OPTION_QUESTION_TYPES.has(f.type);
+                return (
+                  <li key={i} className="cal-q-item">
+                    <div className="cal-q-row">
+                      <input
+                        className="input"
+                        value={f.label}
+                        aria-label={t('editor.questionN', { n: i + 1 })}
+                        placeholder={t('editor.questionPlaceholder')}
+                        aria-invalid={state === 'error' && error?.tab === 'questions' && !f.label.trim() ? true : undefined}
+                        onChange={(e) => update({ label: e.target.value })}
+                      />
+                      <select
+                        className="select"
+                        value={f.type}
+                        aria-label={t('editor.answerType')}
+                        onChange={(e) => update({ type: e.target.value as QuestionDef['type'] })}
+                      >
+                        {QUESTION_TYPES.map((type) => (
+                          <option key={type} value={type}>
+                            {t(`questionType.${type}`)}
+                          </option>
+                        ))}
+                      </select>
+                      <label className="ui-check">
+                        <input type="checkbox" checked={f.required} onChange={(e) => update({ required: e.target.checked })} />
+                        <span>{t('form.fieldRequired')}</span>
+                      </label>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-icon btn-sm"
+                        aria-label={t('editor.removeQuestion', { n: i + 1 })}
+                        title={t('common.remove')}
+                        onClick={() => set('fields', d.fields.filter((_, k) => k !== i))}
+                      >
+                        <CalIcon name="trash" />
+                      </button>
+                    </div>
+                    {withOptions && (
+                      <div className="ui-field cal-q-options">
+                        <label className="label" htmlFor={idFor(`q-${i}-options`)}>
+                          {t('editor.questionOptions')}
+                        </label>
+                        <textarea
+                          id={idFor(`q-${i}-options`)}
+                          className="textarea"
+                          rows={3}
+                          value={f.options.join('\n')}
+                          placeholder={t('editor.questionOptionsPlaceholder')}
+                          aria-invalid={
+                            state === 'error' && error?.tab === 'questions' && cleanOptions(f.options).length === 0 ? true : undefined
+                          }
+                          onChange={(e) => update({ options: e.target.value.split('\n') })}
+                        />
+                        <p className="ui-help">{t('editor.questionOptionsHelp')}</p>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
             <div>
               <button
                 type="button"
                 className="btn btn-sm"
                 disabled={d.fields.length >= 20}
-                onClick={() => set('fields', [...d.fields, { name: '', label: '', type: 'text', required: false }])}
+                onClick={() => set('fields', [...d.fields, { name: '', label: '', type: 'text', required: false, options: [] }])}
               >
                 <CalIcon name="plus" />
                 {t('form.addField')}
               </button>
             </div>
+
+            <SubSection title={t('editor.guests')} description={t('editor.guestsLead')}>
+              <label className="ui-switch">
+                <input type="checkbox" role="switch" checked={d.allowGuests} onChange={(e) => set('allowGuests', e.target.checked)} />
+                <span>
+                  {t('editor.allowGuests')}
+                  <span className="cal-switch-help">{t('editor.allowGuestsHelp')}</span>
+                </span>
+              </label>
+              {d.allowGuests && (
+                <div className="ui-field">
+                  <label className="label" htmlFor={idFor('max-guests')}>
+                    {t('editor.maxGuests')}
+                  </label>
+                  <input
+                    id={idFor('max-guests')}
+                    className="input cal-num cal-input-short"
+                    type="number"
+                    min={1}
+                    max={MAX_GUESTS}
+                    inputMode="numeric"
+                    placeholder={String(MAX_GUESTS)}
+                    value={d.maxGuests}
+                    onChange={(e) => set('maxGuests', e.target.value)}
+                  />
+                  <p className="ui-help">{t('editor.maxGuestsHelp', { max: MAX_GUESTS })}</p>
+                </div>
+              )}
+            </SubSection>
           </Panel>
 
           {/* ---------- Avanzado ---------- */}
@@ -765,13 +866,15 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                   ))}
                 </div>
               )}
-              <label className="ui-switch">
-                <input type="checkbox" role="switch" checked={d.singleUse} onChange={(e) => set('singleUse', e.target.checked)} />
-                <span>
-                  {t('form.singleUse')}
-                  <span className="cal-switch-help">{et.used && d.singleUse ? t('form.singleUseUsed') : t('editor.singleUseHelp')}</span>
-                </span>
-              </label>
+              {!oneOff && (
+                <label className="ui-switch">
+                  <input type="checkbox" role="switch" checked={d.singleUse} onChange={(e) => set('singleUse', e.target.checked)} />
+                  <span>
+                    {t('form.singleUse')}
+                    <span className="cal-switch-help">{et.used && d.singleUse ? t('form.singleUseUsed') : t('editor.singleUseHelp')}</span>
+                  </span>
+                </label>
+              )}
             </SubSection>
 
             <SubSection title={t('editor.afterBooking')} description={t('editor.afterBookingLead')}>
@@ -1107,6 +1210,70 @@ function Panel({ id, labelledBy, hidden, children }: { id: string; labelledBy: s
     <div id={id} role="tabpanel" aria-labelledby={labelledBy} hidden={hidden} className="cal-panel" tabIndex={0}>
       {children}
     </div>
+  );
+}
+
+/**
+ * Horarios de una reunión única: una fila por inicio (fecha y hora en la zona
+ * del navegador). Quedan apartados en tu agenda hasta que alguien reserve uno.
+ */
+function OneOffTimesEditor({
+  idPrefix,
+  value,
+  onChange,
+  used,
+}: {
+  idPrefix: string;
+  value: string[];
+  onChange: (next: string[]) => void;
+  used: boolean;
+}) {
+  const t = useTranslations('calendar');
+  const tz = useMemo(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      return 'UTC';
+    }
+  }, []);
+  return (
+    <SubSection title={t('oneOff.timesTitle')} description={t('oneOff.timesLead', { timezone: tz })}>
+      {used && <p className="ui-help">{t('oneOff.usedNote')}</p>}
+      <ul className="cal-oneoff-list">
+        {value.map((v, i) => (
+          <li key={i} className="cal-oneoff-row">
+            <input
+              id={`${idPrefix}-${i}`}
+              className="input data"
+              type="datetime-local"
+              value={v}
+              aria-label={t('oneOff.timeN', { n: i + 1 })}
+              onChange={(e) => onChange(value.map((x, k) => (k === i ? e.target.value : x)))}
+            />
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon btn-sm"
+              aria-label={t('oneOff.removeTime', { n: i + 1 })}
+              title={t('common.remove')}
+              onClick={() => onChange(value.filter((_, k) => k !== i))}
+            >
+              <CalIcon name="trash" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={value.length >= MAX_ONE_OFF_TIMES}
+          onClick={() => onChange([...value, nextOneOffDefault(value)])}
+        >
+          <CalIcon name="plus" />
+          {t('oneOff.addTime')}
+        </button>
+      </div>
+    </SubSection>
   );
 }
 

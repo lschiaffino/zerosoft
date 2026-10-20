@@ -15,7 +15,6 @@ import {
   parseCustom,
   parseFilterRules,
   type ContactFilter,
-  type FilterFieldType,
 } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
@@ -23,6 +22,7 @@ import ContactsFilters, { type ContactSort } from '@/components/crm/ContactsFilt
 import ContactsTable, { type ContactRow } from '@/components/crm/ContactsTable';
 import type { BulkEditField } from '@/components/crm/BulkEditControls';
 import { customBulkFields } from '@/components/crm/bulkFields';
+import { customBuilderFields, customCells, customColumns, customFilterTypes } from '@/components/crm/customFieldViews';
 import { formatActivityDate } from '@/lib/crm-activity-dates';
 import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
 
@@ -107,9 +107,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
   const page = Number(one(searchParams.page) ?? '1') || 1;
 
   const customFieldDefs = await listCustomFields(user.id, 'contacts');
-  const customTypes: Record<string, FilterFieldType> = Object.fromEntries(
-    customFieldDefs.map((cf) => [cf.name, cf.type]),
-  );
+  const customTypes = customFilterTypes(customFieldDefs);
 
   const { rows, total } = await listContacts(user.id, {
     ownerScope: scope,
@@ -193,40 +191,10 @@ export default async function ContactsPage(props: ContactsPageProps) {
       type: 'select',
       options: allTags.map((x) => ({ value: x.id, label: x.name })),
     },
-    ...customFieldDefs.map((cf): FilterBuilderField => {
-      if (cf.type === 'boolean') {
-        return {
-          key: `custom:${cf.name}`,
-          label: cf.label,
-          type: 'select',
-          options: [
-            { value: '1', label: t('common.yes') },
-            { value: '0', label: t('common.no') },
-          ],
-        };
-      }
-      if (cf.type === 'select') {
-        let options: Array<{ value: string; label: string }> = [];
-        try {
-          const parsed: unknown = JSON.parse(cf.options);
-          if (Array.isArray(parsed)) {
-            options = parsed
-              .filter((o): o is string => typeof o === 'string')
-              .map((o) => ({ value: o, label: o }));
-          }
-        } catch {
-          options = [];
-        }
-        return { key: `custom:${cf.name}`, label: cf.label, type: 'select', options };
-      }
-      return {
-        key: `custom:${cf.name}`,
-        label: cf.label,
-        type: cf.type === 'number' ? 'number' : cf.type === 'date' ? 'date' : 'text',
-      };
-    }),
+    ...customBuilderFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }, owners),
   ];
 
+  const cellCtx = { locale, yes: t('common.yes'), no: t('common.no'), users: new Map(owners.map((o) => [o.value, o.label])) };
   const tableRows: ContactRow[] = rows.map((c) => ({
     id: c.id,
     name: `${c.first_name} ${c.last_name}`.trim() || c.email || '—',
@@ -243,6 +211,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
     lastContacted: formatActivityDate(c.last_contacted_at, locale),
     nextActivity: formatActivityDate(c.next_activity_at, locale),
     tags: rowTags.get(c.id) ?? [],
+    custom: customCells(customFieldDefs, parseCustom(c.custom), cellCtx),
   }));
 
   // Propiedades de la edición en masa (owner primero: es la acción más común).
@@ -270,7 +239,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
     { key: 'jobTitle', label: t('contacts.form.jobTitle'), type: 'text' },
     { key: 'city', label: t('contacts.form.city'), type: 'text' },
     { key: 'country', label: t('contacts.form.country'), type: 'text' },
-    ...customBulkFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }),
+    ...customBulkFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }, owners),
   ];
 
   const query: Record<string, string> = {};
@@ -352,6 +321,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
         <>
           <ContactsTable
             rows={tableRows}
+            customColumns={customColumns(customFieldDefs)}
             lifecycles={[...LIFECYCLE_STAGES]}
             leadStatuses={[...LEAD_STATUSES]}
             sources={[...SOURCES]}

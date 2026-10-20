@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { getEventTypeByHandle, getCalendarUser, getWorkspaceBrand, effectiveMaxFutureDays } from '@/lib/calendar';
+import { getEventTypeByHandle, getCalendarUser, getWorkspaceBrand, effectiveMaxFutureDays, parseOneOffTimes } from '@/lib/calendar';
 import PublicBookingPage, { BookingInfo } from '@/components/calendar/PublicBookingPage';
 import { resolveBrand } from '@/components/calendar/cal-utils';
 import { paymentsEnabled } from '@/lib/calendar-payments';
@@ -57,6 +57,11 @@ export default async function BookPage(props: {
   }
 
   const calendarUser = await getCalendarUser(eventType.user_id);
+  // Reunión única: el calendario llega hasta el último horario ofrecido.
+  const offered = parseOneOffTimes(eventType.one_off_times);
+  const oneOffDays = offered
+    ? Math.max(1, Math.ceil(((offered[offered.length - 1]?.getTime() ?? Date.now()) - Date.now()) / 86_400_000) + 1)
+    : null;
 
   return (
     <PublicBookingPage
@@ -64,7 +69,7 @@ export default async function BookPage(props: {
       locale={locale}
       brand={brand}
       weekStart={calendarUser?.week_start ?? 1}
-      maxFutureDays={effectiveMaxFutureDays(eventType, calendarUser)}
+      maxFutureDays={oneOffDays ?? effectiveMaxFutureDays(eventType, calendarUser)}
       prefillName={prefillName}
       prefillEmail={prefillEmail}
       utm={utm}

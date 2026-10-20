@@ -3,13 +3,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import { normalizeFieldUrl } from '@/lib/crm-custom-fields';
 
 export interface PropField {
   /** Clave del payload PATCH (camelCase, ej. firstName, lifecycleStage).
    *  Con prefijo `custom.<name>` patchea dentro del objeto custom. */
   key: string;
   label: string;
-  type: 'text' | 'select' | 'number' | 'date' | 'textarea';
+  /** multiselect: `value` es el JSON de la lista elegida. */
+  type: 'text' | 'select' | 'multiselect' | 'number' | 'date' | 'textarea';
   /** Valor actual ('' si está vacío). */
   value: string;
   /** Opciones para type=select. */
@@ -20,6 +22,19 @@ export interface PropField {
   boolean?: boolean;
   /** Texto a mostrar fuera de edición (ej. monto con moneda, fecha legible). */
   display?: string;
+  /** Link del valor fuera de edición (URL o tel:). */
+  href?: string;
+  /** Tipo del input de texto (url normaliza a https:// al guardar). */
+  inputType?: 'url' | 'tel';
+}
+
+function parseList(json: string): string[] {
+  try {
+    const v: unknown = JSON.parse(json || '[]');
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 export interface PropSection {
@@ -109,6 +124,8 @@ export default function PropertiesPanel({
       const name = field.key.slice(7);
       let v: unknown = raw;
       if (field.type === 'number') v = Number(raw);
+      else if (field.type === 'multiselect') v = parseList(raw).length ? parseList(raw) : null;
+      else if (field.inputType === 'url') v = raw === '' ? null : normalizeFieldUrl(raw);
       else if (field.boolean) v = raw === '' ? null : raw === 'true';
       else if (raw === '' && field.nullOption) v = null;
       payload = { custom: { ...(custom ?? {}), [name]: v } };
@@ -146,7 +163,39 @@ export default function PropertiesPanel({
         <dt className="prop-label">{field.label}</dt>
         <dd className="prop-value">
           {editing ? (
-            field.type === 'select' ? (
+            field.type === 'multiselect' ? (
+              <div className="prop-multi">
+                {field.options?.map((opt) => {
+                  const list = parseList(draft);
+                  return (
+                    <label key={opt.value} className="ui-check">
+                      <input
+                        type="checkbox"
+                        checked={list.includes(opt.value)}
+                        onChange={(e) =>
+                          setDraft(
+                            JSON.stringify(
+                              (field.options ?? [])
+                                .map((o) => o.value)
+                                .filter((v) => (v === opt.value ? e.target.checked : list.includes(v))),
+                            ),
+                          )
+                        }
+                      />
+                      <span>{opt.label}</span>
+                    </label>
+                  );
+                })}
+                <div className="form-actions">
+                  <button type="button" className="btn btn-solid btn-small" onClick={() => save(field, draft)}>
+                    {t('common.save')}
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-small" onClick={cancel}>
+                    {t('common.cancel')}
+                  </button>
+                </div>
+              </div>
+            ) : field.type === 'select' ? (
               <select
                 className="select"
                 value={draft}
@@ -177,7 +226,7 @@ export default function PropertiesPanel({
               <input
                 ref={inputRef}
                 className="input"
-                type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.inputType ?? 'text'}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
@@ -187,10 +236,19 @@ export default function PropertiesPanel({
                 onBlur={() => save(field, draft.trim())}
               />
             )
+          ) : field.href && field.value ? (
+            <a
+              className="prop-value prop-link"
+              href={field.href}
+              target={field.href.startsWith('tel:') ? undefined : '_blank'}
+              rel="noreferrer"
+            >
+              {display}
+            </a>
           ) : (
             <button
               type="button"
-              className={`prop-value prop-btn${field.value ? '' : ' empty'}`}
+              className={`prop-value prop-btn${field.value && field.value !== '[]' ? '' : ' empty'}`}
               onClick={() => startEdit(field)}
             >
               {display || '—'}

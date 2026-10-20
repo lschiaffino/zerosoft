@@ -5,7 +5,8 @@
     "bookings": "Bookings",
     "routing": "Routing forms",
     "availability": "Availability",
-    "settings": "Settings"
+    "settings": "Settings",
+    "analytics": "Analytics"
   },
   "common": {
     "viewAll": "View all",
@@ -184,7 +185,15 @@
     "requestedTitle": "Request sent",
     "requestedSub": "The host has to confirm this time. We emailed you, and you will get another email when they answer.",
     "withdrawLink": "Withdraw the request",
-    "continue": "Continue"
+    "continue": "Continue",
+    "choose": "Choose an option",
+    "phoneInvalid": "Enter a phone number with 6 to 20 digits.",
+    "addGuests": "Add guests",
+    "guests": "Guests",
+    "guestN": "Guest {n} email",
+    "removeGuest": "Remove guest {n}",
+    "addAnotherGuest": "Add another guest",
+    "guestsHelp": "They get the invite by email. Up to {max}."
   },
   "routing": {
     "title": "Routing forms",
@@ -279,7 +288,8 @@
     "invalid_price": "Stripe cannot charge that price in that currency.",
     "not_started": "This meeting has not started yet.",
     "status_changed": "This booking changed in the meantime. Reload and try again.",
-    "confirmation_paid": "Host confirmation and a price do not go together. Remove the price or turn off confirmation."
+    "confirmation_paid": "Host confirmation and a price do not go together. Remove the price or turn off confirmation.",
+    "too_many_guests": "This meeting does not take that many guests. Remove some and try again."
   },
   "settings": {
     "title": "Settings",
@@ -583,12 +593,76 @@
     "redirectUrl": "Redirect to a URL",
     "redirectHelp": "After booking, the guest goes to this page instead of the confirmation. It has to start with https:// or http://.",
     "redirectPassDetails": "Add the booking details to the URL (name, email, time and utm_* parameters)",
-    "redirectInvalid": "The redirect has to be a full URL starting with https:// or http://."
+    "redirectInvalid": "The redirect has to be a full URL starting with https:// or http://.",
+    "questionOptions": "Options",
+    "questionOptionsPlaceholder": "One option per line",
+    "questionOptionsHelp": "One per line. Invitees can only answer with these.",
+    "questionOptionsRequired": "Add at least one option to each dropdown or choice question.",
+    "guests": "Guests",
+    "guestsLead": "Let invitees add other people to the meeting. Each guest gets the invite and every change to it.",
+    "allowGuests": "Invitees can add guests",
+    "allowGuestsHelp": "Guests receive the calendar invite. Only the invitee can reschedule or cancel.",
+    "maxGuests": "Most guests per booking",
+    "maxGuestsHelp": "From 1 to {max}. Leave it empty to allow {max}.",
+    "maxGuestsInvalid": "The guest limit has to be a whole number from 1 to {max}."
   },
   "errorPage": {
     "title": "This screen didn't load",
     "body": "It may be the connection or the server. Your data wasn't touched.",
     "retry": "Try again",
     "home": "Go to Cal overview"
+  },
+  "questionType": {
+    "text": "Short text",
+    "textarea": "Long text",
+    "number": "Number",
+    "phone": "Phone",
+    "boolean": "Single checkbox",
+    "select": "Dropdown",
+    "radio": "Pick one",
+    "checkbox": "Pick several"
+  },
+  "oneOff": {
+    "newCta": "One-off meeting",
+    "crumb": "One-off meeting",
+    "create": "Create and share",
+    "titlePlaceholder": "Meeting title, e.g. Contract review with Acme",
+    "timesTitle": "Times to offer",
+    "timesLead": "Pick the exact times you can meet, even outside your weekly hours. Times are in {timezone}.",
+    "timeN": "Time {n}",
+    "removeTime": "Remove time {n}",
+    "addTime": "Add a time",
+    "timesRequired": "Add at least one time to offer.",
+    "note": "The link works once. These times stay held on your calendar until someone books one, then the rest are released.",
+    "usedNote": "Someone already booked this meeting, so the link no longer takes bookings.",
+    "badge": "One-off",
+    "booked": "Booked"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "lead": "Bookings created in the range, counted in {timezone}.",
+    "range": "Date range",
+    "presets": "Quick ranges",
+    "lastDays": "Last {days} days",
+    "from": "From",
+    "to": "To",
+    "apply": "Apply",
+    "created": "Created",
+    "cancelled": "Cancelled",
+    "noShow": "No-shows",
+    "confirmed": "Still on",
+    "perDay": "Bookings created per day",
+    "chartAria": "Bookings created per day",
+    "chartSummary": "{total} bookings, most on {date} ({peak})",
+    "popularTimes": "Popular times",
+    "popularTimesLead": "When the meetings that were not cancelled start, by weekday and hour.",
+    "bookingsN": "{n, plural, one {# booking} other {# bookings}}",
+    "heatCaption": "Bookings by weekday and start hour",
+    "day": "Day",
+    "byEventType": "By event type",
+    "eventType": "Event type",
+    "emptyTitle": "No bookings in this range",
+    "emptyBody": "Try a longer range, or share an event type link to start getting bookings.",
+    "note": "Payment holds that expired unpaid are left out."
   }
 }

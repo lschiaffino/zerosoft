@@ -10,6 +10,8 @@ export function toListItems(rows: EventTypeWithRules[]): EventTypeListItem[] {
     durationMin: et.duration_min,
     color: et.color,
     active: et.active === 1,
+    oneOff: et.one_off_times !== null && et.one_off_times !== undefined,
+    used: !!et.used_at,
   }));
 }
 

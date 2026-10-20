@@ -16,6 +16,8 @@ export interface IcsEvent {
   url?: string;
   organizer: { name: string; email: string };
   attendee: { name: string; email: string };
+  /** Invitados extra del invitado principal (un ATTENDEE por cada uno). */
+  guests?: string[];
 }
 
 function stamp(d: Date): string {
@@ -71,6 +73,7 @@ export function buildIcs(ev: IcsEvent): string {
     ev.url ? `URL:${ev.url.replace(CONTROL_CHARS, '')}` : '',
     `ORGANIZER;CN=${escapeParam(ev.organizer.name)}:${mailto(ev.organizer.email)}`,
     `ATTENDEE;CN=${escapeParam(ev.attendee.name)};ROLE=REQ-PARTICIPANT;RSVP=FALSE:${mailto(ev.attendee.email)}`,
+    ...(ev.guests ?? []).map((g) => `ATTENDEE;CN=${escapeParam(g)};ROLE=OPT-PARTICIPANT;RSVP=FALSE:${mailto(g)}`),
     `STATUS:${ev.method === 'CANCEL' ? 'CANCELLED' : 'CONFIRMED'}`,
     'END:VEVENT',
     'END:VCALENDAR',

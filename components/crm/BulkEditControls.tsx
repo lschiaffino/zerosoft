@@ -8,7 +8,8 @@ export interface BulkEditField {
   /** Clave de lib/crm-bulk-fields.ts o `custom:<name>`. */
   key: string;
   label: string;
-  type: 'select' | 'text' | 'number' | 'date';
+  /** multiselect: lista de opciones (reemplaza la selección del registro). */
+  type: 'select' | 'multiselect' | 'text' | 'number' | 'date';
   options?: Array<{ value: string; label: string }>;
   /** Se puede vaciar (opción "Vacío" en selects; input vacío en el resto). */
   nullable?: boolean;
@@ -36,19 +37,28 @@ export default function BulkEditControls({ endpoint, ids, fields, disabled, onDo
   const [fieldKey, setFieldKey] = useState(fields[0]?.key ?? '');
   const field = fields.find((f) => f.key === fieldKey);
   const [value, setValue] = useState(() => initialValue(fields[0]));
+  const [multi, setMulti] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!fields.length || !field) return null;
 
-  const canApply = field.nullable || value !== '';
+  const canApply = field.nullable || (field.type === 'multiselect' ? multi.length > 0 : value !== '');
 
   async function apply() {
     if (!field || !canApply) return;
     setBusy(true);
     setError(null);
-    const payload: string | number | null =
-      value === '' ? null : field.type === 'number' ? Number(value) : value;
+    const payload: string | number | string[] | null =
+      field.type === 'multiselect'
+        ? multi.length > 0
+          ? multi
+          : null
+        : value === ''
+          ? null
+          : field.type === 'number'
+            ? Number(value)
+            : value;
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -75,6 +85,7 @@ export default function BulkEditControls({ endpoint, ids, fields, disabled, onDo
           const next = fields.find((f) => f.key === e.target.value);
           setFieldKey(e.target.value);
           setValue(initialValue(next));
+          setMulti([]);
           setError(null);
         }}
         aria-label={t('bulkEdit.property')}
@@ -86,7 +97,28 @@ export default function BulkEditControls({ endpoint, ids, fields, disabled, onDo
           </option>
         ))}
       </select>
-      {field.type === 'select' ? (
+      {field.type === 'multiselect' ? (
+        <details className="bulk-multi">
+          <summary className="filter-select" aria-label={t('bulkEdit.value')}>
+            {multi.length > 0 ? multi.join(', ') : t('bulkEdit.empty')}
+          </summary>
+          <div className="bulk-multi-menu">
+            {(field.options ?? []).map((o) => (
+              <label key={o.value} className="column-toggle-row">
+                <input
+                  type="checkbox"
+                  checked={multi.includes(o.value)}
+                  disabled={disabled || busy}
+                  onChange={(e) =>
+                    setMulti((prev) => (e.target.checked ? [...prev, o.value] : prev.filter((x) => x !== o.value)))
+                  }
+                />
+                <span>{o.label}</span>
+              </label>
+            ))}
+          </div>
+        </details>
+      ) : field.type === 'select' ? (
         <select
           className="filter-select"
           value={value}

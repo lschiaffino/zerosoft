@@ -11,6 +11,8 @@ import {
 } from '@/lib/crm';
 import { activityCreateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
+import { mentionablePeople, notifyActivityMentions } from '@/lib/crm-mention-notify';
+import { requestLocale } from '@/lib/request-locale';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -62,5 +64,12 @@ export async function POST(req: NextRequest) {
   }
   const activity = await catchRef(createActivity(user.id, parsed.data));
   if (activity instanceof CrmRefError) return crmError(400, activity.code);
+  // @menciones: aviso in-app y por email a cada persona mencionada.
+  await notifyActivityMentions({
+    activity,
+    actor: user.actingUser ?? user,
+    people: await mentionablePeople(user),
+    locale: requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language')),
+  }).catch(() => []);
   return NextResponse.json(activity, { status: 201 });
 }

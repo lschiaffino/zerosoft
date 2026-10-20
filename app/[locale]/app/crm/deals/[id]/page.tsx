@@ -24,6 +24,8 @@ import { listEventTypes } from '@/lib/calendar';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
+import FilesPanel from '@/components/crm/FilesPanel';
+import { listRecordFiles, toView, withActivityFiles } from '@/lib/crm-files';
 import { getEmailSettings, listEmailTemplates, listEmailThreads, mergeTimelineWithThreads } from '@/lib/crm-email';
 import { aiEnabled } from '@/lib/ai';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
@@ -242,7 +244,8 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
       getEmailSettings(user.id),
       nextTaskFor(user.id, { dealId: id }),
     ]);
-    const timeline = mergeTimelineWithThreads(activities, threads);
+    const timeline = await withActivityFiles(mergeTimelineWithThreads(activities, threads));
+    const recordFiles = (await listRecordFiles(user.id, 'deal', deal.id)).map(toView);
     return (
       <div className="ui-page record-page">
         {header}
@@ -258,6 +261,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
                 recordId={deal.id}
                 items={timeline}
                 emptyLabel={t('deals.detail.emptyTimeline')}
+                mentionables={teamMembers.map((m) => ({ id: m.user_id, name: m.name, email: m.email }))}
                 locale={locale}
                 defaultEmail={primaryContact?.email ?? ''}
                 emailTools={{
@@ -335,6 +339,12 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
               <Link href={recordTabHref(base, 'related')} className="record-summary-more">
                 {t('record.manageRelated')}
               </Link>
+              <div className="record-summary-block">
+                <h2 className="record-summary-title">
+                  {t('files.title')} <span className="num">{recordFiles.length}</span>
+                </h2>
+                <FilesPanel endpoint={`/api/crm/deals/${deal.id}/files`} files={recordFiles} />
+              </div>
             </aside>
           </div>
         </RecordTabs>
@@ -346,7 +356,12 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   if (tab === 'properties') {
     const custom = parseCustom(deal.custom);
     const customFieldDefs = await listCustomFields(user.id, 'deals');
-    const customFields = customPropFields(customFieldDefs, custom, { yes: t('common.yes'), no: t('common.no') });
+    const customFields = customPropFields(customFieldDefs, custom, {
+      yes: t('common.yes'),
+      no: t('common.no'),
+      locale,
+      owners: ownerOptions,
+    });
     const fields: PropField[] = [
       { key: 'name', label: t('deals.form.name'), type: 'text', value: deal.name },
       {

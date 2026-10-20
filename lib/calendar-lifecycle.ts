@@ -1,6 +1,6 @@
 import { getEventTypeById, reassignBookingsOfRemovedHost, type EventTypeWithRules } from './calendar';
 import { emitEvent } from './events';
-import { cancelReasonWithRefund, notConfirmedReason, notifyBooking, refundReason } from './calendar-notify';
+import { bookingGuests, cancelReasonWithRefund, notConfirmedReason, notifyBooking, refundReason } from './calendar-notify';
 import { parseUtm } from './calendar-redirect';
 import { recordBookingInCrm } from './crm-integrations';
 import type { CalendarBookingRow } from './db';
@@ -35,6 +35,8 @@ export function bookingPayload(booking: CalendarBookingRow, eventType: Pick<Even
     endsAt: booking.ends_at,
     timezone: booking.timezone,
     invitee: { name: booking.invitee_name, email: booking.invitee_email },
+    /** Invitados extra que sumó el invitado. */
+    guests: bookingGuests(booking),
     answers: (() => {
       try {
         return JSON.parse(booking.answers || '{}');

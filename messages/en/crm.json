@@ -926,7 +926,12 @@
       "number": "Number",
       "date": "Date",
       "select": "Select",
-      "boolean": "Boolean"
+      "boolean": "Boolean",
+      "multiselect": "Multi-select",
+      "url": "URL",
+      "phone": "Phone",
+      "currency": "Currency",
+      "user": "Person"
     },
     "gmailSendMissing": "Gmail is connected read-only. Reconnect to send emails and sequences from your address.",
     "gmailReconnect": "Reconnect Gmail",
@@ -953,7 +958,8 @@
     "gmailTitle": "Gmail",
     "importDesc": "Upload a CSV of contacts, companies or deals.",
     "quotesTitle": "Quotes",
-    "quotesDesc": "What happens to the deal when the customer accepts."
+    "quotesDesc": "What happens to the deal when the customer accepts.",
+    "fieldCurrency": "Currency"
   },
   "importP": {
     "title": "Import {entity}",
@@ -1071,7 +1077,10 @@
     "duplicate_tag": "A tag with that name already exists.",
     "invalid_currency": "Use a 3-letter currency code (for example EUR) different from the base currency.",
     "invalid_rate": "The rate must be a number greater than zero.",
-    "trash_conflict": "A record with this id already exists, so it can't be restored."
+    "trash_conflict": "A record with this id already exists, so it can't be restored.",
+    "file_too_large": "The file is over 10 MB.",
+    "file_type_not_allowed": "That file type can't be attached.",
+    "storage_unavailable": "File storage is not set up on this server."
   },
   "filters": {
     "advanced": "Advanced filters",
@@ -1957,5 +1966,13 @@
     "emptyBin": "Empty recycle bin",
     "emptyBinConfirm": "Delete all {count} items forever?",
     "untitled": "Untitled"
+  },
+  "files": {
+    "title": "Files",
+    "attach": "Attach file"
+  },
+  "mentions": {
+    "suggestions": "People to mention",
+    "placeholder": "Notes. Type @ to mention a teammate"
   }
 }
