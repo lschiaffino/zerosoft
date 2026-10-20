@@ -437,24 +437,24 @@ describe('Secuencias: ejecución', () => {
     const res = await enrollContacts(u.id, { sequenceId: seq.id, contactIds: [c.id], senderId: u.id, enrolledBy: u.id });
     expect(res).toMatchObject({ ok: true, enrolled: [c.id] });
 
-    const monday = new Date('2026-10-19T10:00:00Z');
+    const monday = new Date('2031-10-13T10:00:00Z');
     expect(await processSequences({ now: monday })).toMatchObject({ processed: 1, sent: 1 });
     expect(gmail.sent).toHaveLength(1);
     expect(gmail.sent[0].raw).toContain('Subject: Hola Gabi');
     expect(gmail.sent[0].raw).toContain('List-Unsubscribe:');
     let enr = (await listEnrollments(u.id, { sequenceId: seq.id }))[0];
     expect(enr).toMatchObject({ status: 'active', current_step: 3, thread_id: 'thr-sent-1' });
-    expect(enr.next_run_at).toBe('2026-10-21 10:00:00');
+    expect(enr.next_run_at).toBe('2031-10-15 10:00:00');
     const tasks = (await getDb().prepare("SELECT subject FROM crm_activities WHERE user_id = ? AND type = 'task'").all(u.id)) as Array<{ subject: string }>;
     expect(tasks.map((t) => t.subject)).toEqual(['Llamar a Gabi']);
 
     // Antes de tiempo no pasa nada.
-    expect(await processSequences({ now: new Date('2026-10-20T10:00:00Z') })).toMatchObject({ processed: 0 });
+    expect(await processSequences({ now: new Date('2031-10-14T10:00:00Z') })).toMatchObject({ processed: 0 });
     // Vence el miércoles a las 19:00 UTC (fuera de ventana) → reprograma al jueves 09:00.
-    expect(await processSequences({ now: new Date('2026-10-21T19:00:00Z') })).toMatchObject({ sent: 0 });
+    expect(await processSequences({ now: new Date('2031-10-15T19:00:00Z') })).toMatchObject({ sent: 0 });
     enr = (await listEnrollments(u.id, { sequenceId: seq.id }))[0];
-    expect(enr.next_run_at).toBe('2026-10-22 09:00:00');
-    expect(await processSequences({ now: new Date('2026-10-22T09:30:00Z') })).toMatchObject({ sent: 1 });
+    expect(enr.next_run_at).toBe('2031-10-16 09:00:00');
+    expect(await processSequences({ now: new Date('2031-10-16T09:30:00Z') })).toMatchObject({ sent: 1 });
     expect(gmail.sent[1].threadId).toBe('thr-sent-1');
     expect(gmail.sent[1].raw).toContain('In-Reply-To: <sent-1@mail.gmail.com>');
     expect(gmail.sent[1].raw).toContain('Subject: Re: Hola Gabi');
@@ -467,7 +467,7 @@ describe('Secuencias: ejecución', () => {
   it('dos ticks concurrentes no envían dos veces', async () => {
     const { u, c, seq } = await setupSequence('seqlock');
     await enrollContacts(u.id, { sequenceId: seq.id, contactIds: [c.id], senderId: u.id, enrolledBy: u.id });
-    const now = new Date('2026-10-19T10:00:00Z');
+    const now = new Date('2031-10-13T10:00:00Z');
     const [a, b] = await Promise.all([processSequences({ now }), processSequences({ now })]);
     expect(a.sent + b.sent).toBe(1);
     expect(gmail.sent).toHaveLength(1);
@@ -476,7 +476,7 @@ describe('Secuencias: ejecución', () => {
   it('sale sola cuando el contacto responde (detectado por el sync)', async () => {
     const { u, c, seq } = await setupSequence('seqreply');
     await enrollContacts(u.id, { sequenceId: seq.id, contactIds: [c.id], senderId: u.id, enrolledBy: u.id });
-    await processSequences({ now: new Date('2026-10-19T10:00:00Z') });
+    await processSequences({ now: new Date('2031-10-13T10:00:00Z') });
     await syncMailbox(u.id, u.id); // trae el enviado (ya guardado: no duplica)
     gmail.add({ id: 'r1', threadId: 'thr-sent-1', from: `Gabi <${c.email}>`, to: 'me@acme.test', subject: 'Re: Hola Gabi', messageId: '<r1@x>', inReplyTo: '<sent-1@mail.gmail.com>', text: 'Sí, hablemos' });
     await syncMailbox(u.id, u.id);
@@ -501,8 +501,8 @@ describe('Secuencias: ejecución', () => {
         id: `bk-${crypto.randomUUID()}`,
         invitee_email: c.email,
         invitee_name: 'Gabi',
-        starts_at: '2026-10-20T13:00:00.000Z',
-        ends_at: '2026-10-20T13:30:00.000Z',
+        starts_at: '2031-10-14T13:00:00.000Z',
+        ends_at: '2031-10-14T13:30:00.000Z',
         answers: '{}',
         meeting_url: null,
         host_user_id: null,
@@ -517,7 +517,7 @@ describe('Secuencias: ejecución', () => {
   it('baja: link firmado saca de la secuencia y bloquea nuevas inscripciones', async () => {
     const { u, c, seq } = await setupSequence('sequnsub');
     await enrollContacts(u.id, { sequenceId: seq.id, contactIds: [c.id], senderId: u.id, enrolledBy: u.id });
-    await processSequences({ now: new Date('2026-10-19T10:00:00Z') });
+    await processSequences({ now: new Date('2031-10-13T10:00:00Z') });
     const email = (await emailsOf(u.id)).find((e) => e.enrollment_id)!;
     const link = new URL(unsubscribeUrl(email.tracking_token!, 'https://z.test'));
     expect(await recordUnsubscribe(email.tracking_token!, 'bad')).toBe(false);
@@ -554,7 +554,7 @@ describe('Secuencias: ejecución', () => {
     const dup = await enrollContacts(u.id, { sequenceId: seq.id, contactIds: [c.id], senderId: u.id, enrolledBy: u.id });
     expect(dup).toMatchObject({ ok: true, skipped: [{ reason: 'already_enrolled' }] });
     expect((await setEnrollmentState(u.id, enr.id, 'pause'))?.status).toBe('paused');
-    expect(await processSequences({ now: new Date('2026-10-19T10:00:00Z') })).toMatchObject({ processed: 0 });
+    expect(await processSequences({ now: new Date('2031-10-13T10:00:00Z') })).toMatchObject({ processed: 0 });
     expect((await setEnrollmentState(u.id, enr.id, 'resume'))?.status).toBe('active');
     expect((await setEnrollmentState(u.id, enr.id, 'exit'))?.exit_reason).toBe('manual');
     expect((await getEnrollment(u.id, enr.id))?.status).toBe('exited');

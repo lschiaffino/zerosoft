@@ -80,7 +80,7 @@ Notification messages and emails do support placeholders: `{{contact.firstName}}
 - Trigger: **Task due**
 - Action: **Notify user**, message `Overdue task for {{contact.fullName}}`
 
-**Task due** fires once per task when its due date passes and it's still open. Change the date and it re-arms. It's driven by the scheduled `/api/cron/tick` endpoint: on Vercel the repo's `vercel.json` runs it hourly; if you self-host, point any cron at it with your `CRON_SECRET` as a Bearer token, or this trigger never fires.
+**Task due** fires once per task when its due date passes and it's still open. Change the date and it re-arms. It's driven by the scheduled `/api/cron/minute` and `/api/cron/tick` endpoints: on our cloud it runs every minute; if you self-host, point any cron at either one with your `CRON_SECRET` as a Bearer token, or this trigger never fires.
 
 ## The limits, honestly
 

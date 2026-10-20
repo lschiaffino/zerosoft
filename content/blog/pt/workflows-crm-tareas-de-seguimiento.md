@@ -80,7 +80,7 @@ Mensagens de notificação e emails suportam placeholders: `{{contact.firstName}
 - Trigger: **Tarefa vencida**
 - Ação: **Notificar usuário**, mensagem `Tarefa vencida de {{contact.fullName}}`
 
-**Tarefa vencida** dispara uma vez por tarefa, quando a data passa e ela continua aberta. Mudou a data, ela é rearmada. Quem move isso é o endpoint agendado `/api/cron/tick`: na Vercel, o `vercel.json` do repositório roda ele a cada hora; se você hospeda por conta própria, aponte qualquer cron para ele com o seu `CRON_SECRET` como Bearer token, ou esse trigger nunca dispara.
+**Tarefa vencida** dispara uma vez por tarefa, quando a data passa e ela continua aberta. Mudou a data, ela é rearmada. Quem move isso são os endpoints agendados `/api/cron/minute` e `/api/cron/tick`: na nossa nuvem roda a cada minuto; se você hospeda por conta própria, aponte qualquer cron para um dos dois com o seu `CRON_SECRET` como Bearer token, ou esse trigger nunca dispara.
 
 ## Os limites, com franqueza
 
