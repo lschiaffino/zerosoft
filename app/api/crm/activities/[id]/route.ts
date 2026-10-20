@@ -30,6 +30,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       activity,
       actor: user.actingUser ?? user,
       people: await mentionablePeople(user),
+      workspaceId: user.id,
       before: `${before.subject}\n${before.body}`,
       locale: requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language')),
     }).catch(() => []);

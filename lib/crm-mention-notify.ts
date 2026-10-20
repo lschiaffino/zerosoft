@@ -11,6 +11,11 @@ import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
 import { listMembers } from './teams';
 import { findMentions, newMentions, type Mentionable } from './crm-mentions';
+import { canSeeActivity, ownerScopeFor } from './crm-visibility';
+import type { TeamRole } from './teams';
+
+/** Persona mencionable con su rol en el team (decide qué registros ve). */
+export type MentionablePerson = Mentionable & { role?: TeamRole };
 
 type MailLocale = 'en' | 'es' | 'pt';
 
@@ -56,9 +61,9 @@ function baseUrl(): string {
 /** Personas que se pueden mencionar: los miembros del team activo, o solo el dueño en un workspace personal. */
 export async function mentionablePeople(
   workspace: { id: string; email: string; name: string | null; team?: { id: string } | null },
-): Promise<Mentionable[]> {
-  if (!workspace.team?.id) return [{ id: workspace.id, name: workspace.name, email: workspace.email }];
-  return (await listMembers(workspace.team.id)).map((m) => ({ id: m.user_id, name: m.name, email: m.email }));
+): Promise<MentionablePerson[]> {
+  if (!workspace.team?.id) return [{ id: workspace.id, name: workspace.name, email: workspace.email, role: 'owner' }];
+  return (await listMembers(workspace.team.id)).map((m) => ({ id: m.user_id, name: m.name, email: m.email, role: m.role as TeamRole }));
 }
 
 /** Path de la actividad en la app: la tarea, o el registro donde está la nota. */
@@ -97,9 +102,11 @@ async function recordLabel(a: Pick<CrmActivityRow, 'contact_id' | 'company_id' |
 export async function notifyActivityMentions(opts: {
   activity: Pick<CrmActivityRow, 'id' | 'type' | 'subject' | 'body' | 'contact_id' | 'company_id' | 'deal_id'>;
   actor: { id: string; name: string | null; email: string };
-  people: Mentionable[];
+  people: MentionablePerson[];
   before?: string;
   locale?: string;
+  /** Workspace dueño: si viene, solo se avisa a quien puede ver la actividad. */
+  workspaceId?: string;
 }): Promise<string[]> {
   const { activity, actor, people } = opts;
   if (!MENTION_TYPES.has(activity.type)) return [];
@@ -115,9 +122,15 @@ export async function notifyActivityMentions(opts: {
   const href = activityHref(activity);
   const url = `${baseUrl()}/${mailLocale(opts.locale)}${href}`;
   const excerpt = (activity.body || activity.subject).slice(0, 600);
+  const notified: string[] = [];
   for (const id of ids) {
     const person = people.find((p) => p.id === id);
     if (!person) continue;
+    if (opts.workspaceId) {
+      const scope = await ownerScopeFor({ workspaceId: opts.workspaceId, personId: id, role: person.role ?? 'member' });
+      if (!(await canSeeActivity(opts.workspaceId, activity.id, scope))) continue;
+    }
+    notified.push(id);
     await createNotification({
       userId: id,
       type: 'mention',
@@ -143,5 +156,5 @@ export async function notifyActivityMentions(opts: {
       }),
     }).catch(() => null);
   }
-  return ids;
+  return notified;
 }

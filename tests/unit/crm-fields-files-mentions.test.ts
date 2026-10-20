@@ -255,4 +255,23 @@ describe('CRM: @menciones', () => {
     ).toEqual([]);
     expect(activityHref({ ...note, type: 'task' })).toBe(`/app/crm/tasks/${note.id}`);
   });
+
+  it('no avisa a quien no puede ver el registro', async () => {
+    const { setMemberVisibility } = await import('@/lib/crm-visibility');
+    const owner = await makeUser('m-vis-owner');
+    const mate = await makeUser('m-vis-mate');
+    const team = [
+      { id: owner.id, name: 'Vera Owner', email: owner.email, role: 'owner' as const },
+      { id: mate.id, name: 'Memo Dos', email: mate.email, role: 'member' as const },
+    ];
+    await setMemberVisibility(owner.id, 'mine');
+    const c = await createContact(owner.id, { firstName: 'Priv', lastName: 'Ado' });
+    const note = await createActivity(owner.id, { type: 'note', subject: 'Nota', body: '@Memo Dos mirá', contactId: c.id });
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const actor = { id: owner.id, name: 'Vera Owner', email: owner.email };
+    expect(await notifyActivityMentions({ activity: note, actor, people: team, workspaceId: owner.id })).toEqual([]);
+    expect(await listNotifications(mate.id)).toHaveLength(0);
+    await setMemberVisibility(owner.id, 'all');
+    expect(await notifyActivityMentions({ activity: note, actor, people: team, workspaceId: owner.id })).toEqual([mate.id]);
+  });
 });

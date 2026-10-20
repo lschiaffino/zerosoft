@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
     activity,
     actor: user.actingUser ?? user,
     people: await mentionablePeople(user),
+    workspaceId: user.id,
     locale: requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language')),
   }).catch(() => []);
   return NextResponse.json(activity, { status: 201 });
