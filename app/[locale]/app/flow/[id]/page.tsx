@@ -13,8 +13,12 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = { title: 'Flow' };
 
-export default async function FlowEditorPage(props: { params: Promise<{ locale: string; id: string }> }) {
+export default async function FlowEditorPage(props: {
+  params: Promise<{ locale: string; id: string }>;
+  searchParams: Promise<{ run?: string | string[] }>;
+}) {
   const { locale, id } = await props.params;
+  const { run } = await props.searchParams;
   const user = await requireUser(locale);
   const flow = await getFlow(user.id, id);
   if (!flow) notFound();
@@ -32,6 +36,7 @@ export default async function FlowEditorPage(props: { params: Promise<{ locale: 
       canEdit={canEdit}
       webhooks={canEdit ? await listFlowWebhooks(user.id, id) : []}
       lastOutputs={await lastOutputs(user.id, id)}
+      initialRunId={typeof run === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(run) ? run : null}
       refs={{
         credentials: credentials.map((c) => ({ id: c.id, name: c.name, type: c.type })),
         flows: flows.map((f) => ({ id: f.id, name: f.name })),

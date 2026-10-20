@@ -45,6 +45,8 @@ interface Props {
   lastOutputs: Record<string, unknown>;
   canEdit: boolean;
   refs: Omit<EditorRefs, 'flowId'>;
+  /** Corrida a abrir al entrar (?run=<id>, p. ej. desde el email de falla). */
+  initialRunId?: string | null;
 }
 
 const nodeTypes = { flow: FlowNodeCard };
@@ -148,6 +150,14 @@ function summaryOf(type: FlowNodeType, cfg: Record<string, unknown>, t: ReturnTy
     case 'app.track_issue':
     case 'app.docs_page':
       return s(cfg.title).slice(0, 60);
+    case 'app.track_update':
+      return [s(cfg.issue), s(cfg.status)].filter(Boolean).join(' → ');
+    case 'app.crm_update':
+      return t(`options.${s(cfg.entity) || 'contact'}`);
+    case 'app.crm_task':
+      return s(cfg.subject).slice(0, 60);
+    case 'action.webhook_reply':
+      return `${Number(cfg.statusCode) || 200} ${t(`options.${s(cfg.contentType) || 'json'}`)}`;
     case 'app.crm_contact':
       return s(cfg.email);
     case 'app.link':
@@ -211,7 +221,7 @@ function triggerSample(type: FlowNodeType, cfg: Record<string, unknown>): unknow
   }
 }
 
-function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdit, refs: baseRefs }: Props) {
+function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdit, refs: baseRefs, initialRunId }: Props) {
   const t = useTranslations('flow');
   const rf = useReactFlow();
   const router = useRouter();
@@ -223,8 +233,10 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
   const [description, setDescription] = useState(initialFlow.description);
   const [webhooks, setWebhooks] = useState(initialHooks);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tab, setTab] = useState<EditorTab>('editor');
+  const [tab, setTab] = useState<EditorTab>(initialRunId ? 'runs' : 'editor');
   const [errorFlowId, setErrorFlowId] = useState<string>(initialFlow.errorFlowId ?? '');
+  const [failureAlerts, setFailureAlerts] = useState(initialFlow.failureAlerts);
+  const [autoReplay, setAutoReplay] = useState(initialFlow.autoReplay);
   // Credenciales creadas desde el editor (modal del nodo) se suman a las del server.
   const [newCreds, setNewCreds] = useState<EditorRefs['credentials']>([]);
   const refs = useMemo<EditorRefs>(
@@ -239,7 +251,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
   const [testInput, setTestInput] = useState('{}');
   const [testError, setTestError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
-  const [runRef, setRunRef] = useState<{ id: string | null; key: number }>({ id: null, key: 0 });
+  const [runRef, setRunRef] = useState<{ id: string | null; key: number }>({ id: initialRunId ?? null, key: 0 });
   const [shownRun, setShownRun] = useState<RunDetail | null>(null);
   const [paletteQ, setPaletteQ] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -407,7 +419,15 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
     const res = await fetch(`/api/flow/flows/${flow.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, description, graph, version: flow.version, errorFlowId: errorFlowId || null }),
+      body: JSON.stringify({
+        name,
+        description,
+        graph,
+        version: flow.version,
+        errorFlowId: errorFlowId || null,
+        failureAlerts,
+        autoReplay,
+      }),
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as
       | { flow?: FlowDto; webhooks?: Props['webhooks']; error?: string; nodeId?: string }
@@ -425,7 +445,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
     setDirty(false);
     setMessage({ kind: 'ok', text: t('editor.saved') });
     return true;
-  }, [readOnly, flow.id, flow.version, name, description, graph, errorFlowId, t]);
+  }, [readOnly, flow.id, flow.version, name, description, graph, errorFlowId, failureAlerts, autoReplay, t]);
 
   /** Restaurar una versión: el canvas toma el grafo restaurado. */
   const onRestored = useCallback(
@@ -877,6 +897,36 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
                         markDirty();
                       }}
                     />
+                  </div>
+                  <div className="ui-field">
+                    <label className="ui-check">
+                      <input
+                        type="checkbox"
+                        checked={failureAlerts}
+                        disabled={readOnly}
+                        onChange={(e) => {
+                          setFailureAlerts(e.target.checked);
+                          markDirty();
+                        }}
+                      />
+                      <span>{t('editor.failureAlerts')}</span>
+                    </label>
+                    <p className="ui-help">{t('editor.failureAlertsHint')}</p>
+                  </div>
+                  <div className="ui-field">
+                    <label className="ui-check">
+                      <input
+                        type="checkbox"
+                        checked={autoReplay}
+                        disabled={readOnly}
+                        onChange={(e) => {
+                          setAutoReplay(e.target.checked);
+                          markDirty();
+                        }}
+                      />
+                      <span>{t('editor.autoReplay')}</span>
+                    </label>
+                    <p className="ui-help">{t('editor.autoReplayHint')}</p>
                   </div>
                   <AdvancedSection storageKey="flow.settings" hint={errorFlowId ? t('editor.advancedChanged', { n: 1 }) : undefined}>
                     <div className="ui-field">

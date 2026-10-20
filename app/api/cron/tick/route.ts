@@ -3,6 +3,7 @@ import { retryDueWebhooks } from '@/lib/webhooks';
 import { fireDueTasks } from '@/lib/crm';
 import { purgeExpiredTrash } from '@/lib/crm-trash';
 import { processFlowQueue } from '@/lib/flow-worker';
+import { pruneFlowRuns } from '@/lib/flow';
 import { runDueRobots } from '@/lib/robots';
 import { resyncStaleKnowledgeUrls } from '@/lib/agents';
 import { syncDueMailboxes } from '@/lib/crm-email-sync';
@@ -32,7 +33,8 @@ const FLOW_BUDGET_MS = 150_000;
  * evitan dobles envíos); acá quedan para self-host con un solo cron. También
  * carga al backlog las ideas nuevas de research/ideas.json (una vez por
  * título), re-descarga las URLs de conocimiento de Agents con más de 24 h y
- * vacía de la papelera del CRM lo borrado hace más de 90 días.
+ * vacía de la papelera del CRM lo borrado hace más de 90 días. Purga las
+ * corridas de Flow más viejas que la retención de cada workspace, en lotes.
  * Misma autorización que el cron de
  * recordatorios (CRON_SECRET).
  */
@@ -46,6 +48,8 @@ export async function GET(req: NextRequest) {
   const chatEmails = await sendOfflineReplyEmails({ limit: 200 }).catch(() => null);
   // Papelera del CRM: lo borrado hace más de 90 días se descarta para siempre.
   const trashPurged = await purgeExpiredTrash().catch(() => null);
+  // Flow: corridas y pasos más viejos que la retención del workspace (lotes acotados).
+  const flowPruned = await pruneFlowRuns({ budgetMs: 15_000 }).catch(() => null);
   // Primero el sync (detecta respuestas → salen de la secuencia), después los envíos.
   // Van antes de la cola de Flow: son acotados y no pueden quedar sin correr.
   const emailSync = await syncDueMailboxes({ limit: 25, maxMessages: 50 }).catch(() => null);
@@ -69,5 +73,5 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, trashPurged, flow, emailSync, sequences, scoring, agentKnowledge, robots, ideas });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, trashPurged, flowPruned, flow, emailSync, sequences, scoring, agentKnowledge, robots, ideas });
 }

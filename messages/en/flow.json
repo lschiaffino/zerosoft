@@ -76,7 +76,7 @@
     "noVariables": "0 variables. Connect this node to earlier ones, or run a test to see real data.",
     "webhookUrl": "Webhook URL",
     "webhookSaveFirst": "Save the flow to get the URL.",
-    "webhookHint": "POST JSON or a form to this URL. Treat it as a secret. Use '{{trigger.body}}', '{{trigger.query}}' and '{{trigger.headers}}'.",
+    "webhookHint": "Send JSON or a form to this URL with the method you accept. Treat it as a secret. Use '{{trigger.body}}', '{{trigger.query}}' and '{{trigger.headers}}'.",
     "copy": "Copy",
     "nextRun": "Next run",
     "testInput": "Test data",
@@ -94,7 +94,7 @@
     "condOp": "Operator",
     "condRight": "Compare with",
     "canvasHint": "Add a step from the palette. To connect two nodes, drag from an output to the next node.",
-    "templateHelp": "Use '{{trigger.x}}' for trigger data and '{{nodes.<id>.output.x}}' for the output of an earlier node. Filters: json, join, lines, map:field, default:value, upper, lower, length, urlencode.",
+    "templateHelp": "Use '{{trigger.x}}' for trigger data and '{{nodes.<id>.output.x}}' for the output of an earlier node. Filters: json, join, lines, map:field, default:value, upper, lower, length, urlencode, replace:\"a\",\"b\", split:\",\", date:\"DD/MM/YYYY HH:mm\",America/New_York, add_time:2,days, timezone:Europe/Madrid.",
     "everySummary": "Every {n} {unit}",
     "dailySummary": "Daily at {time} ({tz})",
     "conditionsCount": "{n, plural, one {# condition} other {# conditions}}",
@@ -126,7 +126,13 @@
     "retryGranularity": "Each retry resumes on the scheduler's next pass (every minute on zerosoft cloud), not a few seconds later.",
     "stripeHint": "Save the flow, copy the webhook URL into Stripe (Developers → Webhooks) and save its signing secret in the credential. Unsigned requests are rejected.",
     "allEvents": "All events",
-    "copyNodeRef": "Copy reference"
+    "copyNodeRef": "Copy reference",
+    "webhookAuthHint": "With a credential, each request must send its header (API key) or its user and password (Basic). The rest get 401.",
+    "webhookReplyHint": "The caller waits up to 25 seconds for a 'Reply to webhook' step. If the run fails it gets 500; if no reply step runs in time, 202.",
+    "failureAlerts": "Email me when a run fails",
+    "failureAlertsHint": "Goes to the flow owner. At most one email per flow per hour, with a link to replay the run.",
+    "autoReplay": "Replay failed runs automatically",
+    "autoReplayHint": "Once, 15 minutes after the failure, from the step that failed. Test runs are not replayed."
   },
   "categories": {
     "trigger": "Trigger",
@@ -139,7 +145,11 @@
   },
   "nodes": {
     "trigger_event": { "title": "App event", "desc": "Runs when something happens in zerosoft: a booking, a click, a new contact, an issue, a chat message…" },
-    "trigger_webhook": { "title": "Incoming webhook", "desc": "Runs when a service POSTs to this flow's secret URL." },
+    "trigger_webhook": {
+      "title": "Incoming webhook",
+      "desc": "Runs when a service calls this flow's secret URL (POST, GET or both).",
+      "fields": { "accept": "Accept", "authCredentialId": "Require authentication (optional)", "respond": "Respond" }
+    },
     "trigger_schedule": { "title": "Schedule", "desc": "Runs every N minutes or hours, daily at a time, or on a cron expression, in your time zone." },
     "trigger_manual": { "title": "Manual", "desc": "Runs only from the Test run button, with the JSON you provide." },
     "logic_if": { "title": "If", "desc": "Splits the flow in two: true and false." },
@@ -199,6 +209,26 @@
       "title": "Run agent",
       "desc": "Sends a message to one of your agents and returns its reply. Uses the agent's tools and knowledge.",
       "fields": { "message": "Message", "conversationId": "Continue conversation (optional)" }
+    },
+    "action_webhook_reply": {
+      "title": "Reply to webhook",
+      "desc": "Sets the response the webhook caller gets: status code, content and headers.",
+      "fields": { "statusCode": "Status code", "contentType": "Content type" }
+    },
+    "app_crm_update": {
+      "title": "CRM: update record",
+      "desc": "Updates properties of a contact, company or deal of this workspace. Deals can also move to another stage.",
+      "fields": { "entity": "Record type", "recordId": "Record ID", "email": "Or find the contact by email", "fields": "Properties", "stage": "Move to stage (name or ID)" }
+    },
+    "app_crm_task": {
+      "title": "CRM: create task",
+      "desc": "Creates a CRM task with a due date, linked to a contact, deal or company.",
+      "fields": { "body": "Notes", "dueIn": "Due in", "dueUnit": "Unit", "contactId": "Contact (ID or email)", "dealId": "Deal ID", "companyId": "Company ID", "owner": "Owner (email or ID)" }
+    },
+    "app_track_update": {
+      "title": "Track: update issue",
+      "desc": "Changes the status, priority, assignee or due date of an issue in this workspace and can add a comment.",
+      "fields": { "issue": "Issue (ID or identifier, e.g. ENG-12)", "status": "Status (name)", "assignee": "Assignee (email, or none)", "comment": "Comment", "title": "New title", "dueDate": "Due date" }
     }
   },
   "fields": {
@@ -307,7 +337,19 @@
     "max": "Maximum",
     "collect": "Collect values",
     "unique": "Unique values",
-    "join": "Join as text"
+    "join": "Join as text",
+    "contact": "Contact",
+    "company": "Company",
+    "deal": "Deal",
+    "keep": "No change",
+    "json": "JSON",
+    "text": "Plain text",
+    "html": "HTML",
+    "post_only": "POST",
+    "get_only": "GET",
+    "get_post": "GET and POST",
+    "immediately": "Right away (202)",
+    "reply_node": "With the Reply to webhook step"
   },
   "handles": {
     "out": "Next",
@@ -398,7 +440,11 @@
     "rerunDirty": "You have unsaved changes. The re-run uses the last saved version. Continue?",
     "cancel": "Cancel run",
     "cancelConfirm": "Cancel this run? Pending steps (waits and retries) won't run.",
-    "openInEditor": "Open in editor"
+    "openInEditor": "Open in editor",
+    "replay": "Replay",
+    "replayHint": "Runs again from the step that failed. Earlier steps reuse their output.",
+    "replayScheduled": "Automatic replay at {time}.",
+    "replayed": "Replayed. Showing the new run."
   },
   "stepStatus": {
     "running": "Running",
@@ -446,7 +492,8 @@
     "node_not_found": "That node is no longer in the flow.",
     "node_is_trigger": "Re-run from a step after the trigger.",
     "node_in_loop": "Steps inside a Loop can't be re-run on their own. Re-run from the Loop.",
-    "run_not_cancellable": "The run is already running or finished, so it can't be cancelled."
+    "run_not_cancellable": "The run is already running or finished, so it can't be cancelled.",
+    "run_not_failed": "Only failed runs can be replayed."
   },
   "onError": {
     "stop": "Stop the flow",
@@ -546,5 +593,24 @@
       "invalid_input": "Invalid data."
     },
     "oneOf": {"slack": "Fill in the bot token or the webhook URL.", "google": "Fill in the access token or the service account JSON."}
+  },
+  "failureEmail": {
+    "subject": "Flow failed: {flow}",
+    "heading": "A run failed",
+    "intro": "A run of \"{flow}\" failed at {time}.",
+    "error": "Error",
+    "step": "Step",
+    "cta": "Open the run",
+    "replayScheduled": "It will be replayed automatically at {time}, from the step that failed.",
+    "replayOffer": "Fix the step and use Replay on the run, or turn on automatic replay in the flow settings.",
+    "throttle": "You get at most one email per flow per hour.",
+    "why": "You get this because you own this flow. Turn it off in the flow settings."
+  },
+  "settings": {
+    "title": "Run history",
+    "retention": "Keep runs for",
+    "days": "{n} days",
+    "retentionHint": "Every hour, runs and steps older than this are deleted. The latest run of each flow is always kept.",
+    "saved": "Saved"
   }
 }

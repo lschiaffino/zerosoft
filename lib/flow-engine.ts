@@ -17,7 +17,17 @@ import { aiEnabled, aiGenerateText, AiError } from './ai';
 import { getDb, type FlowFlowRow, type FlowRunRow, type FlowStepRow } from './db';
 import { sendEmail } from './email';
 import { flowChain } from './events';
-import { enqueueRun, INPUT_TOO_LARGE_KEY, kickFlowWorker, MAX_FLOW_CHAIN_DEPTH, nowIso, parseJson } from './flow';
+import {
+  enqueueRun,
+  INPUT_TOO_LARGE_KEY,
+  kickFlowWorker,
+  MAX_FLOW_CHAIN_DEPTH,
+  nowIso,
+  parseJson,
+  WEBHOOK_REPLY_LIMIT,
+  type WebhookReply,
+} from './flow';
+import { crmTaskNode, crmUpdateNode, trackUpdateNode } from './flow-app-nodes';
 import { CODE_MAX_TIMEOUT_SEC, runFlowCode } from './flow-code';
 import { resolveCredential, secretValues, type ResolvedCredential } from './flow-credentials';
 import { redact, type CredentialType } from './flow-credentials-schema';
@@ -90,7 +100,10 @@ interface RunContext {
   stepLimit?: number;
 }
 
-type FlowInfo = Pick<FlowFlowRow, 'id' | 'name' | 'user_id' | 'created_by' | 'error_flow_id' | 'enabled'>;
+type FlowInfo = Pick<
+  FlowFlowRow,
+  'id' | 'name' | 'user_id' | 'created_by' | 'error_flow_id' | 'enabled' | 'failure_alerts' | 'auto_replay'
+>;
 
 interface RunState {
   run: FlowRunRow;
@@ -461,6 +474,43 @@ async function robotNode(state: RunState, cfg: Record<string, unknown>, tctx: Re
   return output;
 }
 
+// ---------- Responder al webhook ----------
+
+const REPLY_TYPES: Record<string, string> = {
+  json: 'application/json; charset=utf-8',
+  text: 'text/plain; charset=utf-8',
+  html: 'text/html; charset=utf-8',
+};
+/** Headers que no puede fijar la respuesta (los maneja el servidor o tocan la sesión). */
+const REPLY_BLOCKED_HEADERS = /^(content-type|content-length|transfer-encoding|connection|keep-alive|set-cookie|content-security-policy|x-content-type-options|access-control-allow-credentials|strict-transport-security)$/i;
+
+/**
+ * Respuesta del nodo "Responder al webhook": status, tipo, headers y cuerpo.
+ * El route del webhook la devuelve si el trigger espera este nodo
+ * (respond = reply_node); en cualquier otro caso es solo la salida del paso.
+ */
+export function webhookReplyOutput(cfg: Record<string, unknown>, tctx: Record<string, unknown>): WebhookReply {
+  const status = Math.floor(Number(cfg.statusCode ?? 200));
+  if (!Number.isFinite(status) || status < 200 || status > 599) throw new StepError('invalid_status');
+  const kind = typeof cfg.contentType === 'string' && REPLY_TYPES[cfg.contentType] ? cfg.contentType : 'json';
+  const body = renderString(cfg.body ?? '', tctx);
+  if (body.length > WEBHOOK_REPLY_LIMIT) throw new StepError('reply_too_large');
+  if (kind === 'json' && body.trim()) {
+    try {
+      JSON.parse(body);
+    } catch {
+      throw new StepError('invalid_json');
+    }
+  }
+  const headers: Record<string, string> = {};
+  for (const h of Array.isArray(cfg.headers) ? (cfg.headers as Array<{ key?: string; value?: string }>) : []) {
+    const k = String(h?.key ?? '').trim().toLowerCase();
+    if (!k || !/^[a-z0-9-]+$/.test(k) || REPLY_BLOCKED_HEADERS.test(k) || Object.keys(headers).length >= 20) continue;
+    headers[k] = renderString(h?.value ?? '', tctx).replace(/[\r\n]/g, ' ').slice(0, 1000);
+  }
+  return { status, contentType: REPLY_TYPES[kind], headers, body };
+}
+
 // ---------- Agente, código, merge, sub-flow ----------
 
 async function agentNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
@@ -692,6 +742,14 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
       return { kind: 'ok', output: await crmDealsNode(ws, cfg), handles: ['out'] };
     case 'app.track_issue':
       return { kind: 'ok', output: await trackIssueNode(ws, cfg, tctx), handles: ['out'] };
+    case 'app.track_update':
+      return { kind: 'ok', output: await trackUpdateNode(ws, state.flow.created_by ?? ws, cfg, tctx), handles: ['out'] };
+    case 'app.crm_update':
+      return { kind: 'ok', output: await crmUpdateNode(ws, cfg, tctx), handles: ['out'] };
+    case 'app.crm_task':
+      return { kind: 'ok', output: await crmTaskNode(ws, cfg, tctx), handles: ['out'] };
+    case 'action.webhook_reply':
+      return { kind: 'ok', output: webhookReplyOutput(cfg, tctx), handles: ['out'] };
     case 'app.link':
       return { kind: 'ok', output: await linkNode(ws, cfg, tctx), handles: ['out'] };
     case 'app.chat_message':
@@ -1007,6 +1065,14 @@ async function enqueueErrorFlow(state: RunState): Promise<void> {
   if (id) kickFlowWorker();
 }
 
+/** Corrida fallida: agenda el replay automático (si el flow lo tiene) y avisa al dueño por email. */
+async function afterFailure(state: RunState): Promise<void> {
+  const { notifyRunFailure, scheduleAutoReplay } = await import('./flow-alerts');
+  const error = state.error === null ? null : clean(state, state.error);
+  const replayAt = await scheduleAutoReplay(state.flow, state.run, error);
+  await notifyRunFailure({ flow: state.flow, run: state.run, error, failedNode: state.failedNode, replayAt });
+}
+
 async function finalize(state: RunState): Promise<FlowRunRow['status']> {
   const db = getDb();
   const pending = (await db.prepare('SELECT COUNT(*) AS n FROM flow_jobs WHERE run_id = ?').get(state.run.id)) as {
@@ -1040,13 +1106,22 @@ async function finalize(state: RunState): Promise<FlowRunRow['status']> {
       waiting ? null : nowIso(),
       state.run.id,
     );
-  if (status === 'failed') await enqueueErrorFlow(state).catch(() => {});
+  if (status === 'failed') {
+    await enqueueErrorFlow(state).catch(() => {});
+    await afterFailure(state).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error('[flow] failure alert', err);
+    });
+  }
   return status;
 }
 
 async function loadState(run: FlowRunRow): Promise<RunState | null> {
   const flow = (await getDb()
-    .prepare('SELECT id, name, user_id, graph, created_by, error_flow_id, enabled FROM flow_flows WHERE id = ? AND user_id = ?')
+    .prepare(
+      `SELECT id, name, user_id, graph, created_by, error_flow_id, enabled, failure_alerts, auto_replay
+       FROM flow_flows WHERE id = ? AND user_id = ?`,
+    )
     .get(run.flow_id, run.user_id)) as (FlowInfo & Pick<FlowFlowRow, 'graph'>) | undefined;
   if (!flow) return null;
   const saved = parseJson<Partial<RunContext>>(run.context, {});

@@ -6,6 +6,7 @@
  * Server-only.
  */
 import { getDb, type FlowJobRow } from './db';
+import { processDueReplays } from './flow-alerts';
 import { executeRun, resumeRun } from './flow-engine';
 import { enqueueDueSchedules, nowIso, parseJson } from './flow';
 
@@ -68,6 +69,8 @@ export interface WorkerResult {
   jobs: number;
   schedules: number;
   stale: number;
+  /** Replays automáticos de corridas fallidas (lib/flow-alerts.ts). */
+  replays: number;
 }
 
 /**
@@ -78,7 +81,7 @@ export interface WorkerResult {
 export async function processFlowQueue(opts: { limit?: number; now?: Date; budgetMs?: number } = {}): Promise<WorkerResult> {
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 500);
   const deadline = opts.budgetMs === undefined ? Infinity : Date.now() + Math.max(0, opts.budgetMs);
-  const result: WorkerResult = { runs: 0, jobs: 0, schedules: 0, stale: 0 };
+  const result: WorkerResult = { runs: 0, jobs: 0, schedules: 0, stale: 0, replays: 0 };
   result.stale = await failStaleRuns();
   result.schedules = (await enqueueDueSchedules(opts.now ?? new Date())).length;
 
@@ -129,6 +132,10 @@ export async function processFlowQueue(opts: { limit?: number; now?: Date; budge
         .run(nowIso(), job.run_id);
     }
     result.jobs += 1;
+  }
+
+  if (Date.now() < deadline) {
+    result.replays = await processDueReplays({ now: opts.now, limit: Math.min(limit, 20), deadline }).catch(() => 0);
   }
   return result;
 }

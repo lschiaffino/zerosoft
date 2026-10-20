@@ -76,7 +76,7 @@
     "noVariables": "0 variáveis. Conecte este nó a nós anteriores ou faça um teste para ver dados reais.",
     "webhookUrl": "URL do webhook",
     "webhookSaveFirst": "Salve o flow para obter a URL.",
-    "webhookHint": "Faça POST com JSON ou um formulário para esta URL. Trate-a como um segredo. Use '{{trigger.body}}', '{{trigger.query}}' e '{{trigger.headers}}'.",
+    "webhookHint": "Envie JSON ou um formulário para esta URL com o método que você aceita. Trate-a como um segredo. Use '{{trigger.body}}', '{{trigger.query}}' e '{{trigger.headers}}'.",
     "copy": "Copiar",
     "nextRun": "Próxima execução",
     "testInput": "Dados de teste",
@@ -94,7 +94,7 @@
     "condOp": "Operador",
     "condRight": "Comparar com",
     "canvasHint": "Adicione um passo pela paleta. Para conectar dois nós, arraste de uma saída até o próximo nó.",
-    "templateHelp": "Use '{{trigger.x}}' para os dados do gatilho e '{{nodes.<id>.output.x}}' para a saída de um nó anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length, urlencode.",
+    "templateHelp": "Use '{{trigger.x}}' para os dados do gatilho e '{{nodes.<id>.output.x}}' para a saída de um nó anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length, urlencode, replace:\"a\",\"b\", split:\",\", date:\"DD/MM/YYYY HH:mm\",America/Sao_Paulo, add_time:2,days, timezone:Europe/Lisbon.",
     "everySummary": "A cada {n} {unit}",
     "dailySummary": "Todo dia às {time} ({tz})",
     "conditionsCount": "{n, plural, one {# condição} other {# condições}}",
@@ -126,7 +126,13 @@
     "retryGranularity": "Cada nova tentativa é retomada na próxima passada do agendador (a cada minuto na nuvem da zerosoft), não poucos segundos depois.",
     "stripeHint": "Salve o flow, copie a URL do webhook no Stripe (Developers → Webhooks) e salve o signing secret na credencial. Pedidos sem assinatura são recusados.",
     "allEvents": "Todos os eventos",
-    "copyNodeRef": "Copiar referência"
+    "copyNodeRef": "Copiar referência",
+    "webhookAuthHint": "Com uma credencial, cada request precisa enviar o header dela (API key) ou o usuário e a senha (Basic). O resto recebe 401.",
+    "webhookReplyHint": "Quem chama espera até 25 segundos por um passo 'Responder ao webhook'. Se a execução falhar recebe 500; se nenhum passo responder a tempo, 202.",
+    "failureAlerts": "Me avisar por email quando uma execução falhar",
+    "failureAlertsHint": "Vai para o dono do flow. No máximo um email por flow por hora, com um link para fazer replay.",
+    "autoReplay": "Fazer replay automático das execuções que falharem",
+    "autoReplayHint": "Uma vez, 15 minutos depois da falha, a partir do passo que falhou. Testes não são repetidos."
   },
   "categories": {
     "trigger": "Gatilho",
@@ -139,7 +145,11 @@
   },
   "nodes": {
     "trigger_event": { "title": "Evento de um app", "desc": "Roda quando algo acontece na zerosoft: uma reserva, um clique, um contato novo, um issue, uma mensagem no chat…" },
-    "trigger_webhook": { "title": "Webhook de entrada", "desc": "Roda quando um serviço faz POST na URL secreta deste flow." },
+    "trigger_webhook": {
+      "title": "Webhook de entrada",
+      "desc": "Roda quando um serviço chama a URL secreta deste flow (POST, GET ou os dois).",
+      "fields": { "accept": "Aceita", "authCredentialId": "Exigir autenticação (opcional)", "respond": "Responde" }
+    },
     "trigger_schedule": { "title": "Agendado", "desc": "Roda a cada N minutos ou horas, todo dia em um horário ou com uma expressão cron, no seu fuso horário." },
     "trigger_manual": { "title": "Manual", "desc": "Roda só pelo botão Testar, com o JSON que você informar." },
     "logic_if": { "title": "Se", "desc": "Divide o flow em dois: verdadeiro e falso." },
@@ -199,6 +209,26 @@
       "title": "Executar agente",
       "desc": "Envia uma mensagem para um dos seus agentes e retorna a resposta. Usa as ferramentas e o conhecimento do agente.",
       "fields": { "message": "Mensagem", "conversationId": "Continuar conversa (opcional)" }
+    },
+    "action_webhook_reply": {
+      "title": "Responder ao webhook",
+      "desc": "Define a resposta que quem chamou o webhook recebe: código, conteúdo e headers.",
+      "fields": { "statusCode": "Código de status", "contentType": "Tipo de conteúdo" }
+    },
+    "app_crm_update": {
+      "title": "CRM: atualizar registro",
+      "desc": "Muda propriedades de um contato, empresa ou deal deste workspace. Deals também podem passar para outra etapa.",
+      "fields": { "entity": "Tipo de registro", "recordId": "ID do registro", "email": "Ou buscar o contato por email", "fields": "Propriedades", "stage": "Mover para a etapa (nome ou ID)" }
+    },
+    "app_crm_task": {
+      "title": "CRM: criar tarefa",
+      "desc": "Cria uma tarefa do CRM com vencimento, ligada a um contato, deal ou empresa.",
+      "fields": { "body": "Notas", "dueIn": "Vence em", "dueUnit": "Unidade", "contactId": "Contato (ID ou email)", "dealId": "ID do deal", "companyId": "ID da empresa", "owner": "Owner (email ou ID)" }
+    },
+    "app_track_update": {
+      "title": "Track: atualizar issue",
+      "desc": "Muda o status, a prioridade, o responsável ou o vencimento de um issue deste workspace e pode adicionar um comentário.",
+      "fields": { "issue": "Issue (ID ou identificador, ex. ENG-12)", "status": "Status (nome)", "assignee": "Responsável (email, ou none)", "comment": "Comentário", "title": "Novo título", "dueDate": "Vencimento" }
     }
   },
   "fields": {
@@ -307,7 +337,19 @@
     "max": "Máximo",
     "collect": "Juntar valores",
     "unique": "Valores únicos",
-    "join": "Unir como texto"
+    "join": "Unir como texto",
+    "contact": "Contato",
+    "company": "Empresa",
+    "deal": "Deal",
+    "keep": "Sem mudança",
+    "json": "JSON",
+    "text": "Texto simples",
+    "html": "HTML",
+    "post_only": "POST",
+    "get_only": "GET",
+    "get_post": "GET e POST",
+    "immediately": "Na hora (202)",
+    "reply_node": "Com o passo Responder ao webhook"
   },
   "handles": {
     "out": "Próximo",
@@ -398,7 +440,11 @@
     "rerunDirty": "Você tem alterações não salvas. A reexecução usa a última versão salva. Continuar?",
     "cancel": "Cancelar execução",
     "cancelConfirm": "Cancelar esta execução? Os passos pendentes (esperas e novas tentativas) não vão rodar.",
-    "openInEditor": "Abrir no editor"
+    "openInEditor": "Abrir no editor",
+    "replay": "Replay",
+    "replayHint": "Roda de novo a partir do passo que falhou. Os passos anteriores reusam a saída.",
+    "replayScheduled": "Replay automático às {time}.",
+    "replayed": "Replay feito. Mostrando a nova execução."
   },
   "stepStatus": {
     "running": "Executando",
@@ -446,7 +492,8 @@
     "node_not_found": "Esse nó não está mais no flow.",
     "node_is_trigger": "Reexecute a partir de um passo depois do trigger.",
     "node_in_loop": "Passos dentro de um Loop não são reexecutados sozinhos. Reexecute a partir do Loop.",
-    "run_not_cancellable": "A execução já está rodando ou terminou: não dá para cancelar."
+    "run_not_cancellable": "A execução já está rodando ou terminou: não dá para cancelar.",
+    "run_not_failed": "Só dá para fazer replay de execuções que falharam."
   },
   "onError": {
     "stop": "Parar o flow",
@@ -546,5 +593,24 @@
       "invalid_input": "Dados inválidos."
     },
     "oneOf": {"slack": "Preencha o bot token ou a URL do webhook.", "google": "Preencha o access token ou o JSON da conta de serviço."}
+  },
+  "failureEmail": {
+    "subject": "Um flow falhou: {flow}",
+    "heading": "Uma execução falhou",
+    "intro": "Uma execução de \"{flow}\" falhou em {time}.",
+    "error": "Erro",
+    "step": "Passo",
+    "cta": "Abrir a execução",
+    "replayScheduled": "Ela vai rodar de novo sozinha em {time}, a partir do passo que falhou.",
+    "replayOffer": "Corrija o passo e use Replay na execução, ou ative o replay automático nas configurações do flow.",
+    "throttle": "Você recebe no máximo um email por flow por hora.",
+    "why": "Você recebe isto porque é dono deste flow. Desative nas configurações do flow."
+  },
+  "settings": {
+    "title": "Histórico de execuções",
+    "retention": "Guardar execuções por",
+    "days": "{n} dias",
+    "retentionHint": "A cada hora, execuções e passos mais antigos que isso são apagados. A última execução de cada flow fica sempre.",
+    "saved": "Salvo"
   }
 }

@@ -34,6 +34,7 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
   const [rerunning, setRerunning] = useState<string | null>(null);
   const [rerunError, setRerunError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [replaying, setReplaying] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
   async function rerunFrom(nodeId: string) {
@@ -48,6 +49,25 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as { run?: RunDetail; error?: string } | null;
     setRerunning(null);
+    if (!res?.ok || !data?.run) {
+      const code = data?.error ?? 'generic';
+      setRerunError(t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
+      return;
+    }
+    setDetail(data.run);
+    onSelect(data.run);
+    onRerun?.(data.run);
+  }
+
+  /** Replay de una corrida fallida: desde el paso que falló (o completa si no se puede). */
+  async function replay() {
+    if (!detail) return;
+    if (dirty && !window.confirm(t('runs.rerunDirty'))) return;
+    setReplaying(true);
+    setRerunError(null);
+    const res = await fetch(`/api/flow/runs/${detail.id}/replay`, { method: 'POST' }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { run?: RunDetail; error?: string } | null;
+    setReplaying(false);
     if (!res?.ok || !data?.run) {
       const code = data?.error ?? 'generic';
       setRerunError(t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
@@ -219,7 +239,24 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
                   {t('runs.cancel')}
                 </button>
               )}
+              {canEdit && detail.status === 'failed' && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  aria-busy={replaying || undefined}
+                  disabled={replaying}
+                  title={t('runs.replayHint')}
+                  onClick={() => void replay()}
+                >
+                  {t('runs.replay')}
+                </button>
+              )}
             </div>
+            {detail.status === 'failed' && detail.replayAt && (
+              <p className="ui-help" suppressHydrationWarning>
+                {t('runs.replayScheduled', { time: format.dateTime(new Date(detail.replayAt), { timeStyle: 'short' }) })}
+              </p>
+            )}
             {/* El error se muestra una sola vez: en el paso que falló, o acá si no hay paso (flow apagado, sin trigger…). */}
             {detail.error &&
               !detail.steps.some((s) => s.error) &&

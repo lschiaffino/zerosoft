@@ -76,7 +76,7 @@
     "noVariables": "0 variables. Conectá este nodo a otros anteriores o hacé una prueba para ver datos reales.",
     "webhookUrl": "URL del webhook",
     "webhookSaveFirst": "Guardá el flow para obtener la URL.",
-    "webhookHint": "Hacé POST con JSON o un formulario a esta URL. Tratala como un secreto. Usá '{{trigger.body}}', '{{trigger.query}}' y '{{trigger.headers}}'.",
+    "webhookHint": "Mandá JSON o un formulario a esta URL con el método que aceptás. Tratala como un secreto. Usá '{{trigger.body}}', '{{trigger.query}}' y '{{trigger.headers}}'.",
     "copy": "Copiar",
     "nextRun": "Próxima ejecución",
     "testInput": "Datos de prueba",
@@ -94,7 +94,7 @@
     "condOp": "Operador",
     "condRight": "Comparar con",
     "canvasHint": "Agregá un paso desde la paleta. Para conectar dos nodos, arrastrá desde una salida hasta el nodo siguiente.",
-    "templateHelp": "Usá '{{trigger.x}}' para los datos del disparador y '{{nodes.<id>.output.x}}' para la salida de un nodo anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length, urlencode.",
+    "templateHelp": "Usá '{{trigger.x}}' para los datos del disparador y '{{nodes.<id>.output.x}}' para la salida de un nodo anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length, urlencode, replace:\"a\",\"b\", split:\",\", date:\"DD/MM/YYYY HH:mm\",America/Argentina/Buenos_Aires, add_time:2,days, timezone:Europe/Madrid.",
     "everySummary": "Cada {n} {unit}",
     "dailySummary": "Todos los días a las {time} ({tz})",
     "conditionsCount": "{n, plural, one {# condición} other {# condiciones}}",
@@ -126,7 +126,13 @@
     "retryGranularity": "Cada reintento se retoma en la próxima pasada del programador (cada minuto en la nube de zerosoft), no a los pocos segundos.",
     "stripeHint": "Guardá el flow, copiá la URL del webhook en Stripe (Developers → Webhooks) y guardá su signing secret en la credencial. Los pedidos sin firma se rechazan.",
     "allEvents": "Todos los eventos",
-    "copyNodeRef": "Copiar referencia"
+    "copyNodeRef": "Copiar referencia",
+    "webhookAuthHint": "Con una credencial, cada request tiene que mandar su header (API key) o su usuario y contraseña (Basic). El resto recibe 401.",
+    "webhookReplyHint": "Quien llama espera hasta 25 segundos un paso 'Responder al webhook'. Si la corrida falla recibe 500; si ningún paso responde a tiempo, 202.",
+    "failureAlerts": "Avisarme por email cuando una corrida falla",
+    "failureAlertsHint": "Le llega al dueño del flow. Como mucho un email por flow y por hora, con un link para hacer replay.",
+    "autoReplay": "Hacer replay automático de las corridas fallidas",
+    "autoReplayHint": "Una vez, 15 minutos después de la falla, desde el paso que falló. Las pruebas no se repiten."
   },
   "categories": {
     "trigger": "Disparador",
@@ -139,7 +145,11 @@
   },
   "nodes": {
     "trigger_event": { "title": "Evento de una app", "desc": "Corre cuando pasa algo en zerosoft: una reserva, un click, un contacto nuevo, un issue, un mensaje de chat…" },
-    "trigger_webhook": { "title": "Webhook entrante", "desc": "Corre cuando un servicio hace POST a la URL secreta de este flow." },
+    "trigger_webhook": {
+      "title": "Webhook entrante",
+      "desc": "Corre cuando un servicio llama a la URL secreta de este flow (POST, GET o los dos).",
+      "fields": { "accept": "Acepta", "authCredentialId": "Pedir autenticación (opcional)", "respond": "Responde" }
+    },
     "trigger_schedule": { "title": "Programado", "desc": "Corre cada N minutos u horas, todos los días a una hora o con una expresión cron, en tu zona horaria." },
     "trigger_manual": { "title": "Manual", "desc": "Corre solo desde el botón Probar, con el JSON que le pases." },
     "logic_if": { "title": "Si", "desc": "Divide el flow en dos: verdadero y falso." },
@@ -199,6 +209,26 @@
       "title": "Ejecutar agente",
       "desc": "Le manda un mensaje a uno de tus agentes y devuelve su respuesta. Usa las herramientas y el conocimiento del agente.",
       "fields": { "message": "Mensaje", "conversationId": "Seguir conversación (opcional)" }
+    },
+    "action_webhook_reply": {
+      "title": "Responder al webhook",
+      "desc": "Arma la respuesta que recibe quien llamó al webhook: código, contenido y headers.",
+      "fields": { "statusCode": "Código de estado", "contentType": "Tipo de contenido" }
+    },
+    "app_crm_update": {
+      "title": "CRM: actualizar registro",
+      "desc": "Cambia propiedades de un contacto, empresa o deal de este workspace. Los deals también pueden pasar a otra etapa.",
+      "fields": { "entity": "Tipo de registro", "recordId": "ID del registro", "email": "O buscar el contacto por email", "fields": "Propiedades", "stage": "Mover a la etapa (nombre o ID)" }
+    },
+    "app_crm_task": {
+      "title": "CRM: crear tarea",
+      "desc": "Crea una tarea del CRM con vencimiento, asociada a un contacto, deal o empresa.",
+      "fields": { "body": "Notas", "dueIn": "Vence en", "dueUnit": "Unidad", "contactId": "Contacto (ID o email)", "dealId": "ID del deal", "companyId": "ID de la empresa", "owner": "Owner (email o ID)" }
+    },
+    "app_track_update": {
+      "title": "Track: actualizar issue",
+      "desc": "Cambia el status, la prioridad, el responsable o el vencimiento de un issue de este workspace y puede sumar un comentario.",
+      "fields": { "issue": "Issue (ID o identificador, p. ej. ENG-12)", "status": "Status (nombre)", "assignee": "Responsable (email, o none)", "comment": "Comentario", "title": "Título nuevo", "dueDate": "Vencimiento" }
     }
   },
   "fields": {
@@ -307,7 +337,19 @@
     "max": "Máximo",
     "collect": "Juntar valores",
     "unique": "Valores únicos",
-    "join": "Unir como texto"
+    "join": "Unir como texto",
+    "contact": "Contacto",
+    "company": "Empresa",
+    "deal": "Deal",
+    "keep": "Sin cambios",
+    "json": "JSON",
+    "text": "Texto plano",
+    "html": "HTML",
+    "post_only": "POST",
+    "get_only": "GET",
+    "get_post": "GET y POST",
+    "immediately": "En el momento (202)",
+    "reply_node": "Con el paso Responder al webhook"
   },
   "handles": {
     "out": "Siguiente",
@@ -398,7 +440,11 @@
     "rerunDirty": "Tenés cambios sin guardar. La re-ejecución usa la última versión guardada. ¿Seguir?",
     "cancel": "Cancelar ejecución",
     "cancelConfirm": "¿Cancelar esta ejecución? Los pasos pendientes (esperas y reintentos) no van a correr.",
-    "openInEditor": "Abrir en el editor"
+    "openInEditor": "Abrir en el editor",
+    "replay": "Replay",
+    "replayHint": "Vuelve a correr desde el paso que falló. Los pasos anteriores reusan su salida.",
+    "replayScheduled": "Replay automático a las {time}.",
+    "replayed": "Replay hecho. Se muestra la corrida nueva."
   },
   "stepStatus": {
     "running": "Ejecutando",
@@ -446,7 +492,8 @@
     "node_not_found": "Ese nodo ya no está en el flow.",
     "node_is_trigger": "Re-ejecutá desde un paso posterior al trigger.",
     "node_in_loop": "Los pasos dentro de un Loop no se re-ejecutan solos. Re-ejecutá desde el Loop.",
-    "run_not_cancellable": "La ejecución ya está corriendo o terminó: no se puede cancelar."
+    "run_not_cancellable": "La ejecución ya está corriendo o terminó: no se puede cancelar.",
+    "run_not_failed": "Solo se puede hacer replay de corridas fallidas."
   },
   "onError": {
     "stop": "Detener el flow",
@@ -546,5 +593,24 @@
       "invalid_input": "Datos inválidos."
     },
     "oneOf": {"slack": "Completá el bot token o la URL del webhook.", "google": "Completá el access token o el JSON de la cuenta de servicio."}
+  },
+  "failureEmail": {
+    "subject": "Falló un flow: {flow}",
+    "heading": "Falló una corrida",
+    "intro": "Una corrida de \"{flow}\" falló el {time}.",
+    "error": "Error",
+    "step": "Paso",
+    "cta": "Abrir la corrida",
+    "replayScheduled": "Se va a repetir sola el {time}, desde el paso que falló.",
+    "replayOffer": "Corregí el paso y usá Replay en la corrida, o prendé el replay automático en los ajustes del flow.",
+    "throttle": "Recibís como mucho un email por flow y por hora.",
+    "why": "Te llega porque sos dueño de este flow. Lo podés apagar en los ajustes del flow."
+  },
+  "settings": {
+    "title": "Historial de corridas",
+    "retention": "Guardar corridas por",
+    "days": "{n} días",
+    "retentionHint": "Cada hora se borran las corridas y pasos más viejos que esto. La última corrida de cada flow se guarda siempre.",
+    "saved": "Guardado"
   }
 }
