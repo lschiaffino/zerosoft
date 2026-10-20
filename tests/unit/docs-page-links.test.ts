@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { createDocPage, getDocPage, listDocBacklinks, updateDocPage } from '@/lib/docs';
+import { createDocPage, createDocShare, getDocPage, listDocBacklinks, readableLinkTitles, updateDocPage } from '@/lib/docs';
 import { sanitizeBlocks, sanitizeDocsHtml } from '@/lib/docs-sanitize';
 import { blocksToMarkdown } from '@/lib/docs-markdown';
 import { getHelpArticle } from '@/lib/docs-help';
@@ -124,5 +124,39 @@ describe('Docs: links a página — export Markdown', () => {
       href: `https://zerosoft.ai/app/docs/${id}`,
     }));
     expect(blocksToMarkdown(blocks)).toBe(`Ver [Plan \\[Q3\\]](https://zerosoft.ai/app/docs/${ID}).\n`);
+  });
+});
+
+describe('Docs: export Markdown de un invitado — títulos actuales', () => {
+  it('resuelve el título renombrado de páginas que el invitado puede abrir, y solo esas', async () => {
+    const owner = await makeUser('plexpo');
+    const guest = await makeUser('plexpg');
+    const shared = await createDocPage(owner.id, { title: 'Viejo nombre' });
+    const hidden = await createDocPage(owner.id, { title: 'Privada' });
+    const page = await createDocPage(owner.id, {
+      title: 'Compartida',
+      content: para(`${pageLinkHtml(shared.id, 'Viejo nombre')} y ${pageLinkHtml(hidden.id, 'Privada')}`),
+    });
+    await createDocShare(owner.id, page.id, 'user', guest.id, 'view');
+    await createDocShare(owner.id, shared.id, 'user', guest.id, 'view');
+    await updateDocPage(owner.id, shared.id, { title: 'Nombre nuevo' });
+    await updateDocPage(owner.id, hidden.id, { title: 'Privada renombrada' });
+
+    const row = (await getDocPageRow(page.id))!;
+    const blocks = (await getDocPage(owner.id, page.id))!.content;
+    const titles = await readableLinkTitles({ id: guest.id }, row, blocks);
+    expect(titles.get(shared.id)).toBe('Nombre nuevo');
+    expect(titles.has(hidden.id)).toBe(false);
+
+    const md = blocksToMarkdown(
+      resolveBlocksPageLinks(blocks, (id) => ({ href: `https://z.ai/app/docs/${id}`, title: titles.get(id) ?? null })),
+    );
+    expect(md).toContain('[Nombre nuevo]');
+    expect(md).toContain('[Privada]');
+    expect(md).not.toContain('Privada renombrada');
+
+    // El dueño ve todos los títulos actuales.
+    const own = await readableLinkTitles({ id: owner.id }, row, blocks);
+    expect(own.get(hidden.id)).toBe('Privada renombrada');
   });
 });

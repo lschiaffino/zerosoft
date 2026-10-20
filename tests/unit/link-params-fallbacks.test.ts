@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { getDb } from '@/lib/db';
-import { applyLinkPatch, createLink, getUserLink, linkPatchSchema, toLinkDto } from '@/lib/links';
-import { forwardQueryParams, readUtm, syncUtm } from '@/lib/link-url';
+import { applyLinkPatch, createLink, gateCookieName, gateToken, getUserLink, linkPatchSchema, toLinkDto } from '@/lib/links';
+import { forwardQueryParams, gateQueryString, readUtm, syncUtm } from '@/lib/link-url';
 import { makeUser } from './helpers';
 
 // after() necesita el contexto de request de Next: en tests no corre.
@@ -109,6 +109,65 @@ describe('Link: parámetros del link corto en /r', () => {
     const res = await visit(r.link.slug, { search: '?utm_source=ig', ua: IPHONE });
     const html = await res.text();
     expect(html).toContain('https://example.com/ios?utm_source=ig');
+  });
+});
+
+describe('Link: parámetros a través de la puerta de contraseña', () => {
+  it('gateQueryString arma el query de URLSearchParams o de searchParams de Next', () => {
+    expect(gateQueryString(new URLSearchParams('utm_source=mail&qr=1'))).toBe('?utm_source=mail&qr=1');
+    expect(gateQueryString({ utm_source: 'mail', tag: ['a', 'b'], skip: undefined })).toBe('?utm_source=mail&tag=a&tag=b');
+    expect(gateQueryString({})).toBe('');
+    expect(gateQueryString(undefined)).toBe('');
+    // Lo raro se codifica: no puede salirse del query.
+    expect(gateQueryString({ 'a#b': 'x/../y?z' })).toBe('?a%23b=x%2F..%2Fy%3Fz');
+  });
+
+  it('la puerta recibe los params y, desbloqueado, el destino también', async () => {
+    const u = await makeUser('fwdgate');
+    const r = await createLink(u.id, { url: 'https://example.com/landing', slug: slug('fg'), password: 'secreto' });
+    if (!r.ok) throw new Error('setup');
+    const s = r.link.slug;
+    const toGate = await visit(s, { search: '?utm_source=newsletter&qr=1' });
+    const gateUrl = new URL(toGate.headers.get('location')!);
+    expect(gateUrl.pathname).toMatch(new RegExp(`/gate/${s}$`));
+    expect(gateUrl.searchParams.get('utm_source')).toBe('newsletter');
+    expect(gateUrl.searchParams.get('qr')).toBe('1');
+
+    // La página de la puerta reenvía el mismo query a /<slug> al desbloquear.
+    const back = gateQueryString(Object.fromEntries(gateUrl.searchParams));
+    const link = (await getUserLink(u.id, r.link.id))!;
+    const res = await redirectRoute.GET(
+      new NextRequest(`http://localhost:3000/r/${s}${back}`, {
+        headers: {
+          host: 'localhost:3000',
+          'user-agent': DESKTOP,
+          cookie: `${gateCookieName(s)}=${gateToken(s, link.password_hash!)}`,
+        },
+      }),
+      { params: Promise.resolve({ slug: s }) },
+    );
+    const loc = new URL(res.headers.get('location')!);
+    expect(loc.origin + loc.pathname).toBe('https://example.com/landing');
+    expect(loc.searchParams.get('utm_source')).toBe('newsletter');
+    expect(loc.searchParams.has('qr')).toBe(false);
+    const click = (await getDb().prepare('SELECT source FROM clicks WHERE link_id = ?').get(r.link.id)) as
+      | { source: string }
+      | undefined;
+    expect(click?.source).toBe('qr');
+  });
+
+  it('un link con contraseña vencido sigue yendo a su fallback, no a la puerta', async () => {
+    const u = await makeUser('fwdgexp');
+    const r = await createLink(u.id, {
+      url: 'https://example.com/landing',
+      slug: slug('fe'),
+      password: 'secreto',
+      expiredUrl: 'https://example.com/ended',
+    });
+    if (!r.ok) throw new Error('setup');
+    await getDb().prepare("UPDATE links SET expires_at = '2000-01-01T00:00:00.000Z' WHERE id = ?").run(r.link.id);
+    const res = await visit(r.link.slug, { search: '?utm_source=newsletter' });
+    expect(res.headers.get('location')).toBe('https://example.com/ended');
   });
 });
 

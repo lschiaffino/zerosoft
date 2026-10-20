@@ -65,7 +65,7 @@ The client sends the chosen instant plus the guest's timezone. The server doesn'
 
 Everything the guest receives is rendered in **their** timezone and **their** language. Confirmation, reschedule and cancellation emails format the time with `Intl.DateTimeFormat` using `en-US`, `es-AR` or `pt-BR`, in the booking's timezone, with the zone name printed next to it ("(America/Sao_Paulo)") so there's no ambiguity. The manage link points to the guest's locale too.
 
-The 24-hour reminder is scheduled as a UTC instant (`start - 24h`) and sent by the cron at `/api/cron/tick`, which runs hourly, so it goes out somewhere between 24 and 23 hours before the meeting. Meetings booked less than 24 hours ahead don't get one; the confirmation just arrived.
+The 24-hour reminder is scheduled as a UTC instant (`start - 24h`) and sent by the cron. On zerosoft Cloud, `/api/cron/minute` runs every minute, so it goes out about 24 hours before the meeting; a self-hosted install that only calls the hourly `/api/cron/tick` sends it somewhere between 24 and 23 hours before. Meetings booked less than 24 hours ahead don't get one; the confirmation just arrived.
 
 The `.ics` attachment sidesteps the problem entirely: `DTSTART` and `DTEND` are written in UTC with a trailing `Z`, like `20260910T120000Z`. No `VTIMEZONE` block to get wrong. Gmail, Outlook and Apple Calendar each convert to whatever zone their user is in. The `UID` is stable per booking and `SEQUENCE` increases on every change, so a reschedule updates the existing event instead of creating a second one, and `METHOD:CANCEL` removes it.
 

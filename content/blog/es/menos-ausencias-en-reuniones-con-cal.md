@@ -40,7 +40,7 @@ Sin configurar nada, cada tipo de evento manda un recordatorio al invitado 24 ho
 - Asunto y mensaje propios, con variables: `{{guest.name}}`, `{{guest.email}}`, `{{host.name}}`, `{{event.title}}`, `{{start}}`, `{{link}}` y `{{manage}}`.
 - `{{start}}` sale con la zona horaria de quien lo recibe. `{{link}}` es el link de la videollamada o la ubicación.
 
-Si agregás pasos, reemplazan al recordatorio de 24 horas. Un dato práctico: los recordatorios salen de un proceso que corre cada hora, así que pueden llegar hasta una hora tarde. Un "15 minutos antes" no tiene sentido; usá 2 o 3 horas.
+Si agregás pasos, reemplazan al recordatorio de 24 horas. Un dato práctico: en zerosoft Cloud los recordatorios y los pasos salen de un proceso que corre cada minuto, así que un paso de "15 minutos antes" llega a tiempo. Si hosteás vos, depende de cada cuánto llames al cron: con `/api/cron/minute` cada minuto tenés la misma precisión; si solo llamás a `/api/cron/tick` una vez por hora, los pasos pueden llegar hasta una hora tarde y conviene usar 2 o 3 horas antes.
 
 ### Plantillas para copiar
 

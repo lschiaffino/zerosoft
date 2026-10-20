@@ -3,9 +3,11 @@
 import Script from 'next/script';
 import { useEffect } from 'react';
 
+type ZsIdentity = { email?: string | null; name?: string | null; userHash?: string | null };
+
 type ZsWindow = Window & {
-  zsChatSettings?: { email?: string | null; name?: string | null };
-  zsChat?: { identify?: (o: { email?: string | null; name?: string | null }) => void };
+  zsChatSettings?: ZsIdentity;
+  zsChat?: { identify?: (o: ZsIdentity) => void };
 };
 
 function setWidgetVisible(visible: boolean) {
@@ -32,12 +34,24 @@ export default function SupportWidget({ widgetId }: { widgetId: string }) {
   );
 }
 
-/** Pasa al widget el email y nombre de la persona logueada (app). */
-export function SupportIdentify({ email, name }: { email: string | null; name: string | null }) {
+/**
+ * Pasa al widget el email y nombre de la persona logueada (app). userHash es la
+ * firma HMAC del email hecha en el server (lib/chat-identity.ts): con ella el
+ * inbox de soporte ve el email como verificado. El secreto nunca llega acá.
+ */
+export function SupportIdentify({
+  email,
+  name,
+  userHash = null,
+}: {
+  email: string | null;
+  name: string | null;
+  userHash?: string | null;
+}) {
   useEffect(() => {
     const w = window as ZsWindow;
-    w.zsChatSettings = { email, name };
-    w.zsChat?.identify?.({ email, name });
-  }, [email, name]);
+    w.zsChatSettings = { email, name, userHash };
+    w.zsChat?.identify?.({ email, name, userHash });
+  }, [email, name, userHash]);
   return null;
 }

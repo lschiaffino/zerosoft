@@ -67,7 +67,7 @@ The email body lists deal names with two chained filters:
 
 The Filter in the middle matters more than it looks: a digest that arrives empty five days in a row teaches people to ignore it.
 
-**What breaks:** timing. On zerosoft Cloud the scheduler checks once an hour, so a 09:00 flow can start up to an hour late. Self-hosted, it follows how often your `/api/cron` runs. For a daily digest that's fine. For something that has to go out at an exact minute, Flow isn't there yet.
+**What breaks:** timing, less than before. On zerosoft Cloud the scheduler checks every minute, so a 09:00 flow starts within a minute or so of 09:00. Self-hosted, it follows how often you call `/api/cron/minute` or `/api/cron/tick`: once an hour via the tick means a flow can start up to an hour late. For a daily digest either works. For something that has to go out at an exact second, Flow isn't built for that.
 
 ## 4. Bug reported in chat: an issue in Track
 

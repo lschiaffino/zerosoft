@@ -27,7 +27,7 @@ Arrancamos por acá, porque es la parte que las comparaciones de vendedores se s
 
 **Apps móviles.** Calendly tiene apps para iOS y Android. Cal no. La página de reservas y el panel funcionan en el navegador del celular, pero no hay app nativa.
 
-**Workflows y recordatorios.** Calendly te deja armar secuencias de recordatorios y seguimientos, incluido SMS en planes pagos. Cal manda la confirmación y los mails de reprogramación o cancelación, y cada tipo de evento puede sumar hasta 10 pasos: un email al invitado o al anfitrión, antes o después de la reunión, con asunto y texto propios. Son solo emails, no hay SMS. En zerosoft Cloud los pasos salen con un cron que corre una vez por hora, así que pueden llegar hasta una hora tarde.
+**Workflows y recordatorios.** Calendly te deja armar secuencias de recordatorios y seguimientos, incluido SMS en planes pagos. Cal manda la confirmación y los mails de reprogramación o cancelación, y cada tipo de evento puede sumar hasta 10 pasos: un email al invitado o al anfitrión, antes o después de la reunión, con asunto y texto propios. Son solo emails, no hay SMS. En zerosoft Cloud los pasos salen con un cron que corre cada minuto; con self-host, son tan puntuales como el cron que configures.
 
 **Tipos de reunión.** Calendly soporta eventos colectivos (varios hosts en la misma llamada), eventos grupales (muchos invitados en un slot) y encuestas de horario. Cal soporta eventos uno a uno, opcionalmente con un pool de hosts en [round-robin](/blog/round-robin-con-cal). Todavía no hay eventos colectivos, grupales ni encuestas.
 

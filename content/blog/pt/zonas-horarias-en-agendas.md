@@ -65,7 +65,7 @@ O cliente envia o instante escolhido mais o fuso do convidado. O servidor não c
 
 Tudo o que o convidado recebe é montado no fuso **dele** e no idioma **dele**. Os emails de confirmação, remarcação e cancelamento formatam a hora com `Intl.DateTimeFormat` usando `en-US`, `es-AR` ou `pt-BR`, no fuso da reserva, com o nome do fuso ao lado ("(America/Sao_Paulo)") para não haver ambiguidade. O link de gestão também aponta para o idioma do convidado.
 
-O lembrete de 24 horas é agendado como instante UTC (`início - 24h`) e enviado pelo cron em `/api/cron/tick`, que roda de hora em hora, então sai entre 24 e 23 horas antes da reunião. Reuniões marcadas com menos de 24 horas de antecedência não têm lembrete: a confirmação acabou de chegar.
+O lembrete de 24 horas é agendado como instante UTC (`início - 24h`) e enviado pelo cron. No zerosoft Cloud, `/api/cron/minute` roda a cada minuto, então ele sai cerca de 24 horas antes da reunião; um self-host que só chama o `/api/cron/tick` de hora em hora envia entre 24 e 23 horas antes. Reuniões marcadas com menos de 24 horas de antecedência não têm lembrete: a confirmação acabou de chegar.
 
 O anexo `.ics` contorna o problema por completo: `DTSTART` e `DTEND` são escritos em UTC com um `Z` no final, tipo `20260910T120000Z`. Não há bloco `VTIMEZONE` para dar errado. Gmail, Outlook e Apple Calendar convertem cada um para o fuso do seu usuário. O `UID` é estável por reserva e o `SEQUENCE` sobe a cada mudança, então uma remarcação atualiza o evento existente em vez de criar outro, e `METHOD:CANCEL` o remove.
 

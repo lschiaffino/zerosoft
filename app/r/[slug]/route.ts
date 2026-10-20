@@ -13,7 +13,7 @@ import {
   VISITOR_COOKIE,
 } from '@/lib/link-targeting';
 import { requestLocale } from '@/lib/request-locale';
-import { forwardQueryParams } from '@/lib/link-url';
+import { forwardQueryParams, gateQueryString } from '@/lib/link-url';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -70,8 +70,9 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   if (link.password_hash) {
     const token = req.cookies.get(gateCookieName(slug))?.value;
     if (!isValidGateToken(slug, link.password_hash, token)) {
-      // ?qr=1 viaja por la puerta: el escaneo se cuenta como QR al desbloquear.
-      const toGate = NextResponse.redirect(new URL(`/${locale}/gate/${slug}${source === 'qr' ? '?qr=1' : ''}`, origin));
+      // Todos los params viajan por la puerta y vuelven a /<slug>: ?qr=1 cuenta
+      // el escaneo al desbloquear y los demás (utm_*) se reenvían al destino.
+      const toGate = NextResponse.redirect(new URL(`/${locale}/gate/${slug}${gateQueryString(incoming)}`, origin));
       // Al volver de la puerta el Referer es la puerta: se guarda el origen real de la visita.
       toGate.cookies.set(gateRefCookieName(slug), contextFromHeaders(req.headers).referrer, {
         httpOnly: true,

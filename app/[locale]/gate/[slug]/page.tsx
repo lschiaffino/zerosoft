@@ -5,6 +5,7 @@ import GateForm from '@/components/link/GateForm';
 import { headers } from 'next/headers';
 import { getLinkForHost, linkShortUrl } from '@/lib/links';
 import { gateMetadata } from '@/lib/link-preview';
+import { gateQueryString } from '@/lib/link-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,12 +26,13 @@ export default async function GatePage(props: GatePageProps) {
     slug
   } = params;
 
-  const qr = (await props.searchParams)?.qr === '1';
+  // Los params del link corto (utm_*, ?qr=1) vuelven a /<slug> tras desbloquear.
+  const query = gateQueryString(await props.searchParams);
   const t = await getTranslations({ locale, namespace: 'link' });
   const link = await getLinkForHost((await headers()).get('host'), slug);
 
   if (!link) redirect(`/${locale}/gone?reason=notfound`);
-  if (!link.password_hash) redirect(`/${slug}${qr ? '?qr=1' : ''}`);
+  if (!link.password_hash) redirect(`/${slug}${query}`);
 
   return (
     <main className="auth-page">
@@ -47,7 +49,7 @@ export default async function GatePage(props: GatePageProps) {
             {linkShortUrl(link).replace(/^https?:\/\//, '')}
           </span>
         </p>
-        <GateForm slug={slug} qr={qr} />
+        <GateForm slug={slug} query={query} />
       </div>
     </main>
   );

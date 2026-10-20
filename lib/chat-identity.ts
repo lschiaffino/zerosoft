@@ -52,3 +52,16 @@ export async function verifyVisitorIdentity(widgetId: string, email: string | nu
   const given = Buffer.from(hash.toLowerCase(), 'hex');
   return expected.length === given.length && timingSafeEqual(expected, given);
 }
+
+/**
+ * Firma, del lado del server, el email de una persona logueada para un widget
+ * nuestro (el de soporte): devuelve el userHash que va a window.zsChat.identify.
+ * Solo sale la firma, nunca el secreto. null si el widget no tiene verificación
+ * activada o no hay email.
+ */
+export async function signVisitorIdentity(widgetId: string, email: string | null | undefined): Promise<string | null> {
+  const clean = email?.trim();
+  if (!clean) return null;
+  const secret = await getWidgetIdentitySecret(widgetId);
+  return secret ? visitorIdentityHash(secret, clean) : null;
+}

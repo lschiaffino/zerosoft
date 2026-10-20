@@ -82,6 +82,10 @@ function storage(): Storage | null {
 export default function BoardEditor({ board, locale }: { board: BoardDetail; locale: string }) {
   const t = useTranslations('board');
   const [name, setName] = useState(board.name);
+  /** Último nombre que confirmó el servidor. */
+  const savedNameRef = useRef(board.name);
+  const nameSeqRef = useRef(0);
+  const [nameError, setNameError] = useState(false);
   const [state, setState] = useState<SaveState>('saved');
   const [conflictBy, setConflictBy] = useState<string | null>(null);
   /** El aviso es por borrado contra edición (lo único que no se combina solo). */
@@ -419,12 +423,29 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
 
   async function saveName(next: string) {
     const clean = next.trim();
-    if (!clean || clean === board.name) return;
-    await fetch(`/api/boards/${board.id}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: clean }),
-    });
+    // Se compara contra el último nombre guardado (no el inicial): A → B → A guarda las dos veces.
+    if (!clean) {
+      setName(savedNameRef.current);
+      return;
+    }
+    if (clean === savedNameRef.current && !nameError) return;
+    const seq = ++nameSeqRef.current;
+    try {
+      const res = await fetch(`/api/boards/${board.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: clean }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const data = (await res.json().catch(() => null)) as { name?: string } | null;
+      // Solo cuenta la respuesta del último rename (dos blurs seguidos no se pisan).
+      if (seq !== nameSeqRef.current || unmountedRef.current) return;
+      savedNameRef.current = data?.name ?? clean;
+      setNameError(false);
+    } catch {
+      // El input conserva lo escrito: el próximo blur o Enter reintenta.
+      if (seq === nameSeqRef.current && !unmountedRef.current) setNameError(true);
+    }
   }
 
   async function setShared(shared: boolean) {
@@ -446,8 +467,9 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
   }
 
   const shareUrl = shareToken && typeof window !== 'undefined' ? `${window.location.origin}/b/${shareToken}` : '';
-  const statusText =
-    state === 'saving'
+  const statusText = nameError
+    ? t('editor.renameError')
+    : state === 'saving'
       ? t('editor.saving')
       : state === 'dirty'
         ? t('editor.unsaved')
@@ -478,7 +500,7 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
           style={{ width: `${Math.max(name.length, 6) + 2}ch` }}
         />
         <span
-          className={`board-status${state === 'error' ? ' is-error' : ''}${state === 'dirty' || state === 'error' ? '' : ' is-quiet'}`}
+          className={`board-status${state === 'error' || nameError ? ' is-error' : ''}${state === 'dirty' || state === 'error' || nameError ? '' : ' is-quiet'}`}
           aria-live="polite"
         >
           {statusText}

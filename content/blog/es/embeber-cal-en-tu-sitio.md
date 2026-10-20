@@ -96,14 +96,15 @@ Cal le manda al invitado un recordatorio **24 horas antes** de la reunión, en s
 
 **El envío de mails.** Cal manda mails a través de Resend. Configurá `RESEND_API_KEY` y `EMAIL_FROM` (una dirección de un dominio verificado en Resend). Sin la key, los mails se imprimen en la consola del servidor en vez de enviarse: práctico en desarrollo, una falla silenciosa en producción.
 
-**El cron.** Los recordatorios se encolan en la base y los manda un job periódico en `/api/cron/tick`, que también se ocupa de los reintentos de webhooks. En Vercel, el `vercel.json` incluido lo corre cada hora. En otro lado, programalo vos:
+**El cron.** Los recordatorios se encolan en la base y los manda un job periódico. En Vercel, el `vercel.json` incluido llama a `/api/cron/minute` cada minuto (recordatorios y pasos de workflow de Cal, y Flow) y a `/api/cron/tick` una vez por hora (que también manda recordatorios, más los reintentos de webhooks y el resto del trabajo programado). En otro lado, programalo vos. Los dos endpoints mandan recordatorios; el de cada minuto es el que los hace puntuales:
 
 ```bash
-# crontab: every hour at :17
+# crontab: recordatorios cada minuto, el resto cada hora a los :17
+* * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://cal.example.com/api/cron/minute
 17 * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://cal.example.com/api/cron/tick
 ```
 
-En producción el endpoint se niega a correr sin `CRON_SECRET`, y lo exige como Bearer token. Como el job corre cada hora, el recordatorio sale entre 24 y 23 horas antes de la reunión. Si el envío falla, no se marca como enviado, así que el próximo run lo reintenta. Las reservas canceladas descartan su recordatorio pendiente; las reprogramadas reciben uno nuevo. Las reuniones reservadas con menos de 24 horas de anticipación no tienen recordatorio, porque la confirmación acaba de llegar.
+En producción el endpoint se niega a correr sin `CRON_SECRET`, y lo exige como Bearer token. Con el cron de cada minuto, el recordatorio sale unas 24 horas antes de la reunión; si solo corrés el tick de cada hora, entre 24 y 23 horas antes. Si el envío falla, no se marca como enviado, así que el próximo run lo reintenta. Las reservas canceladas descartan su recordatorio pendiente; las reprogramadas reciben uno nuevo. Las reuniones reservadas con menos de 24 horas de anticipación no tienen recordatorio, porque la confirmación acaba de llegar.
 
 Si querés otros tiempos (por ejemplo, tres horas antes), sumá pasos de workflow en el tipo de evento: reemplazan a este recordatorio y salen con el mismo cron. Todavía no hay recordatorios por SMS.
 

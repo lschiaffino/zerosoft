@@ -96,14 +96,15 @@ Cal sends the guest a reminder **24 hours before** the meeting, in their languag
 
 **Email delivery.** Cal sends email through Resend. Set `RESEND_API_KEY` and `EMAIL_FROM` (an address on a domain you've verified with Resend). Without the key, emails are printed to the server console instead of being sent: handy in development, a silent failure in production.
 
-**The cron.** Reminders are queued in the database and sent by a periodic job at `/api/cron/tick`, which also handles webhook retries. On Vercel, the included `vercel.json` runs it hourly. Elsewhere, schedule it yourself:
+**The cron.** Reminders are queued in the database and sent by a periodic job. On Vercel, the included `vercel.json` calls `/api/cron/minute` every minute (Cal reminders, workflow steps and Flow) and `/api/cron/tick` once an hour (which also sends reminders, plus webhook retries and the rest of the scheduled work). Elsewhere, schedule it yourself. Either endpoint sends reminders; the minute one is what makes them punctual:
 
 ```bash
-# crontab: every hour at :17
+# crontab: reminders every minute, everything else every hour at :17
+* * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://cal.example.com/api/cron/minute
 17 * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://cal.example.com/api/cron/tick
 ```
 
-In production the endpoint refuses to run without `CRON_SECRET`, and requires it as a Bearer token. Because the job runs hourly, a reminder goes out somewhere between 24 and 23 hours before the meeting. If sending fails, it isn't marked as sent, so the next run retries. Cancelled bookings drop their pending reminder; rescheduled ones get a new one. Meetings booked less than 24 hours ahead skip the reminder, since the confirmation just arrived.
+In production the endpoint refuses to run without `CRON_SECRET`, and requires it as a Bearer token. With the minute cron, a reminder goes out about 24 hours before the meeting; if you only run the hourly tick, somewhere between 24 and 23 hours before. If sending fails, it isn't marked as sent, so the next run retries. Cancelled bookings drop their pending reminder; rescheduled ones get a new one. Meetings booked less than 24 hours ahead skip the reminder, since the confirmation just arrived.
 
 If you want other timings (say, three hours before), add workflow steps to the event type: they replace this reminder and go out from the same cron. There are no SMS reminders yet.
 

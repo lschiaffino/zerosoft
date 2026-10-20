@@ -154,6 +154,39 @@ export async function resolveDocAccess(
   return access ? { row, access } : null;
 }
 
+/** Tope de links `[[` que se resuelven uno por uno para un invitado. */
+const LINK_TITLES_MAX = 200;
+
+/**
+ * Título actual de cada página linkeada (`[[`) en `blocks` que el actor puede
+ * abrir. Para el dueño del workspace sale de una sola consulta; para un
+ * invitado se chequea el acceso de cada página linkeada, así el título solo
+ * se revela si esa página también la puede ver. Las demás quedan fuera del
+ * Map (el link conserva el título con que se insertó).
+ */
+export async function readableLinkTitles(
+  actor: DocsActor,
+  page: Pick<DocsPageRow, 'user_id'>,
+  blocks: DocsBlock[],
+): Promise<Map<string, string>> {
+  const ids: string[] = [];
+  for (const b of blocks) {
+    if (!b.content) continue;
+    for (const id of pageLinkIds(b.content)) if (!ids.includes(id)) ids.push(id);
+  }
+  const titles = new Map<string, string>();
+  if (ids.length === 0) return titles;
+  if (page.user_id === actor.id) {
+    for (const p of await listDocPageSummaries(actor.id)) if (ids.includes(p.id)) titles.set(p.id, p.title);
+    return titles;
+  }
+  for (const id of ids.slice(0, LINK_TITLES_MAX)) {
+    const res = await resolveDocAccess(actor, id);
+    if (res && res.row.archived === 0) titles.set(id, res.row.title);
+  }
+  return titles;
+}
+
 /** Verifica si el actor puede leer una página (ver getDocAccess). */
 export async function canReadPage(
   page: DocsPageRow,

@@ -39,6 +39,7 @@
     "saving": "Guardando…",
     "unsaved": "Cambios sin guardar",
     "saveError": "No se pudo guardar. Reintentando…",
+    "renameError": "No se pudo renombrar. Apretá Enter para reintentar.",
     "saved": "Guardado",
     "conflict": "Esta pizarra cambió en otro lado.",
     "conflictBy": "{name} cambió esta pizarra en otro lado.",

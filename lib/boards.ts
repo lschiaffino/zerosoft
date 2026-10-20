@@ -80,10 +80,23 @@ export async function createBoard(workspaceId: string, personId: string, name: s
   return (await getBoard(workspaceId, id))!;
 }
 
-export async function renameBoard(workspaceId: string, id: string, name: string): Promise<boolean> {
+/**
+ * Renombra y marca updated_at (y updated_by si viene): la lista ordena y
+ * muestra "editado" por esa columna. La versión no cambia, así un rename no
+ * hace chocar el guardado de la escena que esté en vuelo.
+ */
+export async function renameBoard(
+  workspaceId: string,
+  id: string,
+  name: string,
+  personId?: string,
+): Promise<boolean> {
   const res = await getDb()
-    .prepare('UPDATE boards SET name = ? WHERE id = ? AND workspace_id = ?')
-    .run(name.trim() || 'Untitled board', id, workspaceId);
+    .prepare(
+      `UPDATE boards SET name = ?, updated_at = ?, updated_by = COALESCE(?, updated_by)
+       WHERE id = ? AND workspace_id = ?`,
+    )
+    .run(name.trim() || 'Untitled board', nowIso(), personId ?? null, id, workspaceId);
   return res.changes > 0;
 }
 

@@ -26,8 +26,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (limited) return limited;
   const parsed = boardRenameSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidInput(parsed.error);
-  if (!(await renameBoard(user.id, id, parsed.data.name))) return jsonError(404, 'not_found');
-  return NextResponse.json({ ok: true });
+  if (!(await renameBoard(user.id, id, parsed.data.name, user.actingUser?.id ?? user.id))) {
+    return jsonError(404, 'not_found');
+  }
+  return NextResponse.json({ ok: true, name: parsed.data.name.trim() || 'Untitled board' });
 }
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {

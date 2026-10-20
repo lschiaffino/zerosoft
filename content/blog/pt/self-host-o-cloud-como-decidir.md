@@ -50,10 +50,11 @@ Você vai precisar de uma conta no Resend e de um domínio de envio verificado c
 
 ### 4. O cron
 
-Algumas tarefas rodam por timer: os lembretes do Cal, as novas tentativas de webhooks e o gatilho `task_due` dos workflows do CRM. Tudo passa por um endpoint, `/api/cron/tick`. Na nossa nuvem, o Vercel Cron chama de hora em hora. No seu servidor, quem chama é *você*, com o segredo:
+Algumas tarefas rodam por timer: os lembretes do Cal, os agendamentos e esperas do Flow, as novas tentativas de webhooks, as sequências e o gatilho `task_due` dos workflows do CRM. Tudo passa por `/api/cron/tick`, e o que depende do minuto (lembretes e passos de workflow do Cal, e a fila do Flow) também por `/api/cron/minute`. Na nossa nuvem, o Vercel Cron chama o endpoint de minuto a cada minuto e o tick uma vez por hora. No seu servidor, quem chama é *você*, com o segredo. Só o tick já cobre tudo uma vez por hora; adicione a linha de cada minuto se quiser lembretes e Flow pontuais:
 
 ```bash
 # crontab -e
+* * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://zs.example.com/api/cron/minute > /dev/null
 17 * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://zs.example.com/api/cron/tick > /dev/null
 ```
 

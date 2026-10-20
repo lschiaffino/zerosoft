@@ -8,6 +8,7 @@ import CommandSearch from '@/components/app/CommandSearch';
 import TimezoneCookie from '@/components/app/TimezoneCookie';
 import { SupportIdentify } from '@/components/SupportWidget';
 import { supportWidgetId } from '@/lib/support';
+import { signVisitorIdentity } from '@/lib/chat-identity';
 import '@/styles/link.css';
 import '@/styles/crm.css';
 import '@/styles/crm-records.css';
@@ -57,6 +58,11 @@ export default async function AppLayout(
   const tAgents = await getTranslations({ locale, namespace: 'agents' });
   const tRobots = await getTranslations({ locale, namespace: 'robots' });
   const tasksDue = await countDueTasks(user.id);
+  // Widget de soporte: el email de la persona logueada va firmado (HMAC con el
+  // secreto del widget, calculado acá) para que el inbox lo marque verificado.
+  const supportId = DEMO_MODE ? null : supportWidgetId();
+  const supportEmail = user.actingUser?.email ?? user.email;
+  const supportUserHash = supportId ? await signVisitorIdentity(supportId, supportEmail) : null;
 
   return (
     <div className="app-frame">
@@ -235,10 +241,11 @@ export default async function AppLayout(
       </div>
       <CommandSearch />
       <TimezoneCookie />
-      {supportWidgetId() && !DEMO_MODE && (
+      {supportId && (
         <SupportIdentify
-          email={user.actingUser?.email ?? user.email}
+          email={supportEmail}
           name={user.actingUser?.name ?? user.name ?? null}
+          userHash={supportUserHash}
         />
       )}
     </div>

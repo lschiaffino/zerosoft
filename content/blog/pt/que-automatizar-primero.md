@@ -67,7 +67,7 @@ O corpo do email lista os nomes com dois filtros encadeados:
 
 O Filtro do meio importa mais do que parece: um resumo que chega vazio cinco dias seguidos ensina todo mundo a ignorá-lo.
 
-**O que quebra:** o horário. No zerosoft Cloud o agendador verifica uma vez por hora, então um flow das 09:00 pode começar até uma hora atrasado. Com self-host, segue a frequência do seu cron de `/api/cron`. Para um resumo diário, basta. Para algo que precisa sair num minuto exato, o Flow ainda não chega lá.
+**O que quebra:** o horário, menos do que antes. No zerosoft Cloud o agendador verifica a cada minuto, então um flow das 09:00 começa cerca de um minuto depois das 09:00. Com self-host, segue a frequência com que você chama `/api/cron/minute` ou `/api/cron/tick`: com o tick uma vez por hora, um flow pode começar até uma hora atrasado. Para um resumo diário, qualquer um dos dois basta. Para algo que precisa sair num segundo exato, o Flow não foi feito para isso.
 
 ## 4. Bug relatado no chat: issue no Track
 

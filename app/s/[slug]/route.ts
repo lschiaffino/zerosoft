@@ -41,7 +41,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   if (link.password_hash) {
     const token = req.cookies.get(gateCookieName(slug))?.value;
     if (!isValidGateToken(slug, link.password_hash, token)) {
-      return NextResponse.redirect(new URL(`/${locale}/gate/${slug}`, req.url));
+      return NextResponse.redirect(new URL(`/${locale}/gate/${slug}${req.nextUrl.search}`, req.url));
     }
   }
 

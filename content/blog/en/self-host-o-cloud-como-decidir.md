@@ -50,10 +50,11 @@ You'll need a Resend account and a sending domain verified with the DNS records 
 
 ### 4. The cron job
 
-Some work happens on a timer: Cal's reminders, webhook retries, and the CRM's `task_due` workflow trigger. All of it runs through one endpoint, `/api/cron/tick`. On our cloud, Vercel Cron calls it every hour. On your server, *you* call it, with the secret:
+Some work happens on a timer: Cal's reminders, Flow schedules and delays, webhook retries, sequences and the CRM's `task_due` workflow trigger. All of it runs through `/api/cron/tick`, and the time-sensitive part (Cal reminders and workflow steps, plus the Flow queue) also through `/api/cron/minute`. On our cloud, Vercel Cron calls the minute endpoint every minute and the tick once an hour. On your server, *you* call them, with the secret. The tick alone covers everything once an hour; add the minute line if you want reminders and Flow on time:
 
 ```bash
 # crontab -e
+* * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://zs.example.com/api/cron/minute > /dev/null
 17 * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://zs.example.com/api/cron/tick > /dev/null
 ```
 

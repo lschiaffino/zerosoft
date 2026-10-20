@@ -27,7 +27,7 @@ Começamos por aqui, porque é a parte que as comparações de fornecedor pulam.
 
 **Apps móveis.** O Calendly tem apps para iOS e Android. O Cal não. A página de agendamento e o painel funcionam no navegador do celular, mas não há app nativo.
 
-**Workflows e lembretes.** O Calendly permite montar sequências de lembretes e follow-ups, incluindo SMS nos planos pagos. O Cal envia a confirmação e os emails de remarcação ou cancelamento, e cada tipo de evento pode ter até 10 passos de workflow: um email para o convidado ou para o anfitrião, antes ou depois da reunião, com assunto e texto próprios. São só emails, sem SMS. No zerosoft Cloud os passos saem por um cron que roda uma vez por hora, então podem chegar até uma hora atrasados.
+**Workflows e lembretes.** O Calendly permite montar sequências de lembretes e follow-ups, incluindo SMS nos planos pagos. O Cal envia a confirmação e os emails de remarcação ou cancelamento, e cada tipo de evento pode ter até 10 passos de workflow: um email para o convidado ou para o anfitrião, antes ou depois da reunião, com assunto e texto próprios. São só emails, sem SMS. No zerosoft Cloud os passos saem por um cron que roda a cada minuto; com self-host, são tão pontuais quanto o cron que você configurar.
 
 **Tipos de reunião.** O Calendly suporta eventos coletivos (vários hosts na mesma call), eventos em grupo (muitos convidados num horário) e enquetes de horário. O Cal suporta eventos um a um, opcionalmente com um pool de hosts em [round-robin](/blog/round-robin-con-cal). Ainda não há eventos coletivos, em grupo nem enquetes.
 

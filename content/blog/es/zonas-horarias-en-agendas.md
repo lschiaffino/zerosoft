@@ -65,7 +65,7 @@ El cliente manda el instante elegido más la zona del invitado. El servidor no c
 
 Todo lo que recibe el invitado se arma en **su** zona horaria y **su** idioma. Los mails de confirmación, reprogramación y cancelación formatean la hora con `Intl.DateTimeFormat` usando `en-US`, `es-AR` o `pt-BR`, en la zona de la reserva, con el nombre de la zona al lado ("(America/Sao_Paulo)") para que no haya ambigüedad. El link de gestión también apunta al idioma del invitado.
 
-El recordatorio de 24 horas se programa como instante UTC (`inicio - 24h`) y lo manda el cron de `/api/cron/tick`, que corre cada hora, así que sale entre 24 y 23 horas antes de la reunión. Las reuniones reservadas con menos de 24 horas de anticipación no tienen recordatorio: la confirmación acaba de llegar.
+El recordatorio de 24 horas se programa como instante UTC (`inicio - 24h`) y lo manda el cron. En zerosoft Cloud, `/api/cron/minute` corre cada minuto, así que sale unas 24 horas antes de la reunión; un self-host que solo llama al `/api/cron/tick` de cada hora lo manda entre 24 y 23 horas antes. Las reuniones reservadas con menos de 24 horas de anticipación no tienen recordatorio: la confirmación acaba de llegar.
 
 El adjunto `.ics` esquiva el problema por completo: `DTSTART` y `DTEND` se escriben en UTC con una `Z` al final, tipo `20260910T120000Z`. No hay bloque `VTIMEZONE` que pueda salir mal. Gmail, Outlook y Apple Calendar convierten cada uno a la zona de su usuario. El `UID` es estable por reserva y `SEQUENCE` sube en cada cambio, así que una reprogramación actualiza el evento existente en vez de crear otro, y `METHOD:CANCEL` lo borra.
 

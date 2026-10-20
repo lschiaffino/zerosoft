@@ -39,6 +39,7 @@
     "saving": "Saving…",
     "unsaved": "Unsaved changes",
     "saveError": "Couldn't save. Retrying…",
+    "renameError": "Couldn't rename. Press Enter to try again.",
     "saved": "Saved",
     "conflict": "This board changed somewhere else.",
     "conflictBy": "{name} changed this board somewhere else.",

@@ -53,6 +53,28 @@ describe('boards: CRUD y aislamiento por workspace', () => {
     expect(await getBoard(owner.id, b.id)).toBeNull();
   });
 
+  it('renombrar marca updated_at y updated_by, no toca la versión y se puede volver al nombre anterior', async () => {
+    const owner = await makeUser('bren');
+    const mate = await makeUser('brenm');
+    const b = await createBoard(owner.id, owner.id, 'A');
+    const before = (await listBoards(owner.id)).find((x) => x.id === b.id)!.updated_at;
+    await new Promise((r) => setTimeout(r, 5));
+    session.user = { id: owner.id, email: owner.email, actingUser: { id: mate.id } };
+    const r1 = await boardRoute.PATCH(jsonReq('http://x', 'PATCH', { name: ' B ' }), ctx(b.id));
+    expect(r1.status).toBe(200);
+    expect(await r1.json()).toMatchObject({ ok: true, name: 'B' });
+    const after = (await listBoards(owner.id)).find((x) => x.id === b.id)!;
+    expect(after.name).toBe('B');
+    expect(after.updated_at > before).toBe(true);
+    expect(after.updated_by).toBe('brenm');
+    // A → B → A: el segundo rename también se guarda.
+    const r2 = await boardRoute.PATCH(jsonReq('http://x', 'PATCH', { name: 'A' }), ctx(b.id));
+    expect(r2.status).toBe(200);
+    const board = await getBoard(owner.id, b.id);
+    expect(board?.name).toBe('A');
+    expect(board?.version).toBe(1);
+  });
+
   it('otro workspace no ve ni edita; un miembro del team sí', async () => {
     const owner = await makeUser('ws1');
     const mate = await makeUser('mate');

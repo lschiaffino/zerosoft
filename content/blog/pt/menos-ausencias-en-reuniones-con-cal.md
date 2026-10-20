@@ -40,7 +40,7 @@ Sem configurar nada, cada tipo de evento manda ao convidado um lembrete 24 horas
 - Assunto e mensagem próprios, com variáveis: `{{guest.name}}`, `{{guest.email}}`, `{{host.name}}`, `{{event.title}}`, `{{start}}`, `{{link}}` e `{{manage}}`.
 - `{{start}}` sai no fuso horário de quem recebe. `{{link}}` é o link da videochamada ou o local.
 
-Se você adiciona passos, eles substituem o lembrete de 24 horas. Um detalhe prático: os lembretes saem de um processo que roda a cada hora, então podem chegar até uma hora atrasados. Um "15 minutos antes" não faz sentido; use 2 ou 3 horas.
+Se você adiciona passos, eles substituem o lembrete de 24 horas. Um detalhe prático: no zerosoft Cloud os lembretes e os passos saem de um processo que roda a cada minuto, então um passo de "15 minutos antes" chega na hora. Com self-host, depende de quantas vezes você chama o cron: chamando `/api/cron/minute` a cada minuto, a precisão é a mesma; se você só chama `/api/cron/tick` uma vez por hora, os passos podem chegar até uma hora atrasados, e é melhor usar 2 ou 3 horas antes.
 
 ### Modelos para copiar
 

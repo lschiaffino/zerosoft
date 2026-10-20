@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { listDocPageSummaries, parseBlocks, resolveDocAccess, slugifyTitle } from '@/lib/docs';
+import { parseBlocks, readableLinkTitles, resolveDocAccess, slugifyTitle } from '@/lib/docs';
 import { pageLinkHref, resolveBlocksPageLinks } from '@/lib/docs-page-links';
 import { blocksToMarkdown } from '@/lib/docs-markdown';
 import { docsError, notFound, unauthorized } from '@/lib/docs-http';
@@ -17,14 +17,13 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   if (format !== 'md') return docsError(400, 'invalid_format');
   const res = await resolveDocAccess(user, id);
   if (!res) return notFound();
-  // Links `[[` → links Markdown absolutos; con el título actual solo para el
-  // dueño (a un invitado no se le revelan títulos de otras páginas).
-  const titles =
-    res.access === 'owner'
-      ? new Map((await listDocPageSummaries(res.row.user_id)).map((p) => [p.id, p.title]))
-      : new Map<string, string>();
+  // Links `[[` → links Markdown absolutos con el título actual (una página
+  // renombrada no queda con el viejo). A un invitado solo se le resuelven los
+  // títulos de páginas que también puede abrir; el resto queda como se insertó.
+  const raw = parseBlocks(res.row.content);
+  const titles = await readableLinkTitles(user, res.row, raw);
   const origin = req.nextUrl.origin;
-  const blocks = resolveBlocksPageLinks(parseBlocks(res.row.content), (pageId) => ({
+  const blocks = resolveBlocksPageLinks(raw, (pageId) => ({
     href: `${origin}${pageLinkHref(pageId)}`,
     title: titles.get(pageId) ?? null,
   }));

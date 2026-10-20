@@ -67,7 +67,7 @@ El cuerpo del email lista los nombres con dos filtros encadenados:
 
 El Filtro del medio importa más de lo que parece: un resumen que llega vacío cinco días seguidos enseña a ignorarlo.
 
-**El detalle que se rompe:** la hora. En zerosoft Cloud el programador revisa una vez por hora, así que un flow de las 09:00 puede arrancar hasta una hora tarde. Si tenés self-host, sigue la frecuencia de tu cron de `/api/cron`. Para un resumen diario alcanza. Para algo que tiene que salir a una hora exacta, todavía no.
+**El detalle que se rompe:** la hora, menos que antes. En zerosoft Cloud el programador revisa cada minuto, así que un flow de las 09:00 arranca alrededor de un minuto después de las 09:00. Si tenés self-host, sigue la frecuencia con que llames a `/api/cron/minute` o `/api/cron/tick`: con el tick una vez por hora, un flow puede arrancar hasta una hora tarde. Para un resumen diario cualquiera de los dos alcanza. Para algo que tiene que salir en un segundo exacto, Flow no está pensado.
 
 ## 4. Bug reportado en el chat: issue en Track
 

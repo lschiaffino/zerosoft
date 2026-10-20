@@ -96,14 +96,15 @@ O Cal envia ao convidado um lembrete **24 horas antes** da reunião, no idioma d
 
 **O envio de emails.** O Cal envia emails pelo Resend. Configure `RESEND_API_KEY` e `EMAIL_FROM` (um endereço de um domínio verificado no Resend). Sem a chave, os emails são impressos no console do servidor em vez de enviados: prático em desenvolvimento, uma falha silenciosa em produção.
 
-**O cron.** Os lembretes ficam numa fila no banco e são enviados por um job periódico em `/api/cron/tick`, que também cuida das novas tentativas de webhooks. Na Vercel, o `vercel.json` incluído roda de hora em hora. Em outro lugar, agende você mesmo:
+**O cron.** Os lembretes ficam numa fila no banco e são enviados por um job periódico. Na Vercel, o `vercel.json` incluído chama `/api/cron/minute` a cada minuto (lembretes e passos de workflow do Cal, e o Flow) e `/api/cron/tick` uma vez por hora (que também envia lembretes, além das novas tentativas de webhooks e do resto do trabalho agendado). Em outro lugar, agende você mesmo. Os dois endpoints enviam lembretes; o de cada minuto é o que deixa eles pontuais:
 
 ```bash
-# crontab: every hour at :17
+# crontab: lembretes a cada minuto, o resto a cada hora aos :17
+* * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://cal.example.com/api/cron/minute
 17 * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://cal.example.com/api/cron/tick
 ```
 
-Em produção o endpoint se recusa a rodar sem `CRON_SECRET`, e exige o segredo como Bearer token. Como o job roda de hora em hora, o lembrete sai entre 24 e 23 horas antes da reunião. Se o envio falhar, ele não é marcado como enviado, então a próxima execução tenta de novo. Reservas canceladas descartam o lembrete pendente; as remarcadas ganham um novo. Reuniões marcadas com menos de 24 horas de antecedência não têm lembrete, porque a confirmação acabou de chegar.
+Em produção o endpoint se recusa a rodar sem `CRON_SECRET`, e exige o segredo como Bearer token. Com o cron de cada minuto, o lembrete sai cerca de 24 horas antes da reunião; se você só roda o tick de hora em hora, entre 24 e 23 horas antes. Se o envio falhar, ele não é marcado como enviado, então a próxima execução tenta de novo. Reservas canceladas descartam o lembrete pendente; as remarcadas ganham um novo. Reuniões marcadas com menos de 24 horas de antecedência não têm lembrete, porque a confirmação acabou de chegar.
 
 Se você quer outros horários (por exemplo, três horas antes), adicione passos de workflow no tipo de evento: eles substituem este lembrete e saem pelo mesmo cron. Ainda não há lembretes por SMS.
 

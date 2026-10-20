@@ -40,7 +40,7 @@ With nothing configured, every event type sends the guest a reminder 24 hours be
 - Its own subject and message, with variables: `{{guest.name}}`, `{{guest.email}}`, `{{host.name}}`, `{{event.title}}`, `{{start}}`, `{{link}}` and `{{manage}}`.
 - `{{start}}` is rendered in the recipient's time zone. `{{link}}` is the video call link or the location.
 
-Adding steps replaces the 24-hour reminder. A practical detail: reminders go out from a job that runs every hour, so they can arrive up to an hour late. A "15 minutes before" step makes no sense; use 2 or 3 hours.
+Adding steps replaces the 24-hour reminder. A practical detail: on zerosoft Cloud, reminders and steps go out from a job that runs every minute, so a "15 minutes before" step arrives on time. If you self-host, timing depends on how often you call the cron: calling `/api/cron/minute` every minute gives you the same precision; if you only call `/api/cron/tick` once an hour, steps can arrive up to an hour late, and 2 or 3 hours before is a safer choice.
 
 ### Templates to copy
 

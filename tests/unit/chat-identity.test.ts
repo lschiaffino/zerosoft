@@ -8,7 +8,12 @@ import {
   getOrCreateChatVisitor,
   updateChatVisitor,
 } from '@/lib/chat-data';
-import { rotateWidgetIdentitySecret, verifyVisitorIdentity, visitorIdentityHash } from '@/lib/chat-identity';
+import {
+  rotateWidgetIdentitySecret,
+  signVisitorIdentity,
+  verifyVisitorIdentity,
+  visitorIdentityHash,
+} from '@/lib/chat-identity';
 import { createContact, listTimeline } from '@/lib/crm';
 import { logChatToCrm } from '@/lib/crm-integrations';
 import { makeUser } from './helpers';
@@ -110,6 +115,28 @@ describe('Chat: identidad del visitante', () => {
     expect((await post({ visitorId: ext, body: 'hi', email: 'ceo@bigco.com', name: 'Ceo' })).status).toBe(201);
     expect((await post({ visitorId: ext, body: 'hi', email: 'ceo@bigco.com', userHash: hash })).status).toBe(201);
     expect(await row()).toMatchObject({ email: 'ana@acme.com', email_verified: 1 });
+  });
+
+  it('widget de soporte: la firma se hace en el server y el widget la acepta como verificada', async () => {
+    const { widget } = await setup('cid-sup');
+    // Sin secreto no hay firma (el widget sigue andando con identidad declarada).
+    expect(await signVisitorIdentity(widget.id, 'ana@acme.com')).toBeNull();
+    const secret = await rotateWidgetIdentitySecret(widget.id);
+    expect(await signVisitorIdentity(widget.id, null)).toBeNull();
+    expect(await signVisitorIdentity(widget.id, '  ')).toBeNull();
+    const hash = (await signVisitorIdentity(widget.id, ' Ana@Acme.com '))!;
+    expect(hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(hash).not.toContain(secret.slice(5));
+    expect(await verifyVisitorIdentity(widget.id, 'ana@acme.com', hash)).toBe(true);
+    const ext = `sup-${crypto.randomUUID()}`;
+    const res = await visitorMessages.POST(
+      jsonReq('http://t/api/chat/messages', 'POST', { widgetId: widget.id, visitorId: ext, body: 'hola', email: 'ana@acme.com', userHash: hash }),
+    );
+    expect(res.status).toBe(201);
+    const row = (await getDb()
+      .prepare('SELECT email_verified FROM chat_visitors WHERE widget_id = ? AND external_id = ?')
+      .get(widget.id, ext)) as { email_verified: number };
+    expect(row.email_verified).toBe(1);
   });
 
   it('CRM: un email sin verificar no se asocia solo a un contacto existente; con confirmación del agente, sí', async () => {

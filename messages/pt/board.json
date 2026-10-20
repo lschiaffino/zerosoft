@@ -39,6 +39,7 @@
     "saving": "Salvando…",
     "unsaved": "Alterações não salvas",
     "saveError": "Não foi possível salvar. Tentando de novo…",
+    "renameError": "Não foi possível renomear. Aperte Enter para tentar de novo.",
     "saved": "Salvo",
     "conflict": "Este quadro mudou em outro lugar.",
     "conflictBy": "{name} mudou este quadro em outro lugar.",

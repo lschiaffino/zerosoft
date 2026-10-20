@@ -27,7 +27,31 @@ export function forwardQueryParams(destination: string, incoming: URLSearchParam
   return u.toString();
 }
 
-export const UTM_KEYS = { source: 'utm_source', medium: 'utm_medium', campaign: 'utm_campaign' } as const;
+/**
+ * Query string ("?a=1&b=2" o '') para pasar por la puerta de contraseña: la
+ * visita llega a /gate con los params del link corto y vuelve a /<slug> con
+ * los mismos, así el redirect final los reenvía al destino (y ?qr=1 sigue
+ * contando el escaneo). Acepta los searchParams de una página de Next.
+ */
+export function gateQueryString(
+  params: URLSearchParams | Record<string, string | string[] | undefined> | null | undefined,
+): string {
+  if (!params) return '';
+  let out: URLSearchParams;
+  if (params instanceof URLSearchParams) {
+    out = new URLSearchParams(params);
+  } else {
+    out = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (!key || value === undefined) continue;
+      for (const v of Array.isArray(value) ? value : [value]) out.append(key, v);
+    }
+  }
+  const qs = out.toString();
+  return qs ? `?${qs}` : '';
+}
+
+export const UTM_KEYS ={ source: 'utm_source', medium: 'utm_medium', campaign: 'utm_campaign' } as const;
 export type UtmField = keyof typeof UTM_KEYS;
 export type UtmValues = Record<UtmField, string | null>;
 
