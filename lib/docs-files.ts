@@ -131,3 +131,12 @@ export function contentDisposition(name: string, inline: boolean): string {
   const ascii = clean.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
   return `${inline ? 'inline' : 'attachment'}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(clean)}`;
 }
+
+/**
+ * Dónde sube y desde dónde sirve los archivos el editor cuando no es una
+ * página de Docs (Notes usa sus propias rutas, con chequeo de dueño).
+ */
+export interface DocsFileSource {
+  uploadUrl: string;
+  href: (blockId: string, opts?: { download?: boolean }) => string;
+}

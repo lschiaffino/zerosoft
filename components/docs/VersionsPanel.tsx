@@ -19,11 +19,21 @@ export default function VersionsPanel({
   pageId,
   canEdit,
   onRestored,
+  apiBase,
+  fileHref,
+  showTitle = true,
 }: {
   pageId: string;
   canEdit: boolean;
   onRestored: () => void;
+  /** Base de las rutas de versiones (Notes: /api/notes/<id>). */
+  apiBase?: string;
+  /** URL de los archivos en la vista previa (Notes). */
+  fileHref?: (blockId: string, opts?: { download?: boolean }) => string;
+  /** false: el contenedor ya tiene su título (drawer de Notes). */
+  showTitle?: boolean;
 }) {
+  const base = apiBase ?? `/api/docs/pages/${pageId}`;
   const t = useTranslations('docs.versions');
   const locale = useLocale();
   const [rows, setRows] = useState<DocsVersionSummary[] | null>(null);
@@ -36,7 +46,7 @@ export default function VersionsPanel({
   const load = useCallback(async () => {
     setLoadError(false);
     try {
-      const res = await fetch(`/api/docs/pages/${pageId}/versions`);
+      const res = await fetch(`${base}/versions`);
       if (!res.ok) throw new Error(String(res.status));
       const data = (await res.json()) as { rows: DocsVersionSummary[] };
       setRows(data.rows);
@@ -45,7 +55,7 @@ export default function VersionsPanel({
       setLoadError(true);
       setRows((prev) => prev ?? []);
     }
-  }, [pageId]);
+  }, [base]);
 
   useEffect(() => {
     load();
@@ -54,7 +64,7 @@ export default function VersionsPanel({
   async function saveVersion() {
     setBusy(true);
     try {
-      const res = await fetch(`/api/docs/pages/${pageId}/versions`, { method: 'POST' });
+      const res = await fetch(`${base}/versions`, { method: 'POST' });
       if (res.ok) {
         setSaved(true);
         setTimeout(() => setSaved(false), 1500);
@@ -66,7 +76,7 @@ export default function VersionsPanel({
   }
 
   async function open(id: string) {
-    const res = await fetch(`/api/docs/pages/${pageId}/versions/${id}`);
+    const res = await fetch(`${base}/versions/${id}`);
     if (res.ok) setPreview((await res.json()) as VersionDetail);
   }
 
@@ -74,7 +84,7 @@ export default function VersionsPanel({
     if (!preview || !window.confirm(t('restoreConfirm'))) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/docs/pages/${pageId}/versions/${preview.id}/restore`, { method: 'POST' });
+      const res = await fetch(`${base}/versions/${preview.id}/restore`, { method: 'POST' });
       if (res.ok) {
         setPreview(null);
         await load();
@@ -106,7 +116,7 @@ export default function VersionsPanel({
         </p>
         <div className="docs-versions-preview">
           <h3 className="docs-versions-title">{preview.title || t('untitled')}</h3>
-          <DocsBlocksView blocks={preview.content} pageId={pageId} className="docs-prose" />
+          <DocsBlocksView blocks={preview.content} pageId={pageId} fileHref={fileHref} className="docs-prose" />
         </div>
       </div>
     );
@@ -115,7 +125,7 @@ export default function VersionsPanel({
   return (
     <div className="docs-versions">
       <div className="docs-versions-head">
-        <h2 className="docs-side-title">{t('title')}</h2>
+        {showTitle && <h2 className="docs-side-title">{t('title')}</h2>}
         {canEdit && (
           <button type="button" className="btn btn-secondary btn-sm" onClick={saveVersion} disabled={busy} aria-busy={busy || undefined}>
             {saved ? t('saved') : t('save')}

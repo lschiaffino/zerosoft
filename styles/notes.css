@@ -453,6 +453,51 @@
 .note-body-readonly { max-width: 768px; }
 .note-foot { padding: 0 48px 24px; font-size: 0.75rem; color: var(--brand-gray-2); }
 
+/* Links [[ ]]: "Enlazada desde" debajo del cuerpo (mismo trazo que Docs). */
+.note-backlinks { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 0 48px 12px; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.note-backlinks ul { display: flex; flex-wrap: wrap; gap: 2px 6px; margin: 0; padding: 0; list-style: none; }
+.note-backlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--ink) 28%, transparent);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.note-backlink:hover { background: var(--ui-hover); }
+.note-backlink svg { color: var(--brand-gray-2); flex-shrink: 0; }
+
+/* Recordatorio: fecha al lado de la campana; tachada cuando ya avisó. */
+.note-reminder-date { font-variant-numeric: tabular-nums; }
+.note-reminder-date.is-done { color: var(--brand-gray-2); text-decoration: line-through; }
+.note-reminder-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Ayuda de operadores de búsqueda. */
+.notes-search-help { width: min(320px, calc(100vw - 32px)); }
+.notes-search-help dl { display: flex; flex-direction: column; gap: 8px; margin: 0; }
+.notes-search-help dt { margin: 0; }
+.notes-search-help dd { margin: 2px 0 0; font-size: 0.8125rem; line-height: 1.4; color: var(--brand-gray-1); }
+.notes-search-op {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-data);
+  font-size: 0.8125rem;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.notes-history .docs-versions-head { padding-right: 0; }
+
 /* ---------- Vista de solo lectura (papelera, link público) ---------- */
 
 .note-view-title { margin-bottom: 16px; text-wrap: balance; }
@@ -472,6 +517,10 @@
 .note-view-todo { display: flex; gap: 8px; align-items: baseline; }
 .note-view-todo input { accent-color: var(--ink); }
 .note-view-todo.done span { color: var(--brand-gray-2); text-decoration: line-through; }
+.note-view-image { margin: 4px 0; }
+.note-view-image img { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.note-view-file { display: flex; align-items: baseline; gap: 8px; }
+.note-view-file-size { font-size: 0.75rem; color: var(--brand-gray-2); font-variant-numeric: tabular-nums; }
 .note-view-table { overflow-x: auto; }
 .note-view-table table { border-collapse: collapse; font-size: 0.8125rem; }
 .note-view-table td { border: 1px solid var(--line); padding: 6px 10px; }
@@ -618,7 +667,7 @@
   .notes-nav-menu .btn-icon { min-height: 40px; width: 40px; }
   .note-bar { padding: 8px 16px; flex-wrap: wrap; }
   .note-bar-label { display: none; }
-  .note-meta, .note-source, .note-foot { padding-left: 16px; padding-right: 16px; }
+  .note-meta, .note-source, .note-foot, .note-backlinks { padding-left: 16px; padding-right: 16px; }
   .note-body { padding: 12px 16px 24px; }
   .note-body .docs-title, .note-view-title { font-size: 1.875rem; }
 }

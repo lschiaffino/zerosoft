@@ -2,20 +2,22 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslations } from 'next-intl';
-import type { DocsPage } from '@/lib/docs-types';
+import type { PageLinkCandidate } from '@/lib/docs-page-links';
 import DocsGlyph from './DocsGlyphs';
 
 interface MentionPopoverProps {
   query: string;
   /** Posición fija (viewport) calculada por el editor a partir del caret. */
   style?: CSSProperties;
-  onSelect: (page: DocsPage) => void;
+  onSelect: (page: PageLinkCandidate) => void;
   onClose: () => void;
+  /** Buscador propio (Notes busca notas); sin esto, páginas de Docs. */
+  search?: (query: string) => Promise<PageLinkCandidate[]>;
 }
 
-export default function MentionPopover({ query, style, onSelect, onClose }: MentionPopoverProps) {
+export default function MentionPopover({ query, style, onSelect, onClose, search }: MentionPopoverProps) {
   const t = useTranslations('docs');
-  const [pages, setPages] = useState<DocsPage[]>([]);
+  const [pages, setPages] = useState<PageLinkCandidate[]>([]);
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -25,13 +27,21 @@ export default function MentionPopover({ query, style, onSelect, onClose }: Ment
       setPages([]);
       return;
     }
+    let alive = true;
     setLoading(true);
-    fetch(`/api/docs/search?q=${encodeURIComponent(query)}`)
-      .then((r) => r.json())
-      .then((data) => setPages(data.rows ?? []))
-      .catch(() => setPages([]))
-      .finally(() => setLoading(false));
-  }, [query]);
+    const run = search
+      ? search(query)
+      : fetch(`/api/docs/search?q=${encodeURIComponent(query)}`)
+          .then((r) => r.json())
+          .then((data: { rows?: PageLinkCandidate[] }) => data.rows ?? []);
+    run
+      .then((rows) => alive && setPages(rows))
+      .catch(() => alive && setPages([]))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [query, search]);
 
   // Nueva query: la selección vuelve al primer resultado.
   useEffect(() => {

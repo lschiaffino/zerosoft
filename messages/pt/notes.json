@@ -139,5 +139,84 @@
   "public": {
     "notFound": "Nota não encontrada",
     "updated": "Atualizada em {date}"
+  },
+  "reminder": {
+    "button": "Adicionar lembrete",
+    "buttonSet": "Lembrete: {date}",
+    "title": "Lembrar-me",
+    "hint": "Nesse horário você recebe uma notificação aqui e um email.",
+    "presets": {
+      "laterToday": "Mais tarde hoje",
+      "tomorrow": "Amanhã 9:00",
+      "nextWeek": "Segunda 9:00"
+    },
+    "custom": "Data e hora",
+    "save": "Definir",
+    "remove": "Remover lembrete",
+    "inPast": "Escolha um horário no futuro.",
+    "invalid": "Essa data não funciona. Tente outra."
+  },
+  "reminderEmail": {
+    "subject": "Lembrete: {title}",
+    "heading": "Lembrete",
+    "body": "Você pediu para lembrar de \"{title}\" em {when}.",
+    "open": "Abrir a nota",
+    "why": "Você recebe isto porque colocou um lembrete nesta nota do zerosoft Notes.",
+    "notification": "Lembrete: {title}",
+    "untitled": "Sem título"
+  },
+  "history": {
+    "open": "Histórico de versões",
+    "title": "Histórico de versões",
+    "close": "Fechar"
+  },
+  "export": {
+    "markdown": "Exportar como Markdown"
+  },
+  "import": {
+    "button": "Importar notas",
+    "hint": "Arquivos do Evernote (.enex) ou Markdown (.md), até 10 MB cada",
+    "importing": "Importando…",
+    "done": "{count, plural, =0 {Nenhuma nota importada} one {# nota importada} other {# notas importadas}}",
+    "partial": "{count, plural, one {# nota importada} other {# notas importadas}}. {failed, plural, one {# arquivo não pôde ser lido} other {# arquivos não puderam ser lidos}}.",
+    "noneImported": "{failed, plural, one {O arquivo não pôde ser lido} other {Os arquivos não puderam ser lidos}}. Use arquivos .enex ou .md de até 10 MB.",
+    "failed": "Não foi possível importar. Tente de novo."
+  },
+  "links": {
+    "linkedFrom": "Vinculada a partir de"
+  },
+  "searchHelp": {
+    "button": "Operadores de busca",
+    "title": "Operadores de busca",
+    "items": {
+      "tag": {
+        "syntax": "tag:",
+        "desc": "Notas com essa tag. Com * no final busca por prefixo."
+      },
+      "notTag": {
+        "syntax": "-tag:",
+        "desc": "Notas sem essa tag."
+      },
+      "notebook": {
+        "syntax": "notebook:",
+        "desc": "Notas desse caderno. Use aspas se o nome tiver espaços."
+      },
+      "intitle": {
+        "syntax": "intitle:",
+        "desc": "Uma palavra no título."
+      },
+      "created": {
+        "syntax": "created:",
+        "desc": "Criadas desde uma data: 20260131, today, day-7, week, month-1."
+      },
+      "updated": {
+        "syntax": "updated:",
+        "desc": "Editadas desde uma data, nos mesmos formatos."
+      },
+      "todo": {
+        "syntax": "todo:",
+        "desc": "true para tarefas feitas, false para pendentes, * para qualquer."
+      }
+    }
   }
 }

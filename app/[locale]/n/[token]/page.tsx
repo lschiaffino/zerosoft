@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { getSharedNote } from '@/lib/notes';
 import NoteBlocksView from '@/components/notes/NoteBlocksView';
+import { noteFileHref } from '@/lib/notes-types';
 import '@/styles/notes.css';
 
 export const dynamic = 'force-dynamic';
@@ -41,7 +42,10 @@ export default async function SharedNotePage(props: Props) {
             </a>
           </p>
         )}
-        <NoteBlocksView blocks={note.content} />
+        <NoteBlocksView
+          blocks={note.content}
+          fileHref={(blockId, opts) => noteFileHref(note.id, blockId, { ...opts, share: token })}
+        />
       </article>
     </main>
   );

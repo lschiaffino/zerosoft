@@ -11,6 +11,7 @@ import { syncDueMailboxes } from '@/lib/crm-email-sync';
 import { processSequences } from '@/lib/crm-sequences';
 import { runNightlyScoring } from '@/lib/crm-scoring';
 import { sendOfflineReplyEmails } from '@/lib/chat-offline-email';
+import { fireNoteReminders } from '@/lib/notes-reminders';
 import { importResearchIdeas, researchIdeaSchema } from '@/lib/roadmap';
 import researchIdeas from '@/research/ideas.json';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
@@ -49,6 +50,8 @@ export async function GET(req: NextRequest) {
   const dueTasks = await fireDueTasks();
   // Respuestas de Chat sin leer → email al visitante (también cada minuto en Vercel).
   const chatEmails = await sendOfflineReplyEmails({ limit: 200 }).catch(() => null);
+  // Recordatorios de Notes (también cada minuto en Vercel; claim por fila).
+  const noteReminders = await fireNoteReminders({ limit: 500 }).catch(() => null);
   // Papelera del CRM: lo borrado hace más de 90 días se descarta para siempre.
   const trashPurged = await purgeExpiredTrash().catch(() => null);
   // Flow: corridas y pasos más viejos que la retención del workspace (lotes acotados).
@@ -78,5 +81,5 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, trashPurged, flowPruned, flow, emailSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, trashPurged, flowPruned, flow, emailSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
 }
