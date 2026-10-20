@@ -13,6 +13,7 @@
  *
  * Los avisos van en `errors` con el prefijo "Row N:" igual que los errores.
  */
+import { coerceCustomFieldValue } from './crm-custom-fields';
 import { CrmRefError } from './crm-refs';
 import { setParentCompany } from './crm-assoc';
 import { getCrmSettings } from './crm-currency';
@@ -357,6 +358,31 @@ export function coerceCustom(
         else out[name] = opt;
         break;
       }
+      case 'currency': {
+        const n = parseAmount(v);
+        if (n === null) bad();
+        else out[name] = n;
+        break;
+      }
+      case 'multiselect':
+      case 'url':
+      case 'phone': {
+        // Multiselección: "A, B" sin importar mayúsculas contra las opciones.
+        const value =
+          def.type === 'multiselect'
+            ? v
+                .split(/[,;]/)
+                .map((x) => parseOptions(def.options).find((o) => o.toLowerCase() === x.trim().toLowerCase()) ?? x.trim())
+            : v;
+        const coerced = coerceCustomFieldValue(def, value);
+        if (coerced === undefined || coerced === null) bad();
+        else out[name] = coerced;
+        break;
+      }
+      case 'user':
+        // Se importa el id tal cual: no hay un mapeo confiable de nombres a personas.
+        out[name] = v.slice(0, 64);
+        break;
       default:
         out[name] = v.slice(0, 500);
     }

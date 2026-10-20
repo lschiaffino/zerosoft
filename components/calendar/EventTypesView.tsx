@@ -16,6 +16,10 @@ export interface EventTypeListItem {
   durationMin: number;
   color: string;
   active: boolean;
+  /** Reunión única (horarios elegidos a mano). */
+  oneOff?: boolean;
+  /** Link de un solo uso ya reservado. */
+  used?: boolean;
 }
 
 interface EventTypesViewProps {
@@ -41,11 +45,12 @@ export default function EventTypesView({ items, handle, bookBase, openNew, limit
   const router = useRouter();
   const [rows, setRows] = useState(items);
   const [modalOpen, setModalOpen] = useState(!!openNew);
+  const [oneOffOpen, setOneOffOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; id?: string; tone?: 'error' } | null>(null);
 
   useEffect(() => setRows(items), [items]);
-  useKeyShortcut('c', () => setModalOpen(true), !modalOpen);
+  useKeyShortcut('c', () => setModalOpen(true), !modalOpen && !oneOffOpen);
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(null), 6000);
@@ -55,8 +60,13 @@ export default function EventTypesView({ items, handle, bookBase, openNew, limit
   // Botones de "Crear" de la página (cabecera, estado vacío) abren el mismo modal.
   useEffect(() => {
     const open = () => setModalOpen(true);
+    const openOneOff = () => setOneOffOpen(true);
     window.addEventListener('zs-cal:new-event-type', open);
-    return () => window.removeEventListener('zs-cal:new-event-type', open);
+    window.addEventListener('zs-cal:new-one-off', openOneOff);
+    return () => {
+      window.removeEventListener('zs-cal:new-event-type', open);
+      window.removeEventListener('zs-cal:new-one-off', openOneOff);
+    };
   }, []);
 
   const publicUrl = (slug: string) => `${bookBase}/${handle}/${slug}`;
@@ -123,6 +133,8 @@ export default function EventTypesView({ items, handle, bookBase, openNew, limit
                     /{handle}/{et.slug}
                   </span>
                   {!et.active && <span className="badge">{t('eventTypes.inactive')}</span>}
+                  {et.oneOff && <span className="badge badge-outline">{t('oneOff.badge')}</span>}
+                  {et.oneOff && et.used && <span className="badge">{t('oneOff.booked')}</span>}
                 </span>
               </Link>
               <div className="cal-row-actions">
@@ -183,6 +195,8 @@ export default function EventTypesView({ items, handle, bookBase, openNew, limit
         </div>
       )}
 
+      <NewOneOffModal open={oneOffOpen} onClose={() => setOneOffOpen(false)} />
+
       <NewEventTypeModal
         open={modalOpen}
         onClose={() => {
@@ -215,6 +229,147 @@ export function NewEventTypeButton() {
         C
       </span>
     </button>
+  );
+}
+
+/** Botón "Reunión única" de la cabecera: abre el alta de una reunión con horarios elegidos a mano. */
+export function NewOneOffButton() {
+  const t = useTranslations('calendar');
+  return (
+    <button type="button" className="btn" onClick={() => window.dispatchEvent(new Event('zs-cal:new-one-off'))}>
+      {t('oneOff.newCta')}
+    </button>
+  );
+}
+
+function isFuture(d: Date): boolean {
+  return !Number.isNaN(d.getTime()) && d.getTime() > Date.now();
+}
+
+/** datetime-local (hora del navegador) de mañana a las 10 más `hours`. */
+function defaultOneOffTime(hours: number): string {
+  const d = new Date(Date.now() + 86_400_000);
+  d.setHours(10 + hours, 0, 0, 0);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/**
+ * Alta de una reunión única: título, duración y los horarios a ofrecer
+ * (fuera del horario semanal). El link es de un solo uso: al reservarse uno,
+ * el resto se libera. Al crearla se abre su pestaña "Compartir".
+ */
+function NewOneOffModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useTranslations('calendar');
+  const router = useRouter();
+  const [title, setTitle] = useState('');
+  const [duration, setDuration] = useState(30);
+  const [location, setLocation] = useState('');
+  const [times, setTimes] = useState<string[]>(() => [defaultOneOffTime(0), defaultOneOffTime(1)]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const valid = times.map((v) => new Date(v)).filter(isFuture);
+
+  async function submit() {
+    if (!title.trim() || valid.length === 0) return;
+    setBusy(true);
+    setError(null);
+    const slug = `${slugify(title) || 'meeting'}-${crypto.randomUUID().slice(0, 6)}`;
+    const res = await fetch('/api/calendar/event-types', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        title: title.trim(),
+        slug,
+        durationMin: duration,
+        location: location.trim() || undefined,
+        active: true,
+        oneOffTimes: valid.map((d) => d.toISOString()),
+      }),
+    }).catch(() => null);
+    setBusy(false);
+    if (res && res.status === 201) {
+      const et = (await res.json()) as { id: string };
+      onClose();
+      router.push(`/app/calendar/event-types/${et.id}?tab=share`);
+      return;
+    }
+    setError(t('errors.generic'));
+  }
+
+  return (
+    <QuickModal
+      open={open}
+      onClose={onClose}
+      crumb={t('oneOff.crumb')}
+      showCrumb={false}
+      onSubmit={submit}
+      submitLabel={t('oneOff.create')}
+      cancelLabel={t('common.cancel')}
+      submitDisabled={!title.trim() || valid.length === 0}
+      busy={busy}
+      error={error}
+    >
+      <input
+        className="qm-title"
+        data-autofocus
+        value={title}
+        maxLength={120}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder={t('oneOff.titlePlaceholder')}
+        aria-label={t('form.title')}
+      />
+      <div className="qm-field">
+        <span id="cal-oo-duration">{t('quick.duration')}</span>
+        <div className="btn-group cal-durations" role="radiogroup" aria-labelledby="cal-oo-duration">
+          {DURATIONS.map((d) => (
+            <button key={d} type="button" role="radio" aria-checked={duration === d} className="btn btn-sm" onClick={() => setDuration(d)}>
+              {d} min
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="qm-field">
+        <span>{t('quick.location')}</span>
+        <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t('form.locationPlaceholder')} />
+      </label>
+      <div className="qm-field">
+        <span>{t('oneOff.timesTitle')}</span>
+        <ul className="cal-oneoff-list">
+          {times.map((v, i) => (
+            <li key={i} className="cal-oneoff-row">
+              <input
+                className="input data"
+                type="datetime-local"
+                value={v}
+                aria-label={t('oneOff.timeN', { n: i + 1 })}
+                aria-invalid={v && !isFuture(new Date(v)) ? true : undefined}
+                onChange={(e) => setTimes((prev) => prev.map((x, k) => (k === i ? e.target.value : x)))}
+              />
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon btn-sm"
+                aria-label={t('oneOff.removeTime', { n: i + 1 })}
+                onClick={() => setTimes((prev) => prev.filter((_, k) => k !== i))}
+              >
+                <CalIcon name="trash" />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          disabled={times.length >= 30}
+          onClick={() => setTimes((prev) => [...prev, defaultOneOffTime(prev.length)])}
+        >
+          <CalIcon name="plus" />
+          {t('oneOff.addTime')}
+        </button>
+      </div>
+      <p className="cal-qm-note">{t('oneOff.note')}</p>
+    </QuickModal>
   );
 }
 

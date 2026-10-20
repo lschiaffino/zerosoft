@@ -85,13 +85,26 @@ export function wantsGoogleMeet(location: string | null | undefined): boolean {
   return l === '' || l === 'google meet' || l === 'google_meet' || l === 'https://meet.google.com/new';
 }
 
+/** Invitados extra de la reserva (JSON de emails; vacío si falta o está roto). */
+function guestEmails(json: string | undefined): string[] {
+  try {
+    const list: unknown = JSON.parse(json || '[]');
+    return Array.isArray(list) ? list.filter((g): g is string => typeof g === 'string' && g.includes('@')) : [];
+  } catch {
+    return [];
+  }
+}
+
 function eventBody(booking: CalendarBookingRow, eventType: CalendarEventTypeRow, withMeet: boolean) {
   return {
     summary: `${eventType.title} — ${booking.invitee_name}`,
     description: `Booked with zerosoft Cal.\n${booking.invitee_name} <${booking.invitee_email}>`,
     start: { dateTime: booking.starts_at, timeZone: 'UTC' },
     end: { dateTime: booking.ends_at, timeZone: 'UTC' },
-    attendees: [{ email: booking.invitee_email, displayName: booking.invitee_name }],
+    attendees: [
+      { email: booking.invitee_email, displayName: booking.invitee_name },
+      ...guestEmails(booking.guests).map((email) => ({ email, optional: true })),
+    ],
     ...(wantsGoogleMeet(eventType.location) ? {} : { location: eventType.location }),
     ...(withMeet
       ? { conferenceData: { createRequest: { requestId: booking.id, conferenceSolutionKey: { type: 'hangoutsMeet' } } } }

@@ -223,6 +223,21 @@ export interface CrmTaskFileRow {
   created_at: string;
 }
 
+/** Archivo adjunto a un contacto, empresa o deal (057). */
+export interface CrmRecordFileRow {
+  id: string;
+  user_id: string;
+  contact_id: string | null;
+  company_id: string | null;
+  deal_id: string | null;
+  filename: string;
+  content_type: string;
+  size: number;
+  url: string;
+  uploaded_by: string;
+  created_at: string;
+}
+
 export interface CrmPropertyEventRow {
   id: string;
   user_id: string;
@@ -251,10 +266,16 @@ export interface CrmCustomFieldRow {
   entity: string;
   name: string;
   label: string;
-  type: 'text' | 'number' | 'date' | 'select' | 'boolean';
-  options: string; // JSON string[]
+  type: CrmCustomFieldType;
+  /** JSON string[]: opciones (select, multiselect) o [moneda ISO] (currency). */
+  options: string;
   position: number;
 }
+
+export const CRM_CUSTOM_FIELD_TYPES = [
+  'text', 'number', 'date', 'select', 'boolean', 'multiselect', 'url', 'phone', 'currency', 'user',
+] as const;
+export type CrmCustomFieldType = (typeof CRM_CUSTOM_FIELD_TYPES)[number];
 
 export interface CrmSavedViewRow {
   id: string;
@@ -711,6 +732,8 @@ export interface CalendarEventTypeRow {
   /** Precio en centavos (0 = gratis) y moneda ISO en minúsculas (027_cal_payments). */
   price_cents: number;
   currency: string;
+  /** Reunión única: JSON de inicios ISO elegidos a mano (057). NULL = evento normal. */
+  one_off_times: string | null;
 }
 
 export interface CalendarScheduleRow {
@@ -808,6 +831,8 @@ export interface CalendarBookingRow {
   utm: string;
   /** Confirmación del anfitrión: none | pending | approved | declined (050). */
   approval: 'none' | 'pending' | 'approved' | 'declined';
+  /** Invitados extra del invitado principal, JSON string[] de emails (057). */
+  guests: string;
 }
 
 export interface CalendarEventHostRow {

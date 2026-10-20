@@ -11,6 +11,7 @@ import {
   listCustomFields,
 } from '@/lib/crm';
 import ContactForm, { type CustomFieldDef } from '@/components/crm/ContactForm';
+import { listMembers } from '@/lib/teams';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,11 +49,16 @@ export default async function NewContactPage(
     name: c.name,
   }));
 
+  const members = user.team?.id
+    ? await listMembers(user.team.id)
+    : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
+  const people = members.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
   const customFields: CustomFieldDef[] = (await listCustomFields(user.id, 'contacts')).map((f) => ({
     name: f.name,
     label: f.label,
     type: f.type,
     options: parseOptions(f.options),
+    ...(f.type === 'user' ? { choices: people } : {}),
   }));
 
   const defaultCompanyId =

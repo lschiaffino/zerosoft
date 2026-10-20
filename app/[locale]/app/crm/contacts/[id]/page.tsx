@@ -22,6 +22,8 @@ import {
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
+import FilesPanel from '@/components/crm/FilesPanel';
+import { listRecordFiles, toView, withActivityFiles } from '@/lib/crm-files';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
 import ContactAddDeal from '@/components/crm/ContactAddDeal';
 import AssociationPanel from '@/components/crm/AssociationPanel';
@@ -221,7 +223,8 @@ export default async function ContactDetailPage(props: {
       getEmailSettings(user.id),
       nextTaskFor(user.id, { contactId: id }),
     ]);
-    const timelineItems = mergeTimelineWithThreads(timeline, threads);
+    const timelineItems = await withActivityFiles(mergeTimelineWithThreads(timeline, threads));
+    const recordFiles = (await listRecordFiles(user.id, 'contact', contact.id)).map(toView);
     return (
       <div className="ui-page record-page">
         {header}
@@ -237,6 +240,7 @@ export default async function ContactDetailPage(props: {
                 recordId={contact.id}
                 items={timelineItems}
                 emptyLabel={t('contacts.detail.emptyTimeline')}
+                mentionables={teamMembers.map((m) => ({ id: m.user_id, name: m.name, email: m.email }))}
                 locale={locale}
                 defaultEmail={contact.email}
                 emailTools={{
@@ -324,6 +328,12 @@ export default async function ContactDetailPage(props: {
               <Link href={recordTabHref(base, 'related')} className="record-summary-more">
                 {t('record.manageRelated')}
               </Link>
+              <div className="record-summary-block">
+                <h2 className="record-summary-title">
+                  {t('files.title')} <span className="num">{recordFiles.length}</span>
+                </h2>
+                <FilesPanel endpoint={`/api/crm/contacts/${contact.id}/files`} files={recordFiles} />
+              </div>
             </aside>
           </div>
         </RecordTabs>
@@ -339,7 +349,12 @@ export default async function ContactDetailPage(props: {
     ]);
     const companies = companiesPage.rows;
     const custom = parseCustom(contact.custom);
-    const customFields = customPropFields(customFieldDefs, custom, { yes: t('common.yes'), no: t('common.no') });
+    const customFields = customPropFields(customFieldDefs, custom, {
+      yes: t('common.yes'),
+      no: t('common.no'),
+      locale,
+      owners: ownerOptions,
+    });
     const scoreBreakdown = parseScoreBreakdown(contact.score_breakdown);
     const fields: PropField[] = [
       { key: 'firstName', label: t('contacts.form.firstName'), type: 'text', value: contact.first_name },

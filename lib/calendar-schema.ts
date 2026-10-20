@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import { MAX_PERIOD_LIMIT, SLOT_INTERVAL_MAX, SLOT_INTERVAL_MIN } from './calendar-limits';
 import { isValidRedirectUrl } from './calendar-redirect';
+import { guestLimit, isValidPhone, MAX_GUESTS, MAX_QUESTION_OPTIONS, OPTION_QUESTION_TYPES, QUESTION_TYPES } from './calendar-questions';
 
 // ---------- Primitivas ----------
 
@@ -37,6 +38,9 @@ const email = z
 
 const bookingStatus = z.enum(['confirmed', 'cancelled', 'no_show']);
 
+/** Horarios que puede ofrecer una reunión única. */
+export const MAX_ONE_OFF_TIMES = 30;
+
 const periodLimit = z.number().int().min(1).max(MAX_PERIOD_LIMIT).optional();
 /** Topes de reuniones por día, semana y mes (en la zona del horario del evento). */
 const periodLimits = z.object({ day: periodLimit, week: periodLimit, month: periodLimit });
@@ -48,6 +52,8 @@ const bookingRules = z
     minNoticeHours: z.number().int().min(0).optional(),
     maxFutureDays: z.number().int().min(1).optional(),
     allowGuests: z.boolean().optional(),
+    /** Con allowGuests: cuántos invitados extra puede sumar (sin el campo: MAX_GUESTS). */
+    maxGuests: z.number().int().min(1).max(MAX_GUESTS).optional(),
     /** Cada cuánto se ofrece un inicio (sin el campo: la duración). */
     slotIntervalMin: z.number().int().min(SLOT_INTERVAL_MIN).max(SLOT_INTERVAL_MAX).optional(),
     /** Topes del tipo de evento (todas sus reservas) y de cada host (las suyas de este evento). */
@@ -66,13 +72,16 @@ const bookingRules = z
   })
   .optional();
 
-const customField = z.object({
-  name: z.string().trim().min(1).max(64).regex(/^[a-z][a-z0-9_]*$/),
-  label: shortText,
-  type: z.enum(['text', 'number', 'boolean']),
-  required: z.boolean().optional(),
-});
-
+/** Pregunta de la página de reserva (tipos en lib/calendar-questions.ts). */
+const customField = z
+  .object({
+    name: z.string().trim().min(1).max(64).regex(/^[a-z][a-z0-9_]*$/),
+    label: shortText,
+    type: z.enum(QUESTION_TYPES),
+    required: z.boolean().optional(),
+    options: z.array(z.string().trim().min(1).max(200)).max(MAX_QUESTION_OPTIONS).optional(),
+  })
+  .refine((f) => !OPTION_QUESTION_TYPES.has(f.type) || (f.options?.length ?? 0) > 0, { message: 'missing_options' });
 const logoUrl = z
   .string()
   .trim()
@@ -134,6 +143,22 @@ export const eventTypeCreateSchema = z.object({
   scheduleId: id.nullish(),
   priceCents: z.number().int().min(0).max(100_000_000).optional(),
   currency: z.enum(['usd', 'eur', 'ars', 'brl', 'mxn', 'clp', 'cop', 'gbp']).optional(),
+  /**
+   * Reunión única: los inicios ofrecidos, elegidos a mano (fuera del horario
+   * semanal). Con la lista el evento queda de un solo uso. null = evento normal.
+   */
+  oneOffTimes: z
+    .array(
+      z
+        .string()
+        .trim()
+        .min(1)
+        .refine((v) => !Number.isNaN(new Date(v).getTime()), { message: 'invalid_date' })
+        .transform((v) => new Date(v).toISOString()),
+    )
+    .min(1)
+    .max(MAX_ONE_OFF_TIMES)
+    .nullish(),
 });
 
 export const eventTypeUpdateSchema = eventTypeCreateSchema.partial();
@@ -191,19 +216,24 @@ export const bookingCreateSchema = z.object({
   locale: z.enum(['en', 'es', 'pt']).optional(),
   /** utm_* de la URL de la página de reserva (se limpian con sanitizeUtm). */
   utm: z.record(z.unknown()).optional(),
+  /** Invitados extra (emails): solo si el evento los permite (validateGuests). */
+  guests: z.array(email).max(MAX_GUESTS).optional(),
 });
 
 const ANSWER_MAX = 2000;
 
+export type BookingAnswer = string | number | boolean | string[];
+
 /**
  * Valida las respuestas de una reserva contra los campos del tipo de evento:
- * solo claves definidas, tipo según el campo, textos de hasta 2000 caracteres
- * y los requeridos completos. Devuelve las respuestas normalizadas o null.
+ * solo claves definidas, tipo según el campo, textos de hasta 2000 caracteres,
+ * opciones que existen y los requeridos completos. Devuelve las respuestas
+ * normalizadas o null.
  */
 export function validateBookingAnswers(
   fields: Array<Record<string, unknown>>,
   answers: Record<string, unknown> | undefined,
-): Record<string, string | number | boolean> | null {
+): Record<string, BookingAnswer> | null {
   const input = answers ?? {};
   const defs = new Map<string, z.infer<typeof customField>>();
   for (const f of fields) {
@@ -212,13 +242,15 @@ export function validateBookingAnswers(
   }
   for (const key of Object.keys(input)) if (!defs.has(key)) return null;
 
-  const out: Record<string, string | number | boolean> = {};
+  const out: Record<string, BookingAnswer> = {};
   for (const field of defs.values()) {
     const raw = input[field.name];
-    if (raw === undefined || raw === null || raw === '') {
+    const empty = raw === undefined || raw === null || raw === '' || (Array.isArray(raw) && raw.length === 0);
+    if (empty) {
       if (field.required) return null;
       continue;
     }
+    const options = field.options ?? [];
     if (field.type === 'boolean') {
       if (typeof raw !== 'boolean') return null;
       if (field.required && !raw) return null;
@@ -227,18 +259,52 @@ export function validateBookingAnswers(
       const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN;
       if (!Number.isFinite(n)) return null;
       out[field.name] = n;
+    } else if (field.type === 'checkbox') {
+      // Varias opciones: una lista sin repetidos, todas de las definidas.
+      if (!Array.isArray(raw) || raw.some((v) => typeof v !== 'string' || !options.includes(v))) return null;
+      out[field.name] = options.filter((o) => (raw as string[]).includes(o));
+    } else if (field.type === 'select' || field.type === 'radio') {
+      if (typeof raw !== 'string' || !options.includes(raw)) return null;
+      out[field.name] = raw;
     } else {
       if (typeof raw !== 'string' || raw.length > ANSWER_MAX) return null;
-      const text = raw.trim();
+      // Una línea: los saltos se vuelven espacios. Varias líneas: se conservan.
+      const text = (field.type === 'textarea' ? raw.replace(/\r\n?/g, '\n') : raw.replace(/[\r\n]+/g, ' ')).trim();
       if (!text) {
         if (field.required) return null;
         continue;
       }
+      if (field.type === 'phone' && !isValidPhone(text)) return null;
       out[field.name] = text;
     }
   }
   return out;
 }
+
+/**
+ * Invitados extra de una reserva: el evento tiene que permitirlos y no pasar
+ * su tope. Se normalizan a minúsculas, sin repetidos y sin el email del
+ * invitado principal. null = no permitido (o demasiados).
+ */
+export function validateGuests(
+  rules: Record<string, unknown> | null | undefined,
+  guests: string[] | undefined,
+  inviteeEmail: string,
+): string[] | null {
+  const list = guests ?? [];
+  if (list.length === 0) return [];
+  if (rules?.allowGuests !== true) return null;
+  const max = guestLimit(rules);
+  const self = inviteeEmail.trim().toLowerCase();
+  const out: string[] = [];
+  for (const g of list) {
+    const v = g.trim().toLowerCase();
+    if (!v || v === self || out.includes(v)) continue;
+    out.push(v);
+  }
+  return out.length > max ? null : out;
+}
+
 
 /** Acciones del invitado desde su link de gestión. */
 export const bookingManageSchema = z.discriminatedUnion('action', [

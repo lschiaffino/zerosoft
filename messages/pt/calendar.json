@@ -5,7 +5,8 @@
     "bookings": "Reservas",
     "routing": "Roteamento",
     "availability": "Disponibilidade",
-    "settings": "Configurações"
+    "settings": "Configurações",
+    "analytics": "Análises"
   },
   "common": {
     "viewAll": "Ver tudo",
@@ -184,7 +185,15 @@
     "requestedTitle": "Solicitação enviada",
     "requestedSub": "O anfitrião precisa confirmar este horário. Enviamos um email e você vai receber outro quando ele responder.",
     "withdrawLink": "Retirar a solicitação",
-    "continue": "Continuar"
+    "continue": "Continuar",
+    "choose": "Escolha uma opção",
+    "phoneInvalid": "Digite um telefone de 6 a 20 dígitos.",
+    "addGuests": "Adicionar convidados",
+    "guests": "Convidados",
+    "guestN": "Email do convidado {n}",
+    "removeGuest": "Remover o convidado {n}",
+    "addAnotherGuest": "Adicionar outro convidado",
+    "guestsHelp": "Eles recebem o convite por email. Até {max}."
   },
   "routing": {
     "title": "Formulários de roteamento",
@@ -279,7 +288,8 @@
     "invalid_price": "O Stripe não consegue cobrar esse preço nessa moeda.",
     "not_started": "Esta reunião ainda não começou.",
     "status_changed": "A reserva mudou nesse meio-tempo. Recarregue e tente de novo.",
-    "confirmation_paid": "A confirmação do anfitrião e um preço não combinam. Remova o preço ou desative a confirmação."
+    "confirmation_paid": "A confirmação do anfitrião e um preço não combinam. Remova o preço ou desative a confirmação.",
+    "too_many_guests": "Esta reunião não aceita tantos convidados. Remova alguns e tente de novo."
   },
   "settings": {
     "title": "Configurações",
@@ -583,12 +593,76 @@
     "redirectUrl": "Redirecionar para uma URL",
     "redirectHelp": "Depois de reservar, o convidado vai para esta página em vez da confirmação. Precisa começar com https:// ou http://.",
     "redirectPassDetails": "Adicionar os dados da reserva à URL (nome, email, horário e parâmetros utm_*)",
-    "redirectInvalid": "O redirecionamento precisa ser uma URL completa que comece com https:// ou http://."
+    "redirectInvalid": "O redirecionamento precisa ser uma URL completa que comece com https:// ou http://.",
+    "questionOptions": "Opções",
+    "questionOptionsPlaceholder": "Uma opção por linha",
+    "questionOptionsHelp": "Uma por linha. O convidado só pode responder com estas.",
+    "questionOptionsRequired": "Adicione pelo menos uma opção em cada pergunta de lista ou de escolha.",
+    "guests": "Convidados",
+    "guestsLead": "O convidado pode adicionar outras pessoas à reunião. Cada uma recebe o convite e todas as mudanças.",
+    "allowGuests": "O convidado pode adicionar convidados",
+    "allowGuestsHelp": "Eles recebem o convite do calendário. Só o convidado principal pode reagendar ou cancelar.",
+    "maxGuests": "Máximo de convidados por reserva",
+    "maxGuestsHelp": "De 1 a {max}. Vazio permite {max}.",
+    "maxGuestsInvalid": "O máximo de convidados precisa ser um número inteiro de 1 a {max}."
   },
   "errorPage": {
     "title": "Esta tela não carregou",
     "body": "Pode ser a conexão ou o servidor. Seus dados não foram alterados.",
     "retry": "Tentar de novo",
     "home": "Ir para o resumo do Cal"
+  },
+  "questionType": {
+    "text": "Texto curto",
+    "textarea": "Texto longo",
+    "number": "Número",
+    "phone": "Telefone",
+    "boolean": "Uma caixa",
+    "select": "Lista suspensa",
+    "radio": "Escolher uma",
+    "checkbox": "Escolher várias"
+  },
+  "oneOff": {
+    "newCta": "Reunião única",
+    "crumb": "Reunião única",
+    "create": "Criar e compartilhar",
+    "titlePlaceholder": "Título, por exemplo Revisão do contrato com a Acme",
+    "timesTitle": "Horários a oferecer",
+    "timesLead": "Escolha os horários exatos em que você pode se reunir, mesmo fora do seu horário semanal. Horas em {timezone}.",
+    "timeN": "Horário {n}",
+    "removeTime": "Remover o horário {n}",
+    "addTime": "Adicionar um horário",
+    "timesRequired": "Adicione pelo menos um horário para oferecer.",
+    "note": "O link funciona uma vez. Esses horários ficam reservados na sua agenda até alguém escolher um; aí os outros são liberados.",
+    "usedNote": "Alguém já reservou esta reunião: o link não aceita mais reservas.",
+    "badge": "Única",
+    "booked": "Reservada"
+  },
+  "analytics": {
+    "title": "Análises",
+    "lead": "Reservas criadas no período, contadas em {timezone}.",
+    "range": "Período",
+    "presets": "Períodos rápidos",
+    "lastDays": "Últimos {days} dias",
+    "from": "De",
+    "to": "Até",
+    "apply": "Aplicar",
+    "created": "Criadas",
+    "cancelled": "Canceladas",
+    "noShow": "Não compareceram",
+    "confirmed": "Seguem de pé",
+    "perDay": "Reservas criadas por dia",
+    "chartAria": "Reservas criadas por dia",
+    "chartSummary": "{total} reservas, a maior quantidade em {date} ({peak})",
+    "popularTimes": "Horários populares",
+    "popularTimesLead": "Quando começam as reuniões que não foram canceladas, por dia da semana e hora.",
+    "bookingsN": "{n, plural, one {# reserva} other {# reservas}}",
+    "heatCaption": "Reservas por dia da semana e hora de início",
+    "day": "Dia",
+    "byEventType": "Por tipo de evento",
+    "eventType": "Tipo de evento",
+    "emptyTitle": "Nenhuma reserva neste período",
+    "emptyBody": "Tente um período maior ou compartilhe o link de um tipo de evento para começar a receber reservas.",
+    "note": "Pagamentos retidos que venceram sem pagamento ficam de fora."
   }
 }

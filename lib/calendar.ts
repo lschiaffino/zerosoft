@@ -350,6 +350,29 @@ export function requiresConfirmation(eventType: EventTypeWithRules): boolean {
   return getBookingRules(eventType).requiresConfirmation === true && eventType.price_cents <= 0;
 }
 
+/** Inicios de una reunión única: ordenados, sin repetidos, en ISO UTC. */
+export function serializeOneOffTimes(times: string[]): string {
+  const uniq = [...new Set(times.map((t) => new Date(t).toISOString()))];
+  return JSON.stringify(uniq.sort());
+}
+
+/** Inicios ofrecidos de una reunión única (null = evento normal). */
+export function parseOneOffTimes(json: string | null | undefined): Date[] | null {
+  if (json === null || json === undefined) return null;
+  const list = parseJson<unknown>(json, []);
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((v): v is string => typeof v === 'string')
+    .map((v) => new Date(v))
+    .filter((d) => !Number.isNaN(d.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime());
+}
+
+/** Es una reunión única (horarios elegidos a mano). */
+export function isOneOff(eventType: Pick<CalendarEventTypeRow, 'one_off_times'>): boolean {
+  return eventType.one_off_times !== null && eventType.one_off_times !== undefined;
+}
+
 export async function createEventType(
   userId: string,
   payload: EventTypeCreatePayload,
@@ -368,7 +391,11 @@ export async function createEventType(
   // Horario: el pedido (si es del workspace) o el horario por defecto, que se
   // crea (lunes a viernes 9 a 17 en la zona del workspace) si no hay ninguno.
   let scheduleId: string | null = null;
-  if (payload.scheduleId) {
+  // Reunión única: sus horarios son los elegidos, no usa un horario semanal.
+  const oneOff = payload.oneOffTimes ? serializeOneOffTimes(payload.oneOffTimes) : null;
+  if (oneOff) {
+    scheduleId = null;
+  } else if (payload.scheduleId) {
     if (!(await scheduleBelongsTo(userId, payload.scheduleId))) throw new CalendarError('invalid_schedule', 400);
     scheduleId = payload.scheduleId;
   } else if (payload.scheduleId === undefined) {
@@ -382,8 +409,8 @@ export async function createEventType(
     .prepare(
       `INSERT INTO calendar_event_types
        (id, user_id, team_id, slug, title, duration_min, location, description, color, active, booking_rules, fields,
-        brand_color, welcome_message, logo_url, single_use, created_at, updated_at, schedule_id, price_cents, currency)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        brand_color, welcome_message, logo_url, single_use, created_at, updated_at, schedule_id, price_cents, currency, one_off_times)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -401,12 +428,13 @@ export async function createEventType(
       payload.brandColor ?? null,
       payload.welcomeMessage ?? '',
       payload.logoUrl ?? null,
-      booleanToInt(payload.singleUse) ?? 0,
+      oneOff ? 1 : (booleanToInt(payload.singleUse) ?? 0),
       ts,
       ts,
       scheduleId,
       payload.priceCents ?? 0,
       payload.currency ?? 'usd',
+      oneOff,
     );
   if (payload.hostIds) await setEventHosts(id, payload.hostIds);
   const row = (await getDb().prepare('SELECT * FROM calendar_event_types WHERE id = ?').get(id)) as CalendarEventTypeRow;
@@ -484,7 +512,16 @@ export async function updateEventType(
     sets.push('logo_url = ?');
     values.push(payload.logoUrl ?? null);
   }
-  if (payload.singleUse !== undefined) {
+  if (payload.oneOffTimes !== undefined) {
+    sets.push('one_off_times = ?');
+    values.push(payload.oneOffTimes ? serializeOneOffTimes(payload.oneOffTimes) : null);
+  }
+  // Una reunión única es siempre de un solo uso.
+  const oneOffAfter = payload.oneOffTimes !== undefined ? !!payload.oneOffTimes : existing.one_off_times !== null;
+  if (oneOffAfter && (payload.oneOffTimes || payload.singleUse !== undefined)) {
+    sets.push('single_use = ?');
+    values.push(1);
+  } else if (payload.singleUse !== undefined) {
     sets.push('single_use = ?');
     values.push(booleanToInt(payload.singleUse)!);
   }
@@ -869,7 +906,7 @@ async function pickFreeHost(
   if (limits && counted && !eventWithinLimits(limits, counted, slot.start)) return null;
   for (const host of hosts) {
     if (limits && counted && !hostWithinLimits(limits, counted, host, slot.start)) continue;
-    const busy = await listBusyRanges(host, from, to, { excludeBookingId, buffer });
+    const busy = await listBusyRanges(host, from, to, { excludeBookingId, buffer, excludeEventTypeId: eventType.id });
     if (!hasOverlap(buffered, busy)) return host;
   }
   return null;
@@ -886,7 +923,12 @@ export async function hostSlotFree(booking: CalendarBookingRow): Promise<boolean
     new Date(slot.start.getTime() - 24 * 60 * 60 * 1000),
     new Date(slot.end.getTime() + 24 * 60 * 60 * 1000),
     // Sin calendarios externos: la propia reserva sigue en el Google Calendar del host.
-    { excludeBookingId: booking.id, internalOnly: true, buffer: bufferMinutes(eventType, calendarUser) },
+    {
+      excludeBookingId: booking.id,
+      internalOnly: true,
+      buffer: bufferMinutes(eventType, calendarUser),
+      excludeEventTypeId: eventType.id,
+    },
   );
   return !hasOverlap(applyBuffer(slot, eventType, calendarUser), busy);
 }
@@ -1129,8 +1171,8 @@ export async function createBooking(
       .prepare(
         `INSERT INTO calendar_bookings
          (id, event_type_id, invitee_email, invitee_name, starts_at, ends_at, timezone, status, answers, host_user_id, manage_token, locale, created_at, updated_at,
-          payment_status, hold_expires_at, amount_cents, currency, buffer_before_min, buffer_after_min, utm, approval)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          payment_status, hold_expires_at, amount_cents, currency, buffer_before_min, buffer_after_min, utm, approval, guests)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          WHERE ${HOST_FREE_SQL}${singleUse ? ` AND ${SINGLE_USE_FREE_SQL}` : ''}${guard.sql}`,
       )
       .run(
@@ -1156,6 +1198,7 @@ export async function createBooking(
         buffer.after,
         JSON.stringify(sanitizeUtm(payload.utm)),
         awaitingApproval ? 'pending' : 'none',
+        JSON.stringify(payload.guests ?? []),
         ...freeArgs,
         ...(singleUse ? [eventType.id, new Date().toISOString()] : []),
         ...guard.args,
@@ -1905,7 +1948,7 @@ export async function listBusyRanges(
   userId: string,
   from: Date,
   to: Date,
-  opts: { excludeBookingId?: string; internalOnly?: boolean; buffer?: BufferMinutes } = {},
+  opts: { excludeBookingId?: string; internalOnly?: boolean; buffer?: BufferMinutes; excludeEventTypeId?: string } = {},
 ): Promise<TimeRange[]> {
   const db = getDb();
   const bookings = (await db
@@ -1936,6 +1979,7 @@ export async function listBusyRanges(
       ),
     ),
     ...blocked.map((r) => ({ start: new Date(r.starts_at), end: new Date(r.ends_at) })),
+    ...(await oneOffHolds(userId, from, to, opts.excludeEventTypeId)),
   ];
   if (opts.internalOnly) return ranges;
   // Al mover una reserva, su propio evento sigue en el calendario externo del
@@ -1955,6 +1999,29 @@ export async function listBusyRanges(
     }
   }
   return ranges;
+}
+
+/**
+ * Horarios que ofrecen las reuniones únicas abiertas de una persona (activas
+ * y sin reservar): quedan apartados para el resto de sus eventos hasta que se
+ * reserve uno; ahí el link se consume (used_at) y los demás se liberan.
+ * `excludeEventTypeId`: la reunión que se está calculando no se tapa a sí misma.
+ */
+async function oneOffHolds(userId: string, from: Date, to: Date, excludeEventTypeId = ''): Promise<TimeRange[]> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT e.one_off_times, e.duration_min FROM calendar_event_types e
+       WHERE e.user_id = ? AND e.one_off_times IS NOT NULL AND e.active = 1 AND e.used_at IS NULL AND e.id != ?`,
+    )
+    .all(userId, excludeEventTypeId)) as Array<{ one_off_times: string; duration_min: number }>;
+  const out: TimeRange[] = [];
+  for (const r of rows) {
+    for (const start of parseOneOffTimes(r.one_off_times) ?? []) {
+      const end = new Date(start.getTime() + Number(r.duration_min) * 60_000);
+      if (start < to && end > from) out.push({ start, end });
+    }
+  }
+  return out;
 }
 
 /** `range` menos `cut`: cero, uno o dos tramos. */
@@ -1987,6 +2054,8 @@ interface SlotContext {
   maxFutureDays: number;
   /** Topes de reuniones (null = sin topes). */
   limits: LimitConfig | null;
+  /** Reunión única: los inicios ofrecidos (reemplazan al horario semanal). */
+  offered: Date[] | null;
 }
 
 /**
@@ -2028,6 +2097,7 @@ async function loadSlotContext(eventTypeId: string, excludeBookingId?: string): 
     minStart: new Date(Date.now() + minNoticeHours * 60 * 60 * 1000),
     maxFutureDays: effectiveMaxFutureDays(eventType, calendarUser),
     limits: limitConfigFor(eventType, calendarUser, scheduleTimezone),
+    offered: parseOneOffTimes(eventType.one_off_times),
   };
 }
 
@@ -2057,6 +2127,25 @@ function slotsForDay(
 ): TimeRange[] {
   const parsed = parseDate(date);
   if (!parsed) return [];
+  const isFree = (slot: TimeRange) => {
+    const limits = counted ? ctx.limits : null;
+    if (limits && counted && !eventWithinLimits(limits, counted, slot.start)) return false;
+    const buffered = applyBuffer(slot, ctx.eventType, ctx.calendarUser);
+    return busyByHost.some(
+      (busy, i) =>
+        !hasOverlap(buffered, busy) && (!limits || !counted || hostWithinLimits(limits, counted, ctx.hosts[i], slot.start)),
+    );
+  };
+  if (ctx.offered) {
+    return oneOffDaySlots({
+      times: ctx.offered,
+      durationMin: ctx.eventType.duration_min,
+      date,
+      guestTimezone: timezone,
+      now: new Date(),
+      isFree,
+    });
+  }
   const todayParts = datePartsInTz(new Date(), timezone);
   const maxDateMs = Date.UTC(todayParts.year, todayParts.month - 1, todayParts.day) + ctx.maxFutureDays * 24 * 60 * 60 * 1000;
   if (Date.UTC(parsed.year, parsed.month - 1, parsed.day) > maxDateMs) return [];
@@ -2070,22 +2159,43 @@ function slotsForDay(
     durationMin: ctx.eventType.duration_min,
     stepMin: slotStepMin(ctx.eventType.duration_min, getBookingRules(ctx.eventType).slotIntervalMin),
     minStart: ctx.minStart,
-    isFree: (slot) => {
-      const limits = counted ? ctx.limits : null;
-      if (limits && counted && !eventWithinLimits(limits, counted, slot.start)) return false;
-      const buffered = applyBuffer(slot, ctx.eventType, ctx.calendarUser);
-      return busyByHost.some(
-        (busy, i) =>
-          !hasOverlap(buffered, busy) && (!limits || !counted || hostWithinLimits(limits, counted, ctx.hosts[i], slot.start)),
-      );
-    },
+    isFree,
   });
+}
+
+/**
+ * Slots de una reunión única en `date` (día local del invitado): los inicios
+ * elegidos que caen ese día, todavía no pasaron y siguen libres. No mira el
+ * horario semanal, el aviso mínimo ni el máximo de días: el anfitrión los
+ * eligió a mano.
+ */
+export function oneOffDaySlots(input: {
+  times: Date[];
+  durationMin: number;
+  date: string;
+  guestTimezone: string;
+  now: Date;
+  isFree?: (slot: TimeRange) => boolean;
+}): TimeRange[] {
+  if (!parseDate(input.date)) return [];
+  const out: TimeRange[] = [];
+  for (const start of input.times) {
+    if (start <= input.now) continue;
+    if (localDate(start, input.guestTimezone) !== input.date) continue;
+    const slot = { start, end: new Date(start.getTime() + input.durationMin * 60_000) };
+    if (input.isFree && !input.isFree(slot)) continue;
+    if (out.some((s) => s.start.getTime() === start.getTime())) continue;
+    out.push(slot);
+  }
+  return out.sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
 /** Ocupación de cada host candidato en [from, to); un slot sirve si al menos uno está libre. */
 function busyForHosts(ctx: SlotContext, from: Date, to: Date, opts: { excludeBookingId?: string }): Promise<TimeRange[][]> {
   const buffer = bufferMinutes(ctx.eventType, ctx.calendarUser);
-  return Promise.all(ctx.hosts.map((h) => listBusyRanges(h, from, to, { ...opts, buffer })));
+  return Promise.all(
+    ctx.hosts.map((h) => listBusyRanges(h, from, to, { ...opts, buffer, excludeEventTypeId: ctx.eventType.id })),
+  );
 }
 
 export async function getAvailableSlots(

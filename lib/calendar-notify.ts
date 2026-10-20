@@ -52,6 +52,8 @@ const COPY: Record<
     withdrawText: string;
     review: string;
     reviewText: string;
+    /** Primer párrafo del email a un invitado extra. */
+    guestOf: Record<'created' | 'rescheduled' | 'cancelled', string>;
   }
 > = {
   en: {
@@ -64,6 +66,11 @@ const COPY: Record<
     withdrawText: 'Withdraw the request: {url}',
     review: 'Confirm or decline it in <a href="{url}">your bookings</a>. Until then the time stays held.',
     reviewText: 'Confirm or decline it in your bookings: {url}',
+    guestOf: {
+      created: '<strong>{guest}</strong> ({email}) added you to <strong>{event}</strong>.',
+      rescheduled: '<strong>{event}</strong>, where <strong>{guest}</strong> added you, has a new time.',
+      cancelled: '<strong>{event}</strong>, where <strong>{guest}</strong> added you, was cancelled.',
+    },
     requested: {
       guestSubject: 'Booking request received: {event}',
       hostSubject: 'Booking request: {event} from {guest}',
@@ -110,6 +117,11 @@ const COPY: Record<
     withdrawText: 'Retirar la solicitud: {url}',
     review: 'Confirmala o rechazala en <a href="{url}">tus reservas</a>. Mientras tanto el horario queda reservado.',
     reviewText: 'Confirmala o rechazala en tus reservas: {url}',
+    guestOf: {
+      created: '<strong>{guest}</strong> ({email}) te sumó a <strong>{event}</strong>.',
+      rescheduled: '<strong>{event}</strong>, a la que te sumó <strong>{guest}</strong>, tiene un nuevo horario.',
+      cancelled: '<strong>{event}</strong>, a la que te sumó <strong>{guest}</strong>, se canceló.',
+    },
     requested: {
       guestSubject: 'Recibimos tu solicitud: {event}',
       hostSubject: 'Solicitud de reserva: {event} de {guest}',
@@ -156,6 +168,11 @@ const COPY: Record<
     withdrawText: 'Retirar a solicitação: {url}',
     review: 'Confirme ou recuse em <a href="{url}">suas reservas</a>. Até lá o horário fica reservado.',
     reviewText: 'Confirme ou recuse em suas reservas: {url}',
+    guestOf: {
+      created: '<strong>{guest}</strong> ({email}) adicionou você a <strong>{event}</strong>.',
+      rescheduled: '<strong>{event}</strong>, para a qual <strong>{guest}</strong> adicionou você, tem um novo horário.',
+      cancelled: '<strong>{event}</strong>, para a qual <strong>{guest}</strong> adicionou você, foi cancelada.',
+    },
     requested: {
       guestSubject: 'Recebemos sua solicitação: {event}',
       hostSubject: 'Solicitação de reserva: {event} de {guest}',
@@ -193,6 +210,16 @@ const COPY: Record<
     },
   },
 };
+
+/** Invitados extra guardados en la reserva (emails). */
+export function bookingGuests(booking: Pick<CalendarBookingRow, 'guests'>): string[] {
+  try {
+    const list: unknown = JSON.parse(booking.guests || '[]');
+    return Array.isArray(list) ? list.filter((g): g is string => typeof g === 'string' && g.includes('@')) : [];
+  } catch {
+    return [];
+  }
+}
 
 function asLocale(l: string | null | undefined): Locale {
   return l === 'es' || l === 'pt' ? l : 'en';
@@ -256,6 +283,7 @@ export async function notifyBooking(
   const start = new Date(booking.starts_at);
   const end = new Date(booking.ends_at);
   const lang = asLocale(opts.locale ?? booking.locale);
+  const guests = bookingGuests(booking);
   const L = COPY[lang];
   const copy = L[kind];
   const vars = {
@@ -280,6 +308,7 @@ export async function notifyBooking(
     location: booking.meeting_url || eventType.location || undefined,
     organizer: { name: host?.name ?? 'zerosoft Cal', email: host?.email ?? 'calendar@zerosoft.ai' },
     attendee: { name: booking.invitee_name, email: booking.invitee_email },
+    guests,
   });
   const attachments = noInvite
     ? undefined
@@ -314,6 +343,27 @@ export async function notifyBooking(
       }),
       attachments,
     });
+  }
+
+  // Invitados extra: reciben la invitación (y sus cambios) con el mismo .ics,
+  // sin el link de gestión, que es del invitado principal.
+  if (!opts.onlyHost && !noInvite && guests.length > 0) {
+    const guestLine = fill(L.guestOf[kind === 'cancelled' ? 'cancelled' : kind === 'rescheduled' ? 'rescheduled' : 'created'], vars);
+    const paragraphs = [guestLine, ...details(booking.timezone)];
+    for (const to of guests) {
+      await sendEmail({
+        to,
+        subject: stripTags(fill(copy.guestSubject, { ...vars, event: eventType.title })),
+        text: paragraphs.map(stripTags).join('\n\n'),
+        html: renderBrandedHtml({
+          heading: copy.heading,
+          paragraphs,
+          brandColor: eventType.brand_color,
+          logoUrl: eventType.logo_url,
+        }),
+        attachments,
+      });
+    }
   }
 
   // Host (un rechazo lo decidió él: no se le avisa).

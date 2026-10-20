@@ -7,7 +7,9 @@ import { ensureDefaultSchedule, listSchedules, type ScheduleRule } from '@/lib/c
 import { getPaymentSettings } from '@/lib/calendar-payments';
 import { listWorkflowSteps } from '@/lib/calendar-workflows';
 import { listMembers } from '@/lib/teams';
-import EventTypeEditor, { type QuestionDef } from '@/components/calendar/EventTypeEditor';
+import EventTypeEditor from '@/components/calendar/EventTypeEditor';
+import { parseQuestions } from '@/lib/calendar-questions';
+import { parseOneOffTimes } from '@/lib/calendar';
 import { publicOrigin } from '@/components/calendar/event-type-items';
 
 export const dynamic = 'force-dynamic';
@@ -26,17 +28,6 @@ function scheduleSummary(rules: ScheduleRule[], dayName: (d: number) => string) 
     .filter((l) => l.ranges);
 }
 
-function questions(list: unknown): QuestionDef[] {
-  if (!Array.isArray(list)) return [];
-  return list
-    .filter((f): f is Record<string, unknown> => typeof f === 'object' && f !== null)
-    .map((f) => ({
-      name: typeof f.name === 'string' ? f.name : '',
-      label: typeof f.label === 'string' ? f.label : '',
-      type: f.type === 'number' || f.type === 'boolean' ? f.type : 'text',
-      required: f.required === true,
-    }));
-}
 
 export default async function EventTypeDetailPage(props: {
   params: Promise<{ locale: string; id: string }>;
@@ -78,7 +69,7 @@ export default async function EventTypeDetailPage(props: {
         color: /^#[0-9a-f]{6}$/i.test(eventType.color) ? eventType.color : '#111111',
         active: eventType.active === 1,
         bookingRules: eventType.bookingRulesParsed ?? {},
-        fields: questions(eventType.fieldsParsed),
+        fields: parseQuestions(eventType.fieldsParsed),
         brandColor: eventType.brand_color,
         welcomeMessage: eventType.welcome_message ?? '',
         logoUrl: eventType.logo_url ?? '',
@@ -87,6 +78,7 @@ export default async function EventTypeDetailPage(props: {
         scheduleId: eventType.schedule_id,
         priceCents: eventType.price_cents,
         currency: eventType.currency,
+        oneOffTimes: parseOneOffTimes(eventType.one_off_times)?.map((d) => d.toISOString()) ?? null,
       }}
       schedules={schedules.map((s) => ({
         id: s.id,

@@ -12,9 +12,12 @@ import CrmIcon from './CrmIcon';
 import TagDots, { type TagDot } from './TagDots';
 import TagBulkControls from './TagBulkControls';
 import BulkEditControls, { type BulkEditField } from './BulkEditControls';
+import type { CustomCell, CustomColumn } from './customFieldViews';
 
 export interface DealRow {
   id: string;
+  /** Custom fields ya formateados (`custom:<name>`). */
+  custom?: Record<string, CustomCell>;
   name: string;
   amount: string;
   amountValue: number;
@@ -54,6 +57,8 @@ interface Option {
 
 interface DealsTableProps {
   rows: DealRow[];
+  /** Columnas de custom fields (ocultas por defecto). */
+  customColumns?: CustomColumn[];
   sort: string;
   stages: StageOption[];
   priorities: Option[];
@@ -90,6 +95,7 @@ export default function DealsTable({
   locale,
   allTags = [],
   bulkFields = [],
+  customColumns = [],
 }: DealsTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -125,8 +131,12 @@ export default function DealsTable({
       return next;
     });
   }
+  const columnDefs = [
+    ...COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
+    ...customColumns.map((c) => ({ id: c.id, label: c.label, defaultVisible: false })),
+  ];
   const [visible, toggleVisible] = useColumnVisibility(
-    COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
+    columnDefs,
     'zs-deals-columns',
   );
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -134,7 +144,7 @@ export default function DealsTable({
   return (
     <>
       <ColumnToggleInBar
-        columns={COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible }))}
+        columns={columnDefs}
         visible={visible}
         onToggle={toggleVisible}
         label={t('common.columns')}
@@ -195,6 +205,14 @@ export default function DealsTable({
                 <th className="num cell-date">
                   <SortTh label={t('activityDates.nextActivity')} asc="next_activity" desc="next_activity_desc" current={sort} />
                 </th>
+              )}
+              {customColumns.map(
+                (c) =>
+                  visible.has(c.id) && (
+                    <th key={c.id} className={c.numeric ? 'num' : undefined}>
+                      {c.label}
+                    </th>
+                  ),
               )}
               <th className="cell-actions-head"><span className="sr-only">{t('deals.table.actions')}</span></th>
             </tr>
@@ -285,6 +303,23 @@ export default function DealsTable({
                 {visible.has('lastActivity') && <td className="num muted cell-date">{row.lastActivity || '—'}</td>}
                 {visible.has('lastContacted') && <td className="num muted cell-date">{row.lastContacted || '—'}</td>}
                 {visible.has('nextActivity') && <td className="num muted cell-date">{row.nextActivity || '—'}</td>}
+                {customColumns.map((c) => {
+                  if (!visible.has(c.id)) return null;
+                  const cell = row.custom?.[c.id];
+                  return (
+                    <td key={c.id} className={c.numeric ? 'num cell-sub' : 'cell-sub'}>
+                      {!cell ? (
+                        <span className="muted">—</span>
+                      ) : cell.href ? (
+                        <a href={cell.href} target={cell.href.startsWith('tel:') ? undefined : '_blank'} rel="noreferrer">
+                          {cell.text}
+                        </a>
+                      ) : (
+                        cell.text
+                      )}
+                    </td>
+                  );
+                })}
                 <td className="cell-actions">
                   <button
                     type="button"

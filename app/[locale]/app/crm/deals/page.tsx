@@ -13,7 +13,7 @@ import {
   PRIORITIES,
   SOURCES,
   type BoardStage,
-  type FilterFieldType,
+  parseCustom,
 } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
@@ -34,6 +34,7 @@ import { dbTimestamp, dealIdleDays } from '@/lib/crm-rotting';
 import { COMMON_CURRENCIES } from '@/lib/crm-constants';
 import type { BulkEditField } from '@/components/crm/BulkEditControls';
 import { customBulkFields } from '@/components/crm/bulkFields';
+import { customBuilderFields, customCells, customColumns, customFilterTypes } from '@/components/crm/customFieldViews';
 import { formatActivityDate } from '@/lib/crm-activity-dates';
 
 export const dynamic = 'force-dynamic';
@@ -160,9 +161,7 @@ export default async function DealsPage(props: DealsPageProps) {
     })
     .filter((cf) => cf.options.length > 0);
 
-  const customTypes: Record<string, FilterFieldType> = Object.fromEntries(
-    customFieldDefs.map((cf) => [cf.name, cf.type]),
-  );
+  const customTypes = customFilterTypes(customFieldDefs);
 
   // Campos del constructor avanzado: estándar + custom fields de la entidad.
   const builderFields: FilterBuilderField[] = [
@@ -188,38 +187,7 @@ export default async function DealsPage(props: DealsPageProps) {
     { key: 'lastActivity', label: t('activityDates.lastActivity'), type: 'date' },
     { key: 'lastContacted', label: t('activityDates.lastContacted'), type: 'date' },
     { key: 'nextActivity', label: t('activityDates.nextActivity'), type: 'date' },
-    ...customFieldDefs.map((cf): FilterBuilderField => {
-      if (cf.type === 'boolean') {
-        return {
-          key: `custom:${cf.name}`,
-          label: cf.label,
-          type: 'select',
-          options: [
-            { value: '1', label: t('common.yes') },
-            { value: '0', label: t('common.no') },
-          ],
-        };
-      }
-      if (cf.type === 'select') {
-        let options: Array<{ value: string; label: string }> = [];
-        try {
-          const parsed: unknown = JSON.parse(cf.options);
-          if (Array.isArray(parsed)) {
-            options = parsed
-              .filter((o): o is string => typeof o === 'string')
-              .map((o) => ({ value: o, label: o }));
-          }
-        } catch {
-          options = [];
-        }
-        return { key: `custom:${cf.name}`, label: cf.label, type: 'select', options };
-      }
-      return {
-        key: `custom:${cf.name}`,
-        label: cf.label,
-        type: cf.type === 'number' ? 'number' : cf.type === 'date' ? 'date' : 'text',
-      };
-    }),
+    ...customBuilderFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }, owners),
   ];
 
   // ---------- Vista tabla (server-side con searchParams) ----------
@@ -279,6 +247,7 @@ export default async function DealsPage(props: DealsPageProps) {
 
     const rowTags = await tagsForRecords(user.id, 'deal', rows.map((r) => r.id));
     const dayMs = 86_400_000;
+    const cellCtx = { locale, yes: t('common.yes'), no: t('common.no'), users: new Map(owners.map((o) => [o.value, o.label])) };
     const tableRows: DealRow[] = rows.map((d) => {
       const start = new Date(d.created_at.replace(' ', 'T') + 'Z').getTime();
       const stop = d.closed_at
@@ -306,6 +275,7 @@ export default async function DealsPage(props: DealsPageProps) {
         lastContacted: formatActivityDate(d.last_contacted_at, locale),
         nextActivity: formatActivityDate(d.next_activity_at, locale),
         tags: rowTags.get(d.id) ?? [],
+        custom: customCells(customFieldDefs, parseCustom(d.custom), cellCtx),
         companyName: d.company_name,
         amountBase: (() => {
           if (d.currency.toUpperCase() === currencyCtx.base) return null;
@@ -333,7 +303,7 @@ export default async function DealsPage(props: DealsPageProps) {
         type: 'select',
         options: COMMON_CURRENCIES.map((c) => ({ value: c, label: c })),
       },
-      ...customBulkFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }),
+      ...customBulkFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }, owners),
     ];
 
     const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
@@ -403,6 +373,7 @@ export default async function DealsPage(props: DealsPageProps) {
           <>
             <DealsTable
               rows={tableRows}
+              customColumns={customColumns(customFieldDefs)}
               sort={sort}
               stages={pipeline.stages.map((s) => ({
                 id: s.id,

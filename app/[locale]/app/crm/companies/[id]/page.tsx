@@ -29,6 +29,8 @@ import RecordTags from '@/components/crm/RecordTags';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
+import FilesPanel from '@/components/crm/FilesPanel';
+import { listRecordFiles, toView, withActivityFiles } from '@/lib/crm-files';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
 import HistoryPanel from '@/components/crm/HistoryPanel';
 import { listMembers } from '@/lib/teams';
@@ -211,7 +213,8 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
       listEmailThreads(user.id, { companyId: id, limit: 100 }),
       nextTaskFor(user.id, { companyId: id }),
     ]);
-    const timelineItems = mergeTimelineWithThreads(timeline, threads);
+    const timelineItems = await withActivityFiles(mergeTimelineWithThreads(timeline, threads));
+    const recordFiles = (await listRecordFiles(user.id, 'company', company.id)).map(toView);
     return (
       <div className="ui-page record-page">
         {header}
@@ -227,6 +230,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
                 recordId={company.id}
                 items={timelineItems}
                 emptyLabel={t('companies.detail.emptyTimeline')}
+                mentionables={teamMembers.map((m) => ({ id: m.user_id, name: m.name, email: m.email }))}
                 locale={locale}
               />
             </div>
@@ -294,6 +298,12 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
               <Link href={recordTabHref(base, 'related')} className="record-summary-more">
                 {t('record.manageRelated')}
               </Link>
+              <div className="record-summary-block">
+                <h2 className="record-summary-title">
+                  {t('files.title')} <span className="num">{recordFiles.length}</span>
+                </h2>
+                <FilesPanel endpoint={`/api/crm/companies/${company.id}/files`} files={recordFiles} />
+              </div>
             </aside>
           </div>
         </RecordTabs>
@@ -305,7 +315,12 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   if (tab === 'properties') {
     const custom = parseCustom(company.custom);
     const customFieldDefs = await listCustomFields(user.id, 'companies');
-    const customFields = customPropFields(customFieldDefs, custom, { yes: t('common.yes'), no: t('common.no') });
+    const customFields = customPropFields(customFieldDefs, custom, {
+      yes: t('common.yes'),
+      no: t('common.no'),
+      locale,
+      owners: ownerOptions,
+    });
     const fields: PropField[] = [
       { key: 'name', label: t('companies.form.name'), type: 'text', value: company.name },
       { key: 'domain', label: t('companies.form.domain'), type: 'text', value: company.domain },

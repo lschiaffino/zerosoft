@@ -10,7 +10,7 @@ import {
   CalendarError,
   type EventTypeWithRules,
 } from '@/lib/calendar';
-import { bookingCreateSchema, bookingListQuerySchema, validateBookingAnswers } from '@/lib/calendar-schema';
+import { bookingCreateSchema, bookingListQuerySchema, validateBookingAnswers, validateGuests } from '@/lib/calendar-schema';
 import { invalidBody, crmError, unauthorized } from '@/lib/crm-http';
 import { afterBookingCreated } from '@/lib/calendar-lifecycle';
 import { getCurrentUser } from '@/lib/session';
@@ -82,6 +82,9 @@ export async function POST(req: NextRequest) {
     // Respuestas contra los campos del evento (claves, tipos, tamaño y requeridos).
     const validAnswers = validateBookingAnswers(eventType.fieldsParsed, answers);
     if (!validAnswers) return crmError(400, 'invalid_input');
+    // Invitados extra: solo si el evento los permite y hasta su tope.
+    const guests = validateGuests(eventType.bookingRulesParsed, parsed.data.guests, email);
+    if (!guests) return crmError(400, 'too_many_guests');
 
     const startDate = new Date(start);
     if (Number.isNaN(startDate.getTime())) return crmError(400, 'invalid_input');
@@ -101,6 +104,7 @@ export async function POST(req: NextRequest) {
         start: matching.start.toISOString(),
         timezone: guestTz,
         answers: validAnswers,
+        guests,
         locale: parsed.data.locale,
         utm: sanitizeUtm(parsed.data.utm),
       },

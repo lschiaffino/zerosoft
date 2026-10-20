@@ -3,7 +3,8 @@
 import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import type { CrmCustomFieldRow } from '@/lib/db';
+import { CRM_CUSTOM_FIELD_TYPES, type CrmCustomFieldRow } from '@/lib/schema/types';
+import { fieldCurrency } from '@/lib/crm-custom-fields';
 import { RemoveIcon } from './RowTools';
 
 interface CustomFieldsPanelProps {
@@ -11,7 +12,10 @@ interface CustomFieldsPanelProps {
 }
 
 const ENTITIES = ['contacts', 'companies', 'deals'] as const;
-const TYPES = ['text', 'number', 'date', 'select', 'boolean'] as const;
+const TYPES = CRM_CUSTOM_FIELD_TYPES;
+/** Tipos con lista de opciones (separadas por coma). */
+const WITH_OPTIONS = new Set<string>(['select', 'multiselect']);
+const CURRENCIES = ['USD', 'EUR', 'GBP', 'ARS', 'BRL', 'MXN', 'CLP', 'COP', 'PEN', 'UYU', 'CAD', 'AUD', 'JPY'];
 
 /** Slug válido para el schema: /^[a-z][a-z0-9_]*$/. */
 function slugify(label: string): string {
@@ -46,6 +50,7 @@ export default function CustomFieldsPanel({ initialFields }: CustomFieldsPanelPr
   const [nameTouched, setNameTouched] = useState(false);
   const [type, setType] = useState<(typeof TYPES)[number]>('text');
   const [options, setOptions] = useState('');
+  const [currency, setCurrency] = useState('USD');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +98,7 @@ export default function CustomFieldsPanel({ initialFields }: CustomFieldsPanelPr
         name: finalName,
         label: label.trim(),
         type,
-        options: type === 'select' ? optionsArray() : [],
+        options: WITH_OPTIONS.has(type) ? optionsArray() : type === 'currency' ? [currency] : [],
         position: fields.filter((f) => f.entity === entity).length,
       }),
     });
@@ -194,7 +199,21 @@ export default function CustomFieldsPanel({ initialFields }: CustomFieldsPanelPr
             </option>
           ))}
         </select>
-        {type === 'select' && (
+        {type === 'currency' && (
+          <select
+            className="filter-select"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            aria-label={t('settings.fieldCurrency')}
+          >
+            {CURRENCIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        )}
+        {WITH_OPTIONS.has(type) && (
           <input
             className="input"
             type="text"
@@ -241,7 +260,20 @@ export default function CustomFieldsPanel({ initialFields }: CustomFieldsPanelPr
                     {f.name}
                   </span>
                   <span className="badge">{t(`settings.types.${f.type}`)}</span>
-                  {f.type === 'select' ? (
+                  {f.type === 'currency' ? (
+                    <select
+                      className="filter-select"
+                      defaultValue={fieldCurrency(f)}
+                      aria-label={t('settings.fieldCurrency')}
+                      onChange={(e) => onPatch(f.id, { options: [e.target.value] })}
+                    >
+                      {[...new Set([fieldCurrency(f), ...CURRENCIES])].map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  ) : WITH_OPTIONS.has(f.type) ? (
                     <input
                       className="input"
                       type="text"

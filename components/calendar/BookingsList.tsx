@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import EmptyState from '@/components/ui/EmptyState';
 import type { CalendarBookingRowWithEvent } from '@/lib/calendar';
 import { parseUtm } from '@/lib/calendar-redirect';
+import { answerText } from '@/lib/calendar-questions';
 
 type Status = '' | 'confirmed' | 'pending' | 'cancelled' | 'no_show';
 
@@ -77,10 +78,20 @@ function answerEntries(raw: string, fieldsRaw: string | null | undefined, bool: 
     return Object.entries(obj).map(([k, v]) => [
       k,
       labels.get(k) ?? k,
-      typeof v === 'string' ? v : typeof v === 'boolean' ? (v ? bool.yes : bool.no) : JSON.stringify(v),
+      answerText(v, bool),
     ]);
   } catch {
     return [['-', '-', raw]];
+  }
+}
+
+/** Invitados extra de la reserva (JSON de emails). */
+function guestList(raw: string | null | undefined): string[] {
+  try {
+    const list: unknown = JSON.parse(raw || '[]');
+    return Array.isArray(list) ? list.filter((g): g is string => typeof g === 'string') : [];
+  } catch {
+    return [];
   }
 }
 
@@ -450,6 +461,12 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
                                   {b.meeting_url}
                                 </a>
                               </dd>
+                            </div>
+                          )}
+                          {guestList(b.guests).length > 0 && (
+                            <div>
+                              <dt>{t('booking.guests')}</dt>
+                              <dd>{guestList(b.guests).join(', ')}</dd>
                             </div>
                           )}
                           {b.cancel_reason && (

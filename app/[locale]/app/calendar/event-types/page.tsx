@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { listEventTypes } from '@/lib/calendar';
 import PageHeader from '@/components/ui/PageHeader';
-import EventTypesView, { NewEventTypeButton } from '@/components/calendar/EventTypesView';
+import EventTypesView, { NewEventTypeButton, NewOneOffButton } from '@/components/calendar/EventTypesView';
 import { publicOrigin, toListItems } from '@/components/calendar/event-type-items';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +22,12 @@ export default async function EventTypesPage(props: {
 
   return (
     <div className="ui-page">
-      <PageHeader title={t('eventTypes.title')} description={t('eventTypes.lead')} actions={<NewEventTypeButton />} />
+      <PageHeader title={t('eventTypes.title')} description={t('eventTypes.lead')} actions={
+          <>
+            <NewOneOffButton />
+            <NewEventTypeButton />
+          </>
+        } />
       <EventTypesView
         items={toListItems(eventTypes)}
         handle={user.handle ?? ''}

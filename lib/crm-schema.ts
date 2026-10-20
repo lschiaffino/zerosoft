@@ -3,6 +3,7 @@
  * Las rutas validan con <schema>.safeParse(body) y mapean issues a crm.errors.*.
  */
 import { z } from 'zod';
+import { CRM_CUSTOM_FIELD_TYPES } from './schema/types';
 import { MAX_ROTTING_DAYS } from './crm-rotting';
 import {
   ACTIVITY_TYPES,
@@ -279,7 +280,8 @@ export const customFieldCreateSchema = z.object({
     .max(64)
     .regex(/^[a-z][a-z0-9_]*$/, { message: 'invalid_name' }),
   label: name,
-  type: z.enum(['text', 'number', 'date', 'select', 'boolean']),
+  type: z.enum(CRM_CUSTOM_FIELD_TYPES),
+  /** select/multiselect: las opciones; currency: [código ISO de la moneda]. */
   options: z.array(shortText).max(100).optional(),
   position: z.number().int().min(0).optional(),
 });

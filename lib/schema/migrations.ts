@@ -2476,6 +2476,73 @@ export const MIGRATIONS: Migration[] = [
       for (const { table } of ACTIVITY_DATE_TABLES) await client.execute(activityDatesUpdateSql(table));
     },
   },
+  {
+    // Cal: invitados extra por reserva (JSON de emails) y reuniones únicas con
+    // horarios elegidos a mano (JSON de inicios ISO; NULL = evento normal).
+    // CRM: archivos adjuntos a contactos, empresas y deals (las FKs en cascada
+    // hacen que la papelera los guarde en el snapshot) y tipos nuevos de
+    // custom field (el CHECK del tipo obliga a reconstruir la tabla).
+    id: '057_cal_guests_one_off_crm_files_field_types',
+    async up(client) {
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN guests TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(client, 'ALTER TABLE calendar_event_types ADD COLUMN one_off_times TEXT');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS crm_record_files (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          contact_id TEXT REFERENCES crm_contacts(id) ON DELETE CASCADE,
+          company_id TEXT REFERENCES crm_companies(id) ON DELETE CASCADE,
+          deal_id TEXT REFERENCES crm_deals(id) ON DELETE CASCADE,
+          filename TEXT NOT NULL,
+          content_type TEXT NOT NULL DEFAULT '',
+          size INTEGER NOT NULL DEFAULT 0,
+          url TEXT NOT NULL,
+          uploaded_by TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_record_files_contact ON crm_record_files(contact_id) WHERE contact_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_crm_record_files_company ON crm_record_files(company_id) WHERE company_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_crm_record_files_deal ON crm_record_files(deal_id) WHERE deal_id IS NOT NULL;
+      `);
+      const tableSql = async () =>
+        String(
+          (await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'crm_custom_fields'"))
+            .rows[0]?.sql ?? '',
+        );
+      const sql = await tableSql();
+      if (sql && !/'multiselect'/.test(sql)) {
+        const createNew = sql
+          .replace(/^CREATE TABLE\s+(IF NOT EXISTS\s+)?["`]?crm_custom_fields["`]?/i, 'CREATE TABLE crm_custom_fields_new')
+          .replace(
+            /CHECK\s*\(\s*type\s+IN\s*\(([^)]*)\)\s*\)/i,
+            (_m, list: string) => `CHECK (type IN (${list}, 'multiselect', 'url', 'phone', 'currency', 'user'))`,
+          );
+        const indexes = (
+          await client.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'crm_custom_fields' AND sql IS NOT NULL",
+          )
+        ).rows.map((r) =>
+          String(r.sql).replace(
+            /^CREATE (UNIQUE )?INDEX\s+(IF NOT EXISTS\s+)?/i,
+            (_m, u?: string) => `CREATE ${u ?? ''}INDEX IF NOT EXISTS `,
+          ),
+        );
+        try {
+          await client.migrate([
+            'DROP TABLE IF EXISTS crm_custom_fields_new',
+            createNew,
+            'INSERT INTO crm_custom_fields_new SELECT * FROM crm_custom_fields',
+            'DROP TABLE crm_custom_fields',
+            'ALTER TABLE crm_custom_fields_new RENAME TO crm_custom_fields',
+            ...indexes,
+          ]);
+        } catch (err) {
+          // Otra instancia ya reconstruyó la tabla (carrera al arrancar).
+          if (!/'multiselect'/.test(await tableSql())) throw err;
+        }
+      }
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

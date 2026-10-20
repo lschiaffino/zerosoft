@@ -926,7 +926,12 @@
       "number": "Número",
       "date": "Data",
       "select": "Seleção",
-      "boolean": "Sim ou não"
+      "boolean": "Sim ou não",
+      "multiselect": "Seleção múltipla",
+      "url": "URL",
+      "phone": "Telefone",
+      "currency": "Moeda",
+      "user": "Pessoa"
     },
     "gmailSendMissing": "O Gmail está conectado só para leitura. Reconecte para enviar emails e sequências do seu endereço.",
     "gmailReconnect": "Reconectar Gmail",
@@ -953,7 +958,8 @@
     "gmailTitle": "Gmail",
     "importDesc": "Envie um CSV de contatos, empresas ou deals.",
     "quotesTitle": "Cotações",
-    "quotesDesc": "O que acontece com o deal quando o cliente aceita."
+    "quotesDesc": "O que acontece com o deal quando o cliente aceita.",
+    "fieldCurrency": "Moeda"
   },
   "importP": {
     "title": "Importar {entity}",
@@ -1071,7 +1077,10 @@
     "duplicate_tag": "Já existe uma tag com esse nome.",
     "invalid_currency": "Use um código de moeda de 3 letras (por exemplo EUR) diferente da moeda base.",
     "invalid_rate": "A taxa precisa ser um número maior que zero.",
-    "trash_conflict": "Já existe um registro com este id, então não é possível restaurar."
+    "trash_conflict": "Já existe um registro com este id, então não é possível restaurar.",
+    "file_too_large": "O arquivo tem mais de 10 MB.",
+    "file_type_not_allowed": "Esse tipo de arquivo não pode ser anexado.",
+    "storage_unavailable": "Este servidor não tem onde guardar arquivos."
   },
   "filters": {
     "advanced": "Filtros avançados",
@@ -1957,5 +1966,13 @@
     "emptyBin": "Esvaziar lixeira",
     "emptyBinConfirm": "Excluir para sempre os {count} itens?",
     "untitled": "Sem título"
+  },
+  "files": {
+    "title": "Arquivos",
+    "attach": "Anexar arquivo"
+  },
+  "mentions": {
+    "suggestions": "Pessoas para mencionar",
+    "placeholder": "Notas. Digite @ para mencionar alguém da equipe"
   }
 }

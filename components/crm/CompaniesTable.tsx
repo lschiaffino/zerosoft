@@ -11,9 +11,12 @@ import TagDots, { type TagDot } from './TagDots';
 import TagBulkControls from './TagBulkControls';
 import CrmIcon from './CrmIcon';
 import BulkEditControls, { type BulkEditField } from './BulkEditControls';
+import type { CustomCell, CustomColumn } from './customFieldViews';
 
 export interface CompanyRow {
   id: string;
+  /** Custom fields ya formateados (`custom:<name>`). */
+  custom?: Record<string, CustomCell>;
   name: string;
   domain: string;
   industry: string;
@@ -35,6 +38,8 @@ export interface CompanyRow {
 
 interface CompaniesTableProps {
   rows: CompanyRow[];
+  /** Columnas de custom fields (ocultas por defecto). */
+  customColumns?: CustomColumn[];
   sort: string;
   lifecycles: string[];
   locale: string;
@@ -61,15 +66,19 @@ const COLS = [
 ];
 
 /** Tabla de empresas con selección múltiple, bulk bar, selector de columnas, edición inline y preview. */
-export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags = [], bulkFields = [] }: CompaniesTableProps) {
+export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags = [], bulkFields = [], customColumns = [] }: CompaniesTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const columnDefs = [
+    ...COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
+    ...customColumns.map((c) => ({ id: c.id, label: c.label, defaultVisible: false })),
+  ];
   const [visible, toggleVisible] = useColumnVisibility(
-    COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
+    columnDefs,
     'zs-companies-columns',
   );
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -109,7 +118,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
   return (
     <>
       <ColumnToggleInBar
-        columns={COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible }))}
+        columns={columnDefs}
         visible={visible}
         onToggle={toggleVisible}
         label={t('common.columns')}
@@ -163,6 +172,14 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                 <th className="num cell-date">
                   <SortTh label={t('activityDates.nextActivity')} asc="next_activity" desc="next_activity_desc" current={sort} />
                 </th>
+              )}
+              {customColumns.map(
+                (c) =>
+                  visible.has(c.id) && (
+                    <th key={c.id} className={c.numeric ? 'num' : undefined}>
+                      {c.label}
+                    </th>
+                  ),
               )}
               <th className="cell-actions-head"><span className="sr-only">{t('companies.table.actions')}</span></th>
             </tr>
@@ -251,6 +268,23 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                 {visible.has('lastActivity') && <td className="num muted cell-date">{row.lastActivity || '—'}</td>}
                 {visible.has('lastContacted') && <td className="num muted cell-date">{row.lastContacted || '—'}</td>}
                 {visible.has('nextActivity') && <td className="num muted cell-date">{row.nextActivity || '—'}</td>}
+                {customColumns.map((c) => {
+                  if (!visible.has(c.id)) return null;
+                  const cell = row.custom?.[c.id];
+                  return (
+                    <td key={c.id} className={c.numeric ? 'num cell-sub' : 'cell-sub'}>
+                      {!cell ? (
+                        <span className="muted">—</span>
+                      ) : cell.href ? (
+                        <a href={cell.href} target={cell.href.startsWith('tel:') ? undefined : '_blank'} rel="noreferrer">
+                          {cell.text}
+                        </a>
+                      ) : (
+                        cell.text
+                      )}
+                    </td>
+                  );
+                })}
                 <td className="cell-actions">
                   <button
                     type="button"
