@@ -19,13 +19,17 @@
     "title": "Agents: Add saved test cases with an LLM judge and rerun them before publishing",
     "description": "Fin offers Simulations where one LLM plays the customer and another judges handoff timing, content used and standards, with a saved regression library rerun after every change (https://fin.ai/testing); Lindy has offline evals with LLM-as-judge scorers over reference tasks (https://docs.lindy.ai/fundamentals/lindy-101/evals); OpenAI AgentKit ships datasets and trace grading (https://openai.com/index/introducing-agentkit/). We only have a manual playground (components/agents/AgentChat.tsx) and per-message thumbs; there is no test table or runner anywhere under lib/agents*. A small team will not trust an agent after editing instructions without a one-click 'did I break anything' check. First scope: an agent_tests table (user message or short script, expected behavior in plain language, expected tool or handoff), a 'Tests' tab that runs all cases through runAgent in dry-run mode, judges with a cheap model and shows pass/fail with the transcript, and 'save as test' from any conversation.\n\nPriority: high. Effort: L. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Agents: Make the playground a dry run that simulates write tools instead of executing them",
     "description": "The playground channel runs the same tools as production (lib/agent-tools.ts only relaxes the email check for playground), so testing an SDR agent books real meetings and sends confirmation emails, creates CRM contacts, opens Track issues and enqueues Flow runs. Fin previews and Releases let you try changes in a space separate from what customers see (https://fin.ai/testing), and AgentKit has preview runs (https://openai.com/index/introducing-agentkit/). This makes people afraid to test, which is the opposite of what builds trust. First scope: a 'simulate actions' toggle on by default in the playground that returns realistic fake outputs for crm_upsert_contact, crm_log_note, cal_book_meeting, track_create_issue, run_flow and POST http_request, marked as simulated in the tool call log.\n\nPriority: high. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Agents: Let owners require teammate approval before specific write actions run",
@@ -111,7 +115,9 @@
     "title": "Cal: Add start time increments independent of meeting duration",
     "description": "Calendly lets each event type set how often slots start, for example every 15 or 30 minutes regardless of length (https://calendly.com/help/how-to-fine-tune-your-availability-settings). Our engine in computeDaySlots (lib/calendar.ts) steps by durationMin, so a 45 minute event only offers 9:00, 9:45, 10:30 and a 60 minute event cannot start at 9:30. This produces odd times guests do not expect and wastes availability around existing meetings. First scope: add slotIntervalMin to bookingRules (default = duration, options 5/10/15/20/30/60), use it as the loop step in computeDaySlots, and expose it in the editor Limits section.\n\nPriority: high. Effort: S. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Cal: Check conflicts across several calendars and add Microsoft 365 / Outlook",
@@ -157,7 +163,9 @@
     "title": "Chat: Add agent away status that skips round-robin and optionally reassigns",
     "description": "Intercom teammates set an Away status; round robin excludes away teammates and 'away and reassign' sends their open conversations back to the team inbox, and the June 2026 changelog added availability filters (https://www.intercom.com/help/en/articles/6512504-round-robin-deep-dive, https://www.intercom.com/help/en/articles/6522874-manage-teammate-status-in-the-next-gen-inbox). Chatwoot has Online/Busy/Offline plus auto-offline. Our applyAssignmentRules in lib/chat-data.ts sorts all workspace agents by active load with no notion of availability, so a teammate on vacation keeps receiving new chats that breach SLA. First scope: an Away toggle in the inbox header (stored per user), round-robin skips away agents, and an option to unassign their open conversations when going away; reuse the CRM lead-assignment out-of-office flag if possible.\n\nPriority: high. Effort: M. Compared with Intercom.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "CRM: Keep synced emails, enrollments and form history when merging contacts",
@@ -171,19 +179,25 @@
     "title": "CRM: Add a recycle bin that restores deleted records and activities for 90 days",
     "description": "HubSpot keeps deleted contacts, companies, deals and activities in a restore tool for 90 days, filterable by date, user or workflow (https://knowledge.hubspot.com/records/restore-deleted-records). We hard-delete: deleteContact and bulkDeleteContacts run DELETE FROM crm_contacts directly (lib/crm.ts:767, :886), there is no deleted_at column on any CRM table (lib/schema/baseline.ts), and cascades wipe associations, emails links and enrollments. One mis-click on bulk delete (up to 500 rows) is unrecoverable for a team without a DBA. First scope: deleted_at on contacts, companies, deals and activities, exclude soft-deleted rows in list/search/report queries, a Settings > Deleted records page with restore, and a daily cron purge after 90 days.\n\nPriority: high. Effort: M. Compared with HubSpot.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "CRM: Bulk edit any property and reassign owner on contacts, companies and deals",
     "description": "HubSpot's index pages let you select records and edit any property value, assign owners or add to segments in one action (https://knowledge.hubspot.com/records/bulk-edit-records). Our contacts and companies bulk endpoints only accept set_lifecycle and delete (app/api/crm/contacts/bulk/route.ts, app/api/crm/companies/bulk/route.ts), and the deals table bulk bar only offers tags (components/crm/DealsTable.tsx:245). When a rep leaves or territories change, a small team has to reassign owners one by one. First scope: a 'Set property' bulk action (owner, lead status, source, stage, close date and custom fields) on all three tables, recorded in crm_property_events and firing the same workflow triggers as single edits.\n\nPriority: high. Effort: M. Compared with HubSpot.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "CRM: Track last contacted, last activity and next activity date on every record",
     "description": "HubSpot maintains Last activity date, Last contacted, Next activity date and Number of times contacted automatically on each contact (https://knowledge.hubspot.com/properties/hubspots-default-contact-properties), and Pipedrive builds its workflow around a Next activity date with a warning on deals that have nothing scheduled (https://support.pipedrive.com/en/article/activities). We only compute last_activity_at for deals on the board query (lib/crm.ts:1531); contacts and companies have no such fields, the contacts table columns stop at created (components/crm/ContactsTable.tsx:50-59), and the board card shows no next step. For a small team the daily question is 'who have I not talked to and what is my next step', which we cannot answer from a list. First scope: derived last_contacted_at, last_activity_at, next_activity_at on contacts, companies and deals (updated on activity/email write), sortable and filterable columns, and a 'no next activity' marker on board cards.\n\nPriority: high. Effort: M. Compared with HubSpot.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "CRM: Show owner and custom fields as sortable columns in record tables",
@@ -203,13 +217,17 @@
     "title": "Docs: Move the caret between blocks with Arrow Up/Down",
     "description": "In Notion the arrow keys move freely through the page, crossing block boundaries (https://www.notion.com/help/keyboard-shortcuts). Each of our blocks is its own contentEditable (components/docs/DocsBlockEditor.tsx), and handleKeyDown in components/docs/DocsEditor.tsx only handles ArrowUp/Down inside the slash menu, so the caret gets stuck at the first or last line of a block and the user must reach for the mouse. This hurts every editing session, especially on long notes. First scope: when the caret is on the first visual line (ArrowUp) or last visual line (ArrowDown), or at offset 0 / end for ArrowLeft/Right, focus the neighbouring block and place the caret at the matching x position (lib/docs-caret.ts already has offset helpers); also make Delete at the end of a block merge the next one.\n\nPriority: high. Effort: S. Compared with Notion.",
     "product": "docs",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Docs: Add image and file blocks with upload, paste and drag and drop",
     "description": "Notion supports /image, /file, /video and /pdf blocks, drag and drop from the desktop, paste of screenshots, resize, captions and alt text, even on the Free plan with a 5 MB per file limit (https://www.notion.com/help/images-files-and-media, https://www.notion.com/pricing). Our block enum in lib/docs-schema.ts has no media type, lib/docs-richtext.ts lists IMG/VIDEO in DROP_TAGS so pasted images vanish, and covers only accept a URL. A team writing specs, how-tos or meeting notes constantly pastes screenshots, so this is the most visible missing primitive. First scope: an image block and a file block (name, size, download) backed by the existing lib/uploads.ts (Vercel Blob or local disk), created from /image, clipboard paste and drop, with caption and width; reuse the same upload for covers.\n\nPriority: high. Effort: M. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Docs: Split pasted Markdown or HTML into real blocks and import .md/.docx files",
@@ -221,13 +239,17 @@
     "title": "Docs: Search page content, not only titles, and add a Cmd+P page switcher",
     "description": "Notion search covers page bodies and comments, and Cmd+P opens search or jumps to recently viewed pages (https://www.notion.com/help/keyboard-shortcuts); Outline advertises instant full-text search as a headline feature (https://www.getoutline.com/). Our searchDocPages in lib/docs.ts runs title LIKE ? only, and app/api/search/route.ts uses it for Cmd+K, so a phrase written inside a page can never be found. Once a team has more than a few dozen pages, finding 'where did we write the refund policy' is the main daily use of a wiki. First scope: search title plus plain text of content (pagePlainText already exists in lib/docs-help.ts) with a snippet around the match and title hits ranked first; add an FTS index later; add a Docs-local Cmd+P palette that lists recent pages when empty.\n\nPriority: high. Effort: M. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Docs: Inherit sharing from parent pages to their subpages",
     "description": "In Notion subpages take on their parent's permissions unless overridden on a specific subpage (https://www.notion.com/help/sharing-and-permissions). Our getDocAccess in lib/docs.ts reads docs_shares WHERE page_id = ? for the page itself only, so sharing a 'Client onboarding' page with a guest or another team gives them the top page while every subpage returns 404, and the owner has to share each child by hand. This makes sharing a section with a contractor or client practically unusable. First scope: walk ancestors in getDocAccess (bounded, cached per request) and take the highest role found, show 'Inherited from <page>' in ShareDialog.tsx, and let the shared-with-me tree show the child pages under the shared root.\n\nPriority: high. Effort: M. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Docs: Add comment replies, @mentions in comments and notifications",
@@ -399,13 +421,17 @@
     "title": "Track: Add a Markdown rich text editor for issue descriptions and comments",
     "description": "Linear's editor converts typed or pasted Markdown into rich text, supports code blocks, attachments via /file and links @ENG-123 mentions as related issues (https://linear.app/docs/editor). Track stores descriptions as a single text block edited in a plain textarea (components/track/IssueDetailClient.tsx parseDescription, track-description-input), and comments are plain text. Bug reports and specs need headings, lists, code and inline images to be readable. First scope: reuse the Docs editor or a lightweight Markdown renderer for descriptions and comments, with code blocks, lists, links and pasted images uploaded as attachments; auto-link SLUG-N references.\n\nPriority: high. Effort: M. Compared with Linear.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Track: Let users subscribe to issues and notify all subscribers on changes",
     "description": "Linear auto-subscribes creators, assignees and mentioned users, allows manual subscribe/unsubscribe (Shift+S) and notifies every subscriber (https://linear.app/docs/notifications). Track hardcodes recipients: status changes go to assignee and creator, comments to mentions, assignee and creator (lib/notifications.ts, lib/track-data.ts createIssueComment), with no subscriber table. A reviewer or stakeholder who wants to follow an issue has no way to do it, and the creator cannot opt out. First scope: track_issue_subscribers table, auto-subscribe on create, assign, mention and comment, a Subscribe toggle on the issue page, and route all Track notifications through it.\n\nPriority: high. Effort: M. Compared with Linear.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Track: Send email notifications and a daily digest for Track activity",
@@ -495,7 +521,9 @@
     "title": "Cal: Add daily, weekly and monthly meeting limits per event type and per host",
     "description": "Calendly lets an event type cap bookings per day, week or month, and also caps total meetings across all event types; whichever limit hits first removes availability (https://calendly.com/help/how-to-set-meeting-limits). Our bookingRules in lib/calendar-schema.ts only have buffers, notice and horizon, and loadSlotContext in lib/calendar.ts has no count check. Founders and solo sellers use limits to protect focus time, for example at most 3 demos a day. First scope: add maxPerDay and maxPerWeek to bookingRules, count confirmed and pending bookings per host in the slot engine, and enforce it again inside the booking INSERT.\n\nPriority: medium. Effort: M. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Cal: Create collective event types where every selected host must be free",
@@ -507,7 +535,9 @@
     "title": "Cal: Redirect invitees after booking and capture UTM parameters on the booking",
     "description": "Calendly can redirect to an external URL after booking and optionally append event name, invitee name, email and UTM tags, available from Standard (https://calendly.com/help/how-to-redirect-invitees-to-another-site-after-booking). Our booking page only redirects to Stripe Checkout (components/calendar/PublicBookingPage.tsx) and the page route reads just name and email from the query (app/[locale]/book/[handle]/[slug]/page.tsx); bookings store no source or UTM. Marketers cannot fire a thank-you page conversion pixel or attribute demos to campaigns, which also weakens the CRM sync. First scope: per-event redirectUrl with a 'pass details' toggle, persist utm_* and referrer on calendar_bookings, and include them in webhooks and the CRM activity.\n\nPriority: medium. Effort: S. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Cal: Add one-off meetings that offer hand-picked times outside normal availability",
@@ -531,19 +561,25 @@
     "title": "Cal: Add an optional host approval step (requires confirmation) for bookings",
     "description": "Cal.com event types can require the host to accept each booking, always or only when booked within a notice window (https://cal.com/help/event-types/how-to-requires). Our bookings are confirmed instantly; the only pending state is the Stripe hold in lib/calendar.ts createBooking. Consultants, agencies and clinics want to screen requests before committing the slot. First scope: a requiresConfirmation flag that creates a pending booking holding the slot, host emails with Accept/Decline links and an admin action in BookingsList, guest notified either way, and a booking.requested webhook.\n\nPriority: medium. Effort: M. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Chat: Bulk select conversations in the inbox to assign, tag, snooze or resolve",
     "description": "Intercom's Inbox has checkboxes and an action bar to bulk assign, close, snooze, tag and set priority, including from search results (https://www.intercom.com/help/en/articles/6274899-get-started-with-intercom-inbox). Our inbox list in components/chat/ConversationList.tsx and components/chat/InboxShell.tsx has no selection, and PATCH /api/chat/conversations/[id] works on one conversation at a time. After a spam wave, an outage or a Monday backlog, closing or reassigning 30 chats one by one is the most tedious part of the job. First scope: shift-click/checkbox selection, x/Shift+x shortcuts, and a bar with resolve, assign, tag and snooze backed by one bulk endpoint.\n\nPriority: medium. Effort: M. Compared with Intercom.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Chat: Show page URL, referrer, browser, language and form answers in visitor panel",
     "description": "Intercom shows the last page a visitor viewed when replying and offers a Recent page views sidebar app with up to 20 visits (https://www.intercom.com/help/en/articles/9277565-recent-page-views-app). Our widget sends no page context: app/api/chat/widget.js/route.ts never reads location.href, document.referrer, navigator.language or timezone, and components/chat/VisitorPanel.tsx only shows name, email, first seen, started, subject and CSAT, even though pre-chat answers are stored in visitor metadata.form. Knowing the visitor is on the pricing page or checkout changes the answer and saves a round of questions. First scope: send url, title, referrer, language, timezone and user agent with each visitor message, store them on the message or visitor metadata, and render them plus the form answers in the visitor panel. Also avoid using the raw external_id as the sender name in the agent notification for anonymous visitors (lib/chat-visitor-message.ts).\n\nPriority: medium. Effort: S. Compared with Intercom.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Chat: Let visitors see past conversations and unify visitors across devices",
@@ -585,7 +621,9 @@
     "title": "CRM: Let tasks repeat on a daily, weekly or monthly schedule",
     "description": "HubSpot tasks have a 'Set to repeat' option that creates the next task in the series, also exposed through a Task series API (https://knowledge.hubspot.com/tasks/create-tasks, https://developers.hubspot.com/docs/api-reference/latest/crm/activities/task-series/guide.md). Our tasks are single crm_activities rows with due_at and done only (lib/schema/baseline.ts:159), and grepping lib/crm*.ts and components/crm finds no recurrence. Small teams use recurring tasks for account check-ins, monthly invoicing calls and renewals. First scope: a repeat rule (every N days/weeks/months) on the task form; when a task is completed, create the next one with the same owner, record links and project.\n\nPriority: medium. Effort: S. Compared with HubSpot.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "CRM: Support @mentions in notes and tasks with in-app and email notifications",
@@ -873,13 +911,17 @@
     "title": "Track: Search issue descriptions and comments, and escape LIKE wildcards",
     "description": "Linear search covers issue content and comments across the workspace (Cmd/Ctrl+F quick search, https://linear.app/docs/inbox). Track search only matches title or identifier (lib/track-data.ts listIssues and listAllIssues use title LIKE ? OR identifier LIKE ?), so you cannot find an issue by an error message pasted in its description. The query is also interpolated as %q% without escaping, so a search for 100% or snake_case matches unexpected rows. First scope: include description text and comment bodies in the search (SQLite FTS5 table or LIKE with ESCAPE), and escape % and _ in user input.\n\nPriority: medium. Effort: S. Compared with Linear.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Track: Add group by and more sort options to list and board views",
     "description": "Linear display options let you group lists and boards by status, assignee, priority, cycle, label or project and order by priority, due date, updated or manual (https://linear.app/docs/display-options). Track's board only groups by status (components/track/IssuesBoard.tsx), the project list has no grouping, and the saved view sort enum is limited to newest, oldest, priority and identifier (lib/track-schema.ts issueViewCreateSchema). A lead reviewing workload per person or sorting by deadline cannot do it in the project view. First scope: groupBy (status, assignee, priority, cycle, label) for list and board, sort by due date and last updated, both persisted in saved views.\n\nPriority: medium. Effort: M. Compared with Linear.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Track: Share saved views with the team and allow workspace-level views",
@@ -897,13 +939,17 @@
     "title": "Agents: Support secret headers on http_request so agents can call authenticated APIs",
     "description": "http_request only sends a fixed user-agent and content-type to allowlisted domains (lib/agent-tools.ts) and toolsConfigSchema has no place for credentials (lib/agents-config.ts), so it can only reach public endpoints. Fin connects to internal systems via Data Connectors or MCP with control over what data is exposed (https://production.fin.ai/procedures), and Zapier Agents act across thousands of authenticated apps. First scope: per-domain encrypted headers (for example Authorization) stored server-side and never shown to the model, optional named endpoints with a description and JSON schema so the model picks an endpoint rather than composing raw URLs.\n\nPriority: low. Effort: S. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Agents: Show API and Flow usage in the agent list channels and 7-day counts",
     "description": "listAgents in lib/agents.ts only pushes 'chat' and 'public' into channels even though AgentListItem allows 'api', so agents used through /api/v1/agents or the Flow agent node (lib/flow-engine.ts agentNode, which also runs as channel 'api') look unused in the list. Fin's reporting breaks volume down by channel (https://fin.ai/pricing). Owners cleaning up agents could delete one that a Flow depends on. First scope: add 'api' when the agent has any api-channel conversation in the last 30 days and list referencing flows on the agent page, warning before delete.\n\nPriority: low. Effort: S. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Board: Present frames as slides and export frames to PDF",
@@ -915,7 +961,9 @@
     "title": "Board: Fix editor rename that skips saves, shows no errors and keeps stale updated_at",
     "description": "saveName in components/board/BoardEditor.tsx compares against the initial board.name prop, so renaming A to B and back to A in the same session never saves the second change, and the PATCH result is ignored so failures leave the UI showing a name the server does not have. renameBoard in lib/boards.ts also does not touch updated_at, so the list ordering and 'updated' meta in components/board/BoardList.tsx ignore renames. Miro renames are immediate and reflected in board lists. First scope: track the last saved name in a ref, surface errors with the existing status text, and bump updated_at on rename.\n\nPriority: low. Effort: S. Compared with Miro.",
     "product": "board",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Cal: Support group events with seats so several invitees can book one slot",
@@ -941,7 +989,9 @@
     "title": "Chat: Allow editing and deleting internal notes and agent messages",
     "description": "Intercom made internal notes editable by their author in March 2026, behind a 'Can edit notes' permission (https://www.intercom.com/changes/en/page/1). Our messages route app/api/chat/conversations/[id]/messages/route.ts only implements GET and POST, so a note with a wrong @mention, a typo in a reply or a pasted secret stays forever. First scope: PATCH and DELETE for the author's own notes (and agent replies not yet read by the visitor), with an 'edited' marker, and re-evaluate mentions on edit.\n\nPriority: low. Effort: S. Compared with Intercom.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog"
   },
   {
     "title": "Chat: Export conversation transcripts and email a transcript to the visitor",
