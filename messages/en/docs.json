@@ -95,13 +95,27 @@
       "code": "Code",
       "divider": "Divider",
       "table": "Table",
-      "database": "Database"
+      "database": "Database",
+      "image": "Image",
+      "file": "File"
     },
     "breadcrumb": "Breadcrumb",
     "closePanel": "Close panel",
     "inTrash": "This page is in the trash.",
     "removeIcon": "Remove icon",
-    "published": "Published"
+    "published": "Published",
+    "upload": {
+      "uploading": "{count, plural, one {Uploading # file...} other {Uploading # files...}}",
+      "tooLarge": "\"{name}\" is larger than 10 MB.",
+      "typeNotAllowed": "\"{name}\" is a file type that cannot be uploaded (HTML, SVG and scripts are blocked).",
+      "storageUnavailable": "File storage is not configured on this server, so \"{name}\" was not uploaded.",
+      "failed": "Could not upload \"{name}\". Try again.",
+      "dismiss": "Dismiss",
+      "missing": "File not available",
+      "untitledFile": "Untitled file",
+      "imageLabel": "Image: {name}",
+      "fileLabel": "File: {name}"
+    }
   },
   "database": {
     "columnName": "Column {n}",
@@ -184,7 +198,13 @@
     "suggestions": "Suggestions",
     "close": "Close",
     "aiHintOn": "Chat AI uses it",
-    "aiHintOff": "Chat AI does not use it"
+    "aiHintOff": "Chat AI does not use it",
+    "inheritedFrom": "Access from <link>{page}</link>",
+    "overrideHelp": "Changing the role here only applies to this page and its subpages.",
+    "inherit": "Inherit access from the parent page",
+    "inheritOnHelp": "People with access to the parent page can also open this page. Roles set here take priority.",
+    "inheritOffHelp": "Only the people listed here can open this page. The parent page access no longer applies.",
+    "subpages": "Subpages"
   },
   "templates": {
     "title": "Start from a template",
@@ -277,5 +297,16 @@
     "errorBody": "Something failed while loading your pages. Your work is saved.",
     "retry": "Try again",
     "loading": "Loading pages"
+  },
+  "switcher": {
+    "title": "Search pages",
+    "placeholder": "Search titles and page content",
+    "recent": "Recently edited",
+    "loading": "Searching...",
+    "empty": "No pages match your search.",
+    "noPages": "No pages yet.",
+    "hint": "Enter to open, Esc to close",
+    "open": "Search",
+    "shortcut": "⌘P"
   }
 }

@@ -3,7 +3,8 @@ import path from 'path';
 import { del, put } from '@vercel/blob';
 
 /**
- * Almacenamiento de archivos subidos (adjuntos de Chat, Track y tareas del CRM).
+ * Almacenamiento de archivos subidos (adjuntos de Chat, Track, tareas del CRM y
+ * bloques de imagen/archivo de Docs).
  * - Con BLOB_READ_WRITE_TOKEN → Vercel Blob (lo que usa producción).
  * - Sin token y fuera de Vercel → disco local en public/uploads (dev / self-host).
  * - Sin token en Vercel → error: el filesystem es read-only y efímero.
@@ -37,9 +38,9 @@ export function isAllowedUpload(filename: string, contentType: string): boolean 
   return !BLOCKED_EXTENSIONS.has(ext) && !BLOCKED_MIME.test(contentType);
 }
 
-/** Guarda el archivo y devuelve su URL pública. `folder`: chat | track | tasks. */
+/** Guarda el archivo y devuelve su URL pública. `folder`: chat | track | tasks | robots | docs. */
 export async function saveUpload(
-  folder: 'chat' | 'track' | 'tasks' | 'robots',
+  folder: 'chat' | 'track' | 'tasks' | 'robots' | 'docs',
   filename: string,
   contentType: string,
   buffer: Buffer,

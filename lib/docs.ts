@@ -1,6 +1,15 @@
 import { getDb, getUserById, type DocsCommentRow, type DocsPageRow, type DocsShareRow, type TeamRow, type UserRow } from './db';
 import { sanitizeBlocks } from './docs-sanitize';
 import { pageLinkIds } from './docs-page-links';
+import {
+  buildSnippet,
+  matchesAll,
+  pageSearchText,
+  prefilterTerm,
+  rankHits,
+  searchTokens,
+  type DocsSearchHit,
+} from './docs-search';
 import { isMember, listMembers, listOwnedTeams } from './teams';
 import {
   type DocsAccess,
@@ -13,6 +22,7 @@ import {
   type DocsPageSummary,
   type DocsShareRole,
   defaultBlocks,
+  mergeInheritedShares,
   stringifyBlocks,
 } from './docs-types';
 
@@ -48,6 +58,7 @@ export function toDocPage(row: DocsPageRow): DocsPage {
     small_text: row.small_text === 1,
     full_width: row.full_width === 1,
     position: row.position ?? null,
+    inherit_shares: row.inherit_shares !== 0,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -94,7 +105,8 @@ export interface DocsActor {
  * Acceso efectivo del actor a una página (null = sin acceso).
  * - Owner del workspace: 'owner'.
  * - Shares: por usuario real (target_id = id de la persona) o por team del
- *   que es miembro; gana el rol más alto ('edit' > 'view').
+ *   que es miembro; gana el rol más alto ('edit' > 'view'). Cuentan los de la
+ *   página y los heredados de sus ancestros (ver listEffectiveDocShares).
  * - Publicada en el centro de ayuda: cualquiera autenticado puede leerla.
  * `is_public` ya NO da lectura: solo habilita a la IA del Chat.
  *
@@ -123,9 +135,7 @@ export async function getDocAccess(
   const includePublicLink = opts.includePublicLink ?? true;
   if (page.user_id === actor.id) return 'owner';
   const userId = actor.actingUser?.id ?? actor.id;
-  const shares = (await getDb()
-    .prepare('SELECT * FROM docs_shares WHERE page_id = ?')
-    .all(page.id)) as DocsShareRow[];
+  const shares = await listEffectiveDocShares(page);
   let access: DocsAccess | null = null;
   for (const share of shares) {
     let match = false;
@@ -351,6 +361,8 @@ export interface UpdateDocPageInput {
   archived?: boolean;
   small_text?: boolean;
   full_width?: boolean;
+  /** Hereda los shares del padre (solo el dueño lo cambia). */
+  inherit_shares?: boolean;
   /**
    * Concurrencia optimista: `updated_at` sobre el que el cliente hizo sus
    * cambios. Si la página cambió desde entonces (otra persona guardó o se
@@ -423,6 +435,10 @@ export async function updateDocPage(
   if (input.full_width !== undefined) {
     updates.push('full_width = ?');
     args.push(input.full_width ? 1 : 0);
+  }
+  if (input.inherit_shares !== undefined) {
+    updates.push('inherit_shares = ?');
+    args.push(input.inherit_shares ? 1 : 0);
   }
   if (input.is_public !== undefined) {
     updates.push('is_public = ?');
@@ -749,6 +765,67 @@ export async function listDocShares(pageId: string): Promise<DocsPageShare[]> {
   return rows.map(toShare);
 }
 
+/**
+ * Cadena de herencia de shares: la página y sus ancestros (más cercano
+ * primero) mientras cada eslabón herede. Una página con inherit_shares = 0
+ * corta la cadena: cuentan sus shares pero no los de arriba.
+ */
+async function shareChain(page: DocsPageRow): Promise<DocsPageRow[]> {
+  const chain: DocsPageRow[] = [page];
+  const seen = new Set<string>([page.id]);
+  let cur = page;
+  while (cur.parent_id && cur.inherit_shares !== 0) {
+    const parent = (await getDb()
+      .prepare('SELECT * FROM docs_pages WHERE id = ? AND user_id = ?')
+      .get(cur.parent_id, page.user_id)) as DocsPageRow | undefined;
+    // Defensa ante ciclos de parent_id.
+    if (!parent || seen.has(parent.id)) break;
+    seen.add(parent.id);
+    chain.push(parent);
+    cur = parent;
+  }
+  return chain;
+}
+
+/**
+ * Shares efectivos de una página: los propios y los heredados de sus
+ * ancestros, con `inherited_from` diciendo de dónde viene cada uno. Para un
+ * mismo destino gana el share más cercano (un share propio pisa al heredado,
+ * así una subpágina puede bajar o subir el rol que da el padre).
+ */
+export async function listEffectiveDocShares(page: DocsPageRow): Promise<DocsPageShare[]> {
+  const chain = await shareChain(page);
+  const levels: Array<{ page: { id: string; title: string }; shares: DocsPageShare[] }> = [];
+  for (const p of chain) {
+    const rows = (await getDb()
+      .prepare('SELECT * FROM docs_shares WHERE page_id = ? ORDER BY created_at DESC')
+      .all(p.id)) as DocsShareRow[];
+    levels.push({ page: { id: p.id, title: p.title }, shares: rows.map(toShare) });
+  }
+  return mergeInheritedShares(levels);
+}
+
+/**
+ * Subpáginas activas que el actor puede abrir: para que un invitado navegue
+ * el subárbol que le compartieron (no tiene el árbol del workspace ajeno).
+ */
+export async function listAccessibleSubpages(
+  actor: DocsActor,
+  pageId: string,
+): Promise<Array<Pick<DocsPageSummary, 'id' | 'title' | 'icon'>>> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT * FROM docs_pages WHERE parent_id = ? AND archived = 0
+       ORDER BY (position IS NULL) ASC, position ASC, updated_at DESC LIMIT 100`,
+    )
+    .all(pageId)) as DocsPageRow[];
+  const out: Array<Pick<DocsPageSummary, 'id' | 'title' | 'icon'>> = [];
+  for (const row of rows) {
+    if (await getDocAccess(row, actor)) out.push({ id: row.id, title: row.title, icon: row.icon ?? null });
+  }
+  return out;
+}
+
 export async function createDocShare(
   ownerId: string,
   pageId: string,
@@ -955,6 +1032,53 @@ export async function searchDocPages(
     )
     .all(ownerId, q)) as DocsPageRow[];
   return rows.map(toDocPage);
+}
+
+/**
+ * Búsqueda por título y por el texto de los bloques (párrafos, listas,
+ * tablas, nombres de archivo). Prefiltro barato en SQL (LIKE sobre título o
+ * content con la palabra más "buscable", ver prefilterTerm) y confirmación en
+ * JS con todas las palabras, sin tildes ni mayúsculas. Título primero.
+ */
+export async function searchDocPagesContent(
+  ownerId: string,
+  query: string,
+  limit = 20,
+): Promise<DocsSearchHit[]> {
+  const tokens = searchTokens(query);
+  if (tokens.length === 0) return [];
+  const like = (v: string) => `%${v.replace(/[\\%_]/g, '\\$&')}%`;
+  const term = prefilterTerm(query);
+  type Row = Pick<DocsPageRow, 'id' | 'parent_id' | 'title' | 'icon' | 'content' | 'updated_at'>;
+  const rows = (term
+    ? await getDb()
+        .prepare(
+          `SELECT id, parent_id, title, icon, content, updated_at FROM docs_pages
+           WHERE user_id = ? AND archived = 0 AND (title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\')
+           ORDER BY updated_at DESC LIMIT 300`,
+        )
+        .all(ownerId, like(term), like(term))
+    : await getDb()
+        .prepare(
+          `SELECT id, parent_id, title, icon, content, updated_at FROM docs_pages
+           WHERE user_id = ? AND archived = 0 AND title LIKE ? ESCAPE '\\'
+           ORDER BY updated_at DESC LIMIT 300`,
+        )
+        .all(ownerId, like(query.trim()))) as Row[];
+
+  const hits: DocsSearchHit[] = [];
+  for (const r of rows) {
+    const base = { id: r.id, parent_id: r.parent_id ?? null, title: r.title, icon: r.icon ?? null, updated_at: r.updated_at };
+    if (matchesAll(r.title, tokens)) {
+      hits.push({ ...base, match: 'title', snippet: null });
+      continue;
+    }
+    const text = pageSearchText(parseBlocks(r.content));
+    if (matchesAll(`${r.title} ${text}`, tokens)) {
+      hits.push({ ...base, match: 'content', snippet: buildSnippet(text, tokens) });
+    }
+  }
+  return rankHits(hits, limit);
 }
 
 // ---------- Re-export tree helpers (pure, live in docs-types) ----------

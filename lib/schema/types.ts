@@ -624,6 +624,8 @@ export interface DocsPageRow {
   published_at?: string | null;
   /** 1 = la mandó a la papelera la cascada de un ancestro (y vuelve con él). */
   archived_by_parent?: 0 | 1;
+  /** 1 = hereda los shares de los ancestros (default); 0 = solo los propios. */
+  inherit_shares?: 0 | 1;
   created_at: string;
   updated_at: string;
 }

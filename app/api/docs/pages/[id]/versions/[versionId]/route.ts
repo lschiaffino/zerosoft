@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { DOC_INTERNAL_READ, resolveDocAccess } from '@/lib/docs';
 import { getDocVersion } from '@/lib/docs-versions';
+import { stripFileUrls } from '@/lib/docs-files';
 import { notFound, unauthorized } from '@/lib/docs-http';
 
 export const runtime = 'nodejs';
@@ -15,5 +16,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   if (!res) return notFound();
   const version = await getDocVersion(res.row.user_id, id, versionId);
   if (!version) return notFound();
+  // Solo lectura: la URL del storage de imágenes/archivos no viaja.
+  if (res.access === 'view') return NextResponse.json({ ...version, content: stripFileUrls(version.content) });
   return NextResponse.json(version);
 }

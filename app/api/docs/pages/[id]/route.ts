@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
-import { DocsConflictError, deleteDocPage, getDocAccess, getDocPageRow, listDocShares, toDocPage, updateDocPage } from '@/lib/docs';
+import { DocsConflictError, deleteDocPage, getDocAccess, getDocPageRow, listEffectiveDocShares, toDocPage, updateDocPage } from '@/lib/docs';
+import { stripFileUrls } from '@/lib/docs-files';
 import { SHARED_EDITABLE_FIELDS, docPageUpdateSchema } from '@/lib/docs-schema';
 import { maybeAutoSnapshot } from '@/lib/docs-versions';
 import { notFound, unauthorized, invalidBody, forbidden, docsError } from '@/lib/docs-http';
@@ -15,9 +16,12 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const row = await getDocPageRow(params.id);
   const access = row ? await getDocAccess(row, user) : null;
   if (!row || !access) return notFound();
-  // Los shares (quién tiene acceso) solo los ve el dueño.
-  const shares = access === 'owner' ? await listDocShares(params.id) : [];
-  return NextResponse.json({ ...toDocPage(row), access, shares });
+  // Los shares (quién tiene acceso, propios y heredados) solo los ve el dueño.
+  const shares = access === 'owner' ? await listEffectiveDocShares(row) : [];
+  const page = toDocPage(row);
+  // Solo lectura: la URL del storage de imágenes/archivos no viaja (se sirven por /api/docs/files).
+  if (access === 'view') page.content = stripFileUrls(page.content);
+  return NextResponse.json({ ...page, access, shares });
 }
 
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {

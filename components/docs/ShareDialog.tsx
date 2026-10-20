@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Icon from '@/components/app/icons';
 import AdvancedSection from '@/components/ui/AdvancedSection';
+import { Link } from '@/i18n/navigation';
 import type { DocsMentionableUser, DocsPage, DocsPageShare, DocsShareRole } from '@/lib/docs-types';
 
 export interface ShareRequest {
@@ -90,6 +91,10 @@ export default function ShareDialog({
   }, [page.user_id]);
 
   const sharedKeys = new Set(shares.map((s) => `${s.kind}:${s.target_id}`));
+  // Propios arriba (se editan acá); los heredados abajo, con la página de donde vienen.
+  const ownShares = shares.filter((s) => !s.inherited_from);
+  const inheritedShares = shares.filter((s) => s.inherited_from);
+  const inherits = page.inherit_shares !== false;
   const options: Option[] = useMemo(() => {
     const all: Option[] = [
       ...members.map((m) => ({ kind: 'user' as const, id: m.id, label: m.name || m.email, sub: m.email })),
@@ -298,10 +303,10 @@ export default function ShareDialog({
               </span>
               <span className="docs-access-role">{t('share.roles.owner')}</span>
             </li>
-            {shares.map((share) => {
+            {ownShares.map((share) => {
               const who = labelFor(share);
               return (
-                <li key={share.id} className="docs-access-row">
+                <li key={share.id} className="docs-access-row" data-testid="docs-access-own">
                   <span className="docs-access-who">
                     <span className="docs-access-name">{who.label}</span>
                     <span className="docs-invite-sub">{who.sub}</span>
@@ -331,7 +336,68 @@ export default function ShareDialog({
                 </li>
               );
             })}
+            {inheritedShares.map((share) => {
+              const who = labelFor(share);
+              const from = share.inherited_from!;
+              return (
+                <li key={share.id} className="docs-access-row docs-access-inherited" data-testid="docs-access-inherited">
+                  <span className="docs-access-who">
+                    <span className="docs-access-name">{who.label}</span>
+                    <span className="docs-invite-sub">
+                      {t.rich('share.inheritedFrom', {
+                        page: from.title || t('untitled'),
+                        link: (chunks) => (
+                          <Link href={`/app/docs/${from.id}`} className="docs-inline-link">
+                            {chunks}
+                          </Link>
+                        ),
+                      })}
+                    </span>
+                  </span>
+                  {share.kind === 'public' ? (
+                    <span className="docs-access-role">{t('share.roles.view')}</span>
+                  ) : (
+                    // Cambiar el rol acá crea un share propio de esta página que
+                    // pisa al heredado (la página padre no se toca).
+                    <select
+                      className="select docs-access-select"
+                      value={share.role}
+                      onChange={(e) =>
+                        onShare({
+                          kind: share.kind as 'team' | 'user',
+                          targetId: share.target_id,
+                          role: e.target.value as DocsShareRole,
+                        })
+                      }
+                      aria-label={`${t('share.role')}: ${who.label}`}
+                      title={t('share.overrideHelp')}
+                    >
+                      <option value="view">{t('share.roles.view')}</option>
+                      <option value="edit">{t('share.roles.edit')}</option>
+                    </select>
+                  )}
+                  {/* Se quita desde la página de origen o cortando la herencia. */}
+                  <span className="docs-access-spacer" aria-hidden="true" />
+                </li>
+              );
+            })}
           </ul>
+
+          {page.parent_id && (
+            <label className="ui-switch docs-switch-row docs-inherit-row">
+              <input
+                type="checkbox"
+                role="switch"
+                checked={inherits}
+                onChange={(e) => onUpdate({ inherit_shares: e.target.checked })}
+                data-testid="docs-inherit-switch"
+              />
+              <span className="docs-switch-text">
+                <span className="docs-switch-label">{t('share.inherit')}</span>
+                <span className="ui-help">{inherits ? t('share.inheritOnHelp') : t('share.inheritOffHelp')}</span>
+              </span>
+            </label>
+          )}
         </section>
 
         <section className="docs-share-group" aria-labelledby={publishId}>

@@ -95,13 +95,27 @@
       "code": "Código",
       "divider": "Divisor",
       "table": "Tabla",
-      "database": "Base de datos"
+      "database": "Base de datos",
+      "image": "Imagen",
+      "file": "Archivo"
     },
     "breadcrumb": "Ruta",
     "closePanel": "Cerrar panel",
     "inTrash": "Esta página está en la papelera.",
     "removeIcon": "Quitar ícono",
-    "published": "Publicada"
+    "published": "Publicada",
+    "upload": {
+      "uploading": "{count, plural, one {Subiendo # archivo...} other {Subiendo # archivos...}}",
+      "tooLarge": "\"{name}\" pesa más de 10 MB.",
+      "typeNotAllowed": "\"{name}\" es de un tipo que no se puede subir (HTML, SVG y scripts están bloqueados).",
+      "storageUnavailable": "Este servidor no tiene configurado el almacenamiento de archivos, así que \"{name}\" no se subió.",
+      "failed": "No se pudo subir \"{name}\". Probá de nuevo.",
+      "dismiss": "Cerrar",
+      "missing": "Archivo no disponible",
+      "untitledFile": "Archivo sin nombre",
+      "imageLabel": "Imagen: {name}",
+      "fileLabel": "Archivo: {name}"
+    }
   },
   "database": {
     "columnName": "Columna {n}",
@@ -184,7 +198,13 @@
     "suggestions": "Sugerencias",
     "close": "Cerrar",
     "aiHintOn": "La usa la IA del Chat",
-    "aiHintOff": "La IA del Chat no la usa"
+    "aiHintOff": "La IA del Chat no la usa",
+    "inheritedFrom": "Acceso desde <link>{page}</link>",
+    "overrideHelp": "Cambiar el rol acá aplica solo a esta página y sus subpáginas.",
+    "inherit": "Heredar el acceso de la página padre",
+    "inheritOnHelp": "Quien tiene acceso a la página padre también puede abrir esta. Los roles que pongas acá tienen prioridad.",
+    "inheritOffHelp": "Solo las personas de esta lista pueden abrir la página. El acceso de la página padre deja de aplicar.",
+    "subpages": "Subpáginas"
   },
   "templates": {
     "title": "Empezar desde una plantilla",
@@ -277,5 +297,16 @@
     "errorBody": "Algo falló al cargar tus páginas. Lo que escribiste está guardado.",
     "retry": "Reintentar",
     "loading": "Cargando páginas"
+  },
+  "switcher": {
+    "title": "Buscar páginas",
+    "placeholder": "Buscá en títulos y contenido",
+    "recent": "Editadas hace poco",
+    "loading": "Buscando...",
+    "empty": "Ninguna página coincide con la búsqueda.",
+    "noPages": "Todavía no hay páginas.",
+    "hint": "Enter para abrir, Esc para cerrar",
+    "open": "Buscar",
+    "shortcut": "⌘P"
   }
 }

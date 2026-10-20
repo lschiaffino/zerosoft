@@ -106,7 +106,7 @@ export default function VersionsPanel({
         </p>
         <div className="docs-versions-preview">
           <h3 className="docs-versions-title">{preview.title || t('untitled')}</h3>
-          <DocsBlocksView blocks={preview.content} className="docs-prose" />
+          <DocsBlocksView blocks={preview.content} pageId={pageId} className="docs-prose" />
         </div>
       </div>
     );

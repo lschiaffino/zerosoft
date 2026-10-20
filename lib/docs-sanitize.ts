@@ -1,6 +1,7 @@
 import sanitizeHtml from 'sanitize-html';
 import type { DocsBlock } from './docs-types';
 import { isPageLinkId, pageLinkHref } from './docs-page-links';
+import { sanitizeFileFields } from './docs-files';
 
 /**
  * Sanitización de Docs en el servidor. El editor ya sanitiza en el navegador
@@ -36,7 +37,8 @@ function plainCell(cell: unknown): string {
 
 export function sanitizeBlocks(blocks: DocsBlock[]): DocsBlock[] {
   return blocks.map((b) => ({
-    ...b,
+    // image/file: URL solo del storage de Docs, nombre/MIME saneados.
+    ...sanitizeFileFields(b),
     content: sanitizeDocsHtml(b.content),
     // Las celdas de tablas/bases son texto plano (se renderizan en <input> y
     // como texto, nunca con innerHTML): escaparlas como HTML mostraba "&amp;"

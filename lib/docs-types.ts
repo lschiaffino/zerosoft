@@ -13,7 +13,9 @@ export type DocsBlockType =
   | 'code'
   | 'divider'
   | 'table'
-  | 'database';
+  | 'database'
+  | 'image'
+  | 'file';
 
 export type DocsDatabaseColumnType = 'text' | 'number' | 'select' | 'date';
 
@@ -36,6 +38,16 @@ export interface DocsBlock {
   rows?: string[][];
   columns?: DocsDatabaseColumn[];
   view?: DocsDatabaseView;
+  /**
+   * Bloques image/file: URL del archivo en el storage (lib/uploads.ts). Nunca
+   * se usa directo en el navegador: se sirve por /api/docs/files (chequea el
+   * acceso a la página). A quien solo puede ver la página no le llega.
+   */
+  url?: string;
+  /** Nombre original, tamaño en bytes y MIME del archivo subido. */
+  name?: string;
+  size?: number;
+  mime?: string;
 }
 
 export interface DocsPage {
@@ -57,6 +69,8 @@ export interface DocsPage {
   full_width?: boolean;
   /** Orden manual entre hermanos (null = sin orden manual). */
   position?: number | null;
+  /** Hereda los shares de la página padre (y de sus ancestros). */
+  inherit_shares?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -71,6 +85,8 @@ export interface DocsPageShare {
   target_id: string | null;
   role: DocsShareRole;
   created_at: string;
+  /** Share heredado de un ancestro (null/ausente = propio de esta página). */
+  inherited_from?: { id: string; title: string } | null;
 }
 
 export type DocsShareRole = 'view' | 'edit';
@@ -107,6 +123,25 @@ export interface DocsMentionableUser {
   id: string;
   name: string | null;
   email: string;
+}
+
+/**
+ * Junta los shares de una cadena de páginas (la propia primero, después cada
+ * ancestro hacia arriba). Para un mismo destino (kind + target) gana el más
+ * cercano; los que vienen de un ancestro llevan `inherited_from`. Puro.
+ */
+export function mergeInheritedShares(
+  levels: Array<{ page: { id: string; title: string }; shares: DocsPageShare[] }>,
+): DocsPageShare[] {
+  const byKey = new Map<string, DocsPageShare>();
+  levels.forEach((level, depth) => {
+    for (const share of level.shares) {
+      const key = `${share.kind}:${share.target_id ?? ''}`;
+      if (byKey.has(key)) continue;
+      byKey.set(key, { ...share, inherited_from: depth === 0 ? null : { id: level.page.id, title: level.page.title } });
+    }
+  });
+  return [...byKey.values()];
 }
 
 export function buildPageTree<T extends Pick<DocsPage, 'id' | 'parent_id'>>(pages: T[]): T[] {

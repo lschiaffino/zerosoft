@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/session';
 import { parseBlocks, readableLinkTitles, resolveDocAccess, slugifyTitle } from '@/lib/docs';
 import { pageLinkHref, resolveBlocksPageLinks } from '@/lib/docs-page-links';
 import { blocksToMarkdown } from '@/lib/docs-markdown';
+import { docsFileHref } from '@/lib/docs-files';
 import { docsError, notFound, unauthorized } from '@/lib/docs-http';
 
 export const runtime = 'nodejs';
@@ -27,7 +28,10 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
     href: `${origin}${pageLinkHref(pageId)}`,
     title: titles.get(pageId) ?? null,
   }));
-  const md = blocksToMarkdown(blocks, res.row.title);
+  // Imágenes y archivos: links al proxy (piden sesión con acceso a la página).
+  const md = blocksToMarkdown(blocks, res.row.title, {
+    fileHref: (blockId) => `${origin}${docsFileHref(id, blockId)}`,
+  });
   const filename = `${slugifyTitle(res.row.title) || 'page'}.md`;
   return new NextResponse(md, {
     headers: {

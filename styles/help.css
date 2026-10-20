@@ -394,3 +394,10 @@
   .help-feedback,
   .help-pager { display: none !important; }
 }
+
+/* Imágenes y archivos (bloques image/file, servidos por /api/docs/files). */
+.dbv .dbv-image { margin: 0.4em 0; }
+.dbv .dbv-image img { display: block; max-width: 100%; height: auto; border-radius: var(--radius-1); }
+.dbv .dbv-file { display: flex; align-items: baseline; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.dbv .dbv-file a { color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
+.dbv .dbv-file-size { flex-shrink: 0; font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); }

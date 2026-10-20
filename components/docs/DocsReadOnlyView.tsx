@@ -52,7 +52,7 @@ export default function DocsReadOnlyView({
           {page.icon && <span className="docs-icon" aria-hidden="true">{page.icon}</span>}
           <h1 className="docs-title docs-readonly-title">{page.title || t('untitled')}</h1>
         </div>
-        <DocsBlocksView blocks={page.content} className="docs-prose docs-readonly-body" />
+        <DocsBlocksView blocks={page.content} pageId={page.id} className="docs-prose docs-readonly-body" />
       </div>
       <aside className="docs-side" hidden={!versions} aria-label={t('versions.title')}>
         <button
