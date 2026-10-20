@@ -25,7 +25,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ token: s
   const { token } = await props.params;
   const booking = await getBookingByManageToken(token);
   if (!booking) return notFound();
-  if (booking.status !== 'confirmed') return crmError(409, 'not_confirmed');
+  // Una solicitud que espera confirmación se puede retirar (cancelar), no mover.
+  const awaitingApproval = booking.status === 'pending' && booking.approval === 'pending';
+  if (booking.status !== 'confirmed' && !awaitingApproval) return crmError(409, 'not_confirmed');
   if (new Date(booking.starts_at).getTime() < Date.now()) return crmError(409, 'already_started');
 
   const body: unknown = await req.json().catch(() => null);
@@ -40,13 +42,14 @@ export async function POST(req: NextRequest, props: { params: Promise<{ token: s
           status: 'cancelled',
           cancelReason: parsed.data.reason ? `Guest: ${parsed.data.reason}` : 'Cancelled by guest',
         },
-        { fromStatus: 'confirmed' },
+        { fromStatus: booking.status },
       );
       // Cancelar antes del inicio reembolsa el pago completo (si lo hubo).
       if (updated) await afterBookingCancelled(await refundCancelledBooking(updated), parsed.data.reason ?? null);
       return NextResponse.json({ status: 'cancelled' });
     }
 
+    if (awaitingApproval) return crmError(409, 'not_confirmed');
     const tz = parsed.data.timezone ?? booking.timezone;
     const offered = await findOfferedSlot(booking.event_type_id, new Date(parsed.data.start), tz, {
       excludeBookingId: booking.id,

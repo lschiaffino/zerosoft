@@ -2409,6 +2409,17 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN inherit_shares INTEGER NOT NULL DEFAULT 1');
     },
   },
+  {
+    // Cal: UTM de la página de reserva guardado en cada reserva (JSON) y
+    // aprobación del anfitrión: 'pending' = la reserva ('pending', sin hold
+    // de pago) espera que la confirme; 'approved' / 'declined' = respondió.
+    // 'none' = el evento no pide confirmación.
+    id: '050_cal_booking_utm_approval',
+    async up(client) {
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN utm TEXT NOT NULL DEFAULT '{}'");
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN approval TEXT NOT NULL DEFAULT 'none'");
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

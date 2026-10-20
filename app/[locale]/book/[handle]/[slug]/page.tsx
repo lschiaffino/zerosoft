@@ -4,6 +4,7 @@ import { getEventTypeByHandle, getCalendarUser, getWorkspaceBrand, effectiveMaxF
 import PublicBookingPage, { BookingInfo } from '@/components/calendar/PublicBookingPage';
 import { resolveBrand } from '@/components/calendar/cal-utils';
 import { paymentsEnabled } from '@/lib/calendar-payments';
+import { sanitizeUtm } from '@/lib/calendar-redirect';
 import '@/styles/calendar.css';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,8 @@ export default async function BookPage(props: {
   // Pre-fill opcional del invitado (links generados desde el CRM).
   const prefillName = typeof searchParams.name === 'string' ? searchParams.name.slice(0, 200) : '';
   const prefillEmail = typeof searchParams.email === 'string' ? searchParams.email.slice(0, 200) : '';
+  // utm_* del link (campañas): viajan con la reserva y llegan al anfitrión y a los webhooks.
+  const utm = sanitizeUtm(searchParams) as Record<string, string>;
 
   // Link de un solo uso ya consumido, o evento pago sin Stripe listo (clave +
   // webhook): se avisa antes del form en vez de fallar al enviar la reserva.
@@ -64,6 +67,7 @@ export default async function BookPage(props: {
       maxFutureDays={effectiveMaxFutureDays(eventType, calendarUser)}
       prefillName={prefillName}
       prefillEmail={prefillEmail}
+      utm={utm}
     />
   );
 }

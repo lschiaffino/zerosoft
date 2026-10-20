@@ -1507,7 +1507,7 @@
     "paramAgentMessage": "Lo que dice el usuario (hasta 4000 caracteres).",
     "paramAgentConversationId": "Continúa una conversación de API existente. Omitilo para empezar una nueva.",
     "webhooksTitle": "Webhooks",
-    "webhooksDesc": "Agregá endpoints en Dashboard → Configuración → Webhooks. Eventos: booking.created, booking.rescheduled, booking.cancelled, booking.no_show, link.created, link.clicked, contact.created, contact.updated, deal.created, deal.updated, deal.stage_changed, deal.won, deal.lost. Cada request lleva Zerosoft-Signature: t=TIMESTAMP,v1=HEX, donde v1 = HMAC-SHA256(secret, \"TIMESTAMP.BODY_CRUDO\"). Rechazá timestamps viejos. Las entregas fallidas se reintentan con backoff durante ~15 horas.",
+    "webhooksDesc": "Agregá endpoints en Dashboard → Configuración → Webhooks. Eventos: booking.created, booking.rescheduled, booking.cancelled, booking.no_show, booking.requested, link.created, link.clicked, contact.created, contact.updated, deal.created, deal.updated, deal.stage_changed, deal.won, deal.lost. Cada request lleva Zerosoft-Signature: t=TIMESTAMP,v1=HEX, donde v1 = HMAC-SHA256(secret, \"TIMESTAMP.BODY_CRUDO\"). Rechazá timestamps viejos. Las entregas fallidas se reintentan con backoff durante ~15 horas.",
     "webhooksPayloadTitle": "Payload del evento",
     "webhooksPayloadDesc": "Lo que recibe tu endpoint. Respondé 2xx en menos de 8 segundos.",
     "paramCalStatus": "Solo reservas con este estado.",

@@ -246,7 +246,8 @@ export async function expireCheckoutForBooking(booking: CalendarBookingRow): Pro
  * Devuelve el path público de la página de reserva (sin locale), o null.
  */
 export async function abandonCheckout(booking: CalendarBookingRow): Promise<string | null> {
-  if (booking.status !== 'pending') return null;
+  // Una solicitud que espera la confirmación del anfitrión no pasó por Checkout.
+  if (booking.status !== 'pending' || booking.approval === 'pending') return null;
   await expireCheckoutForBooking(booking);
   await expirePendingBooking(booking.id);
   const eventType = await getEventTypeById(booking.event_type_id);

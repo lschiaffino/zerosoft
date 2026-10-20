@@ -19,6 +19,8 @@ interface Props {
     endsAt: string;
     timezone: string;
     status: string;
+    /** Confirmación del anfitrión: none | pending | approved | declined. */
+    approval?: string;
     name: string;
     email: string;
   };
@@ -74,6 +76,7 @@ export default function ManageBooking({ token, locale, eventType, weekStart, bra
   const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone: tz });
   const range = `${time.format(new Date(booking.startsAt))} – ${time.format(new Date(booking.endsAt))}`;
   const cancelled = mode === 'cancelled';
+  const awaiting = booking.status === 'pending' && booking.approval === 'pending';
 
   return (
     <div className="bk" style={{ '--bk': brand.color, '--bk-on': brand.on } as CSSProperties}>
@@ -114,8 +117,10 @@ export default function ManageBooking({ token, locale, eventType, weekStart, bra
             {paidNotice && booking.status === 'confirmed' && <p className="bk-status bk-status-ok">{t('manage.paid')}</p>}
 
             {cancelled ? (
-              <p className="bk-status">{t('manage.cancelled')}</p>
-            ) : booking.status === 'pending' ? (
+              <p className="bk-status">
+                {booking.status === 'cancelled' && booking.approval === 'declined' ? t('manage.declined') : t('manage.cancelled')}
+              </p>
+            ) : booking.status === 'pending' && !awaiting ? (
               <p className="bk-status">{t('manage.pending')}</p>
             ) : past ? (
               <p className="bk-status">{t('manage.past')}</p>
@@ -141,6 +146,15 @@ export default function ManageBooking({ token, locale, eventType, weekStart, bra
                   </button>
                 </div>
               </form>
+            ) : awaiting ? (
+              <>
+                <p className="bk-status">{t('manage.awaitingApproval')}</p>
+                <div className="bk-actions">
+                  <button type="button" className="btn btn-ghost" onClick={() => setMode('cancel')}>
+                    {t('manage.withdraw')}
+                  </button>
+                </div>
+              </>
             ) : (
               <div className="bk-actions">
                 <button type="button" className="btn btn-ghost" onClick={() => setMode('cancel')}>

@@ -150,3 +150,29 @@ export function bookingRulesPayload(
   }
   return useDefaults ? rest : { ...rest, ...limits };
 }
+
+/** Topes de reuniones como texto del formulario ('' = sin tope). */
+export type MeetingLimitsDraft = Record<'day' | 'week' | 'month', string>;
+
+export function meetingLimitsDraft(raw: unknown): MeetingLimitsDraft {
+  const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const one = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v > 0 ? String(v) : '');
+  return { day: one(src.day), week: one(src.week), month: one(src.month) };
+}
+
+/**
+ * Topes para guardar: solo los completos. undefined si no hay ninguno (la
+ * clave desaparece de booking_rules); null si alguno no es un entero de 1 a 1000.
+ */
+export function meetingLimitsPayload(draft: MeetingLimitsDraft): Record<string, number> | undefined | null {
+  const out: Record<string, number> = {};
+  for (const k of ['day', 'week', 'month'] as const) {
+    const v = draft[k].trim();
+    if (!v) continue;
+    if (!/^\d+$/.test(v)) return null;
+    const n = Number(v);
+    if (n < 1 || n > 1000) return null;
+    out[k] = n;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}

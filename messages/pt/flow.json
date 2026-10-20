@@ -317,6 +317,7 @@
     "booking_rescheduled": "Cal: reserva remarcada",
     "booking_cancelled": "Cal: reserva cancelada",
     "booking_no_show": "Cal: o convidado não compareceu",
+    "booking_requested": "Cal: reserva aguardando confirmação",
     "link_created": "Link: link criado",
     "link_clicked": "Link: clique num link",
     "contact_created": "CRM: contato criado",

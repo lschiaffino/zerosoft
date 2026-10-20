@@ -150,7 +150,8 @@
       "confirmed": "Confirmed",
       "cancelled": "Cancelled",
       "no_show": "No show",
-      "pending": "Awaiting payment"
+      "pending": "Awaiting payment",
+      "awaiting": "Awaiting confirmation"
     },
     "answers": "Answers",
     "host": "Host",
@@ -179,7 +180,11 @@
     "tryNextMonth": "See next month",
     "when": "When",
     "where": "Where",
-    "who": "Who"
+    "who": "Who",
+    "requestedTitle": "Request sent",
+    "requestedSub": "The host has to confirm this time. We emailed you, and you will get another email when they answer.",
+    "withdrawLink": "Withdraw the request",
+    "continue": "Continue"
   },
   "routing": {
     "title": "Routing forms",
@@ -273,7 +278,8 @@
     "has_upcoming_bookings": "This event type has upcoming bookings. Cancel them (guests are notified and payments refunded) or turn it off before deleting it.",
     "invalid_price": "Stripe cannot charge that price in that currency.",
     "not_started": "This meeting has not started yet.",
-    "status_changed": "This booking changed in the meantime. Reload and try again."
+    "status_changed": "This booking changed in the meantime. Reload and try again.",
+    "confirmation_paid": "Host confirmation and a price do not go together. Remove the price or turn off confirmation."
   },
   "settings": {
     "title": "Settings",
@@ -313,7 +319,10 @@
     "past": "This meeting already started, so it can't be changed here.",
     "pending": "Your booking is waiting for payment. If you already paid, refresh this page in a few seconds.",
     "paid": "Payment received. Your booking is confirmed.",
-    "keep": "Keep the booking"
+    "keep": "Keep the booking",
+    "awaitingApproval": "The host has not confirmed this booking yet. We will email you when they do.",
+    "withdraw": "Withdraw the request",
+    "declined": "The host could not confirm this booking. You can pick another time from the booking page."
   },
   "google": {
     "desc": "Connect your calendar so busy times block your booking pages and every booking lands in your calendar, with a Google Meet link when the event type has no other location.",
@@ -432,7 +441,15 @@
     "refundOnCancel": "This booking was paid: cancelling refunds the payment in full.",
     "loadErrorTitle": "Couldn't load bookings",
     "loadErrorBody": "Check your connection and try again. Your filters stay as they are.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "approve": "Confirm",
+    "decline": "Decline",
+    "approved": "Booking confirmed. We let the guest know.",
+    "declined": "Request declined. We let the guest know.",
+    "declinedBadge": "Declined",
+    "declineReason": "Reason for the guest (optional)",
+    "confirmDecline": "Decline request",
+    "pendingFilter": "Pending (payment or confirmation)"
   },
   "workflows": {
     "title": "Reminders",
@@ -541,7 +558,32 @@
     "brandOwn": "Uses its own color or logo.",
     "brandEdit": "Change the brand",
     "brandOverride": "Use another color or logo for this event",
-    "brandOverrideHelp": "For an event under another brand. A logo you leave empty comes from the workspace's brand."
+    "brandOverrideHelp": "For an event under another brand. A logo you leave empty comes from the workspace's brand.",
+    "startTimes": "Start times",
+    "startTimesLead": "How often a slot can start. A 60 minute meeting can be offered every 15 or 30 minutes.",
+    "interval": "Offer a start every",
+    "intervalSame": "Same as the duration ({n} min)",
+    "intervalEvery": "{n} min",
+    "meetingLimits": "Meeting limits",
+    "meetingLimitsLead": "Maximum bookings of this event type per day, week and month, counted in the schedule's time zone. Leave a field empty for no limit.",
+    "hostLimitsLead": "Per host: each person in the pool takes at most this many bookings of this event type.",
+    "limit_day": "Per day",
+    "limit_week": "Per week",
+    "limit_month": "Per month",
+    "hostLimit_day": "Per host per day",
+    "hostLimit_week": "Per host per week",
+    "hostLimit_month": "Per host per month",
+    "noLimit": "No limit",
+    "meetingLimitsInvalid": "Limits have to be whole numbers from 1 to 1000.",
+    "afterBooking": "After booking",
+    "afterBookingLead": "What happens once the guest picks a time.",
+    "requiresConfirmation": "Requires your confirmation",
+    "requiresConfirmationHelp": "The booking stays pending, and the time held, until you confirm or decline it in Bookings.",
+    "requiresConfirmationPaid": "Not available on paid event types: payment confirms the booking.",
+    "redirectUrl": "Redirect to a URL",
+    "redirectHelp": "After booking, the guest goes to this page instead of the confirmation. It has to start with https:// or http://.",
+    "redirectPassDetails": "Add the booking details to the URL (name, email, time and utm_* parameters)",
+    "redirectInvalid": "The redirect has to be a full URL starting with https:// or http://."
   },
   "errorPage": {
     "title": "This screen didn't load",

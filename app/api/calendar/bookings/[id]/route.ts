@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { updateBooking, hostSlotFree, ownedBooking, CalendarError } from '@/lib/calendar';
+import { updateBooking, hostSlotFree, ownedBooking, declineBooking, CalendarError } from '@/lib/calendar';
 import { bookingUpdateSchema } from '@/lib/calendar-schema';
 import { invalidBody, notFound, unauthorized, crmError } from '@/lib/crm-http';
 import { getDb, type CalendarBookingRow } from '@/lib/db';
 import { expireCheckoutForBooking, refundCancelledBooking } from '@/lib/calendar-payments';
-import { afterBookingCancelled, afterBookingNoShow } from '@/lib/calendar-lifecycle';
+import { afterBookingCancelled, afterBookingDeclined, afterBookingNoShow } from '@/lib/calendar-lifecycle';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -65,6 +65,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       | undefined;
     if (!before) return notFound();
     if (parsed.data.status && !canTransition(before.status, parsed.data.status)) return crmError(409, 'not_confirmed');
+    // Cancelar una solicitud que esperaba confirmación es rechazarla: el invitado recibe el aviso.
+    if (before.status === 'pending' && before.approval === 'pending' && parsed.data.status === 'cancelled') {
+      const declined = await declineBooking(params.id, parsed.data.cancelReason ?? null);
+      await afterBookingDeclined(declined, parsed.data.cancelReason ?? null);
+      return NextResponse.json(declined);
+    }
     // Antes del inicio no hay no-show: marcarlo liberaría el horario sin avisar a nadie.
     if (
       parsed.data.status === 'no_show' &&
