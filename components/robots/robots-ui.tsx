@@ -19,9 +19,13 @@ const BADGE: Record<RobotRunDto['status'], string> = {
   running: 'badge badge-ink',
 };
 
-/** Estado de una corrida como badge recto, con texto. */
-export function StatusBadge({ status }: { status: RobotRunDto['status'] }) {
+/**
+ * Estado de una corrida como badge recto, con texto. Una corrida exitosa con
+ * pasos que fallaron y siguieron (continueOnError) se muestra "Con advertencias".
+ */
+export function StatusBadge({ status, warnings = 0 }: { status: RobotRunDto['status']; warnings?: number }) {
   const t = useTranslations('robots.runs.status');
+  if (status === 'success' && warnings > 0) return <span className="badge badge-warn">{t('warnings')}</span>;
   return <span className={BADGE[status] ?? 'badge'}>{t(status)}</span>;
 }
 

@@ -52,7 +52,8 @@ export interface RobotLogEntry {
   /** Número de paso (1-based); en loops, "3.2" = paso 2 del loop del paso 3. */
   step: string;
   type: string;
-  status: 'success' | 'failed' | 'skipped';
+  /** warning = falló pero el paso (o el elemento del loop) sigue: continueOnError. */
+  status: 'success' | 'failed' | 'skipped' | 'warning';
   ms: number;
   detail?: string;
   error?: string;
@@ -75,9 +76,30 @@ export interface RobotFile {
   data: string;
 }
 
+/**
+ * Lo que había en la página cuando falló el paso: URL, título, un recorte del
+ * DOM (el elemento del selector o el body, sin scripts ni estilos) y una
+ * captura (base64 jpeg; el servidor la sube con lib/uploads.ts).
+ */
+export interface RobotFailure {
+  step: string;
+  type: string;
+  error: string;
+  url: string;
+  title?: string;
+  /** El selector del paso existía en la página. */
+  matched?: boolean;
+  dom?: string;
+  screenshot?: string;
+}
+
 export interface InterpreterResult {
   status: 'success' | 'failed';
   error: string | null;
+  /** Pasos o elementos de loop que fallaron con continueOnError (la corrida siguió). */
+  warnings?: number;
+  /** Solo si la corrida falló: captura, URL y DOM del paso que falló. */
+  failure?: RobotFailure;
   vars: Record<string, unknown>;
   logs: RobotLogEntry[];
   screenshots: RobotScreenshot[];
@@ -133,6 +155,8 @@ export async function robotInterpreter(
   const files: RobotFile[] = [];
   let pages = 0;
   let executed = 0;
+  let warnings = 0;
+  let failure: RobotFailure | undefined;
   // Buffer existe en Node (arnés y sandbox); en tests se usa el global también.
   const B = (globalThis as unknown as {
     Buffer?: {
@@ -479,6 +503,59 @@ export async function robotInterpreter(
     }
   };
 
+  /** Promesa con tope de tiempo: null si no llega (la captura nunca traba la corrida). */
+  const within = async <R,>(p: Promise<R>, ms: number): Promise<R | null> => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+      return await Promise.race([
+        p,
+        new Promise<null>((resolve) => {
+          timer = setTimeout(() => resolve(null), ms);
+        }),
+      ]);
+    } catch {
+      return null;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+
+  /** Captura, URL y recorte del DOM al fallar un paso (best effort, unos segundos como mucho). */
+  const captureFailure = async (label: string, type: string, code: string, selector: string): Promise<void> => {
+    const f: RobotFailure = { step: label, type, error: code, url: '' };
+    try {
+      f.url = String(page.url() || '').slice(0, 2000);
+    } catch {
+      // sin URL
+    }
+    const buf = await within(page.screenshot({ type: 'jpeg', quality: 50, timeout: 4000 }), 5000);
+    if (buf && B) f.screenshot = B.from(buf).toString('base64');
+    // Texto, no función (igual que evaluate): corre en la página con su CSP.
+    const expr =
+      `(() => { const sel = ${JSON.stringify(selector)}; let el = null;` +
+      ` try { el = sel ? document.querySelector(sel) : null; } catch (e) { el = null; }` +
+      ` const root = el || document.body || document.documentElement; let html = '';` +
+      ` if (root) { const c = root.cloneNode(true);` +
+      ` if (c.querySelectorAll) c.querySelectorAll('script,style,noscript,svg,template,iframe').forEach((n) => n.remove());` +
+      ` html = (c.outerHTML || '').replace(/\\s+/g, ' ').slice(0, 4000); }` +
+      ` return JSON.stringify({ matched: !!el, title: String(document.title || '').slice(0, 200), html }); })()`;
+    const json = await within(page.evaluate<string>(expr), 3000);
+    if (typeof json === 'string') {
+      try {
+        const d = JSON.parse(json) as { matched?: unknown; title?: unknown; html?: unknown };
+        if (typeof d.html === 'string') f.dom = d.html.slice(0, 4000);
+        if (typeof d.title === 'string' && d.title) f.title = d.title;
+        if (selector) f.matched = d.matched === true;
+      } catch {
+        // DOM ilegible: queda la captura y la URL
+      }
+    }
+    failure = f;
+  };
+
+  /** Errores que cortan la corrida aunque el paso tenga continueOnError. */
+  const FATAL = /^(timeout|step_limit)$/;
+
   /** Errores que no se arreglan reintentando el paso. */
   const NO_RETRY = /^(timeout|page_limit|step_limit|invalid_url|private_host|https_required|unresolvable_host|missing_selector|missing_attribute|invalid_key|unknown_step|file_limit|file_too_large|unsupported|result_too_large)$/;
 
@@ -498,8 +575,12 @@ export async function robotInterpreter(
     }
   };
 
-  /** Corre una lista de pasos. Devuelve true si un if_exists pidió terminar. */
-  const runList = async (list: InterpreterStep[], ctx: Record<string, unknown>, prefix: string): Promise<boolean> => {
+  /**
+   * Corre una lista de pasos. Devuelve true si un if_exists pidió terminar.
+   * tolerant: el que llama atrapa el error (loop con continueOnItemError), así
+   * que no hace falta la captura de la falla.
+   */
+  const runList = async (list: InterpreterStep[], ctx: Record<string, unknown>, prefix: string, tolerant = false): Promise<boolean> => {
     let i = 0;
     while (i < list.length) {
       const s = list[i];
@@ -525,9 +606,19 @@ export async function robotInterpreter(
         const capped = items.slice(0, max);
         logs.push({ step: label, type: 'loop_over', status: 'success', ms: 0, detail: `${capped.length}/${items.length} items` });
         const inner = Array.isArray(s.steps) ? (s.steps as InterpreterStep[]) : [];
+        const perItem = s.continueOnItemError === true;
         for (let k = 0; k < capped.length; k++) {
-          const stop = await runList(inner, { ...ctx, vars, loop: { item: capped[k], index: k } }, `${label}.${k + 1}.`);
-          if (stop) return true;
+          const itemStarted = Date.now();
+          try {
+            const stop = await runList(inner, { ...ctx, vars, loop: { item: capped[k], index: k } }, `${label}.${k + 1}.`, tolerant || perItem);
+            if (stop) return true;
+          } catch (err) {
+            // "3.2.1: action_failed" → action_failed. timeout y step_limit cortan igual.
+            const code = err instanceof Error ? err.message.replace(/^[\d.]+:\s*/, '') : 'action_failed';
+            if (!perItem || FATAL.test(code)) throw err;
+            warnings += 1;
+            logs.push({ step: `${label}.${k + 1}`, type: 'loop_item', status: 'warning', ms: Date.now() - itemStarted, error: code, detail: clip(toText(capped[k]), 200) });
+          }
         }
         i += 1;
         continue;
@@ -544,7 +635,14 @@ export async function robotInterpreter(
               ? 'action_timeout'
               : 'action_failed';
         const msg = err instanceof Error && !(err instanceof RobotError) ? err.message.split('\n')[0].slice(0, 300) : undefined;
+        if (s.continueOnError === true && !FATAL.test(code)) {
+          warnings += 1;
+          logs.push({ step: label, type: s.type, status: 'warning', ms: Date.now() - started, error: code, detail: msg });
+          i += 1;
+          continue;
+        }
         logs.push({ step: label, type: s.type, status: 'failed', ms: Date.now() - started, error: code, detail: msg });
+        if (!tolerant && !failure) await captureFailure(label, s.type, code, render(str(s.selector), { ...ctx, vars }).trim());
         throw new RobotError(`${label}: ${code}`);
       }
       logs.push({ step: label, type: s.type, status: 'success', ms: Date.now() - started, detail: out.detail });
@@ -574,7 +672,17 @@ export async function robotInterpreter(
   } catch (err) {
     error = err instanceof Error ? err.message.slice(0, 300) : 'error';
   }
-  return { status: error ? 'failed' : 'success', error, vars, logs, screenshots, pages, files };
+  return {
+    status: error ? 'failed' : 'success',
+    error,
+    vars,
+    logs,
+    screenshots,
+    pages,
+    files,
+    warnings,
+    ...(error && failure ? { failure } : {}),
+  };
 }
 
 /** IPv4/IPv6 privada, loopback, link-local, CGNAT o multicast. Autocontenida. */

@@ -333,10 +333,18 @@
 .robots-log-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .robots-log tr[data-status='failed'] td { color: var(--bad-ink); background: var(--bad-soft); }
 .robots-log tr[data-status='skipped'] td { color: var(--brand-gray-2); }
+.robots-log tr[data-status='warning'] td { color: var(--warn-ink); background: var(--warn-soft); }
 .robots-json { max-height: 360px; margin: 0; padding: 12px 14px; overflow: auto; font-size: 0.8125rem; white-space: pre-wrap; word-break: break-word; background: var(--brand-enamel); border-radius: var(--radius-1); }
 .robots-vars { display: flex; flex-direction: column; gap: 16px; }
 .robots-var { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .robots-var-name { font-size: 0.8125rem; color: var(--brand-gray-2); }
+.robots-var-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.robots-failure { padding: 14px; border: 1px solid color-mix(in srgb, var(--bad-ink) 30%, var(--bg)); border-radius: var(--radius-1); }
+.robots-failure-meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 0; font-size: 0.8125rem; }
+.robots-failure-meta dt { color: var(--brand-gray-2); }
+.robots-failure-meta dd { margin: 0; min-width: 0; word-break: break-word; }
+.robots-failure-url a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.robots-failure-shot { max-width: 640px; }
 .robots-var-val { white-space: pre-wrap; word-break: break-word; }
 .robots-scroll { max-height: 360px; overflow: auto; border: 1px solid var(--line); }
 .robots-shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }

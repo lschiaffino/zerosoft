@@ -2476,6 +2476,24 @@ export const MIGRATIONS: Migration[] = [
       for (const { table } of ACTIVITY_DATE_TABLES) await client.execute(activityDatesUpdateSql(table));
     },
   },
+  {
+    // Robots: avisos por email y pausa automática del schedule tras N fallas
+    // seguidas, advertencias (pasos con continueOnError), captura de la falla
+    // (URL, DOM y screenshot del paso que falló) y retención de corridas.
+    id: '053_robots_alerts_failures_retention',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE robots ADD COLUMN failure_alerts INTEGER NOT NULL DEFAULT 1');
+      await addColumn(client, 'ALTER TABLE robots ADD COLUMN pause_after INTEGER NOT NULL DEFAULT 3');
+      await addColumn(client, 'ALTER TABLE robots ADD COLUMN consecutive_failures INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE robots ADD COLUMN last_alert_at TEXT');
+      await addColumn(client, 'ALTER TABLE robots ADD COLUMN paused_at TEXT');
+      await addColumn(client, "ALTER TABLE robots ADD COLUMN alert_locale TEXT NOT NULL DEFAULT 'en'");
+      await addColumn(client, 'ALTER TABLE robots ADD COLUMN retention_days INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE robot_runs ADD COLUMN warnings INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE robot_runs ADD COLUMN failure TEXT');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_robot_runs_created ON robot_runs(created_at)');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

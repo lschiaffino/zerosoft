@@ -1501,6 +1501,13 @@ export interface RobotRow {
   next_run_at: string | null;
   timeout_sec: number;
   persist_session: number; // 0 | 1 (cookies/localStorage entre corridas)
+  failure_alerts: number; // 0 | 1 (email al dueño si falla una corrida automática)
+  pause_after: number; // fallas seguidas que pausan el schedule (0 = nunca)
+  consecutive_failures: number;
+  last_alert_at: string | null;
+  paused_at: string | null; // pausado solo por fallas seguidas
+  alert_locale: string;
+  retention_days: number; // 0 = ROBOTS_RUN_RETENTION_DAYS
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -1524,6 +1531,8 @@ export interface RobotRunRow {
   started_at: string | null;
   finished_at: string | null;
   duration_ms: number | null;
+  warnings: number; // pasos / elementos de loop que fallaron con continueOnError
+  failure: string | null; // JSON RobotRunFailure (captura, URL y DOM del paso que falló)
 }
 
 // ---------- CRM: formularios, scoring, equipos, cuotas ----------

@@ -115,7 +115,8 @@
       "download": "Baixar arquivo",
       "upload": "Enviar arquivo",
       "pdf": "Salvar como PDF",
-      "evaluate": "Executar JavaScript"
+      "evaluate": "Executar JavaScript",
+      "loop_item": "Item do loop"
     },
     "fields": {
       "url": "URL",
@@ -140,7 +141,8 @@
       "fileUrl": "URL do arquivo",
       "script": "JavaScript (corpo de uma função async, retorne um valor JSON)",
       "retries": "Tentativas extras",
-      "retryDelayMs": "Espera entre tentativas (ms)"
+      "retryDelayMs": "Espera entre tentativas (ms)",
+      "continueOnItemError": "Se um item falhar, registrar um aviso e passar para o próximo"
     },
     "modes": {
       "text": "Texto do primeiro resultado",
@@ -173,7 +175,10 @@
     "emptyTitle": "Ainda não há passos",
     "emptyAlt": "ou",
     "emptyAltLink": "grave os passos no site",
-    "credentialsTitle": "Logins"
+    "credentialsTitle": "Logins",
+    "continueOn": "Continuar se falhar",
+    "continueOff": "Parar se falhar",
+    "continueBadge": "continua se falhar"
   },
   "inputs": {
     "title": "Entradas",
@@ -214,7 +219,8 @@
       "queued": "Na fila",
       "running": "Executando",
       "success": "Sucesso",
-      "failed": "Falhou"
+      "failed": "Falhou",
+      "warnings": "Com avisos"
     },
     "duration": "Duração",
     "error": "Erro",
@@ -230,7 +236,8 @@
     "stepStatus": {
       "success": "OK",
       "failed": "Falhou",
-      "skipped": "Pulado"
+      "skipped": "Pulado",
+      "warning": "Aviso"
     },
     "emptyTitle": "Ainda não há execuções",
     "emptyBody": "Rode o robô para ver cada passo, os dados extraídos e as capturas.",
@@ -242,7 +249,21 @@
     "logTime": "Tempo",
     "view": "Visualização dos dados",
     "copied": "Copiado",
-    "queuedNotice": "Na fila: outro robô está em execução neste workspace. Esta execução começa quando ele terminar."
+    "queuedNotice": "Na fila: outro robô está em execução neste workspace. Esta execução começa quando ele terminar.",
+    "warningsNotice": "{count, plural, one {# passo falhou e o robô continuou.} other {# passos falharam e o robô continuou.}} Eles estão marcados no registro.",
+    "downloadCsv": "Baixar CSV",
+    "failure": {
+      "title": "Onde o passo {step} falhou",
+      "step": "Passo",
+      "error": "Erro",
+      "url": "URL",
+      "pageTitle": "Título da página",
+      "notMatched": "O seletor do passo não estava na página. O trecho mostra o body.",
+      "screenshot": "A página quando o passo falhou",
+      "screenshotAlt": "Captura da página quando o passo {step} falhou",
+      "domElement": "HTML do elemento",
+      "domPage": "HTML da página (sem scripts nem estilos)"
+    }
   },
   "settings": {
     "enabled": "Permitir execuções automáticas",
@@ -258,7 +279,7 @@
     "timeout": "Segundos",
     "timeoutHint": "Máximo {max} s. As execuções contam nos seus minutos do mês.",
     "flowTitle": "Usar no Flow",
-    "flowHint": "Adicione o nó “Robots: executar robô” e cole este ID. Os flows também podem reagir a “Robots: execução concluída” e “Robots: execução falhou”.",
+    "flowHint": "Adicione o nó “Robots: executar robô” e escolha este robô. Os flows também podem reagir a “Robots: execução concluída” e “Robots: execução falhou”.",
     "copyId": "Copiar ID",
     "copied": "Copiado",
     "responsible": "Use os robôs com responsabilidade: respeite os termos de cada site e o robots.txt e não sobrecarregue servidores. Guarde os logins em credenciais, nunca nos passos. Redes privadas e URLs file:// são bloqueadas; downloads só pelo passo Baixar arquivo (até 10 MB).",
@@ -309,7 +330,20 @@
     "credentialsOpen": "Abrir Credenciais",
     "globalSettings": "Ir para Configurações globais",
     "usageTitle": "Uso e runner",
-    "turnOn": "Ligar"
+    "turnOn": "Ligar",
+    "alertsTitle": "Avisos de falha",
+    "alertsHint": "Para execuções agendadas e do Flow. Execuções manuais nunca enviam emails nem contam como falhas.",
+    "alerts": "Me avisar por email quando uma execução automática falhar",
+    "pauseAfter": "Pausar o agendamento depois de",
+    "pauseNever": "Nunca pausar",
+    "pauseCount": "{count, plural, one {# execução com falha} other {# execuções com falha seguidas}}",
+    "pauseHint": "Um robô pausado para de executar por agendamento e pelo Flow até você ligar de novo as execuções automáticas. Quando isso acontece, você sempre recebe um email.",
+    "retentionTitle": "Histórico de execuções",
+    "retentionHint": "As execuções mais antigas são apagadas, junto com suas capturas e arquivos.",
+    "retention": "Guardar execuções por",
+    "retentionDefault": "Padrão ({count} dias)",
+    "retentionDays": "{count, plural, one {# dia} other {# dias}}",
+    "pausedByFailures": "As execuções automáticas foram pausadas em {date} depois de várias execuções com falha seguidas. Confira a aba Execuções e ligue-as de novo."
   },
   "errors": {
     "generic": "Algo deu errado. Tente novamente.",
@@ -380,5 +414,23 @@
     },
     "codeTitle": "Sem barra de favoritos"
   },
-  "loading": "Carregando robôs…"
+  "loading": "Carregando robôs…",
+  "alertEmail": {
+    "failedSubject": "Robô falhou: {robot}",
+    "failedHeading": "Uma execução de robô falhou",
+    "failedBody": "O robô \"{robot}\" falhou em uma execução {trigger}. Erro: {error}",
+    "streak": "Execuções com falha seguidas: {count}.",
+    "throttle": "Você recebe no máximo um email de falha por robô a cada {hours} horas. Dá para desligar esses emails na aba Avançado do robô.",
+    "pausedSubject": "Robô pausado: {robot}",
+    "pausedHeading": "O agendamento de um robô foi pausado",
+    "pausedBody": "O robô \"{robot}\" falhou {count} execuções seguidas, então as execuções automáticas foram pausadas.",
+    "lastError": "Último erro: {error}",
+    "pausedHow": "Confira a execução com falha, corrija os passos e ligue de novo as execuções automáticas na aba Horário.",
+    "cta": "Ver as execuções",
+    "triggers": {
+      "manual": "manual",
+      "flow": "do Flow",
+      "schedule": "agendada"
+    }
+  }
 }

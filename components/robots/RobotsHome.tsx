@@ -144,7 +144,7 @@ export default function RobotsHome({ robots, usage, canEdit }: Props) {
               cell: (r) =>
                 r.lastRun ? (
                   <span className="robots-cell-last">
-                    <StatusBadge status={r.lastRun.status} />
+                    <StatusBadge status={r.lastRun.status} warnings={r.lastRun.warnings} />
                     <span className="robots-muted" suppressHydrationWarning>
                       {format.relativeTime(new Date(r.lastRun.createdAt), now)}
                     </span>

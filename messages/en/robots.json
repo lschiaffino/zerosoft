@@ -115,7 +115,8 @@
       "download": "Download file",
       "upload": "Upload file",
       "pdf": "Save as PDF",
-      "evaluate": "Run JavaScript"
+      "evaluate": "Run JavaScript",
+      "loop_item": "Loop item"
     },
     "fields": {
       "url": "URL",
@@ -140,7 +141,8 @@
       "fileUrl": "File URL",
       "script": "JavaScript (body of an async function, return a JSON value)",
       "retries": "Retries",
-      "retryDelayMs": "Wait between tries (ms)"
+      "retryDelayMs": "Wait between tries (ms)",
+      "continueOnItemError": "If an item fails, log a warning and go to the next item"
     },
     "modes": {
       "text": "Text of the first match",
@@ -173,7 +175,10 @@
     "emptyTitle": "No steps yet",
     "emptyAlt": "or",
     "emptyAltLink": "record the steps on the site",
-    "credentialsTitle": "Logins"
+    "credentialsTitle": "Logins",
+    "continueOn": "Continue if it fails",
+    "continueOff": "Stop if it fails",
+    "continueBadge": "continues on error"
   },
   "inputs": {
     "title": "Inputs",
@@ -214,7 +219,8 @@
       "queued": "Queued",
       "running": "Running",
       "success": "Success",
-      "failed": "Failed"
+      "failed": "Failed",
+      "warnings": "With warnings"
     },
     "duration": "Duration",
     "error": "Error",
@@ -230,7 +236,8 @@
     "stepStatus": {
       "success": "OK",
       "failed": "Failed",
-      "skipped": "Skipped"
+      "skipped": "Skipped",
+      "warning": "Warning"
     },
     "emptyTitle": "No runs yet",
     "emptyBody": "Run the robot to see each step, the data it extracted and the screenshots.",
@@ -242,7 +249,21 @@
     "logTime": "Time",
     "view": "Data view",
     "copied": "Copied",
-    "queuedNotice": "Waiting in line: another robot is running in this workspace. This run starts when it finishes."
+    "queuedNotice": "Waiting in line: another robot is running in this workspace. This run starts when it finishes.",
+    "warningsNotice": "{count, plural, one {# step failed and the robot continued.} other {# steps failed and the robot continued.}} They are marked in the log.",
+    "downloadCsv": "Download CSV",
+    "failure": {
+      "title": "Where step {step} failed",
+      "step": "Step",
+      "error": "Error",
+      "url": "URL",
+      "pageTitle": "Page title",
+      "notMatched": "The step's selector was not on the page. The snippet shows the page body.",
+      "screenshot": "The page when the step failed",
+      "screenshotAlt": "Screenshot of the page when step {step} failed",
+      "domElement": "HTML of the element",
+      "domPage": "HTML of the page (scripts and styles removed)"
+    }
   },
   "settings": {
     "enabled": "Allow automatic runs",
@@ -258,7 +279,7 @@
     "timeout": "Seconds",
     "timeoutHint": "Max {max} s. Runs count toward your monthly minutes.",
     "flowTitle": "Use in Flow",
-    "flowHint": "Add the “Robots: run robot” node and paste this ID. Flows can also react to “Robots: run finished” and “Robots: run failed”.",
+    "flowHint": "Add the “Robots: run robot” node and pick this robot. Flows can also react to “Robots: run finished” and “Robots: run failed”.",
     "copyId": "Copy ID",
     "copied": "Copied",
     "responsible": "Use robots responsibly: respect each site's terms and robots.txt and don't overload servers. Keep logins in saved credentials, never in steps. Private networks and file:// URLs are blocked; downloads only through the Download step (10 MB max).",
@@ -309,7 +330,20 @@
     "credentialsOpen": "Open Credentials",
     "globalSettings": "Go to global Settings",
     "usageTitle": "Usage and runner",
-    "turnOn": "Turn on"
+    "turnOn": "Turn on",
+    "alertsTitle": "Failure alerts",
+    "alertsHint": "For scheduled and Flow runs. Manual runs never send emails or count as failures.",
+    "alerts": "Email me when an automatic run fails",
+    "pauseAfter": "Pause the schedule after",
+    "pauseNever": "Never pause",
+    "pauseCount": "{count, plural, one {# failed run} other {# failed runs in a row}}",
+    "pauseHint": "A paused robot stops scheduled and Flow runs until you turn automatic runs back on. You always get an email when that happens.",
+    "retentionTitle": "Run history",
+    "retentionHint": "Older runs are deleted, along with their screenshots and files.",
+    "retention": "Keep runs for",
+    "retentionDefault": "Default ({count} days)",
+    "retentionDays": "{count, plural, one {# day} other {# days}}",
+    "pausedByFailures": "Automatic runs were paused on {date} after several failed runs in a row. Check the Runs tab, then turn them back on."
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
@@ -380,5 +414,23 @@
     },
     "codeTitle": "No bookmarks bar"
   },
-  "loading": "Loading robots…"
+  "loading": "Loading robots…",
+  "alertEmail": {
+    "failedSubject": "Robot failed: {robot}",
+    "failedHeading": "A robot run failed",
+    "failedBody": "The robot \"{robot}\" failed on a {trigger} run. Error: {error}",
+    "streak": "Failed runs in a row: {count}.",
+    "throttle": "You get at most one failure email per robot every {hours} hours. You can turn these emails off in the robot's Advanced tab.",
+    "pausedSubject": "Robot paused: {robot}",
+    "pausedHeading": "A robot schedule was paused",
+    "pausedBody": "The robot \"{robot}\" failed {count} runs in a row, so its automatic runs are paused.",
+    "lastError": "Last error: {error}",
+    "pausedHow": "Check the failed run, fix the steps and turn automatic runs back on in the Schedule tab.",
+    "cta": "Open the runs",
+    "triggers": {
+      "manual": "manual",
+      "flow": "Flow",
+      "schedule": "scheduled"
+    }
+  }
 }

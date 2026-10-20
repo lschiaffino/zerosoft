@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import type { RobotRunDto } from '@/lib/robots';
+import { csvFilename, valueToCsv } from '@/lib/robots-csv';
 import EmptyState from '@/components/ui/EmptyState';
 import { StatusBadge } from './robots-ui';
 
@@ -19,6 +20,18 @@ function pretty(v: unknown): string {
   } catch {
     return String(v);
   }
+}
+
+/** Descarga un CSV armado en el navegador (BOM para que Excel lea UTF-8). */
+function downloadCsv(filename: string, csv: string) {
+  const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /** Valor como tabla si es una lista de objetos/arrays; null si no se puede. */
@@ -50,6 +63,7 @@ export default function RunsPanel({
   onSelect,
   running = false,
   emptyAction,
+  robotName = 'robot',
 }: {
   runs: RobotRunDto[];
   selectedId: string | null;
@@ -58,6 +72,8 @@ export default function RunsPanel({
   running?: boolean;
   /** Acción del estado vacío (el botón Correr). */
   emptyAction?: React.ReactNode;
+  /** Para el nombre de los CSV descargados. */
+  robotName?: string;
 }) {
   const t = useTranslations('robots.runs');
   const format = useFormatter();
@@ -86,7 +102,7 @@ export default function RunsPanel({
               aria-current={!running && r.id === selectedId ? 'true' : undefined}
               onClick={() => onSelect(r.id)}
             >
-              <StatusBadge status={r.status} />
+              <StatusBadge status={r.status} warnings={r.warnings} />
               <span className="robots-run-when" suppressHydrationWarning>
                 {format.dateTime(new Date(r.createdAt), { dateStyle: 'medium', timeStyle: 'short' })}
               </span>
@@ -107,7 +123,7 @@ export default function RunsPanel({
             <span className="ui-skeleton ui-skeleton-row" />
           </div>
         ) : run ? (
-          <RunDetail run={run} />
+          <RunDetail run={run} robotName={robotName} />
         ) : (
           <p className="robots-run-body robots-muted">{t('select')}</p>
         )}
@@ -116,7 +132,7 @@ export default function RunsPanel({
   );
 }
 
-function RunDetail({ run }: { run: RobotRunDto }) {
+function RunDetail({ run, robotName }: { run: RobotRunDto; robotName: string }) {
   const t = useTranslations('robots.runs');
   const tTypes = useTranslations('robots.steps.types');
   const [view, setView] = useState<'table' | 'json'>('table');
@@ -128,7 +144,7 @@ function RunDetail({ run }: { run: RobotRunDto }) {
   return (
     <div className="robots-run-body">
       <div className="robots-run-meta">
-        <StatusBadge status={run.status} />
+        <StatusBadge status={run.status} warnings={run.warnings} />
         <span>
           {t('duration')} <span className="num">{duration(run.durationMs)}</span>
         </span>
@@ -141,6 +157,10 @@ function RunDetail({ run }: { run: RobotRunDto }) {
           <span className="data">{run.error}</span>
         </div>
       )}
+      {run.status === 'success' && run.warnings > 0 && (
+        <p className="robots-note-warn">{t('warningsNotice', { count: run.warnings })}</p>
+      )}
+      {run.failure && <FailureCapture failure={run.failure} runId={run.id} />}
 
       <section className="robots-block" aria-labelledby={`log-${run.id}`}>
         <h3 className="robots-h3" id={`log-${run.id}`}>
@@ -166,7 +186,9 @@ function RunDetail({ run }: { run: RobotRunDto }) {
                   <td className="data robots-log-detail" title={l.error ? `${l.error}${l.detail ? `: ${l.detail}` : ''}` : (l.detail ?? '')}>
                     {l.error ? `${l.error}${l.detail ? `: ${l.detail}` : ''}` : (l.detail ?? '')}
                   </td>
-                  <td className="num">{l.status === 'skipped' ? t('stepStatus.skipped') : duration(l.ms)}</td>
+                  <td className="num">
+                    {l.status === 'skipped' ? t('stepStatus.skipped') : l.status === 'warning' ? t('stepStatus.warning') : duration(l.ms)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -215,7 +237,21 @@ function RunDetail({ run }: { run: RobotRunDto }) {
               const rows = asRows(v);
               return (
                 <div key={k} className="robots-var">
-                  <span className="robots-var-name data">{k}</span>
+                  <div className="robots-var-head">
+                    <span className="robots-var-name data">{k}</span>
+                    {rows && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          const csv = valueToCsv(v);
+                          if (csv) downloadCsv(csvFilename(robotName, k, run.createdAt), csv);
+                        }}
+                      >
+                        {t('downloadCsv')}
+                      </button>
+                    )}
+                  </div>
                   {rows ? (
                     <div className="table-wrap robots-scroll">
                       <table className="table table-compact table-sticky">
@@ -284,5 +320,68 @@ function RunDetail({ run }: { run: RobotRunDto }) {
         </section>
       )}
     </div>
+  );
+}
+
+/** Lo que había en la página cuando falló el paso: captura, URL y recorte del DOM. */
+function FailureCapture({ failure, runId }: { failure: NonNullable<RobotRunDto['failure']>; runId: string }) {
+  const t = useTranslations('robots.runs.failure');
+  const tTypes = useTranslations('robots.steps.types');
+  const shot = failure.screenshot;
+  return (
+    <section className="robots-block robots-failure" aria-labelledby={`failure-${runId}`}>
+      <h3 className="robots-h3" id={`failure-${runId}`}>
+        {t('title', { step: failure.step })}
+      </h3>
+      <dl className="robots-failure-meta">
+        <dt>{t('step')}</dt>
+        <dd>
+          <span className="data">{failure.step}</span> · {tTypes.has(failure.type) ? tTypes(failure.type as 'goto') : failure.type}
+        </dd>
+        <dt>{t('error')}</dt>
+        <dd className="data">{failure.error}</dd>
+        {failure.url && (
+          <>
+            <dt>{t('url')}</dt>
+            <dd className="data robots-failure-url">
+              {/^https?:\/\//i.test(failure.url) ? (
+                <a href={failure.url} target="_blank" rel="noreferrer noopener">
+                  {failure.url}
+                </a>
+              ) : (
+                failure.url
+              )}
+            </dd>
+          </>
+        )}
+        {failure.title && (
+          <>
+            <dt>{t('pageTitle')}</dt>
+            <dd>{failure.title}</dd>
+          </>
+        )}
+      </dl>
+      {failure.matched === false && <p className="ui-help">{t('notMatched')}</p>}
+      {shot && (
+        <figure className="robots-shot robots-failure-shot">
+          {!shot.startsWith('data:') ? (
+            <a href={shot} target="_blank" rel="noreferrer">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={shot} alt={t('screenshotAlt', { step: failure.step })} loading="lazy" />
+            </a>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={shot} alt={t('screenshotAlt', { step: failure.step })} loading="lazy" />
+          )}
+          <figcaption>{t('screenshot')}</figcaption>
+        </figure>
+      )}
+      {failure.dom && (
+        <div className="robots-var">
+          <span className="robots-var-name">{failure.matched ? t('domElement') : t('domPage')}</span>
+          <pre className="robots-json data">{failure.dom}</pre>
+        </div>
+      )}
+    </section>
   );
 }

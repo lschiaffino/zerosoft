@@ -115,7 +115,8 @@
       "download": "Descargar archivo",
       "upload": "Subir archivo",
       "pdf": "Guardar como PDF",
-      "evaluate": "Ejecutar JavaScript"
+      "evaluate": "Ejecutar JavaScript",
+      "loop_item": "Elemento del loop"
     },
     "fields": {
       "url": "URL",
@@ -140,7 +141,8 @@
       "fileUrl": "URL del archivo",
       "script": "JavaScript (cuerpo de una función async, devolvé un valor JSON)",
       "retries": "Reintentos",
-      "retryDelayMs": "Espera entre intentos (ms)"
+      "retryDelayMs": "Espera entre intentos (ms)",
+      "continueOnItemError": "Si un elemento falla, registrar una advertencia y pasar al siguiente"
     },
     "modes": {
       "text": "Texto del primer resultado",
@@ -173,7 +175,10 @@
     "emptyTitle": "Todavía no hay pasos",
     "emptyAlt": "o",
     "emptyAltLink": "grabá los pasos en el sitio",
-    "credentialsTitle": "Logins"
+    "credentialsTitle": "Logins",
+    "continueOn": "Seguir si falla",
+    "continueOff": "Detener si falla",
+    "continueBadge": "sigue si falla"
   },
   "inputs": {
     "title": "Entradas",
@@ -214,7 +219,8 @@
       "queued": "En cola",
       "running": "Corriendo",
       "success": "Exitosa",
-      "failed": "Fallida"
+      "failed": "Fallida",
+      "warnings": "Con advertencias"
     },
     "duration": "Duración",
     "error": "Error",
@@ -230,7 +236,8 @@
     "stepStatus": {
       "success": "OK",
       "failed": "Falló",
-      "skipped": "Salteado"
+      "skipped": "Salteado",
+      "warning": "Advertencia"
     },
     "emptyTitle": "Todavía no hay corridas",
     "emptyBody": "Corré el robot para ver cada paso, los datos que extrajo y las capturas.",
@@ -242,7 +249,21 @@
     "logTime": "Tiempo",
     "view": "Vista de los datos",
     "copied": "Copiado",
-    "queuedNotice": "En cola: hay otro robot corriendo en este workspace. Esta corrida arranca cuando termine."
+    "queuedNotice": "En cola: hay otro robot corriendo en este workspace. Esta corrida arranca cuando termine.",
+    "warningsNotice": "{count, plural, one {# paso falló y el robot siguió.} other {# pasos fallaron y el robot siguió.}} Están marcados en el registro.",
+    "downloadCsv": "Descargar CSV",
+    "failure": {
+      "title": "Dónde falló el paso {step}",
+      "step": "Paso",
+      "error": "Error",
+      "url": "URL",
+      "pageTitle": "Título de la página",
+      "notMatched": "El selector del paso no estaba en la página. El recorte muestra el body.",
+      "screenshot": "La página cuando falló el paso",
+      "screenshotAlt": "Captura de la página cuando falló el paso {step}",
+      "domElement": "HTML del elemento",
+      "domPage": "HTML de la página (sin scripts ni estilos)"
+    }
   },
   "settings": {
     "enabled": "Permitir corridas automáticas",
@@ -258,7 +279,7 @@
     "timeout": "Segundos",
     "timeoutHint": "Máximo {max} s. Las corridas descuentan de tus minutos del mes.",
     "flowTitle": "Usar en Flow",
-    "flowHint": "Agregá el nodo “Robots: ejecutar robot” y pegá este ID. Los flows también pueden reaccionar a “Robots: corrida terminada” y “Robots: corrida fallida”.",
+    "flowHint": "Agregá el nodo “Robots: ejecutar robot” y elegí este robot. Los flows también pueden reaccionar a “Robots: corrida terminada” y “Robots: corrida fallida”.",
     "copyId": "Copiar ID",
     "copied": "Copiado",
     "responsible": "Usá los robots con responsabilidad: respetá los términos de cada sitio y su robots.txt y no sobrecargues servidores. Guardá los logins en credenciales, nunca en los pasos. Las redes privadas y las URLs file:// están bloqueadas; las descargas solo pasan por el paso Descargar archivo (hasta 10 MB).",
@@ -309,7 +330,20 @@
     "credentialsOpen": "Abrir Credenciales",
     "globalSettings": "Ir a Ajustes globales",
     "usageTitle": "Uso y runner",
-    "turnOn": "Prender"
+    "turnOn": "Prender",
+    "alertsTitle": "Avisos de fallas",
+    "alertsHint": "Para corridas programadas y de Flow. Las corridas manuales nunca mandan emails ni cuentan como fallas.",
+    "alerts": "Avisarme por email cuando falla una corrida automática",
+    "pauseAfter": "Pausar la programación después de",
+    "pauseNever": "No pausar nunca",
+    "pauseCount": "{count, plural, one {# corrida fallida} other {# corridas fallidas seguidas}}",
+    "pauseHint": "Un robot pausado deja de correr por horario y desde Flow hasta que vuelvas a prender las corridas automáticas. Cuando pasa, siempre te llega un email.",
+    "retentionTitle": "Historial de corridas",
+    "retentionHint": "Las corridas más viejas se borran, junto con sus capturas y archivos.",
+    "retention": "Guardar corridas durante",
+    "retentionDefault": "Por defecto ({count} días)",
+    "retentionDays": "{count, plural, one {# día} other {# días}}",
+    "pausedByFailures": "Las corridas automáticas se pausaron el {date} después de varias corridas fallidas seguidas. Revisá la pestaña Corridas y volvé a prenderlas."
   },
   "errors": {
     "generic": "Algo salió mal. Probá de nuevo.",
@@ -380,5 +414,23 @@
     },
     "codeTitle": "Sin barra de favoritos"
   },
-  "loading": "Cargando robots…"
+  "loading": "Cargando robots…",
+  "alertEmail": {
+    "failedSubject": "Falló un robot: {robot}",
+    "failedHeading": "Falló una corrida de un robot",
+    "failedBody": "El robot \"{robot}\" falló en una corrida {trigger}. Error: {error}",
+    "streak": "Corridas fallidas seguidas: {count}.",
+    "throttle": "Te llega como mucho un email de fallas por robot cada {hours} horas. Podés apagar estos emails en la pestaña Avanzado del robot.",
+    "pausedSubject": "Robot pausado: {robot}",
+    "pausedHeading": "Se pausó la programación de un robot",
+    "pausedBody": "El robot \"{robot}\" falló {count} corridas seguidas, así que sus corridas automáticas quedaron pausadas.",
+    "lastError": "Último error: {error}",
+    "pausedHow": "Revisá la corrida fallida, corregí los pasos y volvé a prender las corridas automáticas en la pestaña Horario.",
+    "cta": "Ver las corridas",
+    "triggers": {
+      "manual": "manual",
+      "flow": "de Flow",
+      "schedule": "programada"
+    }
+  }
 }

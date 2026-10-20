@@ -41,6 +41,11 @@ export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_STEP_RETRIES = 5;
 /** Intervalo mínimo de un schedule en minutos. */
 export const MIN_SCHEDULE_MINUTES = 15;
+/** Fallas seguidas (schedule o Flow) que pausan el schedule. 0 = nunca. */
+export const DEFAULT_PAUSE_AFTER = 3;
+export const MAX_PAUSE_AFTER = 20;
+/** Días que se guardan las corridas. 0 = el default del servidor (ROBOTS_RUN_RETENTION_DAYS). */
+export const RETENTION_OPTIONS = [0, 7, 30, 90, 365] as const;
 
 // ---------- Pasos ----------
 
@@ -68,10 +73,14 @@ const varName = z.string().trim().regex(/^[A-Za-z_][A-Za-z0-9_]{0,39}$/, 'invali
 const selector = z.string().trim().max(500);
 const template = z.string().max(2000);
 
-/** Reintentos opcionales de cualquier paso (cantidad + espera entre intentos). */
+/**
+ * Opciones de cualquier paso: reintentos (cantidad + espera entre intentos) y
+ * seguir si falla (el error queda como advertencia y la corrida sigue).
+ */
 const retry = {
   retries: z.number().int().min(0).max(MAX_STEP_RETRIES).optional(),
   retryDelayMs: z.number().int().min(0).max(30_000).optional(),
+  continueOnError: z.boolean().optional(),
 };
 
 const gotoStep = z.object({ type: z.literal('goto'), url: template.min(1), ...retry });
@@ -172,6 +181,8 @@ const loopStep = z.object({
   list: template.min(1),
   max: z.number().int().min(1).max(MAX_LOOP_ITEMS).optional().default(10),
   steps: z.array(leafStep).max(MAX_LOOP_STEPS),
+  /** Si un elemento falla, queda como advertencia y el loop pasa al siguiente. */
+  continueOnItemError: z.boolean().optional(),
 });
 
 export const robotStepSchema = z.union([leafStep, loopStep]);
@@ -352,6 +363,15 @@ export const robotUpdateSchema = z.object({
   timeoutSec: z.number().int().min(10).max(300).optional(),
   /** Guardar cookies y localStorage entre corridas (cifrados). */
   persistSession: z.boolean().optional(),
+  /** Email al dueño cuando falla una corrida automática (con tope de frecuencia). */
+  failureAlerts: z.boolean().optional(),
+  /** Fallas seguidas que pausan el schedule (0 = nunca). */
+  pauseAfter: z.number().int().min(0).max(MAX_PAUSE_AFTER).optional(),
+  retentionDays: z
+    .number()
+    .int()
+    .refine((n) => (RETENTION_OPTIONS as readonly number[]).includes(n), 'invalid_retention')
+    .optional(),
 });
 
 export const robotRunSchema = z.object({

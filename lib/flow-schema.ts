@@ -150,7 +150,7 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   'page.created': { page: { id: 'pg_1', title: 'Untitled' } },
   'robot.run.finished': {
     robot: { id: 'rb_1', name: 'Price check' },
-    run: { id: 'rr_1', status: 'success', trigger: 'schedule', durationMs: 4200, error: null },
+    run: { id: 'rr_1', status: 'success', trigger: 'schedule', durationMs: 4200, error: null, warnings: 0 },
     output: { title: 'A Light in the Attic', price: '£51.77' },
   },
   'robot.run.failed': {
@@ -181,6 +181,8 @@ export type FieldKind =
   | 'flowRef'
   /** Un agente del workspace. */
   | 'agentRef'
+  /** Un robot del workspace (elegirlo carga sus entradas en el campo inputs). */
+  | 'robotRef'
   /** Expresión cron con vista previa. */
   | 'cron';
 
@@ -389,7 +391,7 @@ export const NODE_DEFS = {
     category: 'app',
     outputs: ['out'],
     fields: [
-      { key: 'robotId', kind: 'text', placeholder: 'robot id' },
+      { key: 'robotId', kind: 'robotRef' },
       { key: 'inputs', kind: 'kv', template: true, default: [] },
       { key: 'failOnError', kind: 'bool', default: true, advanced: true },
       { key: 'retries', kind: 'number', default: 0, advanced: true },

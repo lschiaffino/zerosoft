@@ -21,7 +21,9 @@ import {
 import {
   countSteps,
   MAX_ROBOT_STEPS,
+  MAX_PAUSE_AFTER,
   MAX_TIMEOUT_SEC,
+  RETENTION_OPTIONS,
   MIN_SCHEDULE_MINUTES,
   type RobotInputDef,
   type RobotSchedule,
@@ -67,6 +69,9 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
   const [timeoutSec, setTimeoutSec] = useState(initial.timeoutSec);
   const [persistSession, setPersistSession] = useState(initial.persistSession);
   const [hasSession, setHasSession] = useState(initial.hasSession);
+  const [failureAlerts, setFailureAlerts] = useState(initial.failureAlerts);
+  const [pauseAfter, setPauseAfter] = useState(initial.pauseAfter);
+  const [retentionDays, setRetentionDays] = useState(initial.retentionDays);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [pasteMode, setPasteMode] = useState<'append' | 'replace'>('append');
@@ -89,8 +94,8 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
   const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
 
   const payload = useMemo(
-    () => ({ name, description, steps, inputs, enabled, schedule, timeoutSec, persistSession }),
-    [name, description, steps, inputs, enabled, schedule, timeoutSec, persistSession],
+    () => ({ name, description, steps, inputs, enabled, schedule, timeoutSec, persistSession, failureAlerts, pauseAfter, retentionDays }),
+    [name, description, steps, inputs, enabled, schedule, timeoutSec, persistSession, failureAlerts, pauseAfter, retentionDays],
   );
   const dirty =
     stableJson(payload) !==
@@ -103,6 +108,9 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
       schedule: robot.schedule,
       timeoutSec: robot.timeoutSec,
       persistSession: robot.persistSession,
+      failureAlerts: robot.failureAlerts,
+      pauseAfter: robot.pauseAfter,
+      retentionDays: robot.retentionDays,
     });
 
   /** Cambia de pestaña y la deja en la URL (?tab=) sin recargar la página. */
@@ -167,6 +175,9 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
     setTimeoutSec(data.robot.timeoutSec);
     setPersistSession(data.robot.persistSession);
     setHasSession(data.robot.hasSession);
+    setFailureAlerts(data.robot.failureAlerts);
+    setPauseAfter(data.robot.pauseAfter);
+    setRetentionDays(data.robot.retentionDays);
     setSavedAt(Date.now());
     return true;
   }
@@ -448,11 +459,19 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
             onEnabled={setEnabled}
             readOnly={readOnly}
             nextRunAt={robot.enabled && robot.schedule && !dirty ? robot.nextRunAt : null}
+            pausedAt={!enabled ? robot.pausedAt : null}
           />
         )}
 
         {tab === 'runs' && (
-          <RunsPanel runs={runs} selectedId={selectedRun} onSelect={setSelectedRun} running={running} emptyAction={runButton} />
+          <RunsPanel
+            runs={runs}
+            selectedId={selectedRun}
+            onSelect={setSelectedRun}
+            running={running}
+            emptyAction={runButton}
+            robotName={robot.name}
+          />
         )}
 
         {tab === 'advanced' && (
@@ -469,6 +488,55 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
                     {t('settings.clearSession')}
                   </button>
                 )}
+              </div>
+            </FormSection>
+
+            <FormSection title={t('settings.alertsTitle')} description={t('settings.alertsHint')}>
+              <label className="ui-switch">
+                <input type="checkbox" role="switch" checked={failureAlerts} disabled={readOnly} onChange={(e) => setFailureAlerts(e.target.checked)} />
+                <span>{t('settings.alerts')}</span>
+              </label>
+              <div className="ui-field robots-narrow">
+                <label className="label" htmlFor={`${uid}-pause`}>
+                  {t('settings.pauseAfter')}
+                </label>
+                <select
+                  id={`${uid}-pause`}
+                  className="select"
+                  value={pauseAfter}
+                  disabled={readOnly}
+                  onChange={(e) => setPauseAfter(Number(e.target.value))}
+                >
+                  {[...new Set([0, 1, 2, 3, 5, 10, MAX_PAUSE_AFTER, pauseAfter])]
+                    .sort((a, b) => a - b)
+                    .map((n) => (
+                      <option key={n} value={n}>
+                        {n === 0 ? t('settings.pauseNever') : t('settings.pauseCount', { count: n })}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <p className="robots-muted robots-small">{t('settings.pauseHint')}</p>
+            </FormSection>
+
+            <FormSection title={t('settings.retentionTitle')} description={t('settings.retentionHint')}>
+              <div className="ui-field robots-narrow">
+                <label className="label" htmlFor={`${uid}-retention`}>
+                  {t('settings.retention')}
+                </label>
+                <select
+                  id={`${uid}-retention`}
+                  className="select"
+                  value={retentionDays}
+                  disabled={readOnly}
+                  onChange={(e) => setRetentionDays(Number(e.target.value))}
+                >
+                  {RETENTION_OPTIONS.map((n) => (
+                    <option key={n} value={n}>
+                      {n === 0 ? t('settings.retentionDefault', { count: usage.runRetentionDays }) : t('settings.retentionDays', { count: n })}
+                    </option>
+                  ))}
+                </select>
               </div>
             </FormSection>
 
@@ -709,6 +777,7 @@ function ScheduleEditor({
   onEnabled,
   readOnly,
   nextRunAt,
+  pausedAt,
 }: {
   schedule: RobotSchedule;
   onChange: (s: RobotSchedule) => void;
@@ -716,6 +785,8 @@ function ScheduleEditor({
   onEnabled: (v: boolean) => void;
   readOnly: boolean;
   nextRunAt: string | null;
+  /** Pausado solo por fallas seguidas. */
+  pausedAt: string | null;
 }) {
   const t = useTranslations('robots.settings');
   const format = useFormatter();
@@ -820,7 +891,11 @@ function ScheduleEditor({
         </label>
         {schedule && !enabled && (
           <div className="robots-note-warn robots-note-action">
-            <p>{t('scheduleOff')}</p>
+            <p suppressHydrationWarning>
+              {pausedAt
+                ? t('pausedByFailures', { date: format.dateTime(new Date(pausedAt), { dateStyle: 'medium', timeStyle: 'short' }) })
+                : t('scheduleOff')}
+            </p>
             {!readOnly && (
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => onEnabled(true)}>
                 {t('turnOn')}

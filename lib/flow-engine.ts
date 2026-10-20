@@ -452,6 +452,7 @@ async function robotNode(state: RunState, cfg: Record<string, unknown>, tctx: Re
     runId: res.run.id,
     status: res.run.status,
     error: res.run.error,
+    warnings: res.run.warnings,
     output: res.run.output,
     durationMs: res.run.durationMs,
     screenshots: res.run.screenshots.filter((s) => s.url && !s.url.startsWith('data:')).map((s) => ({ name: s.name, url: s.url })),

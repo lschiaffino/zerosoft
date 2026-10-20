@@ -17,7 +17,7 @@ import {
 } from '@/lib/flow-schema';
 import { CONDITION_OPS } from '@/lib/flow-template';
 import CredentialDialog from './CredentialDialog';
-import { changedCount, i18nKey, preview, splitFields } from './flow-ui';
+import { changedCount, i18nKey, preview, robotInputRows, splitFields, type RobotRefInput } from './flow-ui';
 
 export interface VariableOption {
   path: string;
@@ -29,6 +29,8 @@ export interface EditorRefs {
   credentials: Array<{ id: string; name: string; type: string }>;
   flows: Array<{ id: string; name: string }>;
   agents: Array<{ id: string; name: string }>;
+  /** Robots del workspace con sus entradas (nodo Robots: correr robot). */
+  robots?: Array<{ id: string; name: string; inputs: RobotRefInput[] }>;
   codeAvailable: boolean;
   flowId: string;
 }
@@ -420,6 +422,56 @@ export default function NodeConfigPanel({
                 </Link>
               </p>
             )}
+          </>
+        );
+      }
+      case 'robotRef': {
+        const robots = refs.robots ?? [];
+        const current = String(value ?? '');
+        const picked = robots.find((r) => r.id === current) ?? null;
+        // Un id que no está en la lista: robot borrado, de otro workspace o una {{variable}}.
+        const missing = current !== '' && !picked;
+        return (
+          <>
+            <select
+              id={id}
+              className="select"
+              value={current}
+              disabled={readOnly}
+              aria-invalid={missing && !current.includes('{{') ? true : undefined}
+              onChange={(e) => {
+                const next = robots.find((r) => r.id === e.target.value);
+                const rows = Array.isArray(config.inputs) ? (config.inputs as Array<{ key?: string; value?: string }>) : [];
+                onChange({ ...config, [field.key]: e.target.value, ...(next ? { inputs: robotInputRows(next.inputs, rows) } : {}) });
+              }}
+            >
+              <option value="">{t('editor.pickRobot')}</option>
+              {missing && <option value={current}>{current.includes('{{') ? current : t('editor.robotMissing')}</option>}
+              {robots.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+            {robots.length === 0 ? (
+              <p className="ui-help">
+                {t('editor.noRobots')}{' '}
+                <Link href="/app/robots" className="flow-link">
+                  {t('editor.createRobot')}
+                </Link>
+              </p>
+            ) : picked ? (
+              <p className="ui-help">
+                {picked.inputs.length === 0
+                  ? t('editor.robotNoInputs')
+                  : t('editor.robotInputs', {
+                      list: picked.inputs.map((d) => (d.required ? `${d.name} *` : d.name)).join(', '),
+                    })}{' '}
+                <Link href={`/app/robots/${picked.id}`} className="flow-link">
+                  {t('editor.openRobot')}
+                </Link>
+              </p>
+            ) : null}
           </>
         );
       }

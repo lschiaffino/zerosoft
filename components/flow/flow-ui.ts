@@ -180,3 +180,31 @@ export function stepErrorInfo(raw: string): { code: string; key: string; values?
   if (code.startsWith('missing_')) return { code, key: 'missing_field', inEditor: true };
   return null;
 }
+
+/** Entrada de un robot tal como la necesita el selector del nodo Robot. */
+export interface RobotRefInput {
+  name: string;
+  label: string;
+  required: boolean;
+  default: string;
+}
+
+/**
+ * Filas del campo inputs al elegir un robot: una por cada entrada del robot
+ * (en su orden), conservando los valores que ya estaban. Las filas que no son
+ * entradas del robot se conservan solo si tienen un valor (no se pierde nada
+ * escrito a mano).
+ */
+export function robotInputRows(
+  defs: readonly RobotRefInput[],
+  current: ReadonlyArray<{ key?: string; value?: string }>,
+): Array<{ key: string; value: string }> {
+  const byKey = new Map(current.map((r) => [String(r.key ?? '').trim(), String(r.value ?? '')]));
+  const names = new Set(defs.map((d) => d.name));
+  const rows = defs.map((d) => ({ key: d.name, value: byKey.get(d.name) ?? '' }));
+  for (const r of current) {
+    const key = String(r.key ?? '').trim();
+    if (key && !names.has(key) && String(r.value ?? '').trim()) rows.push({ key, value: String(r.value ?? '') });
+  }
+  return rows;
+}

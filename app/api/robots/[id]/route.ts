@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/session';
 import { deleteRobot, getRobot, updateRobot } from '@/lib/robots';
 import { robotUpdateSchema } from '@/lib/robots-schema';
 import { canEditRobots, forbidden, notFound, robotError, unauthorized } from '@/lib/robots-http';
+import { requestLocale } from '@/lib/request-locale';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,7 +26,9 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   if (!canEditRobots(user)) return forbidden();
   const parsed = robotUpdateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return robotError(400, 'invalid_input');
-  const res = await updateRobot(user.id, id, parsed.data);
+  // Los avisos por email salen en el idioma de quien guardó el robot.
+  const locale = requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
+  const res = await updateRobot(user.id, id, { ...parsed.data, locale });
   if (!res.ok) {
     if (res.error === 'not_found') return notFound();
     return robotError(400, res.error, { index: res.index });

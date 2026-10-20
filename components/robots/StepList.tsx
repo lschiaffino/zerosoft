@@ -121,6 +121,9 @@ function StepItem({
   const rec = step as Record<string, unknown>;
   const retries = Number(rec.retries ?? 0);
   const canRetry = step.type !== 'loop_over';
+  // if_exists ya decide qué pasa si falta el elemento; el loop tiene su propia opción por elemento.
+  const canContinue = step.type !== 'loop_over' && step.type !== 'if_exists';
+  const continues = rec.continueOnError === true;
   const [retryOpen, setRetryOpen] = useState(false);
   const retryRef = useRef<HTMLInputElement>(null);
   const showRetry = canRetry && (retries > 0 || retryOpen);
@@ -164,6 +167,19 @@ function StepItem({
           },
     );
   }
+  if (canContinue) {
+    // Seguir si falla: el error queda como advertencia y la corrida sigue con el próximo paso.
+    menu.push({
+      key: 'continue',
+      label: continues ? t('continueOff') : t('continueOn'),
+      run: () => {
+        const next = { ...rec } as Record<string, unknown>;
+        if (continues) delete next.continueOnError;
+        else next.continueOnError = true;
+        onChange(next as AnyStep);
+      },
+    });
+  }
   menu.push({ key: 'remove', label: t('remove'), danger: true, run: onRemove });
 
   return (
@@ -175,6 +191,7 @@ function StepItem({
           {invalid && <span className="robots-step-flag">{t('invalid')}</span>}
         </h3>
         {retries > 0 && <span className="badge">{t('retriesBadge', { count: retries })}</span>}
+        {continues && <span className="badge badge-warn">{t('continueBadge')}</span>}
         {!readOnly && <StepMenu label={t('options', { num })} items={menu} />}
       </div>
       <div className="robots-step-body">
@@ -507,6 +524,20 @@ function TypeFields({
         <div className="robots-fields">
           {text('list', t('fields.list'), '{{inputs.urls}}')}
           {num('max', t('fields.max'), 1, 50)}
+          <label className="ui-check robots-wide">
+            <input
+              type="checkbox"
+              checked={step.continueOnItemError === true}
+              disabled={readOnly}
+              onChange={(e) => {
+                const next = { ...step } as Record<string, unknown>;
+                if (e.target.checked) next.continueOnItemError = true;
+                else delete next.continueOnItemError;
+                onChange(next as AnyStep);
+              }}
+            />
+            <span>{t('fields.continueOnItemError')}</span>
+          </label>
           <div className="robots-wide">
             <StepList steps={step.steps} nested readOnly={readOnly} prefix={prefix} onChange={(steps) => set({ steps })} />
           </div>

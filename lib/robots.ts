@@ -15,8 +15,11 @@ import { redact } from './flow-credentials-schema';
 import { rateLimit } from './rate-limit';
 import { getRobotBackend, robotBackendName, type RobotBackendName } from './robots-runner';
 import { open, seal } from './secret-box';
+import { recordRobotOutcome } from './robots-alerts';
 import {
+  DEFAULT_PAUSE_AFTER,
   DEFAULT_TIMEOUT_SEC,
+  MAX_PAUSE_AFTER,
   MAX_TIMEOUT_SEC,
   MIN_SCHEDULE_MINUTES,
   ROBOT_TEMPLATES,
@@ -28,7 +31,7 @@ import {
   type RobotSchedule,
   type RobotStep,
 } from './robots-schema';
-import type { RobotFile, RobotLogEntry, RobotScreenshot } from './robots-interpreter';
+import type { RobotFailure, RobotFile, RobotLogEntry, RobotScreenshot } from './robots-interpreter';
 
 export interface RobotDto {
   id: string;
@@ -43,13 +46,22 @@ export interface RobotDto {
   persistSession: boolean;
   /** Hay una sesión guardada (cookies/localStorage) para la próxima corrida. */
   hasSession: boolean;
+  /** Email al dueño cuando falla una corrida automática. */
+  failureAlerts: boolean;
+  /** Fallas seguidas que pausan el schedule (0 = nunca). */
+  pauseAfter: number;
+  consecutiveFailures: number;
+  /** Cuándo se pausó solo por fallas seguidas (null si no está pausado por eso). */
+  pausedAt: string | null;
+  /** Días que se guardan las corridas (0 = default del servidor). */
+  retentionDays: number;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface RobotListItem extends RobotDto {
-  lastRun: { id: string; status: RobotRunStatus; createdAt: string } | null;
+  lastRun: { id: string; status: RobotRunStatus; warnings: number; createdAt: string } | null;
   runs7d: number;
 }
 
@@ -60,6 +72,11 @@ export interface RobotShot {
   omitted?: boolean;
 }
 
+/** RobotFailure ya guardada: la captura pasa a URL (lib/uploads.ts) o data URL chica. */
+export interface RobotRunFailure extends Omit<RobotFailure, 'screenshot'> {
+  screenshot: string | null;
+}
+
 export interface RobotRunDto {
   id: string;
   robotId: string;
@@ -68,6 +85,9 @@ export interface RobotRunDto {
   input: Record<string, unknown>;
   output: Record<string, unknown>;
   error: string | null;
+  /** Pasos o elementos de loop que fallaron con "seguir si falla": la corrida terminó con advertencias. */
+  warnings: number;
+  failure: RobotRunFailure | null;
   logs: RobotLogEntry[];
   screenshots: RobotShot[];
   backend: string | null;
@@ -85,6 +105,8 @@ export interface RobotUsage {
   minutesLimit: number | null;
   runsPerHour: number;
   backend: RobotBackendName;
+  /** Días que se guardan las corridas por defecto (los robots pueden elegir otro). */
+  runRetentionDays: number;
 }
 
 function nowIso(): string {
@@ -115,6 +137,11 @@ export function toRobotDto(row: RobotRow, hasSession = false): RobotDto {
     timeoutSec: Math.min(row.timeout_sec, MAX_TIMEOUT_SEC),
     persistSession: row.persist_session === 1,
     hasSession,
+    failureAlerts: row.failure_alerts !== 0,
+    pauseAfter: Math.min(Math.max(Number(row.pause_after ?? DEFAULT_PAUSE_AFTER), 0), MAX_PAUSE_AFTER),
+    consecutiveFailures: Number(row.consecutive_failures ?? 0),
+    pausedAt: row.paused_at ?? null,
+    retentionDays: Number(row.retention_days ?? 0),
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -130,6 +157,8 @@ export function toRunDto(row: RobotRunRow): RobotRunDto {
     input: parseJson(row.input, {}),
     output: parseJson(row.output, {}),
     error: row.error,
+    warnings: Number(row.warnings ?? 0),
+    failure: parseJson<RobotRunFailure | null>(row.failure, null),
     logs: parseJson(row.logs, []),
     screenshots: parseJson(row.screenshots, []),
     backend: row.backend,
@@ -217,11 +246,11 @@ export async function listRobots(workspaceId: string): Promise<RobotListItem[]> 
   // Última corrida y conteo de 7 días de todos los robots en dos queries (sin N+1).
   const lasts = (await db
     .prepare(
-      `SELECT b.id AS robot_id, r.id, r.status, r.created_at FROM robots b
+      `SELECT b.id AS robot_id, r.id, r.status, r.warnings, r.created_at FROM robots b
        JOIN robot_runs r ON r.id = (SELECT id FROM robot_runs WHERE robot_id = b.id ORDER BY created_at DESC LIMIT 1)
        WHERE b.user_id = ?`,
     )
-    .all(workspaceId)) as Array<{ robot_id: string; id: string; status: RobotRunStatus; created_at: string }>;
+    .all(workspaceId)) as Array<{ robot_id: string; id: string; status: RobotRunStatus; warnings: number | null; created_at: string }>;
   const counts = (await db
     .prepare('SELECT robot_id, COUNT(*) AS n FROM robot_runs WHERE user_id = ? AND created_at >= ? GROUP BY robot_id')
     .all(workspaceId, since)) as Array<{ robot_id: string; n: number }>;
@@ -231,7 +260,7 @@ export async function listRobots(workspaceId: string): Promise<RobotListItem[]> 
     const last = lastBy.get(row.id);
     return {
       ...toRobotDto(row),
-      lastRun: last ? { id: last.id, status: last.status, createdAt: last.created_at } : null,
+      lastRun: last ? { id: last.id, status: last.status, warnings: Number(last.warnings ?? 0), createdAt: last.created_at } : null,
       runs7d: countBy.get(row.id) ?? 0,
     };
   });
@@ -301,6 +330,11 @@ export async function updateRobot(
     schedule?: RobotSchedule;
     timeoutSec?: number;
     persistSession?: boolean;
+    failureAlerts?: boolean;
+    pauseAfter?: number;
+    retentionDays?: number;
+    /** Idioma de los emails de aviso (el de quien guarda). */
+    locale?: string;
   },
 ): Promise<RobotWriteResult> {
   const row = await getRobotRow(workspaceId, id);
@@ -327,10 +361,14 @@ export async function updateRobot(
     (enabled && !!schedule && !row.next_run_at);
   const next = scheduleChanged ? nextRun(schedule, enabled) : row.next_run_at;
   const timeout = Math.min(Math.max(patch.timeoutSec ?? row.timeout_sec, 10), MAX_TIMEOUT_SEC);
+  // Volver a prender las corridas automáticas limpia la pausa por fallas.
+  const resumed = enabled && row.enabled !== 1;
+  const locale = patch.locale === 'es' || patch.locale === 'pt' || patch.locale === 'en' ? patch.locale : row.alert_locale || 'en';
   await getDb()
     .prepare(
       `UPDATE robots SET name = ?, description = ?, steps = ?, inputs = ?, enabled = ?, schedule = ?, next_run_at = ?,
-         timeout_sec = ?, persist_session = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
+         timeout_sec = ?, persist_session = ?, failure_alerts = ?, pause_after = ?, retention_days = ?, alert_locale = ?,
+         consecutive_failures = ?, paused_at = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
     )
     .run(
       patch.name?.trim() || row.name,
@@ -342,6 +380,12 @@ export async function updateRobot(
       next,
       timeout,
       (patch.persistSession ?? row.persist_session === 1) ? 1 : 0,
+      (patch.failureAlerts ?? row.failure_alerts !== 0) ? 1 : 0,
+      Math.min(Math.max(patch.pauseAfter ?? Number(row.pause_after ?? DEFAULT_PAUSE_AFTER), 0), MAX_PAUSE_AFTER),
+      patch.retentionDays ?? Number(row.retention_days ?? 0),
+      locale,
+      resumed ? 0 : Number(row.consecutive_failures ?? 0),
+      resumed ? null : row.paused_at,
       nowIso(),
       id,
       workspaceId,
@@ -384,6 +428,7 @@ export async function getUsage(workspaceId: string): Promise<RobotUsage> {
     minutesLimit: freeMinutesPerMonth(),
     runsPerHour: runsPerHour(),
     backend: robotBackendName(),
+    runRetentionDays: defaultRetentionDays(),
   };
 }
 
@@ -436,6 +481,35 @@ async function storeScreenshots(shots: RobotScreenshot[]): Promise<RobotShot[]> 
     else out.push({ name: s.name, url: null, omitted: true });
   }
   return out;
+}
+
+/**
+ * Captura de la falla: la imagen va a lib/uploads.ts (Blob o disco local); si
+ * no hay dónde guardarla, data URL solo si es chica. DOM y URL sin secretos.
+ */
+async function storeFailure(f: RobotFailure | undefined, secrets: readonly string[]): Promise<RobotRunFailure | null> {
+  if (!f || typeof f !== 'object') return null;
+  let screenshot: string | null = null;
+  if (typeof f.screenshot === 'string' && f.screenshot) {
+    try {
+      const { saveUpload } = await import('./uploads');
+      screenshot = await saveUpload('robots', 'failure.jpg', 'image/jpeg', Buffer.from(f.screenshot, 'base64'));
+    } catch {
+      if (f.screenshot.length <= INLINE_SHOT_LIMIT) screenshot = `data:image/jpeg;base64,${f.screenshot}`;
+    }
+  }
+  const text = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : '');
+  const out: RobotRunFailure = {
+    step: text(f.step, 40),
+    type: text(f.type, 40),
+    error: text(f.error, 300),
+    url: text(f.url, 2000),
+    ...(typeof f.title === 'string' && f.title ? { title: text(f.title, 200) } : {}),
+    ...(typeof f.matched === 'boolean' ? { matched: f.matched } : {}),
+    ...(typeof f.dom === 'string' && f.dom ? { dom: text(f.dom, 4000) } : {}),
+    screenshot,
+  };
+  return secrets.length ? redact(out, [...secrets]) : out;
 }
 
 export type RunErrorCode =
@@ -551,6 +625,7 @@ async function failRun(
     run: { id: run.id, status: 'failed', trigger: run.trigger, durationMs: 0, error },
     output: {},
   });
+  await recordRobotOutcome(robot.user_id, robot.id, { id: run.id, trigger: run.trigger, status: 'failed', error });
   return true;
 }
 
@@ -712,10 +787,12 @@ async function executeClaimedRun(
   let output = JSON.stringify(vars);
   if (output.length > 200_000) output = JSON.stringify({ truncated: true, preview: output.slice(0, 2000) });
   const status: RobotRunStatus = result.status === 'success' ? 'success' : 'failed';
+  const failure = status === 'failed' ? await storeFailure(result.failure, creds.secrets) : null;
+  const warnings = Math.max(0, Math.floor(Number(result.warnings) || 0));
   await getDb()
     .prepare(
-      `UPDATE robot_runs SET status = ?, output = ?, error = ?, logs = ?, screenshots = ?, locked_until = NULL,
-         finished_at = ?, duration_ms = ? WHERE id = ?`,
+      `UPDATE robot_runs SET status = ?, output = ?, error = ?, logs = ?, screenshots = ?, warnings = ?, failure = ?,
+         locked_until = NULL, finished_at = ?, duration_ms = ? WHERE id = ?`,
     )
     .run(
       status,
@@ -723,6 +800,8 @@ async function executeClaimedRun(
       status === 'failed' ? (result.error ?? 'failed').slice(0, 500) : null,
       JSON.stringify((result.logs ?? []).slice(0, 600)),
       JSON.stringify(shots),
+      warnings,
+      failure ? JSON.stringify(failure) : null,
       nowIso(),
       duration,
       id,
@@ -731,9 +810,10 @@ async function executeClaimedRun(
   const run = (await getRobotRun(workspaceId, id))!;
   await emitEvent(workspaceId, status === 'success' ? 'robot.run.finished' : 'robot.run.failed', {
     robot: { id: robot.id, name: robot.name },
-    run: { id: run.id, status: run.status, trigger: run.trigger, durationMs: run.durationMs, error: run.error },
+    run: { id: run.id, status: run.status, trigger: run.trigger, durationMs: run.durationMs, error: run.error, warnings: run.warnings },
     output: run.output,
   });
+  await recordRobotOutcome(workspaceId, robot.id, { id: run.id, trigger: run.trigger, status, error: run.error });
   kickRobotQueue(workspaceId);
   return run;
 }
@@ -903,4 +983,58 @@ async function recordSkippedRun(row: RobotRow, error: RunErrorCode): Promise<voi
     run: { id, status: 'failed', trigger: 'schedule', durationMs: 0, error },
     output: {},
   });
+  await recordRobotOutcome(row.user_id, row.id, { id, trigger: 'schedule', status: 'failed', error });
+}
+
+// ---------- Retención ----------
+
+/** Días que se guardan las corridas por defecto (ROBOTS_RUN_RETENTION_DAYS, 90). */
+export function defaultRetentionDays(): number {
+  return envInt('ROBOTS_RUN_RETENTION_DAYS', 90);
+}
+
+/** URLs guardadas con saveUpload que cuelgan de una corrida (capturas, falla, archivos). */
+export function runUploadUrls(row: Pick<RobotRunRow, 'screenshots' | 'failure' | 'output'>): string[] {
+  const urls: string[] = [];
+  const add = (u: unknown) => {
+    if (typeof u === 'string' && (u.startsWith('/uploads/robots/') || /^https:\/\/[^/]+\/robots\//.test(u))) urls.push(u);
+  };
+  for (const s of parseJson<Array<{ url?: unknown }>>(row.screenshots, [])) add(s?.url);
+  add(parseJson<{ screenshot?: unknown } | null>(row.failure, null)?.screenshot);
+  const output = parseJson<Record<string, unknown>>(row.output, {});
+  for (const v of Object.values(output ?? {})) {
+    if (v && typeof v === 'object' && !Array.isArray(v)) add((v as { url?: unknown }).url);
+  }
+  return urls;
+}
+
+/**
+ * Borra las corridas terminadas más viejas que la retención de su robot
+ * (retention_days, o el default del servidor) y sus archivos. Las corridas en
+ * cola o corriendo no se tocan. De a `batch` por llamada (lo llama el cron).
+ */
+export async function pruneRobotRuns(now = Date.now(), batch = 500): Promise<number> {
+  const db = getDb();
+  const fallback = defaultRetentionDays();
+  const rows = (await db
+    .prepare(
+      `SELECT r.id, r.screenshots, r.failure, r.output FROM robot_runs r JOIN robots b ON b.id = r.robot_id
+       WHERE r.status IN ('success', 'failed')
+         AND r.created_at < strftime('%Y-%m-%dT%H:%M:%fZ', ?, '-' || (CASE WHEN b.retention_days > 0 THEN b.retention_days ELSE ? END) || ' days')
+       ORDER BY r.created_at LIMIT ?`,
+    )
+    .all(new Date(now).toISOString(), fallback, batch)) as Array<Pick<RobotRunRow, 'id' | 'screenshots' | 'failure' | 'output'>>;
+  if (!rows.length) return 0;
+  const urls = rows.flatMap(runUploadUrls);
+  if (urls.length) {
+    const { deleteUploads } = await import('./uploads');
+    await deleteUploads(urls);
+  }
+  let n = 0;
+  for (let i = 0; i < rows.length; i += 100) {
+    const ids = rows.slice(i, i + 100).map((r) => r.id);
+    const res = await db.prepare(`DELETE FROM robot_runs WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+    n += res.changes;
+  }
+  return n;
 }
