@@ -24,7 +24,7 @@ import {
 } from './xml-lite';
 
 /** Tope por archivo importado (mismo que un adjunto). */
-export const NOTES_IMPORT_MAX_BYTES = 10 * 1024 * 1024;
+export const NOTES_IMPORT_MAX_BYTES = 4 * 1024 * 1024;
 export const NOTES_IMPORT_MAX_FILES = 20;
 /** Notas por ENEX y bloques por nota (el editor acepta hasta 2000). */
 export const NOTES_IMPORT_MAX_NOTES = 500;

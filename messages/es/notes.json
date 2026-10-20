@@ -175,11 +175,11 @@
   },
   "import": {
     "button": "Importar notas",
-    "hint": "Archivos de Evernote (.enex) o Markdown (.md), hasta 10 MB cada uno",
+    "hint": "Archivos de Evernote (.enex) o Markdown (.md), hasta 4 MB cada uno",
     "importing": "Importando…",
     "done": "{count, plural, =0 {No se importó ninguna nota} one {Se importó # nota} other {Se importaron # notas}}",
     "partial": "{count, plural, one {Se importó # nota} other {Se importaron # notas}}. {failed, plural, one {# archivo no se pudo leer} other {# archivos no se pudieron leer}}.",
-    "noneImported": "{failed, plural, one {El archivo no se pudo leer} other {Los archivos no se pudieron leer}}. Usá archivos .enex o .md de hasta 10 MB.",
+    "noneImported": "{failed, plural, one {El archivo no se pudo leer} other {Los archivos no se pudieron leer}}. Usá archivos .enex o .md de hasta 4 MB.",
     "failed": "No se pudo importar. Probá de nuevo."
   },
   "links": {

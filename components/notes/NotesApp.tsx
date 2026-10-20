@@ -265,17 +265,26 @@ export default function NotesApp({
       if (!files.length) return;
       setImporting(true);
       try {
-        const body = new FormData();
-        for (const f of files) body.append('file', f);
-        if (filter.kind === 'notebook') body.append('notebook_id', filter.id);
-        const res = await fetch('/api/notes/import', { method: 'POST', body });
-        const data = (await res.json().catch(() => null)) as
-          | { imported?: number; errors?: Array<{ file: string; code: string }>; error?: string }
-          | null;
-        if (!res.ok || !data) throw new Error(data?.error ?? String(res.status));
-        const failed = data.errors?.length ?? 0;
-        if (failed && !data.imported) setToast(t('import.noneImported', { failed }));
-        else setOkToast(failed ? t('import.partial', { count: data.imported ?? 0, failed }) : t('import.done', { count: data.imported ?? 0 }));
+        // Un archivo por request: en Vercel el cuerpo de una función tiene tope (~4.5 MB).
+        let imported = 0;
+        let failed = 0;
+        for (const f of files) {
+          const body = new FormData();
+          body.append('file', f);
+          if (filter.kind === 'notebook') body.append('notebook_id', filter.id);
+          const res = await fetch('/api/notes/import', { method: 'POST', body });
+          const data = (await res.json().catch(() => null)) as
+            | { imported?: number; errors?: Array<{ file: string; code: string }>; error?: string }
+            | null;
+          if (!res.ok || !data) {
+            failed += 1;
+            continue;
+          }
+          imported += data.imported ?? 0;
+          failed += data.errors?.length ?? 0;
+        }
+        if (failed && !imported) setToast(t('import.noneImported', { failed }));
+        else setOkToast(failed ? t('import.partial', { count: imported, failed }) : t('import.done', { count: imported }));
         if (filter.kind === 'trash') setFilter({ kind: 'all' });
         void refreshList();
         void refreshSide();
