@@ -26,7 +26,12 @@ export interface WidgetFormValues {
   botSource: 'canned' | 'docs' | 'ai' | 'agent';
   helpEnabled: boolean;
   locale: 'auto' | 'en' | 'es' | 'pt';
+  /** Minutos sin leer antes de avisar por email al visitante (0 = nunca). */
+  offlineEmailMinutes: number;
 }
+
+/** Opciones del aviso por email de respuestas sin leer (minutos; 0 = apagado). */
+export const OFFLINE_EMAIL_OPTIONS = [0, 5, 10, 30, 60] as const;
 
 export interface OfficeHoursState {
   enabled: boolean;
@@ -57,6 +62,7 @@ export function initialValues(w: ChatWidgetRow): WidgetFormValues {
     botSource: w.bot_source ?? 'canned',
     helpEnabled: w.help_enabled === 1,
     locale: w.locale ?? 'auto',
+    offlineEmailMinutes: typeof w.offline_email_minutes === 'number' ? w.offline_email_minutes : 10,
   };
 }
 
@@ -146,5 +152,6 @@ export function buildWidgetPayload(values: WidgetFormValues, fields: WidgetFormF
     officeHours: office.enabled ? { timezone: office.timezone.trim() || 'UTC', days: office.days } : null,
     helpEnabled: values.helpEnabled,
     locale: values.locale,
+    offlineEmailMinutes: values.offlineEmailMinutes,
   };
 }

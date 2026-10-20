@@ -52,6 +52,8 @@ const widgetBase = {
   officeHours: officeHoursSchema.nullable().optional(),
   helpEnabled: z.boolean().optional(),
   locale: z.enum(['auto', 'en', 'es', 'pt']).optional(),
+  // Minutos sin leer antes de mandar la respuesta por email (0 = nunca, tope 1 día).
+  offlineEmailMinutes: z.number().int().min(0).max(1440).optional(),
 };
 
 export const widgetCreateSchema = z.object({
@@ -102,6 +104,15 @@ export const visitorMessageLimitsSchema = z
     fields: z
       .record(z.string().max(64), z.string().max(1000))
       .refine((o) => Object.keys(o).length <= 20, { message: 'too_many_fields' })
+      .optional(),
+    // Página desde la que escribe (lib/chat-visitor-context.ts limpia cada campo).
+    context: z
+      .object({
+        url: z.string().max(2000).optional(),
+        title: z.string().max(500).optional(),
+        referrer: z.string().max(2000).optional(),
+        language: z.string().max(64).optional(),
+      })
       .optional(),
   })
   .passthrough();

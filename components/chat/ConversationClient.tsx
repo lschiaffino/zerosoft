@@ -18,6 +18,7 @@ import VisitorPanel from './VisitorPanel';
 import ChatIcon, { initials } from './icons';
 import SlaNote from './SlaNote';
 import { useInbox } from './InboxShell';
+import { SNOOZE_OPTIONS } from './inbox-model';
 
 interface CurrentUser {
   id: string;
@@ -46,14 +47,6 @@ function senderName(
   if (m.user_id === currentUser.id) return t('conversation.you');
   return m.user_name || m.user_email || t('conversation.you');
 }
-
-const SNOOZE_OPTIONS = [
-  { value: 60 * 60 * 1000, key: '1h' },
-  { value: 4 * 60 * 60 * 1000, key: '4h' },
-  { value: 24 * 60 * 60 * 1000, key: '24h' },
-  { value: 3 * 24 * 60 * 60 * 1000, key: '3d' },
-  { value: 7 * 24 * 60 * 60 * 1000, key: '7d' },
-] as const;
 
 function formatBytes(n: number): string {
   if (!n) return '0 B';
@@ -109,6 +102,65 @@ export default function ConversationClient({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const detailsRef = useRef<HTMLElement>(null);
   const detailsToggleRef = useRef<HTMLButtonElement>(null);
+  /** Mensaje o nota propio en edición (y su texto), o a confirmar su borrado. */
+  const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  function canEdit(m: ChatMessageWithUser): boolean {
+    return m.sender_type === 'user' && m.user_id === currentUser.id && !m.deleted_at;
+  }
+
+  async function saveEdit() {
+    if (!editing || editBusy) return;
+    const text = editing.text.trim();
+    if (text.length > CHAT_MESSAGE_MAX) {
+      setEditError(t('errors.messageTooLong'));
+      return;
+    }
+    setEditBusy(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/chat/conversations/${conversationId}/messages/${editing.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: text }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setEditError(t(sendErrorKey(data.error)));
+        return;
+      }
+      setEditing(null);
+      await fetchMessages();
+      fetchList();
+    } catch {
+      setEditError(t('errors.generic'));
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
+  async function deleteMessage(id: string) {
+    if (editBusy) return;
+    setEditBusy(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/chat/conversations/${conversationId}/messages/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        setEditError(t('errors.generic'));
+        return;
+      }
+      setConfirmDeleteId(null);
+      await fetchMessages();
+      fetchList();
+    } catch {
+      setEditError(t('errors.generic'));
+    } finally {
+      setEditBusy(false);
+    }
+  }
 
   async function fetchTags() {
     try {
@@ -549,6 +601,7 @@ export default function ConversationClient({
               {agents.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.id === currentUser.id ? t('conversation.assignedToYou') : a.name || a.email}
+                  {a.away ? ` (${t('away.away')})` : ''}
                 </option>
               ))}
             </select>
@@ -613,8 +666,16 @@ export default function ConversationClient({
                   ) : (
                     initials(m.user_name, m.user_email)
                   );
+                const isEditing = editing?.id === m.id;
+                const own = canEdit(m);
                 return (
-                  <li key={m.id} className="chat-message" data-sender={m.sender_type} data-note={m.is_note ? true : undefined}>
+                  <li
+                    key={m.id}
+                    className="chat-message"
+                    data-sender={m.sender_type}
+                    data-note={m.is_note ? true : undefined}
+                    data-deleted={m.deleted_at ? true : undefined}
+                  >
                     <span className="chat-plate" aria-hidden="true">
                       {plate}
                     </span>
@@ -625,14 +686,111 @@ export default function ConversationClient({
                         <time suppressHydrationWarning className="chat-message-time" dateTime={m.created_at} title={formatDateTime(m.created_at, locale)}>
                           {formatTimeAgo(m.created_at, locale)}
                         </time>
-                        {!isVisitor && !m.is_note && m.read_at && (
+                        {!isVisitor && !m.is_note && m.read_at && !m.deleted_at && (
                           <span className="chat-message-read" suppressHydrationWarning title={formatDateTime(m.read_at, locale)}>
                             {t('read.read')}
                           </span>
                         )}
+                        {m.edited_at && !m.deleted_at && (
+                          <span className="chat-message-read" suppressHydrationWarning title={formatDateTime(m.edited_at, locale)}>
+                            {t('edit.edited')}
+                          </span>
+                        )}
+                        {own && !isEditing && (
+                          <span className="chat-message-tools">
+                            {confirmDeleteId === m.id ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn-danger btn-sm"
+                                  disabled={editBusy}
+                                  aria-busy={editBusy || undefined}
+                                  onClick={() => deleteMessage(m.id)}
+                                >
+                                  {m.is_note ? t('edit.confirmDeleteNote') : t('edit.confirmDelete')}
+                                </button>
+                                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDeleteId(null)}>
+                                  {t('common.cancel')}
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-sm"
+                                  onClick={() => {
+                                    setConfirmDeleteId(null);
+                                    setEditError(null);
+                                    setEditing({ id: m.id, text: m.body });
+                                  }}
+                                >
+                                  {t('common.edit')}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-sm"
+                                  onClick={() => {
+                                    setEditing(null);
+                                    setEditError(null);
+                                    setConfirmDeleteId(m.id);
+                                  }}
+                                >
+                                  {t('common.delete')}
+                                </button>
+                              </>
+                            )}
+                          </span>
+                        )}
                       </p>
-                      {m.body ? <p className="chat-message-text">{m.body}</p> : null}
-                      {attachments.length > 0 && (
+                      {m.deleted_at ? (
+                        <p className="chat-message-text chat-message-deleted">
+                          {m.is_note ? t('edit.deletedNote') : t('edit.deleted')}
+                        </p>
+                      ) : isEditing ? (
+                        <div className="chat-message-edit">
+                          <label className="sr-only" htmlFor={`chat-edit-${m.id}`}>
+                            {t('edit.label')}
+                          </label>
+                          <textarea
+                            id={`chat-edit-${m.id}`}
+                            className="textarea"
+                            rows={3}
+                            autoFocus
+                            value={editing.text}
+                            onChange={(e) => setEditing({ id: m.id, text: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') setEditing(null);
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                void saveEdit();
+                              }
+                            }}
+                          />
+                          <div className="chat-message-edit-foot">
+                            {!m.is_note && <p className="ui-help">{t('edit.visitorSees')}</p>}
+                            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(null)}>
+                              {t('common.cancel')}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              disabled={editBusy || (!editing.text.trim() && attachments.length === 0)}
+                              aria-busy={editBusy || undefined}
+                              onClick={() => void saveEdit()}
+                            >
+                              {t('common.save')}
+                            </button>
+                          </div>
+                        </div>
+                      ) : m.body ? (
+                        <p className="chat-message-text">{m.body}</p>
+                      ) : null}
+                      {(isEditing || confirmDeleteId === m.id) && editError && (
+                        <p className="ui-error" role="alert">
+                          {editError}
+                        </p>
+                      )}
+                      {attachments.length > 0 && !m.deleted_at && (
                         <div className="chat-attachments">
                           {attachments.map((a, idx) => {
                             const type = attachmentType(a.mime);

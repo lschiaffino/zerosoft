@@ -20,6 +20,7 @@ import {
   parseFields,
   parseOfficeHours,
   widgetTab,
+  OFFLINE_EMAIL_OPTIONS,
   type WidgetFormField,
   type WidgetFormValues,
 } from './widget-form-model';
@@ -485,6 +486,27 @@ export default function WidgetSettings({
           ) : (
             <p className="chat-quiet">{t('officeHours.disabled')}</p>
           )}
+          <div className="ui-field">
+            <label className="label" htmlFor={`${uid}-offline-email`}>
+              {t('offlineEmail.setting')}
+            </label>
+            <select
+              id={`${uid}-offline-email`}
+              className="select"
+              value={values.offlineEmailMinutes}
+              onChange={(e) => set('offlineEmailMinutes', Number(e.target.value))}
+            >
+              {/* Un valor guardado fuera de las opciones (API) se muestra igual. */}
+              {[...new Set<number>([...OFFLINE_EMAIL_OPTIONS, values.offlineEmailMinutes])]
+                .sort((a, b) => a - b)
+                .map((m) => (
+                  <option key={m} value={m}>
+                    {m === 0 ? t('offlineEmail.off') : t('offlineEmail.after', { minutes: m })}
+                  </option>
+                ))}
+            </select>
+            <p className="ui-help">{t('offlineEmail.hint')}</p>
+          </div>
         </FormSection>
       )}
     </SettingsTabs>

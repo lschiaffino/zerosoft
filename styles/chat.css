@@ -155,6 +155,55 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 /* Prioridad alta y SLA van como texto de tinta: la única placa es Urgente. */
 .chat-row-priority { color: var(--ink); font-weight: 600; }
 .chat-sla { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* Selección en lote: la casilla tapa la placa al pasar, con foco o si ya
+   hay algo elegido; en pantallas táctiles queda siempre a la vista. */
+.chat-list > li { position: relative; }
+.chat-row-check {
+  position: absolute;
+  top: 10px;
+  left: 16px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity var(--ui-dur) var(--ease);
+}
+.chat-row-check input { margin: 0; accent-color: var(--ink); cursor: pointer; }
+.chat-list > li:hover .chat-row-check,
+.chat-row-check:focus-within,
+.chat-list[data-selecting] .chat-row-check { opacity: 1; }
+.chat-list > li[data-selected] .chat-row { background: var(--ui-hover); }
+@media (hover: none) {
+  .chat-row-check { opacity: 1; }
+}
+
+.chat-bulk {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 16px;
+  background: var(--brand-enamel);
+  border-bottom: 1px solid var(--line);
+}
+.chat-bulk-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.8125rem; }
+.chat-bulk-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.chat-bulk-actions .select { width: 100%; }
+.chat-bulk-tag { display: flex; gap: 4px; min-width: 0; }
+.chat-bulk-tag .input { flex: 1; min-width: 0; min-height: 32px; height: 32px; font-size: 0.8125rem; }
+.chat-bulk-status { margin: 0; font-size: 0.75rem; color: var(--brand-gray-1); }
+.chat-bulk-status:empty { display: none; }
+
+.chat-inbox-titlebar .chat-away-select { width: auto; margin-left: auto; align-self: center; }
+.chat-inbox-titlebar:has(.chat-away-note) { flex-wrap: wrap; }
+.chat-away-note { flex-basis: 100%; margin: 0; font-size: 0.75rem; color: var(--brand-gray-1); }
 .chat-sla[data-breached] { font-weight: 600; }
 
 /* ---------- Bandeja: tres columnas a alto completo ---------- */
@@ -305,6 +354,21 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   border: 1px solid color-mix(in srgb, var(--warn-ink) 25%, var(--bg));
   border-radius: var(--radius-1);
 }
+/* Editar y borrar lo propio: las acciones aparecen al pasar o con foco. */
+.chat-message-tools { display: inline-flex; gap: 2px; margin-left: auto; opacity: 0; transition: opacity var(--ui-dur) var(--ease); }
+.chat-message-tools .btn { min-height: 24px; height: 24px; padding: 0 6px; font-size: 0.75rem; }
+.chat-message:hover .chat-message-tools,
+.chat-message-tools:focus-within,
+.chat-message-tools:has(.btn-danger) { opacity: 1; }
+@media (hover: none) {
+  .chat-message-tools { opacity: 1; }
+}
+.chat-message-deleted { color: var(--brand-gray-2); font-style: italic; }
+.chat-message[data-deleted][data-note] .chat-message-text { background: none; border-style: dashed; }
+.chat-message-edit { display: flex; flex-direction: column; gap: 6px; max-width: 68ch; margin-top: 6px; }
+.chat-message-edit .textarea { width: 100%; }
+.chat-message-edit-foot { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.chat-message-edit-foot .ui-help { margin: 0 auto 0 0; }
 .chat-attachments { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .chat-attachment-image { display: block; border: 1px solid var(--line); }
 .chat-attachment-image img { display: block; max-width: 240px; max-height: 180px; object-fit: cover; }

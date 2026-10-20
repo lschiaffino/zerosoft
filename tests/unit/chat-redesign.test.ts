@@ -24,6 +24,7 @@ const values: WidgetFormValues = {
   botSource: 'docs',
   helpEnabled: false,
   locale: 'es',
+  offlineEmailMinutes: 30,
 };
 
 describe('editor de widget en pestañas', () => {
@@ -39,6 +40,7 @@ describe('editor de widget en pestañas', () => {
     expect(payload.name).toBe('Soporte');
     expect(payload.welcomeMessage).toBeUndefined();
     expect(payload.locale).toBe('es');
+    expect(payload.offlineEmailMinutes).toBe(30);
     expect(payload.botGreeting).toBe('Hola');
     expect(payload.fields).toEqual([{ id: 'a', name: 'Empresa', required: true, type: 'text' }]);
     expect(payload.officeHours).toBeNull();

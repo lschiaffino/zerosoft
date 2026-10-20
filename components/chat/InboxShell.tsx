@@ -4,8 +4,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useTranslations } from 'next-intl';
 import { usePathname } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
-import type { ChatConversationListRow } from '@/lib/chat-data';
+import type { ChatAgent, ChatConversationListRow } from '@/lib/chat-data';
 import ConversationList from './ConversationList';
+import BulkBar from './BulkBar';
+import AwayStatus from './AwayStatus';
 import {
   INBOX_STATUSES,
   conversationIdFromPath,
@@ -56,10 +58,16 @@ function writeFilters(status: InboxStatus, assignee: InboxAssignee) {
 export default function InboxShell({
   widgetIds,
   currentUserId,
+  agents,
+  initialAway,
   children,
 }: {
   widgetIds: string[];
   currentUserId: string;
+  /** Agentes del workspace (asignar en lote). */
+  agents: ChatAgent[];
+  /** El agente logueado está marcado como ausente. */
+  initialAway: boolean;
   children: ReactNode;
 }) {
   const t = useTranslations('chat');
@@ -77,6 +85,8 @@ export default function InboxShell({
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
+  /** Conversaciones elegidas para una acción en lote. */
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const searchRef = useRef<HTMLInputElement>(null);
   const rowsCount = useRef(0);
   rowsCount.current = rows.length;
@@ -176,6 +186,30 @@ export default function InboxShell({
     writeFilters(status, next);
   }
 
+  // Lo elegido que ya no está en la lista (otro filtro, se resolvió) sale de la selección.
+  useEffect(() => {
+    setSelected((prev) => {
+      if (prev.size === 0) return prev;
+      const visible = new Set(rows.map((r) => r.id));
+      const next = new Set([...prev].filter((id) => visible.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [rows]);
+
+  // Cambiar de filtro o búsqueda empieza una selección nueva.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [query]);
+
+  function toggleSelected(id: string, checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
   const filtered = status !== 'open' || assignee !== 'any' || !!tag || !!debouncedQ;
   const ctx = useMemo(() => ({ rows, refresh }), [rows, refresh]);
 
@@ -193,6 +227,7 @@ export default function InboxShell({
                   {total}
                 </span>
               )}
+              <AwayStatus initialAway={initialAway} onChange={refresh} />
             </div>
             <div className="chat-inbox-search">
               <input
@@ -258,6 +293,19 @@ export default function InboxShell({
             </div>
           </div>
 
+          {selected.size > 0 && (
+            <BulkBar
+              selected={selected}
+              visibleIds={rows.map((r) => r.id)}
+              agents={agents}
+              currentUserId={currentUserId}
+              onSelect={setSelected}
+              onDone={() => {
+                refresh();
+              }}
+            />
+          )}
+
           <div className="chat-inbox-scroll" aria-busy={loading}>
             {error ? (
               <div className="chat-inbox-error" role="alert">
@@ -277,6 +325,8 @@ export default function InboxShell({
                 conversations={rows}
                 currentId={currentId}
                 emptyTitle={filtered ? t('inbox.empty') : t('inbox.emptyOpen')}
+                selected={selected}
+                onToggle={toggleSelected}
               />
             )}
             {loaded && !error && rows.length < total && (

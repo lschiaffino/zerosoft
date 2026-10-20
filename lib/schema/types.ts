@@ -996,6 +996,8 @@ export interface ChatWidgetRow {
   help_enabled?: 0 | 1;
   /** Idioma del widget embebido: 'auto' (página / navegador) o fijo. */
   locale?: 'auto' | 'en' | 'es' | 'pt';
+  /** Minutos sin leer antes de mandar por email una respuesta del agente (0 = nunca). */
+  offline_email_minutes?: number;
   created_at: string;
   updated_at: string;
 }
@@ -1044,6 +1046,12 @@ export interface ChatMessageRow {
   read_at: string | null;
   /** Nota interna: solo la ven los agentes. */
   is_note?: 0 | 1;
+  /** Última edición de su autor (marca "editado"). */
+  edited_at?: string | null;
+  /** Borrado por su autor: el visitante no lo ve más; el inbox muestra la marca. */
+  deleted_at?: string | null;
+  /** Claim del aviso por email al visitante (lib/chat-offline-email.ts). */
+  offline_email_at?: string | null;
   created_at: string;
 }
 

@@ -197,7 +197,14 @@
     "emailVerified": "Verified",
     "emailUnverified": "Not verified",
     "confirmUnverified": "This email isn’t verified and matches an existing CRM contact. Save the chat there only if you confirmed it’s this person.",
-    "confirmLog": "Confirm and save to contact"
+    "confirmLog": "Confirm and save to contact",
+    "context": "Context",
+    "page": "Page",
+    "pageSeen": "Last seen {when}",
+    "referrer": "Came from",
+    "browser": "Browser",
+    "language": "Language",
+    "formNote": "Answers from the pre-chat form."
   },
   "priorities": {
     "low": "Low",
@@ -504,6 +511,52 @@
     "sendFailed": "Could not send your message. Try again.",
     "fileType": "This file type is not allowed",
     "fileFailed": "Could not send the file. Try again.",
-    "suggestions": "These articles might help:"
+    "suggestions": "These articles might help:",
+    "edited": "Edited"
+  },
+  "bulk": {
+    "label": "Bulk actions",
+    "select": "Select the conversation with {name}",
+    "selected": "{count, plural, one {# selected} other {# selected}}",
+    "clear": "Clear",
+    "assign": "Assign to…",
+    "tag": "Add a tag",
+    "addTag": "Add",
+    "done": "{count, plural, =0 {Nothing changed.} one {# conversation updated.} other {# conversations updated.}}",
+    "doneSkipped": "{count, plural, =0 {Nothing changed} one {# conversation updated} other {# conversations updated}}, {skipped} skipped."
+  },
+  "away": {
+    "label": "Your status",
+    "available": "Available",
+    "away": "Away",
+    "awayReassign": "Away and reassign my chats",
+    "awayHint": "Round-robin rules skip you while you are away.",
+    "reassigned": "{count, plural, =0 {You are away. You had no open chats to reassign.} one {You are away. # chat went to another teammate.} other {You are away. # chats went to other teammates.}}"
+  },
+  "edit": {
+    "edited": "Edited",
+    "deleted": "Message deleted. The visitor no longer sees it.",
+    "deletedNote": "Note deleted.",
+    "confirmDelete": "Delete message",
+    "confirmDeleteNote": "Delete note",
+    "label": "Edit message",
+    "visitorSees": "The visitor sees the new text with an \"edited\" mark."
+  },
+  "offlineEmail": {
+    "setting": "Email replies the visitor hasn’t seen",
+    "off": "Never",
+    "after": "After {minutes} minutes unread",
+    "hint": "If the visitor left an email and doesn’t read a teammate’s reply in time, we send it to them with a link back to the chat. Replying to that email doesn’t reach the inbox.",
+    "subject": "New reply from {widget}",
+    "subjectAgent": "{agent} replied to your chat with {widget}",
+    "heading": "You have a new reply",
+    "hi": "Hi {name},",
+    "hiAnonymous": "Hi,",
+    "intro": "{agent} answered your chat with {widget}:",
+    "attachment": "Attachment: {file}",
+    "cta": "Continue in the chat",
+    "noLink": "To reply, open the chat on the site where you wrote to us.",
+    "noReply": "Replies to this email don’t reach the team; answer in the chat.",
+    "why": "You get this email because you left your address in the chat and haven’t seen this reply yet."
   }
 }

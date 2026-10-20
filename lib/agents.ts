@@ -631,7 +631,7 @@ export async function getConversationDetail(
   if (conv.chat_conversation_id) {
     const rows = (await db
       .prepare(
-        "SELECT id, sender_type, body, created_at FROM chat_messages WHERE conversation_id = ? AND sender_type IN ('visitor', 'bot', 'user', 'system') AND is_note = 0 ORDER BY created_at, rowid",
+        "SELECT id, sender_type, body, created_at FROM chat_messages WHERE conversation_id = ? AND sender_type IN ('visitor', 'bot', 'user', 'system') AND is_note = 0 AND deleted_at IS NULL ORDER BY created_at, rowid",
       )
       .all(conv.chat_conversation_id)) as Array<{ id: string; sender_type: string; body: string; created_at: string }>;
     messages = rows.map((r) => ({

@@ -8,6 +8,7 @@ import {
   getChatWidget,
   getOrCreateChatVisitor,
   getVisitorConversationWithMessages,
+  saveVisitorContext,
   toPublicMessage,
   toPublicVisitor,
   updateChatConversation,
@@ -16,6 +17,7 @@ import { CHAT_MESSAGE_MAX } from '@/lib/chat-schema';
 import { MAX_UPLOAD_SIZE, isAllowedUpload, saveUpload, UploadError } from '@/lib/uploads';
 import { verifyVisitorIdentity } from '@/lib/chat-identity';
 import { afterVisitorMessage } from '@/lib/chat-visitor-message';
+import { visitorPageContext } from '@/lib/chat-visitor-context';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -51,10 +53,21 @@ export async function POST(req: Request) {
   }
 
   const identity = cleanVisitorIdentity(form.get('email'), form.get('name'));
-  const visitor = await getOrCreateChatVisitor(widgetId, visitorExternalId, {
+  let visitor = await getOrCreateChatVisitor(widgetId, visitorExternalId, {
     ...identity,
     verified: await verifyVisitorIdentity(widgetId, identity.email, form.get('userHash')),
   });
+  // Página desde la que escribe: viaja como JSON en el campo "context".
+  const rawContext = form.get('context');
+  let context: unknown = null;
+  if (typeof rawContext === 'string' && rawContext.length <= 4000) {
+    try {
+      context = JSON.parse(rawContext);
+    } catch {
+      context = null;
+    }
+  }
+  visitor = await saveVisitorContext(visitor, { page: visitorPageContext(context, req.headers.get('user-agent')) });
 
   let conversation = (await getVisitorConversationWithMessages(widgetId, visitorExternalId))
     ?.conversation ?? null;
