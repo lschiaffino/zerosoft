@@ -7,6 +7,7 @@ import {
   updateChatConversation,
   type ConversationUpdatePayload,
 } from './chat-data';
+import { attributesBlockingResolve } from './chat-attributes-db';
 
 /**
  * Herramientas del inbox de Chat: tags de conversación, macros (canned
@@ -138,6 +139,11 @@ export async function applyCannedMacro(
   } else if (actions.status) {
     patch.status = actions.status;
   }
+  // Resolver con atributos obligatorios sin completar no corre: el resto de
+  // la macro (asignar, tags) sí, y la conversación queda como estaba.
+  if (patch.status === 'resolved' && conversation.status !== 'resolved' && (await attributesBlockingResolve(conversation)).length > 0) {
+    delete patch.status;
+  }
   if (actions.assignTo !== undefined) {
     if (actions.assignTo === '') patch.assignedTo = null;
     else {
@@ -225,6 +231,8 @@ export async function applyBulkAction(
       if (conversation.status === 'resolved') return null;
       return (await updateChatConversation(conversation.id, { status: 'snoozed', snoozedUntil: action.until })) ?? null;
     case 'resolve':
+      // Con atributos obligatorios sin completar se saltea (la ruta la cuenta como bloqueada).
+      if (conversation.status !== 'resolved' && (await attributesBlockingResolve(conversation)).length > 0) return null;
       return (await updateChatConversation(conversation.id, { status: 'resolved' })) ?? null;
   }
 }

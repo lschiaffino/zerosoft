@@ -485,6 +485,21 @@ body:has(.chat-composer) #zs-chat-root { display: none !important; }
 .chat-dl dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
 .chat-dl dd a { color: inherit; text-underline-offset: 3px; }
 
+/* Atributos de conversación, transcript y merge (panel de detalles). */
+.chat-attr-required { color: var(--brand-gray-2); font-weight: 400; }
+.chat-details .ui-field[data-missing] .label { color: var(--ink); }
+.chat-details .ui-field[data-missing] .input,
+.chat-details .ui-field[data-missing] .select { border-color: var(--warn-ink); }
+.chat-transcript-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.chat-merge-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.chat-merge-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; font-size: 0.8125rem; }
+.chat-merge-link { display: flex; flex-direction: column; gap: 2px; min-width: 0; color: inherit; text-decoration: none; }
+.chat-merge-link:hover .chat-merge-title { text-decoration: underline; text-underline-offset: 3px; }
+.chat-merge-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.chat-merge-confirm { display: flex; gap: 4px; flex-shrink: 0; }
+.chat-attr-def { display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.chat-attr-def:last-child { border-bottom: 0; padding-bottom: 0; }
+
 .chat-tags {
   display: flex;
   align-items: center;

@@ -8,6 +8,8 @@ import {
   updateChatConversation,
 } from '@/lib/chat-data';
 import { conversationPatchSchema } from '@/lib/chat-schema';
+import { applyAttributePatch, parseAttributeDefs, parseAttributeValues } from '@/lib/chat-attributes';
+import { attributesBlockingResolve, saveConversationAttributes } from '@/lib/chat-attributes-db';
 import { ingestChatConversation, runAfterResponse, supportWidgetId } from '@/lib/roadmap';
 
 export const dynamic = 'force-dynamic';
@@ -44,14 +46,35 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
 
   // Solo se asigna a agentes del widget (si no, se filtran datos de usuarios
   // ajenos vía el JOIN de la respuesta y la conversación queda huérfana).
+  const widget = before ? await getChatWidget(before.widget_id) : undefined;
   if (parsed.data.assignedTo && before) {
-    const widget = await getChatWidget(before.widget_id);
     if (!widget || !(await isChatAgentOfWidget(widget, parsed.data.assignedTo))) {
       return NextResponse.json({ error: 'invalid_assignee' }, { status: 400 });
     }
   }
 
-  const updated = await updateChatConversation(params.id, parsed.data);
+  // Atributos primero: el mismo PATCH puede completarlos y resolver.
+  let attributes = before?.attributes;
+  if (parsed.data.attributes && before) {
+    const result = applyAttributePatch(
+      parseAttributeDefs(widget?.conversation_attributes),
+      parseAttributeValues(before.attributes),
+      parsed.data.attributes,
+    );
+    if (!result.ok) return NextResponse.json({ error: result.error, attributeId: result.attributeId }, { status: 400 });
+    attributes = JSON.stringify(result.values);
+    await saveConversationAttributes(params.id, result.values);
+  }
+
+  // Resolver pide los atributos obligatorios del widget completos.
+  if (parsed.data.status === 'resolved' && before && before.status !== 'resolved') {
+    const missing = await attributesBlockingResolve({ widget_id: before.widget_id, attributes }, widget);
+    if (missing.length > 0) return NextResponse.json({ error: 'missing_attributes', missing }, { status: 400 });
+  }
+
+  const { attributes: _attributes, ...patch } = parsed.data;
+  void _attributes;
+  const updated = await updateChatConversation(params.id, patch);
   if (!updated) return NextResponse.json({ error: 'generic' }, { status: 500 });
 
   // Conversación de soporte propio resuelta → señal para el roadmap.

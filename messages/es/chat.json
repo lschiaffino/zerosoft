@@ -55,7 +55,8 @@
       "look": "Apariencia",
       "form": "Formulario previo",
       "bot": "Bot",
-      "hours": "Horario"
+      "hours": "Horario",
+      "attributes": "Atributos"
     },
     "tabsLabel": "Ajustes del widget",
     "lookSub": "Cómo se ve la burbuja en tu sitio y qué dice al abrirse.",
@@ -81,7 +82,19 @@
       "en": "Inglés",
       "es": "Español",
       "pt": "Portugués"
-    }
+    },
+    "attributesTitle": "Atributos de conversación",
+    "attributesSub": "Campos que el equipo completa en cada conversación, como motivo o plan. Los obligatorios tienen que estar completos para resolver.",
+    "noAttributes": "Todavía no hay atributos.",
+    "attributeName": "Nombre del atributo",
+    "attributeRequired": "Obligatorio para resolver",
+    "removeAttribute": "Quitar el atributo {name}",
+    "attributeOptions": "Opciones",
+    "attributeOptionsHint": "Una por línea.",
+    "addAttribute": "Agregar atributo",
+    "fieldTypeSelect": "Lista",
+    "fieldTypeBoolean": "Sí / no",
+    "attributeNeedsOptions": "Cada atributo de lista necesita al menos una opción."
   },
   "embed": {
     "title": "Código de instalación",
@@ -392,7 +405,9 @@
     "invalid_assignee": "No se puede asignar a esa persona en esta conversación.",
     "loadFailed": "No se pudo cargar. Revisá la conexión y reintentá.",
     "pageTitle": "No se pudo cargar esta pantalla",
-    "pageBody": "Puede ser la conexión o un error nuestro. Reintentá; si sigue, avisanos desde Feedback."
+    "pageBody": "Puede ser la conexión o un error nuestro. Reintentá; si sigue, avisanos desde Feedback.",
+    "missingAttributes": "Completá los atributos obligatorios antes de resolver.",
+    "invalidAttribute": "Ese valor no corresponde al atributo."
   },
   "quick": {
     "hint": "Enter para crear · Esc para cancelar",
@@ -523,7 +538,8 @@
     "tag": "Sumar un tag",
     "addTag": "Sumar",
     "done": "{count, plural, =0 {No cambió nada.} one {# conversación actualizada.} other {# conversaciones actualizadas.}}",
-    "doneSkipped": "{count, plural, =0 {No cambió nada} one {# conversación actualizada} other {# conversaciones actualizadas}}, {skipped} salteadas."
+    "doneSkipped": "{count, plural, =0 {No cambió nada} one {# conversación actualizada} other {# conversaciones actualizadas}}, {skipped} salteadas.",
+    "blockedAttributes": "{count, plural, one {# necesita atributos obligatorios para poder resolverse.} other {# necesitan atributos obligatorios para poder resolverse.}}"
   },
   "away": {
     "label": "Tu estado",
@@ -558,5 +574,54 @@
     "noLink": "Para responder, abrí el chat en el sitio donde nos escribiste.",
     "noReply": "Las respuestas a este email no le llegan al equipo; contestá en el chat.",
     "why": "Te llega este email porque dejaste tu dirección en el chat y todavía no viste esta respuesta."
+  },
+  "attributes": {
+    "title": "Atributos",
+    "required": "(obligatorio)",
+    "none": "Sin definir",
+    "yes": "Sí",
+    "no": "No",
+    "missing": "Completá antes de resolver: {names}."
+  },
+  "transcriptUi": {
+    "title": "Transcript",
+    "downloadText": "Descargar",
+    "downloadWithNotes": "Con notas internas",
+    "downloadJson": "JSON",
+    "email": "Mandar el transcript al visitante",
+    "emailHint": "Va a {email}, sin notas internas ni mensajes borrados.",
+    "needsEmail": "El visitante no dejó un email: el transcript solo se puede descargar.",
+    "sent": "Transcript enviado a {email}.",
+    "sendFailed": "No se pudo mandar el email. Probá de nuevo en un momento.",
+    "rateLimited": "Este transcript ya se mandó varias veces en la última hora. Probá más tarde."
+  },
+  "transcript": {
+    "title": "Conversación con {widget}",
+    "started": "Empezó el {when}",
+    "with": "Visitante: {name}",
+    "empty": "Sin mensajes.",
+    "note": "nota interna",
+    "attachment": "Adjunto: {file}",
+    "bot": "Bot",
+    "system": "Sistema",
+    "visitor": "Visitante",
+    "you": "Vos",
+    "hi": "Hola {name}:",
+    "hiAnonymous": "Hola:",
+    "emailSubject": "Tu conversación con {widget}",
+    "emailHeading": "El transcript de tu conversación",
+    "emailIntro": "Te mandamos una copia de tu chat con {widget}.",
+    "emailFooter": "Las respuestas a este email no le llegan al equipo. Para seguir hablando, abrí el chat en el sitio."
+  },
+  "merge": {
+    "title": "Otras conversaciones de este visitante",
+    "hint": "Al unirlas, los mensajes, tags y atributos pasan a esta conversación y la otra se borra.",
+    "messages": "{count, plural, one {# mensaje} other {# mensajes}}",
+    "action": "Unir acá",
+    "confirm": "Unir",
+    "confirmHint": "No se puede deshacer.",
+    "done": "{count, plural, one {Se sumó # mensaje a esta conversación.} other {Se sumaron # mensajes a esta conversación.}}",
+    "failed": "No se pudieron unir las conversaciones. Probá de nuevo.",
+    "systemNote": "{count, plural, one {Se sumó # mensaje de una conversación que empezó el {when}.} other {Se sumaron # mensajes de una conversación que empezó el {when}.}}"
   }
 }

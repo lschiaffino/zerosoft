@@ -88,7 +88,8 @@
     "tools": "Tools",
     "channels": "Channels",
     "playground": "Playground",
-    "conversations": "Conversations"
+    "conversations": "Conversations",
+    "analytics": "Analytics"
   },
   "fields": {
     "name": "name",
@@ -416,5 +417,52 @@
     "value": "Value",
     "valuePlaceholder": "Bearer sk_live_…",
     "add": "Add header"
+  },
+  "analytics": {
+    "intro": "How the agent is doing with real visitors. Playground conversations don’t count.",
+    "range": "Period",
+    "lastDays": "Last {days} days",
+    "loading": "Loading analytics…",
+    "emptyTitle": "No conversations in this period",
+    "emptyBody": "Once visitors talk to the agent in Chat, the public page or the API, its numbers show up here.",
+    "openConversations": "See conversations",
+    "conversations": "Conversations",
+    "resolution": "Resolved by the agent",
+    "resolutionHint": "{count, plural, one {# answered without a handoff} other {# answered without a handoff}}",
+    "handoff": "Handed off",
+    "handoffHint": "{count, plural, one {# went to a teammate} other {# went to a teammate}}",
+    "toolErrors": "Tool errors",
+    "toolErrorsHint": "{errors} of {calls} calls",
+    "stepLimits": "Step limits",
+    "stepLimitsHint": "{runs, plural, one {in # run} other {in # runs}}",
+    "feedback": "Thumbs up / down",
+    "feedbackHint": "From the Conversations tab",
+    "topics": "Topics",
+    "topicsHint": "Grouped by the most common words in each visitor’s first message.",
+    "topic": "Topic",
+    "examples": "Examples",
+    "noTopics": "Not enough repeated words to group topics yet.",
+    "otherTopics": "{count, plural, one {# conversation without a topic.} other {# conversations without a topic.}}",
+    "tools": "Tools",
+    "noTools": "The agent hasn’t called any tools in this period.",
+    "tool": "Tool",
+    "calls": "Calls",
+    "errors": "Errors",
+    "avgTime": "Avg. time",
+    "ms": "{ms} ms",
+    "lastError": "Last error",
+    "alertsTitle": "Email alerts",
+    "alertsSwitch": "Email the workspace owner when problems spike",
+    "alertsHint": "We check every hour. If thumbs down, tool errors or step limits jump well above the usual, the owner gets an email, at most once every 6 hours."
+  },
+  "alertEmail": {
+    "subject": "{agent}: problems are spiking",
+    "heading": "{agent} needs a look",
+    "intro": "In the last hour, {agent} had more problems than usual:",
+    "thumbs_down": "{count} thumbs down",
+    "tool_errors": "{count} tool errors",
+    "step_limits": "{count} runs that hit the step limit",
+    "cta": "Open the agent’s analytics",
+    "why": "You get this email because you own the workspace. You can turn these alerts off in the agent’s Analytics tab."
   }
 }

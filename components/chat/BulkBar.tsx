@@ -40,10 +40,12 @@ export default function BulkBar({ selected, visibleIds, agents, currentUserId, o
         body: JSON.stringify({ ids: [...selected], action }),
       });
       if (!res.ok) throw new Error('bulk_failed');
-      const data = (await res.json()) as { updated: number; skipped: number };
+      const data = (await res.json()) as { updated: number; skipped: number; blocked?: number };
+      const done =
+        data.skipped > 0 ? t('bulk.doneSkipped', { count: data.updated, skipped: data.skipped }) : t('bulk.done', { count: data.updated });
       setStatus({
         tone: 'ok',
-        text: data.skipped > 0 ? t('bulk.doneSkipped', { count: data.updated, skipped: data.skipped }) : t('bulk.done', { count: data.updated }),
+        text: data.blocked ? `${done} ${t('bulk.blockedAttributes', { count: data.blocked })}` : done,
       });
       if (action.type === 'tag') setTag('');
       // Resolver o posponer saca las conversaciones de la vista de abiertas: se limpia la selección.

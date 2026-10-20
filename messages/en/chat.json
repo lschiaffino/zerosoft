@@ -55,7 +55,8 @@
       "look": "Appearance",
       "form": "Pre-chat form",
       "bot": "Bot",
-      "hours": "Hours"
+      "hours": "Hours",
+      "attributes": "Attributes"
     },
     "tabsLabel": "Widget settings",
     "lookSub": "How the bubble looks on your site and what it says when opened.",
@@ -81,7 +82,19 @@
       "en": "English",
       "es": "Spanish",
       "pt": "Portuguese"
-    }
+    },
+    "attributesTitle": "Conversation attributes",
+    "attributesSub": "Fields your team fills in on each conversation, like reason or plan. Required ones must be set before resolving.",
+    "noAttributes": "No attributes yet.",
+    "attributeName": "Attribute name",
+    "attributeRequired": "Required to resolve",
+    "removeAttribute": "Remove the {name} attribute",
+    "attributeOptions": "Options",
+    "attributeOptionsHint": "One per line.",
+    "addAttribute": "Add attribute",
+    "fieldTypeSelect": "List",
+    "fieldTypeBoolean": "Yes / no",
+    "attributeNeedsOptions": "Each list attribute needs at least one option."
   },
   "embed": {
     "title": "Install code",
@@ -392,7 +405,9 @@
     "invalid_assignee": "That person can't be assigned to this conversation.",
     "loadFailed": "Couldn’t load. Check your connection and retry.",
     "pageTitle": "This screen didn’t load",
-    "pageBody": "It may be the connection or an error on our side. Retry; if it keeps happening, tell us from Feedback."
+    "pageBody": "It may be the connection or an error on our side. Retry; if it keeps happening, tell us from Feedback.",
+    "missingAttributes": "Fill in the required attributes before resolving.",
+    "invalidAttribute": "That value doesn’t fit the attribute."
   },
   "quick": {
     "hint": "Enter to create · Esc to cancel",
@@ -523,7 +538,8 @@
     "tag": "Add a tag",
     "addTag": "Add",
     "done": "{count, plural, =0 {Nothing changed.} one {# conversation updated.} other {# conversations updated.}}",
-    "doneSkipped": "{count, plural, =0 {Nothing changed} one {# conversation updated} other {# conversations updated}}, {skipped} skipped."
+    "doneSkipped": "{count, plural, =0 {Nothing changed} one {# conversation updated} other {# conversations updated}}, {skipped} skipped.",
+    "blockedAttributes": "{count, plural, one {# needs required attributes before it can be resolved.} other {# need required attributes before they can be resolved.}}"
   },
   "away": {
     "label": "Your status",
@@ -558,5 +574,54 @@
     "noLink": "To reply, open the chat on the site where you wrote to us.",
     "noReply": "Replies to this email don’t reach the team; answer in the chat.",
     "why": "You get this email because you left your address in the chat and haven’t seen this reply yet."
+  },
+  "attributes": {
+    "title": "Attributes",
+    "required": "(required)",
+    "none": "Not set",
+    "yes": "Yes",
+    "no": "No",
+    "missing": "Fill in before resolving: {names}."
+  },
+  "transcriptUi": {
+    "title": "Transcript",
+    "downloadText": "Download",
+    "downloadWithNotes": "With internal notes",
+    "downloadJson": "JSON",
+    "email": "Email transcript to visitor",
+    "emailHint": "Goes to {email}, without internal notes or deleted messages.",
+    "needsEmail": "The visitor hasn’t left an email, so the transcript can only be downloaded.",
+    "sent": "Transcript sent to {email}.",
+    "sendFailed": "The email couldn’t be sent. Try again in a moment.",
+    "rateLimited": "This transcript was sent several times in the last hour. Try again later."
+  },
+  "transcript": {
+    "title": "Conversation with {widget}",
+    "started": "Started {when}",
+    "with": "Visitor: {name}",
+    "empty": "No messages.",
+    "note": "internal note",
+    "attachment": "Attachment: {file}",
+    "bot": "Bot",
+    "system": "System",
+    "visitor": "Visitor",
+    "you": "You",
+    "hi": "Hi {name},",
+    "hiAnonymous": "Hi,",
+    "emailSubject": "Your conversation with {widget}",
+    "emailHeading": "Your conversation transcript",
+    "emailIntro": "Here is a copy of your chat with {widget}.",
+    "emailFooter": "Replies to this email don’t reach the team. To keep talking, open the chat on the site."
+  },
+  "merge": {
+    "title": "Other conversations from this visitor",
+    "hint": "Merging moves the messages, tags and attributes into this conversation and removes the other one.",
+    "messages": "{count, plural, one {# message} other {# messages}}",
+    "action": "Merge here",
+    "confirm": "Merge",
+    "confirmHint": "This can’t be undone.",
+    "done": "{count, plural, one {Merged # message into this conversation.} other {Merged # messages into this conversation.}}",
+    "failed": "The conversations couldn’t be merged. Try again.",
+    "systemNote": "{count, plural, one {Merged # message from a conversation started {when}.} other {Merged # messages from a conversation started {when}.}}"
   }
 }
