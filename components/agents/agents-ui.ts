@@ -28,6 +28,8 @@ export function chatLabels(t: T): AgentChatLabels {
     running: t('chat.running'),
     handedOffNotice: t('chat.handedOffNotice'),
     teammate: t('chat.teammate'),
+    simulated: t('chat.simulated'),
+    wouldRun: t('chat.wouldRun'),
     error: (code) => errorText(t, code),
     toolName: (tool) => toolName(t, tool),
   };

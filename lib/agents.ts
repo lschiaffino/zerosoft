@@ -17,9 +17,12 @@ import type { AgentConversationRow, AgentMessageRow, AgentRow, AgentToolCallRow,
 import { aiEnabled, assertAiAvailable, recordAiUsage, resolveAiModel } from './ai';
 import { rateLimit } from './rate-limit';
 import { safeFetch, UnsafeUrlError } from './safe-fetch';
+import { open as openSecret, seal } from './secret-box';
 import {
+  AGENT_MAX_SECRET_HEADERS,
   AGENT_MAX_STEPS,
   AGENT_TEMPLATES,
+  AGENT_USAGE_CHANNELS,
   parseGuardrails,
   parseHandoff,
   parseKnowledge,
@@ -28,11 +31,14 @@ import {
   type AgentDto,
   type AgentListItem,
   type AgentMessageDto,
+  type AgentSecretHeaderDto,
+  type AgentSecretHeaderInput,
   type AgentStreamEvent,
   type AgentTemplateKey,
   type AgentToolCallDto,
   type AgentToolKey,
   type AgentUpdatePayload,
+  type AgentUsageChannel,
 } from './agents-config';
 import { buildAgentTools, type AgentRunContext } from './agent-tools';
 
@@ -97,6 +103,7 @@ export function toConversationDto(row: AgentConversationRow & { message_count?: 
     channel: row.channel,
     title: row.title,
     handedOff: row.handed_off === 1,
+    source: row.source === 'flow' ? 'flow' : null,
     chatConversationId: row.chat_conversation_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -151,12 +158,15 @@ export async function listAgents(workspaceId: string): Promise<AgentListItem[]> 
     .all(workspaceId)) as AgentRow[];
   if (rows.length === 0) return [];
   const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  // Por canal; las conversaciones que abrió un nodo de Flow cuentan como Flow (no API).
   const convs = (await db
     .prepare(
-      `SELECT agent_id, COUNT(*) AS c FROM agent_conversations
-       WHERE user_id = ? AND channel != 'playground' AND created_at >= ? GROUP BY agent_id`,
+      `SELECT agent_id, CASE WHEN source = 'flow' THEN 'flow' ELSE channel END AS ch, COUNT(*) AS c
+       FROM agent_conversations
+       WHERE user_id = ? AND channel != 'playground' AND created_at >= ? GROUP BY agent_id, ch`,
     )
-    .all(workspaceId, since)) as Array<{ agent_id: string; c: number }>;
+    .all(workspaceId, since)) as Array<{ agent_id: string; ch: string; c: number }>;
+  const inFlows = await agentsUsedInFlows(workspaceId);
   const fb = (await db
     .prepare(
       `SELECT agent_id, SUM(CASE WHEN rating > 0 THEN 1 ELSE 0 END) AS up, SUM(CASE WHEN rating < 0 THEN 1 ELSE 0 END) AS down
@@ -169,17 +179,49 @@ export async function listAgents(workspaceId: string): Promise<AgentListItem[]> 
   const withChat = new Set(widgets.map((w) => w.agent_id));
   return rows.map((row) => {
     const f = fb.find((x) => x.agent_id === row.id);
+    const usage7d = Object.fromEntries(AGENT_USAGE_CHANNELS.map((c) => [c, 0])) as Record<AgentUsageChannel, number>;
+    for (const c of convs) {
+      if (c.agent_id === row.id && (AGENT_USAGE_CHANNELS as readonly string[]).includes(c.ch)) {
+        usage7d[c.ch as AgentUsageChannel] += Number(c.c);
+      }
+    }
+    // Chat y página pública: configurados. API: con uso en la semana (no hay
+    // forma de saber si una API key lo va a llamar). Flow: algún flow lo usa o lo usó.
     const channels: AgentListItem['channels'] = [];
     if (withChat.has(row.id)) channels.push('chat');
     if (row.public_handle) channels.push('public');
+    if (usage7d.api > 0) channels.push('api');
+    if (usage7d.flow > 0 || inFlows.has(row.id)) channels.push('flow');
     return {
       ...toAgentDto(row),
-      conversations7d: Number(convs.find((c) => c.agent_id === row.id)?.c ?? 0),
+      conversations7d: Object.values(usage7d).reduce((a, b) => a + b, 0),
+      usage7d,
       thumbsUp: Number(f?.up ?? 0),
       thumbsDown: Number(f?.down ?? 0),
       channels,
     };
   });
+}
+
+/** Agentes que aparecen en un nodo "Agente" (ai.agent) de algún flow del workspace. */
+export async function agentsUsedInFlows(workspaceId: string): Promise<Set<string>> {
+  const rows = (await getDb()
+    .prepare("SELECT graph FROM flow_flows WHERE user_id = ? AND graph LIKE '%ai.agent%'")
+    .all(workspaceId)) as Array<{ graph: string }>;
+  const ids = new Set<string>();
+  for (const r of rows) {
+    try {
+      const g = JSON.parse(r.graph) as { nodes?: Array<{ type?: string; config?: { agentId?: unknown } }> };
+      for (const n of g.nodes ?? []) {
+        if (n.type === 'ai.agent' && typeof n.config?.agentId === 'string' && n.config.agentId.trim()) {
+          ids.add(n.config.agentId.trim());
+        }
+      }
+    } catch {
+      /* grafo corrupto: se ignora */
+    }
+  }
+  return ids;
 }
 
 export async function createAgent(
@@ -312,6 +354,91 @@ export async function deleteAgent(workspaceId: string, id: string): Promise<bool
       .run(id, workspaceId);
   }
   return res.changes > 0;
+}
+
+// ---------- Headers secretos de http_request ----------
+
+/** Como se guarda cada header en agents.http_secrets (value cifrado con secret-box). */
+interface StoredSecretHeader {
+  id: string;
+  name: string;
+  domain: string;
+  value: string;
+  createdAt: string;
+}
+
+function parseStoredSecrets(raw: string | null | undefined): StoredSecretHeader[] {
+  try {
+    const list = JSON.parse(raw || '[]') as unknown;
+    if (!Array.isArray(list)) return [];
+    return list.filter(
+      (h): h is StoredSecretHeader =>
+        Boolean(h) &&
+        typeof h.id === 'string' &&
+        typeof h.name === 'string' &&
+        typeof h.domain === 'string' &&
+        typeof h.value === 'string',
+    );
+  } catch {
+    return [];
+  }
+}
+
+/** Lo que ve la UI: nombre y dominio, nunca el valor. */
+export function listSecretHeaders(row: Pick<AgentRow, 'http_secrets'>): AgentSecretHeaderDto[] {
+  return parseStoredSecrets(row.http_secrets).map((h) => ({ id: h.id, name: h.name, domain: h.domain, createdAt: h.createdAt }));
+}
+
+/** Headers descifrados para la corrida (server-only; se descartan los que no se pueden abrir). */
+export function loadSecretHeaders(row: Pick<AgentRow, 'http_secrets'>): Array<{ name: string; domain: string; value: string }> {
+  return parseStoredSecrets(row.http_secrets)
+    .map((h) => ({ name: h.name, domain: h.domain, value: openSecret(h.value) }))
+    .filter((h) => h.value);
+}
+
+export type SecretHeaderResult = { ok: true; headers: AgentSecretHeaderDto[] } | { ok: false; error: string };
+
+async function saveSecrets(workspaceId: string, agentId: string, list: StoredSecretHeader[]): Promise<AgentSecretHeaderDto[]> {
+  const raw = JSON.stringify(list);
+  await getDb()
+    .prepare('UPDATE agents SET http_secrets = ?, updated_at = ? WHERE id = ? AND user_id = ?')
+    .run(raw, nowIso(), agentId, workspaceId);
+  return listSecretHeaders({ http_secrets: raw });
+}
+
+/**
+ * Guarda un header secreto (mismo nombre y dominio = lo reemplaza). El dominio
+ * tiene que estar en la lista permitida de http_request.
+ */
+export async function setSecretHeader(
+  workspaceId: string,
+  agentId: string,
+  input: AgentSecretHeaderInput,
+): Promise<SecretHeaderResult> {
+  const row = await getAgentRow(workspaceId, agentId);
+  if (!row) return { ok: false, error: 'not_found' };
+  if (!parseTools(row.tools).httpAllowedDomains.includes(input.domain)) return { ok: false, error: 'secret_domain_not_allowed' };
+  const list = parseStoredSecrets(row.http_secrets);
+  const same = (h: StoredSecretHeader) => h.name.toLowerCase() === input.name.toLowerCase() && h.domain === input.domain;
+  const existing = list.find(same);
+  if (!existing && list.length >= AGENT_MAX_SECRET_HEADERS) return { ok: false, error: 'too_many_secrets' };
+  const entry: StoredSecretHeader = {
+    id: existing?.id ?? crypto.randomUUID(),
+    name: input.name,
+    domain: input.domain,
+    value: seal(input.value),
+    createdAt: nowIso(),
+  };
+  const next = existing ? list.map((h) => (same(h) ? entry : h)) : [...list, entry];
+  return { ok: true, headers: await saveSecrets(workspaceId, agentId, next) };
+}
+
+export async function removeSecretHeader(workspaceId: string, agentId: string, headerId: string): Promise<SecretHeaderResult> {
+  const row = await getAgentRow(workspaceId, agentId);
+  if (!row) return { ok: false, error: 'not_found' };
+  const list = parseStoredSecrets(row.http_secrets);
+  if (!list.some((h) => h.id === headerId)) return { ok: false, error: 'not_found' };
+  return { ok: true, headers: await saveSecrets(workspaceId, agentId, list.filter((h) => h.id !== headerId)) };
 }
 
 // ---------- Canales: Chat ----------
@@ -527,14 +654,20 @@ export async function resyncStaleKnowledgeUrls(opts: { now?: Date; limit?: numbe
 export async function createConversation(
   agent: Pick<AgentRow, 'id' | 'user_id'>,
   channel: AgentChannel,
-  opts: { visitorKey?: string | null; chatConversationId?: string | null; createdBy?: string | null; title?: string } = {},
+  opts: {
+    visitorKey?: string | null;
+    chatConversationId?: string | null;
+    createdBy?: string | null;
+    title?: string;
+    source?: 'flow' | null;
+  } = {},
 ): Promise<AgentConversationRow> {
   const id = crypto.randomUUID();
   const ts = nowIso();
   await getDb()
     .prepare(
-      `INSERT INTO agent_conversations (id, agent_id, user_id, channel, chat_conversation_id, visitor_key, title, handed_off, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+      `INSERT INTO agent_conversations (id, agent_id, user_id, channel, chat_conversation_id, visitor_key, title, handed_off, source, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -544,6 +677,7 @@ export async function createConversation(
       opts.chatConversationId ?? null,
       opts.visitorKey ?? null,
       (opts.title ?? '').slice(0, 120),
+      opts.source ?? null,
       opts.createdBy ?? null,
       ts,
       ts,
@@ -906,6 +1040,8 @@ export interface RunAgentOptions {
   /** true = streamText (deltas de texto vía onEvent). */
   stream?: boolean;
   abortSignal?: AbortSignal;
+  /** Simula las herramientas que escriben. Por defecto: solo en el playground. */
+  dryRun?: boolean;
 }
 
 export interface RunAgentResult {
@@ -971,6 +1107,8 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
     toolCalls: [],
     handoff: false,
     visitorText: allUserText(opts.messages),
+    dryRun: opts.dryRun ?? channel === 'playground',
+    secretHeaders: loadSecretHeaders(row),
   };
   const { tools, enabled, handoff } = await buildAgentTools(ctx);
 
@@ -1090,6 +1228,10 @@ export interface SendAgentMessageOptions {
   onEvent?: (event: AgentStreamEvent) => void;
   stream?: boolean;
   abortSignal?: AbortSignal;
+  /** Simula las herramientas que escriben (por defecto en el playground). */
+  dryRun?: boolean;
+  /** Origen de una conversación nueva ('flow' = nodo de Flow, con channel 'api'). */
+  source?: 'flow' | null;
 }
 
 export interface SendAgentMessageResult {
@@ -1122,6 +1264,7 @@ export async function sendAgentMessage(opts: SendAgentMessageOptions): Promise<S
   conversation ??= await createConversation(agent, channel, {
     visitorKey: opts.visitorKey ?? null,
     createdBy: opts.createdBy ?? null,
+    source: opts.source ?? null,
   });
   await assertAgentLimits(agent.user_id, conversation.id);
 
@@ -1168,6 +1311,7 @@ export async function sendAgentMessage(opts: SendAgentMessageOptions): Promise<S
     onEvent: opts.onEvent,
     stream: opts.stream,
     abortSignal: opts.abortSignal,
+    dryRun: opts.dryRun,
   });
   const reply = result.text ? await addMessage(conversation.id, 'assistant', result.text, result.runId) : null;
   await touchConversation(conversation);

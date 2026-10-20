@@ -4,13 +4,16 @@
  * - valida su input con zod (el SDK rechaza inputs inválidos),
  * - nunca tira: devuelve { error: '<code>' } para que el modelo siga,
  * - queda registrada en agent_tool_calls (input, output, error, duración).
+ * En modo simulación (dryRun: playground y casos de prueba) las herramientas
+ * que escriben validan todo igual pero no ejecutan: devuelven
+ * { simulated: true, wouldRun } con lo que habrían hecho.
  * Server-only.
  */
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 import { getDb } from './db';
 import type { AgentChannel, AgentConversationRow, AgentToolCallRow } from './db';
-import type { AgentDto, AgentStreamEvent, AgentToolCallDto, AgentToolKey } from './agents-config';
+import { AGENT_HTTP_METHODS, type AgentDto, type AgentHttpMethod, type AgentStreamEvent, type AgentToolCallDto, type AgentToolKey } from './agents-config';
 import { rankKnowledge, type KnowledgeDoc } from './knowledge-search';
 import { extractDocsText, listCannedResponses } from './chat-data';
 import { safeFetch, UnsafeUrlError } from './safe-fetch';
@@ -28,6 +31,10 @@ export interface AgentRunContext {
   handoff: boolean;
   /** Todo lo que escribió el visitante en esta conversación (para validar datos que dice ser suyos). */
   visitorText?: string;
+  /** Simulación: las herramientas que escriben no se ejecutan (playground, tests). */
+  dryRun?: boolean;
+  /** Headers secretos de http_request ya descifrados. Nunca van al modelo ni al registro. */
+  secretHeaders?: Array<{ name: string; domain: string; value: string }>;
 }
 
 type ToolOutput = Record<string, unknown>;
@@ -55,6 +62,25 @@ function emailsInText(text: string): Set<string> {
 function visitorGaveEmail(ctx: AgentRunContext, email: string): boolean {
   if (ctx.channel === 'playground') return true;
   return emailsInText(ctx.visitorText ?? '').has(email.trim().toLowerCase());
+}
+
+/** Resultado de una herramienta de escritura en modo simulación. */
+export function simulated(wouldRun: Record<string, unknown>, extra: Record<string, unknown> = {}): ToolOutput {
+  return {
+    simulated: true,
+    wouldRun,
+    ...extra,
+    note: 'Dry run: nothing was executed. Continue the conversation as if this action succeeded.',
+  };
+}
+
+/** Saca de un texto cualquier aparición de los valores secretos. */
+export function redactSecrets(text: string, secrets: string[]): string {
+  let out = text;
+  for (const v of secrets) {
+    if (v.length >= 4) out = out.split(v).join('[redacted]');
+  }
+  return out;
 }
 
 function toJson(value: unknown, max = 8000): string {
@@ -243,6 +269,15 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
         execute: logged(ctx, 'crm_upsert_contact', async (input: { email: string; name?: string; note?: string }) => {
           if (!EMAIL_RE.test(input.email)) return { error: 'invalid_email' };
           if (!visitorGaveEmail(ctx, input.email)) return { error: 'email_not_given_by_visitor' };
+          if (ctx.dryRun) {
+            const existing = await findContact(workspaceId, input.email);
+            return simulated({
+              action: existing ? 'update_contact' : 'create_contact',
+              email: input.email,
+              name: input.name ?? null,
+              note: input.note ?? null,
+            });
+          }
           const { findOrCreateContact } = await import('./crm-integrations');
           const { createActivity, updateContact } = await import('./crm');
           const { contact, created } = await findOrCreateContact(workspaceId, {
@@ -282,6 +317,7 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
           if (!visitorGaveEmail(ctx, email)) return { error: 'email_not_given_by_visitor' };
           const c = await findContact(workspaceId, email);
           if (!c) return { error: 'contact_not_found' };
+          if (ctx.dryRun) return simulated({ action: 'log_note', contactId: c.id, note });
           const { createActivity } = await import('./crm');
           const a = await createActivity(workspaceId, {
             type: 'note',
@@ -398,6 +434,16 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
             // Doble chequeo: el slot sigue libre ahora mismo.
             const slot = await findOfferedSlot(eventType.id, startDate, tz).catch(() => null);
             if (!slot) return { error: 'slot_unavailable' };
+            if (ctx.dryRun) {
+              return simulated({
+                action: 'book_meeting',
+                eventType: eventType.title,
+                start: slot.start.toISOString(),
+                name: input.name,
+                email: input.email,
+                timezone: tz,
+              });
+            }
             try {
               const booking = await createBooking({
                 eventTypeId: eventType.id,
@@ -443,6 +489,15 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
             ctx,
             'track_create_issue',
             async (input: { title: string; description?: string; priority?: 'low' | 'medium' | 'high' | 'urgent' }) => {
+              if (ctx.dryRun) {
+                return simulated({
+                  action: 'create_issue',
+                  project: project.name,
+                  title: input.title,
+                  description: input.description ?? null,
+                  priority: input.priority ?? 'medium',
+                });
+              }
               const { createIssue } = await import('./track-data');
               const body = [input.description, `— Created by the agent "${agent.name}" (${ctx.channel})`]
                 .filter(Boolean)
@@ -484,6 +539,7 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
             const row = await getFlowRow(workspaceId, flowId);
             if (!row) return { error: 'flow_not_found' };
             const payload = JSON.parse(JSON.stringify(input ?? {})) as Record<string, unknown>;
+            if (ctx.dryRun) return simulated({ action: 'run_flow', flow: row.name, input: payload });
             const runId = await enqueueRun(row, 'manual', {
               ...payload,
               agent: { id: agent.id, name: agent.name, conversationId: ctx.conversation.id, channel: ctx.channel },
@@ -533,16 +589,22 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
 
   if (on.has('http_request') && cfg.httpAllowedDomains.length) {
     const domains = cfg.httpAllowedDomains;
+    const secrets = (ctx.secretHeaders ?? []).filter((h) => h.value && domains.includes(h.domain));
+    const secretValues = secrets.map((h) => h.value);
+    // El modelo sabe qué dominios van autenticados, nunca los valores.
+    const authDomains = [...new Set(secrets.map((h) => h.domain))];
     add(
       'http_request',
       tool({
-        description: `Make an HTTP request to an allowed API (domains: ${domains.join(', ')}). Returns status and up to 4000 characters of the body.`,
+        description: `Make an HTTP request to an allowed API (domains: ${domains.join(', ')}). Returns status and up to 4000 characters of the body.${
+          authDomains.length ? ` Authentication headers are added automatically for: ${authDomains.join(', ')}.` : ''
+        }`,
         inputSchema: z.object({
           url: z.string().trim().url().max(2000),
-          method: z.enum(['GET', 'POST']).default('GET'),
-          body: z.string().max(4000).optional().describe('JSON body for POST'),
+          method: z.enum(AGENT_HTTP_METHODS).default('GET'),
+          body: z.string().max(4000).optional().describe('JSON body (not for GET)'),
         }),
-        execute: logged(ctx, 'http_request', async (input: { url: string; method: 'GET' | 'POST'; body?: string }) => {
+        execute: logged(ctx, 'http_request', async (input: { url: string; method: AgentHttpMethod; body?: string }) => {
           let url: URL;
           try {
             url = new URL(input.url);
@@ -550,20 +612,35 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
             return { error: 'invalid_url' };
           }
           if (!hostAllowed(url.hostname, domains)) return { error: 'domain_not_allowed' };
+          const hasBody = input.method !== 'GET' && input.method !== 'DELETE';
+          const extra: Record<string, string> = {};
+          for (const h of secrets) if (hostAllowed(url.hostname, [h.domain])) extra[h.name] = h.value;
+          // GET se ejecuta también en simulación (solo lee); el resto se simula.
+          if (ctx.dryRun && input.method !== 'GET') {
+            return simulated({
+              action: 'http_request',
+              method: input.method,
+              url: url.toString(),
+              body: hasBody ? (input.body ?? '{}') : null,
+              secretHeaders: Object.keys(extra),
+            });
+          }
           try {
             const res = await safeFetch(
               url.toString(),
               {
                 method: input.method,
                 headers: {
+                  ...extra,
                   'user-agent': 'Zerosoft-Agents/1',
-                  ...(input.method === 'POST' ? { 'content-type': 'application/json' } : {}),
+                  ...(hasBody ? { 'content-type': 'application/json' } : {}),
                 },
-                body: input.method === 'POST' ? (input.body ?? '{}') : undefined,
+                body: hasBody ? (input.body ?? '{}') : undefined,
               },
               8000,
             );
-            const text = (await res.text().catch(() => '')).slice(0, 4000);
+            // Una API que devuelve el header (eco, errores) no se lo filtra al modelo.
+            const text = redactSecrets((await res.text().catch(() => '')).slice(0, 200_000), secretValues).slice(0, 4000);
             return { status: res.status, ok: res.ok, body: text };
           } catch (err) {
             if (err instanceof UnsafeUrlError) return { error: err.message };

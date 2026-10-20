@@ -192,11 +192,97 @@ export interface AgentDto {
   updatedAt: string;
 }
 
+/** Canales que muestra la lista de agentes (Flow = conversaciones abiertas por un nodo de Flow). */
+export const AGENT_USAGE_CHANNELS = ['chat', 'public', 'api', 'flow'] as const;
+export type AgentUsageChannel = (typeof AGENT_USAGE_CHANNELS)[number];
+
 export interface AgentListItem extends AgentDto {
   conversations7d: number;
+  /** Conversaciones de los últimos 7 días por canal (sin el playground). */
+  usage7d: Record<AgentUsageChannel, number>;
   thumbsUp: number;
   thumbsDown: number;
-  channels: Array<'chat' | 'public' | 'api'>;
+  channels: AgentUsageChannel[];
+}
+
+// ---------- http_request: métodos y headers secretos ----------
+
+export const AGENT_HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
+export type AgentHttpMethod = (typeof AGENT_HTTP_METHODS)[number];
+export const AGENT_MAX_SECRET_HEADERS = 10;
+
+/** Headers que no se pueden fijar a mano (los maneja fetch o rompen la request). */
+const RESERVED_HEADERS = new Set([
+  'host',
+  'content-length',
+  'content-type',
+  'transfer-encoding',
+  'connection',
+  'user-agent',
+  'cookie',
+  'expect',
+  'te',
+  'upgrade',
+]);
+
+/** Header secreto tal como lo ve la UI: nunca el valor. */
+export interface AgentSecretHeaderDto {
+  id: string;
+  name: string;
+  /** Dominio de la lista permitida al que se manda (subdominios incluidos). */
+  domain: string;
+  createdAt: string;
+}
+
+export const secretHeaderInputSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9][A-Za-z0-9-]{0,63}$/)
+    .refine((n) => !RESERVED_HEADERS.has(n.toLowerCase()), { message: 'reserved_header' }),
+  domain,
+  // Sin saltos de línea: un valor con CR/LF podría inyectar otros headers.
+  value: z.string().min(1).max(4000).regex(/^[^\r\n]+$/),
+});
+
+export type AgentSecretHeaderInput = z.infer<typeof secretHeaderInputSchema>;
+
+/**
+ * Una salida de herramienta simulada (playground y tests en modo dry run):
+ * la herramienta de escritura no se ejecutó y `wouldRun` describe qué habría hecho.
+ */
+export function isSimulatedOutput(output: unknown): output is { simulated: true; wouldRun: unknown } {
+  return Boolean(output && typeof output === 'object' && (output as { simulated?: unknown }).simulated === true);
+}
+
+// ---------- Casos de prueba ----------
+
+export const AGENT_MAX_TESTS = 50;
+
+export const testCaseInputSchema = z.object({
+  question: z.string().trim().min(1).max(2000),
+  expected: z.string().trim().min(1).max(2000),
+});
+
+export type AgentTestCaseInput = z.infer<typeof testCaseInputSchema>;
+
+export interface AgentTestToolSummary {
+  tool: string;
+  simulated: boolean;
+  error: string | null;
+}
+
+export interface AgentTestCaseDto {
+  id: string;
+  question: string;
+  expected: string;
+  lastStatus: 'pass' | 'fail' | 'error' | null;
+  lastReason: string;
+  lastReply: string;
+  lastTools: AgentTestToolSummary[];
+  lastRunAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AgentToolCallDto {
@@ -227,6 +313,8 @@ export interface AgentConversationDto {
   channel: 'playground' | 'public' | 'api' | 'chat';
   title: string;
   handedOff: boolean;
+  /** 'flow' = la abrió un nodo de Flow (channel 'api'). */
+  source: 'flow' | null;
   chatConversationId: string | null;
   createdAt: string;
   updatedAt: string;

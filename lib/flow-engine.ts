@@ -472,7 +472,7 @@ async function agentNode(ws: string, cfg: Record<string, unknown>, tctx: Record<
   if (!agent) throw new StepError('agent_not_found');
   const conversationId = renderString(cfg.conversationId ?? '', tctx).trim() || null;
   try {
-    const res = await sendAgentMessage({ agent, channel: 'api', text: message.slice(0, 4000), conversationId });
+    const res = await sendAgentMessage({ agent, channel: 'api', source: 'flow', text: message.slice(0, 4000), conversationId });
     return {
       reply: res.result.text,
       status: res.result.status,

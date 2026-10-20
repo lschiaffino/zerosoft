@@ -3,7 +3,8 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
-import { getAgent, listKnowledgeUrls, listWorkspaceWidgets } from '@/lib/agents';
+import { getAgentRow, listKnowledgeUrls, listSecretHeaders, listWorkspaceWidgets, toAgentDto } from '@/lib/agents';
+import { listTestCases } from '@/lib/agents-tests';
 import { canEditAgents } from '@/lib/agents-http';
 import { aiEnabled } from '@/lib/ai';
 import AgentEditor from '@/components/agents/AgentEditor';
@@ -27,10 +28,12 @@ export default async function AgentEditorPage(props: {
   const { locale, id } = await props.params;
   const search = await props.searchParams;
   const user = await requireUser(locale);
-  const agent = await getAgent(user.id, id);
-  if (!agent) notFound();
+  const row = await getAgentRow(user.id, id);
+  if (!row) notFound();
+  const agent = toAgentDto(row);
+  const canEdit = canEditAgents(user);
   const db = getDb();
-  const [urls, widgets, docsPages, eventTypes, projects, flows] = await Promise.all([
+  const [urls, widgets, docsPages, eventTypes, projects, flows, tests] = await Promise.all([
     listKnowledgeUrls(id),
     listWorkspaceWidgets(user.id),
     db
@@ -45,6 +48,7 @@ export default async function AgentEditorPage(props: {
     db.prepare('SELECT id, name FROM flow_flows WHERE user_id = ? ORDER BY name').all(user.id) as Promise<
       Array<{ id: string; name: string }>
     >,
+    listTestCases(user.id, id),
   ]);
   return (
     <AgentEditor
@@ -56,7 +60,9 @@ export default async function AgentEditorPage(props: {
       eventTypes={eventTypes.map((e) => ({ id: e.id, title: e.title, durationMin: e.duration_min }))}
       projects={projects}
       flows={flows}
-      canEdit={canEditAgents(user)}
+      canEdit={canEdit}
+      secretHeaders={canEdit ? listSecretHeaders(row) : []}
+      tests={tests}
       aiEnabled={aiEnabled()}
       origin={await requestOrigin()}
       initialTab={search.tab}

@@ -33,7 +33,8 @@
     "chat": "Chat",
     "public": "Página pública",
     "api": "API",
-    "playground": "Playground"
+    "playground": "Playground",
+    "flow": "Flow"
   },
   "templates": {
     "title": "Plantillas",
@@ -282,7 +283,8 @@
   "playground": {
     "intro": "Hablá con el agente como lo haría un visitante. Las herramientas aparecen en línea con su entrada y salida.",
     "unsaved": "Tenés cambios sin guardar: el playground usa la versión guardada.",
-    "aiOff": "El playground necesita la AI configurada en el servidor (AI_GATEWAY_API_KEY)."
+    "aiOff": "El playground necesita la AI configurada en el servidor (AI_GATEWAY_API_KEY).",
+    "dryRun": "Simulación: las acciones que escriben (CRM, reservas, issues de Track, flows, requests HTTP que no son GET) no se ejecutan. Cada herramienta muestra lo que habría hecho."
   },
   "chat": {
     "placeholder": "Escribí un mensaje…",
@@ -296,7 +298,9 @@
     "toolError": "Error",
     "running": "En curso",
     "handedOffNotice": "Una persona del equipo te va a responder por acá. Podés seguir escribiendo: va a ver tus mensajes.",
-    "teammate": "Equipo"
+    "teammate": "Equipo",
+    "simulated": "Simulada",
+    "wouldRun": "Habría ejecutado"
   },
   "conversations": {
     "filter": "Canal",
@@ -345,7 +349,11 @@
     "invalid_project": "Ese proyecto de Track no es de este workspace.",
     "invalid_flow": "Uno de los flows elegidos no es de este workspace.",
     "invalid_url": "Ingresá una URL completa http(s).",
-    "unsupported_channel": "Las conversaciones de Chat se responden desde el inbox."
+    "unsupported_channel": "Las conversaciones de Chat se responden desde el inbox.",
+    "too_many_tests": "Este agente ya tiene el máximo de tests (50).",
+    "too_many_secrets": "Este agente ya tiene el máximo de headers secretos (10).",
+    "secret_domain_not_allowed": "Elegí un dominio de la lista permitida guardada.",
+    "reserved_header": "Ese header se pone solo y no se puede cambiar."
   },
   "public": {
     "subtitle": "Asistente de AI",
@@ -357,5 +365,56 @@
     "errorTitle": "No se pudo cargar Agents",
     "errorBody": "Puede ser la conexión o un error del servidor. Tus agentes no se modificaron.",
     "retry": "Reintentar"
+  },
+  "tests": {
+    "title": "Tests",
+    "hint": "Guardá preguntas con el comportamiento que esperás y correlas antes de publicar cambios. Cada una corre en simulación y un juez de AI la marca como aprobada o fallada, con el motivo.",
+    "none": "Todavía no hay tests.",
+    "notRun": "{total, plural, one {# test, sin correr} other {# tests, sin correr}}",
+    "summary": "{passed} de {total} aprobados",
+    "lastRun": "última corrida {when}",
+    "add": "Agregar test",
+    "runAll": "Correr tests",
+    "running": "Corriendo…",
+    "runningOne": "Corriendo…",
+    "run": "Correr",
+    "edit": "Editar",
+    "delete": "Borrar",
+    "deleteConfirm": "¿Borrar este test?",
+    "dirty": "Los tests usan la versión guardada. Guardá los cambios para probarlos.",
+    "question": "Pregunta del visitante",
+    "questionPlaceholder": "¿Hacen envíos a Brasil?",
+    "expected": "Comportamiento esperado",
+    "expectedPlaceholder": "Busca en el conocimiento y dice que el envío a Brasil tarda 5 días hábiles. No reserva reuniones.",
+    "expectedHelp": "Describí qué hace o dice una buena respuesta y qué herramientas debería usar o evitar.",
+    "expectedShort": "Esperado",
+    "cancel": "Cancelar",
+    "save": "Guardar test",
+    "reply": "Respuesta del agente",
+    "tools": "Herramientas",
+    "saveFromChat": "Guardar como test",
+    "publishNone": "Este agente todavía no tiene tests. Guardá algunos en el playground para revisar los cambios antes de publicar.",
+    "publishAdd": "Agregar tests",
+    "publishRun": "Correr tests",
+    "status": {
+      "pass": "Aprobado",
+      "fail": "Fallado",
+      "error": "Error",
+      "none": "Sin correr"
+    }
+  },
+  "secrets": {
+    "title": "Headers secretos",
+    "hint": "Headers como Authorization o una API key que se agregan a las requests a un dominio permitido. El valor se cifra al agregarlo y no se vuelve a mostrar. El agente nunca lo ve y se saca de las respuestas.",
+    "sentTo": "Se manda a {domain}",
+    "orphan": "Este dominio ya no está en la lista permitida: el header no se manda.",
+    "remove": "Quitar",
+    "removeConfirm": "¿Quitar el header {name} de {domain}?",
+    "saveDomainsFirst": "Guardá los dominios permitidos para agregar headers secretos.",
+    "domain": "Dominio",
+    "name": "Header",
+    "value": "Valor",
+    "valuePlaceholder": "Bearer sk_live_…",
+    "add": "Agregar header"
   }
 }
