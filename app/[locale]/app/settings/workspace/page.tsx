@@ -11,6 +11,8 @@ import ApiKeysPanel from '@/components/app/ApiKeysPanel';
 import WebhooksPanel from '@/components/app/WebhooksPanel';
 import CredentialsSummary from '@/components/app/CredentialsSummary';
 import FormSection from '@/components/ui/FormSection';
+import { listDomains } from '@/lib/link-domains';
+import { shortDomain } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,10 +33,11 @@ export default async function WorkspaceSettingsPage(props: { params: Promise<{ l
   const admin = isWorkspaceAdmin(user);
   const t = await getTranslations({ locale, namespace: 'settings' });
   // Members ven solo sus keys; owner/admin, las de todo el workspace.
-  const [keys, webhooks, credentials] = await Promise.all([
+  const [keys, webhooks, credentials, domains] = await Promise.all([
     listApiKeys(user.id, admin ? undefined : realUserId(user)),
     admin ? listWebhooks(user.id) : Promise.resolve(null),
     listCredentials(user.id),
+    admin ? listDomains(user.id) : Promise.resolve([]),
   ]);
 
   return (
@@ -42,7 +45,11 @@ export default async function WorkspaceSettingsPage(props: { params: Promise<{ l
       <ApiKeysPanel initialKeys={keys} isAdmin={admin} />
 
       {webhooks ? (
-        <WebhooksPanel initial={webhooks} />
+        <WebhooksPanel
+          initial={webhooks}
+          defaultDomain={shortDomain()}
+          linkDomains={domains.filter((d) => d.verified === 1).map((d) => d.hostname)}
+        />
       ) : (
         <FormSection title={t('webhooks.title')} description={t('webhooks.desc')}>
           <p className="ui-help">{t('webhooks.adminOnly')}</p>

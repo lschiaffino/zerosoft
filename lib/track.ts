@@ -1,5 +1,6 @@
 import UAParser from 'ua-parser-js';
 import { ensureMigrated, getClient, getDb, type ClickRow } from './db';
+import { cleanReferrerUrl } from './link-url';
 
 // geoip-lite preloads su .dat con fs al importarse: en Vercel el bundle no lo
 // incluye y rompe el módulo entero (ENOENT). Se carga lazy y a prueba de fallos —
@@ -8,7 +9,13 @@ import { ensureMigrated, getClient, getDb, type ClickRow } from './db';
 type GeoipLite = typeof import('geoip-lite');
 let _geoip: GeoipLite | null | undefined;
 
-function geoipCountry(ip: string): string | null {
+interface GeoHit {
+  country: string | null;
+  region: string | null;
+  city: string | null;
+}
+
+function geoipLookup(ip: string): GeoHit | null {
   if (_geoip === undefined) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -18,17 +25,38 @@ function geoipCountry(ip: string): string | null {
     }
   }
   try {
-    return _geoip?.lookup(ip)?.country ?? null;
+    const hit = _geoip?.lookup(ip);
+    if (!hit) return null;
+    return { country: hit.country || null, region: hit.region || null, city: hit.city || null };
   } catch {
     return null;
   }
+}
+
+/** x-vercel-ip-city viene URL-encoded ("S%C3%A3o%20Paulo"). Máximo 100 caracteres. */
+export function decodeGeoHeader(raw: string | null | undefined): string | null {
+  const v = raw?.trim();
+  if (!v) return null;
+  let out = v;
+  try {
+    out = decodeURIComponent(v);
+  } catch {
+    out = v;
+  }
+  out = out.trim();
+  return out ? out.slice(0, 100) : null;
 }
 
 // ---------- Click capture ----------
 
 export interface ClickContext {
   referrer: string;
+  /** URL completa del referrer, sin query (salvo utm_*) ni hash. */
+  referrerUrl: string | null;
   country: string | null;
+  city: string | null;
+  /** Subdivisión ISO 3166-2 sin el país ("C", "CA"). */
+  region: string | null;
   device: string;
   browser: string;
   os: string;
@@ -54,9 +82,20 @@ export function contextFromHeaders(headers: Headers): ClickContext {
     : process.env.TRUST_CF_IPCOUNTRY === 'true'
       ? headers.get('cf-ipcountry')
       : null;
-  if (!country && !process.env.VERCEL) {
+  // Ciudad y región: en Vercel por header; en self-host, la base de geoip-lite.
+  let city: string | null = process.env.VERCEL ? decodeGeoHeader(headers.get('x-vercel-ip-city')) : null;
+  let region: string | null = process.env.VERCEL ? decodeGeoHeader(headers.get('x-vercel-ip-country-region')) : null;
+  if (!process.env.VERCEL) {
     const ip = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-    if (ip) country = geoipCountry(ip);
+    const hit = ip ? geoipLookup(ip) : null;
+    if (hit) {
+      country = country || hit.country;
+      // La ciudad de geoip solo vale si coincide el país (con cf-ipcountry podrían diferir).
+      if (!country || country === hit.country) {
+        city = hit.city;
+        region = hit.region;
+      }
+    }
   }
 
   const ua = new UAParser(headers.get('user-agent') ?? '').getResult();
@@ -64,7 +103,10 @@ export function contextFromHeaders(headers: Headers): ClickContext {
 
   return {
     referrer,
+    referrerUrl: referrer === 'direct' ? null : cleanReferrerUrl(referer),
     country: country ?? null,
+    city,
+    region,
     device: deviceType === 'mobile' || deviceType === 'tablet' ? deviceType : 'desktop',
     browser: ua.browser.name ?? 'Other',
     os: ua.os.name ?? 'Other',
@@ -111,9 +153,21 @@ export async function recordClick(linkId: string, ctx: ClickContext, opts: Click
         args: [source === 'qr' ? 1 : 0, linkId],
       },
       {
-        sql: `INSERT INTO clicks (link_id, referrer, country, device, browser, os, source, variant)
-              SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1`,
-        args: [linkId, ctx.referrer, ctx.country, ctx.device, ctx.browser, ctx.os, source, opts.variant ?? null],
+        sql: `INSERT INTO clicks (link_id, referrer, country, device, browser, os, source, variant, city, region, referrer_url)
+              SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1`,
+        args: [
+          linkId,
+          ctx.referrer,
+          ctx.country,
+          ctx.device,
+          ctx.browser,
+          ctx.os,
+          source,
+          opts.variant ?? null,
+          ctx.city ?? null,
+          ctx.region ?? null,
+          ctx.referrerUrl ?? null,
+        ],
       },
       { sql: 'SELECT clicks FROM links WHERE id = ?', args: [linkId] },
     ],
@@ -205,7 +259,7 @@ export async function exportClicks(
 }
 
 export function clicksToCsv(clicks: ClickRow[]): string {
-  const lines = ['timestamp,country,referrer,device,browser,os,source,variant'];
+  const lines = ['timestamp,country,referrer,device,browser,os,source,variant,region,city,referrer_url'];
   for (const c of clicks) {
     lines.push(
       [
@@ -217,6 +271,9 @@ export function clicksToCsv(clicks: ClickRow[]): string {
         csvCell(c.os ?? ''),
         csvCell(c.source ?? 'link'),
         csvCell(c.variant ?? ''),
+        csvCell(c.region ?? ''),
+        csvCell(c.city ?? ''),
+        csvCell(c.referrer_url ?? ''),
       ].join(','),
     );
   }
@@ -298,6 +355,19 @@ export interface AnalyticsResult {
   os: BreakdownItem[];
   /** Destino servido por la segmentación (ab:A, rule:1, app:ios); vacío sin targeting. */
   variants: BreakdownItem[];
+  /** "Ciudad|PAÍS" (ver splitCityKey); sin ciudad cuenta como unknown. */
+  cities: BreakdownItem[];
+  /** "PAÍS-REGIÓN" (ISO 3166-2). */
+  regions: BreakdownItem[];
+  /** URLs completas del referrer (sin query salvo utm_*). */
+  referrerUrls: BreakdownItem[];
+}
+
+/** Clave de ciudad de los breakdowns: "Córdoba|AR" → { city, country }. */
+export function splitCityKey(key: string): { city: string; country: string | null } {
+  const i = key.lastIndexOf('|');
+  if (i < 0) return { city: key, country: null };
+  return { city: key.slice(0, i), country: key.slice(i + 1) || null };
 }
 
 export function rangeStart(range: AnalyticsRange, createdAt: string): string {
@@ -306,7 +376,20 @@ export function rangeStart(range: AnalyticsRange, createdAt: string): string {
   return addDays(end, -(RANGE_DAYS[range] - 1));
 }
 
-type BreakdownColumn = 'referrer' | 'country' | 'device' | 'browser' | 'os' | 'variant';
+type BreakdownColumn = 'referrer' | 'country' | 'device' | 'browser' | 'os' | 'variant' | 'city' | 'region' | 'referrer_url';
+
+/** Expresión SQL de cada breakdown: ciudad y región llevan el país (hay Córdoba en AR y en ES). */
+export const BREAKDOWN_SQL: Record<BreakdownColumn, string> = {
+  referrer: 'referrer',
+  country: 'country',
+  device: 'device',
+  browser: 'browser',
+  os: 'os',
+  variant: 'variant',
+  city: "CASE WHEN city IS NULL THEN NULL ELSE city || '|' || COALESCE(country, '') END",
+  region: "CASE WHEN region IS NULL THEN NULL ELSE COALESCE(country, '') || '-' || region END",
+  referrer_url: 'referrer_url',
+};
 
 /** Top N values of a clicks column, folding the rest into "other". */
 async function breakdown(
@@ -316,10 +399,11 @@ async function breakdown(
   fallback: string,
   limit = 8,
 ): Promise<BreakdownItem[]> {
+  const expr = BREAKDOWN_SQL[column];
   const rows = (await getDb()
     .prepare(
-      `SELECT COALESCE(${column}, ?) AS name, COUNT(*) AS c FROM clicks
-       WHERE link_id = ? AND ts >= ? GROUP BY ${column} ORDER BY c DESC`,
+      `SELECT COALESCE(${expr}, ?) AS name, COUNT(*) AS c FROM clicks
+       WHERE link_id = ? AND ts >= ? GROUP BY name ORDER BY c DESC, name`,
     )
     .all(fallback, linkId, start)) as Array<{ name: string; c: number }>;
   const top = rows.slice(0, limit).map((r) => ({ name: r.name, count: r.c }));
@@ -352,7 +436,7 @@ export async function getAnalytics(
     ((await db.prepare(sql).get(...args)) as { c: number }).c;
 
   // Consultas independientes en paralelo: con Turso cada una es un viaje de red.
-  const [total, rangeTotal, previousTotal, byDay, referrers, countries, devices, browsers, os, variants] =
+  const [total, rangeTotal, previousTotal, byDay, referrers, countries, devices, browsers, os, variants, cities, regions, referrerUrls] =
     await Promise.all([
       count('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ?', linkId),
       count('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND ts >= ?', linkId, start),
@@ -371,9 +455,26 @@ export async function getAnalytics(
       breakdown(linkId, 'browser', start, 'unknown'),
       breakdown(linkId, 'os', start, 'unknown'),
       breakdown(linkId, 'variant', start, 'default'),
+      breakdown(linkId, 'city', start, 'unknown'),
+      breakdown(linkId, 'region', start, 'unknown'),
+      breakdown(linkId, 'referrer_url', start, 'direct'),
     ]);
 
-  return { total, rangeTotal, previousTotal, byDay, referrers, countries, devices, browsers, os, variants };
+  return {
+    total,
+    rangeTotal,
+    previousTotal,
+    byDay,
+    referrers,
+    countries,
+    devices,
+    browsers,
+    os,
+    variants,
+    cities,
+    regions,
+    referrerUrls,
+  };
 }
 
 // ---------- User-level overview ----------

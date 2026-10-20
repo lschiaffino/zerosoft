@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type LinkIconName = 'copy' | 'check' | 'external' | 'qr' | 'edit' | 'archive' | 'unarchive' | 'trash' | 'download' | 'close';
+export type LinkIconName = 'copy' | 'check' | 'external' | 'qr' | 'edit' | 'archive' | 'unarchive' | 'trash' | 'download' | 'close' | 'duplicate';
 
 // Mismo trazo que components/app/icons (24px, 2px, puntas cuadradas). Sin glifos unicode.
 const PATHS: Record<LinkIconName, ReactNode> = {
@@ -61,6 +61,14 @@ const PATHS: Record<LinkIconName, ReactNode> = {
     </>
   ),
   close: <path d="M6 6l12 12M18 6L6 18" />,
+  // Dos hojas con un más: copia del link (distinto de copiar al portapapeles).
+  duplicate: (
+    <>
+      <rect x="8" y="8" width="12" height="12" />
+      <path d="M16 8V4H4v12h4" />
+      <path d="M14 11v6M11 14h6" />
+    </>
+  ),
 };
 
 export default function LinkIcon({ name, size = 16 }: { name: LinkIconName; size?: number }) {

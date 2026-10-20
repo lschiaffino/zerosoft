@@ -28,12 +28,33 @@ function GroupCheck({ state, label, onToggle }: { state: 'all' | 'none' | 'some'
   );
 }
 
-/** Webhooks del workspace: alta con los 14 eventos agrupados por recurso, secret visible una vez, prueba y baja. */
-export default function WebhooksPanel({ initial }: { initial: WebhookDto[] }) {
+/** "a, b ,c" → ['a', 'b', 'c'] sin vacíos ni repetidos. */
+function splitList(raw: string): string[] {
+  return [...new Set(raw.split(',').map((v) => v.trim()).filter(Boolean))];
+}
+
+interface WebhooksPanelProps {
+  initial: WebhookDto[];
+  /** Hostname del dominio por defecto de Link (zerosoft.ai). */
+  defaultDomain?: string;
+  /** Dominios propios verificados: si hay, el filtro por dominio aparece. */
+  linkDomains?: string[];
+}
+
+/**
+ * Webhooks del workspace: alta con los eventos agrupados por recurso, filtro
+ * opcional de links (por link, tag o dominio) para los eventos link.*, secret
+ * visible una vez, prueba y baja.
+ */
+export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains = [] }: WebhooksPanelProps) {
   const t = useTranslations('settings.webhooks');
   const [rows, setRows] = useState(initial);
   const [url, setUrl] = useState('');
   const [selected, setSelected] = useState<WebhookEvent[]>([]);
+  const [filterLinks, setFilterLinks] = useState('');
+  const [filterTags, setFilterTags] = useState('');
+  const [filterDomains, setFilterDomains] = useState<string[]>([]);
+  const linkEvents = selected.some((ev) => ev.startsWith('link.'));
   const [secret, setSecret] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,12 +72,21 @@ export default function WebhooksPanel({ initial }: { initial: WebhookDto[] }) {
     const res = await fetch('/api/webhooks', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ url: url.trim(), events: selected }),
+      body: JSON.stringify({
+        url: url.trim(),
+        events: selected,
+        linkFilter: linkEvents
+          ? { links: splitList(filterLinks), tags: splitList(filterTags), domains: filterDomains }
+          : null,
+      }),
     }).catch(() => null);
     if (res?.status === 201) {
       setSecret(((await res.json()) as { secret: string }).secret);
       setUrl('');
       setSelected([]);
+      setFilterLinks('');
+      setFilterTags('');
+      setFilterDomains([]);
       await refresh();
     } else {
       const code = res ? ((await res.json().catch(() => null)) as { error?: string } | null)?.error : null;
@@ -149,6 +179,63 @@ export default function WebhooksPanel({ initial }: { initial: WebhookDto[] }) {
           </div>
         </fieldset>
 
+        {linkEvents && (
+          <fieldset className="st-fieldset" data-testid="webhook-link-filter">
+            <legend className="label st-legend">{t('linkFilter.title')}</legend>
+            <p className="ui-help">{t('linkFilter.help')}</p>
+            <div className="ui-fields-2">
+              <div className="ui-field">
+                <label className="label" htmlFor="st-hook-links">
+                  {t('linkFilter.links')}
+                </label>
+                <input
+                  id="st-hook-links"
+                  className="input data"
+                  value={filterLinks}
+                  onChange={(e) => setFilterLinks(e.target.value)}
+                  placeholder={t('linkFilter.linksPlaceholder')}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </div>
+              <div className="ui-field">
+                <label className="label" htmlFor="st-hook-tags">
+                  {t('linkFilter.tags')}
+                </label>
+                <input
+                  id="st-hook-tags"
+                  className="input"
+                  value={filterTags}
+                  onChange={(e) => setFilterTags(e.target.value)}
+                  placeholder={t('linkFilter.tagsPlaceholder')}
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+            {linkDomains.length > 0 && (
+              <div className="ui-field" role="group" aria-label={t('linkFilter.domains')}>
+                <span className="label">{t('linkFilter.domains')}</span>
+                <ul className="st-event-list">
+                  {['', ...linkDomains].map((host) => (
+                    <li key={host || 'default'}>
+                      <label className="ui-check">
+                        <input
+                          type="checkbox"
+                          checked={filterDomains.includes(host)}
+                          onChange={() =>
+                            setFilterDomains((prev) => (prev.includes(host) ? prev.filter((d) => d !== host) : [...prev, host]))
+                          }
+                        />
+                        <span className="data">{host || defaultDomain || t('linkFilter.defaultDomain')}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </fieldset>
+        )}
+
         <div className="st-form-foot">
           {error ? (
             <p className="ui-error" role="alert">
@@ -196,6 +283,19 @@ export default function WebhooksPanel({ initial }: { initial: WebhookDto[] }) {
                 {r.events.length === WEBHOOK_EVENTS.length || r.events.length > 2
                   ? t('eventsTotal', { count: r.events.length })
                   : r.events.map((ev) => t(`eventLabels.${eventKey(ev)}`)).join(', ')}
+                {r.linkFilter && (
+                  <span
+                    className="st-muted st-hook-scope"
+                    title={[
+                      ...r.linkFilter.links.map((l) => l.slug ?? l.id),
+                      ...r.linkFilter.tags.map((tag) => `#${tag}`),
+                      ...r.linkFilter.domains.map((d) => d || defaultDomain),
+                    ].join(', ')}
+                  >
+                    {' '}
+                    {t('linkFilter.scoped')}
+                  </span>
+                )}
               </span>
             ),
           },

@@ -1,6 +1,14 @@
 import { after, NextRequest, NextResponse } from 'next/server';
 import { emitEvent } from '@/lib/events';
-import { gateCookieName, gateRefCookieName, getLinkForHost, isExpired, isValidGateToken, linkShortUrl } from '@/lib/links';
+import {
+  gateCookieName,
+  gateRefCookieName,
+  getLinkForHost,
+  isExpired,
+  isValidGateToken,
+  linkShortUrl,
+  parseTags,
+} from '@/lib/links';
 import { isAppHost } from '@/lib/hosts';
 import { getVerifiedDomainByHost } from '@/lib/link-domains';
 import { contextFromHeaders, isBotRequest, recordClick } from '@/lib/track';
@@ -101,7 +109,11 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   const savedRef = link.password_hash ? req.cookies.get(gateRefCookieName(slug))?.value : undefined;
   if (savedRef !== undefined && /^[a-z0-9.-]{1,253}$/i.test(savedRef)) {
     const bareHost = (host ?? '').toLowerCase().replace(/:\d+$/, '').replace(/^www\./, '');
-    if (ctx.referrer === bareHost || isAppHost(ctx.referrer)) ctx.referrer = savedRef;
+    if (ctx.referrer === bareHost || isAppHost(ctx.referrer)) {
+      ctx.referrer = savedRef;
+      // De la visita original solo se guardó el host: la URL sería la de la puerta.
+      ctx.referrerUrl = null;
+    }
   }
 
   // Sin segmentación: camino rápido, sin parsear nada ni cookies.
@@ -126,7 +138,14 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
       link.user_id,
       'link.clicked',
       {
-        link: { id: link.id, slug: link.slug, domain: link.domain_hostname ?? null, url: link.url, short_url: linkShortUrl(link) },
+        link: {
+          id: link.id,
+          slug: link.slug,
+          domain: link.domain_hostname ?? null,
+          url: link.url,
+          short_url: linkShortUrl(link),
+          tags: parseTags(link.tags),
+        },
         click: { ...ctx, at: new Date().toISOString() },
       },
       // Solo para Flow (el webhook no cambia): total de clicks con este, el

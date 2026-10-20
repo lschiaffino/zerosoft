@@ -7,6 +7,7 @@ import type { LinkStatus } from '@/lib/links';
 import CopyButton from './CopyButton';
 import LinkIcon from './LinkIcon';
 import StatusBadge from './StatusBadge';
+import DuplicateButton from './DuplicateButton';
 
 export interface TableRow {
   id: string;
@@ -20,6 +21,8 @@ export interface TableRow {
   /** Sin formatear: para el plural de "23 clicks" en mobile. */
   clickCount: number;
   created: string;
+  /** Nombre de quien lo creó (null en links viejos). */
+  creator: string | null;
   status: LinkStatus;
 }
 
@@ -261,7 +264,14 @@ export default function LinksTable({ rows }: { rows: TableRow[] }) {
                     <span className="lk-clicks-n">{row.clicks}</span>
                     <span className="lk-clicks-full">{t('table.clicksN', { n: row.clickCount })}</span>
                   </td>
-                  <td className="data lk-col-date">{row.created}</td>
+                  <td className="data lk-col-date">
+                    {row.created}
+                    {row.creator && (
+                      <div className="lk-cell-sub" title={row.creator}>
+                        {t('table.byCreator', { name: row.creator })}
+                      </div>
+                    )}
+                  </td>
                   <td className="lk-col-status">
                     <StatusBadge status={row.status} />
                   </td>
@@ -286,6 +296,7 @@ export default function LinksTable({ rows }: { rows: TableRow[] }) {
                         >
                           <LinkIcon name="qr" size={14} />
                         </Link>
+                        <DuplicateButton id={row.id} className="btn btn-sm btn-ghost btn-icon" iconOnly subject={shortText} />
                         <Link
                           href={`/app/links/${row.id}?tab=settings`}
                           className="btn btn-sm btn-ghost btn-icon"

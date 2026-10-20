@@ -16,6 +16,8 @@ export const FLOW_EVENT_TYPES = [
   'booking.requested',
   'link.created',
   'link.clicked',
+  'link.updated',
+  'link.deleted',
   'contact.created',
   'contact.updated',
   'deal.created',
@@ -72,8 +74,15 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   },
   'link.clicked': {
     link: { id: 'lnk_1', slug: 'abc', domain: null, url: 'https://example.com', short_url: 'https://zerosoft.ai/abc' },
-    click: { country: 'AR', device: 'desktop', at: '' },
+    click: { country: 'AR', city: 'Córdoba', region: 'X', device: 'desktop', referrerUrl: null, at: '' },
     clicks: 100,
+  },
+  'link.updated': {
+    link: { id: 'lnk_1', slug: 'abc', domain: null, short_url: 'https://zerosoft.ai/abc', url: 'https://example.com', title: '', tags: [] },
+    changes: ['url'],
+  },
+  'link.deleted': {
+    link: { id: 'lnk_1', slug: 'abc', domain: null, short_url: 'https://zerosoft.ai/abc', url: 'https://example.com', title: '', tags: [] },
   },
   'contact.created': { id: 'c_1', first_name: 'Ada', last_name: 'Lovelace', email: 'ada@example.com' },
   'contact.updated': { id: 'c_1', first_name: '', email: '', change: {} },

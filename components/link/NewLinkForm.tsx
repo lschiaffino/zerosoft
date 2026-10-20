@@ -7,6 +7,16 @@ import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import TagsInput from './TagsInput';
 import { composeUtmUrl, SLUG_RE, useSlugCheck } from './slug-check';
+import UtmFields, { EMPTY_UTM, type UtmDraft } from './UtmFields';
+import { UTM_FIELDS } from '@/lib/link-url';
+
+const UTM_PAYLOAD = {
+  source: 'utmSource',
+  medium: 'utmMedium',
+  campaign: 'utmCampaign',
+  term: 'utmTerm',
+  content: 'utmContent',
+} as const;
 
 interface NewLinkFormProps {
   /** Dominio por defecto (zerosoft). */
@@ -31,9 +41,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
   const [domainId, setDomainId] = useState<string>('');
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [utmSource, setUtmSource] = useState('');
-  const [utmMedium, setUtmMedium] = useState('');
-  const [utmCampaign, setUtmCampaign] = useState('');
+  const [utm, setUtm] = useState<UtmDraft>(EMPTY_UTM);
   const [redirectType, setRedirectType] = useState<301 | 302>(302);
   const [expiresAt, setExpiresAt] = useState('');
   const [maxClicks, setMaxClicks] = useState('');
@@ -50,11 +58,8 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
     document.getElementById(initialUrl ? 'nl-slug' : 'nl-url')?.focus();
   }, [initialUrl]);
 
-  const finalUrl = useMemo(
-    () => composeUtmUrl(url, utmSource, utmMedium, utmCampaign),
-    [url, utmSource, utmMedium, utmCampaign],
-  );
-  const hasUtm = !!(utmSource.trim() || utmMedium.trim() || utmCampaign.trim());
+  const finalUrl = useMemo(() => composeUtmUrl(url, utm), [url, utm]);
+  const hasUtm = UTM_FIELDS.some((f) => utm[f].trim());
 
   const slugBad = slugState === 'taken' || slugState === 'invalid' || slugState === 'reserved';
   const slugMessage: Record<typeof slugState, string> = {
@@ -74,9 +79,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
     if (slug.trim()) payload.slug = slug.trim();
     if (domainId) payload.domainId = domainId;
     if (title.trim()) payload.title = title.trim();
-    if (utmSource.trim()) payload.utmSource = utmSource.trim();
-    if (utmMedium.trim()) payload.utmMedium = utmMedium.trim();
-    if (utmCampaign.trim()) payload.utmCampaign = utmCampaign.trim();
+    for (const f of UTM_FIELDS) if (utm[f].trim()) payload[UTM_PAYLOAD[f]] = utm[f].trim();
     if (expiresAt) payload.expiresAt = new Date(expiresAt).toISOString();
     if (maxClicks) payload.maxClicks = Number(maxClicks);
     if (password) payload.password = password;
@@ -200,30 +203,12 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
 
         <fieldset className="lk-fieldset">
           <legend className="label">{t('new.utmTitle')}</legend>
-          <div className="lk-utm">
-            {(
-              [
-                ['nl-utm-source', 'utmSource', utmSource, setUtmSource],
-                ['nl-utm-medium', 'utmMedium', utmMedium, setUtmMedium],
-                ['nl-utm-campaign', 'utmCampaign', utmCampaign, setUtmCampaign],
-              ] as const
-            ).map(([fid, key, value, set]) => (
-              <div className="ui-field" key={fid}>
-                <label className="label" htmlFor={fid}>
-                  {t(`new.${key}`)}
-                </label>
-                <input
-                  id={fid}
-                  className="input mono"
-                  type="text"
-                  value={value}
-                  maxLength={100}
-                  onChange={(e) => set(e.target.value)}
-                  placeholder={t(`new.${key}Placeholder`)}
-                />
-              </div>
-            ))}
-          </div>
+          <UtmFields
+            idPrefix="nl"
+            value={utm}
+            onChange={(field, value) => setUtm((prev) => ({ ...prev, [field]: value }))}
+            onApply={setUtm}
+          />
           {hasUtm && finalUrl && (
             <p className="ui-help lk-utm-preview">
               {t('new.utmPreview')}: <span className="data">{finalUrl}</span>

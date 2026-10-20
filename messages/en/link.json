@@ -24,7 +24,8 @@
     "no": "no",
     "close": "Close",
     "cancel": "Cancel",
-    "optional": "(optional)"
+    "optional": "(optional)",
+    "duplicate": "Duplicate"
   },
   "overview": {
     "title": "Overview",
@@ -82,7 +83,10 @@
     "pagination": "Pages",
     "searchLabel": "Search links",
     "tagLabel": "Filter by tag",
-    "clicksN": "{n, plural, one {# click} other {# clicks}}"
+    "clicksN": "{n, plural, one {# click} other {# clicks}}",
+    "creatorLabel": "Created by",
+    "allCreators": "Anyone",
+    "byCreator": "by {name}"
   },
   "new": {
     "title": "New link",
@@ -144,7 +148,11 @@
     "expiredUrlLabel": "Redirect after expiry",
     "expiredUrlPlaceholder": "https://example.com/offer-ended (optional)",
     "expiredUrlHelp": "Where visitors go once the link expires or reaches its click limit. Leave it empty to show the default page.",
-    "utmSyncHelp": "Changing a field updates the destination URL, and editing the URL updates these fields."
+    "utmSyncHelp": "Changing a field updates the destination URL, and editing the URL updates these fields.",
+    "utmTerm": "utm_term",
+    "utmContent": "utm_content",
+    "utmTermPlaceholder": "running shoes",
+    "utmContentPlaceholder": "header-banner"
   },
   "detail": {
     "back": "Links",
@@ -218,7 +226,9 @@
       "analytics": "Analytics",
       "qr": "QR",
       "routing": "Routing",
-      "settings": "Settings"
+      "settings": "Settings",
+      "comments": "Comments",
+      "commentsN": "Comments ({n})"
     },
     "tabsLabel": "Link sections",
     "qrScansCount": "{n} via QR",
@@ -243,7 +253,12 @@
     "unarchiveButton": "Unarchive link",
     "noPrevious": "No previous period",
     "emptyTitle": "No clicks yet",
-    "emptyBody": "Share <data>{short}</data> and clicks show up here."
+    "emptyBody": "Share <data>{short}</data> and clicks show up here.",
+    "createdOnBy": "Created {date} by {name}",
+    "cities": "Cities",
+    "regions": "Regions",
+    "referrerUrls": "Referrer pages",
+    "colCity": "City"
   },
   "bulk": {
     "title": "Many links at once",
@@ -350,7 +365,10 @@
     "quota_exceeded": "You reached today's limit of new links. Try again tomorrow.",
     "forbidden": "Only workspace admins can do this.",
     "already_imported": "Already imported.",
-    "invalid_expired_url": "The redirect after expiry doesn't look like a valid URL."
+    "invalid_expired_url": "The redirect after expiry doesn't look like a valid URL.",
+    "invalid_og_image": "The preview image must be an http(s) URL.",
+    "invalid_external_id": "The external id is not valid.",
+    "external_id_taken": "Another link already uses that external id."
   },
   "webhooks": {
     "desc": "We POST a signed JSON payload to your URL when these events happen. Verify the Zerosoft-Signature header (t=…,v1=HMAC-SHA256 of \"t.body\") with your secret. Failed deliveries are retried with backoff.",
@@ -528,7 +546,8 @@
     "empty": "No visits in this range.",
     "noData": "No data",
     "sub": "All your links together. Dates in UTC.",
-    "emptyBody": "Share a link and clicks show up here."
+    "emptyBody": "Share a link and clicks show up here.",
+    "cities": "Cities"
   },
   "targeting": {
     "title": "Routing",
@@ -607,5 +626,32 @@
     "errorBody": "Try again. If it keeps failing, tell us from Feedback.",
     "retry": "Try again",
     "loading": "Loading"
+  },
+  "utmTemplates": {
+    "label": "Template",
+    "pick": "Apply a template",
+    "none": "No templates yet",
+    "remove": "Delete template",
+    "removeConfirm": "Delete the template \"{name}\"? Links that used it keep their UTM.",
+    "saveAs": "Save as template",
+    "save": "Save",
+    "nameLabel": "Template name",
+    "namePlaceholder": "Newsletter",
+    "errors": {
+      "name_taken": "A template with that name already exists.",
+      "too_many": "This workspace reached 100 templates. Delete one first.",
+      "empty_template": "Fill at least one UTM field.",
+      "forbidden": "Only whoever created the template or an admin can delete it."
+    }
+  },
+  "comments": {
+    "title": "Comments",
+    "help": "Internal notes for your team. They never show on the link or in the API.",
+    "empty": "No comments yet.",
+    "unknownAuthor": "Former member",
+    "removeConfirm": "Delete this comment?",
+    "label": "New comment",
+    "placeholder": "Who asked for this link, which campaign it belongs to, what to keep in mind",
+    "add": "Comment"
   }
 }

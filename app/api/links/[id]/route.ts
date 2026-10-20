@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
-import { applyLinkPatch, getUserLink, linkPatchSchema, toLinkDto } from '@/lib/links';
+import { applyLinkPatch, deleteLink, getUserLink, linkPatchSchema, toLinkDto } from '@/lib/links';
 import { todayClicksForLink } from '@/lib/track';
 
 export const runtime = 'nodejs';
@@ -49,6 +48,6 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const link = await getUserLink(user.id, params.id);
   if (!link) return notFound();
-  await getDb().prepare('DELETE FROM links WHERE id = ?').run(link.id);
+  await deleteLink(link);
   return new NextResponse(null, { status: 204 });
 }

@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
-import { linkStatus, listLinks, parseTags, userTags, type ArchivedFilter } from '@/lib/links';
+import { linkCreators, linkStatus, listLinks, parseTags, userTags, type ArchivedFilter } from '@/lib/links';
 import { formatDate, formatNumber, shortDomain, shortUrl } from '@/lib/utils';
 import { listDomains } from '@/lib/link-domains';
 import PageHeader from '@/components/ui/PageHeader';
@@ -34,12 +34,15 @@ export default async function LinksPage(props: LinksPageProps) {
   const archived: ArchivedFilter = archivedParam === '1' || archivedParam === 'all' ? archivedParam : '0';
   const sort = one(searchParams.sort) === 'clicks' ? 'clicks' : 'created';
   const page = Number(one(searchParams.page) ?? '1') || 1;
+  const creator = one(searchParams.creator) ?? null;
 
-  const [result, tags, domains] = await Promise.all([
-    listLinks(user.id, { q: q || undefined, tag: tag ?? undefined, archived, sort, page }),
+  const [result, tags, domains, creators] = await Promise.all([
+    listLinks(user.id, { q: q || undefined, tag: tag ?? undefined, archived, sort, creator: creator ?? undefined, page }),
     userTags(user.id),
     listDomains(user.id),
+    linkCreators(user.id),
   ]);
+  const creatorNames = new Map(creators.map((c) => [c.id, c.name || c.email]));
   const customDomains = domains.filter((d) => d.verified === 1).map((d) => ({ id: d.id, hostname: d.hostname }));
 
   const rows: TableRow[] = result.links.map((l) => ({
@@ -52,6 +55,7 @@ export default async function LinksPage(props: LinksPageProps) {
     clicks: formatNumber(l.clicks, locale),
     clickCount: l.clicks,
     created: formatDate(l.created_at, locale),
+    creator: l.created_by ? (creatorNames.get(l.created_by) ?? null) : null,
     status: linkStatus(l),
   }));
 
@@ -61,8 +65,9 @@ export default async function LinksPage(props: LinksPageProps) {
   if (tag) query.tag = tag;
   if (archived !== '0') query.archived = archived;
   if (sort !== 'created') query.sort = sort;
+  if (creator) query.creator = creator;
 
-  const hasFilters = !!q || !!tag || archived !== '0';
+  const hasFilters = !!q || !!tag || archived !== '0' || !!creator;
   // Sin filtros y sin filas puede ser que solo haya archivados: eso no es "todavía no hay links".
   const neverCreated =
     rows.length === 0 && !hasFilters && (await listLinks(user.id, { archived: 'all' })).total === 0;
@@ -89,7 +94,15 @@ export default async function LinksPage(props: LinksPageProps) {
         />
       ) : (
         <>
-          <FilterBar q={q} tag={tag} archived={archived} sort={sort} tags={tags} />
+          <FilterBar
+            q={q}
+            tag={tag}
+            archived={archived}
+            sort={sort}
+            tags={tags}
+            creator={creator}
+            creators={creators.map((c) => ({ id: c.id, name: c.name || c.email }))}
+          />
           {rows.length === 0 ? (
             <EmptyState
               title={t('table.emptyTitle')}

@@ -69,12 +69,22 @@ export interface WorkspaceAnalytics {
   countries: BreakdownItem[];
   devices: BreakdownItem[];
   browsers: BreakdownItem[];
+  /** "Ciudad|PAÍS" (ver splitCityKey en lib/track.ts). */
+  cities: BreakdownItem[];
 }
 
 const FROM = 'FROM clicks c JOIN links l ON l.id = c.link_id';
 const WHERE = 'l.user_id = ? AND c.ts >= ? AND c.ts < ?';
 
-type Col = 'referrer' | 'country' | 'device' | 'browser';
+type Col = 'referrer' | 'country' | 'device' | 'browser' | 'city';
+
+const COL_SQL: Record<Col, string> = {
+  referrer: 'c.referrer',
+  country: 'c.country',
+  device: 'c.device',
+  browser: 'c.browser',
+  city: "CASE WHEN c.city IS NULL THEN NULL ELSE c.city || '|' || COALESCE(c.country, '') END",
+};
 
 export async function getWorkspaceAnalytics(userId: string, range: WorkspaceRange): Promise<WorkspaceAnalytics> {
   const db = getDb();
@@ -89,7 +99,7 @@ export async function getWorkspaceAnalytics(userId: string, range: WorkspaceRang
   const breakdown = async (col: Col, fallback: string, limit = 8): Promise<BreakdownItem[]> => {
     const rows = (await db
       .prepare(
-        `SELECT COALESCE(c.${col}, ?) AS name, COUNT(*) AS n ${FROM} WHERE ${WHERE} GROUP BY name ORDER BY n DESC, name`,
+        `SELECT COALESCE(${COL_SQL[col]}, ?) AS name, COUNT(*) AS n ${FROM} WHERE ${WHERE} GROUP BY name ORDER BY n DESC, name`,
       )
       .all(fallback, ...args)) as Array<{ name: string; n: number }>;
     const out = rows.slice(0, limit).map((r) => ({ name: r.name, count: Number(r.n) }));
@@ -99,7 +109,7 @@ export async function getWorkspaceAnalytics(userId: string, range: WorkspaceRang
   };
 
   // Consultas independientes en paralelo: con Turso cada una es un viaje de red.
-  const [totals, prevRows, dayRows, top, referrers, countries, devices, browsers] = await Promise.all([
+  const [totals, prevRows, dayRows, top, referrers, countries, devices, browsers, cities] = await Promise.all([
     db.prepare(bySource).all(...args) as Promise<SourceRows>,
     db.prepare(bySource).all(userId, addDays(range.from, -len), lo) as Promise<SourceRows>,
     db
@@ -121,6 +131,7 @@ export async function getWorkspaceAnalytics(userId: string, range: WorkspaceRang
     breakdown('country', 'unknown'),
     breakdown('device', 'unknown'),
     breakdown('browser', 'unknown'),
+    breakdown('city', 'unknown'),
   ]);
 
   const sum = (rows: SourceRows) => ({
@@ -152,6 +163,7 @@ export async function getWorkspaceAnalytics(userId: string, range: WorkspaceRang
     countries,
     devices,
     browsers,
+    cities,
   };
 }
 
@@ -166,12 +178,16 @@ export interface WorkspaceClickRow {
   device: string | null;
   browser: string | null;
   os: string | null;
+  region?: string | null;
+  city?: string | null;
+  referrer_url?: string | null;
 }
 
 export async function exportWorkspaceClicks(userId: string, range: WorkspaceRange): Promise<WorkspaceClickRow[]> {
   const rows = (await getDb()
     .prepare(
-      `SELECT c.ts, l.slug, d.hostname AS host, c.source, c.variant, c.country, c.referrer, c.device, c.browser, c.os
+      `SELECT c.ts, l.slug, d.hostname AS host, c.source, c.variant, c.country, c.referrer, c.device, c.browser, c.os,
+              c.region, c.city, c.referrer_url
        ${FROM} LEFT JOIN link_domains d ON d.id = l.domain_id
        WHERE ${WHERE} ORDER BY c.ts DESC LIMIT ${EXPORT_LIMIT}`,
     )
@@ -185,10 +201,25 @@ function cell(v: string | null): string {
 }
 
 export function workspaceClicksToCsv(rows: WorkspaceClickRow[]): string {
-  const lines = ['timestamp,short_url,source,variant,country,referrer,device,browser,os'];
+  const lines = ['timestamp,short_url,source,variant,country,referrer,device,browser,os,region,city,referrer_url'];
   for (const r of rows) {
     lines.push(
-      [r.ts, r.short_url, r.source, r.variant, r.country, r.referrer, r.device, r.browser, r.os].map(cell).join(','),
+      [
+        r.ts,
+        r.short_url,
+        r.source,
+        r.variant,
+        r.country,
+        r.referrer,
+        r.device,
+        r.browser,
+        r.os,
+        r.region ?? null,
+        r.city ?? null,
+        r.referrer_url ?? null,
+      ]
+        .map(cell)
+        .join(','),
     );
   }
   return lines.join('\n');

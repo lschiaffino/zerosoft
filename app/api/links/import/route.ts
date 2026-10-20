@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { limitByIp } from '@/lib/rate-limit';
 import { fetchBitlyLinks, importLinks, itemsFromCsv } from '@/lib/bitly-import';
 
@@ -38,6 +38,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const report = await importLinks(user.id, items);
+  const report = await importLinks(user.id, items, realUserId(user));
   return NextResponse.json(report);
 }

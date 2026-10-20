@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser, apiError } from '@/lib/api-auth';
-import { getUserLink } from '@/lib/links';
+import { getUserLinkByRef } from '@/lib/links';
 import { getAnalytics } from '@/lib/track';
 
 export const runtime = 'nodejs';
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const auth = await requireApiUser(req, 'links:read');
   if ('res' in auth) return auth.res;
 
-  const link = await getUserLink(auth.user.id, params.id);
+  const link = await getUserLinkByRef(auth.user.id, params.id);
   if (!link) return apiError(404, 'not_found', 'Link not found.');
 
   const analytics = await getAnalytics(link.id, link.created_at, '30d');

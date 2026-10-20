@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import { createLinksBulk, linkQuotaRemaining } from '@/lib/links';
 import { limitByIp } from '@/lib/rate-limit';
 
@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
     utmSource: parsed.data.utmSource,
     utmMedium: parsed.data.utmMedium,
     utmCampaign: parsed.data.utmCampaign,
+    createdBy: realUserId(user),
   });
 
   return NextResponse.json({ results: result, total: urls.length, created: result.filter((r) => r.status === 'created').length }, { status: 201 });

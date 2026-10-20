@@ -180,7 +180,7 @@ describe('Link: UTM editables y en sync con el destino', () => {
     expect(u.searchParams.has('utm_medium')).toBe(false);
     expect(u.searchParams.get('utm_campaign')).toBe('q4');
     expect(u.searchParams.get('x')).toBe('1');
-    expect(out.utm).toEqual({ source: 'news', medium: null, campaign: 'q4' });
+    expect(out.utm).toEqual({ source: 'news', medium: null, campaign: 'q4', term: null, content: null });
     // Sin cambios la URL vuelve idéntica.
     expect(syncUtm('https://example.com?utm_source=a').url).toBe('https://example.com?utm_source=a');
     expect(readUtm('example.com/?utm_medium=email').medium).toBe('email');
@@ -191,12 +191,12 @@ describe('Link: UTM editables y en sync con el destino', () => {
     const r = await createLink(u.id, { url: 'https://example.com/p', slug: slug('ut'), utmSource: 'old', utmCampaign: 'c1' });
     if (!r.ok) throw new Error('setup');
     let link = (await getUserLink(u.id, r.link.id))!;
-    expect(toLinkDto(link).utm).toEqual({ source: 'old', medium: null, campaign: 'c1' });
+    expect(toLinkDto(link).utm).toEqual({ source: 'old', medium: null, campaign: 'c1', term: null, content: null });
 
     expect(await applyLinkPatch(link, linkPatchSchema.parse({ utmSource: 'new', utmMedium: 'email', utmCampaign: null }))).toBeNull();
     link = (await getUserLink(u.id, r.link.id))!;
     const dto = toLinkDto(link);
-    expect(dto.utm).toEqual({ source: 'new', medium: 'email', campaign: null });
+    expect(dto.utm).toEqual({ source: 'new', medium: 'email', campaign: null, term: null, content: null });
     const dest = new URL(dto.url);
     expect(dest.searchParams.get('utm_source')).toBe('new');
     expect(dest.searchParams.get('utm_medium')).toBe('email');
@@ -210,7 +210,7 @@ describe('Link: UTM editables y en sync con el destino', () => {
     let link = (await getUserLink(u.id, r.link.id))!;
     expect(await applyLinkPatch(link, linkPatchSchema.parse({ url: 'https://example.com/q?utm_campaign=spring' }))).toBeNull();
     link = (await getUserLink(u.id, r.link.id))!;
-    expect(toLinkDto(link).utm).toEqual({ source: null, medium: null, campaign: 'spring' });
+    expect(toLinkDto(link).utm).toEqual({ source: null, medium: null, campaign: 'spring', term: null, content: null });
 
     // Una URL que ya trae utm_* al crear también queda reflejada.
     const pre = await createLink(u.id, { url: 'https://example.com/?utm_medium=cpc', slug: slug('up') });

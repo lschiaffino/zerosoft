@@ -2476,6 +2476,49 @@ export const MIGRATIONS: Migration[] = [
       for (const { table } of ACTIVITY_DATE_TABLES) await client.execute(activityDatesUpdateSql(table));
     },
   },
+  {
+    // Link: utm_term/utm_content y plantillas de UTM del workspace; quién creó
+    // cada link (created_by, null en los viejos) y un id externo único por
+    // workspace para la API v1; comentarios internos por link; ciudad, región
+    // y URL completa del referrer en cada click; filtro de links (ids, tags,
+    // dominios) en los webhooks de eventos link.* (JSON, null = todos).
+    id: '052_link_utm_creator_comments_geo',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN utm_term TEXT');
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN utm_content TEXT');
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN created_by TEXT');
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN external_id TEXT');
+      await addColumn(client, 'ALTER TABLE clicks ADD COLUMN city TEXT');
+      await addColumn(client, 'ALTER TABLE clicks ADD COLUMN region TEXT');
+      await addColumn(client, 'ALTER TABLE clicks ADD COLUMN referrer_url TEXT');
+      await addColumn(client, 'ALTER TABLE webhooks ADD COLUMN filters TEXT');
+      await client.executeMultiple(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_links_user_external ON links(user_id, external_id) WHERE external_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_links_user_creator ON links(user_id, created_by);
+        CREATE TABLE IF NOT EXISTS link_utm_templates (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          utm_source TEXT,
+          utm_medium TEXT,
+          utm_campaign TEXT,
+          utm_term TEXT,
+          utm_content TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, name)
+        );
+        CREATE TABLE IF NOT EXISTS link_comments (
+          id TEXT PRIMARY KEY,
+          link_id TEXT NOT NULL REFERENCES links(id) ON DELETE CASCADE,
+          author_id TEXT NOT NULL,
+          body TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_link_comments_link ON link_comments(link_id, created_at);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

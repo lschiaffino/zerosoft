@@ -130,7 +130,9 @@
       "deal_won": "Deal won",
       "deal_lost": "Deal lost",
       "robot_run_finished": "Robot finished",
-      "robot_run_failed": "Robot failed"
+      "robot_run_failed": "Robot failed",
+      "link_updated": "Link updated",
+      "link_deleted": "Link deleted"
     },
     "errors": {
       "https_required": "The URL must use https.",
@@ -139,7 +141,19 @@
       "invalid_url": "The URL is not valid.",
       "invalid_input": "Enter a URL and pick at least one event.",
       "generic": "The webhook could not be added. Try again.",
-      "action": "That did not work. Try again."
+      "action": "That did not work. Try again.",
+      "unknown_link": "One of the links in the filter does not exist in this workspace."
+    },
+    "linkFilter": {
+      "title": "Only for some links",
+      "help": "Applies to link events. Leave everything empty to receive events from every link. With several filters, a link has to match all of them.",
+      "links": "Links",
+      "linksPlaceholder": "Slugs separated by commas: promo, launch",
+      "tags": "Tags",
+      "tagsPlaceholder": "newsletter, ads",
+      "domains": "Domains",
+      "defaultDomain": "Default domain",
+      "scoped": "(some links)"
     }
   },
   "credentials": {
