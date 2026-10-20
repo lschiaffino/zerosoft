@@ -2,10 +2,13 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
+import { useFormatter, useTranslations } from 'next-intl';
+import { Link, useRouter } from '@/i18n/navigation';
 import { BOARD_MAX_SCENE_BYTES, type BoardDetail, type BoardScene } from '@/lib/boards-types';
+import { isDataUrl, swapUploadedFiles } from '@/lib/board-file-refs';
+import type { BoardSnapshotSummary } from '@/lib/board-history';
 import type { CanvasApi } from './ExcalidrawCanvas';
+import CanvasComments from './CanvasComments';
 import {
   baseFrom,
   clearDraft,
@@ -70,6 +73,16 @@ function buildScene(elements: readonly unknown[], appState: Record<string, unkno
   };
 }
 
+/** Imágenes ya subidas al storage (fileId → URL propia), a partir de la escena guardada. */
+function uploadedFrom(files: Record<string, unknown>): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const [id, f] of Object.entries(files)) {
+    const url = (f as { dataURL?: unknown })?.dataURL;
+    if (typeof url === 'string' && !isDataUrl(url)) out.set(id, url);
+  }
+  return out;
+}
+
 /** localStorage si existe y se puede usar (modo privado, iframes, SSR). */
 function storage(): Storage | null {
   try {
@@ -79,8 +92,19 @@ function storage(): Storage | null {
   }
 }
 
-export default function BoardEditor({ board, locale }: { board: BoardDetail; locale: string }) {
+export default function BoardEditor({
+  board,
+  locale,
+  commentId = null,
+}: {
+  board: BoardDetail;
+  locale: string;
+  /** ?comment=<hilo>: abre ese hilo (link de una notificación). */
+  commentId?: string | null;
+}) {
   const t = useTranslations('board');
+  const format = useFormatter();
+  const router = useRouter();
   const [name, setName] = useState(board.name);
   /** Último nombre que confirmó el servidor. */
   const savedNameRef = useRef(board.name);
@@ -97,6 +121,16 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
   const [shareError, setShareError] = useState(false);
   const [copied, setCopied] = useState(false);
   const apiRef = useRef<CanvasApi | null>(null);
+  const [canvasApi, setCanvasApi] = useState<CanvasApi | null>(null);
+  const history = usePopover();
+  const [snapshots, setSnapshots] = useState<BoardSnapshotSummary[] | null>(null);
+  const [historyError, setHistoryError] = useState(false);
+  const [restoring, setRestoring] = useState<string | null>(null);
+  const [commentsOpen, setCommentsOpen] = useState(Boolean(commentId));
+  const [placing, setPlacing] = useState(false);
+  const [openThreads, setOpenThreads] = useState(0);
+  /** Imágenes ya subidas: la escena las manda como URL y el base64 viaja una sola vez. */
+  const uploadedRef = useRef<Map<string, string>>(uploadedFrom(board.scene.files));
   const versionRef = useRef(board.version);
   /** Versión del servidor informada por un 409 (para "conservar la mía" sin merge). */
   const serverVersionRef = useRef(board.version);
@@ -128,6 +162,31 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
     return buildScene(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles());
   }, []);
 
+  /**
+   * Sube las imágenes pegadas que todavía van en base64 y las reemplaza por su
+   * URL. Si una subida falla, esa imagen va en línea y el servidor reintenta.
+   */
+  const withUploadedFiles = useCallback(
+    async (scene: BoardScene): Promise<BoardScene> => {
+      for (const [id, f] of Object.entries(scene.files)) {
+        const dataURL = (f as { dataURL?: unknown })?.dataURL;
+        if (!isDataUrl(dataURL) || uploadedRef.current.has(id)) continue;
+        try {
+          const res = await fetch(`/api/boards/${board.id}/files`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id, dataURL }),
+          });
+          if (res.ok) uploadedRef.current.set(id, ((await res.json()) as { url: string }).url);
+        } catch {
+          // Sin red: queda en línea.
+        }
+      }
+      return { ...scene, files: swapUploadedFiles(scene.files, uploadedRef.current) };
+    },
+    [board.id],
+  );
+
   const save = useCallback(async () => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -156,7 +215,7 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
         thumbnail = await sceneThumbnail(scene.elements, String(scene.appState.viewBackgroundColor ?? '#ffffff'));
         if (thumbnail) lastThumbRef.current = Date.now();
       }
-      const body = JSON.stringify({ version: versionRef.current, scene, thumbnail });
+      const body = JSON.stringify({ version: versionRef.current, scene: await withUploadedFiles(scene), thumbnail });
       if (body.length > BOARD_MAX_SCENE_BYTES * 1.2) {
         blockedRef.current = 'too_large';
         setState('too_large');
@@ -202,7 +261,12 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
       }
     }
     if (conflictBy !== undefined && !unmountedRef.current) onConflictRef.current(conflictBy);
-  }, [board.id]);
+  }, [board.id, withUploadedFiles]);
+
+  /** Suma las imágenes que ya tiene el servidor (escena de otra pestaña o persona). */
+  function rememberUploaded(files: Record<string, unknown>) {
+    for (const [id, url] of uploadedFrom(files)) uploadedRef.current.set(id, url);
+  }
 
   /** Muestra el aviso de conflicto (merge ambiguo, o sin poder combinar). */
   function showConflict(by: string | null, deleted: boolean) {
@@ -248,6 +312,7 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
       if (!api || unmountedRef.current) return;
       const files = Object.values(fresh.scene.files);
       if (files.length) api.addFiles(files);
+      rememberUploaded(fresh.scene.files);
       // Lectura síncrona del lienzo justo antes de aplicar: entra todo lo que se dibujó mientras.
       const merged = mergeBoardScenes({
         local: api.getSceneElementsIncludingDeleted(),
@@ -315,6 +380,8 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
   // Navegación interna con cambios pendientes: último guardado, después del que esté en vuelo.
   useEffect(() => {
     const id = board.id;
+    // El mapa es el mismo objeto toda la vida del editor (solo se le suman entradas).
+    const uploaded = uploadedRef.current;
     unmountedRef.current = false;
     return () => {
       unmountedRef.current = true;
@@ -325,7 +392,8 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
         isBlocked: () => blockedRef.current !== null,
         getVersion: () => versionRef.current,
         put: async (scene, version) => {
-          const body = JSON.stringify({ version, scene });
+          // Al salir no hay tiempo de subir: lo ya subido va como URL y lo nuevo en línea.
+          const body = JSON.stringify({ version, scene: { ...scene, files: swapUploadedFiles(scene.files, uploaded) } });
           const res = await fetch(`/api/boards/${id}/scene`, {
             method: 'PUT',
             headers: { 'content-type': 'application/json' },
@@ -368,6 +436,60 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
     void save();
   }
 
+  // Pizarra creada desde una plantilla (o restaurada sin miniatura): la grilla
+  // muestra la miniatura sin esperar a la primera edición.
+  useEffect(() => {
+    if (!canvasApi || board.thumbnail || board.scene.elements.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const { sceneThumbnail } = await import('./ExcalidrawCanvas');
+      const thumbnail = await sceneThumbnail(board.scene.elements, String(board.scene.appState.viewBackgroundColor ?? '#ffffff'));
+      if (!thumbnail || cancelled) return;
+      await fetch(`/api/boards/${board.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ thumbnail }),
+      }).catch(() => null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canvasApi, board.id, board.thumbnail, board.scene]);
+
+  async function toggleHistory() {
+    history.toggle();
+    if (history.open) return;
+    setHistoryError(false);
+    try {
+      const res = await fetch(`/api/boards/${board.id}/history`);
+      if (!res.ok) throw new Error(String(res.status));
+      setSnapshots(((await res.json()) as { snapshots: BoardSnapshotSummary[] }).snapshots);
+    } catch {
+      setHistoryError(true);
+    }
+  }
+
+  /** Restaurar = pizarra nueva con esa versión; la actual no cambia. */
+  async function restoreSnapshot(snap: BoardSnapshotSummary) {
+    setRestoring(snap.id);
+    setHistoryError(false);
+    try {
+      const when = format.dateTime(new Date(snap.content_at), { dateStyle: 'medium', timeStyle: 'short' });
+      const res = await fetch(`/api/boards/${board.id}/history/${snap.id}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: t('history.copyName', { name: name.trim() || board.name, when }).slice(0, 120) }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const copy = (await res.json()) as BoardDetail;
+      history.close();
+      router.push(`/app/board/${copy.id}`);
+    } catch {
+      setHistoryError(true);
+      setRestoring(null);
+    }
+  }
+
   function discardDraft() {
     clearDraft(storage(), board.id);
     setDraft(null);
@@ -382,6 +504,7 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
     if (api) {
       const files = Object.values(fresh.scene.files);
       if (files.length) api.addFiles(files);
+      rememberUploaded(fresh.scene.files);
       api.updateScene({ elements: fresh.scene.elements, appState: fresh.scene.appState });
       // Firma de lo que quedó en el lienzo (Excalidraw puede normalizar versiones al restaurar).
       sigRef.current = signature(
@@ -505,6 +628,90 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
         >
           {statusText}
         </span>
+        <button
+          type="button"
+          className={`btn btn-sm board-bar-first${commentsOpen ? ' is-on' : ''}`}
+          onClick={() => {
+            setCommentsOpen((v) => !v);
+            setPlacing(false);
+          }}
+          aria-pressed={commentsOpen}
+        >
+          <NotesIcon name="ask" size={14} />
+          <span className="board-bar-label">{t('comments.button')}</span>
+          {openThreads > 0 && <span className="board-bar-count">{openThreads}</span>}
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm${placing ? ' is-on' : ''}`}
+          onClick={() => setPlacing((v) => !v)}
+          aria-pressed={placing}
+          title={t('comments.add')}
+        >
+          <NotesIcon name="plus" size={14} />
+          <span className="board-bar-label">{t('comments.add')}</span>
+        </button>
+        <div className="board-share-wrap board-history-wrap" ref={history.wrapRef}>
+          <button
+            ref={history.buttonRef}
+            type="button"
+            className="btn btn-sm"
+            onClick={() => void toggleHistory()}
+            aria-expanded={history.open}
+            aria-haspopup="dialog"
+          >
+            <NotesIcon name="history" size={14} />
+            <span className="board-bar-label">{t('history.button')}</span>
+          </button>
+          {history.open && (
+            <div className="board-pop board-history" role="dialog" aria-label={t('history.title')}>
+              <p className="board-pop-title">{t('history.title')}</p>
+              <p className="board-pop-hint">{t('history.hint')}</p>
+              {snapshots === null && !historyError ? (
+                <p className="board-pop-hint" role="status">{t('history.loading')}</p>
+              ) : snapshots && snapshots.length === 0 ? (
+                <p className="board-pop-hint">{t('history.empty')}</p>
+              ) : (
+                <ul className="board-history-list">
+                  {(snapshots ?? []).map((snap) => (
+                    <li key={snap.id} className="board-history-item">
+                      <div className="board-history-thumb" aria-hidden="true">
+                        {snap.thumbnail ? (
+                          // Miniatura SVG filtrada en el servidor; como <img> no ejecuta nada.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(snap.thumbnail)}`} alt="" />
+                        ) : null}
+                      </div>
+                      <div className="board-history-body">
+                        <span className="board-history-when">
+                          {format.dateTime(new Date(snap.content_at), { dateStyle: 'medium', timeStyle: 'short' })}
+                        </span>
+                        <span className="board-history-meta">
+                          {t('history.elements', { count: snap.element_count })}
+                          {snap.edited_by ? ` · ${snap.edited_by}` : ''}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        aria-busy={restoring === snap.id}
+                        disabled={restoring !== null}
+                        onClick={() => void restoreSnapshot(snap)}
+                      >
+                        {t('history.restore')}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {historyError && (
+                <p className="ui-error" role="alert">
+                  {t('list.actionError')}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
         <div className="board-share-wrap" ref={share.wrapRef}>
           <button
             ref={share.buttonRef}
@@ -603,7 +810,18 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
           onChange={onChange}
           onApi={(api) => {
             apiRef.current = api;
+            setCanvasApi(api);
           }}
+        />
+        <CanvasComments
+          boardId={board.id}
+          api={canvasApi}
+          panelOpen={commentsOpen}
+          onClosePanel={() => setCommentsOpen(false)}
+          placing={placing}
+          onPlaced={() => setPlacing(false)}
+          initialThreadId={commentId}
+          onCountChange={setOpenThreads}
         />
       </div>
     </div>

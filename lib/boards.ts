@@ -9,6 +9,9 @@
 import { nanoid } from 'nanoid';
 import { getDb, type BoardRow } from './db';
 import { BOARD_MAX_SCENE_BYTES, BOARD_MAX_THUMB_BYTES, type BoardDetail, type BoardScene, type BoardSummary } from './boards-types';
+import { referencedFileIds, retargetFiles, withShareToken } from './board-file-refs';
+import { boardFileUrls, copyBoardFiles, deleteOrphanUploads, externalizeSceneFiles } from './board-files';
+import { getSnapshot, maybeSnapshot } from './board-history';
 
 const nowIso = () => new Date().toISOString();
 
@@ -68,16 +71,34 @@ export async function getBoard(workspaceId: string, id: string): Promise<BoardDe
   return row ? toDetail(row) : null;
 }
 
-export async function createBoard(workspaceId: string, personId: string, name: string): Promise<BoardDetail> {
-  const id = crypto.randomUUID();
+/**
+ * Crea una pizarra, vacía o con una escena de arranque (plantilla, copia de
+ * una versión). `id` se puede pasar para preparar la escena con sus URLs.
+ */
+export async function createBoard(
+  workspaceId: string,
+  personId: string,
+  name: string,
+  opts: { scene?: BoardScene; thumbnail?: string | null; id?: string } = {},
+): Promise<BoardDetail> {
+  const id = opts.id ?? crypto.randomUUID();
   const now = nowIso();
+  const json = opts.scene ? serializeScene(opts.scene) : '';
   await getDb()
     .prepare(
-      `INSERT INTO boards (id, workspace_id, created_by, updated_by, name, scene, scene_bytes, version, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, '', 0, 1, ?, ?)`,
+      `INSERT INTO boards (id, workspace_id, created_by, updated_by, name, scene, scene_bytes, thumbnail, version, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
     )
-    .run(id, workspaceId, personId, personId, name.trim() || 'Untitled board', now, now);
+    .run(id, workspaceId, personId, personId, name.trim().slice(0, 120) || 'Untitled board', json, sceneBytes(json), cleanThumbnail(opts.thumbnail), now, now);
   return (await getBoard(workspaceId, id))!;
+}
+
+function serializeScene(scene: BoardScene): string {
+  return JSON.stringify({
+    elements: scene.elements,
+    appState: pickAppState(scene.appState ?? {}),
+    files: scene.files ?? {},
+  });
 }
 
 /**
@@ -101,8 +122,13 @@ export async function renameBoard(
 }
 
 export async function deleteBoard(workspaceId: string, id: string): Promise<boolean> {
+  const urls = await boardFileUrls(id);
   const res = await getDb().prepare('DELETE FROM boards WHERE id = ? AND workspace_id = ?').run(id, workspaceId);
-  return res.changes > 0;
+  if (res.changes === 0) return false;
+  // Por si la base no tiene las foreign keys prendidas: las filas se van igual.
+  await getDb().prepare('DELETE FROM board_files WHERE board_id = ?').run(id);
+  await deleteOrphanUploads(urls);
+  return true;
 }
 
 export async function duplicateBoard(
@@ -113,15 +139,40 @@ export async function duplicateBoard(
 ): Promise<BoardDetail | null> {
   const src = await getBoardRow(workspaceId, id);
   if (!src) return null;
+  return copySceneToNewBoard(workspaceId, personId, id, src.scene, copyName(src.name), src.thumbnail);
+}
+
+/** Pizarra nueva con la escena (JSON guardado) de otra: copia las imágenes y apunta las URLs a la nueva. */
+async function copySceneToNewBoard(
+  workspaceId: string,
+  personId: string,
+  fromBoardId: string,
+  sceneJson: string,
+  name: string,
+  thumbnail: string | null,
+): Promise<BoardDetail> {
   const newId = crypto.randomUUID();
-  const now = nowIso();
-  await getDb()
-    .prepare(
-      `INSERT INTO boards (id, workspace_id, created_by, updated_by, name, scene, scene_bytes, thumbnail, version, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-    )
-    .run(newId, workspaceId, personId, personId, copyName(src.name).slice(0, 120), src.scene, src.scene_bytes, src.thumbnail, now, now);
-  return getBoard(workspaceId, newId);
+  const scene = parseScene(sceneJson);
+  const board = await createBoard(workspaceId, personId, name, {
+    id: newId,
+    scene: { ...scene, files: retargetFiles(scene.files, newId) },
+    thumbnail,
+  });
+  await copyBoardFiles(fromBoardId, newId, referencedFileIds(scene.files));
+  return board;
+}
+
+/** Restaura una versión del historial como pizarra nueva (la original no se toca). */
+export async function restoreSnapshotAsCopy(
+  workspaceId: string,
+  personId: string,
+  boardId: string,
+  snapshotId: string,
+  name: string,
+): Promise<BoardDetail | null> {
+  const snap = await getSnapshot(workspaceId, boardId, snapshotId);
+  if (!snap) return null;
+  return copySceneToNewBoard(workspaceId, personId, boardId, snap.scene, name, snap.thumbnail);
 }
 
 /** Subconjunto de appState que se persiste (lo demás es estado de la sesión). */
@@ -154,7 +205,8 @@ export function cleanThumbnail(svg: string | null | undefined): string | null {
 
 /**
  * Guarda la escena si `baseVersion` es la versión actual (si no → conflict).
- * El tope de tamaño evita que imágenes pegadas inflen la base.
+ * Las imágenes van al storage (lib/board-files.ts); el tope de tamaño cuida lo
+ * que queda en línea.
  */
 export async function saveBoardScene(
   workspaceId: string,
@@ -164,13 +216,15 @@ export async function saveBoardScene(
   baseVersion: number,
   thumbnail?: string | null,
 ): Promise<SaveSceneResult> {
-  const json = JSON.stringify({
-    elements: scene.elements,
-    appState: pickAppState(scene.appState ?? {}),
-    files: scene.files ?? {},
-  });
+  const exists = await getDb().prepare('SELECT 1 AS x FROM boards WHERE id = ? AND workspace_id = ?').get(id, workspaceId);
+  if (!exists) return { ok: false, code: 'not_found' };
+  // Las imágenes en base64 salen al storage (migra de a poco las escenas viejas).
+  const files = await externalizeSceneFiles(workspaceId, id, scene.files ?? {});
+  const json = serializeScene({ ...scene, files });
   const bytes = sceneBytes(json);
   if (bytes > BOARD_MAX_SCENE_BYTES) return { ok: false, code: 'too_large', bytes, max: BOARD_MAX_SCENE_BYTES };
+  // Foto del estado anterior para el historial (como mucho una por hora).
+  await maybeSnapshot(workspaceId, id);
   const now = nowIso();
   // undefined = no tocar la miniatura; null = borrarla (pizarra vacía); una
   // miniatura inválida o muy grande se ignora y queda la anterior.
@@ -206,6 +260,32 @@ export async function saveBoardScene(
   };
 }
 
+/** ¿La pizarra existe en el workspace? (sin traer la escena). */
+export async function boardExists(workspaceId: string, id: string): Promise<boolean> {
+  return Boolean(await getDb().prepare('SELECT 1 AS x FROM boards WHERE id = ? AND workspace_id = ?').get(id, workspaceId));
+}
+
+/** Nombre de la pizarra (para notificaciones), o null. */
+export async function getBoardName(workspaceId: string, id: string): Promise<string | null> {
+  const row = (await getDb().prepare('SELECT name FROM boards WHERE id = ? AND workspace_id = ?').get(id, workspaceId)) as
+    | { name: string }
+    | undefined;
+  return row?.name ?? null;
+}
+
+/**
+ * Fija la miniatura sin tocar la escena ni la versión (una pizarra creada
+ * desde una plantilla la genera al abrirse por primera vez).
+ */
+export async function setBoardThumbnail(workspaceId: string, id: string, thumbnail: string): Promise<boolean> {
+  const clean = cleanThumbnail(thumbnail);
+  if (!clean) return false;
+  const res = await getDb()
+    .prepare('UPDATE boards SET thumbnail = ? WHERE id = ? AND workspace_id = ?')
+    .run(clean, id, workspaceId);
+  return res.changes > 0;
+}
+
 // ---------- Link público (solo lectura) ----------
 
 export async function setBoardShared(workspaceId: string, id: string, shared: boolean): Promise<string | null | false> {
@@ -224,5 +304,8 @@ export async function setBoardShared(workspaceId: string, id: string, shared: bo
 export async function getSharedBoard(token: string): Promise<BoardDetail | null> {
   if (!/^[A-Za-z0-9_-]{10,64}$/.test(token)) return null;
   const row = (await getDb().prepare('SELECT * FROM boards WHERE share_token = ?').get(token)) as BoardRow | undefined;
-  return row ? toDetail(row) : null;
+  if (!row) return null;
+  const detail = toDetail(row);
+  // Las imágenes se piden con el token: el proxy no tiene sesión que chequear.
+  return { ...detail, scene: { ...detail.scene, files: withShareToken(detail.scene.files, row.id, token) } };
 }

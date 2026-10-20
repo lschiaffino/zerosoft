@@ -21,7 +21,8 @@
     "updated": "Editado {when}",
     "createError": "Não foi possível criar o quadro. Tente de novo.",
     "actionError": "Não foi possível concluir. Tente de novo.",
-    "creating": "Criando…"
+    "creating": "Criando…",
+    "templatesTitle": "Começar com um modelo"
   },
   "share": {
     "button": "Compartilhar",
@@ -57,5 +58,100 @@
   "public": {
     "notFound": "Quadro não encontrado",
     "viewOnly": "Somente leitura"
+  },
+  "templates": {
+    "retro": {
+      "name": "Retrospectiva",
+      "description": "O que deu certo, o que melhorar e as ações a tomar.",
+      "title": "Retro da sprint",
+      "hint": "Adicione uma nota em cada coluna e depois votem no que atacar primeiro.",
+      "wentWell": "Deu certo",
+      "toImprove": "A melhorar",
+      "actions": "Ações",
+      "noteWell": "Algo que deu certo",
+      "noteImprove": "Algo para melhorar",
+      "noteAction": "Quem faz o quê e até quando"
+    },
+    "brainstorm": {
+      "name": "Brainstorm",
+      "description": "Um tema central com espaço para ideias ao redor.",
+      "title": "Brainstorm",
+      "topic": "Tema central",
+      "idea": "Ideia"
+    },
+    "userFlow": {
+      "name": "Fluxo de usuário",
+      "description": "Telas e decisões da primeira visita até o objetivo.",
+      "title": "Fluxo de usuário",
+      "start": "Início",
+      "landing": "Landing page",
+      "decision": "Tem conta?",
+      "signIn": "Entrar",
+      "signUp": "Criar conta",
+      "done": "Painel",
+      "yes": "Sim",
+      "no": "Não"
+    },
+    "kanban": {
+      "name": "Kanban",
+      "description": "Backlog, a fazer, em andamento e concluído.",
+      "title": "Kanban",
+      "backlog": "Backlog",
+      "todo": "A fazer",
+      "doing": "Em andamento",
+      "done": "Concluído",
+      "task": "Tarefa"
+    },
+    "roadmap": {
+      "name": "Roadmap",
+      "description": "Iniciativas por time ao longo de quatro trimestres.",
+      "title": "Roadmap",
+      "q1": "T1",
+      "q2": "T2",
+      "q3": "T3",
+      "q4": "T4",
+      "product": "Produto",
+      "design": "Design",
+      "engineering": "Engenharia",
+      "initiative": "Iniciativa",
+      "milestone": "Marco"
+    }
+  },
+  "history": {
+    "button": "Histórico",
+    "title": "Histórico de versões",
+    "hint": "Enquanto o quadro é editado, uma versão é salva por hora, durante 30 dias. Restaurar abre a versão como um quadro novo e mantém este como está.",
+    "loading": "Carregando versões…",
+    "empty": "Ainda não há versões. A primeira é salva depois de uma hora de edição.",
+    "elements": "{count, plural, one {# elemento} other {# elementos}}",
+    "restore": "Restaurar como cópia",
+    "copyName": "{name} ({when})"
+  },
+  "comments": {
+    "button": "Comentários",
+    "add": "Comentar",
+    "placeHint": "Clique no quadro para posicionar o comentário. Esc cancela.",
+    "title": "Comentários",
+    "close": "Fechar",
+    "showResolved": "Mostrar resolvidos",
+    "empty": "Ainda não há comentários. Use “Comentar” e clique em qualquer lugar do quadro.",
+    "newThread": "Novo comentário",
+    "placeholder": "Escreva um comentário. Use @ para mencionar alguém.",
+    "replyPlaceholder": "Responda. Use @ para mencionar alguém.",
+    "reply": "Responder",
+    "post": "Comentar",
+    "cancel": "Cancelar",
+    "resolve": "Resolver",
+    "reopen": "Reabrir",
+    "resolved": "Resolvido",
+    "resolvedBy": "Resolvido por {name}",
+    "someone": "Alguém",
+    "delete": "Excluir comentário",
+    "confirmDelete": "Excluir este comentário?",
+    "error": "Não foi possível salvar. Tente de novo.",
+    "pinLabel": "Comentário {n}, {count, plural, one {# mensagem} other {# mensagens}}",
+    "threadLabel": "Comentário {n}",
+    "replies": "{count, plural, =0 {sem respostas} one {# resposta} other {# respostas}}",
+    "mentionList": "Pessoas para mencionar"
   }
 }

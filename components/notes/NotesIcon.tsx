@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type NotesIconName = 'pin' | 'share' | 'trash' | 'pencil' | 'close' | 'plus' | 'back' | 'search' | 'clip' | 'ask' | 'grip' | 'more';
+export type NotesIconName = 'pin' | 'share' | 'trash' | 'pencil' | 'close' | 'plus' | 'back' | 'search' | 'clip' | 'ask' | 'grip' | 'more' | 'history';
 
 /**
  * Íconos de Notes y Board: mismo trazo que components/app/icons (1.5px,
@@ -24,6 +24,7 @@ const PATHS: Record<NotesIconName, ReactNode> = {
   ask: <path d="M4 5h16v11H9l-5 4V5zM9 10h6" />,
   grip: <path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" strokeWidth={3} strokeLinecap="square" />,
   more: <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth={3} strokeLinecap="square" />,
+  history: <path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6M12 8v4l3 2" />,
 };
 
 export default function NotesIcon({ name, size = 16 }: { name: NotesIconName; size?: number }) {

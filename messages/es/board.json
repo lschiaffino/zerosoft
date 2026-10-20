@@ -21,7 +21,8 @@
     "updated": "Editada {when}",
     "createError": "No se pudo crear la pizarra. Probá de nuevo.",
     "actionError": "No se pudo completar la acción. Probá de nuevo.",
-    "creating": "Creando…"
+    "creating": "Creando…",
+    "templatesTitle": "Empezar con una plantilla"
   },
   "share": {
     "button": "Compartir",
@@ -57,5 +58,100 @@
   "public": {
     "notFound": "Pizarra no encontrada",
     "viewOnly": "Solo lectura"
+  },
+  "templates": {
+    "retro": {
+      "name": "Retrospectiva",
+      "description": "Qué salió bien, qué mejorar y las acciones a tomar.",
+      "title": "Retro del sprint",
+      "hint": "Sumá una nota en cada columna y después voten qué encarar primero.",
+      "wentWell": "Salió bien",
+      "toImprove": "A mejorar",
+      "actions": "Acciones",
+      "noteWell": "Algo que salió bien",
+      "noteImprove": "Algo para mejorar",
+      "noteAction": "Quién hace qué y para cuándo"
+    },
+    "brainstorm": {
+      "name": "Lluvia de ideas",
+      "description": "Un tema central con lugar para ideas alrededor.",
+      "title": "Lluvia de ideas",
+      "topic": "Tema central",
+      "idea": "Idea"
+    },
+    "userFlow": {
+      "name": "Flujo de usuario",
+      "description": "Pantallas y decisiones desde la primera visita hasta el objetivo.",
+      "title": "Flujo de usuario",
+      "start": "Inicio",
+      "landing": "Landing",
+      "decision": "¿Tiene cuenta?",
+      "signIn": "Iniciar sesión",
+      "signUp": "Registrarse",
+      "done": "Panel",
+      "yes": "Sí",
+      "no": "No"
+    },
+    "kanban": {
+      "name": "Kanban",
+      "description": "Backlog, por hacer, en curso y hecho.",
+      "title": "Kanban",
+      "backlog": "Backlog",
+      "todo": "Por hacer",
+      "doing": "En curso",
+      "done": "Hecho",
+      "task": "Tarea"
+    },
+    "roadmap": {
+      "name": "Roadmap",
+      "description": "Iniciativas por equipo a lo largo de cuatro trimestres.",
+      "title": "Roadmap",
+      "q1": "T1",
+      "q2": "T2",
+      "q3": "T3",
+      "q4": "T4",
+      "product": "Producto",
+      "design": "Diseño",
+      "engineering": "Ingeniería",
+      "initiative": "Iniciativa",
+      "milestone": "Hito"
+    }
+  },
+  "history": {
+    "button": "Historial",
+    "title": "Historial de versiones",
+    "hint": "Mientras se edita la pizarra se guarda una versión por hora, durante 30 días. Restaurar la abre como pizarra nueva y deja esta como está.",
+    "loading": "Cargando versiones…",
+    "empty": "Todavía no hay versiones. La primera se guarda después de una hora de edición.",
+    "elements": "{count, plural, one {# elemento} other {# elementos}}",
+    "restore": "Restaurar como copia",
+    "copyName": "{name} ({when})"
+  },
+  "comments": {
+    "button": "Comentarios",
+    "add": "Comentar",
+    "placeHint": "Hacé clic en la pizarra para ubicar el comentario. Esc cancela.",
+    "title": "Comentarios",
+    "close": "Cerrar",
+    "showResolved": "Mostrar resueltos",
+    "empty": "Todavía no hay comentarios. Tocá “Comentar” y hacé clic en cualquier parte de la pizarra.",
+    "newThread": "Comentario nuevo",
+    "placeholder": "Escribí un comentario. Con @ mencionás a alguien.",
+    "replyPlaceholder": "Respondé. Con @ mencionás a alguien.",
+    "reply": "Responder",
+    "post": "Comentar",
+    "cancel": "Cancelar",
+    "resolve": "Resolver",
+    "reopen": "Reabrir",
+    "resolved": "Resuelto",
+    "resolvedBy": "Resuelto por {name}",
+    "someone": "Alguien",
+    "delete": "Borrar comentario",
+    "confirmDelete": "¿Borrar este comentario?",
+    "error": "No se pudo guardar. Probá de nuevo.",
+    "pinLabel": "Comentario {n}, {count, plural, one {# mensaje} other {# mensajes}}",
+    "threadLabel": "Comentario {n}",
+    "replies": "{count, plural, =0 {sin respuestas} one {# respuesta} other {# respuestas}}",
+    "mentionList": "Personas para mencionar"
   }
 }

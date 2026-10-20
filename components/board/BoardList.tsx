@@ -1,13 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeader from '@/components/ui/PageHeader';
 import NotesIcon from '@/components/notes/NotesIcon';
 import RowMenu from '@/components/notes/RowMenu';
 import type { BoardDetail, BoardSummary } from '@/lib/boards-types';
+import { BOARD_TEMPLATES, type BoardTemplateKey } from '@/lib/board-templates';
+import TemplatePreview from './TemplatePreview';
 
 const TOAST_MS = 6000;
 
@@ -23,12 +25,15 @@ export default function BoardList({
   serverNow: number;
 }) {
   const t = useTranslations('board');
+  const tt = useTranslations('board.templates');
+  const locale = useLocale();
   const format = useFormatter();
   const router = useRouter();
   const [boards, setBoards] = useState(initialBoards);
   const [menu, setMenu] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [creatingTemplate, setCreatingTemplate] = useState<BoardTemplateKey | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const started = useRef(false);
   const [now, setNow] = useState(serverNow);
@@ -62,6 +67,25 @@ export default function BoardList({
       setBusy(false);
     }
   }, [busy, router, t]);
+
+  /** Pizarra nueva con la escena de la plantilla, en el idioma de la interfaz. */
+  async function createFromTemplate(key: BoardTemplateKey) {
+    if (busy || creatingTemplate) return;
+    setCreatingTemplate(key);
+    try {
+      const res = await fetch('/api/boards', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: tt(`${key}.name`), template: key, locale }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const board = (await res.json()) as BoardDetail;
+      router.push(`/app/board/${board.id}`);
+    } catch {
+      setToast(t('list.createError'));
+      setCreatingTemplate(null);
+    }
+  }
 
   useEffect(() => {
     if (startNew && !started.current) {
@@ -129,6 +153,31 @@ export default function BoardList({
   return (
     <div className="ui-page board-list">
       <PageHeader title={t('list.title')} description={t('list.subtitle')} actions={boards.length > 0 ? newButton : undefined} />
+
+      <section className="board-templates" aria-labelledby="board-templates-title">
+        <h2 id="board-templates-title" className="board-templates-title">
+          {t('list.templatesTitle')}
+        </h2>
+        <ul className="board-templates-grid">
+          {BOARD_TEMPLATES.map((key) => (
+            <li key={key}>
+              <button
+                type="button"
+                className="board-template"
+                onClick={() => void createFromTemplate(key)}
+                aria-busy={creatingTemplate === key}
+                disabled={creatingTemplate !== null}
+              >
+                <span className="board-template-preview" aria-hidden="true">
+                  <TemplatePreview template={key} />
+                </span>
+                <span className="board-template-name">{tt(`${key}.name`)}</span>
+                <span className="board-template-desc">{tt(`${key}.description`)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       {boards.length === 0 ? (
         <EmptyState quiet product="board" title={t('list.emptyTitle')} body={t('list.emptyHint')} action={newButton} />

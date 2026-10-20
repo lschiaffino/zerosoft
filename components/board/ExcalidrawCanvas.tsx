@@ -5,9 +5,10 @@
  * ssr:false desde BoardEditor / BoardViewer): Excalidraw toca window al
  * importarse. Su CSS se importa acá, así viaja en el mismo chunk.
  */
-import { Excalidraw, exportToSvg, reconcileElements } from '@excalidraw/excalidraw';
+import { useEffect, useMemo, useState } from 'react';
+import { Excalidraw, exportToSvg, reconcileElements, useHandleLibrary } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
-import type { BoardScene } from '@/lib/boards-types';
+import { isAllowedLibraryUrl, type BoardScene } from '@/lib/boards-types';
 import { useResolvedTheme } from '@/components/theme/ThemeProvider';
 
 // Tipos laxos: los .d.ts de Excalidraw arrastran paquetes internos.
@@ -18,7 +19,30 @@ export interface CanvasApi {
   getSceneElementsIncludingDeleted: () => readonly unknown[];
   getAppState: () => Record<string, unknown>;
   getFiles: () => Record<string, unknown>;
+  onScrollChange: (cb: (scrollX: number, scrollY: number, zoom: { value: number }) => void) => () => void;
 }
+
+/**
+ * Biblioteca de formas del workspace (GET/PUT /api/boards/library). Excalidraw
+ * la carga al abrir, la guarda en cada cambio y, al volver del catálogo de
+ * libraries.excalidraw.com con #addLibrary=<url>, instala la biblioteca elegida.
+ */
+const libraryAdapter = {
+  async load() {
+    const res = await fetch('/api/boards/library');
+    if (!res.ok) return null;
+    return (await res.json()) as { libraryItems: never[] };
+  },
+  async save({ libraryItems }: { libraryItems: readonly unknown[] }) {
+    const res = await fetch('/api/boards/library', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ libraryItems }),
+    });
+    // El adapter tiene que fallar para que Excalidraw avise y no dé por guardado.
+    if (!res.ok) throw new Error(`library_save_${res.status}`);
+  },
+};
 
 export type CanvasChange = (elements: readonly unknown[], appState: Record<string, unknown>, files: Record<string, unknown>) => void;
 
@@ -39,6 +63,29 @@ export default function ExcalidrawCanvas({
 }) {
   // El lienzo sigue el modo de color del sitio (selector sistema/claro/oscuro).
   const theme = useResolvedTheme();
+  const [api, setApi] = useState<unknown>(null);
+  // La biblioteca solo en el editor (la vista pública no tiene sesión).
+  useHandleLibrary({
+    excalidrawAPI: (viewMode ? null : api) as never,
+    adapter: libraryAdapter as never,
+    validateLibraryUrl: isAllowedLibraryUrl,
+  });
+  const [returnUrl, setReturnUrl] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    // Al instalar desde el catálogo se vuelve a esta misma pizarra.
+    setReturnUrl(`${window.location.origin}${window.location.pathname}`);
+  }, []);
+  const uiOptions = useMemo(
+    () => ({
+      canvasActions: {
+        loadScene: false,
+        saveToActiveFile: false,
+        toggleTheme: false,
+        export: viewMode ? (false as const) : { saveFileToDisk: true },
+      },
+    }),
+    [viewMode],
+  );
   return (
     <Excalidraw
       theme={theme}
@@ -50,16 +97,13 @@ export default function ExcalidrawCanvas({
       }}
       langCode={LANG[locale] ?? 'en'}
       viewModeEnabled={viewMode}
-      excalidrawAPI={onApi ? (api) => onApi(api as unknown as CanvasApi) : undefined}
-      onChange={onChange ? (els, appState, files) => onChange(els, appState as unknown as Record<string, unknown>, files as unknown as Record<string, unknown>) : undefined}
-      UIOptions={{
-        canvasActions: {
-          loadScene: false,
-          saveToActiveFile: false,
-          toggleTheme: false,
-          export: viewMode ? false : { saveFileToDisk: true },
-        },
+      excalidrawAPI={(instance) => {
+        setApi(instance);
+        onApi?.(instance as unknown as CanvasApi);
       }}
+      libraryReturnUrl={viewMode ? undefined : returnUrl}
+      onChange={onChange ? (els, appState, files) => onChange(els, appState as unknown as Record<string, unknown>, files as unknown as Record<string, unknown>) : undefined}
+      UIOptions={uiOptions}
     />
   );
 }
