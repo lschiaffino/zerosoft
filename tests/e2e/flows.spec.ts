@@ -466,7 +466,7 @@ test('Chat: crear widget desde el overview con "C" y abrir su configuración', a
   await expect(page.getByRole('heading', { name })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Saved replies' })).toBeVisible();
   // El editor del widget está en pestañas.
-  await expect(page.getByRole('navigation', { name: 'Widget settings' }).getByRole('link')).toHaveCount(4);
+  await expect(page.getByRole('navigation', { name: 'Widget settings' }).getByRole('link')).toHaveCount(5);
 });
 
 test('Chat: respuestas guardadas y reglas se crean en un modal, sin salir de la vista', async ({ request, page }) => {

@@ -35,7 +35,7 @@ test('Cal: el editor del tipo de evento guarda todas las pestañas con un solo G
   const after = await (await request.get(`/api/calendar/event-types/${et.id}`)).json();
   expect(after.title).toBe('Editor renamed');
   expect(after.bookingRulesParsed.minNoticeHours).toBe(2);
-  expect(after.fieldsParsed).toEqual([{ name: 'company_size', label: 'Company size', type: 'text', required: false }]);
+  expect(after.fieldsParsed).toEqual([{ name: 'company_size', label: 'Company size', type: 'text', required: false, options: [] }]);
 
   // Volver a los valores por defecto saca los límites del evento (caen a los del calendario).
   await page.getByRole('switch', { name: "Use the calendar's defaults" }).check();

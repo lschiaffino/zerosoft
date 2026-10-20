@@ -26,7 +26,7 @@ test('chat: widget nuevo por modal, editor en pestañas y bandeja de tres column
 
   // Editor: pestañas, código arriba, y un Guardar por pestaña.
   const tabs = page.getByRole('navigation', { name: 'Ajustes del widget' });
-  await expect(tabs.getByRole('link')).toHaveText(['Apariencia', 'Formulario previo', 'Bot', 'Horario']);
+  await expect(tabs.getByRole('link')).toHaveText(['Apariencia', 'Formulario previo', 'Atributos', 'Bot', 'Horario']);
   await expect(page.locator('.chat-embed-code')).toContainText(`/api/chat/widget.js?id=${widgetId}`);
   await tabs.getByRole('link', { name: 'Bot' }).click();
   await page.waitForURL(/tab=bot/);
