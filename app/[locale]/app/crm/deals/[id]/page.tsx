@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
@@ -292,6 +293,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
                   <dt>{t('deals.form.priority')}</dt>
                   <dd>{priorityLabel}</dd>
                 </div>
+                <ActivityDateFacts record={deal} locale={locale} />
               </dl>
               <Link href={recordTabHref(base, 'properties')} className="record-summary-more">
                 {t('deals.detail.viewAllProperties')}

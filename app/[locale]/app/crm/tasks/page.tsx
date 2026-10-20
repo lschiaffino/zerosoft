@@ -75,6 +75,7 @@ export default async function TasksPage(props: TasksPageProps) {
       projectId: a.project_id ?? undefined,
       projectName: a.project_name ?? undefined,
       projectColor: a.project_color ?? undefined,
+      repeat: a.repeat && a.repeat !== 'none' && a.done !== 1 ? a.repeat : undefined,
     };
   });
 

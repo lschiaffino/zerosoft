@@ -29,6 +29,6 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   if (!(await canSeeActivity(user.id, params.id, await sessionScope(user)))) return notFound();
-  if (!(await deleteActivity(user.id, params.id))) return notFound();
+  if (!(await deleteActivity(user.id, params.id, user.actingUser?.email ?? user.email))) return notFound();
   return new NextResponse(null, { status: 204 });
 }

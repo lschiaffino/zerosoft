@@ -687,6 +687,21 @@ tr:hover .cell-quick { opacity: 0.8; }
 .bulk-btn:hover { background: var(--bg); color: var(--ink); }
 .bulk-btn.danger:hover { background: var(--bad-ink); border-color: var(--bad-ink); color: var(--bg); }
 
+/* Valor libre de la edición en masa (texto, número, fecha). */
+.bulk-input {
+  font: inherit;
+  font-size: 12px;
+  width: 150px;
+  background: transparent;
+  color: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--bg) 30%, transparent);
+  border-radius: var(--r-sm);
+  padding: 6px 10px;
+}
+.bulk-input::placeholder { color: color-mix(in srgb, var(--bg) 55%, transparent); }
+.bulk-input:focus { outline: none; border-color: var(--bg); }
+.bulk-error { color: color-mix(in srgb, var(--bad-ink) 60%, var(--bg)); white-space: normal; max-width: 220px; }
+
 /* ---------- Danger zone ---------- */
 
 .danger-panel { border-color: color-mix(in srgb, var(--bad-ink) 35%, var(--bg)); }
@@ -3082,3 +3097,17 @@ td.crm-row-actions > * + * { margin-left: 4px; }
     color: var(--brand-gray-2);
   }
 }
+
+/* ---------- Papelera ---------- */
+
+.trash-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  min-height: 32px;
+}
+.trash-bar p { margin: 0; font-size: 13px; }
+.trash-confirm { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+.crm-table td.trash-actions { gap: 8px; white-space: nowrap; font-size: 12px; }

@@ -14,7 +14,8 @@
     "sequences": "Sequências",
     "products": "Produtos",
     "quotes": "Orçamentos",
-    "forms": "Formulários"
+    "forms": "Formulários",
+    "trash": "Lixeira"
   },
   "switcher": {
     "product": "Produto",
@@ -234,7 +235,7 @@
       "merged": "Contatos mesclados",
       "dangerZone": "Zona de perigo",
       "deleteTitle": "Excluir este contato",
-      "deleteDesc": "Exclui o contato e o remove de negócios e listas. As atividades são mantidas.",
+      "deleteDesc": "O contato vai para a lixeira com suas atividades próprias e sai de negócios e listas. Você pode restaurar por 90 dias.",
       "deleteButton": "Excluir para sempre",
       "noDeals": "Nenhum negócio ainda.",
       "noLists": "Não está em nenhuma lista.",
@@ -313,7 +314,7 @@
       "timeline": "Linha do tempo",
       "dangerZone": "Zona de perigo",
       "deleteTitle": "Excluir esta empresa",
-      "deleteDesc": "Exclui a empresa. Seus contatos são mantidos, desvinculados.",
+      "deleteDesc": "A empresa vai para a lixeira e seus contatos são mantidos, desvinculados. Você pode restaurar por 90 dias.",
       "deleteButton": "Excluir para sempre",
       "noContacts": "Nenhum contato ainda.",
       "noDeals": "Nenhum negócio ainda.",
@@ -444,7 +445,7 @@
       "noContacts": "Nenhum contato associado.",
       "dangerZone": "Zona de perigo",
       "deleteTitle": "Excluir este negócio",
-      "deleteDesc": "Exclui o negócio. Contatos e atividades são mantidos.",
+      "deleteDesc": "O negócio vai para a lixeira. Os contatos são mantidos. Você pode restaurar por 90 dias.",
       "deleteButton": "Excluir para sempre",
       "emptyTimeline": "Sem atividade ainda. Adicione uma nota ou registre uma ligação.",
       "aboutSection": "Sobre este negócio",
@@ -458,7 +459,8 @@
     "addStage": "+ Adicionar etapa",
     "stageNamePlaceholder": "Nome da etapa",
     "addStageConfirm": "Adicionar etapa",
-    "bulkSelected": "{count} selecionados"
+    "bulkSelected": "{count} selecionados",
+    "bulkConfirmDelete": "Mover {count} negócios para a lixeira?"
   },
   "tasks": {
     "title": "Tarefas",
@@ -484,7 +486,8 @@
       "deal": "Negócio",
       "body": "Notas",
       "project": "Projeto",
-      "owner": "Responsável"
+      "owner": "Responsável",
+      "repeat": "Repetir"
     },
     "detail": {
       "back": "← Todas as tarefas",
@@ -506,7 +509,7 @@
       "uploading": "Enviando…",
       "untitled": "Tarefa sem título",
       "deleteTitle": "Excluir esta tarefa",
-      "deleteDesc": "Exclui a tarefa e seus anexos. Isso não pode ser desfeito.",
+      "deleteDesc": "A tarefa e seus anexos vão para a lixeira. Você pode restaurar por 90 dias.",
       "deleteButton": "Excluir para sempre"
     },
     "projects": {
@@ -516,7 +519,14 @@
       "archive": "Arquivar",
       "unarchive": "Restaurar",
       "empty": "Nenhum projeto ainda."
-    }
+    },
+    "repeat": {
+      "none": "Não se repete",
+      "daily": "Todos os dias",
+      "weekly": "Todas as semanas",
+      "monthly": "Todos os meses"
+    },
+    "repeatHint": "Ao concluir, a próxima é criada."
   },
   "lists": {
     "title": "Listas",
@@ -1060,7 +1070,8 @@
     "invalid_tag": "Essa tag não existe neste workspace.",
     "duplicate_tag": "Já existe uma tag com esse nome.",
     "invalid_currency": "Use um código de moeda de 3 letras (por exemplo EUR) diferente da moeda base.",
-    "invalid_rate": "A taxa precisa ser um número maior que zero."
+    "invalid_rate": "A taxa precisa ser um número maior que zero.",
+    "trash_conflict": "Já existe um registro com este id, então não é possível restaurar."
   },
   "filters": {
     "advanced": "Filtros avançados",
@@ -1892,5 +1903,59 @@
     "up": "Subir",
     "down": "Descer",
     "remove": "Remover"
+  },
+  "activityDates": {
+    "lastActivity": "Última atividade",
+    "lastContacted": "Último contato",
+    "nextActivity": "Próxima atividade",
+    "sort": {
+      "last_activity": "Última atividade, mais recente",
+      "last_activity_asc": "Última atividade, mais antiga",
+      "last_contacted": "Último contato, mais recente",
+      "last_contacted_asc": "Último contato, mais antigo",
+      "next_activity": "Próxima atividade, mais próxima",
+      "next_activity_desc": "Próxima atividade, mais distante"
+    }
+  },
+  "bulkEdit": {
+    "property": "Propriedade a editar",
+    "value": "Valor",
+    "empty": "Vazio",
+    "apply": "Aplicar",
+    "done": "{count, plural, one {# registro atualizado} other {# registros atualizados}}",
+    "partial": "{count} atualizados, {failed} ignorados"
+  },
+  "trash": {
+    "title": "Lixeira",
+    "description": "Contatos, empresas, negócios e atividades excluídos ficam aqui por {days} dias. Ao restaurar, voltam com suas associações, tags e atividades.",
+    "movedNotice": "Movido para a lixeira. Você pode restaurar por 90 dias.",
+    "empty": "A lixeira está vazia",
+    "emptyBody": "Os registros excluídos aparecem aqui por 90 dias.",
+    "noMatch": "Nada na lixeira corresponde a esta busca.",
+    "all": "Tudo",
+    "search": "Buscar na lixeira",
+    "entity": {
+      "contact": "Contato",
+      "company": "Empresa",
+      "deal": "Negócio",
+      "activity": "Atividade"
+    },
+    "col": {
+      "name": "Nome",
+      "type": "Tipo",
+      "owner": "Responsável",
+      "deletedBy": "Excluído por",
+      "deletedAt": "Excluído",
+      "left": "Removido em"
+    },
+    "daysLeft": "{count, plural, =0 {hoje} one {# dia} other {# dias}}",
+    "restore": "Restaurar",
+    "restored": "Restaurado.",
+    "open": "Abrir",
+    "purge": "Excluir para sempre",
+    "purgeConfirm": "Excluir para sempre?",
+    "emptyBin": "Esvaziar lixeira",
+    "emptyBinConfirm": "Excluir para sempre os {count} itens?",
+    "untitled": "Sem título"
   }
 }

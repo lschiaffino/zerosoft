@@ -5,8 +5,18 @@ import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import CrmIcon from './CrmIcon';
 import { ColumnsSlot } from './ColumnToggle';
+import { ACTIVITY_DATE_SORTS, type ActivityDateSort } from '@/lib/crm-activity-dates';
 
-export type ContactSort = 'newest' | 'oldest' | 'name' | 'name_desc' | 'email' | 'email_desc' | 'score' | 'score_asc';
+export type ContactSort =
+  | 'newest'
+  | 'oldest'
+  | 'name'
+  | 'name_desc'
+  | 'email'
+  | 'email_desc'
+  | 'score'
+  | 'score_asc'
+  | ActivityDateSort;
 
 interface SavedView {
   id: string;
@@ -341,6 +351,11 @@ export default function ContactsFilters({
             <option value="email_desc">{t('contacts.sortEmailDesc')}</option>
             <option value="score">{t('scoring.sortHigh')}</option>
             <option value="score_asc">{t('scoring.sortLow')}</option>
+            {ACTIVITY_DATE_SORTS.map((v) => (
+              <option key={v} value={v}>
+                {t(`activityDates.sort.${v}`)}
+              </option>
+            ))}
           </select>
           <ColumnsSlot />
         </div>

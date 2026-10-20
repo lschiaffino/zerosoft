@@ -97,6 +97,10 @@ export interface CrmContactRow {
   score_updated_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Fechas de actividad mantenidas por triggers (lib/crm-activity-dates.ts). */
+  last_activity_at?: string | null;
+  last_contacted_at?: string | null;
+  next_activity_at?: string | null;
 }
 
 export interface CrmCompanyRow {
@@ -117,6 +121,10 @@ export interface CrmCompanyRow {
   custom: string; // JSON object
   created_at: string;
   updated_at: string;
+  /** Fechas de actividad mantenidas por triggers (lib/crm-activity-dates.ts). */
+  last_activity_at?: string | null;
+  last_contacted_at?: string | null;
+  next_activity_at?: string | null;
 }
 
 export interface CrmPipelineRow {
@@ -160,6 +168,10 @@ export interface CrmDealRow {
   custom: string; // JSON object
   created_at: string;
   updated_at: string;
+  /** Fechas de actividad mantenidas por triggers (lib/crm-activity-dates.ts). */
+  last_activity_at?: string | null;
+  last_contacted_at?: string | null;
+  next_activity_at?: string | null;
 }
 
 export interface CrmActivityRow {
@@ -183,6 +195,10 @@ export interface CrmActivityRow {
   company_id: string | null;
   deal_id: string | null;
   project_id: string | null;
+  /** Repetición de tareas (lib/crm-task-repeat.ts). */
+  repeat?: 'none' | 'daily' | 'weekly' | 'monthly';
+  /** Tarea siguiente de la serie, una vez creada al completar esta. */
+  repeat_next_id?: string | null;
   created_at: string;
   updated_at: string;
 }

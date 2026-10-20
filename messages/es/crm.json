@@ -14,7 +14,8 @@
     "sequences": "Secuencias",
     "products": "Productos",
     "quotes": "Cotizaciones",
-    "forms": "Formularios"
+    "forms": "Formularios",
+    "trash": "Papelera"
   },
   "switcher": {
     "product": "Producto",
@@ -234,7 +235,7 @@
       "merged": "Contactos combinados",
       "dangerZone": "Zona de peligro",
       "deleteTitle": "Eliminar este contacto",
-      "deleteDesc": "Elimina el contacto y lo saca de deals y listas. Las actividades se conservan.",
+      "deleteDesc": "El contacto va a la papelera con sus actividades propias y sale de deals y listas. Podés restaurarlo durante 90 días.",
       "deleteButton": "Eliminar para siempre",
       "noDeals": "Sin deals todavía.",
       "noLists": "No está en ninguna lista.",
@@ -313,7 +314,7 @@
       "timeline": "Timeline",
       "dangerZone": "Zona de peligro",
       "deleteTitle": "Eliminar esta empresa",
-      "deleteDesc": "Elimina la empresa. Sus contactos se conservan, desvinculados.",
+      "deleteDesc": "La empresa va a la papelera y sus contactos se conservan, desvinculados. Podés restaurarla durante 90 días.",
       "deleteButton": "Eliminar para siempre",
       "noContacts": "Sin contactos todavía.",
       "noDeals": "Sin deals todavía.",
@@ -444,7 +445,7 @@
       "noContacts": "Sin contactos asociados.",
       "dangerZone": "Zona de peligro",
       "deleteTitle": "Eliminar este deal",
-      "deleteDesc": "Elimina el deal. Los contactos y actividades se conservan.",
+      "deleteDesc": "El deal va a la papelera. Los contactos se conservan. Podés restaurarlo durante 90 días.",
       "deleteButton": "Eliminar para siempre",
       "emptyTimeline": "Sin actividad todavía. Agregá una nota o registrá una llamada.",
       "aboutSection": "Sobre este deal",
@@ -458,7 +459,8 @@
     "addStage": "+ Agregar stage",
     "stageNamePlaceholder": "Nombre del stage",
     "addStageConfirm": "Agregar stage",
-    "bulkSelected": "{count} seleccionados"
+    "bulkSelected": "{count} seleccionados",
+    "bulkConfirmDelete": "¿Mover {count} deals a la papelera?"
   },
   "tasks": {
     "title": "Tareas",
@@ -484,7 +486,8 @@
       "deal": "Deal",
       "body": "Notas",
       "project": "Proyecto",
-      "owner": "Responsable"
+      "owner": "Responsable",
+      "repeat": "Repetir"
     },
     "detail": {
       "back": "← Todas las tareas",
@@ -506,7 +509,7 @@
       "uploading": "Subiendo…",
       "untitled": "Tarea sin título",
       "deleteTitle": "Eliminar esta tarea",
-      "deleteDesc": "Elimina la tarea y sus adjuntos. No se puede deshacer.",
+      "deleteDesc": "La tarea y sus adjuntos van a la papelera. Podés restaurarlos durante 90 días.",
       "deleteButton": "Eliminar para siempre"
     },
     "projects": {
@@ -516,7 +519,14 @@
       "archive": "Archivar",
       "unarchive": "Restaurar",
       "empty": "Todavía no hay proyectos."
-    }
+    },
+    "repeat": {
+      "none": "No se repite",
+      "daily": "Todos los días",
+      "weekly": "Todas las semanas",
+      "monthly": "Todos los meses"
+    },
+    "repeatHint": "Al completarla se crea la siguiente."
   },
   "lists": {
     "title": "Listas",
@@ -1060,7 +1070,8 @@
     "invalid_tag": "Ese tag no existe en este workspace.",
     "duplicate_tag": "Ya existe un tag con ese nombre.",
     "invalid_currency": "Usá un código de moneda de 3 letras (por ejemplo EUR) distinto de la moneda base.",
-    "invalid_rate": "El tipo de cambio tiene que ser un número mayor que cero."
+    "invalid_rate": "El tipo de cambio tiene que ser un número mayor que cero.",
+    "trash_conflict": "Ya existe un registro con este id, así que no se puede restaurar."
   },
   "filters": {
     "advanced": "Filtros avanzados",
@@ -1892,5 +1903,59 @@
     "up": "Subir",
     "down": "Bajar",
     "remove": "Quitar"
+  },
+  "activityDates": {
+    "lastActivity": "Última actividad",
+    "lastContacted": "Último contacto",
+    "nextActivity": "Próxima actividad",
+    "sort": {
+      "last_activity": "Última actividad, más reciente",
+      "last_activity_asc": "Última actividad, más antigua",
+      "last_contacted": "Último contacto, más reciente",
+      "last_contacted_asc": "Último contacto, más antiguo",
+      "next_activity": "Próxima actividad, más cercana",
+      "next_activity_desc": "Próxima actividad, más lejana"
+    }
+  },
+  "bulkEdit": {
+    "property": "Propiedad a editar",
+    "value": "Valor",
+    "empty": "Vacío",
+    "apply": "Aplicar",
+    "done": "{count, plural, one {# registro actualizado} other {# registros actualizados}}",
+    "partial": "{count} actualizados, {failed} omitidos"
+  },
+  "trash": {
+    "title": "Papelera",
+    "description": "Los contactos, empresas, deals y actividades borrados quedan acá {days} días. Al restaurarlos vuelven con sus asociaciones, tags y actividades.",
+    "movedNotice": "Movido a la papelera. Podés restaurarlo durante 90 días.",
+    "empty": "La papelera está vacía",
+    "emptyBody": "Los registros borrados aparecen acá durante 90 días.",
+    "noMatch": "Nada en la papelera coincide con esta búsqueda.",
+    "all": "Todo",
+    "search": "Buscar en la papelera",
+    "entity": {
+      "contact": "Contacto",
+      "company": "Empresa",
+      "deal": "Deal",
+      "activity": "Actividad"
+    },
+    "col": {
+      "name": "Nombre",
+      "type": "Tipo",
+      "owner": "Owner",
+      "deletedBy": "Borrado por",
+      "deletedAt": "Borrado",
+      "left": "Se purga en"
+    },
+    "daysLeft": "{count, plural, =0 {hoy} one {# día} other {# días}}",
+    "restore": "Restaurar",
+    "restored": "Restaurado.",
+    "open": "Abrir",
+    "purge": "Borrar para siempre",
+    "purgeConfirm": "¿Borrar para siempre?",
+    "emptyBin": "Vaciar papelera",
+    "emptyBinConfirm": "¿Borrar para siempre los {count} elementos?",
+    "untitled": "Sin título"
   }
 }

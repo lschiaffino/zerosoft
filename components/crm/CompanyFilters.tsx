@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { ColumnsSlot } from './ColumnToggle';
+import { ACTIVITY_DATE_SORTS, type ActivityDateSort } from '@/lib/crm-activity-dates';
 
 interface CustomFieldOption {
   name: string;
@@ -24,7 +25,7 @@ interface CompanyFiltersProps {
   custom: Record<string, string>;
   /** Query param `filters` crudo (advanced filter builder); se preserva al navegar. */
   advanced?: string;
-  sort: 'newest' | 'oldest' | 'name' | 'name_desc';
+  sort: 'newest' | 'oldest' | 'name' | 'name_desc' | ActivityDateSort;
   industries: string[];
   lifecycles: Array<{ value: string; label: string }>;
   owners: Array<{ value: string; label: string }>;
@@ -208,6 +209,11 @@ export default function CompanyFilters({
             <option value="oldest">{t('companies.sortOldest')}</option>
             <option value="name">{t('companies.sortName')}</option>
             <option value="name_desc">{t('companies.sortNameDesc')}</option>
+            {ACTIVITY_DATE_SORTS.map((v) => (
+              <option key={v} value={v}>
+                {t(`activityDates.sort.${v}`)}
+              </option>
+            ))}
           </select>
           <ColumnsSlot />
         </div>

@@ -54,6 +54,7 @@ export interface SidebarLabels {
     products: string;
     quotes: string;
     forms: string;
+    trash: string;
   };
   docs: {
     pages: string;
@@ -219,6 +220,7 @@ export function buildNav(
           items: [
             { href: '/app/crm/workflows', label: labels.crm.workflows, active: at('/app/crm/workflows'), icon: 'workflows' },
             { href: '/app/crm/settings', label: labels.crm.settings, active: at('/app/crm/settings'), icon: 'settings' },
+            { href: '/app/crm/trash', label: labels.crm.trash, active: at('/app/crm/trash'), icon: 'trash' },
           ],
         },
       ];

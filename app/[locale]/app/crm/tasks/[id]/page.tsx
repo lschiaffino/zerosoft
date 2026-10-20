@@ -15,6 +15,7 @@ import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import TaskFiles from '@/components/crm/TaskFiles';
 import TaskDonePin from '@/components/crm/TaskDonePin';
 import { ACTIVITY_TYPES } from '@/lib/crm-constants';
+import { TASK_REPEATS } from '@/lib/crm-task-repeat';
 import {
   associateContactToTask,
   removeContactFromTask,
@@ -103,6 +104,13 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
       value: task.due_at ?? '',
     },
     {
+      key: 'repeat',
+      label: t('tasks.form.repeat'),
+      type: 'select',
+      value: task.repeat ?? 'none',
+      options: TASK_REPEATS.map((v) => ({ value: v, label: t(`tasks.repeat.${v}`) })),
+    },
+    {
       key: 'ownerId',
       label: t('tasks.form.owner'),
       type: 'select',
@@ -121,7 +129,7 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
   ];
 
   const sections: PropSection[] = [
-    { title: t('tasks.detail.aboutSection'), keys: ['subject', 'type', 'body', 'dueAt'] },
+    { title: t('tasks.detail.aboutSection'), keys: ['subject', 'type', 'body', 'dueAt', 'repeat'] },
     { title: t('tasks.detail.ownershipSection'), keys: ['ownerId', 'projectId'] },
   ];
 

@@ -102,6 +102,7 @@ export default async function AppLayout(
               { href: '/app/crm/reports', label: tCrm('tabs.reports') },
               { href: '/app/crm/workflows', label: tCrm('tabs.workflows') },
               { href: '/app/crm/settings', label: tCrm('tabs.settings') },
+              { href: '/app/crm/trash', label: tCrm('tabs.trash') },
               { href: '/app/docs', label: tDocs('sidebar.pages') },
               { href: '/app/calendar', label: tCalendar('sidebar.overview') },
               { href: '/app/calendar/event-types', label: tCalendar('sidebar.eventTypes') },
@@ -185,6 +186,7 @@ export default async function AppLayout(
             products: tCrm('tabs.products'),
             quotes: tCrm('tabs.quotes'),
             forms: tCrm('tabs.forms'),
+            trash: tCrm('tabs.trash'),
           },
           docs: {
             pages: tDocs('sidebar.pages'),
