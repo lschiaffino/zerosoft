@@ -27,7 +27,14 @@ export function cleanHttpUrl(raw: unknown): string | null {
   if (!value) return null;
   try {
     const u = new URL(value);
-    return u.protocol === 'http:' || u.protocol === 'https:' ? u.toString() : null;
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    // Solo se guardan los utm_*: el resto del query puede traer tokens del sitio
+    // (links mágicos, resets de contraseña) y el hash nunca sale del navegador.
+    for (const key of [...u.searchParams.keys()]) if (!key.toLowerCase().startsWith('utm_')) u.searchParams.delete(key);
+    u.hash = '';
+    u.username = '';
+    u.password = '';
+    return u.toString();
   } catch {
     return null;
   }

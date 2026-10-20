@@ -397,3 +397,11 @@ describe('Chat: editar y borrar mensajes y notas', () => {
     session.user = null;
   });
 });
+
+describe('cleanHttpUrl', () => {
+  it('guarda solo los utm_* del query y descarta hash y credenciales', async () => {
+    const { cleanHttpUrl } = await import('@/lib/chat-visitor-context');
+    expect(cleanHttpUrl('https://u:p@acme.test/precios?token=abc&utm_source=ads&ref=x#zs-chat')).toBe('https://acme.test/precios?utm_source=ads');
+    expect(cleanHttpUrl('javascript:alert(1)')).toBeNull();
+  });
+});
