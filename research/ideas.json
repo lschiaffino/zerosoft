@@ -47,7 +47,9 @@
     "title": "Agents: Add an analytics tab with resolution, handoff, tool error and topic metrics",
     "description": "Fin reports resolution rate, involvement rate and CX Score per conversation, groups conversations with Topics Explorer and offers Monitors and scorecards (https://fin.ai/pricing, https://fin.ai/capabilities). We only compute conversations in the last 7 days and all-time thumbs totals in listAgents (lib/agents.ts); the editor has no analytics tab (TABS in components/agents/AgentEditor.tsx). A team cannot decide whether to widen the agent's scope without knowing how often it resolves vs hands off and which questions it fails. First scope: a 'Performance' tab with 30-day series of conversations, handoff rate, step_limit rate, tool error rate by tool, thumbs ratio, and top unanswered queries (search_knowledge calls that returned 'no relevant knowledge found'), all from existing tables.\n\nPriority: high. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Board: Add real-time multiplayer with live cursors and element-level merge",
@@ -75,13 +77,17 @@
     "title": "Board: Add pinned comment threads with @mentions and resolve",
     "description": "Miro lets anyone pin a comment to a spot or object, @mention teammates, reply in threads and resolve them, with notifications (https://help.miro.com/hc/articles/360017572054); FigJam does the same. Our whiteboard has no comments at all: components/board/BoardEditor.tsx only renders the canvas, name and share popover, and the boards table in lib/schema/migrations.ts has no comment storage (components/board/BoardComments.tsx belongs to the public feedback board). Async review is how small remote teams actually use whiteboards between meetings. First scope: board_comments table with x/y or element id anchor, a comment tool and side panel reusing the Docs mention popover and lib/notifications.ts for @mentions.\n\nPriority: high. Effort: M. Compared with Miro.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Board: Ship a starter template gallery (retro, brainstorm, user flow, kanban, roadmap)",
     "description": "Miro's free plan includes 7,000+ templates (https://miro.com/pricing/, https://miro.com/templates/) and FigJam includes templates on every plan; a blank canvas is the main reason new teams bounce. Today create() in components/board/BoardList.tsx always POSTs an empty board and lib/boards.ts createBoard inserts scene ''; there is no template concept, although Docs already has lib/docs-templates.ts as a pattern. First scope: 8 to 10 built-in scenes (retro, crazy 8s, impact/effort matrix, user story map, weekly planning, flowchart, org chart, SWOT) stored as JSON in the repo, a 'New from template' picker, and 'Save board as template' for the workspace.\n\nPriority: high. Effort: M. Compared with Miro.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Board: Add sticky notes as a first-class tool with colors, bulk paste and tags",
@@ -135,7 +141,9 @@
     "title": "Cal: Add dropdown, radio, checkbox, multi-line and phone questions, plus invitee guests",
     "description": "Calendly invitee questions support one line, multiple lines, radio buttons, checkboxes, dropdown and phone number, and invitees can add guests to the meeting (https://help.calendly.com/hc/en-us/articles/226893168, https://help.calendly.com/hc/en-us/articles/226766767). Our customField in lib/calendar-schema.ts only allows text, number and boolean, and bookingRules.allowGuests exists in the schema but nothing in the editor, booking page or emails uses it. Qualification questions like company size or budget become free text that cannot be filtered or routed, and the guest's colleague never gets the invite. First scope: add select/radio/checkbox/textarea/phone types with options, add a guests field (up to 10 emails) gated by allowGuests, and send them the .ics and Google attendee entry.\n\nPriority: high. Effort: M. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Chat: Email unread agent replies to offline visitors and thread email replies back",
@@ -275,19 +283,25 @@
     "title": "Flow: Add actions to update CRM records, create tasks and update Track issues",
     "description": "Zapier and n8n app nodes cover create, update, get and search for every object (for example the n8n HubSpot node: contacts, deals, tasks, engagements, https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.hubspot/). Flow can only create a contact (an existing email returns created:false without updating fields), enroll in a sequence, list deals created in the last N hours, and create a Track issue (lib/flow-engine.ts crmContactNode, crmDealsNode, trackIssueNode). There is no update contact, find contact, create or update deal, move deal stage, create CRM task or note, update issue status or assignee, or create a Cal booking link, even though CRM workflows already implement update_field and create_task (lib/crm-workflow-catalog.ts). Cross-app automation is the reason to use Flow instead of Zapier, so these are table stakes. First scope: app.crm_contact upsert plus app.crm_deal (create/update/move stage), app.crm_task and app.track_issue update, with pickers instead of raw IDs for projectId, sequenceId and robotId.\n\nPriority: high. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Flow: Add date and text formatter filters (format, add time, timezone, replace, split)",
     "description": "Zapier Formatter is used in a large share of Zaps: date format, add or subtract time (+1 day -2 hours), timezone conversion, text replace, split, truncate, number formatting (https://help.zapier.com/hc/en-us/articles/31162113958925). n8n exposes Luxon date helpers and string helpers in every expression. Our template engine has 13 filters and {{now}} only as an ISO string, with no date formatting, date math, replace, split, slice or round (lib/flow-template.ts applyFilter), and unknown filters are silently ignored. Without this, users fall back to the Code step, which needs Vercel Sandbox and is unavailable on many self-hosts. First scope: add date:'format':tz, add:'+1d', replace, split, slice, round and fail validation on unknown filter names.\n\nPriority: high. Effort: S. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Flow: Let webhooks reply with custom data and accept GET and header or basic auth",
     "description": "n8n's Webhook node accepts GET, POST, PUT, PATCH, DELETE and HEAD, supports basic, header and JWT auth, and can respond when the last node finishes or through a Respond to Webhook node with custom status, headers and body (https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/, https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.respondtowebhook/). Our hook route only exports POST and always answers 202 {runId} before the flow runs (app/api/flow/hooks/[token]/route.ts). That blocks verification handshakes (Meta/WhatsApp hub.challenge, Slack url_verification), form handlers that need a redirect, and small APIs built on Flow. First scope: GET support, an optional shared-secret header check, and a 'Respond to webhook' node that waits up to about 10 s for a synchronous answer.\n\nPriority: high. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Flow: Add an approval step that pauses a run until someone approves in Slack or email",
@@ -347,13 +361,17 @@
     "title": "Notes: Add image and file attachments with drag, drop and paste into a note",
     "description": "Evernote treats attachments (images, PDFs, audio, any file) as first-class note content, and its 2026 releases added image annotation, a PDF editor, image resizing in tables and attachment printing (https://releasebot.io/updates/evernote). Our notes can only hold text blocks: DocsBlockType has no image or file type (lib/docs-types.ts) and there is no upload route under app/api/notes, although lib/uploads.ts already powers attachments in Track, Chat and CRM tasks. Without attachments users cannot save receipts, whiteboard photos, screenshots or contracts, which is the core everyday use of a notes app. First scope: an image block and a file block in the Notes editor, upload via paste, drop and a button using lib/uploads.ts, rendered in the editor, the trash view and the public share page.\n\nPriority: high. Effort: M. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Notes: Add reminders with date and time that notify in-app and by email",
     "description": "Evernote lets you set a reminder on any note with a date and time, lists reminders at the top of the note list and can send email alerts (https://help.evernote.com/hc/articles/208314338); Google Keep adds time and location reminders synced to every device (https://9to5google.com/2023/01/31/what-you-can-do-google-keep/). Our note schema has no reminder or due field (lib/notes-schema.ts, lib/notes-types.ts NoteSummary) and Notes never touches lib/notifications.ts or the cron jobs. Reminders turn a passive note into a follow-up and are table stakes in every competitor's free tier. First scope: one reminder_at per note, a bell button in the note bar, a Reminders section in the nav, and a cron that sends an in-app notification plus an email when due.\n\nPriority: high. Effort: M. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Notes: Include notes in the global Cmd+K search results",
@@ -383,13 +401,17 @@
     "title": "Robots: Send failure alerts and auto-pause schedules after N consecutive failures",
     "description": "Axiom.ai notifies by email or webhook when a run fails, succeeds, or succeeds with warnings (https://axiom.ai/docs/troubleshooting/error-handling), and UiPath Orchestrator sends Error alerts for failed jobs and disables a trigger after its job fails five times in a row (https://docs.uipath.com/orchestrator/standalone/2023.4/user-guide/alerts). We only emit robot.run.failed (lib/robots.ts); there is no in-app or email notification unless the user builds a Flow, and lib/notifications.ts has no robot hook. A scheduled robot that silently fails for a week is the top reason people stop trusting RPA. First scope: per-robot setting 'notify on failure' (creator and admins, in-app plus email, digest at most once per hour) and an auto-pause after 5 consecutive scheduled failures with a banner in RobotsHome.\n\nPriority: high. Effort: M. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Robots: Capture a screenshot, URL and DOM snippet automatically when a step fails",
     "description": "Browserbase records every session as video with a Session Inspector and live debug URL so failures can be replayed (https://docs.browserbase.com/features/session-recording, https://docs.browserbase.com/features/session-debugger). Our interpreter only takes screenshots when the robot has an explicit screenshot step; on a failed step it logs a code like s3: action_timeout plus the first line of the Playwright message (lib/robots-interpreter.ts runList). Without seeing the page at the moment of failure (cookie banner, login wall, changed layout) users cannot fix a robot. First scope: in the catch of runList, take one failure screenshot (outside the 5-shot cap), record page.url() and the outerHTML of the nearest match or body excerpt, and show them next to the failed log row in RunsPanel.\n\nPriority: high. Effort: S. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Robots: Record fallback selectors per step and self-heal when the primary one breaks",
@@ -473,7 +495,9 @@
     "title": "Agents: Alert the owner when thumbs-down, tool errors or step limits spike",
     "description": "Fin Monitors evaluate live conversations against standards you define and alert when a threshold is crossed (https://fin.ai/testing, https://fin.ai/pricing). We record ratings in agent_feedback, tool errors in agent_tool_calls and the step_limit status in runAgent (lib/agents.ts), but only handoffs produce a notification (lib/agent-tools.ts). A small team will not watch a dashboard daily; a push when something breaks (for example a Cal event type deactivated making every booking fail) is what keeps an agent safe to leave running. First scope: hourly cron check per agent for tool error rate, thumbs-down count and step_limit count over the last 24h vs threshold, sending one in-app and email notification with a link to the failing conversations.\n\nPriority: medium. Effort: S. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Agents: Answer email threads from CRM inboxes as a channel, draft-first",
@@ -491,7 +515,9 @@
     "title": "Board: Store pasted images in blob storage instead of inline base64 in the scene",
     "description": "Miro and FigJam handle boards full of screenshots without size errors. We keep every image as a dataURL inside the scene JSON (buildScene in components/board/BoardEditor.tsx keeps files inline) under a 4 MB cap (lib/boards-types.ts BOARD_MAX_SCENE_BYTES), so a handful of screenshots triggers the 'too large' block and stops saving, and every autosave re-uploads all images. lib/uploads.ts already provides Vercel Blob or local disk storage for Chat and Track attachments. First scope: on new file, upload it via lib/uploads.ts, replace dataURL with the blob URL in the files map, and lazy-load files on open, keeping the inline path as fallback for self-host without a token.\n\nPriority: medium. Effort: M. Compared with Miro.",
     "product": "board",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Board: Embed live boards in Docs pages with a /board block",
@@ -503,7 +529,9 @@
     "title": "Board: Add board version history with hourly snapshots and restore as copy",
     "description": "Miro backs up boards hourly and at the end of each session, keeps versions for 90 days and restores a version as a separate board (https://help.miro.com/hc/articles/360021668819). We store only the latest scene in the boards row (lib/schema/migrations.ts) and saveBoardScene in lib/boards.ts overwrites it, so an accidental delete-all or a 'keep mine' overwrite is unrecoverable; Docs already has lib/docs-versions.ts. First scope: write a board_versions snapshot at most once per hour per board on save, list them in a side panel with editor and time, and restore into a new board via the existing duplicate path.\n\nPriority: medium. Effort: M. Compared with Miro.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Board: Add guest edit links and per-board access instead of workspace-wide only",
@@ -515,7 +543,9 @@
     "title": "Board: Persist the shape library and enable installing libraries from Excalidraw's catalog",
     "description": "Miro and FigJam keep team asset libraries (FigJam Professional 'Team libraries', https://www.figma.com/figjam/jamboard-alternative/), and Excalidraw+ sells persistent team libraries. Our ExcalidrawCanvas in components/board/ExcalidrawCanvas.tsx passes no onLibraryChange, libraryReturnUrl or useHandleLibrary adapter (all exported by @excalidraw/excalidraw 0.18), so items a user adds to the library vanish on reload and 'Browse libraries' cannot import back into the app. This is a visible defect in a feature the UI already advertises. First scope: useHandleLibrary with a workspace-scoped adapter stored in a board_libraries row, and libraryReturnUrl pointing to the current board so #addLibrary imports work.\n\nPriority: medium. Effort: S. Compared with Miro.",
     "product": "board",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Cal: Add daily, weekly and monthly meeting limits per event type and per host",
@@ -543,13 +573,17 @@
     "title": "Cal: Add one-off meetings that offer hand-picked times outside normal availability",
     "description": "Calendly one-off meetings let the host pick specific slots on a calendar, including over non-Calendly events or outside working hours, then share a link or paste the times into an email; Meeting Polls extend this with voting (https://help.calendly.com/hc/en-us/articles/4406031977623, https://help.calendly.com/hc/en-us/articles/4411543910551). We have single-use links (singleUse in lib/calendar.ts) but they still use the event's regular schedule, so a host cannot offer 'Tuesday 18:00 or Thursday 8:00' to one VIP. This is one of the most common daily actions for sellers and founders. First scope: a 'Share specific times' dialog that creates a hidden single-use event type with explicit slot overrides and a copy-as-text option; polls can follow later.\n\nPriority: medium. Effort: M. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Cal: Ship a booking analytics view with created, cancelled, no-show and popular times",
     "description": "Calendly Analytics shows created, completed, rescheduled and canceled events, popular event types and popular times for up to a year, filterable by user and event type, on Standard and up (https://calendly.com/help/calendly-analytics). Our Cal overview (app/[locale]/app/calendar/page.tsx) only shows an upcoming-7-days count and the next five bookings. Without trends a small team cannot see no-show rate, which rep gets demos, or which hours to open. First scope: a stats tab over calendar_bookings for a date range with counts by status, by event type and host, cancellation and no-show rates, and a weekday by hour heatmap.\n\nPriority: medium. Effort: M. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Cal: Let routing forms end in a URL or message, log submissions and pass answers on",
@@ -597,13 +631,17 @@
     "title": "Chat: Add custom conversation attributes and require them before resolving",
     "description": "Intercom lets admins define conversation data attributes (e.g. topic, product area) and mark some as required before a teammate can close, which keeps reporting consistent (https://www.intercom.com/changes/en/2156-categorize-conversations-consistently-with-required-conversation-data-attributes-and-more). We only have free-form tags (lib/chat-inbox.ts) and the fixed columns of chat_conversations; reports in lib/chat-inbox.ts cannot answer 'how many billing questions this month' reliably because tags are optional and unstructured. First scope: per-widget list or text attributes edited in the conversation details panel, an optional 'required to resolve' flag enforced in PATCH, and a breakdown by attribute in reports.\n\nPriority: medium. Effort: M. Compared with Intercom.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Chat: Merge duplicate conversations from the same visitor into one thread",
     "description": "Intercom offers 'Merge into' inside a conversation to combine duplicates, and users are now asking for bulk merge (https://community.intercom.com/ideas/bulk-merge-conversations-from-inbox-multi-select-14762). We have no merge: a visitor who writes again after resolve, or from the pre-chat form and a later upload, ends up with separate conversations, each with its own SLA timer and assignee (lib/chat-data.ts createChatConversation). Duplicates inflate SLA breaches and split context across teammates. First scope: a 'Merge into…' action in the conversation header limited to conversations of the same visitor, moving messages, notes and tags into the target and resolving the source with a system message.\n\nPriority: medium. Effort: S. Compared with Intercom.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Chat: Push new messages in real time and add browser notifications with sound",
@@ -629,13 +667,17 @@
     "title": "CRM: Support @mentions in notes and tasks with in-app and email notifications",
     "description": "HubSpot lets users @mention teammates in activities and comments on contacts, companies and deals, and the mentioned user gets a notification if they can see the record (https://knowledge.hubspot.com/records/mention-a-user-on-a-record). Our note and task composer is a plain textarea (components/crm/Timeline.tsx:380) with no mention parsing, although lib/notifications.ts already exists and is used by lead assignment (lib/crm-assignment.ts:152). Handing a deal to a teammate today means pinging them in another tool. First scope: @ autocomplete of workspace members in the timeline composer, store mentions on the activity, notify via createNotification respecting record visibility (lib/crm-visibility.ts).\n\nPriority: medium. Effort: M. Compared with HubSpot.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "CRM: Add multi-select, URL, phone, currency and user field types to custom fields",
     "description": "HubSpot properties support single and multiple checkboxes, dropdowns, radio, number with currency formatting, date, file, HubSpot user and more (https://knowledge.hubspot.com/properties/property-field-types-in-hubspot). Our custom fields accept only text, number, date, select and boolean (lib/crm-schema.ts:276, components/crm/customPropFields.ts). Common small-team fields like 'Products of interest' (multi), 'LinkedIn URL', 'Secondary phone' or 'Account manager' (a user) end up as free text that cannot be filtered or clicked. First scope: multiselect (JSON array, 'contains any' filter), url and phone (clickable), currency-formatted number, and user (member picker, filterable like owner).\n\nPriority: medium. Effort: M. Compared with HubSpot.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "CRM: Count synced emails toward deal rotting and make the threshold per stage",
@@ -711,7 +753,9 @@
     "title": "Flow: Prune old runs and steps with a retention window per workspace",
     "description": "n8n prunes finished executions by default after 14 days or 10,000 executions, never touching waiting runs (https://docs.n8n.io/hosting/scaling/execution-data/); Zapier keeps run history for a plan-based window. Flow never deletes flow_runs, flow_steps or their stored inputs and contexts, which can reach 2 MB input and 8 MB context per run (lib/flow.ts MAX_RUN_INPUT, lib/flow-engine.ts CONTEXT_TOTAL_LIMIT), and rows are only removed when the flow itself is deleted (ON DELETE CASCADE). The UI can only show the last 100 runs anyway (listRuns clamps to 100), so older history is dead weight on Turso and a privacy liability for trigger payloads with personal data. First scope: a pruning pass in the cron tick deleting finished runs older than 30 days (env configurable for self-host), keeping waiting runs.\n\nPriority: medium. Effort: S. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Flow: Connect Google, Slack and Notion with one-click OAuth that refreshes tokens",
@@ -735,7 +779,9 @@
     "title": "Flow: Email the flow owner when runs fail and offer automatic replay",
     "description": "Zapier emails owners about errors and offers autoreplay, which retries a failed step up to 5 times and holds the error email until the last attempt fails, set per account or per Zap (https://help.zapier.com/hc/en-us/articles/8496241726989). n8n uses an Error Trigger workflow. Flow has per-node retries, an optional error flow and manual rerun from a step, but nothing tells anyone a run failed unless they built an error flow themselves (no notification code in lib/flow-engine.ts finalize). Broken automations that fail silently are the main reason small teams stop trusting them. First scope: a per-flow 'notify on failure' toggle (on by default) sending one email digest per flow per hour, using the existing notifications and email modules.\n\nPriority: medium. Effort: S. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Flow: Add Wait until a date and wait for a resume call to the Delay step",
@@ -767,19 +813,25 @@
     "title": "Link: Add utm_term/utm_content and saved workspace UTM templates",
     "description": "Dub's UTM builder covers all five UTM params plus ref and lets teams save workspace-level UTM templates applied from the link builder; templates are on the free plan (https://dub.co/help/article/how-to-create-utm-templates, https://dub.co/pricing/links). Our applyUtm in lib/links.ts only handles source, medium and campaign, and every link or bulk run retypes them by hand. Consistent UTM naming is the main reason small marketing teams adopt a shortener. First scope: utm_term and utm_content fields, a link_utm_templates table, and a template picker in NewLinkForm, QuickLinkModal and BulkCreateForm.\n\nPriority: medium. Effort: M. Compared with Bitly / Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Link: Emit link.updated and link.deleted webhooks and scope click webhooks",
     "description": "Dub emits link.created, link.updated, link.deleted and link.clicked, and since July 2026 click webhooks can target all links, selected folders or selected links (https://dub.co/docs/concepts/webhooks/event-types, https://dub.co/changelog/improve-link-clicked-webhook). Our WEBHOOK_EVENTS in lib/webhooks-events.ts has only link.created and link.clicked; applyLinkPatch, the DELETE routes and bulkLinkAction emit nothing. Anyone syncing links to a sheet, CRM or Flow cannot see edits or deletions, and click webhooks fire for every link in the workspace. First scope: emit link.updated and link.deleted (single and bulk) and add an optional tag filter on link.clicked subscriptions.\n\nPriority: medium. Effort: S. Compared with Bitly / Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Link: Extend v1 API create with UTM, expiry, password, OG, targeting and externalId",
     "description": "Dub's create link endpoint accepts utm_*, expiresAt, expiredUrl, password, preview fields, geo/ios/android, A/B variants, tagNames, folderId and an externalId for upserts (https://dub.co/docs/api-reference/endpoint/create-a-link). Our POST /api/v1/links createSchema only takes url, domain, slug, title and tags, even though createLink supports UTM, expiry, password, max clicks and OG; it even maps an invalid_date error it can never produce. There are also no v1 endpoints for tags, domains or bulk create. First scope: pass every CreateLinkInput field through v1, add externalId with lookup and upsert, and expose GET /api/v1/links/domains and bulk create.\n\nPriority: medium. Effort: S. Compared with Bitly / Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Link: Publish a shareable read-only analytics page for a link or tag",
@@ -791,13 +843,17 @@
     "title": "Link: Record who created each link and filter the list by creator",
     "description": "Dub workspaces show the creator on each link card and support role-based access across team members (https://dub.co/data-model, https://dub.co/help/article/folders-rbac). Our links table only stores user_id, which is the workspace owner (lib/session.ts resolves the effective user to the owner), so in a shared workspace nobody can tell who made a link or find their own. This is the first thing a 5 to 20 person team asks for after inviting colleagues. First scope: created_by column filled from the acting user, avatar in LinksTable, and a 'created by' filter in FilterBar and the API.\n\nPriority: medium. Effort: S. Compared with Bitly / Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Notes: Keep version history so a note can be previewed and restored",
     "description": "Evernote's Note history lets you preview past versions by date, restore one, or export it (https://help.evernote.com/hc/articles/208313858). Our notes table stores only the current content and there is no history table or UI (lib/notes.ts, lib/schema/migrations.ts 018_notes_core), while Docs already has a versions module (lib/docs-versions.ts) that could be reused. With autosave on every keystroke pause, an accidental select-all delete is unrecoverable. First scope: snapshot content at most every 10 minutes of editing and before restore, keep the last 30 per note, and add a History panel with preview and restore.\n\nPriority: medium. Effort: M. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Notes: Turn a note or selected checklist items into Track issues with a backlink",
@@ -827,25 +883,33 @@
     "title": "Notes: Support search operators like tag:, notebook:, intitle:, created: and todo:",
     "description": "Evernote supports advanced search syntax such as intitle:coffee, tag:travel, created:20240101 and relative dates like created:day-7, combinable in one query (https://help.evernote.com/hc/articles/208313828). Our searchTerms strips everything except letters and digits (lib/notes-types.ts), so 'tag:clip' becomes two plain words, and tags are not indexed in notes_fts at all. Power users with hundreds of notes rely on these filters to find things fast. First scope: parse tag:, notebook:, intitle:, created:/updated: with day-N and week-N, and todo:true/false into SQL filters before running the FTS match, and index tags in FTS.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Notes: Link notes to each other with [[ ]] and show backlinks",
     "description": "Evernote supports note links that jump between notes and a backlinks panel listing every note that links to the current one (https://help.evernote.com/hc/articles/208313588, https://evernote.com/blog/introducing-backlinks/); Obsidian and Bear make this the core of their model. The Docs editor has a [[ page mention menu but it is explicitly disabled when embedded in Notes (components/docs/DocsEditor.tsx, mentionMatch is null when embedded). Linking turns isolated notes into a personal knowledge base and is expected by anyone migrating from Obsidian or Bear. First scope: enable [[ in Notes against the person's own notes, store links in a note_links table on save, and show a Backlinks section under the note.\n\nPriority: medium. Effort: M. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Notes: Import Evernote ENEX and Markdown files, and export notes as Markdown",
     "description": "Evernote exports notebooks as ENEX and Obsidian's official Importer converts ENEX to Markdown, including tags and stacks (https://obsidian.md/help/import/evernote); Evernote's free plan is capped at 50 notes and 1 notebook (https://help.evernote.com/hc/en-us/articles/23565231682323), which pushes users to switch. We have no import or export path for Notes (no route under app/api/notes), while the suite already has importers for CRM and Bitly and a Docs Markdown converter (lib/docs-markdown.ts). A one-click Evernote import is the single strongest acquisition hook against a paywalled incumbent, and Markdown export fits our open source promise of no lock-in. First scope: upload an .enex file, map notebooks, tags, created/updated dates and basic formatting to blocks; plus a 'Download as Markdown' action per note and a zip for all notes.\n\nPriority: medium. Effort: M. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Robots: Add continue-on-error per step and per loop item with a warnings status",
     "description": "Axiom.ai offers Continue on error, a Try/Catch step, and loops that log a warning for a failing row instead of stopping, plus 'succeeded with warnings' notifications (https://axiom.ai/docs/no-code-tool/reference/settings/error-handling/continue-on-error/, https://axiom.ai/blog/getting-to-know-the-trycatch-step/). In our runList any failed step throws and aborts the whole run, including one bad item inside a loop_over of 50 URLs (lib/robots-interpreter.ts), and RobotRunStatus only has success and failed. Losing 49 good results because of one broken page makes loop robots unusable. First scope: onError: 'fail' | 'continue' on leaf steps and loop_over, collect per-item errors into vars.errors, and a new 'partial' run status shown in RunsPanel and emitted in robot.run.finished.\n\nPriority: medium. Effort: S. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Robots: Detect changes between runs and emit a robot.output.changed event with a diff",
@@ -869,7 +933,9 @@
     "title": "Robots: Replace the robot id text box in the Flow node with a picker that loads inputs",
     "description": "UiPath Orchestrator and Axiom.ai let you pick the automation to trigger and show its parameters (https://docs.uipath.com/orchestrator/docs/alerts, https://www.axiom.ai/docs/no-code-tool/how-it-works/loop). Our app.robot_run node defines robotId as a plain text field with placeholder 'robot id' and inputs as free key/value pairs (lib/flow-schema.ts), and nothing in components/flow resolves robots, while sub-flows get a flowRef picker. Users must copy a UUID from the URL and guess input names, so 'trigger a robot from Flow' is technically present but hard to use. First scope: a robotRef field kind that lists workspace robots and prefills the inputs kv with the robot's declared input names and required flags, plus outputs autocompletion for {{steps.x.output.var}}.\n\nPriority: medium. Effort: S. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Robots: Add natural-language act and extract steps backed by the AI gateway with caching",
@@ -997,7 +1063,9 @@
     "title": "Chat: Export conversation transcripts and email a transcript to the visitor",
     "description": "Intercom added bulk export of conversations as PDF or plain text from the actions menu in June 2026 (https://www.intercom.com/changes/en/page/1), and Crisp and Chatwoot let agents send the transcript to the customer by email. We export only aggregate report rows as CSV (chatReportToCsv in lib/chat-inbox.ts); a single thread can only be copied by hand or logged to the CRM. Teams need transcripts for refunds, disputes and handing context to someone outside the tool. First scope: 'Download transcript' (text) in the conversation menu, an 'Email transcript' action to the visitor's email, and a CSV of messages in the reports export.\n\nPriority: low. Effort: S. Compared with Intercom.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "CRM: Add an AI summary card on contact, company and deal pages",
@@ -1009,7 +1077,9 @@
     "title": "CRM: Attach files to notes and records, not only to tasks",
     "description": "HubSpot has an Attachments card on every record and an attach button in the note and activity editor (https://knowledge.hubspot.com/records/add-and-remove-attachments-from-records). We only store files for tasks (crm_task_files, components/crm/TaskFiles.tsx); notes are a plain textarea with no attachments (components/crm/Timeline.tsx:380), and contacts, companies and deals have no files panel. Signed contracts, briefs and screenshots end up in Drive with no link to the deal. First scope: generalize crm_task_files into activity and record attachments, an attach icon in the note composer, and an Attachments side panel on record pages that respects record visibility.\n\nPriority: low. Effort: M. Compared with HubSpot.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "CRM: Show company logos and prefill basic company data from the domain",
@@ -1033,7 +1103,9 @@
     "title": "Link: Capture city, region and full referrer URL on each click",
     "description": "Dub exposes regions, cities and referer_urls as analytics dimensions, and Bitly keeps city-level data as a premium upsell (https://dub.co/docs/api-reference/endpoint/retrieve-analytics, https://bitly.com/pages/pricing). contextFromHeaders in lib/track.ts stores only the referrer hostname and country, although Vercel already sends x-vercel-ip-city and x-vercel-ip-country-region headers on the same request. Local businesses and event promoters care more about the city than the country. First scope: add city, region and referrer_url columns to clicks, fill them from the platform headers, and show them in breakdowns and CSV exports.\n\nPriority: low. Effort: S. Compared with Bitly / Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Link: Allow domain choice and per-row slug and title in bulk create",
@@ -1045,7 +1117,9 @@
     "title": "Link: Add internal comments and a duplicate action to links",
     "description": "Dub lets teams add comments to a link, shown as a bubble on the link card, and stores them as a comments field in the API (https://dub.co/help/article/link-comments); Short.io exposes duplicate link actions in its API (https://help.short.io/en/articles/9790533-how-to-delete-links). Our links have only a title (lib/links.ts schema) and LinksTable row actions are copy, QR, edit, archive and delete with no duplicate. Notes like 'used in the October print flyer' and cloning a link to vary the UTM are routine for marketers. First scope: a comments text column editable in EditLinkForm with an icon in the row, and a Duplicate row action that opens the create form prefilled.\n\nPriority: low. Effort: S. Compared with Bitly / Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Notes: Make Notes an installable PWA with offline reading and queued edits",
@@ -1069,7 +1143,9 @@
     "title": "Robots: Export run tables to CSV and prune old runs with a retention policy",
     "description": "Browse AI lets users download captured lists and keeps task data for a plan-based retention window (https://www.saaspricepulse.com/tools/browse-ai), and Browserbase states 7-day data retention on its free plan (https://docs.browserbase.com/guides/plans-and-pricing). Our RunsPanel can show output as a table but only offers copying the JSON (components/robots/RunsPanel.tsx), and nothing ever deletes robot_runs rows, which store up to 200 KB of output and 600 log entries each, so a 15-minute schedule grows the table without bound (lib/robots.ts, lib/schema/migrations.ts). First scope: a 'Download CSV' button per table variable, and a cron cleanup that keeps the last 200 runs or 90 days per robot (configurable via env) while keeping the latest success.\n\nPriority: low. Effort: S. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
     "product": "robots",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-20-backlog-2"
   },
   {
     "title": "Track: Create issues from email with a per-project intake address",
