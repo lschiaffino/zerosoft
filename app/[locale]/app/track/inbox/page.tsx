@@ -33,6 +33,7 @@ export default async function TrackInboxPage(props: { params: Promise<{ locale: 
           assignedYou: t('activity.assignedYou'),
           commentedOn: t('activity.commentedOn'),
           changedStatus: t('activity.changedStatus'),
+          updatedIssue: t('activity.updatedIssue'),
         }}
       />
     </div>

@@ -8,6 +8,8 @@ import { formatDate } from '@/lib/utils';
 import type { ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
 import type { TrackStatusRow } from '@/lib/db';
 import type { IssuePatch } from '@/lib/track-tasks';
+import { groupIssues, groupPreset, type BoardGroupBy } from '@/lib/track-views';
+import type { IssueDraft } from './useIssueStore';
 import StatusBadge from './StatusBadge';
 import TrackIcon from './TrackIcon';
 import { AssigneeMenu, DueDateMenu, PriorityIcon, PriorityMenu, QuickAdd, StatusDot, StatusToggle } from './InlineEditors';
@@ -18,10 +20,18 @@ interface IssuesBoardProps {
   issues: TrackIssueWithStatus[];
   statuses: TrackStatusRow[];
   locale: string;
-  onStatusChange?: (issueId: string, statusId: string) => void;
+  /** Mover una card a otra columna (o cambiar su status desde el select). */
+  onMove?: (issueId: string, patch: IssuePatch) => void;
+  /** Campo que define las columnas (por defecto status). */
+  groupBy?: BoardGroupBy;
+  /** Nombres de proyecto por id (agrupar por proyecto). */
+  projectNames?: Record<string, string>;
   labels: {
     noAssignee: string;
     empty: string;
+    /** Columnas "sin valor" al agrupar por cycle / label. */
+    noCycle?: string;
+    noLabel?: string;
   };
   /** Edición inline en las cards (checkbox, prioridad, asignado, fecha). */
   editing?: {
@@ -31,8 +41,8 @@ interface IssuesBoardProps {
     ui: TrackUiLabels;
     today: string;
   };
-  /** "+ New task" al pie de cada columna, con ese status preseteado. */
-  onQuickCreate?: (title: string, statusId: string) => void;
+  /** "+ New task" al pie de cada columna, con el valor de la columna preseteado. */
+  onQuickCreate?: (title: string, preset: Partial<IssueDraft>) => void;
 }
 
 const DRAG_TYPE = 'application/x-track-issue';
@@ -41,7 +51,9 @@ export default function IssuesBoard({
   issues,
   statuses,
   locale,
-  onStatusChange,
+  onMove,
+  groupBy = 'status',
+  projectNames,
   labels,
   editing,
   onQuickCreate,
@@ -50,12 +62,34 @@ export default function IssuesBoard({
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStatusId, setOverStatusId] = useState<string | null>(null);
 
-  const byStatus = statuses.map((status) => ({
-    status,
-    issues: issues.filter((i) => i.status_id === status.id),
-  }));
+  // Status y prioridad muestran todas sus columnas aunque estén vacías; el
+  // resto, solo los valores que tienen issues (más "sin valor" al final).
+  const columns = groupIssues(issues, groupBy, {
+    statuses,
+    projectNames,
+    includeEmpty: groupBy === 'status' || groupBy === 'priority',
+  }).filter((g) => groupBy !== 'status' || g.key !== '' || g.issues.length > 0);
 
-  const canDrag = Boolean(onStatusChange);
+  /** Patch que aplica soltar en una columna (o null si ese agrupado no se puede mover). */
+  const dropPatch = (key: string): IssuePatch | null => groupPreset(groupBy, key, { movable: true });
+  const presetFor = (key: string): Partial<IssueDraft> | null => groupPreset(groupBy, key);
+  const sameColumn = (issue: TrackIssueWithStatus, key: string) =>
+    groupBy === 'status'
+      ? issue.status_id === key
+      : groupBy === 'priority'
+        ? issue.priority === key
+        : (issue.assignee_id ?? '') === key;
+
+  const canDrag = Boolean(onMove) && (groupBy === 'status' || groupBy === 'priority' || groupBy === 'assignee');
+  const priorityName = (key: string) => editing?.ui.priorities.find((p) => p.value === key)?.label ?? key;
+  const columnName = (key: string, name: string) => {
+    if (groupBy === 'priority') return priorityName(key);
+    if (key) return name;
+    if (groupBy === 'assignee') return labels.noAssignee;
+    if (groupBy === 'cycle') return labels.noCycle ?? '';
+    if (groupBy === 'label') return labels.noLabel ?? '';
+    return name;
+  };
 
   const onColumnDragOver = (e: DragEvent<HTMLDivElement>, statusId: string) => {
     if (!dragId && !e.dataTransfer.types.includes(DRAG_TYPE)) return;
@@ -75,38 +109,49 @@ export default function IssuesBoard({
     const id = dragId ?? e.dataTransfer.getData(DRAG_TYPE);
     setDragId(null);
     setOverStatusId(null);
-    if (!id || !onStatusChange) return;
+    if (!id || !onMove) return;
     const issue = issues.find((i) => i.id === id);
-    if (issue && issue.status_id !== statusId) onStatusChange(id, statusId);
+    const patch = dropPatch(statusId);
+    if (issue && patch && !sameColumn(issue, statusId)) onMove(id, patch);
   };
 
   return (
     <div className={`track-board${dragId ? ' is-dragging' : ''}`}>
-      {byStatus.map(({ status, issues: colIssues }) => {
-        const isOver = overStatusId === status.id;
+      {columns.map((column) => {
+        const colIssues = column.issues;
+        const colKey = column.key;
+        const title = columnName(colKey, column.name);
+        const isOver = overStatusId === colKey;
         const isSource = dragId !== null && colIssues.some((i) => i.id === dragId);
+        const preset = presetFor(colKey);
         return (
           <div
-            key={status.id}
+            key={colKey || 'none'}
             className={`track-board-column${isOver && !isSource ? ' is-drop-target' : ''}`}
-            onDragOver={canDrag ? (e) => onColumnDragOver(e, status.id) : undefined}
-            onDragLeave={canDrag ? (e) => onColumnDragLeave(e, status.id) : undefined}
-            onDrop={canDrag ? (e) => onColumnDrop(e, status.id) : undefined}
-            aria-label={status.name}
+            onDragOver={canDrag ? (e) => onColumnDragOver(e, colKey) : undefined}
+            onDragLeave={canDrag ? (e) => onColumnDragLeave(e, colKey) : undefined}
+            onDrop={canDrag ? (e) => onColumnDrop(e, colKey) : undefined}
+            aria-label={title}
           >
             <div className="track-board-header">
-              {editing ? (
-                <span className="track-board-title">
-                  <StatusDot color={status.color} category={status.category} />
-                  {status.name}
-                </span>
+              {groupBy === 'status' && !editing ? (
+                <StatusBadge name={title} color={column.color ?? null} category={column.category ?? null} />
               ) : (
-                <StatusBadge name={status.name} color={status.color} category={status.category} />
+                <span className="track-board-title">
+                  {groupBy === 'status' && (
+                    <StatusDot color={column.color ?? null} category={column.category ?? null} />
+                  )}
+                  {groupBy === 'priority' && <PriorityIcon priority={colKey as TrackIssueWithStatus['priority']} />}
+                  {groupBy === 'label' && column.color && (
+                    <span className="track-label-tag-dot" style={{ background: column.color }} aria-hidden />
+                  )}
+                  {title}
+                </span>
               )}
               <span className="track-board-count">{colIssues.length}</span>
             </div>
             <div className="track-board-cards">
-              {colIssues.length === 0 && !onQuickCreate && <p className="track-board-empty">{labels.empty}</p>}
+              {colIssues.length === 0 && !(onQuickCreate && preset) && <p className="track-board-empty">{labels.empty}</p>}
               {colIssues.map((issue) => {
                 const pending = isPendingIssue(issue);
                 const draggable = canDrag && !pending;
@@ -222,12 +267,12 @@ export default function IssuesBoard({
                             )}
                           </div>
                         </Link>
-                        {onStatusChange && (
+                        {onMove && (
                           <div className="track-board-card-actions">
                             <select
                               aria-label={t('issues.changeStatus')}
                               value={issue.status_id ?? ''}
-                              onChange={(e) => onStatusChange(issue.id, e.target.value)}
+                              onChange={(e) => onMove(issue.id, { statusId: e.target.value })}
                             >
                               {statuses.map((s) => (
                                 <option key={s.id} value={s.id}>
@@ -242,11 +287,11 @@ export default function IssuesBoard({
                   </div>
                 );
               })}
-              {onQuickCreate && editing && (
+              {onQuickCreate && editing && preset && (
                 <QuickAdd
                   variant="card"
                   labels={editing.ui.quick}
-                  onCreate={(title) => onQuickCreate(title, status.id)}
+                  onCreate={(title) => onQuickCreate(title, preset)}
                 />
               )}
             </div>

@@ -124,7 +124,8 @@
     "addAttachment": "Adjunto",
     "addRelation": "Relación",
     "estimatePlaceholder": "Puntos",
-    "estimateUnit": "pts"
+    "estimateUnit": "pts",
+    "editDescription": "Editar descripción"
   },
   "subtasks": {
     "title": "Sub-issues",
@@ -172,7 +173,8 @@
     "editComment": "Editar",
     "deleteComment": "Borrar",
     "deleteCommentConfirm": "¿Borrar este comentario? No se puede deshacer.",
-    "edited": "editado"
+    "edited": "editado",
+    "updatedIssue": "{actor} actualizó {identifier}"
   },
   "relations": {
     "title": "Relaciones",
@@ -300,7 +302,7 @@
     "empty": "No hay notificaciones",
     "markAllRead": "Marcar todas como leídas",
     "loadMore": "Cargar más",
-    "emptyBody": "Acá llegan las menciones, asignaciones y cambios de estado de tus issues.",
+    "emptyBody": "Acá llegan las menciones, asignaciones, comentarios y cambios de los issues que seguís.",
     "unread": "Sin leer",
     "loadError": "No se pudo cargar la bandeja.",
     "someone": "Alguien"
@@ -519,5 +521,48 @@
       "statuses": "Estados",
       "triage": "Triage"
     }
+  },
+  "markdown": {
+    "write": "Escribir",
+    "preview": "Vista previa",
+    "toolbar": "Formato",
+    "bold": "Negrita",
+    "italic": "Itálica",
+    "code": "Código",
+    "list": "Lista",
+    "link": "Link",
+    "placeholderText": "texto",
+    "emptyPreview": "Todavía no hay nada para mostrar.",
+    "hint": "Acepta Markdown: **negrita**, _itálica_, `código`, listas y links."
+  },
+  "display": {
+    "groupBy": "Agrupar",
+    "sortBy": "Ordenar",
+    "noCycle": "Sin cycle",
+    "noLabel": "Sin label",
+    "groups": {
+      "none": "Sin agrupar",
+      "status": "Estado",
+      "assignee": "Responsable",
+      "priority": "Prioridad",
+      "cycle": "Cycle",
+      "label": "Label",
+      "project": "Proyecto"
+    },
+    "sorts": {
+      "newest": "Más nuevos",
+      "oldest": "Más viejos",
+      "updated": "Actualizados hace poco",
+      "priority": "Prioridad",
+      "due": "Vencimiento",
+      "identifier": "Identificador"
+    }
+  },
+  "subscription": {
+    "subscribe": "Suscribirme",
+    "unsubscribe": "Dejar de seguir",
+    "subscribed": "Te avisamos de los comentarios y cambios de este issue.",
+    "notSubscribed": "Suscribite para enterarte de los comentarios y cambios de este issue.",
+    "error": "No se pudo cambiar la suscripción. Probá de nuevo."
   }
 }

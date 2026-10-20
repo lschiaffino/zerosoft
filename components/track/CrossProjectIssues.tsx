@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter } from '@/i18n/navigation';
 import type { TrackIssueWithStatus, TrackProjectMeta } from '@/lib/track-data';
 import { DUE_BUCKETS, groupByDue, parseQuickTitle, type DueBucket } from '@/lib/track-tasks';
 import IssuesTable, { type OptionalColumn } from './IssuesTable';
@@ -10,6 +11,9 @@ import { useCreateShortcut, useIssueStore, type IssueDraft, type ProjectMap } fr
 import type { TrackUiLabels } from './ui-labels';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import IssueDisplayOptions from './IssueDisplayOptions';
+import GroupedIssuesTable from './GroupedIssuesTable';
+import { ISSUE_GROUPS, parseIssueGroup, type IssueGroupBy, type IssueSort } from '@/lib/track-views';
 
 interface TableLabels {
   identifier: string;
@@ -43,6 +47,8 @@ interface CrossProjectIssuesProps {
     /** `showing` es la plantilla ICU cruda con {shown} y {total}. */
     labels: { loading: string; loadMore: string; showing: string };
   };
+  /** Página Issues: agrupar y ordenar, guardado en la URL (?group=&sort=). */
+  display?: { sort: IssueSort; group: IssueGroupBy };
   /** "My tasks": agrupa por vencimiento y asigna lo nuevo a este usuario. */
   mine?: {
     userId: string;
@@ -70,7 +76,12 @@ export default function CrossProjectIssues({
   pagination,
   mine,
   empty,
+  display,
 }: CrossProjectIssuesProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [sort, setSort] = useState<IssueSort>(display?.sort ?? 'newest');
+  const [group, setGroup] = useState<IssueGroupBy>(display?.group ?? 'none');
   const today = useToday();
   const [modalOpen, setModalOpen] = useState(false);
   const projectMap = useMemo<ProjectMap>(() => Object.fromEntries(projects.map((p) => [p.id, p])), [projects]);
@@ -90,7 +101,9 @@ export default function CrossProjectIssues({
     setLoadingMore(true);
     try {
       const next = loadedPage.current + 1;
-      const res = await fetch(`/api/track/issues?page=${next}&pageSize=${pagination.pageSize}`).catch(() => null);
+      const res = await fetch(`/api/track/issues?page=${next}&pageSize=${pagination.pageSize}&sort=${sort}`).catch(
+        () => null,
+      );
       if (!res?.ok) {
         setLoadError(true);
         return;
@@ -109,9 +122,40 @@ export default function CrossProjectIssues({
     }
   };
 
+  // Cambiar el orden vuelve a la primera página (el orden lo resuelve el servidor).
+  const sortRequest = useRef(0);
+  const changeSort = async (next: IssueSort) => {
+    if (!pagination) return;
+    setSort(next);
+    const seq = ++sortRequest.current;
+    const res = await fetch(`/api/track/issues?page=1&pageSize=${pagination.pageSize}&sort=${next}`).catch(() => null);
+    if (seq !== sortRequest.current) return;
+    if (!res?.ok) {
+      setLoadError(true);
+      return;
+    }
+    const data = (await res.json()) as { rows: TrackIssueWithStatus[]; total: number };
+    loadedPage.current = 1;
+    setTotal(data.total);
+    store.setIssues(data.rows);
+  };
+
+  // La URL guarda el agrupado y el orden: recargar o compartir el link mantiene la vista.
+  const syncUrl = (nextGroup: IssueGroupBy, nextSort: IssueSort) => {
+    const sp = new URLSearchParams();
+    if (nextGroup !== 'none') sp.set('group', nextGroup);
+    if (nextSort !== 'newest') sp.set('sort', nextSort);
+    const qs = sp.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  const projectNames = useMemo(() => Object.fromEntries(projects.map((p) => [p.id, p.name])), [projects]);
+
   useCreateShortcut(() => setModalOpen(true), projects.length > 0 && !modalOpen);
 
   const projectOptions = useMemo(() => projects.map((p) => ({ id: p.id, name: p.name })), [projects]);
+
+  const listGroup = parseIssueGroup(group, ISSUE_GROUPS);
 
   const create = (projectId: string, draft: IssueDraft) => {
     void store.create(projectId, mine ? { assigneeId: mine.userId, ...draft } : draft);
@@ -187,14 +231,61 @@ export default function CrossProjectIssues({
           ))}
         </div>
       ) : (
-        <IssuesTable
-          issues={store.issues}
-          locale={locale}
-          labels={labels}
-          editing={editing}
-          hideColumns={hideColumns}
-          quickAdd={projects.length > 0 ? { onCreate: quickCreate, projects: projectOptions } : undefined}
-        />
+        <>
+          {display && (
+            <div className="track-toolbar">
+              <IssueDisplayOptions
+                group={listGroup}
+                groups={ISSUE_GROUPS}
+                sort={sort}
+                onGroupChange={(g) => {
+                  setGroup(g);
+                  syncUrl(g, sort);
+                }}
+                onSortChange={(s) => {
+                  syncUrl(listGroup, s);
+                  void changeSort(s);
+                }}
+                labels={ui.display}
+              />
+            </div>
+          )}
+          {listGroup !== 'none' ? (
+            <GroupedIssuesTable
+              issues={store.issues}
+              groupBy={listGroup}
+              projectNames={projectNames}
+              statusByName
+              locale={locale}
+              labels={labels}
+              groupLabels={ui.display}
+              priorities={ui.priorities}
+              editing={editing}
+              hideColumns={hideColumns}
+              quickAddProjects={projectOptions}
+              quickAddGroups={['priority', 'project']}
+              onQuickCreate={(text, preset, projectId) => {
+                const parsed = parseQuickTitle(text, today);
+                if (!parsed.title || !projectId) return;
+                create(projectId, {
+                  ...preset,
+                  title: parsed.title,
+                  priority: parsed.priority ?? preset.priority,
+                  dueDate: parsed.dueDate,
+                });
+              }}
+            />
+          ) : (
+            <IssuesTable
+              issues={store.issues}
+              locale={locale}
+              labels={labels}
+              editing={editing}
+              hideColumns={hideColumns}
+              quickAdd={projects.length > 0 ? { onCreate: quickCreate, projects: projectOptions } : undefined}
+            />
+          )}
+        </>
       )}
 
       {!mine && pagination && total > 0 && (

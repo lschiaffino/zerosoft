@@ -11,6 +11,9 @@ import { IssueGithubPanel, useIssueGithub } from './IssueGithub';
 import { Popover, PriorityIcon, TrackToast, useToday } from './InlineEditors';
 import { branchNameFor } from '@/lib/track-branch';
 import { TriageBanner } from './TriagePanel';
+import MarkdownEditor, { MarkdownView } from './MarkdownEditor';
+import TrackIcon from './TrackIcon';
+import IssueSubscription from './IssueSubscription';
 import { findDoneStatus, findOpenStatus } from '@/lib/track-tasks';
 import type { IssueDraft } from './useIssueStore';
 import type { TrackUiLabels } from './ui-labels';
@@ -125,6 +128,14 @@ interface DetailLabels {
     addSubtask: string;
     addAttachment: string;
     addRelation: string;
+    editDescription: string;
+  };
+  subscription: {
+    subscribe: string;
+    unsubscribe: string;
+    subscribed: string;
+    notSubscribed: string;
+    error: string;
   };
 }
 
@@ -141,6 +152,8 @@ interface IssueDetailClientProps {
   initialAttachments: TrackIssueAttachmentWithAuthor[];
   initialActivities: TrackIssueActivityWithAuthor[];
   initialRelations: TrackIssueRelationWithTarget[];
+  /** Si la persona recibe los avisos del issue. */
+  initialSubscribed: boolean;
   labels: DetailLabels;
   /** Labels del quick-create (modal de sub-issue). */
   ui: TrackUiLabels;
@@ -198,6 +211,7 @@ export default function IssueDetailClient({
   initialAttachments,
   initialActivities,
   initialRelations,
+  initialSubscribed,
   labels,
   ui,
 }: IssueDetailClientProps) {
@@ -321,7 +335,22 @@ export default function IssueDetailClient({
     if (!(await patchFields({ title: next }))) setTitleDraft(issue.title);
   }
 
+  // El editor puede avisar dos veces (botón Guardar y foco que sale): el ref
+  // evita guardar después de cancelar o de haber guardado ya.
+  const descOpen = useRef(false);
+  useEffect(() => {
+    descOpen.current = editingDesc;
+  }, [editingDesc]);
+
+  function cancelDescription() {
+    descOpen.current = false;
+    setDescDraft(parseDescription(issue.description));
+    setEditingDesc(false);
+  }
+
   async function saveDescription() {
+    if (!descOpen.current) return;
+    descOpen.current = false;
     setEditingDesc(false);
     const next = descDraft.trim();
     const current = parseDescription(issue.description).trim();
@@ -476,6 +505,12 @@ export default function IssueDetailClient({
             )}
           </div>
           <div className="track-detail-actions">
+            <IssueSubscription
+              issueId={issue.id}
+              initialSubscribed={initialSubscribed}
+              refreshKey={activities.length}
+              labels={labels.subscription}
+            />
             <Popover
               ariaLabel={labels.edit.more}
               className="btn btn-icon track-detail-more"
@@ -527,38 +562,85 @@ export default function IssueDetailClient({
         <div className="track-detail-main">
           <section className="track-detail-section track-detail-description" aria-label={labels.description}>
             {editingDesc ? (
-              <textarea
-                ref={descRef}
-                className="track-description-input"
-                value={descDraft}
-                rows={4}
-                autoFocus
-                placeholder={labels.edit.descriptionPlaceholder}
-                aria-label={labels.description}
-                onChange={(e) => setDescDraft(e.target.value)}
-                onBlur={() => void saveDescription()}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setDescDraft(parseDescription(issue.description));
-                    setEditingDesc(false);
-                  } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                    e.preventDefault();
-                    e.currentTarget.blur();
-                  }
-                }}
-                data-testid="track-issue-description"
-              />
+              <div className="track-description-editor">
+                <MarkdownEditor
+                  value={descDraft}
+                  onValueChange={setDescDraft}
+                  labels={ui.markdown}
+                  textareaRef={descRef}
+                  // Salir del editor (clic afuera) guarda, como antes con el blur del textarea.
+                  onBlurOutside={() => void saveDescription()}
+                  textareaProps={{
+                    className: 'textarea',
+                    rows: 4,
+                    autoFocus: true,
+                    maxLength: 5000,
+                    placeholder: labels.edit.descriptionPlaceholder,
+                    'aria-label': labels.description,
+                    onKeyDown: (e) => {
+                      if (e.key === 'Escape') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        cancelDescription();
+                      } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        void saveDescription();
+                      }
+                    },
+                    'data-testid': 'track-issue-description',
+                  }}
+                />
+                <div className="track-description-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={cancelDescription}
+                  >
+                    {labels.activity.cancelEdit}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => void saveDescription()}
+                  >
+                    {labels.activity.saveComment}
+                  </button>
+                </div>
+              </div>
+            ) : descDraft.trim() ? (
+              // Con contenido: se lee renderizado (los links funcionan); clic fuera de un link o el lápiz edita.
+              <div className="track-description-read">
+                <div
+                  className="track-description"
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('a')) return;
+                    setEditingDesc(true);
+                  }}
+                  data-testid="track-issue-description"
+                >
+                  <MarkdownView source={descDraft} />
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm btn-icon track-description-edit"
+                  onClick={() => setEditingDesc(true)}
+                  aria-label={labels.edit.editDescription}
+                  title={labels.edit.editDescription}
+                >
+                  <TrackIcon name="pencil" />
+                </button>
+              </div>
             ) : (
               <button
                 type="button"
-                className={`track-description${descDraft.trim() ? '' : ' is-empty'}`}
+                className="track-description is-empty"
                 onClick={() => setEditingDesc(true)}
-                aria-label={descDraft.trim() ? `${labels.description}: ${descDraft}` : labels.edit.descriptionPlaceholder}
+                aria-label={labels.edit.descriptionPlaceholder}
                 data-testid="track-issue-description"
               >
-                {descDraft.trim() || labels.edit.descriptionPlaceholder}
+                {labels.edit.descriptionPlaceholder}
               </button>
             )}
           </section>
@@ -755,6 +837,7 @@ export default function IssueDetailClient({
               activities={activities}
               members={initialMembers}
               labels={labels.activity}
+              markdownLabels={ui.markdown}
               attachments={attachments}
               onChange={refreshActivities}
             />

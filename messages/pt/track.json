@@ -124,7 +124,8 @@
     "addAttachment": "Anexo",
     "addRelation": "Relação",
     "estimatePlaceholder": "Pontos",
-    "estimateUnit": "pts"
+    "estimateUnit": "pts",
+    "editDescription": "Editar descrição"
   },
   "subtasks": {
     "title": "Sub-issues",
@@ -172,7 +173,8 @@
     "editComment": "Editar",
     "deleteComment": "Excluir",
     "deleteCommentConfirm": "Excluir este comentário? Não é possível desfazer.",
-    "edited": "editado"
+    "edited": "editado",
+    "updatedIssue": "{actor} atualizou {identifier}"
   },
   "relations": {
     "title": "Relações",
@@ -300,7 +302,7 @@
     "empty": "Não há notificações",
     "markAllRead": "Marcar todas como lidas",
     "loadMore": "Carregar mais",
-    "emptyBody": "Aqui chegam menções, atribuições e mudanças de status dos seus issues.",
+    "emptyBody": "Aqui chegam menções, atribuições, comentários e mudanças dos issues que você acompanha.",
     "unread": "Não lida",
     "loadError": "Não foi possível carregar a caixa de entrada.",
     "someone": "Alguém"
@@ -519,5 +521,48 @@
       "statuses": "Status",
       "triage": "Triagem"
     }
+  },
+  "markdown": {
+    "write": "Escrever",
+    "preview": "Pré-visualizar",
+    "toolbar": "Formatação",
+    "bold": "Negrito",
+    "italic": "Itálico",
+    "code": "Código",
+    "list": "Lista",
+    "link": "Link",
+    "placeholderText": "texto",
+    "emptyPreview": "Ainda não há nada para mostrar.",
+    "hint": "Aceita Markdown: **negrito**, _itálico_, `código`, listas e links."
+  },
+  "display": {
+    "groupBy": "Agrupar",
+    "sortBy": "Ordenar",
+    "noCycle": "Sem cycle",
+    "noLabel": "Sem label",
+    "groups": {
+      "none": "Sem agrupar",
+      "status": "Status",
+      "assignee": "Responsável",
+      "priority": "Prioridade",
+      "cycle": "Cycle",
+      "label": "Label",
+      "project": "Projeto"
+    },
+    "sorts": {
+      "newest": "Mais novos",
+      "oldest": "Mais antigos",
+      "updated": "Atualizados recentemente",
+      "priority": "Prioridade",
+      "due": "Vencimento",
+      "identifier": "Identificador"
+    }
+  },
+  "subscription": {
+    "subscribe": "Inscrever-me",
+    "unsubscribe": "Deixar de seguir",
+    "subscribed": "Você recebe avisos dos comentários e mudanças deste issue.",
+    "notSubscribed": "Inscreva-se para receber avisos dos comentários e mudanças deste issue.",
+    "error": "Não foi possível alterar a inscrição. Tente de novo."
   }
 }

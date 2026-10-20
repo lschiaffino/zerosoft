@@ -124,7 +124,8 @@
     "addAttachment": "Attachment",
     "addRelation": "Relation",
     "estimatePlaceholder": "Points",
-    "estimateUnit": "pts"
+    "estimateUnit": "pts",
+    "editDescription": "Edit description"
   },
   "subtasks": {
     "title": "Sub-issues",
@@ -172,7 +173,8 @@
     "editComment": "Edit",
     "deleteComment": "Delete",
     "deleteCommentConfirm": "Delete this comment? This cannot be undone.",
-    "edited": "edited"
+    "edited": "edited",
+    "updatedIssue": "{actor} updated {identifier}"
   },
   "relations": {
     "title": "Relations",
@@ -300,7 +302,7 @@
     "empty": "No notifications",
     "markAllRead": "Mark all read",
     "loadMore": "Load more",
-    "emptyBody": "Mentions, assignments and status changes on your issues land here.",
+    "emptyBody": "Mentions, assignments, comments and changes on the issues you follow land here.",
     "unread": "Unread",
     "loadError": "Couldn't load the inbox.",
     "someone": "Someone"
@@ -519,5 +521,48 @@
       "statuses": "Statuses",
       "triage": "Triage"
     }
+  },
+  "markdown": {
+    "write": "Write",
+    "preview": "Preview",
+    "toolbar": "Formatting",
+    "bold": "Bold",
+    "italic": "Italic",
+    "code": "Code",
+    "list": "List",
+    "link": "Link",
+    "placeholderText": "text",
+    "emptyPreview": "Nothing to preview yet.",
+    "hint": "Markdown supported: **bold**, _italic_, `code`, lists and links."
+  },
+  "display": {
+    "groupBy": "Group",
+    "sortBy": "Sort",
+    "noCycle": "No cycle",
+    "noLabel": "No label",
+    "groups": {
+      "none": "No grouping",
+      "status": "Status",
+      "assignee": "Assignee",
+      "priority": "Priority",
+      "cycle": "Cycle",
+      "label": "Label",
+      "project": "Project"
+    },
+    "sorts": {
+      "newest": "Newest",
+      "oldest": "Oldest",
+      "updated": "Recently updated",
+      "priority": "Priority",
+      "due": "Due date",
+      "identifier": "Identifier"
+    }
+  },
+  "subscription": {
+    "subscribe": "Subscribe",
+    "unsubscribe": "Unsubscribe",
+    "subscribed": "You get notified about comments and changes on this issue.",
+    "notSubscribed": "Subscribe to get notified about comments and changes on this issue.",
+    "error": "Couldn't update the subscription. Try again."
   }
 }

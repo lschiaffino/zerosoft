@@ -4,12 +4,11 @@ import { getCurrentUser, realUserId } from '@/lib/session';
 import { validateIssueRefs } from '@/lib/track-bulk';
 import { createIssue, getProject, listIssues, canAccessTrackProject } from '@/lib/track-data';
 import { issueCreateSchema } from '@/lib/track-schema';
+import { ISSUE_SORTS } from '@/lib/track-views';
 import { invalidBody, notFound, pageParams, sortParam, stringArrayParam, trackError, unauthorized } from '@/lib/track-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-const SORTS = ['newest', 'oldest', 'priority', 'identifier'] as const;
 
 async function accessibleProject(id: string, teamId: string | null, ownerId: string) {
   const project = await getProject(id);
@@ -37,7 +36,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
     q: sp.get('q') ?? undefined,
     dueAfter: sp.get('dueAfter') ?? undefined,
     dueBefore: sp.get('dueBefore') ?? undefined,
-    sort: sortParam(sp, SORTS),
+    sort: sortParam(sp, ISSUE_SORTS),
     page,
     pageSize,
   });

@@ -4,6 +4,8 @@
  * y se pasan a los componentes cliente.
  */
 import type { IssuePriority } from '@/lib/track-tasks';
+import type { MarkdownLabels } from './MarkdownEditor';
+import type { DisplayLabels } from './IssueDisplayOptions';
 
 export interface TrackUiLabels {
   priorities: Array<{ value: IssuePriority; label: string }>;
@@ -52,6 +54,8 @@ export interface TrackUiLabels {
     dismiss: string;
     loadError: string;
   };
+  markdown: MarkdownLabels;
+  display: DisplayLabels & { noCycle: string; noLabel: string };
 }
 
 type T = (key: string) => string;
@@ -108,6 +112,42 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
       dragHint: t('inline.dragHint'),
       dismiss: t('inline.dismiss'),
       loadError: t('inline.loadError'),
+    },
+    markdown: {
+      write: t('markdown.write'),
+      preview: t('markdown.preview'),
+      toolbar: t('markdown.toolbar'),
+      bold: t('markdown.bold'),
+      italic: t('markdown.italic'),
+      code: t('markdown.code'),
+      list: t('markdown.list'),
+      link: t('markdown.link'),
+      placeholderText: t('markdown.placeholderText'),
+      emptyPreview: t('markdown.emptyPreview'),
+      hint: t('markdown.hint'),
+    },
+    display: {
+      groupBy: t('display.groupBy'),
+      sortBy: t('display.sortBy'),
+      noCycle: t('display.noCycle'),
+      noLabel: t('display.noLabel'),
+      groups: {
+        none: t('display.groups.none'),
+        status: t('display.groups.status'),
+        assignee: t('display.groups.assignee'),
+        priority: t('display.groups.priority'),
+        cycle: t('display.groups.cycle'),
+        label: t('display.groups.label'),
+        project: t('display.groups.project'),
+      },
+      sorts: {
+        newest: t('display.sorts.newest'),
+        oldest: t('display.sorts.oldest'),
+        updated: t('display.sorts.updated'),
+        priority: t('display.sorts.priority'),
+        due: t('display.sorts.due'),
+        identifier: t('display.sorts.identifier'),
+      },
     },
   };
 }

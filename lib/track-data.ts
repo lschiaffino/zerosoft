@@ -24,7 +24,9 @@ import {
   createIssueAssignedNotification,
   createIssueCommentNotifications,
   createIssueStatusChangedNotifications,
+  createIssueUpdatedNotifications,
 } from './notifications';
+import { autoSubscribe, listIssueSubscriberIds } from './track-subscriptions';
 import type {
   CommentCreatePayload,
   CommentUpdatePayload,
@@ -42,6 +44,7 @@ import type {
 } from './track-schema';
 import { safeHexColor } from './track-color';
 import { normalizeIssueLabels, projectWorkspaceId } from './track-labels';
+import { issueOrderBy, issueSearchClause, labelIdLike, type IssueSort } from './track-views';
 
 // ---------- Tipos públicos ----------
 
@@ -107,7 +110,7 @@ export interface ListIssuesOptions {
   q?: string;
   dueAfter?: string;
   dueBefore?: string;
-  sort?: 'newest' | 'oldest' | 'priority' | 'identifier';
+  sort?: IssueSort;
   page?: number;
   pageSize?: number;
 }
@@ -125,7 +128,7 @@ export interface TrackIssueView {
   name: string;
   view_type: 'list' | 'board' | 'calendar' | 'gantt';
   filters: Record<string, unknown>;
-  sort: 'newest' | 'oldest' | 'priority' | 'identifier';
+  sort: IssueSort;
   columns: string[] | null;
   is_default: boolean;
   created_at: string;
@@ -814,29 +817,22 @@ export async function listIssues(
     where.push('i.due_date <= ?');
     args.push(options.dueBefore);
   }
-  if (options.q) {
-    where.push('(i.title LIKE ? OR i.identifier LIKE ?)');
-    const like = `%${options.q}%`;
-    args.push(like, like);
+  // Título, identificador, descripción y comentarios; % y _ se buscan literales.
+  const search = issueSearchClause(options.q);
+  if (search) {
+    where.push(search.sql);
+    args.push(...search.args);
   }
 
   const labelIds = toArray(options.labelIds);
   if (labelIds) {
-    const placeholders = labelIds.map(() => 'i.labels LIKE ?').join(' OR ');
+    const placeholders = labelIds.map(() => "i.labels LIKE ? ESCAPE '\\'").join(' OR ');
     where.push(`(${placeholders})`);
-    args.push(...labelIds.map((id) => `%"id":"${id}"%`));
+    args.push(...labelIds.map(labelIdLike));
   }
 
   const whereSql = where.join(' AND ');
-
-  const orderMap: Record<NonNullable<ListIssuesOptions['sort']>, string> = {
-    newest: 'i.created_at DESC',
-    oldest: 'i.created_at ASC',
-    priority:
-      "CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END",
-    identifier: 'i.identifier ASC',
-  };
-  const orderBy = orderMap[options.sort ?? 'newest'];
+  const orderBy = issueOrderBy(options.sort);
 
   const total = (
     (await db
@@ -907,29 +903,22 @@ export async function listAllIssues(
     where.push('i.due_date <= ?');
     args.push(options.dueBefore);
   }
-  if (options.q) {
-    where.push('(i.title LIKE ? OR i.identifier LIKE ?)');
-    const like = `%${options.q}%`;
-    args.push(like, like);
+  // Título, identificador, descripción y comentarios; % y _ se buscan literales.
+  const search = issueSearchClause(options.q);
+  if (search) {
+    where.push(search.sql);
+    args.push(...search.args);
   }
 
   const labelIds = toArray(options.labelIds);
   if (labelIds) {
-    const placeholders = labelIds.map(() => 'i.labels LIKE ?').join(' OR ');
+    const placeholders = labelIds.map(() => "i.labels LIKE ? ESCAPE '\\'").join(' OR ');
     where.push(`(${placeholders})`);
-    args.push(...labelIds.map((id) => `%"id":"${id}"%`));
+    args.push(...labelIds.map(labelIdLike));
   }
 
   const whereSql = where.join(' AND ');
-
-  const orderMap: Record<NonNullable<ListIssuesOptions['sort']>, string> = {
-    newest: 'i.created_at DESC',
-    oldest: 'i.created_at ASC',
-    priority:
-      "CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END",
-    identifier: 'i.identifier ASC',
-  };
-  const orderBy = orderMap[options.sort ?? 'newest'];
+  const orderBy = issueOrderBy(options.sort);
 
   const total = (
     (await db
@@ -1088,6 +1077,8 @@ export async function createIssue(
     await createIssueActivity(id, creatorId, 'subtask_added', { parentId: payload.parentId });
   }
 
+  await autoSubscribe(id, [creatorId, payload.assigneeId]);
+
   const created = (await getIssue(id)) as TrackIssueWithStatus;
 
   if (payload.assigneeId && payload.assigneeId !== creatorId) {
@@ -1107,6 +1098,17 @@ export async function createIssue(
 
   return created;
 }
+
+/** Cambios que avisan a los suscriptos (clave corta que traduce la bandeja). */
+const NOTIFY_CHANGE: Partial<Record<TrackIssueActivityRow['type'], string>> = {
+  title_change: 'title',
+  description_change: 'description',
+  priority_change: 'priority',
+  assignee_change: 'assignee',
+  cycle_change: 'cycle',
+  due_date_change: 'dueDate',
+  estimate_change: 'estimate',
+};
 
 /** Origen de un cambio automático (hoy solo GitHub): se guarda en la actividad. */
 export interface IssueChangeVia {
@@ -1224,6 +1226,7 @@ export async function updateIssue(
     args.push(nowIso());
     args.push(id);
     await db.prepare(`UPDATE track_issues SET ${fields.join(', ')} WHERE id = ?`).run(...args);
+    if (newAssigneeId) await autoSubscribe(id, [newAssigneeId]);
 
     if (actorId) {
       const viaMeta = opts.via
@@ -1244,6 +1247,9 @@ export async function updateIssue(
           ? { id: '', email: '', name: `GitHub${opts.via.author ? ` (@${opts.via.author})` : ''}` }
           : owner;
       if (actor && project) {
+        // El nuevo asignado recibe "te asignaron"; el resto de los suscriptos,
+        // un aviso por el cambio de status o, si no hubo, por los demás cambios.
+        const subscribers = (await listIssueSubscriberIds(id)).filter((u) => u !== newAssigneeId);
         if (newAssigneeId) {
           await createIssueAssignedNotification({
             issue: existing,
@@ -1259,6 +1265,16 @@ export async function updateIssue(
             actor,
             oldStatus: oldStatusName,
             newStatus: newStatusName,
+            recipients: subscribers,
+          });
+        } else {
+          const changes = activities.map((a) => NOTIFY_CHANGE[a.type]).filter((c): c is string => Boolean(c));
+          await createIssueUpdatedNotifications({
+            issue: existing,
+            projectName: project.name,
+            actor,
+            changes: [...new Set(changes)],
+            recipients: subscribers,
           });
         }
       }
@@ -1630,6 +1646,7 @@ export async function createIssueComment(
   // El cuerpo vive solo en track_issue_comments: el timeline lo lee de ahí,
   // así una edición o un borrado del autor no deja copias viejas en el log.
   await createIssueActivity(issueId, userId, 'comment', { commentId: id });
+  await autoSubscribe(issueId, [userId]);
 
   const comment = (await db
     .prepare(
@@ -1654,6 +1671,7 @@ export async function createIssueComment(
       actor,
       body: payload.body.trim(),
       members,
+      recipients: await listIssueSubscriberIds(issueId),
     });
   }
 
