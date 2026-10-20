@@ -1087,6 +1087,26 @@ function defaultHandoffMessage(lastUser: string): string {
 }
 
 /**
+ * Registro de cada corrida (estado y pasos) para la pestaña Analítica y las
+ * alertas (lib/agents-analytics.ts, lib/agents-alerts.ts). Nunca rompe la corrida.
+ */
+async function recordRun(
+  row: Pick<AgentRow, 'id' | 'user_id'>,
+  conversation: Pick<AgentConversationRow, 'id'>,
+  channel: AgentChannel,
+  runId: string,
+  status: AgentRunStatus,
+  steps: number,
+): Promise<void> {
+  await getDb()
+    .prepare(
+      'INSERT OR IGNORE INTO agent_runs (id, agent_id, user_id, conversation_id, channel, status, steps, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(runId, row.id, row.user_id, conversation.id, channel, status, steps, nowIso())
+    .catch(() => {});
+}
+
+/**
  * Corre el agente sobre la conversación: tool calling con tope de pasos,
  * registro de cada herramienta, medición de uso. Tira AiError (AI apagada,
  * cuota, rate limit) o errores del proveedor: el que llama decide el fallback.
@@ -1118,6 +1138,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
     await handoff(`keyword: ${keyword}`);
     const text = agent.handoff.message || defaultHandoffMessage(lastUser);
     opts.onEvent?.({ type: 'text', delta: text });
+    await recordRun(row, conversation, channel, runId, 'handoff', 0);
     return { status: 'handoff', text, handoff: true, runId, toolCalls: ctx.toolCalls, steps: 0 };
   }
 
@@ -1192,6 +1213,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
   } else if (hitCap && !ctx.handoff) {
     status = 'step_limit';
   }
+  await recordRun(row, conversation, channel, runId, status, steps.length);
   return {
     status,
     text: truncateReply(text, agent.guardrails.maxReplyChars),

@@ -15,6 +15,8 @@ import type {
 import { formatTimeAgo, formatDateTime } from '@/lib/datetime';
 import { CHAT_MESSAGE_MAX, CHAT_UPLOAD_MAX, sendErrorKey } from '@/lib/chat-schema';
 import VisitorPanel from './VisitorPanel';
+import { ConversationAttributes, MergeConversations, TranscriptActions, missingAttributeNames } from './ConversationTools';
+import { parseMergeNote } from '@/lib/chat-merge-note';
 import ChatIcon, { initials } from './icons';
 import SlaNote from './SlaNote';
 import { useInbox } from './InboxShell';
@@ -321,8 +323,13 @@ export default function ConversationClient({
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      setUpdateError(t(sendErrorKey(data.error)));
+      const data = (await res.json().catch(() => ({}))) as { error?: string; missing?: string[] };
+      setUpdateError(
+        data.error === 'missing_attributes' && data.missing?.length
+          ? t('attributes.missing', { names: data.missing.join(', ') })
+          : t(sendErrorKey(data.error)),
+      );
+      if (data.error === 'missing_attributes') openDetails();
       return;
     }
     setUpdateError(null);
@@ -408,12 +415,26 @@ export default function ConversationClient({
     }
   }
 
+  /**
+   * Resolver con atributos obligatorios sin completar: se avisa sin pedirlo
+   * (el servidor igual lo rechaza) y se abre el panel donde se completan.
+   */
+  function blockedByAttributes(): boolean {
+    const missing = missingAttributeNames(conversation);
+    if (missing.length === 0) return false;
+    setUpdateError(t('attributes.missing', { names: missing.join(', ') }));
+    openDetails();
+    return true;
+  }
+
   function toggleResolved() {
     const next = conversation.status === 'resolved' ? 'open' : 'resolved';
+    if (next === 'resolved' && blockedByAttributes()) return;
     updateConversation({ status: next });
   }
 
   function changeStatus(status: string) {
+    if (status === 'resolved' && conversation.status !== 'resolved' && blockedByAttributes()) return;
     if (status === 'snoozed') {
       // Default 24h; el picker de duración permite ajustar.
       updateConversation({ status: 'snoozed', snoozedUntil: snoozeUntilFor(24 * 60 * 60 * 1000) });
@@ -782,6 +803,13 @@ export default function ConversationClient({
                             </button>
                           </div>
                         </div>
+                      ) : m.sender_type === 'system' && parseMergeNote(m.body) ? (
+                        <p className="chat-message-text" suppressHydrationWarning>
+                          {(() => {
+                            const note = parseMergeNote(m.body)!;
+                            return t('merge.systemNote', { count: note.count, when: formatDateTime(note.startedAt, locale) });
+                          })()}
+                        </p>
                       ) : m.body ? (
                         <p className="chat-message-text">{m.body}</p>
                       ) : null}
@@ -1043,7 +1071,27 @@ export default function ConversationClient({
           </div>
         </section>
 
+        <ConversationAttributes
+          conversation={conversation}
+          onSaved={(next) => {
+            setConversation((prev) => ({ ...prev, ...next }));
+            if (missingAttributeNames(next).length === 0) setUpdateError(null);
+          }}
+        />
+
         <VisitorPanel conversation={conversation} />
+
+        <TranscriptActions conversation={conversation} />
+
+        <MergeConversations
+          conversation={conversation}
+          onMerged={(next) => {
+            setConversation((prev) => ({ ...prev, ...next }));
+            void fetchMessages();
+            void fetchTags();
+            fetchList();
+          }}
+        />
       </aside>
       {detailsOpen && <div className="chat-details-backdrop" onClick={closeDetails} aria-hidden="true" />}
     </>

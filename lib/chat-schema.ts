@@ -29,6 +29,17 @@ const chatField = z.object({
   type: z.enum(['text', 'email', 'number']),
 });
 
+// Atributo de conversación (lib/chat-attributes.ts). Un select necesita opciones.
+const conversationAttributeDef = z
+  .object({
+    id: z.string().trim().min(1).max(64),
+    name: z.string().trim().min(1).max(80),
+    type: z.enum(['text', 'number', 'select', 'boolean']),
+    required: z.boolean().default(false),
+    options: z.array(z.string().trim().min(1).max(80)).max(30).default([]),
+  })
+  .refine((d) => d.type !== 'select' || d.options.length > 0, { message: 'missing_options' });
+
 export const officeHoursDaySchema = z.object({
   enabled: z.boolean(),
   start: time,
@@ -54,6 +65,11 @@ const widgetBase = {
   locale: z.enum(['auto', 'en', 'es', 'pt']).optional(),
   // Minutos sin leer antes de mandar la respuesta por email (0 = nunca, tope 1 día).
   offlineEmailMinutes: z.number().int().min(0).max(1440).optional(),
+  conversationAttributes: z
+    .array(conversationAttributeDef)
+    .max(20)
+    .refine((list) => new Set(list.map((d) => d.id)).size === list.length, { message: 'duplicate_id' })
+    .optional(),
 };
 
 export const widgetCreateSchema = z.object({
@@ -74,6 +90,19 @@ export const conversationPatchSchema = z.object({
   priority: chatPrioritySchema.optional(),
   subject: shortText.optional(),
   snoozedUntil: z.string().trim().max(40).nullable().optional(), // ISO datetime
+  // Atributos de conversación: id → valor (null o '' borra). Los valida
+  // applyAttributePatch contra las definiciones del widget.
+  attributes: z
+    .record(z.string().max(64), z.union([z.string().max(1000), z.number(), z.boolean(), z.null()]))
+    .refine((o) => Object.keys(o).length <= 20, { message: 'too_many_attributes' })
+    .optional(),
+});
+
+// ---------- Merge ----------
+
+export const conversationMergeSchema = z.object({
+  /** Conversación que se suma a esta (sus mensajes pasan acá y se borra). */
+  sourceId: id,
 });
 
 // ---------- Mensajes ----------
@@ -90,6 +119,8 @@ export function sendErrorKey(code: string | undefined): string {
   if (code === 'file_type_not_allowed') return 'errors.fileTypeNotAllowed';
   if (code === 'invalid_input') return 'errors.invalid_input';
   if (code === 'invalid_assignee') return 'errors.invalid_assignee';
+  if (code === 'missing_attributes') return 'errors.missingAttributes';
+  if (code === 'invalid_attribute' || code === 'unknown_attribute') return 'errors.invalidAttribute';
   return 'errors.generic';
 }
 

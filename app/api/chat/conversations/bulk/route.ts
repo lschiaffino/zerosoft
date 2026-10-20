@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { canAccessConversation } from '@/lib/chat-access';
 import { applyBulkAction, parseBulkRequest } from '@/lib/chat-inbox';
+import { attributesBlockingResolve } from '@/lib/chat-attributes-db';
 import { ingestChatConversation, runAfterResponse, supportWidgetId } from '@/lib/roadmap';
 
 export const dynamic = 'force-dynamic';
@@ -10,6 +11,8 @@ export const dynamic = 'force-dynamic';
  * Acción en lote del inbox: { ids, action } con action = assign | tag |
  * snooze | resolve (las mismas que de a una). Cada conversación se valida
  * por separado: las ajenas al workspace no se tocan y cuentan como salteadas.
+ * Resolver saltea las que tienen atributos obligatorios sin completar
+ * (cuentan como salteadas y además en `blocked`).
  */
 export async function POST(req: Request) {
   const user = await getCurrentUser();
@@ -19,11 +22,18 @@ export async function POST(req: Request) {
 
   let updated = 0;
   let skipped = 0;
+  /** Resolver salteado por atributos obligatorios sin completar. */
+  let blocked = 0;
   const resolvedSupport: string[] = [];
   for (const id of parsed.ids) {
     const { ok, conversation } = await canAccessConversation(id, user);
     if (!ok || !conversation) {
       skipped++;
+      continue;
+    }
+    if (parsed.action.type === 'resolve' && conversation.status !== 'resolved' && (await attributesBlockingResolve(conversation)).length > 0) {
+      skipped++;
+      blocked++;
       continue;
     }
     const after = await applyBulkAction(conversation, parsed.action);
@@ -42,5 +52,5 @@ export async function POST(req: Request) {
       for (const id of resolvedSupport) await ingestChatConversation(id);
     });
   }
-  return NextResponse.json({ updated, skipped });
+  return NextResponse.json(blocked > 0 ? { updated, skipped, blocked } : { updated, skipped });
 }

@@ -360,3 +360,23 @@
 .ag-public-sub { display: flex; align-items: center; gap: 8px; }
 .ag-chat-page { height: calc(100svh - 230px); min-height: 380px; }
 .ag-public-foot { text-align: center; }
+
+/* Pestaña Analítica: tiras de KPIs como los reportes de Chat, tablas densas. */
+.ag-analytics-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.ag-analytics-head .ui-help { max-width: 70ch; margin: 0; }
+.ag-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  margin: 0;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+.ag-kpi { padding: 12px 16px 14px; background: var(--bg); }
+.ag-kpi dt { font-size: 0.8125rem; color: var(--brand-gray-1); }
+.ag-kpi dd { margin: 4px 0 0; font-size: 1.5rem; line-height: 1.1; color: var(--ink); }
+.ag-kpi dd.ag-kpi-hint { margin-top: 6px; font-size: 0.75rem; line-height: 1.4; color: var(--brand-gray-2); font-family: var(--font-ui); }
+.ag-analytics-examples { max-width: 48ch; font-size: 0.8125rem; color: var(--brand-gray-1); }
+.ag-analytics-error { max-width: 40ch; font-size: 0.75rem; color: var(--brand-gray-1); overflow-wrap: anywhere; }
+.ag-analytics .table td[data-bad] { color: var(--bad-ink); }
+.ag-analytics-alerts { padding-top: 20px; border-top: 1px solid var(--line); }

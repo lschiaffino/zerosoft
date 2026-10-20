@@ -1,6 +1,7 @@
 import { getDb, getUserById } from './db';
 import { inlineHtmlToText } from './docs-markdown';
 import { mergeVisitorMetadata, type VisitorContextPatch } from './chat-visitor-context';
+import type { ChatAttributeDef } from './chat-attributes';
 import type {
   ChatAssignmentRuleRow,
   ChatCannedResponseRow,
@@ -84,6 +85,8 @@ export interface WidgetCreatePayload {
   locale?: 'auto' | 'en' | 'es' | 'pt';
   /** Minutos sin leer antes de avisar por email al visitante (0 = nunca). */
   offlineEmailMinutes?: number;
+  /** Atributos de conversación (lib/chat-attributes.ts). */
+  conversationAttributes?: ChatAttributeDef[];
 }
 
 export interface WidgetUpdatePayload {
@@ -100,6 +103,8 @@ export interface WidgetUpdatePayload {
   locale?: 'auto' | 'en' | 'es' | 'pt';
   /** Minutos sin leer antes de avisar por email al visitante (0 = nunca). */
   offlineEmailMinutes?: number;
+  /** Atributos de conversación (lib/chat-attributes.ts). */
+  conversationAttributes?: ChatAttributeDef[];
 }
 
 /** Espera por defecto antes de mandar por email una respuesta sin leer. */
@@ -218,6 +223,10 @@ export async function updateChatWidget(
   if (payload.offlineEmailMinutes !== undefined) {
     fields.push('offline_email_minutes = ?');
     args.push(payload.offlineEmailMinutes);
+  }
+  if (payload.conversationAttributes !== undefined) {
+    fields.push('conversation_attributes = ?');
+    args.push(jsonStringify(payload.conversationAttributes));
   }
 
   if (fields.length > 0) {
@@ -831,6 +840,8 @@ export interface ChatConversationWithVisitor extends ChatConversationRow, SlaCom
   widget_user_id: string;
   widget_team_id: string | null;
   widget_color: string;
+  /** JSON ChatAttributeDef[] del widget (lib/chat-attributes.ts). */
+  widget_attributes: string;
   assigned_name: string | null;
   assigned_email: string | null;
   assigned_image: string | null;
@@ -984,12 +995,13 @@ export async function getChatConversationWithVisitor(
       `SELECT
         c.id, c.widget_id, c.visitor_id, c.status, c.assigned_to, c.priority, c.subject,
         c.first_response_at, c.resolved_at, c.sla_breach_at, c.snoozed_until,
-        c.csat_score, c.csat_comment,
+        c.csat_score, c.csat_comment, c.attributes,
         c.created_at, c.updated_at,
         v.id AS v_id, v.widget_id AS v_widget_id, v.external_id AS v_external_id,
         v.email AS v_email, v.name AS v_name, v.notes AS v_notes, v.metadata AS v_metadata,
         v.email_verified AS v_email_verified, v.created_at AS v_created_at,
         w.name AS widget_name, w.user_id AS widget_user_id, w.team_id AS widget_team_id, w.color AS widget_color,
+        w.conversation_attributes AS widget_attributes,
         u.name AS assigned_name, u.email AS assigned_email, u.image AS assigned_image,
         co.id AS co_id, co.user_id AS co_user_id, co.owner_id AS co_owner_id,
         co.first_name AS co_first_name, co.last_name AS co_last_name,
@@ -1079,6 +1091,7 @@ export async function getChatConversationWithVisitor(
     snoozed_until: (row.snoozed_until as string | null) ?? null,
     csat_score: (row.csat_score as number | null) ?? null,
     csat_comment: (row.csat_comment as string | null) ?? null,
+    attributes: (row.attributes as string | null) ?? '{}',
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
     ...sla,
@@ -1087,6 +1100,7 @@ export async function getChatConversationWithVisitor(
     widget_user_id: row.widget_user_id as string,
     widget_team_id: (row.widget_team_id as string | null) ?? null,
     widget_color: row.widget_color as string,
+    widget_attributes: (row.widget_attributes as string | null) ?? '[]',
     assigned_name: (row.assigned_name as string | null) ?? null,
     assigned_email: (row.assigned_email as string | null) ?? null,
     assigned_image: (row.assigned_image as string | null) ?? null,
@@ -2146,6 +2160,17 @@ export function toPublicMessage(message: ChatMessageRow): PublicChatMessage {
     edited_at: message.edited_at ?? null,
     created_at: message.created_at,
   };
+}
+
+/**
+ * Proyección de la conversación para rutas públicas (widget): sin los
+ * atributos de conversación, que completa el equipo y son internos.
+ */
+export function toPublicConversation<T extends ChatConversationRow | null>(conversation: T): T {
+  if (!conversation) return conversation;
+  const { attributes: _attributes, ...rest } = conversation;
+  void _attributes;
+  return rest as T;
 }
 
 /** Proyección del indicador de escribiendo para rutas públicas: sin ids de agentes. */

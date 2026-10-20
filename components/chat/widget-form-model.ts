@@ -1,8 +1,9 @@
 import type { ChatWidgetRow } from '@/lib/db';
 import type { OfficeHoursConfig, OfficeHoursDay } from '@/lib/chat-data';
+import { parseAttributeDefs, type ChatAttributeType } from '@/lib/chat-attributes';
 
 /** Pestañas del editor del widget (?tab=). La primera es la default. */
-export const WIDGET_TABS = ['look', 'form', 'bot', 'hours'] as const;
+export const WIDGET_TABS = ['look', 'form', 'attributes', 'bot', 'hours'] as const;
 export type WidgetTab = (typeof WIDGET_TABS)[number];
 
 export function widgetTab(raw: string | null | undefined): WidgetTab {
@@ -45,6 +46,46 @@ function newId(): string {
   } catch {
     return Math.random().toString(36).slice(2);
   }
+}
+
+/** Atributo de conversación en el editor: las opciones de un select en texto (una por línea). */
+export interface WidgetAttributeField {
+  id: string;
+  name: string;
+  type: ChatAttributeType;
+  required: boolean;
+  optionsText: string;
+}
+
+export function emptyAttribute(): WidgetAttributeField {
+  return { id: newId(), name: '', type: 'text', required: false, optionsText: '' };
+}
+
+export function parseAttributeFields(raw: string | null | undefined): WidgetAttributeField[] {
+  return parseAttributeDefs(raw).map((d) => ({ id: d.id, name: d.name, type: d.type, required: d.required, optionsText: d.options.join('\n') }));
+}
+
+/** Opciones de un select: una por línea (o separadas por coma), sin repetir. */
+export function attributeOptions(text: string): string[] {
+  return [...new Set(text.split(/[\n,]/).map((o) => o.trim()).filter(Boolean))].slice(0, 30);
+}
+
+/** Atributos con nombre listos para el PATCH; un select sin opciones no es válido. */
+export function buildAttributeDefs(attrs: WidgetAttributeField[]) {
+  return attrs
+    .filter((a) => a.name.trim())
+    .map((a) => ({
+      id: a.id,
+      name: a.name.trim(),
+      type: a.type,
+      required: a.required,
+      options: a.type === 'select' ? attributeOptions(a.optionsText) : [],
+    }));
+}
+
+/** true si algún select con nombre no tiene opciones (el guardado lo rechazaría). */
+export function hasSelectWithoutOptions(attrs: WidgetAttributeField[]): boolean {
+  return attrs.some((a) => a.name.trim() && a.type === 'select' && attributeOptions(a.optionsText).length === 0);
 }
 
 export function emptyField(): WidgetFormField {
@@ -133,11 +174,16 @@ export function isValidMinutes(value: string, allowEmpty: boolean): boolean {
 }
 
 /**
- * Cuerpo del PATCH /api/chat/widgets/:id. Las cuatro pestañas guardan el
+ * Cuerpo del PATCH /api/chat/widgets/:id. Las pestañas guardan el
  * widget entero: lo que se tocó en otra pestaña sin guardar también viaja.
  * Los campos sin nombre se descartan y el id de cada campo sale del estado.
  */
-export function buildWidgetPayload(values: WidgetFormValues, fields: WidgetFormField[], office: OfficeHoursState) {
+export function buildWidgetPayload(
+  values: WidgetFormValues,
+  fields: WidgetFormField[],
+  office: OfficeHoursState,
+  attributes?: WidgetAttributeField[],
+) {
   return {
     name: values.name.trim(),
     color: values.color,
@@ -153,5 +199,6 @@ export function buildWidgetPayload(values: WidgetFormValues, fields: WidgetFormF
     helpEnabled: values.helpEnabled,
     locale: values.locale,
     offlineEmailMinutes: values.offlineEmailMinutes,
+    ...(attributes ? { conversationAttributes: buildAttributeDefs(attributes) } : {}),
   };
 }

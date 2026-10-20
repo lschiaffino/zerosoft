@@ -1020,6 +1020,8 @@ export interface ChatWidgetRow {
   locale?: 'auto' | 'en' | 'es' | 'pt';
   /** Minutos sin leer antes de mandar por email una respuesta del agente (0 = nunca). */
   offline_email_minutes?: number;
+  /** JSON ChatAttributeDef[]: atributos de conversación (lib/chat-attributes.ts). */
+  conversation_attributes?: string;
   created_at: string;
   updated_at: string;
 }
@@ -1054,6 +1056,8 @@ export interface ChatConversationRow {
   snoozed_until: string | null;
   csat_score: number | null;
   csat_comment: string | null;
+  /** JSON objeto id de atributo → valor (lib/chat-attributes.ts). */
+  attributes?: string;
   created_at: string;
   updated_at: string;
 }
@@ -1395,6 +1399,8 @@ export interface AgentRow {
   public_handle: string | null; // /a/<handle>
   /** JSON AgentSecretHeaderStored[]: headers de http_request con el valor cifrado (secret-box). */
   http_secrets?: string;
+  /** 1 = email al dueño cuando suben los pulgares abajo, errores o topes de pasos (lib/agents-alerts.ts). */
+  alerts_enabled?: number;
   created_by: string | null;
   created_at: string;
   updated_at: string;

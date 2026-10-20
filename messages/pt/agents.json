@@ -88,7 +88,8 @@
     "tools": "Ferramentas",
     "channels": "Canais",
     "playground": "Playground",
-    "conversations": "Conversas"
+    "conversations": "Conversas",
+    "analytics": "Análises"
   },
   "fields": {
     "name": "nome",
@@ -416,5 +417,52 @@
     "value": "Valor",
     "valuePlaceholder": "Bearer sk_live_…",
     "add": "Adicionar header"
+  },
+  "analytics": {
+    "intro": "Como o agente está indo com visitantes reais. As conversas do playground não contam.",
+    "range": "Período",
+    "lastDays": "Últimos {days} dias",
+    "loading": "Carregando as análises…",
+    "emptyTitle": "Não há conversas neste período",
+    "emptyBody": "Quando os visitantes falarem com o agente no Chat, na página pública ou pela API, os números aparecem aqui.",
+    "openConversations": "Ver conversas",
+    "conversations": "Conversas",
+    "resolution": "Resolvidas pelo agente",
+    "resolutionHint": "{count, plural, one {# respondida sem transferir} other {# respondidas sem transferir}}",
+    "handoff": "Transferidas",
+    "handoffHint": "{count, plural, one {# passou para alguém da equipe} other {# passaram para alguém da equipe}}",
+    "toolErrors": "Erros de ferramentas",
+    "toolErrorsHint": "{errors} de {calls} chamadas",
+    "stepLimits": "Limites de passos",
+    "stepLimitsHint": "{runs, plural, one {em # execução} other {em # execuções}}",
+    "feedback": "Polegares para cima / baixo",
+    "feedbackHint": "Pela aba Conversas",
+    "topics": "Temas",
+    "topicsHint": "Agrupados pelas palavras mais comuns na primeira mensagem de cada visitante.",
+    "topic": "Tema",
+    "examples": "Exemplos",
+    "noTopics": "Ainda não há palavras repetidas suficientes para agrupar temas.",
+    "otherTopics": "{count, plural, one {# conversa sem tema.} other {# conversas sem tema.}}",
+    "tools": "Ferramentas",
+    "noTools": "O agente não usou ferramentas neste período.",
+    "tool": "Ferramenta",
+    "calls": "Chamadas",
+    "errors": "Erros",
+    "avgTime": "Tempo médio",
+    "ms": "{ms} ms",
+    "lastError": "Último erro",
+    "alertsTitle": "Alertas por email",
+    "alertsSwitch": "Avisar por email o dono do workspace quando os problemas aumentarem",
+    "alertsHint": "Verificamos a cada hora. Se os polegares para baixo, os erros de ferramentas ou os limites de passos subirem muito acima do normal, o dono recebe um email, no máximo um a cada 6 horas."
+  },
+  "alertEmail": {
+    "subject": "{agent}: os problemas estão aumentando",
+    "heading": "{agent} precisa de uma revisão",
+    "intro": "Na última hora, {agent} teve mais problemas do que o normal:",
+    "thumbs_down": "{count} polegares para baixo",
+    "tool_errors": "{count} erros de ferramentas",
+    "step_limits": "{count} execuções que chegaram ao limite de passos",
+    "cta": "Abrir as análises do agente",
+    "why": "Você recebe este email porque é o dono do workspace. Dá para desligar estes alertas na aba Análises do agente."
   }
 }

@@ -15,12 +15,16 @@ import IdentityVerification from './IdentityVerification';
 import ChatIcon from './icons';
 import {
   buildWidgetPayload,
+  emptyAttribute,
   emptyField,
+  hasSelectWithoutOptions,
+  parseAttributeFields,
   initialValues,
   parseFields,
   parseOfficeHours,
   widgetTab,
   OFFLINE_EMAIL_OPTIONS,
+  type WidgetAttributeField,
   type WidgetFormField,
   type WidgetFormValues,
 } from './widget-form-model';
@@ -43,8 +47,8 @@ interface WidgetSettingsProps {
 }
 
 /**
- * Editor del widget en cuatro pestañas (Apariencia, Formulario previo, Bot,
- * Horario). Cada pestaña es un formulario con un solo Guardar que guarda el
+ * Editor del widget en cinco pestañas (Apariencia, Formulario previo,
+ * Atributos de conversación, Bot, Horario). Cada pestaña es un formulario con un solo Guardar que guarda el
  * widget entero; las opciones que el camino básico no necesita (fuente del
  * bot, zona horaria) quedan en Avanzado.
  */
@@ -65,6 +69,7 @@ export default function WidgetSettings({
 
   const [values, setValues] = useState<WidgetFormValues>(() => initialValues(widget));
   const [fields, setFields] = useState<WidgetFormField[]>(() => parseFields(widget.fields));
+  const [attributes, setAttributes] = useState<WidgetAttributeField[]>(() => parseAttributeFields(widget.conversation_attributes));
   const [office, setOffice] = useState(() => parseOfficeHours(widget.office_hours));
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -95,16 +100,21 @@ export default function WidgetSettings({
     setFields((prev) => prev.map((f, i) => (i === index ? { ...f, ...patch } : f)));
   }
 
+  function updateAttribute(index: number, patch: Partial<WidgetAttributeField>) {
+    setAttributes((prev) => prev.map((a, i) => (i === index ? { ...a, ...patch } : a)));
+  }
+
   function updateDay(index: number, patch: Partial<OfficeHoursDay>) {
     setOffice((prev) => ({ ...prev, days: prev.days.map((d, i) => (i === index ? { ...d, ...patch } : d)) }));
   }
 
   async function save(): Promise<string | void> {
     if (!values.name.trim()) return t('errors.missing_name');
+    if (hasSelectWithoutOptions(attributes)) return t('widgetForm.attributeNeedsOptions');
     const res = await fetch(`/api/chat/widgets/${widget.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(buildWidgetPayload(values, fields, office)),
+      body: JSON.stringify(buildWidgetPayload(values, fields, office, attributes)),
     }).catch(() => null);
     if (res?.ok) {
       router.refresh();
@@ -131,6 +141,7 @@ export default function WidgetSettings({
   const tabs = [
     { key: 'look', label: t('widgetForm.tabs.look') },
     { key: 'form', label: t('widgetForm.tabs.form') },
+    { key: 'attributes', label: t('widgetForm.tabs.attributes') },
     { key: 'bot', label: t('widgetForm.tabs.bot') },
     { key: 'hours', label: t('widgetForm.tabs.hours') },
   ];
@@ -348,6 +359,84 @@ export default function WidgetSettings({
           <div>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setFields((p) => [...p, emptyField()])}>
               {t('widgetForm.addField')}
+            </button>
+          </div>
+        </FormSection>
+      )}
+
+      {tab === 'attributes' && (
+        <FormSection title={t('widgetForm.attributesTitle')} description={t('widgetForm.attributesSub')} onSubmit={save}>
+          {attributes.length === 0 ? (
+            <p className="chat-quiet">{t('widgetForm.noAttributes')}</p>
+          ) : (
+            <div className="chat-field-rows" role="list">
+              {attributes.map((a, i) => (
+                <div key={a.id} className="chat-attr-def" role="listitem">
+                  <div className="chat-field-row">
+                    <input
+                      className="input"
+                      aria-label={t('widgetForm.attributeName')}
+                      placeholder={t('widgetForm.attributeName')}
+                      value={a.name}
+                      maxLength={80}
+                      onChange={(e) => updateAttribute(i, { name: e.target.value })}
+                    />
+                    <select
+                      className="select"
+                      aria-label={t('widgetForm.fieldType')}
+                      value={a.type}
+                      onChange={(e) => updateAttribute(i, { type: e.target.value as WidgetAttributeField['type'] })}
+                    >
+                      <option value="text">{t('widgetForm.fieldTypeText')}</option>
+                      <option value="number">{t('widgetForm.fieldTypeNumber')}</option>
+                      <option value="select">{t('widgetForm.fieldTypeSelect')}</option>
+                      <option value="boolean">{t('widgetForm.fieldTypeBoolean')}</option>
+                    </select>
+                    <label className="ui-check">
+                      <input
+                        type="checkbox"
+                        checked={a.required}
+                        onChange={(e) => updateAttribute(i, { required: e.target.checked })}
+                      />
+                      {t('widgetForm.attributeRequired')}
+                    </label>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-icon btn-sm"
+                      aria-label={t('widgetForm.removeAttribute', { name: a.name || t('widgetForm.attributeName') })}
+                      title={t('common.delete')}
+                      onClick={() => setAttributes((prev) => prev.filter((_, j) => j !== i))}
+                    >
+                      <ChatIcon name="close" size={14} />
+                    </button>
+                  </div>
+                  {a.type === 'select' && (
+                    <div className="ui-field">
+                      <label className="label" htmlFor={`${uid}-attr-${a.id}`}>
+                        {t('widgetForm.attributeOptions')}
+                      </label>
+                      <textarea
+                        id={`${uid}-attr-${a.id}`}
+                        className="textarea"
+                        rows={3}
+                        value={a.optionsText}
+                        onChange={(e) => updateAttribute(i, { optionsText: e.target.value })}
+                      />
+                      <p className="ui-help">{t('widgetForm.attributeOptionsHint')}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          <div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={attributes.length >= 20}
+              onClick={() => setAttributes((p) => [...p, emptyAttribute()])}
+            >
+              {t('widgetForm.addAttribute')}
             </button>
           </div>
         </FormSection>

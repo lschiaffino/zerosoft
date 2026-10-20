@@ -2475,6 +2475,39 @@ export const MIGRATIONS: Migration[] = [
       await client.executeMultiple(activityDateTriggersSql());
       for (const { table } of ACTIVITY_DATE_TABLES) await client.execute(activityDatesUpdateSql(table));
     },
+  },  {
+    // Chat: atributos de conversación definidos por widget (JSON
+    // ChatAttributeDef[], ver lib/chat-attributes.ts) y sus valores por
+    // conversación (JSON objeto id → valor). Agents: cada corrida queda en
+    // agent_runs (estado y pasos, para la pestaña Analítica y las alertas),
+    // alerts_enabled por agente y agent_alert_state como throttle del email
+    // de alertas (un claim por agente con la fecha del último envío).
+    id: '056_chat_attributes_agent_runs_alerts',
+    async up(client) {
+      await addColumn(client, "ALTER TABLE chat_widgets ADD COLUMN conversation_attributes TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(client, "ALTER TABLE chat_conversations ADD COLUMN attributes TEXT NOT NULL DEFAULT '{}'");
+      await addColumn(client, 'ALTER TABLE agents ADD COLUMN alerts_enabled INTEGER NOT NULL DEFAULT 1');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS agent_runs (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          conversation_id TEXT NOT NULL REFERENCES agent_conversations(id) ON DELETE CASCADE,
+          channel TEXT NOT NULL,
+          status TEXT NOT NULL,
+          steps INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_agent_runs_agent ON agent_runs(agent_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_agent_tool_calls_agent ON agent_tool_calls(agent_id, created_at);
+        CREATE TABLE IF NOT EXISTS agent_alert_state (
+          agent_id TEXT PRIMARY KEY REFERENCES agents(id) ON DELETE CASCADE,
+          last_sent_at TEXT,
+          last_kinds TEXT NOT NULL DEFAULT '[]',
+          locale TEXT NOT NULL DEFAULT 'en'
+        );
+      `);
+    },
   },
 ];
 

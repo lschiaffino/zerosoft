@@ -24,6 +24,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import AgentChat from './AgentChat';
 import AgentConversations from './AgentConversations';
+import AgentAnalytics from './AgentAnalytics';
 import AgentTests, { testSummary } from './AgentTests';
 import AgentSecretHeaders from './AgentSecretHeaders';
 import { api, chatLabels, errorText } from './agents-ui';
@@ -49,7 +50,7 @@ interface Props extends EditorRefs {
   tests: AgentTestCaseDto[];
 }
 
-const TABS = ['instructions', 'knowledge', 'tools', 'channels', 'playground', 'conversations'] as const;
+const TABS = ['instructions', 'knowledge', 'tools', 'channels', 'playground', 'conversations', 'analytics'] as const;
 type Tab = (typeof TABS)[number];
 
 type Draft = Omit<AgentDto, 'id' | 'createdAt' | 'updatedAt'>;
@@ -278,7 +279,7 @@ export default function AgentEditor(props: Props) {
     if (key === 'http_request' && lines(domainsRaw).length === 0) return t('tools.needsDomains');
     return null;
   };
-  const wide = tab === 'playground' || tab === 'conversations';
+  const wide = tab === 'playground' || tab === 'conversations' || tab === 'analytics';
   const summary = testSummary(tests);
 
   function renderTool(key: AgentToolKey) {
@@ -1128,6 +1129,10 @@ export default function AgentEditor(props: Props) {
             initialConversationId={props.initialConversationId ?? null}
             onOpenPlayground={() => setTab('playground')}
           />
+        )}
+
+        {tab === 'analytics' && (
+          <AgentAnalytics agentId={agent.id} canEdit={canEdit} onOpenConversations={() => setTab('conversations')} />
         )}
       </div>
     </div>

@@ -10,6 +10,7 @@ import {
   getOrCreateChatVisitor,
   getVisitorConversationWithMessages,
   saveVisitorContext,
+  toPublicConversation,
   toPublicMessage,
   toPublicVisitor,
   updateChatConversation,
@@ -43,6 +44,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     ...result,
+    conversation: toPublicConversation(result.conversation),
     messages: result.messages.map(toPublicMessage),
     visitor: toPublicVisitor(result.visitor),
     office,
@@ -121,7 +123,7 @@ export async function POST(req: Request) {
   return NextResponse.json(
     {
       message: toPublicMessage(message),
-      conversation: result.conversation,
+      conversation: toPublicConversation(result.conversation),
       visitor: toPublicVisitor(visitor),
       bot: result.botMessage ? toPublicMessage(result.botMessage) : null,
     },
