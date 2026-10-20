@@ -206,6 +206,19 @@ export interface NodeDef {
   fields: readonly FieldDef[];
 }
 
+/** Métodos que acepta un trigger.webhook. */
+export const WEBHOOK_ACCEPT = ['post_only', 'get_only', 'get_post'] as const;
+/** Cuándo responde: al instante (202) o con lo que arme el nodo "Responder al webhook". */
+export const WEBHOOK_RESPOND = ['immediately', 'reply_node'] as const;
+
+/** Campos de CRM que puede escribir "CRM: actualizar registro" (claves de ContactInput, CompanyInput, DealInput). */
+export const CRM_UPDATE_FIELDS = {
+  contact: ['firstName', 'lastName', 'email', 'phone', 'jobTitle', 'website', 'city', 'country', 'lifecycleStage', 'leadStatus', 'source', 'ownerId', 'companyId'],
+  company: ['name', 'domain', 'industry', 'employees', 'phone', 'website', 'city', 'country', 'lifecycleStage', 'ownerId'],
+  deal: ['name', 'amount', 'currency', 'closeDate', 'priority', 'source', 'description', 'lostReason', 'ownerId', 'companyId'],
+} as const;
+export type CrmUpdateEntity = keyof typeof CRM_UPDATE_FIELDS;
+
 const CONDITIONS_FIELDS: readonly FieldDef[] = [
   { key: 'combine', kind: 'select', options: ['all', 'any'], default: 'all' },
   { key: 'conditions', kind: 'conditions', default: [] },
@@ -223,7 +236,17 @@ export const NODE_DEFS = {
       { key: 'filterValue', kind: 'text', advanced: true },
     ],
   },
-  'trigger.webhook': { type: 'trigger.webhook', category: 'trigger', outputs: ['out'], fields: [] },
+  'trigger.webhook': {
+    type: 'trigger.webhook',
+    category: 'trigger',
+    outputs: ['out'],
+    fields: [
+      { key: 'accept', kind: 'select', options: WEBHOOK_ACCEPT, default: 'post_only' },
+      /** Opcional: header (api_key) o usuario y contraseña (basic) que exige la URL. */
+      { key: 'authCredentialId', kind: 'credential', options: ['api_key', 'basic'] },
+      { key: 'respond', kind: 'select', options: WEBHOOK_RESPOND, default: 'immediately' },
+    ],
+  },
   'trigger.schedule': {
     type: 'trigger.schedule',
     category: 'trigger',
@@ -318,6 +341,17 @@ export const NODE_DEFS = {
       { key: 'body', kind: 'textarea', template: true },
     ],
   },
+  'action.webhook_reply': {
+    type: 'action.webhook_reply',
+    category: 'action',
+    outputs: ['out'],
+    fields: [
+      { key: 'statusCode', kind: 'number', default: 200 },
+      { key: 'contentType', kind: 'select', options: ['json', 'text', 'html'], default: 'json' },
+      { key: 'body', kind: 'textarea', template: true, placeholder: '{"ok": true, "id": {{nodes.contact.output.contact.id | json}}}' },
+      { key: 'headers', kind: 'kv', template: true, default: [], advanced: true },
+    ],
+  },
   'app.crm_contact': {
     type: 'app.crm_contact',
     category: 'app',
@@ -354,6 +388,55 @@ export const NODE_DEFS = {
       { key: 'title', kind: 'text', template: true },
       { key: 'description', kind: 'textarea', template: true },
       { key: 'priority', kind: 'select', options: ['low', 'medium', 'high', 'urgent'], default: 'medium' },
+    ],
+  },
+  'app.track_update': {
+    type: 'app.track_update',
+    category: 'app',
+    outputs: ['out'],
+    fields: [
+      /** Id o identificador (ENG-12). */
+      { key: 'issue', kind: 'text', template: true, placeholder: '{{trigger.issue.identifier}}' },
+      /** Nombre o id de un status del proyecto ('' = sin cambio). */
+      { key: 'status', kind: 'text', template: true, placeholder: 'Done' },
+      { key: 'priority', kind: 'select', options: ['keep', 'low', 'medium', 'high', 'urgent'], default: 'keep' },
+      /** Email o id de un miembro; 'none' lo desasigna. */
+      { key: 'assignee', kind: 'text', template: true, placeholder: 'ada@example.com' },
+      { key: 'comment', kind: 'textarea', template: true },
+      { key: 'title', kind: 'text', template: true, advanced: true },
+      { key: 'dueDate', kind: 'text', template: true, placeholder: '{{now | add_time:7,days | date:date}}', advanced: true },
+    ],
+  },
+  'app.crm_update': {
+    type: 'app.crm_update',
+    category: 'app',
+    outputs: ['out'],
+    fields: [
+      { key: 'entity', kind: 'select', options: ['contact', 'company', 'deal'], default: 'contact' },
+      { key: 'recordId', kind: 'text', template: true, placeholder: '{{trigger.id}}' },
+      /** Contactos: si no hay id, se busca por email. */
+      { key: 'email', kind: 'text', template: true, placeholder: '{{trigger.email}}', showIf: { key: 'entity', values: ['contact'] } },
+      /** Propiedad → valor (firstName, amount, custom.plan…). */
+      { key: 'fields', kind: 'kv', template: true, default: [] },
+      /** Deals: nombre o id de una etapa del pipeline del deal. */
+      { key: 'stage', kind: 'text', template: true, placeholder: 'Won', showIf: { key: 'entity', values: ['deal'] } },
+    ],
+  },
+  'app.crm_task': {
+    type: 'app.crm_task',
+    category: 'app',
+    outputs: ['out'],
+    fields: [
+      { key: 'subject', kind: 'text', template: true, placeholder: 'Follow up with {{trigger.first_name}}' },
+      { key: 'body', kind: 'textarea', template: true },
+      { key: 'dueIn', kind: 'number', default: 1 },
+      { key: 'dueUnit', kind: 'select', options: ['hours', 'days'], default: 'days' },
+      /** Id o email de un contacto. */
+      { key: 'contactId', kind: 'text', template: true, placeholder: '{{nodes.contact.output.contact.id}}' },
+      { key: 'dealId', kind: 'text', template: true, placeholder: '{{trigger.id}}' },
+      { key: 'companyId', kind: 'text', template: true, advanced: true },
+      /** Email o id de una persona del workspace (vacío = sin owner). */
+      { key: 'owner', kind: 'text', template: true, placeholder: 'ada@example.com', advanced: true },
     ],
   },
   'app.link': {
@@ -798,6 +881,10 @@ export const flowUpdateSchema = z.object({
   enabled: z.boolean().optional(),
   /** Flow que corre cuando una corrida falla (null = ninguno). */
   errorFlowId: z.string().max(100).nullable().optional(),
+  /** Email al dueño del flow cuando una corrida falla (uno por hora como mucho). */
+  failureAlerts: z.boolean().optional(),
+  /** Replay automático (una vez) de las corridas que fallan. */
+  autoReplay: z.boolean().optional(),
   /** Versión que se editó (bloqueo optimista). */
   version: z.number().int().positive().optional(),
 });
@@ -809,6 +896,19 @@ export const flowRunSchema = z.object({
 export const flowRerunSchema = z.object({
   /** Nodo desde el que se vuelve a ejecutar (los anteriores reusan su salida). */
   fromNodeId: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/),
+});
+
+/** Días que se guarda el historial de corridas (ajuste del workspace). */
+export const RETENTION_DAYS = [7, 14, 30, 60, 90, 180, 365] as const;
+export const DEFAULT_RETENTION_DAYS = 30;
+
+export const flowSettingsSchema = z.object({
+  retentionDays: z
+    .number()
+    .int()
+    .refine((n) => (RETENTION_DAYS as readonly number[]).includes(n))
+    .optional(),
+  locale: z.enum(['en', 'es', 'pt']).optional(),
 });
 
 // ---------- Versiones ----------

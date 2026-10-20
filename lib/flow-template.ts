@@ -9,9 +9,13 @@
  *   {{flow.name}} {{run.id}} {{now}}
  * Filtros encadenables con |: json, join[:sep], lines, length, upper, lower,
  * trim, map:<campo>, default:<valor>, number, first, last, urlencode.
+ * Texto: replace:"de","a" y split[:sep] (lista, cada parte recortada).
+ * Fechas: date[:formato[,zona]], add_time:<n>,<unidad> y timezone:<zona>.
  *   {"text": {{nodes.ai.output.text | json}}}
  *   {{nodes.deals.output.deals | map:name | lines}}
+ *   {{trigger.startsAt | add_time:-1,hours | timezone:America/Argentina/Buenos_Aires | date:"DD/MM HH:mm"}}
  */
+import { isValidTimezone, tzOffsetMinutes } from './cron';
 
 export type TemplateContext = Record<string, unknown>;
 
@@ -62,6 +66,194 @@ function splitFilters(expr: string): string[] {
   return expr.split('|').map((s) => s.trim());
 }
 
+/**
+ * Argumentos de un filtro separados por coma; las comillas conservan comas y
+ * espacios: replace:", "," / " → [', ', ' / ']. Sin argumento: [].
+ */
+export function filterArgs(raw: string | undefined): string[] {
+  if (raw === undefined) return [];
+  const out: string[] = [];
+  let cur = '';
+  let quote: string | null = null;
+  let quoted = false;
+  const push = () => {
+    out.push((quoted ? cur : cur.trim()).replace(/\\n/g, '\n'));
+    cur = '';
+    quoted = false;
+  };
+  for (const ch of raw) {
+    if (quote) {
+      if (ch === quote) quote = null;
+      else cur += ch;
+    } else if (ch === '"' || ch === "'") {
+      if (!quoted) cur = '';
+      quote = ch;
+      quoted = true;
+    } else if (ch === ',') {
+      push();
+    } else if (!quoted) {
+      cur += ch;
+    }
+  }
+  push();
+  return out;
+}
+
+// ---------- Fechas ----------
+
+/** Offset explícito al final de una fecha ISO ('Z', '+02:00', '-0300'), en minutos. */
+function explicitOffset(text: string): number | null {
+  const m = /[T\s]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?\s*(Z|[+-]\d{2}:?\d{2})$/i.exec(text.trim());
+  if (!m) return null;
+  if (m[1].toUpperCase() === 'Z') return 0;
+  const sign = m[1][0] === '-' ? -1 : 1;
+  const digits = m[1].slice(1).replace(':', '');
+  return sign * (Number(digits.slice(0, 2)) * 60 + Number(digits.slice(2, 4)));
+}
+
+/**
+ * Fecha de una variable: ISO, 'YYYY-MM-DD HH:MM:SS' (SQLite, en UTC),
+ * 'YYYY-MM-DD' o epoch (segundos o milisegundos). null si no se entiende.
+ */
+export function toDate(value: unknown): Date | null {
+  if (value instanceof Date) return Number.isFinite(value.getTime()) ? value : null;
+  if (typeof value === 'number') return Number.isFinite(value) ? new Date(value < 1e11 ? value * 1000 : value) : null;
+  const text = stringify(value).trim();
+  if (!text) return null;
+  if (/^\d{9,13}$/.test(text)) return toDate(Number(text));
+  let iso = text;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) iso += 'T00:00:00Z';
+  else if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(iso)) iso = `${iso.replace(' ', 'T')}Z`;
+  const d = new Date(iso);
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+
+const pad = (n: number, len = 2) => String(Math.abs(Math.trunc(n))).padStart(len, '0');
+
+function offsetText(minutes: number, colon = true): string {
+  const sign = minutes < 0 ? '-' : '+';
+  return `${sign}${pad(Math.floor(Math.abs(minutes) / 60))}${colon ? ':' : ''}${pad(Math.abs(minutes) % 60)}`;
+}
+
+/** ISO con la hora de pared del offset: 2026-01-01T12:00:00.000-03:00 (UTC: ...Z). */
+function isoWithOffset(date: Date, offset: number): string {
+  if (offset === 0) return date.toISOString();
+  const local = new Date(date.getTime() + offset * 60_000);
+  return `${local.toISOString().slice(0, -1)}${offsetText(offset)}`;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DATE_TOKEN_RE = /\[([^\]]*)\]|YYYY|YY|MMM|MM|M|DD|D|ddd|HH|H|hh|h|mm|ss|SSS|A|ZZ|Z|X|x/g;
+const DATE_PRESETS: Record<string, string> = { date: 'YYYY-MM-DD', time: 'HH:mm', datetime: 'YYYY-MM-DD HH:mm' };
+
+/**
+ * Formatea con tokens (YYYY MM DD HH mm ss, MMM, ddd, hh A, Z…; [texto]
+ * literal) en la zona dada; sin zona, en el offset que trae el texto (así
+ * `timezone:X | date:...` muestra la hora de esa zona) o en UTC. Formatos
+ * con nombre: iso, date, time, datetime, unix, unix_ms. null si no es fecha.
+ */
+export function formatDate(value: unknown, format = '', timezone = ''): string | null {
+  const date = toDate(value);
+  if (!date) return null;
+  const tz = timezone.trim();
+  const offset =
+    tz && isValidTimezone(tz) ? tzOffsetMinutes(tz, date) : typeof value === 'string' ? (explicitOffset(value) ?? 0) : 0;
+  const fmt = format.trim() || 'datetime';
+  if (fmt === 'iso') return isoWithOffset(date, offset);
+  if (fmt === 'unix') return String(Math.floor(date.getTime() / 1000));
+  if (fmt === 'unix_ms') return String(date.getTime());
+  const l = new Date(date.getTime() + offset * 60_000);
+  const hours = l.getUTCHours();
+  const parts: Record<string, () => string> = {
+    YYYY: () => String(l.getUTCFullYear()),
+    YY: () => pad(l.getUTCFullYear() % 100),
+    MMM: () => MONTHS[l.getUTCMonth()],
+    MM: () => pad(l.getUTCMonth() + 1),
+    M: () => String(l.getUTCMonth() + 1),
+    DD: () => pad(l.getUTCDate()),
+    D: () => String(l.getUTCDate()),
+    ddd: () => WEEKDAYS[l.getUTCDay()],
+    HH: () => pad(hours),
+    H: () => String(hours),
+    hh: () => pad(hours % 12 || 12),
+    h: () => String(hours % 12 || 12),
+    mm: () => pad(l.getUTCMinutes()),
+    ss: () => pad(l.getUTCSeconds()),
+    SSS: () => pad(l.getUTCMilliseconds(), 3),
+    A: () => (hours < 12 ? 'AM' : 'PM'),
+    ZZ: () => offsetText(offset, false),
+    Z: () => offsetText(offset),
+    X: () => String(Math.floor(date.getTime() / 1000)),
+    x: () => String(date.getTime()),
+  };
+  return (DATE_PRESETS[fmt] ?? fmt).replace(DATE_TOKEN_RE, (tok, literal: string | undefined) =>
+    literal !== undefined ? literal : (parts[tok]?.() ?? tok),
+  );
+}
+
+const UNIT_MS: Record<string, number> = { second: 1000, minute: 60_000, hour: 3_600_000, day: 86_400_000, week: 604_800_000 };
+const UNIT_ALIASES: Record<string, string> = {
+  s: 'second',
+  sec: 'second',
+  second: 'second',
+  seconds: 'second',
+  m: 'minute',
+  min: 'minute',
+  mins: 'minute',
+  minute: 'minute',
+  minutes: 'minute',
+  h: 'hour',
+  hour: 'hour',
+  hours: 'hour',
+  d: 'day',
+  day: 'day',
+  days: 'day',
+  w: 'week',
+  week: 'week',
+  weeks: 'week',
+  month: 'month',
+  months: 'month',
+  y: 'year',
+  year: 'year',
+  years: 'year',
+};
+
+/**
+ * Suma (o resta, con n negativo) tiempo a una fecha; sin unidad, días. Meses
+ * y años respetan el calendario (31/01 + 1 mes = último día de febrero).
+ * Conserva el offset del texto de entrada; si no trae, ISO en UTC.
+ */
+export function addTime(value: unknown, amount: unknown, unitRaw: unknown): string | null {
+  const date = toDate(value);
+  const n = Number(String(amount ?? '').trim() || NaN);
+  const rawUnit = String(unitRaw ?? '').trim().toLowerCase();
+  const unit = rawUnit ? UNIT_ALIASES[rawUnit] : 'day';
+  if (!date || !Number.isFinite(n) || !unit) return null;
+  let out: Date;
+  if (unit === 'month' || unit === 'year') {
+    const months = Math.trunc(n) * (unit === 'year' ? 12 : 1);
+    out = new Date(date.getTime());
+    const day = out.getUTCDate();
+    out.setUTCDate(1);
+    out.setUTCMonth(out.getUTCMonth() + months);
+    const last = new Date(Date.UTC(out.getUTCFullYear(), out.getUTCMonth() + 1, 0)).getUTCDate();
+    out.setUTCDate(Math.min(day, last));
+  } else {
+    out = new Date(date.getTime() + n * UNIT_MS[unit]);
+  }
+  if (!Number.isFinite(out.getTime())) return null;
+  return isoWithOffset(out, typeof value === 'string' ? (explicitOffset(value) ?? 0) : 0);
+}
+
+/** El mismo instante con la hora de pared de la zona: 2026-01-01T12:00:00.000-03:00. */
+export function inTimezone(value: unknown, timezone: unknown): string | null {
+  const date = toDate(value);
+  const tz = String(timezone ?? '').trim();
+  if (!date || !tz || !isValidTimezone(tz)) return null;
+  return isoWithOffset(date, tzOffsetMinutes(tz, date));
+}
+
 function applyFilter(value: unknown, filter: string): unknown {
   const idx = filter.indexOf(':');
   const name = (idx < 0 ? filter : filter.slice(0, idx)).trim().toLowerCase();
@@ -102,6 +294,31 @@ function applyFilter(value: unknown, filter: string): unknown {
     case 'urlencode':
       // Para meter datos externos en el path o la query de una URL sin que cambien su forma.
       return encodeURIComponent(stringify(value));
+    case 'replace': {
+      const [from = '', to = ''] = filterArgs(rawArg);
+      const text = stringify(value);
+      return from ? text.split(from).join(to) : text;
+    }
+    case 'split': {
+      if (Array.isArray(value)) return value;
+      const [sep] = filterArgs(rawArg);
+      const text = stringify(value);
+      if (!text) return [];
+      return text.split(sep || ',').map((p) => p.trim());
+    }
+    // Fechas: si el valor no es una fecha, sigue igual (se ve en el paso).
+    case 'date': {
+      const [format, tz] = filterArgs(rawArg);
+      return formatDate(value, format, tz) ?? value;
+    }
+    case 'add_time': {
+      const [amount, unit] = filterArgs(rawArg);
+      return addTime(value, amount, unit) ?? value;
+    }
+    case 'timezone': {
+      const [tz] = filterArgs(rawArg);
+      return inTimezone(value, tz) ?? value;
+    }
     default:
       return value;
   }

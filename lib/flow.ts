@@ -7,16 +7,18 @@
  * persona cambia un nodo Gmail, pasa a ser created_by: el nodo envía desde la
  * casilla de quien escribió el mensaje, nunca desde la de otro.
  */
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { after } from 'next/server';
 import { nextCronRun, tzOffsetMinutes } from './cron';
-import { getDb, type FlowFlowRow, type FlowRunRow, type FlowStepRow, type FlowVersionRow } from './db';
+import { getDb, type FlowFlowRow, type FlowRunRow, type FlowSettingsRow, type FlowStepRow, type FlowVersionRow } from './db';
 import { flowChain } from './events';
 import {
+  DEFAULT_RETENTION_DAYS,
   diffGraphs,
   EMPTY_GRAPH,
   isHookTrigger,
   isTriggerType,
+  RETENTION_DAYS,
   triggerNode,
   validateGraph,
   type FlowEventType,
@@ -41,6 +43,10 @@ export interface FlowDto {
   triggerEvent: string | null;
   nextRunAt: string | null;
   errorFlowId: string | null;
+  /** Email al dueño cuando una corrida falla. */
+  failureAlerts: boolean;
+  /** Replay automático de las corridas que fallan. */
+  autoReplay: boolean;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -60,6 +66,8 @@ export interface FlowRunDto {
   stepCount: number;
   rerunOf: string | null;
   parentRunId: string | null;
+  /** Replay automático agendado (corrida fallida). */
+  replayAt: string | null;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
@@ -107,6 +115,8 @@ export function toFlowDto(row: FlowFlowRow): FlowDto {
     triggerEvent: row.trigger_event,
     nextRunAt: row.next_run_at,
     errorFlowId: row.error_flow_id ?? null,
+    failureAlerts: row.failure_alerts !== 0,
+    autoReplay: row.auto_replay === 1,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -124,6 +134,7 @@ export function toRunDto(row: FlowRunRow): FlowRunDto {
     stepCount: row.step_count,
     rerunOf: row.rerun_of ?? null,
     parentRunId: row.parent_run_id ?? null,
+    replayAt: row.replay_at ?? null,
     createdAt: row.created_at,
     startedAt: row.started_at,
     finishedAt: row.finished_at,
@@ -395,6 +406,8 @@ export async function updateFlow(
     enabled?: boolean;
     version?: number;
     errorFlowId?: string | null;
+    failureAlerts?: boolean;
+    autoReplay?: boolean;
   },
   actorId: string | null = null,
 ): Promise<FlowWriteResult> {
@@ -437,7 +450,8 @@ export async function updateFlow(
   const res = await getDb()
     .prepare(
       `UPDATE flow_flows SET name = ?, description = ?, enabled = ?, graph = ?, version = version + 1,
-         trigger_type = ?, trigger_event = ?, next_run_at = ?, error_flow_id = ?, created_by = ?, updated_at = ?
+         trigger_type = ?, trigger_event = ?, next_run_at = ?, error_flow_id = ?, failure_alerts = ?, auto_replay = ?,
+         created_by = ?, updated_at = ?
        WHERE id = ? AND user_id = ? AND version = ?`,
     )
     .run(
@@ -449,6 +463,8 @@ export async function updateFlow(
       tf.event,
       keepNext ? row.next_run_at : tf.next,
       errorFlowId,
+      patch.failureAlerts === undefined ? (row.failure_alerts === 0 ? 0 : 1) : patch.failureAlerts ? 1 : 0,
+      patch.autoReplay === undefined ? (row.auto_replay === 1 ? 1 : 0) : patch.autoReplay ? 1 : 0,
       createdBy,
       nowIso(),
       id,
@@ -693,19 +709,74 @@ export async function enqueueEventRuns(
   return ids;
 }
 
+/** ¿El trigger.webhook acepta este método? (GET, POST o los dos; default POST). */
+export function webhookAccepts(accept: unknown, method: string): boolean {
+  const m = method.toUpperCase();
+  if (accept === 'get_only') return m === 'GET';
+  if (accept === 'get_post') return m === 'GET' || m === 'POST';
+  return m === 'POST';
+}
+
+function sameSecret(a: string, b: string): boolean {
+  // Digests de igual largo: timingSafeEqual no filtra el largo del secreto.
+  const da = createHash('sha256').update(a).digest();
+  const db = createHash('sha256').update(b).digest();
+  return timingSafeEqual(da, db);
+}
+
+/**
+ * Autenticación de un trigger.webhook con su credencial: api_key exige el
+ * header (con el prefijo, si tiene) y basic, Authorization: Basic con usuario
+ * y contraseña. `header` lee un header del request (sin distinguir mayúsculas).
+ */
+export function checkWebhookAuth(
+  cred: { type: string; data: Record<string, string> },
+  header: (name: string) => string | null,
+): boolean {
+  if (cred.type === 'api_key') {
+    const name = String(cred.data.headerName ?? '').trim();
+    const secret = String(cred.data.value ?? '');
+    if (!name || !secret) return false;
+    const prefix = String(cred.data.prefix ?? '').trim();
+    const expected = prefix ? `${prefix} ${secret}` : secret;
+    return sameSecret((header(name) ?? '').trim(), expected);
+  }
+  if (cred.type === 'basic') {
+    const got = /^Basic\s+(.+)$/i.exec((header('authorization') ?? '').trim());
+    if (!got || !cred.data.password) return false;
+    let decoded = '';
+    try {
+      decoded = Buffer.from(got[1], 'base64').toString('utf8');
+    } catch {
+      return false;
+    }
+    return sameSecret(decoded, `${cred.data.username ?? ''}:${cred.data.password}`);
+  }
+  return false;
+}
+
+export type WebhookRunResult =
+  | { ok: true; runId: string | null; ignored?: boolean; respond?: 'immediately' | 'reply_node' }
+  | {
+      ok: false;
+      error: 'not_found' | 'disabled' | 'rate_limited' | 'invalid_signature' | 'method_not_allowed' | 'unauthorized';
+      /** unauthorized con usuario y contraseña: el route pide credenciales (WWW-Authenticate). */
+      basic?: boolean;
+    };
+
 /**
  * Webhook entrante: encola si el token existe y el flow está habilitado.
  * trigger.stripe además verifica la firma (Stripe-Signature con el secreto
  * de la credencial) y filtra por tipo de evento; el evento queda como trigger.
+ * trigger.webhook valida el método y, si tiene credencial, la autenticación
+ * (el header con el secreto no llega al flow). Con respond = reply_node la
+ * corrida queda tomada ('running') para que el route la ejecute y responda.
  */
 export async function enqueueWebhookRun(
   token: string,
   data: { method: string; body: unknown; query: Record<string, string>; headers: Record<string, string> },
-  raw: { body: string; signature: string | null } = { body: '', signature: null },
-): Promise<
-  | { ok: true; runId: string | null; ignored?: boolean }
-  | { ok: false; error: 'not_found' | 'disabled' | 'rate_limited' | 'invalid_signature' }
-> {
+  raw: { body: string; signature: string | null; header?: (name: string) => string | null } = { body: '', signature: null },
+): Promise<WebhookRunResult> {
   const hook = (await getDb()
     .prepare(
       `SELECT h.node_id, f.id, f.user_id, f.enabled, f.graph FROM flow_webhooks h
@@ -717,6 +788,7 @@ export async function enqueueWebhookRun(
   const trigger = triggerNode(parseGraph(hook.graph));
   if (!trigger || trigger.id !== hook.node_id) return { ok: false, error: 'not_found' };
   if (trigger.type === 'trigger.stripe') {
+    if (data.method.toUpperCase() !== 'POST') return { ok: false, error: 'method_not_allowed' };
     const { resolveCredential } = await import('./flow-credentials');
     const { verifyStripeSignature, stripeEventAllowed } = await import('./flow-integrations');
     const cred = await resolveCredential(hook.user_id, String(trigger.config.credentialId ?? ''));
@@ -741,10 +813,52 @@ export async function enqueueWebhookRun(
     kickFlowWorker();
     return { ok: true, runId };
   }
-  const runId = await enqueueRun({ id: hook.id, user_id: hook.user_id }, 'trigger.webhook', data);
+  if (!webhookAccepts(trigger.config.accept, data.method)) return { ok: false, error: 'method_not_allowed' };
+  const headers = { ...data.headers };
+  const credId = String(trigger.config.authCredentialId ?? '').trim();
+  if (credId) {
+    const { resolveCredential } = await import('./flow-credentials');
+    const cred = await resolveCredential(hook.user_id, credId);
+    // Credencial borrada o de otro tipo: la URL queda cerrada (nunca abierta sin querer).
+    const ok = !!cred && (cred.type === 'api_key' || cred.type === 'basic') && checkWebhookAuth(cred, raw.header ?? (() => null));
+    if (!ok) return { ok: false, error: 'unauthorized', basic: cred?.type === 'basic' };
+    if (cred.type === 'api_key') delete headers[String(cred.data.headerName ?? '').trim().toLowerCase()];
+  }
+  const respond = trigger.config.respond === 'reply_node' ? 'reply_node' : 'immediately';
+  const runId = await enqueueRun(
+    { id: hook.id, user_id: hook.user_id },
+    'trigger.webhook',
+    { ...data, headers },
+    respond === 'reply_node' ? { status: 'running', lockMs: 5 * 60_000 } : {},
+  );
   if (!runId) return { ok: false, error: 'rate_limited' };
-  kickFlowWorker();
-  return { ok: true, runId };
+  if (respond === 'immediately') kickFlowWorker();
+  return { ok: true, runId, respond };
+}
+
+/** Tope del cuerpo de la respuesta del nodo "Responder al webhook". */
+export const WEBHOOK_REPLY_LIMIT = 30_000;
+
+export interface WebhookReply {
+  status: number;
+  contentType: string;
+  headers: Record<string, string>;
+  body: string;
+}
+
+/** Respuesta que armó el nodo "Responder al webhook" en la corrida (el último que corrió). null si no corrió. */
+export async function webhookReply(runId: string): Promise<WebhookReply | null> {
+  const step = (await getDb()
+    .prepare(
+      `SELECT output FROM flow_steps WHERE run_id = ? AND node_type = 'action.webhook_reply' AND status = 'success'
+       ORDER BY started_at DESC, rowid DESC LIMIT 1`,
+    )
+    .get(runId)) as { output: string | null } | undefined;
+  const out = parseJson<Partial<WebhookReply> | null>(step?.output, null);
+  if (!out || typeof out.status !== 'number' || typeof out.body !== 'string') return null;
+  const headers: Record<string, string> = {};
+  for (const [k, v] of Object.entries(out.headers ?? {})) if (typeof v === 'string') headers[k] = v;
+  return { status: out.status, contentType: String(out.contentType ?? 'application/json'), headers, body: out.body };
 }
 
 /**
@@ -773,4 +887,99 @@ export async function enqueueDueSchedules(now: Date = new Date(), limit = 100): 
     else await recordRateLimitedRun(row, 'trigger.schedule', input);
   }
   return ids;
+}
+
+// ---------- Ajustes del workspace y retención ----------
+
+export interface FlowSettingsDto {
+  retentionDays: number;
+  locale: string;
+}
+
+export async function getFlowSettings(workspaceId: string): Promise<FlowSettingsDto> {
+  const row = (await getDb().prepare('SELECT * FROM flow_settings WHERE user_id = ?').get(workspaceId)) as
+    | FlowSettingsRow
+    | undefined;
+  return { retentionDays: row?.retention_days ?? DEFAULT_RETENTION_DAYS, locale: row?.locale ?? 'en' };
+}
+
+export async function updateFlowSettings(
+  workspaceId: string,
+  patch: { retentionDays?: number; locale?: string },
+): Promise<FlowSettingsDto> {
+  const current = await getFlowSettings(workspaceId);
+  const days = patch.retentionDays;
+  const next = {
+    retentionDays: days !== undefined && (RETENTION_DAYS as readonly number[]).includes(days) ? days : current.retentionDays,
+    locale: patch.locale && FLOW_LOCALES.includes(patch.locale) ? patch.locale : current.locale,
+  };
+  await getDb()
+    .prepare(
+      `INSERT INTO flow_settings (user_id, retention_days, locale, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT (user_id) DO UPDATE SET retention_days = excluded.retention_days, locale = excluded.locale,
+         updated_at = excluded.updated_at`,
+    )
+    .run(workspaceId, next.retentionDays, next.locale, nowIso());
+  return next;
+}
+
+const FLOW_LOCALES = ['en', 'es', 'pt'];
+
+/**
+ * Idioma de los avisos por email del workspace: el de quien guarda un flow
+ * (no hay idioma por persona). Solo escribe si cambió.
+ */
+export async function rememberFlowLocale(workspaceId: string, locale: string): Promise<void> {
+  if (!FLOW_LOCALES.includes(locale)) return;
+  await getDb()
+    .prepare(
+      `INSERT INTO flow_settings (user_id, retention_days, locale, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT (user_id) DO UPDATE SET locale = excluded.locale, updated_at = excluded.updated_at
+       WHERE flow_settings.locale != excluded.locale`,
+    )
+    .run(workspaceId, DEFAULT_RETENTION_DAYS, locale, nowIso());
+}
+
+/** Corridas por lote al purgar (cada una se lleva sus pasos). */
+const PRUNE_BATCH = 200;
+
+/**
+ * Borra las corridas terminadas (y sus pasos) más viejas que la retención
+ * de su workspace (flow_settings.retention_days, 30 días por defecto). Por
+ * lotes acotados y con presupuesto de tiempo: lo que no entra sigue en el
+ * próximo tick. Nunca borra la última corrida de cada flow (el selector de
+ * variables la usa) ni una con replay pendiente. La llama el tick horario.
+ */
+export async function pruneFlowRuns(
+  opts: { now?: Date; batch?: number; maxBatches?: number; budgetMs?: number } = {},
+): Promise<{ runs: number; batches: number }> {
+  const db = getDb();
+  const now = (opts.now ?? new Date()).toISOString();
+  const batch = Math.min(Math.max(opts.batch ?? PRUNE_BATCH, 1), 1000);
+  const maxBatches = Math.max(opts.maxBatches ?? 10, 1);
+  const deadline = Date.now() + (opts.budgetMs ?? 20_000);
+  let runs = 0;
+  let batches = 0;
+  while (batches < maxBatches && Date.now() < deadline) {
+    const rows = (await db
+      .prepare(
+        `SELECT r.id FROM flow_runs r
+         LEFT JOIN flow_settings s ON s.user_id = r.user_id
+         WHERE r.status IN ('success', 'failed') AND r.replay_at IS NULL
+           AND r.created_at < strftime('%Y-%m-%dT%H:%M:%fZ', ?, '-' || COALESCE(s.retention_days, ?) || ' days')
+           AND r.id != (SELECT r2.id FROM flow_runs r2 WHERE r2.flow_id = r.flow_id ORDER BY r2.created_at DESC LIMIT 1)
+         ORDER BY r.created_at ASC LIMIT ?`,
+      )
+      .all(now, DEFAULT_RETENTION_DAYS, batch)) as Array<{ id: string }>;
+    if (rows.length === 0) break;
+    const ids = rows.map((r) => r.id);
+    const ph = ids.map(() => '?').join(',');
+    // Los pasos primero (explícito: no depende de que el FK esté activo).
+    await db.prepare(`DELETE FROM flow_steps WHERE run_id IN (${ph})`).run(...ids);
+    const res = await db.prepare(`DELETE FROM flow_runs WHERE id IN (${ph})`).run(...ids);
+    runs += res.changes;
+    batches += 1;
+    if (rows.length < batch) break;
+  }
+  return { runs, batches };
 }

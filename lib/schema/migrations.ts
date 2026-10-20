@@ -2476,6 +2476,28 @@ export const MIGRATIONS: Migration[] = [
       for (const { table } of ACTIVITY_DATE_TABLES) await client.execute(activityDatesUpdateSql(table));
     },
   },
+  {
+    // Flow: ajustes por workspace (retención del historial de corridas e
+    // idioma de los avisos), aviso por email al dueño cuando una corrida
+    // falla (como mucho uno por flow y hora: failure_email_at) y replay
+    // automático de corridas fallidas (replay_at = cuándo se reintenta).
+    id: '051_flow_alerts_retention',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS flow_settings (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          retention_days INTEGER NOT NULL DEFAULT 30,
+          locale TEXT NOT NULL DEFAULT 'en',
+          updated_at TEXT NOT NULL
+        )`);
+      await addColumn(client, 'ALTER TABLE flow_flows ADD COLUMN failure_alerts INTEGER NOT NULL DEFAULT 1');
+      await addColumn(client, 'ALTER TABLE flow_flows ADD COLUMN auto_replay INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE flow_flows ADD COLUMN failure_email_at TEXT');
+      await addColumn(client, 'ALTER TABLE flow_runs ADD COLUMN replay_at TEXT');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_flow_runs_replay ON flow_runs(replay_at) WHERE replay_at IS NOT NULL');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_flow_runs_user_created ON flow_runs(user_id, created_at)');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

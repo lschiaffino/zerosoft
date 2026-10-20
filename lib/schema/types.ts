@@ -1246,6 +1246,9 @@ export interface FlowFlowRow {
   trigger_event: string | null;
   next_run_at: string | null; // ISO
   error_flow_id: string | null; // flow que corre cuando una corrida falla
+  failure_alerts?: number; // 0 | 1: email al dueño cuando una corrida falla
+  auto_replay?: number; // 0 | 1: replay automático de corridas fallidas
+  failure_email_at?: string | null; // último aviso de falla (tope: uno por hora)
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -1291,6 +1294,7 @@ export interface FlowRunRow {
   locked_until: string | null;
   rerun_of: string | null; // corrida original (re-ejecución desde un paso)
   parent_run_id: string | null; // corrida que la lanzó (sub-flow o flow de error)
+  replay_at?: string | null; // replay automático agendado (corrida fallida)
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
@@ -1320,6 +1324,13 @@ export interface FlowJobRow {
   locked_until: string | null;
   payload: string; // JSON
   created_at: string;
+}
+
+export interface FlowSettingsRow {
+  user_id: string; // workspace
+  retention_days: number; // días que se guardan corridas y pasos
+  locale: string; // idioma de los avisos por email
+  updated_at: string;
 }
 
 export interface FlowWebhookRow {

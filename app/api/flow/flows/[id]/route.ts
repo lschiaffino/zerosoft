@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { deleteFlow, getFlow, lastOutputs, listFlowWebhooks, updateFlow } from '@/lib/flow';
+import { deleteFlow, getFlow, lastOutputs, listFlowWebhooks, rememberFlowLocale, updateFlow } from '@/lib/flow';
+import { requestLocale } from '@/lib/request-locale';
 import { flowUpdateSchema } from '@/lib/flow-schema';
 import { canEditFlows, flowError, forbidden, notFound, realUserId, unauthorized } from '@/lib/flow-http';
 
@@ -38,6 +39,8 @@ export async function PATCH(req: NextRequest, props: Ctx) {
     if (res.error === 'conflict') return flowError(409, 'conflict');
     return flowError(400, res.error, { nodeId: res.nodeId });
   }
+  // Los avisos de falla por email salen en el idioma de quien edita los flows.
+  await rememberFlowLocale(user.id, requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'))).catch(() => {});
   return NextResponse.json({ flow: res.flow, webhooks: await listFlowWebhooks(user.id, id) });
 }
 

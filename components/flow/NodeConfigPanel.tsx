@@ -654,6 +654,8 @@ export default function NodeConfigPanel({
       {type === 'trigger.schedule' && <p className="ui-help">{t('editor.scheduleGranularity')}</p>}
       {type === 'logic.delay' && <p className="ui-help">{t('editor.delayGranularity')}</p>}
       {type === 'trigger.stripe' && <p className="ui-help">{t('editor.stripeHint')}</p>}
+      {type === 'trigger.webhook' && <p className="ui-help">{t('editor.webhookAuthHint')}</p>}
+      {type === 'trigger.webhook' && config.respond === 'reply_node' && <p className="ui-help">{t('editor.webhookReplyHint')}</p>}
       {extra}
       {basic.map(fieldBlock)}
       {hasAdvanced && (

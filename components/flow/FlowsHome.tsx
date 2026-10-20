@@ -2,23 +2,27 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useFormatter, useNow, useTranslations } from 'next-intl';
+import { useFormatter, useLocale, useNow, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import DataTable from '@/components/ui/DataTable';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeader from '@/components/ui/PageHeader';
-import type { FlowListItem } from '@/lib/flow';
-import { FLOW_TEMPLATES, triggerNode } from '@/lib/flow-schema';
+import type { FlowListItem, FlowSettingsDto } from '@/lib/flow';
+import { FLOW_TEMPLATES, RETENTION_DAYS, triggerNode } from '@/lib/flow-schema';
 import { i18nKey, RUN_BADGE } from './flow-ui';
 
 interface Props {
   flows: FlowListItem[];
   canEdit: boolean;
+  settings: FlowSettingsDto;
 }
 
 /** Lista de flows + plantillas (/app/flow). */
-export default function FlowsHome({ flows: initial, canEdit }: Props) {
+export default function FlowsHome({ flows: initial, canEdit, settings: initialSettings }: Props) {
   const t = useTranslations('flow');
+  const locale = useLocale();
+  const [retention, setRetention] = useState(initialSettings.retentionDays);
+  const [settingsState, setSettingsState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const format = useFormatter();
   const now = useNow({ updateInterval: 30_000 });
   const router = useRouter();
@@ -69,6 +73,24 @@ export default function FlowsHome({ flows: initial, canEdit }: Props) {
       setFlows((list) => list.map((f) => (f.id === id ? { ...f, enabled: !enabled } : f)));
       setError(t('errors.generic'));
     }
+  }
+
+  /** Retención del historial del workspace (se guarda al elegir; también fija el idioma de los avisos). */
+  async function saveRetention(days: number) {
+    const prev = retention;
+    setRetention(days);
+    setSettingsState('saving');
+    const res = await fetch('/api/flow/settings', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ retentionDays: days, locale }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setRetention(prev);
+      setSettingsState('error');
+      return;
+    }
+    setSettingsState('saved');
   }
 
   function triggerLabel(f: FlowListItem): string {
@@ -198,6 +220,36 @@ export default function FlowsHome({ flows: initial, canEdit }: Props) {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="flow-block" aria-labelledby="flow-settings-title">
+        <div className="flow-block-head">
+          <h2 id="flow-settings-title" className="flow-block-title">
+            {t('settings.title')}
+          </h2>
+          <p className="ui-help">{t('settings.retentionHint')}</p>
+        </div>
+        <div className="ui-field flow-retention">
+          <label className="label" htmlFor="flow-retention">
+            {t('settings.retention')}
+          </label>
+          <select
+            id="flow-retention"
+            className="select"
+            value={retention}
+            disabled={!canEdit || settingsState === 'saving'}
+            onChange={(e) => void saveRetention(Number(e.target.value))}
+          >
+            {RETENTION_DAYS.map((d) => (
+              <option key={d} value={d}>
+                {t('settings.days', { n: d })}
+              </option>
+            ))}
+          </select>
+          <p className="ui-help" role="status">
+            {settingsState === 'saved' ? t('settings.saved') : settingsState === 'error' ? t('errors.generic') : ''}
+          </p>
+        </div>
       </section>
     </div>
   );

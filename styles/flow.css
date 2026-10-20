@@ -40,6 +40,8 @@
 /* globals.css da padding vertical grande a todo <section> (sitio). */
 .flow-block { display: flex; flex-direction: column; gap: 12px; padding: 0; }
 .flow-block-head { display: flex; flex-direction: column; gap: 4px; }
+.flow-retention { max-width: 280px; }
+.flow-retention .ui-help:empty { display: none; }
 .flow-name-cell { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
 .flow-last-run { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .flow-row-actions { display: inline-flex; justify-content: flex-end; gap: 4px; }
