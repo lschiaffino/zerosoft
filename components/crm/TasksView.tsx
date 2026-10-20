@@ -8,6 +8,7 @@ import { Link, useRouter, usePathname } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
 import CrmIcon from './CrmIcon';
+import { TASK_REPEATS, type TaskRepeat } from '@/lib/crm-task-repeat';
 
 export interface TaskRow {
   id: string;
@@ -24,6 +25,8 @@ export interface TaskRow {
   projectId?: string;
   projectName?: string;
   projectColor?: string;
+  /** Repetición de una tarea abierta (lib/crm-task-repeat.ts). */
+  repeat?: TaskRepeat;
 }
 
 type Bucket = 'overdue' | 'today' | 'upcoming' | 'done';
@@ -82,6 +85,7 @@ export default function TasksView({
   const [contacts, setContacts] = useState<ContactOption[]>([]);
   const [projectIdDraft, setProjectIdDraft] = useState(projectId ?? '');
   const [ownerIdDraft, setOwnerIdDraft] = useState(ownerId ?? '');
+  const [repeat, setRepeat] = useState<TaskRepeat>('none');
   const [composerBusy, setComposerBusy] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
 
@@ -160,6 +164,7 @@ export default function TasksView({
         ...(contactId ? { contactId } : {}),
         ...(projectIdDraft ? { projectId: projectIdDraft } : {}),
         ...(ownerIdDraft ? { ownerId: ownerIdDraft } : {}),
+        ...(type === 'task' && repeat !== 'none' ? { repeat } : {}),
       }),
     }).catch(() => null);
     setComposerBusy(false);
@@ -170,6 +175,7 @@ export default function TasksView({
       setContactId('');
       setProjectIdDraft('');
       setOwnerIdDraft('');
+      setRepeat('none');
       setShowComposer(false);
       router.refresh();
       return;
@@ -283,6 +289,18 @@ export default function TasksView({
             <span>{t('tasks.form.dueAt')}</span>
             <input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />
           </label>
+          {type === 'task' && (
+            <label className="qm-field">
+              <span>{t('tasks.form.repeat')}</span>
+              <select value={repeat} onChange={(e) => setRepeat(e.target.value as TaskRepeat)} title={t('tasks.repeatHint')}>
+                {TASK_REPEATS.map((v) => (
+                  <option key={v} value={v}>
+                    {t(`tasks.repeat.${v}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
         <div className="qm-row">
           <label className="qm-field">
@@ -372,6 +390,7 @@ export default function TasksView({
                     <span className="muted">{t('tasks.noDue')}</span>
                   )}
                   {row.dueRel && <span className="muted task-rel">{row.dueRel}</span>}
+                  {row.repeat && <span className="muted task-repeat">{t(`tasks.repeat.${row.repeat}`)}</span>}
                   {row.record?.name && (
                     <Link href={row.record.href} className="cell-email muted">
                       {row.record.name}

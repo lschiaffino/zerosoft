@@ -4,6 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
 import {
+  ACTIVITY_DATE_SORTS,
   LEAD_STATUSES,
   LIFECYCLE_STAGES,
   SOURCES,
@@ -20,6 +21,9 @@ import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
 import ContactsFilters, { type ContactSort } from '@/components/crm/ContactsFilters';
 import ContactsTable, { type ContactRow } from '@/components/crm/ContactsTable';
+import type { BulkEditField } from '@/components/crm/BulkEditControls';
+import { customBulkFields } from '@/components/crm/bulkFields';
+import { formatActivityDate } from '@/lib/crm-activity-dates';
 import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
@@ -31,7 +35,9 @@ import { listTags, tagsForRecords } from '@/lib/crm-tags';
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 25;
-const SORTS: readonly ContactSort[] = ['newest', 'oldest', 'name', 'name_desc', 'email', 'email_desc', 'score', 'score_asc'];
+const SORTS: readonly ContactSort[] = [
+  'newest', 'oldest', 'name', 'name_desc', 'email', 'email_desc', 'score', 'score_asc', ...ACTIVITY_DATE_SORTS,
+];
 
 interface ContactsPageProps {
   params: Promise<{ locale: string }>;
@@ -178,6 +184,9 @@ export default async function ContactsPage(props: ContactsPageProps) {
     },
     { key: 'score', label: t('scoring.column'), type: 'number' },
     { key: 'created', label: t('filters.field.created'), type: 'date' },
+    { key: 'lastActivity', label: t('activityDates.lastActivity'), type: 'date' },
+    { key: 'lastContacted', label: t('activityDates.lastContacted'), type: 'date' },
+    { key: 'nextActivity', label: t('activityDates.nextActivity'), type: 'date' },
     {
       key: 'tag',
       label: t('filters.field.tag'),
@@ -230,8 +239,39 @@ export default async function ContactsPage(props: ContactsPageProps) {
     source: c.source,
     score: c.score ?? 0,
     created: formatDate(c.created_at, locale),
+    lastActivity: formatActivityDate(c.last_activity_at, locale),
+    lastContacted: formatActivityDate(c.last_contacted_at, locale),
+    nextActivity: formatActivityDate(c.next_activity_at, locale),
     tags: rowTags.get(c.id) ?? [],
   }));
+
+  // Propiedades de la edición en masa (owner primero: es la acción más común).
+  const bulkFields: BulkEditField[] = [
+    { key: 'ownerId', label: t('contacts.form.owner'), type: 'select', options: owners, nullable: true },
+    {
+      key: 'lifecycleStage',
+      label: t('contacts.form.lifecycle'),
+      type: 'select',
+      options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
+    },
+    {
+      key: 'leadStatus',
+      label: t('contacts.form.leadStatus'),
+      type: 'select',
+      options: LEAD_STATUSES.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
+    },
+    {
+      key: 'source',
+      label: t('contacts.form.source'),
+      type: 'select',
+      options: SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) })),
+    },
+    { key: 'companyId', label: t('contacts.form.company'), type: 'select', options: companies, nullable: true },
+    { key: 'jobTitle', label: t('contacts.form.jobTitle'), type: 'text' },
+    { key: 'city', label: t('contacts.form.city'), type: 'text' },
+    { key: 'country', label: t('contacts.form.country'), type: 'text' },
+    ...customBulkFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }),
+  ];
 
   const query: Record<string, string> = {};
   if (q) query.q = q;
@@ -320,6 +360,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
             locale={locale}
             sequences={(await listSequences(user.id)).map((sq) => ({ id: sq.id, name: sq.name }))}
             allTags={tagOptions}
+            bulkFields={bulkFields}
           />
           <CrmPager pathname="/app/crm/contacts" query={query} page={page} pages={pages} total={total} locale={locale} />
         </>

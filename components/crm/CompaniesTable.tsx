@@ -10,6 +10,7 @@ import RecordPreview from './RecordPreview';
 import TagDots, { type TagDot } from './TagDots';
 import TagBulkControls from './TagBulkControls';
 import CrmIcon from './CrmIcon';
+import BulkEditControls, { type BulkEditField } from './BulkEditControls';
 
 export interface CompanyRow {
   id: string;
@@ -23,6 +24,10 @@ export interface CompanyRow {
   lifecycle: string;
   lifecycleLabel: string;
   created: string;
+  /** Fechas de actividad ya formateadas ('' = sin fecha). */
+  lastActivity?: string;
+  lastContacted?: string;
+  nextActivity?: string;
   tags?: TagDot[];
   /** Empresa madre (jerarquía). */
   parentName?: string | null;
@@ -34,6 +39,8 @@ interface CompaniesTableProps {
   lifecycles: string[];
   locale: string;
   allTags?: Array<{ id: string; name: string }>;
+  /** Propiedades editables en masa (owner, lifecycle, custom fields…). */
+  bulkFields?: BulkEditField[];
 }
 
 const COLS = [
@@ -48,15 +55,18 @@ const COLS = [
   { id: 'tags', labelKey: 'tags.column', defaultVisible: true },
   { id: 'parent', labelKey: 'companies.detail.parent', defaultVisible: false },
   { id: 'created', labelKey: 'companies.table.created', defaultVisible: false },
+  { id: 'lastActivity', labelKey: 'activityDates.lastActivity', defaultVisible: false },
+  { id: 'lastContacted', labelKey: 'activityDates.lastContacted', defaultVisible: false },
+  { id: 'nextActivity', labelKey: 'activityDates.nextActivity', defaultVisible: false },
 ];
 
 /** Tabla de empresas con selección múltiple, bulk bar, selector de columnas, edición inline y preview. */
-export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags = [] }: CompaniesTableProps) {
+export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags = [], bulkFields = [] }: CompaniesTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
-  const [bulkLifecycle, setBulkLifecycle] = useState(lifecycles[0] ?? 'lead');
+  const [bulkNotice, setBulkNotice] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [visible, toggleVisible] = useColumnVisibility(
     COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
@@ -137,6 +147,21 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
               {visible.has('created') && (
                 <th>
                   <SortTh label={t('companies.table.created')} asc="oldest" desc="newest" current={sort} />
+                </th>
+              )}
+              {visible.has('lastActivity') && (
+                <th className="num cell-date">
+                  <SortTh label={t('activityDates.lastActivity')} asc="last_activity_asc" desc="last_activity" current={sort} />
+                </th>
+              )}
+              {visible.has('lastContacted') && (
+                <th className="num cell-date">
+                  <SortTh label={t('activityDates.lastContacted')} asc="last_contacted_asc" desc="last_contacted" current={sort} />
+                </th>
+              )}
+              {visible.has('nextActivity') && (
+                <th className="num cell-date">
+                  <SortTh label={t('activityDates.nextActivity')} asc="next_activity" desc="next_activity_desc" current={sort} />
                 </th>
               )}
               <th className="cell-actions-head"><span className="sr-only">{t('companies.table.actions')}</span></th>
@@ -223,6 +248,9 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                 )}
                 {visible.has('parent') && <td className="muted cell-sub">{row.parentName || '—'}</td>}
                 {visible.has('created') && <td className="num muted cell-date">{row.created}</td>}
+                {visible.has('lastActivity') && <td className="num muted cell-date">{row.lastActivity || '—'}</td>}
+                {visible.has('lastContacted') && <td className="num muted cell-date">{row.lastContacted || '—'}</td>}
+                {visible.has('nextActivity') && <td className="num muted cell-date">{row.nextActivity || '—'}</td>}
                 <td className="cell-actions">
                   <button
                     type="button"
@@ -243,29 +271,16 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
       {selected.size > 0 && (
         <div className="bulk-bar" role="toolbar">
           <span className="bulk-count">{t('companies.bulk.selected', { count: selected.size })}</span>
-          <select
-            className="filter-select"
-            value={bulkLifecycle}
-            onChange={(e) => setBulkLifecycle(e.target.value)}
-            aria-label={t('companies.bulk.setLifecycle')}
+          <BulkEditControls
+            endpoint="/api/crm/companies/bulk"
+            ids={[...selected]}
+            fields={bulkFields}
             disabled={busy}
-          >
-            {lifecycles.map((v) => (
-              <option key={v} value={v}>
-                {t(`enums.lifecycle.${v}`)}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="bulk-btn"
-            disabled={busy}
-            onClick={() =>
-              bulk({ action: 'set_lifecycle', ids: [...selected], value: bulkLifecycle })
-            }
-          >
-            {t('companies.bulk.apply')}
-          </button>
+            onDone={(notice) => {
+              setSelected(new Set());
+              setBulkNotice(notice);
+            }}
+          />
           <TagBulkControls
             entity="company"
             ids={[...selected]}
@@ -317,6 +332,12 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
             {t('companies.bulk.clear')}
           </button>
         </div>
+      )}
+
+      {bulkNotice && selected.size === 0 && (
+        <p className="muted bulk-notice" role="status">
+          {bulkNotice}
+        </p>
       )}
 
       {previewId && (

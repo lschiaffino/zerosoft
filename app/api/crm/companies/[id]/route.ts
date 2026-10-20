@@ -45,6 +45,6 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   const scope = await sessionScope(user);
   const hidden = await guardRecord(user.id, 'company', params.id, scope);
   if (hidden) return hidden;
-  if (!(await deleteCompany(user.id, params.id))) return notFound();
+  if (!(await deleteCompany(user.id, params.id, user.actingUser?.email ?? user.email))) return notFound();
   return new NextResponse(null, { status: 204 });
 }

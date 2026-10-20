@@ -14,7 +14,8 @@
     "sequences": "Sequences",
     "products": "Products",
     "quotes": "Quotes",
-    "forms": "Forms"
+    "forms": "Forms",
+    "trash": "Recycle bin"
   },
   "switcher": {
     "product": "Product",
@@ -234,7 +235,7 @@
       "merged": "Contacts merged",
       "dangerZone": "Danger zone",
       "deleteTitle": "Delete this contact",
-      "deleteDesc": "This deletes the contact and removes it from deals and lists. Activities are kept.",
+      "deleteDesc": "The contact goes to the recycle bin with its own activities and leaves deals and lists. You can restore it for 90 days.",
       "deleteButton": "Delete forever",
       "noDeals": "No deals yet.",
       "noLists": "Not in any list.",
@@ -313,7 +314,7 @@
       "timeline": "Timeline",
       "dangerZone": "Danger zone",
       "deleteTitle": "Delete this company",
-      "deleteDesc": "This deletes the company. Its contacts are kept, unlinked.",
+      "deleteDesc": "The company goes to the recycle bin and its contacts stay, unlinked. You can restore it for 90 days.",
       "deleteButton": "Delete forever",
       "noContacts": "No contacts yet.",
       "noDeals": "No deals yet.",
@@ -444,7 +445,7 @@
       "noContacts": "No contacts associated.",
       "dangerZone": "Danger zone",
       "deleteTitle": "Delete this deal",
-      "deleteDesc": "This deletes the deal. Contacts and activities are kept.",
+      "deleteDesc": "The deal goes to the recycle bin. Contacts stay. You can restore it for 90 days.",
       "deleteButton": "Delete forever",
       "emptyTimeline": "No activity yet. Add a note or log a call.",
       "aboutSection": "About this deal",
@@ -458,7 +459,8 @@
     "addStage": "+ Add stage",
     "stageNamePlaceholder": "Stage name",
     "addStageConfirm": "Add stage",
-    "bulkSelected": "{count} selected"
+    "bulkSelected": "{count} selected",
+    "bulkConfirmDelete": "Move {count} deals to the recycle bin?"
   },
   "tasks": {
     "title": "Tasks",
@@ -484,7 +486,8 @@
       "deal": "Deal",
       "body": "Notes",
       "project": "Project",
-      "owner": "Owner"
+      "owner": "Owner",
+      "repeat": "Repeat"
     },
     "detail": {
       "back": "← All tasks",
@@ -506,7 +509,7 @@
       "uploading": "Uploading…",
       "untitled": "Untitled task",
       "deleteTitle": "Delete this task",
-      "deleteDesc": "This deletes the task and its attachments. This can't be undone.",
+      "deleteDesc": "The task and its attachments go to the recycle bin. You can restore them for 90 days.",
       "deleteButton": "Delete forever"
     },
     "projects": {
@@ -516,7 +519,14 @@
       "archive": "Archive",
       "unarchive": "Unarchive",
       "empty": "No projects yet."
-    }
+    },
+    "repeat": {
+      "none": "Does not repeat",
+      "daily": "Every day",
+      "weekly": "Every week",
+      "monthly": "Every month"
+    },
+    "repeatHint": "Completing it creates the next one."
   },
   "lists": {
     "title": "Lists",
@@ -1060,7 +1070,8 @@
     "invalid_tag": "That tag doesn't exist in this workspace.",
     "duplicate_tag": "A tag with that name already exists.",
     "invalid_currency": "Use a 3-letter currency code (for example EUR) different from the base currency.",
-    "invalid_rate": "The rate must be a number greater than zero."
+    "invalid_rate": "The rate must be a number greater than zero.",
+    "trash_conflict": "A record with this id already exists, so it can't be restored."
   },
   "filters": {
     "advanced": "Advanced filters",
@@ -1892,5 +1903,59 @@
     "up": "Move up",
     "down": "Move down",
     "remove": "Remove"
+  },
+  "activityDates": {
+    "lastActivity": "Last activity",
+    "lastContacted": "Last contacted",
+    "nextActivity": "Next activity",
+    "sort": {
+      "last_activity": "Last activity, newest",
+      "last_activity_asc": "Last activity, oldest",
+      "last_contacted": "Last contacted, newest",
+      "last_contacted_asc": "Last contacted, oldest",
+      "next_activity": "Next activity, soonest",
+      "next_activity_desc": "Next activity, latest"
+    }
+  },
+  "bulkEdit": {
+    "property": "Property to edit",
+    "value": "Value",
+    "empty": "Empty",
+    "apply": "Apply",
+    "done": "{count, plural, one {# record updated} other {# records updated}}",
+    "partial": "{count} updated, {failed} skipped"
+  },
+  "trash": {
+    "title": "Recycle bin",
+    "description": "Deleted contacts, companies, deals and activities stay here for {days} days. Restoring brings back their associations, tags and activities.",
+    "movedNotice": "Moved to the recycle bin. You can restore it for 90 days.",
+    "empty": "The recycle bin is empty",
+    "emptyBody": "Deleted records show up here for 90 days.",
+    "noMatch": "Nothing in the recycle bin matches this search.",
+    "all": "All",
+    "search": "Search the recycle bin",
+    "entity": {
+      "contact": "Contact",
+      "company": "Company",
+      "deal": "Deal",
+      "activity": "Activity"
+    },
+    "col": {
+      "name": "Name",
+      "type": "Type",
+      "owner": "Owner",
+      "deletedBy": "Deleted by",
+      "deletedAt": "Deleted",
+      "left": "Purged in"
+    },
+    "daysLeft": "{count, plural, =0 {today} one {# day} other {# days}}",
+    "restore": "Restore",
+    "restored": "Restored.",
+    "open": "Open",
+    "purge": "Delete forever",
+    "purgeConfirm": "Delete forever?",
+    "emptyBin": "Empty recycle bin",
+    "emptyBinConfirm": "Delete all {count} items forever?",
+    "untitled": "Untitled"
   }
 }

@@ -28,6 +28,11 @@ import {
   type DealCompanyRow,
 } from './crm-assoc';
 import { tagCondition, type TagEntity } from './crm-tags';
+import { trashRecords } from './crm-trash';
+import { nextRepeatDue, type TaskRepeat } from './crm-task-repeat';
+import { activityDateOrder, ACTIVITY_DATE_SORTS, type ActivityDateSort } from './crm-activity-dates';
+
+export { ACTIVITY_DATE_SORTS, type ActivityDateSort };
 import { activityScopeSql, ownerScopeSql, type OwnerScope } from './crm-visibility';
 import { baseAmountSql, getCrmSettings } from './crm-currency';
 import {
@@ -81,6 +86,26 @@ export {
 };
 
 // ---------- Helpers ----------
+
+function activityDateOrders(alias: string): Record<ActivityDateSort, string> {
+  return {
+    last_activity: activityDateOrder(alias, 'lastActivity', 'desc'),
+    last_activity_asc: activityDateOrder(alias, 'lastActivity', 'asc'),
+    last_contacted: activityDateOrder(alias, 'lastContacted', 'desc'),
+    last_contacted_asc: activityDateOrder(alias, 'lastContacted', 'asc'),
+    next_activity: activityDateOrder(alias, 'nextActivity', 'asc'),
+    next_activity_desc: activityDateOrder(alias, 'nextActivity', 'desc'),
+  };
+}
+
+/** Campos de filtro avanzado para las fechas de actividad. */
+function activityDateAdvFields(alias: string): Record<string, AdvancedFieldDef> {
+  return {
+    lastActivity: { expr: `${alias}.last_activity_at`, type: 'date' },
+    lastContacted: { expr: `${alias}.last_contacted_at`, type: 'date' },
+    nextActivity: { expr: `${alias}.next_activity_at`, type: 'date' },
+  };
+}
 
 /** Timestamp UTC 'YYYY-MM-DD HH:MM:SS' (mismo formato que datetime('now')). */
 function now(): string {
@@ -439,7 +464,7 @@ export interface ContactFilter {
   customTypes?: Record<string, FilterFieldType>;
   /** Visibilidad por owner (lib/crm-visibility.ts). null/undefined = todo. */
   ownerScope?: OwnerScope;
-  sort?: 'newest' | 'oldest' | 'name' | 'name_desc' | 'email' | 'email_desc' | 'score' | 'score_asc';
+  sort?: 'newest' | 'oldest' | 'name' | 'name_desc' | 'email' | 'email_desc' | 'score' | 'score_asc' | ActivityDateSort;
   page?: number;
   pageSize?: number;
 }
@@ -456,6 +481,7 @@ const CONTACT_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   source: { expr: 'c.source', type: 'select' },
   score: { expr: 'c.score', type: 'number' },
   created: { expr: 'c.created_at', type: 'date' },
+  ...activityDateAdvFields('c'),
 };
 
 /** Agrega la condición de visibilidad por owner al WHERE. */
@@ -538,6 +564,7 @@ const CONTACT_ORDER: Record<NonNullable<ContactFilter['sort']>, string> = {
   email_desc: "c.email COLLATE NOCASE DESC, c.id",
   score: 'c.score DESC, c.created_at DESC, c.id',
   score_asc: 'c.score ASC, c.created_at DESC, c.id',
+  ...activityDateOrders('c'),
 };
 
 export async function listContacts(
@@ -764,11 +791,9 @@ export async function updateContact(
   return contact;
 }
 
-export async function deleteContact(userId: string, id: string): Promise<boolean> {
-  return (
-    (await getDb().prepare('DELETE FROM crm_contacts WHERE id = ? AND user_id = ?').run(id, userId))
-      .changes > 0
-  );
+/** Borra un contacto: va a la papelera (lib/crm-trash.ts) con sus actividades propias. */
+export async function deleteContact(userId: string, id: string, actorEmail = ''): Promise<boolean> {
+  return (await trashRecords(userId, 'contact', [id], actorEmail)) > 0;
 }
 
 export interface DuplicateGroup {
@@ -951,14 +976,8 @@ export async function bulkUpdateContacts(
   ).changes;
 }
 
-export async function bulkDeleteContacts(userId: string, ids: string[]): Promise<number> {
-  if (!ids.length) return 0;
-  const ph = ids.map(() => '?').join(',');
-  return (
-    await getDb()
-      .prepare(`DELETE FROM crm_contacts WHERE user_id = ? AND id IN (${ph})`)
-      .run(userId, ...ids)
-  ).changes;
+export async function bulkDeleteContacts(userId: string, ids: string[], actorEmail = ''): Promise<number> {
+  return trashRecords(userId, 'contact', ids, actorEmail);
 }
 
 // ============================================================
@@ -981,14 +1000,11 @@ export async function bulkUpdateCompanies(
   ).changes;
 }
 
-export async function bulkDeleteCompanies(userId: string, ids: string[]): Promise<number> {
+export async function bulkDeleteCompanies(userId: string, ids: string[], actorEmail = ''): Promise<number> {
   if (!ids.length) return 0;
   const db = getDb();
-  const ph = ids.map(() => '?').join(',');
   const affected = await companyDependents(userId, ids, db);
-  const changes = (
-    await db.prepare(`DELETE FROM crm_companies WHERE user_id = ? AND id IN (${ph})`).run(userId, ...ids)
-  ).changes;
+  const changes = await trashRecords(userId, 'company', ids, actorEmail, db);
   await afterCompanyDelete(userId, affected, db);
   return changes;
 }
@@ -1052,7 +1068,7 @@ export interface CompanyFilter {
   filters?: FilterRule[];
   customTypes?: Record<string, FilterFieldType>;
   ownerScope?: OwnerScope;
-  sort?: 'newest' | 'oldest' | 'name' | 'name_desc';
+  sort?: 'newest' | 'oldest' | 'name' | 'name_desc' | ActivityDateSort;
   page?: number;
   pageSize?: number;
 }
@@ -1066,6 +1082,7 @@ const COMPANY_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   lifecycle: { expr: 'co.lifecycle_stage', type: 'select' },
   owner: { expr: 'co.owner_id', type: 'select' },
   created: { expr: 'co.created_at', type: 'date' },
+  ...activityDateAdvFields('co'),
 };
 
 export async function listCompanies(
@@ -1128,8 +1145,11 @@ export async function listCompanies(
   const pageSize = Math.min(Math.max(f.pageSize ?? 25, 1), 100);
   const pages = Math.max(Math.ceil(total / pageSize), 1);
   const page = Math.min(Math.max(f.page ?? 1, 1), pages);
+  const dateOrders = activityDateOrders('co');
   const order =
-    f.sort === 'oldest'
+    f.sort && f.sort in dateOrders
+      ? dateOrders[f.sort as ActivityDateSort]
+      : f.sort === 'oldest'
       ? 'co.created_at ASC, co.id'
       : f.sort === 'name'
         ? 'co.name COLLATE NOCASE ASC, co.id'
@@ -1266,11 +1286,11 @@ export async function updateCompany(
   return (await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id)) as CrmCompanyRow;
 }
 
-export async function deleteCompany(userId: string, id: string): Promise<boolean> {
+/** Borra una empresa: va a la papelera (lib/crm-trash.ts) con sus actividades propias. */
+export async function deleteCompany(userId: string, id: string, actorEmail = ''): Promise<boolean> {
   const db = getDb();
   const affected = await companyDependents(userId, [id], db);
-  const deleted =
-    (await db.prepare('DELETE FROM crm_companies WHERE id = ? AND user_id = ?').run(id, userId)).changes > 0;
+  const deleted = (await trashRecords(userId, 'company', [id], actorEmail, db)) > 0;
   if (deleted) await afterCompanyDelete(userId, affected, db);
   return deleted;
 }
@@ -1463,7 +1483,7 @@ export interface DealFilter {
   filters?: FilterRule[];
   customTypes?: Record<string, FilterFieldType>;
   ownerScope?: OwnerScope;
-  sort?: 'newest' | 'oldest' | 'amount' | 'amount_asc' | 'close_date' | 'close_date_desc';
+  sort?: 'newest' | 'oldest' | 'amount' | 'amount_asc' | 'close_date' | 'close_date_desc' | ActivityDateSort;
   page?: number;
   pageSize?: number;
 }
@@ -1479,6 +1499,7 @@ const DEAL_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   owner: { expr: 'd.owner_id', type: 'select' },
   closeDate: { expr: 'd.close_date', type: 'date' },
   created: { expr: 'd.created_at', type: 'date' },
+  ...activityDateAdvFields('d'),
 };
 
 const DEAL_ORDER: Record<NonNullable<DealFilter['sort']>, string> = {
@@ -1488,6 +1509,7 @@ const DEAL_ORDER: Record<NonNullable<DealFilter['sort']>, string> = {
   amount_asc: 'd.amount ASC, d.id',
   close_date: "d.close_date IS NULL, d.close_date ASC, d.id",
   close_date_desc: "d.close_date IS NULL, d.close_date DESC, d.id",
+  ...activityDateOrders('d'),
 };
 
 export async function listDeals(
@@ -1866,11 +1888,13 @@ export async function updateDeal(
   return deal;
 }
 
-export async function deleteDeal(userId: string, id: string): Promise<boolean> {
-  return (
-    (await getDb().prepare('DELETE FROM crm_deals WHERE id = ? AND user_id = ?').run(id, userId))
-      .changes > 0
-  );
+/** Borra un deal: va a la papelera (lib/crm-trash.ts) con sus actividades propias. */
+export async function deleteDeal(userId: string, id: string, actorEmail = ''): Promise<boolean> {
+  return (await trashRecords(userId, 'deal', [id], actorEmail)) > 0;
+}
+
+export async function bulkDeleteDeals(userId: string, ids: string[], actorEmail = ''): Promise<number> {
+  return trashRecords(userId, 'deal', ids, actorEmail);
 }
 
 export type MoveDealResult =
@@ -1990,6 +2014,8 @@ export interface ActivityInput {
   dealId?: string | null;
   projectId?: string | null;
   ownerId?: string | null;
+  /** Solo tareas: al completarla se crea la siguiente (lib/crm-task-repeat.ts). */
+  repeat?: TaskRepeat;
 }
 
 export type ActivityListRow = CrmActivityRow & {
@@ -2067,8 +2093,8 @@ export async function createActivity(
     .prepare(
       `INSERT INTO crm_activities
        (id, user_id, owner_id, type, subject, body, due_at, direction, outcome, duration_min,
-        contact_id, company_id, deal_id, project_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        contact_id, company_id, deal_id, project_id, repeat, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -2085,6 +2111,7 @@ export async function createActivity(
       data.companyId ?? null,
       data.dealId ?? null,
       data.projectId ?? null,
+      (data.type ?? 'note') === 'task' ? (data.repeat ?? 'none') : 'none',
       ts,
       ts,
     );
@@ -2131,19 +2158,60 @@ export async function updateActivity(
     sets.push(['done_at', data.done ? now() : null]);
   }
   if (data.pinned !== undefined) sets.push(['pinned', data.pinned ? 1 : 0]);
+  if (data.repeat !== undefined) sets.push(['repeat', data.repeat]);
   sets.push(['updated_at', now()]);
   await db
     .prepare(`UPDATE crm_activities SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`)
     .run(...sets.map(([, v]) => v), id);
-  return (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
+  const updated = (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
+  if (data.done === true && existing.done === 0 && (await spawnNextRepeat(userId, updated, db))) {
+    return (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
+  }
+  return updated;
 }
 
-export async function deleteActivity(userId: string, id: string): Promise<boolean> {
-  return (
-    (await getDb()
-      .prepare('DELETE FROM crm_activities WHERE id = ? AND user_id = ?')
-      .run(id, userId)).changes > 0
-  );
+/**
+ * Tarea con repetición recién completada → crea la siguiente de la serie (una
+ * sola vez: repeat_next_id reclama la tarea, reabrir y volver a completar no
+ * duplica). Copia asunto, cuerpo, owner, proyecto y registros asociados.
+ */
+async function spawnNextRepeat(userId: string, task: CrmActivityRow, db: Db): Promise<string | null> {
+  const repeat = task.repeat ?? 'none';
+  if (task.type !== 'task' || repeat === 'none' || task.repeat_next_id) return null;
+  const nextId = crypto.randomUUID();
+  const claimed = await db
+    .prepare('UPDATE crm_activities SET repeat_next_id = ? WHERE id = ? AND repeat_next_id IS NULL')
+    .run(nextId, task.id);
+  if (!claimed.changes) return null;
+  const ts = now();
+  await db
+    .prepare(
+      `INSERT INTO crm_activities
+       (id, user_id, owner_id, type, subject, body, due_at, contact_id, company_id, deal_id, project_id, repeat,
+        created_at, updated_at)
+       VALUES (?, ?, ?, 'task', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      nextId,
+      userId,
+      task.owner_id,
+      task.subject,
+      task.body,
+      nextRepeatDue(task.due_at, repeat),
+      task.contact_id,
+      task.company_id,
+      task.deal_id,
+      task.project_id,
+      repeat,
+      ts,
+      ts,
+    );
+  return nextId;
+}
+
+/** Borra una actividad: va a la papelera (lib/crm-trash.ts). */
+export async function deleteActivity(userId: string, id: string, actorEmail = ''): Promise<boolean> {
+  return (await trashRecords(userId, 'activity', [id], actorEmail)) > 0;
 }
 
 export async function getActivity(userId: string, id: string): Promise<ActivityListRow | null> {

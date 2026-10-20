@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import {
+  ACTIVITY_DATE_SORTS,
   listCustomFields,
   listDeals,
   listDealsForBoard,
@@ -30,11 +31,23 @@ import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import { getCurrencyContext } from '@/lib/crm-currency';
 import { convertAmount, formatMoney } from '@/lib/crm-money';
 import { dbTimestamp, dealIdleDays } from '@/lib/crm-rotting';
+import { COMMON_CURRENCIES } from '@/lib/crm-constants';
+import type { BulkEditField } from '@/components/crm/BulkEditControls';
+import { customBulkFields } from '@/components/crm/bulkFields';
+import { formatActivityDate } from '@/lib/crm-activity-dates';
 
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 25;
-const DEAL_SORTS = ['newest', 'oldest', 'amount', 'amount_asc', 'close_date', 'close_date_desc'] as const;
+const DEAL_SORTS = [
+  'newest',
+  'oldest',
+  'amount',
+  'amount_asc',
+  'close_date',
+  'close_date_desc',
+  ...ACTIVITY_DATE_SORTS,
+] as const;
 type DealSort = (typeof DEAL_SORTS)[number];
 
 interface DealsPageProps {
@@ -172,6 +185,9 @@ export default async function DealsPage(props: DealsPageProps) {
     { key: 'owner', label: t('filters.field.owner'), type: 'select', options: owners },
     { key: 'closeDate', label: t('filters.field.closeDate'), type: 'date' },
     { key: 'created', label: t('filters.field.created'), type: 'date' },
+    { key: 'lastActivity', label: t('activityDates.lastActivity'), type: 'date' },
+    { key: 'lastContacted', label: t('activityDates.lastContacted'), type: 'date' },
+    { key: 'nextActivity', label: t('activityDates.nextActivity'), type: 'date' },
     ...customFieldDefs.map((cf): FilterBuilderField => {
       if (cf.type === 'boolean') {
         return {
@@ -286,6 +302,9 @@ export default async function DealsPage(props: DealsPageProps) {
         age: Math.max(0, Math.floor((stop - start) / dayMs)),
         contacts: contactCounts.get(d.id) ?? 0,
         created: formatDate(d.created_at, locale),
+        lastActivity: formatActivityDate(d.last_activity_at, locale),
+        lastContacted: formatActivityDate(d.last_contacted_at, locale),
+        nextActivity: formatActivityDate(d.next_activity_at, locale),
         tags: rowTags.get(d.id) ?? [],
         companyName: d.company_name,
         amountBase: (() => {
@@ -295,6 +314,27 @@ export default async function DealsPage(props: DealsPageProps) {
         })(),
       };
     });
+
+    // Propiedades de la edición en masa (owner primero: es la acción más común).
+    const bulkFields: BulkEditField[] = [
+      { key: 'ownerId', label: t('deals.form.owner'), type: 'select', options: owners, nullable: true },
+      {
+        key: 'stageId',
+        label: t('deals.form.stage'),
+        type: 'select',
+        options: pipeline.stages.map((s) => ({ value: s.id, label: s.name })),
+      },
+      { key: 'priority', label: t('deals.form.priority'), type: 'select', options: priorities },
+      { key: 'source', label: t('deals.form.source'), type: 'select', options: sources },
+      { key: 'closeDate', label: t('deals.form.closeDate'), type: 'date', nullable: true },
+      {
+        key: 'currency',
+        label: t('deals.form.currency'),
+        type: 'select',
+        options: COMMON_CURRENCIES.map((c) => ({ value: c, label: c })),
+      },
+      ...customBulkFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }),
+    ];
 
     const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
     const currentPage = Math.min(Math.max(page, 1), pages);
@@ -374,6 +414,7 @@ export default async function DealsPage(props: DealsPageProps) {
               sources={sources}
               locale={locale}
               allTags={tagOptions}
+              bulkFields={bulkFields}
             />
             <CrmPager pathname="/app/crm/deals" query={query} page={currentPage} pages={pages} total={total} locale={locale} />
           </>

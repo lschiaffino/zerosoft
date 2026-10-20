@@ -15,6 +15,7 @@ import {
   TAG_COLORS,
   TAG_ENTITIES,
 } from './crm-constants';
+import { TASK_REPEATS } from './crm-task-repeat';
 
 // ---------- Primitivas compartidas ----------
 
@@ -202,6 +203,8 @@ export const activityCreateSchema = z.object({
   dealId: id.nullish(),
   projectId: id.nullish(),
   ownerId: id.nullish(),
+  /** Solo tareas: diaria, semanal o mensual. */
+  repeat: z.enum(TASK_REPEATS).optional(),
 });
 
 export const activityUpdateSchema = activityCreateSchema.partial().extend({

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { ColumnsSlot } from './ColumnToggle';
+import { ACTIVITY_DATE_SORTS, type ActivityDateSort } from '@/lib/crm-activity-dates';
 
 interface CustomFieldOption {
   name: string;
@@ -26,7 +27,7 @@ interface DealsFiltersProps {
   custom: Record<string, string>;
   /** Query param `filters` crudo (advanced filter builder); se preserva al navegar. */
   advanced?: string;
-  sort: 'newest' | 'oldest' | 'amount' | 'amount_asc' | 'close_date' | 'close_date_desc';
+  sort: 'newest' | 'oldest' | 'amount' | 'amount_asc' | 'close_date' | 'close_date_desc' | ActivityDateSort;
   stages: Array<{ id: string; name: string }>;
   priorities: Array<{ value: string; label: string }>;
   sources: Array<{ value: string; label: string }>;
@@ -227,6 +228,11 @@ export default function DealsFilters({
             <option value="amount_asc">{t('deals.sortAmountAsc')}</option>
             <option value="close_date">{t('deals.sortCloseDate')}</option>
             <option value="close_date_desc">{t('deals.sortCloseDesc')}</option>
+            {ACTIVITY_DATE_SORTS.map((v) => (
+              <option key={v} value={v}>
+                {t(`activityDates.sort.${v}`)}
+              </option>
+            ))}
           </select>
           <ColumnsSlot />
         </div>

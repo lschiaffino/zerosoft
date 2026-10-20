@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
@@ -278,6 +279,7 @@ export default async function ContactDetailPage(props: {
                   <dt>{t('scoring.column')}</dt>
                   <dd className="num">{contact.score ?? 0}</dd>
                 </div>
+                <ActivityDateFacts record={contact} locale={locale} />
               </dl>
               <Link href={recordTabHref(base, 'properties')} className="record-summary-more">
                 {t('contacts.detail.viewAllProperties')}

@@ -3,7 +3,18 @@ import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
-import { LIFECYCLE_STAGES, listCompanies, listCustomFields, parseFilterRules, type FilterFieldType } from '@/lib/crm';
+import {
+  ACTIVITY_DATE_SORTS,
+  LIFECYCLE_STAGES,
+  listCompanies,
+  listCustomFields,
+  parseFilterRules,
+  type CompanyFilter,
+  type FilterFieldType,
+} from '@/lib/crm';
+import type { BulkEditField } from '@/components/crm/BulkEditControls';
+import { customBulkFields } from '@/components/crm/bulkFields';
+import { formatActivityDate } from '@/lib/crm-activity-dates';
 import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
 import CompanyFilters from '@/components/crm/CompanyFilters';
@@ -62,10 +73,10 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   const tag = one(searchParams.tag) ?? '';
   const custom = parseCustomFilter(searchParams);
   const sortParam = one(searchParams.sort);
-  const sort =
-    sortParam === 'oldest' || sortParam === 'name' || sortParam === 'name_desc'
-      ? sortParam
-      : 'newest';
+  const COMPANY_SORTS: readonly string[] = ['oldest', 'name', 'name_desc', ...ACTIVITY_DATE_SORTS];
+  const sort: NonNullable<CompanyFilter['sort']> = COMPANY_SORTS.includes(sortParam ?? '')
+    ? (sortParam as NonNullable<CompanyFilter['sort']>)
+    : 'newest';
   const page = Number(one(searchParams.page) ?? '1') || 1;
   const rawFilters = one(searchParams.filters) ?? '';
   const advancedRules = parseFilterRules(rawFilters);
@@ -170,6 +181,9 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     { key: 'lifecycle', label: t('filters.field.lifecycle'), type: 'select', options: lifecycles },
     { key: 'owner', label: t('filters.field.owner'), type: 'select', options: owners },
     { key: 'created', label: t('filters.field.created'), type: 'date' },
+    { key: 'lastActivity', label: t('activityDates.lastActivity'), type: 'date' },
+    { key: 'lastContacted', label: t('activityDates.lastContacted'), type: 'date' },
+    { key: 'nextActivity', label: t('activityDates.nextActivity'), type: 'date' },
     {
       key: 'tag',
       label: t('filters.field.tag'),
@@ -222,9 +236,23 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     lifecycle: c.lifecycle_stage,
     lifecycleLabel: lifecycleLabel(c.lifecycle_stage),
     created: formatDate(c.created_at, locale),
+    lastActivity: formatActivityDate(c.last_activity_at, locale),
+    lastContacted: formatActivityDate(c.last_contacted_at, locale),
+    nextActivity: formatActivityDate(c.next_activity_at, locale),
     tags: rowTags.get(c.id) ?? [],
     parentName: c.parent_company_id ? parentNames.get(c.parent_company_id) ?? null : null,
   }));
+
+  // Propiedades de la edición en masa (owner primero: es la acción más común).
+  const bulkFields: BulkEditField[] = [
+    { key: 'ownerId', label: t('companies.form.owner'), type: 'select', options: owners, nullable: true },
+    { key: 'lifecycleStage', label: t('companies.form.lifecycle'), type: 'select', options: lifecycles },
+    { key: 'industry', label: t('companies.form.industry'), type: 'text' },
+    { key: 'employees', label: t('companies.form.employees'), type: 'number', nullable: true },
+    { key: 'city', label: t('companies.form.city'), type: 'text' },
+    { key: 'country', label: t('companies.form.country'), type: 'text' },
+    ...customBulkFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }),
+  ];
 
   const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
   const currentPage = Math.min(Math.max(page, 1), pages);
@@ -302,6 +330,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
             lifecycles={[...LIFECYCLE_STAGES]}
             locale={locale}
             allTags={tagOptions}
+            bulkFields={bulkFields}
           />
           <CrmPager pathname="/app/crm/companies" query={query} page={currentPage} pages={pages} total={total} locale={locale} />
         </>

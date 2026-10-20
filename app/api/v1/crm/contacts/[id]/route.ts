@@ -45,6 +45,6 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   if ('res' in auth) return auth.res;
   const hidden = await apiGuardRecord(auth.user.id, 'contact', params.id, await apiScope(auth));
   if (hidden) return hidden;
-  if (!(await deleteContact(auth.user.id, params.id))) return apiError(404, 'not_found', 'Contact not found.');
+  if (!(await deleteContact(auth.user.id, params.id, auth.user.email))) return apiError(404, 'not_found', 'Contact not found.');
   return new NextResponse(null, { status: 204 });
 }

@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
@@ -247,6 +248,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
                   <dt>{t('companies.detail.rollupWon')}</dt>
                   <dd className="num">{fmtBase(rollup.own.won)}</dd>
                 </div>
+                <ActivityDateFacts record={company} locale={locale} />
               </dl>
               <Link href={recordTabHref(base, 'properties')} className="record-summary-more">
                 {t('companies.detail.viewAllProperties')}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { retryDueWebhooks } from '@/lib/webhooks';
 import { fireDueTasks } from '@/lib/crm';
+import { purgeExpiredTrash } from '@/lib/crm-trash';
 import { processFlowQueue } from '@/lib/flow-worker';
 import { runDueRobots } from '@/lib/robots';
 import { resyncStaleKnowledgeUrls } from '@/lib/agents';
@@ -29,7 +30,8 @@ const FLOW_BUDGET_MS = 150_000;
  * cola de Flow corren además cada minuto en /api/cron/minute (claims por fila
  * evitan dobles envíos); acá quedan para self-host con un solo cron. También
  * carga al backlog las ideas nuevas de research/ideas.json (una vez por
- * título) y re-descarga las URLs de conocimiento de Agents con más de 24 h.
+ * título), re-descarga las URLs de conocimiento de Agents con más de 24 h y
+ * vacía de la papelera del CRM lo borrado hace más de 90 días.
  * Misma autorización que el cron de
  * recordatorios (CRON_SECRET).
  */
@@ -39,6 +41,8 @@ export async function GET(req: NextRequest) {
   if (!reminders.ok) return reminders;
   const webhookRetries = await retryDueWebhooks();
   const dueTasks = await fireDueTasks();
+  // Papelera del CRM: lo borrado hace más de 90 días se descarta para siempre.
+  const trashPurged = await purgeExpiredTrash().catch(() => null);
   // Primero el sync (detecta respuestas → salen de la secuencia), después los envíos.
   // Van antes de la cola de Flow: son acotados y no pueden quedar sin correr.
   const emailSync = await syncDueMailboxes({ limit: 25, maxMessages: 50 }).catch(() => null);
@@ -62,5 +66,5 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, flow, emailSync, sequences, scoring, agentKnowledge, robots, ideas });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, trashPurged, flow, emailSync, sequences, scoring, agentKnowledge, robots, ideas });
 }

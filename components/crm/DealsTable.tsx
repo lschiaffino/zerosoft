@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import SortTh from './SortTh';
 import InlineEditCell from './InlineEditCell';
 import InlineStageCell from './InlineStageCell';
@@ -11,6 +11,7 @@ import RecordPreview from './RecordPreview';
 import CrmIcon from './CrmIcon';
 import TagDots, { type TagDot } from './TagDots';
 import TagBulkControls from './TagBulkControls';
+import BulkEditControls, { type BulkEditField } from './BulkEditControls';
 
 export interface DealRow {
   id: string;
@@ -28,6 +29,10 @@ export interface DealRow {
   age: number;
   contacts: number;
   created: string;
+  /** Fechas de actividad ya formateadas ('' = sin fecha). */
+  lastActivity?: string;
+  lastContacted?: string;
+  nextActivity?: string;
   tags?: TagDot[];
   /** Empresa primaria. */
   companyName?: string | null;
@@ -55,6 +60,8 @@ interface DealsTableProps {
   sources: Option[];
   locale: string;
   allTags?: Array<{ id: string; name: string }>;
+  /** Propiedades editables en masa (owner, etapa, custom fields…). */
+  bulkFields?: BulkEditField[];
 }
 
 const COLS = [
@@ -69,11 +76,46 @@ const COLS = [
   { id: 'company', labelKey: 'deals.detail.company', defaultVisible: true },
   { id: 'tags', labelKey: 'tags.column', defaultVisible: true },
   { id: 'created', labelKey: 'deals.table.created', defaultVisible: true },
+  { id: 'lastActivity', labelKey: 'activityDates.lastActivity', defaultVisible: false },
+  { id: 'lastContacted', labelKey: 'activityDates.lastContacted', defaultVisible: false },
+  { id: 'nextActivity', labelKey: 'activityDates.nextActivity', defaultVisible: false },
 ];
 
-export default function DealsTable({ rows, sort, stages, priorities, sources, locale, allTags = [] }: DealsTableProps) {
+export default function DealsTable({
+  rows,
+  sort,
+  stages,
+  priorities,
+  sources,
+  locale,
+  allTags = [],
+  bulkFields = [],
+}: DealsTableProps) {
   const t = useTranslations('crm');
+  const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [bulkNotice, setBulkNotice] = useState<string | null>(null);
+
+  /** Borrado en masa: los deals van a la papelera (solo admins; lo valida la ruta). */
+  async function bulkDelete() {
+    setBusy(true);
+    const res = await fetch('/api/crm/deals/bulk', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', ids: [...selected] }),
+    }).catch(() => null);
+    setBusy(false);
+    setConfirmingDelete(false);
+    if (!res?.ok) {
+      setBulkNotice(res?.status === 403 ? t('errors.forbidden') : t('errors.generic'));
+      return;
+    }
+    setSelected(new Set());
+    setBulkNotice(t('trash.movedNotice'));
+    router.refresh();
+  }
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
   function toggleOne(id: string) {
     setSelected((prev) => {
@@ -139,12 +181,27 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
                   <SortTh label={t('deals.table.created')} asc="oldest" desc="newest" current={sort} />
                 </th>
               )}
+              {visible.has('lastActivity') && (
+                <th className="num cell-date">
+                  <SortTh label={t('activityDates.lastActivity')} asc="last_activity_asc" desc="last_activity" current={sort} />
+                </th>
+              )}
+              {visible.has('lastContacted') && (
+                <th className="num cell-date">
+                  <SortTh label={t('activityDates.lastContacted')} asc="last_contacted_asc" desc="last_contacted" current={sort} />
+                </th>
+              )}
+              {visible.has('nextActivity') && (
+                <th className="num cell-date">
+                  <SortTh label={t('activityDates.nextActivity')} asc="next_activity" desc="next_activity_desc" current={sort} />
+                </th>
+              )}
               <th className="cell-actions-head"><span className="sr-only">{t('deals.table.actions')}</span></th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id}>
+              <tr key={row.id} className={busy && selected.has(row.id) ? 'row-busy' : undefined}>
                 <td className="cell-check">
                   <input
                     type="checkbox"
@@ -225,6 +282,9 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
                   </td>
                 )}
                 {visible.has('created') && <td className="num muted cell-date">{row.created}</td>}
+                {visible.has('lastActivity') && <td className="num muted cell-date">{row.lastActivity || '—'}</td>}
+                {visible.has('lastContacted') && <td className="num muted cell-date">{row.lastContacted || '—'}</td>}
+                {visible.has('nextActivity') && <td className="num muted cell-date">{row.nextActivity || '—'}</td>}
                 <td className="cell-actions">
                   <button
                     type="button"
@@ -245,11 +305,50 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
       {selected.size > 0 && (
         <div className="bulk-bar" role="toolbar">
           <span className="bulk-count">{t('deals.bulkSelected', { count: selected.size })}</span>
-          <TagBulkControls entity="deal" ids={[...selected]} tags={allTags} onDone={() => setSelected(new Set())} />
-          <button type="button" className="bulk-btn" onClick={() => setSelected(new Set())}>
+          <BulkEditControls
+            endpoint="/api/crm/deals/bulk"
+            ids={[...selected]}
+            fields={bulkFields}
+            disabled={busy}
+            onDone={(notice) => {
+              setSelected(new Set());
+              setBulkNotice(notice);
+            }}
+          />
+          <TagBulkControls entity="deal" ids={[...selected]} tags={allTags} disabled={busy} onDone={() => setSelected(new Set())} />
+          {confirmingDelete ? (
+            <>
+              <span className="bulk-count">{t('deals.bulkConfirmDelete', { count: selected.size })}</span>
+              <button type="button" className="bulk-btn danger" disabled={busy} onClick={bulkDelete}>
+                {t('common.yes')}
+              </button>
+              <button type="button" className="bulk-btn" disabled={busy} onClick={() => setConfirmingDelete(false)}>
+                {t('common.no')}
+              </button>
+            </>
+          ) : (
+            <button type="button" className="bulk-btn danger" disabled={busy} onClick={() => setConfirmingDelete(true)}>
+              {t('contacts.bulk.delete')}
+            </button>
+          )}
+          <button
+            type="button"
+            className="bulk-btn"
+            disabled={busy}
+            onClick={() => {
+              setSelected(new Set());
+              setConfirmingDelete(false);
+            }}
+          >
             {t('contacts.bulk.clear')}
           </button>
         </div>
+      )}
+
+      {bulkNotice && selected.size === 0 && (
+        <p className="muted bulk-notice" role="status">
+          {bulkNotice}
+        </p>
       )}
 
       {previewId && (

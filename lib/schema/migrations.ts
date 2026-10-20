@@ -1,6 +1,7 @@
 import type { Client } from '@libsql/client';
 import { baseline } from './baseline';
 import { pickHandle } from './handles';
+import { ACTIVITY_DATE_TABLES, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
  * Migraciones versionadas. Cada una corre una sola vez por base y queda
@@ -2347,6 +2348,42 @@ export const MIGRATIONS: Migration[] = [
     async up(client) {
       await addColumn(client, "ALTER TABLE chat_widgets ADD COLUMN locale TEXT NOT NULL DEFAULT 'auto'");
       await addColumn(client, 'ALTER TABLE agent_messages ADD COLUMN author_id TEXT');
+    },
+  },
+  {
+    // CRM: papelera (los borrados de contactos, empresas, deals y actividades
+    // quedan 90 días como snapshot restaurable, ver lib/crm-trash.ts), fechas
+    // de actividad mantenidas por triggers en cada registro
+    // (lib/crm-activity-dates.ts) y tareas que se repiten.
+    id: '049_crm_trash_activity_dates_task_repeat',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS crm_trash (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          entity TEXT NOT NULL CHECK (entity IN ('contact', 'company', 'deal', 'activity')),
+          record_id TEXT NOT NULL,
+          label TEXT NOT NULL DEFAULT '',
+          owner_id TEXT,
+          deleted_by TEXT NOT NULL DEFAULT '',
+          deleted_at TEXT NOT NULL DEFAULT (datetime('now')),
+          snapshot TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_trash_user ON crm_trash(user_id, deleted_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_crm_trash_deleted ON crm_trash(deleted_at);
+        CREATE INDEX IF NOT EXISTS idx_crm_activities_contact ON crm_activities(contact_id) WHERE contact_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_crm_activities_company ON crm_activities(company_id) WHERE company_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_crm_activities_deal ON crm_activities(deal_id) WHERE deal_id IS NOT NULL;
+      `);
+      for (const { table } of ACTIVITY_DATE_TABLES) {
+        await addColumn(client, `ALTER TABLE ${table} ADD COLUMN last_activity_at TEXT`);
+        await addColumn(client, `ALTER TABLE ${table} ADD COLUMN last_contacted_at TEXT`);
+        await addColumn(client, `ALTER TABLE ${table} ADD COLUMN next_activity_at TEXT`);
+      }
+      await addColumn(client, "ALTER TABLE crm_activities ADD COLUMN repeat TEXT NOT NULL DEFAULT 'none'");
+      await addColumn(client, 'ALTER TABLE crm_activities ADD COLUMN repeat_next_id TEXT');
+      await client.executeMultiple(activityDateTriggersSql());
+      for (const { table } of ACTIVITY_DATE_TABLES) await client.execute(activityDatesUpdateSql(table));
     },
   },
 ];
