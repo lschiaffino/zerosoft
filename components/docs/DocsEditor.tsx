@@ -24,12 +24,23 @@ import {
   type DocsPage,
 } from '@/lib/docs-types';
 import {
+  findVerticalTarget,
   getCaretOffset,
   getCaretViewportRect,
   getSelectionOffsets,
+  isCaretOnEdgeLine,
+  placeCaretAtX,
   setCaretOffset,
   setSelectionOffsets,
 } from '@/lib/docs-caret';
+import {
+  DOCS_MAX_UPLOAD,
+  fileBlockFromUpload,
+  isFileBlockType,
+  isInlineImageMime,
+  type DocsFileKind,
+  type DocsUploadResult,
+} from '@/lib/docs-files';
 import {
   escapeHtml,
   getLinkAt,
@@ -99,7 +110,12 @@ const BLOCK_COMMANDS: {
   { key: 'divider', type: 'divider' },
   { key: 'table', type: 'table' },
   { key: 'database', type: 'database' },
+  { key: 'image', type: 'image' },
+  { key: 'file', type: 'file' },
 ];
+
+/** "Convertir en": los bloques de archivo no salen de un bloque de texto. */
+const TURN_INTO_COMMANDS = BLOCK_COMMANDS.filter((c) => !isFileBlockType(c.type));
 
 /** Keywords extra para matchear el menú `/` (el label traducido no alcanza: "To-do" ≠ "todo"). */
 const COMMAND_KEYWORDS: Record<string, string[]> = {
@@ -115,6 +131,8 @@ const COMMAND_KEYWORDS: Record<string, string[]> = {
   divider: ['divider', 'hr', 'line', 'separator', '---'],
   table: ['table', 'grid'],
   database: ['database', 'db', 'table', 'grid', 'view', 'data'],
+  image: ['image', 'picture', 'photo', 'img', 'upload', 'imagen', 'foto', 'imagem'],
+  file: ['file', 'attachment', 'upload', 'pdf', 'document', 'archivo', 'adjunto', 'arquivo', 'anexo'],
 };
 
 const BLOCK_ICONS: Record<DocsBlockType, DocsGlyphName> = {
@@ -128,6 +146,8 @@ const BLOCK_ICONS: Record<DocsBlockType, DocsGlyphName> = {
   divider: 'divider',
   table: 'table',
   database: 'database',
+  image: 'image',
+  file: 'file',
 };
 
 const LIST_TYPES: DocsBlockType[] = ['bulleted_list_item', 'numbered_list_item', 'todo'];
@@ -148,9 +168,9 @@ interface BlockDragState {
   dropIndex: number;
 }
 
-/** Bloques cuyo contenido es texto editable en línea (no divider/table/database). */
+/** Bloques cuyo contenido es texto editable en línea (no divider/table/database/image/file). */
 function isTextBlockType(type: DocsBlockType): boolean {
-  return type !== 'divider' && type !== 'table' && type !== 'database';
+  return type !== 'divider' && type !== 'table' && type !== 'database' && !isFileBlockType(type);
 }
 
 /**
@@ -322,6 +342,15 @@ export default function DocsEditor({
   /** Espejo del estado para el listener de selectionchange (sin re-suscribir). */
   const linkDialogRef = useRef(linkDialog);
   linkDialogRef.current = linkDialog;
+  /** Imágenes y archivos (menú `/`, pegar, soltar): solo en Docs, no embebido en Notes. */
+  const uploadsEnabled = !embedded;
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  /** Destino del selector de archivos abierto desde el menú `/`. */
+  const uploadTarget = useRef<{ anchorId: string | null; replaceId: string | null; kind: DocsFileKind } | null>(null);
+  const [uploading, setUploading] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  /** Línea de drop (px, relativa a .docs-blocks) al arrastrar archivos del sistema. */
+  const [fileDropLine, setFileDropLine] = useState<number | null>(null);
 
   useEffect(() => {
     setBlocks(upgradeBlocks(page.content.length ? page.content : defaultBlocks()));
@@ -580,6 +609,112 @@ export default function DocsEditor({
     },
     [blocks, coverUrl, icon, onSave, title],
   );
+
+  /** Última versión de triggerSave para callbacks async (subidas): no guardar un título viejo. */
+  const triggerSaveRef = useRef(triggerSave);
+  triggerSaveRef.current = triggerSave;
+
+  /**
+   * Sube archivos y crea un bloque image/file por cada uno, después de
+   * `anchorId` (null = al principio). `replaceId`: párrafo vacío que se
+   * reemplaza por el primer bloque (ej. "/imagen" en una línea vacía). Se
+   * ubica por id: mientras sube, la persona puede seguir editando.
+   */
+  const uploadFiles = useCallback(
+    async (
+      files: File[],
+      anchorId: string | null,
+      opts: { replaceId?: string | null; kind?: DocsFileKind } = {},
+    ) => {
+      if (!uploadsEnabled || files.length === 0) return;
+      setUploadError(null);
+      let anchor = anchorId;
+      let replaceId = opts.replaceId ?? null;
+      for (const file of files) {
+        if (file.size > DOCS_MAX_UPLOAD) {
+          setUploadError(t('editor.upload.tooLarge', { name: file.name }));
+          continue;
+        }
+        setUploading((n) => n + 1);
+        try {
+          const body = new FormData();
+          body.append('file', file);
+          const res = await fetch(`/api/docs/pages/${page.id}/files`, { method: 'POST', body });
+          if (!res.ok) {
+            const code = ((await res.json().catch(() => null)) as { error?: string } | null)?.error;
+            const key =
+              code === 'file_type_not_allowed'
+                ? 'editor.upload.typeNotAllowed'
+                : code === 'storage_unavailable'
+                  ? 'editor.upload.storageUnavailable'
+                  : code === 'file_too_large'
+                    ? 'editor.upload.tooLarge'
+                    : 'editor.upload.failed';
+            setUploadError(t(key, { name: file.name }));
+            continue;
+          }
+          const up = (await res.json()) as DocsUploadResult;
+          // "/imagen" con algo que no se puede mostrar en línea: queda como archivo.
+          const kind = opts.kind === 'image' && !isInlineImageMime(up.mime) ? 'file' : opts.kind;
+          const newBlock = fileBlockFromUpload(up, kind);
+          const rid = replaceId;
+          const aid = anchor;
+          setBlocks((prev) => {
+            const next = [...prev];
+            const ri = rid ? next.findIndex((b) => b.id === rid) : -1;
+            if (ri !== -1 && next[ri].type === 'paragraph' && next[ri].content === '') {
+              next[ri] = newBlock;
+            } else {
+              const ai = aid ? next.findIndex((b) => b.id === aid) : -1;
+              // Ancla borrada mientras subía: al final.
+              next.splice(aid === null ? 0 : ai === -1 ? next.length : ai + 1, 0, newBlock);
+            }
+            triggerSaveRef.current(next);
+            return next;
+          });
+          anchor = newBlock.id;
+          replaceId = null;
+        } catch {
+          setUploadError(t('editor.upload.failed', { name: file.name }));
+        } finally {
+          setUploading((n) => n - 1);
+        }
+      }
+    },
+    [page.id, t, uploadsEnabled],
+  );
+
+  /** Pegar archivos en un bloque: si es un párrafo vacío, lo reemplaza. */
+  const handlePasteFiles = useCallback(
+    (index: number, files: File[]) => {
+      const b = blocks[index];
+      void uploadFiles(files, b?.id ?? null, {
+        replaceId: b && b.type === 'paragraph' && b.content === '' ? b.id : null,
+      });
+    },
+    [blocks, uploadFiles],
+  );
+
+  /** Bloque después del cual cae un archivo soltado (-1 = al principio) y la y de la línea. */
+  const fileDropTarget = useCallback((clientY: number): { index: number; top: number } => {
+    const wrap = blocksWrapRef.current;
+    if (!wrap) return { index: -1, top: 0 };
+    const outers = Array.from(wrap.querySelectorAll<HTMLElement>(':scope > .docs-block-outer'));
+    const wrapTop = wrap.getBoundingClientRect().top;
+    let index = outers.length - 1;
+    for (let i = 0; i < outers.length; i++) {
+      const r = outers[i].getBoundingClientRect();
+      if (clientY < r.top + r.height / 2) {
+        index = i - 1;
+        break;
+      }
+    }
+    const top =
+      index >= 0
+        ? outers[index].getBoundingClientRect().bottom - wrapTop
+        : (outers[0]?.getBoundingClientRect().top ?? wrapTop) - wrapTop;
+    return { index, top };
+  }, []);
 
   const updateBlock = useCallback(
     (index: number, patch: Partial<DocsBlock>) => {
@@ -943,6 +1078,32 @@ export default function DocsEditor({
       const stripped = s ? removeHtmlRange(block.content, s.start, s.end) : block.content;
       const caret = s ? s.start : htmlToFlatText(block.content).length;
 
+      if (isFileBlockType(cmd.type)) {
+        // "/imagen" o "/archivo": se borra el `/query`, se abre el selector y
+        // el bloque se crea al terminar la subida (reemplaza la línea si quedó vacía).
+        setBlocks((prev) => {
+          const next = prev.map((b, i) => (i === index ? { ...b, content: stripped } : b));
+          triggerSave(next);
+          return next;
+        });
+        setCmdOpen(false);
+        setCmdQuery('');
+        setCmdSel(0);
+        setSlash(null);
+        uploadTarget.current = {
+          anchorId: block.id,
+          replaceId: block.type === 'paragraph' && stripped === '' ? block.id : null,
+          kind: cmd.type as DocsFileKind,
+        };
+        const input = fileInputRef.current;
+        if (input) {
+          input.accept = cmd.type === 'image' ? 'image/*' : '';
+          input.value = '';
+          input.click();
+        }
+        return;
+      }
+
       if (cmd.type === 'divider') {
         // El divider no tiene texto: se inserta debajo + un párrafo para seguir escribiendo.
         const dividerBlock: DocsBlock = { id: crypto.randomUUID(), type: 'divider', content: '' };
@@ -973,6 +1134,7 @@ export default function DocsEditor({
     const qn = q.replace(/[^a-z0-9]/g, '');
     return BLOCK_COMMANDS.map((c) => ({ ...c, label: t(`editor.commands.${c.key}`) })).filter(
       (c) => {
+        if (!uploadsEnabled && isFileBlockType(c.type)) return false;
         if (!q) return true;
         const label = c.label.toLowerCase();
         if (label.includes(q)) return true;
@@ -984,7 +1146,7 @@ export default function DocsEditor({
         });
       },
     );
-  }, [t, cmdQuery]);
+  }, [t, cmdQuery, uploadsEnabled]);
 
   /** Enter en párrafo/heading/listas/todo: split en el caret o continuación de lista. */
   const splitBlock = useCallback(
@@ -1141,6 +1303,36 @@ export default function DocsEditor({
     [blocks, convertBlock, removeBlock, triggerSave],
   );
 
+  /**
+   * Flechas arriba/abajo en la primera/última línea de un bloque: el foco
+   * pasa al bloque vecino (saltea divider/tabla/base) con el caret lo más
+   * cerca posible de la x que tenía, como en Notion. Arriba en el primer
+   * bloque sube al título. `index` -1 = desde el título.
+   */
+  const moveVertical = useCallback(
+    (index: number, dir: -1 | 1, x: number): boolean => {
+      const target = findVerticalTarget(blocks.map((b) => b.type), index, dir);
+      if (target === -1) {
+        if (dir === -1 && index >= 0 && titleRef.current) {
+          placeCaretAtX(titleRef.current, x, 'bottom');
+          return true;
+        }
+        return false;
+      }
+      const el = blockRefs.current[target];
+      if (!el) return false;
+      prevFocus.current = target;
+      if (el.isContentEditable) {
+        placeCaretAtX(el, x, dir === -1 ? 'bottom' : 'top');
+      } else {
+        el.focus({ preventScroll: true });
+        el.scrollIntoView?.({ block: 'nearest' });
+      }
+      return true;
+    },
+    [blocks],
+  );
+
   const handleKeyDown = useCallback(
     (index: number, e: React.KeyboardEvent<HTMLElement>) => {
       const block = blocks[index];
@@ -1201,6 +1393,35 @@ export default function DocsEditor({
           openLinkDialog(index);
           return;
         }
+      }
+
+      // Flechas entre bloques: solo con el caret en la primera/última línea
+      // (si no, el browser mueve el caret dentro del bloque) o desde un bloque
+      // de imagen/archivo enfocado. Con Shift se extiende la selección: no se toca.
+      if (
+        (e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+        !e.shiftKey &&
+        !e.altKey &&
+        !meta &&
+        !mention &&
+        !userMention
+      ) {
+        const dir = e.key === 'ArrowUp' ? -1 : 1;
+        const onCard = isFileBlockType(block.type) && e.target === e.currentTarget;
+        if (onCard || (isEditable && collapsed && isCaretOnEdgeLine(el, dir))) {
+          const x = (isEditable ? getCaretViewportRect()?.left : undefined) ?? el.getBoundingClientRect().left;
+          if (moveVertical(index, dir, x)) {
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+
+      // Supr sobre un bloque de imagen/archivo enfocado: lo borra (como Backspace).
+      if (e.key === 'Delete' && isFileBlockType(block.type) && e.target === e.currentTarget) {
+        e.preventDefault();
+        removeBlock(index);
+        return;
       }
 
       // Markdown: "# ", "## ", "### ", "- ", "* ", "1. ", "[] ", "[ ] ", "> ".
@@ -1268,6 +1489,9 @@ export default function DocsEditor({
       removeBlock,
       applyMark,
       openLinkDialog,
+      mention,
+      userMention,
+      moveVertical,
     ],
   );
 
@@ -1742,13 +1966,46 @@ export default function DocsEditor({
               pendingCaret.current = { index: 0, offset: 0 };
               setFocusIndex(0);
               setFocusTick((v) => v + 1);
+              return;
+            }
+            // Abajo en la última línea del título: al primer bloque, con la x del caret.
+            if (
+              e.key === 'ArrowDown' &&
+              !e.shiftKey &&
+              !e.altKey &&
+              !e.metaKey &&
+              !e.ctrlKey &&
+              (window.getSelection()?.isCollapsed ?? true) &&
+              isCaretOnEdgeLine(e.currentTarget, 1)
+            ) {
+              const x = getCaretViewportRect()?.left ?? e.currentTarget.getBoundingClientRect().left;
+              if (moveVertical(-1, 1, x)) e.preventDefault();
             }
           }}
         />
         {!embedded && belowTitle}
       </div>
 
-      <div className="docs-blocks" ref={blocksWrapRef}>
+      <div
+        className={`docs-blocks${fileDropLine !== null ? ' file-dragover' : ''}`}
+        ref={blocksWrapRef}
+        onDragOver={(e) => {
+          if (!uploadsEnabled || !Array.from(e.dataTransfer.types).includes('Files')) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+          setFileDropLine(fileDropTarget(e.clientY).top);
+        }}
+        onDragLeave={(e) => {
+          if (!blocksWrapRef.current?.contains(e.relatedTarget as Node | null)) setFileDropLine(null);
+        }}
+        onDrop={(e) => {
+          if (!uploadsEnabled || !Array.from(e.dataTransfer.types).includes('Files')) return;
+          e.preventDefault();
+          setFileDropLine(null);
+          const { index } = fileDropTarget(e.clientY);
+          void uploadFiles(Array.from(e.dataTransfer.files), index >= 0 ? blocks[index]?.id ?? null : null);
+        }}
+      >
         {blocks.map((block, index) => {
           if (block.type === 'numbered_list_item') numberedIndex++;
           else numberedIndex = 0;
@@ -1796,7 +2053,7 @@ export default function DocsEditor({
                       </button>
                       {turnIntoOpen && (
                         <div className="docs-bmenu-sub">
-                          {BLOCK_COMMANDS.map((cmd) => (
+                          {TURN_INTO_COMMANDS.map((cmd) => (
                             <button
                               key={cmd.key}
                               type="button"
@@ -1917,6 +2174,8 @@ export default function DocsEditor({
                   onKeyDown={handleKeyDown}
                   onFocus={handleFocus}
                   focused={focusIndex === index}
+                  pageId={uploadsEnabled ? page.id : undefined}
+                  onPasteFiles={uploadsEnabled ? handlePasteFiles : undefined}
                   ref={(el) => { blockRefs.current[index] = el; }}
                 />
               </div>
@@ -1939,7 +2198,41 @@ export default function DocsEditor({
         {dropLine !== null && (
           <div className="docs-drop-line" style={{ top: dropLine }} aria-hidden />
         )}
+        {fileDropLine !== null && (
+          <div className="docs-drop-line" style={{ top: fileDropLine }} aria-hidden />
+        )}
       </div>
+
+      {uploadsEnabled && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          hidden
+          data-testid="docs-file-input"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            const target = uploadTarget.current;
+            uploadTarget.current = null;
+            e.target.value = '';
+            if (files.length === 0) return;
+            void uploadFiles(files, target ? target.anchorId : blocks[blocks.length - 1]?.id ?? null, {
+              replaceId: target?.replaceId,
+              kind: target?.kind,
+            });
+          }}
+        />
+      )}
+      {(uploading > 0 || uploadError) && (
+        <p className={`docs-upload-status${uploadError && uploading === 0 ? ' is-error' : ''}`} role="status">
+          <span>{uploading > 0 ? t('editor.upload.uploading', { count: uploading }) : uploadError}</span>
+          {uploadError && uploading === 0 && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setUploadError(null)}>
+              {t('editor.upload.dismiss')}
+            </button>
+          )}
+        </p>
+      )}
 
       {cmdOpen &&
         slash &&

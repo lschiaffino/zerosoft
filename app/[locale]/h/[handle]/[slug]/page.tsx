@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { getHelpArticle as loadHelpArticle, getHelpWorkspace as loadHelpWorkspace } from '@/lib/docs-help';
 import { sanitizeBlocks } from '@/lib/docs-sanitize';
+import { stripFileUrls } from '@/lib/docs-files';
 import { resolveBlocksPageLinks } from '@/lib/docs-page-links';
 import { buildToc } from '@/lib/docs-toc';
 import { helpAccentStyle } from '@/lib/docs-accent';
@@ -48,7 +49,7 @@ export default async function HelpArticlePage(props: Props) {
   // Defensa en profundidad: se re-sanitiza al servir una página pública. Los
   // links `[[` van al artículo publicado; a una página sin publicar quedan
   // como texto plano (ni id ni href: no se filtra qué hay en el workspace).
-  const blocks = resolveBlocksPageLinks(sanitizeBlocks(article.content), (pageId) => {
+  const blocks = resolveBlocksPageLinks(stripFileUrls(sanitizeBlocks(article.content)), (pageId) => {
     const target = article.linkTargets[pageId];
     return target ? { href: `${base}/${target.slug}`, title: target.title || t('untitled'), keepId: false } : null;
   });
@@ -86,7 +87,7 @@ export default async function HelpArticlePage(props: Props) {
                 {t('updated', { date: format.dateTime(new Date(article.updated_at), { dateStyle: 'medium' }) })}
               </p>
             </header>
-            <DocsBlocksView blocks={blocks} className="docs-prose help-body" />
+            <DocsBlocksView blocks={blocks} pageId={article.id} className="docs-prose help-body" />
 
             {/* Portada de colección: la lista de sus artículos. */}
             {article.children.length > 0 ? (

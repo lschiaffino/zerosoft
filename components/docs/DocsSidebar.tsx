@@ -8,6 +8,7 @@ import { useKeyShortcut } from '@/components/app/QuickModal';
 import Icon from '@/components/app/icons';
 import { buildPageTree, type DocsPageSummary } from '@/lib/docs-types';
 import DocsGlyph from './DocsGlyphs';
+import DocsPageSwitcher, { DOCS_SWITCHER_EVENT } from './DocsPageSwitcher';
 
 interface DocsSidebarProps {
   pages: DocsPageSummary[];
@@ -331,6 +332,18 @@ export default function DocsSidebar({
 
   const body = (inShell: boolean) => (
     <>
+      {/* Buscar (Cmd+P): títulos y contenido de las páginas. */}
+      <button
+        type="button"
+        className="docs-tree-search"
+        onClick={() => window.dispatchEvent(new Event(DOCS_SWITCHER_EVENT))}
+        aria-keyshortcuts="Meta+P Control+P"
+        data-testid="docs-search-button"
+      >
+        <DocsGlyph name="search" size={14} />
+        <span className="docs-tree-search-label">{t('switcher.open')}</span>
+        <kbd className="docs-tree-search-kbd">{t('switcher.shortcut')}</kbd>
+      </button>
       {tree.length === 0 ? (
         <div className="docs-sidebar-empty">
           <p>{labels.empty}</p>
@@ -384,10 +397,20 @@ export default function DocsSidebar({
   );
 
   // ≥1024px con el sidebar abierto: el árbol cuelga de "Páginas".
-  if (branch) return createPortal(<div className="docs-branch">{body(true)}</div>, branch);
+  const switcher = <DocsPageSwitcher pages={pages} />;
+
+  if (branch) {
+    return (
+      <>
+        {createPortal(<div className="docs-branch">{body(true)}</div>, branch)}
+        {switcher}
+      </>
+    );
+  }
 
   return (
     <div className={`docs-sidebar${mobileOpen ? ' mobile-open' : ''}`}>
+      {switcher}
       <div className="docs-sidebar-head">
         <button
           type="button"

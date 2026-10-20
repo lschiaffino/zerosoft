@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
 import { searchAll, searchTasks } from '@/lib/crm';
-import { searchDocPages } from '@/lib/docs';
+import { searchDocPagesContent } from '@/lib/docs';
 import { listLinks, toLinkDto } from '@/lib/links';
 import { searchNotesForPalette } from '@/lib/notes';
 
@@ -33,7 +33,8 @@ export async function GET(req: NextRequest) {
   const [crm, links, docs, tasks, notes] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
-    searchDocPages(user.id, q),
+    // Docs: título y texto de los bloques (el fragmento va como meta).
+    searchDocPagesContent(user.id, q, 10),
     searchTasks(user.id, q, scope),
     // Notas: solo las de la persona logueada (son privadas aunque el workspace sea compartido).
     searchNotesForPalette(user, q),
@@ -86,8 +87,8 @@ export async function GET(req: NextRequest) {
     items.push({
       id: p.id,
       group: 'docs',
-      label: p.title,
-      meta: '',
+      label: p.title || 'Untitled',
+      meta: p.snippet ?? '',
       href: `/app/docs/${p.id}`,
     });
   }

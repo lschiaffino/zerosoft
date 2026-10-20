@@ -2349,6 +2349,14 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE agent_messages ADD COLUMN author_id TEXT');
     },
   },
+  {
+    // Docs: las subpáginas heredan los shares de sus ancestros salvo que se
+    // corte la herencia (1 = hereda, el default; 0 = solo sus propios shares).
+    id: '045_docs_share_inheritance',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN inherit_shares INTEGER NOT NULL DEFAULT 1');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -12,6 +12,8 @@ import {
   serializeEditable,
 } from '@/lib/docs-richtext';
 import { isPageLinkId, pageLinkHref } from '@/lib/docs-page-links';
+import { docsFileHref, formatFileSize, isDocsUploadUrl } from '@/lib/docs-files';
+import DocsGlyph from './DocsGlyphs';
 import DocsDatabaseBlock from './DocsDatabaseBlock';
 
 interface DocsBlockEditorProps {
@@ -22,10 +24,14 @@ interface DocsBlockEditorProps {
   onKeyDown: (index: number, e: React.KeyboardEvent<HTMLElement>) => void;
   onFocus: (index: number) => void;
   focused: boolean;
+  /** Página dueña de los archivos (bloques image/file). */
+  pageId?: string;
+  /** Pegar archivos (captura de pantalla, archivo copiado): los sube el editor. */
+  onPasteFiles?: (index: number, files: File[]) => void;
 }
 
 const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
-  ({ block, index, listIndex, onChange, onKeyDown, onFocus, focused }, ref) => {
+  ({ block, index, listIndex, onChange, onKeyDown, onFocus, focused, pageId, onPasteFiles }, ref) => {
     const t = useTranslations('docs');
     const locale = useLocale();
     const router = useRouter();
@@ -106,6 +112,54 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
 
     if (block.type === 'divider') {
       return <hr className="docs-divider" data-index={index} />;
+    }
+
+    if (block.type === 'image' || block.type === 'file') {
+      // Bloque atómico: se enfoca entero (Tab/flechas/click). Enter crea un
+      // párrafo abajo y Backspace/Supr lo borra (lo maneja el editor). En el
+      // editor la imagen sale de la URL del storage (el bloque recién subido
+      // todavía no está guardado); la descarga pasa por la API con permisos.
+      const hasFile = isDocsUploadUrl(block.url);
+      const name = block.name || t('editor.upload.untitledFile');
+      return (
+        <div
+          ref={(node) => {
+            if (typeof ref === 'function') ref(node);
+            else if (ref) ref.current = node;
+          }}
+          className={`docs-block docs-file-block docs-file-block-${block.type}${focused ? ' focused' : ''}`}
+          data-index={index}
+          data-testid={`docs-${block.type}-block`}
+          tabIndex={0}
+          role="group"
+          aria-label={block.type === 'image' ? t('editor.upload.imageLabel', { name }) : t('editor.upload.fileLabel', { name })}
+          onKeyDown={(e) => onKeyDown(index, e)}
+          onFocus={(e) => {
+            if (e.target === e.currentTarget) onFocus(index);
+          }}
+        >
+          {!hasFile ? (
+            <span className="docs-file-missing">{t('editor.upload.missing')}</span>
+          ) : block.type === 'image' ? (
+            // URL del storage propio (blob o /uploads): next/image exigiría allowlist.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="docs-image" src={block.url} alt={name} draggable={false} />
+          ) : (
+            <a
+              className="docs-file-card"
+              href={pageId ? docsFileHref(pageId, block.id, { download: true }) : block.url}
+              download={name}
+              tabIndex={-1}
+            >
+              <span className="docs-file-icon" aria-hidden="true">
+                <DocsGlyph name="file" size={18} />
+              </span>
+              <span className="docs-file-name">{name}</span>
+              <span className="docs-file-size">{formatFileSize(block.size)}</span>
+            </a>
+          )}
+        </div>
+      );
     }
 
     if (block.type === 'database') {
@@ -205,6 +259,14 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
             if (!el) return;
             const cd = e.clipboardData;
             const html = cd.getData('text/html');
+            // Archivos sin HTML (captura de pantalla, archivo copiado del
+            // Finder/Explorador): se suben como bloques. Con HTML (Word, la
+            // web) gana el texto.
+            const files = Array.from(cd.files ?? []);
+            if (onPasteFiles && files.length > 0 && !html && block.type !== 'code') {
+              onPasteFiles(index, files);
+              return;
+            }
             let insert: string;
             if (block.type === 'code') {
               const text = html ? htmlToFlatText(html) : cd.getData('text/plain');

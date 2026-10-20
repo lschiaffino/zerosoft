@@ -24,6 +24,8 @@ const docsBlockType = z.enum([
   'divider',
   'table',
   'database',
+  'image',
+  'file',
 ]);
 
 const docsDatabaseColumnSchema = z.object({
@@ -43,6 +45,11 @@ export const docsBlockSchema = z.object({
   rows: z.array(z.array(blockText)).optional(),
   columns: z.array(docsDatabaseColumnSchema).max(30).optional(),
   view: z.enum(['table', 'gallery']).optional(),
+  // Bloques image/file (sanitizeBlocks descarta la URL si no es del storage).
+  url: z.string().max(2048).optional(),
+  name: z.string().max(255).optional(),
+  size: z.number().int().min(0).max(1024 * 1024 * 1024).optional(),
+  mime: z.string().max(255).optional(),
 });
 
 export const docPageCreateSchema = z.object({
@@ -63,6 +70,7 @@ export const docPageUpdateSchema = z.object({
   archived: z.boolean().optional(),
   small_text: z.boolean().optional(),
   full_width: z.boolean().optional(),
+  inherit_shares: z.boolean().optional(),
   /** updated_at sobre el que se editó (concurrencia optimista: 409 si cambió). */
   base_updated_at: z.string().min(1).max(64).optional(),
 });

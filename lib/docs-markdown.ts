@@ -90,7 +90,12 @@ function tableToMd(header: string[], rows: string[][]): string {
   return [line(header), `| ${Array.from({ length: width }, () => '---').join(' | ')} |`, ...rows.map(line)].join('\n');
 }
 
-export function blocksToMarkdown(blocks: DocsBlock[], title?: string): string {
+export interface BlocksToMarkdownOptions {
+  /** URL de un bloque image/file (la del proxy con permisos, nunca la del storage). Sin esto se exporta solo el nombre. */
+  fileHref?: (blockId: string) => string;
+}
+
+export function blocksToMarkdown(blocks: DocsBlock[], title?: string, opts: BlocksToMarkdownOptions = {}): string {
   const parts: string[] = [];
   if (title && title.trim()) parts.push(`# ${title.trim()}`);
   let numbered = 0;
@@ -127,6 +132,13 @@ export function blocksToMarkdown(blocks: DocsBlock[], title?: string): string {
       case 'divider':
         text = '---';
         break;
+      case 'image':
+      case 'file': {
+        const name = escapeMd(b.name || 'file');
+        const href = opts.fileHref?.(b.id);
+        text = href ? `${b.type === 'image' ? '!' : ''}[${name}](${href})` : name;
+        break;
+      }
       case 'table': {
         const rows = b.rows ?? [];
         text = rows.length ? tableToMd(rows[0], rows.slice(1)) : '';

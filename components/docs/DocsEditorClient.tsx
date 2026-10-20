@@ -198,12 +198,26 @@ export default function DocsEditorClient({
 
   // Interruptores de Compartir (publicar, IA): responden al toque; el slug y
   // el estado definitivo llegan con la respuesta del PATCH.
+  /**
+   * Relee los shares efectivos (propios y heredados): crear un share propio
+   * para alguien que ya tenía acceso heredado lo reemplaza, y borrarlo puede
+   * devolver el heredado. Más simple que replicar la regla en el cliente.
+   */
+  const refreshShares = useCallback(async () => {
+    const res = await fetch(`/api/docs/pages/${page.id}`).catch(() => null);
+    if (!res?.ok) return;
+    const data = (await res.json()) as { shares?: DocsPageShare[] };
+    if (data.shares) setLocalShares(data.shares);
+  }, [page.id]);
+
   const updateSharing = useCallback(
-    (patch: Partial<DocsPage>) => {
+    async (patch: Partial<DocsPage>) => {
       setCurrent((prev) => ({ ...prev, ...patch }));
-      return savePage(patch);
+      await savePage(patch);
+      // Cortar o volver a activar la herencia cambia la lista de accesos.
+      if (patch.inherit_shares !== undefined) await refreshShares();
     },
-    [savePage],
+    [savePage, refreshShares],
   );
 
   const handleShare = useCallback(
@@ -218,11 +232,16 @@ export default function DocsEditorClient({
         return data.error ?? 'error';
       }
       const share = (await res.json()) as DocsPageShare;
-      setLocalShares((prev) => [share, ...prev.filter((s) => s.id !== share.id)]);
+      // El share propio pisa al heredado del mismo destino.
+      setLocalShares((prev) => [
+        share,
+        ...prev.filter((s) => s.id !== share.id && !(s.kind === share.kind && s.target_id === share.target_id)),
+      ]);
+      await refreshShares();
       router.refresh();
       return null;
     },
-    [page.id, router],
+    [page.id, router, refreshShares],
   );
 
   const handleRoleChange = useCallback(
@@ -242,9 +261,10 @@ export default function DocsEditorClient({
       const res = await fetch(`/api/docs/pages/${page.id}/share/${shareId}`, { method: 'DELETE' });
       if (!res.ok) return;
       setLocalShares((prev) => prev.filter((s) => s.id !== shareId));
+      await refreshShares();
       router.refresh();
     },
-    [page.id, router],
+    [page.id, router, refreshShares],
   );
 
   const duplicatePage = useCallback(async () => {
