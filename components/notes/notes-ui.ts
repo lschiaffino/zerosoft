@@ -64,3 +64,34 @@ export function isTypingTarget(el: EventTarget | null): boolean {
   if (typeof HTMLElement === 'undefined' || !(el instanceof HTMLElement)) return false;
   return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
 }
+
+/** Date → valor de <input type="datetime-local"> en la hora local ("2026-03-04T09:00"). */
+export function toLocalInputValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export type ReminderPresetKey = 'laterToday' | 'tomorrow' | 'nextWeek';
+
+/**
+ * Atajos del recordatorio, en hora local: en 3 horas (en punto, solo si
+ * sigue siendo hoy), mañana a las 9:00 y el lunes que viene a las 9:00.
+ */
+export function reminderPresets(now: Date): Array<{ key: ReminderPresetKey; at: Date }> {
+  const out: Array<{ key: ReminderPresetKey; at: Date }> = [];
+  const later = new Date(now);
+  later.setHours(later.getHours() + 3, 0, 0, 0);
+  if (later.getDate() === now.getDate()) out.push({ key: 'laterToday', at: later });
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(9, 0, 0, 0);
+  out.push({ key: 'tomorrow', at: tomorrow });
+  const monday = new Date(now);
+  monday.setDate(monday.getDate() + ((8 - monday.getDay()) % 7 || 7));
+  monday.setHours(9, 0, 0, 0);
+  out.push({ key: 'nextWeek', at: monday });
+  return out;
+}
+
+/** Operadores de la ayuda de búsqueda (sintaxis y descripción en messages: notes.searchHelp.items.<key>). */
+export const SEARCH_OPERATORS = ['tag', 'notTag', 'notebook', 'intitle', 'created', 'updated', 'todo'] as const;

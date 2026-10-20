@@ -10,15 +10,23 @@ import { nanoid } from 'nanoid';
 import { getDb, type NoteNotebookRow, type NoteRow } from './db';
 import type { DocsBlock } from './docs-types';
 import { sanitizeBlocks } from './docs-sanitize';
+import { pageLinkIds, resolveBlocksPageLinks } from './docs-page-links';
+import { isDocsUploadUrl, isFileBlockType, stripFileUrls } from './docs-files';
+import { deleteUploads } from './uploads';
 import { AiError, aiEnabled, aiGenerateText } from './ai';
+import { isEmptyNoteQuery, parseNoteQuery, type NoteQuery } from './notes-query';
+import { getNoteVersion, maybeAutoSnapshotNote, snapshotBeforeRestore } from './notes-versions';
+import { getNoteReminder } from './notes-reminders';
 import {
   NOTE_TAGS_PER_NOTE,
   blocksToText,
   makeSnippet,
+  noteHref,
   normalizeTag,
   searchTerms,
   snippetAround,
   type NoteDetail,
+  type NoteLinkRef,
   type NoteSummary,
   type NotebookInfo,
   type NotesSort,
@@ -184,6 +192,56 @@ function orderBy(sort: NotesSort | undefined, pinnedFirst: boolean): string {
   return `${pin}n.updated_at DESC`;
 }
 
+/** `%texto%` para LIKE con los comodines escapados. */
+function likeArg(t: string): string {
+  return `%${t.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+}
+
+/** Operadores de búsqueda (lib/notes-query.ts) → condiciones del WHERE. */
+function applyQueryOperators(query: NoteQuery, where: string[], args: Array<string | number>): void {
+  const tagCond = (tag: string, not: boolean) => {
+    const prefix = tag.endsWith('*');
+    where.push(
+      `${not ? 'NOT ' : ''}EXISTS (SELECT 1 FROM json_each(n.tags) WHERE ${prefix ? "value LIKE ? ESCAPE '\\'" : 'value = ?'})`,
+    );
+    args.push(prefix ? likeArg(tag.slice(0, -1)).slice(1) : tag);
+  };
+  for (const tag of query.tags) tagCond(tag, false);
+  for (const tag of query.notTags) tagCond(tag, true);
+  // Libreta por nombre (sin distinguir mayúsculas), siempre de la misma persona.
+  const inNotebook =
+    'n.notebook_id IN (SELECT id FROM note_notebooks WHERE workspace_id = n.workspace_id AND person_id = n.person_id AND lower(name) = lower(?))';
+  for (const nb of query.notebooks) {
+    where.push(inNotebook);
+    args.push(nb);
+  }
+  for (const nb of query.notNotebooks) {
+    where.push(`(n.notebook_id IS NULL OR NOT ${inNotebook})`);
+    args.push(nb);
+  }
+  for (const t of query.intitle) {
+    where.push("lower(n.title) LIKE ? ESCAPE '\\'");
+    args.push(likeArg(t));
+  }
+  if (query.createdFrom) {
+    where.push('n.created_at >= ?');
+    args.push(query.createdFrom);
+  }
+  if (query.updatedFrom) {
+    where.push('n.updated_at >= ?');
+    args.push(query.updatedFrom);
+  }
+  if (query.todo) {
+    const checked =
+      query.todo === 'checked'
+        ? " AND json_extract(value, '$.checked') = 1"
+        : query.todo === 'unchecked'
+          ? " AND COALESCE(json_extract(value, '$.checked'), 0) = 0"
+          : '';
+    where.push(`EXISTS (SELECT 1 FROM json_each(n.content) WHERE json_extract(value, '$.type') = 'todo'${checked})`);
+  }
+}
+
 export async function listNotes(owner: NoteOwner, opts: ListNotesOptions = {}): Promise<NoteSummary[]> {
   const where: string[] = ['n.workspace_id = ?', 'n.person_id = ?'];
   const args: Array<string | number> = [owner.workspaceId, owner.personId];
@@ -199,8 +257,11 @@ export async function listNotes(owner: NoteOwner, opts: ListNotesOptions = {}): 
     args.push(normalizeTag(opts.tag));
   }
 
-  const terms = opts.q ? searchTerms(opts.q) : [];
-  if (opts.q && terms.length === 0) return [];
+  // Operadores (tag:, notebook:, intitle:, created:, updated:, todo:) y texto libre.
+  const query = opts.q ? parseNoteQuery(opts.q) : null;
+  if (query && isEmptyNoteQuery(query)) return [];
+  const terms = query?.terms ?? [];
+  if (query) applyQueryOperators(query, where, args);
   let from = 'notes n';
   let order = orderBy(opts.sort, view !== 'trash');
   if (terms.length) {
@@ -214,7 +275,7 @@ export async function listNotes(owner: NoteOwner, opts: ListNotesOptions = {}): 
     } else {
       for (const t of terms) {
         where.push("(lower(n.title) LIKE ? ESCAPE '\\' OR lower(n.body_text) LIKE ? ESCAPE '\\')");
-        const like = `%${t.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+        const like = likeArg(t);
         args.push(like, like);
       }
     }
@@ -223,7 +284,8 @@ export async function listNotes(owner: NoteOwner, opts: ListNotesOptions = {}): 
   const rows = (await getDb()
     .prepare(`SELECT n.* FROM ${from} WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ${limit}`)
     .all(...args)) as NoteRow[];
-  return rows.map((r) => toSummary(r, terms.length ? snippetAround(r.body_text, terms) : undefined));
+  const highlight = [...terms, ...(query?.intitle ?? [])];
+  return rows.map((r) => toSummary(r, terms.length ? snippetAround(r.body_text, highlight) : undefined));
 }
 
 /**
@@ -245,9 +307,56 @@ async function getNoteRow(owner: NoteOwner, id: string): Promise<NoteRow | undef
     .get(id, ...ownerArgs(owner))) as NoteRow | undefined;
 }
 
+/**
+ * Nota con lo que necesita el editor: links [[ ]] con el título actual de la
+ * nota destino (si se borró, quedan como texto), las notas que la linkean y
+ * el recordatorio.
+ */
 export async function getNote(owner: NoteOwner, id: string): Promise<NoteDetail | null> {
   const row = await getNoteRow(owner, id);
-  return row ? toDetail(row) : null;
+  if (!row) return null;
+  const detail = toDetail(row);
+  const [content, backlinks, reminder] = await Promise.all([
+    resolveNoteLinks(owner, detail.content),
+    listNoteBacklinks(owner, id),
+    getNoteReminder(owner, id),
+  ]);
+  return { ...detail, content, backlinks, reminder };
+}
+
+/** Ids de notas linkeadas en los bloques (sin repetir). */
+function linkedNoteIds(blocks: DocsBlock[]): string[] {
+  const ids: string[] = [];
+  for (const b of blocks) for (const lid of pageLinkIds(b.content)) if (!ids.includes(lid)) ids.push(lid);
+  return ids;
+}
+
+/** Links [[ ]]: título actual y href de Notes; si la nota ya no existe, texto plano. */
+async function resolveNoteLinks(owner: NoteOwner, blocks: DocsBlock[]): Promise<DocsBlock[]> {
+  const ids = linkedNoteIds(blocks).slice(0, 200);
+  if (!ids.length) return blocks;
+  const rows = (await getDb()
+    .prepare(`SELECT id, title FROM notes WHERE ${OWNER_WHERE} AND id IN (${ids.map(() => '?').join(', ')})`)
+    .all(...ownerArgs(owner), ...ids)) as Array<{ id: string; title: string }>;
+  const titles = new Map(rows.map((r) => [r.id, r.title]));
+  return resolveBlocksPageLinks(blocks, (lid) =>
+    titles.has(lid) ? { href: noteHref(lid), title: titles.get(lid) || null } : null,
+  );
+}
+
+/** Notas (de la misma persona, sin papelera) que linkean a `id` con [[ ]]. */
+export async function listNoteBacklinks(owner: NoteOwner, id: string): Promise<NoteLinkRef[]> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT id, title, content FROM notes
+       WHERE ${OWNER_WHERE} AND trashed_at IS NULL AND id != ? AND content LIKE ?
+       ORDER BY updated_at DESC LIMIT 200`,
+    )
+    .all(...ownerArgs(owner), id, `%data-page=%${id}%`)) as Array<{ id: string; title: string; content: string }>;
+  return rows
+    .filter((r) => linkedNoteIds(parseJson<DocsBlock[]>(r.content, [])).includes(id))
+    .slice(0, 50)
+    .map((r) => ({ id: r.id, title: r.title }));
 }
 
 export interface NoteInput {
@@ -258,6 +367,9 @@ export interface NoteInput {
   tags?: string[];
   pinned?: boolean;
   source_url?: string | null;
+  /** Fechas originales (al importar de Evernote). Solo se usan al crear. */
+  created_at?: string | null;
+  updated_at?: string | null;
   /**
    * Concurrencia optimista (como Docs): `updated_at` sobre el que el cliente
    * hizo sus cambios. Si la nota cambió desde entonces (otra pestaña u otro
@@ -298,6 +410,12 @@ export async function createNote(owner: NoteOwner, input: NoteInput = {}): Promi
   await assertNotebook(owner, input.notebook_id);
   const id = input.id ?? crypto.randomUUID();
   const now = nowIso();
+  const past = (v: string | null | undefined) => {
+    const ms = v ? Date.parse(v) : NaN;
+    return Number.isFinite(ms) && ms <= Date.now() ? new Date(ms).toISOString() : null;
+  };
+  const createdAt = past(input.created_at) ?? now;
+  const updatedAt = past(input.updated_at) ?? createdAt;
   const content = sanitizeBlocks(
     input.content?.length ? input.content : [{ id: crypto.randomUUID(), type: 'paragraph', content: '' }],
   );
@@ -317,8 +435,8 @@ export async function createNote(owner: NoteOwner, input: NoteInput = {}): Promi
       JSON.stringify(cleanTags(input.tags ?? [])),
       input.pinned ? 1 : 0,
       input.source_url ?? null,
-      now,
-      now,
+      createdAt,
+      updatedAt > createdAt ? updatedAt : createdAt,
     );
   return (await getNote(owner, id))!;
 }
@@ -379,8 +497,27 @@ export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput)
       if (now.trashed_at) throw new NotesError('note_trashed');
       throw new NotesConflictError(toDetail(now));
     }
+    // Historial: como mucho un snapshot cada 5 min (lib/notes-versions.ts).
+    if (patch.title !== undefined || patch.content !== undefined) {
+      await maybeAutoSnapshotNote(owner, id, row).catch(() => false);
+    }
   }
   return getNote(owner, id);
+}
+
+/**
+ * Restaura una versión: guarda el estado actual como 'restore' y pisa título
+ * y contenido. null = no existe la nota o la versión. Una nota en la papelera
+ * no se restaura (NotesError note_trashed).
+ */
+export async function restoreNoteVersion(owner: NoteOwner, id: string, versionId: string): Promise<NoteDetail | null> {
+  const row = await getNoteRow(owner, id);
+  if (!row) return null;
+  if (row.trashed_at) throw new NotesError('note_trashed');
+  const version = await getNoteVersion(owner, id, versionId);
+  if (!version) return null;
+  await snapshotBeforeRestore(row);
+  return updateNote(owner, id, { title: version.title, content: version.content });
 }
 
 export async function trashNote(owner: NoteOwner, id: string): Promise<boolean> {
@@ -397,18 +534,46 @@ export async function restoreNote(owner: NoteOwner, id: string): Promise<boolean
   return res.changes > 0;
 }
 
-/** Borrado definitivo: solo desde la papelera. */
+/** URLs de adjuntos (contenido actual y versiones) de las notas en la papelera que se van a borrar. */
+async function trashedAttachmentUrls(owner: NoteOwner, id: string | null): Promise<string[]> {
+  const db = getDb();
+  const idCond = id ? ' AND id = ?' : '';
+  const idArgs = id ? [id] : [];
+  const notes = (await db
+    .prepare(`SELECT content FROM notes WHERE ${OWNER_WHERE} AND trashed_at IS NOT NULL${idCond}`)
+    .all(...ownerArgs(owner), ...idArgs)) as Array<{ content: string }>;
+  if (!notes.length) return [];
+  const versions = (await db
+    .prepare(
+      `SELECT v.content FROM note_versions v JOIN notes n ON n.id = v.note_id
+       WHERE n.workspace_id = ? AND n.person_id = ? AND n.trashed_at IS NOT NULL${id ? ' AND n.id = ?' : ''}`,
+    )
+    .all(...ownerArgs(owner), ...idArgs)) as Array<{ content: string }>;
+  const urls = new Set<string>();
+  for (const { content } of [...notes, ...versions]) {
+    for (const b of parseJson<DocsBlock[]>(content, [])) {
+      if (isFileBlockType(b.type) && isDocsUploadUrl(b.url)) urls.add(b.url);
+    }
+  }
+  return [...urls];
+}
+
+/** Borrado definitivo: solo desde la papelera (los adjuntos se borran del storage). */
 export async function deleteNoteForever(owner: NoteOwner, id: string): Promise<boolean> {
+  const urls = await trashedAttachmentUrls(owner, id);
   const res = await getDb()
     .prepare(`DELETE FROM notes WHERE id = ? AND trashed_at IS NOT NULL AND ${OWNER_WHERE}`)
     .run(id, ...ownerArgs(owner));
+  if (res.changes > 0) await deleteUploads(urls);
   return res.changes > 0;
 }
 
 export async function emptyNotesTrash(owner: NoteOwner): Promise<number> {
+  const urls = await trashedAttachmentUrls(owner, null);
   const res = await getDb()
     .prepare(`DELETE FROM notes WHERE trashed_at IS NOT NULL AND ${OWNER_WHERE}`)
     .run(...ownerArgs(owner));
+  if (res.changes > 0) await deleteUploads(urls);
   return res.changes;
 }
 
@@ -432,7 +597,37 @@ export async function getSharedNote(token: string): Promise<NoteDetail | null> {
   const row = (await getDb()
     .prepare('SELECT * FROM notes WHERE share_token = ? AND trashed_at IS NULL')
     .get(token)) as NoteRow | undefined;
-  return row ? toDetail(row) : null;
+  if (!row) return null;
+  const detail = toDetail(row);
+  // Público: sin la URL del storage (los archivos van por el proxy con el
+  // token) y los links a otras notas, que son privadas, quedan como texto.
+  return { ...detail, content: resolveBlocksPageLinks(stripFileUrls(detail.content), () => null) };
+}
+
+/**
+ * Bloques guardados de una nota para servir sus archivos: la del dueño o,
+ * con `share`, la compartida por link con ese token. null = sin acceso.
+ */
+export async function noteBlocksForFiles(
+  owner: NoteOwner | null,
+  id: string,
+  share: string | null,
+): Promise<DocsBlock[] | null> {
+  let row: NoteRow | undefined;
+  if (owner) row = await getNoteRow(owner, id);
+  if (!row && share && /^[A-Za-z0-9_-]{10,64}$/.test(share)) {
+    row = (await getDb()
+      .prepare('SELECT * FROM notes WHERE id = ? AND share_token = ? AND trashed_at IS NULL')
+      .get(id, share)) as NoteRow | undefined;
+  }
+  return row ? parseJson<DocsBlock[]>(row.content, []) : null;
+}
+
+/** ¿La nota es de la persona y se puede editar? (para subir adjuntos). */
+export async function noteEditable(owner: NoteOwner, id: string): Promise<'ok' | 'not_found' | 'trashed'> {
+  const row = await getNoteRow(owner, id);
+  if (!row) return 'not_found';
+  return row.trashed_at ? 'trashed' : 'ok';
 }
 
 // ---------- Ask AI ----------

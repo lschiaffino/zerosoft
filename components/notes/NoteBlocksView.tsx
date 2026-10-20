@@ -1,12 +1,21 @@
 import type { ReactNode } from 'react';
 import type { DocsBlock } from '@/lib/docs-types';
+import { formatFileSize } from '@/lib/docs-files';
 
 /**
  * Render de solo lectura de los bloques de una nota (link público /n/<token>
  * y notas en la papelera). El contenido ya viene sanitizado por el servidor
  * (lib/docs-sanitize.ts → subset HTML-lite), por eso se puede usar innerHTML.
+ * Imágenes y archivos salen de `fileHref` (la ruta de Notes con chequeo de
+ * dueño o del token público); sin él no se muestran.
  */
-export default function NoteBlocksView({ blocks }: { blocks: DocsBlock[] }) {
+export default function NoteBlocksView({
+  blocks,
+  fileHref,
+}: {
+  blocks: DocsBlock[];
+  fileHref?: (blockId: string, opts?: { download?: boolean }) => string;
+}) {
   const out: ReactNode[] = [];
   let i = 0;
   while (i < blocks.length) {
@@ -54,6 +63,29 @@ export default function NoteBlocksView({ blocks }: { blocks: DocsBlock[] }) {
         break;
       case 'divider':
         out.push(<hr key={b.id} />);
+        break;
+      case 'image':
+        if (fileHref && b.url !== undefined) {
+          out.push(
+            <figure key={b.id} className="note-view-image">
+              {/* Servida por nuestra API con chequeo de acceso: next/image no aplica. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={fileHref(b.id)} alt={b.name ?? ''} loading="lazy" />
+            </figure>,
+          );
+        }
+        break;
+      case 'file':
+        if (fileHref && b.url !== undefined) {
+          out.push(
+            <p key={b.id} className="note-view-file">
+              <a href={fileHref(b.id, { download: true })} download={b.name || true}>
+                {b.name || 'file'}
+              </a>
+              <span className="note-view-file-size">{formatFileSize(b.size)}</span>
+            </p>,
+          );
+        }
         break;
       case 'table':
       case 'database':

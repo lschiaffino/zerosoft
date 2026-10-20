@@ -4,9 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import DocsEditor from '@/components/docs/DocsEditor';
 import type { DocsBlock, DocsPage } from '@/lib/docs-types';
-import { normalizeTag, type NoteDetail, type NotebookInfo } from '@/lib/notes-types';
+import type { DocsFileSource } from '@/lib/docs-files';
+import type { PageLinkSource } from '@/lib/docs-page-links';
+import { noteFileHref, noteHref, normalizeTag, type NoteDetail, type NoteSummary, type NotebookInfo } from '@/lib/notes-types';
 import NoteBlocksView from './NoteBlocksView';
+import NoteHistoryDrawer from './NoteHistoryDrawer';
+import NoteReminderButton from './NoteReminderButton';
 import NotesIcon from './NotesIcon';
+import RowMenu from './RowMenu';
 import { usePopover } from './usePopover';
 
 interface Props {
@@ -23,6 +28,10 @@ interface Props {
   onShareChange: (token: string | null) => void;
   /** Error de red en una acción del panel (compartir): el padre muestra el aviso. */
   onError?: () => void;
+  /** Abre otra nota (links [[ ]] y "Enlazada desde"). */
+  onOpenNote: (id: string) => void;
+  /** Vuelve a cargar la nota del servidor (después de restaurar una versión). */
+  onReload: (id: string) => void;
 }
 
 export default function NoteEditorPane({
@@ -38,6 +47,8 @@ export default function NoteEditorPane({
   onDeleteForever,
   onShareChange,
   onError,
+  onOpenNote,
+  onReload,
 }: Props) {
   const t = useTranslations('notes');
   const format = useFormatter();
@@ -48,6 +59,37 @@ export default function NoteEditorPane({
   const [copied, setCopied] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const share = usePopover();
+  const [reminder, setReminder] = useState(note.reminder ?? null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  const noteIdForLinks = note.id;
+  const untitled = t('untitled');
+  /** Links [[ ]] a otras notas de la persona (el buscador de la lista, sin la nota abierta). */
+  const pageLinks = useMemo<PageLinkSource>(
+    () => ({
+      search: async (q) => {
+        const res = await fetch(`/api/notes?q=${encodeURIComponent(q)}&sort=updated`);
+        if (!res.ok) return [];
+        const data = (await res.json()) as { notes: NoteSummary[] };
+        return data.notes
+          .filter((n) => n.id !== noteIdForLinks)
+          .slice(0, 8)
+          .map((n) => ({ id: n.id, title: n.title || untitled }));
+      },
+      href: noteHref,
+      open: onOpenNote,
+    }),
+    [noteIdForLinks, onOpenNote, untitled],
+  );
+  /** Adjuntos: rutas de Notes (solo la persona dueña sube y descarga). */
+  const files = useMemo<DocsFileSource>(
+    () => ({
+      uploadUrl: `/api/notes/${encodeURIComponent(noteIdForLinks)}/files`,
+      href: (blockId, opts) => noteFileHref(noteIdForLinks, blockId, opts),
+    }),
+    [noteIdForLinks],
+  );
 
   // Página sintética para reutilizar el editor de bloques de Docs (modo embebido).
   const page = useMemo<DocsPage>(
@@ -152,7 +194,7 @@ export default function NoteEditorPane({
         </div>
         <div className="note-body note-body-readonly">
           <h1 className="note-view-title">{note.title || t('untitled')}</h1>
-          <NoteBlocksView blocks={note.content} />
+          <NoteBlocksView blocks={note.content} fileHref={files.href} />
         </div>
       </div>
     );
@@ -190,6 +232,7 @@ export default function NoteEditorPane({
           >
             <NotesIcon name="pin" size={15} />
           </button>
+          <NoteReminderButton noteId={note.id} reminder={reminder} onChange={setReminder} onError={onError} />
           <div className="note-share-wrap" ref={share.wrapRef}>
             <button
               ref={share.buttonRef}
@@ -244,8 +287,32 @@ export default function NoteEditorPane({
           >
             <NotesIcon name="trash" size={15} />
           </button>
+          <RowMenu
+            open={menuOpen}
+            label={t('editor.more')}
+            onToggle={setMenuOpen}
+            items={[
+              {
+                label: t('history.open'),
+                onSelect: () => {
+                  setMenuOpen(false);
+                  setHistoryOpen(true);
+                },
+              },
+              {
+                label: t('export.markdown'),
+                onSelect: () => {
+                  setMenuOpen(false);
+                  window.location.href = `/api/notes/${encodeURIComponent(note.id)}/export`;
+                },
+              },
+            ]}
+          />
         </div>
       </div>
+      {historyOpen && (
+        <NoteHistoryDrawer noteId={note.id} onClose={() => setHistoryOpen(false)} onRestored={() => onReload(note.id)} />
+      )}
 
       <div className="note-meta">
         {tags.map((tg) => (
@@ -288,8 +355,23 @@ export default function NoteEditorPane({
       )}
 
       <div className="note-body">
-        <DocsEditor page={page} ancestors={[]} onSave={handleSave} embedded />
+        <DocsEditor page={page} ancestors={[]} onSave={handleSave} embedded pageLinks={pageLinks} files={files} />
       </div>
+      {note.backlinks && note.backlinks.length > 0 && (
+        <nav className="note-backlinks" aria-label={t('links.linkedFrom')}>
+          <span className="note-backlinks-label">{t('links.linkedFrom')}</span>
+          <ul>
+            {note.backlinks.map((b) => (
+              <li key={b.id}>
+                <button type="button" className="note-backlink" onClick={() => onOpenNote(b.id)}>
+                  <NotesIcon name="link" size={13} />
+                  {b.title || untitled}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
       <p className="note-foot">
         {t('editor.created', { date: format.dateTime(new Date(note.created_at), { dateStyle: 'medium' }) })}
       </p>

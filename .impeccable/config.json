@@ -38,6 +38,15 @@
         ],
         "createdAt": "2026-10-17T20:41:35.835Z",
         "reason": "Claude: índice de propuestas de marca, página de exploración fuera del sistema de producto"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "lib/notes-import.ts"
+        ],
+        "createdAt": "2026-10-20T21:04:59.769Z",
+        "reason": "agent: regex in a Markdown importer that converts <img> tags to links, no rendered image"
       }
     ]
   }

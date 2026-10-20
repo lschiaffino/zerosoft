@@ -11,8 +11,8 @@ import {
   sanitizeHtml,
   serializeEditable,
 } from '@/lib/docs-richtext';
-import { isPageLinkId, pageLinkHref } from '@/lib/docs-page-links';
-import { docsFileHref, formatFileSize, isDocsUploadUrl } from '@/lib/docs-files';
+import { isPageLinkId, pageLinkHref, type PageLinkSource } from '@/lib/docs-page-links';
+import { formatFileSize, isDocsUploadUrl } from '@/lib/docs-files';
 import DocsGlyph from './DocsGlyphs';
 import DocsDatabaseBlock from './DocsDatabaseBlock';
 
@@ -24,18 +24,21 @@ interface DocsBlockEditorProps {
   onKeyDown: (index: number, e: React.KeyboardEvent<HTMLElement>) => void;
   onFocus: (index: number) => void;
   focused: boolean;
-  /** Página dueña de los archivos (bloques image/file). */
-  pageId?: string;
+  /** URL (con chequeo de acceso) del archivo de un bloque image/file. */
+  fileHref?: (blockId: string, opts?: { download?: boolean }) => string;
+  /** Links [[ que no son páginas de Docs (Notes): href y cómo abrirlos. */
+  pageLinks?: Pick<PageLinkSource, 'href' | 'open'>;
   /** Pegar archivos (captura de pantalla, archivo copiado): los sube el editor. */
   onPasteFiles?: (index: number, files: File[]) => void;
 }
 
 const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
-  ({ block, index, listIndex, onChange, onKeyDown, onFocus, focused, pageId, onPasteFiles }, ref) => {
+  ({ block, index, listIndex, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles }, ref) => {
     const t = useTranslations('docs');
     const locale = useLocale();
     const router = useRouter();
     const innerRef = useRef<HTMLDivElement | null>(null);
+    const linkHref = pageLinks?.href ?? pageLinkHref;
 
     const renderPlaceholder = (type: DocsBlockType): string => {
       switch (type) {
@@ -83,9 +86,9 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
         const id = a.getAttribute('data-page') ?? '';
         if (!isPageLinkId(id)) return;
         a.contentEditable = 'false';
-        a.href = `/${locale}${pageLinkHref(id)}`;
+        a.href = `/${locale}${linkHref(id)}`;
       });
-    }, [block.id, block.content, locale]);
+    }, [block.id, block.content, locale, linkHref]);
 
     /**
      * Click en un link: el de página navega (Cmd/Ctrl+click: pestaña nueva);
@@ -98,8 +101,9 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
       const modifier = e.metaKey || e.ctrlKey;
       if (page !== null && isPageLinkId(page)) {
         e.preventDefault();
-        if (modifier) window.open(`/${locale}${pageLinkHref(page)}`, '_blank', 'noopener');
-        else router.push(pageLinkHref(page));
+        if (modifier) window.open(`/${locale}${linkHref(page)}`, '_blank', 'noopener');
+        else if (pageLinks?.open) pageLinks.open(page);
+        else router.push(linkHref(page));
         return;
       }
       if (modifier) {
@@ -147,7 +151,7 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           ) : (
             <a
               className="docs-file-card"
-              href={pageId ? docsFileHref(pageId, block.id, { download: true }) : block.url}
+              href={fileHref ? fileHref(block.id, { download: true }) : block.url}
               download={name}
               tabIndex={-1}
             >

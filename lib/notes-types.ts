@@ -23,9 +23,32 @@ export interface NoteSummary {
   updated_at: string;
 }
 
+export interface NoteLinkRef {
+  id: string;
+  title: string;
+}
+
 export interface NoteDetail extends NoteSummary {
   content: DocsBlock[];
   share_token: string | null;
+  /** Notas que linkean a esta con [[ ]] (sin papelera). */
+  backlinks?: NoteLinkRef[];
+  /** Recordatorio con fecha y hora (sent_at: ya avisó). */
+  reminder?: { at: string; sent_at: string | null } | null;
+}
+
+/** Href (sin locale) de una nota en la app: lo usan los links [[ ]] y los avisos. */
+export function noteHref(id: string): string {
+  return `/app/notes?note=${encodeURIComponent(id)}`;
+}
+
+/** Archivo de un bloque image/file de una nota, servido con chequeo de dueño (o del link público). */
+export function noteFileHref(noteId: string, blockId: string, opts: { download?: boolean; share?: string | null } = {}): string {
+  const sp = new URLSearchParams();
+  if (opts.download) sp.set('download', '1');
+  if (opts.share) sp.set('share', opts.share);
+  const qs = sp.toString();
+  return `/api/notes/${encodeURIComponent(noteId)}/files/${encodeURIComponent(blockId)}${qs ? `?${qs}` : ''}`;
 }
 
 export interface NotebookInfo {
@@ -77,6 +100,10 @@ export function blocksToText(blocks: DocsBlock[]): string {
   const lines: string[] = [];
   for (const b of blocks) {
     if (b.type === 'divider') continue;
+    if (b.type === 'image' || b.type === 'file') {
+      if (b.name) lines.push(b.name);
+      continue;
+    }
     if (b.type === 'table' || b.type === 'database') {
       for (const row of b.rows ?? []) lines.push(row.join(' · '));
       continue;

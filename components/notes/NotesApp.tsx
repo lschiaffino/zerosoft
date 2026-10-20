@@ -18,7 +18,17 @@ import NoteEditorPane from './NoteEditorPane';
 import NotesAskPanel from './NotesAskPanel';
 import NotesIcon from './NotesIcon';
 import RowMenu from './RowMenu';
-import { emptyKind, filterQuery, isTypingTarget, listKey, sameFilter, stepIndex, type NotesFilter } from './notes-ui';
+import { usePopover } from './usePopover';
+import {
+  SEARCH_OPERATORS,
+  emptyKind,
+  filterQuery,
+  isTypingTarget,
+  listKey,
+  sameFilter,
+  stepIndex,
+  type NotesFilter,
+} from './notes-ui';
 
 export type { NotesFilter } from './notes-ui';
 
@@ -72,6 +82,11 @@ export default function NotesApp({
   const [focusTitle, setFocusTitle] = useState(0);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [toast, setToast] = useState<string | null>(null);
+  /** Aviso de éxito (importación); `toast` es siempre de error. */
+  const [okToast, setOkToast] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const importRef = useRef<HTMLInputElement>(null);
+  const searchHelp = usePopover();
   const searchRef = useRef<HTMLInputElement>(null);
   const itemsRef = useRef<HTMLDivElement>(null);
   const firstLoad = useRef(true);
@@ -144,6 +159,12 @@ export default function NotesApp({
     return () => clearTimeout(h);
   }, [toast]);
 
+  useEffect(() => {
+    if (!okToast) return;
+    const h = setTimeout(() => setOkToast(null), TOAST_MS);
+    return () => clearTimeout(h);
+  }, [okToast]);
+
   const refreshList = useCallback(async () => {
     const seq = ++reqSeq.current;
     const key = listKey(filter, sort);
@@ -214,6 +235,57 @@ export default function NotesApp({
       }
     },
     [t],
+  );
+
+  /** Abrir desde un link [[ ]] o "Enlazada desde". */
+  const openLinkedNote = useCallback((id: string) => void openNote(id), [openNote]);
+
+  /** Recarga la nota abierta (después de restaurar una versión): el editor se monta de nuevo. */
+  const reloadNote = useCallback(
+    async (id: string) => {
+      try {
+        const res = await fetch(`/api/notes/${id}`);
+        if (!res.ok) throw new Error(String(res.status));
+        const fresh = (await res.json()) as NoteDetail;
+        bases.current.set(fresh.id, fresh.updated_at);
+        setNote((cur) => (cur && cur.id === fresh.id ? fresh : cur));
+        setEditorKey((k) => k + 1);
+        setStatus('idle');
+        void refreshList();
+      } catch {
+        setToast(t('editor.openError'));
+      }
+    },
+    [refreshList, t],
+  );
+
+  /** Importar .enex / .md: crea las notas (en la libreta abierta, si hay) y recarga la lista. */
+  const importFiles = useCallback(
+    async (files: File[]) => {
+      if (!files.length) return;
+      setImporting(true);
+      try {
+        const body = new FormData();
+        for (const f of files) body.append('file', f);
+        if (filter.kind === 'notebook') body.append('notebook_id', filter.id);
+        const res = await fetch('/api/notes/import', { method: 'POST', body });
+        const data = (await res.json().catch(() => null)) as
+          | { imported?: number; errors?: Array<{ file: string; code: string }>; error?: string }
+          | null;
+        if (!res.ok || !data) throw new Error(data?.error ?? String(res.status));
+        const failed = data.errors?.length ?? 0;
+        if (failed && !data.imported) setToast(t('import.noneImported', { failed }));
+        else setOkToast(failed ? t('import.partial', { count: data.imported ?? 0, failed }) : t('import.done', { count: data.imported ?? 0 }));
+        if (filter.kind === 'trash') setFilter({ kind: 'all' });
+        void refreshList();
+        void refreshSide();
+      } catch {
+        setToast(t('import.failed'));
+      } finally {
+        setImporting(false);
+      }
+    },
+    [filter, refreshList, refreshSide, t],
   );
 
   /**
@@ -656,6 +728,29 @@ export default function NotesApp({
           )}
 
           <div className="notes-nav-spacer" />
+          <button
+            type="button"
+            className="notes-nav-item"
+            onClick={() => importRef.current?.click()}
+            aria-busy={importing}
+            disabled={importing}
+            title={t('import.hint')}
+          >
+            <NotesIcon name="import" size={14} />
+            <span className="notes-nav-name">{importing ? t('import.importing') : t('import.button')}</span>
+          </button>
+          <input
+            ref={importRef}
+            type="file"
+            hidden
+            multiple
+            accept=".enex,.md,.markdown,.txt,text/markdown,text/plain"
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              e.target.value = '';
+              void importFiles(files);
+            }}
+          />
           {navItem({ kind: 'trash' }, t('nav.trash'), 'trash')}
         </nav>
         {aiEnabled && (
@@ -715,6 +810,46 @@ export default function NotesApp({
                 </kbd>
               )}
             </label>
+            <div className="note-share-wrap" ref={searchHelp.wrapRef}>
+              <button
+                ref={searchHelp.buttonRef}
+                type="button"
+                className="btn btn-ghost btn-sm btn-icon"
+                onClick={searchHelp.toggle}
+                aria-expanded={searchHelp.open}
+                aria-haspopup="dialog"
+                aria-label={t('searchHelp.button')}
+                title={t('searchHelp.button')}
+              >
+                ?
+              </button>
+              {searchHelp.open && (
+                <div className="notes-pop notes-search-help" role="dialog" aria-label={t('searchHelp.title')}>
+                  <p className="notes-pop-title">{t('searchHelp.title')}</p>
+                  <dl>
+                    {SEARCH_OPERATORS.map((op) => (
+                      <div key={op}>
+                        <dt>
+                          <button
+                            type="button"
+                            className="notes-search-op"
+                            onClick={() => {
+                              const syntax = t(`searchHelp.items.${op}.syntax`);
+                              setQ((cur) => `${cur.trim() ? `${cur.trim()} ` : ''}${syntax}`);
+                              searchHelp.close();
+                              searchRef.current?.focus();
+                            }}
+                          >
+                            {t(`searchHelp.items.${op}.syntax`)}
+                          </button>
+                        </dt>
+                        <dd>{t(`searchHelp.items.${op}.desc`)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              )}
+            </div>
           </div>
           <div className="notes-list-meta">
             <span className="notes-list-count">{q.trim() ? t('list.resultCount', { count: notes.length }) : t('list.count', { count: notes.length })}</span>
@@ -868,7 +1003,11 @@ export default function NotesApp({
             onShareChange={(token) => {
               setNote((cur) => (cur ? { ...cur, share_token: token, shared: token != null } : cur));
             }}
-            onError={() => setToast(t('editor.actionError'))}
+            onError={() => {
+              setToast(t('editor.actionError'));
+            }}
+            onOpenNote={openLinkedNote}
+            onReload={(id) => void reloadNote(id)}
           />
         ) : (
           <div className="notes-editor-empty">
@@ -900,6 +1039,14 @@ export default function NotesApp({
           <div className="ui-toast" data-tone="error">
             {toast}
             <button type="button" className="ui-toast-action" onClick={() => setToast(null)}>
+              {t('ask.close')}
+            </button>
+          </div>
+        )}
+        {okToast && !toast && (
+          <div className="ui-toast" data-tone="ok">
+            {okToast}
+            <button type="button" className="ui-toast-action" onClick={() => setOkToast(null)}>
               {t('ask.close')}
             </button>
           </div>

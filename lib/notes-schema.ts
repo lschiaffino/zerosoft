@@ -51,3 +51,11 @@ export const noteClipSchema = z.object({
   title: z.string().max(300).optional(),
   selection: z.string().max(8000).optional(),
 });
+
+export const noteReminderSchema = z.object({
+  /** Fecha y hora ISO (con zona) del aviso. */
+  at: z.string().min(10).max(40),
+  /** Zona IANA del navegador (para mostrar la hora en el email). */
+  timezone: z.string().max(64).optional(),
+  locale: z.enum(['en', 'es', 'pt']).optional(),
+});

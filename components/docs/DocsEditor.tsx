@@ -38,7 +38,9 @@ import {
   fileBlockFromUpload,
   isFileBlockType,
   isInlineImageMime,
+  docsFileHref,
   type DocsFileKind,
+  type DocsFileSource,
   type DocsUploadResult,
 } from '@/lib/docs-files';
 import {
@@ -55,7 +57,7 @@ import {
   wrapLink,
   type DocsMarkTag,
 } from '@/lib/docs-richtext';
-import { pageLinkHtml } from '@/lib/docs-page-links';
+import { pageLinkHtml, type PageLinkCandidate, type PageLinkSource } from '@/lib/docs-page-links';
 import DocsBlockEditor from './DocsBlockEditor';
 import MentionPopover from './MentionPopover';
 import UserMentionPopover from './UserMentionPopover';
@@ -79,9 +81,14 @@ interface DocsEditorProps {
   onBlockComment?: (blockId: string) => void;
   /**
    * Modo embebido (lo usa Notes): solo título + bloques. Sin barra de página,
-   * portada, ícono ni menciones [[ / @ (que apuntan a páginas y miembros de Docs).
+   * portada, ícono ni menciones @ (miembros de Docs). Los links [[ y los
+   * archivos solo si se pasan `pageLinks` / `files` (con sus propias rutas).
    */
   embedded?: boolean;
+  /** Links [[ a otra cosa que páginas de Docs (Notes: a otras notas). */
+  pageLinks?: PageLinkSource;
+  /** Rutas propias de subida y descarga de archivos (Notes). */
+  files?: DocsFileSource;
   /** Acciones extra en la barra superior (Share, Comments). */
   topActions?: ReactNode;
   /** Items extra del menú "···" (export, versiones). Reciben un cierre del menú. */
@@ -249,6 +256,8 @@ export default function DocsEditor({
   commentCounts,
   onBlockComment,
   embedded = false,
+  pageLinks,
+  files,
   belowTitle,
   topActions,
   menuExtra,
@@ -342,8 +351,17 @@ export default function DocsEditor({
   /** Espejo del estado para el listener de selectionchange (sin re-suscribir). */
   const linkDialogRef = useRef(linkDialog);
   linkDialogRef.current = linkDialog;
-  /** Imágenes y archivos (menú `/`, pegar, soltar): solo en Docs, no embebido en Notes. */
-  const uploadsEnabled = !embedded;
+  /** Imágenes y archivos (menú `/`, pegar, soltar): en Docs, o embebido con rutas propias (Notes). */
+  const uploadsEnabled = !embedded || Boolean(files);
+  const uploadUrl = files?.uploadUrl ?? `/api/docs/pages/${page.id}/files`;
+  const fileSourceHref = files?.href;
+  const fileHref = useCallback(
+    (blockId: string, opts?: { download?: boolean }) =>
+      fileSourceHref ? fileSourceHref(blockId, opts) : docsFileHref(page.id, blockId, opts),
+    [fileSourceHref, page.id],
+  );
+  /** Links `[[`: páginas de Docs, o lo que diga `pageLinks` cuando está embebido. */
+  const pageLinksEnabled = !embedded || Boolean(pageLinks);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   /** Destino del selector de archivos abierto desde el menú `/`. */
   const uploadTarget = useRef<{ anchorId: string | null; replaceId: string | null; kind: DocsFileKind } | null>(null);
@@ -639,7 +657,7 @@ export default function DocsEditor({
         try {
           const body = new FormData();
           body.append('file', file);
-          const res = await fetch(`/api/docs/pages/${page.id}/files`, { method: 'POST', body });
+          const res = await fetch(uploadUrl, { method: 'POST', body });
           if (!res.ok) {
             const code = ((await res.json().catch(() => null)) as { error?: string } | null)?.error;
             const key =
@@ -681,7 +699,7 @@ export default function DocsEditor({
         }
       }
     },
-    [page.id, t, uploadsEnabled],
+    [uploadUrl, t, uploadsEnabled],
   );
 
   /** Pegar archivos en un bloque: si es un párrafo vacío, lo reemplaza. */
@@ -1524,7 +1542,7 @@ export default function DocsEditor({
       };
 
       // `[[query`: la query no cruza '[' ni ']' (otro '[[' reinicia el trigger).
-      const mentionMatch = !isCode && !embedded ? beforeCaret.match(/\[\[([^\][]*)$/) : null;
+      const mentionMatch = !isCode && pageLinksEnabled ? beforeCaret.match(/\[\[([^\][]*)$/) : null;
       if (mentionMatch) {
         const query = mentionMatch[1] ?? '';
         setMention({ index, query, start: caret - mentionMatch[0].length, end: caret });
@@ -1562,7 +1580,7 @@ export default function DocsEditor({
         closeSlash();
       }
     },
-    [blocks, convertBlock, embedded, readCaretMenuPos],
+    [blocks, convertBlock, embedded, pageLinksEnabled, readCaretMenuPos],
   );
 
   const handleBlockChange = useCallback(
@@ -1588,7 +1606,7 @@ export default function DocsEditor({
   }, []);
 
   const onSelectMention = useCallback(
-    (selected: DocsPage) => {
+    (selected: PageLinkCandidate) => {
       if (!mention) return;
       const { index, start, end } = mention;
       const block = blocks[index];
@@ -2174,7 +2192,8 @@ export default function DocsEditor({
                   onKeyDown={handleKeyDown}
                   onFocus={handleFocus}
                   focused={focusIndex === index}
-                  pageId={uploadsEnabled ? page.id : undefined}
+                  fileHref={uploadsEnabled ? fileHref : undefined}
+                  pageLinks={pageLinks}
                   onPasteFiles={uploadsEnabled ? handlePasteFiles : undefined}
                   ref={(el) => { blockRefs.current[index] = el; }}
                 />
@@ -2276,6 +2295,7 @@ export default function DocsEditor({
           query={mention.query}
           style={caretMenuStyle(caretMenuPos, 260, 280)}
           onSelect={onSelectMention}
+          search={pageLinks?.search}
           onClose={() => setMention(null)}
         />,
         document.body,

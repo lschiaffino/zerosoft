@@ -86,3 +86,21 @@ export function resolveBlocksPageLinks(
     b.content && b.content.includes('data-page') ? { ...b, content: resolvePageLinks(b.content, lookup) } : b,
   );
 }
+
+/** Resultado del buscador del popover `[[`. */
+export interface PageLinkCandidate {
+  id: string;
+  title: string;
+  icon?: string | null;
+}
+
+/**
+ * De dónde salen los links `[[` del editor cuando no son páginas de Docs
+ * (Notes linkea notas): buscador, href (sin locale) y cómo abrir uno.
+ */
+export interface PageLinkSource {
+  search: (query: string) => Promise<PageLinkCandidate[]>;
+  href: (id: string) => string;
+  /** Abrir sin navegar (Notes abre la nota en su panel). Sin esto, se navega al href. */
+  open?: (id: string) => void;
+}

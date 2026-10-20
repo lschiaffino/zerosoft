@@ -139,5 +139,84 @@
   "public": {
     "notFound": "Note not found",
     "updated": "Updated {date}"
+  },
+  "reminder": {
+    "button": "Add reminder",
+    "buttonSet": "Reminder: {date}",
+    "title": "Remind me",
+    "hint": "You'll get a notification here and an email at that time.",
+    "presets": {
+      "laterToday": "Later today",
+      "tomorrow": "Tomorrow 9:00",
+      "nextWeek": "Next Monday 9:00"
+    },
+    "custom": "Date and time",
+    "save": "Set",
+    "remove": "Remove reminder",
+    "inPast": "Pick a time in the future.",
+    "invalid": "That date doesn't work. Try another one."
+  },
+  "reminderEmail": {
+    "subject": "Reminder: {title}",
+    "heading": "Reminder",
+    "body": "You asked to be reminded of \"{title}\" on {when}.",
+    "open": "Open the note",
+    "why": "You get this because you set a reminder on this note in zerosoft Notes.",
+    "notification": "Reminder: {title}",
+    "untitled": "Untitled"
+  },
+  "history": {
+    "open": "Version history",
+    "title": "Version history",
+    "close": "Close"
+  },
+  "export": {
+    "markdown": "Export as Markdown"
+  },
+  "import": {
+    "button": "Import notes",
+    "hint": "Evernote (.enex) or Markdown (.md) files, up to 10 MB each",
+    "importing": "Importing…",
+    "done": "{count, plural, =0 {No notes imported} one {Imported # note} other {Imported # notes}}",
+    "partial": "{count, plural, one {Imported # note} other {Imported # notes}}. {failed, plural, one {# file} other {# files}} could not be read.",
+    "noneImported": "{failed, plural, one {The file} other {The files}} could not be read. Use .enex or .md files up to 10 MB.",
+    "failed": "Couldn't import. Try again."
+  },
+  "links": {
+    "linkedFrom": "Linked from"
+  },
+  "searchHelp": {
+    "button": "Search operators",
+    "title": "Search operators",
+    "items": {
+      "tag": {
+        "syntax": "tag:",
+        "desc": "Notes with that tag. Add * for a prefix."
+      },
+      "notTag": {
+        "syntax": "-tag:",
+        "desc": "Notes without that tag."
+      },
+      "notebook": {
+        "syntax": "notebook:",
+        "desc": "Notes in that notebook. Use quotes for names with spaces."
+      },
+      "intitle": {
+        "syntax": "intitle:",
+        "desc": "A word in the title."
+      },
+      "created": {
+        "syntax": "created:",
+        "desc": "Created since a date: 20260131, today, day-7, week, month-1."
+      },
+      "updated": {
+        "syntax": "updated:",
+        "desc": "Edited since a date, same formats as created."
+      },
+      "todo": {
+        "syntax": "todo:",
+        "desc": "true for done tasks, false for open ones, * for any."
+      }
+    }
   }
 }

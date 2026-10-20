@@ -2476,6 +2476,39 @@ export const MIGRATIONS: Migration[] = [
       for (const { table } of ACTIVITY_DATE_TABLES) await client.execute(activityDatesUpdateSql(table));
     },
   },
+  {
+    // Notes: historial de versiones (snapshots al guardar, con tope por nota,
+    // ver lib/notes-versions.ts) y recordatorios con fecha y hora (uno por
+    // nota; sent_at es el claim del cron, ver lib/notes-reminders.ts).
+    id: '054_notes_versions_reminders',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS note_versions (
+          id TEXT PRIMARY KEY,
+          note_id TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          title TEXT NOT NULL DEFAULT '',
+          content TEXT NOT NULL DEFAULT '[]',
+          kind TEXT NOT NULL DEFAULT 'auto' CHECK (kind IN ('auto', 'manual', 'restore')),
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_note_versions_note ON note_versions(note_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS note_reminders (
+          note_id TEXT PRIMARY KEY REFERENCES notes(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          remind_at TEXT NOT NULL,
+          timezone TEXT NOT NULL DEFAULT 'UTC',
+          locale TEXT NOT NULL DEFAULT 'en',
+          sent_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_note_reminders_due ON note_reminders(sent_at, remind_at);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
