@@ -2349,6 +2349,34 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE agent_messages ADD COLUMN author_id TEXT');
     },
   },
+  {
+    // Agents: casos de prueba guardados (pregunta + comportamiento esperado,
+    // juzgados por un LLM en modo simulación), headers secretos de
+    // http_request (cifrados con lib/secret-box) y el origen de una
+    // conversación ('flow' cuando la abrió un nodo de Flow; channel sigue 'api').
+    id: '048_agents_tests_secrets_source',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS agent_test_cases (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          question TEXT NOT NULL,
+          expected TEXT NOT NULL,
+          last_status TEXT CHECK (last_status IN ('pass', 'fail', 'error')),
+          last_reason TEXT NOT NULL DEFAULT '',
+          last_reply TEXT NOT NULL DEFAULT '',
+          last_tools TEXT NOT NULL DEFAULT '[]',
+          last_run_at TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_agent_test_cases_agent ON agent_test_cases(agent_id, created_at)');
+      await addColumn(client, "ALTER TABLE agents ADD COLUMN http_secrets TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(client, 'ALTER TABLE agent_conversations ADD COLUMN source TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

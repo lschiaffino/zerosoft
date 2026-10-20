@@ -9,6 +9,7 @@ import {
   AGENT_TEMPLATES,
   AGENT_TOOL_GROUP,
   AGENT_TOOL_GROUP_ORDER,
+  AGENT_USAGE_CHANNELS,
   type AgentListItem,
   type AgentTemplateKey,
   type AgentToolKey,
@@ -158,7 +159,24 @@ export default function AgentsHome({ agents: initial, canEdit, aiEnabled }: Prop
                   <span className="ag-quiet">{t('list.noChannels')}</span>
                 ),
             },
-            { key: 'c7', header: t('list.conversations7d'), cell: (a) => a.conversations7d, numeric: true, width: '120px' },
+            {
+              key: 'c7',
+              header: t('list.conversations7d'),
+              numeric: true,
+              width: '140px',
+              cell: (a) => {
+                // Desglose por canal (Chat, página, API, Flow) debajo del total.
+                const parts = AGENT_USAGE_CHANNELS.filter((c) => a.usage7d[c] > 0).map(
+                  (c) => `${t(`channelNames.${c}`)} ${a.usage7d[c]}`,
+                );
+                return (
+                  <span className="ag-cell-usage">
+                    <span>{a.conversations7d}</span>
+                    {parts.length > 0 && <span className="ag-quiet ag-cell-usage-split">{parts.join(' · ')}</span>}
+                  </span>
+                );
+              },
+            },
             { key: 'fb', header: t('list.feedback'), cell: (a) => feedback(a), numeric: true, width: '130px' },
             {
               key: 'status',

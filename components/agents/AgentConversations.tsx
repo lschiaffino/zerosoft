@@ -128,6 +128,8 @@ export default function AgentConversations({
     output: t('chat.output'),
     error: t('chat.toolError'),
     running: t('chat.running'),
+    simulated: t('chat.simulated'),
+    wouldRun: t('chat.wouldRun'),
   };
 
   // Sin conversaciones en ningún canal: un solo estado vacío, sin el panel partido.
@@ -212,7 +214,7 @@ export default function AgentConversations({
                 >
                   <span className="ag-conv-title">{c.title || t('conversations.untitled')}</span>
                   <span className="ag-conv-meta">
-                    {t(`channelNames.${c.channel}`)} · {t('conversations.messages', { count: c.messageCount ?? 0 })} ·{' '}
+                    {t(`channelNames.${c.source ?? c.channel}`)} · {t('conversations.messages', { count: c.messageCount ?? 0 })} ·{' '}
                     <time dateTime={c.updatedAt}>{mounted ? format.relativeTime(new Date(c.updatedAt), now) : ''}</time>
                   </span>
                   {c.handedOff && <span className="badge badge-warn ag-conv-badge">{t('conversations.handedOff')}</span>}
@@ -250,7 +252,7 @@ export default function AgentConversations({
           <>
             <header className="ag-convs-head">
               <h3 className="ag-convs-title">{detail.conversation.title || t('conversations.untitled')}</h3>
-              <span className="badge">{t(`channelNames.${detail.conversation.channel}`)}</span>
+              <span className="badge">{t(`channelNames.${detail.conversation.source ?? detail.conversation.channel}`)}</span>
               {detail.conversation.handedOff && <span className="badge badge-warn">{t('conversations.handedOff')}</span>}
               {detail.conversation.chatConversationId && (
                 <Link className="btn btn-ghost btn-sm ag-convs-inbox" href={`/app/chat/inbox/${detail.conversation.chatConversationId}`}>

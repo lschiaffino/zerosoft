@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import type { AgentStreamEvent } from '@/lib/agents-config';
+import { isSimulatedOutput, type AgentStreamEvent } from '@/lib/agents-config';
 
 export interface ChatToolCall {
   id: string;
@@ -40,6 +40,11 @@ export interface AgentChatLabels {
   handedOffNotice?: string;
   /** Etiqueta de las respuestas de una persona del equipo. */
   teammate?: string;
+  /** Herramienta simulada (playground en modo dry run) y lo que habría hecho. */
+  simulated?: string;
+  wouldRun?: string;
+  /** Botón para guardar la pregunta como caso de prueba. */
+  saveTest?: string;
   /** Mensaje para un código de error (agents.errors.*). */
   error: (code: string) => string;
   toolName: (tool: string) => string;
@@ -65,6 +70,8 @@ interface Props {
    * pocos segundos las respuestas del equipo.
    */
   historyUrl?: (conversationId: string) => string;
+  /** Guarda la pregunta de un turno como caso de prueba (playground). */
+  onSaveTest?: (question: string) => void;
 }
 
 interface HistoryResponse {
@@ -114,6 +121,7 @@ export default function AgentChat({
   onConversation,
   variant = 'panel',
   historyUrl,
+  onSaveTest,
 }: Props) {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState('');
@@ -303,10 +311,23 @@ export default function AgentChat({
             {showTools && t.tools.length > 0 && (
               <ToolCalls
                 calls={t.tools}
-                labels={{ name: labels.toolName, input: labels.input, output: labels.output, error: labels.toolError, running: labels.running }}
+                labels={{
+                  name: labels.toolName,
+                  input: labels.input,
+                  output: labels.output,
+                  error: labels.toolError,
+                  running: labels.running,
+                  simulated: labels.simulated,
+                  wouldRun: labels.wouldRun,
+                }}
               />
             )}
             {(t.text || t.role === 'user') && <p className="ag-msg-text">{t.text}</p>}
+            {t.role === 'user' && onSaveTest && labels.saveTest && (
+              <button type="button" className="btn btn-ghost btn-sm ag-save-test" onClick={() => onSaveTest(t.text)}>
+                {labels.saveTest}
+              </button>
+            )}
             {t.pending && !t.text && (
               <div className="ag-thinking" aria-busy="true">
                 <span className="ui-skeleton ui-skeleton-text" />
@@ -371,12 +392,21 @@ export function ToolCalls({
   labels,
 }: {
   calls: ToolCallView[];
-  labels: { name: (tool: string) => string; input: string; output: string; error: string; running: string };
+  labels: {
+    name: (tool: string) => string;
+    input: string;
+    output: string;
+    error: string;
+    running: string;
+    simulated?: string;
+    wouldRun?: string;
+  };
 }) {
   return (
     <ul className="ag-tools">
       {calls.map((c) => {
         const done = c.done !== false;
+        const sim = done && !c.error && isSimulatedOutput(c.output);
         return (
           <li key={c.id}>
             <details className="ag-tool">
@@ -389,18 +419,25 @@ export function ToolCalls({
                   <span className="badge">{labels.running}</span>
                 ) : c.error ? (
                   <span className="badge badge-bad">{labels.error}</span>
+                ) : sim && labels.simulated ? (
+                  <span className="badge badge-warn">{labels.simulated}</span>
                 ) : null}
                 {done && c.durationMs !== undefined && <span className="ag-tool-ms data">{c.durationMs} ms</span>}
               </summary>
               <div className="ag-tool-body">
                 <p className="label">{labels.input}</p>
                 <pre className="data">{pretty(c.input)}</pre>
-                {done && (
+                {done && sim && isSimulatedOutput(c.output) ? (
+                  <>
+                    <p className="label">{labels.wouldRun ?? labels.output}</p>
+                    <pre className="data">{pretty(c.output.wouldRun)}</pre>
+                  </>
+                ) : done ? (
                   <>
                     <p className="label">{c.error ? `${labels.error}: ${c.error}` : labels.output}</p>
                     <pre className="data">{pretty(c.output)}</pre>
                   </>
-                )}
+                ) : null}
               </div>
             </details>
           </li>

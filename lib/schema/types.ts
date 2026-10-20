@@ -1363,6 +1363,8 @@ export interface AgentRow {
   guardrails: string; // JSON AgentGuardrailsConfig
   enabled: number; // 0 | 1
   public_handle: string | null; // /a/<handle>
+  /** JSON AgentSecretHeaderStored[]: headers de http_request con el valor cifrado (secret-box). */
+  http_secrets?: string;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -1392,6 +1394,8 @@ export interface AgentConversationRow {
   visitor_key: string | null;
   title: string;
   handed_off: number; // 0 | 1
+  /** 'flow' = la abrió un nodo de Flow (channel 'api'); NULL = el canal. */
+  source?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -1432,6 +1436,22 @@ export interface AgentFeedbackRow {
   note: string;
   created_by: string | null;
   created_at: string;
+}
+
+export interface AgentTestCaseRow {
+  id: string;
+  agent_id: string;
+  user_id: string;
+  question: string;
+  expected: string;
+  last_status: 'pass' | 'fail' | 'error' | null;
+  last_reason: string;
+  last_reply: string;
+  last_tools: string; // JSON AgentTestToolSummary[]
+  last_run_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // ---------- Robots ----------

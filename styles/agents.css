@@ -288,6 +288,28 @@
 .ag-rate-note { margin-left: 6px; }
 .ag-calllog { display: flex; flex-direction: column; gap: 8px; padding: 12px 20px 20px; border-top: 1px solid var(--line); }
 
+/* Lista: total de 7 días con el desglose por canal debajo. */
+.ag-cell-usage { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.ag-cell-usage-split { font-size: 0.75rem; white-space: nowrap; }
+
+/* Playground: guardar la pregunta como test, debajo del mensaje del visitante. */
+.ag-save-test { align-self: flex-end; }
+
+/* Casos de prueba. */
+.ag-test-form { display: flex; flex-direction: column; gap: 12px; padding: 12px 0; }
+.ag-test-form-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.ag-tests > li.ag-test { align-items: flex-start; }
+.ag-test-main { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.ag-test-q { margin: 0; font-size: 0.875rem; font-weight: 600; overflow-wrap: anywhere; }
+.ag-test-reason { margin: 0; font-size: 0.8125rem; line-height: 1.5; color: var(--bad-ink); }
+.ag-test-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.ag-tests-note { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+/* Headers secretos de http_request. */
+.ag-secrets { margin-top: 16px; }
+.ag-secret-name { font-size: 0.875rem; font-weight: 600; }
+.ag-secret-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 8px; align-items: end; }
+
 @media (max-width: 760px) {
   /* En el teléfono la tabla queda en nombre y estado. */
   .ag-home .table th:nth-child(n + 2):nth-child(-n + 5),
@@ -298,6 +320,8 @@
   .ag-tool-config { margin-left: 0; }
   .ag-add-row { flex-direction: column; align-items: stretch; }
   .ag-rows > li { flex-wrap: wrap; }
+  .ag-secret-form { grid-template-columns: 1fr; }
+  .ag-tests-note { flex-direction: column; align-items: flex-start; }
   .ag-chat { height: calc(100dvh - var(--band-h) - 240px); min-height: 360px; }
   .ag-chat-list { padding: 16px; }
   .ag-convs { grid-template-columns: 1fr; }

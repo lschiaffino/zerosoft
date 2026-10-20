@@ -243,7 +243,7 @@ describe('herramientas de la suite', () => {
         { text: 'Booked!' },
       ]),
     );
-    const res2 = await sendAgentMessage({ agent, channel: 'playground', conversationId: res1.conversation.id, text: 'Yes, the first one. Ana, ana@x.com' });
+    const res2 = await sendAgentMessage({ agent, channel: 'playground', dryRun: false, conversationId: res1.conversation.id, text: 'Yes, the first one. Ana, ana@x.com' });
     expect(res2.result.toolCalls.map((c) => c.error)).toEqual(['not_confirmed', 'slot_not_offered', null]);
     const booking = (await getDb()
       .prepare('SELECT invitee_email, starts_at, status FROM calendar_bookings WHERE event_type_id = ?')
@@ -262,7 +262,7 @@ describe('herramientas de la suite', () => {
         { text: 'Sorry' },
       ]),
     );
-    const res3 = await sendAgentMessage({ agent, channel: 'playground', conversationId: res1.conversation.id, text: 'Book the same for Bo' });
+    const res3 = await sendAgentMessage({ agent, channel: 'playground', dryRun: false, conversationId: res1.conversation.id, text: 'Book the same for Bo' });
     expect(res3.result.toolCalls[0].error).toBe('slot_unavailable');
   });
 
@@ -365,7 +365,7 @@ describe('herramientas de la suite', () => {
         { text: 'Saved.' },
       ]),
     );
-    const res = await sendAgentMessage({ agent, channel: 'playground', text: 'I am Ana, shared@x.com' });
+    const res = await sendAgentMessage({ agent, channel: 'playground', dryRun: false, text: 'I am Ana, shared@x.com' });
     expect(res.result.toolCalls[0].output).toEqual({ found: false });
     const mine = (await getDb()
       .prepare("SELECT id, first_name FROM crm_contacts WHERE user_id = ? AND email = 'shared@x.com'")
@@ -406,7 +406,7 @@ describe('herramientas de la suite', () => {
         { text: 'Started.' },
       ]),
     );
-    const res = await sendAgentMessage({ agent, channel: 'playground', text: 'run it' });
+    const res = await sendAgentMessage({ agent, channel: 'playground', dryRun: false, text: 'run it' });
     const runsB = await getDb().prepare('SELECT id FROM flow_runs WHERE flow_id = ?').all(fb.flow.id);
     expect(runsB).toHaveLength(0);
     const runsA = (await getDb().prepare('SELECT input FROM flow_runs WHERE flow_id = ?').all(fa.flow.id)) as Array<{
@@ -431,7 +431,7 @@ describe('herramientas de la suite', () => {
     setAiModelOverride(
       scriptedModel([{ tool: 'track_create_issue', input: { title: 'Login broken', priority: 'high' } }, { text: 'Reported.' }]),
     );
-    const res = await sendAgentMessage({ agent, channel: 'playground', text: 'login is broken' });
+    const res = await sendAgentMessage({ agent, channel: 'playground', dryRun: false, text: 'login is broken' });
     expect(res.result.toolCalls[0].error).toBeNull();
     const issues = (await getDb().prepare('SELECT title, priority FROM track_issues WHERE project_id = ?').all(project.id)) as Array<{
       title: string;

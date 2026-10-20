@@ -10,7 +10,9 @@ import {
   agentToolsInGroup,
   suggestAgentHandle,
   type AgentDto,
+  type AgentSecretHeaderDto,
   type AgentTemplateKey,
+  type AgentTestCaseDto,
   type AgentToolKey,
 } from '@/lib/agents-config';
 import type { AgentKnowledgeUrlDto, AgentWidgetOption } from '@/lib/agents';
@@ -22,6 +24,8 @@ import EmptyState from '@/components/ui/EmptyState';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import AgentChat from './AgentChat';
 import AgentConversations from './AgentConversations';
+import AgentTests, { testSummary } from './AgentTests';
+import AgentSecretHeaders from './AgentSecretHeaders';
 import { api, chatLabels, errorText } from './agents-ui';
 
 export interface EditorRefs {
@@ -40,6 +44,9 @@ interface Props extends EditorRefs {
   origin: string;
   initialTab?: string;
   initialConversationId?: string | null;
+  /** Headers secretos de http_request (solo nombre y dominio; vacío si no puede editar). */
+  secretHeaders: AgentSecretHeaderDto[];
+  tests: AgentTestCaseDto[];
 }
 
 const TABS = ['instructions', 'knowledge', 'tools', 'channels', 'playground', 'conversations'] as const;
@@ -82,6 +89,9 @@ export default function AgentEditor(props: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [historyKey, setHistoryKey] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [secretHeaders, setSecretHeaders] = useState(props.secretHeaders);
+  const [tests, setTests] = useState(props.tests);
+  const [testPrefill, setTestPrefill] = useState<{ question: string; nonce: number } | null>(null);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const payload = useMemo(
@@ -269,6 +279,7 @@ export default function AgentEditor(props: Props) {
     return null;
   };
   const wide = tab === 'playground' || tab === 'conversations';
+  const summary = testSummary(tests);
 
   function renderTool(key: AgentToolKey) {
     const on = draft.tools.enabled.includes(key);
@@ -414,6 +425,16 @@ export default function AgentEditor(props: Props) {
               />
               <p className="ui-help">{t('tools.httpWarn')}</p>
             </div>
+            {canEdit && (
+              <AgentSecretHeaders
+                agentId={agent.id}
+                headers={secretHeaders}
+                onChange={setSecretHeaders}
+                savedDomains={agent.tools.httpAllowedDomains}
+                draftDomains={lines(domainsRaw).map((d) => d.toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^\*\./, ''))}
+                readOnly={ro}
+              />
+            )}
           </div>
         )}
       </li>
@@ -959,6 +980,19 @@ export default function AgentEditor(props: Props) {
 
         {tab === 'channels' && (
           <>
+            {/* Antes de publicar: el estado de los casos de prueba y un atajo para correrlos. */}
+            <div className="panel panel-quiet ag-note ag-tests-note" role="note">
+              <span>
+                {summary.total === 0
+                  ? t('tests.publishNone')
+                  : summary.ran === 0
+                    ? t('tests.notRun', { total: summary.total })
+                    : t('tests.summary', { passed: summary.passed, total: summary.total })}
+              </span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTab('playground')}>
+                {summary.total === 0 ? t('tests.publishAdd') : t('tests.publishRun')}
+              </button>
+            </div>
             <FormSection title={t('channels.chatTitle')} description={t('channels.chatHint')}>
               {widgets.length === 0 ? (
                 <EmptyState
@@ -1064,14 +1098,25 @@ export default function AgentEditor(props: Props) {
         {tab === 'playground' && (
           <>
             <p className={dirty ? 'ui-error' : 'ui-help'}>{dirty ? t('playground.unsaved') : t('playground.intro')}</p>
+            <p className="ui-help">{t('playground.dryRun')}</p>
             <AgentChat
               key={`${agent.id}-${agent.updatedAt}`}
               endpoint={`/api/agents/${agent.id}/messages`}
-              labels={chatLabels(t)}
+              labels={{ ...chatLabels(t), saveTest: canEdit ? t('tests.saveFromChat') : undefined }}
               welcome={agent.welcomeMessage || undefined}
               showTools
               disabledReason={aiEnabled ? null : t('playground.aiOff')}
               onConversation={() => setHistoryKey((k) => k + 1)}
+              onSaveTest={canEdit ? (question) => setTestPrefill({ question, nonce: Date.now() }) : undefined}
+            />
+            <AgentTests
+              agentId={agent.id}
+              tests={tests}
+              onTestsChange={setTests}
+              canEdit={canEdit}
+              aiEnabled={aiEnabled}
+              dirty={dirty}
+              prefill={testPrefill}
             />
           </>
         )}
