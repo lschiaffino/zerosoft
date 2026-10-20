@@ -2625,6 +2625,72 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Board: imágenes en el storage de uploads (fuera del JSON de la escena),
+    // historial por hora con restauración como copia, hilos de comentarios
+    // anclados al lienzo y biblioteca de formas del workspace.
+    id: '055_board_files_history_comments_library',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS board_files (
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          file_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          url TEXT NOT NULL,
+          mime TEXT NOT NULL,
+          size INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (board_id, file_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_files_url ON board_files(url);
+        CREATE TABLE IF NOT EXISTS board_snapshots (
+          id TEXT PRIMARY KEY,
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          scene TEXT NOT NULL,
+          scene_bytes INTEGER NOT NULL DEFAULT 0,
+          element_count INTEGER NOT NULL DEFAULT 0,
+          thumbnail TEXT,
+          version INTEGER NOT NULL,
+          edited_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          content_at TEXT NOT NULL,
+          taken_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_snapshots_board ON board_snapshots(board_id, taken_at DESC);
+        CREATE TABLE IF NOT EXISTS board_comment_threads (
+          id TEXT PRIMARY KEY,
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          x REAL NOT NULL,
+          y REAL NOT NULL,
+          element_id TEXT,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          resolved_at TEXT,
+          resolved_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_threads_board ON board_comment_threads(board_id, created_at);
+        CREATE TABLE IF NOT EXISTS board_comments (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES board_comment_threads(id) ON DELETE CASCADE,
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          author_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          body TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_comments_thread ON board_comments(thread_id, created_at);
+        CREATE TABLE IF NOT EXISTS board_libraries (
+          workspace_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          items TEXT NOT NULL DEFAULT '[]',
+          bytes INTEGER NOT NULL DEFAULT 0,
+          updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          updated_at TEXT NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -136,22 +136,23 @@ describe('boards: escena', () => {
     expect(next.status).toBe(200);
   });
 
-  it('tope de tamaño: 413 si la escena supera el límite', async () => {
+  it('tope de tamaño: 413 si lo que queda en línea supera el límite', async () => {
     const u = await makeUser('big');
     session.user = { id: u.id, email: u.email };
     const b = await createBoard(u.id, u.id, 'x');
-    const huge = 'data:image/png;base64,' + 'A'.repeat(BOARD_MAX_SCENE_BYTES);
+    // SVG no va al storage (uploads.ts lo rechaza): queda en línea y cuenta para el tope.
+    const huge = 'data:image/svg+xml;base64,' + 'A'.repeat(BOARD_MAX_SCENE_BYTES);
     const res = await sceneRoute.PUT(
       jsonReq('http://x', 'PUT', {
         version: 1,
-        scene: { elements: [], appState: {}, files: { f1: { id: 'f1', mimeType: 'image/png', dataURL: huge } } },
+        scene: { elements: [], appState: {}, files: { f1: { id: 'f1', mimeType: 'image/svg+xml', dataURL: huge } } },
       }),
       ctx(b.id),
     );
     expect(res.status).toBe(413);
     // Justo por debajo del slack del body pero por encima del tope de escena: también 413.
-    const almost = 'A'.repeat(BOARD_MAX_SCENE_BYTES - 1000);
-    const lib = await saveBoardScene(u.id, u.id, b.id, { elements: [], appState: {}, files: { f: { dataURL: almost + 'X'.repeat(2000) } } }, 1);
+    const almost = 'data:image/svg+xml;base64,' + 'A'.repeat(BOARD_MAX_SCENE_BYTES - 1000);
+    const lib = await saveBoardScene(u.id, u.id, b.id, { elements: [], appState: {}, files: { f: { id: 'f', dataURL: almost + 'A'.repeat(2000) } } }, 1);
     expect(lib).toMatchObject({ ok: false, code: 'too_large' });
     expect((await getBoard(u.id, b.id))?.version).toBe(1);
   });

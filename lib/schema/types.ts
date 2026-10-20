@@ -1402,6 +1402,56 @@ export interface BoardRow {
   updated_at: string;
 }
 
+/** Imagen de una pizarra guardada con lib/uploads.ts (file_id = id de Excalidraw). */
+export interface BoardFileRow {
+  board_id: string;
+  file_id: string;
+  workspace_id: string;
+  url: string;
+  mime: string;
+  size: number;
+  created_at: string;
+}
+
+/** Foto de la escena (una por hora de edición como mucho). */
+export interface BoardSnapshotRow {
+  id: string;
+  board_id: string;
+  workspace_id: string;
+  scene: string;
+  scene_bytes: number;
+  element_count: number;
+  thumbnail: string | null;
+  version: number;
+  edited_by: string | null;
+  content_at: string; // cuándo se guardó ese contenido
+  taken_at: string; // cuándo se sacó la foto
+}
+
+export interface BoardCommentThreadRow {
+  id: string;
+  board_id: string;
+  workspace_id: string;
+  x: number;
+  y: number;
+  element_id: string | null;
+  created_by: string | null;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BoardCommentRow {
+  id: string;
+  thread_id: string;
+  board_id: string;
+  author_id: string | null;
+  body: string; // markdown
+  created_at: string;
+  updated_at: string;
+}
+
 // ---------- Agents (agentes de AI) ----------
 
 export interface AgentRow {

@@ -27,6 +27,21 @@ export interface BoardSummary {
   updated_by: string | null;
 }
 
+/**
+ * Links de instalación de bibliotecas permitidos (#addLibrary=<url> al volver
+ * del catálogo): solo libraries.excalidraw.com y el repo oficial, por https.
+ */
+export function isAllowedLibraryUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:') return false;
+    if (u.hostname === 'libraries.excalidraw.com') return true;
+    return u.hostname === 'raw.githubusercontent.com' && u.pathname.startsWith('/excalidraw/excalidraw-libraries/');
+  } catch {
+    return false;
+  }
+}
+
 export interface BoardDetail extends BoardSummary {
   scene: BoardScene;
   share_token: string | null;

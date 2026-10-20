@@ -6,7 +6,10 @@ import BoardEditor from '@/components/board/BoardEditor';
 
 export const dynamic = 'force-dynamic';
 
-type Props = { params: Promise<{ locale: string; id: string }> };
+type Props = {
+  params: Promise<{ locale: string; id: string }>;
+  searchParams: Promise<{ comment?: string }>;
+};
 
 export async function generateMetadata(props: Props) {
   const { locale, id } = await props.params;
@@ -17,9 +20,10 @@ export async function generateMetadata(props: Props) {
 
 export default async function BoardPage(props: Props) {
   const { locale, id } = await props.params;
+  const { comment } = await props.searchParams;
   setRequestLocale(locale);
   const user = await requireUser(locale);
   const board = await getBoard(user.id, id);
   if (!board) notFound();
-  return <BoardEditor board={board} locale={locale} />;
+  return <BoardEditor board={board} locale={locale} commentId={typeof comment === 'string' ? comment : null} />;
 }
