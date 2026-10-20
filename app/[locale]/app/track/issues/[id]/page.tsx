@@ -12,6 +12,7 @@ import {
   listStatuses,
   getIssueParentChain,
 } from '@/lib/track-data';
+import { isSubscribedToIssue } from '@/lib/track-subscriptions';
 import IssueDetailClient from '@/components/track/IssueDetailClient';
 import { buildTrackUiLabels } from '@/components/track/ui-labels';
 
@@ -37,7 +38,7 @@ export default async function IssueDetailPage(
   const { issue, project } = found;
 
   const projectId = issue.project_id;
-  const [statuses, cycles, members, children, parentChain, attachments, relations, activities] = await Promise.all([
+  const [statuses, cycles, members, children, parentChain, attachments, relations, activities, subscribed] = await Promise.all([
     listStatuses(projectId),
     listCycles(projectId),
     listProjectMembers(projectId, user.id),
@@ -46,6 +47,7 @@ export default async function IssueDetailPage(
     listIssueAttachments(id),
     listIssueRelations(id),
     listIssueActivities(id),
+    isSubscribedToIssue(id, realUserId(user)),
   ]);
 
   const t = await getTranslations({ locale, namespace: 'track' });
@@ -64,6 +66,7 @@ export default async function IssueDetailPage(
       initialAttachments={attachments}
       initialActivities={activities}
       initialRelations={relations}
+      initialSubscribed={subscribed}
       ui={buildTrackUiLabels(t)}
       labels={{
         back: t('issues.breadcrumb'),
@@ -79,6 +82,14 @@ export default async function IssueDetailPage(
           addSubtask: t('issues.addSubtask'),
           addAttachment: t('issues.addAttachment'),
           addRelation: t('issues.addRelation'),
+          editDescription: t('issues.editDescription'),
+        },
+        subscription: {
+          subscribe: t('subscription.subscribe'),
+          unsubscribe: t('subscription.unsubscribe'),
+          subscribed: t('subscription.subscribed'),
+          notSubscribed: t('subscription.notSubscribed'),
+          error: t('subscription.error'),
         },
         properties: {
           status: t('issues.status'),

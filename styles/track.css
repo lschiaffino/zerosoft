@@ -88,6 +88,42 @@
   gap: 8px;
 }
 
+.track-toolbar-end {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Agrupar / ordenar: selects compactos con su etiqueta al lado. */
+.track-display-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.track-display-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+}
+
+.track-display-option .select {
+  width: auto;
+  min-height: 28px;
+  padding: 2px 8px;
+  font-size: 0.8125rem;
+}
+
+/* Lista agrupada: reusa los grupos de My tasks con un título más chico. */
+.track-groups .track-group-title {
+  align-items: center;
+  font-size: 1rem;
+}
+
 .track-filters {
   display: flex;
   align-items: center;
@@ -1013,6 +1049,204 @@ dialog.ui-drawer.track-drawer {
   outline: none;
 }
 
+/* ---------- Markdown: editor y lectura ---------- */
+
+.track-md {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-self: stretch;
+  min-width: 0;
+}
+
+.track-md-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.track-md-tabs {
+  border-bottom: 0;
+}
+
+.track-md-tabs .ui-tab {
+  height: 32px;
+  font-size: 0.8125rem;
+}
+
+.track-md-tools {
+  display: flex;
+  gap: 2px;
+}
+
+.track-md-write {
+  position: relative;
+}
+
+.track-md-panel:focus {
+  outline: none;
+}
+
+.track-md-panel:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.track-md-preview {
+  min-height: 88px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+
+.track-md-preview.is-empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--brand-gray-2);
+}
+
+.track-md-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+.track-markdown {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.track-markdown > :first-child {
+  margin-top: 0;
+}
+
+.track-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.track-markdown p,
+.track-markdown ul,
+.track-markdown ol,
+.track-markdown pre,
+.track-markdown blockquote,
+.track-markdown table {
+  margin: 0 0 8px;
+}
+
+.track-markdown h1,
+.track-markdown h2,
+.track-markdown h3,
+.track-markdown h4,
+.track-markdown h5,
+.track-markdown h6 {
+  margin: 12px 0 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.track-markdown h1 {
+  font-size: 1.125rem;
+}
+
+.track-markdown ul,
+.track-markdown ol {
+  padding-left: 1.4em;
+}
+
+.track-markdown a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.track-markdown code {
+  padding: 1px 4px;
+  font-family: var(--font-data);
+  font-size: 0.8125rem;
+  background: var(--ui-hover);
+  border-radius: var(--radius-1);
+}
+
+.track-markdown pre {
+  padding: 10px 12px;
+  overflow-x: auto;
+  background: var(--ui-hover);
+  border-radius: var(--radius-1);
+}
+
+.track-markdown pre code {
+  padding: 0;
+  background: none;
+}
+
+.track-markdown blockquote {
+  padding-left: 10px;
+  color: var(--brand-gray-2);
+  border-left: 2px solid var(--line);
+}
+
+.track-markdown hr {
+  margin: 12px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.track-markdown table {
+  border-collapse: collapse;
+}
+
+.track-markdown th,
+.track-markdown td {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+}
+
+/* La descripción renderizada: misma caja que el botón de edición. */
+.track-description .track-markdown {
+  font-size: inherit;
+}
+
+.track-description-read {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: calc(70ch + 48px);
+}
+
+.track-description-read .track-description {
+  flex: 1;
+  min-width: 0;
+}
+
+.track-description-edit {
+  flex-shrink: 0;
+  margin-top: -4px;
+  color: var(--brand-gray-2);
+}
+
+.track-description-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 70ch;
+}
+
+.track-description-editor .textarea {
+  min-height: 120px;
+}
+
+.track-description-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .track-description:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 1px;
@@ -1375,7 +1609,6 @@ dialog.ui-drawer.track-drawer {
   margin-top: 6px;
   padding: 10px 12px;
   line-height: 1.5;
-  white-space: pre-wrap;
   background: var(--brand-enamel);
   border-radius: var(--radius-1);
 }

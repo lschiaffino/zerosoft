@@ -10,7 +10,13 @@ export type TrackIconName =
   | 'subtasks'
   | 'chevronDown'
   | 'search'
-  | 'calendar';
+  | 'calendar'
+  | 'bold'
+  | 'italic'
+  | 'code'
+  | 'list'
+  | 'link'
+  | 'bell';
 
 // Trazo de 2px, cuadrado (mismo idioma que components/app/icons.tsx).
 const PATHS: Record<TrackIconName, ReactNode> = {
@@ -24,6 +30,12 @@ const PATHS: Record<TrackIconName, ReactNode> = {
   chevronDown: <path d="M6 9l6 6 6-6" />,
   search: <path d="M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM15.5 15.5L20 20" />,
   calendar: <path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" />,
+  bold: <path d="M7 4h6a4 4 0 0 1 0 8H7zM7 12h7a4 4 0 0 1 0 8H7z" />,
+  italic: <path d="M10 4h8M6 20h8M15 4L9 20" />,
+  code: <path d="M8 7l-5 5 5 5M16 7l5 5-5 5" />,
+  list: <path d="M9 6h11M9 12h11M9 18h11M4 6h1M4 12h1M4 18h1" />,
+  link: <path d="M10 14l4-4M9 7l2-2a4 4 0 0 1 6 6l-2 2M15 17l-2 2a4 4 0 0 1-6-6l2-2" />,
+  bell: <path d="M6 16V10a6 6 0 0 1 12 0v6l2 2H4zM10 21h4" />,
 };
 
 /** Íconos de trazo de Track. Decorativos: el texto o aria-label va en el control. */

@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/session';
 import { listAllIssues, listProjectMetas } from '@/lib/track-data';
 import CrossProjectIssues from '@/components/track/CrossProjectIssues';
 import { buildTrackUiLabels } from '@/components/track/ui-labels';
+import { parseIssueGroup, parseIssueSort } from '@/lib/track-views';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,9 +12,14 @@ const ISSUES_PAGE_SIZE = 50;
 export default async function IssuesPage(
   props: {
     params: Promise<{ locale: string }>;
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
   }
 ) {
   const params = await props.params;
+  const search = await props.searchParams;
+  // ?sort= y ?group= (los deja CrossProjectIssues al cambiar la vista).
+  const sort = parseIssueSort(search.sort);
+  const group = parseIssueGroup(search.group);
 
   const {
     locale
@@ -23,7 +29,7 @@ export default async function IssuesPage(
   const t = await getTranslations({ locale, namespace: 'track' });
   const teamId = user.team?.id ?? null;
   const [{ rows: issues, total }, projects] = await Promise.all([
-    listAllIssues(teamId, user.id, { pageSize: ISSUES_PAGE_SIZE }),
+    listAllIssues(teamId, user.id, { pageSize: ISSUES_PAGE_SIZE, sort }),
     listProjectMetas(teamId, user.id),
   ]);
 
@@ -36,6 +42,7 @@ export default async function IssuesPage(
         title={t('issues.pageTitle')}
         newIssueLabel={t('project.newIssue')}
         ui={buildTrackUiLabels(t)}
+        display={{ sort, group }}
         empty={{
           noProjectsTitle: t('overview.emptyTitle'),
           noProjectsBody: t('issues.noProjectsBody'),

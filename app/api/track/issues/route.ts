@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { ISSUE_SORTS } from '@/lib/track-views';
 import { listAllIssues } from '@/lib/track-data';
 import { pageParams, sortParam, unauthorized } from '@/lib/track-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-const SORTS = ['newest', 'oldest', 'priority', 'identifier'] as const;
 
 /** Issues de todos los proyectos activos del workspace (página Issues), paginados. */
 export async function GET(req: NextRequest) {
@@ -15,7 +14,7 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const { page, pageSize } = pageParams(sp);
   const result = await listAllIssues(user.team?.id ?? null, user.id, {
-    sort: sortParam(sp, SORTS),
+    sort: sortParam(sp, ISSUE_SORTS),
     page,
     pageSize,
   });

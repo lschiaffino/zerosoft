@@ -2,6 +2,7 @@
  * Track — schemas zod para proyectos, status, cycles, issues y comments.
  */
 import { z } from 'zod';
+import { ISSUE_SORTS } from './track-views';
 
 const id = z.string().trim().min(1).max(64);
 const name = z.string().trim().min(1).max(200);
@@ -197,6 +198,12 @@ export const commentCreateSchema = z.object({
 
 export const commentUpdateSchema = commentCreateSchema;
 
+// ---------- Suscripción ----------
+
+export const issueSubscriptionSchema = z.object({
+  subscribed: z.boolean(),
+});
+
 // ---------- Relations ----------
 
 export const relationCreateSchema = z.object({
@@ -213,7 +220,7 @@ export const issueViewCreateSchema = z.object({
   name: z.string().trim().min(1).max(120),
   viewType: viewTypeSchema,
   filters: z.record(z.unknown()).default({}),
-  sort: z.enum(['newest', 'oldest', 'priority', 'identifier']).default('newest'),
+  sort: z.enum(ISSUE_SORTS).default('newest'),
   columns: z.array(z.string()).max(20).optional(),
 });
 
@@ -221,7 +228,7 @@ export const issueViewUpdateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   viewType: viewTypeSchema.optional(),
   filters: z.record(z.unknown()).optional(),
-  sort: z.enum(['newest', 'oldest', 'priority', 'identifier']).optional(),
+  sort: z.enum(ISSUE_SORTS).optional(),
   columns: z.array(z.string()).max(20).optional(),
 });
 

@@ -2420,6 +2420,25 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN approval TEXT NOT NULL DEFAULT 'none'");
     },
   },
+  {
+    // Track: suscripción a issues. Quien crea, quien queda asignado y quien
+    // comenta se suscribe solo (INSERT OR IGNORE); subscribed = 0 guarda que
+    // la persona se dio de baja, para no volver a suscribirla sola.
+    id: '046_track_issue_subscriptions',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_issue_subscriptions (
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          subscribed INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (issue_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_issue_subscriptions_user ON track_issue_subscriptions(user_id);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

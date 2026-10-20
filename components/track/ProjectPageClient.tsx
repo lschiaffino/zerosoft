@@ -31,6 +31,9 @@ import type { TrackUiLabels } from './ui-labels';
 import { BulkBar, useIssueSelection, type BulkPatch } from './BulkEdit';
 import { useWorkspaceLabels } from './LabelPicker';
 import TriagePanel from './TriagePanel';
+import IssueDisplayOptions from './IssueDisplayOptions';
+import GroupedIssuesTable from './GroupedIssuesTable';
+import { parseIssueGroup, parseIssueSort, type BoardGroupBy, type IssueGroupBy, type IssueSort } from '@/lib/track-views';
 
 interface ProjectPageClientProps {
   locale: string;
@@ -114,8 +117,11 @@ export interface PageLabels {
   workflowStatuses: string;
 }
 
-const SORTS = ['newest', 'oldest', 'priority', 'identifier'] as const;
-type SortValue = (typeof SORTS)[number];
+type SortValue = IssueSort;
+
+/** Agrupados de la lista y del tablero de un proyecto (por proyecto no tiene sentido acá). */
+const LIST_GROUPS: IssueGroupBy[] = ['none', 'status', 'assignee', 'priority', 'cycle', 'label'];
+const PROJECT_BOARD_GROUPS: BoardGroupBy[] = ['status', 'assignee', 'priority', 'cycle', 'label'];
 
 // Matches the server-side cap in lib/track-data.ts (listIssues clamps pageSize to 100).
 const ISSUES_PAGE_SIZE = 100;
@@ -164,6 +170,12 @@ function paramsToFilters(sp: URLSearchParams): FilterState {
   };
 }
 
+/** Filtros de una vista guardada, separando el agrupado que viaja adentro. */
+function splitViewFilters(raw: Record<string, unknown>): { filters: FilterState; group: string } {
+  const { groupBy, ...rest } = raw ?? {};
+  return { filters: rest as unknown as FilterState, group: typeof groupBy === 'string' ? groupBy : '' };
+}
+
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options);
   if (!res.ok) throw new Error(`api error ${res.status}`);
@@ -194,7 +206,10 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
 
   const [view, setView] = useState<ViewType>(() => (searchParams.get('view') as ViewType) ?? 'list');
   const [filters, setFilters] = useState<FilterState>(() => paramsToFilters(searchParams));
-  const [sort, setSort] = useState<SortValue>(() => (searchParams.get('sort') as SortValue) ?? 'newest');
+  const [sort, setSort] = useState<SortValue>(() => parseIssueSort(searchParams.get('sort')));
+  // Un solo param `group` en la URL; cada vista lo interpreta con sus opciones
+  // (la lista arranca sin agrupar, el tablero por status).
+  const [group, setGroup] = useState<string>(() => searchParams.get('group') ?? '');
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [activeViewId, setActiveViewId] = useState<string | undefined>();
   const [modalOpen, setModalOpen] = useState(false);
@@ -322,15 +337,18 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
           initialParams.current.toString().length > 0 &&
           (initialParams.current.get('view') ||
             initialParams.current.get('sort') ||
+            initialParams.current.get('group') ||
             initialParams.current.get('statusId') ||
             initialParams.current.get('priority') ||
             initialParams.current.get('q'));
         if (!hasUrlState) {
           const def = v.find((x) => x.is_default);
           if (def) {
+            const saved = splitViewFilters(def.filters);
             setView(def.view_type);
-            setFilters((def.filters as unknown) as FilterState);
-            setSort(def.sort);
+            setFilters(saved.filters);
+            setGroup(saved.group);
+            setSort(parseIssueSort(def.sort));
             setActiveViewId(def.id);
           }
         }
@@ -430,10 +448,11 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   useEffect(() => {
     const sp = filtersToParams(filters, sort);
     sp.set('view', view);
+    if (group) sp.set('group', group);
     if (tab === 'triage') sp.set('tab', 'triage');
     const qs = sp.toString();
     router.replace(`/app/track/projects/${projectId}?${qs}`, { scroll: false });
-  }, [filters, sort, view, tab, projectId, locale, router]);
+  }, [filters, sort, group, view, tab, projectId, locale, router]);
 
   const handleViewChange = (v: ViewType) => {
     setView(v);
@@ -444,7 +463,8 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     const payload = {
       name,
       viewType: view,
-      filters: (filters as unknown) as Record<string, unknown>,
+      // El agrupado viaja dentro de filters (la tabla de vistas no tiene columna propia).
+      filters: { ...filters, ...(group ? { groupBy: group } : {}) } as unknown as Record<string, unknown>,
       sort,
     };
     const created = await api<TrackIssueView>(`/api/track/projects/${projectId}/views`, {
@@ -458,9 +478,11 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   };
 
   const handleSelectView = (selected: TrackIssueView) => {
+    const saved = splitViewFilters(selected.filters);
     setView(selected.view_type);
-    setFilters((selected.filters as unknown) as FilterState);
-    setSort(selected.sort);
+    setFilters(saved.filters);
+    setGroup(saved.group);
+    setSort(parseIssueSort(selected.sort));
     setActiveViewId(selected.id);
   };
 
@@ -496,8 +518,8 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
       if (activeViewId === id) setActiveViewId(undefined);
     });
 
-  const handleStatusChange = (issueId: string, statusId: string) => {
-    void store.update(issueId, { statusId });
+  const handleMove = (issueId: string, patch: Parameters<typeof store.update>[1]) => {
+    void store.update(issueId, patch);
   };
 
   const createIssue = (draft: IssueDraft) => {
@@ -509,7 +531,12 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   const quickCreate = (raw: string, extra: Partial<IssueDraft> = {}) => {
     const parsed = parseQuickTitle(raw, today);
     if (!parsed.title) return;
-    createIssue({ ...extra, title: parsed.title, priority: parsed.priority, dueDate: parsed.dueDate ?? extra.dueDate });
+    createIssue({
+      ...extra,
+      title: parsed.title,
+      priority: parsed.priority ?? extra.priority,
+      dueDate: parsed.dueDate ?? extra.dueDate,
+    });
   };
 
   useCreateShortcut(() => setModalOpen(true), !loading && !loadError && !modalOpen && !saveDialogOpen && !settingsOpen);
@@ -612,6 +639,9 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
       }}
     />
   );
+
+  const listGroup = parseIssueGroup(group || 'none', LIST_GROUPS);
+  const boardGroup = parseIssueGroup(group || 'status', PROJECT_BOARD_GROUPS) as BoardGroupBy;
 
   const current = activeCycle(cycles, today);
   const filtersActive = activeFilterCount(filters) > 0 || Boolean(filters.q);
@@ -729,7 +759,25 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
               onChange={handleViewChange}
               labels={{ ...labels.viewSwitcher, group: t('views.group') }}
             />
-            {savedViewsMenu}
+            <span className="track-toolbar-end">
+              {(view === 'list' || view === 'board') && (
+                <IssueDisplayOptions
+                  group={view === 'board' ? boardGroup : listGroup}
+                  groups={view === 'board' ? PROJECT_BOARD_GROUPS : LIST_GROUPS}
+                  sort={sort}
+                  onGroupChange={(g) => {
+                    setGroup(g === 'none' ? '' : g);
+                    setActiveViewId(undefined);
+                  }}
+                  onSortChange={(s) => {
+                    setSort(s);
+                    setActiveViewId(undefined);
+                  }}
+                  labels={labels.ui.display}
+                />
+              )}
+              {savedViewsMenu}
+            </span>
           </div>
 
           <IssueFilters
@@ -749,7 +797,26 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
           />
 
           <div className="track-view">
-            {view === 'list' && (
+            {view === 'list' && listGroup !== 'none' && (
+              <GroupedIssuesTable
+                issues={issues}
+                groupBy={listGroup}
+                statuses={statuses}
+                locale={locale}
+                labels={{
+                  ...labels.table,
+                  empty: filtersActive ? t('project.noMatches') : labels.noIssues,
+                  noAssignee: labels.noAssignee,
+                }}
+                groupLabels={labels.ui.display}
+                priorities={labels.priorities}
+                editing={{ ...editing, projects: projectMap }}
+                onQuickCreate={(title, preset) => quickCreate(title, preset)}
+                hideColumns={cycles.length > 0 && filters.cycleId.length === 0 ? [] : ['cycle']}
+                selection={{ ...selection, label: t('bulk.select'), allLabel: t('bulk.selectAll') }}
+              />
+            )}
+            {view === 'list' && listGroup === 'none' && (
               <IssuesTable
                 issues={issues}
                 locale={locale}
@@ -769,10 +836,16 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
                 issues={issues}
                 statuses={statuses}
                 locale={locale}
-                onStatusChange={handleStatusChange}
-                labels={{ noAssignee: labels.noAssignee, empty: labels.board.empty }}
+                onMove={handleMove}
+                groupBy={boardGroup}
+                labels={{
+                  noAssignee: labels.noAssignee,
+                  empty: labels.board.empty,
+                  noCycle: labels.ui.display.noCycle,
+                  noLabel: labels.ui.display.noLabel,
+                }}
                 editing={{ ...editing, members }}
-                onQuickCreate={(title, statusId) => quickCreate(title, { statusId })}
+                onQuickCreate={(title, preset) => quickCreate(title, preset)}
               />
             )}
             {view === 'calendar' && (

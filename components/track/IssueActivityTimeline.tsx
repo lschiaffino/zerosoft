@@ -5,6 +5,7 @@ import { Link } from '@/i18n/navigation';
 import { relDate } from '@/lib/utils';
 import type { TrackIssueAttachmentRow } from '@/lib/db';
 import type { TrackIssueActivityWithAuthor, ProjectMember } from '@/lib/track-data';
+import MarkdownEditor, { MarkdownView, type MarkdownLabels } from './MarkdownEditor';
 
 interface ActivityLabels {
   title: string;
@@ -46,6 +47,8 @@ interface IssueActivityTimelineProps {
   activities: TrackIssueActivityWithAuthor[];
   members: ProjectMember[];
   labels: ActivityLabels;
+  /** Editor de Markdown del composer y de la edición de comentarios. */
+  markdownLabels: MarkdownLabels;
   /** Adjuntos actuales del issue (para enlazar las entradas "subió X"). */
   attachments?: Array<Pick<TrackIssueAttachmentRow, 'id' | 'url'>>;
   onChange?: () => void;
@@ -75,24 +78,6 @@ function userName(activity: TrackIssueActivityWithAuthor, meta: Record<string, u
   return activity.user_name ?? activity.user_email ?? '?';
 }
 
-// Matches @email@domain.com and @Some Name (up to 3 capitalized words).
-const MENTION_RE = /@[\w.-]+(?:@[\w.-]+\.\w{2,})?|@[A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*){0,2}/g;
-
-function MentionText({ text }: { text: string }) {
-  const parts = text.split(MENTION_RE);
-  const matches = text.match(MENTION_RE) ?? [];
-  return (
-    <>
-      {parts.map((part, i) => (
-        <span key={i}>
-          {part}
-          {matches[i] && <span className="track-mention">{matches[i]}</span>}
-        </span>
-      ))}
-    </>
-  );
-}
-
 function getMentionState(text: string, cursor: number): { active: boolean; query: string; start: number } {
   const before = text.slice(0, cursor);
   const atIndex = before.lastIndexOf('@');
@@ -110,6 +95,7 @@ export default function IssueActivityTimeline({
   activities,
   members,
   labels,
+  markdownLabels,
   attachments = [],
   onChange,
 }: IssueActivityTimelineProps) {
@@ -205,11 +191,10 @@ export default function IssueActivityTimeline({
     }, 0);
   }
 
-  function handleInput(e: React.FormEvent<HTMLTextAreaElement>) {
-    const target = e.currentTarget;
-    setComment(target.value);
-    const cursor = target.selectionStart;
-    const state = getMentionState(target.value, cursor);
+  function handleInput(value: string) {
+    setComment(value);
+    const cursor = textareaRef.current?.selectionStart ?? value.length;
+    const state = getMentionState(value, cursor);
     if (state.active) {
       setShowMentions(true);
       setMentionQuery(state.query);
@@ -360,21 +345,23 @@ export default function IssueActivityTimeline({
         const commentId = String(meta.commentId ?? activity.id);
         if (editingId === commentId) {
           return (
-            <span>
+            <div>
               {labels.commented.replace('{user}', name)}
-              <span className="track-comment-edit">
-                <textarea
-                  className="textarea"
-                  aria-label={labels.editComment}
+              <div className="track-comment-edit">
+                <MarkdownEditor
                   value={editBody}
-                  onChange={(e) => setEditBody(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') setEditingId(null);
-                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void saveEdit(commentId);
+                  onValueChange={setEditBody}
+                  labels={markdownLabels}
+                  textareaProps={{
+                    'aria-label': labels.editComment,
+                    rows: 3,
+                    maxLength: 5000,
+                    autoFocus: true,
+                    onKeyDown: (e) => {
+                      if (e.key === 'Escape') setEditingId(null);
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void saveEdit(commentId);
+                    },
                   }}
-                  rows={3}
-                  maxLength={5000}
-                  autoFocus
                 />
                 <span className="track-comment-edit-actions">
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingId(null)}>
@@ -390,19 +377,15 @@ export default function IssueActivityTimeline({
                     {labels.saveComment}
                   </button>
                 </span>
-              </span>
-            </span>
+              </div>
+            </div>
           );
         }
         return (
-          <span>
+          <div>
             {labels.commented.replace('{user}', name)}
-            {body && (
-              <span className="track-activity-comment">
-                “<MentionText text={body} />”
-              </span>
-            )}
-          </span>
+            {body && <MarkdownView source={body} className="track-activity-comment" />}
+          </div>
         );
       }
       default:
@@ -413,17 +396,20 @@ export default function IssueActivityTimeline({
   return (
     <div className="track-activity">
       <form className="track-activity-composer" onSubmit={submitComment}>
-        <div className="track-activity-composer-input">
-          <textarea
-            ref={textareaRef}
-            className="textarea"
-            aria-label={labels.addComment}
-            value={comment}
-            onInput={handleInput}
-            onKeyDown={handleKeyDown}
-            placeholder={labels.addComment}
-            rows={3}
-          />
+        <MarkdownEditor
+          className="track-activity-composer-input"
+          value={comment}
+          onValueChange={handleInput}
+          labels={markdownLabels}
+          textareaRef={textareaRef}
+          textareaProps={{
+            'aria-label': labels.addComment,
+            placeholder: labels.addComment,
+            rows: 3,
+            maxLength: 5000,
+            onKeyDown: handleKeyDown,
+          }}
+        >
           {showMentions && mentionMembers.length > 0 && (
             <div className="track-mention-dropdown">
               {mentionMembers.map((m, i) => (
@@ -439,7 +425,7 @@ export default function IssueActivityTimeline({
               ))}
             </div>
           )}
-        </div>
+        </MarkdownEditor>
         <button type="submit" className="btn btn-primary btn-sm" disabled={!comment.trim()} aria-busy={submitting || undefined}>
           {labels.submitComment}
         </button>

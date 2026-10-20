@@ -6,7 +6,7 @@ import { relDate } from '@/lib/utils';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 
-type NotificationType = 'mention' | 'assigned' | 'status_change' | 'comment' | 'subtask' | 'relation';
+type NotificationType = 'mention' | 'assigned' | 'status_change' | 'issue_update' | 'comment' | 'subtask' | 'relation';
 
 interface Notification {
   id: string;
@@ -41,6 +41,7 @@ interface InboxClientProps {
     assignedYou: string;
     commentedOn: string;
     changedStatus: string;
+    updatedIssue: string;
   };
 }
 
@@ -50,7 +51,7 @@ const TABS = [
   { key: 'all', types: undefined as NotificationType[] | undefined },
   { key: 'mentions', types: ['mention'] as NotificationType[] },
   { key: 'assigned', types: ['assigned'] as NotificationType[] },
-  { key: 'updates', types: ['status_change', 'comment', 'subtask', 'relation'] as NotificationType[] },
+  { key: 'updates', types: ['status_change', 'issue_update', 'comment', 'subtask', 'relation'] as NotificationType[] },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
@@ -141,6 +142,8 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
         return fill(labels.commentedOn);
       case 'status_change':
         return fill(labels.changedStatus);
+      case 'issue_update':
+        return fill(labels.updatedIssue);
       default:
         return n.title;
     }

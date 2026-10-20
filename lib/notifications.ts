@@ -5,7 +5,7 @@
 import { getDb } from './db';
 import type { NotificationRow } from './db';
 
-export type NotificationType = 'mention' | 'assigned' | 'status_change' | 'comment' | 'subtask' | 'relation' | 'chat_message' | 'email_activity' | 'crm_quote' | 'crm_form' | 'crm_lead' | 'roadmap_status';
+export type NotificationType = 'mention' | 'assigned' | 'status_change' | 'issue_update' | 'comment' | 'subtask' | 'relation' | 'chat_message' | 'email_activity' | 'crm_quote' | 'crm_form' | 'crm_lead' | 'roadmap_status';
 
 export interface NotificationCreatePayload {
   userId: string;
@@ -177,11 +177,11 @@ export async function createIssueStatusChangedNotifications(args: {
   actor: Actor;
   oldStatus: string;
   newStatus: string;
+  /** Suscriptos del issue; sin esto, asignado y creador. */
+  recipients?: string[];
 }): Promise<void> {
   const { issue, projectName, actor, oldStatus, newStatus } = args;
-  const recipients = new Set<string>();
-  if (issue.assignee_id) recipients.add(issue.assignee_id);
-  if (issue.creator_id) recipients.add(issue.creator_id);
+  const recipients = new Set<string>(args.recipients ?? [issue.assignee_id, issue.creator_id].filter(Boolean) as string[]);
   recipients.delete(actor.id);
 
   for (const userId of recipients) {
@@ -200,6 +200,42 @@ export async function createIssueStatusChangedNotifications(args: {
         actorId: actor.id,
         oldStatus,
         newStatus,
+      },
+    });
+  }
+}
+
+/**
+ * Otros cambios del issue (título, descripción, prioridad, fecha, cycle,
+ * estimación, asignado) para los suscriptos. `changes` son claves cortas
+ * (title, description, priority…) que la bandeja traduce.
+ */
+export async function createIssueUpdatedNotifications(args: {
+  issue: IssueSummary;
+  projectName: string;
+  actor: Actor;
+  changes: string[];
+  recipients: string[];
+}): Promise<void> {
+  const { issue, projectName, actor, changes } = args;
+  if (changes.length === 0) return;
+  const recipients = new Set(args.recipients);
+  recipients.delete(actor.id);
+  for (const userId of recipients) {
+    await createNotification({
+      userId,
+      type: 'issue_update',
+      title: `${actorName(actor)} updated ${issue.identifier}`,
+      body: issue.title,
+      href: issueHref(issue.id),
+      sourceType: 'track_issue',
+      sourceId: issue.id,
+      meta: {
+        issueIdentifier: issue.identifier,
+        projectName,
+        actorName: actorName(actor),
+        actorId: actor.id,
+        changes: changes.join(','),
       },
     });
   }
@@ -285,6 +321,8 @@ export async function createIssueCommentNotifications(args: {
   actor: Actor;
   body: string;
   members: Array<{ id: string; email: string; name: string | null }>;
+  /** Suscriptos del issue; sin esto, asignado y creador. */
+  recipients?: string[];
 }): Promise<void> {
   const { issue, projectName, actor, body, members } = args;
   const notified = new Set<string>();
@@ -337,10 +375,9 @@ export async function createIssueCommentNotifications(args: {
     }
   }
 
-  // Notify assignee and creator about the new comment (avoid duplicates).
-  const recipients = new Set<string>();
-  if (issue.assignee_id) recipients.add(issue.assignee_id);
-  if (issue.creator_id) recipients.add(issue.creator_id);
+  // Los suscriptos (o asignado y creador) se enteran del comentario; quien
+  // ya recibió la mención no recibe un segundo aviso.
+  const recipients = new Set<string>(args.recipients ?? [issue.assignee_id, issue.creator_id].filter(Boolean) as string[]);
   recipients.delete(actor.id);
 
   for (const userId of recipients) {
