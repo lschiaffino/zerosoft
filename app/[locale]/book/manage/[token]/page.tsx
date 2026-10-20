@@ -60,6 +60,7 @@ export default async function ManageBookingPage(props: {
         endsAt: booking.ends_at,
         timezone: booking.timezone,
         status: booking.status,
+        approval: booking.approval,
         name: booking.invitee_name,
         email: booking.invitee_email,
       }}

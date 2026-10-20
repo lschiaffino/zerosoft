@@ -1,6 +1,7 @@
 import { getEventTypeById, reassignBookingsOfRemovedHost, type EventTypeWithRules } from './calendar';
 import { emitEvent } from './events';
-import { cancelReasonWithRefund, notifyBooking, refundReason } from './calendar-notify';
+import { cancelReasonWithRefund, notConfirmedReason, notifyBooking, refundReason } from './calendar-notify';
+import { parseUtm } from './calendar-redirect';
 import { recordBookingInCrm } from './crm-integrations';
 import type { CalendarBookingRow } from './db';
 import {
@@ -45,6 +46,10 @@ export function bookingPayload(booking: CalendarBookingRow, eventType: Pick<Even
     meetingUrl: booking.meeting_url,
     rescheduledFrom: booking.rescheduled_from,
     cancelReason: booking.cancel_reason,
+    /** none | pending | approved | declined: confirmación del anfitrión. */
+    approval: booking.approval ?? 'none',
+    /** utm_* de la página de reserva (vacío si no vinieron). */
+    utm: parseUtm(booking.utm),
     payment:
       booking.payment_status && booking.payment_status !== 'none'
         ? { status: booking.payment_status, amountCents: booking.amount_cents, currency: booking.currency }
@@ -53,14 +58,48 @@ export function bookingPayload(booking: CalendarBookingRow, eventType: Pick<Even
   };
 }
 
+/**
+ * Reserva nueva. Si espera la confirmación del anfitrión, solo salen los
+ * avisos de solicitud y el webhook booking.requested: el evento en Google, el
+ * CRM y booking.created llegan al confirmarla (afterBookingApproved).
+ */
 export async function afterBookingCreated(booking: CalendarBookingRow, locale?: string): Promise<CalendarBookingRow> {
   const eventType = await getEventTypeById(booking.event_type_id);
   if (!eventType) return booking;
+  if (booking.status === 'pending' && booking.approval === 'pending') {
+    await safely('notify-requested', () => notifyBooking(booking, 'requested', { locale }), undefined);
+    await emitEvent(eventType.user_id, 'booking.requested', bookingPayload(booking, eventType));
+    return booking;
+  }
   const synced = await safely('google-create', () => createGoogleEventForBooking(booking, eventType), booking);
   await safely('notify-created', () => notifyBooking(synced, 'created', { locale }), undefined);
   await safely('crm-created', () => recordBookingInCrm(eventType.user_id, 'created', synced, eventType.title), undefined);
   await emitEvent(eventType.user_id, 'booking.created', bookingPayload(synced, eventType));
   return synced;
+}
+
+/**
+ * El anfitrión confirmó la solicitud: lo mismo que una reserva nueva (los dos
+ * reciben la confirmación con el .ics, que el anfitrión todavía no tenía).
+ */
+export function afterBookingApproved(booking: CalendarBookingRow): Promise<CalendarBookingRow> {
+  return afterBookingCreated(booking, booking.locale);
+}
+
+/**
+ * Solicitud rechazada por el anfitrión o vencida sin respuesta (`expired`):
+ * aviso al invitado y webhook booking.cancelled.
+ */
+export async function afterBookingDeclined(
+  booking: CalendarBookingRow,
+  reason: string | null,
+  opts: { expired?: boolean } = {},
+): Promise<void> {
+  const eventType = await getEventTypeById(booking.event_type_id);
+  if (!eventType) return;
+  const notice = opts.expired ? notConfirmedReason(booking.locale) : reason;
+  await safely('notify-declined', () => notifyBooking(booking, 'declined', { reason: notice }), undefined);
+  await emitEvent(eventType.user_id, 'booking.cancelled', bookingPayload(booking, eventType));
 }
 
 export async function afterBookingRescheduled(

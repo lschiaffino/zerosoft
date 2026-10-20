@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import EmptyState from '@/components/ui/EmptyState';
 import type { CalendarBookingRowWithEvent } from '@/lib/calendar';
+import { parseUtm } from '@/lib/calendar-redirect';
 
 type Status = '' | 'confirmed' | 'pending' | 'cancelled' | 'no_show';
 
@@ -24,7 +25,12 @@ interface Props {
   defaultFrom: string;
 }
 
-type Panel = { id: string; kind: 'reschedule' | 'cancel' } | null;
+type Panel = { id: string; kind: 'reschedule' | 'cancel' | 'decline' } | null;
+
+/** La reserva espera que el anfitrión la confirme (no un pago). */
+function awaitingApproval(b: Pick<CalendarBookingRowWithEvent, 'status' | 'approval'>): boolean {
+  return b.status === 'pending' && b.approval === 'pending';
+}
 
 const STATUS_BADGE: Record<string, string> = {
   confirmed: 'badge badge-ok',
@@ -171,6 +177,27 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
     return false;
   }
 
+  /** Confirmar o rechazar una solicitud (el invitado recibe el aviso). */
+  async function respond(id: string, decision: 'confirm' | 'decline', reason?: string): Promise<boolean> {
+    setBusy(id);
+    setError(null);
+    const res = await fetch(`/api/calendar/bookings/${id}/approval`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ decision, reason: reason || undefined }),
+    }).catch(() => null);
+    setBusy(null);
+    if (res && res.ok) {
+      const updated = (await res.json()) as Partial<CalendarBookingRowWithEvent>;
+      setRows((prev) => prev.map((b) => (b.id === id ? { ...b, ...updated } : b)));
+      setNotice(decision === 'confirm' ? t('admin.approved') : t('admin.declined'));
+      return true;
+    }
+    const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
+    setError(errorText(data?.error));
+    return false;
+  }
+
   const now = new Date().toISOString();
   const filtered = !!(filters.q || filters.status || filters.to || filters.from !== defaultFrom);
   const dayHeading = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: timezone });
@@ -203,7 +230,7 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
           <option value="">{t('admin.allStatuses')}</option>
           {(['confirmed', 'pending', 'cancelled', 'no_show'] as const).map((s) => (
             <option key={s} value={s}>
-              {t(`booking.status.${s}`)}
+              {s === 'pending' ? t('admin.pendingFilter') : t(`booking.status.${s}`)}
             </option>
           ))}
         </select>
@@ -300,7 +327,12 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
                           </span>
                         </span>
                         <span className="cal-bk-state">
-                          <span className={`cal-bk-status ${STATUS_BADGE[b.status] ?? 'badge'}`}>{t(`booking.status.${b.status}`)}</span>
+                          <span className={`cal-bk-status ${STATUS_BADGE[b.status] ?? 'badge'}`}>
+                            {awaitingApproval(b) ? t('booking.status.awaiting') : t(`booking.status.${b.status}`)}
+                          </span>
+                          {b.approval === 'declined' && b.status === 'cancelled' && (
+                            <span className="badge badge-outline">{t('admin.declinedBadge')}</span>
+                          )}
                           {b.payment_status === 'paid' && <span className="badge badge-outline">{t('admin.paid')}</span>}
                           {b.payment_status === 'refunded' && <span className="badge badge-outline">{t('admin.refunded')}</span>}
                         </span>
@@ -325,10 +357,27 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
                               {t('admin.noShow')}
                             </button>
                           )}
-                          {(b.status === 'confirmed' || b.status === 'pending') && (
-                            <button type="button" className="btn btn-ghost btn-sm btn-danger" onClick={() => setPanel({ id: b.id, kind: 'cancel' })}>
-                              {t('admin.cancel')}
+                          {awaitingApproval(b) && !started && (
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              aria-busy={busy === b.id || undefined}
+                              disabled={busy === b.id}
+                              onClick={() => void respond(b.id, 'confirm')}
+                            >
+                              {t('admin.approve')}
                             </button>
+                          )}
+                          {awaitingApproval(b) ? (
+                            <button type="button" className="btn btn-ghost btn-sm btn-danger" onClick={() => setPanel({ id: b.id, kind: 'decline' })}>
+                              {t('admin.decline')}
+                            </button>
+                          ) : (
+                            (b.status === 'confirmed' || b.status === 'pending') && (
+                              <button type="button" className="btn btn-ghost btn-sm btn-danger" onClick={() => setPanel({ id: b.id, kind: 'cancel' })}>
+                                {t('admin.cancel')}
+                              </button>
+                            )
                           )}
                           <button
                             type="button"
@@ -349,6 +398,17 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
                           onClose={() => setPanel(null)}
                           onConfirm={async (reason) => {
                             if (await patchBooking(b.id, { status: 'cancelled', cancelReason: reason || null })) setPanel(null);
+                          }}
+                        />
+                      )}
+                      {panel?.id === b.id && panel.kind === 'decline' && (
+                        <CancelPanel
+                          paid={false}
+                          decline
+                          busy={busy === b.id}
+                          onClose={() => setPanel(null)}
+                          onConfirm={async (reason) => {
+                            if (await respond(b.id, 'decline', reason)) setPanel(null);
                           }}
                         />
                       )}
@@ -398,6 +458,12 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
                               <dd>{b.cancel_reason}</dd>
                             </div>
                           )}
+                          {Object.entries(parseUtm(b.utm)).map(([k, v]) => (
+                            <div key={k}>
+                              <dt className="data">{k}</dt>
+                              <dd>{v}</dd>
+                            </div>
+                          ))}
                           {b.answers &&
                             b.answers !== '{}' &&
                             answerEntries(b.answers, b.event_type_fields, { yes: t('common.yes'), no: t('common.no') }).map(([k, label, v]) => (
@@ -424,14 +490,27 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
   );
 }
 
-function CancelPanel({ paid, busy, onClose, onConfirm }: { paid: boolean; busy: boolean; onClose: () => void; onConfirm: (reason: string) => void }) {
+function CancelPanel({
+  paid,
+  decline = false,
+  busy,
+  onClose,
+  onConfirm,
+}: {
+  paid: boolean;
+  /** Rechazar una solicitud en vez de cancelar una reserva confirmada. */
+  decline?: boolean;
+  busy: boolean;
+  onClose: () => void;
+  onConfirm: (reason: string) => void;
+}) {
   const t = useTranslations('calendar');
   const [reason, setReason] = useState('');
   return (
     <div className="cal-bk-panel">
       <div className="ui-field">
         <label className="label" htmlFor="cal-cancel-reason">
-          {t('admin.cancelReason')}
+          {decline ? t('admin.declineReason') : t('admin.cancelReason')}
         </label>
         <textarea id="cal-cancel-reason" className="textarea" rows={2} maxLength={500} value={reason} autoFocus onChange={(e) => setReason(e.target.value)} />
       </div>
@@ -441,7 +520,7 @@ function CancelPanel({ paid, busy, onClose, onConfirm }: { paid: boolean; busy: 
           {t('admin.keep')}
         </button>
         <button type="button" className="btn btn-primary btn-danger btn-sm" aria-busy={busy || undefined} onClick={() => onConfirm(reason.trim())}>
-          {t('admin.confirmCancel')}
+          {decline ? t('admin.confirmDecline') : t('admin.confirmCancel')}
         </button>
       </div>
     </div>

@@ -2,6 +2,8 @@
  * Calendar — schemas zod para payloads de rutas API.
  */
 import { z } from 'zod';
+import { MAX_PERIOD_LIMIT, SLOT_INTERVAL_MAX, SLOT_INTERVAL_MIN } from './calendar-limits';
+import { isValidRedirectUrl } from './calendar-redirect';
 
 // ---------- Primitivas ----------
 
@@ -35,6 +37,10 @@ const email = z
 
 const bookingStatus = z.enum(['confirmed', 'cancelled', 'no_show']);
 
+const periodLimit = z.number().int().min(1).max(MAX_PERIOD_LIMIT).optional();
+/** Topes de reuniones por día, semana y mes (en la zona del horario del evento). */
+const periodLimits = z.object({ day: periodLimit, week: periodLimit, month: periodLimit });
+
 const bookingRules = z
   .object({
     bufferBeforeMin: z.number().int().min(0).optional(),
@@ -42,6 +48,21 @@ const bookingRules = z
     minNoticeHours: z.number().int().min(0).optional(),
     maxFutureDays: z.number().int().min(1).optional(),
     allowGuests: z.boolean().optional(),
+    /** Cada cuánto se ofrece un inicio (sin el campo: la duración). */
+    slotIntervalMin: z.number().int().min(SLOT_INTERVAL_MIN).max(SLOT_INTERVAL_MAX).optional(),
+    /** Topes del tipo de evento (todas sus reservas) y de cada host (las suyas de este evento). */
+    meetingLimits: periodLimits.optional(),
+    hostMeetingLimits: periodLimits.optional(),
+    /** La reserva queda pendiente hasta que el anfitrión la confirme. */
+    requiresConfirmation: z.boolean().optional(),
+    /** Destino del invitado después de reservar (http/https) y si lleva los datos de la reserva. */
+    redirectUrl: z
+      .string()
+      .trim()
+      .max(2000)
+      .refine(isValidRedirectUrl, { message: 'invalid_redirect' })
+      .optional(),
+    redirectPassDetails: z.boolean().optional(),
   })
   .optional();
 
@@ -168,6 +189,8 @@ export const bookingCreateSchema = z.object({
     .refine((a) => Object.keys(a).length <= 20, { message: 'too_many_answers' })
     .optional(),
   locale: z.enum(['en', 'es', 'pt']).optional(),
+  /** utm_* de la URL de la página de reserva (se limpian con sanitizeUtm). */
+  utm: z.record(z.unknown()).optional(),
 });
 
 const ANSWER_MAX = 2000;
@@ -231,6 +254,12 @@ export const bookingManageSchema = z.discriminatedUnion('action', [
 export const bookingUpdateSchema = z.object({
   status: bookingStatus.optional(),
   cancelReason: longText.nullish(),
+});
+
+/** Respuesta del anfitrión a una reserva que pide confirmación. */
+export const bookingApprovalSchema = z.object({
+  decision: z.enum(['confirm', 'decline']),
+  reason: z.string().trim().max(500).optional(),
 });
 
 // ---------- Routing forms ----------

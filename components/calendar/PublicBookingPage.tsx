@@ -19,6 +19,8 @@ interface Props {
   reschedule?: { token: string; name: string; email: string };
   /** Máximo de días para reservar ya resuelto en el server (regla del evento o del workspace). */
   maxFutureDays?: number;
+  /** utm_* de la URL de la página (ya limpios en el server): se guardan con la reserva. */
+  utm?: Record<string, string>;
 }
 
 interface Slot {
@@ -117,6 +119,7 @@ export default function PublicBookingPage({
   prefillEmail = '',
   reschedule,
   maxFutureDays,
+  utm,
 }: Props) {
   const t = useTranslations('calendar');
   const fields = useMemo(() => parseFields(eventType), [eventType]);
@@ -154,6 +157,10 @@ export default function PublicBookingPage({
   const [error, setError] = useState<string | null>(null);
   /** Embebido: Stripe no se deja enmarcar, así que el pago se abre fuera del iframe. */
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  /** La reserva quedó esperando que el anfitrión la confirme. */
+  const [awaiting, setAwaiting] = useState(false);
+  /** Destino configurado en el evento: se navega ahí después de reservar. */
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
   /** Días del mes visible con lugar (null = cargando: no se deshabilita nada). */
   const [openDays, setOpenDays] = useState<Set<string> | null>(null);
   const slotsHead = useRef<HTMLHeadingElement>(null);
@@ -304,12 +311,17 @@ export default function PublicBookingPage({
       : await fetch('/api/calendar/bookings', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ eventTypeId: eventType.id, start: selectedSlot.start, email, name, timezone, answers, locale }),
+          body: JSON.stringify({ eventTypeId: eventType.id, start: selectedSlot.start, email, name, timezone, answers, locale, utm }),
         }).catch(() => null);
     setBusy(false);
 
     if (res && (res.status === 201 || (reschedule && res.status === 200))) {
-      const data = (await res.json().catch(() => null)) as { manageToken?: string; checkoutUrl?: string } | null;
+      const data = (await res.json().catch(() => null)) as {
+        manageToken?: string;
+        checkoutUrl?: string;
+        awaitingApproval?: boolean;
+        redirectUrl?: string | null;
+      } | null;
       // Evento pago: la reserva queda retenida y se confirma al pagar en Stripe.
       if (data?.checkoutUrl && /^https:\/\//.test(data.checkoutUrl)) {
         if (window.parent !== window) {
@@ -325,7 +337,16 @@ export default function PublicBookingPage({
       }
       const token = reschedule?.token ?? data?.manageToken;
       if (token) setManageUrl(`/${locale}/book/manage/${token}`);
+      setAwaiting(data?.awaitingApproval === true);
       setStep('confirm');
+      const next = !reschedule && data?.redirectUrl && /^https?:\/\//.test(data.redirectUrl) ? data.redirectUrl : null;
+      if (next) {
+        setRedirectUrl(next);
+        // En un iframe (embed.js) navega la página contenedora; si no hay
+        // embed.js que escuche, queda el link en la confirmación.
+        if (window.parent !== window) window.parent.postMessage({ type: 'zs-cal:redirect', url: next }, '*');
+        else window.location.assign(next);
+      }
       return;
     }
     const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
@@ -386,7 +407,7 @@ export default function PublicBookingPage({
                 <CalIcon name="check" size={22} />
               </span>
               <h2 id="bk-done-title" className="bk-h2" tabIndex={-1} ref={doneHead}>
-                {reschedule ? t('booking.rescheduledTitle') : t('booking.confirmedTitle')}
+                {reschedule ? t('booking.rescheduledTitle') : awaiting ? t('booking.requestedTitle') : t('booking.confirmedTitle')}
               </h2>
               <dl className="bk-summary">
                 <div>
@@ -412,11 +433,17 @@ export default function PublicBookingPage({
                   </div>
                 )}
               </dl>
-              <p className="bk-muted">{t('booking.emailSent')}</p>
-              {manageUrl && (
-                <a className="bk-link" href={manageUrl}>
-                  {t('booking.manageLink')}
+              <p className="bk-muted">{awaiting ? t('booking.requestedSub') : t('booking.emailSent')}</p>
+              {redirectUrl ? (
+                <a className="bk-link" href={redirectUrl} target="_top" rel="noopener">
+                  {t('booking.continue')}
                 </a>
+              ) : (
+                manageUrl && (
+                  <a className="bk-link" href={manageUrl}>
+                    {awaiting ? t('booking.withdrawLink') : t('booking.manageLink')}
+                  </a>
+                )
               )}
             </section>
           ) : step === 'form' && selectedSlot ? (

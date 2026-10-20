@@ -410,6 +410,8 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
               const synced = await afterBookingCreated(booking);
               return {
                 booked: true,
+                // 'pending': el evento pide que el anfitrión confirme la reserva.
+                status: synced.status,
                 bookingId: synced.id,
                 startsAt: synced.starts_at,
                 endsAt: synced.ends_at,

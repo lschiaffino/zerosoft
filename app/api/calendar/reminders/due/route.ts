@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { claimReminder, expireUnpaidHolds, listDueReminders, releaseReminder } from '@/lib/calendar';
+import { claimReminder, expireUnconfirmedBookings, expireUnpaidHolds, listDueReminders, releaseReminder } from '@/lib/calendar';
+import { afterBookingDeclined } from '@/lib/calendar-lifecycle';
 import { processDueWorkflowRuns } from '@/lib/calendar-workflows';
 import { sendBookingReminder } from '@/lib/email';
 import { manageUrl } from '@/lib/calendar-notify';
@@ -77,8 +78,11 @@ async function run(req: NextRequest) {
   // Pasos de workflows por tipo de evento y holds de pago vencidos.
   const workflows = await processDueWorkflowRuns();
   const expiredHolds = await expireUnpaidHolds();
+  // Solicitudes que el anfitrión no confirmó antes del inicio: se cancelan y se avisa al invitado.
+  const unconfirmed = await expireUnconfirmedBookings();
+  for (const booking of unconfirmed) await afterBookingDeclined(booking, null, { expired: true });
 
-  return NextResponse.json({ total, sent, failed, pending, workflows, expiredHolds });
+  return NextResponse.json({ total, sent, failed, pending, workflows, expiredHolds, expiredRequests: unconfirmed.length });
 }
 
 export async function POST(req: NextRequest) {

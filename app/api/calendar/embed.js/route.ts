@@ -8,7 +8,8 @@ export const dynamic = 'force-static';
  * data-mode="inline" (default): iframe en el lugar del script, alto automático.
  * data-mode="popup": botón flotante (data-label) que abre la reserva en un modal.
  * El iframe avisa su alto, cuándo se confirmó la reserva y, en eventos pagos,
- * la URL de Stripe Checkout (que no se puede abrir dentro de un iframe).
+ * la URL de Stripe Checkout (que no se puede abrir dentro de un iframe) y la
+ * redirección posterior a la reserva, si el tipo de evento tiene una.
  */
 const SCRIPT = `(function () {
   var script = document.currentScript;
@@ -21,6 +22,13 @@ const SCRIPT = `(function () {
   var origin;
   try { origin = new URL(url).origin; } catch (e) { return; }
   var src = url + (url.indexOf('?') === -1 ? '?' : '&') + 'embed=1';
+  // Los utm_* de la página contenedora llegan a la reserva (si data-url no trae los suyos).
+  try {
+    var own = new URL(url).searchParams;
+    new URL(window.location.href).searchParams.forEach(function (v, k) {
+      if (/^utm_(source|medium|campaign|term|content)$/.test(k) && !own.has(k)) src += '&' + k + '=' + encodeURIComponent(v);
+    });
+  } catch (e) {}
 
   function frame(height) {
     var f = document.createElement('iframe');
@@ -38,6 +46,11 @@ const SCRIPT = `(function () {
       if (e.data.type === 'zs-cal:height' && mode === 'inline') f.style.height = Math.ceil(e.data.height) + 'px';
       // Stripe Checkout no se deja enmarcar: la página contenedora navega al pago.
       if (e.data.type === 'zs-cal:checkout' && typeof e.data.url === 'string' && /^https:\\/\\/checkout\\.stripe\\.com\\//.test(e.data.url)) {
+        window.location.assign(e.data.url);
+        return;
+      }
+      // Redirección configurada en el tipo de evento: navega la página contenedora.
+      if (e.data.type === 'zs-cal:redirect' && typeof e.data.url === 'string' && /^https?:\\/\\//.test(e.data.url)) {
         window.location.assign(e.data.url);
         return;
       }

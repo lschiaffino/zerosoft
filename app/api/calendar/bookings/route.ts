@@ -8,6 +8,7 @@ import {
   listUserBookings,
   bookingDateBounds,
   CalendarError,
+  type EventTypeWithRules,
 } from '@/lib/calendar';
 import { bookingCreateSchema, bookingListQuerySchema, validateBookingAnswers } from '@/lib/calendar-schema';
 import { invalidBody, crmError, unauthorized } from '@/lib/crm-http';
@@ -15,6 +16,8 @@ import { afterBookingCreated } from '@/lib/calendar-lifecycle';
 import { getCurrentUser } from '@/lib/session';
 import { appBaseUrl } from '@/lib/calendar-notify';
 import { createCheckoutForBooking, HOLD_MINUTES, paymentsEnabled, PaymentError } from '@/lib/calendar-payments';
+import { buildRedirectUrl, parseUtm, sanitizeUtm } from '@/lib/calendar-redirect';
+import type { CalendarBookingRow } from '@/lib/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,6 +43,27 @@ export async function GET(req: NextRequest) {
     order: from ? 'asc' : 'desc',
   });
   return NextResponse.json({ bookings: rows });
+}
+
+/**
+ * Destino del invitado después de reservar, si el evento tiene uno: con
+ * "pasar los datos", la URL lleva la reserva y sus utm_* como parámetros.
+ */
+function redirectAfterBooking(eventType: EventTypeWithRules, booking: CalendarBookingRow): string | null {
+  const rules = eventType.bookingRulesParsed;
+  if (typeof rules.redirectUrl !== 'string' || !rules.redirectUrl) return null;
+  return buildRedirectUrl(rules.redirectUrl, rules.redirectPassDetails === true, {
+    bookingId: booking.id,
+    status: booking.status,
+    startsAt: booking.starts_at,
+    endsAt: booking.ends_at,
+    timezone: booking.timezone,
+    name: booking.invitee_name,
+    email: booking.invitee_email,
+    eventSlug: eventType.slug,
+    eventTitle: eventType.title,
+    utm: parseUtm(booking.utm),
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -78,6 +102,7 @@ export async function POST(req: NextRequest) {
         timezone: guestTz,
         answers: validAnswers,
         locale: parsed.data.locale,
+        utm: sanitizeUtm(parsed.data.utm),
       },
       paid
         ? {
@@ -129,6 +154,9 @@ export async function POST(req: NextRequest) {
         status: booking.status,
         manageToken: booking.manage_token,
         meetingUrl: synced.meeting_url,
+        /** true: la reserva espera que el anfitrión la confirme. */
+        awaitingApproval: booking.approval === 'pending',
+        redirectUrl: redirectAfterBooking(eventType, synced),
       },
       { status: 201 },
     );

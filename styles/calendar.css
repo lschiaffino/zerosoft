@@ -234,6 +234,9 @@
 
 /* Cobro */
 .cal-price { display: grid; grid-template-columns: minmax(0, 220px) 120px; gap: 12px; }
+/* Topes de reuniones: día, semana y mes en una fila (una columna en el teléfono). */
+.cal-limits { display: grid; grid-template-columns: repeat(3, minmax(0, 160px)); gap: 12px; }
+@media (max-width: 560px) { .cal-limits { grid-template-columns: minmax(0, 1fr); } }
 .cal-callout {
   padding: 10px 12px;
   font-size: 0.875rem;

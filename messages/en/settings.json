@@ -119,6 +119,7 @@
       "booking_rescheduled": "Booking rescheduled",
       "booking_cancelled": "Booking cancelled",
       "booking_no_show": "Booking no-show",
+      "booking_requested": "Booking awaiting confirmation",
       "link_created": "Link created",
       "link_clicked": "Link clicked",
       "contact_created": "Contact created",

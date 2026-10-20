@@ -150,7 +150,8 @@
       "confirmed": "Confirmada",
       "cancelled": "Cancelada",
       "no_show": "No asistió",
-      "pending": "Esperando pago"
+      "pending": "Esperando pago",
+      "awaiting": "Esperando confirmación"
     },
     "answers": "Respuestas",
     "host": "Anfitrión",
@@ -179,7 +180,11 @@
     "tryNextMonth": "Ver el mes siguiente",
     "when": "Cuándo",
     "where": "Dónde",
-    "who": "Quién"
+    "who": "Quién",
+    "requestedTitle": "Solicitud enviada",
+    "requestedSub": "El anfitrión tiene que confirmar este horario. Te mandamos un email y te va a llegar otro cuando responda.",
+    "withdrawLink": "Retirar la solicitud",
+    "continue": "Continuar"
   },
   "routing": {
     "title": "Formularios de routing",
@@ -273,7 +278,8 @@
     "has_upcoming_bookings": "Este tipo de evento tiene reservas por venir. Cancelalas (se avisa a los invitados y se reembolsan los pagos) o apagalo antes de borrarlo.",
     "invalid_price": "Stripe no puede cobrar ese precio en esa moneda.",
     "not_started": "Esta reunión todavía no empezó.",
-    "status_changed": "La reserva cambió mientras tanto. Recargá e intentá de nuevo."
+    "status_changed": "La reserva cambió mientras tanto. Recargá e intentá de nuevo.",
+    "confirmation_paid": "La confirmación del anfitrión y un precio no van juntos. Quitá el precio o desactivá la confirmación."
   },
   "settings": {
     "title": "Configuración",
@@ -313,7 +319,10 @@
     "past": "Esta reunión ya empezó, así que no se puede cambiar desde acá.",
     "pending": "Tu reserva espera el pago. Si ya pagaste, actualizá la página en unos segundos.",
     "paid": "Pago recibido. Tu reserva está confirmada.",
-    "keep": "Mantener la reserva"
+    "keep": "Mantener la reserva",
+    "awaitingApproval": "El anfitrión todavía no confirmó esta reserva. Te avisamos por email cuando lo haga.",
+    "withdraw": "Retirar la solicitud",
+    "declined": "El anfitrión no pudo confirmar esta reserva. Podés elegir otro horario en la página de reservas."
   },
   "google": {
     "desc": "Conectá tu calendario para que tus horarios ocupados bloqueen tus páginas de reserva y cada reserva caiga en tu calendario, con link de Google Meet cuando el evento no tiene otra ubicación.",
@@ -432,7 +441,15 @@
     "refundOnCancel": "Esta reserva está paga: al cancelarla se reembolsa el pago completo.",
     "loadErrorTitle": "No se pudieron cargar las reservas",
     "loadErrorBody": "Revisá la conexión y probá de nuevo. Los filtros quedan como están.",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "approve": "Confirmar",
+    "decline": "Rechazar",
+    "approved": "Reserva confirmada. Le avisamos al invitado.",
+    "declined": "Solicitud rechazada. Le avisamos al invitado.",
+    "declinedBadge": "Rechazada",
+    "declineReason": "Motivo para el invitado (opcional)",
+    "confirmDecline": "Rechazar solicitud",
+    "pendingFilter": "Pendiente (pago o confirmación)"
   },
   "workflows": {
     "title": "Recordatorios",
@@ -541,7 +558,32 @@
     "brandOwn": "Usa su propio color o logo.",
     "brandEdit": "Cambiar la marca",
     "brandOverride": "Usar otro color o logo en este evento",
-    "brandOverrideHelp": "Para un evento de otra marca. El logo que dejes vacío sale de la marca del workspace."
+    "brandOverrideHelp": "Para un evento de otra marca. El logo que dejes vacío sale de la marca del workspace.",
+    "startTimes": "Horarios de inicio",
+    "startTimesLead": "Cada cuánto puede empezar un horario. Una reunión de 60 minutos se puede ofrecer cada 15 o 30 minutos.",
+    "interval": "Ofrecer un inicio cada",
+    "intervalSame": "Igual que la duración ({n} min)",
+    "intervalEvery": "{n} min",
+    "meetingLimits": "Límites de reuniones",
+    "meetingLimitsLead": "Máximo de reservas de este tipo de evento por día, semana y mes, contadas en la zona horaria del horario. Dejá un campo vacío para no limitar.",
+    "hostLimitsLead": "Por host: cada persona del pool toma como máximo esta cantidad de reservas de este tipo de evento.",
+    "limit_day": "Por día",
+    "limit_week": "Por semana",
+    "limit_month": "Por mes",
+    "hostLimit_day": "Por host por día",
+    "hostLimit_week": "Por host por semana",
+    "hostLimit_month": "Por host por mes",
+    "noLimit": "Sin límite",
+    "meetingLimitsInvalid": "Los límites tienen que ser números enteros de 1 a 1000.",
+    "afterBooking": "Después de reservar",
+    "afterBookingLead": "Qué pasa cuando el invitado elige un horario.",
+    "requiresConfirmation": "Requiere tu confirmación",
+    "requiresConfirmationHelp": "La reserva queda pendiente, con el horario tomado, hasta que la confirmes o la rechaces en Reservas.",
+    "requiresConfirmationPaid": "No disponible en tipos de evento pagos: el pago confirma la reserva.",
+    "redirectUrl": "Redirigir a una URL",
+    "redirectHelp": "Después de reservar, el invitado va a esta página en lugar de la confirmación. Tiene que empezar con https:// o http://.",
+    "redirectPassDetails": "Agregar los datos de la reserva a la URL (nombre, email, horario y parámetros utm_*)",
+    "redirectInvalid": "La redirección tiene que ser una URL completa que empiece con https:// o http://."
   },
   "errorPage": {
     "title": "No se pudo cargar esta pantalla",

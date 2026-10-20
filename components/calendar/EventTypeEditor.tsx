@@ -6,6 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import { scheduleDisplayName } from '@/lib/calendar-schedule-name';
 import { isZeroDecimal, minimumPriceCents, parsePriceInput, priceInputValue, priceProblem } from '@/lib/calendar-price';
+import { isValidRedirectUrl } from '@/lib/calendar-redirect';
 import CalIcon from './cal-icons';
 import CalCopyButton from './CalCopyButton';
 import CalDeleteButton from './CalDeleteButton';
@@ -16,12 +17,15 @@ import {
   brandOr,
   fieldKeyFromLabel,
   formatTimezone,
+  meetingLimitsDraft,
+  meetingLimitsPayload,
   resolveBrand,
   safeLogo,
   slugify,
   usesDefaultLimits,
   type LimitKey,
   type Limits,
+  type MeetingLimitsDraft,
 } from './cal-utils';
 
 export interface QuestionDef {
@@ -95,7 +99,19 @@ const TABS = ['general', 'availability', 'questions', 'advanced', 'share'] as co
 type Tab = (typeof TABS)[number];
 const CUSTOM = '__custom__';
 const CURRENCIES = ['usd', 'eur', 'ars', 'brl', 'mxn', 'clp', 'cop', 'gbp'] as const;
-const ERROR_CODES = ['invalid_slug', 'slug_taken', 'invalid_input', 'invalid_range', 'invalid_price', 'invalid_schedule', 'generic'];
+const ERROR_CODES = [
+  'invalid_slug',
+  'slug_taken',
+  'invalid_input',
+  'invalid_range',
+  'invalid_price',
+  'invalid_schedule',
+  'confirmation_paid',
+  'generic',
+];
+/** Saltos de inicio ofrecidos ('' = cada duración). */
+const INTERVALS = [5, 10, 15, 20, 30, 45, 60, 90, 120] as const;
+const PERIODS = ['day', 'week', 'month'] as const;
 
 type Unit = 'minutes' | 'hours' | 'days';
 const UNIT_MIN: Record<Unit, number> = { minutes: 1, hours: 60, days: 1440 };
@@ -149,6 +165,13 @@ interface Draft {
   amount: string;
   currency: string;
   steps: StepDraft[];
+  /** Minutos entre inicios; '' = la duración. */
+  slotInterval: string;
+  meetingLimits: MeetingLimitsDraft;
+  hostMeetingLimits: MeetingLimitsDraft;
+  requiresConfirmation: boolean;
+  redirectUrl: string;
+  redirectPassDetails: boolean;
 }
 
 export default function EventTypeEditor(props: EventTypeEditorProps) {
@@ -181,6 +204,12 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
       amount: priceInputValue(et.priceCents, et.currency || 'usd'),
       currency: et.currency || 'usd',
       steps: props.workflowSteps.map(fromOffset),
+      slotInterval: typeof et.bookingRules.slotIntervalMin === 'number' ? String(et.bookingRules.slotIntervalMin) : '',
+      meetingLimits: meetingLimitsDraft(et.bookingRules.meetingLimits),
+      hostMeetingLimits: meetingLimitsDraft(et.bookingRules.hostMeetingLimits),
+      requiresConfirmation: et.bookingRules.requiresConfirmation === true,
+      redirectUrl: typeof et.bookingRules.redirectUrl === 'string' ? et.bookingRules.redirectUrl : '',
+      redirectPassDetails: et.bookingRules.redirectPassDetails === true,
     }),
     // El borrador arranca una vez; después de guardar, `baseline` toma el valor guardado.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -281,8 +310,14 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
       return fail('availability', t('errors.invalid_range'));
     }
     if (d.fields.some((f) => !f.label.trim())) return fail('questions', t('editor.questionLabelRequired'));
+    const meetingLimits = meetingLimitsPayload(d.meetingLimits);
+    const hostMeetingLimits = meetingLimitsPayload(d.hostMeetingLimits);
+    if (meetingLimits === null || hostMeetingLimits === null) return fail('availability', t('editor.meetingLimitsInvalid'));
     const pErr = priceError();
     if (pErr) return fail('advanced', pErr);
+    if (d.requiresConfirmation && charging) return fail('advanced', t('errors.confirmation_paid'));
+    const redirectUrl = d.redirectUrl.trim();
+    if (redirectUrl && !isValidRedirectUrl(redirectUrl)) return fail('advanced', t('editor.redirectInvalid'));
     if (d.brandOverride && d.logoUrl.trim() && !safeLogo(d.logoUrl)) return fail('advanced', t('editor.logoInvalid'));
 
     setState('saving');
@@ -306,7 +341,16 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
         description: d.description.trim(),
         color: d.color,
         active: d.active,
-        bookingRules: bookingRulesPayload(et.bookingRules, d.useDefaults, d.limits),
+        bookingRules: {
+          ...bookingRulesPayload(et.bookingRules, d.useDefaults, d.limits),
+          // undefined = se quita la regla (JSON.stringify no manda la clave).
+          slotIntervalMin: d.slotInterval ? Number(d.slotInterval) : undefined,
+          meetingLimits,
+          hostMeetingLimits: teamMembers && teamMembers.length > 0 ? hostMeetingLimits : undefined,
+          requiresConfirmation: d.requiresConfirmation || undefined,
+          redirectUrl: redirectUrl || undefined,
+          redirectPassDetails: redirectUrl && d.redirectPassDetails ? true : undefined,
+        },
         singleUse: d.singleUse,
         fields,
         brandColor: d.brandOverride ? d.brandColor || null : null,
@@ -320,7 +364,10 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
     }).catch(() => null);
     if (!res || !res.ok) {
       const code = await readCode(res);
-      return fail(code === 'invalid_slug' || code === 'slug_taken' ? 'share' : code === 'invalid_price' ? 'advanced' : tab, t(`errors.${code}`));
+      return fail(
+        code === 'invalid_slug' || code === 'slug_taken' ? 'share' : code === 'invalid_price' || code === 'confirmation_paid' ? 'advanced' : tab,
+        t(`errors.${code}`),
+      );
     }
 
     // Horas propias: se guardan si cambiaron o si el evento venía de un horario reutilizable.
@@ -561,6 +608,46 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
             ) : (
               <WeeklyHours rules={d.customRules} onChange={(next) => set('customRules', next)} />
             )}
+
+            <SubSection title={t('editor.startTimes')} description={t('editor.startTimesLead')}>
+              <div className="ui-field">
+                <label className="label" htmlFor={idFor('interval')}>
+                  {t('editor.interval')}
+                </label>
+                <select
+                  id={idFor('interval')}
+                  className="select cal-select-wide"
+                  value={d.slotInterval}
+                  onChange={(e) => set('slotInterval', e.target.value)}
+                >
+                  <option value="">{t('editor.intervalSame', { n: Number.isFinite(d.durationMin) ? d.durationMin : 0 })}</option>
+                  {INTERVALS.map((n) => (
+                    <option key={n} value={String(n)}>
+                      {t('editor.intervalEvery', { n })}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </SubSection>
+
+            <SubSection title={t('editor.meetingLimits')} description={t('editor.meetingLimitsLead')}>
+              <LimitInputs
+                idPrefix={idFor('ml')}
+                value={d.meetingLimits}
+                onChange={(next) => set('meetingLimits', next)}
+              />
+              {teamMembers && teamMembers.length > 0 && (
+                <>
+                  <p className="ui-help">{t('editor.hostLimitsLead')}</p>
+                  <LimitInputs
+                    idPrefix={idFor('hl')}
+                    value={d.hostMeetingLimits}
+                    onChange={(next) => set('hostMeetingLimits', next)}
+                    host
+                  />
+                </>
+              )}
+            </SubSection>
           </Panel>
 
           {/* ---------- Preguntas ---------- */}
@@ -685,6 +772,52 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                   <span className="cal-switch-help">{et.used && d.singleUse ? t('form.singleUseUsed') : t('editor.singleUseHelp')}</span>
                 </span>
               </label>
+            </SubSection>
+
+            <SubSection title={t('editor.afterBooking')} description={t('editor.afterBookingLead')}>
+              <label className="ui-switch">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={d.requiresConfirmation}
+                  onChange={(e) => set('requiresConfirmation', e.target.checked)}
+                />
+                <span>
+                  {t('editor.requiresConfirmation')}
+                  <span className="cal-switch-help">
+                    {charging ? t('editor.requiresConfirmationPaid') : t('editor.requiresConfirmationHelp')}
+                  </span>
+                </span>
+              </label>
+              <div className="ui-field">
+                <label className="label" htmlFor={idFor('redirect')}>
+                  {t('editor.redirectUrl')} <span className="ui-optional">{t('editor.optional')}</span>
+                </label>
+                <input
+                  id={idFor('redirect')}
+                  className="input data"
+                  type="url"
+                  inputMode="url"
+                  value={d.redirectUrl}
+                  placeholder="https://example.com/thanks"
+                  aria-invalid={d.redirectUrl.trim() && !isValidRedirectUrl(d.redirectUrl.trim()) ? true : undefined}
+                  aria-describedby={idFor('redirect-help')}
+                  onChange={(e) => set('redirectUrl', e.target.value)}
+                />
+                <p id={idFor('redirect-help')} className="ui-help">
+                  {t('editor.redirectHelp')}
+                </p>
+              </div>
+              {d.redirectUrl.trim() && (
+                <label className="ui-check">
+                  <input
+                    type="checkbox"
+                    checked={d.redirectPassDetails}
+                    onChange={(e) => set('redirectPassDetails', e.target.checked)}
+                  />
+                  <span>{t('editor.redirectPassDetails')}</span>
+                </label>
+              )}
             </SubSection>
 
             {teamMembers && teamMembers.length > 0 && (
@@ -973,6 +1106,43 @@ function Panel({ id, labelledBy, hidden, children }: { id: string; labelledBy: s
   return (
     <div id={id} role="tabpanel" aria-labelledby={labelledBy} hidden={hidden} className="cal-panel" tabIndex={0}>
       {children}
+    </div>
+  );
+}
+
+/** Tres campos (día, semana, mes) de topes de reuniones; vacío = sin tope. */
+function LimitInputs({
+  idPrefix,
+  value,
+  onChange,
+  host = false,
+}: {
+  idPrefix: string;
+  value: MeetingLimitsDraft;
+  onChange: (next: MeetingLimitsDraft) => void;
+  host?: boolean;
+}) {
+  const t = useTranslations('calendar');
+  return (
+    <div className="cal-limits">
+      {PERIODS.map((p) => (
+        <div key={p} className="ui-field">
+          <label className="label" htmlFor={`${idPrefix}-${p}`}>
+            {t(host ? `editor.hostLimit_${p}` : `editor.limit_${p}`)}
+          </label>
+          <input
+            id={`${idPrefix}-${p}`}
+            className="input cal-num"
+            type="number"
+            min={1}
+            max={1000}
+            inputMode="numeric"
+            placeholder={t('editor.noLimit')}
+            value={value[p]}
+            onChange={(e) => onChange({ ...value, [p]: e.target.value })}
+          />
+        </div>
+      ))}
     </div>
   );
 }

@@ -9,7 +9,12 @@ import { buildIcs } from './ics';
  * reprogramar sin cuenta.
  */
 
-type Kind = 'created' | 'cancelled' | 'rescheduled';
+/**
+ * requested: la reserva espera que el anfitrión la confirme (sin .ics: todavía
+ * no hay reunión); declined: el anfitrión la rechazó o no la confirmó a tiempo
+ * (solo al invitado).
+ */
+type Kind = 'created' | 'cancelled' | 'rescheduled' | 'requested' | 'declined';
 
 export function appBaseUrl(): string {
   return (process.env.NEXTAUTH_URL ?? 'https://zerosoft.ai').replace(/\/$/, '');
@@ -35,13 +40,44 @@ interface KindCopy {
 }
 
 /** Textos por idioma del invitado (el host recibe el mismo idioma: es su cliente). */
-const COPY: Record<Locale, Record<Kind, KindCopy> & { hi: string; where: string; reason: string; manage: string; manageText: string }> = {
+const COPY: Record<
+  Locale,
+  Record<Kind, KindCopy> & {
+    hi: string;
+    where: string;
+    reason: string;
+    manage: string;
+    manageText: string;
+    withdraw: string;
+    withdrawText: string;
+    review: string;
+    reviewText: string;
+  }
+> = {
   en: {
     hi: 'Hi {name},',
     where: 'Location',
     reason: 'Reason',
     manage: 'Need to change something? <a href="{url}">Reschedule or cancel</a>.',
     manageText: 'Reschedule or cancel: {url}',
+    withdraw: 'Changed your mind? <a href="{url}">Withdraw the request</a>.',
+    withdrawText: 'Withdraw the request: {url}',
+    review: 'Confirm or decline it in <a href="{url}">your bookings</a>. Until then the time stays held.',
+    reviewText: 'Confirm or decline it in your bookings: {url}',
+    requested: {
+      guestSubject: 'Booking request received: {event}',
+      hostSubject: 'Booking request: {event} from {guest}',
+      heading: 'Waiting for confirmation',
+      guestLine: 'we sent your request for <strong>{event}</strong> to the host. You will get another email when they confirm it.',
+      hostLine: '<strong>{guest}</strong> ({email}) asked to book <strong>{event}</strong>.',
+    },
+    declined: {
+      guestSubject: 'Booking not confirmed: {event}',
+      hostSubject: 'Booking declined: {event}',
+      heading: 'Booking not confirmed',
+      guestLine: 'the host could not confirm your request for <strong>{event}</strong>. You can pick another time from the booking page.',
+      hostLine: '<strong>{guest}</strong> ({email}): the request for <strong>{event}</strong> was declined.',
+    },
     created: {
       guestSubject: 'Booking confirmed: {event}',
       hostSubject: 'New booking: {event} — {guest}',
@@ -70,6 +106,24 @@ const COPY: Record<Locale, Record<Kind, KindCopy> & { hi: string; where: string;
     reason: 'Motivo',
     manage: '¿Necesitás cambiar algo? <a href="{url}">Reprogramar o cancelar</a>.',
     manageText: 'Reprogramar o cancelar: {url}',
+    withdraw: '¿Cambiaste de idea? <a href="{url}">Retirar la solicitud</a>.',
+    withdrawText: 'Retirar la solicitud: {url}',
+    review: 'Confirmala o rechazala en <a href="{url}">tus reservas</a>. Mientras tanto el horario queda reservado.',
+    reviewText: 'Confirmala o rechazala en tus reservas: {url}',
+    requested: {
+      guestSubject: 'Recibimos tu solicitud: {event}',
+      hostSubject: 'Solicitud de reserva: {event} de {guest}',
+      heading: 'Esperando confirmación',
+      guestLine: 'le mandamos tu solicitud para <strong>{event}</strong> al anfitrión. Te va a llegar otro email cuando la confirme.',
+      hostLine: '<strong>{guest}</strong> ({email}) pidió reservar <strong>{event}</strong>.',
+    },
+    declined: {
+      guestSubject: 'Reserva no confirmada: {event}',
+      hostSubject: 'Reserva rechazada: {event}',
+      heading: 'Reserva no confirmada',
+      guestLine: 'el anfitrión no pudo confirmar tu solicitud para <strong>{event}</strong>. Podés elegir otro horario en la página de reservas.',
+      hostLine: '<strong>{guest}</strong> ({email}): la solicitud para <strong>{event}</strong> se rechazó.',
+    },
     created: {
       guestSubject: 'Reserva confirmada: {event}',
       hostSubject: 'Nueva reserva: {event} — {guest}',
@@ -98,6 +152,24 @@ const COPY: Record<Locale, Record<Kind, KindCopy> & { hi: string; where: string;
     reason: 'Motivo',
     manage: 'Precisa mudar algo? <a href="{url}">Reagendar ou cancelar</a>.',
     manageText: 'Reagendar ou cancelar: {url}',
+    withdraw: 'Mudou de ideia? <a href="{url}">Retirar a solicitação</a>.',
+    withdrawText: 'Retirar a solicitação: {url}',
+    review: 'Confirme ou recuse em <a href="{url}">suas reservas</a>. Até lá o horário fica reservado.',
+    reviewText: 'Confirme ou recuse em suas reservas: {url}',
+    requested: {
+      guestSubject: 'Recebemos sua solicitação: {event}',
+      hostSubject: 'Solicitação de reserva: {event} de {guest}',
+      heading: 'Aguardando confirmação',
+      guestLine: 'enviamos sua solicitação para <strong>{event}</strong> ao anfitrião. Você vai receber outro email quando ele confirmar.',
+      hostLine: '<strong>{guest}</strong> ({email}) pediu para reservar <strong>{event}</strong>.',
+    },
+    declined: {
+      guestSubject: 'Reserva não confirmada: {event}',
+      hostSubject: 'Reserva recusada: {event}',
+      heading: 'Reserva não confirmada',
+      guestLine: 'o anfitrião não pôde confirmar sua solicitação para <strong>{event}</strong>. Você pode escolher outro horário na página de reservas.',
+      hostLine: '<strong>{guest}</strong> ({email}): a solicitação para <strong>{event}</strong> foi recusada.',
+    },
     created: {
       guestSubject: 'Reserva confirmada: {event}',
       hostSubject: 'Nova reserva: {event} — {guest}',
@@ -131,6 +203,22 @@ const REFUND_REASON: Record<Locale, string> = {
   es: 'El pago llegó cuando la reserva ya estaba liberada, así que lo reembolsamos completo.',
   pt: 'O pagamento chegou quando a reserva já estava liberada, então o reembolsamos por completo.',
 };
+
+const NOT_CONFIRMED_REASON: Record<Locale, string> = {
+  en: 'The host did not confirm it before the start time.',
+  es: 'El anfitrión no la confirmó antes del horario de inicio.',
+  pt: 'O anfitrião não a confirmou antes do horário de início.',
+};
+
+/** Motivo del aviso cuando una solicitud venció sin que el anfitrión la confirmara. */
+export function notConfirmedReason(locale: string | null | undefined): string {
+  return NOT_CONFIRMED_REASON[asLocale(locale)];
+}
+
+/** Reservas del anfitrión que esperan su confirmación (link de los emails). */
+export function pendingBookingsUrl(locale = 'en'): string {
+  return `${appBaseUrl()}/${locale}/app/calendar/bookings?status=pending`;
+}
 
 /** Motivo del aviso de cancelación cuando un pago tardío se reembolsó. */
 export function refundReason(locale: string | null | undefined): string {
@@ -175,7 +263,11 @@ export async function notifyBooking(
     guest: escapeHtml(booking.invitee_name),
     email: escapeHtml(booking.invitee_email),
   };
-  const manage = booking.manage_token ? manageUrl(booking, lang) : null;
+  // Sin reunión confirmada (solicitud, rechazo o una solicitud que se retiró)
+  // no va .ics: el invitado nunca recibió la invitación.
+  const noInvite = kind === 'requested' || kind === 'declined' || (kind === 'cancelled' && booking.approval === 'pending');
+  const manage = booking.manage_token && kind !== 'declined' && kind !== 'cancelled' ? manageUrl(booking, lang) : null;
+  const manageCopy = kind === 'requested' ? { html: L.withdraw, text: L.withdrawText } : { html: L.manage, text: L.manageText };
 
   const ics = buildIcs({
     uid: `${booking.id}@zerosoft.ai`,
@@ -184,14 +276,14 @@ export async function notifyBooking(
     start,
     end,
     title: eventType.title,
-    description: manage && kind !== 'cancelled' ? `Reschedule or cancel: ${manage}` : undefined,
+    description: manage ? `Reschedule or cancel: ${manage}` : undefined,
     location: booking.meeting_url || eventType.location || undefined,
     organizer: { name: host?.name ?? 'zerosoft Cal', email: host?.email ?? 'calendar@zerosoft.ai' },
     attendee: { name: booking.invitee_name, email: booking.invitee_email },
   });
-  const attachments = [
-    { filename: kind === 'cancelled' ? 'cancel.ics' : 'invite.ics', content: ics, contentType: 'text/calendar' },
-  ];
+  const attachments = noInvite
+    ? undefined
+    : [{ filename: kind === 'cancelled' ? 'cancel.ics' : 'invite.ics', content: ics, contentType: 'text/calendar' }];
 
   const details = (tz: string) => {
     const lines = [`${escapeHtml(formatWhen(start, tz, lang))} (${escapeHtml(tz)})`];
@@ -205,15 +297,15 @@ export async function notifyBooking(
   const guestParagraphs = [
     `${fill(L.hi, { name: vars.guest })} ${fill(copy.guestLine, vars)}`,
     ...details(booking.timezone),
-    ...(manage && kind !== 'cancelled' ? [fill(L.manage, { url: escapeHtml(manage) })] : []),
+    ...(manage ? [fill(manageCopy.html, { url: escapeHtml(manage) })] : []),
   ];
   if (!opts.onlyHost) {
     await sendEmail({
       to: booking.invitee_email,
       subject: stripTags(fill(copy.guestSubject, { ...vars, event: eventType.title })),
       text:
-        guestParagraphs.slice(0, manage && kind !== 'cancelled' ? -1 : undefined).map(stripTags).join('\n\n') +
-        (manage && kind !== 'cancelled' ? `\n\n${fill(L.manageText, { url: manage })}` : ''),
+        guestParagraphs.slice(0, manage ? -1 : undefined).map(stripTags).join('\n\n') +
+        (manage ? `\n\n${fill(manageCopy.text, { url: manage })}` : ''),
       html: renderBrandedHtml({
         heading: copy.heading,
         paragraphs: guestParagraphs,
@@ -224,21 +316,25 @@ export async function notifyBooking(
     });
   }
 
-  // Host
-  if (host && !opts.skipHost) {
+  // Host (un rechazo lo decidió él: no se le avisa).
+  if (host && !opts.skipHost && kind !== 'declined') {
     // El anfitrión ve la hora en su zona (la de su calendario o, si no tiene, la del dueño).
     const hostTz =
       (await getCalendarUser(host.id))?.timezone ||
       (await getCalendarUser(eventType.user_id))?.timezone ||
       booking.timezone;
+    const review = kind === 'requested' ? pendingBookingsUrl(lang) : null;
     const hostParagraphs = [
       `${fill(L.hi, { name: escapeHtml(host.name ?? host.email) })} ${fill(copy.hostLine, vars)}`,
       ...details(hostTz),
+      ...(review ? [fill(L.review, { url: escapeHtml(review) })] : []),
     ];
     await sendEmail({
       to: host.email,
       subject: stripTags(fill(copy.hostSubject, { ...vars, event: eventType.title, guest: booking.invitee_name })),
-      text: hostParagraphs.map(stripTags).join('\n\n'),
+      text:
+        hostParagraphs.slice(0, review ? -1 : undefined).map(stripTags).join('\n\n') +
+        (review ? `\n\n${fill(L.reviewText, { url: review })}` : ''),
       html: renderBrandedHtml({ heading: copy.heading, paragraphs: hostParagraphs }),
       // Si la reserva ya está en su Google Calendar, un .ics la duplicaría.
       attachments: booking.google_event_id ? undefined : attachments,

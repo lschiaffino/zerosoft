@@ -786,6 +786,10 @@ export interface CalendarBookingRow {
   /** Buffers propios al reservar (040_cal_booking_buffers): protegen también a la reserva existente. */
   buffer_before_min: number;
   buffer_after_min: number;
+  /** utm_* de la página de reserva, JSON (050_cal_booking_utm_approval). */
+  utm: string;
+  /** Confirmación del anfitrión: none | pending | approved | declined (050). */
+  approval: 'none' | 'pending' | 'approved' | 'declined';
 }
 
 export interface CalendarEventHostRow {

@@ -13,6 +13,7 @@ export const FLOW_EVENT_TYPES = [
   'booking.rescheduled',
   'booking.cancelled',
   'booking.no_show',
+  'booking.requested',
   'link.created',
   'link.clicked',
   'contact.created',
@@ -54,6 +55,7 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   'booking.rescheduled': { id: 'bk_1', startsAt: '', invitee: { name: '', email: '' }, eventType: { title: '' } },
   'booking.cancelled': { id: 'bk_1', cancelReason: '', invitee: { name: '', email: '' }, eventType: { title: '' } },
   'booking.no_show': { id: 'bk_1', status: 'no_show', startsAt: '', invitee: { name: '', email: '' }, eventType: { title: '' } },
+  'booking.requested': { id: 'bk_1', status: 'pending', approval: 'pending', startsAt: '', invitee: { name: '', email: '' }, eventType: { title: '' } },
   // Mismo shape que el evento real (toLinkDto en lib/links.ts).
   'link.created': {
     link: {
