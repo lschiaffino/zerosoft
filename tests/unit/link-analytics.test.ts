@@ -100,7 +100,7 @@ describe('Link analytics del workspace', () => {
     const rows = await exportWorkspaceClicks(a.id, range);
     expect(rows).toHaveLength(4);
     const csv = workspaceClicksToCsv(rows);
-    expect(csv.split('\n')[0]).toBe('timestamp,short_url,source,variant,country,referrer,device,browser,os');
+    expect(csv.split('\n')[0]).toBe('timestamp,short_url,source,variant,country,referrer,device,browser,os,region,city,referrer_url');
     expect(csv.split('\n').filter((l) => l.includes(',qr,'))).toHaveLength(2);
   });
 

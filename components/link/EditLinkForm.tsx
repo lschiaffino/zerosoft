@@ -7,19 +7,16 @@ import type { LinkDto } from '@/lib/links';
 import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import TagsInput from './TagsInput';
-import { readUtm, syncUtm, type UtmField } from '@/lib/link-url';
+import { readUtm, syncUtm, UTM_FIELDS, type UtmField } from '@/lib/link-url';
+import UtmFields, { type UtmDraft } from './UtmFields';
 
 const SLUG_RE = /^[A-Za-z0-9_-]{2,32}$/;
 
-const UTM_FIELDS: ReadonlyArray<readonly [UtmField, 'utmSource' | 'utmMedium' | 'utmCampaign']> = [
-  ['source', 'utmSource'],
-  ['medium', 'utmMedium'],
-  ['campaign', 'utmCampaign'],
-];
-
-function utmDrafts(url: string): Record<UtmField, string> {
+function utmDrafts(url: string): UtmDraft {
   const u = readUtm(url);
-  return { source: u.source ?? '', medium: u.medium ?? '', campaign: u.campaign ?? '' };
+  const out = {} as UtmDraft;
+  for (const f of UTM_FIELDS) out[f] = u[f] ?? '';
+  return out;
 }
 
 function toLocalInput(iso: string): string {
@@ -64,6 +61,11 @@ export default function EditLinkForm({ link }: { link: LinkDto }) {
   function changeUtm(field: UtmField, value: string) {
     setUtm((prev) => ({ ...prev, [field]: value }));
     setUrl((prev) => syncUtm(prev, { [field]: value }).url);
+  }
+
+  function applyUtm(draft: UtmDraft) {
+    setUtm(draft);
+    setUrl((prev) => syncUtm(prev, draft).url);
   }
 
   async function save(): Promise<string | void> {
@@ -161,27 +163,7 @@ export default function EditLinkForm({ link }: { link: LinkDto }) {
         <fieldset className="lk-fieldset">
           <legend className="label">{t('new.utmTitle')}</legend>
           <p className="ui-help">{t('new.utmSyncHelp')}</p>
-          <div className="lk-utm">
-            {UTM_FIELDS.map(([field, key]) => (
-              <div className="ui-field" key={field}>
-                <label className="label" htmlFor={`el-utm-${field}`}>
-                  {t(`new.${key}`)}
-                </label>
-                <input
-                  id={`el-utm-${field}`}
-                  className="input mono"
-                  type="text"
-                  maxLength={100}
-                  value={utm[field]}
-                  onChange={(e) => changeUtm(field, e.target.value)}
-                  placeholder={t(`new.${key}Placeholder`)}
-                  disabled={!url.trim()}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </div>
-            ))}
-          </div>
+          <UtmFields idPrefix="el" value={utm} onChange={changeUtm} onApply={applyUtm} disabled={!url.trim()} />
         </fieldset>
 
         <div className="ui-fields-2">

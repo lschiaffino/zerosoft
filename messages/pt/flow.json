@@ -369,6 +369,8 @@
     "booking_requested": "Cal: reserva aguardando confirmação",
     "link_created": "Link: link criado",
     "link_clicked": "Link: clique num link",
+    "link_updated": "Link: link editado",
+    "link_deleted": "Link: link excluído",
     "contact_created": "CRM: contato criado",
     "contact_updated": "CRM: contato atualizado",
     "deal_created": "CRM: deal criado",

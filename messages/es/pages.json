@@ -1360,7 +1360,7 @@
     "authFlowTitle": "Inicio de sesión con Google",
     "authFlowDesc": "Redirigí al usuario para iniciar el flujo OAuth de Google. Tras el éxito vuelve a la app con la cookie de sesión.",
     "linksCreateTitle": "Crear un link",
-    "linksCreateDesc": "Crea un link corto. slug es opcional: si lo omitís, generamos uno.",
+    "linksCreateDesc": "Crea un link corto con las mismas opciones que la app: UTM, vencimiento, límite de clicks, contraseña, vista previa social, segmentación y un externalId. slug es opcional: si lo omitís, generamos uno.",
     "linksListTitle": "Listar links",
     "linksListDesc": "Tus links, del más nuevo al más viejo. Paginá con page y pageSize (máx 100).",
     "linksDeleteTitle": "Borrar un link",
@@ -1429,7 +1429,7 @@
     "paramLinkSlug": "Slug corto personalizado.",
     "paramLinkTitle": "Título legible.",
     "paramLinkTags": "Array de strings de tags.",
-    "paramLinkId": "Id del link.",
+    "paramLinkId": "Id del link, o ext_ seguido del externalId que le pusiste al crearlo.",
     "paramLinkArchived": "Flag de archivo.",
     "paramFrom": "Fecha inicial (YYYY-MM-DD). Por defecto, hace 29 días.",
     "paramTo": "Fecha final (YYYY-MM-DD). Por defecto, hoy.",
@@ -1507,7 +1507,7 @@
     "paramAgentMessage": "Lo que dice el usuario (hasta 4000 caracteres).",
     "paramAgentConversationId": "Continúa una conversación de API existente. Omitilo para empezar una nueva.",
     "webhooksTitle": "Webhooks",
-    "webhooksDesc": "Agregá endpoints en Dashboard → Configuración → Webhooks. Eventos: booking.created, booking.rescheduled, booking.cancelled, booking.no_show, booking.requested, link.created, link.clicked, contact.created, contact.updated, deal.created, deal.updated, deal.stage_changed, deal.won, deal.lost. Cada request lleva Zerosoft-Signature: t=TIMESTAMP,v1=HEX, donde v1 = HMAC-SHA256(secret, \"TIMESTAMP.BODY_CRUDO\"). Rechazá timestamps viejos. Las entregas fallidas se reintentan con backoff durante ~15 horas.",
+    "webhooksDesc": "Agregá endpoints en Dashboard → Configuración → Webhooks. Eventos: booking.created, booking.rescheduled, booking.cancelled, booking.no_show, booking.requested, link.created, link.clicked, link.updated, link.deleted, contact.created, contact.updated, deal.created, deal.updated, deal.stage_changed, deal.won, deal.lost, robot.run.finished, robot.run.failed. Los eventos de links se pueden limitar a algunos links, tags o dominios. link.updated trae el link y la lista de campos que cambiaron; link.deleted, el link como estaba. Cada request lleva Zerosoft-Signature: t=TIMESTAMP,v1=HEX, donde v1 = HMAC-SHA256(secret, \"TIMESTAMP.BODY_CRUDO\"). Rechazá timestamps viejos. Las entregas fallidas se reintentan con backoff durante ~15 horas.",
     "webhooksPayloadTitle": "Payload del evento",
     "webhooksPayloadDesc": "Lo que recibe tu endpoint. Respondé 2xx en menos de 8 segundos.",
     "paramCalStatus": "Solo reservas con este estado.",
@@ -1668,6 +1668,14 @@
     "formsSubmissionsDesc": "Envíos de un formulario, los más recientes primero, con los valores, los parámetros UTM y el contacto vinculado.",
     "paramLinkForwardParams": "Pasa los query params del link corto al destino (default true). En conflicto gana el del link corto; qr nunca se pasa.",
     "paramLinkExpiredUrl": "A dónde redirige el link cuando vence o llega a max_clicks. null lo borra y se usa el default del dominio o la página de zerosoft.",
-    "paramLinkUtm": "Pone ese parámetro utm_* en la URL de destino. Un string vacío o null lo saca. El objeto utm del link siempre refleja la URL final."
+    "paramLinkUtm": "Pone ese parámetro utm_* en la URL de destino. Un string vacío o null lo saca. El objeto utm del link siempre refleja la URL final.",
+    "paramLinkDomain": "Hostname de uno de tus dominios propios verificados. Si lo omitís, se usa el dominio por defecto.",
+    "paramLinkRedirectType": "302 (default) o 301.",
+    "paramLinkExpiresAt": "Fecha ISO 8601. Pasada esa fecha, el link redirige a expiredUrl o muestra la página de vencido.",
+    "paramLinkMaxClicks": "Clicks permitidos antes de que el link deje de redirigir.",
+    "paramLinkPassword": "La visita la tiene que escribir antes del redirect. Se guarda hasheada y nunca se devuelve; la respuesta solo dice has_password.",
+    "paramLinkOg": "Título, descripción e imagen (URL http(s)) de la vista previa en redes y apps de chat.",
+    "paramLinkExternalId": "Tu propio id para el link, único por workspace (letras, números y . _ : @ -). Después leé o editá el link con /api/v1/links/ext_{externalId}.",
+    "paramLinkCreator": "Solo los links que creó este id de usuario."
   }
 }

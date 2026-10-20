@@ -236,8 +236,8 @@ describe('Link: resultados de la segmentación', () => {
       { name: 'default', count: 1 },
     ]);
     const csv = clicksToCsv(await exportClicks(r.link.id, r.link.created_at, { range: '7d' }));
-    expect(csv.split('\n')[0]).toBe('timestamp,country,referrer,device,browser,os,source,variant');
-    expect(csv).toContain(',link,ab:B');
+    expect(csv.split('\n')[0]).toBe('timestamp,country,referrer,device,browser,os,source,variant,region,city,referrer_url');
+    expect(csv).toContain(',link,ab:B,');
   });
 });
 

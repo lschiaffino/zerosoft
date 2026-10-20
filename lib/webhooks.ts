@@ -2,7 +2,14 @@ import { createHmac, randomBytes } from 'crypto';
 import { getDb } from './db';
 import { safeFetch, UnsafeUrlError, assertPublicUrl } from './safe-fetch';
 import { open, seal } from './secret-box';
-import { WEBHOOK_EVENTS, type WebhookEvent } from './webhooks-events';
+import {
+  linkScopeOf,
+  matchesLinkFilter,
+  parseLinkFilter,
+  WEBHOOK_EVENTS,
+  type LinkWebhookFilter,
+  type WebhookEvent,
+} from './webhooks-events';
 
 export { WEBHOOK_EVENTS, type WebhookEvent };
 
@@ -23,6 +30,8 @@ export interface WebhookRow {
   secret: string;
   active: number;
   created_by: string | null;
+  /** JSON LinkWebhookFilter para los eventos link.* (null = todos los links). */
+  filters?: string | null;
   created_at: string;
 }
 
@@ -31,6 +40,8 @@ export interface WebhookDto {
   url: string;
   events: WebhookEvent[];
   active: boolean;
+  /** Filtro de los eventos link.*, con el slug de cada link para mostrarlo. */
+  linkFilter: { links: Array<{ id: string; slug: string | null }>; tags: string[]; domains: string[] } | null;
   createdAt: string;
   lastDelivery: { status: string; responseCode: number | null; at: string } | null;
 }
@@ -64,11 +75,30 @@ export async function listWebhooks(userId: string): Promise<WebhookDto[]> {
         'SELECT status, response_code, created_at FROM webhook_deliveries WHERE webhook_id = ? ORDER BY created_at DESC LIMIT 1',
       )
       .get(r.id)) as { status: string; response_code: number | null; created_at: string } | undefined;
+    const filter = parseLinkFilter(r.filters);
+    let linkFilter: WebhookDto['linkFilter'] = null;
+    if (filter) {
+      const slugs = new Map<string, string>();
+      if (filter.linkIds.length) {
+        const ph = filter.linkIds.map(() => '?').join(',');
+        const found = (await getDb()
+          .prepare(`SELECT id, slug FROM links WHERE user_id = ? AND id IN (${ph})`)
+          .all(userId, ...filter.linkIds)) as Array<{ id: string; slug: string }>;
+        for (const l of found) slugs.set(l.id, l.slug);
+      }
+      linkFilter = {
+        // Un link borrado queda en el filtro (slug null): el webhook no vuelve a "todos".
+        links: filter.linkIds.map((id) => ({ id, slug: slugs.get(id) ?? null })),
+        tags: filter.tags,
+        domains: filter.domains,
+      };
+    }
     out.push({
       id: r.id,
       url: r.url,
       events: parseEvents(r.events),
       active: r.active === 1,
+      linkFilter,
       createdAt: r.created_at,
       lastDelivery: last ? { status: last.status, responseCode: last.response_code, at: last.created_at } : null,
     });
@@ -79,14 +109,22 @@ export async function listWebhooks(userId: string): Promise<WebhookDto[]> {
 /** Crea el webhook y devuelve el secret en claro (se muestra una sola vez). */
 export async function createWebhook(
   userId: string,
-  input: { url: string; events: WebhookEvent[]; createdBy?: string },
+  input: { url: string; events: WebhookEvent[]; createdBy?: string; linkFilter?: LinkWebhookFilter | null },
 ): Promise<{ id: string; secret: string }> {
   await assertPublicUrl(input.url);
   const id = crypto.randomUUID();
   const secret = `whsec_${randomBytes(24).toString('base64url')}`;
   await getDb()
-    .prepare('INSERT INTO webhooks (id, user_id, url, events, secret, created_by) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(id, userId, input.url, JSON.stringify(input.events), seal(secret), input.createdBy ?? userId);
+    .prepare('INSERT INTO webhooks (id, user_id, url, events, secret, created_by, filters) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(
+      id,
+      userId,
+      input.url,
+      JSON.stringify(input.events),
+      seal(secret),
+      input.createdBy ?? userId,
+      input.linkFilter ? JSON.stringify(input.linkFilter) : null,
+    );
   return { id, secret };
 }
 
@@ -154,15 +192,20 @@ async function attempt(deliveryId: string): Promise<void> {
 }
 
 /**
- * Emite un evento a los webhooks activos del workspace suscriptos a él. Intenta
- * la entrega en el momento (con timeout); nunca lanza.
+ * Emite un evento a los webhooks activos del workspace suscriptos a él. En los
+ * eventos link.* respeta el filtro de links de cada webhook. Intenta la
+ * entrega en el momento (con timeout); nunca lanza.
  */
 export async function emitWebhook(userId: string, event: WebhookEvent, data: unknown): Promise<void> {
   try {
     const hooks = (await getDb()
-      .prepare('SELECT id, events FROM webhooks WHERE user_id = ? AND active = 1')
-      .all(userId)) as Array<{ id: string; events: string }>;
-    const targets = hooks.filter((h) => parseEvents(h.events).includes(event));
+      .prepare('SELECT id, events, filters FROM webhooks WHERE user_id = ? AND active = 1')
+      .all(userId)) as Array<{ id: string; events: string; filters: string | null }>;
+    const scope = event.startsWith('link.') ? linkScopeOf(data) : null;
+    const targets = hooks.filter(
+      (h) =>
+        parseEvents(h.events).includes(event) && (!event.startsWith('link.') || matchesLinkFilter(parseLinkFilter(h.filters), scope)),
+    );
     if (targets.length === 0) return;
     const payload = JSON.stringify({ id: crypto.randomUUID(), type: event, createdAt: new Date().toISOString(), data });
     const ids: string[] = [];

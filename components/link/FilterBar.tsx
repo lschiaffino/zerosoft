@@ -10,10 +10,13 @@ interface FilterBarProps {
   archived: '0' | '1' | 'all';
   sort: 'created' | 'clicks';
   tags: string[];
+  /** Filtro "Creado por" (id real de la persona). */
+  creator?: string | null;
+  creators?: Array<{ id: string; name: string }>;
 }
 
 /** Búsqueda, estado, tag y orden (todo por query params, del lado del server). */
-export default function FilterBar({ q, tag, archived, sort, tags }: FilterBarProps) {
+export default function FilterBar({ q, tag, archived, sort, tags, creator = null, creators = [] }: FilterBarProps) {
   const t = useTranslations('link');
   const router = useRouter();
   const pathname = usePathname();
@@ -26,6 +29,7 @@ export default function FilterBar({ q, tag, archived, sort, tags }: FilterBarPro
       tag: tag ?? undefined,
       archived: archived !== '0' ? archived : undefined,
       sort: sort !== 'created' ? sort : undefined,
+      creator: creator ?? undefined,
       ...patch,
     };
     for (const [key, value] of Object.entries(current)) {
@@ -90,6 +94,23 @@ export default function FilterBar({ q, tag, archived, sort, tags }: FilterBarPro
           {tags.map((name) => (
             <option key={name} value={name}>
               {name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {/* Con una sola persona el filtro no cambia nada, salvo que ya venga aplicado por URL. */}
+      {(creators.length > 1 || creator) && (
+        <select
+          className="select lk-select-auto"
+          value={creator ?? ''}
+          onChange={(e) => go({ creator: e.target.value || undefined })}
+          aria-label={t('table.creatorLabel')}
+        >
+          <option value="">{t('table.allCreators')}</option>
+          {creators.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
             </option>
           ))}
         </select>

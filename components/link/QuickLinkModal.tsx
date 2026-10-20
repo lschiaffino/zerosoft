@@ -51,7 +51,7 @@ function QuickLinkModalBody({ onClose, onCreated, domain, customDomains = [], in
   async function submit() {
     setError(null);
     if (!url.trim()) return;
-    if (!composeUtmUrl(url, '', '', '')) {
+    if (!composeUtmUrl(url)) {
       setError(t('errors.invalid_url'));
       return;
     }

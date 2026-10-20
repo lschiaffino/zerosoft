@@ -130,7 +130,9 @@
       "deal_won": "Deal ganado",
       "deal_lost": "Deal perdido",
       "robot_run_finished": "Robot terminó",
-      "robot_run_failed": "Robot falló"
+      "robot_run_failed": "Robot falló",
+      "link_updated": "Link editado",
+      "link_deleted": "Link borrado"
     },
     "errors": {
       "https_required": "La URL tiene que usar https.",
@@ -139,7 +141,19 @@
       "invalid_url": "La URL no es válida.",
       "invalid_input": "Ingresá una URL y elegí al menos un evento.",
       "generic": "No se pudo agregar el webhook. Probá de nuevo.",
-      "action": "No se pudo completar la acción. Probá de nuevo."
+      "action": "No se pudo completar la acción. Probá de nuevo.",
+      "unknown_link": "Uno de los links del filtro no existe en este workspace."
+    },
+    "linkFilter": {
+      "title": "Solo para algunos links",
+      "help": "Aplica a los eventos de links. Dejá todo vacío para recibir los de todos. Con varios filtros, el link tiene que cumplir todos.",
+      "links": "Links",
+      "linksPlaceholder": "Slugs separados por comas: promo, lanzamiento",
+      "tags": "Tags",
+      "tagsPlaceholder": "newsletter, ads",
+      "domains": "Dominios",
+      "defaultDomain": "Dominio por defecto",
+      "scoped": "(algunos links)"
     }
   },
   "credentials": {

@@ -28,6 +28,8 @@ export interface LinkRow {
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
+  utm_term?: string | null;
+  utm_content?: string | null;
   og_title: string | null;
   og_description: string | null;
   og_image: string | null;
@@ -39,6 +41,10 @@ export interface LinkRow {
   forward_params?: number;
   /** A dónde va el link vencido o sin clicks disponibles (null = página de zerosoft). */
   expired_url?: string | null;
+  /** Persona que lo creó (id real, no el del owner); null en links viejos. */
+  created_by?: string | null;
+  /** Id propio del cliente de la API v1 (único por workspace). */
+  external_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +62,11 @@ export interface ClickRow {
   source?: string;
   /** Destino servido cuando hay segmentación o A/B (etiqueta). */
   variant?: string | null;
+  /** Ciudad y región (ISO 3166-2) de la visita, si la infraestructura las da. */
+  city?: string | null;
+  region?: string | null;
+  /** URL del referrer sin query (salvo utm_*) ni hash. */
+  referrer_url?: string | null;
 }
 
 export interface ApiKeyRow {

@@ -51,7 +51,13 @@ export function gateQueryString(
   return qs ? `?${qs}` : '';
 }
 
-export const UTM_KEYS ={ source: 'utm_source', medium: 'utm_medium', campaign: 'utm_campaign' } as const;
+export const UTM_KEYS = {
+  source: 'utm_source',
+  medium: 'utm_medium',
+  campaign: 'utm_campaign',
+  term: 'utm_term',
+  content: 'utm_content',
+} as const;
 export type UtmField = keyof typeof UTM_KEYS;
 export type UtmValues = Record<UtmField, string | null>;
 
@@ -65,11 +71,19 @@ function parseLoose(url: string): URL | null {
   }
 }
 
-/** utm_source/medium/campaign que tiene hoy la URL (null si falta o está vacío). */
+export const UTM_FIELDS = Object.keys(UTM_KEYS) as UtmField[];
+
+/** utm_source/medium/campaign/term/content que tiene hoy la URL (null si falta o está vacío). */
 export function readUtm(url: string): UtmValues {
   const u = parseLoose(url);
   const get = (k: string) => u?.searchParams.get(k)?.trim() || null;
-  return { source: get(UTM_KEYS.source), medium: get(UTM_KEYS.medium), campaign: get(UTM_KEYS.campaign) };
+  return {
+    source: get(UTM_KEYS.source),
+    medium: get(UTM_KEYS.medium),
+    campaign: get(UTM_KEYS.campaign),
+    term: get(UTM_KEYS.term),
+    content: get(UTM_KEYS.content),
+  };
 }
 
 /**
@@ -85,7 +99,7 @@ export function syncUtm(
   const u = parseLoose(url);
   if (!u) return { url, utm: current };
   let dirty = false;
-  for (const field of Object.keys(UTM_KEYS) as UtmField[]) {
+  for (const field of UTM_FIELDS) {
     const change = changes[field];
     if (change === undefined) continue;
     const next = change?.trim() || null;
@@ -97,4 +111,28 @@ export function syncUtm(
   if (!dirty) return { url, utm: current };
   const out = u.toString();
   return { url: out, utm: readUtm(out) };
+}
+
+/**
+ * URL del referrer para guardar en el click: solo http(s), sin hash ni
+ * query salvo los utm_* (el resto puede traer tokens, emails o ids de
+ * sesión). Máximo 500 caracteres; null si no hay o no parsea.
+ */
+export function cleanReferrerUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  const kept = new URLSearchParams();
+  for (const [k, v] of u.searchParams) if (/^utm_[a-z]+$/i.test(k)) kept.append(k, v);
+  u.hash = '';
+  u.username = '';
+  u.password = '';
+  u.search = kept.toString();
+  const out = u.toString();
+  return out.length > 500 ? out.slice(0, 500) : out;
 }

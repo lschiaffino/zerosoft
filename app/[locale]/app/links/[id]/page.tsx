@@ -1,8 +1,9 @@
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Link, redirect } from '@/i18n/navigation';
-import { isWorkspaceAdmin, requireUser } from '@/lib/session';
-import { getUserLink, linkStatus, toLinkDto } from '@/lib/links';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
+import { getUserLink, linkCreatorName, linkStatus, toLinkDto } from '@/lib/links';
+import { countLinkComments, listLinkComments } from '@/lib/link-comments';
 import {
   getAnalytics,
   getClickCountries,
@@ -25,6 +26,8 @@ import DangerZone from '@/components/link/DangerZone';
 import CountryFilter from '@/components/link/CountryFilter';
 import TargetingPanel from '@/components/link/TargetingPanel';
 import StatusBadge from '@/components/link/StatusBadge';
+import DuplicateButton from '@/components/link/DuplicateButton';
+import LinkComments from '@/components/link/LinkComments';
 import { parseTargeting } from '@/lib/link-targeting';
 import { breakdownLabelers } from '@/lib/link-labels';
 import { linkTabHref, parseLinkTab, type LinkTab } from '@/lib/link-detail-tabs';
@@ -62,12 +65,15 @@ export default async function LinkDetailPage(props: DetailPageProps) {
 
   // Cada pestaña pide solo lo que muestra.
   const needsStats = tab === 'overview' || tab === 'analytics';
-  const [a, clickResult, countries] = await Promise.all([
+  const [a, clickResult, countries, comments, commentCount, creatorName] = await Promise.all([
     needsStats ? getAnalytics(link.id, link.created_at, range) : null,
     tab === 'analytics'
       ? listClicks(link.id, link.created_at, { range, country, page: clickPage, pageSize: clickPageSize })
       : null,
     tab === 'analytics' ? getClickCountries(link.id) : null,
+    tab === 'comments' ? listLinkComments(link.id) : null,
+    countLinkComments(link.id),
+    linkCreatorName(link.created_by),
   ]);
 
   const short = shortUrl(link.slug, link.domain_hostname ?? null);
@@ -119,6 +125,10 @@ export default async function LinkDetailPage(props: DetailPageProps) {
     { key: 'analytics', label: t('detail.tabs.analytics') },
     { key: 'qr', label: t('detail.tabs.qr') },
     { key: 'routing', label: t('detail.tabs.routing') },
+    {
+      key: 'comments',
+      label: commentCount > 0 ? t('detail.tabs.commentsN', { n: commentCount }) : t('detail.tabs.comments'),
+    },
     { key: 'settings', label: t('detail.tabs.settings') },
   ];
 
@@ -264,6 +274,26 @@ export default async function LinkDetailPage(props: DetailPageProps) {
             ))}
           </div>
         ))}
+        <div className="lk-grid-2">
+          <section className="lk-block" aria-labelledby="lk-cities">
+            <h2 className="lk-h" id="lk-cities">
+              {t('detail.cities')}
+            </h2>
+            <BreakdownBars items={a.cities} emptyLabel={noData} labelFor={labels.city} />
+          </section>
+          <section className="lk-block" aria-labelledby="lk-regions">
+            <h2 className="lk-h" id="lk-regions">
+              {t('detail.regions')}
+            </h2>
+            <BreakdownBars items={a.regions} emptyLabel={noData} labelFor={labels.region} />
+          </section>
+        </div>
+        <section className="lk-block" aria-labelledby="lk-referrer-urls">
+          <h2 className="lk-h" id="lk-referrer-urls">
+            {t('detail.referrerUrls')}
+          </h2>
+          <BreakdownBars items={a.referrerUrls} emptyLabel={noData} labelFor={labels.plain} />
+        </section>
         {(link.targeting || a.variants.some((v) => v.name !== 'default')) && (
           <section className="lk-block" data-testid="detail-variants" aria-labelledby="lk-variants">
             <h2 className="lk-h" id="lk-variants">
@@ -306,6 +336,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
                     <tr>
                       <th scope="col">{t('detail.colTimestamp')}</th>
                       <th scope="col">{t('detail.colCountry')}</th>
+                      <th scope="col">{t('detail.colCity')}</th>
                       <th scope="col">{t('detail.colReferrer')}</th>
                       <th scope="col">{t('detail.colDevice')}</th>
                       <th scope="col">{t('detail.colBrowser')}</th>
@@ -317,7 +348,12 @@ export default async function LinkDetailPage(props: DetailPageProps) {
                       <tr key={c.id}>
                         <td className="data">{formatDateTime(c.ts, locale)}</td>
                         <td title={c.country ?? undefined}>{c.country ? labels.country(c.country) : t('detail.none')}</td>
-                        <td className="data lk-cell-trunc">{c.referrer ? labels.plain(c.referrer) : t('detail.none')}</td>
+                        <td title={c.region ? `${c.country ?? ''}-${c.region}` : undefined}>
+                          {c.city ?? (c.region ? labels.region(`${c.country ?? ''}-${c.region}`) : t('detail.none'))}
+                        </td>
+                        <td className="data lk-cell-trunc" title={c.referrer_url ?? undefined}>
+                          {c.referrer ? labels.plain(c.referrer) : t('detail.none')}
+                        </td>
                         <td>{c.device ? labels.device(c.device) : t('detail.none')}</td>
                         <td>{c.browser ? labels.plain(c.browser) : t('detail.none')}</td>
                         <td>{c.os ? labels.plain(c.os) : t('detail.none')}</td>
@@ -358,6 +394,8 @@ export default async function LinkDetailPage(props: DetailPageProps) {
     body = <QrSection id={link.id} slug={link.slug} />;
   } else if (tab === 'routing') {
     body = <TargetingPanel key={link.url} linkId={link.id} defaultUrl={link.url} initial={targeting} />;
+  } else if (tab === 'comments' && comments) {
+    body = <LinkComments linkId={link.id} initial={comments} viewerId={realUserId(user)} isAdmin={isWorkspaceAdmin(user)} />;
   } else if (tab === 'settings') {
     body = (
       <>
@@ -375,11 +413,16 @@ export default async function LinkDetailPage(props: DetailPageProps) {
         description={
           <span className="lk-meta">
             <StatusBadge status={status} />
-            <span>{t('detail.createdOn', { date: formatDate(link.created_at, locale) })}</span>
+            <span>
+              {creatorName
+                ? t('detail.createdOnBy', { date: formatDate(link.created_at, locale), name: creatorName })
+                : t('detail.createdOn', { date: formatDate(link.created_at, locale) })}
+            </span>
           </span>
         }
         actions={
           <>
+            <DuplicateButton id={link.id} />
             <a href={short} target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
               <LinkIcon name="external" size={15} />
               {t('detail.openShort')}

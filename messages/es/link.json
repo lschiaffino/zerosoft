@@ -24,7 +24,8 @@
     "no": "no",
     "close": "Cerrar",
     "cancel": "Cancelar",
-    "optional": "(opcional)"
+    "optional": "(opcional)",
+    "duplicate": "Duplicar"
   },
   "overview": {
     "title": "Resumen",
@@ -82,7 +83,10 @@
     "pagination": "Páginas",
     "searchLabel": "Buscar links",
     "tagLabel": "Filtrar por tag",
-    "clicksN": "{n, plural, one {# click} other {# clicks}}"
+    "clicksN": "{n, plural, one {# click} other {# clicks}}",
+    "creatorLabel": "Creado por",
+    "allCreators": "Cualquiera",
+    "byCreator": "por {name}"
   },
   "new": {
     "title": "Nuevo link",
@@ -144,7 +148,11 @@
     "expiredUrlLabel": "Redirect al vencer",
     "expiredUrlPlaceholder": "https://ejemplo.com/promo-terminada (opcional)",
     "expiredUrlHelp": "A dónde va la visita cuando el link vence o llega al máximo de clicks. Si lo dejás vacío se muestra la página por defecto.",
-    "utmSyncHelp": "Al cambiar un campo se actualiza la URL de destino, y al editar la URL se actualizan estos campos."
+    "utmSyncHelp": "Al cambiar un campo se actualiza la URL de destino, y al editar la URL se actualizan estos campos.",
+    "utmTerm": "utm_term",
+    "utmContent": "utm_content",
+    "utmTermPlaceholder": "zapatillas running",
+    "utmContentPlaceholder": "banner-header"
   },
   "detail": {
     "back": "Links",
@@ -218,7 +226,9 @@
       "analytics": "Analytics",
       "qr": "QR",
       "routing": "Ruteo",
-      "settings": "Ajustes"
+      "settings": "Ajustes",
+      "comments": "Comentarios",
+      "commentsN": "Comentarios ({n})"
     },
     "tabsLabel": "Secciones del link",
     "qrScansCount": "{n} por QR",
@@ -243,7 +253,12 @@
     "unarchiveButton": "Desarchivar link",
     "noPrevious": "Sin período anterior",
     "emptyTitle": "Todavía sin clicks",
-    "emptyBody": "Compartí <data>{short}</data> y los clicks aparecen acá."
+    "emptyBody": "Compartí <data>{short}</data> y los clicks aparecen acá.",
+    "createdOnBy": "Creado el {date} por {name}",
+    "cities": "Ciudades",
+    "regions": "Regiones",
+    "referrerUrls": "Páginas de origen",
+    "colCity": "Ciudad"
   },
   "bulk": {
     "title": "Muchos links a la vez",
@@ -350,7 +365,10 @@
     "quota_exceeded": "Llegaste al límite de links nuevos de hoy. Probá de nuevo mañana.",
     "forbidden": "Solo los admins del workspace pueden hacer esto.",
     "already_imported": "Ya estaba importado.",
-    "invalid_expired_url": "El redirect al vencer no parece una URL válida."
+    "invalid_expired_url": "El redirect al vencer no parece una URL válida.",
+    "invalid_og_image": "La imagen de la vista previa tiene que ser una URL http(s).",
+    "invalid_external_id": "El id externo no es válido.",
+    "external_id_taken": "Otro link ya usa ese id externo."
   },
   "webhooks": {
     "desc": "Enviamos un JSON firmado (POST) a tu URL cuando pasan estos eventos. Verificá el header Zerosoft-Signature (t=…,v1=HMAC-SHA256 de \"t.body\") con tu secret. Las entregas fallidas se reintentan con backoff.",
@@ -528,7 +546,8 @@
     "empty": "Sin visitas en este rango.",
     "noData": "Sin datos",
     "sub": "Todos tus links juntos. Fechas en UTC.",
-    "emptyBody": "Compartí un link y los clicks aparecen acá."
+    "emptyBody": "Compartí un link y los clicks aparecen acá.",
+    "cities": "Ciudades"
   },
   "targeting": {
     "title": "Ruteo",
@@ -607,5 +626,32 @@
     "errorBody": "Probá de nuevo. Si sigue fallando, avisanos desde Feedback.",
     "retry": "Reintentar",
     "loading": "Cargando"
+  },
+  "utmTemplates": {
+    "label": "Plantilla",
+    "pick": "Aplicar una plantilla",
+    "none": "Todavía no hay plantillas",
+    "remove": "Borrar plantilla",
+    "removeConfirm": "¿Borrar la plantilla \"{name}\"? Los links que la usaron mantienen sus UTM.",
+    "saveAs": "Guardar como plantilla",
+    "save": "Guardar",
+    "nameLabel": "Nombre de la plantilla",
+    "namePlaceholder": "Newsletter",
+    "errors": {
+      "name_taken": "Ya hay una plantilla con ese nombre.",
+      "too_many": "Este workspace llegó a 100 plantillas. Borrá alguna primero.",
+      "empty_template": "Completá al menos un campo UTM.",
+      "forbidden": "Solo quien creó la plantilla o un admin la puede borrar."
+    }
+  },
+  "comments": {
+    "title": "Comentarios",
+    "help": "Notas internas para tu equipo. No aparecen en el link ni en la API.",
+    "empty": "Todavía no hay comentarios.",
+    "unknownAuthor": "Ex miembro",
+    "removeConfirm": "¿Borrar este comentario?",
+    "label": "Nuevo comentario",
+    "placeholder": "Quién pidió el link, de qué campaña es, qué tener en cuenta",
+    "add": "Comentar"
   }
 }

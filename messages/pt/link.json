@@ -24,7 +24,8 @@
     "no": "não",
     "close": "Fechar",
     "cancel": "Cancelar",
-    "optional": "(opcional)"
+    "optional": "(opcional)",
+    "duplicate": "Duplicar"
   },
   "overview": {
     "title": "Visão geral",
@@ -82,7 +83,10 @@
     "pagination": "Páginas",
     "searchLabel": "Buscar links",
     "tagLabel": "Filtrar por tag",
-    "clicksN": "{n, plural, one {# clique} other {# cliques}}"
+    "clicksN": "{n, plural, one {# clique} other {# cliques}}",
+    "creatorLabel": "Criado por",
+    "allCreators": "Qualquer pessoa",
+    "byCreator": "por {name}"
   },
   "new": {
     "title": "Novo link",
@@ -144,7 +148,11 @@
     "expiredUrlLabel": "Redirect ao expirar",
     "expiredUrlPlaceholder": "https://exemplo.com/promo-encerrada (opcional)",
     "expiredUrlHelp": "Para onde vai a visita quando o link expira ou atinge o máximo de cliques. Se ficar vazio, aparece a página padrão.",
-    "utmSyncHelp": "Mudar um campo atualiza a URL de destino, e editar a URL atualiza estes campos."
+    "utmSyncHelp": "Mudar um campo atualiza a URL de destino, e editar a URL atualiza estes campos.",
+    "utmTerm": "utm_term",
+    "utmContent": "utm_content",
+    "utmTermPlaceholder": "tenis corrida",
+    "utmContentPlaceholder": "banner-topo"
   },
   "detail": {
     "back": "Links",
@@ -218,7 +226,9 @@
       "analytics": "Analytics",
       "qr": "QR",
       "routing": "Roteamento",
-      "settings": "Ajustes"
+      "settings": "Ajustes",
+      "comments": "Comentários",
+      "commentsN": "Comentários ({n})"
     },
     "tabsLabel": "Seções do link",
     "qrScansCount": "{n} via QR",
@@ -243,7 +253,12 @@
     "unarchiveButton": "Desarquivar link",
     "noPrevious": "Sem período anterior",
     "emptyTitle": "Ainda sem cliques",
-    "emptyBody": "Compartilhe <data>{short}</data> e os cliques aparecem aqui."
+    "emptyBody": "Compartilhe <data>{short}</data> e os cliques aparecem aqui.",
+    "createdOnBy": "Criado em {date} por {name}",
+    "cities": "Cidades",
+    "regions": "Regiões",
+    "referrerUrls": "Páginas de origem",
+    "colCity": "Cidade"
   },
   "bulk": {
     "title": "Muitos links de uma vez",
@@ -350,7 +365,10 @@
     "quota_exceeded": "Você atingiu o limite de novos links de hoje. Tente de novo amanhã.",
     "forbidden": "Só os admins do workspace podem fazer isso.",
     "already_imported": "Já estava importado.",
-    "invalid_expired_url": "O redirect ao expirar não parece uma URL válida."
+    "invalid_expired_url": "O redirect ao expirar não parece uma URL válida.",
+    "invalid_og_image": "A imagem da prévia precisa ser uma URL http(s).",
+    "invalid_external_id": "O id externo não é válido.",
+    "external_id_taken": "Outro link já usa esse id externo."
   },
   "webhooks": {
     "desc": "Enviamos um JSON assinado (POST) para sua URL quando esses eventos acontecem. Verifique o header Zerosoft-Signature (t=…,v1=HMAC-SHA256 de \"t.body\") com seu secret. Entregas com falha são reenviadas com backoff.",
@@ -528,7 +546,8 @@
     "empty": "Sem visitas neste período.",
     "noData": "Sem dados",
     "sub": "Todos os seus links juntos. Datas em UTC.",
-    "emptyBody": "Compartilhe um link e os cliques aparecem aqui."
+    "emptyBody": "Compartilhe um link e os cliques aparecem aqui.",
+    "cities": "Cidades"
   },
   "targeting": {
     "title": "Roteamento",
@@ -607,5 +626,32 @@
     "errorBody": "Tente de novo. Se continuar falhando, avise pelo Feedback.",
     "retry": "Tentar de novo",
     "loading": "Carregando"
+  },
+  "utmTemplates": {
+    "label": "Modelo",
+    "pick": "Aplicar um modelo",
+    "none": "Ainda não há modelos",
+    "remove": "Excluir modelo",
+    "removeConfirm": "Excluir o modelo \"{name}\"? Os links que o usaram mantêm seus UTM.",
+    "saveAs": "Salvar como modelo",
+    "save": "Salvar",
+    "nameLabel": "Nome do modelo",
+    "namePlaceholder": "Newsletter",
+    "errors": {
+      "name_taken": "Já existe um modelo com esse nome.",
+      "too_many": "Este workspace chegou a 100 modelos. Exclua algum primeiro.",
+      "empty_template": "Preencha pelo menos um campo UTM.",
+      "forbidden": "Só quem criou o modelo ou um admin pode excluí-lo."
+    }
+  },
+  "comments": {
+    "title": "Comentários",
+    "help": "Notas internas para a sua equipe. Não aparecem no link nem na API.",
+    "empty": "Ainda não há comentários.",
+    "unknownAuthor": "Ex-membro",
+    "removeConfirm": "Excluir este comentário?",
+    "label": "Novo comentário",
+    "placeholder": "Quem pediu o link, de qual campanha é, o que levar em conta",
+    "add": "Comentar"
   }
 }

@@ -19,6 +19,10 @@ export interface BreakdownLabelers {
   /** referrer, navegador, sistema: solo los valores especiales. */
   plain: (name: string) => string;
   country: (name: string) => string;
+  /** "Córdoba|AR" → "Córdoba, Argentina". */
+  city: (name: string) => string;
+  /** "US-CA" → "CA, United States". */
+  region: (name: string) => string;
   device: (name: string) => string;
   variant: (name: string) => string;
 }
@@ -38,17 +42,32 @@ export function breakdownLabelers(locale: string, m: BreakdownMessages): Breakdo
     return k === 'direct' ? m.direct : k === 'other' ? m.other : k === 'unknown' ? m.unknown : null;
   };
 
+  const countryName = (n: string): string => {
+    if (!regions || !/^[A-Z]{2}$/i.test(n)) return n;
+    try {
+      return regions.of(n.toUpperCase()) ?? n;
+    } catch {
+      return n;
+    }
+  };
+
   return {
     plain: (n) => special(n) ?? n,
-    country: (n) => {
+    country: (n) => special(n) ?? countryName(n),
+    city: (n) => {
       const s = special(n);
       if (s) return s;
-      if (!regions || !/^[A-Z]{2}$/i.test(n)) return n;
-      try {
-        return regions.of(n.toUpperCase()) ?? n;
-      } catch {
-        return n;
-      }
+      const i = n.lastIndexOf('|');
+      if (i < 0) return n;
+      const cc = n.slice(i + 1);
+      return cc ? `${n.slice(0, i)}, ${countryName(cc)}` : n.slice(0, i);
+    },
+    region: (n) => {
+      const s = special(n);
+      if (s) return s;
+      const match = /^([A-Z]{2})-(.+)$/i.exec(n);
+      if (!match) return n.replace(/^-/, '');
+      return `${match[2]}, ${countryName(match[1])}`;
     },
     device: (n) => special(n) ?? (n in m.device ? m.device[n as keyof BreakdownMessages['device']] : n),
     variant: (n) => {

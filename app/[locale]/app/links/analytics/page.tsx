@@ -192,6 +192,13 @@ export default async function LinkAnalyticsPage(props: Props) {
           </section>
         ))}
       </div>
+
+      <section className="lk-block" aria-labelledby="la-cities">
+        <h2 className="lk-h" id="la-cities">
+          {t('analytics.cities')}
+        </h2>
+        <BreakdownBars items={a.cities} emptyLabel={noData} labelFor={labels.city} />
+      </section>
     </div>
   );
 }

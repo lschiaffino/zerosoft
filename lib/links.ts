@@ -17,6 +17,7 @@ import {
   parseTargeting,
   targetingDestinations,
   type LinkTargeting,
+  type LinkTargetingInput,
 } from './link-targeting';
 import { syncUtm } from './link-url';
 
@@ -82,6 +83,18 @@ export async function getUserLink(userId: string, id: string): Promise<LinkWithD
     .get(id, userId)) as LinkWithDomain | undefined;
 }
 
+export async function getUserLinkByExternalId(userId: string, externalId: string): Promise<LinkWithDomain | undefined> {
+  return (await getDb()
+    .prepare(`${LINK_SELECT} WHERE l.user_id = ? AND l.external_id = ?`)
+    .get(userId, externalId)) as LinkWithDomain | undefined;
+}
+
+/** Link por id o, con el prefijo ext_, por id externo (API v1, como Dub). */
+export async function getUserLinkByRef(userId: string, ref: string): Promise<LinkWithDomain | undefined> {
+  if (ref.startsWith('ext_')) return getUserLinkByExternalId(userId, ref.slice(4));
+  return getUserLink(userId, ref);
+}
+
 /** URL corta de un link, en su dominio propio si tiene. */
 export function linkShortUrl(link: Pick<LinkWithDomain, 'slug' | 'domain_hostname'>): string {
   return shortUrl(link.slug, link.domain_hostname ?? null);
@@ -98,6 +111,8 @@ export interface ListLinksParams {
   tag?: string;
   archived?: ArchivedFilter;
   sort?: 'created' | 'clicks';
+  /** Solo los links que creó esta persona (id real). */
+  creator?: string;
   page?: number;
   pageSize?: number;
 }
@@ -130,6 +145,10 @@ export async function listLinks(
     where.push(`l.tags LIKE ? ESCAPE '\\'`);
     args.push(`%"${escapeLike(params.tag)}"%`);
   }
+  if (params.creator) {
+    where.push('l.created_by = ?');
+    args.push(params.creator);
+  }
 
   const whereSql = where.join(' AND ');
   const pageSize = Math.min(Math.max(params.pageSize ?? 10, 1), 50);
@@ -160,6 +179,32 @@ export async function userTags(userId: string): Promise<string[]> {
     )
     .all(userId)) as Array<{ tag: string }>;
   return rows.map((r) => r.tag).sort();
+}
+
+export interface LinkCreator {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
+/** Las personas que crearon algún link del workspace (para el filtro "Creado por"). */
+export async function linkCreators(userId: string): Promise<LinkCreator[]> {
+  return (await getDb()
+    .prepare(
+      `SELECT u.id, u.name, u.email FROM users u
+       WHERE u.id IN (SELECT DISTINCT created_by FROM links WHERE user_id = ? AND created_by IS NOT NULL)
+       ORDER BY COALESCE(u.name, u.email) LIMIT 200`,
+    )
+    .all(userId)) as LinkCreator[];
+}
+
+/** Nombre (o email) de quien creó el link; null si es un link viejo o la persona ya no existe. */
+export async function linkCreatorName(createdBy: string | null | undefined): Promise<string | null> {
+  if (!createdBy) return null;
+  const row = (await getDb().prepare('SELECT name, email FROM users WHERE id = ?').get(createdBy)) as
+    | { name: string | null; email: string }
+    | undefined;
+  return row ? row.name || row.email : null;
 }
 
 // ---------- Status ----------
@@ -199,7 +244,13 @@ export interface LinkDto {
   expires_at: string | null;
   max_clicks: number | null;
   has_password: boolean;
-  utm: { source: string | null; medium: string | null; campaign: string | null };
+  utm: {
+    source: string | null;
+    medium: string | null;
+    campaign: string | null;
+    term: string | null;
+    content: string | null;
+  };
   og: { title: string | null; description: string | null; image: string | null };
   clicks: number;
   /** Visitas que llegaron escaneando el QR (también cuentan en clicks). */
@@ -210,6 +261,10 @@ export interface LinkDto {
   forward_params: boolean;
   /** A dónde redirige el link vencido o sin clicks disponibles (null = página de zerosoft o el default del dominio). */
   expired_url: string | null;
+  /** Id de la persona que lo creó (null en links viejos). */
+  created_by: string | null;
+  /** Id propio del cliente de la API (único por workspace). */
+  external_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -228,13 +283,21 @@ export function toLinkDto(link: LinkWithDomain): LinkDto {
     expires_at: link.expires_at,
     max_clicks: link.max_clicks,
     has_password: !!link.password_hash,
-    utm: { source: link.utm_source, medium: link.utm_medium, campaign: link.utm_campaign },
+    utm: {
+      source: link.utm_source,
+      medium: link.utm_medium,
+      campaign: link.utm_campaign,
+      term: link.utm_term ?? null,
+      content: link.utm_content ?? null,
+    },
     og: { title: link.og_title, description: link.og_description, image: link.og_image },
     clicks: link.clicks,
     qr_scans: link.qr_scans ?? 0,
     targeting: parseTargeting(link.targeting),
     forward_params: link.forward_params !== 0,
     expired_url: link.expired_url ?? null,
+    created_by: link.created_by ?? null,
+    external_id: link.external_id ?? null,
     created_at: link.created_at,
     updated_at: link.updated_at,
   };
@@ -291,22 +354,26 @@ export interface UtmResult {
   source: string | null;
   medium: string | null;
   campaign: string | null;
+  term: string | null;
+  content: string | null;
 }
 
 /** Appends utm_* query params to the destination URL (if any is present). */
 export function applyUtm(
   url: string,
-  utm: { source?: string; medium?: string; campaign?: string },
+  utm: { source?: string; medium?: string; campaign?: string; term?: string; content?: string },
 ): UtmResult {
-  const source = utm.source?.trim() || null;
-  const medium = utm.medium?.trim() || null;
-  const campaign = utm.campaign?.trim() || null;
-  if (!source && !medium && !campaign) return { url, source: null, medium: null, campaign: null };
+  const values = {
+    source: utm.source?.trim() || null,
+    medium: utm.medium?.trim() || null,
+    campaign: utm.campaign?.trim() || null,
+    term: utm.term?.trim() || null,
+    content: utm.content?.trim() || null,
+  };
+  if (!Object.values(values).some(Boolean)) return { url, ...values };
   const u = new URL(url);
-  if (source) u.searchParams.set('utm_source', source);
-  if (medium) u.searchParams.set('utm_medium', medium);
-  if (campaign) u.searchParams.set('utm_campaign', campaign);
-  return { url: u.toString(), source, medium, campaign };
+  for (const [field, value] of Object.entries(values)) if (value) u.searchParams.set(`utm_${field}`, value);
+  return { url: u.toString(), ...values };
 }
 
 /**
@@ -398,6 +465,8 @@ export interface CreateLinkInput {
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;
+  utmTerm?: string;
+  utmContent?: string;
   ogTitle?: string;
   ogDescription?: string;
   ogImage?: string;
@@ -405,7 +474,18 @@ export interface CreateLinkInput {
   forwardParams?: boolean;
   /** A dónde va el link cuando vence o llega a max_clicks. */
   expiredUrl?: string | null;
+  /** Segmentación por país/dispositivo, A/B y deep links. */
+  targeting?: LinkTargetingInput | null;
+  /** Id propio del cliente (API v1), único por workspace. */
+  externalId?: string | null;
+  /** Persona que lo crea (id real; en un team, no el del owner). */
+  createdBy?: string | null;
+  /** Solo interno (duplicar): hash ya calculado en vez de `password`. */
+  passwordHash?: string | null;
 }
+
+/** Id externo: 1-255 caracteres sin espacios ni barras (va en la URL como ext_<id>). */
+export const EXTERNAL_ID_RE = /^[A-Za-z0-9._:@-]{1,255}$/;
 
 export type CreateLinkError =
   | 'invalid_url'
@@ -415,6 +495,13 @@ export type CreateLinkError =
   | 'invalid_domain'
   | 'self_link'
   | 'invalid_expired_url'
+  | 'invalid_og_image'
+  | 'invalid_external_id'
+  | 'external_id_taken'
+  | 'invalid_targeting_url'
+  | 'empty_rule'
+  | 'ab_needs_two'
+  | 'ab_zero_weight'
   | 'quota_exceeded';
 
 export type CreateLinkResult =
@@ -457,6 +544,8 @@ export async function createLink(
     source: input.utmSource,
     medium: input.utmMedium,
     campaign: input.utmCampaign,
+    term: input.utmTerm,
+    content: input.utmContent,
   });
   const utm = { url: applied.url, ...syncUtm(applied.url).utm };
 
@@ -470,6 +559,28 @@ export async function createLink(
     expiresAt = d.toISOString();
   }
 
+  const ogImage = input.ogImage?.trim() || null;
+  if (ogImage && !isValidUrl(normalizeUrl(ogImage))) return { ok: false, code: 'invalid_og_image' };
+
+  let targeting: LinkTargeting | null = null;
+  if (input.targeting) {
+    const parsedTargeting = linkTargetingSchema.safeParse(input.targeting);
+    if (!parsedTargeting.success) return { ok: false, code: 'invalid_targeting_url' };
+    const t = normalizeTargeting(parsedTargeting.data);
+    if (!t.ok) return { ok: false, code: t.error as CreateLinkError };
+    // Mismo anti-loop que el destino: ninguna variante puede volver a un link corto.
+    for (const url of t.value ? targetingDestinations(t.value) : []) {
+      if (await isShortLinkUrl(url)) return { ok: false, code: 'self_link' };
+    }
+    targeting = t.value;
+  }
+
+  const externalId = input.externalId?.trim() || null;
+  if (externalId) {
+    if (!EXTERNAL_ID_RE.test(externalId)) return { ok: false, code: 'invalid_external_id' };
+    if (await getUserLinkByExternalId(userId, externalId)) return { ok: false, code: 'external_id_taken' };
+  }
+
   const tags = (input.tags ?? [])
     .map((t) => t.trim())
     .filter(Boolean)
@@ -477,13 +588,13 @@ export async function createLink(
 
   const id = crypto.randomUUID();
   const redirectType = input.redirectType === 301 ? 301 : 302;
-  const passwordHash = input.password ? await hashPassword(input.password) : null;
+  const passwordHash = input.passwordHash ?? (input.password ? await hashPassword(input.password) : null);
   for (let attempt = 0; ; attempt++) {
     try {
       await db
         .prepare(
-          `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, og_title, og_description, og_image, forward_params, expired_url)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, utm_term, utm_content, og_title, og_description, og_image, forward_params, expired_url, targeting, external_id, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -500,17 +611,23 @@ export async function createLink(
           utm.source,
           utm.medium,
           utm.campaign,
+          utm.term,
+          utm.content,
           input.ogTitle?.trim() || null,
           input.ogDescription?.trim() || null,
-          input.ogImage?.trim() || null,
+          ogImage,
           input.forwardParams === false ? 0 : 1,
           expired.value,
+          targeting ? JSON.stringify(targeting) : null,
+          externalId,
+          input.createdBy || null,
         );
       break;
     } catch (e) {
       // Carrera con otra alta al mismo slug (doble submit, import en paralelo):
       // el UNIQUE lo frena. Slug propio → slug_taken; generado → otro slug.
       if (!/UNIQUE constraint failed/i.test(String(e))) throw e;
+      if (/external_id/i.test(String(e))) return { ok: false, code: 'external_id_taken' };
       if (customSlug || attempt >= 2) return { ok: false, code: 'slug_taken' };
       slug = await generateSlug(domainId);
     }
@@ -529,6 +646,7 @@ export interface BulkCreateInput {
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;
+  createdBy?: string | null;
 }
 
 export { bulkResultsToCsv, type BulkResultItem } from './link-bulk-csv';
@@ -553,6 +671,7 @@ export async function createLinksBulk(
       utmSource: input.utmSource,
       utmMedium: input.utmMedium,
       utmCampaign: input.utmCampaign,
+      createdBy: input.createdBy,
     });
     if (result.ok) {
       results.push({ url, short_url: shortUrl(result.link.slug), status: 'created' });
@@ -584,8 +703,12 @@ export const linkPatchSchema = z.object({
   utmSource: z.string().max(100).nullable().optional(),
   utmMedium: z.string().max(100).nullable().optional(),
   utmCampaign: z.string().max(100).nullable().optional(),
+  utmTerm: z.string().max(100).nullable().optional(),
+  utmContent: z.string().max(100).nullable().optional(),
   forwardParams: z.boolean().optional(),
   expiredUrl: z.string().max(2000).nullable().optional(),
+  /** Id propio del cliente (API v1); null lo saca. */
+  externalId: z.string().max(255).nullable().optional(),
 });
 
 export type LinkPatch = z.infer<typeof linkPatchSchema>;
@@ -598,17 +721,35 @@ export async function applyLinkPatch(
   const sets: string[] = [];
   const args: Array<string | number | null> = [];
 
-  const utmTouched = p.utmSource !== undefined || p.utmMedium !== undefined || p.utmCampaign !== undefined;
+  const utmTouched =
+    p.utmSource !== undefined ||
+    p.utmMedium !== undefined ||
+    p.utmCampaign !== undefined ||
+    p.utmTerm !== undefined ||
+    p.utmContent !== undefined;
   if (p.url !== undefined || utmTouched) {
     const base = p.url !== undefined ? normalizeUrl(p.url) : link.url;
     if (!isValidUrl(base)) return { error: 'invalid_url', status: 400 };
     // Los UTM viven en la URL: se aplican sobre el destino final y las
     // columnas utm_* se derivan de ella, así nunca quedan desfasadas.
-    const synced = syncUtm(base, { source: p.utmSource, medium: p.utmMedium, campaign: p.utmCampaign });
+    const synced = syncUtm(base, {
+      source: p.utmSource,
+      medium: p.utmMedium,
+      campaign: p.utmCampaign,
+      term: p.utmTerm,
+      content: p.utmContent,
+    });
     const normalized = synced.url;
     if (await isShortLinkUrl(normalized)) return { error: 'self_link', status: 400 };
-    sets.push('url = ?', 'utm_source = ?', 'utm_medium = ?', 'utm_campaign = ?');
-    args.push(normalized, synced.utm.source, synced.utm.medium, synced.utm.campaign);
+    sets.push('url = ?', 'utm_source = ?', 'utm_medium = ?', 'utm_campaign = ?', 'utm_term = ?', 'utm_content = ?');
+    args.push(
+      normalized,
+      synced.utm.source,
+      synced.utm.medium,
+      synced.utm.campaign,
+      synced.utm.term,
+      synced.utm.content,
+    );
     // La variante A del A/B nace como copia del destino del link: si sigue
     // apuntando al destino viejo, se mueve con él (si no, la mitad del
     // tráfico quedaría yendo a la URL anterior para siempre).
@@ -677,8 +818,20 @@ export async function applyLinkPatch(
     args.push(p.ogDescription?.trim() || null);
   }
   if (p.ogImage !== undefined) {
+    const ogImage = p.ogImage?.trim() || null;
+    if (ogImage && !isValidUrl(normalizeUrl(ogImage))) return { error: 'invalid_og_image', status: 400 };
     sets.push('og_image = ?');
-    args.push(p.ogImage?.trim() || null);
+    args.push(ogImage);
+  }
+  if (p.externalId !== undefined) {
+    const externalId = p.externalId?.trim() || null;
+    if (externalId && !EXTERNAL_ID_RE.test(externalId)) return { error: 'invalid_external_id', status: 400 };
+    if (externalId) {
+      const other = await getUserLinkByExternalId(link.user_id, externalId);
+      if (other && other.id !== link.id) return { error: 'external_id_taken', status: 409 };
+    }
+    sets.push('external_id = ?');
+    args.push(externalId);
   }
   if (p.forwardParams !== undefined) {
     sets.push('forward_params = ?');
@@ -713,13 +866,55 @@ export async function applyLinkPatch(
         .prepare(`UPDATE links SET ${sets.join(', ')} WHERE id = ?`)
         .run(...args, link.id);
     } catch (e) {
-      // Carrera con otro rename/alta al mismo slug: el UNIQUE lo frena.
-      if (/UNIQUE constraint failed/i.test(String(e))) return { error: 'slug_taken', status: 409 };
+      // Carrera con otro rename/alta al mismo slug (o id externo): el UNIQUE lo frena.
+      if (/UNIQUE constraint failed/i.test(String(e))) {
+        return { error: /external_id/i.test(String(e)) ? 'external_id_taken' : 'slug_taken', status: 409 };
+      }
       throw e;
+    }
+    const updated = await getUserLink(link.user_id, link.id);
+    if (updated) {
+      const changes = Object.keys(p).filter((k) => p[k as keyof LinkPatch] !== undefined);
+      await emitEvent(link.user_id, 'link.updated', { link: toLinkDto(updated), changes });
     }
   }
 
   return null;
+}
+
+// ---------- Borrar y duplicar ----------
+
+/** Borra el link (y sus clicks, en cascada) y emite link.deleted con su último estado. */
+export async function deleteLink(link: LinkWithDomain): Promise<void> {
+  const dto = toLinkDto(link);
+  await getDb().prepare('DELETE FROM links WHERE id = ? AND user_id = ?').run(link.id, link.user_id);
+  await emitEvent(link.user_id, 'link.deleted', { link: dto });
+}
+
+/**
+ * Copia de un link con slug nuevo (generado) en el mismo dominio: destino,
+ * UTM, tags, segmentación, vencimiento, límite, contraseña, vista previa y
+ * fallback. No copia clicks, comentarios, el id externo ni el estado archivado.
+ */
+export async function duplicateLink(link: LinkWithDomain, createdBy: string | null): Promise<CreateLinkResult> {
+  const targeting = parseTargeting(link.targeting);
+  return createLink(link.user_id, {
+    url: link.url,
+    domainId: link.domain_id,
+    title: link.title ?? undefined,
+    tags: parseTags(link.tags),
+    expiresAt: link.expires_at,
+    maxClicks: link.max_clicks,
+    passwordHash: link.password_hash,
+    redirectType: link.redirect_type === 301 ? 301 : 302,
+    ogTitle: link.og_title ?? undefined,
+    ogDescription: link.og_description ?? undefined,
+    ogImage: link.og_image ?? undefined,
+    forwardParams: link.forward_params !== 0,
+    expiredUrl: link.expired_url ?? null,
+    targeting,
+    createdBy,
+  });
 }
 
 // ---------- Acciones masivas (multi-select de la tabla) ----------
@@ -746,28 +941,45 @@ export async function bulkLinkAction(userId: string, input: LinkBulkAction): Pro
   const db = getDb();
   const ids = [...new Set(input.ids)];
   const ph = ids.map(() => '?').join(',');
+  const linksByIds = async (only: string[]) =>
+    only.length === 0
+      ? []
+      : ((await db
+          .prepare(`${LINK_SELECT} WHERE l.user_id = ? AND l.id IN (${only.map(() => '?').join(',')})`)
+          .all(userId, ...only)) as LinkWithDomain[]);
   if (input.action === 'archive' || input.action === 'unarchive') {
+    const archived = input.action === 'archive' ? 1 : 0;
+    // Solo los que cambian de estado emiten link.updated.
+    const changing = (await linksByIds(ids)).filter((l) => l.archived !== archived).map((l) => l.id);
     const res = await db
       .prepare(`UPDATE links SET archived = ?, updated_at = datetime('now') WHERE user_id = ? AND id IN (${ph})`)
-      .run(input.action === 'archive' ? 1 : 0, userId, ...ids);
+      .run(archived, userId, ...ids);
+    for (const l of await linksByIds(changing)) {
+      await emitEvent(userId, 'link.updated', { link: toLinkDto(l), changes: ['archived'] });
+    }
     return res.changes;
   }
   if (input.action === 'delete') {
+    const before = await linksByIds(ids);
     const res = await db.prepare(`DELETE FROM links WHERE user_id = ? AND id IN (${ph})`).run(userId, ...ids);
+    for (const l of before) await emitEvent(userId, 'link.deleted', { link: toLinkDto(l) });
     return res.changes;
   }
   // tag: se agrega a los tags existentes (máx. 5 por link, sin duplicar).
   const rows = (await db
     .prepare(`SELECT id, tags FROM links WHERE user_id = ? AND id IN (${ph})`)
     .all(userId, ...ids)) as Array<{ id: string; tags: string | null }>;
-  let changed = 0;
+  const tagged: string[] = [];
   for (const row of rows) {
     const tags = parseTags(row.tags);
     if (tags.includes(input.tag) || tags.length >= 5) continue;
     await db
       .prepare(`UPDATE links SET tags = ?, updated_at = datetime('now') WHERE id = ? AND user_id = ?`)
       .run(JSON.stringify([...tags, input.tag]), row.id, userId);
-    changed++;
+    tagged.push(row.id);
   }
-  return changed;
+  for (const l of await linksByIds(tagged)) {
+    await emitEvent(userId, 'link.updated', { link: toLinkDto(l), changes: ['tags'] });
+  }
+  return tagged.length;
 }

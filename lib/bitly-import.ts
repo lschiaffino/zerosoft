@@ -48,7 +48,7 @@ async function alreadyImported(userId: string, slug: string, domainId: string | 
   return !!row && row.user_id === userId && row.url === normalizeUrl(url);
 }
 
-export async function importLinks(userId: string, items: ImportItem[]): Promise<ImportReport> {
+export async function importLinks(userId: string, items: ImportItem[], createdBy: string | null = null): Promise<ImportReport> {
   const report: ImportReport = { imported: 0, kept: 0, renamed: [], skipped: [], truncated: items.length > MAX_IMPORT };
   const domains = new Map(
     (await listDomains(userId)).filter((d) => d.verified === 1).map((d) => [d.hostname, d.id]),
@@ -73,6 +73,7 @@ export async function importLinks(userId: string, items: ImportItem[]): Promise<
       domainId,
       title: item.title ?? undefined,
       tags: (item.tags ?? []).slice(0, 5),
+      createdBy,
     });
     if (!res.ok) {
       report.skipped.push({ from: item.shortUrl || item.url, reason: res.code });

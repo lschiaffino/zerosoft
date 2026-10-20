@@ -1360,7 +1360,7 @@
     "authFlowTitle": "Google OAuth sign-in",
     "authFlowDesc": "Redirect the user to start the Google OAuth flow. After success they return to the app with a session cookie.",
     "linksCreateTitle": "Create a link",
-    "linksCreateDesc": "Creates a short link. slug is optional: leave it out and we generate one.",
+    "linksCreateDesc": "Creates a short link with the same options as the app: UTM, expiration, click limit, password, social preview, targeting and an externalId. slug is optional: leave it out and we generate one.",
     "linksListTitle": "List links",
     "linksListDesc": "Your links, newest first. Paginate with page and pageSize (max 100).",
     "linksDeleteTitle": "Delete a link",
@@ -1429,7 +1429,7 @@
     "paramLinkSlug": "Custom short slug.",
     "paramLinkTitle": "Human-friendly title.",
     "paramLinkTags": "Array of tag strings.",
-    "paramLinkId": "Link id.",
+    "paramLinkId": "Link id, or ext_ followed by the externalId you set when creating it.",
     "paramLinkArchived": "Archive flag.",
     "paramFrom": "Start date (YYYY-MM-DD). Defaults to 29 days ago.",
     "paramTo": "End date (YYYY-MM-DD). Defaults to today.",
@@ -1507,7 +1507,7 @@
     "paramAgentMessage": "What the user says (up to 4000 characters).",
     "paramAgentConversationId": "Continue an existing API conversation. Omit it to start a new one.",
     "webhooksTitle": "Webhooks",
-    "webhooksDesc": "Add endpoints in Dashboard → Settings → Webhooks. Events: booking.created, booking.rescheduled, booking.cancelled, booking.no_show, booking.requested, link.created, link.clicked, contact.created, contact.updated, deal.created, deal.updated, deal.stage_changed, deal.won, deal.lost. Each request carries Zerosoft-Signature: t=TIMESTAMP,v1=HEX, where v1 = HMAC-SHA256(secret, \"TIMESTAMP.RAW_BODY\"). Reject old timestamps. Failed deliveries are retried with backoff for ~15 hours.",
+    "webhooksDesc": "Add endpoints in Dashboard → Settings → Webhooks. Events: booking.created, booking.rescheduled, booking.cancelled, booking.no_show, booking.requested, link.created, link.clicked, link.updated, link.deleted, contact.created, contact.updated, deal.created, deal.updated, deal.stage_changed, deal.won, deal.lost, robot.run.finished, robot.run.failed. Link events can be limited to some links, tags or domains. link.updated carries the link and the list of changed fields; link.deleted, the link as it was. Each request carries Zerosoft-Signature: t=TIMESTAMP,v1=HEX, where v1 = HMAC-SHA256(secret, \"TIMESTAMP.RAW_BODY\"). Reject old timestamps. Failed deliveries are retried with backoff for ~15 hours.",
     "webhooksPayloadTitle": "Event payload",
     "webhooksPayloadDesc": "What your endpoint receives. Respond 2xx within 8 seconds.",
     "paramCalStatus": "Only bookings with this status.",
@@ -1668,6 +1668,14 @@
     "formsSubmissionsDesc": "Submissions of a form, newest first, with the submitted values, UTM parameters and the linked contact.",
     "paramLinkForwardParams": "Pass the query string of the short link to the destination (default true). On a conflict the short link value wins; qr is never passed.",
     "paramLinkExpiredUrl": "Where the link redirects once it expires or reaches max_clicks. null clears it and the domain default or the zerosoft page is used.",
-    "paramLinkUtm": "Sets that utm_* parameter in the destination URL. An empty string or null removes it. The utm object of the link always mirrors the final URL."
+    "paramLinkUtm": "Sets that utm_* parameter in the destination URL. An empty string or null removes it. The utm object of the link always mirrors the final URL.",
+    "paramLinkDomain": "Hostname of one of your verified custom domains. Leave it out to use the default domain.",
+    "paramLinkRedirectType": "302 (default) or 301.",
+    "paramLinkExpiresAt": "ISO 8601 date. After it, the link redirects to expiredUrl or shows the expired page.",
+    "paramLinkMaxClicks": "Clicks allowed before the link stops redirecting.",
+    "paramLinkPassword": "Visitors must type it before the redirect. It is stored hashed and never returned; the response only says has_password.",
+    "paramLinkOg": "Title, description and image (http(s) URL) for the preview in social networks and chat apps.",
+    "paramLinkExternalId": "Your own id for the link, unique per workspace (letters, digits and . _ : @ -). Read or update the link later with /api/v1/links/ext_{externalId}.",
+    "paramLinkCreator": "Only links created by this user id."
   }
 }
