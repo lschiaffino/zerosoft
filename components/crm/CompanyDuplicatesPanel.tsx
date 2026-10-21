@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import CompanyLogo from './CompanyLogo';
+import ConfirmDialog from './ConfirmDialog';
 
 interface DupCompany {
   id: string;
@@ -38,6 +39,8 @@ export default function CompanyDuplicatesPanel({ companyId }: CompanyDuplicatesP
   const [keep, setKeep] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /** Grupo esperando la confirmación de la fusión. */
+  const [confirming, setConfirming] = useState<DupGroup | null>(null);
 
   async function load() {
     setState('loading');
@@ -66,13 +69,21 @@ export default function CompanyDuplicatesPanel({ companyId }: CompanyDuplicatesP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
 
+  /** Lo que queda y lo que se fusiona según la elección del grupo. */
+  function plan(group: DupGroup) {
+    const keepId = keep[groupKey(group)];
+    return {
+      keepId,
+      kept: group.companies.find((c) => c.id === keepId),
+      drops: group.companies.filter((c) => c.id !== keepId),
+    };
+  }
+
   async function merge(group: DupGroup) {
     const gk = groupKey(group);
-    const keepId = keep[gk];
-    const kept = group.companies.find((c) => c.id === keepId);
-    const drops = group.companies.filter((c) => c.id !== keepId);
+    const { keepId, kept, drops } = plan(group);
+    setConfirming(null);
     if (!kept || !drops.length) return;
-    if (!window.confirm(t('companies.dupes.confirm', { count: drops.length, keep: kept.name }))) return;
     setBusy(gk);
     setNotice(null);
     let merged = 0;
@@ -150,7 +161,7 @@ export default function CompanyDuplicatesPanel({ companyId }: CompanyDuplicatesP
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
-                onClick={() => void merge(group)}
+                onClick={() => setConfirming(group)}
                 disabled={busy !== null}
                 aria-busy={busy === gk || undefined}
               >
@@ -161,6 +172,21 @@ export default function CompanyDuplicatesPanel({ companyId }: CompanyDuplicatesP
         })
       )}
       <p className="ui-help">{t('companies.dupes.trashNote')}</p>
+      {confirming &&
+        (() => {
+          const { kept, drops } = plan(confirming);
+          return (
+            <ConfirmDialog
+              title={t('companies.dupes.confirmTitle')}
+              message={t('companies.dupes.confirm', { count: drops.length, keep: kept?.name ?? '' })}
+              confirmLabel={t('companies.dupes.merge', { count: drops.length })}
+              cancelLabel={t('common.cancel')}
+              busy={busy !== null}
+              onConfirm={() => void merge(confirming)}
+              onCancel={() => setConfirming(null)}
+            />
+          );
+        })()}
     </div>
   );
 }

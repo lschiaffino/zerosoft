@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
@@ -22,6 +23,7 @@ export default function CompanyForm({ lifecycles }: CompanyFormProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const prefill = useDomainPrefill();
+  const [domain, setDomain] = useState('');
 
   async function onSubmit(fd: FormData) {
     const body = companyPayload(fd);
@@ -67,6 +69,10 @@ export default function CompanyForm({ lifecycles }: CompanyFormProps) {
             maxLength={500}
             spellCheck={false}
             aria-describedby="co-domain-help"
+            onChange={(e) => {
+              setDomain(e.target.value);
+              prefill.onDomainInput(e.target.value);
+            }}
             onBlur={async (e) => {
               const info = await prefill.lookup(e.target.value);
               if (!info) return;
@@ -83,7 +89,7 @@ export default function CompanyForm({ lifecycles }: CompanyFormProps) {
           <p className="ui-help" id="co-domain-help">
             {t('record.form.domainHelp')}
           </p>
-          <DomainPrefillNote info={prefill.info} loading={prefill.loading} />
+          <DomainPrefillNote domain={domain} prefill={prefill} />
         </div>
       </div>
 

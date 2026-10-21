@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getDb, type CrmStageRow } from '@/lib/db';
-import { getDeal } from '@/lib/crm';
+import { dealMissingForStage, getDeal } from '@/lib/crm';
 import { describeMissing, moveDealWithFields } from '@/lib/crm-stage-move';
 import { dealMoveSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
@@ -42,6 +42,19 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     .prepare('SELECT * FROM crm_stages WHERE id = ? AND pipeline_id = ?')
     .get(stageId, detail.deal.pipeline_id)) as CrmStageRow | undefined;
   if (!stage) return crmError(400, 'invalid_stage');
+
+  // Pregunta previa de la UI (p. ej. antes del diálogo de ganado): qué pediría
+  // la etapa, sin mover. Responde 200 para que el caso esperado no sea un error.
+  if (parsed.data.dryRun) {
+    const missing = detail.deal.stage_id === stageId ? [] : await dealMissingForStage(user.id, detail.deal, stage);
+    return NextResponse.json({
+      stage: stage.name,
+      closeDate: detail.deal.close_date ?? null,
+      missing: missing.length
+        ? await describeMissing(user.id, missing, missing.includes('ownerId') || missing.some((k) => k.startsWith('custom:')) ? await peopleOptions(user) : [])
+        : [],
+    });
+  }
 
   // Cerrar como perdido exige motivo (en el payload o ya cargado en el deal).
   if (stage.is_lost && lostReason === undefined && !detail.deal.lost_reason) {

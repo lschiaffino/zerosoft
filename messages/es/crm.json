@@ -250,7 +250,8 @@
       "ownershipSection": "Asignación",
       "customFieldsSection": "Campos personalizados",
       "viewAllProperties": "Ver todas las propiedades",
-      "companies": "Empresas"
+      "companies": "Empresas",
+      "mergeConfirmTitle": "Combinar contactos"
     },
     "form": {
       "firstName": "Nombre",
@@ -368,12 +369,14 @@
       "merge": "{count, plural, one {Fusionar # empresa en la que queda} other {Fusionar # empresas en la que queda}}",
       "confirm": "{count, plural, one {¿Fusionar # empresa en {keep}?} other {¿Fusionar # empresas en {keep}?}} Contactos, deals, actividades y archivos pasan a {keep}.",
       "merged": "{count, plural, one {# empresa fusionada} other {# empresas fusionadas}}",
-      "trashNote": "Las empresas fusionadas van a la papelera con todo lo que tenían, así que se pueden restaurar."
+      "trashNote": "Las empresas fusionadas van a la papelera con todo lo que tenían, así que se pueden restaurar.",
+      "confirmTitle": "Fusionar empresas duplicadas"
     },
     "enrich": {
       "looking": "Buscando el sitio…",
       "filled": "Nombre, sitio y teléfono completados desde {domain} donde estaban vacíos.",
-      "exists": "Ya hay una empresa con este dominio:"
+      "exists": "Ya hay una empresa con este dominio:",
+      "createAnyway": "Crear igual"
     }
   },
   "deals": {
@@ -978,7 +981,10 @@
     "importDesc": "Subí un CSV de contactos, empresas o deals.",
     "quotesTitle": "Cotizaciones",
     "quotesDesc": "Qué pasa con el deal cuando el cliente acepta.",
-    "fieldCurrency": "Moneda"
+    "fieldCurrency": "Moneda",
+    "stageCol": "Etapa",
+    "probabilityShort": "Prob. %",
+    "rottingShort": "Días sin actividad"
   },
   "importP": {
     "title": "Importar {entity}",
@@ -2039,13 +2045,18 @@
       "left_voicemail": "Dejé un mensaje de voz",
       "no_answer": "No atendió",
       "busy": "Ocupado",
-      "wrong_number": "Número equivocado"
+      "wrong_number": "Número equivocado",
+      "replied": "Respondió",
+      "read_no_reply": "Lo leyó y no respondió",
+      "delivered": "Entregado, sin leer",
+      "not_on_whatsapp": "No tiene WhatsApp"
     },
-    "settingsTitle": "Resultados de llamada",
-    "settingsDesc": "Los resultados para elegir cuando alguien registra una llamada o un WhatsApp desde un teléfono.",
-    "settingsLabel": "Resultados, uno por línea",
+    "settingsTitle": "Resultados de llamadas y WhatsApp",
+    "settingsDesc": "Lo que se elige al registrar una llamada o un mensaje de WhatsApp desde un teléfono. Cada canal tiene su lista.",
+    "settingsLabel": "Llamadas, uno por línea",
     "settingsHelp": "Hasta {max}. Dejalo vacío para usar la lista de siempre.",
-    "settingsReset": "Usar la lista de siempre"
+    "settingsReset": "Usar la lista de siempre",
+    "settingsLabelWhatsapp": "WhatsApp, uno por línea"
   },
   "listSort": {
     "ownerAsc": "Responsable (A a Z)",

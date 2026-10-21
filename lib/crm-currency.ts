@@ -5,7 +5,7 @@
  */
 import { getDb, type CrmExchangeRateRow, type CrmSettingsRow, type Db } from './db';
 import type { CurrencyContext } from './crm-money';
-import { normalizeCallOutcomes, parseCallOutcomes } from './crm-calls';
+import { parseCallOutcomes, parseOutcomeConfig, serializeOutcomeConfig } from './crm-calls';
 
 export const CURRENCY_RE = /^[A-Z]{3}$/;
 
@@ -20,6 +20,9 @@ export interface CrmSettings {
   callOutcomes: string[];
   /** true si el workspace configuró los suyos. */
   callOutcomesCustom: boolean;
+  /** Resultados de un mensaje de WhatsApp (lista aparte de la de llamadas). */
+  whatsappOutcomes: string[];
+  whatsappOutcomesCustom: boolean;
 }
 
 export async function getCrmSettings(userId: string, db: Db = getDb()): Promise<CrmSettings> {
@@ -29,37 +32,35 @@ export async function getCrmSettings(userId: string, db: Db = getDb()): Promise<
   return {
     baseCurrency: row?.base_currency || 'USD',
     quoteAcceptMovesDeal: !!row?.quote_accept_moves_deal,
-    callOutcomes: parseCallOutcomes(row?.call_outcomes),
-    callOutcomesCustom: normalizeCallOutcomes(safeJson(row?.call_outcomes)).length > 0,
+    callOutcomes: parseCallOutcomes(row?.call_outcomes, 'call'),
+    callOutcomesCustom: parseOutcomeConfig(row?.call_outcomes).call.length > 0,
+    whatsappOutcomes: parseCallOutcomes(row?.call_outcomes, 'whatsapp'),
+    whatsappOutcomesCustom: parseOutcomeConfig(row?.call_outcomes).whatsapp.length > 0,
   };
-}
-
-function safeJson(v: string | null | undefined): unknown {
-  try {
-    return v ? JSON.parse(v) : null;
-  } catch {
-    return null;
-  }
 }
 
 export async function updateCrmSettings(
   userId: string,
-  patch: Partial<Pick<CrmSettings, 'baseCurrency' | 'quoteAcceptMovesDeal'>> & { callOutcomes?: string[] | null },
+  patch: Partial<Pick<CrmSettings, 'baseCurrency' | 'quoteAcceptMovesDeal'>> & {
+    callOutcomes?: string[] | null;
+    whatsappOutcomes?: string[] | null;
+  },
   db: Db = getDb(),
 ): Promise<CrmSettings> {
   const current = await getCrmSettings(userId, db);
   const baseCurrency = patch.baseCurrency ? patch.baseCurrency.toUpperCase() : current.baseCurrency;
   const quoteAcceptMovesDeal = patch.quoteAcceptMovesDeal ?? current.quoteAcceptMovesDeal;
   if (!CURRENCY_RE.test(baseCurrency)) throw new Error('invalid_currency');
-  // callOutcomes: undefined = sin cambios; null o lista vacía = los de siempre.
-  const outcomes =
-    patch.callOutcomes === undefined
-      ? current.callOutcomesCustom
-        ? JSON.stringify(current.callOutcomes)
-        : null
-      : normalizeCallOutcomes(patch.callOutcomes ?? []).length
-        ? JSON.stringify(normalizeCallOutcomes(patch.callOutcomes))
-        : null;
+  // Resultados por canal: undefined = sin cambios; null o lista vacía = los de siempre.
+  const outcomes = serializeOutcomeConfig({
+    call: patch.callOutcomes === undefined ? (current.callOutcomesCustom ? current.callOutcomes : []) : (patch.callOutcomes ?? []),
+    whatsapp:
+      patch.whatsappOutcomes === undefined
+        ? current.whatsappOutcomesCustom
+          ? current.whatsappOutcomes
+          : []
+        : (patch.whatsappOutcomes ?? []),
+  });
   await db
     .prepare(
       `INSERT INTO crm_settings (user_id, base_currency, quote_accept_moves_deal, call_outcomes, updated_at)

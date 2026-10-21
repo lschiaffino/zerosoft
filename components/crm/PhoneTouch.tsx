@@ -15,16 +15,24 @@ interface PhoneTouchProps {
   compact?: boolean;
 }
 
-/** Cache por página de los resultados del workspace (GET /api/crm/settings). */
-let outcomesPromise: Promise<string[]> | null = null;
-function loadOutcomes(): Promise<string[]> {
+interface ChannelOutcomes {
+  call: string[];
+  whatsapp: string[];
+}
+
+/** Cache por página de los resultados del workspace por canal (GET /api/crm/settings). */
+let outcomesPromise: Promise<ChannelOutcomes> | null = null;
+function loadOutcomes(): Promise<ChannelOutcomes> {
   if (!outcomesPromise) {
     outcomesPromise = fetch('/api/crm/settings')
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { callOutcomes?: string[] } | null) => d?.callOutcomes ?? [])
+      .then((d: { callOutcomes?: string[]; whatsappOutcomes?: string[] } | null) => ({
+        call: d?.callOutcomes ?? [],
+        whatsapp: d?.whatsappOutcomes ?? [],
+      }))
       .catch(() => {
         outcomesPromise = null;
-        return [];
+        return { call: [], whatsapp: [] };
       });
   }
   return outcomesPromise;
@@ -51,7 +59,7 @@ export default function PhoneTouch({ phone, contactId, companyId, dealId, compac
 
   useEffect(() => {
     if (channel === null) return;
-    void loadOutcomes().then(setOutcomes);
+    void loadOutcomes().then((all) => setOutcomes(channel === 'whatsapp' ? all.whatsapp : all.call));
     function onDoc(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setChannel(null);
     }
@@ -71,6 +79,7 @@ export default function PhoneTouch({ phone, contactId, companyId, dealId, compac
   const outcomeLabel = (o: string) => (isDefaultOutcome(o) ? t(`calls.outcomes.${o}`) : o);
 
   function open(next: CallChannel) {
+    if (next !== channel) setOutcomes([]);
     setOutcome('');
     setNote('');
     setMinutes('');

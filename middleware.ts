@@ -5,6 +5,7 @@ import { isAppHost } from './lib/hosts';
 import { surfaceForHost, surfaceRewritePath } from './lib/host-rewrite';
 import { requestLocale } from './lib/request-locale';
 import { RETURN_PATH_HEADER } from './lib/return-path';
+import { quickCreateRedirect } from './lib/quick-create-redirect';
 import { BRAND_COOKIE, BRAND_HEADER, BRAND_PARAM, DEFAULT_BRAND, forcedBrandForPath, isBrandTheme } from './lib/brand-theme';
 
 const intlMiddleware = createMiddleware(routing);
@@ -117,6 +118,10 @@ export default function middleware(incoming: NextRequest) {
       return NextResponse.rewrite(new URL(`/r/${slug}${req.nextUrl.search}`, req.url));
     }
   }
+
+  // /new de las altas que son un modal: 307 a la lista con ?new=1 (ver lib/quick-create-redirect.ts).
+  const quick = quickCreateRedirect(pathname, req.nextUrl.search);
+  if (quick) return NextResponse.redirect(new URL(quick, req.url), 307);
 
   return intlMiddleware(withReturnPath(req));
 }

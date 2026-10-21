@@ -250,7 +250,8 @@
       "ownershipSection": "Ownership",
       "customFieldsSection": "Custom fields",
       "viewAllProperties": "View all properties",
-      "companies": "Companies"
+      "companies": "Companies",
+      "mergeConfirmTitle": "Merge contacts"
     },
     "form": {
       "firstName": "First name",
@@ -368,12 +369,14 @@
       "merge": "{count, plural, one {Merge # company into the one kept} other {Merge # companies into the one kept}}",
       "confirm": "{count, plural, one {Merge # company into {keep}?} other {Merge # companies into {keep}?}} Contacts, deals, activities and files move to {keep}.",
       "merged": "{count, plural, one {# company merged} other {# companies merged}}",
-      "trashNote": "Merged companies go to the recycle bin with everything they had, so you can restore them."
+      "trashNote": "Merged companies go to the recycle bin with everything they had, so you can restore them.",
+      "confirmTitle": "Merge duplicate companies"
     },
     "enrich": {
       "looking": "Looking up the website…",
       "filled": "Name, website and phone filled in from {domain} where they were empty.",
-      "exists": "A company with this domain already exists:"
+      "exists": "A company with this domain already exists:",
+      "createAnyway": "Create anyway"
     }
   },
   "deals": {
@@ -978,7 +981,10 @@
     "importDesc": "Upload a CSV of contacts, companies or deals.",
     "quotesTitle": "Quotes",
     "quotesDesc": "What happens to the deal when the customer accepts.",
-    "fieldCurrency": "Currency"
+    "fieldCurrency": "Currency",
+    "stageCol": "Stage",
+    "probabilityShort": "Prob. %",
+    "rottingShort": "Rotting after (days)"
   },
   "importP": {
     "title": "Import {entity}",
@@ -2039,13 +2045,18 @@
       "left_voicemail": "Left a voicemail",
       "no_answer": "No answer",
       "busy": "Busy",
-      "wrong_number": "Wrong number"
+      "wrong_number": "Wrong number",
+      "replied": "Replied",
+      "read_no_reply": "Read, no reply",
+      "delivered": "Delivered, not read",
+      "not_on_whatsapp": "Not on WhatsApp"
     },
-    "settingsTitle": "Call outcomes",
-    "settingsDesc": "The outcomes to pick from when someone logs a call or a WhatsApp message from a phone link.",
-    "settingsLabel": "Outcomes, one per line",
+    "settingsTitle": "Call and WhatsApp outcomes",
+    "settingsDesc": "What people pick when they log a call or a WhatsApp message from a phone link. Each channel has its own list.",
+    "settingsLabel": "Calls, one per line",
     "settingsHelp": "Up to {max}. Leave it empty to use the default list.",
-    "settingsReset": "Use the default list"
+    "settingsReset": "Use the default list",
+    "settingsLabelWhatsapp": "WhatsApp, one per line"
   },
   "listSort": {
     "ownerAsc": "Owner (A to Z)",

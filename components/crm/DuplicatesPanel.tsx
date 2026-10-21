@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import ConfirmDialog from './ConfirmDialog';
 
 interface DupContact {
   id: string;
@@ -25,7 +26,7 @@ interface DuplicatesPanelProps {
 
 /**
  * "Find duplicates" → grupos que comparten email e incluyen a este contacto.
- * Merge: keepId = este contacto, dropId = el elegido (con confirm).
+ * Merge: keepId = este contacto, dropId = el elegido (con diálogo de confirmación).
  */
 export default function DuplicatesPanel({ contactId, autoFind = false }: DuplicatesPanelProps) {
   const t = useTranslations('crm');
@@ -35,6 +36,7 @@ export default function DuplicatesPanel({ contactId, autoFind = false }: Duplica
   const [dropId, setDropId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [merged, setMerged] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   async function find() {
     setState('loading');
@@ -65,10 +67,8 @@ export default function DuplicatesPanel({ contactId, autoFind = false }: Duplica
     if (!dropId) return;
     const keep = groups[0]?.contacts.find((c) => c.id === contactId);
     const drop = groups[0]?.contacts.find((c) => c.id === dropId);
+    setConfirming(false);
     if (!keep || !drop) return;
-    if (!window.confirm(t('contacts.detail.mergeConfirm', { drop: drop.email, keep: keep.email }))) {
-      return;
-    }
     setBusy(true);
     const res = await fetch('/api/crm/contacts/merge', {
       method: 'POST',
@@ -149,13 +149,32 @@ export default function DuplicatesPanel({ contactId, autoFind = false }: Duplica
           <button
             type="button"
             className="btn btn-primary btn-sm"
-            onClick={merge}
+            onClick={() => setConfirming(true)}
             disabled={busy || !dropId}
           >
             {t('contacts.detail.merge')}
           </button>
         </div>
       ))}
+      {confirming &&
+        (() => {
+          const keep = groups[0]?.contacts.find((c) => c.id === contactId);
+          const drop = groups[0]?.contacts.find((c) => c.id === dropId);
+          return (
+            <ConfirmDialog
+              title={t('contacts.detail.mergeConfirmTitle')}
+              message={t('contacts.detail.mergeConfirm', {
+                drop: drop ? drop.email || displayName(drop) : '',
+                keep: keep ? keep.email || displayName(keep) : '',
+              })}
+              confirmLabel={t('contacts.detail.merge')}
+              cancelLabel={t('common.cancel')}
+              busy={busy}
+              onConfirm={() => void merge()}
+              onCancel={() => setConfirming(false)}
+            />
+          );
+        })()}
     </div>
   );
 }
