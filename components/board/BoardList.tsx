@@ -10,6 +10,7 @@ import RowMenu from '@/components/notes/RowMenu';
 import type { BoardDetail, BoardSummary } from '@/lib/boards-types';
 import { BOARD_TEMPLATES, type BoardTemplateKey } from '@/lib/board-templates';
 import TemplatePreview from './TemplatePreview';
+import { notifyBoardsChanged } from './BoardBranch';
 
 const TOAST_MS = 6000;
 
@@ -30,6 +31,15 @@ export default function BoardList({
   const format = useFormatter();
   const router = useRouter();
   const [boards, setBoards] = useState(initialBoards);
+  // El sidebar lista las pizarras: se le avisa cada cambio local (renombrar, duplicar, borrar).
+  const firstBoards = useRef(true);
+  useEffect(() => {
+    if (firstBoards.current) {
+      firstBoards.current = false;
+      return;
+    }
+    notifyBoardsChanged();
+  }, [boards]);
   const [menu, setMenu] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

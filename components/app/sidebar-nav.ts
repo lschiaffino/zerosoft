@@ -346,7 +346,7 @@ export function buildNav(
       ];
 
     case 'board':
-      return [{ items: [{ href: '/app/board', label: labels.board.boards, active: at('/app/board'), icon: 'board' }] }];
+      return [{ items: [{ href: '/app/board', label: labels.board.boards, active: at('/app/board'), icon: 'board', branch: true }] }];
 
     case 'agents':
       return [{ items: [{ href: '/app/agents', label: labels.agents.agents, active: at('/app/agents'), icon: 'agents' }] }];

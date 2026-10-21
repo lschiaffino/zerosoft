@@ -153,5 +153,8 @@
     "threadLabel": "Comentario {n}",
     "replies": "{count, plural, =0 {sin respuestas} one {# respuesta} other {# respuestas}}",
     "mentionList": "Personas para mencionar"
+  },
+  "branch": {
+    "empty": "Todavía no hay pizarras."
   }
 }

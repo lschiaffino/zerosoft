@@ -23,6 +23,7 @@ import {
 } from '@/lib/board-sync';
 import NotesIcon from '@/components/notes/NotesIcon';
 import { usePopover } from '@/components/notes/usePopover';
+import { notifyBoardsChanged } from './BoardBranch';
 
 const ExcalidrawCanvas = dynamic(() => import('./ExcalidrawCanvas'), {
   ssr: false,
@@ -565,6 +566,7 @@ export default function BoardEditor({
       if (seq !== nameSeqRef.current || unmountedRef.current) return;
       savedNameRef.current = data?.name ?? clean;
       setNameError(false);
+      notifyBoardsChanged();
     } catch {
       // El input conserva lo escrito: el próximo blur o Enter reintenta.
       if (seq === nameSeqRef.current && !unmountedRef.current) setNameError(true);
