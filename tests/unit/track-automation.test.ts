@@ -298,11 +298,11 @@ describe('Track: posponer y recordar', () => {
 });
 
 describe('Track: avisos por email', () => {
-  it('por defecto el resumen diario; los cambios se guardan por persona', async () => {
+  it('por defecto sin emails; los cambios se guardan por persona', async () => {
     const u = await makeUser('pref');
-    expect((await getNotifyPrefs(u.id)).emailMode).toBe('digest');
-    const saved = await setNotifyPrefs(u.id, { emailMode: 'off', timezone: 'Europe/Madrid', locale: 'es' });
-    expect(saved).toEqual({ emailMode: 'off', timezone: 'Europe/Madrid', locale: 'es' });
+    expect((await getNotifyPrefs(u.id)).emailMode).toBe('off');
+    const saved = await setNotifyPrefs(u.id, { emailMode: 'digest', timezone: 'Europe/Madrid', locale: 'es' });
+    expect(saved).toEqual({ emailMode: 'digest', timezone: 'Europe/Madrid', locale: 'es' });
   });
 
   it('inmediato: sale una vez, pasado un minuto, solo lo sin leer', async () => {

@@ -28,7 +28,7 @@ import pt from '@/messages/pt/track.json';
 export type TrackEmailMode = 'immediate' | 'digest' | 'off';
 export type TrackMailLocale = 'en' | 'es' | 'pt';
 
-export const DEFAULT_EMAIL_MODE: TrackEmailMode = 'digest';
+export const DEFAULT_EMAIL_MODE: TrackEmailMode = 'off';
 /** Hora local desde la que sale el resumen (y hasta cuándo se reintenta ese día). */
 export const DIGEST_HOUR = 8;
 const DIGEST_LAST_HOUR = 11;
