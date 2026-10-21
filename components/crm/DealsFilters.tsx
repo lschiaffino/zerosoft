@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { ColumnsSlot } from './ColumnToggle';
 import { ACTIVITY_DATE_SORTS, type ActivityDateSort } from '@/lib/crm-activity-dates';
+import type { ExtraSort } from '@/lib/crm-list-sort';
 
 interface CustomFieldOption {
   name: string;
@@ -27,12 +28,14 @@ interface DealsFiltersProps {
   custom: Record<string, string>;
   /** Query param `filters` crudo (advanced filter builder); se preserva al navegar. */
   advanced?: string;
-  sort: 'newest' | 'oldest' | 'amount' | 'amount_asc' | 'close_date' | 'close_date_desc' | ActivityDateSort;
+  sort: 'newest' | 'oldest' | 'amount' | 'amount_asc' | 'close_date' | 'close_date_desc' | ActivityDateSort | ExtraSort;
   stages: Array<{ id: string; name: string }>;
   priorities: Array<{ value: string; label: string }>;
   sources: Array<{ value: string; label: string }>;
   owners: Array<{ value: string; label: string }>;
   customFields: CustomFieldOption[];
+  /** Órdenes por owner y custom fields (lib/crm-list-sort.ts). */
+  extraSorts?: Array<{ value: string; label: string }>;
   /** Filtro avanzado (FilterBuilder): se muestra dentro de "Más filtros". */
   children?: React.ReactNode;
 }
@@ -57,6 +60,7 @@ export default function DealsFilters({
   sources,
   owners,
   customFields,
+  extraSorts = [],
   children,
 }: DealsFiltersProps) {
   const t = useTranslations('crm');
@@ -231,6 +235,11 @@ export default function DealsFilters({
             {ACTIVITY_DATE_SORTS.map((v) => (
               <option key={v} value={v}>
                 {t(`activityDates.sort.${v}`)}
+              </option>
+            ))}
+            {extraSorts.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
               </option>
             ))}
           </select>

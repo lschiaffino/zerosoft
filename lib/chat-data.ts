@@ -1,4 +1,5 @@
 import { getDb, getUserById } from './db';
+import { emitChatEvent, emitConversationChanges, toApiMessage } from './chat-api';
 import { inlineHtmlToText } from './docs-markdown';
 import { mergeVisitorMetadata, type VisitorContextPatch } from './chat-visitor-context';
 import type { ChatAttributeDef } from './chat-attributes';
@@ -1187,7 +1188,10 @@ export async function updateChatConversation(
     await db.prepare(`UPDATE chat_conversations SET ${fields.join(', ')} WHERE id = ?`).run(...args);
   }
 
-  return getChatConversation(id);
+  const updated = await getChatConversation(id);
+  // Webhooks: asignación y resolución (lib/chat-api.ts).
+  if (updated) await emitConversationChanges(existing, updated);
+  return updated;
 }
 
 /** Una respuesta del agente a una conversación resuelta la vuelve a abrir. */
@@ -1283,6 +1287,9 @@ export async function setChatAgentAway(
           .prepare('UPDATE chat_conversations SET assigned_to = ?, updated_at = ? WHERE id = ? AND assigned_to = ?')
           .run(next, nowIso(), row.id, userId);
         reassigned += res.changes;
+        if (res.changes && next !== userId) {
+          await emitChatEvent(row.id, 'chat.conversation.assigned', { previousAssignedTo: userId });
+        }
       }
     }
   }
@@ -1525,9 +1532,15 @@ export async function applyAssignmentRules(
     }
 
     if (assignTo) {
+      const prev = (await db.prepare('SELECT assigned_to FROM chat_conversations WHERE id = ?').get(conversationId)) as
+        | { assigned_to: string | null }
+        | undefined;
       await db
         .prepare('UPDATE chat_conversations SET assigned_to = ?, updated_at = ? WHERE id = ?')
         .run(assignTo, nowIso(), conversationId);
+      if ((prev?.assigned_to ?? null) !== assignTo) {
+        await emitChatEvent(conversationId, 'chat.conversation.assigned', { previousAssignedTo: prev?.assigned_to ?? null });
+      }
       return assignTo;
     }
   }
@@ -1977,7 +1990,12 @@ export async function createChatMessage(
 
   await markConversationUpdated(conversationId);
 
-  return (await db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(id)) as ChatMessageRow;
+  const message = (await db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(id)) as ChatMessageRow;
+  // Webhook: las notas internas y los mensajes de sistema no salen del workspace.
+  if (message.is_note !== 1 && senderType !== 'system') {
+    await emitChatEvent(conversationId, 'chat.message.created', { message: toApiMessage(message) });
+  }
+  return message;
 }
 
 // ---------- Editar y borrar (solo el autor) ----------

@@ -18,6 +18,9 @@ export const WEBHOOK_EVENTS = [
   'deal.lost',
   'robot.run.finished',
   'robot.run.failed',
+  'chat.message.created',
+  'chat.conversation.assigned',
+  'chat.conversation.resolved',
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 

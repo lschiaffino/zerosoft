@@ -76,9 +76,21 @@ export interface TrashRow {
   owner_id: string | null;
   deleted_by: string;
   deleted_at: string;
+  /** Empresa en la que se fusionó (merge de duplicados); null = borrado común. */
+  merged_into: string | null;
 }
 
-export type TrashListRow = TrashRow & { owner_name: string | null; expires_at: string };
+export type TrashListRow = TrashRow & { owner_name: string | null; expires_at: string; merged_into_name: string | null };
+
+export interface TrashOptions {
+  /** Merge: el registro se fusionó en este otro (se muestra en la papelera). */
+  mergedInto?: string;
+  /**
+   * Solo guarda el snapshot, sin borrar (el merge mueve las hijas al que
+   * queda y borra la fila él mismo, dentro de su transacción).
+   */
+  snapshotOnly?: boolean;
+}
 
 function nowDb(): string {
   return new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -315,6 +327,7 @@ export async function trashRecords(
   ids: string[],
   actorEmail = '',
   db: Db = getDb(),
+  opts: TrashOptions = {},
 ): Promise<number> {
   if (!ids.length) return 0;
   const table = ENTITY_TABLE[entity];
@@ -359,8 +372,8 @@ export async function trashRecords(
     }
     await db
       .prepare(
-        `INSERT INTO crm_trash (id, user_id, entity, record_id, label, owner_id, deleted_by, deleted_at, snapshot)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO crm_trash (id, user_id, entity, record_id, label, owner_id, deleted_by, deleted_at, snapshot, merged_into)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         crypto.randomUUID(),
@@ -372,8 +385,10 @@ export async function trashRecords(
         actorEmail,
         ts,
         JSON.stringify(snap),
+        opts.mergedInto ?? null,
       );
   }
+  if (opts.snapshotOnly) return present.length;
 
   let changes = 0;
   for (const part of chunks(presentIds)) {
@@ -521,8 +536,9 @@ export async function listTrash(userId: string, f: TrashFilter = {}, db: Db = ge
   }
   return (await db
     .prepare(
-      `SELECT t.id, t.user_id, t.entity, t.record_id, t.label, t.owner_id, t.deleted_by, t.deleted_at,
+      `SELECT t.id, t.user_id, t.entity, t.record_id, t.label, t.owner_id, t.deleted_by, t.deleted_at, t.merged_into,
          u.name AS owner_name,
+         (SELECT mc.name FROM crm_companies mc WHERE mc.id = t.merged_into AND mc.user_id = t.user_id) AS merged_into_name,
          datetime(t.deleted_at, '+${TRASH_RETENTION_DAYS} days') AS expires_at
        FROM crm_trash t LEFT JOIN users u ON u.id = t.owner_id
        WHERE ${where.join(' AND ')}

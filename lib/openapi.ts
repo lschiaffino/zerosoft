@@ -92,7 +92,7 @@ export function buildOpenApiSpec(): Record<string, unknown> {
     info: {
       title: 'Zerosoft API',
       version: '1.0.0',
-      description: 'REST API for Link, CRM and Cal. Authenticate with a personal key: `Authorization: Bearer zs_…`. Each key has scopes (crm:read, crm:write, links:read, links:write, cal:read, cal:write, agents:run); write includes read. A key acts as the person who created it, so CRM record visibility rules apply.',
+      description: 'REST API for Link, CRM, Cal, Agents and Chat. Authenticate with a personal key: `Authorization: Bearer zs_…`. Each key has scopes (crm:read, crm:write, links:read, links:write, cal:read, cal:write, agents:run, chat:read, chat:write); write includes read. A key acts as the person who created it, so CRM record visibility rules apply.',
       license: { name: 'AGPL-3.0', url: 'https://www.gnu.org/licenses/agpl-3.0.html' },
     },
     servers: [{ url: origin }],

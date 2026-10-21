@@ -697,7 +697,7 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
           ...(contactIds.length ? { addContactIds: contactIds } : {}),
         });
         if (raw.stage?.trim() && existing.stage_id !== stage.id) {
-          await moveDeal(userId, existing.id, stage.id);
+          await moveDeal(userId, existing.id, stage.id, null, undefined, '', { enforceRequired: false });
         }
         result.updated++;
         continue;

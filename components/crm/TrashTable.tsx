@@ -13,6 +13,8 @@ export interface TrashTableRow {
   deletedBy: string;
   deletedAt: string;
   daysLeft: number;
+  /** Merge: empresa en la que se fusionó (null si fue un borrado común). */
+  mergedInto?: { id: string; name: string | null } | null;
 }
 
 interface TrashTableProps {
@@ -123,7 +125,20 @@ export default function TrashTable({ rows, canPurge }: TrashTableProps) {
           <tbody>
             {rows.map((row) => (
               <tr key={row.id} className={busyId === row.id ? 'row-busy' : undefined}>
-                <td className="cell-name">{row.label || t('trash.untitled')}</td>
+                <td className="cell-name">
+                  {row.label || t('trash.untitled')}
+                  {row.mergedInto && (
+                    <span className="muted cell-sub trash-merged">
+                      {' '}
+                      {t('trash.mergedInto')}{' '}
+                      {row.mergedInto.name ? (
+                        <Link href={`/app/crm/companies/${row.mergedInto.id}`}>{row.mergedInto.name}</Link>
+                      ) : (
+                        '—'
+                      )}
+                    </span>
+                  )}
+                </td>
                 <td className="muted">{t(`trash.entity.${row.entity}`)}</td>
                 <td className="muted cell-sub">{row.owner || '—'}</td>
                 <td className="muted cell-sub">{row.deletedBy || '—'}</td>

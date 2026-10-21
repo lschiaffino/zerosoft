@@ -171,7 +171,7 @@ export async function crmUpdateNode(ws: string, cfg: Cfg, tctx: Ctx, actorEmail 
       .get(String(existing.pipeline_id ?? ''), stage, stage.toLowerCase())) as { id: string; name: string } | undefined;
     if (!row) throw new StepError('invalid_stage');
     const moved = await crm.moveDeal(ws, id, row.id, null, undefined, actorEmail);
-    if (!moved.ok) throw new StepError(moved.reason);
+    if (!moved.ok) throw new StepError(moved.reason, false, moved.reason === 'missing_required' ? { missing: moved.missing } : undefined);
     stageName = row.name;
   }
   const updated = (await db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id)) as Record<string, unknown>;

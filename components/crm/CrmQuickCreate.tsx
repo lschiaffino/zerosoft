@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { normalizeCompanyDomain } from '@/lib/crm-domain';
+import { DomainPrefillNote, useDomainPrefill } from './DomainPrefill';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
@@ -150,6 +152,7 @@ function QuickCreateForm({
   const [name, setName] = useState('');
   const [domain, setDomain] = useState('');
   const [industry, setIndustry] = useState('');
+  const prefill = useDomainPrefill();
 
   // Deal
   const [pipelines, setPipelines] = useState<PipelineOption[]>([]);
@@ -242,6 +245,10 @@ function QuickCreateForm({
         name: name.trim(),
         domain: domain.trim() || undefined,
         industry: industry.trim() || undefined,
+        // Lo que se precargó del sitio (solo si sigue siendo el mismo dominio).
+        ...(prefill.info && prefill.info.domain === normalizeCompanyDomain(domain)
+          ? { website: prefill.info.website || undefined, phone: prefill.info.phone || undefined }
+          : {}),
       };
     } else {
       url = '/api/crm/deals';
@@ -393,9 +400,14 @@ function QuickCreateForm({
               <input
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
+                onBlur={async (e) => {
+                  const info = await prefill.lookup(e.target.value);
+                  if (info?.name && !name.trim()) setName(info.name);
+                }}
                 placeholder="acme.com"
                 maxLength={500}
               />
+              <DomainPrefillNote info={prefill.info} loading={prefill.loading} />
             </label>
             <label className="qm-field">
               <span>{t('companies.form.industry')}</span>

@@ -112,7 +112,8 @@
       "link": "Links",
       "contact": "Contacts",
       "deal": "Deals",
-      "robot": "Robots"
+      "robot": "Robots",
+      "chat": "Chat"
     },
     "eventLabels": {
       "booking_created": "Booking created",
@@ -132,7 +133,10 @@
       "robot_run_finished": "Robot finished",
       "robot_run_failed": "Robot failed",
       "link_updated": "Link updated",
-      "link_deleted": "Link deleted"
+      "link_deleted": "Link deleted",
+      "chat_message_created": "Chat message",
+      "chat_conversation_assigned": "Conversation assigned",
+      "chat_conversation_resolved": "Conversation resolved"
     },
     "errors": {
       "https_required": "The URL must use https.",

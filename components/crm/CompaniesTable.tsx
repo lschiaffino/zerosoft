@@ -10,11 +10,16 @@ import RecordPreview from './RecordPreview';
 import TagDots, { type TagDot } from './TagDots';
 import TagBulkControls from './TagBulkControls';
 import CrmIcon from './CrmIcon';
+import PhoneTouch from './PhoneTouch';
+import CompanyLogo from './CompanyLogo';
 import BulkEditControls, { type BulkEditField } from './BulkEditControls';
 import type { CustomCell, CustomColumn } from './customFieldViews';
+import { CustomColumnHeader, OwnerCell, OwnerHeader } from './TableExtraColumns';
 
 export interface CompanyRow {
   id: string;
+  /** Owner (id de usuario) para la columna editable. */
+  ownerId?: string | null;
   /** Custom fields ya formateados (`custom:<name>`). */
   custom?: Record<string, CustomCell>;
   name: string;
@@ -46,6 +51,8 @@ interface CompaniesTableProps {
   allTags?: Array<{ id: string; name: string }>;
   /** Propiedades editables en masa (owner, lifecycle, custom fields…). */
   bulkFields?: BulkEditField[];
+  /** Personas del workspace (columna owner). */
+  owners?: Array<{ value: string; label: string }>;
 }
 
 const COLS = [
@@ -58,6 +65,7 @@ const COLS = [
   { id: 'deals', labelKey: 'deals.title', defaultVisible: true },
   { id: 'lifecycle', labelKey: 'companies.table.lifecycle', defaultVisible: true },
   { id: 'tags', labelKey: 'tags.column', defaultVisible: true },
+  { id: 'owner', labelKey: 'filters.field.owner', defaultVisible: true },
   { id: 'parent', labelKey: 'companies.detail.parent', defaultVisible: false },
   { id: 'created', labelKey: 'companies.table.created', defaultVisible: false },
   { id: 'lastActivity', labelKey: 'activityDates.lastActivity', defaultVisible: false },
@@ -66,7 +74,7 @@ const COLS = [
 ];
 
 /** Tabla de empresas con selección múltiple, bulk bar, selector de columnas, edición inline y preview. */
-export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags = [], bulkFields = [], customColumns = [] }: CompaniesTableProps) {
+export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags = [], bulkFields = [], customColumns = [], owners = [] }: CompaniesTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -152,6 +160,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
               {visible.has('deals') && <th className="num">{t('deals.title')}</th>}
               {visible.has('lifecycle') && <th>{t('companies.table.lifecycle')}</th>}
               {visible.has('tags') && <th>{t('tags.column')}</th>}
+              {visible.has('owner') && <OwnerHeader sort={sort} />}
               {visible.has('parent') && <th>{t('companies.detail.parent')}</th>}
               {visible.has('created') && (
                 <th>
@@ -173,14 +182,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                   <SortTh label={t('activityDates.nextActivity')} asc="next_activity" desc="next_activity_desc" current={sort} />
                 </th>
               )}
-              {customColumns.map(
-                (c) =>
-                  visible.has(c.id) && (
-                    <th key={c.id} className={c.numeric ? 'num' : undefined}>
-                      {c.label}
-                    </th>
-                  ),
-              )}
+              {customColumns.map((c) => visible.has(c.id) && <CustomColumnHeader key={c.id} col={c} sort={sort} />)}
               <th className="cell-actions-head"><span className="sr-only">{t('companies.table.actions')}</span></th>
             </tr>
           </thead>
@@ -198,7 +200,8 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                 </td>
                 {visible.has('name') && (
                   <td>
-                    <Link href={`/app/crm/companies/${row.id}`} className="cell-name">
+                    <Link href={`/app/crm/companies/${row.id}`} className="cell-name cell-name-logo">
+                      <CompanyLogo domain={row.domain} name={row.name} size={18} />
                       {row.name}
                     </Link>
                   </td>
@@ -231,16 +234,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                       value={row.phone}
                       className="muted"
                     />
-                    {row.phone ? (
-                      <a
-                        href={`tel:${row.phone}`}
-                        className="cell-quick"
-                        title={t('enums.activityType.call')}
-                        aria-label={t('enums.activityType.call')}
-                      >
-                        <CrmIcon name="phone" />
-                      </a>
-                    ) : null}
+                    {row.phone ? <PhoneTouch phone={row.phone} companyId={row.id} compact /> : null}
                   </td>
                 )}
                 {visible.has('location') && <td className="muted cell-sub">{row.location || '—'}</td>}
@@ -262,6 +256,9 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                   <td className="cell-crm-tags">
                     <TagDots tags={row.tags ?? []} max={2} />
                   </td>
+                )}
+                {visible.has('owner') && (
+                  <OwnerCell endpoint={`/api/crm/companies/${row.id}`} ownerId={row.ownerId} owners={owners} />
                 )}
                 {visible.has('parent') && <td className="muted cell-sub">{row.parentName || '—'}</td>}
                 {visible.has('created') && <td className="num muted cell-date">{row.created}</td>}

@@ -1,20 +1,30 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { PipelineWithStages } from '@/lib/crm';
 import { RemoveIcon } from './RowTools';
 import { DEFAULT_ROTTING_DAYS, MAX_ROTTING_DAYS } from '@/lib/crm-rotting';
+import { parseRequiredFields, STAGE_RULE_FIELDS } from '@/lib/crm-stage-rules';
 
 interface PipelinesEditorProps {
   initialPipelines: PipelineWithStages[];
+  /** Custom fields de deals (para elegirlos como obligatorios por etapa). */
+  customFields?: Array<{ name: string; label: string }>;
 }
 
-type Patch = { name?: string; probability?: number; isWon?: boolean; isLost?: boolean; rottingDays?: number | null };
+type Patch = {
+  name?: string;
+  probability?: number;
+  isWon?: boolean;
+  isLost?: boolean;
+  rottingDays?: number | null;
+  requiredFields?: string[];
+};
 
 /** Editor de pipelines y stages: rename inline, probabilidad, flags, reorder ↑↓. */
-export default function PipelinesEditor({ initialPipelines }: PipelinesEditorProps) {
+export default function PipelinesEditor({ initialPipelines, customFields = [] }: PipelinesEditorProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [pipelines, setPipelines] = useState<PipelineWithStages[]>(initialPipelines);
@@ -25,6 +35,12 @@ export default function PipelinesEditor({ initialPipelines }: PipelinesEditorPro
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmPipeline, setConfirmPipeline] = useState<string | null>(null);
   const [confirmStage, setConfirmStage] = useState<string | null>(null);
+  /** Etapa con el panel de propiedades obligatorias abierto. */
+  const [rulesStage, setRulesStage] = useState<string | null>(null);
+  const ruleOptions = [
+    ...STAGE_RULE_FIELDS.map((k) => ({ key: k, label: t(`stageRules.fields.${k}`) })),
+    ...customFields.map((f) => ({ key: `custom:${f.name}`, label: f.label })),
+  ];
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function flashSaved() {
@@ -281,7 +297,8 @@ export default function PipelinesEditor({ initialPipelines }: PipelinesEditorPro
 
           <div className="pl-stages">
             {p.stages.map((s, idx) => (
-              <div className="stage-row" key={s.id}>
+              <Fragment key={s.id}>
+              <div className="stage-row">
                 <input
                   className="input"
                   type="text"
@@ -347,6 +364,15 @@ export default function PipelinesEditor({ initialPipelines }: PipelinesEditorPro
                 <span className="cell-actions">
                   <button
                     type="button"
+                    className="btn btn-ghost btn-sm stage-rules-btn"
+                    aria-expanded={rulesStage === s.id}
+                    onClick={() => setRulesStage((cur) => (cur === s.id ? null : s.id))}
+                    title={t('stageRules.hint')}
+                  >
+                    {t('stageRules.button', { count: parseRequiredFields(s.required_fields).length })}
+                  </button>
+                  <button
+                    type="button"
                     className="icon-btn"
                     onClick={() => onMoveStage(p.id, idx, -1)}
                     disabled={busy || idx === 0}
@@ -399,6 +425,35 @@ export default function PipelinesEditor({ initialPipelines }: PipelinesEditorPro
                   )}
                 </span>
               </div>
+              {rulesStage === s.id && (
+                <fieldset className="stage-rules">
+                  <legend className="prop-label">{t('stageRules.legend', { stage: s.name })}</legend>
+                  <p className="ui-help">{t('stageRules.hint')}</p>
+                  <div className="stage-rules-grid">
+                    {ruleOptions.map((o) => {
+                      const current = parseRequiredFields(s.required_fields);
+                      return (
+                        <label key={o.key} className="ui-check">
+                          <input
+                            type="checkbox"
+                            checked={current.includes(o.key)}
+                            disabled={busy}
+                            onChange={(e) =>
+                              onPatchStage(p.id, s.id, {
+                                requiredFields: e.target.checked
+                                  ? [...current, o.key]
+                                  : current.filter((k) => k !== o.key),
+                              })
+                            }
+                          />{' '}
+                          {o.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              )}
+              </Fragment>
             ))}
 
             <form className="stage-add" onSubmit={(e) => onAddStage(e, p.id)}>

@@ -355,7 +355,26 @@
       "lifecycle": "Estágio do ciclo de vida",
       "owner": "Responsável"
     },
-    "newTitle": "Nova empresa"
+    "newTitle": "Nova empresa",
+    "dupes": {
+      "title": "Empresas duplicadas",
+      "description": "Empresas que compartilham domínio ou nome. Escolha qual fica e mescle as outras nela.",
+      "find": "Buscar duplicadas",
+      "none": "Nenhuma empresa duplicada.",
+      "byDomain": "Mesmo domínio:",
+      "byName": "Mesmo nome:",
+      "keepLabel": "Empresa que fica",
+      "keep": "Fica",
+      "merge": "{count, plural, one {Mesclar # empresa na que fica} other {Mesclar # empresas na que fica}}",
+      "confirm": "{count, plural, one {Mesclar # empresa em {keep}?} other {Mesclar # empresas em {keep}?}} Contatos, deals, atividades e arquivos passam para {keep}.",
+      "merged": "{count, plural, one {# empresa mesclada} other {# empresas mescladas}}",
+      "trashNote": "As empresas mescladas vão para a lixeira com tudo o que tinham, então dá para restaurá-las."
+    },
+    "enrich": {
+      "looking": "Buscando o site…",
+      "filled": "Nome, site e telefone preenchidos a partir de {domain} onde estavam vazios.",
+      "exists": "Já existe uma empresa com este domínio:"
+    }
   },
   "deals": {
     "title": "Negócios",
@@ -1080,7 +1099,8 @@
     "trash_conflict": "Já existe um registro com este id, então não é possível restaurar.",
     "file_too_large": "O arquivo tem mais de 10 MB.",
     "file_type_not_allowed": "Esse tipo de arquivo não pode ser anexado.",
-    "storage_unavailable": "Este servidor não tem onde guardar arquivos."
+    "storage_unavailable": "Este servidor não tem onde guardar arquivos.",
+    "missing_required": "A etapa pede propriedades que este deal ainda não tem."
   },
   "filters": {
     "advanced": "Filtros avançados",
@@ -1965,7 +1985,8 @@
     "purgeConfirm": "Excluir para sempre?",
     "emptyBin": "Esvaziar lixeira",
     "emptyBinConfirm": "Excluir para sempre os {count} itens?",
-    "untitled": "Sem título"
+    "untitled": "Sem título",
+    "mergedInto": "mesclada em"
   },
   "files": {
     "title": "Arquivos",
@@ -1974,5 +1995,62 @@
   "mentions": {
     "suggestions": "Pessoas para mencionar",
     "placeholder": "Notas. Digite @ para mencionar alguém da equipe"
+  },
+  "stageRules": {
+    "fields": {
+      "amount": "Valor",
+      "closeDate": "Data de fechamento",
+      "ownerId": "Responsável",
+      "priority": "Prioridade",
+      "source": "Origem",
+      "description": "Descrição",
+      "company": "Empresa",
+      "contacts": "Contatos"
+    },
+    "button": "{count, plural, =0 {Obrigatórias} other {Obrigatórias (#)}}",
+    "hint": "Os deals precisam destas propriedades para entrar na etapa, pelo quadro, pela API, pela edição em massa e pelas automações.",
+    "legend": "Obrigatórias para entrar em {stage}",
+    "dialogTitle": "Antes de passar para {stage}",
+    "dialogSub": "Esta etapa pede estas propriedades. Preencha e o deal é movido.",
+    "stillMissing": "Ainda faltam propriedades obrigatórias.",
+    "needCompany": "Associe uma empresa ao deal.",
+    "needContacts": "Associe pelo menos um contato ao deal.",
+    "openDeal": "Abrir o deal",
+    "saveAndMove": "Salvar e mover",
+    "bulkBlocked": "{count, plural, one {# deal ficou onde estava porque a etapa pede propriedades que ele não tem.} other {# deals ficaram onde estavam porque a etapa pede propriedades que eles não têm.}}"
+  },
+  "calls": {
+    "call": "Ligar",
+    "whatsapp": "WhatsApp",
+    "logTitle": "Registrar este contato",
+    "logCall": "Como foi a ligação?",
+    "logWhatsapp": "Registrar a mensagem de WhatsApp",
+    "outcome": "Resultado",
+    "minutes": "Minutos",
+    "note": "Nota",
+    "notePlaceholder": "Nota (opcional)",
+    "save": "Registrar",
+    "skip": "Pular",
+    "logged": "Ficou no timeline",
+    "subjectCall": "Ligação",
+    "subjectWhatsapp": "Mensagem de WhatsApp",
+    "outcomes": {
+      "connected": "Atendeu",
+      "left_voicemail": "Deixei recado na caixa postal",
+      "no_answer": "Não atendeu",
+      "busy": "Ocupado",
+      "wrong_number": "Número errado"
+    },
+    "settingsTitle": "Resultados de ligação",
+    "settingsDesc": "Os resultados para escolher quando alguém registra uma ligação ou um WhatsApp a partir de um telefone.",
+    "settingsLabel": "Resultados, um por linha",
+    "settingsHelp": "Até {max}. Deixe vazio para usar a lista padrão.",
+    "settingsReset": "Usar a lista padrão"
+  },
+  "listSort": {
+    "ownerAsc": "Responsável (A a Z)",
+    "ownerDesc": "Responsável (Z a A)",
+    "fieldAsc": "{label} (crescente)",
+    "fieldDesc": "{label} (decrescente)"
   }
 }

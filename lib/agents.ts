@@ -998,6 +998,12 @@ export function buildAgentInstructions(
   if (has('crm_upsert_contact') || has('crm_log_note')) {
     rules.push('- Only save contact details the visitor gave you in this conversation. Never make up emails or names.');
   }
+  const gated = (agent.tools.requireApproval ?? []).filter((k) => has(k));
+  if (gated.length) {
+    rules.push(
+      `- These actions need a teammate's approval before they happen: ${gated.join(', ')}. When a tool returns pending: true, tell the visitor it is waiting for approval and the team will follow up. Never say it is done. An earlier result with "approval" tells you what the team decided.`,
+    );
+  }
   if (has('handoff_to_human')) {
     const when: string[] = [];
     if (agent.handoff.onRequest) when.push('the visitor asks for a human/person/agent');

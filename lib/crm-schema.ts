@@ -5,6 +5,8 @@
 import { z } from 'zod';
 import { CRM_CUSTOM_FIELD_TYPES } from './schema/types';
 import { MAX_ROTTING_DAYS } from './crm-rotting';
+import { MAX_REQUIRED_FIELDS } from './crm-stage-rules';
+import { CALL_CHANNELS, MAX_CALL_OUTCOMES } from './crm-calls';
 import {
   ACTIVITY_TYPES,
   CONTACT_COMPANY_LABELS,
@@ -144,6 +146,8 @@ export const stageUpdateSchema = z.object({
   isLost: z.boolean().optional(),
   /** null vuelve al default (14 días). */
   rottingDays: z.number().int().min(1).max(MAX_ROTTING_DAYS).nullable().optional(),
+  /** Propiedades obligatorias para entrar (lib/crm-stage-rules.ts); las claves desconocidas se descartan. */
+  requiredFields: z.array(z.string().max(120)).max(MAX_REQUIRED_FIELDS).optional(),
 });
 
 export const stagesReorderSchema = z.object({
@@ -187,6 +191,21 @@ export const dealMoveSchema = z.object({
   stageId: id,
   beforeId: id.nullish(),
   lostReason: shortText.optional(),
+  /**
+   * Propiedades que pide la etapa, completadas en el mismo paso: se guardan
+   * en el deal antes de moverlo (los custom fields se suman a los que ya tiene).
+   */
+  fields: z
+    .object({
+      amount: z.number().min(0).optional(),
+      closeDate: isoDate.nullish(),
+      ownerId: id.nullish(),
+      priority: priority.optional(),
+      source: source.optional(),
+      description: longText.optional(),
+      custom: custom.optional(),
+    })
+    .optional(),
 });
 
 // ---------- Activities ----------
@@ -198,6 +217,8 @@ export const activityCreateSchema = z.object({
   dueAt: isoDate.nullish(),
   direction: z.enum(['inbound', 'outbound']).optional(),
   outcome: shortText.optional(),
+  /** Llamadas: '' = teléfono, 'whatsapp' = toque por WhatsApp. */
+  channel: z.enum(CALL_CHANNELS).optional(),
   durationMin: z.number().int().min(0).nullish(),
   contactId: id.nullish(),
   companyId: id.nullish(),
@@ -331,6 +352,8 @@ export const recordTagsSchema = z.object({
 export const crmSettingsSchema = z.object({
   baseCurrency: currency.optional(),
   quoteAcceptMovesDeal: z.boolean().optional(),
+  /** Resultados de llamada (lib/crm-calls.ts); null vuelve a los de siempre. */
+  callOutcomes: z.array(z.string().max(200)).max(MAX_CALL_OUTCOMES).nullable().optional(),
 });
 
 export const exchangeRateSchema = z.object({

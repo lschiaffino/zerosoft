@@ -47,6 +47,24 @@ export const AGENT_TOOL_GROUP_ORDER = [
   { key: 'flow', product: 'flow' },
 ] as const;
 
+/**
+ * Herramientas que escriben y pueden pedir la aprobación de alguien del
+ * equipo antes de correr (http_request solo cuando no es GET).
+ */
+export const APPROVABLE_AGENT_TOOLS = [
+  'crm_upsert_contact',
+  'crm_log_note',
+  'cal_book_meeting',
+  'track_create_issue',
+  'run_flow',
+  'http_request',
+] as const satisfies readonly AgentToolKey[];
+export type ApprovableAgentTool = (typeof APPROVABLE_AGENT_TOOLS)[number];
+
+export function isApprovableTool(v: string): v is ApprovableAgentTool {
+  return (APPROVABLE_AGENT_TOOLS as readonly string[]).includes(v);
+}
+
 /** Herramientas de un grupo, en el orden de AGENT_TOOL_KEYS. */
 export function agentToolsInGroup(group: (typeof AGENT_TOOL_GROUP)[AgentToolKey]): AgentToolKey[] {
   return AGENT_TOOL_KEYS.filter((k) => AGENT_TOOL_GROUP[k] === group);
@@ -96,6 +114,8 @@ export const toolsConfigSchema = z.object({
   trackProjectId: id.nullable().default(null),
   flowIds: z.array(id).max(20).default([]),
   httpAllowedDomains: z.array(domain).max(20).default([]),
+  /** Acciones que esperan la aprobación de alguien del equipo (lib/agents-approvals.ts). */
+  requireApproval: z.array(z.enum(APPROVABLE_AGENT_TOOLS)).max(APPROVABLE_AGENT_TOOLS.length).default([]),
 });
 
 export const handoffConfigSchema = z.object({
@@ -293,6 +313,20 @@ export interface AgentToolCallDto {
   error: string | null;
   durationMs: number;
   runId: string;
+  createdAt: string;
+}
+
+/** Acción que espera la aprobación de alguien del equipo (lib/agents-approvals.ts). */
+export interface AgentPendingActionDto {
+  id: string;
+  conversationId: string;
+  tool: ApprovableAgentTool;
+  input: unknown;
+  status: 'pending' | 'approved' | 'rejected' | 'failed';
+  /** Lo que devolvió la acción al aprobarla (o el error). */
+  result: unknown;
+  decidedBy: string;
+  decidedAt: string | null;
   createdAt: string;
 }
 

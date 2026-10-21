@@ -501,3 +501,73 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   .tl-filters { flex-wrap: wrap; overflow: visible; padding-top: 1px; }
   .tl-filters > .btn { margin-top: -1px; }
 }
+
+/* Logo de empresa (favicon del sitio) o iniciales. */
+.co-logo {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--surface-1);
+  object-fit: contain;
+}
+.co-logo-initials {
+  font-family: var(--font-data);
+  font-weight: 500;
+  line-height: 1;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+.cell-name-logo { display: inline-flex; align-items: center; gap: 8px; }
+.record-title-logo { display: inline-flex; align-items: center; gap: 10px; }
+.co-enrich-note { font-size: 0.8125rem; }
+
+/* Propiedades obligatorias por etapa (Ajustes, Ventas) y su diálogo al mover. */
+.stage-rules { border: 1px solid var(--line); border-radius: var(--radius-1); padding: 12px 14px; margin: 0 0 8px; }
+.stage-rules legend { padding: 0 4px; }
+.stage-rules-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px 16px; margin-top: 8px; }
+.stage-rules-btn { white-space: nowrap; }
+.stage-req-multi { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.trash-merged { font-weight: 400; }
+
+/* Atajos de llamada y WhatsApp con registro del toque. */
+.phone-touch { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.phone-touch.is-compact { gap: 0; }
+.phone-touch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  color: var(--ink);
+  font-size: 0.8125rem;
+  text-decoration: none;
+}
+.phone-touch-btn:hover { background: var(--ui-hover); }
+.phone-touch-saved { font-size: 0.8125rem; }
+.phone-log {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  width: min(300px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  text-align: left;
+  white-space: normal;
+}
+.phone-log-title { font-weight: 500; margin: 0; }
+.phone-log-outcomes { display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem; }
+.phone-log-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.875rem; }
+.phone-log-field .input { width: 90px; }
+.phone-log .form-actions { margin: 0; }

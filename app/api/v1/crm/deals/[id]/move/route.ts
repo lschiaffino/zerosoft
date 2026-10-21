@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { getDb, type CrmStageRow } from '@/lib/db';
-import { getDeal, moveDeal } from '@/lib/crm';
+import { getDeal } from '@/lib/crm';
+import { moveDealWithFields } from '@/lib/crm-stage-move';
+import { CrmRefError } from '@/lib/crm-refs';
 import { dealMoveSchema } from '@/lib/crm-schema';
 import { cleanRow, zodErrorCode, apiGuardRecord } from '@/lib/crm-http';
 import { apiScope } from '@/lib/crm-visibility';
@@ -20,7 +22,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const body: unknown = await req.json().catch(() => null);
   const parsed = dealMoveSchema.safeParse(body);
   if (!parsed.success) return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
-  const { stageId, lostReason } = parsed.data;
+  const { stageId, lostReason, fields } = parsed.data;
 
   const detail = await getDeal(auth.user.id, params.id);
   if (!detail) return apiError(404, 'not_found', 'Deal not found.');
@@ -31,8 +33,26 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (stage.is_lost && lostReason === undefined && !detail.deal.lost_reason) {
     return apiError(400, 'missing_lost_reason', 'Moving a deal to a lost stage needs lostReason.');
   }
-  const result = await moveDeal(auth.user.id, params.id, stageId, null, lostReason, auth.user.email);
+  let result;
+  try {
+    result = await moveDealWithFields(auth.user.id, params.id, { stageId, lostReason, fields }, auth.user.email);
+  } catch (err) {
+    if (err instanceof CrmRefError) return apiError(400, err.code, 'A referenced record is not valid.');
+    throw err;
+  }
   if (!result.ok) {
+    if (result.reason === 'missing_required') {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'missing_required',
+            message: `The stage "${stage.name}" requires these properties: ${result.missing.join(', ')}. Send them in "fields" or set them first.`,
+            missing: result.missing,
+          },
+        },
+        { status: 422 },
+      );
+    }
     return result.reason === 'not_found'
       ? apiError(404, 'not_found', 'Deal not found.')
       : apiError(400, 'invalid_stage', "That stage doesn't belong to the deal's pipeline.");

@@ -77,6 +77,7 @@ const BASE_TOOLS: Omit<AgentToolsConfig, 'enabled'> = {
   trackProjectId: null,
   flowIds: [],
   httpAllowedDomains: [],
+  requireApproval: [],
 };
 
 async function setupAgent(label: string, patch: AgentUpdatePayload = {}) {

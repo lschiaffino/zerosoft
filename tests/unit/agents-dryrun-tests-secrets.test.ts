@@ -51,6 +51,7 @@ const BASE_TOOLS: Omit<AgentToolsConfig, 'enabled'> = {
   trackProjectId: null,
   flowIds: [],
   httpAllowedDomains: [],
+  requireApproval: [],
 };
 
 function tools(enabled: AgentToolKey[], extra: Partial<typeof BASE_TOOLS> = {}): AgentUpdatePayload {

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import BookMeetingMenu from '@/components/crm/BookMeetingMenu';
 import CrmIcon from './CrmIcon';
+import PhoneTouch from './PhoneTouch';
 
 export type PreviewType = 'contact' | 'company' | 'deal';
 
@@ -234,9 +235,9 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
               </a>
             )}
             {c.phone && (
-              <a href={`tel:${c.phone}`} className="preview-meta-item">
-                {c.phone}
-              </a>
+              <span className="preview-meta-item">
+                {c.phone} <PhoneTouch phone={c.phone} contactId={c.id} />
+              </span>
             )}
             {c.job_title && <span className="preview-meta-item muted">{c.job_title}</span>}
             {(c.city || c.country) && (

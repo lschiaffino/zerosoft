@@ -156,6 +156,8 @@ export interface CrmStageRow {
   is_lost: 0 | 1;
   /** Días sin actividad para marcar un deal como rotting (null = default 14). */
   rotting_days: number | null;
+  /** JSON string[]: propiedades que el deal necesita para entrar (lib/crm-stage-rules.ts). */
+  required_fields?: string;
 }
 
 export interface CrmDealRow {
@@ -201,6 +203,8 @@ export interface CrmActivityRow {
   pinned: 0 | 1;
   direction: string;
   outcome: string;
+  /** Llamadas: '' = teléfono, 'whatsapp' = toque por WhatsApp. */
+  channel?: string;
   duration_min: number | null;
   contact_id: string | null;
   company_id: string | null;
@@ -535,6 +539,8 @@ export interface CrmSettingsRow {
   quote_accept_moves_deal: number;
   /** Qué ven los members: 'all' | 'mine' | 'team' (admins/owner ven todo). */
   member_visibility: string;
+  /** JSON string[] con los resultados de llamada; NULL = los de siempre. */
+  call_outcomes?: string | null;
   updated_at: string;
 }
 

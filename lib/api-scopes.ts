@@ -11,6 +11,8 @@ export const API_SCOPES = [
   'cal:read',
   'cal:write',
   'agents:run',
+  'chat:read',
+  'chat:write',
 ] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 

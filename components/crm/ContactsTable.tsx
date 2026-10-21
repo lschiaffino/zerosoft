@@ -10,11 +10,15 @@ import RecordPreview from './RecordPreview';
 import TagDots, { type TagDot } from './TagDots';
 import TagBulkControls from './TagBulkControls';
 import CrmIcon from './CrmIcon';
+import PhoneTouch from './PhoneTouch';
 import BulkEditControls, { type BulkEditField } from './BulkEditControls';
 import type { CustomCell, CustomColumn } from './customFieldViews';
+import { CustomColumnHeader, OwnerCell, OwnerHeader } from './TableExtraColumns';
 
 export interface ContactRow {
   id: string;
+  /** Owner (id de usuario) para la columna editable. */
+  ownerId?: string | null;
   /** Custom fields ya formateados (`custom:<name>`). */
   custom?: Record<string, CustomCell>;
   name: string;
@@ -56,6 +60,8 @@ interface ContactsTableProps {
   allTags?: Array<{ id: string; name: string }>;
   /** Propiedades editables en masa (owner, lifecycle, custom fields…). */
   bulkFields?: BulkEditField[];
+  /** Personas del workspace (columna owner). */
+  owners?: Array<{ value: string; label: string }>;
 }
 
 const COLS = [
@@ -68,6 +74,7 @@ const COLS = [
   { id: 'source', labelKey: 'contacts.table.source', defaultVisible: false },
   { id: 'score', labelKey: 'scoring.column', defaultVisible: false },
   { id: 'tags', labelKey: 'tags.column', defaultVisible: true },
+  { id: 'owner', labelKey: 'filters.field.owner', defaultVisible: true },
   { id: 'created', labelKey: 'contacts.table.created', defaultVisible: true },
   { id: 'lastActivity', labelKey: 'activityDates.lastActivity', defaultVisible: false },
   { id: 'lastContacted', labelKey: 'activityDates.lastContacted', defaultVisible: false },
@@ -87,6 +94,7 @@ export default function ContactsTable({
   allTags = [],
   bulkFields = [],
   customColumns = [],
+  owners = [],
 }: ContactsTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -206,6 +214,7 @@ export default function ContactsTable({
                 </th>
               )}
               {visible.has('tags') && <th>{t('tags.column')}</th>}
+              {visible.has('owner') && <OwnerHeader sort={sort} />}
               {visible.has('created') && (
                 <th className="num cell-date">
                   <SortTh label={t('contacts.table.created')} asc="oldest" desc="newest" current={sort} />
@@ -226,14 +235,7 @@ export default function ContactsTable({
                   <SortTh label={t('activityDates.nextActivity')} asc="next_activity" desc="next_activity_desc" current={sort} />
                 </th>
               )}
-              {customColumns.map(
-                (c) =>
-                  visible.has(c.id) && (
-                    <th key={c.id} className={c.numeric ? 'num' : undefined}>
-                      {c.label}
-                    </th>
-                  ),
-              )}
+              {customColumns.map((c) => visible.has(c.id) && <CustomColumnHeader key={c.id} col={c} sort={sort} />)}
               <th className="cell-actions-head"><span className="sr-only">{t('contacts.table.actions')}</span></th>
             </tr>
           </thead>
@@ -285,16 +287,7 @@ export default function ContactsTable({
                       value={row.phone}
                       className="muted"
                     />
-                    {row.phone ? (
-                      <a
-                        href={`tel:${row.phone}`}
-                        className="cell-quick"
-                        title={t('enums.activityType.call')}
-                        aria-label={t('enums.activityType.call')}
-                      >
-                        <CrmIcon name="phone" />
-                      </a>
-                    ) : null}
+                    {row.phone ? <PhoneTouch phone={row.phone} contactId={row.id} compact /> : null}
                   </td>
                 )}
                 {visible.has('company') && (
@@ -363,6 +356,9 @@ export default function ContactsTable({
                   <td className="cell-crm-tags">
                     <TagDots tags={row.tags ?? []} max={2} />
                   </td>
+                )}
+                {visible.has('owner') && (
+                  <OwnerCell endpoint={`/api/crm/contacts/${row.id}`} ownerId={row.ownerId} owners={owners} />
                 )}
                 {visible.has('created') && <td className="num muted cell-date">{row.created}</td>}
                 {visible.has('lastActivity') && <td className="num muted cell-date">{row.lastActivity || '—'}</td>}

@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getDb, type CrmStageRow } from '@/lib/db';
-import { getDeal, moveDeal } from '@/lib/crm';
+import { getDeal } from '@/lib/crm';
+import { describeMissing, moveDealWithFields } from '@/lib/crm-stage-move';
 import { dealMoveSchema } from '@/lib/crm-schema';
-import { crmError, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
+import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
 import { sessionScope } from '@/lib/crm-visibility';
+
+import { listMembers } from '@/lib/teams';
+import type { SessionUser } from '@/lib/session';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+async function peopleOptions(user: SessionUser): Promise<Array<{ value: string; label: string }>> {
+  const members = user.team?.id
+    ? await listMembers(user.team.id)
+    : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
+  return members.map((m) => ({ value: m.user_id, label: m.name || m.email }));
+}
 
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -21,7 +32,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const parsed = dealMoveSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const { stageId, beforeId, lostReason } = parsed.data;
+  const { stageId, lostReason } = parsed.data;
 
   const detail = await getDeal(user.id, params.id);
   if (!detail) return notFound();
@@ -37,8 +48,20 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     return crmError(400, 'missing_lost_reason');
   }
 
-  const result = await moveDeal(user.id, params.id, stageId, beforeId ?? null, lostReason, user.actingUser?.email ?? user.email);
+  const result = await catchRef(moveDealWithFields(user.id, params.id, parsed.data, user.actingUser?.email ?? user.email));
+  if (result instanceof CrmRefError) return crmError(400, result.code);
   if (!result.ok) {
+    if (result.reason === 'missing_required') {
+      // La etapa pide propiedades: la UI abre el diálogo para completarlas.
+      return NextResponse.json(
+        {
+          error: 'missing_required',
+          stage: stage.name,
+          missing: await describeMissing(user.id, result.missing, await peopleOptions(user)),
+        },
+        { status: 422 },
+      );
+    }
     return result.reason === 'not_found' ? notFound() : crmError(400, 'invalid_stage');
   }
   return NextResponse.json(result.deal);

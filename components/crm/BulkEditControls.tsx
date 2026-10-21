@@ -65,14 +65,16 @@ export default function BulkEditControls({ endpoint, ids, fields, disabled, onDo
       body: JSON.stringify({ action: 'set_property', ids, field: field.key, value: payload }),
     }).catch(() => null);
     setBusy(false);
-    const data = (await res?.json().catch(() => null)) as { error?: string; count?: number; failed?: number } | null;
+    const data = (await res?.json().catch(() => null)) as { error?: string; count?: number; failed?: number; blocked?: number } | null;
     if (!res?.ok) {
       setError(data?.error && t.has(`errors.${data.error}`) ? t(`errors.${data.error}` as 'errors.generic') : t('errors.generic'));
       return;
     }
     const count = data?.count ?? 0;
     const failed = data?.failed ?? 0;
-    onDone?.(failed ? t('bulkEdit.partial', { count, failed }) : t('bulkEdit.done', { count }));
+    const blocked = data?.blocked ?? 0;
+    const base = failed ? t('bulkEdit.partial', { count, failed }) : t('bulkEdit.done', { count });
+    onDone?.(blocked ? `${base} ${t('stageRules.bulkBlocked', { count: blocked })}` : base);
     router.refresh();
   }
 

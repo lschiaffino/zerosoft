@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import StageRequirementsDialog, { readRequirements, type StageRequirements } from './StageRequirementsDialog';
 
 const KNOWN_ERRORS = new Set(['missing_lost_reason', 'invalid_stage', 'not_found', 'generic']);
 const LOST_REASON_KEYS = ['price', 'timing', 'competitor', 'no budget', 'went silent', 'other'] as const;
@@ -29,6 +30,7 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
   const [reasonText, setReasonText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [req, setReq] = useState<{ stageId: string; lostReason?: string; requirements: StageRequirements } | null>(null);
 
   async function move(stageId: string, lostReason?: string) {
     setBusy(true);
@@ -45,6 +47,12 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
     if (res && res.ok) {
       setPending(null);
       router.refresh();
+      return;
+    }
+    const requirements = await readRequirements(res);
+    if (requirements) {
+      setPending(null);
+      setReq({ stageId, ...(lostReason !== undefined ? { lostReason } : {}), requirements });
       return;
     }
     const body = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
@@ -194,6 +202,18 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
         <p className="ui-error" role="alert">
           {error}
         </p>
+      )}
+      {req && (
+        <StageRequirementsDialog
+          dealId={dealId}
+          request={{ stageId: req.stageId, ...(req.lostReason !== undefined ? { lostReason: req.lostReason } : {}) }}
+          requirements={req.requirements}
+          onCancel={() => setReq(null)}
+          onDone={() => {
+            setReq(null);
+            router.refresh();
+          }}
+        />
       )}
     </div>
   );

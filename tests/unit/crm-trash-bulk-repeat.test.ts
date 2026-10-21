@@ -216,12 +216,12 @@ describe('edición en masa', () => {
     const u = await makeUser('bulk');
     const a = await createContact(u.id, { firstName: 'A', custom: { keep: 'yes' } });
     const b = await createContact(u.id, { firstName: 'B' });
-    expect(await bulkSetProperty(u.id, 'contact', [a.id, b.id], 'leadStatus', 'connected')).toEqual({ ok: true, count: 2, failed: 0 });
+    expect(await bulkSetProperty(u.id, 'contact', [a.id, b.id], 'leadStatus', 'connected')).toEqual({ ok: true, count: 2, failed: 0, blocked: 0 });
     expect(await bulkSetProperty(u.id, 'contact', [a.id], 'ownerId', 'not-a-member')).toEqual({ ok: false, code: 'invalid_owner' });
     expect((await bulkSetProperty(u.id, 'contact', [a.id, b.id], 'ownerId', u.id)).ok).toBe(true);
 
     await createCustomField(u.id, { entity: 'contacts', name: 'score_band', label: 'Band', type: 'number' });
-    expect(await bulkSetProperty(u.id, 'contact', [a.id, b.id], 'custom:score_band', '3')).toEqual({ ok: true, count: 2, failed: 0 });
+    expect(await bulkSetProperty(u.id, 'contact', [a.id, b.id], 'custom:score_band', '3')).toEqual({ ok: true, count: 2, failed: 0, blocked: 0 });
     const rowA = (await getDb().prepare('SELECT lead_status, custom FROM crm_contacts WHERE id = ?').get(a.id)) as {
       lead_status: string;
       custom: string;
@@ -236,7 +236,7 @@ describe('edición en masa', () => {
     const { pipelineId, stageId, wonStageId } = await pipelineFor(u.id);
     const d = await createDeal(u.id, { name: 'D', pipelineId, stageId });
     if (!d.ok) throw new Error('deal');
-    expect(await bulkSetProperty(u.id, 'deal', [d.deal.id, 'missing'], 'stageId', wonStageId)).toEqual({ ok: true, count: 1, failed: 1 });
+    expect(await bulkSetProperty(u.id, 'deal', [d.deal.id, 'missing'], 'stageId', wonStageId)).toEqual({ ok: true, count: 1, failed: 1, blocked: 0 });
     const deal = (await getDb().prepare('SELECT stage_id, closed_at FROM crm_deals WHERE id = ?').get(d.deal.id)) as {
       stage_id: string;
       closed_at: string | null;

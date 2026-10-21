@@ -134,6 +134,7 @@ describe('CRM: tipos nuevos de custom field', () => {
       ok: true,
       count: 2,
       failed: 0,
+      blocked: 0,
     });
     expect(await bulkSetProperty(u.id, 'contact', [a.id], 'custom:topics', ['Nope'])).toEqual({ ok: false, code: 'invalid_input' });
     expect(await bulkSetProperty(u.id, 'contact', [a.id], 'custom:site', 'acme.com')).toMatchObject({ ok: true, count: 1 });
