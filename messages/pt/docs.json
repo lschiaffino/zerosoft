@@ -261,7 +261,13 @@
     "error": "Não foi possível salvar o modelo. Tente de novo.",
     "done": "Pronto",
     "cancel": "Cancelar",
-    "save": "Salvar modelo"
+    "save": "Salvar modelo",
+    "rename": "Renomear",
+    "deleteItem": "Excluir",
+    "renameLabel": "Nome do modelo",
+    "options": "Opções do modelo {name}",
+    "confirmDelete": "Excluir o modelo {name}? As páginas já criadas com ele não mudam.",
+    "editError": "Não foi possível salvar a alteração. Tente de novo."
   },
   "trash": {
     "title": "Lixeira",

@@ -75,6 +75,16 @@ import {
   subtreeEnd,
 } from '@/lib/docs-blocks';
 import { blocksToMarkdown } from '@/lib/docs-markdown';
+import {
+  emptyHistory,
+  firstChangedBlock,
+  historyShortcut,
+  recordChange,
+  redoStep,
+  undoStep,
+  type DocsHistory,
+  type DocsSnapshot,
+} from '@/lib/docs-history';
 import { DOCS_IMPORT_MAX_BYTES, docsImportKind } from '@/lib/docs-import';
 import DocsBlockEditor from './DocsBlockEditor';
 import MentionPopover from './MentionPopover';
@@ -117,6 +127,8 @@ interface DocsEditorProps {
   belowTitle?: ReactNode;
   /** Ruta que convierte un .md/.docx en bloques (menú "···" › Importar). Sin ella no hay importación. */
   importUrl?: string;
+  /** Placeholder del título (Notes: "Nota sin título"). */
+  titlePlaceholder?: string;
 }
 
 const BLOCK_COMMANDS: {
@@ -306,6 +318,7 @@ export default function DocsEditor({
   menuExtra,
   layoutToggles = true,
   importUrl,
+  titlePlaceholder,
 }: DocsEditorProps) {
   const t = useTranslations('docs');
   const [blocks, setBlocks] = useState<DocsBlock[]>(() =>
@@ -426,9 +439,23 @@ export default function DocsEditor({
   const numbers = useMemo(() => listNumbers(blocks), [blocks]);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [importing, setImporting] = useState(false);
+  /**
+   * Deshacer / rehacer propio (lib/docs-history.ts): el undo nativo del
+   * contentEditable nunca corre. `lastSnap` es la última foto registrada;
+   * `live` es el estado del render actual.
+   */
+  const historyRef = useRef<DocsHistory>(emptyHistory());
+  const lastSnap = useRef<DocsSnapshot | null>(null);
+  const live = useRef<DocsSnapshot>({ title, blocks });
+  live.current = { title, blocks };
+  /** Bloques recién cargados (al abrir o cambiar de página): hasta pintarlos no se registra nada. */
+  const pendingLoad = useRef<DocsBlock[] | null>(null);
 
   useEffect(() => {
-    setBlocks(upgradeBlocks(page.content.length ? page.content : defaultBlocks()));
+    const loaded = upgradeBlocks(page.content.length ? page.content : defaultBlocks());
+    // Página nueva: el historial arranca de cero cuando se pinta lo cargado.
+    pendingLoad.current = loaded;
+    setBlocks(loaded);
     setTitle(page.title);
     setIcon(page.icon ?? '');
     setCoverUrl(page.cover_url ?? '');
@@ -438,6 +465,24 @@ export default function DocsEditor({
     // Solo al cambiar de página: re-sincronizar con cada prop pisaría lo que se está escribiendo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page.id]);
+
+  // Cada cambio de título o bloques (tipeo, Enter, borrar, mover, pegar,
+  // subir un archivo…) deja un paso en el historial; el tipeo se agrupa.
+  useEffect(() => {
+    const next = { title, blocks };
+    if (pendingLoad.current) {
+      if (blocks === pendingLoad.current) {
+        pendingLoad.current = null;
+        historyRef.current = emptyHistory();
+      }
+      lastSnap.current = next;
+      return;
+    }
+    if (lastSnap.current) {
+      historyRef.current = recordChange(historyRef.current, lastSnap.current, next, Date.now());
+    }
+    lastSnap.current = next;
+  }, [title, blocks]);
 
   // No perder lo último tipeado: al salir de la página (navegación interna,
   // cerrar pestaña) se ejecuta el guardado pendiente en vez de descartarlo.
@@ -688,6 +733,97 @@ export default function DocsEditor({
   /** Última versión de triggerSave para callbacks async (subidas): no guardar un título viejo. */
   const triggerSaveRef = useRef(triggerSave);
   triggerSaveRef.current = triggerSave;
+
+  /**
+   * Deshacer (dir -1) o rehacer (+1): vuelve a la foto, la guarda y deja el
+   * caret al final del primer bloque que cambió (o en el título).
+   */
+  const stepHistory = useCallback((dir: -1 | 1) => {
+    // Lo último tipeado que todavía no llegó al efecto entra antes de deshacer.
+    const base = lastSnap.current ?? live.current;
+    historyRef.current = recordChange(historyRef.current, base, live.current, Date.now());
+    const current = live.current;
+    const res = dir === -1 ? undoStep(historyRef.current, current) : redoStep(historyRef.current, current);
+    if (!res) return;
+    historyRef.current = res.history;
+    const snap = res.snapshot;
+    lastSnap.current = snap;
+    setBlocks(snap.blocks);
+    setTitle(snap.title);
+    triggerSaveRef.current(snap.blocks, snap.title);
+    setBlockSel(null);
+    setBlockMenu(null);
+    setTurnIntoOpen(false);
+    setToolbar(null);
+    setLinkDialog(null);
+    setCmdOpen(false);
+    setSlash(null);
+    setMention(null);
+    setUserMention(null);
+    const i = firstChangedBlock(current.blocks, snap.blocks);
+    if (i === -1) {
+      if (snap.title !== current.title) {
+        const el = titleRef.current;
+        if (el) {
+          el.textContent = snap.title;
+          el.focus();
+          setCaretOffset(el, snap.title.length);
+        }
+      }
+      return;
+    }
+    const b = snap.blocks[i];
+    if (b && isTextBlockType(b.type)) {
+      pendingCaret.current = { index: i, offset: htmlToFlatText(b.content).length };
+      setFocusIndex(i);
+      setFocusTick((v) => v + 1);
+    } else {
+      requestAnimationFrame(() => blockRefs.current[i]?.focus());
+    }
+  }, []);
+
+  // Cmd/Ctrl+Z con el foco fuera de todo (después de un click en el fondo):
+  // también deshace en el editor. Con el foco adentro lo atrapa onKeyDownCapture.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const action = historyShortcut(e);
+      if (!action) return;
+      const active = document.activeElement;
+      if (active && active !== document.body) return;
+      if (document.querySelector('dialog[open]')) return;
+      e.preventDefault();
+      stepHistory(action === 'undo' ? -1 : 1);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [stepHistory]);
+
+  /** Atajos de historial dentro del editor (bloques, título, selección de bloques). */
+  const handleHistoryKeys = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const action = historyShortcut(e);
+    if (!action) return;
+    const target = e.target as HTMLElement;
+    // Campos de formulario (celdas, lenguaje del código, link): su propio undo.
+    if (!target.isContentEditable && target.closest('input, textarea, select')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    stepHistory(action === 'undo' ? -1 : 1);
+  };
+
+  // Deshacer desde el menú del navegador (Edición › Deshacer): mismo historial.
+  // beforeinput nativo (el onBeforeInput de React no trae inputType).
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const onBeforeInput = (e: InputEvent) => {
+      if (e.inputType !== 'historyUndo' && e.inputType !== 'historyRedo') return;
+      e.preventDefault();
+      stepHistory(e.inputType === 'historyUndo' ? -1 : 1);
+    };
+    root.addEventListener('beforeinput', onBeforeInput);
+    return () => root.removeEventListener('beforeinput', onBeforeInput);
+  }, [stepHistory]);
 
   /**
    * Sube archivos y crea un bloque image/file por cada uno, después de
@@ -1287,14 +1423,16 @@ export default function DocsEditor({
       const block = blocks[index];
       if (!block) return;
 
-      // Item vacío + Enter: un ítem anidado sube un nivel; si no, sale de la
-      // lista convirtiéndolo en párrafo (igual un toggle vacío).
+      // Bloque anidado vacío + Enter (párrafo, ítem, toggle…): sube un nivel
+      // en vez de crear otro anidado, como en Notion.
+      if (block.content === '' && blockIndent(block) > 0 && indentBlocks(index, index, -1)) {
+        pendingCaret.current = { index, offset: 0 };
+        setFocusTick((v) => v + 1);
+        return;
+      }
+      // Ítem vacío sin anidar: sale de la lista convirtiéndolo en párrafo
+      // (igual un toggle vacío).
       if ((LIST_TYPES.includes(block.type) || block.type === 'toggle') && block.content === '') {
-        if (blockIndent(block) > 0 && indentBlocks(index, index, -1)) {
-          pendingCaret.current = { index, offset: 0 };
-          setFocusTick((v) => v + 1);
-          return;
-        }
         convertBlock(index, 'paragraph', undefined, '', 0);
         return;
       }
@@ -2170,7 +2308,11 @@ export default function DocsEditor({
   };
 
   return (
-    <div className={`docs-editor${smallText ? ' docs-editor-small' : ''}${fullWidth ? ' docs-editor-full' : ''}${embedded ? ' docs-editor-embedded' : ''}`}>
+    <div
+      ref={rootRef}
+      className={`docs-editor${smallText ? ' docs-editor-small' : ''}${fullWidth ? ' docs-editor-full' : ''}${embedded ? ' docs-editor-embedded' : ''}`}
+      onKeyDownCapture={handleHistoryKeys}
+    >
       {!embedded && (
       <div className="docs-top-bar">
         <nav className="docs-breadcrumb" aria-label={t('editor.breadcrumb')}>
@@ -2413,7 +2555,7 @@ export default function DocsEditor({
           role="textbox"
           aria-multiline="true"
           aria-label={t('editor.pageTitle')}
-          data-placeholder={t('editor.untitled')}
+          data-placeholder={titlePlaceholder ?? t('editor.untitled')}
           onInput={(e) => {
             const next = e.currentTarget.textContent ?? '';
             setTitle(next);
@@ -2783,6 +2925,8 @@ export default function DocsEditor({
           style={caretMenuStyle(caretMenuPos, 260, 280)}
           onSelect={onSelectMention}
           search={pageLinks?.search}
+          create={pageLinks?.create}
+          labels={pageLinks?.labels}
           onClose={() => setMention(null)}
         />,
         document.body,

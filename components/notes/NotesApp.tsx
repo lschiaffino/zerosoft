@@ -245,6 +245,22 @@ export default function NotesApp({
   /** Abrir desde un link [[ ]] o "Enlazada desde". */
   const openLinkedNote = useCallback((id: string) => void openNote(id), [openNote]);
 
+  /** Nota creada desde el popover [[ : entra a la lista y al conteo de su libreta. */
+  const addLinkedNote = useCallback(
+    (created: NoteDetail) => {
+      bases.current.set(created.id, created.updated_at);
+      const visible =
+        filter.kind === 'all' || (filter.kind === 'notebook' && filter.id === created.notebook_id);
+      if (visible) setNotes((prev) => [created, ...prev.filter((n) => n.id !== created.id)]);
+      if (created.notebook_id) {
+        setNotebooks((prev) =>
+          prev.map((nb) => (nb.id === created.notebook_id ? { ...nb, count: nb.count + 1 } : nb)),
+        );
+      }
+    },
+    [filter],
+  );
+
   /** Recarga la nota abierta (después de restaurar una versión): el editor se monta de nuevo. */
   const reloadNote = useCallback(
     async (id: string) => {
@@ -1052,6 +1068,7 @@ export default function NotesApp({
               setToast(t('editor.actionError'));
             }}
             onOpenNote={openLinkedNote}
+            onCreated={addLinkedNote}
             onReload={(id) => void reloadNote(id)}
             onSync={syncNote}
             onTracked={(id, issues) => {

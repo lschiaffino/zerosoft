@@ -1140,6 +1140,20 @@ export async function deleteDocWorkspaceTemplate(workspaceId: string, templateId
   return res.changes > 0;
 }
 
+/** Renombra una plantilla del workspace (el título vacío no se acepta). */
+export async function renameDocWorkspaceTemplate(
+  workspaceId: string,
+  templateId: string,
+  title: string,
+): Promise<boolean> {
+  const clean = title.trim().slice(0, 200);
+  if (!clean) return false;
+  const res = await getDb()
+    .prepare('UPDATE docs_templates SET title = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+    .run(clean, new Date().toISOString(), templateId, workspaceId);
+  return res.changes > 0;
+}
+
 /** Página nueva a partir de una plantilla del workspace (bloques con ids nuevos). */
 export async function createDocPageFromWorkspaceTemplate(
   workspaceId: string,

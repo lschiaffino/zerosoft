@@ -91,7 +91,10 @@
     "conflict": "Esta nota mudou em outra aba ou dispositivo. Suas últimas alterações não foram salvas.",
     "conflictTrashed": "Esta nota foi para a lixeira em outro lugar. Suas últimas alterações não foram salvas.",
     "conflictReload": "Carregar a última versão",
-    "conflictOverwrite": "Manter a minha"
+    "conflictOverwrite": "Manter a minha",
+    "titlePlaceholder": "Nota sem título",
+    "linkCreate": "Criar nota “{query}”",
+    "linkEmpty": "Nenhuma nota"
   },
   "share": {
     "button": "Compartilhar",

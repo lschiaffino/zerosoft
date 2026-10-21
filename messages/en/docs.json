@@ -261,7 +261,13 @@
     "error": "Could not save the template. Try again.",
     "done": "Done",
     "cancel": "Cancel",
-    "save": "Save template"
+    "save": "Save template",
+    "rename": "Rename",
+    "deleteItem": "Delete",
+    "renameLabel": "Template name",
+    "options": "Options for template {name}",
+    "confirmDelete": "Delete the template {name}? Pages already created from it stay as they are.",
+    "editError": "Couldn't save the change. Try again."
   },
   "trash": {
     "title": "Trash",

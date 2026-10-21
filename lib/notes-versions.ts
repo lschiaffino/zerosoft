@@ -1,9 +1,13 @@
 /**
- * Notes — historial de versiones (mismo criterio que lib/docs-versions.ts).
- * - Al guardar título o contenido se guarda un snapshot del estado nuevo,
- *   como mucho uno cada NOTE_VERSION_INTERVAL_MS por nota (el autosave del
- *   editor llega cada ~600 ms mientras se escribe). La primera vez se guarda
- *   también el estado de antes, así la primera edición no lo pierde.
+ * Notes — historial de versiones.
+ * - Al guardar título o contenido se guarda un snapshot del estado nuevo.
+ *   Cada versión automática cubre una ventana de NOTE_VERSION_INTERVAL_MS: los
+ *   guardados dentro de la ventana actualizan esa misma versión (así refleja
+ *   lo último escrito) y el primero después de la ventana abre otra. La
+ *   primera vez se guarda también el estado de antes, así la primera edición
+ *   no lo pierde.
+ * - Nunca se guarda una nota vacía (sin título ni texto) ni una versión
+ *   igual a la anterior.
  * - "Guardar versión" fuerza un snapshot manual.
  * - Restaurar guarda primero el estado actual (kind 'restore') y después
  *   pisa título y contenido: nunca se pierde nada.
@@ -12,6 +16,7 @@
  */
 import { getDb, type NoteRow } from './db';
 import type { DocsBlock, DocsVersionSummary } from './docs-types';
+import { htmlLiteToText } from './notes-types';
 
 export const NOTE_VERSION_INTERVAL_MS = 5 * 60 * 1000;
 export const NOTE_MAX_VERSIONS = 50;
@@ -36,6 +41,41 @@ function parseBlocks(raw: string): DocsBlock[] {
   } catch {
     return [];
   }
+}
+
+/** Bloques que cuentan aunque no tengan texto (un divisor, una imagen, una tabla). */
+const NON_TEXT_BLOCKS = new Set(['divider', 'table', 'database', 'image', 'file', 'board']);
+
+/** Nota sin título ni contenido: no vale la pena como versión. */
+export function isEmptyNoteSnapshot(title: string, content: string): boolean {
+  if (title.trim()) return false;
+  return parseBlocks(content).every((b) => !NON_TEXT_BLOCKS.has(b.type) && !htmlLiteToText(b.content ?? '').trim());
+}
+
+function sortKeys(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(sortKeys);
+  if (v && typeof v === 'object') {
+    return Object.fromEntries(
+      Object.entries(v as Record<string, unknown>)
+        .filter(([, x]) => x !== undefined && x !== null)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, x]) => [k, sortKeys(x)]),
+    );
+  }
+  return v;
+}
+
+/**
+ * Clave para comparar dos estados: título + bloques sin ids y con las claves
+ * ordenadas (el mismo contenido serializado distinto no cuenta como cambio).
+ */
+export function noteSnapshotKey(title: string, content: string): string {
+  const blocks = parseBlocks(content).map((b) => {
+    const { id: _id, ...rest } = b;
+    void _id;
+    return sortKeys(rest);
+  });
+  return JSON.stringify([title.trim(), blocks]);
 }
 
 async function noteRow(owner: Owner, noteId: string): Promise<NoteRow | null> {
@@ -66,6 +106,7 @@ async function insertSnapshot(note: Snapshot, kind: NoteVersionKind, at = new Da
 /**
  * Snapshot automático después de un guardado. `previous` es la fila antes
  * del cambio (si la nota nunca tuvo versiones, se guarda también ese estado).
+ * Devuelve true si insertó o actualizó una versión.
  */
 export async function maybeAutoSnapshotNote(
   owner: Owner,
@@ -73,16 +114,38 @@ export async function maybeAutoSnapshotNote(
   previous?: Pick<NoteRow, 'id' | 'workspace_id' | 'person_id' | 'title' | 'content' | 'updated_at'> | null,
   now = new Date(),
 ): Promise<boolean> {
-  const last = (await getDb()
-    .prepare('SELECT created_at FROM note_versions WHERE note_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1')
-    .get(noteId)) as { created_at: string } | undefined;
-  if (last && now.getTime() - Date.parse(last.created_at) < NOTE_VERSION_INTERVAL_MS) return false;
   const note = await noteRow(owner, noteId);
   if (!note) return false;
-  if (!last && previous && (previous.content !== note.content || previous.title !== note.title)) {
+  if (isEmptyNoteSnapshot(note.title, note.content)) return false;
+  const db = getDb();
+  const last = (await db
+    .prepare(
+      'SELECT id, title, content, kind, created_at FROM note_versions WHERE note_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1',
+    )
+    .get(noteId)) as { id: string; title: string; content: string; kind: NoteVersionKind; created_at: string } | undefined;
+  const key = noteSnapshotKey(note.title, note.content);
+  if (last && noteSnapshotKey(last.title, last.content) === key) return false;
+
+  // Dentro de la ventana de la última versión automática: se actualiza esa.
+  if (last && last.kind === 'auto' && now.getTime() - Date.parse(last.created_at) < NOTE_VERSION_INTERVAL_MS) {
+    await db
+      .prepare('UPDATE note_versions SET title = ?, content = ? WHERE id = ?')
+      .run(note.title, note.content, last.id);
+    return true;
+  }
+
+  if (
+    !last &&
+    previous &&
+    !isEmptyNoteSnapshot(previous.title, previous.content) &&
+    noteSnapshotKey(previous.title, previous.content) !== key
+  ) {
     const prevAt = Date.parse(previous.updated_at);
     const at = Number.isFinite(prevAt) && prevAt < now.getTime() ? new Date(prevAt) : new Date(now.getTime() - 1000);
     await insertSnapshot(previous, 'auto', at);
+    // El estado de antes abre su propia ventana: lo nuevo va en otra versión.
+    await insertSnapshot(note, 'auto', now);
+    return true;
   }
   await insertSnapshot(note, 'auto', now);
   return true;

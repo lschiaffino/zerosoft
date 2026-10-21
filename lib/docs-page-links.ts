@@ -103,4 +103,11 @@ export interface PageLinkSource {
   href: (id: string) => string;
   /** Abrir sin navegar (Notes abre la nota en su panel). Sin esto, se navega al href. */
   open?: (id: string) => void;
+  /**
+   * Crear el destino con la query como título (Notes: "Crear nota «x»").
+   * null si falló. Con esto el popover ofrece la opción al final de la lista.
+   */
+  create?: (title: string) => Promise<PageLinkCandidate | null>;
+  /** Textos propios del popover: la opción de crear y la lista vacía. */
+  labels?: { create: (query: string) => string; empty: string };
 }

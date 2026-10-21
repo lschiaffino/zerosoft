@@ -91,7 +91,10 @@
     "conflict": "This note changed in another tab or device. Your latest changes weren't saved.",
     "conflictTrashed": "This note was moved to the trash somewhere else. Your latest changes weren't saved.",
     "conflictReload": "Load the latest version",
-    "conflictOverwrite": "Keep mine"
+    "conflictOverwrite": "Keep mine",
+    "titlePlaceholder": "Untitled note",
+    "linkCreate": "Create note “{query}”",
+    "linkEmpty": "No notes"
   },
   "share": {
     "button": "Share",

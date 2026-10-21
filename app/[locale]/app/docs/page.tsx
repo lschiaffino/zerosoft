@@ -6,6 +6,7 @@ import {
   createDocPageFromTemplateAction,
   createDocPageFromWorkspaceTemplateAction,
   deleteDocWorkspaceTemplateAction,
+  renameDocWorkspaceTemplateAction,
   moveDocPageAction,
   moveDocPageStepAction,
   reorderDocPageAction,
@@ -19,6 +20,7 @@ import DataTable from '@/components/ui/DataTable';
 import DocsSidebar from '@/components/docs/DocsSidebar';
 import DocsTrashList from '@/components/docs/DocsTrashList';
 import DocsAutoCreate from '@/components/docs/DocsAutoCreate';
+import WorkspaceTemplateCard from '@/components/docs/WorkspaceTemplateCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -149,29 +151,14 @@ export default async function DocsLandingPage(props: {
               <h3 className="docs-templates-subtitle">{t('templates.workspace')}</h3>
               <ul className="docs-templates" data-testid="docs-workspace-templates">
                 {workspaceTemplates.map((tpl) => (
-                  <li key={tpl.id} className="docs-template-item">
-                    <form action={createDocPageFromWorkspaceTemplateAction.bind(null, locale, tpl.id)}>
-                      <button type="submit" className="docs-template">
-                        <span className="docs-template-name">
-                          {tpl.icon && <span aria-hidden="true">{tpl.icon} </span>}
-                          {tpl.title || t('templates.untitled')}
-                        </span>
-                        <span className="docs-template-desc">{tpl.description || t('templates.workspaceDesc')}</span>
-                      </button>
-                    </form>
-                    {(canDeleteAnyTemplate || tpl.created_by === realUserId(user)) && (
-                      <form action={deleteDocWorkspaceTemplateAction.bind(null, tpl.id)} className="docs-template-delete">
-                        <button
-                          type="submit"
-                          className="btn btn-ghost btn-sm btn-icon"
-                          aria-label={t('templates.delete', { name: tpl.title || t('templates.untitled') })}
-                          title={t('templates.delete', { name: tpl.title || t('templates.untitled') })}
-                        >
-                          <Icon name="close" size={14} />
-                        </button>
-                      </form>
-                    )}
-                  </li>
+                  <WorkspaceTemplateCard
+                    key={tpl.id}
+                    template={tpl}
+                    canEdit={canDeleteAnyTemplate || tpl.created_by === realUserId(user)}
+                    createAction={createDocPageFromWorkspaceTemplateAction.bind(null, locale, tpl.id)}
+                    renameAction={renameDocWorkspaceTemplateAction.bind(null, tpl.id)}
+                    deleteAction={deleteDocWorkspaceTemplateAction.bind(null, tpl.id)}
+                  />
                 ))}
               </ul>
             </>

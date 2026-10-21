@@ -375,6 +375,35 @@ describe('Docs: guardar páginas como plantillas del workspace', () => {
     expect(await listDocWorkspaceTemplates(owner.id)).toHaveLength(0);
   });
 
+  it('renombrar: quien la guardó o un admin; sin título vacío', async () => {
+    const owner = await makeUser('tro');
+    const member = await makeUser('trm');
+    const page = await createDocPage(owner.id, { title: 'Base' });
+    const tpl = (await createDocWorkspaceTemplate(owner.id, member.id, { page_id: page.id }))!;
+    const title = async () => (await listDocWorkspaceTemplates(owner.id))[0].title;
+    // Quien la guardó (miembro, sin rol de admin) la renombra.
+    as(owner, { role: 'member', actingUser: { id: member.id, email: member.email, name: null } });
+    expect(await actions.renameDocWorkspaceTemplateAction(tpl.id, '  Kickoff  ')).toBe(true);
+    expect(await title()).toBe('Kickoff');
+    expect(await actions.renameDocWorkspaceTemplateAction(tpl.id, '   ')).toBe(false);
+    expect(await title()).toBe('Kickoff');
+    // Otro miembro no.
+    const other = await makeUser('tr2');
+    as(owner, { role: 'member', actingUser: { id: other.id, email: other.email, name: null } });
+    expect(await actions.renameDocWorkspaceTemplateAction(tpl.id, 'Ajena')).toBe(false);
+    // Otro workspace tampoco.
+    const stranger = await makeUser('trs');
+    as(stranger, { role: 'owner' });
+    expect(await actions.renameDocWorkspaceTemplateAction(tpl.id, 'Ajena')).toBe(false);
+    expect(await title()).toBe('Kickoff');
+    // El admin sí, y también la borra.
+    as(owner, { role: 'owner' });
+    expect(await actions.renameDocWorkspaceTemplateAction(tpl.id, 'Del admin')).toBe(true);
+    expect(await title()).toBe('Del admin');
+    expect(await actions.deleteDocWorkspaceTemplateAction(tpl.id)).toBe(true);
+    expect(await listDocWorkspaceTemplates(owner.id)).toHaveLength(0);
+  });
+
   it('tope de plantillas por workspace', async () => {
     const owner = await makeUser('tlim');
     const page = await createDocPage(owner.id, { title: 'X' });

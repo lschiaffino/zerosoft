@@ -261,7 +261,13 @@
     "error": "No se pudo guardar la plantilla. Probá de nuevo.",
     "done": "Listo",
     "cancel": "Cancelar",
-    "save": "Guardar plantilla"
+    "save": "Guardar plantilla",
+    "rename": "Renombrar",
+    "deleteItem": "Borrar",
+    "renameLabel": "Nombre de la plantilla",
+    "options": "Opciones de la plantilla {name}",
+    "confirmDelete": "¿Borrar la plantilla {name}? Las páginas que ya se crearon con ella no cambian.",
+    "editError": "No se pudo guardar el cambio. Probá de nuevo."
   },
   "trash": {
     "title": "Papelera",

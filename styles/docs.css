@@ -1283,10 +1283,17 @@ dialog.docs-template-dialog { width: min(460px, calc(100vw - 32px)); }
 .docs-template-saved { margin: 0; font-size: 0.875rem; line-height: 1.5; color: var(--brand-gray-1); }
 .docs-templates-subtitle { margin: 20px 0 8px; font-size: 0.8125rem; font-weight: 600; color: var(--brand-gray-2); }
 .docs-template-item { position: relative; }
-.docs-template-delete { position: absolute; top: 6px; right: 6px; height: auto !important; }
-.docs-template-delete .btn { opacity: 0; }
-.docs-template-item:hover .docs-template-delete .btn,
-.docs-template-delete .btn:focus-visible { opacity: 1; }
+/* Menú "…" de la plantilla (renombrar, borrar): siempre a mano, más visible al pasar. */
+.docs-template-item > .docs-template-menu { position: absolute; top: 6px; right: 6px; }
+.docs-template-menu > .btn { color: var(--brand-gray-2); }
+.docs-template-item:hover .docs-template-menu > .btn,
+.docs-template-menu > .btn[aria-expanded='true'] { color: var(--ink); }
+.docs-template-menu .row-menu { top: calc(100% + 4px); }
+.docs-template-item .docs-template-name { padding-right: 28px; }
+.docs-template-renaming { cursor: default; }
+.docs-template-renaming:hover { background: var(--bg); }
+.docs-template-rename { width: 100%; }
+.docs-template-error { font-size: 0.8125rem; color: var(--bad-ink); }
 
 .docs-versions { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .docs-versions-head { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useFormatter, useNow, useTranslations } from 'next-intl';
 import type { DocsComment, DocsMentionableUser } from '@/lib/docs-types';
 import {
   activeMentionQuery,
@@ -243,6 +243,9 @@ export default function CommentsPanel({
   const [members, setMembers] = useState<DocsMentionableUser[] | null>(null);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const t = useTranslations('docs.comments');
+  const format = useFormatter();
+  // Se refresca cada minuto: "hace un momento" no queda fijo.
+  const now = useNow({ updateInterval: 60_000 });
 
   useEffect(() => {
     setComments(initialComments);
@@ -350,7 +353,14 @@ export default function CommentsPanel({
           <span className="docs-comment-author">{comment.user_name ?? comment.user_email}</span>
           {isRoot && comment.block_id && <span className="badge badge-outline">{labels.blockTag}</span>}
           {isRoot && comment.resolved && <span className="badge badge-ok">{labels.resolved}</span>}
-          <span className="docs-comment-date num">{comment.created_at.slice(0, 10)}</span>
+          <time
+            className="docs-comment-date num"
+            dateTime={comment.created_at}
+            title={format.dateTime(new Date(comment.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
+            suppressHydrationWarning
+          >
+            {format.relativeTime(new Date(comment.created_at), now)}
+          </time>
         </div>
         {renderBody(comment.body)}
         <div className="docs-comment-actions">

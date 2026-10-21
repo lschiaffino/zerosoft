@@ -13,14 +13,36 @@ interface MentionPopoverProps {
   onClose: () => void;
   /** Buscador propio (Notes busca notas); sin esto, páginas de Docs. */
   search?: (query: string) => Promise<PageLinkCandidate[]>;
+  /** Crear el destino con la query como título (última opción de la lista). */
+  create?: (title: string) => Promise<PageLinkCandidate | null>;
+  /** Textos propios (Notes habla de notas, no de páginas). */
+  labels?: { create: (query: string) => string; empty: string };
 }
 
-export default function MentionPopover({ query, style, onSelect, onClose, search }: MentionPopoverProps) {
+export default function MentionPopover({ query, style, onSelect, onClose, search, create, labels }: MentionPopoverProps) {
   const t = useTranslations('docs');
   const [pages, setPages] = useState<PageLinkCandidate[]>([]);
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const [creating, setCreating] = useState(false);
+  const trimmed = query.trim();
+  // "Crear «query»" al final, salvo que ya haya uno con ese título exacto.
+  const canCreate =
+    Boolean(create) && trimmed !== '' && !loading &&
+    !pages.some((p) => p.title.trim().toLowerCase() === trimmed.toLowerCase());
+  const total = pages.length + (canCreate ? 1 : 0);
+
+  const createAndSelect = async () => {
+    if (!create || creating) return;
+    setCreating(true);
+    try {
+      const created = await create(trimmed);
+      if (created) onSelect(created);
+    } finally {
+      setCreating(false);
+    }
+  };
 
   useEffect(() => {
     if (!query.trim()) {
@@ -57,23 +79,22 @@ export default function MentionPopover({ query, style, onSelect, onClose, search
         onClose();
         return;
       }
-      if (!pages.length) return;
+      if (!total) return;
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         e.stopPropagation();
-        setActive((a) =>
-          e.key === 'ArrowDown' ? (a + 1) % pages.length : (a - 1 + pages.length) % pages.length,
-        );
+        setActive((a) => (e.key === 'ArrowDown' ? (a + 1) % total : (a - 1 + total) % total));
       } else if (e.key === 'Enter') {
         e.preventDefault();
         e.stopPropagation();
-        const page = pages[Math.min(active, pages.length - 1)];
-        if (page) onSelect(page);
+        const i = Math.min(active, total - 1);
+        if (i < pages.length) onSelect(pages[i]);
+        else void createAndSelect();
       }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [pages, active, onSelect, onClose]);
+  });
 
   // El item activo queda visible dentro del scroll del popover.
   useEffect(() => {
@@ -84,7 +105,7 @@ export default function MentionPopover({ query, style, onSelect, onClose, search
 
   if (!query.trim()) return null;
 
-  const sel = Math.min(active, Math.max(0, pages.length - 1));
+  const sel = Math.min(active, Math.max(0, total - 1));
 
   return (
     <div
@@ -95,8 +116,8 @@ export default function MentionPopover({ query, style, onSelect, onClose, search
     >
       {loading ? (
         <div className="docs-mention-empty" aria-busy="true"><span className="ui-skeleton ui-skeleton-text" /></div>
-      ) : pages.length === 0 ? (
-        <div className="docs-mention-empty">{t('mentions.noPages')}</div>
+      ) : pages.length === 0 && !canCreate ? (
+        <div className="docs-mention-empty">{labels?.empty ?? t('mentions.noPages')}</div>
       ) : (
         pages.map((page, i) => (
           <button
@@ -116,6 +137,21 @@ export default function MentionPopover({ query, style, onSelect, onClose, search
             <span className="docs-mention-title">{page.title || t('untitled')}</span>
           </button>
         ))
+      )}
+      {canCreate && (
+        <button
+          type="button"
+          className={`docs-mention-item docs-mention-create${sel === pages.length ? ' sel' : ''}`}
+          onMouseEnter={() => setActive(pages.length)}
+          onClick={() => void createAndSelect()}
+          disabled={creating}
+          aria-busy={creating || undefined}
+        >
+          <span className="docs-mention-page" aria-hidden="true">
+            <DocsGlyph name="plus" size={16} />
+          </span>
+          <span className="docs-mention-title">{labels ? labels.create(trimmed) : trimmed}</span>
+        </button>
       )}
     </div>
   );

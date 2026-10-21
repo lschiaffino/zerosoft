@@ -7,6 +7,7 @@ import {
   createDocPage,
   createDocPageFromWorkspaceTemplate,
   deleteDocWorkspaceTemplate,
+  renameDocWorkspaceTemplate,
   moveDocPage,
   moveDocPageStep,
   reorderDocPage,
@@ -57,17 +58,38 @@ export async function createDocPageFromWorkspaceTemplateAction(locale: string, t
   redirect(page ? `/${safeLocale(locale)}/app/docs/${page.id}` : `/${safeLocale(locale)}/app/docs`);
 }
 
-/** Borra una plantilla del workspace: quien la guardó o un admin. */
-export async function deleteDocWorkspaceTemplateAction(templateId: string) {
+/**
+ * Quien puede tocar una plantilla del workspace: quien la guardó o un admin.
+ * Devuelve el workspace (dueño) o null si no existe o no hay permiso.
+ */
+async function editableTemplateOwner(templateId: string): Promise<string | null> {
   const user = await getCurrentUser();
   if (!user) throw new Error('unauthorized');
   const row = (await getDb()
     .prepare('SELECT created_by FROM docs_templates WHERE id = ? AND workspace_id = ?')
     .get(templateId, user.id)) as { created_by: string | null } | undefined;
-  if (!row) return;
-  if (row.created_by !== realUserId(user) && !isWorkspaceAdmin(user)) return;
-  await deleteDocWorkspaceTemplate(user.id, templateId);
+  if (!row) return null;
+  if (row.created_by !== realUserId(user) && !isWorkspaceAdmin(user)) return null;
+  return user.id;
+}
+
+/** Borra una plantilla del workspace: quien la guardó o un admin. */
+export async function deleteDocWorkspaceTemplateAction(templateId: string): Promise<boolean> {
+  const owner = await editableTemplateOwner(templateId);
+  if (!owner) return false;
+  const ok = await deleteDocWorkspaceTemplate(owner, templateId);
   revalidatePath('/[locale]/app/docs', 'page');
+  return ok;
+}
+
+/** Renombra una plantilla del workspace: quien la guardó o un admin. */
+export async function renameDocWorkspaceTemplateAction(templateId: string, title: string): Promise<boolean> {
+  if (typeof title !== 'string') return false;
+  const owner = await editableTemplateOwner(templateId);
+  if (!owner) return false;
+  const ok = await renameDocWorkspaceTemplate(owner, templateId, title);
+  revalidatePath('/[locale]/app/docs', 'page');
+  return ok;
 }
 
 export async function moveDocPageAction(pageId: string, parentId: string | null) {

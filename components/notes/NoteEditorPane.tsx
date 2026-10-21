@@ -38,6 +38,8 @@ interface Props {
   onSync: (id: string) => Promise<NoteDetail | null>;
   /** Se crearon issues de Track desde la nota (el padre avisa y recarga). */
   onTracked: (id: string, issues: Array<{ id: string; identifier: string }>) => void;
+  /** Se creó una nota desde el popover [[ (el padre la suma a la lista). */
+  onCreated?: (note: NoteDetail) => void;
 }
 
 export default function NoteEditorPane({
@@ -57,6 +59,7 @@ export default function NoteEditorPane({
   onReload,
   onSync,
   onTracked,
+  onCreated,
 }: Props) {
   const t = useTranslations('notes');
   const format = useFormatter();
@@ -77,6 +80,9 @@ export default function NoteEditorPane({
   const isOwner = access === 'owner';
 
   const noteIdForLinks = note.id;
+  const notebookForLinks = note.notebook_id ?? null;
+  const onCreatedRef = useRef(onCreated);
+  onCreatedRef.current = onCreated;
   const untitled = t('untitled');
   /** Links [[ ]] a otras notas de la persona (el buscador de la lista, sin la nota abierta). */
   const pageLinks = useMemo<PageLinkSource>(
@@ -92,8 +98,29 @@ export default function NoteEditorPane({
       },
       href: noteHref,
       open: onOpenNote,
+      // "Crear nota «x»": nueva nota en la misma libreta, sin salir de esta.
+      create: async (title) => {
+        const res = await fetch('/api/notes', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            id: crypto.randomUUID(),
+            title,
+            notebook_id: notebookForLinks,
+            content: [{ id: crypto.randomUUID(), type: 'paragraph', content: '' }],
+          }),
+        }).catch(() => null);
+        if (!res?.ok) return null;
+        const created = (await res.json()) as NoteDetail;
+        onCreatedRef.current?.(created);
+        return { id: created.id, title: created.title || untitled };
+      },
+      labels: {
+        create: (q) => t('editor.linkCreate', { query: q }),
+        empty: t('editor.linkEmpty'),
+      },
     }),
-    [noteIdForLinks, onOpenNote, untitled],
+    [noteIdForLinks, notebookForLinks, onOpenNote, untitled, t],
   );
   /** Adjuntos: rutas de Notes (solo la persona dueña sube y descarga). */
   const files = useMemo<DocsFileSource>(
@@ -229,7 +256,14 @@ export default function NoteEditorPane({
         {trackDrawer}
         {access === 'edit' ? (
           <div className="note-body">
-            <DocsEditor page={page} ancestors={[]} onSave={handleSave} embedded files={files} />
+            <DocsEditor
+              page={page}
+              ancestors={[]}
+              onSave={handleSave}
+              embedded
+              files={files}
+              titlePlaceholder={t('editor.titlePlaceholder')}
+            />
           </div>
         ) : (
           <div className="note-body note-body-readonly">
@@ -428,7 +462,15 @@ export default function NoteEditorPane({
       )}
 
       <div className="note-body">
-        <DocsEditor page={page} ancestors={[]} onSave={handleSave} embedded pageLinks={pageLinks} files={files} />
+        <DocsEditor
+          page={page}
+          ancestors={[]}
+          onSave={handleSave}
+          embedded
+          pageLinks={pageLinks}
+          files={files}
+          titlePlaceholder={t('editor.titlePlaceholder')}
+        />
       </div>
       {note.backlinks && note.backlinks.length > 0 && (
         <nav className="note-backlinks" aria-label={t('links.linkedFrom')}>

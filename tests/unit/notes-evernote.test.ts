@@ -18,7 +18,14 @@ import {
 import { parseNoteQuery, parseQueryDate, tokenizeQuery } from '@/lib/notes-query';
 import { XmlLimitError, decodeXmlEntities, findElement, parseXml, textContent } from '@/lib/xml-lite';
 import { enexToNotes, enmlToBlocks, markdownToNote, parseEnex, parseEnexDate } from '@/lib/notes-import';
-import { NOTE_MAX_VERSIONS, listNoteVersions, maybeAutoSnapshotNote } from '@/lib/notes-versions';
+import {
+  NOTE_MAX_VERSIONS,
+  getNoteVersion,
+  isEmptyNoteSnapshot,
+  listNoteVersions,
+  maybeAutoSnapshotNote,
+  noteSnapshotKey,
+} from '@/lib/notes-versions';
 import { buildReminderEmail, fireNoteReminders, setNoteReminder, ReminderError } from '@/lib/notes-reminders';
 import { pageLinkHtml } from '@/lib/docs-page-links';
 import { reminderPresets, toLocalInputValue } from '@/components/notes/notes-ui';
@@ -399,6 +406,28 @@ describe('notes: links entre notas', () => {
 // ---------- Versiones ----------
 
 describe('notes: historial de versiones', () => {
+  it('una nota nueva vacía no deja versiones, ni repetidas', async () => {
+    const { a } = await ownerPair();
+    const n = await createNote(a, { content: [para('')] });
+    // El editor guarda la nota vacía (mismo contenido, otra serialización).
+    await updateNote(a, n.id, { title: '', content: [{ ...para(''), level: undefined }] });
+    expect(await listNoteVersions(a, n.id)).toHaveLength(0);
+    // La primera edición con texto: una sola versión (el estado vacío de antes no se guarda).
+    await updateNote(a, n.id, { title: 'Hola', content: [para('')] });
+    expect(await listNoteVersions(a, n.id)).toHaveLength(1);
+    await updateNote(a, n.id, { content: [para('mundo')] });
+    const versions = await listNoteVersions(a, n.id);
+    expect(versions).toHaveLength(1);
+    const v = (await getNoteVersion(a, n.id, versions[0].id))!;
+    expect(v.title).toBe('Hola');
+    expect(v.content[0].content).toBe('mundo');
+    expect(isEmptyNoteSnapshot('', JSON.stringify([para('  ')]))).toBe(true);
+    expect(isEmptyNoteSnapshot('', JSON.stringify([{ id: 'd', type: 'divider', content: '' }]))).toBe(false);
+    expect(noteSnapshotKey('a', JSON.stringify([{ id: '1', type: 'paragraph', content: 'x' }]))).toBe(
+      noteSnapshotKey('a ', JSON.stringify([{ content: 'x', type: 'paragraph', id: '2' }])),
+    );
+  });
+
   it('snapshot con ventana de tiempo, tope por nota y restaurar', async () => {
     const { boss, mate, a } = await ownerPair();
     const n = await createNote(a, { title: 'v0', content: [para('cero')] });
@@ -406,17 +435,28 @@ describe('notes: historial de versiones', () => {
     // Primera edición: guarda el estado anterior y el nuevo.
     let versions = await listNoteVersions(a, n.id);
     expect(versions).toHaveLength(2);
-    // Dentro de la ventana no se agregan más.
+    // Dentro de la ventana no se agregan más: la última versión pasa a tener lo último escrito.
     await updateNote(a, n.id, { content: [para('dos')] });
-    expect(await listNoteVersions(a, n.id)).toHaveLength(2);
-    // Pasada la ventana, sí.
-    expect(await maybeAutoSnapshotNote(a, n.id, null, new Date(Date.now() + 6 * 60_000))).toBe(true);
+    versions = await listNoteVersions(a, n.id);
+    expect(versions).toHaveLength(2);
+    expect((await getNoteVersion(a, n.id, versions[0].id))!.content[0].content).toBe('dos');
+    // Pasada la ventana, un guardado abre otra versión.
+    await getDb()
+      .prepare('UPDATE note_versions SET created_at = ? WHERE note_id = ?')
+      .run(new Date(Date.now() - 10 * 60_000).toISOString(), n.id);
+    await updateNote(a, n.id, { content: [para('tres')] });
     versions = await listNoteVersions(a, n.id);
     expect(versions).toHaveLength(3);
+    // Mismo contenido que la última versión: no se duplica.
+    expect(await maybeAutoSnapshotNote(a, n.id, null, new Date(Date.now() + 6 * 60_000))).toBe(false);
+    expect(await listNoteVersions(a, n.id)).toHaveLength(3);
 
     // Tope: no pasa de NOTE_MAX_VERSIONS (en otra nota: estos snapshots tienen fechas futuras).
     const capped = await createNote(a, { title: 'tope' });
     for (let i = 0; i < NOTE_MAX_VERSIONS + 3; i++) {
+      await getDb()
+        .prepare('UPDATE notes SET content = ? WHERE id = ?')
+        .run(JSON.stringify([para(`v${i}`)]), capped.id);
       await maybeAutoSnapshotNote(a, capped.id, null, new Date(Date.now() + (10 + i * 6) * 60_000));
     }
     expect(await listNoteVersions(a, capped.id)).toHaveLength(NOTE_MAX_VERSIONS);
