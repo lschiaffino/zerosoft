@@ -21,6 +21,10 @@ export interface NoteSummary {
   shared: boolean;
   created_at: string;
   updated_at: string;
+  /** Lista "Compartidas conmigo": quién la compartió. */
+  shared_by?: string | null;
+  /** Acceso de quien la abre: propia, o compartida para ver o editar. */
+  access?: 'owner' | 'edit' | 'view';
 }
 
 export interface NoteLinkRef {
@@ -35,6 +39,8 @@ export interface NoteDetail extends NoteSummary {
   backlinks?: NoteLinkRef[];
   /** Recordatorio con fecha y hora (sent_at: ya avisó). */
   reminder?: { at: string; sent_at: string | null } | null;
+  /** Nota compartida por otra persona: su nombre (para el aviso del editor). */
+  owner_name?: string | null;
 }
 
 /** Href (sin locale) de una nota en la app: lo usan los links [[ ]] y los avisos. */

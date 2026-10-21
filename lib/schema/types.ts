@@ -1423,6 +1423,14 @@ export interface BoardRow {
   thumbnail: string | null; // SVG chico (opcional)
   version: number;
   share_token: string | null;
+  /** 'workspace' = todo el team la edita; 'restricted' = solo quien la creó, admins y board_members. */
+  access?: string;
+  /** Link de invitado con edición (/b/e/<token>), sin login. */
+  edit_token?: string | null;
+  /** Timer compartido del taller: fin (ISO) si corre, segundos restantes si está en pausa. */
+  timer_ends_at?: string | null;
+  timer_seconds?: number | null;
+  timer_paused_left?: number | null;
   created_at: string;
   updated_at: string;
 }

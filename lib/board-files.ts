@@ -149,12 +149,13 @@ export async function deleteOrphanUploads(urls: string[]): Promise<void> {
  * trae el token vigente del link público. Cortar el link corta las imágenes.
  */
 export async function canReadBoardFiles(boardId: string, workspaceId: string | null, token: string | null): Promise<boolean> {
-  const row = (await getDb().prepare('SELECT workspace_id, share_token FROM boards WHERE id = ?').get(boardId)) as
-    | { workspace_id: string; share_token: string | null }
-    | undefined;
+  const row = (await getDb()
+    .prepare('SELECT workspace_id, share_token, edit_token FROM boards WHERE id = ?')
+    .get(boardId)) as { workspace_id: string; share_token: string | null; edit_token: string | null } | undefined;
   if (!row) return false;
   if (workspaceId && row.workspace_id === workspaceId) return true;
-  return Boolean(token && row.share_token && token === row.share_token);
+  // Link público de solo lectura o link de invitado con edición.
+  return Boolean(token && ((row.share_token && token === row.share_token) || (row.edit_token && token === row.edit_token)));
 }
 
 /** Bytes de una imagen guardada (disco local o Blob), o null. */

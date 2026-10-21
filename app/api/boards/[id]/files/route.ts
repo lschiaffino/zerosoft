@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/session';
+import { isDenied, requireBoardAccess } from '@/lib/board-access-http';
 import { boardExists } from '@/lib/boards';
 import { storeBoardFile } from '@/lib/board-files';
 import { BOARD_MAX_FILE_BYTES } from '@/lib/board-file-refs';
@@ -23,6 +24,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const { id } = await ctx.params;
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
+  const access = await requireBoardAccess(user, id, 'edit');
+  if (isDenied(access)) return access;
   const limited = await limitWrites('boards:files', user.actingUser?.id ?? user.id, 120);
   if (limited) return limited;
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));

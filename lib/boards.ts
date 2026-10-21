@@ -2,7 +2,8 @@
  * Board — pizarras estilo Miro (Excalidraw) del workspace.
  *
  * Las pizarras son del workspace (workspace_id = dueño): cualquier miembro
- * del team las ve y edita. Sin multiplayer en tiempo real: cada guardado
+ * del team las ve y edita, salvo las restringidas a invitados
+ * (lib/board-access.ts). Sin multiplayer en tiempo real: cada guardado
  * manda la versión sobre la que se editó y, si otro la cambió antes, el
  * guardado se rechaza (409) y el cliente muestra "cambió en otro lado".
  */
@@ -12,6 +13,7 @@ import { BOARD_MAX_SCENE_BYTES, BOARD_MAX_THUMB_BYTES, type BoardDetail, type Bo
 import { referencedFileIds, retargetFiles, withShareToken } from './board-file-refs';
 import { boardFileUrls, copyBoardFiles, deleteOrphanUploads, externalizeSceneFiles } from './board-files';
 import { getSnapshot, maybeSnapshot } from './board-history';
+import { boardVisibleSql, normalizeAccessMode, type BoardViewer } from './board-access';
 
 const nowIso = () => new Date().toISOString();
 
@@ -29,7 +31,7 @@ function parseScene(raw: string): BoardScene {
   }
 }
 
-type BoardListRow = Omit<BoardRow, 'scene'> & { updated_by_name: string | null; updated_by_email: string | null };
+type BoardListRow = Omit<BoardRow, 'scene' | 'edit_token'> & { updated_by_name: string | null; updated_by_email: string | null };
 
 function toSummary(row: BoardListRow | BoardRow & { updated_by_name?: string | null; updated_by_email?: string | null }): BoardSummary {
   return {
@@ -38,21 +40,24 @@ function toSummary(row: BoardListRow | BoardRow & { updated_by_name?: string | n
     thumbnail: row.thumbnail,
     version: Number(row.version),
     shared: row.share_token != null,
+    access: normalizeAccessMode(row.access),
     updated_at: row.updated_at,
     created_at: row.created_at,
     updated_by: row.updated_by_name ?? row.updated_by_email ?? null,
   };
 }
 
-export async function listBoards(workspaceId: string): Promise<BoardSummary[]> {
+/** Pizarras del workspace; con `viewer`, solo las que esa persona puede ver. */
+export async function listBoards(workspaceId: string, viewer?: BoardViewer): Promise<BoardSummary[]> {
+  const visible = viewer ? boardVisibleSql(viewer) : { sql: '1 = 1', args: [] };
   const rows = (await getDb()
     .prepare(
       `SELECT b.id, b.workspace_id, b.created_by, b.updated_by, b.name, b.scene_bytes, b.thumbnail, b.version,
-              b.share_token, b.created_at, b.updated_at, u.name AS updated_by_name, u.email AS updated_by_email
+              b.share_token, b.access, b.created_at, b.updated_at, u.name AS updated_by_name, u.email AS updated_by_email
        FROM boards b LEFT JOIN users u ON u.id = b.updated_by
-       WHERE b.workspace_id = ? ORDER BY b.updated_at DESC LIMIT 500`,
+       WHERE b.workspace_id = ? AND ${visible.sql} ORDER BY b.updated_at DESC LIMIT 500`,
     )
-    .all(workspaceId)) as BoardListRow[];
+    .all(workspaceId, ...visible.args)) as BoardListRow[];
   return rows.map(toSummary);
 }
 
@@ -210,7 +215,8 @@ export function cleanThumbnail(svg: string | null | undefined): string | null {
  */
 export async function saveBoardScene(
   workspaceId: string,
-  personId: string,
+  /** null = invitado con el link de edición (sin cuenta). */
+  personId: string | null,
   id: string,
   scene: BoardScene,
   baseVersion: number,
@@ -237,7 +243,7 @@ export async function saveBoardScene(
        WHERE id = ? AND workspace_id = ? AND version = ?`,
     )
     .run(
-      ...([json, bytes, now, personId] as Array<string | number>),
+      ...([json, bytes, now, personId] as Array<string | number | null>),
       ...(thumb !== undefined ? [thumb] : []),
       id,
       workspaceId,
@@ -308,4 +314,21 @@ export async function getSharedBoard(token: string): Promise<BoardDetail | null>
   const detail = toDetail(row);
   // Las imágenes se piden con el token: el proxy no tiene sesión que chequear.
   return { ...detail, scene: { ...detail.scene, files: withShareToken(detail.scene.files, row.id, token) } };
+}
+
+// ---------- Link de invitado (edición sin login) ----------
+
+const TOKEN_RE = /^[A-Za-z0-9_-]{10,64}$/;
+
+/** Pizarra del link de invitado con edición, con su workspace (para guardar). */
+export async function getGuestBoard(token: string): Promise<{ board: BoardDetail; workspaceId: string } | null> {
+  if (!TOKEN_RE.test(token)) return null;
+  const row = (await getDb().prepare('SELECT * FROM boards WHERE edit_token = ?').get(token)) as BoardRow | undefined;
+  if (!row) return null;
+  const detail = toDetail(row);
+  // El invitado no ve el link público de solo lectura (no lo gestiona).
+  return {
+    board: { ...detail, share_token: null, scene: { ...detail.scene, files: withShareToken(detail.scene.files, row.id, token) } },
+    workspaceId: row.workspace_id,
+  };
 }

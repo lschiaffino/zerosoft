@@ -15,7 +15,8 @@ export type DocsBlockType =
   | 'table'
   | 'database'
   | 'image'
-  | 'file';
+  | 'file'
+  | 'board';
 
 export type DocsDatabaseColumnType = 'text' | 'number' | 'select' | 'date';
 
@@ -48,6 +49,12 @@ export interface DocsBlock {
   name?: string;
   size?: number;
   mime?: string;
+  /**
+   * Bloque board: id de la pizarra embebida. La vista previa (nombre y
+   * miniatura) se pide a /api/boards/<id>/embed, que chequea que quien mira
+   * la página pueda ver la pizarra.
+   */
+  board_id?: string;
 }
 
 export interface DocsPage {
@@ -196,4 +203,13 @@ export function defaultDatabaseColumns(): DocsDatabaseColumn[] {
     },
     { id: crypto.randomUUID(), name: 'Due', type: 'date' },
   ];
+}
+
+/**
+ * Encabezados de una base (nombres de las columnas, en orden) para las vistas
+ * de solo lectura; null si el bloque no es una base o no tiene columnas.
+ */
+export function databaseHeader(block: Pick<DocsBlock, 'type' | 'columns'>): string[] | null {
+  if (block.type !== 'database' || !block.columns?.length) return null;
+  return block.columns.map((c) => c.name);
 }

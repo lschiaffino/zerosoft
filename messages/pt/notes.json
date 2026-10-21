@@ -15,7 +15,8 @@
     "pinned": "Fixadas",
     "notebooks": "Cadernos",
     "tags": "Etiquetas",
-    "trash": "Lixeira"
+    "trash": "Lixeira",
+    "shared": "Compartilhadas comigo"
   },
   "notebooks": {
     "new": "Novo caderno",
@@ -25,7 +26,8 @@
     "confirmDelete": "Excluir “{name}”? As notas vão para a lixeira.",
     "empty": "Agrupe suas notas em cadernos.",
     "renameLabel": "Novo nome do caderno",
-    "actions": "Ações do caderno"
+    "actions": "Ações do caderno",
+    "share": "Compartilhar"
   },
   "list": {
     "search": "Buscar notas",
@@ -50,7 +52,10 @@
     "emptyPinnedBody": "Fixe uma nota pela barra dela e ela fica no topo.",
     "searchHint": "Atalho: /",
     "resultCount": "{count, plural, =0 {0 resultados} one {# resultado} other {# resultados}}",
-    "clearSearch": "Limpar busca"
+    "clearSearch": "Limpar busca",
+    "emptySharedTitle": "Ninguém compartilhou nada com você ainda",
+    "emptySharedBody": "Quando alguém da equipe compartilhar uma nota ou um caderno com você, aparece aqui.",
+    "sharedBy": "de {name}"
   },
   "trash": {
     "confirmDelete": "Excluir esta nota para sempre? Não dá para desfazer.",
@@ -218,5 +223,53 @@
         "desc": "true para tarefas feitas, false para pendentes, * para qualquer."
       }
     }
+  },
+  "track": {
+    "open": "Enviar ao Track",
+    "title": "Enviar ao Track",
+    "close": "Fechar",
+    "syncing": "Salvando suas últimas alterações…",
+    "loadError": "Não foi possível carregar a nota. Tente de novo.",
+    "modeTasks": "As tarefas escolhidas, uma issue por tarefa",
+    "modeNote": "A nota inteira como uma issue",
+    "noTasks": "Esta nota não tem tarefas. Adicione algumas com [ ] ou envie a nota inteira.",
+    "linked": "Já está no Track",
+    "noteHint": "“{title}” vira uma issue com o texto da nota como descrição.",
+    "untitled": "Sem título",
+    "loadingProjects": "Carregando projetos…",
+    "noProjects": "Ainda não há projetos do Track neste workspace.",
+    "openTrack": "Abrir o Track",
+    "project": "Projeto",
+    "backlinkHint": "Cada issue leva um link para esta nota, e a nota fica com um link para cada issue.",
+    "cancel": "Cancelar",
+    "create": "{count, plural, one {Criar # issue} other {Criar # issues}}",
+    "conflict": "A nota mudou enquanto isto estava aberto. Feche e tente de novo.",
+    "error": "Não foi possível criar as issues. Tente de novo.",
+    "done": "{count, plural, one {Criada {list}.} other {Criadas {list}.}}",
+    "fromNote": "Da nota"
+  },
+  "people": {
+    "title": "Colegas",
+    "loading": "Carregando…",
+    "roleFor": "Acesso de {name}",
+    "roles": {
+      "view": "Pode ver",
+      "edit": "Pode editar"
+    },
+    "remove": "Parar de compartilhar com {name}",
+    "nobody": "Só você vê esta nota.",
+    "choose": "Escolha alguém da equipe",
+    "role": "Acesso",
+    "add": "Compartilhar",
+    "noTeam": "Convide pessoas para o seu workspace para compartilhar notas.",
+    "error": "Não foi possível salvar. Tente de novo.",
+    "notebookTitle": "Compartilhar “{name}”",
+    "notebookHint": "Recebem todas as notas deste caderno, inclusive as que você adicionar depois.",
+    "close": "Fechar"
+  },
+  "sharedNote": {
+    "someone": "Alguém da equipe",
+    "editBanner": "{name} compartilhou com você. Você pode editar.",
+    "viewBanner": "{name} compartilhou com você. Somente leitura."
   }
 }

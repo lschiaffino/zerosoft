@@ -6,13 +6,15 @@ export type NotesFilter =
   | { kind: 'all' }
   | { kind: 'pinned' }
   | { kind: 'trash' }
+  /** Notas de compañeros compartidas conmigo (directas o por libreta). */
+  | { kind: 'shared' }
   | { kind: 'notebook'; id: string }
   | { kind: 'tag'; tag: string };
 
 /** Query string de /api/notes para un filtro, una búsqueda y un orden. */
 export function filterQuery(f: NotesFilter, q: string, sort: string): string {
   const sp = new URLSearchParams();
-  if (f.kind === 'pinned' || f.kind === 'trash') sp.set('view', f.kind);
+  if (f.kind === 'pinned' || f.kind === 'trash' || f.kind === 'shared') sp.set('view', f.kind);
   if (f.kind === 'notebook') sp.set('notebook', f.id);
   if (f.kind === 'tag') sp.set('tag', f.tag);
   if (q.trim()) sp.set('q', q.trim());
@@ -37,12 +39,13 @@ export function sameFilter(a: NotesFilter, b: NotesFilter): boolean {
 }
 
 /** Qué estado vacío corresponde a la lista. */
-export type EmptyKind = 'search' | 'trash' | 'pinned' | 'notebook' | 'all';
+export type EmptyKind = 'search' | 'trash' | 'pinned' | 'shared' | 'notebook' | 'all';
 
 export function emptyKind(f: NotesFilter, q: string): EmptyKind {
   if (q.trim()) return 'search';
   if (f.kind === 'trash') return 'trash';
   if (f.kind === 'pinned') return 'pinned';
+  if (f.kind === 'shared') return 'shared';
   if (f.kind === 'notebook') return 'notebook';
   return 'all';
 }

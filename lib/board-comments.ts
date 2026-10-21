@@ -175,7 +175,9 @@ async function notifyComment(args: {
   const boardName = (await getBoardName(args.workspaceId, args.boardId)) ?? 'Untitled board';
   const actorName = actor?.name ?? actor?.email ?? 'Someone';
   const href = `/app/board/${args.boardId}?comment=${args.threadId}`;
-  const members = await listBoardMembers(args.workspaceId);
+  // Solo quienes pueden ver la pizarra (en una restringida, no todo el workspace).
+  const { boardAudience } = await import('./board-access');
+  const members = await boardAudience(args.workspaceId, args.boardId);
   const notified = new Set<string>([args.actorId]);
   const excerpt = args.body.replace(/\s+/g, ' ').trim().slice(0, 140);
   const meta = { boardName, actorName, actorId: args.actorId, threadId: args.threadId };
@@ -199,7 +201,7 @@ async function notifyComment(args: {
     .all(args.threadId)) as Array<{ author_id: string }>;
   const memberIds = new Set(members.map((m) => m.id));
   for (const { author_id } of authors) {
-    // Quien ya no está en el workspace no recibe avisos de esta pizarra.
+    // Quien ya no puede ver la pizarra (o dejó el workspace) no recibe avisos.
     if (notified.has(author_id) || !memberIds.has(author_id)) continue;
     notified.add(author_id);
     await createNotification({

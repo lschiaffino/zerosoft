@@ -2,20 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { canReadBoardFiles, getBoardFile, readBoardFile } from '@/lib/board-files';
 import { jsonError } from '@/lib/write-limit';
+import { boardViewer, getBoardAccess } from '@/lib/board-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
  * Sirve una imagen de la pizarra con los permisos de la pizarra: alguien del
- * workspace, o el link público vigente (?t=<token>). Sin acceso: 404 (no se
+ * workspace que la pueda ver, o el link público o de invitado vigente (?t=<token>). Sin acceso: 404 (no se
  * confirma que exista). La URL del storage nunca sale de acá.
  */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string; fileId: string }> }) {
   const { id, fileId } = await ctx.params;
   const user = await getCurrentUser();
   const token = req.nextUrl.searchParams.get('t');
-  if (!(await canReadBoardFiles(id, user?.id ?? null, token))) return jsonError(404, 'not_found');
+  // Del workspace cuenta solo si puede ver la pizarra (una restringida no la ve todo el team).
+  const member = user && (await getBoardAccess(boardViewer(user), id)) ? user.id : null;
+  if (!(await canReadBoardFiles(id, member, token))) return jsonError(404, 'not_found');
   const row = await getBoardFile(id, fileId);
   if (!row) return jsonError(404, 'not_found');
   const body = await readBoardFile(row);

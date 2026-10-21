@@ -15,7 +15,8 @@
     "pinned": "Pinned",
     "notebooks": "Notebooks",
     "tags": "Tags",
-    "trash": "Trash"
+    "trash": "Trash",
+    "shared": "Shared with me"
   },
   "notebooks": {
     "new": "New notebook",
@@ -25,7 +26,8 @@
     "confirmDelete": "Delete “{name}”? Its notes will move to the trash.",
     "empty": "Group notes into notebooks.",
     "renameLabel": "New notebook name",
-    "actions": "Notebook actions"
+    "actions": "Notebook actions",
+    "share": "Share"
   },
   "list": {
     "search": "Search notes",
@@ -50,7 +52,10 @@
     "emptyPinnedBody": "Pin a note from its toolbar to keep it at the top.",
     "searchHint": "Shortcut: /",
     "resultCount": "{count, plural, =0 {0 results} one {# result} other {# results}}",
-    "clearSearch": "Clear search"
+    "clearSearch": "Clear search",
+    "emptySharedTitle": "Nothing shared with you yet",
+    "emptySharedBody": "When a teammate shares a note or a notebook with you, it shows up here.",
+    "sharedBy": "from {name}"
   },
   "trash": {
     "confirmDelete": "Delete this note forever? This can't be undone.",
@@ -218,5 +223,53 @@
         "desc": "true for done tasks, false for open ones, * for any."
       }
     }
+  },
+  "track": {
+    "open": "Send to Track",
+    "title": "Send to Track",
+    "close": "Close",
+    "syncing": "Saving your latest changes…",
+    "loadError": "Couldn’t load the note. Try again.",
+    "modeTasks": "Selected tasks, one issue each",
+    "modeNote": "The whole note as one issue",
+    "noTasks": "This note has no tasks. Add some with [ ] or send the whole note.",
+    "linked": "Already in Track",
+    "noteHint": "“{title}” becomes one issue with the note’s text as its description.",
+    "untitled": "Untitled",
+    "loadingProjects": "Loading projects…",
+    "noProjects": "There are no Track projects in this workspace yet.",
+    "openTrack": "Open Track",
+    "project": "Project",
+    "backlinkHint": "Each issue links back to this note, and the note gets a link to each issue.",
+    "cancel": "Cancel",
+    "create": "{count, plural, one {Create # issue} other {Create # issues}}",
+    "conflict": "The note changed while this was open. Close and try again.",
+    "error": "Couldn’t create the issues. Try again.",
+    "done": "{count, plural, one {Created {list}.} other {Created {list}.}}",
+    "fromNote": "From note"
+  },
+  "people": {
+    "title": "Teammates",
+    "loading": "Loading…",
+    "roleFor": "Access for {name}",
+    "roles": {
+      "view": "Can view",
+      "edit": "Can edit"
+    },
+    "remove": "Stop sharing with {name}",
+    "nobody": "Only you can see this.",
+    "choose": "Choose a teammate",
+    "role": "Access",
+    "add": "Share",
+    "noTeam": "Invite people to your workspace to share notes with them.",
+    "error": "Couldn’t save that. Try again.",
+    "notebookTitle": "Share “{name}”",
+    "notebookHint": "Teammates get every note in this notebook, including the ones you add later.",
+    "close": "Close"
+  },
+  "sharedNote": {
+    "someone": "A teammate",
+    "editBanner": "Shared by {name}. You can edit it.",
+    "viewBanner": "Shared by {name}. View only."
   }
 }

@@ -10,6 +10,8 @@ import { noteFileHref, noteHref, normalizeTag, type NoteDetail, type NoteSummary
 import NoteBlocksView from './NoteBlocksView';
 import NoteHistoryDrawer from './NoteHistoryDrawer';
 import NoteReminderButton from './NoteReminderButton';
+import { NoteSharePeople } from './NoteSharePeople';
+import NoteTrackDrawer from './NoteTrackDrawer';
 import NotesIcon from './NotesIcon';
 import RowMenu from './RowMenu';
 import { usePopover } from './usePopover';
@@ -32,6 +34,10 @@ interface Props {
   onOpenNote: (id: string) => void;
   /** Vuelve a cargar la nota del servidor (después de restaurar una versión). */
   onReload: (id: string) => void;
+  /** Espera el autoguardado y trae la nota del servidor (antes de mandarla a Track). */
+  onSync: (id: string) => Promise<NoteDetail | null>;
+  /** Se crearon issues de Track desde la nota (el padre avisa y recarga). */
+  onTracked: (id: string, issues: Array<{ id: string; identifier: string }>) => void;
 }
 
 export default function NoteEditorPane({
@@ -49,6 +55,8 @@ export default function NoteEditorPane({
   onError,
   onOpenNote,
   onReload,
+  onSync,
+  onTracked,
 }: Props) {
   const t = useTranslations('notes');
   const format = useFormatter();
@@ -62,6 +70,11 @@ export default function NoteEditorPane({
   const [reminder, setReminder] = useState(note.reminder ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [trackOpen, setTrackOpen] = useState(false);
+  const [peopleCount, setPeopleCount] = useState(0);
+  /** Propia, o compartida por otra persona (para ver o editar). */
+  const access = note.access ?? 'owner';
+  const isOwner = access === 'owner';
 
   const noteIdForLinks = note.id;
   const untitled = t('untitled');
@@ -177,6 +190,57 @@ export default function NoteEditorPane({
     </button>
   );
 
+  const trackDrawer = trackOpen && (
+    <NoteTrackDrawer
+      noteId={note.id}
+      onSync={() => onSync(note.id)}
+      onClose={() => setTrackOpen(false)}
+      onDone={(issues) => {
+        setTrackOpen(false);
+        onTracked(note.id, issues);
+      }}
+    />
+  );
+
+  // Compartida conmigo: aviso de quién es y qué puedo hacer.
+  if (!isOwner) {
+    const by = note.owner_name ?? t('sharedNote.someone');
+    return (
+      <div className="note-pane" ref={wrapRef}>
+        <div className="note-bar">
+          {back}
+          <span className="note-bar-info">
+            {access === 'edit' ? t('sharedNote.editBanner', { name: by }) : t('sharedNote.viewBanner', { name: by })}
+          </span>
+          {access === 'edit' && (
+            <span className={`note-status${status === 'error' ? ' is-error' : ''}`} aria-live="polite">
+              {statusLabel}
+            </span>
+          )}
+          {access === 'edit' && (
+            <div className="note-bar-actions">
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTrackOpen(true)}>
+                <NotesIcon name="track" size={14} />
+                <span className="note-bar-label">{t('track.open')}</span>
+              </button>
+            </div>
+          )}
+        </div>
+        {trackDrawer}
+        {access === 'edit' ? (
+          <div className="note-body">
+            <DocsEditor page={page} ancestors={[]} onSave={handleSave} embedded files={files} />
+          </div>
+        ) : (
+          <div className="note-body note-body-readonly">
+            <h1 className="note-view-title">{note.title || t('untitled')}</h1>
+            <NoteBlocksView blocks={note.content} fileHref={files.href} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (note.trashed) {
     return (
       <div className="note-pane" ref={wrapRef}>
@@ -237,7 +301,7 @@ export default function NoteEditorPane({
             <button
               ref={share.buttonRef}
               type="button"
-              className={`btn btn-ghost btn-sm${note.shared ? ' is-on' : ''}`}
+              className={`btn btn-ghost btn-sm${note.shared || peopleCount > 0 ? ' is-on' : ''}`}
               onClick={share.toggle}
               aria-expanded={share.open}
               aria-haspopup="dialog"
@@ -275,6 +339,7 @@ export default function NoteEditorPane({
                     {t('share.enable')}
                   </button>
                 )}
+                <NoteSharePeople apiUrl={`/api/notes/${encodeURIComponent(note.id)}/shares`} onCount={setPeopleCount} />
               </div>
             )}
           </div>
@@ -300,6 +365,13 @@ export default function NoteEditorPane({
                 },
               },
               {
+                label: t('track.open'),
+                onSelect: () => {
+                  setMenuOpen(false);
+                  setTrackOpen(true);
+                },
+              },
+              {
                 label: t('export.markdown'),
                 onSelect: () => {
                   setMenuOpen(false);
@@ -310,6 +382,7 @@ export default function NoteEditorPane({
           />
         </div>
       </div>
+      {trackDrawer}
       {historyOpen && (
         <NoteHistoryDrawer noteId={note.id} onClose={() => setHistoryOpen(false)} onRestored={() => onReload(note.id)} />
       )}

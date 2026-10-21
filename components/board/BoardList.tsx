@@ -129,6 +129,7 @@ export default function BoardList({
       thumbnail: copy.thumbnail,
       version: copy.version,
       shared: copy.shared,
+      access: copy.access,
       created_at: copy.created_at,
       updated_at: copy.updated_at,
       updated_by: copy.updated_by,
@@ -217,6 +218,7 @@ export default function BoardList({
                   {b.updated_by ? ` · ${b.updated_by}` : ''}
                 </p>
                 {b.shared && <span className="badge badge-outline board-card-shared">{t('share.on')}</span>}
+                {b.access === 'restricted' && <span className="badge badge-outline board-card-shared">{t('access.restrictedBadge')}</span>}
               </div>
               <RowMenu
                 className="board-card-menu"

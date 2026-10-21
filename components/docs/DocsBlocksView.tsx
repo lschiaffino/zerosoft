@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import type { DocsBlock } from '@/lib/docs-types';
+import { databaseHeader, type DocsBlock } from '@/lib/docs-types';
 import { buildToc } from '@/lib/docs-toc';
 import { docsFileHref, formatFileSize } from '@/lib/docs-files';
+import { DocsBoardPreview } from './DocsBoardEmbed';
 
 /**
  * Render de solo lectura de los bloques de una página de Docs: centro de
@@ -17,12 +18,15 @@ export default function DocsBlocksView({
   pageId,
   fileHref,
   className = '',
+  boards = true,
 }: {
   blocks: DocsBlock[];
   pageId?: string;
   /** URL propia de los archivos (Notes); gana sobre `pageId`. */
   fileHref?: (blockId: string, opts?: { download?: boolean }) => string;
   className?: string;
+  /** Vista previa de pizarras embebidas (el centro de ayuda público no las muestra: son internas). */
+  boards?: boolean;
 }) {
   const hrefFor = fileHref ?? (pageId ? (blockId: string, opts?: { download?: boolean }) => docsFileHref(pageId, blockId, opts) : null);
   const anchors = new Map(buildToc(blocks).map((e) => [e.blockId, e.anchor]));
@@ -98,9 +102,13 @@ export default function DocsBlocksView({
           );
         }
         break;
+      case 'board':
+        // Vista previa con chequeo de acceso de quien mira (sin acceso: aviso, sin datos).
+        if (boards && b.board_id) out.push(<DocsBoardPreview key={b.id} boardId={b.board_id} />);
+        break;
       case 'table':
       case 'database': {
-        const header = b.type === 'database' ? (b.columns ?? []).map((c) => c.name) : null;
+        const header = databaseHeader(b);
         out.push(
           <div key={b.id} className="dbv-table">
             <table>

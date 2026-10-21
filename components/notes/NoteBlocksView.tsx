@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { DocsBlock } from '@/lib/docs-types';
+import { databaseHeader, type DocsBlock } from '@/lib/docs-types';
 import { formatFileSize } from '@/lib/docs-files';
 
 /**
@@ -88,14 +88,27 @@ export default function NoteBlocksView({
         }
         break;
       case 'table':
-      case 'database':
+      case 'database': {
+        // Las bases muestran los nombres de sus columnas (link público y papelera).
+        const header = databaseHeader(b);
         out.push(
           <div key={b.id} className="note-view-table">
             <table>
+              {header && (
+                <thead>
+                  <tr>
+                    {header.map((h, c) => (
+                      <th key={c} scope="col">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+              )}
               <tbody>
                 {(b.rows ?? []).map((row, r) => (
                   <tr key={r}>
-                    {row.map((cell, c) => (
+                    {(header ? header.map((_, c) => row[c] ?? '') : row).map((cell, c) => (
                       <td key={c}>{cell}</td>
                     ))}
                   </tr>
@@ -105,6 +118,7 @@ export default function NoteBlocksView({
           </div>,
         );
         break;
+      }
       default:
         out.push(<p key={b.id} dangerouslySetInnerHTML={{ __html: b.content || '&nbsp;' }} />);
     }

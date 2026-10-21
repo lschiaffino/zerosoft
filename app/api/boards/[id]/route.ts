@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { isDenied, requireBoardAccess } from '@/lib/board-access-http';
 import { deleteBoard, getBoard, renameBoard, setBoardThumbnail } from '@/lib/boards';
 import { boardRenameSchema, boardThumbnailSchema } from '@/lib/boards-schema';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
@@ -13,15 +14,19 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
+  const access = await requireBoardAccess(user, id, 'view');
+  if (isDenied(access)) return access;
   const board = await getBoard(user.id, id);
   if (!board) return jsonError(404, 'not_found');
-  return NextResponse.json(board);
+  return NextResponse.json({ ...board, my_access: access.level });
 }
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
+  const access = await requireBoardAccess(user, id, 'edit');
+  if (isDenied(access)) return access;
   const limited = await limitWrites('boards:write', user.actingUser?.id ?? user.id, 60);
   if (limited) return limited;
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
@@ -44,6 +49,10 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
+  const access = await requireBoardAccess(user, id, 'edit');
+  if (isDenied(access)) return access;
+  // Una pizarra restringida solo la borra quien gestiona su acceso.
+  if (access.level !== 'manage' && (await getBoard(user.id, id))?.access === 'restricted') return jsonError(403, 'forbidden');
   const limited = await limitWrites('boards:write', user.actingUser?.id ?? user.id, 60);
   if (limited) return limited;
   if (!(await deleteBoard(user.id, id))) return jsonError(404, 'not_found');

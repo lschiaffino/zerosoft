@@ -2758,6 +2758,71 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Board: acceso por pizarra (todo el workspace o solo invitados con rol),
+    // link de invitado con edición, timer compartido y votaciones del taller,
+    // y stickies convertidos en issues de Track (tarjetas en vivo).
+    // Notes: compartir una nota o una libreta con compañeros (ver o editar).
+    id: '062_board_access_workshop_notes_shares',
+    async up(client) {
+      await addColumn(client, "ALTER TABLE boards ADD COLUMN access TEXT NOT NULL DEFAULT 'workspace'");
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN edit_token TEXT');
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN timer_ends_at TEXT');
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN timer_seconds INTEGER');
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN timer_paused_left INTEGER');
+      await client.executeMultiple(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_boards_edit_token ON boards(edit_token) WHERE edit_token IS NOT NULL;
+        CREATE TABLE IF NOT EXISTS board_members (
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'edit',
+          added_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (board_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_members_user ON board_members(user_id);
+        CREATE TABLE IF NOT EXISTS board_vote_sessions (
+          id TEXT PRIMARY KEY,
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          votes_per_person INTEGER NOT NULL DEFAULT 3,
+          status TEXT NOT NULL DEFAULT 'open',
+          created_at TEXT NOT NULL,
+          closed_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_vote_sessions_board ON board_vote_sessions(board_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS board_votes (
+          session_id TEXT NOT NULL REFERENCES board_vote_sessions(id) ON DELETE CASCADE,
+          voter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          element_id TEXT NOT NULL,
+          count INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (session_id, voter_id, element_id)
+        );
+        CREATE TABLE IF NOT EXISTS board_track_links (
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          element_id TEXT NOT NULL,
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (board_id, element_id)
+        );
+        CREATE TABLE IF NOT EXISTS note_shares (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          note_id TEXT REFERENCES notes(id) ON DELETE CASCADE,
+          notebook_id TEXT REFERENCES note_notebooks(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'view',
+          created_at TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_note_shares_note ON note_shares(note_id, person_id) WHERE note_id IS NOT NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_note_shares_notebook ON note_shares(notebook_id, person_id) WHERE notebook_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_note_shares_person ON note_shares(person_id, workspace_id);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
