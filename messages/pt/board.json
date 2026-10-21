@@ -22,7 +22,9 @@
     "createError": "Não foi possível criar o quadro. Tente de novo.",
     "actionError": "Não foi possível concluir. Tente de novo.",
     "creating": "Criando…",
-    "templatesTitle": "Começar com um modelo"
+    "templatesTitle": "Começar com um modelo",
+    "deleteTitle": "Apagar quadro",
+    "cancel": "Cancelar"
   },
   "share": {
     "button": "Compartilhar",
@@ -53,7 +55,8 @@
     "conflictDeletedBy": "{name} mudou este quadro: algo que você editou foi apagado do lado dele, ou você apagou algo que ele editou. Todo o resto já foi combinado.",
     "draftFound": "Há alterações da sua última visita que não chegaram a ser salvas.",
     "draftRestore": "Recuperar",
-    "draftDiscard": "Descartar"
+    "draftDiscard": "Descartar",
+    "more": "Mais opções do quadro"
   },
   "public": {
     "notFound": "Quadro não encontrado",
@@ -204,7 +207,7 @@
   "workshop": {
     "button": "Workshop",
     "title": "Ferramentas de workshop",
-    "timerTitle": "Timer",
+    "timerTitle": "Cronômetro",
     "minutes": "{count} min",
     "customMinutes": "Minutos",
     "start": "Começar",
@@ -215,7 +218,7 @@
     "clear": "Limpar",
     "paused": "Pausado",
     "timeUp": "O tempo acabou",
-    "noTimer": "Nenhum timer rodando. Quem pode editar o quadro pode iniciar um.",
+    "noTimer": "Nenhum cronômetro rodando. Quem pode editar o quadro pode iniciar um.",
     "votingTitle": "Votação com pontos",
     "votingHint": "Cada pessoa tem o mesmo número de votos para distribuir entre os stickies. Os votos ficam ocultos até você encerrar a votação.",
     "perPerson": "Votos por pessoa",
@@ -261,7 +264,10 @@
     "loading": "Carregando acesso…",
     "error": "Não foi possível salvar. Tente de novo.",
     "viewOnly": "Somente leitura",
-    "restrictedBadge": "Só convidados"
+    "restrictedBadge": "Só convidados",
+    "aloneHint": "Por enquanto você é a única pessoa do workspace. Adicione sua equipe para poder convidá-la para este quadro.",
+    "inviteWorkspace": "Convidar para o workspace",
+    "allInvited": "Todas as pessoas do workspace já foram convidadas."
   },
   "guest": {
     "badge": "Convidado"

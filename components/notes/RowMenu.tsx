@@ -17,7 +17,7 @@ export default function RowMenu({
   open: boolean;
   label: string;
   onToggle: (open: boolean) => void;
-  items: Array<{ label: string; onSelect: () => void; danger?: boolean }>;
+  items: Array<{ label: string; onSelect: () => void; danger?: boolean; className?: string }>;
   className?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -75,7 +75,7 @@ export default function RowMenu({
       {open && (
         <div className="row-menu" role="menu" aria-label={label} onKeyDown={onKey}>
           {items.map((it) => (
-            <button key={it.label} type="button" role="menuitem" className={it.danger ? 'is-danger' : undefined} onClick={it.onSelect}>
+            <button key={it.label} type="button" role="menuitem" className={[it.danger ? 'is-danger' : '', it.className ?? ''].filter(Boolean).join(' ') || undefined} onClick={it.onSelect}>
               {it.label}
             </button>
           ))}

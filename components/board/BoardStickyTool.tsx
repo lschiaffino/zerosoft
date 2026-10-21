@@ -8,7 +8,9 @@ import {
   cleanStickyTags,
   collectStickyTags,
   isSticky,
+  elementBox,
   layoutStickies,
+  layoutStickiesInFreeSpace,
   parseBulkStickies,
   stickiesWithTag,
   stickySkeleton,
@@ -84,7 +86,9 @@ export default function BoardStickyTool({ api }: { api: CanvasApi | null }) {
   async function add(list: Array<{ text: string; tags: string[] }>) {
     if (!api || !list.length) return;
     const { skeletonsToElements, UNDOABLE } = await import('./ExcalidrawCanvas');
-    const positions = layoutStickies(list.length, viewportCenter(api));
+    // En un hueco cerca del centro de la vista: no tapan lo que ya está ni sus tags.
+    const occupied = (api.getSceneElements() as SceneEl[]).filter((e) => !e.isDeleted && !e.containerId).map(elementBox);
+    const positions = layoutStickiesInFreeSpace(list.length, viewportCenter(api), occupied);
     const created = skeletonsToElements(list.map((d, i) => stickySkeleton(d, positions[i], fill))) as SceneEl[];
     const ids = Object.fromEntries(created.filter((e) => e.customData?.sticky).map((e) => [e.id, true]));
     api.updateScene({
@@ -92,6 +96,14 @@ export default function BoardStickyTool({ api }: { api: CanvasApi | null }) {
       appState: { selectedElementIds: ids },
       captureUpdate: UNDOABLE,
     });
+    // Si el hueco quedó lejos del centro, la vista los sigue.
+    const center = viewportCenter(api);
+    const first = positions[0];
+    const centered = layoutStickies(list.length, center)[0];
+    if (first.x !== centered.x || first.y !== centered.y) {
+      const shown = (api.getSceneElements() as SceneEl[]).filter((e) => ids[e.id]);
+      if (shown.length) api.scrollToContent(shown, { fitToContent: false, animate: true });
+    }
     setBulk('');
     pop.close();
   }
@@ -133,6 +145,7 @@ export default function BoardStickyTool({ api }: { api: CanvasApi | null }) {
         onClick={toggle}
         aria-expanded={pop.open}
         aria-haspopup="dialog"
+        title={t('button')}
         disabled={!api}
       >
         <NotesIcon name="sticky" size={14} />

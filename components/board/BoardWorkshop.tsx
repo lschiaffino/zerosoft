@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { elementText, type SceneEl } from '@/lib/board-stickies';
 import { formatCountdown } from '@/lib/board-view';
@@ -56,6 +56,8 @@ export default function BoardWorkshop({
   canRun,
   error,
   send,
+  openSignal = 0,
+  className = '',
 }: {
   api: CanvasApi | null;
   timer: TimerView | null;
@@ -64,6 +66,9 @@ export default function BoardWorkshop({
   canRun: boolean;
   error: boolean;
   send: (body: Record<string, unknown>) => Promise<boolean>;
+  /** Cada vez que cambia (y no es 0) se abre: lo usa el menú "Más herramientas" de la barra. */
+  openSignal?: number;
+  className?: string;
 }) {
   const t = useTranslations('board.workshop');
   const pop = usePopover();
@@ -71,6 +76,10 @@ export default function BoardWorkshop({
   const [perPerson, setPerPerson] = useState('3');
   const [busy, setBusy] = useState(false);
   const left = useCountdown(timer, skew);
+  const setOpen = pop.setOpen;
+  useEffect(() => {
+    if (openSignal) setOpen(true);
+  }, [openSignal, setOpen]);
 
   async function run(body: Record<string, unknown>) {
     setBusy(true);
@@ -102,7 +111,7 @@ export default function BoardWorkshop({
   const mins = Math.round(Number(minutes) * 60);
 
   return (
-    <div className="board-share-wrap board-tool-wrap" ref={pop.wrapRef}>
+    <div className={`board-share-wrap board-tool-wrap ${className}`.trim()} ref={pop.wrapRef}>
       <button
         ref={pop.buttonRef}
         type="button"
@@ -110,6 +119,7 @@ export default function BoardWorkshop({
         onClick={pop.toggle}
         aria-expanded={pop.open}
         aria-haspopup="dialog"
+        title={t('button')}
       >
         <NotesIcon name="vote" size={14} />
         <span className="board-bar-label">{t('button')}</span>

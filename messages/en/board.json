@@ -22,7 +22,9 @@
     "createError": "Couldn’t create the board. Try again.",
     "actionError": "Couldn’t finish that. Try again.",
     "creating": "Creating…",
-    "templatesTitle": "Start from a template"
+    "templatesTitle": "Start from a template",
+    "deleteTitle": "Delete board",
+    "cancel": "Cancel"
   },
   "share": {
     "button": "Share",
@@ -53,7 +55,8 @@
     "conflictDeletedBy": "{name} changed this board: something you edited was deleted on their side, or you deleted something they edited. Everything else is already combined.",
     "draftFound": "There are changes from your last visit that didn't get saved.",
     "draftRestore": "Restore them",
-    "draftDiscard": "Discard"
+    "draftDiscard": "Discard",
+    "more": "More board options"
   },
   "public": {
     "notFound": "Board not found",
@@ -261,7 +264,10 @@
     "loading": "Loading access…",
     "error": "Couldn’t save that. Try again.",
     "viewOnly": "View only",
-    "restrictedBadge": "Invite only"
+    "restrictedBadge": "Invite only",
+    "aloneHint": "You’re the only person in this workspace for now. Add your team to invite them to this board.",
+    "inviteWorkspace": "Invite to the workspace",
+    "allInvited": "Everyone in the workspace is already invited."
   },
   "guest": {
     "badge": "Guest"

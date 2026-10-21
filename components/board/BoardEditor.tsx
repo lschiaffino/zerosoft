@@ -29,6 +29,7 @@ import {
 } from '@/lib/board-sync';
 import NotesIcon from '@/components/notes/NotesIcon';
 import { usePopover } from '@/components/notes/usePopover';
+import RowMenu from '@/components/notes/RowMenu';
 import { notifyBoardsChanged } from './BoardBranch';
 
 const ExcalidrawCanvas = dynamic(() => import('./ExcalidrawCanvas'), {
@@ -50,6 +51,11 @@ type SaveState = 'saved' | 'dirty' | 'saving' | 'conflict' | 'too_large' | 'erro
 
 const SAVE_DEBOUNCE_MS = 1200;
 const THUMB_EVERY_MS = 10_000;
+/**
+ * Si un guardado salió sin miniatura (por el tope de arriba), se regenera sola
+ * un rato después de la última edición: la grilla nunca queda con una vieja.
+ */
+const THUMB_TRAILING_MS = 2500;
 /** Merges seguidos antes de rendirse y mostrar el aviso (alguien guardando sin parar). */
 const MAX_MERGES = 3;
 
@@ -149,6 +155,9 @@ export default function BoardEditor({
   const [commentsOpen, setCommentsOpen] = useState(Boolean(commentId));
   const [placing, setPlacing] = useState(false);
   const [openThreads, setOpenThreads] = useState(0);
+  /** Menú "Más opciones" (barra angosta) y qué herramienta pidió abrir. */
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [openTool, setOpenTool] = useState<{ tool: 'track' | 'workshop'; n: number } | null>(null);
   /** Imágenes ya subidas: la escena las manda como URL y el base64 viaja una sola vez. */
   const uploadedRef = useRef<Map<string, string>>(uploadedFrom(board.scene.files));
   const versionRef = useRef(board.version);
@@ -172,6 +181,7 @@ export default function BoardEditor({
   const onConflictRef = useRef<(by: string | null) => void>(() => {});
   const blockedRef = useRef<SaveState | null>(null);
   const lastThumbRef = useRef(0);
+  const thumbTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** El primer onChange es el estado inicial normalizado por Excalidraw: solo fija la firma. */
   const baselineRef = useRef(true);
 
@@ -181,6 +191,35 @@ export default function BoardEditor({
     if (!api) return null;
     return buildScene(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles());
   }, []);
+
+  /** Miniatura de `scene` directo a la pizarra (sin tocar la escena ni su versión). */
+  const pushThumbnail = useCallback(
+    async (scene: BoardScene | null) => {
+      if (guest || !scene) return;
+      const { sceneThumbnail } = await import('./ExcalidrawCanvas');
+      const thumbnail = await sceneThumbnail(scene.elements, String(scene.appState.viewBackgroundColor ?? '#ffffff'));
+      if (!thumbnail) return;
+      lastThumbRef.current = Date.now();
+      await fetch(`/api/boards/${board.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ thumbnail }),
+        keepalive: thumbnail.length < 60_000,
+      }).catch(() => null);
+    },
+    [guest, board.id],
+  );
+
+  /** Programa la miniatura que faltó; si antes llega otro guardado, ese decide. */
+  const scheduleThumbnail = useCallback(() => {
+    if (thumbTimerRef.current) clearTimeout(thumbTimerRef.current);
+    thumbTimerRef.current = setTimeout(() => {
+      thumbTimerRef.current = null;
+      // Con un guardado pendiente o en vuelo, el próximo vuelve a programarla.
+      if (pendingRef.current || inFlightRef.current || unmountedRef.current) return;
+      void pushThumbnail(canvasScene());
+    }, THUMB_TRAILING_MS);
+  }, [pushThumbnail, canvasScene]);
 
   /**
    * Sube las imágenes pegadas que todavía van en base64 y las reemplaza por su
@@ -255,6 +294,12 @@ export default function BoardEditor({
         blockedRef.current = null;
         if (!pendingRef.current) clearDraft(storage(), board.id);
         setState(pendingRef.current ? 'dirty' : 'saved');
+        if (thumbnail) {
+          if (thumbTimerRef.current) clearTimeout(thumbTimerRef.current);
+          thumbTimerRef.current = null;
+        } else {
+          scheduleThumbnail();
+        }
       } else if (res.status === 409) {
         const data = (await res.json()) as { version: number; updated_by: string | null };
         conflictBy = data.updated_by;
@@ -281,7 +326,7 @@ export default function BoardEditor({
       }
     }
     if (conflictBy !== undefined && !unmountedRef.current) onConflictRef.current(conflictBy);
-  }, [board.id, apiBase, withUploadedFiles]);
+  }, [board.id, apiBase, withUploadedFiles, scheduleThumbnail]);
 
   /** Suma las imágenes que ya tiene el servidor (escena de otra pestaña o persona). */
   function rememberUploaded(files: Record<string, unknown>) {
@@ -408,6 +453,11 @@ export default function BoardEditor({
     return () => {
       unmountedRef.current = true;
       if (timerRef.current) clearTimeout(timerRef.current);
+      // Miniatura atrasada (o cambios sin guardar): se manda con lo último del lienzo.
+      const thumbStale = thumbTimerRef.current !== null || pendingRef.current !== null || inFlightRef.current;
+      if (thumbTimerRef.current) clearTimeout(thumbTimerRef.current);
+      thumbTimerRef.current = null;
+      const leaving = thumbStale ? canvasScene() : null;
       void flushOnLeave({
         inFlight: inFlightPromiseRef.current,
         getPending: () => pendingRef.current,
@@ -427,9 +477,9 @@ export default function BoardEditor({
         },
         saveDraft: (scene, baseVersion) => writeDraft(storage(), id, { baseVersion, scene, savedAt: Date.now() }),
         dropDraft: () => clearDraft(storage(), id),
-      });
+      }).then(() => pushThumbnail(leaving));
     };
-  }, [board.id, apiBase]);
+  }, [board.id, apiBase, canvasScene, pushThumbnail]);
 
   /** "Recuperar": suma el borrador al lienzo (combinado si algo cambió desde entonces). */
   async function restoreDraft() {
@@ -662,7 +712,16 @@ export default function BoardEditor({
         {!guest && <TimerChip timer={workshop.timer} skew={workshop.skew} />}
         <span className="board-bar-first" aria-hidden="true" />
         {!readOnly && <BoardStickyTool api={canvasApi} />}
-        {!guest && !readOnly && <BoardTrackTool boardId={board.id} api={canvasApi} cards={track.cards} onCards={track.setCards} />}
+        {!guest && !readOnly && (
+          <BoardTrackTool
+            className="board-bar-extra"
+            boardId={board.id}
+            api={canvasApi}
+            cards={track.cards}
+            onCards={track.setCards}
+            openSignal={openTool?.tool === 'track' ? openTool.n : 0}
+          />
+        )}
         {!guest && (
           <BoardWorkshop
             api={canvasApi}
@@ -672,18 +731,21 @@ export default function BoardEditor({
             canRun={!readOnly}
             error={workshop.error}
             send={workshop.send}
+            className="board-bar-extra"
+            openSignal={openTool?.tool === 'workshop' ? openTool.n : 0}
           />
         )}
         {!guest && (
           <>
             <button
               type="button"
-              className={`btn btn-sm${commentsOpen ? ' is-on' : ''}`}
+              className={`btn btn-sm board-bar-wide${commentsOpen ? ' is-on' : ''}`}
               onClick={() => {
                 setCommentsOpen((v) => !v);
                 setPlacing(false);
               }}
               aria-pressed={commentsOpen}
+              title={t('comments.button')}
             >
               <NotesIcon name="ask" size={14} />
               <span className="board-bar-label">{t('comments.button')}</span>
@@ -691,7 +753,7 @@ export default function BoardEditor({
             </button>
             <button
               type="button"
-              className={`btn btn-sm${placing ? ' is-on' : ''}`}
+              className={`btn btn-sm board-bar-extra${placing ? ' is-on' : ''}`}
               onClick={() => setPlacing((v) => !v)}
               aria-pressed={placing}
               title={t('comments.add')}
@@ -702,7 +764,7 @@ export default function BoardEditor({
           </>
         )}
         {!guest && !readOnly && (
-          <div className="board-share-wrap board-history-wrap" ref={history.wrapRef}>
+          <div className="board-share-wrap board-history-wrap board-bar-extra" ref={history.wrapRef}>
             <button
               ref={history.buttonRef}
               type="button"
@@ -765,6 +827,32 @@ export default function BoardEditor({
           </div>
         )}
         {!guest && (
+          // Barra angosta: Track, Taller, Comentar e Historial pasan a este menú
+          // (CSS por ancho del editor); el título y el estado no se achican.
+          <RowMenu
+            className="board-bar-more"
+            open={moreOpen}
+            label={t('editor.more')}
+            onToggle={setMoreOpen}
+            items={[
+              ...(!readOnly
+                ? [{ label: t('track.button'), onSelect: () => { setMoreOpen(false); setOpenTool((o) => ({ tool: 'track', n: (o?.n ?? 0) + 1 })); } }]
+                : []),
+              { label: t('workshop.button'), onSelect: () => { setMoreOpen(false); setOpenTool((o) => ({ tool: 'workshop', n: (o?.n ?? 0) + 1 })); } },
+              // En el teléfono también Comentarios (con los hilos abiertos) pasa al menú.
+              {
+                label: openThreads > 0 ? `${t('comments.button')} (${openThreads})` : t('comments.button'),
+                className: 'board-more-narrow',
+                onSelect: () => { setMoreOpen(false); setCommentsOpen(true); setPlacing(false); },
+              },
+              { label: t('comments.add'), onSelect: () => { setMoreOpen(false); setPlacing(true); } },
+              ...(!readOnly
+                ? [{ label: t('history.button'), onSelect: () => { setMoreOpen(false); if (!history.open) void toggleHistory(); } }]
+                : []),
+            ]}
+          />
+        )}
+        {!guest && (
           <div className="board-share-wrap" ref={share.wrapRef}>
             <button
               ref={share.buttonRef}
@@ -773,9 +861,10 @@ export default function BoardEditor({
               onClick={share.toggle}
               aria-expanded={share.open}
               aria-haspopup="dialog"
+              title={shareToken ? t('share.on') : t('share.button')}
             >
               <NotesIcon name={accessMode === 'restricted' ? 'lock' : 'share'} size={14} />
-              {shareToken ? t('share.on') : t('share.button')}
+              <span className="board-bar-label board-share-label">{shareToken ? t('share.on') : t('share.button')}</span>
             </button>
             {share.open && (
               <div className="board-pop" role="dialog" aria-label={t('share.title')}>

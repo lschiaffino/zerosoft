@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeader from '@/components/ui/PageHeader';
 import NotesIcon from '@/components/notes/NotesIcon';
@@ -13,6 +14,8 @@ import TemplatePreview from './TemplatePreview';
 import { notifyBoardsChanged } from './BoardBranch';
 
 const TOAST_MS = 6000;
+/** Plantillas plegadas o abiertas: se recuerda por navegador. */
+const TEMPLATES_KEY = 'board.templates.collapsed';
 
 /** Grilla de pizarras del workspace: crear, renombrar, duplicar y borrar. */
 export default function BoardList({
@@ -45,7 +48,28 @@ export default function BoardList({
   const [busy, setBusy] = useState(false);
   const [creatingTemplate, setCreatingTemplate] = useState<BoardTemplateKey | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  /** Pizarra a borrar, esperando la confirmación del modal. */
+  const [deleting, setDeleting] = useState<BoardSummary | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [templatesCollapsed, setTemplatesCollapsed] = useState(false);
   const started = useRef(false);
+
+  useEffect(() => {
+    try {
+      setTemplatesCollapsed(window.localStorage.getItem(TEMPLATES_KEY) === '1');
+    } catch {
+      // Sin storage: quedan abiertas.
+    }
+  }, []);
+
+  function toggleTemplates(open: boolean) {
+    setTemplatesCollapsed(!open);
+    try {
+      window.localStorage.setItem(TEMPLATES_KEY, open ? '0' : '1');
+    } catch {
+      // Sin storage: vale solo para esta visita.
+    }
+  }
   const [now, setNow] = useState(serverNow);
 
   useEffect(() => {
@@ -148,9 +172,10 @@ export default function BoardList({
   }
 
   async function remove(b: BoardSummary) {
-    setMenu(null);
-    if (!confirm(t('list.confirmDelete', { name: b.name }))) return;
+    setDeleteBusy(true);
     const res = await fetch(`/api/boards/${b.id}`, { method: 'DELETE' }).catch(() => null);
+    setDeleteBusy(false);
+    setDeleting(null);
     if (res?.ok) setBoards((list) => list.filter((x) => x.id !== b.id));
     else setToast(t('list.actionError'));
   }
@@ -165,30 +190,6 @@ export default function BoardList({
     <div className="ui-page board-list">
       <PageHeader title={t('list.title')} description={t('list.subtitle')} actions={boards.length > 0 ? newButton : undefined} />
 
-      <section className="board-templates" aria-labelledby="board-templates-title">
-        <h2 id="board-templates-title" className="board-templates-title">
-          {t('list.templatesTitle')}
-        </h2>
-        <ul className="board-templates-grid">
-          {BOARD_TEMPLATES.map((key) => (
-            <li key={key}>
-              <button
-                type="button"
-                className="board-template"
-                onClick={() => void createFromTemplate(key)}
-                aria-busy={creatingTemplate === key}
-                disabled={creatingTemplate !== null}
-              >
-                <span className="board-template-preview" aria-hidden="true">
-                  <TemplatePreview template={key} />
-                </span>
-                <span className="board-template-name">{tt(`${key}.name`)}</span>
-                <span className="board-template-desc">{tt(`${key}.description`)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
 
       {boards.length === 0 ? (
         <EmptyState quiet product="board" title={t('list.emptyTitle')} body={t('list.emptyHint')} action={newButton} />
@@ -238,13 +239,65 @@ export default function BoardList({
                 items={[
                   { label: t('list.rename'), onSelect: () => { setMenu(null); setRenaming(b.id); } },
                   { label: t('list.duplicate'), onSelect: () => void duplicate(b) },
-                  { label: t('list.delete'), danger: true, onSelect: () => void remove(b) },
+                  { label: t('list.delete'), danger: true, onSelect: () => { setMenu(null); setDeleting(b); } },
                 ]}
               />
             </li>
           ))}
         </ul>
       )}
+
+      <section className={`board-templates${boards.length > 0 ? ' is-compact' : ''}`} aria-labelledby="board-templates-title">
+        <details
+          className="board-templates-details"
+          // Sin pizarras, las plantillas son el camino principal: siempre abiertas.
+          open={boards.length === 0 || !templatesCollapsed}
+        >
+          <summary
+            className="board-templates-title"
+            id="board-templates-title"
+            onClick={(e) => {
+              // El estado manda (y se recuerda); el toggle nativo no, que también salta al hidratar.
+              e.preventDefault();
+              if (boards.length > 0) toggleTemplates(templatesCollapsed);
+            }}
+          >
+            <NotesIcon name="back" size={12} />
+            {t('list.templatesTitle')}
+          </summary>
+          <ul className="board-templates-grid">
+            {BOARD_TEMPLATES.map((key) => (
+              <li key={key}>
+                <button
+                  type="button"
+                  className="board-template"
+                  onClick={() => void createFromTemplate(key)}
+                  aria-busy={creatingTemplate === key}
+                  disabled={creatingTemplate !== null}
+                >
+                  <span className="board-template-preview" aria-hidden="true">
+                    <TemplatePreview template={key} />
+                  </span>
+                  <span className="board-template-name">{tt(`${key}.name`)}</span>
+                  <span className="board-template-desc">{tt(`${key}.description`)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      </section>
+
+      <ConfirmDialog
+        open={deleting !== null}
+        danger
+        busy={deleteBusy}
+        title={t('list.deleteTitle')}
+        body={deleting ? t('list.confirmDelete', { name: deleting.name }) : null}
+        confirmLabel={t('list.delete')}
+        cancelLabel={t('list.cancel')}
+        onConfirm={() => deleting && void remove(deleting)}
+        onCancel={() => setDeleting(null)}
+      />
 
       <div className="ui-toasts" role="status" aria-live="polite">
         {toast && (

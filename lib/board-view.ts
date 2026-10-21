@@ -28,3 +28,10 @@ export function formatCountdown(ms: number): string {
   const ss = String(s).padStart(2, '0');
   return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
 }
+
+const EXCALIDRAW_LANG: Record<string, string> = { en: 'en', es: 'es-ES', pt: 'pt-BR' };
+
+/** Idioma de Excalidraw para el locale de la app (en, es, pt; "es-AR" cae en es; otro, inglés). */
+export function excalidrawLang(locale: string): string {
+  return EXCALIDRAW_LANG[locale] ?? EXCALIDRAW_LANG[locale.split('-')[0]?.toLowerCase() ?? ''] ?? 'en';
+}

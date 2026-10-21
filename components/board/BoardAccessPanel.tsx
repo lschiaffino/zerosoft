@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import type { BoardAccessLevel, BoardAccessMember, BoardAccessMode, BoardMemberRole } from '@/lib/board-access';
 import type { BoardMember } from '@/lib/board-comments';
 
@@ -164,6 +165,21 @@ export default function BoardAccessPanel({ boardId, onModeChange }: { boardId: s
                 {t('invite')}
               </button>
             </div>
+          )}
+          {manage && options.length === 0 && (
+            // Nadie más para sumar: o el workspace es solo de quien la creó, o ya están todos.
+            <p className="board-pop-hint board-access-empty">
+              {state.candidates.some((c) => c.id !== state.created_by) ? (
+                t('allInvited')
+              ) : (
+                <>
+                  {t('aloneHint')}{' '}
+                  <Link href="/app/crm/settings?tab=team" className="board-access-link">
+                    {t('inviteWorkspace')}
+                  </Link>
+                </>
+              )}
+            </p>
           )}
         </>
       )}

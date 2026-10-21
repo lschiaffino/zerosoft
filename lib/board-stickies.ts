@@ -76,19 +76,75 @@ export function parseBulkStickies(text: string, extraTags: readonly string[] = [
   return out;
 }
 
+/**
+ * Espacio entre filas: los tags van arriba de cada sticky (insignias de ~22px
+ * de alto, fijas en pantalla), así que entre filas tiene que entrar una línea
+ * de tags incluso con poco zoom.
+ */
+const ROW_GAP = 56;
+/** Margen libre alrededor de lo que ya hay en el lienzo (y de sus tags). */
+const CLEARANCE = 32;
+
+type Box = { x: number; y: number; width: number; height: number };
+
 /** Grilla centrada en `center` para `count` stickies (hasta 6 columnas). */
 export function layoutStickies(count: number, center: { x: number; y: number }): Array<{ x: number; y: number }> {
   if (count <= 0) return [];
-  const cols = Math.min(6, Math.max(1, Math.ceil(Math.sqrt(count))));
-  const rows = Math.ceil(count / cols);
-  const width = cols * STICKY_W + (cols - 1) * GAP;
-  const height = rows * STICKY_H + (rows - 1) * GAP;
+  const { cols, width, height } = gridSize(count);
   const left = Math.round(center.x - width / 2);
   const top = Math.round(center.y - height / 2);
   return Array.from({ length: count }, (_, i) => ({
     x: left + (i % cols) * (STICKY_W + GAP),
-    y: top + Math.floor(i / cols) * (STICKY_H + GAP),
+    y: top + Math.floor(i / cols) * (STICKY_H + ROW_GAP),
   }));
+}
+
+function gridSize(count: number): { cols: number; width: number; height: number } {
+  const cols = Math.min(6, Math.max(1, Math.ceil(Math.sqrt(count))));
+  const rows = Math.ceil(count / cols);
+  return { cols, width: cols * STICKY_W + (cols - 1) * GAP, height: rows * STICKY_H + (rows - 1) * ROW_GAP };
+}
+
+function overlaps(a: Box, b: Box, margin: number): boolean {
+  return a.x < b.x + b.width + margin && b.x < a.x + a.width + margin && a.y < b.y + b.height + margin && b.y < a.y + a.height + margin;
+}
+
+/**
+ * Como layoutStickies, pero sin pisar lo que ya está en el lienzo: prueba la
+ * grilla centrada en `center` y, si choca con algún elemento, la corre en
+ * anillos cada vez más lejos hasta encontrar un hueco (lo más cerca posible
+ * del centro de la vista). Si no hay hueco cerca, va debajo de todo.
+ */
+export function layoutStickiesInFreeSpace(
+  count: number,
+  center: { x: number; y: number },
+  occupied: readonly Box[],
+): Array<{ x: number; y: number }> {
+  if (count <= 0) return [];
+  const { width, height } = gridSize(count);
+  const boxes = occupied.filter((b) => b.width > 0 || b.height > 0);
+  const fits = (c: { x: number; y: number }) => {
+    const area = { x: c.x - width / 2, y: c.y - height / 2, width, height };
+    return !boxes.some((b) => overlaps(area, b, CLEARANCE));
+  };
+  if (fits(center)) return layoutStickies(count, center);
+  const stepX = Math.max(STICKY_W, Math.round(width / 2));
+  const stepY = Math.max(STICKY_H, Math.round(height / 2));
+  for (let ring = 1; ring <= 12; ring++) {
+    const candidates: Array<{ x: number; y: number; d: number }> = [];
+    for (let i = -ring; i <= ring; i++) {
+      for (let j = -ring; j <= ring; j++) {
+        if (Math.max(Math.abs(i), Math.abs(j)) !== ring) continue;
+        const c = { x: center.x + i * stepX, y: center.y + j * stepY };
+        candidates.push({ ...c, d: Math.hypot(i * stepX, j * stepY) });
+      }
+    }
+    candidates.sort((a, b) => a.d - b.d);
+    const hit = candidates.find(fits);
+    if (hit) return layoutStickies(count, hit);
+  }
+  const bottom = Math.max(...boxes.map((b) => b.y + b.height));
+  return layoutStickies(count, { x: center.x, y: bottom + CLEARANCE + ROW_GAP + height / 2 });
 }
 
 /** Esqueleto para convertToExcalidrawElements (Excalidraw arma el texto ligado). */
