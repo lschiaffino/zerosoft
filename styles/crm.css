@@ -1266,9 +1266,68 @@ tr:hover .cell-quick { opacity: 0.8; }
 .pl-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .pl-name { max-width: 320px; font-weight: 500; }
 
-.pl-stages { overflow-x: auto; }
-.pl-stages .stage-row { min-width: 740px; }
+/*
+ * Fila de etapa en dos líneas: nombre, probabilidad, días y acciones arriba;
+ * flags y propiedades obligatorias abajo. A 640px o menos el nombre ocupa su
+ * propia línea y los números llevan su etiqueta (la cabecera se oculta).
+ */
+.pl-stages {
+  --stage-cols: minmax(0, 1fr) 84px 112px auto;
+}
+.stage-head {
+  display: grid;
+  grid-template-columns: var(--stage-cols);
+  gap: 10px;
+  padding: 0 0 4px;
+  font-size: 0.75rem;
+  color: var(--dim);
+}
+.stage-head > span:nth-child(2),
+.stage-head > span:nth-child(3) { padding-left: 8px; }
+.pl-stages .stage-row {
+  grid-template-columns: var(--stage-cols);
+  grid-template-areas:
+    'name prob rot actions'
+    'meta meta meta meta';
+  row-gap: 2px;
+  min-width: 0;
+}
+.pl-stages .stage-row > .stage-name { grid-area: name; min-width: 0; }
+.pl-stages .stage-num-prob { grid-area: prob; }
+.pl-stages .stage-num-rot { grid-area: rot; }
+.pl-stages .stage-actions { grid-area: actions; justify-content: flex-end; flex-wrap: nowrap; }
+.pl-stages .stage-meta {
+  grid-area: meta;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding-left: 8px;
+  min-width: 0;
+}
+.stage-num { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stage-num .input { width: 100%; min-width: 0; }
+.stage-num-label { display: none; font-size: 0.75rem; color: var(--dim); }
+.stage-flags { flex-wrap: wrap; }
 .stage-flags label { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .stage-head { display: none; }
+  .pl-stages .stage-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-areas:
+      'name name name'
+      'prob rot actions'
+      'meta meta meta';
+    row-gap: 6px;
+    /* Si una etiqueta ocupa dos líneas, los inputs igual quedan alineados abajo. */
+    align-items: end;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .stage-num-label { display: block; padding-left: 8px; }
+  .pl-stages .stage-actions { align-self: end; }
+}
 
 .stage-add { display: flex; gap: 10px; margin-top: 14px; }
 .stage-add .input { max-width: 300px; padding: 8px 12px; font-size: 12px; }
@@ -2134,8 +2193,11 @@ tr:hover .cell-quick { opacity: 0.8; }
 
 /* Etapas como filas editables in-place: el input no tiene borde hasta hover/foco. */
 .crm-settings .stage-row {
-  padding: 2px 0;
-  border-bottom: none;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+@media (max-width: 640px) {
+  .crm-settings .stage-row { padding: 10px 0; }
 }
 
 .crm-settings .stage-row .input,

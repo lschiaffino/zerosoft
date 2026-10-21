@@ -8,7 +8,14 @@ import { isDealRotting } from '@/lib/crm-rotting';
 import DealForm from './DealForm';
 import RecordPreview from './RecordPreview';
 import { AddStageColumn } from './AddPipelineStage';
-import StageRequirementsDialog, { readRequirements, type StageRequirements } from './StageRequirementsDialog';
+import { parseRequiredFields } from '@/lib/crm-stage-rules';
+import StageRequirementsDialog, {
+  checkStageMove,
+  readRequirements,
+  todayIso,
+  wonRequirements,
+  type StageRequirements,
+} from './StageRequirementsDialog';
 
 /** Códigos de error de la API con traducción en crm.errors.*. */
 const KNOWN_ERRORS = new Set([
@@ -53,7 +60,7 @@ interface PendingMove {
   dealId: string;
   stageId: string;
   beforeId: string | null;
-  kind: 'won' | 'lost';
+  kind: 'lost';
 }
 
 /** Recalcula count y Σ amount de una columna. */
@@ -93,11 +100,16 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
   const [lostText, setLostText] = useState('');
   const [lostError, setLostError] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
-  /** La etapa destino pide propiedades: diálogo para completarlas y mover. */
+  /**
+   * La etapa destino pide propiedades: diálogo para completarlas y mover. Con
+   * `won`, es el mismo diálogo de ganado: fecha de cierre (hoy) y lo que
+   * pida la etapa, en un solo paso.
+   */
   const [reqMove, setReqMove] = useState<{
     dealId: string;
     request: { stageId: string; beforeId: string | null; lostReason?: string };
     requirements: StageRequirements;
+    won?: boolean;
   } | null>(null);
 
   const dragRef = useRef<DragState | null>(null);
@@ -272,14 +284,37 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
       return;
     }
     if (target.stage.is_won) {
-      setPendingMove({ dealId, stageId, beforeId, kind: 'won' });
+      void openWon(dealId, stageId, beforeId, target.stage.name);
       return;
     }
     void doMove(dealId, stageId, beforeId);
   }
 
+  /** Ganado: un solo diálogo con la fecha de cierre y lo que pida la etapa. */
+  async function openWon(dealId: string, stageId: string, beforeId: string | null, stageName: string) {
+    setBoardError(null);
+    const target = cols.find((c) => c.stage.id === stageId);
+    const needsCheck = target ? parseRequiredFields(target.stage.required_fields).length > 0 : true;
+    const check = needsCheck ? await checkStageMove(dealId, stageId) : null;
+    setReqMove({
+      dealId,
+      request: { stageId, beforeId },
+      requirements: wonRequirements(check ?? { stage: stageName, missing: [] }),
+      won: true,
+    });
+  }
+
   async function doMove(dealId: string, stageId: string, beforeId: string | null, lostReason?: string) {
     setBoardError(null);
+    // Si la etapa pide propiedades, se pregunta antes: el diálogo se abre sin un 422 de por medio.
+    const target = cols.find((c) => c.stage.id === stageId);
+    if (target && parseRequiredFields(target.stage.required_fields).length > 0) {
+      const check = await checkStageMove(dealId, stageId);
+      if (check && check.missing.length) {
+        setReqMove({ dealId, request: { stageId, beforeId, ...(lostReason !== undefined ? { lostReason } : {}) }, requirements: check });
+        return;
+      }
+    }
     const snapshot = cols;
     setCols(applyMove(cols, dealId, stageId, beforeId));
     const res = await fetch(`/api/crm/deals/${dealId}/move`, {
@@ -318,13 +353,6 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
     const { dealId, stageId, beforeId } = pendingMove;
     setPendingMove(null);
     void doMove(dealId, stageId, beforeId, label);
-  }
-
-  function confirmWon() {
-    if (!pendingMove) return;
-    const { dealId, stageId, beforeId } = pendingMove;
-    setPendingMove(null);
-    void doMove(dealId, stageId, beforeId);
   }
 
   // ---------- Render ----------
@@ -481,28 +509,19 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
         </div>
       )}
 
-      {pendingMove?.kind === 'won' && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-label={t('deals.wonDialog.title')}>
-          <div className="modal-card">
-            <h2 className="modal-title">{t('deals.wonDialog.title')}</h2>
-            <p className="muted">{t('deals.wonDialog.sub')}</p>
-            <div className="form-actions">
-              <button type="button" className="btn btn-solid btn-small" onClick={confirmWon}>
-                {t('deals.wonDialog.confirm')}
-              </button>
-              <button type="button" className="btn btn-ghost btn-small" onClick={() => setPendingMove(null)}>
-                {t('common.cancel')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {reqMove && (
         <StageRequirementsDialog
           dealId={reqMove.dealId}
           request={reqMove.request}
           requirements={reqMove.requirements}
+          {...(reqMove.won
+            ? {
+                title: t('deals.wonDialog.title'),
+                sub: t('deals.wonDialog.sub'),
+                submitLabel: t('deals.wonDialog.confirm'),
+                initialValues: { closeDate: todayIso() },
+              }
+            : {})}
           onCancel={() => setReqMove(null)}
           onDone={() => {
             setCols((c) => applyMove(c, reqMove.dealId, reqMove.request.stageId, reqMove.request.beforeId));

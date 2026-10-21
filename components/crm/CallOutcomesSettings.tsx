@@ -3,24 +3,27 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import { DEFAULT_CALL_OUTCOMES, isDefaultOutcome, MAX_CALL_OUTCOMES, normalizeCallOutcomes } from '@/lib/crm-calls';
+import { defaultOutcomes, isDefaultOutcome, MAX_CALL_OUTCOMES, normalizeCallOutcomes, type OutcomeKind } from '@/lib/crm-calls';
 
 interface CallOutcomesSettingsProps {
+  /** Llamadas o WhatsApp: cada canal tiene su lista. */
+  kind?: OutcomeKind;
   outcomes: string[];
   custom: boolean;
   canEdit: boolean;
 }
 
 /**
- * Ajustes › Ventas › Resultados de llamada: la lista que se elige al registrar
- * una llamada o un WhatsApp. Uno por línea; vacía vuelve a los de siempre.
+ * Ajustes › Ventas › Resultados: la lista que se elige al registrar una
+ * llamada (kind="call") o un mensaje de WhatsApp (kind="whatsapp"). Uno por
+ * línea; vacía vuelve a los de siempre.
  */
-export default function CallOutcomesSettings({ outcomes, custom, canEdit }: CallOutcomesSettingsProps) {
+export default function CallOutcomesSettings({ kind = 'call', outcomes, custom, canEdit }: CallOutcomesSettingsProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const label = (o: string) => (isDefaultOutcome(o) ? t(`calls.outcomes.${o}`) : o);
   // Los de siempre se muestran traducidos: al guardarlos pasan a ser texto propio.
-  const [text, setText] = useState((custom ? outcomes : [...DEFAULT_CALL_OUTCOMES]).map(label).join('\n'));
+  const [text, setText] = useState((custom ? outcomes : defaultOutcomes(kind)).map(label).join('\n'));
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
@@ -32,25 +35,26 @@ export default function CallOutcomesSettings({ outcomes, custom, canEdit }: Call
     const res = await fetch('/api/crm/settings', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ callOutcomes: list }),
+      body: JSON.stringify(kind === 'whatsapp' ? { whatsappOutcomes: list } : { callOutcomes: list }),
     }).catch(() => null);
     setBusy(false);
     if (!res?.ok) {
       setError(true);
       return;
     }
-    if (list === null) setText(DEFAULT_CALL_OUTCOMES.map(label).join('\n'));
+    if (list === null) setText(defaultOutcomes(kind).map(label).join('\n'));
     setSaved(true);
     router.refresh();
   }
 
+  const id = kind === 'whatsapp' ? 'whatsapp-outcomes' : 'call-outcomes';
   return (
     <div className="ui-field">
-      <label className="label" htmlFor="call-outcomes">
-        {t('calls.settingsLabel')}
+      <label className="label" htmlFor={id}>
+        {t(kind === 'whatsapp' ? 'calls.settingsLabelWhatsapp' : 'calls.settingsLabel')}
       </label>
       <textarea
-        id="call-outcomes"
+        id={id}
         className="textarea"
         rows={6}
         value={text}
@@ -59,9 +63,9 @@ export default function CallOutcomesSettings({ outcomes, custom, canEdit }: Call
           setText(e.target.value);
           setSaved(false);
         }}
-        aria-describedby="call-outcomes-help"
+        aria-describedby={`${id}-help`}
       />
-      <p className="ui-help" id="call-outcomes-help">
+      <p className="ui-help" id={`${id}-help`}>
         {t('calls.settingsHelp', { max: MAX_CALL_OUTCOMES })}
       </p>
       {canEdit && (

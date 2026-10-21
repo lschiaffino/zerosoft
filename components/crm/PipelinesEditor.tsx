@@ -296,11 +296,20 @@ export default function PipelinesEditor({ initialPipelines, customFields = [] }:
           </div>
 
           <div className="pl-stages">
-            {p.stages.map((s, idx) => (
+            {p.stages.length > 0 && (
+              <div className="stage-head" aria-hidden="true">
+                <span>{t('settings.stageCol')}</span>
+                <span>{t('settings.probabilityShort')}</span>
+                <span>{t('settings.rottingShort')}</span>
+              </div>
+            )}
+            {p.stages.map((s, idx) => {
+              const requiredCount = parseRequiredFields(s.required_fields).length;
+              return (
               <Fragment key={s.id}>
-              <div className="stage-row">
+              <div className="stage-row" data-testid="stage-row">
                 <input
-                  className="input"
+                  className="input stage-name"
                   type="text"
                   defaultValue={s.name}
                   aria-label={t('settings.stageName')}
@@ -310,67 +319,48 @@ export default function PipelinesEditor({ initialPipelines, customFields = [] }:
                     if (name && name !== s.name) onPatchStage(p.id, s.id, { name });
                   }}
                 />
-                <input
-                  className="input stage-prob"
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={1}
-                  defaultValue={s.probability}
-                  aria-label={t('settings.probability')}
-                  title={t('settings.probability')}
-                  onBlur={(e) => {
-                    const n = Math.min(100, Math.max(0, Math.round(Number(e.target.value) || 0)));
-                    e.target.value = String(n);
-                    if (n !== s.probability) onPatchStage(p.id, s.id, { probability: n });
-                  }}
-                />
-                <input
-                  className="input stage-rot"
-                  type="number"
-                  min={1}
-                  max={MAX_ROTTING_DAYS}
-                  step={1}
-                  defaultValue={s.rotting_days ?? ''}
-                  placeholder={String(DEFAULT_ROTTING_DAYS)}
-                  disabled={s.is_won === 1 || s.is_lost === 1}
-                  aria-label={t('settings.rottingDays')}
-                  title={`${t('settings.rottingDays')}. ${t('settings.rottingDaysHint')}`}
-                  onBlur={(e) => {
-                    const raw = e.target.value.trim();
-                    const n = raw ? Math.min(MAX_ROTTING_DAYS, Math.max(1, Math.round(Number(raw) || 0))) : null;
-                    e.target.value = n === null ? '' : String(n);
-                    if (n !== (s.rotting_days ?? null)) onPatchStage(p.id, s.id, { rottingDays: n });
-                  }}
-                />
-                <span className="stage-flags">
-                  <label>
-                    <input
-                      type="checkbox"
-                      defaultChecked={s.is_won === 1}
-                      onChange={(e) => onPatchStage(p.id, s.id, { isWon: e.target.checked })}
-                    />{' '}
-                    {t('settings.isWon')}
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      defaultChecked={s.is_lost === 1}
-                      onChange={(e) => onPatchStage(p.id, s.id, { isLost: e.target.checked })}
-                    />{' '}
-                    {t('settings.isLost')}
-                  </label>
-                </span>
-                <span className="cell-actions">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm stage-rules-btn"
-                    aria-expanded={rulesStage === s.id}
-                    onClick={() => setRulesStage((cur) => (cur === s.id ? null : s.id))}
-                    title={t('stageRules.hint')}
-                  >
-                    {t('stageRules.button', { count: parseRequiredFields(s.required_fields).length })}
-                  </button>
+                <label className="stage-num stage-num-prob">
+                  <span className="stage-num-label">{t('settings.probabilityShort')}</span>
+                  <input
+                    className="input stage-prob"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    inputMode="numeric"
+                    defaultValue={s.probability}
+                    aria-label={t('settings.probability')}
+                    title={t('settings.probability')}
+                    onBlur={(e) => {
+                      const n = Math.min(100, Math.max(0, Math.round(Number(e.target.value) || 0)));
+                      e.target.value = String(n);
+                      if (n !== s.probability) onPatchStage(p.id, s.id, { probability: n });
+                    }}
+                  />
+                </label>
+                <label className="stage-num stage-num-rot">
+                  <span className="stage-num-label">{t('settings.rottingShort')}</span>
+                  <input
+                    className="input stage-rot"
+                    type="number"
+                    min={1}
+                    max={MAX_ROTTING_DAYS}
+                    step={1}
+                    inputMode="numeric"
+                    defaultValue={s.rotting_days ?? ''}
+                    placeholder={String(DEFAULT_ROTTING_DAYS)}
+                    disabled={s.is_won === 1 || s.is_lost === 1}
+                    aria-label={t('settings.rottingDays')}
+                    title={`${t('settings.rottingDays')}. ${t('settings.rottingDaysHint')}`}
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      const n = raw ? Math.min(MAX_ROTTING_DAYS, Math.max(1, Math.round(Number(raw) || 0))) : null;
+                      e.target.value = n === null ? '' : String(n);
+                      if (n !== (s.rotting_days ?? null)) onPatchStage(p.id, s.id, { rottingDays: n });
+                    }}
+                  />
+                </label>
+                <span className="cell-actions stage-actions">
                   <button
                     type="button"
                     className="icon-btn"
@@ -424,6 +414,35 @@ export default function PipelinesEditor({ initialPipelines, customFields = [] }:
                     </button>
                   )}
                 </span>
+                <span className="stage-meta">
+                  <span className="stage-flags">
+                    <label>
+                      <input
+                        type="checkbox"
+                        defaultChecked={s.is_won === 1}
+                        onChange={(e) => onPatchStage(p.id, s.id, { isWon: e.target.checked })}
+                      />{' '}
+                      {t('settings.isWon')}
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        defaultChecked={s.is_lost === 1}
+                        onChange={(e) => onPatchStage(p.id, s.id, { isLost: e.target.checked })}
+                      />{' '}
+                      {t('settings.isLost')}
+                    </label>
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm stage-rules-btn"
+                    aria-expanded={rulesStage === s.id}
+                    onClick={() => setRulesStage((cur) => (cur === s.id ? null : s.id))}
+                    title={t('stageRules.hint')}
+                  >
+                    {t('stageRules.button', { count: requiredCount })}
+                  </button>
+                </span>
               </div>
               {rulesStage === s.id && (
                 <fieldset className="stage-rules">
@@ -454,7 +473,8 @@ export default function PipelinesEditor({ initialPipelines, customFields = [] }:
                 </fieldset>
               )}
               </Fragment>
-            ))}
+              );
+            })}
 
             <form className="stage-add" onSubmit={(e) => onAddStage(e, p.id)}>
               <input

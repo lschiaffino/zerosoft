@@ -3,7 +3,13 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import StageRequirementsDialog, { readRequirements, type StageRequirements } from './StageRequirementsDialog';
+import StageRequirementsDialog, {
+  checkStageMove,
+  readRequirements,
+  todayIso,
+  wonRequirements,
+  type StageRequirements,
+} from './StageRequirementsDialog';
 
 interface StageOption {
   id: string;
@@ -24,7 +30,7 @@ export default function InlineStageCell({ dealId, stageId, stages, className = '
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [req, setReq] = useState<{ body: { stageId: string; lostReason?: string }; requirements: StageRequirements } | null>(null);
+  const [req, setReq] = useState<{ body: { stageId: string; lostReason?: string }; requirements: StageRequirements; won?: boolean } | null>(null);
   const current = stages.find((s) => s.id === stageId);
 
   async function save(nextId: string) {
@@ -33,6 +39,21 @@ export default function InlineStageCell({ dealId, stageId, stages, className = '
     const body: { stageId: string; lostReason?: string } = { stageId: nextId };
     const target = stages.find((s) => s.id === nextId);
     if (target?.is_lost) body.lostReason = '';
+    // Se pregunta antes qué pide la etapa: ganado abre su diálogo (fecha de
+    // cierre de hoy y lo que falte); el resto, el de propiedades si falta algo.
+    const check = await checkStageMove(dealId, nextId);
+    if (target?.is_won) {
+      setBusy(false);
+      setEditing(false);
+      setReq({ body, requirements: wonRequirements(check ?? { stage: target.name, missing: [] }), won: true });
+      return;
+    }
+    if (check && check.missing.length) {
+      setBusy(false);
+      setEditing(false);
+      setReq({ body, requirements: check });
+      return;
+    }
     const res = await fetch(`/api/crm/deals/${dealId}/move`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -53,6 +74,14 @@ export default function InlineStageCell({ dealId, stageId, stages, className = '
       dealId={dealId}
       request={req.body}
       requirements={req.requirements}
+      {...(req.won
+        ? {
+            title: t('deals.wonDialog.title'),
+            sub: t('deals.wonDialog.sub'),
+            submitLabel: t('deals.wonDialog.confirm'),
+            initialValues: { closeDate: todayIso() },
+          }
+        : {})}
       onCancel={() => setReq(null)}
       onDone={() => {
         setReq(null);

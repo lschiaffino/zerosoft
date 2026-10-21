@@ -206,6 +206,8 @@ export const dealMoveSchema = z.object({
       custom: custom.optional(),
     })
     .optional(),
+  /** Solo pregunta qué propiedades faltarían para entrar a la etapa; no mueve nada. */
+  dryRun: z.boolean().optional(),
 });
 
 // ---------- Activities ----------
@@ -354,6 +356,8 @@ export const crmSettingsSchema = z.object({
   quoteAcceptMovesDeal: z.boolean().optional(),
   /** Resultados de llamada (lib/crm-calls.ts); null vuelve a los de siempre. */
   callOutcomes: z.array(z.string().max(200)).max(MAX_CALL_OUTCOMES).nullable().optional(),
+  /** Resultados de WhatsApp, con las mismas reglas. */
+  whatsappOutcomes: z.array(z.string().max(200)).max(MAX_CALL_OUTCOMES).nullable().optional(),
 });
 
 export const exchangeRateSchema = z.object({

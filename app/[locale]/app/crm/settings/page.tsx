@@ -135,7 +135,13 @@ export default async function CrmSettingsPage(props: {
         </FormSection>
         <QuoteSettings quoteAcceptMovesDeal={crmSettings.quoteAcceptMovesDeal} canEdit={admin} />
         <FormSection title={t('calls.settingsTitle')} description={t('calls.settingsDesc')}>
-          <CallOutcomesSettings outcomes={crmSettings.callOutcomes} custom={crmSettings.callOutcomesCustom} canEdit={admin} />
+          <CallOutcomesSettings kind="call" outcomes={crmSettings.callOutcomes} custom={crmSettings.callOutcomesCustom} canEdit={admin} />
+          <CallOutcomesSettings
+            kind="whatsapp"
+            outcomes={crmSettings.whatsappOutcomes}
+            custom={crmSettings.whatsappOutcomesCustom}
+            canEdit={admin}
+          />
         </FormSection>
       </>
     );

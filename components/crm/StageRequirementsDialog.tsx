@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { PRIORITIES, SOURCES } from '@/lib/crm-constants';
+
+export { todayIso, wonRequirements } from '@/lib/crm-won-dialog';
 
 /** Lo que devuelve /move con 422 missing_required (lib/crm-stage-move.ts). */
 export interface MissingField {
@@ -32,6 +34,28 @@ interface StageRequirementsDialogProps {
   requirements: StageRequirements;
   onDone: () => void;
   onCancel: () => void;
+  /** Textos propios (el diálogo de ganado usa el mismo formulario). */
+  title?: string;
+  sub?: string;
+  submitLabel?: string;
+  /** Valores precargados (p. ej. la fecha de cierre de hoy al ganar). */
+  initialValues?: Record<string, unknown>;
+}
+
+/**
+ * Pregunta al server qué pediría la etapa sin mover el deal (dryRun). Así la
+ * UI arma un solo diálogo en vez de chocar con un 422. null si falló.
+ */
+export async function checkStageMove(dealId: string, stageId: string): Promise<(StageRequirements & { closeDate: string | null }) | null> {
+  const res = await fetch(`/api/crm/deals/${dealId}/move`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ stageId, dryRun: true }),
+  }).catch(() => null);
+  if (!res?.ok) return null;
+  const body = (await res.json().catch(() => null)) as { stage?: string; missing?: MissingField[]; closeDate?: string | null } | null;
+  if (!body || !Array.isArray(body.missing)) return null;
+  return { stage: body.stage ?? '', missing: body.missing, closeDate: body.closeDate ?? null };
 }
 
 /** Lee el cuerpo de un 422 de /move; null si es otro error. */
@@ -47,10 +71,20 @@ export async function readRequirements(res: Response | null): Promise<StageRequi
  * La etapa pide propiedades que el deal no tiene: se completan acá y el deal
  * se mueve en el mismo paso. Empresa y contactos se asocian desde el deal.
  */
-export default function StageRequirementsDialog({ dealId, request, requirements, onDone, onCancel }: StageRequirementsDialogProps) {
+export default function StageRequirementsDialog({
+  dealId,
+  request,
+  requirements,
+  onDone,
+  onCancel,
+  title,
+  sub,
+  submitLabel,
+  initialValues,
+}: StageRequirementsDialogProps) {
   const t = useTranslations('crm');
   const [req, setReq] = useState(requirements);
-  const [values, setValues] = useState<Record<string, unknown>>({});
+  const [values, setValues] = useState<Record<string, unknown>>(initialValues ?? {});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -186,25 +220,37 @@ export default function StageRequirementsDialog({ dealId, request, requirements,
     }
   }
 
+  const heading = title ?? t('stageRules.dialogTitle', { stage: req.stage });
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label={t('stageRules.dialogTitle', { stage: req.stage })}>
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label={heading}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onCancel();
+        }
+      }}
+    >
       <form className="modal-card" onSubmit={submit}>
-        <h2 className="modal-title">{t('stageRules.dialogTitle', { stage: req.stage })}</h2>
-        <p className="muted">{t('stageRules.dialogSub')}</p>
-        {req.missing.map((f) => (
+        <h2 className="modal-title">{heading}</h2>
+        <p className="muted">{sub ?? t('stageRules.dialogSub')}</p>
+        {req.missing.map((f, i) => (
           <div className="field" key={f.key}>
             <label className="prop-label" htmlFor={`req-${f.key.replace(/[^a-zA-Z0-9_-]/g, '_')}`}>
               {labelOf(f)}
               {f.currency ? ` (${f.currency})` : ''}
             </label>
-            {input(f)}
+            {i === 0 ? <AutoFocus>{input(f)}</AutoFocus> : input(f)}
           </div>
         ))}
         {error && <p className="form-error">{error}</p>}
         <div className="form-actions">
           {!assocOnly && (
-            <button type="submit" className="btn btn-solid btn-small" disabled={busy}>
-              {t('stageRules.saveAndMove')}
+            <button type="submit" className="btn btn-solid btn-small" disabled={busy} data-testid="stage-req-submit">
+              {submitLabel ?? t('stageRules.saveAndMove')}
             </button>
           )}
           <button type="button" className="btn btn-ghost btn-small" onClick={onCancel}>
@@ -213,5 +259,18 @@ export default function StageRequirementsDialog({ dealId, request, requirements,
         </div>
       </form>
     </div>
+  );
+}
+
+/** Enfoca el primer control del diálogo al abrir (teclado: Enter confirma, Esc cierra). */
+function AutoFocus({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    ref.current?.querySelector<HTMLElement>('input, select, textarea, a')?.focus();
+  }, []);
+  return (
+    <span ref={ref} className="stage-req-input">
+      {children}
+    </span>
   );
 }

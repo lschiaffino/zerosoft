@@ -3,7 +3,13 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import StageRequirementsDialog, { readRequirements, type StageRequirements } from './StageRequirementsDialog';
+import StageRequirementsDialog, {
+  checkStageMove,
+  readRequirements,
+  todayIso,
+  wonRequirements,
+  type StageRequirements,
+} from './StageRequirementsDialog';
 
 const KNOWN_ERRORS = new Set(['missing_lost_reason', 'invalid_stage', 'not_found', 'generic']);
 const LOST_REASON_KEYS = ['price', 'timing', 'competitor', 'no budget', 'went silent', 'other'] as const;
@@ -30,11 +36,19 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
   const [reasonText, setReasonText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [req, setReq] = useState<{ stageId: string; lostReason?: string; requirements: StageRequirements } | null>(null);
+  const [req, setReq] = useState<{ stageId: string; lostReason?: string; requirements: StageRequirements; won?: boolean } | null>(null);
 
   async function move(stageId: string, lostReason?: string) {
     setBusy(true);
     setError(null);
+    // Primero se pregunta qué pide la etapa: si falta algo, el diálogo se abre sin un 422 de por medio.
+    const check = await checkStageMove(dealId, stageId);
+    if (check && check.missing.length) {
+      setBusy(false);
+      setPending(null);
+      setReq({ stageId, ...(lostReason !== undefined ? { lostReason } : {}), requirements: check });
+      return;
+    }
     const res = await fetch(`/api/crm/deals/${dealId}/move`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -71,10 +85,19 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
       return;
     }
     if (stage.is_won) {
-      setPending(stage);
+      void openWon(stage);
       return;
     }
     void move(stageId);
+  }
+
+  /** Ganado: un solo diálogo con la fecha de cierre (hoy) y lo que pida la etapa. */
+  async function openWon(stage: StageOption) {
+    setBusy(true);
+    const check = await checkStageMove(dealId, stage.id);
+    setBusy(false);
+    setPending(null);
+    setReq({ stageId: stage.id, requirements: wonRequirements(check ?? { stage: stage.name, missing: [] }), won: true });
   }
 
   function confirmLost() {
@@ -179,24 +202,6 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
             </button>
           </div>
         </div>
-      ) : pending?.is_won ? (
-        <div className="stage-confirm" role="group" aria-label={t('deals.wonDialog.title')}>
-          <p className="ui-help">{t('deals.wonDialog.sub')}</p>
-          <div className="stage-confirm-actions">
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              aria-busy={busy || undefined}
-              disabled={busy}
-              onClick={() => void move(pending.id)}
-            >
-              {t('deals.wonDialog.confirm')}
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPending(null)}>
-              {t('common.cancel')}
-            </button>
-          </div>
-        </div>
       ) : null}
       {error && (
         <p className="ui-error" role="alert">
@@ -208,6 +213,14 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
           dealId={dealId}
           request={{ stageId: req.stageId, ...(req.lostReason !== undefined ? { lostReason: req.lostReason } : {}) }}
           requirements={req.requirements}
+          {...(req.won
+            ? {
+                title: t('deals.wonDialog.title'),
+                sub: t('deals.wonDialog.sub'),
+                submitLabel: t('deals.wonDialog.confirm'),
+                initialValues: { closeDate: todayIso() },
+              }
+            : {})}
           onCancel={() => setReq(null)}
           onDone={() => {
             setReq(null);

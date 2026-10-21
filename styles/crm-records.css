@@ -524,9 +524,21 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .cell-name-logo { display: inline-flex; align-items: center; gap: 8px; }
 .record-title-logo { display: inline-flex; align-items: center; gap: 10px; }
 .co-enrich-note { font-size: 0.8125rem; }
+.co-enrich-dup { color: var(--ink); }
+/* Alta rápida: una línea reservada siempre, así el aviso no corre el pie del modal. */
+.qm-enrich-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+  margin: -4px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.qm-enrich-slot > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* Propiedades obligatorias por etapa (Ajustes, Ventas) y su diálogo al mover. */
-.stage-rules { border: 1px solid var(--line); border-radius: var(--radius-1); padding: 12px 14px; margin: 0 0 8px; }
+.stage-rules { border: 1px solid var(--line); border-radius: var(--radius-1); padding: 12px 14px; margin: 8px 0; min-width: 0; }
 .stage-rules legend { padding: 0 4px; }
 .stage-rules-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px 16px; margin-top: 8px; }
 .stage-rules-btn { white-space: nowrap; }
@@ -571,3 +583,4 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .phone-log-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.875rem; }
 .phone-log-field .input { width: 90px; }
 .phone-log .form-actions { margin: 0; }
+.stage-req-input { display: contents; }

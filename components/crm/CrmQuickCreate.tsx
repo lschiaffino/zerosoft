@@ -1,8 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { normalizeCompanyDomain } from '@/lib/crm-domain';
 import { DomainPrefillNote, useDomainPrefill } from './DomainPrefill';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
@@ -150,6 +149,9 @@ function QuickCreateForm({
 
   // Company
   const [name, setName] = useState('');
+  // El blur del dominio resuelve después de un await: lee el nombre vigente, no el del render.
+  const nameRef = useRef(name);
+  nameRef.current = name;
   const [domain, setDomain] = useState('');
   const [industry, setIndustry] = useState('');
   const prefill = useDomainPrefill();
@@ -240,15 +242,24 @@ function QuickCreateForm({
         companyId: companyId || null,
       };
     } else if (kind === 'company') {
+      // Antes de crear, el chequeo rápido de duplicado (sin esperar la
+      // búsqueda del sitio, que puede tardar). Si aparece uno que la persona
+      // todavía no vio, el aviso queda a la vista y el botón pasa a "Crear igual".
+      if (domain.trim() && !prefill.existingFor(domain)) {
+        const found = await prefill.checkExisting(domain);
+        if (found?.existing) {
+          setBusy(false);
+          return;
+        }
+      }
       url = '/api/crm/companies';
+      const site = prefill.infoFor(domain);
       body = {
         name: name.trim(),
         domain: domain.trim() || undefined,
         industry: industry.trim() || undefined,
         // Lo que se precargó del sitio (solo si sigue siendo el mismo dominio).
-        ...(prefill.info && prefill.info.domain === normalizeCompanyDomain(domain)
-          ? { website: prefill.info.website || undefined, phone: prefill.info.phone || undefined }
-          : {}),
+        ...(site ? { website: site.website || undefined, phone: site.phone || undefined } : {}),
       };
     } else {
       url = '/api/crm/deals';
@@ -295,7 +306,13 @@ function QuickCreateForm({
       onClose={onClose}
       crumb={`CRM › ${t(`quick.${kind}.title`)}`}
       onSubmit={submit}
-      submitLabel={busy ? t('common.creating') : t('common.create')}
+      submitLabel={
+        busy
+          ? t('common.creating')
+          : kind === 'company' && prefill.existingFor(domain)
+            ? t('companies.enrich.createAnyway')
+            : t('common.create')
+      }
       cancelLabel={t('common.cancel')}
       submitDisabled={!canSubmit}
       busy={busy}
@@ -399,21 +416,27 @@ function QuickCreateForm({
               <span>{t('companies.form.domain')}</span>
               <input
                 value={domain}
-                onChange={(e) => setDomain(e.target.value)}
+                onChange={(e) => {
+                  setDomain(e.target.value);
+                  prefill.onDomainInput(e.target.value);
+                }}
                 onBlur={async (e) => {
                   const info = await prefill.lookup(e.target.value);
-                  if (info?.name && !name.trim()) setName(info.name);
+                  if (info?.name && !nameRef.current.trim()) setName(info.name);
                 }}
                 placeholder="acme.com"
                 maxLength={500}
+                spellCheck={false}
+                data-testid="quick-company-domain"
               />
-              <DomainPrefillNote info={prefill.info} loading={prefill.loading} />
             </label>
             <label className="qm-field">
               <span>{t('companies.form.industry')}</span>
               <input value={industry} onChange={(e) => setIndustry(e.target.value)} maxLength={200} />
             </label>
           </div>
+          {/* Lugar fijo para el aviso: que aparezca no corre el botón Crear bajo el puntero. */}
+          <DomainPrefillNote domain={domain} prefill={prefill} className="qm-enrich-slot" />
         </>
       )}
 
