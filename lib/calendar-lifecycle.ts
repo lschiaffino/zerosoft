@@ -46,6 +46,17 @@ export function bookingPayload(booking: CalendarBookingRow, eventType: Pick<Even
     })(),
     hostUserId: booking.host_user_id,
     meetingUrl: booking.meeting_url,
+    /** Ubicación elegida por el invitado (null si el evento no ofrece opciones). */
+    location: booking.location_kind ? { kind: booking.location_kind, value: booking.location } : null,
+    /** Co-anfitriones de un evento colectivo. */
+    coHostUserIds: (() => {
+      try {
+        const list: unknown = JSON.parse(booking.co_host_ids || '[]');
+        return Array.isArray(list) ? list : [];
+      } catch {
+        return [];
+      }
+    })(),
     rescheduledFrom: booking.rescheduled_from,
     cancelReason: booking.cancel_reason,
     /** none | pending | approved | declined: confirmación del anfitrión. */

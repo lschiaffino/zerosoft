@@ -4,13 +4,15 @@ import { getTranslations } from 'next-intl/server';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { getIntegration, googleCalendarRedirectUri, googleOAuthConfigured } from '@/lib/integrations';
 import { GOOGLE_CALENDAR_PROVIDER } from '@/lib/google-calendar';
-import { getOrCreateCalendarUser } from '@/lib/calendar';
+import { getCalendarUser, getOrCreateCalendarUser } from '@/lib/calendar';
 import { getPaymentSettings } from '@/lib/calendar-payments';
 import PageHeader from '@/components/ui/PageHeader';
 import SettingsTabs from '@/components/ui/SettingsTabs';
 import GoogleCalendarPanel from '@/components/calendar/GoogleCalendarPanel';
 import CalendarSettingsForm from '@/components/calendar/CalendarSettingsForm';
 import PaymentsSettingsPanel from '@/components/calendar/PaymentsSettingsPanel';
+import ConferencingPanel from '@/components/calendar/ConferencingPanel';
+import { parseConferencing } from '@/lib/calendar-locations';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,12 +55,15 @@ export default async function CalendarSettingsPage(props: {
           />
         )}
         {tab === 'connections' && (
-          <GoogleCalendarPanel
-            configured={googleOAuthConfigured()}
-            connectedEmail={await getIntegration(realUserId(user), GOOGLE_CALENDAR_PROVIDER).then((g) => (g ? g.email || 'Google' : null))}
-            notice={gcal ?? null}
-            redirectUri={googleCalendarRedirectUri()}
-          />
+          <>
+            <GoogleCalendarPanel
+              configured={googleOAuthConfigured()}
+              connectedEmail={await getIntegration(realUserId(user), GOOGLE_CALENDAR_PROVIDER).then((g) => (g ? g.email || 'Google' : null))}
+              notice={gcal ?? null}
+              redirectUri={googleCalendarRedirectUri()}
+            />
+            <ConferencingPanel initial={parseConferencing((await getCalendarUser(realUserId(user)))?.conferencing)} />
+          </>
         )}
         {tab === 'payments' && (
           <PaymentsSettingsPanel initial={await getPaymentSettings(user.id)} origin={origin} canEdit={isWorkspaceAdmin(user)} />

@@ -193,7 +193,9 @@
     "guestN": "Email do convidado {n}",
     "removeGuest": "Remover o convidado {n}",
     "addAnotherGuest": "Adicionar outro convidado",
-    "guestsHelp": "Eles recebem o convite por email. Até {max}."
+    "guestsHelp": "Eles recebem o convite por email. Até {max}.",
+    "seatsPerSlot": "{n, plural, one {# vaga por horário} other {# vagas por horário}}",
+    "seatsLeft": "{n, plural, one {Resta # vaga} other {Restam # vagas}}"
   },
   "routing": {
     "title": "Formulários de roteamento",
@@ -218,7 +220,7 @@
     "fieldTypeBoolean": "Sim / Não",
     "fieldOptions": "Opções",
     "rules": "Regras de roteamento",
-    "rulesHelp": "Vence a primeira regra correspondente. Se nenhuma corresponder, usa-se o tipo de evento padrão.",
+    "rulesHelp": "Vale a primeira regra que corresponder. Cada regra envia para um tipo de evento, uma URL externa ou uma mensagem. Se nenhuma corresponder, usa-se o destino abaixo.",
     "addRule": "Adicionar regra",
     "noRules": "Ainda não há regras.",
     "ruleField": "Pergunta",
@@ -231,7 +233,7 @@
     "valueTrue": "Sim",
     "valueFalse": "Não",
     "submit": "Continuar",
-    "noRoute": "Nenhuma página de reserva corresponde às suas respostas.",
+    "noRoute": "Nada corresponde às suas respostas.",
     "deleteConfirm": "Excluir “{title}”? O link público deixa de funcionar.",
     "activeLabel": "Formulário publicado",
     "choose": "Escolha uma opção",
@@ -249,7 +251,7 @@
     "nextPublish": "Seguir para Publicar",
     "nextRules": "Seguir para Regras",
     "noEventTypesTitle": "Crie um tipo de evento primeiro",
-    "noEventTypesBody": "As regras levam cada pessoa a um tipo de evento. Sem nenhum, não há para onde levar.",
+    "noEventTypesBody": "As regras podem enviar para um tipo de evento. Você ainda pode direcionar para uma URL ou mostrar uma mensagem.",
     "openForm": "Abrir formulário",
     "optionsPlaceholder": "Vendas, Suporte, Imprensa",
     "optionsRequired": "Uma pergunta de seleção precisa de pelo menos duas opções, separadas por vírgula.",
@@ -265,7 +267,20 @@
     "stepPublish": "Publicar",
     "stepQuestions": "Perguntas",
     "stepRules": "Regras",
-    "steps": "Etapas do formulário"
+    "steps": "Etapas do formulário",
+    "actionEvent": "Tipo de evento",
+    "actionUrl": "URL externa",
+    "actionMessage": "Mensagem",
+    "fallbackLabel": "Se nenhuma regra corresponder",
+    "passAnswers": "Passar as respostas (preenchem as perguntas com o mesmo nome na reserva ou vão na URL)",
+    "submissionsTitle": "Envios",
+    "submissionsLead": "Cada vez que alguém envia o formulário: as respostas e para onde foi.",
+    "noSubmissions": "Ainda não há envios.",
+    "submittedAt": "Quando",
+    "answers": "Respostas",
+    "outcome": "Destino",
+    "outcomeNone": "Sem correspondência",
+    "messageTitle": "Obrigado"
   },
   "errors": {
     "invalid_slug": "Slug inválido. Use apenas letras minúsculas, números e hífens.",
@@ -289,7 +304,11 @@
     "not_started": "Esta reunião ainda não começou.",
     "status_changed": "A reserva mudou nesse meio-tempo. Recarregue e tente de novo.",
     "confirmation_paid": "A confirmação do anfitrião e um preço não combinam. Remova o preço ou desative a confirmação.",
-    "too_many_guests": "Esta reunião não aceita tantos convidados. Remova alguns e tente de novo."
+    "too_many_guests": "Esta reunião não aceita tantos convidados. Remova alguns e tente de novo.",
+    "seats_single_use": "Vagas não funcionam com link de uso único nem com reunião única.",
+    "seats_round_robin": "Com vagas, use um só anfitrião ou anfitriões no modo coletivo.",
+    "invalid_location": "Escolha onde é a reunião.",
+    "invalid_phone": "Digite um telefone válido."
   },
   "settings": {
     "title": "Configurações",
@@ -604,7 +623,16 @@
     "allowGuestsHelp": "Eles recebem o convite do calendário. Só o convidado principal pode reagendar ou cancelar.",
     "maxGuests": "Máximo de convidados por reserva",
     "maxGuestsHelp": "De 1 a {max}. Vazio permite {max}.",
-    "maxGuestsInvalid": "O máximo de convidados precisa ser um número inteiro de 1 a {max}."
+    "maxGuestsInvalid": "O máximo de convidados precisa ser um número inteiro de 1 a {max}.",
+    "seats": "Vagas por horário",
+    "seatsHelp": "Vários convidados podem reservar o mesmo horário até lotar. Vazio ou 0: uma reserva por horário.",
+    "seatsInvalid": "As vagas devem ser um número inteiro de 0 a {max}.",
+    "hostsTitle": "Anfitriões",
+    "hostsLead": "Quem atende as reservas deste evento.",
+    "schedulingLabel": "Como são atribuídos",
+    "schedulingRoundRobin": "Round-robin",
+    "schedulingCollective": "Coletivo",
+    "schedulingCollectiveHelp": "Todos os anfitriões escolhidos participam: um horário só aparece se todos estiverem livres."
   },
   "errorPage": {
     "title": "Esta tela não carregou",
@@ -664,5 +692,39 @@
     "emptyTitle": "Nenhuma reserva neste período",
     "emptyBody": "Tente um período maior ou compartilhe o link de um tipo de evento para começar a receber reservas.",
     "note": "Pagamentos retidos que venceram sem pagamento ficam de fora."
+  },
+  "location": {
+    "title": "Locais para escolher",
+    "lead": "Adicione um ou mais. Com vários, o convidado escolhe ao reservar. Zoom e Teams sem link usam o link de cada anfitrião.",
+    "kind": {
+      "zoom": "Zoom",
+      "teams": "Microsoft Teams",
+      "google_meet": "Google Meet",
+      "phone_host": "Ligação (o anfitrião liga)",
+      "phone_invitee": "Ligação (o convidado liga)",
+      "in_person": "Presencial",
+      "link": "Outro link"
+    },
+    "kindLabel": "Tipo de local",
+    "valueLabel": "Link, endereço ou telefone",
+    "addressPlaceholder": "Rua, número, cidade",
+    "phonePlaceholder": "Número para ligar (vazio: o de cada anfitrião)",
+    "hostLinkPlaceholder": "Link (vazio: o de cada anfitrião)",
+    "meetNote": "Criado pelo Google Calendar se o anfitrião o tiver conectado.",
+    "hostCallsNote": "O convidado deixa o telefone.",
+    "add": "Adicionar local",
+    "remove": "Remover local",
+    "invalid": "Revise os locais: falta um endereço ou link, ou há um link ou telefone inválido.",
+    "textFallbackHelp": "Com locais para escolher, este texto só aparece onde não há escolha.",
+    "hostCalls": "(nós ligamos)",
+    "youCall": "(você liga)",
+    "yourPhone": "Seu telefone",
+    "conferencingTitle": "Seus links de reunião",
+    "conferencingLead": "Usados quando um evento oferece Zoom, Teams ou uma ligação para você e você é o anfitrião.",
+    "conferencingInvalid": "Revise os links (http ou https) e o telefone.",
+    "zoomLink": "Link da sua sala do Zoom",
+    "teamsLink": "Link da sua reunião do Teams",
+    "phoneNumber": "Telefone",
+    "phoneNumberHelp": "Os convidados ligam para este número quando o evento usa \"o convidado liga\" sem um número próprio."
   }
 }

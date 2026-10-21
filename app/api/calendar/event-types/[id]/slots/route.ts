@@ -36,7 +36,12 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
 
     const slots = await getAvailableSlots(params.id, timezone, date, { excludeBookingId });
     return NextResponse.json({
-      slots: slots.map((s) => ({ start: s.start.toISOString(), end: s.end.toISOString() })),
+      slots: slots.map((s) => ({
+        start: s.start.toISOString(),
+        end: s.end.toISOString(),
+        // Evento grupal: lugares que quedan en ese horario.
+        ...(s.seatsLeft !== undefined ? { seatsLeft: s.seatsLeft } : {}),
+      })),
     });
   } catch {
     return crmError(500, 'generic');

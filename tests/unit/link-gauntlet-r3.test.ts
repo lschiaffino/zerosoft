@@ -43,9 +43,9 @@ describe('Link r3: el alta masiva no recrea links para descargar el CSV', () => 
     // El CSV se arma con los resultados ya creados (los mismos slugs que en pantalla).
     const csv = bulkResultsToCsv(data.results as never);
     expect(csv.split('\n')).toEqual([
-      'original_url,short_url,status',
-      `https://example.com/a,${data.results[0].short_url},created`,
-      `https://example.com/b,${data.results[1].short_url},created`,
+      'original_url,short_url,status,title',
+      `https://example.com/a,${data.results[0].short_url},created,`,
+      `https://example.com/b,${data.results[1].short_url},created,`,
     ]);
     session.user = null;
   });

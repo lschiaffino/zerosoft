@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-type CalIconName = 'external' | 'copy' | 'check' | 'prev' | 'next' | 'plus' | 'close' | 'trash' | 'clock' | 'pin' | 'globe' | 'card';
+type CalIconName = 'external' | 'copy' | 'check' | 'prev' | 'next' | 'plus' | 'close' | 'trash' | 'clock' | 'pin' | 'globe' | 'card' | 'people';
 
 // Mismo trazo que components/app/icons.tsx (1.5, puntas redondas), para lo que Cal usa y el set del shell no tiene.
 const PATHS: Record<CalIconName, ReactNode> = {
@@ -39,6 +39,12 @@ const PATHS: Record<CalIconName, ReactNode> = {
     <>
       <rect x="3" y="6" width="18" height="13" rx="1" />
       <path d="M3 10h18M7 15h4" />
+    </>
+  ),
+  people: (
+    <>
+      <path d="M12.5 8a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z" />
+      <path d="M3 20c.5-3.4 3-5.5 6-5.5s5.5 2.1 6 5.5M16 5a3 3 0 0 1 0 6M18 14.8c1.7.7 2.8 2.6 3 5.2" />
     </>
   ),
 };

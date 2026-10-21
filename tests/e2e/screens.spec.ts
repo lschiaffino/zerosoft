@@ -17,6 +17,7 @@ const SCREENS = [
   '/en/app/links/import',
   '/en/app/links/domains',
   '/en/app/links/analytics',
+  '/en/app/links/folders',
   '/en/app/settings',
   '/en/app/settings/workspace',
   '/en/app/settings/feedback',

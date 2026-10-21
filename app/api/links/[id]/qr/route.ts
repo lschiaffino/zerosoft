@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import QRCode from 'qrcode';
 import { getCurrentUser } from '@/lib/session';
-import { getUserLink } from '@/lib/links';
+import { getLinkForViewer } from '@/lib/links';
+import { viewerOf } from '@/lib/link-folders';
 import { getQrStyle, qrStyleSchema, qrTarget, renderQrSvg, saveQrStyle } from '@/lib/link-qr';
 
 export const runtime = 'nodejs';
@@ -11,8 +12,11 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  const link = await getUserLink(user.id, params.id);
-  if (!link) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  const found = await getLinkForViewer(user.id, params.id, viewerOf(user), 'view');
+  if ('status' in found) {
+    return NextResponse.json({ error: found.status === 403 ? 'forbidden' : 'not_found' }, { status: found.status });
+  }
+  const { link } = found;
 
   const target = qrTarget(link);
   const style = await getQrStyle(user.id, link.id);
@@ -46,8 +50,11 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  const link = await getUserLink(user.id, params.id);
-  if (!link) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  const found = await getLinkForViewer(user.id, params.id, viewerOf(user), 'edit');
+  if ('status' in found) {
+    return NextResponse.json({ error: found.status === 403 ? 'forbidden' : 'not_found' }, { status: found.status });
+  }
+  const { link } = found;
 
   const parsed = qrStyleSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'bad_request' }, { status: 400 });

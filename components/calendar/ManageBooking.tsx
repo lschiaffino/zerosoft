@@ -23,6 +23,8 @@ interface Props {
     approval?: string;
     name: string;
     email: string;
+    /** Ubicación ya resuelta de la reserva (link, dirección o teléfono); '' = la del evento. */
+    location?: string;
   };
   /** Vuelve de Stripe Checkout con el pago hecho. */
   paidNotice?: boolean;
@@ -87,7 +89,9 @@ export default function ManageBooking({ token, locale, eventType, weekStart, bra
           title={eventType.title}
           meta={[
             { icon: 'clock', text: t('booking.minutes', { n: eventType.duration_min }) },
-            ...(eventType.location ? [{ icon: 'pin' as const, text: eventType.location }] : []),
+            ...(booking.location || eventType.location
+              ? [{ icon: 'pin' as const, text: booking.location || eventType.location }]
+              : []),
           ]}
         />
         <div className="bk-main">

@@ -2,22 +2,37 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { bulkResultsToCsv, type BulkResultItem } from '@/lib/link-bulk-csv';
+import { bulkResultsToCsv, parseBulkLines, type BulkResultItem } from '@/lib/link-bulk-csv';
 import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import LinkIcon from './LinkIcon';
 
-/** Pegar hasta 200 URLs y acortarlas todas; tag y UTM comunes en "Avanzado". */
-export default function BulkCreateForm() {
+interface BulkCreateFormProps {
+  /** Dominio por defecto (zerosoft). */
+  domain: string;
+  /** Dominios propios verificados del workspace. */
+  customDomains?: Array<{ id: string; hostname: string }>;
+  /** Carpetas en las que quien mira puede crear links. */
+  folders?: Array<{ id: string; name: string }>;
+}
+
+/**
+ * Pegar hasta 200 filas y acortarlas todas: cada fila es una URL y, si se
+ * quiere, su slug y su título (`url, slug, título`). Dominio y carpeta para
+ * todo el lote; tag y UTM comunes en "Avanzado".
+ */
+export default function BulkCreateForm({ domain, customDomains = [], folders = [] }: BulkCreateFormProps) {
   const t = useTranslations('link');
   const [urls, setUrls] = useState('');
+  const [domainId, setDomainId] = useState('');
+  const [folderId, setFolderId] = useState('');
   const [tag, setTag] = useState('');
   const [utmSource, setUtmSource] = useState('');
   const [utmMedium, setUtmMedium] = useState('');
   const [utmCampaign, setUtmCampaign] = useState('');
   const [results, setResults] = useState<BulkResultItem[] | null>(null);
 
-  const count = urls.split('\n').filter((l) => l.trim()).length;
+  const count = parseBulkLines(urls).length;
 
   async function create(): Promise<string | void> {
     setResults(null);
@@ -27,6 +42,8 @@ export default function BulkCreateForm() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           urls,
+          domainId: domainId || undefined,
+          folderId: folderId || undefined,
           tag: tag.trim() || undefined,
           utmSource: utmSource.trim() || undefined,
           utmMedium: utmMedium.trim() || undefined,
@@ -81,8 +98,52 @@ export default function BulkCreateForm() {
             placeholder={t('bulk.urlsPlaceholder')}
             required
             spellCheck={false}
+            aria-describedby="bulk-urls-help"
           />
+          <p id="bulk-urls-help" className="ui-help">
+            {t('bulk.rowsHelp')}
+          </p>
         </div>
+
+        {(customDomains.length > 0 || folders.length > 0) && (
+          <div className="ui-fields-2">
+            {customDomains.length > 0 && (
+              <div className="ui-field">
+                <label className="label" htmlFor="bulk-domain">
+                  {t('bulk.domainLabel')}
+                </label>
+                <select
+                  id="bulk-domain"
+                  className="select mono"
+                  value={domainId}
+                  onChange={(e) => setDomainId(e.target.value)}
+                >
+                  <option value="">{domain}</option>
+                  {customDomains.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.hostname}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {folders.length > 0 && (
+              <div className="ui-field">
+                <label className="label" htmlFor="bulk-folder">
+                  {t('folders.field')}
+                </label>
+                <select id="bulk-folder" className="select" value={folderId} onChange={(e) => setFolderId(e.target.value)}>
+                  <option value="">{t('folders.noFolder')}</option>
+                  {folders.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
 
         <AdvancedSection storageKey="link.bulk" hint={t('bulk.advancedHint')}>
           <div className="ui-field">
@@ -151,6 +212,7 @@ export default function BulkCreateForm() {
               <thead>
                 <tr>
                   <th scope="col">{t('bulk.colUrl')}</th>
+                  <th scope="col">{t('bulk.colTitle')}</th>
                   <th scope="col">{t('bulk.colShort')}</th>
                   <th scope="col">{t('bulk.colStatus')}</th>
                 </tr>
@@ -159,6 +221,7 @@ export default function BulkCreateForm() {
                 {results.map((r, i) => (
                   <tr key={i}>
                     <td className="data lk-cell-trunc">{r.url}</td>
+                    <td className="lk-cell-trunc">{r.title ?? t('detail.none')}</td>
                     <td className="data">
                       {r.short_url ? (
                         <a href={r.short_url} target="_blank" rel="noopener noreferrer" className="cell-link">

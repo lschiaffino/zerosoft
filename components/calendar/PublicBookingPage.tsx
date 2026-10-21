@@ -6,6 +6,7 @@ import type { EventTypeWithRules } from '@/lib/calendar';
 import CalIcon from './cal-icons';
 import { formatTimezone, type PublicBrand } from './cal-utils';
 import { guestLimit, isValidPhone, parseQuestions, type Question } from '@/lib/calendar-questions';
+import { isJoinableLocation, locationKey, parseLocations, type LocationOption } from '@/lib/calendar-locations';
 
 interface Props {
   eventType: EventTypeWithRules;
@@ -16,6 +17,8 @@ interface Props {
   /** Pre-fill de los campos del invitado (p.ej. desde ?name=&email=). */
   prefillName?: string;
   prefillEmail?: string;
+  /** Respuestas pre-llenadas desde la URL (?<pregunta>=…), ya validadas en el server. */
+  prefillAnswers?: Record<string, string | boolean | string[]>;
   /** Modo reprogramar (link de gestión del invitado): elige solo el nuevo horario. */
   reschedule?: { token: string; name: string; email: string };
   /** Máximo de días para reservar ya resuelto en el server (regla del evento o del workspace). */
@@ -27,6 +30,8 @@ interface Props {
 interface Slot {
   start: string;
   end: string;
+  /** Evento grupal: lugares que quedan en ese horario. */
+  seatsLeft?: number;
 }
 
 type Step = 'date' | 'form' | 'confirm';
@@ -113,12 +118,17 @@ export default function PublicBookingPage({
   brand,
   prefillName = '',
   prefillEmail = '',
+  prefillAnswers,
   reschedule,
   maxFutureDays,
   utm,
 }: Props) {
   const t = useTranslations('calendar');
   const fields = useMemo(() => parseQuestions(eventType.fieldsParsed).filter((f) => f.name && f.label), [eventType]);
+  // Sin validar: antes de reservar las opciones llegan sin sus links (publicLocationsJson).
+  const locations = useMemo(() => parseLocations(eventType.locations, { validate: false }), [eventType]);
+  const seats = Math.max(0, Number(eventType.seats ?? 0));
+  const locationLabel = (o: LocationOption) => (o.kind === 'in_person' && o.value ? o.value : t(`location.kind.${o.kind}`));
   const maxGuests = guestLimit(eventType.bookingRulesParsed);
   const maxDays = useMemo(() => {
     const rules = (eventType.bookingRulesParsed ?? {}) as Record<string, unknown>;
@@ -154,7 +164,12 @@ export default function PublicBookingPage({
   const [name, setName] = useState(reschedule?.name ?? prefillName);
   const [email, setEmail] = useState(reschedule?.email ?? prefillEmail);
   const [manageUrl, setManageUrl] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [answers, setAnswers] = useState<Record<string, unknown>>(() => ({ ...(prefillAnswers ?? {}) }));
+  /** Ubicación elegida (clave de lib/calendar-locations) y teléfono si llama el anfitrión. */
+  const [locKey, setLocKey] = useState(() => (locations.length === 1 ? locationKey(locations[0], 0) : ''));
+  const [locPhone, setLocPhone] = useState('');
+  const [bookedLocation, setBookedLocation] = useState('');
+  const chosenLocation = locations.find((o, i) => locationKey(o, i) === locKey) ?? null;
   const [guests, setGuests] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -324,6 +339,9 @@ export default function PublicBookingPage({
             locale,
             utm,
             guests: guests.map((g) => g.trim()).filter(Boolean),
+            ...(locations.length > 0
+              ? { location: { key: locKey, ...(chosenLocation?.kind === 'phone_host' ? { phone: locPhone.trim() } : {}) } }
+              : {}),
           }),
         }).catch(() => null);
     setBusy(false);
@@ -334,7 +352,10 @@ export default function PublicBookingPage({
         checkoutUrl?: string;
         awaitingApproval?: boolean;
         redirectUrl?: string | null;
+        location?: string;
+        meetingUrl?: string | null;
       } | null;
+      setBookedLocation(data?.meetingUrl || data?.location || '');
       // Evento pago: la reserva queda retenida y se confirma al pagar en Stripe.
       if (data?.checkoutUrl && /^https:\/\//.test(data.checkoutUrl)) {
         if (window.parent !== window) {
@@ -393,7 +414,12 @@ export default function PublicBookingPage({
           title={eventType.title}
           meta={[
             { icon: 'clock', text: t('booking.minutes', { n: eventType.duration_min }) },
-            ...(eventType.location ? [{ icon: 'pin' as const, text: eventType.location }] : []),
+            ...(locations.length > 0
+              ? [{ icon: 'pin' as const, text: locations.map(locationLabel).join(' · ') }]
+              : eventType.location
+                ? [{ icon: 'pin' as const, text: eventType.location }]
+                : []),
+            ...(seats > 0 ? [{ icon: 'people' as const, text: t('booking.seatsPerSlot', { n: seats }) }] : []),
             ...(priceLabel ? [{ icon: 'card' as const, text: priceLabel, data: true }] : []),
           ]}
           welcome={eventType.welcome_message}
@@ -439,10 +465,24 @@ export default function PublicBookingPage({
                     <span className="bk-muted">{email}</span>
                   </dd>
                 </div>
-                {eventType.location && (
+                {(chosenLocation || eventType.location) && (
                   <div>
                     <dt>{t('booking.where')}</dt>
-                    <dd>{eventType.location}</dd>
+                    <dd>
+                      {chosenLocation ? locationLabel(chosenLocation) : eventType.location}
+                      {chosenLocation && bookedLocation && bookedLocation !== locationLabel(chosenLocation) && (
+                        <>
+                          <br />
+                          {isJoinableLocation(bookedLocation) ? (
+                            <a className="bk-link data" href={bookedLocation} target="_blank" rel="noopener noreferrer">
+                              {bookedLocation}
+                            </a>
+                          ) : (
+                            <span className="data">{bookedLocation}</span>
+                          )}
+                        </>
+                      )}
+                    </dd>
                   </div>
                 )}
               </dl>
@@ -497,6 +537,46 @@ export default function PublicBookingPage({
                       choose={t('booking.choose')}
                     />
                   ))}
+                  {locations.length > 1 && (
+                    <fieldset className="bk-locations">
+                      <legend className="label">{t('booking.where')}</legend>
+                      {locations.map((o, i) => (
+                        <label key={locationKey(o, i)} className="ui-check">
+                          <input
+                            type="radio"
+                            name="bk-location"
+                            value={locationKey(o, i)}
+                            checked={locKey === locationKey(o, i)}
+                            onChange={() => setLocKey(locationKey(o, i))}
+                            required
+                          />
+                          <span>
+                            {locationLabel(o)}
+                            {o.kind === 'phone_host' && <span className="bk-muted"> {t('location.hostCalls')}</span>}
+                            {o.kind === 'phone_invitee' && <span className="bk-muted"> {t('location.youCall')}</span>}
+                          </span>
+                        </label>
+                      ))}
+                    </fieldset>
+                  )}
+                  {chosenLocation?.kind === 'phone_host' && (
+                    <div className="ui-field">
+                      <label className="label" htmlFor="bk-loc-phone">
+                        {t('location.yourPhone')}
+                      </label>
+                      <input
+                        id="bk-loc-phone"
+                        className="input data"
+                        type="tel"
+                        autoComplete="tel"
+                        value={locPhone}
+                        onChange={(e) => setLocPhone(e.target.value)}
+                        aria-invalid={locPhone.trim() !== '' && !isValidPhone(locPhone) ? true : undefined}
+                        required
+                      />
+                      {locPhone.trim() !== '' && !isValidPhone(locPhone) && <p className="ui-error">{t('booking.phoneInvalid')}</p>}
+                    </div>
+                  )}
                   {maxGuests > 0 && (
                     <GuestsInput
                       value={guests}
@@ -653,6 +733,9 @@ export default function PublicBookingPage({
                           aria-pressed={selectedSlot?.start === slot.start}
                         >
                           {fmt(slot.start, timezone, locale, { hour: '2-digit', minute: '2-digit' })}
+                          {slot.seatsLeft !== undefined && (
+                            <span className="bk-seats">{t('booking.seatsLeft', { n: slot.seatsLeft })}</span>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -685,7 +768,7 @@ export function BookingInfo({
   logoUrl?: string | null;
   hostName?: string;
   title: string;
-  meta?: Array<{ icon: 'clock' | 'pin' | 'card' | 'globe'; text: string; data?: boolean }>;
+  meta?: Array<{ icon: 'clock' | 'pin' | 'card' | 'globe' | 'people'; text: string; data?: boolean }>;
   welcome?: string | null;
   description?: string | null;
   children?: ReactNode;
