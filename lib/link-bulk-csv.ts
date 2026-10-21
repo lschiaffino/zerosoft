@@ -3,6 +3,8 @@
  * alta masiva en el cliente para descargar los resultados que ya tiene, sin
  * volver a crear nada.
  */
+import { isValidSlug } from './reserved';
+import { isValidUrl, normalizeUrl } from './utils';
 
 export interface BulkResultItem {
   url: string;
@@ -60,6 +62,32 @@ export function parseBulkLines(text: string): BulkRow[] {
     rows.push(row);
   }
   return rows;
+}
+
+/** Revisión previa de una fila (en el cliente, antes de crear). */
+export interface BulkRowCheck extends BulkRow {
+  /** null si se ve bien; si no, el código de error (mismos que el server). */
+  problem: 'invalid_url' | 'invalid_slug' | 'duplicate_slug' | null;
+}
+
+/**
+ * Revisa cada fila con las mismas reglas que el alta (URL válida, slug con
+ * formato y no reservado) y marca slugs repetidos dentro del lote. Que el slug
+ * esté libre lo confirma el server al crear.
+ */
+export function checkBulkRows(rows: BulkRow[], opts: { customDomain?: boolean } = {}): BulkRowCheck[] {
+  const seen = new Set<string>();
+  return rows.map((row) => {
+    let problem: BulkRowCheck['problem'] = null;
+    const normalized = normalizeUrl(row.url);
+    if (normalized.length > 2000 || !isValidUrl(normalized)) problem = 'invalid_url';
+    else if (row.slug && !isValidSlug(row.slug, !!opts.customDomain)) problem = 'invalid_slug';
+    else if (row.slug) {
+      if (seen.has(row.slug)) problem = 'duplicate_slug';
+      seen.add(row.slug);
+    }
+    return { ...row, problem };
+  });
 }
 
 export function bulkResultsToCsv(rows: BulkResultItem[]): string {

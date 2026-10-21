@@ -176,6 +176,11 @@ export default function TableDetail({ table: initial, rows: initialRows, total: 
             cell: (r: FlowTableRowDto) => {
               const v = r[c.name];
               if (c.type === 'boolean') return v === true ? t('yes') : v === false ? t('no') : '';
+              // Números con el formato del idioma (1.500,5 en es); el editor sigue usando el valor crudo.
+              const num = c.type === 'number' && v !== null && v !== '' ? Number(v) : NaN;
+              if (Number.isFinite(num)) {
+                return <span className="flow-ellipsis">{format.number(num, { maximumFractionDigits: 20 })}</span>;
+              }
               return <span className="flow-ellipsis">{cellText(v)}</span>;
             },
           })),

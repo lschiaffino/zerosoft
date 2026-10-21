@@ -8,6 +8,8 @@ import { Popover } from './InlineEditors';
 import { relDate } from '@/lib/utils';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import { notificationTitle, type NotificationTextLabels } from '@/lib/notification-text';
+import { NOTIFICATIONS_CHANGED_EVENT } from '@/components/app/NotificationBell';
 
 type NotificationType =
   | 'mention'
@@ -28,6 +30,7 @@ interface Notification {
   read_at: string | null;
   created_at: string;
   meta: string;
+  source_type?: string | null;
   snoozed_until?: string | null;
 }
 
@@ -88,6 +91,11 @@ function parseMeta(meta: string): Record<string, string> {
   }
 }
 
+/** La campana del sidebar recarga su conteo (pospuestos y leídos dejan de contar). */
+function notifyChanged() {
+  window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED_EVENT));
+}
+
 /** Bandeja de Track: menciones, asignaciones y cambios, con filtro por tipo. */
 export default function InboxClient({ locale, labels }: InboxClientProps) {
   const tr = useTranslations('track');
@@ -140,6 +148,7 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     }).catch(() => null);
     if (res?.ok) {
       setRows((prev) => prev.map((n) => (n.id === id ? { ...n, read_at: n.read_at ?? new Date().toISOString() } : n)));
+      notifyChanged();
     }
   }
 
@@ -156,6 +165,7 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
       return;
     }
     setRows((prev) => prev.filter((n) => n.id !== id));
+    notifyChanged();
   }
 
   async function markAllRead() {
@@ -167,30 +177,26 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     if (res?.ok) {
       const now = new Date().toISOString();
       setRows((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? now })));
+      notifyChanged();
     }
   }
 
-  function actionText(n: Notification, meta: Record<string, string>): string {
-    const actor = meta.actorName ?? labels.someone;
-    const identifier = meta.issueIdentifier ?? '';
-    const fill = (tpl: string) => tpl.replace('{actor}', actor).replace('{identifier}', identifier);
-    switch (n.type) {
-      case 'mention':
-        return fill(labels.mentionedYou);
-      case 'assigned':
-        return fill(labels.assignedYou);
-      case 'comment':
-        return fill(labels.commentedOn);
-      case 'status_change':
-        return fill(labels.changedStatus);
-      case 'issue_update':
-        return fill(labels.updatedIssue);
-      case 'track_reminder':
-        return tr('inboxSnooze.reminderFor', { identifier });
-      default:
-        return n.title;
-    }
-  }
+  const textLabels: NotificationTextLabels = {
+    someone: labels.someone,
+    untitled: tr('notifications.untitled'),
+    mentionedYou: labels.mentionedYou,
+    assignedYou: labels.assignedYou,
+    commentedOn: labels.commentedOn,
+    changedStatus: labels.changedStatus,
+    updatedIssue: labels.updatedIssue,
+    reminderFor: tr.raw('inboxSnooze.reminderFor') as string,
+    docMention: tr.raw('notifications.docMention') as string,
+    docCommentMention: tr.raw('notifications.docCommentMention') as string,
+    docCommentReply: tr.raw('notifications.docCommentReply') as string,
+    docShared: tr.raw('notifications.docShared') as string,
+    boardMention: tr.raw('notifications.boardMention') as string,
+    boardReply: tr.raw('notifications.boardReply') as string,
+  };
 
   const firstLoad = loading && rows.length === 0;
 
@@ -277,7 +283,7 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
                     <span className="track-inbox-mark is-read" aria-hidden />
                   )}
                   <Link href={n.href ?? '/app/track'} className="track-inbox-link">
-                    <span className="track-inbox-text">{actionText(n, meta)}</span>
+                    <span className="track-inbox-text">{notificationTitle(n, textLabels)}</span>
                     {meta.projectName && <span className="track-inbox-project">{meta.projectName}</span>}
                   </Link>
                   {tab === 'snoozed' && n.snoozed_until ? (

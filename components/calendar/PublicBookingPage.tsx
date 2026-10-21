@@ -128,7 +128,13 @@ export default function PublicBookingPage({
   // Sin validar: antes de reservar las opciones llegan sin sus links (publicLocationsJson).
   const locations = useMemo(() => parseLocations(eventType.locations, { validate: false }), [eventType]);
   const seats = Math.max(0, Number(eventType.seats ?? 0));
-  const locationLabel = (o: LocationOption) => (o.kind === 'in_person' && o.value ? o.value : t(`location.kind.${o.kind}`));
+  // Etiquetas para quien reserva: "En persona: <dirección>" y la llamada dice quién llama.
+  const locationLabel = (o: LocationOption) =>
+    o.kind === 'in_person' && o.value
+      ? t('location.public.in_person', { address: o.value })
+      : o.kind === 'phone_host' || o.kind === 'phone_invitee'
+        ? t(`location.public.${o.kind}`)
+        : t(`location.kind.${o.kind}`);
   const maxGuests = guestLimit(eventType.bookingRulesParsed);
   const maxDays = useMemo(() => {
     const rules = (eventType.bookingRulesParsed ?? {}) as Record<string, unknown>;
@@ -470,7 +476,7 @@ export default function PublicBookingPage({
                     <dt>{t('booking.where')}</dt>
                     <dd>
                       {chosenLocation ? locationLabel(chosenLocation) : eventType.location}
-                      {chosenLocation && bookedLocation && bookedLocation !== locationLabel(chosenLocation) && (
+                      {chosenLocation && bookedLocation && !(chosenLocation.kind === 'in_person' && bookedLocation === chosenLocation.value) && (
                         <>
                           <br />
                           {isJoinableLocation(bookedLocation) ? (
@@ -552,8 +558,6 @@ export default function PublicBookingPage({
                           />
                           <span>
                             {locationLabel(o)}
-                            {o.kind === 'phone_host' && <span className="bk-muted"> {t('location.hostCalls')}</span>}
-                            {o.kind === 'phone_invitee' && <span className="bk-muted"> {t('location.youCall')}</span>}
                           </span>
                         </label>
                       ))}

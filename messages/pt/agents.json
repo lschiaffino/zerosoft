@@ -367,7 +367,9 @@
     "too_many_secrets": "Este agente já tem o máximo de headers secretos (10).",
     "secret_domain_not_allowed": "Escolha um domínio da lista permitida salva.",
     "reserved_header": "Esse header é definido automaticamente e não pode ser alterado.",
-    "already_decided": "Alguém já aprovou ou recusou esta ação."
+    "already_decided": "Alguém já aprovou ou recusou esta ação.",
+    "ai_no_credits": "O provedor de AI recusou o pedido: a conta não tem créditos ou não tem acesso a este modelo. Adicione créditos no AI Gateway da Vercel ou escolha um modelo incluído no seu plano em Instruções > Modelo.",
+    "ai_auth": "O provedor de AI recusou as credenciais do servidor. Verifique AI_GATEWAY_API_KEY nas configurações do servidor."
   },
   "public": {
     "subtitle": "Assistente de AI",

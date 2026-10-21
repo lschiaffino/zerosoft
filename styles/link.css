@@ -561,7 +561,8 @@ section.lk-block { padding-bottom: 0; }
 .lk-file-input { padding: 6px; }
 
 /* Bulk e import */
-.lk-bulk-error { display: inline-flex; align-items: center; gap: 8px; }
+.lk-bulk-error { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 120px; }
+.lk-bulk-preview { max-height: 320px; overflow: auto; }
 .lk-details summary { cursor: pointer; font-size: 0.8125rem; font-weight: 600; }
 .lk-report-list { margin: 8px 0 0; padding-left: 18px; font-size: 0.8125rem; display: flex; flex-direction: column; gap: 4px; }
 

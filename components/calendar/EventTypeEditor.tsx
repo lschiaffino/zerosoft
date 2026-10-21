@@ -152,7 +152,6 @@ interface Draft {
   title: string;
   slug: string;
   durationMin: number;
-  location: string;
   description: string;
   color: string;
   active: boolean;
@@ -220,7 +219,6 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
       title: et.title,
       slug: et.slug,
       durationMin: et.durationMin,
-      location: et.location,
       description: et.description,
       color: et.color,
       active: et.active,
@@ -394,7 +392,8 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
         title: d.title.trim(),
         slug: d.slug,
         durationMin: Math.round(d.durationMin),
-        location: d.location.trim(),
+        // El texto viejo ya está migrado a la lista (ver editorLocations): se vacía.
+        location: '',
         locations,
         seats,
         ...(teamMembers && teamMembers.length > 0 ? { scheduling: d.scheduling } : {}),
@@ -505,7 +504,9 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
         description={
           <span className="cal-head-meta">
             <span className="cal-num">{t('editor.minutes', { n: baseline.durationMin })}</span>
-            {baseline.location && <span>{baseline.location}</span>}
+            {baseline.locations.length > 0 && (
+              <span>{baseline.locations.map((o) => (o.kind === 'in_person' || o.kind === 'link' ? o.value : t(`location.kind.${o.kind}`))).join(' · ')}</span>
+            )}
             <a href={publicUrl} target="_blank" rel="noreferrer" className="cal-head-url data">
               {publicUrl.replace(/^https?:\/\//, '')}
             </a>
@@ -592,19 +593,6 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                   />
                   <span className="ui-addon cal-unit">min</span>
                 </div>
-              </div>
-              <div className="ui-field">
-                <label className="label" htmlFor={idFor('location')}>
-                  {t('form.location')}
-                </label>
-                <input
-                  id={idFor('location')}
-                  className="input"
-                  value={d.location}
-                  placeholder={t('form.locationPlaceholder')}
-                  onChange={(e) => set('location', e.target.value)}
-                />
-                {d.locations.length > 0 && <p className="ui-help">{t('location.textFallbackHelp')}</p>}
               </div>
             </div>
             <LocationsEditor value={d.locations} onChange={(next) => set('locations', next)} idPrefix={idFor('loc')} />

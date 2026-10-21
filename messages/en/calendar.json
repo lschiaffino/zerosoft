@@ -203,7 +203,7 @@
     "newTitle": "New routing form",
     "newSub": "Ask a few questions, then send people to the right booking page.",
     "back": "← All routing forms",
-    "inactive": "Inactive",
+    "inactive": "Unpublished",
     "emptyTitle": "No routing forms yet",
     "emptySub": "Ask two or three questions before booking and send each person to the right event type.",
     "emptyCta": "Create form",
@@ -694,7 +694,7 @@
     "note": "Payment holds that expired unpaid are left out."
   },
   "location": {
-    "title": "Locations to choose from",
+    "title": "Location",
     "lead": "Add one or more. With several, the invitee picks one when booking. Zoom and Teams without a link use each host's own link.",
     "kind": {
       "zoom": "Zoom",
@@ -715,9 +715,6 @@
     "add": "Add location",
     "remove": "Remove location",
     "invalid": "Check the locations: an address or link is missing, or a link or phone number is not valid.",
-    "textFallbackHelp": "With locations to choose from, this text only shows where there is no choice.",
-    "hostCalls": "(we call you)",
-    "youCall": "(you call)",
     "yourPhone": "Your phone number",
     "conferencingTitle": "Your meeting links",
     "conferencingLead": "Used when an event offers Zoom, Teams or a call to you and you are the host.",
@@ -725,6 +722,11 @@
     "zoomLink": "Zoom room link",
     "teamsLink": "Teams meeting link",
     "phoneNumber": "Phone number",
-    "phoneNumberHelp": "Invitees call this number when the event uses \"invitee calls\" without a number of its own."
+    "phoneNumberHelp": "Invitees call this number when the event uses \"invitee calls\" without a number of its own.",
+    "public": {
+      "phone_host": "Phone call (we call you)",
+      "phone_invitee": "Phone call (you call)",
+      "in_person": "In person: {address}"
+    }
   }
 }

@@ -141,8 +141,9 @@ const TRACK_SEED: Record<SeedLocale, { name: string; description: string; issues
 };
 
 async function seedTrack(userId: string) {
-  const copy = TRACK_SEED[await requestLocale()];
-  const project = await createProject(userId, null, { name: copy.name, description: copy.description });
+  const locale = await requestLocale();
+  const copy = TRACK_SEED[locale];
+  const project = await createProject(userId, null, { name: copy.name, description: copy.description }, { locale });
   for (const [title, priority] of copy.issues) {
     await createIssue(project.id, userId, { title, priority, description: [] });
   }

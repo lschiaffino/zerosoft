@@ -7,7 +7,8 @@
  * Server-only.
  */
 import { getDb } from './db';
-import { createActivity, createContact, updateActivity } from './crm';
+import { createActivity, createContact, updateActivity, updateContact } from './crm';
+import { isValidPhone, parseQuestions } from './calendar-questions';
 import { isWorkspacePerson } from './crm-refs';
 import { assignNewLead, type AssignmentSource } from './crm-assignment';
 import type { CalendarBookingRow, ChatMessageRow, ChatVisitorRow, CrmContactRow } from './db';
@@ -44,14 +45,24 @@ export async function findOrCreateContact(
     source?: string;
     /** Fuente para la asignación round-robin de leads nuevos (lib/crm-assignment.ts). */
     assign?: AssignmentSource;
+    /** Teléfono conocido: va al contacto nuevo o completa uno existente que no tenía. */
+    phone?: string | null;
   },
 ): Promise<{ contact: CrmContactRow; created: boolean }> {
+  const phone = input.phone?.trim() ?? '';
   const existing = await findContactByEmail(userId, input.email);
-  if (existing) return { contact: existing, created: false };
+  if (existing) {
+    if (phone && !existing.phone) {
+      const updated = await updateContact(userId, existing.id, { phone });
+      return { contact: updated ?? existing, created: false };
+    }
+    return { contact: existing, created: false };
+  }
   const ownerId = input.ownerId && (await isWorkspacePerson(userId, input.ownerId)) ? input.ownerId : undefined;
   const contact = await createContact(userId, {
     ...splitName(input.name ?? ''),
     email: input.email.trim(),
+    ...(phone ? { phone } : {}),
     source: input.source ?? 'other',
     ownerId,
   });
@@ -79,6 +90,25 @@ function bookingBody(booking: CalendarBookingRow): string {
     /* respuestas corruptas: se ignoran */
   }
   return lines.join('\n');
+}
+
+/**
+ * Teléfono que dejó el invitado: el de "te llamamos" o la primera respuesta a
+ * una pregunta de tipo teléfono del evento. '' si no dejó ninguno.
+ */
+export function bookingPhone(booking: Pick<CalendarBookingRow, 'location_kind' | 'location' | 'answers'>, eventFields: unknown): string {
+  if (booking.location_kind === 'phone_host' && booking.location && isValidPhone(booking.location)) return booking.location.trim();
+  let answers: Record<string, unknown> = {};
+  try {
+    answers = JSON.parse(booking.answers || '{}') as Record<string, unknown>;
+  } catch {
+    return '';
+  }
+  for (const q of parseQuestions(eventFields)) {
+    const v = answers[q.name];
+    if (q.type === 'phone' && typeof v === 'string' && isValidPhone(v)) return v.trim();
+  }
+  return '';
 }
 
 function durationMin(booking: CalendarBookingRow): number | null {
@@ -132,11 +162,21 @@ export async function recordBookingInCrm(
     return;
   }
 
+  const fieldsRow = booking.event_type_id
+    ? ((await db.prepare('SELECT fields FROM calendar_event_types WHERE id = ?').get(booking.event_type_id)) as { fields: string } | undefined)
+    : undefined;
+  let eventFields: unknown = [];
+  try {
+    eventFields = JSON.parse(fieldsRow?.fields || '[]');
+  } catch {
+    /* preguntas corruptas: sin teléfono */
+  }
   const { contact } = await findOrCreateContact(workspaceId, {
     email: booking.invitee_email,
     name: booking.invitee_name,
     ownerId: booking.host_user_id,
     assign: 'cal',
+    phone: bookingPhone(booking, eventFields),
   });
   if (await activityForBooking(workspaceId, booking.id)) return;
   const activity = await createActivity(workspaceId, {

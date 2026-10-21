@@ -639,13 +639,16 @@ export async function listRoutingSubmissions(
   return rows.map((r) => ({ ...r, answersParsed: parseJson<Record<string, string | boolean>>(r.answers, {}) }));
 }
 
-/** Campos required sin respuesta válida (para validar el POST público). */
-export function missingRequiredFields(form: RoutingFormWithChildren, answers: RoutingAnswers): string[] {
+/**
+ * Campos required sin respuesta válida (para validar el POST público). En un
+ * sí/no "required" significa que se eligió una de las dos: "No" vale.
+ */
+export function missingRequiredFields(form: Pick<RoutingFormWithChildren, 'fields'>, answers: RoutingAnswers): string[] {
   return form.fields
     .filter((f) => f.required === 1)
     .filter((f) => {
       const answer = answers[f.name];
-      return f.type === 'boolean' ? !isTruthyAnswer(answer) : normalizeAnswer(answer) === '';
+      return f.type === 'boolean' ? answer === undefined || answer === null || answer === '' : normalizeAnswer(answer) === '';
     })
     .map((f) => f.name);
 }

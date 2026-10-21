@@ -238,6 +238,22 @@ export default async function AppLayout(
             markRead: tTrack('notifications.markRead'),
             markAllRead: tTrack('notifications.markAllRead'),
             empty: tTrack('notifications.empty'),
+            text: {
+              someone: tTrack('inbox.someone'),
+              untitled: tTrack('notifications.untitled'),
+              mentionedYou: tTrack.raw('activity.mentionedYou') as string,
+              assignedYou: tTrack.raw('activity.assignedYou') as string,
+              commentedOn: tTrack.raw('activity.commentedOn') as string,
+              changedStatus: tTrack.raw('activity.changedStatus') as string,
+              updatedIssue: tTrack.raw('activity.updatedIssue') as string,
+              reminderFor: tTrack.raw('inboxSnooze.reminderFor') as string,
+              docMention: tTrack.raw('notifications.docMention') as string,
+              docCommentMention: tTrack.raw('notifications.docCommentMention') as string,
+              docCommentReply: tTrack.raw('notifications.docCommentReply') as string,
+              docShared: tTrack.raw('notifications.docShared') as string,
+              boardMention: tTrack.raw('notifications.boardMention') as string,
+              boardReply: tTrack.raw('notifications.boardReply') as string,
+            },
           },
         }}
       />

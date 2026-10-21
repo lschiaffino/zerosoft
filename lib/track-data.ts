@@ -331,10 +331,21 @@ export async function getProjectBySlug(slug: string): Promise<TrackProjectRow | 
     | undefined;
 }
 
+/**
+ * Nombres de los estados con los que nace un proyecto, en el idioma de quien
+ * lo crea. Después son datos del proyecto: se renombran como cualquier otro.
+ */
+export const DEFAULT_STATUS_NAMES: Record<'en' | 'es' | 'pt', Record<TrackStatusRow['category'], string>> = {
+  en: { backlog: 'Backlog', todo: 'Todo', in_progress: 'In progress', done: 'Done', cancelled: 'Cancelled' },
+  es: { backlog: 'Backlog', todo: 'Por hacer', in_progress: 'En progreso', done: 'Hecho', cancelled: 'Cancelado' },
+  pt: { backlog: 'Backlog', todo: 'A fazer', in_progress: 'Em andamento', done: 'Feito', cancelled: 'Cancelado' },
+};
+
 export async function createProject(
   userId: string,
   teamId: string | null,
   payload: ProjectCreatePayload,
+  opts: { locale?: string } = {},
 ): Promise<TrackProjectRow> {
   const db = getDb();
   const id = crypto.randomUUID();
@@ -360,12 +371,13 @@ export async function createProject(
     );
 
   // Crear estados por defecto
+  const names = DEFAULT_STATUS_NAMES[(opts.locale ?? 'en') as keyof typeof DEFAULT_STATUS_NAMES] ?? DEFAULT_STATUS_NAMES.en;
   const defaults: Array<{ name: string; category: TrackStatusRow['category']; color: string }> = [
-    { name: 'Backlog', category: 'backlog', color: '#666666' },
-    { name: 'Todo', category: 'todo', color: '#000000' },
-    { name: 'In progress', category: 'in_progress', color: '#000000' },
-    { name: 'Done', category: 'done', color: '#000000' },
-    { name: 'Cancelled', category: 'cancelled', color: '#999999' },
+    { name: names.backlog, category: 'backlog', color: '#666666' },
+    { name: names.todo, category: 'todo', color: '#000000' },
+    { name: names.in_progress, category: 'in_progress', color: '#000000' },
+    { name: names.done, category: 'done', color: '#000000' },
+    { name: names.cancelled, category: 'cancelled', color: '#999999' },
   ];
 
   for (let i = 0; i < defaults.length; i++) {

@@ -1,9 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocale } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import Icon from './icons';
 import { relDate } from '@/lib/utils';
+import { notificationTitle, type NotificationTextLabels } from '@/lib/notification-text';
+
+/** Evento que dispara quien cambia avisos (la bandeja) para que la campana se actualice. */
+export const NOTIFICATIONS_CHANGED_EVENT = 'zs:notifications-changed';
 
 interface Notification {
   id: string;
@@ -13,6 +18,8 @@ interface Notification {
   href: string | null;
   read_at: string | null;
   created_at: string;
+  meta?: string | null;
+  source_type?: string | null;
 }
 
 interface NotificationBellProps {
@@ -21,6 +28,7 @@ interface NotificationBellProps {
     markRead: string;
     markAllRead: string;
     empty: string;
+    text: NotificationTextLabels;
   };
   onCountChange?: (count: number) => void;
 }
@@ -30,20 +38,29 @@ export default function NotificationBell({ labels, onCountChange }: Notification
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
+  const locale = useLocale();
+
+  // Los pospuestos no cuentan ni se listan (el API los excluye). Se recarga al
+  // abrir y cuando la bandeja avisa un cambio, para no mostrar un estado viejo.
+  const load = useCallback(async () => {
+    const res = await fetch('/api/notifications?limit=5').catch(() => null);
+    if (!res?.ok) return;
+    const data = (await res.json()) as { rows: Notification[]; unreadCount: number };
+    setNotifications(data.rows ?? []);
+    setUnreadCount(data.unreadCount ?? 0);
+    onCountChange?.(data.unreadCount ?? 0);
+  }, [onCountChange]);
 
   useEffect(() => {
-    async function load() {
-      const res = await fetch('/api/notifications?limit=5');
-      if (!res.ok) return;
-      const data = (await res.json()) as { rows: Notification[]; unreadCount: number };
-      setNotifications(data.rows ?? []);
-      setUnreadCount(data.unreadCount ?? 0);
-      onCountChange?.(data.unreadCount ?? 0);
-    }
-    load();
+    void load();
     const id = setInterval(load, 30000);
-    return () => clearInterval(id);
-  }, [onCountChange]);
+    const onChanged = () => void load();
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);
+    };
+  }, [load]);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -97,7 +114,10 @@ export default function NotificationBell({ labels, onCountChange }: Notification
       <button
         type="button"
         className="side-bell"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (!open) void load();
+          setOpen((v) => !v);
+        }}
         aria-label={labels.title}
         aria-expanded={open}
       >
@@ -127,21 +147,14 @@ export default function NotificationBell({ labels, onCountChange }: Notification
                   className={`side-bell-item${n.read_at ? '' : ' unread'}`}
                   onClick={() => handleClick(n)}
                 >
-                  <span className="side-bell-item-title">{n.title}</span>
+                  <span className="side-bell-item-title">{notificationTitle(n, labels.text)}</span>
                   {n.body && <span className="side-bell-item-body">{n.body}</span>}
                   <span className="side-bell-item-meta">
                     {!n.read_at && <span className="side-bell-dot" />}
-                    <time dateTime={n.created_at}>{relDate(n.created_at, 'en')}</time>
+                    <time dateTime={n.created_at}>{relDate(n.created_at, locale)}</time>
                   </span>
                 </Link>
               ))}
-            </div>
-          )}
-          {notifications.length > 0 && (
-            <div className="side-bell-footer">
-              <button type="button" onClick={markAllRead}>
-                {labels.markAllRead}
-              </button>
             </div>
           )}
         </div>

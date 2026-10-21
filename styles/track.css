@@ -870,7 +870,7 @@ dialog.ui-drawer.track-drawer {
 
 .track-inbox-item {
   display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) auto auto 110px;
+  grid-template-columns: 8px minmax(0, 1fr) auto auto minmax(110px, auto);
   align-items: center;
   gap: 12px;
   min-height: 44px;
