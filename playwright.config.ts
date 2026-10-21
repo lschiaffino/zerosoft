@@ -2,7 +2,8 @@ import { defineConfig } from '@playwright/test';
 import os from 'os';
 import path from 'path';
 
-const PORT = 3210;
+// E2E_PORT deja correr varias suites a la vez (agentes en paralelo) sin pisarse el puerto.
+const PORT = Number(process.env.E2E_PORT) || 3210;
 // Una sola base por corrida: el config se evalúa también en cada worker, así que
 // el path se fija en el proceso principal y los workers lo heredan por env.
 // Los tests que tocan la base directo (p. ej. simular DNS verificado) la leen de acá.

@@ -41,7 +41,7 @@ test('board: proponer, votar, comentar y servir por feedback.<host>', async ({ p
   await expect(page.locator('.site-header')).toHaveCount(0);
 
   // Subdominio: misma página, sin prefijo en la URL.
-  const sub = await request.get('/es', { headers: { host: 'feedback.localhost:3210' } });
+  const sub = await request.get('/es', { headers: { host: `feedback.localhost:${Number(process.env.E2E_PORT) || 3210}` } });
   expect(sub.status()).toBe(200);
   expect(await sub.text()).toContain(title);
 
