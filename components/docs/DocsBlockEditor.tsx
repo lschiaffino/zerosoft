@@ -13,7 +13,11 @@ import {
 } from '@/lib/docs-richtext';
 import { isPageLinkId, pageLinkHref, type PageLinkSource } from '@/lib/docs-page-links';
 import { formatFileSize, isDocsUploadUrl } from '@/lib/docs-files';
+import { htmlToBlocks, shouldSplitPaste } from '@/lib/docs-paste';
+import { looksLikeMarkdown, markdownToBlocks, plainTextToBlocks } from '@/lib/docs-import';
+import { isToggleBlock } from '@/lib/docs-blocks';
 import DocsGlyph from './DocsGlyphs';
+import EmojiPicker from './EmojiPicker';
 import DocsDatabaseBlock from './DocsDatabaseBlock';
 
 interface DocsBlockEditorProps {
@@ -30,10 +34,42 @@ interface DocsBlockEditorProps {
   pageLinks?: Pick<PageLinkSource, 'href' | 'open'>;
   /** Pegar archivos (captura de pantalla, archivo copiado): los sube el editor. */
   onPasteFiles?: (index: number, files: File[]) => void;
+  /** Pegado con estructura (varios párrafos, listas, Markdown): el editor lo parte en bloques. */
+  onPasteBlocks?: (index: number, blocks: DocsBlock[]) => void;
+}
+
+/** HTML pegado sin estructura semántica (VS Code, terminales): manda el texto plano. */
+const SEMANTIC_HTML_RE = /<(h[1-6]|ul|ol|li|blockquote|pre|table|hr)\b/i;
+
+/**
+ * Bloques de un pegado, si el contenido tiene estructura; null si es un
+ * pegado en línea (un solo párrafo de texto). Todo pasa por el saneado del editor.
+ */
+function pastedBlocks(html: string, text: string): DocsBlock[] | null {
+  const textBlocks = (): DocsBlock[] | null => {
+    if (!/\n/.test(text.trim())) return null;
+    return looksLikeMarkdown(text) ? markdownToBlocks(text, { sanitize: sanitizeHtml }) : plainTextToBlocks(text.trim());
+  };
+  if (html && SEMANTIC_HTML_RE.test(html)) {
+    const blocks = htmlToBlocks(html, { sanitize: sanitizeHtml });
+    return shouldSplitPaste(blocks) ? blocks : null;
+  }
+  // Markdown copiado de un editor de código o de un chat: viene como texto
+  // (o con un HTML de spans sin estructura).
+  if (text && looksLikeMarkdown(text)) {
+    const blocks = textBlocks();
+    if (blocks && shouldSplitPaste(blocks)) return blocks;
+  }
+  if (html) {
+    const blocks = htmlToBlocks(html, { sanitize: sanitizeHtml });
+    return shouldSplitPaste(blocks) ? blocks : null;
+  }
+  const blocks = textBlocks();
+  return blocks && shouldSplitPaste(blocks) ? blocks : null;
 }
 
 const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
-  ({ block, index, listIndex, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles }, ref) => {
+  ({ block, index, listIndex, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles, onPasteBlocks }, ref) => {
     const t = useTranslations('docs');
     const locale = useLocale();
     const router = useRouter();
@@ -46,6 +82,10 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           return t('editor.headingPlaceholder');
         case 'quote':
           return t('editor.quotePlaceholder');
+        case 'toggle':
+          return t('editor.togglePlaceholder');
+        case 'callout':
+          return t('editor.calloutPlaceholder');
         case 'code':
           return '// code';
         default:
@@ -220,9 +260,37 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
     }
 
     const isCheck = block.type === 'todo';
+    const isToggle = isToggleBlock(block);
+    const isCallout = block.type === 'callout';
 
     return (
-      <div className={`docs-block docs-block-${block.type}${focused ? ' focused' : ''}`} data-index={index}>
+      <div
+        className={`docs-block docs-block-${block.type}${isToggle ? ' docs-block-toggleable' : ''}${block.collapsed && isToggle ? ' collapsed' : ''}${focused ? ' focused' : ''}`}
+        data-index={index}
+      >
+        {isToggle && (
+          <button
+            type="button"
+            className="docs-toggle-btn"
+            aria-expanded={!block.collapsed}
+            aria-label={block.collapsed ? t('editor.expand') : t('editor.collapse')}
+            title={block.collapsed ? t('editor.expand') : t('editor.collapse')}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onChange(index, { collapsed: !block.collapsed })}
+          >
+            <DocsGlyph name="toggle" size={14} />
+          </button>
+        )}
+        {isCallout && (
+          <EmojiPicker
+            value={block.icon ?? '💡'}
+            triggerClassName="docs-callout-icon"
+            triggerLabel={t('editor.calloutIcon')}
+            onChange={(icon) => onChange(index, { icon })}
+          >
+            <span aria-hidden="true">{block.icon || '💡'}</span>
+          </EmojiPicker>
+        )}
         {isCheck && (
           <input
             type="checkbox"
@@ -250,7 +318,8 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           role={blockRole(block.type, block.level)}
           aria-level={block.type === 'heading' ? block.level ?? 2 : undefined}
           data-index={listIndex}
-          className={`docs-editable docs-${block.type}${block.level ? ` docs-h${block.level}` : ''}`}
+          // .docs-toggle ya es el interruptor del menú de página: el texto del toggle usa otro nombre.
+          className={`docs-editable docs-${block.type === 'toggle' ? 'toggle-text' : block.type}${block.level ? ` docs-h${block.level}` : ''}`}
           contentEditable
           suppressContentEditableWarning
           data-placeholder={renderPlaceholder(block.type)}
@@ -270,6 +339,14 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
             if (onPasteFiles && files.length > 0 && !html && block.type !== 'code') {
               onPasteFiles(index, files);
               return;
+            }
+            // Varios párrafos, listas, headings o Markdown: bloques reales.
+            if (onPasteBlocks && block.type !== 'code') {
+              const blocks = pastedBlocks(html, cd.getData('text/plain'));
+              if (blocks) {
+                onPasteBlocks(index, blocks);
+                return;
+              }
             }
             let insert: string;
             if (block.type === 'code') {

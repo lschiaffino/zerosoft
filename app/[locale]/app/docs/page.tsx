@@ -1,9 +1,11 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
-import { listDocPageSummaries, listSharedWithMe } from '@/lib/docs';
+import { listDocPageSummaries, listDocWorkspaceTemplates, listSharedWithMe } from '@/lib/docs';
 import {
   createDocPageAction,
   createDocPageFromTemplateAction,
+  createDocPageFromWorkspaceTemplateAction,
+  deleteDocWorkspaceTemplateAction,
   moveDocPageAction,
   moveDocPageStepAction,
   reorderDocPageAction,
@@ -32,11 +34,13 @@ export default async function DocsLandingPage(props: {
   setRequestLocale(locale);
   const user = await requireUser(locale);
   // Sin content: el sidebar y las listas solo muestran título, ícono y fecha.
-  const [pages, trashed, shared] = await Promise.all([
+  const [pages, trashed, shared, workspaceTemplates] = await Promise.all([
     listDocPageSummaries(user.id, { archived: false }),
     listDocPageSummaries(user.id, { archived: true }),
     listSharedWithMe(realUserId(user), user.id),
+    listDocWorkspaceTemplates(user.id),
   ]);
+  const canDeleteAnyTemplate = isWorkspaceAdmin(user);
   const templates = getDocTemplates(locale);
   const t = await getTranslations({ locale, namespace: 'docs' });
   const createAction = createDocPageAction.bind(null, locale);
@@ -140,6 +144,38 @@ export default async function DocsLandingPage(props: {
               </li>
             ))}
           </ul>
+          {workspaceTemplates.length > 0 && (
+            <>
+              <h3 className="docs-templates-subtitle">{t('templates.workspace')}</h3>
+              <ul className="docs-templates" data-testid="docs-workspace-templates">
+                {workspaceTemplates.map((tpl) => (
+                  <li key={tpl.id} className="docs-template-item">
+                    <form action={createDocPageFromWorkspaceTemplateAction.bind(null, locale, tpl.id)}>
+                      <button type="submit" className="docs-template">
+                        <span className="docs-template-name">
+                          {tpl.icon && <span aria-hidden="true">{tpl.icon} </span>}
+                          {tpl.title || t('templates.untitled')}
+                        </span>
+                        <span className="docs-template-desc">{tpl.description || t('templates.workspaceDesc')}</span>
+                      </button>
+                    </form>
+                    {(canDeleteAnyTemplate || tpl.created_by === realUserId(user)) && (
+                      <form action={deleteDocWorkspaceTemplateAction.bind(null, tpl.id)} className="docs-template-delete">
+                        <button
+                          type="submit"
+                          className="btn btn-ghost btn-sm btn-icon"
+                          aria-label={t('templates.delete', { name: tpl.title || t('templates.untitled') })}
+                          title={t('templates.delete', { name: tpl.title || t('templates.untitled') })}
+                        >
+                          <Icon name="close" size={14} />
+                        </button>
+                      </form>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </section>
 
         {(trashed.length > 0 || showTrash) && (

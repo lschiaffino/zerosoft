@@ -116,7 +116,7 @@ export function pagePlainText(content: string, maxChars = 12_000): string {
 export function pageExcerpt(content: string, max = 160): string {
   let text = '';
   for (const b of parseBlocks(content)) {
-    if (!['paragraph', 'quote', 'bulleted_list_item', 'numbered_list_item', 'todo'].includes(b.type)) {
+    if (!['paragraph', 'quote', 'callout', 'toggle', 'bulleted_list_item', 'numbered_list_item', 'todo'].includes(b.type)) {
       if (text && b.type === 'heading') break;
       continue;
     }

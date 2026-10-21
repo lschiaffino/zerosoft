@@ -15,7 +15,12 @@ export type DocsBlockType =
   | 'table'
   | 'database'
   | 'image'
-  | 'file';
+  | 'file'
+  | 'toggle'
+  | 'callout';
+
+/** Niveles de anidado (Tab): el bloque cuelga del anterior con un nivel menos. */
+export const DOCS_MAX_INDENT = 6;
 
 export type DocsDatabaseColumnType = 'text' | 'number' | 'select' | 'date';
 
@@ -48,6 +53,18 @@ export interface DocsBlock {
   name?: string;
   size?: number;
   mime?: string;
+  /**
+   * Anidado (Tab / Shift+Tab). El modelo sigue siendo una lista plana: los
+   * hijos de un bloque son los que le siguen con un indent mayor (ver
+   * lib/docs-blocks.ts). Ausente = 0.
+   */
+  indent?: number;
+  /** Toggle (o heading toggle) plegado: sus hijos no se muestran. */
+  collapsed?: boolean;
+  /** Heading con toggle: pliega los bloques anidados debajo. */
+  toggle?: boolean;
+  /** Callout: emoji del recuadro. */
+  icon?: string;
 }
 
 export interface DocsPage {
@@ -110,12 +127,24 @@ export interface DocsComment {
   page_id: string;
   user_id: string;
   block_id: string | null;
+  /** Respuesta: id del comentario raíz del hilo (null = abre un hilo). */
+  parent_id: string | null;
   body: string;
   resolved: boolean;
   created_at: string;
   user_name: string | null;
   user_email: string;
   user_image: string | null;
+}
+
+/** Plantilla guardada por el workspace (además de las built-in de lib/docs-templates.ts). */
+export interface DocsWorkspaceTemplate {
+  id: string;
+  title: string;
+  icon: string | null;
+  description: string;
+  created_by: string | null;
+  created_at: string;
 }
 
 /** Miembro mencionable del workspace (para el popover de @). */

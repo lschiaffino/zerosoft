@@ -1,16 +1,20 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 import {
   createDocPage,
+  createDocPageFromWorkspaceTemplate,
+  deleteDocWorkspaceTemplate,
   moveDocPage,
   moveDocPageStep,
   reorderDocPage,
   type DocDropPlacement,
 } from './docs';
 import { getDocTemplate } from './docs-templates';
-import { getCurrentUser } from './session';
+import { getDb } from './db';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from './session';
 
 /**
  * Las server actions son endpoints públicos: cualquiera puede invocarlas con
@@ -43,6 +47,27 @@ export async function createDocPageFromTemplateAction(locale: string, templateKe
       : { title: '' },
   );
   redirect(`/${safeLocale(locale)}/app/docs/${page.id}`);
+}
+
+/** Página nueva desde una plantilla guardada por el workspace. */
+export async function createDocPageFromWorkspaceTemplateAction(locale: string, templateId: string) {
+  const ownerId = await sessionOwnerId();
+  const page = await createDocPageFromWorkspaceTemplate(ownerId, templateId);
+  // Plantilla borrada mientras tanto: de vuelta al inicio de Docs.
+  redirect(page ? `/${safeLocale(locale)}/app/docs/${page.id}` : `/${safeLocale(locale)}/app/docs`);
+}
+
+/** Borra una plantilla del workspace: quien la guardó o un admin. */
+export async function deleteDocWorkspaceTemplateAction(templateId: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('unauthorized');
+  const row = (await getDb()
+    .prepare('SELECT created_by FROM docs_templates WHERE id = ? AND workspace_id = ?')
+    .get(templateId, user.id)) as { created_by: string | null } | undefined;
+  if (!row) return;
+  if (row.created_by !== realUserId(user) && !isWorkspaceAdmin(user)) return;
+  await deleteDocWorkspaceTemplate(user.id, templateId);
+  revalidatePath('/[locale]/app/docs', 'page');
 }
 
 export async function moveDocPageAction(pageId: string, parentId: string | null) {

@@ -1,6 +1,13 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { DocsBlock } from '@/lib/docs-types';
 import { formatFileSize } from '@/lib/docs-files';
+import { blockIndent } from '@/lib/docs-blocks';
+
+/** Bloques anidados (Tab en el editor): sangría por nivel, en la lista plana. */
+function indentStyle(b: DocsBlock): CSSProperties | undefined {
+  const d = blockIndent(b);
+  return d ? { marginLeft: `${d * 1.5}em` } : undefined;
+}
 
 /**
  * Render de solo lectura de los bloques de una nota (link público /n/<token>
@@ -24,7 +31,9 @@ export default function NoteBlocksView({
       const type = b.type;
       const items: DocsBlock[] = [];
       while (i < blocks.length && blocks[i].type === type) items.push(blocks[i++]);
-      const children = items.map((it) => <li key={it.id} dangerouslySetInnerHTML={{ __html: it.content }} />);
+      const children = items.map((it) => (
+        <li key={it.id} style={indentStyle(it)} dangerouslySetInnerHTML={{ __html: it.content }} />
+      ));
       out.push(type === 'numbered_list_item' ? <ol key={b.id}>{children}</ol> : <ul key={b.id}>{children}</ul>);
       continue;
     }
@@ -53,6 +62,22 @@ export default function NoteBlocksView({
         break;
       case 'quote':
         out.push(<blockquote key={b.id} dangerouslySetInnerHTML={{ __html: b.content }} />);
+        break;
+      case 'callout':
+        out.push(
+          <div key={b.id} className="note-view-callout" style={indentStyle(b)}>
+            <span aria-hidden="true">{b.icon || '💡'}</span>
+            <div dangerouslySetInnerHTML={{ __html: b.content }} />
+          </div>,
+        );
+        break;
+      case 'toggle':
+        out.push(
+          <p key={b.id} className="note-view-toggle" style={indentStyle(b)}>
+            <span aria-hidden="true">▸ </span>
+            <span dangerouslySetInnerHTML={{ __html: b.content }} />
+          </p>,
+        );
         break;
       case 'code':
         out.push(
@@ -106,7 +131,7 @@ export default function NoteBlocksView({
         );
         break;
       default:
-        out.push(<p key={b.id} dangerouslySetInnerHTML={{ __html: b.content || '&nbsp;' }} />);
+        out.push(<p key={b.id} style={indentStyle(b)} dangerouslySetInnerHTML={{ __html: b.content || '&nbsp;' }} />);
     }
   }
   return <div className="note-view">{out}</div>;

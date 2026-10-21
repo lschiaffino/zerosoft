@@ -97,7 +97,12 @@
       "table": "Tabla",
       "database": "Base de datos",
       "image": "Imagen",
-      "file": "Archivo"
+      "file": "Archivo",
+      "toggle": "Lista desplegable",
+      "th1": "Título desplegable 1",
+      "th2": "Título desplegable 2",
+      "th3": "Título desplegable 3",
+      "callout": "Destacado"
     },
     "breadcrumb": "Ruta",
     "closePanel": "Cerrar panel",
@@ -115,6 +120,22 @@
       "untitledFile": "Archivo sin nombre",
       "imageLabel": "Imagen: {name}",
       "fileLabel": "Archivo: {name}"
+    },
+    "togglePlaceholder": "Desplegable",
+    "calloutPlaceholder": "Escribí una nota…",
+    "expand": "Desplegar",
+    "collapse": "Plegar",
+    "calloutIcon": "Cambiar el ícono del destacado",
+    "selection": {
+      "label": "{count, plural, one {# bloque seleccionado} other {# bloques seleccionados}}"
+    },
+    "import": {
+      "menu": "Importar Markdown o Word",
+      "importing": "Importando…",
+      "failed": "No se pudo importar {name}.",
+      "typeNotAllowed": "{name} no es un archivo .md ni .docx.",
+      "tooLarge": "{name} pesa más de 4 MB.",
+      "empty": "{name} no tiene contenido para importar."
     }
   },
   "database": {
@@ -209,7 +230,21 @@
   "templates": {
     "title": "Empezar desde una plantilla",
     "untitled": "Sin título",
-    "use": "Empezar desde una plantilla"
+    "use": "Empezar desde una plantilla",
+    "workspace": "Plantillas de tu workspace",
+    "workspaceDesc": "Guardada por tu equipo.",
+    "delete": "Borrar la plantilla {name}",
+    "saveAs": "Guardar como plantilla",
+    "close": "Cerrar",
+    "saved": "Listo. La plantilla está en el inicio de Docs para todo tu workspace.",
+    "saveHelp": "Copia esta página tal como está ahora. Los cambios que le hagas después no tocan la plantilla.",
+    "name": "Nombre",
+    "description": "Descripción",
+    "limit": "Tu workspace llegó al tope de 100 plantillas. Borrá una para guardar otra.",
+    "error": "No se pudo guardar la plantilla. Probá de nuevo.",
+    "done": "Listo",
+    "cancel": "Cancelar",
+    "save": "Guardar plantilla"
   },
   "trash": {
     "title": "Papelera",
@@ -233,7 +268,11 @@
     "blockThread": "Hilo del bloque",
     "showAll": "Ver todos",
     "blockTag": "Bloque",
-    "error": "No se pudo publicar el comentario. Probá de nuevo."
+    "error": "No se pudo publicar el comentario. Probá de nuevo.",
+    "reply": "Responder",
+    "replyPlaceholder": "Respondé…",
+    "cancel": "Cancelar",
+    "mentionHint": "Escribí @ para mencionar a alguien. Le llega un aviso."
   },
   "help": {
     "notFound": "Centro de ayuda no encontrado",

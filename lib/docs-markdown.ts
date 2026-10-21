@@ -1,4 +1,5 @@
 import type { DocsBlock } from './docs-types';
+import { blockIndent, listNumbers } from './docs-blocks';
 
 /**
  * Bloques de Docs → Markdown (export). Puro, sin DB ni DOM: el contenido de
@@ -98,11 +99,15 @@ export interface BlocksToMarkdownOptions {
 export function blocksToMarkdown(blocks: DocsBlock[], title?: string, opts: BlocksToMarkdownOptions = {}): string {
   const parts: string[] = [];
   if (title && title.trim()) parts.push(`# ${title.trim()}`);
-  let numbered = 0;
+  const numbers = listNumbers(blocks);
+  const LISTISH = new Set(['bulleted_list_item', 'numbered_list_item', 'todo', 'toggle']);
   let prevType: string | null = null;
-  for (const b of blocks) {
-    const listContinues = prevType === b.type && (b.type === 'bulleted_list_item' || b.type === 'numbered_list_item' || b.type === 'todo');
-    if (b.type !== 'numbered_list_item') numbered = 0;
+  blocks.forEach((b, i) => {
+    // Hijos (Tab): dos espacios por nivel, pegados al bloque de arriba.
+    const depth = blockIndent(b);
+    const pad = '  '.repeat(depth);
+    // Ítems seguidos del mismo tipo y los hijos van pegados (sin línea en blanco).
+    const listContinues = prevType !== null && ((prevType === b.type && LISTISH.has(b.type)) || depth > 0);
     let text: string;
     switch (b.type) {
       case 'heading': {
@@ -111,11 +116,11 @@ export function blocksToMarkdown(blocks: DocsBlock[], title?: string, opts: Bloc
         break;
       }
       case 'bulleted_list_item':
+      case 'toggle':
         text = `- ${inlineHtmlToMd(b.content)}`;
         break;
       case 'numbered_list_item':
-        numbered += 1;
-        text = `${numbered}. ${inlineHtmlToMd(b.content)}`;
+        text = `${numbers[i] || 1}. ${inlineHtmlToMd(b.content)}`;
         break;
       case 'todo':
         text = `- [${b.checked ? 'x' : ' '}] ${inlineHtmlToMd(b.content)}`;
@@ -124,6 +129,12 @@ export function blocksToMarkdown(blocks: DocsBlock[], title?: string, opts: Bloc
         text = inlineHtmlToMd(b.content)
           .split('\n')
           .map((l) => `> ${l}`)
+          .join('\n');
+        break;
+      case 'callout':
+        text = inlineHtmlToMd(b.content)
+          .split('\n')
+          .map((l, n) => `> ${n === 0 && b.icon ? `${b.icon} ` : ''}${l}`)
           .join('\n');
         break;
       case 'code':
@@ -153,9 +164,10 @@ export function blocksToMarkdown(blocks: DocsBlock[], title?: string, opts: Bloc
         text = inlineHtmlToMd(b.content);
     }
     prevType = b.type;
-    if (!text.trim()) continue;
+    if (!text.trim()) return;
+    if (pad) text = text.split('\n').map((l) => pad + l).join('\n');
     if (listContinues && parts.length > 0) parts[parts.length - 1] += `\n${text}`;
     else parts.push(text);
-  }
+  });
   return `${parts.join('\n\n')}\n`;
 }

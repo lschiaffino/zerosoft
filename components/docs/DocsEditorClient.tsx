@@ -15,6 +15,7 @@ import DocsEditor from './DocsEditor';
 import ShareDialog, { type ShareRequest } from './ShareDialog';
 import CommentsPanel from './CommentsPanel';
 import VersionsPanel from './VersionsPanel';
+import SaveTemplateDialog from './SaveTemplateDialog';
 import Icon from '@/components/app/icons';
 import DocsGlyph from './DocsGlyphs';
 
@@ -82,7 +83,9 @@ export default function DocsEditorClient({
   // Comments y Versiones viven en un panel lateral que se abre a demanda
   // (como Notion); Compartir es un diálogo.
   const [side, setSide] = useState<'comments' | 'versions' | null>(null);
-  const openComments = allComments.filter((c) => !c.resolved).length;
+  // Hilos abiertos (las respuestas no suman aparte).
+  const openComments = allComments.filter((c) => !c.resolved && !c.parent_id).length;
+  const [templateOpen, setTemplateOpen] = useState(false);
 
   useEffect(() => {
     setAllComments(comments);
@@ -359,6 +362,19 @@ export default function DocsEditorClient({
       >
         {t('export.markdown')}
       </a>
+      {isOwner && (
+        <button
+          type="button"
+          role="menuitem"
+          className="docs-menu-item"
+          onClick={() => {
+            close();
+            setTemplateOpen(true);
+          }}
+        >
+          {t('templates.saveAs')}
+        </button>
+      )}
       <button
         type="button"
         role="menuitem"
@@ -413,6 +429,7 @@ export default function DocsEditorClient({
         onAddComment={handlePageComment}
         commentCounts={commentCounts}
         onBlockComment={handleBlockComment}
+        importUrl={`/api/docs/pages/${page.id}/import`}
         belowTitle={
           backlinks.length > 0 ? (
             <nav className="docs-backlinks" aria-label={t('mentions.linkedFrom')}>
@@ -460,6 +477,13 @@ export default function DocsEditorClient({
           />
         </div>
       </aside>
+      {templateOpen && isOwner && (
+        <SaveTemplateDialog
+          pageId={page.id}
+          defaultTitle={current.title}
+          onClose={() => setTemplateOpen(false)}
+        />
+      )}
       {shareOpen && isOwner && (
         <ShareDialog
           page={current}

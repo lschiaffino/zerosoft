@@ -97,7 +97,12 @@
       "table": "Table",
       "database": "Database",
       "image": "Image",
-      "file": "File"
+      "file": "File",
+      "toggle": "Toggle list",
+      "th1": "Toggle heading 1",
+      "th2": "Toggle heading 2",
+      "th3": "Toggle heading 3",
+      "callout": "Callout"
     },
     "breadcrumb": "Breadcrumb",
     "closePanel": "Close panel",
@@ -115,6 +120,22 @@
       "untitledFile": "Untitled file",
       "imageLabel": "Image: {name}",
       "fileLabel": "File: {name}"
+    },
+    "togglePlaceholder": "Toggle",
+    "calloutPlaceholder": "Write a note…",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "calloutIcon": "Change callout icon",
+    "selection": {
+      "label": "{count, plural, one {# block selected} other {# blocks selected}}"
+    },
+    "import": {
+      "menu": "Import Markdown or Word",
+      "importing": "Importing…",
+      "failed": "Could not import {name}.",
+      "typeNotAllowed": "{name} is not a .md or .docx file.",
+      "tooLarge": "{name} is larger than 4 MB.",
+      "empty": "{name} has no content to import."
     }
   },
   "database": {
@@ -209,7 +230,21 @@
   "templates": {
     "title": "Start from a template",
     "untitled": "Untitled",
-    "use": "Start from a template"
+    "use": "Start from a template",
+    "workspace": "Your workspace templates",
+    "workspaceDesc": "Saved by your team.",
+    "delete": "Delete template {name}",
+    "saveAs": "Save as template",
+    "close": "Close",
+    "saved": "Saved. The template is on the Docs home for your whole workspace.",
+    "saveHelp": "Copies this page as it is now. Later edits to the page do not change the template.",
+    "name": "Name",
+    "description": "Description",
+    "limit": "Your workspace reached the limit of 100 templates. Delete one to save another.",
+    "error": "Could not save the template. Try again.",
+    "done": "Done",
+    "cancel": "Cancel",
+    "save": "Save template"
   },
   "trash": {
     "title": "Trash",
@@ -233,7 +268,11 @@
     "blockThread": "Block thread",
     "showAll": "Show all",
     "blockTag": "Block",
-    "error": "Could not post the comment. Try again."
+    "error": "Could not post the comment. Try again.",
+    "reply": "Reply",
+    "replyPlaceholder": "Reply…",
+    "cancel": "Cancel",
+    "mentionHint": "Type @ to mention someone. They get a notification."
   },
   "help": {
     "notFound": "Help center not found",

@@ -58,6 +58,24 @@ import {
   type DocsMarkTag,
 } from '@/lib/docs-richtext';
 import { pageLinkHtml, type PageLinkCandidate, type PageLinkSource } from '@/lib/docs-page-links';
+import {
+  blockIndent,
+  deleteRange,
+  duplicateRange,
+  expandRange,
+  hiddenBlocks,
+  indentRange,
+  insertionPoint,
+  isToggleBlock,
+  listNumbers,
+  moveRange,
+  nextVisible,
+  normalizeIndents,
+  setIndent,
+  subtreeEnd,
+} from '@/lib/docs-blocks';
+import { blocksToMarkdown } from '@/lib/docs-markdown';
+import { DOCS_IMPORT_MAX_BYTES, docsImportKind } from '@/lib/docs-import';
 import DocsBlockEditor from './DocsBlockEditor';
 import MentionPopover from './MentionPopover';
 import UserMentionPopover from './UserMentionPopover';
@@ -97,12 +115,16 @@ interface DocsEditorProps {
   layoutToggles?: boolean;
   /** Debajo del título (p. ej. "Enlazada desde"). */
   belowTitle?: ReactNode;
+  /** Ruta que convierte un .md/.docx en bloques (menú "···" › Importar). Sin ella no hay importación. */
+  importUrl?: string;
 }
 
 const BLOCK_COMMANDS: {
   key: string;
   type: DocsBlockType;
   level?: 1 | 2 | 3;
+  /** Heading con toggle. */
+  toggle?: boolean;
   shortcut?: string;
 }[] = [
   { key: 'p', type: 'paragraph' },
@@ -112,6 +134,11 @@ const BLOCK_COMMANDS: {
   { key: 'bulleted', type: 'bulleted_list_item', shortcut: '-' },
   { key: 'numbered', type: 'numbered_list_item', shortcut: '1.' },
   { key: 'todo', type: 'todo', shortcut: '[ ]' },
+  { key: 'toggle', type: 'toggle', shortcut: '>>' },
+  { key: 'th1', type: 'heading', level: 1, toggle: true },
+  { key: 'th2', type: 'heading', level: 2, toggle: true },
+  { key: 'th3', type: 'heading', level: 3, toggle: true },
+  { key: 'callout', type: 'callout' },
   { key: 'quote', type: 'quote', shortcut: '>' },
   { key: 'code', type: 'code', shortcut: '```' },
   { key: 'divider', type: 'divider' },
@@ -134,6 +161,11 @@ const COMMAND_KEYWORDS: Record<string, string[]> = {
   numbered: ['numbered', 'list', 'ol', 'ordered', '1.', 'number'],
   todo: ['todo', 'to-do', 'task', 'check', 'checkbox', 'checklist', '[]', '[ ]'],
   quote: ['quote', 'blockquote', 'citation', '>'],
+  toggle: ['toggle', 'collapse', 'details', 'fold', 'desplegable', 'alternar', 'recolher'],
+  th1: ['toggle heading', 'toggle h1', 'heading toggle', 'th1'],
+  th2: ['toggle heading', 'toggle h2', 'heading toggle', 'th2'],
+  th3: ['toggle heading', 'toggle h3', 'heading toggle', 'th3'],
+  callout: ['callout', 'note', 'tip', 'warning', 'info', 'aviso', 'nota', 'destaque'],
   code: ['code', 'snippet', 'pre', '```'],
   divider: ['divider', 'hr', 'line', 'separator', '---'],
   table: ['table', 'grid'],
@@ -155,6 +187,8 @@ const BLOCK_ICONS: Record<DocsBlockType, DocsGlyphName> = {
   database: 'database',
   image: 'image',
   file: 'file',
+  toggle: 'toggle',
+  callout: 'callout',
 };
 
 const LIST_TYPES: DocsBlockType[] = ['bulleted_list_item', 'numbered_list_item', 'todo'];
@@ -192,7 +226,7 @@ function upgradeBlocks(list: DocsBlock[]): DocsBlock[] {
   );
 }
 
-/** Atajos markdown al inicio de un párrafo: "# ", "- ", "1. ", "[] ", "> ". */
+/** Atajos markdown al inicio de un párrafo: "# ", "- ", "1. ", "[] ", "> ", ">> " (toggle). */
 function matchMarkdownPrefix(text: string): { type: DocsBlockType; level?: 1 | 2 | 3 } | null {
   if (text === '#') return { type: 'heading', level: 1 };
   if (text === '##') return { type: 'heading', level: 2 };
@@ -201,6 +235,7 @@ function matchMarkdownPrefix(text: string): { type: DocsBlockType; level?: 1 | 2
   if (/^\d+\.$/.test(text)) return { type: 'numbered_list_item' };
   if (text === '[]' || text === '[ ]') return { type: 'todo' };
   if (text === '>') return { type: 'quote' };
+  if (text === '>>') return { type: 'toggle' };
   return null;
 }
 
@@ -262,6 +297,7 @@ export default function DocsEditor({
   topActions,
   menuExtra,
   layoutToggles = true,
+  importUrl,
 }: DocsEditorProps) {
   const t = useTranslations('docs');
   const [blocks, setBlocks] = useState<DocsBlock[]>(() =>
@@ -369,6 +405,19 @@ export default function DocsEditor({
   const [uploadError, setUploadError] = useState<string | null>(null);
   /** Línea de drop (px, relativa a .docs-blocks) al arrastrar archivos del sistema. */
   const [fileDropLine, setFileDropLine] = useState<number | null>(null);
+  /**
+   * Selección de bloques (Esc, o Shift+↑/↓ en el borde del bloque): rango de
+   * índices con ancla y foco. Mientras hay selección el foco está en el
+   * contenedor de bloques y su teclado mueve, duplica, borra o anida.
+   */
+  const [blockSel, setBlockSel] = useState<{ anchor: number; focus: number } | null>(null);
+  const selMin = blockSel ? Math.min(blockSel.anchor, blockSel.focus) : -1;
+  const selMax = blockSel ? Math.max(blockSel.anchor, blockSel.focus) : -1;
+  /** Bloques dentro de un toggle plegado: no se muestran ni reciben foco. */
+  const hidden = useMemo(() => hiddenBlocks(blocks), [blocks]);
+  const numbers = useMemo(() => listNumbers(blocks), [blocks]);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     setBlocks(upgradeBlocks(page.content.length ? page.content : defaultBlocks()));
@@ -747,14 +796,12 @@ export default function DocsEditor({
 
   const insertBlock = useCallback(
     (index: number, type: DocsBlockType, level?: 1 | 2 | 3) => {
-      const newBlock: DocsBlock = {
-        id: crypto.randomUUID(),
-        type,
-        content: '',
-        level,
-      };
+      // Debajo de un bloque con hijos entra como primer hijo; debajo de un
+      // toggle plegado, después de todo lo que esconde.
+      const { at, indent } = insertionPoint(blocks, index);
+      const newBlock = setIndent({ id: crypto.randomUUID(), type, content: '', level }, indent);
       setBlocks((prev) => {
-        const next = [...prev.slice(0, index + 1), newBlock, ...prev.slice(index + 1)];
+        const next = [...prev.slice(0, at), newBlock, ...prev.slice(at)];
         triggerSave(next);
         return next;
       });
@@ -763,16 +810,17 @@ export default function DocsEditor({
       setSlash(null);
       setMention(null);
       setUserMention(null);
-      setFocusIndex(index + 1);
+      setFocusIndex(at);
     },
-    [triggerSave],
+    [blocks, triggerSave],
   );
 
   const removeBlock = useCallback(
     (index: number) => {
       setBlocks((prev) => {
         if (prev.length <= 1) return prev;
-        const next = prev.filter((_, i) => i !== index);
+        // Los hijos suben un nivel si quedaron colgando (normalizeIndents).
+        const next = normalizeIndents(prev.filter((_, i) => i !== index));
         triggerSave(next);
         return next;
       });
@@ -781,39 +829,58 @@ export default function DocsEditor({
     [triggerSave],
   );
 
-  /** Intercambia el bloque con su vecino (dir = -1 arriba, +1 abajo). */
-  const moveBlock = useCallback(
-    (index: number, dir: -1 | 1) => {
-      setBlocks((prev) => {
-        const target = index + dir;
-        if (index < 0 || index >= prev.length || target < 0 || target >= prev.length) return prev;
-        const next = [...prev];
-        [next[index], next[target]] = [next[target], next[index]];
-        triggerSave(next);
-        return next;
-      });
+  /** Reemplaza todos los bloques (ya con la estructura válida) y guarda. */
+  const commitBlocks = useCallback(
+    (next: DocsBlock[]) => {
+      setBlocks(next);
+      triggerSave(next);
     },
     [triggerSave],
   );
 
-  /** Duplica el bloque (id nuevo, filas/columnas copiadas) justo debajo. */
-  const duplicateBlock = useCallback(
-    (index: number) => {
-      setBlocks((prev) => {
-        const src = prev[index];
-        if (!src) return prev;
-        const copy: DocsBlock = {
-          ...src,
-          id: crypto.randomUUID(),
-          rows: src.rows?.map((r) => [...r]),
-          columns: src.columns?.map((c) => ({ ...c })),
-        };
-        const next = [...prev.slice(0, index + 1), copy, ...prev.slice(index + 1)];
-        triggerSave(next);
-        return next;
-      });
+  /**
+   * Mueve [start, end] con sus hijos un lugar (dir = -1 arriba, +1 abajo):
+   * salta el subárbol del hermano. Devuelve el rango nuevo o null si no se movió.
+   */
+  const moveBlocks = useCallback(
+    (start: number, end: number, dir: -1 | 1) => {
+      const res = moveRange(blocks, start, end, dir);
+      if (!res) return null;
+      commitBlocks(res.blocks);
+      return res;
     },
-    [triggerSave],
+    [blocks, commitBlocks],
+  );
+
+  /** Duplica [start, end] con sus hijos (ids nuevos, filas/columnas copiadas) justo debajo. */
+  const duplicateBlocks = useCallback(
+    (start: number, end: number) => {
+      const res = duplicateRange(blocks, start, end, () => crypto.randomUUID());
+      commitBlocks(res.blocks);
+      return res;
+    },
+    [blocks, commitBlocks],
+  );
+
+  /** Borra [start, end] con sus hijos (la página nunca queda sin bloques). */
+  const deleteBlocks = useCallback(
+    (start: number, end: number) => {
+      const res = deleteRange(blocks, start, end, () => crypto.randomUUID());
+      commitBlocks(res.blocks);
+      return res;
+    },
+    [blocks, commitBlocks],
+  );
+
+  /** Tab / Shift+Tab sobre [start, end]: true si cambió algo. */
+  const indentBlocks = useCallback(
+    (start: number, end: number, dir: -1 | 1) => {
+      const next = indentRange(blocks, start, end, dir);
+      if (!next) return false;
+      commitBlocks(next);
+      return true;
+    },
+    [blocks, commitBlocks],
   );
 
   // ---------- Drag & drop de bloques (pointer events, patrón del DealsBoard) ----------
@@ -914,15 +981,20 @@ export default function DocsEditor({
     (d: BlockDragState) => {
       const from = d.index;
       const dropIndex = d.dropIndex;
-      // Mismo lugar (antes de sí mismo o del que le seguía): no-op.
-      if (dropIndex === from || dropIndex === from + 1) return;
       setBlocks((prev) => {
         if (from < 0 || from >= prev.length) return prev;
-        const next = [...prev];
-        const [moved] = next.splice(from, 1);
-        let insertAt = dropIndex > from ? dropIndex - 1 : dropIndex;
-        insertAt = Math.max(0, Math.min(insertAt, next.length));
-        next.splice(insertAt, 0, moved);
+        // El bloque viaja con sus hijos. Soltarlo dentro de sí mismo (o en
+        // el mismo lugar) no hace nada.
+        const end = subtreeEnd(prev, from);
+        if (dropIndex >= from && dropIndex <= end + 1) return prev;
+        const moved = prev.slice(from, end + 1);
+        const rest = [...prev.slice(0, from), ...prev.slice(end + 1)];
+        const insertAt = Math.max(0, Math.min(dropIndex > end ? dropIndex - moved.length : dropIndex, rest.length));
+        // Toma el nivel del bloque de arriba del destino (como en Notion).
+        const above = rest[insertAt - 1];
+        const shift = (above ? blockIndent(above) : 0) - blockIndent(moved[0]);
+        const placed = moved.map((b) => setIndent(b, blockIndent(b) + shift));
+        const next = normalizeIndents([...rest.slice(0, insertAt), ...placed, ...rest.slice(insertAt)]);
         triggerSave(next);
         return next;
       });
@@ -1049,7 +1121,14 @@ export default function DocsEditor({
    * `content` explícito, ej. el texto ya limpio del `/query` o del atajo md).
    */
   const convertBlock = useCallback(
-    (index: number, type: DocsBlockType, level?: 1 | 2 | 3, content?: string, caretOffset = 0) => {
+    (
+      index: number,
+      type: DocsBlockType,
+      level?: 1 | 2 | 3,
+      content?: string,
+      caretOffset = 0,
+      extra: { toggle?: boolean } = {},
+    ) => {
       setBlocks((prev) => {
         const next = prev.map((b, i) => {
           if (i !== index) return b;
@@ -1059,6 +1138,12 @@ export default function DocsEditor({
             level,
             content: content !== undefined ? content : b.content,
           };
+          // Heading con toggle (o sin); el plegado solo vive en toggles.
+          if (type === 'heading' && extra.toggle) converted.toggle = true;
+          else delete converted.toggle;
+          if (!isToggleBlock(converted)) delete converted.collapsed;
+          if (type === 'callout') converted.icon = converted.icon || '💡';
+          else delete converted.icon;
           if (type === 'todo') converted.checked = converted.checked ?? false;
           // Code es texto plano (pre-wrap): sin marcas en línea dentro.
           if (type === 'code') converted.content = escapeHtml(htmlToFlatText(converted.content));
@@ -1089,7 +1174,7 @@ export default function DocsEditor({
 
   /** Aplica un comando del menú `/`: borra solo el `/query` tipeado y convierte/inserta. */
   const applyCommand = useCallback(
-    (index: number, cmd: { type: DocsBlockType; level?: 1 | 2 | 3 }) => {
+    (index: number, cmd: { type: DocsBlockType; level?: 1 | 2 | 3; toggle?: boolean }) => {
       const block = blocks[index];
       if (!block) return;
       const s = slash && slash.index === index ? slash : null;
@@ -1142,7 +1227,7 @@ export default function DocsEditor({
         return;
       }
 
-      convertBlock(index, cmd.type, cmd.level, stripped, caret);
+      convertBlock(index, cmd.type, cmd.level, stripped, caret, { toggle: cmd.toggle });
     },
     [blocks, slash, convertBlock, triggerSave],
   );
@@ -1172,31 +1257,52 @@ export default function DocsEditor({
       const block = blocks[index];
       if (!block) return;
 
-      // Item vacío + Enter: sale de la lista convirtiéndolo en párrafo.
-      if (LIST_TYPES.includes(block.type) && block.content === '') {
+      // Item vacío + Enter: un ítem anidado sube un nivel; si no, sale de la
+      // lista convirtiéndolo en párrafo (igual un toggle vacío).
+      if ((LIST_TYPES.includes(block.type) || block.type === 'toggle') && block.content === '') {
+        if (blockIndent(block) > 0 && indentBlocks(index, index, -1)) {
+          pendingCaret.current = { index, offset: 0 };
+          setFocusTick((v) => v + 1);
+          return;
+        }
         convertBlock(index, 'paragraph', undefined, '', 0);
         return;
       }
 
       const [before, after] = splitHtmlAt(block.content, caret);
       const isList = LIST_TYPES.includes(block.type);
+      const indent = blockIndent(block);
       // Listas/todo continúan el mismo tipo; heading/paragraph crean un párrafo.
-      const newType: DocsBlockType = isList ? block.type : 'paragraph';
-      const newBlock: DocsBlock = { id: crypto.randomUUID(), type: newType, content: after };
+      // Un toggle desplegado recibe lo nuevo adentro (primer hijo); uno
+      // plegado sigue con otro toggle después de todo lo que esconde.
+      let newType: DocsBlockType = isList ? block.type : 'paragraph';
+      let at = index + 1;
+      let newIndent = indent;
+      if (isToggleBlock(block) && after === '') {
+        if (block.collapsed) {
+          at = subtreeEnd(blocks, index) + 1;
+          if (block.type === 'toggle') newType = 'toggle';
+        } else {
+          newIndent = indent + 1;
+        }
+      } else if (block.type === 'toggle') {
+        newType = 'toggle';
+      }
+      const newBlock = setIndent({ id: crypto.randomUUID(), type: newType, content: after }, newIndent);
       if (newType === 'todo') newBlock.checked = false;
 
       setBlocks((prev) => {
         const next = [...prev];
         next[index] = { ...next[index], content: before };
-        next.splice(index + 1, 0, newBlock);
+        next.splice(at, 0, newBlock);
         triggerSave(next);
         return next;
       });
-      pendingCaret.current = { index: index + 1, offset: 0 };
-      setFocusIndex(index + 1);
+      pendingCaret.current = { index: at, offset: 0 };
+      setFocusIndex(at);
       setFocusTick((v) => v + 1);
     },
-    [blocks, convertBlock, triggerSave],
+    [blocks, convertBlock, indentBlocks, triggerSave],
   );
 
   /** Inserta un '\n' dentro del bloque en la posición del caret (offset plano). */
@@ -1271,7 +1377,18 @@ export default function DocsEditor({
       const block = blocks[index];
       if (!block) return false;
 
-      if (index === 0) {
+      // Un bloque anidado primero sube de nivel (como en Notion).
+      if (blockIndent(block) > 0 && isTextBlockType(block.type)) {
+        if (indentBlocks(index, index, -1)) {
+          pendingCaret.current = { index, offset: 0 };
+          setFocusTick((v) => v + 1);
+          return true;
+        }
+      }
+
+      // El anterior visible: lo que esconde un toggle plegado no cuenta.
+      const prevIndex = nextVisible(hidden, index, -1);
+      if (index === 0 || prevIndex === -1) {
         // Primer bloque: Backspace al inicio solo baja el tipo a párrafo.
         if (block.type !== 'paragraph' && isTextBlockType(block.type)) {
           convertBlock(index, 'paragraph', undefined, block.content, 0);
@@ -1280,11 +1397,11 @@ export default function DocsEditor({
         return false;
       }
 
-      const prev = blocks[index - 1];
+      const prev = blocks[prevIndex];
 
       if (prev.type === 'divider') {
         setBlocks((all) => {
-          const next = all.filter((_, i) => i !== index - 1);
+          const next = normalizeIndents(all.filter((_, i) => i !== prevIndex));
           triggerSave(next);
           return next;
         });
@@ -1296,17 +1413,19 @@ export default function DocsEditor({
 
       if (isTextBlockType(prev.type) && isTextBlockType(block.type)) {
         // Concatenar dos fragmentos HTML-lite saneados es seguro (pueden quedar
-        // tags adyacentes iguales: válido, se renderiza igual).
+        // tags adyacentes iguales: válido, se renderiza igual). Los hijos del
+        // bloque fusionado quedan donde estaban (normalizeIndents los acomoda).
         const join = htmlToFlatText(prev.content).length;
         setBlocks((all) => {
           const next = [...all];
-          next[index - 1] = { ...next[index - 1], content: prev.content + block.content };
+          next[prevIndex] = { ...next[prevIndex], content: prev.content + block.content };
           next.splice(index, 1);
-          triggerSave(next);
-          return next;
+          const norm = normalizeIndents(next);
+          triggerSave(norm);
+          return norm;
         });
-        pendingCaret.current = { index: index - 1, offset: join };
-        setFocusIndex(index - 1);
+        pendingCaret.current = { index: prevIndex, offset: join };
+        setFocusIndex(prevIndex);
         setFocusTick((v) => v + 1);
         return true;
       }
@@ -1318,7 +1437,7 @@ export default function DocsEditor({
       }
       return false;
     },
-    [blocks, convertBlock, removeBlock, triggerSave],
+    [blocks, convertBlock, hidden, indentBlocks, removeBlock, triggerSave],
   );
 
   /**
@@ -1329,7 +1448,8 @@ export default function DocsEditor({
    */
   const moveVertical = useCallback(
     (index: number, dir: -1 | 1, x: number): boolean => {
-      const target = findVerticalTarget(blocks.map((b) => b.type), index, dir);
+      // Lo que esconde un toggle plegado se saltea como un divider.
+      const target = findVerticalTarget(blocks.map((b, i) => (hidden[i] ? 'divider' : b.type)), index, dir);
       if (target === -1) {
         if (dir === -1 && index >= 0 && titleRef.current) {
           placeCaretAtX(titleRef.current, x, 'bottom');
@@ -1347,6 +1467,40 @@ export default function DocsEditor({
         el.scrollIntoView?.({ block: 'nearest' });
       }
       return true;
+    },
+    [blocks, hidden],
+  );
+
+  /**
+   * Pasa a selección de bloques: el caret se va, el foco queda en el
+   * contenedor (su onKeyDown maneja flechas, Backspace, Cmd+D, Tab…).
+   */
+  const selectBlocks = useCallback((anchor: number, focus: number) => {
+    setBlockSel({ anchor, focus });
+    setToolbar(null);
+    setBlockMenu(null);
+    setTurnIntoOpen(false);
+    setCmdOpen(false);
+    setSlash(null);
+    setMention(null);
+    setUserMention(null);
+    window.getSelection()?.removeAllRanges();
+    blocksWrapRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  /** Sale de la selección editando el bloque (caret al final). */
+  const editBlock = useCallback(
+    (index: number, list: DocsBlock[] = blocks) => {
+      setBlockSel(null);
+      const b = list[index];
+      if (!b) return;
+      if (!isTextBlockType(b.type)) {
+        blockRefs.current[index]?.focus();
+        return;
+      }
+      pendingCaret.current = { index, offset: htmlToFlatText(b.content).length };
+      setFocusIndex(index);
+      setFocusTick((v) => v + 1);
     },
     [blocks],
   );
@@ -1409,6 +1563,75 @@ export default function DocsEditor({
         if (key === 'k') {
           e.preventDefault();
           openLinkDialog(index);
+          return;
+        }
+      }
+
+      // Esc: selecciona el bloque (como en Notion). Con la selección, el
+      // teclado mueve, duplica, borra o anida (ver handleSelectionKeyDown).
+      if (e.key === 'Escape' && blockMenu === null && !linkDialog && !e.defaultPrevented) {
+        e.preventDefault();
+        selectBlocks(index, index);
+        return;
+      }
+
+      // Alt+Shift+↑/↓ (o Cmd/Ctrl+Shift+↑/↓): mueve el bloque con sus hijos.
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.shiftKey && (e.altKey || meta)) {
+        e.preventDefault();
+        const res = moveBlocks(index, index, e.key === 'ArrowUp' ? -1 : 1);
+        if (res) {
+          pendingCaret.current = { index: res.start, offset: caret };
+          setFocusIndex(res.start);
+          setFocusTick((v) => v + 1);
+        }
+        return;
+      }
+
+      // Shift+↑ con la selección en el principio (o Shift+↓ en el final) del
+      // bloque: pasa a seleccionar bloques enteros.
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.shiftKey && !e.altKey && !meta) {
+        const dir = e.key === 'ArrowUp' ? -1 : 1;
+        if (isEditable) {
+          const off = getSelectionOffsets(el);
+          const len = htmlToFlatText(block.content).length;
+          const atEdge = !off || (dir === -1 ? off.start === 0 : off.end >= len);
+          if (atEdge) {
+            e.preventDefault();
+            selectBlocks(index, index);
+            return;
+          }
+        } else if (isFileBlockType(block.type) && e.target === e.currentTarget) {
+          e.preventDefault();
+          selectBlocks(index, index);
+          return;
+        }
+      }
+
+      // Cmd/Ctrl+D: duplica el bloque (con sus hijos) y sigue en la copia.
+      if (meta && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'd' && (isEditable || e.target === e.currentTarget)) {
+        e.preventDefault();
+        const res = duplicateBlocks(index, index);
+        pendingCaret.current = { index: res.start, offset: caret };
+        setFocusIndex(res.start);
+        setFocusTick((v) => v + 1);
+        return;
+      }
+
+      // Tab / Shift+Tab: anida o desanida (en código, Tab indenta el texto).
+      if (e.key === 'Tab' && !meta && !e.altKey) {
+        if (block.type === 'code' && isEditable && !e.shiftKey) {
+          e.preventDefault();
+          updateBlock(index, { content: insertTextAtOffset(block.content, caret, '  ') });
+          pendingCaret.current = { index, offset: caret + 2 };
+          setFocusTick((v) => v + 1);
+          return;
+        }
+        if (isEditable || (isFileBlockType(block.type) && e.target === e.currentTarget)) {
+          e.preventDefault();
+          if (indentBlocks(index, index, e.shiftKey ? -1 : 1)) {
+            pendingCaret.current = { index, offset: caret };
+            setFocusTick((v) => v + 1);
+          }
           return;
         }
       }
@@ -1510,6 +1733,13 @@ export default function DocsEditor({
       mention,
       userMention,
       moveVertical,
+      blockMenu,
+      linkDialog,
+      selectBlocks,
+      moveBlocks,
+      duplicateBlocks,
+      indentBlocks,
+      updateBlock,
     ],
   );
 
@@ -1595,6 +1825,7 @@ export default function DocsEditor({
   const handleFocus = useCallback((index: number) => {
     prevFocus.current = index;
     setFocusIndex(index);
+    setBlockSel(null);
     // El foco llegó a un bloque (click, split, conversión): cualquier menú
     // anclado al caret que haya quedado abierto ya no corresponde.
     setSlash(null);
@@ -1669,6 +1900,176 @@ export default function DocsEditor({
     [blocks, page.id, triggerSave, userMention],
   );
 
+  /**
+   * Teclado con bloques seleccionados (foco en el contenedor): ↑/↓ cambia el
+   * bloque, Shift+↑/↓ extiende, Alt+Shift+↑/↓ mueve, Cmd/Ctrl+D duplica,
+   * Backspace/Supr borra, Tab/Shift+Tab anida, Cmd/Ctrl+C/X copia o corta
+   * como Markdown, Cmd/Ctrl+A selecciona todo, Enter edita y Esc sale.
+   */
+  const handleSelectionKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!blockSel || e.target !== e.currentTarget) return;
+    const meta = e.metaKey || e.ctrlKey;
+    const key = e.key;
+    const keep = (start: number, end: number) =>
+      setBlockSel(blockSel.anchor <= blockSel.focus ? { anchor: start, focus: end } : { anchor: end, focus: start });
+    const reveal = (i: number) => blocksWrapRef.current
+      ?.querySelectorAll<HTMLElement>(':scope > .docs-block-outer')
+      [i]?.scrollIntoView?.({ block: 'nearest' });
+
+    if (key === 'Escape') {
+      e.preventDefault();
+      setBlockSel(null);
+      return;
+    }
+    if (key === 'ArrowUp' || key === 'ArrowDown') {
+      e.preventDefault();
+      const dir = key === 'ArrowUp' ? -1 : 1;
+      if (e.shiftKey && (e.altKey || meta)) {
+        const res = moveBlocks(selMin, selMax, dir);
+        if (res) {
+          keep(res.start, res.end);
+          reveal(dir === -1 ? res.start : res.end);
+        }
+        return;
+      }
+      if (e.shiftKey) {
+        const f = nextVisible(hidden, blockSel.focus, dir);
+        if (f !== -1) {
+          setBlockSel({ anchor: blockSel.anchor, focus: f });
+          reveal(f);
+        }
+        return;
+      }
+      const from = dir === -1 ? selMin : selMax;
+      const to = nextVisible(hidden, from, dir);
+      const target = to === -1 ? from : to;
+      setBlockSel({ anchor: target, focus: target });
+      reveal(target);
+      return;
+    }
+    if (key === 'Backspace' || key === 'Delete') {
+      e.preventDefault();
+      const res = deleteBlocks(selMin, selMax);
+      editBlock(res.start, res.blocks);
+      return;
+    }
+    if (meta && key.toLowerCase() === 'd') {
+      e.preventDefault();
+      const res = duplicateBlocks(selMin, selMax);
+      keep(res.start, res.end);
+      return;
+    }
+    if (key === 'Tab') {
+      e.preventDefault();
+      indentBlocks(selMin, selMax, e.shiftKey ? -1 : 1);
+      return;
+    }
+    if (key === 'Enter') {
+      e.preventDefault();
+      editBlock(blockSel.focus);
+      return;
+    }
+    if (meta && key.toLowerCase() === 'a') {
+      e.preventDefault();
+      const last = hidden.lastIndexOf(false);
+      setBlockSel({ anchor: 0, focus: Math.max(0, last) });
+      return;
+    }
+    if (meta && (key.toLowerCase() === 'c' || key.toLowerCase() === 'x')) {
+      e.preventDefault();
+      const [a, b] = expandRange(blocks, selMin, selMax);
+      const md = blocksToMarkdown(blocks.slice(a, b + 1));
+      navigator.clipboard?.writeText(md).catch(() => {});
+      if (key.toLowerCase() === 'x') {
+        const res = deleteBlocks(selMin, selMax);
+        editBlock(res.start, res.blocks);
+      }
+    }
+  };
+
+  /**
+   * Pegado con estructura (varios párrafos, listas, headings, Markdown):
+   * el texto antes del caret queda en el bloque, lo pegado entra como
+   * bloques debajo (con el nivel del bloque) y lo que seguía al caret va a
+   * un párrafo al final. Un párrafo vacío se reemplaza.
+   */
+  const handlePasteBlocks = useCallback(
+    (index: number, pasted: DocsBlock[]) => {
+      const block = blocks[index];
+      if (!block || pasted.length === 0) return;
+      const el = blockRefs.current[index];
+      const offsets = el ? getSelectionOffsets(el) : null;
+      let content = block.content;
+      let caret = htmlToFlatText(content).length;
+      if (offsets) {
+        content = removeHtmlRange(content, offsets.start, offsets.end);
+        caret = offsets.start;
+      }
+      const [before, after] = splitHtmlAt(content, caret);
+      const base = blockIndent(block);
+      const placed = pasted.map((b) => setIndent(b, blockIndent(b) + base));
+      const keepCurrent = htmlToFlatText(before).trim() !== '' || block.type !== 'paragraph';
+      const tail: DocsBlock[] = htmlToFlatText(after).trim()
+        ? [setIndent({ id: crypto.randomUUID(), type: 'paragraph', content: after }, base)]
+        : [];
+      const head = keepCurrent ? [{ ...block, content: before }] : [];
+      const next = normalizeIndents([...blocks.slice(0, index), ...head, ...placed, ...tail, ...blocks.slice(index + 1)]);
+      commitBlocks(next);
+      const lastIndex = index + head.length + placed.length - 1;
+      const last = next[lastIndex];
+      if (last && isTextBlockType(last.type)) {
+        pendingCaret.current = { index: lastIndex, offset: htmlToFlatText(last.content).length };
+        setFocusIndex(lastIndex);
+        setFocusTick((v) => v + 1);
+      }
+    },
+    [blocks, commitBlocks],
+  );
+
+  /** Importa un .md o .docx: el server lo convierte en bloques y se agregan al final. */
+  const importFile = useCallback(
+    async (file: File) => {
+      if (!importUrl) return;
+      setUploadError(null);
+      if (!docsImportKind(file.name)) {
+        setUploadError(t('editor.import.typeNotAllowed', { name: file.name }));
+        return;
+      }
+      if (file.size > DOCS_IMPORT_MAX_BYTES) {
+        setUploadError(t('editor.import.tooLarge', { name: file.name }));
+        return;
+      }
+      setImporting(true);
+      try {
+        const body = new FormData();
+        body.append('file', file);
+        const res = await fetch(importUrl, { method: 'POST', body });
+        if (!res.ok) {
+          setUploadError(t('editor.import.failed', { name: file.name }));
+          return;
+        }
+        const data = (await res.json()) as { blocks?: DocsBlock[] };
+        const imported = upgradeBlocks(data.blocks ?? []);
+        if (imported.length === 0) {
+          setUploadError(t('editor.import.empty', { name: file.name }));
+          return;
+        }
+        setBlocks((prev) => {
+          // Página vacía (un párrafo sin texto): lo importado la reemplaza.
+          const empty = prev.length === 1 && prev[0].type === 'paragraph' && prev[0].content === '';
+          const next = normalizeIndents(empty ? imported : [...prev, ...imported]);
+          triggerSaveRef.current(next);
+          return next;
+        });
+      } catch {
+        setUploadError(t('editor.import.failed', { name: file.name }));
+      } finally {
+        setImporting(false);
+      }
+    },
+    [importUrl, t],
+  );
+
   /** Menú "…": flechas entre ítems, Esc cierra y devuelve el foco al botón. */
   const pageMenuKeys = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role^="menuitem"]'));
@@ -1738,8 +2139,6 @@ export default function DocsEditor({
     setToolbar(null);
   };
 
-  let numberedIndex = 0;
-
   return (
     <div className={`docs-editor${smallText ? ' docs-editor-small' : ''}${fullWidth ? ' docs-editor-full' : ''}${embedded ? ' docs-editor-embedded' : ''}`}>
       {!embedded && (
@@ -1805,6 +2204,19 @@ export default function DocsEditor({
                 <button type="button" role="menuitem" className="docs-menu-item" onClick={copyContents}>
                   {t('editor.copyContents')}
                 </button>
+                {importUrl && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="docs-menu-item"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      importInputRef.current?.click();
+                    }}
+                  >
+                    {t('editor.import.menu')}
+                  </button>
+                )}
                 {onDuplicate && (
                   <button type="button" role="menuitem" className="docs-menu-item" onClick={onDuplicate}>
                     {t('editor.duplicate')}
@@ -2005,8 +2417,20 @@ export default function DocsEditor({
       </div>
 
       <div
-        className={`docs-blocks${fileDropLine !== null ? ' file-dragover' : ''}`}
+        className={`docs-blocks${fileDropLine !== null ? ' file-dragover' : ''}${blockSel ? ' has-selection' : ''}`}
         ref={blocksWrapRef}
+        tabIndex={-1}
+        aria-label={blockSel ? t('editor.selection.label', { count: selMax - selMin + 1 }) : undefined}
+        onKeyDown={handleSelectionKeyDown}
+        onMouseDown={(e) => {
+          // Un click (salvo Shift+click en el asa) deja la selección de bloques.
+          if (blockSel && !(e.shiftKey && (e.target as HTMLElement).closest('.docs-block-grip'))) setBlockSel(null);
+        }}
+        onBlur={(e) => {
+          if (blockSel && e.target === e.currentTarget && !e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setBlockSel(null);
+          }
+        }}
         onDragOver={(e) => {
           if (!uploadsEnabled || !Array.from(e.dataTransfer.types).includes('Files')) return;
           e.preventDefault();
@@ -2025,13 +2449,17 @@ export default function DocsEditor({
         }}
       >
         {blocks.map((block, index) => {
-          if (block.type === 'numbered_list_item') numberedIndex++;
-          else numberedIndex = 0;
           const commentCount = commentCounts?.[block.id] ?? 0;
+          const indent = blockIndent(block);
+          const isHidden = hidden[index];
+          const selected = !isHidden && index >= selMin && index <= selMax;
           return (
             <Fragment key={block.id}>
               <div
-                className={`docs-block-outer${dragIndex === index ? ' dragging' : ''}${blockMenu === index ? ' menu-open' : ''}`}
+                className={`docs-block-outer${dragIndex === index ? ' dragging' : ''}${blockMenu === index ? ' menu-open' : ''}${isHidden ? ' is-hidden' : ''}${selected ? ' is-selected' : ''}`}
+                style={indent ? ({ '--docs-indent': indent } as CSSProperties) : undefined}
+                data-indent={indent || undefined}
+                aria-hidden={isHidden || undefined}
               >
                 <button
                   type="button"
@@ -2043,7 +2471,15 @@ export default function DocsEditor({
                   onPointerMove={handleGripPointerMove}
                   onPointerUp={handleGripPointerUp}
                   onPointerCancel={handleGripPointerCancel}
-                  onClick={() => handleGripClick(index)}
+                  onClick={(e) => {
+                    // Shift+click en el asa: extiende la selección de bloques.
+                    if (e.shiftKey) {
+                      e.preventDefault();
+                      selectBlocks(blockSel ? blockSel.anchor : focusIndex, index);
+                      return;
+                    }
+                    handleGripClick(index);
+                  }}
                 >
                   <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden>
                     <rect x="1" y="1" width="2.4" height="2.4" />
@@ -2078,7 +2514,7 @@ export default function DocsEditor({
                               className="docs-bmenu-item"
                               onClick={() => {
                                 closeBlockMenu();
-                                convertBlock(index, cmd.type, cmd.level);
+                                convertBlock(index, cmd.type, cmd.level, undefined, 0, { toggle: cmd.toggle });
                               }}
                             >
                               <span className="docs-command-icon"><DocsGlyph name={BLOCK_ICONS[cmd.type]} size={14} /></span>
@@ -2095,7 +2531,7 @@ export default function DocsEditor({
                       className="docs-bmenu-item"
                       onClick={() => {
                         closeBlockMenu();
-                        duplicateBlock(index);
+                        duplicateBlocks(index, index);
                       }}
                     >
                       {t('editor.blockMenu.duplicate')}
@@ -2128,7 +2564,7 @@ export default function DocsEditor({
                       disabled={index === 0}
                       onClick={() => {
                         closeBlockMenu();
-                        moveBlock(index, -1);
+                        moveBlocks(index, index, -1);
                       }}
                     >
                       {t('editor.blockMenu.moveUp')}
@@ -2136,10 +2572,10 @@ export default function DocsEditor({
                     <button
                       type="button"
                       className="docs-bmenu-item"
-                      disabled={index === blocks.length - 1}
+                      disabled={subtreeEnd(blocks, index) === blocks.length - 1}
                       onClick={() => {
                         closeBlockMenu();
-                        moveBlock(index, 1);
+                        moveBlocks(index, index, 1);
                       }}
                     >
                       {t('editor.blockMenu.moveDown')}
@@ -2151,7 +2587,7 @@ export default function DocsEditor({
                       disabled={blocks.length <= 1}
                       onClick={() => {
                         closeBlockMenu();
-                        removeBlock(index);
+                        deleteBlocks(index, index);
                       }}
                     >
                       {t('editor.blockMenu.delete')}
@@ -2187,7 +2623,7 @@ export default function DocsEditor({
                 <DocsBlockEditor
                   block={block}
                   index={index}
-                  listIndex={numberedIndex || undefined}
+                  listIndex={numbers[index] || undefined}
                   onChange={handleBlockChange}
                   onKeyDown={handleKeyDown}
                   onFocus={handleFocus}
@@ -2195,10 +2631,11 @@ export default function DocsEditor({
                   fileHref={uploadsEnabled ? fileHref : undefined}
                   pageLinks={pageLinks}
                   onPasteFiles={uploadsEnabled ? handlePasteFiles : undefined}
+                  onPasteBlocks={handlePasteBlocks}
                   ref={(el) => { blockRefs.current[index] = el; }}
                 />
               </div>
-              <div className="docs-gap">
+              <div className={`docs-gap${isHidden ? ' is-hidden' : ''}`}>
                 <button
                   type="button"
                   className="docs-gap-add"
@@ -2242,10 +2679,30 @@ export default function DocsEditor({
           }}
         />
       )}
-      {(uploading > 0 || uploadError) && (
-        <p className={`docs-upload-status${uploadError && uploading === 0 ? ' is-error' : ''}`} role="status">
-          <span>{uploading > 0 ? t('editor.upload.uploading', { count: uploading }) : uploadError}</span>
-          {uploadError && uploading === 0 && (
+      {importUrl && (
+        <input
+          ref={importInputRef}
+          type="file"
+          hidden
+          accept=".md,.markdown,.txt,.docx,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          data-testid="docs-import-input"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (file) void importFile(file);
+          }}
+        />
+      )}
+      {(uploading > 0 || importing || uploadError) && (
+        <p className={`docs-upload-status${uploadError && uploading === 0 && !importing ? ' is-error' : ''}`} role="status">
+          <span>
+            {uploading > 0
+              ? t('editor.upload.uploading', { count: uploading })
+              : importing
+                ? t('editor.import.importing')
+                : uploadError}
+          </span>
+          {uploadError && uploading === 0 && !importing && (
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setUploadError(null)}>
               {t('editor.upload.dismiss')}
             </button>

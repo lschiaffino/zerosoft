@@ -2,6 +2,7 @@
  * Docs — schemas zod para payloads de rutas API.
  */
 import { z } from 'zod';
+import { DOCS_MAX_INDENT } from './docs-types';
 
 /** Topes de un PATCH de página: el editor los chequea antes de mandar. */
 export const DOCS_BLOCK_MAX = 20000;
@@ -26,6 +27,8 @@ const docsBlockType = z.enum([
   'database',
   'image',
   'file',
+  'toggle',
+  'callout',
 ]);
 
 const docsDatabaseColumnSchema = z.object({
@@ -50,6 +53,10 @@ export const docsBlockSchema = z.object({
   name: z.string().max(255).optional(),
   size: z.number().int().min(0).max(1024 * 1024 * 1024).optional(),
   mime: z.string().max(255).optional(),
+  indent: z.number().int().min(0).max(DOCS_MAX_INDENT).optional(),
+  collapsed: z.boolean().optional(),
+  toggle: z.boolean().optional(),
+  icon: z.string().max(16).optional(),
 });
 
 export const docPageCreateSchema = z.object({
@@ -95,10 +102,21 @@ export const SHARED_EDITABLE_FIELDS = ['title', 'icon', 'cover_url', 'content', 
 export const docCommentCreateSchema = z.object({
   body: z.string().trim().min(1).max(5000),
   block_id: id.nullish(),
+  /** Respuesta a un hilo (id de cualquier comentario del hilo). */
+  parent_id: id.nullish(),
+  /** Personas elegidas en el popover de @ (el server valida que sean del workspace). */
+  mention_ids: z.array(id).max(20).optional(),
 });
 
 export const docCommentUpdateSchema = z.object({
   resolved: z.boolean(),
+});
+
+/** Guardar una página como plantilla del workspace. */
+export const docTemplateCreateSchema = z.object({
+  page_id: id,
+  title: shortText.optional(),
+  description: z.string().trim().max(300).optional(),
 });
 
 export const docMentionCreateSchema = z.object({

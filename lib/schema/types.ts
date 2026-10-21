@@ -693,9 +693,22 @@ export interface DocsCommentRow {
   page_id: string;
   user_id: string;
   block_id: string | null;
+  parent_id: string | null;
   body: string;
   resolved: 0 | 1;
   created_at: string;
+}
+
+export interface DocsTemplateRow {
+  id: string;
+  workspace_id: string;
+  created_by: string | null;
+  title: string;
+  icon: string | null;
+  description: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // ---------- Calendar ----------

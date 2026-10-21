@@ -2758,6 +2758,33 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Docs: respuestas en los hilos de comentarios (parent_id = comentario
+    // raíz; al borrar la raíz se va el hilo) y plantillas guardadas por el
+    // workspace a partir de una página (bloques copiados en el momento).
+    id: '058_docs_comment_replies_templates',
+    async up(client) {
+      await addColumn(
+        client,
+        'ALTER TABLE docs_comments ADD COLUMN parent_id TEXT REFERENCES docs_comments(id) ON DELETE CASCADE',
+      );
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_docs_comments_parent ON docs_comments(parent_id) WHERE parent_id IS NOT NULL;
+        CREATE TABLE IF NOT EXISTS docs_templates (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          title TEXT NOT NULL DEFAULT '',
+          icon TEXT,
+          description TEXT NOT NULL DEFAULT '',
+          content TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_templates_workspace ON docs_templates(workspace_id, created_at DESC);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

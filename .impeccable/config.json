@@ -47,6 +47,15 @@
         ],
         "createdAt": "2026-10-20T21:04:59.769Z",
         "reason": "agent: regex in a Markdown importer that converts <img> tags to links, no rendered image"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "lib/docs-import.ts"
+        ],
+        "createdAt": "2026-10-21T04:29:35.034Z",
+        "reason": "agent: regex literal matching <img> tags in a Markdown parser, not rendered markup"
       }
     ]
   }

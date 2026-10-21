@@ -20,6 +20,9 @@ const PATHS = {
   image: <path d="M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6M15 9h.01" />,
   file: <path d="M14 3H7v18h10V6zM14 3v3h3M10 13h4M10 17h4" />,
   search: <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM16 16l5 5" />,
+  // Toggle (triángulo que rota al desplegar) y callout (recuadro con marca).
+  toggle: <path d="M9 6l6 6-6 6" />,
+  callout: <path d="M3 5h18v14H3zM7 9v2M11 9h6M11 13h6M7 15h.01" />,
 } as const;
 
 export type DocsGlyphName = keyof typeof PATHS;

@@ -97,7 +97,12 @@
       "table": "Tabela",
       "database": "Banco de dados",
       "image": "Imagem",
-      "file": "Arquivo"
+      "file": "Arquivo",
+      "toggle": "Lista recolhível",
+      "th1": "Título recolhível 1",
+      "th2": "Título recolhível 2",
+      "th3": "Título recolhível 3",
+      "callout": "Destaque"
     },
     "breadcrumb": "Caminho",
     "closePanel": "Fechar painel",
@@ -115,6 +120,22 @@
       "untitledFile": "Arquivo sem nome",
       "imageLabel": "Imagem: {name}",
       "fileLabel": "Arquivo: {name}"
+    },
+    "togglePlaceholder": "Recolhível",
+    "calloutPlaceholder": "Escreva uma nota…",
+    "expand": "Expandir",
+    "collapse": "Recolher",
+    "calloutIcon": "Trocar o ícone do destaque",
+    "selection": {
+      "label": "{count, plural, one {# bloco selecionado} other {# blocos selecionados}}"
+    },
+    "import": {
+      "menu": "Importar Markdown ou Word",
+      "importing": "Importando…",
+      "failed": "Não foi possível importar {name}.",
+      "typeNotAllowed": "{name} não é um arquivo .md nem .docx.",
+      "tooLarge": "{name} tem mais de 4 MB.",
+      "empty": "{name} não tem conteúdo para importar."
     }
   },
   "database": {
@@ -209,7 +230,21 @@
   "templates": {
     "title": "Começar de um modelo",
     "untitled": "Sem título",
-    "use": "Começar com um modelo"
+    "use": "Começar com um modelo",
+    "workspace": "Modelos do seu workspace",
+    "workspaceDesc": "Salvo pela sua equipe.",
+    "delete": "Excluir o modelo {name}",
+    "saveAs": "Salvar como modelo",
+    "close": "Fechar",
+    "saved": "Pronto. O modelo está no início do Docs para todo o seu workspace.",
+    "saveHelp": "Copia esta página como está agora. As mudanças que você fizer depois não alteram o modelo.",
+    "name": "Nome",
+    "description": "Descrição",
+    "limit": "Seu workspace chegou ao limite de 100 modelos. Exclua um para salvar outro.",
+    "error": "Não foi possível salvar o modelo. Tente de novo.",
+    "done": "Pronto",
+    "cancel": "Cancelar",
+    "save": "Salvar modelo"
   },
   "trash": {
     "title": "Lixeira",
@@ -233,7 +268,11 @@
     "blockThread": "Conversa do bloco",
     "showAll": "Ver todos",
     "blockTag": "Bloco",
-    "error": "Não foi possível publicar o comentário. Tente de novo."
+    "error": "Não foi possível publicar o comentário. Tente de novo.",
+    "reply": "Responder",
+    "replyPlaceholder": "Responda…",
+    "cancel": "Cancelar",
+    "mentionHint": "Digite @ para mencionar alguém. A pessoa recebe um aviso."
   },
   "help": {
     "notFound": "Central de ajuda não encontrada",

@@ -267,6 +267,60 @@ export async function createDocsMentionNotification(args: {
   });
 }
 
+/**
+ * Comentario nuevo en una página de Docs: avisa a los @mencionados y, si es
+ * una respuesta, a quienes participan del hilo. Cada persona recibe un solo
+ * aviso (la mención gana) y nunca quien escribe. Quien llama ya filtró a los
+ * que pueden abrir la página.
+ */
+export async function createDocsCommentNotifications(args: {
+  pageId: string;
+  pageTitle: string;
+  commentId: string;
+  actor: Actor;
+  body: string;
+  mentioned: string[];
+  /** Participantes del hilo (solo en respuestas). */
+  threadParticipants: string[];
+}): Promise<string[]> {
+  const { pageId, pageTitle, commentId, actor, body, mentioned, threadParticipants } = args;
+  const title = pageTitle || 'Untitled';
+  const notified = new Set<string>([actor.id]);
+  const meta = { pageTitle: title, actorName: actorName(actor), actorId: actor.id, commentId };
+  const sent: string[] = [];
+  for (const userId of mentioned) {
+    if (notified.has(userId)) continue;
+    notified.add(userId);
+    sent.push(userId);
+    await createNotification({
+      userId,
+      type: 'mention',
+      title: `${actorName(actor)} mentioned you in a comment on ${title}`,
+      body: body.slice(0, 140),
+      href: `/app/docs/${pageId}`,
+      sourceType: 'docs_comment',
+      sourceId: pageId,
+      meta,
+    });
+  }
+  for (const userId of threadParticipants) {
+    if (notified.has(userId)) continue;
+    notified.add(userId);
+    sent.push(userId);
+    await createNotification({
+      userId,
+      type: 'comment',
+      title: `${actorName(actor)} replied to a comment on ${title}`,
+      body: body.slice(0, 140),
+      href: `/app/docs/${pageId}`,
+      sourceType: 'docs_comment',
+      sourceId: pageId,
+      meta: { ...meta, reply: true },
+    });
+  }
+  return sent;
+}
+
 /** Una página de Docs se compartió con la persona. */
 export async function createDocsShareNotification(args: {
   pageId: string;

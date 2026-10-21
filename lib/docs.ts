@@ -1,4 +1,13 @@
-import { getDb, getUserById, type DocsCommentRow, type DocsPageRow, type DocsShareRow, type TeamRow, type UserRow } from './db';
+import {
+  getDb,
+  getUserById,
+  type DocsCommentRow,
+  type DocsPageRow,
+  type DocsShareRow,
+  type DocsTemplateRow,
+  type TeamRow,
+  type UserRow,
+} from './db';
 import { sanitizeBlocks } from './docs-sanitize';
 import { pageLinkIds } from './docs-page-links';
 import {
@@ -21,6 +30,7 @@ import {
   type DocsPageShare,
   type DocsPageSummary,
   type DocsShareRole,
+  type DocsWorkspaceTemplate,
   defaultBlocks,
   mergeInheritedShares,
   stringifyBlocks,
@@ -944,6 +954,7 @@ function toComment(row: DocsCommentJoinedRow): DocsComment {
     page_id: row.page_id,
     user_id: row.user_id,
     block_id: row.block_id,
+    parent_id: row.parent_id ?? null,
     body: row.body,
     resolved: row.resolved === 1,
     created_at: row.created_at,
@@ -989,31 +1000,157 @@ export async function listDocComments(pageId: string): Promise<DocsComment[]> {
 export async function createDocComment(
   pageId: string,
   userId: string,
-  input: { body: string; block_id?: string | null },
+  input: { body: string; block_id?: string | null; parent_id?: string | null },
 ): Promise<DocsComment> {
   const id = crypto.randomUUID();
+  // Una respuesta cuelga siempre de la raíz del hilo (responder a una
+  // respuesta no anida más) y hereda su bloque.
+  let parentId: string | null = null;
+  let blockId = input.block_id ?? null;
+  if (input.parent_id) {
+    const parent = await getDocComment(input.parent_id);
+    if (!parent || parent.page_id !== pageId) throw new DocsCommentParentError();
+    parentId = parent.parent_id ?? parent.id;
+    const root = parentId === parent.id ? parent : await getDocComment(parentId);
+    blockId = root?.block_id ?? null;
+  }
   await getDb()
     .prepare(
-      `INSERT INTO docs_comments (id, page_id, user_id, block_id, body, resolved, created_at)
-       VALUES (?, ?, ?, ?, ?, 0, ?)`,
+      `INSERT INTO docs_comments (id, page_id, user_id, block_id, parent_id, body, resolved, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 0, ?)`,
     )
-    .run(id, pageId, userId, input.block_id ?? null, input.body.trim(), new Date().toISOString());
+    .run(id, pageId, userId, blockId, parentId, input.body.trim(), new Date().toISOString());
+  // Responder reabre un hilo resuelto (como en Notion).
+  if (parentId) {
+    await getDb().prepare('UPDATE docs_comments SET resolved = 0 WHERE id = ? OR parent_id = ?').run(parentId, parentId);
+  }
   return (await getDocComment(id))!;
+}
+
+/** parent_id de otra página o inexistente. */
+export class DocsCommentParentError extends Error {
+  constructor() {
+    super('invalid_parent');
+  }
+}
+
+/** Autores del hilo (raíz y respuestas), para avisar de una respuesta nueva. */
+export async function listDocThreadParticipants(rootId: string): Promise<string[]> {
+  const rows = (await getDb()
+    .prepare('SELECT DISTINCT user_id FROM docs_comments WHERE id = ? OR parent_id = ?')
+    .all(rootId, rootId)) as Array<{ user_id: string }>;
+  return rows.map((r) => r.user_id);
 }
 
 export async function setDocCommentResolved(
   commentId: string,
   resolved: boolean,
 ): Promise<DocsComment | null> {
+  // Resolver una respuesta resuelve el hilo entero (el estado vive en la raíz).
+  const comment = await getDocComment(commentId);
+  if (!comment) return null;
+  const rootId = comment.parent_id ?? comment.id;
   await getDb()
-    .prepare('UPDATE docs_comments SET resolved = ? WHERE id = ?')
-    .run(resolved ? 1 : 0, commentId);
+    .prepare('UPDATE docs_comments SET resolved = ? WHERE id = ? OR parent_id = ?')
+    .run(resolved ? 1 : 0, rootId, rootId);
   return getDocComment(commentId);
 }
 
 export async function deleteDocComment(commentId: string): Promise<boolean> {
+  // Borrar la raíz se lleva las respuestas (también sin FKs prendidas).
+  await getDb().prepare('DELETE FROM docs_comments WHERE parent_id = ?').run(commentId);
   const res = await getDb().prepare('DELETE FROM docs_comments WHERE id = ?').run(commentId);
   return res.changes > 0;
+}
+
+// ---------- Plantillas del workspace ----------
+
+function toWorkspaceTemplate(row: DocsTemplateRow): DocsWorkspaceTemplate {
+  return {
+    id: row.id,
+    title: row.title,
+    icon: row.icon,
+    description: row.description,
+    created_by: row.created_by,
+    created_at: row.created_at,
+  };
+}
+
+/** Tope de plantillas por workspace. */
+export const DOCS_TEMPLATES_MAX = 100;
+
+export class DocsTemplateLimitError extends Error {
+  constructor() {
+    super('template_limit');
+  }
+}
+
+export async function listDocWorkspaceTemplates(workspaceId: string): Promise<DocsWorkspaceTemplate[]> {
+  const rows = (await getDb()
+    .prepare('SELECT * FROM docs_templates WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?')
+    .all(workspaceId, DOCS_TEMPLATES_MAX)) as DocsTemplateRow[];
+  return rows.map(toWorkspaceTemplate);
+}
+
+/**
+ * Guarda una página del workspace como plantilla: copia título, ícono y
+ * bloques tal como están ahora (cambios posteriores a la página no la tocan).
+ * null si la página no es del workspace; DocsTemplateLimitError si se llegó al tope.
+ */
+export async function createDocWorkspaceTemplate(
+  workspaceId: string,
+  createdBy: string,
+  input: { page_id: string; title?: string; description?: string },
+): Promise<DocsWorkspaceTemplate | null> {
+  const page = (await getDb()
+    .prepare('SELECT * FROM docs_pages WHERE id = ? AND user_id = ?')
+    .get(input.page_id, workspaceId)) as DocsPageRow | undefined;
+  if (!page) return null;
+  const count = (await getDb()
+    .prepare('SELECT COUNT(*) AS c FROM docs_templates WHERE workspace_id = ?')
+    .get(workspaceId)) as { c: number };
+  if (Number(count.c) >= DOCS_TEMPLATES_MAX) throw new DocsTemplateLimitError();
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const title = (input.title ?? '').trim() || page.title;
+  await getDb()
+    .prepare(
+      `INSERT INTO docs_templates (id, workspace_id, created_by, title, icon, description, content, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      id,
+      workspaceId,
+      createdBy,
+      title,
+      page.icon,
+      (input.description ?? '').trim(),
+      stringifyBlocks(sanitizeBlocks(parseBlocks(page.content))),
+      now,
+      now,
+    );
+  const row = (await getDb().prepare('SELECT * FROM docs_templates WHERE id = ?').get(id)) as DocsTemplateRow;
+  return toWorkspaceTemplate(row);
+}
+
+export async function deleteDocWorkspaceTemplate(workspaceId: string, templateId: string): Promise<boolean> {
+  const res = await getDb()
+    .prepare('DELETE FROM docs_templates WHERE id = ? AND workspace_id = ?')
+    .run(templateId, workspaceId);
+  return res.changes > 0;
+}
+
+/** Página nueva a partir de una plantilla del workspace (bloques con ids nuevos). */
+export async function createDocPageFromWorkspaceTemplate(
+  workspaceId: string,
+  templateId: string,
+): Promise<DocsPage | null> {
+  const row = (await getDb()
+    .prepare('SELECT * FROM docs_templates WHERE id = ? AND workspace_id = ?')
+    .get(templateId, workspaceId)) as DocsTemplateRow | undefined;
+  if (!row) return null;
+  const content = parseBlocks(row.content).map((b) => ({ ...b, id: crypto.randomUUID() }));
+  return createDocPage(workspaceId, { title: row.title, icon: row.icon, content });
 }
 
 // ---------- Search / mentions ----------
