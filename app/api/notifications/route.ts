@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Math.max(Number(sp.get('limit') ?? '20') || 20, 1), 100);
   const page = Math.max(Number(sp.get('page') ?? '1') || 1, 1);
   const types = sp.getAll('type').filter(Boolean);
+  const snoozed = sp.get('snoozed') === '1';
 
   const [rows, unreadCount] = await Promise.all([
     listNotifications(realUserId(user), {
@@ -27,6 +28,7 @@ export async function GET(req: NextRequest) {
       limit,
       page,
       type: types.length ? (types as NotificationType[]) : undefined,
+      snoozed,
     }),
     countUnreadNotifications(realUserId(user)),
   ]);

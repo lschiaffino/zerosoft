@@ -3,7 +3,16 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { useStableKeys } from './useStableKeys';
-import { defaultStep, STEP_TYPES, type RobotLeafStep, type RobotStep, type RobotStepType } from '@/lib/robots-schema';
+import {
+  defaultStep,
+  MAX_LIST_FIELDS,
+  MAX_PAGINATE_PAGES,
+  STEP_TYPES,
+  type RobotLeafStep,
+  type RobotListField,
+  type RobotStep,
+  type RobotStepType,
+} from '@/lib/robots-schema';
 
 type AnyStep = RobotStep | RobotLeafStep;
 
@@ -352,6 +361,114 @@ function Field({ label, children, wide, hint }: { label: string; children: (id: 
   );
 }
 
+/** Campos de cada fila de un extract_list: nombre, selector dentro de la tarjeta y atributo. */
+function ListFields({
+  fields,
+  readOnly,
+  onChange,
+}: {
+  fields: RobotListField[];
+  readOnly: boolean;
+  onChange: (fields: RobotListField[]) => void;
+}) {
+  const t = useTranslations('robots.steps');
+  const stable = useStableKeys(fields.length);
+  const uid = useId();
+  const set = (i: number, patch: Partial<RobotListField>) => onChange(fields.map((f, k) => (k === i ? { ...f, ...patch } : f)));
+  return (
+    <fieldset className="robots-list-fields">
+      <legend className="label">{t('fields.listFields')}</legend>
+      <div className="table-wrap">
+        <table className="table robots-input-table">
+          <thead>
+            <tr>
+              <th scope="col">{t('fields.fieldName')}</th>
+              <th scope="col">{t('fields.fieldSelector')}</th>
+              <th scope="col">{t('fields.fieldAttribute')}</th>
+              <th scope="col">
+                <span className="sr-only">{t('removeField')}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {fields.map((f, i) => (
+              <tr key={stable.keys[i]}>
+                <td data-label={t('fields.fieldName')}>
+                  <input
+                    className="input data"
+                    value={f.name}
+                    readOnly={readOnly}
+                    spellCheck={false}
+                    autoComplete="off"
+                    placeholder="title"
+                    aria-label={`${t('fields.fieldName')} ${i + 1}`}
+                    onChange={(e) => set(i, { name: e.target.value })}
+                  />
+                </td>
+                <td data-label={t('fields.fieldSelector')}>
+                  <input
+                    className="input data"
+                    value={f.selector}
+                    readOnly={readOnly}
+                    spellCheck={false}
+                    autoComplete="off"
+                    placeholder="h2"
+                    aria-label={`${t('fields.fieldSelector')} ${i + 1}`}
+                    aria-describedby={`${uid}-help`}
+                    onChange={(e) => set(i, { selector: e.target.value })}
+                  />
+                </td>
+                <td data-label={t('fields.fieldAttribute')}>
+                  <input
+                    className="input data"
+                    value={f.attribute}
+                    readOnly={readOnly}
+                    spellCheck={false}
+                    autoComplete="off"
+                    placeholder={t('fields.fieldText')}
+                    aria-label={`${t('fields.fieldAttribute')} ${i + 1}`}
+                    onChange={(e) => set(i, { attribute: e.target.value })}
+                  />
+                </td>
+                <td className="robots-input-remove">
+                  {!readOnly && fields.length > 1 && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm btn-icon"
+                      aria-label={`${t('removeField')} ${f.name || i + 1}`}
+                      title={t('removeField')}
+                      onClick={() => {
+                        stable.remove(i);
+                        onChange(fields.filter((_, k) => k !== i));
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                      </svg>
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="ui-help" id={`${uid}-help`}>
+        {t('listFieldsHint')}
+      </p>
+      {!readOnly && fields.length < MAX_LIST_FIELDS && (
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => onChange([...fields, { name: `field${fields.length + 1}`, selector: '', attribute: '' }])}
+        >
+          {t('addField')}
+        </button>
+      )}
+    </fieldset>
+  );
+}
+
 function TypeFields({
   step,
   onChange,
@@ -411,6 +528,58 @@ function TypeFields({
     </Field>
   );
 
+  // Paginación (extract_list / extract_table): apagada = una sola página.
+  const rec = step as Record<string, unknown>;
+  const paginated = Number(rec.maxPages ?? 1) > 1;
+  const pagination = (
+    <>
+      <label className="ui-check robots-wide">
+        <input
+          type="checkbox"
+          checked={paginated}
+          disabled={readOnly}
+          onChange={(e) => {
+            const next = { ...rec };
+            if (e.target.checked) {
+              next.maxPages = 5;
+              if (!next.nextSelector && !next.nextText) next.nextText = t('nextTextDefault');
+            } else {
+              delete next.maxPages;
+              delete next.nextSelector;
+              delete next.nextText;
+              delete next.pageWaitMs;
+            }
+            onChange(next as AnyStep);
+          }}
+        />
+        <span>{t('fields.paginate')}</span>
+      </label>
+      {paginated && (
+        <>
+          {text('nextSelector', t('fields.nextSelector'), 'a[rel="next"]')}
+          {text('nextText', t('fields.nextText'), t('nextTextDefault'))}
+          {num('maxPages', t('fields.maxPages'), 2, MAX_PAGINATE_PAGES)}
+          <Field label={t('fields.pageWaitMs')}>
+            {(id) => (
+              <input
+                id={id}
+                className="input"
+                type="number"
+                min={0}
+                max={30000}
+                step={250}
+                value={Number(rec.pageWaitMs ?? 1000)}
+                readOnly={readOnly}
+                onChange={(e) => set({ pageWaitMs: Math.min(30_000, Math.max(0, Math.floor(Number(e.target.value) || 0))) })}
+              />
+            )}
+          </Field>
+          <p className="ui-help robots-wide">{t('paginateHint', { max: MAX_PAGINATE_PAGES })}</p>
+        </>
+      )}
+    </>
+  );
+
   switch (step.type) {
     case 'goto':
       return <div className="robots-fields">{text('url', t('fields.url'), 'https://example.com/{{inputs.page}}', true)}</div>;
@@ -457,6 +626,19 @@ function TypeFields({
         <div className="robots-fields">
           {text('selector', t('fields.selector'), 'table')}
           {text('name', t('fields.name'), 'rows')}
+          {pagination}
+        </div>
+      );
+    case 'extract_list':
+      return (
+        <div className="robots-fields">
+          {text('selector', t('fields.cardSelector'), '.product-card', false, t('cardHint'))}
+          {text('name', t('fields.name'), 'items')}
+          {num('max', t('fields.maxRows'), 1, 500)}
+          <div className="robots-wide">
+            <ListFields fields={step.fields} readOnly={readOnly} onChange={(fields) => set({ fields })} />
+          </div>
+          {pagination}
         </div>
       );
     case 'screenshot':

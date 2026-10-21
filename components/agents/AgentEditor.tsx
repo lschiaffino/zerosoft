@@ -36,6 +36,7 @@ export interface EditorRefs {
   eventTypes: Array<{ id: string; title: string; durationMin: number }>;
   projects: Array<{ id: string; name: string }>;
   flows: Array<{ id: string; name: string }>;
+  robots: Array<{ id: string; name: string }>;
 }
 
 interface Props extends EditorRefs {
@@ -287,6 +288,7 @@ export default function AgentEditor(props: Props) {
     if ((key === 'cal_get_availability' || key === 'cal_book_meeting') && !draft.tools.calEventTypeId) return t('tools.needsEventType');
     if (key === 'track_create_issue' && !draft.tools.trackProjectId) return t('tools.needsProject');
     if (key === 'run_flow' && draft.tools.flowIds.length === 0) return t('tools.needsFlows');
+    if (key === 'run_robot' && draft.tools.robotIds.length === 0) return t('tools.needsRobots');
     if (key === 'http_request' && lines(domainsRaw).length === 0) return t('tools.needsDomains');
     return null;
   };
@@ -429,6 +431,40 @@ export default function AgentEditor(props: Props) {
                 ))}
               </ul>
             )}
+          </fieldset>
+        )}
+        {on && key === 'run_robot' && (
+          <fieldset className="ag-tool-config ag-fieldset">
+            <legend className="label">{t('tools.robots')}</legend>
+            {props.robots.length === 0 ? (
+              <p className="ui-help">
+                {t('tools.noRobots')} <Link href="/app/robots">{t('tools.create')}</Link>
+              </p>
+            ) : (
+              <ul className="ag-checklist">
+                {props.robots.map((r) => (
+                  <li key={r.id}>
+                    <label className="ui-check">
+                      <input
+                        type="checkbox"
+                        checked={draft.tools.robotIds.includes(r.id)}
+                        disabled={ro}
+                        onChange={(e) =>
+                          set('tools', {
+                            ...draft.tools,
+                            robotIds: e.target.checked
+                              ? [...draft.tools.robotIds, r.id]
+                              : draft.tools.robotIds.filter((x) => x !== r.id),
+                          })
+                        }
+                      />
+                      {r.name}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="ui-help">{t('tools.robotsHint')}</p>
           </fieldset>
         )}
         {on && key === 'http_request' && (

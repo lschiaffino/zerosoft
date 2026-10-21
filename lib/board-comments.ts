@@ -12,6 +12,7 @@ import { listMembers, listOwnedTeams } from './teams';
 import { createNotification } from './notifications';
 import { renderTrackMarkdown } from './track-markdown';
 import { getBoardName } from './boards';
+import { emitEventSoon } from './events';
 
 const nowIso = () => new Date().toISOString();
 
@@ -175,7 +176,9 @@ async function notifyComment(args: {
   const boardName = (await getBoardName(args.workspaceId, args.boardId)) ?? 'Untitled board';
   const actorName = actor?.name ?? actor?.email ?? 'Someone';
   const href = `/app/board/${args.boardId}?comment=${args.threadId}`;
-  const members = await listBoardMembers(args.workspaceId);
+  // Solo quienes pueden ver la pizarra (en una restringida, no todo el workspace).
+  const { boardAudience } = await import('./board-access');
+  const members = await boardAudience(args.workspaceId, args.boardId);
   const notified = new Set<string>([args.actorId]);
   const excerpt = args.body.replace(/\s+/g, ' ').trim().slice(0, 140);
   const meta = { boardName, actorName, actorId: args.actorId, threadId: args.threadId };
@@ -199,7 +202,7 @@ async function notifyComment(args: {
     .all(args.threadId)) as Array<{ author_id: string }>;
   const memberIds = new Set(members.map((m) => m.id));
   for (const { author_id } of authors) {
-    // Quien ya no está en el workspace no recibe avisos de esta pizarra.
+    // Quien ya no puede ver la pizarra (o dejó el workspace) no recibe avisos.
     if (notified.has(author_id) || !memberIds.has(author_id)) continue;
     notified.add(author_id);
     await createNotification({
@@ -229,8 +232,9 @@ export async function createThread(
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(id, boardId, workspaceId, input.x, input.y, input.elementId ?? null, personId, now, now);
-  await insertComment(id, boardId, personId, input.body);
+  const commentId = await insertComment(id, boardId, personId, input.body);
   await notifyComment({ workspaceId, boardId, threadId: id, actorId: personId, body: input.body, isReply: false });
+  await emitCommentEvent(workspaceId, boardId, id, commentId, personId, input.body, false);
   return (await getThread(workspaceId, boardId, id))!;
 }
 
@@ -243,13 +247,32 @@ export async function replyToThread(
 ): Promise<BoardThreadView | null> {
   const t = await threadRow(workspaceId, boardId, threadId);
   if (!t) return null;
-  await insertComment(threadId, boardId, personId, body);
+  const commentId = await insertComment(threadId, boardId, personId, body);
   // Responder un hilo resuelto lo reabre: la conversación sigue.
   if (t.resolved_at) {
     await getDb().prepare('UPDATE board_comment_threads SET resolved_at = NULL, resolved_by = NULL WHERE id = ?').run(threadId);
   }
   await notifyComment({ workspaceId, boardId, threadId, actorId: personId, body, isReply: true });
+  await emitCommentEvent(workspaceId, boardId, threadId, commentId, personId, body, true);
   return getThread(workspaceId, boardId, threadId);
+}
+
+/** Disparador de Flow board.comment_created (hilo nuevo o respuesta). */
+async function emitCommentEvent(
+  workspaceId: string,
+  boardId: string,
+  threadId: string,
+  commentId: string,
+  authorId: string,
+  body: string,
+  isReply: boolean,
+): Promise<void> {
+  const name = (await getBoardName(workspaceId, boardId)) ?? '';
+  await emitEventSoon(workspaceId, 'board.comment_created', {
+    board: { id: boardId, name },
+    thread: { id: threadId, isReply },
+    comment: { id: commentId, body: body.trim().slice(0, 5000), authorId },
+  });
 }
 
 export async function updateThread(

@@ -139,6 +139,9 @@ export function blocksToMarkdown(blocks: DocsBlock[], title?: string, opts: Bloc
         text = href ? `${b.type === 'image' ? '!' : ''}[${name}](${href})` : name;
         break;
       }
+      case 'board':
+        text = b.board_id ? `[Board](/app/board/${b.board_id})` : '';
+        break;
       case 'table': {
         const rows = b.rows ?? [];
         text = rows.length ? tableToMd(rows[0], rows.slice(1)) : '';

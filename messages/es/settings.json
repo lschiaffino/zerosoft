@@ -132,6 +132,7 @@
       "deal_lost": "Deal perdido",
       "robot_run_finished": "Robot terminó",
       "robot_run_failed": "Robot falló",
+      "robot_output_changed": "Cambiaron los datos de un robot",
       "link_updated": "Link editado",
       "link_deleted": "Link borrado",
       "chat_message_created": "Mensaje de chat",

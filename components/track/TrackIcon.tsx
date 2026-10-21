@@ -16,7 +16,8 @@ export type TrackIconName =
   | 'code'
   | 'list'
   | 'link'
-  | 'bell';
+  | 'bell'
+  | 'clock';
 
 // Trazo de 2px, cuadrado (mismo idioma que components/app/icons.tsx).
 const PATHS: Record<TrackIconName, ReactNode> = {
@@ -36,6 +37,7 @@ const PATHS: Record<TrackIconName, ReactNode> = {
   list: <path d="M9 6h11M9 12h11M9 18h11M4 6h1M4 12h1M4 18h1" />,
   link: <path d="M10 14l4-4M9 7l2-2a4 4 0 0 1 6 6l-2 2M15 17l-2 2a4 4 0 0 1-6-6l2-2" />,
   bell: <path d="M6 16V10a6 6 0 0 1 12 0v6l2 2H4zM10 21h4" />,
+  clock: <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 3" />,
 };
 
 /** Íconos de trazo de Track. Decorativos: el texto o aria-label va en el control. */

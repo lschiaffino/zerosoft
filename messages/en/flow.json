@@ -1,7 +1,7 @@
 {
   "title": "Flow",
   "subtitle": "Automations across every zerosoft app and any service with an API.",
-  "sidebar": { "flows": "Flows", "credentials": "Credentials" },
+  "sidebar": { "flows": "Flows", "credentials": "Credentials", "tables": "Tables" },
   "list": {
     "emptyTemplates": "See templates",
     "emptyTitle": "No flows yet",
@@ -132,7 +132,45 @@
     "failureAlerts": "Email me when a run fails",
     "failureAlertsHint": "Goes to the flow owner. At most one email per flow per hour, with a link to replay the run.",
     "autoReplay": "Replay failed runs automatically",
-    "autoReplayHint": "Once, 15 minutes after the failure, from the step that failed. Test runs are not replayed."
+    "autoReplayHint": "Once, 15 minutes after the failure, from the step that failed. Test runs are not replayed.",
+    "testStepTitle": "Test this step",
+    "testStepHint": "Runs only this step with the sample data below. Actions are real: emails go out and records are created.",
+    "testStepSample": "Sample data (JSON)",
+    "testStepSampleHint": "trigger is the trigger data and nodes has the output of each earlier step, filled in from pinned data and the last run.",
+    "testStepRun": "Test step",
+    "testStepRunning": "Testing…",
+    "testStepResult": "{status} in {ms} ms",
+    "testStepStatus": {
+      "success": "Succeeded",
+      "skipped": "Stopped here",
+      "failed": "Failed"
+    },
+    "testStepHandles": "Would continue by: {list}",
+    "testStepNotTestable": "Waits, approvals, loops and sub-flows can't be tested on their own. Use Test run.",
+    "pinOutput": "Pin this output",
+    "pinned": "Pinned. Step tests after this one use it as sample data.",
+    "pinSampleTitle": "Sample data",
+    "pinTriggerHint": "Pin trigger data to test the next steps with it. Test run starts from it too.",
+    "pinTriggerSampleHint": "Edit it to match what the trigger sends, then pin it.",
+    "pinSample": "Pin sample data",
+    "pinnedTrigger": "Pinned. Test run and step tests start from this data.",
+    "unpin": "Unpin",
+    "resumeHint": "Send '{{run.resumeUrl}}' from an earlier step (an email or an HTTP request). A GET or POST to that URL continues the run, and its body becomes this step's output.",
+    "untilHint": "Accepts a date like 2026-03-01 09:00, an ISO date or a variable such as '{{trigger.startsAt}}'. A date in the past continues right away. Up to one year ahead.",
+    "approvalHint": "Each approver gets a link to a page where they approve or reject, with an optional comment. The first answer counts.",
+    "pickTable": "Pick a table",
+    "tableMissing": "Table not found",
+    "tableColumns": "Columns: {list}.",
+    "tableNoColumns": "This table has no columns yet.",
+    "noTables": "No data tables yet.",
+    "openTable": "Open table",
+    "manageTables": "Manage tables",
+    "tableHint": {
+      "find": "Returns the rows where the column equals the value: '{{nodes.<id>.output.found}}' and '{{nodes.<id>.output.row}}'. Leave the column empty to read the first rows.",
+      "insert": "Adds one row with these values. Columns you leave out stay empty.",
+      "upsert": "Updates the first row where the column equals the value, or adds one. Good for keeping state or skipping duplicates.",
+      "delete": "Deletes every row where the column equals the value."
+    }
   },
   "categories": {
     "trigger": "Trigger",
@@ -155,7 +193,18 @@
     "logic_if": { "title": "If", "desc": "Splits the flow in two: true and false." },
     "logic_switch": { "title": "Switch", "desc": "Picks a branch by comparing a value to a list of cases." },
     "logic_filter": { "title": "Filter", "desc": "Continues only if the conditions match. Otherwise the branch stops." },
-    "logic_delay": { "title": "Delay", "desc": "Waits before continuing (up to 30 days)." },
+    "logic_delay": {
+      "title": "Delay",
+      "desc": "Waits a set time, until a date, or until someone calls the run's resume URL.",
+      "fields": {
+        "mode": "Wait for",
+        "until": "Date and time",
+        "timezone": "Time zone (dates without one)",
+        "timeoutAmount": "Time limit",
+        "timeoutUnit": "Unit",
+        "onTimeout": "When it times out"
+      }
+    },
     "logic_loop": { "title": "Loop", "desc": "Runs the item branch once per element of a list, in order. Then continues through done." },
     "data_set": { "title": "Set fields", "desc": "Builds an object with new fields from templates." },
     "data_json_parse": {
@@ -229,6 +278,32 @@
       "title": "Track: update issue",
       "desc": "Changes the status, priority, assignee or due date of an issue in this workspace and can add a comment.",
       "fields": { "issue": "Issue (ID or identifier, e.g. ENG-12)", "status": "Status (name)", "assignee": "Assignee (email, or none)", "comment": "Comment", "title": "New title", "dueDate": "Due date" }
+    },
+    "logic_approval": {
+      "title": "Approval",
+      "desc": "Pauses the run and asks for approval by email (and Slack, if you pick a credential). Continues by Approved or Rejected.",
+      "fields": {
+        "to": "Approvers (emails, comma separated)",
+        "subject": "Subject",
+        "message": "What to approve",
+        "slackCredentialId": "Also ask in Slack (optional)",
+        "slackChannel": "Slack channel",
+        "timeoutAmount": "Time limit",
+        "timeoutUnit": "Unit",
+        "onTimeout": "If nobody answers"
+      }
+    },
+    "data_table": {
+      "title": "Data table",
+      "desc": "Finds, adds, updates or deletes rows of a workspace data table. Use it for lookups, to skip duplicates or to keep state between runs.",
+      "fields": {
+        "tableId": "Table",
+        "operation": "Operation",
+        "column": "Match column",
+        "value": "Match value",
+        "values": "Values (column → value)",
+        "limit": "Max rows"
+      }
     }
   },
   "fields": {
@@ -349,7 +424,18 @@
     "get_only": "GET",
     "get_post": "GET and POST",
     "immediately": "Right away (202)",
-    "reply_node": "With the Reply to webhook step"
+    "reply_node": "With the Reply to webhook step",
+    "duration": "A set time",
+    "until": "Until a date",
+    "resume": "A resume call",
+    "continue": "Continue",
+    "fail": "Fail the run",
+    "reject": "Reject",
+    "approve": "Approve",
+    "find": "Find rows",
+    "insert": "Add a row",
+    "upsert": "Add or update",
+    "delete": "Delete rows"
   },
   "handles": {
     "out": "Next",
@@ -359,7 +445,9 @@
     "done": "Done",
     "default": "Default",
     "case": "Case {n}",
-    "error": "Error"
+    "error": "Error",
+    "approved": "Approved",
+    "rejected": "Rejected"
   },
   "events": {
     "booking_created": "Cal: booking created",
@@ -392,7 +480,25 @@
     "message_received": "Chat: message received",
     "page_created": "Docs: page created",
     "robot_run_finished": "Robots: run finished",
-    "robot_run_failed": "Robots: run failed"
+    "robot_run_failed": "Robots: run failed",
+    "robot_output_changed": "Robots: data changed",
+    "booking_declined": "Cal: booking request declined",
+    "booking_refunded": "Cal: payment refunded",
+    "conversation_assigned": "Chat: conversation assigned",
+    "conversation_resolved": "Chat: conversation resolved",
+    "conversation_rated": "Chat: conversation rated",
+    "note_created": "Notes: note created",
+    "note_tagged": "Notes: tag added to a note",
+    "note_trashed": "Notes: note moved to trash",
+    "board_created": "Board: board created",
+    "board_deleted": "Board: board deleted",
+    "board_comment_created": "Board: new comment",
+    "agent_conversation_started": "Agents: conversation started",
+    "agent_handoff": "Agents: handed off to a person",
+    "agent_feedback": "Agents: reply rated",
+    "task_created": "CRM: task created",
+    "task_completed": "CRM: task completed",
+    "task_due": "CRM: task due"
   },
   "ops": {
     "equals": "equals",
@@ -465,7 +571,11 @@
     "invalid_email": "The recipient is not a valid email. Check it in the editor.",
     "invalid_json": "The body is not valid JSON. Check it in the editor.",
     "http": "The service responded with status {status}. Check the URL and the data this step sends.",
-    "rate_limited": "The service asked to wait. Try again in a few minutes."
+    "rate_limited": "The service asked to wait. Try again in a few minutes.",
+    "invalid_date": "The date could not be read or is more than a year away. Use a date like 2026-03-01 09:00.",
+    "table_not_found": "The data table of this step no longer exists. Pick another one in the editor.",
+    "table_value": "A value does not match its column type or the column does not exist. Check the values in the editor.",
+    "table_full": "The data table is full. Delete rows or use another table."
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
@@ -495,7 +605,11 @@
     "node_is_trigger": "Re-run from a step after the trigger.",
     "node_in_loop": "Steps inside a Loop can't be re-run on their own. Re-run from the Loop.",
     "run_not_cancellable": "The run is already running or finished, so it can't be cancelled.",
-    "run_not_failed": "Only failed runs can be replayed."
+    "run_not_failed": "Only failed runs can be replayed.",
+    "approval_in_loop": "Approval can't be used inside a Loop.",
+    "step_not_testable": "This step can't be tested on its own.",
+    "pin_too_large": "That data is too large to pin (max 64 KB per step).",
+    "input_too_large": "The sample data is too large."
   },
   "onError": {
     "stop": "Stop the flow",
@@ -549,6 +663,7 @@
     "optional": "optional",
     "savedPlaceholder": "Saved. Leave empty to keep it.",
     "keepHint": "Leave empty to keep the saved value.",
+    "totpHint": "For robots behind a two-step login: the site shows this key when you set up an authenticator app. In a robot step, {example} types the current code.",
     "security": "Values are encrypted with AES-256-GCM, are only decrypted while a run uses them and are redacted from run logs.",
     "types": {
       "api_key": "API key (header)",
@@ -578,6 +693,7 @@
       "value": "Key",
       "username": "Username",
       "password": "Password",
+      "totpSecret": "2FA secret (TOTP)",
       "accessToken": "Access token",
       "botToken": "Bot token",
       "webhookUrl": "Webhook URL",
@@ -592,6 +708,7 @@
       "missing_field": "{field} is required.",
       "duplicate_name": "A credential with this name already exists.",
       "invalid_json": "The service account JSON is invalid (needs client_email and private_key).",
+      "invalid_totp": "The 2FA secret isn't valid. Paste the setup key (base32) or the otpauth:// link from the QR code.",
       "invalid_input": "Invalid data."
     },
     "oneOf": {"slack": "Fill in the bot token or the webhook URL.", "google": "Fill in the access token or the service account JSON."}
@@ -614,5 +731,95 @@
     "days": "{n} days",
     "retentionHint": "Every hour, runs and steps older than this are deleted. The latest run of each flow is always kept.",
     "saved": "Saved"
+  },
+  "approvalEmail": {
+    "subject": "Approval needed: {flow}",
+    "heading": "Approval needed",
+    "intro": "The flow \"{flow}\" is waiting for your approval.",
+    "approve": "Approve",
+    "reject": "Reject",
+    "expires": "If nobody answers by {time}, the flow continues on its own as set up."
+  },
+  "approvalPage": {
+    "title": "Approval request",
+    "eyebrow": "Flow · {flow}",
+    "comment": "Comment",
+    "optional": "optional",
+    "approve": "Approve",
+    "reject": "Reject",
+    "confirmApprove": "You opened the approve link. Confirm below.",
+    "confirmReject": "You opened the reject link. Confirm below.",
+    "expires": "Open until {time}.",
+    "decidedAt": "Answered {time}.",
+    "decidedAuto": "Nobody answered in time. Decided automatically {time}.",
+    "state": {
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "expired": "This request expired without an answer.",
+      "closed": "This request is no longer open.",
+      "pending": "Waiting for an answer"
+    },
+    "errors": {
+      "not_waiting": "This request was already answered or expired.",
+      "busy": "The flow is busy right now. Try again in a few seconds.",
+      "rate_limited": "Too many attempts. Try again in a minute.",
+      "generic": "Something went wrong. Try again."
+    }
+  },
+  "tables": {
+    "title": "Data tables",
+    "subtitle": "Rows your flows can look up, add and update: lookups, duplicates and state between runs. Up to {rows} rows per table.",
+    "create": "Create table",
+    "newTitle": "New data table",
+    "name": "Name",
+    "namePlaceholder": "Processed orders",
+    "columns": "Columns",
+    "rows": "Rows",
+    "updated": "Updated",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirmDelete": "Delete the table \"{name}\" and all its rows? Flows that use it will fail.",
+    "confirmDeleteRow": "Delete this row?",
+    "emptyTitle": "No data tables yet",
+    "emptyHint": "Create a table, then use the Data table step in a flow to find, add or update rows.",
+    "adminOnly": "Only workspace admins and owners can create or edit tables.",
+    "addColumn": "Add column",
+    "columnName": "Column name",
+    "columnType": "Column type",
+    "columnHint": "Names use letters, numbers and _ and start with a letter, like email or order_id.",
+    "removeColumnHint": "Removing a column hides its values. Adding it back with the same name shows them again.",
+    "saveColumns": "Save",
+    "saved": "Saved.",
+    "types": {
+      "text": "Text",
+      "number": "Number",
+      "boolean": "Yes / no"
+    },
+    "rowCount": "{n, plural, one {# row} other {# rows}} of {max}",
+    "useHint": "Pick this table in a Data table step. Its ID is {id}.",
+    "addRow": "Add row",
+    "newRow": "New row",
+    "editRow": "Edit row",
+    "saveRow": "Save row",
+    "emptyRowsTitle": "No rows yet",
+    "emptyRowsHint": "Add rows by hand or from a flow with the Data table step.",
+    "noColumnsHint": "Add columns first (in Advanced, below).",
+    "loadMore": "Load {n} more",
+    "yes": "Yes",
+    "no": "No",
+    "empty": "Empty",
+    "errors": {
+      "duplicate_name": "There is already a table with that name.",
+      "too_many_tables": "This workspace reached the limit of 50 tables.",
+      "table_full": "This table is full. Delete rows to add more.",
+      "row_too_large": "This row is too large (max 16 KB).",
+      "invalid_value": "The value of {column} does not match its type.",
+      "unknown_column": "The column {column} does not exist.",
+      "invalid_name": "Give the table a name.",
+      "invalid_column": "Check the column names: letters, numbers and _, starting with a letter.",
+      "duplicate_column": "Two columns have the same name.",
+      "reserved_column": "id, createdAt and updatedAt are reserved. Use another column name.",
+      "not_found": "This table no longer exists."
+    }
   }
 }

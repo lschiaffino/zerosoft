@@ -8,6 +8,7 @@ import { scheduleDisplayName } from '@/lib/calendar-schedule-name';
 import { isZeroDecimal, minimumPriceCents, parsePriceInput, priceInputValue, priceProblem } from '@/lib/calendar-price';
 import { isValidRedirectUrl } from '@/lib/calendar-redirect';
 import { cleanOptions, MAX_GUESTS, OPTION_QUESTION_TYPES, QUESTION_TYPES, type Question } from '@/lib/calendar-questions';
+import { LOCATION_KINDS, MAX_LOCATIONS, locationProblem, type LocationKind, type LocationOption } from '@/lib/calendar-locations';
 import CalIcon from './cal-icons';
 import CalCopyButton from './CalCopyButton';
 import CalDeleteButton from './CalDeleteButton';
@@ -74,6 +75,11 @@ export interface EventTypeEditorProps {
     currency: string;
     /** Reunión única: inicios ISO elegidos a mano (null = evento normal). */
     oneOffTimes: string[] | null;
+    /** Ubicaciones que puede elegir el invitado. */
+    locations: LocationOption[];
+    scheduling: 'round_robin' | 'collective';
+    /** Lugares por horario (0 = uno). */
+    seats: number;
   };
   schedules: ScheduleOption[];
   /** Marca del workspace (Ajustes > Perfil): la que usa la página si el evento no la cambia. */
@@ -105,6 +111,8 @@ const ERROR_CODES = [
   'invalid_price',
   'invalid_schedule',
   'confirmation_paid',
+  'seats_single_use',
+  'seats_round_robin',
   'generic',
 ];
 /** Saltos de inicio ofrecidos ('' = cada duración). */
@@ -175,6 +183,10 @@ interface Draft {
   maxGuests: string;
   /** Reunión única: inicios como valor de <input type="datetime-local"> (hora local del navegador). */
   oneOffTimes: string[];
+  locations: LocationOption[];
+  scheduling: 'round_robin' | 'collective';
+  /** Lugares por horario ('' o '0' = uno por horario). */
+  seats: string;
 }
 
 /** Horarios que puede ofrecer una reunión única (igual que el schema). */
@@ -235,6 +247,9 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
       allowGuests: et.bookingRules.allowGuests === true,
       maxGuests: typeof et.bookingRules.maxGuests === 'number' ? String(et.bookingRules.maxGuests) : '',
       oneOffTimes: (et.oneOffTimes ?? []).map(toLocalInput),
+      locations: et.locations,
+      scheduling: et.scheduling,
+      seats: et.seats > 0 ? String(et.seats) : '',
     }),
     // El borrador arranca una vez; después de guardar, `baseline` toma el valor guardado.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -354,6 +369,12 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
     const redirectUrl = d.redirectUrl.trim();
     if (redirectUrl && !isValidRedirectUrl(redirectUrl)) return fail('advanced', t('editor.redirectInvalid'));
     if (d.brandOverride && d.logoUrl.trim() && !safeLogo(d.logoUrl)) return fail('advanced', t('editor.logoInvalid'));
+    const locations = d.locations.map((o) => ({ kind: o.kind, value: o.value.trim() }));
+    if (locations.some((o) => locationProblem(o))) return fail('general', t('location.invalid'));
+    const seats = d.seats.trim() ? Number(d.seats) : 0;
+    if (!(Number.isInteger(seats) && seats >= 0 && seats <= MAX_SEATS_UI)) return fail('advanced', t('editor.seatsInvalid', { max: MAX_SEATS_UI }));
+    if (seats > 0 && (oneOff || d.singleUse)) return fail('advanced', t('errors.seats_single_use'));
+    if (seats > 0 && d.scheduling !== 'collective' && d.hostIds.length > 1) return fail('advanced', t('errors.seats_round_robin'));
 
     setState('saving');
     const taken: string[] = [];
@@ -374,6 +395,9 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
         slug: d.slug,
         durationMin: Math.round(d.durationMin),
         location: d.location.trim(),
+        locations,
+        seats,
+        ...(teamMembers && teamMembers.length > 0 ? { scheduling: d.scheduling } : {}),
         description: d.description.trim(),
         color: d.color,
         active: d.active,
@@ -404,7 +428,11 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
     if (!res || !res.ok) {
       const code = await readCode(res);
       return fail(
-        code === 'invalid_slug' || code === 'slug_taken' ? 'share' : code === 'invalid_price' || code === 'confirmation_paid' ? 'advanced' : tab,
+        code === 'invalid_slug' || code === 'slug_taken'
+          ? 'share'
+          : code === 'invalid_price' || code === 'confirmation_paid' || code.startsWith('seats_')
+            ? 'advanced'
+            : tab,
         t(`errors.${code}`),
       );
     }
@@ -430,7 +458,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
       if (!r || !r.ok) return fail('advanced', t('editor.remindersError'));
     }
 
-    const savedDraft = { ...d, fields: fields.map((f) => ({ ...f })) };
+    const savedDraft = { ...d, fields: fields.map((f) => ({ ...f })), locations, seats: seats > 0 ? String(seats) : '' };
     setD(savedDraft);
     setBaseline(savedDraft);
     setState('saved');
@@ -576,8 +604,10 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                   placeholder={t('form.locationPlaceholder')}
                   onChange={(e) => set('location', e.target.value)}
                 />
+                {d.locations.length > 0 && <p className="ui-help">{t('location.textFallbackHelp')}</p>}
               </div>
             </div>
+            <LocationsEditor value={d.locations} onChange={(next) => set('locations', next)} idPrefix={idFor('loc')} />
             <div className="ui-field">
               <label className="label" htmlFor={idFor('description')}>
                 {t('form.description')} <span className="ui-optional">{t('editor.optional')}</span>
@@ -875,6 +905,25 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                   </span>
                 </label>
               )}
+              <div className="ui-field">
+                <label className="label" htmlFor={idFor('seats')}>
+                  {t('editor.seats')} <span className="ui-optional">{t('editor.optional')}</span>
+                </label>
+                <input
+                  id={idFor('seats')}
+                  className="input cal-num cal-input-short"
+                  type="number"
+                  min={0}
+                  max={MAX_SEATS_UI}
+                  inputMode="numeric"
+                  value={d.seats}
+                  aria-describedby={idFor('seats-help')}
+                  onChange={(e) => set('seats', e.target.value)}
+                />
+                <p id={idFor('seats-help')} className="ui-help">
+                  {t('editor.seatsHelp')}
+                </p>
+              </div>
             </SubSection>
 
             <SubSection title={t('editor.afterBooking')} description={t('editor.afterBookingLead')}>
@@ -924,7 +973,34 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
             </SubSection>
 
             {teamMembers && teamMembers.length > 0 && (
-              <SubSection title={t('form.hosts')} description={t('form.hostsHelp')}>
+              <SubSection title={t('editor.hostsTitle')} description={t('editor.hostsLead')}>
+                <fieldset className="cal-scheduling">
+                  <legend className="label">{t('editor.schedulingLabel')}</legend>
+                  <label className="ui-check">
+                    <input
+                      type="radio"
+                      name={idFor('scheduling')}
+                      checked={d.scheduling === 'round_robin'}
+                      onChange={() => set('scheduling', 'round_robin')}
+                    />
+                    <span>
+                      {t('editor.schedulingRoundRobin')}
+                      <span className="cal-switch-help">{t('form.hostsHelp')}</span>
+                    </span>
+                  </label>
+                  <label className="ui-check">
+                    <input
+                      type="radio"
+                      name={idFor('scheduling')}
+                      checked={d.scheduling === 'collective'}
+                      onChange={() => set('scheduling', 'collective')}
+                    />
+                    <span>
+                      {t('editor.schedulingCollective')}
+                      <span className="cal-switch-help">{t('editor.schedulingCollectiveHelp')}</span>
+                    </span>
+                  </label>
+                </fieldset>
                 <div className="cal-hosts">
                   {teamMembers.map((m) => (
                     <label key={m.user_id} className="ui-check">
@@ -1202,6 +1278,95 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
         </div>
       </form>
     </div>
+  );
+}
+
+/** Tope de lugares por horario (igual que MAX_SEATS del schema). */
+const MAX_SEATS_UI = 500;
+
+/**
+ * Ubicaciones que el invitado puede elegir: tipo y, según el tipo, link,
+ * dirección o teléfono. Zoom, Teams y "el invitado llama" pueden ir sin valor:
+ * se usa el link o teléfono fijo de cada anfitrión (Cal → Configuración).
+ */
+function LocationsEditor({
+  value,
+  onChange,
+  idPrefix,
+}: {
+  value: LocationOption[];
+  onChange: (next: LocationOption[]) => void;
+  idPrefix: string;
+}) {
+  const t = useTranslations('calendar');
+  const upd = (i: number, patch: Partial<LocationOption>) => onChange(value.map((o, k) => (k === i ? { ...o, ...patch } : o)));
+  const placeholder = (kind: LocationKind) =>
+    kind === 'in_person'
+      ? t('location.addressPlaceholder')
+      : kind === 'phone_invitee'
+        ? t('location.phonePlaceholder')
+        : kind === 'zoom' || kind === 'teams'
+          ? t('location.hostLinkPlaceholder')
+          : 'https://';
+  const needsValue = (kind: LocationKind) => kind !== 'google_meet' && kind !== 'phone_host';
+  return (
+    <fieldset className="cal-locations">
+      <legend className="label">{t('location.title')}</legend>
+      <p className="ui-help">{t('location.lead')}</p>
+      {value.map((o, i) => {
+        const problem = needsValue(o.kind) && o.value.trim() ? locationProblem({ kind: o.kind, value: o.value.trim() }) : null;
+        return (
+          <div key={i} className="cal-location-row">
+            <select
+              className="select"
+              aria-label={t('location.kindLabel')}
+              value={o.kind}
+              onChange={(e) => upd(i, { kind: e.target.value as LocationKind, value: '' })}
+            >
+              {LOCATION_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {t(`location.kind.${k}`)}
+                </option>
+              ))}
+            </select>
+            {needsValue(o.kind) ? (
+              <input
+                id={`${idPrefix}-${i}`}
+                className={`input${o.kind === 'in_person' ? '' : ' data'}`}
+                aria-label={t('location.valueLabel')}
+                value={o.value}
+                placeholder={placeholder(o.kind)}
+                aria-invalid={problem ? true : undefined}
+                onChange={(e) => upd(i, { value: e.target.value })}
+              />
+            ) : (
+              <span className="cal-muted cal-location-note">
+                {o.kind === 'google_meet' ? t('location.meetNote') : t('location.hostCallsNote')}
+              </span>
+            )}
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon btn-sm"
+              aria-label={t('location.remove')}
+              title={t('common.remove')}
+              onClick={() => onChange(value.filter((_, k) => k !== i))}
+            >
+              <CalIcon name="trash" />
+            </button>
+          </div>
+        );
+      })}
+      {value.length < MAX_LOCATIONS && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm cal-location-add"
+          onClick={() => onChange([...value, { kind: value.length === 0 ? 'zoom' : 'in_person', value: '' }])}
+        >
+          <CalIcon name="plus" />
+          {t('location.add')}
+        </button>
+      )}
+    </fieldset>
   );
 }
 

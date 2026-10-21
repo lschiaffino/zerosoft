@@ -14,6 +14,7 @@ export const AGENT_TOOL_KEYS = [
   'cal_book_meeting',
   'track_create_issue',
   'run_flow',
+  'run_robot',
   'handoff_to_human',
   'http_request',
 ] as const;
@@ -21,7 +22,7 @@ export const AGENT_TOOL_KEYS = [
 export type AgentToolKey = (typeof AGENT_TOOL_KEYS)[number];
 
 /** Grupo de cada herramienta (para agrupar en la UI). */
-export const AGENT_TOOL_GROUP: Record<AgentToolKey, 'knowledge' | 'crm' | 'cal' | 'track' | 'flow' | 'handoff' | 'http'> = {
+export const AGENT_TOOL_GROUP: Record<AgentToolKey, 'knowledge' | 'crm' | 'cal' | 'track' | 'flow' | 'robots' | 'handoff' | 'http'> = {
   search_knowledge: 'knowledge',
   crm_find_contact: 'crm',
   crm_upsert_contact: 'crm',
@@ -30,6 +31,7 @@ export const AGENT_TOOL_GROUP: Record<AgentToolKey, 'knowledge' | 'crm' | 'cal' 
   cal_book_meeting: 'cal',
   track_create_issue: 'track',
   run_flow: 'flow',
+  run_robot: 'robots',
   handoff_to_human: 'handoff',
   http_request: 'http',
 };
@@ -45,6 +47,7 @@ export const AGENT_TOOL_GROUP_ORDER = [
   { key: 'cal', product: 'cal' },
   { key: 'track', product: 'track' },
   { key: 'flow', product: 'flow' },
+  { key: 'robots', product: 'robots' },
 ] as const;
 
 /**
@@ -113,6 +116,8 @@ export const toolsConfigSchema = z.object({
   calDays: z.number().int().min(1).max(30).default(7),
   trackProjectId: id.nullable().default(null),
   flowIds: z.array(id).max(20).default([]),
+  /** Robots que el agente puede correr (run_robot). */
+  robotIds: z.array(id).max(20).default([]),
   httpAllowedDomains: z.array(domain).max(20).default([]),
   /** Acciones que esperan la aprobación de alguien del equipo (lib/agents-approvals.ts). */
   requireApproval: z.array(z.enum(APPROVABLE_AGENT_TOOLS)).max(APPROVABLE_AGENT_TOOLS.length).default([]),

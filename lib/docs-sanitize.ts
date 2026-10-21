@@ -35,10 +35,20 @@ function plainCell(cell: unknown): string {
   return String(cell ?? '').replace(/<[^>]*>?/g, '').slice(0, 5000);
 }
 
+/** Id de pizarra aceptable en un bloque board (UUID o id corto, sin otros caracteres). */
+const BOARD_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+function sanitizeBoardField(block: DocsBlock): DocsBlock {
+  const { board_id, ...rest } = block;
+  if (block.type !== 'board' || typeof board_id !== 'string' || !BOARD_ID_RE.test(board_id)) return rest;
+  return { ...rest, board_id };
+}
+
 export function sanitizeBlocks(blocks: DocsBlock[]): DocsBlock[] {
   return blocks.map((b) => ({
     // image/file: URL solo del storage de Docs, nombre/MIME saneados.
-    ...sanitizeFileFields(b),
+    // board: solo un id de pizarra válido.
+    ...sanitizeBoardField(sanitizeFileFields(b)),
     content: sanitizeDocsHtml(b.content),
     // Las celdas de tablas/bases son texto plano (se renderizan en <input> y
     // como texto, nunca con innerHTML): escaparlas como HTML mostraba "&amp;"

@@ -9,6 +9,7 @@ import TagsInput from './TagsInput';
 import { composeUtmUrl, SLUG_RE, useSlugCheck } from './slug-check';
 import UtmFields, { EMPTY_UTM, type UtmDraft } from './UtmFields';
 import { UTM_FIELDS } from '@/lib/link-url';
+import FolderSelect from './FolderSelect';
 
 const UTM_PAYLOAD = {
   source: 'utmSource',
@@ -25,6 +26,10 @@ interface NewLinkFormProps {
   customDomains?: Array<{ id: string; hostname: string }>;
   /** URL precargada (p. ej. desde "Más opciones" del modal rápido). */
   initialUrl?: string;
+  /** Carpetas en las que quien mira puede crear links. */
+  folders?: Array<{ id: string; name: string }>;
+  /** Carpeta elegida de entrada (?folder= desde la tabla). */
+  initialFolder?: string;
 }
 
 /**
@@ -32,13 +37,20 @@ interface NewLinkFormProps {
  * genera solo). Título, tags, UTM, redirect, vencimiento, contraseña y vista
  * previa social viven en "Avanzado".
  */
-export default function NewLinkForm({ domain, customDomains = [], initialUrl = '' }: NewLinkFormProps) {
+export default function NewLinkForm({
+  domain,
+  customDomains = [],
+  initialUrl = '',
+  folders = [],
+  initialFolder = '',
+}: NewLinkFormProps) {
   const t = useTranslations('link');
   const router = useRouter();
 
   const [url, setUrl] = useState(initialUrl);
   const [slug, setSlug] = useState('');
   const [domainId, setDomainId] = useState<string>('');
+  const [folderId, setFolderId] = useState(folders.some((f) => f.id === initialFolder) ? initialFolder : '');
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [utm, setUtm] = useState<UtmDraft>(EMPTY_UTM);
@@ -78,6 +90,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
     const payload: Record<string, unknown> = { url: url.trim(), tags, redirectType };
     if (slug.trim()) payload.slug = slug.trim();
     if (domainId) payload.domainId = domainId;
+    if (folderId) payload.folderId = folderId;
     if (title.trim()) payload.title = title.trim();
     for (const f of UTM_FIELDS) if (utm[f].trim()) payload[UTM_PAYLOAD[f]] = utm[f].trim();
     if (expiresAt) payload.expiresAt = new Date(expiresAt).toISOString();
@@ -176,6 +189,8 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
           {slugMessage[slugState]}
         </p>
       </div>
+
+      {folders.length > 0 && <FolderSelect id="nl-folder" value={folderId} onChange={setFolderId} folders={folders} />}
 
       <AdvancedSection storageKey="link.new" hint={t('new.advancedHint')}>
         <div className="ui-fields-2">

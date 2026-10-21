@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { setUserHandle } from '@/lib/db';
 import { getOrCreateCalendarUser, updateCalendarUser } from '@/lib/calendar';
 import { calendarConfigUpdateSchema } from '@/lib/calendar-schema';
@@ -23,7 +23,10 @@ export async function POST(req: NextRequest) {
   const parsed = calendarConfigUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const { handle, ...rest } = parsed.data;
+  const { handle, conferencing, ...rest } = parsed.data;
+  // Los links fijos (Zoom, Teams, teléfono) son de cada persona: se guardan en
+  // su propio calendario, el que se usa cuando le toca una reserva como host.
+  if (conferencing !== undefined) await updateCalendarUser(realUserId(user), { conferencing });
   // La marca de las páginas públicas es del workspace: como el handle, la cambia un admin.
   const touchesBrand = rest.brandColor !== undefined || rest.logoUrl !== undefined || rest.displayName !== undefined;
   if (touchesBrand && !isWorkspaceAdmin(user)) return crmError(403, 'forbidden');

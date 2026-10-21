@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type LinkIconName = 'copy' | 'check' | 'external' | 'qr' | 'edit' | 'archive' | 'unarchive' | 'trash' | 'download' | 'close' | 'duplicate';
+export type LinkIconName = 'copy' | 'check' | 'external' | 'qr' | 'edit' | 'archive' | 'unarchive' | 'trash' | 'download' | 'close' | 'duplicate' | 'folder' | 'share';
 
 // Mismo trazo que components/app/icons (24px, 2px, puntas cuadradas). Sin glifos unicode.
 const PATHS: Record<LinkIconName, ReactNode> = {
@@ -67,6 +67,16 @@ const PATHS: Record<LinkIconName, ReactNode> = {
       <rect x="8" y="8" width="12" height="12" />
       <path d="M16 8V4H4v12h4" />
       <path d="M14 11v6M11 14h6" />
+    </>
+  ),
+  folder: <path d="M3 6h7l2 2h9v11H3z" />,
+  // Tres nodos unidos: compartir una página pública.
+  share: (
+    <>
+      <rect x="4" y="10" width="4" height="4" />
+      <rect x="16" y="4" width="4" height="4" />
+      <rect x="16" y="16" width="4" height="4" />
+      <path d="M8 11l8-4M8 13l8 4" />
     </>
   ),
 };

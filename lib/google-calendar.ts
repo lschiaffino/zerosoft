@@ -85,6 +85,18 @@ export function wantsGoogleMeet(location: string | null | undefined): boolean {
   return l === '' || l === 'google meet' || l === 'google_meet' || l === 'https://meet.google.com/new';
 }
 
+/**
+ * La reserva lleva Google Meet: el invitado eligió esa ubicación o, sin
+ * ubicaciones estructuradas, el texto del evento lo pide.
+ */
+export function bookingWantsMeet(
+  booking: Pick<CalendarBookingRow, 'location_kind'>,
+  eventType: Pick<CalendarEventTypeRow, 'location'>,
+): boolean {
+  if (booking.location_kind) return booking.location_kind === 'google_meet';
+  return wantsGoogleMeet(eventType.location);
+}
+
 /** Invitados extra de la reserva (JSON de emails; vacío si falta o está roto). */
 function guestEmails(json: string | undefined): string[] {
   try {
@@ -105,7 +117,11 @@ function eventBody(booking: CalendarBookingRow, eventType: CalendarEventTypeRow,
       { email: booking.invitee_email, displayName: booking.invitee_name },
       ...guestEmails(booking.guests).map((email) => ({ email, optional: true })),
     ],
-    ...(wantsGoogleMeet(eventType.location) ? {} : { location: eventType.location }),
+    ...(booking.location
+      ? { location: booking.location }
+      : !booking.location_kind && !wantsGoogleMeet(eventType.location)
+        ? { location: eventType.location }
+        : {}),
     ...(withMeet
       ? { conferenceData: { createRequest: { requestId: booking.id, conferenceSolutionKey: { type: 'hangoutsMeet' } } } }
       : {}),
@@ -126,7 +142,7 @@ export async function createGoogleEventForBooking(
   const token = await tokenFor(hostId);
   if (!token) return booking;
   invalidateBusyCache(hostId);
-  const withMeet = wantsGoogleMeet(eventType.location);
+  const withMeet = bookingWantsMeet(booking, eventType);
   const res = await fetch(`${API}/calendars/primary/events?conferenceDataVersion=1&sendUpdates=none`, {
     method: 'POST',
     headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },

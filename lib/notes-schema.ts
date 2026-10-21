@@ -42,6 +42,21 @@ export const noteShareSchema = z.object({
   shared: z.boolean(),
 });
 
+/** Compartir con una persona del workspace (role null = dejar de compartir). */
+export const notePeopleShareSchema = z.object({
+  personId: z.string().min(1).max(128),
+  role: z.enum(['view', 'edit']).nullable(),
+});
+
+/** Nota → issues de Track: la nota entera o tareas elegidas, con link de vuelta. */
+export const noteTrackSchema = z.object({
+  projectId: id,
+  /** Ids de bloques todo; sin ellos, un issue con toda la nota. */
+  blockIds: z.array(id).min(1).max(50).optional(),
+  base_updated_at: z.string().max(40).optional(),
+  locale: z.enum(['en', 'es', 'pt']).optional(),
+});
+
 export const noteAskSchema = z.object({
   question: z.string().trim().min(2).max(500),
 });

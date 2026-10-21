@@ -6,7 +6,7 @@ import { runErrorCode } from '@/lib/agents-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const schema = z.object({
   message: z.string().trim().min(1).max(4000),

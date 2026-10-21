@@ -13,6 +13,8 @@ import {
   getIssueParentChain,
 } from '@/lib/track-data';
 import { isSubscribedToIssue } from '@/lib/track-subscriptions';
+import { listMilestones } from '@/lib/track-milestones';
+import { getIssueReminder } from '@/lib/track-notify';
 import IssueDetailClient from '@/components/track/IssueDetailClient';
 import { buildTrackUiLabels } from '@/components/track/ui-labels';
 
@@ -38,7 +40,7 @@ export default async function IssueDetailPage(
   const { issue, project } = found;
 
   const projectId = issue.project_id;
-  const [statuses, cycles, members, children, parentChain, attachments, relations, activities, subscribed] = await Promise.all([
+  const [statuses, cycles, members, children, parentChain, attachments, relations, activities, subscribed, milestones, reminder] = await Promise.all([
     listStatuses(projectId),
     listCycles(projectId),
     listProjectMembers(projectId, user.id),
@@ -48,6 +50,8 @@ export default async function IssueDetailPage(
     listIssueRelations(id),
     listIssueActivities(id),
     isSubscribedToIssue(id, realUserId(user)),
+    listMilestones(projectId),
+    getIssueReminder(id, realUserId(user)),
   ]);
 
   const t = await getTranslations({ locale, namespace: 'track' });
@@ -60,6 +64,8 @@ export default async function IssueDetailPage(
       initialProjectName={project.name}
       initialStatuses={statuses}
       initialCycles={cycles}
+      initialMilestones={milestones.map((m) => ({ id: m.id, name: m.name }))}
+      initialReminder={reminder}
       initialMembers={members}
       initialChildren={children}
       initialParentChain={parentChain}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { bulkLinkAction, linkBulkActionSchema } from '@/lib/links';
+import { viewerOf } from '@/lib/link-folders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
-  const affected = await bulkLinkAction(user.id, parsed.data);
+  const affected = await bulkLinkAction(user.id, parsed.data, viewerOf(user));
   return NextResponse.json({ ok: true, affected });
 }

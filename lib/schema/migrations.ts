@@ -2757,6 +2757,342 @@ export const MIGRATIONS: Migration[] = [
         }
       }
     },
+  },  {
+    // Track: avisos por email (inmediato, resumen diario o nada, por persona;
+    // cursor_at marca hasta dónde ya se mandó y digest_day reclama el resumen
+    // del día), cycles automáticos con arrastre de lo sin terminar
+    // (completed_at marca el cycle ya cerrado), plantillas de issue por
+    // proyecto, issues que se repiten, milestones con fecha objetivo,
+    // posponer avisos de la bandeja (notifications.snoozed_until) y
+    // recordatorios por issue y persona.
+    id: '059_track_notify_cycles_templates_recurring_milestones',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_notify_prefs (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          email_mode TEXT NOT NULL DEFAULT 'digest' CHECK (email_mode IN ('immediate', 'digest', 'off')),
+          timezone TEXT,
+          locale TEXT,
+          cursor_at TEXT,
+          digest_day TEXT,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS track_milestones (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          target_date TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_milestones_project ON track_milestones(project_id, target_date);
+        CREATE TABLE IF NOT EXISTS track_issue_templates (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          status_id TEXT REFERENCES track_statuses(id) ON DELETE SET NULL,
+          priority TEXT CHECK (priority IN ('urgent', 'high', 'medium', 'low')),
+          assignee_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          estimate INTEGER CHECK (estimate >= 0),
+          labels TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_issue_templates_project ON track_issue_templates(project_id, name);
+        CREATE TABLE IF NOT EXISTS track_recurring_issues (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          creator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          status_id TEXT REFERENCES track_statuses(id) ON DELETE SET NULL,
+          priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('urgent', 'high', 'medium', 'low')),
+          assignee_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          labels TEXT NOT NULL DEFAULT '[]',
+          frequency TEXT NOT NULL CHECK (frequency IN ('daily', 'weekly', 'monthly', 'yearly')),
+          every INTEGER NOT NULL DEFAULT 1 CHECK (every >= 1),
+          start_on TEXT NOT NULL,
+          next_run_on TEXT NOT NULL,
+          due_days INTEGER CHECK (due_days >= 0),
+          timezone TEXT NOT NULL DEFAULT 'UTC',
+          active INTEGER NOT NULL DEFAULT 1,
+          last_issue_id TEXT,
+          last_run_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_recurring_due ON track_recurring_issues(active, next_run_on);
+        CREATE INDEX IF NOT EXISTS idx_track_recurring_project ON track_recurring_issues(project_id, created_at);
+        CREATE TABLE IF NOT EXISTS track_issue_reminders (
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          remind_at TEXT NOT NULL,
+          sent_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (issue_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_issue_reminders_due ON track_issue_reminders(sent_at, remind_at);
+      `);
+      await addColumn(client, 'ALTER TABLE notifications ADD COLUMN snoozed_until TEXT');
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN cycle_auto INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN cycle_weeks INTEGER NOT NULL DEFAULT 2');
+      await addColumn(client, "ALTER TABLE track_projects ADD COLUMN cycle_name TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN cycle_auto_day TEXT');
+      await addColumn(client, 'ALTER TABLE track_cycles ADD COLUMN completed_at TEXT');
+      await addColumn(
+        client,
+        'ALTER TABLE track_issues ADD COLUMN milestone_id TEXT REFERENCES track_milestones(id) ON DELETE SET NULL',
+      );
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_track_issues_milestone ON track_issues(milestone_id) WHERE milestone_id IS NOT NULL',
+      );
+      await client.execute(
+        "CREATE INDEX IF NOT EXISTS idx_notifications_track ON notifications(source_type, created_at) WHERE source_type = 'track_issue'",
+      );
+    },
+  },
+  {
+    // Robots: secreto TOTP de las credenciales (cifrado con lib/secret-box,
+    // aparte del resto de los datos), corridas en lote de la API v1
+    // (batch_id) y cambios de la salida contra la corrida exitosa anterior
+    // (changed: 1 cambió, 0 igual, NULL sin comparar).
+    id: '061_robots_totp_batches_changes',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE flow_credentials ADD COLUMN totp_secret TEXT');
+      await addColumn(client, 'ALTER TABLE robot_runs ADD COLUMN batch_id TEXT');
+      await addColumn(client, 'ALTER TABLE robot_runs ADD COLUMN changed INTEGER');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_robot_runs_batch ON robot_runs(batch_id) WHERE batch_id IS NOT NULL');
+    },
+  },
+  {
+    // Cal: ubicaciones estructuradas, eventos colectivos, lugares por horario
+    // y routing forms que terminan en una URL o un mensaje (con registro de
+    // envíos). Link: filtros de analytics, páginas públicas de analytics y
+    // carpetas con permisos.
+    id: '063_cal_locations_collective_seats_link_folders',
+    async up(client) {
+      // --- Cal ---
+      // Ubicaciones que ofrece el evento (JSON [{kind, value}]), modo de los
+      // hosts (round_robin | collective) y lugares por horario (0 = sin lugares).
+      await addColumn(client, "ALTER TABLE calendar_event_types ADD COLUMN locations TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(client, "ALTER TABLE calendar_event_types ADD COLUMN scheduling TEXT NOT NULL DEFAULT 'round_robin'");
+      await addColumn(client, 'ALTER TABLE calendar_event_types ADD COLUMN seats INTEGER NOT NULL DEFAULT 0');
+      // Links fijos de cada anfitrión (Zoom, Teams, teléfono), JSON.
+      await addColumn(client, "ALTER TABLE calendar_users ADD COLUMN conferencing TEXT NOT NULL DEFAULT '{}'");
+      // La ubicación elegida ya resuelta, los co-anfitriones de un evento
+      // colectivo (JSON de user ids) y si la reserva ocupa un lugar de un horario compartido.
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN location TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN location_kind TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN co_host_ids TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN seated INTEGER NOT NULL DEFAULT 0');
+      // El índice único (host, inicio) deja afuera los lugares: varias
+      // reservas comparten el mismo horario del mismo host.
+      const hostSlotSql = String(
+        (await client.execute("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_calendar_bookings_host_slot'"))
+          .rows[0]?.sql ?? '',
+      );
+      if (!/seated/.test(hostSlotSql)) {
+        try {
+          await client.batch(
+            [
+              'DROP INDEX IF EXISTS idx_calendar_bookings_host_slot',
+              `CREATE UNIQUE INDEX IF NOT EXISTS idx_calendar_bookings_host_slot
+               ON calendar_bookings(host_user_id, starts_at) WHERE status IN ('confirmed', 'pending') AND seated = 0`,
+            ],
+            'write',
+          );
+        } catch {
+          // Otra instancia ya lo reconstruyó.
+        }
+      }
+      // Routing forms: la regla (y el form, si ninguna matchea) puede terminar
+      // en un evento, una URL o un mensaje. event_type_id pasa a ser opcional:
+      // se reconstruye la tabla.
+      await addColumn(client, "ALTER TABLE calendar_routing_forms ADD COLUMN fallback_action TEXT NOT NULL DEFAULT 'event'");
+      await addColumn(client, "ALTER TABLE calendar_routing_forms ADD COLUMN fallback_url TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, "ALTER TABLE calendar_routing_forms ADD COLUMN fallback_message TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, 'ALTER TABLE calendar_routing_forms ADD COLUMN pass_answers INTEGER NOT NULL DEFAULT 1');
+      const rulesSql = String(
+        (await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'calendar_routing_rules'"))
+          .rows[0]?.sql ?? '',
+      );
+      if (rulesSql && !/target_url/.test(rulesSql)) {
+        try {
+          await client.migrate([
+            'DROP TABLE IF EXISTS calendar_routing_rules_new',
+            `CREATE TABLE calendar_routing_rules_new (
+              id TEXT PRIMARY KEY,
+              form_id TEXT NOT NULL REFERENCES calendar_routing_forms(id) ON DELETE CASCADE,
+              field_id TEXT NOT NULL REFERENCES calendar_routing_fields(id) ON DELETE CASCADE,
+              operator TEXT NOT NULL CHECK (operator IN ('is', 'is_not', 'contains', 'truthy')),
+              value TEXT NOT NULL DEFAULT '',
+              event_type_id TEXT REFERENCES calendar_event_types(id) ON DELETE CASCADE,
+              position INTEGER NOT NULL DEFAULT 0,
+              action TEXT NOT NULL DEFAULT 'event' CHECK (action IN ('event', 'url', 'message')),
+              target_url TEXT NOT NULL DEFAULT '',
+              message TEXT NOT NULL DEFAULT ''
+            )`,
+            `INSERT INTO calendar_routing_rules_new (id, form_id, field_id, operator, value, event_type_id, position)
+             SELECT id, form_id, field_id, operator, value, event_type_id, position FROM calendar_routing_rules`,
+            'DROP TABLE calendar_routing_rules',
+            'ALTER TABLE calendar_routing_rules_new RENAME TO calendar_routing_rules',
+            'CREATE INDEX IF NOT EXISTS idx_calendar_routing_rules_form ON calendar_routing_rules(form_id, position)',
+          ]);
+        } catch (err) {
+          const after = String(
+            (await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'calendar_routing_rules'"))
+              .rows[0]?.sql ?? '',
+          );
+          if (!/target_url/.test(after)) throw err;
+        }
+      }
+      // Registro de cada envío del form: respuestas y a dónde terminó.
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS calendar_routing_submissions (
+          id TEXT PRIMARY KEY,
+          form_id TEXT NOT NULL REFERENCES calendar_routing_forms(id) ON DELETE CASCADE,
+          answers TEXT NOT NULL DEFAULT '{}',
+          outcome TEXT NOT NULL DEFAULT 'none',
+          target TEXT NOT NULL DEFAULT '',
+          rule_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_routing_submissions_form ON calendar_routing_submissions(form_id, created_at);
+      `);
+      // --- /Cal ---
+      // --- Link ---
+      // Carpetas de links: acceso por defecto para los miembros y excepciones
+      // por persona ('none' | 'view' | 'edit'). Owner y admins editan todo.
+      // Páginas públicas de analytics de un link o un tag (token revocable).
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS link_folders (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          default_access TEXT NOT NULL DEFAULT 'edit' CHECK (default_access IN ('none', 'view', 'edit')),
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_link_folders_user ON link_folders(user_id, name);
+        CREATE TABLE IF NOT EXISTS link_folder_members (
+          folder_id TEXT NOT NULL REFERENCES link_folders(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          access TEXT NOT NULL CHECK (access IN ('none', 'view', 'edit')),
+          PRIMARY KEY (folder_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS link_analytics_shares (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          link_id TEXT REFERENCES links(id) ON DELETE CASCADE,
+          tag TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          revoked_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_link_analytics_shares_user ON link_analytics_shares(user_id, created_at);
+      `);
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN folder_id TEXT REFERENCES link_folders(id) ON DELETE SET NULL');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_links_folder ON links(folder_id) WHERE folder_id IS NOT NULL');
+      // --- /Link ---
+    },
+  },
+  {
+    // Flow: tablas de datos del workspace (búsquedas, dedupe y estado entre
+    // corridas; filas como JSON con columnas tipadas, ver lib/flow-tables.ts)
+    // y datos de prueba fijados por nodo para probar un paso solo.
+    id: '060_flow_tables_pins',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS flow_tables (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          columns TEXT NOT NULL DEFAULT '[]',
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE (user_id, name)
+        );
+        CREATE TABLE IF NOT EXISTS flow_table_rows (
+          id TEXT PRIMARY KEY,
+          table_id TEXT NOT NULL REFERENCES flow_tables(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          data TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_flow_table_rows_table ON flow_table_rows(table_id, created_at);
+      `);
+      await addColumn(client, "ALTER TABLE flow_flows ADD COLUMN pinned_data TEXT NOT NULL DEFAULT '{}'");
+    },
+  },
+  {
+    // Board: acceso por pizarra (todo el workspace o solo invitados con rol),
+    // link de invitado con edición, timer compartido y votaciones del taller,
+    // y stickies convertidos en issues de Track (tarjetas en vivo).
+    // Notes: compartir una nota o una libreta con compañeros (ver o editar).
+    id: '062_board_access_workshop_notes_shares',
+    async up(client) {
+      await addColumn(client, "ALTER TABLE boards ADD COLUMN access TEXT NOT NULL DEFAULT 'workspace'");
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN edit_token TEXT');
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN timer_ends_at TEXT');
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN timer_seconds INTEGER');
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN timer_paused_left INTEGER');
+      await client.executeMultiple(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_boards_edit_token ON boards(edit_token) WHERE edit_token IS NOT NULL;
+        CREATE TABLE IF NOT EXISTS board_members (
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'edit',
+          added_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (board_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_members_user ON board_members(user_id);
+        CREATE TABLE IF NOT EXISTS board_vote_sessions (
+          id TEXT PRIMARY KEY,
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          votes_per_person INTEGER NOT NULL DEFAULT 3,
+          status TEXT NOT NULL DEFAULT 'open',
+          created_at TEXT NOT NULL,
+          closed_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_vote_sessions_board ON board_vote_sessions(board_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS board_votes (
+          session_id TEXT NOT NULL REFERENCES board_vote_sessions(id) ON DELETE CASCADE,
+          voter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          element_id TEXT NOT NULL,
+          count INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (session_id, voter_id, element_id)
+        );
+        CREATE TABLE IF NOT EXISTS board_track_links (
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          element_id TEXT NOT NULL,
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (board_id, element_id)
+        );
+        CREATE TABLE IF NOT EXISTS note_shares (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          note_id TEXT REFERENCES notes(id) ON DELETE CASCADE,
+          notebook_id TEXT REFERENCES note_notebooks(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'view',
+          created_at TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_note_shares_note ON note_shares(note_id, person_id) WHERE note_id IS NOT NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_note_shares_notebook ON note_shares(notebook_id, person_id) WHERE notebook_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_note_shares_person ON note_shares(person_id, workspace_id);
+      `);
+    },
   },
   {
     // CRM: merge de empresas (la papelera recuerda en qué empresa se fusionó),

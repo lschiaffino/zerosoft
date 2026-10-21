@@ -12,6 +12,9 @@ import { processSequences } from '@/lib/crm-sequences';
 import { runNightlyScoring } from '@/lib/crm-scoring';
 import { sendOfflineReplyEmails } from '@/lib/chat-offline-email';
 import { fireNoteReminders } from '@/lib/notes-reminders';
+import { runAutoCycles } from '@/lib/track-auto-cycles';
+import { runRecurringIssues } from '@/lib/track-recurring';
+import { fireIssueReminders, sendImmediateTrackEmails, sendTrackDigests } from '@/lib/track-notify';
 import { importResearchIdeas, researchIdeaSchema } from '@/lib/roadmap';
 import researchIdeas from '@/research/ideas.json';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
@@ -39,6 +42,9 @@ const FLOW_BUDGET_MS = 150_000;
  * corridas de Flow más viejas que la retención de cada workspace, en lotes. Una vez por
  * hora revisa los picos de pulgares abajo, errores de herramientas y topes
  * de pasos de Agents y avisa por email al dueño (lib/agents-alerts.ts).
+ * Track: cycles automáticos (una vez por día y proyecto), issues que se
+ * repiten (claim por regla), recordatorios de issues, emails inmediatos y el
+ * resumen diario a las 8 de cada persona (claim por persona y día).
  * Misma autorización que el cron de
  * recordatorios (CRON_SECRET).
  */
@@ -52,6 +58,12 @@ export async function GET(req: NextRequest) {
   const chatEmails = await sendOfflineReplyEmails({ limit: 200 }).catch(() => null);
   // Recordatorios de Notes (también cada minuto en Vercel; claim por fila).
   const noteReminders = await fireNoteReminders({ limit: 500 }).catch(() => null);
+  // Track: lo que corre solo. Los recordatorios van antes que los emails.
+  const trackCycles = await runAutoCycles().catch(() => null);
+  const trackRecurring = await runRecurringIssues({ limit: 200 }).catch(() => null);
+  const trackReminders = await fireIssueReminders({ limit: 500 }).catch(() => null);
+  const trackEmails = await sendImmediateTrackEmails({ limit: 200 }).catch(() => null);
+  const trackDigests = await sendTrackDigests({ limit: 500 }).catch(() => null);
   // Papelera del CRM: lo borrado hace más de 90 días se descarta para siempre.
   const trashPurged = await purgeExpiredTrash().catch(() => null);
   // Flow: corridas y pasos más viejos que la retención del workspace (lotes acotados).
@@ -81,5 +93,5 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, trashPurged, flowPruned, flow, emailSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, trackCycles, trackRecurring, trackReminders, trackEmails, trackDigests, trashPurged, flowPruned, flow, emailSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
 }

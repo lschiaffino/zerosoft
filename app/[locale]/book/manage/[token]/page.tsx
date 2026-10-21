@@ -63,6 +63,7 @@ export default async function ManageBookingPage(props: {
         approval: booking.approval,
         name: booking.invitee_name,
         email: booking.invitee_email,
+        location: booking.meeting_url || booking.location || '',
       }}
     />
   );

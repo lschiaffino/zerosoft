@@ -18,6 +18,7 @@ export const WEBHOOK_EVENTS = [
   'deal.lost',
   'robot.run.finished',
   'robot.run.failed',
+  'robot.output.changed',
   'chat.message.created',
   'chat.conversation.assigned',
   'chat.conversation.resolved',

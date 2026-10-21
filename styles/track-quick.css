@@ -524,6 +524,16 @@
   outline: none;
 }
 
+/* Plantilla: va arriba del título y precarga el resto. */
+.track-qc-template {
+  align-self: flex-start;
+  margin: 12px 20px 0;
+}
+
+.track-qc-labels {
+  align-self: center;
+}
+
 .track-qc-props {
   display: flex;
   flex-wrap: wrap;

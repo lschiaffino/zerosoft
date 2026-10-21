@@ -108,6 +108,7 @@
       "wait": "Wait",
       "extract": "Extract",
       "extract_table": "Extract table",
+      "extract_list": "Extract list",
       "screenshot": "Screenshot",
       "scroll": "Scroll",
       "if_exists": "If element exists",
@@ -142,7 +143,19 @@
       "script": "JavaScript (body of an async function, return a JSON value)",
       "retries": "Retries",
       "retryDelayMs": "Wait between tries (ms)",
-      "continueOnItemError": "If an item fails, log a warning and go to the next item"
+      "continueOnItemError": "If an item fails, log a warning and go to the next item",
+      "cardSelector": "Card selector",
+      "maxRows": "Max rows per page",
+      "listFields": "Fields of each row",
+      "fieldName": "Column",
+      "fieldSelector": "Selector inside the card",
+      "fieldAttribute": "Attribute",
+      "fieldText": "text",
+      "paginate": "Go through pages: click Next and keep adding rows",
+      "nextSelector": "Next button selector",
+      "nextText": "Or Next button text",
+      "maxPages": "Max pages",
+      "pageWaitMs": "Wait after each page (ms)"
     },
     "modes": {
       "text": "Text of the first match",
@@ -178,7 +191,14 @@
     "credentialsTitle": "Logins",
     "continueOn": "Continue if it fails",
     "continueOff": "Stop if it fails",
-    "continueBadge": "continues on error"
+    "continueBadge": "continues on error",
+    "cardHint": "Matches every card, row or item of the list. Each one becomes a row.",
+    "listFieldsHint": "Leave the selector empty to read the card itself. Leave the attribute empty to read the text, or use href or src for links and images.",
+    "addField": "Add field",
+    "removeField": "Remove field",
+    "nextTextDefault": "Next",
+    "paginateHint": "Stops when Next is missing or disabled, when a page repeats or after {max} pages. Each page counts toward the run page limit.",
+    "totpTip": "Login with a 2FA code: save the secret in a Username and password credential and fill the code field with {example}."
   },
   "inputs": {
     "title": "Inputs",
@@ -213,7 +233,9 @@
     "trigger": {
       "manual": "Manual",
       "flow": "Flow",
-      "schedule": "Schedule"
+      "schedule": "Schedule",
+      "api": "API",
+      "agent": "Agent"
     },
     "status": {
       "queued": "Queued",
@@ -252,6 +274,8 @@
     "queuedNotice": "Waiting in line: another robot is running in this workspace. This run starts when it finishes.",
     "warningsNotice": "{count, plural, one {# step failed and the robot continued.} other {# steps failed and the robot continued.}} They are marked in the log.",
     "downloadCsv": "Download CSV",
+    "changed": "Data changed",
+    "unchanged": "No changes",
     "failure": {
       "title": "Where step {step} failed",
       "step": "Step",
@@ -280,6 +304,7 @@
     "timeoutHint": "Max {max} s. Runs count toward your monthly minutes.",
     "flowTitle": "Use in Flow",
     "flowHint": "Add the “Robots: run robot” node and pick this robot. Flows can also react to “Robots: run finished” and “Robots: run failed”.",
+    "apiHint": "Also from the API v1 (robots:run scope): run it with POST /api/v1/robots/:id/runs or over many inputs with /bulk. Flows can react to “Robots: data changed” when the extracted data differs from the previous run.",
     "copyId": "Copy ID",
     "copied": "Copied",
     "responsible": "Use robots responsibly: respect each site's terms and robots.txt and don't overload servers. Keep logins in saved credentials, never in steps. Private networks and file:// URLs are blocked; downloads only through the Download step (10 MB max).",
@@ -430,7 +455,9 @@
     "triggers": {
       "manual": "manual",
       "flow": "Flow",
-      "schedule": "scheduled"
+      "schedule": "scheduled",
+      "api": "API",
+      "agent": "agent"
     }
   }
 }

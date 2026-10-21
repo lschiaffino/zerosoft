@@ -10,6 +10,7 @@ import RowMenu from '@/components/notes/RowMenu';
 import type { BoardDetail, BoardSummary } from '@/lib/boards-types';
 import { BOARD_TEMPLATES, type BoardTemplateKey } from '@/lib/board-templates';
 import TemplatePreview from './TemplatePreview';
+import { notifyBoardsChanged } from './BoardBranch';
 
 const TOAST_MS = 6000;
 
@@ -30,6 +31,15 @@ export default function BoardList({
   const format = useFormatter();
   const router = useRouter();
   const [boards, setBoards] = useState(initialBoards);
+  // El sidebar lista las pizarras: se le avisa cada cambio local (renombrar, duplicar, borrar).
+  const firstBoards = useRef(true);
+  useEffect(() => {
+    if (firstBoards.current) {
+      firstBoards.current = false;
+      return;
+    }
+    notifyBoardsChanged();
+  }, [boards]);
   const [menu, setMenu] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -129,6 +139,7 @@ export default function BoardList({
       thumbnail: copy.thumbnail,
       version: copy.version,
       shared: copy.shared,
+      access: copy.access,
       created_at: copy.created_at,
       updated_at: copy.updated_at,
       updated_by: copy.updated_by,
@@ -217,6 +228,7 @@ export default function BoardList({
                   {b.updated_by ? ` · ${b.updated_by}` : ''}
                 </p>
                 {b.shared && <span className="badge badge-outline board-card-shared">{t('share.on')}</span>}
+                {b.access === 'restricted' && <span className="badge badge-outline board-card-shared">{t('access.restrictedBadge')}</span>}
               </div>
               <RowMenu
                 className="board-card-menu"

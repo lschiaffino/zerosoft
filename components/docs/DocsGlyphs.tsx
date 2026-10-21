@@ -19,6 +19,7 @@ const PATHS = {
   database: <path d="M3 5h18v14H3zM3 9h18M8 9v10" />,
   image: <path d="M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6M15 9h.01" />,
   file: <path d="M14 3H7v18h10V6zM14 3v3h3M10 13h4M10 17h4" />,
+  board: <path d="M3 4h18v14H3zM7 14l3-4 3 3 4-5M9 21h6" />,
   search: <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM16 16l5 5" />,
 } as const;
 

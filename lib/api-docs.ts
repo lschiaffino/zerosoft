@@ -56,6 +56,7 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'cal', titleKey: 'calTitle', descKey: 'calDesc' },
   { id: 'agents', titleKey: 'agentsTitle', descKey: 'agentsDesc' },
   { id: 'chat', titleKey: 'chatTitle', descKey: 'chatDesc' },
+  { id: 'robots', titleKey: 'robotsTitle', descKey: 'robotsDesc' },
   { id: 'webhooks', titleKey: 'webhooksTitle', descKey: 'webhooksDesc' },
 ];
 
@@ -269,6 +270,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       expired_url: null,
       created_by: 'usr_4kq1',
       external_id: 'cms-post-4812',
+      folder_id: null,
       created_at: '2026-07-14T18:22:41Z',
       updated_at: '2026-07-14T18:22:41Z',
     },
@@ -376,6 +378,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     ],
     response: {
       range: { from: '2026-07-01', to: '2026-07-30' },
+      timezone: 'UTC',
+      filters: {},
       clicks: 1840,
       scans: 212,
       previous: { clicks: 1502, scans: 160 },
@@ -1415,6 +1419,127 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     responseStatus: 200,
   },
 
+  // Robots
+  {
+    id: 'robots-list',
+    sectionId: 'robots',
+    method: 'GET',
+    path: '/api/v1/robots',
+    titleKey: 'robotsListTitle',
+    descKey: 'robotsListDesc',
+    response: {
+      robots: [
+        {
+          id: 'c1f2a9d4-7b1e-4c2a-9f0e-1a2b3c4d5e6f',
+          name: 'Price check',
+          description: '',
+          enabled: true,
+          inputs: [{ name: 'url', label: 'Product URL', kind: 'text', default: '', required: true }],
+          updatedAt: '2026-11-01T18:00:00.000Z',
+        },
+      ],
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'robots-run',
+    sectionId: 'robots',
+    method: 'POST',
+    path: '/api/v1/robots/:id/runs',
+    titleKey: 'robotsRunTitle',
+    descKey: 'robotsRunDesc',
+    params: [
+      { name: 'inputs', type: 'object', descriptionKey: 'paramRobotInputs' },
+      { name: 'wait', type: 'boolean', descriptionKey: 'paramRobotWait' },
+    ],
+    request: { inputs: { url: 'https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html' } },
+    response: {
+      run: {
+        id: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d',
+        robotId: 'c1f2a9d4-7b1e-4c2a-9f0e-1a2b3c4d5e6f',
+        status: 'queued',
+        trigger: 'api',
+        input: { url: 'https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html' },
+        output: {},
+        error: null,
+        warnings: 0,
+        changed: null,
+        batchId: null,
+        createdAt: '2026-11-01T18:00:00.000Z',
+        startedAt: null,
+        finishedAt: null,
+        durationMs: null,
+      },
+    },
+    responseStatus: 202,
+  },
+  {
+    id: 'robots-run-get',
+    sectionId: 'robots',
+    method: 'GET',
+    path: '/api/v1/robots/runs/:id',
+    titleKey: 'robotsRunGetTitle',
+    descKey: 'robotsRunGetDesc',
+    response: {
+      run: {
+        id: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d',
+        robotId: 'c1f2a9d4-7b1e-4c2a-9f0e-1a2b3c4d5e6f',
+        status: 'success',
+        trigger: 'api',
+        input: { url: 'https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html' },
+        output: { title: 'A Light in the Attic', price: '£51.77' },
+        error: null,
+        warnings: 0,
+        changed: false,
+        batchId: null,
+        createdAt: '2026-11-01T18:00:00.000Z',
+        startedAt: '2026-11-01T18:00:01.000Z',
+        finishedAt: '2026-11-01T18:00:06.000Z',
+        durationMs: 5000,
+      },
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'robots-bulk',
+    sectionId: 'robots',
+    method: 'POST',
+    path: '/api/v1/robots/:id/bulk',
+    titleKey: 'robotsBulkTitle',
+    descKey: 'robotsBulkDesc',
+    params: [{ name: 'inputs', type: 'object[]', required: true, descriptionKey: 'paramRobotBulkInputs' }],
+    request: { inputs: [{ url: 'https://example.com/a' }, { url: 'https://example.com/b' }] },
+    response: {
+      batchId: '3e2d1c0b-9a8f-4e7d-8c6b-5a4f3e2d1c0b',
+      total: 2,
+      runs: [
+        { id: '1f2e3d4c-…', status: 'queued', input: { url: 'https://example.com/a' } },
+        { id: '5b6a7c8d-…', status: 'queued', input: { url: 'https://example.com/b' } },
+      ],
+    },
+    responseStatus: 202,
+  },
+  {
+    id: 'robots-batch-get',
+    sectionId: 'robots',
+    method: 'GET',
+    path: '/api/v1/robots/batches/:id',
+    titleKey: 'robotsBatchGetTitle',
+    descKey: 'robotsBatchGetDesc',
+    response: {
+      batchId: '3e2d1c0b-9a8f-4e7d-8c6b-5a4f3e2d1c0b',
+      robotId: 'c1f2a9d4-7b1e-4c2a-9f0e-1a2b3c4d5e6f',
+      total: 2,
+      counts: { queued: 0, running: 1, success: 1, failed: 0 },
+      done: false,
+      runs: [
+        { id: '1f2e3d4c-…', status: 'success', input: { url: 'https://example.com/a' }, output: { title: 'A' }, error: null },
+        { id: '5b6a7c8d-…', status: 'running', input: { url: 'https://example.com/b' }, output: {}, error: null },
+      ],
+    },
+    responseStatus: 200,
+  },
+
   // Webhooks
   {
     id: 'webhooks-payload',
@@ -1506,14 +1631,15 @@ export const API_SCOPE_DOCS: Array<{ scope: ApiScope; descKey: string }> = API_S
 
 /**
  * Scope que exige un endpoint: el explícito, o se deduce del path (crm, links,
- * calendar → cal, agents) y del método (GET = :read, el resto = :write).
+ * calendar → cal, agents, robots) y del método (GET = :read, el resto = :write).
  * null para ejemplos que no son rutas v1 (webhooks).
  */
 export function endpointScope(e: Pick<ApiEndpoint, 'path' | 'method' | 'scope'>): ApiScope | null {
   if (e.scope) return e.scope;
-  const m = /^\/api\/v1\/(crm|links|calendar|agents|chat)\b/.exec(e.path);
+  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat)\b/.exec(e.path);
   if (!m) return null;
   if (m[1] === 'agents') return 'agents:run';
+  if (m[1] === 'robots') return 'robots:run';
   const resource = m[1] === 'calendar' ? 'cal' : m[1];
   return `${resource}:${e.method === 'GET' ? 'read' : 'write'}` as ApiScope;
 }

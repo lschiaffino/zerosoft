@@ -1191,7 +1191,40 @@ export async function updateChatConversation(
   const updated = await getChatConversation(id);
   // Webhooks: asignación y resolución (lib/chat-api.ts).
   if (updated) await emitConversationChanges(existing, updated);
+  if (updated && fields.length > 0) await emitConversationEvents(existing, updated);
   return updated;
+}
+
+function conversationEventBase(conv: ChatConversationRow, widget: ChatWidgetRow) {
+  return {
+    conversation: {
+      id: conv.id,
+      status: conv.status,
+      priority: conv.priority,
+      subject: conv.subject ?? '',
+      assignedTo: conv.assigned_to,
+    },
+    widget: { id: widget.id, name: widget.name },
+  };
+}
+
+/** Disparadores de Flow del ciclo de una conversación: asignada a alguien y resuelta. */
+async function emitConversationEvents(before: ChatConversationRow, after: ChatConversationRow): Promise<void> {
+  const resolved = after.status === 'resolved' && before.status !== 'resolved';
+  const assigned = !!after.assigned_to && after.assigned_to !== before.assigned_to;
+  if (!resolved && !assigned) return;
+  const widget = await getChatWidget(after.widget_id);
+  if (!widget) return;
+  const { emitEvent } = await import('./events');
+  const base = conversationEventBase(after, widget);
+  if (assigned) {
+    const user = await getUserById(after.assigned_to!);
+    await emitEvent(widget.user_id, 'conversation.assigned', {
+      ...base,
+      assignee: { id: after.assigned_to, name: user?.name ?? '', email: user?.email ?? '' },
+    });
+  }
+  if (resolved) await emitEvent(widget.user_id, 'conversation.resolved', base);
 }
 
 /** Una respuesta del agente a una conversación resuelta la vuelve a abrir. */
@@ -2261,12 +2294,23 @@ export async function submitConversationCsat(
 ): Promise<ChatConversationRow | undefined> {
   const db = getDb();
   // Solo la primera respuesta cuenta (idempotente ante doble submit).
-  await db
+  const res = await db
     .prepare(
       'UPDATE chat_conversations SET csat_score = ?, csat_comment = ?, updated_at = ? WHERE id = ? AND csat_score IS NULL',
     )
     .run(score, comment ?? null, nowIso(), conversationId);
-  return getChatConversation(conversationId);
+  const conv = await getChatConversation(conversationId);
+  if (conv && res.changes === 1) {
+    const widget = await getChatWidget(conv.widget_id);
+    if (widget) {
+      const { emitEvent } = await import('./events');
+      await emitEvent(widget.user_id, 'conversation.rated', {
+        ...conversationEventBase(conv, widget),
+        rating: { score, comment: comment ?? '' },
+      });
+    }
+  }
+  return conv;
 }
 
 // ---------- Report (settings) ----------

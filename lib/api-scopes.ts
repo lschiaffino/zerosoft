@@ -11,6 +11,7 @@ export const API_SCOPES = [
   'cal:read',
   'cal:write',
   'agents:run',
+  'robots:run',
   'chat:read',
   'chat:write',
 ] as const;

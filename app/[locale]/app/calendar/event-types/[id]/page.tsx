@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import { parseLocations } from '@/lib/calendar-locations';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
@@ -79,6 +80,9 @@ export default async function EventTypeDetailPage(props: {
         priceCents: eventType.price_cents,
         currency: eventType.currency,
         oneOffTimes: parseOneOffTimes(eventType.one_off_times)?.map((d) => d.toISOString()) ?? null,
+        locations: parseLocations(eventType.locations),
+        scheduling: eventType.scheduling === 'collective' ? 'collective' : 'round_robin',
+        seats: eventType.seats ?? 0,
       }}
       schedules={schedules.map((s) => ({
         id: s.id,

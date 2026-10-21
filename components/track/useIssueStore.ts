@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { TrackStatusRow } from '@/lib/db';
+import type { TrackIssueTemplateRow, TrackStatusRow } from '@/lib/db';
 import type { ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
 import { applyIssuePatch, findOpenStatus, toggleDoneStatus, type IssuePatch, type IssuePriority } from '@/lib/track-tasks';
 
@@ -15,6 +15,10 @@ export interface ProjectContext {
   members: ProjectMember[];
   /** Ciclos del proyecto (el quick-create preselecciona el activo). */
   cycles?: Array<{ id: string; name: string; start_at: string; end_at: string }>;
+  /** Milestones del proyecto (el quick-create deja elegir uno). */
+  milestones?: Array<{ id: string; name: string }>;
+  /** Plantillas de issue (el quick-create las aplica sobre el borrador). */
+  templates?: TrackIssueTemplateRow[];
 }
 
 export type ProjectMap = Record<string, ProjectContext>;
@@ -29,6 +33,10 @@ export interface IssueDraft {
   /** Sub-issue: id del issue padre. */
   parentId?: string | null;
   cycleId?: string | null;
+  milestoneId?: string | null;
+  estimate?: number | null;
+  /** Labels del workspace (por id). */
+  labels?: Array<{ id: string }>;
 }
 
 export interface IssueStore {
@@ -201,6 +209,9 @@ export function useIssueStore(
               dueDate: draft.dueDate || undefined,
               parentId: draft.parentId || undefined,
               cycleId: draft.cycleId || undefined,
+              milestoneId: draft.milestoneId || undefined,
+              estimate: draft.estimate ?? undefined,
+              labels: draft.labels?.length ? draft.labels : undefined,
             }),
           });
           if (!res.ok) throw new Error(`create ${res.status}`);

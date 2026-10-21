@@ -193,6 +193,10 @@
     "project": "Track project",
     "flows": "Flows the agent can start",
     "noFlows": "No flows yet.",
+    "needsRobots": "Pick at least one robot for this tool to work.",
+    "robots": "Robots the agent can run",
+    "noRobots": "No robots yet.",
+    "robotsHint": "Only robots with automatic runs turned on can run. Each run uses your robot minutes and is capped at 60 seconds.",
     "domains": "Allowed domains (one per line; subdomains included)",
     "httpWarn": "The agent can call these APIs with whatever input it decides. Only allow read-only or idempotent endpoints you trust.",
     "items": {
@@ -228,6 +232,10 @@
         "name": "Run flow",
         "desc": "Starts one of the selected flows with a JSON input and returns the run id."
       },
+      "run_robot": {
+        "name": "Run robot",
+        "desc": "Runs one of the selected robots with inputs and returns the data it extracted. In the playground and test cases it is simulated: no browser opens."
+      },
       "handoff_to_human": {
         "name": "Hand off to a human",
         "desc": "Flags the conversation for your team and notifies them. In Chat, the agent stops answering."
@@ -243,7 +251,8 @@
       "crm": "CRM",
       "cal": "Cal",
       "track": "Track",
-      "flow": "Flow"
+      "flow": "Flow",
+      "robots": "Robots"
     },
     "advancedHint": "HTTP requests to your own APIs",
     "approval": "Ask a teammate to approve before it runs",
@@ -351,6 +360,7 @@
     "invalid_event_type": "That event type is not in this workspace.",
     "invalid_project": "That Track project is not in this workspace.",
     "invalid_flow": "One of the selected flows is not in this workspace.",
+    "invalid_robot": "One of the selected robots is not in this workspace.",
     "invalid_url": "Enter a full http(s) URL.",
     "unsupported_channel": "Reply to Chat conversations from the inbox.",
     "too_many_tests": "This agent already has the maximum number of tests (50).",

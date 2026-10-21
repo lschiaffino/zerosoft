@@ -193,6 +193,10 @@
     "project": "Proyecto de Track",
     "flows": "Flows que el agente puede iniciar",
     "noFlows": "Todavía no hay flows.",
+    "needsRobots": "Elegí al menos un robot para que esta herramienta funcione.",
+    "robots": "Robots que el agente puede correr",
+    "noRobots": "Todavía no hay robots.",
+    "robotsHint": "Solo corren los robots con las corridas automáticas activadas. Cada corrida usa tus minutos de robots y tiene un tope de 60 segundos.",
     "domains": "Dominios permitidos (uno por línea; incluye subdominios)",
     "httpWarn": "El agente puede llamar a estas APIs con lo que decida. Permití solo endpoints de lectura o idempotentes en los que confíes.",
     "items": {
@@ -228,6 +232,10 @@
         "name": "Ejecutar flow",
         "desc": "Inicia uno de los flows elegidos con un input JSON y devuelve el id de la corrida."
       },
+      "run_robot": {
+        "name": "Correr robot",
+        "desc": "Corre uno de los robots elegidos con entradas y devuelve los datos que extrajo. En el playground y los casos de prueba se simula: no se abre ningún navegador."
+      },
       "handoff_to_human": {
         "name": "Derivar a una persona",
         "desc": "Marca la conversación para tu equipo y le avisa. En Chat, el agente deja de responder."
@@ -243,7 +251,8 @@
       "crm": "CRM",
       "cal": "Cal",
       "track": "Track",
-      "flow": "Flow"
+      "flow": "Flow",
+      "robots": "Robots"
     },
     "advancedHint": "Request HTTP a tus propias APIs",
     "approval": "Pedir que alguien del equipo lo apruebe antes de que corra",
@@ -351,6 +360,7 @@
     "invalid_event_type": "Ese tipo de evento no es de este workspace.",
     "invalid_project": "Ese proyecto de Track no es de este workspace.",
     "invalid_flow": "Uno de los flows elegidos no es de este workspace.",
+    "invalid_robot": "Uno de los robots elegidos no es de este workspace.",
     "invalid_url": "Ingresá una URL completa http(s).",
     "unsupported_channel": "Las conversaciones de Chat se responden desde el inbox.",
     "too_many_tests": "Este agente ya tiene el máximo de tests (50).",

@@ -33,7 +33,7 @@ export default async function AgentEditorPage(props: {
   const agent = toAgentDto(row);
   const canEdit = canEditAgents(user);
   const db = getDb();
-  const [urls, widgets, docsPages, eventTypes, projects, flows, tests] = await Promise.all([
+  const [urls, widgets, docsPages, eventTypes, projects, flows, robots, tests] = await Promise.all([
     listKnowledgeUrls(id),
     listWorkspaceWidgets(user.id),
     db
@@ -48,6 +48,9 @@ export default async function AgentEditorPage(props: {
     db.prepare('SELECT id, name FROM flow_flows WHERE user_id = ? ORDER BY name').all(user.id) as Promise<
       Array<{ id: string; name: string }>
     >,
+    db.prepare('SELECT id, name FROM robots WHERE user_id = ? ORDER BY name').all(user.id) as Promise<
+      Array<{ id: string; name: string }>
+    >,
     listTestCases(user.id, id),
   ]);
   return (
@@ -60,6 +63,7 @@ export default async function AgentEditorPage(props: {
       eventTypes={eventTypes.map((e) => ({ id: e.id, title: e.title, durationMin: e.duration_min }))}
       projects={projects}
       flows={flows}
+      robots={robots}
       canEdit={canEdit}
       secretHeaders={canEdit ? listSecretHeaders(row) : []}
       tests={tests}

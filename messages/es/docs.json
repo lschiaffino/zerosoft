@@ -97,7 +97,8 @@
       "table": "Tabla",
       "database": "Base de datos",
       "image": "Imagen",
-      "file": "Archivo"
+      "file": "Archivo",
+      "board": "Pizarra"
     },
     "breadcrumb": "Ruta",
     "closePanel": "Cerrar panel",
@@ -115,6 +116,22 @@
       "untitledFile": "Archivo sin nombre",
       "imageLabel": "Imagen: {name}",
       "fileLabel": "Archivo: {name}"
+    },
+    "board": {
+      "label": "Pizarra embebida",
+      "pick": "Embeber una pizarra",
+      "search": "Buscar pizarras",
+      "loading": "Cargando…",
+      "loadError": "No se pudieron cargar tus pizarras.",
+      "none": "Todavía no hay pizarras en este workspace.",
+      "noMatch": "Ninguna pizarra coincide.",
+      "create": "Crear una pizarra",
+      "open": "Abrir {name}",
+      "openButton": "Abrir pizarra",
+      "change": "Cambiar",
+      "updated": "Editada {when}",
+      "empty": "Pizarra vacía",
+      "noAccess": "No tenés acceso a esta pizarra."
     }
   },
   "database": {

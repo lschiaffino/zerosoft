@@ -14,6 +14,8 @@ export const FLOW_EVENT_TYPES = [
   'booking.cancelled',
   'booking.no_show',
   'booking.requested',
+  'booking.declined',
+  'booking.refunded',
   'link.created',
   'link.clicked',
   'link.updated',
@@ -37,9 +39,25 @@ export const FLOW_EVENT_TYPES = [
   'issue.status_changed',
   'conversation.created',
   'message.received',
+  'conversation.assigned',
+  'conversation.resolved',
+  'conversation.rated',
   'page.created',
   'robot.run.finished',
   'robot.run.failed',
+  'robot.output.changed',
+  'note.created',
+  'note.tagged',
+  'note.trashed',
+  'board.created',
+  'board.deleted',
+  'board.comment_created',
+  'agent.conversation_started',
+  'agent.handoff',
+  'agent.feedback',
+  'task.created',
+  'task.completed',
+  'task.due',
 ] as const;
 export type FlowEventType = (typeof FLOW_EVENT_TYPES)[number];
 
@@ -58,6 +76,23 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   'booking.cancelled': { id: 'bk_1', cancelReason: '', invitee: { name: '', email: '' }, eventType: { title: '' } },
   'booking.no_show': { id: 'bk_1', status: 'no_show', startsAt: '', invitee: { name: '', email: '' }, eventType: { title: '' } },
   'booking.requested': { id: 'bk_1', status: 'pending', approval: 'pending', startsAt: '', invitee: { name: '', email: '' }, eventType: { title: '' } },
+  'booking.declined': {
+    id: 'bk_1',
+    status: 'cancelled',
+    approval: 'declined',
+    expired: false,
+    startsAt: '',
+    invitee: { name: '', email: '' },
+    eventType: { title: '' },
+  },
+  'booking.refunded': {
+    id: 'bk_1',
+    status: 'cancelled',
+    startsAt: '',
+    invitee: { name: '', email: '' },
+    payment: { status: 'refunded', amountCents: 5000, currency: 'USD' },
+    eventType: { title: '' },
+  },
   // Mismo shape que el evento real (toLinkDto en lib/links.ts).
   'link.created': {
     link: {
@@ -156,6 +191,20 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
     visitor: { id: 'v_1', name: '', email: '', emailVerified: false },
     widget: { id: 'w_1', name: 'Site' },
   },
+  'conversation.assigned': {
+    conversation: { id: 'cv_1', status: 'open', priority: 'medium', subject: '', assignedTo: 'u_1' },
+    assignee: { id: 'u_1', name: 'Ada Lovelace', email: 'ada@example.com' },
+    widget: { id: 'w_1', name: 'Site' },
+  },
+  'conversation.resolved': {
+    conversation: { id: 'cv_1', status: 'resolved', priority: 'medium', subject: '', assignedTo: null },
+    widget: { id: 'w_1', name: 'Site' },
+  },
+  'conversation.rated': {
+    conversation: { id: 'cv_1', status: 'resolved', subject: '' },
+    rating: { score: 5, comment: 'Quick and helpful.' },
+    widget: { id: 'w_1', name: 'Site' },
+  },
   'page.created': { page: { id: 'pg_1', title: 'Untitled' } },
   'robot.run.finished': {
     robot: { id: 'rb_1', name: 'Price check' },
@@ -166,6 +215,56 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
     robot: { id: 'rb_1', name: 'Price check' },
     run: { id: 'rr_1', status: 'failed', trigger: 'schedule', durationMs: 4200, error: '2: action_timeout' },
     output: {},
+  },
+  'robot.output.changed': {
+    robot: { id: 'rb_1', name: 'Price check' },
+    run: { id: 'rr_2', status: 'success', trigger: 'schedule', durationMs: 4100, warnings: 0 },
+    previousRunId: 'rr_1',
+    diff: [{ key: 'price', kind: 'changed', before: '£51.77', after: '£48.10' }],
+    output: { title: 'A Light in the Attic', price: '£48.10' },
+  },
+  // Notas: título y etiquetas, nunca el contenido (las notas son de cada persona).
+  'note.created': {
+    note: { id: 'nt_1', title: 'Meeting notes', tags: ['clients'], notebookId: null, sourceUrl: null, createdAt: '' },
+    personId: 'u_1',
+  },
+  'note.tagged': {
+    note: { id: 'nt_1', title: 'Meeting notes', tags: ['clients', 'todo'], notebookId: null, sourceUrl: null, createdAt: '' },
+    added: ['todo'],
+    personId: 'u_1',
+  },
+  'note.trashed': { note: { id: 'nt_1', title: 'Meeting notes', tags: [], notebookId: null, sourceUrl: null, createdAt: '' }, personId: 'u_1' },
+  'board.created': { board: { id: 'bd_1', name: 'Roadmap sketch' }, createdBy: 'u_1' },
+  'board.deleted': { board: { id: 'bd_1', name: 'Roadmap sketch' } },
+  'board.comment_created': {
+    board: { id: 'bd_1', name: 'Roadmap sketch' },
+    thread: { id: 'th_1' },
+    comment: { id: 'bc_1', body: 'Can we move this box?', authorId: 'u_1' },
+  },
+  'agent.conversation_started': {
+    agent: { id: 'ag_1', name: 'Support agent' },
+    conversation: { id: 'ac_1', channel: 'public', chatConversationId: null, title: '' },
+  },
+  'agent.handoff': {
+    agent: { id: 'ag_1', name: 'Support agent' },
+    conversation: { id: 'ac_1', channel: 'chat', chatConversationId: 'cv_1', title: '' },
+    reason: 'The visitor asked for a person.',
+  },
+  'agent.feedback': {
+    agent: { id: 'ag_1', name: 'Support agent' },
+    conversation: { id: 'ac_1', channel: 'public', chatConversationId: null, title: '' },
+    messageId: 'am_1',
+    rating: -1,
+    note: 'Wrong price.',
+  },
+  'task.created': {
+    task: { id: 't_1', subject: 'Follow up with Ada', body: '', dueAt: '2026-01-02T15:00:00Z', done: false, doneAt: null, ownerId: null, contactId: 'c_1', companyId: null, dealId: null },
+  },
+  'task.completed': {
+    task: { id: 't_1', subject: 'Follow up with Ada', body: '', dueAt: '', done: true, doneAt: '', ownerId: null, contactId: 'c_1', companyId: null, dealId: null },
+  },
+  'task.due': {
+    task: { id: 't_1', subject: 'Follow up with Ada', body: '', dueAt: '', done: false, doneAt: null, ownerId: null, contactId: 'c_1', companyId: null, dealId: null },
   },
 };
 
@@ -193,7 +292,9 @@ export type FieldKind =
   /** Un robot del workspace (elegirlo carga sus entradas en el campo inputs). */
   | 'robotRef'
   /** Expresión cron con vista previa. */
-  | 'cron';
+  | 'cron'
+  /** Una tabla de datos del workspace (lib/flow-tables.ts). */
+  | 'tableRef';
 
 export interface FieldDef {
   key: string;
@@ -216,6 +317,11 @@ export interface NodeDef {
   outputs: readonly string[];
   fields: readonly FieldDef[];
 }
+
+/** Modos del nodo Esperar. */
+export const DELAY_MODES = ['duration', 'until', 'resume'] as const;
+/** Operaciones del nodo Tabla de datos. */
+export const TABLE_OPERATIONS = ['find', 'insert', 'upsert', 'delete'] as const;
 
 /** Métodos que acepta un trigger.webhook. */
 export const WEBHOOK_ACCEPT = ['post_only', 'get_only', 'get_post'] as const;
@@ -302,8 +408,38 @@ export const NODE_DEFS = {
     category: 'logic',
     outputs: ['out'],
     fields: [
-      { key: 'amount', kind: 'number', default: 5 },
-      { key: 'unit', kind: 'select', options: ['seconds', 'minutes', 'hours', 'days'], default: 'minutes' },
+      /** duration: un tiempo fijo. until: hasta una fecha. resume: hasta una llamada a {{run.resumeUrl}}. */
+      { key: 'mode', kind: 'select', options: DELAY_MODES, default: 'duration' },
+      { key: 'amount', kind: 'number', default: 5, showIf: { key: 'mode', values: ['duration'] } },
+      {
+        key: 'unit',
+        kind: 'select',
+        options: ['seconds', 'minutes', 'hours', 'days'],
+        default: 'minutes',
+        showIf: { key: 'mode', values: ['duration'] },
+      },
+      { key: 'until', kind: 'text', template: true, placeholder: '{{trigger.startsAt}}', showIf: { key: 'mode', values: ['until'] } },
+      { key: 'timezone', kind: 'text', placeholder: 'UTC', default: 'UTC', showIf: { key: 'mode', values: ['until'] }, advanced: true },
+      { key: 'timeoutAmount', kind: 'number', default: 7, showIf: { key: 'mode', values: ['resume'] } },
+      { key: 'timeoutUnit', kind: 'select', options: ['minutes', 'hours', 'days'], default: 'days', showIf: { key: 'mode', values: ['resume'] } },
+      { key: 'onTimeout', kind: 'select', options: ['continue', 'fail'], default: 'continue', showIf: { key: 'mode', values: ['resume'] } },
+    ],
+  },
+  'logic.approval': {
+    type: 'logic.approval',
+    category: 'logic',
+    outputs: ['approved', 'rejected'],
+    fields: [
+      /** Emails separados por coma (hasta 10). */
+      { key: 'to', kind: 'text', template: true, placeholder: 'ops@example.com' },
+      { key: 'subject', kind: 'text', template: true, placeholder: 'Approve refund for {{trigger.email}}' },
+      { key: 'message', kind: 'textarea', template: true },
+      /** Opcional: también pide la aprobación en Slack (botones que abren la página). */
+      { key: 'slackCredentialId', kind: 'credential', options: ['slack'] },
+      { key: 'slackChannel', kind: 'text', template: true, placeholder: '#approvals' },
+      { key: 'timeoutAmount', kind: 'number', default: 3, advanced: true },
+      { key: 'timeoutUnit', kind: 'select', options: ['hours', 'days'], default: 'days', advanced: true },
+      { key: 'onTimeout', kind: 'select', options: ['reject', 'approve', 'fail'], default: 'reject', advanced: true },
     ],
   },
   'logic.loop': {
@@ -320,6 +456,26 @@ export const NODE_DEFS = {
     category: 'data',
     outputs: ['out'],
     fields: [{ key: 'fields', kind: 'kv', template: true, default: [] }],
+  },
+  'data.table': {
+    type: 'data.table',
+    category: 'data',
+    outputs: ['out'],
+    fields: [
+      { key: 'tableId', kind: 'tableRef' },
+      { key: 'operation', kind: 'select', options: TABLE_OPERATIONS, default: 'find' },
+      /** Columna a comparar (find sin columna = las filas más viejas primero). */
+      { key: 'column', kind: 'text', placeholder: 'email', showIf: { key: 'operation', values: ['find', 'upsert', 'delete'] } },
+      {
+        key: 'value',
+        kind: 'text',
+        template: true,
+        placeholder: '{{trigger.email}}',
+        showIf: { key: 'operation', values: ['find', 'upsert', 'delete'] },
+      },
+      { key: 'values', kind: 'kv', template: true, default: [], showIf: { key: 'operation', values: ['insert', 'upsert'] } },
+      { key: 'limit', kind: 'number', default: 1, showIf: { key: 'operation', values: ['find'] }, advanced: true },
+    ],
   },
   'data.json_parse': {
     type: 'data.json_parse',
@@ -760,6 +916,7 @@ export type GraphErrorCode =
   | 'self_loop'
   | 'cycle'
   | 'delay_in_loop'
+  | 'approval_in_loop'
   | 'invalid_cron'
   | 'invalid_timezone';
 
@@ -854,6 +1011,7 @@ export function validateGraph(input: unknown): GraphValidation {
   for (const loop of graph.nodes.filter((n) => n.type === 'logic.loop')) {
     for (const id of reachableFrom(graph, loop.id, 'item')) {
       if (byId.get(id)?.type === 'logic.delay') return { ok: false, error: 'delay_in_loop', nodeId: id };
+      if (byId.get(id)?.type === 'logic.approval') return { ok: false, error: 'approval_in_loop', nodeId: id };
     }
   }
 
@@ -903,6 +1061,41 @@ export const flowUpdateSchema = z.object({
 export const flowRunSchema = z.object({
   input: z.record(z.unknown()).optional(),
 });
+
+/** Probar un paso solo: el nodo (con la config del editor, aunque no esté guardada) y los datos de prueba. */
+export const flowStepTestSchema = z.object({
+  nodeId: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/),
+  node: z
+    .object({
+      type: z.string().refine(isNodeType, { message: 'unknown_node_type' }),
+      config: z.record(z.unknown()).default({}),
+    })
+    .optional(),
+  /** { trigger, nodes: { <id>: salida } }; sin esto se arma con lo fijado y la última corrida. */
+  context: z
+    .object({
+      trigger: z.unknown().optional(),
+      nodes: z.record(z.unknown()).optional(),
+    })
+    .optional(),
+});
+
+/** Fijar (o soltar con null) la salida de prueba de un nodo. */
+export const flowPinSchema = z.object({
+  nodeId: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/),
+  output: z.unknown(),
+});
+
+/** Nodos que no se prueban solos (esperan, repiten un cuerpo o corren otro flow). */
+export const UNTESTABLE_NODE_TYPES: readonly string[] = ['logic.loop', 'logic.delay', 'logic.approval', 'logic.run_flow'];
+
+export function isStepTestable(type: string): boolean {
+  return !isTriggerType(type) && !UNTESTABLE_NODE_TYPES.includes(type);
+}
+
+/** Tope de una salida fijada (JSON) y del total por flow. */
+export const PIN_LIMIT = 64_000;
+export const PINS_TOTAL_LIMIT = 512_000;
 
 export const flowRerunSchema = z.object({
   /** Nodo desde el que se vuelve a ejecutar (los anteriores reusan su salida). */

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { createBoard, listBoards } from '@/lib/boards';
+import { emitEventSoon } from '@/lib/events';
+import { boardViewer } from '@/lib/board-access';
 import { boardCreateSchema } from '@/lib/boards-schema';
 import { buildTemplateScene, type TemplateText } from '@/lib/board-templates';
 import { routing } from '@/i18n/routing';
@@ -27,7 +29,7 @@ function templateText(locale: string): TemplateText {
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
-  return NextResponse.json({ boards: await listBoards(user.id) });
+  return NextResponse.json({ boards: await listBoards(user.id, boardViewer(user)) });
 }
 
 /** Crea una pizarra. Body: { name?, template?, locale? } (la plantilla sale con los textos de `locale`). */
@@ -46,5 +48,6 @@ export async function POST(req: NextRequest) {
     scene = buildTemplateScene(template, templateText(locale));
   }
   const board = await createBoard(user.id, personId, name ?? '', { scene });
+  await emitEventSoon(user.id, 'board.created', { board: { id: board.id, name: board.name }, createdBy: personId });
   return NextResponse.json(board, { status: 201 });
 }

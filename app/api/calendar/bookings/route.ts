@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
         timezone: guestTz,
         answers: validAnswers,
         guests,
+        location: parsed.data.location,
         locale: parsed.data.locale,
         utm: sanitizeUtm(parsed.data.utm),
       },
@@ -158,6 +159,7 @@ export async function POST(req: NextRequest) {
         status: booking.status,
         manageToken: booking.manage_token,
         meetingUrl: synced.meeting_url,
+        location: synced.location,
         /** true: la reserva espera que el anfitrión la confirme. */
         awaitingApproval: booking.approval === 'pending',
         redirectUrl: redirectAfterBooking(eventType, synced),

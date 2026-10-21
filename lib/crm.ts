@@ -2131,9 +2131,30 @@ export async function fireDueTasks(limit = 200): Promise<number> {
     const claimed = await db
       .prepare('UPDATE crm_activities SET due_fired_at = ? WHERE id = ? AND due_fired_at IS NULL')
       .run(now(), row.id);
-    if (claimed.changes) await fireEvent(row.user_id, { type: 'task_due', entity: 'task', entityId: row.id });
+    if (!claimed.changes) continue;
+    await fireEvent(row.user_id, { type: 'task_due', entity: 'task', entityId: row.id });
+    const task = (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(row.id)) as CrmActivityRow | undefined;
+    if (task) await emitEvent(row.user_id, 'task.due', taskEventPayload(task));
   }
   return rows.length;
+}
+
+/** Datos de una tarea para los disparadores de Flow (task.*). */
+export function taskEventPayload(task: CrmActivityRow) {
+  return {
+    task: {
+      id: task.id,
+      subject: task.subject,
+      body: task.body,
+      dueAt: task.due_at,
+      done: task.done === 1,
+      doneAt: task.done_at ?? null,
+      ownerId: task.owner_id,
+      contactId: task.contact_id,
+      companyId: task.company_id,
+      dealId: task.deal_id,
+    },
+  };
 }
 
 export async function createActivity(
@@ -2176,7 +2197,9 @@ export async function createActivity(
     const { recalcContactScoreSafe } = await import('./crm-scoring');
     await recalcContactScoreSafe(userId, data.contactId);
   }
-  return (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
+  const created = (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
+  if (created.type === 'task') await emitEvent(userId, 'task.created', taskEventPayload(created));
+  return created;
 }
 
 export async function updateActivity(
@@ -2220,6 +2243,9 @@ export async function updateActivity(
     .prepare(`UPDATE crm_activities SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`)
     .run(...sets.map(([, v]) => v), id);
   const updated = (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
+  if (data.done === true && existing.done === 0 && updated.type === 'task') {
+    await emitEvent(userId, 'task.completed', taskEventPayload(updated));
+  }
   if (data.done === true && existing.done === 0 && (await spawnNextRepeat(userId, updated, db))) {
     return (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
   }

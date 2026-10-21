@@ -22,6 +22,8 @@ export interface BoardSummary {
   thumbnail: string | null;
   version: number;
   shared: boolean;
+  /** 'restricted' = solo quien la creó, admins e invitados. */
+  access: 'workspace' | 'restricted';
   created_at: string;
   updated_at: string;
   updated_by: string | null;
@@ -45,4 +47,6 @@ export function isAllowedLibraryUrl(url: string): boolean {
 export interface BoardDetail extends BoardSummary {
   scene: BoardScene;
   share_token: string | null;
+  /** Acceso de quien la abre (lo agrega la ruta/página; sin él, edición). */
+  my_access?: 'manage' | 'edit' | 'view';
 }
