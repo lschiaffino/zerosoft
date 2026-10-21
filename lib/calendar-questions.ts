@@ -85,3 +85,41 @@ export function answerText(value: unknown, bool: { yes: string; no: string }): s
   if (Array.isArray(value)) return value.map((v) => String(v)).join(', ');
   return JSON.stringify(value);
 }
+
+/**
+ * Respuestas pre-llenadas desde la URL de la página de reserva (?<pregunta>=…,
+ * p. ej. las que pasa un routing form): solo preguntas que existen, con un
+ * valor válido para su tipo. Las opciones tienen que existir (checkbox:
+ * separadas por coma); sí/no acepta true/false. Textos de hasta 2000.
+ */
+export function prefillAnswers(
+  questions: Question[],
+  params: Record<string, string | string[] | undefined>,
+): Record<string, string | boolean | string[]> {
+  const out: Record<string, string | boolean | string[]> = {};
+  for (const q of questions) {
+    if (!q.name || q.name === 'name' || q.name === 'email') continue;
+    let raw = params[q.name];
+    if (Array.isArray(raw)) raw = raw[0];
+    if (typeof raw !== 'string') continue;
+    // eslint-disable-next-line no-control-regex
+    const v = raw.replace(/[\x00-\x08\x0b-\x1f\x7f]+/g, ' ').trim().slice(0, 2000);
+    if (!v) continue;
+    if (q.type === 'boolean') {
+      if (v === 'true' || v === 'false') out[q.name] = v === 'true';
+    } else if (q.type === 'checkbox') {
+      const picked = v.split(',').map((s) => s.trim());
+      const valid = q.options.filter((o) => picked.includes(o));
+      if (valid.length > 0) out[q.name] = valid;
+    } else if (q.type === 'select' || q.type === 'radio') {
+      if (q.options.includes(v)) out[q.name] = v;
+    } else if (q.type === 'number') {
+      if (Number.isFinite(Number(v))) out[q.name] = v;
+    } else if (q.type === 'phone') {
+      if (isValidPhone(v)) out[q.name] = v;
+    } else {
+      out[q.name] = q.type === 'textarea' ? v : v.replace(/\s+/g, ' ');
+    }
+  }
+  return out;
+}

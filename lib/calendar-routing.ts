@@ -1,15 +1,17 @@
 /**
  * Calendar routing forms — capa de queries (server-only).
  * Un routing form es un formulario público que hace unas preguntas y deriva
- * al visitante al event type correcto según las respuestas: las reglas se
- * evalúan en orden (position) y gana la primera que matchea; si ninguna
- * matchea, se usa el default_event_type_id del form.
+ * al visitante según las respuestas: las reglas se evalúan en orden
+ * (position) y gana la primera que matchea; si ninguna matchea, se usa el
+ * destino de respaldo del form. Cada destino es un event type, una URL
+ * externa o un mensaje en la misma página. Cada envío queda registrado.
  */
 import {
   getDb,
   type CalendarRoutingFormRow,
   type CalendarRoutingFieldRow,
   type CalendarRoutingRuleRow,
+  type CalendarRoutingSubmissionRow,
 } from './db';
 import { CalendarError, getEventType, getEventTypeById, parseJson } from './calendar';
 import type {
@@ -139,8 +141,9 @@ export async function createRoutingForm(
   await getDb()
     .prepare(
       `INSERT INTO calendar_routing_forms
-       (id, user_id, slug, title, description, active, default_event_type_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, user_id, slug, title, description, active, default_event_type_id, created_at, updated_at,
+        fallback_action, fallback_url, fallback_message, pass_answers)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -152,6 +155,10 @@ export async function createRoutingForm(
       payload.defaultEventTypeId ?? null,
       ts,
       ts,
+      payload.fallbackAction ?? 'event',
+      payload.fallbackUrl ?? '',
+      payload.fallbackMessage ?? '',
+      payload.passAnswers === false ? 0 : 1,
     );
   const row = (await getDb()
     .prepare('SELECT * FROM calendar_routing_forms WHERE id = ?')
@@ -195,6 +202,22 @@ export async function updateRoutingForm(
   if (payload.defaultEventTypeId !== undefined) {
     sets.push('default_event_type_id = ?');
     values.push(payload.defaultEventTypeId ?? null);
+  }
+  if (payload.fallbackAction !== undefined) {
+    sets.push('fallback_action = ?');
+    values.push(payload.fallbackAction);
+  }
+  if (payload.fallbackUrl !== undefined) {
+    sets.push('fallback_url = ?');
+    values.push(payload.fallbackUrl);
+  }
+  if (payload.fallbackMessage !== undefined) {
+    sets.push('fallback_message = ?');
+    values.push(payload.fallbackMessage);
+  }
+  if (payload.passAnswers !== undefined) {
+    sets.push('pass_answers = ?');
+    values.push(payload.passAnswers ? 1 : 0);
   }
   if (sets.length === 0) return decorateForm(existing);
 
@@ -320,15 +343,27 @@ export async function addRoutingRule(
   const form = await getRoutingForm(userId, formId);
   if (!form) return undefined;
   if (!form.fields.some((f) => f.id === payload.fieldId)) throw new CalendarError('invalid_input', 400);
-  await assertOwnsEventType(userId, payload.eventTypeId);
+  const action = payload.action ?? 'event';
+  if (action === 'event') await assertOwnsEventType(userId, payload.eventTypeId ?? '');
   const id = crypto.randomUUID();
   const position = payload.position ?? (await nextPosition('calendar_routing_rules', formId));
   await getDb()
     .prepare(
-      `INSERT INTO calendar_routing_rules (id, form_id, field_id, operator, value, event_type_id, position)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO calendar_routing_rules (id, form_id, field_id, operator, value, event_type_id, position, action, target_url, message)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, formId, payload.fieldId, payload.operator, payload.value ?? '', payload.eventTypeId, position);
+    .run(
+      id,
+      formId,
+      payload.fieldId,
+      payload.operator,
+      payload.value ?? '',
+      action === 'event' ? (payload.eventTypeId ?? null) : null,
+      position,
+      action,
+      action === 'url' ? (payload.targetUrl ?? '') : '',
+      action === 'message' ? (payload.message ?? '') : '',
+    );
   return (await getDb()
     .prepare('SELECT * FROM calendar_routing_rules WHERE id = ?')
     .get(id)) as CalendarRoutingRuleRow;
@@ -347,10 +382,30 @@ export async function updateRoutingRule(
   if (payload.fieldId !== undefined && !form.fields.some((f) => f.id === payload.fieldId)) {
     throw new CalendarError('invalid_input', 400);
   }
-  if (payload.eventTypeId !== undefined) await assertOwnsEventType(userId, payload.eventTypeId);
+  if (payload.eventTypeId) await assertOwnsEventType(userId, payload.eventTypeId);
+  // El destino que queda tiene que estar completo: evento, URL o mensaje.
+  const action = payload.action ?? existing.action;
+  const nextEvent = payload.eventTypeId !== undefined ? payload.eventTypeId : existing.event_type_id;
+  const nextUrl = payload.targetUrl ?? existing.target_url;
+  const nextMessage = payload.message ?? existing.message;
+  if ((action === 'event' && !nextEvent) || (action === 'url' && !nextUrl) || (action === 'message' && !nextMessage)) {
+    throw new CalendarError('invalid_input', 400);
+  }
 
   const sets: string[] = [];
-  const values: (string | number)[] = [];
+  const values: (string | number | null)[] = [];
+  if (payload.action !== undefined) {
+    sets.push('action = ?');
+    values.push(payload.action);
+  }
+  if (payload.targetUrl !== undefined) {
+    sets.push('target_url = ?');
+    values.push(payload.targetUrl);
+  }
+  if (payload.message !== undefined) {
+    sets.push('message = ?');
+    values.push(payload.message);
+  }
 
   if (payload.fieldId !== undefined) {
     sets.push('field_id = ?');
@@ -366,7 +421,7 @@ export async function updateRoutingRule(
   }
   if (payload.eventTypeId !== undefined) {
     sets.push('event_type_id = ?');
-    values.push(payload.eventTypeId);
+    values.push(payload.eventTypeId ?? null);
   }
   if (payload.position !== undefined) {
     sets.push('position = ?');
@@ -435,29 +490,153 @@ function ruleMatches(rule: CalendarRoutingRuleRow, field: CalendarRoutingFieldRo
   }
 }
 
+/** A dónde termina un envío: un evento (slug), una URL o un mensaje. */
+export type RoutingOutcome =
+  | { kind: 'event'; slug: string; ruleId: string | null }
+  | { kind: 'url'; url: string; ruleId: string | null }
+  | { kind: 'message'; message: string; ruleId: string | null };
+
+/** Destino de una regla (o del respaldo) si se puede usar; null si su evento está inactivo o borrado. */
+async function outcomeFor(
+  action: 'event' | 'url' | 'message',
+  target: { eventTypeId: string | null; url: string; message: string },
+  ruleId: string | null,
+): Promise<RoutingOutcome | null> {
+  if (action === 'url') return target.url ? { kind: 'url', url: target.url, ruleId } : null;
+  if (action === 'message') return target.message ? { kind: 'message', message: target.message, ruleId } : null;
+  if (!target.eventTypeId) return null;
+  const et = await getEventTypeById(target.eventTypeId);
+  return et && et.active === 1 ? { kind: 'event', slug: et.slug, ruleId } : null;
+}
+
 /**
- * Evalúa las reglas del form en orden: devuelve el slug del event type de la
- * primera regla que matchea y cuyo destino existe y está activo; si ninguna
- * matchea, el slug del default (también debe estar activo); si no hay ruta, null.
+ * Evalúa las reglas del form en orden: gana la primera que matchea y cuyo
+ * destino sirve (un evento inactivo o borrado se saltea); si ninguna, el
+ * respaldo del form; si tampoco, null.
  */
-export async function evaluateRouting(
-  form: RoutingFormWithChildren,
-  answers: RoutingAnswers,
-): Promise<string | null> {
+export async function routeAnswers(form: RoutingFormWithChildren, answers: RoutingAnswers): Promise<RoutingOutcome | null> {
   const sorted = [...form.rules].sort((a, b) => a.position - b.position);
   for (const rule of sorted) {
     const field = form.fields.find((f) => f.id === rule.field_id);
     if (!field) continue;
     if (!ruleMatches(rule, field, answers)) continue;
-    const target = await getEventTypeById(rule.event_type_id);
-    if (target && target.active === 1) return target.slug;
-    // Destino inactivo o borrado: se salta a la siguiente regla.
+    const out = await outcomeFor(
+      rule.action ?? 'event',
+      { eventTypeId: rule.event_type_id, url: rule.target_url, message: rule.message },
+      rule.id,
+    );
+    if (out) return out;
   }
-  if (form.default_event_type_id) {
-    const fallback = await getEventTypeById(form.default_event_type_id);
-    if (fallback && fallback.active === 1) return fallback.slug;
+  return outcomeFor(
+    form.fallback_action ?? 'event',
+    { eventTypeId: form.default_event_type_id, url: form.fallback_url, message: form.fallback_message },
+    null,
+  );
+}
+
+/** Compat: slug del evento de destino (null si el destino no es un evento). */
+export async function evaluateRouting(form: RoutingFormWithChildren, answers: RoutingAnswers): Promise<string | null> {
+  const out = await routeAnswers(form, answers);
+  return out?.kind === 'event' ? out.slug : null;
+}
+
+/**
+ * Respuestas que viajan al destino como parámetros de URL: solo las de
+ * campos del form, como texto de una línea (sí/no para booleanos), hasta 500
+ * caracteres. Las vacías no van.
+ */
+export function answerParams(form: Pick<RoutingFormWithChildren, 'fields'>, answers: RoutingAnswers): Array<[string, string]> {
+  const out: Array<[string, string]> = [];
+  for (const f of form.fields) {
+    const raw = answers[f.name];
+    let v: string;
+    if (f.type === 'boolean') {
+      if (raw === undefined || raw === null || raw === '') continue;
+      v = isTruthyAnswer(raw) ? 'true' : 'false';
+    } else {
+      // eslint-disable-next-line no-control-regex
+      v = typeof raw === 'string' || typeof raw === 'number' ? String(raw).replace(/[\x00-\x1f\x7f]+/g, ' ').trim() : '';
+    }
+    if (!v) continue;
+    out.push([f.name, v.slice(0, 500)]);
   }
-  return null;
+  return out;
+}
+
+/** `base` (path o URL absoluta) con los parámetros agregados (sin pisar los que ya trae). */
+export function withParams(base: string, params: Array<[string, string]>): string {
+  if (params.length === 0) return base;
+  const absolute = /^https?:\/\//i.test(base);
+  const url = new URL(base, 'http://local.invalid');
+  for (const [k, v] of params) if (!url.searchParams.has(k)) url.searchParams.set(k, v);
+  return absolute ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
+}
+
+/** Respuestas guardadas en el registro: solo campos del form, texto acotado. */
+function storedAnswers(form: RoutingFormWithChildren, answers: RoutingAnswers): Record<string, string | boolean> {
+  const out: Record<string, string | boolean> = {};
+  for (const f of form.fields) {
+    const raw = answers[f.name];
+    if (f.type === 'boolean') {
+      if (raw !== undefined && raw !== null && raw !== '') out[f.name] = isTruthyAnswer(raw);
+      continue;
+    }
+    if (typeof raw === 'string' || typeof raw === 'number') {
+      const v = String(raw).trim().slice(0, 2000);
+      if (v) out[f.name] = v;
+    }
+  }
+  return out;
+}
+
+/** Cuántos envíos se guardan por form (los más viejos se borran). */
+export const MAX_SUBMISSIONS_PER_FORM = 5000;
+
+/** Registra un envío del form público y a dónde terminó. */
+export async function logRoutingSubmission(
+  form: RoutingFormWithChildren,
+  answers: RoutingAnswers,
+  outcome: RoutingOutcome | null,
+): Promise<void> {
+  const target = !outcome ? '' : outcome.kind === 'event' ? outcome.slug : outcome.kind === 'url' ? outcome.url : '';
+  await getDb()
+    .prepare(
+      `INSERT INTO calendar_routing_submissions (id, form_id, answers, outcome, target, rule_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      crypto.randomUUID(),
+      form.id,
+      JSON.stringify(storedAnswers(form, answers)),
+      outcome?.kind ?? 'none',
+      target,
+      outcome?.ruleId ?? null,
+      new Date().toISOString(),
+    );
+  await getDb()
+    .prepare(
+      `DELETE FROM calendar_routing_submissions WHERE form_id = ? AND id NOT IN (
+         SELECT id FROM calendar_routing_submissions WHERE form_id = ? ORDER BY created_at DESC LIMIT ?)`,
+    )
+    .run(form.id, form.id, MAX_SUBMISSIONS_PER_FORM);
+}
+
+export interface RoutingSubmission extends CalendarRoutingSubmissionRow {
+  answersParsed: Record<string, string | boolean>;
+}
+
+/** Envíos de un form del usuario, el más nuevo primero. */
+export async function listRoutingSubmissions(
+  userId: string,
+  formId: string,
+  limit = 100,
+): Promise<RoutingSubmission[] | undefined> {
+  const form = await getRoutingForm(userId, formId);
+  if (!form) return undefined;
+  const rows = (await getDb()
+    .prepare('SELECT * FROM calendar_routing_submissions WHERE form_id = ? ORDER BY created_at DESC LIMIT ?')
+    .all(formId, Math.min(Math.max(limit, 1), 1000))) as CalendarRoutingSubmissionRow[];
+  return rows.map((r) => ({ ...r, answersParsed: parseJson<Record<string, string | boolean>>(r.answers, {}) }));
 }
 
 /** Campos required sin respuesta válida (para validar el POST público). */

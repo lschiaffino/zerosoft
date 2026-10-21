@@ -9,6 +9,7 @@ import AdvancedSection from '@/components/ui/AdvancedSection';
 import TagsInput from './TagsInput';
 import { readUtm, syncUtm, UTM_FIELDS, type UtmField } from '@/lib/link-url';
 import UtmFields, { type UtmDraft } from './UtmFields';
+import FolderSelect from './FolderSelect';
 
 const SLUG_RE = /^[A-Za-z0-9_-]{2,32}$/;
 
@@ -31,7 +32,14 @@ function toLocalInput(iso: string): string {
  * previa social en "Avanzado". Un solo Guardar. Los UTM viven en la URL: los
  * campos y el destino se editan en espejo.
  */
-export default function EditLinkForm({ link }: { link: LinkDto }) {
+export default function EditLinkForm({
+  link,
+  folders = [],
+}: {
+  link: LinkDto;
+  /** Carpetas editables por quien mira (el campo se muestra si hay alguna). */
+  folders?: Array<{ id: string; name: string }>;
+}) {
   const t = useTranslations('link');
   const router = useRouter();
 
@@ -42,6 +50,7 @@ export default function EditLinkForm({ link }: { link: LinkDto }) {
   const [slug, setSlug] = useState(link.slug);
   const [title, setTitle] = useState(link.title ?? '');
   const [tags, setTags] = useState<string[]>(link.tags);
+  const [folderId, setFolderId] = useState(link.folder_id ?? '');
   const [expiresAt, setExpiresAt] = useState(link.expires_at ? toLocalInput(link.expires_at) : '');
   const [maxClicks, setMaxClicks] = useState(link.max_clicks?.toString() ?? '');
   const [password, setPassword] = useState('');
@@ -85,6 +94,7 @@ export default function EditLinkForm({ link }: { link: LinkDto }) {
       expiredUrl: expiredUrl.trim() || null,
     };
     if (slug.trim() && slug.trim() !== link.slug) payload.slug = slug.trim();
+    if ((folderId || null) !== link.folder_id) payload.folderId = folderId || null;
     if (clearPassword) payload.password = '';
     else if (password) payload.password = password;
 
@@ -158,6 +168,8 @@ export default function EditLinkForm({ link }: { link: LinkDto }) {
         </span>
         <TagsInput tags={tags} onChange={setTags} labelledBy="el-tags-label" />
       </div>
+
+      {folders.length > 0 && <FolderSelect id="el-folder" value={folderId} onChange={setFolderId} folders={folders} />}
 
       <AdvancedSection storageKey="link.edit" hint={t('detail.advancedHint')}>
         <fieldset className="lk-fieldset">

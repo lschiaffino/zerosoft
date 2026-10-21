@@ -24,9 +24,18 @@ export interface TableRow {
   /** Nombre de quien lo creó (null en links viejos). */
   creator: string | null;
   status: LinkStatus;
+  /** Está en una carpeta que quien mira solo puede ver. */
+  readOnly?: boolean;
 }
 
-export default function LinksTable({ rows }: { rows: TableRow[] }) {
+export default function LinksTable({
+  rows,
+  folders = [],
+}: {
+  rows: TableRow[];
+  /** Carpetas en las que quien mira puede editar (para "Mover a carpeta"). */
+  folders?: Array<{ id: string; name: string }>;
+}) {
   const t = useTranslations('link');
   const router = useRouter();
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -55,7 +64,12 @@ export default function LinksTable({ rows }: { rows: TableRow[] }) {
     setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)));
   }
 
-  async function bulk(body: { action: 'archive' | 'unarchive' | 'delete' } | { action: 'tag'; tag: string }) {
+  async function bulk(
+    body:
+      | { action: 'archive' | 'unarchive' | 'delete' }
+      | { action: 'tag'; tag: string }
+      | { action: 'move'; folderId: string | null },
+  ) {
     if (visibleSelected.length === 0) return;
     const total = visibleSelected.length;
     setBulkBusy(true);
@@ -78,6 +92,7 @@ export default function LinksTable({ rows }: { rows: TableRow[] }) {
       if (body.action === 'tag' && affected < total) {
         setNotice({ kind: 'info', text: t('bulkActions.tagPartial', { affected, total }) });
       }
+      if (body.action === 'move') setNotice({ kind: 'info', text: t('bulkActions.moved', { count: affected }) });
       if (body.action === 'delete' || body.action === 'archive' || body.action === 'unarchive') setSelected(new Set());
     }
     router.refresh();
@@ -171,6 +186,26 @@ export default function LinksTable({ rows }: { rows: TableRow[] }) {
               <button type="button" className="btn btn-sm" onClick={() => setTagOpen(true)} disabled={bulkBusy}>
                 {t('bulkActions.tag')}
               </button>
+              {folders.length > 0 && (
+                <select
+                  className="select lk-select-auto"
+                  value=""
+                  aria-label={t('bulkActions.move')}
+                  disabled={bulkBusy}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v) void bulk({ action: 'move', folderId: v === '__none' ? null : v });
+                  }}
+                >
+                  <option value="">{t('bulkActions.move')}</option>
+                  <option value="__none">{t('folders.noFolder')}</option>
+                  {folders.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+              )}
               <button type="button" className="btn btn-sm btn-danger" onClick={() => setBulkConfirm(true)} disabled={bulkBusy}>
                 {t('common.delete')}
               </button>
@@ -296,33 +331,37 @@ export default function LinksTable({ rows }: { rows: TableRow[] }) {
                         >
                           <LinkIcon name="qr" size={14} />
                         </Link>
-                        <DuplicateButton id={row.id} className="btn btn-sm btn-ghost btn-icon" iconOnly subject={shortText} />
-                        <Link
-                          href={`/app/links/${row.id}?tab=settings`}
-                          className="btn btn-sm btn-ghost btn-icon"
-                          title={t('common.edit')}
-                          aria-label={`${t('common.edit')}: ${shortText}`}
-                        >
-                          <LinkIcon name="edit" size={14} />
-                        </Link>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-ghost btn-icon"
-                          onClick={() => patch(row.id, { archived: row.status !== 'archived' })}
-                          title={row.status === 'archived' ? t('common.unarchive') : t('common.archive')}
-                          aria-label={`${row.status === 'archived' ? t('common.unarchive') : t('common.archive')}: ${shortText}`}
-                        >
-                          <LinkIcon name={row.status === 'archived' ? 'unarchive' : 'archive'} size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-ghost btn-icon btn-danger"
-                          onClick={() => setConfirmingId(row.id)}
-                          title={t('common.delete')}
-                          aria-label={`${t('common.delete')}: ${shortText}`}
-                        >
-                          <LinkIcon name="trash" size={14} />
-                        </button>
+                        {!row.readOnly && (
+                          <>
+                            <DuplicateButton id={row.id} className="btn btn-sm btn-ghost btn-icon" iconOnly subject={shortText} />
+                            <Link
+                              href={`/app/links/${row.id}?tab=settings`}
+                              className="btn btn-sm btn-ghost btn-icon"
+                              title={t('common.edit')}
+                              aria-label={`${t('common.edit')}: ${shortText}`}
+                            >
+                              <LinkIcon name="edit" size={14} />
+                            </Link>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-ghost btn-icon"
+                              onClick={() => patch(row.id, { archived: row.status !== 'archived' })}
+                              title={row.status === 'archived' ? t('common.unarchive') : t('common.archive')}
+                              aria-label={`${row.status === 'archived' ? t('common.unarchive') : t('common.archive')}: ${shortText}`}
+                            >
+                              <LinkIcon name={row.status === 'archived' ? 'unarchive' : 'archive'} size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-ghost btn-icon btn-danger"
+                              onClick={() => setConfirmingId(row.id)}
+                              title={t('common.delete')}
+                              aria-label={`${t('common.delete')}: ${shortText}`}
+                            >
+                              <LinkIcon name="trash" size={14} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </td>

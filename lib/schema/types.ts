@@ -45,8 +45,38 @@ export interface LinkRow {
   created_by?: string | null;
   /** Id propio del cliente de la API v1 (único por workspace). */
   external_id?: string | null;
+  /** Carpeta (link_folders); null = sin carpeta. */
+  folder_id?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type LinkFolderAccess = 'none' | 'view' | 'edit';
+
+export interface LinkFolderRow {
+  id: string;
+  user_id: string;
+  name: string;
+  /** Acceso de los miembros sin excepción propia. */
+  default_access: LinkFolderAccess;
+  created_at: string;
+}
+
+export interface LinkFolderMemberRow {
+  folder_id: string;
+  user_id: string;
+  access: LinkFolderAccess;
+}
+
+export interface LinkAnalyticsShareRow {
+  id: string;
+  user_id: string;
+  token: string;
+  link_id: string | null;
+  tag: string | null;
+  created_by: string | null;
+  created_at: string;
+  revoked_at: string | null;
 }
 
 export interface ClickRow {
@@ -715,6 +745,8 @@ export interface CalendarUserRow {
   display_name: string | null;
   created_at: string;
   updated_at: string;
+  /** Links fijos del anfitrión, JSON { zoomUrl, teamsUrl, phone } (063). */
+  conferencing: string;
 }
 
 export interface CalendarEventTypeRow {
@@ -745,6 +777,12 @@ export interface CalendarEventTypeRow {
   currency: string;
   /** Reunión única: JSON de inicios ISO elegidos a mano (057). NULL = evento normal. */
   one_off_times: string | null;
+  /** Ubicaciones que puede elegir el invitado, JSON [{ kind, value }] (063). */
+  locations: string;
+  /** round_robin: un host libre del pool; collective: todos los hosts libres (063). */
+  scheduling: 'round_robin' | 'collective';
+  /** Lugares por horario (0 = una reserva por horario) (063). */
+  seats: number;
 }
 
 export interface CalendarScheduleRow {
@@ -844,6 +882,13 @@ export interface CalendarBookingRow {
   approval: 'none' | 'pending' | 'approved' | 'declined';
   /** Invitados extra del invitado principal, JSON string[] de emails (057). */
   guests: string;
+  /** Ubicación elegida ya resuelta (link, dirección o teléfono) y su tipo (063). */
+  location: string;
+  location_kind: string;
+  /** Co-anfitriones de un evento colectivo, JSON string[] de user ids (063). */
+  co_host_ids: string;
+  /** 1 = ocupa un lugar de un horario compartido (063). */
+  seated: 0 | 1;
 }
 
 export interface CalendarEventHostRow {
@@ -881,6 +926,12 @@ export interface CalendarRoutingFormRow {
   default_event_type_id: string | null;
   created_at: string;
   updated_at: string;
+  /** Si ninguna regla matchea: event (default_event_type_id) | url | message (063). */
+  fallback_action: 'event' | 'url' | 'message';
+  fallback_url: string;
+  fallback_message: string;
+  /** Las respuestas viajan al destino (página de reserva o URL) (063). */
+  pass_answers: 0 | 1;
 }
 
 export interface CalendarRoutingFieldRow {
@@ -900,8 +951,24 @@ export interface CalendarRoutingRuleRow {
   field_id: string;
   operator: 'is' | 'is_not' | 'contains' | 'truthy';
   value: string;
-  event_type_id: string;
+  /** NULL cuando la regla termina en una URL o un mensaje (063). */
+  event_type_id: string | null;
   position: number;
+  action: 'event' | 'url' | 'message';
+  target_url: string;
+  message: string;
+}
+
+export interface CalendarRoutingSubmissionRow {
+  id: string;
+  form_id: string;
+  answers: string; // JSON object
+  /** event | url | message | none */
+  outcome: string;
+  /** Slug del evento, URL o '' (mensaje / sin ruta). */
+  target: string;
+  rule_id: string | null;
+  created_at: string;
 }
 
 // ---------- Track ----------

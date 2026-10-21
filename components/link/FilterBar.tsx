@@ -13,10 +13,23 @@ interface FilterBarProps {
   /** Filtro "Creado por" (id real de la persona). */
   creator?: string | null;
   creators?: Array<{ id: string; name: string }>;
+  /** Filtro de carpeta: id o 'none' (sin carpeta). */
+  folder?: string | null;
+  folders?: Array<{ id: string; name: string }>;
 }
 
 /** Búsqueda, estado, tag y orden (todo por query params, del lado del server). */
-export default function FilterBar({ q, tag, archived, sort, tags, creator = null, creators = [] }: FilterBarProps) {
+export default function FilterBar({
+  q,
+  tag,
+  archived,
+  sort,
+  tags,
+  creator = null,
+  creators = [],
+  folder = null,
+  folders = [],
+}: FilterBarProps) {
   const t = useTranslations('link');
   const router = useRouter();
   const pathname = usePathname();
@@ -30,6 +43,7 @@ export default function FilterBar({ q, tag, archived, sort, tags, creator = null
       archived: archived !== '0' ? archived : undefined,
       sort: sort !== 'created' ? sort : undefined,
       creator: creator ?? undefined,
+      folder: folder ?? undefined,
       ...patch,
     };
     for (const [key, value] of Object.entries(current)) {
@@ -94,6 +108,24 @@ export default function FilterBar({ q, tag, archived, sort, tags, creator = null
           {tags.map((name) => (
             <option key={name} value={name}>
               {name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {(folders.length > 0 || folder) && (
+        <select
+          className="select lk-select-auto"
+          value={folder ?? ''}
+          onChange={(e) => go({ folder: e.target.value || undefined })}
+          aria-label={t('folders.filterLabel')}
+          data-testid="links-folder-filter"
+        >
+          <option value="">{t('folders.all')}</option>
+          <option value="none">{t('folders.noFolder')}</option>
+          {folders.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.name}
             </option>
           ))}
         </select>

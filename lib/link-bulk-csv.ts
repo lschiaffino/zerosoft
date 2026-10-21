@@ -9,12 +9,65 @@ export interface BulkResultItem {
   short_url: string;
   status: 'created' | 'error';
   error?: string;
+  /** Slug y título pedidos en la fila (si vinieron). */
+  slug?: string;
+  title?: string;
+}
+
+/** Una fila del alta masiva: URL y, opcionales, slug y título propios. */
+export interface BulkRow {
+  url: string;
+  slug?: string;
+  title?: string;
+}
+
+const SLUG_CELL = /^[A-Za-z0-9_-]{0,32}$/;
+
+/**
+ * Filas del alta masiva, una por línea: `url`, o `url, slug, título` (con
+ * comas o tabs, como sale de una planilla). Con tabs las columnas son
+ * exactas. Con comas, la segunda columna tiene que parecer un slug (letras,
+ * números, - y _) y, si la URL tiene query, la coma tiene que venir con un
+ * espacio: si no, la coma es parte de la URL y la línea entera es la URL. El título es el resto de la línea (puede tener comas). Las líneas
+ * vacías se ignoran.
+ */
+export function parseBulkLines(text: string): BulkRow[] {
+  const rows: BulkRow[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    let url = line;
+    let slug = '';
+    let title = '';
+    if (line.includes('\t')) {
+      const [a = '', b = '', ...rest] = line.split('\t');
+      url = a.trim();
+      slug = b.trim();
+      title = rest.join(' ').trim();
+    } else {
+      const m = /^(\S+?),(\s*)([^,]*?)\s*(?:,(.*))?$/.exec(line);
+      // Una URL con query puede tener comas propias (?ids=1,2,3): ahí la
+      // coma separa columnas solo si viene con espacio (", slug").
+      if (m && SLUG_CELL.test(m[3]) && (m[2] !== '' || !m[1].includes('?'))) {
+        url = m[1];
+        slug = m[3];
+        title = (m[4] ?? '').trim();
+      }
+    }
+    const row: BulkRow = { url };
+    if (slug) row.slug = slug;
+    if (title) row.title = title.slice(0, 200);
+    rows.push(row);
+  }
+  return rows;
 }
 
 export function bulkResultsToCsv(rows: BulkResultItem[]): string {
-  const lines = ['original_url,short_url,status'];
+  const lines = ['original_url,short_url,status,title'];
   for (const row of rows) {
-    lines.push([csvCell(row.url), csvCell(row.short_url), csvCell(row.error ?? row.status)].join(','));
+    lines.push(
+      [csvCell(row.url), csvCell(row.short_url), csvCell(row.error ?? row.status), csvCell(row.title ?? '')].join(','),
+    );
   }
   return lines.join('\n');
 }

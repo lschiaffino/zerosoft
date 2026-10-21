@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { listEventTypes } from '@/lib/calendar';
-import { getRoutingForm } from '@/lib/calendar-routing';
+import { getRoutingForm, listRoutingSubmissions } from '@/lib/calendar-routing';
 import PageHeader from '@/components/ui/PageHeader';
 import RoutingFormEditor from '@/components/calendar/RoutingFormEditor';
 import CalDeleteButton from '@/components/calendar/CalDeleteButton';
@@ -19,6 +19,7 @@ export default async function RoutingFormDetailPage(props: { params: Promise<{ l
   const form = await getRoutingForm(user.id, id);
   if (!form) notFound();
   const eventTypes = await listEventTypes(user.id);
+  const submissions = (await listRoutingSubmissions(user.id, id, 50)) ?? [];
   const origin = publicOrigin((await headers()).get('host'));
 
   return (
@@ -42,6 +43,8 @@ export default async function RoutingFormDetailPage(props: { params: Promise<{ l
       />
       <RoutingFormEditor
         initial={form}
+        submissions={submissions}
+        locale={locale}
         publicBase={`${origin}/${locale}/r/${user.handle ?? ''}/`}
         eventTypes={eventTypes.map((et) => ({ id: et.id, title: et.title, slug: et.slug }))}
       />

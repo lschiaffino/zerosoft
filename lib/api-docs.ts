@@ -243,6 +243,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       expired_url: null,
       created_by: 'usr_4kq1',
       external_id: 'cms-post-4812',
+      folder_id: null,
       created_at: '2026-07-14T18:22:41Z',
       updated_at: '2026-07-14T18:22:41Z',
     },
@@ -350,6 +351,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     ],
     response: {
       range: { from: '2026-07-01', to: '2026-07-30' },
+      timezone: 'UTC',
+      filters: {},
       clicks: 1840,
       scans: 212,
       previous: { clicks: 1502, scans: 160 },

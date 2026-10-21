@@ -6,6 +6,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import type { CalendarBookingRowWithEvent } from '@/lib/calendar';
 import { parseUtm } from '@/lib/calendar-redirect';
 import { answerText } from '@/lib/calendar-questions';
+import { isLocationKind } from '@/lib/calendar-locations';
 
 type Status = '' | 'confirmed' | 'pending' | 'cancelled' | 'no_show';
 
@@ -460,6 +461,20 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
                                 <a className="data" href={b.meeting_url} target="_blank" rel="noreferrer">
                                   {b.meeting_url}
                                 </a>
+                              </dd>
+                            </div>
+                          )}
+                          {b.location_kind && b.location !== b.meeting_url && (
+                            <div>
+                              <dt>{t('booking.where')}</dt>
+                              <dd>
+                                {t(`location.kind.${isLocationKind(b.location_kind) ? b.location_kind : 'link'}`)}
+                                {b.location && (
+                                  <>
+                                    {': '}
+                                    <span className="data">{b.location}</span>
+                                  </>
+                                )}
                               </dd>
                             </div>
                           )}

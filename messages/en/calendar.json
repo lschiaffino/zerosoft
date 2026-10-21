@@ -193,7 +193,9 @@
     "guestN": "Guest {n} email",
     "removeGuest": "Remove guest {n}",
     "addAnotherGuest": "Add another guest",
-    "guestsHelp": "They get the invite by email. Up to {max}."
+    "guestsHelp": "They get the invite by email. Up to {max}.",
+    "seatsPerSlot": "{n, plural, one {# seat per time} other {# seats per time}}",
+    "seatsLeft": "{n, plural, one {# seat left} other {# seats left}}"
   },
   "routing": {
     "title": "Routing forms",
@@ -218,7 +220,7 @@
     "fieldTypeBoolean": "Yes / No",
     "fieldOptions": "Options",
     "rules": "Routing rules",
-    "rulesHelp": "First matching rule wins. If none matches, the default event type is used.",
+    "rulesHelp": "First matching rule wins. Each rule sends people to an event type, an external URL or a message. If none matches, the fallback below is used.",
     "addRule": "Add rule",
     "noRules": "No rules yet.",
     "ruleField": "Question",
@@ -231,7 +233,7 @@
     "valueTrue": "Yes",
     "valueFalse": "No",
     "submit": "Continue",
-    "noRoute": "No booking page matches your answers.",
+    "noRoute": "Nothing matches your answers.",
     "deleteConfirm": "Delete “{title}”? Its public link stops working.",
     "activeLabel": "Form published",
     "choose": "Choose an option",
@@ -249,7 +251,7 @@
     "nextPublish": "Continue to Publish",
     "nextRules": "Continue to Rules",
     "noEventTypesTitle": "Create an event type first",
-    "noEventTypesBody": "Rules send each person to an event type. With none, there's nowhere to send them.",
+    "noEventTypesBody": "Rules can send people to an event type. You can still route to a URL or show a message.",
     "openForm": "Open form",
     "optionsPlaceholder": "Sales, Support, Press",
     "optionsRequired": "A choice question needs at least two options, separated by commas.",
@@ -265,7 +267,20 @@
     "stepPublish": "Publish",
     "stepQuestions": "Questions",
     "stepRules": "Rules",
-    "steps": "Form steps"
+    "steps": "Form steps",
+    "actionEvent": "Event type",
+    "actionUrl": "External URL",
+    "actionMessage": "Message",
+    "fallbackLabel": "If no rule matches",
+    "passAnswers": "Pass the answers on (they fill in matching booking questions or go in the URL)",
+    "submissionsTitle": "Submissions",
+    "submissionsLead": "Every time someone sends the form: their answers and where they ended up.",
+    "noSubmissions": "No submissions yet.",
+    "submittedAt": "When",
+    "answers": "Answers",
+    "outcome": "Sent to",
+    "outcomeNone": "No match",
+    "messageTitle": "Thanks"
   },
   "errors": {
     "invalid_slug": "Invalid slug. Use lowercase letters, numbers and dashes only.",
@@ -289,7 +304,11 @@
     "not_started": "This meeting has not started yet.",
     "status_changed": "This booking changed in the meantime. Reload and try again.",
     "confirmation_paid": "Host confirmation and a price do not go together. Remove the price or turn off confirmation.",
-    "too_many_guests": "This meeting does not take that many guests. Remove some and try again."
+    "too_many_guests": "This meeting does not take that many guests. Remove some and try again.",
+    "seats_single_use": "Seats do not work with a single-use link or a one-off meeting.",
+    "seats_round_robin": "With seats, use a single host or collective hosts.",
+    "invalid_location": "Pick where the meeting happens.",
+    "invalid_phone": "Enter a valid phone number."
   },
   "settings": {
     "title": "Settings",
@@ -604,7 +623,16 @@
     "allowGuestsHelp": "Guests receive the calendar invite. Only the invitee can reschedule or cancel.",
     "maxGuests": "Most guests per booking",
     "maxGuestsHelp": "From 1 to {max}. Leave it empty to allow {max}.",
-    "maxGuestsInvalid": "The guest limit has to be a whole number from 1 to {max}."
+    "maxGuestsInvalid": "The guest limit has to be a whole number from 1 to {max}.",
+    "seats": "Seats per time",
+    "seatsHelp": "Several invitees can book the same time until it fills up. Blank or 0: one booking per time.",
+    "seatsInvalid": "Seats has to be a whole number from 0 to {max}.",
+    "hostsTitle": "Hosts",
+    "hostsLead": "Who takes the bookings of this event.",
+    "schedulingLabel": "How hosts are assigned",
+    "schedulingRoundRobin": "Round-robin",
+    "schedulingCollective": "Collective",
+    "schedulingCollectiveHelp": "Every selected host joins: a time is offered only when all of them are free."
   },
   "errorPage": {
     "title": "This screen didn't load",
@@ -664,5 +692,39 @@
     "emptyTitle": "No bookings in this range",
     "emptyBody": "Try a longer range, or share an event type link to start getting bookings.",
     "note": "Payment holds that expired unpaid are left out."
+  },
+  "location": {
+    "title": "Locations to choose from",
+    "lead": "Add one or more. With several, the invitee picks one when booking. Zoom and Teams without a link use each host's own link.",
+    "kind": {
+      "zoom": "Zoom",
+      "teams": "Microsoft Teams",
+      "google_meet": "Google Meet",
+      "phone_host": "Phone call (host calls)",
+      "phone_invitee": "Phone call (invitee calls)",
+      "in_person": "In person",
+      "link": "Other link"
+    },
+    "kindLabel": "Location type",
+    "valueLabel": "Link, address or phone",
+    "addressPlaceholder": "Street, number, city",
+    "phonePlaceholder": "Number to call (blank: each host's phone)",
+    "hostLinkPlaceholder": "Link (blank: each host's own link)",
+    "meetNote": "Created by Google Calendar when the host has it connected.",
+    "hostCallsNote": "The invitee leaves their phone number.",
+    "add": "Add location",
+    "remove": "Remove location",
+    "invalid": "Check the locations: an address or link is missing, or a link or phone number is not valid.",
+    "textFallbackHelp": "With locations to choose from, this text only shows where there is no choice.",
+    "hostCalls": "(we call you)",
+    "youCall": "(you call)",
+    "yourPhone": "Your phone number",
+    "conferencingTitle": "Your meeting links",
+    "conferencingLead": "Used when an event offers Zoom, Teams or a call to you and you are the host.",
+    "conferencingInvalid": "Check the links (http or https) and the phone number.",
+    "zoomLink": "Zoom room link",
+    "teamsLink": "Teams meeting link",
+    "phoneNumber": "Phone number",
+    "phoneNumberHelp": "Invitees call this number when the event uses \"invitee calls\" without a number of its own."
   }
 }

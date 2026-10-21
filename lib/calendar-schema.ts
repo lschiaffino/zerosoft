@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import { MAX_PERIOD_LIMIT, SLOT_INTERVAL_MAX, SLOT_INTERVAL_MIN } from './calendar-limits';
 import { isValidRedirectUrl } from './calendar-redirect';
+import { LOCATION_KINDS, MAX_LOCATIONS, locationProblem } from './calendar-locations';
 import { guestLimit, isValidPhone, MAX_GUESTS, MAX_QUESTION_OPTIONS, OPTION_QUESTION_TYPES, QUESTION_TYPES } from './calendar-questions';
 
 // ---------- Primitivas ----------
@@ -82,6 +83,24 @@ const customField = z
     options: z.array(z.string().trim().min(1).max(200)).max(MAX_QUESTION_OPTIONS).optional(),
   })
   .refine((f) => !OPTION_QUESTION_TYPES.has(f.type) || (f.options?.length ?? 0) > 0, { message: 'missing_options' });
+/** Ubicación que ofrece el evento (tipos en lib/calendar-locations.ts). */
+const locationOption = z
+  .object({ kind: z.enum(LOCATION_KINDS), value: z.string().trim().max(500).optional().default('') })
+  .superRefine((o, ctx) => {
+    const problem = locationProblem(o);
+    if (problem) ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem });
+  });
+
+/** Tope de lugares por horario en un evento grupal. */
+export const MAX_SEATS = 500;
+
+/** Link fijo del anfitrión ('' = borrar). */
+const conferencingUrl = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((v) => v === '' || /^https?:\/\/\S+$/i.test(v), { message: 'invalid_url' });
+
 const logoUrl = z
   .string()
   .trim()
@@ -116,6 +135,19 @@ export const calendarConfigUpdateSchema = z.object({
   brandColor: hexColor.nullish(),
   logoUrl: logoUrl.nullish(),
   displayName: z.string().trim().max(80).nullish(),
+  /** Links fijos del anfitrión para las ubicaciones Zoom, Teams y teléfono. */
+  conferencing: z
+    .object({
+      zoomUrl: conferencingUrl.optional(),
+      teamsUrl: conferencingUrl.optional(),
+      phone: z
+        .string()
+        .trim()
+        .max(40)
+        .refine((v) => v === '' || isValidPhone(v), { message: 'invalid_phone' })
+        .optional(),
+    })
+    .optional(),
 });
 
 // ---------- Event types ----------
@@ -125,6 +157,12 @@ export const eventTypeCreateSchema = z.object({
   title: shortText,
   durationMin: z.number().int().min(1),
   location: longText.optional(),
+  /** Ubicaciones a elegir por el invitado (vacío = solo el texto de `location`). */
+  locations: z.array(locationOption).max(MAX_LOCATIONS).optional(),
+  /** round_robin: reserva con un host libre del pool; collective: con todos libres. */
+  scheduling: z.enum(['round_robin', 'collective']).optional(),
+  /** Lugares por horario: varios invitados reservan el mismo (0 = uno por horario). */
+  seats: z.number().int().min(0).max(MAX_SEATS).optional(),
   description: longText.optional(),
   color: hexColor.optional(),
   active: z.boolean().optional(),
@@ -218,6 +256,10 @@ export const bookingCreateSchema = z.object({
   utm: z.record(z.unknown()).optional(),
   /** Invitados extra (emails): solo si el evento los permite (validateGuests). */
   guests: z.array(email).max(MAX_GUESTS).optional(),
+  /** Ubicación elegida (clave de lib/calendar-locations.ts) y teléfono si el anfitrión llama. */
+  location: z
+    .object({ key: z.string().trim().max(40).optional(), phone: z.string().trim().max(40).optional() })
+    .optional(),
 });
 
 const ANSWER_MAX = 2000;
@@ -330,12 +372,26 @@ export const bookingApprovalSchema = z.object({
 
 // ---------- Routing forms ----------
 
+/** Destino de una regla o del form: un evento, una URL (http/https) o un mensaje. */
+const routingAction = z.enum(['event', 'url', 'message']);
+const routingUrl = z
+  .string()
+  .trim()
+  .max(2000)
+  .refine((v) => v === '' || isValidRedirectUrl(v), { message: 'invalid_redirect' });
+
 export const routingFormCreateSchema = z.object({
   slug,
   title: shortText,
   description: longText.optional(),
   active: z.boolean().optional(),
   defaultEventTypeId: id.nullish(),
+  /** Si ninguna regla matchea. */
+  fallbackAction: routingAction.optional(),
+  fallbackUrl: routingUrl.optional(),
+  fallbackMessage: longText.optional(),
+  /** Las respuestas viajan al destino (prellenan la reserva o van en la URL). */
+  passAnswers: z.boolean().optional(),
 });
 
 export const routingFormUpdateSchema = routingFormCreateSchema.partial();
@@ -358,15 +414,26 @@ export const routingFieldCreateSchema = z.object({
 
 export const routingFieldUpdateSchema = routingFieldCreateSchema.partial();
 
-export const routingRuleCreateSchema = z.object({
+const routingRuleFields = z.object({
   fieldId: id,
   operator: z.enum(['is', 'is_not', 'contains', 'truthy']),
   value: z.string().trim().max(200).optional(),
-  eventTypeId: id,
+  action: routingAction.optional(),
+  eventTypeId: id.nullish(),
+  targetUrl: routingUrl.optional(),
+  message: longText.optional(),
   position: z.number().int().min(0).optional(),
 });
 
-export const routingRuleUpdateSchema = routingRuleCreateSchema.partial();
+/** Cada destino trae lo suyo: el evento, la URL o el texto del mensaje. */
+export const routingRuleCreateSchema = routingRuleFields.superRefine((r, ctx) => {
+  const action = r.action ?? 'event';
+  if (action === 'event' && !r.eventTypeId) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'missing_event', path: ['eventTypeId'] });
+  if (action === 'url' && !r.targetUrl) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'missing_url', path: ['targetUrl'] });
+  if (action === 'message' && !r.message) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'missing_message', path: ['message'] });
+});
+
+export const routingRuleUpdateSchema = routingRuleFields.partial();
 
 export const routingEvaluateSchema = z.object({
   answers: z.record(z.unknown()),

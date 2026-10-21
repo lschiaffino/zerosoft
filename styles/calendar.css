@@ -859,3 +859,27 @@ html.zs-embed .bk-card { border-color: transparent; border-top-color: var(--bk);
   .cal-range-custom .input { width: 140px; }
   .cal-oneoff-row { grid-template-columns: minmax(0, 1fr) 28px; }
 }
+
+/* Routing forms: mensaje final y registro de envíos */
+.cal-routing-message { white-space: pre-wrap; color: var(--ink); font-size: 0.9375rem; }
+.cal-submissions td { vertical-align: top; }
+.cal-submission-answer { display: block; }
+.cal-submission-answer + .cal-submission-answer { margin-top: 2px; }
+
+/* Ubicaciones a elegir y lugares que quedan en un horario grupal */
+.bk-locations { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.bk-locations > legend { margin-bottom: 6px; padding: 0; }
+.bk-slot .bk-seats { display: block; font-size: 0.75rem; font-weight: 400; opacity: 0.8; }
+
+/* Editor: ubicaciones y modo de los hosts */
+.cal-locations { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.cal-locations > legend { margin-bottom: 2px; padding: 0; }
+.cal-location-row { display: grid; grid-template-columns: minmax(140px, 200px) minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.cal-location-note { font-size: 0.8125rem; }
+.cal-location-add { align-self: flex-start; }
+.cal-scheduling { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; padding: 0; border: 0; min-width: 0; }
+.cal-scheduling > legend { margin-bottom: 6px; padding: 0; }
+@media (max-width: 560px) {
+  .cal-location-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .cal-location-row > .input, .cal-location-row > .cal-location-note { grid-column: 1 / -1; grid-row: 2; }
+}

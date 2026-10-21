@@ -67,6 +67,7 @@ export async function findOrCreateContact(
 function bookingBody(booking: CalendarBookingRow): string {
   const lines: string[] = [];
   if (booking.meeting_url) lines.push(booking.meeting_url);
+  else if (booking.location) lines.push(booking.location);
   try {
     const answers = JSON.parse(booking.answers || '{}') as Record<string, unknown>;
     for (const [key, value] of Object.entries(answers)) {

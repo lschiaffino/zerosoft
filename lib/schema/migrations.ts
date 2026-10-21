@@ -2758,6 +2758,138 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Cal: ubicaciones estructuradas, eventos colectivos, lugares por horario
+    // y routing forms que terminan en una URL o un mensaje (con registro de
+    // envíos). Link: filtros de analytics, páginas públicas de analytics y
+    // carpetas con permisos.
+    id: '063_cal_locations_collective_seats_link_folders',
+    async up(client) {
+      // --- Cal ---
+      // Ubicaciones que ofrece el evento (JSON [{kind, value}]), modo de los
+      // hosts (round_robin | collective) y lugares por horario (0 = sin lugares).
+      await addColumn(client, "ALTER TABLE calendar_event_types ADD COLUMN locations TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(client, "ALTER TABLE calendar_event_types ADD COLUMN scheduling TEXT NOT NULL DEFAULT 'round_robin'");
+      await addColumn(client, 'ALTER TABLE calendar_event_types ADD COLUMN seats INTEGER NOT NULL DEFAULT 0');
+      // Links fijos de cada anfitrión (Zoom, Teams, teléfono), JSON.
+      await addColumn(client, "ALTER TABLE calendar_users ADD COLUMN conferencing TEXT NOT NULL DEFAULT '{}'");
+      // La ubicación elegida ya resuelta, los co-anfitriones de un evento
+      // colectivo (JSON de user ids) y si la reserva ocupa un lugar de un horario compartido.
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN location TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN location_kind TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN co_host_ids TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN seated INTEGER NOT NULL DEFAULT 0');
+      // El índice único (host, inicio) deja afuera los lugares: varias
+      // reservas comparten el mismo horario del mismo host.
+      const hostSlotSql = String(
+        (await client.execute("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_calendar_bookings_host_slot'"))
+          .rows[0]?.sql ?? '',
+      );
+      if (!/seated/.test(hostSlotSql)) {
+        try {
+          await client.batch(
+            [
+              'DROP INDEX IF EXISTS idx_calendar_bookings_host_slot',
+              `CREATE UNIQUE INDEX IF NOT EXISTS idx_calendar_bookings_host_slot
+               ON calendar_bookings(host_user_id, starts_at) WHERE status IN ('confirmed', 'pending') AND seated = 0`,
+            ],
+            'write',
+          );
+        } catch {
+          // Otra instancia ya lo reconstruyó.
+        }
+      }
+      // Routing forms: la regla (y el form, si ninguna matchea) puede terminar
+      // en un evento, una URL o un mensaje. event_type_id pasa a ser opcional:
+      // se reconstruye la tabla.
+      await addColumn(client, "ALTER TABLE calendar_routing_forms ADD COLUMN fallback_action TEXT NOT NULL DEFAULT 'event'");
+      await addColumn(client, "ALTER TABLE calendar_routing_forms ADD COLUMN fallback_url TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, "ALTER TABLE calendar_routing_forms ADD COLUMN fallback_message TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, 'ALTER TABLE calendar_routing_forms ADD COLUMN pass_answers INTEGER NOT NULL DEFAULT 1');
+      const rulesSql = String(
+        (await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'calendar_routing_rules'"))
+          .rows[0]?.sql ?? '',
+      );
+      if (rulesSql && !/target_url/.test(rulesSql)) {
+        try {
+          await client.migrate([
+            'DROP TABLE IF EXISTS calendar_routing_rules_new',
+            `CREATE TABLE calendar_routing_rules_new (
+              id TEXT PRIMARY KEY,
+              form_id TEXT NOT NULL REFERENCES calendar_routing_forms(id) ON DELETE CASCADE,
+              field_id TEXT NOT NULL REFERENCES calendar_routing_fields(id) ON DELETE CASCADE,
+              operator TEXT NOT NULL CHECK (operator IN ('is', 'is_not', 'contains', 'truthy')),
+              value TEXT NOT NULL DEFAULT '',
+              event_type_id TEXT REFERENCES calendar_event_types(id) ON DELETE CASCADE,
+              position INTEGER NOT NULL DEFAULT 0,
+              action TEXT NOT NULL DEFAULT 'event' CHECK (action IN ('event', 'url', 'message')),
+              target_url TEXT NOT NULL DEFAULT '',
+              message TEXT NOT NULL DEFAULT ''
+            )`,
+            `INSERT INTO calendar_routing_rules_new (id, form_id, field_id, operator, value, event_type_id, position)
+             SELECT id, form_id, field_id, operator, value, event_type_id, position FROM calendar_routing_rules`,
+            'DROP TABLE calendar_routing_rules',
+            'ALTER TABLE calendar_routing_rules_new RENAME TO calendar_routing_rules',
+            'CREATE INDEX IF NOT EXISTS idx_calendar_routing_rules_form ON calendar_routing_rules(form_id, position)',
+          ]);
+        } catch (err) {
+          const after = String(
+            (await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'calendar_routing_rules'"))
+              .rows[0]?.sql ?? '',
+          );
+          if (!/target_url/.test(after)) throw err;
+        }
+      }
+      // Registro de cada envío del form: respuestas y a dónde terminó.
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS calendar_routing_submissions (
+          id TEXT PRIMARY KEY,
+          form_id TEXT NOT NULL REFERENCES calendar_routing_forms(id) ON DELETE CASCADE,
+          answers TEXT NOT NULL DEFAULT '{}',
+          outcome TEXT NOT NULL DEFAULT 'none',
+          target TEXT NOT NULL DEFAULT '',
+          rule_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_routing_submissions_form ON calendar_routing_submissions(form_id, created_at);
+      `);
+      // --- /Cal ---
+      // --- Link ---
+      // Carpetas de links: acceso por defecto para los miembros y excepciones
+      // por persona ('none' | 'view' | 'edit'). Owner y admins editan todo.
+      // Páginas públicas de analytics de un link o un tag (token revocable).
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS link_folders (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          default_access TEXT NOT NULL DEFAULT 'edit' CHECK (default_access IN ('none', 'view', 'edit')),
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_link_folders_user ON link_folders(user_id, name);
+        CREATE TABLE IF NOT EXISTS link_folder_members (
+          folder_id TEXT NOT NULL REFERENCES link_folders(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          access TEXT NOT NULL CHECK (access IN ('none', 'view', 'edit')),
+          PRIMARY KEY (folder_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS link_analytics_shares (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          link_id TEXT REFERENCES links(id) ON DELETE CASCADE,
+          tag TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          revoked_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_link_analytics_shares_user ON link_analytics_shares(user_id, created_at);
+      `);
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN folder_id TEXT REFERENCES link_folders(id) ON DELETE SET NULL');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_links_folder ON links(folder_id) WHERE folder_id IS NOT NULL');
+      // --- /Link ---
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

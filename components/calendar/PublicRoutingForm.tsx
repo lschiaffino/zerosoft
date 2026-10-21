@@ -28,9 +28,11 @@ interface PublicRoutingFormProps {
 
 /**
  * Formulario público de routing: hace las preguntas, evalúa las reglas vía
- * POST /api/calendar/routing/<form id>/route y redirige al booking page del
- * event type destino. Las respuestas de campos llamados `name`/`email` se
- * llevan como query params (?name=&email=) para pre-llenar el booking.
+ * POST /api/calendar/routing/<form id>/route y lleva al destino: el booking
+ * page de un event type, una URL externa o un mensaje en la misma página.
+ * Las respuestas de campos llamados `name`/`email` siempre van como query
+ * params (?name=&email=) para pre-llenar el booking; el resto, si el form
+ * pasa las respuestas (ya vienen en bookPath).
  */
 export default function PublicRoutingForm({ form, brand }: PublicRoutingFormProps) {
   const t = useTranslations('calendar');
@@ -38,6 +40,7 @@ export default function PublicRoutingForm({ form, brand }: PublicRoutingFormProp
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   function updateAnswer(name: string, value: unknown) {
     setAnswers((prev) => ({ ...prev, [name]: value }));
@@ -54,14 +57,27 @@ export default function PublicRoutingForm({ form, brand }: PublicRoutingFormProp
     }).catch(() => null);
 
     if (res && res.status === 200) {
-      const data = (await res.json()) as { eventTypeSlug: string; bookPath: string };
-      const qs = new URLSearchParams();
+      const data = (await res.json()) as
+        | { kind?: 'event'; eventTypeSlug: string; bookPath: string }
+        | { kind: 'url'; url: string }
+        | { kind: 'message'; message: string };
+      if (data.kind === 'message') {
+        setBusy(false);
+        setMessage(data.message);
+        return;
+      }
+      if (data.kind === 'url') {
+        window.location.assign(data.url);
+        return;
+      }
+      const [path, query = ''] = data.bookPath.split('?');
+      const qs = new URLSearchParams(query);
       const name = answers.name;
       const email = answers.email;
-      if (typeof name === 'string' && name.trim()) qs.set('name', name.trim());
-      if (typeof email === 'string' && email.trim()) qs.set('email', email.trim());
+      if (typeof name === 'string' && name.trim() && !qs.has('name')) qs.set('name', name.trim());
+      if (typeof email === 'string' && email.trim() && !qs.has('email')) qs.set('email', email.trim());
       const suffix = qs.toString();
-      router.push(`${data.bookPath}${suffix ? `?${suffix}` : ''}`);
+      router.push(`${path}${suffix ? `?${suffix}` : ''}`);
       return;
     }
     setBusy(false);
@@ -74,6 +90,12 @@ export default function PublicRoutingForm({ form, brand }: PublicRoutingFormProp
       <div className="bk-card">
         <BookingInfo hostName={brand.name} logoUrl={brand.logoUrl} title={form.title} description={form.description} />
         <div className="bk-main">
+          {message !== null ? (
+            <div className="bk-form" role="status">
+              <h2 className="bk-h2">{t('routing.messageTitle')}</h2>
+              <p className="bk-note cal-routing-message">{message}</p>
+            </div>
+          ) : (
           <form className="bk-form" onSubmit={submit}>
             <h2 className="bk-h2">{t('routing.publicLead')}</h2>
             {form.fields.length === 0 && <p className="bk-note">{t('routing.publicEmpty')}</p>}
@@ -135,6 +157,7 @@ export default function PublicRoutingForm({ form, brand }: PublicRoutingFormProp
               </button>
             </div>
           </form>
+          )}
         </div>
       </div>
     </div>

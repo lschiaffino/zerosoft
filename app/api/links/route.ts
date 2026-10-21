@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { limitByIp } from '@/lib/rate-limit';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { createLink, listLinks, toLinkDto } from '@/lib/links';
+import { viewerOf } from '@/lib/link-folders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,6 +32,7 @@ const createSchema = z.object({
   ogImage: z.string().max(500).optional(),
   forwardParams: z.boolean().optional(),
   expiredUrl: z.string().max(2000).nullish(),
+  folderId: z.string().max(64).nullish(),
 });
 
 export async function GET(req: NextRequest) {
@@ -46,6 +48,8 @@ export async function GET(req: NextRequest) {
     archived: archived === '1' || archived === 'all' ? archived : '0',
     sort: sort === 'clicks' ? 'clicks' : 'created',
     creator: sp.get('creator') ?? undefined,
+    folder: sp.get('folder') ?? undefined,
+    viewer: viewerOf(user),
     page: Number(sp.get('page') ?? '1') || 1,
     pageSize: Number(sp.get('pageSize') ?? '10') || 10,
   });
@@ -73,7 +77,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: code }, { status: 400 });
   }
 
-  const result = await createLink(user.id, { ...parsed.data, createdBy: realUserId(user) });
+  const result = await createLink(user.id, { ...parsed.data, createdBy: realUserId(user), viewer: viewerOf(user) });
   if (!result.ok) {
     const status =
       result.code === 'slug_taken' || result.code === 'external_id_taken' ? 409 : result.code === 'quota_exceeded' ? 429 : 400;
