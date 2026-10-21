@@ -3,6 +3,7 @@
  * dependencias de servidor: lo comparten la API, el motor y los editores.
  */
 import { z } from 'zod';
+import { normalizeTotpSecret } from './totp';
 
 export interface CredentialFieldDef {
   key: string;
@@ -25,6 +26,8 @@ export const CREDENTIAL_TYPES = {
     fields: [
       { key: 'username', secret: false },
       { key: 'password', secret: true },
+      // Robots detrás de 2FA: {{credentials.<name>.totp}} es el código del momento.
+      { key: 'totpSecret', secret: true, optional: true, placeholder: 'JBSW Y3DP EHPK 3PXP' },
     ],
   },
   oauth_token: { fields: [{ key: 'accessToken', secret: true }] },
@@ -83,7 +86,7 @@ export const credentialUpdateSchema = z.object({
   data: z.record(z.string().max(20_000)).optional(),
 });
 
-export type CredentialErrorCode = 'invalid_name' | 'invalid_type' | 'missing_field' | 'duplicate_name' | 'invalid_json';
+export type CredentialErrorCode = 'invalid_name' | 'invalid_type' | 'missing_field' | 'duplicate_name' | 'invalid_json' | 'invalid_totp';
 
 /**
  * Normaliza los datos de un tipo: solo claves conocidas, recortadas. Exige los
@@ -99,6 +102,11 @@ export function normalizeCredentialData(
     const v = typeof data[f.key] === 'string' ? data[f.key].trim() : '';
     if (!v && !f.optional) return { ok: false, error: 'missing_field', field: f.key };
     if (v) out[f.key] = v;
+  }
+  if (out.totpSecret) {
+    const totp = normalizeTotpSecret(out.totpSecret);
+    if (!totp) return { ok: false, error: 'invalid_totp', field: 'totpSecret' };
+    out.totpSecret = totp;
   }
   if (type === 'slack' && !out.botToken && !out.webhookUrl) return { ok: false, error: 'missing_field', field: 'botToken' };
   if (type === 'google') {

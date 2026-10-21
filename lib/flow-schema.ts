@@ -40,6 +40,7 @@ export const FLOW_EVENT_TYPES = [
   'page.created',
   'robot.run.finished',
   'robot.run.failed',
+  'robot.output.changed',
 ] as const;
 export type FlowEventType = (typeof FLOW_EVENT_TYPES)[number];
 
@@ -166,6 +167,13 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
     robot: { id: 'rb_1', name: 'Price check' },
     run: { id: 'rr_1', status: 'failed', trigger: 'schedule', durationMs: 4200, error: '2: action_timeout' },
     output: {},
+  },
+  'robot.output.changed': {
+    robot: { id: 'rb_1', name: 'Price check' },
+    run: { id: 'rr_2', status: 'success', trigger: 'schedule', durationMs: 4100, warnings: 0 },
+    previousRunId: 'rr_1',
+    diff: [{ key: 'price', kind: 'changed', before: '£51.77', after: '£48.10' }],
+    output: { title: 'A Light in the Attic', price: '£48.10' },
   },
 };
 

@@ -125,6 +125,8 @@ export interface InterpreterOptions {
   credentials?: Record<string, Record<string, string>>;
   maxFiles?: number;
   maxFileBytes?: number;
+  /** Reloj (epoch ms) para los códigos TOTP; tests. */
+  now?: () => number;
 }
 
 export interface InterpreterStep {
@@ -282,6 +284,124 @@ export async function robotInterpreter(
 
   type Outcome = { jump?: number; skip?: number; stop?: boolean; detail?: string };
 
+  /**
+   * Lee una página de filas y, si el paso tiene paginación (maxPages > 1 y un
+   * Siguiente), hace clic y sigue juntando hasta que Siguiente falta o está
+   * deshabilitado, la página repite las mismas filas o se llega al tope.
+   * Cada clic cuenta como una página de la corrida (maxPages).
+   */
+  const paginate = async (
+    s: InterpreterStep,
+    ctx: Record<string, unknown>,
+    rowsSelector: string,
+    read: () => Promise<unknown[]>,
+  ): Promise<{ rows: unknown[]; pagesRead: number }> => {
+    const limit = Math.min(Math.max(Math.floor(Number(s.maxPages) || 1), 1), 20);
+    const nextSel = render(str(s.nextSelector), ctx).trim();
+    const nextText = render(str(s.nextText), ctx).trim();
+    const waitMs = Math.min(Math.max(Math.floor(Number(s.pageWaitMs ?? 1000) || 0), 0), 30_000);
+    const rows: unknown[] = [];
+    let previous = '';
+    let pagesRead = 0;
+    for (;;) {
+      const batch = await read();
+      const key = JSON.stringify(batch);
+      // La misma página otra vez (el clic no avanzó): se corta sin duplicar.
+      if (pagesRead > 0 && key === previous) break;
+      previous = key;
+      pagesRead += 1;
+      for (const r of batch) {
+        if (rows.length >= 1000) break;
+        rows.push(r);
+      }
+      if (rows.length >= 1000 || pagesRead >= limit || (!nextSel && !nextText)) break;
+      if (!(await exists(nextSel, nextText))) break;
+      const next = await resolveTarget(nextSel, nextText);
+      const disabled = await next
+        .evaluate(
+          (el: Element) =>
+            (el as HTMLButtonElement).disabled === true ||
+            el.getAttribute('aria-disabled') === 'true' ||
+            /(^|\s)disabled(\s|$)/.test(el.getAttribute('class') || ''),
+          undefined,
+          { timeout: timeout() },
+        )
+        .catch(() => false);
+      if (disabled === true) break;
+      if (pages + 1 > maxPages) break;
+      pages += 1;
+      await next.click({ timeout: timeout() });
+      if (waitMs > remaining()) fail('timeout');
+      if (waitMs) await page.waitForTimeout(waitMs);
+      // Si en la página nueva no hay filas, se termina (no es un error).
+      const appeared = await page
+        .locator(rowsSelector)
+        .first()
+        .waitFor({ state: 'attached', timeout: timeout() })
+        .then(() => true)
+        .catch(() => false);
+      if (!appeared) break;
+    }
+    return { rows, pagesRead };
+  };
+
+  // ---- TOTP (RFC 6238): {{credentials.<name>.totp}} ----
+  const now = opts.now ?? (() => Date.now());
+  /** Códigos generados en esta corrida: se tachan de los logs. */
+  const otpCodes = new Set<string>();
+  const base32Bytes = (b32: string): Uint8Array<ArrayBuffer> => {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let bits = 0;
+    let value = 0;
+    const out: number[] = [];
+    for (const ch of b32.toUpperCase().replace(/[^A-Z2-7]/g, '')) {
+      value = ((value << 5) | alphabet.indexOf(ch)) & 0xffff;
+      bits += 5;
+      if (bits >= 8) {
+        out.push((value >>> (bits - 8)) & 255);
+        bits -= 8;
+      }
+    }
+    return new Uint8Array(out);
+  };
+  const totpCode = async (stored: string): Promise<string> => {
+    const [secret, d, p, a] = stored.split(':');
+    const digits = Math.min(Math.max(Number(d) || 6, 6), 8);
+    const period = Math.min(Math.max(Number(p) || 30, 15), 300);
+    const algo = a === 'SHA256' ? 'SHA-256' : a === 'SHA512' ? 'SHA-512' : 'SHA-1';
+    const subtle = (globalThis as unknown as { crypto?: { subtle?: SubtleCrypto } }).crypto?.subtle;
+    if (!subtle) return fail('unsupported');
+    const msg = new Uint8Array(8);
+    let c = Math.floor(now() / 1000 / period);
+    for (let i = 7; i >= 0; i--) {
+      msg[i] = c % 256;
+      c = Math.floor(c / 256);
+    }
+    const key = await subtle.importKey('raw', base32Bytes(secret), { name: 'HMAC', hash: algo }, false, ['sign']);
+    const mac = new Uint8Array(await subtle.sign('HMAC', key, msg));
+    const off = mac[mac.length - 1] & 15;
+    const bin = ((mac[off] & 127) << 24) | (mac[off + 1] << 16) | (mac[off + 2] << 8) | mac[off + 3];
+    const code = String(bin % 10 ** digits).padStart(digits, '0');
+    otpCodes.add(code);
+    return code;
+  };
+  /** Si el paso usa {{credentials.x.totp}}, agrega el código actual a esa credencial. */
+  const withTotp = async (s: InterpreterStep, ctx: Record<string, unknown>): Promise<Record<string, unknown>> => {
+    const creds = ctx.credentials as Record<string, Record<string, string>> | undefined;
+    if (!creds) return ctx;
+    const json = JSON.stringify(s);
+    if (!json.includes('totp')) return ctx;
+    let changed: Record<string, Record<string, string>> | null = null;
+    for (const m of json.matchAll(/credentials\.([A-Za-z0-9_-]{1,60})\.totp\b/g)) {
+      const cred = creds[m[1]];
+      if (!cred) continue;
+      if (!cred.totpSecret) fail('missing_totp_secret');
+      changed ??= { ...creds };
+      changed[m[1]] = { ...cred, totp: await totpCode(cred.totpSecret) };
+    }
+    return changed ? { ...ctx, credentials: changed } : ctx;
+  };
+
   const runLeaf = async (s: InterpreterStep, ctx: Record<string, unknown>): Promise<Outcome> => {
     const selector = render(str(s.selector), ctx).trim();
     switch (s.type) {
@@ -352,7 +472,8 @@ export async function robotInterpreter(
       case 'extract_table': {
         if (!selector) fail('missing_selector');
         const name = str(s.name);
-        const rows = await page
+        const readTable = () =>
+          page
           .locator(selector)
           .first()
           .evaluate(
@@ -384,8 +505,62 @@ export async function robotInterpreter(
             undefined,
             { timeout: timeout() },
           );
+        const { rows, pagesRead } = await paginate(s, ctx, selector, async () => {
+          const r = await readTable();
+          return Array.isArray(r) ? r : [];
+        });
         vars[name] = rows;
-        return { detail: `${name}: ${Array.isArray(rows) ? rows.length : 0} rows` };
+        return { detail: `${name}: ${rows.length} rows${pagesRead > 1 ? ` · ${pagesRead} pages` : ''}` };
+      }
+      case 'extract_list': {
+        if (!selector) fail('missing_selector');
+        const name = str(s.name);
+        const fields = (Array.isArray(s.fields) ? (s.fields as Array<Record<string, unknown>>) : [])
+          .slice(0, 20)
+          .map((f) => ({ name: str(f.name), selector: render(str(f.selector), ctx).trim(), attribute: str(f.attribute).trim() }))
+          .filter((f) => f.name);
+        if (!fields.length) fail('missing_fields');
+        const max = Math.min(Math.max(Math.floor(Number(s.max) || 100), 1), 500);
+        const arg = JSON.stringify({ fields, max });
+        const readCards = async (): Promise<unknown[]> => {
+          const rows = await page.locator(selector).evaluateAll(
+            // Corre en el navegador: sin funciones con nombre adentro.
+            (els: Element[], raw: string) => {
+              const cfg = JSON.parse(raw) as { fields: Array<{ name: string; selector: string; attribute: string }>; max: number };
+              return els.slice(0, cfg.max).map((card) => {
+                const row: Record<string, string> = {};
+                for (const f of cfg.fields) {
+                  let el: Element | null = card;
+                  if (f.selector) {
+                    try {
+                      el = card.querySelector(f.selector);
+                    } catch {
+                      el = null;
+                    }
+                  }
+                  let v = '';
+                  if (el && f.attribute) {
+                    // href / src absolutos (la propiedad ya resuelve contra la página).
+                    const prop = (el as unknown as Record<string, unknown>)[f.attribute];
+                    v =
+                      (f.attribute === 'href' || f.attribute === 'src') && typeof prop === 'string' && prop
+                        ? prop
+                        : (el.getAttribute(f.attribute) ?? '');
+                  } else if (el) {
+                    v = ((el as HTMLElement).innerText || el.textContent || '').trim();
+                  }
+                  row[f.name] = v.slice(0, 2000);
+                }
+                return row;
+              });
+            },
+            arg,
+          );
+          return Array.isArray(rows) ? rows : [];
+        };
+        const { rows, pagesRead } = await paginate(s, ctx, selector, readCards);
+        vars[name] = rows;
+        return { detail: `${name}: ${rows.length} rows${pagesRead > 1 ? ` · ${pagesRead} pages` : ''}` };
       }
       case 'screenshot': {
         if (screenshots.length >= maxShots) return { detail: 'screenshot_limit' };
@@ -557,7 +732,7 @@ export async function robotInterpreter(
   const FATAL = /^(timeout|step_limit)$/;
 
   /** Errores que no se arreglan reintentando el paso. */
-  const NO_RETRY = /^(timeout|page_limit|step_limit|invalid_url|private_host|https_required|unresolvable_host|missing_selector|missing_attribute|invalid_key|unknown_step|file_limit|file_too_large|unsupported|result_too_large)$/;
+  const NO_RETRY = /^(timeout|page_limit|step_limit|invalid_url|private_host|https_required|unresolvable_host|missing_selector|missing_attribute|missing_fields|missing_totp_secret|invalid_key|unknown_step|file_limit|file_too_large|unsupported|result_too_large)$/;
 
   /** Ejecuta un paso con sus reintentos (retries + retryDelayMs). */
   const runWithRetries = async (s: InterpreterStep, ctx: Record<string, unknown>): Promise<Outcome & { attempts: number }> => {
@@ -565,7 +740,8 @@ export async function robotInterpreter(
     const delay = Math.min(Math.max(Math.floor(Number(s.retryDelayMs) || 0), 0), 30_000);
     for (let attempt = 0; ; attempt++) {
       try {
-        const out = await runLeaf(s, ctx);
+        // El código TOTP se calcula en cada intento (vence cada 30 s).
+        const out = await runLeaf(s, await withTotp(s, ctx));
         return { ...out, attempts: attempt };
       } catch (err) {
         const retryable = !(err instanceof RobotError && NO_RETRY.test(err.message));
@@ -671,6 +847,21 @@ export async function robotInterpreter(
     await runList(steps, { inputs, vars, robot: { name: opts.robotName ?? '' }, credentials: opts.credentials ?? {} }, '');
   } catch (err) {
     error = err instanceof Error ? err.message.slice(0, 300) : 'error';
+  }
+  // Los códigos 2FA nunca quedan en el log (p. ej. en la URL de un goto).
+  if (otpCodes.size) {
+    const scrub = (v: string | undefined): string | undefined => {
+      if (!v) return v;
+      let out = v;
+      for (const code of otpCodes) out = out.split(code).join('[redacted]');
+      return out;
+    };
+    for (const l of logs) {
+      if (l.detail) l.detail = scrub(l.detail);
+      if (l.error) l.error = scrub(l.error);
+    }
+    if (error) error = scrub(error) ?? error;
+    if (failure) failure.url = scrub(failure.url) ?? '';
   }
   return {
     status: error ? 'failed' : 'success',

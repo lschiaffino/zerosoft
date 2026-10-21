@@ -2758,6 +2758,19 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Robots: secreto TOTP de las credenciales (cifrado con lib/secret-box,
+    // aparte del resto de los datos), corridas en lote de la API v1
+    // (batch_id) y cambios de la salida contra la corrida exitosa anterior
+    // (changed: 1 cambió, 0 igual, NULL sin comparar).
+    id: '061_robots_totp_batches_changes',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE flow_credentials ADD COLUMN totp_secret TEXT');
+      await addColumn(client, 'ALTER TABLE robot_runs ADD COLUMN batch_id TEXT');
+      await addColumn(client, 'ALTER TABLE robot_runs ADD COLUMN changed INTEGER');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_robot_runs_batch ON robot_runs(batch_id) WHERE batch_id IS NOT NULL');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

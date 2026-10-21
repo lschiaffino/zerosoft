@@ -10,6 +10,10 @@
  *
  * Los secretos nunca vuelven al cliente: la API devuelve solo los campos no
  * secretos y una pista enmascarada.
+ *
+ * El secreto TOTP (2FA) de una credencial basic va aparte, en totp_secret,
+ * cifrado con lib/secret-box: los datos cifrados no lo incluyen y
+ * resolveCredential lo agrega como data.totpSecret.
  */
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
 import { getDb, type FlowCredentialRow } from './db';
@@ -22,6 +26,7 @@ import {
   type CredentialErrorCode,
   type CredentialType,
 } from './flow-credentials-schema';
+import { open, seal } from './secret-box';
 
 const PREFIX = 'cred:v1:';
 
@@ -86,9 +91,24 @@ export interface ResolvedCredential {
   data: Record<string, string>;
 }
 
+/** Campo que se guarda en la columna totp_secret (secret-box), no en `data`. */
+const TOTP_FIELD = 'totpSecret';
+
+/** Separa el secreto TOTP del resto (va a su propia columna). */
+function splitTotp(data: Record<string, string>): { rest: Record<string, string>; totp: string | null } {
+  const { [TOTP_FIELD]: totp, ...rest } = data;
+  return { rest, totp: totp || null };
+}
+
+function rowData(row: FlowCredentialRow): Record<string, string> {
+  const data = decryptCredential(row.user_id, row.id, row.data) ?? {};
+  const totp = row.totp_secret ? open(row.totp_secret) : '';
+  return totp ? { ...data, [TOTP_FIELD]: totp } : data;
+}
+
 function toDto(row: FlowCredentialRow): CredentialDto {
   const type = (isCredentialType(row.type) ? row.type : 'api_key') as CredentialType;
-  const data = decryptCredential(row.user_id, row.id, row.data) ?? {};
+  const data = rowData(row);
   const fields: Record<string, string> = {};
   const secretsSet: string[] = [];
   for (const f of credentialFields(type)) {
@@ -115,6 +135,8 @@ export function secretValues(type: CredentialType, data: Record<string, string>)
     const v = data[f.key];
     if (!f.secret || !v) continue;
     out.push(v);
+    // TOTP con parámetros ("BASE32:8:60:SHA1"): también el secreto solo.
+    if (f.key === TOTP_FIELD) out.push(v.split(':')[0]);
     if (f.key === 'serviceAccountJson') {
       try {
         const pk = (JSON.parse(v) as { private_key?: string }).private_key;
@@ -174,12 +196,24 @@ export async function createCredential(
   if (await nameTaken(workspaceId, name)) return { ok: false, error: 'duplicate_name' };
   const id = crypto.randomUUID();
   const ts = new Date().toISOString();
+  const { rest, totp } = splitTotp(norm.data);
   await getDb()
     .prepare(
-      `INSERT INTO flow_credentials (id, user_id, name, type, data, hint, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO flow_credentials (id, user_id, name, type, data, hint, totp_secret, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, workspaceId, name, input.type, encryptCredential(workspaceId, id, norm.data), hintFor(input.type, norm.data), actorId, ts, ts);
+    .run(
+      id,
+      workspaceId,
+      name,
+      input.type,
+      encryptCredential(workspaceId, id, rest),
+      hintFor(input.type, norm.data),
+      totp ? seal(totp) : null,
+      actorId,
+      ts,
+      ts,
+    );
   return { ok: true, credential: (await getCredential(workspaceId, id))! };
 }
 
@@ -195,8 +229,9 @@ export async function updateCredential(
   if (name !== row.name && (await nameTaken(workspaceId, name, id))) return { ok: false, error: 'duplicate_name' };
   let encrypted = row.data;
   let hint = row.hint;
+  let totpSealed = row.totp_secret ?? null;
   if (patch.data) {
-    const current = decryptCredential(workspaceId, id, row.data) ?? {};
+    const current = rowData(row);
     const merged: Record<string, string> = {};
     for (const f of credentialFields(row.type)) {
       const next = patch.data[f.key];
@@ -208,12 +243,14 @@ export async function updateCredential(
     }
     const norm = normalizeCredentialData(row.type, merged);
     if (!norm.ok) return norm;
-    encrypted = encryptCredential(workspaceId, id, norm.data);
+    const { rest, totp } = splitTotp(norm.data);
+    encrypted = encryptCredential(workspaceId, id, rest);
     hint = hintFor(row.type, norm.data);
+    totpSealed = totp ? seal(totp) : null;
   }
   await getDb()
-    .prepare('UPDATE flow_credentials SET name = ?, data = ?, hint = ?, updated_at = ? WHERE id = ? AND user_id = ?')
-    .run(name, encrypted, hint, new Date().toISOString(), id, workspaceId);
+    .prepare('UPDATE flow_credentials SET name = ?, data = ?, hint = ?, totp_secret = ?, updated_at = ? WHERE id = ? AND user_id = ?')
+    .run(name, encrypted, hint, totpSealed, new Date().toISOString(), id, workspaceId);
   return { ok: true, credential: (await getCredential(workspaceId, id))! };
 }
 
@@ -230,9 +267,8 @@ export async function resolveCredential(workspaceId: string, idOrName: string): 
     .prepare('SELECT * FROM flow_credentials WHERE user_id = ? AND (id = ? OR name = ?) LIMIT 1')
     .get(workspaceId, ref, ref)) as FlowCredentialRow | undefined;
   if (!row || !isCredentialType(row.type)) return null;
-  const data = decryptCredential(workspaceId, row.id, row.data);
-  if (!data) return null;
-  return { id: row.id, name: row.name, type: row.type, data };
+  if (!decryptCredential(workspaceId, row.id, row.data)) return null;
+  return { id: row.id, name: row.name, type: row.type, data: rowData(row) };
 }
 
 /** Credenciales referenciadas por nombre en un texto ({{credentials.<name>.x}}). */
