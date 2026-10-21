@@ -12,7 +12,7 @@
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 import { getDb } from './db';
-import type { AgentChannel, AgentConversationRow, AgentToolCallRow } from './db';
+import type { AgentChannel, AgentConversationRow, AgentToolCallRow, RobotRow } from './db';
 import { AGENT_HTTP_METHODS, type AgentDto, type AgentHttpMethod, type AgentStreamEvent, type AgentToolCallDto, type AgentToolKey } from './agents-config';
 import { rankKnowledge, type KnowledgeDoc } from './knowledge-search';
 import { extractDocsText, listCannedResponses } from './chat-data';
@@ -38,6 +38,10 @@ export interface AgentRunContext {
 }
 
 type ToolOutput = Record<string, unknown>;
+
+/** run_robot: cuánto espera su turno en la cola del workspace y tope de la corrida. */
+const AGENT_ROBOT_WAIT_MS = 10_000;
+const AGENT_ROBOT_TIMEOUT_MS = 60_000;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EMAIL_IN_TEXT_RE = /[^\s@<>()[\]{},;:"'`]+@[^\s@<>()[\]{},;:"'`]+/g;
@@ -549,6 +553,62 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
             if (!runId) return { error: 'rate_limited' };
             kickFlowWorker();
             return { runId, status: 'queued', flow: row.name };
+          }),
+        }),
+      );
+    }
+  }
+
+  if (on.has('run_robot') && cfg.robotIds.length) {
+    const ph = cfg.robotIds.map(() => '?').join(', ');
+    const rows = (await getDb()
+      .prepare(`SELECT * FROM robots WHERE user_id = ? AND id IN (${ph})`)
+      .all(workspaceId, ...cfg.robotIds)) as RobotRow[];
+    if (rows.length) {
+      const { toRobotDto } = await import('./robots');
+      const robots = rows.map((r) => toRobotDto(r));
+      const ids = robots.map((r) => r.id) as [string, ...string[]];
+      const describe = (r: (typeof robots)[number]) => {
+        const inputs = r.inputs.map((i) => `${i.name}${i.required ? '*' : ''}${i.kind === 'list' ? ' (list)' : ''}`).join(', ');
+        return `- ${r.id}: ${r.name}${r.description ? ` — ${r.description.slice(0, 200)}` : ''}${inputs ? ` [inputs: ${inputs}]` : ''}`;
+      };
+      add(
+        'run_robot',
+        tool({
+          description: `Run one of these browser robots (it opens a real browser on a website, follows its steps and returns the data it extracted). Inputs marked * are required; list inputs take an array of strings.\n${robots
+            .map(describe)
+            .join('\n')}`,
+          inputSchema: z.object({
+            robotId: z.enum(ids),
+            inputs: z.record(z.string(), z.unknown()).optional().describe("The robot's inputs, by name"),
+          }),
+          execute: logged(ctx, 'run_robot', async ({ robotId, inputs }: { robotId: string; inputs?: Record<string, unknown> }) => {
+            // Doble chequeo: solo robots configurados y del workspace.
+            if (!cfg.robotIds.includes(robotId)) return { error: 'robot_not_allowed' };
+            const robot = robots.find((r) => r.id === robotId);
+            if (!robot) return { error: 'robot_not_found' };
+            const values = JSON.parse(JSON.stringify(inputs ?? {})) as Record<string, unknown>;
+            const { resolveInputs } = await import('./robots-schema');
+            const resolved = resolveInputs(robot.inputs, values);
+            if (!resolved.ok) return { error: 'missing_input', input: resolved.name };
+            // Un robot puede hacer clics y mandar formularios: en simulación no se abre el navegador.
+            if (ctx.dryRun) return simulated({ action: 'run_robot', robot: robot.name, inputs: resolved.inputs });
+            const { startRobotRun } = await import('./robots');
+            const res = await startRobotRun(workspaceId, robotId, values, {
+              trigger: 'agent',
+              // La respuesta del agente tiene su propio tope: espera poco su turno y acota la corrida.
+              waitMs: AGENT_ROBOT_WAIT_MS,
+              timeoutCapMs: AGENT_ROBOT_TIMEOUT_MS,
+            });
+            if (!res.ok) return { error: `robot_${res.error}` };
+            const run = res.run;
+            return {
+              runId: run.id,
+              status: run.status,
+              ...(run.error ? { error: run.error } : {}),
+              warnings: run.warnings,
+              output: JSON.parse(toJson(run.output, 6000)) as unknown,
+            };
           }),
         }),
       );

@@ -171,6 +171,9 @@ export default function CredentialDialog({ open, onClose, onSaved, editing = nul
                   </label>
                   {f.multiline ? <textarea rows={5} {...common} /> : <input type={f.secret ? 'password' : 'text'} {...common} />}
                   {f.secret && saved && <p className="ui-help">{t('keepHint')}</p>}
+                  {f.key === 'totpSecret' && (
+                    <p className="ui-help">{t('totpHint', { example: `{{credentials.${name || 'name'}.totp}}` })}</p>
+                  )}
                   {invalid && (
                     <p className="ui-error" id={`${id}-error`}>
                       {error.text}

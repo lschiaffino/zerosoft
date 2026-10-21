@@ -392,7 +392,8 @@
     "message_received": "Chat: mensaje recibido",
     "page_created": "Docs: página creada",
     "robot_run_finished": "Robots: corrida terminada",
-    "robot_run_failed": "Robots: corrida fallida"
+    "robot_run_failed": "Robots: corrida fallida",
+    "robot_output_changed": "Robots: cambiaron los datos"
   },
   "ops": {
     "equals": "es igual a",
@@ -549,6 +550,7 @@
     "optional": "opcional",
     "savedPlaceholder": "Guardado. Dejalo vacío para conservarlo.",
     "keepHint": "Dejalo vacío para conservar el valor guardado.",
+    "totpHint": "Para robots con login en dos pasos: el sitio muestra esta clave al configurar una app de autenticación. En un paso del robot, {example} escribe el código del momento.",
     "security": "Los valores se cifran con AES-256-GCM, solo se descifran mientras una corrida los usa y se ocultan en los logs.",
     "types": {
       "api_key": "API key (header)",
@@ -578,6 +580,7 @@
       "value": "Key",
       "username": "Usuario",
       "password": "Contraseña",
+      "totpSecret": "Secreto 2FA (TOTP)",
       "accessToken": "Access token",
       "botToken": "Bot token",
       "webhookUrl": "URL del webhook",
@@ -592,6 +595,7 @@
       "missing_field": "Falta {field}.",
       "duplicate_name": "Ya existe una credencial con ese nombre.",
       "invalid_json": "El JSON de la cuenta de servicio no es válido (necesita client_email y private_key).",
+      "invalid_totp": "El secreto 2FA no es válido. Pegá la clave de configuración (base32) o el link otpauth:// del código QR.",
       "invalid_input": "Datos inválidos."
     },
     "oneOf": {"slack": "Completá el bot token o la URL del webhook.", "google": "Completá el access token o el JSON de la cuenta de servicio."}

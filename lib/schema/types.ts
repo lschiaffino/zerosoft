@@ -1312,6 +1312,8 @@ export interface FlowCredentialRow {
   type: string;
   data: string; // cifrado (lib/flow-credentials.ts)
   hint: string; // pista enmascarada (últimos caracteres)
+  /** Secreto TOTP (2FA) cifrado con lib/secret-box; NULL si no tiene. */
+  totp_secret?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -1590,7 +1592,7 @@ export interface AgentTestCaseRow {
 // ---------- Robots ----------
 
 export type RobotRunStatus = 'queued' | 'running' | 'success' | 'failed';
-export type RobotRunTrigger = 'manual' | 'flow' | 'schedule';
+export type RobotRunTrigger = 'manual' | 'flow' | 'schedule' | 'api' | 'agent';
 
 export interface RobotRow {
   id: string;
@@ -1636,6 +1638,10 @@ export interface RobotRunRow {
   duration_ms: number | null;
   warnings: number; // pasos / elementos de loop que fallaron con continueOnError
   failure: string | null; // JSON RobotRunFailure (captura, URL y DOM del paso que falló)
+  /** Lote de la API v1 (bulk) al que pertenece la corrida. */
+  batch_id?: string | null;
+  /** La salida cambió contra la corrida exitosa anterior (1/0; NULL sin comparar). */
+  changed?: number | null;
 }
 
 // ---------- CRM: formularios, scoring, equipos, cuotas ----------

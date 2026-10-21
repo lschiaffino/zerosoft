@@ -5,7 +5,8 @@
  * Un robot es una lista de pasos de navegador (goto, click, fill, extract…)
  * que se ejecuta en un Chromium aislado (ver lib/robots-runner.ts). Los textos
  * admiten plantillas {{inputs.x}}, {{vars.x}} y, dentro de un loop,
- * {{loop.item}} / {{loop.index}}.
+ * {{loop.item}} / {{loop.index}}. {{credentials.<name>.totp}} es el código
+ * 2FA del momento de una credencial con secreto TOTP.
  */
 import { z } from 'zod';
 import { isValidCron, isValidTimezone } from './cron';
@@ -37,6 +38,14 @@ export const MAX_INPUTS = 20;
 /** Archivos (download / pdf) por corrida y tamaño máximo de cada uno. */
 export const MAX_FILES = 5;
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+/** Campos por fila de un extract_list. */
+export const MAX_LIST_FIELDS = 20;
+/** Páginas que recorre la paginación de extract_list / extract_table (la primera incluida). */
+export const MAX_PAGINATE_PAGES = 20;
+/** Filas que junta un extract_list / extract_table entre todas las páginas. */
+export const MAX_LIST_ROWS = 1000;
+/** Entradas de una corrida en lote de la API v1 (una corrida por entrada). */
+export const MAX_BULK_INPUTS = 100;
 /** Reintentos por paso. */
 export const MAX_STEP_RETRIES = 5;
 /** Intervalo mínimo de un schedule en minutos. */
@@ -58,6 +67,7 @@ export const STEP_TYPES = [
   'wait',
   'extract',
   'extract_table',
+  'extract_list',
   'screenshot',
   'scroll',
   'if_exists',
@@ -112,7 +122,37 @@ const extractStep = z.object({
   attribute: z.string().trim().max(60).optional().default(''),
   ...retry,
 });
-const extractTableStep = z.object({ type: z.literal('extract_table'), selector: selector.min(1), name: varName, ...retry });
+/**
+ * Paginación de extract_list / extract_table: después de leer la página hace
+ * clic en "Siguiente" (selector o texto) y sigue hasta que el botón no está
+ * (o está deshabilitado), la página no cambia o se llega a maxPages.
+ */
+const pagination = {
+  nextSelector: selector.optional(),
+  nextText: z.string().max(200).optional(),
+  maxPages: z.number().int().min(1).max(MAX_PAGINATE_PAGES).optional(),
+  /** Espera después de cada clic en Siguiente (ms). */
+  pageWaitMs: z.number().int().min(0).max(30_000).optional(),
+};
+const extractTableStep = z.object({ type: z.literal('extract_table'), selector: selector.min(1), name: varName, ...pagination, ...retry });
+/** Campo de cada fila: selector relativo a la tarjeta (vacío = la tarjeta) y texto o atributo. */
+export const listFieldSchema = z.object({
+  name: varName,
+  selector: selector.optional().default(''),
+  attribute: z.string().trim().max(60).optional().default(''),
+});
+export type RobotListField = z.infer<typeof listFieldSchema>;
+/** Tarjetas que se repiten (selector) → filas con campos con nombre. */
+const extractListStep = z.object({
+  type: z.literal('extract_list'),
+  selector: selector.min(1),
+  name: varName,
+  fields: z.array(listFieldSchema).min(1).max(MAX_LIST_FIELDS),
+  /** Filas por página. */
+  max: z.number().int().min(1).max(500).optional().default(100),
+  ...pagination,
+  ...retry,
+});
 const screenshotStep = z.object({ type: z.literal('screenshot'), name: varName, ...retry });
 const scrollStep = z.object({
   type: z.literal('scroll'),
@@ -166,6 +206,7 @@ const leafStep = z.discriminatedUnion('type', [
   waitStep,
   extractStep,
   extractTableStep,
+  extractListStep,
   screenshotStep,
   scrollStep,
   ifExistsStep,
@@ -252,6 +293,15 @@ export function validateSteps(input: unknown): StepsValidation {
     out.push(parsed.data);
   }
   if (countSteps(out) > MAX_ROBOT_STEPS) return { ok: false, error: 'too_many_steps' };
+  // Campos de extract_list sin nombres repetidos (serían columnas pisadas).
+  for (let i = 0; i < out.length; i++) {
+    const list = out[i].type === 'loop_over' ? (out[i] as { steps: RobotLeafStep[] }).steps : [out[i] as RobotLeafStep];
+    for (const s of list) {
+      if (s.type === 'extract_list' && new Set(s.fields.map((f) => f.name)).size !== s.fields.length) {
+        return { ok: false, error: 'invalid_steps', index: i };
+      }
+    }
+  }
   // goto de if_exists: solo hacia adelante (sin ciclos) y dentro de la lista.
   for (let i = 0; i < out.length; i++) {
     const s = out[i];
@@ -325,6 +375,17 @@ export function defaultStep(type: RobotStepType): RobotStep {
       return { type, selector: '', name: 'value', mode: 'text', attribute: '' };
     case 'extract_table':
       return { type, selector: 'table', name: 'rows' };
+    case 'extract_list':
+      return {
+        type,
+        selector: '.card',
+        name: 'items',
+        fields: [
+          { name: 'title', selector: 'h2', attribute: '' },
+          { name: 'link', selector: 'a', attribute: 'href' },
+        ],
+        max: 100,
+      };
     case 'screenshot':
       return { type, name: 'page' };
     case 'scroll':
@@ -376,6 +437,17 @@ export const robotUpdateSchema = z.object({
 
 export const robotRunSchema = z.object({
   inputs: z.record(z.unknown()).optional(),
+});
+
+/** API v1: correr un robot (wait = esperar el resultado en la misma respuesta). */
+export const robotApiRunSchema = z.object({
+  inputs: z.record(z.unknown()).optional(),
+  wait: z.boolean().optional(),
+});
+
+/** API v1: un robot sobre muchas entradas (una corrida en cola por entrada). */
+export const robotBulkSchema = z.object({
+  inputs: z.array(z.record(z.unknown())).min(1).max(MAX_BULK_INPUTS),
 });
 
 // ---------- Plantillas ----------

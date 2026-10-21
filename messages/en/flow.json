@@ -392,7 +392,8 @@
     "message_received": "Chat: message received",
     "page_created": "Docs: page created",
     "robot_run_finished": "Robots: run finished",
-    "robot_run_failed": "Robots: run failed"
+    "robot_run_failed": "Robots: run failed",
+    "robot_output_changed": "Robots: data changed"
   },
   "ops": {
     "equals": "equals",
@@ -549,6 +550,7 @@
     "optional": "optional",
     "savedPlaceholder": "Saved. Leave empty to keep it.",
     "keepHint": "Leave empty to keep the saved value.",
+    "totpHint": "For robots behind a two-step login: the site shows this key when you set up an authenticator app. In a robot step, {example} types the current code.",
     "security": "Values are encrypted with AES-256-GCM, are only decrypted while a run uses them and are redacted from run logs.",
     "types": {
       "api_key": "API key (header)",
@@ -578,6 +580,7 @@
       "value": "Key",
       "username": "Username",
       "password": "Password",
+      "totpSecret": "2FA secret (TOTP)",
       "accessToken": "Access token",
       "botToken": "Bot token",
       "webhookUrl": "Webhook URL",
@@ -592,6 +595,7 @@
       "missing_field": "{field} is required.",
       "duplicate_name": "A credential with this name already exists.",
       "invalid_json": "The service account JSON is invalid (needs client_email and private_key).",
+      "invalid_totp": "The 2FA secret isn't valid. Paste the setup key (base32) or the otpauth:// link from the QR code.",
       "invalid_input": "Invalid data."
     },
     "oneOf": {"slack": "Fill in the bot token or the webhook URL.", "google": "Fill in the access token or the service account JSON."}

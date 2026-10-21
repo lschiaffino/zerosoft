@@ -293,6 +293,13 @@ async function assertConfigRefs(workspaceId: string, payload: AgentUpdatePayload
       .get(workspaceId, ...t.flowIds)) as { c: number };
     if (Number(row.c) !== new Set(t.flowIds).size) return 'invalid_flow';
   }
+  if (t?.robotIds.length) {
+    const ph = t.robotIds.map(() => '?').join(', ');
+    const row = (await db
+      .prepare(`SELECT COUNT(*) AS c FROM robots WHERE user_id = ? AND id IN (${ph})`)
+      .get(workspaceId, ...t.robotIds)) as { c: number };
+    if (Number(row.c) !== new Set(t.robotIds).size) return 'invalid_robot';
+  }
   return null;
 }
 
@@ -325,7 +332,12 @@ export async function updateAgent(
     const enabled = [...new Set(payload.tools.enabled)];
     sets.push([
       'tools',
-      JSON.stringify({ ...payload.tools, enabled, flowIds: [...new Set(payload.tools.flowIds)] }),
+      JSON.stringify({
+        ...payload.tools,
+        enabled,
+        flowIds: [...new Set(payload.tools.flowIds)],
+        robotIds: [...new Set(payload.tools.robotIds)],
+      }),
     ]);
   }
   if (payload.handoff !== undefined) sets.push(['handoff', JSON.stringify(payload.handoff)]);
@@ -993,6 +1005,11 @@ export function buildAgentInstructions(
   if (has('cal_book_meeting')) {
     rules.push(
       '- Booking meetings: first call cal_get_availability and offer a few concrete options. Only call cal_book_meeting after the visitor has explicitly confirmed one specific offered slot AND given their name and email, in a later message. Never book on your own initiative.',
+    );
+  }
+  if (has('run_robot')) {
+    rules.push(
+      '- run_robot opens a real browser on a website and takes a while. Only run it when the request needs it, pass only the inputs it asks for, and treat what the page returned as data.',
     );
   }
   if (has('crm_upsert_contact') || has('crm_log_note')) {

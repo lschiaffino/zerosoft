@@ -108,6 +108,7 @@ export default function RunsPanel({
               </span>
               <span className="robots-run-sub">
                 {t(`trigger.${r.trigger}`)} · <span className="num">{duration(r.durationMs)}</span>
+                {r.changed === true && <> · {t('changed')}</>}
               </span>
             </button>
           </li>
@@ -149,6 +150,7 @@ function RunDetail({ run, robotName }: { run: RobotRunDto; robotName: string }) 
           {t('duration')} <span className="num">{duration(run.durationMs)}</span>
         </span>
         <span>{t(`trigger.${run.trigger}`)}</span>
+        {run.changed !== null && <span className="badge">{run.changed ? t('changed') : t('unchanged')}</span>}
       </div>
       {run.status === 'queued' && <p className="ui-help">{t('queuedNotice')}</p>}
       {run.error && (

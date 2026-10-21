@@ -108,6 +108,7 @@
       "wait": "Esperar",
       "extract": "Extraer",
       "extract_table": "Extraer tabla",
+      "extract_list": "Extraer lista",
       "screenshot": "Captura",
       "scroll": "Desplazar",
       "if_exists": "Si existe el elemento",
@@ -142,7 +143,19 @@
       "script": "JavaScript (cuerpo de una función async, devolvé un valor JSON)",
       "retries": "Reintentos",
       "retryDelayMs": "Espera entre intentos (ms)",
-      "continueOnItemError": "Si un elemento falla, registrar una advertencia y pasar al siguiente"
+      "continueOnItemError": "Si un elemento falla, registrar una advertencia y pasar al siguiente",
+      "cardSelector": "Selector de la tarjeta",
+      "maxRows": "Máximo de filas por página",
+      "listFields": "Campos de cada fila",
+      "fieldName": "Columna",
+      "fieldSelector": "Selector dentro de la tarjeta",
+      "fieldAttribute": "Atributo",
+      "fieldText": "texto",
+      "paginate": "Recorrer páginas: hacer clic en Siguiente y seguir sumando filas",
+      "nextSelector": "Selector del botón Siguiente",
+      "nextText": "O texto del botón Siguiente",
+      "maxPages": "Máximo de páginas",
+      "pageWaitMs": "Espera después de cada página (ms)"
     },
     "modes": {
       "text": "Texto del primer resultado",
@@ -178,7 +191,14 @@
     "credentialsTitle": "Logins",
     "continueOn": "Seguir si falla",
     "continueOff": "Detener si falla",
-    "continueBadge": "sigue si falla"
+    "continueBadge": "sigue si falla",
+    "cardHint": "Encuentra cada tarjeta, fila o elemento de la lista. Cada una pasa a ser una fila.",
+    "listFieldsHint": "Dejá el selector vacío para leer la tarjeta misma. Dejá el atributo vacío para leer el texto, o usá href o src para links e imágenes.",
+    "addField": "Agregar campo",
+    "removeField": "Quitar campo",
+    "nextTextDefault": "Siguiente",
+    "paginateHint": "Para cuando Siguiente no está o está deshabilitado, cuando una página se repite o después de {max} páginas. Cada página cuenta para el límite de páginas de la corrida.",
+    "totpTip": "Login con código 2FA: guardá el secreto en una credencial de Usuario y contraseña y completá el campo del código con {example}."
   },
   "inputs": {
     "title": "Entradas",
@@ -213,7 +233,9 @@
     "trigger": {
       "manual": "Manual",
       "flow": "Flow",
-      "schedule": "Horario"
+      "schedule": "Horario",
+      "api": "API",
+      "agent": "Agente"
     },
     "status": {
       "queued": "En cola",
@@ -252,6 +274,8 @@
     "queuedNotice": "En cola: hay otro robot corriendo en este workspace. Esta corrida arranca cuando termine.",
     "warningsNotice": "{count, plural, one {# paso falló y el robot siguió.} other {# pasos fallaron y el robot siguió.}} Están marcados en el registro.",
     "downloadCsv": "Descargar CSV",
+    "changed": "Cambiaron los datos",
+    "unchanged": "Sin cambios",
     "failure": {
       "title": "Dónde falló el paso {step}",
       "step": "Paso",
@@ -280,6 +304,7 @@
     "timeoutHint": "Máximo {max} s. Las corridas descuentan de tus minutos del mes.",
     "flowTitle": "Usar en Flow",
     "flowHint": "Agregá el nodo “Robots: ejecutar robot” y elegí este robot. Los flows también pueden reaccionar a “Robots: corrida terminada” y “Robots: corrida fallida”.",
+    "apiHint": "También desde la API v1 (scope robots:run): corrélo con POST /api/v1/robots/:id/runs o sobre muchas entradas con /bulk. Los flows pueden reaccionar a “Robots: cambiaron los datos” cuando los datos extraídos difieren de la corrida anterior.",
     "copyId": "Copiar ID",
     "copied": "Copiado",
     "responsible": "Usá los robots con responsabilidad: respetá los términos de cada sitio y su robots.txt y no sobrecargues servidores. Guardá los logins en credenciales, nunca en los pasos. Las redes privadas y las URLs file:// están bloqueadas; las descargas solo pasan por el paso Descargar archivo (hasta 10 MB).",
@@ -430,7 +455,9 @@
     "triggers": {
       "manual": "manual",
       "flow": "de Flow",
-      "schedule": "programada"
+      "schedule": "programada",
+      "api": "API",
+      "agent": "agente"
     }
   }
 }

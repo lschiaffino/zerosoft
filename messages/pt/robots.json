@@ -108,6 +108,7 @@
       "wait": "Esperar",
       "extract": "Extrair",
       "extract_table": "Extrair tabela",
+      "extract_list": "Extrair lista",
       "screenshot": "Captura de tela",
       "scroll": "Rolar",
       "if_exists": "Se o elemento existir",
@@ -142,7 +143,19 @@
       "script": "JavaScript (corpo de uma função async, retorne um valor JSON)",
       "retries": "Tentativas extras",
       "retryDelayMs": "Espera entre tentativas (ms)",
-      "continueOnItemError": "Se um item falhar, registrar um aviso e passar para o próximo"
+      "continueOnItemError": "Se um item falhar, registrar um aviso e passar para o próximo",
+      "cardSelector": "Seletor do cartão",
+      "maxRows": "Máximo de linhas por página",
+      "listFields": "Campos de cada linha",
+      "fieldName": "Coluna",
+      "fieldSelector": "Seletor dentro do cartão",
+      "fieldAttribute": "Atributo",
+      "fieldText": "texto",
+      "paginate": "Percorrer páginas: clicar em Próxima e continuar somando linhas",
+      "nextSelector": "Seletor do botão Próxima",
+      "nextText": "Ou texto do botão Próxima",
+      "maxPages": "Máximo de páginas",
+      "pageWaitMs": "Espera depois de cada página (ms)"
     },
     "modes": {
       "text": "Texto do primeiro resultado",
@@ -178,7 +191,14 @@
     "credentialsTitle": "Logins",
     "continueOn": "Continuar se falhar",
     "continueOff": "Parar se falhar",
-    "continueBadge": "continua se falhar"
+    "continueBadge": "continua se falhar",
+    "cardHint": "Encontra cada cartão, linha ou item da lista. Cada um vira uma linha.",
+    "listFieldsHint": "Deixe o seletor vazio para ler o próprio cartão. Deixe o atributo vazio para ler o texto, ou use href ou src para links e imagens.",
+    "addField": "Adicionar campo",
+    "removeField": "Remover campo",
+    "nextTextDefault": "Próxima",
+    "paginateHint": "Para quando Próxima não existe ou está desativado, quando uma página se repete ou depois de {max} páginas. Cada página conta para o limite de páginas da execução.",
+    "totpTip": "Login com código 2FA: salve o segredo numa credencial de Usuário e senha e preencha o campo do código com {example}."
   },
   "inputs": {
     "title": "Entradas",
@@ -213,7 +233,9 @@
     "trigger": {
       "manual": "Manual",
       "flow": "Flow",
-      "schedule": "Agendamento"
+      "schedule": "Agendamento",
+      "api": "API",
+      "agent": "Agente"
     },
     "status": {
       "queued": "Na fila",
@@ -252,6 +274,8 @@
     "queuedNotice": "Na fila: outro robô está em execução neste workspace. Esta execução começa quando ele terminar.",
     "warningsNotice": "{count, plural, one {# passo falhou e o robô continuou.} other {# passos falharam e o robô continuou.}} Eles estão marcados no registro.",
     "downloadCsv": "Baixar CSV",
+    "changed": "Dados mudaram",
+    "unchanged": "Sem mudanças",
     "failure": {
       "title": "Onde o passo {step} falhou",
       "step": "Passo",
@@ -280,6 +304,7 @@
     "timeoutHint": "Máximo {max} s. As execuções contam nos seus minutos do mês.",
     "flowTitle": "Usar no Flow",
     "flowHint": "Adicione o nó “Robots: executar robô” e escolha este robô. Os flows também podem reagir a “Robots: execução concluída” e “Robots: execução falhou”.",
+    "apiHint": "Também pela API v1 (escopo robots:run): execute com POST /api/v1/robots/:id/runs ou sobre muitas entradas com /bulk. Os flows podem reagir a “Robots: dados mudaram” quando os dados extraídos diferem da execução anterior.",
     "copyId": "Copiar ID",
     "copied": "Copiado",
     "responsible": "Use os robôs com responsabilidade: respeite os termos de cada site e o robots.txt e não sobrecarregue servidores. Guarde os logins em credenciais, nunca nos passos. Redes privadas e URLs file:// são bloqueadas; downloads só pelo passo Baixar arquivo (até 10 MB).",
@@ -430,7 +455,9 @@
     "triggers": {
       "manual": "manual",
       "flow": "do Flow",
-      "schedule": "agendada"
+      "schedule": "agendada",
+      "api": "API",
+      "agent": "agente"
     }
   }
 }
