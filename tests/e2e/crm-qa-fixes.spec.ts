@@ -143,6 +143,39 @@ test('/new de altas en modal: la primera visita (sin cookie tz) abre el modal si
   }
 });
 
+// El refresh de la cookie tz en la primera visita no puede caer mientras el
+// boundary de loading.tsx sigue sin revelarse: React lo renderiza de cero en el
+// cliente y por un momento conviven dos formularios (el vivo y la copia oculta
+// del servidor, <div hidden id="S:0">).
+test('/new de altas en modal: la primera visita nunca muestra el formulario dos veces', async ({ browser }) => {
+  const paths = [
+    '/en/app/calendar/event-types/new',
+    '/en/app/calendar/routing/new',
+    '/en/app/crm/companies/new',
+    '/en/app/crm/contacts/new',
+    '/en/app/crm/deals/new',
+  ];
+  for (const path of paths) {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.addInitScript(() => {
+      const w = window as unknown as { __qmMax: number };
+      w.__qmMax = 0;
+      new MutationObserver(() => {
+        w.__qmMax = Math.max(w.__qmMax, document.querySelectorAll('.qm').length);
+      }).observe(document, { subtree: true, childList: true });
+    });
+    await page.goto(path);
+    await expect(page.getByRole('dialog')).toBeVisible();
+    // Espera a que se guarde la cookie y pase el refresh.
+    await expect.poll(async () => (await context.cookies()).some((c) => c.name === 'tz')).toBe(true);
+    await page.waitForLoadState('networkidle');
+    expect(await page.evaluate(() => (window as unknown as { __qmMax: number }).__qmMax), path).toBe(1);
+    await expect(page.locator('.qm')).toHaveCount(1);
+    await context.close();
+  }
+});
+
 test('ajustes: WhatsApp tiene su propia lista de resultados', async ({ page }) => {
   await page.goto('/en/app/crm/settings?tab=sales', { waitUntil: 'networkidle' });
   const calls = page.getByLabel('Calls, one per line');
