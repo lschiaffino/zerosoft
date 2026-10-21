@@ -26,6 +26,7 @@ const docsBlockType = z.enum([
   'database',
   'image',
   'file',
+  'board',
 ]);
 
 const docsDatabaseColumnSchema = z.object({
@@ -50,6 +51,8 @@ export const docsBlockSchema = z.object({
   name: z.string().max(255).optional(),
   size: z.number().int().min(0).max(1024 * 1024 * 1024).optional(),
   mime: z.string().max(255).optional(),
+  // Bloque board (sanitizeBlocks lo descarta si no es un id válido o el bloque no es board).
+  board_id: z.string().max(64).optional(),
 });
 
 export const docPageCreateSchema = z.object({

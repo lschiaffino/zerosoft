@@ -4,6 +4,7 @@ import { emitEventSoon } from '@/lib/events';
 import { NotesError, createNote, listNotes, noteOwner } from '@/lib/notes';
 import { noteCreateSchema } from '@/lib/notes-schema';
 import { NOTES_SORTS, noteEventPayload, type NotesSort } from '@/lib/notes-types';
+import { listSharedWithMe } from '@/lib/notes-shares';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
 
 export const runtime = 'nodejs';
@@ -14,6 +15,10 @@ export async function GET(req: NextRequest) {
   if (!user) return jsonError(401, 'unauthorized');
   const sp = req.nextUrl.searchParams;
   const viewParam = sp.get('view');
+  // "Compartidas conmigo": notas de otras personas del workspace (sin búsqueda ni filtros).
+  if (viewParam === 'shared') {
+    return NextResponse.json({ notes: await listSharedWithMe(noteOwner(user), { q: sp.get('q')?.slice(0, 200) ?? null }) });
+  }
   const view = viewParam === 'pinned' || viewParam === 'trash' ? viewParam : 'all';
   const sortParam = sp.get('sort') as NotesSort | null;
   const notes = await listNotes(noteOwner(user), {

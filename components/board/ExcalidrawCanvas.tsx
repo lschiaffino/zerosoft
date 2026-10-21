@@ -6,14 +6,16 @@
  * importarse. Su CSS se importa acá, así viaja en el mismo chunk.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Excalidraw, exportToSvg, reconcileElements, useHandleLibrary } from '@excalidraw/excalidraw';
+import { CaptureUpdateAction, Excalidraw, convertToExcalidrawElements, exportToSvg, reconcileElements, useHandleLibrary } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { isAllowedLibraryUrl, type BoardScene } from '@/lib/boards-types';
 import { useResolvedTheme } from '@/components/theme/ThemeProvider';
 
 // Tipos laxos: los .d.ts de Excalidraw arrastran paquetes internos.
 export interface CanvasApi {
-  updateScene: (scene: { elements?: readonly unknown[]; appState?: Record<string, unknown> }) => void;
+  updateScene: (scene: { elements?: readonly unknown[]; appState?: Record<string, unknown>; captureUpdate?: unknown }) => void;
+  onChange: (cb: (elements: readonly unknown[], appState: Record<string, unknown>) => void) => () => void;
+  scrollToContent: (target?: unknown, opts?: { fitToContent?: boolean; animate?: boolean }) => void;
   addFiles: (files: unknown[]) => void;
   getSceneElements: () => readonly unknown[];
   getSceneElementsIncludingDeleted: () => readonly unknown[];
@@ -52,21 +54,25 @@ export default function ExcalidrawCanvas({
   scene,
   locale,
   viewMode = false,
+  library = true,
   onChange,
   onApi,
 }: {
   scene: BoardScene;
   locale: string;
   viewMode?: boolean;
+  /** Biblioteca de formas del workspace (sin sesión, como el invitado, no hay). */
+  library?: boolean;
   onChange?: CanvasChange;
   onApi?: (api: CanvasApi) => void;
 }) {
   // El lienzo sigue el modo de color del sitio (selector sistema/claro/oscuro).
   const theme = useResolvedTheme();
   const [api, setApi] = useState<unknown>(null);
-  // La biblioteca solo en el editor (la vista pública no tiene sesión).
+  // La biblioteca solo en el editor con sesión (la vista pública y el invitado no la tienen).
+  const withLibrary = library && !viewMode;
   useHandleLibrary({
-    excalidrawAPI: (viewMode ? null : api) as never,
+    excalidrawAPI: (withLibrary ? api : null) as never,
     adapter: libraryAdapter as never,
     validateLibraryUrl: isAllowedLibraryUrl,
   });
@@ -101,7 +107,7 @@ export default function ExcalidrawCanvas({
         setApi(instance);
         onApi?.(instance as unknown as CanvasApi);
       }}
-      libraryReturnUrl={viewMode ? undefined : returnUrl}
+      libraryReturnUrl={withLibrary ? returnUrl : undefined}
       onChange={onChange ? (els, appState, files) => onChange(els, appState as unknown as Record<string, unknown>, files as unknown as Record<string, unknown>) : undefined}
       UIOptions={uiOptions}
     />
@@ -112,6 +118,14 @@ export default function ExcalidrawCanvas({
 export function reconcile(local: readonly unknown[], remote: readonly unknown[], appState: Record<string, unknown>): unknown[] {
   return reconcileElements(local as never, remote as never, appState as never) as unknown[];
 }
+
+/** Elementos de Excalidraw a partir de esqueletos (stickies con su texto ligado). */
+export function skeletonsToElements(skeletons: Array<Record<string, unknown>>): unknown[] {
+  return convertToExcalidrawElements(skeletons as never) as unknown[];
+}
+
+/** Opción de updateScene para que el cambio entre al deshacer/rehacer. */
+export const UNDOABLE = CaptureUpdateAction.IMMEDIATELY;
 
 /** Miniatura SVG de la escena (sin imágenes, para que sea chica). */
 export async function sceneThumbnail(elements: readonly unknown[], viewBackgroundColor: string): Promise<string | null> {

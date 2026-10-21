@@ -97,7 +97,8 @@
       "table": "Table",
       "database": "Database",
       "image": "Image",
-      "file": "File"
+      "file": "File",
+      "board": "Board"
     },
     "breadcrumb": "Breadcrumb",
     "closePanel": "Close panel",
@@ -115,6 +116,22 @@
       "untitledFile": "Untitled file",
       "imageLabel": "Image: {name}",
       "fileLabel": "File: {name}"
+    },
+    "board": {
+      "label": "Embedded board",
+      "pick": "Embed a board",
+      "search": "Search boards",
+      "loading": "Loading…",
+      "loadError": "Couldn’t load your boards.",
+      "none": "There are no boards in this workspace yet.",
+      "noMatch": "No board matches that.",
+      "create": "Create a board",
+      "open": "Open {name}",
+      "openButton": "Open board",
+      "change": "Change",
+      "updated": "Edited {when}",
+      "empty": "Empty board",
+      "noAccess": "You don’t have access to this board."
     }
   },
   "database": {

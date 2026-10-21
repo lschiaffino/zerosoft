@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { noteEditable, noteOwner } from '@/lib/notes';
+import { resolveNoteAccess } from '@/lib/notes-shares';
 import { MAX_UPLOAD_SIZE, saveUpload, UploadError } from '@/lib/uploads';
 import { cleanFileName, type DocsUploadResult } from '@/lib/docs-files';
 import { jsonError, limitWrites } from '@/lib/write-limit';
@@ -10,7 +11,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Sube el archivo de un bloque image/file de una nota (arrastrar, pegar o el
- * menú `/`). Solo la persona dueña y con la nota fuera de la papelera. Se
+ * menú `/`). La persona dueña o alguien con quien la compartió para editar,
+ * con la nota fuera de la papelera. Se
  * guarda en el storage de Docs (mismas reglas: 10 MB, sin HTML/SVG/JS) y se
  * sirve después por /api/notes/<nota>/files/<bloque>, que vuelve a chequear.
  */
@@ -21,7 +23,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const owner = noteOwner(user);
   const limited = await limitWrites('notes:upload', owner.personId, 60);
   if (limited) return limited;
-  const state = await noteEditable(owner, id);
+  // Propia, o compartida conmigo con permiso de edición.
+  const access = await resolveNoteAccess(owner, id);
+  if (!access || access.access === 'view') return jsonError(404, 'not_found');
+  const state = await noteEditable(access.owner, id);
   if (state === 'not_found') return jsonError(404, 'not_found');
   if (state === 'trashed') return jsonError(409, 'note_trashed');
 

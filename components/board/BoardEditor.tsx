@@ -9,6 +9,12 @@ import { isDataUrl, swapUploadedFiles } from '@/lib/board-file-refs';
 import type { BoardSnapshotSummary } from '@/lib/board-history';
 import type { CanvasApi } from './ExcalidrawCanvas';
 import CanvasComments from './CanvasComments';
+import BoardAccessPanel from './BoardAccessPanel';
+import BoardOverlays from './BoardOverlays';
+import BoardStickyTool from './BoardStickyTool';
+import BoardTrackTool from './BoardTrackTool';
+import BoardWorkshop, { TimerChip } from './BoardWorkshop';
+import { useTrackCards, useWorkshop } from './useBoardLive';
 import {
   baseFrom,
   clearDraft,
@@ -97,15 +103,27 @@ export default function BoardEditor({
   board,
   locale,
   commentId = null,
+  guestToken = null,
 }: {
   board: BoardDetail;
   locale: string;
   /** ?comment=<hilo>: abre ese hilo (link de una notificación). */
   commentId?: string | null;
+  /**
+   * Link de invitado con edición (/b/e/<token>): sin sesión, guarda por la
+   * ruta del token y no hay comentarios, historial, compartir ni taller.
+   */
+  guestToken?: string | null;
 }) {
   const t = useTranslations('board');
   const format = useFormatter();
   const router = useRouter();
+  const guest = Boolean(guestToken);
+  /** Invitado con rol "ver": el lienzo queda en modo lectura y no se guarda nada. */
+  const readOnly = board.my_access === 'view';
+  const apiBase = guest ? `/api/boards/guest/${encodeURIComponent(guestToken ?? '')}` : `/api/boards/${board.id}`;
+  const workshop = useWorkshop(board.id, !guest);
+  const track = useTrackCards(board.id, !guest);
   const [name, setName] = useState(board.name);
   /** Último nombre que confirmó el servidor. */
   const savedNameRef = useRef(board.name);
@@ -117,6 +135,7 @@ export default function BoardEditor({
   const [conflictDeleted, setConflictDeleted] = useState(false);
   const [draft, setDraft] = useState<BoardDraft | null>(null);
   const [shareToken, setShareToken] = useState<string | null>(board.share_token);
+  const [accessMode, setAccessMode] = useState<'workspace' | 'restricted'>(board.access ?? 'workspace');
   const share = usePopover();
   const [shareBusy, setShareBusy] = useState(false);
   const [shareError, setShareError] = useState(false);
@@ -173,7 +192,7 @@ export default function BoardEditor({
         const dataURL = (f as { dataURL?: unknown })?.dataURL;
         if (!isDataUrl(dataURL) || uploadedRef.current.has(id)) continue;
         try {
-          const res = await fetch(`/api/boards/${board.id}/files`, {
+          const res = await fetch(`${apiBase}/files`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ id, dataURL }),
@@ -185,7 +204,7 @@ export default function BoardEditor({
       }
       return { ...scene, files: swapUploadedFiles(scene.files, uploadedRef.current) };
     },
-    [board.id],
+    [apiBase],
   );
 
   const save = useCallback(async () => {
@@ -222,7 +241,7 @@ export default function BoardEditor({
         setState('too_large');
         return;
       }
-      const res = await fetch(`/api/boards/${board.id}/scene`, {
+      const res = await fetch(`${apiBase}/scene`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body,
@@ -262,7 +281,7 @@ export default function BoardEditor({
       }
     }
     if (conflictBy !== undefined && !unmountedRef.current) onConflictRef.current(conflictBy);
-  }, [board.id, withUploadedFiles]);
+  }, [board.id, apiBase, withUploadedFiles]);
 
   /** Suma las imágenes que ya tiene el servidor (escena de otra pestaña o persona). */
   function rememberUploaded(files: Record<string, unknown>) {
@@ -305,7 +324,7 @@ export default function BoardEditor({
     if (mergesRef.current > MAX_MERGES) return showConflict(by, false);
     setState('saving');
     try {
-      const res = await fetch(`/api/boards/${board.id}`);
+      const res = await fetch(apiBase);
       if (!res.ok) throw new Error(String(res.status));
       const fresh = (await res.json()) as BoardDetail;
       const { reconcile } = await import('./ExcalidrawCanvas');
@@ -338,6 +357,7 @@ export default function BoardEditor({
 
   const onChange = useCallback(
     (elements: readonly unknown[], appState: Record<string, unknown>, files: Record<string, unknown>) => {
+      if (readOnly) return;
       const sig = signature(elements, appState.viewBackgroundColor, Object.keys(files).length);
       if (baselineRef.current) {
         baselineRef.current = false;
@@ -354,7 +374,7 @@ export default function BoardEditor({
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => void save(), SAVE_DEBOUNCE_MS);
     },
-    [save],
+    [save, readOnly],
   );
 
   // Borrador de una visita anterior que no llegó al servidor: se ofrece recuperarlo.
@@ -381,6 +401,7 @@ export default function BoardEditor({
   // Navegación interna con cambios pendientes: último guardado, después del que esté en vuelo.
   useEffect(() => {
     const id = board.id;
+    const base = apiBase;
     // El mapa es el mismo objeto toda la vida del editor (solo se le suman entradas).
     const uploaded = uploadedRef.current;
     unmountedRef.current = false;
@@ -395,7 +416,7 @@ export default function BoardEditor({
         put: async (scene, version) => {
           // Al salir no hay tiempo de subir: lo ya subido va como URL y lo nuevo en línea.
           const body = JSON.stringify({ version, scene: { ...scene, files: swapUploadedFiles(scene.files, uploaded) } });
-          const res = await fetch(`/api/boards/${id}/scene`, {
+          const res = await fetch(`${base}/scene`, {
             method: 'PUT',
             headers: { 'content-type': 'application/json' },
             body,
@@ -408,7 +429,7 @@ export default function BoardEditor({
         dropDraft: () => clearDraft(storage(), id),
       });
     };
-  }, [board.id]);
+  }, [board.id, apiBase]);
 
   /** "Recuperar": suma el borrador al lienzo (combinado si algo cambió desde entonces). */
   async function restoreDraft() {
@@ -440,7 +461,7 @@ export default function BoardEditor({
   // Pizarra creada desde una plantilla (o restaurada sin miniatura): la grilla
   // muestra la miniatura sin esperar a la primera edición.
   useEffect(() => {
-    if (!canvasApi || board.thumbnail || board.scene.elements.length === 0) return;
+    if (!canvasApi || guest || readOnly || board.thumbnail || board.scene.elements.length === 0) return;
     let cancelled = false;
     void (async () => {
       const { sceneThumbnail } = await import('./ExcalidrawCanvas');
@@ -455,7 +476,7 @@ export default function BoardEditor({
     return () => {
       cancelled = true;
     };
-  }, [canvasApi, board.id, board.thumbnail, board.scene]);
+  }, [canvasApi, guest, readOnly, board.id, board.thumbnail, board.scene]);
 
   async function toggleHistory() {
     history.toggle();
@@ -498,7 +519,7 @@ export default function BoardEditor({
 
   /** "Recargar": trae la versión del servidor y descarta lo local. */
   async function reload() {
-    const res = await fetch(`/api/boards/${board.id}`);
+    const res = await fetch(apiBase);
     if (!res.ok) return;
     const fresh = (await res.json()) as BoardDetail;
     const api = apiRef.current;
@@ -607,162 +628,198 @@ export default function BoardEditor({
   return (
     <div className="board-editor">
       <div className="board-bar">
-        <Link href="/app/board" className="board-back" aria-label={t('editor.back')}>
-          <NotesIcon name="back" size={14} />
-          <span className="board-back-label">{t('editor.back')}</span>
-        </Link>
-        <input
-          className="board-name"
-          value={name}
-          maxLength={120}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={(e) => void saveName(e.currentTarget.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur();
-          }}
-          aria-label={t('editor.name')}
-          // El ancho sigue al nombre: el estado de guardado queda pegado a él.
-          style={{ width: `${Math.max(name.length, 6) + 2}ch` }}
-        />
+        {guest ? (
+          <span className="board-guest-tag mono">{t('guest.badge')}</span>
+        ) : (
+          <Link href="/app/board" className="board-back" aria-label={t('editor.back')}>
+            <NotesIcon name="back" size={14} />
+            <span className="board-back-label">{t('editor.back')}</span>
+          </Link>
+        )}
+        {guest || readOnly ? (
+          <span className="board-name is-static">{name}</span>
+        ) : (
+          <input
+            className="board-name"
+            value={name}
+            maxLength={120}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={(e) => void saveName(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur();
+            }}
+            aria-label={t('editor.name')}
+            // El ancho sigue al nombre: el estado de guardado queda pegado a él.
+            style={{ width: `${Math.max(name.length, 6) + 2}ch` }}
+          />
+        )}
         <span
           className={`board-status${state === 'error' || nameError ? ' is-error' : ''}${state === 'dirty' || state === 'error' || nameError ? '' : ' is-quiet'}`}
           aria-live="polite"
         >
-          {statusText}
+          {readOnly ? t('access.viewOnly') : statusText}
         </span>
-        <button
-          type="button"
-          className={`btn btn-sm board-bar-first${commentsOpen ? ' is-on' : ''}`}
-          onClick={() => {
-            setCommentsOpen((v) => !v);
-            setPlacing(false);
-          }}
-          aria-pressed={commentsOpen}
-        >
-          <NotesIcon name="ask" size={14} />
-          <span className="board-bar-label">{t('comments.button')}</span>
-          {openThreads > 0 && <span className="board-bar-count">{openThreads}</span>}
-        </button>
-        <button
-          type="button"
-          className={`btn btn-sm${placing ? ' is-on' : ''}`}
-          onClick={() => setPlacing((v) => !v)}
-          aria-pressed={placing}
-          title={t('comments.add')}
-        >
-          <NotesIcon name="plus" size={14} />
-          <span className="board-bar-label">{t('comments.add')}</span>
-        </button>
-        <div className="board-share-wrap board-history-wrap" ref={history.wrapRef}>
-          <button
-            ref={history.buttonRef}
-            type="button"
-            className="btn btn-sm"
-            onClick={() => void toggleHistory()}
-            aria-expanded={history.open}
-            aria-haspopup="dialog"
-          >
-            <NotesIcon name="history" size={14} />
-            <span className="board-bar-label">{t('history.button')}</span>
-          </button>
-          {history.open && (
-            <div className="board-pop board-history" role="dialog" aria-label={t('history.title')}>
-              <p className="board-pop-title">{t('history.title')}</p>
-              <p className="board-pop-hint">{t('history.hint')}</p>
-              {snapshots === null && !historyError ? (
-                <p className="board-pop-hint" role="status">{t('history.loading')}</p>
-              ) : snapshots && snapshots.length === 0 ? (
-                <p className="board-pop-hint">{t('history.empty')}</p>
-              ) : (
-                <ul className="board-history-list">
-                  {(snapshots ?? []).map((snap) => (
-                    <li key={snap.id} className="board-history-item">
-                      <div className="board-history-thumb" aria-hidden="true">
-                        {snap.thumbnail ? (
-                          // Miniatura SVG filtrada en el servidor; como <img> no ejecuta nada.
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(snap.thumbnail)}`} alt="" />
-                        ) : null}
-                      </div>
-                      <div className="board-history-body">
-                        <span className="board-history-when">
-                          {format.dateTime(new Date(snap.content_at), { dateStyle: 'medium', timeStyle: 'short' })}
-                        </span>
-                        <span className="board-history-meta">
-                          {t('history.elements', { count: snap.element_count })}
-                          {snap.edited_by ? ` · ${snap.edited_by}` : ''}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        aria-busy={restoring === snap.id}
-                        disabled={restoring !== null}
-                        onClick={() => void restoreSnapshot(snap)}
-                      >
-                        {t('history.restore')}
+        {!guest && <TimerChip timer={workshop.timer} skew={workshop.skew} />}
+        <span className="board-bar-first" aria-hidden="true" />
+        {!readOnly && <BoardStickyTool api={canvasApi} />}
+        {!guest && !readOnly && <BoardTrackTool boardId={board.id} api={canvasApi} cards={track.cards} onCards={track.setCards} />}
+        {!guest && (
+          <BoardWorkshop
+            api={canvasApi}
+            timer={workshop.timer}
+            voting={workshop.voting}
+            skew={workshop.skew}
+            canRun={!readOnly}
+            error={workshop.error}
+            send={workshop.send}
+          />
+        )}
+        {!guest && (
+          <>
+            <button
+              type="button"
+              className={`btn btn-sm${commentsOpen ? ' is-on' : ''}`}
+              onClick={() => {
+                setCommentsOpen((v) => !v);
+                setPlacing(false);
+              }}
+              aria-pressed={commentsOpen}
+            >
+              <NotesIcon name="ask" size={14} />
+              <span className="board-bar-label">{t('comments.button')}</span>
+              {openThreads > 0 && <span className="board-bar-count">{openThreads}</span>}
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm${placing ? ' is-on' : ''}`}
+              onClick={() => setPlacing((v) => !v)}
+              aria-pressed={placing}
+              title={t('comments.add')}
+            >
+              <NotesIcon name="plus" size={14} />
+              <span className="board-bar-label">{t('comments.add')}</span>
+            </button>
+          </>
+        )}
+        {!guest && !readOnly && (
+          <div className="board-share-wrap board-history-wrap" ref={history.wrapRef}>
+            <button
+              ref={history.buttonRef}
+              type="button"
+              className="btn btn-sm"
+              onClick={() => void toggleHistory()}
+              aria-expanded={history.open}
+              aria-haspopup="dialog"
+            >
+              <NotesIcon name="history" size={14} />
+              <span className="board-bar-label">{t('history.button')}</span>
+            </button>
+            {history.open && (
+              <div className="board-pop board-history" role="dialog" aria-label={t('history.title')}>
+                <p className="board-pop-title">{t('history.title')}</p>
+                <p className="board-pop-hint">{t('history.hint')}</p>
+                {snapshots === null && !historyError ? (
+                  <p className="board-pop-hint" role="status">{t('history.loading')}</p>
+                ) : snapshots && snapshots.length === 0 ? (
+                  <p className="board-pop-hint">{t('history.empty')}</p>
+                ) : (
+                  <ul className="board-history-list">
+                    {(snapshots ?? []).map((snap) => (
+                      <li key={snap.id} className="board-history-item">
+                        <div className="board-history-thumb" aria-hidden="true">
+                          {snap.thumbnail ? (
+                            // Miniatura SVG filtrada en el servidor; como <img> no ejecuta nada.
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(snap.thumbnail)}`} alt="" />
+                          ) : null}
+                        </div>
+                        <div className="board-history-body">
+                          <span className="board-history-when">
+                            {format.dateTime(new Date(snap.content_at), { dateStyle: 'medium', timeStyle: 'short' })}
+                          </span>
+                          <span className="board-history-meta">
+                            {t('history.elements', { count: snap.element_count })}
+                            {snap.edited_by ? ` · ${snap.edited_by}` : ''}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          aria-busy={restoring === snap.id}
+                          disabled={restoring !== null}
+                          onClick={() => void restoreSnapshot(snap)}
+                        >
+                          {t('history.restore')}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {historyError && (
+                  <p className="ui-error" role="alert">
+                    {t('list.actionError')}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        {!guest && (
+          <div className="board-share-wrap" ref={share.wrapRef}>
+            <button
+              ref={share.buttonRef}
+              type="button"
+              className={`btn btn-sm${shareToken || accessMode === 'restricted' ? ' is-on' : ''}`}
+              onClick={share.toggle}
+              aria-expanded={share.open}
+              aria-haspopup="dialog"
+            >
+              <NotesIcon name={accessMode === 'restricted' ? 'lock' : 'share'} size={14} />
+              {shareToken ? t('share.on') : t('share.button')}
+            </button>
+            {share.open && (
+              <div className="board-pop" role="dialog" aria-label={t('share.title')}>
+                {!readOnly && (
+                  <>
+                    <p className="board-pop-title">{t('share.title')}</p>
+                    <p className="board-pop-hint">{t('share.hint')}</p>
+                    {shareToken ? (
+                      <>
+                        <div className="board-share-row">
+                          <input className="input data" readOnly value={shareUrl} aria-label={t('share.title')} onFocus={(e) => e.currentTarget.select()} />
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            onClick={() => {
+                              void navigator.clipboard?.writeText(shareUrl).catch(() => {});
+                              setCopied(true);
+                              setTimeout(() => setCopied(false), 1500);
+                            }}
+                          >
+                            {copied ? t('share.copied') : t('share.copy')}
+                          </button>
+                        </div>
+                        <button type="button" className="btn btn-sm btn-ghost btn-danger board-share-off" aria-busy={shareBusy} onClick={() => void setShared(false)}>
+                          {t('share.disable')}
+                        </button>
+                      </>
+                    ) : (
+                      <button type="button" className="btn btn-sm btn-primary board-share-on" aria-busy={shareBusy} onClick={() => void setShared(true)}>
+                        {t('share.enable')}
                       </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {historyError && (
-                <p className="ui-error" role="alert">
-                  {t('list.actionError')}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="board-share-wrap" ref={share.wrapRef}>
-          <button
-            ref={share.buttonRef}
-            type="button"
-            className={`btn btn-sm${shareToken ? ' is-on' : ''}`}
-            onClick={share.toggle}
-            aria-expanded={share.open}
-            aria-haspopup="dialog"
-          >
-            <NotesIcon name="share" size={14} />
-            {shareToken ? t('share.on') : t('share.button')}
-          </button>
-          {share.open && (
-            <div className="board-pop" role="dialog" aria-label={t('share.title')}>
-              <p className="board-pop-title">{t('share.title')}</p>
-              <p className="board-pop-hint">{t('share.hint')}</p>
-              {shareToken ? (
-                <>
-                  <div className="board-share-row">
-                    <input className="input data" readOnly value={shareUrl} aria-label={t('share.title')} onFocus={(e) => e.currentTarget.select()} />
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      onClick={() => {
-                        void navigator.clipboard?.writeText(shareUrl).catch(() => {});
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 1500);
-                      }}
-                    >
-                      {copied ? t('share.copied') : t('share.copy')}
-                    </button>
-                  </div>
-                  <button type="button" className="btn btn-sm btn-ghost btn-danger board-share-off" aria-busy={shareBusy} onClick={() => void setShared(false)}>
-                    {t('share.disable')}
-                  </button>
-                </>
-              ) : (
-                <button type="button" className="btn btn-sm btn-primary board-share-on" aria-busy={shareBusy} onClick={() => void setShared(true)}>
-                  {t('share.enable')}
-                </button>
-              )}
-              {shareError && (
-                <p className="ui-error" role="alert">
-                  {t('list.actionError')}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+                    )}
+                    {shareError && (
+                      <p className="ui-error" role="alert">
+                        {t('list.actionError')}
+                      </p>
+                    )}
+                  </>
+                )}
+                <BoardAccessPanel boardId={board.id} onModeChange={setAccessMode} />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {state === 'conflict' && (
@@ -809,22 +866,35 @@ export default function BoardEditor({
         <ExcalidrawCanvas
           scene={board.scene}
           locale={locale}
+          viewMode={readOnly}
+          library={!guest}
           onChange={onChange}
           onApi={(api) => {
             apiRef.current = api;
             setCanvasApi(api);
           }}
         />
-        <CanvasComments
-          boardId={board.id}
-          api={canvasApi}
-          panelOpen={commentsOpen}
-          onClosePanel={() => setCommentsOpen(false)}
-          placing={placing}
-          onPlaced={() => setPlacing(false)}
-          initialThreadId={commentId}
-          onCountChange={setOpenThreads}
-        />
+        {!guest && (
+          <BoardOverlays
+            api={canvasApi}
+            cards={track.cards}
+            voting={workshop.voting}
+            canVote
+            onVote={(elementId, delta) => void workshop.send({ vote: { action: 'vote', elementId, delta } })}
+          />
+        )}
+        {!guest && (
+          <CanvasComments
+            boardId={board.id}
+            api={canvasApi}
+            panelOpen={commentsOpen}
+            onClosePanel={() => setCommentsOpen(false)}
+            placing={placing}
+            onPlaced={() => setPlacing(false)}
+            initialThreadId={commentId}
+            onCountChange={setOpenThreads}
+          />
+        )}
       </div>
     </div>
   );

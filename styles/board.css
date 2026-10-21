@@ -573,3 +573,150 @@
 }
 
 .board-comments-item-meta { font-size: 0.75rem; color: var(--brand-gray-2); }
+
+/* ---------- Stickies, Track, taller y acceso ---------- */
+
+.board-tool-wrap { margin-left: 0; }
+.board-bar-first ~ .board-tool-wrap { margin-left: 0; }
+.board-name.is-static { display: inline-flex; align-items: center; border-color: transparent; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-guest-tag { font-size: 0.75rem; color: var(--brand-gray-1); border: 1px solid var(--line); border-radius: var(--radius-1); padding: 2px 6px; }
+.board-guest .board-editor { height: 100dvh; }
+
+.board-pop-section { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.board-pop-label { font-size: 0.8125rem; font-weight: 600; }
+.board-pop-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.board-pop-start { align-self: flex-start; }
+.board-sticky-pop, .board-workshop-pop { max-height: min(640px, calc(100dvh - 140px)); overflow-y: auto; }
+
+.board-swatches { display: flex; gap: 6px; }
+.board-swatch { width: 28px; height: 28px; border: 1px solid var(--line); border-radius: var(--radius-1); cursor: pointer; }
+.board-swatch.is-on { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--bg); }
+.board-swatch:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.board-bulk { resize: vertical; min-height: 84px; font: inherit; font-size: 0.8125rem; }
+
+.board-tag-edit { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.board-tag-input { flex: 1; min-width: 120px; }
+.board-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.6875rem;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.board-tag.is-edit button { display: inline-flex; border: 0; background: none; color: var(--brand-gray-1); cursor: pointer; padding: 0; }
+.board-tag.is-pick { cursor: pointer; font-size: 0.75rem; line-height: 22px; }
+.board-tag.is-pick:hover { background: var(--ui-hover); }
+.board-tag.is-pick .num { color: var(--brand-gray-2); }
+
+.board-inline-label { display: flex; align-items: center; gap: 8px; font-size: 0.8125rem; flex: 1; }
+.board-inline-label .input { width: 72px; }
+
+.board-timer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  min-height: 28px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.board-timer-chip.is-paused { border-color: var(--line); color: var(--brand-gray-1); }
+.board-timer-chip.is-done { border-color: var(--warn); background: var(--warn-soft); color: var(--warn-ink); }
+.board-timer-big { font-size: 1.75rem; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.board-timer-big.is-done { color: var(--warn-ink); }
+.board-timer-state { font-size: 0.875rem; color: var(--brand-gray-1); }
+
+.board-results { list-style: none; display: flex; flex-direction: column; margin: 0 -16px; border-top: 1px solid var(--line); }
+.board-results-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 16px; border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--ink); text-align: left; font-size: 0.8125rem; cursor: pointer; }
+.board-results-item:hover { background: var(--ui-hover); }
+.board-results-count { min-width: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.board-results-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.board-track-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.board-track-list li { display: flex; align-items: center; gap: 8px; font-size: 0.8125rem; }
+.board-track-list-link { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+
+.board-access-modes { display: flex; flex-direction: column; gap: 6px; }
+.board-access-mode { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
+.board-access-mode > span { display: flex; flex-direction: column; gap: 2px; }
+.board-access-mode-name { font-size: 0.8125rem; font-weight: 600; }
+.board-access-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.board-access-list li { display: flex; align-items: center; gap: 6px; }
+.board-access-who { flex: 1; min-width: 0; font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-access .board-share-row .select { min-width: 0; }
+
+/* Insignias sobre el lienzo: misma capa que los pins (debajo de las barras de Excalidraw). */
+.board-overlays { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.board-tags { position: absolute; z-index: 2; display: flex; gap: 2px; transform: translateY(calc(-100% - 2px)); max-width: 240px; overflow: hidden; }
+.board-vote { position: absolute; z-index: 3; display: flex; gap: 2px; transform: translate(-100%, -50%); pointer-events: auto; }
+.board-vote-btn {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 5px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  color: var(--ink);
+  font: 600 0.75rem/22px var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.board-vote-btn.is-mine { background: var(--c-board-ink); border-color: var(--c-board-ink); color: #fff; }
+.board-vote-btn:disabled { opacity: 0.5; cursor: default; }
+.board-vote-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.board-vote-total {
+  position: absolute;
+  z-index: 3;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  color: var(--ink);
+  font: 600 0.8125rem/24px var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.board-vote-total.is-top { background: var(--ink); color: var(--bg); }
+.board-track-card {
+  position: absolute;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.6875rem;
+  line-height: 16px;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: auto;
+}
+.board-track-card:hover { border-color: var(--ink); }
+.board-track-card.is-done .board-track-status { color: var(--ok-ink); }
+.board-track-dot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; }
+.board-track-id { font-weight: 600; }
+.board-track-status { color: var(--brand-gray-1); }
+.board-track-who { color: var(--brand-gray-2); overflow: hidden; text-overflow: ellipsis; }
+
+/* Con las herramientas de taller la barra no entra en un teléfono: pasa a dos líneas. */
+@media (max-width: 600px) {
+  .board-bar { flex-wrap: wrap; row-gap: 6px; }
+  .board-name.is-static { max-width: 60vw; }
+}

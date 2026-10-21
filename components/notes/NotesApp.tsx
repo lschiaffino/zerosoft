@@ -15,6 +15,7 @@ import {
   type TagInfo,
 } from '@/lib/notes-types';
 import NoteEditorPane from './NoteEditorPane';
+import { NotebookShareDrawer } from './NoteSharePeople';
 import NotesAskPanel from './NotesAskPanel';
 import NotesIcon from './NotesIcon';
 import RowMenu from './RowMenu';
@@ -41,6 +42,8 @@ interface Props {
   initialNotebooks: NotebookInfo[];
   initialTags: TagInfo[];
   initialNote: NoteDetail | null;
+  /** Filtro inicial de la lista (p. ej. "Compartidas conmigo" desde un aviso). */
+  initialFilter?: NotesFilter;
   startNew?: boolean;
   /** "Ahora" del render del servidor (fechas relativas sin hydration mismatch). */
   serverNow: number;
@@ -59,12 +62,13 @@ export default function NotesApp({
   initialNotebooks,
   initialTags,
   initialNote,
+  initialFilter,
   startNew = false,
   serverNow,
 }: Props) {
   const t = useTranslations('notes');
   const format = useFormatter();
-  const [filter, setFilter] = useState<NotesFilter>({ kind: 'all' });
+  const [filter, setFilter] = useState<NotesFilter>(initialFilter ?? { kind: 'all' });
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<NotesSort>('updated');
   const [notes, setNotes] = useState<NoteSummary[]>(initialNotes);
@@ -73,12 +77,13 @@ export default function NotesApp({
   const [note, setNote] = useState<NoteDetail | null>(initialNote);
   const [pane, setPane] = useState<Pane>(initialNote ? 'editor' : 'list');
   const [loading, setLoading] = useState(false);
-  const [loadedKey, setLoadedKey] = useState(() => listKey({ kind: 'all' }, 'updated'));
+  const [loadedKey, setLoadedKey] = useState(() => listKey(initialFilter ?? { kind: 'all' }, 'updated'));
   const [listError, setListError] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
   const [newNotebook, setNewNotebook] = useState(false);
   const [renamingNotebook, setRenamingNotebook] = useState<string | null>(null);
   const [notebookMenu, setNotebookMenu] = useState<string | null>(null);
+  const [sharingNotebook, setSharingNotebook] = useState<NotebookInfo | null>(null);
   const [focusTitle, setFocusTitle] = useState(0);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [toast, setToast] = useState<string | null>(null);
@@ -259,6 +264,25 @@ export default function NotesApp({
     [refreshList, t],
   );
 
+  /**
+   * Espera el autoguardado (debounce del editor + PATCH en vuelo) y trae la
+   * nota del servidor: lo que usa "Enviar a Track" para mandar lo último.
+   */
+  const syncNote = useCallback(async (id: string): Promise<NoteDetail | null> => {
+    await new Promise((r) => setTimeout(r, 700));
+    await pendingCreates.current.get(id);
+    await saveChains.current.get(id)?.catch(() => {});
+    try {
+      const res = await fetch(`/api/notes/${id}`);
+      if (!res.ok) throw new Error(String(res.status));
+      const fresh = (await res.json()) as NoteDetail;
+      bases.current.set(fresh.id, fresh.updated_at);
+      return fresh;
+    } catch {
+      return null;
+    }
+  }, []);
+
   /** Importar .enex / .md: crea las notas (en la libreta abierta, si hay) y recarga la lista. */
   const importFiles = useCallback(
     async (files: File[]) => {
@@ -342,7 +366,7 @@ export default function NotesApp({
         pendingCreates.current.delete(id);
       });
     pendingCreates.current.set(id, request);
-    if (filter.kind === 'trash') setFilter({ kind: 'all' });
+    if (filter.kind === 'trash' || filter.kind === 'shared') setFilter({ kind: 'all' });
     setQ('');
     setNotes((prev) => [created, ...prev.filter((n) => n.id !== created.id)]);
     setNote(created);
@@ -578,6 +602,7 @@ export default function NotesApp({
   const listTitle = useMemo(() => {
     if (filter.kind === 'pinned') return t('nav.pinned');
     if (filter.kind === 'trash') return t('nav.trash');
+    if (filter.kind === 'shared') return t('nav.shared');
     if (filter.kind === 'notebook') return notebooks.find((n) => n.id === filter.id)?.name ?? t('nav.notebooks');
     if (filter.kind === 'tag') return `#${filter.tag}`;
     return t('nav.all');
@@ -605,7 +630,7 @@ export default function NotesApp({
 
   const showSkeleton = loading && loadedKey !== listKey(filter, sort);
   const empty = emptyKind(filter, q);
-  const navItem = (f: NotesFilter, label: string, icon?: 'pin' | 'trash') => (
+  const navItem = (f: NotesFilter, label: string, icon?: 'pin' | 'trash' | 'users') => (
     <button
       type="button"
       className="notes-nav-item"
@@ -631,6 +656,7 @@ export default function NotesApp({
         <nav className="notes-nav-list" aria-label={t('nav.label')}>
           {navItem({ kind: 'all' }, t('nav.all'))}
           {navItem({ kind: 'pinned' }, t('nav.pinned'), 'pin')}
+          {navItem({ kind: 'shared' }, t('nav.shared'), 'users')}
 
           <div className="notes-nav-section">
             <h2>{t('nav.notebooks')}</h2>
@@ -696,6 +722,13 @@ export default function NotesApp({
                       onSelect: () => {
                         setNotebookMenu(null);
                         setRenamingNotebook(nb.id);
+                      },
+                    },
+                    {
+                      label: t('notebooks.share'),
+                      onSelect: () => {
+                        setNotebookMenu(null);
+                        setSharingNotebook(nb);
                       },
                     },
                     {
@@ -918,6 +951,8 @@ export default function NotesApp({
               </div>
             ) : empty === 'trash' ? (
               <EmptyState quiet product="notes" className="notes-empty" title={t('trash.emptyState')} body={t('trash.emptyStateBody')} />
+            ) : empty === 'shared' ? (
+              <EmptyState quiet product="notes" className="notes-empty" title={t('list.emptySharedTitle')} body={t('list.emptySharedBody')} />
             ) : (
               <EmptyState
                 quiet
@@ -969,6 +1004,7 @@ export default function NotesApp({
                 {n.snippet && <span className="notes-item-snippet">{n.snippet}</span>}
                 <span className="notes-item-meta">
                   <time dateTime={n.updated_at}>{relTime(n.updated_at)}</time>
+                  {n.shared_by && <span className="notes-item-owner">{t('list.sharedBy', { name: n.shared_by })}</span>}
                   {n.tags.slice(0, 3).map((tg) => (
                     <span key={tg} className="notes-item-tag">
                       #{tg}
@@ -1017,6 +1053,11 @@ export default function NotesApp({
             }}
             onOpenNote={openLinkedNote}
             onReload={(id) => void reloadNote(id)}
+            onSync={syncNote}
+            onTracked={(id, issues) => {
+              setOkToast(t('track.done', { count: issues.length, list: issues.map((i) => i.identifier).join(', ') }));
+              void reloadNote(id);
+            }}
           />
         ) : (
           <div className="notes-editor-empty">
@@ -1032,6 +1073,10 @@ export default function NotesApp({
           </div>
         )}
       </div>
+
+      {sharingNotebook && (
+        <NotebookShareDrawer notebookId={sharingNotebook.id} name={sharingNotebook.name} onClose={() => setSharingNotebook(null)} />
+      )}
 
       {askOpen && aiEnabled && (
         <NotesAskPanel

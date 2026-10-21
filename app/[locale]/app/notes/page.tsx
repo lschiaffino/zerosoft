@@ -2,7 +2,8 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { pathWithQuery } from '@/lib/return-path';
 import { aiEnabled } from '@/lib/ai';
-import { getNote, listNotebooks, listNotes, listTags, noteOwner } from '@/lib/notes';
+import { listNotebooks, listNotes, listTags, noteOwner } from '@/lib/notes';
+import { getNoteForViewer, listSharedWithMe } from '@/lib/notes-shares';
 import NotesApp from '@/components/notes/NotesApp';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,7 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
 
 export default async function NotesPage(props: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ note?: string; new?: string }>;
+  searchParams: Promise<{ note?: string; new?: string; view?: string }>;
 }) {
   const { locale } = await props.params;
   const sp = await props.searchParams;
@@ -23,11 +24,14 @@ export default async function NotesPage(props: {
   // Un link ?note=<id> abierto sin sesión vuelve a esa nota después del login.
   const user = await requireUser(locale, pathWithQuery(`/${locale}/app/notes`, sp));
   const owner = noteOwner(user);
+  // ?view=shared (aviso de una libreta compartida) abre "Compartidas conmigo".
+  const shared = sp.view === 'shared';
   const [notes, notebooks, tags, note] = await Promise.all([
-    listNotes(owner, { view: 'all', sort: 'updated' }),
+    shared ? listSharedWithMe(owner) : listNotes(owner, { view: 'all', sort: 'updated' }),
     listNotebooks(owner),
     listTags(owner),
-    sp.note ? getNote(owner, String(sp.note)) : Promise.resolve(null),
+    // Propia o compartida conmigo (link de un aviso).
+    sp.note ? getNoteForViewer(owner, String(sp.note)) : Promise.resolve(null),
   ]);
 
   return (
@@ -38,6 +42,7 @@ export default async function NotesPage(props: {
       initialNotebooks={notebooks}
       initialTags={tags}
       initialNote={note}
+      initialFilter={shared ? { kind: 'shared' } : undefined}
       startNew={sp.new === '1'}
       serverNow={Date.now()}
     />

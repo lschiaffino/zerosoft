@@ -119,10 +119,16 @@ const BLOCK_COMMANDS: {
   { key: 'database', type: 'database' },
   { key: 'image', type: 'image' },
   { key: 'file', type: 'file' },
+  { key: 'board', type: 'board' },
 ];
 
-/** "Convertir en": los bloques de archivo no salen de un bloque de texto. */
-const TURN_INTO_COMMANDS = BLOCK_COMMANDS.filter((c) => !isFileBlockType(c.type));
+/** Bloques atómicos (se enfocan enteros): imagen, archivo y pizarra embebida. */
+function isCardBlockType(type: DocsBlockType): boolean {
+  return isFileBlockType(type) || type === 'board';
+}
+
+/** "Convertir en": los bloques de archivo y de pizarra no salen de un bloque de texto. */
+const TURN_INTO_COMMANDS = BLOCK_COMMANDS.filter((c) => !isCardBlockType(c.type));
 
 /** Keywords extra para matchear el menú `/` (el label traducido no alcanza: "To-do" ≠ "todo"). */
 const COMMAND_KEYWORDS: Record<string, string[]> = {
@@ -140,6 +146,7 @@ const COMMAND_KEYWORDS: Record<string, string[]> = {
   database: ['database', 'db', 'table', 'grid', 'view', 'data'],
   image: ['image', 'picture', 'photo', 'img', 'upload', 'imagen', 'foto', 'imagem'],
   file: ['file', 'attachment', 'upload', 'pdf', 'document', 'archivo', 'adjunto', 'arquivo', 'anexo'],
+  board: ['board', 'whiteboard', 'canvas', 'excalidraw', 'pizarra', 'quadro', 'lousa'],
 };
 
 const BLOCK_ICONS: Record<DocsBlockType, DocsGlyphName> = {
@@ -155,6 +162,7 @@ const BLOCK_ICONS: Record<DocsBlockType, DocsGlyphName> = {
   database: 'database',
   image: 'image',
   file: 'file',
+  board: 'board',
 };
 
 const LIST_TYPES: DocsBlockType[] = ['bulleted_list_item', 'numbered_list_item', 'todo'];
@@ -177,7 +185,7 @@ interface BlockDragState {
 
 /** Bloques cuyo contenido es texto editable en línea (no divider/table/database/image/file). */
 function isTextBlockType(type: DocsBlockType): boolean {
-  return type !== 'divider' && type !== 'table' && type !== 'database' && !isFileBlockType(type);
+  return type !== 'divider' && type !== 'table' && type !== 'database' && !isCardBlockType(type);
 }
 
 /**
@@ -1122,6 +1130,26 @@ export default function DocsEditor({
         return;
       }
 
+      if (cmd.type === 'board') {
+        // Pizarra embebida: el bloque arranca sin pizarra y muestra el
+        // buscador para elegirla. Reemplaza la línea si quedó vacía.
+        const boardBlock: DocsBlock = { id: crypto.randomUUID(), type: 'board', content: '' };
+        const paraBlock: DocsBlock = { id: crypto.randomUUID(), type: 'paragraph', content: '' };
+        const replace = block.type === 'paragraph' && stripped === '';
+        setBlocks((prev) => {
+          const next = prev.map((b, i) => (i === index ? { ...b, content: stripped } : b));
+          next.splice(replace ? index : index + 1, replace ? 1 : 0, boardBlock, paraBlock);
+          triggerSave(next);
+          return next;
+        });
+        setCmdOpen(false);
+        setCmdQuery('');
+        setCmdSel(0);
+        setSlash(null);
+        setFocusIndex(replace ? index : index + 1);
+        return;
+      }
+
       if (cmd.type === 'divider') {
         // El divider no tiene texto: se inserta debajo + un párrafo para seguir escribiendo.
         const dividerBlock: DocsBlock = { id: crypto.randomUUID(), type: 'divider', content: '' };
@@ -1153,6 +1181,8 @@ export default function DocsEditor({
     return BLOCK_COMMANDS.map((c) => ({ ...c, label: t(`editor.commands.${c.key}`) })).filter(
       (c) => {
         if (!uploadsEnabled && isFileBlockType(c.type)) return false;
+        // Pizarras embebidas: solo en Docs (no en Notes).
+        if (embedded && c.type === 'board') return false;
         if (!q) return true;
         const label = c.label.toLowerCase();
         if (label.includes(q)) return true;
@@ -1164,7 +1194,7 @@ export default function DocsEditor({
         });
       },
     );
-  }, [t, cmdQuery, uploadsEnabled]);
+  }, [t, cmdQuery, uploadsEnabled, embedded]);
 
   /** Enter en párrafo/heading/listas/todo: split en el caret o continuación de lista. */
   const splitBlock = useCallback(
@@ -1425,7 +1455,7 @@ export default function DocsEditor({
         !userMention
       ) {
         const dir = e.key === 'ArrowUp' ? -1 : 1;
-        const onCard = isFileBlockType(block.type) && e.target === e.currentTarget;
+        const onCard = isCardBlockType(block.type) && e.target === e.currentTarget;
         if (onCard || (isEditable && collapsed && isCaretOnEdgeLine(el, dir))) {
           const x = (isEditable ? getCaretViewportRect()?.left : undefined) ?? el.getBoundingClientRect().left;
           if (moveVertical(index, dir, x)) {
@@ -1436,7 +1466,7 @@ export default function DocsEditor({
       }
 
       // Supr sobre un bloque de imagen/archivo enfocado: lo borra (como Backspace).
-      if (e.key === 'Delete' && isFileBlockType(block.type) && e.target === e.currentTarget) {
+      if (e.key === 'Delete' && isCardBlockType(block.type) && e.target === e.currentTarget) {
         e.preventDefault();
         removeBlock(index);
         return;

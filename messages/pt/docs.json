@@ -97,7 +97,8 @@
       "table": "Tabela",
       "database": "Banco de dados",
       "image": "Imagem",
-      "file": "Arquivo"
+      "file": "Arquivo",
+      "board": "Quadro"
     },
     "breadcrumb": "Caminho",
     "closePanel": "Fechar painel",
@@ -115,6 +116,22 @@
       "untitledFile": "Arquivo sem nome",
       "imageLabel": "Imagem: {name}",
       "fileLabel": "Arquivo: {name}"
+    },
+    "board": {
+      "label": "Quadro incorporado",
+      "pick": "Incorporar um quadro",
+      "search": "Buscar quadros",
+      "loading": "Carregando…",
+      "loadError": "Não foi possível carregar seus quadros.",
+      "none": "Ainda não há quadros neste workspace.",
+      "noMatch": "Nenhum quadro corresponde.",
+      "create": "Criar um quadro",
+      "open": "Abrir {name}",
+      "openButton": "Abrir quadro",
+      "change": "Trocar",
+      "updated": "Editado {when}",
+      "empty": "Quadro vazio",
+      "noAccess": "Você não tem acesso a este quadro."
     }
   },
   "database": {

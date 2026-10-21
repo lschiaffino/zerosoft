@@ -523,7 +523,9 @@
 .note-view-file-size { font-size: 0.75rem; color: var(--brand-gray-2); font-variant-numeric: tabular-nums; }
 .note-view-table { overflow-x: auto; }
 .note-view-table table { border-collapse: collapse; font-size: 0.8125rem; }
-.note-view-table td { border: 1px solid var(--line); padding: 6px 10px; }
+.note-view-table td,
+.note-view-table th { border: 1px solid var(--line); padding: 6px 10px; }
+.note-view-table th { text-align: left; font-weight: 600; background: var(--bg-soft); }
 
 .note-public { max-width: 720px; margin: 0 auto; padding: 64px 20px 96px; }
 .note-public-meta { font-size: 0.75rem; color: var(--brand-gray-2); margin-bottom: 12px; }
@@ -671,3 +673,27 @@
   .note-body { padding: 12px 16px 24px; }
   .note-body .docs-title, .note-view-title { font-size: 1.875rem; }
 }
+
+/* ---------- Compartir con compañeros ---------- */
+
+.notes-people { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.ui-drawer-body .notes-people { border-top: 0; padding-top: 0; }
+.notes-people-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.notes-people-list li { display: flex; align-items: center; gap: 6px; }
+.notes-people-who { flex: 1; min-width: 0; font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notes-people-add .select:first-child { flex: 1; min-width: 0; }
+.notes-item-owner { color: var(--brand-gray-1); }
+
+/* ---------- Enviar a Track ---------- */
+
+.notes-track { display: flex; flex-direction: column; gap: 12px; }
+.notes-track-modes { display: flex; flex-direction: column; gap: 6px; border: 0; padding: 0; margin: 0; }
+.notes-track-modes label { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; }
+.notes-track-tasks { list-style: none; display: flex; flex-direction: column; max-height: 50dvh; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.notes-track-tasks li + li { border-top: 1px solid var(--line); }
+.notes-track-tasks label { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; font-size: 0.875rem; line-height: 1.4; cursor: pointer; }
+.notes-track-tasks label.is-linked { color: var(--brand-gray-2); cursor: default; }
+.notes-track-done { text-decoration: line-through; color: var(--brand-gray-1); }
+.notes-track-linked { margin-left: auto; flex-shrink: 0; font-size: 0.75rem; color: var(--brand-gray-2); }
+.notes-track-project { display: flex; flex-direction: column; gap: 4px; font-size: 0.8125rem; font-weight: 600; }
+.notes-track-actions { display: flex; justify-content: flex-end; gap: 8px; }
