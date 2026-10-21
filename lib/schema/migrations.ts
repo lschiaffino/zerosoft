@@ -2757,6 +2757,102 @@ export const MIGRATIONS: Migration[] = [
         }
       }
     },
+  },  {
+    // Track: avisos por email (inmediato, resumen diario o nada, por persona;
+    // cursor_at marca hasta dónde ya se mandó y digest_day reclama el resumen
+    // del día), cycles automáticos con arrastre de lo sin terminar
+    // (completed_at marca el cycle ya cerrado), plantillas de issue por
+    // proyecto, issues que se repiten, milestones con fecha objetivo,
+    // posponer avisos de la bandeja (notifications.snoozed_until) y
+    // recordatorios por issue y persona.
+    id: '059_track_notify_cycles_templates_recurring_milestones',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_notify_prefs (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          email_mode TEXT NOT NULL DEFAULT 'digest' CHECK (email_mode IN ('immediate', 'digest', 'off')),
+          timezone TEXT,
+          locale TEXT,
+          cursor_at TEXT,
+          digest_day TEXT,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS track_milestones (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          target_date TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_milestones_project ON track_milestones(project_id, target_date);
+        CREATE TABLE IF NOT EXISTS track_issue_templates (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          status_id TEXT REFERENCES track_statuses(id) ON DELETE SET NULL,
+          priority TEXT CHECK (priority IN ('urgent', 'high', 'medium', 'low')),
+          assignee_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          estimate INTEGER CHECK (estimate >= 0),
+          labels TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_issue_templates_project ON track_issue_templates(project_id, name);
+        CREATE TABLE IF NOT EXISTS track_recurring_issues (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          creator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          status_id TEXT REFERENCES track_statuses(id) ON DELETE SET NULL,
+          priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('urgent', 'high', 'medium', 'low')),
+          assignee_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          labels TEXT NOT NULL DEFAULT '[]',
+          frequency TEXT NOT NULL CHECK (frequency IN ('daily', 'weekly', 'monthly', 'yearly')),
+          every INTEGER NOT NULL DEFAULT 1 CHECK (every >= 1),
+          start_on TEXT NOT NULL,
+          next_run_on TEXT NOT NULL,
+          due_days INTEGER CHECK (due_days >= 0),
+          timezone TEXT NOT NULL DEFAULT 'UTC',
+          active INTEGER NOT NULL DEFAULT 1,
+          last_issue_id TEXT,
+          last_run_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_recurring_due ON track_recurring_issues(active, next_run_on);
+        CREATE INDEX IF NOT EXISTS idx_track_recurring_project ON track_recurring_issues(project_id, created_at);
+        CREATE TABLE IF NOT EXISTS track_issue_reminders (
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          remind_at TEXT NOT NULL,
+          sent_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (issue_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_issue_reminders_due ON track_issue_reminders(sent_at, remind_at);
+      `);
+      await addColumn(client, 'ALTER TABLE notifications ADD COLUMN snoozed_until TEXT');
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN cycle_auto INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN cycle_weeks INTEGER NOT NULL DEFAULT 2');
+      await addColumn(client, "ALTER TABLE track_projects ADD COLUMN cycle_name TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN cycle_auto_day TEXT');
+      await addColumn(client, 'ALTER TABLE track_cycles ADD COLUMN completed_at TEXT');
+      await addColumn(
+        client,
+        'ALTER TABLE track_issues ADD COLUMN milestone_id TEXT REFERENCES track_milestones(id) ON DELETE SET NULL',
+      );
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_track_issues_milestone ON track_issues(milestone_id) WHERE milestone_id IS NOT NULL',
+      );
+      await client.execute(
+        "CREATE INDEX IF NOT EXISTS idx_notifications_track ON notifications(source_type, created_at) WHERE source_type = 'track_issue'",
+      );
+    },
   },
 ];
 

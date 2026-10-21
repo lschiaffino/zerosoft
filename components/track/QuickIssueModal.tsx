@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import type { TrackIssueTemplateRow } from '@/lib/db';
 import { activeCycle, findOpenStatus, parseQuickTitle, type IssuePriority } from '@/lib/track-tasks';
 import type { IssueDraft, ProjectContext } from './useIssueStore';
 import { DueDateMenu } from './InlineEditors';
+import { safeHexColor } from '@/lib/track-color';
 import type { TrackUiLabels } from './ui-labels';
 
 export interface QuickIssueDefaults {
@@ -39,8 +41,18 @@ export default function QuickIssueModal(props: QuickIssueModalProps) {
   return <QuickIssueModalBody {...props} />;
 }
 
+function parseTemplateLabels(raw: string): Array<{ id: string; name: string; color: string }> {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((l) => l && typeof l.id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
 function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, today }: QuickIssueModalProps) {
   const lang = useLocale();
+  const t = useTranslations('track');
   const initialProject = projects.find((p) => p.id === defaults?.projectId) ?? projects[0];
   const [projectId, setProjectId] = useState(initialProject?.id ?? '');
   const project = projects.find((p) => p.id === projectId);
@@ -58,6 +70,26 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
   // El ciclo arranca en el activo del proyecto (si hay), como en Linear.
   const defaultCycle = (p: ProjectContext | undefined) => (p?.cycles ? (activeCycle(p.cycles, today)?.id ?? '') : '');
   const [cycleId, setCycleId] = useState(() => (defaults?.parentId ? '' : defaultCycle(initialProject)));
+  const [milestoneId, setMilestoneId] = useState('');
+  const [templateId, setTemplateId] = useState('');
+  const [estimate, setEstimate] = useState<number | null>(null);
+  const [presetLabels, setPresetLabels] = useState<Array<{ id: string; name: string; color: string }>>([]);
+  // Plantillas: las trae la vista o se piden al abrir (una vez por proyecto).
+  const [fetchedTemplates, setFetchedTemplates] = useState<Record<string, TrackIssueTemplateRow[]>>({});
+  const templates = project?.templates ?? fetchedTemplates[projectId] ?? [];
+  useEffect(() => {
+    if (!projectId || project?.templates || fetchedTemplates[projectId]) return;
+    let alive = true;
+    void fetch(`/api/track/projects/${projectId}/templates`)
+      .then((res) => (res.ok ? (res.json() as Promise<{ rows: TrackIssueTemplateRow[] }>) : null))
+      .then((data) => {
+        if (alive && data) setFetchedTemplates((prev) => ({ ...prev, [projectId]: data.rows }));
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [projectId, project?.templates, fetchedTemplates]);
   const [createMore, setCreateMore] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -80,6 +112,29 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
     setStatusId(defaultStatus(p));
     setCycleId(defaultCycle(p));
     if (assigneeId && !p?.members.some((m) => m.id === assigneeId)) setAssigneeId('');
+    setMilestoneId('');
+    setTemplateId('');
+    setEstimate(null);
+    setPresetLabels([]);
+  };
+
+  // Aplicar una plantilla: precarga lo que tenga definido (el título y la
+  // descripción solo si todavía están vacíos, para no pisar lo tipeado).
+  const applyTemplate = (id: string) => {
+    setTemplateId(id);
+    const tpl = templates.find((x) => x.id === id);
+    if (!tpl) {
+      setEstimate(null);
+      setPresetLabels([]);
+      return;
+    }
+    if (tpl.title && !title.trim()) setTitle(tpl.title);
+    if (tpl.description && !description.trim()) setDescription(tpl.description);
+    if (tpl.status_id && project?.statuses.some((s) => s.id === tpl.status_id)) setStatusId(tpl.status_id);
+    if (tpl.priority) setPriority(tpl.priority);
+    if (tpl.assignee_id && project?.members.some((m) => m.id === tpl.assignee_id)) setAssigneeId(tpl.assignee_id);
+    setEstimate(tpl.estimate ?? null);
+    setPresetLabels(parseTemplateLabels(tpl.labels));
   };
 
   const submit = () => {
@@ -97,6 +152,9 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
       dueDate: parsed.dueDate ?? (dueDate || null),
       parentId: defaults?.parentId ?? null,
       cycleId: cycleId || null,
+      milestoneId: milestoneId || null,
+      estimate,
+      labels: presetLabels.map((l) => ({ id: l.id })),
     });
     if (createMore) {
       setTitle('');
@@ -188,6 +246,20 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
             </span>
           </div>
 
+          {templates.length > 0 && (
+            <label className="track-qc-prop track-qc-template">
+              <span>{t('templates.pick')}</span>
+              <select value={templateId} onChange={(e) => applyTemplate(e.target.value)} data-testid="track-qc-template">
+                <option value="">{t('templates.none')}</option>
+                {templates.map((tpl) => (
+                  <option key={tpl.id} value={tpl.id}>
+                    {tpl.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
           <input
             ref={titleRef}
             className="track-qc-title"
@@ -261,6 +333,29 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
                   ))}
                 </select>
               </label>
+            )}
+            {project?.milestones && project.milestones.length > 0 && (
+              <label className="track-qc-prop">
+                <span>{t('milestones.property')}</span>
+                <select value={milestoneId} onChange={(e) => setMilestoneId(e.target.value)} data-testid="track-qc-milestone">
+                  <option value="">{t('issues.none')}</option>
+                  {project.milestones.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {presetLabels.length > 0 && (
+              <span className="track-label-chips track-qc-labels">
+                {presetLabels.map((l) => (
+                  <span key={l.id} className="track-label-tag">
+                    <span className="track-label-tag-dot" style={{ background: safeHexColor(l.color, '#767676') }} aria-hidden />
+                    {l.name}
+                  </span>
+                ))}
+              </span>
             )}
           </div>
 

@@ -52,7 +52,7 @@ async function accessible(
   return project ? { issue, project } : null;
 }
 
-export type IssueRefError = 'invalid_status' | 'invalid_cycle' | 'invalid_assignee' | 'invalid_parent';
+export type IssueRefError = 'invalid_status' | 'invalid_cycle' | 'invalid_assignee' | 'invalid_parent' | 'invalid_milestone';
 
 /**
  * Valida las referencias de un payload de issue contra su proyecto: el status
@@ -64,7 +64,13 @@ export type IssueRefError = 'invalid_status' | 'invalid_cycle' | 'invalid_assign
  */
 export async function validateIssueRefs(
   project: TrackProjectRow,
-  refs: { statusId?: string | null; cycleId?: string | null; assigneeId?: string | null; parentId?: string | null },
+  refs: {
+    statusId?: string | null;
+    cycleId?: string | null;
+    assigneeId?: string | null;
+    parentId?: string | null;
+    milestoneId?: string | null;
+  },
   opts: { ownerId: string; issueId?: string; members?: Map<string, Set<string>> },
 ): Promise<IssueRefError | null> {
   const db = getDb();
@@ -79,6 +85,12 @@ export async function validateIssueRefs(
       .prepare('SELECT id FROM track_cycles WHERE id = ? AND project_id = ?')
       .get(refs.cycleId, project.id);
     if (!ok) return 'invalid_cycle';
+  }
+  if (refs.milestoneId) {
+    const ok = await db
+      .prepare('SELECT id FROM track_milestones WHERE id = ? AND project_id = ?')
+      .get(refs.milestoneId, project.id);
+    if (!ok) return 'invalid_milestone';
   }
   if (refs.assigneeId) {
     const members = opts.members ?? new Map<string, Set<string>>();

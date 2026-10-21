@@ -14,6 +14,7 @@ import { TriageBanner } from './TriagePanel';
 import MarkdownEditor, { MarkdownView } from './MarkdownEditor';
 import TrackIcon from './TrackIcon';
 import IssueSubscription from './IssueSubscription';
+import IssueReminder from './IssueReminder';
 import { findDoneStatus, findOpenStatus } from '@/lib/track-tasks';
 import type { IssueDraft } from './useIssueStore';
 import type { TrackUiLabels } from './ui-labels';
@@ -146,6 +147,9 @@ interface IssueDetailClientProps {
   initialProjectName: string;
   initialStatuses: TrackStatusRow[];
   initialCycles: TrackCycleRow[];
+  initialMilestones?: Array<{ id: string; name: string }>;
+  /** Recordatorio de la persona para este issue. */
+  initialReminder?: { remindAt: string; sentAt: string | null } | null;
   initialMembers: ProjectMember[];
   initialChildren: TrackIssueWithStatus[];
   initialParentChain: IssueParentSummary[];
@@ -205,6 +209,8 @@ export default function IssueDetailClient({
   initialProjectName,
   initialStatuses,
   initialCycles,
+  initialMilestones,
+  initialReminder,
   initialMembers,
   initialChildren,
   initialParentChain,
@@ -505,6 +511,7 @@ export default function IssueDetailClient({
             )}
           </div>
           <div className="track-detail-actions">
+            <IssueReminder issueId={issue.id} locale={locale} initial={initialReminder ?? null} />
             <IssueSubscription
               issueId={issue.id}
               initialSubscribed={initialSubscribed}
@@ -850,6 +857,7 @@ export default function IssueDetailClient({
               issue={issue}
               statuses={initialStatuses}
               cycles={initialCycles}
+              milestones={initialMilestones}
               members={initialMembers}
               locale={locale}
               labels={labels.properties}

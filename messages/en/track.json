@@ -323,7 +323,9 @@
     "generic": "Something went wrong. Try again.",
     "invalid_range": "The end date can't be before the start.",
     "last_status": "The project needs at least one status.",
-    "cycle_overlap": "That overlaps another cycle. Pick other dates."
+    "cycle_overlap": "That overlaps another cycle. Pick other dates.",
+    "invalid_milestone": "That milestone is not in this project.",
+    "reminder_in_past": "Pick a time in the future."
   },
   "quick": {
     "newTask": "New issue",
@@ -391,7 +393,7 @@
   },
   "settingsPage": {
     "title": "Track settings",
-    "subtitle": "Workspace labels and the GitHub integration."
+    "subtitle": "Workspace labels, the GitHub integration and your email notifications."
   },
   "labelsSettings": {
     "title": "Labels",
@@ -519,7 +521,10 @@
     "tabs": {
       "cycles": "Cycles",
       "statuses": "Statuses",
-      "triage": "Triage"
+      "triage": "Triage",
+      "templates": "Templates",
+      "recurring": "Recurring",
+      "milestones": "Milestones"
     }
   },
   "markdown": {
@@ -564,5 +569,162 @@
     "subscribed": "You get notified about comments and changes on this issue.",
     "notSubscribed": "Subscribe to get notified about comments and changes on this issue.",
     "error": "Couldn't update the subscription. Try again."
+  },
+  "notifyEmail": {
+    "someone": "Someone",
+    "reminder": "Reminder: {identifier}",
+    "digestSubject": "Track: {count} unread",
+    "immediateSubject": "Track: {count} new",
+    "digestHeading": "Your daily Track digest",
+    "immediateHeading": "New in Track",
+    "more": "And {count} more in your inbox.",
+    "openInbox": "Open the inbox",
+    "manage": "Change how Track emails you",
+    "whyDigest": "Once a day, with what is still unread in your Track inbox.",
+    "whyImmediate": "You get this because something in your Track inbox stayed unread for a minute."
+  },
+  "notifySettings": {
+    "title": "Email notifications",
+    "help": "Your inbox gets everything. Choose what also reaches your email. This only affects you.",
+    "immediate": "Right away",
+    "immediateHelp": "An email a minute after something new lands, if you have not read it yet.",
+    "digest": "Daily digest",
+    "digestHelp": "One email around 8:00 with what is still unread.",
+    "off": "Off",
+    "offHelp": "No emails. The inbox keeps working as usual.",
+    "timezone": "Time zone for the digest",
+    "saved": "Saved",
+    "error": "Could not save. Try again.",
+    "mode": "Email me"
+  },
+  "autoCycles": {
+    "title": "Automatic cycles",
+    "enable": "Create cycles automatically",
+    "help": "There is always a current cycle and the next one. When a cycle ends, its unfinished issues move to the current one.",
+    "length": "Length",
+    "weeks": "{count, plural, one {# week} other {# weeks}}",
+    "prefix": "Name",
+    "prefixHelp": "Cycles are numbered after this name.",
+    "defaultPrefix": "Cycle",
+    "save": "Save",
+    "saved": "Saved",
+    "error": "Could not save. Try again.",
+    "adminOnly": "Only workspace owners and admins can change this."
+  },
+  "templates": {
+    "help": "Presets for issues you create often. Pick one when creating an issue to fill in its properties and description.",
+    "emptyTitle": "No templates yet",
+    "emptyBody": "Create one for bug reports, requests or any issue you repeat.",
+    "new": "New template",
+    "name": "Template name",
+    "namePlaceholder": "Bug report",
+    "title": "Title",
+    "titlePlaceholder": "Starts the issue title",
+    "description": "Description",
+    "status": "Status",
+    "priority": "Priority",
+    "assignee": "Assignee",
+    "estimate": "Estimate",
+    "labels": "Labels",
+    "unset": "Not preset",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this template? Issues already created stay as they are.",
+    "save": "Save template",
+    "create": "Create template",
+    "error": "Could not save the template. Try again.",
+    "pick": "Template",
+    "none": "No template"
+  },
+  "recurring": {
+    "help": "Issues that Track creates on a schedule, such as a weekly review or a monthly invoice check.",
+    "emptyTitle": "No recurring issues",
+    "emptyBody": "Set one up and Track creates it on each date.",
+    "new": "New recurring issue",
+    "title": "Title",
+    "description": "Description",
+    "frequency": "Repeats",
+    "every": "Every",
+    "freq": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "yearly": "Yearly"
+    },
+    "unit": {
+      "daily": "{count, plural, one {day} other {days}}",
+      "weekly": "{count, plural, one {week} other {weeks}}",
+      "monthly": "{count, plural, one {month} other {months}}",
+      "yearly": "{count, plural, one {year} other {years}}"
+    },
+    "summary": {
+      "daily": "{count, plural, one {Every day} other {Every # days}}",
+      "weekly": "{count, plural, one {Every week} other {Every # weeks}}",
+      "monthly": "{count, plural, one {Every month} other {Every # months}}",
+      "yearly": "{count, plural, one {Every year} other {Every # years}}"
+    },
+    "startOn": "Starts on",
+    "dueDays": "Due after (days)",
+    "dueDaysHelp": "Leave empty for no due date.",
+    "status": "Status",
+    "priority": "Priority",
+    "assignee": "Assignee",
+    "nextRun": "Next: {date}",
+    "paused": "Paused",
+    "pause": "Pause",
+    "resume": "Resume",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this schedule? Issues already created stay as they are.",
+    "save": "Save",
+    "create": "Create",
+    "error": "Could not save. Try again."
+  },
+  "milestones": {
+    "help": "Checkpoints inside the project, with a target date. Progress counts the issues assigned to each one.",
+    "emptyTitle": "No milestones yet",
+    "emptyBody": "Add one to split the project into stages with a date.",
+    "new": "New milestone",
+    "name": "Name",
+    "description": "Description",
+    "targetDate": "Target date",
+    "noDate": "No date",
+    "progress": "{done}/{total} done",
+    "overdue": "Overdue",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this milestone? Its issues stay in the project without a milestone.",
+    "save": "Save milestone",
+    "create": "Create milestone",
+    "error": "Could not save the milestone. Try again.",
+    "property": "Milestone",
+    "headerMeta": "{name}: {done}/{total} done, target {date}",
+    "headerMetaNoDate": "{name}: {done}/{total} done"
+  },
+  "reminder": {
+    "button": "Remind me",
+    "active": "Reminder {when}",
+    "inHour": "In 1 hour",
+    "tomorrow": "Tomorrow at 9:00",
+    "nextWeek": "Next Monday at 9:00",
+    "custom": "Date and time",
+    "set": "Set reminder",
+    "clear": "Remove reminder",
+    "error": "Could not save the reminder. Try again.",
+    "past": "Pick a time in the future.",
+    "help": "You get it in your Track inbox and by email, as set in your Track settings."
+  },
+  "inboxSnooze": {
+    "tab": "Snoozed",
+    "snooze": "Snooze",
+    "hour": "For 1 hour",
+    "tomorrow": "Until tomorrow at 9:00",
+    "nextWeek": "Until next Monday",
+    "unsnooze": "Bring back",
+    "until": "Until {when}",
+    "empty": "Nothing snoozed",
+    "emptyBody": "Snoozed notifications come back to the inbox as unread when the time comes.",
+    "error": "Could not snooze. Try again.",
+    "reminderFor": "Reminder for {identifier}"
   }
 }

@@ -918,6 +918,13 @@ export interface TrackProjectRow {
   status: 'active' | 'archived';
   /** 1 = los issues creados desde afuera entran a la cola de triage. */
   triage_enabled?: number;
+  /** 1 = Track crea los cycles solo (cada `cycle_weeks` semanas) y arrastra lo sin terminar. */
+  cycle_auto?: number;
+  cycle_weeks?: number;
+  /** Prefijo del nombre de los cycles automáticos ("Cycle" → "Cycle 4"). */
+  cycle_name?: string;
+  /** Último día (UTC) en que el tick revisó los cycles automáticos. */
+  cycle_auto_day?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -938,6 +945,8 @@ export interface TrackCycleRow {
   name: string;
   start_at: string;
   end_at: string;
+  /** Cuándo se completó (a mano o por el arrastre automático). */
+  completed_at?: string | null;
   created_at: string;
 }
 
@@ -961,6 +970,57 @@ export interface TrackIssueRow {
   source?: string;
   /** 1 = pendiente en la cola de triage del proyecto. */
   triage?: number;
+  milestone_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrackMilestoneRow {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string;
+  target_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrackIssueTemplateRow {
+  id: string;
+  project_id: string;
+  name: string;
+  title: string;
+  description: string;
+  status_id: string | null;
+  priority: 'urgent' | 'high' | 'medium' | 'low' | null;
+  assignee_id: string | null;
+  estimate: number | null;
+  labels: string; // JSON TrackLabel[]
+  created_at: string;
+  updated_at: string;
+}
+
+export type TrackRecurringFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+export interface TrackRecurringIssueRow {
+  id: string;
+  project_id: string;
+  creator_id: string;
+  title: string;
+  description: string;
+  status_id: string | null;
+  priority: 'urgent' | 'high' | 'medium' | 'low';
+  assignee_id: string | null;
+  labels: string; // JSON TrackLabel[]
+  frequency: TrackRecurringFrequency;
+  every: number;
+  start_on: string;
+  next_run_on: string;
+  due_days: number | null;
+  timezone: string;
+  active: number;
+  last_issue_id: string | null;
+  last_run_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1165,7 +1225,7 @@ export interface ChatCannedResponseRow {
 export interface NotificationRow {
   id: string;
   user_id: string;
-  type: 'mention' | 'assigned' | 'status_change' | 'comment' | 'subtask' | 'relation' | 'chat_message';
+  type: 'mention' | 'assigned' | 'status_change' | 'comment' | 'subtask' | 'relation' | 'chat_message' | 'issue_update' | 'track_reminder';
   title: string;
   body: string | null;
   href: string | null;
@@ -1173,6 +1233,8 @@ export interface NotificationRow {
   source_type: string;
   source_id: string;
   meta: string;
+  /** Pospuesto hasta esta fecha (no aparece en la bandeja ni cuenta como sin leer). */
+  snoozed_until?: string | null;
   created_at: string;
 }
 

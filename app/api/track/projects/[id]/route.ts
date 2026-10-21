@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { deleteProject, getProject, updateProject, canAccessTrackProject } from '@/lib/track-data';
 import { projectUpdateSchema } from '@/lib/track-schema';
+import { syncAutoCycles } from '@/lib/track-auto-cycles';
 import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
 
 export const runtime = 'nodejs';
@@ -36,16 +37,24 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const body: unknown = await req.json().catch(() => null);
   const parsed = projectUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
-  // Slug (cambia los identificadores y rompe GitHub), archivar y triage son
-  // configuración compartida: solo owner/admin.
-  const { slug, status, triageEnabled } = parsed.data;
+  // Slug (cambia los identificadores y rompe GitHub), archivar, triage y
+  // cycles automáticos son configuración compartida: solo owner/admin.
+  const { slug, status, triageEnabled, cycleAuto, cycleWeeks, cycleName } = parsed.data;
   const adminOnly =
     (slug !== undefined && slug !== project.slug) ||
     (status !== undefined && status !== project.status) ||
-    (triageEnabled !== undefined && triageEnabled !== Boolean(project.triage_enabled));
+    (triageEnabled !== undefined && triageEnabled !== Boolean(project.triage_enabled)) ||
+    (cycleAuto !== undefined && cycleAuto !== Boolean(project.cycle_auto)) ||
+    (cycleWeeks !== undefined && cycleWeeks !== project.cycle_weeks) ||
+    (cycleName !== undefined && cycleName !== project.cycle_name);
   if (adminOnly && !isWorkspaceAdmin(user)) return trackError(403, 'forbidden');
 
-  const updated = await updateProject(params.id, parsed.data);
+  let updated = await updateProject(params.id, parsed.data);
+  // Al activar los cycles automáticos se crean ya el actual y el próximo.
+  if (updated?.cycle_auto && cycleAuto) {
+    await syncAutoCycles(updated, new Date().toISOString().slice(0, 10));
+    updated = await getProject(params.id);
+  }
   return NextResponse.json(updated);
 }
 
