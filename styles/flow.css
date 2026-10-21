@@ -256,6 +256,21 @@
 /* Mono Is Data: los textarea de JSON, código y plantillas también (ui.css solo cubre .input.data). */
 .flow-editor .textarea.data { font-family: var(--font-data); font-feature-settings: "zero" 1, "tnum" 1; font-size: 0.8125rem; }
 .flow-config-foot { padding-top: 16px; border-top: 1px solid var(--line); }
+
+/* Probar paso: al final del panel del nodo, separado por un filete. */
+.flow-test { display: flex; flex-direction: column; gap: 10px; padding-top: 16px; border-top: 1px solid var(--line); }
+.flow-test-title { margin: 0; font-size: 0.875rem; font-weight: 600; color: var(--ink); }
+.flow-test-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.flow-test-result { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.flow-test-result .flow-json { align-self: stretch; }
+.flow-test-status { margin: 0; font-size: 0.8125rem; color: var(--ink); }
+.flow-test-status.is-success { color: var(--ok-ink); }
+.flow-test-status.is-failed { color: var(--bad-ink); }
+
+/* Tablas de datos. */
+.flow-kv.flow-col-row { grid-template-columns: minmax(0, 1fr) 128px auto; }
+.flow-more { align-self: flex-start; }
+.flow-table-schema { max-width: 560px; }
 .flow-note {
   padding: 8px 12px;
   font-size: 0.8125rem;

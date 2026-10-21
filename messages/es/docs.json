@@ -102,7 +102,8 @@
       "th1": "Título desplegable 1",
       "th2": "Título desplegable 2",
       "th3": "Título desplegable 3",
-      "callout": "Destacado"
+      "callout": "Destacado",
+      "board": "Pizarra"
     },
     "breadcrumb": "Ruta",
     "closePanel": "Cerrar panel",
@@ -136,6 +137,22 @@
       "typeNotAllowed": "{name} no es un archivo .md ni .docx.",
       "tooLarge": "{name} pesa más de 4 MB.",
       "empty": "{name} no tiene contenido para importar."
+    },
+    "board": {
+      "label": "Pizarra embebida",
+      "pick": "Embeber una pizarra",
+      "search": "Buscar pizarras",
+      "loading": "Cargando…",
+      "loadError": "No se pudieron cargar tus pizarras.",
+      "none": "Todavía no hay pizarras en este workspace.",
+      "noMatch": "Ninguna pizarra coincide.",
+      "create": "Crear una pizarra",
+      "open": "Abrir {name}",
+      "openButton": "Abrir pizarra",
+      "change": "Cambiar",
+      "updated": "Editada {when}",
+      "empty": "Pizarra vacía",
+      "noAccess": "No tenés acceso a esta pizarra."
     }
   },
   "database": {

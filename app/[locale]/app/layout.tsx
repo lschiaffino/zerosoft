@@ -122,6 +122,7 @@ export default async function AppLayout(
               { href: '/app/chat/reports', label: tChat('sidebar.reports') },
               { href: '/app/chat/widgets', label: tChat('sidebar.widgets') },
               { href: '/app/flow', label: tFlow('sidebar.flows') },
+              { href: '/app/flow/tables', label: tFlow('sidebar.tables') },
               { href: '/app/flow/credentials', label: tFlow('sidebar.credentials') },
               { href: '/app/notes', label: tNotes('sidebar.all') },
               { href: '/app/notes/clip', label: tNotes('clip.button') },
@@ -220,6 +221,7 @@ export default async function AppLayout(
           },
           flow: {
             flows: tFlow('sidebar.flows'),
+            tables: tFlow('sidebar.tables'),
             credentials: tFlow('sidebar.credentials'),
           },
           notes: { all: tNotes('sidebar.all'), newNote: tNotes('actions.newNote'), clip: tNotes('clip.button') },

@@ -1,4 +1,4 @@
-import { getCalendarUser, getEventTypeById } from './calendar';
+import { bookingCoHosts, getCalendarUser, getEventTypeById } from './calendar';
 import { getUserById, type CalendarBookingRow } from './db';
 import { escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
 import { buildIcs } from './ics';
@@ -305,7 +305,7 @@ export async function notifyBooking(
     end,
     title: eventType.title,
     description: manage ? `Reschedule or cancel: ${manage}` : undefined,
-    location: booking.meeting_url || eventType.location || undefined,
+    location: booking.meeting_url || booking.location || eventType.location || undefined,
     organizer: { name: host?.name ?? 'zerosoft Cal', email: host?.email ?? 'calendar@zerosoft.ai' },
     attendee: { name: booking.invitee_name, email: booking.invitee_email },
     guests,
@@ -316,7 +316,7 @@ export async function notifyBooking(
 
   const details = (tz: string) => {
     const lines = [`${escapeHtml(formatWhen(start, tz, lang))} (${escapeHtml(tz)})`];
-    const where = booking.meeting_url || eventType.location;
+    const where = booking.meeting_url || booking.location || eventType.location;
     if (where) lines.push(`${L.where}: ${escapeHtml(where)}`);
     if (opts.reason) lines.push(`${L.reason}: ${escapeHtml(opts.reason)}`);
     return lines;
@@ -366,28 +366,36 @@ export async function notifyBooking(
     }
   }
 
-  // Host (un rechazo lo decidió él: no se le avisa).
+  // Host (un rechazo lo decidió él: no se le avisa). En un evento colectivo
+  // también cada co-anfitrión, con el .ics (el evento de Google es del principal).
   if (host && !opts.skipHost && kind !== 'declined') {
-    // El anfitrión ve la hora en su zona (la de su calendario o, si no tiene, la del dueño).
-    const hostTz =
-      (await getCalendarUser(host.id))?.timezone ||
-      (await getCalendarUser(eventType.user_id))?.timezone ||
-      booking.timezone;
-    const review = kind === 'requested' ? pendingBookingsUrl(lang) : null;
-    const hostParagraphs = [
-      `${fill(L.hi, { name: escapeHtml(host.name ?? host.email) })} ${fill(copy.hostLine, vars)}`,
-      ...details(hostTz),
-      ...(review ? [fill(L.review, { url: escapeHtml(review) })] : []),
-    ];
-    await sendEmail({
-      to: host.email,
-      subject: stripTags(fill(copy.hostSubject, { ...vars, event: eventType.title, guest: booking.invitee_name })),
-      text:
-        hostParagraphs.slice(0, review ? -1 : undefined).map(stripTags).join('\n\n') +
-        (review ? `\n\n${fill(L.reviewText, { url: review })}` : ''),
-      html: renderBrandedHtml({ heading: copy.heading, paragraphs: hostParagraphs }),
-      // Si la reserva ya está en su Google Calendar, un .ics la duplicaría.
-      attachments: booking.google_event_id ? undefined : attachments,
-    });
+    const coHosts = [];
+    for (const id of bookingCoHosts(booking)) {
+      const u = await getUserById(id);
+      if (u && u.id !== host.id) coHosts.push(u);
+    }
+    for (const person of [host, ...coHosts]) {
+      // El anfitrión ve la hora en su zona (la de su calendario o, si no tiene, la del dueño).
+      const hostTz =
+        (await getCalendarUser(person.id))?.timezone ||
+        (await getCalendarUser(eventType.user_id))?.timezone ||
+        booking.timezone;
+      const review = kind === 'requested' ? pendingBookingsUrl(lang) : null;
+      const hostParagraphs = [
+        `${fill(L.hi, { name: escapeHtml(person.name ?? person.email) })} ${fill(copy.hostLine, vars)}`,
+        ...details(hostTz),
+        ...(review ? [fill(L.review, { url: escapeHtml(review) })] : []),
+      ];
+      await sendEmail({
+        to: person.email,
+        subject: stripTags(fill(copy.hostSubject, { ...vars, event: eventType.title, guest: booking.invitee_name })),
+        text:
+          hostParagraphs.slice(0, review ? -1 : undefined).map(stripTags).join('\n\n') +
+          (review ? `\n\n${fill(L.reviewText, { url: review })}` : ''),
+        html: renderBrandedHtml({ heading: copy.heading, paragraphs: hostParagraphs }),
+        // Si la reserva ya está en el Google Calendar del principal, un .ics la duplicaría.
+        attachments: booking.google_event_id && person.id === host.id ? undefined : attachments,
+      });
+    }
   }
 }

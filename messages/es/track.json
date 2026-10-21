@@ -323,7 +323,9 @@
     "generic": "Algo salió mal. Intentá de nuevo.",
     "invalid_range": "La fecha de fin no puede ser anterior al inicio.",
     "last_status": "El proyecto necesita al menos un estado.",
-    "cycle_overlap": "Se superpone con otro ciclo. Elegí otras fechas."
+    "cycle_overlap": "Se superpone con otro ciclo. Elegí otras fechas.",
+    "invalid_milestone": "Ese hito no es de este proyecto.",
+    "reminder_in_past": "Elegí un momento en el futuro."
   },
   "quick": {
     "newTask": "Nuevo issue",
@@ -391,7 +393,7 @@
   },
   "settingsPage": {
     "title": "Ajustes de Track",
-    "subtitle": "Etiquetas del workspace e integración con GitHub."
+    "subtitle": "Etiquetas del workspace, la integración con GitHub y tus avisos por email."
   },
   "labelsSettings": {
     "title": "Etiquetas",
@@ -519,7 +521,10 @@
     "tabs": {
       "cycles": "Ciclos",
       "statuses": "Estados",
-      "triage": "Triage"
+      "triage": "Triage",
+      "templates": "Plantillas",
+      "recurring": "Se repiten",
+      "milestones": "Hitos"
     }
   },
   "markdown": {
@@ -564,5 +569,162 @@
     "subscribed": "Te avisamos de los comentarios y cambios de este issue.",
     "notSubscribed": "Suscribite para enterarte de los comentarios y cambios de este issue.",
     "error": "No se pudo cambiar la suscripción. Probá de nuevo."
+  },
+  "notifyEmail": {
+    "someone": "Alguien",
+    "reminder": "Recordatorio: {identifier}",
+    "digestSubject": "Track: {count} sin leer",
+    "immediateSubject": "Track: {count} nuevos",
+    "digestHeading": "Tu resumen diario de Track",
+    "immediateHeading": "Novedades en Track",
+    "more": "Y {count} más en tu bandeja.",
+    "openInbox": "Abrir la bandeja",
+    "manage": "Cambiar cómo te escribe Track",
+    "whyDigest": "Una vez por día, con lo que sigue sin leer en tu bandeja de Track.",
+    "whyImmediate": "Te llega porque algo de tu bandeja de Track quedó sin leer un minuto."
+  },
+  "notifySettings": {
+    "title": "Avisos por email",
+    "help": "La bandeja recibe todo. Elegí qué te llega además por email. Solo te afecta a vos.",
+    "immediate": "Al momento",
+    "immediateHelp": "Un email un minuto después de que llega algo, si todavía no lo leíste.",
+    "digest": "Resumen diario",
+    "digestHelp": "Un email cerca de las 8:00 con lo que siga sin leer.",
+    "off": "Nada",
+    "offHelp": "Sin emails. La bandeja sigue funcionando igual.",
+    "timezone": "Zona horaria del resumen",
+    "saved": "Guardado",
+    "error": "No se pudo guardar. Probá de nuevo.",
+    "mode": "Enviarme por email"
+  },
+  "autoCycles": {
+    "title": "Ciclos automáticos",
+    "enable": "Crear ciclos automáticamente",
+    "help": "Siempre hay un ciclo en curso y el siguiente. Cuando un ciclo termina, lo sin terminar pasa al actual.",
+    "length": "Duración",
+    "weeks": "{count, plural, one {# semana} other {# semanas}}",
+    "prefix": "Nombre",
+    "prefixHelp": "Los ciclos se numeran después de este nombre.",
+    "defaultPrefix": "Ciclo",
+    "save": "Guardar",
+    "saved": "Guardado",
+    "error": "No se pudo guardar. Probá de nuevo.",
+    "adminOnly": "Solo owners y admins del workspace pueden cambiar esto."
+  },
+  "templates": {
+    "help": "Valores precargados para los issues que creás seguido. Elegí una al crear un issue y se completan sus propiedades y descripción.",
+    "emptyTitle": "Todavía no hay plantillas",
+    "emptyBody": "Creá una para reportes de bugs, pedidos o cualquier issue que repitas.",
+    "new": "Nueva plantilla",
+    "name": "Nombre de la plantilla",
+    "namePlaceholder": "Reporte de bug",
+    "title": "Título",
+    "titlePlaceholder": "Comienzo del título del issue",
+    "description": "Descripción",
+    "status": "Estado",
+    "priority": "Prioridad",
+    "assignee": "Asignado",
+    "estimate": "Estimación",
+    "labels": "Etiquetas",
+    "unset": "Sin precargar",
+    "edit": "Editar",
+    "delete": "Borrar",
+    "deleteConfirm": "¿Borrar esta plantilla? Los issues ya creados quedan como están.",
+    "save": "Guardar plantilla",
+    "create": "Crear plantilla",
+    "error": "No se pudo guardar la plantilla. Probá de nuevo.",
+    "pick": "Plantilla",
+    "none": "Sin plantilla"
+  },
+  "recurring": {
+    "help": "Issues que Track crea según un calendario, como una revisión semanal o el control mensual de facturas.",
+    "emptyTitle": "No hay issues que se repitan",
+    "emptyBody": "Armá uno y Track lo crea en cada fecha.",
+    "new": "Nuevo issue que se repite",
+    "title": "Título",
+    "description": "Descripción",
+    "frequency": "Se repite",
+    "every": "Cada",
+    "freq": {
+      "daily": "Diario",
+      "weekly": "Semanal",
+      "monthly": "Mensual",
+      "yearly": "Anual"
+    },
+    "unit": {
+      "daily": "{count, plural, one {día} other {días}}",
+      "weekly": "{count, plural, one {semana} other {semanas}}",
+      "monthly": "{count, plural, one {mes} other {meses}}",
+      "yearly": "{count, plural, one {año} other {años}}"
+    },
+    "summary": {
+      "daily": "{count, plural, one {Todos los días} other {Cada # días}}",
+      "weekly": "{count, plural, one {Todas las semanas} other {Cada # semanas}}",
+      "monthly": "{count, plural, one {Todos los meses} other {Cada # meses}}",
+      "yearly": "{count, plural, one {Todos los años} other {Cada # años}}"
+    },
+    "startOn": "Empieza el",
+    "dueDays": "Vence a los (días)",
+    "dueDaysHelp": "Dejalo vacío para que no tenga vencimiento.",
+    "status": "Estado",
+    "priority": "Prioridad",
+    "assignee": "Asignado",
+    "nextRun": "Próximo: {date}",
+    "paused": "En pausa",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "edit": "Editar",
+    "delete": "Borrar",
+    "deleteConfirm": "¿Borrar esta repetición? Los issues ya creados quedan como están.",
+    "save": "Guardar",
+    "create": "Crear",
+    "error": "No se pudo guardar. Probá de nuevo."
+  },
+  "milestones": {
+    "help": "Etapas dentro del proyecto, con fecha objetivo. El progreso cuenta los issues asignados a cada una.",
+    "emptyTitle": "Todavía no hay hitos",
+    "emptyBody": "Agregá uno para dividir el proyecto en etapas con fecha.",
+    "new": "Nuevo hito",
+    "name": "Nombre",
+    "description": "Descripción",
+    "targetDate": "Fecha objetivo",
+    "noDate": "Sin fecha",
+    "progress": "{done}/{total} terminados",
+    "overdue": "Vencido",
+    "edit": "Editar",
+    "delete": "Borrar",
+    "deleteConfirm": "¿Borrar este hito? Sus issues siguen en el proyecto, sin hito.",
+    "save": "Guardar hito",
+    "create": "Crear hito",
+    "error": "No se pudo guardar el hito. Probá de nuevo.",
+    "property": "Hito",
+    "headerMeta": "{name}: {done}/{total} terminados, objetivo {date}",
+    "headerMetaNoDate": "{name}: {done}/{total} terminados"
+  },
+  "reminder": {
+    "button": "Recordarme",
+    "active": "Recordatorio {when}",
+    "inHour": "En 1 hora",
+    "tomorrow": "Mañana a las 9:00",
+    "nextWeek": "El lunes que viene a las 9:00",
+    "custom": "Fecha y hora",
+    "set": "Guardar recordatorio",
+    "clear": "Quitar recordatorio",
+    "error": "No se pudo guardar el recordatorio. Probá de nuevo.",
+    "past": "Elegí un momento en el futuro.",
+    "help": "Te llega a la bandeja de Track y por email, según tus ajustes de Track."
+  },
+  "inboxSnooze": {
+    "tab": "Pospuestos",
+    "snooze": "Posponer",
+    "hour": "Por 1 hora",
+    "tomorrow": "Hasta mañana a las 9:00",
+    "nextWeek": "Hasta el lunes que viene",
+    "unsnooze": "Traer de vuelta",
+    "until": "Hasta {when}",
+    "empty": "No hay nada pospuesto",
+    "emptyBody": "Los avisos pospuestos vuelven a la bandeja como no leídos cuando llega el momento.",
+    "error": "No se pudo posponer. Probá de nuevo.",
+    "reminderFor": "Recordatorio de {identifier}"
   }
 }

@@ -125,6 +125,49 @@ export async function slackNode(ctx: IntegrationContext, cfg: Record<string, unk
   return { ok: true, via: 'webhook', channel: null, ts: null };
 }
 
+/**
+ * Pedido de aprobación en Slack (nodo Aprobación): el texto y dos botones
+ * que abren la página de aprobación con la decisión elegida. Son botones de
+ * link (Block Kit), así que no hace falta configurar interactividad en la
+ * app de Slack; la decisión se confirma en la página.
+ */
+export async function slackApprovalMessage(
+  ctx: IntegrationContext,
+  opts: { credentialId: string; channel: string; text: string; approveUrl: string; rejectUrl: string; approveLabel: string; rejectLabel: string },
+) {
+  const cred = await ctx.credential(opts.credentialId, ['slack']);
+  const blocks = [
+    { type: 'section', text: { type: 'mrkdwn', text: opts.text.slice(0, 2900) } },
+    {
+      type: 'actions',
+      elements: [
+        { type: 'button', style: 'primary', text: { type: 'plain_text', text: opts.approveLabel }, url: opts.approveUrl },
+        { type: 'button', style: 'danger', text: { type: 'plain_text', text: opts.rejectLabel }, url: opts.rejectUrl },
+      ],
+    },
+  ];
+  const payload = { text: opts.text.slice(0, 2900), blocks };
+  if (cred.data.botToken && opts.channel) {
+    const res = await call('https://slack.com/api/chat.postMessage', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${cred.data.botToken}`, 'content-type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ channel: opts.channel, ...payload }),
+    });
+    const body = (res.body ?? {}) as { ok?: boolean; error?: string; ts?: string; channel?: string };
+    if (!res.ok) throw httpFailure('slack', res);
+    if (!body.ok) throw new StepError(`slack_${body.error ?? 'error'}`, body.error === 'ratelimited', { body });
+    return { via: 'bot', channel: body.channel ?? opts.channel, ts: body.ts ?? null };
+  }
+  if (!cred.data.webhookUrl) throw new StepError(cred.data.botToken ? 'missing_channel' : 'missing_webhook');
+  const res = await call(cred.data.webhookUrl, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw httpFailure('slack', res);
+  return { via: 'webhook', channel: null, ts: null };
+}
+
 // ---------- Google (Sheets) ----------
 
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';

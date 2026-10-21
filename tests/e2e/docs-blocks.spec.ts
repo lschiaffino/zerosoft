@@ -123,3 +123,29 @@ test('Docs: guardar una página como plantilla del workspace', async ({ request,
   await expect(page).toHaveURL(/\/en\/app\/docs\/[^/]+$/);
   await expect(page.locator('.docs-block-callout .docs-editable')).toHaveText('Base');
 });
+
+test('Docs: una pizarra embebida se anida, se selecciona, se duplica y se borra con el resto', async ({ request, page }) => {
+  const doc = await pageWith(request, `Pizarra ${uid()}`, [
+    { id: 'a', type: 'paragraph', content: 'Arriba' },
+    { id: 'b', type: 'board', content: '' },
+    { id: 'c', type: 'paragraph', content: 'Abajo' },
+  ]);
+  await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+  const types = async () => (await content(request, doc.id)).map((b) => `${b.type}:${b.indent ?? 0}`);
+
+  // Tab con la pizarra enfocada la anida debajo del párrafo.
+  await page.getByTestId('docs-board-block').focus();
+  await page.keyboard.press('Tab');
+  await expect.poll(types, { timeout: 10_000 }).toEqual(['paragraph:0', 'board:1', 'paragraph:0']);
+
+  // Seleccionada junto con su padre: Cmd+D copia los dos, se mueven y Backspace los borra.
+  await editable(page, 'Arriba').click();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('ControlOrMeta+d');
+  await expect
+    .poll(types, { timeout: 10_000 })
+    .toEqual(['paragraph:0', 'board:1', 'paragraph:0', 'board:1', 'paragraph:0']);
+  await page.keyboard.press('Alt+Shift+ArrowUp');
+  await page.keyboard.press('Backspace');
+  await expect.poll(types, { timeout: 10_000 }).toEqual(['paragraph:0', 'board:1', 'paragraph:0']);
+});

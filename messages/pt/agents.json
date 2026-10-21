@@ -193,6 +193,10 @@
     "project": "Projeto do Track",
     "flows": "Flows que o agente pode iniciar",
     "noFlows": "Ainda não há flows.",
+    "needsRobots": "Escolha pelo menos um robô para esta ferramenta funcionar.",
+    "robots": "Robôs que o agente pode executar",
+    "noRobots": "Ainda não há robôs.",
+    "robotsHint": "Só executam os robôs com as execuções automáticas ativadas. Cada execução usa seus minutos de robôs e tem um limite de 60 segundos.",
     "domains": "Domínios permitidos (um por linha; inclui subdomínios)",
     "httpWarn": "O agente pode chamar essas APIs com o que decidir. Permita só endpoints de leitura ou idempotentes em que você confia.",
     "items": {
@@ -228,6 +232,10 @@
         "name": "Executar flow",
         "desc": "Inicia um dos flows escolhidos com um input JSON e retorna o id da execução."
       },
+      "run_robot": {
+        "name": "Executar robô",
+        "desc": "Executa um dos robôs escolhidos com entradas e retorna os dados que extraiu. No playground e nos casos de teste é simulado: nenhum navegador abre."
+      },
       "handoff_to_human": {
         "name": "Transferir para uma pessoa",
         "desc": "Marca a conversa para sua equipe e avisa. No Chat, o agente para de responder."
@@ -243,7 +251,8 @@
       "crm": "CRM",
       "cal": "Cal",
       "track": "Track",
-      "flow": "Flow"
+      "flow": "Flow",
+      "robots": "Robots"
     },
     "advancedHint": "Requests HTTP para suas próprias APIs"
   },
@@ -349,6 +358,7 @@
     "invalid_event_type": "Esse tipo de evento não é deste workspace.",
     "invalid_project": "Esse projeto do Track não é deste workspace.",
     "invalid_flow": "Um dos flows escolhidos não é deste workspace.",
+    "invalid_robot": "Um dos robôs escolhidos não é deste workspace.",
     "invalid_url": "Digite uma URL completa http(s).",
     "unsupported_channel": "Responda às conversas do Chat pela caixa de entrada.",
     "too_many_tests": "Este agente já tem o máximo de testes (50).",

@@ -83,3 +83,18 @@ test('Board: el menú de la tarjeta se maneja con teclado', async ({ page, reque
   await expect(menu).toHaveCount(0);
   await expect(menuButton).toBeFocused();
 });
+
+test('Board: el sidebar lista las pizarras y marca la abierta', async ({ page, request }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const name = `Sidebar board ${Date.now()}`;
+  const res = await request.post('/api/boards', { data: { name } });
+  expect(res.ok()).toBe(true);
+  const { id } = (await res.json()) as { id: string };
+  await page.goto('/en/app/board');
+  const branch = page.getByRole('navigation', { name: 'Boards' }).last();
+  const link = branch.getByRole('link', { name });
+  await expect(link).toBeVisible();
+  await link.click();
+  await page.waitForURL(new RegExp(`/app/board/${id}`));
+  await expect(branch.getByRole('link', { name })).toHaveAttribute('aria-current', 'page');
+});

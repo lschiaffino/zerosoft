@@ -441,6 +441,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
               <div className="robots-aside-cred">
                 <h2 className="robots-h3">{t('steps.credentialsTitle')}</h2>
                 <p>{t('steps.credentialsTip', { example: '{{credentials.name.password}}' })}</p>
+                <p>{t('steps.totpTip', { example: '{{credentials.name.totp}}' })}</p>
                 <Link href="/app/flow/credentials" className="robots-link">
                   {t('steps.credentialsLink')}
                 </Link>
@@ -571,6 +572,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
 
             <FormSection title={t('settings.flowTitle')} description={t('settings.flowHint')}>
               <CopyId id={robot.id} />
+              <p className="ui-help">{t('settings.apiHint')}</p>
             </FormSection>
 
             <FormSection title={t('settings.usageTitle')}>

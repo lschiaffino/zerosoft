@@ -734,6 +734,40 @@ dialog.ui-drawer.track-drawer {
   color: var(--brand-gray-2);
 }
 
+/* Cycles automáticos (arriba de la lista de ciclos) */
+.track-auto-cycles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.track-auto-cycles > .ui-help:empty {
+  display: none;
+}
+
+/* Milestones, plantillas y repeticiones reusan las filas de ciclos. */
+.track-milestone-desc {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.track-cycle-state.track-milestone-overdue {
+  font-weight: 600;
+  color: var(--bad-ink);
+}
+
+.track-template-estimate {
+  max-width: 160px;
+}
+
+.track-reminder-error {
+  align-self: center;
+  font-size: 0.8125rem;
+}
+
 /* Triage */
 .track-triage-settings {
   display: flex;
@@ -836,7 +870,7 @@ dialog.ui-drawer.track-drawer {
 
 .track-inbox-item {
   display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) auto 110px;
+  grid-template-columns: 8px minmax(0, 1fr) auto auto 110px;
   align-items: center;
   gap: 12px;
   min-height: 44px;
@@ -2395,10 +2429,10 @@ a.track-board-card-title:hover {
   }
 
   .track-inbox-item {
-    grid-template-columns: 8px minmax(0, 1fr) auto;
+    grid-template-columns: 8px minmax(0, 1fr) auto auto;
   }
 
-  .track-inbox-item > .btn,
+  .track-inbox-item > .btn:not(.track-inbox-snooze),
   .track-inbox-spacer {
     display: none;
   }

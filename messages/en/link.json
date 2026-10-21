@@ -262,9 +262,9 @@
   },
   "bulk": {
     "title": "Many links at once",
-    "sub": "Up to 200 URLs, one per line. Slugs are generated for you.",
-    "urlsLabel": "URLs",
-    "urlsPlaceholder": "https://example.com/one\nhttps://example.com/two",
+    "sub": "Up to 200 rows, one per line. Add a slug and a title after the URL, or leave them out and the slug is generated.",
+    "urlsLabel": "Rows",
+    "urlsPlaceholder": "https://example.com/one\nhttps://example.com/two, spring-sale, Spring sale",
     "tagLabel": "Tag",
     "tagPlaceholder": "campaign-q3",
     "utmTitle": "Campaign (UTM) for all",
@@ -280,7 +280,10 @@
     "createN": "Create {n} links",
     "count": "{n, plural, =0 {No URLs yet} one {# URL} other {# URLs}}",
     "advancedHint": "Tag and UTM for all",
-    "resultsSummary": "{created} created, {failed} failed."
+    "resultsSummary": "{created} created, {failed} failed.",
+    "rowsHelp": "Each line is a URL, or url, slug, title (commas or tabs, as copied from a spreadsheet). The title can contain commas.",
+    "domainLabel": "Domain",
+    "colTitle": "Title"
   },
   "settings": {
     "title": "Settings",
@@ -368,7 +371,8 @@
     "invalid_expired_url": "The redirect after expiry doesn't look like a valid URL.",
     "invalid_og_image": "The preview image must be an http(s) URL.",
     "invalid_external_id": "The external id is not valid.",
-    "external_id_taken": "Another link already uses that external id."
+    "external_id_taken": "Another link already uses that external id.",
+    "invalid_folder": "You can’t add links to that folder."
   },
   "webhooks": {
     "desc": "We POST a signed JSON payload to your URL when these events happen. Verify the Zerosoft-Signature header (t=…,v1=HMAC-SHA256 of \"t.body\") with your secret. Failed deliveries are retried with backoff.",
@@ -517,7 +521,9 @@
     "clear": "Clear selection",
     "confirmDelete": "{count, plural, one {Delete # link?} other {Delete # links?}}",
     "tagPartial": "Tagged {affected} of {total}. The rest already had that tag or 5 tags.",
-    "deleteN": "{count, plural, one {Delete # link} other {Delete # links}}"
+    "deleteN": "{count, plural, one {Delete # link} other {Delete # links}}",
+    "move": "Move to folder",
+    "moved": "{count, plural, =0 {No links moved} one {# link moved} other {# links moved}}"
   },
   "analytics": {
     "title": "Analytics",
@@ -547,7 +553,18 @@
     "noData": "No data",
     "sub": "All your links together. Dates in UTC.",
     "emptyBody": "Share a link and clicks show up here.",
-    "cities": "Cities"
+    "cities": "Cities",
+    "filtersLabel": "Filters",
+    "filterTag": "Tag",
+    "filterDomain": "Domain",
+    "filterLink": "Link",
+    "filterCountry": "Country",
+    "filterDevice": "Device",
+    "any": "All",
+    "timezone": "Time zone",
+    "applyFilters": "Apply filters",
+    "clearFilters": "Clear filters",
+    "chartLabelTz": "Visits per day ({tz})"
   },
   "targeting": {
     "title": "Routing",
@@ -653,5 +670,68 @@
     "label": "New comment",
     "placeholder": "Who asked for this link, which campaign it belongs to, what to keep in mind",
     "add": "Comment"
+  },
+  "folders": {
+    "title": "Folders",
+    "pageDesc": "Group links in folders and choose who can view or edit each one. Owners and admins can always edit everything.",
+    "field": "Folder",
+    "noFolder": "No folder",
+    "all": "All folders",
+    "filterLabel": "Filter by folder",
+    "addTitle": "New folder",
+    "addDesc": "Members get the default access. You can change it for specific people afterwards.",
+    "add": "Create folder",
+    "name": "Name",
+    "namePlaceholder": "Campaigns",
+    "defaultAccess": "Access for members",
+    "access": {
+      "none": "No access",
+      "view": "Can view",
+      "edit": "Can edit"
+    },
+    "listTitle": "Folders",
+    "empty": "No folders yet",
+    "emptyBody": "Links without a folder stay visible and editable for the whole workspace.",
+    "linksCount": "{n, plural, =0 {No links} one {# link} other {# links}}",
+    "manageAccess": "Access",
+    "remove": "Delete",
+    "removeConfirm": "{n, plural, =0 {Delete the folder {name}?} one {Delete the folder {name}? Its link stays, without a folder.} other {Delete the folder {name}? Its # links stay, without a folder.}}",
+    "accessTitle": "Access to {name}",
+    "adminsHelp": "Owners and admins can always edit. People with view access see the links and their analytics, but can’t change them.",
+    "person": "Person",
+    "accessCol": "Access",
+    "accessFor": "Access for {name}",
+    "useDefault": "Default ({access})",
+    "save": "Save",
+    "saved": "Saved.",
+    "errors": {
+      "name_taken": "There’s already a folder with that name.",
+      "too_many": "You reached the folder limit.",
+      "invalid_member": "That person isn’t in the workspace.",
+      "not_found": "That folder no longer exists.",
+      "forbidden": "Only workspace admins can manage folders."
+    }
+  },
+  "share": {
+    "title": "Public analytics page",
+    "titleTag": "Public analytics page for {tag}",
+    "desc": "A read-only page with totals, days and breakdowns. It shows referrer domains only, with no visit log. Anyone with the link can open it until you revoke it.",
+    "create": "Create link",
+    "empty": "No public pages yet.",
+    "createdOn": "Created {date}",
+    "open": "Open",
+    "revoke": "Revoke",
+    "revokeConfirm": "Revoke this page? The link stops working right away.",
+    "errors": {
+      "too_many": "This already has 10 public pages. Revoke one to create another.",
+      "not_found": "That link or tag no longer exists.",
+      "forbidden": "Only workspace admins can share a tag."
+    },
+    "publicTitle": "Analytics for {label}",
+    "notFound": "Page not available",
+    "kindLink": "Link analytics",
+    "kindTag": "Tag analytics",
+    "chartLabel": "Visits per day ({tz})",
+    "footer": "Read-only page shared from zerosoft. It shows aggregated visits only."
   }
 }

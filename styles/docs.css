@@ -1637,3 +1637,51 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 .docs-subpages li { border-bottom: 1px solid var(--line); }
 .docs-subpages-link { display: flex; align-items: center; gap: 8px; min-height: 40px; color: var(--ink); text-decoration: none; }
 .docs-subpages-link:hover { text-decoration: underline; }
+
+/* ---------- Bloque /board: pizarra embebida (vista previa en vivo) ---------- */
+
+.docs-board-block { display: block; padding: 4px 0; outline: none; }
+.docs-board-block:focus-visible,
+.docs-board-block.focused:focus { box-shadow: 0 0 0 2px var(--ink); border-radius: var(--radius-1); }
+.docs-board-embed {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  color: var(--ink);
+}
+.docs-board-embed.is-denied { align-items: center; color: var(--brand-gray-1); font-size: 0.875rem; }
+.docs-board-icon { display: inline-flex; color: var(--brand-gray-2); }
+.docs-board-denied { flex: 1; }
+.docs-board-thumb {
+  flex: 0 0 min(320px, 45%);
+  aspect-ratio: 16 / 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--brand-enamel);
+  overflow: hidden;
+}
+.docs-board-thumb img { width: 92%; height: 92%; object-fit: contain; }
+.docs-board-empty { font-size: 0.75rem; color: var(--brand-gray-2); }
+.docs-board-meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.docs-board-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.docs-board-updated { font-size: 0.8125rem; color: var(--brand-gray-2); }
+.docs-board-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.docs-board-picker { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px dashed var(--line); border-radius: var(--radius-1); }
+.docs-board-picker-title { display: flex; align-items: center; gap: 6px; font-size: 0.875rem; font-weight: 600; }
+.docs-board-hint { font-size: 0.8125rem; color: var(--brand-gray-1); }
+.docs-board-options { list-style: none; display: flex; flex-direction: column; }
+.docs-board-option { width: 100%; padding: 6px 8px; border: 0; border-radius: var(--radius-1); background: none; color: var(--ink); text-align: left; font-size: 0.875rem; cursor: pointer; }
+.docs-board-option:hover, .docs-board-option:focus-visible { background: var(--ui-hover); outline: none; }
+
+@media (max-width: 600px) {
+  .docs-board-embed { flex-direction: column; }
+  .docs-board-thumb { flex-basis: auto; width: 100%; }
+}

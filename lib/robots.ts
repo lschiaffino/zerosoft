@@ -2,7 +2,10 @@
  * Robots — datos (robots, corridas, uso) y orquestación de una corrida:
  * cuota mensual, rate limit, una corrida a la vez por workspace (las demás
  * esperan en cola: status 'queued', drainRobotQueue), ejecución
- * en el backend (lib/robots-runner.ts), capturas y eventos. Server-only.
+ * en el backend (lib/robots-runner.ts), capturas y eventos. También los
+ * lotes de la API v1 (un robot sobre muchas entradas, todas en cola) y la
+ * detección de cambios contra la corrida anterior (robot.output.changed).
+ * Server-only.
  *
  * user_id = workspace (dueño); created_by = persona real.
  */
@@ -16,9 +19,11 @@ import { rateLimit } from './rate-limit';
 import { getRobotBackend, robotBackendName, type RobotBackendName } from './robots-runner';
 import { open, seal } from './secret-box';
 import { recordRobotOutcome } from './robots-alerts';
+import { diffRobotOutputs } from './robots-diff';
 import {
   DEFAULT_PAUSE_AFTER,
   DEFAULT_TIMEOUT_SEC,
+  MAX_BULK_INPUTS,
   MAX_PAUSE_AFTER,
   MAX_TIMEOUT_SEC,
   MIN_SCHEDULE_MINUTES,
@@ -91,6 +96,10 @@ export interface RobotRunDto {
   logs: RobotLogEntry[];
   screenshots: RobotShot[];
   backend: string | null;
+  /** Lote de la API v1 al que pertenece (null si es una corrida suelta). */
+  batchId: string | null;
+  /** La salida cambió contra la corrida exitosa anterior (null: no se comparó). */
+  changed: boolean | null;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
@@ -162,6 +171,8 @@ export function toRunDto(row: RobotRunRow): RobotRunDto {
     logs: parseJson(row.logs, []),
     screenshots: parseJson(row.screenshots, []),
     backend: row.backend,
+    batchId: row.batch_id ?? null,
+    changed: row.changed === null || row.changed === undefined ? null : row.changed === 1,
     createdAt: row.created_at,
     startedAt: row.started_at,
     finishedAt: row.finished_at,
@@ -629,15 +640,21 @@ async function failRun(
   return true;
 }
 
-/** Corridas en cola más viejas que queueMaxAgeMs(): fallidas con queue_expired. */
+/** Edad máxima en cola de una corrida de un lote (BATCH_QUEUE_MAX_AGE_H, 24 h): un lote largo corre de a una. */
+export function batchQueueMaxAgeMs(): number {
+  return envInt('ROBOTS_BATCH_QUEUE_MAX_AGE_H', 24) * 3_600_000;
+}
+
+/** Corridas en cola más viejas que queueMaxAgeMs() (o batchQueueMaxAgeMs() si son de un lote): fallidas con queue_expired. */
 export async function expireQueuedRobotRuns(workspaceId?: string, now = Date.now()): Promise<number> {
   const cutoff = new Date(now - queueMaxAgeMs()).toISOString();
+  const batchCutoff = new Date(now - batchQueueMaxAgeMs()).toISOString();
   const rows = (await getDb()
     .prepare(
       `SELECT r.id, r.trigger, r.user_id, b.id AS robot_id, b.name AS robot_name FROM robot_runs r JOIN robots b ON b.id = r.robot_id
-       WHERE r.status = 'queued' AND r.created_at < ?${workspaceId ? ' AND r.user_id = ?' : ''} LIMIT 200`,
+       WHERE r.status = 'queued' AND r.created_at < (CASE WHEN r.batch_id IS NULL THEN ? ELSE ? END)${workspaceId ? ' AND r.user_id = ?' : ''} LIMIT 200`,
     )
-    .all(...(workspaceId ? [cutoff, workspaceId] : [cutoff]))) as Array<{
+    .all(...(workspaceId ? [cutoff, batchCutoff, workspaceId] : [cutoff, batchCutoff]))) as Array<{
     id: string;
     trigger: RobotRunTrigger;
     user_id: string;
@@ -660,13 +677,24 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  *   cuando termina la actual (drainRobotQueue, también desde el cron).
  * - con `waitMs` (Flow): espera su turno hasta ese tiempo y devuelve el
  *   resultado; si no le tocó, sale de la cola y devuelve 'busy'.
- * manual corre aunque el robot esté deshabilitado; flow / schedule, no.
+ * - con `defer` (API v1 sin wait): siempre queda en cola y la arranca
+ *   drainRobotQueue en segundo plano; la respuesta no espera al navegador.
+ * manual corre aunque el robot esté deshabilitado; flow / schedule / api /
+ * agent, no. `timeoutCapMs` acota el tiempo de la corrida (Agents: la
+ * respuesta del agente tiene su propio tope).
  */
 export async function startRobotRun(
   workspaceId: string,
   robotId: string,
   values: Record<string, unknown> | undefined,
-  opts: { trigger: RobotRunTrigger; actorId?: string | null; waitMs?: number; pollMs?: number },
+  opts: {
+    trigger: RobotRunTrigger;
+    actorId?: string | null;
+    waitMs?: number;
+    pollMs?: number;
+    defer?: boolean;
+    timeoutCapMs?: number;
+  },
 ): Promise<StartRunResult> {
   const row = await getRobotRow(workspaceId, robotId);
   if (!row) return { ok: false, error: 'not_found' };
@@ -680,8 +708,9 @@ export async function startRobotRun(
   const creds = await resolveRobotCredentials(workspaceId, robot.steps);
   if (!creds.ok) return { ok: false, error: 'missing_credential', name: creds.name };
 
-  const timeoutMs = await effectiveTimeoutMs(workspaceId, robot);
-  if (timeoutMs === null) return { ok: false, error: 'quota_exceeded' };
+  const quotaTimeout = await effectiveTimeoutMs(workspaceId, robot);
+  if (quotaTimeout === null) return { ok: false, error: 'quota_exceeded' };
+  const timeoutMs = opts.timeoutCapMs ? Math.max(10_000, Math.min(quotaTimeout, opts.timeoutCapMs)) : quotaTimeout;
   if (process.env.RATE_LIMIT_DISABLED !== 'true') {
     const rl = await rateLimit(`robot-runs:${workspaceId}`, runsPerHour(), 3600);
     if (!rl.ok) return { ok: false, error: 'rate_limited' };
@@ -703,6 +732,10 @@ export async function startRobotRun(
        VALUES (?, ?, ?, 'queued', ?, ?, ?, ?)`,
     )
     .run(id, robot.id, workspaceId, opts.trigger, JSON.stringify(resolved.inputs).slice(0, 100_000), opts.actorId ?? null, nowIso());
+  if (opts.defer) {
+    kickRobotQueue(workspaceId);
+    return { ok: true, run: (await getRobotRun(workspaceId, id))!, queued: true };
+  }
   if (await claimQueuedRun(workspaceId, id, timeoutMs, backend.name)) {
     return { ok: true, run: await executeClaimedRun(row, id, resolved.inputs, creds, timeoutMs, backend) };
   }
@@ -789,10 +822,11 @@ async function executeClaimedRun(
   const status: RobotRunStatus = result.status === 'success' ? 'success' : 'failed';
   const failure = status === 'failed' ? await storeFailure(result.failure, creds.secrets) : null;
   const warnings = Math.max(0, Math.floor(Number(result.warnings) || 0));
+  const change = status === 'success' ? await compareWithPrevious(workspaceId, robot.id, id, output) : null;
   await getDb()
     .prepare(
       `UPDATE robot_runs SET status = ?, output = ?, error = ?, logs = ?, screenshots = ?, warnings = ?, failure = ?,
-         locked_until = NULL, finished_at = ?, duration_ms = ? WHERE id = ?`,
+         changed = ?, locked_until = NULL, finished_at = ?, duration_ms = ? WHERE id = ?`,
     )
     .run(
       status,
@@ -802,6 +836,7 @@ async function executeClaimedRun(
       JSON.stringify(shots),
       warnings,
       failure ? JSON.stringify(failure) : null,
+      change ? (change.diff.changed ? 1 : 0) : null,
       nowIso(),
       duration,
       id,
@@ -813,9 +848,44 @@ async function executeClaimedRun(
     run: { id: run.id, status: run.status, trigger: run.trigger, durationMs: run.durationMs, error: run.error, warnings: run.warnings },
     output: run.output,
   });
+  if (change?.diff.changed) {
+    await emitEvent(workspaceId, 'robot.output.changed', {
+      robot: { id: robot.id, name: robot.name },
+      run: { id: run.id, status: run.status, trigger: run.trigger, durationMs: run.durationMs, warnings: run.warnings },
+      previousRunId: change.previousRunId,
+      diff: change.diff.changes,
+      output: run.output,
+    });
+  }
   await recordRobotOutcome(workspaceId, robot.id, { id: run.id, trigger: run.trigger, status, error: run.error });
   kickRobotQueue(workspaceId);
   return run;
+}
+
+/**
+ * Compara la salida con la de la corrida exitosa anterior del robot (con las
+ * mismas entradas: en un lote, cada entrada se compara con su propia
+ * historia). null si no hay con qué comparar o alguna salida quedó recortada.
+ */
+async function compareWithPrevious(
+  workspaceId: string,
+  robotId: string,
+  runId: string,
+  output: string,
+): Promise<{ previousRunId: string; diff: ReturnType<typeof diffRobotOutputs> } | null> {
+  const db = getDb();
+  const current = (await db.prepare('SELECT input FROM robot_runs WHERE id = ?').get(runId)) as { input: string } | undefined;
+  const prev = (await db
+    .prepare(
+      `SELECT id, output FROM robot_runs WHERE robot_id = ? AND user_id = ? AND status = 'success' AND id != ? AND input = ?
+       ORDER BY finished_at DESC, rowid DESC LIMIT 1`,
+    )
+    .get(robotId, workspaceId, runId, current?.input ?? '{}')) as { id: string; output: string } | undefined;
+  if (!prev) return null;
+  const before = parseJson<Record<string, unknown>>(prev.output, {});
+  const after = parseJson<Record<string, unknown>>(output, {});
+  if (before.truncated === true || after.truncated === true) return null;
+  return { previousRunId: prev.id, diff: diffRobotOutputs(before, after) };
 }
 
 /**
@@ -984,6 +1054,110 @@ async function recordSkippedRun(row: RobotRow, error: RunErrorCode): Promise<voi
     output: {},
   });
   await recordRobotOutcome(row.user_id, row.id, { id, trigger: 'schedule', status: 'failed', error });
+}
+
+// ---------- Lotes (API v1) ----------
+
+/** Corridas en cola que acepta un workspace contando las de lotes (ROBOTS_MAX_BULK_QUEUED, 200). */
+export function maxBulkQueued(): number {
+  return envInt('ROBOTS_MAX_BULK_QUEUED', 200);
+}
+
+/** Lotes por workspace y hora (ROBOTS_BULK_PER_HOUR, 10). */
+export function bulkPerHour(): number {
+  return envInt('ROBOTS_BULK_PER_HOUR', 10);
+}
+
+export type BatchErrorCode = RunErrorCode | 'too_many_inputs';
+
+export type EnqueueBatchResult =
+  | { ok: true; batchId: string; runs: RobotRunDto[] }
+  | { ok: false; error: BatchErrorCode; name?: string; index?: number };
+
+/**
+ * Un robot sobre muchas entradas: valida todas, deja una corrida en cola por
+ * entrada (mismo batch_id, en orden) y arranca la cola en segundo plano. Las
+ * corridas corren de a una por workspace como cualquier otra; la cuota de
+ * minutos se mira al arrancar cada una.
+ */
+export async function enqueueRobotBatch(
+  workspaceId: string,
+  robotId: string,
+  inputs: Array<Record<string, unknown>>,
+  opts: { actorId?: string | null } = {},
+): Promise<EnqueueBatchResult> {
+  if (inputs.length === 0 || inputs.length > MAX_BULK_INPUTS) return { ok: false, error: 'too_many_inputs' };
+  const row = await getRobotRow(workspaceId, robotId);
+  if (!row) return { ok: false, error: 'not_found' };
+  if (row.enabled !== 1) return { ok: false, error: 'disabled' };
+  const robot = toRobotDto(row);
+  if (robot.steps.length === 0) return { ok: false, error: 'no_steps' };
+  if (!getRobotBackend()) return { ok: false, error: 'runner_unavailable' };
+  const resolved: Array<Record<string, unknown>> = [];
+  for (let i = 0; i < inputs.length; i++) {
+    const r = resolveInputs(robot.inputs, inputs[i]);
+    if (!r.ok) return { ok: false, error: 'missing_input', name: r.name, index: i };
+    resolved.push(r.inputs);
+  }
+  const creds = await resolveRobotCredentials(workspaceId, robot.steps);
+  if (!creds.ok) return { ok: false, error: 'missing_credential', name: creds.name };
+  if ((await effectiveTimeoutMs(workspaceId, robot)) === null) return { ok: false, error: 'quota_exceeded' };
+  if (process.env.RATE_LIMIT_DISABLED !== 'true') {
+    const rl = await rateLimit(`robot-bulk:${workspaceId}`, bulkPerHour(), 3600);
+    if (!rl.ok) return { ok: false, error: 'rate_limited' };
+  }
+  await expireQueuedRobotRuns(workspaceId);
+  const db = getDb();
+  const depth = (await db
+    .prepare("SELECT COUNT(*) AS n FROM robot_runs WHERE user_id = ? AND status = 'queued'")
+    .get(workspaceId)) as { n: number };
+  if (Number(depth.n) + resolved.length > maxBulkQueued()) return { ok: false, error: 'busy' };
+  const batchId = crypto.randomUUID();
+  const ids: string[] = [];
+  // Mismo instante para todas: el orden FIFO lo da el rowid (en orden de entrada).
+  const ts = nowIso();
+  for (const values of resolved) {
+    const id = crypto.randomUUID();
+    ids.push(id);
+    await db
+      .prepare(
+        `INSERT INTO robot_runs (id, robot_id, user_id, status, trigger, input, created_by, batch_id, created_at)
+         VALUES (?, ?, ?, 'queued', 'api', ?, ?, ?, ?)`,
+      )
+      .run(id, robot.id, workspaceId, JSON.stringify(values).slice(0, 100_000), opts.actorId ?? null, batchId, ts);
+  }
+  kickRobotQueue(workspaceId);
+  const runs = (await db
+    .prepare(`SELECT * FROM robot_runs WHERE batch_id = ? AND user_id = ? ORDER BY created_at, rowid`)
+    .all(batchId, workspaceId)) as RobotRunRow[];
+  return { ok: true, batchId, runs: runs.map(toRunDto) };
+}
+
+export interface RobotBatchDto {
+  id: string;
+  robotId: string;
+  total: number;
+  counts: Record<RobotRunStatus, number>;
+  /** Todas terminaron (éxito o falla). */
+  done: boolean;
+  runs: RobotRunDto[];
+}
+
+export async function getRobotBatch(workspaceId: string, batchId: string): Promise<RobotBatchDto | null> {
+  const rows = (await getDb()
+    .prepare('SELECT * FROM robot_runs WHERE batch_id = ? AND user_id = ? ORDER BY created_at, rowid')
+    .all(batchId, workspaceId)) as RobotRunRow[];
+  if (!rows.length) return null;
+  const counts: Record<RobotRunStatus, number> = { queued: 0, running: 0, success: 0, failed: 0 };
+  for (const r of rows) counts[r.status] = (counts[r.status] ?? 0) + 1;
+  return {
+    id: batchId,
+    robotId: rows[0].robot_id,
+    total: rows.length,
+    counts,
+    done: counts.queued === 0 && counts.running === 0,
+    runs: rows.map(toRunDto),
+  };
 }
 
 // ---------- Retención ----------

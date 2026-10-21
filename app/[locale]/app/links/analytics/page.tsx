@@ -1,8 +1,19 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { requireUser } from '@/lib/session';
-import { getWorkspaceAnalytics, parseWorkspaceRange } from '@/lib/link-analytics';
-import { formatNumber } from '@/lib/utils';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
+import {
+  DEVICE_FILTERS,
+  filtersQuery,
+  getAnalyticsFacets,
+  getWorkspaceAnalytics,
+  parseTimezone,
+  parseWorkspaceFilters,
+  parseWorkspaceRange,
+} from '@/lib/link-analytics';
+import { listFolders, viewerOf } from '@/lib/link-folders';
+import { listShares } from '@/lib/link-shares';
+import { getUserTimeZone } from '@/lib/user-tz';
+import { formatNumber, shortDomain } from '@/lib/utils';
 import PageHeader from '@/components/ui/PageHeader';
 import DataTable from '@/components/ui/DataTable';
 import EmptyState from '@/components/ui/EmptyState';
@@ -11,6 +22,18 @@ import LinkIcon from '@/components/link/LinkIcon';
 import { breakdownLabelers } from '@/lib/link-labels';
 import BreakdownBars from '@/components/link/BreakdownBars';
 import { periodDelta, type PeriodDelta } from '@/lib/period-delta';
+import SharePanel from '@/components/link/SharePanel';
+
+/** Zonas para el selector: la del navegador primero, después todas las IANA. */
+function timezoneOptions(current: string): string[] {
+  let all: string[] = [];
+  try {
+    all = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.('timeZone') ?? [];
+  } catch {
+    all = [];
+  }
+  return [...new Set([current, 'UTC', ...all])];
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +64,18 @@ export default async function LinkAnalyticsPage(props: Props) {
   const t = await getTranslations({ locale, namespace: 'link' });
 
   const range = parseWorkspaceRange(one(sp.from), one(sp.to));
-  const a = await getWorkspaceAnalytics(user.id, range);
+  const filters = parseWorkspaceFilters(sp);
+  // Sin ?tz= se usa la zona del navegador (cookie); UTC si no hay.
+  const timezone = parseTimezone(one(sp.tz) ?? (await getUserTimeZone()));
+  const viewer = viewerOf(user);
+  const [a, facets, folders, tagShares] = await Promise.all([
+    getWorkspaceAnalytics(user.id, range, { filters, timezone, viewer }),
+    getAnalyticsFacets(user.id, viewer),
+    listFolders(user.id, viewer),
+    // Compartir un tag es de admins (puede juntar links de carpetas que otros no ven).
+    filters.tag && isWorkspaceAdmin(user) ? listShares(user.id, { tag: filters.tag }) : Promise.resolve(null),
+  ]);
+  const filterQuery = { ...filtersQuery(filters), tz: timezone };
   const today = new Date().toISOString().slice(0, 10);
   const presets = [
     { days: 7, label: t('analytics.last7') },
@@ -61,7 +95,8 @@ export default async function LinkAnalyticsPage(props: Props) {
     app: (os) => t('labels.app', { os }),
   });
   const noData = t('analytics.noData');
-  const q = `from=${range.from}&to=${range.to}`;
+  const q = new URLSearchParams({ from: range.from, to: range.to, ...filterQuery }).toString();
+  const hasFilters = Object.keys(filtersQuery(filters)).length > 0;
   const days = spanDays(range.from, range.to);
   const deltaLine = (d: PeriodDelta | null) =>
     d?.kind === 'none' ? (
@@ -90,7 +125,7 @@ export default async function LinkAnalyticsPage(props: Props) {
           {presets.map((p) => (
             <Link
               key={p.days}
-              href={{ pathname: '/app/links/analytics', query: { from: p.from, to: p.to } }}
+              href={{ pathname: '/app/links/analytics', query: { from: p.from, to: p.to, ...filterQuery } }}
               className="btn btn-sm"
               aria-current={p.from === range.from && p.to === range.to ? 'true' : undefined}
             >
@@ -111,6 +146,124 @@ export default async function LinkAnalyticsPage(props: Props) {
             {t('analytics.apply')}
           </button>
         </div>
+        {/* Los filtros viajan con el rango: el form los reenvía como campos ocultos. */}
+        {Object.entries(filterQuery).map(([k, v]) => (
+          <input key={k} type="hidden" name={k} value={v} />
+        ))}
+      </form>
+
+      <form className="lk-an-filters" method="get" aria-label={t('analytics.filtersLabel')} data-testid="analytics-filters">
+        <input type="hidden" name="from" value={range.from} />
+        <input type="hidden" name="to" value={range.to} />
+        {facets.tags.length > 0 && (
+          <div className="ui-field">
+            <label className="label" htmlFor="af-tag">
+              {t('analytics.filterTag')}
+            </label>
+            <select id="af-tag" name="tag" className="select" defaultValue={filters.tag ?? ''}>
+              <option value="">{t('analytics.any')}</option>
+              {facets.tags.map((tag) => (
+                <option key={tag} value={tag}>
+                  {tag}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {facets.domains.length > 0 && (
+          <div className="ui-field">
+            <label className="label" htmlFor="af-domain">
+              {t('analytics.filterDomain')}
+            </label>
+            <select id="af-domain" name="domain" className="select" defaultValue={filters.domain ?? ''}>
+              <option value="">{t('analytics.any')}</option>
+              <option value="default">{shortDomain()}</option>
+              {facets.domains.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.hostname}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {folders.length > 0 && (
+          <div className="ui-field">
+            <label className="label" htmlFor="af-folder">
+              {t('folders.field')}
+            </label>
+            <select id="af-folder" name="folder" className="select" defaultValue={filters.folder ?? ''}>
+              <option value="">{t('analytics.any')}</option>
+              <option value="none">{t('folders.noFolder')}</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className="ui-field">
+          <label className="label" htmlFor="af-link">
+            {t('analytics.filterLink')}
+          </label>
+          <select id="af-link" name="link" className="select mono" defaultValue={filters.link ?? ''}>
+            <option value="">{t('analytics.any')}</option>
+            {facets.links.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="ui-field">
+          <label className="label" htmlFor="af-country">
+            {t('analytics.filterCountry')}
+          </label>
+          <select id="af-country" name="country" className="select" defaultValue={filters.country ?? ''}>
+            <option value="">{t('analytics.any')}</option>
+            {[...new Set([...(filters.country ? [filters.country] : []), ...facets.countries])].map((c) => (
+              <option key={c} value={c}>
+                {labels.country(c)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="ui-field">
+          <label className="label" htmlFor="af-device">
+            {t('analytics.filterDevice')}
+          </label>
+          <select id="af-device" name="device" className="select" defaultValue={filters.device ?? ''}>
+            <option value="">{t('analytics.any')}</option>
+            {DEVICE_FILTERS.map((d) => (
+              <option key={d} value={d}>
+                {labels.device(d)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="ui-field">
+          <label className="label" htmlFor="af-tz">
+            {t('analytics.timezone')}
+          </label>
+          <select id="af-tz" name="tz" className="select" defaultValue={timezone}>
+            {timezoneOptions(timezone).map((z) => (
+              <option key={z} value={z}>
+                {z}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button type="submit" className="btn btn-sm">
+          {t('analytics.applyFilters')}
+        </button>
+        {hasFilters && (
+          <Link
+            href={{ pathname: '/app/links/analytics', query: { from: range.from, to: range.to, tz: timezone } }}
+            className="btn btn-sm btn-ghost"
+          >
+            {t('analytics.clearFilters')}
+          </Link>
+        )}
       </form>
 
       <dl className="lk-stats lk-stats-2">
@@ -133,7 +286,7 @@ export default async function LinkAnalyticsPage(props: Props) {
       <section className="lk-block" aria-labelledby="la-chart-title">
         <div className="lk-panel-head">
           <h2 className="lk-h" id="la-chart-title">
-            {t('analytics.chartLabel')}
+            {t('analytics.chartLabelTz', { tz: timezone })}
           </h2>
           <ul className="lk-legend">
             <li className="lk-key lk-key-1">{t('analytics.legendClicks')}</li>
@@ -192,6 +345,8 @@ export default async function LinkAnalyticsPage(props: Props) {
           </section>
         ))}
       </div>
+
+      {tagShares && filters.tag && <SharePanel key={filters.tag} target={{ tag: filters.tag }} initial={tagShares} />}
 
       <section className="lk-block" aria-labelledby="la-cities">
         <h2 className="lk-h" id="la-cities">

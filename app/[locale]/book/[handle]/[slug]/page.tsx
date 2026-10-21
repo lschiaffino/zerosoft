@@ -5,6 +5,8 @@ import PublicBookingPage, { BookingInfo } from '@/components/calendar/PublicBook
 import { resolveBrand } from '@/components/calendar/cal-utils';
 import { paymentsEnabled } from '@/lib/calendar-payments';
 import { sanitizeUtm } from '@/lib/calendar-redirect';
+import { parseQuestions, prefillAnswers } from '@/lib/calendar-questions';
+import { publicLocationsJson } from '@/lib/calendar-locations';
 import '@/styles/calendar.css';
 
 export const dynamic = 'force-dynamic';
@@ -26,6 +28,8 @@ export default async function BookPage(props: {
   const prefillEmail = typeof searchParams.email === 'string' ? searchParams.email.slice(0, 200) : '';
   // utm_* del link (campañas): viajan con la reserva y llegan al anfitrión y a los webhooks.
   const utm = sanitizeUtm(searchParams) as Record<string, string>;
+  // Respuestas que trae el link (p. ej. desde un routing form): prellenan las preguntas con el mismo nombre.
+  const prefilled = prefillAnswers(parseQuestions(eventType.fieldsParsed), searchParams);
 
   // Link de un solo uso ya consumido, o evento pago sin Stripe listo (clave +
   // webhook): se avisa antes del form en vez de fallar al enviar la reserva.
@@ -65,13 +69,14 @@ export default async function BookPage(props: {
 
   return (
     <PublicBookingPage
-      eventType={eventType}
+      eventType={{ ...eventType, locations: publicLocationsJson(eventType.locations) }}
       locale={locale}
       brand={brand}
       weekStart={calendarUser?.week_start ?? 1}
       maxFutureDays={oneOffDays ?? effectiveMaxFutureDays(eventType, calendarUser)}
       prefillName={prefillName}
       prefillEmail={prefillEmail}
+      prefillAnswers={prefilled}
       utm={utm}
     />
   );

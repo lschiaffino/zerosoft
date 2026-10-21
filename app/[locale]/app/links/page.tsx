@@ -4,11 +4,13 @@ import { requireUser } from '@/lib/session';
 import { linkCreators, linkStatus, listLinks, parseTags, userTags, type ArchivedFilter } from '@/lib/links';
 import { formatDate, formatNumber, shortDomain, shortUrl } from '@/lib/utils';
 import { listDomains } from '@/lib/link-domains';
+import { listFolders, viewerOf } from '@/lib/link-folders';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import FilterBar from '@/components/link/FilterBar';
 import LinksTable, { type TableRow } from '@/components/link/LinksTable';
 import LinksQuickCreate, { NewLinkButton } from '@/components/link/LinksQuickCreate';
+import LinkIcon from '@/components/link/LinkIcon';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,13 +37,27 @@ export default async function LinksPage(props: LinksPageProps) {
   const sort = one(searchParams.sort) === 'clicks' ? 'clicks' : 'created';
   const page = Number(one(searchParams.page) ?? '1') || 1;
   const creator = one(searchParams.creator) ?? null;
+  const folder = one(searchParams.folder) ?? null;
+  const viewer = viewerOf(user);
 
-  const [result, tags, domains, creators] = await Promise.all([
-    listLinks(user.id, { q: q || undefined, tag: tag ?? undefined, archived, sort, creator: creator ?? undefined, page }),
+  const [result, tags, domains, creators, folders] = await Promise.all([
+    listLinks(user.id, {
+      q: q || undefined,
+      tag: tag ?? undefined,
+      archived,
+      sort,
+      creator: creator ?? undefined,
+      folder: folder ?? undefined,
+      viewer,
+      page,
+    }),
     userTags(user.id),
     listDomains(user.id),
     linkCreators(user.id),
+    listFolders(user.id, viewer),
   ]);
+  const folderAccessById = new Map(folders.map((f) => [f.id, f.access]));
+  const editableFolders = folders.filter((f) => f.access === 'edit').map((f) => ({ id: f.id, name: f.name }));
   const creatorNames = new Map(creators.map((c) => [c.id, c.name || c.email]));
   const customDomains = domains.filter((d) => d.verified === 1).map((d) => ({ id: d.id, hostname: d.hostname }));
 
@@ -57,6 +73,7 @@ export default async function LinksPage(props: LinksPageProps) {
     created: formatDate(l.created_at, locale),
     creator: l.created_by ? (creatorNames.get(l.created_by) ?? null) : null,
     status: linkStatus(l),
+    readOnly: !!l.folder_id && folderAccessById.get(l.folder_id) === 'view',
   }));
 
   const pages = Math.max(Math.ceil(result.total / result.pageSize), 1);
@@ -66,18 +83,27 @@ export default async function LinksPage(props: LinksPageProps) {
   if (archived !== '0') query.archived = archived;
   if (sort !== 'created') query.sort = sort;
   if (creator) query.creator = creator;
+  if (folder) query.folder = folder;
 
-  const hasFilters = !!q || !!tag || archived !== '0' || !!creator;
+  const hasFilters = !!q || !!tag || archived !== '0' || !!creator || !!folder;
   // Sin filtros y sin filas puede ser que solo haya archivados: eso no es "todavía no hay links".
   const neverCreated =
-    rows.length === 0 && !hasFilters && (await listLinks(user.id, { archived: 'all' })).total === 0;
+    rows.length === 0 && !hasFilters && (await listLinks(user.id, { archived: 'all', viewer })).total === 0;
 
   return (
     <div className="ui-page links-page">
       <PageHeader
         title={t('table.title')}
         description={result.total > 0 ? t('table.count', { n: result.total }) : undefined}
-        actions={<LinksQuickCreate domain={shortDomain()} customDomains={customDomains} />}
+        actions={
+          <>
+            <Link href="/app/links/folders" className="btn btn-ghost" data-testid="links-folders">
+              <LinkIcon name="folder" size={15} />
+              {t('folders.title')}
+            </Link>
+            <LinksQuickCreate domain={shortDomain()} customDomains={customDomains} />
+          </>
+        }
       />
 
       {neverCreated ? (
@@ -102,6 +128,8 @@ export default async function LinksPage(props: LinksPageProps) {
             tags={tags}
             creator={creator}
             creators={creators.map((c) => ({ id: c.id, name: c.name || c.email }))}
+            folder={folder}
+            folders={folders.map((f) => ({ id: f.id, name: f.name }))}
           />
           {rows.length === 0 ? (
             <EmptyState
@@ -112,7 +140,7 @@ export default async function LinksPage(props: LinksPageProps) {
             />
           ) : (
             <>
-              <LinksTable rows={rows} />
+              <LinksTable rows={rows} folders={editableFolders} />
               {pages > 1 && (
                 <nav className="lk-pager" aria-label={t('table.pagination')}>
                   {result.page > 1 ? (

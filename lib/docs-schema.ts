@@ -29,6 +29,7 @@ const docsBlockType = z.enum([
   'file',
   'toggle',
   'callout',
+  'board',
 ]);
 
 const docsDatabaseColumnSchema = z.object({
@@ -57,6 +58,8 @@ export const docsBlockSchema = z.object({
   collapsed: z.boolean().optional(),
   toggle: z.boolean().optional(),
   icon: z.string().max(16).optional(),
+  // Bloque board (sanitizeBlocks lo descarta si no es un id válido o el bloque no es board).
+  board_id: z.string().max(64).optional(),
 });
 
 export const docPageCreateSchema = z.object({

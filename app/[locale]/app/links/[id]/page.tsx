@@ -2,7 +2,9 @@ import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Link, redirect } from '@/i18n/navigation';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
-import { getUserLink, linkCreatorName, linkStatus, toLinkDto } from '@/lib/links';
+import { getLinkForViewer, linkCreatorName, linkStatus, toLinkDto } from '@/lib/links';
+import { listFolders, viewerOf } from '@/lib/link-folders';
+import { listShares } from '@/lib/link-shares';
 import { countLinkComments, listLinkComments } from '@/lib/link-comments';
 import {
   getAnalytics,
@@ -28,6 +30,7 @@ import TargetingPanel from '@/components/link/TargetingPanel';
 import StatusBadge from '@/components/link/StatusBadge';
 import DuplicateButton from '@/components/link/DuplicateButton';
 import LinkComments from '@/components/link/LinkComments';
+import SharePanel from '@/components/link/SharePanel';
 import { parseTargeting } from '@/lib/link-targeting';
 import { breakdownLabelers } from '@/lib/link-labels';
 import { linkTabHref, parseLinkTab, type LinkTab } from '@/lib/link-detail-tabs';
@@ -49,10 +52,15 @@ export default async function LinkDetailPage(props: DetailPageProps) {
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'link' });
 
-  const link = await getUserLink(user.id, id);
-  if (!link) notFound();
+  const viewer = viewerOf(user);
+  const found = await getLinkForViewer(user.id, id, viewer, 'view');
+  if ('status' in found) notFound();
+  const { link } = found;
+  // En una carpeta de solo lectura: analytics, QR y comentarios; sin editar.
+  const canEdit = found.access === 'edit';
 
-  const tab: LinkTab = parseLinkTab(searchParams);
+  const requestedTab: LinkTab = parseLinkTab(searchParams);
+  const tab: LinkTab = !canEdit && (requestedTab === 'routing' || requestedTab === 'settings') ? 'overview' : requestedTab;
   // Links viejos (?edit=1 desde la tabla): la pestaña tiene que quedar marcada en la URL.
   if (searchParams.edit === '1' && typeof searchParams.tab !== 'string') {
     redirect({ href: linkTabHref(link.id, 'settings'), locale });
@@ -65,7 +73,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
 
   // Cada pestaña pide solo lo que muestra.
   const needsStats = tab === 'overview' || tab === 'analytics';
-  const [a, clickResult, countries, comments, commentCount, creatorName] = await Promise.all([
+  const [a, clickResult, countries, comments, commentCount, creatorName, shares, folders] = await Promise.all([
     needsStats ? getAnalytics(link.id, link.created_at, range) : null,
     tab === 'analytics'
       ? listClicks(link.id, link.created_at, { range, country, page: clickPage, pageSize: clickPageSize })
@@ -74,6 +82,8 @@ export default async function LinkDetailPage(props: DetailPageProps) {
     tab === 'comments' ? listLinkComments(link.id) : null,
     countLinkComments(link.id),
     linkCreatorName(link.created_by),
+    tab === 'analytics' ? listShares(user.id, { linkId: link.id }) : null,
+    tab === 'settings' ? listFolders(user.id, viewer) : null,
   ]);
 
   const short = shortUrl(link.slug, link.domain_hostname ?? null);
@@ -124,12 +134,12 @@ export default async function LinkDetailPage(props: DetailPageProps) {
     { key: 'overview', label: t('detail.tabs.overview') },
     { key: 'analytics', label: t('detail.tabs.analytics') },
     { key: 'qr', label: t('detail.tabs.qr') },
-    { key: 'routing', label: t('detail.tabs.routing') },
+    ...(canEdit ? [{ key: 'routing', label: t('detail.tabs.routing') }] : []),
     {
       key: 'comments',
       label: commentCount > 0 ? t('detail.tabs.commentsN', { n: commentCount }) : t('detail.tabs.comments'),
     },
-    { key: 'settings', label: t('detail.tabs.settings') },
+    ...(canEdit ? [{ key: 'settings', label: t('detail.tabs.settings') }] : []),
   ];
 
   let body: React.ReactNode = null;
@@ -303,6 +313,8 @@ export default async function LinkDetailPage(props: DetailPageProps) {
           </section>
         )}
 
+        {shares && <SharePanel target={{ linkId: link.id }} initial={shares} />}
+
         <section className="lk-block" id="clicks" aria-labelledby="lk-log-title">
           <div className="lk-panel-head">
             <h2 className="lk-h" id="lk-log-title">
@@ -399,7 +411,10 @@ export default async function LinkDetailPage(props: DetailPageProps) {
   } else if (tab === 'settings') {
     body = (
       <>
-        <EditLinkForm link={toLinkDto(link)} />
+        <EditLinkForm
+          link={toLinkDto(link)}
+          folders={(folders ?? []).filter((f) => f.access === 'edit').map((f) => ({ id: f.id, name: f.name }))}
+        />
         <DangerZone id={link.id} slug={link.slug} archived={link.archived === 1} canDelete={isWorkspaceAdmin(user)} />
       </>
     );
@@ -418,11 +433,12 @@ export default async function LinkDetailPage(props: DetailPageProps) {
                 ? t('detail.createdOnBy', { date: formatDate(link.created_at, locale), name: creatorName })
                 : t('detail.createdOn', { date: formatDate(link.created_at, locale) })}
             </span>
+            {!canEdit && <span className="badge">{t('folders.access.view')}</span>}
           </span>
         }
         actions={
           <>
-            <DuplicateButton id={link.id} />
+            {canEdit && <DuplicateButton id={link.id} />}
             <a href={short} target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
               <LinkIcon name="external" size={15} />
               {t('detail.openShort')}

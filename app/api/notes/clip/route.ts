@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { emitEventSoon } from '@/lib/events';
 import { createNote, noteOwner } from '@/lib/notes';
 import { noteClipSchema } from '@/lib/notes-schema';
-import { clipBlocks } from '@/lib/notes-types';
+import { clipBlocks, noteEventPayload } from '@/lib/notes-types';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
 
 export const runtime = 'nodejs';
@@ -24,5 +25,6 @@ export async function POST(req: NextRequest) {
     content: clipBlocks(url, selection ?? ''),
     tags: ['clip'],
   });
+  await emitEventSoon(owner.workspaceId, 'note.created', noteEventPayload(note, owner.personId));
   return NextResponse.json(note, { status: 201 });
 }

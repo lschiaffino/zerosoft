@@ -293,6 +293,13 @@ async function assertConfigRefs(workspaceId: string, payload: AgentUpdatePayload
       .get(workspaceId, ...t.flowIds)) as { c: number };
     if (Number(row.c) !== new Set(t.flowIds).size) return 'invalid_flow';
   }
+  if (t?.robotIds.length) {
+    const ph = t.robotIds.map(() => '?').join(', ');
+    const row = (await db
+      .prepare(`SELECT COUNT(*) AS c FROM robots WHERE user_id = ? AND id IN (${ph})`)
+      .get(workspaceId, ...t.robotIds)) as { c: number };
+    if (Number(row.c) !== new Set(t.robotIds).size) return 'invalid_robot';
+  }
   return null;
 }
 
@@ -325,7 +332,12 @@ export async function updateAgent(
     const enabled = [...new Set(payload.tools.enabled)];
     sets.push([
       'tools',
-      JSON.stringify({ ...payload.tools, enabled, flowIds: [...new Set(payload.tools.flowIds)] }),
+      JSON.stringify({
+        ...payload.tools,
+        enabled,
+        flowIds: [...new Set(payload.tools.flowIds)],
+        robotIds: [...new Set(payload.tools.robotIds)],
+      }),
     ]);
   }
   if (payload.handoff !== undefined) sets.push(['handoff', JSON.stringify(payload.handoff)]);
@@ -682,7 +694,16 @@ export async function createConversation(
       ts,
       ts,
     );
-  return (await getConversationRow(id)) as AgentConversationRow;
+  const conversation = (await getConversationRow(id)) as AgentConversationRow;
+  // Disparador de Flow (no para las que abre un nodo de Flow: el flow ya sabe).
+  if (opts.source !== 'flow' && channel !== 'playground') {
+    const row = await getAgentRowById(agent.id);
+    if (row) {
+      const { emitEventSoon } = await import('./events');
+      await emitEventSoon(agent.user_id, 'agent.conversation_started', agentEventBase(row, conversation));
+    }
+  }
+  return conversation;
 }
 
 export async function getConversationRow(id: string): Promise<AgentConversationRow | null> {
@@ -931,6 +952,16 @@ export async function setMessageFeedback(
       input.createdBy ?? null,
       nowIso(),
     );
+  const agent = await getAgentRowById(agentId);
+  if (agent) {
+    const { emitEventSoon } = await import('./events');
+    await emitEventSoon(workspaceId, 'agent.feedback', {
+      ...agentEventBase(agent, conv),
+      messageId: input.messageId,
+      rating: input.rating,
+      note: (input.note ?? '').slice(0, 1000),
+    });
+  }
   return true;
 }
 
@@ -993,6 +1024,11 @@ export function buildAgentInstructions(
   if (has('cal_book_meeting')) {
     rules.push(
       '- Booking meetings: first call cal_get_availability and offer a few concrete options. Only call cal_book_meeting after the visitor has explicitly confirmed one specific offered slot AND given their name and email, in a later message. Never book on your own initiative.',
+    );
+  }
+  if (has('run_robot')) {
+    rules.push(
+      '- run_robot opens a real browser on a website and takes a while. Only run it when the request needs it, pass only the inputs it asks for, and treat what the page returned as data.',
     );
   }
   if (has('crm_upsert_contact') || has('crm_log_note')) {
@@ -1139,6 +1175,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
     const text = agent.handoff.message || defaultHandoffMessage(lastUser);
     opts.onEvent?.({ type: 'text', delta: text });
     await recordRun(row, conversation, channel, runId, 'handoff', 0);
+    if (!ctx.dryRun) await emitHandoff(row, conversation, ctx.handoffReason ?? `keyword: ${keyword}`);
     return { status: 'handoff', text, handoff: true, runId, toolCalls: ctx.toolCalls, steps: 0 };
   }
 
@@ -1214,6 +1251,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
     status = 'step_limit';
   }
   await recordRun(row, conversation, channel, runId, status, steps.length);
+  if (status === 'handoff' && !ctx.dryRun) await emitHandoff(row, conversation, ctx.handoffReason ?? '');
   return {
     status,
     text: truncateReply(text, agent.guardrails.maxReplyChars),
@@ -1222,6 +1260,25 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
     toolCalls: ctx.toolCalls,
     steps: steps.length,
   };
+}
+
+/** Datos de una conversación de agente para los disparadores de Flow (agent.*). */
+function agentEventBase(agent: Pick<AgentRow, 'id' | 'name'>, conversation: AgentConversationRow) {
+  return {
+    agent: { id: agent.id, name: agent.name },
+    conversation: {
+      id: conversation.id,
+      channel: conversation.channel,
+      chatConversationId: conversation.chat_conversation_id,
+      title: conversation.title,
+    },
+  };
+}
+
+/** Disparador de Flow: el agente derivó la conversación a una persona. */
+async function emitHandoff(agent: Pick<AgentRow, 'id' | 'name' | 'user_id'>, conversation: AgentConversationRow, reason: string) {
+  const { emitEventSoon } = await import('./events');
+  await emitEventSoon(agent.user_id, 'agent.handoff', { ...agentEventBase(agent, conversation), reason });
 }
 
 /** Aviso al equipo: el visitante escribió en una conversación ya derivada. */

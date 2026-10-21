@@ -6,7 +6,7 @@ import { agentError, notFound, realUserId, streamAgentReply, unauthorized } from
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const schema = z.object({
   conversationId: z.string().min(1).max(100).nullish(),

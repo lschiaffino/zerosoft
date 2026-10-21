@@ -1,6 +1,8 @@
 import { getDb } from './db';
 import { csvSafe, dayList, EXPORT_LIMIT, type BreakdownItem } from './track';
 import { shortUrl } from './utils';
+import { isValidTimeZone, tzOffsetMinutes } from './user-tz';
+import { visibleLinksSql, type LinkViewer } from './link-folders';
 
 /**
  * Analytics de todos los links del workspace (el usuario dueño). Las visitas
@@ -60,6 +62,9 @@ export interface WorkspaceTopLink {
 
 export interface WorkspaceAnalytics {
   range: WorkspaceRange;
+  /** Zona en la que se cortan los días del rango. */
+  timezone: string;
+  filters: WorkspaceFilters;
   clicks: number;
   scans: number;
   previous: { clicks: number; scans: number };
@@ -73,8 +78,168 @@ export interface WorkspaceAnalytics {
   cities: BreakdownItem[];
 }
 
+// ---------- Filtros y zona horaria ----------
+
+export const DEVICE_FILTERS = ['desktop', 'mobile', 'tablet'] as const;
+
+/** Filtros de las analytics del workspace (todos opcionales, se combinan con AND). */
+export interface WorkspaceFilters {
+  tag?: string;
+  /** Id de un dominio propio, o 'default' para el dominio de zerosoft. */
+  domain?: string;
+  /** Id de un link. */
+  link?: string;
+  /** ISO 3166-1 alpha-2 en mayúsculas. */
+  country?: string;
+  device?: (typeof DEVICE_FILTERS)[number];
+  /** Id de una carpeta, o 'none' para los links sin carpeta. */
+  folder?: string;
+}
+
+type ParamSource = URLSearchParams | Record<string, string | string[] | undefined>;
+
+function param(src: ParamSource, key: string): string | undefined {
+  const v = src instanceof URLSearchParams ? src.get(key) : src[key];
+  return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+}
+
+/** Filtros válidos de una query (?tag=&domain=&link=&country=&device=&folder=); lo inválido se ignora. */
+export function parseWorkspaceFilters(src: ParamSource): WorkspaceFilters {
+  const out: WorkspaceFilters = {};
+  const tag = param(src, 'tag');
+  if (tag && tag.length <= 40) out.tag = tag;
+  const domain = param(src, 'domain');
+  if (domain && domain.length <= 64) out.domain = domain;
+  const link = param(src, 'link');
+  if (link && link.length <= 64) out.link = link;
+  const country = param(src, 'country')?.toUpperCase();
+  if (country && /^[A-Z]{2}$/.test(country)) out.country = country;
+  const device = param(src, 'device');
+  if (device && (DEVICE_FILTERS as readonly string[]).includes(device)) out.device = device as WorkspaceFilters['device'];
+  const folder = param(src, 'folder');
+  if (folder && folder.length <= 64) out.folder = folder;
+  return out;
+}
+
+/** Los filtros como query (para links de export o de la página pública). */
+export function filtersQuery(filters: WorkspaceFilters): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(filters)) if (v) out[k] = v;
+  return out;
+}
+
+/** Zona IANA válida o UTC. */
+export function parseTimezone(tz: string | null | undefined): string {
+  if (!tz || tz.length > 64) return 'UTC';
+  return isValidTimeZone(tz) ? tz : 'UTC';
+}
+
+function sqlTs(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+/** Instante UTC (ms) de la medianoche local de `date` en `tz`. */
+export function localMidnightUtc(date: string, tz: string): number {
+  const base = Date.parse(`${date}T00:00:00Z`);
+  // Dos pasadas: la segunda corrige si el offset cambia entre la estimación y el resultado (DST).
+  let ms = base - tzOffsetMinutes(tz, new Date(base)) * 60_000;
+  ms = base - tzOffsetMinutes(tz, new Date(ms)) * 60_000;
+  return ms;
+}
+
+/**
+ * Tramos de offset de `tz` entre `fromMs` y `toMs`: el offset (minutos) vale
+ * hasta `until` (ms, exclusivo). Recorre de a un día y, si el offset cambia,
+ * busca el minuto exacto del cambio.
+ */
+export function offsetSegments(tz: string, fromMs: number, toMs: number): Array<{ until: number; offset: number }> {
+  const off = (ms: number) => tzOffsetMinutes(tz, new Date(ms));
+  const out: Array<{ until: number; offset: number }> = [];
+  const DAY = 86_400_000;
+  let cur = fromMs;
+  let curOff = off(cur);
+  for (let t = fromMs + DAY; ; t += DAY) {
+    const probe = Math.min(t, toMs);
+    const o = off(probe);
+    if (o !== curOff) {
+      let lo = probe - DAY > cur ? probe - DAY : cur;
+      let hi = probe;
+      while (hi - lo > 60_000) {
+        const mid = lo + Math.floor((hi - lo) / 2 / 60_000) * 60_000;
+        if (off(mid) === curOff) lo = mid;
+        else hi = mid;
+      }
+      out.push({ until: hi, offset: curOff });
+      cur = hi;
+      curOff = o;
+    }
+    if (probe >= toMs) break;
+  }
+  out.push({ until: toMs, offset: curOff });
+  return out;
+}
+
+const modifier = (offset: number) => `${offset >= 0 ? '+' : ''}${offset} minutes`;
+
+/**
+ * Expresión SQL del día local (YYYY-MM-DD) de c.ts en `tz` para [loMs, hiMs).
+ * En UTC es el prefijo de la columna; si no, se corre por el offset de cada tramo.
+ */
+function localDaySql(tz: string, loMs: number, hiMs: number): { sql: string; args: string[] } {
+  if (tz === 'UTC') return { sql: 'substr(c.ts, 1, 10)', args: [] };
+  const segs = offsetSegments(tz, loMs, hiMs);
+  if (segs.length === 1) return { sql: 'substr(datetime(c.ts, ?), 1, 10)', args: [modifier(segs[0].offset)] };
+  const args: string[] = [];
+  const whens = segs.slice(0, -1).map((seg) => {
+    args.push(sqlTs(seg.until), modifier(seg.offset));
+    return 'WHEN c.ts < ? THEN ?';
+  });
+  args.push(modifier(segs[segs.length - 1].offset));
+  return { sql: `substr(datetime(c.ts, CASE ${whens.join(' ')} ELSE ? END), 1, 10)`, args };
+}
+
+/** Condiciones de los filtros (alias l = links, c = clicks). */
+function filterSql(filters: WorkspaceFilters): { sql: string; args: string[] } {
+  const parts: string[] = [];
+  const args: string[] = [];
+  if (filters.tag) {
+    parts.push(`EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(l.tags) THEN l.tags ELSE '[]' END) j WHERE j.value = ?)`);
+    args.push(filters.tag);
+  }
+  if (filters.domain === 'default') parts.push('l.domain_id IS NULL');
+  else if (filters.domain) {
+    parts.push('l.domain_id = ?');
+    args.push(filters.domain);
+  }
+  if (filters.link) {
+    parts.push('l.id = ?');
+    args.push(filters.link);
+  }
+  if (filters.country) {
+    parts.push('c.country = ?');
+    args.push(filters.country);
+  }
+  if (filters.device) {
+    parts.push('c.device = ?');
+    args.push(filters.device);
+  }
+  if (filters.folder === 'none') parts.push('l.folder_id IS NULL');
+  else if (filters.folder) {
+    parts.push('l.folder_id = ?');
+    args.push(filters.folder);
+  }
+  return { sql: parts.map((p) => ` AND ${p}`).join(''), args };
+}
+
+export interface WorkspaceAnalyticsOptions {
+  filters?: WorkspaceFilters;
+  /** Zona IANA en la que se cortan los días (default UTC). */
+  timezone?: string;
+  /** Quién mira: los links de carpetas que no ve no cuentan. */
+  viewer?: LinkViewer;
+}
+
 const FROM = 'FROM clicks c JOIN links l ON l.id = c.link_id';
-const WHERE = 'l.user_id = ? AND c.ts >= ? AND c.ts < ?';
 
 type Col = 'referrer' | 'country' | 'device' | 'browser' | 'city';
 
@@ -86,22 +251,52 @@ const COL_SQL: Record<Col, string> = {
   city: "CASE WHEN c.city IS NULL THEN NULL ELSE c.city || '|' || COALESCE(c.country, '') END",
 };
 
-export async function getWorkspaceAnalytics(userId: string, range: WorkspaceRange): Promise<WorkspaceAnalytics> {
+/** WHERE del workspace en [lo, hi) con filtros y visibilidad. */
+function scopeSql(
+  userId: string,
+  lo: string,
+  hi: string,
+  opts: WorkspaceAnalyticsOptions,
+): { sql: string; args: Array<string | number> } {
+  const f = filterSql(opts.filters ?? {});
+  const v = visibleLinksSql(opts.viewer);
+  return {
+    sql: `l.user_id = ? AND c.ts >= ? AND c.ts < ?${f.sql}${v.sql ? ` AND ${v.sql}` : ''}`,
+    args: [userId, lo, hi, ...f.args, ...v.args],
+  };
+}
+
+/** Bordes del rango en la zona: de la medianoche local de `from` a la del día siguiente a `to`. */
+function rangeBounds(range: WorkspaceRange, tz: string): { loMs: number; hiMs: number; lo: string; hi: string } {
+  const loMs = localMidnightUtc(range.from, tz);
+  const hiMs = localMidnightUtc(addDays(range.to, 1), tz);
+  return { loMs, hiMs, lo: sqlTs(loMs), hi: sqlTs(hiMs) };
+}
+
+export async function getWorkspaceAnalytics(
+  userId: string,
+  range: WorkspaceRange,
+  opts: WorkspaceAnalyticsOptions = {},
+): Promise<WorkspaceAnalytics> {
   const db = getDb();
-  const lo = range.from;
-  const hi = addDays(range.to, 1);
-  const args = [userId, lo, hi];
+  const timezone = parseTimezone(opts.timezone);
+  const filters = opts.filters ?? {};
+  const len = dayList(range.from, range.to).length;
+  const cur = rangeBounds(range, timezone);
+  const prev = rangeBounds({ from: addDays(range.from, -len), to: addDays(range.from, -1) }, timezone);
+  const scope = scopeSql(userId, cur.lo, cur.hi, opts);
+  const prevScope = scopeSql(userId, prev.lo, prev.hi, opts);
+  const day = localDaySql(timezone, cur.loMs, cur.hiMs);
 
   type SourceRows = Array<{ s: string; n: number }>;
-  const len = dayList(range.from, range.to).length;
-  const bySource = `SELECT c.source AS s, COUNT(*) AS n ${FROM} WHERE ${WHERE} GROUP BY c.source`;
+  const bySource = (w: { sql: string }) => `SELECT c.source AS s, COUNT(*) AS n ${FROM} WHERE ${w.sql} GROUP BY c.source`;
 
   const breakdown = async (col: Col, fallback: string, limit = 8): Promise<BreakdownItem[]> => {
     const rows = (await db
       .prepare(
-        `SELECT COALESCE(${COL_SQL[col]}, ?) AS name, COUNT(*) AS n ${FROM} WHERE ${WHERE} GROUP BY name ORDER BY n DESC, name`,
+        `SELECT COALESCE(${COL_SQL[col]}, ?) AS name, COUNT(*) AS n ${FROM} WHERE ${scope.sql} GROUP BY name ORDER BY n DESC, name`,
       )
-      .all(fallback, ...args)) as Array<{ name: string; n: number }>;
+      .all(fallback, ...scope.args)) as Array<{ name: string; n: number }>;
     const out = rows.slice(0, limit).map((r) => ({ name: r.name, count: Number(r.n) }));
     const rest = rows.slice(limit).reduce((a, r) => a + Number(r.n), 0);
     if (rest > 0) out.push({ name: 'other', count: rest });
@@ -110,21 +305,19 @@ export async function getWorkspaceAnalytics(userId: string, range: WorkspaceRang
 
   // Consultas independientes en paralelo: con Turso cada una es un viaje de red.
   const [totals, prevRows, dayRows, top, referrers, countries, devices, browsers, cities] = await Promise.all([
-    db.prepare(bySource).all(...args) as Promise<SourceRows>,
-    db.prepare(bySource).all(userId, addDays(range.from, -len), lo) as Promise<SourceRows>,
+    db.prepare(bySource(scope)).all(...scope.args) as Promise<SourceRows>,
+    db.prepare(bySource(prevScope)).all(...prevScope.args) as Promise<SourceRows>,
     db
-      .prepare(
-        `SELECT substr(c.ts, 1, 10) AS d, SUM(c.source = 'qr') AS q, COUNT(*) AS n ${FROM} WHERE ${WHERE} GROUP BY d`,
-      )
-      .all(...args) as Promise<Array<{ d: string; q: number; n: number }>>,
+      .prepare(`SELECT ${day.sql} AS d, SUM(c.source = 'qr') AS q, COUNT(*) AS n ${FROM} WHERE ${scope.sql} GROUP BY d`)
+      .all(...day.args, ...scope.args) as Promise<Array<{ d: string; q: number; n: number }>>,
     db
       .prepare(
         `SELECT l.id, l.slug, l.url, l.title, d.hostname AS host,
                 COUNT(*) AS n, SUM(c.source = 'qr') AS q
          ${FROM} LEFT JOIN link_domains d ON d.id = l.domain_id
-         WHERE ${WHERE} GROUP BY l.id ORDER BY n DESC, l.slug LIMIT 10`,
+         WHERE ${scope.sql} GROUP BY l.id ORDER BY n DESC, l.slug LIMIT 10`,
       )
-      .all(...args) as Promise<
+      .all(...scope.args) as Promise<
       Array<{ id: string; slug: string; url: string; title: string | null; host: string | null; n: number; q: number }>
     >,
     breakdown('referrer', 'direct'),
@@ -147,6 +340,8 @@ export async function getWorkspaceAnalytics(userId: string, range: WorkspaceRang
 
   return {
     range,
+    timezone,
+    filters,
     ...sum(totals),
     previous: sum(prevRows),
     byDay,
@@ -167,6 +362,50 @@ export async function getWorkspaceAnalytics(userId: string, range: WorkspaceRang
   };
 }
 
+export interface AnalyticsFacets {
+  tags: string[];
+  domains: Array<{ id: string; hostname: string }>;
+  links: Array<{ id: string; label: string }>;
+  countries: string[];
+}
+
+/** Opciones de los filtros: tags, dominios, los links más visitados y los países con visitas. */
+export async function getAnalyticsFacets(userId: string, viewer?: LinkViewer): Promise<AnalyticsFacets> {
+  const db = getDb();
+  const v = visibleLinksSql(viewer);
+  const vis = v.sql ? ` AND ${v.sql}` : '';
+  const [tags, domains, links, countries] = await Promise.all([
+    db
+      .prepare(
+        `SELECT DISTINCT j.value AS tag FROM links l,
+           json_each(CASE WHEN json_valid(l.tags) THEN l.tags ELSE '[]' END) j
+         WHERE l.user_id = ? AND j.type = 'text'${vis} LIMIT 500`,
+      )
+      .all(userId, ...v.args) as Promise<Array<{ tag: string }>>,
+    db
+      .prepare('SELECT id, hostname FROM link_domains WHERE user_id = ? AND verified = 1 ORDER BY hostname')
+      .all(userId) as Promise<Array<{ id: string; hostname: string }>>,
+    db
+      .prepare(
+        `SELECT l.id, l.slug, l.title, d.hostname AS host FROM links l LEFT JOIN link_domains d ON d.id = l.domain_id
+         WHERE l.user_id = ?${vis} ORDER BY l.clicks DESC, l.created_at DESC LIMIT 200`,
+      )
+      .all(userId, ...v.args) as Promise<Array<{ id: string; slug: string; title: string | null; host: string | null }>>,
+    db
+      .prepare(
+        `SELECT DISTINCT c.country AS country FROM clicks c JOIN links l ON l.id = c.link_id
+         WHERE l.user_id = ? AND c.country IS NOT NULL AND c.ts >= datetime('now', '-366 days')${vis} LIMIT 300`,
+      )
+      .all(userId, ...v.args) as Promise<Array<{ country: string }>>,
+  ]);
+  return {
+    tags: tags.map((r) => r.tag).sort(),
+    domains,
+    links: links.map((l) => ({ id: l.id, label: shortUrl(l.slug, l.host).replace(/^https?:\/\//, '') })),
+    countries: countries.map((r) => r.country).filter((c) => /^[A-Z]{2}$/.test(c)).sort(),
+  };
+}
+
 export interface WorkspaceClickRow {
   ts: string;
   slug: string;
@@ -183,15 +422,21 @@ export interface WorkspaceClickRow {
   referrer_url?: string | null;
 }
 
-export async function exportWorkspaceClicks(userId: string, range: WorkspaceRange): Promise<WorkspaceClickRow[]> {
+export async function exportWorkspaceClicks(
+  userId: string,
+  range: WorkspaceRange,
+  opts: WorkspaceAnalyticsOptions = {},
+): Promise<WorkspaceClickRow[]> {
+  const b = rangeBounds(range, parseTimezone(opts.timezone));
+  const scope = scopeSql(userId, b.lo, b.hi, opts);
   const rows = (await getDb()
     .prepare(
       `SELECT c.ts, l.slug, d.hostname AS host, c.source, c.variant, c.country, c.referrer, c.device, c.browser, c.os,
               c.region, c.city, c.referrer_url
        ${FROM} LEFT JOIN link_domains d ON d.id = l.domain_id
-       WHERE ${WHERE} ORDER BY c.ts DESC LIMIT ${EXPORT_LIMIT}`,
+       WHERE ${scope.sql} ORDER BY c.ts DESC LIMIT ${EXPORT_LIMIT}`,
     )
-    .all(userId, range.from, addDays(range.to, 1))) as Array<Omit<WorkspaceClickRow, 'short_url'> & { host: string | null }>;
+    .all(...scope.args)) as Array<Omit<WorkspaceClickRow, 'short_url'> & { host: string | null }>;
   return rows.map(({ host, ...r }) => ({ ...r, short_url: shortUrl(r.slug, host) }));
 }
 

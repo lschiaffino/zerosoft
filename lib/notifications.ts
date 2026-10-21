@@ -5,7 +5,7 @@
 import { getDb } from './db';
 import type { NotificationRow } from './db';
 
-export type NotificationType = 'mention' | 'assigned' | 'status_change' | 'issue_update' | 'comment' | 'subtask' | 'relation' | 'chat_message' | 'email_activity' | 'crm_quote' | 'crm_form' | 'crm_lead' | 'roadmap_status' | 'note_reminder';
+export type NotificationType = 'mention' | 'assigned' | 'status_change' | 'issue_update' | 'comment' | 'subtask' | 'relation' | 'chat_message' | 'email_activity' | 'crm_quote' | 'crm_form' | 'crm_lead' | 'roadmap_status' | 'note_reminder' | 'track_reminder';
 
 export interface NotificationCreatePayload {
   userId: string;
@@ -23,6 +23,8 @@ export interface NotificationListOptions {
   type?: NotificationType | NotificationType[];
   limit?: number;
   page?: number;
+  /** true = solo los pospuestos que todavía no vencieron; por defecto se ocultan. */
+  snoozed?: boolean;
 }
 
 function nowIso(): string {
@@ -72,6 +74,16 @@ export async function listNotifications(
     conditions.push('read_at IS NULL');
   }
 
+  // Pospuestos: no aparecen hasta que vence el plazo; al volver se ordenan por
+  // ese momento (quedan arriba, como uno nuevo).
+  const now = nowIso();
+  if (options.snoozed) {
+    conditions.push('snoozed_until IS NOT NULL AND snoozed_until > ?');
+  } else {
+    conditions.push('(snoozed_until IS NULL OR snoozed_until <= ?)');
+  }
+  args.push(now);
+
   if (options.type) {
     const types = Array.isArray(options.type) ? options.type : [options.type];
     if (types.length > 0) {
@@ -84,15 +96,20 @@ export async function listNotifications(
   const offset = (page - 1) * limit;
 
   return (await db
-    .prepare(`SELECT * FROM notifications ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
+    .prepare(
+      `SELECT * FROM notifications ${where}
+       ORDER BY ${options.snoozed ? 'snoozed_until ASC' : 'COALESCE(snoozed_until, created_at) DESC'} LIMIT ? OFFSET ?`,
+    )
     .all(...args, limit, offset)) as NotificationRow[];
 }
 
 export async function countUnreadNotifications(userId: string): Promise<number> {
   const db = getDb();
   const row = (await db
-    .prepare('SELECT COUNT(*) AS c FROM notifications WHERE user_id = ? AND read_at IS NULL')
-    .get(userId)) as { c: number } | undefined;
+    .prepare(
+      'SELECT COUNT(*) AS c FROM notifications WHERE user_id = ? AND read_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)',
+    )
+    .get(userId, nowIso())) as { c: number } | undefined;
   return row?.c ?? 0;
 }
 
@@ -109,6 +126,29 @@ export async function markAllNotificationsRead(userId: string): Promise<void> {
   await db
     .prepare('UPDATE notifications SET read_at = ? WHERE user_id = ? AND read_at IS NULL')
     .run(nowIso(), userId);
+}
+
+/** Hasta cuánto en el futuro se puede posponer un aviso. */
+export const SNOOZE_MAX_AHEAD_MS = 365 * 86_400_000;
+
+/**
+ * Pospone un aviso hasta `until` (vuelve como sin leer) o, con null, lo trae
+ * de vuelta ya. Devuelve false si el aviso no es de la persona o la fecha no
+ * sirve (pasada o a más de un año).
+ */
+export async function snoozeNotification(id: string, userId: string, until: string | null, now = new Date()): Promise<boolean> {
+  const db = getDb();
+  if (until === null) {
+    const res = await db.prepare('UPDATE notifications SET snoozed_until = NULL WHERE id = ? AND user_id = ?').run(id, userId);
+    return res.changes > 0;
+  }
+  const at = new Date(until);
+  if (!Number.isFinite(at.getTime())) return false;
+  if (at.getTime() <= now.getTime() || at.getTime() > now.getTime() + SNOOZE_MAX_AHEAD_MS) return false;
+  const res = await db
+    .prepare('UPDATE notifications SET snoozed_until = ?, read_at = NULL WHERE id = ? AND user_id = ?')
+    .run(at.toISOString(), id, userId);
+  return res.changes > 0;
 }
 
 export async function deleteNotification(id: string, userId: string): Promise<boolean> {

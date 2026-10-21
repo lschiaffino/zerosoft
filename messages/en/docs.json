@@ -102,7 +102,8 @@
       "th1": "Toggle heading 1",
       "th2": "Toggle heading 2",
       "th3": "Toggle heading 3",
-      "callout": "Callout"
+      "callout": "Callout",
+      "board": "Board"
     },
     "breadcrumb": "Breadcrumb",
     "closePanel": "Close panel",
@@ -136,6 +137,22 @@
       "typeNotAllowed": "{name} is not a .md or .docx file.",
       "tooLarge": "{name} is larger than 4 MB.",
       "empty": "{name} has no content to import."
+    },
+    "board": {
+      "label": "Embedded board",
+      "pick": "Embed a board",
+      "search": "Search boards",
+      "loading": "Loading…",
+      "loadError": "Couldn’t load your boards.",
+      "none": "There are no boards in this workspace yet.",
+      "noMatch": "No board matches that.",
+      "create": "Create a board",
+      "open": "Open {name}",
+      "openButton": "Open board",
+      "change": "Change",
+      "updated": "Edited {when}",
+      "empty": "Empty board",
+      "noAccess": "You don’t have access to this board."
     }
   },
   "database": {

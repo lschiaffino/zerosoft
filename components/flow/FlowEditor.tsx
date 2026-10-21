@@ -36,6 +36,7 @@ import {
 import FlowNodeCard, { type FlowCanvasNode } from './FlowNodeCard';
 import NodeConfigPanel, { type EditorRefs, type VariableOption } from './NodeConfigPanel';
 import RunsPanel, { type RunDetail } from './RunsPanel';
+import StepTest from './StepTest';
 import VersionsPanel from './VersionsPanel';
 import { CATEGORY_ORDER, flattenPaths, i18nKey, nodeApp } from './flow-ui';
 
@@ -131,7 +132,13 @@ function summaryOf(type: FlowNodeType, cfg: Record<string, unknown>, t: ReturnTy
     case 'data.merge':
       return cfg.mode === 'aggregate' ? `${t(`options.${s(cfg.operation) || 'collect'}`)} ${s(cfg.field)}`.trim() : t('options.merge');
     case 'logic.delay':
+      if (cfg.mode === 'until') return `${t('options.until')} ${s(cfg.until)}`.trim();
+      if (cfg.mode === 'resume') return t('options.resume');
       return `${Number(cfg.amount) || 0} ${t(`options.${s(cfg.unit) || 'minutes'}`)}`;
+    case 'logic.approval':
+      return s(cfg.to) || s(cfg.slackChannel) || s(cfg.subject).slice(0, 60);
+    case 'data.table':
+      return t(`options.${s(cfg.operation) || 'find'}`);
     case 'action.http':
       return `${s(cfg.method) || 'POST'} ${s(cfg.url)}`.trim();
     case 'action.email':
@@ -256,6 +263,9 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
   const [paletteQ, setPaletteQ] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
   const [outputs, setOutputs] = useState<Record<string, unknown>>(lastOutputs);
+  // Salidas fijadas: datos de prueba para "Probar paso" y el selector de variables.
+  const [pins, setPins] = useState<Record<string, unknown>>(initialFlow.pins ?? {});
+  const samples = useMemo(() => ({ ...outputs, ...pins }), [outputs, pins]);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const readOnly = !canEdit;
 
@@ -511,8 +521,37 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
   }
 
   function openTest() {
-    if (trigger) setTestInput(JSON.stringify(triggerSample(trigger.data.type, trigger.data.config), null, 2));
+    if (trigger) {
+      const sample = pins[trigger.id] ?? triggerSample(trigger.data.type, trigger.data.config);
+      setTestInput(JSON.stringify(sample, null, 2));
+    }
     testRef.current?.showModal();
+  }
+
+  /** Datos de prueba de un paso: los del trigger y la salida (fijada o de la última corrida) de los anteriores. */
+  function stepSample(id: string): unknown {
+    const node = graph.nodes.find((n) => n.id === id);
+    if (!node) return {};
+    const trig = graph.nodes.find((n) => isTriggerType(n.type));
+    const triggerData = trig ? (samples[trig.id] ?? triggerSample(trig.type, trig.config)) : {};
+    if (isTriggerType(node.type)) return triggerData;
+    const nodesData: Record<string, unknown> = {};
+    for (const a of ancestorsOf(graph, id)) {
+      if (a !== trig?.id && samples[a] !== undefined) nodesData[a] = samples[a];
+    }
+    return { trigger: triggerData, nodes: nodesData };
+  }
+
+  async function savePin(nodeId: string, output: unknown): Promise<boolean> {
+    const res = await fetch(`/api/flow/flows/${flow.id}/pins`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ nodeId, output }),
+    }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { pins?: Record<string, unknown> } | null;
+    if (!res?.ok || !data?.pins) return false;
+    setPins(data.pins);
+    return true;
   }
 
   function closeTest() {
@@ -565,13 +604,13 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
       const node = g.nodes.find((n) => n.id === id);
       if (!node) continue;
       if (isTriggerType(node.type)) {
-        const sample = outputs[id] ?? triggerSample(node.type, node.config);
+        const sample = samples[id] ?? triggerSample(node.type, node.config);
         for (const p of flattenPaths(sample, '')) {
           out.push({ path: `trigger.${p}`, sample: p.split('.').reduce<unknown>((acc, k) => (acc as Record<string, unknown> | undefined)?.[k], sample) });
         }
         if (out.every((v) => !v.path.startsWith('trigger'))) out.push({ path: 'trigger', sample });
       } else {
-        const sample = outputs[id];
+        const sample = samples[id];
         const base = `nodes.${id}.output`;
         if (sample === undefined) out.push({ path: base, sample: undefined });
         else
@@ -583,9 +622,15 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
           }
       }
     }
-    out.push({ path: 'flow.name', sample: name }, { path: 'run.id', sample: undefined }, { path: 'now', sample: undefined });
+    out.push(
+      { path: 'flow.name', sample: name },
+      { path: 'run.id', sample: undefined },
+      // URL que retoma un Esperar en modo "hasta una llamada" de la corrida.
+      { path: 'run.resumeUrl', sample: undefined },
+      { path: 'now', sample: undefined },
+    );
     return out;
-  }, [selected, graph, outputs, name]);
+  }, [selected, graph, samples, name]);
 
   const paletteGroups = useMemo(() => {
     const q = paletteQ.trim().toLowerCase();
@@ -875,6 +920,22 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
                   onDelete={() => deleteNode(selected.id)}
                   onCredentialCreated={(c) => setNewCreds((list) => [...list, c])}
                   extra={triggerExtra()}
+                  test={
+                    <StepTest
+                      key={selected.id}
+                      flowId={flow.id}
+                      nodeId={selected.id}
+                      type={selected.data.type}
+                      config={selected.data.config}
+                      sample={stepSample(selected.id)}
+                      pinned={pins[selected.id]}
+                      canEdit={canEdit}
+                      onResult={(r) => {
+                        if (r.status === 'success') setOutputs((o) => ({ ...o, [selected.id]: r.output }));
+                      }}
+                      onPin={(output) => savePin(selected.id, output)}
+                    />
+                  }
                 />
               ) : (
                 <div className="flow-config">

@@ -18,6 +18,8 @@ import {
   EMPTY_GRAPH,
   isHookTrigger,
   isTriggerType,
+  PIN_LIMIT,
+  PINS_TOTAL_LIMIT,
   RETENTION_DAYS,
   triggerNode,
   validateGraph,
@@ -47,6 +49,8 @@ export interface FlowDto {
   failureAlerts: boolean;
   /** Replay automático de las corridas que fallan. */
   autoReplay: boolean;
+  /** Salidas fijadas por nodo: datos de prueba para probar un paso solo. */
+  pins: Record<string, unknown>;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -117,6 +121,7 @@ export function toFlowDto(row: FlowFlowRow): FlowDto {
     errorFlowId: row.error_flow_id ?? null,
     failureAlerts: row.failure_alerts !== 0,
     autoReplay: row.auto_replay === 1,
+    pins: parsePins(row.pinned_data),
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -477,6 +482,39 @@ export async function updateFlow(
     await snapshotVersion(workspaceId, id, row.version + 1, patch.name?.trim() || row.name, graph, actorId);
   }
   return { ok: true, flow: (await getFlow(workspaceId, id))! };
+}
+
+// ---------- Datos de prueba fijados ----------
+
+function parsePins(raw: string | undefined): Record<string, unknown> {
+  const v = parseJson<unknown>(raw ?? '{}', {});
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+}
+
+export type PinResult = { ok: true; pins: Record<string, unknown> } | { ok: false; error: 'not_found' | 'node_not_found' | 'pin_too_large' };
+
+/**
+ * Fija (o suelta con null/undefined) la salida de prueba de un nodo. Solo la
+ * usan "Probar paso" y el selector de variables, nunca una corrida real. Se
+ * descartan las de nodos que ya no están en el grafo.
+ */
+export async function setFlowPin(workspaceId: string, flowId: string, nodeId: string, output: unknown): Promise<PinResult> {
+  const row = await getFlowRow(workspaceId, flowId);
+  if (!row) return { ok: false, error: 'not_found' };
+  const graph = parseGraph(row.graph);
+  const ids = new Set(graph.nodes.map((n) => n.id));
+  const pins: Record<string, unknown> = {};
+  for (const [id, v] of Object.entries(parsePins(row.pinned_data))) if (ids.has(id)) pins[id] = v;
+  if (output === null || output === undefined) delete pins[nodeId];
+  else {
+    if (!ids.has(nodeId)) return { ok: false, error: 'node_not_found' };
+    if (JSON.stringify(output).length > PIN_LIMIT) return { ok: false, error: 'pin_too_large' };
+    pins[nodeId] = output;
+  }
+  const json = JSON.stringify(pins);
+  if (json.length > PINS_TOTAL_LIMIT) return { ok: false, error: 'pin_too_large' };
+  await getDb().prepare('UPDATE flow_flows SET pinned_data = ? WHERE id = ? AND user_id = ?').run(json, flowId, workspaceId);
+  return { ok: true, pins };
 }
 
 export async function deleteFlow(workspaceId: string, id: string): Promise<boolean> {

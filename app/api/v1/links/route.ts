@@ -37,6 +37,8 @@ const createSchema = z.object({
   targeting: linkTargetingSchema.nullish(),
   /** Id propio del cliente, único por workspace; después se lee con /api/v1/links/ext_<id>. */
   externalId: z.string().max(255).nullish(),
+  /** Carpeta del workspace (id). */
+  folderId: z.string().max(64).nullish(),
 });
 
 const MESSAGES: Record<CreateLinkError, string> = {
@@ -45,6 +47,7 @@ const MESSAGES: Record<CreateLinkError, string> = {
   slug_taken: 'That slug is already taken.',
   invalid_date: 'The expiration date is not valid.',
   invalid_domain: 'That domain is not a verified domain of yours.',
+  invalid_folder: 'That folder does not exist in this workspace.',
   self_link: 'The destination cannot be another short link of ours.',
   invalid_expired_url: 'The expired URL is not a valid http(s) URL.',
   invalid_og_image: 'The OG image is not a valid http(s) URL.',

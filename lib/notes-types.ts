@@ -21,6 +21,10 @@ export interface NoteSummary {
   shared: boolean;
   created_at: string;
   updated_at: string;
+  /** Lista "Compartidas conmigo": quién la compartió. */
+  shared_by?: string | null;
+  /** Acceso de quien la abre: propia, o compartida para ver o editar. */
+  access?: 'owner' | 'edit' | 'view';
 }
 
 export interface NoteLinkRef {
@@ -35,6 +39,33 @@ export interface NoteDetail extends NoteSummary {
   backlinks?: NoteLinkRef[];
   /** Recordatorio con fecha y hora (sent_at: ya avisó). */
   reminder?: { at: string; sent_at: string | null } | null;
+  /** Nota compartida por otra persona: su nombre (para el aviso del editor). */
+  owner_name?: string | null;
+}
+
+/**
+ * Datos de una nota para los disparadores de Flow (note.*): título y
+ * etiquetas, nunca el contenido (las notas son de cada persona y un flow lo
+ * ve todo el workspace).
+ */
+export function noteEventPayload(note: NoteSummary, personId: string) {
+  return {
+    note: {
+      id: note.id,
+      title: note.title,
+      tags: note.tags,
+      notebookId: note.notebook_id,
+      sourceUrl: note.source_url,
+      createdAt: note.created_at,
+    },
+    personId,
+  };
+}
+
+/** Etiquetas nuevas de una nota (las que no tenía antes). */
+export function addedTags(before: readonly string[], after: readonly string[]): string[] {
+  const prev = new Set(before.map((t) => t.toLowerCase()));
+  return after.filter((t) => !prev.has(t.toLowerCase()));
 }
 
 /** Href (sin locale) de una nota en la app: lo usan los links [[ ]] y los avisos. */

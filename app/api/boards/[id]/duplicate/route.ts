@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { isDenied, requireBoardAccess } from '@/lib/board-access-http';
 import { duplicateBoard } from '@/lib/boards';
 import { boardCreateSchema } from '@/lib/boards-schema';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
@@ -12,6 +13,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const { id } = await ctx.params;
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
+  const access = await requireBoardAccess(user, id, 'edit');
+  if (isDenied(access)) return access;
   const personId = user.actingUser?.id ?? user.id;
   const limited = await limitWrites('boards:write', personId, 60);
   if (limited) return limited;

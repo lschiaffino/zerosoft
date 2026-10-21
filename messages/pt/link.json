@@ -262,9 +262,9 @@
   },
   "bulk": {
     "title": "Muitos links de uma vez",
-    "sub": "Até 200 URLs, uma por linha. Os slugs são gerados sozinhos.",
-    "urlsLabel": "URLs",
-    "urlsPlaceholder": "https://exemplo.com/um\nhttps://exemplo.com/dois",
+    "sub": "Até 200 linhas, uma por linha. Depois da URL você pode colocar um slug e um título; se não, o slug é gerado sozinho.",
+    "urlsLabel": "Linhas",
+    "urlsPlaceholder": "https://exemplo.com/um\nhttps://exemplo.com/dois, promo-primavera, Promo de primavera",
     "tagLabel": "Tag",
     "tagPlaceholder": "campanha-q3",
     "utmTitle": "Campanha (UTM) para todos",
@@ -280,7 +280,10 @@
     "createN": "Criar {n} links",
     "count": "{n, plural, =0 {Nenhuma URL ainda} one {# URL} other {# URLs}}",
     "advancedHint": "Tag e UTM para todos",
-    "resultsSummary": "{created} criados, {failed} com erro."
+    "resultsSummary": "{created} criados, {failed} com erro.",
+    "rowsHelp": "Cada linha é uma URL, ou url, slug, título (com vírgulas ou tabs, como sai de uma planilha). O título pode ter vírgulas.",
+    "domainLabel": "Domínio",
+    "colTitle": "Título"
   },
   "settings": {
     "title": "Configurações",
@@ -368,7 +371,8 @@
     "invalid_expired_url": "O redirect ao expirar não parece uma URL válida.",
     "invalid_og_image": "A imagem da prévia precisa ser uma URL http(s).",
     "invalid_external_id": "O id externo não é válido.",
-    "external_id_taken": "Outro link já usa esse id externo."
+    "external_id_taken": "Outro link já usa esse id externo.",
+    "invalid_folder": "Você não pode adicionar links a essa pasta."
   },
   "webhooks": {
     "desc": "Enviamos um JSON assinado (POST) para sua URL quando esses eventos acontecem. Verifique o header Zerosoft-Signature (t=…,v1=HMAC-SHA256 de \"t.body\") com seu secret. Entregas com falha são reenviadas com backoff.",
@@ -517,7 +521,9 @@
     "clear": "Limpar seleção",
     "confirmDelete": "{count, plural, one {Excluir # link?} other {Excluir # links?}}",
     "tagPartial": "{affected} de {total} receberam a etiqueta. O resto já tinha essa etiqueta ou 5 etiquetas.",
-    "deleteN": "{count, plural, one {Excluir # link} other {Excluir # links}}"
+    "deleteN": "{count, plural, one {Excluir # link} other {Excluir # links}}",
+    "move": "Mover para pasta",
+    "moved": "{count, plural, =0 {Nenhum link movido} one {# link movido} other {# links movidos}}"
   },
   "analytics": {
     "title": "Analytics",
@@ -547,7 +553,18 @@
     "noData": "Sem dados",
     "sub": "Todos os seus links juntos. Datas em UTC.",
     "emptyBody": "Compartilhe um link e os cliques aparecem aqui.",
-    "cities": "Cidades"
+    "cities": "Cidades",
+    "filtersLabel": "Filtros",
+    "filterTag": "Tag",
+    "filterDomain": "Domínio",
+    "filterLink": "Link",
+    "filterCountry": "País",
+    "filterDevice": "Dispositivo",
+    "any": "Todos",
+    "timezone": "Fuso horário",
+    "applyFilters": "Aplicar filtros",
+    "clearFilters": "Limpar filtros",
+    "chartLabelTz": "Visitas por dia ({tz})"
   },
   "targeting": {
     "title": "Roteamento",
@@ -653,5 +670,68 @@
     "label": "Novo comentário",
     "placeholder": "Quem pediu o link, de qual campanha é, o que levar em conta",
     "add": "Comentar"
+  },
+  "folders": {
+    "title": "Pastas",
+    "pageDesc": "Agrupe links em pastas e escolha quem pode ver ou editar cada uma. O owner e os admins sempre podem editar tudo.",
+    "field": "Pasta",
+    "noFolder": "Sem pasta",
+    "all": "Todas as pastas",
+    "filterLabel": "Filtrar por pasta",
+    "addTitle": "Nova pasta",
+    "addDesc": "Os membros recebem o acesso padrão. Depois você pode mudar para pessoas específicas.",
+    "add": "Criar pasta",
+    "name": "Nome",
+    "namePlaceholder": "Campanhas",
+    "defaultAccess": "Acesso dos membros",
+    "access": {
+      "none": "Sem acesso",
+      "view": "Pode ver",
+      "edit": "Pode editar"
+    },
+    "listTitle": "Pastas",
+    "empty": "Ainda não há pastas",
+    "emptyBody": "Os links sem pasta continuam visíveis e editáveis para todo o workspace.",
+    "linksCount": "{n, plural, =0 {Sem links} one {# link} other {# links}}",
+    "manageAccess": "Acesso",
+    "remove": "Excluir",
+    "removeConfirm": "{n, plural, =0 {Excluir a pasta {name}?} one {Excluir a pasta {name}? O link fica, sem pasta.} other {Excluir a pasta {name}? Os # links ficam, sem pasta.}}",
+    "accessTitle": "Acesso a {name}",
+    "adminsHelp": "O owner e os admins sempre podem editar. Com acesso de leitura dá para ver os links e as analytics, mas não alterá-los.",
+    "person": "Pessoa",
+    "accessCol": "Acesso",
+    "accessFor": "Acesso de {name}",
+    "useDefault": "Padrão ({access})",
+    "save": "Salvar",
+    "saved": "Salvo.",
+    "errors": {
+      "name_taken": "Já existe uma pasta com esse nome.",
+      "too_many": "Você chegou ao limite de pastas.",
+      "invalid_member": "Essa pessoa não está no workspace.",
+      "not_found": "Essa pasta não existe mais.",
+      "forbidden": "Só os admins do workspace podem gerenciar pastas."
+    }
+  },
+  "share": {
+    "title": "Página pública de analytics",
+    "titleTag": "Página pública de analytics de {tag}",
+    "desc": "Uma página só de leitura com totais, dias e detalhamentos. Mostra só o domínio de cada referrer, sem o registro de visitas. Quem tiver o link pode abrir até você revogar.",
+    "create": "Criar link",
+    "empty": "Ainda não há páginas públicas.",
+    "createdOn": "Criada em {date}",
+    "open": "Abrir",
+    "revoke": "Revogar",
+    "revokeConfirm": "Revogar esta página? O link para de funcionar na hora.",
+    "errors": {
+      "too_many": "Já tem 10 páginas públicas. Revogue uma para criar outra.",
+      "not_found": "Esse link ou tag não existe mais.",
+      "forbidden": "Só os admins do workspace podem compartilhar uma tag."
+    },
+    "publicTitle": "Analytics de {label}",
+    "notFound": "Página indisponível",
+    "kindLink": "Analytics do link",
+    "kindTag": "Analytics da tag",
+    "chartLabel": "Visitas por dia ({tz})",
+    "footer": "Página só de leitura compartilhada pelo zerosoft. Mostra só visitas agregadas."
   }
 }

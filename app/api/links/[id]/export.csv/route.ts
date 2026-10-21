@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { getUserLink } from '@/lib/links';
+import { getLinkForViewer } from '@/lib/links';
+import { viewerOf } from '@/lib/link-folders';
 import { clicksToCsv, EXPORT_LIMIT, exportClicks, type AnalyticsRange, parseRange } from '@/lib/track';
 
 export const runtime = 'nodejs';
@@ -19,8 +20,11 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  const link = await getUserLink(user.id, params.id);
-  if (!link) return notFound();
+  const found = await getLinkForViewer(user.id, params.id, viewerOf(user), 'view');
+  if ('status' in found) {
+    return NextResponse.json({ error: found.status === 403 ? 'forbidden' : 'not_found' }, { status: found.status });
+  }
+  const { link } = found;
 
   const sp = req.nextUrl.searchParams;
   const rawRange = sp.get('range');

@@ -50,6 +50,10 @@ export const projectUpdateSchema = z.object({
   color: color,
   status: z.enum(['active', 'archived']).optional(),
   triageEnabled: z.boolean().optional(),
+  /** Cycles automáticos: cada cuántas semanas, y el prefijo del nombre. */
+  cycleAuto: z.boolean().optional(),
+  cycleWeeks: z.number().int().min(1).max(8).optional(),
+  cycleName: z.string().trim().max(40).optional(),
 });
 
 // ---------- Statuses ----------
@@ -122,6 +126,7 @@ export const issueCreateSchema = z.object({
   startDate: isoDate.nullish(),
   dueDate: isoDate.nullish(),
   labels: z.array(issueLabelInputSchema).max(10).optional(),
+  milestoneId: id.nullish(),
 });
 
 export const issueUpdateSchema = issueCreateSchema.partial().extend({
@@ -232,6 +237,70 @@ export const issueViewUpdateSchema = z.object({
   columns: z.array(z.string()).max(20).optional(),
 });
 
+// ---------- Milestones ----------
+
+const day = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'invalid_date' });
+
+export const milestoneCreateSchema = z.object({
+  name,
+  description: longText.optional(),
+  targetDate: day.nullish(),
+});
+
+export const milestoneUpdateSchema = milestoneCreateSchema.partial();
+
+// ---------- Plantillas de issue ----------
+
+export const templateCreateSchema = z.object({
+  name,
+  title: shortText.optional(),
+  description: longText.optional(),
+  statusId: id.nullish(),
+  priority: issuePriority.nullish(),
+  assigneeId: id.nullish(),
+  estimate: z.number().int().min(0).max(1000).nullish(),
+  labels: z.array(issueLabelInputSchema).max(10).optional(),
+});
+
+export const templateUpdateSchema = templateCreateSchema.partial();
+
+// ---------- Issues que se repiten ----------
+
+export const recurringFrequency = z.enum(['daily', 'weekly', 'monthly', 'yearly']);
+
+export const recurringCreateSchema = z.object({
+  title: name,
+  description: longText.optional(),
+  statusId: id.nullish(),
+  priority: issuePriority.optional(),
+  assigneeId: id.nullish(),
+  labels: z.array(issueLabelInputSchema).max(10).optional(),
+  frequency: recurringFrequency,
+  every: z.number().int().min(1).max(365).optional(),
+  startOn: day,
+  /** Vence N días después de creado (null = sin vencimiento). */
+  dueDays: z.number().int().min(0).max(365).nullish(),
+  timezone: z.string().trim().max(64).optional(),
+  active: z.boolean().optional(),
+});
+
+export const recurringUpdateSchema = recurringCreateSchema.partial();
+
+// ---------- Recordatorios y avisos por email ----------
+
+export const issueReminderSchema = z.object({
+  remindAt: z.string().trim().min(1).max(40),
+});
+
+export const notifyPrefsSchema = z.object({
+  emailMode: z.enum(['immediate', 'digest', 'off']),
+  timezone: z.string().trim().max(64).optional(),
+  locale: z.enum(['en', 'es', 'pt']).optional(),
+});
+
 // ---------- Tipos inferidos ----------
 
 export type ProjectCreatePayload = z.infer<typeof projectCreateSchema>;
@@ -254,3 +323,10 @@ export type IssueLabelInput = z.infer<typeof issueLabelInputSchema>;
 export type BulkIssuesPayload = z.infer<typeof bulkIssuesSchema>;
 export type TriageActionPayload = z.infer<typeof triageActionSchema>;
 export type GithubConfigPayload = z.infer<typeof githubConfigSchema>;
+export type MilestoneCreatePayload = z.infer<typeof milestoneCreateSchema>;
+export type MilestoneUpdatePayload = z.infer<typeof milestoneUpdateSchema>;
+export type TemplateCreatePayload = z.infer<typeof templateCreateSchema>;
+export type TemplateUpdatePayload = z.infer<typeof templateUpdateSchema>;
+export type RecurringCreatePayload = z.infer<typeof recurringCreateSchema>;
+export type RecurringUpdatePayload = z.infer<typeof recurringUpdateSchema>;
+export type NotifyPrefsPayload = z.infer<typeof notifyPrefsSchema>;

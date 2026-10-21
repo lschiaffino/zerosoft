@@ -223,7 +223,7 @@ export async function processDueWorkflowRuns(
     .prepare(
       `SELECT r.id, r.booking_id, r.send_at, s.recipient, s.subject, s.body,
               b.invitee_name, b.invitee_email, b.starts_at, b.timezone, b.locale, b.manage_token, b.meeting_url, b.host_user_id,
-              e.user_id AS owner_id, e.title AS event_title, e.location AS event_location, e.brand_color, e.logo_url,
+              e.user_id AS owner_id, e.title AS event_title, COALESCE(NULLIF(b.location, ''), e.location) AS event_location, e.brand_color, e.logo_url,
               cu.timezone AS host_timezone
        FROM calendar_workflow_runs r
        JOIN calendar_workflow_steps s ON s.id = r.step_id

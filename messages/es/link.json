@@ -262,9 +262,9 @@
   },
   "bulk": {
     "title": "Muchos links a la vez",
-    "sub": "Hasta 200 URLs, una por línea. Los slugs se generan solos.",
-    "urlsLabel": "URLs",
-    "urlsPlaceholder": "https://ejemplo.com/uno\nhttps://ejemplo.com/dos",
+    "sub": "Hasta 200 filas, una por línea. Después de la URL podés sumar un slug y un título; si no, el slug se genera solo.",
+    "urlsLabel": "Filas",
+    "urlsPlaceholder": "https://ejemplo.com/uno\nhttps://ejemplo.com/dos, promo-primavera, Promo de primavera",
     "tagLabel": "Tag",
     "tagPlaceholder": "campaña-q3",
     "utmTitle": "Campaña (UTM) para todos",
@@ -280,7 +280,10 @@
     "createN": "Crear {n} links",
     "count": "{n, plural, =0 {Ninguna URL todavía} one {# URL} other {# URLs}}",
     "advancedHint": "Tag y UTM para todos",
-    "resultsSummary": "{created} creados, {failed} con error."
+    "resultsSummary": "{created} creados, {failed} con error.",
+    "rowsHelp": "Cada línea es una URL, o url, slug, título (con comas o tabs, como sale de una planilla). El título puede tener comas.",
+    "domainLabel": "Dominio",
+    "colTitle": "Título"
   },
   "settings": {
     "title": "Ajustes",
@@ -368,7 +371,8 @@
     "invalid_expired_url": "El redirect al vencer no parece una URL válida.",
     "invalid_og_image": "La imagen de la vista previa tiene que ser una URL http(s).",
     "invalid_external_id": "El id externo no es válido.",
-    "external_id_taken": "Otro link ya usa ese id externo."
+    "external_id_taken": "Otro link ya usa ese id externo.",
+    "invalid_folder": "No podés sumar links a esa carpeta."
   },
   "webhooks": {
     "desc": "Enviamos un JSON firmado (POST) a tu URL cuando pasan estos eventos. Verificá el header Zerosoft-Signature (t=…,v1=HMAC-SHA256 de \"t.body\") con tu secret. Las entregas fallidas se reintentan con backoff.",
@@ -517,7 +521,9 @@
     "clear": "Deseleccionar",
     "confirmDelete": "{count, plural, one {¿Borrar # link?} other {¿Borrar # links?}}",
     "tagPartial": "Se etiquetaron {affected} de {total}. El resto ya tenía esa etiqueta o 5 etiquetas.",
-    "deleteN": "{count, plural, one {Borrar # link} other {Borrar # links}}"
+    "deleteN": "{count, plural, one {Borrar # link} other {Borrar # links}}",
+    "move": "Mover a carpeta",
+    "moved": "{count, plural, =0 {No se movió ningún link} one {# link movido} other {# links movidos}}"
   },
   "analytics": {
     "title": "Analytics",
@@ -547,7 +553,18 @@
     "noData": "Sin datos",
     "sub": "Todos tus links juntos. Fechas en UTC.",
     "emptyBody": "Compartí un link y los clicks aparecen acá.",
-    "cities": "Ciudades"
+    "cities": "Ciudades",
+    "filtersLabel": "Filtros",
+    "filterTag": "Tag",
+    "filterDomain": "Dominio",
+    "filterLink": "Link",
+    "filterCountry": "País",
+    "filterDevice": "Dispositivo",
+    "any": "Todos",
+    "timezone": "Zona horaria",
+    "applyFilters": "Aplicar filtros",
+    "clearFilters": "Limpiar filtros",
+    "chartLabelTz": "Visitas por día ({tz})"
   },
   "targeting": {
     "title": "Ruteo",
@@ -653,5 +670,68 @@
     "label": "Nuevo comentario",
     "placeholder": "Quién pidió el link, de qué campaña es, qué tener en cuenta",
     "add": "Comentar"
+  },
+  "folders": {
+    "title": "Carpetas",
+    "pageDesc": "Agrupá links en carpetas y elegí quién puede ver o editar cada una. El owner y los admins siempre pueden editar todo.",
+    "field": "Carpeta",
+    "noFolder": "Sin carpeta",
+    "all": "Todas las carpetas",
+    "filterLabel": "Filtrar por carpeta",
+    "addTitle": "Carpeta nueva",
+    "addDesc": "Los miembros reciben el acceso por defecto. Después lo podés cambiar para personas puntuales.",
+    "add": "Crear carpeta",
+    "name": "Nombre",
+    "namePlaceholder": "Campañas",
+    "defaultAccess": "Acceso de los miembros",
+    "access": {
+      "none": "Sin acceso",
+      "view": "Puede ver",
+      "edit": "Puede editar"
+    },
+    "listTitle": "Carpetas",
+    "empty": "Todavía no hay carpetas",
+    "emptyBody": "Los links sin carpeta siguen visibles y editables para todo el workspace.",
+    "linksCount": "{n, plural, =0 {Sin links} one {# link} other {# links}}",
+    "manageAccess": "Acceso",
+    "remove": "Borrar",
+    "removeConfirm": "{n, plural, =0 {¿Borrar la carpeta {name}?} one {¿Borrar la carpeta {name}? Su link queda, sin carpeta.} other {¿Borrar la carpeta {name}? Sus # links quedan, sin carpeta.}}",
+    "accessTitle": "Acceso a {name}",
+    "adminsHelp": "El owner y los admins siempre pueden editar. Con acceso de lectura se ven los links y sus analytics, pero no se pueden cambiar.",
+    "person": "Persona",
+    "accessCol": "Acceso",
+    "accessFor": "Acceso de {name}",
+    "useDefault": "Por defecto ({access})",
+    "save": "Guardar",
+    "saved": "Guardado.",
+    "errors": {
+      "name_taken": "Ya hay una carpeta con ese nombre.",
+      "too_many": "Llegaste al máximo de carpetas.",
+      "invalid_member": "Esa persona no está en el workspace.",
+      "not_found": "Esa carpeta ya no existe.",
+      "forbidden": "Solo los admins del workspace pueden gestionar carpetas."
+    }
+  },
+  "share": {
+    "title": "Página pública de analytics",
+    "titleTag": "Página pública de analytics de {tag}",
+    "desc": "Una página de solo lectura con totales, días y desgloses. Muestra solo el dominio de cada referrer, sin el registro de visitas. Quien tenga el link la puede abrir hasta que la revoques.",
+    "create": "Crear link",
+    "empty": "Todavía no hay páginas públicas.",
+    "createdOn": "Creada el {date}",
+    "open": "Abrir",
+    "revoke": "Revocar",
+    "revokeConfirm": "¿Revocar esta página? El link deja de funcionar en el momento.",
+    "errors": {
+      "too_many": "Ya tiene 10 páginas públicas. Revocá una para crear otra.",
+      "not_found": "Ese link o tag ya no existe.",
+      "forbidden": "Solo los admins del workspace pueden compartir un tag."
+    },
+    "publicTitle": "Analytics de {label}",
+    "notFound": "Página no disponible",
+    "kindLink": "Analytics del link",
+    "kindTag": "Analytics del tag",
+    "chartLabel": "Visitas por día ({tz})",
+    "footer": "Página de solo lectura compartida desde zerosoft. Muestra solo visitas agregadas."
   }
 }

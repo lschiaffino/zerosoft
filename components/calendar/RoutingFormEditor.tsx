@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import FormSection from '@/components/ui/FormSection';
-import type { RoutingFormWithChildren, RoutingFieldWithOptions } from '@/lib/calendar-routing';
+import type { RoutingFormWithChildren, RoutingFieldWithOptions, RoutingSubmission } from '@/lib/calendar-routing';
 import type { CalendarRoutingRuleRow } from '@/lib/db';
 import CalIcon from './cal-icons';
 import CalCopyButton from './CalCopyButton';
@@ -22,7 +22,18 @@ interface RoutingFormEditorProps {
   eventTypes: EventTypeOption[];
   /** URL pública completa sin el slug: https://…/es/r/<handle>/ */
   publicBase: string;
+  /** Últimos envíos del form (el más nuevo primero). */
+  submissions: RoutingSubmission[];
+  locale: string;
 }
+
+type RouteAction = 'event' | 'url' | 'message';
+const ACTIONS: RouteAction[] = ['event', 'url', 'message'];
+const ACTION_LABEL_KEY: Record<RouteAction, 'actionEvent' | 'actionUrl' | 'actionMessage'> = {
+  event: 'actionEvent',
+  url: 'actionUrl',
+  message: 'actionMessage',
+};
 
 type FieldType = 'text' | 'select' | 'boolean';
 type RuleOperator = 'is' | 'is_not' | 'contains' | 'truthy';
@@ -37,7 +48,15 @@ const STEPS = ['questions', 'rules', 'publish'] as const;
 type Step = (typeof STEPS)[number];
 
 const emptyField = () => ({ label: '', type: 'text' as FieldType, optionsText: '', required: true });
-const emptyRule = () => ({ fieldId: '', operator: 'is' as RuleOperator, value: '', eventTypeId: '' });
+const emptyRule = (action: RouteAction = 'event') => ({
+  fieldId: '',
+  operator: 'is' as RuleOperator,
+  value: '',
+  action,
+  eventTypeId: '',
+  targetUrl: '',
+  message: '',
+});
 
 /**
  * Editor de un routing form en tres paradas: Preguntas → Reglas → Publicar.
@@ -45,7 +64,7 @@ const emptyRule = () => ({ fieldId: '', operator: 'is' as RuleOperator, value: '
  * formulario (nombre, URL, activo) tienen un solo Guardar en Publicar. La
  * clave técnica de cada pregunta sale de su etiqueta.
  */
-export default function RoutingFormEditor({ initial, eventTypes, publicBase }: RoutingFormEditorProps) {
+export default function RoutingFormEditor({ initial, eventTypes, publicBase, submissions, locale }: RoutingFormEditorProps) {
   const t = useTranslations('calendar');
   const router = useRouter();
   const baseId = useId();
@@ -53,8 +72,13 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase }: R
   const [fields, setFields] = useState<RoutingFieldWithOptions[]>(initial.fields);
   const [rules, setRules] = useState<CalendarRoutingRuleRow[]>(initial.rules);
   const [defaultEventTypeId, setDefaultEventTypeId] = useState(initial.default_event_type_id ?? '');
+  const [fallbackAction, setFallbackAction] = useState<RouteAction>(initial.fallback_action ?? 'event');
+  const [fallbackUrl, setFallbackUrl] = useState(initial.fallback_url ?? '');
+  const [fallbackMessage, setFallbackMessage] = useState(initial.fallback_message ?? '');
+  const [passAnswers, setPassAnswers] = useState(initial.pass_answers !== 0);
   const [newField, setNewField] = useState(emptyField());
-  const [newRule, setNewRule] = useState(emptyRule());
+  const defaultAction: RouteAction = eventTypes.length > 0 ? 'event' : 'url';
+  const [newRule, setNewRule] = useState(emptyRule(defaultAction));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [defaultSaved, setDefaultSaved] = useState(false);
@@ -115,9 +139,12 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase }: R
     } else setError(t('errors.generic'));
   }
 
+  const ruleTargetReady =
+    newRule.action === 'event' ? !!newRule.eventTypeId : newRule.action === 'url' ? !!newRule.targetUrl.trim() : !!newRule.message.trim();
+
   async function addRule(e: React.FormEvent) {
     e.preventDefault();
-    if (!newRule.fieldId || !newRule.eventTypeId) return;
+    if (!newRule.fieldId || !ruleTargetReady) return;
     setBusy(true);
     setError(null);
     const res = await fetch(`/api/calendar/routing/${initial.id}/rules`, {
@@ -127,17 +154,33 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase }: R
         fieldId: newRule.fieldId,
         operator: newRule.operator,
         value: newRule.operator === 'truthy' ? '' : newRule.value.trim(),
-        eventTypeId: newRule.eventTypeId,
+        action: newRule.action,
+        ...(newRule.action === 'event' ? { eventTypeId: newRule.eventTypeId } : {}),
+        ...(newRule.action === 'url' ? { targetUrl: newRule.targetUrl.trim() } : {}),
+        ...(newRule.action === 'message' ? { message: newRule.message.trim() } : {}),
       }),
     }).catch(() => null);
     setBusy(false);
     if (res && res.status === 201) {
       const rule = (await res.json()) as CalendarRoutingRuleRow;
       setRules((prev) => [...prev, rule]);
-      setNewRule(emptyRule());
+      setNewRule(emptyRule(newRule.action));
       return;
     }
     setError(t(`errors.${await code(res)}`));
+  }
+
+  /** Guarda el destino de respaldo (o si se pasan las respuestas). */
+  async function saveFallback(patch: Record<string, unknown>) {
+    setDefaultSaved(false);
+    setError(null);
+    const res = await fetch(`/api/calendar/routing/${initial.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(patch),
+    }).catch(() => null);
+    if (res && res.ok) setDefaultSaved(true);
+    else setError(t(`errors.${await code(res)}`));
   }
 
   async function removeRule(ruleId: string) {
@@ -179,7 +222,19 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase }: R
   }
 
   const fieldLabel = (id: string) => fields.find((f) => f.id === id)?.label ?? '?';
-  const eventTitle = (id: string) => eventTypes.find((et) => et.id === id)?.title ?? '?';
+  const eventTitle = (id: string | null) => eventTypes.find((et) => et.id === id)?.title ?? '?';
+  const ruleTarget = (r: CalendarRoutingRuleRow) =>
+    r.action === 'url' ? r.target_url : r.action === 'message' ? t('routing.actionMessage') : eventTitle(r.event_type_id);
+  const fmtWhen = (isoTs: string) =>
+    new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(isoTs));
+  const outcomeLabel = (s: RoutingSubmission) =>
+    s.outcome === 'event'
+      ? (eventTypes.find((et) => et.slug === s.target)?.title ?? s.target)
+      : s.outcome === 'url'
+        ? s.target
+        : s.outcome === 'message'
+          ? t('routing.actionMessage')
+          : t('routing.outcomeNone');
   const ruleField = fields.find((f) => f.id === newRule.fieldId);
   const publicUrl = `${publicBase}${savedSlug}`;
   const idFor = (k: string) => `${baseId}-${k}`;
@@ -330,13 +385,14 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase }: R
 
       {/* ---------- Reglas ---------- */}
       <div id={idFor('panel-rules')} role="tabpanel" aria-labelledby={idFor('tab-rules')} hidden={step !== 'rules'} className="cal-route-panel">
-        {eventTypes.length === 0 ? (
+        {eventTypes.length === 0 && (
           <EmptyState
             title={t('routing.noEventTypesTitle')}
             body={t('routing.noEventTypesBody')}
             action={{ label: t('eventTypes.newCta'), href: '/app/calendar/event-types?new=1' }}
           />
-        ) : (
+        )}
+        {(
           <FormSection title={t('routing.rules')} description={t('routing.rulesHelp')}>
             {rules.length === 0 ? (
               <p className="cal-muted">{t('routing.noRules')}</p>
@@ -354,7 +410,7 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase }: R
                         </>
                       )}
                       <CalIcon name="next" />
-                      <strong>{eventTitle(r.event_type_id)}</strong>
+                      <strong className={r.action === 'url' ? 'data' : undefined}>{ruleTarget(r)}</strong>
                     </span>
                     <button
                       type="button"
@@ -444,18 +500,114 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase }: R
                   </div>
                 )}
                 <div className="ui-field">
-                  <label className="label" htmlFor={idFor('rtarget')}>
+                  <label className="label" htmlFor={idFor('raction')}>
                     {t('routing.ruleTarget')}
                   </label>
                   <select
-                    id={idFor('rtarget')}
+                    id={idFor('raction')}
                     className="select"
-                    value={newRule.eventTypeId}
-                    onChange={(e) => setNewRule((v) => ({ ...v, eventTypeId: e.target.value }))}
+                    value={newRule.action}
+                    onChange={(e) => setNewRule((v) => ({ ...v, action: e.target.value as RouteAction }))}
                   >
-                    <option value="" disabled>
-                      {t('routing.choose')}
+                    {ACTIONS.map((a) => (
+                      <option key={a} value={a} disabled={a === 'event' && eventTypes.length === 0}>
+                        {t(`routing.${ACTION_LABEL_KEY[a]}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {newRule.action === 'event' && (
+                  <div className="ui-field">
+                    <label className="label" htmlFor={idFor('rtarget')}>
+                      {t('routing.actionEvent')}
+                    </label>
+                    <select
+                      id={idFor('rtarget')}
+                      className="select"
+                      value={newRule.eventTypeId}
+                      onChange={(e) => setNewRule((v) => ({ ...v, eventTypeId: e.target.value }))}
+                    >
+                      <option value="" disabled>
+                        {t('routing.choose')}
+                      </option>
+                      {eventTypes.map((et) => (
+                        <option key={et.id} value={et.id}>
+                          {et.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {newRule.action === 'url' && (
+                  <div className="ui-field cal-route-full">
+                    <label className="label" htmlFor={idFor('rurl')}>
+                      {t('routing.actionUrl')}
+                    </label>
+                    <input
+                      id={idFor('rurl')}
+                      className="input data"
+                      type="url"
+                      placeholder="https://"
+                      value={newRule.targetUrl}
+                      onChange={(e) => setNewRule((v) => ({ ...v, targetUrl: e.target.value }))}
+                    />
+                  </div>
+                )}
+                {newRule.action === 'message' && (
+                  <div className="ui-field cal-route-full">
+                    <label className="label" htmlFor={idFor('rmsg')}>
+                      {t('routing.actionMessage')}
+                    </label>
+                    <textarea
+                      id={idFor('rmsg')}
+                      className="textarea"
+                      rows={2}
+                      maxLength={2000}
+                      value={newRule.message}
+                      onChange={(e) => setNewRule((v) => ({ ...v, message: e.target.value }))}
+                    />
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  className="btn"
+                  aria-busy={busy || undefined}
+                  disabled={!newRule.fieldId || !ruleTargetReady || (newRule.operator !== 'truthy' && !newRule.value.trim())}
+                >
+                  <CalIcon name="plus" />
+                  {t('routing.addRule')}
+                </button>
+              </form>
+            )}
+            <div className="cal-route-default">
+              <div className="ui-field">
+                <label className="label" htmlFor={idFor('faction')}>
+                  {t('routing.fallbackLabel')}
+                </label>
+                <select
+                  id={idFor('faction')}
+                  className="select"
+                  value={fallbackAction}
+                  onChange={(e) => {
+                    const next = e.target.value as RouteAction;
+                    setFallbackAction(next);
+                    void saveFallback({ fallbackAction: next });
+                  }}
+                >
+                  {ACTIONS.map((a) => (
+                    <option key={a} value={a}>
+                      {t(`routing.${ACTION_LABEL_KEY[a]}`)}
                     </option>
+                  ))}
+                </select>
+              </div>
+              {fallbackAction === 'event' && (
+                <div className="ui-field">
+                  <label className="label" htmlFor={idFor('default')}>
+                    {t('routing.defaultEventType')}
+                  </label>
+                  <select id={idFor('default')} className="select" value={defaultEventTypeId} onChange={(e) => void saveDefault(e.target.value)}>
+                    <option value="">{t('routing.noDefault')}</option>
                     {eventTypes.map((et) => (
                       <option key={et.id} value={et.id}>
                         {et.title}
@@ -463,29 +615,50 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase }: R
                     ))}
                   </select>
                 </div>
-                <button
-                  type="submit"
-                  className="btn"
-                  aria-busy={busy || undefined}
-                  disabled={!newRule.fieldId || !newRule.eventTypeId || (newRule.operator !== 'truthy' && !newRule.value.trim())}
-                >
-                  <CalIcon name="plus" />
-                  {t('routing.addRule')}
-                </button>
-              </form>
-            )}
-            <div className="ui-field cal-route-default">
-              <label className="label" htmlFor={idFor('default')}>
-                {t('routing.defaultEventType')}
+              )}
+              {fallbackAction === 'url' && (
+                <div className="ui-field">
+                  <label className="label" htmlFor={idFor('furl')}>
+                    {t('routing.actionUrl')}
+                  </label>
+                  <input
+                    id={idFor('furl')}
+                    className="input data"
+                    type="url"
+                    placeholder="https://"
+                    value={fallbackUrl}
+                    onChange={(e) => setFallbackUrl(e.target.value)}
+                    onBlur={() => void saveFallback({ fallbackUrl: fallbackUrl.trim() })}
+                  />
+                </div>
+              )}
+              {fallbackAction === 'message' && (
+                <div className="ui-field">
+                  <label className="label" htmlFor={idFor('fmsg')}>
+                    {t('routing.actionMessage')}
+                  </label>
+                  <textarea
+                    id={idFor('fmsg')}
+                    className="textarea"
+                    rows={2}
+                    maxLength={2000}
+                    value={fallbackMessage}
+                    onChange={(e) => setFallbackMessage(e.target.value)}
+                    onBlur={() => void saveFallback({ fallbackMessage: fallbackMessage.trim() })}
+                  />
+                </div>
+              )}
+              <label className="ui-check">
+                <input
+                  type="checkbox"
+                  checked={passAnswers}
+                  onChange={(e) => {
+                    setPassAnswers(e.target.checked);
+                    void saveFallback({ passAnswers: e.target.checked });
+                  }}
+                />
+                <span>{t('routing.passAnswers')}</span>
               </label>
-              <select id={idFor('default')} className="select" value={defaultEventTypeId} onChange={(e) => void saveDefault(e.target.value)}>
-                <option value="">{t('routing.noDefault')}</option>
-                {eventTypes.map((et) => (
-                  <option key={et.id} value={et.id}>
-                    {et.title}
-                  </option>
-                ))}
-              </select>
               <p className="ui-help" role="status">
                 {defaultSaved ? t('editor.saved') : t('routing.defaultHelp')}
               </p>
@@ -549,6 +722,39 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase }: R
               {t('routing.openForm')}
             </a>
           </div>
+        </FormSection>
+        <FormSection title={t('routing.submissionsTitle')} description={t('routing.submissionsLead')}>
+          {submissions.length === 0 ? (
+            <p className="cal-muted">{t('routing.noSubmissions')}</p>
+          ) : (
+            <div className="table-wrap">
+              <table className="table cal-submissions">
+                <thead>
+                  <tr>
+                    <th scope="col">{t('routing.submittedAt')}</th>
+                    <th scope="col">{t('routing.answers')}</th>
+                    <th scope="col">{t('routing.outcome')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {submissions.map((s) => (
+                    <tr key={s.id}>
+                      <td className="data">{fmtWhen(s.created_at)}</td>
+                      <td>
+                        {Object.entries(s.answersParsed).map(([k, v]) => (
+                          <span key={k} className="cal-submission-answer">
+                            <span className="cal-muted">{fields.find((f) => f.name === k)?.label ?? k}:</span>{' '}
+                            {typeof v === 'boolean' ? (v ? t('routing.valueTrue') : t('routing.valueFalse')) : v}
+                          </span>
+                        ))}
+                      </td>
+                      <td className={s.outcome === 'url' ? 'data' : undefined}>{outcomeLabel(s)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </FormSection>
       </div>
     </div>

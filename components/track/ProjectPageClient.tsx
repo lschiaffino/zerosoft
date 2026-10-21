@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import type { TrackProjectRow, TrackStatusRow } from '@/lib/db';
+import type { TrackIssueTemplateRow, TrackProjectRow, TrackRecurringIssueRow, TrackStatusRow } from '@/lib/db';
+import type { TrackMilestoneWithProgress } from '@/lib/track-milestones';
+import { upcomingMilestone } from '@/lib/track-milestone-utils';
 import type { IssueLabel } from '@/lib/track-schema';
 import type { FilterState } from './IssueFilters';
 import type { ViewType } from './ViewSwitcher';
@@ -26,6 +28,10 @@ import { activeCycle, formatDay, parseQuickTitle } from '@/lib/track-tasks';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import ProjectSettingsDrawer from './ProjectSettingsDrawer';
+import AutoCyclesSettings from './AutoCyclesSettings';
+import MilestonesPanel from './MilestonesPanel';
+import TemplatesPanel from './TemplatesPanel';
+import RecurringPanel from './RecurringPanel';
 import TrackIcon from './TrackIcon';
 import type { TrackUiLabels } from './ui-labels';
 import { BulkBar, useIssueSelection, type BulkPatch } from './BulkEdit';
@@ -194,6 +200,9 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   const [project, setProject] = useState<TrackProjectRow | null>(null);
   const [statuses, setStatuses] = useState<TrackStatusRow[]>([]);
   const [cycles, setCycles] = useState<CycleWithProgress[]>([]);
+  const [milestones, setMilestones] = useState<TrackMilestoneWithProgress[]>([]);
+  const [templates, setTemplates] = useState<TrackIssueTemplateRow[]>([]);
+  const [recurring, setRecurring] = useState<TrackRecurringIssueRow[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [views, setViews] = useState<TrackIssueView[]>([]);
@@ -222,9 +231,20 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   const projectMap = useMemo<ProjectMap>(
     () =>
       project
-        ? { [project.id]: { id: project.id, name: project.name, icon: project.icon, statuses, members, cycles } }
+        ? {
+            [project.id]: {
+              id: project.id,
+              name: project.name,
+              icon: project.icon,
+              statuses,
+              members,
+              cycles,
+              milestones,
+              templates,
+            },
+          }
         : {},
-    [project, statuses, members, cycles],
+    [project, statuses, members, cycles, milestones, templates],
   );
   const store = useIssueStore([], projectMap, {
     saveError: labels.ui.inline.saveError,
@@ -421,6 +441,31 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     await reloadLoadedPages().catch(() => setNotice(t('errors.generic')));
   };
 
+  const reloadMilestones = useCallback(async () => {
+    const rows = await api<{ rows: TrackMilestoneWithProgress[] }>(`/api/track/projects/${projectId}/milestones`)
+      .then((r) => r.rows)
+      .catch(() => null);
+    if (rows) setMilestones(rows);
+  }, [projectId]);
+  const reloadTemplates = useCallback(async () => {
+    const rows = await api<{ rows: TrackIssueTemplateRow[] }>(`/api/track/projects/${projectId}/templates`)
+      .then((r) => r.rows)
+      .catch(() => null);
+    if (rows) setTemplates(rows);
+  }, [projectId]);
+  const reloadRecurring = useCallback(async () => {
+    const rows = await api<{ rows: TrackRecurringIssueRow[] }>(`/api/track/projects/${projectId}/recurring`)
+      .then((r) => r.rows)
+      .catch(() => null);
+    if (rows) setRecurring(rows);
+  }, [projectId]);
+  // Milestones, plantillas y repeticiones no bloquean la carga de la página.
+  useEffect(() => {
+    void reloadMilestones();
+    void reloadTemplates();
+    void reloadRecurring();
+  }, [reloadMilestones, reloadTemplates, reloadRecurring, reloadKey]);
+
   const reloadCycles = useCallback(async () => {
     const rows = await api<{ rows: CycleWithProgress[] }>(`/api/track/projects/${projectId}/cycles`)
       .then((r) => r.rows)
@@ -431,7 +476,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   // El progreso de los cycles depende del status/cycle de los issues: lo
   // refrescamos (con debounce) cuando cambian.
   const progressSignature = useMemo(
-    () => issues.map((i) => `${i.id}:${i.status_id}:${i.cycle_id}`).join('|'),
+    () => issues.map((i) => `${i.id}:${i.status_id}:${i.cycle_id}:${i.milestone_id ?? ''}`).join('|'),
     [issues],
   );
   const firstSignature = useRef(true);
@@ -441,9 +486,12 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
       firstSignature.current = false;
       return;
     }
-    const timer = window.setTimeout(() => void reloadCycles(), 600);
+    const timer = window.setTimeout(() => {
+      void reloadCycles();
+      void reloadMilestones();
+    }, 600);
     return () => window.clearTimeout(timer);
-  }, [progressSignature, loading, reloadCycles]);
+  }, [progressSignature, loading, reloadCycles, reloadMilestones]);
 
   useEffect(() => {
     const sp = filtersToParams(filters, sort);
@@ -644,6 +692,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   const boardGroup = parseIssueGroup(group || 'status', PROJECT_BOARD_GROUPS) as BoardGroupBy;
 
   const current = activeCycle(cycles, today);
+  const nextMilestone = upcomingMilestone(milestones, today);
   const filtersActive = activeFilterCount(filters) > 0 || Boolean(filters.q);
   const projectEmpty = issuesTotal === 0 && issues.length === 0 && !filtersActive;
   const showTriageTab = Boolean(project.triage_enabled) || triageIssues.length > 0;
@@ -659,7 +708,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
           </>
         }
         description={
-          project.description || current ? (
+          project.description || current || nextMilestone ? (
             <>
               {project.description}
               {current && (
@@ -670,6 +719,22 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
                     total: current.total ?? 0,
                     end: formatDay(current.end_at.slice(0, 10), locale, today),
                   })}
+                </span>
+              )}
+              {nextMilestone && (
+                <span className="track-cycle-meta" data-testid="track-next-milestone">
+                  {nextMilestone.target_date
+                    ? t('milestones.headerMeta', {
+                        name: nextMilestone.name,
+                        done: nextMilestone.done,
+                        total: nextMilestone.total,
+                        date: formatDay(nextMilestone.target_date, locale, today),
+                      })
+                    : t('milestones.headerMetaNoDate', {
+                        name: nextMilestone.name,
+                        done: nextMilestone.done,
+                        total: nextMilestone.total,
+                      })}
                 </span>
               )}
             </>
@@ -915,13 +980,53 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
           onClose={() => setSettingsOpen(false)}
           panels={{
             cycles: (
-              <CyclesPanel
+              <>
+                <AutoCyclesSettings
+                  project={project}
+                  isAdmin={isAdmin}
+                  onSaved={async (updated) => {
+                    setProject(updated);
+                    await reloadCycles();
+                  }}
+                />
+                <CyclesPanel
+                  projectId={projectId}
+                  cycles={cycles}
+                  today={today}
+                  onChanged={async () => {
+                    await Promise.all([reloadCycles(), fetchIssues(1, false)]);
+                  }}
+                />
+              </>
+            ),
+            milestones: (
+              <MilestonesPanel
                 projectId={projectId}
-                cycles={cycles}
+                milestones={milestones}
                 today={today}
+                canDelete={isAdmin}
                 onChanged={async () => {
-                  await Promise.all([reloadCycles(), fetchIssues(1, false)]);
+                  await Promise.all([reloadMilestones(), fetchIssues(1, false)]);
                 }}
+              />
+            ),
+            templates: (
+              <TemplatesPanel
+                projectId={projectId}
+                templates={templates}
+                statuses={statuses}
+                members={members}
+                onChanged={reloadTemplates}
+              />
+            ),
+            recurring: (
+              <RecurringPanel
+                projectId={projectId}
+                rules={recurring}
+                statuses={statuses}
+                members={members}
+                today={today}
+                onChanged={reloadRecurring}
               />
             ),
             statuses: (

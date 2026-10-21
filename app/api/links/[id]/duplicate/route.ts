@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { duplicateLink, getUserLink, toLinkDto } from '@/lib/links';
+import { duplicateLink, getLinkForViewer, toLinkDto } from '@/lib/links';
+import { viewerOf } from '@/lib/link-folders';
 import { limitByIp } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
@@ -13,9 +14,12 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  const link = await getUserLink(user.id, id);
-  if (!link) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-  const result = await duplicateLink(link, realUserId(user));
+  const found = await getLinkForViewer(user.id, id, viewerOf(user), 'edit');
+  if ('status' in found) {
+    return NextResponse.json({ error: found.status === 403 ? 'forbidden' : 'not_found' }, { status: found.status });
+  }
+  const { link } = found;
+  const result = await duplicateLink(link, realUserId(user), viewerOf(user));
   if (!result.ok) {
     return NextResponse.json({ error: result.code }, { status: result.code === 'quota_exceeded' ? 429 : 400 });
   }

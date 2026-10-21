@@ -56,6 +56,7 @@ export interface TrackIssueWithStatus extends TrackIssueRow {
   assignee_email: string | null;
   cycle_name: string | null;
   child_count: number;
+  milestone_name?: string | null;
 }
 
 export interface TrackProjectWithStats extends TrackProjectRow {
@@ -418,6 +419,20 @@ export async function updateProject(
     fields.push('triage_enabled = ?');
     args.push(payload.triageEnabled ? 1 : 0);
   }
+  if (payload.cycleAuto !== undefined) {
+    fields.push('cycle_auto = ?');
+    args.push(payload.cycleAuto ? 1 : 0);
+    // Que el próximo tick vuelva a revisar los cycles.
+    fields.push('cycle_auto_day = NULL');
+  }
+  if (payload.cycleWeeks !== undefined) {
+    fields.push('cycle_weeks = ?');
+    args.push(payload.cycleWeeks);
+  }
+  if (payload.cycleName !== undefined) {
+    fields.push('cycle_name = ?');
+    args.push(payload.cycleName.trim());
+  }
 
   if (fields.length > 0) {
     fields.push('updated_at = ?');
@@ -721,6 +736,9 @@ export async function completeCycle(
     if (cycle.end_at.slice(0, 10) > today) {
       await tdb.prepare('UPDATE track_cycles SET end_at = ? WHERE id = ?').run(today, cycle.id);
     }
+    await tdb
+      .prepare('UPDATE track_cycles SET completed_at = COALESCE(completed_at, ?) WHERE id = ?')
+      .run(nowIso(), cycle.id);
     await tx.commit();
   } catch (e) {
     await tx.rollback();
@@ -762,11 +780,13 @@ function issueSelect(extraWhere = ''): string {
       u.name AS assignee_name,
       u.email AS assignee_email,
       c.name AS cycle_name,
+      ms.name AS milestone_name,
       (SELECT COUNT(*) FROM track_issues child WHERE child.parent_id = i.id) AS child_count
     FROM track_issues i
     LEFT JOIN track_statuses s ON s.id = i.status_id
     LEFT JOIN users u ON u.id = i.assignee_id
     LEFT JOIN track_cycles c ON c.id = i.cycle_id
+    LEFT JOIN track_milestones ms ON ms.id = i.milestone_id
     ${extraWhere}
   `;
 }
@@ -1004,7 +1024,7 @@ export async function getIssueByIdentifier(
  * (API, Chat, Flow, GitHub, agentes) entra a triage si el proyecto lo tiene
  * activo. Por defecto se asume origen externo.
  */
-export type TrackIssueSource = 'app' | 'api' | 'chat' | 'flow' | 'github' | 'agent';
+export type TrackIssueSource = 'app' | 'api' | 'chat' | 'flow' | 'github' | 'agent' | 'recurring';
 
 export async function createIssue(
   projectId: string,
@@ -1016,7 +1036,8 @@ export async function createIssue(
   const id = crypto.randomUUID();
   const source: TrackIssueSource = opts.source ?? 'api';
   const projectRow = await getProject(projectId);
-  const triage = source !== 'app' && projectRow?.triage_enabled ? 1 : 0;
+  // Los que se repiten los configuró un miembro: no pasan por triage.
+  const triage = source !== 'app' && source !== 'recurring' && projectRow?.triage_enabled ? 1 : 0;
   const ws = projectRow ? projectWorkspaceId(projectRow) : null;
   const labelsJson =
     payload.labels && ws ? JSON.stringify(await normalizeIssueLabels(ws, payload.labels)) : '[]';
@@ -1041,7 +1062,7 @@ export async function createIssue(
     try {
       await db
         .prepare(
-          'INSERT INTO track_issues (id, project_id, identifier, title, description, status_id, priority, assignee_id, creator_id, cycle_id, estimate, parent_id, start_date, due_date, labels, source, triage, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO track_issues (id, project_id, identifier, title, description, status_id, priority, assignee_id, creator_id, cycle_id, estimate, parent_id, start_date, due_date, labels, source, triage, milestone_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run(
           id,
@@ -1061,6 +1082,7 @@ export async function createIssue(
           labelsJson,
           source,
           triage,
+          payload.milestoneId ?? null,
           now,
           now,
         );
@@ -1204,6 +1226,10 @@ export async function updateIssue(
     fields.push('due_date = ?');
     args.push(payload.dueDate ?? null);
     activities.push({ type: 'due_date_change', meta: { from: existing.due_date ?? '', to: payload.dueDate ?? '' } });
+  }
+  if (payload.milestoneId !== undefined && payload.milestoneId !== (existing.milestone_id ?? null)) {
+    fields.push('milestone_id = ?');
+    args.push(payload.milestoneId ?? null);
   }
   // Sin activity type dedicado en el CHECK de track_issue_activity: se
   // actualiza la columna sin registrar actividad (igual que parent_id).

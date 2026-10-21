@@ -19,6 +19,7 @@ import { isToggleBlock } from '@/lib/docs-blocks';
 import DocsGlyph from './DocsGlyphs';
 import EmojiPicker from './EmojiPicker';
 import DocsDatabaseBlock from './DocsDatabaseBlock';
+import { DocsBoardPicker, DocsBoardPreview } from './DocsBoardEmbed';
 
 interface DocsBlockEditorProps {
   block: DocsBlock;
@@ -201,6 +202,35 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
               <span className="docs-file-name">{name}</span>
               <span className="docs-file-size">{formatFileSize(block.size)}</span>
             </a>
+          )}
+        </div>
+      );
+    }
+
+    if (block.type === 'board') {
+      // Pizarra embebida: bloque atómico como imagen/archivo. Sin pizarra
+      // elegida muestra el buscador; con pizarra, la vista previa en vivo.
+      return (
+        <div
+          ref={(node) => {
+            if (typeof ref === 'function') ref(node);
+            else if (ref) ref.current = node;
+          }}
+          className={`docs-block docs-board-block${focused ? ' focused' : ''}`}
+          data-index={index}
+          data-testid="docs-board-block"
+          tabIndex={0}
+          role="group"
+          aria-label={t('editor.board.label')}
+          onKeyDown={(e) => onKeyDown(index, e)}
+          onFocus={(e) => {
+            if (e.target === e.currentTarget) onFocus(index);
+          }}
+        >
+          {block.board_id ? (
+            <DocsBoardPreview boardId={block.board_id} onChange={() => onChange(index, { board_id: undefined })} />
+          ) : (
+            <DocsBoardPicker autoFocus={focused} onPick={(id) => onChange(index, { board_id: id })} />
           )}
         </div>
       );

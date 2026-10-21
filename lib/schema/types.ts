@@ -45,8 +45,38 @@ export interface LinkRow {
   created_by?: string | null;
   /** Id propio del cliente de la API v1 (único por workspace). */
   external_id?: string | null;
+  /** Carpeta (link_folders); null = sin carpeta. */
+  folder_id?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type LinkFolderAccess = 'none' | 'view' | 'edit';
+
+export interface LinkFolderRow {
+  id: string;
+  user_id: string;
+  name: string;
+  /** Acceso de los miembros sin excepción propia. */
+  default_access: LinkFolderAccess;
+  created_at: string;
+}
+
+export interface LinkFolderMemberRow {
+  folder_id: string;
+  user_id: string;
+  access: LinkFolderAccess;
+}
+
+export interface LinkAnalyticsShareRow {
+  id: string;
+  user_id: string;
+  token: string;
+  link_id: string | null;
+  tag: string | null;
+  created_by: string | null;
+  created_at: string;
+  revoked_at: string | null;
 }
 
 export interface ClickRow {
@@ -728,6 +758,8 @@ export interface CalendarUserRow {
   display_name: string | null;
   created_at: string;
   updated_at: string;
+  /** Links fijos del anfitrión, JSON { zoomUrl, teamsUrl, phone } (063). */
+  conferencing: string;
 }
 
 export interface CalendarEventTypeRow {
@@ -758,6 +790,12 @@ export interface CalendarEventTypeRow {
   currency: string;
   /** Reunión única: JSON de inicios ISO elegidos a mano (057). NULL = evento normal. */
   one_off_times: string | null;
+  /** Ubicaciones que puede elegir el invitado, JSON [{ kind, value }] (063). */
+  locations: string;
+  /** round_robin: un host libre del pool; collective: todos los hosts libres (063). */
+  scheduling: 'round_robin' | 'collective';
+  /** Lugares por horario (0 = una reserva por horario) (063). */
+  seats: number;
 }
 
 export interface CalendarScheduleRow {
@@ -857,6 +895,13 @@ export interface CalendarBookingRow {
   approval: 'none' | 'pending' | 'approved' | 'declined';
   /** Invitados extra del invitado principal, JSON string[] de emails (057). */
   guests: string;
+  /** Ubicación elegida ya resuelta (link, dirección o teléfono) y su tipo (063). */
+  location: string;
+  location_kind: string;
+  /** Co-anfitriones de un evento colectivo, JSON string[] de user ids (063). */
+  co_host_ids: string;
+  /** 1 = ocupa un lugar de un horario compartido (063). */
+  seated: 0 | 1;
 }
 
 export interface CalendarEventHostRow {
@@ -894,6 +939,12 @@ export interface CalendarRoutingFormRow {
   default_event_type_id: string | null;
   created_at: string;
   updated_at: string;
+  /** Si ninguna regla matchea: event (default_event_type_id) | url | message (063). */
+  fallback_action: 'event' | 'url' | 'message';
+  fallback_url: string;
+  fallback_message: string;
+  /** Las respuestas viajan al destino (página de reserva o URL) (063). */
+  pass_answers: 0 | 1;
 }
 
 export interface CalendarRoutingFieldRow {
@@ -913,8 +964,24 @@ export interface CalendarRoutingRuleRow {
   field_id: string;
   operator: 'is' | 'is_not' | 'contains' | 'truthy';
   value: string;
-  event_type_id: string;
+  /** NULL cuando la regla termina en una URL o un mensaje (063). */
+  event_type_id: string | null;
   position: number;
+  action: 'event' | 'url' | 'message';
+  target_url: string;
+  message: string;
+}
+
+export interface CalendarRoutingSubmissionRow {
+  id: string;
+  form_id: string;
+  answers: string; // JSON object
+  /** event | url | message | none */
+  outcome: string;
+  /** Slug del evento, URL o '' (mensaje / sin ruta). */
+  target: string;
+  rule_id: string | null;
+  created_at: string;
 }
 
 // ---------- Track ----------
@@ -931,6 +998,13 @@ export interface TrackProjectRow {
   status: 'active' | 'archived';
   /** 1 = los issues creados desde afuera entran a la cola de triage. */
   triage_enabled?: number;
+  /** 1 = Track crea los cycles solo (cada `cycle_weeks` semanas) y arrastra lo sin terminar. */
+  cycle_auto?: number;
+  cycle_weeks?: number;
+  /** Prefijo del nombre de los cycles automáticos ("Cycle" → "Cycle 4"). */
+  cycle_name?: string;
+  /** Último día (UTC) en que el tick revisó los cycles automáticos. */
+  cycle_auto_day?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -951,6 +1025,8 @@ export interface TrackCycleRow {
   name: string;
   start_at: string;
   end_at: string;
+  /** Cuándo se completó (a mano o por el arrastre automático). */
+  completed_at?: string | null;
   created_at: string;
 }
 
@@ -974,6 +1050,57 @@ export interface TrackIssueRow {
   source?: string;
   /** 1 = pendiente en la cola de triage del proyecto. */
   triage?: number;
+  milestone_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrackMilestoneRow {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string;
+  target_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrackIssueTemplateRow {
+  id: string;
+  project_id: string;
+  name: string;
+  title: string;
+  description: string;
+  status_id: string | null;
+  priority: 'urgent' | 'high' | 'medium' | 'low' | null;
+  assignee_id: string | null;
+  estimate: number | null;
+  labels: string; // JSON TrackLabel[]
+  created_at: string;
+  updated_at: string;
+}
+
+export type TrackRecurringFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+export interface TrackRecurringIssueRow {
+  id: string;
+  project_id: string;
+  creator_id: string;
+  title: string;
+  description: string;
+  status_id: string | null;
+  priority: 'urgent' | 'high' | 'medium' | 'low';
+  assignee_id: string | null;
+  labels: string; // JSON TrackLabel[]
+  frequency: TrackRecurringFrequency;
+  every: number;
+  start_on: string;
+  next_run_on: string;
+  due_days: number | null;
+  timezone: string;
+  active: number;
+  last_issue_id: string | null;
+  last_run_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1178,7 +1305,7 @@ export interface ChatCannedResponseRow {
 export interface NotificationRow {
   id: string;
   user_id: string;
-  type: 'mention' | 'assigned' | 'status_change' | 'comment' | 'subtask' | 'relation' | 'chat_message';
+  type: 'mention' | 'assigned' | 'status_change' | 'comment' | 'subtask' | 'relation' | 'chat_message' | 'issue_update' | 'track_reminder';
   title: string;
   body: string | null;
   href: string | null;
@@ -1186,6 +1313,8 @@ export interface NotificationRow {
   source_type: string;
   source_id: string;
   meta: string;
+  /** Pospuesto hasta esta fecha (no aparece en la bandeja ni cuenta como sin leer). */
+  snoozed_until?: string | null;
   created_at: string;
 }
 
@@ -1302,7 +1431,27 @@ export interface FlowFlowRow {
   failure_alerts?: number; // 0 | 1: email al dueño cuando una corrida falla
   auto_replay?: number; // 0 | 1: replay automático de corridas fallidas
   failure_email_at?: string | null; // último aviso de falla (tope: uno por hora)
+  pinned_data?: string; // JSON { nodeId: salida fijada } para probar un paso solo
   created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FlowTableRow {
+  id: string;
+  user_id: string; // workspace
+  name: string;
+  columns: string; // JSON FlowTableColumn[]
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FlowTableDataRow {
+  id: string;
+  table_id: string;
+  user_id: string;
+  data: string; // JSON { columna: valor }
   created_at: string;
   updated_at: string;
 }
@@ -1325,6 +1474,8 @@ export interface FlowCredentialRow {
   type: string;
   data: string; // cifrado (lib/flow-credentials.ts)
   hint: string; // pista enmascarada (últimos caracteres)
+  /** Secreto TOTP (2FA) cifrado con lib/secret-box; NULL si no tiene. */
+  totp_secret?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -1436,6 +1587,14 @@ export interface BoardRow {
   thumbnail: string | null; // SVG chico (opcional)
   version: number;
   share_token: string | null;
+  /** 'workspace' = todo el team la edita; 'restricted' = solo quien la creó, admins y board_members. */
+  access?: string;
+  /** Link de invitado con edición (/b/e/<token>), sin login. */
+  edit_token?: string | null;
+  /** Timer compartido del taller: fin (ISO) si corre, segundos restantes si está en pausa. */
+  timer_ends_at?: string | null;
+  timer_seconds?: number | null;
+  timer_paused_left?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -1603,7 +1762,7 @@ export interface AgentTestCaseRow {
 // ---------- Robots ----------
 
 export type RobotRunStatus = 'queued' | 'running' | 'success' | 'failed';
-export type RobotRunTrigger = 'manual' | 'flow' | 'schedule';
+export type RobotRunTrigger = 'manual' | 'flow' | 'schedule' | 'api' | 'agent';
 
 export interface RobotRow {
   id: string;
@@ -1649,6 +1808,10 @@ export interface RobotRunRow {
   duration_ms: number | null;
   warnings: number; // pasos / elementos de loop que fallaron con continueOnError
   failure: string | null; // JSON RobotRunFailure (captura, URL y DOM del paso que falló)
+  /** Lote de la API v1 (bulk) al que pertenece la corrida. */
+  batch_id?: string | null;
+  /** La salida cambió contra la corrida exitosa anterior (1/0; NULL sin comparar). */
+  changed?: number | null;
 }
 
 // ---------- CRM: formularios, scoring, equipos, cuotas ----------

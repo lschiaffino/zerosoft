@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
 import type { IssueLabel } from '@/lib/track-schema';
 import type { ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
@@ -12,6 +13,8 @@ interface IssuePropertiesPanelProps {
   issue: TrackIssueWithStatus;
   statuses: TrackStatusRow[];
   cycles: TrackCycleRow[];
+  /** Milestones del proyecto (sin milestones no se muestra el campo). */
+  milestones?: Array<{ id: string; name: string }>;
   members: ProjectMember[];
   locale: string;
   labels: {
@@ -59,6 +62,7 @@ export default function IssuePropertiesPanel({
   issue,
   statuses,
   cycles,
+  milestones = [],
   members,
   locale,
   labels,
@@ -68,6 +72,7 @@ export default function IssuePropertiesPanel({
   onChange,
   onError,
 }: IssuePropertiesPanelProps) {
+  const t = useTranslations('track');
   const [localIssue, setLocalIssue] = useState(issue);
 
   const issueLabels = parseLabels(localIssue.labels);
@@ -124,6 +129,14 @@ export default function IssuePropertiesPanel({
     update(
       { cycleId: cycleId || null },
       { cycle_id: cycleId || null, cycle_name: cycle?.name ?? null },
+    );
+  };
+
+  const setMilestone = (milestoneId: string) => {
+    const milestone = milestones.find((m) => m.id === milestoneId);
+    update(
+      { milestoneId: milestoneId || null },
+      { milestone_id: milestoneId || null, milestone_name: milestone?.name ?? null },
     );
   };
 
@@ -194,6 +207,25 @@ export default function IssuePropertiesPanel({
           ))}
         </select>
       </div>
+      {milestones.length > 0 && (
+        <div className="track-property">
+          <label htmlFor="prop-milestone">{t('milestones.property')}</label>
+          <select
+            id="prop-milestone"
+            className="select"
+            value={localIssue.milestone_id ?? ''}
+            onChange={(e) => setMilestone(e.target.value)}
+            data-testid="track-prop-milestone"
+          >
+            <option value="">{labels.none}</option>
+            {milestones.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="track-property">
         <span className="track-property-label">{labels.dueDate}</span>
         <span className="track-property-date">

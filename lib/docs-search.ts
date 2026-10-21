@@ -56,6 +56,7 @@ export function blockSearchText(block: DocsBlock): string {
     case 'file':
       return block.name ?? '';
     case 'divider':
+    case 'board':
       return '';
     default:
       return inlineHtmlToText(block.content ?? '');

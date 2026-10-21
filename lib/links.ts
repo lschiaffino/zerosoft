@@ -10,7 +10,7 @@ import { isValidUrl, normalizeUrl, shortDomain, shortUrl } from './utils';
 import { appHosts, isAppHost, isOwnDeploymentHost, normalizeHost } from './hosts';
 import { getVerifiedDomainByHost } from './link-domains';
 import { emitEvent } from './events';
-import type { BulkResultItem } from './link-bulk-csv';
+import type { BulkResultItem, BulkRow } from './link-bulk-csv';
 import {
   linkTargetingSchema,
   normalizeTargeting,
@@ -20,6 +20,14 @@ import {
   type LinkTargetingInput,
 } from './link-targeting';
 import { syncUtm } from './link-url';
+import {
+  accessAtLeast,
+  editableLinksSql,
+  folderAccess,
+  linkAccess,
+  visibleLinksSql,
+  type LinkViewer,
+} from './link-folders';
 
 /** LinkRow + el hostname de su dominio propio (null = dominio por defecto). */
 export type LinkWithDomain = LinkRow & { domain_hostname?: string | null };
@@ -95,6 +103,24 @@ export async function getUserLinkByRef(userId: string, ref: string): Promise<Lin
   return getUserLink(userId, ref);
 }
 
+/**
+ * Link del workspace con el acceso que pide quien mira (carpetas): 404 si no
+ * existe o no lo puede ver, 403 si lo ve pero no lo puede editar.
+ */
+export async function getLinkForViewer(
+  ownerId: string,
+  id: string,
+  viewer: LinkViewer,
+  need: 'view' | 'edit' = 'view',
+): Promise<{ link: LinkWithDomain; access: 'view' | 'edit' } | { status: 403 | 404 }> {
+  const link = await getUserLink(ownerId, id);
+  if (!link) return { status: 404 };
+  const access = await linkAccess(link, viewer);
+  if (access === 'none') return { status: 404 };
+  if (!accessAtLeast(access, need)) return { status: 403 };
+  return { link, access };
+}
+
 /** URL corta de un link, en su dominio propio si tiene. */
 export function linkShortUrl(link: Pick<LinkWithDomain, 'slug' | 'domain_hostname'>): string {
   return shortUrl(link.slug, link.domain_hostname ?? null);
@@ -113,6 +139,10 @@ export interface ListLinksParams {
   sort?: 'created' | 'clicks';
   /** Solo los links que creó esta persona (id real). */
   creator?: string;
+  /** Carpeta: id, o 'none' para los links sin carpeta. */
+  folder?: string;
+  /** Quién mira: oculta las carpetas a las que no tiene acceso. */
+  viewer?: LinkViewer;
   page?: number;
   pageSize?: number;
 }
@@ -148,6 +178,16 @@ export async function listLinks(
   if (params.creator) {
     where.push('l.created_by = ?');
     args.push(params.creator);
+  }
+  if (params.folder === 'none') where.push('l.folder_id IS NULL');
+  else if (params.folder) {
+    where.push('l.folder_id = ?');
+    args.push(params.folder);
+  }
+  const visible = visibleLinksSql(params.viewer);
+  if (visible.sql) {
+    where.push(visible.sql);
+    args.push(...visible.args);
   }
 
   const whereSql = where.join(' AND ');
@@ -265,6 +305,8 @@ export interface LinkDto {
   created_by: string | null;
   /** Id propio del cliente de la API (único por workspace). */
   external_id: string | null;
+  /** Carpeta (null = sin carpeta). */
+  folder_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -298,6 +340,7 @@ export function toLinkDto(link: LinkWithDomain): LinkDto {
     expired_url: link.expired_url ?? null,
     created_by: link.created_by ?? null,
     external_id: link.external_id ?? null,
+    folder_id: link.folder_id ?? null,
     created_at: link.created_at,
     updated_at: link.updated_at,
   };
@@ -482,6 +525,10 @@ export interface CreateLinkInput {
   createdBy?: string | null;
   /** Solo interno (duplicar): hash ya calculado en vez de `password`. */
   passwordHash?: string | null;
+  /** Carpeta del workspace (link_folders); quien crea tiene que poder editarla. */
+  folderId?: string | null;
+  /** Quién crea (para validar el acceso a la carpeta); sin él, acceso total (API v1). */
+  viewer?: LinkViewer;
 }
 
 /** Id externo: 1-255 caracteres sin espacios ni barras (va en la URL como ext_<id>). */
@@ -502,6 +549,7 @@ export type CreateLinkError =
   | 'empty_rule'
   | 'ab_needs_two'
   | 'ab_zero_weight'
+  | 'invalid_folder'
   | 'quota_exceeded';
 
 export type CreateLinkResult =
@@ -526,6 +574,12 @@ export async function createLink(
       .prepare('SELECT 1 AS x FROM link_domains WHERE id = ? AND user_id = ? AND verified = 1')
       .get(domainId, userId);
     if (!domain) return { ok: false, code: 'invalid_domain' };
+  }
+
+  const folderId = input.folderId || null;
+  if (folderId) {
+    const access = await folderAccess(userId, folderId, input.viewer ?? { id: userId, admin: true });
+    if (access !== 'edit') return { ok: false, code: 'invalid_folder' };
   }
 
   let slug: string;
@@ -593,8 +647,8 @@ export async function createLink(
     try {
       await db
         .prepare(
-          `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, utm_term, utm_content, og_title, og_description, og_image, forward_params, expired_url, targeting, external_id, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, utm_term, utm_content, og_title, og_description, og_image, forward_params, expired_url, targeting, external_id, created_by, folder_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -621,6 +675,7 @@ export async function createLink(
           targeting ? JSON.stringify(targeting) : null,
           externalId,
           input.createdBy || null,
+          folderId,
         );
       break;
     } catch (e) {
@@ -641,7 +696,13 @@ export async function createLink(
 // ---------- Bulk create ----------
 
 export interface BulkCreateInput {
-  urls: string[];
+  /** Filas (parseBulkLines) o URLs sueltas. */
+  rows?: BulkRow[];
+  urls?: string[];
+  /** Dominio propio verificado para todo el lote (null = el de zerosoft). */
+  domainId?: string | null;
+  folderId?: string | null;
+  viewer?: LinkViewer;
   tag?: string;
   utmSource?: string;
   utmMedium?: string;
@@ -649,7 +710,7 @@ export interface BulkCreateInput {
   createdBy?: string | null;
 }
 
-export { bulkResultsToCsv, type BulkResultItem } from './link-bulk-csv';
+export { bulkResultsToCsv, parseBulkLines, type BulkResultItem, type BulkRow } from './link-bulk-csv';
 
 /** Creates many links in one call. Returns per-line results preserving order. */
 export async function createLinksBulk(
@@ -658,15 +719,30 @@ export async function createLinksBulk(
 ): Promise<BulkResultItem[]> {
   const commonTag = input.tag?.trim();
   const results: BulkResultItem[] = [];
+  const rows: BulkRow[] = input.rows ?? (input.urls ?? []).map((url) => ({ url }));
+  let host: string | null = null;
+  if (input.domainId) {
+    const domain = (await getDb()
+      .prepare('SELECT hostname FROM link_domains WHERE id = ? AND user_id = ? AND verified = 1')
+      .get(input.domainId, userId)) as { hostname: string } | undefined;
+    if (!domain) return rows.map((r) => ({ url: r.url, short_url: '', status: 'error', error: 'invalid_domain' }));
+    host = domain.hostname;
+  }
 
-  for (const raw of input.urls) {
-    const url = raw.trim();
+  for (const row of rows) {
+    const url = row.url.trim();
+    const echo = { ...(row.slug ? { slug: row.slug } : {}), ...(row.title ? { title: row.title } : {}) };
     if (!url) {
-      results.push({ url, short_url: '', status: 'error', error: 'empty' });
+      results.push({ url, short_url: '', status: 'error', error: 'empty', ...echo });
       continue;
     }
     const result = await createLink(userId, {
       url,
+      slug: row.slug,
+      title: row.title,
+      domainId: input.domainId ?? null,
+      folderId: input.folderId ?? null,
+      viewer: input.viewer,
       tags: commonTag ? [commonTag] : undefined,
       utmSource: input.utmSource,
       utmMedium: input.utmMedium,
@@ -674,9 +750,9 @@ export async function createLinksBulk(
       createdBy: input.createdBy,
     });
     if (result.ok) {
-      results.push({ url, short_url: shortUrl(result.link.slug), status: 'created' });
+      results.push({ url, short_url: shortUrl(result.link.slug, host), status: 'created', ...echo });
     } else {
-      results.push({ url, short_url: '', status: 'error', error: result.code });
+      results.push({ url, short_url: '', status: 'error', error: result.code, ...echo });
     }
   }
 
@@ -709,6 +785,8 @@ export const linkPatchSchema = z.object({
   expiredUrl: z.string().max(2000).nullable().optional(),
   /** Id propio del cliente (API v1); null lo saca. */
   externalId: z.string().max(255).nullable().optional(),
+  /** Carpeta; null lo saca de la carpeta. */
+  folderId: z.string().max(64).nullable().optional(),
 });
 
 export type LinkPatch = z.infer<typeof linkPatchSchema>;
@@ -717,9 +795,20 @@ export type LinkPatch = z.infer<typeof linkPatchSchema>;
 export async function applyLinkPatch(
   link: LinkWithDomain,
   p: LinkPatch,
+  viewer?: LinkViewer,
 ): Promise<{ error: string; status: number } | null> {
   const sets: string[] = [];
   const args: Array<string | number | null> = [];
+
+  if (p.folderId !== undefined && p.folderId !== (link.folder_id ?? null)) {
+    // Mover a una carpeta pide poder editarla (el link de origen ya se validó).
+    if (p.folderId) {
+      const access = await folderAccess(link.user_id, p.folderId, viewer ?? { id: link.user_id, admin: true });
+      if (access !== 'edit') return { error: 'invalid_folder', status: 400 };
+    }
+    sets.push('folder_id = ?');
+    args.push(p.folderId || null);
+  }
 
   const utmTouched =
     p.utmSource !== undefined ||
@@ -896,7 +985,11 @@ export async function deleteLink(link: LinkWithDomain): Promise<void> {
  * UTM, tags, segmentación, vencimiento, límite, contraseña, vista previa y
  * fallback. No copia clicks, comentarios, el id externo ni el estado archivado.
  */
-export async function duplicateLink(link: LinkWithDomain, createdBy: string | null): Promise<CreateLinkResult> {
+export async function duplicateLink(
+  link: LinkWithDomain,
+  createdBy: string | null,
+  viewer?: LinkViewer,
+): Promise<CreateLinkResult> {
   const targeting = parseTargeting(link.targeting);
   return createLink(link.user_id, {
     url: link.url,
@@ -914,6 +1007,8 @@ export async function duplicateLink(link: LinkWithDomain, createdBy: string | nu
     expiredUrl: link.expired_url ?? null,
     targeting,
     createdBy,
+    folderId: link.folder_id ?? null,
+    viewer,
   });
 }
 
@@ -928,6 +1023,12 @@ export const linkBulkActionSchema = z.discriminatedUnion('action', [
     ids: z.array(z.string().min(1).max(64)).min(1).max(500),
     tag: z.string().trim().min(1).max(40),
   }),
+  z.object({
+    action: z.literal('move'),
+    ids: z.array(z.string().min(1).max(64)).min(1).max(500),
+    /** null = sin carpeta. */
+    folderId: z.string().min(1).max(64).nullable(),
+  }),
 ]);
 
 export type LinkBulkAction = z.infer<typeof linkBulkActionSchema>;
@@ -937,9 +1038,19 @@ export type LinkBulkAction = z.infer<typeof linkBulkActionSchema>;
  * `user_id = userId`: ids ajenos se ignoran (aislamiento de workspace).
  * Devuelve cuántos links se afectaron.
  */
-export async function bulkLinkAction(userId: string, input: LinkBulkAction): Promise<number> {
+export async function bulkLinkAction(userId: string, input: LinkBulkAction, viewer?: LinkViewer): Promise<number> {
   const db = getDb();
-  const ids = [...new Set(input.ids)];
+  let ids = [...new Set(input.ids)];
+  // Con carpetas: solo los links que quien mira puede editar.
+  const editable = editableLinksSql(viewer);
+  if (editable.sql) {
+    ids = (
+      (await db
+        .prepare(`SELECT l.id FROM links l WHERE l.user_id = ? AND l.id IN (${ids.map(() => '?').join(',')}) AND ${editable.sql}`)
+        .all(userId, ...ids, ...editable.args)) as Array<{ id: string }>
+    ).map((r) => r.id);
+    if (ids.length === 0) return 0;
+  }
   const ph = ids.map(() => '?').join(',');
   const linksByIds = async (only: string[]) =>
     only.length === 0
@@ -963,6 +1074,19 @@ export async function bulkLinkAction(userId: string, input: LinkBulkAction): Pro
     const before = await linksByIds(ids);
     const res = await db.prepare(`DELETE FROM links WHERE user_id = ? AND id IN (${ph})`).run(userId, ...ids);
     for (const l of before) await emitEvent(userId, 'link.deleted', { link: toLinkDto(l) });
+    return res.changes;
+  }
+  if (input.action === 'move') {
+    if (input.folderId && (await folderAccess(userId, input.folderId, viewer ?? { id: userId, admin: true })) !== 'edit') {
+      return 0;
+    }
+    const changing = (await linksByIds(ids)).filter((l) => (l.folder_id ?? null) !== input.folderId).map((l) => l.id);
+    if (changing.length === 0) return 0;
+    const res = await db
+      .prepare(
+        `UPDATE links SET folder_id = ?, updated_at = datetime('now') WHERE user_id = ? AND id IN (${changing.map(() => '?').join(',')})`,
+      )
+      .run(input.folderId, userId, ...changing);
     return res.changes;
   }
   // tag: se agrega a los tags existentes (máx. 5 por link, sin duplicar).

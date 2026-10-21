@@ -102,7 +102,8 @@
       "th1": "Título recolhível 1",
       "th2": "Título recolhível 2",
       "th3": "Título recolhível 3",
-      "callout": "Destaque"
+      "callout": "Destaque",
+      "board": "Quadro"
     },
     "breadcrumb": "Caminho",
     "closePanel": "Fechar painel",
@@ -136,6 +137,22 @@
       "typeNotAllowed": "{name} não é um arquivo .md nem .docx.",
       "tooLarge": "{name} tem mais de 4 MB.",
       "empty": "{name} não tem conteúdo para importar."
+    },
+    "board": {
+      "label": "Quadro incorporado",
+      "pick": "Incorporar um quadro",
+      "search": "Buscar quadros",
+      "loading": "Carregando…",
+      "loadError": "Não foi possível carregar seus quadros.",
+      "none": "Ainda não há quadros neste workspace.",
+      "noMatch": "Nenhum quadro corresponde.",
+      "create": "Criar um quadro",
+      "open": "Abrir {name}",
+      "openButton": "Abrir quadro",
+      "change": "Trocar",
+      "updated": "Editado {when}",
+      "empty": "Quadro vazio",
+      "noAccess": "Você não tem acesso a este quadro."
     }
   },
   "database": {
