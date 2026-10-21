@@ -67,8 +67,8 @@ describe('Diálogo de ganado', () => {
     const u = await makeUser('won-dry');
     const p = await createPipeline(u.id, 'Sales');
     const open = await createStage(u.id, p.id, { name: 'Open' });
-    const won = await createStage(u.id, p.id, { name: 'Won', isWon: true });
-    await updateStage(u.id, won!.id, { requiredFields: ['closeDate', 'amount'] });
+    const won = await createStage(u.id, p.id, { name: 'Won' });
+    await updateStage(u.id, won!.id, { isWon: true, requiredFields: ['closeDate', 'amount'] });
     const d = await createDeal(u.id, { name: 'Big one', pipelineId: p.id, stageId: open!.id });
     if (!d.ok) throw new Error('deal');
     session.user = { ...u, role: 'owner', team: null };
