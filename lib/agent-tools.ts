@@ -29,6 +29,8 @@ export interface AgentRunContext {
   toolCalls: AgentToolCallDto[];
   /** Se marca cuando el agente deriva a un humano. */
   handoff: boolean;
+  /** Motivo de la derivación (lo da el modelo o la palabra clave), para el disparador agent.handoff. */
+  handoffReason?: string;
   /** Todo lo que escribió el visitante en esta conversación (para validar datos que dice ser suyos). */
   visitorText?: string;
   /** Simulación: las herramientas que escriben no se ejecutan (playground, tests). */
@@ -559,6 +561,7 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
   if (on.has('handoff_to_human')) {
     const run = logged(ctx, 'handoff_to_human', async ({ reason }: { reason: string }) => {
       ctx.handoff = true;
+      ctx.handoffReason = String(reason ?? '').slice(0, 500);
       await getDb()
         .prepare('UPDATE agent_conversations SET handed_off = 1, updated_at = ? WHERE id = ?')
         .run(new Date().toISOString(), ctx.conversation.id);

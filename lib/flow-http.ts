@@ -5,9 +5,19 @@
 import { NextResponse } from 'next/server';
 import type { SessionUser } from './session';
 import { roleAtLeast } from './teams';
-import { EVENT_SAMPLES, FLOW_TEMPLATES, triggerNode, type FlowEventType, type FlowGraph } from './flow-schema';
-import { enqueueRun, getFlowRow, getRunWithSteps, parseJson } from './flow';
-import { executeRun } from './flow-engine';
+import type { z } from 'zod';
+import {
+  EVENT_SAMPLES,
+  FLOW_TEMPLATES,
+  isStepTestable,
+  triggerNode,
+  type flowStepTestSchema,
+  type FlowEventType,
+  type FlowGraph,
+  type FlowNode,
+} from './flow-schema';
+import { allowRun, enqueueRun, getFlowRow, getRunWithSteps, lastOutputs, parseJson, toFlowDto } from './flow';
+import { executeRun, testFlowStep, type StepTestResult } from './flow-engine';
 
 export function flowError(status: number, error: string, extra: Record<string, unknown> = {}): NextResponse {
   return NextResponse.json({ error, ...extra }, { status });
@@ -73,4 +83,36 @@ export async function runFlowNow(workspaceId: string, flowId: string, input: Rec
   if (!runId) return { ok: false as const, error: 'rate_limited' };
   await executeRun(runId);
   return { ok: true as const, run: await getRunWithSteps(workspaceId, runId) };
+}
+
+/**
+ * "Probar paso": corre un nodo solo. El nodo puede venir del editor (config sin
+ * guardar); los datos de prueba, del editor o, si no, de lo fijado en el flow
+ * y la última corrida (el trigger cae en sus datos de prueba).
+ */
+export async function testStepNow(
+  workspaceId: string,
+  flowId: string,
+  body: z.infer<typeof flowStepTestSchema>,
+): Promise<{ ok: true; result: StepTestResult } | { ok: false; error: 'not_found' | 'node_not_found' | 'step_not_testable' | 'rate_limited' }> {
+  const row = await getFlowRow(workspaceId, flowId);
+  if (!row) return { ok: false, error: 'not_found' };
+  const graph = parseJson<FlowGraph>(row.graph, { nodes: [], edges: [] });
+  const saved = graph.nodes.find((n) => n.id === body.nodeId);
+  const node: FlowNode | null = body.node
+    ? { id: body.nodeId, type: body.node.type as FlowNode['type'], position: { x: 0, y: 0 }, config: body.node.config }
+    : (saved ?? null);
+  if (!node) return { ok: false, error: 'node_not_found' };
+  if (!isStepTestable(node.type)) return { ok: false, error: 'step_not_testable' };
+  if (!(await allowRun(workspaceId))) return { ok: false, error: 'rate_limited' };
+  let sample = body.context;
+  if (!sample) {
+    const { pins } = toFlowDto(row);
+    const trigger = triggerNode(graph);
+    sample = {
+      trigger: (trigger && pins[trigger.id]) ?? testInput(graph, undefined),
+      nodes: { ...(await lastOutputs(workspaceId, flowId)), ...pins },
+    };
+  }
+  return { ok: true, result: await testFlowStep(row, node, sample) };
 }

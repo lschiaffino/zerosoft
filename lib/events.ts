@@ -8,6 +8,7 @@
  * Nunca lanza: un evento no puede romper la operación que lo originó.
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { after } from 'next/server';
 import { emitWebhook, WEBHOOK_EVENTS, type WebhookEvent } from './webhooks';
 import type { FlowEventType } from './flow-schema';
 
@@ -29,6 +30,20 @@ export const flowChain = new AsyncLocalStorage<FlowChain>();
 export interface EmitOptions {
   /** Datos extra solo para Flow (no cambian el payload del webhook). */
   extra?: Record<string, unknown>;
+}
+
+/**
+ * Emite después de responder (after) si hay un request en curso; si no
+ * (scripts, tests), en el momento. Para rutas que no deben esperar a Flow.
+ */
+export function emitEventSoon(workspaceId: string, type: FlowEventType, data: unknown, opts: EmitOptions = {}): Promise<void> {
+  const job = () => emitEvent(workspaceId, type, data, opts);
+  try {
+    after(job);
+    return Promise.resolve();
+  } catch {
+    return job();
+  }
 }
 
 export async function emitEvent(

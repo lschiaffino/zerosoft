@@ -31,6 +31,8 @@ export interface EditorRefs {
   agents: Array<{ id: string; name: string }>;
   /** Robots del workspace con sus entradas (nodo Robots: correr robot). */
   robots?: Array<{ id: string; name: string; inputs: RobotRefInput[] }>;
+  /** Tablas de datos del workspace con sus columnas (nodo Tabla de datos). */
+  tables?: Array<{ id: string; name: string; columns: Array<{ name: string; type: string }> }>;
   codeAvailable: boolean;
   flowId: string;
 }
@@ -48,6 +50,8 @@ interface Props {
   onCredentialCreated: (credential: { id: string; name: string; type: string }) => void;
   /** Extra para triggers (URL del webhook, próxima corrida). */
   extra?: React.ReactNode;
+  /** "Probar paso" (o fijar los datos de prueba del trigger), al final del panel. */
+  test?: React.ReactNode;
 }
 
 type T = ReturnType<typeof useTranslations>;
@@ -250,6 +254,7 @@ export default function NodeConfigPanel({
   onDelete,
   onCredentialCreated,
   extra,
+  test,
 }: Props) {
   const t = useTranslations('flow');
   const def = NODE_DEFS[type];
@@ -472,6 +477,44 @@ export default function NodeConfigPanel({
                 </Link>
               </p>
             ) : null}
+          </>
+        );
+      }
+      case 'tableRef': {
+        const tables = refs.tables ?? [];
+        const current = String(value ?? '');
+        const picked = tables.find((x) => x.id === current) ?? null;
+        const missing = current !== '' && !picked;
+        return (
+          <>
+            <select
+              id={id}
+              className="select"
+              value={current}
+              disabled={readOnly}
+              aria-invalid={missing && !current.includes('{{') ? true : undefined}
+              onChange={(e) => set(field.key, e.target.value)}
+            >
+              <option value="">{t('editor.pickTable')}</option>
+              {missing && <option value={current}>{current.includes('{{') ? current : t('editor.tableMissing')}</option>}
+              {tables.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+            <p className="ui-help">
+              {picked
+                ? picked.columns.length
+                  ? t('editor.tableColumns', { list: picked.columns.map((c) => c.name).join(', ') })
+                  : t('editor.tableNoColumns')
+                : tables.length === 0
+                  ? t('editor.noTables')
+                  : null}{' '}
+              <Link href={picked ? `/app/flow/tables/${picked.id}` : '/app/flow/tables'} className="flow-link">
+                {picked ? t('editor.openTable') : t('editor.manageTables')}
+              </Link>
+            </p>
           </>
         );
       }
@@ -704,7 +747,11 @@ export default function NodeConfigPanel({
       )}
       {type === 'data.merge' && <p className="ui-help">{t('editor.mergeHint')}</p>}
       {type === 'trigger.schedule' && <p className="ui-help">{t('editor.scheduleGranularity')}</p>}
+      {type === 'logic.delay' && config.mode === 'resume' && <p className="ui-help">{t('editor.resumeHint')}</p>}
+      {type === 'logic.delay' && config.mode === 'until' && <p className="ui-help">{t('editor.untilHint')}</p>}
       {type === 'logic.delay' && <p className="ui-help">{t('editor.delayGranularity')}</p>}
+      {type === 'logic.approval' && <p className="ui-help">{t('editor.approvalHint')}</p>}
+      {type === 'data.table' && <p className="ui-help">{t(`editor.tableHint.${String(config.operation ?? 'find')}`)}</p>}
       {type === 'trigger.stripe' && <p className="ui-help">{t('editor.stripeHint')}</p>}
       {type === 'trigger.webhook' && <p className="ui-help">{t('editor.webhookAuthHint')}</p>}
       {type === 'trigger.webhook' && config.respond === 'reply_node' && <p className="ui-help">{t('editor.webhookReplyHint')}</p>}
@@ -740,6 +787,7 @@ export default function NodeConfigPanel({
           )}
         </AdvancedSection>
       )}
+      {test}
       {!readOnly && (
         <div className="flow-config-foot">
           <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={onDelete}>

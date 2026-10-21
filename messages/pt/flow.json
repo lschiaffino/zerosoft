@@ -1,7 +1,7 @@
 {
   "title": "Flow",
   "subtitle": "Automações entre todos os apps da zerosoft e qualquer serviço com API.",
-  "sidebar": { "flows": "Flows", "credentials": "Credenciais" },
+  "sidebar": { "flows": "Flows", "credentials": "Credenciais", "tables": "Tabelas" },
   "list": {
     "emptyTemplates": "Ver modelos",
     "emptyTitle": "Ainda não há flows",
@@ -132,7 +132,45 @@
     "failureAlerts": "Me avisar por email quando uma execução falhar",
     "failureAlertsHint": "Vai para o dono do flow. No máximo um email por flow por hora, com um link para fazer replay.",
     "autoReplay": "Fazer replay automático das execuções que falharem",
-    "autoReplayHint": "Uma vez, 15 minutos depois da falha, a partir do passo que falhou. Testes não são repetidos."
+    "autoReplayHint": "Uma vez, 15 minutos depois da falha, a partir do passo que falhou. Testes não são repetidos.",
+    "testStepTitle": "Testar este passo",
+    "testStepHint": "Executa só este passo com os dados de teste abaixo. As ações são reais: os emails saem e os registros são criados.",
+    "testStepSample": "Dados de teste (JSON)",
+    "testStepSampleHint": "trigger são os dados do gatilho e nodes tem a saída de cada passo anterior, preenchida com o que está fixado e a última execução.",
+    "testStepRun": "Testar passo",
+    "testStepRunning": "Testando…",
+    "testStepResult": "{status} em {ms} ms",
+    "testStepStatus": {
+      "success": "Funcionou",
+      "skipped": "Parou aqui",
+      "failed": "Falhou"
+    },
+    "testStepHandles": "Seguiria por: {list}",
+    "testStepNotTestable": "Esperas, aprovações, loops e sub-flows não são testados sozinhos. Use Testar flow.",
+    "pinOutput": "Fixar esta saída",
+    "pinned": "Fixada. Os testes dos passos seguintes a usam como dado de teste.",
+    "pinSampleTitle": "Dados de teste",
+    "pinTriggerHint": "Fixe dados do gatilho para testar os próximos passos com eles. Testar flow também começa deles.",
+    "pinTriggerSampleHint": "Edite para ficar parecido com o que o gatilho envia e fixe.",
+    "pinSample": "Fixar dados de teste",
+    "pinnedTrigger": "Fixados. Testar flow e os testes de passos começam destes dados.",
+    "unpin": "Soltar",
+    "resumeHint": "Envie '{{run.resumeUrl}}' de um passo anterior (um email ou uma requisição HTTP). Um GET ou POST nessa URL continua a execução e o body vira a saída deste passo.",
+    "untilHint": "Aceita uma data como 2026-03-01 09:00, uma data ISO ou uma variável como '{{trigger.startsAt}}'. Uma data passada continua na hora. Até um ano à frente.",
+    "approvalHint": "Cada pessoa recebe um link para uma página onde aprova ou recusa, com um comentário opcional. Vale a primeira resposta.",
+    "pickTable": "Escolha uma tabela",
+    "tableMissing": "Tabela não encontrada",
+    "tableColumns": "Colunas: {list}.",
+    "tableNoColumns": "Esta tabela ainda não tem colunas.",
+    "noTables": "Ainda não há tabelas de dados.",
+    "openTable": "Abrir tabela",
+    "manageTables": "Gerenciar tabelas",
+    "tableHint": {
+      "find": "Retorna as linhas em que a coluna é igual ao valor: '{{nodes.<id>.output.found}}' e '{{nodes.<id>.output.row}}'. Com a coluna vazia, lê as primeiras linhas.",
+      "insert": "Adiciona uma linha com estes valores. As colunas que você não preencher ficam vazias.",
+      "upsert": "Atualiza a primeira linha em que a coluna é igual ao valor, ou adiciona uma. Serve para guardar estado ou evitar duplicados.",
+      "delete": "Apaga todas as linhas em que a coluna é igual ao valor."
+    }
   },
   "categories": {
     "trigger": "Gatilho",
@@ -155,7 +193,18 @@
     "logic_if": { "title": "Se", "desc": "Divide o flow em dois: verdadeiro e falso." },
     "logic_switch": { "title": "Switch", "desc": "Escolhe um ramo comparando um valor com uma lista de casos." },
     "logic_filter": { "title": "Filtro", "desc": "Continua só se as condições forem atendidas. Senão, o ramo para." },
-    "logic_delay": { "title": "Aguardar", "desc": "Espera antes de continuar (até 30 dias)." },
+    "logic_delay": {
+      "title": "Aguardar",
+      "desc": "Espera um tempo, até uma data ou até alguém chamar a URL de resume da execução.",
+      "fields": {
+        "mode": "Aguardar",
+        "until": "Data e hora",
+        "timezone": "Fuso horário (datas sem fuso)",
+        "timeoutAmount": "Tempo limite",
+        "timeoutUnit": "Unidade",
+        "onTimeout": "Se vencer"
+      }
+    },
     "logic_loop": { "title": "Loop", "desc": "Roda o ramo \"cada item\" uma vez por item de uma lista, em ordem. Depois segue por \"concluído\"." },
     "data_set": { "title": "Definir campos", "desc": "Monta um objeto com campos novos a partir de modelos." },
     "data_json_parse": {
@@ -229,6 +278,32 @@
       "title": "Track: atualizar issue",
       "desc": "Muda o status, a prioridade, o responsável ou o vencimento de um issue deste workspace e pode adicionar um comentário.",
       "fields": { "issue": "Issue (ID ou identificador, ex. ENG-12)", "status": "Status (nome)", "assignee": "Responsável (email, ou none)", "comment": "Comentário", "title": "Novo título", "dueDate": "Vencimento" }
+    },
+    "logic_approval": {
+      "title": "Aprovação",
+      "desc": "Pausa a execução e pede aprovação por email (e no Slack, se você escolher uma credencial). Segue por Aprovado ou Recusado.",
+      "fields": {
+        "to": "Quem aprova (emails separados por vírgula)",
+        "subject": "Assunto",
+        "message": "O que precisa ser aprovado",
+        "slackCredentialId": "Pedir também no Slack (opcional)",
+        "slackChannel": "Canal do Slack",
+        "timeoutAmount": "Tempo limite",
+        "timeoutUnit": "Unidade",
+        "onTimeout": "Se ninguém responder"
+      }
+    },
+    "data_table": {
+      "title": "Tabela de dados",
+      "desc": "Busca, adiciona, atualiza ou apaga linhas de uma tabela de dados do workspace. Serve para buscas, para evitar duplicados ou para guardar estado entre execuções.",
+      "fields": {
+        "tableId": "Tabela",
+        "operation": "Operação",
+        "column": "Coluna a comparar",
+        "value": "Valor a comparar",
+        "values": "Valores (coluna → valor)",
+        "limit": "Máximo de linhas"
+      }
     }
   },
   "fields": {
@@ -349,7 +424,18 @@
     "get_only": "GET",
     "get_post": "GET e POST",
     "immediately": "Na hora (202)",
-    "reply_node": "Com o passo Responder ao webhook"
+    "reply_node": "Com o passo Responder ao webhook",
+    "duration": "Um tempo fixo",
+    "until": "Até uma data",
+    "resume": "Uma chamada de resume",
+    "continue": "Continuar",
+    "fail": "Fazer a execução falhar",
+    "reject": "Recusar",
+    "approve": "Aprovar",
+    "find": "Buscar linhas",
+    "insert": "Adicionar uma linha",
+    "upsert": "Adicionar ou atualizar",
+    "delete": "Apagar linhas"
   },
   "handles": {
     "out": "Próximo",
@@ -359,7 +445,9 @@
     "done": "Concluído",
     "default": "Padrão",
     "case": "Caso {n}",
-    "error": "Erro"
+    "error": "Erro",
+    "approved": "Aprovado",
+    "rejected": "Recusado"
   },
   "events": {
     "booking_created": "Cal: reserva criada",
@@ -392,7 +480,24 @@
     "message_received": "Chat: mensagem recebida",
     "page_created": "Docs: página criada",
     "robot_run_finished": "Robots: execução concluída",
-    "robot_run_failed": "Robots: execução falhou"
+    "robot_run_failed": "Robots: execução falhou",
+    "booking_declined": "Cal: solicitação de reserva recusada",
+    "booking_refunded": "Cal: pagamento reembolsado",
+    "conversation_assigned": "Chat: conversa atribuída",
+    "conversation_resolved": "Chat: conversa resolvida",
+    "conversation_rated": "Chat: conversa avaliada",
+    "note_created": "Notes: nota criada",
+    "note_tagged": "Notes: etiqueta adicionada a uma nota",
+    "note_trashed": "Notes: nota movida para a lixeira",
+    "board_created": "Board: quadro criado",
+    "board_deleted": "Board: quadro excluído",
+    "board_comment_created": "Board: novo comentário",
+    "agent_conversation_started": "Agents: conversa iniciada",
+    "agent_handoff": "Agents: transferiu para uma pessoa",
+    "agent_feedback": "Agents: resposta avaliada",
+    "task_created": "CRM: tarefa criada",
+    "task_completed": "CRM: tarefa concluída",
+    "task_due": "CRM: tarefa vencida"
   },
   "ops": {
     "equals": "é igual a",
@@ -465,7 +570,11 @@
     "invalid_email": "O destinatário não é um email válido. Revise no editor.",
     "invalid_json": "O body não é um JSON válido. Revise no editor.",
     "http": "O serviço respondeu com o status {status}. Revise a URL e os dados que este passo envia.",
-    "rate_limited": "O serviço pediu para esperar. Tente de novo em alguns minutos."
+    "rate_limited": "O serviço pediu para esperar. Tente de novo em alguns minutos.",
+    "invalid_date": "Não foi possível ler a data ou falta mais de um ano. Use uma data como 2026-03-01 09:00.",
+    "table_not_found": "A tabela de dados deste passo não existe mais. Escolha outra no editor.",
+    "table_value": "Um valor não corresponde ao tipo da coluna ou a coluna não existe. Confira os valores no editor.",
+    "table_full": "A tabela de dados está cheia. Apague linhas ou use outra tabela."
   },
   "errors": {
     "generic": "Algo deu errado. Tente de novo.",
@@ -495,7 +604,11 @@
     "node_is_trigger": "Reexecute a partir de um passo depois do trigger.",
     "node_in_loop": "Passos dentro de um Loop não são reexecutados sozinhos. Reexecute a partir do Loop.",
     "run_not_cancellable": "A execução já está rodando ou terminou: não dá para cancelar.",
-    "run_not_failed": "Só dá para fazer replay de execuções que falharam."
+    "run_not_failed": "Só dá para fazer replay de execuções que falharam.",
+    "approval_in_loop": "Não é possível usar Aprovação dentro de um Loop.",
+    "step_not_testable": "Este passo não pode ser testado sozinho.",
+    "pin_too_large": "Esses dados são grandes demais para fixar (máximo 64 KB por passo).",
+    "input_too_large": "Os dados de teste são grandes demais."
   },
   "onError": {
     "stop": "Parar o flow",
@@ -614,5 +727,95 @@
     "days": "{n} dias",
     "retentionHint": "A cada hora, execuções e passos mais antigos que isso são apagados. A última execução de cada flow fica sempre.",
     "saved": "Salvo"
+  },
+  "approvalEmail": {
+    "subject": "Aprovação pendente: {flow}",
+    "heading": "Aprovação pendente",
+    "intro": "O flow \"{flow}\" está esperando sua aprovação.",
+    "approve": "Aprovar",
+    "reject": "Recusar",
+    "expires": "Se ninguém responder até {time}, o flow continua sozinho conforme configurado."
+  },
+  "approvalPage": {
+    "title": "Pedido de aprovação",
+    "eyebrow": "Flow · {flow}",
+    "comment": "Comentário",
+    "optional": "opcional",
+    "approve": "Aprovar",
+    "reject": "Recusar",
+    "confirmApprove": "Você abriu o link para aprovar. Confirme abaixo.",
+    "confirmReject": "Você abriu o link para recusar. Confirme abaixo.",
+    "expires": "Aberto até {time}.",
+    "decidedAt": "Respondido em {time}.",
+    "decidedAuto": "Ninguém respondeu a tempo. Decidido automaticamente em {time}.",
+    "state": {
+      "approved": "Aprovado",
+      "rejected": "Recusado",
+      "expired": "Este pedido venceu sem resposta.",
+      "closed": "Este pedido não está mais aberto.",
+      "pending": "Esperando resposta"
+    },
+    "errors": {
+      "not_waiting": "Este pedido já foi respondido ou venceu.",
+      "busy": "O flow está ocupado. Tente de novo em alguns segundos.",
+      "rate_limited": "Tentativas demais. Tente de novo em um minuto.",
+      "generic": "Algo deu errado. Tente de novo."
+    }
+  },
+  "tables": {
+    "title": "Tabelas de dados",
+    "subtitle": "Linhas que seus flows podem buscar, adicionar e atualizar: buscas, duplicados e estado entre execuções. Até {rows} linhas por tabela.",
+    "create": "Criar tabela",
+    "newTitle": "Nova tabela de dados",
+    "name": "Nome",
+    "namePlaceholder": "Pedidos processados",
+    "columns": "Colunas",
+    "rows": "Linhas",
+    "updated": "Atualizada",
+    "delete": "Apagar",
+    "edit": "Editar",
+    "confirmDelete": "Apagar a tabela \"{name}\" e todas as linhas? Os flows que a usam vão falhar.",
+    "confirmDeleteRow": "Apagar esta linha?",
+    "emptyTitle": "Ainda não há tabelas de dados",
+    "emptyHint": "Crie uma tabela e use o passo Tabela de dados em um flow para buscar, adicionar ou atualizar linhas.",
+    "adminOnly": "Só admins e donos do workspace podem criar ou editar tabelas.",
+    "addColumn": "Adicionar coluna",
+    "columnName": "Nome da coluna",
+    "columnType": "Tipo da coluna",
+    "columnHint": "Os nomes usam letras, números e _ e começam com uma letra, como email ou order_id.",
+    "removeColumnHint": "Remover uma coluna esconde os valores dela. Se você adicionar de novo com o mesmo nome, eles voltam.",
+    "saveColumns": "Salvar",
+    "saved": "Salvo.",
+    "types": {
+      "text": "Texto",
+      "number": "Número",
+      "boolean": "Sim / não"
+    },
+    "rowCount": "{n, plural, one {# linha} other {# linhas}} de {max}",
+    "useHint": "Escolha esta tabela em um passo Tabela de dados. O ID dela é {id}.",
+    "addRow": "Adicionar linha",
+    "newRow": "Nova linha",
+    "editRow": "Editar linha",
+    "saveRow": "Salvar linha",
+    "emptyRowsTitle": "Ainda não há linhas",
+    "emptyRowsHint": "Adicione linhas à mão ou a partir de um flow com o passo Tabela de dados.",
+    "noColumnsHint": "Primeiro adicione colunas (em Avançado, abaixo).",
+    "loadMore": "Carregar mais {n}",
+    "yes": "Sim",
+    "no": "Não",
+    "empty": "Vazio",
+    "errors": {
+      "duplicate_name": "Já existe uma tabela com esse nome.",
+      "too_many_tables": "Este workspace chegou ao limite de 50 tabelas.",
+      "table_full": "Esta tabela está cheia. Apague linhas para adicionar mais.",
+      "row_too_large": "Esta linha é grande demais (máximo 16 KB).",
+      "invalid_value": "O valor de {column} não corresponde ao tipo.",
+      "unknown_column": "A coluna {column} não existe.",
+      "invalid_name": "Dê um nome à tabela.",
+      "invalid_column": "Confira os nomes das colunas: letras, números e _, começando com uma letra.",
+      "duplicate_column": "Há duas colunas com o mesmo nome.",
+      "reserved_column": "id, createdAt e updatedAt são reservados. Use outro nome de coluna.",
+      "not_found": "Esta tabela não existe mais."
+    }
   }
 }

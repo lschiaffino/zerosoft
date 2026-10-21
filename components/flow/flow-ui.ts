@@ -20,6 +20,10 @@ const EVENT_LINES: Array<[string, ProductKey]> = [
   ['message.', 'chat'],
   ['page.', 'docs'],
   ['robot.', 'robots'],
+  ['note.', 'notes'],
+  ['board.', 'board'],
+  ['agent.', 'agents'],
+  ['task.', 'crm'],
 ];
 
 const NODE_LINES: Partial<Record<FlowNodeType, ProductKey>> = {
@@ -180,6 +184,10 @@ export function stepErrorInfo(raw: string): { code: string; key: string; values?
   if (code === 'invalid_email' || code === 'missing_recipient') return { code, key: 'invalid_email', inEditor: true };
   if (code === 'invalid_json') return { code, key: 'invalid_json', inEditor: true };
   if (code === 'rate_limited' || code === 'slack_ratelimited') return { code, key: 'rate_limited', inEditor: false };
+  if (code === 'invalid_date' || code === 'wait_too_long') return { code, key: 'invalid_date', inEditor: true };
+  if (code === 'table_not_found') return { code, key: 'table_not_found', inEditor: true };
+  if (code === 'table_invalid_value' || code === 'table_unknown_column') return { code, key: 'table_value', inEditor: true };
+  if (code === 'table_full' || code === 'table_row_too_large') return { code, key: 'table_full', inEditor: false };
   if (code.startsWith('missing_')) return { code, key: 'missing_field', inEditor: true };
   return null;
 }

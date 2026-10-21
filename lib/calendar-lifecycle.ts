@@ -102,6 +102,8 @@ export async function afterBookingDeclined(
   const notice = opts.expired ? notConfirmedReason(booking.locale) : reason;
   await safely('notify-declined', () => notifyBooking(booking, 'declined', { reason: notice }), undefined);
   await emitEvent(eventType.user_id, 'booking.cancelled', bookingPayload(booking, eventType));
+  // Solo Flow: distingue el rechazo (o el vencimiento sin respuesta) de una cancelación.
+  await emitEvent(eventType.user_id, 'booking.declined', { ...bookingPayload(booking, eventType), expired: opts.expired === true });
 }
 
 export async function afterBookingRescheduled(
@@ -165,6 +167,8 @@ export async function afterBookingNoShow(booking: CalendarBookingRow): Promise<v
 /** Pago que llegó tarde y se reembolsó: la reserva sigue cancelada, se avisa al invitado y al anfitrión. */
 export async function afterPaymentRefunded(booking: CalendarBookingRow): Promise<void> {
   await safely('notify-refunded', () => notifyBooking(booking, 'cancelled', { reason: refundReason(booking.locale) }), undefined);
+  const eventType = await getEventTypeById(booking.event_type_id);
+  if (eventType) await emitEvent(eventType.user_id, 'booking.refunded', bookingPayload(booking, eventType));
 }
 
 /**

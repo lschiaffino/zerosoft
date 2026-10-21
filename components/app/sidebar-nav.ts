@@ -88,6 +88,7 @@ export interface SidebarLabels {
   };
   flow: {
     flows: string;
+    tables: string;
     credentials: string;
   };
   notes: { all: string; newNote: string; clip: string };
@@ -329,7 +330,13 @@ export function buildNav(
       return [
         {
           items: [
-            { href: '/app/flow', label: labels.flow.flows, active: at('/app/flow') && !at('/app/flow/credentials'), icon: 'flow' },
+            {
+              href: '/app/flow',
+              label: labels.flow.flows,
+              active: at('/app/flow') && !at('/app/flow/credentials') && !at('/app/flow/tables'),
+              icon: 'flow',
+            },
+            { href: '/app/flow/tables', label: labels.flow.tables, active: at('/app/flow/tables'), icon: 'lists' },
             { href: '/app/flow/credentials', label: labels.flow.credentials, active: at('/app/flow/credentials'), icon: 'settings' },
           ],
         },

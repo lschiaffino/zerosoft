@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { createBoard, listBoards } from '@/lib/boards';
+import { emitEventSoon } from '@/lib/events';
 import { boardCreateSchema } from '@/lib/boards-schema';
 import { buildTemplateScene, type TemplateText } from '@/lib/board-templates';
 import { routing } from '@/i18n/routing';
@@ -46,5 +47,6 @@ export async function POST(req: NextRequest) {
     scene = buildTemplateScene(template, templateText(locale));
   }
   const board = await createBoard(user.id, personId, name ?? '', { scene });
+  await emitEventSoon(user.id, 'board.created', { board: { id: board.id, name: board.name }, createdBy: personId });
   return NextResponse.json(board, { status: 201 });
 }

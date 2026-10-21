@@ -14,11 +14,13 @@
  * Server-only.
  */
 import { aiEnabled, aiGenerateText, AiError } from './ai';
+import { isValidTimezone, tzOffsetMinutes } from './cron';
 import { getDb, type FlowFlowRow, type FlowRunRow, type FlowStepRow } from './db';
 import { sendEmail } from './email';
 import { flowChain } from './events';
 import {
   enqueueRun,
+  getFlowSettings,
   INPUT_TOO_LARGE_KEY,
   kickFlowWorker,
   MAX_FLOW_CHAIN_DEPTH,
@@ -38,6 +40,7 @@ import {
   gmailNode,
   googleSheetsNode,
   notionNode,
+  slackApprovalMessage,
   slackNode,
   stripeNode,
   telegramNode,
@@ -55,6 +58,16 @@ import {
   type FlowNode,
 } from './flow-schema';
 import { evalConditions, renderDeep, renderString, renderValue, stringify, type Condition } from './flow-template';
+import {
+  APPROVAL_TIMEOUT,
+  approvalStrings,
+  approvalUrl,
+  buildApprovalEmail,
+  MAX_APPROVERS,
+  RESUME_BODY_LIMIT,
+  RESUME_TIMEOUT,
+  resumeUrl,
+} from './flow-waits';
 import { rateLimit } from './rate-limit';
 import { safeFetch, UnsafeUrlError } from './safe-fetch';
 
@@ -158,7 +171,8 @@ function templateCtx(state: RunState, loop?: LoopScope): Record<string, unknown>
     trigger: state.ctx.trigger,
     nodes: state.ctx.nodes,
     flow: { id: state.flow.id, name: state.flow.name },
-    run: { id: state.run.id },
+    // resumeUrl: retoma un Esperar en modo "hasta una llamada" de esta corrida.
+    run: { id: state.run.id, resumeUrl: resumeUrl(state.run.id) },
     ...(loop ? { loop } : {}),
   };
 }
@@ -677,6 +691,175 @@ async function subflowNode(state: RunState, cfg: Record<string, unknown>, tctx: 
   return output;
 }
 
+// ---------- Esperar, Aprobación y Tabla de datos ----------
+
+const UNIT_MS: Record<string, number> = { seconds: 1000, minutes: 60_000, hours: 3_600_000, days: 86_400_000 };
+/** Tope de un Esperar por tiempo o hasta una llamada. */
+const MAX_DELAY_MS = 30 * 86_400_000;
+/** Tope de un Esperar hasta una fecha. */
+export const MAX_WAIT_UNTIL_MS = 365 * 86_400_000;
+
+/**
+ * Fecha de "Esperar hasta": ISO con zona (2026-03-01T09:00:00Z, …-03:00),
+ * fecha u hora local sin zona (2026-03-01, 2026-03-01 09:00) en `timezone`,
+ * o un epoch (segundos o milisegundos). null si no se entiende.
+ */
+export function parseWaitUntil(raw: string, timezone = 'UTC'): Date | null {
+  const v = raw.trim();
+  if (!v) return null;
+  if (/^\d{9,13}$/.test(v)) {
+    const n = Number(v);
+    return new Date(v.length <= 10 ? n * 1000 : n);
+  }
+  const local = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(v);
+  if (local) {
+    const tz = timezone && isValidTimezone(timezone) ? timezone : 'UTC';
+    const [, y, mo, d, h = '0', mi = '0', sec = '0'] = local;
+    const utc = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(sec));
+    if (!Number.isFinite(utc)) return null;
+    // Offset de la zona en ese momento (se corrige una vez por cambio de horario).
+    let at = utc - tzOffsetMinutes(tz, new Date(utc)) * 60_000;
+    at = utc - tzOffsetMinutes(tz, new Date(at)) * 60_000;
+    return new Date(at);
+  }
+  const ms = Date.parse(v);
+  return Number.isFinite(ms) ? new Date(ms) : null;
+}
+
+function timeoutMs(cfg: Record<string, unknown>, fallbackAmount: number, fallbackUnit: string): number {
+  const amount = Number(cfg.timeoutAmount);
+  const unit = UNIT_MS[String(cfg.timeoutUnit ?? fallbackUnit)] ?? UNIT_MS[fallbackUnit];
+  const ms = (Number.isFinite(amount) && amount > 0 ? amount : fallbackAmount) * unit;
+  return Math.min(Math.max(ms, 60_000), MAX_DELAY_MS);
+}
+
+/**
+ * Esperar: un tiempo fijo (duration), hasta una fecha (until; si ya pasó,
+ * sigue sin esperar) o hasta una llamada a {{run.resumeUrl}} (resume, con
+ * tiempo límite). Las tres dejan un flow_jobs y la corrida en 'waiting'.
+ */
+async function delayNode(state: RunState, node: FlowNode, cfg: Record<string, unknown>, tctx: Record<string, unknown>): Promise<NodeResult> {
+  const mode = cfg.mode === 'until' || cfg.mode === 'resume' ? cfg.mode : 'duration';
+  if (mode === 'until') {
+    const raw = renderString(cfg.until ?? '', tctx);
+    const at = parseWaitUntil(raw, String(cfg.timezone ?? 'UTC').trim() || 'UTC');
+    if (!at) throw new StepError('invalid_date');
+    const ms = at.getTime() - Date.now();
+    if (ms > MAX_WAIT_UNTIL_MS) throw new StepError('wait_too_long');
+    if (ms <= 0) return { kind: 'ok', output: { mode, resumeAt: at.toISOString(), waited: false }, handles: ['out'] };
+    await scheduleJob(state.run.id, node.id, at.toISOString(), { kind: 'continue' });
+    return { kind: 'wait', output: { mode, resumeAt: at.toISOString() } };
+  }
+  if (mode === 'resume') {
+    const expiresAt = new Date(Date.now() + timeoutMs(cfg, 7, 'days')).toISOString();
+    await scheduleJob(state.run.id, node.id, expiresAt, { kind: RESUME_TIMEOUT });
+    return { kind: 'wait', output: { mode, resumeUrl: resumeUrl(state.run.id), expiresAt } };
+  }
+  const amount = Math.max(0, Number(cfg.amount) || 0);
+  const ms = Math.min(amount * (UNIT_MS[String(cfg.unit)] ?? 60_000), MAX_DELAY_MS);
+  const runAt = new Date(Date.now() + ms).toISOString();
+  await scheduleJob(state.run.id, node.id, runAt, { kind: 'continue' });
+  return { kind: 'wait', output: { resumeAt: runAt } };
+}
+
+/** Emails del campo "Para" de una aprobación (coma, punto y coma o espacios). */
+export function approvalRecipients(raw: string): string[] {
+  const list = raw
+    .split(/[\s,;]+/)
+    .map((x) => x.trim().toLowerCase())
+    .filter(Boolean);
+  return [...new Set(list)];
+}
+
+/**
+ * Aprobación: manda el pedido por email (links firmados a la página de
+ * aprobación) y, si tiene credencial de Slack, también a Slack con dos
+ * botones. Deja el tiempo límite agendado y la corrida espera la decisión
+ * (salidas approved / rejected, ver finishExternalWait).
+ */
+async function approvalNode(
+  state: RunState,
+  node: FlowNode,
+  cfg: Record<string, unknown>,
+  tctx: Record<string, unknown>,
+  loop?: LoopScope,
+): Promise<Record<string, unknown>> {
+  const ws = state.flow.user_id;
+  const to = approvalRecipients(renderString(cfg.to ?? '', tctx));
+  const slackCred = String(cfg.slackCredentialId ?? '').trim();
+  if (to.some((e) => !EMAIL_RE.test(e)) || to.length > MAX_APPROVERS) throw new StepError('invalid_email');
+  if (to.length === 0 && !slackCred) throw new StepError('missing_recipient');
+  const subject = renderString(cfg.subject ?? '', tctx).trim().slice(0, 300);
+  const message = renderString(cfg.message ?? '', tctx).slice(0, 10_000);
+  const expiresAt = new Date(Date.now() + timeoutMs(cfg, 3, 'days')).toISOString();
+  const { locale } = await getFlowSettings(ws);
+  const approveUrl = approvalUrl(locale, state.run.id, node.id, 'approve');
+  const rejectUrl = approvalUrl(locale, state.run.id, node.id, 'reject');
+  const sent: string[] = [];
+  if (to.length) {
+    const mail = buildApprovalEmail({ locale, flowName: state.flow.name, subject, message, approveUrl, rejectUrl, expiresAt });
+    for (const addr of to) {
+      if (!(await allowFlowEmail(ws))) throw new StepError('email_quota');
+      const res = await sendEmail({ to: addr, subject: mail.subject, text: mail.text, html: mail.html });
+      if (res.ok) sent.push(addr);
+    }
+    if (sent.length === 0) throw new StepError('send_failed', true);
+  }
+  let slack: unknown = null;
+  if (slackCred) {
+    const s = approvalStrings(locale);
+    slack = await slackApprovalMessage(integrationCtx(state, node, loop), {
+      credentialId: slackCred,
+      channel: renderString(cfg.slackChannel ?? '', tctx).trim(),
+      text: [subject || state.flow.name, message.trim()].filter(Boolean).join('\n\n'),
+      approveUrl,
+      rejectUrl,
+      approveLabel: s.approve,
+      rejectLabel: s.reject,
+    });
+  }
+  await scheduleJob(state.run.id, node.id, expiresAt, { kind: APPROVAL_TIMEOUT });
+  return { status: 'pending', to: sent, slack, subject, message, expiresAt };
+}
+
+/** Tabla de datos: buscar, insertar, insertar o actualizar (upsert) y borrar filas. */
+async function tableNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
+  const tableId = renderString(cfg.tableId ?? '', tctx).trim();
+  if (!tableId) throw new StepError('missing_table');
+  const op = String(cfg.operation ?? 'find');
+  const column = String(cfg.column ?? '').trim();
+  const value = renderValue(cfg.value ?? '', tctx);
+  const values: Record<string, unknown> = {};
+  for (const f of Array.isArray(cfg.values) ? (cfg.values as Array<{ key?: string; value?: unknown }>) : []) {
+    const k = String(f?.key ?? '').trim();
+    if (k && k !== '__proto__' && k !== 'constructor' && k !== 'prototype') values[k] = renderValue(f?.value ?? '', tctx);
+  }
+  const t = await import('./flow-tables');
+  try {
+    switch (op) {
+      case 'insert':
+        return { row: await t.insertTableRow(ws, tableId, values) };
+      case 'upsert': {
+        if (!column) throw new StepError('missing_column');
+        return await t.upsertTableRow(ws, tableId, { column, value }, values);
+      }
+      case 'delete': {
+        if (!column) throw new StepError('missing_column');
+        return { deleted: await t.deleteTableRowsWhere(ws, tableId, { column, value }) };
+      }
+      default: {
+        const rows = await t.findTableRows(ws, tableId, column ? { column, value } : {}, Number(cfg.limit) || 1);
+        return { found: rows.length > 0, count: rows.length, row: rows[0] ?? null, rows };
+      }
+    }
+  } catch (err) {
+    if (err instanceof t.TableError) {
+      throw new StepError(err.code === 'not_found' ? 'table_not_found' : err.code.startsWith('table_') ? err.code : `table_${err.code}`, false, err.column ? { column: err.column } : undefined);
+    }
+    throw err;
+  }
+}
+
 async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): Promise<NodeResult> {
   const cfg = node.config ?? {};
   const tctx = templateCtx(state, loop);
@@ -697,14 +880,12 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
       const i = cases.findIndex((c) => c === value);
       return { kind: 'ok', output: { value, matched: i >= 0 ? cases[i] : null }, handles: [i >= 0 ? `case-${i}` : 'default'] };
     }
-    case 'logic.delay': {
-      const amount = Math.max(0, Number(cfg.amount) || 0);
-      const unitMs = { seconds: 1000, minutes: 60_000, hours: 3_600_000, days: 86_400_000 }[String(cfg.unit)] ?? 60_000;
-      const ms = Math.min(amount * unitMs, 30 * 86_400_000);
-      const runAt = new Date(Date.now() + ms).toISOString();
-      await scheduleJob(state.run.id, node.id, runAt, { kind: 'continue' });
-      return { kind: 'wait', output: { resumeAt: runAt } };
-    }
+    case 'logic.delay':
+      return delayNode(state, node, cfg, tctx);
+    case 'logic.approval':
+      return { kind: 'wait', output: await approvalNode(state, node, cfg, tctx, loop) };
+    case 'data.table':
+      return { kind: 'ok', output: await tableNode(ws, cfg, tctx), handles: ['out'] };
     case 'data.set': {
       const out: Record<string, unknown> = {};
       for (const f of Array.isArray(cfg.fields) ? (cfg.fields as Array<{ key?: string; value?: unknown }>) : []) {
@@ -1211,7 +1392,7 @@ export async function executeRun(runId: string): Promise<FlowRunRow['status']> {
 export async function resumeRun(
   runId: string,
   nodeId: string,
-  payload: { kind?: string; attempt?: number },
+  payload: { kind?: string; attempt?: number; decision?: string; comment?: string; data?: unknown },
 ): Promise<FlowRunRow['status']> {
   const run = (await getDb().prepare('SELECT * FROM flow_runs WHERE id = ?').get(runId)) as FlowRunRow | undefined;
   if (!run || run.status === 'failed' || run.status === 'success') return run?.status ?? 'failed';
@@ -1230,12 +1411,173 @@ export async function resumeRun(
   }
   await inChain(run, async () => {
     if (payload.kind === 'retry') await runNode(state, nodeId, undefined, Number(payload.attempt) || 1);
+    else if (payload.kind && payload.kind !== 'continue') await finishExternalWait(state, nodeId, payload);
     else {
       state.pending.delete(nodeId);
       await runChildren(state, nodeId, 'out');
     }
   });
   return finalize(state);
+}
+
+/** Lo que trajo una llamada de resume, acotado (queda como salida del nodo). */
+function resumeData(data: unknown): Record<string, unknown> {
+  const d = (data && typeof data === 'object' ? data : {}) as { method?: unknown; body?: unknown; query?: unknown };
+  const body = forStore(d.body ?? null, RESUME_BODY_LIMIT);
+  return { method: String(d.method ?? 'POST'), body, query: d.query && typeof d.query === 'object' ? d.query : {} };
+}
+
+/**
+ * Fin de una espera externa: una llamada a la URL de resume, una decisión de
+ * aprobación o su tiempo límite. El paso en espera pasa a terminado con la
+ * salida final y la corrida sigue por la salida que corresponde (o falla si
+ * el nodo dice que vencer es un error).
+ */
+async function finishExternalWait(
+  state: RunState,
+  nodeId: string,
+  payload: { kind?: string; decision?: string; comment?: string; data?: unknown },
+): Promise<void> {
+  const node = state.ctx.graph.nodes.find((n) => n.id === nodeId);
+  if (!node) {
+    state.error = 'node_missing';
+    return;
+  }
+  const cfg = node.config ?? {};
+  const prev = state.ctx.nodes[nodeId]?.output;
+  const base = prev && typeof prev === 'object' && !Array.isArray(prev) ? (prev as Record<string, unknown>) : {};
+  const at = nowIso();
+  let output: Record<string, unknown>;
+  let handle: string | null = null;
+  let error: string | null = null;
+  if (payload.kind === 'resume') {
+    output = { mode: 'resume', resumed: true, timedOut: false, resumedAt: at, ...resumeData(payload.data) };
+    handle = 'out';
+  } else if (payload.kind === RESUME_TIMEOUT) {
+    output = { mode: 'resume', resumed: false, timedOut: true, resumedAt: at };
+    if (cfg.onTimeout === 'fail') error = 'resume_timeout';
+    else handle = 'out';
+  } else if (payload.kind === 'approval') {
+    const approved = payload.decision === 'approve';
+    output = {
+      ...base,
+      status: 'decided',
+      decision: approved ? 'approved' : 'rejected',
+      approved,
+      comment: payload.comment ?? '',
+      decidedAt: at,
+      timedOut: false,
+    };
+    handle = approved ? 'approved' : 'rejected';
+  } else if (payload.kind === APPROVAL_TIMEOUT) {
+    const onTimeout = cfg.onTimeout === 'approve' || cfg.onTimeout === 'fail' ? cfg.onTimeout : 'reject';
+    if (onTimeout === 'fail') {
+      output = { ...base, status: 'expired', decision: null, approved: false, comment: '', decidedAt: null, timedOut: true };
+      error = 'approval_timeout';
+    } else {
+      const approved = onTimeout === 'approve';
+      output = {
+        ...base,
+        status: 'decided',
+        decision: approved ? 'approved' : 'rejected',
+        approved,
+        comment: '',
+        decidedAt: at,
+        timedOut: true,
+      };
+      handle = approved ? 'approved' : 'rejected';
+    }
+  } else {
+    state.error = 'invalid_resume';
+    return;
+  }
+  state.pending.delete(nodeId);
+  state.ctx.nodes[nodeId] = { output: keep(state, output) };
+  const step = (await getDb()
+    .prepare("SELECT id FROM flow_steps WHERE run_id = ? AND node_id = ? AND status = 'waiting' ORDER BY started_at DESC, rowid DESC LIMIT 1")
+    .get(state.run.id, nodeId)) as { id: string } | undefined;
+  if (step) await finishStep(state, step.id, error ? 'failed' : 'success', output, error);
+  if (error) {
+    state.error = `${nodeId}: ${error}`;
+    state.failedNode = nodeId;
+    return;
+  }
+  if (handle) await runChildren(state, nodeId, handle);
+}
+
+// ---------- Probar un paso ----------
+
+export interface StepTestResult {
+  status: 'success' | 'skipped' | 'failed';
+  output: unknown;
+  error: string | null;
+  /** Salidas por las que seguiría el flow. */
+  handles: string[];
+  durationMs: number;
+}
+
+/**
+ * Corre un solo nodo con datos de prueba ({ trigger, nodes: { id: salida } }),
+ * sin crear una corrida ni seguir a los nodos siguientes. Las acciones son
+ * reales (un email se manda, un contacto se crea). Esperas, Loops y sub-flows
+ * no se prueban solos (isStepTestable).
+ */
+export async function testFlowStep(
+  flow: FlowInfo,
+  node: FlowNode,
+  sample: { trigger?: unknown; nodes?: Record<string, unknown> },
+): Promise<StepTestResult> {
+  const ts = nowIso();
+  const run: FlowRunRow = {
+    id: `test_${crypto.randomUUID()}`,
+    flow_id: flow.id,
+    user_id: flow.user_id,
+    trigger_type: 'manual',
+    status: 'running',
+    input: '{}',
+    context: '{}',
+    error: null,
+    chain_depth: 0,
+    chain_seen: JSON.stringify([flow.id]),
+    step_count: 0,
+    locked_until: null,
+    rerun_of: null,
+    parent_run_id: null,
+    created_at: ts,
+    started_at: ts,
+    finished_at: null,
+  };
+  const nodes: RunContext['nodes'] = {};
+  for (const [id, output] of Object.entries(sample.nodes ?? {})) nodes[id] = { output };
+  const state: RunState = {
+    run,
+    flow,
+    ctx: { graph: { nodes: [node], edges: [] }, trigger: sample.trigger ?? {}, nodes },
+    steps: 0,
+    error: null,
+    failedNode: null,
+    secrets: [],
+    merged: new Set(),
+    pending: new Set(),
+    loopRetryMs: 0,
+  };
+  const started = Date.now();
+  const done = (r: Omit<StepTestResult, 'durationMs'>): StepTestResult => ({
+    ...r,
+    output: store(state, r.output),
+    error: r.error === null ? null : clean(state, r.error),
+    durationMs: Date.now() - started,
+  });
+  try {
+    const result = await inChain(run, () => runNodeLogic(state, node));
+    if (result.kind === 'ok') return done({ status: 'success', output: result.output, error: null, handles: result.handles });
+    if (result.kind === 'stop') return done({ status: 'skipped', output: result.output, error: null, handles: [] });
+    if (result.kind === 'error') return done({ status: 'failed', output: null, error: result.error, handles: [] });
+    return done({ status: 'success', output: result.output, error: null, handles: [] });
+  } catch (err) {
+    const e = err instanceof StepError ? err : new StepError(err instanceof Error ? err.message.slice(0, 200) : 'error');
+    return done({ status: 'failed', output: e.output ?? null, error: e.code, handles: [] });
+  }
 }
 
 // ---------- Re-ejecución desde un paso ----------

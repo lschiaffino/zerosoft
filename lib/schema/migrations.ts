@@ -2757,6 +2757,35 @@ export const MIGRATIONS: Migration[] = [
         }
       }
     },
+  },  {
+    // Flow: tablas de datos del workspace (búsquedas, dedupe y estado entre
+    // corridas; filas como JSON con columnas tipadas, ver lib/flow-tables.ts)
+    // y datos de prueba fijados por nodo para probar un paso solo.
+    id: '060_flow_tables_pins',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS flow_tables (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          columns TEXT NOT NULL DEFAULT '[]',
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE (user_id, name)
+        );
+        CREATE TABLE IF NOT EXISTS flow_table_rows (
+          id TEXT PRIMARY KEY,
+          table_id TEXT NOT NULL REFERENCES flow_tables(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          data TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_flow_table_rows_table ON flow_table_rows(table_id, created_at);
+      `);
+      await addColumn(client, "ALTER TABLE flow_flows ADD COLUMN pinned_data TEXT NOT NULL DEFAULT '{}'");
+    },
   },
 ];
 

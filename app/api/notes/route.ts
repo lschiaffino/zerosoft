@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { emitEventSoon } from '@/lib/events';
 import { NotesError, createNote, listNotes, noteOwner } from '@/lib/notes';
 import { noteCreateSchema } from '@/lib/notes-schema';
-import { NOTES_SORTS, type NotesSort } from '@/lib/notes-types';
+import { NOTES_SORTS, noteEventPayload, type NotesSort } from '@/lib/notes-types';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
 
 export const runtime = 'nodejs';
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return invalidInput(parsed.error);
   try {
     const note = await createNote(owner, parsed.data);
+    await emitEventSoon(owner.workspaceId, 'note.created', noteEventPayload(note, owner.personId));
     return NextResponse.json(note, { status: 201 });
   } catch (err) {
     if (err instanceof NotesError) return jsonError(400, err.code);

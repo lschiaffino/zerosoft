@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { emitEventSoon } from '@/lib/events';
+import { addedTags, noteEventPayload } from '@/lib/notes-types';
 import {
   NotesConflictError,
   NotesError,
@@ -43,13 +45,20 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       if (!(await getNote(owner, id))) return jsonError(404, 'not_found');
       await restoreNote(owner, id);
     }
+    const before = patch.tags !== undefined ? await getNote(owner, id) : null;
     let note = await updateNote(owner, id, patch);
     if (!note) return jsonError(404, 'not_found');
+    const added = before ? addedTags(before.tags, note.tags) : [];
+    let trashedNow = false;
     if (trashed === true) {
-      await trashNote(owner, id);
+      trashedNow = await trashNote(owner, id);
       note = await getNote(owner, id);
       if (!note) return jsonError(404, 'not_found');
     }
+    // Disparadores de Flow: etiquetas nuevas y nota a la papelera (sin el contenido).
+    const payload = noteEventPayload(note, owner.personId);
+    if (added.length) await emitEventSoon(owner.workspaceId, 'note.tagged', { ...payload, added });
+    if (trashedNow) await emitEventSoon(owner.workspaceId, 'note.trashed', payload);
     return NextResponse.json(note);
   } catch (err) {
     // Otra pestaña o dispositivo guardó desde que se abrió la nota: no se pisa en silencio.
