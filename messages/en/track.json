@@ -726,5 +726,9 @@
     "emptyBody": "Snoozed notifications come back to the inbox as unread when the time comes.",
     "error": "Could not snooze. Try again.",
     "reminderFor": "Reminder for {identifier}"
+  },
+  "branch": {
+    "label": "Projects",
+    "empty": "No projects yet."
   }
 }

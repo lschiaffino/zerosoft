@@ -5,6 +5,7 @@ import { searchAll, searchTasks } from '@/lib/crm';
 import { searchDocPagesContent } from '@/lib/docs';
 import { listLinks, toLinkDto } from '@/lib/links';
 import { searchNotesForPalette } from '@/lib/notes';
+import { searchApps } from '@/lib/app-search';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -38,6 +39,8 @@ export async function GET(req: NextRequest) {
     searchTasks(user.id, q, scope),
     // Notas: solo las de la persona logueada (son privadas aunque el workspace sea compartido).
     searchNotesForPalette(user, q),
+    // Pizarras, Track, Cal, widgets, Flow, Agents y Robots: por nombre.
+    searchApps(user, q),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -113,6 +116,8 @@ export async function GET(req: NextRequest) {
       href: `/app/crm/tasks/${t.id}`,
     });
   }
+
+  items.push(...apps);
 
   return NextResponse.json<SearchResponse>({ q, items });
 }

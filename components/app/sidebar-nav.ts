@@ -116,7 +116,8 @@ export interface NavItem {
   badge?: number;
   /**
    * El ítem tiene un hueco debajo: el producto monta ahí su propio árbol (Docs
-   * cuelga sus páginas de "Páginas"). El shell deja el hueco #side-branch.
+   * cuelga sus páginas de "Páginas", Board sus pizarras, Track sus proyectos).
+   * El shell deja el hueco #side-branch (uno por producto).
    */
   branch?: boolean;
 }
@@ -275,7 +276,7 @@ export function buildNav(
         {
           section: labels.records,
           items: [
-            { href: '/app/track/projects', label: labels.track.projects, active: at('/app/track/projects'), icon: 'lists' },
+            { href: '/app/track/projects', label: labels.track.projects, active: at('/app/track/projects'), icon: 'lists', branch: true },
             { href: '/app/track/issues', label: labels.track.issues, active: at('/app/track/issues'), icon: 'tasks' },
           ],
         },

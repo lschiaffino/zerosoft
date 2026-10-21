@@ -130,6 +130,22 @@ describe('sidebar de la app', () => {
     expect(pageExists('/app/chat/widgets')).toBe(true);
   });
 
+  it('Docs, Board y Track cuelgan su lista del sidebar (un solo hueco por producto)', () => {
+    const branches = (product: AppProduct) =>
+      buildNav(product, '/app', labels)
+        .flatMap((g) => g.items)
+        .filter((i) => i.branch)
+        .map((i) => i.href);
+    expect(branches('docs')).toEqual(['/app/docs']);
+    expect(branches('board')).toEqual(['/app/board']);
+    expect(branches('track')).toEqual(['/app/track/projects']);
+    for (const p of PRODUCTS) expect(branches(p).length, p).toBeLessThanOrEqual(1);
+    // Y cada uno monta el componente que llena el hueco.
+    const layout = (app: string) => readFileSync(join(appDir, 'app', app, 'layout.tsx'), 'utf8');
+    expect(layout('board')).toContain('<BoardBranch />');
+    expect(layout('track')).toContain('<TrackBranch />');
+  });
+
   it('los strings nuevos del sidebar existen en en/es/pt', () => {
     for (const locale of ['en', 'es', 'pt']) {
       const common = JSON.parse(readFileSync(join(root, 'messages', locale, 'common.json'), 'utf8'));

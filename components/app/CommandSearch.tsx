@@ -19,7 +19,25 @@ interface SearchResponse {
 }
 
 function useGroupOrder() {
-  return useMemo(() => ['track', 'actions', 'contacts', 'companies', 'deals', 'links', 'docs', 'notes', 'tasks'], []);
+  return useMemo(() => [
+        'track',
+        'actions',
+        'projects',
+        'issues',
+        'contacts',
+        'companies',
+        'deals',
+        'links',
+        'docs',
+        'notes',
+        'boards',
+        'tasks',
+        'eventTypes',
+        'widgets',
+        'flows',
+        'agents',
+        'robots',
+      ], []);
 }
 
 function useGroupLabel(t: (key: string) => string) {

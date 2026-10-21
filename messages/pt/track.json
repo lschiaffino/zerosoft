@@ -726,5 +726,9 @@
     "emptyBody": "Os avisos adiados voltam para a caixa como não lidos quando chega a hora.",
     "error": "Não foi possível adiar. Tente de novo.",
     "reminderFor": "Lembrete de {identifier}"
+  },
+  "branch": {
+    "label": "Projetos",
+    "empty": "Ainda não há projetos."
   }
 }

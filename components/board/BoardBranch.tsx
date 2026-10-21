@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import type { BoardSummary } from '@/lib/boards-types';
 import Icon from '@/components/app/icons';
+import { useShellBranch } from '@/components/app/useShellBranch';
 
 /** Evento que avisa al sidebar que la lista de pizarras cambió (crear, renombrar, borrar). */
 export const BOARDS_CHANGED = 'zs:boards-changed';
@@ -14,34 +15,7 @@ export function notifyBoardsChanged() {
   window.dispatchEvent(new Event(BOARDS_CHANGED));
 }
 
-const DESKTOP = '(min-width: 1024px)';
 const MAX = 50;
-
-/** Hueco #side-branch del shell (bajo "Pizarras"), solo en ≥1024px con el sidebar abierto. */
-function useShellBranch(): HTMLElement | null {
-  const [el, setEl] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    const mq = window.matchMedia(DESKTOP);
-    const frame = document.querySelector('.app-frame');
-    let raf = 0;
-    const update = () => {
-      const slot = document.getElementById('side-branch');
-      const collapsed = frame?.classList.contains('sidebar-collapsed') ?? false;
-      setEl(mq.matches && !collapsed ? slot : null);
-      if (!slot && mq.matches && !collapsed && !raf) raf = requestAnimationFrame(update);
-    };
-    update();
-    mq.addEventListener('change', update);
-    const mo = frame ? new MutationObserver(update) : null;
-    mo?.observe(frame!, { attributes: true, attributeFilter: ['class'] });
-    return () => {
-      mq.removeEventListener('change', update);
-      mo?.disconnect();
-      cancelAnimationFrame(raf);
-    };
-  }, []);
-  return el;
-}
 
 /**
  * Pizarras del workspace en el sidebar, como las páginas de Docs: las más

@@ -726,5 +726,9 @@
     "emptyBody": "Los avisos pospuestos vuelven a la bandeja como no leídos cuando llega el momento.",
     "error": "No se pudo posponer. Probá de nuevo.",
     "reminderFor": "Recordatorio de {identifier}"
+  },
+  "branch": {
+    "label": "Proyectos",
+    "empty": "Todavía no hay proyectos."
   }
 }

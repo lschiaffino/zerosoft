@@ -508,6 +508,9 @@ function appendOwnerScope(
   args.push(...cond.args);
 }
 
+/** "Nombre Apellido" del contacto: buscar el nombre completo encuentra a la persona (no solo cada parte). */
+const CONTACT_FULL_NAME = "(COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, ''))";
+
 function buildContactWhere(
   userId: string,
   f: ContactFilter,
@@ -517,9 +520,9 @@ function buildContactWhere(
   if (f.q) {
     const like = `%${escapeLike(f.q)}%`;
     where.push(
-      `(c.first_name LIKE ? ESCAPE '\\' OR c.last_name LIKE ? ESCAPE '\\' OR c.email LIKE ? ESCAPE '\\')`,
+      `(${CONTACT_FULL_NAME} LIKE ? ESCAPE '\\' OR c.email LIKE ? ESCAPE '\\')`,
     );
-    args.push(like, like, like);
+    args.push(like, like);
   }
   if (f.lifecycle) {
     where.push('c.lifecycle_stage = ?');
@@ -3345,11 +3348,11 @@ export async function searchAll(userId: string, q: string, ownerScope?: OwnerSco
   const contacts = (await db
     .prepare(
       `SELECT c.* FROM crm_contacts c
-       WHERE c.user_id = ? AND (c.first_name LIKE ? ESCAPE '\\' OR c.last_name LIKE ? ESCAPE '\\' OR c.email LIKE ? ESCAPE '\\')${cs.sql}
+       WHERE c.user_id = ? AND (${CONTACT_FULL_NAME} LIKE ? ESCAPE '\\' OR c.email LIKE ? ESCAPE '\\')${cs.sql}
        ORDER BY c.created_at DESC
        LIMIT 5`,
     )
-    .all(userId, like, like, like, ...cs.args)) as CrmContactRow[];
+    .all(userId, like, like, ...cs.args)) as CrmContactRow[];
   const companies = (await db
     .prepare(
       `SELECT co.* FROM crm_companies co

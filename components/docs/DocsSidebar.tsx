@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import Icon from '@/components/app/icons';
+import { useShellBranch } from '@/components/app/useShellBranch';
 import { buildPageTree, type DocsPageSummary } from '@/lib/docs-types';
 import DocsGlyph from './DocsGlyphs';
 import DocsPageSwitcher, { DOCS_SWITCHER_EVENT } from './DocsPageSwitcher';
@@ -43,38 +44,6 @@ function zoneFor(e: React.DragEvent<HTMLElement>): DropZone {
 }
 
 const COLLAPSED_KEY = 'docs.sidebar.collapsed';
-const DESKTOP = '(min-width: 1024px)';
-
-/**
- * Hueco del árbol en el sidebar del shell (#side-branch, bajo "Páginas").
- * Solo en ≥1024px y con el sidebar abierto: colapsado (solo íconos) o en
- * mobile (drawer) el árbol vuelve a la columna propia / al botón "Páginas".
- */
-function useShellBranch(): HTMLElement | null {
-  const [el, setEl] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    const mq = window.matchMedia(DESKTOP);
-    const frame = document.querySelector('.app-frame');
-    let raf = 0;
-    const update = () => {
-      const slot = document.getElementById('side-branch');
-      const collapsed = frame?.classList.contains('sidebar-collapsed') ?? false;
-      setEl(mq.matches && !collapsed ? slot : null);
-      // Al entrar desde otro producto el hueco puede montarse un frame después.
-      if (!slot && mq.matches && !collapsed && !raf) raf = requestAnimationFrame(update);
-    };
-    update();
-    mq.addEventListener('change', update);
-    const mo = frame ? new MutationObserver(update) : null;
-    mo?.observe(frame!, { attributes: true, attributeFilter: ['class'] });
-    return () => {
-      mq.removeEventListener('change', update);
-      mo?.disconnect();
-      cancelAnimationFrame(raf);
-    };
-  }, []);
-  return el;
-}
 
 /**
  * Árbol de páginas de Docs, como el sidebar de Notion. En ≥1024px vive bajo

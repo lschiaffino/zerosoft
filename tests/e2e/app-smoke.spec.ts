@@ -1,0 +1,323 @@
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+
+/**
+ * Smoke parejo para todas las apps con ítems creados por la persona. Cada
+ * spec de app prueba lo que su builder pidió; este recorre la misma lista de
+ * chequeos en todas (lista, sidebar, ⌘K, detalle, renombrar, borrar, temas y
+ * 390px) para que no se escape otro "la pizarra no aparece en el sidebar".
+ * Una tabla por app: agregar una app nueva es sumar una fila.
+ */
+
+const uid = () => Math.random().toString(36).slice(2, 8);
+
+interface Created {
+  id: string;
+  /** Lo que la UI muestra como nombre del ítem. */
+  name: string;
+}
+
+interface AppCase {
+  app: string;
+  /** Página principal con la lista. */
+  list: string;
+  create: (request: APIRequestContext, name: string) => Promise<Created>;
+  detail: (item: Created) => string;
+  rename?: (request: APIRequestContext, item: Created, name: string) => Promise<void>;
+  remove?: (request: APIRequestContext, item: Created) => Promise<void>;
+  /** Lista los ítems en el sidebar del shell (#side-branch), como Docs. */
+  sidebar?: boolean;
+}
+
+async function ok<T = Record<string, unknown>>(res: Promise<import('@playwright/test').APIResponse>): Promise<T> {
+  const r = await res;
+  expect(r.ok(), `${r.url()} → ${r.status()} ${await r.text().catch(() => '')}`).toBe(true);
+  return (await r.json().catch(() => ({}))) as T;
+}
+
+/** Proyecto de Track compartido por los issues del smoke. */
+let trackProjectId: string | null = null;
+async function trackProject(request: APIRequestContext): Promise<string> {
+  if (!trackProjectId) trackProjectId = (await ok<{ id: string }>(request.post('/api/track/projects', { data: { name: `Smoke issues ${uid()}` } }))).id;
+  return trackProjectId;
+}
+
+const APPS: AppCase[] = [
+  {
+    app: 'Docs',
+    list: '/en/app/docs',
+    sidebar: true,
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/docs/pages', { data: { title: name } }))).id, name }),
+    detail: (i) => `/en/app/docs/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/docs/pages/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/docs/pages/${i.id}`))),
+  },
+  {
+    app: 'Notes',
+    list: '/en/app/notes',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/notes', { data: { title: name, content: [] } }))).id, name }),
+    detail: (i) => `/en/app/notes?note=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/notes/${i.id}`, { data: { title: name } }))),
+    // Borrar una nota la manda a la papelera.
+    remove: async (request, i) => void (await ok(request.patch(`/api/notes/${i.id}`, { data: { trashed: true } }))),
+  },
+  {
+    app: 'Board',
+    list: '/en/app/board',
+    sidebar: true,
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/boards', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/board/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/boards/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/boards/${i.id}`))),
+  },
+  {
+    app: 'Track projects',
+    list: '/en/app/track/projects',
+    sidebar: true,
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/track/projects', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/track/projects/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/track/projects/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/track/projects/${i.id}`))),
+  },
+  {
+    app: 'Track issues',
+    list: '/en/app/track/issues',
+    create: async (request, name) => {
+      const project = await trackProject(request);
+      return { id: (await ok<{ id: string }>(request.post(`/api/track/projects/${project}/issues`, { data: { title: name } }))).id, name };
+    },
+    detail: (i) => `/en/app/track/issues/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/track/issues/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/track/issues/${i.id}`))),
+  },
+  {
+    app: 'CRM contacts',
+    list: '/en/app/crm/contacts',
+    create: async (request, name) => {
+      const [firstName, lastName] = name.split(' ');
+      const body = { firstName, lastName, email: `${lastName}@smoke.example.com` };
+      return { id: (await ok<{ id: string }>(request.post('/api/crm/contacts', { data: body }))).id, name };
+    },
+    detail: (i) => `/en/app/crm/contacts/${i.id}`,
+    rename: async (request, i, name) => {
+      const [firstName, lastName] = name.split(' ');
+      await ok(request.patch(`/api/crm/contacts/${i.id}`, { data: { firstName, lastName } }));
+    },
+    remove: async (request, i) => void (await ok(request.delete(`/api/crm/contacts/${i.id}`))),
+  },
+  {
+    app: 'CRM companies',
+    list: '/en/app/crm/companies',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/crm/companies', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/crm/companies/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/crm/companies/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/crm/companies/${i.id}`))),
+  },
+  {
+    app: 'CRM deals',
+    list: '/en/app/crm/deals',
+    create: async (request, name) => {
+      const pipelines = await ok<{ rows: Array<{ id: string; stages: Array<{ id: string }> }> }>(request.get('/api/crm/pipelines'));
+      const pipeline = pipelines.rows[0];
+      const body = { name, pipelineId: pipeline.id, stageId: pipeline.stages[0].id, amount: 100 };
+      return { id: (await ok<{ id: string }>(request.post('/api/crm/deals', { data: body }))).id, name };
+    },
+    detail: (i) => `/en/app/crm/deals/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/crm/deals/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/crm/deals/${i.id}`))),
+  },
+  {
+    app: 'Cal event types',
+    list: '/en/app/calendar/event-types',
+    create: async (request, name) => {
+      const body = { title: name, slug: `smoke-${uid()}`, durationMin: 30, active: true };
+      return { id: (await ok<{ id: string }>(request.post('/api/calendar/event-types', { data: body }))).id, name };
+    },
+    detail: (i) => `/en/app/calendar/event-types/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/calendar/event-types/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/calendar/event-types/${i.id}`))),
+  },
+  {
+    app: 'Link',
+    list: '/en/app/links',
+    create: async (request, name) => {
+      const body = { url: `https://example.com/${uid()}`, slug: `smoke-${uid()}`, title: name };
+      return { id: (await ok<{ id: string }>(request.post('/api/links', { data: body }))).id, name };
+    },
+    detail: (i) => `/en/app/links/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/links/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/links/${i.id}`))),
+  },
+  {
+    app: 'Chat widgets',
+    list: '/en/app/chat/widgets',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/chat/widgets', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/chat/widgets/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/chat/widgets/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/chat/widgets/${i.id}`))),
+  },
+  {
+    app: 'Flow',
+    list: '/en/app/flow',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/flow/flows', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/flow/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/flow/flows/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/flow/flows/${i.id}`))),
+  },
+  {
+    app: 'Agents',
+    list: '/en/app/agents',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/agents', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/agents/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/agents/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/agents/${i.id}`))),
+  },
+  {
+    app: 'Robots',
+    list: '/en/app/robots',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/robots', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/robots/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/robots/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/robots/${i.id}`))),
+  },
+];
+
+/** Errores de JS, de consola y respuestas 5xx mientras corre el test. */
+function watchErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' && !/favicon|Failed to load resource/i.test(msg.text())) errors.push(`console: ${msg.text()}`);
+  });
+  page.on('response', (res) => {
+    if (res.status() >= 500) errors.push(`${res.status()} ${res.url()}`);
+  });
+  return errors;
+}
+
+/** El contenido de la página (sin el sidebar del shell). */
+const content = (page: Page) => page.locator('main.app-content');
+const sideBranch = (page: Page) => page.locator('#side-branch');
+/** Nombres únicos de dos palabras (los contactos los parten en nombre y apellido). */
+const freshName = () => `Smoke ${uid()}${uid()}`;
+
+test.beforeEach(async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+});
+
+for (const c of APPS) {
+  test.describe(`smoke ${c.app}`, () => {
+    test('crear: aparece en la lista', async ({ page, request }) => {
+      const errors = watchErrors(page);
+      const item = await c.create(request, freshName());
+      await page.goto(c.list, { waitUntil: 'networkidle' });
+      await expect(content(page).getByText(item.name).first()).toBeVisible();
+      expect(errors, errors.join('\n')).toEqual([]);
+    });
+
+    if (c.sidebar) {
+      test('sidebar: lo lista y marca el abierto', async ({ page, request }) => {
+        const item = await c.create(request, freshName());
+        await page.goto(c.list, { waitUntil: 'networkidle' });
+        const link = sideBranch(page).getByRole('link', { name: item.name });
+        await expect(link).toBeVisible();
+        await page.goto(c.detail(item), { waitUntil: 'networkidle' });
+        await expect(sideBranch(page).getByRole('link', { name: item.name })).toHaveAttribute('aria-current', 'page');
+      });
+    }
+
+    test('⌘K: lo encuentra y lo abre', async ({ page, request }) => {
+      const item = await c.create(request, freshName());
+      await page.goto(c.list, { waitUntil: 'networkidle' });
+      await page.keyboard.press('ControlOrMeta+k');
+      const dialog = page.getByRole('dialog', { name: 'Search' });
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('combobox').fill(item.name);
+      const option = dialog.getByRole('option', { name: new RegExp(item.name) });
+      await expect(option.first()).toBeVisible();
+      await option.first().click();
+      await expect(page).toHaveURL(new RegExp(item.id));
+    });
+
+    test('detalle: abre sin errores', async ({ page, request }) => {
+      const errors = watchErrors(page);
+      const item = await c.create(request, freshName());
+      const res = await page.goto(c.detail(item), { waitUntil: 'networkidle' });
+      expect(res?.status()).toBeLessThan(400);
+      // Sin error boundary: el nombre del ítem está en la página.
+      await expect
+        .poll(async () => page.evaluate((name) => {
+          const main = document.querySelector('main.app-content');
+          if (!main) return false;
+          const inputs = Array.from(main.querySelectorAll('input, textarea')) as Array<HTMLInputElement>;
+          return (main.textContent ?? '').includes(name) || inputs.some((el) => el.value.includes(name));
+        }, item.name))
+        .toBe(true);
+      await expect(content(page).getByRole('alert').filter({ hasText: /something went wrong|error/i })).toHaveCount(0);
+      expect(errors, errors.join('\n')).toEqual([]);
+    });
+
+    if (c.rename) {
+      test('renombrar: la lista (y el sidebar) muestran el nombre nuevo', async ({ page, request }) => {
+        const item = await c.create(request, freshName());
+        await page.goto(c.list, { waitUntil: 'networkidle' });
+        await expect(content(page).getByText(item.name).first()).toBeVisible();
+        const renamed = freshName();
+        await c.rename!(request, item, renamed);
+        // Navegar dentro de la app (detalle y vuelta) no deja la lista vieja en caché.
+        // Abrir y salir sin tocar nada no pregunta por cambios sin guardar.
+        const prompts: string[] = [];
+        page.on('dialog', (d) => {
+          prompts.push(d.type());
+          void d.accept();
+        });
+        await page.goto(c.detail(item), { waitUntil: 'networkidle' });
+        await page.goto(c.list, { waitUntil: 'networkidle' });
+        expect(prompts, 'diálogo al salir del detalle sin cambios').toEqual([]);
+        await expect(content(page).getByText(renamed).first()).toBeVisible();
+        await expect(content(page).getByText(item.name)).toHaveCount(0);
+        if (c.sidebar) {
+          await expect(sideBranch(page).getByRole('link', { name: renamed })).toBeVisible();
+          await expect(sideBranch(page).getByRole('link', { name: item.name })).toHaveCount(0);
+        }
+      });
+    }
+
+    if (c.remove) {
+      test('borrar: sale de la lista (y del sidebar)', async ({ page, request }) => {
+        const item = await c.create(request, freshName());
+        await page.goto(c.list, { waitUntil: 'networkidle' });
+        await expect(content(page).getByText(item.name).first()).toBeVisible();
+        await c.remove!(request, item);
+        await page.goto(c.list, { waitUntil: 'networkidle' });
+        await expect(content(page).getByText(item.name)).toHaveCount(0);
+        if (c.sidebar) await expect(sideBranch(page).getByRole('link', { name: item.name })).toHaveCount(0);
+      });
+    }
+
+    for (const theme of ['light', 'dark'] as const) {
+      test(`lista en tema ${theme} sin errores`, async ({ page, context, baseURL }) => {
+        await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
+        const errors = watchErrors(page);
+        await page.goto(c.list, { waitUntil: 'networkidle' });
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+        await expect(content(page)).not.toBeEmpty();
+        expect(errors, errors.join('\n')).toEqual([]);
+      });
+    }
+
+    test('390px: la lista no scrollea en horizontal', async ({ page, request }) => {
+      await c.create(request, freshName());
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(c.list, { waitUntil: 'networkidle' });
+      const { scroll, inner } = await page.evaluate(() => ({
+        scroll: document.scrollingElement!.scrollWidth,
+        inner: window.innerWidth,
+      }));
+      expect(scroll, `scrollWidth ${scroll} > innerWidth ${inner}`).toBeLessThanOrEqual(inner + 1);
+    });
+  });
+}
+
+// En DEMO_MODE toda request es el mismo usuario demo (con datos de seed) y no
+// hay forma barata de entrar como una persona nueva sin ítems.
+test.fixme('estado vacío con un usuario nuevo', () => {});
