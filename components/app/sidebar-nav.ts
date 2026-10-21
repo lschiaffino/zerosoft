@@ -1,5 +1,6 @@
 import type { IconName } from './icons';
 import { isNewLinkPath } from '@/lib/link-detail-tabs';
+import type { NotificationTextLabels } from '@/lib/notification-text';
 
 /**
  * Navegación del sidebar de la app, en datos puros (sin React) para poder
@@ -105,6 +106,7 @@ export interface SidebarLabels {
     markRead: string;
     markAllRead: string;
     empty: string;
+    text: NotificationTextLabels;
   };
 }
 

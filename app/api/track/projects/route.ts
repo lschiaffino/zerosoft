@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/session';
 import { createProject, listProjectMetas, listProjects } from '@/lib/track-data';
 import { projectCreateSchema } from '@/lib/track-schema';
 import { invalidBody, pageParams, unauthorized } from '@/lib/track-http';
+import { requestLocale } from '@/lib/request-locale';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,6 +31,8 @@ export async function POST(req: NextRequest) {
   const parsed = projectCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const project = await createProject(user.id, user.team?.id ?? null, parsed.data);
+  // Los estados por defecto nacen en el idioma de la UI de quien crea el proyecto.
+  const locale = requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
+  const project = await createProject(user.id, user.team?.id ?? null, parsed.data, { locale });
   return NextResponse.json(project, { status: 201 });
 }

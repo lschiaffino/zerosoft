@@ -211,7 +211,8 @@
   color: var(--brand-gray-2);
 }
 .flow-node-summary.data { font-size: 0.75rem; }
-.flow-node-outputs { position: relative; height: 20px; margin: 8px 0 -12px; }
+/* Salidas con nombre: una fila propia dentro de la tarjeta, separada del resumen; el punto queda sobre el borde. */
+.flow-node-outputs { position: relative; height: 28px; margin: 10px -12px -12px; border-top: 1px solid var(--line); }
 .flow-node-output {
   position: absolute;
   bottom: 0;
@@ -221,8 +222,8 @@
   transform: translateX(-50%);
 }
 .flow-node-output span {
-  max-width: 88px;
-  margin-bottom: 4px;
+  max-width: 96px;
+  margin-bottom: 7px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

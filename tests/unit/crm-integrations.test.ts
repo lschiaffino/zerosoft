@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createBooking, createEventType, getOrCreateCalendarUser, rescheduleBooking, setAvailability } from '@/lib/calendar';
 import { createContact, listTimeline } from '@/lib/crm';
-import { findContactByEmail, logChatToCrm, recordBookingInCrm } from '@/lib/crm-integrations';
+import { bookingPhone, findContactByEmail, logChatToCrm, recordBookingInCrm } from '@/lib/crm-integrations';
 import { createWorkflow, listWorkflowRuns } from '@/lib/crm-workflows';
 import { getDb, type ChatVisitorRow } from '@/lib/db';
 import { API_ENDPOINTS } from '@/lib/api-docs';
@@ -109,6 +109,42 @@ describe('Cal → CRM', () => {
       .prepare('SELECT COUNT(*) AS n FROM crm_contacts WHERE user_id = ?')
       .get(u.id)) as { n: number };
     expect(count.n).toBe(1);
+  });
+});
+
+describe('Cal → CRM: teléfono del invitado', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('sale de "te llamamos" o de una pregunta de tipo teléfono', () => {
+    const base = { location_kind: '', location: '', answers: '{}' };
+    expect(bookingPhone({ ...base, location_kind: 'phone_host', location: '+54 11 5555-1234' }, [])).toBe('+54 11 5555-1234');
+    const fields = [
+      { name: 'notes', label: 'Notas', type: 'text' },
+      { name: 'cel', label: 'Celular', type: 'phone' },
+    ];
+    expect(bookingPhone({ ...base, answers: JSON.stringify({ notes: '12345678', cel: '+55 11 99999-0000' }) }, fields)).toBe('+55 11 99999-0000');
+    expect(bookingPhone({ ...base, answers: JSON.stringify({ notes: '12345678' }) }, fields)).toBe('');
+    expect(bookingPhone({ ...base, answers: 'roto' }, fields)).toBe('');
+  });
+
+  it('lo copia al contacto nuevo y completa uno existente sin teléfono', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const u = await makeUser('calphone');
+    const phoneHost = { location_kind: 'phone_host', location: '+54 11 5555-1234' };
+    const { booking } = await bookingFor(u.id, 'tel@empresa.test');
+    await recordBookingInCrm(u.id, 'created', { ...booking, ...phoneHost }, 'Intro call');
+    expect((await findContactByEmail(u.id, 'tel@empresa.test'))?.phone).toBe('+54 11 5555-1234');
+
+    await createContact(u.id, { email: 'sin@tel.test', firstName: 'Sin' });
+    const second = await bookingFor(u.id, 'sin@tel.test', '10:00');
+    await recordBookingInCrm(u.id, 'created', { ...second.booking, ...phoneHost }, 'Intro call');
+    expect((await findContactByEmail(u.id, 'sin@tel.test'))?.phone).toBe('+54 11 5555-1234');
+
+    // Un teléfono que ya estaba no se pisa.
+    await createContact(u.id, { email: 'con@tel.test', firstName: 'Con', phone: '+1 555 0100' });
+    const third = await bookingFor(u.id, 'con@tel.test', '11:00');
+    await recordBookingInCrm(u.id, 'created', { ...third.booking, ...phoneHost }, 'Intro call');
+    expect((await findContactByEmail(u.id, 'con@tel.test'))?.phone).toBe('+1 555 0100');
   });
 });
 

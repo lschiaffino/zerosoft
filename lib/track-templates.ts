@@ -8,6 +8,7 @@ import { getDb } from './db';
 import type { TrackIssueTemplateRow, TrackProjectRow } from './db';
 import { normalizeIssueLabels, projectWorkspaceId } from './track-labels';
 import type { TemplateCreatePayload, TemplateUpdatePayload } from './track-schema';
+import { normalizeTemplateTitle } from './track-schema';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -43,7 +44,7 @@ export async function createTemplate(project: TrackProjectRow, payload: Template
       id,
       project.id,
       payload.name.trim(),
-      payload.title?.trim() ?? '',
+      normalizeTemplateTitle(payload.title ?? ''),
       payload.description?.trim() ?? '',
       payload.statusId ?? null,
       payload.priority ?? null,
@@ -68,7 +69,7 @@ export async function updateTemplate(
     args.push(value);
   };
   if (payload.name !== undefined) set('name', payload.name.trim());
-  if (payload.title !== undefined) set('title', payload.title.trim());
+  if (payload.title !== undefined) set('title', normalizeTemplateTitle(payload.title));
   if (payload.description !== undefined) set('description', payload.description.trim());
   if (payload.statusId !== undefined) set('status_id', payload.statusId ?? null);
   if (payload.priority !== undefined) set('priority', payload.priority ?? null);

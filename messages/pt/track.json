@@ -311,7 +311,14 @@
     "title": "Notificações",
     "markRead": "Marcar como lida",
     "markAllRead": "Marcar todas como lidas",
-    "empty": "Nenhuma notificação"
+    "empty": "Nenhuma notificação",
+    "untitled": "Sem título",
+    "docMention": "{actor} mencionou você em {title}",
+    "docCommentMention": "{actor} mencionou você em um comentário em {title}",
+    "docCommentReply": "{actor} respondeu a um comentário em {title}",
+    "docShared": "{actor} compartilhou {title} com você",
+    "boardMention": "{actor} mencionou você em {title}",
+    "boardReply": "{actor} respondeu em {title}"
   },
   "errors": {
     "invalid_slug": "Slug inválido. Use letras minúsculas, números e hífens.",
@@ -543,15 +550,15 @@
   "display": {
     "groupBy": "Agrupar",
     "sortBy": "Ordenar",
-    "noCycle": "Sem cycle",
-    "noLabel": "Sem label",
+    "noCycle": "Sem ciclo",
+    "noLabel": "Sem etiqueta",
     "groups": {
       "none": "Sem agrupar",
       "status": "Status",
       "assignee": "Responsável",
       "priority": "Prioridade",
-      "cycle": "Cycle",
-      "label": "Label",
+      "cycle": "Ciclo",
+      "label": "Etiqueta",
       "project": "Projeto"
     },
     "sorts": {

@@ -102,6 +102,35 @@ export function parseLocations(json: string | null | undefined, opts: { validate
   return out;
 }
 
+/**
+ * El campo de texto viejo ("Ubicación") como una opción de la lista: un link
+ * de Zoom o Teams va con su tipo, otro link como "Otro link", un teléfono
+ * como "llama el invitado" y el resto como dirección. Null si está vacío.
+ */
+export function legacyLocationOption(text: string | null | undefined): LocationOption | null {
+  const value = oneLine(text);
+  if (!value) return null;
+  if (isHttpUrl(value)) {
+    const host = new URL(value).hostname.toLowerCase();
+    if (host === 'zoom.us' || host.endsWith('.zoom.us')) return { kind: 'zoom', value };
+    if (host === 'teams.microsoft.com' || host === 'teams.live.com') return { kind: 'teams', value };
+    return { kind: 'link', value };
+  }
+  if (isValidPhone(value)) return { kind: 'phone_invitee', value };
+  return { kind: 'in_person', value };
+}
+
+/**
+ * Ubicaciones para el editor: la lista guardada o, si está vacía, el texto
+ * viejo migrado como única opción (al guardar queda en la lista).
+ */
+export function editorLocations(json: string | null | undefined, legacyText: string | null | undefined): LocationOption[] {
+  const list = parseLocations(json);
+  if (list.length > 0) return list;
+  const legacy = legacyLocationOption(legacyText);
+  return legacy ? [legacy] : [];
+}
+
 export function parseConferencing(json: string | null | undefined): HostConferencing {
   let raw: unknown;
   try {

@@ -54,7 +54,8 @@ export default function RoutingFormsView({ items, handle, openNew }: RoutingForm
       const res = await fetch('/api/calendar/routing', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), slug: candidate, active: true }),
+        // Nace sin publicar: se publica en el paso 3, cuando ya tiene preguntas.
+        body: JSON.stringify({ title: title.trim(), slug: candidate, active: false }),
       }).catch(() => null);
       if (res && res.status === 201) {
         const data = (await res.json()) as { id: string };

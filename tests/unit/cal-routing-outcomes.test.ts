@@ -4,6 +4,7 @@ import {
   addRoutingField,
   addRoutingRule,
   answerParams,
+  missingRequiredFields,
   createRoutingForm,
   getRoutingForm,
   listRoutingSubmissions,
@@ -90,6 +91,16 @@ describe('Cal: routing forms que terminan en una URL o un mensaje', () => {
     expect(withParams('https://example.com/x?size=keep#top', params)).toBe('https://example.com/x?size=keep&agree=true&notes=a+b#top');
     expect(withParams('/book/h/demo', [['size', '500+']])).toBe('/book/h/demo?size=500%2B');
     expect(withParams('/book/h/demo', [])).toBe('/book/h/demo');
+  });
+
+  it('un sí/no obligatorio acepta "No": solo falta si no se eligió nada', () => {
+    const form = { fields: [{ name: 'big', type: 'boolean', required: 1 }, { name: 'co', type: 'text', required: 1 }] } as Parameters<
+      typeof missingRequiredFields
+    >[0];
+    expect(missingRequiredFields(form, { big: false, co: 'Acme' })).toEqual([]);
+    expect(missingRequiredFields(form, { big: true, co: 'Acme' })).toEqual([]);
+    expect(missingRequiredFields(form, { co: 'Acme' })).toEqual(['big']);
+    expect(missingRequiredFields(form, { big: false })).toEqual(['co']);
   });
 
   it('el endpoint público responde por tipo de destino y registra cada envío', async () => {

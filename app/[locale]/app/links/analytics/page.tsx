@@ -111,7 +111,7 @@ export default async function LinkAnalyticsPage(props: Props) {
     <div className="ui-page link-analytics">
       <PageHeader
         title={t('analytics.title')}
-        description={t('analytics.sub')}
+        description={t('analytics.sub', { tz: timezone })}
         actions={
           <a href={`/api/links/analytics/export.csv?${q}`} className="btn" data-testid="analytics-export">
             <LinkIcon name="download" size={15} />
@@ -120,7 +120,8 @@ export default async function LinkAnalyticsPage(props: Props) {
         }
       />
 
-      <form className="lk-toolbar" method="get">
+      {/* Un solo form (con un solo Aplicar) para fechas y filtros: las fechas viven arriba y se enlazan con form=. */}
+      <div className="lk-toolbar">
         <div className="btn-group lk-range" role="group" aria-label={t('detail.rangeLabel')}>
           {presets.map((p) => (
             <Link
@@ -136,25 +137,16 @@ export default async function LinkAnalyticsPage(props: Props) {
         <div className="lk-dates">
           <label className="lk-inline-field">
             <span className="label">{t('analytics.from')}</span>
-            <input type="date" name="from" defaultValue={range.from} className="input mono" />
+            <input type="date" name="from" form="analytics-filters" defaultValue={range.from} className="input mono" />
           </label>
           <label className="lk-inline-field">
             <span className="label">{t('analytics.to')}</span>
-            <input type="date" name="to" defaultValue={range.to} className="input mono" />
+            <input type="date" name="to" form="analytics-filters" defaultValue={range.to} className="input mono" />
           </label>
-          <button type="submit" className="btn btn-sm">
-            {t('analytics.apply')}
-          </button>
         </div>
-        {/* Los filtros viajan con el rango: el form los reenvía como campos ocultos. */}
-        {Object.entries(filterQuery).map(([k, v]) => (
-          <input key={k} type="hidden" name={k} value={v} />
-        ))}
-      </form>
+      </div>
 
-      <form className="lk-an-filters" method="get" aria-label={t('analytics.filtersLabel')} data-testid="analytics-filters">
-        <input type="hidden" name="from" value={range.from} />
-        <input type="hidden" name="to" value={range.to} />
+      <form id="analytics-filters" className="lk-an-filters" method="get" aria-label={t('analytics.filtersLabel')} data-testid="analytics-filters">
         {facets.tags.length > 0 && (
           <div className="ui-field">
             <label className="label" htmlFor="af-tag">
@@ -254,7 +246,7 @@ export default async function LinkAnalyticsPage(props: Props) {
           </select>
         </div>
         <button type="submit" className="btn btn-sm">
-          {t('analytics.applyFilters')}
+          {t('analytics.apply')}
         </button>
         {hasFilters && (
           <Link
@@ -320,7 +312,7 @@ export default async function LinkAnalyticsPage(props: Props) {
             {
               key: 'dest',
               header: t('table.destination'),
-              cell: (l) => <span className="lk-dest-text">{l.title || l.url}</span>,
+              cell: (l) => <span className="lk-dest-text">{l.url}</span>,
             },
             { key: 'clicks', header: t('analytics.colClicks'), numeric: true, data: true, cell: (l) => formatNumber(l.clicks, locale) },
             { key: 'scans', header: t('analytics.colScans'), numeric: true, data: true, cell: (l) => formatNumber(l.scans, locale) },

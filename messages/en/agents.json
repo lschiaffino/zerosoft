@@ -367,7 +367,9 @@
     "too_many_secrets": "This agent already has the maximum number of secret headers (10).",
     "secret_domain_not_allowed": "Pick a domain from the saved allowed list.",
     "reserved_header": "That header is set automatically and can’t be changed.",
-    "already_decided": "Someone already approved or rejected this action."
+    "already_decided": "Someone already approved or rejected this action.",
+    "ai_no_credits": "The AI provider refused the request: the account has no credits or no access to this model. Add credits in the Vercel AI Gateway, or set a model your plan includes under Instructions > Model.",
+    "ai_auth": "The AI provider rejected the server credentials. Check AI_GATEWAY_API_KEY in the server settings."
   },
   "public": {
     "subtitle": "AI assistant",

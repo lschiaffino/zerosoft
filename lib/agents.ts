@@ -232,7 +232,18 @@ export async function createAgent(
   const id = crypto.randomUUID();
   const ts = nowIso();
   const tpl = input.template ? AGENT_TEMPLATES[input.template] : null;
-  const tools = parseTools(JSON.stringify({ enabled: tpl?.tools ?? ['search_knowledge', 'handoff_to_human'] }));
+  let enabled: string[] = tpl?.tools ?? ['search_knowledge', 'handoff_to_human'];
+  // "Crear issue en Track" sin proyecto no funciona: la plantilla usa el
+  // proyecto más viejo del workspace y, si no hay ninguno, la deja apagada.
+  let trackProjectId: string | undefined;
+  if (enabled.includes('track_create_issue')) {
+    const project = (await getDb()
+      .prepare("SELECT id FROM track_projects WHERE owner_id = ? ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, created_at ASC LIMIT 1")
+      .get(workspaceId)) as { id: string } | undefined;
+    if (project) trackProjectId = project.id;
+    else enabled = enabled.filter((k) => k !== 'track_create_issue');
+  }
+  const tools = parseTools(JSON.stringify({ enabled, ...(trackProjectId ? { trackProjectId } : {}) }));
   await getDb()
     .prepare(
       `INSERT INTO agents (id, user_id, name, emoji, instructions, welcome_message, model, temperature, knowledge, tools, handoff, guardrails, enabled, public_handle, created_by, created_at, updated_at)

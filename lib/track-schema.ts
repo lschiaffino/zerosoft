@@ -254,9 +254,19 @@ export const milestoneUpdateSchema = milestoneCreateSchema.partial();
 
 // ---------- Plantillas de issue ----------
 
+/**
+ * Título de plantilla: es el comienzo del título del issue ("[Bug] "), así que
+ * se conserva un espacio final si lo tenía; solo se recortan los del inicio.
+ */
+export function normalizeTemplateTitle(raw: string): string {
+  return raw.replace(/^\s+/, '').replace(/\s+$/, (m) => (m ? ' ' : '')).replace(/^ $/, '');
+}
+
+const templateTitle = z.string().max(500).transform(normalizeTemplateTitle);
+
 export const templateCreateSchema = z.object({
   name,
-  title: shortText.optional(),
+  title: templateTitle.optional(),
   description: longText.optional(),
   statusId: id.nullish(),
   priority: issuePriority.nullish(),

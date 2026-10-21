@@ -311,7 +311,14 @@
     "title": "Notifications",
     "markRead": "Mark read",
     "markAllRead": "Mark all read",
-    "empty": "No notifications"
+    "empty": "No notifications",
+    "untitled": "Untitled",
+    "docMention": "{actor} mentioned you in {title}",
+    "docCommentMention": "{actor} mentioned you in a comment on {title}",
+    "docCommentReply": "{actor} replied to a comment on {title}",
+    "docShared": "{actor} shared {title} with you",
+    "boardMention": "{actor} mentioned you in {title}",
+    "boardReply": "{actor} replied on {title}"
   },
   "errors": {
     "invalid_slug": "Invalid slug. Use lowercase letters, numbers and dashes only.",

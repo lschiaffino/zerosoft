@@ -38,7 +38,7 @@ import NodeConfigPanel, { type EditorRefs, type VariableOption } from './NodeCon
 import RunsPanel, { type RunDetail } from './RunsPanel';
 import StepTest from './StepTest';
 import VersionsPanel from './VersionsPanel';
-import { CATEGORY_ORDER, flattenPaths, i18nKey, nodeApp } from './flow-ui';
+import { autoConnectHandle, CATEGORY_ORDER, flattenPaths, i18nKey, nodeApp } from './flow-ui';
 
 interface Props {
   flow: FlowDto;
@@ -346,11 +346,15 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
         ...list.map((n) => (n.selected ? { ...n, selected: false } : n)),
         { id, type: 'flow', position: pos, selected: true, data: { type, config: defaultConfig(type) } },
       ]);
-      // Conecta automáticamente desde el nodo seleccionado si tiene una sola salida.
+      // Conecta automáticamente desde el nodo seleccionado: con una sola salida,
+      // por esa; con varias (Si, Switch, Aprobación), por la primera libre.
       if (!position && anchor) {
-        const outs = nodeOutputs({ type: anchor.data.type, config: anchor.data.config });
-        if (outs.length === 1) {
-          setEdges((list) => addEdge({ id: `e_${anchor.id}_${id}`, source: anchor.id, target: id, sourceHandle: outs[0] }, list));
+        const handle = autoConnectHandle(
+          nodeOutputs({ type: anchor.data.type, config: anchor.data.config }),
+          edges.filter((e) => e.source === anchor.id).map((e) => e.sourceHandle ?? 'out'),
+        );
+        if (handle) {
+          setEdges((list) => addEdge({ id: `e_${anchor.id}_${handle}_${id}`, source: anchor.id, target: id, sourceHandle: handle }, list));
         }
       }
       setSelectedId(id);
@@ -362,7 +366,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
         );
       }
     },
-    [readOnly, trigger, nodes, selected, setNodes, setEdges, markDirty, rf],
+    [readOnly, trigger, nodes, edges, selected, setNodes, setEdges, markDirty, rf],
   );
 
   /** Desde Ejecuciones: vuelve al editor con el nodo elegido y centrado. */

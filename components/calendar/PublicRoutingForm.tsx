@@ -101,15 +101,25 @@ export default function PublicRoutingForm({ form, brand }: PublicRoutingFormProp
             {form.fields.length === 0 && <p className="bk-note">{t('routing.publicEmpty')}</p>}
             {form.fields.map((field) =>
               field.type === 'boolean' ? (
-                <label key={field.name} className="ui-check">
-                  <input
-                    type="checkbox"
-                    checked={answers[field.name] === true}
-                    onChange={(e) => updateAnswer(field.name, e.target.checked)}
-                    required={field.required}
-                  />
-                  <span>{field.label}</span>
-                </label>
+                // Sí/No como dos opciones: con una casilla "required" el "No" no se podía enviar.
+                <fieldset key={field.name} className="bk-choices">
+                  <legend className="label">
+                    {field.label} {!field.required && <span className="ui-optional">{t('editor.optional')}</span>}
+                  </legend>
+                  {[true, false].map((v, i) => (
+                    <label key={String(v)} className="ui-check">
+                      <input
+                        type="radio"
+                        name={`rf-${field.name}`}
+                        value={v ? 'yes' : 'no'}
+                        checked={answers[field.name] === v}
+                        onChange={() => updateAnswer(field.name, v)}
+                        required={field.required && i === 0}
+                      />
+                      <span>{v ? t('common.yes') : t('common.no')}</span>
+                    </label>
+                  ))}
+                </fieldset>
               ) : (
                 <div key={field.name} className="ui-field">
                   <label className="label" htmlFor={`rf-${field.name}`}>

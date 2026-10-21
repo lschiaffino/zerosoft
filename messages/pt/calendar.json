@@ -203,7 +203,7 @@
     "newTitle": "Novo formulário de roteamento",
     "newSub": "Faça algumas perguntas e direcione cada pessoa para a página de reserva certa.",
     "back": "← Todos os formulários",
-    "inactive": "Inativo",
+    "inactive": "Não publicado",
     "emptyTitle": "Ainda não há formulários de roteamento",
     "emptySub": "Faça duas ou três perguntas antes do agendamento e envie cada pessoa ao tipo de evento certo.",
     "emptyCta": "Criar formulário",
@@ -694,7 +694,7 @@
     "note": "Pagamentos retidos que venceram sem pagamento ficam de fora."
   },
   "location": {
-    "title": "Locais para escolher",
+    "title": "Local",
     "lead": "Adicione um ou mais. Com vários, o convidado escolhe ao reservar. Zoom e Teams sem link usam o link de cada anfitrião.",
     "kind": {
       "zoom": "Zoom",
@@ -715,9 +715,6 @@
     "add": "Adicionar local",
     "remove": "Remover local",
     "invalid": "Revise os locais: falta um endereço ou link, ou há um link ou telefone inválido.",
-    "textFallbackHelp": "Com locais para escolher, este texto só aparece onde não há escolha.",
-    "hostCalls": "(nós ligamos)",
-    "youCall": "(você liga)",
     "yourPhone": "Seu telefone",
     "conferencingTitle": "Seus links de reunião",
     "conferencingLead": "Usados quando um evento oferece Zoom, Teams ou uma ligação para você e você é o anfitrião.",
@@ -725,6 +722,11 @@
     "zoomLink": "Link da sua sala do Zoom",
     "teamsLink": "Link da sua reunião do Teams",
     "phoneNumber": "Telefone",
-    "phoneNumberHelp": "Os convidados ligam para este número quando o evento usa \"o convidado liga\" sem um número próprio."
+    "phoneNumberHelp": "Os convidados ligam para este número quando o evento usa \"o convidado liga\" sem um número próprio.",
+    "public": {
+      "phone_host": "Ligação (nós ligamos)",
+      "phone_invitee": "Ligação (você liga)",
+      "in_person": "Presencial: {address}"
+    }
   }
 }

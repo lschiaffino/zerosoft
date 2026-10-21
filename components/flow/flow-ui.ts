@@ -219,3 +219,15 @@ export function robotInputRows(
   }
   return rows;
 }
+
+/**
+ * Salida por la que se conecta un nodo agregado desde la paleta: la única si
+ * hay una sola; si hay varias (Si, Switch, Aprobación), la primera que todavía
+ * no tiene arista. La salida de error nunca se elige sola. Null si no queda
+ * ninguna libre.
+ */
+export function autoConnectHandle(outputs: readonly string[], used: readonly string[]): string | null {
+  if (outputs.length === 1) return outputs[0];
+  const taken = new Set(used);
+  return outputs.find((h) => h !== 'error' && !taken.has(h)) ?? null;
+}

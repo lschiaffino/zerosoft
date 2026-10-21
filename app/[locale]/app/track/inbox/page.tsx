@@ -29,11 +29,11 @@ export default async function TrackInboxPage(props: { params: Promise<{ locale: 
           loadError: t('inbox.loadError'),
           retry: t('common.retry'),
           someone: t('inbox.someone'),
-          mentionedYou: t('activity.mentionedYou'),
-          assignedYou: t('activity.assignedYou'),
-          commentedOn: t('activity.commentedOn'),
-          changedStatus: t('activity.changedStatus'),
-          updatedIssue: t('activity.updatedIssue'),
+          mentionedYou: t.raw('activity.mentionedYou') as string,
+          assignedYou: t.raw('activity.assignedYou') as string,
+          commentedOn: t.raw('activity.commentedOn') as string,
+          changedStatus: t.raw('activity.changedStatus') as string,
+          updatedIssue: t.raw('activity.updatedIssue') as string,
         }}
       />
     </div>

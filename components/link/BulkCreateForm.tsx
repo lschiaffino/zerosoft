@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { bulkResultsToCsv, parseBulkLines, type BulkResultItem } from '@/lib/link-bulk-csv';
+import { bulkResultsToCsv, checkBulkRows, parseBulkLines, type BulkResultItem } from '@/lib/link-bulk-csv';
 import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import LinkIcon from './LinkIcon';
@@ -32,7 +32,11 @@ export default function BulkCreateForm({ domain, customDomains = [], folders = [
   const [utmCampaign, setUtmCampaign] = useState('');
   const [results, setResults] = useState<BulkResultItem[] | null>(null);
 
-  const count = parseBulkLines(urls).length;
+  // Revisión fila por fila antes de crear (mismas reglas que el server).
+  const checked = useMemo(() => checkBulkRows(parseBulkLines(urls), { customDomain: !!domainId }), [urls, domainId]);
+  const count = checked.length;
+  const bad = checked.filter((r) => r.problem).length;
+  const errorText = (code?: string) => (code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
 
   async function create(): Promise<string | void> {
     setResults(null);
@@ -104,6 +108,47 @@ export default function BulkCreateForm({ domain, customDomains = [], folders = [
             {t('bulk.rowsHelp')}
           </p>
         </div>
+
+        {count > 0 && (
+          <div className="ui-field" data-testid="bulk-preview">
+            <span className="label">{t('bulk.previewTitle')}</span>
+            <p className="ui-help" role="status">
+              {t('bulk.previewSummary', { ok: count - bad, bad })}
+            </p>
+            <div className="table-wrap lk-bulk-preview">
+              <table className="table table-compact">
+                <caption className="sr-only">{t('bulk.previewTitle')}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">{t('bulk.colUrl')}</th>
+                    <th scope="col">{t('bulk.colSlug')}</th>
+                    <th scope="col">{t('bulk.colTitle')}</th>
+                    <th scope="col">{t('bulk.colStatus')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {checked.map((r, i) => (
+                    <tr key={i} data-problem={r.problem ?? undefined}>
+                      <td className="data lk-cell-trunc">{r.url}</td>
+                      <td className="data">{r.slug ?? <span className="ui-help">{t('bulk.slugAuto')}</span>}</td>
+                      <td className="lk-cell-trunc">{r.title ?? ''}</td>
+                      <td>
+                        {r.problem ? (
+                          <span className="lk-bulk-error">
+                            <span className="badge badge-bad">{t('bulk.statusError')}</span>
+                            <span className="ui-help">{errorText(r.problem)}</span>
+                          </span>
+                        ) : (
+                          <span className="badge badge-ok">{t('bulk.rowOk')}</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {(customDomains.length > 0 || folders.length > 0) && (
           <div className="ui-fields-2">
@@ -221,15 +266,13 @@ export default function BulkCreateForm({ domain, customDomains = [], folders = [
                 {results.map((r, i) => (
                   <tr key={i}>
                     <td className="data lk-cell-trunc">{r.url}</td>
-                    <td className="lk-cell-trunc">{r.title ?? t('detail.none')}</td>
+                    <td className="lk-cell-trunc">{r.title ?? ''}</td>
                     <td className="data">
                       {r.short_url ? (
                         <a href={r.short_url} target="_blank" rel="noopener noreferrer" className="cell-link">
                           {r.short_url.replace(/^https?:\/\//, '')}
                         </a>
-                      ) : (
-                        t('detail.none')
-                      )}
+                      ) : null}
                     </td>
                     <td>
                       {r.status === 'created' ? (
@@ -237,9 +280,7 @@ export default function BulkCreateForm({ domain, customDomains = [], folders = [
                       ) : (
                         <span className="lk-bulk-error">
                           <span className="badge badge-bad">{t('bulk.statusError')}</span>
-                          <span className="ui-help">
-                            {r.error && t.has(`errors.${r.error}`) ? t(`errors.${r.error}`) : t('errors.generic')}
-                          </span>
+                          <span className="ui-help">{errorText(r.error)}</span>
                         </span>
                       )}
                     </td>

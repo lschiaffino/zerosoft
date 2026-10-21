@@ -283,7 +283,12 @@
     "resultsSummary": "{created} creados, {failed} con error.",
     "rowsHelp": "Cada línea es una URL, o url, slug, título (con comas o tabs, como sale de una planilla). El título puede tener comas.",
     "domainLabel": "Dominio",
-    "colTitle": "Título"
+    "colTitle": "Título",
+    "previewTitle": "Vista previa",
+    "previewSummary": "{ok, plural, one {# fila lista} other {# filas listas}}, {bad, plural, =0 {ninguna con problemas} one {# con problemas} other {# con problemas}}. Que el slug esté libre se revisa al crear.",
+    "colSlug": "Slug",
+    "slugAuto": "Automático",
+    "rowOk": "Lista"
   },
   "settings": {
     "title": "Ajustes",
@@ -372,7 +377,8 @@
     "invalid_og_image": "La imagen de la vista previa tiene que ser una URL http(s).",
     "invalid_external_id": "El id externo no es válido.",
     "external_id_taken": "Otro link ya usa ese id externo.",
-    "invalid_folder": "No podés sumar links a esa carpeta."
+    "invalid_folder": "No podés sumar links a esa carpeta.",
+    "duplicate_slug": "Ese slug se repite en el lote."
   },
   "webhooks": {
     "desc": "Enviamos un JSON firmado (POST) a tu URL cuando pasan estos eventos. Verificá el header Zerosoft-Signature (t=…,v1=HMAC-SHA256 de \"t.body\") con tu secret. Las entregas fallidas se reintentan con backoff.",
@@ -551,7 +557,7 @@
     "exportCsv": "Exportar CSV",
     "empty": "Sin visitas en este rango.",
     "noData": "Sin datos",
-    "sub": "Todos tus links juntos. Fechas en UTC.",
+    "sub": "Todos tus links juntos. Fechas en {tz}.",
     "emptyBody": "Compartí un link y los clicks aparecen acá.",
     "cities": "Ciudades",
     "filtersLabel": "Filtros",
@@ -562,7 +568,6 @@
     "filterDevice": "Dispositivo",
     "any": "Todos",
     "timezone": "Zona horaria",
-    "applyFilters": "Aplicar filtros",
     "clearFilters": "Limpiar filtros",
     "chartLabelTz": "Visitas por día ({tz})"
   },
