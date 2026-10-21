@@ -1,0 +1,60 @@
+/* ============================================================
+   Flow — página pública de aprobación (/flow/approve/<token>).
+   Una hoja angosta: de qué flow viene, el pedido y dos botones.
+   ============================================================ */
+
+.fa {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 56px 16px 64px;
+}
+
+.fa-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px 28px 24px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--c-flow-ink, var(--ink));
+  border-radius: var(--radius-1);
+}
+
+.fa-card p { margin: 0; }
+
+.fa-eyebrow {
+  font-family: var(--font-data);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.fa-title {
+  margin: 0;
+  font-family: var(--font-signage);
+  font-size: 1.5rem;
+  font-weight: var(--signage-weight);
+  font-stretch: var(--signage-stretch);
+  letter-spacing: var(--signage-tracking);
+  line-height: 1.15;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.fa-message {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.fa-form { display: flex; flex-direction: column; gap: 12px; }
+.fa-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.fa-state { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.fa-state-title { font-weight: 600; color: var(--ink); }
+.fa-state-title.is-approved { color: var(--ok-ink, var(--ink)); }
+.fa-state-title.is-rejected,
+.fa-state-title.is-expired { color: var(--bad-ink, var(--ink)); }

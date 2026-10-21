@@ -5,6 +5,7 @@ import { listAgents } from '@/lib/agents';
 import { getFlow, lastOutputs, listFlows, listFlowWebhooks } from '@/lib/flow';
 import { flowCodeAvailable } from '@/lib/flow-code';
 import { listCredentials } from '@/lib/flow-credentials';
+import { listTables } from '@/lib/flow-tables';
 import { listRobots } from '@/lib/robots';
 import { canEditFlows } from '@/lib/flow-http';
 import FlowEditor from '@/components/flow/FlowEditor';
@@ -23,11 +24,12 @@ export default async function FlowEditorPage(props: {
   const flow = await getFlow(user.id, id);
   if (!flow) notFound();
   const canEdit = canEditFlows(user);
-  const [credentials, flows, agents, robots] = await Promise.all([
+  const [credentials, flows, agents, robots, tables] = await Promise.all([
     listCredentials(user.id),
     listFlows(user.id),
     listAgents(user.id),
     listRobots(user.id),
+    listTables(user.id),
   ]);
   return (
     <FlowEditor
@@ -46,6 +48,7 @@ export default async function FlowEditorPage(props: {
           name: r.name,
           inputs: r.inputs.map((d) => ({ name: d.name, label: d.label, required: d.required, default: d.default })),
         })),
+        tables: tables.map((x) => ({ id: x.id, name: x.name, columns: x.columns })),
         codeAvailable: flowCodeAvailable(),
       }}
     />

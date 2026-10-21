@@ -1418,7 +1418,27 @@ export interface FlowFlowRow {
   failure_alerts?: number; // 0 | 1: email al dueño cuando una corrida falla
   auto_replay?: number; // 0 | 1: replay automático de corridas fallidas
   failure_email_at?: string | null; // último aviso de falla (tope: uno por hora)
+  pinned_data?: string; // JSON { nodeId: salida fijada } para probar un paso solo
   created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FlowTableRow {
+  id: string;
+  user_id: string; // workspace
+  name: string;
+  columns: string; // JSON FlowTableColumn[]
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FlowTableDataRow {
+  id: string;
+  table_id: string;
+  user_id: string;
+  data: string; // JSON { columna: valor }
   created_at: string;
   updated_at: string;
 }

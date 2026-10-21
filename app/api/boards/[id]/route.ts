@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { deleteBoard, getBoard, renameBoard, setBoardThumbnail } from '@/lib/boards';
+import { deleteBoard, getBoard, getBoardName, renameBoard, setBoardThumbnail } from '@/lib/boards';
+import { emitEventSoon } from '@/lib/events';
 import { boardRenameSchema, boardThumbnailSchema } from '@/lib/boards-schema';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
 
@@ -46,6 +47,8 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
   if (!user) return jsonError(401, 'unauthorized');
   const limited = await limitWrites('boards:write', user.actingUser?.id ?? user.id, 60);
   if (limited) return limited;
+  const name = await getBoardName(user.id, id);
   if (!(await deleteBoard(user.id, id))) return jsonError(404, 'not_found');
+  await emitEventSoon(user.id, 'board.deleted', { board: { id, name: name ?? '' } });
   return new NextResponse(null, { status: 204 });
 }

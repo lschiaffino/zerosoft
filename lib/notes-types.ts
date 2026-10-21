@@ -37,6 +37,31 @@ export interface NoteDetail extends NoteSummary {
   reminder?: { at: string; sent_at: string | null } | null;
 }
 
+/**
+ * Datos de una nota para los disparadores de Flow (note.*): título y
+ * etiquetas, nunca el contenido (las notas son de cada persona y un flow lo
+ * ve todo el workspace).
+ */
+export function noteEventPayload(note: NoteSummary, personId: string) {
+  return {
+    note: {
+      id: note.id,
+      title: note.title,
+      tags: note.tags,
+      notebookId: note.notebook_id,
+      sourceUrl: note.source_url,
+      createdAt: note.created_at,
+    },
+    personId,
+  };
+}
+
+/** Etiquetas nuevas de una nota (las que no tenía antes). */
+export function addedTags(before: readonly string[], after: readonly string[]): string[] {
+  const prev = new Set(before.map((t) => t.toLowerCase()));
+  return after.filter((t) => !prev.has(t.toLowerCase()));
+}
+
 /** Href (sin locale) de una nota en la app: lo usan los links [[ ]] y los avisos. */
 export function noteHref(id: string): string {
   return `/app/notes?note=${encodeURIComponent(id)}`;
