@@ -106,12 +106,15 @@
   flex-direction: column;
   height: calc(100dvh - var(--band-h));
   min-height: 420px;
+  /* La barra se arma según el ancho del editor (con o sin sidebar), no de la ventana. */
+  container: board-editor / inline-size;
 }
 
 .board-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  --bar-gap: 12px;
+  gap: var(--bar-gap);
   min-height: 52px;
   padding: 8px 16px;
   border-bottom: 1px solid var(--line);
@@ -135,8 +138,10 @@
 /* Nombre: se lee como título y se edita en el lugar. */
 .board-name {
   flex: 0 1 auto;
-  min-width: 0;
+  /* El título nunca queda en "Piz…": las herramientas se pliegan antes. */
+  min-width: min(9ch, 40cqi);
   max-width: 360px;
+  text-overflow: ellipsis;
   min-height: 32px;
   padding: 0 8px;
   border: 1px solid transparent;
@@ -155,7 +160,7 @@
 .board-name:hover { border-color: var(--line); }
 .board-name:focus { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 
-.board-status { font-size: 0.8125rem; color: var(--brand-gray-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.board-status { flex-shrink: 0; font-size: 0.8125rem; color: var(--brand-gray-2); white-space: nowrap; }
 .board-status.is-error { color: var(--bad-ink); }
 
 .board-share-wrap { position: relative; margin-left: auto; }
@@ -218,10 +223,14 @@
 
 .board-loading { position: absolute; inset: 0; background: var(--bg); }
 
-/* El botón de feedback no tapa la barra inferior de Excalidraw en mobile. */
-@media (max-width: 730px) {
-  body:has(.board-editor) .fl-root { bottom: 88px; }
-}
+.board-excalidraw { display: contents; }
+/* Tope del panel de propiedades: termina arriba de la barra de zoom (lo mide ExcalidrawCanvas). */
+.board-excalidraw .excalidraw .App-menu__left { max-height: var(--board-panel-max, none) !important; }
+/*
+ * Las ayudas de Excalidraw en español vienen de usted ("utilice", "mantenga")
+ * y el resto de la app habla de vos: en español no se muestran.
+ */
+.board-excalidraw[data-lang='es-ES'] .HintViewer { display: none; }
 
 /* ---------- Vista pública ---------- */
 
@@ -240,7 +249,7 @@
 .board-public + .powered-by { display: none; }
 
 @media (max-width: 1023px) {
-  .board-bar { padding: 8px 12px; gap: 8px; }
+  .board-bar { padding: 8px 12px; --bar-gap: 8px; }
   .board-back-label { display: none; }
 }
 
@@ -251,14 +260,33 @@
 
 /* ---------- Plantillas ---------- */
 
-.board-templates { margin-bottom: 32px; }
+/* Debajo de las pizarras; sin el padding de sección del sitio (globals.css). */
+section.board-templates { padding: 0; }
 
 .board-templates-title {
-  margin-bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  margin-bottom: 8px;
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--brand-gray-1);
+  cursor: pointer;
+  list-style: none;
 }
+.board-templates-title::-webkit-details-marker { display: none; }
+.board-templates-title:hover { color: var(--ink); }
+.board-templates-title:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.board-templates-title svg { transform: rotate(180deg); transition: transform var(--ui-dur) var(--ease); }
+.board-templates-details[open] .board-templates-title svg { transform: rotate(-90deg); }
+
+/* Con pizarras propias, las plantillas pasan a una tira compacta. */
+.board-templates.is-compact { padding-top: 16px; border-top: 1px solid var(--line); }
+.board-templates.is-compact .board-templates-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.board-templates.is-compact .board-template-preview { aspect-ratio: 16 / 7; padding: 6px; }
+.board-templates.is-compact .board-template-desc { display: none; }
+.board-templates.is-compact .board-template { padding-bottom: 8px; }
 
 .board-templates-grid {
   list-style: none;
@@ -331,8 +359,32 @@
   text-align: center;
 }
 
-@media (max-width: 1023px) {
+/*
+ * Barra según el ancho del editor: con todo a la vista desde 1280px; más
+ * angosta, Track, Taller, Comentar e Historial pasan al menú "…"; y debajo de
+ * 900px los botones que quedan muestran solo el ícono.
+ */
+.board-bar-more { display: none; }
+.board-bar-more .row-menu { top: calc(100% + 6px); z-index: 41; }
+.board-more-narrow { display: none; }
+@container board-editor (max-width: 1279px) {
+  .board-bar-more { display: block; }
+  .board-bar .btn.board-bar-extra,
+  .board-bar-extra > .btn { display: none; }
+  /* El envoltorio queda (ancla del popover que abre el menú) pero sin ocupar lugar. */
+  .board-bar-extra:not(.btn) { margin-right: calc(-1 * var(--bar-gap)); }
+  .board-name { min-width: min(14ch, 40cqi); }
+}
+@container board-editor (max-width: 899px) {
   .board-bar-label { display: none; }
+  .board-bar .btn-sm { padding-inline: 8px; }
+}
+@container board-editor (max-width: 599px) {
+  .board-bar { --bar-gap: 6px; padding-inline: 10px; }
+  .board-bar .board-timer-chip { padding: 0 6px; }
+  .board-name { min-width: min(9ch, 40cqi); padding: 0 4px; }
+  .board-bar .btn.board-bar-wide { display: none; }
+  .board-more-narrow { display: block; }
 }
 
 .board-history { width: min(400px, calc(100vw - 32px)); }
@@ -654,6 +706,8 @@
 .board-access-list li { display: flex; align-items: center; gap: 6px; }
 .board-access-who { flex: 1; min-width: 0; font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board-access .board-share-row .select { min-width: 0; }
+.board-access-link { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.board-access-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 /* Insignias sobre el lienzo: misma capa que los pins (debajo de las barras de Excalidraw). */
 .board-overlays { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
@@ -717,6 +771,5 @@
 
 /* Con las herramientas de taller la barra no entra en un teléfono: pasa a dos líneas. */
 @media (max-width: 600px) {
-  .board-bar { flex-wrap: wrap; row-gap: 6px; }
-  .board-name.is-static { max-width: 60vw; }
+  .board-name.is-static { max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }

@@ -22,7 +22,9 @@
     "createError": "No se pudo crear la pizarra. Probá de nuevo.",
     "actionError": "No se pudo completar la acción. Probá de nuevo.",
     "creating": "Creando…",
-    "templatesTitle": "Empezar con una plantilla"
+    "templatesTitle": "Empezar con una plantilla",
+    "deleteTitle": "Borrar pizarra",
+    "cancel": "Cancelar"
   },
   "share": {
     "button": "Compartir",
@@ -53,7 +55,8 @@
     "conflictDeletedBy": "{name} cambió esta pizarra: algo que editaste se borró de su lado, o borraste algo que editó. Todo lo demás ya quedó combinado.",
     "draftFound": "Hay cambios de tu última visita que no se llegaron a guardar.",
     "draftRestore": "Recuperarlos",
-    "draftDiscard": "Descartar"
+    "draftDiscard": "Descartar",
+    "more": "Más opciones de la pizarra"
   },
   "public": {
     "notFound": "Pizarra no encontrada",
@@ -204,7 +207,7 @@
   "workshop": {
     "button": "Taller",
     "title": "Herramientas de taller",
-    "timerTitle": "Timer",
+    "timerTitle": "Temporizador",
     "minutes": "{count} min",
     "customMinutes": "Minutos",
     "start": "Empezar",
@@ -215,7 +218,7 @@
     "clear": "Limpiar",
     "paused": "En pausa",
     "timeUp": "Se terminó el tiempo",
-    "noTimer": "No hay un timer corriendo. Lo puede arrancar alguien que edite la pizarra.",
+    "noTimer": "No hay un temporizador corriendo. Lo puede arrancar alguien que edite la pizarra.",
     "votingTitle": "Votación con puntos",
     "votingHint": "Cada persona tiene la misma cantidad de votos para repartir entre los stickies. Los votos quedan ocultos hasta que cerrás la votación.",
     "perPerson": "Votos por persona",
@@ -261,7 +264,10 @@
     "loading": "Cargando acceso…",
     "error": "No se pudo guardar. Probá de nuevo.",
     "viewOnly": "Solo lectura",
-    "restrictedBadge": "Solo invitados"
+    "restrictedBadge": "Solo invitados",
+    "aloneHint": "Por ahora sos la única persona del workspace. Sumá a tu equipo para poder invitarlo a esta pizarra.",
+    "inviteWorkspace": "Invitar al workspace",
+    "allInvited": "Ya invitaste a todas las personas del workspace."
   },
   "guest": {
     "badge": "Invitado"

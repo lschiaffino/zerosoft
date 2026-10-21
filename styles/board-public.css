@@ -225,6 +225,29 @@ body:has(.bp-root) .fl-root {
 .fl-root { transition: transform 200ms var(--ease-out-expo, ease-out), opacity 200ms ease-out, visibility 0s linear 0s; }
 .fl-root.is-tucked { transform: translateY(calc(100% + 32px)); opacity: 0; visibility: hidden; pointer-events: none; transition-delay: 0s, 0s, 200ms; }
 @media (prefers-reduced-motion: reduce) { .fl-root { transition: none; } }
+/*
+ * Teléfono: el botón queda como una pestaña angosta pegada al borde derecho,
+ * por encima de las barras de acción de abajo. Así no tapa botones, la última
+ * etiqueta de un gráfico ni las acciones de los toasts.
+ */
+@media (max-width: 760px) {
+  .fl-root,
+  .fl-root.has-support { right: 0; bottom: 112px; }
+  .fl-root .fl-button {
+    width: 26px;
+    height: 40px;
+    border-right: 0;
+    border-radius: var(--bp-radius) 0 0 var(--bp-radius);
+  }
+  .fl-root .fl-button svg { width: 14px; height: 14px; }
+  .fl-root.is-tucked { transform: translateX(100%); }
+  .fl-root .fl-panel { right: 8px; bottom: 52px; max-height: min(560px, calc(100dvh - 220px)); }
+}
+/* Con un toast abierto, los toasts suben por encima del botón (y sus acciones quedan a mano). */
+body:has(.fl-root:not(.is-tucked)) .ui-toasts { bottom: 76px; }
+@media (max-width: 760px) {
+  body:has(.fl-root:not(.is-tucked)) .ui-toasts { bottom: 16px; }
+}
 .fl-button {
   width: var(--bp-launcher-size); height: var(--bp-launcher-size); border-radius: var(--bp-radius);
   border: 1px solid var(--bp-line); background: var(--bp-bg); color: var(--bp-ink);

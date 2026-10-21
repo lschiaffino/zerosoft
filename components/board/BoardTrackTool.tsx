@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { selectionItems, type SceneEl } from '@/lib/board-stickies';
@@ -24,11 +24,16 @@ export default function BoardTrackTool({
   api,
   cards,
   onCards,
+  openSignal = 0,
+  className = '',
 }: {
   boardId: string;
   api: CanvasApi | null;
   cards: BoardTrackCard[];
   onCards: (cards: BoardTrackCard[]) => void;
+  /** Cada vez que cambia (y no es 0) se abre: lo usa el menú "Más herramientas" de la barra. */
+  openSignal?: number;
+  className?: string;
 }) {
   const t = useTranslations('board.track');
   const locale = useLocale();
@@ -61,6 +66,15 @@ export default function BoardTrackTool({
       setProjectId((cur) => cur || list[0]?.id || '');
     }
   }
+
+  // El menú de la barra pide abrirlo; si ya está abierto, queda así.
+  const openRef = useRef(open);
+  useEffect(() => {
+    openRef.current = open;
+  });
+  useEffect(() => {
+    if (openSignal) void openRef.current();
+  }, [openSignal]);
 
   const linked = new Set(cards.map((c) => c.element_id));
   const fresh = items.filter((i) => !linked.has(i.elementId));
@@ -99,7 +113,7 @@ export default function BoardTrackTool({
   }
 
   return (
-    <div className="board-share-wrap board-tool-wrap" ref={pop.wrapRef}>
+    <div className={`board-share-wrap board-tool-wrap ${className}`.trim()} ref={pop.wrapRef}>
       <button
         ref={pop.buttonRef}
         type="button"
@@ -107,6 +121,7 @@ export default function BoardTrackTool({
         onClick={() => void open()}
         aria-expanded={pop.open}
         aria-haspopup="dialog"
+        title={t('button')}
         disabled={!api}
       >
         <NotesIcon name="track" size={14} />

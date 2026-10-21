@@ -5,10 +5,11 @@
  * ssr:false desde BoardEditor / BoardViewer): Excalidraw toca window al
  * importarse. Su CSS se importa acá, así viaja en el mismo chunk.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CaptureUpdateAction, Excalidraw, convertToExcalidrawElements, exportToSvg, reconcileElements, useHandleLibrary } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { isAllowedLibraryUrl, type BoardScene } from '@/lib/boards-types';
+import { excalidrawLang } from '@/lib/board-view';
 import { useResolvedTheme } from '@/components/theme/ThemeProvider';
 
 // Tipos laxos: los .d.ts de Excalidraw arrastran paquetes internos.
@@ -48,7 +49,45 @@ const libraryAdapter = {
 
 export type CanvasChange = (elements: readonly unknown[], appState: Record<string, unknown>, files: Record<string, unknown>) => void;
 
-const LANG: Record<string, string> = { en: 'en', es: 'es-ES', pt: 'pt-BR' };
+
+/** Aire entre el panel de propiedades y la barra de zoom. */
+const PANEL_GAP = 12;
+
+/**
+ * Excalidraw limita el panel de propiedades con la altura de la ventana, pero
+ * acá el lienzo arranca debajo de la barra de la app: sin este tope el panel
+ * baja hasta tapar la barra de zoom. Se mide cuando aparece o cambia de tamaño.
+ */
+function usePanelLimit(ref: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const host = ref.current;
+    if (!host) return;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const root = host.querySelector<HTMLElement>('.excalidraw');
+      const panel = host.querySelector<HTMLElement>('.App-menu__left');
+      const zoom = host.querySelector<HTMLElement>('.App-menu_bottom');
+      if (!root) return;
+      if (!panel || !zoom) return root.style.removeProperty('--board-panel-max');
+      const max = Math.max(120, zoom.getBoundingClientRect().top - panel.getBoundingClientRect().top - PANEL_GAP);
+      root.style.setProperty('--board-panel-max', `${Math.floor(max)}px`);
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
+    const mo = new MutationObserver(schedule);
+    mo.observe(host, { childList: true, subtree: true });
+    const ro = new ResizeObserver(schedule);
+    ro.observe(host.parentElement ?? host);
+    schedule();
+    return () => {
+      mo.disconnect();
+      ro.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [ref]);
+}
 
 export default function ExcalidrawCanvas({
   scene,
@@ -69,6 +108,8 @@ export default function ExcalidrawCanvas({
   // El lienzo sigue el modo de color del sitio (selector sistema/claro/oscuro).
   const theme = useResolvedTheme();
   const [api, setApi] = useState<unknown>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
+  usePanelLimit(hostRef);
   // La biblioteca solo en el editor con sesión (la vista pública y el invitado no la tienen).
   const withLibrary = library && !viewMode;
   useHandleLibrary({
@@ -93,6 +134,8 @@ export default function ExcalidrawCanvas({
     [viewMode],
   );
   return (
+    // display: contents: no cambia el layout; solo sirve para medir el panel.
+    <div ref={hostRef} className="board-excalidraw" data-lang={excalidrawLang(locale)}>
     <Excalidraw
       theme={theme}
       initialData={{
@@ -101,7 +144,7 @@ export default function ExcalidrawCanvas({
         files: scene.files as never,
         scrollToContent: true,
       }}
-      langCode={LANG[locale] ?? 'en'}
+      langCode={excalidrawLang(locale)}
       viewModeEnabled={viewMode}
       excalidrawAPI={(instance) => {
         setApi(instance);
@@ -111,6 +154,7 @@ export default function ExcalidrawCanvas({
       onChange={onChange ? (els, appState, files) => onChange(els, appState as unknown as Record<string, unknown>, files as unknown as Record<string, unknown>) : undefined}
       UIOptions={uiOptions}
     />
+    </div>
   );
 }
 

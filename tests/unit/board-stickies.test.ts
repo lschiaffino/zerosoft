@@ -8,6 +8,7 @@ import {
   elementText,
   isSticky,
   layoutStickies,
+  layoutStickiesInFreeSpace,
   parseBulkStickies,
   selectionItems,
   stickiesWithTag,
@@ -19,7 +20,7 @@ import {
   withStickyTags,
   type SceneEl,
 } from '@/lib/board-stickies';
-import { formatCountdown } from '@/lib/board-view';
+import { excalidrawLang, formatCountdown } from '@/lib/board-view';
 
 const sticky = (id: string, text: string, tags?: string[]): SceneEl[] => [
   {
@@ -131,5 +132,47 @@ describe('board-view: cuenta regresiva', () => {
     expect(formatCountdown(65_000)).toBe('1:05');
     expect(formatCountdown(3_723_000)).toBe('1:02:03');
     expect(formatCountdown(-5)).toBe('0:00');
+  });
+});
+
+describe('board-stickies: pegado en un hueco libre', () => {
+  const box = (p: { x: number; y: number }) => ({ x: p.x, y: p.y, width: STICKY_W, height: STICKY_H });
+  const hit = (a: ReturnType<typeof box>, b: ReturnType<typeof box>, margin = 0) =>
+    a.x < b.x + b.width + margin && b.x < a.x + a.width + margin && a.y < b.y + b.height + margin && b.y < a.y + a.height + margin;
+
+  it('con el lienzo vacío queda centrada como siempre', () => {
+    expect(layoutStickiesInFreeSpace(4, { x: 0, y: 0 }, [])).toEqual(layoutStickies(4, { x: 0, y: 0 }));
+  });
+
+  it('no pisa un sticky que ya está en el centro de la vista', () => {
+    const existing = { x: -100, y: -75, width: STICKY_W, height: STICKY_H };
+    const placed = layoutStickiesInFreeSpace(4, { x: 0, y: 0 }, [existing]).map(box);
+    expect(placed).toHaveLength(4);
+    // Ni encima ni pegado: queda lugar para la línea de tags de arriba.
+    expect(placed.some((b) => hit(b, existing, 24))).toBe(false);
+    // Cerca del centro (no se va al fin del lienzo).
+    expect(Math.abs(placed[0].x) + Math.abs(placed[0].y)).toBeLessThan(2000);
+  });
+
+  it('entre filas entra la línea de tags (insignias de ~22px arriba de cada sticky)', () => {
+    const rows = [...new Set(layoutStickies(6, { x: 0, y: 0 }).map((p) => p.y))].sort((a, b) => a - b);
+    expect(rows).toHaveLength(2);
+    expect(rows[1] - (rows[0] + STICKY_H)).toBeGreaterThanOrEqual(48);
+  });
+
+  it('si todo alrededor está ocupado, va debajo de lo que hay', () => {
+    const wall = { x: -50_000, y: -50_000, width: 100_000, height: 100_000 };
+    const placed = layoutStickiesInFreeSpace(2, { x: 0, y: 0 }, [wall]);
+    expect(placed.every((p) => p.y > wall.y + wall.height)).toBe(true);
+  });
+});
+
+describe('board-view: idioma de Excalidraw', () => {
+  it('sigue al locale de la app', () => {
+    expect(excalidrawLang('es')).toBe('es-ES');
+    expect(excalidrawLang('pt')).toBe('pt-BR');
+    expect(excalidrawLang('en')).toBe('en');
+    expect(excalidrawLang('es-AR')).toBe('es-ES');
+    expect(excalidrawLang('fr')).toBe('en');
   });
 });
