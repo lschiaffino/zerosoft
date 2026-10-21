@@ -5,6 +5,7 @@ import { useRouter } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import { companyPayload } from './formPayload';
+import { DomainPrefillNote, useDomainPrefill } from './DomainPrefill';
 
 /** Códigos de error de la API que tienen traducción en crm.errors.*. */
 const KNOWN_ERRORS = new Set(['invalid_email', 'missing_name', 'not_found', 'invalid_input', 'generic']);
@@ -20,6 +21,7 @@ interface CompanyFormProps {
 export default function CompanyForm({ lifecycles }: CompanyFormProps) {
   const t = useTranslations('crm');
   const router = useRouter();
+  const prefill = useDomainPrefill();
 
   async function onSubmit(fd: FormData) {
     const body = companyPayload(fd);
@@ -65,10 +67,23 @@ export default function CompanyForm({ lifecycles }: CompanyFormProps) {
             maxLength={500}
             spellCheck={false}
             aria-describedby="co-domain-help"
+            onBlur={async (e) => {
+              const info = await prefill.lookup(e.target.value);
+              if (!info) return;
+              // Solo completa lo que está vacío: lo que escribió la persona gana.
+              const fill = (id: string, value: string) => {
+                const el = document.getElementById(id) as HTMLInputElement | null;
+                if (el && !el.value.trim() && value) el.value = value;
+              };
+              fill('co-name', info.name);
+              fill('co-website', info.website);
+              fill('co-phone', info.phone);
+            }}
           />
           <p className="ui-help" id="co-domain-help">
             {t('record.form.domainHelp')}
           </p>
+          <DomainPrefillNote info={prefill.info} loading={prefill.loading} />
         </div>
       </div>
 

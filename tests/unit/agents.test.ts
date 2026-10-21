@@ -78,6 +78,7 @@ const BASE_TOOLS: Omit<AgentToolsConfig, 'enabled'> = {
   flowIds: [],
   robotIds: [],
   httpAllowedDomains: [],
+  requireApproval: [],
 };
 
 async function setupAgent(label: string, patch: AgentUpdatePayload = {}) {

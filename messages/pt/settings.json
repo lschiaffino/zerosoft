@@ -112,7 +112,8 @@
       "link": "Links",
       "contact": "Contatos",
       "deal": "Deals",
-      "robot": "Robôs"
+      "robot": "Robôs",
+      "chat": "Chat"
     },
     "eventLabels": {
       "booking_created": "Reserva criada",
@@ -133,7 +134,10 @@
       "robot_run_failed": "Robô falhou",
       "robot_output_changed": "Dados de um robô mudaram",
       "link_updated": "Link editado",
-      "link_deleted": "Link excluído"
+      "link_deleted": "Link excluído",
+      "chat_message_created": "Mensagem de chat",
+      "chat_conversation_assigned": "Conversa atribuída",
+      "chat_conversation_resolved": "Conversa resolvida"
     },
     "errors": {
       "https_required": "A URL precisa usar https.",

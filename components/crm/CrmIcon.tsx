@@ -14,6 +14,8 @@ const PATHS = {
   chevronUp: 'M6 15l6-6 6 6',
   chevronDown: 'M6 9l6 6 6-6',
   pin: 'M9 3h6M10 3v6l-4 5h12l-4-5V3M12 14v7',
+  /** Burbuja de mensaje (WhatsApp). */
+  message: 'M4 5h16v11H10l-6 4z',
 } as const;
 
 export type CrmIconName = keyof typeof PATHS;

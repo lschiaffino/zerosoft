@@ -254,7 +254,9 @@
       "flow": "Flow",
       "robots": "Robots"
     },
-    "advancedHint": "HTTP requests to your own APIs"
+    "advancedHint": "HTTP requests to your own APIs",
+    "approval": "Ask a teammate to approve before it runs",
+    "approvalHttp": "Ask a teammate to approve requests that write (anything but GET)"
   },
   "channels": {
     "chatTitle": "Chat widgets",
@@ -364,7 +366,8 @@
     "too_many_tests": "This agent already has the maximum number of tests (50).",
     "too_many_secrets": "This agent already has the maximum number of secret headers (10).",
     "secret_domain_not_allowed": "Pick a domain from the saved allowed list.",
-    "reserved_header": "That header is set automatically and can’t be changed."
+    "reserved_header": "That header is set automatically and can’t be changed.",
+    "already_decided": "Someone already approved or rejected this action."
   },
   "public": {
     "subtitle": "AI assistant",
@@ -474,5 +477,19 @@
     "step_limits": "{count} runs that hit the step limit",
     "cta": "Open the agent’s analytics",
     "why": "You get this email because you own the workspace. You can turn these alerts off in the agent’s Analytics tab."
+  },
+  "approvals": {
+    "title": "Waiting for approval",
+    "approve": "Approve and run",
+    "reject": "Reject",
+    "decided": "Decided by {who}.",
+    "failed": "It ran and failed: {code}.",
+    "pendingBadge": "{count, plural, one {# to approve} other {# to approve}}",
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "failed": "Failed"
+    }
   }
 }

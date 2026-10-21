@@ -17,6 +17,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import SettingsTabs from '@/components/ui/SettingsTabs';
 import FormSection from '@/components/ui/FormSection';
 import PipelinesEditor from '@/components/crm/PipelinesEditor';
+import CallOutcomesSettings from '@/components/crm/CallOutcomesSettings';
 import CustomFieldsPanel from '@/components/crm/CustomFieldsPanel';
 import ImportPanel from '@/components/crm/ImportPanel';
 import ExportPanel from '@/components/crm/ExportPanel';
@@ -104,17 +105,21 @@ export default async function CrmSettingsPage(props: {
   } else if (tab === 'sales') {
     const people = await workspacePeople(user);
     const scope = await sessionScope(user);
-    const [pipelines, crmSettings, rates, missing, quotas] = await Promise.all([
+    const [pipelines, crmSettings, rates, missing, quotas, dealFields] = await Promise.all([
       listPipelinesWithStages(user.id),
       getCrmSettings(user.id),
       listExchangeRates(user.id),
       missingRates(user.id),
       quotaProgress(user.id, { ownerIds: scope, people: people.map((p) => ({ id: p.id, name: p.label })) }),
+      listCustomFields(user.id, 'deals'),
     ]);
     body = (
       <>
         <FormSection title={t('settings.pipelines')} description={t('settings.pipelinesDesc')}>
-          <PipelinesEditor initialPipelines={pipelines} />
+          <PipelinesEditor
+            initialPipelines={pipelines}
+            customFields={dealFields.map((f) => ({ name: f.name, label: f.label }))}
+          />
         </FormSection>
         <FormSection title={t('quotas.title')} description={t('quotas.desc')}>
           <QuotasPanel progress={quotas} people={people} baseCurrency={crmSettings.baseCurrency} locale={locale} canEdit={admin} />
@@ -129,6 +134,9 @@ export default async function CrmSettingsPage(props: {
           />
         </FormSection>
         <QuoteSettings quoteAcceptMovesDeal={crmSettings.quoteAcceptMovesDeal} canEdit={admin} />
+        <FormSection title={t('calls.settingsTitle')} description={t('calls.settingsDesc')}>
+          <CallOutcomesSettings outcomes={crmSettings.callOutcomes} custom={crmSettings.callOutcomesCustom} canEdit={admin} />
+        </FormSection>
       </>
     );
   } else if (tab === 'data') {

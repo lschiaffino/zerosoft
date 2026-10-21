@@ -1,5 +1,6 @@
 'use client';
 
+import { isDefaultOutcome } from '@/lib/crm-calls';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
@@ -22,6 +23,8 @@ export interface TimelineItem {
   pinned: 0 | 1;
   direction: string;
   outcome: string;
+  /** Llamadas: 'whatsapp' si el toque fue por WhatsApp. */
+  channel?: string;
   duration_min: number | null;
   contact_name?: string | null;
   company_name?: string | null;
@@ -599,7 +602,9 @@ export default function Timeline({
               ) : (
                 <>
                   <div className="tl-head">
-                    <span className="tl-type">{t(`enums.activityType.${item.type}`)}</span>
+                    <span className="tl-type">
+                      {item.type === 'call' && item.channel === 'whatsapp' ? t('calls.whatsapp') : t(`enums.activityType.${item.type}`)}
+                    </span>
                     {item.external ? <span className="badge">Gmail</span> : null}
                     {!item.external && item.type === 'email' && item.direction === 'outbound' ? (
                       <span className="badge">{t('common.sent')}</span>
@@ -623,7 +628,7 @@ export default function Timeline({
                     )}
                     {item.direction && <span>{t(`enums.direction.${item.direction}`)}</span>}
                     {item.duration_min != null && <span>{item.duration_min} min</span>}
-                    {item.outcome && <span>{item.outcome}</span>}
+                    {item.outcome && <span>{isDefaultOutcome(item.outcome) ? t(`calls.outcomes.${item.outcome}`) : item.outcome}</span>}
                     {item.external && item.from_email && (
                       <span className="tl-from">{item.from_email}</span>
                     )}

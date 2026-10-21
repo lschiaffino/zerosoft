@@ -22,7 +22,8 @@ import ContactsFilters, { type ContactSort } from '@/components/crm/ContactsFilt
 import ContactsTable, { type ContactRow } from '@/components/crm/ContactsTable';
 import type { BulkEditField } from '@/components/crm/BulkEditControls';
 import { customBulkFields } from '@/components/crm/bulkFields';
-import { customBuilderFields, customCells, customColumns, customFilterTypes } from '@/components/crm/customFieldViews';
+import { customBuilderFields, customCells, customColumns, customFilterTypes, extraSortOptions } from '@/components/crm/customFieldViews';
+import { isExtraSort, type ExtraSort } from '@/lib/crm-list-sort';
 import { formatActivityDate } from '@/lib/crm-activity-dates';
 import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
 
@@ -101,13 +102,14 @@ export default async function ContactsPage(props: ContactsPageProps) {
   const rawFilters = one(searchParams.filters) ?? str(viewQuery.filters) ?? '';
   const advancedRules = parseFilterRules(rawFilters);
   const sortParam = one(searchParams.sort) ?? str(viewQuery.sort) ?? 'newest';
-  const sort: ContactSort = SORTS.includes(sortParam as ContactSort)
-    ? (sortParam as ContactSort)
-    : 'newest';
   const page = Number(one(searchParams.page) ?? '1') || 1;
 
   const customFieldDefs = await listCustomFields(user.id, 'contacts');
   const customTypes = customFilterTypes(customFieldDefs);
+  const sort: ContactSort =
+    SORTS.includes(sortParam as ContactSort) || isExtraSort(sortParam, customTypes)
+      ? (sortParam as ContactSort)
+      : 'newest';
 
   const { rows, total } = await listContacts(user.id, {
     ownerScope: scope,
@@ -199,6 +201,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
     id: c.id,
     name: `${c.first_name} ${c.last_name}`.trim() || c.email || '—',
     email: c.email,
+    ownerId: c.owner_id,
     phone: c.phone,
     companyName: c.company_name,
     companyId: c.company_id,
@@ -296,6 +299,12 @@ export default async function ContactsPage(props: ContactsPageProps) {
         customFields={customFields}
         views={views.map((v) => ({ id: v.id, name: v.name }))}
         activeViewId={activeView?.id ?? null}
+        extraSorts={extraSortOptions(customFieldDefs, {
+            ownerAsc: t('listSort.ownerAsc'),
+            ownerDesc: t('listSort.ownerDesc'),
+            asc: (label) => t('listSort.fieldAsc', { label }),
+            desc: (label) => t('listSort.fieldDesc', { label }),
+          })}
       >
         <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
       </ContactsFilters>
@@ -331,6 +340,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
             sequences={(await listSequences(user.id)).map((sq) => ({ id: sq.id, name: sq.name }))}
             allTags={tagOptions}
             bulkFields={bulkFields}
+            owners={owners}
           />
           <CrmPager pathname="/app/crm/contacts" query={query} page={page} pages={pages} total={total} locale={locale} />
         </>

@@ -3121,6 +3121,45 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // CRM: merge de empresas (la papelera recuerda en qué empresa se fusionó),
+    // propiedades obligatorias por etapa (JSON de claves), canal de las
+    // llamadas ('' = teléfono, 'whatsapp'), resultados de llamada
+    // configurables (JSON; NULL = los de siempre) y cache de logos por dominio
+    // (favicon del sitio, compartido entre workspaces: es público).
+    // Agents: cola de acciones que esperan la aprobación de alguien del equipo.
+    id: '064_crm_merge_stage_rules_calls_logos_agent_approvals',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE crm_trash ADD COLUMN merged_into TEXT');
+      await addColumn(client, "ALTER TABLE crm_stages ADD COLUMN required_fields TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(client, "ALTER TABLE crm_activities ADD COLUMN channel TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, 'ALTER TABLE crm_settings ADD COLUMN call_outcomes TEXT');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS crm_logo_cache (
+          domain TEXT PRIMARY KEY,
+          status TEXT NOT NULL CHECK (status IN ('ok', 'missing')),
+          content_type TEXT NOT NULL DEFAULT '',
+          data BLOB,
+          fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS agent_pending_actions (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          conversation_id TEXT NOT NULL REFERENCES agent_conversations(id) ON DELETE CASCADE,
+          tool TEXT NOT NULL,
+          input TEXT NOT NULL DEFAULT '{}',
+          status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'failed')),
+          result TEXT,
+          decided_by TEXT NOT NULL DEFAULT '',
+          decided_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_agent_pending_conv ON agent_pending_actions(conversation_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_agent_pending_status ON agent_pending_actions(agent_id, status, created_at DESC);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

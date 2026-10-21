@@ -32,6 +32,8 @@ import { tagCondition, type TagEntity } from './crm-tags';
 import { trashRecords } from './crm-trash';
 import { nextRepeatDue, type TaskRepeat } from './crm-task-repeat';
 import { activityDateOrder, ACTIVITY_DATE_SORTS, type ActivityDateSort } from './crm-activity-dates';
+import { extraSortOrder, type ExtraSort } from './crm-list-sort';
+import { missingRequiredFields, normalizeRequiredFields, parseRequiredFields } from './crm-stage-rules';
 
 export { ACTIVITY_DATE_SORTS, type ActivityDateSort };
 import { activityScopeSql, ownerScopeSql, type OwnerScope } from './crm-visibility';
@@ -324,7 +326,7 @@ async function fireEvent(
 export const fireCrmEvent = fireEvent;
 
 /** Eventos del CRM que también salen como webhooks (lib/webhooks.ts). */
-const CRM_WEBHOOK_EVENTS: Partial<Record<import('./crm-workflows').TriggerType, WebhookEvent>> = {
+const CRM_WEBHOOK_EVENTS: Partial<Record<import('./crm-workflows').TriggerType, Exclude<WebhookEvent, `chat.${string}`>>> = {
   contact_created: 'contact.created',
   contact_updated: 'contact.updated',
   deal_created: 'deal.created',
@@ -473,7 +475,7 @@ export interface ContactFilter {
   customTypes?: Record<string, FilterFieldType>;
   /** Visibilidad por owner (lib/crm-visibility.ts). null/undefined = todo. */
   ownerScope?: OwnerScope;
-  sort?: 'newest' | 'oldest' | 'name' | 'name_desc' | 'email' | 'email_desc' | 'score' | 'score_asc' | ActivityDateSort;
+  sort?: 'newest' | 'oldest' | 'name' | 'name_desc' | 'email' | 'email_desc' | 'score' | 'score_asc' | ActivityDateSort | ExtraSort;
   page?: number;
   pageSize?: number;
 }
@@ -564,7 +566,7 @@ function buildContactWhere(
   return { where: where.join(' AND '), args };
 }
 
-const CONTACT_ORDER: Record<NonNullable<ContactFilter['sort']>, string> = {
+const CONTACT_ORDER: Record<Exclude<NonNullable<ContactFilter['sort']>, ExtraSort>, string> = {
   newest: 'c.created_at DESC, c.id',
   oldest: 'c.created_at ASC, c.id',
   name: "c.first_name COLLATE NOCASE ASC, c.last_name COLLATE NOCASE ASC, c.id",
@@ -590,7 +592,10 @@ export async function listContacts(
   const pageSize = Math.min(Math.max(f.pageSize ?? 25, 1), 100);
   const pages = Math.max(Math.ceil(total / pageSize), 1);
   const page = Math.min(Math.max(f.page ?? 1, 1), pages);
-  const order = CONTACT_ORDER[f.sort ?? 'newest'];
+  const order =
+    extraSortOrder('c', f.sort, f.customTypes) ??
+    CONTACT_ORDER[(f.sort ?? 'newest') as keyof typeof CONTACT_ORDER] ??
+    CONTACT_ORDER.newest;
   const rows = (await db
     .prepare(
       `SELECT c.*, co.name AS company_name
@@ -1077,7 +1082,7 @@ export interface CompanyFilter {
   filters?: FilterRule[];
   customTypes?: Record<string, FilterFieldType>;
   ownerScope?: OwnerScope;
-  sort?: 'newest' | 'oldest' | 'name' | 'name_desc' | ActivityDateSort;
+  sort?: 'newest' | 'oldest' | 'name' | 'name_desc' | ActivityDateSort | ExtraSort;
   page?: number;
   pageSize?: number;
 }
@@ -1156,7 +1161,8 @@ export async function listCompanies(
   const page = Math.min(Math.max(f.page ?? 1, 1), pages);
   const dateOrders = activityDateOrders('co');
   const order =
-    f.sort && f.sort in dateOrders
+    extraSortOrder('co', f.sort, f.customTypes) ??
+    (f.sort && f.sort in dateOrders
       ? dateOrders[f.sort as ActivityDateSort]
       : f.sort === 'oldest'
       ? 'co.created_at ASC, co.id'
@@ -1164,7 +1170,7 @@ export async function listCompanies(
         ? 'co.name COLLATE NOCASE ASC, co.id'
         : f.sort === 'name_desc'
           ? 'co.name COLLATE NOCASE DESC, co.id'
-          : 'co.created_at DESC, co.id';
+          : 'co.created_at DESC, co.id');
   const rows = (await db
     .prepare(
       `SELECT co.*,
@@ -1413,11 +1419,20 @@ export async function createStage(
 export async function updateStage(
   userId: string,
   id: string,
-  data: { name?: string; probability?: number; isWon?: boolean; isLost?: boolean; rottingDays?: number | null },
+  data: {
+    name?: string;
+    probability?: number;
+    isWon?: boolean;
+    isLost?: boolean;
+    rottingDays?: number | null;
+    /** Propiedades obligatorias para entrar (lib/crm-stage-rules.ts). */
+    requiredFields?: string[];
+  },
 ): Promise<CrmStageRow | null> {
   const db = getDb();
   if (!(await getOwnedStage(userId, id))) return null;
   const sets: Array<[string, string | number | null]> = [];
+  if (data.requiredFields !== undefined) sets.push(['required_fields', JSON.stringify(normalizeRequiredFields(data.requiredFields))]);
   if (data.rottingDays !== undefined) sets.push(['rotting_days', data.rottingDays]);
   if (data.name !== undefined) sets.push(['name', data.name]);
   if (data.probability !== undefined) sets.push(['probability', data.probability]);
@@ -1492,7 +1507,7 @@ export interface DealFilter {
   filters?: FilterRule[];
   customTypes?: Record<string, FilterFieldType>;
   ownerScope?: OwnerScope;
-  sort?: 'newest' | 'oldest' | 'amount' | 'amount_asc' | 'close_date' | 'close_date_desc' | ActivityDateSort;
+  sort?: 'newest' | 'oldest' | 'amount' | 'amount_asc' | 'close_date' | 'close_date_desc' | ActivityDateSort | ExtraSort;
   page?: number;
   pageSize?: number;
 }
@@ -1511,7 +1526,7 @@ const DEAL_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   ...activityDateAdvFields('d'),
 };
 
-const DEAL_ORDER: Record<NonNullable<DealFilter['sort']>, string> = {
+const DEAL_ORDER: Record<Exclude<NonNullable<DealFilter['sort']>, ExtraSort>, string> = {
   newest: 'd.created_at DESC, d.id',
   oldest: 'd.created_at ASC, d.id',
   amount: 'd.amount DESC, d.id',
@@ -1590,7 +1605,7 @@ export async function listDeals(
        FROM crm_deals d
        LEFT JOIN crm_stages s ON s.id = d.stage_id
        WHERE ${whereSql}
-       ORDER BY ${DEAL_ORDER[f.sort ?? 'newest']}
+       ORDER BY ${extraSortOrder('d', f.sort, f.customTypes) ?? DEAL_ORDER[(f.sort ?? 'newest') as keyof typeof DEAL_ORDER] ?? DEAL_ORDER.newest}
        LIMIT ? OFFSET ?`,
     )
     .all(...args, pageSize, (page - 1) * pageSize)) as DealListRow[];
@@ -1908,7 +1923,30 @@ export async function bulkDeleteDeals(userId: string, ids: string[], actorEmail 
 
 export type MoveDealResult =
   | { ok: true; deal: CrmDealRow }
-  | { ok: false; reason: 'not_found' | 'invalid_stage' };
+  | { ok: false; reason: 'not_found' | 'invalid_stage' }
+  /** La etapa pide propiedades que el deal no tiene (claves de lib/crm-stage-rules.ts). */
+  | { ok: false; reason: 'missing_required'; missing: string[] };
+
+/**
+ * Propiedades obligatorias de `stage` que le faltan al deal. Los custom
+ * fields que ya no existen no se exigen (si no, ningún deal podría entrar).
+ */
+export async function dealMissingForStage(userId: string, deal: CrmDealRow, stage: CrmStageRow): Promise<string[]> {
+  const required = parseRequiredFields(stage.required_fields);
+  if (!required.length) return [];
+  const db = getDb();
+  const customNames = required.some((k) => k.startsWith('custom:'))
+    ? new Set((await listCustomFields(userId, 'deals')).map((f) => `custom:${f.name}`))
+    : new Set<string>();
+  const effective = required.filter((k) => !k.startsWith('custom:') || customNames.has(k));
+  const companies = effective.includes('company')
+    ? ((await db.prepare('SELECT COUNT(*) AS c FROM crm_deal_companies WHERE deal_id = ?').get(deal.id)) as { c: number }).c
+    : 1;
+  const contacts = effective.includes('contacts')
+    ? ((await db.prepare('SELECT COUNT(*) AS c FROM crm_deal_contacts WHERE deal_id = ?').get(deal.id)) as { c: number }).c
+    : 1;
+  return missingRequiredFields(effective, { ...deal, custom: parseCustom(deal.custom) }, { companies, contacts });
+}
 
 /**
  * Mueve un deal a otro stage del mismo pipeline.
@@ -1924,6 +1962,8 @@ export async function moveDeal(
   beforeId?: string | null,
   lostReason?: string,
   actorEmail = '',
+  /** enforceRequired=false: import y presupuestos aceptados no exigen las propiedades de la etapa. */
+  opts: { enforceRequired?: boolean } = {},
 ): Promise<MoveDealResult> {
   const db = getDb();
   const deal = (await db
@@ -1932,6 +1972,10 @@ export async function moveDeal(
   if (!deal) return { ok: false, reason: 'not_found' };
   const stage = await stageInPipeline(stageId, deal.pipeline_id);
   if (!stage) return { ok: false, reason: 'invalid_stage' };
+  if (opts.enforceRequired !== false && deal.stage_id !== stageId) {
+    const missing = await dealMissingForStage(userId, deal, stage);
+    if (missing.length) return { ok: false, reason: 'missing_required', missing };
+  }
 
   // Vecinos en el stage destino (sin el deal que se mueve), ordenados por position.
   const siblings = (await db
@@ -2017,6 +2061,8 @@ export interface ActivityInput {
   dueAt?: string | null;
   direction?: string;
   outcome?: string;
+  /** Llamadas: '' = teléfono, 'whatsapp'. Solo cuenta para type 'call'. */
+  channel?: string;
   durationMin?: number | null;
   contactId?: string | null;
   companyId?: string | null;
@@ -2122,9 +2168,9 @@ export async function createActivity(
   await db
     .prepare(
       `INSERT INTO crm_activities
-       (id, user_id, owner_id, type, subject, body, due_at, direction, outcome, duration_min,
+       (id, user_id, owner_id, type, subject, body, due_at, direction, outcome, channel, duration_min,
         contact_id, company_id, deal_id, project_id, repeat, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -2136,6 +2182,7 @@ export async function createActivity(
       data.dueAt ?? null,
       data.direction ?? '',
       data.outcome ?? '',
+      (data.type ?? 'note') === 'call' ? (data.channel ?? '') : '',
       data.durationMin ?? null,
       data.contactId ?? null,
       data.companyId ?? null,

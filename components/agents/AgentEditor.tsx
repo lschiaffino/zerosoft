@@ -8,6 +8,7 @@ import {
   AGENT_TEMPLATE_KEYS,
   AGENT_TOOL_GROUP_ORDER,
   agentToolsInGroup,
+  isApprovableTool,
   suggestAgentHandle,
   type AgentDto,
   type AgentSecretHeaderDto,
@@ -222,6 +223,16 @@ export default function AgentEditor(props: Props) {
     });
   }
 
+  /** Pedir la aprobación de alguien del equipo antes de que la acción corra. */
+  function toggleApproval(key: AgentToolKey, on: boolean) {
+    if (!isApprovableTool(key)) return;
+    setDraft((d) => {
+      const current = d.tools.requireApproval ?? [];
+      const requireApproval = on ? [...new Set([...current, key])] : current.filter((k) => k !== key);
+      return { ...d, tools: { ...d.tools, requireApproval } };
+    });
+  }
+
   function addUrl() {
     const u = newUrl.trim();
     if (!u) return;
@@ -305,6 +316,17 @@ export default function AgentEditor(props: Props) {
           {t(`tools.items.${key}.desc`)}
         </p>
         {needs && <p className="ui-error ag-tool-desc">{needs}</p>}
+        {on && isApprovableTool(key) && (
+          <label className="ui-check ag-tool-config ag-tool-approval">
+            <input
+              type="checkbox"
+              checked={(draft.tools.requireApproval ?? []).includes(key)}
+              disabled={ro}
+              onChange={(e) => toggleApproval(key, e.target.checked)}
+            />{' '}
+            {key === 'http_request' ? t('tools.approvalHttp') : t('tools.approval')}
+          </label>
+        )}
         {on && key === 'cal_get_availability' && (
           <div className="ag-tool-config">
             {props.eventTypes.length === 0 ? (

@@ -355,7 +355,26 @@
       "lifecycle": "Etapa del lifecycle",
       "owner": "Responsable"
     },
-    "newTitle": "Nueva empresa"
+    "newTitle": "Nueva empresa",
+    "dupes": {
+      "title": "Empresas duplicadas",
+      "description": "Empresas que comparten dominio o nombre. Elegí cuál queda y fusioná el resto en ella.",
+      "find": "Buscar duplicadas",
+      "none": "No hay empresas duplicadas.",
+      "byDomain": "Mismo dominio:",
+      "byName": "Mismo nombre:",
+      "keepLabel": "Empresa que queda",
+      "keep": "Queda",
+      "merge": "{count, plural, one {Fusionar # empresa en la que queda} other {Fusionar # empresas en la que queda}}",
+      "confirm": "{count, plural, one {¿Fusionar # empresa en {keep}?} other {¿Fusionar # empresas en {keep}?}} Contactos, deals, actividades y archivos pasan a {keep}.",
+      "merged": "{count, plural, one {# empresa fusionada} other {# empresas fusionadas}}",
+      "trashNote": "Las empresas fusionadas van a la papelera con todo lo que tenían, así que se pueden restaurar."
+    },
+    "enrich": {
+      "looking": "Buscando el sitio…",
+      "filled": "Nombre, sitio y teléfono completados desde {domain} donde estaban vacíos.",
+      "exists": "Ya hay una empresa con este dominio:"
+    }
   },
   "deals": {
     "title": "Deals",
@@ -1080,7 +1099,8 @@
     "trash_conflict": "Ya existe un registro con este id, así que no se puede restaurar.",
     "file_too_large": "El archivo pesa más de 10 MB.",
     "file_type_not_allowed": "Ese tipo de archivo no se puede adjuntar.",
-    "storage_unavailable": "Este servidor no tiene configurado dónde guardar archivos."
+    "storage_unavailable": "Este servidor no tiene configurado dónde guardar archivos.",
+    "missing_required": "La etapa pide propiedades que este deal todavía no tiene."
   },
   "filters": {
     "advanced": "Filtros avanzados",
@@ -1965,7 +1985,8 @@
     "purgeConfirm": "¿Borrar para siempre?",
     "emptyBin": "Vaciar papelera",
     "emptyBinConfirm": "¿Borrar para siempre los {count} elementos?",
-    "untitled": "Sin título"
+    "untitled": "Sin título",
+    "mergedInto": "fusionada en"
   },
   "files": {
     "title": "Archivos",
@@ -1974,5 +1995,62 @@
   "mentions": {
     "suggestions": "Personas para mencionar",
     "placeholder": "Notas. Escribí @ para mencionar a alguien del equipo"
+  },
+  "stageRules": {
+    "fields": {
+      "amount": "Monto",
+      "closeDate": "Fecha de cierre",
+      "ownerId": "Responsable",
+      "priority": "Prioridad",
+      "source": "Origen",
+      "description": "Descripción",
+      "company": "Empresa",
+      "contacts": "Contactos"
+    },
+    "button": "{count, plural, =0 {Obligatorias} other {Obligatorias (#)}}",
+    "hint": "Los deals necesitan estas propiedades para entrar a la etapa, desde el tablero, la API, la edición en masa y las automatizaciones.",
+    "legend": "Obligatorias para entrar a {stage}",
+    "dialogTitle": "Antes de pasar a {stage}",
+    "dialogSub": "Esta etapa pide estas propiedades. Completalas y el deal se mueve.",
+    "stillMissing": "Todavía faltan propiedades obligatorias.",
+    "needCompany": "Asociá una empresa al deal.",
+    "needContacts": "Asociá al menos un contacto al deal.",
+    "openDeal": "Abrir el deal",
+    "saveAndMove": "Guardar y mover",
+    "bulkBlocked": "{count, plural, one {# deal quedó donde estaba porque la etapa pide propiedades que no tiene.} other {# deals quedaron donde estaban porque la etapa pide propiedades que no tienen.}}"
+  },
+  "calls": {
+    "call": "Llamar",
+    "whatsapp": "WhatsApp",
+    "logTitle": "Registrar este toque",
+    "logCall": "¿Cómo fue la llamada?",
+    "logWhatsapp": "Registrar el mensaje de WhatsApp",
+    "outcome": "Resultado",
+    "minutes": "Minutos",
+    "note": "Nota",
+    "notePlaceholder": "Nota (opcional)",
+    "save": "Registrar",
+    "skip": "Omitir",
+    "logged": "Quedó en el timeline",
+    "subjectCall": "Llamada",
+    "subjectWhatsapp": "Mensaje de WhatsApp",
+    "outcomes": {
+      "connected": "Atendió",
+      "left_voicemail": "Dejé un mensaje de voz",
+      "no_answer": "No atendió",
+      "busy": "Ocupado",
+      "wrong_number": "Número equivocado"
+    },
+    "settingsTitle": "Resultados de llamada",
+    "settingsDesc": "Los resultados para elegir cuando alguien registra una llamada o un WhatsApp desde un teléfono.",
+    "settingsLabel": "Resultados, uno por línea",
+    "settingsHelp": "Hasta {max}. Dejalo vacío para usar la lista de siempre.",
+    "settingsReset": "Usar la lista de siempre"
+  },
+  "listSort": {
+    "ownerAsc": "Responsable (A a Z)",
+    "ownerDesc": "Responsable (Z a A)",
+    "fieldAsc": "{label} (ascendente)",
+    "fieldDesc": "{label} (descendente)"
   }
 }

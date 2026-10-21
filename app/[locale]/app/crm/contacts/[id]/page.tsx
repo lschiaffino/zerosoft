@@ -29,6 +29,7 @@ import ContactAddDeal from '@/components/crm/ContactAddDeal';
 import AssociationPanel from '@/components/crm/AssociationPanel';
 import CompanyQuickCreate from '@/components/crm/CompanyQuickCreate';
 import DuplicatesPanel from '@/components/crm/DuplicatesPanel';
+import PhoneTouch from '@/components/crm/PhoneTouch';
 import {
   associateCompanyToContact,
   removeCompanyFromContact,
@@ -149,6 +150,7 @@ export default async function ContactDetailPage(props: {
         }
         actions={
           <>
+            {contact.phone && <PhoneTouch phone={contact.phone} contactId={contact.id} />}
             <BookMeetingMenu
               eventTypes={meetingTypes}
               name={`${contact.first_name} ${contact.last_name}`.trim() || undefined}

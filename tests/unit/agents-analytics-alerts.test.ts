@@ -147,7 +147,7 @@ describe('Agents: analítica', () => {
   it('cada corrida queda registrada con su estado (tope de pasos)', async () => {
     const { agent } = await setupAgent('an2');
     await updateAgent(agent.user_id, agent.id, {
-      tools: { enabled: ['search_knowledge'], calEventTypeId: null, calDays: 7, trackProjectId: null, flowIds: [], robotIds: [], httpAllowedDomains: [] },
+      tools: { enabled: ['search_knowledge'], calEventTypeId: null, calDays: 7, trackProjectId: null, flowIds: [], robotIds: [], httpAllowedDomains: [], requireApproval: [] },
     });
     const row = (await getAgentRow(agent.user_id, agent.id)) as AgentRow;
     setAiModelOverride(scriptedModel([{ tool: 'search_knowledge', input: { query: 'loop' } }]));

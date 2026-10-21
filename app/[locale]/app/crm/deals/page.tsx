@@ -34,7 +34,8 @@ import { dbTimestamp, dealIdleDays } from '@/lib/crm-rotting';
 import { COMMON_CURRENCIES } from '@/lib/crm-constants';
 import type { BulkEditField } from '@/components/crm/BulkEditControls';
 import { customBulkFields } from '@/components/crm/bulkFields';
-import { customBuilderFields, customCells, customColumns, customFilterTypes } from '@/components/crm/customFieldViews';
+import { customBuilderFields, customCells, customColumns, customFilterTypes, extraSortOptions } from '@/components/crm/customFieldViews';
+import { isExtraSort, type ExtraSort } from '@/lib/crm-list-sort';
 import { formatActivityDate } from '@/lib/crm-activity-dates';
 
 export const dynamic = 'force-dynamic';
@@ -49,7 +50,7 @@ const DEAL_SORTS = [
   'close_date_desc',
   ...ACTIVITY_DATE_SORTS,
 ] as const;
-type DealSort = (typeof DEAL_SORTS)[number];
+type DealSort = (typeof DEAL_SORTS)[number] | ExtraSort;
 
 interface DealsPageProps {
   params: Promise<{ locale: string }>;
@@ -208,8 +209,9 @@ export default async function DealsPage(props: DealsPageProps) {
     const rawFilters = one(searchParams.filters) ?? '';
     const advancedRules = parseFilterRules(rawFilters);
     const sortParam = one(searchParams.sort);
-    const sort: DealSort = (DEAL_SORTS as readonly string[]).includes(sortParam ?? '')
-      ? (sortParam as DealSort)
+    const sort: DealSort =
+      (DEAL_SORTS as readonly string[]).includes(sortParam ?? '') || isExtraSort(sortParam, customTypes)
+        ? (sortParam as DealSort)
       : 'newest';
     const page = Number(one(searchParams.page) ?? '1') || 1;
 
@@ -256,6 +258,7 @@ export default async function DealsPage(props: DealsPageProps) {
       return {
         id: d.id,
         name: d.name,
+        ownerId: d.owner_id,
         amount: formatAmount(d.amount, d.currency, locale),
         amountValue: d.amount,
         currency: d.currency,
@@ -344,6 +347,12 @@ export default async function DealsPage(props: DealsPageProps) {
           sources={sources}
           owners={owners}
           customFields={customFields}
+          extraSorts={extraSortOptions(customFieldDefs, {
+            ownerAsc: t('listSort.ownerAsc'),
+            ownerDesc: t('listSort.ownerDesc'),
+            asc: (label) => t('listSort.fieldAsc', { label }),
+            desc: (label) => t('listSort.fieldDesc', { label }),
+          })}
         >
           <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
         </DealsFilters>
@@ -386,6 +395,7 @@ export default async function DealsPage(props: DealsPageProps) {
               locale={locale}
               allTags={tagOptions}
               bulkFields={bulkFields}
+              owners={owners}
             />
             <CrmPager pathname="/app/crm/deals" query={query} page={currentPage} pages={pages} total={total} locale={locale} />
           </>

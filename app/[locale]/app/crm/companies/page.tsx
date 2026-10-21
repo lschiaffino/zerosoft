@@ -14,7 +14,8 @@ import {
 } from '@/lib/crm';
 import type { BulkEditField } from '@/components/crm/BulkEditControls';
 import { customBulkFields } from '@/components/crm/bulkFields';
-import { customBuilderFields, customCells, customColumns, customFilterTypes } from '@/components/crm/customFieldViews';
+import { customBuilderFields, customCells, customColumns, customFilterTypes, extraSortOptions } from '@/components/crm/customFieldViews';
+import { isExtraSort, type ExtraSort } from '@/lib/crm-list-sort';
 import { formatActivityDate } from '@/lib/crm-activity-dates';
 import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
@@ -73,17 +74,18 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   const createdTo = one(searchParams.createdTo) ?? '';
   const tag = one(searchParams.tag) ?? '';
   const custom = parseCustomFilter(searchParams);
-  const sortParam = one(searchParams.sort);
-  const COMPANY_SORTS: readonly string[] = ['oldest', 'name', 'name_desc', ...ACTIVITY_DATE_SORTS];
-  const sort: NonNullable<CompanyFilter['sort']> = COMPANY_SORTS.includes(sortParam ?? '')
-    ? (sortParam as NonNullable<CompanyFilter['sort']>)
-    : 'newest';
   const page = Number(one(searchParams.page) ?? '1') || 1;
   const rawFilters = one(searchParams.filters) ?? '';
   const advancedRules = parseFilterRules(rawFilters);
 
   const customFieldDefs = await listCustomFields(user.id, 'companies');
   const customTypes = customFilterTypes(customFieldDefs);
+  const sortParam = one(searchParams.sort);
+  const COMPANY_SORTS: readonly string[] = ['oldest', 'name', 'name_desc', ...ACTIVITY_DATE_SORTS];
+  const sort: NonNullable<CompanyFilter['sort']> =
+    COMPANY_SORTS.includes(sortParam ?? '') || isExtraSort(sortParam, customTypes)
+      ? (sortParam as NonNullable<CompanyFilter['sort']>)
+      : 'newest';
 
   const { rows, total } = await listCompanies(user.id, {
     ownerScope: scope,
@@ -197,6 +199,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     id: c.id,
     name: c.name,
     domain: c.domain,
+    ownerId: c.owner_id,
     industry: c.industry,
     phone: c.phone,
     location: [c.city, c.country].filter(Boolean).join(', '),
@@ -254,7 +257,14 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     <div className="ui-page crm-list-page">
       <PageHeader
         title={t('companies.title')}
-        actions={<CrmQuickCreate kind="company" buttonClassName="btn btn-primary btn-sm" label={t('record.createCompany')} />}
+        actions={
+          <>
+            <Link href="/app/crm/companies/duplicates" className="btn btn-secondary btn-sm">
+              {t('companies.dupes.find')}
+            </Link>
+            <CrmQuickCreate kind="company" buttonClassName="btn btn-primary btn-sm" label={t('record.createCompany')} />
+          </>
+        }
       />
 
       <CompanyFilters
@@ -273,6 +283,12 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
         lifecycles={lifecycles}
         owners={owners}
         customFields={customFields}
+        extraSorts={extraSortOptions(customFieldDefs, {
+            ownerAsc: t('listSort.ownerAsc'),
+            ownerDesc: t('listSort.ownerDesc'),
+            asc: (label) => t('listSort.fieldAsc', { label }),
+            desc: (label) => t('listSort.fieldDesc', { label }),
+          })}
       >
         <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
       </CompanyFilters>
@@ -302,6 +318,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
             locale={locale}
             allTags={tagOptions}
             bulkFields={bulkFields}
+            owners={owners}
           />
           <CrmPager pathname="/app/crm/companies" query={query} page={currentPage} pages={pages} total={total} locale={locale} />
         </>

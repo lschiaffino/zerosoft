@@ -254,7 +254,9 @@
       "flow": "Flow",
       "robots": "Robots"
     },
-    "advancedHint": "Requests HTTP para suas próprias APIs"
+    "advancedHint": "Requests HTTP para suas próprias APIs",
+    "approval": "Pedir que alguém da equipe aprove antes de rodar",
+    "approvalHttp": "Pedir aprovação para as requisições que escrevem (tudo menos GET)"
   },
   "channels": {
     "chatTitle": "Widgets do Chat",
@@ -364,7 +366,8 @@
     "too_many_tests": "Este agente já tem o máximo de testes (50).",
     "too_many_secrets": "Este agente já tem o máximo de headers secretos (10).",
     "secret_domain_not_allowed": "Escolha um domínio da lista permitida salva.",
-    "reserved_header": "Esse header é definido automaticamente e não pode ser alterado."
+    "reserved_header": "Esse header é definido automaticamente e não pode ser alterado.",
+    "already_decided": "Alguém já aprovou ou recusou esta ação."
   },
   "public": {
     "subtitle": "Assistente de AI",
@@ -474,5 +477,19 @@
     "step_limits": "{count} execuções que chegaram ao limite de passos",
     "cta": "Abrir as análises do agente",
     "why": "Você recebe este email porque é o dono do workspace. Dá para desligar estes alertas na aba Análises do agente."
+  },
+  "approvals": {
+    "title": "Aguardando aprovação",
+    "approve": "Aprovar e executar",
+    "reject": "Recusar",
+    "decided": "Decidido por {who}.",
+    "failed": "Rodou e falhou: {code}.",
+    "pendingBadge": "{count, plural, one {# para aprovar} other {# para aprovar}}",
+    "status": {
+      "pending": "Pendente",
+      "approved": "Aprovada",
+      "rejected": "Recusada",
+      "failed": "Falhou"
+    }
   }
 }

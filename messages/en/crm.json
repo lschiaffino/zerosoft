@@ -355,7 +355,26 @@
       "lifecycle": "Lifecycle stage",
       "owner": "Owner"
     },
-    "newTitle": "New company"
+    "newTitle": "New company",
+    "dupes": {
+      "title": "Duplicate companies",
+      "description": "Companies that share a domain or a name. Pick the one to keep and merge the rest into it.",
+      "find": "Find duplicates",
+      "none": "No duplicate companies found.",
+      "byDomain": "Same domain:",
+      "byName": "Same name:",
+      "keepLabel": "Company to keep",
+      "keep": "Keeps",
+      "merge": "{count, plural, one {Merge # company into the one kept} other {Merge # companies into the one kept}}",
+      "confirm": "{count, plural, one {Merge # company into {keep}?} other {Merge # companies into {keep}?}} Contacts, deals, activities and files move to {keep}.",
+      "merged": "{count, plural, one {# company merged} other {# companies merged}}",
+      "trashNote": "Merged companies go to the recycle bin with everything they had, so you can restore them."
+    },
+    "enrich": {
+      "looking": "Looking up the website…",
+      "filled": "Name, website and phone filled in from {domain} where they were empty.",
+      "exists": "A company with this domain already exists:"
+    }
   },
   "deals": {
     "title": "Deals",
@@ -1080,7 +1099,8 @@
     "trash_conflict": "A record with this id already exists, so it can't be restored.",
     "file_too_large": "The file is over 10 MB.",
     "file_type_not_allowed": "That file type can't be attached.",
-    "storage_unavailable": "File storage is not set up on this server."
+    "storage_unavailable": "File storage is not set up on this server.",
+    "missing_required": "The stage needs properties this deal doesn't have yet."
   },
   "filters": {
     "advanced": "Advanced filters",
@@ -1965,7 +1985,8 @@
     "purgeConfirm": "Delete forever?",
     "emptyBin": "Empty recycle bin",
     "emptyBinConfirm": "Delete all {count} items forever?",
-    "untitled": "Untitled"
+    "untitled": "Untitled",
+    "mergedInto": "merged into"
   },
   "files": {
     "title": "Files",
@@ -1974,5 +1995,62 @@
   "mentions": {
     "suggestions": "People to mention",
     "placeholder": "Notes. Type @ to mention a teammate"
+  },
+  "stageRules": {
+    "fields": {
+      "amount": "Amount",
+      "closeDate": "Close date",
+      "ownerId": "Owner",
+      "priority": "Priority",
+      "source": "Source",
+      "description": "Description",
+      "company": "Company",
+      "contacts": "Contacts"
+    },
+    "button": "{count, plural, =0 {Required} other {Required (#)}}",
+    "hint": "Deals need these properties before they can enter the stage, from the board, the API, bulk edits and automations.",
+    "legend": "Required to enter {stage}",
+    "dialogTitle": "Before moving to {stage}",
+    "dialogSub": "This stage needs these properties. Fill them in and the deal moves.",
+    "stillMissing": "Some required properties are still empty.",
+    "needCompany": "Associate a company with the deal.",
+    "needContacts": "Associate at least one contact with the deal.",
+    "openDeal": "Open the deal",
+    "saveAndMove": "Save and move",
+    "bulkBlocked": "{count, plural, one {# deal stayed put because the stage needs properties it doesn't have.} other {# deals stayed put because the stage needs properties they don't have.}}"
+  },
+  "calls": {
+    "call": "Call",
+    "whatsapp": "WhatsApp",
+    "logTitle": "Log this touch",
+    "logCall": "How did the call go?",
+    "logWhatsapp": "Log the WhatsApp message",
+    "outcome": "Outcome",
+    "minutes": "Minutes",
+    "note": "Note",
+    "notePlaceholder": "Note (optional)",
+    "save": "Log it",
+    "skip": "Skip",
+    "logged": "Logged in the timeline",
+    "subjectCall": "Phone call",
+    "subjectWhatsapp": "WhatsApp message",
+    "outcomes": {
+      "connected": "Connected",
+      "left_voicemail": "Left a voicemail",
+      "no_answer": "No answer",
+      "busy": "Busy",
+      "wrong_number": "Wrong number"
+    },
+    "settingsTitle": "Call outcomes",
+    "settingsDesc": "The outcomes to pick from when someone logs a call or a WhatsApp message from a phone link.",
+    "settingsLabel": "Outcomes, one per line",
+    "settingsHelp": "Up to {max}. Leave it empty to use the default list.",
+    "settingsReset": "Use the default list"
+  },
+  "listSort": {
+    "ownerAsc": "Owner (A to Z)",
+    "ownerDesc": "Owner (Z to A)",
+    "fieldAsc": "{label} (ascending)",
+    "fieldDesc": "{label} (descending)"
   }
 }

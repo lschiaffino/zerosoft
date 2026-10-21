@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     if (!field || value === undefined) return crmError(400, 'invalid_input');
     const res = await bulkSetProperty(user.id, 'deal', ids, field, value, actor);
     if (!res.ok) return crmError(400, res.code);
-    return NextResponse.json({ count: res.count, failed: res.failed });
+    return NextResponse.json({ count: res.count, failed: res.failed, blocked: res.blocked });
   }
   // Borrar en masa es solo para admins.
   if (!isWorkspaceAdmin(user)) return forbidden();

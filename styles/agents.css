@@ -380,3 +380,17 @@
 .ag-analytics-error { max-width: 40ch; font-size: 0.75rem; color: var(--brand-gray-1); overflow-wrap: anywhere; }
 .ag-analytics .table td[data-bad] { color: var(--bad-ink); }
 .ag-analytics-alerts { padding-top: 20px; border-top: 1px solid var(--line); }
+
+/* Acciones que esperan aprobación (Conversaciones). */
+.ag-approvals { display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--line); }
+.ag-approval-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ag-approval { border: 1px solid var(--line); border-radius: var(--radius-1); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.ag-approval.is-pending { border-color: var(--ink); }
+.ag-approval-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ag-approval-tool { font-weight: 500; }
+.ag-approval-input { margin: 0; display: grid; gap: 2px; font-size: 0.8125rem; }
+.ag-approval-input > div { display: flex; gap: 8px; min-width: 0; }
+.ag-approval-input dt { color: var(--muted); flex: none; min-width: 72px; }
+.ag-approval-input dd { margin: 0; overflow-wrap: anywhere; }
+.ag-approval-actions { display: flex; gap: 8px; }
+.ag-tool-approval { font-size: 0.875rem; }

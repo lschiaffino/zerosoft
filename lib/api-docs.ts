@@ -55,6 +55,7 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'crm-email', titleKey: 'crmEmailTitle', descKey: 'crmEmailDesc' },
   { id: 'cal', titleKey: 'calTitle', descKey: 'calDesc' },
   { id: 'agents', titleKey: 'agentsTitle', descKey: 'agentsDesc' },
+  { id: 'chat', titleKey: 'chatTitle', descKey: 'chatDesc' },
   { id: 'robots', titleKey: 'robotsTitle', descKey: 'robotsDesc' },
   { id: 'webhooks', titleKey: 'webhooksTitle', descKey: 'webhooksDesc' },
 ];
@@ -79,6 +80,31 @@ const BOOKING_EXAMPLE = {
     slug: 'intro',
     title: 'Intro call'
   }
+};
+
+const CHAT_CONVERSATION_EXAMPLE = {
+  id: '{conversation_id}',
+  widgetId: '{widget_id}',
+  status: 'open',
+  priority: 'medium',
+  subject: null,
+  assignedTo: '{user_id}',
+  visitor: { id: '{visitor_id}', name: 'Ana', email: 'ana@example.com' },
+  firstResponseAt: '2026-11-01T18:02:00.000Z',
+  resolvedAt: null,
+  createdAt: '2026-11-01T18:00:00.000Z',
+  updatedAt: '2026-11-01T18:02:00.000Z',
+};
+
+const CHAT_MESSAGE_EXAMPLE = {
+  id: '{message_id}',
+  conversationId: '{conversation_id}',
+  senderType: 'user',
+  userId: '{user_id}',
+  body: 'Hi Ana, the order ships tomorrow.',
+  isNote: false,
+  attachments: [],
+  createdAt: '2026-11-01T18:02:00.000Z',
 };
 
 const PRODUCT_EXAMPLE = {
@@ -630,6 +656,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       { name: 'id', type: 'string', required: true, descriptionKey: 'paramId' },
       { name: 'stageId', type: 'string', required: true, descriptionKey: 'paramStageId' },
       { name: 'lostReason', type: 'string', descriptionKey: 'paramLostReason' },
+      { name: 'fields', type: 'object', descriptionKey: 'paramMoveFields' },
     ],
     request: { stageId: '{stage_id}' },
     responseStatus: 200,
@@ -1315,6 +1342,83 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     responseStatus: 200,
   },
 
+  // Chat
+  {
+    id: 'chat-conversations-list',
+    sectionId: 'chat',
+    method: 'GET',
+    path: '/api/v1/chat/conversations',
+    titleKey: 'chatListTitle',
+    descKey: 'chatListDesc',
+    params: [
+      { name: 'status', type: 'open | pending | snoozed | resolved', descriptionKey: 'paramChatStatus' },
+      { name: 'assignedTo', type: 'string', descriptionKey: 'paramChatAssignedTo' },
+      { name: 'widgetId', type: 'string', descriptionKey: 'paramChatWidgetId' },
+      { name: 'limit', type: 'integer', descriptionKey: 'paramChatLimit' },
+      { name: 'offset', type: 'integer', descriptionKey: 'paramChatOffset' },
+    ],
+    response: { conversations: [CHAT_CONVERSATION_EXAMPLE], total: 1, limit: 50, offset: 0 },
+    responseStatus: 200,
+  },
+  {
+    id: 'chat-conversations-get',
+    sectionId: 'chat',
+    method: 'GET',
+    path: '/api/v1/chat/conversations/{id}',
+    titleKey: 'chatGetTitle',
+    descKey: 'chatGetDesc',
+    params: [{ name: 'id', type: 'string', required: true, descriptionKey: 'paramId' }],
+    response: { conversation: CHAT_CONVERSATION_EXAMPLE, messages: [CHAT_MESSAGE_EXAMPLE] },
+    responseStatus: 200,
+  },
+  {
+    id: 'chat-messages-create',
+    sectionId: 'chat',
+    method: 'POST',
+    path: '/api/v1/chat/conversations/{id}/messages',
+    titleKey: 'chatReplyTitle',
+    descKey: 'chatReplyDesc',
+    params: [
+      { name: 'body', type: 'string', required: true, descriptionKey: 'paramChatBody' },
+      { name: 'note', type: 'boolean', descriptionKey: 'paramChatNote' },
+    ],
+    request: { body: 'Hi Ana, the order ships tomorrow.' },
+    response: CHAT_MESSAGE_EXAMPLE,
+    responseStatus: 201,
+  },
+  {
+    id: 'chat-conversations-assign',
+    sectionId: 'chat',
+    method: 'POST',
+    path: '/api/v1/chat/conversations/{id}/assign',
+    titleKey: 'chatAssignTitle',
+    descKey: 'chatAssignDesc',
+    params: [{ name: 'assignedTo', type: 'string', required: true, descriptionKey: 'paramChatAssignee' }],
+    request: { assignedTo: '{user_id}' },
+    response: CHAT_CONVERSATION_EXAMPLE,
+    responseStatus: 200,
+  },
+  {
+    id: 'chat-conversations-resolve',
+    sectionId: 'chat',
+    method: 'POST',
+    path: '/api/v1/chat/conversations/{id}/resolve',
+    titleKey: 'chatResolveTitle',
+    descKey: 'chatResolveDesc',
+    response: { ...CHAT_CONVERSATION_EXAMPLE, status: 'resolved', resolvedAt: '2026-11-01T18:10:00.000Z' },
+    responseStatus: 200,
+  },
+  {
+    id: 'chat-conversations-reopen',
+    sectionId: 'chat',
+    method: 'POST',
+    path: '/api/v1/chat/conversations/{id}/reopen',
+    titleKey: 'chatReopenTitle',
+    descKey: 'chatReopenDesc',
+    response: CHAT_CONVERSATION_EXAMPLE,
+    responseStatus: 200,
+  },
+
   // Robots
   {
     id: 'robots-list',
@@ -1446,6 +1550,20 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     descKey: 'webhooksPayloadDesc',
     request: { id: 'evt_1', type: 'booking.created', createdAt: '2026-11-01T18:00:00.000Z', data: BOOKING_EXAMPLE },
   },
+  {
+    id: 'webhooks-chat-payload',
+    sectionId: 'webhooks',
+    method: 'POST',
+    path: 'https://your-app.example/webhooks/zerosoft',
+    titleKey: 'webhooksChatTitle',
+    descKey: 'webhooksChatDesc',
+    request: {
+      id: 'evt_2',
+      type: 'chat.message.created',
+      createdAt: '2026-11-01T18:02:00.000Z',
+      data: { conversation: CHAT_CONVERSATION_EXAMPLE, message: CHAT_MESSAGE_EXAMPLE },
+    },
+  },
 
   // CRM: formularios
   {
@@ -1518,7 +1636,7 @@ export const API_SCOPE_DOCS: Array<{ scope: ApiScope; descKey: string }> = API_S
  */
 export function endpointScope(e: Pick<ApiEndpoint, 'path' | 'method' | 'scope'>): ApiScope | null {
   if (e.scope) return e.scope;
-  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots)\b/.exec(e.path);
+  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat)\b/.exec(e.path);
   if (!m) return null;
   if (m[1] === 'agents') return 'agents:run';
   if (m[1] === 'robots') return 'robots:run';

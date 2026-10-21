@@ -7,13 +7,25 @@
  * En modo simulación (dryRun: playground y casos de prueba) las herramientas
  * que escriben validan todo igual pero no ejecutan: devuelven
  * { simulated: true, wouldRun } con lo que habrían hecho.
+ * Las que el dueño marcó en tools.requireApproval validan todo y quedan en
+ * la cola de aprobación (lib/agents-approvals.ts): el agente le dice al
+ * visitante que alguien del equipo tiene que aprobarlo, y la acción corre
+ * (performAgentAction) recién cuando lo aprueban en Conversaciones.
  * Server-only.
  */
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 import { getDb } from './db';
 import type { AgentChannel, AgentConversationRow, AgentToolCallRow, RobotRow } from './db';
-import { AGENT_HTTP_METHODS, type AgentDto, type AgentHttpMethod, type AgentStreamEvent, type AgentToolCallDto, type AgentToolKey } from './agents-config';
+import {
+  AGENT_HTTP_METHODS,
+  type AgentDto,
+  type AgentHttpMethod,
+  type AgentStreamEvent,
+  type AgentToolCallDto,
+  type AgentToolKey,
+  type ApprovableAgentTool,
+} from './agents-config';
 import { rankKnowledge, type KnowledgeDoc } from './knowledge-search';
 import { extractDocsText, listCannedResponses } from './chat-data';
 import { safeFetch, UnsafeUrlError } from './safe-fetch';
@@ -284,28 +296,7 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
               note: input.note ?? null,
             });
           }
-          const { findOrCreateContact } = await import('./crm-integrations');
-          const { createActivity, updateContact } = await import('./crm');
-          const { contact, created } = await findOrCreateContact(workspaceId, {
-            email: input.email,
-            name: input.name ?? null,
-            source: 'other',
-          });
-          if (!created && input.name && !contact.first_name && !contact.last_name) {
-            const [firstName, ...rest] = input.name.trim().split(/\s+/);
-            await updateContact(workspaceId, contact.id, { firstName, lastName: rest.join(' ') });
-          }
-          let activityId: string | null = null;
-          if (input.note) {
-            const a = await createActivity(workspaceId, {
-              type: 'note',
-              subject: `Agent: ${agent.name}`,
-              body: input.note,
-              contactId: contact.id,
-            });
-            activityId = a.id;
-          }
-          return { contactId: contact.id, created, noteLogged: Boolean(activityId) };
+          return (await queueIfRequired(ctx, 'crm_upsert_contact', input)) ?? performAgentAction(actionContext(ctx), 'crm_upsert_contact', input);
         }),
       }),
     );
@@ -324,14 +315,10 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
           const c = await findContact(workspaceId, email);
           if (!c) return { error: 'contact_not_found' };
           if (ctx.dryRun) return simulated({ action: 'log_note', contactId: c.id, note });
-          const { createActivity } = await import('./crm');
-          const a = await createActivity(workspaceId, {
-            type: 'note',
-            subject: `Agent: ${agent.name}`,
-            body: note,
-            contactId: c.id,
-          });
-          return { logged: true, activityId: a.id };
+          return (
+            (await queueIfRequired(ctx, 'crm_log_note', { email, note })) ??
+            performAgentAction(actionContext(ctx), 'crm_log_note', { email, note })
+          );
         }),
       }),
     );
@@ -434,8 +421,7 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
               }
             });
             if (!wasOffered) return { error: 'slot_not_offered' };
-            const { findOfferedSlot, createBooking, CalendarError } = await import('./calendar');
-            const { afterBookingCreated } = await import('./calendar-lifecycle');
+            const { findOfferedSlot } = await import('./calendar');
             const tz = input.timezone || 'UTC';
             // Doble chequeo: el slot sigue libre ahora mismo.
             const slot = await findOfferedSlot(eventType.id, startDate, tz).catch(() => null);
@@ -450,29 +436,11 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
                 timezone: tz,
               });
             }
-            try {
-              const booking = await createBooking({
-                eventTypeId: eventType.id,
-                email: input.email,
-                name: input.name,
-                start: slot.start.toISOString(),
-                timezone: tz,
-                answers: input.notes ? { notes: input.notes } : {},
-              });
-              const synced = await afterBookingCreated(booking);
-              return {
-                booked: true,
-                // 'pending': el evento pide que el anfitrión confirme la reserva.
-                status: synced.status,
-                bookingId: synced.id,
-                startsAt: synced.starts_at,
-                endsAt: synced.ends_at,
-                meetingUrl: synced.meeting_url,
-              };
-            } catch (err) {
-              if (err instanceof CalendarError) return { error: err.code };
-              throw err;
-            }
+            const booking = { start: iso, name: input.name, email: input.email, timezone: tz, notes: input.notes };
+            return (
+              (await queueIfRequired(ctx, 'cal_book_meeting', booking)) ??
+              performAgentAction(actionContext(ctx), 'cal_book_meeting', booking)
+            );
           },
         ),
       }),
@@ -506,16 +474,10 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
                   priority: input.priority ?? 'medium',
                 });
               }
-              const { createIssue } = await import('./track-data');
-              const body = [input.description, `— Created by the agent "${agent.name}" (${ctx.channel})`]
-                .filter(Boolean)
-                .join('\n\n');
-              const issue = await createIssue(project.id, workspaceId, {
-                title: input.title,
-                description: [{ type: 'text', text: body }],
-                priority: input.priority ?? 'medium',
-              }, { source: ctx.channel === 'chat' ? 'chat' : 'agent' });
-              return { issueId: issue.id, identifier: issue.identifier, title: issue.title };
+              return (
+                (await queueIfRequired(ctx, 'track_create_issue', input)) ??
+                performAgentAction(actionContext(ctx), 'track_create_issue', input)
+              );
             },
           ),
         }),
@@ -543,18 +505,15 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
           execute: logged(ctx, 'run_flow', async ({ flowId, input }: { flowId: string; input?: Record<string, unknown> }) => {
             // Doble chequeo: solo flows configurados y del workspace.
             if (!cfg.flowIds.includes(flowId)) return { error: 'flow_not_allowed' };
-            const { getFlowRow, enqueueRun, kickFlowWorker } = await import('./flow');
+            const { getFlowRow } = await import('./flow');
             const row = await getFlowRow(workspaceId, flowId);
             if (!row) return { error: 'flow_not_found' };
             const payload = JSON.parse(JSON.stringify(input ?? {})) as Record<string, unknown>;
             if (ctx.dryRun) return simulated({ action: 'run_flow', flow: row.name, input: payload });
-            const runId = await enqueueRun(row, 'manual', {
-              ...payload,
-              agent: { id: agent.id, name: agent.name, conversationId: ctx.conversation.id, channel: ctx.channel },
-            });
-            if (!runId) return { error: 'rate_limited' };
-            kickFlowWorker();
-            return { runId, status: 'queued', flow: row.name };
+            return (
+              (await queueIfRequired(ctx, 'run_flow', { flowId, input: payload })) ??
+              performAgentAction(actionContext(ctx), 'run_flow', { flowId, input: payload })
+            );
           }),
         }),
       );
@@ -655,7 +614,6 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
   if (on.has('http_request') && cfg.httpAllowedDomains.length) {
     const domains = cfg.httpAllowedDomains;
     const secrets = (ctx.secretHeaders ?? []).filter((h) => h.value && domains.includes(h.domain));
-    const secretValues = secrets.map((h) => h.value);
     // El modelo sabe qué dominios van autenticados, nunca los valores.
     const authDomains = [...new Set(secrets.map((h) => h.domain))];
     add(
@@ -690,31 +648,187 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
               secretHeaders: Object.keys(extra),
             });
           }
-          try {
-            const res = await safeFetch(
-              url.toString(),
-              {
-                method: input.method,
-                headers: {
-                  ...extra,
-                  'user-agent': 'Zerosoft-Agents/1',
-                  ...(hasBody ? { 'content-type': 'application/json' } : {}),
-                },
-                body: hasBody ? (input.body ?? '{}') : undefined,
-              },
-              8000,
-            );
-            // Una API que devuelve el header (eco, errores) no se lo filtra al modelo.
-            const text = redactSecrets((await res.text().catch(() => '')).slice(0, 200_000), secretValues).slice(0, 4000);
-            return { status: res.status, ok: res.ok, body: text };
-          } catch (err) {
-            if (err instanceof UnsafeUrlError) return { error: err.message };
-            return { error: err instanceof Error && err.name === 'TimeoutError' ? 'timeout' : 'network_error' };
-          }
+          const request = { url: url.toString(), method: input.method, body: input.body };
+          // Leer (GET) nunca espera aprobación.
+          const queued = input.method === 'GET' ? null : await queueIfRequired(ctx, 'http_request', request);
+          return queued ?? performAgentAction(actionContext(ctx), 'http_request', request);
         }),
       }),
     );
   }
 
   return { tools, enabled, handoff };
+}
+
+// ---------- Ejecución de acciones (directa o al aprobarlas) ----------
+
+/** Lo que una acción necesita para correr fuera de la corrida del modelo (aprobación). */
+export interface AgentActionContext {
+  agent: AgentDto;
+  workspaceId: string;
+  conversationId: string;
+  channel: AgentChannel;
+  secretHeaders: Array<{ name: string; domain: string; value: string }>;
+}
+
+function actionContext(ctx: AgentRunContext): AgentActionContext {
+  return {
+    agent: ctx.agent,
+    workspaceId: ctx.workspaceId,
+    conversationId: ctx.conversation.id,
+    channel: ctx.channel,
+    secretHeaders: ctx.secretHeaders ?? [],
+  };
+}
+
+/** Si la herramienta pide aprobación, la encola y devuelve lo que el modelo le dice al visitante. */
+async function queueIfRequired(ctx: AgentRunContext, tool: ApprovableAgentTool, input: Record<string, unknown>): Promise<ToolOutput | null> {
+  if (ctx.dryRun || !(ctx.agent.tools.requireApproval ?? []).includes(tool)) return null;
+  const { queueAgentAction } = await import('./agents-approvals');
+  const id = await queueAgentAction(actionContext(ctx), tool, input);
+  return {
+    pending: true,
+    approvalId: id,
+    tellVisitor:
+      'This needs a teammate to approve it before it happens. Tell the visitor it is pending approval and that the team will follow up; do not say it is done.',
+  };
+}
+
+type ActionInput = Record<string, unknown>;
+const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+
+/**
+ * Ejecuta una acción que escribe. La llaman las herramientas (sin aprobación)
+ * y lib/agents-approvals.ts al aprobar: revalida contra la configuración
+ * actual del agente (un evento, proyecto, flow o dominio sacado ya no corre).
+ */
+export async function performAgentAction(actx: AgentActionContext, tool: ApprovableAgentTool, input: ActionInput): Promise<ToolOutput> {
+  const { agent, workspaceId } = actx;
+  const cfg = agent.tools;
+  switch (tool) {
+    case 'crm_upsert_contact': {
+      const { findOrCreateContact } = await import('./crm-integrations');
+      const { createActivity, updateContact } = await import('./crm');
+      const name = str(input.name) || null;
+      const note = str(input.note);
+      const { contact, created } = await findOrCreateContact(workspaceId, { email: str(input.email), name, source: 'other' });
+      if (!created && name && !contact.first_name && !contact.last_name) {
+        const [firstName, ...rest] = name.trim().split(/\s+/);
+        await updateContact(workspaceId, contact.id, { firstName, lastName: rest.join(' ') });
+      }
+      let activityId: string | null = null;
+      if (note) {
+        const a = await createActivity(workspaceId, { type: 'note', subject: `Agent: ${agent.name}`, body: note, contactId: contact.id });
+        activityId = a.id;
+      }
+      return { contactId: contact.id, created, noteLogged: Boolean(activityId) };
+    }
+    case 'crm_log_note': {
+      const c = await findContact(workspaceId, str(input.email));
+      if (!c) return { error: 'contact_not_found' };
+      const { createActivity } = await import('./crm');
+      const a = await createActivity(workspaceId, { type: 'note', subject: `Agent: ${agent.name}`, body: str(input.note), contactId: c.id });
+      return { logged: true, activityId: a.id };
+    }
+    case 'cal_book_meeting': {
+      const eventType = cfg.calEventTypeId
+        ? ((await getDb()
+            .prepare('SELECT id, title FROM calendar_event_types WHERE id = ? AND user_id = ?')
+            .get(cfg.calEventTypeId, workspaceId)) as { id: string; title: string } | undefined)
+        : undefined;
+      if (!eventType) return { error: 'event_type_not_configured' };
+      const { findOfferedSlot, createBooking, CalendarError } = await import('./calendar');
+      const { afterBookingCreated } = await import('./calendar-lifecycle');
+      const tz = str(input.timezone) || 'UTC';
+      const slot = await findOfferedSlot(eventType.id, new Date(str(input.start)), tz).catch(() => null);
+      if (!slot) return { error: 'slot_unavailable' };
+      try {
+        const booking = await createBooking({
+          eventTypeId: eventType.id,
+          email: str(input.email),
+          name: str(input.name),
+          start: slot.start.toISOString(),
+          timezone: tz,
+          answers: str(input.notes) ? { notes: str(input.notes) } : {},
+        });
+        const synced = await afterBookingCreated(booking);
+        return {
+          booked: true,
+          // 'pending': el evento pide que el anfitrión confirme la reserva.
+          status: synced.status,
+          bookingId: synced.id,
+          startsAt: synced.starts_at,
+          endsAt: synced.ends_at,
+          meetingUrl: synced.meeting_url,
+        };
+      } catch (err) {
+        if (err instanceof CalendarError) return { error: err.code };
+        throw err;
+      }
+    }
+    case 'track_create_issue': {
+      const project = cfg.trackProjectId
+        ? ((await getDb()
+            .prepare('SELECT id, name FROM track_projects WHERE id = ? AND owner_id = ?')
+            .get(cfg.trackProjectId, workspaceId)) as { id: string; name: string } | undefined)
+        : undefined;
+      if (!project) return { error: 'project_not_configured' };
+      const { createIssue } = await import('./track-data');
+      const body = [str(input.description), `— Created by the agent "${agent.name}" (${actx.channel})`].filter(Boolean).join('\n\n');
+      const priority = (['low', 'medium', 'high', 'urgent'] as const).find((p) => p === input.priority) ?? 'medium';
+      const issue = await createIssue(
+        project.id,
+        workspaceId,
+        { title: str(input.title), description: [{ type: 'text', text: body }], priority },
+        { source: actx.channel === 'chat' ? 'chat' : 'agent' },
+      );
+      return { issueId: issue.id, identifier: issue.identifier, title: issue.title };
+    }
+    case 'run_flow': {
+      const flowId = str(input.flowId);
+      if (!cfg.flowIds.includes(flowId)) return { error: 'flow_not_allowed' };
+      const { getFlowRow, enqueueRun, kickFlowWorker } = await import('./flow');
+      const row = await getFlowRow(workspaceId, flowId);
+      if (!row) return { error: 'flow_not_found' };
+      const payload = (input.input && typeof input.input === 'object' ? input.input : {}) as Record<string, unknown>;
+      const runId = await enqueueRun(row, 'manual', {
+        ...payload,
+        agent: { id: agent.id, name: agent.name, conversationId: actx.conversationId, channel: actx.channel },
+      });
+      if (!runId) return { error: 'rate_limited' };
+      kickFlowWorker();
+      return { runId, status: 'queued', flow: row.name };
+    }
+    case 'http_request': {
+      let url: URL;
+      try {
+        url = new URL(str(input.url));
+      } catch {
+        return { error: 'invalid_url' };
+      }
+      if (!hostAllowed(url.hostname, cfg.httpAllowedDomains)) return { error: 'domain_not_allowed' };
+      const method = (AGENT_HTTP_METHODS as readonly string[]).includes(str(input.method)) ? (str(input.method) as AgentHttpMethod) : 'GET';
+      const hasBody = method !== 'GET' && method !== 'DELETE';
+      const secrets = actx.secretHeaders.filter((h) => h.value && cfg.httpAllowedDomains.includes(h.domain));
+      const extra: Record<string, string> = {};
+      for (const h of secrets) if (hostAllowed(url.hostname, [h.domain])) extra[h.name] = h.value;
+      try {
+        const res = await safeFetch(
+          url.toString(),
+          {
+            method,
+            headers: { ...extra, 'user-agent': 'Zerosoft-Agents/1', ...(hasBody ? { 'content-type': 'application/json' } : {}) },
+            body: hasBody ? str(input.body) || '{}' : undefined,
+          },
+          8000,
+        );
+        // Una API que devuelve el header (eco, errores) no se lo filtra al modelo.
+        const text = redactSecrets((await res.text().catch(() => '')).slice(0, 200_000), secrets.map((h) => h.value)).slice(0, 4000);
+        return { status: res.status, ok: res.ok, body: text };
+      } catch (err) {
+        if (err instanceof UnsafeUrlError) return { error: err.message };
+        return { error: err instanceof Error && err.name === 'TimeoutError' ? 'timeout' : 'network_error' };
+      }
+    }
+  }
 }

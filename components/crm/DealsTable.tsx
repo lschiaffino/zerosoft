@@ -13,9 +13,12 @@ import TagDots, { type TagDot } from './TagDots';
 import TagBulkControls from './TagBulkControls';
 import BulkEditControls, { type BulkEditField } from './BulkEditControls';
 import type { CustomCell, CustomColumn } from './customFieldViews';
+import { CustomColumnHeader, OwnerCell, OwnerHeader } from './TableExtraColumns';
 
 export interface DealRow {
   id: string;
+  /** Owner (id de usuario) para la columna editable. */
+  ownerId?: string | null;
   /** Custom fields ya formateados (`custom:<name>`). */
   custom?: Record<string, CustomCell>;
   name: string;
@@ -67,6 +70,8 @@ interface DealsTableProps {
   allTags?: Array<{ id: string; name: string }>;
   /** Propiedades editables en masa (owner, etapa, custom fields…). */
   bulkFields?: BulkEditField[];
+  /** Personas del workspace (columna owner). */
+  owners?: Array<{ value: string; label: string }>;
 }
 
 const COLS = [
@@ -80,6 +85,7 @@ const COLS = [
   { id: 'contacts', labelKey: 'deals.table.contacts', defaultVisible: false },
   { id: 'company', labelKey: 'deals.detail.company', defaultVisible: true },
   { id: 'tags', labelKey: 'tags.column', defaultVisible: true },
+  { id: 'owner', labelKey: 'filters.field.owner', defaultVisible: true },
   { id: 'created', labelKey: 'deals.table.created', defaultVisible: true },
   { id: 'lastActivity', labelKey: 'activityDates.lastActivity', defaultVisible: false },
   { id: 'lastContacted', labelKey: 'activityDates.lastContacted', defaultVisible: false },
@@ -96,6 +102,7 @@ export default function DealsTable({
   allTags = [],
   bulkFields = [],
   customColumns = [],
+  owners = [],
 }: DealsTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -186,6 +193,7 @@ export default function DealsTable({
               {visible.has('contacts') && <th className="num">{t('deals.table.contacts')}</th>}
               {visible.has('company') && <th>{t('deals.detail.company')}</th>}
               {visible.has('tags') && <th>{t('tags.column')}</th>}
+              {visible.has('owner') && <OwnerHeader sort={sort} />}
               {visible.has('created') && (
                 <th className="num cell-date">
                   <SortTh label={t('deals.table.created')} asc="oldest" desc="newest" current={sort} />
@@ -206,14 +214,7 @@ export default function DealsTable({
                   <SortTh label={t('activityDates.nextActivity')} asc="next_activity" desc="next_activity_desc" current={sort} />
                 </th>
               )}
-              {customColumns.map(
-                (c) =>
-                  visible.has(c.id) && (
-                    <th key={c.id} className={c.numeric ? 'num' : undefined}>
-                      {c.label}
-                    </th>
-                  ),
-              )}
+              {customColumns.map((c) => visible.has(c.id) && <CustomColumnHeader key={c.id} col={c} sort={sort} />)}
               <th className="cell-actions-head"><span className="sr-only">{t('deals.table.actions')}</span></th>
             </tr>
           </thead>
@@ -298,6 +299,9 @@ export default function DealsTable({
                   <td className="cell-crm-tags">
                     <TagDots tags={row.tags ?? []} max={2} />
                   </td>
+                )}
+                {visible.has('owner') && (
+                  <OwnerCell endpoint={`/api/crm/deals/${row.id}`} ownerId={row.ownerId} owners={owners} />
                 )}
                 {visible.has('created') && <td className="num muted cell-date">{row.created}</td>}
                 {visible.has('lastActivity') && <td className="num muted cell-date">{row.lastActivity || '—'}</td>}

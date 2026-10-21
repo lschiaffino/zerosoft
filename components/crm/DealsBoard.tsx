@@ -8,6 +8,7 @@ import { isDealRotting } from '@/lib/crm-rotting';
 import DealForm from './DealForm';
 import RecordPreview from './RecordPreview';
 import { AddStageColumn } from './AddPipelineStage';
+import StageRequirementsDialog, { readRequirements, type StageRequirements } from './StageRequirementsDialog';
 
 /** Códigos de error de la API con traducción en crm.errors.*. */
 const KNOWN_ERRORS = new Set([
@@ -92,6 +93,12 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
   const [lostText, setLostText] = useState('');
   const [lostError, setLostError] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  /** La etapa destino pide propiedades: diálogo para completarlas y mover. */
+  const [reqMove, setReqMove] = useState<{
+    dealId: string;
+    request: { stageId: string; beforeId: string | null; lostReason?: string };
+    requirements: StageRequirements;
+  } | null>(null);
 
   const dragRef = useRef<DragState | null>(null);
   const suppressClickRef = useRef(false);
@@ -290,6 +297,11 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
     }
     // Revert optimista.
     setCols(snapshot);
+    const requirements = await readRequirements(res);
+    if (requirements) {
+      setReqMove({ dealId, request: { stageId, beforeId, ...(lostReason !== undefined ? { lostReason } : {}) }, requirements });
+      return;
+    }
     const body = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
     const code = body?.error ?? 'generic';
     setBoardError(t(KNOWN_ERRORS.has(code) ? `errors.${code}` : 'errors.generic'));
@@ -484,6 +496,20 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
             </div>
           </div>
         </div>
+      )}
+
+      {reqMove && (
+        <StageRequirementsDialog
+          dealId={reqMove.dealId}
+          request={reqMove.request}
+          requirements={reqMove.requirements}
+          onCancel={() => setReqMove(null)}
+          onDone={() => {
+            setCols((c) => applyMove(c, reqMove.dealId, reqMove.request.stageId, reqMove.request.beforeId));
+            setReqMove(null);
+            router.refresh();
+          }}
+        />
       )}
 
       {previewId && (

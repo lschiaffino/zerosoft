@@ -37,6 +37,9 @@ import { listMembers } from '@/lib/teams';
 import PageHeader from '@/components/ui/PageHeader';
 import RecordTabs from '@/components/crm/RecordTabs';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
+import CompanyLogo from '@/components/crm/CompanyLogo';
+import PhoneTouch from '@/components/crm/PhoneTouch';
+import CompanyDuplicatesPanel from '@/components/crm/CompanyDuplicatesPanel';
 import { parseRecordTab, recordTabHref } from '@/components/crm/recordTab';
 
 export const dynamic = 'force-dynamic';
@@ -119,7 +122,12 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
       )}
       <PageHeader
         back={{ href: '/app/crm/companies', label: t('record.back.companies') }}
-        title={company.name}
+        title={
+          <span className="record-title-logo">
+            <CompanyLogo domain={company.domain} name={company.name} size={28} />
+            {company.name}
+          </span>
+        }
         description={
           <span className="record-meta">
             <span className={`badge stage-${company.lifecycle_stage}`}>{lifecycleLabel(company.lifecycle_stage)}</span>
@@ -139,6 +147,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         }
         actions={
           <>
+            {company.phone && <PhoneTouch phone={company.phone} companyId={company.id} />}
             <CrmQuickCreate
               kind="contact"
               fixedCompanyId={company.id}
@@ -155,6 +164,12 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
             />
             <RecordMoreMenu
               items={[
+                {
+                  key: 'duplicates',
+                  label: t('record.more.duplicates'),
+                  title: t('companies.dupes.title'),
+                  content: <CompanyDuplicatesPanel companyId={company.id} />,
+                },
                 {
                   key: 'history',
                   label: t('record.more.history'),

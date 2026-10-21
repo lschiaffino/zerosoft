@@ -7,6 +7,7 @@ import {
   type CustomFilterType,
 } from '@/lib/crm-custom-fields';
 import type { FilterBuilderField } from './FilterBuilder';
+import { customSortValue } from '@/lib/crm-list-sort';
 
 /**
  * Custom fields en las listas del CRM (contactos, empresas, deals): tipos del
@@ -88,4 +89,19 @@ export function customCells(
     out[`custom:${cf.name}`] = href ? { text, href } : { text };
   }
   return out;
+}
+
+/** Opciones extra del select de orden: owner y cada custom field (asc/desc). */
+export function extraSortOptions(
+  defs: CrmCustomFieldRow[],
+  labels: { ownerAsc: string; ownerDesc: string; asc: (label: string) => string; desc: (label: string) => string },
+): Option[] {
+  return [
+    { value: 'owner', label: labels.ownerAsc },
+    { value: 'owner_desc', label: labels.ownerDesc },
+    ...defs.flatMap((cf) => [
+      { value: customSortValue(cf.name), label: labels.asc(cf.label) },
+      { value: customSortValue(cf.name, true), label: labels.desc(cf.label) },
+    ]),
+  ];
 }

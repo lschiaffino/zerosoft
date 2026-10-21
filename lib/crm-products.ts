@@ -841,7 +841,7 @@ async function onQuoteResponded(
         .get(deal.pipeline_id)) as { id: string } | undefined;
       if (won && won.id !== deal.stage_id) {
         const { moveDeal } = await import('./crm');
-        await moveDeal(userId, deal.id, won.id, null, undefined, `quote ${q.number}`);
+        await moveDeal(userId, deal.id, won.id, null, undefined, `quote ${q.number}`, { enforceRequired: false });
       }
     }
   } catch {

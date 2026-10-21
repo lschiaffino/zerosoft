@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { ColumnsSlot } from './ColumnToggle';
 import { ACTIVITY_DATE_SORTS, type ActivityDateSort } from '@/lib/crm-activity-dates';
+import type { ExtraSort } from '@/lib/crm-list-sort';
 
 interface CustomFieldOption {
   name: string;
@@ -25,11 +26,13 @@ interface CompanyFiltersProps {
   custom: Record<string, string>;
   /** Query param `filters` crudo (advanced filter builder); se preserva al navegar. */
   advanced?: string;
-  sort: 'newest' | 'oldest' | 'name' | 'name_desc' | ActivityDateSort;
+  sort: 'newest' | 'oldest' | 'name' | 'name_desc' | ActivityDateSort | ExtraSort;
   industries: string[];
   lifecycles: Array<{ value: string; label: string }>;
   owners: Array<{ value: string; label: string }>;
   customFields: CustomFieldOption[];
+  /** Órdenes por owner y custom fields (lib/crm-list-sort.ts). */
+  extraSorts?: Array<{ value: string; label: string }>;
   /** Filtro avanzado (FilterBuilder): se muestra dentro de "Más filtros". */
   children?: React.ReactNode;
 }
@@ -51,6 +54,7 @@ export default function CompanyFilters({
   lifecycles,
   owners,
   customFields,
+  extraSorts = [],
   children,
 }: CompanyFiltersProps) {
   const t = useTranslations('crm');
@@ -212,6 +216,11 @@ export default function CompanyFilters({
             {ACTIVITY_DATE_SORTS.map((v) => (
               <option key={v} value={v}>
                 {t(`activityDates.sort.${v}`)}
+              </option>
+            ))}
+            {extraSorts.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
               </option>
             ))}
           </select>

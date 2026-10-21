@@ -518,6 +518,7 @@ const BASE_TOOLS: Omit<AgentToolsConfig, 'enabled'> = {
   flowIds: [],
   robotIds: [],
   httpAllowedDomains: [],
+  requireApproval: [],
 };
 
 describe('Agents: run_robot', () => {

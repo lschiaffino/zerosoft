@@ -6,6 +6,7 @@ import { usePathname, useRouter } from '@/i18n/navigation';
 import CrmIcon from './CrmIcon';
 import { ColumnsSlot } from './ColumnToggle';
 import { ACTIVITY_DATE_SORTS, type ActivityDateSort } from '@/lib/crm-activity-dates';
+import type { ExtraSort } from '@/lib/crm-list-sort';
 
 export type ContactSort =
   | 'newest'
@@ -16,7 +17,8 @@ export type ContactSort =
   | 'email_desc'
   | 'score'
   | 'score_asc'
-  | ActivityDateSort;
+  | ActivityDateSort
+  | ExtraSort;
 
 interface SavedView {
   id: string;
@@ -51,6 +53,8 @@ interface ContactsFiltersProps {
   customFields: CustomFieldOption[];
   views: SavedView[];
   activeViewId: string | null;
+  /** Órdenes por owner y custom fields (lib/crm-list-sort.ts). */
+  extraSorts?: Array<{ value: string; label: string }>;
   /** Filtro avanzado (FilterBuilder): se muestra dentro de "Más filtros". */
   children?: React.ReactNode;
 }
@@ -80,6 +84,7 @@ export default function ContactsFilters({
   customFields,
   views,
   activeViewId,
+  extraSorts = [],
   children,
 }: ContactsFiltersProps) {
   const t = useTranslations('crm');
@@ -354,6 +359,11 @@ export default function ContactsFilters({
             {ACTIVITY_DATE_SORTS.map((v) => (
               <option key={v} value={v}>
                 {t(`activityDates.sort.${v}`)}
+              </option>
+            ))}
+            {extraSorts.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
               </option>
             ))}
           </select>

@@ -5,6 +5,7 @@
  */
 import { getDb, type CrmExchangeRateRow, type CrmSettingsRow, type Db } from './db';
 import type { CurrencyContext } from './crm-money';
+import { normalizeCallOutcomes, parseCallOutcomes } from './crm-calls';
 
 export const CURRENCY_RE = /^[A-Z]{3}$/;
 
@@ -15,6 +16,10 @@ function nowDb(): string {
 export interface CrmSettings {
   baseCurrency: string;
   quoteAcceptMovesDeal: boolean;
+  /** Resultados de llamada del workspace (o los de siempre: claves traducibles). */
+  callOutcomes: string[];
+  /** true si el workspace configuró los suyos. */
+  callOutcomesCustom: boolean;
 }
 
 export async function getCrmSettings(userId: string, db: Db = getDb()): Promise<CrmSettings> {
@@ -24,28 +29,47 @@ export async function getCrmSettings(userId: string, db: Db = getDb()): Promise<
   return {
     baseCurrency: row?.base_currency || 'USD',
     quoteAcceptMovesDeal: !!row?.quote_accept_moves_deal,
+    callOutcomes: parseCallOutcomes(row?.call_outcomes),
+    callOutcomesCustom: normalizeCallOutcomes(safeJson(row?.call_outcomes)).length > 0,
   };
+}
+
+function safeJson(v: string | null | undefined): unknown {
+  try {
+    return v ? JSON.parse(v) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function updateCrmSettings(
   userId: string,
-  patch: Partial<CrmSettings>,
+  patch: Partial<Pick<CrmSettings, 'baseCurrency' | 'quoteAcceptMovesDeal'>> & { callOutcomes?: string[] | null },
   db: Db = getDb(),
 ): Promise<CrmSettings> {
   const current = await getCrmSettings(userId, db);
-  const next: CrmSettings = {
-    baseCurrency: patch.baseCurrency ? patch.baseCurrency.toUpperCase() : current.baseCurrency,
-    quoteAcceptMovesDeal: patch.quoteAcceptMovesDeal ?? current.quoteAcceptMovesDeal,
-  };
-  if (!CURRENCY_RE.test(next.baseCurrency)) throw new Error('invalid_currency');
+  const baseCurrency = patch.baseCurrency ? patch.baseCurrency.toUpperCase() : current.baseCurrency;
+  const quoteAcceptMovesDeal = patch.quoteAcceptMovesDeal ?? current.quoteAcceptMovesDeal;
+  if (!CURRENCY_RE.test(baseCurrency)) throw new Error('invalid_currency');
+  // callOutcomes: undefined = sin cambios; null o lista vacía = los de siempre.
+  const outcomes =
+    patch.callOutcomes === undefined
+      ? current.callOutcomesCustom
+        ? JSON.stringify(current.callOutcomes)
+        : null
+      : normalizeCallOutcomes(patch.callOutcomes ?? []).length
+        ? JSON.stringify(normalizeCallOutcomes(patch.callOutcomes))
+        : null;
   await db
     .prepare(
-      `INSERT INTO crm_settings (user_id, base_currency, quote_accept_moves_deal, updated_at)
-       VALUES (?, ?, ?, ?)
+      `INSERT INTO crm_settings (user_id, base_currency, quote_accept_moves_deal, call_outcomes, updated_at)
+       VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(user_id) DO UPDATE SET base_currency = excluded.base_currency,
-         quote_accept_moves_deal = excluded.quote_accept_moves_deal, updated_at = excluded.updated_at`,
+         quote_accept_moves_deal = excluded.quote_accept_moves_deal, call_outcomes = excluded.call_outcomes,
+         updated_at = excluded.updated_at`,
     )
-    .run(userId, next.baseCurrency, next.quoteAcceptMovesDeal ? 1 : 0, nowDb());
+    .run(userId, baseCurrency, quoteAcceptMovesDeal ? 1 : 0, outcomes, nowDb());
+  const next = await getCrmSettings(userId, db);
   // La base vale 1 por definición: un rate guardado para ella no aplica.
   await db.prepare('DELETE FROM crm_exchange_rates WHERE user_id = ? AND currency = ?').run(userId, next.baseCurrency);
   return next;

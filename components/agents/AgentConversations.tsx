@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
-import type { AgentConversationDto, AgentMessageDto, AgentToolCallDto } from '@/lib/agents-config';
+import type { AgentConversationDto, AgentMessageDto, AgentPendingActionDto, AgentToolCallDto } from '@/lib/agents-config';
 import { Link } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import { ToolCalls } from './AgentChat';
 import { api, errorText, toolName } from './agents-ui';
+import AgentApprovals from './AgentApprovals';
 
 interface Detail {
   conversation: AgentConversationDto;
@@ -58,6 +59,9 @@ export default function AgentConversations({
   const [reply, setReply] = useState('');
   const [replying, setReplying] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
+  /** Acciones que pidieron aprobación en la conversación abierta, y pendientes por conversación (lista). */
+  const [actions, setActions] = useState<AgentPendingActionDto[]>([]);
+  const [pendingBy, setPendingBy] = useState<Map<string, number>>(new Map());
   // Los cambios de feedback se mandan en orden (pulgar y después la nota).
   const queue = useRef<Promise<unknown>>(Promise.resolve());
 
@@ -71,6 +75,12 @@ export default function AgentConversations({
       if (res.ok) setList(res.data.conversations ?? []);
       else setListError(errorText(t, res.data.error));
     });
+    void api<{ actions?: AgentPendingActionDto[] }>(`/api/agents/${agentId}/approvals?status=pending`).then((res) => {
+      if (cancelled || !res.ok) return;
+      const counts = new Map<string, number>();
+      for (const a of res.data.actions ?? []) counts.set(a.conversationId, (counts.get(a.conversationId) ?? 0) + 1);
+      setPendingBy(counts);
+    });
     return () => {
       cancelled = true;
     };
@@ -80,8 +90,12 @@ export default function AgentConversations({
     async (id: string) => {
       setDetailLoading(true);
       setError(null);
-      const res = await api<Detail>(`/api/agents/${agentId}/conversations/${id}`);
+      const [res, acts] = await Promise.all([
+        api<Detail>(`/api/agents/${agentId}/conversations/${id}`),
+        api<{ actions?: AgentPendingActionDto[] }>(`/api/agents/${agentId}/approvals?conversationId=${encodeURIComponent(id)}`),
+      ]);
       setDetailLoading(false);
+      setActions(acts.ok ? (acts.data.actions ?? []) : []);
       if (res.ok) setDetail(res.data);
       else setError(errorText(t, res.data.error));
     },
@@ -218,6 +232,9 @@ export default function AgentConversations({
                     <time dateTime={c.updatedAt}>{mounted ? format.relativeTime(new Date(c.updatedAt), now) : ''}</time>
                   </span>
                   {c.handedOff && <span className="badge badge-warn ag-conv-badge">{t('conversations.handedOff')}</span>}
+                  {(pendingBy.get(c.id) ?? 0) > 0 && (
+                    <span className="badge badge-warn ag-conv-badge">{t('approvals.pendingBadge', { count: pendingBy.get(c.id) ?? 0 })}</span>
+                  )}
                 </button>
               </li>
             ))}
@@ -260,6 +277,20 @@ export default function AgentConversations({
                 </Link>
               )}
             </header>
+            <AgentApprovals
+              agentId={agentId}
+              actions={actions}
+              onChange={(a) => {
+                setActions((prev) => prev.map((x) => (x.id === a.id ? a : x)));
+                setPendingBy((prev) => {
+                  const next = new Map(prev);
+                  next.set(a.conversationId, Math.max(0, (next.get(a.conversationId) ?? 1) - 1));
+                  return next;
+                });
+                // La decisión entra al log de herramientas.
+                if (detail) void load(detail.conversation.id);
+              }}
+            />
             <div className="ag-transcript">
               {detail.messages.map((m) => (
                 <div key={m.id} className={`ag-msg is-${m.role}`}>
