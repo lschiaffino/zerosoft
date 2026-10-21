@@ -4,9 +4,9 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import TrackIcon from './TrackIcon';
 
-export type ProjectSettingsTab = 'cycles' | 'statuses' | 'triage';
+export type ProjectSettingsTab = 'cycles' | 'statuses' | 'milestones' | 'templates' | 'recurring' | 'triage';
 
-const TABS: ProjectSettingsTab[] = ['cycles', 'statuses', 'triage'];
+const TABS: ProjectSettingsTab[] = ['cycles', 'statuses', 'milestones', 'templates', 'recurring', 'triage'];
 
 interface ProjectSettingsDrawerProps {
   projectName: string;
@@ -19,7 +19,8 @@ interface ProjectSettingsDrawerProps {
 /**
  * Ajustes del proyecto en un drawer (<dialog> modal: foco atrapado, Esc
  * cierra y el foco vuelve al botón que lo abrió). Ciclos, status del
- * workflow y triage, cada uno en su pestaña y fuera de la lista de issues.
+ * workflow, milestones, plantillas, issues que se repiten y triage, cada uno
+ * en su pestaña y fuera de la lista de issues.
  */
 export default function ProjectSettingsDrawer({ projectName, initialTab = 'cycles', onClose, panels }: ProjectSettingsDrawerProps) {
   const t = useTranslations('track');

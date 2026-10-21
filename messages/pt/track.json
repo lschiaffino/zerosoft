@@ -323,7 +323,9 @@
     "generic": "Algo deu errado. Tente novamente.",
     "invalid_range": "A data de fim não pode ser anterior ao início.",
     "last_status": "O projeto precisa de pelo menos um status.",
-    "cycle_overlap": "Sobrepõe outro ciclo. Escolha outras datas."
+    "cycle_overlap": "Sobrepõe outro ciclo. Escolha outras datas.",
+    "invalid_milestone": "Esse marco não é deste projeto.",
+    "reminder_in_past": "Escolha um momento no futuro."
   },
   "quick": {
     "newTask": "Novo issue",
@@ -391,7 +393,7 @@
   },
   "settingsPage": {
     "title": "Ajustes do Track",
-    "subtitle": "Etiquetas do workspace e integração com o GitHub."
+    "subtitle": "Etiquetas do workspace, a integração com o GitHub e seus avisos por email."
   },
   "labelsSettings": {
     "title": "Etiquetas",
@@ -519,7 +521,10 @@
     "tabs": {
       "cycles": "Ciclos",
       "statuses": "Status",
-      "triage": "Triagem"
+      "triage": "Triagem",
+      "templates": "Modelos",
+      "recurring": "Recorrentes",
+      "milestones": "Marcos"
     }
   },
   "markdown": {
@@ -564,5 +569,162 @@
     "subscribed": "Você recebe avisos dos comentários e mudanças deste issue.",
     "notSubscribed": "Inscreva-se para receber avisos dos comentários e mudanças deste issue.",
     "error": "Não foi possível alterar a inscrição. Tente de novo."
+  },
+  "notifyEmail": {
+    "someone": "Alguém",
+    "reminder": "Lembrete: {identifier}",
+    "digestSubject": "Track: {count} não lidas",
+    "immediateSubject": "Track: {count} novas",
+    "digestHeading": "Seu resumo diário do Track",
+    "immediateHeading": "Novidades no Track",
+    "more": "E mais {count} na sua caixa de entrada.",
+    "openInbox": "Abrir a caixa de entrada",
+    "manage": "Mudar como o Track envia emails",
+    "whyDigest": "Uma vez por dia, com o que segue não lido na sua caixa do Track.",
+    "whyImmediate": "Você recebe isto porque algo na sua caixa do Track ficou sem ler por um minuto."
+  },
+  "notifySettings": {
+    "title": "Avisos por email",
+    "help": "A caixa de entrada recebe tudo. Escolha o que também chega por email. Isso afeta só você.",
+    "immediate": "Na hora",
+    "immediateHelp": "Um email um minuto depois que algo chega, se você ainda não leu.",
+    "digest": "Resumo diário",
+    "digestHelp": "Um email perto das 8:00 com o que segue não lido.",
+    "off": "Nenhum",
+    "offHelp": "Sem emails. A caixa de entrada continua igual.",
+    "timezone": "Fuso horário do resumo",
+    "saved": "Salvo",
+    "error": "Não foi possível salvar. Tente de novo.",
+    "mode": "Enviar por email"
+  },
+  "autoCycles": {
+    "title": "Ciclos automáticos",
+    "enable": "Criar ciclos automaticamente",
+    "help": "Sempre há um ciclo em andamento e o próximo. Quando um ciclo termina, o que ficou sem terminar passa para o atual.",
+    "length": "Duração",
+    "weeks": "{count, plural, one {# semana} other {# semanas}}",
+    "prefix": "Nome",
+    "prefixHelp": "Os ciclos são numerados depois deste nome.",
+    "defaultPrefix": "Ciclo",
+    "save": "Salvar",
+    "saved": "Salvo",
+    "error": "Não foi possível salvar. Tente de novo.",
+    "adminOnly": "Só owners e admins do workspace podem mudar isso."
+  },
+  "templates": {
+    "help": "Valores pré-carregados para issues que você cria com frequência. Escolha um ao criar um issue para preencher propriedades e descrição.",
+    "emptyTitle": "Ainda não há modelos",
+    "emptyBody": "Crie um para relatos de bug, pedidos ou qualquer issue que se repita.",
+    "new": "Novo modelo",
+    "name": "Nome do modelo",
+    "namePlaceholder": "Relato de bug",
+    "title": "Título",
+    "titlePlaceholder": "Começo do título do issue",
+    "description": "Descrição",
+    "status": "Status",
+    "priority": "Prioridade",
+    "assignee": "Responsável",
+    "estimate": "Estimativa",
+    "labels": "Etiquetas",
+    "unset": "Sem pré-carregar",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "deleteConfirm": "Excluir este modelo? Os issues já criados ficam como estão.",
+    "save": "Salvar modelo",
+    "create": "Criar modelo",
+    "error": "Não foi possível salvar o modelo. Tente de novo.",
+    "pick": "Modelo",
+    "none": "Sem modelo"
+  },
+  "recurring": {
+    "help": "Issues que o Track cria segundo um calendário, como uma revisão semanal ou o controle mensal de faturas.",
+    "emptyTitle": "Nenhum issue recorrente",
+    "emptyBody": "Configure um e o Track o cria em cada data.",
+    "new": "Novo issue recorrente",
+    "title": "Título",
+    "description": "Descrição",
+    "frequency": "Repete",
+    "every": "A cada",
+    "freq": {
+      "daily": "Diário",
+      "weekly": "Semanal",
+      "monthly": "Mensal",
+      "yearly": "Anual"
+    },
+    "unit": {
+      "daily": "{count, plural, one {dia} other {dias}}",
+      "weekly": "{count, plural, one {semana} other {semanas}}",
+      "monthly": "{count, plural, one {mês} other {meses}}",
+      "yearly": "{count, plural, one {ano} other {anos}}"
+    },
+    "summary": {
+      "daily": "{count, plural, one {Todos os dias} other {A cada # dias}}",
+      "weekly": "{count, plural, one {Toda semana} other {A cada # semanas}}",
+      "monthly": "{count, plural, one {Todo mês} other {A cada # meses}}",
+      "yearly": "{count, plural, one {Todo ano} other {A cada # anos}}"
+    },
+    "startOn": "Começa em",
+    "dueDays": "Vence depois de (dias)",
+    "dueDaysHelp": "Deixe vazio para não ter vencimento.",
+    "status": "Status",
+    "priority": "Prioridade",
+    "assignee": "Responsável",
+    "nextRun": "Próximo: {date}",
+    "paused": "Pausado",
+    "pause": "Pausar",
+    "resume": "Retomar",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "deleteConfirm": "Excluir esta repetição? Os issues já criados ficam como estão.",
+    "save": "Salvar",
+    "create": "Criar",
+    "error": "Não foi possível salvar. Tente de novo."
+  },
+  "milestones": {
+    "help": "Etapas dentro do projeto, com data alvo. O progresso conta os issues atribuídos a cada uma.",
+    "emptyTitle": "Ainda não há marcos",
+    "emptyBody": "Adicione um para dividir o projeto em etapas com data.",
+    "new": "Novo marco",
+    "name": "Nome",
+    "description": "Descrição",
+    "targetDate": "Data alvo",
+    "noDate": "Sem data",
+    "progress": "{done}/{total} concluídos",
+    "overdue": "Atrasado",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "deleteConfirm": "Excluir este marco? Os issues continuam no projeto, sem marco.",
+    "save": "Salvar marco",
+    "create": "Criar marco",
+    "error": "Não foi possível salvar o marco. Tente de novo.",
+    "property": "Marco",
+    "headerMeta": "{name}: {done}/{total} concluídos, alvo {date}",
+    "headerMetaNoDate": "{name}: {done}/{total} concluídos"
+  },
+  "reminder": {
+    "button": "Lembrar-me",
+    "active": "Lembrete {when}",
+    "inHour": "Em 1 hora",
+    "tomorrow": "Amanhã às 9:00",
+    "nextWeek": "Na próxima segunda às 9:00",
+    "custom": "Data e hora",
+    "set": "Salvar lembrete",
+    "clear": "Remover lembrete",
+    "error": "Não foi possível salvar o lembrete. Tente de novo.",
+    "past": "Escolha um momento no futuro.",
+    "help": "Chega na caixa do Track e por email, conforme seus ajustes do Track."
+  },
+  "inboxSnooze": {
+    "tab": "Adiados",
+    "snooze": "Adiar",
+    "hour": "Por 1 hora",
+    "tomorrow": "Até amanhã às 9:00",
+    "nextWeek": "Até a próxima segunda",
+    "unsnooze": "Trazer de volta",
+    "until": "Até {when}",
+    "empty": "Nada adiado",
+    "emptyBody": "Os avisos adiados voltam para a caixa como não lidos quando chega a hora.",
+    "error": "Não foi possível adiar. Tente de novo.",
+    "reminderFor": "Lembrete de {identifier}"
   }
 }

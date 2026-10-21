@@ -3,6 +3,7 @@ import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import PageHeader from '@/components/ui/PageHeader';
 import SettingsTabs from '@/components/ui/SettingsTabs';
 import { GithubSettings, LabelsSettings } from '@/components/track/TrackSettingsClient';
+import NotifySettings from '@/components/track/NotifySettings';
 import { listProjects } from '@/lib/track-data';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,8 @@ export default async function TrackSettingsPage(props: {
   searchParams?: Promise<{ tab?: string }>;
 }) {
   const { locale } = await props.params;
-  const tab = (await props.searchParams)?.tab === 'github' ? 'github' : 'labels';
+  const rawTab = (await props.searchParams)?.tab;
+  const tab = rawTab === 'github' || rawTab === 'notifications' ? rawTab : 'labels';
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'track' });
   const admin = isWorkspaceAdmin(user);
@@ -32,9 +34,16 @@ export default async function TrackSettingsPage(props: {
         items={[
           { key: 'labels', label: t('labelsSettings.title') },
           { key: 'github', label: t('github.title') },
+          { key: 'notifications', label: t('notifySettings.title') },
         ]}
       >
-        {tab === 'labels' ? <LabelsSettings isAdmin={admin} /> : <GithubSettings isAdmin={admin} locale={locale} example={example} />}
+        {tab === 'labels' ? (
+          <LabelsSettings isAdmin={admin} />
+        ) : tab === 'notifications' ? (
+          <NotifySettings locale={locale} />
+        ) : (
+          <GithubSettings isAdmin={admin} locale={locale} example={example} />
+        )}
       </SettingsTabs>
     </div>
   );
