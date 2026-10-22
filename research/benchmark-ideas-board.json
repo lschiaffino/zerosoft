@@ -1,0 +1,56 @@
+[
+  {
+    "title": "Board: Generate a diagram from a text prompt with AI",
+    "description": "Excalidraw+ has chat-based text to diagram that streams onto the canvas (https://plus.excalidraw.com/changelog) and Miro's Create with AI builds diagrams and mind maps from a prompt (https://help.miro.com/hc/articles/28782102127890). Board only offers Mermaid to Excalidraw, which needs the user to write Mermaid. The AI gateway already powers Agents and Flow. First scope: a 'Generate' item next to Mermaid that sends the prompt to the AI gateway, asks for Mermaid flowchart, sequence or ER syntax, and inserts the converted elements at the viewport center as one undoable change.\n\nPriority: high. Effort: M. Compared with Excalidraw+ / Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Open .excalidraw files and drop them on the canvas",
+    "description": "Excalidraw and Excalidraw+ open .excalidraw files and PNGs with an embedded scene (https://github.com/excalidraw/excalidraw). Board can save a .excalidraw file but cannot open one: the canvas menu sets loadScene: false (components/board/ExcalidrawCanvas.tsx) and the list has no import. A team switching from Excalidraw has its diagrams in those files. First scope: 'Import .excalidraw' on the board list that creates one board per file (images moved to Blob storage), plus dropping a file on an open board to merge its elements.\n\nPriority: high. Effort: S. Compared with Excalidraw+.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Group and summarize stickies with AI into a Docs page",
+    "description": "Miro AI clusters stickies by keyword or sentiment, summarizes them and turns them into a doc (https://help.miro.com/hc/articles/28781881506834). After a Board brainstorm or retro, sorting 60 stickies is manual. Board already knows stickies, their tags and their text (lib/board-stickies.ts) and Docs can create pages. First scope: with stickies selected, 'Group with AI' moves them into labeled columns inside a new frame, and 'Summarize to Docs' creates a page with the themes, vote counts and action items linked back to the board.\n\nPriority: medium. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add folders and search inside board content",
+    "description": "Excalidraw+ has unlimited folders and private collections, and full-text search across scenes is in progress (https://plus.excalidraw.com/pricing, https://plus.excalidraw.com/roadmap); Miro has spaces and search. The Board list and sidebar are flat and Cmd+K matches board names only. First scope: folders with the Link folders model shown in the list and sidebar, and Cmd+K results that match the text of stickies, shapes and frame names (indexed on save).\n\nPriority: medium. Effort: M. Compared with Excalidraw+ / Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Expose boards through the public v1 API and MCP",
+    "description": "Excalidraw+ launched a public REST API for scenes, collections and logs (May 2026) and an MCP server with create_diagram and search_scene_content tools (https://plus.excalidraw.com/llms-full.txt); Miro has a REST API and MCP (https://miro.com/pricing/). app/api/v1 has no boards. First scope: GET and POST /api/v1/boards, GET /api/v1/boards/{id} with the scene, and POST /api/v1/boards/{id}/elements that accepts Excalidraw skeletons or Mermaid, behind boards:read and boards:write scopes, then the same as MCP tools.\n\nPriority: medium. Effort: M. Compared with Excalidraw+ / Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Show a 'board changed' notice and refresh remote edits while the editor is open",
+    "description": "In Excalidraw+ every change appears for the other people at once (https://plus.excalidraw.com/pricing). In Board, two people on the same board do not see each other's edits until one of them saves or reloads: in testing, the second browser did not show a new shape for 15 seconds and the first never saw the second's shape. Full multiplayer is already in the backlog; this is the step before it. First scope: poll the board version every 5 seconds while the tab is visible and merge remote elements with the existing per-element merge (lib/board-sync.ts), plus avatars of who else has the board open.\n\nPriority: high. Effort: S. Compared with Excalidraw+.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add follow mode and 'bring everyone to my view' for workshops",
+    "description": "Excalidraw+ has follow mode and Spotlight Me, which syncs everyone's view to the presenter (https://plus.excalidraw.com/changelog); Miro has Bring everyone to me. Board already runs workshop sessions with a shared timer and dot voting (lib/board-workshop.ts) polled every 4 seconds, but a facilitator cannot move the group to the next column. First scope: a 'Bring everyone here' button in Workshop that stores the facilitator's scroll and zoom in the workshop state, and other viewers jump there on the next poll with a 'Following Ada' bar to stop.\n\nPriority: medium. Effort: S. Compared with Excalidraw+ / Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Move deleted boards to a trash with restore",
+    "description": "Excalidraw+ added a trash with restore in March 2026 (https://plus.excalidraw.com/changelog) and Miro keeps deleted boards in a trash. Deleting a Board is permanent after one confirm, together with its comments, history snapshots and guest links. First scope: a deleted_at column, a Trash view in the board list for 30 days with Restore and Delete forever, and board.deleted fired only on the final delete.\n\nPriority: medium. Effort: S. Compared with Excalidraw+ / Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add a mind map tool with Tab and Enter to grow branches",
+    "description": "Miro has a native mind map where Tab adds a child and Enter a sibling, with automatic layout (https://miro.com/pricing/). Board has a Brainstorm template with fixed boxes and Excalidraw's Cmd+arrow flowchart shortcut, but nothing that keeps a tree laid out. First scope: a mind map item in the Stickies menu that inserts a root node; Tab and Enter add bound children and siblings, laid out left to right and re-laid out on collapse, built from regular Excalidraw elements so it exports as is.\n\nPriority: low. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  }
+]
