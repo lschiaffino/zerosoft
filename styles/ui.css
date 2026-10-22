@@ -171,10 +171,10 @@
 /* Grupo de botones pegados (segmented): bordes compartidos. */
 .btn-group { display: inline-flex; }
 .btn-group > .btn + .btn { margin-left: -1px; }
-.btn-group > .btn[aria-pressed='true'],
-.btn-group > .btn[aria-selected='true'],
 /* El activo sigue siendo la placa de tinta al pasar el mouse (si el hover
    volviera al gris de la secundaria, el texto claro desaparecería). */
+.btn-group > .btn[aria-pressed='true'],
+.btn-group > .btn[aria-selected='true'],
 .btn-group > .btn[aria-current='page'] {
   --btn-bg: var(--ink);
   --btn-fg: var(--bg);
