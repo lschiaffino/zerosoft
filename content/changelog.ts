@@ -29,6 +29,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-22-board-import',
+    date: '2026-10-22',
+    title: {
+      en: 'Board imports .excalidraw files',
+      es: 'Board importa archivos .excalidraw',
+      pt: 'O Board importa arquivos .excalidraw',
+    },
+    items: [
+      { product: 'board', en: 'The board list has an Import .excalidraw button that creates a new board from the file, with its images.', es: 'La lista de pizarras tiene un botón Importar .excalidraw que crea una pizarra nueva con el archivo, imágenes incluidas.', pt: 'A lista de quadros tem um botão Importar .excalidraw que cria um quadro novo a partir do arquivo, com as imagens.' },
+    ],
+  },
+  {
     id: '2026-10-21-backlog',
     date: '2026-10-21',
     title: {

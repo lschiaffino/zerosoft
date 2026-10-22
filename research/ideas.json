@@ -1250,5 +1250,43 @@
     "kind": "bug",
     "status": "done",
     "changelog": "2026-10-19-backlog"
+  },
+  {
+    "title": "Board: Import .excalidraw files as a new board",
+    "description": "Miro imports from files and other tools (https://help.miro.com/hc/en-us/articles/360017731033-Import-and-export) so teams can bring existing work in. Board stored scenes in Excalidraw format but the editor had loadScene disabled (components/board/ExcalidrawCanvas.tsx) and no import path existed. A small team switching from another Excalidraw instance would otherwise redraw everything. First scope: an Import button in the board list that creates a board from a .excalidraw file, validated on the server (lib/board-import.ts).\n\nPriority: medium. Effort: S. Compared with Miro.",
+    "product": "board",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-22-board-import"
+  },
+  {
+    "title": "Board: Add a trash with restore for deleted boards",
+    "description": "Miro keeps deleted boards recoverable from a trash before they are purged (https://help.miro.com/hc/en-us/articles/360017571754-Delete-and-restore-boards). deleteBoard in lib/boards.ts runs a hard DELETE of the board, its files and uploads, so a misclick is final apart from the confirm dialog. Small teams share boards with everyone, so accidental deletion by one person hurts all. First scope: a deleted_at column, a Trash filter in the list, restore, and a purge after 30 days in the hourly tick.\n\nPriority: medium. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Star boards and pin them to the top of the list and sidebar",
+    "description": "Miro lets people star boards and shows them first (https://help.miro.com/hc/en-us/articles/360017730173-Boards-list). listBoards in lib/boards.ts orders only by updated_at and the BoardList menu has rename, duplicate and delete only. Workspaces with many boards lose the two or three they use daily. First scope: a per-person favorites table, a star action in the card menu, favorites first in the list and sidebar branch.\n\nPriority: low. Effort: S. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add a public REST API for boards and a board scope for API keys",
+    "description": "Miro exposes boards, items, tags and connectors under /v2/boards (https://developers.miro.com/reference/api-reference). There is no board directory under app/api/v1 and no board scope in lib/api-scopes.ts, although Link, CRM, Cal, Chat and Agents have one. Teams cannot create boards from scripts or Flow. First scope: GET and POST /api/v1/boards, GET /api/v1/boards/{id} returning the scene, and a boards:read and boards:write scope, listed in openapi.json.\n\nPriority: medium. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Search sticky and text content from Cmd+K",
+    "description": "Miro searches inside board content, not only board names (https://help.miro.com/hc/en-us/articles/360017571494-Search-in-boards). lib/app-search.ts matches boards by b.name LIKE only, so finding a note written on a sticky means opening each board. First scope: store a plain text extract of text and sticky elements in a boards column on save and match it in the search query, showing the board as the result.\n\nPriority: medium. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Lock elements and groups so they cannot be moved by accident",
+    "description": "Miro lets you lock items and frames with Cmd+Shift+L so backgrounds and templates stay put (https://help.miro.com/hc/en-us/articles/360017730533-Keyboard-shortcuts). Our canvas is Excalidraw wrapped in components/board/ExcalidrawCanvas.tsx and the template scenes in lib/board-templates.ts are fully draggable, so a retro or roadmap template is easy to break while dragging stickies. First scope: lock and unlock from the context menu and shortcut, and lock the background frames of built-in templates.\n\nPriority: low. Effort: S. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
   }
 ]

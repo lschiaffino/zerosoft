@@ -19,6 +19,8 @@
     "delete": "Borrar",
     "actions": "Acciones de la pizarra",
     "updated": "Editada {when}",
+    "import": "Importar .excalidraw",
+    "importInvalid": "Ese archivo no es un dibujo de Excalidraw.",
     "createError": "No se pudo crear la pizarra. Probá de nuevo.",
     "actionError": "No se pudo completar la acción. Probá de nuevo.",
     "creating": "Creando…",

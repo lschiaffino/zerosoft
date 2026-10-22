@@ -9,6 +9,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import NotesIcon from '@/components/notes/NotesIcon';
 import RowMenu from '@/components/notes/RowMenu';
 import type { BoardDetail, BoardSummary } from '@/lib/boards-types';
+import { importedBoardName } from '@/lib/board-import';
 import { BOARD_TEMPLATES, type BoardTemplateKey } from '@/lib/board-templates';
 import TemplatePreview from './TemplatePreview';
 import { notifyBoardsChanged } from './BoardBranch';
@@ -121,6 +122,27 @@ export default function BoardList({
     }
   }
 
+  /** Pizarra nueva a partir de un archivo .excalidraw; el servidor valida el contenido. */
+  async function importFile(file: File) {
+    if (busy || creatingTemplate) return;
+    setBusy(true);
+    try {
+      const data: unknown = JSON.parse(await file.text());
+      const res = await fetch('/api/boards', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: importedBoardName(file.name), import: data }),
+      });
+      if (res.status === 422) throw new Error('invalid');
+      if (!res.ok) throw new Error(String(res.status));
+      const board = (await res.json()) as BoardDetail;
+      router.push(`/app/board/${board.id}`);
+    } catch (e) {
+      setToast(t(e instanceof Error && e.message === 'invalid' || e instanceof SyntaxError ? 'list.importInvalid' : 'list.createError'));
+      setBusy(false);
+    }
+  }
+
   useEffect(() => {
     if (startNew && !started.current) {
       started.current = true;
@@ -180,10 +202,28 @@ export default function BoardList({
     else setToast(t('list.actionError'));
   }
 
+  const fileInput = useRef<HTMLInputElement>(null);
   const newButton = (
-    <button type="button" className="btn btn-primary" onClick={() => void create()} aria-busy={busy}>
-      {busy ? t('list.creating') : t('list.new')}
-    </button>
+    <>
+      <input
+        ref={fileInput}
+        type="file"
+        accept=".excalidraw,.json,application/json"
+        hidden
+        aria-label={t('list.import')}
+        onChange={(e) => {
+          const file = e.currentTarget.files?.[0];
+          e.currentTarget.value = '';
+          if (file) void importFile(file);
+        }}
+      />
+      <button type="button" className="btn" onClick={() => fileInput.current?.click()} disabled={busy}>
+        {t('list.import')}
+      </button>
+      <button type="button" className="btn btn-primary" onClick={() => void create()} aria-busy={busy}>
+        {busy ? t('list.creating') : t('list.new')}
+      </button>
+    </>
   );
 
   return (

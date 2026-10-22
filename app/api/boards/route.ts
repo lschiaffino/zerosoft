@@ -4,6 +4,7 @@ import { createBoard, listBoards } from '@/lib/boards';
 import { emitEventSoon } from '@/lib/events';
 import { boardViewer } from '@/lib/board-access';
 import { boardCreateSchema } from '@/lib/boards-schema';
+import { parseExcalidrawScene } from '@/lib/board-import';
 import { buildTemplateScene, type TemplateText } from '@/lib/board-templates';
 import { routing } from '@/i18n/routing';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
@@ -32,7 +33,7 @@ export async function GET() {
   return NextResponse.json({ boards: await listBoards(user.id, boardViewer(user)) });
 }
 
-/** Crea una pizarra. Body: { name?, template?, locale? } (la plantilla sale con los textos de `locale`). */
+/** Crea una pizarra. Body: { name?, template?, locale?, import? } (la plantilla sale con los textos de `locale`). */
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
@@ -43,7 +44,10 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return invalidInput(parsed.error);
   const { name, template } = parsed.data;
   let scene;
-  if (template) {
+  if (parsed.data.import !== undefined) {
+    scene = parseExcalidrawScene(parsed.data.import) ?? undefined;
+    if (!scene) return jsonError(422, 'invalid_file');
+  } else if (template) {
     const locale = (routing.locales as readonly string[]).includes(parsed.data.locale ?? '') ? parsed.data.locale! : routing.defaultLocale;
     scene = buildTemplateScene(template, templateText(locale));
   }
