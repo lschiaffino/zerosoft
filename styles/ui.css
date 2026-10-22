@@ -173,7 +173,17 @@
 .btn-group > .btn + .btn { margin-left: -1px; }
 .btn-group > .btn[aria-pressed='true'],
 .btn-group > .btn[aria-selected='true'],
-.btn-group > .btn[aria-current='page'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); z-index: 1; }
+/* El activo sigue siendo placa de tinta al pasar: si no, el hover pone fondo
+   claro debajo del texto claro y la etiqueta desaparece. */
+.btn-group > .btn[aria-current='page'] {
+  --btn-bg: var(--ink);
+  --btn-fg: var(--bg);
+  --btn-bd: var(--ink);
+  --btn-bg-hover: var(--ink);
+  --btn-bd-hover: var(--ink);
+  --btn-fg-hover: var(--bg);
+  z-index: 1;
+}
 
 /* ---------- 2. Campos ---------- */
 
@@ -222,7 +232,7 @@ select.select,
 .app-frame select:not([multiple]):not(.ui-raw) {
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%23111111' stroke-width='1.5' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-image: var(--select-chevron);
   background-repeat: no-repeat;
   background-position: right 10px center;
   padding-right: 30px;

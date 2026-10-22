@@ -18,7 +18,7 @@ export interface WorkshopState {
 }
 
 /** Corre `fn` cada `ms` mientras la pestaña está visible (y una vez al volver). */
-function usePoll(fn: () => Promise<void>, ms: number, enabled: boolean) {
+export function usePoll(fn: () => Promise<void>, ms: number, enabled: boolean) {
   const fnRef = useRef(fn);
   fnRef.current = fn;
   useEffect(() => {

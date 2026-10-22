@@ -56,7 +56,12 @@
     "draftFound": "Hay cambios de tu última visita que no se llegaron a guardar.",
     "draftRestore": "Recuperarlos",
     "draftDiscard": "Descartar",
-    "more": "Más opciones de la pizarra"
+    "more": "Más opciones de la pizarra",
+    "remoteApplied": "Actualizada con cambios de {name}",
+    "remoteAppliedAnon": "Actualizada con cambios de otra persona",
+    "remoteChanged": "{name} cambió esta pizarra. Tus cambios de acá todavía no se guardaron.",
+    "remoteChangedAnon": "Otra persona cambió esta pizarra. Tus cambios de acá todavía no se guardaron.",
+    "remoteMerge": "Combinar sus cambios"
   },
   "public": {
     "notFound": "Pizarra no encontrada",

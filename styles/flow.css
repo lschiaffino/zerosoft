@@ -49,6 +49,10 @@
 /* Tablas de Flow: solo reglas de 1px entre filas, sin caja alrededor
    (crm.css le da borde a todo .table-wrap). */
 .flow-page .flow-table { border: 0; border-radius: 0; }
+/* Menú "…" por fila: la tabla no recorta el menú abierto de la última fila. */
+.flow-page .flow-table-flows { overflow: visible; }
+.flow-row-menu { display: flex; justify-content: flex-end; }
+.flow-row-menu .row-menu { top: calc(100% + 4px); }
 
 .flow-templates {
   display: grid;
@@ -504,6 +508,9 @@
   .flow-table-flows td:nth-child(3) { grid-column: 1; }
   .flow-table-flows td:nth-child(4) { grid-column: 2; justify-self: end; }
   .flow-table-flows .ui-switch { min-height: 40px; }
+  /* Con menú "…": va arriba a la derecha, al lado del nombre. */
+  .flow-table-flows tr:has(> td:nth-child(5)) > td:nth-child(1) { grid-column: 1; }
+  .flow-table-flows td:nth-child(5) { grid-column: 2; grid-row: 1; justify-self: end; }
 
   /* Credenciales: nombre, tipo y detalle a la izquierda; Editar y Borrar a la derecha. */
   .flow-table-creds td:nth-child(1) { grid-column: 1; grid-row: 1; font-weight: 600; }

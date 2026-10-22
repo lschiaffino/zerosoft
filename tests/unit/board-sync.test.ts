@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  ambiguousToServer,
   baseFrom,
   clearDraft,
   draftDiffers,
   flushOnLeave,
   mergeBoardScenes,
   readDraft,
+  remoteAction,
   writeDraft,
   type PutResult,
   type Reconcile,
@@ -261,5 +263,69 @@ describe('flushOnLeave: último guardado al salir del editor', () => {
     expect(await flushOnLeave({ ...common, getPending: () => scene([]), isBlocked: () => true })).toBe('kept_draft');
     expect(put).not.toHaveBeenCalled();
     expect(saveDraft).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('remoteAction: sondeo de cambios de otros', () => {
+  const base = { remoteVersion: 5, localVersion: 4, pending: false, inFlight: false, blocked: null };
+
+  it('sin cambios locales aplica la versión del servidor', () => {
+    expect(remoteAction(base)).toBe('apply');
+  });
+
+  it('misma versión (o más vieja): nada', () => {
+    expect(remoteAction({ ...base, remoteVersion: 4 })).toBe('none');
+    expect(remoteAction({ ...base, remoteVersion: 3 })).toBe('none');
+  });
+
+  it('con un guardado pendiente o en vuelo, o el aviso de conflicto: lo resuelve el 409', () => {
+    expect(remoteAction({ ...base, pending: true })).toBe('none');
+    expect(remoteAction({ ...base, inFlight: true })).toBe('none');
+    expect(remoteAction({ ...base, pending: true, blocked: 'conflict' })).toBe('none');
+  });
+
+  it('con lo local trabado (pizarra muy grande) avisa para combinar o recargar', () => {
+    expect(remoteAction({ ...base, blocked: 'too_large' })).toBe('notify');
+    expect(remoteAction({ ...base, pending: true, blocked: 'too_large' })).toBe('notify');
+  });
+
+  it('aplicar a la base deja afuera lo que el otro borró y conserva lo que se edita acá', () => {
+    // Lo que hace el editor al aplicar: merge con la base de la última versión conocida.
+    const local = [el('a', 1), el('b', 1), el('t', 2)];
+    const server = scene([el('a', 2), el('c', 1), el('t', 3)]);
+    const merged = mergeBoardScenes({
+      local,
+      localAppState: { viewBackgroundColor: '#ffffff', editingTextElement: { id: 't' } },
+      localFiles: {},
+      server,
+      base: baseFrom(local),
+      baseBackground: '#ffffff',
+      reconcile,
+    });
+    expect(ids(merged.elements)).toEqual(['a', 'c', 't']);
+    expect(byId(merged.elements, 'a')?.version).toBe(2);
+    expect(byId(merged.elements, 't')?.version).toBe(2);
+    expect(merged.ambiguous).toEqual([]);
+  });
+
+  it('sin nada local pendiente, lo ambiguo lo decide el servidor (versiones normalizadas al cargar)', () => {
+    // Excalidraw subió la versión de 'title' al medir el texto; el otro lo borró y editó 'b'.
+    const local = [el('title', 3), el('b', 1, { isDeleted: true }), el('c', 1)];
+    const base = baseFrom([el('title', 1), el('b', 1), el('c', 1)]);
+    const server = scene([el('b', 2), el('c', 1)]);
+    const merged = mergeBoardScenes({
+      local,
+      localAppState: { viewBackgroundColor: '#ffffff' },
+      localFiles: {},
+      server,
+      base,
+      baseBackground: '#ffffff',
+      reconcile,
+    });
+    expect(merged.ambiguous.sort()).toEqual(['b', 'title']);
+    const applied = ambiguousToServer(merged, server.elements);
+    expect(ids(applied)).toEqual(['b', 'c']);
+    expect(byId(applied, 'b')?.version).toBe(2);
+    expect(ambiguousToServer({ elements: local, ambiguous: [] }, server.elements)).toBe(local);
   });
 });

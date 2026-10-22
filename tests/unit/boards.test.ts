@@ -5,6 +5,8 @@ import {
   deleteBoard,
   duplicateBoard,
   getBoard,
+  getBoardVersion,
+  getGuestBoardVersion,
   getSharedBoard,
   listBoards,
   renameBoard,
@@ -22,6 +24,7 @@ vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 const sceneRoute = await import('@/app/api/boards/[id]/scene/route');
 const boardRoute = await import('@/app/api/boards/[id]/route');
 const boardsRoute = await import('@/app/api/boards/route');
+const versionRoute = await import('@/app/api/boards/[id]/version/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 function jsonReq(url: string, method: string, body?: unknown) {
@@ -162,6 +165,39 @@ describe('boards: escena', () => {
     expect(cleanThumbnail('<svg><script>alert(1)</script></svg>')).toBeNull();
     expect(cleanThumbnail('<svg onload="x()"></svg>')).toBeNull();
     expect(cleanThumbnail('<img src=x>')).toBeNull();
+  });
+});
+
+describe('boards: versión para el sondeo del editor', () => {
+  it('devuelve la versión y quién guardó, sin la escena; otro workspace no la ve', async () => {
+    const owner = await makeUser('bv');
+    const stranger = await makeUser('bvx');
+    const b = await createBoard(owner.id, owner.id, 'x');
+    await saveBoardScene(owner.id, owner.id, b.id, { elements: [rect('a')], appState: {}, files: {} }, 1);
+    expect(await getBoardVersion(owner.id, b.id)).toEqual({ version: 2, updated_by: 'bv' });
+    expect(await getBoardVersion(stranger.id, b.id)).toBeNull();
+
+    session.user = { id: owner.id, email: owner.email };
+    const res = await versionRoute.GET(jsonReq('http://x', 'GET'), ctx(b.id));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ version: 2, updated_by: 'bv' });
+    expect(body).not.toHaveProperty('scene');
+
+    session.user = { id: stranger.id, email: stranger.email };
+    expect((await versionRoute.GET(jsonReq('http://x', 'GET'), ctx(b.id))).status).toBe(404);
+    session.user = null;
+    expect((await versionRoute.GET(jsonReq('http://x', 'GET'), ctx(b.id))).status).toBe(401);
+  });
+
+  it('invitado con link de edición: versión por token; un token inválido no devuelve nada', async () => {
+    const { setBoardGuestLink } = await import('@/lib/board-access');
+    const owner = await makeUser('bvg');
+    const b = await createBoard(owner.id, owner.id, 'x');
+    const token = await setBoardGuestLink(owner.id, b.id, true);
+    expect(typeof token).toBe('string');
+    expect(await getGuestBoardVersion(token as string)).toEqual({ version: 1, updated_by: 'bvg' });
+    expect(await getGuestBoardVersion('no')).toBeNull();
   });
 });
 

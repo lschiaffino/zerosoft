@@ -152,18 +152,23 @@ export function blocksToText(blocks: DocsBlock[]): string {
 
 /** Snippet de una línea para la lista de notas. */
 export function makeSnippet(body: string, max = 140): string {
-  const flat = body
-    // Las tareas van como texto plano en el extracto.
+  const flat = flattenBody(body);
+  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}
+
+/** Texto de la nota en una línea; las tareas van como texto plano ("milk, eggs"). */
+function flattenBody(body: string): string {
+  return body
     .replace(/^\[[ x]\] (.*)$/gm, '$1,')
     .replace(/\s+/g, ' ')
     .trim()
     .replace(/,$/, '');
-  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }
 
 /** Snippet centrado en el primer término encontrado (resultados de búsqueda). */
 export function snippetAround(body: string, terms: string[], max = 140): string {
-  const flat = body.replace(/\s+/g, ' ').trim();
+  // Las marcas de tarea se sacan antes de aplanar: después ya no hay líneas.
+  const flat = flattenBody(body);
   const lower = flat.toLowerCase();
   let at = -1;
   for (const t of terms) {

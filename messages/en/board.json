@@ -56,7 +56,12 @@
     "draftFound": "There are changes from your last visit that didn't get saved.",
     "draftRestore": "Restore them",
     "draftDiscard": "Discard",
-    "more": "More board options"
+    "more": "More board options",
+    "remoteApplied": "Updated with changes from {name}",
+    "remoteAppliedAnon": "Updated with changes from someone else",
+    "remoteChanged": "{name} changed this board. Your changes here aren't saved yet.",
+    "remoteChangedAnon": "Someone else changed this board. Your changes here aren't saved yet.",
+    "remoteMerge": "Merge their changes"
   },
   "public": {
     "notFound": "Board not found",

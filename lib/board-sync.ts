@@ -98,6 +98,55 @@ export function mergeBoardScenes(opts: {
 }
 
 // ---------------------------------------------------------------------------
+// Sondeo de cambios de otros (no hay tiempo real).
+
+/** Cada cuánto el editor pregunta la versión de la pizarra (con la pestaña visible). */
+export const REMOTE_POLL_MS = 12_000;
+
+export type RemoteAction = 'none' | 'apply' | 'notify';
+
+/**
+ * Qué hacer cuando el sondeo trae la versión del servidor:
+ * - igual o más vieja que la local: nada;
+ * - con un guardado en vuelo o el aviso de conflicto abierto: nada (el 409 ya combina);
+ * - con cambios locales que se van a guardar: nada, el guardado da 409 y combina;
+ * - con cambios locales trabados (p. ej. pizarra muy grande): aviso para combinar o recargar;
+ * - sin cambios locales: se aplica la escena del servidor sola.
+ */
+export function remoteAction(o: {
+  remoteVersion: number;
+  localVersion: number;
+  pending: boolean;
+  inFlight: boolean;
+  /** Motivo por el que no se guarda ('conflict', 'too_large') o null. */
+  blocked: string | null;
+}): RemoteAction {
+  if (o.remoteVersion <= o.localVersion) return 'none';
+  if (o.inFlight || o.blocked === 'conflict') return 'none';
+  if (o.blocked) return 'notify';
+  if (o.pending) return 'none';
+  return 'apply';
+}
+
+/**
+ * Lo ambiguo de un merge, resuelto a favor del servidor: lo que allá se borró se
+ * va y lo que allá se editó vuelve. Es para aplicar cambios de otro sin nada
+ * local pendiente; ahí un "editado acá" solo puede ser Excalidraw normalizando
+ * al cargar (p. ej. medir de nuevo un texto), que sube la versión sin edición real.
+ */
+export function ambiguousToServer(merge: Pick<MergeResult, 'elements' | 'ambiguous'>, serverElements: readonly unknown[]): unknown[] {
+  if (!merge.ambiguous.length) return merge.elements;
+  const amb = new Set(merge.ambiguous);
+  const serverById = new Map((serverElements as SyncEl[]).map((e) => [e.id, e]));
+  const out: unknown[] = [];
+  for (const e of merge.elements as SyncEl[]) {
+    if (!amb.has(e.id)) out.push(e);
+    else if (serverById.has(e.id)) out.push(serverById.get(e.id));
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Borradores locales: lo que no llegó al servidor sobrevive a cerrar la pestaña.
 
 export interface BoardDraft {

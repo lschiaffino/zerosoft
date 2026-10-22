@@ -18,6 +18,7 @@ import {
 } from '@xyflow/react';
 import { Link, useRouter } from '@/i18n/navigation';
 import AdvancedSection from '@/components/ui/AdvancedSection';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import BrandSymbol from '@/components/brand/BrandSymbol';
 import type { FlowDto } from '@/lib/flow';
@@ -238,6 +239,9 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
   const [flow, setFlow] = useState(initialFlow);
   const [name, setName] = useState(initialFlow.name);
   const [description, setDescription] = useState(initialFlow.description);
+  /** Confirmación de "Eliminar flow" con el modal de la app. */
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [webhooks, setWebhooks] = useState(initialHooks);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<EditorTab>(initialRunId ? 'runs' : 'editor');
@@ -513,8 +517,10 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
   }, [dirty]);
 
   async function removeFlow() {
-    if (!window.confirm(t('editor.deleteFlowConfirm'))) return;
+    setDeleting(true);
     const res = await fetch(`/api/flow/flows/${flow.id}`, { method: 'DELETE' }).catch(() => null);
+    setDeleting(false);
+    setConfirmDelete(false);
     if (!res?.ok) {
       setMessage({ kind: 'error', text: t('errors.generic') });
       return;
@@ -1024,7 +1030,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
                   {readOnly && <p className="ui-help">{t('list.adminOnly')}</p>}
                   {!readOnly && (
                     <div className="flow-config-foot">
-                      <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => void removeFlow()}>
+                      <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => setConfirmDelete(true)}>
                         {t('editor.deleteFlow')}
                       </button>
                     </div>
@@ -1084,6 +1090,18 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
           </div>
         </form>
       </dialog>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        danger
+        busy={deleting}
+        title={t('list.deleteTitle')}
+        body={t('editor.deleteFlowConfirm')}
+        confirmLabel={t('list.delete')}
+        cancelLabel={t('editor.cancel')}
+        onConfirm={() => void removeFlow()}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

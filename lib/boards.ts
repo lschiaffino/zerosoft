@@ -266,6 +266,25 @@ export async function saveBoardScene(
   };
 }
 
+/** Versión de la escena y quién la guardó último: lo que sondea el editor (sin traer la escena). */
+export interface BoardVersionInfo {
+  version: number;
+  updated_by: string | null;
+}
+
+type VersionRow = { version: number; name: string | null; email: string | null };
+const toVersionInfo = (r: VersionRow): BoardVersionInfo => ({ version: Number(r.version), updated_by: r.name ?? r.email ?? null });
+
+export async function getBoardVersion(workspaceId: string, id: string): Promise<BoardVersionInfo | null> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT b.version, u.name AS name, u.email AS email
+       FROM boards b LEFT JOIN users u ON u.id = b.updated_by WHERE b.id = ? AND b.workspace_id = ?`,
+    )
+    .get(id, workspaceId)) as VersionRow | undefined;
+  return row ? toVersionInfo(row) : null;
+}
+
 /** ¿La pizarra existe en el workspace? (sin traer la escena). */
 export async function boardExists(workspaceId: string, id: string): Promise<boolean> {
   return Boolean(await getDb().prepare('SELECT 1 AS x FROM boards WHERE id = ? AND workspace_id = ?').get(id, workspaceId));
@@ -321,6 +340,18 @@ export async function getSharedBoard(token: string): Promise<BoardDetail | null>
 const TOKEN_RE = /^[A-Za-z0-9_-]{10,64}$/;
 
 /** Pizarra del link de invitado con edición, con su workspace (para guardar). */
+/** Versión de la pizarra del link de invitado con edición (sondeo del editor). */
+export async function getGuestBoardVersion(token: string): Promise<BoardVersionInfo | null> {
+  if (!TOKEN_RE.test(token)) return null;
+  const row = (await getDb()
+    .prepare(
+      `SELECT b.version, u.name AS name, u.email AS email
+       FROM boards b LEFT JOIN users u ON u.id = b.updated_by WHERE b.edit_token = ?`,
+    )
+    .get(token)) as VersionRow | undefined;
+  return row ? toVersionInfo(row) : null;
+}
+
 export async function getGuestBoard(token: string): Promise<{ board: BoardDetail; workspaceId: string } | null> {
   if (!TOKEN_RE.test(token)) return null;
   const row = (await getDb().prepare('SELECT * FROM boards WHERE edit_token = ?').get(token)) as BoardRow | undefined;

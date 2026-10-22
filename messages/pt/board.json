@@ -56,7 +56,12 @@
     "draftFound": "Há alterações da sua última visita que não chegaram a ser salvas.",
     "draftRestore": "Recuperar",
     "draftDiscard": "Descartar",
-    "more": "Mais opções do quadro"
+    "more": "Mais opções do quadro",
+    "remoteApplied": "Atualizado com mudanças de {name}",
+    "remoteAppliedAnon": "Atualizado com mudanças de outra pessoa",
+    "remoteChanged": "{name} mudou este quadro. Suas mudanças aqui ainda não foram salvas.",
+    "remoteChangedAnon": "Outra pessoa mudou este quadro. Suas mudanças aqui ainda não foram salvas.",
+    "remoteMerge": "Combinar as mudanças"
   },
   "public": {
     "notFound": "Quadro não encontrado",
