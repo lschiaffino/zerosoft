@@ -77,6 +77,7 @@ export default function ConfirmDialog({
             <button
               ref={confirmRef}
               type="button"
+              data-testid="confirm-dialog-confirm"
               className={`btn btn-sm btn-primary${danger ? ' btn-danger' : ''}`}
               onClick={onConfirm}
               aria-busy={busy}

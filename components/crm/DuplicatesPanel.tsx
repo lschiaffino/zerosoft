@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import ConfirmDialog from './ConfirmDialog';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 interface DupContact {
   id: string;
@@ -162,8 +162,9 @@ export default function DuplicatesPanel({ contactId, autoFind = false }: Duplica
           const drop = groups[0]?.contacts.find((c) => c.id === dropId);
           return (
             <ConfirmDialog
+              open
               title={t('contacts.detail.mergeConfirmTitle')}
-              message={t('contacts.detail.mergeConfirm', {
+              body={t('contacts.detail.mergeConfirm', {
                 drop: drop ? drop.email || displayName(drop) : '',
                 keep: keep ? keep.email || displayName(keep) : '',
               })}

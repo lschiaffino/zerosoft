@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import CompanyLogo from './CompanyLogo';
-import ConfirmDialog from './ConfirmDialog';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 interface DupCompany {
   id: string;
@@ -177,8 +177,9 @@ export default function CompanyDuplicatesPanel({ companyId }: CompanyDuplicatesP
           const { kept, drops } = plan(confirming);
           return (
             <ConfirmDialog
+              open
               title={t('companies.dupes.confirmTitle')}
-              message={t('companies.dupes.confirm', { count: drops.length, keep: kept?.name ?? '' })}
+              body={t('companies.dupes.confirm', { count: drops.length, keep: kept?.name ?? '' })}
               confirmLabel={t('companies.dupes.merge', { count: drops.length })}
               cancelLabel={t('common.cancel')}
               busy={busy !== null}
