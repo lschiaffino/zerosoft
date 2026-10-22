@@ -1,0 +1,62 @@
+[
+  {
+    "title": "CRM: Show records as cards on phones with one-tap call, WhatsApp and note, and make the CRM installable",
+    "description": "HubSpot ships a mobile app on every plan, and reps log calls and notes from the phone (https://www.hubspot.com/pricing/sales/starter lists the mobile app in Starter). At 390px our contacts, companies and deals tables keep the desktop columns and scroll sideways inside their wrapper: on Contacts only Name and Email fit, and row actions sit off-screen. The board shows one and a half columns. First scope: below 520px render list rows as cards (name, company, lifecycle or stage, owner, next activity) with one-tap call, WhatsApp (reuse PhoneTouch outcomes) and quick note; a stage picker on deal cards instead of drag; a web app manifest so the CRM installs on the home screen. Offline reading can come later.\n\nPriority: high. Effort: M. Compared with HubSpot Sales Hub Starter/Pro, Pipedrive and Attio mobile apps.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Sync and send email through Outlook / Microsoft 365, with an IMAP/SMTP fallback",
+    "description": "HubSpot connects Gmail or Outlook inboxes from Starter (https://www.hubspot.com/products/sales, Sales Extensions for Gmail and Outlook). We only sync and send through Gmail (lib/crm-email-sync.ts), and until the Google app is verified for gmail.readonly only test users can connect. A team on Microsoft 365 gets no email on the timeline, no sequences sent as themselves and no reply detection. First scope: Microsoft Graph OAuth (Mail.Read, Mail.Send) reusing the Gmail sync shape (incremental delta, thread grouping, contact matching, reply detection for sequences); then a generic IMAP/SMTP connection with app passwords as a fallback that does not depend on Google's verification.\n\nPriority: high. Effort: L. Compared with HubSpot Sales Hub, Pipedrive (email sync on Growth) and Attio (email accounts per user).",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Call from the browser with recording, transcription and automatic logging",
+    "description": "Sales Hub Starter includes 500 calling minutes, a HubSpot number and transcription; Pro raises it to 3,000 minutes and 3 numbers (https://www.hubspot.com/pricing/sales/starter). We only open tel: and wa.me links and ask for an outcome afterwards (lib/crm-calls.ts). First scope: bring-your-own Twilio account (keys in Settings), click-to-call from the record header and the phone cell, call widget with mute and notes, recording stored as a file on the call activity, transcription and a short summary when AI is enabled, outcome and duration logged on the timeline and counted by lead scoring and reports.\n\nPriority: high. Effort: L. Compared with HubSpot calling, Pipedrive Caller and Attio Call Intelligence (Pro).",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Add a daily work queue that steps through due tasks and sequence steps one by one",
+    "description": "HubSpot's Prospecting / Sales Workspace gives reps one screen with today's tasks, sequence steps and leads to work, and a mode that opens each task in order (https://www.hubspot.com/products/sales, Prospecting Workspace; https://vantagepoint.io/blog/hs/hubspot-sales-workspace-update-april-2026-preparation-guide). Our Tasks page has Overdue, Today and Upcoming buckets, but each task opens on its own and manual sequence steps aren't mixed in. First scope: a 'Start queue' button on Tasks that opens the first due item with the contact's timeline beside it, complete or snooze with a key, auto-advance to the next, and a counter of what's left; include manual sequence steps and calls due.\n\nPriority: high. Effort: M. Compared with HubSpot Sales Workspace and Pipedrive's activity focus.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Turn Cal meetings into a recap on the timeline (transcript, summary, next steps)",
+    "description": "HubSpot Notetaker does meeting prep, recap and conversation intelligence with tracked terms (https://www.hubspot.com/pricing/sales/starter, Notetaker section). Our Cal bookings already create a meeting activity on the contact, but after the call nothing lands there unless someone writes a note. First scope: upload or link a recording (or import a transcript from the video provider) on the meeting activity, generate a summary with next steps and suggested property updates when AI is enabled, and offer to create the follow-up tasks; later, a bot that joins the call.\n\nPriority: medium. Effort: L. Compared with HubSpot Notetaker and Attio Call Intelligence.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Add forecast categories and a per-rep forecast submission with manager roll-up",
+    "description": "HubSpot's forecasting tool lets each rep put deals in categories (pipeline, best case, commit, closed) and submit a number per period, with team hierarchies in Pro (https://www.hubspot.com/pricing/sales/starter, Forecasting). Our forecast is the probability-weighted amount in reports and the board header; there is no commit/best case and no way for a rep to submit or a manager to adjust. First scope: a forecast category property on deals (defaulted from the stage), a Forecast page per month or quarter grouped by owner and sales team with commit / best case / pipeline totals against quotas, and a submitted value per rep with history.\n\nPriority: medium. Effort: M. Compared with HubSpot forecasting and Pipedrive revenue forecast.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Ship a Gmail / Chrome extension that shows the contact and logs emails from the inbox",
+    "description": "HubSpot Sales Extensions work inside Gmail, Outlook and any web page: contact panel, log and track toggles, templates and sequences from the compose window (https://www.hubspot.com/products/sales, HubSpot Sales Extensions). Our tracking, templates and sequences only work from the CRM timeline. First scope: a Chrome extension with an API key (crm scopes) that shows the sender's contact, company, open deals and last activity in a Gmail side panel, a 'Create contact' button, and insert template / enroll in sequence from compose.\n\nPriority: medium. Effort: M. Compared with HubSpot Sales Extension and Pipedrive's Chrome extension.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Add playbooks with call scripts that write answers back to properties",
+    "description": "HubSpot playbooks give reps a script or qualification guide on the record and save answers as notes or properties (5 on Starter, 5,000 on Pro with property embedding: https://www.hubspot.com/pricing/sales/starter). We have no guided content on the record. First scope: playbooks built from Docs pages with embedded property questions (text, select, number), opened from the record header or the call composer, answers saved to the record and a note on the timeline, usage counts per playbook.\n\nPriority: medium. Effort: M. Compared with HubSpot playbooks.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Let workspaces define their own objects with fields, associations and views",
+    "description": "Attio is built on custom objects from its free plan (3 objects free, 12 on Pro: https://attio.com/pricing); HubSpot reserves them for Enterprise. Teams that track partners, properties, candidates or subscriptions next to deals have nowhere to put them in our CRM and fall back to custom fields on companies. First scope: an object editor (name, icon, fields from the existing custom field types), records with the same table, record page, timeline and associations to contacts, companies and deals, ⌘K search, CSV import, API under /api/v1/crm/objects.\n\nPriority: medium. Effort: L. Compared with Attio objects and HubSpot custom objects.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Make the whole board column a drop target and move deals between stages with the keyboard",
+    "description": "In HubSpot and Pipedrive you drop a deal anywhere in a column. Our board only accepts drops on the card list (updateDrag in components/crm/DealsBoard.tsx looks for .kb-cards), so releasing over the column header, the '+ Add deal' button or the empty space below silently puts the deal back. There is also no keyboard way to change stage from the board (reaching a card took 35 Tab presses). First scope: treat the whole column as the drop zone (append at the end when below the last card), highlight it while dragging, show a toast with undo after the move, and add arrow-key focus between cards plus Shift+←/→ to move a focused card one stage.\n\nPriority: medium. Effort: S. Compared with HubSpot deal board and Pipedrive pipeline view.",
+    "product": "crm",
+    "kind": "idea"
+  }
+]
