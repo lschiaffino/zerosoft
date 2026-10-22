@@ -1,0 +1,62 @@
+[
+  {
+    "title": "Link: Ship Zapier and Make apps plus Slack alerts for links",
+    "description": "Dub lists Zapier, Make, Segment and Slack among its native integrations (https://dub.co/integrations). We only expose the REST API and webhooks, so non-technical teams cannot connect link events to their other tools. Scope: a Zapier app with triggers (link clicked, link created) and actions (create link, update link) on top of /api/v1 and existing webhooks, a Make module with the same, and a Slack incoming-webhook destination for click milestones.\n\nPriority: high. Effort: M. Compared with Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Publish a TypeScript SDK and an MCP server for links",
+    "description": "Dub ships SDKs in TypeScript, Python, Ruby, PHP and Go (https://dub.co/docs/sdks/overview.md) and an MCP server (https://dub.co/docs/mcp-server.md). We publish openapi.json under /api/v1 but no client or MCP. Scope: generate a typed TS client from openapi.json, publish it to npm, and expose create, list, update and analytics tools through an MCP server authenticated with workspace API keys.\n\nPriority: high. Effort: M. Compared with Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Add row keyboard shortcuts and '/' to focus search in the links list",
+    "description": "Dub supports c to create, e to edit and x to delete on the hovered link, plus single-key shortcuts in the link builder (https://dub.co/changelog/keyboard-shortcuts). In our list only C works; '/' does not focus the search and there is no '?' help. Scope: j/k or arrow navigation with a visible focused row, e opens Settings, x opens the delete confirm, a archives, '/' focuses search, '?' shows the shortcut sheet.\n\nPriority: medium. Effort: S. Compared with Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Support deferred deep linking after app install",
+    "description": "Dub deep links include deferred deep linking and a migration path from Firebase Dynamic Links (https://dub.co/docs/concepts/deep-links/quickstart.md). Our targeting.ios / targeting.android open the app or fall back to the store, but the destination is lost after install. Scope: store the click id with device hints on redirect, expose an endpoint the app calls on first open to retrieve the original destination, and document the iOS and Android snippets.\n\nPriority: medium. Effort: L. Compared with Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Import from Rebrandly, Short.io and any CSV",
+    "description": "Dub imports from Bitly, Rebrandly, Short.io and CSV (https://dub.co/help/article/migrating-from-rebrandly.md, https://dub.co/help/article/migrating-from-short.md, https://dub.co/help/article/how-to-import-csv.md). Our ImportLinksPanel only takes a Bitly token or a Bitly CSV. Scope: Rebrandly and Short.io importers by API key (links, tags, domains), and a generic CSV with column mapping that reuses lib/link-bulk-csv.ts.\n\nPriority: medium. Effort: S. Compared with Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Give the bio page a live preview, themes and external links",
+    "description": "Bitly Pages offers link-in-bio pages on paid plans (https://bitly.com/pages/pricing) and Dub has none, so this is our edge. Our BioEditor has no preview, no theme or social icons, and only lists existing short links. Scope: side-by-side live preview, a few themes using brand tokens, a social icon row, and adding a URL directly (we create the short link behind it so clicks still count).\n\nPriority: medium. Effort: M. Compared with Bitly.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Add link cloaking to keep the short domain in the address bar",
+    "description": "Dub offers link cloaking on all plans (https://dub.co/pricing), which serves the destination inside a frame so visitors keep seeing the branded domain. We always redirect with 301/302. Scope: a per-link 'Cloak' option that serves a full-page iframe for destinations that allow framing (check X-Frame-Options/CSP at save time and warn), still recording the click.\n\nPriority: low. Effort: S. Compared with Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Keep an activity log of link changes per workspace",
+    "description": "Dub includes audit logs on Enterprise (https://dub.co/pricing). We record who created a link but not who changed its destination, slug or targeting later, which matters when the link is printed on a QR. Scope: write an entry on create, update (field diff), archive and delete, show a History tab in link detail and a workspace-wide log filterable by member.\n\nPriority: low. Effort: M. Compared with Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Show a live stream of clicks as they happen",
+    "description": "Dub analytics include a real-time event stream (https://dub.co/links). Our click log is paginated and only updates on reload. Scope: a live mode on the click log and workspace analytics that polls or uses server-sent events every few seconds, highlighting new rows with country, referrer and device.\n\nPriority: low. Effort: S. Compared with Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: One-click DNS setup for custom domains",
+    "description": "Dub added Domain Connect for one-click DNS on Vercel and Cloudflare in August 2026 (https://dub.co/changelog/domain-connect). Our domain setup shows records to copy and a verify button. Scope: detect the DNS provider, offer Domain Connect or the Cloudflare API with a token, then trigger verification automatically.\n\nPriority: low. Effort: M. Compared with Dub.",
+    "product": "link",
+    "kind": "idea"
+  }
+]
