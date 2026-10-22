@@ -1,0 +1,50 @@
+[
+  {
+    "title": "Docs: Import a Notion or Confluence export (zip of Markdown/HTML and CSV) with its page tree",
+    "description": "Notion imports whole workspaces from Confluence, Evernote, Google Docs and others, plus .md, .html, .csv and zip files up to 50 MB on paid plans (https://www.notion.com/help/import-data-into-notion). Docs can import one .md or .docx file into an existing page (POST /api/docs/pages/:id/import, 4 MB cap in lib/docs-import.ts), so a team leaving Notion has to recreate its tree by hand. First scope: accept the zip that Notion's 'Export > Markdown & CSV' produces (and Confluence's HTML export), rebuild the folder hierarchy as nested pages, rewrite relative links between files into [[ page links, upload embedded images through lib/docs-files.ts, and turn each CSV into a database block. Show a progress and a summary of skipped files.\n\nPriority: high. Effort: M. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Add person, checkbox, URL and status properties, and open database rows as pages",
+    "description": "Notion databases have about 20 property types (person, checkbox, URL, status, relation, formula...) and every row is a page you can open (https://www.notion.com/help/intro-to-databases). Our database block (components/docs/DocsDatabaseBlock.tsx) supports text, number, select and date only (DocsDatabaseColumnType in lib/docs-types.ts), and a row is a set of cells with no body. Without person and checkbox a small team can't build a task tracker. First scope: add person (workspace member picker reusing /api/docs/members), checkbox, URL and status column types; let a row open in a side peek with its own block content stored with the row; keep the existing table and gallery views working. Filters, sorts and board view are tracked in a separate idea.\n\nPriority: high. Effort: M. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Comment on selected text and suggest edits that the owner accepts or rejects",
+    "description": "Notion lets you comment on a highlighted phrase and, with 'Can comment' access, suggest edits that are accepted or rejected from the side panel (https://www.notion.com/help/suggested-edits). Confluence also anchors inline comments to highlighted text (https://support.atlassian.com/confluence-cloud/docs/comment-on-pages-and-blog-posts/). Docs threads attach to a whole block (components/docs/CommentsPanel.tsx), and there is no 'can comment' role (DocsShareRole is view | edit). First scope: anchor a comment to a text range inside a block (store the range with the comment, highlight it, fall back to the block if the text changes), add a 'Can comment' share role, and a suggestion mode for text, heading and list blocks with accept/reject per change.\n\nPriority: high. Effort: M. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Export a page with its subpages, or the whole workspace, as a Markdown or HTML zip",
+    "description": "Notion exports PDF, HTML (zip, optional comments), Markdown and CSV, with subpages, and a full workspace export (https://www.notion.com/help/export-your-content). Our export is one page at a time (GET /api/docs/pages/:id/export?format=md only; PDF goes through the print dialog). Teams ask for a way out before they move in. First scope: an 'Include subpages' option that returns a zip with one .md per page in folders matching the tree, attachments next to them and [[ links rewritten as relative links; a 'Export all pages' action in Docs settings; database blocks exported as CSV.\n\nPriority: medium. Effort: S. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Add favorites to the sidebar and a lock that stops accidental edits",
+    "description": "Notion has a Favorites section at the top of the sidebar and 'Lock page' in the page menu, which also blocks suggestions (https://www.notion.com/help/suggested-edits). Docs has no favorites (components/docs/DocsSidebar.tsx shows the tree and 'Shared with me') and no lock, so a long tree means scrolling every time and anyone in the workspace can edit the onboarding page by mistake. First scope: per-user favorites stored server-side, shown above the tree and in Cmd+P; a page lock that owners and editors toggle, rendering the editor read-only with an 'Unlock' button and logging who locked it.\n\nPriority: medium. Effort: S. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Add date mentions and reminders inside a page",
+    "description": "In Notion you type @today, @tomorrow or @remind to insert a date that can notify you (https://www.notion.com/help/comments-mentions-and-reminders). Docs supports @ for members and [[ for pages, but no dates, so to-dos inside a page have no due date and nothing reminds anyone. Notes already has reminders with in-app and email delivery (lib/notes-reminders.ts). First scope: '@' menu offers dates (today, tomorrow, a picker) rendered as an inline chip; a reminder variant that notifies the author (and mentioned member, if any) through the existing notification and email path, claimed by the minute cron like Notes reminders.\n\nPriority: medium. Effort: S. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Show page views and who viewed a page",
+    "description": "Notion shows owners and editors total and unique views over time plus who created, edited or viewed a page (https://www.notion.com/help/page-analytics); Confluence Standard includes page insights (https://support.atlassian.com/confluence-cloud/docs/confluence-standard/). Docs records nothing on view, so whoever writes the onboarding or policy page can't tell if anyone read it. Help center articles only collect 'Was this helpful?' votes. First scope: count views per page per day (one per user per day, no tracking of anonymous help center visitors beyond a daily counter), show a small 'Views' popover in the page header with the last 30 days and the members who opened it, with a per-user opt-out.\n\nPriority: low. Effort: S. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Add Docs actions to Flow (create a page from a template, append blocks)",
+    "description": "Notion automations and buttons create pages, edit pages and send webhooks (https://www.notion.com/help/database-automations, https://www.notion.com/help/buttons). Docs only emits page.created to Flow (app/api/docs/pages/route.ts) and Flow has no Docs action, so 'when a deal is won, create the onboarding page from our template' or 'append each meeting summary to the weekly page' is not possible. First scope: Flow actions 'Create Docs page' (title, parent, optional workspace template, content as Markdown run through lib/docs-import.ts) and 'Append to Docs page'; emit page.updated (debounced) and comment.created events.\n\nPriority: low. Effort: M. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  }
+]
