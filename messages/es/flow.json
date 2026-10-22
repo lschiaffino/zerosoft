@@ -13,7 +13,15 @@
     "lastRun": "Última ejecución",
     "status": "Estado",
     "never": "Nunca corrió",
-    "adminOnly": "Solo los admins y dueños del workspace pueden crear o editar flows."
+    "adminOnly": "Solo los admins y dueños del workspace pueden crear o editar flows.",
+    "actions": "Acciones del flow",
+    "rename": "Renombrar",
+    "renameTitle": "Renombrar flow",
+    "duplicate": "Duplicar",
+    "delete": "Eliminar",
+    "copyName": "{name} (copia)",
+    "deleteTitle": "¿Eliminar el flow?",
+    "confirmDelete": "¿Eliminar \"{name}\" y todas sus ejecuciones? No se puede deshacer."
   },
   "templates": {
     "title": "Plantillas",

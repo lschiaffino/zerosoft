@@ -27,6 +27,7 @@
     --brand-rule: #2a2927;
     --brand-on-ink: #0f0e0d;
     --brand-on-ink-2: #55544f; /* 6,4:1 sobre #ecebe6 */
+    --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%23ecebe6' stroke-width='1.5' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
 
     --ui-hover: #1d1c1a;
     --ui-press: #2a2927;
@@ -105,6 +106,7 @@
   --brand-rule: #2a2927;
   --brand-on-ink: #0f0e0d;
   --brand-on-ink-2: #55544f; /* 6,4:1 sobre #ecebe6 */
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%23ecebe6' stroke-width='1.5' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
 
   --ui-hover: #1d1c1a;
   --ui-press: #2a2927;

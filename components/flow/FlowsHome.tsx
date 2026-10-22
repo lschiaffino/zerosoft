@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useFormatter, useLocale, useNow, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import QuickModal from '@/components/app/QuickModal';
+import RowMenu from '@/components/notes/RowMenu';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import DataTable from '@/components/ui/DataTable';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeader from '@/components/ui/PageHeader';
@@ -31,6 +34,13 @@ export default function FlowsHome({ flows: initial, canEdit, settings: initialSe
   const [error, setError] = useState<string | null>(null);
   const params = useSearchParams();
   const autoCreated = useRef(false);
+  // Menú "…" por fila: renombrar (modal), duplicar y eliminar (con confirmación).
+  const [menu, setMenu] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<FlowListItem | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<FlowListItem | null>(null);
+  const [rowBusy, setRowBusy] = useState(false);
 
   async function create(body: Record<string, unknown>, key: string) {
     setBusy(key);
@@ -73,6 +83,67 @@ export default function FlowsHome({ flows: initial, canEdit, settings: initialSe
       setFlows((list) => list.map((f) => (f.id === id ? { ...f, enabled: !enabled } : f)));
       setError(t('errors.generic'));
     }
+  }
+
+  async function rename() {
+    const flow = renaming;
+    const name = renameValue.trim();
+    if (!flow || !name) return;
+    if (name === flow.name) {
+      setRenaming(null);
+      return;
+    }
+    setRowBusy(true);
+    setRenameError(null);
+    const res = await fetch(`/api/flow/flows/${flow.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }).catch(() => null);
+    setRowBusy(false);
+    if (!res?.ok) {
+      setRenameError(t('errors.generic'));
+      return;
+    }
+    setFlows((list) => list.map((f) => (f.id === flow.id ? { ...f, name } : f)));
+    setRenaming(null);
+    // El sidebar y ⌘K leen del servidor.
+    router.refresh();
+  }
+
+  /** Copia apagada con el mismo grafo (los webhooks reciben tokens nuevos). */
+  async function duplicate(flow: FlowListItem) {
+    setMenu(null);
+    setError(null);
+    const res = await fetch('/api/flow/flows', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: t('list.copyName', { name: flow.name }).slice(0, 120),
+        description: flow.description,
+        graph: flow.graph,
+      }),
+    }).catch(() => null);
+    const copy = (await res?.json().catch(() => null)) as FlowListItem | null;
+    if (!res?.ok || !copy?.id) {
+      setError(t('errors.generic'));
+      return;
+    }
+    setFlows((list) => [{ ...copy, lastRun: null }, ...list]);
+    router.refresh();
+  }
+
+  async function remove(flow: FlowListItem) {
+    setRowBusy(true);
+    const res = await fetch(`/api/flow/flows/${flow.id}`, { method: 'DELETE' }).catch(() => null);
+    setRowBusy(false);
+    setDeleting(null);
+    if (!res?.ok) {
+      setError(t('errors.generic'));
+      return;
+    }
+    setFlows((list) => list.filter((f) => f.id !== flow.id));
+    router.refresh();
   }
 
   /** Retención del historial del workspace (se guarda al elegir; también fija el idioma de los avisos). */
@@ -187,9 +258,85 @@ export default function FlowsHome({ flows: initial, canEdit, settings: initialSe
                 </label>
               ),
             },
+            ...(canEdit
+              ? [
+                  {
+                    key: 'menu',
+                    header: <span className="sr-only">{t('list.actions')}</span>,
+                    width: '48px',
+                    cell: (f: FlowListItem) => (
+                      <RowMenu
+                        className="flow-row-menu"
+                        open={menu === f.id}
+                        label={`${t('list.actions')}: ${f.name}`}
+                        onToggle={(open) => setMenu(open ? f.id : null)}
+                        items={[
+                          {
+                            label: t('list.rename'),
+                            onSelect: () => {
+                              setMenu(null);
+                              setRenameValue(f.name);
+                              setRenameError(null);
+                              setRenaming(f);
+                            },
+                          },
+                          { label: t('list.duplicate'), onSelect: () => void duplicate(f) },
+                          {
+                            label: t('list.delete'),
+                            danger: true,
+                            onSelect: () => {
+                              setMenu(null);
+                              setDeleting(f);
+                            },
+                          },
+                        ]}
+                      />
+                    ),
+                  },
+                ]
+              : []),
           ]}
         />
       </section>
+
+      <QuickModal
+        open={renaming !== null}
+        onClose={() => setRenaming(null)}
+        title={t('list.renameTitle')}
+        onSubmit={() => void rename()}
+        submitLabel={t('editor.save')}
+        cancelLabel={t('editor.cancel')}
+        submitDisabled={!renameValue.trim()}
+        busy={rowBusy}
+        error={renameError}
+        width={440}
+      >
+        <div className="ui-field">
+          <label className="label" htmlFor="flow-rename">
+            {t('list.name')}
+          </label>
+          <input
+            id="flow-rename"
+            className="input"
+            value={renameValue}
+            maxLength={120}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onFocus={(e) => e.currentTarget.select()}
+          />
+        </div>
+      </QuickModal>
+
+      <ConfirmDialog
+        open={deleting !== null}
+        danger
+        busy={rowBusy}
+        title={t('list.deleteTitle')}
+        body={deleting ? t('list.confirmDelete', { name: deleting.name }) : null}
+        confirmLabel={t('list.delete')}
+        cancelLabel={t('editor.cancel')}
+        onConfirm={() => deleting && void remove(deleting)}
+        onCancel={() => setDeleting(null)}
+      />
 
       <section className="flow-block" id="flow-templates" aria-labelledby="flow-templates-title">
         <div className="flow-block-head">

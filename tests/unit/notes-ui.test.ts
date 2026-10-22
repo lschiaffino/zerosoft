@@ -49,4 +49,14 @@ describe('notes ui: snippet de la lista', () => {
     expect(makeSnippet('[ ] Café\n[x] Pan')).toBe('Café, Pan');
     expect(makeSnippet('Compras\n[ ] Café\nFin')).toBe('Compras Café, Fin');
   });
+
+  it('el snippet de búsqueda (⌘K) también saca las marcas de tarea', async () => {
+    const { snippetAround } = await import('@/lib/notes-types');
+    expect(snippetAround('[ ] milk\n[ ] eggs', ['eggs'])).toBe('milk, eggs');
+    const long = `${'intro '.repeat(40)}\n[x] milk\n[ ] eggs`;
+    const s = snippetAround(long, ['eggs']);
+    expect(s).toContain('milk, eggs');
+    expect(s).not.toContain('[ ]');
+    expect(s).not.toContain('[x]');
+  });
 });

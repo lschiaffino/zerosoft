@@ -355,6 +355,10 @@
   min-height: 100%;
 }
 .docs-editor-wrap.has-side { grid-template-columns: minmax(0, 1fr) 320px; }
+/* Con avisos arriba (papelera, conflicto), solo la fila del editor absorbe el alto
+   libre; si no, el grid lo reparte y el aviso crece en páginas cortas. */
+.docs-editor-wrap:has(> .docs-banner) { grid-template-rows: auto 1fr; }
+.docs-editor-wrap:has(> .docs-banner + .docs-banner) { grid-template-rows: auto auto 1fr; }
 
 .docs-editor {
   --measure: 42rem;

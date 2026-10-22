@@ -14,14 +14,17 @@ import BoardOverlays from './BoardOverlays';
 import BoardStickyTool from './BoardStickyTool';
 import BoardTrackTool from './BoardTrackTool';
 import BoardWorkshop, { TimerChip } from './BoardWorkshop';
-import { useTrackCards, useWorkshop } from './useBoardLive';
+import { usePoll, useTrackCards, useWorkshop } from './useBoardLive';
 import {
+  ambiguousToServer,
   baseFrom,
   clearDraft,
   draftDiffers,
   flushOnLeave,
   mergeBoardScenes,
   readDraft,
+  remoteAction,
+  REMOTE_POLL_MS,
   writeDraft,
   type BaseVersions,
   type BoardDraft,
@@ -58,6 +61,8 @@ const THUMB_EVERY_MS = 10_000;
 const THUMB_TRAILING_MS = 2500;
 /** Merges seguidos antes de rendirse y mostrar el aviso (alguien guardando sin parar). */
 const MAX_MERGES = 3;
+/** Cuánto queda en el estado "Actualizada con cambios de X". */
+const REMOTE_STATUS_MS = 6000;
 
 type El = { id: string; version?: number; isDeleted?: boolean; type?: string; fileId?: string | null };
 
@@ -140,6 +145,10 @@ export default function BoardEditor({
   /** El aviso es por borrado contra edición (lo único que no se combina solo). */
   const [conflictDeleted, setConflictDeleted] = useState(false);
   const [draft, setDraft] = useState<BoardDraft | null>(null);
+  /** Cambios de otro aplicados solos (sin nada local pendiente): se avisa en el estado. */
+  const [remoteApplied, setRemoteApplied] = useState<{ by: string | null } | null>(null);
+  /** Cambios de otro que no se pueden aplicar solos (lo local está trabado): aviso con acciones. */
+  const [remoteNotice, setRemoteNotice] = useState<{ by: string | null } | null>(null);
   const [shareToken, setShareToken] = useState<string | null>(board.share_token);
   const [accessMode, setAccessMode] = useState<'workspace' | 'restricted'>(board.access ?? 'workspace');
   const share = usePopover();
@@ -400,6 +409,93 @@ export default function BoardEditor({
   }
   onConflictRef.current = (by) => void resolveConflict(by);
 
+  /**
+   * Trae la escena que guardó otro y la aplica al lienzo. Solo corre sin nada
+   * local pendiente; igual pasa por el merge con la base, así lo que otro borró
+   * desaparece y lo que se está editando acá (texto abierto) no se pisa.
+   */
+  async function pullRemote(by: string | null) {
+    const busy = () => pendingRef.current !== null || inFlightRef.current || blockedRef.current !== null || unmountedRef.current;
+    const res = await fetch(apiBase).catch(() => null);
+    if (!res?.ok || busy()) return;
+    const fresh = (await res.json()) as BoardDetail;
+    const { reconcile } = await import('./ExcalidrawCanvas');
+    const api = apiRef.current;
+    // Si mientras bajaba la escena se editó acá, lo resuelve el guardado (409 → merge).
+    if (!api || busy() || fresh.version <= versionRef.current) return;
+    const files = Object.values(fresh.scene.files);
+    if (files.length) api.addFiles(files);
+    rememberUploaded(fresh.scene.files);
+    const merged = mergeBoardScenes({
+      local: api.getSceneElementsIncludingDeleted(),
+      localAppState: api.getAppState(),
+      localFiles: api.getFiles(),
+      server: fresh.scene,
+      base: baseRef.current,
+      baseBackground: baseBgRef.current,
+      reconcile,
+    });
+    // Sin nada local pendiente, lo dudoso lo decide el servidor (lo que otro borró se va).
+    api.updateScene({
+      elements: ambiguousToServer(merged, fresh.scene.elements),
+      appState: { viewBackgroundColor: merged.appState.viewBackgroundColor },
+    });
+    // Misma firma que calcula onChange (con los borrados): aplicar no cuenta como edición
+    // y no se vuelve a guardar (si no, dos pestañas abiertas se rebotarían versiones).
+    sigRef.current = signature(
+      api.getSceneElementsIncludingDeleted(),
+      api.getAppState().viewBackgroundColor,
+      Object.keys(api.getFiles()).length,
+    );
+    versionRef.current = fresh.version;
+    serverVersionRef.current = fresh.version;
+    baseRef.current = baseFrom(fresh.scene.elements);
+    baseBgRef.current = fresh.scene.appState.viewBackgroundColor;
+    // El nombre viaja con la escena; si alguien lo está editando acá, no se pisa.
+    const editingName = document.activeElement instanceof HTMLElement && document.activeElement.classList.contains('board-name');
+    if (fresh.name !== savedNameRef.current && !editingName) {
+      savedNameRef.current = fresh.name;
+      setName(fresh.name);
+    }
+    setRemoteApplied({ by });
+  }
+
+  // Sin tiempo real: con la pestaña visible se pregunta la versión cada tanto.
+  usePoll(
+    async () => {
+      if (!apiRef.current || unmountedRef.current) return;
+      const res = await fetch(`${apiBase}/version`).catch(() => null);
+      if (!res?.ok) return;
+      const remote = (await res.json()) as { version: number; updated_by: string | null };
+      const action = remoteAction({
+        remoteVersion: remote.version,
+        localVersion: versionRef.current,
+        pending: pendingRef.current !== null,
+        inFlight: inFlightRef.current,
+        blocked: blockedRef.current,
+      });
+      setRemoteNotice(action === 'notify' ? { by: remote.updated_by } : null);
+      if (action === 'apply') await pullRemote(remote.updated_by);
+    },
+    REMOTE_POLL_MS,
+    true,
+  );
+
+  useEffect(() => {
+    if (!remoteApplied) return;
+    const h = setTimeout(() => setRemoteApplied(null), REMOTE_STATUS_MS);
+    return () => clearTimeout(h);
+  }, [remoteApplied]);
+
+  /** "Combinar sus cambios" (aviso con lo local trabado): el mismo merge que un 409. */
+  function mergeRemote() {
+    const by = remoteNotice?.by ?? null;
+    setRemoteNotice(null);
+    blockedRef.current = null;
+    mergesRef.current = 0;
+    void resolveConflict(by);
+  }
+
   const onChange = useCallback(
     (elements: readonly unknown[], appState: Record<string, unknown>, files: Record<string, unknown>) => {
       if (readOnly) return;
@@ -596,6 +692,7 @@ export default function BoardEditor({
     setName(fresh.name);
     setConflictBy(null);
     setConflictDeleted(false);
+    setRemoteNotice(null);
     setState('saved');
   }
 
@@ -672,7 +769,11 @@ export default function BoardEditor({
         : state === 'error'
           ? t('editor.saveError')
           : state === 'saved'
-            ? t('editor.saved')
+            ? remoteApplied
+              ? remoteApplied.by
+                ? t('editor.remoteApplied', { name: remoteApplied.by })
+                : t('editor.remoteAppliedAnon')
+              : t('editor.saved')
             : '';
 
   return (
@@ -928,6 +1029,21 @@ export default function BoardEditor({
             </button>
             <button type="button" className="btn btn-sm btn-primary" onClick={() => void reload()}>
               {t('editor.reload')}
+            </button>
+          </div>
+        </div>
+      )}
+      {remoteNotice && state !== 'conflict' && (
+        <div className="board-notice" role="status">
+          <span>
+            {remoteNotice.by ? t('editor.remoteChanged', { name: remoteNotice.by }) : t('editor.remoteChangedAnon')}
+          </span>
+          <div className="board-notice-actions">
+            <button type="button" className="btn btn-sm" onClick={() => void reload()}>
+              {t('editor.reload')}
+            </button>
+            <button type="button" className="btn btn-sm btn-primary" onClick={mergeRemote}>
+              {t('editor.remoteMerge')}
             </button>
           </div>
         </div>

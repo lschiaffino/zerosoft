@@ -13,7 +13,15 @@
     "lastRun": "Last run",
     "status": "Status",
     "never": "Never ran",
-    "adminOnly": "Only workspace admins and owners can create or edit flows."
+    "adminOnly": "Only workspace admins and owners can create or edit flows.",
+    "actions": "Flow actions",
+    "rename": "Rename",
+    "renameTitle": "Rename flow",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "copyName": "{name} (copy)",
+    "deleteTitle": "Delete flow?",
+    "confirmDelete": "Delete \"{name}\" and all its runs? This can't be undone."
   },
   "templates": {
     "title": "Templates",

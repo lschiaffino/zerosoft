@@ -13,7 +13,15 @@
     "lastRun": "Última execução",
     "status": "Status",
     "never": "Nunca executou",
-    "adminOnly": "Só admins e donos do workspace podem criar ou editar flows."
+    "adminOnly": "Só admins e donos do workspace podem criar ou editar flows.",
+    "actions": "Ações do flow",
+    "rename": "Renomear",
+    "renameTitle": "Renomear flow",
+    "duplicate": "Duplicar",
+    "delete": "Excluir",
+    "copyName": "{name} (cópia)",
+    "deleteTitle": "Excluir o flow?",
+    "confirmDelete": "Excluir \"{name}\" e todas as execuções? Não é possível desfazer."
   },
   "templates": {
     "title": "Modelos",

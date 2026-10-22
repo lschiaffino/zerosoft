@@ -224,6 +224,15 @@
 .board-loading { position: absolute; inset: 0; background: var(--bg); }
 
 .board-excalidraw { display: contents; }
+/*
+ * globals.css le da a todo <section> el aire del sitio de marketing (72–112px);
+ * la barra de formas de Excalidraw es un <section> y bajaba 112px sobre el lienzo.
+ */
+.board-excalidraw .excalidraw section { padding-top: 0; padding-bottom: 0; }
+/* La ayuda de Excalidraw (abajo a la derecha) quedaba debajo del botón de feedback. */
+@media (min-width: 761px) {
+  body:has(.fl-root:not(.is-tucked)) .board-excalidraw .excalidraw .layer-ui__wrapper__footer-right { margin-right: 60px; }
+}
 /* Tope del panel de propiedades: termina arriba de la barra de zoom (lo mide ExcalidrawCanvas). */
 .board-excalidraw .excalidraw .App-menu__left { max-height: var(--board-panel-max, none) !important; }
 /*

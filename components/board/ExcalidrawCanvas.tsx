@@ -6,7 +6,7 @@
  * importarse. Su CSS se importa acá, así viaja en el mismo chunk.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CaptureUpdateAction, Excalidraw, convertToExcalidrawElements, exportToSvg, reconcileElements, useHandleLibrary } from '@excalidraw/excalidraw';
+import { CaptureUpdateAction, Excalidraw, MainMenu, convertToExcalidrawElements, exportToSvg, reconcileElements, useHandleLibrary } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { isAllowedLibraryUrl, type BoardScene } from '@/lib/boards-types';
 import { excalidrawLang } from '@/lib/board-view';
@@ -153,7 +153,21 @@ export default function ExcalidrawCanvas({
       libraryReturnUrl={withLibrary ? returnUrl : undefined}
       onChange={onChange ? (els, appState, files) => onChange(els, appState as unknown as Record<string, unknown>, files as unknown as Record<string, unknown>) : undefined}
       UIOptions={uiOptions}
-    />
+    >
+      {/*
+       * Menú propio: los ítems útiles del default, sin el grupo "Excalidraw links"
+       * (GitHub, X, Discord), que sacaba a la gente a las redes de Excalidraw.
+       */}
+      <MainMenu>
+        {!viewMode && <MainMenu.DefaultItems.Export />}
+        <MainMenu.DefaultItems.SaveAsImage />
+        <MainMenu.DefaultItems.SearchMenu />
+        <MainMenu.DefaultItems.Help />
+        <MainMenu.DefaultItems.ClearCanvas />
+        {!viewMode && <MainMenu.Separator />}
+        <MainMenu.DefaultItems.ChangeCanvasBackground />
+      </MainMenu>
+    </Excalidraw>
     </div>
   );
 }
