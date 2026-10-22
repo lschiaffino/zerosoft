@@ -56,7 +56,8 @@ test('agents: la página pública nunca devuelve el código de error pensado par
   const text = await res.text();
   expect(text).not.toContain('ai_disabled');
   expect(text).not.toContain('ai_no_credits');
-  expect(text).toContain('unavailable');
+  // Sin modelo: o un error neutro, o (si el agente deriva) el aviso de derivación.
+  expect(text.includes('unavailable') || text.includes('"handoff":true')).toBe(true);
 });
 
 async function pipelineWithStages(request: APIRequestContext, names: string[]) {

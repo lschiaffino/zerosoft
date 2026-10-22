@@ -36,6 +36,10 @@ export default defineConfig({
       ALLOW_PRIVATE_WEBHOOKS: 'true',
       // El usuario demo administra feedback, roadmap y changelog (pestaña Admin de Ajustes).
       ADMIN_EMAILS: 'demo@zerosoft.ai',
+      // Sin AI real: .env.local puede traer un VERCEL_OIDC_TOKEN y el resultado
+      // dependería de la máquina (y de los créditos del Gateway).
+      AI_GATEWAY_API_KEY: '',
+      VERCEL_OIDC_TOKEN: '',
     },
   },
 });
