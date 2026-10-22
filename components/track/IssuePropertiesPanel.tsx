@@ -81,6 +81,7 @@ export default function IssuePropertiesPanel({
     const out: Partial<TrackIssueWithStatus> = {};
     if ('priority' in patch) out.priority = patch.priority as typeof localIssue.priority;
     if ('dueDate' in patch) out.due_date = (patch.dueDate as string | null) ?? null;
+    if ('startDate' in patch) out.start_date = (patch.startDate as string | null) ?? null;
     if ('estimate' in patch) out.estimate = (patch.estimate as number | null) ?? null;
     return out;
   };
@@ -226,7 +227,21 @@ export default function IssuePropertiesPanel({
           </select>
         </div>
       )}
-      <div className="track-property">
+      <div className="track-property" data-testid="track-property-start">
+        <span className="track-property-label">{t('issues.startDate')}</span>
+        <span className="track-property-date">
+          <DueDateMenu
+            dueDate={localIssue.start_date}
+            locale={locale}
+            today={today}
+            labels={dateLabels}
+            label={t('issues.startDate')}
+            plain
+            onChange={(startDate) => void update({ startDate })}
+          />
+        </span>
+      </div>
+      <div className="track-property" data-testid="track-property-due">
         <span className="track-property-label">{labels.dueDate}</span>
         <span className="track-property-date">
           <DueDateMenu

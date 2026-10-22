@@ -173,7 +173,16 @@
 .btn-group > .btn + .btn { margin-left: -1px; }
 .btn-group > .btn[aria-pressed='true'],
 .btn-group > .btn[aria-selected='true'],
-.btn-group > .btn[aria-current='page'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); z-index: 1; }
+/* El activo sigue siendo la placa de tinta al pasar el mouse (si el hover
+   volviera al gris de la secundaria, el texto claro desaparecería). */
+.btn-group > .btn[aria-current='page'] {
+  --btn-bg: var(--ink);
+  --btn-fg: var(--bg);
+  --btn-bd: var(--ink);
+  --btn-bg-hover: var(--ink);
+  --btn-bd-hover: var(--ink);
+  z-index: 1;
+}
 
 /* ---------- 2. Campos ---------- */
 
@@ -701,6 +710,9 @@ dialog.ui-drawer[open] { display: flex; }
   line-height: 1.05;
   letter-spacing: -0.005em;
   text-wrap: balance;
+  /* Un título sin espacios (un link corto, un email) se corta antes que
+     empujar la página a scroll horizontal. */
+  overflow-wrap: anywhere;
 }
 .ui-page-desc { max-width: 65ch; font-size: 0.9375rem; line-height: 1.45; color: var(--brand-gray-1); }
 .ui-page-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }

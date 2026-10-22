@@ -4,7 +4,7 @@ import { searchApps } from '@/lib/app-search';
 import { createBoard } from '@/lib/boards';
 import { setBoardAccessMode } from '@/lib/board-access';
 import { createIssue, createProject } from '@/lib/track-data';
-import { createEventType, getOrCreateCalendarUser } from '@/lib/calendar';
+import { createBooking, createEventType, getOrCreateCalendarUser, setAvailability } from '@/lib/calendar';
 import { createChatWidget } from '@/lib/chat-data';
 import { createFlow } from '@/lib/flow';
 import { createAgent } from '@/lib/agents';
@@ -93,6 +93,23 @@ describe('búsqueda global en las apps', () => {
     expect((await searchAll(u.id, last)).contacts.map((x) => x.id)).toEqual([c.id]);
     const list = await listContacts(u.id, { q: `Ana María ${last}` } as Parameters<typeof listContacts>[1]);
     expect(list.rows.map((x) => x.id)).toEqual([c.id]);
+  });
+
+  it('encuentra reservas por nombre o email del invitado, solo en su workspace', async () => {
+    const s = await seed(`res${crypto.randomUUID().slice(0, 6)}`);
+    await setAvailability(s.et.id, { rules: [1, 2, 3, 4, 5].map((dayOfWeek) => ({ dayOfWeek, startTime: '09:00', endTime: '12:00' })) });
+    const d = new Date(Date.now() + 5 * 86_400_000);
+    while (d.getUTCDay() !== 2) d.setUTCDate(d.getUTCDate() + 1);
+    const guest = `Rocío${crypto.randomUUID().slice(0, 6)}`;
+    const email = `${guest.toLowerCase()}@cliente.com`;
+    const booking = await createBooking({ eventTypeId: s.et.id, email, name: `${guest} Paz`, start: `${d.toISOString().slice(0, 10)}T09:00:00.000Z` });
+    for (const q of [guest, email.split('@')[0]]) {
+      const hit = (await searchApps(s.user, q)).find((i) => i.group === 'bookings');
+      expect(hit).toMatchObject({ id: booking.id, label: `${guest} Paz`, href: `/app/calendar/bookings?q=${encodeURIComponent(email)}` });
+      expect(hit?.meta).toContain(s.et.title);
+    }
+    const other = await makeUser('appsearch-bk');
+    expect((await searchApps(other, guest)).some((i) => i.group === 'bookings')).toBe(false);
   });
 
   it('la ruta /api/search los devuelve junto al resto', async () => {

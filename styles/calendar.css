@@ -378,13 +378,13 @@
 .cal-bk-row { border-bottom: 1px solid var(--line); }
 .cal-bk-main {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1.3fr) minmax(0, 1.1fr) minmax(0, 150px) auto;
+  grid-template-columns: minmax(76px, max-content) minmax(0, 1.3fr) minmax(0, 1.1fr) minmax(0, 150px) auto;
   gap: 16px;
   align-items: center;
   min-height: 56px;
   padding: 8px 0;
 }
-.cal-bk-time { display: flex; flex-direction: column; font-size: 0.9375rem; font-weight: 600; line-height: 1.25; }
+.cal-bk-time { display: flex; flex-direction: column; white-space: nowrap; font-size: 0.9375rem; font-weight: 600; line-height: 1.25; }
 .cal-bk-end { font-size: 0.75rem; font-weight: 400; color: var(--brand-gray-2); }
 .cal-bk-guest,
 .cal-bk-event { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 0.875rem; }
@@ -397,7 +397,7 @@
 .cal-bk-row.is-cancelled .cal-bk-time,
 .cal-bk-row.is-cancelled .cal-bk-guest strong { color: var(--brand-gray-2); text-decoration: line-through; text-decoration-color: var(--brand-gray-3); }
 .cal-bk-detail,
-.cal-bk-panel { margin: 0 0 12px 80px; }
+.cal-bk-panel { margin: 0 0 12px 92px; }
 .cal-bk-detail {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
@@ -495,7 +495,7 @@
   .cal-sched-nav { position: static; }
   .cal-sched-nav ul { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
   .cal-sched-item { flex-shrink: 0; width: auto; min-width: 160px; }
-  .cal-bk-main { grid-template-columns: 56px minmax(0, 1fr) minmax(0, 1fr); }
+  .cal-bk-main { grid-template-columns: minmax(72px, max-content) minmax(0, 1fr) minmax(0, 1fr); }
   .cal-bk-state { grid-column: 2; }
   .cal-bk-actions { grid-column: 2 / -1; justify-content: flex-start; margin-left: -8px; }
 }
@@ -527,7 +527,7 @@
   .cal-block-list li .cal-muted { grid-column: 1; grid-row: 2; }
   .cal-toolbar-date { flex: 1 1 140px; }
   .cal-toolbar-count { margin-left: 0; flex-basis: 100%; }
-  .cal-bk-main { grid-template-columns: 52px minmax(0, 1fr); gap: 4px 12px; }
+  .cal-bk-main { grid-template-columns: minmax(72px, max-content) minmax(0, 1fr); gap: 4px 12px; }
   .cal-bk-event,
   .cal-bk-state,
   .cal-bk-actions { grid-column: 2; }
@@ -823,11 +823,13 @@ html.zs-embed .bk-card { border-color: transparent; border-top-color: var(--bk);
 .bk-guests > .btn,
 .bk-add-guests { align-self: flex-start; }
 
-/* Analítica de reservas. */
-.cal-range { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; }
-.cal-range .btn[aria-current='true'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); z-index: 1; }
-.cal-range-custom { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px; }
-.cal-range-custom .input { width: 160px; }
+/* Analítica de reservas. Clases propias (cal-an-*): .cal-range es la franja
+   horaria de disponibilidad y su `flex: 0 1 140px` estiraba en alto los
+   campos de fecha dentro de .ui-field (columna). */
+.cal-an-range { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; }
+.cal-an-range .btn[aria-current='true'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); --btn-bg-hover: var(--ink); --btn-bd-hover: var(--ink); z-index: 1; }
+.cal-an-range-custom { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px; }
+.cal-an-range-custom .input { width: 160px; }
 .cal-counts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

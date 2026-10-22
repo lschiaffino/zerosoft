@@ -11,6 +11,7 @@ import FilterBar from '@/components/link/FilterBar';
 import LinksTable, { type TableRow } from '@/components/link/LinksTable';
 import LinksQuickCreate, { NewLinkButton } from '@/components/link/LinksQuickCreate';
 import LinkIcon from '@/components/link/LinkIcon';
+import LinkListShortcuts from '@/components/link/LinkListShortcuts';
 
 export const dynamic = 'force-dynamic';
 
@@ -92,6 +93,7 @@ export default async function LinksPage(props: LinksPageProps) {
 
   return (
     <div className="ui-page links-page">
+      <LinkListShortcuts />
       <PageHeader
         title={t('table.title')}
         description={result.total > 0 ? t('table.count', { n: result.total }) : undefined}

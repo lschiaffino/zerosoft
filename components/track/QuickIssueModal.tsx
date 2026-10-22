@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { TrackIssueTemplateRow } from '@/lib/db';
-import { activeCycle, findOpenStatus, parseQuickTitle, type IssuePriority } from '@/lib/track-tasks';
+import { activeCycle, defaultIssueStatus, parseQuickTitle, type IssuePriority } from '@/lib/track-tasks';
 import type { IssueDraft, ProjectContext } from './useIssueStore';
 import { DueDateMenu } from './InlineEditors';
 import { safeHexColor } from '@/lib/track-color';
@@ -58,7 +58,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
   const project = projects.find((p) => p.id === projectId);
   const defaultStatus = (p: ProjectContext | undefined) =>
     (defaults?.statusId && p?.statuses.some((s) => s.id === defaults.statusId) ? defaults.statusId : undefined) ??
-    (p ? findOpenStatus(p.statuses)?.id : undefined) ??
+    (p ? defaultIssueStatus(p.statuses)?.id : undefined) ??
     '';
 
   const [title, setTitle] = useState('');

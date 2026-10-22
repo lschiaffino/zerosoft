@@ -158,7 +158,7 @@ export default function CrossProjectIssues({
   const listGroup = parseIssueGroup(group, ISSUE_GROUPS);
 
   const create = (projectId: string, draft: IssueDraft) => {
-    void store.create(projectId, mine ? { assigneeId: mine.userId, ...draft } : draft);
+    void store.create(projectId, mine ? { assigneeId: mine.userId, ...draft } : draft, sort);
   };
 
   const quickCreate = (raw: string, projectId: string) => {

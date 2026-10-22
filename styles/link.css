@@ -398,6 +398,16 @@ section.lk-block { padding-bottom: 0; }
 .lk-search { position: relative; flex: 1 1 260px; max-width: 420px; }
 .lk-search .input { padding-left: 32px; }
 .lk-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--brand-gray-2); pointer-events: none; }
+.lk-search .input[type='search'] { padding-right: 30px; }
+.lk-search-kbd { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); height: 18px; color: var(--brand-gray-2); pointer-events: none; }
+.lk-search .input:focus ~ .lk-search-kbd,
+.lk-search .input:not(:placeholder-shown) ~ .lk-search-kbd { display: none; }
+@media (pointer: coarse) { .lk-search-kbd { display: none; } }
+/* Ayuda de atajos (tecla ?). */
+.lk-shortcuts-list { display: flex; flex-direction: column; margin: 0; }
+.lk-shortcuts-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.875rem; }
+.lk-shortcuts-row:last-child { border-bottom: 0; }
+.lk-shortcuts-row dd { margin: 0; color: var(--brand-gray-1); }
 .lk-list { display: flex; flex-direction: column; gap: 8px; }
 .links-table .lk-col-check { width: 36px; padding-right: 0; }
 .links-table .ui-check input { margin: 0; }

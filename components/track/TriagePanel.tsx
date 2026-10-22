@@ -7,6 +7,7 @@ import { relDate } from '@/lib/utils';
 import EmptyState from '@/components/ui/EmptyState';
 import type { TrackStatusRow } from '@/lib/db';
 import type { TrackIssueWithStatus } from '@/lib/track-data';
+import { defaultIssueStatus } from '@/lib/track-tasks';
 
 interface TriagePanelProps {
   projectId: string;
@@ -41,7 +42,7 @@ export function TriageActions({
   onResolved: () => void;
 }) {
   const t = useTranslations('track');
-  const defaultStatus = statuses.find((s) => s.category === 'todo') ?? statuses[0];
+  const defaultStatus = defaultIssueStatus(statuses);
   const [statusId, setStatusId] = useState(defaultStatus?.id ?? '');
   const [dupOpen, setDupOpen] = useState(false);
   const [dupOf, setDupOf] = useState('');

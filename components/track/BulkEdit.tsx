@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import type { TrackStatusRow } from '@/lib/db';
 import type { ProjectMember } from '@/lib/track-data';
 import type { WorkspaceLabel } from './LabelPicker';
+import { issueKeyAction } from '@/lib/track-keys';
 
 function isTypingTarget(el: EventTarget | null): boolean {
   const node = el as HTMLElement | null;
@@ -128,6 +129,17 @@ export function BulkBar({
   const t = useTranslations('track');
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  // ⌘⌫ pide borrar la selección (el mismo atajo que en la página del issue).
+  useEffect(() => {
+    if (count === 0 || !canDelete) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (issueKeyAction(e) !== 'delete' || isTypingTarget(e.target)) return;
+      e.preventDefault();
+      setConfirming(true);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [count, canDelete]);
   if (count === 0) return null;
 
   const run = async (fn: () => Promise<void>) => {

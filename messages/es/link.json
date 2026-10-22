@@ -738,5 +738,13 @@
     "kindTag": "Analytics del tag",
     "chartLabel": "Visitas por día ({tz})",
     "footer": "Página de solo lectura compartida desde zerosoft. Muestra solo visitas agregadas."
+  },
+  "shortcuts": {
+    "title": "Atajos de teclado",
+    "newLink": "Nuevo link",
+    "search": "Buscar links",
+    "clearSearch": "Borrar la búsqueda",
+    "help": "Ver esta lista",
+    "commandMenu": "Buscar en todo"
   }
 }

@@ -1,7 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
+import { Link, useRouter } from '@/i18n/navigation';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { issueKeyAction, issueKeyHint } from '@/lib/track-keys';
 import { formatDate, relDate } from '@/lib/utils';
 import StatusBadge from './StatusBadge';
 import IssuePropertiesPanel from './IssuePropertiesPanel';
@@ -161,6 +164,8 @@ interface IssueDetailClientProps {
   labels: DetailLabels;
   /** Labels del quick-create (modal de sub-issue). */
   ui: TrackUiLabels;
+  /** Borrar es solo para owner/admin (igual que el borrado masivo). */
+  canDelete?: boolean;
 }
 
 function parseLabels(raw: string): Array<{ id: string; name: string; color: string }> {
@@ -220,7 +225,10 @@ export default function IssueDetailClient({
   initialSubscribed,
   labels,
   ui,
+  canDelete = false,
 }: IssueDetailClientProps) {
+  const t = useTranslations('track');
+  const router = useRouter();
   const today = useToday();
   const [issue, setIssue] = useState(initialIssue);
   const github = useIssueGithub(issue.id);
@@ -240,7 +248,14 @@ export default function IssueDetailClient({
   const [titleDraft, setTitleDraft] = useState(initialIssue.title);
   const [descDraft, setDescDraft] = useState(() => parseDescription(initialIssue.description));
   const [editingDesc, setEditingDesc] = useState(false);
-  const [copied, setCopied] = useState(false);
+  // Aviso para lectores de pantalla tras copiar (rama o link).
+  const [copied, setCopied] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [mac, setMac] = useState(true);
+  useEffect(() => {
+    setMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent));
+  }, []);
   const titleRef = useAutosize(titleDraft);
   const descRef = useAutosize(editingDesc ? descDraft : '');
 
@@ -365,6 +380,50 @@ export default function IssueDetailClient({
   }
 
   const branchName = branchNameFor(issue.identifier, titleDraft || issue.title);
+
+  const announceCopied = useCallback((message: string) => {
+    setCopied(message);
+    window.setTimeout(() => setCopied(null), 1500);
+  }, []);
+
+  const copyLink = useCallback(() => {
+    void navigator.clipboard?.writeText(window.location.href.split('#')[0]).catch(() => undefined);
+    announceCopied(t('issues.linkCopied'));
+  }, [t, announceCopied]);
+
+  async function handleDelete() {
+    setDeleting(true);
+    const res = await fetch(`/api/track/issues/${issue.id}`, { method: 'DELETE' }).catch(() => null);
+    if (!res?.ok) {
+      setDeleting(false);
+      setConfirmDelete(false);
+      setSaveError(t('issues.deleteError'));
+      return;
+    }
+    router.push(`/app/track/projects/${issue.project_id}`);
+    router.refresh();
+  }
+
+  // ⌘⌫ borra (con confirmación) y ⌘⇧, copia el link, como en Linear. No
+  // corren mientras se escribe (⌘⌫ en un campo borra la línea).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const action = issueKeyAction(e);
+      if (!action || e.defaultPrevented) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || el.closest('input, textarea, select, dialog, [role="dialog"]'))) return;
+      if (action === 'delete') {
+        if (!canDelete) return;
+        e.preventDefault();
+        setConfirmDelete(true);
+      } else {
+        e.preventDefault();
+        copyLink();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [canDelete, copyLink]);
 
   async function handleUpload(file: File) {
     setAttachmentError(null);
@@ -521,7 +580,7 @@ export default function IssueDetailClient({
             <Popover
               ariaLabel={labels.edit.more}
               className="btn btn-icon track-detail-more"
-              width={240}
+              width={300}
               trigger={
                 <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden>
                   <rect x="2" y="7" width="2.5" height="2.5" fill="currentColor" />
@@ -531,23 +590,57 @@ export default function IssueDetailClient({
               }
             >
               {(close) => (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="track-menu-item"
-                  data-testid="track-copy-branch"
-                  data-branch={branchName}
-                  data-autofocus
-                  onClick={() => {
-                    void navigator.clipboard?.writeText(branchName).catch(() => undefined);
-                    setCopied(true);
-                    window.setTimeout(() => setCopied(false), 1500);
-                    close();
-                  }}
-                >
-                  <span className="track-menu-label">{labels.edit.copyBranch}</span>
-                  <span className="track-menu-meta data">{branchName}</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="track-menu-item"
+                    data-testid="track-copy-link"
+                    data-autofocus
+                    aria-keyshortcuts="Meta+Shift+Comma Control+Shift+Comma"
+                    onClick={() => {
+                      copyLink();
+                      close();
+                    }}
+                  >
+                    <span className="track-menu-label">{t('issues.copyLink')}</span>
+                    <kbd className="track-menu-meta">{issueKeyHint('copyLink', mac)}</kbd>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="track-menu-item"
+                    data-testid="track-copy-branch"
+                    data-branch={branchName}
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(branchName).catch(() => undefined);
+                      announceCopied(labels.edit.copied);
+                      close();
+                    }}
+                  >
+                    <span className="track-menu-label is-fixed">{labels.edit.copyBranch}</span>
+                    <span className="track-menu-meta track-menu-meta-trunc data">{branchName}</span>
+                  </button>
+                  {canDelete && (
+                    <>
+                      <div className="track-menu-sep" role="separator" />
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="track-menu-item is-danger"
+                        data-testid="track-issue-delete"
+                        aria-keyshortcuts="Meta+Backspace Control+Backspace"
+                        onClick={() => {
+                          close();
+                          setConfirmDelete(true);
+                        }}
+                      >
+                        <span className="track-menu-label">{t('issues.deleteIssue')}</span>
+                        <kbd className="track-menu-meta">{issueKeyHint('delete', mac)}</kbd>
+                      </button>
+                    </>
+                  )}
+                </>
               )}
             </Popover>
             {(doneStatus || openStatus) && (
@@ -558,7 +651,7 @@ export default function IssueDetailClient({
           </div>
         </div>
         <span className="sr-only" role="status">
-          {copied ? labels.edit.copied : ''}
+          {copied ?? ''}
         </span>
         {issue.triage === 1 && (
           <TriageBanner key={issue.id} issue={issue} statuses={initialStatuses} onResolved={() => void handleIssueChange()} />
@@ -882,6 +975,17 @@ export default function IssueDetailClient({
         today={today}
       />
       <TrackToast message={saveError} onDismiss={() => setSaveError(null)} dismissLabel={ui.inline.dismiss} />
+      <ConfirmDialog
+        open={confirmDelete}
+        title={t('issues.deleteTitle', { identifier: issue.identifier })}
+        body={t('issues.deleteBody')}
+        confirmLabel={t('bulk.delete')}
+        cancelLabel={t('common.cancel')}
+        danger
+        busy={deleting}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }
