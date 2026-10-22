@@ -369,7 +369,8 @@
     "reserved_header": "That header is set automatically and can’t be changed.",
     "already_decided": "Someone already approved or rejected this action.",
     "ai_no_credits": "The AI provider refused the request: the account has no credits or no access to this model. Add credits in the Vercel AI Gateway, or set a model your plan includes under Instructions > Model.",
-    "ai_auth": "The AI provider rejected the server credentials. Check AI_GATEWAY_API_KEY in the server settings."
+    "ai_auth": "The AI provider rejected the server credentials. Check AI_GATEWAY_API_KEY in the server settings.",
+    "unavailable": "The assistant can't reply right now. Please try again in a few minutes."
   },
   "public": {
     "subtitle": "AI assistant",

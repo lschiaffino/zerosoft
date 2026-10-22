@@ -369,7 +369,8 @@
   gap: 16px;
   overflow-x: auto;
   padding-bottom: 16px;
-  align-items: flex-start;
+  /* Columnas a la altura de la más alta: el espacio vacío también es zona de drop. */
+  align-items: stretch;
 }
 
 .kb-col {

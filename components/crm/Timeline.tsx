@@ -75,6 +75,11 @@ const SUBMIT_KEYS: Record<ActivityType, string> = {
   email: 'common.sendEmail',
 };
 
+/** Cmd+Enter (Mac) o Ctrl+Enter, sin una sugerencia de @mención abierta que ya lo usó. */
+function isModEnter(e: { key: string; metaKey: boolean; ctrlKey: boolean; defaultPrevented: boolean; nativeEvent: { isComposing?: boolean } }): boolean {
+  return e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.defaultPrevented && !e.nativeEvent.isComposing;
+}
+
 function formatWhen(iso: string, locale: string): string {
   const d = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
   return new Intl.DateTimeFormat(locale, {
@@ -111,8 +116,10 @@ export default function Timeline({
   const t = useTranslations('crm');
   const router = useRouter();
 
-  // Composer
-  const [type, setType] = useState<ActivityType>('note');
+  // Composer. El tipo sale de la pestaña activa; solo en "All" se elige con
+  // el select del composer (allType). Una sola fuente: lo que se ve es lo que
+  // se guarda.
+  const [allType, setAllType] = useState<ActivityType>('note');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [emailTo, setEmailTo] = useState(defaultEmail);
@@ -131,6 +138,7 @@ export default function Timeline({
 
   // Lista
   const [filter, setFilter] = useState<ActivityType | 'all'>('all');
+  const type: ActivityType = filter === 'all' ? allType : filter;
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
@@ -210,7 +218,7 @@ export default function Timeline({
   function startReply(thread: EmailThreadView) {
     setReplyTo(thread);
     setFilter('email');
-    setType('email');
+    setAllType('email');
     const base = thread.subject || thread.messages[thread.messages.length - 1]?.subject || '';
     setSubject(/^re:/i.test(base) ? base : `Re: ${base}`);
     const lastIn = [...thread.messages].reverse().find((m) => m.direction === 'in');
@@ -276,6 +284,14 @@ export default function Timeline({
     setDirection('');
     setDurationMin('');
     router.refresh();
+  }
+
+  // Cmd/Ctrl+Enter guarda desde cualquier campo del composer (como HubSpot).
+  function submitOnModEnter(e: React.KeyboardEvent<HTMLFormElement>) {
+    if (!isModEnter(e)) return;
+    e.preventDefault();
+    if (posting) return;
+    e.currentTarget.requestSubmit();
   }
 
   async function toggleDone(item: TimelineItem) {
@@ -355,7 +371,7 @@ export default function Timeline({
               className="btn btn-secondary btn-sm"
               onClick={() => {
                 setFilter(v);
-                setType(v);
+                setAllType(v);
               }}
             >
               {t(`enums.activityType.${v}`)}
@@ -365,7 +381,7 @@ export default function Timeline({
         })}
       </div>
 
-      <form className="tl-composer" onSubmit={submit}>
+      <form className="tl-composer" onSubmit={submit} onKeyDown={submitOnModEnter}>
         {type === 'email' && replyTo && (
           <div className="em-replying">
             <span className="muted">{t('email.replyingTo', { subject: replyTo.subject || '—' })}</span>
@@ -484,7 +500,7 @@ export default function Timeline({
               <select
                 className="filter-select tl-type-select"
                 value={type}
-                onChange={(e) => setType(e.target.value as ActivityType)}
+                onChange={(e) => setAllType(e.target.value as ActivityType)}
                 aria-label={t('common.activityType')}
               >
                 {TYPES.map((v) => (
@@ -529,6 +545,7 @@ export default function Timeline({
           </div>
           <button
             type="submit"
+            aria-keyshortcuts="Meta+Enter Control+Enter"
             className="btn btn-solid btn-small"
             disabled={posting || (!subject.trim() && !body.trim()) || (type === 'email' && !emailTo.trim())}
           >
@@ -552,7 +569,15 @@ export default function Timeline({
               {item.thread ? (
                 <EmailThread thread={item.thread} locale={locale} onReply={emailTools ? startReply : undefined} />
               ) : editingId === item.id ? (
-                <div className="tl-edit">
+                <div
+                  className="tl-edit"
+                  onKeyDown={(e) => {
+                    if (isModEnter(e)) {
+                      e.preventDefault();
+                      void saveEdit(item);
+                    }
+                  }}
+                >
                   <input
                     className="input"
                     value={editSubject}

@@ -65,6 +65,15 @@ export function runErrorCode(err: unknown): { code: string; status: number } {
   return { code: 'generic', status: 500 };
 }
 
+// Errores que el visitante de la página pública puede entender o resolver.
+// El resto (créditos, credenciales, cuota, AI apagada) es para el dueño: el
+// visitante ve 'unavailable' y el detalle queda en el log.
+const PUBLIC_SAFE_ERRORS = new Set(['rate_limited', 'conversation_not_found', 'empty_message', 'invalid_input', 'not_found']);
+
+export function publicErrorCode(code: string): string {
+  return PUBLIC_SAFE_ERRORS.has(code) ? code : 'unavailable';
+}
+
 /**
  * Respuesta en streaming (NDJSON: un AgentStreamEvent por línea) para el
  * playground y la página pública. Sin dependencias de cliente (fetch + reader).
@@ -74,7 +83,8 @@ export function streamAgentReply(
 ): Response {
   // Sin AI no hay stream (salvo en una conversación existente, que puede estar
   // derivada a una persona: sendAgentMessage decide).
-  if (!aiEnabled() && !opts.conversationId) return agentError(503, 'ai_disabled');
+  const visitorCode = (code: string) => (opts.channel === 'public' ? publicErrorCode(code) : code);
+  if (!aiEnabled() && !opts.conversationId) return agentError(503, visitorCode('ai_disabled'));
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -95,7 +105,7 @@ export function streamAgentReply(
           handoff: res.result.handoff,
         });
       } catch (err) {
-        emit({ type: 'error', code: runErrorCode(err).code });
+        emit({ type: 'error', code: visitorCode(runErrorCode(err).code) });
       } finally {
         try {
           controller.close();

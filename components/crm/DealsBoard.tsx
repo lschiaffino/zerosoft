@@ -207,7 +207,10 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
       d.ghostEl.style.top = `${e.clientY - d.offsetY}px`;
     }
     const el = document.elementFromPoint(e.clientX, e.clientY);
-    const cardsEl = el?.closest('.kb-cards') as HTMLElement | null;
+    // Toda la columna recibe el drop (título, "+ Agregar" y el espacio de
+    // abajo), no solo la lista de cards.
+    const colEl = el?.closest('.kb-col') as HTMLElement | null;
+    const cardsEl = (el?.closest('.kb-cards') ?? colEl?.querySelector('.kb-cards')) as HTMLElement | null;
     document.querySelectorAll('.kb-cards.drop-target').forEach((c) => {
       if (c !== cardsEl) c.classList.remove('drop-target');
     });
