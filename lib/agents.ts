@@ -1313,6 +1313,43 @@ async function notifyVisitorWaiting(agent: AgentRow, conversationId: string, tex
   }).catch(() => {});
 }
 
+/**
+ * Falla del modelo en la página pública con la herramienta de derivación
+ * activa: marca la conversación derivada, avisa al equipo y le contesta al
+ * visitante con el mensaje de derivación. Null si el agente no deriva.
+ */
+async function publicModelFailureHandoff(
+  agent: AgentRow,
+  conversation: AgentConversationRow,
+  lastUser: string,
+  err: unknown,
+  onEvent?: (event: AgentStreamEvent) => void,
+): Promise<RunAgentResult | null> {
+  const dto = toAgentDto(agent);
+  if (!dto.tools.enabled.includes('handoff_to_human')) return null;
+  const reason = `AI unavailable: ${err instanceof Error ? err.message : String(err)}`.slice(0, 300);
+  await getDb()
+    .prepare('UPDATE agent_conversations SET handed_off = 1, updated_at = ? WHERE id = ?')
+    .run(nowIso(), conversation.id);
+  const { createNotification } = await import('./notifications');
+  await createNotification({
+    userId: agent.user_id,
+    type: 'chat_message',
+    title: `${agent.name}: the AI model failed, a visitor needs a human`,
+    body: lastUser.replace(/\s+/g, ' ').slice(0, 140),
+    href: `/app/agents/${agent.id}?tab=conversations&c=${conversation.id}`,
+    sourceType: 'agent_conversation',
+    sourceId: conversation.id,
+    meta: { handoff: true, agentId: agent.id },
+  }).catch(() => {});
+  const runId = crypto.randomUUID();
+  await recordRun(agent, conversation, 'public', runId, 'handoff', 0);
+  await emitHandoff(agent, conversation, reason);
+  const text = dto.handoff.message || defaultHandoffMessage(lastUser);
+  onEvent?.({ type: 'text', delta: text });
+  return { status: 'handoff', text, handoff: true, runId, toolCalls: [], steps: 0 };
+}
+
 export interface SendAgentMessageOptions {
   agent: AgentRow;
   channel: Exclude<AgentChannel, 'chat'>;
@@ -1399,16 +1436,26 @@ export async function sendAgentMessage(opts: SendAgentMessageOptions): Promise<S
   }
   while (messages.length > 0 && messages[0].role === 'assistant') messages.shift();
 
-  const result = await runAgent({
-    agent,
-    conversation,
-    messages,
-    channel,
-    onEvent: opts.onEvent,
-    stream: opts.stream,
-    abortSignal: opts.abortSignal,
-    dryRun: opts.dryRun,
-  });
+  let result: RunAgentResult;
+  try {
+    result = await runAgent({
+      agent,
+      conversation,
+      messages,
+      channel,
+      onEvent: opts.onEvent,
+      stream: opts.stream,
+      abortSignal: opts.abortSignal,
+      dryRun: opts.dryRun,
+    });
+  } catch (err) {
+    // Página pública: el visitante no puede hacer nada con un error del modelo
+    // (créditos, credenciales, cuota). Si el agente deriva, pasa a una persona.
+    if (channel !== 'public' || (err as Error)?.name === 'AbortError' || opts.abortSignal?.aborted) throw err;
+    const fallback = await publicModelFailureHandoff(agent, conversation, text, err, opts.onEvent);
+    if (!fallback) throw err;
+    result = fallback;
+  }
   const reply = result.text ? await addMessage(conversation.id, 'assistant', result.text, result.runId) : null;
   await touchConversation(conversation);
   return { conversation: (await getConversationRow(conversation.id)) as AgentConversationRow, userMessage, reply, result };

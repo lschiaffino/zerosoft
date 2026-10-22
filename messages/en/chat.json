@@ -437,7 +437,7 @@
     "firstResponse": "First response",
     "resolution": "Resolution",
     "resolved": "Resolved",
-    "note": "Times are averages from when the conversation was created. CSAT from 1 to 5.",
+    "note": "Times are averages from when the conversation was created. First response measures the first reply from a teammate: bot replies are not counted, so a conversation only the bot answered shows a dash. CSAT from 1 to 5.",
     "csatLabel": "CSAT ({count, plural, one {# response} other {# responses}})",
     "range": "Report range",
     "presets": "Quick ranges",

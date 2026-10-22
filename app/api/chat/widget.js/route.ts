@@ -808,6 +808,19 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     sendError.style.display = 'block';
   }
 
+  // Después de resolver, el widget sigue mostrando la conversación cerrada; si
+  // el visitante escribe, el server abre una nueva y el hilo empieza de cero.
+  function adoptConversation(conv) {
+    if (!conv) return;
+    if (conversationId && conv.id !== conversationId) {
+      messages.innerHTML = '';
+      visitorBubbles = {};
+      renderedEdits = {};
+      lastMessageId = null;
+    }
+    conversationId = conv.id;
+  }
+
   function sendMessage(body) {
     // El formulario pre-chat todavía está creando la conversación: esperar, si
     // no se crean dos conversaciones (o choca el alta del visitante).
@@ -845,7 +858,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
           );
           return;
         }
-        if (data.conversation) conversationId = data.conversation.id;
+        adoptConversation(data.conversation);
         appendMessage({ id: data.message && data.message.id, body: body, sender_type: 'visitor', read_at: data.message && data.message.read_at });
         if (data.message && data.message.id) lastMessageId = data.message.id;
         if (data.bot) {
@@ -892,7 +905,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
           return;
         }
         clearPreview();
-        if (data.conversation) conversationId = data.conversation.id;
+        adoptConversation(data.conversation);
         appendMessage({ id: data.message.id, body: data.message.body || '', sender_type: 'visitor', attachments: messageAttachments(data.message) });
         if (data.message.id) lastMessageId = data.message.id;
         if (data.bot) {

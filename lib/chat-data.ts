@@ -1798,12 +1798,16 @@ export async function deleteCannedResponse(id: string): Promise<boolean> {
 
 /**
  * Bot por keyword matching. Heurística:
- * - Se tokeniza el mensaje del visitante (minúsculas, alfanumérico, ≥3
- *   caracteres, tokens únicos).
+ * - Se normaliza el texto (minúsculas, sin tildes) y se parte en palabras de
+ *   3 o más caracteres, sin palabras vacías comunes (es/en/pt).
  * - Cada candidato (canned response o página de docs) suma 2 puntos por
- *   token presente en su título/shortcut y 1 punto por token en su cuerpo.
- * - Gana el candidato con mayor score (>0). Sin match, se manda solo el
- *   greeting (si está configurado); sin greeting ni match, el bot calla.
+ *   palabra presente en su título/shortcut y 1 punto por palabra en su cuerpo.
+ *   La coincidencia es por palabra entera ("pro" no coincide con "problema");
+ *   se acepta una variante con hasta 2 letras de más al final para plurales
+ *   ("precio" y "precios") cuando la palabra tiene 4 o más letras.
+ * - Gana el candidato con mayor score si llega a BOT_MIN_SCORE (una palabra
+ *   en el título o dos en el cuerpo). Sin match, se manda solo el greeting
+ *   (si está configurado); sin greeting ni match, el bot calla.
  * - Solo responde una vez por conversación: si ya contestó un humano o el
  *   bot, no vuelve a hablar.
  * No hay llamadas a AI externas: todo es matching local. El bot con AI
@@ -1814,21 +1818,53 @@ export interface BotReply {
   matchedTitle: string | null;
 }
 
-export function tokenize(text: string): string[] {
-  const tokens = text
-    .toLowerCase()
-    .split(/[^a-z0-9áéíóúñü]+/i)
-    .filter((w) => w.length >= 3);
-  return [...new Set(tokens)];
+export const BOT_MIN_SCORE = 2;
+
+// Palabras demasiado comunes para decidir una respuesta.
+const BOT_STOPWORDS = new Set([
+  // es
+  'que', 'para', 'por', 'con', 'los', 'las', 'una', 'uno', 'unos', 'unas', 'del', 'como', 'esta', 'este', 'esto',
+  'pero', 'mas', 'muy', 'hay', 'son', 'tengo', 'tiene', 'puedo', 'quiero', 'hola', 'gracias', 'cual', 'cuando',
+  'donde', 'sus', 'mis', 'tus', 'nos', 'les', 'ese', 'eso', 'esa', 'sobre', 'tambien', 'algo', 'buenas', 'buenos',
+  // en
+  'the', 'and', 'for', 'you', 'your', 'are', 'can', 'how', 'what', 'with', 'this', 'that', 'have', 'has', 'not',
+  'but', 'from', 'about', 'there', 'when', 'where', 'which', 'would', 'could', 'please', 'thanks', 'hello', 'hey',
+  // pt
+  'voce', 'nao', 'sim', 'uma', 'com', 'dos', 'das', 'aos', 'pelo', 'pela', 'isso', 'isto', 'esse', 'essa', 'ola',
+  'obrigado', 'obrigada', 'qual', 'quando', 'onde', 'tem', 'meu', 'minha', 'seu', 'sua', 'mais',
+]);
+
+// Minúsculas y sin diacríticos: "Cuánto" y "cuanto" son la misma palabra.
+export function normalizeForMatch(text: string): string {
+  return text.normalize('NFD').replace(/\p{M}+/gu, '').toLowerCase();
 }
 
-function scoreCandidate(tokens: string[], title: string, body: string): number {
-  const hayTitle = title.toLowerCase();
-  const hayBody = body.toLowerCase();
+function words(text: string): string[] {
+  return normalizeForMatch(text).split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3);
+}
+
+export function tokenize(text: string): string[] {
+  return [...new Set(words(text).filter((w) => !BOT_STOPWORDS.has(w)))];
+}
+
+function hasWord(haystack: Set<string>, token: string): boolean {
+  if (haystack.has(token)) return true;
+  if (token.length < 4) return false;
+  for (const w of haystack) {
+    // Plurales y variantes cortas en ambos sentidos: precio/precios, plan/planes.
+    const [short, long] = w.length >= token.length ? [token, w] : [w, token];
+    if (short.length >= 4 && long.length - short.length <= 2 && long.startsWith(short)) return true;
+  }
+  return false;
+}
+
+export function scoreCandidate(tokens: string[], title: string, body: string): number {
+  const hayTitle = new Set(words(title));
+  const hayBody = new Set(words(body));
   let score = 0;
   for (const token of tokens) {
-    if (hayTitle.includes(token)) score += 2;
-    else if (hayBody.includes(token)) score += 1;
+    if (hasWord(hayTitle, token)) score += 2;
+    else if (hasWord(hayBody, token)) score += 1;
   }
   return score;
 }
@@ -1893,7 +1929,7 @@ export async function findBotReply(
     for (const page of pages) {
       const text = extractDocsText(page.content);
       const score = scoreCandidate(tokens, page.title, text);
-      if (score > 0 && (!best || score > best.score)) {
+      if (score >= BOT_MIN_SCORE && (!best || score > best.score)) {
         best = {
           score,
           text: `${page.title}: ${clipAtWord(text, 280)}`.trim(),
@@ -1906,7 +1942,7 @@ export async function findBotReply(
     const canned = await listCannedResponses(widget.id);
     for (const response of canned) {
       const score = scoreCandidate(tokens, `${response.shortcut} ${response.title}`, response.body);
-      if (score > 0 && (!best || score > best.score)) {
+      if (score >= BOT_MIN_SCORE && (!best || score > best.score)) {
         best = { score, text: response.body, title: response.title };
       }
     }
@@ -2248,14 +2284,31 @@ export async function getPendingCsatConversation(
     .get(widgetId, visitorId)) as ChatConversationRow | undefined;
 }
 
+// Última conversación del visitante si quedó resuelta: el widget la sigue
+// mostrando (con la encuesta CSAT) hasta que el visitante escriba de nuevo.
+async function getLatestResolvedConversationByVisitor(
+  widgetId: string,
+  visitorId: string,
+): Promise<ChatConversationRow | undefined> {
+  const latest = (await getDb()
+    .prepare('SELECT * FROM chat_conversations WHERE widget_id = ? AND visitor_id = ? ORDER BY created_at DESC LIMIT 1')
+    .get(widgetId, visitorId)) as ChatConversationRow | undefined;
+  return latest?.status === 'resolved' ? latest : undefined;
+}
+
 export async function getVisitorConversationWithMessages(
   widgetId: string,
   externalId: string,
+  // includeResolved: lo usa el poll del widget. Al escribir (POST) se pide
+  // solo la abierta: un mensaje después de resolver abre una conversación nueva.
+  options: { includeResolved?: boolean } = {},
 ): Promise<VisitorConversationWithMessages | null> {
   const visitor = await getChatVisitorByExternalId(widgetId, externalId);
   if (!visitor) return null;
 
-  const conversation = await getOpenConversationByVisitor(widgetId, visitor.id);
+  const conversation =
+    (await getOpenConversationByVisitor(widgetId, visitor.id)) ??
+    (options.includeResolved ? await getLatestResolvedConversationByVisitor(widgetId, visitor.id) : undefined);
   // Los mensajes de sistema son internos (p. ej. la derivación del bot AI).
   const messages = conversation
     ? (await listChatMessages(conversation.id)).filter((m) => m.sender_type !== 'system')

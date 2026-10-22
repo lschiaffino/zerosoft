@@ -437,7 +437,7 @@
     "firstResponse": "Primeira resposta",
     "resolution": "Resolução",
     "resolved": "Resolvidas",
-    "note": "Os tempos são médias desde a criação da conversa. CSAT de 1 a 5.",
+    "note": "Os tempos são médias desde a criação da conversa. Primeira resposta mede a primeira resposta de uma pessoa da equipe: respostas do bot não contam, então uma conversa respondida só pelo bot mostra um traço. CSAT de 1 a 5.",
     "csatLabel": "CSAT ({count, plural, one {# resposta} other {# respostas}})",
     "range": "Período do relatório",
     "presets": "Períodos rápidos",

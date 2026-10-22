@@ -36,7 +36,7 @@ export async function GET(req: Request) {
   const widget = await getChatWidget(widgetId);
   if (!widget) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
-  const result = await getVisitorConversationWithMessages(widgetId, visitorId);
+  const result = await getVisitorConversationWithMessages(widgetId, visitorId, { includeResolved: true });
   const office = getOfficeHoursState(widget);
   if (!result) {
     return NextResponse.json({ visitor: null, conversation: null, messages: [], csat: null, office });
