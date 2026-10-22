@@ -41,6 +41,49 @@ export function issueOrderBy(sort: IssueSort | undefined): string {
   }
 }
 
+const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, medium: 2 };
+
+type SortableIssue = Pick<TrackIssueWithStatus, 'id' | 'created_at' | 'updated_at' | 'priority' | 'due_date' | 'identifier'>;
+
+function cmp(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * El mismo orden que `issueOrderBy`, en el cliente: sirve para ubicar un issue
+ * recién creado sin recargar la lista. Negativo si `a` va antes que `b`.
+ */
+export function compareIssues(sort: IssueSort | undefined, a: SortableIssue, b: SortableIssue): number {
+  const newest = () => cmp(b.created_at, a.created_at) || cmp(b.id, a.id);
+  const prio = () => (PRIORITY_RANK[a.priority] ?? 3) - (PRIORITY_RANK[b.priority] ?? 3);
+  switch (sort) {
+    case 'oldest':
+      return cmp(a.created_at, b.created_at) || cmp(a.id, b.id);
+    case 'updated':
+      return cmp(b.updated_at, a.updated_at) || newest();
+    case 'priority':
+      return prio() || newest();
+    case 'due': {
+      if (!a.due_date !== !b.due_date) return a.due_date ? -1 : 1;
+      return cmp(a.due_date ?? '', b.due_date ?? '') || prio() || newest();
+    }
+    case 'identifier':
+      return cmp(a.identifier, b.identifier) || cmp(a.id, b.id);
+    default:
+      return newest();
+  }
+}
+
+/**
+ * Inserta `issue` en `list` (ya ordenada por `sort`) en su lugar: antes del
+ * primer issue que debería ir después. Sin orden conocido, va al final.
+ */
+export function insertIssueSorted<T extends SortableIssue>(list: T[], issue: T, sort: IssueSort | undefined): T[] {
+  const at = list.findIndex((other) => compareIssues(sort, issue, other) < 0);
+  if (at === -1) return [...list, issue];
+  return [...list.slice(0, at), issue, ...list.slice(at)];
+}
+
 // ---------- Búsqueda ----------
 
 /** Escapa los comodines de LIKE (% y _) y el propio escape; va con ESCAPE '\'. */

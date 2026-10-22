@@ -87,7 +87,7 @@ export default async function CalendarAnalyticsPage(props: {
         description={t('analytics.lead', { timezone: formatTimezone(timezone, locale) })}
       />
 
-      <form className="cal-range" method="get" aria-label={t('analytics.range')}>
+      <form className="cal-an-range" method="get" aria-label={t('analytics.range')}>
         <nav className="btn-group" aria-label={t('analytics.presets')}>
           {PRESETS.map((d) => {
             const active = range.toDate === today && range.fromDate === presetFrom(d);
@@ -98,7 +98,7 @@ export default async function CalendarAnalyticsPage(props: {
             );
           })}
         </nav>
-        <div className="cal-range-custom">
+        <div className="cal-an-range-custom">
           <div className="ui-field">
             <label className="label" htmlFor="cal-an-from">
               {t('analytics.from')}

@@ -45,6 +45,7 @@ import type {
 import { safeHexColor } from './track-color';
 import { normalizeIssueLabels, projectWorkspaceId } from './track-labels';
 import { issueOrderBy, issueSearchClause, labelIdLike, type IssueSort } from './track-views';
+import { defaultIssueStatus } from './track-tasks';
 
 // ---------- Tipos públicos ----------
 
@@ -1056,16 +1057,10 @@ export async function createIssue(
   let identifier = await nextIdentifier(projectId);
   const now = nowIso();
 
-  // Si no se provee status, tomar el primero del proyecto
+  // Sin status elegido: el default del proyecto (Todo antes que Backlog),
+  // el mismo que preselecciona el quick-create.
   let statusId = payload.statusId ?? null;
-  if (!statusId) {
-    const first = (await db
-      .prepare(
-        'SELECT id FROM track_statuses WHERE project_id = ? ORDER BY position ASC LIMIT 1',
-      )
-      .get(projectId)) as { id: string } | undefined;
-    statusId = first?.id ?? null;
-  }
+  if (!statusId) statusId = defaultIssueStatus(await listStatuses(projectId))?.id ?? null;
 
   // El identificador (PROJ-n) se calcula con MAX+1: dos creaciones
   // simultáneas (p. ej. quick-add con Enter rápido) pueden chocar con el

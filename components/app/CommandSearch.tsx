@@ -33,6 +33,7 @@ function useGroupOrder() {
         'boards',
         'tasks',
         'eventTypes',
+        'bookings',
         'widgets',
         'flows',
         'agents',

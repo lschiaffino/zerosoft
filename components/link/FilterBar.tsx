@@ -78,9 +78,23 @@ export default function FilterBar({
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => {
+            // Esc borra la búsqueda (y la aplicada en la URL); sin texto, suelta el foco.
+            if (e.key !== 'Escape') return;
+            e.preventDefault();
+            if (search || q) {
+              setSearch('');
+              if (q) go({ q: undefined });
+            } else e.currentTarget.blur();
+          }}
           placeholder={t('table.searchPlaceholder')}
           aria-label={t('table.searchLabel')}
+          aria-keyshortcuts="/"
+          data-links-search
         />
+        <kbd className="kbd lk-search-kbd" aria-hidden>
+          /
+        </kbd>
       </form>
 
       <div className="btn-group" role="group" aria-label={t('table.status')}>

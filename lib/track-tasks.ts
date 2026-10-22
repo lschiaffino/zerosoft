@@ -44,6 +44,16 @@ export function findDoneStatus<T extends StatusLike>(statuses: T[]): T | undefin
 }
 
 /**
+ * Status de un issue nuevo cuando no se elige uno (quick-create con C, API,
+ * Flow, agentes, Chat, recurrentes, triage). Una sola regla en todos lados,
+ * la de Linear: el primer status sin empezar (`todo`); si no hay, el primer
+ * `backlog`; si tampoco, el primer status abierto. Es la misma que al reabrir.
+ */
+export function defaultIssueStatus<T extends StatusLike>(statuses: T[]): T | undefined {
+  return findOpenStatus(statuses);
+}
+
+/**
  * Status al que vuelve una tarea al destildarla: el primer `todo`, si no hay
  * el primer `backlog`, y si tampoco el primer status abierto.
  */

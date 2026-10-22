@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { realUserId, requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import {
   getAccessibleIssue,
   listCycles,
@@ -74,6 +74,7 @@ export default async function IssueDetailPage(
       initialRelations={relations}
       initialSubscribed={subscribed}
       ui={buildTrackUiLabels(t)}
+      canDelete={isWorkspaceAdmin(user)}
       labels={{
         back: t('issues.breadcrumb'),
         description: t('issues.description'),

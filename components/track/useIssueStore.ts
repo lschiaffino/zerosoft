@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { TrackIssueTemplateRow, TrackStatusRow } from '@/lib/db';
 import type { ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
-import { applyIssuePatch, findOpenStatus, toggleDoneStatus, type IssuePatch, type IssuePriority } from '@/lib/track-tasks';
+import { applyIssuePatch, defaultIssueStatus, toggleDoneStatus, type IssuePatch, type IssuePriority } from '@/lib/track-tasks';
+import { insertIssueSorted, type IssueSort } from '@/lib/track-views';
 
 /** Lo que una vista necesita saber de un proyecto para editar inline. */
 export interface ProjectContext {
@@ -44,7 +45,8 @@ export interface IssueStore {
   setIssues: Dispatch<SetStateAction<TrackIssueWithStatus[]>>;
   update: (issueId: string, patch: IssuePatch) => Promise<void>;
   toggleDone: (issue: TrackIssueWithStatus) => Promise<void>;
-  create: (projectId: string, draft: IssueDraft) => Promise<TrackIssueWithStatus | null>;
+  /** `sort`: orden de la vista, para ubicar el issue nuevo donde va (Newest → arriba). */
+  create: (projectId: string, draft: IssueDraft, sort?: IssueSort) => Promise<TrackIssueWithStatus | null>;
   error: string | null;
   clearError: () => void;
 }
@@ -61,7 +63,7 @@ interface Messages {
 
 function draftIssue(projectId: string, id: string, draft: IssueDraft, ctx?: ProjectContext): TrackIssueWithStatus {
   const now = new Date().toISOString();
-  const statusId = draft.statusId ?? (ctx ? findOpenStatus(ctx.statuses)?.id : undefined) ?? null;
+  const statusId = draft.statusId ?? (ctx ? defaultIssueStatus(ctx.statuses)?.id : undefined) ?? null;
   const base: TrackIssueWithStatus = {
     id,
     project_id: projectId,
@@ -190,11 +192,11 @@ export function useIssueStore(
   );
 
   const create = useCallback(
-    async (projectId: string, draft: IssueDraft) => {
+    async (projectId: string, draft: IssueDraft, sort?: IssueSort) => {
       const ctx = projects[projectId];
       const tempId = `tmp-${Math.random().toString(36).slice(2, 10)}`;
       const temp = draftIssue(projectId, tempId, draft, ctx);
-      setIssues((list) => [...list, temp]);
+      setIssues((list) => (sort ? insertIssueSorted(list, temp, sort) : [...list, temp]));
       const run = async (): Promise<TrackIssueWithStatus | null> => {
         try {
           const res = await fetch(`/api/track/projects/${projectId}/issues`, {

@@ -227,6 +227,11 @@
   color: var(--brand-gray-2);
 }
 
+.track-menu-item.is-danger { color: var(--bad-ink); }
+/* La etiqueta entera y el dato largo (nombre de la rama) recortado. */
+.track-menu-label.is-fixed { flex: 0 0 auto; }
+.track-menu-meta-trunc { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+
 .track-menu-sep {
   height: 1px;
   margin: 4px 0;

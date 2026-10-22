@@ -438,6 +438,8 @@ export function DueDateMenu({
   disabled,
   labels,
   today,
+  label,
+  plain = false,
 }: {
   dueDate: string | null;
   locale: string;
@@ -445,9 +447,13 @@ export function DueDateMenu({
   disabled?: boolean;
   labels: TrackUiLabels['inline'];
   today: string;
+  /** Nombre del campo para lectores de pantalla (por defecto, la fecha límite). */
+  label?: string;
+  /** Sin marcar vencida ni de hoy (p. ej. la fecha de inicio). */
+  plain?: boolean;
 }) {
   const day = dueDate ? dueDate.slice(0, 10) : null;
-  const overdue = day !== null && day < today;
+  const overdue = !plain && day !== null && day < today;
   const isToday = day === today;
   const display = day ? (isToday ? labels.today : formatDay(day, locale, today)) : labels.noDate;
   const set = (v: string | null, close: () => void) => {
@@ -456,10 +462,10 @@ export function DueDateMenu({
   };
   return (
     <Popover
-      ariaLabel={`${labels.dueDate}: ${display}`}
+      ariaLabel={`${label ?? labels.dueDate}: ${display}`}
       disabled={disabled}
       width={220}
-      className={overdue ? 'is-overdue' : isToday ? 'is-today' : undefined}
+      className={overdue ? 'is-overdue' : isToday && !plain ? 'is-today' : undefined}
       trigger={
         <>
           <svg className="track-inline-cal" viewBox="0 0 16 16" aria-hidden>

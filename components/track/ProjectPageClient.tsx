@@ -571,7 +571,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   };
 
   const createIssue = (draft: IssueDraft) => {
-    void store.create(projectId, draft).then((created) => {
+    void store.create(projectId, draft, sort).then((created) => {
       if (created) setIssuesTotal((n) => n + 1);
     });
   };
