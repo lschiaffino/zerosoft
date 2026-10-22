@@ -19,6 +19,8 @@
     "delete": "Delete",
     "actions": "Board actions",
     "updated": "Edited {when}",
+    "import": "Import .excalidraw",
+    "importInvalid": "That file isn’t an Excalidraw drawing.",
     "createError": "Couldn’t create the board. Try again.",
     "actionError": "Couldn’t finish that. Try again.",
     "creating": "Creating…",

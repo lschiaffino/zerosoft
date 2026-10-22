@@ -5,6 +5,8 @@ export const boardCreateSchema = z.object({
   name: z.string().trim().max(120).optional(),
   template: z.enum(BOARD_TEMPLATES).optional(),
   locale: z.string().max(8).optional(),
+  /** Contenido de un archivo .excalidraw a importar (se valida en board-import). */
+  import: z.unknown().optional(),
 });
 
 export const boardRenameSchema = z.object({

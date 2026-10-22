@@ -19,6 +19,8 @@
     "delete": "Excluir",
     "actions": "Ações do quadro",
     "updated": "Editado {when}",
+    "import": "Importar .excalidraw",
+    "importInvalid": "Esse arquivo não é um desenho do Excalidraw.",
     "createError": "Não foi possível criar o quadro. Tente de novo.",
     "actionError": "Não foi possível concluir. Tente de novo.",
     "creating": "Criando…",

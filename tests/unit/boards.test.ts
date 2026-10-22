@@ -105,6 +105,20 @@ describe('boards: CRUD y aislamiento por workspace', () => {
   });
 });
 
+describe('boards: importar .excalidraw', () => {
+  it('POST con import crea la pizarra con los elementos y rechaza un archivo inválido', async () => {
+    const owner = await makeUser('bimp');
+    session.user = owner as never;
+    const ok = await boardsRoute.POST(jsonReq('http://x/api/boards', 'POST', { name: 'Mapa', import: { type: 'excalidraw', elements: [rect('r1'), rect('r2')] } }));
+    expect(ok.status).toBe(201);
+    const board = await ok.json();
+    expect(board.name).toBe('Mapa');
+    expect(board.scene.elements).toHaveLength(2);
+    const bad = await boardsRoute.POST(jsonReq('http://x/api/boards', 'POST', { import: { type: 'otro', elements: [] } }));
+    expect(bad.status).toBe(422);
+  });
+});
+
 describe('boards: escena', () => {
   it('guarda solo el subset de appState', async () => {
     const u = await makeUser('as');
