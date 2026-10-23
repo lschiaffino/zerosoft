@@ -110,6 +110,7 @@ export default async function AppLayout(
                 { href: '/app/crm/settings', label: tCrm('tabs.settings') },
                 { href: '/app/crm/trash', label: tCrm('tabs.trash') },
                 { href: '/app/docs', label: tDocs('sidebar.pages') },
+                { href: '/app/docs/import', label: tDocs('notionImport.title') },
                 { href: '/app/calendar', label: tCalendar('sidebar.overview') },
                 { href: '/app/calendar/event-types', label: tCalendar('sidebar.eventTypes') },
                 { href: '/app/calendar/routing', label: tCalendar('sidebar.routing') },

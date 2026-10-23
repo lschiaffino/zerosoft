@@ -5,13 +5,16 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { ImportResult } from '@/lib/crm';
 import {
+  CSV_PRESETS,
   CUSTOM_PREFIX,
+  finalizeRow,
   guessMapping,
-  hubspotMapping,
   importTargets,
   mappingToObject,
   parseCsv,
+  presetColumnsMapping,
   presetMapping,
+  type CsvPreset,
   type ImportEntity as Entity,
   type MappableCustomField,
 } from './csv';
@@ -22,8 +25,8 @@ interface SavedPreset {
   mapping: Record<string, string>;
 }
 
-/** Preset de mapeo elegido: auto-detect, HubSpot o uno guardado (id). */
-type PresetChoice = 'auto' | 'hubspot' | string;
+/** Preset de mapeo elegido: auto-detect, el export de otro CRM o uno guardado (id). */
+type PresetChoice = 'auto' | CsvPreset | string;
 
 /** Import en 3 pasos: pegar/elegir CSV → mapear columnas → resultado. */
 export default function ImportPanel() {
@@ -67,7 +70,9 @@ export default function ImportPanel() {
   }, [entity]);
 
   function mappingFor(choice: PresetChoice, hdrs: string[]): string[] {
-    if (choice === 'hubspot') return hubspotMapping(hdrs, entity, customFields);
+    if ((CSV_PRESETS as readonly string[]).includes(choice)) {
+      return presetColumnsMapping(choice as CsvPreset, hdrs, entity, customFields);
+    }
     const saved = presets.find((p) => p.id === choice);
     if (saved) return presetMapping(hdrs, saved.mapping, importTargets(entity, customFields));
     return guessMapping(hdrs, entity, customFields);
@@ -149,7 +154,7 @@ export default function ImportPanel() {
           const v = (r[i] ?? '').trim();
           if (m && v) obj[m] = v;
         });
-        return obj;
+        return finalizeRow(obj);
       })
       .filter((obj) => Object.keys(obj).length > 0);
   }
@@ -304,7 +309,11 @@ export default function ImportPanel() {
                 aria-label={t('importP.preset')}
               >
                 <option value="auto">{t('importP.presetAuto')}</option>
-                <option value="hubspot">{t('importP.presetHubspot')}</option>
+                {CSV_PRESETS.map((p) => (
+                  <option key={p} value={p}>
+                    {t(`importP.presets.${p}`)}
+                  </option>
+                ))}
                 {presets.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}

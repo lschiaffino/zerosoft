@@ -87,7 +87,9 @@
     "docsTemplates": "Modelos",
     "home": "Início do zerosoft",
     "switchProduct": "Trocar de app",
-    "closeMenu": "Fechar menu"
+    "closeMenu": "Fechar menu",
+    "importFromHubspot": "Importar do HubSpot",
+    "importFromPipedrive": "Importar do Pipedrive"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
@@ -424,5 +426,34 @@
     "system": "Sistema",
     "light": "Claro",
     "dark": "Escuro"
+  },
+  "importJob": {
+    "reading": "Lendo a origem… {count} itens até agora",
+    "uploading": "Enviando… {percent}%",
+    "importing": "Importando… {processed} de {total}",
+    "keepsGoing": "Você pode sair desta página. A importação continua e você pode voltar para acompanhar.",
+    "cancel": "Cancelar",
+    "errors": {
+      "unauthorized": "O token foi recusado. Confira se está correto e tem acesso de leitura.",
+      "not_found": "Não encontrado. Confira o nome e se o token pode ver.",
+      "source_unreachable": "Não foi possível conectar ao serviço. Tente de novo em instantes.",
+      "source_error": "O serviço respondeu com um erro. Tente de novo em instantes.",
+      "invalid_repo": "Use o formato dono/repo.",
+      "csv_no_title": "Escolha a coluna do título.",
+      "csv_empty": "Nenhuma linha tem título. Confira o mapeamento de colunas.",
+      "file_too_large": "O arquivo é grande demais.",
+      "invalid_zip": "Não é um arquivo .zip válido.",
+      "invalid_upload": "O arquivo enviado não foi encontrado. Envie de novo.",
+      "notion_empty": "O .zip não tem páginas em Markdown nem CSV. Exporte do Notion como Markdown & CSV.",
+      "storage_unavailable": "Este servidor não tem armazenamento de arquivos configurado.",
+      "upload_failed": "O envio falhou. Tente de novo.",
+      "upload_incomplete": "O envio não terminou. Tente de novo.",
+      "project_not_found": "Esse projeto não existe mais.",
+      "forbidden": "Só quem administra o workspace pode importar aqui.",
+      "invalid_input": "Confira os campos e tente de novo.",
+      "not_ready": "A prévia não está mais disponível. Comece de novo.",
+      "internal_error": "Algo falhou do nosso lado. Nada mais foi alterado.",
+      "generic": "Não foi possível importar. Tente de novo."
+    }
   }
 }

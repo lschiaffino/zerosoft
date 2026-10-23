@@ -1,4 +1,4 @@
-import type { DocsBlock } from './docs-types';
+import { withDatabaseBodies, type DocsBlock } from './docs-types';
 
 /**
  * Bloques de imagen y archivo de Docs. Puro (sin DB ni fs): lo usan el editor,
@@ -110,7 +110,8 @@ export function sanitizeFileFields(block: DocsBlock): DocsBlock {
 
 /** Bloque image/file con archivo válido, por id (lo que sirve el proxy). */
 export function findFileBlock(blocks: DocsBlock[], blockId: string): (DocsBlock & { url: string }) | null {
-  const block = blocks.find((b) => b.id === blockId);
+  // También los del cuerpo de las filas de una base.
+  const block = withDatabaseBodies(blocks).find((b) => b.id === blockId);
   if (!block || !isFileBlockType(block.type) || !isDocsUploadUrl(block.url)) return null;
   return block as DocsBlock & { url: string };
 }
@@ -118,6 +119,9 @@ export function findFileBlock(blocks: DocsBlock[], blockId: string): (DocsBlock 
 /** Saca la URL del storage (para quien solo puede ver la página). */
 export function stripFileUrls(blocks: DocsBlock[]): DocsBlock[] {
   return blocks.map((b) => {
+    if (b.type === 'database' && b.db?.rows?.some((r) => r.body?.length)) {
+      return { ...b, db: { ...b.db, rows: b.db.rows.map((r) => (r.body?.length ? { ...r, body: stripFileUrls(r.body) } : r)) } };
+    }
     if (!isFileBlockType(b.type) || b.url === undefined) return b;
     const { url, ...rest } = b;
     // El render solo necesita saber si hay archivo: se marca con un string vacío.

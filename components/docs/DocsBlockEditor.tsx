@@ -18,7 +18,7 @@ import { looksLikeMarkdown, markdownToBlocks, plainTextToBlocks } from '@/lib/do
 import { isToggleBlock } from '@/lib/docs-blocks';
 import DocsGlyph from './DocsGlyphs';
 import EmojiPicker from './EmojiPicker';
-import DocsDatabaseBlock from './DocsDatabaseBlock';
+import DocsDatabaseBlock, { type DbOpenMode } from './DocsDatabaseBlock';
 import { DocsBoardPicker, DocsBoardPreview } from './DocsBoardEmbed';
 
 interface DocsBlockEditorProps {
@@ -32,11 +32,16 @@ interface DocsBlockEditorProps {
   /** URL (con chequeo de acceso) del archivo de un bloque image/file. */
   fileHref?: (blockId: string, opts?: { download?: boolean }) => string;
   /** Links [[ que no son páginas de Docs (Notes): href y cómo abrirlos. */
-  pageLinks?: Pick<PageLinkSource, 'href' | 'open'>;
+  pageLinks?: Pick<PageLinkSource, 'href' | 'open' | 'rows'>;
   /** Pegar archivos (captura de pantalla, archivo copiado): los sube el editor. */
   onPasteFiles?: (index: number, files: File[]) => void;
   /** Pegado con estructura (varios párrafos, listas, Markdown): el editor lo parte en bloques. */
   onPasteBlocks?: (index: number, blocks: DocsBlock[]) => void;
+  /** Bases de datos: abrir una fila como página y de dónde salen los miembros (persona). */
+  database?: {
+    onOpenRow: (blockId: string, rowId: string, mode: DbOpenMode) => void;
+    membersUrl: string | null;
+  };
 }
 
 /** HTML pegado sin estructura semántica (VS Code, terminales): manda el texto plano. */
@@ -70,7 +75,7 @@ function pastedBlocks(html: string, text: string): DocsBlock[] | null {
 }
 
 const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
-  ({ block, index, listIndex, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles, onPasteBlocks }, ref) => {
+  ({ block, index, listIndex, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles, onPasteBlocks, database }, ref) => {
     const t = useTranslations('docs');
     const locale = useLocale();
     const router = useRouter();
@@ -134,9 +139,10 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
         const id = a.getAttribute('data-page') ?? '';
         if (!isPageLinkId(id)) return;
         a.contentEditable = 'false';
-        a.href = `/${locale}${linkHref(id)}`;
+        const row = a.getAttribute('data-row');
+        a.href = `/${locale}${row && (!pageLinks || pageLinks.rows) ? pageLinkHref(id, row) : linkHref(id)}`;
       });
-    }, [block.id, block.content, locale, linkHref]);
+    }, [block.id, block.content, locale, linkHref, pageLinks]);
 
     /**
      * Click en un link: el de página navega (Cmd/Ctrl+click: pestaña nueva);
@@ -149,9 +155,12 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
       const modifier = e.metaKey || e.ctrlKey;
       if (page !== null && isPageLinkId(page)) {
         e.preventDefault();
-        if (modifier) window.open(`/${locale}${linkHref(page)}`, '_blank', 'noopener');
+        // Link a una fila de una base (solo Docs): abre la fila como página.
+        const row = pageLinks && !pageLinks.rows ? null : a.getAttribute('data-row');
+        const href = row ? pageLinkHref(page, row) : linkHref(page);
+        if (modifier) window.open(`/${locale}${href}`, '_blank', 'noopener');
         else if (pageLinks?.open) pageLinks.open(page);
-        else router.push(linkHref(page));
+        else router.push(href);
         return;
       }
       if (modifier) {
@@ -249,8 +258,9 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           block={block}
           index={index}
           onChange={onChange}
-          onKeyDown={onKeyDown}
           onFocus={onFocus}
+          onOpenRow={database?.onOpenRow}
+          membersUrl={database?.membersUrl ?? null}
         />
       );
     }

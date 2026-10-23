@@ -759,7 +759,9 @@
     "title": "Docs: Add filter, sort, group and board view to database blocks",
     "description": "Notion databases offer table, board, list, calendar, timeline, gallery and chart views, with filters (AND/OR groups), multi-level sorts and group-by (https://www.notion.com/help/views-filters-and-sorts). Our DocsDatabaseBlock.tsx stores rows as string arrays with text/number/select/date columns and only toggles table or gallery, with no filter, sort, grouping, checkbox, person or URL properties. Small teams use these inline databases as lightweight trackers (content calendar, hiring list, vendor list) and without sorting or a board view they fall back to a spreadsheet. First scope: column sort and a simple per-view filter stored on the block, checkbox/person/URL column types, and a board view grouped by a select column with drag between groups.\n\nPriority: medium. Effort: L. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-22-imports"
   },
   {
     "title": "Docs: Let teams save any page as a reusable workspace template",
@@ -1375,7 +1377,9 @@
     "title": "Cal: Import event types, schedules and questions from Calendly",
     "description": "Cal.com offers a one-click Calendly import on its free plan (https://cal.com/pricing). We have no import in Cal, so a team switching from Calendly recreates every event type, availability schedule, custom question and routing form by hand. Scope: paste a Calendly personal access token (API v2), list event types and availability schedules, map duration, locations, questions, buffers and limits to our schema, preview and import; upcoming scheduled events optionally imported as bookings so slots stay blocked.\n\nPriority: high. Effort: M. Compared with Calendly and Cal.com.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-22-imports"
   },
   {
     "title": "Cal: Send SMS and WhatsApp reminders from workflows",
@@ -1549,13 +1553,17 @@
     "title": "Docs: Import a Notion or Confluence export (zip of Markdown/HTML and CSV) with its page tree",
     "description": "Notion imports whole workspaces from Confluence, Evernote, Google Docs and others, plus .md, .html, .csv and zip files up to 50 MB on paid plans (https://www.notion.com/help/import-data-into-notion). Docs can import one .md or .docx file into an existing page (POST /api/docs/pages/:id/import, 4 MB cap in lib/docs-import.ts), so a team leaving Notion has to recreate its tree by hand. First scope: accept the zip that Notion's 'Export > Markdown & CSV' produces (and Confluence's HTML export), rebuild the folder hierarchy as nested pages, rewrite relative links between files into [[ page links, upload embedded images through lib/docs-files.ts, and turn each CSV into a database block. Show a progress and a summary of skipped files.\n\nPriority: high. Effort: M. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-22-imports"
   },
   {
     "title": "Docs: Add person, checkbox, URL and status properties, and open database rows as pages",
     "description": "Notion databases have about 20 property types (person, checkbox, URL, status, relation, formula...) and every row is a page you can open (https://www.notion.com/help/intro-to-databases). Our database block (components/docs/DocsDatabaseBlock.tsx) supports text, number, select and date only (DocsDatabaseColumnType in lib/docs-types.ts), and a row is a set of cells with no body. Without person and checkbox a small team can't build a task tracker. First scope: add person (workspace member picker reusing /api/docs/members), checkbox, URL and status column types; let a row open in a side peek with its own block content stored with the row; keep the existing table and gallery views working. Filters, sorts and board view are tracked in a separate idea.\n\nPriority: high. Effort: M. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-22-imports"
   },
   {
     "title": "Docs: Comment on selected text and suggest edits that the owner accepts or rejects",
@@ -1825,7 +1833,9 @@
     "title": "Track: Import issues from Linear, Jira, GitHub Issues and CSV, and export a project to CSV",
     "description": "Linear has guided importers for Jira, GitHub Issues, Asana, Shortcut and Linear itself that bring issues, projects, labels and users, with user mapping and an undo window (https://linear.app/docs/import-issues). Track has no importer and no export: a team switching over has to retype its backlog, which is the first reason not to switch. First scope: a CSV importer in Track › Settings with column mapping (title, description, status, priority, assignee by email, labels, due date, estimate, parent) into one project, plus a Linear importer using a personal API key (issues, comments, labels, states mapped by category) and a GitHub Issues importer per repo. Export: CSV of the current list view.\n\nPriority: high. Effort: M. Compared with Linear, Jira.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-22-imports"
   },
   {
     "title": "Track: Update lists, board and issue pages live when a teammate changes something",
@@ -1952,5 +1962,13 @@
     "description": "The database has no sqlite_stat1, so the planner picks odd indexes: sorting contacts by name uses idx_crm_contacts_score, and the link count uses idx_links_user_creator. Several sorts build a temp B-tree: contacts by name and email with COLLATE NOCASE (lib/crm.ts:575-578), links by clicks (lib/links.ts:204), and Docs by position. That is cheap today and will not be at 50k rows. First scope: run PRAGMA optimize from the hourly cron, and add indexes on (user_id, first_name COLLATE NOCASE, last_name COLLATE NOCASE) and (user_id, clicks DESC).\n\nPriority: low. Effort: S.",
     "product": "other",
     "kind": "idea"
+  },
+  {
+    "title": "CRM: Import a whole HubSpot or Pipedrive account by API, with a preview and safe re-runs",
+    "description": "Teams leaving HubSpot or Pipedrive need owners, custom properties, pipelines, companies, contacts, deals, associations and activities to come over in one go, not CSV by CSV. Paste a private app or API token, review counts and owner matching, then import in resumable chunks. Re-running updates instead of duplicating.",
+    "product": "crm",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-22-imports"
   }
 ]

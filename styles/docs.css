@@ -741,93 +741,6 @@
 .docs-table-add:hover { background: var(--brand-enamel); border-color: var(--ink); }
 .docs-table-wrap > .docs-table-add { margin-top: 8px; }
 
-.docs-db-wrap { max-width: 100%; overflow-x: auto; }
-.docs-db-table { min-width: 480px; }
-.docs-db-header { display: flex; justify-content: flex-end; margin-bottom: 6px; }
-.docs-db-view-toggle { display: inline-flex; }
-.docs-db-view-btn {
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--ui-field);
-  background: var(--bg);
-  font: inherit;
-  font-size: 0.8125rem;
-  color: var(--brand-gray-1);
-  cursor: pointer;
-}
-.docs-db-view-btn:first-child { border-radius: var(--radius-1) 0 0 var(--radius-1); }
-.docs-db-view-btn:last-child { margin-left: -1px; border-radius: 0 var(--radius-1) var(--radius-1) 0; }
-.docs-db-view-btn.active { position: relative; z-index: 1; border-color: var(--ink); background: var(--ink); color: var(--bg); }
-.docs-db-head { display: flex; align-items: center; gap: 6px; padding: 4px 6px; }
-.docs-db-name {
-  flex: 1;
-  min-width: 60px;
-  padding: 4px 2px;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--ink);
-  outline: none;
-}
-.docs-db-type {
-  height: 24px;
-  padding: 0 4px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-1);
-  background: var(--bg);
-  font: inherit;
-  font-size: 0.75rem;
-  color: var(--brand-gray-2);
-}
-.docs-db-remove {
-  padding: 2px 6px;
-  border: 0;
-  border-radius: var(--radius-1);
-  background: none;
-  color: var(--brand-gray-2);
-  font-size: 0.875rem;
-  line-height: 1;
-  cursor: pointer;
-}
-.docs-db-remove:hover { color: var(--ink); background: var(--ui-press); }
-.docs-db-options {
-  width: 100%;
-  padding: 4px 8px;
-  border: 0;
-  border-top: 1px solid var(--line);
-  background: transparent;
-  font: inherit;
-  font-size: 0.75rem;
-  color: var(--brand-gray-2);
-  outline: none;
-}
-.docs-db-options:focus { color: var(--ink); }
-.docs-db-row-head,
-.docs-db-row-actions { width: 32px; text-align: center; vertical-align: middle; }
-.docs-db-cell-select { width: 100%; padding: 8px 10px; border: 0; background: transparent; font: inherit; color: var(--ink); outline: none; }
-.docs-db-wrap input[type='date'],
-.docs-db-wrap input[type='number'] { font-family: var(--font-data); font-size: 0.8125rem; }
-.docs-db-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
-.docs-db-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); }
-.docs-db-card-title { margin: 0 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9375rem; font-weight: 600; }
-.docs-db-prop { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 0.8125rem; }
-.docs-db-prop-label { flex-shrink: 0; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-2); }
-.docs-db-prop-value { min-width: 0; overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
-.docs-db-prop-number { font-variant-numeric: tabular-nums; }
-.docs-db-prop-empty { color: var(--brand-gray-3); }
-.docs-db-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 7px;
-  border-radius: var(--radius-1);
-  background: var(--brand-enamel);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-.docs-db-gallery-empty { margin: 4px 0 0; font-size: 0.875rem; color: var(--brand-gray-2); }
 
 /* ---------- 6. Asas de bloque: arrastrar, insertar, comentar ---------- */
 
@@ -1446,7 +1359,6 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
   .docs-mention-popover { max-width: calc(100vw - 16px); }
   .docs-block-menu { left: -24px; width: min(220px, calc(100vw - 32px)); }
   .docs-bmenu-sub { top: calc(100% + 4px); left: auto; right: 0; width: min(210px, calc(100vw - 32px)); }
-  .docs-db-table { min-width: 480px; }
 
   .docs-invite { flex-wrap: wrap; }
   .docs-invite-field { flex-basis: 100%; }
@@ -1615,3 +1527,6 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
   .docs-board-embed { flex-direction: column; }
   .docs-board-thumb { flex-basis: auto; width: 100%; }
 }
+
+/* Acciones del encabezado de Docs: importar + página nueva. */
+.docs-landing-actions { display: flex; flex-wrap: wrap; gap: 8px; }

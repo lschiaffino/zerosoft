@@ -728,5 +728,45 @@
       "phone_invitee": "Phone call (you call)",
       "in_person": "In person: {address}"
     }
+  },
+  "importer": {
+    "tab": "Import",
+    "title": "Import from Calendly",
+    "lead": "Bring your event types, availability and, if you want, upcoming bookings. You see a preview before anything is created.",
+    "adminOnly": "Only workspace admins can import.",
+    "loadingJobs": "Loading…",
+    "dismiss": "Close",
+    "token": "Calendly personal access token",
+    "tokenHelp": "In Calendly: Integrations › API and webhooks › Personal access tokens.",
+    "tokenNote": "Used only for this import. It is kept encrypted while the import reads your data and deleted right after.",
+    "includeBookings": "Also import upcoming bookings",
+    "includeBookingsHelp": "They are added as confirmed. Invitees do not get a new email.",
+    "preview": "Preview",
+    "stat": {
+      "eventTypes": "Event types",
+      "schedules": "Schedules",
+      "bookings": "Upcoming bookings"
+    },
+    "eventTypesTitle": "Event types",
+    "colTitle": "Event type",
+    "colDuration": "Duration",
+    "colLocations": "Locations",
+    "colQuestions": "Questions",
+    "minutes": "{n} min",
+    "already": "already imported",
+    "inactive": "inactive",
+    "unmapped": "not supported here: {kinds}",
+    "schedulesTitle": "Availability",
+    "scheduleRules": "{count} weekly blocks",
+    "defaultSchedule": "default",
+    "scheduleNote": "Calendly does not say which schedule each event type uses, so they all get the default one. You can change it in each event type.",
+    "confirm": "Import",
+    "doneTitle": "Import finished.",
+    "doneSummary": "{eventTypes} event types, {schedules} schedules and {bookings} bookings imported. {skipped} already existed.",
+    "renamed": "The link {from} was taken, so it is now {to}.",
+    "failed": "Not imported: {titles}.",
+    "openEventTypes": "Go to event types",
+    "again": "Import again",
+    "failedTitle": "The import stopped."
   }
 }

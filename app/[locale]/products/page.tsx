@@ -6,6 +6,9 @@ import HeroVisual from '@/components/site/HeroVisual';
 import CloudPricing from '@/components/site/CloudPricing';
 import ProductLinks from '@/components/site/ProductLinks';
 import { ZeroEdge } from '@/components/zero/ZeroTexture';
+import { PARITY } from '@/content/feature-parity';
+import { computeParity } from '@/lib/feature-parity';
+import { PRODUCT_KEYS } from '@/lib/products';
 import '@/styles/pages.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
@@ -20,6 +23,10 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'pages.products' });
   const tc = await getTranslations({ locale, namespace: 'common' });
+  // Paridad de cada app contra su competidor, calculada de content/feature-parity.
+  const parity = Object.fromEntries(
+    PRODUCT_KEYS.map((k) => [k, t('parityShort', { percent: computeParity(PARITY[k].rows).percent, competitor: PARITY[k].competitor })]),
+  );
 
   return (
     <main className="lp">
@@ -43,7 +50,7 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
       <section className="lp-section" aria-labelledby="h-suite">
         <SectionSign id="h-suite" title={tc('home.suite.title')} />
         <div className="container">
-          <SuiteGrid />
+          <SuiteGrid parity={parity} />
         </div>
       </section>
 

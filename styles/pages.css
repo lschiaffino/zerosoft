@@ -511,6 +511,124 @@
 }
 .pd-compare-zero-note { font-size: 15px; line-height: 1.5; color: var(--brand-on-ink-2); }
 
+/* Paridad contra el competidor: el número grande, las barras por área y la
+   tabla de todo lo incluido. Marcas en mono ([x] [~] [+]), filetes, sin cajas. */
+.parity-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 48px;
+  padding-bottom: 40px;
+  border-bottom: var(--stroke-rule) solid var(--brand-ink);
+}
+.parity-kicker { font-size: 12px; color: var(--brand-gray-3); }
+.parity-num { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.parity-num .data {
+  font-size: clamp(4rem, 8vw, 6.5rem);
+  font-weight: 500;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: var(--accent-ink, var(--ink));
+}
+.parity-num-label { font-size: 17px; font-weight: 600; }
+.parity-counts { display: flex; gap: 0; margin-top: 24px; border-top: 1px solid var(--line); }
+.parity-counts > div { flex: 1 1 0; padding: 12px 16px 12px 0; border-bottom: 1px solid var(--line); }
+.parity-counts > div + div { padding-left: 16px; border-left: 1px solid var(--line); }
+.parity-counts dt { font-size: 13px; color: var(--brand-gray-2); }
+.parity-counts dd { margin-top: 2px; font-size: 1.5rem; }
+.parity-method { margin-top: 16px; max-width: 62ch; font-size: 14px; line-height: 1.55; color: var(--brand-gray-1); }
+.parity-link { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; display: inline-flex; align-items: center; gap: 4px; }
+
+.parity-areas { list-style: none; align-self: end; border-top: 1px solid var(--line); }
+.parity-area {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 16px;
+  min-height: 36px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.parity-bar { display: block; height: 8px; background: var(--line); }
+.parity-bar i { display: block; height: 8px; background: var(--accent); }
+.parity-area-num { font-size: 13px; text-align: right; color: var(--brand-gray-1); }
+
+.parity-h3 { margin-top: 48px; font-size: 1.375rem; font-weight: 700; }
+.parity-legend { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 8px 0 16px; font-size: 12px; color: var(--brand-gray-2); }
+.parity-table-wrap { border-top: var(--stroke-rule) solid var(--brand-ink); }
+.parity-table { font-size: 15px; table-layout: fixed; }
+.parity-table thead th:nth-child(1) { width: 38%; }
+.parity-table thead th:nth-child(3) { width: 16%; }
+.parity-table td,
+.parity-table tbody th { height: auto; padding: 10px 12px 10px 0; vertical-align: top; border-bottom: 1px solid var(--line); }
+.parity-table tbody tr:hover { background: transparent; }
+.parity-table .parity-group th {
+  padding: 24px 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: normal;
+  border-bottom: 1px solid var(--brand-ink);
+}
+.parity-table tbody th.parity-cap { font-size: 15px; font-weight: 600; line-height: 1.4; text-align: left; white-space: normal; color: var(--ink); }
+.parity-status { display: block; font-size: 14px; font-weight: 600; }
+.parity-status .data { font-size: 13px; }
+.parity-status--better .data { color: var(--accent-ink, var(--ink)); }
+.parity-status--partial { color: var(--brand-gray-1); }
+.parity-detail { display: block; margin-top: 2px; font-size: 14px; line-height: 1.5; color: var(--brand-gray-1); }
+.parity-theirs { font-size: 14px; color: var(--brand-gray-1); }
+.parity-theirs-label { display: none; }
+
+.parity-list { list-style: none; border-top: 1px solid var(--line); max-width: 960px; }
+.parity-list li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 4px 24px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.parity-list li strong { font-weight: 600; }
+.parity-list li > a { grid-column: 3; white-space: nowrap; }
+.parity-list li span { color: var(--brand-gray-1); font-size: 14px; line-height: 1.5; }
+.parity-beyond .parity-list li { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+.parity-beyond .parity-h3 { margin-bottom: 12px; }
+.parity-missing { margin-top: 48px; border-top: var(--stroke-rule) solid var(--brand-ink); max-width: 960px; }
+.parity-missing summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 0;
+  cursor: pointer;
+  list-style: none;
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+.parity-missing summary::-webkit-details-marker { display: none; }
+.parity-missing[open] .faq-plus::after { transform: rotate(0deg); }
+.parity-missing-lead { margin-bottom: 12px; font-size: 15px; color: var(--brand-gray-1); }
+
+/* Índice /products: el porcentaje bajo "Reemplaza a …". */
+.suite-parity { display: block; margin-top: 2px; font-size: 12px; color: var(--brand-gray-2); text-align: right; }
+
+@media (max-width: 900px) {
+  .parity-head { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+}
+
+@media (max-width: 760px) {
+  /* La tabla pasa a filas apiladas: capacidad, estado y detalle, competidor. */
+  .parity-table,
+  .parity-table tbody,
+  .parity-table tr,
+  .parity-table th,
+  .parity-table td { display: block; width: auto; }
+  .parity-table thead { display: none; }
+  .parity-table tbody tr:not(.parity-group) { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .parity-table tbody tr:not(.parity-group) > * { padding: 0; border: 0; }
+  .parity-table .parity-ours { margin-top: 4px; }
+  .parity-table .parity-theirs { margin-top: 4px; font-size: 13px; }
+  .parity-theirs-label { display: inline; }
+  .parity-list li,
+  .parity-beyond .parity-list li { grid-template-columns: minmax(0, 1fr); }
+  .parity-list li > a { grid-column: 1; }
+  .parity-area { grid-template-columns: minmax(0, 1fr) 80px 40px; gap: 10px; }
+  .suite-parity { text-align: left; }
+}
+
 
 /* Link: su azul queda a 4,49:1 con texto blanco; en el sitio usa su tinta (4,75:1). */
 .pd-page.card-link,

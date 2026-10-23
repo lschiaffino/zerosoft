@@ -242,6 +242,9 @@
 .fb { display: flex; flex-direction: column; gap: 20px; }
 .table-wrap { position: relative; min-width: 0; max-width: 100%; }
 
+/* Botón de archivo de los importadores (CRM, Track, Notion). */
+.imp-file { cursor: pointer; align-self: flex-start; }
+
 /* ---------- De crm-records.css ---------- */
 /* Mobile: "Más campos" en una línea y la pista debajo, alineada al texto. */
 @media (max-width: 760px) {

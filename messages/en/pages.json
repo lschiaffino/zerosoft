@@ -1004,7 +1004,8 @@
         "sub": "Open a new board and share it with your team.",
         "button": "Open Board"
       }
-    }
+    },
+    "parityShort": "{percent}% parity with {competitor}"
   },
   "product": {
     "launch": "Try {name}",
@@ -1030,13 +1031,45 @@
       "video": "Video",
       "compare": "The math",
       "model": "Pricing",
-      "faq": "Questions"
+      "faq": "Questions",
+      "parity": "Parity"
     },
     "compareTitle": "{rival} at list price.",
     "compareTitleDim": "Against $0 on your server.",
     "shotFig": "fig. 1 · {name}, interactive view",
     "zeroApp": "{name} on your server",
-    "zeroLicense": "License"
+    "zeroLicense": "License",
+    "parity": {
+      "sectionTitle": "{name} next to {competitor}.",
+      "sectionTitleDim": "Our count, capability by capability.",
+      "kicker": "parity with {competitor}",
+      "ofCompetitor": "of what {competitor} does, by our count",
+      "counts": {
+        "have": "Included",
+        "partial": "Partial",
+        "missing": "Missing"
+      },
+      "method": "We measured {count} {competitor} capabilities: each one we have scores 1, a partial one 0.5 and a missing one 0, with double weight for the core ones; this is our own assessment, checked against the code on {date}.",
+      "changelog": "See the changelog",
+      "areasLabel": "Parity by area",
+      "tableTitle": "Everything {name} includes",
+      "tableCaption": "{name} capabilities compared with {competitor}",
+      "col": {
+        "capability": "Capability"
+      },
+      "status": {
+        "have": "Included",
+        "better": "Better",
+        "partial": "Partial",
+        "missing": "Missing"
+      },
+      "yes": "Yes",
+      "no": "No",
+      "beyondTitle": "Where we go further",
+      "missingTitle": "Still missing ({count})",
+      "missingLead": "{competitor} has these and we don't yet. If you need one, vote for it on the public board.",
+      "vote": "Vote on the board"
+    }
   },
   "mockups": {
     "link": {

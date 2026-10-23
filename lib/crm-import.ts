@@ -169,6 +169,8 @@ const HUBSPOT_SOURCE: Record<string, string> = {
   emailmarketing: 'email',
   email: 'email',
   offlinesources: 'event',
+  offline: 'event',
+  aireferrals: 'referral',
   event: 'event',
   directtraffic: 'other',
   othercampaigns: 'other',
@@ -273,13 +275,14 @@ export function cleanDomain(raw: string | undefined): string {
 
 // ---------- Contexto por import ----------
 
-interface Person {
+export interface Person {
   id: string;
   email: string;
   name: string;
 }
 
-async function workspacePeople(userId: string, db: Db): Promise<Person[]> {
+/** Owner del workspace y miembros de sus teams (para resolver owners por email o nombre). */
+export async function workspacePeople(userId: string, db: Db = getDb()): Promise<Person[]> {
   return (await db
     .prepare(
       `SELECT id, email, COALESCE(name, '') AS name FROM users

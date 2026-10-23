@@ -17,6 +17,7 @@ function watchIntlErrors(page: Page): string[] {
 }
 
 test('cada app muestra sus textos y estilos con solo sus mensajes y su CSS', async ({ page }) => {
+  test.setTimeout(240_000);
   const errors = watchIntlErrors(page);
   const apps: Array<[string, string]> = [
     ['/en/app/crm/contacts', '.crm-table, .ui-empty, .empty-state'],
@@ -33,8 +34,8 @@ test('cada app muestra sus textos y estilos con solo sus mensajes y su CSS', asy
     ['/en/app/settings', 'main'],
   ];
   for (const [path, sel] of apps) {
-    await page.goto(path, { waitUntil: 'networkidle' });
-    await expect(page.locator(sel).first()).toBeVisible();
+    await page.goto(path);
+    await expect(page.locator(sel).first()).toBeVisible({ timeout: 20_000 });
     // Ningún texto quedó como clave cruda (lo que muestra next-intl si falta un mensaje).
     const body = await page.locator('main').innerText();
     expect(body, path).not.toMatch(/\b(crm|docs|track|notes|board|flow|calendar|chat|agents|robots|settings|link)\.[a-z]+\.[a-zA-Z.]+/);

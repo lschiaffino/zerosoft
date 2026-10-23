@@ -61,6 +61,9 @@ también tiene que estar.
 - `research/ideas.json` alimenta el board (ver `research/README.md`). Al
   construir una idea, marcala `status: "done"` con su entrada de
   `content/changelog.ts`.
+- Cuando sumás o quitás una capacidad, actualizá
+  `content/feature-parity/<product>.ts` (`status` y `lastReviewed`): de ahí
+  sale el porcentaje de paridad de la página de producto.
 - Los bugs de seguridad no van al board público: se arreglan directo.
 
 ## Git

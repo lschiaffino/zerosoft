@@ -9,7 +9,7 @@ export const TZ_CHANGED_EVENT = 'zs:tz-changed';
 export const TZ_DEPENDENT_ATTR = 'data-tz-dependent';
 
 /**
- * Script inline para el <head>: escribe la cookie antes de hidratar y antes
+ * Script inline al final del body: escribe la cookie antes
  * de cualquier request de la app. Así la primera visita al sitio o al login
  * ya deja la cookie para la app y casi nunca hace falta refrescar.
  */

@@ -668,6 +668,8 @@ export const researchIdeaSchema = roadmapCreateSchema
     status: z.enum(['planned', 'in_progress', 'done']).optional(),
     // Entrada de content/changelog.ts que la cerró (con status 'done').
     changelog: z.string().trim().max(120).optional(),
+    // id de la capacidad en content/feature-parity/<product>.ts que la idea cubre.
+    parity: z.string().trim().max(80).optional(),
   });
 export type ResearchIdea = z.infer<typeof researchIdeaSchema>;
 

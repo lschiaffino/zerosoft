@@ -11,6 +11,10 @@ import ProductLinks from '@/components/site/ProductLinks';
 import { ZeroEdge } from '@/components/zero/ZeroTexture';
 import BrowserFrame from './BrowserFrame';
 import ProductSectionNav from './ProductSectionNav';
+import FeatureParity from './FeatureParity';
+import { PARITY } from '@/content/feature-parity';
+import { loc } from '@/lib/feature-parity';
+import { jsonLd, siteUrl } from '@/lib/tools/registry';
 import VideoPlayer from '@/components/VideoPlayer';
 import LinkMockup from './mockups/LinkMockup';
 import TrackMockup from './mockups/TrackMockup';
@@ -100,6 +104,18 @@ export default async function ProductPage({ locale, product }: { locale: string;
             ))}
           </ul>
         </div>
+      </section>
+    ),
+
+    // Paridad contra el competidor y la tabla de todo lo incluido (content/feature-parity).
+    parity: () => (
+      <section className="lp-section pd-parity" id={SECTION_IDS.parity} key="parity" aria-labelledby={`h-${SECTION_IDS.parity}`}>
+        {sign(
+          'parity',
+          t('product.parity.sectionTitle', { name: cfg.name, competitor: PARITY[product].competitor }),
+          t('product.parity.sectionTitleDim'),
+        )}
+        <FeatureParity locale={locale} product={product} headingId={`h-${SECTION_IDS.parity}`} />
       </section>
     ),
 
@@ -230,8 +246,23 @@ export default async function ProductPage({ locale, product }: { locale: string;
 
   const sections = spec.sections.map((s) => ({ id: SECTION_IDS[s], label: t(`product.nav.${s}`) }));
 
+  // JSON-LD como en /tools: la app y la lista de lo que incluye (de la tabla de paridad).
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: `zerosoft ${cfg.name}`,
+    description: t(`${p}.meta.description`),
+    url: `${siteUrl()}/${locale}/products/${product}`,
+    inLanguage: locale,
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    featureList: PARITY[product].rows.filter((r) => r.status !== 'missing').map((r) => loc(r.label, locale)),
+    publisher: { '@type': 'Organization', name: 'zerosoft', url: siteUrl() },
+  };
+
   return (
     <main className={`pd-page card-${product}`}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
       {/* Primer viewport: el producto y su línea encendida en el plano. */}
       <section className="pd-hero" aria-labelledby="pd-title">
         <div className="pd-hero-text">

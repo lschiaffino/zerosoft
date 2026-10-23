@@ -12,11 +12,12 @@ import GoogleCalendarPanel from '@/components/calendar/GoogleCalendarPanel';
 import CalendarSettingsForm from '@/components/calendar/CalendarSettingsForm';
 import PaymentsSettingsPanel from '@/components/calendar/PaymentsSettingsPanel';
 import ConferencingPanel from '@/components/calendar/ConferencingPanel';
+import CalendlyImportPanel from '@/components/calendar/CalendlyImportPanel';
 import { parseConferencing } from '@/lib/calendar-locations';
 
 export const dynamic = 'force-dynamic';
 
-const TABS = ['profile', 'connections', 'payments'] as const;
+const TABS = ['profile', 'connections', 'payments', 'import'] as const;
 
 export default async function CalendarSettingsPage(props: {
   params: Promise<{ locale: string }>;
@@ -42,6 +43,7 @@ export default async function CalendarSettingsPage(props: {
           { key: 'profile', label: t('settings.tabProfile') },
           { key: 'connections', label: t('settings.tabConnections') },
           { key: 'payments', label: t('settings.tabPayments') },
+          { key: 'import', label: t('importer.tab') },
         ]}
       >
         {tab === 'profile' && (
@@ -65,6 +67,7 @@ export default async function CalendarSettingsPage(props: {
             <ConferencingPanel initial={parseConferencing((await getCalendarUser(realUserId(user)))?.conferencing)} />
           </>
         )}
+        {tab === 'import' && <CalendlyImportPanel canEdit={isWorkspaceAdmin(user)} />}
         {tab === 'payments' && (
           <PaymentsSettingsPanel initial={await getPaymentSettings(user.id)} origin={origin} canEdit={isWorkspaceAdmin(user)} />
         )}

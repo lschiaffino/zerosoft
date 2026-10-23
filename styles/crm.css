@@ -1166,7 +1166,6 @@ tr:hover .cell-quick { opacity: 0.8; }
 
 .imp-textarea { width: 100%; font-size: 12px; resize: vertical; line-height: 1.6; }
 
-.imp-file { cursor: pointer; align-self: flex-start; }
 .imp-file-input { display: none; }
 
 .imp-preview .label { margin-bottom: 8px; }
@@ -2957,3 +2956,79 @@ td.crm-row-actions > * + * { margin-left: 4px; }
 .prop-link { display: block; min-height: 32px; padding: 4px 0; overflow-wrap: anywhere; }
 .crm-cf-multi { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .crm-cf-multi > legend { margin-bottom: 4px; padding: 0; }
+
+/* ---------- Settings: importar desde otro CRM (CrmMigrationPanel) ---------- */
+
+.mig-body { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.mig-title { font-size: 15px; font-weight: 500; }
+.mig-note { font-size: 12px; }
+.mig-sub { font-size: 11px; }
+
+.mig-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.mig-card { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 20px; }
+.mig-card-title { font-size: 14px; font-weight: 500; }
+.mig-card-body { font-size: 12px; line-height: 1.5; flex: 1; }
+
+.mig-history .label { margin-bottom: 8px; }
+.mig-history-list { list-style: none; display: flex; flex-direction: column; }
+.mig-history-row {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 160px) 80px minmax(0, 1fr);
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.mig-history-row:last-child { border-bottom: none; }
+
+.mig-steps-list { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; }
+.mig-scopes {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.mig-field { display: flex; flex-direction: column; gap: 6px; max-width: 480px; }
+.mig-field .input { border-radius: var(--r-sm); }
+
+.mig-groups { border: none; padding: 0; margin: 0; min-width: 0; }
+.mig-groups legend { margin-bottom: 8px; }
+.mig-count-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.mig-count { display: flex; flex-direction: column-reverse; gap: 6px; padding: 14px 16px; cursor: pointer; }
+.mig-count .stat-num { font-size: 1.8rem; }
+.mig-count[data-on='false'] .stat-num { color: var(--dim); }
+.mig-count-check { display: inline-flex; align-items: center; gap: 6px; }
+.mig-count-check .stat-label { margin-top: 0; }
+.mig-count:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.mig-samples { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.mig-sample { min-width: 0; overflow-x: auto; }
+.mig-sample .label, .mig-section > .label { margin-bottom: 8px; }
+.mig-table { font-size: 12px; }
+.mig-table td, .mig-table th { padding: 6px 10px; }
+.mig-section { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mig-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+
+.mig-pipelines { list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.mig-pipeline-name { font-weight: 500; }
+.mig-stages { display: block; font-size: 12px; margin-top: 2px; }
+
+.mig-bar { height: 4px; background: var(--line); overflow: hidden; border-radius: var(--radius-1); }
+.mig-bar > span { display: block; height: 100%; background: var(--accent); transition: width 0.4s var(--ease); }
+.mig-bar[data-indeterminate='true'] > span { width: 30%; animation: mig-slide 1.4s var(--ease) infinite; }
+@keyframes mig-slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) {
+  .mig-bar > span { transition: none; }
+  .mig-bar[data-indeterminate='true'] > span { animation: none; width: 100%; opacity: 0.4; }
+}
+
+@media (max-width: 720px) {
+  .mig-cards, .mig-samples { grid-template-columns: 1fr; }
+  .mig-count-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mig-history-row { grid-template-columns: 1fr 1fr; }
+}

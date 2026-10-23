@@ -38,6 +38,13 @@ export default defineConfig({
       ADMIN_EMAILS: 'demo@zerosoft.ai',
       // Sin AI real: .env.local puede traer un VERCEL_OIDC_TOKEN y el resultado
       // dependería de la máquina (y de los créditos del Gateway).
+      // Import de CRM contra el proveedor falso (lib/crm-import-fake.ts, token "fake").
+      CRM_IMPORT_FAKE: '1',
+      // Importadores: Linear, GitHub y Calendly apuntan a un mock local
+      // (tests/e2e/importers.spec.ts lo levanta en PORT + 1). Nada sale a internet.
+      IMPORT_LINEAR_API_URL: `http://127.0.0.1:${PORT + 1}/linear`,
+      IMPORT_GITHUB_API_URL: `http://127.0.0.1:${PORT + 1}/github`,
+      IMPORT_CALENDLY_API_URL: `http://127.0.0.1:${PORT + 1}/calendly`,
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

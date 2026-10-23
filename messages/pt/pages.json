@@ -1004,7 +1004,8 @@
         "sub": "Abra um quadro novo e compartilhe com o seu time.",
         "button": "Abrir o Board"
       }
-    }
+    },
+    "parityShort": "{percent}% de paridade com {competitor}"
   },
   "product": {
     "launch": "Testar o {name}",
@@ -1030,13 +1031,45 @@
       "video": "Vídeo",
       "compare": "A conta",
       "model": "Preços",
-      "faq": "Perguntas"
+      "faq": "Perguntas",
+      "parity": "Paridade"
     },
     "compareTitle": "{rival} a preço de tabela.",
     "compareTitleDim": "Contra $0 no seu servidor.",
     "shotFig": "fig. 1 · {name}, tela interativa",
     "zeroApp": "{name} no seu servidor",
-    "zeroLicense": "Licença"
+    "zeroLicense": "Licença",
+    "parity": {
+      "sectionTitle": "{name} comparado com {competitor}.",
+      "sectionTitleDim": "Nossa conta, capacidade por capacidade.",
+      "kicker": "paridade com {competitor}",
+      "ofCompetitor": "do que {competitor} faz, pela nossa conta",
+      "counts": {
+        "have": "Incluídas",
+        "partial": "Parciais",
+        "missing": "Faltam"
+      },
+      "method": "Medimos {count} capacidades de {competitor}: a que temos soma 1, a parcial 0,5 e a que falta 0, com peso dobrado para as centrais; é a nossa avaliação, revisada contra o código em {date}.",
+      "changelog": "Ver o changelog",
+      "areasLabel": "Paridade por área",
+      "tableTitle": "Tudo o que o {name} inclui",
+      "tableCaption": "Capacidades do {name} comparadas com {competitor}",
+      "col": {
+        "capability": "Capacidade"
+      },
+      "status": {
+        "have": "Incluída",
+        "better": "Melhor",
+        "partial": "Parcial",
+        "missing": "Falta"
+      },
+      "yes": "Sim",
+      "no": "Não",
+      "beyondTitle": "Onde vamos além",
+      "missingTitle": "O que ainda falta ({count})",
+      "missingLead": "{competitor} tem isto e nós ainda não. Se precisar, vote no board público.",
+      "vote": "Votar no board"
+    }
   },
   "mockups": {
     "link": {

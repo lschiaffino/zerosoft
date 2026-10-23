@@ -29,6 +29,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-22-imports',
+    date: '2026-10-22',
+    title: {
+      en: 'Bring your data from HubSpot, Pipedrive, Linear, Jira, GitHub, Calendly and Notion, plus Notion-style databases in Docs',
+      es: 'Traé tus datos de HubSpot, Pipedrive, Linear, Jira, GitHub, Calendly y Notion, y bases de datos estilo Notion en Docs',
+      pt: 'Traga seus dados do HubSpot, Pipedrive, Linear, Jira, GitHub, Calendly e Notion, e bancos de dados estilo Notion no Docs',
+    },
+    items: [
+      { product: 'crm', en: 'Import a whole HubSpot or Pipedrive account with a token: owners, custom fields, pipelines, companies, contacts, deals, associations, notes, calls, meetings, tasks and emails. A preview shows counts and owner matching first, large accounts import in steps, and running it again updates instead of duplicating. New CSV presets for HubSpot, Salesforce, Zoho, Pipedrive, Attio and Close exports.', es: 'Importá una cuenta entera de HubSpot o Pipedrive con un token: responsables, campos propios, pipelines, empresas, contactos, deals, asociaciones, notas, llamadas, reuniones, tareas y emails. Primero una vista previa con conteos y el emparejamiento de responsables; las cuentas grandes entran por partes, y volver a correrlo actualiza en vez de duplicar. Presets de CSV nuevos para exports de HubSpot, Salesforce, Zoho, Pipedrive, Attio y Close.', pt: 'Importe uma conta inteira do HubSpot ou Pipedrive com um token: responsáveis, campos próprios, pipelines, empresas, contatos, negócios, associações, notas, ligações, reuniões, tarefas e emails. Primeiro uma prévia com contagens e a correspondência de responsáveis; contas grandes entram em partes, e rodar de novo atualiza em vez de duplicar. Novos presets de CSV para exports do HubSpot, Salesforce, Zoho, Pipedrive, Attio e Close.' },
+      { product: 'track', en: 'Import issues from Linear, Jira, GitHub Issues or any CSV, with statuses, assignees, labels, sub-issues and comments, and export issues to CSV.', es: 'Importá issues de Linear, Jira, GitHub Issues o cualquier CSV, con estados, asignados, etiquetas, sub-issues y comentarios, y exportá issues a CSV.', pt: 'Importe issues do Linear, Jira, GitHub Issues ou qualquer CSV, com status, responsáveis, etiquetas, sub-issues e comentários, e exporte issues para CSV.' },
+      { product: 'cal', en: 'Import schedules, event types and upcoming bookings from Calendly. Imported bookings send no emails.', es: 'Importá horarios, tipos de evento y reservas próximas desde Calendly. Las reservas importadas no mandan emails.', pt: 'Importe horários, tipos de evento e reservas futuras do Calendly. As reservas importadas não enviam emails.' },
+      { product: 'docs', en: 'Import a Notion export with its page tree, icons, links, files, callouts and databases.', es: 'Importá un export de Notion con su árbol de páginas, íconos, links, archivos, recuadros y bases de datos.', pt: 'Importe um export do Notion com sua árvore de páginas, ícones, links, arquivos, destaques e bancos de dados.' },
+      { product: 'docs', en: 'Databases with 13 property types (status, person, checkbox, URL and more), rows that open as pages, named table, board and gallery views, filters, multi-key sort, grouping and full keyboard control.', es: 'Bases de datos con 13 tipos de propiedad (estado, persona, checkbox, URL y más), filas que abren como página, vistas con nombre en tabla, board y galería, filtros, orden por varias claves, agrupar y manejo completo con teclado.', pt: 'Bancos de dados com 13 tipos de propriedade (status, pessoa, checkbox, URL e mais), linhas que abrem como página, visualizações nomeadas em tabela, board e galeria, filtros, ordenação por várias chaves, agrupamento e controle total pelo teclado.' },
+    ],
+  },
+  {
     id: '2026-10-21-backlog',
     date: '2026-10-21',
     title: {

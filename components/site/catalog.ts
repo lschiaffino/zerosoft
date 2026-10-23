@@ -71,16 +71,18 @@ export const HAS_API: readonly ProductKey[] = ['link', 'crm', 'cal'];
  * - features: lista de funciones (2 columnas, sin íconos)
  * - how: los tres pasos
  * - video: grabación real (solo si existe /videos/<key>.mp4)
+ * - parity: paridad de funciones contra el competidor y la tabla de todo lo incluido
  * - compare: la cuenta contra el rival, con la placa de $0
  * - model: las tres formas de tenerlo y la tabla de precios (costo × 3)
  * - faq: preguntas
  */
-export type PageSection = 'shot' | 'features' | 'how' | 'video' | 'compare' | 'model' | 'faq';
+export type PageSection = 'shot' | 'features' | 'parity' | 'how' | 'video' | 'compare' | 'model' | 'faq';
 
 /** id de cada bloque en la página: las anclas del índice de secciones (ProductSectionNav). */
 export const SECTION_IDS: Record<PageSection, string> = {
   shot: 'vista',
   features: 'features',
+  parity: 'parity',
   how: 'how',
   video: 'video',
   compare: 'pricing',
@@ -100,15 +102,15 @@ export interface ProductPageSpec {
 }
 
 export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
-  crm: { sections: ['shot', 'features', 'how', 'compare', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'columns' },
-  chat: { sections: ['shot', 'how', 'features', 'compare', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'split' },
-  agents: { sections: ['how', 'shot', 'features', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
-  flow: { sections: ['shot', 'how', 'features', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
-  robots: { sections: ['how', 'features', 'shot', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
-  track: { sections: ['shot', 'features', 'video', 'compare', 'how', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'split' },
-  link: { sections: ['shot', 'compare', 'features', 'how', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'columns' },
-  docs: { sections: ['shot', 'features', 'compare', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'split' },
-  notes: { sections: ['features', 'shot', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
-  cal: { sections: ['shot', 'how', 'compare', 'features', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'columns' },
-  board: { sections: ['shot', 'features', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
+  crm: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'columns' },
+  chat: { sections: ['shot', 'how', 'features', 'parity', 'compare', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'split' },
+  agents: { sections: ['how', 'shot', 'features', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
+  flow: { sections: ['shot', 'how', 'features', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  robots: { sections: ['how', 'features', 'shot', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  track: { sections: ['shot', 'features', 'parity', 'video', 'compare', 'how', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'split' },
+  link: { sections: ['shot', 'compare', 'features', 'parity', 'how', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'columns' },
+  docs: { sections: ['shot', 'features', 'parity', 'compare', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'split' },
+  notes: { sections: ['features', 'shot', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  cal: { sections: ['shot', 'how', 'compare', 'features', 'parity', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'columns' },
+  board: { sections: ['shot', 'features', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
 };

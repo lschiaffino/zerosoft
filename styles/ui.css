@@ -884,3 +884,50 @@ section.ui-section { padding: 0; }
   .sidebar-collapsed .side-theme { flex-direction: column; align-self: center; margin: 4px 0; }
   .sidebar-collapsed .side-theme button + button { border-left: 0; border-top: 1px solid var(--line); }
 }
+
+/* ---------- Importadores (Track, Cal, Docs). Prefijo ximp-: imp- es del import del CRM. ---------- */
+.ximp { display: grid; gap: 20px; min-width: 0; }
+.ximp-progress { display: grid; gap: 10px; padding: 20px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); }
+.ximp-progress-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-weight: 600; }
+.ximp-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--line);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: ximp-spin 0.8s linear infinite;
+}
+@keyframes ximp-spin { to { transform: rotate(360deg); } }
+.ximp-bar { position: relative; height: 4px; background: var(--brand-enamel); overflow: hidden; }
+.ximp-bar > span { display: block; height: 100%; width: 0; background: var(--ink); transition: width 300ms var(--ease); }
+.ximp-bar[data-indeterminate] > span { width: 30%; animation: ximp-slide 1.2s var(--ease) infinite; }
+@keyframes ximp-slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) {
+  .ximp-spinner, .ximp-bar[data-indeterminate] > span { animation: none; }
+  .ximp-bar[data-indeterminate] > span { width: 100%; opacity: 0.4; }
+}
+.ximp-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.ximp-stat { display: grid; gap: 2px; padding: 12px 14px; background: var(--bg); min-width: 0; }
+.ximp-stat-value { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.ximp-stat-label { font-size: 0.8125rem; color: var(--ink-3); }
+.ximp-section { display: grid; gap: 8px; min-width: 0; }
+.ximp-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.ximp-section > h3 { margin: 0; font-size: 0.9375rem; font-weight: 600; }
+.ximp-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ximp-note { margin: 0; padding: 10px 12px; font-size: 0.8125rem; line-height: 1.45; color: var(--ink-2); background: var(--brand-enamel); border-radius: var(--radius-1); }
+.ximp-note[data-tone='warn'] { color: var(--warn-ink); background: var(--warn-soft); }
+.ximp-note[data-tone='bad'] { color: var(--bad-ink); background: var(--bad-soft); }
+.ximp-map { display: grid; grid-template-columns: minmax(120px, 200px) minmax(0, 1fr); gap: 8px 12px; align-items: center; }
+.ximp-map > .label { margin: 0; }
+.ximp-map .select { min-width: 0; width: 100%; }
+.ximp-tree { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: 0.875rem; }
+.ximp-tree li { padding-left: calc(var(--depth, 0) * 16px); overflow-wrap: anywhere; }
+.ximp-tree .ui-help { margin-left: 6px; }
+.ximp-file-input { max-width: 100%; }
+.ximp-done { display: grid; gap: 12px; }
+.ximp-links { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.ximp-table td, .ximp-table th { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 520px) {
+  .ximp-map { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .ximp-map > .select { margin-bottom: 8px; }
+}

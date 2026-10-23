@@ -2,6 +2,7 @@
  * Notes — tipos y helpers puros (sin DB): los usan el servidor y el cliente.
  */
 import type { DocsBlock } from './docs-types';
+import { databaseTable } from './docs-database';
 
 export type NotesSort = 'updated' | 'created' | 'title';
 export const NOTES_SORTS: readonly NotesSort[] = ['updated', 'created', 'title'];
@@ -135,8 +136,12 @@ export function blocksToText(blocks: DocsBlock[]): string {
       if (b.name) lines.push(b.name);
       continue;
     }
-    if (b.type === 'table' || b.type === 'database') {
+    if (b.type === 'table') {
       for (const row of b.rows ?? []) lines.push(row.join(' · '));
+      continue;
+    }
+    if (b.type === 'database') {
+      for (const row of databaseTable(b).rows) lines.push(row.filter(Boolean).join(' · '));
       continue;
     }
     const text = htmlLiteToText(b.content);

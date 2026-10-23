@@ -20,6 +20,7 @@ import PipelinesEditor from '@/components/crm/PipelinesEditor';
 import CallOutcomesSettings from '@/components/crm/CallOutcomesSettings';
 import CustomFieldsPanel from '@/components/crm/CustomFieldsPanel';
 import ImportPanel from '@/components/crm/ImportPanel';
+import CrmMigrationPanel from '@/components/crm/CrmMigrationPanel';
 import ExportPanel from '@/components/crm/ExportPanel';
 import GmailPanel from '@/components/crm/GmailPanel';
 import TeamPanel from '@/components/crm/TeamPanel';
@@ -52,7 +53,7 @@ async function workspacePeople(user: SessionUser) {
  */
 export default async function CrmSettingsPage(props: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ tab?: string; gmail?: string }>;
+  searchParams: Promise<{ tab?: string; gmail?: string; from?: string }>;
 }) {
   const sp = await props.searchParams;
   const { locale } = await props.params;
@@ -237,8 +238,13 @@ export default async function CrmSettingsPage(props: {
       </>
     );
   } else {
+    // ?from=hubspot|pipedrive (estados vacíos, Cmd+K) abre directo el paso del token.
+    const from = sp.from === 'hubspot' || sp.from === 'pipedrive' ? sp.from : null;
     body = (
       <>
+        <FormSection title={t('settings.migrateTitle')} description={t('settings.migrateDesc')}>
+          <CrmMigrationPanel canAdmin={admin} initialProvider={from} locale={locale} />
+        </FormSection>
         <FormSection title={t('settings.importCta')} description={t('settings.importDesc')}>
           <ImportPanel />
         </FormSection>

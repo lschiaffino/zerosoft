@@ -14,6 +14,7 @@ import {
 import { getDocTemplates } from '@/lib/docs-templates';
 import { formatDateTime } from '@/lib/utils';
 import Icon from '@/components/app/icons';
+import { Link } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import DataTable from '@/components/ui/DataTable';
@@ -49,6 +50,10 @@ export default async function DocsLandingPage(props: {
   const recent = [...pages].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 8);
 
   const newPageButton = (
+    <div className="docs-landing-actions">
+      <Link href="/app/docs/import" className="btn" data-testid="docs-import-link">
+        {t('notionImport.link')}
+      </Link>
     <form action={createAction.bind(null, null)}>
       <button type="submit" className="btn btn-primary" aria-keyshortcuts="C">
         <Icon name="plus" size={15} />
@@ -56,6 +61,7 @@ export default async function DocsLandingPage(props: {
         <kbd className="kbd">C</kbd>
       </button>
     </form>
+    </div>
   );
 
   return (

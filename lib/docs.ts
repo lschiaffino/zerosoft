@@ -9,7 +9,8 @@ import {
   type UserRow,
 } from './db';
 import { sanitizeBlocks } from './docs-sanitize';
-import { pageLinkIds } from './docs-page-links';
+import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
+import { databaseRowEntries } from './docs-database';
 import {
   buildSnippet,
   matchesAll,
@@ -34,6 +35,7 @@ import {
   defaultBlocks,
   mergeInheritedShares,
   stringifyBlocks,
+  withDatabaseBodies,
 } from './docs-types';
 
 export type { DocsBlock, DocsBlockType, DocsComment, DocsPage, DocsPageShare, DocsPageSummary };
@@ -190,7 +192,7 @@ export async function readableLinkTitles(
   blocks: DocsBlock[],
 ): Promise<Map<string, string>> {
   const ids: string[] = [];
-  for (const b of blocks) {
+  for (const b of withDatabaseBodies(blocks)) {
     if (!b.content) continue;
     for (const id of pageLinkIds(b.content)) if (!ids.includes(id)) ids.push(id);
   }
@@ -301,7 +303,7 @@ export async function listDocBacklinks(
     )
     .all(ownerId, pageId, `%data-page=%${pageId}%`)) as Array<Pick<DocsPageRow, 'id' | 'title' | 'icon' | 'content'>>;
   return rows
-    .filter((r) => parseBlocks(r.content).some((b) => pageLinkIds(b.content).includes(pageId)))
+    .filter((r) => withDatabaseBodies(parseBlocks(r.content)).some((b) => pageLinkIds(b.content).includes(pageId)))
     .slice(0, 50)
     .map((r) => ({ id: r.id, title: r.title, icon: r.icon ?? null }));
 }
@@ -1224,16 +1226,51 @@ export async function searchDocPagesContent(
   const hits: DocsSearchHit[] = [];
   for (const r of rows) {
     const base = { id: r.id, parent_id: r.parent_id ?? null, title: r.title, icon: r.icon ?? null, updated_at: r.updated_at };
+    const blocks = parseBlocks(r.content);
+    // Filas de bases cuyo título matchea: se abren como página (?row=).
+    if (r.content.includes('"database"')) {
+      for (const e of databaseRowEntries(blocks)) {
+        if (!matchesAll(e.title, tokens)) continue;
+        hits.push({ ...base, icon: null, title: e.title, row_id: e.rowId, page_title: r.title, match: 'title', snippet: r.title || null });
+      }
+    }
     if (matchesAll(r.title, tokens)) {
       hits.push({ ...base, match: 'title', snippet: null });
       continue;
     }
-    const text = pageSearchText(parseBlocks(r.content));
+    const text = pageSearchText(blocks);
     if (matchesAll(`${r.title} ${text}`, tokens)) {
       hits.push({ ...base, match: 'content', snippet: buildSnippet(text, tokens) });
     }
   }
   return rankHits(hits, limit);
+}
+
+/**
+ * Filas de bases por título (popover `[[`): links a una fila. Prefiltro LIKE
+ * sobre el content y confirmación con todas las palabras.
+ */
+export async function searchDocRows(ownerId: string, query: string, limit = 10): Promise<PageLinkCandidate[]> {
+  const tokens = searchTokens(query);
+  const term = prefilterTerm(query);
+  if (tokens.length === 0 || !term) return [];
+  const like = `%${term.replace(/[\\%_]/g, '\\$&')}%`;
+  const rows = (await getDb()
+    .prepare(
+      `SELECT id, title, content FROM docs_pages
+       WHERE user_id = ? AND archived = 0 AND content LIKE '%"database"%' AND content LIKE ? ESCAPE '\\'
+       ORDER BY updated_at DESC LIMIT 100`,
+    )
+    .all(ownerId, like)) as Array<Pick<DocsPageRow, 'id' | 'title' | 'content'>>;
+  const out: PageLinkCandidate[] = [];
+  for (const r of rows) {
+    for (const e of databaseRowEntries(parseBlocks(r.content))) {
+      if (!matchesAll(e.title, tokens)) continue;
+      out.push({ id: r.id, row_id: e.rowId, title: e.title, page_title: r.title, icon: null });
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
 }
 
 // ---------- Re-export tree helpers (pure, live in docs-types) ----------

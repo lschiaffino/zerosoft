@@ -168,7 +168,8 @@
     "closingThisMonth": "Fecham este mês",
     "noClosing": "0 negócios fecham este mês.",
     "empty": "Ainda não há dados. Crie seu primeiro contato e veja os zeros rolarem.",
-    "emptyCta": "Criar contato"
+    "emptyCta": "Criar contato",
+    "emptyImport": "ou traga seus dados do HubSpot"
   },
   "contacts": {
     "title": "Contatos",
@@ -984,7 +985,9 @@
     "fieldCurrency": "Moeda",
     "stageCol": "Etapa",
     "probabilityShort": "Prob. %",
-    "rottingShort": "Dias sem atividade"
+    "rottingShort": "Dias sem atividade",
+    "migrateTitle": "Importar de outro CRM",
+    "migrateDesc": "Traga tudo do HubSpot ou do Pipedrive com um token de API. Rodar de novo atualiza o que já foi importado."
   },
   "importP": {
     "title": "Importar {entity}",
@@ -1038,7 +1041,8 @@
       "closeDate": "Data de fechamento",
       "priority": "Prioridade",
       "description": "Descrição",
-      "contactEmail": "Email(s) do contato"
+      "contactEmail": "Email(s) do contato",
+      "fullName": "Nome completo"
     },
     "preset": "Mapeamento salvo",
     "presetAuto": "Detecção automática",
@@ -1055,7 +1059,15 @@
       "companies": "As empresas são cruzadas pelo domínio. Uma coluna de empresa-mãe a vincula a uma empresa que já exista.",
       "deals": "O pipeline e a etapa são buscados pelo nome (senão, o primeiro pipeline e sua primeira etapa). As empresas são vinculadas ou criadas; os contatos são buscados pelo email e criados se faltarem."
     },
-    "stepsLabel": "Etapas da importação"
+    "stepsLabel": "Etapas da importação",
+    "presets": {
+      "hubspot": "Export do HubSpot",
+      "salesforce": "Export do Salesforce",
+      "zoho": "Export do Zoho CRM",
+      "pipedrive": "Export do Pipedrive",
+      "attio": "Export do Attio",
+      "close": "Export do Close"
+    }
   },
   "errors": {
     "invalid_email": "Esse e-mail não parece válido.",
@@ -1919,7 +1931,8 @@
         "upcoming": "Nada nos próximos dias",
         "done": "Nenhuma tarefa concluída ainda"
       },
-      "tasksBody": "As tarefas de contatos, empresas e deals aparecem aqui por data."
+      "tasksBody": "As tarefas de contatos, empresas e deals aparecem aqui por data.",
+      "bringFromHubspot": "Traga seus dados do HubSpot"
     },
     "pager": {
       "label": "Paginação",
@@ -2063,5 +2076,137 @@
     "ownerDesc": "Responsável (Z a A)",
     "fieldAsc": "{label} (crescente)",
     "fieldDesc": "{label} (decrescente)"
+  },
+  "migrate": {
+    "loading": "Carregando imports…",
+    "loadError": "Não conseguimos carregar seus imports.",
+    "retry": "Tentar de novo",
+    "cardTitle": "Importar do {provider}",
+    "cardBody": {
+      "hubspot": "Contatos, empresas, deals, pipelines, owners, propriedades próprias e a timeline de atividades: notas, ligações, reuniões, tarefas e emails.",
+      "pipedrive": "Pessoas, organizações, deals, pipelines e etapas, campos próprios, notas e atividades."
+    },
+    "cardCta": "Conectar {provider}",
+    "history": "Imports anteriores",
+    "historyCounts": "{contacts} contatos, {companies} empresas, {deals} deals",
+    "status": {
+      "preview": "Prévia",
+      "queued": "Na fila",
+      "running": "Rodando",
+      "done": "Pronto",
+      "failed": "Parado",
+      "cancelled": "Cancelado"
+    },
+    "connectTitle": "Conectar {provider}",
+    "howto": {
+      "hs1": "No HubSpot, abra Configurações › Integrações › Apps privados e crie um app privado.",
+      "hs2": "Na aba Escopos, adicione os escopos de leitura abaixo. Nada é escrito no HubSpot.",
+      "hs3": "Crie o app e copie o token de acesso.",
+      "pd1": "No Pipedrive, abra seu avatar › Preferências pessoais › API.",
+      "pd2": "Copie seu token pessoal de API. Use uma conta admin para trazer os registros de todas as pessoas."
+    },
+    "scopes": "Escopos",
+    "scopesNote": "sales-email-read só é necessário para os emails registrados. Sem ele, os emails são pulados.",
+    "tokenLabelHubspot": "Token de acesso",
+    "tokenLabelPipedrive": "Token de API",
+    "tokenHelp": "O token fica criptografado enquanto o import roda e é apagado quando termina ou você cancela.",
+    "back": "Voltar",
+    "connect": "Conectar e ver prévia",
+    "reading": "Lendo sua conta…",
+    "previewTitle": "Revise o import do {provider}",
+    "previewIntro": "Nada foi importado ainda. Confira o que vem e para onde vai, e depois comece.",
+    "whatToImport": "O que importar",
+    "groups": {
+      "companies": "Empresas",
+      "contacts": "Contatos",
+      "deals": "Deals",
+      "activities": "Atividades"
+    },
+    "unknownCount": "Tudo",
+    "unavailable": "O token não consegue ler {phases}. Isso é pulado.",
+    "dedupeNote": "Contatos são comparados por email e empresas por domínio. Se já existem, os campos vazios são preenchidos em vez de duplicar.",
+    "previouslyImported": "{count} registros já vieram desta conta antes. Eles são atualizados, não duplicados.",
+    "noSample": "Nada aqui.",
+    "col": {
+      "name": "Nome",
+      "email": "Email",
+      "domain": "Domínio",
+      "amount": "Valor",
+      "owner": "Owner no {provider}",
+      "assignTo": "Atribuir a",
+      "field": "Campo",
+      "object": "Objeto",
+      "type": "Tipo",
+      "action": "Aqui",
+      "processed": "Processados",
+      "created": "Criados",
+      "updated": "Atualizados",
+      "skipped": "Pulados",
+      "failed": "Com erro"
+    },
+    "ownersTitle": "Owners",
+    "ownersUnmatched": "{count, plural, one {# owner não tem} other {# owners não têm}} ninguém do time com o mesmo email. Escolha alguém ou deixe o owner padrão.",
+    "ownersAllMatched": "Todos os owners batem por email com alguém do time.",
+    "assignFor": "Atribuir os registros de {name}",
+    "defaultOwnerOption": "Owner padrão",
+    "matchedByEmail": "bate por email",
+    "defaultOwner": "Owner padrão",
+    "fieldsTitle": "Propriedades próprias ({count})",
+    "useExisting": "usar a existente",
+    "createNew": "criar",
+    "pipelinesTitle": "Pipelines e etapas",
+    "won": "ganho",
+    "lost": "perdido",
+    "cancel": "Cancelar",
+    "start": "Começar import",
+    "importingTitle": "Importando do {provider}",
+    "doneTitle": {
+      "done": "O import do {provider} terminou",
+      "failed": "O import do {provider} parou",
+      "cancelled": "Você cancelou o import do {provider}",
+      "preview": "Import do {provider}",
+      "queued": "Import do {provider}",
+      "running": "Import do {provider}"
+    },
+    "progressLabel": "Progresso do import",
+    "phaseNow": "Importando {phase}",
+    "queued": "Esperando para começar",
+    "phases": {
+      "companies": "empresas",
+      "contacts": "contatos",
+      "deals": "deals",
+      "notes": "notas",
+      "calls": "ligações",
+      "meetings": "reuniões",
+      "tasks": "tarefas",
+      "emails": "emails",
+      "activities": "atividades"
+    },
+    "backgroundNote": "Você pode sair desta página. O import continua em segundo plano e esta tela retoma.",
+    "failure": {
+      "auth": "O token parou de funcionar. Crie um novo e rode o import de novo. O que foi importado fica.",
+      "scope": "Falta um escopo no token. Confira a lista e rode o import de novo.",
+      "token_missing": "O token não está mais aqui. Rode o import de novo.",
+      "rate_limited": "O provedor continuou limitando as requisições. Rode o import mais tarde.",
+      "generic": "Algo falhou ao falar com o provedor. Rode o import de novo: o que já foi importado é atualizado, não duplicado."
+    },
+    "cancelledNote": "O que foi importado antes de cancelar fica no CRM. O token foi apagado.",
+    "warnings": "Avisos",
+    "cancelConfirm": "Parar o import? O que já foi importado fica.",
+    "keepGoing": "Continuar",
+    "cancelImport": "Cancelar import",
+    "backToImport": "Pronto",
+    "rerun": "Importar de novo",
+    "errors": {
+      "invalid_token": "Esse token não funcionou. Copie de novo e confira se é da conta certa.",
+      "missing_scope": "Falta um escopo de leitura no token. Adicione os escopos da lista e tente de novo.",
+      "provider_error": "Não conseguimos falar com o provedor. Tente de novo em um minuto.",
+      "import_running": "Já tem um import rodando neste workspace.",
+      "rate_limited": "Tentativas demais. Tente de novo em uma hora.",
+      "invalid_owner": "Escolha owners deste workspace.",
+      "invalid_input": "Confira o token e tente de novo.",
+      "not_found": "Esse import não existe mais.",
+      "forbidden": "Só admins do workspace podem importar."
+    }
   }
 }

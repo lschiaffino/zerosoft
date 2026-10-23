@@ -29,6 +29,20 @@ salió, con la entrada de `content/changelog.ts` que la cuenta:
 { "title": "Link: ...", "...": "...", "status": "done", "changelog": "2026-10-19-link" }
 ```
 
+## Paridad (`parity`, opcional)
+
+Si la idea cubre una fila de la tabla de paridad del producto
+(`content/feature-parity/<product>.ts`), poné el `id` de esa capacidad:
+
+```json
+{ "title": "Docs: Real-time co-editing", "product": "docs", "kind": "idea", "parity": "realtime-editing" }
+```
+
+La página de producto usa la idea para el link "votar" de lo que falta, y
+`tests/unit/feature-parity.test.ts` falla si el id no existe o si una idea con
+`status: "done"` apunta a una capacidad que sigue en `missing`: al construirla,
+pasá la fila a `have` o `partial` y actualizá `lastReviewed`.
+
 `status` acepta `planned`, `in_progress` o `done`. El tick mueve la idea del
 board a ese estado (solo hacia adelante: nunca retrocede ni toca una idea
 rechazada o fusionada desde el admin) y les avisa a quienes la votaron.

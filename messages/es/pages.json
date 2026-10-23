@@ -1004,7 +1004,8 @@
         "sub": "Abrí una pizarra nueva y compartila con tu equipo.",
         "button": "Abrir Board"
       }
-    }
+    },
+    "parityShort": "{percent}% de paridad con {competitor}"
   },
   "product": {
     "launch": "Probar {name}",
@@ -1030,13 +1031,45 @@
       "video": "Video",
       "compare": "La cuenta",
       "model": "Precios",
-      "faq": "Preguntas"
+      "faq": "Preguntas",
+      "parity": "Paridad"
     },
     "compareTitle": "{rival}, a precio de lista.",
     "compareTitleDim": "Contra $0 en tu servidor.",
     "shotFig": "fig. 1 · {name}, vista interactiva",
     "zeroApp": "{name} en tu servidor",
-    "zeroLicense": "Licencia"
+    "zeroLicense": "Licencia",
+    "parity": {
+      "sectionTitle": "{name} frente a {competitor}.",
+      "sectionTitleDim": "Nuestra cuenta, capacidad por capacidad.",
+      "kicker": "paridad con {competitor}",
+      "ofCompetitor": "de lo que hace {competitor}, según nuestra cuenta",
+      "counts": {
+        "have": "Incluidas",
+        "partial": "Parciales",
+        "missing": "Faltan"
+      },
+      "method": "Medimos {count} capacidades de {competitor}: suma 1 la que tenemos, 0,5 la parcial y 0 la que falta, con peso doble para las centrales; es nuestra evaluación, revisada contra el código el {date}.",
+      "changelog": "Ver el changelog",
+      "areasLabel": "Paridad por área",
+      "tableTitle": "Todo lo que incluye {name}",
+      "tableCaption": "Capacidades de {name} comparadas con {competitor}",
+      "col": {
+        "capability": "Capacidad"
+      },
+      "status": {
+        "have": "Incluida",
+        "better": "Mejor",
+        "partial": "Parcial",
+        "missing": "Falta"
+      },
+      "yes": "Sí",
+      "no": "No",
+      "beyondTitle": "Donde vamos más allá",
+      "missingTitle": "Lo que todavía falta ({count})",
+      "missingLead": "{competitor} tiene esto y nosotros todavía no. Si te hace falta, votalo en el board público.",
+      "vote": "Votar en el board"
+    }
   },
   "mockups": {
     "link": {

@@ -89,10 +89,6 @@ export default async function LocaleLayout(
       data-theme={themeAttr(themePref)}
       className={`${sans.variable} ${mono.variable}`}
     >
-      <head>
-        {/* Cookie tz antes de hidratar y del primer request a la app (ver lib/tz-client.ts). */}
-        <script dangerouslySetInnerHTML={{ __html: TZ_COOKIE_SCRIPT }} />
-      </head>
       <body>
         <BrandProvider brand={brand}>
         <ThemeProvider initial={themePref}>
@@ -111,6 +107,9 @@ export default async function LocaleLayout(
         </ClientMessages>
         </ThemeProvider>
         </BrandProvider>
+        {/* Cookie tz antes del primer request a la app (ver lib/tz-client.ts). Al
+            final del body: en el <head> quedaba detrás del CSS y frenaba el parseo. */}
+        <script dangerouslySetInnerHTML={{ __html: TZ_COOKIE_SCRIPT }} />
       </body>
     </html>
   );

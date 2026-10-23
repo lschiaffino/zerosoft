@@ -14,7 +14,7 @@ import {
   parseImportDate,
 } from '@/lib/crm-import';
 import { addMember, createTeam } from '@/lib/teams';
-import { guessMapping, hubspotMapping, presetMapping } from '@/components/crm/csv';
+import { finalizeRow, guessMapping, hubspotMapping, presetColumnsMapping, presetMapping } from '@/components/crm/csv';
 import { makeUser } from './helpers';
 
 async function pipelineWithStages(userId: string) {
@@ -322,5 +322,85 @@ describe('Import: presets', () => {
     expect(await deleteImportPreset(b.id, preset.id)).toBe(false);
     expect(await deleteImportPreset(a.id, preset.id)).toBe(true);
     expect(await listImportPresets(a.id)).toEqual([]);
+  });
+});
+
+describe('Import: presets de exports de otros CRMs (csv.ts)', () => {
+  it('Salesforce: contactos y oportunidades', () => {
+    expect(
+      presetColumnsMapping('salesforce', ['Contact ID', 'First Name', 'Last Name', 'Email', 'Title', 'Mailing City', 'Lead Source', 'Contact Owner', 'Account Name'], 'contacts'),
+    ).toEqual(['', 'firstName', 'lastName', 'email', 'jobTitle', 'city', 'source', 'ownerEmail', 'companyName']);
+    expect(
+      presetColumnsMapping('salesforce', ['Opportunity Name', 'Stage', 'Amount', 'Close Date', 'Opportunity Owner', 'Account Name', 'Probability (%)'], 'deals'),
+    ).toEqual(['name', 'stage', 'amount', 'closeDate', 'ownerEmail', 'companyName', '']);
+  });
+
+  it('Zoho: Accounts y Deals', () => {
+    expect(presetColumnsMapping('zoho', ['Record Id', 'Account Name', 'Website', 'Employees', 'Billing Country', 'Parent Account'], 'companies')).toEqual([
+      '',
+      'name',
+      'website',
+      'employees',
+      'country',
+      'parentCompanyName',
+    ]);
+    expect(presetColumnsMapping('zoho', ['Deal Name', 'Closing Date', 'Deal Owner', 'Contact Name'], 'deals')).toEqual([
+      'name',
+      'closeDate',
+      'ownerEmail',
+      'contactEmail',
+    ]);
+  });
+
+  it('Pipedrive: columnas "Person - …" y "Deal - …"', () => {
+    expect(presetColumnsMapping('pipedrive', ['Person - Name', 'Person - Email - Work', 'Person - Phone - Work', 'Person - Organization', 'Person - Owner'], 'contacts')).toEqual([
+      'fullName',
+      'email',
+      'phone',
+      'companyName',
+      'ownerEmail',
+    ]);
+    expect(presetColumnsMapping('pipedrive', ['Deal - Title', 'Deal - Value', 'Deal - Currency', 'Deal - Stage', 'Deal - Status'], 'deals')).toEqual([
+      'name',
+      'amount',
+      'currency',
+      'stage',
+      '',
+    ]);
+  });
+
+  it('Attio y Close: nombre completo y listas de emails/dominios', () => {
+    expect(presetColumnsMapping('attio', ['Record ID', 'Name', 'Email addresses', 'Job title', 'Company'], 'contacts')).toEqual([
+      '',
+      'fullName',
+      'email',
+      'jobTitle',
+      'companyName',
+    ]);
+    expect(presetColumnsMapping('attio', ['Name', 'Domains', 'Categories'], 'companies')).toEqual(['name', 'domain', 'industry']);
+    expect(presetColumnsMapping('close', ['Contact Name', 'Primary Email', 'Lead Name', 'Title'], 'contacts')).toEqual([
+      'fullName',
+      'email',
+      'companyName',
+      'jobTitle',
+    ]);
+    expect(presetColumnsMapping('close', ['Lead Name', 'Status Label', 'Value', 'Value Currency', 'Date Won', 'User Name'], 'deals')).toEqual([
+      'companyName',
+      'stage',
+      'amount',
+      'currency',
+      'closeDate',
+      'ownerEmail',
+    ]);
+  });
+
+  it('finalizeRow parte el nombre completo y deja el primer email/dominio', () => {
+    expect(finalizeRow({ fullName: 'Ada  King Lovelace', email: 'ada@x.com, ada@y.com' })).toEqual({
+      firstName: 'Ada',
+      lastName: 'King Lovelace',
+      email: 'ada@x.com',
+    });
+    expect(finalizeRow({ fullName: 'Ada Lovelace', firstName: 'Augusta' })).toEqual({ firstName: 'Augusta', lastName: 'Lovelace' });
+    expect(finalizeRow({ domain: 'a.com; b.com' })).toEqual({ domain: 'a.com' });
   });
 });

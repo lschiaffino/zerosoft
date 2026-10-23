@@ -305,7 +305,13 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
             title={t('record.empty.companiesTitle')}
             body={t('record.empty.companiesBody')}
             action={<CrmQuickCreate kind="company" variant="empty" buttonClassName="btn btn-primary" label={t('record.createCompany')} />}
-            secondary={<Link href="/app/crm/settings">{t('record.empty.importCsv')}</Link>}
+            secondary={
+              <>
+                <Link href="/app/crm/settings?tab=import&from=hubspot">{t('record.empty.bringFromHubspot')}</Link>
+                {' · '}
+                <Link href="/app/crm/settings?tab=import">{t('record.empty.importCsv')}</Link>
+              </>
+            }
           />
         )
       ) : (
