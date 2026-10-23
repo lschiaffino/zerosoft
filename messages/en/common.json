@@ -424,5 +424,34 @@
     "system": "System",
     "light": "Light",
     "dark": "Dark"
+  },
+  "importJob": {
+    "reading": "Reading the source… {count} items so far",
+    "uploading": "Uploading… {percent}%",
+    "importing": "Importing… {processed} of {total}",
+    "keepsGoing": "You can leave this page. The import keeps going and you can come back to it.",
+    "cancel": "Cancel",
+    "errors": {
+      "unauthorized": "The token was rejected. Check that it is correct and has read access.",
+      "not_found": "Not found. Check the name and that the token can see it.",
+      "source_unreachable": "Could not reach the service. Try again in a moment.",
+      "source_error": "The service answered with an error. Try again in a moment.",
+      "invalid_repo": "Use the owner/repo format.",
+      "csv_no_title": "Pick the column with the title.",
+      "csv_empty": "No row has a title. Check the column mapping.",
+      "file_too_large": "The file is too large.",
+      "invalid_zip": "This is not a valid .zip file.",
+      "invalid_upload": "The uploaded file could not be found. Upload it again.",
+      "notion_empty": "The .zip has no Markdown or CSV pages. Export from Notion as Markdown & CSV.",
+      "storage_unavailable": "File storage is not configured on this server.",
+      "upload_failed": "The upload failed. Try again.",
+      "upload_incomplete": "The upload did not finish. Try again.",
+      "project_not_found": "That project no longer exists.",
+      "forbidden": "Only workspace admins can import here.",
+      "invalid_input": "Check the fields and try again.",
+      "not_ready": "The preview is no longer available. Start again.",
+      "internal_error": "Something went wrong on our side. Nothing else was changed.",
+      "generic": "Could not import. Try again."
+    }
   }
 }

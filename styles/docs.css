@@ -1696,3 +1696,6 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
   .docs-board-embed { flex-direction: column; }
   .docs-board-thumb { flex-basis: auto; width: 100%; }
 }
+
+/* Acciones del encabezado de Docs: importar + página nueva. */
+.docs-landing-actions { display: flex; flex-wrap: wrap; gap: 8px; }

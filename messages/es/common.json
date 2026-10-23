@@ -424,5 +424,34 @@
     "system": "Sistema",
     "light": "Claro",
     "dark": "Oscuro"
+  },
+  "importJob": {
+    "reading": "Leyendo la fuente… {count} elementos hasta ahora",
+    "uploading": "Subiendo… {percent}%",
+    "importing": "Importando… {processed} de {total}",
+    "keepsGoing": "Podés salir de esta página. El import sigue y podés volver a verlo.",
+    "cancel": "Cancelar",
+    "errors": {
+      "unauthorized": "El token fue rechazado. Revisá que sea correcto y tenga acceso de lectura.",
+      "not_found": "No se encontró. Revisá el nombre y que el token pueda verlo.",
+      "source_unreachable": "No se pudo conectar con el servicio. Probá de nuevo en un momento.",
+      "source_error": "El servicio respondió con un error. Probá de nuevo en un momento.",
+      "invalid_repo": "Usá el formato dueño/repo.",
+      "csv_no_title": "Elegí la columna del título.",
+      "csv_empty": "Ninguna fila tiene título. Revisá el mapeo de columnas.",
+      "file_too_large": "El archivo es demasiado grande.",
+      "invalid_zip": "No es un archivo .zip válido.",
+      "invalid_upload": "No se encontró el archivo subido. Subilo de nuevo.",
+      "notion_empty": "El .zip no tiene páginas en Markdown ni CSV. Exportá desde Notion como Markdown & CSV.",
+      "storage_unavailable": "Este servidor no tiene almacenamiento de archivos configurado.",
+      "upload_failed": "Falló la subida. Probá de nuevo.",
+      "upload_incomplete": "La subida no terminó. Probá de nuevo.",
+      "project_not_found": "Ese proyecto ya no existe.",
+      "forbidden": "Solo quien administra el workspace puede importar acá.",
+      "invalid_input": "Revisá los campos y probá de nuevo.",
+      "not_ready": "La vista previa ya no está disponible. Empezá de nuevo.",
+      "internal_error": "Algo falló de nuestro lado. No se cambió nada más.",
+      "generic": "No se pudo importar. Probá de nuevo."
+    }
   }
 }

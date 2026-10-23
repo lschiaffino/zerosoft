@@ -3160,6 +3160,62 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Importadores (Track: Linear, Jira, GitHub y CSV; Cal: Calendly; Docs:
+    // export de Notion). Un job por importación: primero trae y deja en
+    // import_job_items lo normalizado (vista previa), después escribe por
+    // tandas; el cron de cada minuto lo sigue si no entra en un request
+    // (claim por locked_until). El token de terceros va cifrado en `secret`
+    // y se borra apenas se terminó de leer la fuente. import_external_ids
+    // recuerda qué id externo ya se importó (reimportar no duplica).
+    id: '067_import_jobs',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS import_jobs (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          team_id TEXT,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          app TEXT NOT NULL CHECK (app IN ('track', 'cal', 'docs')),
+          source TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'fetching' CHECK (status IN ('uploading', 'fetching', 'preview', 'importing', 'done', 'failed', 'cancelled')),
+          stage TEXT NOT NULL DEFAULT '',
+          options TEXT NOT NULL DEFAULT '{}',
+          secret TEXT,
+          payload TEXT,
+          cursor TEXT NOT NULL DEFAULT '{}',
+          total INTEGER NOT NULL DEFAULT 0,
+          processed INTEGER NOT NULL DEFAULT 0,
+          preview TEXT,
+          report TEXT,
+          error TEXT,
+          locale TEXT NOT NULL DEFAULT 'en',
+          locked_until TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          finished_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_import_jobs_workspace ON import_jobs(workspace_id, app, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_import_jobs_status ON import_jobs(status, updated_at);
+        CREATE TABLE IF NOT EXISTS import_job_items (
+          job_id TEXT NOT NULL REFERENCES import_jobs(id) ON DELETE CASCADE,
+          seq INTEGER NOT NULL,
+          kind TEXT NOT NULL,
+          data TEXT NOT NULL,
+          PRIMARY KEY (job_id, seq)
+        );
+        CREATE TABLE IF NOT EXISTS import_external_ids (
+          workspace_id TEXT NOT NULL,
+          source TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          external_id TEXT NOT NULL,
+          local_id TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (workspace_id, source, kind, external_id)
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

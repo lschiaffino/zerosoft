@@ -370,5 +370,37 @@
     "hint": "Enter to open, Esc to close",
     "open": "Search",
     "shortcut": "⌘P"
+  },
+  "notionImport": {
+    "link": "Import from Notion",
+    "back": "← Docs",
+    "title": "Import from Notion",
+    "lead": "Upload a Notion export and get the same pages in the same tree, with images, files and links between pages.",
+    "loadingJobs": "Loading…",
+    "dismiss": "Close",
+    "step1": "In Notion, open Settings › Export all workspace content, or ··· › Export on a single page.",
+    "step2": "Choose Markdown & CSV, include subpages, and include files and images.",
+    "step3": "Upload the .zip that Notion gives you here.",
+    "file": "Export file (.zip)",
+    "fileHelp": "Up to 1 GB. The file is deleted when the import ends.",
+    "preview": "Upload and preview",
+    "stat": {
+      "pages": "Pages",
+      "databases": "Databases",
+      "attachments": "Files",
+      "size": "Size"
+    },
+    "already": "{count} pages were imported before and will be skipped.",
+    "treeTitle": "Pages",
+    "databaseTag": "database",
+    "more": "and {count} more",
+    "confirm": "Import {count} pages",
+    "doneTitle": "Import finished.",
+    "doneSummary": "{pages} pages and {databases} databases imported with {files} files. {skipped} skipped.",
+    "filesSkipped": "{count} files were not uploaded (over 10 MB or a type we do not store) and stay as their name.",
+    "open": "Open {title}",
+    "untitled": "Untitled",
+    "again": "Import another export",
+    "failedTitle": "The import stopped."
   }
 }

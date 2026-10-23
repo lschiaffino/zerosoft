@@ -370,5 +370,37 @@
     "hint": "Enter para abrir, Esc para fechar",
     "open": "Buscar",
     "shortcut": "⌘P"
+  },
+  "notionImport": {
+    "link": "Importar do Notion",
+    "back": "← Docs",
+    "title": "Importar do Notion",
+    "lead": "Envie um export do Notion e ficam as mesmas páginas na mesma árvore, com imagens, arquivos e links entre páginas.",
+    "loadingJobs": "Carregando…",
+    "dismiss": "Fechar",
+    "step1": "No Notion, abra Settings › Export all workspace content, ou ··· › Export em uma página.",
+    "step2": "Escolha Markdown & CSV, com subpáginas e com arquivos e imagens.",
+    "step3": "Envie aqui o .zip que o Notion gera.",
+    "file": "Arquivo exportado (.zip)",
+    "fileHelp": "Até 1 GB. O arquivo é apagado quando a importação termina.",
+    "preview": "Enviar e ver prévia",
+    "stat": {
+      "pages": "Páginas",
+      "databases": "Bases",
+      "attachments": "Arquivos",
+      "size": "Tamanho"
+    },
+    "already": "{count} páginas já foram importadas antes e serão puladas.",
+    "treeTitle": "Páginas",
+    "databaseTag": "base",
+    "more": "e mais {count}",
+    "confirm": "Importar {count} páginas",
+    "doneTitle": "Importação concluída.",
+    "doneSummary": "Foram importadas {pages} páginas e {databases} bases com {files} arquivos. {skipped} puladas.",
+    "filesSkipped": "{count} arquivos não foram enviados (passam de 10 MB ou são de um tipo que não guardamos) e ficam com o nome.",
+    "open": "Abrir {title}",
+    "untitled": "Sem título",
+    "again": "Importar outro export",
+    "failedTitle": "A importação parou."
   }
 }

@@ -728,5 +728,45 @@
       "phone_invitee": "Llamada (llamás vos)",
       "in_person": "En persona: {address}"
     }
+  },
+  "importer": {
+    "tab": "Importar",
+    "title": "Importar desde Calendly",
+    "lead": "Traé tus tipos de evento, la disponibilidad y, si querés, las reservas próximas. Ves una vista previa antes de que se cree nada.",
+    "adminOnly": "Solo quien administra el workspace puede importar.",
+    "loadingJobs": "Cargando…",
+    "dismiss": "Cerrar",
+    "token": "Token de acceso personal de Calendly",
+    "tokenHelp": "En Calendly: Integraciones › API y webhooks › Tokens de acceso personal.",
+    "tokenNote": "Se usa solo para este import. Queda cifrado mientras se leen tus datos y se borra apenas termina.",
+    "includeBookings": "Importar también las reservas próximas",
+    "includeBookingsHelp": "Entran como confirmadas. Los invitados no reciben otro email.",
+    "preview": "Vista previa",
+    "stat": {
+      "eventTypes": "Tipos de evento",
+      "schedules": "Horarios",
+      "bookings": "Reservas próximas"
+    },
+    "eventTypesTitle": "Tipos de evento",
+    "colTitle": "Tipo de evento",
+    "colDuration": "Duración",
+    "colLocations": "Ubicaciones",
+    "colQuestions": "Preguntas",
+    "minutes": "{n} min",
+    "already": "ya importado",
+    "inactive": "inactivo",
+    "unmapped": "sin equivalente acá: {kinds}",
+    "schedulesTitle": "Disponibilidad",
+    "scheduleRules": "{count} franjas semanales",
+    "defaultSchedule": "por defecto",
+    "scheduleNote": "Calendly no dice qué horario usa cada tipo de evento, así que todos quedan con el horario por defecto. Lo podés cambiar en cada uno.",
+    "confirm": "Importar",
+    "doneTitle": "Import terminado.",
+    "doneSummary": "Se importaron {eventTypes} tipos de evento, {schedules} horarios y {bookings} reservas. {skipped} ya existían.",
+    "renamed": "El link {from} estaba tomado, ahora es {to}.",
+    "failed": "No se importaron: {titles}.",
+    "openEventTypes": "Ir a tipos de evento",
+    "again": "Importar de nuevo",
+    "failedTitle": "El import se cortó."
   }
 }

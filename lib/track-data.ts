@@ -169,7 +169,7 @@ function inClause(count: number): string {
   return `(${Array.from({ length: count }, () => '?').join(', ')})`;
 }
 
-async function nextIdentifier(projectId: string): Promise<string> {
+export async function nextIdentifier(projectId: string): Promise<string> {
   const db = getDb();
   const project = (await db
     .prepare('SELECT slug, team_id, owner_id FROM track_projects WHERE id = ?')
@@ -1037,7 +1037,7 @@ export async function getIssueByIdentifier(
  * (API, Chat, Flow, GitHub, agentes) entra a triage si el proyecto lo tiene
  * activo. Por defecto se asume origen externo.
  */
-export type TrackIssueSource = 'app' | 'api' | 'chat' | 'flow' | 'github' | 'agent' | 'recurring';
+export type TrackIssueSource = 'app' | 'api' | 'chat' | 'flow' | 'github' | 'agent' | 'recurring' | 'import';
 
 export async function createIssue(
   projectId: string,
