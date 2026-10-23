@@ -728,5 +728,45 @@
       "phone_invitee": "Ligação (você liga)",
       "in_person": "Presencial: {address}"
     }
+  },
+  "importer": {
+    "tab": "Importar",
+    "title": "Importar do Calendly",
+    "lead": "Traga seus tipos de evento, a disponibilidade e, se quiser, as reservas futuras. Você vê uma prévia antes de qualquer coisa ser criada.",
+    "adminOnly": "Só quem administra o workspace pode importar.",
+    "loadingJobs": "Carregando…",
+    "dismiss": "Fechar",
+    "token": "Token de acesso pessoal do Calendly",
+    "tokenHelp": "No Calendly: Integrações › API e webhooks › Tokens de acesso pessoal.",
+    "tokenNote": "Usado só nesta importação. Fica cifrado enquanto seus dados são lidos e é apagado logo depois.",
+    "includeBookings": "Importar também as reservas futuras",
+    "includeBookingsHelp": "Entram como confirmadas. Os convidados não recebem outro email.",
+    "preview": "Prévia",
+    "stat": {
+      "eventTypes": "Tipos de evento",
+      "schedules": "Horários",
+      "bookings": "Reservas futuras"
+    },
+    "eventTypesTitle": "Tipos de evento",
+    "colTitle": "Tipo de evento",
+    "colDuration": "Duração",
+    "colLocations": "Locais",
+    "colQuestions": "Perguntas",
+    "minutes": "{n} min",
+    "already": "já importado",
+    "inactive": "inativo",
+    "unmapped": "sem equivalente aqui: {kinds}",
+    "schedulesTitle": "Disponibilidade",
+    "scheduleRules": "{count} faixas semanais",
+    "defaultSchedule": "padrão",
+    "scheduleNote": "O Calendly não informa qual horário cada tipo de evento usa, então todos ficam com o horário padrão. Você pode mudar em cada um.",
+    "confirm": "Importar",
+    "doneTitle": "Importação concluída.",
+    "doneSummary": "Foram importados {eventTypes} tipos de evento, {schedules} horários e {bookings} reservas. {skipped} já existiam.",
+    "renamed": "O link {from} estava em uso, agora é {to}.",
+    "failed": "Não importados: {titles}.",
+    "openEventTypes": "Ir para tipos de evento",
+    "again": "Importar de novo",
+    "failedTitle": "A importação parou."
   }
 }
