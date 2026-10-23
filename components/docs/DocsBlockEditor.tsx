@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useLayoutEffect, useRef } from 'react';
+import { forwardRef, useLayoutEffect, useMemo, useRef } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { DocsBlock, DocsBlockType } from '@/lib/docs-types';
@@ -76,6 +76,13 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
     const router = useRouter();
     const innerRef = useRef<HTMLDivElement | null>(null);
     const linkHref = pageLinks?.href ?? pageLinkHref;
+    // Primer render con el contenido ya en el HTML (también en el servidor):
+    // antes el bloque llegaba vacío y crecía al hidratar (CLS). El valor queda
+    // fijo mientras se tipea para que React no reescriba innerHTML (movería el
+    // caret); los cambios los sincroniza el efecto de abajo. Se renueva solo si
+    // cambia el tipo, por si el nodo editable se vuelve a montar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const initialHtml = useMemo(() => ({ __html: block.content }), [block.id, block.type]);
 
     const renderPlaceholder = (type: DocsBlockType): string => {
       switch (type) {
@@ -352,6 +359,7 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           className={`docs-editable docs-${block.type === 'toggle' ? 'toggle-text' : block.type}${block.level ? ` docs-h${block.level}` : ''}`}
           contentEditable
           suppressContentEditableWarning
+          dangerouslySetInnerHTML={initialHtml}
           data-placeholder={renderPlaceholder(block.type)}
           onInput={(e) => onChange(index, { content: serializeEditable(e.currentTarget) })}
           onPaste={(e) => {

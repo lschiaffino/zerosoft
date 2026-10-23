@@ -1,5 +1,4 @@
-import { NextIntlClientProvider } from 'next-intl';
-import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { IBM_Plex_Mono, Space_Grotesk } from 'next/font/google';
 import { routing } from '@/i18n/routing';
 import Header from '@/components/Header';
@@ -10,11 +9,13 @@ import FeedbackLauncher from '@/components/FeedbackLauncher';
 import { supportWidgetId } from '@/lib/support';
 import { surfaceForHost } from '@/lib/host-rewrite';
 import { headers } from 'next/headers';
+import ClientMessages from '@/components/i18n/ClientMessages';
 import BrandProvider from '@/components/brand/BrandProvider';
 import { getBrandTheme } from '@/lib/brand-theme-server';
 import ThemeProvider from '@/components/theme/ThemeProvider';
 import { getThemePref } from '@/lib/color-theme-server';
 import { themeAttr } from '@/lib/color-theme';
+import { TZ_COOKIE_SCRIPT } from '@/lib/tz-client';
 import '@/styles/board-public.css';
 import type { ReactNode } from 'react';
 
@@ -72,7 +73,6 @@ export default async function LocaleLayout(
   } = props;
 
   setRequestLocale(locale);
-  const messages = await getMessages();
   const supportId = supportWidgetId();
   // feedback.zerosoft.ai / branding.zerosoft.ai: chrome propio (ver ChromeGate).
   // El layout ya es dinámico (el Header lee la sesión), leer el host no cambia eso.
@@ -89,10 +89,16 @@ export default async function LocaleLayout(
       data-theme={themeAttr(themePref)}
       className={`${sans.variable} ${mono.variable}`}
     >
+      <head>
+        {/* Cookie tz antes de hidratar y del primer request a la app (ver lib/tz-client.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: TZ_COOKIE_SCRIPT }} />
+      </head>
       <body>
         <BrandProvider brand={brand}>
         <ThemeProvider initial={themePref}>
-        <NextIntlClientProvider messages={messages}>
+        {/* Al cliente va solo lo común (header, launcher de feedback); cada app
+            y página pública suma sus namespaces en su layout. */}
+        <ClientMessages root locale={locale} namespaces={['common', 'feedback.form', 'feedbackBoard']}>
           <ChromeGate
             header={<Header locale={locale} />}
             footer={<Footer locale={locale} />}
@@ -102,7 +108,7 @@ export default async function LocaleLayout(
           >
             {children}
           </ChromeGate>
-        </NextIntlClientProvider>
+        </ClientMessages>
         </ThemeProvider>
         </BrandProvider>
       </body>

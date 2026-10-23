@@ -93,45 +93,8 @@
   scrollbar-color: var(--brand-rule) transparent;
 }
 
-.docs-sidebar-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 8px;
-  font-size: 0.875rem;
-  color: var(--brand-gray-2);
-}
-.docs-sidebar-empty p { margin: 0; }
-
-.docs-tree,
-.docs-tree ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.docs-tree { --row-h: 28px; --indent: 14px; }
-
-/* Filas como el sidebar de Notion: flecha, ícono, título; sangría por nivel
-   y ninguna línea que una a las páginas. */
-.docs-tree-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: var(--row-h);
-  padding: 0 2px 0 calc(var(--d, 0) * var(--indent) + 4px);
-  border-radius: var(--radius-1);
-  color: var(--dim);
-  transition: background-color var(--ui-dur) var(--ease);
-}
-.docs-tree-row:hover { background: var(--ui-hover); color: var(--ink); }
-.docs-tree-row.active { background: var(--ui-hover); color: var(--ink); }
-.docs-tree-row.dragging { opacity: 0.4; }
-
 /* Plegar/desplegar: antes del ícono. Las hojas dejan el mismo hueco. */
-.docs-tree-chevron,
-.docs-tree-chevron-spacer {
+.docs-tree-chevron {
   flex: 0 0 20px;
   width: 20px;
   height: 20px;
@@ -151,38 +114,6 @@
 .docs-tree-chevron:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .docs-tree-chevron svg { transition: transform var(--ui-dur) var(--ease); }
 .docs-tree-chevron.open svg { transform: rotate(90deg); }
-
-/* El ícono de la página (emoji) o un documento genérico. */
-.docs-tree-icon {
-  flex: 0 0 20px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  font-size: 0.9375rem;
-  line-height: 1;
-  color: var(--dim);
-}
-
-.docs-tree-link {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  align-self: stretch;
-  gap: 6px;
-  padding: 0 4px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: inherit;
-  text-decoration: none;
-  border-radius: var(--radius-1);
-}
-.docs-tree-row.active .docs-tree-link { font-weight: 600; }
-.docs-tree-row.active .docs-tree-icon { color: var(--ink); }
-.docs-tree-link:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
-.docs-tree-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Botones de fila (subpágina, acciones) y "+" de la cabecera. */
 .docs-tree-btn {
@@ -232,12 +163,8 @@
 .docs-tree-row.drop.drop-after::after { bottom: -1px; }
 
 /* Dentro del sidebar del shell (≥1024px): alineado con los ítems del shell. */
-.side-branch:empty { display: none; }
-.docs-branch { padding: 2px 0 6px 8px; }
-.docs-branch .docs-sidebar-empty { padding: 4px 8px 8px 12px; }
 .docs-branch .docs-shared { margin: 12px 0 0; }
 .docs-branch .docs-shared-row:hover { background: var(--ui-hover); }
-.sidebar-collapsed .side-branch { display: none; }
 
 .docs-tree-drop-root {
   margin: 12px 4px 0;
@@ -1449,7 +1376,6 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
   .docs-sidebar.mobile-open .docs-sidebar-toggle svg { transform: rotate(180deg); }
   .docs-sidebar:not(.mobile-open) .docs-sidebar-body { display: none; }
   .docs-sidebar-body { max-height: 60dvh; padding-top: 0; border-top: 1px solid var(--line); }
-  .docs-tree { --row-h: 36px; --indent: 16px; }
   .docs-landing .ui-page-actions .kbd { display: none; }
 
   .docs-editor-wrap.has-side { grid-template-columns: minmax(0, 1fr); }
@@ -1531,7 +1457,6 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .docs-tree-row,
   .docs-tree-chevron svg,
   .docs-template,
   .docs-toggle::after,
@@ -1544,8 +1469,6 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 /* ---------- 12. Exportar a PDF (diálogo de impresión) ---------- */
 
 @media print {
-  .side,
-  .app-band,
   .docs-sidebar,
   .docs-top-bar,
   .docs-side,
@@ -1556,11 +1479,7 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
   .docs-gap-add,
   .docs-block-comment,
   .docs-cover-remove,
-  .powered-by,
-  #zs-chat-root { display: none !important; }
-  .app-frame,
-  .app-main-scroll,
-  .app-content,
+  .powered-by { display: none !important; }
   .docs-layout,
   .docs-main,
   .docs-editor-wrap {

@@ -262,15 +262,19 @@ export async function listDocPages(
  */
 export async function listDocPageSummaries(
   ownerId: string,
-  opts: { archived?: boolean } = {},
+  opts: { archived?: boolean; limit?: number; offset?: number } = {},
 ): Promise<DocsPageSummary[]> {
   const archived = opts.archived ? 1 : 0;
+  // Sin limit trae todas (el árbol del sidebar las necesita enteras).
+  const page = opts.limit != null ? ' LIMIT ? OFFSET ?' : '';
+  const args: Array<string | number> = [ownerId, archived];
+  if (opts.limit != null) args.push(opts.limit, opts.offset ?? 0);
   const rows = (await getDb()
     .prepare(
       `SELECT id, parent_id, title, icon, position, updated_at FROM docs_pages
-       WHERE user_id = ? AND archived = ? ORDER BY (position IS NULL) ASC, position ASC, updated_at DESC`,
+       WHERE user_id = ? AND archived = ? ORDER BY (position IS NULL) ASC, position ASC, updated_at DESC, id${page}`,
     )
-    .all(ownerId, archived)) as DocsPageSummary[];
+    .all(...args)) as DocsPageSummary[];
   return rows.map((r) => ({
     id: r.id,
     parent_id: r.parent_id ?? null,

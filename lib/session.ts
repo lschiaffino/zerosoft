@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { getServerSession } from 'next-auth';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -39,19 +40,32 @@ export function realUserId(user: SessionUser): string {
   return user.actingUser?.id ?? user.id;
 }
 
+// Usuario demo ya sembrado en este proceso: evita el UPDATE de reclamo de
+// seedUserIfNeeded en cada request (después de la primera siempre es no-op).
+let demoSeededId: string | null = null;
+
 async function getDemoUser(): Promise<UserRow> {
   const demo =
     (await getUserByEmail(DEMO_EMAIL)) ??
     (await upsertUser({ id: 'demo', email: DEMO_EMAIL, name: 'Demo User', image: null }));
-  await seedUserIfNeeded(demo.id);
+  if (demoSeededId !== demo.id) {
+    await seedUserIfNeeded(demo.id);
+    demoSeededId = demo.id;
+  }
   return demo;
 }
 
 /**
  * Usuario actual (sesión Google o, si DEMO_MODE=true, el usuario demo),
  * resuelto a su workspace activo. Devuelve null si no hay sesión.
+ *
+ * Va envuelto en cache(): en un render el Header, el layout de la app y la
+ * página lo piden por separado y comparten una sola resolución (hasta 4
+ * queries). Fuera de un render de React (route handlers, tests) no cachea.
  */
-export async function getCurrentUser(): Promise<SessionUser | null> {
+export const getCurrentUser = cache(loadCurrentUser);
+
+async function loadCurrentUser(): Promise<SessionUser | null> {
   if (DEMO_MODE) {
     const demo = await getDemoUser();
     const { owner, team, role } = await resolveWorkspace(demo);

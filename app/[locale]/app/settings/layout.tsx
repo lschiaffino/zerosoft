@@ -5,6 +5,7 @@ import { isAdminEmail } from '@/lib/feedback';
 import { settingsTabs } from '@/lib/settings-nav';
 import PageHeader from '@/components/ui/PageHeader';
 import SettingsTabs from '@/components/ui/SettingsTabs';
+import ClientMessages from '@/components/i18n/ClientMessages';
 import '@/styles/settings.css';
 
 /**
@@ -20,11 +21,14 @@ export default async function SettingsLayout(props: { children: ReactNode; param
   const items = settingsTabs(isAdmin).map((tab) => ({ ...tab, label: t(`tabs.${tab.key}`) }));
 
   return (
-    <div className="ui-page st-page">
-      <PageHeader title={t('title')} description={t('desc')} />
-      <SettingsTabs mode="route" layout="top" items={items} label={t('tabs.label')}>
-        {props.children}
-      </SettingsTabs>
-    </div>
+    // Admin (changelog, feedback, roadmap) y Workspace usan textos de esas apps.
+    <ClientMessages locale={locale} namespaces={['settings', 'changelog.admin', 'feedback.admin', 'roadmap', 'link.common']}>
+      <div className="ui-page st-page">
+        <PageHeader title={t('title')} description={t('desc')} />
+        <SettingsTabs mode="route" layout="top" items={items} label={t('tabs.label')}>
+          {props.children}
+        </SettingsTabs>
+      </div>
+    </ClientMessages>
   );
 }

@@ -8,6 +8,9 @@ import { countChatConversations, getChatWidget } from '@/lib/chat-data';
 import { formatNumber } from '@/lib/utils';
 import PageHeader from '@/components/ui/PageHeader';
 import SettingsTabs from '@/components/ui/SettingsTabs';
+import ClientMessages from '@/components/i18n/ClientMessages';
+// La sección Widget lista los tipos de evento de Cal (EventTypesView).
+import '@/styles/calendar.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,34 +29,36 @@ export default async function WidgetLayout(props: { children: ReactNode; params:
   const base = `/app/chat/widgets/${widget.id}`;
 
   return (
-    <div className="ui-page">
-      <PageHeader
-        back={{ href: '/app/chat/widgets', label: t('widgets.title') }}
-        title={
-          <span className="chat-widget-name">
-            <span className="chat-swatch-lg" style={{ backgroundColor: widget.color }} aria-hidden="true" />
-            {widget.name}
-          </span>
-        }
-        actions={
-          <Link href="/app/chat/inbox" className="btn btn-secondary">
-            {t('widgets.openInbox', { count: open, formatted: formatNumber(open, locale) })}
-          </Link>
-        }
-      />
-      <SettingsTabs
-        mode="route"
-        label={widget.name}
-        className="chat-widget-sections"
-        items={[
-          { key: 'settings', href: base, label: t('widgetNav.settings') },
-          { key: 'rules', href: `${base}/rules`, label: t('widgetNav.rules') },
-          { key: 'canned', href: `${base}/canned`, label: t('widgetNav.canned') },
-          { key: 'sla', href: `${base}/sla`, label: t('widgetNav.sla') },
-        ]}
-      >
-        {props.children}
-      </SettingsTabs>
-    </div>
+    <ClientMessages locale={locale} namespaces={['calendar']}>
+      <div className="ui-page">
+        <PageHeader
+          back={{ href: '/app/chat/widgets', label: t('widgets.title') }}
+          title={
+            <span className="chat-widget-name">
+              <span className="chat-swatch-lg" style={{ backgroundColor: widget.color }} aria-hidden="true" />
+              {widget.name}
+            </span>
+          }
+          actions={
+            <Link href="/app/chat/inbox" className="btn btn-secondary">
+              {t('widgets.openInbox', { count: open, formatted: formatNumber(open, locale) })}
+            </Link>
+          }
+        />
+        <SettingsTabs
+          mode="route"
+          label={widget.name}
+          className="chat-widget-sections"
+          items={[
+            { key: 'settings', href: base, label: t('widgetNav.settings') },
+            { key: 'rules', href: `${base}/rules`, label: t('widgetNav.rules') },
+            { key: 'canned', href: `${base}/canned`, label: t('widgetNav.canned') },
+            { key: 'sla', href: `${base}/sla`, label: t('widgetNav.sla') },
+          ]}
+        >
+          {props.children}
+        </SettingsTabs>
+      </div>
+    </ClientMessages>
   );
 }

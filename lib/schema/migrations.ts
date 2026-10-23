@@ -3160,6 +3160,20 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Agents: la lista calcula conversaciones de 7 días y feedback por
+    // workspace; los índices por agent_id obligaban a recorrer las tablas
+    // enteras. La lista se ordena por created_at (el índice viejo es por
+    // updated_at y armaba un B-tree temporal).
+    id: '066_agent_stats_indexes',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_agent_conversations_user_created ON agent_conversations(user_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_agent_feedback_user_agent ON agent_feedback(user_id, agent_id);
+        CREATE INDEX IF NOT EXISTS idx_agents_user_created ON agents(user_id, created_at);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

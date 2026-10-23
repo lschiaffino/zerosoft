@@ -291,6 +291,21 @@
 .side-menu-item:focus-visible { box-shadow: inset 0 0 0 2px var(--ink); }
 .side-menu-item svg { color: var(--brand-gray-2); }
 
+/*
+ * En escritorio la lista ocupa el alto libre y scrollea sola: el árbol que
+ * una app cuelga en #side-branch después de hidratar (páginas de Docs,
+ * pizarras, proyectos) ya no empuja el pie del sidebar (era layout shift).
+ */
+@media (min-width: 1024px) {
+  .side-line {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--brand-rule) transparent;
+  }
+}
+
 /* Pie: ajustes globales, docs, sitio, usuario. */
 .side-foot {
   display: flex;

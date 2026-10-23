@@ -21,14 +21,21 @@ export async function GET(req: NextRequest) {
   }
   const view = viewParam === 'pinned' || viewParam === 'trash' ? viewParam : 'all';
   const sortParam = sp.get('sort') as NotesSort | null;
-  const notes = await listNotes(noteOwner(user), {
+  // Paginado opcional (?limit=&offset=); sin limit, la lista de la app (hasta 500).
+  const limit = Math.min(Math.max(Number(sp.get('limit')) || 500, 1), 500);
+  const offset = Math.max(Math.floor(Number(sp.get('offset')) || 0), 0);
+  const rows = await listNotes(noteOwner(user), {
     view,
     notebookId: sp.get('notebook'),
     tag: sp.get('tag'),
     q: sp.get('q')?.slice(0, 200) ?? null,
     sort: sortParam && NOTES_SORTS.includes(sortParam) ? sortParam : 'updated',
+    // Una de más para saber si hay otra página.
+    limit: limit + 1,
+    offset,
   });
-  return NextResponse.json({ notes });
+  const more = rows.length > limit;
+  return NextResponse.json({ notes: more ? rows.slice(0, limit) : rows, nextOffset: more ? offset + limit : null });
 }
 
 export async function POST(req: NextRequest) {

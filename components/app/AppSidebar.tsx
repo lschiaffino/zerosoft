@@ -3,6 +3,8 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { signOut } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
+import { TZ_CHANGED_EVENT } from '@/lib/tz-client';
+import { collapsedFrom, denseRoute, storageKey } from '@/lib/sidebar-collapsed';
 import { Link, usePathname } from '@/i18n/navigation';
 import Icon from './icons';
 import {
@@ -42,24 +44,9 @@ const PRODUCTS: ReadonlyArray<{ key: AppProduct; line: ProductKey; name: string;
   { key: 'robots', line: 'robots', name: 'Robots', href: '/app/robots' },
 ];
 
-const STORAGE_COLLAPSED = 'zs-side-collapsed';
-
-/**
- * Rutas que ya traen su propia columna de navegación (Notes: libretas · lista ·
- * nota). Ahí el sidebar arranca colapsado y recuerda su estado aparte.
- */
-function denseRoute(pathname: string): string | null {
-  return /^\/app\/notes\/?$/.test(pathname) ? 'notes' : null;
-}
-
-function storageKey(dense: string | null): string {
-  return dense ? `${STORAGE_COLLAPSED}-${dense}` : STORAGE_COLLAPSED;
-}
-
 function readCollapsed(dense: string | null): boolean {
   try {
-    const v = window.localStorage.getItem(storageKey(dense));
-    return v == null ? dense != null : v === '1';
+    return collapsedFrom(window.localStorage.getItem(storageKey(dense)), dense);
   } catch {
     return dense != null;
   }
@@ -124,6 +111,23 @@ export default function AppSidebar({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  // Contador de tareas pedido de nuevo cuando la cookie tz recién se escribió
+  // (el servidor lo contó con "hoy" en UTC). Ver TimezoneCookie.
+  const [dueFresh, setDueFresh] = useState<{ from: number; count: number } | null>(null);
+  useEffect(() => {
+    function onTz() {
+      fetch('/api/crm/tasks/due-count')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { count?: unknown } | null) => {
+          if (typeof d?.count === 'number') setDueFresh({ from: tasksDue, count: d.count });
+        })
+        .catch(() => {});
+    }
+    window.addEventListener(TZ_CHANGED_EVENT, onTz);
+    return () => window.removeEventListener(TZ_CHANGED_EVENT, onTz);
+  }, [tasksDue]);
+  // Un valor nuevo del servidor (refresh, navegación dura) vuelve a mandar.
+  const dueCount = dueFresh && dueFresh.from === tasksDue ? dueFresh.count : tasksDue;
 
   const asideRef = useRef<HTMLElement>(null);
   const switcherRef = useRef<HTMLDivElement>(null);
@@ -202,7 +206,7 @@ export default function AppSidebar({
     asideRef.current?.closest('.app-frame')?.classList.toggle('sidebar-collapsed', next);
   }
 
-  const nav = buildNav(product, pathname, labels, { tasksDue, unread: unreadCount });
+  const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount });
   const newItems = buildNewItems(product, labels);
   const settingsItem = settingsNavItem(pathname, labels);
 

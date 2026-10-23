@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
-import { listAgents } from '@/lib/agents';
+import { listAgentOptions } from '@/lib/agents';
 import { getFlow, lastOutputs, listFlows, listFlowWebhooks } from '@/lib/flow';
 import { flowCodeAvailable } from '@/lib/flow-code';
 import { listCredentials } from '@/lib/flow-credentials';
@@ -27,7 +27,7 @@ export default async function FlowEditorPage(props: {
   const [credentials, flows, agents, robots, tables] = await Promise.all([
     listCredentials(user.id),
     listFlows(user.id),
-    listAgents(user.id),
+    listAgentOptions(user.id),
     listRobots(user.id),
     listTables(user.id),
   ]);

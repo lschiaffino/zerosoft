@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import TzDependent from '@/components/app/TzDependent';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
@@ -73,6 +74,7 @@ export default async function CrmOverviewPage(
     return (
       <div className="app-page">
         <h1 className="app-title">{t('overview.title')}</h1>
+        <TzDependent />
         <div className="empty-state">
           <p className="empty-zeros mono" aria-hidden>
             0 0 0 0 0
@@ -91,6 +93,7 @@ export default async function CrmOverviewPage(
   return (
     <div className="app-page">
       <h1 className="app-title">{t('overview.title')}</h1>
+      <TzDependent />
 
       <div className="stat-cards stat-cards-6">
         <div className="panel stat-card">

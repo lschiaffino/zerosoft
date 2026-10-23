@@ -489,13 +489,6 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   .task-filters .select { flex: 1 1 0; min-width: 0; width: 100%; text-overflow: ellipsis; }
 }
 
-/* Mobile: "Más campos" en una línea y la pista debajo, alineada al texto. */
-@media (max-width: 760px) {
-  .ui-disclosure-toggle { flex-wrap: wrap; row-gap: 2px; padding: 8px 0; }
-  .ui-disclosure-label { white-space: nowrap; }
-  .ui-disclosure-hint { flex-basis: 100%; margin-left: 22px; font-size: 0.8125rem; }
-}
-
 /* Mobile: los tipos de actividad pasan a dos filas en vez de cortarse. */
 @media (max-width: 760px) {
   .tl-filters { flex-wrap: wrap; overflow: visible; padding-top: 1px; }

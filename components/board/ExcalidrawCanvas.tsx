@@ -5,7 +5,7 @@
  * ssr:false desde BoardEditor / BoardViewer): Excalidraw toca window al
  * importarse. Su CSS se importa acá, así viaja en el mismo chunk.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CaptureUpdateAction, Excalidraw, MainMenu, convertToExcalidrawElements, exportToSvg, reconcileElements, useHandleLibrary } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { isAllowedLibraryUrl, type BoardScene } from '@/lib/boards-types';
@@ -89,7 +89,15 @@ function usePanelLimit(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref]);
 }
 
-export default function ExcalidrawCanvas({
+/**
+ * Memoizado y con props estables hacia <Excalidraw>: Excalidraw compara sus
+ * props (children incluidos) por referencia y, si cambian, re-renderiza todo
+ * el lienzo. Así un re-render del editor (estado de guardado, presencia,
+ * timers) no repinta el lienzo en medio de una interacción.
+ */
+export default memo(ExcalidrawCanvas);
+
+function ExcalidrawCanvas({
   scene,
   locale,
   viewMode = false,
@@ -133,31 +141,38 @@ export default function ExcalidrawCanvas({
     }),
     [viewMode],
   );
-  return (
-    // display: contents: no cambia el layout; solo sirve para medir el panel.
-    <div ref={hostRef} className="board-excalidraw" data-lang={excalidrawLang(locale)}>
-    <Excalidraw
-      theme={theme}
-      initialData={{
-        elements: scene.elements as never,
-        appState: { ...scene.appState, collaborators: undefined } as never,
-        files: scene.files as never,
-        scrollToContent: true,
-      }}
-      langCode={excalidrawLang(locale)}
-      viewModeEnabled={viewMode}
-      excalidrawAPI={(instance) => {
-        setApi(instance);
-        onApi?.(instance as unknown as CanvasApi);
-      }}
-      libraryReturnUrl={withLibrary ? returnUrl : undefined}
-      onChange={onChange ? (els, appState, files) => onChange(els, appState as unknown as Record<string, unknown>, files as unknown as Record<string, unknown>) : undefined}
-      UIOptions={uiOptions}
-    >
-      {/*
-       * Menú propio: los ítems útiles del default, sin el grupo "Excalidraw links"
-       * (GitHub, X, Discord), que sacaba a la gente a las redes de Excalidraw.
-       */}
+  // Los callbacks leen la última versión de las props por ref: identidad estable.
+  // Se asignan en el render (no en un efecto): Excalidraw llama a onChange en su
+  // propio commit, antes que los efectos de este componente.
+  const onChangeRef = useRef(onChange);
+  const onApiRef = useRef(onApi);
+  onChangeRef.current = onChange;
+  onApiRef.current = onApi;
+  const hasOnChange = Boolean(onChange);
+  const handleChange = useCallback(
+    (els: readonly unknown[], appState: unknown, files: unknown) =>
+      onChangeRef.current?.(els, appState as Record<string, unknown>, files as Record<string, unknown>),
+    [],
+  );
+  const handleApi = useCallback((instance: unknown) => {
+    setApi(instance);
+    onApiRef.current?.(instance as CanvasApi);
+  }, []);
+  const initialData = useMemo(
+    () => ({
+      elements: scene.elements as never,
+      appState: { ...scene.appState, collaborators: undefined } as never,
+      files: scene.files as never,
+      scrollToContent: true,
+    }),
+    [scene],
+  );
+  /*
+   * Menú propio: los ítems útiles del default, sin el grupo "Excalidraw links"
+   * (GitHub, X, Discord), que sacaba a la gente a las redes de Excalidraw.
+   */
+  const menu = useMemo(
+    () => (
       <MainMenu>
         {!viewMode && <MainMenu.DefaultItems.Export />}
         <MainMenu.DefaultItems.SaveAsImage />
@@ -167,7 +182,24 @@ export default function ExcalidrawCanvas({
         {!viewMode && <MainMenu.Separator />}
         <MainMenu.DefaultItems.ChangeCanvasBackground />
       </MainMenu>
-    </Excalidraw>
+    ),
+    [viewMode],
+  );
+  return (
+    // display: contents: no cambia el layout; solo sirve para medir el panel.
+    <div ref={hostRef} className="board-excalidraw" data-lang={excalidrawLang(locale)}>
+      <Excalidraw
+        theme={theme}
+        initialData={initialData}
+        langCode={excalidrawLang(locale)}
+        viewModeEnabled={viewMode}
+        excalidrawAPI={handleApi}
+        libraryReturnUrl={withLibrary ? returnUrl : undefined}
+        onChange={hasOnChange ? handleChange : undefined}
+        UIOptions={uiOptions}
+      >
+        {menu}
+      </Excalidraw>
     </div>
   );
 }
