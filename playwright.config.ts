@@ -38,6 +38,8 @@ export default defineConfig({
       ADMIN_EMAILS: 'demo@zerosoft.ai',
       // Sin AI real: .env.local puede traer un VERCEL_OIDC_TOKEN y el resultado
       // dependería de la máquina (y de los créditos del Gateway).
+      // Import de CRM contra el proveedor falso (lib/crm-import-fake.ts, token "fake").
+      CRM_IMPORT_FAKE: '1',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

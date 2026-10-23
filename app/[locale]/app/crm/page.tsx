@@ -81,6 +81,9 @@ export default async function CrmOverviewPage(
           <Link href="/app/crm/contacts?new=1" className="btn btn-solid btn-small">
             {t('overview.emptyCta')}
           </Link>
+          <Link href="/app/crm/settings?tab=import&from=hubspot" className="muted">
+            {t('overview.emptyImport')}
+          </Link>
         </div>
       </div>
     );

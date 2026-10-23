@@ -322,7 +322,11 @@ export default async function ContactsPage(props: ContactsPageProps) {
             body={t('record.empty.contactsBody')}
             action={<CrmQuickCreate kind="contact" variant="empty" buttonClassName="btn btn-primary" label={t('record.createContact')} />}
             secondary={
-              <Link href="/app/crm/settings">{t('record.empty.importCsv')}</Link>
+              <>
+                <Link href="/app/crm/settings?tab=import&from=hubspot">{t('record.empty.bringFromHubspot')}</Link>
+                {' · '}
+                <Link href="/app/crm/settings?tab=import">{t('record.empty.importCsv')}</Link>
+              </>
             }
           />
         )

@@ -87,7 +87,9 @@
     "docsTemplates": "Templates",
     "home": "zerosoft home",
     "switchProduct": "Switch app",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "importFromHubspot": "Import from HubSpot",
+    "importFromPipedrive": "Import from Pipedrive"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",

@@ -3160,6 +3160,57 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // CRM: migración desde HubSpot/Pipedrive por API (lib/crm-import-jobs.ts).
+    // Un job por import con su token cifrado (se borra al terminar o
+    // cancelar), el plan (campos, pipelines, owners), el cursor por fase y
+    // los conteos. crm_external_ids recuerda qué registro nuestro es cada id
+    // del otro CRM: reimportar actualiza en vez de duplicar.
+    id: '069_crm_import_jobs',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS crm_import_jobs (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_by TEXT NOT NULL DEFAULT '',
+          provider TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'preview'
+            CHECK (status IN ('preview', 'queued', 'running', 'done', 'failed', 'cancelled')),
+          token TEXT NOT NULL DEFAULT '',
+          options TEXT NOT NULL DEFAULT '{}',
+          preview TEXT NOT NULL DEFAULT '{}',
+          plan TEXT,
+          cursor TEXT NOT NULL DEFAULT '{}',
+          counts TEXT NOT NULL DEFAULT '{}',
+          errors TEXT NOT NULL DEFAULT '[]',
+          error_count INTEGER NOT NULL DEFAULT 0,
+          failure TEXT NOT NULL DEFAULT '',
+          attempts INTEGER NOT NULL DEFAULT 0,
+          locked_until TEXT,
+          started_at TEXT,
+          finished_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_import_jobs_user ON crm_import_jobs(user_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_crm_import_jobs_status ON crm_import_jobs(status, locked_until);
+
+        CREATE TABLE IF NOT EXISTS crm_external_ids (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          provider TEXT NOT NULL,
+          object TEXT NOT NULL,
+          external_id TEXT NOT NULL,
+          record_id TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, provider, object, external_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_external_ids_record ON crm_external_ids(user_id, object, record_id);
+        -- Dedupe por email y dominio sin recorrer todo el workspace (import de 50k).
+        CREATE INDEX IF NOT EXISTS idx_crm_contacts_email_lower ON crm_contacts(user_id, lower(email));
+        CREATE INDEX IF NOT EXISTS idx_crm_companies_domain_lower ON crm_companies(user_id, lower(domain));
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

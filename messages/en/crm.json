@@ -168,7 +168,8 @@
     "closingThisMonth": "Closing this month",
     "noClosing": "0 deals closing this month.",
     "empty": "No CRM data yet. Create your first contact and watch the zeros roll in.",
-    "emptyCta": "Create contact"
+    "emptyCta": "Create contact",
+    "emptyImport": "or bring your data from HubSpot"
   },
   "contacts": {
     "title": "Contacts",
@@ -984,7 +985,9 @@
     "fieldCurrency": "Currency",
     "stageCol": "Stage",
     "probabilityShort": "Prob. %",
-    "rottingShort": "Rotting after (days)"
+    "rottingShort": "Rotting after (days)",
+    "migrateTitle": "Import from another CRM",
+    "migrateDesc": "Bring everything from HubSpot or Pipedrive with an API token. Running it again updates what was imported."
   },
   "importP": {
     "title": "Import {entity}",
@@ -1038,7 +1041,8 @@
       "closeDate": "Close date",
       "priority": "Priority",
       "description": "Description",
-      "contactEmail": "Contact email(s)"
+      "contactEmail": "Contact email(s)",
+      "fullName": "Full name"
     },
     "preset": "Mapping preset",
     "presetAuto": "Auto-detect",
@@ -1055,7 +1059,15 @@
       "companies": "Companies are matched by domain. A parent company column links an existing company as parent.",
       "deals": "Pipeline and stage are matched by name (defaults to the first pipeline and stage). Companies are linked or created; contacts are matched by email and created if missing."
     },
-    "stepsLabel": "Import steps"
+    "stepsLabel": "Import steps",
+    "presets": {
+      "hubspot": "HubSpot export",
+      "salesforce": "Salesforce export",
+      "zoho": "Zoho CRM export",
+      "pipedrive": "Pipedrive export",
+      "attio": "Attio export",
+      "close": "Close export"
+    }
   },
   "errors": {
     "invalid_email": "That email doesn't look right.",
@@ -1919,7 +1931,8 @@
         "upcoming": "Nothing coming up",
         "done": "No completed tasks yet"
       },
-      "tasksBody": "Tasks from contacts, companies and deals show up here by date."
+      "tasksBody": "Tasks from contacts, companies and deals show up here by date.",
+      "bringFromHubspot": "Bring your data from HubSpot"
     },
     "pager": {
       "label": "Pagination",
@@ -2063,5 +2076,137 @@
     "ownerDesc": "Owner (Z to A)",
     "fieldAsc": "{label} (ascending)",
     "fieldDesc": "{label} (descending)"
+  },
+  "migrate": {
+    "loading": "Loading imports…",
+    "loadError": "We couldn't load your imports.",
+    "retry": "Try again",
+    "cardTitle": "Import from {provider}",
+    "cardBody": {
+      "hubspot": "Contacts, companies, deals, pipelines, owners, custom properties and the activity timeline: notes, calls, meetings, tasks and emails.",
+      "pipedrive": "People, organizations, deals, pipelines and stages, custom fields, notes and activities."
+    },
+    "cardCta": "Connect {provider}",
+    "history": "Previous imports",
+    "historyCounts": "{contacts} contacts, {companies} companies, {deals} deals",
+    "status": {
+      "preview": "Preview",
+      "queued": "Queued",
+      "running": "Running",
+      "done": "Done",
+      "failed": "Stopped",
+      "cancelled": "Cancelled"
+    },
+    "connectTitle": "Connect {provider}",
+    "howto": {
+      "hs1": "In HubSpot, open Settings › Integrations › Private Apps and create a private app.",
+      "hs2": "On the Scopes tab, add the read scopes below. Nothing is written back to HubSpot.",
+      "hs3": "Create the app and copy its access token.",
+      "pd1": "In Pipedrive, open your avatar › Personal preferences › API.",
+      "pd2": "Copy your personal API token. Use an admin account so every user's records come through."
+    },
+    "scopes": "Scopes",
+    "scopesNote": "sales-email-read is only needed for logged emails. Without it, emails are skipped.",
+    "tokenLabelHubspot": "Access token",
+    "tokenLabelPipedrive": "API token",
+    "tokenHelp": "The token is stored encrypted while the import runs and deleted when it ends or you cancel it.",
+    "back": "Back",
+    "connect": "Connect and preview",
+    "reading": "Reading your account…",
+    "previewTitle": "Review the import from {provider}",
+    "previewIntro": "Nothing has been imported yet. Check what comes over and where it goes, then start.",
+    "whatToImport": "What to import",
+    "groups": {
+      "companies": "Companies",
+      "contacts": "Contacts",
+      "deals": "Deals",
+      "activities": "Activities"
+    },
+    "unknownCount": "All",
+    "unavailable": "The token can't read {phases}. Those are skipped.",
+    "dedupeNote": "Contacts are matched by email and companies by domain. A match gets its empty fields filled in instead of a duplicate.",
+    "previouslyImported": "{count} records came from this account before. They are updated, not duplicated.",
+    "noSample": "Nothing here.",
+    "col": {
+      "name": "Name",
+      "email": "Email",
+      "domain": "Domain",
+      "amount": "Amount",
+      "owner": "{provider} owner",
+      "assignTo": "Assign to",
+      "field": "Field",
+      "object": "Object",
+      "type": "Type",
+      "action": "Here",
+      "processed": "Processed",
+      "created": "Created",
+      "updated": "Updated",
+      "skipped": "Skipped",
+      "failed": "Failed"
+    },
+    "ownersTitle": "Owners",
+    "ownersUnmatched": "{count, plural, one {# owner has} other {# owners have}} no teammate with the same email. Pick someone or leave the default owner.",
+    "ownersAllMatched": "Every owner matched a teammate by email.",
+    "assignFor": "Assign the records of {name}",
+    "defaultOwnerOption": "Default owner",
+    "matchedByEmail": "matched by email",
+    "defaultOwner": "Default owner",
+    "fieldsTitle": "Custom properties ({count})",
+    "useExisting": "use existing",
+    "createNew": "create",
+    "pipelinesTitle": "Pipelines and stages",
+    "won": "won",
+    "lost": "lost",
+    "cancel": "Cancel",
+    "start": "Start import",
+    "importingTitle": "Importing from {provider}",
+    "doneTitle": {
+      "done": "Import from {provider} finished",
+      "failed": "Import from {provider} stopped",
+      "cancelled": "Import from {provider} cancelled",
+      "preview": "Import from {provider}",
+      "queued": "Import from {provider}",
+      "running": "Import from {provider}"
+    },
+    "progressLabel": "Import progress",
+    "phaseNow": "Now importing {phase}",
+    "queued": "Waiting to start",
+    "phases": {
+      "companies": "companies",
+      "contacts": "contacts",
+      "deals": "deals",
+      "notes": "notes",
+      "calls": "calls",
+      "meetings": "meetings",
+      "tasks": "tasks",
+      "emails": "emails",
+      "activities": "activities"
+    },
+    "backgroundNote": "You can leave this page. The import keeps going in the background and this screen picks it up again.",
+    "failure": {
+      "auth": "The token stopped working. Create a new one and run the import again. What was imported stays.",
+      "scope": "The token is missing a scope. Check the list and run the import again.",
+      "token_missing": "The token is gone. Run the import again.",
+      "rate_limited": "The provider kept limiting requests. Run the import again later.",
+      "generic": "Something went wrong talking to the provider. Run the import again: records already imported are updated, not duplicated."
+    },
+    "cancelledNote": "Records imported before cancelling stay in the CRM. The token was deleted.",
+    "warnings": "Warnings",
+    "cancelConfirm": "Stop the import? What's already imported stays.",
+    "keepGoing": "Keep going",
+    "cancelImport": "Cancel import",
+    "backToImport": "Done",
+    "rerun": "Import again",
+    "errors": {
+      "invalid_token": "That token didn't work. Copy it again and check it belongs to the right account.",
+      "missing_scope": "The token is missing a read scope. Add the scopes listed above and try again.",
+      "provider_error": "We couldn't reach the provider. Try again in a minute.",
+      "import_running": "There's already an import running in this workspace.",
+      "rate_limited": "Too many attempts. Try again in an hour.",
+      "invalid_owner": "Pick owners from this workspace.",
+      "invalid_input": "Check the token and try again.",
+      "not_found": "That import no longer exists.",
+      "forbidden": "Only workspace admins can import."
+    }
   }
 }

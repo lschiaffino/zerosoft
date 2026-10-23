@@ -4,6 +4,7 @@ import { processFlowQueue } from '@/lib/flow-worker';
 import { sendOfflineReplyEmails } from '@/lib/chat-offline-email';
 import { fireNoteReminders } from '@/lib/notes-reminders';
 import { fireIssueReminders, sendImmediateTrackEmails } from '@/lib/track-notify';
+import { processImportJobs } from '@/lib/crm-import-jobs';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
 
 export const runtime = 'nodejs';
@@ -11,6 +12,8 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 /** Hasta cuándo (desde el inicio) la cola de Flow empieza corridas nuevas. */
 const FLOW_BUDGET_MS = 45_000;
+/** Hasta cuándo (desde el inicio) avanzan los imports del CRM. */
+const IMPORT_BUDGET_MS = 200_000;
 
 /**
  * Cron de cada minuto (Vercel Cron): recordatorios y pasos de workflows de Cal
@@ -19,7 +22,9 @@ const FLOW_BUDGET_MS = 45_000;
  * que el visitante no vio, los recordatorios de Notes (claim por fila en
  * note_reminders.sent_at), los recordatorios de issues y los emails
  * inmediatos de Track (claims por fila y por persona) y la cola de Flow con presupuesto de
- * tiempo (schedules vencidos, corridas en cola, delays y reintentos). El tick
+ * tiempo (schedules vencidos, corridas en cola, delays y reintentos) y los
+ * imports del CRM desde HubSpot/Pipedrive (claim por job en locked_until, cada
+ * corrida avanza unas páginas y guarda el cursor). El tick
  * horario sigue llamando a lo mismo para self-host con un solo cron. Las secuencias del CRM quedan en el tick: van después del
  * sync de Gmail, que es el que detecta respuestas y saca al contacto. Las dobles
  * corridas se evitan con los claims por fila (compare-and-set de next_run_at,
@@ -37,5 +42,7 @@ export async function GET(req: NextRequest) {
   const trackReminders = await fireIssueReminders({ limit: 200 }).catch(() => null);
   const trackEmails = await sendImmediateTrackEmails({ limit: 200 }).catch(() => null);
   const flow = await processFlowQueue({ limit: 200, budgetMs: Math.max(0, FLOW_BUDGET_MS - (Date.now() - start)) });
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, chatEmails, noteReminders, trackReminders, trackEmails, flow });
+  // Imports del CRM con lo que queda de los 300 s (dejando margen).
+  const crmImports = await processImportJobs({ budgetMs: Math.max(0, IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, chatEmails, noteReminders, trackReminders, trackEmails, flow, crmImports });
 }

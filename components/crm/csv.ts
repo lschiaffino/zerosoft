@@ -7,6 +7,7 @@ export type ImportEntity = 'contacts' | 'companies' | 'deals';
 
 export const IMPORT_FIELDS: Record<ImportEntity, string[]> = {
   contacts: [
+    'fullName',
     'firstName',
     'lastName',
     'email',
@@ -181,6 +182,9 @@ export function parseCsv(text: string): string[][] {
 /** Aliases que dependen de la entidad (un "name" de deal es el nombre del deal, etc.). */
 const ENTITY_ALIASES: Record<ImportEntity, Record<string, string>> = {
   contacts: {
+    name: 'fullName',
+    fullname: 'fullName',
+    contactname: 'fullName',
     company: 'companyName',
     companyname: 'companyName',
     empresa: 'companyName',
@@ -334,22 +338,227 @@ export const HUBSPOT_COLUMNS: Record<ImportEntity, Record<string, string | null>
 };
 
 /**
- * Mapeo del preset HubSpot. Las columnas que no son de HubSpot caen al
+ * Presets de exports de otros CRMs: nombres de columna normalizados de los CSV
+ * que exporta cada uno. null = columna que se ignora a propósito.
+ */
+export const CSV_PRESETS = ['hubspot', 'salesforce', 'zoho', 'pipedrive', 'attio', 'close'] as const;
+export type CsvPreset = (typeof CSV_PRESETS)[number];
+
+/** Salesforce y Zoho exportan casi las mismas columnas (Account = empresa, Opportunity/Deal = deal). */
+const SALESFORCE_COLUMNS: Record<ImportEntity, Record<string, string | null>> = {
+  contacts: {
+    contactid: null,
+    leadid: null,
+    firstname: 'firstName',
+    lastname: 'lastName',
+    fullname: 'fullName',
+    email: 'email',
+    phone: 'phone',
+    mobile: 'phone',
+    mobilephone: 'phone',
+    title: 'jobTitle',
+    mailingcity: 'city',
+    mailingcountry: 'country',
+    city: 'city',
+    country: 'country',
+    leadsource: 'source',
+    leadstatus: 'leadStatus',
+    contactowner: 'ownerEmail',
+    leadowner: 'ownerEmail',
+    owneremail: 'ownerEmail',
+    accountname: 'companyName',
+    company: 'companyName',
+    website: 'website',
+    createddate: null,
+  },
+  companies: {
+    accountid: null,
+    accountname: 'name',
+    website: 'website',
+    industry: 'industry',
+    employees: 'employees',
+    phone: 'phone',
+    billingcity: 'city',
+    billingcountry: 'country',
+    accountowner: 'ownerEmail',
+    parentaccount: 'parentCompanyName',
+    createddate: null,
+  },
+  deals: {
+    opportunityid: null,
+    opportunityname: 'name',
+    dealname: 'name',
+    stage: 'stage',
+    amount: 'amount',
+    opportunitycurrency: 'currency',
+    currency: 'currency',
+    closedate: 'closeDate',
+    closingdate: 'closeDate',
+    opportunityowner: 'ownerEmail',
+    dealowner: 'ownerEmail',
+    accountname: 'companyName',
+    leadsource: 'source',
+    description: 'description',
+    contactemail: 'contactEmail',
+    primarycontactemail: 'contactEmail',
+    pipeline: 'pipeline',
+    probability: null,
+    createddate: null,
+  },
+};
+
+const PRESET_COLUMNS: Record<CsvPreset, Record<ImportEntity, Record<string, string | null>>> = {
+  hubspot: HUBSPOT_COLUMNS,
+  salesforce: SALESFORCE_COLUMNS,
+  zoho: {
+    contacts: { ...SALESFORCE_COLUMNS.contacts, recordid: null, secondaryemail: null, createdtime: null },
+    companies: { ...SALESFORCE_COLUMNS.companies, recordid: null, createdtime: null },
+    deals: { ...SALESFORCE_COLUMNS.deals, recordid: null, contactname: 'contactEmail', createdtime: null },
+  },
+  pipedrive: {
+    contacts: {
+      personid: null,
+      personname: 'fullName',
+      name: 'fullName',
+      personfirstname: 'firstName',
+      personlastname: 'lastName',
+      personemail: 'email',
+      personemailwork: 'email',
+      emailwork: 'email',
+      personphone: 'phone',
+      personphonework: 'phone',
+      phonework: 'phone',
+      personjobtitle: 'jobTitle',
+      personorganization: 'companyName',
+      organization: 'companyName',
+      personowner: 'ownerEmail',
+      owner: 'ownerEmail',
+      personlabel: null,
+    },
+    companies: {
+      organizationid: null,
+      organizationname: 'name',
+      name: 'name',
+      organizationwebsite: 'website',
+      organizationindustry: 'industry',
+      organizationaddress: null,
+      organizationowner: 'ownerEmail',
+      owner: 'ownerEmail',
+      organizationnumberofemployees: 'employees',
+    },
+    deals: {
+      dealid: null,
+      dealtitle: 'name',
+      title: 'name',
+      dealvalue: 'amount',
+      value: 'amount',
+      dealcurrency: 'currency',
+      dealpipeline: 'pipeline',
+      dealstage: 'stage',
+      dealexpectedclosedate: 'closeDate',
+      dealowner: 'ownerEmail',
+      dealorganization: 'companyName',
+      dealcontactperson: 'contactEmail',
+      dealstatus: null,
+    },
+  },
+  attio: {
+    contacts: {
+      recordid: null,
+      name: 'fullName',
+      firstname: 'firstName',
+      lastname: 'lastName',
+      emailaddresses: 'email',
+      phonenumbers: 'phone',
+      jobtitle: 'jobTitle',
+      company: 'companyName',
+      primarylocation: 'city',
+      owner: 'ownerEmail',
+    },
+    companies: {
+      recordid: null,
+      name: 'name',
+      domains: 'domain',
+      categories: 'industry',
+      primarylocation: 'city',
+      employeerange: null,
+      owner: 'ownerEmail',
+    },
+    deals: {
+      recordid: null,
+      name: 'name',
+      dealname: 'name',
+      dealstage: 'stage',
+      stage: 'stage',
+      dealvalue: 'amount',
+      value: 'amount',
+      dealowner: 'ownerEmail',
+      owner: 'ownerEmail',
+      associatedcompany: 'companyName',
+      associatedpeople: 'contactEmail',
+    },
+  },
+  close: {
+    contacts: {
+      id: null,
+      leadid: null,
+      contactname: 'fullName',
+      name: 'fullName',
+      title: 'jobTitle',
+      primaryemail: 'email',
+      emails: 'email',
+      primaryphone: 'phone',
+      phones: 'phone',
+      leadname: 'companyName',
+      leadurl: null,
+    },
+    companies: {
+      id: null,
+      leadid: null,
+      displayname: 'name',
+      name: 'name',
+      url: 'website',
+      statuslabel: null,
+      primaryaddresscity: 'city',
+      primaryaddresscountry: 'country',
+      leadowner: 'ownerEmail',
+    },
+    deals: {
+      id: null,
+      leadname: 'companyName',
+      statuslabel: 'stage',
+      pipelinename: 'pipeline',
+      value: 'amount',
+      valuecurrency: 'currency',
+      datewon: 'closeDate',
+      expecteddate: 'closeDate',
+      username: 'ownerEmail',
+      note: 'description',
+      contactname: null,
+      contactemail: 'contactEmail',
+    },
+  },
+};
+
+/**
+ * Mapeo de un preset de CRM. Las columnas que el preset no conoce caen al
  * auto-detect (custom fields incluidos); cada destino se usa una sola vez.
  */
-export function hubspotMapping(
+export function presetColumnsMapping(
+  preset: CsvPreset,
   headers: string[],
   entity: ImportEntity,
   customFields: MappableCustomField[] = [],
 ): string[] {
   const fallback = guessMapping(headers, entity, customFields);
-  const table = HUBSPOT_COLUMNS[entity];
+  const table = PRESET_COLUMNS[preset][entity];
+  const valid = new Set(IMPORT_FIELDS[entity]);
   const used = new Set<string>();
   const out = headers.map((h) => {
     const norm = normHeader(h);
     if (!(norm in table)) return undefined;
     const hit = table[norm];
-    if (!hit || used.has(hit)) return '';
+    if (!hit || !valid.has(hit) || used.has(hit)) return '';
     used.add(hit);
     return hit;
   });
@@ -360,6 +569,34 @@ export function hubspotMapping(
     used.add(f);
     return f;
   });
+}
+
+/** Mapeo del preset HubSpot (atajo de presetColumnsMapping). */
+export function hubspotMapping(
+  headers: string[],
+  entity: ImportEntity,
+  customFields: MappableCustomField[] = [],
+): string[] {
+  return presetColumnsMapping('hubspot', headers, entity, customFields);
+}
+
+/**
+ * Ajustes de una fila mapeada antes de mandarla: "Nombre completo" se parte en
+ * nombre y apellido (si no vinieron aparte) y las celdas con varios emails o
+ * dominios ("a@x.com, b@y.com", como exportan Attio y Close) quedan con el primero.
+ */
+export function finalizeRow(row: Record<string, string>): Record<string, string> {
+  const out = { ...row };
+  if (out.fullName !== undefined) {
+    const parts = out.fullName.trim().split(/\s+/).filter(Boolean);
+    if (!out.firstName && parts.length) out.firstName = parts[0];
+    if (!out.lastName && parts.length > 1) out.lastName = parts.slice(1).join(' ');
+    delete out.fullName;
+  }
+  for (const key of ['email', 'domain', 'companyDomain'] as const) {
+    if (out[key]) out[key] = out[key].split(/[,;\s]+/).filter(Boolean)[0] ?? '';
+  }
+  return out;
 }
 
 /** Aplica un preset guardado ({ header: campo }) a los headers actuales. */

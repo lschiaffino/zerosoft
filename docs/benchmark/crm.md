@@ -141,9 +141,20 @@ Leyenda: **tiene**, **parcial**, **falta**, **mejor** (le ganamos al incumbente)
 |---|---|---|---|
 | Importar CSV con mapeo, responsables y asociaciones | Starter | tiene | con preset listo para exports de HubSpot |
 | Exportar CSV/JSON | Starter | tiene | |
-| Migración directa por API desde HubSpot/Pipedrive | migración asistida en Pro | falta | |
+| Migración directa por API desde HubSpot/Pipedrive | migración asistida en Pro | tiene | ver "Mejora: importar desde otro CRM" abajo |
+| Presets de CSV de otros CRMs | solo su propio formato | mejor | HubSpot, Salesforce, Zoho, Pipedrive, Attio y Close |
 
-**Puntaje: 8/10.**
+**Puntaje: 9/10 (antes 8).**
+
+#### Mejora: importar desde otro CRM (2026-10-22)
+
+- **HubSpot por API** con un token de Private App (scopes de solo lectura: `crm.objects.contacts.read`, `crm.objects.companies.read`, `crm.objects.deals.read`, `crm.objects.owners.read`, `crm.schemas.contacts.read`, `crm.schemas.companies.read`, `crm.schemas.deals.read` y `sales-email-read` para los emails). Trae owners (por email, los que no coinciden van al owner por defecto y se listan), propiedades propias como custom fields con su tipo, pipelines y etapas con probabilidad y ganado/perdido, empresas con su madre, contactos con lifecycle, lead status y fuente, deals con etapa, monto, moneda y cierre, asociaciones con primaria y notas, llamadas, reuniones, tareas y emails en el timeline con su fecha y owner. Listados con cursor `after`, asociaciones por lote (v4) y 100 pedidos cada 10 s con backoff en 429.
+- **Pipedrive por API** con el token personal: personas, organizaciones, deals (ganado/perdido como etapas Won/Lost), pipelines y etapas, campos propios, notas y actividades.
+- **Job con vista previa**: conteos, muestra, revisión de campos y pipelines y tabla de owners antes de escribir nada; después corre por tramos desde `/api/cron/minute` (y desde la pantalla abierta) guardando el cursor por página, así una cuenta de 50k contactos no choca con los 300 s. El progreso vive en el servidor y vuelve al recargar. Se puede cancelar.
+- **Reimportar no duplica**: cada registro guarda su id externo (`crm_external_ids`); sin id previo, contactos por email y empresas por dominio se completan con las reglas del merge.
+- **Seguridad**: solo admins; el token se guarda cifrado (`lib/secret-box`) mientras corre y se borra al terminar, fallar o cancelar; nunca va en URLs ni en errores.
+- Entradas: Ajustes › Importar y exportar, estados vacíos de contactos y empresas, overview vacío y ⌘K.
+- Falta: tags y listas de HubSpot (opcionales, no se traen) y los archivos adjuntos.
 
 ### Rendimiento y confiabilidad
 
@@ -179,7 +190,7 @@ Detalles: el composer del timeline tiene pestañas de tipo (Note, Task, Call…)
 | Reportes y analítica | 6 |
 | Mobile y offline | 3 |
 | IA | 2 |
-| Importar y exportar | 8 |
+| Importar y exportar | 9 |
 | Rendimiento y confiabilidad | 7 |
 | Pulido de UX | 7 |
 | **Paridad general (promedio)** | **62 %** frente a Sales Hub Professional; cerca de **80 %** frente a Starter |
