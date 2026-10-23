@@ -238,6 +238,18 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
     if (u?.usage) setUsage(u.usage);
   }
 
+  async function cancelRun(runId: string) {
+    setError(null);
+    const res = await fetch(`/api/robots/runs/${runId}/cancel`, { method: 'POST' }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { run?: RobotRunDto; error?: string } | null;
+    if (!res?.ok || !data?.run) {
+      setError(errorText(t, data?.error, {}));
+      return;
+    }
+    const cancelled = data.run;
+    setRuns((list) => list.map((r) => (r.id === cancelled.id ? cancelled : r)));
+  }
+
   function importPasted() {
     const res = parseRecordedSteps(pasteText);
     if (!res.ok) {
@@ -472,6 +484,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
             running={running}
             emptyAction={runButton}
             robotName={robot.name}
+            onCancel={readOnly ? undefined : cancelRun}
           />
         )}
 

@@ -64,6 +64,7 @@ export default function RunsPanel({
   running = false,
   emptyAction,
   robotName = 'robot',
+  onCancel,
 }: {
   runs: RobotRunDto[];
   selectedId: string | null;
@@ -74,6 +75,8 @@ export default function RunsPanel({
   emptyAction?: React.ReactNode;
   /** Para el nombre de los CSV descargados. */
   robotName?: string;
+  /** Cancela una corrida en cola; ausente si la persona no puede editar. */
+  onCancel?: (runId: string) => Promise<void>;
 }) {
   const t = useTranslations('robots.runs');
   const format = useFormatter();
@@ -124,7 +127,7 @@ export default function RunsPanel({
             <span className="ui-skeleton ui-skeleton-row" />
           </div>
         ) : run ? (
-          <RunDetail run={run} robotName={robotName} />
+          <RunDetail run={run} robotName={robotName} onCancel={onCancel} />
         ) : (
           <p className="robots-run-body robots-muted">{t('select')}</p>
         )}
@@ -133,11 +136,12 @@ export default function RunsPanel({
   );
 }
 
-function RunDetail({ run, robotName }: { run: RobotRunDto; robotName: string }) {
+function RunDetail({ run, robotName, onCancel }: { run: RobotRunDto; robotName: string; onCancel?: (runId: string) => Promise<void> }) {
   const t = useTranslations('robots.runs');
   const tTypes = useTranslations('robots.steps.types');
   const [view, setView] = useState<'table' | 'json'>('table');
   const [copied, setCopied] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const entries = Object.entries(run.output ?? {});
   const tableable = entries.some(([, v]) => asRows(v));
   const asJson = view === 'json' || !tableable;
@@ -153,6 +157,22 @@ function RunDetail({ run, robotName }: { run: RobotRunDto; robotName: string }) 
         {run.changed !== null && <span className="badge">{run.changed ? t('changed') : t('unchanged')}</span>}
       </div>
       {run.status === 'queued' && <p className="ui-help">{t('queuedNotice')}</p>}
+      {run.status === 'queued' && onCancel && (
+        <div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={cancelling}
+            onClick={async () => {
+              setCancelling(true);
+              await onCancel(run.id);
+              setCancelling(false);
+            }}
+          >
+            {t('cancelRun')}
+          </button>
+        </div>
+      )}
       {run.error && (
         <div className="robots-run-error" role="alert">
           <strong>{t('error')}</strong>
