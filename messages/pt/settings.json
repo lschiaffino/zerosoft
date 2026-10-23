@@ -113,7 +113,8 @@
       "contact": "Contatos",
       "deal": "Deals",
       "robot": "Robôs",
-      "chat": "Chat"
+      "chat": "Chat",
+      "groups": "Groups (WhatsApp)"
     },
     "eventLabels": {
       "booking_created": "Reserva criada",
@@ -137,7 +138,10 @@
       "link_deleted": "Link excluído",
       "chat_message_created": "Mensagem de chat",
       "chat_conversation_assigned": "Conversa atribuída",
-      "chat_conversation_resolved": "Conversa resolvida"
+      "chat_conversation_resolved": "Conversa resolvida",
+      "groups_message_received": "Mensagem de WhatsApp recebida (Groups)",
+      "groups_ticket_created": "Ticket criado (Groups)",
+      "groups_ticket_updated": "Ticket atualizado (Groups)"
     },
     "errors": {
       "https_required": "A URL precisa usar https.",

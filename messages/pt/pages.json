@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Produtos",
-      "description": "Onze apps: CRM, Chat, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal e Board. Open source para o seu servidor, ou na zerosoft Cloud com plano grátis e cobrança por uso."
+      "description": "Doze apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal e Board. Open source para o seu servidor, ou na zerosoft Cloud com plano grátis e cobrança por uso."
     },
     "hero": {
-      "title1": "Onze apps.",
+      "title1": "Doze apps.",
       "title2": "Um só workspace.",
       "sub": "Para a sua empresa: CRM, suporte, agentes de IA, automações, robôs, projetos e links. Para você: docs, notas, agenda e quadro branco. O core de cada um é open source e roda no seu servidor por $0."
     },
     "cta": {
-      "title1": "Teste os onze apps.",
+      "title1": "Teste os doze apps.",
       "title2": "Com uma só conta.",
       "sub": "Entre com o Google, crie um workspace e comece no plano grátis. Se depois preferir o seu servidor, o código está no GitHub.",
       "button": "Abrir o app"
@@ -604,6 +604,103 @@
         }
       }
     },
+    "groups": {
+      "meta": {
+        "title": "Groups: caixa de WhatsApp para equipes e gestão de grupos, open source",
+        "description": "Caixa compartilhada para chats e grupos de WhatsApp: atribuição, notas, tickets por emoji, SLA, envios em massa e gestão de grupos em lote, ligada ao seu CRM. Alternativa open source ao Periskope."
+      },
+      "hero": {
+        "sub": "Uma caixa para cada chat de WhatsApp e cada grupo de cliente. Atribua, responda, transforme mensagens em tickets e gerencie centenas de grupos de uma vez, com cada grupo na ficha do CRM."
+      },
+      "featuresTitle": "Todos os grupos de clientes em um lugar.",
+      "featuresTitleDim": "E na ficha do CRM.",
+      "f1": {
+        "t": "Caixa compartilhada",
+        "d": "Chats 1:1 e grupos de vários números em uma lista, com filtros por não lidas, sem resposta, minhas e etiqueta."
+      },
+      "f2": {
+        "t": "Grupos em escala",
+        "d": "Crie grupos um a um ou a partir de um CSV, adicione e remova membros em muitos grupos, promova admins e redefina links de convite."
+      },
+      "f3": {
+        "t": "Tickets a partir de mensagens",
+        "d": "Reaja com um emoji pelo app ou pelo telefone, ou use uma palavra-chave, e a mensagem vira um ticket com prioridade e vencimento."
+      },
+      "f4": {
+        "t": "Sem resposta, marcado",
+        "d": "Um chat que espera mais que o seu limite aparece como vencido. O respondido pelo telefone também conta."
+      },
+      "f5": {
+        "t": "Envios em massa no ritmo certo",
+        "d": "Uma mensagem com variáveis para muitos grupos, agora ou agendada, com mensagens por minuto e status por destinatário."
+      },
+      "f6": {
+        "t": "Na ficha do CRM",
+        "d": "Vincule um grupo a uma empresa ou contato e as últimas mensagens e tickets abertos aparecem lá."
+      },
+      "f7": {
+        "t": "Agents e Flow",
+        "d": "Um agente do Agents pode responder em um chat, e o Flow reage a mensagens e tickets ou envia um WhatsApp."
+      },
+      "f8": {
+        "t": "API oficial ou seu gateway",
+        "d": "Use a WhatsApp Cloud API para suporte 1:1, ou um gateway WAHA ou Evolution API por QR para gerenciar grupos."
+      },
+      "f9": {
+        "t": "Pelo teclado",
+        "d": "J e K para navegar, R para responder, N para uma nota, E para fechar, A para atribuir e T para um ticket."
+      },
+      "compare": {
+        "rival": "Periskope",
+        "price": "US$ 25",
+        "per": "/ usuário / mês",
+        "team": "US$ 3.000",
+        "zero": "$0",
+        "note": "O Periskope Starter custa US$ 25 por usuário por mês (cobrança mensal, o Pro custa US$ 35). Um time de dez paga US$ 3.000 por ano. O Groups no seu servidor custa $0; você roda o gateway de WhatsApp ou paga a API oficial à Meta."
+      },
+      "faq": {
+        "f1": {
+          "q": "Como ele se conecta ao WhatsApp?",
+          "a": "De duas formas, escolhidas por número. A WhatsApp Cloud API oficial da Meta, para chats 1:1, mídia e templates. Ou um gateway WAHA ou Evolution API no seu servidor que conecta o número por QR, que é o que permite gerenciar grupos."
+        },
+        "f2": {
+          "q": "O modo QR é seguro para o meu número?",
+          "a": "Ele usa uma sessão não oficial do WhatsApp Web, e o WhatsApp pode restringir um número usado assim, principalmente se adicionar muitos desconhecidos ou enviar muitas mensagens não pedidas. O Groups envia no ritmo que você define e sugere links de convite. Para mensagens 1:1 recomendamos a API oficial."
+        },
+        "f3": {
+          "q": "Posso gerenciar grupos com a API oficial?",
+          "a": "No Groups, por enquanto não. A API oficial cobre chats 1:1; criar grupos e gerenciar membros passa pelo gateway com QR."
+        },
+        "f4": {
+          "q": "Como funcionam os tickets?",
+          "a": "Um ticket nasce de uma mensagem: à mão, reagindo com o emoji de ticket (pelo Groups ou pelo telefone) ou quando um cliente escreve uma das suas palavras-chave. Cada um tem status, prioridade, responsável e vencimentos de primeira resposta e resolução."
+        },
+        "f5": {
+          "q": "O que falta em relação ao Periskope?",
+          "a": "Ainda não há app mobile nativo, chamadas de voz, atribuição round-robin nem acesso por etiqueta para membros. O Periskope também usa IA para separar perguntas de comentários; o Groups marca por tempo sem resposta."
+        }
+      },
+      "cta": {
+        "title1": "Cada grupo respondido.",
+        "title2": "Cada mensagem na ficha.",
+        "sub": "Conecte um número, traga seus grupos e comece a responder por uma só caixa.",
+        "button": "Abrir o Groups"
+      },
+      "steps": {
+        "s1": {
+          "t": "Conecte um número",
+          "d": "Cole as credenciais da Cloud API ou escaneie o QR do seu gateway."
+        },
+        "s2": {
+          "t": "Traga seus grupos",
+          "d": "Sincronize os grupos que o número já tem, ou crie a partir de um CSV."
+        },
+        "s3": {
+          "t": "Respondam em equipe",
+          "d": "Atribua chats, deixe notas, abra tickets e vincule cada grupo ao CRM."
+        }
+      }
+    },
     "agents": {
       "meta": {
         "title": "Agents: agentes de IA com o seu conhecimento",
@@ -1020,7 +1117,7 @@
     "apiDocs": "Docs da API",
     "howTitle": "Como funciona.",
     "suiteTitle": "Um workspace.",
-    "suiteTitleDim": "Onze apps, o mesmo login.",
+    "suiteTitleDim": "Doze apps, o mesmo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Localização",
     "navLabel": "Seções do {name}",
@@ -1198,6 +1295,25 @@
       "m3": "Ótimo. Posso pagar com Mercado Pago?",
       "m4": "Sim, aceitamos Mercado Pago e transferência. Já te mando o link de pagamento.",
       "replyHint": "Escreva uma resposta…"
+    },
+    "groups": {
+      "listTitle": "Grupos",
+      "r1name": "Acme · Suporte",
+      "r1msg": "A fatura de outubro não chegou",
+      "r1time": "4 min",
+      "r2name": "Globex onboarding",
+      "r2msg": "Terminamos a importação",
+      "r2time": "1 h",
+      "r3name": "Initech · Ops",
+      "r3msg": "Obrigado, tudo certo!",
+      "r3time": "3 h",
+      "waiting": "Esperando 4 min",
+      "m1who": "Ana · Acme",
+      "m1": "Oi equipe, a fatura de outubro não chegou. Podem reenviar?",
+      "ticketTag": "Ticket #12 · Alta",
+      "m2": "Criado pela reação 🎫. Atribuído à Lucía, vence hoje 18:00.",
+      "m3": "Oi Ana, reenviando agora para faturamento@acme.com.",
+      "replyHint": "Responda no grupo. / para respostas rápidas"
     },
     "agents": {
       "name": "Assistente da La Espiga",
@@ -1752,6 +1868,29 @@
     "scope_chat_read": "Listar as conversas do Chat e ler as mensagens.",
     "scope_chat_write": "Responder, atribuir, resolver e reabrir conversas do Chat (inclui chat:read).",
     "webhooksChatTitle": "Payload dos eventos do Chat",
-    "webhooksChatDesc": "Os eventos do Chat trazem a conversa. chat.message.created soma a mensagem (do visitante, da equipe ou do bot; as notas internas não são enviadas) e chat.conversation.assigned soma previousAssignedTo."
+    "webhooksChatDesc": "Os eventos do Chat trazem a conversa. chat.message.created soma a mensagem (do visitante, da equipe ou do bot; as notas internas não são enviadas) e chat.conversation.assigned soma previousAssignedTo.",
+    "groupsTitle": "Groups (WhatsApp)",
+    "groupsDesc": "Leia chats e grupos de WhatsApp, envie mensagens e crie tickets a partir dos seus sistemas. As mensagens saem do número ao qual o chat pertence.",
+    "groupsChatsListTitle": "Listar chats e grupos",
+    "groupsChatsListDesc": "Chats e grupos abertos, os mais recentes primeiro, com etiquetas, responsável e se esperam resposta.",
+    "groupsMessagesListTitle": "Listar mensagens",
+    "groupsMessagesListDesc": "Mensagens e notas internas de um chat, da mais antiga para a mais nova.",
+    "groupsMessagesSendTitle": "Enviar uma mensagem",
+    "groupsMessagesSendDesc": "Envia um WhatsApp para o chat ou grupo, ou salva uma nota interna com note: true.",
+    "groupsTicketsListTitle": "Listar tickets",
+    "groupsTicketsListDesc": "Tickets criados a partir de mensagens de WhatsApp, com o status de SLA.",
+    "groupsTicketsCreateTitle": "Criar um ticket",
+    "groupsTicketsCreateDesc": "Cria um ticket em um chat. Com messageId, uma mensagem tem no máximo um ticket: repetir devolve o existente.",
+    "paramGroupsFilter": "all, unread, unanswered, flagged, mine, unassigned ou closed",
+    "paramGroupsKind": "group ou dm",
+    "paramGroupsAfter": "Só mensagens depois desta data ISO",
+    "paramGroupsBody": "Texto da mensagem (até 4096 caracteres)",
+    "paramGroupsNote": "Salvar como nota interna em vez de enviar",
+    "paramGroupsStatus": "active (padrão), all, open, in_progress, resolved ou closed",
+    "paramGroupsChatId": "Id do chat ou grupo",
+    "paramGroupsTitle": "Título do ticket (padrão: a primeira linha da mensagem)",
+    "paramGroupsPriority": "low, medium, high ou urgent",
+    "scope_groups_read": "Ler chats, mensagens e tickets de WhatsApp no Groups.",
+    "scope_groups_write": "Enviar mensagens de WhatsApp e criar tickets no Groups."
   }
 }

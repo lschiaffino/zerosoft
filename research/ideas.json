@@ -1970,5 +1970,91 @@
     "kind": "idea",
     "status": "done",
     "changelog": "2026-10-22-imports"
+  },
+  {
+    "title": "Groups: WhatsApp team inbox with group management, tickets and broadcasts",
+    "description": "Periskope (https://periskope.app) gives B2B teams one inbox for every WhatsApp customer group. Build it in the suite: numbers by the official Cloud API or a WAHA / Evolution API gateway, shared inbox for chats and groups, bulk group management, tickets by emoji, SLAs, broadcasts, analytics and the group on its CRM record.",
+    "product": "groups",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-23-groups",
+    "parity": "chats-and-groups"
+  },
+  {
+    "title": "Groups: Round-robin assignment of new chats",
+    "description": "Periskope assigns new chats by rules (round-robin among online agents). Today Groups assigns by hand. First scope: an on/off rule per number that rotates new chats among chosen people, skipping people marked away.\n\nPriority: high. Effort: M.",
+    "product": "groups",
+    "kind": "idea",
+    "parity": "auto-assign"
+  },
+  {
+    "title": "Groups: Members see only the chats with their labels",
+    "description": "Periskope limits what a Member sees by label, which is how teams keep private chats per account owner. First scope: a label list per person in Groups settings; members only list, search and open chats with one of their labels; admins see everything.\n\nPriority: high. Effort: M.",
+    "product": "groups",
+    "kind": "idea",
+    "parity": "label-access"
+  },
+  {
+    "title": "Groups: Recurring scheduled messages",
+    "description": "Periskope repeats scheduled messages daily, weekly or monthly with an end date. Groups schedules one-off messages and broadcasts. First scope: a repeat rule on a scheduled message that creates the next send after each run (cron claim per row).\n\nPriority: medium. Effort: S.",
+    "product": "groups",
+    "kind": "idea",
+    "parity": "recurring"
+  },
+  {
+    "title": "Groups: Group templates with preset members and settings",
+    "description": "Periskope creates groups from templates with the account team already inside. First scope: save a template (name pattern, members, admins, description, labels) and use it in New group and the CSV import.\n\nPriority: medium. Effort: S.",
+    "product": "groups",
+    "kind": "idea",
+    "parity": "group-templates"
+  },
+  {
+    "title": "Groups: Full group settings (photo, admin-only messages, approval to join)",
+    "description": "Groups changes name and description. Periskope also sets the photo, who can send messages, who can edit info, join approval and disappearing messages. WAHA and Evolution API expose these calls. First scope: the toggles in the group page, in bulk from the list.\n\nPriority: medium. Effort: M.",
+    "product": "groups",
+    "kind": "idea",
+    "parity": "group-settings"
+  },
+  {
+    "title": "Groups: @mentions in internal notes",
+    "description": "Notes in a chat are visible to the team but do not notify anyone. First scope: @person in a note sends an in-app notification (the bell) and an email per the person's Track notification settings.\n\nPriority: medium. Effort: S.",
+    "product": "groups",
+    "kind": "idea",
+    "parity": "private-notes"
+  },
+  {
+    "title": "Groups: AI flags only real questions as unanswered",
+    "description": "Groups flags a chat by time without reply. Periskope uses AI to tell questions and requests from comments like \"thanks\", so fewer chats are flagged. First scope: a cheap classifier on each inbound message (lib/ai.ts, off when AI is off) that skips awaiting for non-questions.\n\nPriority: medium. Effort: M.",
+    "product": "groups",
+    "kind": "idea",
+    "parity": "unanswered-flag"
+  },
+  {
+    "title": "Groups: Edit, delete, forward and pin messages",
+    "description": "Periskope edits, deletes, forwards and pins WhatsApp messages from the inbox. The WAHA and Evolution APIs support them. First scope: the message actions menu plus the provider calls.\n\nPriority: low. Effort: M.",
+    "product": "groups",
+    "kind": "idea",
+    "parity": "edit-delete-forward"
+  },
+  {
+    "title": "Groups: More webhook events and group endpoints in the public API",
+    "description": "Groups emits message received and ticket created or updated, and the API covers chats, messages and tickets. Periskope has 20 webhook events and group endpoints (create, members, admins, invite). First scope: chat.created, message.ack, ticket.closed, and /api/v1/groups/groups endpoints for create and members.\n\nPriority: medium. Effort: M.",
+    "product": "groups",
+    "kind": "idea",
+    "parity": "webhooks"
+  },
+  {
+    "title": "Groups: Saved chat lists as broadcast audiences",
+    "description": "Periskope saves filtered chat lists and uses them as broadcast audiences. First scope: save the current inbox filters as a named list in the sidebar, and pick a list as recipients in a new broadcast.\n\nPriority: low. Effort: S.",
+    "product": "groups",
+    "kind": "idea",
+    "parity": "saved-lists"
+  },
+  {
+    "title": "Groups: Phone number masking for members",
+    "description": "Periskope hides customer phone numbers from some roles. First scope: a workspace setting that shows only the last 4 digits to members in the inbox, lists, exports and API.\n\nPriority: low. Effort: S.",
+    "product": "groups",
+    "kind": "idea",
+    "parity": "masking"
   }
 ]

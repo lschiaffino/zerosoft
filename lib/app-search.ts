@@ -6,14 +6,14 @@ import type { TeamRole } from '@/lib/teams';
 /**
  * Búsqueda global (⌘K) en las apps que no tienen una propia: pizarras,
  * proyectos e issues de Track, tipos de evento y reservas de Cal, widgets de
- * chat, flows, agentes y robots. Solo por nombre (o título / identificador del
+ * chat, flows, agentes, robots y chats de Groups. Solo por nombre (o título / identificador del
  * issue; nombre o email del invitado en las reservas), unas pocas filas por
  * app, con el mismo alcance que la lista de cada una.
  */
 
 export interface AppSearchItem {
   id: string;
-  group: 'boards' | 'projects' | 'issues' | 'eventTypes' | 'bookings' | 'widgets' | 'flows' | 'agents' | 'robots';
+  group: 'boards' | 'projects' | 'issues' | 'eventTypes' | 'bookings' | 'widgets' | 'flows' | 'agents' | 'robots' | 'groupsChats';
   label: string;
   meta: string;
   href: string;
@@ -47,7 +47,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT)
   // Pizarras: las restringidas solo para quien tiene acceso, como la lista.
   const boardsVisible = boardVisibleSql(boardViewer(user));
 
-  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots] = await Promise.all([
+  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats] = await Promise.all([
     all(
       `SELECT b.id, b.name AS label FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND b.name LIKE ? ESCAPE '\\' ORDER BY b.updated_at DESC LIMIT ?`,
       user.id,
@@ -86,6 +86,14 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT)
     all(`SELECT id, name AS label FROM flow_flows WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT ?`, user.id, like),
     all(`SELECT id, name AS label FROM agents WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, user.id, like),
     all(`SELECT id, name AS label FROM robots WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT ?`, user.id, like),
+    // Groups: chats y grupos de WhatsApp por nombre o teléfono.
+    all(
+      `SELECT id, CASE WHEN name != '' THEN name ELSE '+' || phone END AS label, CASE kind WHEN 'group' THEN 'WhatsApp group' ELSE '+' || phone END AS meta
+       FROM groups_chats WHERE user_id = ? AND (name LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\') ORDER BY last_message_at DESC LIMIT ?`,
+      user.id,
+      like,
+      like,
+    ),
   ]);
 
   const map = (rows: Row[], group: AppSearchItem['group'], href: (id: string) => string): AppSearchItem[] =>
@@ -108,5 +116,6 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT)
     ...map(flows, 'flows', (id) => `/app/flow/${id}`),
     ...map(agents, 'agents', (id) => `/app/agents/${id}`),
     ...map(robots, 'robots', (id) => `/app/robots/${id}`),
+    ...map(groupChats, 'groupsChats', (id) => `/app/groups/inbox/${id}`),
   ];
 }

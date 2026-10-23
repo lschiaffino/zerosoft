@@ -25,6 +25,7 @@ import ChatMockup from './mockups/ChatMockup';
 import AgentsMockup from './mockups/AgentsMockup';
 import FlowMockup from './mockups/FlowMockup';
 import RobotsMockup from './mockups/RobotsMockup';
+import GroupsMockup from './mockups/GroupsMockup';
 import NotesMockup from './mockups/NotesMockup';
 import BoardMockup from './mockups/BoardMockup';
 
@@ -38,6 +39,7 @@ const MOCKUPS: Record<ProductKey, ComponentType> = {
   agents: AgentsMockup,
   flow: FlowMockup,
   robots: RobotsMockup,
+  groups: GroupsMockup,
   notes: NotesMockup,
   board: BoardMockup,
 };

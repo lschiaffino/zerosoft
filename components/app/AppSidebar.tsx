@@ -35,6 +35,7 @@ const PRODUCTS: ReadonlyArray<{ key: AppProduct; line: ProductKey; name: string;
   { key: 'calendar', line: 'cal', name: 'Cal', href: '/app/calendar' },
   { key: 'track', line: 'track', name: 'Track', href: '/app/track' },
   { key: 'chat', line: 'chat', name: 'Chat', href: '/app/chat' },
+  { key: 'groups', line: 'groups', name: 'Groups', href: '/app/groups' },
   { key: 'flow', line: 'flow', name: 'Flow', href: '/app/flow' },
   { key: 'notes', line: 'notes', name: 'Notes', href: '/app/notes' },
   { key: 'board', line: 'board', name: 'Board', href: '/app/board' },

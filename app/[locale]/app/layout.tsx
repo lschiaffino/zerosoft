@@ -23,6 +23,7 @@ import '@/styles/notes.css';
 import '@/styles/board.css';
 import '@/styles/agents.css';
 import '@/styles/robots.css';
+import '@/styles/groups.css';
 import '@/styles/app.css';
 import '@/styles/color.css';
 
@@ -57,6 +58,7 @@ export default async function AppLayout(
   const tBoard = await getTranslations({ locale, namespace: 'board' });
   const tAgents = await getTranslations({ locale, namespace: 'agents' });
   const tRobots = await getTranslations({ locale, namespace: 'robots' });
+  const tGroups = await getTranslations({ locale, namespace: 'groups' });
   const tasksDue = await countDueTasks(user.id);
   // Widget de soporte: el email de la persona logueada va firmado (HMAC con el
   // secreto del widget, calculado acá) para que el inbox lo marque verificado.
@@ -134,6 +136,12 @@ export default async function AppLayout(
               { href: '/app/agents', label: tAgents('sidebar.agents') },
               { href: '/app/robots', label: tRobots('sidebar.robots') },
               { href: '/app/robots/recorder', label: tRobots('recorder.title') },
+              { href: '/app/groups/inbox', label: tGroups('sidebar.inbox') },
+              { href: '/app/groups/list', label: tGroups('sidebar.groups') },
+              { href: '/app/groups/tickets', label: tGroups('sidebar.tickets') },
+              { href: '/app/groups/broadcasts', label: tGroups('sidebar.broadcasts') },
+              { href: '/app/groups/analytics', label: tGroups('sidebar.analytics') },
+              { href: '/app/groups/settings', label: tGroups('sidebar.settings') },
             ]}
           />
         }
@@ -165,6 +173,7 @@ export default async function AppLayout(
           newFlow: tSide('newFlow'),
           newAgent: tSide('newAgent'),
           newRobot: tSide('newRobot'),
+          newGroup: tSide('newGroup'),
           team: tSide('team'),
           link: {
             overview: tLink('tabs.overview'),
@@ -236,6 +245,14 @@ export default async function AppLayout(
           robots: {
             robots: tRobots('sidebar.robots'),
             recorder: tRobots('recorder.title'),
+          },
+          groups: {
+            inbox: tGroups('sidebar.inbox'),
+            groups: tGroups('sidebar.groups'),
+            tickets: tGroups('sidebar.tickets'),
+            broadcasts: tGroups('sidebar.broadcasts'),
+            analytics: tGroups('sidebar.analytics'),
+            settings: tGroups('sidebar.settings'),
           },
           notifications: {
             title: tTrack('notifications.title'),

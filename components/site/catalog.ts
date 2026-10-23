@@ -15,6 +15,7 @@ export const PRODUCT_NAMES = Object.fromEntries(PRODUCT_KEYS.map((k) => [k, PROD
 export const RIVALS: Record<ProductKey, string> = {
   crm: 'HubSpot',
   chat: 'Intercom',
+  groups: 'Periskope',
   agents: 'Intercom Fin',
   flow: 'Zapier · n8n',
   robots: 'UiPath',
@@ -53,7 +54,7 @@ export function annualCost(key: IncumbentKey, seats = 10): number {
 export type Audience = 'teams' | 'personal';
 
 export const AUDIENCE_PRODUCTS: Record<Audience, readonly ProductKey[]> = {
-  teams: ['crm', 'chat', 'agents', 'flow', 'robots', 'track', 'link'],
+  teams: ['crm', 'chat', 'groups', 'agents', 'flow', 'robots', 'track', 'link'],
   personal: ['docs', 'notes', 'cal', 'board'],
 };
 
@@ -104,6 +105,7 @@ export interface ProductPageSpec {
 export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   crm: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'columns' },
   chat: { sections: ['shot', 'how', 'features', 'parity', 'compare', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'split' },
+  groups: { sections: ['shot', 'features', 'how', 'parity', 'compare', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'split' },
   agents: { sections: ['how', 'shot', 'features', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
   flow: { sections: ['shot', 'how', 'features', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   robots: { sections: ['how', 'features', 'shot', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },

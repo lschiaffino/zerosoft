@@ -29,6 +29,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-23-groups',
+    date: '2026-10-23',
+    title: {
+      en: 'Groups: a shared inbox for WhatsApp chats and customer groups',
+      es: 'Groups: una bandeja compartida para chats y grupos de WhatsApp',
+      pt: 'Groups: uma caixa compartilhada para chats e grupos de WhatsApp',
+    },
+    items: [
+      { product: 'groups', en: 'Connect several numbers with the official WhatsApp Cloud API or a self-hosted WAHA or Evolution API gateway by QR. Credentials are stored encrypted and webhooks are verified and deduplicated.', es: 'Conectá varios números con la WhatsApp Cloud API oficial o con un gateway WAHA o Evolution API propio por QR. Las credenciales se guardan cifradas y los webhooks se verifican y no se duplican.', pt: 'Conecte vários números com a WhatsApp Cloud API oficial ou com um gateway WAHA ou Evolution API próprio por QR. As credenciais ficam criptografadas e os webhooks são verificados e não se duplicam.' },
+      { product: 'groups', en: 'One inbox for 1:1 chats and groups: replies with media and quotes, reactions, internal notes, assignment, labels, quick replies, filters for unread, unanswered and overdue, message search and keyboard shortcuts.', es: 'Una bandeja para chats 1:1 y grupos: respuestas con media y citas, reacciones, notas internas, asignación, etiquetas, respuestas rápidas, filtros de sin leer, sin responder y vencidos, búsqueda en mensajes y atajos de teclado.', pt: 'Uma caixa para chats 1:1 e grupos: respostas com mídia e citações, reações, notas internas, atribuição, etiquetas, respostas rápidas, filtros de não lidas, sem resposta e vencidas, busca nas mensagens e atalhos de teclado.' },
+      { product: 'groups', en: 'Create groups one by one or from a CSV, add and remove members in many groups, promote admins, reset invite links and keep your own properties per group.', es: 'Creá grupos de a uno o desde un CSV, agregá y quitá miembros en muchos grupos, promové admins, regenerá links de invitación y guardá propiedades propias por grupo.', pt: 'Crie grupos um a um ou a partir de um CSV, adicione e remova membros em muitos grupos, promova admins, redefina links de convite e guarde propriedades próprias por grupo.' },
+      { product: 'groups', en: 'Tickets from messages by hand, by emoji reaction or by keyword, with priority, assignee and SLA due times; broadcasts and scheduled messages with variables, a pace per minute and status per recipient; analytics and CSV export.', es: 'Tickets desde mensajes a mano, por reacción con emoji o por palabra clave, con prioridad, asignado y vencimientos de SLA; envíos masivos y mensajes programados con variables, ritmo por minuto y estado por destinatario; métricas y export CSV.', pt: 'Tickets a partir de mensagens à mão, por reação com emoji ou por palavra-chave, com prioridade, responsável e vencimentos de SLA; envios em massa e mensagens agendadas com variáveis, ritmo por minuto e status por destinatário; métricas e exportação CSV.' },
+      { product: 'crm', en: 'Company and contact records show their linked WhatsApp chats and groups, with the latest messages and open tickets.', es: 'Las fichas de empresa y contacto muestran sus chats y grupos de WhatsApp vinculados, con los últimos mensajes y los tickets abiertos.', pt: 'As fichas de empresa e contato mostram seus chats e grupos de WhatsApp vinculados, com as últimas mensagens e os tickets abertos.' },
+      { product: 'flow', en: 'New triggers for WhatsApp message received and ticket created or updated, and a step that sends a WhatsApp message. The same events go to outgoing webhooks.', es: 'Disparadores nuevos para mensaje de WhatsApp recibido y ticket creado o actualizado, y un paso que manda un WhatsApp. Los mismos eventos salen por webhooks.', pt: 'Novos gatilhos para mensagem de WhatsApp recebida e ticket criado ou atualizado, e um passo que envia um WhatsApp. Os mesmos eventos saem por webhooks.' },
+      { product: 'agents', en: 'Assign an agent to a WhatsApp chat or group and it answers new messages with its knowledge and tools, handing off to the team when needed.', es: 'Asigná un agente a un chat o grupo de WhatsApp y responde los mensajes nuevos con su conocimiento y herramientas, y deriva al equipo cuando hace falta.', pt: 'Atribua um agente a um chat ou grupo de WhatsApp e ele responde as mensagens novas com seu conhecimento e ferramentas, e passa para a equipe quando precisa.' },
+    ],
+  },
+  {
     id: '2026-10-22-imports',
     date: '2026-10-22',
     title: {
