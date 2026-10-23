@@ -3,15 +3,23 @@ import { Link } from '@/i18n/navigation';
 import Icon from './Icon';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import { AUDIENCE_PRODUCTS, PRODUCT_NAMES, RIVALS, type Audience } from './catalog';
+import type { ProductKey } from '@/lib/products';
 
 const AUDIENCES: readonly Audience[] = ['teams', 'personal'];
 
 /**
  * La suite dividida en "Para equipos" y "Para vos": una lista de filas finas
  * (sin tarjetas). Cada app con su cero de color, el nombre en señalética,
- * qué hace y lo que reemplaza. Home y /products.
+ * qué hace y lo que reemplaza. Home y /products. En /products, `parity` suma
+ * el porcentaje de paridad contra el competidor (content/feature-parity).
  */
-export default function SuiteGrid({ cta }: { cta?: { label: string; href: string } }) {
+export default function SuiteGrid({
+  cta,
+  parity,
+}: {
+  cta?: { label: string; href: string };
+  parity?: Partial<Record<ProductKey, string>>;
+}) {
   const h = useTranslations('common.home');
   return (
     <div className="suite">
@@ -28,7 +36,10 @@ export default function SuiteGrid({ cta }: { cta?: { label: string; href: string
                   <ProductGlyph product={k} size={18} className="suite-glyph" />
                   <span className="suite-name">{PRODUCT_NAMES[k]}</span>
                   <span className="suite-line">{h(`suite.${k}.line`)}</span>
-                  <span className="suite-vs">{h('suite.replaces', { rival: RIVALS[k] })}</span>
+                  <span className="suite-vs">
+                    {h('suite.replaces', { rival: RIVALS[k] })}
+                    {parity?.[k] && <span className="suite-parity data">{parity[k]}</span>}
+                  </span>
                   <Icon name="arrow" size={16} />
                 </Link>
               </li>

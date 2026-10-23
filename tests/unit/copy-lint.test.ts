@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { PARITY } from '@/content/feature-parity';
+import { PRODUCT_KEYS } from '@/lib/products';
 
 /**
  * Lint del copy del sitio público (docs/voice.md). Recorre cada string de
@@ -70,6 +72,22 @@ describe('copy-lint', () => {
       });
     }
   }
+
+  // La tabla de paridad de cada producto (content/feature-parity) también es copy público.
+  it.each(PRODUCT_KEYS)('feature-parity/%s no usa patrones prohibidos', (key) => {
+    const p = PARITY[key];
+    const problems: string[] = [];
+    const texts = [...p.areas.map((a) => [a.id, a.label] as const), ...p.rows.flatMap((r) => [[r.id, r.label], ...(r.detail ? [[`${r.id}.detail`, r.detail]] : [])] as const)];
+    for (const [id, text] of texts) {
+      for (const [locale, value] of Object.entries(text)) {
+        for (const [rule, re] of Object.entries(RULES)) {
+          if (re.test(value)) problems.push(`${key}:${id}.${locale} [${rule}] ${value.slice(0, 100)}`);
+        }
+        if (/ – /.test(value)) problems.push(`${key}:${id}.${locale} [raya media como puntuación] ${value.slice(0, 100)}`);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
 
   it('las reglas detectan los casos que tienen que detectar', () => {
     const hits = (s: string) => Object.entries(RULES).filter(([, re]) => re.test(s)).map(([n]) => n);
