@@ -3,6 +3,7 @@ import { parseBlocks } from './docs';
 import { inlineHtmlToText } from './docs-markdown';
 import { rankKnowledge, searchTokens } from './knowledge-search';
 import type { DocsBlock } from './docs-types';
+import { databaseSearchText } from './docs-database';
 
 /**
  * Centro de ayuda público de un workspace: /h/<handle> y /h/<handle>/<slug>.
@@ -102,9 +103,11 @@ export function pagePlainText(content: string, maxChars = 12_000): string {
   let len = 0;
   for (const b of parseBlocks(content)) {
     if (len > maxChars) break;
-    const text = b.type === 'table' || b.type === 'database'
+    const text = b.type === 'table'
       ? (b.rows ?? []).map((r) => r.join(' ')).join(' ')
-      : inlineHtmlToText(b.content ?? '');
+      : b.type === 'database'
+        ? databaseSearchText(b)
+        : inlineHtmlToText(b.content ?? '');
     if (!text.trim()) continue;
     out.push(text);
     len += text.length + 1;

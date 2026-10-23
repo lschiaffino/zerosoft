@@ -1,5 +1,6 @@
 import type { DocsBlock } from './docs-types';
 import { blockIndent, listNumbers } from './docs-blocks';
+import { databaseTable } from './docs-database';
 
 /**
  * Bloques de Docs → Markdown (export). Puro, sin DB ni DOM: el contenido de
@@ -159,8 +160,9 @@ export function blocksToMarkdown(blocks: DocsBlock[], title?: string, opts: Bloc
         break;
       }
       case 'database': {
-        const header = (b.columns ?? []).map((c) => c.name);
-        text = tableToMd(header, b.rows ?? []);
+        // La vista activa (filtro, orden y propiedades visibles), como la ve quien la armó.
+        const table = databaseTable(b);
+        text = tableToMd(table.header, table.rows);
         break;
       }
       default:

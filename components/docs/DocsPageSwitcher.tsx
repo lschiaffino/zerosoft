@@ -15,6 +15,8 @@ interface SwitcherItem {
   title: string;
   icon: string | null;
   snippet: string | null;
+  /** Fila de una base (se abre con ?row=). */
+  row_id?: string | null;
 }
 
 function Highlighted({ text, tokens }: { text: string; tokens: string[] }) {
@@ -87,7 +89,7 @@ export default function DocsPageSwitcher({ pages }: { pages: DocsPageSummary[] }
       fetch(`/api/docs/search?content=1&q=${encodeURIComponent(query)}`, { signal: ctrl.signal })
         .then((r) => (r.ok ? r.json() : { rows: [] }))
         .then((data: { rows?: DocsSearchHit[] }) => {
-          setHits((data.rows ?? []).map((h) => ({ id: h.id, title: h.title, icon: h.icon, snippet: h.snippet })));
+          setHits((data.rows ?? []).map((h) => ({ id: h.id, title: h.title, icon: h.icon, snippet: h.snippet, row_id: h.row_id })));
           setSel(0);
         })
         .catch(() => {})
@@ -117,7 +119,7 @@ export default function DocsPageSwitcher({ pages }: { pages: DocsPageSummary[] }
     (item: SwitcherItem) => {
       setOpen(false);
       prevFocusRef.current = null;
-      router.push(`/app/docs/${item.id}`);
+      router.push(item.row_id ? `/app/docs/${item.id}?row=${encodeURIComponent(item.row_id)}` : `/app/docs/${item.id}`);
     },
     [router],
   );
@@ -179,7 +181,7 @@ export default function DocsPageSwitcher({ pages }: { pages: DocsPageSummary[] }
           {!q.trim() && recent.length === 0 && <p className="cmdk-state">{t('switcher.noPages')}</p>}
           {items.map((item, i) => (
             <button
-              key={item.id}
+              key={`${item.id}:${item.row_id ?? ''}`}
               type="button"
               role="option"
               id={`${listId}-${i}`}

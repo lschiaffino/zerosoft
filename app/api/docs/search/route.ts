@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { searchDocPages, searchDocPagesContent } from '@/lib/docs';
+import { searchDocPages, searchDocPagesContent, searchDocRows } from '@/lib/docs';
 import { unauthorized } from '@/lib/docs-http';
 
 export const runtime = 'nodejs';
@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
     const rows = q.trim().length > 0 ? await searchDocPagesContent(user.id, q) : [];
     return NextResponse.json({ rows, q });
   }
-  const rows = q.trim().length > 0 ? await searchDocPages(user.id, q) : [];
+  // Páginas y, después, filas de bases (link a una fila: row_id).
+  const [pages, dbRows] = q.trim().length > 0 ? await Promise.all([searchDocPages(user.id, q), searchDocRows(user.id, q)]) : [[], []];
+  const rows = [...pages.map((p) => ({ id: p.id, title: p.title, icon: p.icon })), ...dbRows];
   return NextResponse.json({ rows, q });
 }

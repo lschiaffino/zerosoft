@@ -1,6 +1,7 @@
 import sanitizeHtml from 'sanitize-html';
-import type { DocsBlock } from './docs-types';
+import type { DbProperty, DbValue, DocsBlock, DocsDatabase } from './docs-types';
 import { isPageLinkId, pageLinkHref } from './docs-page-links';
+import { DB_MAX_BODY_BLOCKS, isComputedType, isOptionType, isTextType, normalizeDatabase } from './docs-database';
 import { sanitizeFileFields } from './docs-files';
 
 /**
@@ -13,14 +14,19 @@ import { sanitizeFileFields } from './docs-files';
  */
 const OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: ['strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del', 'code', 'a', 'br'],
-  allowedAttributes: { a: ['href', 'target', 'rel', 'data-page'] },
+  allowedAttributes: { a: ['href', 'target', 'rel', 'data-page', 'data-row'] },
   allowedSchemes: ['http', 'https', 'mailto', 'tel'],
   allowProtocolRelative: false,
   disallowedTagsMode: 'discard',
   transformTags: {
     a: (tagName, attribs): sanitizeHtml.Tag => {
       const page = attribs['data-page'];
-      if (isPageLinkId(page)) return { tagName, attribs: { href: pageLinkHref(page), 'data-page': page } };
+      if (isPageLinkId(page)) {
+        // Link a una fila de una base: data-row con el id de la fila.
+        const row = attribs['data-row'];
+        if (isPageLinkId(row)) return { tagName, attribs: { href: pageLinkHref(page, row), 'data-page': page, 'data-row': row } };
+        return { tagName, attribs: { href: pageLinkHref(page), 'data-page': page } };
+      }
       return { tagName, attribs: { href: attribs.href ?? '', target: '_blank', rel: 'noopener noreferrer' } };
     },
   },
@@ -44,6 +50,98 @@ function sanitizeBoardField(block: DocsBlock): DocsBlock {
   return { ...rest, board_id };
 }
 
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** Valor de una celda según el tipo de su propiedad; undefined = se descarta. */
+function sanitizeDbValue(prop: DbProperty, v: DbValue): DbValue | undefined {
+  if (isComputedType(prop.type)) return undefined;
+  if (isTextType(prop.type)) return typeof v === 'string' ? plainCell(v) : undefined;
+  switch (prop.type) {
+    case 'number':
+      return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+    case 'checkbox':
+      return typeof v === 'boolean' ? v : undefined;
+    case 'date':
+      return typeof v === 'string' && DAY_RE.test(v) ? v : undefined;
+    case 'select':
+    case 'status':
+      return typeof v === 'string' && prop.options?.some((o) => o.id === v) ? v : undefined;
+    case 'multi_select':
+      return Array.isArray(v) ? [...new Set(v.filter((id) => prop.options?.some((o) => o.id === id)))] : undefined;
+    case 'person':
+      return Array.isArray(v) ? [...new Set(v.filter((id) => ID_RE.test(id)))].slice(0, 50) : undefined;
+    default:
+      return undefined;
+  }
+}
+
+function isoOr(v: unknown, fallback: string): string {
+  return typeof v === 'string' && !Number.isNaN(Date.parse(v)) ? new Date(v).toISOString() : fallback;
+}
+
+/**
+ * Base de un bloque database: textos planos, valores que coinciden con el
+ * tipo de su propiedad (opciones que existen, fechas YYYY-MM-DD), vistas que
+ * solo nombran propiedades que existen y cuerpos de fila saneados como
+ * bloques (sin bases adentro).
+ */
+export function sanitizeDatabase(db: DocsDatabase): DocsDatabase {
+  const now = new Date().toISOString();
+  const fixed = normalizeDatabase({ id: 'db', type: 'database', content: '', db });
+  const seen = new Set<string>();
+  const properties = fixed.properties
+    .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
+    .map((p) => {
+      const out: DbProperty = { id: p.id, name: plainCell(p.name).slice(0, 500), type: p.type };
+      if (isOptionType(p.type)) {
+        out.options = (p.options ?? []).map((o) => ({
+          id: o.id,
+          name: plainCell(o.name).slice(0, 500),
+          ...(p.type === 'status' ? { group: o.group ?? 'todo' } : {}),
+        }));
+      }
+      return out;
+    });
+  const byId = new Map(properties.map((p) => [p.id, p]));
+  const rows = fixed.rows.map((r) => {
+    const values: Record<string, DbValue> = {};
+    for (const [key, v] of Object.entries(r.values ?? {})) {
+      const prop = byId.get(key);
+      if (!prop) continue;
+      const clean = sanitizeDbValue(prop, v);
+      if (clean !== undefined) values[key] = clean;
+    }
+    const body = r.body?.length
+      ? sanitizeBlocks(r.body.filter((b) => b.type !== 'database').slice(0, DB_MAX_BODY_BLOCKS))
+      : undefined;
+    return {
+      id: r.id,
+      values,
+      ...(body ? { body } : {}),
+      created_at: isoOr(r.created_at, now),
+      updated_at: isoOr(r.updated_at, now),
+    };
+  });
+  const views = fixed.views.map((v) => ({
+    ...v,
+    name: plainCell(v.name).slice(0, 500),
+    filters: v.filters?.filter((f) => byId.has(f.property)),
+    sorts: v.sorts?.filter((x) => byId.has(x.property)),
+    group_by: v.group_by && byId.has(v.group_by) ? v.group_by : null,
+    hidden: v.hidden?.filter((h) => byId.has(h)),
+    widths: v.widths ? Object.fromEntries(Object.entries(v.widths).filter(([k]) => byId.has(k))) : undefined,
+  }));
+  const active = views.some((v) => v.id === fixed.active_view) ? fixed.active_view : views[0]?.id;
+  return {
+    properties,
+    rows,
+    views,
+    ...(active ? { active_view: active } : {}),
+    ...(fixed.title ? { title: plainCell(fixed.title).slice(0, 500) } : {}),
+  };
+}
+
 export function sanitizeBlocks(blocks: DocsBlock[]): DocsBlock[] {
   return blocks.map((b) => ({
     // image/file: URL solo del storage de Docs, nombre/MIME saneados.
@@ -55,5 +153,7 @@ export function sanitizeBlocks(blocks: DocsBlock[]): DocsBlock[] {
     // y lo duplicaba en cada guardado.
     // Igual se sacan las etiquetas (defensa por si algún cliente de la API las renderiza).
     ...(b.rows ? { rows: b.rows.map((row) => row.map(plainCell)) } : {}),
+    // La base solo vive en bloques database.
+    ...(b.db ? { db: b.type === 'database' ? sanitizeDatabase(b.db) : undefined } : {}),
   }));
 }

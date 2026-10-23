@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import Icon from '@/components/app/icons';
 import type { DocsPage } from '@/lib/docs-types';
 import DocsBlocksView from './DocsBlocksView';
@@ -12,13 +12,17 @@ export default function DocsReadOnlyView({
   page,
   sharedBy,
   showVersions = true,
+  people,
 }: {
   page: DocsPage;
   sharedBy: string | null;
+  /** Miembros del workspace dueño (propiedades persona de las bases). */
+  people?: Record<string, string>;
   /** Falso cuando el acceso viene solo de estar publicada en el centro de ayuda. */
   showVersions?: boolean;
 }) {
   const t = useTranslations('docs');
+  const locale = useLocale();
   const [versions, setVersions] = useState(false);
 
   return (
@@ -52,7 +56,7 @@ export default function DocsReadOnlyView({
           {page.icon && <span className="docs-icon" aria-hidden="true">{page.icon}</span>}
           <h1 className="docs-title docs-readonly-title">{page.title || t('untitled')}</h1>
         </div>
-        <DocsBlocksView blocks={page.content} pageId={page.id} className="docs-prose docs-readonly-body" />
+        <DocsBlocksView blocks={page.content} pageId={page.id} people={people} locale={locale} className="docs-prose docs-readonly-body" />
       </div>
       <aside className="docs-side" hidden={!versions} aria-label={t('versions.title')}>
         <button

@@ -23,8 +23,10 @@ export type DocsBlockType =
 /** Niveles de anidado (Tab): el bloque cuelga del anterior con un nivel menos. */
 export const DOCS_MAX_INDENT = 6;
 
+/** Formato viejo de una base (columnas posicionales); lib/docs-database.ts lo migra al leer. */
 export type DocsDatabaseColumnType = 'text' | 'number' | 'select' | 'date';
 
+/** Vista del formato viejo. */
 export type DocsDatabaseView = 'table' | 'gallery';
 
 export interface DocsDatabaseColumn {
@@ -32,6 +34,127 @@ export interface DocsDatabaseColumn {
   name: string;
   type: DocsDatabaseColumnType;
   options?: string[];
+}
+
+/**
+ * Base de datos estilo Notion (bloque `database`, campo `db`). Las filas son
+ * páginas: valores por propiedad arriba y un cuerpo de bloques. Todo vive en
+ * el content de la página (o nota) que la contiene: versiones, duplicar,
+ * plantillas y exportar la llevan sin tablas aparte. Lógica pura en
+ * lib/docs-database.ts.
+ */
+export type DbPropertyType =
+  | 'title'
+  | 'text'
+  | 'number'
+  | 'select'
+  | 'multi_select'
+  | 'status'
+  | 'date'
+  | 'person'
+  | 'checkbox'
+  | 'url'
+  | 'email'
+  | 'phone'
+  | 'created_time'
+  | 'last_edited_time';
+
+/** Grupos fijos de una propiedad status (como en Notion). */
+export type DbStatusGroup = 'todo' | 'in_progress' | 'done';
+
+export interface DbOption {
+  id: string;
+  name: string;
+  /** Solo status: a qué grupo pertenece la opción. */
+  group?: DbStatusGroup;
+}
+
+export interface DbProperty {
+  id: string;
+  name: string;
+  type: DbPropertyType;
+  /** select, multi_select y status. */
+  options?: DbOption[];
+}
+
+/**
+ * Valor de una celda según el tipo: texto (title/text/url/email/phone), número,
+ * id de opción (select/status), ids de opción o de persona (multi_select/person),
+ * 'YYYY-MM-DD' (date) o boolean (checkbox). created/last edited no se guardan:
+ * salen de la fila.
+ */
+export type DbValue = string | number | boolean | string[] | null;
+
+export interface DbRow {
+  id: string;
+  values: Record<string, DbValue>;
+  /** Cuerpo de la fila abierta como página (sin bases adentro). */
+  body?: DocsBlock[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type DbViewType = 'table' | 'board' | 'gallery';
+
+export type DbFilterOp =
+  | 'contains'
+  | 'not_contains'
+  | 'is'
+  | 'is_not'
+  | 'starts_with'
+  | 'ends_with'
+  | 'empty'
+  | 'not_empty'
+  | 'eq'
+  | 'neq'
+  | 'gt'
+  | 'lt'
+  | 'gte'
+  | 'lte'
+  | 'before'
+  | 'after'
+  | 'on_or_before'
+  | 'on_or_after'
+  | 'checked'
+  | 'unchecked';
+
+export interface DbFilter {
+  id: string;
+  property: string;
+  op: DbFilterOp;
+  value?: DbValue;
+}
+
+export interface DbSort {
+  property: string;
+  direction: 'asc' | 'desc';
+}
+
+export interface DbViewConfig {
+  id: string;
+  /** Vacío: se muestra el nombre del tipo de vista traducido. */
+  name: string;
+  type: DbViewType;
+  /** Condiciones en AND. */
+  filters?: DbFilter[];
+  /** Orden por varias claves (la primera manda). */
+  sorts?: DbSort[];
+  /** Agrupar (tabla) o columnas (board): select, status, person o checkbox. */
+  group_by?: string | null;
+  /** Propiedades ocultas en esta vista. */
+  hidden?: string[];
+  /** Ancho de columna (px) por propiedad, en la tabla. */
+  widths?: Record<string, number>;
+}
+
+export interface DocsDatabase {
+  properties: DbProperty[];
+  rows: DbRow[];
+  views: DbViewConfig[];
+  /** Vista abierta (la que muestran las vistas de solo lectura). */
+  active_view?: string;
+  /** Nombre de la base (encabezado y breadcrumb de una fila abierta). */
+  title?: string;
 }
 
 export interface DocsBlock {
@@ -44,6 +167,8 @@ export interface DocsBlock {
   rows?: string[][];
   columns?: DocsDatabaseColumn[];
   view?: DocsDatabaseView;
+  /** Bloque database (formato actual; `columns`/`rows`/`view` son el viejo). */
+  db?: DocsDatabase;
   /**
    * Bloques image/file: URL del archivo en el storage (lib/uploads.ts). Nunca
    * se usa directo en el navegador: se sirve por /api/docs/files (chequea el
@@ -232,6 +357,21 @@ export function defaultDatabaseColumns(): DocsDatabaseColumn[] {
     },
     { id: crypto.randomUUID(), name: 'Due', type: 'date' },
   ];
+}
+
+/**
+ * Los bloques de una página más los del cuerpo de cada fila de sus bases
+ * (archivos, links y búsqueda los recorren igual que a los de la página).
+ */
+export function withDatabaseBodies(blocks: DocsBlock[]): DocsBlock[] {
+  if (!blocks.some((b) => b.type === 'database' && b.db?.rows?.some((r) => r.body?.length))) return blocks;
+  const out: DocsBlock[] = [];
+  for (const b of blocks) {
+    out.push(b);
+    if (b.type !== 'database' || !b.db?.rows) continue;
+    for (const r of b.db.rows) if (r.body?.length) out.push(...r.body);
+  }
+  return out;
 }
 
 /**

@@ -155,7 +155,10 @@ function serializeNode(
         serializeChildren(el, out, parentMark, stripMark);
         return;
       }
-      out.push(`<a href="${pageLinkHref(page)}" data-page="${page}">`);
+      // Link a una fila de una base: también se rehace desde los ids.
+      const row = el.getAttribute('data-row');
+      if (row !== null && isPageLinkId(row)) out.push(`<a href="${pageLinkHref(page, row)}" data-page="${page}" data-row="${row}">`);
+      else out.push(`<a href="${pageLinkHref(page)}" data-page="${page}">`);
       serializeChildren(el, out, null, stripMark);
       out.push('</a>');
       return;

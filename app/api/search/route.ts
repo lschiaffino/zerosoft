@@ -88,11 +88,12 @@ export async function GET(req: NextRequest) {
 
   for (const p of docs) {
     items.push({
-      id: p.id,
+      id: p.row_id ? `${p.id}:${p.row_id}` : p.id,
       group: 'docs',
       label: p.title || 'Untitled',
       meta: p.snippet ?? '',
-      href: `/app/docs/${p.id}`,
+      // Fila de una base: abre la fila como página.
+      href: p.row_id ? `/app/docs/${p.id}?row=${encodeURIComponent(p.row_id)}` : `/app/docs/${p.id}`,
     });
   }
 

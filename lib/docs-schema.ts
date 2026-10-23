@@ -39,7 +39,80 @@ const docsDatabaseColumnSchema = z.object({
   options: z.array(shortText).max(30).optional(),
 });
 
-export const docsBlockSchema = z.object({
+const dbId = z.string().min(1).max(64);
+const dbValue = z.union([
+  z.string().max(DOCS_BLOCK_MAX),
+  z.number().finite(),
+  z.boolean(),
+  z.array(z.string().max(64)).max(100),
+  z.null(),
+]);
+const dbOption = z.object({
+  id: dbId,
+  name: shortText,
+  group: z.enum(['todo', 'in_progress', 'done']).optional(),
+});
+const dbProperty = z.object({
+  id: dbId,
+  name: shortText,
+  type: z.enum([
+    'title',
+    'text',
+    'number',
+    'select',
+    'multi_select',
+    'status',
+    'date',
+    'person',
+    'checkbox',
+    'url',
+    'email',
+    'phone',
+    'created_time',
+    'last_edited_time',
+  ]),
+  options: z.array(dbOption).max(100).optional(),
+});
+const dbFilter = z.object({
+  id: dbId,
+  property: dbId,
+  op: z.enum([
+    'contains',
+    'not_contains',
+    'is',
+    'is_not',
+    'starts_with',
+    'ends_with',
+    'empty',
+    'not_empty',
+    'eq',
+    'neq',
+    'gt',
+    'lt',
+    'gte',
+    'lte',
+    'before',
+    'after',
+    'on_or_before',
+    'on_or_after',
+    'checked',
+    'unchecked',
+  ]),
+  value: dbValue.optional(),
+});
+const dbView = z.object({
+  id: dbId,
+  name: shortText,
+  type: z.enum(['table', 'board', 'gallery']),
+  filters: z.array(dbFilter).max(20).optional(),
+  sorts: z.array(z.object({ property: dbId, direction: z.enum(['asc', 'desc']) })).max(10).optional(),
+  group_by: dbId.nullish(),
+  hidden: z.array(dbId).max(40).optional(),
+  widths: z.record(z.number().min(40).max(2000)).optional(),
+});
+
+/** Bloque sin base adentro: el cuerpo de una fila no anida bases. */
+const docsBaseBlockSchema = z.object({
   id: z.string().min(1).max(64),
   type: docsBlockType,
   content: blockText,
@@ -60,6 +133,27 @@ export const docsBlockSchema = z.object({
   icon: z.string().max(16).optional(),
   // Bloque board (sanitizeBlocks lo descarta si no es un id válido o el bloque no es board).
   board_id: z.string().max(64).optional(),
+});
+
+const dbRow = z.object({
+  id: dbId,
+  values: z.record(dbValue),
+  body: z.array(docsBaseBlockSchema).max(500).optional(),
+  created_at: z.string().max(40),
+  updated_at: z.string().max(40),
+});
+
+/** Base de datos de un bloque `database` (ver lib/docs-database.ts; el servidor la sanea igual). */
+export const docsDatabaseSchema = z.object({
+  properties: z.array(dbProperty).min(1).max(40),
+  rows: z.array(dbRow).max(2000),
+  views: z.array(dbView).min(1).max(20),
+  active_view: dbId.optional(),
+  title: shortText.optional(),
+});
+
+export const docsBlockSchema = docsBaseBlockSchema.extend({
+  db: docsDatabaseSchema.optional(),
 });
 
 export const docPageCreateSchema = z.object({
@@ -127,14 +221,23 @@ export const docMentionCreateSchema = z.object({
 });
 
 /** true si el título o algún bloque/celda supera el tope del servidor (el PATCH entero se rechazaría). */
-export function docsPatchTooLong(patch: {
-  title?: string | null;
-  content?: Array<{ content?: string | null; rows?: string[][] | null }> | null;
-}): boolean {
-  if ((patch.title ?? '').trim().length > DOCS_TITLE_MAX) return true;
-  return (patch.content ?? []).some(
-    (b) =>
-      (b.content ?? '').length > DOCS_BLOCK_MAX ||
-      (b.rows ?? []).some((r) => r.some((c) => c.length > DOCS_BLOCK_MAX)),
+type PatchBlock = {
+  content?: string | null;
+  rows?: string[][] | null;
+  db?: { rows?: Array<{ values?: Record<string, unknown>; body?: PatchBlock[] }> } | null;
+};
+
+function blockTooLong(b: PatchBlock): boolean {
+  if ((b.content ?? '').length > DOCS_BLOCK_MAX) return true;
+  if ((b.rows ?? []).some((r) => r.some((c) => c.length > DOCS_BLOCK_MAX))) return true;
+  return (b.db?.rows ?? []).some(
+    (r) =>
+      Object.values(r.values ?? {}).some((v) => typeof v === 'string' && v.length > DOCS_BLOCK_MAX) ||
+      (r.body ?? []).some(blockTooLong),
   );
+}
+
+export function docsPatchTooLong(patch: { title?: string | null; content?: PatchBlock[] | null }): boolean {
+  if ((patch.title ?? '').trim().length > DOCS_TITLE_MAX) return true;
+  return (patch.content ?? []).some(blockTooLong);
 }
