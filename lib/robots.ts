@@ -640,6 +640,23 @@ async function failRun(
   return true;
 }
 
+/** Cancela una corrida que sigue en cola (queda fallida con error "cancelled"). Una corrida en curso no se puede cortar. */
+export async function cancelQueuedRobotRun(
+  workspaceId: string,
+  runId: string,
+): Promise<{ ok: true; run: RobotRunDto } | { ok: false; error: 'not_found' | 'not_queued' }> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT r.id, r.trigger, r.robot_id, b.name AS robot_name, r.user_id FROM robot_runs r
+       JOIN robots b ON b.id = r.robot_id WHERE r.id = ? AND r.user_id = ?`,
+    )
+    .get(runId, workspaceId)) as { id: string; trigger: RobotRunTrigger; robot_id: string; robot_name: string; user_id: string } | undefined;
+  if (!row) return { ok: false, error: 'not_found' };
+  const done = await failRun({ id: row.robot_id, name: row.robot_name, user_id: row.user_id }, row, 'cancelled', 'queued');
+  if (!done) return { ok: false, error: 'not_queued' };
+  return { ok: true, run: (await getRobotRun(workspaceId, runId))! };
+}
+
 /** Edad máxima en cola de una corrida de un lote (BATCH_QUEUE_MAX_AGE_H, 24 h): un lote largo corre de a una. */
 export function batchQueueMaxAgeMs(): number {
   return envInt('ROBOTS_BATCH_QUEUE_MAX_AGE_H', 24) * 3_600_000;

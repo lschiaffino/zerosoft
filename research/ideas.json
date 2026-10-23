@@ -1970,5 +1970,41 @@
     "kind": "idea",
     "status": "done",
     "changelog": "2026-10-22-imports"
+  },
+  {
+    "title": "Robots: Stop a run that is already in progress",
+    "description": "UiPath Orchestrator lets you stop or kill a running job from the Jobs page (https://docs.uipath.com/orchestrator/automation-cloud/latest/user-guide/about-jobs). Today a Robots run can only be left to finish or time out, and only queued runs can be cancelled (POST /api/robots/runs/[id]/cancel). A team that started a long catalog crawl with the wrong input burns its monthly minutes until the timeout. First scope: a Stop button on running runs that signals the runner through lib/robots-runner.ts, closes the browser and ends the run as failed with error cancelled.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add run priority so urgent runs skip ahead in the queue",
+    "description": "UiPath queue items carry a priority (Low, Normal, High) that decides processing order (https://docs.uipath.com/orchestrator/automation-cloud/latest/user-guide/managing-queues-in-orchestrator). Our workspace queue in lib/robots.ts claims runs strictly by created_at, so a manual run waits behind a 200-row bulk batch. A small team needs the run it is staring at to go first. First scope: a priority field on robot_runs (normal by default, high for manual runs), claim order by priority then created_at, and a priority option in the run API.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add a due date to queued runs and alert when it will be missed",
+    "description": "UiPath queues support an SLA and a Risk SLA so items get a deadline and users are notified when it is at risk (https://docs.uipath.com/orchestrator/automation-cloud/latest/user-guide/managing-queues-in-orchestrator). Our queued runs only expire silently after a fixed age (expireQueuedRobotRuns in lib/robots.ts). Someone who needs a price check before a call at 3pm has no way to say so or to be warned. First scope: an optional dueAt on runs started from the API or bulk, a robot.run.at_risk event when the queue position makes it unlikely, and the due date in the runs list.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Retry a failed run automatically and link the attempts",
+    "description": "UiPath queues have Auto Retry with a max number of retries and link each retry to the original item through a key for traceability (https://docs.uipath.com/orchestrator/automation-cloud/latest/user-guide/managing-queues-in-orchestrator). Robots retry individual steps (the retry option per step in lib/robots-schema.ts) but a run that fails stays failed until someone clicks Run again. For a nightly scrape that hits a flaky site this means a manual fix each morning. First scope: a maxRunRetries setting on the robot, a retryOf column on robot_runs, and the chain shown in the run detail.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add workspace assets shared by all robots",
+    "description": "UiPath Orchestrator Assets store named values (text, integer, boolean, credential) that any automation reads at run time, so a change is made once (https://docs.uipath.com/orchestrator/automation-cloud/latest/user-guide/about-assets). In Robots each robot keeps its own inputs (lib/robots-schema.ts) and secrets only come from Flow credentials. A team with ten robots against the same staging URL or the same price threshold edits ten robots. First scope: a workspace list of named non-secret values, usable as {{assets.name}} in any step template, with a page to edit them and a note on which robots use each one.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Defer a run until a chosen date and time",
+    "description": "UiPath queue items accept a defer date so they are not processed before it (https://docs.uipath.com/orchestrator/automation-cloud/latest/user-guide/managing-queues-in-orchestrator). A Robots run can only start now or come from a recurring schedule (lib/robots.ts, schedule in lib/robots-schema.ts). To check a page right after a launch at a known time, a person has to be at the keyboard. First scope: a deferUntil option on the run dialog and the API that keeps the run queued and skips it in drainRobotQueue until the time passes.",
+    "product": "robots",
+    "kind": "idea"
   }
 ]
