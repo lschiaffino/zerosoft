@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { databaseHeader, type DocsBlock } from '@/lib/docs-types';
+import type { DocsBlock } from '@/lib/docs-types';
 import { buildToc } from '@/lib/docs-toc';
 import { docsFileHref, formatFileSize } from '@/lib/docs-files';
 import { blocksToTree, isToggleBlock, type DocsBlockNode } from '@/lib/docs-blocks';
 import { DocsBoardPreview } from './DocsBoardEmbed';
+import DbReadOnly from './database/DbReadOnly';
 
 /**
  * Render de solo lectura de los bloques de una página de Docs: centro de
@@ -21,6 +22,8 @@ export default function DocsBlocksView({
   fileHref,
   className = '',
   boards = true,
+  people,
+  locale,
 }: {
   blocks: DocsBlock[];
   pageId?: string;
@@ -29,6 +32,9 @@ export default function DocsBlocksView({
   className?: string;
   /** Vista previa de pizarras embebidas (el centro de ayuda público no las muestra: son internas). */
   boards?: boolean;
+  /** Nombres de los miembros (propiedades persona de las bases); sin esto no se muestran. */
+  people?: Record<string, string>;
+  locale?: string;
 }) {
   const hrefFor = fileHref ?? (pageId ? (blockId: string, opts?: { download?: boolean }) => docsFileHref(pageId, blockId, opts) : null);
   const anchors = new Map(buildToc(blocks).map((e) => [e.blockId, e.anchor]));
@@ -96,21 +102,13 @@ export default function DocsBlocksView({
         // Vista previa con chequeo de acceso de quien mira (sin acceso: aviso, sin datos).
         if (!boards || !b.board_id) return null;
         return <DocsBoardPreview key={b.id} boardId={b.board_id} />;
-      case 'table':
-      case 'database': {
-        const header = databaseHeader(b);
+      case 'database':
+        // La vista activa de la base (filtro, orden, agrupado), en lectura.
+        return <DbReadOnly key={b.id} block={b} people={people} locale={locale} />;
+      case 'table': {
         return (
           <div key={b.id} className="dbv-table">
             <table>
-              {header && header.length > 0 && (
-                <thead>
-                  <tr>
-                    {header.map((h, c) => (
-                      <th key={c}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-              )}
               <tbody>
                 {(b.rows ?? []).map((row, r) => (
                   <tr key={r}>

@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { databaseHeader, type DocsBlock } from '@/lib/docs-types';
+import type { DocsBlock } from '@/lib/docs-types';
+import DbReadOnly from '@/components/docs/database/DbReadOnly';
 import { formatFileSize } from '@/lib/docs-files';
 import { blockIndent } from '@/lib/docs-blocks';
 
@@ -112,28 +113,18 @@ export default function NoteBlocksView({
           );
         }
         break;
-      case 'table':
-      case 'database': {
-        // Las bases muestran los nombres de sus columnas (link público y papelera).
-        const header = databaseHeader(b);
+      case 'database':
+        // La vista activa de la base (link público y papelera; sin personas).
+        out.push(<DbReadOnly key={b.id} block={b} className="note-view-table" />);
+        break;
+      case 'table': {
         out.push(
           <div key={b.id} className="note-view-table">
             <table>
-              {header && (
-                <thead>
-                  <tr>
-                    {header.map((h, c) => (
-                      <th key={c} scope="col">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-              )}
               <tbody>
                 {(b.rows ?? []).map((row, r) => (
                   <tr key={r}>
-                    {(header ? header.map((_, c) => row[c] ?? '') : row).map((cell, c) => (
+                    {row.map((cell, c) => (
                       <td key={c}>{cell}</td>
                     ))}
                   </tr>

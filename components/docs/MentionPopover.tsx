@@ -121,7 +121,7 @@ export default function MentionPopover({ query, style, onSelect, onClose, search
       ) : (
         pages.map((page, i) => (
           <button
-            key={page.id}
+            key={`${page.id}:${page.row_id ?? ''}`}
             type="button"
             className={`docs-mention-item${i === sel ? ' sel' : ''}`}
             onMouseEnter={() => setActive(i)}
@@ -135,6 +135,9 @@ export default function MentionPopover({ query, style, onSelect, onClose, search
               </span>
             )}
             <span className="docs-mention-title">{page.title || t('untitled')}</span>
+            {page.row_id && (
+              <span className="docs-mention-context">{page.page_title || t('untitled')}</span>
+            )}
           </button>
         ))
       )}

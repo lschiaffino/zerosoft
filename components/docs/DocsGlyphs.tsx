@@ -24,6 +24,17 @@ const PATHS = {
   // Toggle (triángulo que rota al desplegar) y callout (recuadro con marca).
   toggle: <path d="M9 6l6 6-6 6" />,
   callout: <path d="M3 5h18v14H3zM7 9v2M11 9h6M11 13h6M7 15h.01" />,
+  // Bases de datos: abrir fila (panel lateral / página completa) y barra de vista.
+  peek: <path d="M3 4h18v16H3zM14 4v16" />,
+  expand: <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />,
+  filter: <path d="M4 5h16l-6 8v6l-4-2v-4z" />,
+  sort: <path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4" />,
+  group: <path d="M3 4h18v6H3zM3 14h18v6H3z" />,
+  eye: <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />,
+  trash: <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />,
+  close: <path d="M6 6l12 12M18 6L6 18" />,
+  boardView: <path d="M3 4h5v16H3zM10 4h5v11h-5zM17 4h4v7h-4z" />,
+  gallery: <path d="M3 4h8v7H3zM13 4h8v7h-8zM3 13h8v7H3zM13 13h8v7h-8z" />,
 } as const;
 
 export type DocsGlyphName = keyof typeof PATHS;

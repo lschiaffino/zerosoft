@@ -12,6 +12,7 @@ import {
   listAccessibleSubpages,
   listDocPageSummaries,
   listEffectiveDocShares,
+  listPageMentionables,
   listSharedWithMe,
   resolveDocAccess,
   toDocPage,
@@ -87,6 +88,11 @@ export default async function DocsPageEditor(
   }));
 
   const owner = isOwner ? null : await getUserById(row.user_id);
+  // Lectura: nombres de las personas de las bases (solo si la página tiene una).
+  const people =
+    access === 'view' && page.content.some((b) => b.type === 'database')
+      ? Object.fromEntries((await listPageMentionables(row)).map((m) => [m.id, m.name?.trim() || m.email]))
+      : undefined;
   const sharedBy = owner ? owner.name || owner.email : null;
 
   return (
@@ -111,6 +117,7 @@ export default async function DocsPageEditor(
             page={{ ...page, content }}
             sharedBy={sharedBy}
             showVersions={canSeeVersions}
+            people={people}
           />
         ) : (
           <>

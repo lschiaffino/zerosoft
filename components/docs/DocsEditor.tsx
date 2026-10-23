@@ -13,12 +13,13 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { Link } from '@/i18n/navigation';
 import {
   defaultBlocks,
-  defaultDatabaseColumns,
   type DocsBlock,
+  type DocsDatabase,
   type DocsBlockType,
   type DocsMentionableUser,
   type DocsPage,
@@ -57,7 +58,8 @@ import {
   wrapLink,
   type DocsMarkTag,
 } from '@/lib/docs-richtext';
-import { pageLinkHtml, type PageLinkCandidate, type PageLinkSource } from '@/lib/docs-page-links';
+import { pageLinkHref, pageLinkHtml, type PageLinkCandidate, type PageLinkSource } from '@/lib/docs-page-links';
+import { databasePatch, defaultDatabase, normalizeDatabase } from '@/lib/docs-database';
 import {
   blockIndent,
   deleteRange,
@@ -91,6 +93,7 @@ import MentionPopover from './MentionPopover';
 import UserMentionPopover from './UserMentionPopover';
 import EmojiPicker from './EmojiPicker';
 import DocsGlyph, { type DocsGlyphName } from './DocsGlyphs';
+import DbRowPanel, { type DbRowPanelMode } from './database/DbRowPanel';
 
 interface DocsEditorProps {
   page: DocsPage;
@@ -129,6 +132,8 @@ interface DocsEditorProps {
   importUrl?: string;
   /** Placeholder del título (Notes: "Nota sin título"). */
   titlePlaceholder?: string;
+  /** Ofrecer el bloque base de datos (no en el cuerpo de una fila: no se anidan bases). */
+  allowDatabase?: boolean;
 }
 
 const BLOCK_COMMANDS: {
@@ -319,8 +324,10 @@ export default function DocsEditor({
   layoutToggles = true,
   importUrl,
   titlePlaceholder,
+  allowDatabase = true,
 }: DocsEditorProps) {
   const t = useTranslations('docs');
+  const searchParams = useSearchParams();
   const [blocks, setBlocks] = useState<DocsBlock[]>(() =>
     upgradeBlocks(page.content.length ? page.content : defaultBlocks()),
   );
@@ -1291,12 +1298,17 @@ export default function DocsEditor({
           if (type === 'todo') converted.checked = converted.checked ?? false;
           // Code es texto plano (pre-wrap): sin marcas en línea dentro.
           if (type === 'code') converted.content = escapeHtml(htmlToFlatText(converted.content));
-          // Database: inicializa columnas tipadas y una fila vacía.
-          if (type === 'database' && !converted.columns?.length) {
-            converted.columns = defaultDatabaseColumns();
-            converted.rows = converted.rows?.length
-              ? converted.rows
-              : [new Array(converted.columns.length).fill('')];
+          // Database: Name, Status y Due, una fila vacía y una vista tabla.
+          if (type === 'database' && !converted.db && !converted.columns?.length) {
+            converted.db = defaultDatabase({
+              name: t('database.defaults.name'),
+              status: t('database.defaults.status'),
+              due: t('database.defaults.due'),
+              notStarted: t('database.defaults.notStarted'),
+              inProgress: t('database.defaults.inProgress'),
+              done: t('database.defaults.done'),
+            });
+            converted.content = '';
           }
           return converted;
         });
@@ -1313,7 +1325,7 @@ export default function DocsEditor({
       setFocusIndex(index);
       setFocusTick((v) => v + 1);
     },
-    [triggerSave],
+    [triggerSave, t],
   );
 
   /** Aplica un comando del menú `/`: borra solo el `/query` tipeado y convierte/inserta. */
@@ -1402,6 +1414,7 @@ export default function DocsEditor({
     return BLOCK_COMMANDS.map((c) => ({ ...c, label: t(`editor.commands.${c.key}`) })).filter(
       (c) => {
         if (!uploadsEnabled && isFileBlockType(c.type)) return false;
+        if (!allowDatabase && c.type === 'database') return false;
         // Pizarras embebidas: solo en Docs (no en Notes).
         if (embedded && c.type === 'board') return false;
         if (!q) return true;
@@ -1415,7 +1428,7 @@ export default function DocsEditor({
         });
       },
     );
-  }, [t, cmdQuery, uploadsEnabled, embedded]);
+  }, [t, cmdQuery, uploadsEnabled, embedded, allowDatabase]);
 
   /** Enter en párrafo/heading/listas/todo: split en el caret o continuación de lista. */
   const splitBlock = useCallback(
@@ -2018,7 +2031,7 @@ export default function DocsEditor({
       // título va escapado) más un espacio para seguir escribiendo afuera.
       const title = selected.title || t('untitled');
       const [before, after] = splitHtmlAt(removeHtmlRange(block.content, start, end), start);
-      const newContent = `${before}${pageLinkHtml(selected.id, title)} ${after}`;
+      const newContent = `${before}${pageLinkHtml(selected.id, title, selected.row_id)} ${after}`;
       setBlocks((prev) => {
         const next = prev.map((b, i) => (i === index ? { ...b, content: newContent } : b));
         triggerSave(next);
@@ -2307,7 +2320,97 @@ export default function DocsEditor({
     setToolbar(null);
   };
 
+  // ---------- Bases de datos: fila abierta como página ----------
+
+  /** Fila abierta (panel lateral o página completa); el panel vive fuera del root (sus teclas no son del editor). */
+  const [openRow, setOpenRow] = useState<{ blockId: string; rowId: string; mode: DbRowPanelMode } | null>(null);
+  const membersUrl = embedded ? '/api/docs/members' : `/api/docs/members?page=${encodeURIComponent(page.id)}`;
+
+  /** ?row=<id> en la URL de la página (Docs): la fila abierta como página completa. */
+  const setRowUrl = useCallback(
+    (rowId: string | null, push: boolean) => {
+      if (embedded || typeof window === 'undefined') return;
+      const url = new URL(window.location.href);
+      if (rowId) url.searchParams.set('row', rowId);
+      else url.searchParams.delete('row');
+      if (url.href === window.location.href) return;
+      if (push) window.history.pushState(null, '', url.href);
+      else window.history.replaceState(null, '', url.href);
+    },
+    [embedded],
+  );
+
+  const onOpenRow = useCallback(
+    (blockId: string, rowId: string, mode: DbRowPanelMode) => {
+      setOpenRow({ blockId, rowId, mode });
+      setRowUrl(mode === 'full' ? rowId : null, mode === 'full');
+    },
+    [setRowUrl],
+  );
+
+  const closeRow = useCallback(() => {
+    setOpenRow(null);
+    setRowUrl(null, false);
+  }, [setRowUrl]);
+
+  const rowParam = embedded ? null : searchParams?.get('row') ?? null;
+  // Link a una fila (?row=): se abre como página completa; volver atrás la cierra.
+  useEffect(() => {
+    if (!rowParam) {
+      setOpenRow((cur) => (cur?.mode === 'full' ? null : cur));
+      return;
+    }
+    const block = live.current.blocks.find(
+      (b) => b.type === 'database' && normalizeDatabase(b).rows.some((r) => r.id === rowParam),
+    );
+    if (block) setOpenRow({ blockId: block.id, rowId: rowParam, mode: 'full' });
+  }, [rowParam, page.id]);
+
+  // Otra página: no queda abierta una fila de la anterior.
+  useEffect(() => {
+    setOpenRow((cur) => (cur && !live.current.blocks.some((b) => b.id === cur.blockId) ? null : cur));
+  }, [page.id]);
+
+  /** Cambio sobre la base más reciente del bloque (el cuerpo de la fila guarda con debounce). */
+  const updateDatabase = useCallback(
+    (blockId: string, fn: (db: DocsDatabase) => DocsDatabase) => {
+      setBlocks((prev) => {
+        const i = prev.findIndex((b) => b.id === blockId);
+        if (i === -1 || prev[i].type !== 'database') return prev;
+        const cur = normalizeDatabase(prev[i]);
+        const nextDb = fn(cur);
+        if (nextDb === cur) return prev;
+        const next = prev.map((b, j) => (j === i ? { ...b, ...databasePatch(nextDb) } : b));
+        triggerSave(next);
+        return next;
+      });
+    },
+    [triggerSave],
+  );
+
+  const dbHooks = useMemo(() => ({ onOpenRow, membersUrl }), [onOpenRow, membersUrl]);
+
+  /** [[ y archivos en el cuerpo de una fila: los de Notes, o los de esta página de Docs. */
+  const rowPageLinks = useMemo<PageLinkSource>(
+    () =>
+      pageLinks ?? {
+        search: (q: string) =>
+          fetch(`/api/docs/search?q=${encodeURIComponent(q)}`)
+            .then((r) => (r.ok ? r.json() : { rows: [] }))
+            .then((d: { rows?: PageLinkCandidate[] }) => d.rows ?? []),
+        href: (id: string) => pageLinkHref(id),
+        rows: true,
+      },
+    [pageLinks],
+  );
+  const rowFiles = useMemo<DocsFileSource | undefined>(
+    () => files ?? (embedded ? undefined : { uploadUrl: `/api/docs/pages/${page.id}/files`, href: (blockId, opts) => docsFileHref(page.id, blockId, opts) }),
+    [files, embedded, page.id],
+  );
+  const openRowBlock = openRow ? blocks.find((b) => b.id === openRow.blockId) : undefined;
+
   return (
+    <>
     <div
       ref={rootRef}
       className={`docs-editor${smallText ? ' docs-editor-small' : ''}${fullWidth ? ' docs-editor-full' : ''}${embedded ? ' docs-editor-embedded' : ''}`}
@@ -2585,7 +2688,7 @@ export default function DocsEditor({
             }
           }}
         />
-        {!embedded && belowTitle}
+        {belowTitle}
       </div>
 
       <div
@@ -2679,7 +2782,7 @@ export default function DocsEditor({
                       </button>
                       {turnIntoOpen && (
                         <div className="docs-bmenu-sub">
-                          {TURN_INTO_COMMANDS.map((cmd) => (
+                          {TURN_INTO_COMMANDS.filter((cmd) => allowDatabase || cmd.type !== 'database').map((cmd) => (
                             <button
                               key={cmd.key}
                               type="button"
@@ -2802,6 +2905,7 @@ export default function DocsEditor({
                   focused={focusIndex === index}
                   fileHref={uploadsEnabled ? fileHref : undefined}
                   pageLinks={pageLinks}
+                  database={dbHooks}
                   onPasteFiles={uploadsEnabled ? handlePasteFiles : undefined}
                   onPasteBlocks={handlePasteBlocks}
                   ref={(el) => { blockRefs.current[index] = el; }}
@@ -3079,5 +3183,32 @@ export default function DocsEditor({
         document.body,
       )}
     </div>
+    {openRow && openRowBlock && (
+      <DbRowPanel
+        key={`${openRow.blockId}:${openRow.rowId}`}
+        block={openRowBlock}
+        rowId={openRow.rowId}
+        mode={openRow.mode}
+        membersUrl={membersUrl}
+        pageTitle={title}
+        updateDb={(fn) => updateDatabase(openRow.blockId, fn)}
+        onMode={(mode) => onOpenRow(openRow.blockId, openRow.rowId, mode)}
+        onClose={closeRow}
+        renderBody={(bodyPage, onSaveRow, properties) => (
+          <DocsEditor
+            page={bodyPage}
+            ancestors={[]}
+            onSave={onSaveRow}
+            embedded
+            allowDatabase={false}
+            pageLinks={rowPageLinks}
+            files={rowFiles}
+            belowTitle={properties}
+            titlePlaceholder={t('database.untitledRow')}
+          />
+        )}
+      />
+    )}
+    </>
   );
 }

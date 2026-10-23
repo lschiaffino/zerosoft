@@ -18,9 +18,12 @@ export function isPageLinkId(id: unknown): id is string {
   return typeof id === 'string' && PAGE_LINK_ID_RE.test(id);
 }
 
-/** Href canónico (sin locale: el middleware de next-intl lo agrega). */
-export function pageLinkHref(id: string): string {
-  return `/app/docs/${id}`;
+/**
+ * Href canónico (sin locale: el middleware de next-intl lo agrega). Con `row`,
+ * una fila de una base de esa página abierta como página completa.
+ */
+export function pageLinkHref(id: string, row?: string | null): string {
+  return row && isPageLinkId(row) ? `/app/docs/${id}?row=${row}` : `/app/docs/${id}`;
 }
 
 function escapeText(text: string): string {
@@ -31,13 +34,15 @@ function escapeAttr(text: string): string {
   return escapeText(text).replace(/"/g, '&quot;');
 }
 
-/** HTML canónico de un link a página (el título se escapa). */
-export function pageLinkHtml(id: string, title: string): string {
-  return `<a href="${pageLinkHref(id)}" data-page="${id}">${escapeText(title)}</a>`;
+/** HTML canónico de un link a página, o a una fila de una base (el título se escapa). */
+export function pageLinkHtml(id: string, title: string, row?: string | null): string {
+  const rowAttr = row && isPageLinkId(row) ? ` data-row="${row}"` : '';
+  return `<a href="${pageLinkHref(id, row)}" data-page="${id}"${rowAttr}>${escapeText(title)}</a>`;
 }
 
 const ANCHOR_RE = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
 const DATA_PAGE_RE = /\bdata-page="([^"]*)"/i;
+const DATA_ROW_RE = /\bdata-row="([^"]*)"/i;
 
 /** Ids de página linkeados en un HTML-lite (sin repetir, en orden). */
 export function pageLinkIds(html: string): string[] {
@@ -70,21 +75,35 @@ export function resolvePageLinks(html: string, lookup: (id: string) => PageLinkT
     const target = lookup(id);
     // Texto plano: se sacan las marcas internas, el texto ya viene escapado.
     if (!target) return inner.replace(/<[^>]*>/g, '');
-    const label = target.title?.trim() ? escapeText(target.title.trim()) : inner;
-    // Sin id (centro de ayuda): la clase mantiene el estilo de mención.
-    const dataAttr = target.keepId === false ? ' class="docs-page-link"' : ` data-page="${id}"`;
-    return `<a href="${escapeAttr(target.href)}"${dataAttr}>${label}</a>`;
+    const row = DATA_ROW_RE.exec(attrs)?.[1];
+    const rowId = isPageLinkId(row) ? row : null;
+    // Link a una fila: queda el título con que se insertó (el de la página es otro).
+    const label = !rowId && target.title?.trim() ? escapeText(target.title.trim()) : inner;
+    // Sin id (centro de ayuda): la clase mantiene el estilo de mención y la fila no se abre.
+    if (target.keepId === false) return `<a href="${escapeAttr(target.href)}" class="docs-page-link">${label}</a>`;
+    const href = rowId ? `${target.href}${target.href.includes('?') ? '&' : '?'}row=${rowId}` : target.href;
+    return `<a href="${escapeAttr(href)}" data-page="${id}"${rowId ? ` data-row="${rowId}"` : ''}>${label}</a>`;
   });
 }
 
-/** `resolvePageLinks` sobre el content de cada bloque (las celdas son texto plano). */
+/** `resolvePageLinks` sobre el content de cada bloque y del cuerpo de cada fila de sus bases (las celdas son texto plano). */
 export function resolveBlocksPageLinks(
   blocks: DocsBlock[],
   lookup: (id: string) => PageLinkTarget | null,
 ): DocsBlock[] {
-  return blocks.map((b) =>
-    b.content && b.content.includes('data-page') ? { ...b, content: resolvePageLinks(b.content, lookup) } : b,
-  );
+  return blocks.map((b) => {
+    let out = b.content && b.content.includes('data-page') ? { ...b, content: resolvePageLinks(b.content, lookup) } : b;
+    if (b.type === 'database' && b.db?.rows?.some((r) => r.body?.length)) {
+      out = {
+        ...out,
+        db: {
+          ...b.db,
+          rows: b.db.rows.map((r) => (r.body?.length ? { ...r, body: resolveBlocksPageLinks(r.body, lookup) } : r)),
+        },
+      };
+    }
+    return out;
+  });
 }
 
 /** Resultado del buscador del popover `[[`. */
@@ -92,6 +111,10 @@ export interface PageLinkCandidate {
   id: string;
   title: string;
   icon?: string | null;
+  /** Fila de una base de la página `id` (el link abre la fila). */
+  row_id?: string | null;
+  /** Título de la página que tiene la fila (se muestra como contexto). */
+  page_title?: string | null;
 }
 
 /**
@@ -110,4 +133,6 @@ export interface PageLinkSource {
   create?: (title: string) => Promise<PageLinkCandidate | null>;
   /** Textos propios del popover: la opción de crear y la lista vacía. */
   labels?: { create: (query: string) => string; empty: string };
+  /** Los links pueden apuntar a filas de bases de Docs (data-row): el cuerpo de una fila en Docs. */
+  rows?: boolean;
 }

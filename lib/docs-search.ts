@@ -1,5 +1,6 @@
-import type { DocsBlock } from './docs-types';
+import { withDatabaseBodies, type DocsBlock } from './docs-types';
 import { inlineHtmlToText } from './docs-markdown';
+import { databaseSearchText } from './docs-database';
 
 /**
  * Búsqueda de Docs por título y por contenido de los bloques. Puro: lo usa
@@ -17,6 +18,9 @@ export interface DocsSearchHit {
   match: 'title' | 'content';
   /** Fragmento del texto alrededor del match (null si matcheó solo el título). */
   snippet: string | null;
+  /** Hit de una fila de una base: id de la fila (se abre con ?row=) y título de su página. */
+  row_id?: string | null;
+  page_title?: string | null;
 }
 
 /** Minúsculas y sin tildes: "Canción" y "cancion" matchean igual. */
@@ -51,7 +55,7 @@ export function blockSearchText(block: DocsBlock): string {
     case 'table':
       return (block.rows ?? []).map((r) => r.join(' ')).join(' ');
     case 'database':
-      return [(block.columns ?? []).map((c) => c.name).join(' '), ...(block.rows ?? []).map((r) => r.join(' '))].join(' ');
+      return databaseSearchText(block);
     case 'image':
     case 'file':
       return block.name ?? '';
@@ -67,7 +71,7 @@ export function blockSearchText(block: DocsBlock): string {
 export function pageSearchText(blocks: DocsBlock[], maxChars = 50_000): string {
   const out: string[] = [];
   let len = 0;
-  for (const b of blocks) {
+  for (const b of withDatabaseBodies(blocks)) {
     const text = blockSearchText(b).replace(/\s+/g, ' ').trim();
     if (!text) continue;
     out.push(text);

@@ -130,9 +130,15 @@ describe('Notion: mapeo', () => {
   it('CSV a base con tipos de columna', () => {
     let n = 0;
     const block = csvToDatabaseBlock('Name,Status,Due,Points\nA,Done,"January 5, 2024",3\nB,Todo,,5\nC,Todo,"Feb 1, 2024",8\n', () => `c${++n}`);
-    expect(block.columns?.map((c) => c.type)).toEqual(['text', 'select', 'date', 'number']);
-    expect(block.columns?.[1].options).toEqual(['Done', 'Todo']);
-    expect(block.rows?.[0]).toEqual(['A', 'Done', '2024-01-05', '3']);
+    const db = block.db!;
+    // Status con nombre de status: propiedad status con grupos.
+    expect(db.properties.map((c) => c.type)).toEqual(['title', 'status', 'date', 'number']);
+    expect(db.properties[1].options?.map((o) => [o.name, o.group])).toEqual([['Done', 'done'], ['Todo', 'todo']]);
+    const [name, status, due, points] = db.properties.map((p) => p.id);
+    const r0 = db.rows[0].values;
+    expect([r0[name], db.properties[1].options?.find((o) => o.id === r0[status])?.name, r0[due], r0[points]]).toEqual(['A', 'Done', '2024-01-05', 3]);
+    expect(db.rows[1].values[due]).toBeUndefined();
+    expect(db.views).toHaveLength(1);
   });
 });
 
@@ -186,7 +192,8 @@ describe('Notion: job de punta a punta (subida por partes)', () => {
     expect(blocks.at(-1)!.content).toContain(`data-page="${by('Child page').id}"`);
     const db = JSON.parse(by('Tasks').content)[0];
     expect(db.type).toBe('database');
-    expect(db.rows).toHaveLength(3);
+    expect(db.db.rows).toHaveLength(3);
+    expect(db.db.properties[0].type).toBe('title');
 
     // Reimportar: las páginas ya están.
     const again = await createImportJob({ workspaceId: u.id, teamId: null, userId: u.id, app: 'docs', source: 'notion', status: 'uploading', options: { size: zip.length } });

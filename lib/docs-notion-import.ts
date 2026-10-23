@@ -36,7 +36,8 @@ import type { FetchStepResult } from './track-import-sources';
 import { fileSource, listZipEntries, readZipEntry, sliceSource, urlSource, zipEntryDataOffset, ZipError, type ZipEntry, type ZipSource } from './zip-reader';
 import { markdownToBlocks, DOCS_IMPORT_MAX_BLOCKS } from './docs-import';
 import { sanitizeBlocks, sanitizeDocsHtml } from './docs-sanitize';
-import { stringifyBlocks, type DocsBlock, type DocsDatabaseColumn } from './docs-types';
+import { stringifyBlocks, type DbProperty, type DbRow, type DbValue, type DocsBlock } from './docs-types';
+import { guessStatusGroup, newDbId } from './docs-database';
 import { fileKindFor } from './docs-files';
 import { isAllowedUpload, MAX_UPLOAD_SIZE, saveUpload } from './uploads';
 import { parseCsv } from './csv-parse';
@@ -451,31 +452,68 @@ function looksDate(v: string): string | null {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** CSV de una base de Notion → bloque database (texto, número, select o fecha por columna). */
-export function csvToDatabaseBlock(text: string, newId: () => string = () => crypto.randomUUID()): DocsBlock {
+const YES_NO = new Set(['yes', 'no', 'true', 'false', '__yes__', '__no__']);
+
+/**
+ * CSV de una base de Notion → bloque database con el modelo de
+ * lib/docs-database.ts: la primera columna es el título y cada otra toma el
+ * tipo que encaja con todos sus valores (número, fecha, checkbox, URL, email,
+ * multi-select con comas, status si se llama así, select si se repiten pocos
+ * valores; si no, texto).
+ */
+export function csvToDatabaseBlock(text: string, newId: () => string = newDbId): DocsBlock {
   const [header = [], ...data] = parseCsv(text);
   const width = Math.min(Math.max(header.length, 1), DB_MAX_COLUMNS);
-  const rows = data.slice(0, DB_MAX_ROWS).map((r) => Array.from({ length: width }, (_, i) => (r[i] ?? '').trim().slice(0, 2000)));
-  const columns: DocsDatabaseColumn[] = Array.from({ length: width }, (_, i) => {
+  const cells = data.slice(0, DB_MAX_ROWS).map((r) => Array.from({ length: width }, (_, i) => (r[i] ?? '').trim().slice(0, 2000)));
+  const now = new Date().toISOString();
+  const rows: DbRow[] = cells.map(() => ({ id: newId(), values: {}, created_at: now, updated_at: now }));
+  const properties: DbProperty[] = [];
+  for (let i = 0; i < width; i++) {
     const name = (header[i] ?? '').trim().slice(0, 200) || `Column ${i + 1}`;
-    const values = rows.map((r) => r[i]).filter(Boolean);
-    const col: DocsDatabaseColumn = { id: newId(), name, type: 'text' };
-    if (i === 0 || values.length === 0) return col;
-    if (values.every((v) => /^-?\d+(?:\.\d+)?$/.test(v))) return { ...col, type: 'number' };
-    const dates = values.map(looksDate);
-    if (dates.every(Boolean)) {
-      rows.forEach((r) => {
-        if (r[i]) r[i] = looksDate(r[i]) ?? r[i];
+    const values = cells.map((r) => r[i]).filter(Boolean);
+    const prop: DbProperty = { id: newId(), name, type: i === 0 ? 'title' : 'text' };
+    const set = (fn: (v: string) => DbValue) =>
+      cells.forEach((r, k) => {
+        const v = r[i] ? fn(r[i]) : null;
+        if (v !== null && !(Array.isArray(v) && v.length === 0)) rows[k].values[prop.id] = v;
       });
-      return { ...col, type: 'date' };
+    if (i > 0 && values.length > 0) {
+      const distinct = [...new Set(values)];
+      const parts = [...new Set(values.flatMap((v) => v.split(',').map((x) => x.trim()).filter(Boolean)))];
+      const options = (names: string[]) => names.slice(0, 100).map((n) => ({ id: newId(), name: n }));
+      if (values.every((v) => /^-?\d+(?:\.\d+)?$/.test(v))) {
+        prop.type = 'number';
+        set((v) => Number(v));
+      } else if (values.every((v) => YES_NO.has(v.toLowerCase()))) {
+        prop.type = 'checkbox';
+        set((v) => ['yes', 'true', '__yes__'].includes(v.toLowerCase()));
+      } else if (values.every(looksDate)) {
+        prop.type = 'date';
+        set((v) => looksDate(v));
+      } else if (values.every((v) => /^https?:\/\/\S+$/i.test(v))) {
+        prop.type = 'url';
+        set((v) => v);
+      } else if (values.every((v) => /^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(v))) {
+        prop.type = 'email';
+        set((v) => v);
+      } else if (cells.length >= 2 && distinct.length <= 12 && distinct.length < cells.length && distinct.every((v) => v.length <= 40 && !v.includes(','))) {
+        const isStatus = /^(status|estado|state)$/i.test(name);
+        prop.type = isStatus ? 'status' : 'select';
+        prop.options = options(distinct).map((o) => (isStatus ? { ...o, group: guessStatusGroup(o.name) } : o));
+        const byName = new Map(prop.options.map((o) => [o.name, o.id]));
+        set((v) => byName.get(v) ?? null);
+      } else if (values.some((v) => v.includes(',')) && parts.length <= 30 && parts.every((v) => v.length <= 40)) {
+        prop.type = 'multi_select';
+        prop.options = options(parts);
+        const byName = new Map(prop.options.map((o) => [o.name, o.id]));
+        set((v) => v.split(',').map((x) => byName.get(x.trim())).filter((x): x is string => Boolean(x)));
+      }
     }
-    const distinct = [...new Set(values)];
-    if (rows.length >= 2 && distinct.length <= 12 && distinct.length < rows.length && distinct.every((v) => v.length <= 40 && !v.includes(','))) {
-      return { ...col, type: 'select', options: distinct.slice(0, 30) };
-    }
-    return col;
-  });
-  return { id: newId(), type: 'database', content: '', columns, rows, view: 'table' };
+    if (prop.type === 'title' || prop.type === 'text') set((v) => v);
+    properties.push(prop);
+  }
+  const view = { id: newId(), name: '', type: 'table' as const };
+  return { id: newId(), type: 'database', content: '', db: { properties, rows, views: [view], active_view: view.id } };
 }
 
 // ---------- Escritura ----------
