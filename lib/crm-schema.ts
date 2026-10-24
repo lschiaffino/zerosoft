@@ -419,6 +419,8 @@ export const quoteUpdateSchema = z.object({
   refreshItems: z.boolean().optional(),
   /** 'sent' publica el link (draft → sent). */
   status: z.literal('sent').optional(),
+  /** Cobrar con Stripe Checkout después de firmar. */
+  collectPayment: z.boolean().optional(),
 });
 
 export const quoteRespondSchema = z.discriminatedUnion('action', [
@@ -426,6 +428,9 @@ export const quoteRespondSchema = z.discriminatedUnion('action', [
     action: z.literal('accept'),
     name: z.string().trim().min(1).max(200),
     agree: z.literal(true),
+    email: z.string().trim().max(320).email().optional().or(z.literal('')),
+    /** Firma dibujada: data URL JPEG. */
+    signature: z.string().max(300_000).optional(),
   }),
   z.object({
     action: z.literal('decline'),

@@ -127,7 +127,12 @@ export default function QuoteDocument({ quote, locale }: QuoteDocumentProps) {
       {quote.status === 'accepted' && (
         <section className="qd-signature">
           <p className="qd-label mono">{t('quotePublic.acceptedBy')}</p>
+          {quote.signature_image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="qd-signature-img" src={quote.signature_image} alt={t('quotePublic.signatureOf', { name: quote.signer_name })} />
+          ) : null}
           <p className="qd-signer">{quote.signer_name}</p>
+          {quote.signer_email ? <p className="mono qd-dim">{quote.signer_email}</p> : null}
           <p className="mono qd-dim">{fmtTime(quote.accepted_at, locale)} UTC</p>
         </section>
       )}

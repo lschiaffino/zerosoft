@@ -7,6 +7,7 @@ import { fireIssueReminders, sendImmediateTrackEmails } from '@/lib/track-notify
 import { processImportJobs as processCrmImportJobs } from '@/lib/crm-import-jobs';
 import { processImportJobs } from '@/lib/import-runner';
 import { runGroupsCron } from '@/lib/groups-cron';
+import { retryDueWebhooks } from '@/lib/webhooks';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
 
 export const runtime = 'nodejs';
@@ -41,6 +42,8 @@ export async function GET(req: NextRequest) {
   const reminders = await remindersCron(req);
   if (!reminders.ok) return reminders;
   const dueTasks = await fireDueTasks().catch(() => null);
+  // Reintentos de webhooks con backoff (1m, 5m, 30m…): claim por entrega en claimed_until.
+  const webhookRetries = await retryDueWebhooks(100).catch(() => null);
   const chatEmails = await sendOfflineReplyEmails({ limit: 200 }).catch(() => null);
   const noteReminders = await fireNoteReminders({ limit: 200 }).catch(() => null);
   const trackReminders = await fireIssueReminders({ limit: 200 }).catch(() => null);
@@ -52,5 +55,5 @@ export async function GET(req: NextRequest) {
   const imports = await processImportJobs({ budgetMs: Math.max(5_000, IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
   // Imports del CRM con lo que queda de los 300 s (dejando margen).
   const crmImports = await processCrmImportJobs({ budgetMs: Math.max(0, CRM_IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, chatEmails, noteReminders, trackReminders, trackEmails, groups, flow, imports, crmImports });
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, trackReminders, trackEmails, groups, flow, imports, crmImports });
 }

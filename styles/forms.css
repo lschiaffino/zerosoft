@@ -119,3 +119,26 @@
   .fp-card { padding: 20px 16px; }
   .fp-submit { align-self: stretch; }
 }
+
+/* ---------- Pasos, volver y CAPTCHA (075) ---------- */
+.fp-steps { display: flex; flex-direction: column; gap: 6px; }
+.fp-step-count { margin: 0; font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); }
+.fp-step-title { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.fp-step-bar { height: 3px; background: var(--line); }
+.fp-step-bar span { display: block; height: 100%; background: var(--ink); transition: width 200ms var(--ease); }
+.fp-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.fp-actions .fp-submit { align-self: auto; }
+.fp-back {
+  min-height: 44px;
+  font: inherit;
+  font-size: 0.9375rem;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--ui-field);
+  border-radius: var(--radius-1);
+  padding: 0 16px;
+  cursor: pointer;
+}
+.fp-back:hover { border-color: var(--ink); }
+.fp-back:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.fp-captcha { min-height: 65px; }

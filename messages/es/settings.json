@@ -105,7 +105,7 @@
       "none": "Sin entregas"
     },
     "emptyTitle": "Todavía no hay webhooks",
-    "emptyBody": "Agregá una URL para recibir eventos de reservas, links, contactos, deals y robots.",
+    "emptyBody": "Agregá una URL para recibir eventos de reservas, links, contactos, empresas, deals, tareas, cotizaciones, formularios y robots.",
     "adminOnly": "Solo owner y admins administran los webhooks.",
     "groups": {
       "booking": "Reservas",
@@ -114,7 +114,11 @@
       "deal": "Deals",
       "robot": "Robots",
       "chat": "Chat",
-      "groups": "Groups (WhatsApp)"
+      "groups": "Groups (WhatsApp)",
+      "company": "Empresas",
+      "task": "Tareas",
+      "quote": "Cotizaciones",
+      "form": "Formularios"
     },
     "eventLabels": {
       "booking_created": "Reserva creada",
@@ -141,7 +145,20 @@
       "chat_conversation_resolved": "Conversación resuelta",
       "groups_message_received": "Mensaje de WhatsApp recibido (Groups)",
       "groups_ticket_created": "Ticket creado (Groups)",
-      "groups_ticket_updated": "Ticket actualizado (Groups)"
+      "groups_ticket_updated": "Ticket actualizado (Groups)",
+      "contact_property_changed": "Cambió una propiedad del contacto",
+      "contact_deleted": "Contacto borrado",
+      "company_created": "Empresa creada",
+      "company_updated": "Empresa actualizada",
+      "company_property_changed": "Cambió una propiedad de la empresa",
+      "company_deleted": "Empresa borrada",
+      "deal_property_changed": "Cambió una propiedad del deal",
+      "deal_deleted": "Deal borrado",
+      "task_created": "Tarea creada",
+      "task_completed": "Tarea completada",
+      "quote_accepted": "Cotización firmada",
+      "quote_paid": "Cotización pagada",
+      "form_submitted": "Formulario enviado"
     },
     "errors": {
       "https_required": "La URL tiene que usar https.",
@@ -163,6 +180,29 @@
       "domains": "Dominios",
       "defaultDomain": "Dominio por defecto",
       "scoped": "(algunos links)"
+    },
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "paused": "Pausado",
+    "propertyFilter": {
+      "title": "Solo estas propiedades",
+      "placeholder": "lifecycle_stage, amount, custom.plan",
+      "help": "Para los eventos de cambio de propiedad. Usá el nombre de la columna (lifecycle_stage) o custom. y el nombre del campo (custom.plan). Vacío recibe todas.",
+      "scoped": "{count, plural, one {· # propiedad} other {· # propiedades}}"
+    },
+    "log": {
+      "open": "Log",
+      "title": "Entregas",
+      "close": "Cerrar",
+      "loading": "Cargando entregas…",
+      "empty": "Todavía no hay entregas. Mandá una prueba para ver una acá.",
+      "attempts": "{count, plural, one {# intento} other {# intentos}}",
+      "resend": "Reenviar",
+      "nextAttempt": "Próximo reintento: {at}",
+      "duration": "Respondió en {ms} ms",
+      "request": "Cuerpo enviado",
+      "response": "Respuesta",
+      "noBody": "Respuesta vacía"
     }
   },
   "credentials": {

@@ -4,9 +4,12 @@ import { safeFetch, UnsafeUrlError, assertPublicUrl } from './safe-fetch';
 import { open, seal } from './secret-box';
 import {
   linkScopeOf,
+  matchesCrmFilter,
   matchesLinkFilter,
+  parseCrmFilter,
   parseLinkFilter,
   WEBHOOK_EVENTS,
+  type CrmWebhookFilter,
   type LinkWebhookFilter,
   type WebhookEvent,
 } from './webhooks-events';
@@ -32,6 +35,8 @@ export interface WebhookRow {
   created_by: string | null;
   /** JSON LinkWebhookFilter para los eventos link.* (null = todos los links). */
   filters?: string | null;
+  /** JSON CrmWebhookFilter para los eventos *.property_changed (null = todas las propiedades). */
+  crm_filter?: string | null;
   created_at: string;
 }
 
@@ -42,6 +47,8 @@ export interface WebhookDto {
   active: boolean;
   /** Filtro de los eventos link.*, con el slug de cada link para mostrarlo. */
   linkFilter: { links: Array<{ id: string; slug: string | null }>; tags: string[]; domains: string[] } | null;
+  /** Propiedades a las que se limita *.property_changed (vacío = todas). */
+  properties: string[];
   createdAt: string;
   lastDelivery: { status: string; responseCode: number | null; at: string } | null;
 }
@@ -99,6 +106,7 @@ export async function listWebhooks(userId: string): Promise<WebhookDto[]> {
       events: parseEvents(r.events),
       active: r.active === 1,
       linkFilter,
+      properties: parseCrmFilter(r.crm_filter)?.properties ?? [],
       createdAt: r.created_at,
       lastDelivery: last ? { status: last.status, responseCode: last.response_code, at: last.created_at } : null,
     });
@@ -109,13 +117,21 @@ export async function listWebhooks(userId: string): Promise<WebhookDto[]> {
 /** Crea el webhook y devuelve el secret en claro (se muestra una sola vez). */
 export async function createWebhook(
   userId: string,
-  input: { url: string; events: WebhookEvent[]; createdBy?: string; linkFilter?: LinkWebhookFilter | null },
+  input: {
+    url: string;
+    events: WebhookEvent[];
+    createdBy?: string;
+    linkFilter?: LinkWebhookFilter | null;
+    crmFilter?: CrmWebhookFilter | null;
+  },
 ): Promise<{ id: string; secret: string }> {
   await assertPublicUrl(input.url);
   const id = crypto.randomUUID();
   const secret = `whsec_${randomBytes(24).toString('base64url')}`;
   await getDb()
-    .prepare('INSERT INTO webhooks (id, user_id, url, events, secret, created_by, filters) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .prepare(
+      'INSERT INTO webhooks (id, user_id, url, events, secret, created_by, filters, crm_filter) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    )
     .run(
       id,
       userId,
@@ -124,8 +140,106 @@ export async function createWebhook(
       seal(secret),
       input.createdBy ?? userId,
       input.linkFilter ? JSON.stringify(input.linkFilter) : null,
+      input.crmFilter ? JSON.stringify(input.crmFilter) : null,
     );
   return { id, secret };
+}
+
+/** Pausa/reanuda o cambia URL, eventos o filtro de propiedades. false si no es del workspace. */
+export async function updateWebhook(
+  userId: string,
+  id: string,
+  patch: { active?: boolean; url?: string; events?: WebhookEvent[]; crmFilter?: CrmWebhookFilter | null },
+): Promise<boolean> {
+  const sets: string[] = [];
+  const args: Array<string | number | null> = [];
+  if (patch.url !== undefined) {
+    await assertPublicUrl(patch.url);
+    sets.push('url = ?');
+    args.push(patch.url);
+  }
+  if (patch.active !== undefined) {
+    sets.push('active = ?');
+    args.push(patch.active ? 1 : 0);
+  }
+  if (patch.events !== undefined) {
+    sets.push('events = ?');
+    args.push(JSON.stringify(patch.events));
+  }
+  if (patch.crmFilter !== undefined) {
+    sets.push('crm_filter = ?');
+    args.push(patch.crmFilter ? JSON.stringify(patch.crmFilter) : null);
+  }
+  if (!sets.length) {
+    return !!(await getDb().prepare('SELECT 1 FROM webhooks WHERE id = ? AND user_id = ?').get(id, userId));
+  }
+  const res = await getDb()
+    .prepare(`UPDATE webhooks SET ${sets.join(', ')} WHERE id = ? AND user_id = ?`)
+    .run(...args, id, userId);
+  return res.changes > 0;
+}
+
+// ---------- Log de entregas ----------
+
+export interface WebhookDeliveryDto {
+  id: string;
+  event: string;
+  status: 'pending' | 'delivered' | 'failed';
+  attempts: number;
+  responseCode: number | null;
+  responseBody: string;
+  error: string | null;
+  durationMs: number | null;
+  nextAttemptAt: string | null;
+  createdAt: string;
+  deliveredAt: string | null;
+  payload: string;
+}
+
+/** Últimas entregas de un webhook del workspace (más nueva primero). null si el webhook no es suyo. */
+export async function listDeliveries(userId: string, webhookId: string, limit = 50): Promise<WebhookDeliveryDto[] | null> {
+  const owns = await getDb().prepare('SELECT 1 FROM webhooks WHERE id = ? AND user_id = ?').get(webhookId, userId);
+  if (!owns) return null;
+  const rows = (await getDb()
+    .prepare(
+      `SELECT id, event, status, attempts, response_code, response_body, last_error, duration_ms, next_attempt_at,
+              created_at, delivered_at, payload
+       FROM webhook_deliveries WHERE webhook_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?`,
+    )
+    .all(webhookId, Math.min(Math.max(limit, 1), 200))) as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    id: String(r.id),
+    event: String(r.event),
+    status: r.status as WebhookDeliveryDto['status'],
+    attempts: Number(r.attempts),
+    responseCode: r.response_code == null ? null : Number(r.response_code),
+    responseBody: String(r.response_body ?? ''),
+    error: (r.last_error as string | null) ?? null,
+    durationMs: r.duration_ms == null ? null : Number(r.duration_ms),
+    nextAttemptAt: (r.next_attempt_at as string | null) ?? null,
+    createdAt: String(r.created_at),
+    deliveredAt: (r.delivered_at as string | null) ?? null,
+    payload: String(r.payload),
+  }));
+}
+
+/**
+ * Reenvía una entrega (como "Resend" en HubSpot o Stripe): una entrega nueva
+ * con el mismo cuerpo, que se intenta en el momento. Devuelve su id, o null si
+ * la entrega no es de un webhook del workspace.
+ */
+export async function resendDelivery(userId: string, deliveryId: string): Promise<string | null> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT d.webhook_id, d.event, d.payload FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhook_id
+       WHERE d.id = ? AND w.user_id = ?`,
+    )
+    .get(deliveryId, userId)) as { webhook_id: string; event: string; payload: string } | undefined;
+  if (!row) return null;
+  const id = crypto.randomUUID();
+  await insertDelivery(id, row.webhook_id, row.event, row.payload);
+  await attempt(id, { force: true });
+  return id;
 }
 
 export async function deleteWebhook(userId: string, id: string): Promise<boolean> {
@@ -135,7 +249,36 @@ export async function deleteWebhook(userId: string, id: string): Promise<boolean
 
 // ---------- Delivery ----------
 
-async function attempt(deliveryId: string): Promise<void> {
+/** Mientras una entrega se intenta, el cron no la toma (claim por fila). */
+const CLAIM_MS = 2 * 60_000;
+
+async function insertDelivery(id: string, webhookId: string, event: string, payload: string): Promise<void> {
+  // Nace reclamada: la tiene el intento inmediato; si el proceso muere, el claim vence y la toma el cron.
+  await getDb()
+    .prepare('INSERT INTO webhook_deliveries (id, webhook_id, event, payload, claimed_until) VALUES (?, ?, ?, ?, ?)')
+    .run(id, webhookId, event, payload, new Date(Date.now() + CLAIM_MS).toISOString());
+}
+
+/**
+ * Compare-and-set del claim: solo una corrida del cron intenta cada entrega
+ * pendiente. true si esta corrida la tomó.
+ */
+export async function claimDelivery(deliveryId: string, now = new Date()): Promise<boolean> {
+  const res = await getDb()
+    .prepare(
+      `UPDATE webhook_deliveries SET claimed_until = ?
+       WHERE id = ? AND status = 'pending' AND (claimed_until IS NULL OR claimed_until < ?)`,
+    )
+    .run(new Date(now.getTime() + CLAIM_MS).toISOString(), deliveryId, now.toISOString());
+  return res.changes > 0;
+}
+
+/** Recorta la respuesta del endpoint para el log (texto, 1 KB). */
+export function responseSnippet(text: string): string {
+  return text.replace(/\s+/g, ' ').trim().slice(0, 1000);
+}
+
+async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Promise<void> {
   const db = getDb();
   const row = (await db
     .prepare(
@@ -145,11 +288,17 @@ async function attempt(deliveryId: string): Promise<void> {
     .get(deliveryId)) as
     | { id: string; payload: string; attempts: number; url: string; secret: string; active: number; event: string }
     | undefined;
-  if (!row || row.active !== 1) return;
+  // Un webhook pausado no envía (salvo prueba o reenvío manual): la entrega queda pendiente.
+  if (!row || (row.active !== 1 && !opts.force)) {
+    await db.prepare('UPDATE webhook_deliveries SET claimed_until = NULL WHERE id = ?').run(deliveryId);
+    return;
+  }
 
   const attempts = row.attempts + 1;
   let code: number | null = null;
   let error: string | null = null;
+  let body = '';
+  const started = Date.now();
   try {
     const res = await safeFetch(row.url, {
       method: 'POST',
@@ -163,28 +312,34 @@ async function attempt(deliveryId: string): Promise<void> {
       body: row.payload,
     });
     code = res.status;
+    body = responseSnippet(await res.text().catch(() => ''));
     if (!res.ok) error = `http_${res.status}`;
   } catch (err) {
     error = err instanceof UnsafeUrlError ? err.message : err instanceof Error ? err.name : 'error';
   }
+  const duration = Date.now() - started;
 
   if (!error) {
     await db
       .prepare(
-        "UPDATE webhook_deliveries SET status = 'delivered', attempts = ?, response_code = ?, last_error = NULL, delivered_at = ?, next_attempt_at = NULL WHERE id = ?",
+        `UPDATE webhook_deliveries SET status = 'delivered', attempts = ?, response_code = ?, response_body = ?, duration_ms = ?,
+           last_error = NULL, delivered_at = ?, next_attempt_at = NULL, claimed_until = NULL WHERE id = ?`,
       )
-      .run(attempts, code, new Date().toISOString(), row.id);
+      .run(attempts, code, body, duration, new Date().toISOString(), row.id);
     return;
   }
   const delay = BACKOFF_MS[attempts - 1];
   await db
     .prepare(
-      'UPDATE webhook_deliveries SET status = ?, attempts = ?, response_code = ?, last_error = ?, next_attempt_at = ? WHERE id = ?',
+      `UPDATE webhook_deliveries SET status = ?, attempts = ?, response_code = ?, response_body = ?, duration_ms = ?,
+         last_error = ?, next_attempt_at = ?, claimed_until = NULL WHERE id = ?`,
     )
     .run(
       delay === undefined ? 'failed' : 'pending',
       attempts,
       code,
+      body,
+      duration,
       error,
       delay === undefined ? null : new Date(Date.now() + delay).toISOString(),
       row.id,
@@ -199,12 +354,14 @@ async function attempt(deliveryId: string): Promise<void> {
 export async function emitWebhook(userId: string, event: WebhookEvent, data: unknown): Promise<void> {
   try {
     const hooks = (await getDb()
-      .prepare('SELECT id, events, filters FROM webhooks WHERE user_id = ? AND active = 1')
-      .all(userId)) as Array<{ id: string; events: string; filters: string | null }>;
+      .prepare('SELECT id, events, filters, crm_filter FROM webhooks WHERE user_id = ? AND active = 1')
+      .all(userId)) as Array<{ id: string; events: string; filters: string | null; crm_filter: string | null }>;
     const scope = event.startsWith('link.') ? linkScopeOf(data) : null;
     const targets = hooks.filter(
       (h) =>
-        parseEvents(h.events).includes(event) && (!event.startsWith('link.') || matchesLinkFilter(parseLinkFilter(h.filters), scope)),
+        parseEvents(h.events).includes(event) &&
+        (!event.startsWith('link.') || matchesLinkFilter(parseLinkFilter(h.filters), scope)) &&
+        matchesCrmFilter(parseCrmFilter(h.crm_filter), event, data),
     );
     if (targets.length === 0) return;
     const payload = JSON.stringify({ id: crypto.randomUUID(), type: event, createdAt: new Date().toISOString(), data });
@@ -212,9 +369,7 @@ export async function emitWebhook(userId: string, event: WebhookEvent, data: unk
     for (const h of targets) {
       const id = crypto.randomUUID();
       ids.push(id);
-      await getDb()
-        .prepare('INSERT INTO webhook_deliveries (id, webhook_id, event, payload) VALUES (?, ?, ?, ?)')
-        .run(id, h.id, event, payload);
+      await insertDelivery(id, h.id, event, payload);
     }
     await Promise.all(ids.map((id) => attempt(id).catch(() => {})));
   } catch (err) {
@@ -223,18 +378,28 @@ export async function emitWebhook(userId: string, event: WebhookEvent, data: unk
   }
 }
 
-/** Reintentos vencidos (lo llama el cron). */
-export async function retryDueWebhooks(limit = 50): Promise<number> {
+/**
+ * Reintentos vencidos (cron de cada minuto y tick horario). Cada entrega se
+ * reclama con compare-and-set antes de intentarla: dos corridas a la vez no
+ * mandan la misma entrega dos veces.
+ */
+export async function retryDueWebhooks(limit = 50, now = new Date()): Promise<number> {
+  const iso = now.toISOString();
   const due = (await getDb()
     .prepare(
       `SELECT id FROM webhook_deliveries
-       WHERE status = 'pending'
+       WHERE status = 'pending' AND (claimed_until IS NULL OR claimed_until < ?)
          AND ((attempts > 0 AND next_attempt_at <= ?) OR (attempts = 0 AND created_at <= datetime('now', '-2 minutes')))
        ORDER BY created_at LIMIT ?`,
     )
-    .all(new Date().toISOString(), limit)) as Array<{ id: string }>;
-  for (const d of due) await attempt(d.id).catch(() => {});
-  return due.length;
+    .all(iso, iso, limit)) as Array<{ id: string }>;
+  let sent = 0;
+  for (const d of due) {
+    if (!(await claimDelivery(d.id, now))) continue;
+    sent++;
+    await attempt(d.id).catch(() => {});
+  }
+  return sent;
 }
 
 /** Entrega de prueba para el botón "Enviar prueba" del panel. */
@@ -245,9 +410,7 @@ export async function sendTestWebhook(userId: string, id: string): Promise<boole
   if (!hook) return false;
   const deliveryId = crypto.randomUUID();
   const payload = JSON.stringify({ id: crypto.randomUUID(), type: 'ping', createdAt: new Date().toISOString(), data: {} });
-  await getDb()
-    .prepare('INSERT INTO webhook_deliveries (id, webhook_id, event, payload) VALUES (?, ?, ?, ?)')
-    .run(deliveryId, hook.id, 'ping', payload);
-  await attempt(deliveryId);
+  await insertDelivery(deliveryId, hook.id, 'ping', payload);
+  await attempt(deliveryId, { force: true });
   return true;
 }

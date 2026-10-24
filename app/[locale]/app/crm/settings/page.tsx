@@ -33,6 +33,8 @@ import AssignmentPanel from '@/components/crm/AssignmentPanel';
 import ScoringRulesPanel from '@/components/crm/ScoringRulesPanel';
 import QuotasPanel from '@/components/crm/QuotasPanel';
 import LegacySettingsAnchor from '@/components/crm/LegacySettingsAnchor';
+import AppsPanel from '@/components/crm/AppsPanel';
+import { listApps } from '@/lib/crm-apps';
 
 export const dynamic = 'force-dynamic';
 
@@ -210,9 +212,10 @@ export default async function CrmSettingsPage(props: {
   } else if (tab === 'integrations') {
     // Gmail es personal: el de la persona logueada (no el del dueño del workspace).
     const gmail = await getIntegration(realUserId(user), 'gmail');
-    const [mailbox, emailSettings] = await Promise.all([
+    const [mailbox, emailSettings, apps] = await Promise.all([
       gmail ? getMailboxSync(user.id, realUserId(user)) : Promise.resolve(null),
       getEmailSettings(user.id),
+      listApps(user.id),
     ]);
     const lastSyncRaw = mailbox?.last_sync_at ?? gmail?.last_sync_at ?? null;
     const gmailLastSync = lastSyncRaw
@@ -222,6 +225,9 @@ export default async function CrmSettingsPage(props: {
       : null;
     body = (
       <>
+        <FormSection title={t('apps.title')} description={t('apps.desc')}>
+          <AppsPanel initial={apps} canEdit={admin} />
+        </FormSection>
         <FormSection title={t('settings.gmailTitle')} description={t('settings.gmailDesc')}>
           <GmailPanel
             connected={gmail !== null}

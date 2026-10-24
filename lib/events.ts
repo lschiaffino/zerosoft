@@ -54,6 +54,13 @@ export async function emitEvent(
 ): Promise<void> {
   if ((WEBHOOK_EVENTS as readonly string[]).includes(type)) {
     await emitWebhook(workspaceId, type as WebhookEvent, data);
+    // Apps del CRM (Slack): mismos eventos que los webhooks.
+    try {
+      const { notifyApps } = await import('./crm-apps');
+      await notifyApps(workspaceId, type as WebhookEvent, data);
+    } catch {
+      /* una app caída no corta el evento */
+    }
   }
   try {
     const { enqueueEventRuns } = await import('./flow');

@@ -102,6 +102,8 @@ export default async function AppLayout(
                 { href: '/app/crm/products', label: tCrm('tabs.products') },
                 { href: '/app/crm/quotes', label: tCrm('tabs.quotes') },
                 { href: '/app/crm/forms', label: tCrm('tabs.forms') },
+                { href: '/app/crm/documents', label: tCrm('tabs.documents') },
+                { href: '/app/crm/videos', label: tCrm('tabs.videos') },
                 { href: '/app/crm/tasks', label: tCrm('tabs.tasks') },
                 { href: '/app/crm/sequences', label: tCrm('tabs.sequences') },
                 { href: '/app/crm/templates', label: tCrm('tabs.templates') },
@@ -203,6 +205,8 @@ export default async function AppLayout(
               products: tCrm('tabs.products'),
               quotes: tCrm('tabs.quotes'),
               forms: tCrm('tabs.forms'),
+              documents: tCrm('tabs.documents'),
+              videos: tCrm('tabs.videos'),
               trash: tCrm('tabs.trash'),
             },
             docs: {

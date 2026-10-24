@@ -10,6 +10,7 @@ import AdvancedSection from '@/components/ui/AdvancedSection';
 import DataTable from '@/components/ui/DataTable';
 import EmptyState from '@/components/ui/EmptyState';
 import FormSection from '@/components/ui/FormSection';
+import WebhookDeliveries from '@/components/app/WebhookDeliveries';
 
 const GROUPS = webhookEventGroups(WEBHOOK_EVENTS);
 const eventKey = (ev: string) => ev.replace(/\./g, '_');
@@ -55,6 +56,9 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
   const [filterTags, setFilterTags] = useState('');
   const [filterDomains, setFilterDomains] = useState<string[]>([]);
   const linkEvents = selected.some((ev) => ev.startsWith('link.'));
+  const propertyEvents = selected.some((ev) => ev.endsWith('.property_changed'));
+  const [properties, setProperties] = useState('');
+  const [logFor, setLogFor] = useState<{ id: string; url: string } | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +82,7 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
         linkFilter: linkEvents
           ? { links: splitList(filterLinks), tags: splitList(filterTags), domains: filterDomains }
           : null,
+        properties: propertyEvents ? splitList(properties) : [],
       }),
     }).catch(() => null);
     if (res?.status === 201) {
@@ -87,6 +92,7 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
       setFilterLinks('');
       setFilterTags('');
       setFilterDomains([]);
+      setProperties('');
       await refresh();
     } else {
       const code = res ? ((await res.json().catch(() => null)) as { error?: string } | null)?.error : null;
@@ -101,6 +107,19 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
     const res = await fetch(`/api/webhooks/${id}/test`, { method: 'POST' }).catch(() => null);
     if (!res?.ok) setError(t('errors.action'));
     await refresh();
+    setBusy(null);
+  }
+
+  async function setActive(row: WebhookDto, active: boolean) {
+    setBusy(row.id);
+    setError(null);
+    const res = await fetch(`/api/webhooks/${row.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ active }),
+    }).catch(() => null);
+    if (res?.ok) setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, active } : r)));
+    else setError(t('errors.action'));
     setBusy(null);
   }
 
@@ -178,6 +197,24 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
             ))}
           </div>
         </fieldset>
+
+        {propertyEvents && (
+          <div className="ui-field" data-testid="webhook-property-filter">
+            <label className="label" htmlFor="st-hook-props">
+              {t('propertyFilter.title')}
+            </label>
+            <input
+              id="st-hook-props"
+              className="input data"
+              value={properties}
+              onChange={(e) => setProperties(e.target.value)}
+              placeholder={t('propertyFilter.placeholder')}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <p className="ui-help">{t('propertyFilter.help')}</p>
+          </div>
+        )}
 
         {linkEvents && (
           <fieldset className="st-fieldset" data-testid="webhook-link-filter">
@@ -274,7 +311,17 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
         className="st-table-stack"
         empty={<EmptyState quiet title={t('emptyTitle')} body={t('emptyBody')} />}
         columns={[
-          { key: 'url', header: t('colUrl'), cell: (r) => <span className="st-url">{r.url}</span>, data: true },
+          {
+            key: 'url',
+            header: t('colUrl'),
+            cell: (r) => (
+              <span className="st-url">
+                {r.url}
+                {!r.active && <span className="badge badge-warn st-paused">{t('paused')}</span>}
+              </span>
+            ),
+            data: true,
+          },
           {
             key: 'events',
             header: t('colEvents'),
@@ -283,6 +330,12 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
                 {r.events.length === WEBHOOK_EVENTS.length || r.events.length > 2
                   ? t('eventsTotal', { count: r.events.length })
                   : r.events.map((ev) => t(`eventLabels.${eventKey(ev)}`)).join(', ')}
+                {r.properties.length > 0 && (
+                  <span className="st-muted st-hook-scope" title={r.properties.join(', ')}>
+                    {' '}
+                    {t('propertyFilter.scoped', { count: r.properties.length })}
+                  </span>
+                )}
                 {r.linkFilter && (
                   <span
                     className="st-muted st-hook-scope"
@@ -314,6 +367,17 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
                 >
                   {t('test')}
                 </button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLogFor({ id: r.id, url: r.url })}>
+                  {t('log.open')}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setActive(r, !r.active)}
+                  disabled={busy !== null}
+                >
+                  {r.active ? t('pause') : t('resume')}
+                </button>
                 <button
                   type="button"
                   className="btn btn-ghost btn-danger btn-sm"
@@ -327,6 +391,14 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
             ),
           },
         ]}
+      />
+
+      <WebhookDeliveries
+        webhook={logFor}
+        onClose={() => {
+          setLogFor(null);
+          void refresh();
+        }}
       />
 
       <AdvancedSection storageKey="settings.webhooks.signature" label={t('signature')} hint={t('signatureHint')}>

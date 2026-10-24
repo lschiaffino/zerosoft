@@ -5,7 +5,8 @@
 import { z } from 'zod';
 import { LEAD_STATUSES, LIFECYCLE_STAGES, SOURCES } from './crm-constants';
 
-export const FORM_FIELD_TYPES = ['text', 'email', 'phone', 'select', 'checkbox', 'textarea', 'hidden'] as const;
+/** 'step' no es un campo: corta el formulario en pasos (su etiqueta es el título del paso). */
+export const FORM_FIELD_TYPES = ['text', 'email', 'phone', 'select', 'checkbox', 'textarea', 'hidden', 'step'] as const;
 export type FormFieldType = (typeof FORM_FIELD_TYPES)[number];
 
 export const FORM_STATUSES = ['active', 'paused', 'archived'] as const;
@@ -29,6 +30,22 @@ export const COMPANY_FORM_PROPS = ['name', 'domain', 'industry', 'website', 'pho
 /** Parámetros de URL que un campo oculto puede capturar. */
 export const UTM_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid'] as const;
 
+/** Lógica condicional: el campo solo se muestra (y se exige) si otro campo cumple esto. */
+export const CONDITION_OPS = ['equals', 'not_equals', 'filled', 'empty'] as const;
+export type ConditionOp = (typeof CONDITION_OPS)[number];
+export interface FieldCondition {
+  field: string;
+  op: ConditionOp;
+  value?: string;
+}
+
+/** Regla de dueño: si el campo vale esto, el contacto nuevo es de esta persona (la primera que coincide). */
+export interface OwnerRule {
+  field: string;
+  value: string;
+  ownerId: string;
+}
+
 export interface FormField {
   /** Clave estable (name del input). */
   id: string;
@@ -48,6 +65,8 @@ export interface FormField {
   defaultValue?: string;
   /** Hidden: lee este parámetro de la URL de la página (utm_source, …). */
   urlParam?: string;
+  /** Mostrar solo si se cumple la condición. */
+  showIf?: FieldCondition;
 }
 
 export interface FormSettings {
@@ -76,6 +95,16 @@ export interface FormSettings {
   updateExisting: boolean;
   /** Segundos mínimos entre que carga el form y se envía (0 = sin chequeo). */
   minSubmitSeconds: number;
+  /** CAPTCHA (Cloudflare Turnstile; hace falta TURNSTILE_SITE_KEY y TURNSTILE_SECRET_KEY). */
+  captcha: boolean;
+  /** Crear un deal con cada envío, en este pipeline y etapa. */
+  createDeal: boolean;
+  dealPipelineId: string;
+  dealStageId: string;
+  /** Nombre del deal; {name}, {email}, {company} y {form} se reemplazan. */
+  dealName: string;
+  /** Reglas de dueño (antes que el dueño fijo y el round-robin). */
+  ownerRules: OwnerRule[];
 }
 
 export const DEFAULT_FORM_SETTINGS: FormSettings = {
@@ -98,6 +127,12 @@ export const DEFAULT_FORM_SETTINGS: FormSettings = {
   sequenceId: '',
   updateExisting: true,
   minSubmitSeconds: 2,
+  captcha: false,
+  createDeal: false,
+  dealPipelineId: '',
+  dealStageId: '',
+  dealName: '{name} · {form}',
+  ownerRules: [],
 };
 
 export function defaultFormFields(): FormField[] {
@@ -131,6 +166,13 @@ export const formFieldSchema = z.object({
   options: z.array(z.string().trim().min(1).max(200)).max(100).optional(),
   defaultValue: z.string().max(500).optional(),
   urlParam: z.string().trim().max(60).regex(/^[\w-]*$/).optional(),
+  showIf: z
+    .object({
+      field: z.string().trim().regex(/^[a-z0-9_]{1,40}$/i),
+      op: z.enum(CONDITION_OPS),
+      value: z.string().max(500).optional(),
+    })
+    .optional(),
 });
 
 const emailish = z.string().trim().max(320).email();
@@ -159,6 +201,20 @@ export const formSettingsSchema = z.object({
   sequenceId: z.string().max(64),
   updateExisting: z.boolean(),
   minSubmitSeconds: z.number().int().min(0).max(60),
+  captcha: z.boolean(),
+  createDeal: z.boolean(),
+  dealPipelineId: z.string().max(64),
+  dealStageId: z.string().max(64),
+  dealName: z.string().trim().max(200),
+  ownerRules: z
+    .array(
+      z.object({
+        field: z.string().trim().regex(/^[a-z0-9_]{1,40}$/i),
+        value: z.string().trim().max(500),
+        ownerId: z.string().min(1).max(64),
+      }),
+    )
+    .max(30),
 });
 
 const slug = z
@@ -191,6 +247,8 @@ export const formSubmitSchema = z.object({
   utm: z.record(z.string().max(500)).optional(),
   pageUrl: z.string().max(2000).optional(),
   referrer: z.string().max(2000).optional(),
+  /** Token del CAPTCHA (cf-turnstile-response). */
+  captchaToken: z.string().max(4000).optional(),
 });
 export type FormSubmitBody = z.infer<typeof formSubmitSchema>;
 
@@ -218,6 +276,77 @@ export function normalizeFields(raw: unknown): FormField[] {
 
 const EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
 
+/** Valor del campo como texto para comparar ('yes'/'' para checkboxes). */
+function asText(v: string | boolean | undefined): string {
+  if (v === true) return 'yes';
+  if (v === false || v === undefined) return '';
+  return String(v).trim();
+}
+
+/**
+ * ¿Se muestra el campo con estos valores? Sin condición, siempre. Si el campo
+ * del que depende está oculto, este también (las cadenas se resuelven solas).
+ */
+export function isFieldVisible(
+  field: FormField,
+  values: Record<string, string | boolean | undefined>,
+  fields: FormField[],
+  depth = 0,
+): boolean {
+  const c = field.showIf;
+  if (!c || depth > 10) return true;
+  const parent = fields.find((f) => f.id === c.field);
+  if (!parent) return true;
+  if (!isFieldVisible(parent, values, fields, depth + 1)) return false;
+  const v = asText(values[c.field]);
+  const target = (c.value ?? '').trim();
+  switch (c.op) {
+    case 'filled':
+      return v !== '';
+    case 'empty':
+      return v === '';
+    case 'not_equals':
+      return v.toLowerCase() !== target.toLowerCase();
+    default:
+      return v.toLowerCase() === target.toLowerCase();
+  }
+}
+
+/** Campos agrupados en pasos (los 'step' cortan; el primero puede no tener título). */
+export function formSteps(fields: FormField[]): Array<{ title: string; fields: FormField[] }> {
+  const steps: Array<{ title: string; fields: FormField[] }> = [{ title: '', fields: [] }];
+  for (const f of fields) {
+    if (f.type === 'step') {
+      if (steps[steps.length - 1].fields.length || steps.length > 1 || steps[0].title) steps.push({ title: f.label, fields: [] });
+      else steps[0].title = f.label;
+      continue;
+    }
+    steps[steps.length - 1].fields.push(f);
+  }
+  return steps.filter((st, i) => st.fields.length || i === 0);
+}
+
+/** Dueño según las reglas (primera que coincide), o '' si ninguna. */
+export function ownerFromRules(rules: OwnerRule[], values: Record<string, string | boolean>): string {
+  for (const r of rules) {
+    if (asText(values[r.field]).toLowerCase() === r.value.trim().toLowerCase()) return r.ownerId;
+  }
+  return '';
+}
+
+/** Nombre del deal creado por el envío. */
+export function dealNameFor(template: string, ctx: { name: string; email: string; company: string; form: string }): string {
+  const out = (template || DEFAULT_FORM_SETTINGS.dealName)
+    .replace(/\{name\}/g, ctx.name)
+    .replace(/\{email\}/g, ctx.email)
+    .replace(/\{company\}/g, ctx.company)
+    .replace(/\{form\}/g, ctx.form)
+    .replace(/\s*·\s*$/, '')
+    .replace(/^\s*·\s*/, '')
+    .trim();
+  return (out || ctx.form || 'Deal').slice(0, 200);
+}
+
 export type FieldError = 'required' | 'invalid_email' | 'invalid_option' | 'invalid_phone';
 
 /**
@@ -233,6 +362,12 @@ export function validateSubmission(
   const values: Record<string, string | boolean> = {};
   const errors: Record<string, FieldError> = {};
   for (const field of fields) {
+    if (field.type === 'step') continue;
+    // Oculto por la lógica condicional: no se exige ni se guarda.
+    if (!isFieldVisible(field, body.values, fields)) {
+      values[field.id] = field.type === 'checkbox' ? false : '';
+      continue;
+    }
     const raw = body.values[field.id];
     if (field.type === 'checkbox') {
       const checked = raw === true || raw === 'true' || raw === 'on' || raw === '1';

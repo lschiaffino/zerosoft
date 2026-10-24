@@ -15,7 +15,9 @@
     "products": "Productos",
     "quotes": "Cotizaciones",
     "forms": "Formularios",
-    "trash": "Papelera"
+    "trash": "Papelera",
+    "documents": "Documentos",
+    "videos": "Videos"
   },
   "switcher": {
     "product": "Producto",
@@ -1462,7 +1464,9 @@
       "sent": "Enviada",
       "accepted": "Aceptada por {name}",
       "declined": "Rechazada",
-      "expired": "Vencida"
+      "expired": "Vencida",
+      "viewed": "Abierta por el cliente",
+      "paid": "Pagada con Stripe"
     },
     "linkCopied": "Link copiado",
     "saveQuote": "Guardar cotización",
@@ -1476,7 +1480,13 @@
     "seeAll": "Ver todas",
     "pagination": "Páginas",
     "prevPage": "Anterior",
-    "nextPage": "Siguiente"
+    "nextPage": "Siguiente",
+    "certificate": "Certificado de firma",
+    "collectPayment": "Cobrar con Stripe después de firmar",
+    "collectPaymentHint": "El cliente ve un botón de Pagar cuando firma. Pagar marca la cotización como pagada y el deal como ganado.",
+    "collectPaymentNoStripe": "Conectá Stripe para cobrar las cotizaciones.",
+    "connectStripe": "Conectar Stripe",
+    "paidNote": "Pagada con Stripe."
   },
   "quotePublic": {
     "quote": "Cotización",
@@ -1503,10 +1513,26 @@
     "errors": {
       "expired": "Esta cotización venció.",
       "not_open": "Esta cotización ya fue respondida.",
-      "invalid_signature": "Escribí tu nombre completo y marcá la casilla para aceptar.",
+      "invalid_signature": "Escribí tu nombre completo, firmá y marcá la casilla para aceptar.",
       "not_found": "Esta cotización ya no existe.",
-      "rate_limited": "Demasiados intentos. Esperá unos minutos y volvé a probar."
-    }
+      "rate_limited": "Demasiados intentos. Esperá unos minutos y volvé a probar.",
+      "payment_unavailable": "El pago online no está disponible para esta cotización.",
+      "already_paid": "Esta cotización ya está pagada."
+    },
+    "email": "Email",
+    "signature": "Firma",
+    "drawHint": "Firmá con el mouse, el dedo o un lápiz.",
+    "clear": "Borrar",
+    "typeInstead": "Prefiero tipear mi firma",
+    "drawInstead": "Prefiero dibujar mi firma",
+    "typedEmpty": "Escribí tu nombre arriba",
+    "sign": "Firmar y aceptar",
+    "legalSign": "Al firmar se registran tu nombre, email, firma, dirección IP, navegador y la hora, junto con una huella de esta cotización. Después de firmar podés descargar el certificado.",
+    "signatureOf": "Firma de {name}",
+    "paid": "Pagada el {date}.",
+    "pay": "Pagar {amount}",
+    "payHint": "Pago seguro con Stripe. Al terminar volvés acá.",
+    "certificate": "Descargar certificado"
   },
   "tags": {
     "column": "Tags",
@@ -1594,7 +1620,8 @@
       "invalid_list": "Elegí una lista estática.",
       "invalid_sequence": "Esa secuencia ya no existe.",
       "invalid_url": "La URL de redirección tiene que empezar con http:// o https://.",
-      "invalid_input": "Hay ajustes que no son válidos."
+      "invalid_input": "Hay ajustes que no son válidos.",
+      "invalid_stage": "Elegí un pipeline y una etapa para el deal."
     },
     "builder": {
       "fields": "Campos",
@@ -1667,7 +1694,33 @@
       "crmAdvancedHint": "Duplicados, anti-spam",
       "unsaved": "Cambios sin guardar",
       "confirmDelete": "Borrar formulario y envíos",
-      "saveForm": "Guardar formulario"
+      "saveForm": "Guardar formulario",
+      "showIf": "Mostrar solo si",
+      "showIfField": "Campo",
+      "showIfOp": "Condición",
+      "showIfValue": "Valor",
+      "always": "Mostrar siempre",
+      "ops": {
+        "equals": "es",
+        "not_equals": "no es",
+        "filled": "tiene algún valor",
+        "empty": "está vacío"
+      },
+      "ownerRules": "Dueño según la respuesta",
+      "ownerRulesHint": "La primera regla que coincide asigna el contacto nuevo. Si ninguna coincide, aplica el dueño fijo o el round-robin.",
+      "ruleField": "Campo",
+      "ruleValue": "Respuesta",
+      "removeRule": "Borrar regla",
+      "addRule": "Agregar regla",
+      "dealTitle": "Deal",
+      "createDeal": "Crear un deal con cada envío",
+      "dealPipeline": "Pipeline",
+      "dealStage": "Etapa",
+      "dealName": "Nombre del deal",
+      "dealNameHint": "Se reemplazan '{name}', '{email}', '{company}' y '{form}'.",
+      "captcha": "Pedir CAPTCHA (Cloudflare Turnstile)",
+      "captchaHint": "Los bots que pasan el honeypot igual tienen que resolverlo.",
+      "captchaMissing": "Configurá TURNSTILE_SITE_KEY y TURNSTILE_SECRET_KEY en el servidor para prenderlo."
     },
     "types": {
       "text": "Texto",
@@ -1676,7 +1729,8 @@
       "select": "Desplegable",
       "checkbox": "Casilla",
       "textarea": "Texto largo",
-      "hidden": "Oculto"
+      "hidden": "Oculto",
+      "step": "Paso nuevo"
     },
     "props": {
       "email": "Email",
@@ -1732,7 +1786,12 @@
       "invalid_email": "Ingresá un email válido.",
       "invalid_option": "Elegí una de las opciones.",
       "invalid_phone": "Ingresá un teléfono válido."
-    }
+    },
+    "stepOf": "Paso {current} de {total}",
+    "next": "Siguiente",
+    "back": "Atrás",
+    "captchaTest": "No soy un robot",
+    "captchaFailed": "No pasó el control de seguridad. Probá de nuevo."
   },
   "scoring": {
     "title": "Lead scoring",
@@ -2208,5 +2267,225 @@
       "not_found": "Ese import ya no existe.",
       "forbidden": "Solo los admins del workspace pueden importar."
     }
+  },
+  "apps": {
+    "title": "Apps",
+    "desc": "Conectá Slack, Zoom, Stripe, Zapier y Make. Cada app guarda sus credenciales cifradas y la podés desconectar cuando quieras.",
+    "connect": "Conectar",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "saved": "Guardado.",
+    "disconnect": "Desconectar",
+    "disconnectTitle": "¿Desconectar {app}?",
+    "disconnectBody": "Borramos sus credenciales y dejamos de mandarle eventos. La podés volver a conectar después.",
+    "connectedNotice": "Conectada.",
+    "disconnectedNotice": "Desconectada.",
+    "connectedOn": "Conectada el {date}",
+    "lastUsed": "último uso {date}",
+    "lastError": "Último error: {error}",
+    "activity": "Actividad reciente",
+    "ok": "OK",
+    "failed": "Falló",
+    "adminOnly": "Solo owners y admins conectan o desconectan apps.",
+    "status": {
+      "connected": "Conectada",
+      "error": "Revisar",
+      "off": "Sin conectar"
+    },
+    "events": {
+      "contact_created": "Contacto creado",
+      "contact_updated": "Contacto actualizado",
+      "company_created": "Empresa creada",
+      "deal_created": "Deal creado",
+      "deal_stage_changed": "Deal cambió de etapa",
+      "deal_won": "Deal ganado",
+      "deal_lost": "Deal perdido",
+      "task_created": "Tarea creada",
+      "form_submitted": "Formulario enviado",
+      "quote_accepted": "Cotización firmada",
+      "quote_paid": "Cotización pagada"
+    },
+    "slack": {
+      "name": "Slack",
+      "desc": "Publicá novedades del CRM en un canal: deals ganados, formularios enviados, cotizaciones firmadas y pagadas.",
+      "url": "URL del webhook entrante",
+      "urlHelp": "En Slack, agregá la app Incoming Webhooks a un canal y pegá la URL que te da.",
+      "events": "Publicar estos eventos",
+      "test": "Mandar mensaje de prueba",
+      "testSent": "Mensaje de prueba enviado."
+    },
+    "zoom": {
+      "name": "Zoom",
+      "desc": "Creá un link de Zoom desde cualquier reunión del timeline de un contacto, empresa o deal.",
+      "help": "En el App Marketplace de Zoom, creá una app Server-to-Server OAuth con el permiso meeting:write y pegá sus credenciales.",
+      "accountId": "Account ID",
+      "clientId": "Client ID",
+      "clientSecret": "Client secret",
+      "connectedHelp": "Las reuniones del timeline ahora muestran el botón de link de Zoom.",
+      "createLink": "Link de Zoom",
+      "error": "No se pudo crear la reunión de Zoom. Revisá la app en Integraciones."
+    },
+    "stripe": {
+      "name": "Stripe",
+      "desc": "Traé clientes como contactos, dejá los pagos en el timeline y cobrá cotizaciones con Checkout.",
+      "help": "Usá una clave secreta o restringida de Stripe › Developers › API keys. El signing secret sale del endpoint de webhook que creás después.",
+      "secretKey": "Clave secreta",
+      "webhookSecret": "Signing secret del webhook",
+      "connectedHelp": "Los pagos con metadata.deal_id marcan ganado ese deal. Las cotizaciones pueden cobrar después de firmarse.",
+      "endpoint": "Endpoint del webhook",
+      "endpointHelp": "Agregá esta URL en Stripe › Developers › Webhooks con customer.created, charge.succeeded, invoice.paid y checkout.session.completed, y guardá acá su signing secret.",
+      "sync": "Importar clientes",
+      "synced": "{created} contactos nuevos, {existing} ya estaban en el CRM."
+    },
+    "zapier": {
+      "name": "Zapier",
+      "desc": "Arrancá Zaps con eventos del CRM usando un Catch Hook, y llamá a la API REST desde acciones de Zapier.",
+      "help": "En Zapier, agregá un trigger Webhooks by Zapier con Catch Hook y pegá su URL.",
+      "url": "URL del catch hook"
+    },
+    "make": {
+      "name": "Make",
+      "desc": "Arrancá escenarios de Make con eventos del CRM usando un webhook propio.",
+      "help": "En Make, agregá un módulo Webhooks › Custom webhook y pegá su dirección.",
+      "url": "Dirección del webhook"
+    },
+    "automation": {
+      "defaultEvents": "Manda: {events}. Los eventos se cambian en Workspace › Webhooks.",
+      "connectedHelp": "{count, plural, one {Recibe # evento, firmado como todo webhook.} other {Recibe # eventos, firmados como todo webhook.}}",
+      "editEvents": "Editar eventos"
+    },
+    "webhooks": {
+      "name": "Webhooks y API",
+      "desc": "Para cualquier otra herramienta: webhooks firmados con reintentos y log de entregas, y la API REST con claves.",
+      "open": "Abrir webhooks",
+      "api": "Docs de la API"
+    },
+    "errors": {
+      "generic": "No funcionó. Probá de nuevo.",
+      "forbidden": "Solo owners y admins pueden hacer esto.",
+      "invalid_input": "Completá todos los campos.",
+      "invalid_slack_url": "Pegá una URL de webhook entrante que empiece con https://hooks.slack.com/services/.",
+      "slack_unreachable": "Slack no aceptó el mensaje de prueba. Revisá la URL.",
+      "zoom_auth_failed": "Zoom rechazó esas credenciales.",
+      "zoom_not_connected": "Primero conectá Zoom.",
+      "zoom_error": "Zoom no creó la reunión.",
+      "not_a_meeting": "Los links de Zoom van en reuniones.",
+      "stripe_invalid_key": "Esa clave de Stripe no es válida.",
+      "stripe_invalid_webhook_secret": "El signing secret empieza con whsec_.",
+      "stripe_error": "Stripe devolvió un error. Probá de nuevo.",
+      "stripe_not_connected": "Primero conectá Stripe.",
+      "invalid_zapier_url": "Pegá una URL de catch hook de Zapier (https://hooks.zapier.com/hooks/…).",
+      "invalid_make_url": "Pegá una dirección de webhook de Make (https://hook.….make.com/…).",
+      "https_required": "La URL tiene que usar https.",
+      "private_host": "Ese host apunta a una red privada.",
+      "unresolvable_host": "Ese host no resuelve."
+    }
+  },
+  "media": {
+    "docsTitle": "Documentos",
+    "docsSubtitle": "Compartí PDFs con un link de seguimiento por contacto y mirá quién los abrió, cuánto tiempo y qué páginas.",
+    "videosTitle": "Videos",
+    "videosSubtitle": "Grabá tu cámara o tu pantalla, mandá el link y enterate cuando lo ven.",
+    "uploadPdf": "Subir PDF",
+    "uploadVideo": "Subir video",
+    "recordVideo": "Grabar video",
+    "uploading": "Subiendo…",
+    "docsEmptyTitle": "Todavía no hay documentos",
+    "docsEmptyBody": "Subí una propuesta, una presentación o un caso de éxito. Cada contacto tiene su link y cada apertura queda en su timeline.",
+    "videosEmptyTitle": "Todavía no hay videos",
+    "videosEmptyBody": "Grabá un video corto para un contacto. Lo mira en su propia página y vos lo ves en su timeline.",
+    "searchDocs": "Buscar documentos",
+    "searchVideos": "Buscar videos",
+    "noMatches": "Nada coincide con esa búsqueda.",
+    "colName": "Nombre",
+    "colLinks": "Links",
+    "colViews": "Vistas",
+    "colLastView": "Última vista",
+    "colActions": "Acciones",
+    "never": "Nunca",
+    "rename": "Renombrar",
+    "save": "Guardar",
+    "saved": "Guardado.",
+    "delete": "Borrar",
+    "cancel": "Cancelar",
+    "openFile": "Abrir PDF",
+    "openPage": "Abrir página",
+    "deleteDocTitle": "¿Borrar \"{name}\"?",
+    "deleteDocBody": "Sus links de seguimiento dejan de funcionar y se borra el archivo.",
+    "deleteVideoTitle": "¿Borrar \"{name}\"?",
+    "deleteVideoBody": "La página deja de funcionar y se borra el archivo. La actividad que ya quedó en el contacto se mantiene.",
+    "shareTitle": "Compartir",
+    "shareHelp": "Creá un link para cada contacto. Las aperturas y el tiempo de lectura quedan en ese contacto y te llega un aviso.",
+    "contact": "Contacto",
+    "forContact": "Para el contacto",
+    "createLinkFor": "Crear link para {name}",
+    "createLinkAnon": "Crear link sin contacto",
+    "linksTitle": "Links de seguimiento",
+    "linksEmptyTitle": "Todavía no hay links",
+    "linksEmptyBody": "Elegí un contacto arriba y creá su link.",
+    "anyone": "Cualquiera con el link",
+    "viewsCount": "{count, plural, one {# vista} other {# vistas}}",
+    "timeViewed": "{time} leyendo",
+    "lastViewed": "última {date}",
+    "topPages": "Más leídas:",
+    "pageTime": "p.{page} {time}",
+    "deleteLink": "Borrar link",
+    "deleteLinkTitle": "¿Borrar este link?",
+    "deleteLinkBody": "El link deja de abrir y se borran sus vistas.",
+    "searchContact": "Buscar por nombre o email",
+    "searching": "Buscando…",
+    "noContacts": "No se encontraron contactos.",
+    "changeContact": "Cambiar",
+    "recordTitle": "Grabar un video",
+    "recordSource": "Qué grabar",
+    "source": {
+      "camera": "Cámara y micrófono",
+      "screen": "Pantalla y micrófono"
+    },
+    "start": {
+      "camera": "Prender la cámara",
+      "screen": "Elegir pantalla"
+    },
+    "recordHelp": "El navegador te pide permiso. No se sube nada hasta que guardes.",
+    "livePreview": "Vista de la cámara",
+    "reviewPreview": "Video grabado",
+    "startRecording": "Empezar a grabar",
+    "stopRecording": "Parar",
+    "recordingFor": "Grabando {time}",
+    "reRecord": "Grabar de nuevo",
+    "saveVideo": "Guardar video",
+    "videoTitle": "Título",
+    "untitledVideo": "Video",
+    "message": "Mensaje",
+    "shareVideoHelp": "Mandá este link por email o chat. Cada reproducción queda en el contacto con cuánto se vio.",
+    "playsTitle": "Reproducciones",
+    "playsEmptyTitle": "Todavía no hay reproducciones",
+    "playsEmptyBody": "Cuando alguien abre la página y le da play, aparece acá.",
+    "watched": "vio {time}",
+    "watchedPct": "{pct}% del video",
+    "errors": {
+      "generic": "No funcionó. Probá de nuevo.",
+      "pdf_only": "Subí un archivo PDF.",
+      "video_only": "Subí un video WebM, MP4 o MOV.",
+      "file_too_large": "El archivo es demasiado grande.",
+      "invalid_file": "No se pudo guardar el archivo.",
+      "invalid_contact": "Ese contacto ya no existe.",
+      "storage_unavailable": "El almacenamiento de archivos no está configurado en este servidor.",
+      "file_type_not_allowed": "Ese tipo de archivo no está permitido.",
+      "recorder_unsupported": "Este navegador no puede grabar video. Probá con Chrome, Edge o Firefox.",
+      "recorder_denied": "El navegador no permitió la cámara o la pantalla. Revisá los permisos y probá de nuevo.",
+      "forbidden": "Solo admins o quien lo subió pueden cambiar esto."
+    }
+  },
+  "mediaPublic": {
+    "notFound": "Link no disponible",
+    "loading": "Cargando documento…",
+    "error": "No se pudo abrir el documento.",
+    "download": "Descargar",
+    "pageOf": "Página {page} de {total}",
+    "pageLabel": "Página {page} de {total}",
+    "greeting": "Un video para {name}",
+    "greetingAnon": "Un video para vos",
+    "from": "De {name}"
   }
 }

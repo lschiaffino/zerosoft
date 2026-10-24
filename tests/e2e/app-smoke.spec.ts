@@ -9,6 +9,9 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
+/** PDF de una página, suficiente para la biblioteca de documentos del CRM. */
+const SMOKE_PDF =
+  '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n';
 
 interface Created {
   id: string;
@@ -199,6 +202,30 @@ const APPS: AppCase[] = [
     detail: (i) => `/en/app/groups/list/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/chats/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/groups/chats/${i.id}`))),
+  },
+  {
+    app: 'CRM Documents',
+    list: '/en/app/crm/documents',
+    create: async (request, name) => {
+      const file = { name: 'smoke.pdf', mimeType: 'application/pdf', buffer: Buffer.from(SMOKE_PDF) };
+      const res = await ok<{ id: string; name: string }>(request.post('/api/crm/documents', { multipart: { file, name } }));
+      return { id: res.id, name: res.name };
+    },
+    detail: (i) => `/en/app/crm/documents/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/crm/documents/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/crm/documents/${i.id}`))),
+  },
+  {
+    app: 'CRM Videos',
+    list: '/en/app/crm/videos',
+    create: async (request, name) => {
+      const file = { name: 'smoke.webm', mimeType: 'video/webm', buffer: Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0, 0, 0, 0]) };
+      const res = await ok<{ id: string; title: string }>(request.post('/api/crm/videos', { multipart: { file, title: name } }));
+      return { id: res.id, name: res.title };
+    },
+    detail: (i) => `/en/app/crm/videos/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/crm/videos/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/crm/videos/${i.id}`))),
   },
   {
     app: 'Robots',

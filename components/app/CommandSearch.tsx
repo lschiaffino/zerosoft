@@ -27,6 +27,8 @@ function useGroupOrder() {
         'contacts',
         'companies',
         'deals',
+        'crmDocuments',
+        'crmVideos',
         'links',
         'docs',
         'notes',

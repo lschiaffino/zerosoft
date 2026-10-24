@@ -3,7 +3,8 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { getForm, listSubmissions } from '@/lib/crm-forms';
-import { listCustomFields, listLists } from '@/lib/crm';
+import { listCustomFields, listLists, listPipelinesWithStages } from '@/lib/crm';
+import { captchaConfigured } from '@/lib/crm-forms';
 import { listTags } from '@/lib/crm-tags';
 import { listSequences } from '@/lib/crm-sequences';
 import { listMembers } from '@/lib/teams';
@@ -39,12 +40,13 @@ export default async function FormDetailPage(props: {
 
   let body: React.ReactNode;
   if (tab === 'build') {
-    const [contactFields, companyFields, lists, tags, sequences] = await Promise.all([
+    const [contactFields, companyFields, lists, tags, sequences, pipelines] = await Promise.all([
       listCustomFields(user.id, 'contacts'),
       listCustomFields(user.id, 'companies'),
       listLists(user.id),
       listTags(user.id),
       listSequences(user.id),
+      listPipelinesWithStages(user.id),
     ]);
     const members = user.team?.id
       ? await listMembers(user.team.id)
@@ -61,6 +63,8 @@ export default async function FormDetailPage(props: {
         lists={lists.filter((l) => l.kind === 'static').map((l) => ({ id: l.id, label: l.name }))}
         tags={tags.map((x) => ({ id: x.id, label: x.name }))}
         sequences={sequences.filter((s) => !s.archived).map((s) => ({ id: s.id, label: s.name }))}
+        pipelines={pipelines.map((p) => ({ id: p.id, name: p.name, stages: p.stages.map((st) => ({ id: st.id, label: st.name })) }))}
+        captchaAvailable={captchaConfigured()}
       />
     );
   } else if (tab === 'submissions') {
@@ -73,7 +77,7 @@ export default async function FormDetailPage(props: {
     body = (
       <FormSubmissions
         formId={form.id}
-        fields={form.fields.map((f) => ({ id: f.id, label: f.label || f.id }))}
+        fields={form.fields.filter((f) => f.type !== 'step').map((f) => ({ id: f.id, label: f.label || f.id }))}
         rows={rows.map((r) => ({
           id: r.id,
           createdAt: formatDate(r.created_at, locale),

@@ -49,6 +49,7 @@ const ERROR_TABS: Record<string, BuilderTab> = {
   invalid_list: 'crm',
   invalid_sequence: 'crm',
   invalid_url: 'after',
+  invalid_stage: 'crm',
 };
 
 export function builderTabForError(code: string): BuilderTab | null {

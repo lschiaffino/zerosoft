@@ -1,7 +1,7 @@
 'use client';
 
 import { isDefaultOutcome } from '@/lib/crm-calls';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { EmailThreadView } from '@/lib/crm-email';
@@ -135,6 +135,32 @@ export default function Timeline({
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // Zoom (CRM › Ajustes › Integraciones): botón "Link de Zoom" en las reuniones.
+  const hasMeetings = items.some((i) => i.type === 'meeting' && !i.external);
+  const [zoomOn, setZoomOn] = useState(false);
+  const [zoomBusy, setZoomBusy] = useState<string | null>(null);
+  useEffect(() => {
+    if (!hasMeetings) return;
+    let alive = true;
+    fetch('/api/crm/apps')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { apps?: Array<{ key: string; connected: boolean }> } | null) => {
+        if (alive) setZoomOn(!!d?.apps?.some((a) => a.key === 'zoom' && a.connected));
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [hasMeetings]);
+
+  async function createZoom(id: string) {
+    setZoomBusy(id);
+    setNotice(null);
+    const res = await fetch(`/api/crm/activities/${id}/zoom`, { method: 'POST' }).catch(() => null);
+    setZoomBusy(null);
+    if (res?.ok) router.refresh();
+    else setNotice(t('apps.zoom.error'));
+  }
 
   // Lista
   const [filter, setFilter] = useState<ActivityType | 'all'>('all');
@@ -656,6 +682,17 @@ export default function Timeline({
                     {item.outcome && <span>{isDefaultOutcome(item.outcome) ? t(`calls.outcomes.${item.outcome}`) : item.outcome}</span>}
                     {item.external && item.from_email && (
                       <span className="tl-from">{item.from_email}</span>
+                    )}
+                    {!item.external && item.type === 'meeting' && zoomOn && !/zoom\.us\//.test(item.body) && (
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        onClick={() => createZoom(item.id)}
+                        disabled={zoomBusy !== null}
+                        aria-busy={zoomBusy === item.id || undefined}
+                      >
+                        {t('apps.zoom.createLink')}
+                      </button>
                     )}
                     {!item.external && item.type === 'task' && (
                       <button type="button" className="icon-btn" onClick={() => toggleDone(item)}>

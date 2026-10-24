@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { createWebhook, listWebhooks, WEBHOOK_EVENTS } from '@/lib/webhooks';
-import { MAX_FILTER_VALUES, normalizeLinkFilter } from '@/lib/webhooks-events';
+import { MAX_FILTER_VALUES, normalizeCrmFilter, normalizeLinkFilter } from '@/lib/webhooks-events';
 import { getDb } from '@/lib/db';
 import { UnsafeUrlError } from '@/lib/safe-fetch';
 
@@ -20,6 +20,8 @@ const createSchema = z.object({
       domains: z.array(z.string().trim().max(253)).max(MAX_FILTER_VALUES).optional(),
     })
     .nullish(),
+  /** Solo para *.property_changed: nombres de propiedad (custom.<x> para campos propios). Vacío = todas. */
+  properties: z.array(z.string().trim().max(80)).max(MAX_FILTER_VALUES).optional(),
 });
 
 /** Resuelve slugs o ids a ids de links del workspace; null si alguno no existe. */
@@ -64,6 +66,7 @@ export async function POST(req: NextRequest) {
       events: parsed.data.events,
       createdBy: realUserId(user),
       linkFilter,
+      crmFilter: normalizeCrmFilter({ properties: parsed.data.properties ?? [] }),
     });
     return NextResponse.json(created, { status: 201 });
   } catch (err) {

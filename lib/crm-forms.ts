@@ -13,8 +13,10 @@ import { typedCustomValues } from './crm-custom-fields';
 import { createHash } from 'crypto';
 import { getDb, type CrmContactRow, type CrmFormRow, type CrmFormSubmissionRow, type Db } from './db';
 import {
+  dealNameFor,
   defaultFormFields,
   formFieldSchema,
+  ownerFromRules,
   mapSubmission,
   normalizeFields,
   normalizeSettings,
@@ -116,6 +118,8 @@ export interface PublicFormDto {
     FormSettings,
     'title' | 'description' | 'submitText' | 'consentText' | 'consentRequired' | 'successMode' | 'successMessage'
   >;
+  /** Site key de Turnstile si el form pide CAPTCHA ('fake' en tests), o null. */
+  captchaSiteKey: string | null;
 }
 
 export function toPublicForm(form: CrmForm): PublicFormDto {
@@ -134,7 +138,46 @@ export function toPublicForm(form: CrmForm): PublicFormDto {
       successMode: s.successMode,
       successMessage: s.successMessage,
     },
+    captchaSiteKey: s.captcha ? captchaSiteKey() : null,
   };
+}
+
+// ---------- CAPTCHA (Cloudflare Turnstile) ----------
+
+/** CAPTCHA_FAKE=1 (tests): el widget es un checkbox de prueba y el token válido es "fake-pass". */
+function captchaFake(): boolean {
+  return process.env.CAPTCHA_FAKE === '1';
+}
+
+/** Site key pública, o null si el CAPTCHA no está configurado en este servidor. */
+export function captchaSiteKey(): string | null {
+  if (captchaFake()) return 'fake';
+  return process.env.TURNSTILE_SITE_KEY && process.env.TURNSTILE_SECRET_KEY ? process.env.TURNSTILE_SITE_KEY : null;
+}
+
+export function captchaConfigured(): boolean {
+  return captchaSiteKey() !== null;
+}
+
+/** Verifica el token con Turnstile (siteverify). Sin configurar, no bloquea el envío. */
+export async function verifyCaptcha(token: string | undefined, ip?: string): Promise<boolean> {
+  if (captchaFake()) return token === 'fake-pass';
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret || !process.env.TURNSTILE_SITE_KEY) return true;
+  if (!token) return false;
+  try {
+    const form = new URLSearchParams({ secret, response: token });
+    if (ip && ip !== 'unknown') form.set('remoteip', ip);
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      body: form,
+      signal: AbortSignal.timeout(8000),
+    });
+    const data = (await res.json().catch(() => ({}))) as { success?: boolean };
+    return data.success === true;
+  } catch {
+    return false;
+  }
 }
 
 async function slugTaken(slug: string, exceptId: string | null, db: Db): Promise<boolean> {
@@ -155,6 +198,19 @@ async function cleanSettings(workspaceId: string, patch: Partial<FormSettings>, 
   if (out.sequenceId) {
     const ok = await db.prepare('SELECT 1 FROM crm_sequences WHERE id = ? AND user_id = ?').get(out.sequenceId, workspaceId);
     if (!ok) throw new FormError('invalid_sequence');
+  }
+  if (out.createDeal || out.dealPipelineId || out.dealStageId) {
+    if (out.dealPipelineId || out.dealStageId) {
+      const ok = await db
+        .prepare('SELECT 1 FROM crm_stages s JOIN crm_pipelines p ON p.id = s.pipeline_id WHERE s.id = ? AND p.id = ? AND p.user_id = ?')
+        .get(out.dealStageId ?? '', out.dealPipelineId ?? '', workspaceId);
+      if (!ok) throw new FormError('invalid_stage');
+    } else if (out.createDeal) throw new FormError('invalid_stage');
+  }
+  if (out.ownerRules?.length) {
+    for (const r of out.ownerRules) {
+      if (!(await isWorkspacePerson(workspaceId, r.ownerId, db))) throw new FormError('invalid_owner');
+    }
   }
   if (out.tagIds?.length) {
     const rows = (await db
@@ -315,7 +371,8 @@ export function submissionsCsv(form: CrmForm, rows: SubmissionRow[]): string {
     return { r, data, utm };
   });
   const utmCols = [...utmKeys].sort();
-  const header = ['submitted_at', 'contact_id', 'contact_email', ...form.fields.map((f) => f.label || f.id), ...utmCols, 'page_url', 'referrer'];
+  const dataFields = form.fields.filter((f) => f.type !== 'step');
+  const header = ['submitted_at', 'contact_id', 'contact_email', ...dataFields.map((f) => f.label || f.id), ...utmCols, 'page_url', 'referrer'];
   const lines = [header.map(csvCell).join(',')];
   for (const { r, data, utm } of parsed) {
     lines.push(
@@ -323,7 +380,7 @@ export function submissionsCsv(form: CrmForm, rows: SubmissionRow[]): string {
         r.created_at,
         r.contact_id ?? '',
         r.contact_email ?? '',
-        ...form.fields.map((f) => {
+        ...dataFields.map((f) => {
           const v = data[f.id];
           return typeof v === 'boolean' ? (v ? 'yes' : 'no') : (v ?? '');
         }),
@@ -349,7 +406,7 @@ export type SubmitResult =
       successMessage: string;
       redirectUrl: string;
     }
-  | { ok: false; error: 'not_found' | 'paused' | 'invalid'; fieldErrors?: Record<string, FieldError> };
+  | { ok: false; error: 'not_found' | 'paused' | 'invalid' | 'captcha'; fieldErrors?: Record<string, FieldError> };
 
 function lifecycleRank(stage: string): number {
   return (LIFECYCLE_STAGES as readonly string[]).indexOf(stage);
@@ -381,6 +438,9 @@ export async function submitForm(
   };
 
   if ((body.website_url ?? '').trim()) return { ok: true, spam: true, ...success };
+  if (s.captcha && captchaConfigured() && !(await verifyCaptcha(body.captchaToken, meta.ip))) {
+    return { ok: false, error: 'captcha' };
+  }
   if (s.minSubmitSeconds > 0 && body.elapsedMs !== undefined && body.elapsedMs < s.minSubmitSeconds * 1000) {
     return { ok: true, spam: true, ...success };
   }
@@ -438,7 +498,14 @@ export async function submitForm(
   const existing: CrmContactRow | null = email && s.updateExisting ? await findContactByEmail(workspaceId, email) : null;
   let contact: CrmContactRow;
   let created = false;
-  const ownerValid = s.ownerId && (await isWorkspacePerson(workspaceId, s.ownerId, db)) ? s.ownerId : null;
+  // Dueño: la primera regla que coincide; si no, el dueño fijo; si no, round-robin.
+  const ruleOwner = ownerFromRules(s.ownerRules, values);
+  const ownerValid =
+    ruleOwner && (await isWorkspacePerson(workspaceId, ruleOwner, db))
+      ? ruleOwner
+      : s.ownerId && (await isWorkspacePerson(workspaceId, s.ownerId, db))
+        ? s.ownerId
+        : null;
 
   if (existing) {
     // Dedupe: completa/actualiza solo lo que vino (nunca borra con vacíos).
@@ -525,6 +592,31 @@ export async function submitForm(
     companyId: contact.company_id,
   });
 
+  // Deal del envío (pipeline y etapa elegidos en el form), asociado al contacto y su empresa.
+  let dealId: string | null = null;
+  if (s.createDeal && s.dealPipelineId && s.dealStageId) {
+    try {
+      const contactLabel = `${contact.first_name} ${contact.last_name}`.trim() || contact.email || '';
+      const res = await crm.createDeal(workspaceId, {
+        pipelineId: s.dealPipelineId,
+        stageId: s.dealStageId,
+        name: dealNameFor(s.dealName, {
+          name: contactLabel,
+          email: contact.email ?? '',
+          company: mapped.company.name ?? '',
+          form: form.name,
+        }),
+        source: s.source || 'form',
+        ownerId: contact.owner_id ?? null,
+        contactIds: [contact.id],
+        companyId: contact.company_id ?? companyId,
+      });
+      if (res.ok) dealId = res.deal.id;
+    } catch {
+      /* el deal no bloquea el envío */
+    }
+  }
+
   // Lista, tags y secuencia (cada uno no puede romper el envío).
   if (s.listId) await crm.addListMembers(workspaceId, s.listId, [contact.id]).catch(() => 0);
   if (s.tagIds.length) {
@@ -583,6 +675,7 @@ export async function submitForm(
     form: { id: form.id, name: form.name },
     submission: { id: submissionId, values },
     contact: { id: contact.id, email: contact.email, created },
+    ...(dealId ? { deal: { id: dealId } } : {}),
     utm,
   });
   const { recalcContactScoreSafe } = await import('./crm-scoring');

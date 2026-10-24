@@ -8,8 +8,10 @@ import RowTools from './RowTools';
 import { PanelTabs, TabPanel } from './PanelTabs';
 import {
   COMPANY_FORM_PROPS,
+  CONDITION_OPS,
   CONTACT_FORM_PROPS,
   FORM_FIELD_TYPES,
+  type ConditionOp,
   UTM_PARAMS,
   type FormField,
   type FormFieldType,
@@ -35,6 +37,10 @@ interface Props {
   lists: Option[];
   tags: Option[];
   sequences: Option[];
+  /** Pipelines con sus etapas (crear deal con el envío). */
+  pipelines?: Array<{ id: string; name: string; stages: Option[] }>;
+  /** CAPTCHA configurado en el servidor (TURNSTILE_SITE_KEY / TURNSTILE_SECRET_KEY). */
+  captchaAvailable?: boolean;
 }
 
 const KNOWN_ERRORS = new Set([
@@ -48,6 +54,7 @@ const KNOWN_ERRORS = new Set([
   'invalid_sequence',
   'invalid_url',
   'invalid_input',
+  'invalid_stage',
 ]);
 
 type BuilderTab = 'fields' | 'design' | 'after' | 'crm';
@@ -284,7 +291,10 @@ export default function FormBuilder(props: Props) {
                       id={fid(`type-${i}`)}
                       className="select"
                       value={f.type}
-                      onChange={(e) => updateField(i, { type: e.target.value as FormFieldType })}
+                      onChange={(e) => {
+                        const type = e.target.value as FormFieldType;
+                        updateField(i, type === 'step' ? { type, property: '', required: false } : { type });
+                      }}
                       disabled={!canEdit}
                     >
                       {FORM_FIELD_TYPES.map((ft) => (
@@ -303,7 +313,7 @@ export default function FormBuilder(props: Props) {
                       className="select"
                       value={f.property}
                       onChange={(e) => updateField(i, { property: e.target.value })}
-                      disabled={!canEdit}
+                      disabled={!canEdit || f.type === 'step'}
                     >
                       {propertyOptions}
                     </select>
@@ -313,7 +323,7 @@ export default function FormBuilder(props: Props) {
                       type="checkbox"
                       checked={f.required}
                       onChange={(e) => updateField(i, { required: e.target.checked })}
-                      disabled={!canEdit || f.type === 'hidden'}
+                      disabled={!canEdit || f.type === 'hidden' || f.type === 'step'}
                     />
                     {t('forms.builder.required')}
                   </label>
@@ -403,6 +413,64 @@ export default function FormBuilder(props: Props) {
                         />
                       </div>
                     </>
+                  )}
+                  {f.type !== 'step' && f.type !== 'hidden' && i > 0 && (
+                    <fieldset className="fb-condition" data-testid="form-condition">
+                      <legend className="label">{t('forms.builder.showIf')}</legend>
+                      <select
+                        className="select"
+                        aria-label={t('forms.builder.showIfField')}
+                        value={f.showIf?.field ?? ''}
+                        onChange={(e) =>
+                          updateField(i, {
+                            showIf: e.target.value ? { field: e.target.value, op: f.showIf?.op ?? 'equals', value: f.showIf?.value ?? '' } : undefined,
+                          })
+                        }
+                        disabled={!canEdit}
+                      >
+                        <option value="">{t('forms.builder.always')}</option>
+                        {fields
+                          .slice(0, i)
+                          .filter((o) => o.type !== 'step' && o.type !== 'hidden')
+                          .map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.label || o.id}
+                            </option>
+                          ))}
+                      </select>
+                      {f.showIf && (
+                        <>
+                          <select
+                            className="select"
+                            aria-label={t('forms.builder.showIfOp')}
+                            value={f.showIf.op}
+                            onChange={(e) => updateField(i, { showIf: { ...f.showIf!, op: e.target.value as ConditionOp } })}
+                            disabled={!canEdit}
+                          >
+                            {CONDITION_OPS.map((op) => (
+                              <option key={op} value={op}>
+                                {t(`forms.builder.ops.${op}`)}
+                              </option>
+                            ))}
+                          </select>
+                          {(f.showIf.op === 'equals' || f.showIf.op === 'not_equals') && (
+                            <input
+                              className="input"
+                              aria-label={t('forms.builder.showIfValue')}
+                              value={f.showIf.value ?? ''}
+                              onChange={(e) => updateField(i, { showIf: { ...f.showIf!, value: e.target.value } })}
+                              list={fid(`cond-${i}`)}
+                              disabled={!canEdit}
+                            />
+                          )}
+                          <datalist id={fid(`cond-${i}`)}>
+                            {(fields.find((o) => o.id === f.showIf?.field)?.options ?? []).map((o) => (
+                              <option key={o} value={o} />
+                            ))}
+                          </datalist>
+                        </>
+                      )}
+                    </fieldset>
                   )}
                   <div className="ui-field">
                     <label className="label" htmlFor={fid(`key-${i}`)}>
@@ -702,6 +770,158 @@ export default function FormBuilder(props: Props) {
             </select>
           </div>
         </div>
+        <div className="fb-group" data-testid="form-owner-rules">
+          <h3 className="fb-group-title">{t('forms.builder.ownerRules')}</h3>
+          <p className="ui-help">{t('forms.builder.ownerRulesHint')}</p>
+          {settings.ownerRules.map((r, ri) => (
+            <div key={ri} className="fb-rule">
+              <select
+                className="select"
+                aria-label={t('forms.builder.ruleField')}
+                value={r.field}
+                onChange={(e) => setS('ownerRules', settings.ownerRules.map((x, xi) => (xi === ri ? { ...x, field: e.target.value } : x)))}
+                disabled={!canEdit}
+              >
+                {fields
+                  .filter((o) => o.type !== 'step')
+                  .map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label || o.id}
+                    </option>
+                  ))}
+              </select>
+              <span className="fb-rule-eq">=</span>
+              <input
+                className="input"
+                aria-label={t('forms.builder.ruleValue')}
+                value={r.value}
+                onChange={(e) => setS('ownerRules', settings.ownerRules.map((x, xi) => (xi === ri ? { ...x, value: e.target.value } : x)))}
+                disabled={!canEdit}
+              />
+              <span className="fb-rule-eq">→</span>
+              <select
+                className="select"
+                aria-label={t('filters.field.owner')}
+                value={r.ownerId}
+                onChange={(e) => setS('ownerRules', settings.ownerRules.map((x, xi) => (xi === ri ? { ...x, ownerId: e.target.value } : x)))}
+                disabled={!canEdit}
+              >
+                {props.owners.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setS('ownerRules', settings.ownerRules.filter((_, xi) => xi !== ri))}
+                disabled={!canEdit}
+                aria-label={t('forms.builder.removeRule')}
+              >
+                {t('common.delete')}
+              </button>
+            </div>
+          ))}
+          {canEdit && props.owners.length > 0 && (
+            <div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() =>
+                  setS('ownerRules', [
+                    ...settings.ownerRules,
+                    { field: fields.find((f) => f.type === 'select')?.id ?? fields[0]?.id ?? '', value: '', ownerId: props.owners[0].id },
+                  ])
+                }
+              >
+                {t('forms.builder.addRule')}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="fb-group" data-testid="form-create-deal">
+          <h3 className="fb-group-title">{t('forms.builder.dealTitle')}</h3>
+          <label className="ui-check">
+            <input
+              type="checkbox"
+              checked={settings.createDeal}
+              onChange={(e) => {
+                const on = e.target.checked;
+                const first = props.pipelines?.[0];
+                setSettings((prev) => ({
+                  ...prev,
+                  createDeal: on,
+                  dealPipelineId: prev.dealPipelineId || (on ? (first?.id ?? '') : ''),
+                  dealStageId: prev.dealStageId || (on ? (first?.stages[0]?.id ?? '') : ''),
+                }));
+                dirty();
+              }}
+              disabled={!canEdit || !props.pipelines?.length}
+            />
+            {t('forms.builder.createDeal')}
+          </label>
+          {settings.createDeal && (
+            <div className="ui-fields-2">
+              <div className="ui-field">
+                <label className="label" htmlFor={fid('deal-pipe')}>
+                  {t('forms.builder.dealPipeline')}
+                </label>
+                <select
+                  id={fid('deal-pipe')}
+                  className="select"
+                  value={settings.dealPipelineId}
+                  onChange={(e) => {
+                    const pipe = props.pipelines?.find((x) => x.id === e.target.value);
+                    setSettings((prev) => ({ ...prev, dealPipelineId: e.target.value, dealStageId: pipe?.stages[0]?.id ?? '' }));
+                    dirty();
+                  }}
+                  disabled={!canEdit}
+                >
+                  {(props.pipelines ?? []).map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="ui-field">
+                <label className="label" htmlFor={fid('deal-stage')}>
+                  {t('forms.builder.dealStage')}
+                </label>
+                <select
+                  id={fid('deal-stage')}
+                  className="select"
+                  value={settings.dealStageId}
+                  onChange={(e) => setS('dealStageId', e.target.value)}
+                  aria-invalid={error?.tab === 'crm' || undefined}
+                  disabled={!canEdit}
+                >
+                  {(props.pipelines?.find((x) => x.id === settings.dealPipelineId)?.stages ?? []).map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="ui-field">
+                <label className="label" htmlFor={fid('deal-name')}>
+                  {t('forms.builder.dealName')}
+                </label>
+                <input
+                  id={fid('deal-name')}
+                  className="input"
+                  value={settings.dealName}
+                  onChange={(e) => setS('dealName', e.target.value)}
+                  disabled={!canEdit}
+                />
+                <span className="ui-help">{t('forms.builder.dealNameHint')}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
         {props.tags.length > 0 && (
           <fieldset className="fb-tags">
             <legend className="label">{t('forms.builder.tags')}</legend>
@@ -771,6 +991,17 @@ export default function FormBuilder(props: Props) {
             />
             <span className="ui-help">{t('forms.builder.spamDesc')}</span>
           </div>
+          <label className="ui-check">
+            <input
+              type="checkbox"
+              checked={settings.captcha}
+              onChange={(e) => setS('captcha', e.target.checked)}
+              disabled={!canEdit || (!props.captchaAvailable && !settings.captcha)}
+              data-testid="form-captcha-toggle"
+            />
+            {t('forms.builder.captcha')}
+          </label>
+          <span className="ui-help">{props.captchaAvailable ? t('forms.builder.captchaHint') : t('forms.builder.captchaMissing')}</span>
         </AdvancedSection>
       </TabPanel>
 

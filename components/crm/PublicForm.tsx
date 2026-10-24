@@ -3,7 +3,56 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { PublicFormDto } from '@/lib/crm-forms';
-import type { FieldError } from '@/lib/crm-forms-schema';
+import { formSteps, isFieldVisible, type FieldError, type FormField } from '@/lib/crm-forms-schema';
+
+declare global {
+  interface Window {
+    turnstile?: { render: (el: HTMLElement, opts: Record<string, unknown>) => string; reset: (id?: string) => void };
+  }
+}
+
+/** Widget de Cloudflare Turnstile (o, en tests, un checkbox que da el token de prueba). */
+function Captcha({ siteKey, label, onToken }: { siteKey: string; label: string; onToken: (t: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (siteKey === 'fake') return;
+    const el = ref.current;
+    if (!el) return;
+    let widget: string | null = null;
+    const render = () => {
+      if (!window.turnstile || widget !== null) return;
+      widget = window.turnstile.render(el, {
+        sitekey: siteKey,
+        callback: (token: string) => onToken(token),
+        'expired-callback': () => onToken(''),
+      });
+    };
+    if (window.turnstile) render();
+    else {
+      const id = 'cf-turnstile-script';
+      let script = document.getElementById(id) as HTMLScriptElement | null;
+      if (!script) {
+        script = document.createElement('script');
+        script.id = id;
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        script.async = true;
+        document.head.appendChild(script);
+      }
+      script.addEventListener('load', render);
+    }
+  }, [siteKey, onToken]);
+  if (siteKey === 'fake') {
+    return (
+      <div className="fp-field fp-check" data-testid="form-captcha">
+        <label htmlFor="fp-captcha">
+          <input id="fp-captcha" type="checkbox" onChange={(e) => onToken(e.target.checked ? 'fake-pass' : '')} />
+          <span>{label}</span>
+        </label>
+      </div>
+    );
+  }
+  return <div ref={ref} className="fp-captcha" data-testid="form-captcha" />;
+}
 
 interface Props {
   form: PublicFormDto;
@@ -33,6 +82,44 @@ export default function PublicForm({ form, embed, urlParams, pageUrl, referrer }
   const [message, setMessage] = useState('');
   const shownAt = useRef<number>(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const steps = formSteps(form.fields);
+  const [stepIdx, setStepIdx] = useState(0);
+  const lastStep = stepIdx >= steps.length - 1;
+  const visible = (f: FormField) => f.type !== 'hidden' && f.type !== 'step' && isFieldVisible(f, values, form.fields);
+
+  /** Valida los campos visibles de un paso antes de avanzar (los mismos chequeos básicos que el servidor). */
+  function stepErrors(idx: number): Record<string, FieldError> {
+    const out: Record<string, FieldError> = {};
+    for (const f of steps[idx]?.fields ?? []) {
+      if (!visible(f)) continue;
+      const v = values[f.id];
+      if (f.type === 'checkbox') {
+        if (f.required && v !== true) out[f.id] = 'required';
+        continue;
+      }
+      const text = typeof v === 'string' ? v.trim() : '';
+      if (!text) {
+        if (f.required) out[f.id] = 'required';
+        continue;
+      }
+      if (f.type === 'email' && !/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(text)) out[f.id] = 'invalid_email';
+    }
+    return out;
+  }
+
+  function next() {
+    const errs = stepErrors(stepIdx);
+    setErrors(errs);
+    if (Object.keys(errs).length) {
+      setMessage(t('fixErrors'));
+      setStatus('error');
+      return;
+    }
+    setStatus('idle');
+    setMessage('');
+    setStepIdx((i) => Math.min(i + 1, steps.length - 1));
+  }
 
   useEffect(() => {
     shownAt.current = Date.now();
@@ -61,6 +148,10 @@ export default function PublicForm({ form, embed, urlParams, pageUrl, referrer }
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (status === 'busy') return;
+    if (!lastStep) {
+      next();
+      return;
+    }
     setStatus('busy');
     setErrors({});
     const page = pageUrl || (embed ? '' : window.location.href);
@@ -75,6 +166,7 @@ export default function PublicForm({ form, embed, urlParams, pageUrl, referrer }
         utm: urlParams,
         pageUrl: page.slice(0, 2000),
         referrer: (referrer || (embed ? '' : document.referrer)).slice(0, 2000),
+        ...(form.captchaSiteKey ? { captchaToken } : {}),
       }),
     }).catch(() => null);
     const data = res
@@ -104,9 +196,22 @@ export default function PublicForm({ form, embed, urlParams, pageUrl, referrer }
       setStatus('done');
       return;
     }
-    if (data?.fieldErrors) setErrors(data.fieldErrors);
+    if (data?.fieldErrors) {
+      setErrors(data.fieldErrors);
+      // Vuelve al primer paso con un error.
+      const firstBad = steps.findIndex((st) => st.fields.some((f) => data.fieldErrors?.[f.id]));
+      if (firstBad >= 0) setStepIdx(firstBad);
+    }
     setMessage(
-      res?.status === 429 ? t('rateLimited') : data?.error === 'paused' ? t('paused') : data?.fieldErrors ? t('fixErrors') : t('error'),
+      res?.status === 429
+        ? t('rateLimited')
+        : data?.error === 'paused'
+          ? t('paused')
+          : data?.error === 'captcha'
+            ? t('captchaFailed')
+            : data?.fieldErrors
+              ? t('fixErrors')
+              : t('error'),
     );
     setStatus('error');
   }
@@ -138,8 +243,17 @@ export default function PublicForm({ form, embed, urlParams, pageUrl, referrer }
         <p className="fp-paused">{t('paused')}</p>
       ) : (
         <form className="fp-form" onSubmit={onSubmit} noValidate>
-          {form.fields
-            .filter((f) => f.type !== 'hidden')
+          {steps.length > 1 && (
+            <div className="fp-steps" data-testid="form-steps">
+              <p className="fp-step-count">{t('stepOf', { current: stepIdx + 1, total: steps.length })}</p>
+              {steps[stepIdx]?.title && <h2 className="fp-step-title">{steps[stepIdx].title}</h2>}
+              <div className="fp-step-bar" aria-hidden="true">
+                <span style={{ width: `${((stepIdx + 1) / steps.length) * 100}%` }} />
+              </div>
+            </div>
+          )}
+          {(steps[stepIdx]?.fields ?? [])
+            .filter(visible)
             .map((f) => {
               const err = errors[f.id];
               const id = `fp-${f.id}`;
@@ -214,7 +328,7 @@ export default function PublicForm({ form, embed, urlParams, pageUrl, referrer }
               onChange={(e) => setHoneypot(e.target.value)}
             />
           </div>
-          {s.consentText && (
+          {lastStep && s.consentText && (
             <div className="fp-field fp-check">
               <label htmlFor="fp-consent">
                 <input
@@ -232,14 +346,30 @@ export default function PublicForm({ form, embed, urlParams, pageUrl, referrer }
               {errors.__consent && <p className="fp-err">{t('errors.required')}</p>}
             </div>
           )}
+          {lastStep && form.captchaSiteKey && <Captcha siteKey={form.captchaSiteKey} label={t('captchaTest')} onToken={setCaptchaToken} />}
           {status === 'error' && message && (
             <p className="fp-err fp-err-main" role="alert">
               {message}
             </p>
           )}
-          <button type="submit" className="fp-submit" disabled={status === 'busy'}>
-            {status === 'busy' ? t('sending') : s.submitText || t('submit')}
-          </button>
+          <div className="fp-actions">
+            {stepIdx > 0 && (
+              <button
+                type="button"
+                className="fp-back"
+                onClick={() => {
+                  setStatus('idle');
+                  setMessage('');
+                  setStepIdx((i) => Math.max(0, i - 1));
+                }}
+              >
+                {t('back')}
+              </button>
+            )}
+            <button type="submit" className="fp-submit" disabled={status === 'busy' || (lastStep && !!form.captchaSiteKey && !captchaToken)}>
+              {!lastStep ? t('next') : status === 'busy' ? t('sending') : s.submitText || t('submit')}
+            </button>
+          </div>
         </form>
       )}
     </div>

@@ -29,6 +29,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-24-crm-integrations',
+    date: '2026-10-24',
+    title: {
+      en: 'CRM: apps, signed and paid quotes, smarter forms, tracked documents and 1:1 videos',
+      es: 'CRM: apps, cotizaciones firmadas y cobradas, formularios más completos, documentos con seguimiento y videos 1:1',
+      pt: 'CRM: apps, cotações assinadas e pagas, formulários mais completos, documentos rastreados e vídeos 1:1',
+    },
+    items: [
+      { product: 'crm', en: 'Integrations now has apps: Slack posts the events you pick to a channel, Zoom creates a meeting link from any timeline meeting, Stripe brings customers and payments to the timeline and marks deals won, and Zapier or Make receive CRM events through a signed webhook.', es: 'Integraciones ahora tiene apps: Slack publica en un canal los eventos que elijas, Zoom crea el link de cualquier reunión del timeline, Stripe trae clientes y pagos al timeline y marca deals ganados, y Zapier o Make reciben los eventos del CRM por un webhook firmado.', pt: 'Integrações agora tem apps: o Slack publica num canal os eventos que você escolher, o Zoom cria o link de qualquer reunião da timeline, o Stripe traz clientes e pagamentos para a timeline e marca negócios ganhos, e Zapier ou Make recebem os eventos do CRM por um webhook assinado.' },
+      { product: 'crm', en: 'Quotes are signed with a typed name and a drawn signature, with a downloadable audit certificate, and can collect payment with Stripe Checkout, which marks the quote paid and the deal won.', es: 'Las cotizaciones se firman con nombre tipeado y firma dibujada, con certificado de auditoría descargable, y pueden cobrarse con Stripe Checkout, que marca la cotización pagada y el deal ganado.', pt: 'As cotações são assinadas com nome digitado e assinatura desenhada, com certificado de auditoria para baixar, e podem ser cobradas com Stripe Checkout, que marca a cotação paga e o negócio ganho.' },
+      { product: 'crm', en: 'Forms can have steps, fields that show only for some answers, an owner chosen by answer, a deal created with each submission and a CAPTCHA.', es: 'Los formularios pueden tener pasos, campos que aparecen según la respuesta, dueño elegido por respuesta, un deal creado con cada envío y CAPTCHA.', pt: 'Os formulários podem ter etapas, campos que aparecem conforme a resposta, responsável escolhido pela resposta, um negócio criado a cada envio e CAPTCHA.' },
+      { product: 'crm', en: 'New Documents and Videos: share PDFs with a link per contact and see time per page, or record your camera or screen and see each play on the contact timeline.', es: 'Nuevos Documentos y Videos: compartí PDFs con un link por contacto y mirá el tiempo por página, o grabá tu cámara o pantalla y mirá cada reproducción en el timeline del contacto.', pt: 'Novos Documentos e Vídeos: compartilhe PDFs com um link por contato e veja o tempo por página, ou grave a câmera ou a tela e veja cada reprodução na timeline do contato.' },
+      { product: 'crm', en: 'Webhooks add company, task, property change, delete, quote and form events, a filter by property, a delivery log with resend and pause.', es: 'Los webhooks suman eventos de empresa, tareas, cambio de propiedad, borrado, cotizaciones y formularios, filtro por propiedad, log de entregas con reenvío y pausa.', pt: 'Os webhooks ganham eventos de empresa, tarefas, alteração de propriedade, exclusão, cotações e formulários, filtro por propriedade, log de entregas com reenvio e pausa.' },
+    ],
+  },
+  {
     id: '2026-10-23-groups',
     date: '2026-10-23',
     title: {

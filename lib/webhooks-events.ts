@@ -11,11 +11,24 @@ export const WEBHOOK_EVENTS = [
   'link.deleted',
   'contact.created',
   'contact.updated',
+  'contact.property_changed',
+  'contact.deleted',
+  'company.created',
+  'company.updated',
+  'company.property_changed',
+  'company.deleted',
   'deal.created',
   'deal.updated',
+  'deal.property_changed',
   'deal.stage_changed',
   'deal.won',
   'deal.lost',
+  'deal.deleted',
+  'task.created',
+  'task.completed',
+  'quote.accepted',
+  'quote.paid',
+  'form.submitted',
   'robot.run.finished',
   'robot.run.failed',
   'robot.output.changed',
@@ -104,4 +117,38 @@ export function linkScopeOf(data: unknown): LinkScope | null {
     tags: Array.isArray(link.tags) ? link.tags.filter((t): t is string => typeof t === 'string') : [],
     domain: typeof link.domain === 'string' ? link.domain : null,
   };
+}
+
+// ---------- Filtro de propiedades (eventos *.property_changed) ----------
+
+/**
+ * Como las suscripciones `propertyChange` de HubSpot: un webhook puede
+ * limitarse a ciertas propiedades (columna o `custom.<nombre>`). Vacío = todas.
+ */
+export interface CrmWebhookFilter {
+  properties: string[];
+}
+
+export function normalizeCrmFilter(raw: unknown): CrmWebhookFilter | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const props = cleanList((raw as Record<string, unknown>).properties, false)
+    .map((p) => p.replace(/\s+/g, ''))
+    .filter((p) => /^(custom\.)?[\w-]{1,60}$/.test(p));
+  return props.length ? { properties: [...new Set(props)] } : null;
+}
+
+export function parseCrmFilter(json: string | null | undefined): CrmWebhookFilter | null {
+  if (!json) return null;
+  try {
+    return normalizeCrmFilter(JSON.parse(json));
+  } catch {
+    return null;
+  }
+}
+
+/** El cambio de propiedad pasa el filtro (sin filtro, siempre; otros eventos, siempre). */
+export function matchesCrmFilter(filter: CrmWebhookFilter | null, event: string, data: unknown): boolean {
+  if (!filter || !event.endsWith('.property_changed')) return true;
+  const property = (data as { property?: unknown } | null)?.property;
+  return typeof property === 'string' && filter.properties.includes(property);
 }

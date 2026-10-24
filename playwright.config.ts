@@ -42,6 +42,9 @@ export default defineConfig({
       CRM_IMPORT_FAKE: '1',
       // Groups contra el proveedor de WhatsApp falso (lib/groups-provider-fake.ts): nada sale a WhatsApp.
       GROUPS_FAKE: '1',
+      // Apps del CRM (Slack, Zoom, Stripe) y CAPTCHA de formularios en modo de prueba: nada sale a internet.
+      CRM_APPS_FAKE: '1',
+      CAPTCHA_FAKE: '1',
       // Importadores: Linear, GitHub y Calendly apuntan a un mock local
       // (tests/e2e/importers.spec.ts lo levanta en PORT + 1). Nada sale a internet.
       IMPORT_LINEAR_API_URL: `http://127.0.0.1:${PORT + 1}/linear`,

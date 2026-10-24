@@ -6,6 +6,7 @@ import { searchDocPagesContent } from '@/lib/docs';
 import { listLinks, toLinkDto } from '@/lib/links';
 import { searchNotesForPalette } from '@/lib/notes';
 import { searchApps } from '@/lib/app-search';
+import { searchMedia } from '@/lib/crm-media';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, media] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -41,6 +42,8 @@ export async function GET(req: NextRequest) {
     searchNotesForPalette(user, q),
     // Pizarras, Track, Cal, widgets, Flow, Agents y Robots: por nombre.
     searchApps(user, q, undefined, req.nextUrl.searchParams.get('locale') ?? 'en'),
+    // CRM: documentos con seguimiento y videos 1:1, por nombre.
+    searchMedia(user.id, q).catch(() => []),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -72,6 +75,16 @@ export async function GET(req: NextRequest) {
       label: d.name,
       meta: `${d.currency} ${d.amount}`,
       href: `/app/crm/deals/${d.id}`,
+    });
+  }
+
+  for (const m of media) {
+    items.push({
+      id: m.id,
+      group: m.kind === 'document' ? 'crmDocuments' : 'crmVideos',
+      label: m.label,
+      meta: '',
+      href: m.kind === 'document' ? `/app/crm/documents/${m.id}` : `/app/crm/videos/${m.id}`,
     });
   }
 

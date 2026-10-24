@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'HubSpot',
   alsoCompared: ['Pipedrive', 'Attio'],
-  lastReviewed: '2026-10-22',
+  lastReviewed: '2026-10-24',
   areas: [
     { id: 'records', label: { en: 'Data model and records', es: 'Modelo de datos y registros', pt: 'Modelo de dados e registros' } },
     { id: 'pipeline', label: { en: 'Pipeline and deals', es: 'Pipeline y deals', pt: 'Pipeline e negócios' } },
@@ -87,7 +87,8 @@ const parity: ProductParity = {
       id: 'quote-esign-payment',
       area: 'records',
       label: { en: 'E-signature and payment on quotes', es: 'Firma electrónica y cobro en cotizaciones', pt: 'Assinatura eletrônica e pagamento em cotações' },
-      status: 'missing',
+      detail: { en: 'Typed name plus drawn signature, email, IP, browser, time and content hash, with a downloadable audit certificate; payment with Stripe Checkout marks the quote paid and the deal won (connect Stripe in Integrations)', es: 'Nombre tipeado más firma dibujada, email, IP, navegador, hora y hash del contenido, con certificado de auditoría descargable; el pago con Stripe Checkout marca la cotización pagada y el deal ganado (conectar Stripe en Integraciones)', pt: 'Nome digitado mais assinatura desenhada, email, IP, navegador, horário e hash do conteúdo, com certificado de auditoria para baixar; o pagamento com Stripe Checkout marca a cotação paga e o negócio ganho (conectar o Stripe em Integrações)' },
+      status: 'have',
       competitorHas: true,
     },
     {
@@ -310,7 +311,8 @@ const parity: ProductParity = {
       id: 'video-document-tracking',
       area: 'sales',
       label: { en: '1:1 video and document tracking', es: 'Video 1:1 y seguimiento de documentos', pt: 'Vídeo 1:1 e rastreamento de documentos' },
-      status: 'missing',
+      detail: { en: 'PDF library with a tracking link per contact (views, time per page, owner notified) and 1:1 videos recorded from camera or screen in the browser, with their own page and plays on the timeline', es: 'Biblioteca de PDFs con link de seguimiento por contacto (vistas, tiempo por página, aviso al dueño) y videos 1:1 grabados con cámara o pantalla en el navegador, con página propia y reproducciones en el timeline', pt: 'Biblioteca de PDFs com link de rastreamento por contato (visualizações, tempo por página, aviso ao responsável) e vídeos 1:1 gravados com câmera ou tela no navegador, com página própria e reproduções na timeline' },
+      status: 'have',
       competitorHas: true,
     },
     {
@@ -359,8 +361,8 @@ const parity: ProductParity = {
       id: 'forms',
       area: 'automation',
       label: { en: 'Embeddable forms with routing', es: 'Formularios embebibles con ruteo', pt: 'Formulários incorporáveis com roteamento' },
-      detail: { en: 'Builder, embed script and submissions; no multi-step forms, conditional fields or CAPTCHA', es: 'Constructor, script para embeber y envíos; sin pasos múltiples, campos condicionales ni CAPTCHA', pt: 'Construtor, script de incorporação e envios; sem várias etapas, campos condicionais ou CAPTCHA' },
-      status: 'partial',
+      detail: { en: 'Multi-step forms, conditional fields, hidden UTM fields, owner by answer or round-robin, deal creation, notifications, redirect, embed script or iframe, honeypot and Cloudflare Turnstile CAPTCHA (needs TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY)', es: 'Formularios en pasos, campos condicionales, campos ocultos con UTM, dueño por respuesta o round-robin, creación de deal, avisos, redirect, script o iframe para embeber, honeypot y CAPTCHA de Cloudflare Turnstile (necesita TURNSTILE_SITE_KEY y TURNSTILE_SECRET_KEY)', pt: 'Formulários em etapas, campos condicionais, campos ocultos com UTM, responsável pela resposta ou round-robin, criação de negócio, avisos, redirect, script ou iframe para incorporar, honeypot e CAPTCHA do Cloudflare Turnstile (precisa de TURNSTILE_SITE_KEY e TURNSTILE_SECRET_KEY)' },
+      status: 'have',
       competitorHas: true,
     },
     {
@@ -386,8 +388,8 @@ const parity: ProductParity = {
       id: 'outgoing-webhooks',
       area: 'integrations',
       label: { en: 'Outgoing webhooks', es: 'Webhooks salientes', pt: 'Webhooks de saída' },
-      detail: { en: 'Contact created/updated and deal created, updated, stage, won, lost; no company, task or activity events', es: 'Contacto creado/actualizado y deal creado, actualizado, etapa, ganado, perdido; sin eventos de empresa, tarea ni actividad', pt: 'Contato criado/atualizado e negócio criado, atualizado, etapa, ganho, perdido; sem eventos de empresa, tarefa ou atividade' },
-      status: 'partial',
+      detail: { en: 'Contact, company and deal created, updated, property changed (filter by property), stage, won, lost and deleted; tasks, signed and paid quotes and forms. HMAC signature, retries with backoff, delivery log with resend, pause and test', es: 'Contacto, empresa y deal creados, actualizados, cambio de propiedad (con filtro por propiedad), etapa, ganado, perdido y borrados; tareas, cotizaciones firmadas y pagadas y formularios. Firma HMAC, reintentos con backoff, log de entregas con reenvío, pausa y prueba', pt: 'Contato, empresa e negócio criados, atualizados, propriedade alterada (com filtro por propriedade), etapa, ganho, perdido e excluídos; tarefas, cotações assinadas e pagas e formulários. Assinatura HMAC, novas tentativas com backoff, log de entregas com reenvio, pausa e teste' },
+      status: 'have',
       competitorHas: true,
     },
     {
@@ -402,7 +404,8 @@ const parity: ProductParity = {
       id: 'app-marketplace',
       area: 'integrations',
       label: { en: 'App marketplace (Slack, Zoom, Stripe...)', es: 'Marketplace de apps (Slack, Zoom, Stripe...)', pt: 'Marketplace de apps (Slack, Zoom, Stripe...)' },
-      status: 'missing',
+      detail: { en: 'Slack, Zoom, Stripe, Zapier and Make built in, plus webhooks and the REST API; no directory of third-party apps', es: 'Slack, Zoom, Stripe, Zapier y Make integrados, más webhooks y la API REST; sin directorio de apps de terceros', pt: 'Slack, Zoom, Stripe, Zapier e Make integrados, além de webhooks e a API REST; sem diretório de apps de terceiros' },
+      status: 'partial',
       competitorHas: true,
     },
 

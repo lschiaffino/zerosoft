@@ -15,7 +15,9 @@
     "products": "Products",
     "quotes": "Quotes",
     "forms": "Forms",
-    "trash": "Recycle bin"
+    "trash": "Recycle bin",
+    "documents": "Documents",
+    "videos": "Videos"
   },
   "switcher": {
     "product": "Product",
@@ -1462,7 +1464,9 @@
       "sent": "Sent",
       "accepted": "Accepted by {name}",
       "declined": "Declined",
-      "expired": "Expired"
+      "expired": "Expired",
+      "viewed": "Opened by the customer",
+      "paid": "Paid with Stripe"
     },
     "linkCopied": "Link copied",
     "saveQuote": "Save quote",
@@ -1476,7 +1480,13 @@
     "seeAll": "See all",
     "pagination": "Pages",
     "prevPage": "Previous",
-    "nextPage": "Next"
+    "nextPage": "Next",
+    "certificate": "Signature certificate",
+    "collectPayment": "Collect payment with Stripe after signing",
+    "collectPaymentHint": "The customer sees a Pay button once they sign. Paying marks the quote paid and the deal won.",
+    "collectPaymentNoStripe": "Connect Stripe to collect payment on quotes.",
+    "connectStripe": "Connect Stripe",
+    "paidNote": "Paid with Stripe."
   },
   "quotePublic": {
     "quote": "Quote",
@@ -1503,10 +1513,26 @@
     "errors": {
       "expired": "This quote has expired.",
       "not_open": "This quote was already answered.",
-      "invalid_signature": "Type your full name and check the box to accept.",
+      "invalid_signature": "Type your full name, sign and check the box to accept.",
       "not_found": "This quote doesn't exist anymore.",
-      "rate_limited": "Too many attempts. Wait a few minutes and try again."
-    }
+      "rate_limited": "Too many attempts. Wait a few minutes and try again.",
+      "payment_unavailable": "Online payment is not available for this quote.",
+      "already_paid": "This quote is already paid."
+    },
+    "email": "Email",
+    "signature": "Signature",
+    "drawHint": "Sign with your mouse, finger or pen.",
+    "clear": "Clear",
+    "typeInstead": "Type my signature instead",
+    "drawInstead": "Draw my signature instead",
+    "typedEmpty": "Type your name above",
+    "sign": "Sign and accept",
+    "legalSign": "Signing records your name, email, signature, IP address, browser and the time, plus a fingerprint of this quote. You can download the certificate after signing.",
+    "signatureOf": "Signature of {name}",
+    "paid": "Paid on {date}.",
+    "pay": "Pay {amount}",
+    "payHint": "Secure payment with Stripe. You come back here when it is done.",
+    "certificate": "Download certificate"
   },
   "tags": {
     "column": "Tags",
@@ -1594,7 +1620,8 @@
       "invalid_list": "Pick a static list.",
       "invalid_sequence": "That sequence no longer exists.",
       "invalid_url": "The redirect URL must start with http:// or https://.",
-      "invalid_input": "Some settings are not valid."
+      "invalid_input": "Some settings are not valid.",
+      "invalid_stage": "Pick a pipeline and a stage for the deal."
     },
     "builder": {
       "fields": "Fields",
@@ -1667,7 +1694,33 @@
       "crmAdvancedHint": "Duplicates, spam",
       "unsaved": "Unsaved changes",
       "confirmDelete": "Delete form and submissions",
-      "saveForm": "Save form"
+      "saveForm": "Save form",
+      "showIf": "Show only if",
+      "showIfField": "Field",
+      "showIfOp": "Condition",
+      "showIfValue": "Value",
+      "always": "Always show",
+      "ops": {
+        "equals": "is",
+        "not_equals": "is not",
+        "filled": "has any value",
+        "empty": "is empty"
+      },
+      "ownerRules": "Owner by answer",
+      "ownerRulesHint": "The first rule that matches assigns the new contact. Without a match, the fixed owner or round-robin applies.",
+      "ruleField": "Field",
+      "ruleValue": "Answer",
+      "removeRule": "Delete rule",
+      "addRule": "Add rule",
+      "dealTitle": "Deal",
+      "createDeal": "Create a deal with each submission",
+      "dealPipeline": "Pipeline",
+      "dealStage": "Stage",
+      "dealName": "Deal name",
+      "dealNameHint": "'{name}', '{email}', '{company}' and '{form}' are replaced.",
+      "captcha": "Ask for a CAPTCHA (Cloudflare Turnstile)",
+      "captchaHint": "Bots that pass the honeypot still have to solve it.",
+      "captchaMissing": "Set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY on the server to turn it on."
     },
     "types": {
       "text": "Text",
@@ -1676,7 +1729,8 @@
       "select": "Dropdown",
       "checkbox": "Checkbox",
       "textarea": "Long text",
-      "hidden": "Hidden"
+      "hidden": "Hidden",
+      "step": "New step"
     },
     "props": {
       "email": "Email",
@@ -1732,7 +1786,12 @@
       "invalid_email": "Enter a valid email.",
       "invalid_option": "Pick one of the options.",
       "invalid_phone": "Enter a valid phone number."
-    }
+    },
+    "stepOf": "Step {current} of {total}",
+    "next": "Next",
+    "back": "Back",
+    "captchaTest": "I am not a robot",
+    "captchaFailed": "The security check did not pass. Try again."
   },
   "scoring": {
     "title": "Lead scoring",
@@ -2208,5 +2267,225 @@
       "not_found": "That import no longer exists.",
       "forbidden": "Only workspace admins can import."
     }
+  },
+  "apps": {
+    "title": "Apps",
+    "desc": "Connect Slack, Zoom, Stripe, Zapier and Make. Each app keeps its credentials encrypted and you can disconnect it at any time.",
+    "connect": "Connect",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saved": "Saved.",
+    "disconnect": "Disconnect",
+    "disconnectTitle": "Disconnect {app}?",
+    "disconnectBody": "We delete its credentials and stop sending it events. You can connect it again later.",
+    "connectedNotice": "Connected.",
+    "disconnectedNotice": "Disconnected.",
+    "connectedOn": "Connected {date}",
+    "lastUsed": "last used {date}",
+    "lastError": "Last error: {error}",
+    "activity": "Recent activity",
+    "ok": "OK",
+    "failed": "Failed",
+    "adminOnly": "Only owners and admins connect or disconnect apps.",
+    "status": {
+      "connected": "Connected",
+      "error": "Needs attention",
+      "off": "Not connected"
+    },
+    "events": {
+      "contact_created": "Contact created",
+      "contact_updated": "Contact updated",
+      "company_created": "Company created",
+      "deal_created": "Deal created",
+      "deal_stage_changed": "Deal changed stage",
+      "deal_won": "Deal won",
+      "deal_lost": "Deal lost",
+      "task_created": "Task created",
+      "form_submitted": "Form submitted",
+      "quote_accepted": "Quote signed",
+      "quote_paid": "Quote paid"
+    },
+    "slack": {
+      "name": "Slack",
+      "desc": "Post CRM updates to a channel: won deals, form submissions, signed and paid quotes.",
+      "url": "Incoming webhook URL",
+      "urlHelp": "In Slack, add the Incoming Webhooks app to a channel and paste the URL it gives you.",
+      "events": "Post these events",
+      "test": "Send test message",
+      "testSent": "Test message sent."
+    },
+    "zoom": {
+      "name": "Zoom",
+      "desc": "Create a Zoom link from any meeting on a contact, company or deal timeline.",
+      "help": "In the Zoom App Marketplace, create a Server-to-Server OAuth app with the meeting:write scope and paste its credentials.",
+      "accountId": "Account ID",
+      "clientId": "Client ID",
+      "clientSecret": "Client secret",
+      "connectedHelp": "Meetings on the timeline now show a Zoom link button.",
+      "createLink": "Zoom link",
+      "error": "The Zoom meeting could not be created. Check the app in Integrations."
+    },
+    "stripe": {
+      "name": "Stripe",
+      "desc": "Bring customers in as contacts, log payments on the timeline and collect quote payments with Checkout.",
+      "help": "Use a secret or restricted key from Stripe › Developers › API keys. The signing secret comes from the webhook endpoint you create next.",
+      "secretKey": "Secret key",
+      "webhookSecret": "Webhook signing secret",
+      "connectedHelp": "Payments with metadata.deal_id mark that deal as won. Quotes can collect payment after they are signed.",
+      "endpoint": "Webhook endpoint",
+      "endpointHelp": "Add this URL in Stripe › Developers › Webhooks with customer.created, charge.succeeded, invoice.paid and checkout.session.completed, then save its signing secret here.",
+      "sync": "Import customers",
+      "synced": "{created} new contacts, {existing} already in the CRM."
+    },
+    "zapier": {
+      "name": "Zapier",
+      "desc": "Start Zaps from CRM events with a Catch Hook, and call the REST API from Zapier actions.",
+      "help": "In Zapier, add a Webhooks by Zapier trigger with Catch Hook and paste its URL.",
+      "url": "Catch hook URL"
+    },
+    "make": {
+      "name": "Make",
+      "desc": "Start Make scenarios from CRM events with a custom webhook.",
+      "help": "In Make, add a Webhooks › Custom webhook module and paste its address.",
+      "url": "Webhook address"
+    },
+    "automation": {
+      "defaultEvents": "Sends: {events}. You can change the events in Workspace › Webhooks.",
+      "connectedHelp": "{count, plural, one {Receives # event, signed like every webhook.} other {Receives # events, signed like every webhook.}}",
+      "editEvents": "Edit events"
+    },
+    "webhooks": {
+      "name": "Webhooks and API",
+      "desc": "Any other tool: signed webhooks with retries and a delivery log, plus the REST API with keys.",
+      "open": "Open webhooks",
+      "api": "API docs"
+    },
+    "errors": {
+      "generic": "That did not work. Try again.",
+      "forbidden": "Only owners and admins can do this.",
+      "invalid_input": "Fill in every field.",
+      "invalid_slack_url": "Paste an incoming webhook URL that starts with https://hooks.slack.com/services/.",
+      "slack_unreachable": "Slack did not accept the test message. Check the URL.",
+      "zoom_auth_failed": "Zoom rejected those credentials.",
+      "zoom_not_connected": "Connect Zoom first.",
+      "zoom_error": "Zoom did not create the meeting.",
+      "not_a_meeting": "Zoom links go on meetings.",
+      "stripe_invalid_key": "That Stripe key is not valid.",
+      "stripe_invalid_webhook_secret": "The signing secret starts with whsec_.",
+      "stripe_error": "Stripe returned an error. Try again.",
+      "stripe_not_connected": "Connect Stripe first.",
+      "invalid_zapier_url": "Paste a Zapier catch hook URL (https://hooks.zapier.com/hooks/…).",
+      "invalid_make_url": "Paste a Make webhook address (https://hook.….make.com/…).",
+      "https_required": "The URL must use https.",
+      "private_host": "That host points to a private network.",
+      "unresolvable_host": "That host does not resolve."
+    }
+  },
+  "media": {
+    "docsTitle": "Documents",
+    "docsSubtitle": "Share PDFs with a tracking link per contact and see who opened them, for how long and which pages.",
+    "videosTitle": "Videos",
+    "videosSubtitle": "Record your camera or screen, send the link and see when it gets watched.",
+    "uploadPdf": "Upload PDF",
+    "uploadVideo": "Upload video",
+    "recordVideo": "Record video",
+    "uploading": "Uploading…",
+    "docsEmptyTitle": "No documents yet",
+    "docsEmptyBody": "Upload a proposal, a deck or a case study. Each contact gets their own link, and every open lands on their timeline.",
+    "videosEmptyTitle": "No videos yet",
+    "videosEmptyBody": "Record a short video for a contact. They watch it on its own page and you see it on their timeline.",
+    "searchDocs": "Search documents",
+    "searchVideos": "Search videos",
+    "noMatches": "Nothing matches that search.",
+    "colName": "Name",
+    "colLinks": "Links",
+    "colViews": "Views",
+    "colLastView": "Last viewed",
+    "colActions": "Actions",
+    "never": "Never",
+    "rename": "Rename",
+    "save": "Save",
+    "saved": "Saved.",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "openFile": "Open PDF",
+    "openPage": "Open page",
+    "deleteDocTitle": "Delete \"{name}\"?",
+    "deleteDocBody": "Its tracking links stop working and the file is deleted.",
+    "deleteVideoTitle": "Delete \"{name}\"?",
+    "deleteVideoBody": "The page stops working and the file is deleted. Activity already logged on the contact stays.",
+    "shareTitle": "Share",
+    "shareHelp": "Create a link for each contact. Opens and reading time show up on that contact and you get a notification.",
+    "contact": "Contact",
+    "forContact": "For contact",
+    "createLinkFor": "Create link for {name}",
+    "createLinkAnon": "Create link without contact",
+    "linksTitle": "Tracking links",
+    "linksEmptyTitle": "No links yet",
+    "linksEmptyBody": "Pick a contact above and create their link.",
+    "anyone": "Anyone with the link",
+    "viewsCount": "{count, plural, one {# view} other {# views}}",
+    "timeViewed": "{time} viewing",
+    "lastViewed": "last {date}",
+    "topPages": "Most read:",
+    "pageTime": "p.{page} {time}",
+    "deleteLink": "Delete link",
+    "deleteLinkTitle": "Delete this link?",
+    "deleteLinkBody": "The link stops opening and its views are deleted.",
+    "searchContact": "Search by name or email",
+    "searching": "Searching…",
+    "noContacts": "No contacts found.",
+    "changeContact": "Change",
+    "recordTitle": "Record a video",
+    "recordSource": "What to record",
+    "source": {
+      "camera": "Camera and microphone",
+      "screen": "Screen and microphone"
+    },
+    "start": {
+      "camera": "Turn on camera",
+      "screen": "Choose screen"
+    },
+    "recordHelp": "Your browser asks for permission. Nothing is uploaded until you save.",
+    "livePreview": "Camera preview",
+    "reviewPreview": "Recorded video",
+    "startRecording": "Start recording",
+    "stopRecording": "Stop",
+    "recordingFor": "Recording {time}",
+    "reRecord": "Record again",
+    "saveVideo": "Save video",
+    "videoTitle": "Title",
+    "untitledVideo": "Video",
+    "message": "Message",
+    "shareVideoHelp": "Send this link by email or chat. Each play shows up on the contact with how much was watched.",
+    "playsTitle": "Plays",
+    "playsEmptyTitle": "No plays yet",
+    "playsEmptyBody": "When someone opens the page and presses play, it shows up here.",
+    "watched": "watched {time}",
+    "watchedPct": "{pct}% of the video",
+    "errors": {
+      "generic": "That did not work. Try again.",
+      "pdf_only": "Upload a PDF file.",
+      "video_only": "Upload a WebM, MP4 or MOV video.",
+      "file_too_large": "The file is too large.",
+      "invalid_file": "The file could not be saved.",
+      "invalid_contact": "That contact no longer exists.",
+      "storage_unavailable": "File storage is not configured on this server.",
+      "file_type_not_allowed": "That file type is not allowed.",
+      "recorder_unsupported": "This browser cannot record video. Try Chrome, Edge or Firefox.",
+      "recorder_denied": "The browser did not allow the camera or screen. Check the permissions and try again.",
+      "forbidden": "Only admins or whoever uploaded it can change this."
+    }
+  },
+  "mediaPublic": {
+    "notFound": "Link not available",
+    "loading": "Loading document…",
+    "error": "The document could not be opened.",
+    "download": "Download",
+    "pageOf": "Page {page} of {total}",
+    "pageLabel": "Page {page} of {total}",
+    "greeting": "A video for {name}",
+    "greetingAnon": "A video for you",
+    "from": "From {name}"
   }
 }

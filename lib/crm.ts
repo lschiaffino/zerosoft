@@ -8,6 +8,7 @@ import { deleteUploads } from './uploads';
 import { dayRangeUtc, getUserTimeZone } from './user-tz';
 import type { WebhookEvent } from './webhooks';
 import { emitEvent } from './events';
+import { emitCrmHookSoon, recordPayload } from './crm-hooks';
 import {
   associateDealCompany,
   autoAssociateContactCompanies,
@@ -326,7 +327,7 @@ async function fireEvent(
 export const fireCrmEvent = fireEvent;
 
 /** Eventos del CRM que también salen como webhooks (lib/webhooks.ts). */
-const CRM_WEBHOOK_EVENTS: Partial<Record<import('./crm-workflows').TriggerType, Exclude<WebhookEvent, `chat.${string}`>>> = {
+const CRM_WEBHOOK_EVENTS: Partial<Record<import('./crm-workflows').TriggerType, Extract<WebhookEvent, import('./flow-schema').FlowEventType>>> = {
   contact_created: 'contact.created',
   contact_updated: 'contact.updated',
   deal_created: 'deal.created',
@@ -397,6 +398,8 @@ async function logPropertyEvents(
        (id, user_id, entity, entity_id, field, old_value, new_value, actor_email)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   );
+  // Cada propiedad que cambia sale como <entity>.property_changed (webhooks y apps).
+  const changed: Array<{ property: string; oldValue: string | null; newValue: string | null }> = [];
   for (const [col, value] of sets) {
     if (col === 'custom') {
       const oldCustom = parseCustom(normValue(before[col]));
@@ -416,6 +419,7 @@ async function logPropertyEvents(
             newV,
             actorEmail,
           );
+          changed.push({ property: `custom.${k}`, oldValue: oldV, newValue: newV });
         }
       }
       continue;
@@ -424,7 +428,16 @@ async function logPropertyEvents(
     const newV = normValue(value);
     if (oldV !== newV) {
       await ins.run(crypto.randomUUID(), userId, entity, entityId, col, oldV, newV, actorEmail);
+      changed.push({ property: col, oldValue: oldV, newValue: newV });
     }
+  }
+  for (const c of changed) {
+    await emitCrmHookSoon(userId, `${entity}.property_changed`, {
+      objectType: entity,
+      id: entityId,
+      ...c,
+      changedBy: actorEmail || null,
+    });
   }
 }
 
@@ -1275,7 +1288,9 @@ export async function createCompany(
       JSON.stringify(data.custom ?? {}),
     );
   if (data.parentCompanyId) await setParentCompany(userId, id, data.parentCompanyId, db);
-  return (await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id)) as CrmCompanyRow;
+  const company = (await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id)) as CrmCompanyRow;
+  await emitCrmHookSoon(userId, 'company.created', recordPayload(company as unknown as Record<string, unknown>));
+  return company;
 }
 
 export async function updateCompany(
@@ -1301,7 +1316,11 @@ export async function updateCompany(
     .prepare(`UPDATE crm_companies SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`)
     .run(...sets.map(([, v]) => v), now(), id);
   await logPropertyEvents(userId, 'company', id, existing as unknown as Record<string, unknown>, sets, actorEmail, db);
-  return (await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id)) as CrmCompanyRow;
+  const company = (await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id)) as CrmCompanyRow;
+  if (sets.length) {
+    await emitCrmHookSoon(userId, 'company.updated', recordPayload(company as unknown as Record<string, unknown>));
+  }
+  return company;
 }
 
 /** Borra una empresa: va a la papelera (lib/crm-trash.ts) con sus actividades propias. */

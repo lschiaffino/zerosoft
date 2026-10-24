@@ -410,3 +410,25 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
 @media (prefers-reduced-motion: reduce) {
   .st-link::after, .st-kb-col, .st-kb-card, .st-fb-toggle::after { transition: none; }
 }
+
+/* ---------- Webhooks: pausado y log de entregas ---------- */
+.st-paused { margin-left: 8px; vertical-align: middle; }
+.st-deliveries .st-url { max-width: 100%; white-space: normal; overflow-wrap: anywhere; margin-bottom: 12px; }
+.st-delivery-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.st-delivery-item { border-bottom: 1px solid var(--line); }
+.st-delivery-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 0; }
+.st-delivery-row .btn-secondary { margin-left: auto; }
+.st-delivery-toggle { padding-left: 0; }
+.st-delivery-detail { padding: 0 0 12px; display: grid; gap: 6px; }
+.st-pre {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+  background: var(--brand-enamel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
