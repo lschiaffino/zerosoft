@@ -218,7 +218,7 @@ test('nuevo lead: al filtrar el contacto, ↓ va al primer resultado y "No conta
   const combo = dialog.getByRole('combobox', { name: 'Contact' });
   await combo.click();
   await combo.pressSequentially(`Combo ${tag}`);
-  const options = dialog.getByRole('option');
+  const options = dialog.getByRole('listbox', { name: 'Contact' }).getByRole('option');
   await expect(options.first()).toHaveText(`Combo ${tag}`);
   await expect(options.last()).toHaveText('No contact');
   await combo.press('ArrowDown');
