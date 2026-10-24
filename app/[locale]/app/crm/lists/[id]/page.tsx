@@ -4,7 +4,10 @@ import { Link } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import { requireUser } from '@/lib/session';
-import { getList, LIFECYCLE_STAGES } from '@/lib/crm';
+import { getList, LIFECYCLE_STAGES, parseListFilter } from '@/lib/crm';
+import { sessionScope } from '@/lib/crm-visibility';
+import DynamicListFilter from '@/components/crm/DynamicListFilter';
+import { listFieldsFor } from '@/components/crm/listFieldsData';
 import { formatDate } from '@/lib/utils';
 import ListMembers, { type MemberRow } from '@/components/crm/ListMembers';
 
@@ -25,7 +28,7 @@ export default async function ListDetailPage(props: ListDetailPageProps) {
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const detail = await getList(user.id, id);
+  const detail = await getList(user.id, id, await sessionScope(user));
   if (!detail) notFound();
   const { list, members, memberCount } = detail;
 
@@ -67,6 +70,10 @@ export default async function ListDetailPage(props: ListDetailPageProps) {
           </span>
         }
       />
+
+      {list.kind === 'dynamic' && (
+        <DynamicListFilter listId={list.id} name={list.name} filter={parseListFilter(list.filter)} fields={await listFieldsFor(user, locale, list.id)} />
+      )}
 
       {list.kind === 'static' ? (
         <ListMembers listId={list.id} members={memberRows} />

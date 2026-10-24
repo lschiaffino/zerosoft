@@ -1,13 +1,13 @@
 import { dealScoresFor } from '@/lib/crm-ai';
 import ScoreDealsButton from '@/components/crm/ScoreDealsButton';
 import { getTranslations } from 'next-intl/server';
+import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import {
   ACTIVITY_DATE_SORTS,
-  listCustomFields,
   listDeals,
   listDealsForBoard,
   listPipelinesWithStages,
@@ -147,7 +147,8 @@ export default async function DealsPage(props: DealsPageProps) {
     : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 
-  const customFieldDefs = await listCustomFields(user.id, 'deals');
+  // Permisos por campo: sin los ocultos; los de solo lectura no se editan en masa.
+  const customFieldDefs = (await fieldAccessFor(sessionFieldViewer(user), 'deals')).visible;
   const [allTags, currencyCtx] = await Promise.all([listTags(user.id), getCurrencyContext(user.id)]);
   const tagOptions = allTags.map((x) => ({ id: x.id, name: x.name }));
   const customFields = customFieldDefs
@@ -228,8 +229,12 @@ export default async function DealsPage(props: DealsPageProps) {
       createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined,
       tag: tag || undefined,
-      custom: Object.keys(custom).length ? custom : undefined,
-      filters: advancedRules.length ? advancedRules : undefined,
+      custom: Object.keys(custom).length
+      ? Object.fromEntries(Object.entries(custom).filter(([k]) => customFieldDefs.some((d) => d.name === k)))
+      : undefined,
+      filters: advancedRules.length
+      ? advancedRules.filter((r) => !r.f.startsWith('custom:') || customFieldDefs.some((d) => `custom:${d.name}` === r.f))
+      : undefined,
       customTypes,
       sort,
       page,
@@ -308,7 +313,7 @@ export default async function DealsPage(props: DealsPageProps) {
         type: 'select',
         options: COMMON_CURRENCIES.map((c) => ({ value: c, label: c })),
       },
-      ...customBulkFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }, owners),
+      ...customBulkFields(customFieldDefs.filter((d) => d.access === 'edit'), { yes: t('common.yes'), no: t('common.no') }, owners),
     ];
 
     const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);

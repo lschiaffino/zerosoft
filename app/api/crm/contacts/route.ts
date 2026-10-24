@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
 import { createContact, listContacts } from '@/lib/crm';
@@ -28,7 +29,8 @@ export async function GET(req: NextRequest) {
     pageSize,
   });
 
-  return NextResponse.json({ rows, total, page, pageSize });
+  const hiddenFields = await hiddenFieldsFor(sessionFieldViewer(user), 'contacts');
+  return NextResponse.json({ rows: rows.map((r) => redactRow(r, hiddenFields)), total, page, pageSize });
 }
 
 export async function POST(req: NextRequest) {
@@ -39,7 +41,9 @@ export async function POST(req: NextRequest) {
   const parsed = contactCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const contact = await catchRef(createContact(user.id, { ...parsed.data, ownerId: parsed.data.ownerId ?? realUserId(user) }));
+  const fp = await guardRecordCustomWrite(sessionFieldViewer(user), 'contact', null, parsed.data.custom);
+  if (!fp.ok) return crmError(403, 'field_readonly');
+  const contact = await catchRef(createContact(user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? realUserId(user) }));
   if (contact instanceof CrmRefError) return crmError(400, contact.code);
   return NextResponse.json(contact, { status: 201 });
 }

@@ -9,9 +9,14 @@ import { RemoveIcon } from './RowTools';
 
 interface CustomFieldsPanelProps {
   initialFields: CrmCustomFieldRow[];
+  /**
+   * Entidades que se pueden elegir (valor + label). Sin la prop: contactos,
+   * empresas, deals y leads. Los objetos propios usan `obj:<id>`.
+   */
+  entities?: Array<{ value: string; label: string }>;
 }
 
-const ENTITIES = ['contacts', 'companies', 'deals'] as const;
+const FIXED_ENTITIES = ['contacts', 'companies', 'deals', 'leads'] as const;
 const TYPES = CRM_CUSTOM_FIELD_TYPES;
 /** Tipos con lista de opciones (separadas por coma). */
 const WITH_OPTIONS = new Set<string>(['select', 'multiselect']);
@@ -40,11 +45,12 @@ function parseOptions(json: string): string[] {
 }
 
 /** Alta, edición inline y borrado de custom fields por entidad. */
-export default function CustomFieldsPanel({ initialFields }: CustomFieldsPanelProps) {
+export default function CustomFieldsPanel({ initialFields, entities }: CustomFieldsPanelProps) {
   const t = useTranslations('crm');
   const router = useRouter();
+  const ENTITIES = entities ?? FIXED_ENTITIES.map((value) => ({ value, label: t(`settings.entities.${value}`) }));
   const [fields, setFields] = useState<CrmCustomFieldRow[]>(initialFields);
-  const [entity, setEntity] = useState<(typeof ENTITIES)[number]>('contacts');
+  const [entity, setEntity] = useState<string>(ENTITIES[0]?.value ?? 'contacts');
   const [label, setLabel] = useState('');
   const [name, setName] = useState('');
   const [nameTouched, setNameTouched] = useState(false);
@@ -154,18 +160,20 @@ export default function CustomFieldsPanel({ initialFields }: CustomFieldsPanelPr
   return (
     <div className="cf-panel">
       <form className="cf-create" onSubmit={onCreate}>
-        <select
-          className="filter-select"
-          value={entity}
-          onChange={(e) => setEntity(e.target.value as (typeof ENTITIES)[number])}
-          aria-label={t('settings.fieldEntity')}
-        >
-          {ENTITIES.map((en) => (
-            <option key={en} value={en}>
-              {t(`settings.entities.${en}`)}
-            </option>
-          ))}
-        </select>
+        {ENTITIES.length > 1 && (
+          <select
+            className="filter-select"
+            value={entity}
+            onChange={(e) => setEntity(e.target.value)}
+            aria-label={t('settings.fieldEntity')}
+          >
+            {ENTITIES.map((en) => (
+              <option key={en.value} value={en.value}>
+                {en.label}
+              </option>
+            ))}
+          </select>
+        )}
         <input
           className="input"
           type="text"
@@ -233,15 +241,15 @@ export default function CustomFieldsPanel({ initialFields }: CustomFieldsPanelPr
         {error && <p className="form-error">{error}</p>}
       </div>
 
-      {fields.length === 0 ? (
+      {fields.filter((f) => ENTITIES.some((en) => en.value === f.entity)).length === 0 ? (
         <p className="muted">{t('settings.noFields')}</p>
       ) : (
         ENTITIES.map((en) => {
-          const rows = fields.filter((f) => f.entity === en);
+          const rows = fields.filter((f) => f.entity === en.value);
           if (rows.length === 0) return null;
           return (
-            <div className="cf-group" key={en}>
-              <p className="label cf-group-title">{t(`settings.entities.${en}`)}</p>
+            <div className="cf-group" key={en.value}>
+              {ENTITIES.length > 1 && <p className="label cf-group-title">{en.label}</p>}
               {rows.map((f) => (
                 <div className="cf-row" key={f.id}>
                   <input

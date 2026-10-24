@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { apiFieldViewer, guardRecordCustomWrite, hiddenFieldsFor, redactRow } from '@/lib/crm-field-perms';
+import { shouldEnrichOnCreate, enrichCompany } from '@/lib/crm-enrich';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createCompany, listCompanies } from '@/lib/crm';
 import { companyCreateSchema } from '@/lib/crm-schema';
@@ -21,7 +23,8 @@ export async function GET(req: NextRequest) {
     pageSize,
   });
 
-  return NextResponse.json({ companies: rows.map(cleanRow), total, page, pageSize });
+  const hiddenFields = await hiddenFieldsFor(apiFieldViewer(auth), 'companies');
+  return NextResponse.json({ companies: rows.map((r) => cleanRow(redactRow(r, hiddenFields))), total, page, pageSize });
 }
 
 export async function POST(req: NextRequest) {
@@ -34,7 +37,14 @@ export async function POST(req: NextRequest) {
     return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
   }
 
-  const company = await catchRef(createCompany(auth.user.id, { ...parsed.data, ownerId: parsed.data.ownerId ?? auth.personId }));
+  const fp = await guardRecordCustomWrite(apiFieldViewer(auth), 'company', null, parsed.data.custom);
+  if (!fp.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
+  const company = await catchRef(createCompany(auth.user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? auth.personId }));
   if (company instanceof CrmRefError) return apiError(400, company.code, 'A referenced record does not exist.');
+  // Datos del sitio en segundo plano (lo que el formulario no precargó).
+  if (shouldEnrichOnCreate(company)) {
+    const companyId = company.id;
+    after(() => enrichCompany(auth.user.id, companyId, { actorEmail: auth.user.email }).then(() => undefined).catch(() => undefined));
+  }
   return NextResponse.json(cleanRow(company), { status: 201 });
 }

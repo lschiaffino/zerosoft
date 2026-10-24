@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getTranslations } from 'next-intl/server';
 import PageHeader from '@/components/ui/PageHeader';
 import { requireUser } from '@/lib/session';
@@ -8,7 +9,6 @@ import {
   LIFECYCLE_STAGES,
   SOURCES,
   listCompanies,
-  listCustomFields,
 } from '@/lib/crm';
 import ContactForm, { type CustomFieldDef } from '@/components/crm/ContactForm';
 import { listMembers } from '@/lib/teams';
@@ -53,7 +53,7 @@ export default async function NewContactPage(
     ? await listMembers(user.team.id)
     : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
   const people = members.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
-  const customFields: CustomFieldDef[] = (await listCustomFields(user.id, 'contacts')).map((f) => ({
+  const customFields: CustomFieldDef[] = (await fieldAccessFor(sessionFieldViewer(user), 'contacts')).visible.filter((f) => f.access === 'edit').map((f) => ({
     name: f.name,
     label: f.label,
     type: f.type,

@@ -33,6 +33,11 @@ import AssignmentPanel from '@/components/crm/AssignmentPanel';
 import ScoringRulesPanel from '@/components/crm/ScoringRulesPanel';
 import QuotasPanel from '@/components/crm/QuotasPanel';
 import LegacySettingsAnchor from '@/components/crm/LegacySettingsAnchor';
+import LeadStagesEditor from '@/components/crm/LeadStagesEditor';
+import FieldPermissionsPanel from '@/components/crm/FieldPermissionsPanel';
+import { ensureLeadStages } from '@/lib/crm-leads';
+import { listObjects, objectEntity } from '@/lib/crm-objects';
+import { listFieldPermissions } from '@/lib/crm-field-perms';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,16 +111,29 @@ export default async function CrmSettingsPage(props: {
   } else if (tab === 'sales') {
     const people = await workspacePeople(user);
     const scope = await sessionScope(user);
-    const [pipelines, crmSettings, rates, missing, quotas, dealFields] = await Promise.all([
+    const [pipelines, crmSettings, rates, missing, quotas, dealFields, leadStages] = await Promise.all([
       listPipelinesWithStages(user.id),
       getCrmSettings(user.id),
       listExchangeRates(user.id),
       missingRates(user.id),
       quotaProgress(user.id, { ownerIds: scope, people: people.map((p) => ({ id: p.id, name: p.label })) }),
       listCustomFields(user.id, 'deals'),
+      ensureLeadStages(user.id, {
+        new: t('leads.defaultStages.new'),
+        attempting: t('leads.defaultStages.attempting'),
+        connected: t('leads.defaultStages.connected'),
+        qualified: t('leads.defaultStages.qualified'),
+        disqualified: t('leads.defaultStages.disqualified'),
+      }),
     ]);
     body = (
       <>
+        <FormSection title={t('leads.stagesTitle')} description={t('leads.stagesDesc')}>
+          <LeadStagesEditor
+            initial={leadStages.map((s) => ({ id: s.id, name: s.name, kind: s.kind, position: s.position }))}
+            canEdit={admin}
+          />
+        </FormSection>
         <FormSection title={t('settings.pipelines')} description={t('settings.pipelinesDesc')}>
           <PipelinesEditor
             initialPipelines={pipelines}
@@ -147,14 +165,30 @@ export default async function CrmSettingsPage(props: {
       </>
     );
   } else if (tab === 'data') {
-    const [customFields, tags] = await Promise.all([
+    const [customFields, tags, objects, permissions, salesTeams] = await Promise.all([
       listCustomFields(user.id),
       listTags(user.id, undefined, await sessionScope(user)),
+      listObjects(user.id),
+      admin ? listFieldPermissions(user.id) : Promise.resolve([]),
+      listSalesTeams(user.id),
     ]);
+    const entityLabel = (entity: string): string => {
+      const obj = objects.find((o) => objectEntity(o.id) === entity);
+      if (obj) return obj.plural;
+      return t.has(`settings.entities.${entity}`) ? t(`settings.entities.${entity}`) : entity;
+    };
     body = (
       <>
         <FormSection title={t('settings.customFields')} description={t('settings.customFieldsDesc')}>
-          <CustomFieldsPanel initialFields={customFields} />
+          <CustomFieldsPanel initialFields={customFields.filter((f) => !f.entity.startsWith('obj:'))} />
+        </FormSection>
+        <FormSection title={t('fieldPerms.title')} description={t('fieldPerms.desc')}>
+          <FieldPermissionsPanel
+            fields={customFields.map((f) => ({ id: f.id, name: f.name, label: f.label, entityLabel: entityLabel(f.entity) }))}
+            teams={salesTeams.map((x) => ({ id: x.id, name: x.name }))}
+            initialRules={permissions.map((r) => ({ field_id: r.field_id, subject: r.subject, access: r.access }))}
+            canEdit={admin}
+          />
         </FormSection>
         <FormSection title={t('settings.tags')} description={t('settings.tagsDesc')}>
           <TagsManager

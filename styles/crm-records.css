@@ -577,3 +577,118 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .phone-log-field .input { width: 90px; }
 .phone-log .form-actions { margin: 0; }
 .stage-req-input { display: contents; }
+
+/* ---------- Leads, objetos propios, permisos por campo y listas (072) ---------- */
+
+/* Barra de búsqueda y filtros rápidos de leads y registros. */
+.crm-list-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.crm-list-toolbar .filter-search { flex: 1 1 220px; min-width: 0; max-width: 320px; }
+.crm-list-toolbar .filter-select { max-width: 100%; }
+.leads-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-width: 0; }
+.leads-bar .crm-list-toolbar { flex: 1 1 420px; }
+@media (max-width: 720px) {
+  .crm-list-toolbar .filter-search { max-width: none; flex-basis: 100%; }
+  .crm-table .hide-sm { display: none; }
+}
+
+/* Etapas de lead: badge con el tipo de etapa (abierta, calificada, descalificada). */
+.badge.lead-kind-qualified { border-color: var(--ok); color: var(--ok); }
+.badge.lead-kind-disqualified { color: var(--dim); }
+.lead-col.kind-disqualified .kb-card { opacity: 0.75; }
+
+/* Camino de etapas del lead (arriba de las pestañas). */
+.lead-path-wrap { margin: -8px 0 4px; min-width: 0; }
+.lead-path {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lead-path-step {
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--dim);
+  cursor: pointer;
+}
+.lead-path-step:hover:not(:disabled) { border-color: var(--ink); color: var(--ink); }
+.lead-path-step:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.lead-path-step.current { border-color: var(--ink); background: var(--ink); color: var(--bg); cursor: default; }
+.lead-path-step:disabled:not(.current) { cursor: progress; }
+
+/* Ajustes: pipeline de leads. */
+.lead-stages { display: flex; flex-direction: column; gap: 10px; }
+.lead-stages-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.lead-stage-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 160px) auto; gap: 8px; align-items: center; }
+.lead-stage-tools { display: flex; gap: 2px; align-items: center; }
+.lead-stage-add { display: flex; gap: 8px; flex-wrap: wrap; }
+.lead-stage-add .input { flex: 1 1 200px; min-width: 0; }
+@media (max-width: 520px) {
+  .lead-stage-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .lead-stage-row .filter-select { grid-column: 1; }
+}
+
+/* Ajustes: permisos por campo. */
+.field-perms-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.field-perms-row { border-bottom: 1px solid var(--line); padding: 8px 0; }
+.field-perms-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.field-perms-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.field-perms-count { font-size: 0.8125rem; white-space: nowrap; }
+.field-perms-body { display: flex; flex-direction: column; gap: 6px; padding: 8px 0 4px; }
+.field-perms-subject { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 0.875rem; }
+@media (max-width: 520px) {
+  .field-perms-count { display: none; }
+}
+
+/* Propiedad de solo lectura (permisos por campo). */
+.prop-readonly { display: inline-block; color: var(--ink); }
+.prop-readonly.empty { color: var(--dim); }
+.prop-lock { display: inline-flex; align-items: center; color: var(--dim); padding: 0 4px; }
+
+/* Listas dinámicas: reglas con AND / OR. */
+.list-rules { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; min-width: 0; width: 100%; }
+.list-rules-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
+.list-rules-match { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; }
+.list-rules-rows { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; width: 100%; }
+.list-rule { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.list-rule-join { font-size: 11px; color: var(--dim); text-transform: uppercase; }
+.list-rule .filter-builder-row { flex-wrap: wrap; }
+.list-rule .filter-builder-row > .select,
+.list-rule .filter-builder-row > .input { width: auto; min-width: 0; }
+.list-rule .filter-builder-prop { flex: 0 1 240px; }
+.list-rule .filter-builder-op { flex: 0 1 150px; }
+.list-rule .filter-builder-value { flex: 1 1 160px; }
+@media (max-width: 520px) {
+  .list-rule .filter-builder-prop,
+  .list-rule .filter-builder-op { flex: 1 1 100%; }
+}
+.list-filter-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.list-filter-summary p { margin: 0; min-width: 0; line-height: 1.6; }
+.list-filter-rule { color: var(--ink); }
+
+/* Objetos propios: ajustes e import. */
+.obj-settings { display: flex; flex-direction: column; gap: 24px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.obj-import { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.obj-import-map td, .obj-import-map th { vertical-align: middle; }
+.obj-import-result details { margin-top: 6px; font-size: 0.8125rem; }
+.obj-create-fields { margin-top: 4px; }
+
+/* Empresa: datos del sitio. */
+.co-about { margin: 0 0 12px; font-size: 0.875rem; line-height: 1.5; color: var(--ink); }
+.co-socials { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px; white-space: normal; }
+.co-enrich-action { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.co-enrich-msg { font-size: 0.8125rem; }

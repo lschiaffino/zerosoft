@@ -16,6 +16,16 @@ interface CustomFieldLabels {
  * editables inline en PropertiesPanel (clave `custom.<name>`).
  */
 export function customPropFields(
+  defs: Array<CrmCustomFieldRow & { access?: 'edit' | 'read' | 'hidden' }>,
+  custom: Record<string, unknown>,
+  labels: CustomFieldLabels,
+): PropField[] {
+  // Permisos por campo: los ocultos no llegan; los de solo lectura no se editan.
+  const shown = defs.filter((d) => d.access !== 'hidden');
+  return customPropFieldsAll(shown, custom, labels).map((f, i) => (shown[i]?.access === 'read' ? { ...f, readOnly: true } : f));
+}
+
+function customPropFieldsAll(
   defs: CrmCustomFieldRow[],
   custom: Record<string, unknown>,
   labels: CustomFieldLabels,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { apiFieldViewer, guardRecordCustomWrite, hiddenFieldsFor, redactRow } from '@/lib/crm-field-perms';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createDeal, listDeals } from '@/lib/crm';
 import { dealCreateSchema } from '@/lib/crm-schema';
@@ -18,7 +19,8 @@ export async function GET(req: NextRequest) {
   if (!pipelineId) return NextResponse.json({ deals: [], total: 0, page, pageSize });
 
   const { rows, total } = await listDeals(auth.user.id, { pipelineId, page, pageSize, ownerScope: await apiScope(auth) });
-  return NextResponse.json({ deals: rows.map(cleanRow), total, page, pageSize });
+  const hiddenFields = await hiddenFieldsFor(apiFieldViewer(auth), 'deals');
+  return NextResponse.json({ deals: rows.map((r) => cleanRow(redactRow(r, hiddenFields))), total, page, pageSize });
 }
 
 export async function POST(req: NextRequest) {
@@ -31,7 +33,9 @@ export async function POST(req: NextRequest) {
     return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
   }
 
-  const result = await catchRef(createDeal(auth.user.id, { ...parsed.data, ownerId: parsed.data.ownerId ?? auth.personId }));
+  const fp = await guardRecordCustomWrite(apiFieldViewer(auth), 'deal', null, parsed.data.custom);
+  if (!fp.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
+  const result = await catchRef(createDeal(auth.user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? auth.personId }));
   if (result instanceof CrmRefError) return apiError(400, result.code, 'A referenced record does not exist.');
   if (!result.ok) {
     return result.reason === 'invalid_stage'

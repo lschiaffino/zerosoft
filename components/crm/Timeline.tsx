@@ -12,7 +12,8 @@ import MentionTextarea, { MentionText } from './MentionTextarea';
 import type { Mentionable } from '@/lib/crm-mentions';
 import CallSummaryBlock, { type CallSummaryState } from './CallSummaryBlock';
 
-export type TimelineRecordType = 'contact' | 'company' | 'deal';
+/** lead y objectRecord: leads y registros de objetos propios (sin emails). */
+export type TimelineRecordType = 'contact' | 'company' | 'deal' | 'lead' | 'objectRecord';
 
 export interface TimelineItem {
   id: string;
@@ -71,8 +72,10 @@ interface TimelineProps {
 /** Tipos donde el texto acepta @menciones (y avisan). */
 const MENTION_TYPES = new Set(['note', 'task']);
 
-const TYPES = ['note', 'task', 'call', 'meeting', 'email'] as const;
-type ActivityType = (typeof TYPES)[number];
+const ALL_TYPES = ['note', 'task', 'call', 'meeting', 'email'] as const;
+type ActivityType = (typeof ALL_TYPES)[number];
+/** Leads y objetos propios no mandan emails desde el timeline (no tienen dirección propia). */
+const NO_EMAIL_TYPES = ALL_TYPES.filter((v) => v !== 'email');
 
 const SUBMIT_KEYS: Record<ActivityType, string> = {
   note: 'common.addNote',
@@ -122,6 +125,7 @@ export default function Timeline({
 }: TimelineProps) {
   const t = useTranslations('crm');
   const router = useRouter();
+  const TYPES = recordType === 'lead' || recordType === 'objectRecord' ? NO_EMAIL_TYPES : ALL_TYPES;
 
   // Composer. El tipo sale de la pestaña activa; solo en "All" se elige con
   // el select del composer (allType). Una sola fuente: lo que se ve es lo que

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { fetchSiteInfo } from '@/lib/crm-logos';
+import { enrichDomain } from '@/lib/crm-enrich';
 import { rateLimit } from '@/lib/rate-limit';
 import { crmError, unauthorized } from '@/lib/crm-http';
 import { getDb } from '@/lib/db';
@@ -10,8 +10,9 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * Datos básicos de una empresa a partir de su dominio (?domain=): nombre,
- * sitio y teléfono que publica la home. Además avisa si ya hay una empresa
+ * Datos de una empresa a partir de su dominio (?domain=): nombre, sitio,
+ * teléfono, descripción, redes, dirección, rubro y tamaño (lib/crm-enrich.ts:
+ * el sitio y, si está configurado, un proveedor externo). Además avisa si ya hay una empresa
  * con ese dominio en el workspace (para no crear un duplicado). Con ?check=1
  * solo hace eso último (sin ir al sitio): lo usan el aviso mientras se
  * escribe y el submit del alta rápida.
@@ -33,13 +34,23 @@ export async function GET(req: NextRequest) {
     )
     .get(user.id, domain, `www.${domain}`, `%//${domain}%`, `%//www.${domain}%`)) as { id: string; name: string } | undefined;
   if (checkOnly) return NextResponse.json({ domain, existing: existing ?? null });
-  const info = await fetchSiteInfo(domain);
+  const info = await enrichDomain(domain);
   return NextResponse.json({
     domain,
     name: info?.name ?? '',
     website: info?.website ?? `https://${domain}`,
     phone: info?.phone ?? '',
     description: info?.description ?? '',
+    industry: info?.industry ?? '',
+    employees: info?.employees ?? null,
+    foundedYear: info?.foundedYear ?? null,
+    city: info?.city ?? '',
+    country: info?.country ?? '',
+    linkedinUrl: info?.linkedin ?? '',
+    twitterUrl: info?.twitter ?? '',
+    facebookUrl: info?.facebook ?? '',
+    instagramUrl: info?.instagram ?? '',
+    sources: info?.sources ?? [],
     existing: existing ?? null,
   });
 }

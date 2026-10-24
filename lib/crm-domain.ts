@@ -49,14 +49,14 @@ export function nameFromDomain(domain: string): string {
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', '#39': "'" };
 
-function decodeEntities(s: string): string {
+export function decodeEntities(s: string): string {
   return s
     .replace(/&#x([0-9a-f]+);/gi, (_m, h: string) => String.fromCodePoint(parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_m, n: string) => String.fromCodePoint(Number(n)))
     .replace(/&([a-z#0-9]+);/gi, (m, k: string) => ENTITIES[k.toLowerCase()] ?? m);
 }
 
-function clean(s: string | undefined | null, max = 200): string {
+export function clean(s: string | undefined | null, max = 200): string {
   return decodeEntities(s ?? '')
     .replace(/\s+/g, ' ')
     .trim()

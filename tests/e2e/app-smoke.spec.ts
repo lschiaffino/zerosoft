@@ -41,6 +41,17 @@ async function trackProject(request: APIRequestContext): Promise<string> {
   return trackProjectId;
 }
 
+/** Objeto propio "Smoke things" (slug smoke-things) compartido por los registros del smoke. */
+let smokeObjectId: string | null = null;
+async function smokeObject(request: APIRequestContext): Promise<string> {
+  if (smokeObjectId) return smokeObjectId;
+  const { rows } = await ok<{ rows: Array<{ id: string; slug: string }> }>(request.get('/api/crm/objects'));
+  smokeObjectId =
+    rows.find((o) => o.slug === 'smoke-things')?.id ??
+    (await ok<{ id: string }>(request.post('/api/crm/objects', { data: { singular: 'Smoke thing', plural: 'Smoke things' } }))).id;
+  return smokeObjectId;
+}
+
 /** Número de WhatsApp falso (GROUPS_FAKE=1) compartido por los grupos del smoke. */
 let groupsNumberId: string | null = null;
 async function groupsNumber(request: APIRequestContext): Promise<string> {
@@ -150,6 +161,48 @@ const APPS: AppCase[] = [
     detail: (i) => `/en/app/crm/agents/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/crm/ai/runs/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/crm/ai/runs/${i.id}`))),
+  },
+  {
+    app: 'CRM leads',
+    list: '/en/app/crm/leads',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/crm/leads', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/crm/leads/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/crm/leads/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/crm/leads/${i.id}`))),
+  },
+  {
+    // El objeto mismo: su lista es /app/crm/objects y cuelga en el sidebar del CRM. id = slug (la URL).
+    app: 'CRM custom objects',
+    list: '/en/app/crm/objects',
+    sidebar: true,
+    create: async (request, name) => {
+      const o = await ok<{ slug: string }>(request.post('/api/crm/objects', { data: { singular: name, plural: name } }));
+      return { id: o.slug, name };
+    },
+    detail: (i) => `/en/app/crm/objects/${i.id}`,
+    rename: async (request, i, name) => {
+      const { rows } = await ok<{ rows: Array<{ id: string; slug: string }> }>(request.get('/api/crm/objects'));
+      await ok(request.patch(`/api/crm/objects/${rows.find((o) => o.slug === i.id)!.id}`, { data: { plural: name } }));
+    },
+    remove: async (request, i) => {
+      const { rows } = await ok<{ rows: Array<{ id: string; slug: string }> }>(request.get('/api/crm/objects'));
+      const r = await request.delete(`/api/crm/objects/${rows.find((o) => o.slug === i.id)!.id}`);
+      expect(r.status()).toBe(204);
+    },
+  },
+  {
+    app: 'CRM object records',
+    list: '/en/app/crm/objects/smoke-things',
+    create: async (request, name) => {
+      const id = await smokeObject(request);
+      return { id: (await ok<{ id: string }>(request.post(`/api/crm/objects/${id}/records`, { data: { name } }))).id, name };
+    },
+    detail: (i) => `/en/app/crm/objects/smoke-things/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/crm/records/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => {
+      const r = await request.delete(`/api/crm/records/${i.id}`);
+      expect(r.status()).toBe(204);
+    },
   },
   {
     app: 'Cal event types',

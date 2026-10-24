@@ -1,8 +1,11 @@
 import { notFound } from 'next/navigation';
+import RelatedObjectRecords from '@/components/crm/RelatedObjectRecords';
+import RelatedLeads from '@/components/crm/RelatedLeads';
+import { fieldAccessFor, redactCustomJson, sessionFieldViewer } from '@/lib/crm-field-perms';
 import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { requireUser } from '@/lib/session';
+import { realUserId, requireUser } from '@/lib/session';
 import { canSeeOwner, ownerScopeSql, scopeContactDetail, sessionScope } from '@/lib/crm-visibility';
 import type { ScoreBreakdownItem } from '@/lib/crm-scoring-schema';
 import { getDb } from '@/lib/db';
@@ -13,7 +16,6 @@ import {
   SOURCES,
   getContact,
   listCompanies,
-  listCustomFields,
   listPipelinesWithStages,
   listTimeline,
   nextTaskFor,
@@ -351,12 +353,13 @@ export default async function ContactDetailPage(props: {
 
   // ---------- Propiedades: todas, editables en línea, + score ----------
   if (tab === 'properties') {
-    const [companiesPage, customFieldDefs] = await Promise.all([
+    const [companiesPage, fieldAccess] = await Promise.all([
       listCompanies(user.id, { pageSize: 100, sort: 'name', ownerScope: scope }),
-      listCustomFields(user.id, 'contacts'),
+      fieldAccessFor(sessionFieldViewer(user), 'contacts'),
     ]);
     const companies = companiesPage.rows;
-    const custom = parseCustom(contact.custom);
+    const customFieldDefs = fieldAccess.visible;
+    const custom = parseCustom(redactCustomJson(contact.custom, fieldAccess.hidden));
     const customFields = customPropFields(customFieldDefs, custom, {
       yes: t('common.yes'),
       no: t('common.no'),
@@ -586,6 +589,16 @@ export default async function ContactDetailPage(props: {
               </ul>
             )}
           </section>
+          <RelatedLeads
+            workspaceId={user.id}
+            contactId={contact.id}
+            contactName={[contact.first_name, contact.last_name].filter(Boolean).join(' ') || contact.email}
+            scope={scope}
+            locale={locale}
+            owners={ownerOptions}
+            defaultOwner={realUserId(user)}
+          />
+          <RelatedObjectRecords workspaceId={user.id} entity="contact" entityId={contact.id} scope={scope} locale={locale} />
         </div>
       </RecordTabs>
     </div>

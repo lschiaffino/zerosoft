@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import { Link, useRouter } from '@/i18n/navigation';
-import ListForm, { type EnumOption } from './ListForm';
+import ListForm from './ListForm';
+import type { RuleField } from './listRuleFields';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import CrmIcon from './CrmIcon';
@@ -22,13 +23,12 @@ interface ListsIndexProps {
   /** Título de la página: el header (título + CTA) lo arma la vista. */
   title: string;
   rows: ListRow[];
-  lifecycles: EnumOption[];
-  leadStatuses: EnumOption[];
-  sources: EnumOption[];
+  /** Campos del filtro de las listas dinámicas (listRuleFields). */
+  fields: RuleField[];
 }
 
 /** Index de listas: form de nueva lista (toggle) + tabla con delete confirmado inline. */
-export default function ListsIndex({ rows, lifecycles, leadStatuses, sources, title }: ListsIndexProps) {
+export default function ListsIndex({ rows, fields, title }: ListsIndexProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
@@ -66,12 +66,7 @@ export default function ListsIndex({ rows, lifecycles, leadStatuses, sources, ti
 
       {showForm && (
         <div className="record-inline-form">
-          <ListForm
-            lifecycles={lifecycles}
-            leadStatuses={leadStatuses}
-            sources={sources}
-            onCancel={() => setShowForm(false)}
-          />
+          <ListForm fields={fields} onCancel={() => setShowForm(false)} />
         </div>
       )}
 

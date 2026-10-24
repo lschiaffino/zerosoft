@@ -13,7 +13,7 @@ export default async function CrmPager({
   total,
   locale,
 }: {
-  pathname: '/app/crm/contacts' | '/app/crm/companies' | '/app/crm/deals';
+  pathname: string;
   query: Record<string, string>;
   page: number;
   pages: number;

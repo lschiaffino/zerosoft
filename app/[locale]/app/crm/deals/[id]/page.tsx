@@ -1,11 +1,13 @@
 import { getTranslations } from 'next-intl/server';
+import RelatedObjectRecords from '@/components/crm/RelatedObjectRecords';
+import { fieldAccessFor, redactCustomJson, sessionFieldViewer } from '@/lib/crm-field-perms';
 import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
-import { requireUser } from '@/lib/session';
+import { realUserId, requireUser } from '@/lib/session';
 import { canSeeOwner, scopeDealDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
 import { getDb, type CrmStageRow } from '@/lib/db';
-import { getDeal, listCustomFields, listTimeline, nextTaskFor, parseCustom, PRIORITIES, SOURCES } from '@/lib/crm';
+import { getDeal, listTimeline, nextTaskFor, parseCustom, PRIORITIES, SOURCES } from '@/lib/crm';
 import DangerDelete from '@/components/crm/DangerDelete';
 import AssociationPanel from '@/components/crm/AssociationPanel';
 import {
@@ -360,8 +362,9 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
 
   // ---------- Propiedades ----------
   if (tab === 'properties') {
-    const custom = parseCustom(deal.custom);
-    const customFieldDefs = await listCustomFields(user.id, 'deals');
+    const fieldAccess = await fieldAccessFor(sessionFieldViewer(user), 'deals');
+    const customFieldDefs = fieldAccess.visible;
+    const custom = parseCustom(redactCustomJson(deal.custom, fieldAccess.hidden));
     const customFields = customPropFields(customFieldDefs, custom, {
       yes: t('common.yes'),
       no: t('common.no'),
@@ -568,6 +571,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
               }}
             />
           </section>
+          <RelatedObjectRecords workspaceId={user.id} entity="deal" entityId={deal.id} scope={scope} locale={locale} />
         </div>
       </RecordTabs>
     </div>

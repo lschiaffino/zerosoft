@@ -3543,6 +3543,108 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // CRM: objetos propios (definición, registros con campos propios de
+    // entidad `obj:<id>` y asociaciones con contactos/empresas/deals), objeto
+    // Lead con su pipeline de etapas y conversión a deal, permisos por campo
+    // (solo lectura u oculto por rol o equipo de ventas), actividades de leads
+    // y registros propios en el timeline, y datos de empresa desde el sitio
+    // (descripción, redes, año de fundación).
+    id: '072_crm_objects_leads',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS crm_objects (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          slug TEXT NOT NULL,
+          singular TEXT NOT NULL,
+          plural TEXT NOT NULL,
+          primary_label TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          position INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, slug)
+        );
+
+        CREATE TABLE IF NOT EXISTS crm_object_records (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          object_id TEXT NOT NULL REFERENCES crm_objects(id) ON DELETE CASCADE,
+          owner_id TEXT,
+          name TEXT NOT NULL DEFAULT '',
+          custom TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_object_records_obj ON crm_object_records(user_id, object_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS crm_object_links (
+          record_id TEXT NOT NULL REFERENCES crm_object_records(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          entity TEXT NOT NULL CHECK (entity IN ('contact', 'company', 'deal')),
+          entity_id TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (record_id, entity, entity_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_object_links_entity ON crm_object_links(user_id, entity, entity_id);
+
+        CREATE TABLE IF NOT EXISTS crm_lead_stages (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          position INTEGER NOT NULL DEFAULT 0,
+          kind TEXT NOT NULL DEFAULT 'open' CHECK (kind IN ('open', 'qualified', 'disqualified'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_lead_stages_user ON crm_lead_stages(user_id, position);
+
+        CREATE TABLE IF NOT EXISTS crm_leads (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          owner_id TEXT,
+          name TEXT NOT NULL DEFAULT '',
+          stage_id TEXT NOT NULL,
+          position REAL NOT NULL DEFAULT 0,
+          contact_id TEXT,
+          company_id TEXT,
+          source TEXT NOT NULL DEFAULT '',
+          disqualify_reason TEXT NOT NULL DEFAULT '',
+          deal_id TEXT,
+          converted_at TEXT,
+          custom TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_leads_user ON crm_leads(user_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_crm_leads_stage ON crm_leads(stage_id, position);
+        CREATE INDEX IF NOT EXISTS idx_crm_leads_contact ON crm_leads(contact_id) WHERE contact_id IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS crm_field_permissions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          field_id TEXT NOT NULL,
+          subject TEXT NOT NULL,
+          access TEXT NOT NULL CHECK (access IN ('read', 'hidden')),
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (field_id, subject)
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_field_permissions_user ON crm_field_permissions(user_id);
+      `);
+      await addColumn(client, 'ALTER TABLE crm_activities ADD COLUMN lead_id TEXT');
+      await addColumn(client, 'ALTER TABLE crm_activities ADD COLUMN object_record_id TEXT');
+      await addColumn(client, "ALTER TABLE crm_companies ADD COLUMN description TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, "ALTER TABLE crm_companies ADD COLUMN linkedin_url TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, "ALTER TABLE crm_companies ADD COLUMN twitter_url TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, "ALTER TABLE crm_companies ADD COLUMN facebook_url TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, "ALTER TABLE crm_companies ADD COLUMN instagram_url TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, 'ALTER TABLE crm_companies ADD COLUMN founded_year INTEGER');
+      await addColumn(client, 'ALTER TABLE crm_companies ADD COLUMN enriched_at TEXT');
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_crm_activities_lead ON crm_activities(lead_id) WHERE lead_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_crm_activities_object_record ON crm_activities(object_record_id) WHERE object_record_id IS NOT NULL;
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

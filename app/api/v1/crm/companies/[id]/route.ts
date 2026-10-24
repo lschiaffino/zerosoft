@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { apiFieldViewer, guardRecordCustomWrite, hiddenFieldsFor, redactRow } from '@/lib/crm-field-perms';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { getCompany, updateCompany, deleteCompany } from '@/lib/crm';
 import { companyUpdateSchema } from '@/lib/crm-schema';
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
 
   const detail = await getCompany(auth.user.id, params.id);
   if (!detail) return apiError(404, 'not_found', 'Company not found.');
-  return NextResponse.json(cleanRow(detail.company));
+  return NextResponse.json(cleanRow(redactRow(detail.company, await hiddenFieldsFor(apiFieldViewer(auth), 'companies'))));
 }
 
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
@@ -33,10 +34,13 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
   }
 
-  const company = await catchRef(updateCompany(auth.user.id, params.id, parsed.data, undefined, auth.user.email));
+  const fieldViewer = apiFieldViewer(auth);
+  const fp = await guardRecordCustomWrite(fieldViewer, 'company', params.id, parsed.data.custom);
+  if (!fp.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
+  const company = await catchRef(updateCompany(auth.user.id, params.id, { ...parsed.data, custom: fp.custom }, undefined, auth.user.email));
   if (company instanceof CrmRefError) return apiError(400, company.code, 'A referenced record does not exist.');
   if (!company) return apiError(404, 'not_found', 'Company not found.');
-  return NextResponse.json(cleanRow(company));
+  return NextResponse.json(cleanRow(redactRow(company, await hiddenFieldsFor(fieldViewer, 'companies'))));
 }
 
 export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {

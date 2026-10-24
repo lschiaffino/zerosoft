@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { shouldEnrichOnCreate, enrichCompany } from '@/lib/crm-enrich';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
 import { createCompany, listCompanies } from '@/lib/crm';
@@ -26,7 +28,8 @@ export async function GET(req: NextRequest) {
     pageSize,
   });
 
-  return NextResponse.json({ rows, total, page, pageSize });
+  const hiddenFields = await hiddenFieldsFor(sessionFieldViewer(user), 'companies');
+  return NextResponse.json({ rows: rows.map((r) => redactRow(r, hiddenFields)), total, page, pageSize });
 }
 
 export async function POST(req: NextRequest) {
@@ -37,7 +40,14 @@ export async function POST(req: NextRequest) {
   const parsed = companyCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const company = await catchRef(createCompany(user.id, { ...parsed.data, ownerId: parsed.data.ownerId ?? realUserId(user) }));
+  const fp = await guardRecordCustomWrite(sessionFieldViewer(user), 'company', null, parsed.data.custom);
+  if (!fp.ok) return crmError(403, 'field_readonly');
+  const company = await catchRef(createCompany(user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? realUserId(user) }));
   if (company instanceof CrmRefError) return crmError(400, company.code);
+  // Datos del sitio en segundo plano (lo que el formulario no precargó).
+  if (shouldEnrichOnCreate(company)) {
+    const companyId = company.id;
+    after(() => enrichCompany(user.id, companyId, { actorEmail: user.actingUser?.email ?? user.email }).then(() => undefined).catch(() => undefined));
+  }
   return NextResponse.json(company, { status: 201 });
 }
