@@ -784,7 +784,7 @@
       "jira_csv": "In Jira: Filters › Export › Export CSV (all fields).",
       "csv": "First row with column names. Up to 4 MB."
     },
-    "csvRows": "{count} rows, {columns} columns",
+    "csvRows": "{count, plural, one {# row} other {# rows}}, {columns, plural, one {# column} other {# columns}}",
     "mapping": "Columns",
     "mappingHelp": "Pick the column that fills each field. Title is required.",
     "none": "Not imported",
@@ -817,12 +817,12 @@
       "cycles": "Cycles",
       "milestones": "Milestones"
     },
-    "already": "{count} issues were imported before and will be skipped.",
+    "already": "{count, plural, one {# issue was imported before and will be skipped.} other {# issues were imported before and will be skipped.}}",
     "truncated": "The source has more issues than one import accepts. The rest were left out.",
     "projectsTitle": "Projects",
     "projectNew": "new",
     "projectExisting": "existing",
-    "issuesCount": "{count} issues",
+    "issuesCount": "{count, plural, one {# issue} other {# issues}}",
     "statusesTitle": "Statuses",
     "statusCol": "Status",
     "categoryCol": "Type",
@@ -842,17 +842,17 @@
     "personCol": "In the source",
     "memberCol": "Member",
     "unmatched": "Not a member, left unassigned",
-    "unmatchedNote": "{count} assignees are not members of this workspace. Their issues are imported without an assignee.",
+    "unmatchedNote": "{count, plural, one {# assignee is not a member of this workspace. Their issues are imported without an assignee.} other {# assignees are not members of this workspace. Their issues are imported without an assignee.}}",
     "sampleTitle": "First issues",
-    "confirm": "Import {count} issues",
+    "confirm": "{count, plural, one {Import # issue} other {Import # issues}}",
     "stages": {
       "issues": "Creating issues and comments",
       "parents": "Linking sub-issues"
     },
     "doneTitle": "Import finished.",
-    "doneSummary": "{issues} issues and {comments} comments imported, {skipped} skipped.",
-    "doneCreated": "Created {projects} projects, {statuses} statuses, {cycles} cycles and {milestones} milestones.",
-    "doneUnassigned": "{count} issues had an assignee who is not a member and were left unassigned.",
+    "doneSummary": "{issues, plural, one {# issue} other {# issues}} and {comments, plural, one {# comment} other {# comments}} imported, {skipped, number} skipped.",
+    "doneCreated": "Created {list}.",
+    "doneUnassigned": "{count, plural, one {# issue had an assignee who is not a member and was left unassigned.} other {# issues had an assignee who is not a member and were left unassigned.}}",
     "openProject": "Open {name}",
     "again": "Import more",
     "failedTitle": "The import stopped.",
@@ -860,6 +860,12 @@
     "exportLead": "Download issues as a CSV with the same columns the import reads.",
     "exportProject": "Project",
     "exportAll": "All projects",
-    "exportButton": "Download CSV"
+    "exportButton": "Download CSV",
+    "createdPart": {
+      "projects": "{count, plural, one {# project} other {# projects}}",
+      "statuses": "{count, plural, one {# status} other {# statuses}}",
+      "cycles": "{count, plural, one {# cycle} other {# cycles}}",
+      "milestones": "{count, plural, one {# milestone} other {# milestones}}"
+    }
   }
 }

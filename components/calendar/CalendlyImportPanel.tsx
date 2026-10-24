@@ -1,10 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
-import { ImportConfirm, ImportProgress, ImportStat, useImportErrorText, useImportJob, type ImportJobView } from '@/components/app/ImportJob';
+import {
+  failedReading,
+  ImportConfirm,
+  ImportProgress,
+  ImportStat,
+  useImportErrorText,
+  useImportJob,
+  useReadFailedText,
+  type ImportJobView,
+} from '@/components/app/ImportJob';
 
 interface Preview {
   schedules: Array<{ name: string; timezone: string; rules: number; isDefault: boolean; already: boolean }>;
@@ -27,9 +36,17 @@ interface Report {
 export default function CalendlyImportPanel({ canEdit }: { canEdit: boolean }) {
   const t = useTranslations('calendar.importer');
   const errorText = useImportErrorText();
+  const readFailedText = useReadFailedText();
   const { job, error, setError, loading, create, start, cancel, reset } = useImportJob('cal');
   const [token, setToken] = useState('');
   const [includeBookings, setIncludeBookings] = useState(false);
+  const readFailed = failedReading(job);
+  const status = job?.status ?? null;
+
+  // El token se borra cuando ya se leyó Calendly; si la lectura falla queda para corregirlo.
+  useEffect(() => {
+    if (status === 'preview' || status === 'importing' || status === 'done') setToken('');
+  }, [status]);
 
   if (!canEdit) {
     return (
@@ -41,14 +58,20 @@ export default function CalendlyImportPanel({ canEdit }: { canEdit: boolean }) {
 
   let body;
   if (loading) body = <p className="ui-help">{t('loadingJobs')}</p>;
-  else if (!job) {
+  else if (!job || readFailed) {
     body = (
+      <>
+      {readFailed && (
+        <p className="ximp-note" data-tone="bad" role="alert" data-testid="import-read-failed">
+          {readFailedText('Calendly', job?.error)}
+        </p>
+      )}
       <form
         className="ui-fields"
         onSubmit={async (e) => {
           e.preventDefault();
           if (token.trim().length < 8) return;
-          if (await create({ source: 'calendly', token: token.trim(), includeBookings })) setToken('');
+          await create({ source: 'calendly', token: token.trim(), includeBookings });
         }}
       >
         <div className="ui-field">
@@ -85,6 +108,7 @@ export default function CalendlyImportPanel({ canEdit }: { canEdit: boolean }) {
           </button>
         </div>
       </form>
+      </>
     );
   } else if (job.status === 'fetching' || job.status === 'importing') {
     body = <ImportProgress job={job} onCancel={cancel} />;

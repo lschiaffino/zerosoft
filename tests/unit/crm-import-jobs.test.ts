@@ -19,6 +19,7 @@ import {
   getImportJob,
   groupTotals,
   jobProgress,
+  listImportJobs,
   processImportJobs,
   runImportStep,
   setImportSourceFactory,
@@ -394,6 +395,31 @@ describe('Import por API: jobs de punta a punta (HubSpot falso)', () => {
     expect(await runImportStep(job.id, { maxPages: 1 })).toBe('not_claimed');
     const row = (await getDb().prepare('SELECT status, token FROM crm_import_jobs WHERE id = ?').get(job.id)) as Record<string, string>;
     expect(row).toEqual({ status: 'cancelled', token: '' });
+  });
+
+  it('cancelar mientras corre un tramo corta en la tanda siguiente (el tramo cede el event loop)', async () => {
+    const u = await makeUser('imp-cancel-live');
+    const job = await previewAndStart(u.id, 'hubspot', 'fake-300');
+    // Llega como otro request: en la primera pausa del tramo.
+    setImmediate(() => void cancelImportJob(u.id, job.id));
+    expect(await runImportStep(job.id, { budgetMs: 30_000, pageSize: 100 })).toBe('cancelled');
+    const row = (await getDb().prepare('SELECT status FROM crm_import_jobs WHERE id = ?').get(job.id)) as { status: string };
+    expect(row.status).toBe('cancelled');
+  });
+
+  it('una vista previa descartada se borra y no aparece en Imports anteriores', async () => {
+    const u = await makeUser('imp-drop-preview');
+    const res = await createImportPreview(u.id, u.id, 'hubspot', 'fake');
+    if (!res.ok) throw new Error(res.code);
+    expect(await cancelImportJob(u.id, res.job.id)).toBe(true);
+    expect(await getImportJob(u.id, res.job.id)).toBeNull();
+    // Uno viejo (de antes del arreglo): cancelado sin haber arrancado nunca.
+    await getDb()
+      .prepare(`INSERT INTO crm_import_jobs (id, user_id, created_by, provider, status, token, options, preview, counts) VALUES (?, ?, ?, 'hubspot', 'cancelled', '', '{}', '{}', '{}')`)
+      .run(crypto.randomUUID(), u.id, u.id);
+    const started = await previewAndStart(u.id, 'hubspot');
+    await runToEnd(started.id);
+    expect((await listImportJobs(u.id)).map((j) => j.id)).toEqual([started.id]);
   });
 
   it('un job a la vez por workspace y el reclamo evita dos corridas juntas', async () => {

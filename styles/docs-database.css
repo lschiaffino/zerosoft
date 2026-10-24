@@ -106,6 +106,31 @@
 .docs-db-link-btn:disabled { opacity: 0.4; cursor: default; }
 .docs-db-count { margin-left: 6px; font-size: 0.75rem; font-weight: 400; color: var(--brand-gray-3); font-variant-numeric: tabular-nums; }
 
+/* ---------- Scroll horizontal (tabla y board más anchos que la página) ---------- */
+.docs-db-hscroll { position: relative; min-width: 0; max-width: 100%; }
+.docs-db-hscroll::before,
+.docs-db-hscroll::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 28px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.docs-db-hscroll::before { left: 0; background: linear-gradient(to right, var(--bg), transparent); }
+.docs-db-hscroll::after { right: 0; background: linear-gradient(to left, var(--bg), transparent); }
+.docs-db-hscroll[data-more-left]::before,
+.docs-db-hscroll[data-more-right]::after { opacity: 1; }
+/* La barra se ve siempre que hay más contenido (no solo al pasar el mouse en macOS). */
+.docs-db-hscroll[data-more-left] > *,
+.docs-db-hscroll[data-more-right] > * { scrollbar-width: thin; scrollbar-color: var(--ui-field) transparent; }
+.docs-db-hscroll > *::-webkit-scrollbar { height: 8px; }
+.docs-db-hscroll > *::-webkit-scrollbar-thumb { background: var(--ui-field); border-radius: 4px; }
+.docs-db-hscroll > *::-webkit-scrollbar-track { background: transparent; }
+
 /* ---------- Tabla (grilla virtualizada) ---------- */
 .docs-db-scroll { width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
 .docs-db-grid { min-width: 100%; font-size: 0.875rem; }

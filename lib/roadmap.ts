@@ -344,6 +344,29 @@ export function roadmapTitleKey(title: string): string {
   return title.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Ítems públicos del board que salieron de estas ideas de la investigación
+ * (por título, vía roadmap_imports). Lo usa la paridad de la página de
+ * producto para linkear "votar" a la idea exacta. Título → { id, title }.
+ */
+export async function publicItemsForResearchTitles(titles: string[]): Promise<Map<string, { id: string; title: string }>> {
+  const out = new Map<string, { id: string; title: string }>();
+  const keys = [...new Set(titles.map(roadmapTitleKey).filter(Boolean))];
+  if (!keys.length) return out;
+  const rows = (await getDb()
+    .prepare(
+      `SELECT ri.title_key, r.id, r.title FROM roadmap_imports ri JOIN roadmap_items r ON r.id = ri.item_id
+       WHERE r.is_public = 1 AND r.status != 'declined' AND ri.title_key IN (${keys.map(() => '?').join(',')})`,
+    )
+    .all(...keys)) as Array<{ title_key: string; id: string; title: string }>;
+  const byKey = new Map(rows.map((r) => [r.title_key, { id: r.id, title: r.title }]));
+  for (const t of titles) {
+    const hit = byKey.get(roadmapTitleKey(t));
+    if (hit) out.set(t, hit);
+  }
+  return out;
+}
+
 const RESEARCH_ORDER = ['idea', 'considering', 'planned', 'in_progress', 'done'];
 
 /**

@@ -89,8 +89,8 @@
           "a": "Sí. La API REST v1 crea, lista, edita y borra links y devuelve sus estadísticas. Los webhooks link.created y link.clicked llegan firmados con HMAC."
         },
         "f5": {
-          "q": "¿Qué le falta comparado con Bitly?",
-          "a": "Carpetas con permisos, analytics filtradas por tag y deep links que abren el contenido en la app después de instalarla. El ruteo por país o dispositivo, los destinos A/B, el QR con logo y colores y las acciones en lote ya están en Link."
+          "q": "¿Qué le falta comparado con Dub?",
+          "a": "Seguimiento de leads y ventas por clic, programa de partners, SDKs oficiales, servidor MCP y CLI, configuración de DNS en un clic y link cloaking. El ruteo por país o dispositivo, los destinos A/B, el QR con logo y colores, los permisos por carpeta y las acciones en lote ya están en Link."
         }
       },
       "cta": {
@@ -172,7 +172,7 @@
       "faq": {
         "f1": {
           "q": "¿Puedo importar desde Linear?",
-          "a": "Todavía no. El importador de Linear está en el roadmap. Hoy creás los proyectos y estados a mano y cargás los issues abiertos."
+          "a": "Sí. Pegá una API key de Linear, subí el CSV que exporta Linear o Jira, o conectá un repositorio de GitHub. Primero ves una vista previa; vienen proyectos, status, cycles, milestones, labels y comentarios, y reimportar no duplica los issues."
         },
         "f2": {
           "q": "¿Cómo se organiza el trabajo?",
@@ -270,7 +270,7 @@
       "faq": {
         "f1": {
           "q": "¿Cómo paso mis datos desde HubSpot?",
-          "a": "Exportá contactos, empresas y deals de HubSpot a CSV y usá el preset «HubSpot export» del importador. Mapea columnas, dueños por email, campos propios y asociaciones. Creá antes los pipelines y etapas: los deals se ubican por nombre de etapa."
+          "a": "Conectá HubSpot (o Pipedrive) con un token de solo lectura en el importador: vienen contactos, empresas, deals, pipelines, owners, propiedades propias y el timeline de actividad, con vista previa antes y sin duplicar si lo corrés de nuevo. También podés subir los CSV que exporta HubSpot con el preset «HubSpot export»."
         },
         "f2": {
           "q": "¿Manda emails desde mi cuenta?",
@@ -368,7 +368,7 @@
       "faq": {
         "f1": {
           "q": "¿Cómo me paso desde Calendly?",
-          "a": "No hay importador. Recreás cada tipo de evento con su duración, buffers y preguntas, conectás Google Calendar y reemplazás el link o el embed en tu sitio."
+          "a": "Pegá un token personal de Calendly en los ajustes de Cal, en Importar desde Calendly. Vienen los tipos de evento (duración, ubicaciones y preguntas) y los horarios, y las reservas próximas si lo elegís. Después conectás Google Calendar y reemplazás el link o el embed en tu sitio."
         },
         "f2": {
           "q": "¿Con qué calendarios se sincroniza?",
@@ -466,7 +466,7 @@
       "faq": {
         "f1": {
           "q": "¿Puedo importar desde Notion?",
-          "a": "Todavía no hay importador. Hoy la forma es copiar y pegar el contenido de cada página."
+          "a": "Sí. Exportá el workspace o una página de Notion como Markdown & CSV y subí el .zip en Docs › Importar desde Notion. Las páginas mantienen su árbol, imágenes, archivos y links entre páginas; cada CSV pasa a ser una base y la página de cada fila, el cuerpo de esa fila."
         },
         "f2": {
           "q": "¿Pueden editar varios a la vez?",
@@ -478,7 +478,7 @@
         },
         "f4": {
           "q": "¿Qué tienen las bases de datos?",
-          "a": "Una tabla dentro de la página, con columnas de texto, selección, fecha y número, y vista de galería. Todavía no hay filtros, orden, agrupación ni relaciones."
+          "a": "Propiedades con tipo (texto, número, selección, selección múltiple, estado, fecha, persona, checkbox, URL, email, teléfono, creado y editado), vistas de tabla, board y galería con filtros, orden y agrupación, y filas que se abren como página. Todavía no hay relaciones, rollups, fórmulas ni vistas de calendario o timeline."
         },
         "f5": {
           "q": "¿Tiene API pública?",
@@ -837,8 +837,8 @@
           "a": "Cada corrida devuelve JSON. Desde Flow podés crear contactos, mandar un email o cargar un issue con esos datos."
         },
         "f5": {
-          "q": "¿Qué le falta comparado con UiPath?",
-          "a": "Robots automatiza el navegador, no el escritorio: no maneja aplicaciones de Windows ni archivos locales. Tampoco resuelve captchas."
+          "q": "¿Qué le falta comparado con Browse AI?",
+          "a": "Marcar en la página lo que querés extraer (hoy se escriben selectores CSS), robots listos para sitios populares, robots armados con IA a partir de una URL, proxies residenciales por país, resolver captchas y repararse solo cuando un sitio cambia su diseño."
         }
       },
       "cta": {

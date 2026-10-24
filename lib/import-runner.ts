@@ -1,11 +1,15 @@
 /**
  * Importadores: el runner que avanza un job por pasos con presupuesto de
  * tiempo. Lo llaman la pestaña abierta (POST /api/import/jobs/<id>/run, en
- * loop mientras se mira el progreso) y el cron de cada minuto (si se cerró la
- * pestaña o no entró en un request). El claim por locked_until evita que dos
- * corridas trabajen el mismo job a la vez; cada tanda guarda su avance antes
- * de seguir, así un corte retoma desde la última tanda (y la escritura es
- * idempotente por los ids externos).
+ * loop mientras se mira el progreso, con un presupuesto corto) y el cron de
+ * cada minuto (si se cerró la pestaña o no entró en un request). El claim por
+ * locked_until evita que dos corridas trabajen el mismo job a la vez; cada
+ * tanda guarda su avance antes de seguir, así un corte retoma desde la última
+ * tanda (y la escritura es idempotente por los ids externos).
+ *
+ * Entre tandas se cede el event loop y se relee el job: en un servidor propio
+ * (SQLite local) una corrida larga sin pausas frenaba los demás requests, y
+ * cancelar tiene efecto en la tanda siguiente.
  */
 import {
   appendImportItems,
@@ -117,7 +121,13 @@ async function closeJob(job: ImportJob, status: 'done' | 'failed' | 'cancelled',
  * Avanza el job hasta agotar el presupuesto. Devuelve el estado para la UI
  * (o null si no existe). Si otra corrida lo tiene tomado, solo lo lee.
  */
-export async function runImportJob(id: string, budgetMs = 15_000): Promise<ImportJobView | null> {
+/** Presupuesto de un POST .../run: corto, para no frenar el servidor ni hacer esperar a cancelar. */
+export const REQUEST_IMPORT_BUDGET_MS = 4_000;
+
+/** Cede el event loop entre tandas (los otros requests entran). */
+export const yieldToServer = () => new Promise<void>((r) => setImmediate(r));
+
+export async function runImportJob(id: string, budgetMs = REQUEST_IMPORT_BUDGET_MS): Promise<ImportJobView | null> {
   const start = Date.now();
   if (!(await claimImportJob(id, budgetMs + 90_000))) {
     const job = await getImportJob(id);
@@ -125,7 +135,9 @@ export async function runImportJob(id: string, budgetMs = 15_000): Promise<Impor
   }
   let retryUntil: string | null = null;
   try {
-    while (Date.now() - start < budgetMs) {
+    for (let step = 0; Date.now() - start < budgetMs; step++) {
+      if (step > 0) await yieldToServer();
+      // Se relee en cada tanda: si se canceló, el estado ya no es fetching/importing y se corta acá.
       const job = await getImportJob(id);
       if (!job) return null;
       const adapter = importAdapter(job.app, job.source);
@@ -148,10 +160,11 @@ export async function runImportJob(id: string, budgetMs = 15_000): Promise<Impor
             preview,
             secret: null,
             ...(adapter.keepPayload ? {} : { payload: null }),
+            onlyIf: 'fetching',
           });
           break;
         }
-        await updateImportJob(id, { cursor: res.cursor, total });
+        await updateImportJob(id, { cursor: res.cursor, total, onlyIf: 'fetching' });
         continue;
       }
 
@@ -161,12 +174,12 @@ export async function runImportJob(id: string, budgetMs = 15_000): Promise<Impor
         const items = await listImportItems(id, job.processed, adapter.chunkSize);
         if (items.length > 0) {
           await adapter.writeStep(job, stage, items, report);
-          await updateImportJob(id, { stage, processed: job.processed + items.length, report });
+          await updateImportJob(id, { stage, processed: job.processed + items.length, report, onlyIf: 'importing' });
           continue;
         }
         const next = adapter.writeStages[adapter.writeStages.indexOf(stage) + 1];
         if (next) {
-          await updateImportJob(id, { stage: next, processed: 0 });
+          await updateImportJob(id, { stage: next, processed: 0, onlyIf: 'importing' });
           continue;
         }
         await closeJob(job, 'done', { report });
@@ -181,7 +194,10 @@ export async function runImportJob(id: string, budgetMs = 15_000): Promise<Impor
       const job = await getImportJob(id);
       // Solo el código: el mensaje de un error de terceros podría traer datos de la cuenta.
       if (!(err instanceof ImportError)) console.error('[import] job failed', id, err instanceof Error ? err.name : 'error');
-      if (job) await closeJob(job, 'failed', { error: err instanceof ImportError ? err.code : 'internal_error' });
+      // Cancelado mientras corría la tanda: queda cancelado.
+      if (job && (job.status === 'fetching' || job.status === 'importing')) {
+        await closeJob(job, 'failed', { error: err instanceof ImportError ? err.code : 'internal_error' });
+      }
     }
   } finally {
     await releaseImportJob(id, retryUntil);

@@ -94,6 +94,7 @@ import UserMentionPopover from './UserMentionPopover';
 import EmojiPicker from './EmojiPicker';
 import DocsGlyph, { type DocsGlyphName } from './DocsGlyphs';
 import DbRowPanel, { type DbRowPanelMode } from './database/DbRowPanel';
+import { rememberUploadPreview } from './DocsEditorImage';
 
 interface DocsEditorProps {
   page: DocsPage;
@@ -872,6 +873,7 @@ export default function DocsEditor({
             continue;
           }
           const up = (await res.json()) as DocsUploadResult;
+          rememberUploadPreview(up.url, file);
           // "/imagen" con algo que no se puede mostrar en línea: queda como archivo.
           const kind = opts.kind === 'image' && !isInlineImageMime(up.mime) ? 'file' : opts.kind;
           const newBlock = fileBlockFromUpload(up, kind);

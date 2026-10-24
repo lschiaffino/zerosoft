@@ -128,3 +128,19 @@ describe('ideas hechas contra la paridad', () => {
     expect(ideaForCapability('docs', 'y', list)).toBeUndefined();
   });
 });
+
+describe('FAQ de producto y paridad', () => {
+  it('"¿Qué le falta comparado con X?" nombra al mismo competidor que la paridad', () => {
+    for (const locale of ['en', 'es', 'pt']) {
+      const pages = JSON.parse(readFileSync(join(process.cwd(), 'messages', locale, 'pages.json'), 'utf8')) as {
+        products: Record<string, { faq?: Record<string, { q: string }> }>;
+      };
+      for (const [product, parity] of Object.entries(PARITY)) {
+        const faqs = Object.values(pages.products[product]?.faq ?? {});
+        for (const f of faqs.filter((x) => /compar/i.test(x.q))) {
+          expect(f.q, `${locale} ${product}`).toContain(parity.competitor);
+        }
+      }
+    }
+  });
+});

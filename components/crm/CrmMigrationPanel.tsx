@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { ImportJobView } from '@/lib/crm-import-jobs';
 import type { ImportGroup, ImportProvider } from '@/lib/crm-import-source';
@@ -288,6 +288,8 @@ function PreviewStep({
   onCancel: () => void;
 }) {
   const t = useTranslations('crm.migrate');
+  const tc = useTranslations('crm');
+  const locale = useLocale();
   const p = job.preview;
   const [groups, setGroups] = useState<ImportGroup[]>(job.options.groups);
   const [ownerMap, setOwnerMap] = useState<Record<string, string>>(job.options.ownerMap);
@@ -356,7 +358,7 @@ function PreviewStep({
                   <span className="stat-label">{t(`groups.${g}`)}</span>
                 </span>
                 <span className="stat-num" data-testid={`migrate-count-${g}`}>
-                  {n === null ? t('unknownCount') : n.toLocaleString()}
+                  {n === null ? t('unknownCount') : n.toLocaleString(locale)}
                 </span>
               </label>
             );
@@ -386,7 +388,7 @@ function PreviewStep({
         />
         <SampleTable
           title={t('groups.deals')}
-          rows={p.samples.deals.map((d) => [d.name || '-', d.amount === null ? '-' : `${d.amount.toLocaleString()} ${d.currency}`])}
+          rows={p.samples.deals.map((d) => [d.name || '-', d.amount === null ? '-' : `${d.amount.toLocaleString(locale)} ${d.currency}`])}
           heads={[t('col.name'), t('col.amount')]}
           empty={t('noSample')}
         />
@@ -465,7 +467,7 @@ function PreviewStep({
                   <tr key={`${f.entity}:${f.key}`}>
                     <td>{f.label}</td>
                     <td className="muted">{t(`groups.${f.entity}`)}</td>
-                    <td className="mono">{f.type}</td>
+                    <td>{tc.has(`settings.types.${f.type}`) ? tc(`settings.types.${f.type}`) : f.type}</td>
                     <td>{f.existing ? t('useExisting') : t('createNew')}</td>
                   </tr>
                 ))}
@@ -580,7 +582,7 @@ function ProgressStep({
           if (stop) return;
           onChangeRef.current(next);
           if (!ACTIVE.has(next.status)) return;
-          await new Promise((r) => setTimeout(r, 800));
+          await new Promise((r) => setTimeout(r, 400));
         } else {
           await new Promise((r) => setTimeout(r, 5000));
         }

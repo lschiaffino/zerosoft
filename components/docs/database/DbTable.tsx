@@ -1,5 +1,6 @@
 'use client';
 
+import DbHScroll from './DbHScroll';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { DbProperty, DbRow, DbValue, DocsDatabase, DocsMentionableUser } from '@/lib/docs-types';
@@ -540,7 +541,7 @@ export default function DbTable(p: DbTableProps) {
   };
 
   return (
-    <div className="docs-db-scroll">
+    <DbHScroll className="docs-db-scroll">
       <div
         ref={gridRef}
         className="docs-db-grid"
@@ -596,7 +597,7 @@ export default function DbTable(p: DbTableProps) {
           {t('newRow')}
         </button>
       )}
-    </div>
+    </DbHScroll>
   );
 }
 

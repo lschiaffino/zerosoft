@@ -261,6 +261,24 @@ export function projectSlug(name: string): string {
     .slice(0, 64);
 }
 
+/**
+ * Clave corta para un proyecto que llega sin una (import de GitHub, Jira o
+ * CSV): iniciales si el nombre tiene varias palabras, las tres primeras letras
+ * si tiene una. "Gen Proj 0idt" → "gp" (GP-12), "Website" → "web". Las
+ * palabras que empiezan con un número no cuentan si hay otras.
+ */
+export function shortProjectKey(name: string): string {
+  const words = projectSlug(name).split('-').filter(Boolean);
+  const alpha = words.filter((w) => /^[a-z]/.test(w));
+  const use = alpha.length ? alpha : words;
+  if (use.length === 0) return '';
+  if (use.length === 1) return use[0].slice(0, 3);
+  return use
+    .slice(0, 4)
+    .map((w) => w[0])
+    .join('');
+}
+
 export type CycleState = 'active' | 'upcoming' | 'past';
 
 interface CycleLike {

@@ -428,9 +428,9 @@
     "dark": "Escuro"
   },
   "importJob": {
-    "reading": "Lendo a origem… {count} itens até agora",
+    "reading": "Lendo a fonte… {count, number} itens até agora",
     "uploading": "Enviando… {percent}%",
-    "importing": "Importando… {processed} de {total}",
+    "importing": "Importando… {processed, number} de {total, number}",
     "keepsGoing": "Você pode sair desta página. A importação continua e você pode voltar para acompanhar.",
     "cancel": "Cancelar",
     "errors": {
@@ -454,6 +454,7 @@
       "not_ready": "A prévia não está mais disponível. Comece de novo.",
       "internal_error": "Algo falhou do nosso lado. Nada mais foi alterado.",
       "generic": "Não foi possível importar. Tente de novo."
-    }
+    },
+    "readFailed": "Não conseguimos ler {source}: {reason}"
   }
 }

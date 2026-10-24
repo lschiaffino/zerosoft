@@ -89,8 +89,8 @@
           "a": "Yes. REST API v1 creates, lists, edits and deletes links and returns their stats. The link.created and link.clicked webhooks are signed with HMAC."
         },
         "f5": {
-          "q": "What is missing compared to Bitly?",
-          "a": "Folders with permissions, analytics filtered by tag, and deep links that open the right content in the app after it is installed. Routing by country or device, A/B destinations, QR codes with a logo and colors, and bulk actions are already in Link."
+          "q": "What is missing compared with Dub?",
+          "a": "Lead and sale tracking per click, a partner program, official SDKs, an MCP server and a CLI, one-click DNS setup and link cloaking. Routing by country or device, A/B destinations, QR codes with logo and colors, folder permissions and bulk actions are already in Link."
         }
       },
       "cta": {
@@ -172,7 +172,7 @@
       "faq": {
         "f1": {
           "q": "Can I import from Linear?",
-          "a": "Not yet. A Linear importer is on the roadmap. Today you create projects and statuses by hand and add your open issues."
+          "a": "Yes. Paste a Linear API key, or upload a CSV export from Linear or Jira, or connect a GitHub repository. You see a preview first; projects, statuses, cycles, milestones, labels and comments come along, and importing again does not duplicate issues."
         },
         "f2": {
           "q": "How is work organized?",
@@ -269,8 +269,8 @@
       },
       "faq": {
         "f1": {
-          "q": "How do I move my data from HubSpot?",
-          "a": "Export contacts, companies and deals from HubSpot to CSV and use the \"HubSpot export\" preset in the importer. It maps columns, owners by email, custom fields and associations. Create your pipelines and stages first: deals are placed by stage name."
+          "q": "How do I bring my data from HubSpot?",
+          "a": "Connect HubSpot (or Pipedrive) with a read-only token in the importer: contacts, companies, deals, pipelines, owners, custom properties and the activity timeline come over, with a preview first and no duplicates if you run it again. You can also upload CSV exports with the «HubSpot export» preset."
         },
         "f2": {
           "q": "Does it send email from my account?",
@@ -367,8 +367,8 @@
       },
       "faq": {
         "f1": {
-          "q": "How do I switch from Calendly?",
-          "a": "There is no importer. Recreate each event type with its duration, buffers and questions, connect Google Calendar and swap the link or embed on your site."
+          "q": "How do I move over from Calendly?",
+          "a": "Paste a Calendly personal access token in Cal settings, under Import from Calendly. Event types (duration, locations and questions) and availability schedules come over, and upcoming bookings too if you choose. Then connect Google Calendar and replace the link or embed on your site."
         },
         "f2": {
           "q": "Which calendars does it sync with?",
@@ -466,7 +466,7 @@
       "faq": {
         "f1": {
           "q": "Can I import from Notion?",
-          "a": "There is no importer yet. Today you copy and paste each page’s content."
+          "a": "Yes. Export your workspace or a page from Notion as Markdown & CSV and upload the .zip in Docs › Import from Notion. Pages keep their tree, images, files and links between pages; each CSV becomes a database, and each row's page becomes the body of that row."
         },
         "f2": {
           "q": "Can several people edit at once?",
@@ -477,8 +477,8 @@
           "a": "Yes. The pages you publish form a public help center at /h/ plus your handle, with collections, search and a vote per article. On zerosoft Cloud there is no custom domain yet. For a single person, share the page as view only."
         },
         "f4": {
-          "q": "What can databases do?",
-          "a": "A table inside the page with text, select, date and number columns, plus a gallery view. There are no filters, sorting, grouping or relations yet."
+          "q": "What do databases have?",
+          "a": "Typed properties (text, number, select, multi-select, status, date, person, checkbox, URL, email, phone, created and edited time), table, board and gallery views with filters, sorting and grouping, and rows that open as pages. Relations, rollups, formulas and calendar or timeline views are not there yet."
         },
         "f5": {
           "q": "Does it have a public API?",
@@ -837,8 +837,8 @@
           "a": "Every run returns JSON. From Flow you can create contacts, send an email or file an issue with that data."
         },
         "f5": {
-          "q": "What is missing compared to UiPath?",
-          "a": "Robots automates the browser, not the desktop: it does not drive Windows apps or local files. It also does not solve captchas."
+          "q": "What is missing compared with Browse AI?",
+          "a": "Picking what to extract by clicking on the page (today you write CSS selectors), prebuilt robots for popular sites, robots generated by AI from a URL, residential proxies by country, captcha handling and self-healing when a site changes its layout."
         }
       },
       "cta": {

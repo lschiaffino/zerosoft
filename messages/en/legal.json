@@ -14,7 +14,7 @@
         "h": "The short version",
         "p": [
           "The core software is open source (AGPLv3): you can use it, host it and modify it. Enterprise features in the /ee folder are source-available and need a subscription in production. If you use our cloud, you start on a free plan; usage-based pricing will be published before we charge anyone anything, and today nothing is charged.",
-          "Do not use any of it to break the law, deceive people or hurt them — short links in particular are not a tool for phishing or spam, and we will disable links and accounts that do that. The rest of this page is the same idea in more detail."
+          "Do not use any of it to break the law, deceive people or hurt them. Short links in particular are not a tool for phishing or spam, and we will disable links and accounts that do that. The rest of this page is the same idea in more detail."
         ]
       },
       "s02": {
@@ -34,7 +34,7 @@
       "s04": {
         "h": "The hosted cloud and pricing",
         "p": [
-          "If you create an account, we run the software for you. The cloud includes a free plan with usage limits. Beyond those limits it will be billed by usage — for example clicks, bookings, emails, storage or seats — plus taxes where applicable.",
+          "If you create an account, we run the software for you. The cloud includes a free plan with usage limits. Beyond those limits it will be billed by usage (for example clicks, bookings, emails, storage or seats), plus taxes where applicable.",
           "Today we do not charge anyone, and we do not collect payment details. Before we charge for anything, we will publish prices on a pricing page and give existing account holders at least 30 days' notice by email. Nothing you do on the free plan will turn into a charge without you first choosing a paid option.",
           "We may change free-plan limits or features. When a change reduces what you already use, we will give reasonable advance notice so you can adjust or export your data."
         ]
@@ -50,7 +50,7 @@
       "s06": {
         "h": "Acceptable use",
         "p": [
-          "You may not use the cloud — including short links, custom domains, link-in-bio pages, booking pages, the chat widget, documents or emails sent through us — to:"
+          "You may not use the cloud (including short links, custom domains, link-in-bio pages, booking pages, the chat widget, documents or emails sent through us) to:"
         ],
         "ul": [
           "Phish, scam or defraud people, or collect credentials, payment details or personal data under false pretenses.",
@@ -74,7 +74,7 @@
       "s08": {
         "h": "Your content and the data you collect",
         "p": [
-          "Your content — links, analytics, contacts, bookings, conversations, documents, files — is yours. You give us only the permission we need to host, process, transmit and display it to run the service for you and for the people you share it with. We do not use your content for advertising, we do not sell it, and we do not use it to train AI models.",
+          "Your content (links, analytics, contacts, bookings, conversations, documents, files) is yours. You give us only the permission we need to host, process, transmit and display it to run the service for you and for the people you share it with. We do not use your content for advertising, we do not sell it, and we do not use it to train AI models.",
           "Some of your content is personal data about other people: CRM contacts, booking guests, chat visitors, or people who click your links. For that data you decide what is collected and why, and you are responsible for having a legal basis for it and for telling those people how you use their data. We process it on your behalf and following your instructions, as described in our Privacy Policy.",
           "Files you upload (for example, chat or issue attachments) are stored at hard-to-guess public URLs: anyone who has the URL can open the file. Do not upload anything that must stay strictly confidential.",
           "You can export your data while your account is active and for 30 days after you close it. After that, we delete it as described in the Privacy Policy."
@@ -105,7 +105,7 @@
         "h": "Suspension and termination",
         "p": [
           "You can stop using the service and close your account at any time by writing to hola@zerosoft.ai.",
-          "We may suspend or terminate your access if you seriously or repeatedly break these terms, if required by law, or if your use creates a risk to people, to the service or to us. Where possible and lawful, we will warn you first and let you export your data. If we ever discontinue the cloud as a whole, we will give at least 60 days' notice — and the open source code will still be yours to run."
+          "We may suspend or terminate your access if you seriously or repeatedly break these terms, if required by law, or if your use creates a risk to people, to the service or to us. Where possible and lawful, we will warn you first and let you export your data. If we ever discontinue the cloud as a whole, we will give at least 60 days' notice, and the open source code will still be yours to run."
         ]
       },
       "s13": {
@@ -139,7 +139,7 @@
       "s17": {
         "h": "Governing law and contact",
         "p": [
-          "These terms are governed by the laws of Uruguay, without regard to conflict-of-law rules. Disputes go to the courts of Montevideo, Uruguay. If you are a consumer, you keep the protections and the forum that the mandatory law of your country gives you — for example, the Argentine Consumer Protection Law (Law 24,240) or the Brazilian Consumer Defense Code.",
+          "These terms are governed by the laws of Uruguay, without regard to conflict-of-law rules. Disputes go to the courts of Montevideo, Uruguay. If you are a consumer, you keep the protections and the forum that the mandatory law of your country gives you, for example, the Argentine Consumer Protection Law (Law 24,240) or the Brazilian Consumer Defense Code.",
           "If any part of these terms is found unenforceable, the rest remains in effect. Not enforcing a provision is not a waiver of it.",
           "General questions: hola@zerosoft.ai. Abuse and takedown notices: abuse@zerosoft.ai. Security: security@zerosoft.ai. Privacy: privacy@zerosoft.ai."
         ]
@@ -161,14 +161,14 @@
         "h": "The short version",
         "p": [
           "We need your name and email to give you an account, and a few request headers to count clicks. We do not use advertising or analytics cookies, we do not fingerprint, we do not store the IP address of people who click your links, and we do not sell or rent personal data.",
-          "This policy covers two groups of people: account holders who use zerosoft, and people who interact with what our account holders publish — people who click a short link, book a meeting, or write in a chat widget."
+          "This policy covers two groups of people: account holders who use zerosoft, and people who interact with what our account holders publish: people who click a short link, book a meeting, or write in a chat widget."
         ]
       },
       "s02": {
         "h": "Who is responsible for your data",
         "p": [
           "zerosoft is the controller (the party that decides how and why data is used) for account data, data about the use of zerosoft.ai, and the communications we send to account holders.",
-          "For data that account holders collect through the products — CRM contacts, booking guests, chat visitors and link clicks — the account holder is the controller and zerosoft processes the data on their behalf. If you booked a meeting, chatted with a business or clicked a link and want to exercise your rights, please contact that business first; we will help them respond, and you can also write to us.",
+          "For data that account holders collect through the products (CRM contacts, booking guests, chat visitors and link clicks), the account holder is the controller and zerosoft processes the data on their behalf. If you booked a meeting, chatted with a business or clicked a link and want to exercise your rights, please contact that business first; we will help them respond, and you can also write to us.",
           "If you self-host zerosoft, you are the controller of everything in your instance and we never see it."
         ]
       },
@@ -180,12 +180,12 @@
           "Link click data: when someone follows a short link we record the time, the link, the referrer's domain, the approximate country, the device type, the browser and the operating system. We do not store the IP address or the full user-agent string with the click.",
           "Booking data: when someone books through a Cal page, the name, email, answers to the host's questions, time zone and language they provide, and the booking details.",
           "Chat data: messages written in a Chat widget, the name and email if the visitor chooses to give them, attachments they upload, satisfaction ratings, and a random visitor identifier stored in the visitor's browser so the conversation continues across visits.",
-          "Google integration data, only if you connect it: for Gmail, the emails exchanged with your CRM contacts (sender, recipients, subject, date, message and thread IDs, and the message body — plain text plus a sanitized copy of the HTML, size-limited, without attachments or remote images), and the emails you send from the CRM through your Gmail; for Google Calendar, your busy and free times and the events that bookings create in your calendar.",
+          "Google integration data, only if you connect it: for Gmail, the emails exchanged with your CRM contacts (sender, recipients, subject, date, message and thread IDs, and the message body: plain text plus a sanitized copy of the HTML, size-limited, without attachments or remote images), and the emails you send from the CRM through your Gmail; for Google Calendar, your busy and free times and the events that bookings create in your calendar.",
           "Integration secrets: OAuth tokens for Google, and webhook signing secrets, stored encrypted. API keys are stored only as hashes. A Bitly token you give us for an import is used for that import and not stored.",
           "Technical data: IP addresses are used briefly for rate limiting and appear in our hosting provider's request logs (see Retention). Email delivery status for the transactional emails we send.",
           "Messages you send us: emails to our support, privacy, abuse or security addresses.",
           "Bookings and CRM: when someone books a meeting through Cal, their name, email, the meeting time and their answers are also saved as a contact and a meeting activity in the host's CRM. When an agent chooses to, a Chat conversation is saved to the visitor's CRM contact.",
-          "Email tracking for emails sent from the CRM, when the account holder keeps it on (it can be turned off for the workspace or for each email): an invisible image and rewritten links record when the email is opened or a link is clicked — the time, the link and the browser user agent, not the IP address. Sequence emails include a link to unsubscribe; unsubscribing stops further sequence emails to that address.",
+          "Email tracking for emails sent from the CRM, when the account holder keeps it on (it can be turned off for the workspace or for each email): an invisible image and rewritten links record when the email is opened or a link is clicked: the time, the link and the browser user agent, not the IP address. Sequence emails include a link to unsubscribe; unsubscribing stops further sequence emails to that address.",
           "Feedback: if you send feedback through the site or the app, we keep the message, the type and product you picked, the page you were on, your browser's user agent, and your email if you give it or are signed in."
         ]
       },
@@ -211,7 +211,7 @@
         "h": "How click analytics work without cookies",
         "p": [
           "When a browser follows a short link, it tells us where it came from (the Referer header, of which we keep only the domain), what it is (the User-Agent header, which we reduce to device type, browser and operating system) and roughly where it is (a country code provided by our hosting provider at the network edge, or resolved from the IP address on self-hosted instances).",
-          "We save those few fields and never save the IP address with the click. That is enough for honest statistics — clicks per day, per referrer, per country — without following anyone around the internet."
+          "We save those few fields and never save the IP address with the click. That is enough for honest statistics (clicks per day, per referrer, per country) without following anyone around the internet."
         ]
       },
       "s07": {
@@ -245,10 +245,10 @@
           "We do not sell personal data. We share it only with the service providers (subprocessors) that run the cloud for us, under contractual confidentiality and data-protection terms, and only as needed for their job:"
         ],
         "ul": [
-          "Vercel — hosting, serverless functions, file storage for uploads (Vercel Blob) and scheduled jobs.",
-          "Turso — the database where account and workspace data is stored.",
-          "Resend — delivery of transactional emails, such as workspace invitations, notifications and booking confirmations.",
-          "Google — sign-in, and Gmail and Google Calendar only when you connect them.",
+          "Vercel: hosting, serverless functions, file storage for uploads (Vercel Blob) and scheduled jobs.",
+          "Turso: the database where account and workspace data is stored.",
+          "Resend: delivery of transactional emails, such as workspace invitations, notifications and booking confirmations.",
+          "Google: sign-in, and Gmail and Google Calendar only when you connect them.",
           "Destinations you choose: if you configure webhooks or the API, data is sent to the URLs and tools you set up.",
           "Authorities, when the law genuinely requires it; we will push back on requests that are overly broad.",
           "A successor, if zerosoft is merged or acquired; we will notify you before your data becomes subject to a different privacy policy."
@@ -282,7 +282,7 @@
         "h": "Your rights",
         "p": [
           "Wherever you live, you can ask us to access, correct, delete or export your personal data, to restrict or object to its processing, and to withdraw consent. Depending on your country you may have additional rights, such as confirmation that we process your data and information about who we share it with (LGPD), or free access to your data at intervals of at least six months (Law 25,326).",
-          "Export tools are built into the products. For anything else, write to privacy@zerosoft.ai. We may need to verify your identity. We answer within the deadline set by your local law — for example, 10 calendar days for access requests under Argentine law — and in any case within 30 days.",
+          "Export tools are built into the products. For anything else, write to privacy@zerosoft.ai. We may need to verify your identity. We answer within the deadline set by your local law (for example, 10 calendar days for access requests under Argentine law) and in any case within 30 days.",
           "You also have the right to complain to a data protection authority: in the EEA or UK, your local supervisory authority; in Brazil, the ANPD; in Argentina, the Agency for Access to Public Information (AAIP), which, as the enforcement body of Law 25,326, is empowered to handle complaints from anyone whose rights are affected by non-compliance with data protection rules. We would appreciate the chance to fix things first."
         ]
       },
@@ -328,7 +328,7 @@
       "s02": {
         "h": "Authentication",
         "p": [
-          "There are no user passwords in zerosoft. Accounts sign in with Google (OAuth 2.0 / OpenID Connect), so your Google security settings — including two-step verification — protect your zerosoft account too. Sessions use signed, httpOnly cookies, sent only over HTTPS in production."
+          "There are no user passwords in zerosoft. Accounts sign in with Google (OAuth 2.0 / OpenID Connect), so your Google security settings, including two-step verification, protect your zerosoft account too. Sessions use signed, httpOnly cookies, sent only over HTTPS in production."
         ]
       },
       "s03": {
@@ -341,7 +341,7 @@
       "s04": {
         "h": "Link passwords",
         "p": [
-          "Password-protected short links store their passwords as scrypt hashes with a random salt per link. We never store them in plain text and cannot recover them — if you lose one, set a new one. Once a visitor unlocks a link, a signed cookie remembers it for up to 7 days, and attempts are rate-limited per IP and per link to slow down guessing."
+          "Password-protected short links store their passwords as scrypt hashes with a random salt per link. We never store them in plain text and cannot recover them, so if you lose one, set a new one. Once a visitor unlocks a link, a signed cookie remembers it for up to 7 days, and attempts are rate-limited per IP and per link to slow down guessing."
         ]
       },
       "s05": {
@@ -354,20 +354,20 @@
         "h": "Transport and storage",
         "p": [
           "All traffic to zerosoft.ai is served over HTTPS with modern TLS, and plain HTTP is redirected. Data is stored with our infrastructure providers, which encrypt data at rest on their side; on top of that, we encrypt the secrets listed above ourselves.",
-          "Uploaded files (such as chat and issue attachments) are stored at public URLs with long random names. They are hard to guess but not private: anyone with the URL can open the file. File types that browsers would execute — HTML, SVG, XML and JavaScript — are rejected."
+          "Uploaded files (such as chat and issue attachments) are stored at public URLs with long random names. They are hard to guess but not private: anyone with the URL can open the file. File types that browsers would execute (HTML, SVG, XML and JavaScript) are rejected."
         ]
       },
       "s07": {
         "h": "Data minimization",
         "p": [
           "Our click analytics are cookie-less and fingerprint-less by design: referrer domain, country and device are derived from request headers, and the IP address is never stored with the click.",
-          "IP addresses are used briefly for rate limiting — they are part of a temporary key that is deleted after its window ends (at most 10 minutes) — and they appear in our hosting provider's short-lived request logs. The best way to protect data is to not keep it."
+          "IP addresses are used briefly for rate limiting. They are part of a temporary key that is deleted after its window ends (at most 10 minutes), and they appear in our hosting provider's short-lived request logs. The best way to protect data is to not keep it."
         ]
       },
       "s08": {
         "h": "Abuse protection",
         "p": [
-          "Public endpoints — password-protected links, booking pages, the chat widget, imports — are rate-limited per IP. Outgoing requests to URLs you configure, such as webhooks, are restricted to public internet hosts with timeouts, to prevent them from reaching internal networks.",
+          "Public endpoints (password-protected links, booking pages, the chat widget, imports) are rate-limited per IP. Outgoing requests to URLs you configure, such as webhooks, are restricted to public internet hosts with timeouts, to prevent them from reaching internal networks.",
           "We may check short-link destinations and disable links used for phishing, malware or spam. Report abuse to abuse@zerosoft.ai."
         ]
       },

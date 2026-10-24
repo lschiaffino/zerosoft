@@ -428,9 +428,9 @@
     "dark": "Dark"
   },
   "importJob": {
-    "reading": "Reading the source… {count} items so far",
+    "reading": "Reading the source… {count, number} items so far",
     "uploading": "Uploading… {percent}%",
-    "importing": "Importing… {processed} of {total}",
+    "importing": "Importing… {processed, number} of {total, number}",
     "keepsGoing": "You can leave this page. The import keeps going and you can come back to it.",
     "cancel": "Cancel",
     "errors": {
@@ -454,6 +454,7 @@
       "not_ready": "The preview is no longer available. Start again.",
       "internal_error": "Something went wrong on our side. Nothing else was changed.",
       "generic": "Could not import. Try again."
-    }
+    },
+    "readFailed": "We couldn't read {source}: {reason}"
   }
 }

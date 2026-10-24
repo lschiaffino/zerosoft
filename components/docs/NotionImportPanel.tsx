@@ -14,6 +14,8 @@ const MAX_BYTES = 1024 * 1024 * 1024;
 interface Preview {
   pages: number;
   databases: number;
+  /** Filas de base con página (van como cuerpo de la fila). */
+  rows?: number;
   attachments: number;
   bytes: number;
   alreadyImported: number;
@@ -23,6 +25,7 @@ interface Preview {
 interface Report {
   pages: number;
   databases: number;
+  rows?: number;
   files: number;
   filesSkipped: number;
   skipped: number;
@@ -194,9 +197,11 @@ function PreviewView({ job, onConfirm, onCancel }: { job: ImportJobView; onConfi
       <div className="ximp-stats">
         <ImportStat value={p.pages} label={t('stat.pages')} />
         <ImportStat value={p.databases} label={t('stat.databases')} />
+        {(p.rows ?? 0) > 0 && <ImportStat value={p.rows} label={t('stat.rows')} />}
         <ImportStat value={p.attachments} label={t('stat.attachments')} />
         <ImportStat value={formatFileSize(p.bytes)} label={t('stat.size')} />
       </div>
+      {(p.rows ?? 0) > 0 && <p className="ui-help">{t('rowsNote')}</p>}
       {p.alreadyImported > 0 && <p className="ximp-note">{t('already', { count: p.alreadyImported })}</p>}
       <section className="ximp-section">
         <h3>{t('treeTitle')}</h3>
@@ -223,6 +228,7 @@ function DoneView({ job, onAgain }: { job: ImportJobView; onAgain: () => void })
       <p role="status">
         <strong>{t('doneTitle')}</strong> {t('doneSummary', { pages: r.pages, databases: r.databases, files: r.files, skipped: r.skipped })}
       </p>
+      {(r.rows ?? 0) > 0 && <p className="ui-help">{t('doneRows', { count: r.rows ?? 0 })}</p>}
       {r.filesSkipped > 0 && (
         <p className="ximp-note" data-tone="warn">
           {t('filesSkipped', { count: r.filesSkipped })}

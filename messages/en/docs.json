@@ -525,7 +525,8 @@
       "pages": "Pages",
       "databases": "Databases",
       "attachments": "Files",
-      "size": "Size"
+      "size": "Size",
+      "rows": "Row pages"
     },
     "already": "{count} pages were imported before and will be skipped.",
     "treeTitle": "Pages",
@@ -538,6 +539,8 @@
     "open": "Open {title}",
     "untitled": "Untitled",
     "again": "Import another export",
-    "failedTitle": "The import stopped."
+    "failedTitle": "The import stopped.",
+    "rowsNote": "The page of each database row goes in as the body of that row, not as a separate page.",
+    "doneRows": "{count, plural, one {# database row kept its page as the body} other {# database rows kept their pages as the body}}."
   }
 }

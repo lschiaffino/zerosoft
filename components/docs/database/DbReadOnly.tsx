@@ -1,6 +1,8 @@
 import type { DbProperty, DocsBlock } from '@/lib/docs-types';
 import {
   activeView,
+  cardHidesValue,
+  cellValue,
   groupProperty,
   groupRows,
   normalizeDatabase,
@@ -83,11 +85,13 @@ export default function DbReadOnly({
               {g.rows.map((r) => (
                 <div key={r.id} className="docs-db-bcard">
                   <span className="docs-db-bcard-title">{rowTitle(db, r)}</span>
-                  {cardProps.map((p) => (
-                    <div key={p.id} className="docs-db-bcard-prop">
-                      <DbValueView prop={p} row={r} people={people} locale={locale} />
-                    </div>
-                  ))}
+                  {cardProps
+                    .filter((p) => !cardHidesValue(p, cellValue(p, r)))
+                    .map((p) => (
+                      <div key={p.id} className="docs-db-bcard-prop">
+                        <DbValueView prop={p} row={r} people={people} locale={locale} />
+                      </div>
+                    ))}
                 </div>
               ))}
             </div>

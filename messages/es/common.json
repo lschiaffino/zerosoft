@@ -428,9 +428,9 @@
     "dark": "Oscuro"
   },
   "importJob": {
-    "reading": "Leyendo la fuente… {count} elementos hasta ahora",
+    "reading": "Leyendo la fuente… {count, number} elementos hasta ahora",
     "uploading": "Subiendo… {percent}%",
-    "importing": "Importando… {processed} de {total}",
+    "importing": "Importando… {processed, number} de {total, number}",
     "keepsGoing": "Podés salir de esta página. El import sigue y podés volver a verlo.",
     "cancel": "Cancelar",
     "errors": {
@@ -454,6 +454,7 @@
       "not_ready": "La vista previa ya no está disponible. Empezá de nuevo.",
       "internal_error": "Algo falló de nuestro lado. No se cambió nada más.",
       "generic": "No se pudo importar. Probá de nuevo."
-    }
+    },
+    "readFailed": "No pudimos leer {source}: {reason}"
   }
 }

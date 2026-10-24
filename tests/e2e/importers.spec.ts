@@ -144,13 +144,17 @@ test('Cal: import desde Calendly (API mockeada)', async ({ page }) => {
   await expect(page.getByText('Calendly discovery').first()).toBeVisible({ timeout: 45_000 });
 });
 
-test('Docs: export de Notion con árbol, links e imagen', async ({ page }) => {
+test('Docs: export de Notion con árbol, links, imagen y base con filas', async ({ page, request }) => {
   const root = `Notion root ${uid()}`;
   const hex = (c: string) => c.repeat(32);
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
   const home = `${root} ${hex('a')}`;
   const child = `Child ${hex('b')}`;
+  const dbName = `Tareas ${uid()}`;
+  const dbFile = `${dbName} ${hex('c')}`;
   const zip = buildZip([
+    { name: `Export/${home}/${dbFile}.csv`, data: 'Nombre,Estado\nEscribir spec,Listo\nRevisar,En curso\n' },
+    { name: `Export/${home}/${dbFile}/Escribir spec ${hex('d')}.md`, data: '# Escribir spec\n\nEstado: Listo\n\nCuerpo de la fila' },
     { name: `Export/${home}.md`, data: `# ${root}\n\nGo to [Child](${encodeURIComponent(home)}/${encodeURIComponent(child)}.md)\n\n![pic](${encodeURIComponent(home)}/pic.png)\n`, deflate: true },
     { name: `Export/${home}/${child}.md`, data: '# Child\n\nNested page' },
     { name: `Export/${home}/pic.png`, data: png },
@@ -164,11 +168,32 @@ test('Docs: export de Notion con árbol, links e imagen', async ({ page }) => {
   const preview = page.getByTestId('notion-import-preview');
   await expect(preview).toBeVisible({ timeout: 45_000 });
   await expect(preview.getByText(root)).toBeVisible();
-  await preview.getByRole('button', { name: 'Import 2 pages' }).click();
+  await expect(preview.getByText(dbName)).toBeVisible();
+  // La fila no aparece como página: va como cuerpo de la fila.
+  await expect(preview.getByText('Escribir spec')).toHaveCount(0);
+  await preview.getByRole('button', { name: 'Import 3 pages' }).click();
   const done = page.getByTestId('notion-import-done');
   await expect(done).toBeVisible({ timeout: 45_000 });
   await done.getByRole('link', { name: `Open ${root}` }).click();
   await expect(page).toHaveURL(/\/app\/docs\/[0-9a-f-]{36}$/, { timeout: 45_000 });
   await expect(page.locator('a[data-page]', { hasText: 'Child' }).first()).toBeVisible();
-  await expect(page.locator('.docs-blocks img').first()).toBeVisible();
+  const img = page.locator('.docs-blocks img').first();
+  await expect(img).toBeVisible();
+  // Que la imagen cargue de verdad (en `next start` lo subido a public/uploads daba 404).
+  await expect.poll(() => img.evaluate((el: HTMLImageElement) => (el.complete ? el.naturalWidth : 0)), { timeout: 15_000 }).toBeGreaterThan(0);
+
+  // La base: nombre del CSV, Estado como status y la fila con su página como cuerpo.
+  const found = (await (await request.get(`/api/docs/search?q=${encodeURIComponent(dbName)}`)).json()) as { rows: Array<{ id: string; title: string }> };
+  const dbPage = found.rows.find((r) => r.title === dbName)!;
+  expect(dbPage).toBeTruthy();
+  const { content } = (await (await request.get(`/api/docs/pages/${dbPage.id}`)).json()) as {
+    content: Array<{ type: string; db?: { title?: string; properties: Array<{ id: string; type: string }>; rows: Array<{ values: Record<string, unknown>; body?: Array<{ content: string }> }> } }>;
+  };
+  const db = content[0].db!;
+  expect(db.title).toBe(dbName);
+  expect(db.properties.map((p) => p.type)).toEqual(['title', 'status']);
+  const row = db.rows.find((r) => r.values[db.properties[0].id] === 'Escribir spec')!;
+  expect(row.body?.map((b) => b.content)).toEqual(['Cuerpo de la fila']);
+  await page.goto(`/en/app/docs/${dbPage.id}`);
+  await expect(page.getByPlaceholder('Untitled database').first()).toHaveValue(dbName, { timeout: 45_000 });
 });

@@ -20,6 +20,7 @@ import DocsGlyph from './DocsGlyphs';
 import EmojiPicker from './EmojiPicker';
 import DocsDatabaseBlock, { type DbOpenMode } from './DocsDatabaseBlock';
 import { DocsBoardPicker, DocsBoardPreview } from './DocsBoardEmbed';
+import DocsEditorImage from './DocsEditorImage';
 
 interface DocsBlockEditorProps {
   block: DocsBlock;
@@ -170,9 +171,9 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
 
     if (block.type === 'image' || block.type === 'file') {
       // Bloque atómico: se enfoca entero (Tab/flechas/click). Enter crea un
-      // párrafo abajo y Backspace/Supr lo borra (lo maneja el editor). En el
-      // editor la imagen sale de la URL del storage (el bloque recién subido
-      // todavía no está guardado); la descarga pasa por la API con permisos.
+      // párrafo abajo y Backspace/Supr lo borra (lo maneja el editor). La
+      // imagen y la descarga pasan por la ruta con permisos (lo recién subido
+      // se ve desde el archivo local hasta que la página se guarda).
       const hasFile = isDocsUploadUrl(block.url);
       const name = block.name || t('editor.upload.untitledFile');
       return (
@@ -195,9 +196,7 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           {!hasFile ? (
             <span className="docs-file-missing">{t('editor.upload.missing')}</span>
           ) : block.type === 'image' ? (
-            // URL del storage propio (blob o /uploads): next/image exigiría allowlist.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img className="docs-image" src={block.url} alt={name} draggable={false} />
+            <DocsEditorImage storageUrl={block.url!} href={fileHref ? fileHref(block.id) : block.url!} alt={name} />
           ) : (
             <a
               className="docs-file-card"

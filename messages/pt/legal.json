@@ -14,7 +14,7 @@
         "h": "A versão curta",
         "p": [
           "O core do software é open source (AGPLv3): você pode usá-lo, hospedá-lo e modificá-lo. Os recursos enterprise da pasta /ee são source-available e exigem uma assinatura para uso em produção. Se você usa a nossa nuvem, começa em um plano gratuito; os preços por uso serão publicados antes de cobrarmos qualquer coisa de alguém, e hoje nada é cobrado.",
-          "Não use nada disso para violar a lei, enganar ou prejudicar pessoas — links curtos, em especial, não são ferramenta para phishing ou spam, e vamos desativar links e contas que fizerem isso. O resto desta página é a mesma ideia com mais detalhes."
+          "Não use nada disso para violar a lei, enganar ou prejudicar pessoas. Links curtos, em especial, não são ferramenta para phishing ou spam, e vamos desativar links e contas que fizerem isso. O resto desta página é a mesma ideia com mais detalhes."
         ]
       },
       "s02": {
@@ -34,7 +34,7 @@
       "s04": {
         "h": "A nuvem e os preços",
         "p": [
-          "Se você cria uma conta, nós rodamos o software para você. A nuvem inclui um plano gratuito com limites de uso. Acima desses limites, a cobrança será por uso — por exemplo cliques, reservas, e-mails, armazenamento ou usuários — mais os impostos aplicáveis.",
+          "Se você cria uma conta, nós rodamos o software para você. A nuvem inclui um plano gratuito com limites de uso. Acima desses limites, a cobrança será por uso (por exemplo cliques, reservas, e-mails, armazenamento ou usuários), mais os impostos aplicáveis.",
           "Hoje não cobramos ninguém e não pedimos dados de pagamento. Antes de cobrar qualquer coisa, vamos publicar os preços em uma página de preços e avisar quem já tem conta com pelo menos 30 dias de antecedência por e-mail. Nada do que você fizer no plano gratuito vai virar cobrança sem que você escolha antes uma opção paga.",
           "Podemos mudar os limites ou recursos do plano gratuito. Quando uma mudança reduzir algo que você já usa, vamos avisar com antecedência razoável para que você possa se adaptar ou exportar seus dados."
         ]
@@ -50,7 +50,7 @@
       "s06": {
         "h": "Uso aceitável",
         "p": [
-          "Você não pode usar a nuvem — incluindo links curtos, domínios próprios, páginas link-in-bio, páginas de reserva, o widget de chat, documentos ou e-mails enviados por meio de nós — para:"
+          "Você não pode usar a nuvem (incluindo links curtos, domínios próprios, páginas link-in-bio, páginas de reserva, o widget de chat, documentos ou e-mails enviados por meio de nós) para:"
         ],
         "ul": [
           "Fazer phishing, aplicar golpes ou fraudes, ou coletar credenciais, dados de pagamento ou dados pessoais com falsos pretextos.",
@@ -74,7 +74,7 @@
       "s08": {
         "h": "Seu conteúdo e os dados que você coleta",
         "p": [
-          "Seu conteúdo — links, analytics, contatos, reservas, conversas, documentos, arquivos — é seu. Você nos dá apenas a permissão necessária para hospedá-lo, processá-lo, transmiti-lo e exibi-lo para prestar o serviço a você e às pessoas com quem você o compartilha. Não usamos seu conteúdo para publicidade, não o vendemos e não o usamos para treinar modelos de IA.",
+          "Seu conteúdo (links, analytics, contatos, reservas, conversas, documentos, arquivos) é seu. Você nos dá apenas a permissão necessária para hospedá-lo, processá-lo, transmiti-lo e exibi-lo para prestar o serviço a você e às pessoas com quem você o compartilha. Não usamos seu conteúdo para publicidade, não o vendemos e não o usamos para treinar modelos de IA.",
           "Parte do seu conteúdo são dados pessoais de outras pessoas: contatos do CRM, convidados de reservas, visitantes do chat ou pessoas que clicam nos seus links. Para esses dados, você decide o que é coletado e para quê, e é responsável por ter uma base legal e por informar essas pessoas sobre como usa os dados delas. Nós os tratamos em seu nome e seguindo suas instruções, como descrito na nossa Política de Privacidade.",
           "Os arquivos que você envia (por exemplo, anexos do chat ou de issues) ficam em URLs públicas difíceis de adivinhar: qualquer pessoa com a URL pode abrir o arquivo. Não envie nada que precise ser estritamente confidencial.",
           "Você pode exportar seus dados enquanto a conta estiver ativa e por 30 dias depois de encerrá-la. Depois disso, nós os excluímos como descrito na Política de Privacidade."
@@ -105,7 +105,7 @@
         "h": "Suspensão e encerramento",
         "p": [
           "Você pode parar de usar o serviço e encerrar sua conta quando quiser, escrevendo para hola@zerosoft.ai.",
-          "Podemos suspender ou encerrar seu acesso se você violar estes termos de forma grave ou reiterada, se a lei exigir, ou se o seu uso criar risco para pessoas, para o serviço ou para nós. Quando for possível e legal, vamos avisar antes e deixar você exportar seus dados. Se um dia descontinuarmos a nuvem como um todo, vamos avisar com pelo menos 60 dias de antecedência — e o código open source continuará sendo seu para rodar."
+          "Podemos suspender ou encerrar seu acesso se você violar estes termos de forma grave ou reiterada, se a lei exigir, ou se o seu uso criar risco para pessoas, para o serviço ou para nós. Quando for possível e legal, vamos avisar antes e deixar você exportar seus dados. Se um dia descontinuarmos a nuvem como um todo, vamos avisar com pelo menos 60 dias de antecedência, e o código open source continuará sendo seu para rodar."
         ]
       },
       "s13": {
@@ -139,7 +139,7 @@
       "s17": {
         "h": "Lei aplicável e contato",
         "p": [
-          "Estes termos são regidos pelas leis do Uruguai, sem considerar suas regras de conflito de leis. As disputas vão para os tribunais de Montevidéu, Uruguai. Se você é consumidor, mantém as proteções e o foro que a lei obrigatória do seu país lhe garante — por exemplo, o Código de Defesa do Consumidor (Lei 8.078/1990) no Brasil ou a Lei de Defesa do Consumidor argentina (Lei 24.240).",
+          "Estes termos são regidos pelas leis do Uruguai, sem considerar suas regras de conflito de leis. As disputas vão para os tribunais de Montevidéu, Uruguai. Se você é consumidor, mantém as proteções e o foro que a lei obrigatória do seu país lhe garante, por exemplo, o Código de Defesa do Consumidor (Lei 8.078/1990) no Brasil ou a Lei de Defesa do Consumidor argentina (Lei 24.240).",
           "Se alguma parte destes termos for considerada inexequível, o restante continua em vigor. Não exigir o cumprimento de uma cláusula não significa renunciar a ela.",
           "Dúvidas gerais: hola@zerosoft.ai. Abuso e pedidos de remoção: abuse@zerosoft.ai. Segurança: security@zerosoft.ai. Privacidade: privacy@zerosoft.ai."
         ]
@@ -161,14 +161,14 @@
         "h": "A versão curta",
         "p": [
           "Precisamos do seu nome e e-mail para criar sua conta, e de alguns cabeçalhos da requisição para contar cliques. Não usamos cookies de publicidade ou de analytics, não fazemos fingerprinting, não guardamos o endereço IP de quem clica nos seus links, e não vendemos nem alugamos dados pessoais.",
-          "Esta política cobre dois grupos de pessoas: quem tem conta e usa a zerosoft, e quem interage com o que nossos usuários publicam — pessoas que clicam em um link curto, reservam uma reunião ou escrevem em um widget de chat."
+          "Esta política cobre dois grupos de pessoas: quem tem conta e usa a zerosoft, e quem interage com o que nossos usuários publicam: pessoas que clicam em um link curto, reservam uma reunião ou escrevem em um widget de chat."
         ]
       },
       "s02": {
         "h": "Quem é responsável pelos seus dados",
         "p": [
           "A zerosoft é a controladora (quem decide como e para que os dados são usados) dos dados de conta, dos dados de uso do zerosoft.ai e das comunicações que enviamos a quem tem conta.",
-          "Para os dados que nossos usuários coletam por meio dos produtos — contatos do CRM, convidados de reservas, visitantes do chat e cliques em links — o usuário é o controlador e a zerosoft trata os dados em nome dele (como operadora). Se você reservou uma reunião, conversou com uma empresa ou clicou em um link e quer exercer seus direitos, procure primeiro essa empresa; nós vamos ajudá-la a responder, e você também pode nos escrever.",
+          "Para os dados que nossos usuários coletam por meio dos produtos (contatos do CRM, convidados de reservas, visitantes do chat e cliques em links), o usuário é o controlador e a zerosoft trata os dados em nome dele (como operadora). Se você reservou uma reunião, conversou com uma empresa ou clicou em um link e quer exercer seus direitos, procure primeiro essa empresa; nós vamos ajudá-la a responder, e você também pode nos escrever.",
           "Se você hospeda a zerosoft por conta própria, você é o controlador de tudo que está na sua instância e nós nunca vemos nada."
         ]
       },
@@ -180,12 +180,12 @@
           "Dados de cliques: quando alguém segue um link curto, registramos o horário, o link, o domínio de origem, o país aproximado, o tipo de dispositivo, o navegador e o sistema operacional. Não guardamos o endereço IP nem o user-agent completo junto com o clique.",
           "Dados de reservas: quando alguém reserva por uma página do Cal, o nome, e-mail, respostas às perguntas do anfitrião, fuso horário e idioma informados, e os detalhes da reserva.",
           "Dados do chat: mensagens escritas em um widget de Chat, o nome e o e-mail se o visitante decidir informá-los, anexos que ele envia, avaliações de satisfação, e um identificador aleatório de visitante guardado no navegador dele para que a conversa continue entre visitas.",
-          "Dados de integrações do Google, só se você conectá-las: do Gmail, os e-mails trocados com seus contatos do CRM (remetente, destinatários, assunto, data, identificadores de mensagem e de conversa, e o corpo da mensagem — texto simples e uma cópia higienizada do HTML, com tamanho limitado, sem anexos nem imagens remotas), e os e-mails que você envia pelo CRM através do seu Gmail; do Google Agenda, seus horários livres e ocupados e os eventos que as reservas criam na sua agenda.",
+          "Dados de integrações do Google, só se você conectá-las: do Gmail, os e-mails trocados com seus contatos do CRM (remetente, destinatários, assunto, data, identificadores de mensagem e de conversa, e o corpo da mensagem: texto simples e uma cópia higienizada do HTML, com tamanho limitado, sem anexos nem imagens remotas), e os e-mails que você envia pelo CRM através do seu Gmail; do Google Agenda, seus horários livres e ocupados e os eventos que as reservas criam na sua agenda.",
           "Segredos de integrações: tokens OAuth do Google e segredos de assinatura de webhooks, guardados criptografados. As API keys são guardadas apenas como hashes. Um token do Bitly que você nos fornece para importar é usado nessa importação e não é guardado.",
           "Dados técnicos: endereços IP são usados brevemente para limitar requisições e aparecem nos logs de requisições do nosso provedor de hospedagem (veja Retenção). O status de entrega dos e-mails transacionais que enviamos.",
           "Mensagens que você nos envia: e-mails para nossos endereços de suporte, privacidade, abuso ou segurança.",
           "Reservas e CRM: quando alguém agenda uma reunião pelo Cal, nome, email, horário e respostas também são salvos como contato e atividade de reunião no CRM do anfitrião. Se um agente decidir, uma conversa do Chat é salva no contato do CRM do visitante.",
-          "Rastreamento dos e-mails enviados pelo CRM, quando o titular da conta o mantém ativo (pode ser desligado para o workspace ou em cada e-mail): uma imagem invisível e links reescritos registram quando o e-mail é aberto ou um link é clicado — o horário, o link e o user agent do navegador, não o endereço IP. Os e-mails de sequências incluem um link para cancelar a inscrição; ao cancelar, não são enviados mais e-mails de sequências para esse endereço.",
+          "Rastreamento dos e-mails enviados pelo CRM, quando o titular da conta o mantém ativo (pode ser desligado para o workspace ou em cada e-mail): uma imagem invisível e links reescritos registram quando o e-mail é aberto ou um link é clicado: o horário, o link e o user agent do navegador, não o endereço IP. Os e-mails de sequências incluem um link para cancelar a inscrição; ao cancelar, não são enviados mais e-mails de sequências para esse endereço.",
           "Feedback: se você enviar feedback pelo site ou pelo app, guardamos a mensagem, o tipo e o produto escolhidos, a página em que você estava, o user agent do navegador e seu email, se você informar ou estiver logado."
         ]
       },
@@ -211,7 +211,7 @@
         "h": "Como o analytics de cliques funciona sem cookies",
         "p": [
           "Quando um navegador segue um link curto, ele nos diz de onde veio (o cabeçalho Referer, do qual guardamos só o domínio), o que ele é (o cabeçalho User-Agent, que reduzimos a tipo de dispositivo, navegador e sistema operacional) e mais ou menos onde está (um código de país fornecido pelo provedor de hospedagem na borda da rede, ou obtido a partir do IP em instâncias self-hosted).",
-          "Guardamos esses poucos campos e nunca guardamos o endereço IP junto com o clique. Isso basta para estatísticas honestas — cliques por dia, por origem, por país — sem seguir ninguém pela internet."
+          "Guardamos esses poucos campos e nunca guardamos o endereço IP junto com o clique. Isso basta para estatísticas honestas (cliques por dia, por origem, por país) sem seguir ninguém pela internet."
         ]
       },
       "s07": {
@@ -245,10 +245,10 @@
           "Não vendemos dados pessoais. Nós os compartilhamos apenas com os fornecedores (suboperadores) que operam a nuvem para nós, sob cláusulas contratuais de confidencialidade e proteção de dados, e somente na medida necessária para o trabalho deles:"
         ],
         "ul": [
-          "Vercel — hospedagem, funções serverless, armazenamento de arquivos enviados (Vercel Blob) e tarefas agendadas.",
-          "Turso — o banco de dados onde ficam os dados de contas e espaços de trabalho.",
-          "Resend — envio de e-mails transacionais, como convites para espaços de trabalho, notificações e confirmações de reserva.",
-          "Google — login, e Gmail e Google Agenda somente quando você os conecta.",
+          "Vercel: hospedagem, funções serverless, armazenamento de arquivos enviados (Vercel Blob) e tarefas agendadas.",
+          "Turso: o banco de dados onde ficam os dados de contas e espaços de trabalho.",
+          "Resend: envio de e-mails transacionais, como convites para espaços de trabalho, notificações e confirmações de reserva.",
+          "Google: login, e Gmail e Google Agenda somente quando você os conecta.",
           "Destinos que você escolhe: se você configura webhooks ou usa a API, os dados são enviados para as URLs e ferramentas que você definiu.",
           "Autoridades, quando a lei realmente exigir; vamos contestar pedidos excessivamente amplos.",
           "Um sucessor, se a zerosoft passar por fusão ou aquisição; vamos avisar antes que seus dados fiquem sujeitos a uma política de privacidade diferente."
@@ -282,7 +282,7 @@
         "h": "Seus direitos",
         "p": [
           "Onde quer que você more, pode nos pedir acesso, correção, exclusão ou portabilidade dos seus dados pessoais, limitar ou se opor ao tratamento, e revogar seu consentimento. Dependendo do seu país, você pode ter direitos adicionais, como a confirmação da existência de tratamento e informações sobre com quem compartilhamos seus dados (art. 18 da LGPD), ou o acesso gratuito aos seus dados em intervalos não inferiores a seis meses (Lei 25.326).",
-          "As ferramentas de exportação estão integradas aos produtos. Para qualquer outra coisa, escreva para privacy@zerosoft.ai. Talvez precisemos verificar sua identidade. Respondemos dentro do prazo da sua lei local — por exemplo, até 15 dias para a declaração completa prevista na LGPD — e em qualquer caso em até 30 dias.",
+          "As ferramentas de exportação estão integradas aos produtos. Para qualquer outra coisa, escreva para privacy@zerosoft.ai. Talvez precisemos verificar sua identidade. Respondemos dentro do prazo da sua lei local (por exemplo, até 15 dias para a declaração completa prevista na LGPD) e em qualquer caso em até 30 dias.",
           "Você também tem o direito de reclamar a uma autoridade de proteção de dados: no Brasil, a ANPD; no EEE ou no Reino Unido, sua autoridade de controle local; na Argentina, a Agência de Acesso à Informação Pública (AAIP), que, como órgão de controle da Lei 25.326, tem a atribuição de atender denúncias e reclamações de quem for afetado em seus direitos por descumprimento das normas de proteção de dados pessoais. Agradecemos se você nos der a chance de resolver primeiro."
         ]
       },
@@ -328,7 +328,7 @@
       "s02": {
         "h": "Autenticação",
         "p": [
-          "Não existem senhas de usuário na zerosoft. As contas fazem login com o Google (OAuth 2.0 / OpenID Connect), então a segurança da sua conta do Google — incluindo a verificação em duas etapas — protege também sua conta da zerosoft. As sessões usam cookies assinados e httpOnly, enviados somente por HTTPS em produção."
+          "Não existem senhas de usuário na zerosoft. As contas fazem login com o Google (OAuth 2.0 / OpenID Connect), então a segurança da sua conta do Google, incluindo a verificação em duas etapas, protege também sua conta da zerosoft. As sessões usam cookies assinados e httpOnly, enviados somente por HTTPS em produção."
         ]
       },
       "s03": {
@@ -341,7 +341,7 @@
       "s04": {
         "h": "Senhas de links",
         "p": [
-          "Links curtos protegidos por senha guardam as senhas como hashes scrypt com um salt aleatório por link. Nunca as guardamos em texto puro e não conseguimos recuperá-las — se você perder uma, defina outra. Depois que um visitante desbloqueia um link, um cookie assinado lembra disso por até 7 dias, e as tentativas têm limite por IP e por link para dificultar quem tenta adivinhar."
+          "Links curtos protegidos por senha guardam as senhas como hashes scrypt com um salt aleatório por link. Nunca as guardamos em texto puro e não conseguimos recuperá-las, então se você perder uma, defina outra. Depois que um visitante desbloqueia um link, um cookie assinado lembra disso por até 7 dias, e as tentativas têm limite por IP e por link para dificultar quem tenta adivinhar."
         ]
       },
       "s05": {
@@ -354,20 +354,20 @@
         "h": "Transporte e armazenamento",
         "p": [
           "Todo o tráfego para o zerosoft.ai é servido por HTTPS com TLS moderno, e o HTTP simples é redirecionado. Os dados ficam nos nossos provedores de infraestrutura, que criptografam os dados em repouso do lado deles; além disso, nós mesmos criptografamos os segredos listados acima.",
-          "Os arquivos enviados (como anexos do chat ou de issues) ficam em URLs públicas com nomes aleatórios longos. São difíceis de adivinhar, mas não são privados: qualquer pessoa com a URL pode abrir o arquivo. Tipos de arquivo que o navegador executaria — HTML, SVG, XML e JavaScript — são rejeitados."
+          "Os arquivos enviados (como anexos do chat ou de issues) ficam em URLs públicas com nomes aleatórios longos. São difíceis de adivinhar, mas não são privados: qualquer pessoa com a URL pode abrir o arquivo. Tipos de arquivo que o navegador executaria (HTML, SVG, XML e JavaScript) são rejeitados."
         ]
       },
       "s07": {
         "h": "Minimização de dados",
         "p": [
           "Nosso analytics de cliques não usa cookies nem fingerprinting por design: o domínio de origem, o país e o dispositivo vêm dos cabeçalhos da requisição, e o endereço IP nunca é guardado junto com o clique.",
-          "Os endereços IP são usados brevemente para limitar requisições — fazem parte de uma chave temporária excluída quando sua janela termina (no máximo 10 minutos) — e aparecem nos logs de curta duração do nosso provedor de hospedagem. A melhor forma de proteger um dado é não guardá-lo."
+          "Os endereços IP são usados brevemente para limitar requisições. Fazem parte de uma chave temporária excluída quando sua janela termina (no máximo 10 minutos), e aparecem nos logs de curta duração do nosso provedor de hospedagem. A melhor forma de proteger um dado é não guardá-lo."
         ]
       },
       "s08": {
         "h": "Proteção contra abuso",
         "p": [
-          "Os endpoints públicos — links com senha, páginas de reserva, o widget de chat, importações — têm limites por IP. As requisições de saída para URLs que você configura, como webhooks, só podem ir para hosts públicos da internet e têm timeouts, para que não alcancem redes internas.",
+          "Os endpoints públicos (links com senha, páginas de reserva, o widget de chat, importações) têm limites por IP. As requisições de saída para URLs que você configura, como webhooks, só podem ir para hosts públicos da internet e têm timeouts, para que não alcancem redes internas.",
           "Podemos verificar os destinos dos links curtos e desativar os que forem usados para phishing, malware ou spam. Denuncie abusos para abuse@zerosoft.ai."
         ]
       },

@@ -15,8 +15,9 @@
  * - escritura, de a 10 páginas, padres antes que hijas: Markdown → bloques
  *   (lib/docs-import.ts), links a otras páginas del export → links `[[ ]]`,
  *   imágenes y adjuntos a lib/uploads.ts como bloques image/file, `<aside>`
- *   → callout, CSV → bloque de base (tipos de columna detectados) y las filas
- *   con página quedan como subpáginas de la base.
+ *   → callout, CSV → bloque de base (tipos de columna detectados, nombre del
+ *   CSV) y el .md de cada fila ("Base <id>/Fila <id>.md") pasa a ser el cuerpo
+ *   de esa fila (por título), no una subpágina.
  * Reimportar el mismo export saltea las páginas ya importadas (id de Notion).
  */
 import os from 'os';
@@ -160,6 +161,8 @@ export interface NotionPageItem {
   parentPath: string | null;
   depth: number;
   existing: boolean;
+  /** Página de una fila de base: path del CSV. Su contenido va al cuerpo de la fila. */
+  rowOf?: string | null;
 }
 
 /**
@@ -211,8 +214,13 @@ export function planNotionPages(
       parentPath,
       depth: f.path.split('/').length,
       existing: Boolean(mapped),
-    };
+    } as NotionPageItem;
   });
+  // Un .md cuya carpeta es la de un CSV es una fila de esa base.
+  const kindByPath = new Map(items.map((i) => [i.path, i.kind]));
+  for (const i of items) {
+    if (i.kind === 'page' && i.parentPath && kindByPath.get(i.parentPath) === 'database') i.rowOf = i.parentPath;
+  }
   return items.sort((a, b) => a.depth - b.depth || a.path.localeCompare(b.path)).slice(0, NOTION_MAX_PAGES);
 }
 
@@ -284,15 +292,18 @@ export async function notionPreview(_job: ImportJob, items: StagedItem[]): Promi
   const meta = (items.find((i) => i.kind === 'parts')?.data ?? {}) as { parts?: PartRef[]; attachments?: number; bytes?: number };
   const pages = items.filter((i) => i.kind === 'page' || i.kind === 'database').map((i) => i.data as unknown as NotionPageItem);
   // Muestra del árbol: profundidad relativa a la página de más arriba.
-  const minDepth = pages.reduce((m, p) => Math.min(m, p.depth), Infinity);
+  const rows = pages.filter((p) => p.rowOf);
+  const own = pages.filter((p) => !p.rowOf);
+  const minDepth = own.reduce((m, p) => Math.min(m, p.depth), Infinity);
   return {
-    pages: pages.filter((p) => p.kind === 'page').length,
-    databases: pages.filter((p) => p.kind === 'database').length,
+    pages: own.filter((p) => p.kind === 'page').length,
+    databases: own.filter((p) => p.kind === 'database').length,
+    rows: rows.length,
     attachments: meta.attachments ?? 0,
     bytes: meta.bytes ?? 0,
     parts: meta.parts?.length ?? 1,
-    alreadyImported: pages.filter((p) => p.existing).length,
-    tree: orderTree(pages)
+    alreadyImported: own.filter((p) => p.existing).length,
+    tree: orderTree(own)
       .slice(0, 40)
       .map((p) => ({ title: p.title, kind: p.kind, depth: p.depth - minDepth })),
   };
@@ -452,6 +463,9 @@ function looksDate(v: string): string | null {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** Columna que Notion llama Status (o Estado / Situação): va como propiedad status. */
+const STATUS_NAME = /^(status|estado|state|situa[cç][aã]o|etapa)$/i;
+
 const YES_NO = new Set(['yes', 'no', 'true', 'false', '__yes__', '__no__']);
 
 /**
@@ -461,7 +475,7 @@ const YES_NO = new Set(['yes', 'no', 'true', 'false', '__yes__', '__no__']);
  * multi-select con comas, status si se llama así, select si se repiten pocos
  * valores; si no, texto).
  */
-export function csvToDatabaseBlock(text: string, newId: () => string = newDbId): DocsBlock {
+export function csvToDatabaseBlock(text: string, newId: () => string = newDbId, title?: string): DocsBlock {
   const [header = [], ...data] = parseCsv(text);
   const width = Math.min(Math.max(header.length, 1), DB_MAX_COLUMNS);
   const cells = data.slice(0, DB_MAX_ROWS).map((r) => Array.from({ length: width }, (_, i) => (r[i] ?? '').trim().slice(0, 2000)));
@@ -496,8 +510,12 @@ export function csvToDatabaseBlock(text: string, newId: () => string = newDbId):
       } else if (values.every((v) => /^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(v))) {
         prop.type = 'email';
         set((v) => v);
-      } else if (cells.length >= 2 && distinct.length <= 12 && distinct.length < cells.length && distinct.every((v) => v.length <= 40 && !v.includes(','))) {
-        const isStatus = /^(status|estado|state)$/i.test(name);
+      } else if (
+        (STATUS_NAME.test(name) && distinct.length <= 30 && distinct.every((v) => v.length <= 60 && !v.includes(','))) ||
+        (cells.length >= 2 && distinct.length <= 12 && distinct.length < cells.length && distinct.every((v) => v.length <= 40 && !v.includes(',')))
+      ) {
+        // Status se reconoce por el nombre aunque cada fila tenga un valor distinto.
+        const isStatus = STATUS_NAME.test(name);
         prop.type = isStatus ? 'status' : 'select';
         prop.options = options(distinct).map((o) => (isStatus ? { ...o, group: guessStatusGroup(o.name) } : o));
         const byName = new Map(prop.options.map((o) => [o.name, o.id]));
@@ -513,7 +531,71 @@ export function csvToDatabaseBlock(text: string, newId: () => string = newDbId):
     properties.push(prop);
   }
   const view = { id: newId(), name: '', type: 'table' as const };
-  return { id: newId(), type: 'database', content: '', db: { properties, rows, views: [view], active_view: view.id } };
+  const dbTitle = title?.trim().slice(0, 200);
+  return {
+    id: newId(),
+    type: 'database',
+    content: '',
+    db: { properties, rows, views: [view], active_view: view.id, ...(dbTitle ? { title: dbTitle } : {}) },
+  };
+}
+
+/**
+ * Notion repite las propiedades de la fila al principio del .md ("Status:
+ * Done"), debajo del título. Ya vienen en el CSV: se sacan del cuerpo.
+ */
+export function stripRowProperties(body: string, columns: string[]): string {
+  const names = new Set(columns.map((c) => c.trim().toLowerCase()).filter(Boolean));
+  const lines = body.split('\n');
+  let i = 0;
+  while (i < lines.length && lines[i].trim() === '') i++;
+  const start = i;
+  while (i < lines.length) {
+    const m = /^([^:\n]{1,200}):(?:\s|$)/.exec(lines[i]);
+    if (!m || !names.has(m[1].trim().toLowerCase())) break;
+    i++;
+  }
+  if (i === start) return body;
+  while (i < lines.length && lines[i].trim() === '') i++;
+  return lines.slice(i).join('\n');
+}
+
+function rowKey(v: unknown): string {
+  return typeof v === 'string' ? splitIcon(v).title.trim().toLowerCase() : '';
+}
+
+/**
+ * Pone el cuerpo de cada fila (de su .md) en la fila de la base con el mismo
+ * título; si no hay ninguna, suma la fila. Cada fila se usa una sola vez
+ * (títulos repetidos van en orden). Devuelve cuántas filas quedaron con cuerpo.
+ */
+export function attachRowBodies(
+  block: DocsBlock,
+  bodies: Array<{ title: string; blocks: DocsBlock[] }>,
+  newId: () => string = newDbId,
+): number {
+  const db = block.db;
+  const titleProp = db?.properties.find((p) => p.type === 'title');
+  if (!db || !titleProp) return 0;
+  const used = new Set<string>();
+  let attached = 0;
+  for (const b of bodies) {
+    const key = rowKey(b.title);
+    let row = db.rows.find((r) => !used.has(r.id) && rowKey(r.values[titleProp.id]) === key);
+    if (!row) {
+      if (db.rows.length >= DB_MAX_ROWS) continue;
+      const now = new Date().toISOString();
+      row = { id: newId(), values: { [titleProp.id]: b.title.slice(0, 2000) }, created_at: now, updated_at: now };
+      db.rows.push(row);
+    }
+    used.add(row.id);
+    const content = b.blocks.filter((x) => !(x.type === 'paragraph' && !x.content));
+    if (content.length) {
+      row.body = content.slice(0, DOCS_IMPORT_MAX_BLOCKS);
+      attached++;
+    }
+  }
+  return attached;
 }
 
 // ---------- Escritura ----------
@@ -522,6 +604,8 @@ export interface NotionImportReport {
   [key: string]: unknown;
   pages: number;
   databases: number;
+  /** Filas de base que trajeron su página (cuerpo de la fila). */
+  rows?: number;
   files: number;
   filesSkipped: number;
   skipped: number;
@@ -529,7 +613,7 @@ export interface NotionImportReport {
 }
 
 export function emptyNotionReport(): NotionImportReport {
-  return { pages: 0, databases: 0, files: 0, filesSkipped: 0, skipped: 0, roots: [] };
+  return { pages: 0, databases: 0, rows: 0, files: 0, filesSkipped: 0, skipped: 0, roots: [] };
 }
 
 interface PartIndex {
@@ -593,20 +677,42 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
     if (err instanceof ZipError) throw new ImportError('invalid_zip');
     throw err;
   }
+  const byPath = new Map(all.map((p) => [p.path, p]));
+  // Un link a una fila lleva a la página de su base.
+  const localFor = (p: NotionPageItem) => (p.rowOf ? (byPath.get(p.rowOf)?.localId ?? p.localId) : p.localId);
   const ctxBase = {
-    pageByPath: new Map(all.map((p) => [p.path, p.localId])),
-    pageByNotionId: new Map(all.filter((p) => p.notionId).map((p) => [p.notionId!, p.localId])),
+    pageByPath: new Map(all.map((p) => [p.path, localFor(p)])),
+    pageByNotionId: new Map(all.filter((p) => p.notionId).map((p) => [p.notionId!, localFor(p)])),
     hasFile: (p: string) => idx.entries.has(p),
   };
-  const byPath = new Map(all.map((p) => [p.path, p]));
   const db = getDb();
 
+  /** .md de Notion → bloques, con links internos, callouts y adjuntos subidos. */
+  const convert = async (zipPath: string, body: string): Promise<DocsBlock[]> => {
+    const { md, attachments } = rewriteNotionMarkdown(body, { ...ctxBase, path: zipPath });
+    let blocks = calloutIcons(markdownToBlocks(md, { sanitize: sanitizeNotionHtml }));
+    if (attachments.length) {
+      const byMarker = new Map(attachments.map((a) => [a.marker, a]));
+      const out: DocsBlock[] = [];
+      for (const b of blocks) {
+        const a = b.type === 'paragraph' ? byMarker.get(b.content.trim()) : undefined;
+        out.push(a ? { ...(await uploadAttachment(idx, a, report)), ...(b.indent ? { indent: b.indent } : {}) } : b);
+      }
+      blocks = out;
+    }
+    return blocks;
+  };
+
   for (const page of pages) {
+    // Las filas se escriben con su base (cuerpo de la fila), no como páginas.
+    if (page.rowOf) continue;
     if (page.existing && (await db.prepare('SELECT 1 AS one FROM docs_pages WHERE id = ?').get(page.localId))) {
       report.skipped += 1;
       continue;
     }
-    const parent = page.parentPath ? byPath.get(page.parentPath) : undefined;
+    const direct = page.parentPath ? byPath.get(page.parentPath) : undefined;
+    // Subpágina de una fila: queda debajo de la página de la base.
+    const parent = direct?.rowOf ? byPath.get(direct.rowOf) : direct;
     const parentId =
       parent && (await db.prepare('SELECT 1 AS one FROM docs_pages WHERE id = ? AND user_id = ?').get(parent.localId, job.workspace_id))
         ? parent.localId
@@ -616,21 +722,20 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
     let blocks: DocsBlock[];
     const text = await readText(idx, page.path).catch(() => '');
     if (page.kind === 'database') {
-      blocks = [csvToDatabaseBlock(text)];
+      const block = csvToDatabaseBlock(text, newDbId, splitIcon(page.title).title);
+      const columns = block.db?.properties.map((p) => p.name) ?? [];
+      const bodies: Array<{ title: string; blocks: DocsBlock[] }> = [];
+      for (const row of all.filter((p) => p.rowOf === page.path)) {
+        const rowText = await readText(idx, row.path).catch(() => '');
+        const split = splitTitle(rowText, row.title);
+        bodies.push({ title: split.title, blocks: await convert(row.path, stripRowProperties(split.body, columns)) });
+      }
+      report.rows = (report.rows ?? 0) + attachRowBodies(block, bodies);
+      blocks = [block];
     } else {
       const split = splitTitle(text, page.title);
       title = split.title;
-      const { md, attachments } = rewriteNotionMarkdown(split.body, { ...ctxBase, path: page.path });
-      blocks = calloutIcons(markdownToBlocks(md, { sanitize: sanitizeNotionHtml }));
-      if (attachments.length) {
-        const byMarker = new Map(attachments.map((a) => [a.marker, a]));
-        const out: DocsBlock[] = [];
-        for (const b of blocks) {
-          const a = b.type === 'paragraph' ? byMarker.get(b.content.trim()) : undefined;
-          out.push(a ? { ...(await uploadAttachment(idx, a, report)), ...(b.indent ? { indent: b.indent } : {}) } : b);
-        }
-        blocks = out;
-      }
+      blocks = await convert(page.path, split.body);
     }
     const { icon, title: cleanTitle } = splitIcon(title);
     const content = blocks.length ? blocks.slice(0, DOCS_IMPORT_MAX_BLOCKS) : [{ id: crypto.randomUUID(), type: 'paragraph' as const, content: '' }];

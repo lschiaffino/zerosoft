@@ -43,7 +43,8 @@
     "title": "Agents: Add draft vs published versions with history and one-click rollback",
     "description": "updateAgent in lib/agents.ts writes instructions, tools and guardrails straight to the live row, so every save in the editor goes to production channels instantly and there is no record of what changed. Fin Releases keep changes in a space separate from the customer-facing version until you publish (https://fin.ai/testing), and AgentKit offers full versioning (https://openai.com/index/introducing-agentkit/). Without versions you cannot tie a drop in thumbs-up to an edit or undo a bad prompt quickly. First scope: an agent_versions snapshot on publish, playground and tests run on the draft, a Publish button with a short diff, and a version list with restore; store version id on agent_conversations for later analytics.\n\nPriority: high. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "draft-publish-rollback"
   },
   {
     "title": "Agents: Add an analytics tab with resolution, handoff, tool error and topic metrics",
@@ -57,7 +58,8 @@
     "title": "Board: Add real-time multiplayer with live cursors and element-level merge",
     "description": "Miro, FigJam and tldraw all treat simultaneous editing with live cursors as the baseline; tldraw ships an open sync layer (https://tldraw.dev/docs/sync) and Excalidraw exposes isCollaborating, collaborators and reconcileElements so hosts can wire it. Today lib/boards.ts states 'Sin multiplayer en tiempo real' and saves replace the whole scene: a second editor gets a 409 and must choose 'keep mine' (overwrites the teammate) or 'reload' (discards own work) in components/board/BoardEditor.tsx. For a small team running a retro or planning session this is the single biggest blocker to using Board instead of Miro. First scope: per-board presence channel (SSE or websocket) broadcasting element deltas and pointer positions, merged client-side with Excalidraw's reconcileElements, keeping the versioned PUT as the persistence path.\n\nPriority: high. Effort: L. Compared with Miro.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "live-multiplayer"
   },
   {
     "title": "Board: Merge concurrent edits per element instead of whole-scene 'keep mine' overwrite",
@@ -135,7 +137,8 @@
     "title": "Cal: Check conflicts across several calendars and add Microsoft 365 / Outlook",
     "description": "Calendly paid plans connect up to six calendars (Google, Office 365, Outlook, Exchange), let the user toggle which ones to check for conflicts and pick one destination calendar (https://blog.calendly.com/connect-multiple-calendars/). Our lib/google-calendar.ts queries freeBusy only for items [{id: 'primary'}], and there is no Microsoft provider at all. Small teams commonly keep a personal or shared team calendar next to the work one, and many SMB customers live in Microsoft 365, so today they get double booked or cannot use Cal. First scope: list the user's Google calendars and let them select which to check (freeBusy accepts many ids), then add a Microsoft Graph provider through registerBusyProvider plus event creation with the same best-effort pattern.\n\nPriority: high. Effort: M. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "multi-calendar-conflicts"
   },
   {
     "title": "Cal: Offer structured locations (Zoom, Teams, phone, in person) with invitee choice",
@@ -355,7 +358,8 @@
     "title": "Link: Track leads and sales per link and attribute them to CRM contacts and deals",
     "description": "Dub Conversions records lead and sale events against the click that produced them (client SDK plus /track/lead and /track/sale, Stripe integration) and shows clicks to leads to sales funnels per link (https://dub.co/help/article/dub-conversions, https://dub.co/docs/integrations/stripe). We only record clicks (lib/track.ts recordClick); there is no click id, no conversion table and no lead/sale event. We already own a CRM, so this is a strong differentiator: a click id cookie on redirect, a lightweight track endpoint, and CRM form submissions or deal won events attributed back to the originating link. First scope: set a zs_click id on redirect, accept POST /api/v1/track/lead with that id, and show leads per link in analytics and on the CRM contact timeline.\n\nPriority: high. Effort: L. Compared with Bitly / Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "conversion-tracking"
   },
   {
     "title": "Link: Add filters (tag, domain, link, country, device) and timezone to analytics",
@@ -441,7 +445,8 @@
     "title": "Robots: Record fallback selectors per step and self-heal when the primary one breaks",
     "description": "UiPath Unified Target keeps several targeting strategies and the Healing Agent votes on a candidate selector when one is not found, recommending or applying fixes (https://docs.uipath.com/agents/automation-cloud/latest/user-guide-ha/what-is-healing-agent); Browse AI says it detects layout changes and adapts the robot, notifying the user (https://help.browse.ai/en/articles/10486935-how-browse-ai-uses-ai); Stagehand re-infers a selector when a cached one stops resolving (https://docs.stagehand.dev/v4/best-practices/caching). Our recorder computes candidates but keeps only the first unique one (generateSelector in lib/robots-recorder.ts), and resolveTarget tries one selector and then visible text (lib/robots-interpreter.ts). Selector rot is the main maintenance cost of browser robots. First scope: store a fallbacks array (testid, aria-label, name, text, CSS path) per step from the recorder, try them in order at runtime, log 'healed via fallback N', and offer a one-click 'promote fallback' in the run view.\n\nPriority: high. Effort: M. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "self-healing"
   },
   {
     "title": "Robots: Add an extract_list step that turns repeating cards into rows with named fields",
@@ -495,7 +500,8 @@
     "title": "Track: Expose issues, projects and comments in the public /api/v1 with webhooks",
     "description": "Linear's public GraphQL API covers issues, projects, cycles, labels, comments and relations, plus webhooks for every entity (https://linear.app/developers, https://linear.app/developers/webhooks). Our public API (app/api/v1) covers agents, calendar, crm and links but has no track resource; app/api/track/* only accepts session auth. Teams cannot script imports, sync with other tools, or let CI open issues. First scope: /api/v1/track/issues (list, get, create, update), projects and comments, with API key scopes from lib/api-auth.ts and entries in openapi.json; reuse the generic webhooks table for issue.created and issue.updated.\n\nPriority: high. Effort: M. Compared with Linear.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "public-api-webhooks"
   },
   {
     "title": "Track: Create cycles automatically on a cadence and roll over unfinished issues",
@@ -509,19 +515,22 @@
     "title": "Agents: Turn unanswered questions into suggested Docs pages the team can approve",
     "description": "Fin reviews real conversations to recommend content updates and surface missing topics, approvable in one click from its Optimize dashboard (https://fin.ai/train, https://fin.ai/capabilities). We already log every search_knowledge call with its query and empty results in agent_tool_calls and have Docs in the same suite, but nothing connects them (lib/agent-tools.ts, lib/agents.ts). This is a suite advantage: the fix lands directly in the knowledge source the agent reads live. First scope: weekly job that clusters empty-result queries plus handoff reasons, drafts an answer from the teammate replies in handed-off Chat conversations, and creates an unpublished Docs page linked to the agent for review.\n\nPriority: medium. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "content-suggestions"
   },
   {
     "title": "Agents: Give the agent the identified visitor's CRM, Cal and Track context",
     "description": "Fin personalizes answers using customer data and connectors (Stripe, Shopify, Salesforce) and can route by customer attributes (https://fin.ai/capabilities, https://fin.ai/train). Our prompt (buildAgentInstructions in lib/agents.ts) contains no visitor identity even when the Chat widget already knows the visitor's email, and the agent can only learn a contact's first name and lifecycle stage via crm_find_contact (lib/agent-tools.ts). Owning CRM, Cal and Track lets us do this without integrations: upcoming bookings, open issues the visitor reported, deal stage. First scope: when the Chat visitor has a verified email, inject a short read-only context block (name, company, lifecycle stage, next booking, open Track issues by that email) and add tools to list or cancel that visitor's own bookings.\n\nPriority: medium. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "identified-visitor-context"
   },
   {
     "title": "Agents: Add semantic retrieval and show source links in answers",
     "description": "Our search is in-memory BM25 over keyword tokens with a small ES/EN/PT stopword list (lib/knowledge-search.ts), so a question phrased differently from the doc, or in another language than the doc, often returns nothing and triggers a handoff. Fin answers in 45+ languages from the same content (https://fin.ai/capabilities). search_knowledge already returns a source for URLs but the visitor never sees which page an answer came from, which hurts trust and makes wrong answers hard to debug. First scope: hybrid ranking (BM25 plus embeddings via the AI Gateway, cached per chunk with a content hash), and an instruction plus UI to append one source link (Docs public URL or web URL) to answers that used knowledge.\n\nPriority: medium. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "semantic-retrieval"
   },
   {
     "title": "Agents: Alert the owner when thumbs-down, tool errors or step limits spike",
@@ -535,7 +544,8 @@
     "title": "Agents: Answer email threads from CRM inboxes as a channel, draft-first",
     "description": "Fin deploys to email, WhatsApp, SMS, Slack and voice (https://fin.ai/pricing), and Lindy drafts and triages email (https://docs.lindy.ai/features/inbox-management/email-drafting.md). Our channels are the Chat widget, the public page, the API and the Flow node (AgentChannel in lib/agents-config.ts, lib/agents-chat.ts); there is no email channel even though the suite already handles email in lib/crm-email.ts. Email is where most small-team support and sales actually happens. First scope: assign an agent to a CRM email inbox in 'draft' mode, where it writes a reply draft on each inbound thread for a teammate to send, with the same tools and logging as other channels.\n\nPriority: medium. Effort: L. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "email-channel"
   },
   {
     "title": "Board: Add voting sessions and a shared timer for workshops",
@@ -753,7 +763,8 @@
     "title": "Docs: Show live presence and merge concurrent edits instead of a 409 conflict",
     "description": "Notion lets any number of people edit the same page at once with edits appearing instantly and collaborator avatars showing where they are (https://www.notion.com/help/collaborate-with-people); Outline offers the same real-time co-editing in open source (https://www.getoutline.com/). We use optimistic concurrency: when two people save the same page, DocsEditorClient.tsx shows a conflict banner and one person must reload (losing work) or overwrite the other. In a team of 5-20 editing meeting notes together during a call, this happens every week. First scope: presence avatars and a 'someone else is editing' hint via polling or SSE, plus block-level merge on 409 (apply the other person's changed blocks when the local user did not touch them); full CRDT (Yjs) can come later.\n\nPriority: medium. Effort: L. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "realtime-editing"
   },
   {
     "title": "Docs: Add filter, sort, group and board view to database blocks",
@@ -783,13 +794,15 @@
     "title": "Docs: Keep version history by time window and highlight what changed",
     "description": "Notion keeps page history for 7 days on Free and 30 days on Plus, and highlights added content in blue and removed content in strikethrough (https://www.notion.com/pricing, https://www.notion.com/help/collaborate-with-people). Our lib/docs-versions.ts prunes to the last 50 snapshots per page regardless of age, with auto snapshots every 5 minutes, so one busy afternoon of edits can erase last week's versions, and VersionsPanel.tsx only previews a snapshot without a diff. When someone accidentally deletes a section, the team needs to find which version still had it. First scope: prune by age (keep all for 7 days, then one per day up to 30 days) instead of a flat count, and a block-level diff view against the current page with added/removed styling.\n\nPriority: medium. Effort: S. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "version-diff"
   },
   {
     "title": "Docs: Add AI actions in the editor: summarize, improve, translate and draft",
     "description": "Notion AI offers summarize, fix spelling and grammar, translate and brainstorm/draft directly on selected text or a whole page (https://www.notion.com/help/guides/using-notion-ai), and Outline answers questions about your docs (https://www.getoutline.com/). Docs has no AI at all today, while the suite already has lib/ai.ts with a per-workspace free token quota used by CRM email drafts and Notes ask. For a bilingual LATAM team, 'translate this page to English' and 'summarize these meeting notes into action items' are high-frequency and a strong differentiator for an open source suite. First scope: an AI option in the selection toolbar and slash menu (/ai) with summarize, improve writing, translate (es/en/pt) and continue writing, inserting the result as new blocks the user can accept or discard.\n\nPriority: medium. Effort: M. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "ai-editor"
   },
   {
     "title": "Docs: Show backlinks ('Linked from') under the page title",
@@ -803,7 +816,8 @@
     "title": "Docs: Expose a public Docs API with docs:read and docs:write scopes",
     "description": "Notion's public API exposes pages, blocks, databases, comments and search (https://developers.notion.com/reference/block), and Notion 3.8 adds MCP access so agents can read and update the workspace (https://www.notion.com/releases); Outline also ships an open API and MCP server (https://www.getoutline.com/). Our lib/api-scopes.ts defines scopes for crm, links, cal and agents but none for docs, and there is no app/api/v1/docs, so API keys cannot create or read pages. Small teams want to push release notes or meeting summaries into Docs from scripts, Flow or Agents. First scope: /api/v1/docs/pages list/get/create/update (content as Markdown in and out using lib/docs-markdown.ts) and search, behind docs:read and docs:write, documented in the existing openapi.json.\n\nPriority: medium. Effort: M. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "public-api"
   },
   {
     "title": "Flow: Prune old runs and steps with a retention window per workspace",
@@ -817,7 +831,8 @@
     "title": "Flow: Connect Google, Slack and Notion with one-click OAuth that refreshes tokens",
     "description": "Zapier and n8n connect apps with an OAuth button and refresh tokens automatically (https://docs.n8n.io/integrations/builtin/credentials/google/oauth-single-service/). Flow credentials are pasted secrets: Google needs a service account JSON or a raw ya29 access token, and the generic oauth_token type stores only an access token with no refresh, so a pasted Google token stops working after about an hour (lib/flow-credentials-schema.ts). The repo already runs Google OAuth for Gmail and Calendar (app/api/integrations/gmail, app/api/integrations/google-calendar), so the plumbing exists. Pasting a service account is a non-starter for a founder setting up a sheet sync. First scope: OAuth connect with refresh for Google Sheets, then Slack and Notion, shown as credentials of the same types.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "oauth-connect"
   },
   {
     "title": "Flow: Add Google Sheets lookup, update and upsert rows plus a new row trigger",
@@ -829,7 +844,8 @@
     "title": "Flow: Add AI extract and classify steps that return structured fields",
     "description": "n8n has an Information Extractor node that returns fields from a JSON schema, a JSON example or attribute descriptions, and a Text Classifier that routes to one output per category (https://docs.n8n.io/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-langchain.information-extractor/); Zapier's AI by Zapier returns named output fields. Our ai.text node returns free text only (lib/flow-engine.ts aiNode), so using the answer in an If or a CRM field needs a JSON parse step and luck. Typical small-team flows are 'classify this inbound email or chat as sales, support or spam' and 'extract name, company and budget from this form'. First scope: an output mode on ai.text with a field list (name, type, description) using structured output, and an ai.classify node with one output handle per category.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "ai-extract"
   },
   {
     "title": "Flow: Email the flow owner when runs fail and offer automatic replay",
@@ -943,7 +959,8 @@
     "title": "Notes: Add a personal inbound email address that turns forwarded email into notes",
     "description": "Evernote gives every user a private address; forwarded emails become notes, and the subject line accepts @notebook and #tag shortcuts, up to 200 emails per day (https://help.evernote.com/hc/articles/209005347). We have no inbound capture besides the bookmarklet (app/api/notes has no email route), although the suite already sends and receives email through Resend and CRM email sync. Forwarding receipts, confirmations and threads is one of the fastest capture habits and works from any phone mail client. First scope: a per-person secret address shown in Notes settings, an inbound webhook that creates a note with subject as title and body as blocks, and @notebook and #tag parsing in the subject.\n\nPriority: medium. Effort: M. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "email-to-note"
   },
   {
     "title": "Notes: Support search operators like tag:, notebook:, intitle:, created: and todo:",
@@ -1011,7 +1028,8 @@
     "title": "Robots: Add natural-language act and extract steps backed by the AI gateway with caching",
     "description": "Stagehand exposes act(), extract() with a schema and observe(), caches resolved actions keyed by instruction and page content, and self-heals when a cached selector stops resolving (https://docs.stagehand.dev/v4/basics/act, https://docs.stagehand.dev/v4/best-practices/caching); UiPath Autopilot generates StudioX workflows from a plain-language description (https://docs.uipath.com/studiox/standalone/2024.10/release-notes/2024-10-1). Our steps all require CSS selectors or exact visible text and there is no AI step type (lib/robots-schema.ts STEP_TYPES). AI steps lower the skill bar for non-technical members and fix brittle selectors. First scope: an 'ai_extract' step (instruction plus field list, returns rows) and an 'ai_click' step that resolves an element from an accessibility snapshot once, caches the chosen selector on the robot, and re-resolves only on failure.\n\nPriority: medium. Effort: L. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "natural-language-steps"
   },
   {
     "title": "Robots: Expose a public API to run robots and bulk-run one robot over many inputs",
@@ -1025,7 +1043,8 @@
     "title": "Track: Add Cmd+K command menu and single-key shortcuts for issue properties",
     "description": "Linear is driven by a command menu and single-key actions: S status, A assign, P priority, L labels, G then I for inbox, H snooze, and ? opens a searchable shortcut help (https://linear.app/docs/inbox, https://linear.app/changelog/2021-03-25-keyboard-shortcuts-help). Track only handles C, J/K and Enter (components/track/TrackShortcuts.tsx). Without property shortcuts, triaging a list means opening every popover with the mouse. First scope: on the focused row or open issue, S/A/P/L open the existing inline editors from components/track/InlineEditors.tsx, plus Cmd+K with go-to and change-property commands and a ? help dialog.\n\nPriority: medium. Effort: M. Compared with Linear.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "property-shortcuts"
   },
   {
     "title": "Track: Add issue templates per project with preset properties and description",
@@ -1101,7 +1120,8 @@
     "title": "Board: Present frames as slides and export frames to PDF",
     "description": "Miro reads frame order from the board, shows them in a sidebar outline and presents them as slides, and exports high-resolution PDF/JPG on Starter (https://miro.com/pricing/, https://miro.com/blog/what-we-launched-october-2022/). Excalidraw gives us frames, but components/board/ExcalidrawCanvas.tsx only enables the stock export dialog (single PNG/SVG of the canvas or selection) and there is no presentation mode or frame list. Teams reuse board content in reviews and client calls, which today means screenshots. First scope: a frames panel listing frames in order with click-to-zoom, a fullscreen 'Present' mode stepping through frames with arrow keys, and 'Export frames as PDF' using exportToBlob per frame.\n\nPriority: low. Effort: M. Compared with Miro.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "present-frames"
   },
   {
     "title": "Board: Fix editor rename that skips saves, shows no errors and keeps stale updated_at",
@@ -1131,7 +1151,8 @@
     "title": "Chat: Add AI compose tools for agents: summarize to note, rephrase, translate",
     "description": "Intercom's inbox AI lets teammates expand shorthand, change tone, fix grammar and translate a reply (Cmd+J), and summarize a conversation into an editable internal note (https://www.intercom.com/help/en/articles/6955446-fin-ai-for-help-desk). We already call the AI Gateway for the visitor-facing bot in lib/chat-bot-ai.ts, but the agent composer in components/chat/ConversationClient.tsx has no AI actions. This is agent assist, separate from the backlog items for a docs-answering bot and action-taking agents. First scope: a composer menu with 'Rephrase', 'Translate to visitor language' and 'Summarize to note', billed through the existing usage metering and hidden when AI_GATEWAY_API_KEY is absent.\n\nPriority: low. Effort: M. Compared with Intercom.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "agent-copilot"
   },
   {
     "title": "Chat: Allow editing and deleting internal notes and agent messages",
@@ -1153,7 +1174,8 @@
     "title": "CRM: Add an AI summary card on contact, company and deal pages",
     "description": "HubSpot's Breeze record summary card generates on record load from activities, notes and ownership, can be refreshed, and is also a workflow action (https://knowledge.hubspot.com/records/summarize-records). Our only AI touch in the CRM is 'Draft with AI' for emails (components/crm/Timeline.tsx:432, app/api/crm/emails/draft); there is no record summary. Before a call, a founder wants 'where is this deal and what was promised' without scrolling a long timeline. First scope: when AI is enabled, a cached summary card above the timeline built from the last N activities, emails and stage changes, with a refresh button and a 'next step' suggestion; no automatic writes.\n\nPriority: low. Effort: M. Compared with HubSpot.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "ai-record-summary"
   },
   {
     "title": "CRM: Attach files to notes and records, not only to tasks",
@@ -1175,7 +1197,8 @@
     "title": "Docs: Add web bookmarks, video embeds and two-column layout",
     "description": "Notion embeds YouTube, Loom, Figma and other links, renders web bookmarks as preview cards, and lets you drag blocks side by side into resizable columns (https://www.notion.com/help/images-files-and-media, https://www.notion.com/help/columns-headings-and-dividers). Our block schema (lib/docs-schema.ts) has no embed, bookmark or column type, and the sanitizer drops IFRAME/EMBED (lib/docs-richtext.ts), so a pasted Loom link stays a plain link. Async teams share Loom walkthroughs and Figma files inside specs constantly. First scope: when a lone URL is pasted, offer 'Embed' for an allowlist of providers (YouTube, Vimeo, Loom, Figma, Google Docs) and 'Bookmark' for anything else (fetch title, description and favicon server side); columns can follow as a second step.\n\nPriority: low. Effort: M. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "embeds-bookmarks"
   },
   {
     "title": "Link: Group links into folders with view or edit access per folder",
@@ -1213,7 +1236,8 @@
     "title": "Notes: Make Notes an installable PWA with offline reading and queued edits",
     "description": "Evernote, Apple Notes, Keep, Bear and Obsidian all work offline on mobile, and Evernote documents which search operators still work offline (https://help.evernote.com/hc/articles/208313828). Our app has no web manifest or service worker (no app/manifest, nothing in public/), every list and note load is a network fetch (components/notes/NotesApp.tsx refreshList, openNote), and a failed save only shows an error status. On a phone with weak signal, capture fails exactly when it is needed. First scope: a web manifest so Notes can be added to the home screen, caching of recently opened notes in IndexedDB, and an offline save queue that replays PATCHes when back online.\n\nPriority: low. Effort: L. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "offline-notes"
   },
   {
     "title": "Notes: Show column headers for database blocks on shared and trashed notes",
@@ -1257,7 +1281,8 @@
     "title": "Agents: Upload PDF, DOCX, TXT and CSV files as knowledge",
     "description": "Chatbase trains on PDF, TXT, DOC and DOCX up to 20 MB each (https://www.chatbase.co/docs/user-guides/chatbot/data-sources.md) and Voiceflow imports PDF, DOCX and CSV/XLSX tables where each row becomes a chunk (https://www.voiceflow.com/docs/documentation/build/importing-data-sources.md). Our Knowledge tab only takes Docs pages, up to 20 URLs and Chat saved replies (knowledgeConfigSchema in lib/agents-config.ts); there is no file input (verified in the browser). Price lists and manuals usually live in PDFs. First scope: upload files to an agent (reuse the Docs upload storage), extract text server side, chunk and index them next to URLs for search_knowledge, show size, status and re-upload, with a per-workspace size cap.",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "file-upload"
   },
   {
     "title": "Agents: Crawl a whole site or sitemap with include and exclude patterns",
@@ -1269,31 +1294,36 @@
     "title": "Agents: Add WhatsApp as a channel for the agent",
     "description": "Chatbase deploys agents to WhatsApp (with templates and Coexistence), Messenger, Instagram and Slack (https://www.chatbase.co/docs/llms.txt) and Fin answers on WhatsApp, SMS and Slack (https://fin.ai/updates). Agents only run on a Chat widget, /a/<handle>, the API and Flow (AGENT_USAGE_CHANNELS). For small teams in LatAm WhatsApp is where customers write. First scope: connect a WhatsApp Business Cloud number to an agent, map each phone number to an agent conversation, run runAgent on inbound messages, reply within the 24 h window, and hand off to the Chat inbox (shared with the Chat WhatsApp channel idea) with the same handoff rules.",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "messaging-channels"
   },
   {
     "title": "Agents: Run multi-turn simulations with an AI customer and replay real conversations",
     "description": "Fin Simulations play a full conversation with an AI customer, mock connector outputs and judge the result; Batch Test replays real conversations (https://fin.ai/updates/simulations-for-procedures, https://fin.ai/updates). Voiceflow tests support AI-simulated users with success criteria and assertions on tool calls (https://www.voiceflow.com/docs/documentation/measure/tests.md). Our tests (lib/agents-tests.ts) are one question plus an expected behavior, which does not cover booking or qualification flows. First scope: a test can be a persona plus a goal; an LLM plays the customer for up to N turns in dry run and the judge checks the goal and which tools were called; plus 'Replay last 20 conversations' that reruns real visitor messages against the current instructions and highlights answers that changed.",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "multi-turn-simulation"
   },
   {
     "title": "Agents: Score every conversation for sentiment and quality with AI",
     "description": "Fin rates every conversation with a CX Score without surveys and detects sentiment and urgency (https://community.intercom.com/product-updates/a-new-era-of-insights-has-arrived-10513); Chatbase shows sentiment and CSAT (https://www.chatbase.co/docs/user-guides/chatbot/analytics.md). Our Analytics tab (lib/agents-analytics.ts) has resolution, handoffs, tool errors, keyword topics and thumbs, which few visitors click. First scope: when a conversation goes idle, a cheap model call scores sentiment, whether the question was answered and a 1 to 5 quality score with a one-line reason; show averages and a worst-conversations list in Analytics and feed the existing alerts.",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "csat-sentiment"
   },
   {
     "title": "Agents: Show buttons and short forms in the chat to capture leads",
     "description": "Chatbase has Collect leads, Collect data, custom buttons and suggested messages as actions (https://www.chatbase.co/docs/llms.txt). Our agents ask for email and company in free text and then call crm_upsert_contact; visitors skip or mistype it and the SDR template loses leads. First scope: a collect_info tool the agent can call with fields (email, name, phone, company, a select) that renders a small form in the Chat widget and the public page, validates on the client, returns the values to the agent and saves them to the CRM contact, plus quick-reply buttons the agent can offer.",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "chat-forms-buttons"
   },
   {
     "title": "Agents: Connect MCP servers as tools",
     "description": "Fin added MCP connectors including a Zapier MCP that reaches thousands of apps (https://fin.ai/updates) and Voiceflow has an MCP tool (https://www.voiceflow.com/docs/documentation/build/tools/overview.md). Our tools are the suite tools plus http_request with secret headers (lib/agent-tools.ts), so calling a third-party system means hand-writing HTTP calls. First scope: add an MCP server URL with an optional secret header (reuse agent secrets), list its tools, enable specific tools per agent, run them through the existing logging, dry-run simulation and approval flow, and block private hosts with safeFetch.",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "mcp"
   },
   {
     "title": "Agents: Add step-by-step procedures the agent follows for a specific task",
@@ -1317,13 +1347,15 @@
     "title": "Board: Generate a diagram from a text prompt with AI",
     "description": "Excalidraw+ has chat-based text to diagram that streams onto the canvas (https://plus.excalidraw.com/changelog) and Miro's Create with AI builds diagrams and mind maps from a prompt (https://help.miro.com/hc/articles/28782102127890). Board only offers Mermaid to Excalidraw, which needs the user to write Mermaid. The AI gateway already powers Agents and Flow. First scope: a 'Generate' item next to Mermaid that sends the prompt to the AI gateway, asks for Mermaid flowchart, sequence or ER syntax, and inserts the converted elements at the viewport center as one undoable change.\n\nPriority: high. Effort: M. Compared with Excalidraw+ / Miro.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "text-to-diagram"
   },
   {
     "title": "Board: Open .excalidraw files and drop them on the canvas",
     "description": "Excalidraw and Excalidraw+ open .excalidraw files and PNGs with an embedded scene (https://github.com/excalidraw/excalidraw). Board can save a .excalidraw file but cannot open one: the canvas menu sets loadScene: false (components/board/ExcalidrawCanvas.tsx) and the list has no import. A team switching from Excalidraw has its diagrams in those files. First scope: 'Import .excalidraw' on the board list that creates one board per file (images moved to Blob storage), plus dropping a file on an open board to merge its elements.\n\nPriority: high. Effort: S. Compared with Excalidraw+.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "open-excalidraw-file"
   },
   {
     "title": "Board: Group and summarize stickies with AI into a Docs page",
@@ -1335,13 +1367,15 @@
     "title": "Board: Add folders and search inside board content",
     "description": "Excalidraw+ has unlimited folders and private collections, and full-text search across scenes is in progress (https://plus.excalidraw.com/pricing, https://plus.excalidraw.com/roadmap); Miro has spaces and search. The Board list and sidebar are flat and Cmd+K matches board names only. First scope: folders with the Link folders model shown in the list and sidebar, and Cmd+K results that match the text of stickies, shapes and frame names (indexed on save).\n\nPriority: medium. Effort: M. Compared with Excalidraw+ / Miro.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "folders"
   },
   {
     "title": "Board: Expose boards through the public v1 API and MCP",
     "description": "Excalidraw+ launched a public REST API for scenes, collections and logs (May 2026) and an MCP server with create_diagram and search_scene_content tools (https://plus.excalidraw.com/llms-full.txt); Miro has a REST API and MCP (https://miro.com/pricing/). app/api/v1 has no boards. First scope: GET and POST /api/v1/boards, GET /api/v1/boards/{id} with the scene, and POST /api/v1/boards/{id}/elements that accepts Excalidraw skeletons or Mermaid, behind boards:read and boards:write scopes, then the same as MCP tools.\n\nPriority: medium. Effort: M. Compared with Excalidraw+ / Miro.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "rest-api"
   },
   {
     "title": "Board: Show a 'board changed' notice and refresh remote edits while the editor is open",
@@ -1353,13 +1387,15 @@
     "title": "Board: Add follow mode and 'bring everyone to my view' for workshops",
     "description": "Excalidraw+ has follow mode and Spotlight Me, which syncs everyone's view to the presenter (https://plus.excalidraw.com/changelog); Miro has Bring everyone to me. Board already runs workshop sessions with a shared timer and dot voting (lib/board-workshop.ts) polled every 4 seconds, but a facilitator cannot move the group to the next column. First scope: a 'Bring everyone here' button in Workshop that stores the facilitator's scroll and zoom in the workshop state, and other viewers jump there on the next poll with a 'Following Ada' bar to stop.\n\nPriority: medium. Effort: S. Compared with Excalidraw+ / Miro.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "follow-mode"
   },
   {
     "title": "Board: Move deleted boards to a trash with restore",
     "description": "Excalidraw+ added a trash with restore in March 2026 (https://plus.excalidraw.com/changelog) and Miro keeps deleted boards in a trash. Deleting a Board is permanent after one confirm, together with its comments, history snapshots and guest links. First scope: a deleted_at column, a Trash view in the board list for 30 days with Restore and Delete forever, and board.deleted fired only on the final delete.\n\nPriority: medium. Effort: S. Compared with Excalidraw+ / Miro.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "trash"
   },
   {
     "title": "Board: Add a mind map tool with Tab and Enter to grow branches",
@@ -1371,7 +1407,8 @@
     "title": "Cal: Create a unique Zoom or Teams meeting for every booking",
     "description": "Calendly connects Zoom and Microsoft Teams so each booking gets its own meeting link generated by the provider (https://calendly.com/pricing, conferencing on all plans). Our lib/calendar-locations.ts treats zoom and teams as a fixed URL per host or per option, so every guest reuses the same room and recordings and waiting rooms mix meetings. Scope: OAuth connections for Zoom and Microsoft (Graph onlineMeetings) in Cal settings, create the meeting on confirm, update it on reschedule and delete it on cancel, with the same best-effort pattern as the Google Meet path; keep the fixed link as fallback.\n\nPriority: high. Effort: M. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "zoom-teams-generated"
   },
   {
     "title": "Cal: Import event types, schedules and questions from Calendly",
@@ -1385,7 +1422,8 @@
     "title": "Cal: Send SMS and WhatsApp reminders from workflows",
     "description": "Calendly workflows send SMS reminders and follow-ups on paid plans (https://calendly.com/blog/workflows) and Cal.com markets SMS and WhatsApp actions (https://cal.com/docs/enterprise-features/workflows). Our lib/calendar-workflows.ts only has email steps to guest or host. In LatAm services (clinics, salons, classes) WhatsApp is what cuts no-shows. Scope: a channel field per step (email, SMS, WhatsApp), a phone question mapped as the destination, Twilio or WhatsApp Cloud API credentials per workspace (encrypted like the Stripe key), same variables and cron dispatch, and opt-out handling.\n\nPriority: high. Effort: M. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "sms-reminders"
   },
   {
     "title": "Cal: Trigger workflows on booked, cancelled and rescheduled, with a webhook step",
@@ -1397,73 +1435,85 @@
     "title": "Cal: Let workspaces hide 'Powered by zerosoft' and serve booking pages on their own domain",
     "description": "Calendly lets owners remove the Calendly branding from booking pages (https://calendly.com/help/account-settings-overview) and Cal.com Teams includes branding removal (https://cal.com/pricing). Our ChromeGate always renders the powered-by line on /book pages, and booking pages only live on our domain. Link already verifies custom domains (lib/link-domains.ts). Scope: a workspace setting to hide the footer, and serving /book/<handle> on a verified custom domain reusing the Link domain verification.\n\nPriority: medium. Effort: S. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "remove-powered-by"
   },
   {
     "title": "Cal: Export bookings and analytics to CSV and filter analytics by host",
     "description": "Calendly analytics filter by user, team or group and export event or user data to CSV, and the Meetings export includes UTM and payment fields (https://calendly.com/help/calendly-analytics, https://calendly.com/help/tracking-and-reporting). Our Cal analytics and Bookings pages have no export and no host filter. Scope: CSV download from Bookings (current filters applied, with answers, UTM, payment and status) and from Analytics, plus a host selector on Analytics for team workspaces.\n\nPriority: medium. Effort: S. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "export-bookings"
   },
   {
     "title": "Cal: Add managed event types and a public team booking page",
     "description": "Calendly Teams has managed event types that admins lock and push to members (https://calendly.com/pricing) and Cal.com Teams includes managed event types and team pages (https://cal.com/pricing). We have host pools per event type but every public page is per person (/book/<handle>) and there is no template an admin can enforce. Scope: a team handle page listing team event types, and managed event types whose locked fields (duration, questions, workflows) propagate to each member's copy.\n\nPriority: medium. Effort: M. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "managed-event-types"
   },
   {
     "title": "Cal: Add meeting polls so invitees vote on proposed times",
     "description": "Calendly meeting polls let a host propose several times and invitees vote before one is booked (https://calendly.com/pricing, Standard and up). We have one-off meetings with hand-picked times, but only one person books and there is no voting. Scope: a poll type built on one-off times where several invitees mark the times that work, the host sees the tally and confirms one, and the confirmation goes to all voters with .ics.\n\nPriority: medium. Effort: M. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "meeting-polls"
   },
   {
     "title": "Cal: Allow hidden event types that do not show on the public profile",
     "description": "Calendly lets an event type stay bookable by its link without being listed on the profile page. Our profile (lib/calendar.ts) lists every active event type that is not single-use, so a team cannot keep an internal or VIP link off the public page without making it single-use. Scope: a 'Show on profile' toggle per event type, respected by the profile page and the embed picker.\n\nPriority: low. Effort: S. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "secret-event-types"
   },
   {
     "title": "Cal: Summarize meetings into the CRM with a notetaker",
     "description": "Calendly launched Notetaker in August 2026: it joins Zoom, Meet and Teams, records, and produces recaps, action items and follow-up email drafts (https://calendly.com/newsroom/press-release/calendly-new-ai-product-suite). Bookings already create a CRM contact and meeting in our suite. Scope: start with notes the host pastes or a transcript upload, summarized by AI into the CRM meeting with action items as CRM tasks; a recording bot can come later.\n\nPriority: low. Effort: L. Compared with Calendly.",
     "product": "cal",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "notetaker"
   },
   {
     "title": "Chat: Add WhatsApp and Instagram as channels in the shared inbox",
     "description": "Intercom routes chat, email, WhatsApp, Instagram, Facebook and SMS into one inbox (https://www.intercom.com/helpdesk) and Crisp includes WhatsApp, Instagram, SMS, Line and Viber from its $95/month Essentials plan (https://crisp.chat/en/pricing/). Chat only has the web widget (app/api/chat/widget.js); conversations, visitors and rules in lib/chat-data.ts assume a widget. For teams in LatAm WhatsApp is the main support channel, so this is the first thing they ask after switching. First scope: a WhatsApp Business Cloud connection per workspace (webhook in, Graph API out) that creates chat_conversations with a channel column, shows a channel icon in the inbox rows, sends agent replies back respecting the 24 h window, and reuses assignment rules, SLA, tags and the AI bot. Instagram DMs as a second step over the same channel abstraction.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "social-channels"
   },
   {
     "title": "Chat: Send proactive messages by page URL, time on page or returning visitor",
     "description": "Intercom includes proactive chats, banners and tooltips on every plan (https://www.intercom.com/pricing) and Crisp has chat triggers from the Mini plan (https://crisp.chat/en/pricing/). Our widget only opens when the visitor clicks the launcher; the widget already knows the page URL and referrer (lib/chat-visitor-context.ts) but no rule uses them. A pricing-page nudge is how small teams turn chat into sales. First scope: per-widget auto messages with conditions (URL contains, seconds on page, first or returning visit, office hours only), a message body and optional sender, shown as an unread bubble without creating a conversation until the visitor answers, with a per-visitor frequency cap and sent/replied counts.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "proactive-messages"
   },
   {
     "title": "Chat: Notify agents on their phone with an installable PWA and Web Push",
     "description": "Intercom and Crisp ship iOS and Android teammate apps with push, and Crisp added Mac and Windows apps in 2026 (https://crisp.chat/en/blog/march-2026-product-update/). zerosoft has no service worker or Web Push, so an agent away from the desk never learns about a new chat until they reopen the tab; the inbox at 390px already works (tested). First scope: a web app manifest and service worker for /app, an opt-in for push in Chat settings, push on new conversation, on a visitor reply to a conversation assigned to me and on @mention, with a deep link to /app/chat/inbox/<id> and per-user quiet hours.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "agent-push"
   },
   {
     "title": "Chat: Add teams with their own inbox, round-robin and assignment rules",
     "description": "Intercom has team inboxes, round robin per team and skill-based routing (https://www.intercom.com/helpdesk, https://www.intercom.com/changes/en/page/1); Crisp has sub-inboxes from Essentials (https://crisp.chat/en/pricing/). Our assignment rules (app/api/chat/rules) and the conversation header only assign to a person, so a team of four cannot split Support and Sales or route billing questions to one group. First scope: chat teams (name, members), assign a conversation to a team and optionally a person, an inbox filter per team, rules that target a team with round-robin among its available members, and team in reports and webhooks.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "team-inboxes"
   },
   {
     "title": "Chat: Show who is viewing or replying to a conversation to avoid double answers",
     "description": "Intercom shows when a teammate is viewing or typing in the same conversation; without it two agents answer the same customer. We already track typing for the visitor side (app/api/chat/conversations/[id]/typing) but agents never see each other. First scope: record agent presence per conversation on the existing 3 s poll, show avatars of other agents viewing and an 'Ana is replying' line above the composer, and warn before sending if another agent replied in the last minute.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "collision-detection"
   },
   {
     "title": "Chat: Fill variables like {{name}} and {{email}} in saved replies and macros",
     "description": "Intercom macros insert attributes such as first name and company. Our saved replies (components/chat/CannedClient.tsx) are inserted literally: a reply with {{name}} reached the visitor as '{{name}}' in the benchmark walk, and the keyword bot sends canned bodies as they are. First scope: support {{name}}, {{first_name}}, {{email}}, {{agent_name}} and custom conversation attributes with a fallback ({{name|there}}), a variable picker in the canned editor, substitution on insert in the composer and in the bot path, and a preview.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "reply-variables"
   },
   {
     "title": "Chat: Create or link a Track issue from a conversation and reply to all when it ships",
@@ -1475,13 +1525,15 @@
     "title": "Chat: Report bot deflection, tags, busiest hours and SLA compliance",
     "description": "Intercom reports Fin and humans together with response times, ratings and SLA metrics, plus custom reports on higher plans (https://www.intercom.com/pricing). Our Reports page (getChatRangeReport in lib/chat-inbox.ts) shows conversations, first response, resolution and CSAT per agent; a conversation answered by the bot shows a dash in first response and there is no bot resolution rate. First scope: bot-resolved vs handed-off counts, conversations by tag and by widget, a weekday by hour heatmap of new conversations, and percent within SLA for first response and resolution, all with the same date range and CSV.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "breakdown-reports"
   },
   {
     "title": "Chat: Save inbox filters as views in the sidebar",
     "description": "Intercom turned saved searches into sidebar Views in October 2026 (https://www.intercom.com/changes/en/page/1). Our inbox (components/chat/InboxShell.tsx) has status, assignee, tag and text filters but they reset on each visit, so 'urgent + billing tag + unassigned' has to be rebuilt every time. First scope: save the current filter set with a name, list views under Inbox in the Chat sidebar with live counts, share a view with the team or keep it private, and reorder or delete views.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "saved-views"
   },
   {
     "title": "Chat: Find conversations and people from Cmd+K",
@@ -1493,31 +1545,36 @@
     "title": "CRM: Show records as cards on phones with one-tap call, WhatsApp and note, and make the CRM installable",
     "description": "HubSpot ships a mobile app on every plan, and reps log calls and notes from the phone (https://www.hubspot.com/pricing/sales/starter lists the mobile app in Starter). At 390px our contacts, companies and deals tables keep the desktop columns and scroll sideways inside their wrapper: on Contacts only Name and Email fit, and row actions sit off-screen. The board shows one and a half columns. First scope: below 520px render list rows as cards (name, company, lifecycle or stage, owner, next activity) with one-tap call, WhatsApp (reuse PhoneTouch outcomes) and quick note; a stage picker on deal cards instead of drag; a web app manifest so the CRM installs on the home screen. Offline reading can come later.\n\nPriority: high. Effort: M. Compared with HubSpot Sales Hub Starter/Pro, Pipedrive and Attio mobile apps.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "native-mobile-app"
   },
   {
     "title": "CRM: Sync and send email through Outlook / Microsoft 365, with an IMAP/SMTP fallback",
     "description": "HubSpot connects Gmail or Outlook inboxes from Starter (https://www.hubspot.com/products/sales, Sales Extensions for Gmail and Outlook). We only sync and send through Gmail (lib/crm-email-sync.ts), and until the Google app is verified for gmail.readonly only test users can connect. A team on Microsoft 365 gets no email on the timeline, no sequences sent as themselves and no reply detection. First scope: Microsoft Graph OAuth (Mail.Read, Mail.Send) reusing the Gmail sync shape (incremental delta, thread grouping, contact matching, reply detection for sequences); then a generic IMAP/SMTP connection with app passwords as a fallback that does not depend on Google's verification.\n\nPriority: high. Effort: L. Compared with HubSpot Sales Hub, Pipedrive (email sync on Growth) and Attio (email accounts per user).",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "outlook-sync"
   },
   {
     "title": "CRM: Call from the browser with recording, transcription and automatic logging",
     "description": "Sales Hub Starter includes 500 calling minutes, a HubSpot number and transcription; Pro raises it to 3,000 minutes and 3 numbers (https://www.hubspot.com/pricing/sales/starter). We only open tel: and wa.me links and ask for an outcome afterwards (lib/crm-calls.ts). First scope: bring-your-own Twilio account (keys in Settings), click-to-call from the record header and the phone cell, call widget with mute and notes, recording stored as a file on the call activity, transcription and a short summary when AI is enabled, outcome and duration logged on the timeline and counted by lead scoring and reports.\n\nPriority: high. Effort: L. Compared with HubSpot calling, Pipedrive Caller and Attio Call Intelligence (Pro).",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "browser-calling"
   },
   {
     "title": "CRM: Add a daily work queue that steps through due tasks and sequence steps one by one",
     "description": "HubSpot's Prospecting / Sales Workspace gives reps one screen with today's tasks, sequence steps and leads to work, and a mode that opens each task in order (https://www.hubspot.com/products/sales, Prospecting Workspace; https://vantagepoint.io/blog/hs/hubspot-sales-workspace-update-april-2026-preparation-guide). Our Tasks page has Overdue, Today and Upcoming buckets, but each task opens on its own and manual sequence steps aren't mixed in. First scope: a 'Start queue' button on Tasks that opens the first due item with the contact's timeline beside it, complete or snooze with a key, auto-advance to the next, and a counter of what's left; include manual sequence steps and calls due.\n\nPriority: high. Effort: M. Compared with HubSpot Sales Workspace and Pipedrive's activity focus.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "work-queue"
   },
   {
     "title": "CRM: Turn Cal meetings into a recap on the timeline (transcript, summary, next steps)",
     "description": "HubSpot Notetaker does meeting prep, recap and conversation intelligence with tracked terms (https://www.hubspot.com/pricing/sales/starter, Notetaker section). Our Cal bookings already create a meeting activity on the contact, but after the call nothing lands there unless someone writes a note. First scope: upload or link a recording (or import a transcript from the video provider) on the meeting activity, generate a summary with next steps and suggested property updates when AI is enabled, and offer to create the follow-up tasks; later, a bot that joins the call.\n\nPriority: medium. Effort: L. Compared with HubSpot Notetaker and Attio Call Intelligence.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "meeting-call-summaries"
   },
   {
     "title": "CRM: Add forecast categories and a per-rep forecast submission with manager roll-up",
@@ -1529,19 +1586,22 @@
     "title": "CRM: Ship a Gmail / Chrome extension that shows the contact and logs emails from the inbox",
     "description": "HubSpot Sales Extensions work inside Gmail, Outlook and any web page: contact panel, log and track toggles, templates and sequences from the compose window (https://www.hubspot.com/products/sales, HubSpot Sales Extensions). Our tracking, templates and sequences only work from the CRM timeline. First scope: a Chrome extension with an API key (crm scopes) that shows the sender's contact, company, open deals and last activity in a Gmail side panel, a 'Create contact' button, and insert template / enroll in sequence from compose.\n\nPriority: medium. Effort: M. Compared with HubSpot Sales Extension and Pipedrive's Chrome extension.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "inbox-extension"
   },
   {
     "title": "CRM: Add playbooks with call scripts that write answers back to properties",
     "description": "HubSpot playbooks give reps a script or qualification guide on the record and save answers as notes or properties (5 on Starter, 5,000 on Pro with property embedding: https://www.hubspot.com/pricing/sales/starter). We have no guided content on the record. First scope: playbooks built from Docs pages with embedded property questions (text, select, number), opened from the record header or the call composer, answers saved to the record and a note on the timeline, usage counts per playbook.\n\nPriority: medium. Effort: M. Compared with HubSpot playbooks.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "playbooks"
   },
   {
     "title": "CRM: Let workspaces define their own objects with fields, associations and views",
     "description": "Attio is built on custom objects from its free plan (3 objects free, 12 on Pro: https://attio.com/pricing); HubSpot reserves them for Enterprise. Teams that track partners, properties, candidates or subscriptions next to deals have nowhere to put them in our CRM and fall back to custom fields on companies. First scope: an object editor (name, icon, fields from the existing custom field types), records with the same table, record page, timeline and associations to contacts, companies and deals, ⌘K search, CSV import, API under /api/v1/crm/objects.\n\nPriority: medium. Effort: L. Compared with Attio objects and HubSpot custom objects.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "custom-objects"
   },
   {
     "title": "CRM: Make the whole board column a drop target and move deals between stages with the keyboard",
@@ -1569,67 +1629,78 @@
     "title": "Docs: Comment on selected text and suggest edits that the owner accepts or rejects",
     "description": "Notion lets you comment on a highlighted phrase and, with 'Can comment' access, suggest edits that are accepted or rejected from the side panel (https://www.notion.com/help/suggested-edits). Confluence also anchors inline comments to highlighted text (https://support.atlassian.com/confluence-cloud/docs/comment-on-pages-and-blog-posts/). Docs threads attach to a whole block (components/docs/CommentsPanel.tsx), and there is no 'can comment' role (DocsShareRole is view | edit). First scope: anchor a comment to a text range inside a block (store the range with the comment, highlight it, fall back to the block if the text changes), add a 'Can comment' share role, and a suggestion mode for text, heading and list blocks with accept/reject per change.\n\nPriority: high. Effort: M. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "suggested-edits"
   },
   {
     "title": "Docs: Export a page with its subpages, or the whole workspace, as a Markdown or HTML zip",
     "description": "Notion exports PDF, HTML (zip, optional comments), Markdown and CSV, with subpages, and a full workspace export (https://www.notion.com/help/export-your-content). Our export is one page at a time (GET /api/docs/pages/:id/export?format=md only; PDF goes through the print dialog). Teams ask for a way out before they move in. First scope: an 'Include subpages' option that returns a zip with one .md per page in folders matching the tree, attachments next to them and [[ links rewritten as relative links; a 'Export all pages' action in Docs settings; database blocks exported as CSV.\n\nPriority: medium. Effort: S. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "export-workspace"
   },
   {
     "title": "Docs: Add favorites to the sidebar and a lock that stops accidental edits",
     "description": "Notion has a Favorites section at the top of the sidebar and 'Lock page' in the page menu, which also blocks suggestions (https://www.notion.com/help/suggested-edits). Docs has no favorites (components/docs/DocsSidebar.tsx shows the tree and 'Shared with me') and no lock, so a long tree means scrolling every time and anyone in the workspace can edit the onboarding page by mistake. First scope: per-user favorites stored server-side, shown above the tree and in Cmd+P; a page lock that owners and editors toggle, rendering the editor read-only with an 'Unlock' button and logging who locked it.\n\nPriority: medium. Effort: S. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "favorites"
   },
   {
     "title": "Docs: Add date mentions and reminders inside a page",
     "description": "In Notion you type @today, @tomorrow or @remind to insert a date that can notify you (https://www.notion.com/help/comments-mentions-and-reminders). Docs supports @ for members and [[ for pages, but no dates, so to-dos inside a page have no due date and nothing reminds anyone. Notes already has reminders with in-app and email delivery (lib/notes-reminders.ts). First scope: '@' menu offers dates (today, tomorrow, a picker) rendered as an inline chip; a reminder variant that notifies the author (and mentioned member, if any) through the existing notification and email path, claimed by the minute cron like Notes reminders.\n\nPriority: medium. Effort: S. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "date-reminders"
   },
   {
     "title": "Docs: Show page views and who viewed a page",
     "description": "Notion shows owners and editors total and unique views over time plus who created, edited or viewed a page (https://www.notion.com/help/page-analytics); Confluence Standard includes page insights (https://support.atlassian.com/confluence-cloud/docs/confluence-standard/). Docs records nothing on view, so whoever writes the onboarding or policy page can't tell if anyone read it. Help center articles only collect 'Was this helpful?' votes. First scope: count views per page per day (one per user per day, no tracking of anonymous help center visitors beyond a daily counter), show a small 'Views' popover in the page header with the last 30 days and the members who opened it, with a per-user opt-out.\n\nPriority: low. Effort: S. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "page-analytics"
   },
   {
     "title": "Docs: Add Docs actions to Flow (create a page from a template, append blocks)",
     "description": "Notion automations and buttons create pages, edit pages and send webhooks (https://www.notion.com/help/database-automations, https://www.notion.com/help/buttons). Docs only emits page.created to Flow (app/api/docs/pages/route.ts) and Flow has no Docs action, so 'when a deal is won, create the onboarding page from our template' or 'append each meeting summary to the weekly page' is not possible. First scope: Flow actions 'Create Docs page' (title, parent, optional workspace template, content as Markdown run through lib/docs-import.ts) and 'Append to Docs page'; emit page.updated (debounced) and comment.created events.\n\nPriority: low. Effort: M. Compared with Notion.",
     "product": "docs",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "flow-page-action"
   },
   {
     "title": "Flow: Build a flow from a plain-language description",
     "description": "Zapier Copilot and the n8n AI Workflow Builder turn a sentence like 'when a deal is won, create the Stripe customer and post in #sales' into a working draft (https://docs.n8n.io/release-notes/, https://zapier.com/pricing). Flow has ai.text and ai.agent nodes but nothing that writes the graph: every flow starts from one of 16 templates or an empty canvas. The node catalog, event samples and validateGraph in lib/flow-schema.ts are already a typed spec an LLM can target through the AI gateway. First scope: a 'Describe your flow' box on /app/flow that returns a validated graph opened in the editor as unsaved changes, with missing credentials flagged on each node.\n\nPriority: high. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "ai-builder"
   },
   {
     "title": "Flow: Keep a draft separate from the published version that runs",
     "description": "n8n 2.0 split Save from Publish and production runs the published version (https://docs.n8n.io/workflows/publish/); Zapier keeps drafts apart from the live Zap (https://help.zapier.com/hc/en-us/articles/9693520498445-Create-Zap-versions). In Flow, Save writes flow_flows.graph and bumps the version, so an enabled flow starts running the half-edited graph the moment you press Cmd+S (lib/flow.ts updateFlow). Versions and diffGraphs already exist. First scope: a draft_graph column the editor saves to, a Publish button that copies it to graph and creates the version, and a 'Draft differs from published' note in the header.\n\nPriority: high. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "draft-publish"
   },
   {
     "title": "Flow: Export and import flows as JSON and copy nodes between flows",
     "description": "n8n workflows are plain JSON on every plan: download, import, or paste onto the canvas (https://docs.n8n.io/workflows/export-import/). Zapier offers Zap import/export on Team and Enterprise (https://help.zapier.com/hc/en-us/articles/8496308481933-Import-and-export-Zaps-in-your-Team-or-Enterprise-account). Flow has no export, no import and no node clipboard, so a flow cannot move between workspaces, be kept in git or be shared in a support thread. First scope: Export JSON in flow settings (credentials replaced by their type), Import on /app/flow that validates with validateGraph, and Cmd+C / Cmd+V of selected nodes in the editor.\n\nPriority: high. Effort: S. Compared with n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "json-import-export"
   },
   {
     "title": "Flow: Add polling triggers for RSS feeds, IMAP inboxes and changed HTTP responses",
     "description": "Most Zapier triggers are polling triggers (every 1 to 15 minutes by plan, https://zapier.com/pricing) and n8n ships RSS Feed Trigger, Email Trigger (IMAP) and generic polling. Flow triggers are internal events, webhook, schedule, Stripe and manual (lib/flow-schema.ts), so any service without webhooks needs a schedule plus HTTP plus a data table to dedupe by hand. The minute cron and flow tables already give polling and dedupe state. First scope: trigger.rss and trigger.http_poll (fires when a JSON path changes), deduped by item id in a hidden table, then IMAP.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "polling-triggers"
   },
   {
     "title": "Flow: Show a workspace run history with search by data and a usage dashboard",
     "description": "Zapier Zap History lists every run across Zaps with filters and CSV export (https://help.zapier.com/hc/en-us/articles/8496294549005-Export-your-Zap-history); n8n has an executions list searchable by data and an Insights dashboard with failure rate and time saved (https://n8n.io/pricing/). Flow runs are only visible inside each flow's Runs tab, so 'what failed last night' means opening flows one by one. First scope: /app/flow/runs with all runs, filters for flow, status and date, search inside trigger data, and a header with runs, failures and failure rate for the last 7 and 30 days.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "global-run-history"
   },
   {
     "title": "Flow: Add hosted forms that start a flow and approval forms that collect data",
@@ -1641,13 +1712,15 @@
     "title": "Flow: Add folders, list search and row actions to the flows list",
     "description": "Zapier groups Zaps in shared folders (https://zapier.com/pricing) and n8n uses projects with search and tags. The Flow list is flat with no search, and renaming, duplicating or deleting requires opening the editor (there is no duplicate at all). Past 20 or 30 flows the list stops scaling. First scope: a row menu with Rename, Duplicate and Delete (using the app's confirm dialog instead of window.confirm), a search box, then folders with the same model as Link folders.\n\nPriority: medium. Effort: S. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "folders"
   },
   {
     "title": "Flow: Expose flows over MCP and the public v1 API",
     "description": "Zapier MCP and the n8n MCP Server Trigger let Claude, ChatGPT or Cursor call workflows as tools, and both have a REST API to list, run and inspect workflows (https://zapier.com/mcp, https://docs.n8n.io/build/ways-of-building-workflows/connect-to-n8n-mcp-server.md). app/api/v1 covers agents, calendar, chat, crm, links and robots but not flows. First scope: GET /api/v1/flows, POST /api/v1/flows/{id}/run with inputs and GET /api/v1/flows/runs/{id} behind a flow:run scope, then an MCP endpoint that lists flows with a manual or webhook trigger as tools.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "mcp-server"
   },
   {
     "title": "Flow: Cap runs per flow and hold the excess for review",
@@ -1659,13 +1732,15 @@
     "title": "Link: Ship Zapier and Make apps plus Slack alerts for links",
     "description": "Dub lists Zapier, Make, Segment and Slack among its native integrations (https://dub.co/integrations). We only expose the REST API and webhooks, so non-technical teams cannot connect link events to their other tools. Scope: a Zapier app with triggers (link clicked, link created) and actions (create link, update link) on top of /api/v1 and existing webhooks, a Make module with the same, and a Slack incoming-webhook destination for click milestones.\n\nPriority: high. Effort: M. Compared with Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "zapier-make-segment"
   },
   {
     "title": "Link: Publish a TypeScript SDK and an MCP server for links",
     "description": "Dub ships SDKs in TypeScript, Python, Ruby, PHP and Go (https://dub.co/docs/sdks/overview.md) and an MCP server (https://dub.co/docs/mcp-server.md). We publish openapi.json under /api/v1 but no client or MCP. Scope: generate a typed TS client from openapi.json, publish it to npm, and expose create, list, update and analytics tools through an MCP server authenticated with workspace API keys.\n\nPriority: high. Effort: M. Compared with Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "sdks"
   },
   {
     "title": "Link: Add row keyboard shortcuts and '/' to focus search in the links list",
@@ -1683,7 +1758,8 @@
     "title": "Link: Import from Rebrandly, Short.io and any CSV",
     "description": "Dub imports from Bitly, Rebrandly, Short.io and CSV (https://dub.co/help/article/migrating-from-rebrandly.md, https://dub.co/help/article/migrating-from-short.md, https://dub.co/help/article/how-to-import-csv.md). Our ImportLinksPanel only takes a Bitly token or a Bitly CSV. Scope: Rebrandly and Short.io importers by API key (links, tags, domains), and a generic CSV with column mapping that reuses lib/link-bulk-csv.ts.\n\nPriority: medium. Effort: S. Compared with Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "import-rebrandly-short"
   },
   {
     "title": "Link: Give the bio page a live preview, themes and external links",
@@ -1695,13 +1771,15 @@
     "title": "Link: Add link cloaking to keep the short domain in the address bar",
     "description": "Dub offers link cloaking on all plans (https://dub.co/pricing), which serves the destination inside a frame so visitors keep seeing the branded domain. We always redirect with 301/302. Scope: a per-link 'Cloak' option that serves a full-page iframe for destinations that allow framing (check X-Frame-Options/CSP at save time and warn), still recording the click.\n\nPriority: low. Effort: S. Compared with Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "link-cloaking"
   },
   {
     "title": "Link: Keep an activity log of link changes per workspace",
     "description": "Dub includes audit logs on Enterprise (https://dub.co/pricing). We record who created a link but not who changed its destination, slug or targeting later, which matters when the link is printed on a QR. Scope: write an entry on create, update (field diff), archive and delete, show a History tab in link detail and a workspace-wide log filterable by member.\n\nPriority: low. Effort: M. Compared with Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "audit-log"
   },
   {
     "title": "Link: Show a live stream of clicks as they happen",
@@ -1713,7 +1791,8 @@
     "title": "Link: One-click DNS setup for custom domains",
     "description": "Dub added Domain Connect for one-click DNS on Vercel and Cloudflare in August 2026 (https://dub.co/changelog/domain-connect). Our domain setup shows records to copy and a verify button. Scope: detect the DNS provider, offer Domain Connect or the Cloudflare API with a token, then trigger verification automatically.\n\nPriority: low. Effort: M. Compared with Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "domain-connect"
   },
   {
     "title": "Notes: Add due dates to checklist items and a Tasks view across notes",
@@ -1725,67 +1804,78 @@
     "title": "Notes: Search text inside images and PDF attachments",
     "description": "Evernote searches text inside images and PDFs and, since 11.32, auto-generated image captions (https://releasebot.io/updates/evernote); Bear Pro does OCR on images and PDFs (https://bear.app/faq/features-and-price-of-bear-pro/). Notes stores attachments (app/api/notes/[id]/files) but search only looks at title, text blocks and tags, so receipts and scans imported from ENEX never show up. First scope: on upload (and for ENEX resources on import), extract PDF text and run OCR on images in a background job, store the text per attachment, include it in notes search and Ask your notes, and show 'Found in attachment' in the result.\n\nPriority: high. Effort: M. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "ocr-search"
   },
   {
     "title": "Notes: Save searches with operators as smart lists in the sidebar",
     "description": "Evernote has saved searches and Apple Notes has Smart Folders filtered by tags, checklists and dates (https://support.apple.com/guide/notes/use-smart-folders-apd58edc7964/mac). Notes already parses tag:, notebook:, intitle:, created:, updated: and todo: (lib/notes-query.ts) but a query is lost when you clear the box. First scope: a 'Save search' action next to the search field that stores name + query per user, lists saved searches in the sidebar under Tags, keeps them in sync with renames of tags and notebooks, and opens them with Cmd+K.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "saved-searches"
   },
   {
     "title": "Notes: Export a notebook or all notes as a Markdown or ENEX zip",
     "description": "Evernote exports notebooks as ENEX or HTML from desktop, Apple Notes exports PDF and Markdown, and Bear exports many formats (https://bear.app/faq/export-your-notes/). Notes exports one note at a time to Markdown (app/api/notes/[id]/export). People moving years of notes in want to know they can get them out the same way. First scope: 'Export notebook' in the notebook menu and 'Export all notes' in Notes settings, returning a zip with one .md per note (front matter with tags, created, updated, source_url), attachments in a folder, and an optional .enex file so the export round-trips into Evernote.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "export-all"
   },
   {
     "title": "Notes: Group notebooks into stacks",
     "description": "Evernote groups notebooks into stacks, and an ENEX import of a long-time user brings dozens of notebooks. Notes has a flat notebook list in the sidebar (components/notes/NotesApp.tsx), so after importing 30 notebooks the sidebar is a long scroll. First scope: a stack (or one level of parent notebook) that notebooks can be dragged into, collapsible in the sidebar, with 'notebook:' search matching a stack name to include all its notebooks, and keep the stack name when importing ENEX files that carry it.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "notebook-stacks"
   },
   {
     "title": "Notes: Create notes from templates",
     "description": "Evernote offers templates when you create a note (meeting, journal, trip) and made template creation easier in 11.31 (https://releasebot.io/updates/evernote). Docs already has built-in and workspace templates (lib/docs-templates.ts), but Notes always starts empty. First scope: a template picker on the 'New note' split button with a few personal templates (meeting, daily log, reading notes), 'Save as template' from any note, and templates that preset tags and notebook.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "note-templates"
   },
   {
     "title": "Notes: Select several notes to move, tag, pin or trash them at once",
     "description": "Evernote added multi-select bulk actions on mobile in 2025 (https://evernote.com/blog/2025-recap) and has them on desktop. The Notes list only acts on one note at a time (row menu in components/notes/RowMenu.tsx), which makes cleaning up an ENEX import slow. First scope: Shift/Cmd-click and checkbox selection in the list, a bar with Move to notebook, Add tag, Pin, Trash and Export, keyboard support (Shift+Arrow to extend, Esc to clear) and one undo toast for the batch.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "bulk-actions"
   },
   {
     "title": "Notes: Record audio in a note and transcribe it",
     "description": "Evernote records audio with pause/resume and transcribes it with speaker recognition (https://evernote.com/blog/2025-recap, https://releasebot.io/updates/evernote); Apple Notes records and transcribes too (https://support.apple.com/guide/notes/record-and-transcribe-audio-apdb5106e334/mac). Notes has file blocks (10 MB cap) but no recorder and no transcription. First scope: a 'Record' block that uses MediaRecorder in the browser, uploads the audio as an attachment, and, when AI is set up, adds a transcript below it that is searchable and used by Ask your notes.\n\nPriority: low. Effort: M. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "audio-recording"
   },
   {
     "title": "Notes: Create a note linked to a Cal booking or event",
     "description": "Evernote's calendar pop-up creates a note linked to a Google or Outlook event (December 2025, https://evernote.com/blog/2025-recap). Our Cal app has bookings with attendees, but there is no way to open a meeting note from them. First scope: a 'Meeting note' action on a Cal booking that creates a note titled with the event and date, with attendees and a link back, and lists linked notes on the booking.\n\nPriority: low. Effort: S. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "calendar-notes"
   },
   {
     "title": "Robots: Pick what to extract by clicking on a live preview of the page",
     "description": "Browse AI builds robots by pointing at the page: Capture List and Capture Text in its Chrome extension (https://help.browse.ai/en/articles/10492719-how-to-build-a-robot-using-the-chrome-extension). Robots asks for CSS selectors typed by hand, and the bookmarklet recorder only captures clicks, fills, selects and keys, not extractions (lib/robots-recorder.ts). A user who does not know CSS cannot build the first robot. First scope: a 'Pick on page' button in Extract and Extract list that opens a sandbox screenshot with element boxes; clicking a card proposes the card selector and its fields with generateSelector, then the same mode inside the bookmarklet.\n\nPriority: high. Effort: L. Compared with Browse AI.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "point-and-click-extract"
   },
   {
     "title": "Robots: Generate a robot from a URL and a description of the columns",
     "description": "Browse AI Table Studio takes a URL, proposes tables and columns with sample rows and lets you approve each column before saving (https://help.browse.ai/en/articles/10486935-how-browse-ai-uses-ai). Robots has no AI in the builder; the backlog idea for natural-language act and extract steps is about runtime steps. First scope: a 'Start from a URL' dialog that loads the page in the runner, sends a trimmed DOM to the AI gateway and returns goto + extract_list (with fields and Next pagination) as unsaved steps the user can run and edit.\n\nPriority: high. Effort: M. Compared with Browse AI.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "ai-builder"
   },
   {
     "title": "Robots: Route runs through residential proxies by country and handle captchas",
     "description": "Browse AI uses rotating residential proxies with location targeting and solves supported captchas and Cloudflare challenges (https://help.browse.ai/en/articles/10452902-what-websites-work-with-browse-ai); Apify sells datacenter, residential and SERP proxies with country targeting (https://docs.apify.com/proxy). Robots runs from the runner's own IP (lib/robots-runner.ts), so marketplaces and real estate portals block it or show the wrong country. First scope: a proxy credential type (URL, user, password) and a per-robot proxy and country setting passed to Chromium launch, then a captcha-solver credential used when a challenge is detected.\n\nPriority: high. Effort: M. Compared with Browse AI / Apify.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "proxies"
   },
   {
     "title": "Robots: Send extracted rows to Google Sheets or Airtable from the robot",
@@ -1803,13 +1893,15 @@
     "title": "Robots: Keep an accumulated table of rows across runs with a dedupe key",
     "description": "Browse AI stores every run's rows in a per-robot Table with tabs, filters and export (https://help.browse.ai/en/articles/10477537-how-to-view-manage-and-export-your-scraped-data); Apify appends to named datasets (https://docs.apify.com/platform/storage/dataset). In Robots each run keeps its own output and CSV, so a price history or a growing lead list has to be assembled by hand. First scope: a Data tab that merges a list variable across runs by a chosen key column, with first seen, last seen and changed columns, filters and CSV export.\n\nPriority: medium. Effort: M. Compared with Browse AI / Apify.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "cumulative-table"
   },
   {
     "title": "Robots: Bulk run from a CSV upload in the UI and raise the batch limit",
     "description": "Browse AI bulk runs take thousands of inputs uploaded from a sheet or CSV (https://www.browse.ai/docs/api/v2). Robots bulk runs exist only in the v1 API and cap at 100 inputs per batch (MAX_BULK_INPUTS in lib/robots-schema.ts). Running a robot over a list of 1,000 product URLs is the common case. First scope: a 'Run for many' dialog that accepts a CSV, maps columns to inputs, shows batch progress and lets you download all results as one CSV, with the batch limit raised to 1,000 and runs queued.\n\nPriority: medium. Effort: S. Compared with Browse AI.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "bulk-csv-upload"
   },
   {
     "title": "Robots: Paginate with Load more buttons and infinite scroll in Extract list",
@@ -1841,55 +1933,64 @@
     "title": "Track: Update lists, board and issue pages live when a teammate changes something",
     "description": "Linear syncs every change to every open client instantly. In Track the project list, board and issue page only change on reload: in a browser test, renaming an issue from a second session left the open list showing the old title after 15 seconds and a focus event (components/track/ProjectPageClient.tsx has no polling or subscription). Two people triaging the same board see different states and overwrite each other. First scope: a per-workspace change feed (SSE, or polling every few seconds while the tab is visible) carrying issue id + updated_at, merged into useIssueStore; refetch on window focus; on the issue page, show new comments and a notice when the description changed underneath an open editor.\n\nPriority: high. Effort: M. Compared with Linear.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "realtime-updates"
   },
   {
     "title": "Track: Create issues from Slack messages and post issue activity to a Slack channel",
     "description": "Linear's Slack integration creates an issue from any message (with a synced comment thread), posts team and project activity to a channel, sends personal notifications as DMs and unfurls issue links (https://linear.app/docs/slack). Track only reaches Slack if someone builds a Flow with the generic Slack node. First scope: one-click Slack connect in Track › Settings, a message shortcut \"Create Track issue\" that opens a modal with project, priority and assignee and links back to the message, per-project channel notifications for created / completed / commented, and unfurls for issue URLs.\n\nPriority: high. Effort: M. Compared with Linear.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "slack"
   },
   {
     "title": "Track: Add projects with lead, target date, health and written updates, plus a roadmap across them",
     "description": "In Linear a project has a lead, members, start and target dates, status, and periodic updates marked On track / At risk / Off track with reminders to the lead (https://linear.app/docs/initiative-and-project-updates); initiatives group projects into a roadmap. A Track project is closer to a Linear team: it has milestones but no lead, target date, health or updates, and there is no view across projects. First scope: lead, target date and status on track_projects; a project update composer with health and auto-included progress since the last update; a weekly reminder to the lead; a roadmap page with one bar per project (start to target) and its latest health.\n\nPriority: high. Effort: L. Compared with Linear.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "projects-entity"
   },
   {
     "title": "Track: Show cycle velocity, burn-up and cycle time so teams can plan the next cycle",
     "description": "Linear Insights charts issue count and effort, cycle time, lead time, triage time and issue age, with slicing, segments and a burn-up, and exports to CSV (https://linear.app/docs/insights); cycles show scope and completion over time. Track's overview only shows done/total for the current cycle. First scope: on each cycle, a burn-up of scope vs completed points or issues (from the activity log), velocity of the last 3 completed cycles shown when creating the next one, and a cycle-time / lead-time panel per project with median and p75, using status category changes already logged in track activities.\n\nPriority: high. Effort: M. Compared with Linear, Jira.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "cycle-metrics"
   },
   {
     "title": "Track: Add private projects and guest members limited to the projects they are invited to",
     "description": "Linear Business has private teams and guest accounts (https://linear.app/pricing); GitHub Projects and Jira have per-project permissions. In Track every workspace member sees and edits every project (canAccessTrackProject checks only the workspace), so teams that work with contractors or clients cannot use it. First scope: a project visibility setting (workspace / private with a member list), guest role that only sees projects they are added to and cannot see Cmd+K results or Inbox items from others, and enforcement in every /api/track route plus search and notifications.\n\nPriority: medium. Effort: M. Compared with Linear, Jira.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "private-projects-guests"
   },
   {
     "title": "Track: Suggest labels, assignee and possible duplicates for issues in triage",
     "description": "Linear Triage Intelligence proposes labels, assignee, project and duplicates for incoming issues (https://linear.app/pricing). Track's triage queue (issues from Chat, Flow, API, GitHub, Agents) is fully manual. First scope, only when AI is enabled for the workspace: on each triage issue, show suggested labels and assignee based on the last 200 accepted issues of the project, and the top 3 similar open issues by title and description with a one-click \"Mark duplicate\"; accept applies the suggestions in one click. Log which suggestions were accepted.\n\nPriority: medium. Effort: M. Compared with Linear.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "ai-triage"
   },
   {
     "title": "Track: Link CRM companies and contacts to issues as customer requests",
     "description": "Linear Customer Requests link feedback to issues and projects, show a customer page with every request, and let views sort issues by customer count, tier or revenue (https://linear.app/docs/customer-requests). zerosoft already has the CRM and Chat, so this can work without any third-party sync. First scope: a \"Requested by\" field on issues that links CRM companies or contacts (and the Chat conversation when created from Chat), a request count and summed deal value column in lists with sort, and a Track section on the CRM company page listing its requested issues and their status.\n\nPriority: medium. Effort: M. Compared with Linear.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "customer-requests"
   },
   {
     "title": "Track: Set SLAs by priority and flag issues about to breach",
     "description": "Linear supports issue SLAs and triage responsibility so urgent bugs get a response time (https://linear.app/pricing, Triage section); Jira Service Management triggers automations on SLA breach. Track has no response or resolution target. First scope: per-project SLA per priority (e.g. urgent 24 h, high 3 days) counted from creation or triage acceptance, a countdown chip on rows and the issue page, an \"SLA\" filter and sort, a notification to the assignee and project owner at 80 % and at breach, and an issue.sla_breached event for Flow.\n\nPriority: medium. Effort: S. Compared with Linear, Jira.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "priority-slas"
   },
   {
     "title": "Track: Auto-close stale issues and auto-archive completed ones",
     "description": "Linear lets each team auto-close issues untouched for N months and auto-archive completed issues after a period, which keeps lists short without manual cleanup (https://linear.app/docs). Track keeps every issue in its list forever unless deleted. First scope: per-project settings for auto-close (move to a cancelled status after 1, 3 or 6 months without activity, with a comment explaining why) and auto-archive (hide done/cancelled issues older than N months from default views, still searchable and restorable), run from the hourly cron with compare-and-set claims.\n\nPriority: low. Effort: S. Compared with Linear.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "auto-close-archive"
   },
   {
     "title": "Other: Send only the route's i18n namespaces to the client",

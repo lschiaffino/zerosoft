@@ -280,6 +280,11 @@ export function cellValue(prop: DbProperty, row: DbRow): DbValue {
   return row.values[prop.id] ?? null;
 }
 
+/** En una tarjeta de board no se muestra: vacío, o un checkbox sin tildar. */
+export function cardHidesValue(prop: Pick<DbProperty, 'type'>, v: DbValue | undefined): boolean {
+  return prop.type === 'checkbox' ? v !== true : isEmptyValue(v);
+}
+
 export function isEmptyValue(v: DbValue | undefined): boolean {
   if (v === null || v === undefined || v === false) return true;
   if (typeof v === 'string') return v.trim() === '';

@@ -452,9 +452,16 @@ export async function getImportJob(userId: string, id: string): Promise<ImportJo
   return row ? toView(row) : null;
 }
 
+/**
+ * Imports anteriores: solo los que se arrancaron. Una vista previa que nunca
+ * se confirmó (o se canceló antes de correr) no es un import: no se lista.
+ */
 export async function listImportJobs(userId: string, limit = 10): Promise<ImportJobView[]> {
   const rows = (await getDb()
-    .prepare(`SELECT * FROM crm_import_jobs WHERE user_id = ? AND status != 'preview' ORDER BY created_at DESC LIMIT ?`)
+    .prepare(
+      `SELECT * FROM crm_import_jobs WHERE user_id = ? AND status != 'preview' AND NOT (status = 'cancelled' AND started_at IS NULL)
+       ORDER BY created_at DESC LIMIT ?`,
+    )
     .all(userId, limit)) as JobRow[];
   return rows.map(toView);
 }
@@ -490,8 +497,15 @@ export async function startImportJob(userId: string, id: string, options: Import
   return { ok: true, job: (await getImportJob(userId, id))! };
 }
 
-/** Cancela (vista previa, en cola o corriendo) y borra el token. */
+/**
+ * Cancela (en cola o corriendo) y borra el token. Una vista previa que se
+ * descarta (Cancelar o Volver) se borra entera: no llegó a ser un import.
+ */
 export async function cancelImportJob(userId: string, id: string): Promise<boolean> {
+  const dropped = await getDb()
+    .prepare(`DELETE FROM crm_import_jobs WHERE id = ? AND user_id = ? AND status = 'preview'`)
+    .run(id, userId);
+  if (dropped.changes > 0) return true;
   const res = await getDb()
     .prepare(
       `UPDATE crm_import_jobs SET status = 'cancelled', token = '', locked_until = NULL, finished_at = ?, updated_at = ?
@@ -1064,6 +1078,19 @@ export interface RunStepOptions {
 
 export type RunStepResult = 'not_claimed' | 'progress' | 'done' | 'failed' | 'cancelled';
 
+/**
+ * Tramo de un POST .../run (pantalla de progreso abierta): corto y con
+ * páginas chicas. La escritura en SQLite es sincrónica: un tramo largo sin
+ * pausas dejaba al resto del servidor esperando (y a cancelar también). El
+ * cron usa presupuestos más grandes.
+ */
+export const REQUEST_STEP_BUDGET_MS = 4_000;
+export const REQUEST_PAGE_SIZE = 50;
+/** Registros por transacción dentro de una página; entre tandas se cede el event loop. */
+const WRITE_BATCH = 25;
+
+const yieldToServer = () => new Promise<void>((r) => setImmediate(r));
+
 /** Reclama el job: un solo proceso a la vez (cron y pantalla de progreso). */
 async function claimJob(id: string, lockMs: number): Promise<JobRow | null> {
   const db = getDb();
@@ -1114,14 +1141,25 @@ export async function runImportStep(id: string, opts: RunStepOptions = {}): Prom
       plan = await buildPlan(job, source, options);
       await db.prepare('UPDATE crm_import_jobs SET plan = ? WHERE id = ?').run(JSON.stringify(plan), id);
     }
+    const running = async () =>
+      ((await db.prepare('SELECT status FROM crm_import_jobs WHERE id = ?').get(id)) as { status: ImportJobStatus } | undefined)?.status ===
+      'running';
     let pages = 0;
     while (cursor.phase < phases.length && Date.now() < deadline && pages < (opts.maxPages ?? Infinity)) {
-      const status = (await db.prepare('SELECT status FROM crm_import_jobs WHERE id = ?').get(id)) as { status: ImportJobStatus };
-      if (status.status !== 'running') return 'cancelled';
+      if (pages > 0) await yieldToServer();
+      // Cancelar tiene efecto acá (entre páginas) y entre tandas de una página.
+      if (!(await running())) return 'cancelled';
       const phase = phases[cursor.phase];
       const page = await source.page(phase, cursor.after, plan.fields, opts.pageSize ?? 100);
       const newErrors: string[] = [];
-      await writePage(job, plan, phase, page.items, counts[phaseGroup(phase)], newErrors);
+      for (let i = 0; i < page.items.length; i += WRITE_BATCH) {
+        if (i > 0) {
+          await yieldToServer();
+          // Lo de esta página se rehace en la próxima corrida (se actualiza, no duplica).
+          if (!(await running())) return 'cancelled';
+        }
+        await writePage(job, plan, phase, page.items.slice(i, i + WRITE_BATCH), counts[phaseGroup(phase)], newErrors);
+      }
       cursor.after = page.next;
       if (!page.next) {
         if (phase === 'companies') await resolvePendingParents(job, plan, newErrors);
@@ -1167,12 +1205,10 @@ export async function processImportJobs(opts: { budgetMs?: number; limit?: numbe
   const db = getDb();
   const start = Date.now();
   const budget = opts.budgetMs ?? 40_000;
+  // Vistas previas abandonadas: se borran (con su token), no quedan en el historial.
   await db
-    .prepare(
-      `UPDATE crm_import_jobs SET status = 'cancelled', token = '', finished_at = ?, updated_at = ?
-       WHERE status = 'preview' AND created_at < ?`,
-    )
-    .run(nowDb(), nowDb(), nowDb(new Date(Date.now() - PREVIEW_TTL_MIN * 60_000)));
+    .prepare(`DELETE FROM crm_import_jobs WHERE status = 'preview' AND created_at < ?`)
+    .run(nowDb(new Date(Date.now() - PREVIEW_TTL_MIN * 60_000)));
   const rows = (await db
     .prepare(
       `SELECT id FROM crm_import_jobs WHERE status IN ('queued', 'running') AND (locked_until IS NULL OR locked_until < ?)

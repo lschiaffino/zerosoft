@@ -1,9 +1,10 @@
 'use client';
 
+import DbHScroll from './DbHScroll';
 import { memo, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { DbProperty, DbRow, DocsDatabase } from '@/lib/docs-types';
-import { groupRows, isEmptyValue, cellValue, rowTitle } from '@/lib/docs-database';
+import { groupRows, cardHidesValue, cellValue, rowTitle } from '@/lib/docs-database';
 import DocsGlyph from '../DocsGlyphs';
 import DbValueView, { StatusGlyph } from './DbValueView';
 import { groupLabel } from './DbTable';
@@ -68,7 +69,8 @@ const Card = memo(function Card({
         <span className={`docs-db-bcard-title${title ? '' : ' empty'}`}>{title || untitled}</span>
       </button>
       {props.map((p) => {
-        if (p.type !== 'checkbox' && isEmptyValue(cellValue(p, row))) return null;
+        // Como Notion: la tarjeta muestra solo lo que tiene valor (un checkbox sin tildar tampoco).
+        if (cardHidesValue(p, cellValue(p, row))) return null;
         return (
           <div key={p.id} className="docs-db-bcard-prop" title={p.name}>
             <DbValueView prop={p} row={row} people={people} locale={locale} />
@@ -158,7 +160,7 @@ export default function DbBoard({
   };
 
   return (
-    <div className="docs-db-board" role="list" aria-label={t('viewTypes.board')}>
+    <DbHScroll className="docs-db-board" role="list" aria-label={t('viewTypes.board')}>
       {groups.map((g) => {
         const limit = limits[g.key] ?? PAGE;
         const shown = g.rows.slice(0, limit);
@@ -226,6 +228,6 @@ export default function DbBoard({
           </section>
         );
       })}
-    </div>
+    </DbHScroll>
   );
 }

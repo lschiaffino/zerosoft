@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateImportJob } from '@/lib/import-jobs';
-import { runImportJob } from '@/lib/import-runner';
+import { REQUEST_IMPORT_BUDGET_MS, runImportJob } from '@/lib/import-runner';
 import { importError, importJobFor } from '@/lib/import-http';
 import { localUploadedBytes } from '@/lib/docs-notion-import';
 
@@ -9,8 +9,9 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * Avanza el import un tramo (~15 s). La pestaña lo llama en loop mientras se
- * mira el progreso; si se cierra, sigue el cron de cada minuto. Con
+ * Avanza el import un tramo corto (~4 s, así no frena el resto del servidor y
+ * cancelar no espera). La pestaña lo llama en loop mientras se mira el
+ * progreso; si se cierra, sigue el cron de cada minuto (con más presupuesto). Con
  * { uploaded: true } cierra la subida por partes y arranca la lectura.
  */
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
@@ -24,5 +25,5 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     if (size === 0 || size !== Number(job.options.size)) return importError(409, 'upload_incomplete');
     await updateImportJob(job.id, { status: 'fetching' });
   }
-  return NextResponse.json({ job: await runImportJob(job.id, 15_000) });
+  return NextResponse.json({ job: await runImportJob(job.id, REQUEST_IMPORT_BUDGET_MS) });
 }

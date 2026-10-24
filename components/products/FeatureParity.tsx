@@ -6,6 +6,8 @@ import type { ParityRow, ParityStatus } from '@/content/feature-parity/types';
 import { computeAreas, computeParity, loc } from '@/lib/feature-parity';
 import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 import { ideaForCapability } from '@/lib/feature-parity-ideas';
+import { publicItemsForResearchTitles } from '@/lib/roadmap';
+import { itemRef } from '@/lib/roadmap-constants';
 
 /** Marca de cada estado, en mono: se lee en blanco y negro y con lector de pantalla va el texto. */
 const MARK: Record<ParityStatus, string> = { have: '[x]', better: '[+]', partial: '[~]', missing: '[ ]' };
@@ -29,6 +31,12 @@ export default async function FeatureParity({ locale, product, headingId }: { lo
   const included = (r: ParityRow) => r.status !== 'missing';
   const beyond = parity.rows.filter((r) => r.status === 'better');
   const missing = parity.rows.filter((r) => r.status === 'missing');
+  // La idea del board que cubre cada faltante (research/ideas.json con `parity`):
+  // el link va a esa idea; sin ítem cargado todavía, a la búsqueda por su título.
+  const ideas = new Map(missing.map((r) => [r.id, ideaForCapability(product, r.id)]));
+  const items = await publicItemsForResearchTitles(
+    [...ideas.values()].filter((i): i is NonNullable<typeof i> => Boolean(i)).map((i) => i.title),
+  ).catch(() => new Map<string, { id: string; title: string }>());
   const statusLabel = (s: ParityStatus) => t(`status.${s}`);
 
   return (
@@ -154,10 +162,13 @@ export default async function FeatureParity({ locale, product, headingId }: { lo
           <p className="parity-missing-lead">{t('missingLead', { competitor })}</p>
           <ul className="parity-list">
             {missing.map((r) => {
-              const idea = ideaForCapability(product, r.id);
-              const href = idea
-                ? { pathname: '/feedback-board', query: { q: idea.title } }
-                : { pathname: '/feedback-board', query: { product } };
+              const idea = ideas.get(r.id);
+              const item = idea ? items.get(idea.title) : undefined;
+              const href = item
+                ? `/feedback-board/i/${itemRef(item.id, item.title)}`
+                : idea
+                  ? { pathname: '/feedback-board', query: { q: idea.title } }
+                  : { pathname: '/feedback-board', query: { product } };
               return (
                 <li key={r.id}>
                   <strong>{loc(r.label, locale)}</strong>

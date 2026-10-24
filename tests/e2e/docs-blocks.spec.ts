@@ -149,3 +149,20 @@ test('Docs: una pizarra embebida se anida, se selecciona, se duplica y se borra 
   await page.keyboard.press('Backspace');
   await expect.poll(types, { timeout: 10_000 }).toEqual(['paragraph:0', 'board:1', 'paragraph:0']);
 });
+
+test('Docs: una imagen subida carga en el editor por la ruta con permisos', async ({ request, page }) => {
+  const doc = await pageWith(request, `Imagen ${uid()}`, [{ id: 'p', type: 'paragraph', content: 'Arriba' }]);
+  // Sin Blob se guarda en public/uploads, que `next start` no sirve si no estaba en el build.
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+  const up = await request.post(`/api/docs/pages/${doc.id}/files`, { multipart: { file: { name: 'dot.png', mimeType: 'image/png', buffer: png } } });
+  expect(up.ok()).toBeTruthy();
+  const file = (await up.json()) as { url: string; name: string; size: number; mime: string };
+  const saved = await request.patch(`/api/docs/pages/${doc.id}`, {
+    data: { content: [{ id: 'p', type: 'paragraph', content: 'Arriba' }, { id: 'img', type: 'image', content: '', ...file }] },
+  });
+  expect(saved.ok()).toBeTruthy();
+  await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+  const img = page.getByTestId('docs-image-block').locator('img');
+  await expect(img).toHaveAttribute('src', new RegExp(`/api/docs/files/${doc.id}/img`));
+  await expect.poll(() => img.evaluate((el: HTMLImageElement) => (el.complete ? el.naturalWidth : 0)), { timeout: 15_000 }).toBeGreaterThan(0);
+});

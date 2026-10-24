@@ -220,9 +220,11 @@ export interface ImportJobPatch {
   secret?: null;
   finished?: boolean;
   lockedUntil?: string | null;
+  /** Solo si el job sigue en este estado (un cancelar en el medio gana). */
+  onlyIf?: ImportStatus;
 }
 
-export async function updateImportJob(id: string, patch: ImportJobPatch): Promise<void> {
+export async function updateImportJob(id: string, patch: ImportJobPatch): Promise<boolean> {
   const sets: string[] = ['updated_at = ?'];
   const args: Array<string | number | null> = [nowIso()];
   const set = (col: string, v: string | number | null) => {
@@ -243,7 +245,11 @@ export async function updateImportJob(id: string, patch: ImportJobPatch): Promis
   if (patch.finished) set('finished_at', nowIso());
   if (patch.lockedUntil !== undefined) set('locked_until', patch.lockedUntil);
   args.push(id);
-  await getDb().prepare(`UPDATE import_jobs SET ${sets.join(', ')} WHERE id = ?`).run(...args);
+  if (patch.onlyIf) args.push(patch.onlyIf);
+  const res = await getDb()
+    .prepare(`UPDATE import_jobs SET ${sets.join(', ')} WHERE id = ?${patch.onlyIf ? ' AND status = ?' : ''}`)
+    .run(...args);
+  return res.changes > 0;
 }
 
 /**

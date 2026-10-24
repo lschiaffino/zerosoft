@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 /**
  * Lo que comparten los importadores de Track, Cal y Docs en el navegador: el
@@ -64,7 +64,7 @@ export function useImportJob(app: ImportJobView['app']) {
         setJob(res.data.job);
         if (!RUNNING.includes(res.data.job.status)) return;
         // Con el job tomado por otra corrida (o esperando un 429) no se insiste en seguida.
-        await new Promise((r) => setTimeout(r, 1500));
+        await new Promise((r) => setTimeout(r, 500));
       }
     } finally {
       if (looping.current === id) looping.current = null;
@@ -153,6 +153,25 @@ export function useImportErrorText() {
   return (code: string | null | undefined) => (code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
 }
 
+/**
+ * El job falló leyendo la fuente (antes de la vista previa: todavía no se
+ * escribió nada). La pantalla vuelve al formulario con lo cargado, para
+ * corregir el token sin tipear todo de nuevo.
+ */
+export function failedReading(job: ImportJobView | null): boolean {
+  return job?.status === 'failed' && !job.report;
+}
+
+/** "No pudimos leer Linear: el token fue rechazado…" */
+export function useReadFailedText() {
+  const t = useTranslations('common.importJob');
+  const errorText = useImportErrorText();
+  return (source: string, code: string | null | undefined) => {
+    const reason = errorText(code);
+    return t('readFailed', { source, reason: reason.charAt(0).toLowerCase() + reason.slice(1) });
+  };
+}
+
 /** Barra de progreso + estado + cancelar, para leer, subir o escribir. */
 export function ImportProgress({
   job,
@@ -200,9 +219,10 @@ export function ImportProgress({
 
 /** Una fila "número + rótulo" de la vista previa o el reporte. */
 export function ImportStat({ value, label }: { value: ReactNode; label: string }) {
+  const locale = useLocale();
   return (
     <div className="ximp-stat">
-      <span className="ximp-stat-value data">{value}</span>
+      <span className="ximp-stat-value data">{typeof value === 'number' ? value.toLocaleString(locale) : value}</span>
       <span className="ximp-stat-label">{label}</span>
     </div>
   );

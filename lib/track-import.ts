@@ -24,7 +24,8 @@ import {
   type ImportJob,
   type StagedItem,
 } from './import-jobs';
-import { createCycle, createProject, createStatus, DEFAULT_STATUS_NAMES, getProject, listStatuses, nextIdentifier } from './track-data';
+import { createCycle, createProject, createStatus, DEFAULT_STATUS_NAMES, getProject, getProjectBySlug, listStatuses, nextIdentifier } from './track-data';
+import { projectSlug, shortProjectKey } from './track-tasks';
 import { normalizeIssueLabels, trackWorkspaceId, listLabels } from './track-labels';
 import type { NormalizedComment, NormalizedIssue, TrackImportSource } from './track-import-map';
 
@@ -237,15 +238,21 @@ interface WriteCtx {
   report: TrackImportReport;
 }
 
-function slugFrom(key: string | null | undefined, name: string): string | undefined {
-  const raw = (key || name)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 20);
-  return raw || undefined;
+/**
+ * Slug (prefijo de los identificadores) del proyecto nuevo: la clave de la
+ * fuente si la trae (team de Linear: ENG), si no una clave corta del nombre
+ * ("Gen Proj" → GP) con un número si ya está tomada (GP2), en vez del nombre
+ * entero (GEN-PROJ-0IDT-12).
+ */
+async function slugFrom(key: string | null | undefined, name: string): Promise<string | undefined> {
+  if (key) return projectSlug(key).slice(0, 20) || undefined;
+  const base = shortProjectKey(name);
+  if (!base) return undefined;
+  for (let n = 1; n <= 20; n++) {
+    const candidate = n === 1 ? base : `${base}${n}`;
+    if (!(await getProjectBySlug(candidate))) return candidate;
+  }
+  return base;
 }
 
 async function ensureProject(ctx: WriteCtx, project: NormalizedIssue['project']): Promise<string> {
@@ -262,7 +269,7 @@ async function ensureProject(ctx: WriteCtx, project: NormalizedIssue['project'])
   const created = await createProject(
     ctx.job.workspace_id,
     ctx.job.team_id,
-    { name: project.name, slug: slugFrom(project.key, project.name), description: project.description ?? undefined },
+    { name: project.name, slug: await slugFrom(project.key, project.name), description: project.description ?? undefined },
     { locale: ctx.job.locale },
   );
   await setExternalId(ctx.ws, ctx.src, 'project', project.extId, created.id);

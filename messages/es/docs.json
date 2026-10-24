@@ -525,7 +525,8 @@
       "pages": "Páginas",
       "databases": "Bases",
       "attachments": "Archivos",
-      "size": "Tamaño"
+      "size": "Tamaño",
+      "rows": "Páginas de filas"
     },
     "already": "{count} páginas ya se importaron antes y se van a saltear.",
     "treeTitle": "Páginas",
@@ -538,6 +539,8 @@
     "open": "Abrir {title}",
     "untitled": "Sin título",
     "again": "Importar otro export",
-    "failedTitle": "El import se cortó."
+    "failedTitle": "El import se cortó.",
+    "rowsNote": "La página de cada fila de una base entra como cuerpo de esa fila, no como una página aparte.",
+    "doneRows": "{count, plural, one {# fila de base quedó} other {# filas de bases quedaron}} con su página como cuerpo."
   }
 }

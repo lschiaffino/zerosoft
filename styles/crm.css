@@ -3284,7 +3284,10 @@ td.crm-row-actions > * + * { margin-left: 4px; }
 .mig-count-check .stat-label { margin-top: 0; }
 .mig-count:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
 
-.mig-samples { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.mig-samples { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+/* Emails y dominios largos: cortan línea en vez de quedar tapados. */
+.mig-sample .mig-table { width: 100%; table-layout: fixed; }
+.mig-sample .mig-table td { white-space: normal; overflow-wrap: anywhere; }
 .mig-sample { min-width: 0; overflow-x: auto; }
 .mig-sample .label, .mig-section > .label { margin-bottom: 8px; }
 .mig-table { font-size: 12px; }

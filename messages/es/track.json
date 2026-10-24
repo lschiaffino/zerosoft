@@ -784,7 +784,7 @@
       "jira_csv": "En Jira: Filtros › Exportar › Exportar CSV (todos los campos).",
       "csv": "Primera fila con los nombres de columna. Hasta 4 MB."
     },
-    "csvRows": "{count} filas, {columns} columnas",
+    "csvRows": "{count, plural, one {# fila} other {# filas}}, {columns, plural, one {# columna} other {# columnas}}",
     "mapping": "Columnas",
     "mappingHelp": "Elegí qué columna llena cada campo. El título es obligatorio.",
     "none": "No se importa",
@@ -817,12 +817,12 @@
       "cycles": "Cycles",
       "milestones": "Milestones"
     },
-    "already": "{count} issues ya se importaron antes y se van a saltear.",
+    "already": "{count, plural, one {# issue ya se importó antes y se va a saltear.} other {# issues ya se importaron antes y se van a saltear.}}",
     "truncated": "La fuente tiene más issues de los que entran en un import. El resto quedó afuera.",
     "projectsTitle": "Proyectos",
     "projectNew": "nuevo",
     "projectExisting": "existente",
-    "issuesCount": "{count} issues",
+    "issuesCount": "{count, plural, one {# issue} other {# issues}}",
     "statusesTitle": "Status",
     "statusCol": "Status",
     "categoryCol": "Tipo",
@@ -842,17 +842,17 @@
     "personCol": "En la fuente",
     "memberCol": "Miembro",
     "unmatched": "No es miembro, queda sin responsable",
-    "unmatchedNote": "{count} responsables no son miembros de este workspace. Sus issues se importan sin responsable.",
+    "unmatchedNote": "{count, plural, one {# responsable no es miembro de este workspace. Sus issues se importan sin responsable.} other {# responsables no son miembros de este workspace. Sus issues se importan sin responsable.}}",
     "sampleTitle": "Primeros issues",
-    "confirm": "Importar {count} issues",
+    "confirm": "{count, plural, one {Importar # issue} other {Importar # issues}}",
     "stages": {
       "issues": "Creando issues y comentarios",
       "parents": "Enganchando sub-issues"
     },
     "doneTitle": "Import terminado.",
-    "doneSummary": "{issues} issues y {comments} comentarios importados, {skipped} salteados.",
-    "doneCreated": "Se crearon {projects} proyectos, {statuses} status, {cycles} cycles y {milestones} milestones.",
-    "doneUnassigned": "{count} issues tenían un responsable que no es miembro y quedaron sin responsable.",
+    "doneSummary": "{issues, plural, one {# issue} other {# issues}} y {comments, plural, one {# comentario} other {# comentarios}} importados, {skipped, number} salteados.",
+    "doneCreated": "{count, plural, one {Se creó {list}.} other {Se crearon {list}.}}",
+    "doneUnassigned": "{count, plural, one {# issue tenía un responsable que no es miembro y quedó sin responsable.} other {# issues tenían un responsable que no es miembro y quedaron sin responsable.}}",
     "openProject": "Abrir {name}",
     "again": "Importar más",
     "failedTitle": "El import se cortó.",
@@ -860,6 +860,12 @@
     "exportLead": "Descargá los issues en un CSV con las mismas columnas que lee el import.",
     "exportProject": "Proyecto",
     "exportAll": "Todos los proyectos",
-    "exportButton": "Descargar CSV"
+    "exportButton": "Descargar CSV",
+    "createdPart": {
+      "projects": "{count, plural, one {# proyecto} other {# proyectos}}",
+      "statuses": "{count, plural, one {# status} other {# status}}",
+      "cycles": "{count, plural, one {# cycle} other {# cycles}}",
+      "milestones": "{count, plural, one {# milestone} other {# milestones}}"
+    }
   }
 }

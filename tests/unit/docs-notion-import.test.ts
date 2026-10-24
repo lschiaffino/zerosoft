@@ -10,8 +10,10 @@ import {
   localZipRef,
   notionName,
   planNotionPages,
+  attachRowBodies,
   rewriteNotionMarkdown,
   splitIcon,
+  stripRowProperties,
 } from '@/lib/docs-notion-import';
 import { bufferSource, buildZip, listZipEntries, readZipEntry } from '@/lib/zip-reader';
 import { getDb } from '@/lib/db';
@@ -52,7 +54,10 @@ function notionZip(): Buffer {
     { name: `Export/${HOME}/spec.pdf`, data: '%PDF-1.4 fake' },
     { name: `Export/${HOME}/${DB}.csv`, data: 'Name,Status,Due,Points\nWrite spec,Done,"January 5, 2024",3\n' },
     { name: `Export/${HOME}/${DB}_all.csv`, data: 'Name,Status,Due,Points\nWrite spec,Done,"January 5, 2024",3\nReview,Todo,"February 1, 2024",5\nShip,Todo,,8\n' },
-    { name: `Export/${HOME}/${DB}/${ROW}.md`, data: '# Write spec\n\nStatus: Done\n' },
+    {
+      name: `Export/${HOME}/${DB}/${ROW}.md`,
+      data: `# Write spec\n\nStatus: Done\nDue: January 5, 2024\n\nDraft it with the [child](../${enc(CHILD)}.md).\n\n- [ ] Outline\n`,
+    },
     { name: '__MACOSX/._junk', data: 'x' },
   ]);
 }
@@ -108,6 +113,9 @@ describe('Notion: mapeo', () => {
       ['Tasks', 'database', `${HOME}.md`],
       ['Write spec', 'page', `${DB}_all.csv`],
     ]);
+    // El .md de la carpeta de la base es una fila, no una subpágina.
+    expect(plan.find((p) => p.title === 'Write spec')?.rowOf).toBe(`E/${HOME}/${DB}_all.csv`);
+    expect(plan.find((p) => p.title === 'Child page')?.rowOf).toBeUndefined();
   });
 
   it('links internos y adjuntos', () => {
@@ -140,6 +148,41 @@ describe('Notion: mapeo', () => {
     expect(db.rows[1].values[due]).toBeUndefined();
     expect(db.views).toHaveLength(1);
   });
+
+  it('Estado/Status con un valor distinto por fila sigue siendo status; la base toma el nombre del CSV', () => {
+    for (const col of ['Status', 'Estado', 'Situação']) {
+      const block = csvToDatabaseBlock(`Nombre,${col}\nA,Sin empezar\nB,En curso\nC,Listo\n`, undefined, 'Tareas');
+      expect(block.db!.title).toBe('Tareas');
+      expect(block.db!.properties[1].type).toBe('status');
+      expect(block.db!.properties[1].options?.map((o) => o.group)).toEqual(['todo', 'in_progress', 'done']);
+    }
+    // Con una sola fila también.
+    expect(csvToDatabaseBlock('Name,Status\nA,Done\n').db!.properties[1].type).toBe('status');
+    // Otra columna con valores todos distintos queda como texto.
+    expect(csvToDatabaseBlock('Name,Notes\nA,x\nB,y\n').db!.properties[1].type).toBe('text');
+  });
+
+  it('el .md de una fila pasa a ser su cuerpo (por título), sin las propiedades repetidas', () => {
+    expect(stripRowProperties('\nStatus: Done\nDue: January 5, 2024\n\nBody: here\n', ['Name', 'Status', 'Due'])).toBe('Body: here\n');
+    expect(stripRowProperties('Just text', ['Name'])).toBe('Just text');
+    let n = 0;
+    const block = csvToDatabaseBlock('Name,Status\nWrite spec,Done\nReview,Todo\n', () => `r${++n}`);
+    const p = (content: string) => ({ id: `b${++n}`, type: 'paragraph' as const, content });
+    const attached = attachRowBodies(block, [
+      { title: 'Review', blocks: [p('Check it')] },
+      { title: 'Orphan', blocks: [p('Not in the CSV')] },
+      { title: 'Write spec', blocks: [p('')] },
+    ]);
+    const [title] = block.db!.properties;
+    const rows = block.db!.rows;
+    expect(attached).toBe(2);
+    expect(rows.find((r) => r.values[title.id] === 'Review')?.body?.map((b) => b.content)).toEqual(['Check it']);
+    // Sin cuerpo real (solo párrafos vacíos) la fila queda como estaba.
+    expect(rows.find((r) => r.values[title.id] === 'Write spec')?.body).toBeUndefined();
+    // Una fila que no está en el CSV se suma con su cuerpo.
+    expect(rows).toHaveLength(3);
+    expect(rows[2].values[title.id]).toBe('Orphan');
+  });
 });
 
 describe('Notion: job de punta a punta (subida por partes)', () => {
@@ -157,11 +200,11 @@ describe('Notion: job de punta a punta (subida por partes)', () => {
 
     const prev = await runToEnd(job.id);
     expect(prev.status).toBe('preview');
-    expect(prev.preview).toMatchObject({ pages: 3, databases: 1, attachments: 2, alreadyImported: 0 });
+    expect(prev.preview).toMatchObject({ pages: 2, databases: 1, rows: 1, attachments: 2, alreadyImported: 0 });
     await startImportJob((await getImportJob(job.id))!);
     const done = await runToEnd(job.id);
     expect(done.status).toBe('done');
-    expect(done.report).toMatchObject({ pages: 3, databases: 1, files: 2, filesSkipped: 0 });
+    expect(done.report).toMatchObject({ pages: 2, databases: 1, rows: 1, files: 2, filesSkipped: 0 });
     // El zip se borró al terminar.
     await expect(stat(path.join(dir, `${job.id}.zip`))).rejects.toThrow();
     expect((await getImportJobRow(job.id))?.payload).toBeNull();
@@ -178,7 +221,8 @@ describe('Notion: job de punta a punta (subida por partes)', () => {
     expect(home).toMatchObject({ parent_id: null, icon: '🚀' });
     expect(by('Child page').parent_id).toBe(home.id);
     expect(by('Tasks').parent_id).toBe(home.id);
-    expect(by('Write spec').parent_id).toBe(by('Tasks').id);
+    // La fila no es una subpágina: su .md es el cuerpo de la fila.
+    expect(pages.find((p) => p.title === 'Write spec')).toBeUndefined();
 
     const blocks = JSON.parse(home.content) as Array<{ type: string; content: string; url?: string; icon?: string; name?: string }>;
     const intro = blocks[0].content;
@@ -193,17 +237,25 @@ describe('Notion: job de punta a punta (subida por partes)', () => {
     const db = JSON.parse(by('Tasks').content)[0];
     expect(db.type).toBe('database');
     expect(db.db.rows).toHaveLength(3);
+    expect(db.db.title).toBe('Tasks');
     expect(db.db.properties[0].type).toBe('title');
+    expect(db.db.properties[1].type).toBe('status');
+    const row = db.db.rows.find((r: { values: Record<string, unknown> }) => r.values[db.db.properties[0].id] === 'Write spec');
+    const body = row.body as Array<{ type: string; content: string; checked?: boolean }>;
+    expect(body[0].content).toContain('Draft it with the');
+    expect(body[0].content).toContain(`data-page="${by('Child page').id}"`);
+    expect(body.some((b) => b.content.includes('Status: Done'))).toBe(false);
+    expect(body.find((b) => b.type === 'todo')?.content).toBe('Outline');
 
     // Reimportar: las páginas ya están.
     const again = await createImportJob({ workspaceId: u.id, teamId: null, userId: u.id, app: 'docs', source: 'notion', status: 'uploading', options: { size: zip.length } });
     await getDb().prepare("UPDATE import_jobs SET payload = ?, status = 'fetching' WHERE id = ?").run(localZipRef(again.id), again.id);
     await appendLocalChunk(again.id, 0, zip);
     const prev2 = await runToEnd(again.id);
-    expect((prev2.preview as { alreadyImported: number }).alreadyImported).toBe(4);
+    expect((prev2.preview as { alreadyImported: number }).alreadyImported).toBe(3);
     await startImportJob((await getImportJob(again.id))!);
     const done2 = await runToEnd(again.id);
-    expect(done2.report).toMatchObject({ pages: 0, databases: 0, skipped: 4 });
+    expect(done2.report).toMatchObject({ pages: 0, databases: 0, skipped: 3 });
 
     await deleteUploads([image.url!, (file as { url?: string }).url!]);
   });

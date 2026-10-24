@@ -1,10 +1,19 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
-import { ImportConfirm, ImportProgress, ImportStat, useImportErrorText, useImportJob, type ImportJobView } from '@/components/app/ImportJob';
+import {
+  failedReading,
+  ImportConfirm,
+  ImportProgress,
+  ImportStat,
+  useImportErrorText,
+  useImportJob,
+  useReadFailedText,
+  type ImportJobView,
+} from '@/components/app/ImportJob';
 import {
   CSV_FIELDS,
   csvHeaderSample,
@@ -18,6 +27,8 @@ import {
 type Source = 'linear' | 'linear_csv' | 'jira_csv' | 'github' | 'csv';
 const SOURCES: Source[] = ['linear', 'linear_csv', 'jira_csv', 'github', 'csv'];
 const CSV_SOURCES: Source[] = ['linear_csv', 'jira_csv', 'csv'];
+/** Nombre de la fuente en el aviso de lectura fallida. */
+const SOURCE_NAMES: Record<string, string> = { linear: 'Linear', github: 'GitHub', linear_csv: 'Linear', jira_csv: 'Jira', csv: 'CSV' };
 const PRESET: Record<string, 'linear' | 'jira' | 'csv'> = { linear_csv: 'linear', jira_csv: 'jira', csv: 'csv' };
 
 interface ProjectOption {
@@ -61,7 +72,9 @@ interface Report {
 export default function TrackImportPanel({ isAdmin }: { isAdmin: boolean }) {
   const t = useTranslations('track.importer');
   const errorText = useImportErrorText();
+  const readFailedText = useReadFailedText();
   const { job, error, setError, loading, create, start, cancel, reset } = useImportJob('track');
+  const readFailed = failedReading(job);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
 
   useEffect(() => {
@@ -79,10 +92,19 @@ export default function TrackImportPanel({ isAdmin }: { isAdmin: boolean }) {
     );
   }
 
+  // El formulario queda montado (oculto) mientras se lee la fuente: si el
+  // token se rechaza vuelve con todo lo cargado.
+  const showForm = !loading && (!job || readFailed);
   let body;
   if (loading) body = <p className="ui-help">{t('loadingJobs')}</p>;
-  else if (!job) body = <ImportForm projects={projects} onCreate={create} />;
-  else if (job.status === 'fetching' || job.status === 'importing') {
+  else if (!job) body = null;
+  else if (readFailed) {
+    body = (
+      <p className="ximp-note" data-tone="bad" role="alert" data-testid="import-read-failed">
+        {readFailedText(SOURCE_NAMES[job.source] ?? job.source, job.error)}
+      </p>
+    );
+  } else if (job.status === 'fetching' || job.status === 'importing') {
     body = <ImportProgress job={job} onCancel={cancel} stageLabel={(s) => (t.has(`stages.${s}`) ? t(`stages.${s}`) : null)} />;
   } else if (job.status === 'preview') {
     body = <PreviewView job={job} onConfirm={start} onCancel={cancel} />;
@@ -115,13 +137,26 @@ export default function TrackImportPanel({ isAdmin }: { isAdmin: boolean }) {
           </p>
         )}
         {body}
+        {!loading && (
+          <div hidden={!showForm}>
+            <ImportForm projects={projects} onCreate={create} jobStatus={job?.status ?? null} />
+          </div>
+        )}
       </FormSection>
       <ExportSection projects={projects} />
     </div>
   );
 }
 
-function ImportForm({ projects, onCreate }: { projects: ProjectOption[]; onCreate: (body: Record<string, unknown>) => Promise<ImportJobView | null> }) {
+function ImportForm({
+  projects,
+  onCreate,
+  jobStatus,
+}: {
+  projects: ProjectOption[];
+  onCreate: (body: Record<string, unknown>) => Promise<ImportJobView | null>;
+  jobStatus: ImportJobView['status'] | null;
+}) {
   const t = useTranslations('track.importer');
   const [source, setSource] = useState<Source>('linear');
   const [token, setToken] = useState('');
@@ -132,6 +167,12 @@ function ImportForm({ projects, onCreate }: { projects: ProjectOption[]; onCreat
   const [fileError, setFileError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const isCsv = CSV_SOURCES.includes(source);
+
+  // El token se borra del formulario cuando ya se leyó la fuente (vista previa
+  // o después); si la lectura falla queda para corregirlo.
+  useEffect(() => {
+    if (jobStatus === 'preview' || jobStatus === 'importing' || jobStatus === 'done') setToken('');
+  }, [jobStatus]);
 
   async function pickFile(file: File | null) {
     setFileError(null);
@@ -163,9 +204,8 @@ function ImportForm({ projects, onCreate }: { projects: ProjectOption[]; onCreat
     const body: Record<string, unknown> = { source, target };
     if (isCsv) Object.assign(body, { csv: csv!.text, mapping, projectName: csv!.name });
     else Object.assign(body, { token: token.trim(), ...(source === 'github' ? { repo: repo.trim() } : {}) });
-    const created = await onCreate(body);
+    await onCreate(body);
     setBusy(false);
-    if (created) setToken('');
   }
 
   return (
@@ -435,15 +475,27 @@ function PreviewView({ job, onConfirm, onCancel }: { job: ImportJobView; onConfi
 
 function DoneView({ job, onAgain }: { job: ImportJobView; onAgain: () => void }) {
   const t = useTranslations('track.importer');
+  const locale = useLocale();
   const r = job.report as unknown as Report;
+  // Solo lo que se creó: "Se creó 1 proyecto y 4 status."
+  const parts = [
+    ['projects', r.projectsCreated],
+    ['statuses', r.statusesCreated],
+    ['cycles', r.cyclesCreated],
+    ['milestones', r.milestonesCreated],
+  ] as const;
+  const created = parts.filter(([, n]) => n > 0).map(([k, n]) => t(`createdPart.${k}`, { count: n }));
+  const createdTotal = parts.reduce((sum, [, n]) => sum + n, 0);
   return (
     <div className="ximp-done" data-testid="track-import-done">
       <p role="status">
         <strong>{t('doneTitle')}</strong> {t('doneSummary', { issues: r.issues, comments: r.comments, skipped: r.skipped })}
       </p>
-      <p className="ui-help">
-        {t('doneCreated', { projects: r.projectsCreated, statuses: r.statusesCreated, cycles: r.cyclesCreated, milestones: r.milestonesCreated })}
-      </p>
+      {created.length > 0 && (
+        <p className="ui-help">
+          {t('doneCreated', { count: createdTotal, list: new Intl.ListFormat(locale, { type: 'conjunction' }).format(created) })}
+        </p>
+      )}
       {r.unassigned > 0 && (
         <p className="ximp-note" data-tone="warn">
           {t('doneUnassigned', { count: r.unassigned })}

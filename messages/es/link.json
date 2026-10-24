@@ -388,7 +388,7 @@
     "add": "Agregar webhook",
     "test": "Enviar prueba",
     "empty": "Todavía no hay webhooks.",
-    "secretTitle": "Secret de firma — copialo ahora",
+    "secretTitle": "Secret de firma: copialo ahora",
     "secretWarning": "No vas a volver a ver este secret.",
     "errors": {
       "https_required": "La URL tiene que usar https.",
