@@ -22,6 +22,7 @@
       "board": "Board",
       "agents": "Agents",
       "robots": "Robots",
+      "groups": "Groups",
       "site": "Sitio web",
       "other": "Otro"
     },

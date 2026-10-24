@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Products",
-      "description": "Eleven apps: CRM, Chat, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal and Board. Open source for your server, or on zerosoft Cloud with a free plan and usage-based pricing."
+      "description": "Twelve apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal and Board. Open source for your server, or on zerosoft Cloud with a free plan and usage-based pricing."
     },
     "hero": {
-      "title1": "Eleven apps.",
+      "title1": "Twelve apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all eleven apps.",
+      "title1": "Try all twelve apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -604,6 +604,103 @@
         }
       }
     },
+    "groups": {
+      "meta": {
+        "title": "Groups: open-source WhatsApp team inbox and group manager",
+        "description": "A shared inbox for WhatsApp chats and groups: assignment, notes, tickets by emoji, SLAs, broadcasts and bulk group management, linked to your CRM. An open-source Periskope alternative."
+      },
+      "hero": {
+        "sub": "One inbox for every WhatsApp chat and customer group. Assign, answer, turn messages into tickets and manage hundreds of groups at once, with each group on its CRM record."
+      },
+      "featuresTitle": "Every customer group in one place.",
+      "featuresTitleDim": "And on the CRM record.",
+      "f1": {
+        "t": "Shared inbox",
+        "d": "1:1 chats and groups from several numbers in one list, with filters for unread, unanswered, mine and label."
+      },
+      "f2": {
+        "t": "Groups at scale",
+        "d": "Create groups one by one or from a CSV, add and remove members in many groups, promote admins and reset invite links."
+      },
+      "f3": {
+        "t": "Tickets from messages",
+        "d": "React with an emoji from the app or the phone, or use a keyword, and the message becomes a ticket with priority and due time."
+      },
+      "f4": {
+        "t": "Unanswered, flagged",
+        "d": "A chat that waits longer than your limit shows up as overdue. A reply from the phone also counts."
+      },
+      "f5": {
+        "t": "Broadcasts at a safe pace",
+        "d": "One message with variables to many groups, now or scheduled, with messages per minute and status per recipient."
+      },
+      "f6": {
+        "t": "On the CRM record",
+        "d": "Link a group to a company or contact and its latest messages and open tickets show up there."
+      },
+      "f7": {
+        "t": "Agents and Flow",
+        "d": "An agent from Agents can answer in a chat, and Flow reacts to messages and tickets or sends a WhatsApp."
+      },
+      "f8": {
+        "t": "Official API or your gateway",
+        "d": "Use the WhatsApp Cloud API for 1:1 support, or a WAHA or Evolution API gateway by QR to manage groups."
+      },
+      "f9": {
+        "t": "Keyboard first",
+        "d": "J and K to move, R to reply, N for a note, E to close, A to assign and T for a ticket."
+      },
+      "compare": {
+        "rival": "Periskope",
+        "price": "$25",
+        "per": "/ seat / month",
+        "team": "$3,000",
+        "zero": "$0",
+        "note": "Periskope Starter lists at $25 per seat per month (monthly billing, Pro is $35). A team of ten pays $3,000 a year. Groups on your server costs $0; you run the WhatsApp gateway or pay Meta for the official API."
+      },
+      "faq": {
+        "f1": {
+          "q": "How does it connect to WhatsApp?",
+          "a": "Two ways, chosen per number. The official WhatsApp Cloud API from Meta, for 1:1 chats, media and templates. Or a self-hosted WAHA or Evolution API gateway that links your number by QR, which is what allows group management."
+        },
+        "f2": {
+          "q": "Is the QR mode safe for my number?",
+          "a": "It uses an unofficial WhatsApp Web session, and WhatsApp can restrict a number used this way, especially if it adds many strangers or sends a lot of unrequested messages. Groups sends broadcasts at a pace you set and suggests invite links. For 1:1 messaging we recommend the official API."
+        },
+        "f3": {
+          "q": "Can I manage groups with the official API?",
+          "a": "Not in Groups today. The official API covers 1:1 chats; creating groups and managing members goes through the QR gateway."
+        },
+        "f4": {
+          "q": "How do tickets work?",
+          "a": "A ticket comes from a message: by hand, by reacting with the ticket emoji (from Groups or the phone) or when a customer writes one of your keywords. Each one has status, priority, assignee and due times for first response and resolution."
+        },
+        "f5": {
+          "q": "What is missing compared to Periskope?",
+          "a": "Still to come: a native mobile app, voice calls, round-robin assignment and per-label access for members. Periskope also uses AI to tell questions from comments; Groups flags by time without reply."
+        }
+      },
+      "cta": {
+        "title1": "Every group answered.",
+        "title2": "Every message on the record.",
+        "sub": "Connect a number, bring in your groups and start answering from one inbox.",
+        "button": "Open Groups"
+      },
+      "steps": {
+        "s1": {
+          "t": "Connect a number",
+          "d": "Paste your Cloud API credentials or scan the QR from your gateway."
+        },
+        "s2": {
+          "t": "Bring in your groups",
+          "d": "Sync the groups the number already has, or create them from a CSV."
+        },
+        "s3": {
+          "t": "Answer as a team",
+          "d": "Assign chats, leave notes, open tickets and link each group to the CRM."
+        }
+      }
+    },
     "agents": {
       "meta": {
         "title": "Agents: AI agents that use your knowledge",
@@ -1020,7 +1117,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Eleven apps, same login.",
+    "suiteTitleDim": "Twelve apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -1198,6 +1295,25 @@
       "m3": "Great. Can I pay with Mercado Pago?",
       "m4": "Yes, we take Mercado Pago and bank transfer. Here is the payment link.",
       "replyHint": "Write a reply…"
+    },
+    "groups": {
+      "listTitle": "Groups",
+      "r1name": "Acme · Support",
+      "r1msg": "The October invoice did not arrive",
+      "r1time": "4 min",
+      "r2name": "Globex onboarding",
+      "r2msg": "We finished the import",
+      "r2time": "1 h",
+      "r3name": "Initech · Ops",
+      "r3msg": "Thanks, all set!",
+      "r3time": "3 h",
+      "waiting": "Waiting 4 min",
+      "m1who": "Ana · Acme",
+      "m1": "Hi team, the October invoice did not arrive. Can you resend it?",
+      "ticketTag": "Ticket #12 · High",
+      "m2": "Created from the 🎫 reaction. Assigned to Lucía, due today 18:00.",
+      "m3": "Hi Ana, resending it now to billing@acme.com.",
+      "replyHint": "Reply in the group. / for quick replies"
     },
     "agents": {
       "name": "La Espiga assistant",
@@ -1752,6 +1868,29 @@
     "scope_chat_read": "List Chat conversations and read their messages.",
     "scope_chat_write": "Reply, assign, resolve and reopen Chat conversations (includes chat:read).",
     "webhooksChatTitle": "Chat event payload",
-    "webhooksChatDesc": "Chat events carry the conversation. chat.message.created adds the message (visitor, teammate or bot; internal notes are not sent) and chat.conversation.assigned adds previousAssignedTo."
+    "webhooksChatDesc": "Chat events carry the conversation. chat.message.created adds the message (visitor, teammate or bot; internal notes are not sent) and chat.conversation.assigned adds previousAssignedTo.",
+    "groupsTitle": "Groups (WhatsApp)",
+    "groupsDesc": "Read WhatsApp chats and groups, send messages and create tickets from your own systems. Messages go out from the number the chat belongs to.",
+    "groupsChatsListTitle": "List chats and groups",
+    "groupsChatsListDesc": "Open chats and groups, most recent first, with labels, assignee and whether they wait for a reply.",
+    "groupsMessagesListTitle": "List messages",
+    "groupsMessagesListDesc": "Messages and internal notes of a chat, oldest first.",
+    "groupsMessagesSendTitle": "Send a message",
+    "groupsMessagesSendDesc": "Sends a WhatsApp message to the chat or group, or saves an internal note with note: true.",
+    "groupsTicketsListTitle": "List tickets",
+    "groupsTicketsListDesc": "Tickets created from WhatsApp messages, with SLA status.",
+    "groupsTicketsCreateTitle": "Create a ticket",
+    "groupsTicketsCreateDesc": "Creates a ticket on a chat. With messageId, a message has at most one ticket: repeating returns the existing one.",
+    "paramGroupsFilter": "all, unread, unanswered, flagged, mine, unassigned or closed",
+    "paramGroupsKind": "group or dm",
+    "paramGroupsAfter": "Only messages after this ISO date",
+    "paramGroupsBody": "Message text (up to 4096 characters)",
+    "paramGroupsNote": "Save as an internal note instead of sending",
+    "paramGroupsStatus": "active (default), all, open, in_progress, resolved or closed",
+    "paramGroupsChatId": "Chat or group id",
+    "paramGroupsTitle": "Ticket title (default: the first line of the message)",
+    "paramGroupsPriority": "low, medium, high or urgent",
+    "scope_groups_read": "Read WhatsApp chats, messages and tickets in Groups.",
+    "scope_groups_write": "Send WhatsApp messages and create tickets in Groups."
   }
 }

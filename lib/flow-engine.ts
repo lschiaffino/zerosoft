@@ -404,6 +404,22 @@ async function chatMessageNode(ws: string, cfg: Record<string, unknown>, tctx: R
   return { message: { id: msg.id, body: msg.body }, conversation: { id: conv.id } };
 }
 
+async function groupsMessageNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
+  const chatId = renderString(cfg.chatId ?? '', tctx).trim();
+  const body = renderString(cfg.body ?? '', tctx).trim();
+  if (!chatId) throw new StepError('missing_chat');
+  if (!body) throw new StepError('missing_body');
+  const { GroupsError, sendMessage } = await import('./groups');
+  try {
+    const msg = await sendMessage(ws, null, chatId, { body: body.slice(0, 4096), authorKind: 'flow' });
+    if (msg.status === 'failed') throw new StepError(msg.error || 'send_failed', true);
+    return { message: { id: msg.id, body: msg.body, status: msg.status }, chat: { id: chatId } };
+  } catch (err) {
+    if (err instanceof GroupsError) throw new StepError(err.code === 'not_found' ? 'chat_not_found' : err.code);
+    throw err;
+  }
+}
+
 async function docsPageNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
   const title = renderString(cfg.title ?? '', tctx).trim().slice(0, 300);
   const content = renderString(cfg.content ?? '', tctx);
@@ -937,6 +953,8 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
       return { kind: 'ok', output: await chatMessageNode(ws, cfg, tctx), handles: ['out'] };
     case 'app.docs_page':
       return { kind: 'ok', output: await docsPageNode(ws, cfg, tctx), handles: ['out'] };
+    case 'app.groups_message':
+      return { kind: 'ok', output: await groupsMessageNode(ws, cfg, tctx), handles: ['out'] };
     case 'app.robot_run':
       return { kind: 'ok', output: await robotNode(state, cfg, tctx), handles: ['out'] };
     case 'ai.text':

@@ -24,6 +24,7 @@ const EVENT_LINES: Array<[string, ProductKey]> = [
   ['board.', 'board'],
   ['agent.', 'agents'],
   ['task.', 'crm'],
+  ['groups.', 'groups'],
 ];
 
 const NODE_LINES: Partial<Record<FlowNodeType, ProductKey>> = {
@@ -38,6 +39,7 @@ const NODE_LINES: Partial<Record<FlowNodeType, ProductKey>> = {
   'app.chat_message': 'chat',
   'app.docs_page': 'docs',
   'app.robot_run': 'robots',
+  'app.groups_message': 'groups',
   'ai.agent': 'agents',
 };
 

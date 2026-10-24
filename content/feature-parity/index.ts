@@ -9,6 +9,7 @@ import docs from './docs';
 import flow from './flow';
 import link from './link';
 import notes from './notes';
+import groups from './groups';
 import robots from './robots';
 import track from './track';
 
@@ -20,6 +21,7 @@ import track from './track';
 export const PARITY: Record<ProductKey, ProductParity> = {
   crm,
   chat,
+  groups,
   agents,
   flow,
   robots,

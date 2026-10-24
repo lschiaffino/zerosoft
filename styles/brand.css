@@ -22,6 +22,7 @@
   --c-notes-ink: #916c00;
   --c-board-ink: #008176;
   --c-robots-ink: #6b7280;
+  --c-groups-ink: #4d7c0f;
 
   /* Texto sobre un relleno del color del producto. */
   --c-link-on: #ffffff;
@@ -35,6 +36,7 @@
   --c-agents-on: #111111;
   --c-notes-on: #111111;
   --c-board-on: #111111;
+  --c-groups-on: #111111;
 
   /* Escala (px a 1440): lectura y datos. Los títulos (--t-display, --t-h1,
      --t-h2, --t-h3) los define cada tema según su voz. */

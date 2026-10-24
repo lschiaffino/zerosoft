@@ -37,6 +37,7 @@ export interface SidebarLabels {
   newFlow: string;
   newAgent: string;
   newRobot: string;
+  newGroup: string;
   team: string;
   link: { overview: string; links: string; new: string; bio: string; analytics: string; bulk: string; domains: string };
   crm: {
@@ -101,6 +102,14 @@ export interface SidebarLabels {
     robots: string;
     recorder: string;
   };
+  groups: {
+    inbox: string;
+    groups: string;
+    tickets: string;
+    broadcasts: string;
+    analytics: string;
+    settings: string;
+  };
   notifications: {
     title: string;
     markRead: string;
@@ -140,7 +149,8 @@ export type AppProduct =
   | 'notes'
   | 'board'
   | 'agents'
-  | 'robots';
+  | 'robots'
+  | 'groups';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/crm', 'crm'],
@@ -153,6 +163,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/board', 'board'],
   ['/app/agents', 'agents'],
   ['/app/robots', 'robots'],
+  ['/app/groups', 'groups'],
 ];
 
 /** Producto de la app según la ruta (Link es el default: /app, /app/links, /app/settings). */
@@ -371,6 +382,30 @@ export function buildNav(
         },
       ];
 
+    case 'groups':
+      return [
+        {
+          items: [
+            {
+              href: '/app/groups/inbox',
+              label: labels.groups.inbox,
+              active: at('/app/groups/inbox') || pathname === '/app/groups',
+              icon: 'inbox',
+            },
+            { href: '/app/groups/list', label: labels.groups.groups, active: at('/app/groups/list'), icon: 'groups' },
+            { href: '/app/groups/tickets', label: labels.groups.tickets, active: at('/app/groups/tickets'), icon: 'tasks' },
+            { href: '/app/groups/broadcasts', label: labels.groups.broadcasts, active: at('/app/groups/broadcasts'), icon: 'bulk' },
+          ],
+        },
+        {
+          section: labels.insights,
+          items: [{ href: '/app/groups/analytics', label: labels.groups.analytics, active: at('/app/groups/analytics'), icon: 'reports' }],
+        },
+        {
+          items: [{ href: '/app/groups/settings', label: labels.groups.settings, active: at('/app/groups/settings'), icon: 'settings' }],
+        },
+      ];
+
     case 'link':
     default:
       return [
@@ -432,6 +467,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels): NavIt
       return [item('/app/agents?new=1', labels.newAgent, 'agents')];
     case 'robots':
       return [item('/app/robots?new=1', labels.newRobot, 'robots')];
+    case 'groups':
+      return [item('/app/groups/list?new=1', labels.newGroup, 'groups')];
     case 'link':
     default:
       return [item('/app/links/new', labels.newLink, 'newLink')];

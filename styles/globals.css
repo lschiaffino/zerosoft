@@ -57,6 +57,7 @@
   --c-notes: #e6b400;
   --c-board: #00b8a9;
   --c-robots: #6b7280;
+  --c-groups: #65a30d;
 
   /* Forma: la del tema (--radius-1). */
   --r-xs: var(--radius-1);
@@ -133,6 +134,7 @@ body {
 .card-notes { --accent: var(--c-notes); --on-accent: var(--ink); }
 .card-board { --accent: var(--c-board); --on-accent: var(--ink); }
 .card-robots { --accent: var(--c-robots); --on-accent: #ffffff; }
+.card-groups { --accent: var(--c-groups); --on-accent: var(--ink); }
 /* El color del producto, oscurecido para usarlo como texto sobre blanco. */
 [class*='card-'] { --accent-ink: color-mix(in srgb, var(--accent) 74%, var(--ink)); }
 

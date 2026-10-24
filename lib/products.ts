@@ -9,6 +9,7 @@
 export const PRODUCT_CONFIG = {
   crm: { name: 'CRM', launch: '/app/crm', path: 'crm', color: '#7b4dff' },
   chat: { name: 'Chat', launch: '/app/chat', path: 'chat', color: '#e23d7f' },
+  groups: { name: 'Groups', launch: '/app/groups', path: 'groups', color: '#65a30d' },
   agents: { name: 'Agents', launch: '/app/agents', path: 'agents', color: '#ff3b30' },
   flow: { name: 'Flow', launch: '/app/flow', path: 'flow', color: '#0284c7' },
   robots: { name: 'Robots', launch: '/app/robots', path: 'robots', color: '#6b7280' },
@@ -39,7 +40,7 @@ export function productRgb(key: ProductKey): string {
   return [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',');
 }
 
-/** Número de la app en la suite, con dos dígitos ("01" … "11"). */
+/** Número de la app en la suite, con dos dígitos ("01" … "12"). */
 export function productNumber(key: ProductKey): string {
   return String(PRODUCT_KEYS.indexOf(key) + 1).padStart(2, '0');
 }
