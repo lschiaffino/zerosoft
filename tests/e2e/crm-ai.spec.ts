@@ -87,6 +87,8 @@ test('sin IA: el error ai_disabled se explica en la ficha', async ({ page, reque
   await expect(summary).toContainText('AI is not set up on this workspace');
   await summary.getByRole('button', { name: 'Summarize' }).click();
   await expect(summary.getByRole('alert')).toContainText('AI_GATEWAY_API_KEY');
+  // Un solo aviso: el gris se va cuando aparece el error.
+  await expect(summary.getByText('AI is not set up on this workspace')).toHaveCount(1);
 });
 
 test('llamada: resumen con IA y próximos pasos a tareas', async ({ page, request }) => {

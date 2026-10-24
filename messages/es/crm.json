@@ -242,7 +242,7 @@
       "dangerZone": "Zona de peligro",
       "deleteTitle": "Eliminar este contacto",
       "deleteDesc": "El contacto va a la papelera con sus actividades propias y sale de deals y listas. Podés restaurarlo durante 90 días.",
-      "deleteButton": "Eliminar para siempre",
+      "deleteButton": "Mover a la papelera",
       "noDeals": "Sin deals todavía.",
       "noLists": "No está en ninguna lista.",
       "emptyTimeline": "Sin actividad todavía. Agregá una nota o registrá una llamada.",
@@ -322,7 +322,7 @@
       "dangerZone": "Zona de peligro",
       "deleteTitle": "Eliminar esta empresa",
       "deleteDesc": "La empresa va a la papelera y sus contactos se conservan, desvinculados. Podés restaurarla durante 90 días.",
-      "deleteButton": "Eliminar para siempre",
+      "deleteButton": "Mover a la papelera",
       "noContacts": "Sin contactos todavía.",
       "noDeals": "Sin deals todavía.",
       "emptyTimeline": "Sin actividad todavía. Agregá una nota o registrá una llamada.",
@@ -474,7 +474,7 @@
       "dangerZone": "Zona de peligro",
       "deleteTitle": "Eliminar este deal",
       "deleteDesc": "El deal va a la papelera. Los contactos se conservan. Podés restaurarlo durante 90 días.",
-      "deleteButton": "Eliminar para siempre",
+      "deleteButton": "Mover a la papelera",
       "emptyTimeline": "Sin actividad todavía. Agregá una nota o registrá una llamada.",
       "aboutSection": "Sobre este deal",
       "ownershipSection": "Asignación",
@@ -545,7 +545,7 @@
       "untitled": "Tarea sin título",
       "deleteTitle": "Eliminar esta tarea",
       "deleteDesc": "La tarea y sus adjuntos van a la papelera. Podés restaurarlos durante 90 días.",
-      "deleteButton": "Eliminar para siempre"
+      "deleteButton": "Mover a la papelera"
     },
     "projects": {
       "manage": "Administrar proyectos",
@@ -2580,7 +2580,7 @@
     },
     "form": {
       "name": "Nombre del lead",
-      "namePlaceholder": "Si lo dejás vacío, toma el nombre del contacto",
+      "namePlaceholder": "Opcional: el nombre del contacto",
       "contact": "Contacto",
       "company": "Empresa",
       "owner": "Owner",

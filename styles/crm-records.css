@@ -241,11 +241,12 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .record-more-item.has-rule { margin-top: 4px; border-top: 1px solid var(--line); border-radius: 0; }
 
 /* Eliminar (dentro del modal). */
-.danger-row { display: flex; flex-direction: column; gap: 16px; }
+.danger-row { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 16px; }
 .danger-title { font-weight: 600; }
 .danger-desc { font-size: 0.875rem; line-height: 1.45; }
 .danger-delete { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
 .danger-delete .btn { align-self: flex-start; }
+.danger-delete .input { width: 100%; max-width: 360px; }
 
 /* Historial de cambios (drawer). */
 .history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }

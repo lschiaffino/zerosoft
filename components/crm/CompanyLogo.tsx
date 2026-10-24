@@ -17,11 +17,11 @@ export default function CompanyLogo({ domain, name, size = 20 }: CompanyLogoProp
   const src = companyLogoUrl(domain);
   const [failed, setFailed] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
-  // Si la imagen falló antes de hidratar (404 del favicon), onError ya no
-  // llega: al montar, una imagen completa sin tamaño es una imagen rota.
+  // Sin logo la API devuelve un PNG de 1×1 (o falla). Si eso pasó antes de
+  // hidratar, onLoad/onError ya no llegan: al montar se mira el tamaño.
   useEffect(() => {
     const img = imgRef.current;
-    if (img && img.complete && img.naturalWidth === 0) setFailed(true);
+    if (img && img.complete && img.naturalWidth <= 1) setFailed(true);
   }, [src]);
   const style = { width: size, height: size, fontSize: Math.max(9, Math.round(size * 0.42)) };
   if (!src || failed) {
@@ -42,6 +42,9 @@ export default function CompanyLogo({ domain, name, size = 20 }: CompanyLogoProp
       height={size}
       loading="lazy"
       style={style}
+      onLoad={(e) => {
+        if (e.currentTarget.naturalWidth <= 1) setFailed(true);
+      }}
       onError={() => setFailed(true)}
     />
   );

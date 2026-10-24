@@ -86,7 +86,8 @@ export default function AiSummaryCard({
             <span>{t('updatedAt', { when: formatAiWhen(summary.updatedAt, locale) })}</span>
           </p>
         </>
-      ) : (
+      ) : error ? null : (
+        // Con un error a la vista (p. ej. IA apagada) no se repite el aviso en gris.
         <p className="muted ai-empty">{available ? t('summary.empty') : t(aiErrorKey('ai_disabled', isAdmin))}</p>
       )}
       {busy && <p className="muted" role="status">{t('summary.loading')}</p>}

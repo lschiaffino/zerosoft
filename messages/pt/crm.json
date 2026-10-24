@@ -242,7 +242,7 @@
       "dangerZone": "Zona de perigo",
       "deleteTitle": "Excluir este contato",
       "deleteDesc": "O contato vai para a lixeira com suas atividades próprias e sai de negócios e listas. Você pode restaurar por 90 dias.",
-      "deleteButton": "Excluir para sempre",
+      "deleteButton": "Mover para a lixeira",
       "noDeals": "Nenhum negócio ainda.",
       "noLists": "Não está em nenhuma lista.",
       "emptyTimeline": "Nenhuma atividade ainda. Adicione uma nota ou registre uma ligação.",
@@ -322,7 +322,7 @@
       "dangerZone": "Zona de perigo",
       "deleteTitle": "Excluir esta empresa",
       "deleteDesc": "A empresa vai para a lixeira e seus contatos são mantidos, desvinculados. Você pode restaurar por 90 dias.",
-      "deleteButton": "Excluir para sempre",
+      "deleteButton": "Mover para a lixeira",
       "noContacts": "Nenhum contato ainda.",
       "noDeals": "Nenhum negócio ainda.",
       "emptyTimeline": "Sem atividade ainda. Adicione uma nota ou registre uma ligação.",
@@ -474,7 +474,7 @@
       "dangerZone": "Zona de perigo",
       "deleteTitle": "Excluir este negócio",
       "deleteDesc": "O negócio vai para a lixeira. Os contatos são mantidos. Você pode restaurar por 90 dias.",
-      "deleteButton": "Excluir para sempre",
+      "deleteButton": "Mover para a lixeira",
       "emptyTimeline": "Sem atividade ainda. Adicione uma nota ou registre uma ligação.",
       "aboutSection": "Sobre este negócio",
       "ownershipSection": "Atribuição",
@@ -545,7 +545,7 @@
       "untitled": "Tarefa sem título",
       "deleteTitle": "Excluir esta tarefa",
       "deleteDesc": "A tarefa e seus anexos vão para a lixeira. Você pode restaurar por 90 dias.",
-      "deleteButton": "Excluir para sempre"
+      "deleteButton": "Mover para a lixeira"
     },
     "projects": {
       "manage": "Gerenciar projetos",
@@ -2580,7 +2580,7 @@
     },
     "form": {
       "name": "Nome do lead",
-      "namePlaceholder": "Se ficar vazio, usa o nome do contato",
+      "namePlaceholder": "Opcional: o nome do contato",
       "contact": "Contato",
       "company": "Empresa",
       "owner": "Responsável",

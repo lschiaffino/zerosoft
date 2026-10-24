@@ -135,6 +135,88 @@ interface ToolContext {
   records: Map<string, AssistantRecordRef>;
   proposals: AssistantProposal[];
   toolCalls: string[];
+  locale: string;
+}
+
+type ProposalLocale = 'en' | 'es' | 'pt';
+
+/** Nombres de los campos editables en cada idioma (para el resumen de la propuesta). */
+const FIELD_LABELS: Record<ProposalLocale, Record<string, string>> = {
+  en: {
+    firstName: 'first name', lastName: 'last name', email: 'email', phone: 'phone', jobTitle: 'job title', city: 'city',
+    country: 'country', lifecycleStage: 'lifecycle stage', leadStatus: 'lead status', name: 'name', domain: 'domain',
+    industry: 'industry', employees: 'employees', website: 'website', amount: 'amount', closeDate: 'close date',
+    priority: 'priority', description: 'description',
+  },
+  es: {
+    firstName: 'nombre', lastName: 'apellido', email: 'email', phone: 'teléfono', jobTitle: 'cargo', city: 'ciudad',
+    country: 'país', lifecycleStage: 'etapa del ciclo de vida', leadStatus: 'estado del lead', name: 'nombre', domain: 'dominio',
+    industry: 'industria', employees: 'empleados', website: 'sitio web', amount: 'monto', closeDate: 'fecha de cierre',
+    priority: 'prioridad', description: 'descripción',
+  },
+  pt: {
+    firstName: 'nome', lastName: 'sobrenome', email: 'email', phone: 'telefone', jobTitle: 'cargo', city: 'cidade',
+    country: 'país', lifecycleStage: 'estágio do ciclo de vida', leadStatus: 'status do lead', name: 'nome', domain: 'domínio',
+    industry: 'setor', employees: 'funcionários', website: 'site', amount: 'valor', closeDate: 'data de fechamento',
+    priority: 'prioridade', description: 'descrição',
+  },
+};
+
+/** Textos del resumen de cada propuesta (la tarjeta de confirmación) y respuestas de respaldo, por idioma. */
+const PROPOSAL_TEXT: Record<
+  ProposalLocale,
+  {
+    createTask: (subject: string, due: string | null, on: string | null) => string;
+    moveDeal: (deal: string, stage: string) => string;
+    setField: (field: string, record: string, value: string) => string;
+    review: string;
+    unfinished: string;
+  }
+> = {
+  en: {
+    createTask: (subject, due, on) => `Create task "${subject}"${due ? ` due ${due}` : ''}${on ? ` on ${on}` : ''}`,
+    moveDeal: (deal, stage) => `Move "${deal}" to ${stage}`,
+    setField: (field, record, value) => `Set ${field} of "${record}" to ${value}`,
+    review: 'Review the change below and confirm.',
+    unfinished: 'I could not finish that. Try asking in another way.',
+  },
+  es: {
+    createTask: (subject, due, on) => `Crear la tarea "${subject}"${due ? ` para el ${due}` : ''}${on ? ` en ${on}` : ''}`,
+    moveDeal: (deal, stage) => `Mover "${deal}" a ${stage}`,
+    setField: (field, record, value) => `Cambiar ${field} de "${record}" a ${value}`,
+    review: 'Revisá el cambio de abajo y confirmalo.',
+    unfinished: 'No pude terminar eso. Probá preguntarlo de otra forma.',
+  },
+  pt: {
+    createTask: (subject, due, on) => `Criar a tarefa "${subject}"${due ? ` para ${due}` : ''}${on ? ` em ${on}` : ''}`,
+    moveDeal: (deal, stage) => `Mover "${deal}" para ${stage}`,
+    setField: (field, record, value) => `Alterar ${field} de "${record}" para ${value}`,
+    review: 'Revise a alteração abaixo e confirme.',
+    unfinished: 'Não consegui terminar isso. Tente perguntar de outro jeito.',
+  },
+};
+
+function proposalText(locale: string) {
+  return PROPOSAL_TEXT[(locale in PROPOSAL_TEXT ? locale : 'en') as ProposalLocale];
+}
+
+/** Nombre del campo en el idioma del pedido (o la clave de la API si no hay). */
+export function fieldLabel(locale: string, field: string): string {
+  return FIELD_LABELS[(locale in FIELD_LABELS ? locale : 'en') as ProposalLocale][field] ?? field;
+}
+
+/** Resumen de una propuesta en el idioma del pedido. */
+export function proposalSummary(
+  locale: string,
+  p:
+    | { kind: 'create_task'; subject: string; due: string | null; on: string | null }
+    | { kind: 'move_stage'; deal: string; stage: string }
+    | { kind: 'update_field'; field: string; record: string; value: string },
+): string {
+  const tx = proposalText(locale);
+  if (p.kind === 'create_task') return tx.createTask(p.subject, p.due, p.on);
+  if (p.kind === 'move_stage') return tx.moveDeal(p.deal, p.stage);
+  return tx.setField(fieldLabel(locale, p.field), p.record, p.value);
 }
 
 async function recordRef(ctx: ToolContext, type: AiRecordEntity, id: string): Promise<AssistantRecordRef | null> {
@@ -315,7 +397,7 @@ function buildTools(ctx: ToolContext): ToolSet {
         const p: AssistantProposal = {
           id: crypto.randomUUID(),
           kind: 'create_task',
-          summary: `Create task "${subject}"${body.dueAt ? ` due ${dueDate}` : ''}${ref ? ` on ${ref.name}` : ''}`,
+          summary: proposalSummary(ctx.locale, { kind: 'create_task', subject, due: body.dueAt ? (dueDate ?? null) : null, on: ref?.name ?? null }),
           request: { method: 'POST', url: '/api/crm/activities', body },
           record: ref ?? undefined,
         };
@@ -342,7 +424,7 @@ function buildTools(ctx: ToolContext): ToolSet {
         const p: AssistantProposal = {
           id: crypto.randomUUID(),
           kind: 'move_stage',
-          summary: `Move "${ref.name}" to ${target.name}`,
+          summary: proposalSummary(ctx.locale, { kind: 'move_stage', deal: ref.name, stage: target.name }),
           request: { method: 'POST', url: `/api/crm/deals/${dealId}/move`, body: { stageId: target.id } },
           record: ref,
         };
@@ -367,7 +449,7 @@ function buildTools(ctx: ToolContext): ToolSet {
         const p: AssistantProposal = {
           id: crypto.randomUUID(),
           kind: 'update_field',
-          summary: `Set ${field} of "${ref.name}" to ${coerced}`,
+          summary: proposalSummary(ctx.locale, { kind: 'update_field', field, record: ref.name, value: String(coerced) }),
           request: { method: 'PATCH', url: `${API_BASE[recordType]}/${recordId}`, body: { [field]: coerced } },
           record: ref,
         };
@@ -449,6 +531,7 @@ export async function runAssistant(opts: {
     records: new Map(),
     proposals: [],
     toolCalls: [],
+    locale,
   };
   let page: { entity: AiRecordEntity; id: string; name: string } | null = null;
   if (opts.request.page) {
@@ -480,7 +563,7 @@ export async function runAssistant(opts: {
     .filter(Boolean)
     .join('\n\n');
   return {
-    text: text || (ctx.proposals.length ? 'Review the change below and confirm.' : 'I could not finish that. Try asking in another way.'),
+    text: text || (ctx.proposals.length ? proposalText(locale).review : proposalText(locale).unfinished),
     records: [...ctx.records.values()].slice(0, 12),
     proposals: ctx.proposals.slice(0, 5),
     toolCalls: ctx.toolCalls,

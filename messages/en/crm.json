@@ -242,7 +242,7 @@
       "dangerZone": "Danger zone",
       "deleteTitle": "Delete this contact",
       "deleteDesc": "The contact goes to the recycle bin with its own activities and leaves deals and lists. You can restore it for 90 days.",
-      "deleteButton": "Delete forever",
+      "deleteButton": "Move to recycle bin",
       "noDeals": "No deals yet.",
       "noLists": "Not in any list.",
       "emptyTimeline": "No activity yet. Add a note or log a call.",
@@ -322,7 +322,7 @@
       "dangerZone": "Danger zone",
       "deleteTitle": "Delete this company",
       "deleteDesc": "The company goes to the recycle bin and its contacts stay, unlinked. You can restore it for 90 days.",
-      "deleteButton": "Delete forever",
+      "deleteButton": "Move to recycle bin",
       "noContacts": "No contacts yet.",
       "noDeals": "No deals yet.",
       "emptyTimeline": "No activity yet. Add a note or log a call.",
@@ -474,7 +474,7 @@
       "dangerZone": "Danger zone",
       "deleteTitle": "Delete this deal",
       "deleteDesc": "The deal goes to the recycle bin. Contacts stay. You can restore it for 90 days.",
-      "deleteButton": "Delete forever",
+      "deleteButton": "Move to recycle bin",
       "emptyTimeline": "No activity yet. Add a note or log a call.",
       "aboutSection": "About this deal",
       "ownershipSection": "Ownership",
@@ -545,7 +545,7 @@
       "untitled": "Untitled task",
       "deleteTitle": "Delete this task",
       "deleteDesc": "The task and its attachments go to the recycle bin. You can restore them for 90 days.",
-      "deleteButton": "Delete forever"
+      "deleteButton": "Move to recycle bin"
     },
     "projects": {
       "manage": "Manage projects",
@@ -2580,7 +2580,7 @@
     },
     "form": {
       "name": "Lead name",
-      "namePlaceholder": "Left empty, it takes the contact's name",
+      "namePlaceholder": "Optional: the contact's name",
       "contact": "Contact",
       "company": "Company",
       "owner": "Owner",

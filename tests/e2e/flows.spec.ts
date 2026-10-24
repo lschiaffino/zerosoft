@@ -1030,7 +1030,7 @@ test('CRM: "More" abre el historial en un drawer, Esc devuelve el foco y elimina
   await more.click();
   await page.getByRole('menuitem', { name: 'Delete contact' }).click();
   const modal = page.getByRole('dialog');
-  const confirm = modal.getByRole('button', { name: 'Delete forever' });
+  const confirm = modal.getByRole('button', { name: 'Move to recycle bin' });
   await expect(confirm).toBeDisabled();
   await modal.getByLabel(`Type ${email} to confirm`).fill(email);
   await confirm.click();

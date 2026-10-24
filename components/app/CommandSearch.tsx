@@ -177,11 +177,22 @@ export default function CommandSearch() {
         const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&locale=${locale}`);
         const data = (await res.json()) as SearchResponse;
         const needle = query.trim().toLowerCase();
-        const matchingActions = actionItems.filter((a) => a.label.toLowerCase().includes(needle));
-        const sorted = [...matchingActions, ...(data.items ?? [])].sort(
-          (a, b) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group),
+        // Las acciones cuyo texto empieza (o una palabra empieza) con lo buscado van
+        // primero: "Ask" pone "Ask the CRM assistant" arriba de "New task".
+        const rank = (label: string) => {
+          const l = label.toLowerCase();
+          if (l.startsWith(needle)) return 0;
+          if (l.split(/[\s(]+/).some((w) => w.startsWith(needle))) return 1;
+          return l.includes(needle) ? 2 : -1;
+        };
+        const byGroup = (a: ResultItem, b: ResultItem) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group);
+        const matchingActions = actionItems.filter((a) => rank(a.label) >= 0);
+        const results = [...(data.items ?? [])].sort(byGroup);
+        setItems(
+          matchingActions.some((a) => rank(a.label) < 2)
+            ? [...matchingActions.sort((a, b) => rank(a.label) - rank(b.label) || byGroup(a, b)), ...results]
+            : [...matchingActions, ...results].sort(byGroup),
         );
-        setItems(sorted);
       } catch {
         setItems([]);
       } finally {

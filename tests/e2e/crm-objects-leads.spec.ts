@@ -207,9 +207,9 @@ test('listas dinámicas: campo propio OR actividad (deal abierto)', async ({ pag
 });
 
 test('empresa: completar desde el sitio (descripción, redes, rubro y tamaño)', async ({ page, request }) => {
-  const watched = watchErrors(page);
-  // El logo de un dominio que no existe responde 404 y la ficha muestra las iniciales (no es un error).
-  const errors = { filter: () => watched.filter((e) => !e.includes('/api/crm/logo/') && !e.includes('Failed to load resource')) };
+  // El logo de un dominio sin sitio responde un PNG de 1×1 (no un 404): la ficha
+  // muestra las iniciales y la consola queda limpia.
+  const errors = watchErrors(page);
   const tag = uid();
   const co = await (await request.post('/api/crm/companies', { data: { name: `Site ${tag}` } })).json();
   await request.patch(`/api/crm/companies/${co.id}`, { data: { domain: `norte-${tag}.io` } });
@@ -228,5 +228,5 @@ test('empresa: completar desde el sitio (descripción, redes, rubro y tamaño)',
       timeout: 10_000,
     })
     .toBe('Software');
-  expect(errors.filter(), errors.filter().join('\n')).toEqual([]);
+  expect(errors, errors.join('\n')).toEqual([]);
 });

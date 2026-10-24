@@ -55,7 +55,9 @@ export default function RecordCombobox({
   const q = query.trim().toLowerCase();
   const filtering = open && q !== '' && q !== (selected?.label ?? '').toLowerCase();
   const matches = (filtering ? all.filter((o) => o.label.toLowerCase().includes(q)) : all).slice(0, 50);
-  const items: ComboOption[] = [{ value: '', label: noneLabel }, ...matches];
+  // Al filtrar, los resultados van primero (↓ cae en el primero) y "Sin contacto" al final.
+  const none: ComboOption = { value: '', label: noneLabel };
+  const items: ComboOption[] = filtering ? [...matches, none] : [none, ...matches];
 
   useEffect(() => {
     if (!search || !filtering || q.length < 2) return;
@@ -116,7 +118,7 @@ export default function RecordCombobox({
             setActive((i) => (i < 0 ? (step > 0 ? 0 : items.length - 1) : (i + step + items.length) % items.length));
           } else if (e.key === 'Enter' && open) {
             e.preventDefault();
-            const pick = items[active >= 0 ? active : filtering ? 1 : 0];
+            const pick = active >= 0 ? items[active] : filtering ? matches[0] : items[0];
             if (pick) choose(pick);
           } else if (e.key === 'Escape' && open) {
             e.preventDefault();

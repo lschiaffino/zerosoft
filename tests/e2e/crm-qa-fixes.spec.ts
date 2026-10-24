@@ -208,3 +208,85 @@ test('duplicadas: fusionar pide confirmación en un diálogo de la app, no en co
   expect((await merged).ok()).toBe(true);
   expect(native).toBe(false);
 });
+
+test('nuevo lead: al filtrar el contacto, ↓ va al primer resultado y "No contact" queda al final', async ({ page, request }) => {
+  const tag = uid();
+  await request.post('/api/crm/contacts', { data: { firstName: 'Combo', lastName: tag, email: `combo-${tag}@qa.io` } });
+  await page.goto('/en/app/crm/leads', { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'New lead' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'New lead' });
+  const combo = dialog.getByRole('combobox', { name: 'Contact' });
+  await combo.click();
+  await combo.pressSequentially(`Combo ${tag}`);
+  const options = dialog.getByRole('option');
+  await expect(options.first()).toHaveText(`Combo ${tag}`);
+  await expect(options.last()).toHaveText('No contact');
+  await combo.press('ArrowDown');
+  await combo.press('Enter');
+  await expect(combo).toHaveValue(`Combo ${tag}`);
+});
+
+test('nuevo lead: el placeholder del nombre entra entero a 390px', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/en/app/crm/leads', { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'New lead' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'New lead' });
+  const name = dialog.getByPlaceholder("Optional: the contact's name");
+  await expect(name).toBeVisible();
+  const fits = await name.evaluate((el) => {
+    const input = el as HTMLInputElement;
+    const ctx = document.createElement('canvas').getContext('2d')!;
+    const cs = getComputedStyle(input);
+    ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const inner = input.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    return ctx.measureText(input.placeholder).width <= inner;
+  });
+  expect(fits).toBe(true);
+});
+
+test('⌘K: "Ask" pone primero "Ask the CRM assistant"', async ({ page }) => {
+  await page.goto('/en/app/crm', { waitUntil: 'networkidle' });
+  await page.keyboard.press('ControlOrMeta+k');
+  const dialog = page.getByRole('dialog', { name: 'Search' });
+  await dialog.getByRole('combobox').fill('Ask');
+  await expect(dialog.getByRole('option').first()).toHaveText('Ask the CRM assistant');
+});
+
+test('borrar contacto: el botón dice papelera (90 días) y el campo queda alineado con el texto', async ({ page, request }) => {
+  const tag = uid();
+  const email = `trash-${tag}@qa.io`;
+  const c = await (await request.post('/api/crm/contacts', { data: { firstName: 'Trash', lastName: tag, email } })).json();
+  await page.goto(`/en/app/crm/contacts/${c.id}`, { waitUntil: 'networkidle' });
+  await page.getByTestId('record-more').click();
+  await page.getByRole('menuitem', { name: 'Delete contact' }).click();
+  const modal = page.getByRole('dialog');
+  await expect(modal.getByRole('button', { name: 'Delete forever' })).toHaveCount(0);
+  const button = modal.getByRole('button', { name: 'Move to recycle bin' });
+  await expect(button).toBeDisabled();
+  const input = modal.getByLabel(`Type ${email} to confirm`);
+  const desc = modal.locator('.danger-desc');
+  const [d, i, b] = await Promise.all([desc.boundingBox(), input.boundingBox(), button.boundingBox()]);
+  expect(Math.abs(d!.x - i!.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(d!.x - b!.x)).toBeLessThanOrEqual(1);
+});
+
+test('asistente: el resumen de la propuesta sale en el idioma de la persona', async ({ request }) => {
+  const res = await request.post('/api/crm/ai/assistant', {
+    data: { messages: [{ role: 'user', content: 'Crear tarea: llamar al CFO' }], locale: 'es' },
+  });
+  expect(res.ok()).toBe(true);
+  const body = (await res.json()) as { proposals: Array<{ summary: string }> };
+  expect(body.proposals[0]?.summary).toBe('Crear la tarea "llamar al CFO"');
+});
+
+test('logo de empresa sin sitio: no hay 404 ni error de consola, se ven las iniciales', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const tag = uid();
+  const co = await (await request.post('/api/crm/companies', { data: { name: `Nologo ${tag}`, domain: `nologo-${tag}.invalid` } })).json();
+  const logo = await request.get(`/api/crm/logo/nologo-${tag}.invalid`);
+  expect(logo.status()).toBe(200);
+  expect(logo.headers()['x-logo']).toBe('none');
+  await page.goto(`/en/app/crm/companies/${co.id}`, { waitUntil: 'networkidle' });
+  await expect(page.locator('.co-logo-initials').first()).toBeVisible();
+  expect(errors, errors.join('\n')).toEqual([]);
+});

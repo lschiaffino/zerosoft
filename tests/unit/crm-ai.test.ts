@@ -403,3 +403,16 @@ describe('modelo falso de e2e (CRM_AI_FAKE)', () => {
     expect(reply.proposals[0]?.request.body).toMatchObject({ type: 'task', subject: 'call the CFO', dealId: deal.id });
   });
 });
+
+describe('asistente: resumen de propuestas por idioma', () => {
+  it('traduce el resumen y el nombre del campo', async () => {
+    const { proposalSummary } = await import('@/lib/crm-ai-assistant');
+    expect(proposalSummary('en', { kind: 'move_stage', deal: 'Acme', stage: 'Won' })).toBe('Move "Acme" to Won');
+    expect(proposalSummary('es', { kind: 'move_stage', deal: 'Acme', stage: 'Ganado' })).toBe('Mover "Acme" a Ganado');
+    expect(proposalSummary('pt', { kind: 'create_task', subject: 'Ligar', due: '2026-11-02', on: 'Acme' })).toBe(
+      'Criar a tarefa "Ligar" para 2026-11-02 em Acme',
+    );
+    expect(proposalSummary('es', { kind: 'update_field', field: 'jobTitle', record: 'Ana', value: 'CFO' })).toBe('Cambiar cargo de "Ana" a CFO');
+    expect(proposalSummary('fr', { kind: 'update_field', field: 'amount', record: 'Deal', value: '10' })).toBe('Set amount of "Deal" to 10');
+  });
+});
