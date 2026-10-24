@@ -237,6 +237,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       { name: 'targeting', type: 'object', descriptionKey: 'paramLinkTargeting' },
       { name: 'externalId', type: 'string', descriptionKey: 'paramLinkExternalId' },
       { name: 'forwardParams', type: 'boolean', descriptionKey: 'paramLinkForwardParams' },
+      { name: 'doIndex', type: 'boolean', descriptionKey: 'paramLinkDoIndex' },
       { name: 'expiredUrl', type: 'string', descriptionKey: 'paramLinkExpiredUrl' },
     ],
     request: {
@@ -268,6 +269,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       qr_scans: 0,
       targeting: null,
       forward_params: true,
+      do_index: false,
       expired_url: null,
       created_by: 'usr_4kq1',
       external_id: 'cms-post-4812',
@@ -341,6 +343,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       { name: 'utmContent', type: 'string', descriptionKey: 'paramLinkUtm' },
       { name: 'externalId', type: 'string', descriptionKey: 'paramLinkExternalId' },
       { name: 'forwardParams', type: 'boolean', descriptionKey: 'paramLinkForwardParams' },
+      { name: 'doIndex', type: 'boolean', descriptionKey: 'paramLinkDoIndex' },
       { name: 'expiredUrl', type: 'string', descriptionKey: 'paramLinkExpiredUrl' },
     ],
     request: { title: 'The manifesto — updated' },

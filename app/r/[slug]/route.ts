@@ -73,6 +73,12 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   const incoming = req.nextUrl.searchParams;
   const withParams = (url: string) => (link.forward_params === 0 ? url : forwardQueryParams(url, incoming));
 
+  // Los buscadores no indexan el link corto salvo que el link lo pida.
+  const robots = <T extends NextResponse>(res: T): T => {
+    if (link.do_index !== 1) res.headers.set('x-robots-tag', 'noindex');
+    return res;
+  };
+
   const source = req.nextUrl.searchParams.get('qr') === '1' ? 'qr' : 'link';
 
   if (link.password_hash) {
@@ -89,7 +95,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
         maxAge: 60 * 30,
         path: '/',
       });
-      return toGate;
+      return robots(toGate);
     }
   }
 
@@ -97,11 +103,13 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   // visitas. No cuentan clicks ni gastan max_clicks ni disparan el webhook.
   if (isBotRequest(req.headers, req.method)) {
     if (req.method !== 'HEAD' && hasCustomPreview(link)) {
-      return new NextResponse(linkPreviewHtml(link, slug, locale), {
-        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
-      });
+      return robots(
+        new NextResponse(linkPreviewHtml(link, slug, locale), {
+          headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+        }),
+      );
     }
-    return NextResponse.redirect(withParams(link.url), 302);
+    return robots(NextResponse.redirect(withParams(link.url), 302));
   }
 
   const ctx = contextFromHeaders(req.headers);
@@ -163,6 +171,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   // Sin esto el navegador cachea el 301 para siempre: archivar, vencer,
   // max_clicks, cambiar el destino y contar el click dejarían de aplicar.
   res.headers.set('cache-control', 'no-store');
+  robots(res);
   if (savedRef !== undefined) res.cookies.delete({ name: gateRefCookieName(slug), path: '/' });
   if (newVisitor && visitorId) {
     res.cookies.set(VISITOR_COOKIE, visitorId, {

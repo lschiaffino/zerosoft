@@ -145,6 +145,8 @@
     "ogHelp": "How the link looks on WhatsApp, X or Slack. Empty uses the destination page preview.",
     "forwardParamsLabel": "Pass query parameters to the destination",
     "forwardParamsHelp": "Opening the short link with ?utm_source=newsletter adds it to the destination. If the destination already has that parameter, the one on the short link wins.",
+    "doIndexLabel": "Let search engines index this short link",
+    "doIndexHelp": "By default the redirect sends X-Robots-Tag: noindex so the short URL stays out of search results. Turn this on if the short link itself should be findable.",
     "expiredUrlLabel": "Redirect after expiry",
     "expiredUrlPlaceholder": "https://example.com/offer-ended (optional)",
     "expiredUrlHelp": "Where visitors go once the link expires or reaches its click limit. Leave it empty to show the default page.",

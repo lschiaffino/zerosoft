@@ -19,6 +19,8 @@ const createSchema = z.object({
   tags: z.array(z.string().max(40)).max(5).optional(),
   /** Pasar los query params del link corto al destino (default true). */
   forwardParams: z.boolean().optional(),
+  /** Dejar que los buscadores indexen el link corto (default false). */
+  doIndex: z.boolean().optional(),
   /** A dónde redirige cuando vence o llega a max_clicks. */
   expiredUrl: z.string().max(2000).nullish(),
   redirectType: z.union([z.literal(301), z.literal(302)]).optional(),

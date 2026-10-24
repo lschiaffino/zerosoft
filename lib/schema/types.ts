@@ -39,6 +39,8 @@ export interface LinkRow {
   qr_scans?: number;
   /** 1 = los query params del link corto viajan al destino (default). */
   forward_params?: number;
+  /** 1 = los buscadores pueden indexar el link corto (default 0: X-Robots-Tag noindex). */
+  do_index?: number;
   /** A dónde va el link vencido o sin clicks disponibles (null = página de zerosoft). */
   expired_url?: string | null;
   /** Persona que lo creó (id real, no el del owner); null en links viejos. */

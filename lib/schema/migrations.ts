@@ -3478,6 +3478,14 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Link: los redirects llevan X-Robots-Tag: noindex salvo que el link
+    // active la indexación (como el doIndex de Dub).
+    id: '071_link_do_index',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN do_index INTEGER NOT NULL DEFAULT 0');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -145,6 +145,8 @@
     "ogHelp": "Como o link aparece no WhatsApp, X ou Slack. Vazio, usa a da página de destino.",
     "forwardParamsLabel": "Passar os parâmetros da URL para o destino",
     "forwardParamsHelp": "Se alguém abrir o link curto com ?utm_source=newsletter, o destino recebe esse parâmetro. Se o destino já tiver o mesmo parâmetro, vale o do link curto.",
+    "doIndexLabel": "Deixar que os buscadores indexem este link curto",
+    "doIndexHelp": "Por padrão o redirecionamento envia X-Robots-Tag: noindex e a URL curta fica fora dos resultados de busca. Ative se o próprio link curto precisar ser encontrado.",
     "expiredUrlLabel": "Redirect ao expirar",
     "expiredUrlPlaceholder": "https://exemplo.com/promo-encerrada (opcional)",
     "expiredUrlHelp": "Para onde vai a visita quando o link expira ou atinge o máximo de cliques. Se ficar vazio, aparece a página padrão.",
