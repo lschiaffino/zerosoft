@@ -403,6 +403,18 @@ export async function trashRecords(
       .prepare(`DELETE FROM crm_activities WHERE user_id = ? AND id IN (${part.map(() => '?').join(',')})`)
       .run(userId, ...part);
   }
+  // contact/company/deal.deleted para webhooks y apps (las actividades no tienen evento propio).
+  if (entity !== 'activity') {
+    const { emitCrmHookSoon } = await import('./crm-hooks');
+    for (const row of present) {
+      await emitCrmHookSoon(userId, `${entity}.deleted`, {
+        id: String(row.id),
+        label: labelOf(entity, row),
+        deletedBy: actorEmail || null,
+        mergedInto: opts.mergedInto ?? null,
+      });
+    }
+  }
   return changes;
 }
 

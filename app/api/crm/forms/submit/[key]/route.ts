@@ -45,6 +45,7 @@ export async function POST(req: NextRequest, props: Ctx) {
   if (!result.ok) {
     if (result.error === 'not_found') return json({ error: 'not_found' }, 404);
     if (result.error === 'paused') return json({ error: 'paused' }, 409);
+    if (result.error === 'captcha') return json({ error: 'captcha' }, 400);
     return json({ error: 'invalid', fieldErrors: result.fieldErrors ?? {} }, 400);
   }
   return json({

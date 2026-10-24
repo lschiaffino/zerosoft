@@ -8,6 +8,8 @@ import QuoteDocument from '@/components/crm/QuoteDocument';
 import QuoteActions from '@/components/crm/QuoteActions';
 import PageHeader from '@/components/ui/PageHeader';
 import { QUOTE_TONE, badgeClass } from '@/lib/crm-ui-tones';
+import { isAppConnected } from '@/lib/crm-apps';
+import { getQuoteSignature } from '@/lib/crm-quote-sign';
 import '@/styles/quote.css';
 
 export const dynamic = 'force-dynamic';
@@ -32,6 +34,7 @@ export default async function QuotePage(props: QuotePageProps) {
   if (!quote || !(await canSeeQuote(user.id, quote.id, await sessionScope(user)))) notFound();
 
   const baseUrl = (process.env.NEXTAUTH_URL ?? 'https://zerosoft.ai').replace(/\/$/, '');
+  const [stripeConnected, signature] = await Promise.all([isAppConnected(user.id, 'stripe'), getQuoteSignature(quote.id)]);
   const publicUrl = `${baseUrl}/${locale}/q/${quote.token}`;
 
   const doc: PublicQuote = {
@@ -59,6 +62,11 @@ export default async function QuotePage(props: QuotePageProps) {
     signer_name: quote.signer_name,
     decline_reason: quote.decline_reason,
     created_at: quote.created_at,
+    collect_payment: quote.collect_payment === 1,
+    payment_status: quote.payment_status ?? 'none',
+    paid_at: quote.paid_at ?? null,
+    signature_image: signature?.signature_image ?? '',
+    signer_email: signature?.signer_email ?? '',
   };
 
   const timeline: Array<{ key: string; label: string; at: string }> = [
@@ -67,6 +75,8 @@ export default async function QuotePage(props: QuotePageProps) {
     ...(quote.accepted_at
       ? [{ key: 'accepted', label: t('quotes.timeline.accepted', { name: quote.signer_name }), at: quote.accepted_at }]
       : []),
+    ...(quote.first_viewed_at ? [{ key: 'viewed', label: t('quotes.timeline.viewed'), at: quote.first_viewed_at }] : []),
+    ...(quote.paid_at ? [{ key: 'paid', label: t('quotes.timeline.paid'), at: quote.paid_at }] : []),
     ...(quote.declined_at ? [{ key: 'declined', label: t('quotes.timeline.declined'), at: quote.declined_at }] : []),
     ...(quote.status === 'expired' && quote.expires_at
       ? [{ key: 'expired', label: t('quotes.timeline.expired'), at: `${quote.expires_at} 23:59:59` }]
@@ -107,6 +117,8 @@ export default async function QuotePage(props: QuotePageProps) {
         }}
         publicUrl={publicUrl}
         dealHref={`/app/crm/deals/${quote.deal_id}`}
+        payment={{ stripeConnected, collect: quote.collect_payment === 1, status: quote.payment_status ?? 'none' }}
+        certificateUrl={signature ? `/api/crm/quotes/${quote.id}/certificate` : null}
       />
 
       <div className="quote-layout">

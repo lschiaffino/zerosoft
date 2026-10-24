@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import QuickModal from '@/components/app/QuickModal';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import { partySummary } from '@/lib/crm-admin-format';
@@ -26,10 +26,14 @@ interface QuoteActionsProps {
   quote: QuoteEditable;
   publicUrl: string;
   dealHref: string;
+  /** Cobro con Stripe (CRM › Ajustes › Integraciones). */
+  payment?: { stripeConnected: boolean; collect: boolean; status: 'none' | 'pending' | 'paid' };
+  /** Certificado de firma (PDF), si el quote está firmado. */
+  certificateUrl?: string | null;
 }
 
 /** Barra de acciones del quote en la app (publicar, link, imprimir, editar, borrar). */
-export default function QuoteActions({ quote, publicUrl, dealHref }: QuoteActionsProps) {
+export default function QuoteActions({ quote, publicUrl, dealHref, payment, certificateUrl }: QuoteActionsProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -101,6 +105,11 @@ export default function QuoteActions({ quote, publicUrl, dealHref }: QuoteAction
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => window.print()}>
           {t('quotes.print')}
         </button>
+        {certificateUrl && (
+          <a href={certificateUrl} className="btn btn-ghost btn-sm" download>
+            {t('quotes.certificate')}
+          </a>
+        )}
         {draft && (
           <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => patch({ refreshItems: true })}>
             {t('quotes.refreshItems')}
@@ -122,6 +131,30 @@ export default function QuoteActions({ quote, publicUrl, dealHref }: QuoteAction
           </button>
         )}
       </div>
+      {payment && payment.status !== 'paid' && ['draft', 'sent', 'accepted'].includes(quote.status) && (
+        <div className="quote-pay-setting">
+          <label className="ui-check">
+            <input
+              type="checkbox"
+              checked={payment.collect}
+              disabled={busy || !payment.stripeConnected}
+              onChange={(e) => void patch({ collectPayment: e.target.checked })}
+            />
+            <span>{t('quotes.collectPayment')}</span>
+          </label>
+          <p className="ui-help">
+            {payment.stripeConnected ? (
+              t('quotes.collectPaymentHint')
+            ) : (
+              <>
+                {t('quotes.collectPaymentNoStripe')}{' '}
+                <Link href="/app/crm/settings?tab=integrations">{t('quotes.connectStripe')}</Link>
+              </>
+            )}
+          </p>
+        </div>
+      )}
+      {payment?.status === 'paid' && <p className="ui-help quote-paid-note">{t('quotes.paidNote')}</p>}
       {draft && <p className="ui-help">{t('quotes.draftHint')}</p>}
       {error && (
         <p className="ui-error" role="alert">

@@ -20,7 +20,9 @@
     "leads": "Leads",
     "objects": "Objetos personalizados",
     "playbooks": "Playbooks",
-    "forecast": "Previsão"
+    "forecast": "Previsão",
+    "documents": "Documentos",
+    "videos": "Vídeos"
   },
   "switcher": {
     "product": "Produto",
@@ -1512,7 +1514,9 @@
       "sent": "Enviado",
       "accepted": "Aceito por {name}",
       "declined": "Recusado",
-      "expired": "Vencido"
+      "expired": "Vencido",
+      "viewed": "Aberta pelo cliente",
+      "paid": "Paga com Stripe"
     },
     "linkCopied": "Link copiado",
     "saveQuote": "Salvar cotação",
@@ -1526,7 +1530,13 @@
     "seeAll": "Ver todas",
     "pagination": "Páginas",
     "prevPage": "Anterior",
-    "nextPage": "Próxima"
+    "nextPage": "Próxima",
+    "certificate": "Certificado de assinatura",
+    "collectPayment": "Cobrar com Stripe depois de assinar",
+    "collectPaymentHint": "O cliente vê um botão Pagar quando assina. Pagar marca a cotação como paga e o negócio como ganho.",
+    "collectPaymentNoStripe": "Conecte o Stripe para cobrar as cotações.",
+    "connectStripe": "Conectar Stripe",
+    "paidNote": "Paga com Stripe."
   },
   "quotePublic": {
     "quote": "Orçamento",
@@ -1553,10 +1563,26 @@
     "errors": {
       "expired": "Este orçamento venceu.",
       "not_open": "Este orçamento já foi respondido.",
-      "invalid_signature": "Digite seu nome completo e marque a caixa para aceitar.",
+      "invalid_signature": "Digite seu nome completo, assine e marque a caixa para aceitar.",
       "not_found": "Este orçamento não existe mais.",
-      "rate_limited": "Muitas tentativas. Aguarde alguns minutos e tente de novo."
-    }
+      "rate_limited": "Muitas tentativas. Aguarde alguns minutos e tente de novo.",
+      "payment_unavailable": "O pagamento online não está disponível para esta cotação.",
+      "already_paid": "Esta cotação já está paga."
+    },
+    "email": "Email",
+    "signature": "Assinatura",
+    "drawHint": "Assine com o mouse, o dedo ou uma caneta.",
+    "clear": "Limpar",
+    "typeInstead": "Prefiro digitar minha assinatura",
+    "drawInstead": "Prefiro desenhar minha assinatura",
+    "typedEmpty": "Digite seu nome acima",
+    "sign": "Assinar e aceitar",
+    "legalSign": "Ao assinar registramos seu nome, email, assinatura, endereço IP, navegador e o horário, junto com uma impressão desta cotação. Depois de assinar você pode baixar o certificado.",
+    "signatureOf": "Assinatura de {name}",
+    "paid": "Paga em {date}.",
+    "pay": "Pagar {amount}",
+    "payHint": "Pagamento seguro com Stripe. Ao terminar você volta para cá.",
+    "certificate": "Baixar certificado"
   },
   "tags": {
     "column": "Tags",
@@ -1644,7 +1670,8 @@
       "invalid_list": "Escolha uma lista estática.",
       "invalid_sequence": "Essa sequência não existe mais.",
       "invalid_url": "A URL de redirecionamento deve começar com http:// ou https://.",
-      "invalid_input": "Alguns ajustes não são válidos."
+      "invalid_input": "Alguns ajustes não são válidos.",
+      "invalid_stage": "Escolha um pipeline e uma etapa para o negócio."
     },
     "builder": {
       "fields": "Campos",
@@ -1717,7 +1744,33 @@
       "crmAdvancedHint": "Duplicados, spam",
       "unsaved": "Alterações não salvas",
       "confirmDelete": "Excluir formulário e envios",
-      "saveForm": "Salvar formulário"
+      "saveForm": "Salvar formulário",
+      "showIf": "Mostrar só se",
+      "showIfField": "Campo",
+      "showIfOp": "Condição",
+      "showIfValue": "Valor",
+      "always": "Mostrar sempre",
+      "ops": {
+        "equals": "é",
+        "not_equals": "não é",
+        "filled": "tem algum valor",
+        "empty": "está vazio"
+      },
+      "ownerRules": "Responsável pela resposta",
+      "ownerRulesHint": "A primeira regra que corresponde atribui o contato novo. Sem correspondência, vale o responsável fixo ou o round-robin.",
+      "ruleField": "Campo",
+      "ruleValue": "Resposta",
+      "removeRule": "Excluir regra",
+      "addRule": "Adicionar regra",
+      "dealTitle": "Negócio",
+      "createDeal": "Criar um negócio a cada envio",
+      "dealPipeline": "Pipeline",
+      "dealStage": "Etapa",
+      "dealName": "Nome do negócio",
+      "dealNameHint": "'{name}', '{email}', '{company}' e '{form}' são substituídos.",
+      "captcha": "Pedir CAPTCHA (Cloudflare Turnstile)",
+      "captchaHint": "Bots que passam pelo honeypot ainda precisam resolver.",
+      "captchaMissing": "Configure TURNSTILE_SITE_KEY e TURNSTILE_SECRET_KEY no servidor para ativar."
     },
     "types": {
       "text": "Texto",
@@ -1726,7 +1779,8 @@
       "select": "Lista suspensa",
       "checkbox": "Caixa de seleção",
       "textarea": "Texto longo",
-      "hidden": "Oculto"
+      "hidden": "Oculto",
+      "step": "Nova etapa"
     },
     "props": {
       "email": "Email",
@@ -1782,7 +1836,12 @@
       "invalid_email": "Digite um email válido.",
       "invalid_option": "Escolha uma das opções.",
       "invalid_phone": "Digite um telefone válido."
-    }
+    },
+    "stepOf": "Etapa {current} de {total}",
+    "next": "Próximo",
+    "back": "Voltar",
+    "captchaTest": "Não sou um robô",
+    "captchaFailed": "A verificação de segurança não passou. Tente de novo."
   },
   "scoring": {
     "title": "Lead scoring",
@@ -3237,5 +3296,225 @@
     "exitsTitle": "Média de {n} negócios que saíram da etapa",
     "helpCumulative": "Acumulado: um negócio que chegou a uma etapa posterior também conta nas anteriores. O tempo por etapa considera os negócios que já saíram dela.",
     "helpStrict": "Entrou na etapa: um negócio só conta nas etapas em que entrou. O tempo por etapa considera os negócios que já saíram dela."
+  },
+  "apps": {
+    "title": "Apps",
+    "desc": "Conecte Slack, Zoom, Stripe, Zapier e Make. Cada app guarda as credenciais criptografadas e pode ser desconectado quando quiser.",
+    "connect": "Conectar",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "saved": "Salvo.",
+    "disconnect": "Desconectar",
+    "disconnectTitle": "Desconectar {app}?",
+    "disconnectBody": "Apagamos as credenciais e paramos de enviar eventos. Dá para conectar de novo depois.",
+    "connectedNotice": "Conectado.",
+    "disconnectedNotice": "Desconectado.",
+    "connectedOn": "Conectado em {date}",
+    "lastUsed": "último uso {date}",
+    "lastError": "Último erro: {error}",
+    "activity": "Atividade recente",
+    "ok": "OK",
+    "failed": "Falhou",
+    "adminOnly": "Só owners e admins conectam ou desconectam apps.",
+    "status": {
+      "connected": "Conectado",
+      "error": "Verificar",
+      "off": "Não conectado"
+    },
+    "events": {
+      "contact_created": "Contato criado",
+      "contact_updated": "Contato atualizado",
+      "company_created": "Empresa criada",
+      "deal_created": "Negócio criado",
+      "deal_stage_changed": "Negócio mudou de etapa",
+      "deal_won": "Negócio ganho",
+      "deal_lost": "Negócio perdido",
+      "task_created": "Tarefa criada",
+      "form_submitted": "Formulário enviado",
+      "quote_accepted": "Cotação assinada",
+      "quote_paid": "Cotação paga"
+    },
+    "slack": {
+      "name": "Slack",
+      "desc": "Publique novidades do CRM em um canal: negócios ganhos, formulários enviados, cotações assinadas e pagas.",
+      "url": "URL do webhook de entrada",
+      "urlHelp": "No Slack, adicione o app Incoming Webhooks a um canal e cole a URL que ele gera.",
+      "events": "Publicar estes eventos",
+      "test": "Enviar mensagem de teste",
+      "testSent": "Mensagem de teste enviada."
+    },
+    "zoom": {
+      "name": "Zoom",
+      "desc": "Crie um link do Zoom a partir de qualquer reunião na timeline de um contato, empresa ou negócio.",
+      "help": "No App Marketplace do Zoom, crie um app Server-to-Server OAuth com a permissão meeting:write e cole as credenciais.",
+      "accountId": "Account ID",
+      "clientId": "Client ID",
+      "clientSecret": "Client secret",
+      "connectedHelp": "As reuniões da timeline agora mostram o botão de link do Zoom.",
+      "createLink": "Link do Zoom",
+      "error": "Não foi possível criar a reunião do Zoom. Verifique o app em Integrações."
+    },
+    "stripe": {
+      "name": "Stripe",
+      "desc": "Traga clientes como contatos, registre pagamentos na timeline e cobre cotações com o Checkout.",
+      "help": "Use uma chave secreta ou restrita de Stripe › Developers › API keys. O signing secret vem do endpoint de webhook que você cria depois.",
+      "secretKey": "Chave secreta",
+      "webhookSecret": "Signing secret do webhook",
+      "connectedHelp": "Pagamentos com metadata.deal_id marcam esse negócio como ganho. As cotações podem cobrar depois de assinadas.",
+      "endpoint": "Endpoint do webhook",
+      "endpointHelp": "Adicione esta URL em Stripe › Developers › Webhooks com customer.created, charge.succeeded, invoice.paid e checkout.session.completed, e salve aqui o signing secret.",
+      "sync": "Importar clientes",
+      "synced": "{created} contatos novos, {existing} já estavam no CRM."
+    },
+    "zapier": {
+      "name": "Zapier",
+      "desc": "Inicie Zaps com eventos do CRM usando um Catch Hook e chame a API REST nas ações do Zapier.",
+      "help": "No Zapier, adicione um trigger Webhooks by Zapier com Catch Hook e cole a URL.",
+      "url": "URL do catch hook"
+    },
+    "make": {
+      "name": "Make",
+      "desc": "Inicie cenários do Make com eventos do CRM usando um webhook próprio.",
+      "help": "No Make, adicione um módulo Webhooks › Custom webhook e cole o endereço.",
+      "url": "Endereço do webhook"
+    },
+    "automation": {
+      "defaultEvents": "Envia: {events}. Os eventos se mudam em Workspace › Webhooks.",
+      "connectedHelp": "{count, plural, one {Recebe # evento, assinado como todo webhook.} other {Recebe # eventos, assinados como todo webhook.}}",
+      "editEvents": "Editar eventos"
+    },
+    "webhooks": {
+      "name": "Webhooks e API",
+      "desc": "Para qualquer outra ferramenta: webhooks assinados com novas tentativas e log de entregas, e a API REST com chaves.",
+      "open": "Abrir webhooks",
+      "api": "Docs da API"
+    },
+    "errors": {
+      "generic": "Não funcionou. Tente de novo.",
+      "forbidden": "Só owners e admins podem fazer isso.",
+      "invalid_input": "Preencha todos os campos.",
+      "invalid_slack_url": "Cole uma URL de webhook de entrada que comece com https://hooks.slack.com/services/.",
+      "slack_unreachable": "O Slack não aceitou a mensagem de teste. Verifique a URL.",
+      "zoom_auth_failed": "O Zoom recusou essas credenciais.",
+      "zoom_not_connected": "Conecte o Zoom primeiro.",
+      "zoom_error": "O Zoom não criou a reunião.",
+      "not_a_meeting": "Links do Zoom vão em reuniões.",
+      "stripe_invalid_key": "Essa chave do Stripe não é válida.",
+      "stripe_invalid_webhook_secret": "O signing secret começa com whsec_.",
+      "stripe_error": "O Stripe devolveu um erro. Tente de novo.",
+      "stripe_not_connected": "Conecte o Stripe primeiro.",
+      "invalid_zapier_url": "Cole uma URL de catch hook do Zapier (https://hooks.zapier.com/hooks/…).",
+      "invalid_make_url": "Cole um endereço de webhook do Make (https://hook.….make.com/…).",
+      "https_required": "A URL precisa usar https.",
+      "private_host": "Esse host aponta para uma rede privada.",
+      "unresolvable_host": "Esse host não resolve."
+    }
+  },
+  "media": {
+    "docsTitle": "Documentos",
+    "docsSubtitle": "Compartilhe PDFs com um link de rastreamento por contato e veja quem abriu, por quanto tempo e quais páginas.",
+    "videosTitle": "Vídeos",
+    "videosSubtitle": "Grave a câmera ou a tela, envie o link e saiba quando assistem.",
+    "uploadPdf": "Enviar PDF",
+    "uploadVideo": "Enviar vídeo",
+    "recordVideo": "Gravar vídeo",
+    "uploading": "Enviando…",
+    "docsEmptyTitle": "Ainda não há documentos",
+    "docsEmptyBody": "Envie uma proposta, uma apresentação ou um caso de sucesso. Cada contato tem o seu link e cada abertura fica na timeline dele.",
+    "videosEmptyTitle": "Ainda não há vídeos",
+    "videosEmptyBody": "Grave um vídeo curto para um contato. Ele assiste numa página própria e você vê na timeline dele.",
+    "searchDocs": "Buscar documentos",
+    "searchVideos": "Buscar vídeos",
+    "noMatches": "Nada corresponde a essa busca.",
+    "colName": "Nome",
+    "colLinks": "Links",
+    "colViews": "Visualizações",
+    "colLastView": "Última visualização",
+    "colActions": "Ações",
+    "never": "Nunca",
+    "rename": "Renomear",
+    "save": "Salvar",
+    "saved": "Salvo.",
+    "delete": "Excluir",
+    "cancel": "Cancelar",
+    "openFile": "Abrir PDF",
+    "openPage": "Abrir página",
+    "deleteDocTitle": "Excluir \"{name}\"?",
+    "deleteDocBody": "Os links de rastreamento param de funcionar e o arquivo é apagado.",
+    "deleteVideoTitle": "Excluir \"{name}\"?",
+    "deleteVideoBody": "A página para de funcionar e o arquivo é apagado. A atividade que já ficou no contato continua.",
+    "shareTitle": "Compartilhar",
+    "shareHelp": "Crie um link para cada contato. Aberturas e tempo de leitura ficam nesse contato e você recebe um aviso.",
+    "contact": "Contato",
+    "forContact": "Para o contato",
+    "createLinkFor": "Criar link para {name}",
+    "createLinkAnon": "Criar link sem contato",
+    "linksTitle": "Links de rastreamento",
+    "linksEmptyTitle": "Ainda não há links",
+    "linksEmptyBody": "Escolha um contato acima e crie o link dele.",
+    "anyone": "Qualquer pessoa com o link",
+    "viewsCount": "{count, plural, one {# visualização} other {# visualizações}}",
+    "timeViewed": "{time} lendo",
+    "lastViewed": "última {date}",
+    "topPages": "Mais lidas:",
+    "pageTime": "p.{page} {time}",
+    "deleteLink": "Excluir link",
+    "deleteLinkTitle": "Excluir este link?",
+    "deleteLinkBody": "O link para de abrir e as visualizações são apagadas.",
+    "searchContact": "Buscar por nome ou email",
+    "searching": "Buscando…",
+    "noContacts": "Nenhum contato encontrado.",
+    "changeContact": "Trocar",
+    "recordTitle": "Gravar um vídeo",
+    "recordSource": "O que gravar",
+    "source": {
+      "camera": "Câmera e microfone",
+      "screen": "Tela e microfone"
+    },
+    "start": {
+      "camera": "Ligar a câmera",
+      "screen": "Escolher tela"
+    },
+    "recordHelp": "O navegador pede permissão. Nada é enviado até você salvar.",
+    "livePreview": "Prévia da câmera",
+    "reviewPreview": "Vídeo gravado",
+    "startRecording": "Começar a gravar",
+    "stopRecording": "Parar",
+    "recordingFor": "Gravando {time}",
+    "reRecord": "Gravar de novo",
+    "saveVideo": "Salvar vídeo",
+    "videoTitle": "Título",
+    "untitledVideo": "Vídeo",
+    "message": "Mensagem",
+    "shareVideoHelp": "Envie este link por email ou chat. Cada reprodução fica no contato com quanto foi assistido.",
+    "playsTitle": "Reproduções",
+    "playsEmptyTitle": "Ainda não há reproduções",
+    "playsEmptyBody": "Quando alguém abre a página e dá play, aparece aqui.",
+    "watched": "assistiu {time}",
+    "watchedPct": "{pct}% do vídeo",
+    "errors": {
+      "generic": "Não funcionou. Tente de novo.",
+      "pdf_only": "Envie um arquivo PDF.",
+      "video_only": "Envie um vídeo WebM, MP4 ou MOV.",
+      "file_too_large": "O arquivo é grande demais.",
+      "invalid_file": "Não foi possível salvar o arquivo.",
+      "invalid_contact": "Esse contato não existe mais.",
+      "storage_unavailable": "O armazenamento de arquivos não está configurado neste servidor.",
+      "file_type_not_allowed": "Esse tipo de arquivo não é permitido.",
+      "recorder_unsupported": "Este navegador não grava vídeo. Tente Chrome, Edge ou Firefox.",
+      "recorder_denied": "O navegador não permitiu a câmera ou a tela. Verifique as permissões e tente de novo.",
+      "forbidden": "Só admins ou quem enviou podem mudar isso."
+    }
+  },
+  "mediaPublic": {
+    "notFound": "Link indisponível",
+    "loading": "Carregando documento…",
+    "error": "Não foi possível abrir o documento.",
+    "download": "Baixar",
+    "pageOf": "Página {page} de {total}",
+    "pageLabel": "Página {page} de {total}",
+    "greeting": "Um vídeo para {name}",
+    "greetingAnon": "Um vídeo para você",
+    "from": "De {name}"
   }
 }

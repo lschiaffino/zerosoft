@@ -38,9 +38,9 @@ export function isAllowedUpload(filename: string, contentType: string): boolean 
   return !BLOCKED_EXTENSIONS.has(ext) && !BLOCKED_MIME.test(contentType);
 }
 
-/** Guarda el archivo y devuelve su URL pública. `folder`: chat | track | tasks | robots | docs | boards. */
+/** Guarda el archivo y devuelve su URL pública. `folder`: chat | track | tasks | robots | docs | boards | crm. */
 export async function saveUpload(
-  folder: 'chat' | 'track' | 'tasks' | 'robots' | 'docs' | 'boards',
+  folder: 'chat' | 'track' | 'tasks' | 'robots' | 'docs' | 'boards' | 'crm',
   filename: string,
   contentType: string,
   buffer: Buffer,

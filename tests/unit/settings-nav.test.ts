@@ -29,9 +29,9 @@ describe('settings: pestañas', () => {
 describe('settings: eventos de webhooks agrupados', () => {
   it('los 25 eventos quedan en 7 grupos por recurso, sin perder ni repetir', () => {
     const groups = webhookEventGroups();
-    expect(groups.map((g) => g.key)).toEqual(['booking', 'link', 'contact', 'deal', 'robot', 'chat', 'groups']);
+    expect(groups.map((g) => g.key)).toEqual(['booking', 'link', 'contact', 'company', 'deal', 'task', 'quote', 'form', 'robot', 'chat', 'groups']);
     expect(groups.flatMap((g) => g.events)).toEqual([...WEBHOOK_EVENTS]);
-    expect(WEBHOOK_EVENTS).toHaveLength(25);
+    expect(WEBHOOK_EVENTS).toHaveLength(38);
   });
 
   it('el checkbox del grupo es todos, ninguno o indeterminado', () => {

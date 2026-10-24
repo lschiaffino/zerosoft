@@ -14,6 +14,7 @@
 import { dealScopeSql, type OwnerScope } from './crm-visibility';
 import { createHmac, randomBytes } from 'node:crypto';
 import { CrmRefError } from './crm-refs';
+import { cleanSignatureImage, getQuoteSignature, quoteContentHash } from './crm-quote-sign';
 import { getCurrencyContext, getCrmSettings } from './crm-currency';
 import { convertAmount, lineTotals, roundMoney, sumLines, type DocTotals, type LineTotals } from './crm-money';
 import { RECURRING_INTERVALS, type RecurringInterval } from './crm-constants';
@@ -584,11 +585,22 @@ export type QuoteUpdateResult =
 export async function updateQuote(
   userId: string,
   id: string,
-  data: QuoteInput & { refreshItems?: boolean },
+  data: QuoteInput & { refreshItems?: boolean; collectPayment?: boolean },
   db: Db = getDb(),
 ): Promise<QuoteUpdateResult> {
   const quote = await getQuote(userId, id, db);
   if (!quote) return { ok: false, error: 'not_found' };
+  // Cobrar con Stripe se puede prender o apagar hasta que se paga (no cambia lo firmado).
+  if (data.collectPayment !== undefined) {
+    if (quote.payment_status === 'paid' || quote.status === 'declined' || quote.status === 'expired') {
+      return { ok: false, error: 'not_draft' };
+    }
+    await db
+      .prepare('UPDATE crm_quotes SET collect_payment = ?, updated_at = ? WHERE id = ?')
+      .run(data.collectPayment ? 1 : 0, nowDb(), id);
+    const onlyPayment = Object.keys(data).every((k) => k === 'collectPayment');
+    if (onlyPayment) return { ok: true, quote: (await getQuote(userId, id, db))! };
+  }
   if (quote.status !== 'draft') return { ok: false, error: 'not_draft' };
   const cols: Record<string, string> = {
     title: 'title',
@@ -669,6 +681,13 @@ export interface PublicQuote {
   signer_name: string;
   decline_reason: string;
   created_at: string;
+  /** Cobro con Stripe al aceptar (075). */
+  collect_payment?: boolean;
+  payment_status?: 'none' | 'pending' | 'paid';
+  paid_at?: string | null;
+  /** Firma dibujada (data URL JPEG) y email de quien firmó. */
+  signature_image?: string;
+  signer_email?: string;
 }
 
 /** Quote por token para la página pública (null si no existe o es borrador). */
@@ -679,6 +698,7 @@ export async function getPublicQuote(token: string, db: Db = getDb()): Promise<P
     | CrmQuoteRow
     | undefined;
   if (!q) return null;
+  const sig = q.status === 'accepted' ? await getQuoteSignature(q.id) : null;
   return {
     number: q.number,
     title: q.title,
@@ -704,7 +724,19 @@ export async function getPublicQuote(token: string, db: Db = getDb()): Promise<P
     signer_name: q.signer_name,
     decline_reason: q.decline_reason,
     created_at: q.created_at,
+    collect_payment: q.collect_payment === 1,
+    payment_status: q.payment_status ?? 'none',
+    paid_at: q.paid_at ?? null,
+    signature_image: sig?.signature_image ?? '',
+    signer_email: sig?.signer_email ?? '',
   };
+}
+
+/** Primera apertura de la página pública (para el certificado). No cuenta la vista previa interna. */
+export async function markQuoteViewed(token: string, db: Db = getDb()): Promise<void> {
+  await db
+    .prepare("UPDATE crm_quotes SET first_viewed_at = ? WHERE token = ? AND status != 'draft' AND first_viewed_at IS NULL")
+    .run(nowDb(), token);
 }
 
 export type QuoteResponseError = 'not_found' | 'expired' | 'not_open' | 'invalid_signature';
@@ -729,11 +761,13 @@ async function openQuoteByToken(token: string, db: Db): Promise<CrmQuoteRow | Qu
  */
 export async function acceptQuote(
   token: string,
-  input: { name: string; agree: boolean; ip: string },
+  input: { name: string; agree: boolean; ip: string; email?: string; signature?: string; userAgent?: string },
   db: Db = getDb(),
 ): Promise<QuoteResponseResult> {
   const name = input.name.trim().slice(0, 200);
   if (!name || !input.agree) return { ok: false, error: 'invalid_signature' };
+  const image = input.signature === undefined ? '' : cleanSignatureImage(input.signature);
+  if (input.signature !== undefined && !image) return { ok: false, error: 'invalid_signature' };
   const q = await openQuoteByToken(token, db);
   if (typeof q === 'string') return { ok: false, error: q };
   const ts = nowDb();
@@ -745,6 +779,26 @@ export async function acceptQuote(
     )
     .run(ts, name, hashQuoteIp(input.ip), ts, q.id);
   if (res.changes === 0) return { ok: false, error: 'not_open' };
+  // Registro de la firma: lo que muestra el certificado de auditoría.
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO crm_quote_signatures
+         (id, quote_id, user_id, signer_name, signer_email, signature_image, ip, user_agent, content_hash, viewed_at, signed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      crypto.randomUUID(),
+      q.id,
+      q.user_id,
+      name,
+      (input.email ?? '').trim().toLowerCase().slice(0, 320),
+      image,
+      input.ip.slice(0, 64),
+      (input.userAgent ?? '').slice(0, 300),
+      quoteContentHash(q),
+      q.first_viewed_at ?? null,
+      ts,
+    );
   await onQuoteResponded(q, 'accepted', name, '');
   return { ok: true, quote: (await getPublicQuote(token, db))! };
 }

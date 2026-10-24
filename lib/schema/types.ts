@@ -723,6 +723,13 @@ export interface CrmQuoteRow {
   signer_name: string;
   signer_ip_hash: string;
   decline_reason: string;
+  /** 075: cobro con Stripe Checkout al aceptar. */
+  collect_payment?: number;
+  payment_status?: 'none' | 'pending' | 'paid';
+  paid_at?: string | null;
+  amount_paid?: number | null;
+  stripe_session_id?: string | null;
+  first_viewed_at?: string | null;
   created_at: string;
   updated_at: string;
 }

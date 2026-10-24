@@ -3154,3 +3154,136 @@ dialog.ui-drawer.pb-drawer { width: min(560px, 100vw); }
 .split-total.is-off { color: var(--bad-ink); }
 .pb-body-head .btn-group > .btn[aria-pressed='true'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); --btn-bg-hover: var(--ink); }
 section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
+/* ---------- Integraciones: apps (Slack, Zoom, Stripe, Zapier, Make) ---------- */
+.crm-apps-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 12px;
+}
+.crm-app-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+}
+.crm-app-head { display: flex; align-items: flex-start; gap: 12px; }
+.crm-app-mark {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-data);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--brand-enamel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.crm-app-title { flex: 1; min-width: 0; }
+.crm-app-title h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+.crm-app-title .ui-help { margin: 2px 0 0; }
+.crm-app-meta, .crm-app-hint { margin: 0; font-size: 0.8125rem; overflow-wrap: anywhere; }
+.crm-app-form, .crm-app-connected { display: flex; flex-direction: column; gap: 10px; }
+.crm-app-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.crm-app-events { border: 0; margin: 0; padding: 0; }
+.crm-app-events ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 12px; }
+.crm-app-copy { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.crm-app-copy code { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 0.75rem; padding: 6px 8px; background: var(--brand-enamel); border: 1px solid var(--line); border-radius: var(--radius-1); }
+.crm-app-inline { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+.crm-app-inline .ui-field { flex: 1; min-width: 180px; margin: 0; }
+.crm-app-log summary { cursor: pointer; font-size: 0.8125rem; }
+.crm-app-log ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; font-size: 0.8125rem; }
+.crm-app-log li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.crm-app-log-detail { flex-basis: 100%; overflow-wrap: anywhere; }
+.crm-app-notice { margin: 0; }
+.quote-pay-setting { margin-top: 8px; }
+.quote-pay-setting .ui-help { margin: 2px 0 0; }
+
+/* ---------- Forms builder: condición y reglas de dueño (075) ---------- */
+.fb-condition { grid-column: 1 / -1; border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fb-condition legend { margin-bottom: 4px; }
+.fb-condition .select, .fb-condition .input { width: auto; min-width: 140px; flex: 1 1 140px; }
+.fb-rule { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.fb-rule .select, .fb-rule .input { width: auto; flex: 1 1 140px; min-width: 0; }
+.fb-rule-eq { font-family: var(--font-data); color: var(--brand-gray-2); }
+
+/* ---------- Documentos y videos 1:1 (075) ---------- */
+.media-lib, .media-detail { display: flex; flex-direction: column; gap: 16px; }
+.media-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.media-toolbar-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.media-search { flex: 1 1 220px; max-width: 360px; }
+.media-sub { display: block; font-size: 0.75rem; margin-top: 2px; overflow-wrap: anywhere; }
+.media-actions { white-space: nowrap; text-align: right; }
+.media-rename { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.media-rename .input { min-width: 0; flex: 1; }
+.media-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.media-section { display: flex; flex-direction: column; gap: 10px; padding: 0; }
+.media-share-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.media-share-form .ui-field { flex: 1 1 260px; margin: 0; }
+.media-links { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.media-link { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.media-link-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.media-link-url { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
+.media-link-url code {
+  flex: 1 1 220px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+  padding: 6px 8px;
+  background: var(--brand-enamel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.media-pages { margin: 0; font-size: 0.8125rem; }
+.cp { position: relative; }
+.cp-list {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin: 2px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  max-height: 240px;
+  overflow-y: auto;
+}
+.cp-list li { padding: 6px 10px; cursor: pointer; overflow-wrap: anywhere; }
+.cp-list li.is-active, .cp-list li:hover { background: var(--brand-enamel); }
+.cp-empty { color: var(--dim); cursor: default; }
+.cp-picked { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 36px; }
+.video-detail-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
+.video-detail-player { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.video-detail-form { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.media-detail .vw-video, .vr-video { width: 100%; max-height: 60dvh; background: #000000; border-radius: var(--radius-1); }
+.vr { display: flex; flex-direction: column; gap: 12px; }
+.vr-sources { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.vr-stage { position: relative; }
+.vr-rec {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  font-family: var(--font-data);
+  font-size: 0.75rem;
+  color: var(--brand-on-ink);
+  background: var(--bad-ink);
+  border-radius: var(--radius-1);
+}
+.vr-review { display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 760px) {
+  .video-detail-grid { grid-template-columns: minmax(0, 1fr); }
+  .media-actions { white-space: normal; text-align: left; }
+}

@@ -33,13 +33,13 @@ test('webhooks: el checkbox del grupo elige sus eventos y queda indeterminado si
   const groupBox = deals.getByRole('checkbox', { name: 'Deals', exact: true });
   await groupBox.check();
   await expect(groupBox).toBeChecked();
-  await expect(deals.locator('.st-event-list input:checked')).toHaveCount(5);
-  await expect(page.getByText('5 elegidos')).toBeVisible();
+  await expect(deals.locator('.st-event-list input:checked')).toHaveCount(7);
+  await expect(page.getByText('7 elegidos')).toBeVisible();
 
   await deals.getByRole('checkbox', { name: 'Deal ganado' }).uncheck();
   await expect(groupBox).not.toBeChecked();
   expect(await groupBox.evaluate((el) => (el as HTMLInputElement).indeterminate)).toBe(true);
-  await expect(page.getByText('4 elegidos')).toBeVisible();
+  await expect(page.getByText('6 elegidos')).toBeVisible();
 });
 
 test('API keys: crear con el camino corto muestra la key una vez y la suma a la tabla', async ({ page }) => {

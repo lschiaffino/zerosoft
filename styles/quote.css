@@ -196,3 +196,32 @@
   body:has(.quote-app-view) .quote-app-view .qd * { visibility: visible; }
   body:has(.quote-app-view) .quote-app-view .qd { position: absolute; inset: 0 auto auto 0; width: 100%; }
 }
+
+/* ---------- Firma electrónica (075) ---------- */
+.qp-fields-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.qp-sign { display: flex; flex-direction: column; gap: 6px; }
+.qp-sign-canvas {
+  width: 100%;
+  height: 140px;
+  touch-action: none;
+  cursor: crosshair;
+  border: 1px dashed var(--ink);
+  border-radius: var(--r-sm);
+  background: #ffffff;
+}
+.qp-typed-sign {
+  margin: 0;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font: italic 2rem "Brush Script MT", "Segoe Script", "Snell Roundhand", cursive;
+  color: #111111;
+  background: #ffffff;
+  border: 1px dashed var(--ink);
+  border-radius: var(--r-sm);
+  overflow-wrap: anywhere;
+}
+.qp-sign-switch { align-self: flex-start; padding-left: 0; }
+.qd-signature-img { display: block; max-width: 240px; width: 100%; height: auto; margin: 6px 0; border: 1px solid var(--line); background: #ffffff; }
+a.qp-btn { display: inline-flex; align-items: center; text-decoration: none; }

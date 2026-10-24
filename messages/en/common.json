@@ -102,7 +102,9 @@
     "groupLeads": "Leads",
     "groupRecords": "Custom objects",
     "groupPlaybooks": "Playbooks",
-    "startQueue": "Start the task queue"
+    "startQueue": "Start the task queue",
+    "groupCrmDocuments": "Documents",
+    "groupCrmVideos": "Videos"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",

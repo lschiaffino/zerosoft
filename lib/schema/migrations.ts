@@ -3853,6 +3853,151 @@ export const MIGRATIONS: Migration[] = [
       for (let i = 0; i < stmts.length; i += 200) await client.batch(stmts.slice(i, i + 200), 'write');
     },
   },
+  {
+    // CRM integraciones (tanda C5): filtro de propiedades y log de entregas de
+    // webhooks, apps conectadas (Slack, Zoom, Stripe, Zapier/Make), firma y
+    // cobro de cotizaciones, biblioteca de documentos con links de
+    // seguimiento y videos 1:1 con sus vistas.
+    id: '075_crm_integrations',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE webhooks ADD COLUMN crm_filter TEXT');
+      await addColumn(client, 'ALTER TABLE webhook_deliveries ADD COLUMN response_body TEXT');
+      await addColumn(client, 'ALTER TABLE webhook_deliveries ADD COLUMN duration_ms INTEGER');
+      await addColumn(client, 'ALTER TABLE webhook_deliveries ADD COLUMN claimed_until TEXT');
+      await addColumn(client, 'ALTER TABLE crm_quotes ADD COLUMN collect_payment INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE crm_quotes ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'none'");
+      await addColumn(client, 'ALTER TABLE crm_quotes ADD COLUMN paid_at TEXT');
+      await addColumn(client, 'ALTER TABLE crm_quotes ADD COLUMN amount_paid REAL');
+      await addColumn(client, 'ALTER TABLE crm_quotes ADD COLUMN stripe_session_id TEXT');
+      await addColumn(client, 'ALTER TABLE crm_quotes ADD COLUMN first_viewed_at TEXT');
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_claim ON webhook_deliveries(status, claimed_until);
+
+        CREATE TABLE IF NOT EXISTS crm_apps (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          app TEXT NOT NULL,
+          secrets TEXT NOT NULL DEFAULT '',
+          settings TEXT NOT NULL DEFAULT '{}',
+          webhook_token TEXT,
+          last_error TEXT,
+          last_used_at TEXT,
+          connected_by TEXT,
+          connected_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, app)
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_apps_token ON crm_apps(webhook_token);
+
+        CREATE TABLE IF NOT EXISTS crm_app_log (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          app TEXT NOT NULL,
+          event TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'ok',
+          detail TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_app_log ON crm_app_log(user_id, app, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS crm_stripe_events (
+          event_id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          type TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS crm_quote_signatures (
+          id TEXT PRIMARY KEY,
+          quote_id TEXT NOT NULL UNIQUE REFERENCES crm_quotes(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          signer_name TEXT NOT NULL,
+          signer_email TEXT NOT NULL DEFAULT '',
+          signature_image TEXT NOT NULL DEFAULT '',
+          ip TEXT NOT NULL DEFAULT '',
+          user_agent TEXT NOT NULL DEFAULT '',
+          content_hash TEXT NOT NULL,
+          viewed_at TEXT,
+          signed_at TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS crm_documents (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          filename TEXT NOT NULL DEFAULT '',
+          url TEXT NOT NULL,
+          size INTEGER NOT NULL DEFAULT 0,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_documents_user ON crm_documents(user_id, updated_at DESC);
+
+        CREATE TABLE IF NOT EXISTS crm_document_links (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          document_id TEXT NOT NULL REFERENCES crm_documents(id) ON DELETE CASCADE,
+          contact_id TEXT REFERENCES crm_contacts(id) ON DELETE SET NULL,
+          token TEXT NOT NULL UNIQUE,
+          created_by TEXT,
+          views INTEGER NOT NULL DEFAULT 0,
+          last_viewed_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_document_links_doc ON crm_document_links(document_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS crm_document_views (
+          id TEXT PRIMARY KEY,
+          link_id TEXT NOT NULL REFERENCES crm_document_links(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          started_at TEXT NOT NULL DEFAULT (datetime('now')),
+          last_ping_at TEXT NOT NULL DEFAULT (datetime('now')),
+          seconds INTEGER NOT NULL DEFAULT 0,
+          pages TEXT NOT NULL DEFAULT '{}',
+          page_count INTEGER NOT NULL DEFAULT 0,
+          activity_id TEXT,
+          ip_hash TEXT NOT NULL DEFAULT '',
+          user_agent TEXT NOT NULL DEFAULT ''
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_document_views_link ON crm_document_views(link_id, started_at DESC);
+
+        CREATE TABLE IF NOT EXISTS crm_videos (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          url TEXT NOT NULL,
+          content_type TEXT NOT NULL DEFAULT 'video/webm',
+          size INTEGER NOT NULL DEFAULT 0,
+          duration_sec REAL NOT NULL DEFAULT 0,
+          contact_id TEXT REFERENCES crm_contacts(id) ON DELETE SET NULL,
+          token TEXT NOT NULL UNIQUE,
+          message TEXT NOT NULL DEFAULT '',
+          created_by TEXT,
+          views INTEGER NOT NULL DEFAULT 0,
+          last_viewed_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_videos_user ON crm_videos(user_id, updated_at DESC);
+
+        CREATE TABLE IF NOT EXISTS crm_video_views (
+          id TEXT PRIMARY KEY,
+          video_id TEXT NOT NULL REFERENCES crm_videos(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          started_at TEXT NOT NULL DEFAULT (datetime('now')),
+          last_ping_at TEXT NOT NULL DEFAULT (datetime('now')),
+          watched_sec REAL NOT NULL DEFAULT 0,
+          max_position REAL NOT NULL DEFAULT 0,
+          duration_sec REAL NOT NULL DEFAULT 0,
+          activity_id TEXT,
+          ip_hash TEXT NOT NULL DEFAULT '',
+          user_agent TEXT NOT NULL DEFAULT ''
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_video_views_video ON crm_video_views(video_id, started_at DESC);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

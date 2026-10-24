@@ -60,6 +60,8 @@ export interface SidebarLabels {
     products: string;
     quotes: string;
     forms: string;
+    documents: string;
+    videos: string;
     trash: string;
     agents: string;
     /** Botón del asistente del CRM en la banda. */
@@ -233,6 +235,8 @@ export function buildNav(
             { href: '/app/crm/playbooks', label: labels.crm.playbooks, active: at('/app/crm/playbooks'), icon: 'docs' },
             { href: '/app/crm/templates', label: labels.crm.templates, active: at('/app/crm/templates'), icon: 'templates' },
             { href: '/app/crm/forms', label: labels.crm.forms, active: at('/app/crm/forms'), icon: 'inbox' },
+            { href: '/app/crm/documents', label: labels.crm.documents, active: at('/app/crm/documents'), icon: 'docs' },
+            { href: '/app/crm/videos', label: labels.crm.videos, active: at('/app/crm/videos'), icon: 'recorder' },
           ],
         },
         {

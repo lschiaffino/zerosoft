@@ -24,7 +24,14 @@ export async function POST(req: NextRequest, props: { params: Promise<{ token: s
   const ip = clientIp(req);
   const result =
     parsed.data.action === 'accept'
-      ? await acceptQuote(token, { name: parsed.data.name, agree: parsed.data.agree, ip })
+      ? await acceptQuote(token, {
+          name: parsed.data.name,
+          agree: parsed.data.agree,
+          ip,
+          email: parsed.data.email || undefined,
+          signature: parsed.data.signature,
+          userAgent: req.headers.get('user-agent') ?? '',
+        })
       : await declineQuote(token, { reason: parsed.data.reason, ip });
   if (!result.ok) return crmError(STATUS[result.error] ?? 400, result.error);
   return NextResponse.json(result.quote);

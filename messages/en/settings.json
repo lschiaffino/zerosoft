@@ -105,7 +105,7 @@
       "none": "No deliveries"
     },
     "emptyTitle": "No webhooks yet",
-    "emptyBody": "Add a URL to receive events from bookings, links, contacts, deals and robots.",
+    "emptyBody": "Add a URL to receive events from bookings, links, contacts, companies, deals, tasks, quotes, forms and robots.",
     "adminOnly": "Only owners and admins manage webhooks.",
     "groups": {
       "booking": "Bookings",
@@ -114,7 +114,11 @@
       "deal": "Deals",
       "robot": "Robots",
       "chat": "Chat",
-      "groups": "Groups (WhatsApp)"
+      "groups": "Groups (WhatsApp)",
+      "company": "Companies",
+      "task": "Tasks",
+      "quote": "Quotes",
+      "form": "Forms"
     },
     "eventLabels": {
       "booking_created": "Booking created",
@@ -141,7 +145,20 @@
       "chat_conversation_resolved": "Conversation resolved",
       "groups_message_received": "WhatsApp message received (Groups)",
       "groups_ticket_created": "Ticket created (Groups)",
-      "groups_ticket_updated": "Ticket updated (Groups)"
+      "groups_ticket_updated": "Ticket updated (Groups)",
+      "contact_property_changed": "Contact property changed",
+      "contact_deleted": "Contact deleted",
+      "company_created": "Company created",
+      "company_updated": "Company updated",
+      "company_property_changed": "Company property changed",
+      "company_deleted": "Company deleted",
+      "deal_property_changed": "Deal property changed",
+      "deal_deleted": "Deal deleted",
+      "task_created": "Task created",
+      "task_completed": "Task completed",
+      "quote_accepted": "Quote signed",
+      "quote_paid": "Quote paid",
+      "form_submitted": "Form submitted"
     },
     "errors": {
       "https_required": "The URL must use https.",
@@ -163,6 +180,29 @@
       "domains": "Domains",
       "defaultDomain": "Default domain",
       "scoped": "(some links)"
+    },
+    "pause": "Pause",
+    "resume": "Resume",
+    "paused": "Paused",
+    "propertyFilter": {
+      "title": "Only these properties",
+      "placeholder": "lifecycle_stage, amount, custom.plan",
+      "help": "For property change events. Use the column name (lifecycle_stage) or custom. plus the field name (custom.plan). Leave it empty to receive every property.",
+      "scoped": "{count, plural, one {· # property} other {· # properties}}"
+    },
+    "log": {
+      "open": "Log",
+      "title": "Deliveries",
+      "close": "Close",
+      "loading": "Loading deliveries…",
+      "empty": "No deliveries yet. Send a test to see one here.",
+      "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+      "resend": "Resend",
+      "nextAttempt": "Next retry: {at}",
+      "duration": "Answered in {ms} ms",
+      "request": "Body sent",
+      "response": "Response",
+      "noBody": "Empty response"
     }
   },
   "credentials": {

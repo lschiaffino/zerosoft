@@ -30,6 +30,8 @@ function useGroupOrder() {
         'deals',
         'crmAgentRuns',
         'records',
+        'crmDocuments',
+        'crmVideos',
         'links',
         'docs',
         'notes',
