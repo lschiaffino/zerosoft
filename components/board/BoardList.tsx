@@ -12,6 +12,7 @@ import type { BoardDetail, BoardSummary } from '@/lib/boards-types';
 import { BOARD_TEMPLATES, type BoardTemplateKey } from '@/lib/board-templates';
 import TemplatePreview from './TemplatePreview';
 import { notifyBoardsChanged } from './BoardBranch';
+import { preloadCanvas } from './preloadCanvas';
 
 const TOAST_MS = 6000;
 /** Plantillas plegadas o abiertas: se recuerda por navegador. */
@@ -87,6 +88,7 @@ export default function BoardList({
   const create = useCallback(async () => {
     if (busy) return;
     setBusy(true);
+    preloadCanvas(); // el lienzo baja mientras se crea la pizarra
     try {
       const res = await fetch('/api/boards', {
         method: 'POST',
@@ -106,6 +108,7 @@ export default function BoardList({
   async function createFromTemplate(key: BoardTemplateKey) {
     if (busy || creatingTemplate) return;
     setCreatingTemplate(key);
+    preloadCanvas();
     try {
       const res = await fetch('/api/boards', {
         method: 'POST',
@@ -196,7 +199,8 @@ export default function BoardList({
       ) : (
         <ul className="board-grid">
           {boards.map((b) => (
-            <li key={b.id} className="board-card">
+            // Al apuntar o enfocar una tarjeta se precarga el lienzo (ver preloadCanvas).
+            <li key={b.id} className="board-card" onPointerEnter={preloadCanvas} onFocus={preloadCanvas}>
               <div className="board-thumb" aria-hidden="true">
                 {b.thumbnail ? (
                   // Miniatura SVG generada por el cliente (filtrada en el servidor); como <img> no ejecuta nada.

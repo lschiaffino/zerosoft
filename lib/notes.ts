@@ -166,7 +166,17 @@ export interface ListNotesOptions {
   q?: string | null;
   sort?: NotesSort;
   limit?: number;
+  /** Para paginar: cuántas saltear (con el mismo orden). */
+  offset?: number;
 }
+
+/**
+ * Columnas de la lista: sin los bloques (content) y con el texto recortado,
+ * que solo alimenta el snippet de 140 caracteres. Con búsqueda va el texto
+ * entero, porque el snippet se arma alrededor del término encontrado.
+ */
+const SUMMARY_COLUMNS = (fullBody: boolean) =>
+  `n.id, n.notebook_id, n.title, ${fullBody ? 'n.body_text' : 'substr(n.body_text, 1, 2000) AS body_text'}, n.tags, n.pinned, n.trashed_at, n.source_url, n.share_token, n.created_at, n.updated_at`;
 
 let ftsAvailable: boolean | null = null;
 
@@ -281,8 +291,11 @@ export async function listNotes(owner: NoteOwner, opts: ListNotesOptions = {}): 
     }
   }
   const limit = Math.min(Math.max(opts.limit ?? 500, 1), 1000);
+  const offset = Math.max(Math.floor(opts.offset ?? 0), 0);
   const rows = (await getDb()
-    .prepare(`SELECT n.* FROM ${from} WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ${limit}`)
+    .prepare(
+      `SELECT ${SUMMARY_COLUMNS(terms.length > 0)} FROM ${from} WHERE ${where.join(' AND ')} ORDER BY ${order}, n.id LIMIT ${limit} OFFSET ${offset}`,
+    )
     .all(...args)) as NoteRow[];
   const highlight = [...terms, ...(query?.intitle ?? [])];
   return rows.map((r) => toSummary(r, terms.length ? snippetAround(r.body_text, highlight) : undefined));

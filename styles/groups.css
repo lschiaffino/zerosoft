@@ -410,13 +410,6 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 0.875rem; }
 .gr-api ul li { font-size: 0.8125rem; }
 
-/* ---------- CRM ---------- */
-
-.gr-crm-chats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
-.gr-crm-chat-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 0.875rem; }
-.gr-crm-chat-head a { font-weight: 600; color: var(--ink); text-underline-offset: 3px; }
-.gr-crm-timeline { list-style: none; margin: 6px 0 0; padding: 0 0 0 10px; border-left: 2px solid color-mix(in srgb, var(--c-groups) 45%, var(--bg)); display: flex; flex-direction: column; gap: 4px; }
-.gr-crm-timeline li { font-size: 0.8125rem; line-height: 1.4; overflow-wrap: anywhere; }
 
 /* ---------- Responsive ---------- */
 

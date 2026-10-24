@@ -106,44 +106,6 @@
 .notes-nav-menu .btn-icon { min-height: 28px; width: 28px; }
 .notes-nav-menu .row-menu { top: calc(100% + 4px); }
 
-/* Menú "…" compartido (libretas, pizarras): placa blanca con borde de tinta. */
-.row-menu-wrap { position: relative; }
-
-.row-menu {
-  position: absolute;
-  right: 0;
-  z-index: 20;
-  min-width: 160px;
-  display: flex;
-  flex-direction: column;
-  padding: 4px;
-  border: 1px solid var(--ink);
-  border-radius: var(--radius-1);
-  background: var(--bg);
-}
-
-.row-menu button {
-  min-height: 32px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: var(--radius-1);
-  background: none;
-  font-family: var(--font-ui);
-  font-size: 0.875rem;
-  color: var(--ink);
-  text-align: left;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.row-menu button:hover,
-.row-menu button:focus-visible { background: var(--ui-hover); outline: none; }
-.row-menu .is-danger { color: var(--bad-ink); }
-
-@media (pointer: coarse) {
-  .row-menu button { min-height: 44px; }
-}
-
 .notes-nav-hint { padding: 4px 8px; font-size: 0.8125rem; line-height: 1.4; color: var(--brand-gray-2); }
 .notes-nav-spacer { flex: 1; min-height: 16px; }
 
@@ -346,7 +308,6 @@
 .note-bar-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
 
 .note-pin[aria-pressed='true'] { color: var(--c-notes-ink); background: var(--ui-hover); }
-.app-frame .btn.is-on { color: var(--ink); background: var(--ui-hover); }
 
 .note-share-wrap { position: relative; }
 

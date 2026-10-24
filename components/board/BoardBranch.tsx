@@ -7,6 +7,7 @@ import { Link, usePathname } from '@/i18n/navigation';
 import type { BoardSummary } from '@/lib/boards-types';
 import Icon from '@/components/app/icons';
 import { useShellBranch } from '@/components/app/useShellBranch';
+import { preloadCanvas } from './preloadCanvas';
 
 /** Evento que avisa al sidebar que la lista de pizarras cambió (crear, renombrar, borrar). */
 export const BOARDS_CHANGED = 'zs:boards-changed';
@@ -58,7 +59,13 @@ export default function BoardBranch() {
             return (
               <li key={b.id} className={`docs-tree-row${active ? ' active' : ''}`}>
                 <span className="docs-tree-chevron-spacer" aria-hidden="true" />
-                <Link href={`/app/board/${b.id}`} className="docs-tree-link" aria-current={active ? 'page' : undefined}>
+                <Link
+                  href={`/app/board/${b.id}`}
+                  className="docs-tree-link"
+                  aria-current={active ? 'page' : undefined}
+                  onPointerEnter={preloadCanvas}
+                  onFocus={preloadCanvas}
+                >
                   <span className="docs-tree-icon" aria-hidden="true">
                     <Icon name="board" size={14} />
                   </span>

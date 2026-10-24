@@ -797,9 +797,7 @@ html.zs-embed .bk-card { border-color: transparent; border-top-color: var(--bk);
 /* ---------- Compartido: otros productos todavía usan estas clases (calendar.css se carga en todo /app) ---------- */
 .checkbox-field { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .checkbox-field span { margin: 0; }
-.empty-inline { text-align: center; padding: 24px; }
 .fields-panel { padding: 16px; }
-.custom-fields { display: flex; flex-direction: column; gap: 10px; }
 .custom-field-row { display: grid; grid-template-columns: 1fr 1fr auto auto auto; gap: 8px; align-items: center; }
 @media (max-width: 640px) { .custom-field-row { grid-template-columns: 1fr 1fr; } }
 .calendar-embed-tabs { display: flex; gap: 8px; margin: 4px 0 12px; }

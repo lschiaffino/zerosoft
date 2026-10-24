@@ -151,6 +151,13 @@ export async function getAgent(workspaceId: string, id: string): Promise<AgentDt
   return row ? toAgentDto(row) : null;
 }
 
+/** Solo id y nombre, para selectores (el editor de Flow): sin las stats de la lista. */
+export async function listAgentOptions(workspaceId: string): Promise<Array<{ id: string; name: string }>> {
+  return (await getDb()
+    .prepare('SELECT id, name FROM agents WHERE user_id = ? ORDER BY created_at DESC')
+    .all(workspaceId)) as Array<{ id: string; name: string }>;
+}
+
 export async function listAgents(workspaceId: string): Promise<AgentListItem[]> {
   const db = getDb();
   const rows = (await db

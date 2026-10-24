@@ -8,6 +8,7 @@ import { BOARD_MAX_SCENE_BYTES, type BoardDetail, type BoardScene } from '@/lib/
 import { isDataUrl, swapUploadedFiles } from '@/lib/board-file-refs';
 import type { BoardSnapshotSummary } from '@/lib/board-history';
 import type { CanvasApi } from './ExcalidrawCanvas';
+import { sceneSignature } from '@/lib/board-signature';
 import CanvasComments from './CanvasComments';
 import BoardAccessPanel from './BoardAccessPanel';
 import BoardOverlays from './BoardOverlays';
@@ -67,11 +68,7 @@ const REMOTE_STATUS_MS = 6000;
 type El = { id: string; version?: number; isDeleted?: boolean; type?: string; fileId?: string | null };
 
 /** Firma barata de la escena: cambia con cualquier edición (cada edición sube `version`). */
-function signature(elements: readonly unknown[], bg: unknown, fileCount: number): string {
-  let sum = 0;
-  for (const e of elements as El[]) sum += e.version ?? 0;
-  return `${elements.length}:${sum}:${String(bg)}:${fileCount}`;
-}
+const signature = sceneSignature;
 
 /** Escena a guardar: sin elementos borrados y solo los archivos que usa alguna imagen. */
 function buildScene(elements: readonly unknown[], appState: Record<string, unknown>, files: Record<string, unknown>): BoardScene {
@@ -140,7 +137,13 @@ export default function BoardEditor({
   const savedNameRef = useRef(board.name);
   const nameSeqRef = useRef(0);
   const [nameError, setNameError] = useState(false);
-  const [state, setState] = useState<SaveState>('saved');
+  const [state, setStateRaw] = useState<SaveState>('saved');
+  /** Estado actual fuera del render: onChange no vuelve a pedir 'dirty' en cada trazo. */
+  const stateRef = useRef<SaveState>('saved');
+  const setState = useCallback((next: SaveState) => {
+    stateRef.current = next;
+    setStateRaw(next);
+  }, []);
   const [conflictBy, setConflictBy] = useState<string | null>(null);
   /** El aviso es por borrado contra edición (lo único que no se combina solo). */
   const [conflictDeleted, setConflictDeleted] = useState(false);
@@ -335,7 +338,7 @@ export default function BoardEditor({
       }
     }
     if (conflictBy !== undefined && !unmountedRef.current) onConflictRef.current(conflictBy);
-  }, [board.id, apiBase, withUploadedFiles, scheduleThumbnail]);
+  }, [board.id, apiBase, withUploadedFiles, scheduleThumbnail, setState]);
 
   /** Suma las imágenes que ya tiene el servidor (escena de otra pestaña o persona). */
   function rememberUploaded(files: Record<string, unknown>) {
@@ -511,12 +514,20 @@ export default function BoardEditor({
       if (blockedRef.current === 'conflict') return;
       // Si estaba trabado por tamaño, cada cambio (p. ej. borrar una imagen) reintenta.
       if (blockedRef.current === 'too_large') blockedRef.current = null;
-      setState('dirty');
+      // Mientras se dibuja, onChange llega en cada movimiento: solo el primero
+      // cambia el estado (y re-renderiza la barra); el resto reprograma el guardado.
+      if (stateRef.current !== 'dirty') setState('dirty');
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => void save(), SAVE_DEBOUNCE_MS);
     },
-    [save, readOnly],
+    [save, readOnly, setState],
   );
+
+  // Identidad estable: ExcalidrawCanvas está memoizado y no se re-renderiza con el editor.
+  const onCanvasApi = useCallback((api: CanvasApi) => {
+    apiRef.current = api;
+    setCanvasApi(api);
+  }, []);
 
   // Borrador de una visita anterior que no llegó al servidor: se ofrece recuperarlo.
   useEffect(() => {
@@ -1074,10 +1085,7 @@ export default function BoardEditor({
           viewMode={readOnly}
           library={!guest}
           onChange={onChange}
-          onApi={(api) => {
-            apiRef.current = api;
-            setCanvasApi(api);
-          }}
+          onApi={onCanvasApi}
         />
         {!guest && (
           <BoardOverlays

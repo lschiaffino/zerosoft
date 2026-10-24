@@ -8,6 +8,7 @@ import { sceneToView, type CanvasView } from '@/lib/board-view';
 import type { BoardTrackCard } from '@/lib/board-track';
 import type { VotingView } from '@/lib/board-workshop';
 import type { CanvasApi } from './ExcalidrawCanvas';
+import { elementsSignature } from '@/lib/board-signature';
 
 /** Con menos zoom que esto, los tags no se muestran (el lienzo se llena de texto). */
 const TAGS_MIN_ZOOM = 0.45;
@@ -50,9 +51,16 @@ export default function BoardOverlays({
   useEffect(() => {
     if (!api) return;
     let frame = 0;
+    let lastSig = '';
     const read = () => {
       frame = 0;
-      setElements((api.getSceneElements() as SceneEl[]).filter((e) => !e.isDeleted));
+      const all = api.getSceneElements() as SceneEl[];
+      // onChange llega también por cambios de solo appState (herramienta, puntero,
+      // selección): si ningún elemento cambió de versión, no hay nada que recalcular.
+      const sig = elementsSignature(all);
+      if (sig === lastSig) return;
+      lastSig = sig;
+      setElements(all.filter((e) => !e.isDeleted));
     };
     read();
     const s = api.getAppState();

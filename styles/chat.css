@@ -13,8 +13,7 @@
 .chat-pane,
 .chat-inbox-list,
 .chat-thread,
-.chat-details-section,
-section.ui-section { padding-top: 0; padding-bottom: 0; }
+.chat-details-section { padding-top: 0; padding-bottom: 0; }
 
 .chat-quiet { color: var(--brand-gray-2); }
 .chat-ok { color: var(--ok-ink); }
