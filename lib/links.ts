@@ -299,6 +299,8 @@ export interface LinkDto {
   targeting: LinkTargeting | null;
   /** Los query params del link corto se suman al destino (?utm_source=… gana sobre el del destino). */
   forward_params: boolean;
+  /** Los buscadores pueden indexar el link corto (default false: el redirect lleva noindex). */
+  do_index: boolean;
   /** A dónde redirige el link vencido o sin clicks disponibles (null = página de zerosoft o el default del dominio). */
   expired_url: string | null;
   /** Id de la persona que lo creó (null en links viejos). */
@@ -337,6 +339,7 @@ export function toLinkDto(link: LinkWithDomain): LinkDto {
     qr_scans: link.qr_scans ?? 0,
     targeting: parseTargeting(link.targeting),
     forward_params: link.forward_params !== 0,
+    do_index: link.do_index === 1,
     expired_url: link.expired_url ?? null,
     created_by: link.created_by ?? null,
     external_id: link.external_id ?? null,
@@ -515,6 +518,8 @@ export interface CreateLinkInput {
   ogImage?: string;
   /** Pasar los query params del link corto al destino (default true). */
   forwardParams?: boolean;
+  /** Dejar que los buscadores indexen el link corto (default false). */
+  doIndex?: boolean;
   /** A dónde va el link cuando vence o llega a max_clicks. */
   expiredUrl?: string | null;
   /** Segmentación por país/dispositivo, A/B y deep links. */
@@ -647,8 +652,8 @@ export async function createLink(
     try {
       await db
         .prepare(
-          `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, utm_term, utm_content, og_title, og_description, og_image, forward_params, expired_url, targeting, external_id, created_by, folder_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, utm_term, utm_content, og_title, og_description, og_image, forward_params, do_index, expired_url, targeting, external_id, created_by, folder_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -671,6 +676,7 @@ export async function createLink(
           input.ogDescription?.trim() || null,
           ogImage,
           input.forwardParams === false ? 0 : 1,
+          input.doIndex === true ? 1 : 0,
           expired.value,
           targeting ? JSON.stringify(targeting) : null,
           externalId,
@@ -782,6 +788,7 @@ export const linkPatchSchema = z.object({
   utmTerm: z.string().max(100).nullable().optional(),
   utmContent: z.string().max(100).nullable().optional(),
   forwardParams: z.boolean().optional(),
+  doIndex: z.boolean().optional(),
   expiredUrl: z.string().max(2000).nullable().optional(),
   /** Id propio del cliente (API v1); null lo saca. */
   externalId: z.string().max(255).nullable().optional(),
@@ -926,6 +933,10 @@ export async function applyLinkPatch(
     sets.push('forward_params = ?');
     args.push(p.forwardParams ? 1 : 0);
   }
+  if (p.doIndex !== undefined) {
+    sets.push('do_index = ?');
+    args.push(p.doIndex ? 1 : 0);
+  }
   if (p.expiredUrl !== undefined) {
     const expired = await cleanFallbackUrl(p.expiredUrl);
     if (!expired.ok) return { error: expired.code === 'self_link' ? 'self_link' : 'invalid_expired_url', status: 400 };
@@ -1004,6 +1015,7 @@ export async function duplicateLink(
     ogDescription: link.og_description ?? undefined,
     ogImage: link.og_image ?? undefined,
     forwardParams: link.forward_params !== 0,
+    doIndex: link.do_index === 1,
     expiredUrl: link.expired_url ?? null,
     targeting,
     createdBy,

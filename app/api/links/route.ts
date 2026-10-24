@@ -31,6 +31,7 @@ const createSchema = z.object({
   ogDescription: z.string().max(500).optional(),
   ogImage: z.string().max(500).optional(),
   forwardParams: z.boolean().optional(),
+  doIndex: z.boolean().optional(),
   expiredUrl: z.string().max(2000).nullish(),
   folderId: z.string().max(64).nullish(),
 });

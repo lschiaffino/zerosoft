@@ -1832,6 +1832,7 @@
     "formsSubmissionsTitle": "List form submissions",
     "formsSubmissionsDesc": "Submissions of a form, newest first, with the submitted values, UTM parameters and the linked contact.",
     "paramLinkForwardParams": "Pass the query string of the short link to the destination (default true). On a conflict the short link value wins; qr is never passed.",
+    "paramLinkDoIndex": "Allow search engines to index the short link (default false). Without it the redirect carries X-Robots-Tag: noindex.",
     "paramLinkExpiredUrl": "Where the link redirects once it expires or reaches max_clicks. null clears it and the domain default or the zerosoft page is used.",
     "paramLinkUtm": "Sets that utm_* parameter in the destination URL. An empty string or null removes it. The utm object of the link always mirrors the final URL.",
     "paramLinkDomain": "Hostname of one of your verified custom domains. Leave it out to use the default domain.",

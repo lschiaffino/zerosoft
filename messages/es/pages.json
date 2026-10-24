@@ -1832,6 +1832,7 @@
     "formsSubmissionsTitle": "Listar envíos de un formulario",
     "formsSubmissionsDesc": "Envíos de un formulario, los más recientes primero, con los valores, los parámetros UTM y el contacto vinculado.",
     "paramLinkForwardParams": "Pasa los query params del link corto al destino (default true). En conflicto gana el del link corto; qr nunca se pasa.",
+    "paramLinkDoIndex": "Permite que los buscadores indexen el link corto (default false). Sin esto el redirect lleva X-Robots-Tag: noindex.",
     "paramLinkExpiredUrl": "A dónde redirige el link cuando vence o llega a max_clicks. null lo borra y se usa el default del dominio o la página de zerosoft.",
     "paramLinkUtm": "Pone ese parámetro utm_* en la URL de destino. Un string vacío o null lo saca. El objeto utm del link siempre refleja la URL final.",
     "paramLinkDomain": "Hostname de uno de tus dominios propios verificados. Si lo omitís, se usa el dominio por defecto.",

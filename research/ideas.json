@@ -2157,5 +2157,37 @@
     "product": "groups",
     "kind": "idea",
     "parity": "masking"
+  },
+  {
+    "title": "Link: Add a start date so a link only goes live from a set time",
+    "description": "The Expired Link Redirection plugin schedules a link between two dates with a before, during and after URL (https://wordpress.org/plugins/expired-link-redirection/), and Lyncks changes a link destination by date (https://www.hunted.space/product/lyncks). Link only supports an end: expires_at and max_clicks in lib/links.ts, enforced in app/r/[slug]/route.ts. A small team printing a QR code ahead of a launch has to create the link on launch day. First scope: a nullable starts_at column, a datetime field next to expiry in components/link/EditLinkForm.tsx, and the redirect answering with the link fallback or a not-live-yet reason on /gone before that time.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Check destinations daily and flag links that return 404 or 5xx",
+    "description": "Redirect and URL monitors such as Pagecrawl check a destination on a schedule and alert when it breaks, shortened links included (https://pagecrawl.io/tools/monitor-website-redirects-url-changes.html). Link never fetches a destination after creation: lib/links.ts only validates the URL syntax, so a printed QR can point at a dead page for weeks. First scope: a daily cron under app/api/cron that sends a HEAD request for links with clicks in the last 30 days, stores last_check_status and last_checked_at, shows a warning in components/link/LinksTable.tsx and the link detail, and emits a link.broken webhook event.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Email a weekly digest with total clicks and the top links",
+    "description": "Linkbreakers sends weekly and monthly digests with total visits, top country and top link (https://linkbreakers.com/help/article/weekly-and-monthly-email-digests). Link has analytics pages and CSV export (app/[locale]/app/links/analytics) but nothing reaches the owner unless they open the app. A small team with a few campaign links wants one Monday email with clicks against the previous week. First scope: an hourly tick job that sends one email per workspace owner who opted in from settings, built from the queries in lib/link-analytics.ts.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Change the destination by date range with time-based redirect rules",
+    "description": "Lyncks lets one link change its destination automatically based on the time or date you set (https://www.hunted.space/product/lyncks). Link targeting covers country, device and A/B variants in lib/link-targeting.ts, with nothing based on time. A restaurant or a webinar team reuses one printed QR code and swaps the destination by hand each time. First scope: an ordered list of date range rules in the targeting JSON, checked before A/B, with the base URL as the fallback.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Let search engines index a short link with a per-link indexing switch",
+    "description": "Dub exposes a doIndex boolean per link and sends noindex by default (https://dub.co/docs/concepts/links/introduction). Link redirects in app/r/[slug]/route.ts sent no X-Robots-Tag, so short URLs could end up in search results. Built: redirects carry X-Robots-Tag: noindex unless the link turns on doIndex, with a checkbox in EditLinkForm and the field in the API.",
+    "product": "link",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-24-link"
   }
 ]

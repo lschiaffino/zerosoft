@@ -29,6 +29,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-24-link',
+    date: '2026-10-24',
+    title: {
+      en: 'Link: short links stay out of search results unless you say otherwise',
+      es: 'Link: los links cortos quedan fuera de los buscadores salvo que lo pidas',
+      pt: 'Link: os links curtos ficam fora dos buscadores a menos que você peça',
+    },
+    items: [
+      { product: 'link', en: 'Every redirect now sends X-Robots-Tag: noindex. A new checkbox in the link settings, and the doIndex field in the API, lets search engines index a short link when you want that.', es: 'Todos los redirects envían X-Robots-Tag: noindex. Una opción nueva en los ajustes del link, y el campo doIndex en la API, deja que los buscadores indexen un link corto cuando lo querés.', pt: 'Todos os redirecionamentos agora enviam X-Robots-Tag: noindex. Uma nova opção nas configurações do link, e o campo doIndex na API, deixa os buscadores indexarem um link curto quando você quiser.' },
+    ],
+  },
+  {
     id: '2026-10-23-groups',
     date: '2026-10-23',
     title: {
