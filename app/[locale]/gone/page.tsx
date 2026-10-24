@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import ZeroTorus from '@/components/zero/ZeroTorus';
+import '@/styles/link.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,17 +26,21 @@ export default async function GonePage(props: GonePageProps) {
   const reason: Reason = (REASONS as string[]).includes(raw) ? (raw as Reason) : 'notfound';
 
   return (
-    <main className="notfound-page">
+    <main className="auth-page">
       <ZeroTorus interactive={false} className="zero-torus-bg" />
-      <p className="notfound-code">0</p>
-      <h1 className="gone-title">{t(`gone.${reason}Title`)}</h1>
-      <p className="notfound-msg">{t(`gone.${reason}Sub`)}</p>
-      {/* <a> plano: en un dominio propio "/<locale>" no existe (404), y "/" ya
-          lleva a la raíz configurada del dominio o, en la app, al inicio. */}
-      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-      <a href="/" className="btn btn-ghost">
-        {t('gone.home')}
-      </a>
+      <div className="auth-card">
+        <span className="brand-zero" style={{ width: 44, height: 44, fontSize: 20 }}>
+          0
+        </span>
+        <h1>{t(`gone.${reason}Title`)}</h1>
+        <p className="auth-sub">{t(`gone.${reason}Sub`)}</p>
+        {/* <a> plano: en un dominio propio "/<locale>" no existe (404), y "/" ya
+            lleva a la raíz configurada del dominio o, en la app, al inicio. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a href="/" className="btn btn-ghost">
+          {t('gone.home')}
+        </a>
+      </div>
     </main>
   );
 }
