@@ -31,6 +31,10 @@ const mono = IBM_Plex_Mono({
   weight: ['400', '500'],
   variable: '--font-plex-mono',
   display: 'swap',
+  // Sin preload: es la fuente de datos y rótulos. Precargada, sus dos archivos
+  // ocupaban conexiones antes que el CSS que bloquea el render y demoraban el
+  // primer paint (medido con un A/B intercalado). Tiene fallback ajustado.
+  preload: false,
 });
 
 export function generateStaticParams() {

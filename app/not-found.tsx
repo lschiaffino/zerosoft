@@ -3,7 +3,7 @@ import { Space_Grotesk, IBM_Plex_Mono } from 'next/font/google';
 import '@/styles/site.css';
 
 const sans = Space_Grotesk({ subsets: ['latin'], variable: '--font-space-grotesk', display: 'swap' });
-const mono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-plex-mono', display: 'swap' });
+const mono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-plex-mono', display: 'swap', preload: false });
 
 // 404 global (rutas fuera de /[locale]). Autocontenida: trae su propio html/body
 // y las fuentes del sitio. Las rutas con idioma usan app/[locale]/not-found.tsx.
