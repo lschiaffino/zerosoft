@@ -42,6 +42,7 @@ import { convertLead, createLead, ensureLeadStages, getLead, listLeads, listLead
 import { employeesFrom, jsonLdObjects, parseSiteProfile, socialProfile } from '@/lib/crm-site-profile';
 import { enrichCompany, enrichmentPatch, fakeHomeHtml, mapPdlCompany, mergeEnrichment } from '@/lib/crm-enrich';
 import { makeUser } from './helpers';
+import { midSentence } from '@/lib/crm-object-text';
 
 const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown> }));
 vi.mock('@/lib/session', () => ({
@@ -269,6 +270,26 @@ describe('objeto Lead', () => {
     expect(deal?.deal.owner_id).toBe(w.m1.id);
     expect(deal?.contacts.map((x) => x.id)).toEqual([c.id]);
     expect((await convertLead(w.owner.id, lead.id)).ok).toBe(false);
+  });
+
+  it('un lead descalificado no se convierte hasta reabrirlo', async () => {
+    const w = await workspace();
+    const stages = await ensureLeadStages(w.owner.id);
+    const lead = await createLead(w.owner.id, { name: 'Sin presupuesto' });
+    const pipeline = await createPipeline(w.owner.id, 'Sales');
+    await createStage(w.owner.id, pipeline.id, { name: 'Discovery' });
+    await updateLead(w.owner.id, lead.id, { stageId: stages.find((s) => s.kind === 'disqualified')!.id });
+    expect(await convertLead(w.owner.id, lead.id, { pipelineId: pipeline.id })).toEqual({ ok: false, reason: 'lead_disqualified' });
+    await updateLead(w.owner.id, lead.id, { stageId: stages[0].id });
+    expect((await convertLead(w.owner.id, lead.id, { pipelineId: pipeline.id })).ok).toBe(true);
+  });
+
+  it('el nombre del objeto va en minúscula a mitad de frase, salvo siglas', () => {
+    expect(midSentence('Vehicles')).toBe('vehicles');
+    expect(midSentence('Vehículos', 'es')).toBe('vehículos');
+    expect(midSentence('API keys')).toBe('API keys');
+    expect(midSentence('SKUs')).toBe('SKUs');
+    expect(midSentence('iPhones')).toBe('iPhones');
   });
 
   it('la ruta usa la visibilidad por owner y los permisos de los campos de leads', async () => {

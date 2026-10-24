@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { midSentence } from '@/lib/crm-object-text';
 import { listObjects, listRecords, recordsLinkedTo, type ObjectLinkEntity } from '@/lib/crm-objects';
 import { filterByScope, type OwnerScope } from '@/lib/crm-visibility';
 import AssociationPanel from './AssociationPanel';
@@ -43,8 +44,8 @@ export default async function RelatedObjectRecords({
             options={options.map((r) => ({ id: r.id, value: r.name }))}
             onAssociate={linkFromEntity.bind(null, entity, entityId)}
             onRemove={unlinkFromEntity.bind(null, entity, entityId)}
-            addLabel={t('objects.pickRecord', { singular: o.singular })}
-            emptyLabel={t('objects.noRecords', { plural: o.plural })}
+            addLabel={t('objects.pickRecord', { singular: midSentence(o.singular, locale) })}
+            emptyLabel={t('objects.noRecords', { plural: midSentence(o.plural, locale) })}
           />
         </section>
       ))}

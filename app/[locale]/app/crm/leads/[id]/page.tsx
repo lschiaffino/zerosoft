@@ -15,6 +15,7 @@ import { formatDate } from '@/lib/utils';
 import PageHeader from '@/components/ui/PageHeader';
 import RecordTabs from '@/components/crm/RecordTabs';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
+import RecordTitle from '@/components/crm/RecordTitle';
 import DangerDelete from '@/components/crm/DangerDelete';
 import Timeline from '@/components/crm/Timeline';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
@@ -96,7 +97,7 @@ export default async function LeadPage(props: {
     <>
       <PageHeader
         back={{ href: '/app/crm/leads', label: t('leads.back') }}
-        title={lead.name}
+        title={<RecordTitle name={lead.name} endpoint={`/api/crm/leads/${lead.id}`} />}
         description={
           <span className="record-meta">
             <span className={`badge lead-kind-${kind}`}>{stage?.name ?? '—'}</span>

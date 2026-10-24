@@ -13,6 +13,7 @@ import { withActivityFiles } from '@/lib/crm-files';
 import PageHeader from '@/components/ui/PageHeader';
 import RecordTabs from '@/components/crm/RecordTabs';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
+import RecordTitle from '@/components/crm/RecordTitle';
 import DangerDelete from '@/components/crm/DangerDelete';
 import Timeline from '@/components/crm/Timeline';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
@@ -49,7 +50,7 @@ export default async function ObjectRecordPage(props: {
   const header = (
     <PageHeader
       back={{ href: `/app/crm/objects/${object.slug}`, label: object.plural }}
-      title={record.name}
+      title={<RecordTitle name={record.name} endpoint={`/api/crm/records/${record.id}`} />}
       description={
         <span className="record-meta">
           <span className="badge">{object.singular}</span>

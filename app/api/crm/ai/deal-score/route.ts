@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
-import { guardRecord, invalidBody, limitAction, unauthorized } from '@/lib/crm-http';
-import { crmAiAvailable, generateDealScore, getDealScore } from '@/lib/crm-ai';
+import { catchRef, crmError, CrmRefError, guardRecord, invalidBody, limitAction, notFound, unauthorized } from '@/lib/crm-http';
+import { createActivity } from '@/lib/crm';
+import { addDealPlanTask, crmAiAvailable, generateDealScore, getDealScore } from '@/lib/crm-ai';
 import { aiErrorResponse, aiLocale } from '@/lib/crm-ai-http';
 
 export const runtime = 'nodejs';
@@ -47,4 +48,36 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     return aiErrorResponse(err);
   }
+}
+
+const planTaskSchema = z.object({
+  id: z.string().min(1).max(64),
+  index: z.number().int().min(0).max(9),
+  /** Vencimiento en la hora local de quien lo pide (YYYY-MM-DD HH:MM). */
+  dueAt: z.string().regex(/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2})?$/),
+});
+
+/** Pasa un paso del plan a tarea del deal (una sola vez; queda marcado en el plan guardado). */
+export async function PATCH(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return unauthorized();
+  const parsed = planTaskSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return invalidBody(parsed.error);
+  const scope = await sessionScope(user);
+  const hidden = await guardRecord(user.id, 'deal', parsed.data.id, scope);
+  if (hidden) return hidden;
+  const res = await catchRef(
+    addDealPlanTask(user.id, parsed.data.id, parsed.data.index, async (step) => {
+      const task = await createActivity(user.id, {
+        type: 'task',
+        subject: step.title,
+        dueAt: parsed.data.dueAt,
+        dealId: parsed.data.id,
+      });
+      return task.id;
+    }),
+  );
+  if (res instanceof CrmRefError) return crmError(400, res.code);
+  if (!res.ok) return res.reason === 'not_found' ? notFound() : crmError(409, res.reason);
+  return NextResponse.json({ taskId: res.taskId });
 }

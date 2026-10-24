@@ -173,14 +173,18 @@ export default function LeadActions({
           </button>
         )
       )}
-      <button type="button" className="btn btn-primary btn-sm" onClick={() => setDialog('convert')} data-testid="lead-convert">
-        {t('leads.convert.cta')}
-      </button>
+      {/* Un lead descalificado se reabre antes de convertirlo en deal. */}
+      {stageKind !== 'disqualified' && (
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => setDialog('convert')} data-testid="lead-convert">
+          {t('leads.convert.cta')}
+        </button>
+      )}
 
       <QuickModal
         open={dialog === 'convert'}
         onClose={close}
         title={t('leads.convert.title')}
+        centered
         onSubmit={convert}
         submitLabel={busy ? t('leads.convert.busy') : t('leads.convert.submit')}
         cancelLabel={t('common.cancel')}
@@ -239,6 +243,7 @@ export default function LeadActions({
         open={dialog === 'disqualify'}
         onClose={close}
         title={t('leads.disqualify.title')}
+        centered
         onSubmit={disqualify}
         submitLabel={t('leads.disqualify.submit')}
         cancelLabel={t('common.cancel')}

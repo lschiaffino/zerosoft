@@ -6,6 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import type { EnrichOutput, OutreachOutput, RunItemView, RunView } from '@/lib/crm-ai-agents';
 import { aiErrorKey } from './aiShared';
+import { useCrmAdmin } from './CrmViewer';
 
 interface RunData {
   run: RunView;
@@ -25,6 +26,7 @@ function recordHref(item: RunItemView): string {
  */
 export default function AiRunView({ initial }: { initial: RunData }) {
   const t = useTranslations('crm.ai');
+  const isAdmin = useCrmAdmin();
   const tc = useTranslations('crm');
   const router = useRouter();
   const [data, setData] = useState<RunData>(initial);
@@ -88,7 +90,7 @@ export default function AiRunView({ initial }: { initial: RunData }) {
     const json = (await res?.json().catch(() => null)) as (RunItemView & { error?: string }) | null;
     setBusyId(null);
     if (!res?.ok || !json?.id) {
-      setError(t(aiErrorKey(json?.error)));
+      setError(t(aiErrorKey(json?.error, isAdmin)));
       return;
     }
     patchItem(json);
@@ -241,7 +243,7 @@ export default function AiRunView({ initial }: { initial: RunData }) {
                   <span className={`badge ai-item-status-${item.status}`}>{t(`agents.itemStatus.${item.status}`)}</span>
                 </div>
                 {item.status === 'pending' && <p className="muted">{t('agents.waiting')}</p>}
-                {item.status === 'failed' && <p className="form-error">{t(aiErrorKey(item.error))}</p>}
+                {item.status === 'failed' && <p className="form-error">{t(aiErrorKey(item.error, isAdmin))}</p>}
                 {!isOutreach && Array.isArray(out.changes) && out.changes.length > 0 && (
                   <dl className="ai-changes">
                     {out.changes.map((ch) => (

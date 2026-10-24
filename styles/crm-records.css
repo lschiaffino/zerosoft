@@ -692,3 +692,84 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .co-socials { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px; white-space: normal; }
 .co-enrich-action { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .co-enrich-msg { font-size: 0.8125rem; }
+
+/* Selector buscable de registros (RecordCombobox): input + lista bajo el campo. */
+.crm-combo {
+  position: relative;
+}
+.crm-combo > input {
+  width: 100%;
+}
+.crm-combo-options {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  z-index: 30;
+  max-height: 240px;
+  margin: 4px 0 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--ink);
+}
+.crm-combo-options button {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  overflow: hidden;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.crm-combo-options button.is-none {
+  color: var(--muted);
+}
+.crm-combo-options button:hover,
+.crm-combo-options button.is-active {
+  background: var(--ui-hover);
+}
+.crm-combo-options button[aria-selected='true'] {
+  font-weight: 600;
+}
+
+/* Título editable de la ficha (RecordTitle). */
+.record-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+.record-title-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+.record-title-rename {
+  flex: none;
+  opacity: 0.55;
+}
+.record-title:hover .record-title-rename,
+.record-title-rename:focus-visible {
+  opacity: 1;
+}
+.record-title-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.record-title-input {
+  width: 100%;
+  max-width: 640px;
+  font: inherit;
+}
+.record-title-error {
+  font-size: 0.8125rem;
+}

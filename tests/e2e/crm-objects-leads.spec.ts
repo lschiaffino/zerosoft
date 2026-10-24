@@ -92,7 +92,10 @@ test('leads: alta, tabla, board con cambio de etapa, conversión a deal', async 
   await page.goto('/en/app/crm/leads', { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'New lead' }).first().click();
   const dialog = page.getByRole('dialog', { name: 'New lead' });
-  await dialog.getByLabel('Contact').selectOption(contact.id);
+  const combo = dialog.getByRole('combobox', { name: 'Contact' });
+  await combo.click();
+  await combo.pressSequentially(`Lead ${tag}`);
+  await dialog.getByRole('option', { name: `Lead ${tag}` }).click();
   await dialog.getByRole('button', { name: 'Create' }).click();
   // Sin nombre toma el del contacto.
   await expect(page.getByRole('heading', { level: 1, name: `Lead ${tag}` })).toBeVisible();

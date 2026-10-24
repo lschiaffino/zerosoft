@@ -16,6 +16,11 @@
   overflow-y: auto;
 }
 
+.qm-overlay-center {
+  align-items: center;
+  padding-top: 16px;
+}
+
 .qm {
   width: 100%;
   border: 1px solid var(--ink);

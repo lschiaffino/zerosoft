@@ -1147,6 +1147,7 @@
     "field_readonly": "Você não pode editar um destes campos.",
     "object_limit": "Este workspace já tem 20 objetos personalizados.",
     "already_converted": "Este lead já foi convertido em negócio.",
+    "lead_disqualified": "Reabra este lead antes de convertê-lo em negócio.",
     "stage_not_empty": "Esta etapa tem leads. Mova-os primeiro.",
     "last_stage": "O pipeline de leads precisa de pelo menos uma etapa.",
     "no_domain": "Primeiro adicione o domínio ou o site da empresa.",
@@ -1891,6 +1892,7 @@
     "manage": "Gerenciar"
   },
   "record": {
+    "rename": "Renomear",
     "tabsLabel": "Seções do registro",
     "tabs": {
       "activity": "Atividade",
@@ -2257,7 +2259,8 @@
     },
     "errors": {
       "generic": "Algo deu errado. Tente de novo.",
-      "ai_disabled": "A IA não está configurada neste workspace. Um admin ativa com uma chave do AI Gateway (AI_GATEWAY_API_KEY).",
+      "ai_disabled": "A IA não está configurada neste workspace. Peça a um admin para ativá-la.",
+      "ai_disabled_admin": "A IA não está configurada neste workspace. Ative com uma chave do AI Gateway (AI_GATEWAY_API_KEY) nas configurações do servidor.",
       "quota_exceeded": "Você usou a cota de IA deste mês.",
       "rate_limited": "Pedidos demais para a IA. Espere um minuto e tente de novo.",
       "not_found": "Esse registro não existe mais ou você não pode vê-lo.",
@@ -2546,6 +2549,7 @@
       "source": "Origem",
       "stage": "Etapa",
       "noContact": "Sem contato",
+      "searchContact": "Buscar contatos",
       "noCompany": "Sem empresa",
       "noSource": "Sem origem",
       "needOne": "Escolha um contato ou uma empresa, ou escreva um nome."

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { DealScore } from '@/lib/crm-ai';
 import { aiErrorKey, dayFromToday, formatAiWhen } from './aiShared';
+import { useCrmAdmin } from './CrmViewer';
 
 export interface DealScoreState {
   content: DealScore;
@@ -34,11 +35,11 @@ export default function DealInsightCard({
   closed: boolean;
 }) {
   const t = useTranslations('crm.ai');
+  const isAdmin = useCrmAdmin();
   const router = useRouter();
   const [data, setData] = useState<DealScoreState | null>(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [added, setAdded] = useState<Set<number>>(new Set());
   const [adding, setAdding] = useState<number | null>(null);
 
   async function generate() {
@@ -53,29 +54,31 @@ export default function DealInsightCard({
     const json = (await res?.json().catch(() => null)) as { score?: DealScoreState; error?: string } | null;
     setBusy(false);
     if (!res?.ok || !json?.score) {
-      setError(t(aiErrorKey(json?.error)));
+      setError(t(aiErrorKey(json?.error, isAdmin)));
       return;
     }
     setData(json.score);
-    setAdded(new Set());
   }
 
   async function addTask(i: number) {
     const step = data?.content.plan[i];
-    if (!step || adding !== null) return;
+    if (!step || step.taskId || adding !== null) return;
     setAdding(i);
     setError(null);
-    const res = await fetch('/api/crm/activities', {
-      method: 'POST',
+    // El servidor crea la tarea y la marca en el plan guardado (una sola vez).
+    const res = await fetch('/api/crm/ai/deal-score', {
+      method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ type: 'task', subject: step.title, dueAt: `${dayFromToday(step.dueInDays)} 09:00`, dealId }),
+      body: JSON.stringify({ id: dealId, index: i, dueAt: `${dayFromToday(step.dueInDays)} 09:00` }),
     }).catch(() => null);
     setAdding(null);
-    if (!res?.ok) {
+    const json = (await res?.json().catch(() => null)) as { taskId?: string; error?: string } | null;
+    if (!res?.ok && json?.error !== 'already_added') {
       setError(t('errors.generic'));
       return;
     }
-    setAdded((s) => new Set(s).add(i));
+    const taskId = json?.taskId ?? 'pending';
+    setData((d) => (d ? { ...d, content: { ...d.content, plan: d.content.plan.map((p, j) => (j === i ? { ...p, taskId } : p)) } } : d));
     router.refresh();
   }
 
@@ -115,7 +118,7 @@ export default function DealInsightCard({
                   <li key={i}>
                     <span className="ai-plan-title">{p.title}</span>
                     <span className="ai-plan-due muted">{p.dueInDays === 0 ? t('score.today') : t('score.inDays', { days: p.dueInDays })}</span>
-                    {added.has(i) ? (
+                    {p.taskId ? (
                       <span className="ai-plan-done">{t('score.added')}</span>
                     ) : (
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => addTask(i)} disabled={adding !== null} aria-label={`${t('score.addTask')}: ${p.title}`}>
@@ -133,7 +136,7 @@ export default function DealInsightCard({
           </p>
         </>
       ) : (
-        <p className="muted ai-empty">{available ? t('score.empty') : t('errors.ai_disabled')}</p>
+        <p className="muted ai-empty">{available ? t('score.empty') : t(aiErrorKey('ai_disabled', isAdmin))}</p>
       )}
       {busy && <p className="muted" role="status">{t('score.loading')}</p>}
       {error && (

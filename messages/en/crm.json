@@ -1147,6 +1147,7 @@
     "field_readonly": "You can't edit one of these fields.",
     "object_limit": "This workspace already has 20 custom objects.",
     "already_converted": "This lead was already converted to a deal.",
+    "lead_disqualified": "Reopen this lead before converting it to a deal.",
     "stage_not_empty": "This stage has leads. Move them first.",
     "last_stage": "The lead pipeline needs at least one stage.",
     "no_domain": "Add a domain or website to the company first.",
@@ -1891,6 +1892,7 @@
     "manage": "Manage"
   },
   "record": {
+    "rename": "Rename",
     "tabsLabel": "Record sections",
     "tabs": {
       "activity": "Activity",
@@ -2257,7 +2259,8 @@
     },
     "errors": {
       "generic": "Something went wrong. Try again.",
-      "ai_disabled": "AI is not set up on this workspace. An admin can turn it on with an AI Gateway key (AI_GATEWAY_API_KEY).",
+      "ai_disabled": "AI is not set up on this workspace. Ask an admin to turn it on.",
+      "ai_disabled_admin": "AI is not set up on this workspace. Turn it on with an AI Gateway key (AI_GATEWAY_API_KEY) in the server settings.",
       "quota_exceeded": "You've used this month's AI quota.",
       "rate_limited": "Too many AI requests. Wait a minute and try again.",
       "not_found": "That record no longer exists or you cannot see it.",
@@ -2546,6 +2549,7 @@
       "source": "Source",
       "stage": "Stage",
       "noContact": "No contact",
+      "searchContact": "Search contacts",
       "noCompany": "No company",
       "noSource": "No source",
       "needOne": "Pick a contact or a company, or write a name."

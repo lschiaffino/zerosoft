@@ -2,6 +2,8 @@
    y agentes. Solo tokens del tema (claro y oscuro salen solos). */
 
 .ai-card { gap: 8px; }
+/* Las tarjetas son <section>: anula el padding de sección de la landing (globals.css). */
+section.ai-card { padding-top: 0; padding-bottom: 0; }
 .ai-text { margin: 0; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .ai-subtitle { margin: 4px 0 0; font-size: 0.8125rem; font-weight: 600; color: var(--ink-2); }
 .ai-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 0.8125rem; color: var(--ink-2); }
@@ -171,4 +173,22 @@ body:has(.fl-root:not(.is-tucked)) .ai-panel-foot { padding-right: 84px; }
 
 @media (prefers-reduced-motion: reduce) {
   .ai-progress span { transition: none; }
+}
+
+/* El launcher de feedback no tapa el panel del asistente ni los formularios:
+   con el panel abierto se corre a su izquierda (en el teléfono, donde el panel
+   ocupa todo el ancho, se esconde); en el teléfono la pestaña cabe en el
+   margen de 16px y se esconde mientras se escribe en un campo. */
+body:has(.ai-panel) .fl-root { right: calc(min(420px, 100vw) + 20px); }
+@media (max-width: 760px) {
+  .fl-root .fl-button { width: 16px; }
+  .fl-root .fl-button svg { width: 10px; height: 10px; }
+  body:has(.ai-panel) .fl-root,
+  body:has(main :is(input, textarea, select):focus) .fl-root {
+    right: 0;
+    transform: translateX(100%);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
 }

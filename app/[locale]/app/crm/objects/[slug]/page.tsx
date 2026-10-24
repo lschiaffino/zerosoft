@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { midSentence } from '@/lib/crm-object-text';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
@@ -183,7 +184,7 @@ export default async function ObjectRecordsPage(props: {
       {settings}
 
       <ListToolbar
-        searchLabel={t('objects.search', { plural: object.plural })}
+        searchLabel={t('objects.search', { plural: midSentence(object.plural, locale) })}
         q={q}
         query={query}
         selects={[
@@ -217,7 +218,7 @@ export default async function ObjectRecordsPage(props: {
           />
         ) : (
           <EmptyState
-            title={t('objects.emptyRecordsTitle', { plural: object.plural })}
+            title={t('objects.emptyRecordsTitle', { plural: midSentence(object.plural, locale) })}
             body={t('objects.emptyRecordsBody')}
             action={createButton('empty')}
           />

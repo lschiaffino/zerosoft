@@ -19,6 +19,6 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!parsed.success) return invalidBody(parsed.error);
   const res = await catchRef(convertLead(user.id, id, parsed.data));
   if (res instanceof CrmRefError) return crmError(400, res.code);
-  if (!res.ok) return res.reason === 'not_found' ? notFound() : crmError(res.reason === 'already_converted' ? 409 : 400, res.reason);
+  if (!res.ok) return res.reason === 'not_found' ? notFound() : crmError(res.reason === 'already_converted' || res.reason === 'lead_disqualified' ? 409 : 400, res.reason);
   return NextResponse.json({ dealId: res.dealId }, { status: 201 });
 }

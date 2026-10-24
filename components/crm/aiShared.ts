@@ -20,8 +20,12 @@ const KNOWN = new Set([
   'site_empty',
 ]);
 
-/** Clave de crm.ai.errors.* para un código de error de la API. */
-export function aiErrorKey(code: string | null | undefined): `errors.${string}` {
+/**
+ * Clave de crm.ai.errors.* para un código de error de la API. Sin IA, los
+ * admins ven la pista de configuración (la variable de entorno); el resto no.
+ */
+export function aiErrorKey(code: string | null | undefined, admin = false): `errors.${string}` {
+  if (code === 'ai_disabled' && admin) return 'errors.ai_disabled_admin';
   return `errors.${code && KNOWN.has(code) ? code : 'generic'}`;
 }
 

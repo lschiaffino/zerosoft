@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { aiErrorKey } from './aiShared';
+import { useCrmAdmin } from './CrmViewer';
 
 /**
  * "Score deals with AI" del board: pide el score de los deals abiertos del
@@ -12,6 +13,7 @@ import { aiErrorKey } from './aiShared';
  */
 export default function ScoreDealsButton({ pipelineId, locale }: { pipelineId: string; locale: string }) {
   const t = useTranslations('crm.ai');
+  const isAdmin = useCrmAdmin();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
@@ -29,7 +31,7 @@ export default function ScoreDealsButton({ pipelineId, locale }: { pipelineId: s
       }).catch(() => null);
       const data = (await res?.json().catch(() => null)) as { scored?: number; remaining?: number; error?: string } | null;
       if (!res?.ok || !data) {
-        setMessage({ text: t(aiErrorKey(data?.error)), error: true });
+        setMessage({ text: t(aiErrorKey(data?.error, isAdmin)), error: true });
         break;
       }
       total += data.scored ?? 0;

@@ -17,7 +17,9 @@ import {
   CrmAiError,
   dealScoresFor,
   generateCallSummary,
+  addDealPlanTask,
   generateDealScore,
+  getDealScore,
   generateRecordSummary,
   getRecordSummary,
   transcriptText,
@@ -28,6 +30,7 @@ import { applyItem, createRun, getRun, htmlText, namesFromEmail, stepRun } from 
 import { actionMissing } from '@/lib/crm-workflow-catalog';
 import { apiFieldKey, createWorkflow, runWorkflowsForEvent } from '@/lib/crm-workflows';
 import { makeUser } from './helpers';
+import { aiErrorKey } from '@/components/crm/aiShared';
 import { mockModel, scriptedModel } from './ai-mock';
 
 const ENV_KEYS = ['AI_GATEWAY_API_KEY', 'VERCEL_OIDC_TOKEN', 'VERCEL', 'AI_ENABLED', 'AI_FREE_TOKENS_PER_MONTH', 'CRM_AI_FAKE', 'RATE_LIMIT_DISABLED'];
@@ -159,6 +162,33 @@ describe('score del deal', () => {
     const closed = await createDeal(u.id, { pipelineId, stageId: won.id, name: 'Done deal' });
     if (!closed.ok) throw new Error('no deal');
     await expect(generateDealScore({ workspaceId: u.id, id: closed.deal.id, scope: null, locale: 'en', actorId: u.id })).rejects.toBeInstanceOf(CrmAiError);
+  });
+
+  it('un paso del plan pasa a tarea una sola vez y se recuerda al recalcular', async () => {
+    const u = await makeUser('ai-plan');
+    const { deal } = await dealWith(u.id);
+    const model = JSON.stringify({ score: 50, reasons: [], plan: [{ title: 'Send proposal', dueInDays: 2 }, { title: 'Call CFO', dueInDays: 1 }] });
+    setAiModelOverride(mockModel(model));
+    await generateDealScore({ workspaceId: u.id, id: deal.id, scope: null, locale: 'en', actorId: u.id });
+    let created = 0;
+    const create = async () => `task-${++created}`;
+    expect(await addDealPlanTask(u.id, deal.id, 0, create)).toEqual({ ok: true, taskId: 'task-1' });
+    expect(await addDealPlanTask(u.id, deal.id, 0, create)).toEqual({ ok: false, reason: 'already_added' });
+    expect(await addDealPlanTask(u.id, deal.id, 7, create)).toEqual({ ok: false, reason: 'not_found' });
+    expect(created).toBe(1);
+    // Si crear la tarea falla, el paso queda libre.
+    await expect(addDealPlanTask(u.id, deal.id, 1, async () => { throw new Error('boom'); })).rejects.toThrow('boom');
+    expect((await getDealScore(u.id, deal.id, null))?.content.plan[1].taskId).toBeUndefined();
+    // Recalcular conserva la marca del paso con el mismo título.
+    setAiModelOverride(mockModel(model));
+    const again = await generateDealScore({ workspaceId: u.id, id: deal.id, scope: null, locale: 'en', actorId: u.id });
+    expect(again.content.plan.map((p) => p.taskId)).toEqual(['task-1', undefined]);
+  });
+
+  it('sin IA, la pista de configuración es solo para admins', () => {
+    expect(aiErrorKey('ai_disabled')).toBe('errors.ai_disabled');
+    expect(aiErrorKey('ai_disabled', true)).toBe('errors.ai_disabled_admin');
+    expect(aiErrorKey('weird', true)).toBe('errors.generic');
   });
 });
 

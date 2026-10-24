@@ -5,16 +5,19 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import type { AssistantProposal, AssistantRecordRef, AssistantReply } from '@/lib/crm-ai-assistant';
 import { aiErrorKey } from './aiShared';
+import { useCrmAdmin } from './CrmViewer';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   records?: AssistantRecordRef[];
   proposals?: AssistantProposal[];
+  /** Propuestas ya resueltas (se guarda en el historial: tras recargar no se vuelven a ofrecer). */
+  resolved?: Record<string, 'done' | 'dismissed'>;
   error?: boolean;
 }
 
-type ProposalState = { status: 'idle' | 'busy' | 'done' | 'dismissed' | 'error'; message?: string };
+type ProposalState = { status: 'idle' | 'busy' | 'error'; message?: string };
 
 const STORE_KEY = 'zs:crm-assistant';
 const RECORD_PATH = /^\/app\/crm\/(contacts|companies|deals)\/([^/?#]+)/;
@@ -46,6 +49,7 @@ function store(messages: ChatMessage[]) {
  */
 export default function CrmAssistant() {
   const t = useTranslations('crm.ai');
+  const isAdmin = useCrmAdmin();
   const locale = useLocale();
   const pathname = usePathname();
   const router = useRouter();
@@ -87,7 +91,11 @@ export default function CrmAssistant() {
 
   const close = useCallback(() => {
     setOpen(false);
-    const back = returnFocus.current?.isConnected ? returnFocus.current : document.querySelector<HTMLElement>('[data-crm-assistant-trigger]');
+    // Abierto desde ⌘K el foco previo es el body (o el input ya desmontado de la
+    // paleta): en ese caso vuelve al botón "Ask AI" de la banda.
+    const prev = returnFocus.current;
+    const usable = prev && prev.isConnected && prev !== document.body && !prev.closest('.ai-panel');
+    const back = usable ? prev : document.querySelector<HTMLElement>('[data-crm-assistant-trigger]');
     window.setTimeout(() => back?.focus(), 0);
   }, []);
 
@@ -107,6 +115,15 @@ export default function CrmAssistant() {
   function update(next: ChatMessage[]) {
     setMessages(next);
     store(next);
+  }
+
+  /** Suma la respuesta sobre el estado actual (no pisa propuestas resueltas mientras se esperaba). */
+  function append(msg: ChatMessage) {
+    setMessages((prev) => {
+      const next = [...prev, msg];
+      store(next);
+      return next;
+    });
   }
 
   async function send(text: string) {
@@ -131,14 +148,30 @@ export default function CrmAssistant() {
     const data = (await res?.json().catch(() => null)) as (AssistantReply & { error?: string }) | null;
     setBusy(false);
     if (!res?.ok || !data || data.error) {
-      update([...history, { role: 'assistant', content: t(aiErrorKey(data?.error)), error: true }]);
+      append({ role: 'assistant', content: t(aiErrorKey(data?.error, isAdmin)), error: true });
       return;
     }
-    update([...history, { role: 'assistant', content: data.text, records: data.records, proposals: data.proposals }]);
+    append({ role: 'assistant', content: data.text, records: data.records, proposals: data.proposals });
   }
 
-  async function confirm(p: AssistantProposal) {
+  /** Marca la propuesta como resuelta en el mensaje que la trae y lo persiste. */
+  function resolve(id: string, status: 'done' | 'dismissed') {
+    setMessages((prev) => {
+      const next = prev.map((m) =>
+        m.proposals?.some((p) => p.id === id) ? { ...m, resolved: { ...m.resolved, [id]: status } } : m,
+      );
+      store(next);
+      return next;
+    });
+  }
+
+  /** Ids aplicados o en curso: una propuesta se aplica una sola vez (doble clic incluido). */
+  const applying = useRef<Set<string>>(new Set());
+
+  async function confirm(p: AssistantProposal, resolved: ChatMessage['resolved']) {
     if (!p.request.url.startsWith('/api/crm/')) return;
+    if (resolved?.[p.id] || applying.current.has(p.id)) return;
+    applying.current.add(p.id);
     setProposalState((s) => ({ ...s, [p.id]: { status: 'busy' } }));
     const res = await fetch(p.request.url, {
       method: p.request.method,
@@ -147,14 +180,15 @@ export default function CrmAssistant() {
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as { error?: string } | null;
     if (!res?.ok) {
-      setProposalState((s) => ({ ...s, [p.id]: { status: 'error', message: t(aiErrorKey(data?.error)) } }));
+      applying.current.delete(p.id);
+      setProposalState((s) => ({ ...s, [p.id]: { status: 'error', message: t(aiErrorKey(data?.error, isAdmin)) } }));
       return;
     }
-    setProposalState((s) => ({ ...s, [p.id]: { status: 'done' } }));
+    setProposalState((s) => ({ ...s, [p.id]: { status: 'idle' } }));
+    resolve(p.id, 'done');
     inputRef.current?.focus();
     router.refresh();
   }
-
 
   const suggestions = page
     ? [t('assistant.suggest.summarize'), t('assistant.suggest.task')]
@@ -207,32 +241,33 @@ export default function CrmAssistant() {
                   )}
                   {m.proposals?.map((p) => {
                     const st = proposalState[p.id] ?? { status: 'idle' };
+                    const done = m.resolved?.[p.id];
                     return (
                       <div key={p.id} className="ai-proposal" data-testid="ai-proposal">
                         <p className="ai-proposal-title">{t(`assistant.kinds.${p.kind}`)}</p>
                         <p className="ai-proposal-summary">{p.summary}</p>
-                        {st.status === 'done' ? (
+                        {done === 'done' ? (
                           <p className="ai-proposal-done" role="status">
                             {t('assistant.applied')}
                           </p>
-                        ) : st.status === 'dismissed' ? (
+                        ) : done === 'dismissed' ? (
                           <p className="muted">{t('assistant.dismissed')}</p>
                         ) : (
                           <div className="ai-actions">
-                            <button type="button" className="btn btn-primary btn-sm" onClick={() => confirm(p)} disabled={st.status === 'busy'}>
+                            <button type="button" className="btn btn-primary btn-sm" onClick={() => confirm(p, m.resolved)} disabled={st.status === 'busy'}>
                               {st.status === 'busy' ? t('working') : t('assistant.confirm')}
                             </button>
                             <button
                               type="button"
                               className="btn btn-ghost btn-sm"
-                              onClick={() => setProposalState((s) => ({ ...s, [p.id]: { status: 'dismissed' } }))}
+                              onClick={() => resolve(p.id, 'dismissed')}
                               disabled={st.status === 'busy'}
                             >
                               {t('assistant.dismiss')}
                             </button>
                           </div>
                         )}
-                        {st.status === 'error' && (
+                        {!done && st.status === 'error' && (
                           <p className="form-error" role="alert">
                             {st.message}
                           </p>

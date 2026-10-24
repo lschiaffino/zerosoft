@@ -156,7 +156,10 @@ export default function PropertiesPanel({
     );
   }
 
-  function FieldRow({ field }: { field: PropField }) {
+  // Funciones de render (no componentes): si fueran componentes definidos acá
+  // adentro, cada setDraft crearía un tipo nuevo y React remontaría el input
+  // (pierde el foco al primer carácter).
+  function renderField(field: PropField) {
     const editing = editingKey === field.key;
     const display =
       field.display ? field.display : field.type === 'select'
@@ -297,17 +300,17 @@ export default function PropertiesPanel({
     );
   }
 
-  function Section({ title, fieldKeys }: { title: string; fieldKeys: string[] }) {
+  function renderSection(title: string, fieldKeys: string[]) {
     const sectionFields = fieldKeys
       .map((k) => fields.find((f) => f.key === k))
       .filter(Boolean) as PropField[];
     if (!sectionFields.length) return null;
     return (
-      <div className="prop-section">
+      <div key={title} className="prop-section">
         <h3 className="prop-section-title">{title}</h3>
         <dl className="prop-table">
           {sectionFields.map((field) => (
-            <FieldRow key={field.key} field={field} />
+            renderField(field)
           ))}
         </dl>
       </div>
@@ -323,13 +326,7 @@ export default function PropertiesPanel({
     const keysToShow = new Set(visibleFields.map((f) => f.key));
     return (
       <div>
-        {sections.map((s) => (
-          <Section
-            key={s.title}
-            title={s.title}
-            fieldKeys={s.keys.filter((k) => keysToShow.has(k))}
-          />
-        ))}
+        {sections.map((s) => renderSection(s.title, s.keys.filter((k) => keysToShow.has(k))))}
         {viewAllLabel && compactKeys && (
           <button
             type="button"
@@ -348,7 +345,7 @@ export default function PropertiesPanel({
     <div>
       <dl className="prop-table">
         {visibleFields.map((field) => (
-          <FieldRow key={field.key} field={field} />
+          renderField(field)
         ))}
       </dl>
       {viewAllLabel && compactKeys && (

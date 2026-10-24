@@ -390,7 +390,7 @@ export interface ConvertLeadInput {
 
 export type ConvertLeadResult =
   | { ok: true; dealId: string }
-  | { ok: false; reason: 'not_found' | 'already_converted' | 'invalid_pipeline' | 'invalid_stage' };
+  | { ok: false; reason: 'not_found' | 'already_converted' | 'lead_disqualified' | 'invalid_pipeline' | 'invalid_stage' };
 
 /**
  * Convierte el lead en deal: el deal lleva contacto, empresa, owner y fuente
@@ -407,6 +407,11 @@ export async function convertLead(
     | undefined;
   if (!lead) return { ok: false, reason: 'not_found' };
   if (lead.deal_id) return { ok: false, reason: 'already_converted' };
+  // Un lead descalificado no se convierte: primero se reabre (como en HubSpot).
+  const current = (await db.prepare('SELECT kind FROM crm_lead_stages WHERE id = ?').get(lead.stage_id)) as
+    | { kind: string }
+    | undefined;
+  if (current?.kind === 'disqualified') return { ok: false, reason: 'lead_disqualified' };
   let pipelineId = data.pipelineId;
   let stageId = data.stageId;
   if (!pipelineId || !stageId) {

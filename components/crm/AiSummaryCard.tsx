@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { RecordSummary } from '@/lib/crm-ai';
 import { aiErrorKey, formatAiWhen } from './aiShared';
+import { useCrmAdmin } from './CrmViewer';
 
 export interface SummaryState {
   content: RecordSummary;
@@ -30,6 +31,7 @@ export default function AiSummaryCard({
   available: boolean;
 }) {
   const t = useTranslations('crm.ai');
+  const isAdmin = useCrmAdmin();
   const [summary, setSummary] = useState<SummaryState | null>(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export default function AiSummaryCard({
     const data = (await res?.json().catch(() => null)) as { summary?: SummaryState; error?: string } | null;
     setBusy(false);
     if (!res?.ok || !data?.summary) {
-      setError(t(aiErrorKey(data?.error)));
+      setError(t(aiErrorKey(data?.error, isAdmin)));
       return;
     }
     setSummary(data.summary);
@@ -85,7 +87,7 @@ export default function AiSummaryCard({
           </p>
         </>
       ) : (
-        <p className="muted ai-empty">{available ? t('summary.empty') : t('errors.ai_disabled')}</p>
+        <p className="muted ai-empty">{available ? t('summary.empty') : t(aiErrorKey('ai_disabled', isAdmin))}</p>
       )}
       {busy && <p className="muted" role="status">{t('summary.loading')}</p>}
       {error && (

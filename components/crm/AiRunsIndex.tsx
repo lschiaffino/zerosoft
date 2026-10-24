@@ -9,6 +9,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import type { AiAgent, RunView } from '@/lib/crm-ai-agents';
 import CrmIcon from './CrmIcon';
 import { aiErrorKey, formatAiWhen } from './aiShared';
+import { useCrmAdmin } from './CrmViewer';
 
 const AGENTS: AiAgent[] = ['enrich_companies', 'enrich_contacts', 'outreach'];
 
@@ -38,6 +39,7 @@ export default function AiRunsIndex({
   openNew: boolean;
 }) {
   const t = useTranslations('crm.ai');
+  const isAdmin = useCrmAdmin();
   const tc = useTranslations('crm');
   const router = useRouter();
   const [runs, setRuns] = useState(initialRuns);
@@ -81,7 +83,7 @@ export default function AiRunsIndex({
     const data = (await res?.json().catch(() => null)) as (RunView & { error?: string }) | null;
     setBusy(false);
     if (!res?.ok || !data?.id) {
-      setError(t(aiErrorKey(data?.error)));
+      setError(t(aiErrorKey(data?.error, isAdmin)));
       return;
     }
     setCreating(false);

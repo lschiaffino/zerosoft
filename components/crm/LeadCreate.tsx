@@ -5,6 +5,15 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
+import RecordCombobox, { type ComboOption } from './RecordCombobox';
+
+/** Contactos que no entraron en la lista precargada: busca en el servidor. */
+async function searchContacts(q: string): Promise<ComboOption[]> {
+  const res = await fetch(`/api/crm/contacts?q=${encodeURIComponent(q)}&pageSize=20`);
+  if (!res.ok) return [];
+  const data = (await res.json()) as { rows: Array<{ id: string; first_name?: string; last_name?: string; email?: string }> };
+  return data.rows.map((c) => ({ value: c.id, label: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || '' }));
+}
 
 interface Option {
   value: string;
@@ -140,17 +149,19 @@ export default function LeadCreate({
           maxLength={200}
         />
         <div className="qm-row">
-          <label className="qm-field">
+          <div className="qm-field">
             <span>{t('leads.form.contact')}</span>
-            <select value={contactId} onChange={(e) => setContactId(e.target.value)} disabled={!!fixedContactId}>
-              <option value="">{t('leads.form.noContact')}</option>
-              {contacts.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            <RecordCombobox
+              options={contacts}
+              value={contactId}
+              onChange={setContactId}
+              disabled={!!fixedContactId}
+              noneLabel={t('leads.form.noContact')}
+              placeholder={t('leads.form.searchContact')}
+              ariaLabel={t('leads.form.contact')}
+              search={searchContacts}
+            />
+          </div>
           <label className="qm-field">
             <span>{t('leads.form.company')}</span>
             <select value={companyId} onChange={(e) => setCompanyId(e.target.value)} disabled={!!fixedCompanyId}>

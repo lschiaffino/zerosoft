@@ -589,6 +589,12 @@ export default function WorkflowEditor({
     const c = a.config ?? {};
     if (a.type === 'create_task' || a.type === 'send_email') return safeString(c.subject) ? `«${safeString(c.subject)}»` : '';
     if (a.type === 'notify_user') return safeString(c.message) ? `«${safeString(c.message)}»` : '';
+    if (a.type === 'ai_step') {
+      const mode = safeString(c.mode) || 'prompt';
+      if (mode !== 'prompt') return t(`aiStep.modes.${mode}` as 'aiStep.modes.summary');
+      const prompt = safeString(c.prompt).trim().replace(/\s+/g, ' ');
+      return prompt ? `«${prompt.length > 80 ? `${prompt.slice(0, 79)}…` : prompt}»` : '';
+    }
     return '';
   }
 }

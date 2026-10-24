@@ -594,7 +594,9 @@ export const dealScoreSchema = z.object({
     .array(z.object({ title: z.string().describe('Imperative next step, under 80 characters.'), dueInDays: z.number().describe('Suggested days from today, 0 to 30.') }))
     .describe('Deal plan: 2 to 4 next steps to move this deal forward.'),
 });
-export type DealScore = z.infer<typeof dealScoreSchema>;
+/** Paso del plan guardado: `taskId` cuando ya se pasó a tarea (se recuerda tras recargar). */
+export type DealPlanStep = z.infer<typeof dealScoreSchema>['plan'][number] & { taskId?: string };
+export type DealScore = Omit<z.infer<typeof dealScoreSchema>, 'plan'> & { plan: DealPlanStep[] };
 
 export interface DealScoreView {
   content: DealScore;
@@ -662,6 +664,12 @@ export async function generateDealScore(opts: {
       .filter((p) => p.title)
       .slice(0, 4),
   };
+  // Al recalcular, los pasos que ya eran tarea (mismo título) siguen marcados.
+  const prev = parseContent<DealScore>(await getInsight(opts.workspaceId, 'deal', opts.id, 'deal_score'));
+  for (const step of content.plan) {
+    const before = prev?.plan?.find((p) => p.title === step.title && p.taskId && p.taskId !== PLAN_PENDING);
+    if (before) step.taskId = before.taskId;
+  }
   const row = await saveInsight(opts.workspaceId, 'deal', opts.id, 'deal_score', {
     content,
     score,
@@ -670,6 +678,51 @@ export async function generateDealScore(opts: {
     createdBy: opts.actorId,
   });
   return { content, updatedAt: row.updated_at, stale: false };
+}
+
+const PLAN_PENDING = 'pending';
+
+/**
+ * Pasa un paso del plan del deal a tarea una sola vez: reclama el paso con
+ * compare-and-set sobre el contenido guardado, crea la tarea con `create` y
+ * guarda su id en el paso. Si la creación falla, libera el reclamo.
+ */
+export async function addDealPlanTask(
+  workspaceId: string,
+  dealId: string,
+  index: number,
+  create: (step: DealPlanStep) => Promise<string>,
+): Promise<{ ok: true; taskId: string } | { ok: false; reason: 'not_found' | 'already_added' }> {
+  const db = getDb();
+  const row = await getInsight(workspaceId, 'deal', dealId, 'deal_score');
+  const content = parseContent<DealScore>(row);
+  const step = content?.plan?.[index];
+  if (!row || !content || !step) return { ok: false, reason: 'not_found' };
+  if (step.taskId) return { ok: false, reason: 'already_added' };
+  const rowId = row.id;
+  const setContent = async (from: string, to: DealScore) =>
+    Number(
+      (
+        await db
+          .prepare(`UPDATE crm_ai_insights SET content = ? WHERE id = ? AND content = ?`)
+          .run(JSON.stringify(to), rowId, from)
+      ).changes ?? 0,
+    ) > 0;
+  const withStep = (taskId: string | undefined): DealScore => ({
+    ...content,
+    plan: content.plan.map((p, i) => (i === index ? { ...p, taskId } : p)),
+  });
+  const claimed = withStep(PLAN_PENDING);
+  if (!(await setContent(row.content, claimed))) return { ok: false, reason: 'already_added' };
+  let taskId: string;
+  try {
+    taskId = await create(step);
+  } catch (err) {
+    await setContent(JSON.stringify(claimed), withStep(undefined));
+    throw err;
+  }
+  await setContent(JSON.stringify(claimed), withStep(taskId));
+  return { ok: true, taskId };
 }
 
 /** Score guardado de cada deal (para el board): id → { score, reason }. */

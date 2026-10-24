@@ -26,6 +26,8 @@ export interface QuickModalProps {
   /** Elemento extra en el pie (p. ej. "Create more", "Open full form"). */
   footExtra?: ReactNode;
   width?: number;
+  /** Centrado vertical (diálogos de confirmación, como los de borrar), en vez de anclado arriba. */
+  centered?: boolean;
 }
 
 /**
@@ -54,6 +56,7 @@ function QuickModalBody({
   hint,
   footExtra,
   width = 560,
+  centered,
 }: QuickModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -109,7 +112,7 @@ function QuickModalBody({
   };
 
   return (
-    <div className="qm-overlay" onMouseDown={onClose}>
+    <div className={`qm-overlay${centered ? ' qm-overlay-center' : ''}`} onMouseDown={onClose}>
       <div
         ref={dialogRef}
         className="qm"

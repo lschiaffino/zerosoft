@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { CallSummary } from '@/lib/crm-ai';
 import { aiErrorKey, dayFromToday } from './aiShared';
+import { useCrmAdmin } from './CrmViewer';
 
 export interface CallSummaryState {
   content: CallSummary;
@@ -29,6 +30,7 @@ export default function CallSummaryBlock({
   links: { contactId?: string | null; companyId?: string | null; dealId?: string | null };
 }) {
   const t = useTranslations('crm.ai');
+  const isAdmin = useCrmAdmin();
   const router = useRouter();
   const [data, setData] = useState<CallSummaryState | null>(initial);
   const [busy, setBusy] = useState(false);
@@ -48,7 +50,7 @@ export default function CallSummaryBlock({
     const json = (await res?.json().catch(() => null)) as { summary?: CallSummaryState; error?: string } | null;
     setBusy(false);
     if (!res?.ok || !json?.summary) {
-      setError(t(aiErrorKey(json?.error)));
+      setError(t(aiErrorKey(json?.error, isAdmin)));
       return;
     }
     setData(json.summary);
