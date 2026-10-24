@@ -51,6 +51,7 @@ import { CONTACT_COMPANY_LABELS } from '@/lib/crm-constants';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import RecordTags from '@/components/crm/RecordTags';
 import PageHeader from '@/components/ui/PageHeader';
+import CrmGroupsBlock from '@/components/groups/CrmGroupsBlock';
 import RecordTabs from '@/components/crm/RecordTabs';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import { parseRecordTab, recordTabHref } from '@/components/crm/recordTab';
@@ -336,6 +337,7 @@ export default async function ContactDetailPage(props: {
                 </h2>
                 <FilesPanel endpoint={`/api/crm/contacts/${contact.id}/files`} files={recordFiles} />
               </div>
+              <CrmGroupsBlock ws={user.id} kind="contact" recordId={contact.id} locale={locale} />
             </aside>
           </div>
         </RecordTabs>

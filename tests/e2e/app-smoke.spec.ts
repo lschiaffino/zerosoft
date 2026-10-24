@@ -41,6 +41,20 @@ async function trackProject(request: APIRequestContext): Promise<string> {
   return trackProjectId;
 }
 
+/** Número de WhatsApp falso (GROUPS_FAKE=1) compartido por los grupos del smoke. */
+let groupsNumberId: string | null = null;
+async function groupsNumber(request: APIRequestContext): Promise<string> {
+  if (groupsNumberId) return groupsNumberId;
+  const { id } = await ok<{ id: string }>(request.post('/api/groups/numbers', { data: { provider: 'fake', name: 'Smoke line' } }));
+  await ok(request.post(`/api/groups/numbers/${id}/connect`, { data: { action: 'connect' } }));
+  // El número falso queda conectado a los ~1,5 s (como si se escaneara el QR).
+  await expect
+    .poll(async () => ((await (await request.get(`/api/groups/numbers/${id}/connect`)).json()) as { status: string }).status, { timeout: 10_000 })
+    .toBe('connected');
+  groupsNumberId = id;
+  return id;
+}
+
 const APPS: AppCase[] = [
   {
     app: 'Docs',
@@ -170,6 +184,21 @@ const APPS: AppCase[] = [
     detail: (i) => `/en/app/agents/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/agents/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/agents/${i.id}`))),
+  },
+  {
+    app: 'Groups',
+    list: '/en/app/groups/list',
+    create: async (request, name) => {
+      const numberId = await groupsNumber(request);
+      const res = await ok<{ results: Array<{ ok: boolean; chatId?: string; error?: string }> }>(
+        request.post('/api/groups/create', { data: { numberId, name, phones: ['+15550009001'] } }),
+      );
+      expect(res.results[0].ok, res.results[0].error).toBe(true);
+      return { id: res.results[0].chatId!, name };
+    },
+    detail: (i) => `/en/app/groups/list/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/chats/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/groups/chats/${i.id}`))),
   },
   {
     app: 'Robots',

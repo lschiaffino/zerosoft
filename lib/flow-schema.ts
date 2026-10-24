@@ -58,6 +58,9 @@ export const FLOW_EVENT_TYPES = [
   'task.created',
   'task.completed',
   'task.due',
+  'groups.message.received',
+  'groups.ticket.created',
+  'groups.ticket.updated',
 ] as const;
 export type FlowEventType = (typeof FLOW_EVENT_TYPES)[number];
 
@@ -265,6 +268,17 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   },
   'task.due': {
     task: { id: 't_1', subject: 'Follow up with Ada', body: '', dueAt: '', done: false, doneAt: null, ownerId: null, contactId: 'c_1', companyId: null, dealId: null },
+  },
+  'groups.message.received': {
+    message: { id: 'gm_1', body: 'Hi team, the invoice did not arrive', senderPhone: '5491155550000', senderName: 'Ada', createdAt: '2026-01-01T15:00:00Z' },
+    chat: { id: 'gc_1', kind: 'group', name: 'Acme support', crmCompanyId: null, crmContactId: null },
+  },
+  'groups.ticket.created': {
+    ticket: { id: 'gt_1', number: 12, title: 'Invoice did not arrive', status: 'open', priority: 'medium', assigneeId: null, source: 'reaction', dueAt: '2026-01-02T15:00:00Z', messageBody: 'Hi team, the invoice did not arrive' },
+    chat: { id: 'gc_1', kind: 'group', name: 'Acme support', crmCompanyId: null, crmContactId: null },
+  },
+  'groups.ticket.updated': {
+    ticket: { id: 'gt_1', number: 12, title: 'Invoice did not arrive', status: 'resolved', priority: 'medium', assigneeId: 'u_1', source: 'reaction', dueAt: '2026-01-02T15:00:00Z', messageBody: '' },
   },
 };
 
@@ -622,6 +636,15 @@ export const NODE_DEFS = {
     outputs: ['out'],
     fields: [
       { key: 'conversationId', kind: 'text', template: true, placeholder: '{{trigger.conversation.id}}' },
+      { key: 'body', kind: 'textarea', template: true },
+    ],
+  },
+  'app.groups_message': {
+    type: 'app.groups_message',
+    category: 'app',
+    outputs: ['out'],
+    fields: [
+      { key: 'chatId', kind: 'text', template: true, placeholder: '{{trigger.chat.id}}' },
       { key: 'body', kind: 'textarea', template: true },
     ],
   },

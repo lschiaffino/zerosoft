@@ -3281,6 +3281,203 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Groups (bandeja de WhatsApp para equipos, lib/groups*.ts): números
+    // conectados (credenciales cifradas con secret-box), chats 1:1 y grupos,
+    // miembros, mensajes (dedupe por id del proveedor), etiquetas,
+    // propiedades propias, tickets con SLA, envíos masivos con estado por
+    // destinatario (claims por fila en el cron) y respuestas rápidas.
+    id: '070_groups',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS groups_numbers (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL DEFAULT '',
+          provider TEXT NOT NULL CHECK (provider IN ('cloud', 'waha', 'evolution', 'fake')),
+          phone TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK (status IN ('pending', 'qr', 'connected', 'disconnected', 'error')),
+          config TEXT NOT NULL DEFAULT '',
+          webhook_secret TEXT NOT NULL,
+          last_error TEXT NOT NULL DEFAULT '',
+          created_by TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_numbers_user ON groups_numbers(user_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS groups_chats (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          number_id TEXT NOT NULL REFERENCES groups_numbers(id) ON DELETE CASCADE,
+          provider_chat_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('dm', 'group')),
+          name TEXT NOT NULL DEFAULT '',
+          phone TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          invite_link TEXT NOT NULL DEFAULT '',
+          member_count INTEGER NOT NULL DEFAULT 0,
+          assigned_to TEXT,
+          properties TEXT NOT NULL DEFAULT '{}',
+          crm_contact_id TEXT,
+          crm_company_id TEXT,
+          agent_id TEXT,
+          agent_conversation_id TEXT,
+          status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
+          unread_count INTEGER NOT NULL DEFAULT 0,
+          last_message_at TEXT,
+          last_message_preview TEXT NOT NULL DEFAULT '',
+          awaiting_since TEXT,
+          flagged_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (number_id, provider_chat_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_chats_user ON groups_chats(user_id, last_message_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_groups_chats_awaiting ON groups_chats(awaiting_since) WHERE awaiting_since IS NOT NULL AND flagged_at IS NULL;
+        CREATE INDEX IF NOT EXISTS idx_groups_chats_crm_company ON groups_chats(user_id, crm_company_id);
+        CREATE INDEX IF NOT EXISTS idx_groups_chats_crm_contact ON groups_chats(user_id, crm_contact_id);
+
+        CREATE TABLE IF NOT EXISTS groups_members (
+          chat_id TEXT NOT NULL REFERENCES groups_chats(id) ON DELETE CASCADE,
+          phone TEXT NOT NULL,
+          name TEXT NOT NULL DEFAULT '',
+          role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('member', 'admin', 'superadmin')),
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (chat_id, phone)
+        );
+
+        CREATE TABLE IF NOT EXISTS groups_messages (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          chat_id TEXT NOT NULL REFERENCES groups_chats(id) ON DELETE CASCADE,
+          number_id TEXT NOT NULL,
+          provider_message_id TEXT,
+          direction TEXT NOT NULL CHECK (direction IN ('in', 'out', 'note', 'system')),
+          sender_phone TEXT NOT NULL DEFAULT '',
+          sender_name TEXT NOT NULL DEFAULT '',
+          author_id TEXT,
+          author_kind TEXT NOT NULL DEFAULT 'person',
+          body TEXT NOT NULL DEFAULT '',
+          media_url TEXT NOT NULL DEFAULT '',
+          media_type TEXT NOT NULL DEFAULT '',
+          media_name TEXT NOT NULL DEFAULT '',
+          reply_to_id TEXT,
+          reactions TEXT NOT NULL DEFAULT '[]',
+          status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('pending', 'sent', 'delivered', 'read', 'failed', 'received')),
+          error TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_groups_messages_provider ON groups_messages(number_id, provider_message_id) WHERE provider_message_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_groups_messages_chat ON groups_messages(chat_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_groups_messages_user ON groups_messages(user_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS groups_labels (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          color TEXT NOT NULL DEFAULT 'gray',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, name)
+        );
+        CREATE TABLE IF NOT EXISTS groups_chat_labels (
+          chat_id TEXT NOT NULL REFERENCES groups_chats(id) ON DELETE CASCADE,
+          label_id TEXT NOT NULL REFERENCES groups_labels(id) ON DELETE CASCADE,
+          PRIMARY KEY (chat_id, label_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS groups_property_defs (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          key TEXT NOT NULL,
+          label TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'text' CHECK (type IN ('text', 'number', 'select', 'date')),
+          options TEXT NOT NULL DEFAULT '[]',
+          position INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, key)
+        );
+
+        CREATE TABLE IF NOT EXISTS groups_settings (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          data TEXT NOT NULL DEFAULT '{}',
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS groups_tickets (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          number INTEGER NOT NULL,
+          chat_id TEXT REFERENCES groups_chats(id) ON DELETE SET NULL,
+          message_id TEXT,
+          title TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved', 'closed')),
+          priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+          assignee_id TEXT,
+          source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'reaction', 'keyword', 'api', 'flow')),
+          due_at TEXT,
+          first_response_due_at TEXT,
+          first_response_at TEXT,
+          resolved_at TEXT,
+          breached_at TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, number)
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_tickets_user ON groups_tickets(user_id, status, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_groups_tickets_chat ON groups_tickets(chat_id);
+        CREATE INDEX IF NOT EXISTS idx_groups_tickets_due ON groups_tickets(due_at) WHERE breached_at IS NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_groups_tickets_message ON groups_tickets(message_id) WHERE message_id IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS groups_broadcasts (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          number_id TEXT NOT NULL REFERENCES groups_numbers(id) ON DELETE CASCADE,
+          name TEXT NOT NULL DEFAULT '',
+          body TEXT NOT NULL DEFAULT '',
+          media_url TEXT NOT NULL DEFAULT '',
+          media_type TEXT NOT NULL DEFAULT '',
+          media_name TEXT NOT NULL DEFAULT '',
+          kind TEXT NOT NULL DEFAULT 'broadcast' CHECK (kind IN ('broadcast', 'scheduled')),
+          status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'sending', 'done', 'cancelled')),
+          scheduled_at TEXT NOT NULL,
+          per_minute INTEGER NOT NULL DEFAULT 20,
+          total INTEGER NOT NULL DEFAULT 0,
+          sent INTEGER NOT NULL DEFAULT 0,
+          failed INTEGER NOT NULL DEFAULT 0,
+          locked_until TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          finished_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_broadcasts_user ON groups_broadcasts(user_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_groups_broadcasts_due ON groups_broadcasts(status, scheduled_at);
+
+        CREATE TABLE IF NOT EXISTS groups_broadcast_recipients (
+          id TEXT PRIMARY KEY,
+          broadcast_id TEXT NOT NULL REFERENCES groups_broadcasts(id) ON DELETE CASCADE,
+          chat_id TEXT NOT NULL REFERENCES groups_chats(id) ON DELETE CASCADE,
+          status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sending', 'sent', 'failed', 'skipped')),
+          error TEXT NOT NULL DEFAULT '',
+          message_id TEXT,
+          sent_at TEXT,
+          UNIQUE (broadcast_id, chat_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_recipients_status ON groups_broadcast_recipients(broadcast_id, status);
+
+        CREATE TABLE IF NOT EXISTS groups_quick_replies (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          shortcut TEXT NOT NULL,
+          body TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, shortcut)
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

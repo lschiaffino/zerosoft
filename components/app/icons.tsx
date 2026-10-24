@@ -25,6 +25,7 @@ export type IconName =
   | 'board'
   | 'agents'
   | 'robots'
+  | 'groups'
   | 'products'
   | 'quotes'
   | 'templates'
@@ -184,6 +185,13 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <rect x="3" y="4" width="18" height="14" />
       <path d="M3 8h18M7 12l2 2-2 2M12 16h4" />
+    </>
+  ),
+  groups: (
+    <>
+      <path d="M4 5h16v11H9l-5 4z" />
+      <circle cx="9.5" cy="10.5" r="1.5" />
+      <circle cx="14.5" cy="10.5" r="1.5" />
     </>
   ),
   products: (

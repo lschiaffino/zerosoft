@@ -57,6 +57,7 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'agents', titleKey: 'agentsTitle', descKey: 'agentsDesc' },
   { id: 'chat', titleKey: 'chatTitle', descKey: 'chatDesc' },
   { id: 'robots', titleKey: 'robotsTitle', descKey: 'robotsDesc' },
+  { id: 'groups', titleKey: 'groupsTitle', descKey: 'groupsDesc' },
   { id: 'webhooks', titleKey: 'webhooksTitle', descKey: 'webhooksDesc' },
 ];
 
@@ -1621,6 +1622,108 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     },
     responseStatus: 200,
   },
+
+  // Groups (WhatsApp)
+  {
+    id: 'groups-chats-list',
+    sectionId: 'groups',
+    method: 'GET',
+    path: '/api/v1/groups/chats',
+    titleKey: 'groupsChatsListTitle',
+    descKey: 'groupsChatsListDesc',
+    params: [
+      { name: 'filter', type: 'string', descriptionKey: 'paramGroupsFilter' },
+      { name: 'q', type: 'string', descriptionKey: 'paramSearch' },
+      { name: 'kind', type: 'string', descriptionKey: 'paramGroupsKind' },
+    ],
+    response: {
+      data: [
+        {
+          id: 'gc_1',
+          kind: 'group',
+          name: 'Acme · Support',
+          memberCount: 12,
+          assignedTo: null,
+          labels: [{ id: 'gl_1', name: 'Enterprise', color: 'blue' }],
+          unread: 2,
+          lastMessageAt: '2026-11-01T18:00:00.000Z',
+          awaitingSince: '2026-11-01T18:00:00.000Z',
+          flagged: false,
+        },
+      ],
+      total: 1,
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'groups-messages-list',
+    sectionId: 'groups',
+    method: 'GET',
+    path: '/api/v1/groups/chats/:id/messages',
+    titleKey: 'groupsMessagesListTitle',
+    descKey: 'groupsMessagesListDesc',
+    params: [{ name: 'after', type: 'string', descriptionKey: 'paramGroupsAfter' }],
+    response: {
+      data: [
+        {
+          id: 'gm_1',
+          direction: 'in',
+          senderName: 'Ana',
+          senderPhone: '5491155550000',
+          body: 'The October invoice did not arrive',
+          status: 'received',
+          createdAt: '2026-11-01T18:00:00.000Z',
+        },
+      ],
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'groups-messages-send',
+    sectionId: 'groups',
+    method: 'POST',
+    path: '/api/v1/groups/chats/:id/messages',
+    titleKey: 'groupsMessagesSendTitle',
+    descKey: 'groupsMessagesSendDesc',
+    params: [
+      { name: 'body', type: 'string', required: true, descriptionKey: 'paramGroupsBody' },
+      { name: 'note', type: 'boolean', descriptionKey: 'paramGroupsNote' },
+    ],
+    request: { body: 'Hi Ana, resending it now.' },
+    response: { data: { id: 'gm_2', direction: 'out', body: 'Hi Ana, resending it now.', status: 'sent', createdAt: '2026-11-01T18:01:00.000Z' } },
+    responseStatus: 201,
+  },
+  {
+    id: 'groups-tickets-list',
+    sectionId: 'groups',
+    method: 'GET',
+    path: '/api/v1/groups/tickets',
+    titleKey: 'groupsTicketsListTitle',
+    descKey: 'groupsTicketsListDesc',
+    params: [{ name: 'status', type: 'string', descriptionKey: 'paramGroupsStatus' }],
+    response: {
+      data: [
+        { id: 'gt_1', number: 12, title: 'Invoice did not arrive', status: 'open', priority: 'high', source: 'reaction', dueAt: '2026-11-02T18:00:00.000Z', breached: false },
+      ],
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'groups-tickets-create',
+    sectionId: 'groups',
+    method: 'POST',
+    path: '/api/v1/groups/tickets',
+    titleKey: 'groupsTicketsCreateTitle',
+    descKey: 'groupsTicketsCreateDesc',
+    params: [
+      { name: 'chatId', type: 'string', required: true, descriptionKey: 'paramGroupsChatId' },
+      { name: 'title', type: 'string', descriptionKey: 'paramGroupsTitle' },
+      { name: 'priority', type: 'string', descriptionKey: 'paramGroupsPriority' },
+    ],
+    request: { chatId: 'gc_1', title: 'Invoice did not arrive', priority: 'high' },
+    response: { data: { id: 'gt_1', number: 12, title: 'Invoice did not arrive', status: 'open', priority: 'high', source: 'api' } },
+    responseStatus: 201,
+  },
 ];
 
 /** Qué permite cada scope de API key (se muestra en la doc y en la UI de keys). */
@@ -1636,7 +1739,7 @@ export const API_SCOPE_DOCS: Array<{ scope: ApiScope; descKey: string }> = API_S
  */
 export function endpointScope(e: Pick<ApiEndpoint, 'path' | 'method' | 'scope'>): ApiScope | null {
   if (e.scope) return e.scope;
-  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat)\b/.exec(e.path);
+  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat|groups)\b/.exec(e.path);
   if (!m) return null;
   if (m[1] === 'agents') return 'agents:run';
   if (m[1] === 'robots') return 'robots:run';

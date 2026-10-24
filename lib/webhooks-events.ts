@@ -22,6 +22,9 @@ export const WEBHOOK_EVENTS = [
   'chat.message.created',
   'chat.conversation.assigned',
   'chat.conversation.resolved',
+  'groups.message.received',
+  'groups.ticket.created',
+  'groups.ticket.updated',
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 

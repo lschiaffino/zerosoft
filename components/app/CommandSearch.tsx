@@ -38,6 +38,7 @@ function useGroupOrder() {
         'flows',
         'agents',
         'robots',
+        'groupsChats',
       ], []);
 }
 
@@ -109,6 +110,7 @@ export default function CommandSearch() {
       { group, label: tBoard('list.new'), meta: '', href: '/app/board?new=1' },
       { group, label: t('newAgent'), meta: '', href: '/app/agents' },
       { group, label: t('newRobot'), meta: '', href: '/app/robots?new=1' },
+      { group, label: t('newGroup'), meta: '', href: '/app/groups/list?new=1' },
     ];
     return inTrack ? [...track, ...rest] : [...rest, ...track];
   }, [t, tNotes, tBoard, tTrack, inTrack]);

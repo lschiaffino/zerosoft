@@ -228,6 +228,7 @@
     "app_track_issue": { "title": "Track: create issue", "desc": "Creates an issue in a Track project of this workspace." },
     "app_link": { "title": "Link: create short link", "desc": "Creates a short link." },
     "app_chat_message": { "title": "Chat: send message", "desc": "Replies in a Chat conversation as the bot." },
+    "app_groups_message": { "title": "Groups: send WhatsApp message", "desc": "Sends a message to a WhatsApp chat or group from its connected number." },
     "app_docs_page": { "title": "Docs: create page", "desc": "Creates a Docs page. Blank lines separate paragraphs." },
     "app_robot_run": { "title": "Robots: run robot", "desc": "Runs a browser robot with these inputs and waits for its extracted data (up to the robot's timeout)." },
     "ai_text": { "title": "AI: generate text", "desc": "Writes, summarizes or classifies text with AI. Counts toward your AI quota." },
@@ -506,7 +507,10 @@
     "agent_feedback": "Agents: reply rated",
     "task_created": "CRM: task created",
     "task_completed": "CRM: task completed",
-    "task_due": "CRM: task due"
+    "task_due": "CRM: task due",
+    "groups_message_received": "Groups: WhatsApp message received",
+    "groups_ticket_created": "Groups: ticket created",
+    "groups_ticket_updated": "Groups: ticket updated"
   },
   "ops": {
     "equals": "equals",

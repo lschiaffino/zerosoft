@@ -57,6 +57,7 @@
     --c-notes-ink: #e6b400;
     --c-board-ink: #00b8a9;
     --c-robots-ink: #898e99;
+    --c-groups-ink: #84cc16;
 
     /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
     --ok-ink: #2bb062;
@@ -136,6 +137,7 @@
   --c-notes-ink: #e6b400;
   --c-board-ink: #00b8a9;
   --c-robots-ink: #898e99;
+  --c-groups-ink: #84cc16;
 
   /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
   --ok-ink: #2bb062;

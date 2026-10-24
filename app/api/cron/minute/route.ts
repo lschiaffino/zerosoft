@@ -6,6 +6,7 @@ import { fireNoteReminders } from '@/lib/notes-reminders';
 import { fireIssueReminders, sendImmediateTrackEmails } from '@/lib/track-notify';
 import { processImportJobs as processCrmImportJobs } from '@/lib/crm-import-jobs';
 import { processImportJobs } from '@/lib/import-runner';
+import { runGroupsCron } from '@/lib/groups-cron';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
 
 export const runtime = 'nodejs';
@@ -44,10 +45,12 @@ export async function GET(req: NextRequest) {
   const noteReminders = await fireNoteReminders({ limit: 200 }).catch(() => null);
   const trackReminders = await fireIssueReminders({ limit: 200 }).catch(() => null);
   const trackEmails = await sendImmediateTrackEmails({ limit: 200 }).catch(() => null);
+  // Groups: envíos masivos y programados, chats sin responder y tickets vencidos (claims por fila).
+  const groups = await runGroupsCron({ budgetMs: 30_000 }).catch(() => null);
   const flow = await processFlowQueue({ limit: 200, budgetMs: Math.max(0, FLOW_BUDGET_MS - (Date.now() - start)) });
   // Imports grandes (Track, Cal, Docs) que no entraron en el request de la pestaña.
   const imports = await processImportJobs({ budgetMs: Math.max(5_000, IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
   // Imports del CRM con lo que queda de los 300 s (dejando margen).
   const crmImports = await processCrmImportJobs({ budgetMs: Math.max(0, CRM_IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, chatEmails, noteReminders, trackReminders, trackEmails, flow, imports, crmImports });
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, chatEmails, noteReminders, trackReminders, trackEmails, groups, flow, imports, crmImports });
 }

@@ -35,6 +35,7 @@ import NextTaskBanner from '@/components/crm/NextTaskBanner';
 import HistoryPanel from '@/components/crm/HistoryPanel';
 import { listMembers } from '@/lib/teams';
 import PageHeader from '@/components/ui/PageHeader';
+import CrmGroupsBlock from '@/components/groups/CrmGroupsBlock';
 import RecordTabs from '@/components/crm/RecordTabs';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import CompanyLogo from '@/components/crm/CompanyLogo';
@@ -319,6 +320,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
                 </h2>
                 <FilesPanel endpoint={`/api/crm/companies/${company.id}/files`} files={recordFiles} />
               </div>
+              <CrmGroupsBlock ws={user.id} kind="company" recordId={company.id} locale={locale} />
             </aside>
           </div>
         </RecordTabs>
