@@ -124,7 +124,6 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
   /** Columna visible en el teléfono (la barra de etapas la marca). */
   const [activeStageId, setActiveStageId] = useState<string | null>(stages[0]?.stage.id ?? null);
   const suppressClickRef = useRef(false);
-  const boardRef = useRef<HTMLDivElement>(null);
   /** Anuncio para lectores de pantalla (región aria-live). */
   const [announce, setAnnounce] = useState('');
   /** Card a enfocar después de moverla con el teclado (cambia de columna y se re-monta). */
