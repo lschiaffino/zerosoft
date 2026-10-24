@@ -590,19 +590,21 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   useCreateShortcut(() => setModalOpen(true), !loading && !loadError && !modalOpen && !saveDialogOpen && !settingsOpen);
 
   // "Nuevo issue" pedido mientras la vista carga (⌘K, o el link viejo
-  // /issues/new → ?newIssue=1): se recuerda y el modal abre al terminar.
-  const pendingCreate = useRef(false);
+  // /issues/new → ?newIssue=1): se recuerda y el modal abre al terminar. El
+  // parámetro se lee de la URL inicial: la sincronización de filtros de abajo
+  // reescribe la URL al montar y TrackShortcuts puede no llegar a verlo.
+  // Ya cargada, el evento abre este mismo modal (y no el de TrackShortcuts):
+  // abrirlo dos veces es idempotente, así no aparecen dos modales.
+  const pendingCreate = useRef(initialParams.current.get('newIssue') === '1');
   useEffect(() => {
-    if (!loading) {
-      if (pendingCreate.current && !loadError) {
-        pendingCreate.current = false;
-        setModalOpen(true);
-      }
-      return;
+    if (!loading && pendingCreate.current && !loadError) {
+      pendingCreate.current = false;
+      setModalOpen(true);
     }
     const onEvent = (e: Event) => {
       e.preventDefault();
-      pendingCreate.current = true;
+      if (loading) pendingCreate.current = true;
+      else if (!loadError) setModalOpen(true);
     };
     window.addEventListener(TRACK_NEW_ISSUE_EVENT, onEvent);
     return () => window.removeEventListener(TRACK_NEW_ISSUE_EVENT, onEvent);

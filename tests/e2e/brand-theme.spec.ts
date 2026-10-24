@@ -9,7 +9,7 @@ test('default: shell neutro, sin estaciones, y /app como grilla de apps', async 
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/es/app', { waitUntil: 'networkidle' });
   await expect(page.locator('html')).toHaveAttribute('data-brand', 'default');
-  await expect(page.locator('.app-home-apps a.app-home-app')).toHaveCount(11);
+  await expect(page.locator('.app-home-apps a.app-home-app')).toHaveCount(12);
   await expect(page.locator('.app-home-network')).toHaveCount(0);
   await expect(page.locator('.side-station')).toHaveCount(0);
   await expect(page.locator('.side-line .side-icon').first()).toBeVisible();
@@ -35,7 +35,7 @@ test('/brand es la marca default y no enlaza a temas', async ({ page }) => {
   expect(res?.status()).toBeLessThan(400);
   await expect(page.locator('html')).toHaveAttribute('data-brand', 'default');
   await expect(page.getByRole('heading', { level: 1, name: 'La marca' })).toBeVisible();
-  await expect(page.locator('.bd-swatch')).toHaveCount(6 + 11);
+  await expect(page.locator('.bd-swatch')).toHaveCount(6 + 12);
   await expect(page.locator('a[href*="nuevo-branding/subte"]')).toHaveCount(0);
 });
 

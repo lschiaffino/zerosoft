@@ -39,6 +39,9 @@ describe('/new de las altas en modal', () => {
     expect(quickCreateRedirect('/pt/app/crm/companies/new', '')).toBe('/pt/app/crm/companies?new=1');
     expect(quickCreateRedirect('/es/app/crm/contacts/new', '')).toBe('/es/app/crm/contacts?new=1');
     expect(quickCreateRedirect('/es/app/crm/deals/new', '')).toBe('/es/app/crm/deals?new=1');
+    expect(quickCreateRedirect('/en/app/track/projects/p1/issues/new', '')).toBe('/en/app/track/projects/p1?newIssue=1');
+    // Sub-issue: la página manda al padre.
+    expect(quickCreateRedirect('/en/app/track/projects/p1/issues/new', '?parentId=i1')).toBeNull();
     // Con parámetros decide la página (formulario completo, contexto).
     expect(quickCreateRedirect('/es/app/crm/companies/new', '?full=1')).toBeNull();
     expect(quickCreateRedirect('/es/app/crm/contacts/new', '?companyId=x')).toBeNull();

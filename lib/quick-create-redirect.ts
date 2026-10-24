@@ -15,9 +15,14 @@
  */
 const QUICK_CREATE_NEW = /^\/(en|es|pt)\/app\/(calendar\/event-types|calendar\/routing|crm\/companies|crm\/contacts|crm\/deals)\/new\/?$/;
 
+/** El alta de issue de Track abre el modal en el proyecto (?newIssue=1). */
+const TRACK_ISSUE_NEW = /^\/(en|es|pt)\/app\/track\/projects\/([^/]+)\/issues\/new\/?$/;
+
 export function quickCreateRedirect(pathname: string, search: string): string | null {
   if (search && search !== '?') return null;
   const m = QUICK_CREATE_NEW.exec(pathname);
-  if (!m) return null;
-  return `/${m[1]}/app/${m[2]}?new=1`;
+  if (m) return `/${m[1]}/app/${m[2]}?new=1`;
+  const t = TRACK_ISSUE_NEW.exec(pathname);
+  if (t) return `/${t[1]}/app/track/projects/${t[2]}?newIssue=1`;
+  return null;
 }
