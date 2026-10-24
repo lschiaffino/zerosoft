@@ -4,6 +4,21 @@
  * los tests.
  */
 
+/** Tipo de media para mostrar: imagen, audio, video o archivo (el resto). */
+export function mediaKind(mime: string): 'image' | 'audio' | 'video' | 'file' {
+  const major = String(mime ?? '').split('/')[0].toLowerCase();
+  if (major === 'image' || major === 'sticker') return 'image';
+  if (major === 'audio' || major === 'ptt') return 'audio';
+  if (major === 'video') return 'video';
+  return 'file';
+}
+
+/** Marcador de vista previa sin texto ni nombre ([image], [file]...), o null. */
+export function previewToken(preview: string): 'image' | 'audio' | 'video' | 'file' | null {
+  const m = /^\[(image|audio|video|file)\]$/.exec(String(preview ?? '').trim());
+  return m ? (m[1] as 'image' | 'audio' | 'video' | 'file') : null;
+}
+
 export const TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 export const TICKET_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
@@ -200,7 +215,12 @@ export function sendGapMs(perMinute: number): number {
  * pasen. Las desconocidas quedan vacías.
  */
 export function renderVariables(template: string, vars: Record<string, string>): string {
-  return String(template ?? '').replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_m, key: string) => vars[key] ?? '');
+  const out = String(template ?? '').replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_m, key: string) => vars[key] ?? '');
+  // Una variable vacía no deja espacios dobles ni espacios antes de la puntuación o el fin de línea.
+  return out
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/[ \t]+([,.;:!?])/g, '$1')
+    .replace(/[ \t]+$/gm, '');
 }
 
 export function chatVariables(chat: { name: string; phone: string; properties: Record<string, unknown> }): Record<string, string> {

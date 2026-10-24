@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
@@ -10,13 +11,17 @@ import { LabelsPanel, PropertiesPanel, QuickRepliesPanel, TicketRulesPanel } fro
 
 export const dynamic = 'force-dynamic';
 
-const TABS = ['numbers', 'labels', 'quick', 'properties', 'rules', 'api'] as const;
+const TABS = ['numbers', 'labels', 'quick', 'properties', 'tickets', 'api'] as const;
+/** Nombres viejos o cercanos de pestañas que llevan a la que corresponde. */
+const TAB_ALIASES: Record<string, (typeof TABS)[number]> = { rules: 'tickets', sla: 'tickets', webhooks: 'api', replies: 'quick' };
 
 export default async function GroupsSettingsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ tab?: string; new?: string }> }) {
   const { locale } = await props.params;
   const sp = await props.searchParams;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
+  const alias = sp.tab ? TAB_ALIASES[sp.tab] : undefined;
+  if (alias) redirect(`/${locale}/app/groups/settings?tab=${alias}`);
   const tab = (TABS as readonly string[]).includes(sp.tab ?? '') ? (sp.tab as (typeof TABS)[number]) : 'numbers';
   const admin = isWorkspaceAdmin(user);
 
@@ -25,7 +30,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
   else if (tab === 'labels') body = <LabelsPanel initial={await listLabels(user.id)} />;
   else if (tab === 'quick') body = <QuickRepliesPanel initial={await listQuickReplies(user.id)} />;
   else if (tab === 'properties') body = <PropertiesPanel initial={await listPropertyDefs(user.id)} canEdit={admin} />;
-  else if (tab === 'rules') body = <TicketRulesPanel initial={await getSettings(user.id)} canEdit={admin} />;
+  else if (tab === 'tickets') body = <TicketRulesPanel initial={await getSettings(user.id)} canEdit={admin} />;
   else
     body = (
       <div className="ui-fields gr-api">

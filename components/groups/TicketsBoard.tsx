@@ -96,7 +96,7 @@ export default function TicketsBoard({ initial, people, me, openId }: { initial:
         <EmptyState quiet title={t('tickets.emptyTitle')} body={t('tickets.emptyBody')} product="groups" />
       ) : (
         <div className="table-wrap">
-          <table className="table gr-table">
+          <table className="table gr-table gr-tickets-table">
             <thead>
               <tr>
                 <th className="num">#</th>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import GroupsChatPicker from './GroupsChatPicker';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import AdvancedSection from '@/components/ui/AdvancedSection';
@@ -480,6 +481,21 @@ export default function NodeConfigPanel({
           </>
         );
       }
+      case 'groupsChatRef':
+        return (
+          <>
+            <TemplateInput
+              id={id}
+              label={label}
+              value={String(value ?? '')}
+              placeholder={field.placeholder}
+              variables={variables}
+              readOnly={readOnly}
+              onChange={(v) => set(field.key, v)}
+            />
+            {!readOnly && <GroupsChatPicker value={String(value ?? '')} onPick={(chatId) => set(field.key, chatId)} />}
+          </>
+        );
       case 'tableRef': {
         const tables = refs.tables ?? [];
         const current = String(value ?? '');

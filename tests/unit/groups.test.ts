@@ -322,7 +322,9 @@ describe('ritmo de envíos masivos', () => {
 
   it('variables del mensaje', () => {
     const vars = chatVariables({ name: 'Ana Pérez', phone: '5491155550000', properties: { plan: 'Pro' } });
-    expect(renderVariables('Hola {{first_name}} ({{ phone }}), plan {{prop.plan}} {{nada}}', vars)).toBe('Hola Ana (+5491155550000), plan Pro ');
+    expect(renderVariables('Hola {{first_name}} ({{ phone }}), plan {{prop.plan}} {{nada}}', vars)).toBe('Hola Ana (+5491155550000), plan Pro');
+    // Una propiedad vacía no deja espacios dobles.
+    expect(renderVariables('Hola {{prop.vacia}} equipo, tu plan {{prop.plan}}.', vars)).toBe('Hola equipo, tu plan Pro.');
   });
 });
 

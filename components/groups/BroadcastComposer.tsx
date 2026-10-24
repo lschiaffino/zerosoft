@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { ChatDto, LabelDto, NumberDto, PropertyDef } from '@/lib/groups';
 import { chatVariables, renderVariables } from '@/lib/groups-rules';
-import { ChatPlate, LabelTag, api, useErrorText } from './ui';
+import { ChatPlate, LabelTag, NumberOptions, api, defaultNumberId, useErrorText } from './ui';
 
 /**
  * Nuevo envío masivo: número de salida, destinatarios (grupos y chats, con
@@ -28,7 +28,7 @@ export default function BroadcastComposer({
   const t = useTranslations('groups');
   const errText = useErrorText();
   const router = useRouter();
-  const firstNumber = chats.find((c) => preselected.includes(c.id))?.numberId ?? numbers[0]?.id ?? '';
+  const firstNumber = defaultNumberId(numbers, chats.find((c) => preselected.includes(c.id))?.numberId);
   const [numberId, setNumberId] = useState(firstNumber);
   const [name, setName] = useState('');
   const [body, setBody] = useState('');
@@ -58,7 +58,7 @@ export default function BroadcastComposer({
   const chosen = chats.filter((c) => selected.has(c.id) && c.numberId === numberId);
   const sample = chosen[0];
   const preview = sample ? renderVariables(body, chatVariables({ name: sample.name, phone: sample.phone, properties: sample.properties })) : body;
-  const minutes = Math.ceil(chosen.length / Math.max(1, perMinute));
+  const minutes = Math.max(1, Math.ceil(chosen.length / Math.max(1, perMinute)));
   const vars = ['name', 'first_name', 'phone', ...properties.map((p) => `prop.${p.key}`)];
 
   function insertVar(v: string) {
@@ -127,11 +127,7 @@ export default function BroadcastComposer({
                   setSelected(new Set());
                 }}
               >
-                {numbers.map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {n.name} {n.phone ? `+${n.phone}` : ''}
-                  </option>
-                ))}
+                <NumberOptions numbers={numbers} />
               </select>
             </label>
           </div>

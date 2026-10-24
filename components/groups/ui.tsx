@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { mediaKind, previewToken } from '@/lib/groups-rules';
 
 /** fetch con JSON: devuelve { data } o { error: código }. Nunca tira. */
 export async function api<T = Record<string, unknown>>(
@@ -38,9 +39,46 @@ export function useErrorText() {
   );
 }
 
+/** El número a proponer: el primero conectado (si no hay, el primero). */
+export function defaultNumberId(numbers: ReadonlyArray<{ id: string; status: string }>, prefer?: string | null): string {
+  const connected = numbers.filter((n) => n.status === 'connected');
+  if (prefer && connected.some((n) => n.id === prefer)) return prefer;
+  return connected[0]?.id ?? numbers[0]?.id ?? '';
+}
+
+/** Opciones de "Desde el número": los no conectados se ven, con su estado, pero no se pueden elegir. */
+export function NumberOptions({ numbers }: { numbers: ReadonlyArray<{ id: string; name: string; phone: string; status: string }> }) {
+  const t = useTranslations('groups');
+  return (
+    <>
+      {numbers.map((n) => (
+        <option key={n.id} value={n.id} disabled={n.status !== 'connected'}>
+          {n.name}
+          {n.phone ? ` +${n.phone}` : ''}
+          {n.status !== 'connected' ? ` (${t(`numberStatus.${n.status}`)})` : ''}
+        </option>
+      ))}
+    </>
+  );
+}
+
+/** Texto de una vista previa o adjunto: el nombre del archivo o el tipo traducido (Imagen, Audio...). */
+export function useMediaText() {
+  const t = useTranslations('groups.media');
+  return useCallback(
+    (input: { preview?: string; media?: { type: string; name: string } | null }) => {
+      if (input.media) return input.media.name || t(mediaKind(input.media.type));
+      const tok = previewToken(input.preview ?? '');
+      return tok ? t(tok) : input.preview ?? '';
+    },
+    [t],
+  );
+}
+
 /** "hace 5 min" corto y en el idioma de la página. */
 export function useRelativeTime() {
   const t = useTranslations('groups.time');
+  const locale = useLocale();
   return (iso: string | null | undefined, now = Date.now()) => {
     if (!iso) return '';
     const diff = Math.max(0, now - Date.parse(iso));
@@ -51,7 +89,7 @@ export function useRelativeTime() {
     if (h < 24) return t('hours', { n: h });
     const d = Math.floor(h / 24);
     if (d < 7) return t('days', { n: d });
-    return new Date(iso).toLocaleDateString();
+    return new Date(iso).toLocaleDateString(locale);
   };
 }
 

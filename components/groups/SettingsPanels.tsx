@@ -129,7 +129,7 @@ export function QuickRepliesPanel({ initial }: { initial: QuickReply[] }) {
       >
         <label className="ui-field">
           <span className="label">{t('quick.shortcut')}</span>
-          <input className="input gr-narrow" value={shortcut} onChange={(e) => setShortcut(e.target.value)} placeholder="hours" maxLength={30} />
+          <input className="input gr-narrow" value={shortcut} onChange={(e) => setShortcut(e.target.value)} placeholder={t('quick.shortcutPlaceholder')} maxLength={30} />
         </label>
         <label className="ui-field">
           <span className="label">{t('quick.body')}</span>

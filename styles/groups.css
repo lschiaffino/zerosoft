@@ -366,14 +366,22 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 
 .gr-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   margin-bottom: 24px;
-  background: var(--line);
-  border: 1px solid var(--line);
+  /* Filetes en cada celda (no un fondo que asome en la última fila incompleta). */
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
   align-self: stretch;
 }
-.gr-stats > div { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: var(--bg); }
+.gr-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
 .gr-stats strong { font-size: 1.25rem; font-weight: 600; }
 .gr-periods { display: flex; gap: 4px; }
 .gr-bars { display: flex; align-items: flex-end; gap: 2px; height: 140px; padding: 8px 0; border-bottom: 1px solid var(--line); }
@@ -462,4 +470,23 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
   .gr-toolbar .input { flex: 1 1 100%; }
   .gr-msg { max-width: 100%; }
   .gr-member-actions { margin-left: 0; }
+}
+
+/* Mensaje al que se llegó por link (#m-<id>). */
+.gr-msg.is-target .gr-bubble { outline: 2px solid var(--c-groups); outline-offset: 2px; }
+.gr-member-name { font-weight: 600; }
+
+/* Tickets a 390px: cada fila es una tarjeta apilada. */
+@media (max-width: 720px) {
+  .gr-tickets-table thead { display: none; }
+  .gr-tickets-table,
+  .gr-tickets-table tbody,
+  .gr-tickets-table tr,
+  .gr-tickets-table td { display: block; width: 100%; }
+  .gr-tickets-table tr { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .gr-tickets-table td { padding: 4px 0; border: 0; }
+  .gr-tickets-table td.num { text-align: left; font-family: var(--font-data); color: var(--brand-gray-2); }
+  .gr-tickets-table td.num::before { content: '#'; }
+  .gr-tickets-table .gr-hide-sm { display: block; }
+  .gr-tickets-table .select { width: 100%; max-width: none; }
 }

@@ -126,7 +126,8 @@
     "scheduleConfirm": "Schedule",
     "scheduleNeedsText": "Write the message in the box first.",
     "scheduleAt": "Send on",
-    "scheduled": "Scheduled for {when}"
+    "scheduled": "Scheduled for {when}",
+    "byScheduled": "Scheduled"
   },
   "status": {
     "pending": "Sending",
@@ -321,7 +322,7 @@
     "now": "Now",
     "later": "Later",
     "perMinute": "Messages per minute",
-    "perMinuteHelp": "About {minutes} min for everyone. Slower is safer for the number.",
+    "perMinuteHelp": "{minutes, plural, one {Under a minute for everyone.} other {About # min for everyone.}} Slower is safer for the number.",
     "preview": "Preview for {name}",
     "previewEmpty": "Write the message to see the preview.",
     "sendNow": "Send to {n, plural, one {# chat} other {# chats}}",
@@ -393,7 +394,7 @@
       "labels": "Labels",
       "quick": "Quick replies",
       "properties": "Properties",
-      "rules": "Tickets and SLA",
+      "tickets": "Tickets and SLA",
       "api": "API and webhooks"
     }
   },
@@ -446,10 +447,22 @@
     "webhookBridge": "We registered it in your gateway when connecting. It carries a secret: do not share it."
   },
   "providers": {
-    "cloud": { "name": "WhatsApp Cloud API (official)", "desc": "Meta's API. Best for 1:1 support and templates." },
-    "waha": { "name": "WAHA (QR)", "desc": "Self-hosted gateway. Groups, members, admins and invite links." },
-    "evolution": { "name": "Evolution API (QR)", "desc": "Self-hosted gateway. Groups, members, admins and invite links." },
-    "fake": { "name": "Demo number", "desc": "A test number that never talks to WhatsApp. Only in demo and test setups." }
+    "cloud": {
+      "name": "WhatsApp Cloud API (official)",
+      "desc": "Meta's API. Best for 1:1 support and templates."
+    },
+    "waha": {
+      "name": "WAHA (QR)",
+      "desc": "Self-hosted gateway. Groups, members, admins and invite links."
+    },
+    "evolution": {
+      "name": "Evolution API (QR)",
+      "desc": "Self-hosted gateway. Groups, members, admins and invite links."
+    },
+    "fake": {
+      "name": "Demo number",
+      "desc": "A test number that never talks to WhatsApp. Only in demo and test setups."
+    }
   },
   "numberStatus": {
     "pending": "Not connected",
@@ -485,7 +498,8 @@
     "shortcut": "Shortcut",
     "body": "Text",
     "add": "Add quick reply",
-    "empty": "No quick replies yet."
+    "empty": "No quick replies yet.",
+    "shortcutPlaceholder": "hours"
   },
   "props": {
     "intro": "Your own fields for chats and groups (plan, account owner, renewal date). They show in the details panel and work as broadcast variables.",
@@ -602,5 +616,11 @@
     "invalid_type": "Unknown export.",
     "not_deletable": "It cannot be deleted while it is sending.",
     "invalid_phone_list": "Check the phones."
+  },
+  "media": {
+    "image": "Image",
+    "audio": "Audio",
+    "video": "Video",
+    "file": "File"
   }
 }

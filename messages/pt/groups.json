@@ -1,7 +1,7 @@
 {
   "sidebar": {
     "inbox": "Caixa de entrada",
-    "groups": "Groups",
+    "groups": "Grupos",
     "tickets": "Tickets",
     "broadcasts": "Envios em massa",
     "analytics": "Análises",
@@ -126,7 +126,8 @@
     "scheduleConfirm": "Agendar",
     "scheduleNeedsText": "Primeiro escreva a mensagem na caixa.",
     "scheduleAt": "Enviar em",
-    "scheduled": "Agendada para {when}"
+    "scheduled": "Agendada para {when}",
+    "byScheduled": "Agendada"
   },
   "status": {
     "pending": "Enviando",
@@ -185,7 +186,7 @@
     "superadmin": "Proprietário"
   },
   "list": {
-    "title": "Groups",
+    "title": "Grupos",
     "desc": "Todos os grupos de WhatsApp dos seus números, com membros, etiquetas e propriedades.",
     "noNumbersTitle": "Ainda não há números",
     "noNumbersBody": "Conecte um número de WhatsApp para criar e gerenciar grupos.",
@@ -321,7 +322,7 @@
     "now": "Agora",
     "later": "Depois",
     "perMinute": "Mensagens por minuto",
-    "perMinuteHelp": "Cerca de {minutes} min para todos. Mais devagar é mais seguro para o número.",
+    "perMinuteHelp": "{minutes, plural, one {Menos de um minuto para todos.} other {Cerca de # min para todos.}} Mais devagar é mais seguro para o número.",
     "preview": "Prévia para {name}",
     "previewEmpty": "Escreva a mensagem para ver a prévia.",
     "sendNow": "Enviar para {n, plural, one {# conversa} other {# conversas}}",
@@ -393,7 +394,7 @@
       "labels": "Etiquetas",
       "quick": "Respostas rápidas",
       "properties": "Propriedades",
-      "rules": "Tickets e SLA",
+      "tickets": "Tickets e SLA",
       "api": "API e webhooks"
     }
   },
@@ -446,10 +447,22 @@
     "webhookBridge": "Registramos no seu gateway ao conectar. Ela leva um segredo: não compartilhe."
   },
   "providers": {
-    "cloud": { "name": "WhatsApp Cloud API (oficial)", "desc": "A API da Meta. Ideal para suporte 1:1 e modelos." },
-    "waha": { "name": "WAHA (QR)", "desc": "Gateway próprio. Grupos, membros, admins e links de convite." },
-    "evolution": { "name": "Evolution API (QR)", "desc": "Gateway próprio. Grupos, membros, admins e links de convite." },
-    "fake": { "name": "Número de demonstração", "desc": "Um número de teste que nunca fala com o WhatsApp. Só em ambientes de demonstração e de teste." }
+    "cloud": {
+      "name": "WhatsApp Cloud API (oficial)",
+      "desc": "A API da Meta. Ideal para suporte 1:1 e modelos."
+    },
+    "waha": {
+      "name": "WAHA (QR)",
+      "desc": "Gateway próprio. Grupos, membros, admins e links de convite."
+    },
+    "evolution": {
+      "name": "Evolution API (QR)",
+      "desc": "Gateway próprio. Grupos, membros, admins e links de convite."
+    },
+    "fake": {
+      "name": "Número de demonstração",
+      "desc": "Um número de teste que nunca fala com o WhatsApp. Só em ambientes de demonstração e de teste."
+    }
   },
   "numberStatus": {
     "pending": "Não conectado",
@@ -485,7 +498,8 @@
     "shortcut": "Atalho",
     "body": "Texto",
     "add": "Adicionar resposta rápida",
-    "empty": "Ainda não há respostas rápidas."
+    "empty": "Ainda não há respostas rápidas.",
+    "shortcutPlaceholder": "horario"
   },
   "props": {
     "intro": "Seus próprios campos para conversas e grupos (plano, responsável pela conta, data de renovação). Aparecem no painel de detalhes e servem como variáveis de envios em massa.",
@@ -519,7 +533,7 @@
     "scopes": "Crie uma chave com os escopos groups:read e groups:write em",
     "keys": "configurações do workspace",
     "webhooks": "Webhooks de saída e gatilhos do Flow para estes eventos:",
-    "flow": "O Flow também pode enviar uma mensagem de WhatsApp com a etapa Groups: send WhatsApp message."
+    "flow": "O Flow também pode enviar uma mensagem de WhatsApp com a etapa Groups: enviar mensagem de WhatsApp."
   },
   "crmBlock": {
     "title": "WhatsApp",
@@ -602,5 +616,11 @@
     "invalid_type": "Exportação desconhecida.",
     "not_deletable": "Não pode ser excluído enquanto está sendo enviado.",
     "invalid_phone_list": "Confira os telefones."
+  },
+  "media": {
+    "image": "Imagem",
+    "audio": "Áudio",
+    "video": "Vídeo",
+    "file": "Arquivo"
   }
 }

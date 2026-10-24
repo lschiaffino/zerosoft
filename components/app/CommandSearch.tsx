@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 
 interface ResultItem {
@@ -39,6 +39,8 @@ function useGroupOrder() {
         'agents',
         'robots',
         'groupsChats',
+        'groupsTickets',
+        'groupsMessages',
       ], []);
 }
 
@@ -61,6 +63,7 @@ function useGroupLabel(t: (key: string) => string) {
  */
 export default function CommandSearch() {
   const t = useTranslations('common.sidebar');
+  const locale = useLocale();
   const tNotes = useTranslations('notes');
   const tBoard = useTranslations('board');
   const tTrack = useTranslations('track');
@@ -156,7 +159,7 @@ export default function CommandSearch() {
       }
       setLoading(true);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&locale=${locale}`);
         const data = (await res.json()) as SearchResponse;
         const needle = query.trim().toLowerCase();
         const matchingActions = actionItems.filter((a) => a.label.toLowerCase().includes(needle));
@@ -171,7 +174,7 @@ export default function CommandSearch() {
         setSel(0);
       }
     },
-    [actionItems, groupOrder],
+    [actionItems, groupOrder, locale],
   );
 
   useEffect(() => {

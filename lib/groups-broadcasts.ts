@@ -354,7 +354,8 @@ export async function processBroadcasts(
             const msg = await sendMessage(b.user_id, b.created_by, chat.id, {
               body: text,
               media: b.media_type ? { url: b.media_url, mimetype: b.media_type, filename: b.media_name } : null,
-              authorKind: 'broadcast',
+              // Un programado a un chat es una respuesta; un envío masivo, no.
+              authorKind: b.kind === 'scheduled' ? 'scheduled' : 'broadcast',
             });
             messageId = msg.id;
             status = msg.status === 'failed' ? 'failed' : 'sent';

@@ -14,8 +14,10 @@ export async function GET(req: Request, ctx: Ctx) {
   const id = (await ctx.params).id;
   const chat = await getChatRow(s.ws, id);
   if (!chat) return groupsError(404, 'not_found');
-  const after = new URL(req.url).searchParams.get('after') || undefined;
-  return NextResponse.json({ messages: await listMessages(s.ws, id, { after }) });
+  const p = new URL(req.url).searchParams;
+  const after = p.get('after') || undefined;
+  const limit = Number(p.get('limit')) || undefined;
+  return NextResponse.json({ messages: await listMessages(s.ws, id, { after, limit }) });
 }
 
 /** Manda texto, media o una nota interna ({ note: true }). */

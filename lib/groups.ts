@@ -33,7 +33,9 @@ import {
 import { cloudProvider } from './groups-provider-cloud';
 import { bridgeProvider } from './groups-provider-bridge';
 import { fakeProvider, fakeProviderAllowed } from './groups-provider-fake';
-import { DEFAULT_SETTINGS, matchKeyword, normalizeSettings, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
+import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
+
+export { mediaKind };
 
 const nowIso = () => new Date().toISOString();
 const newId = () => randomUUID();
@@ -727,10 +729,15 @@ export async function getMessageRow(ws: string, id: string): Promise<MessageRow 
   return ((await getDb().prepare('SELECT * FROM groups_messages WHERE id = ? AND user_id = ?').get(id, ws)) as MessageRow) ?? null;
 }
 
-function previewOf(body: string, mediaType: string): string {
+/**
+ * Vista previa de la lista: el texto, o el nombre del archivo, o un marcador
+ * neutro ([image], [audio], [video], [file]) que la interfaz traduce.
+ */
+export function previewOf(body: string, mediaType: string, mediaName = ''): string {
   const text = body.replace(/\s+/g, ' ').trim();
   if (text) return text.slice(0, 140);
-  return mediaType ? `[${mediaType.split('/')[0] || 'file'}]` : '';
+  if (mediaName.trim()) return mediaName.trim().slice(0, 140);
+  return mediaType ? `[${mediaKind(mediaType)}]` : '';
 }
 
 interface InsertMessage {
@@ -816,7 +823,7 @@ export interface SendInput {
   replyToId?: string | null;
   media?: { url: string; mimetype: string; filename: string } | null;
   note?: boolean;
-  authorKind?: 'person' | 'agent' | 'broadcast' | 'flow' | 'api';
+  authorKind?: 'person' | 'agent' | 'broadcast' | 'scheduled' | 'flow' | 'api';
 }
 
 export async function sendMessage(ws: string, actor: string | null, chatId: string, input: SendInput): Promise<MessageDto> {
@@ -877,8 +884,9 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
     createdAt: at,
   });
   if (status === 'sent') {
-    await touchChat(chatId, at, previewOf(body, input.media?.mimetype ?? ''), false);
-    await markAnswered(chatId, at);
+    await touchChat(chatId, at, previewOf(body, input.media?.mimetype ?? '', input.media?.filename ?? ''), false);
+    // Un envío masivo no es una respuesta: el chat sigue esperando y el ticket sin primera respuesta.
+    if (input.authorKind !== 'broadcast') await markAnswered(chatId, at);
   }
   // Un webhook con el mismo id del proveedor (eco de lo que mandamos) no duplica: lo frena el índice único.
   return toMessageDto(row as MessageRow);
@@ -966,10 +974,20 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[]): P
           continue;
         }
         res.messages++;
-        await touchChat(chat.id, at, previewOf(ev.body, ev.media?.type ?? ''), !ev.fromMe);
+        await touchChat(chat.id, at, previewOf(ev.body, ev.media?.type ?? '', ev.media?.name ?? ''), !ev.fromMe);
         // Grupo que no conocíamos: se traen sus miembros una vez (best effort).
         if (chat.kind === 'group' && chat.member_count === 0 && PROVIDER_CAPS[number.provider].groups) {
           await syncMembers(ws, chat.id).catch(() => null);
+        }
+        // Quien escribe en un grupo es miembro: se guarda (o completa) su nombre de perfil.
+        if (chat.kind === 'group' && !ev.fromMe && ev.senderPhone) {
+          const r = await getDb()
+            .prepare(
+              `INSERT INTO groups_members (chat_id, phone, name, role, created_at) VALUES (?, ?, ?, 'member', ?)
+               ON CONFLICT(chat_id, phone) DO UPDATE SET name = excluded.name WHERE excluded.name != '' AND groups_members.name != excluded.name`,
+            )
+            .run(chat.id, phoneDigits(ev.senderPhone), (ev.senderName ?? '').slice(0, 120), at);
+          if (r.changes > 0) await refreshMemberCount(chat.id);
         }
         if (ev.fromMe) {
           // Respondido desde el teléfono: también cuenta como respuesta.
@@ -1111,12 +1129,19 @@ export async function syncMembers(ws: string, chatId: string): Promise<MemberDto
   }
   const db = getDb();
   const now = nowIso();
+  // Los nombres que ya conocíamos (de sus mensajes) se conservan: WhatsApp no siempre los manda.
+  const known = new Map(
+    ((await db.prepare('SELECT phone, name FROM groups_members WHERE chat_id = ?').all(chatId)) as Array<{ phone: string; name: string }>).map((m) => [
+      m.phone,
+      m.name,
+    ]),
+  );
   await db.prepare('DELETE FROM groups_members WHERE chat_id = ?').run(chatId);
   for (const p of list.slice(0, 2000)) {
     if (!p.phone) continue;
     await db
       .prepare('INSERT OR REPLACE INTO groups_members (chat_id, phone, name, role, created_at) VALUES (?, ?, ?, ?, ?)')
-      .run(chatId, p.phone, (p.name ?? '').slice(0, 120), p.role, now);
+      .run(chatId, p.phone, (p.name || known.get(p.phone) || '').slice(0, 120), p.role, now);
   }
   await refreshMemberCount(chatId);
   return listMembers(ws, chatId);
