@@ -189,6 +189,15 @@ async function recordFromUsage(
  */
 export async function assertAiAvailable(workspaceId: string): Promise<void> {
   if (!aiEnabled()) throw new AiError('ai_disabled');
+  await assertAiQuota(workspaceId);
+}
+
+/**
+ * Cuota del mes y rate limit (sin mirar si hay proveedor configurado). La usan
+ * assertAiAvailable y los modelos falsos de e2e (lib/crm-ai-fake.ts), que no
+ * necesitan Gateway pero sí tienen que medir y limitar igual.
+ */
+export async function assertAiQuota(workspaceId: string): Promise<void> {
   const free = aiFreeTokensPerMonth();
   if (free !== null) {
     const usage = await getAiUsage(workspaceId);

@@ -168,6 +168,8 @@
 }
 .band-search:hover { color: var(--chrome-fg); border-color: var(--chrome-fg-2); }
 .band-search .kbd { margin-left: auto; }
+/* Asistente del CRM: mismo botón que la búsqueda, del ancho de su texto. */
+.band-search.band-ai { width: auto; padding: 0 10px; }
 
 /* Avisos en la banda. */
 .app-band .side-bell {

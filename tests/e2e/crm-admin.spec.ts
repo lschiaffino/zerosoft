@@ -65,8 +65,8 @@ test('workflows: una plantilla completa disparador y acción, y el nombre se der
     await expect(page.getByTestId('workflow-action')).toHaveCount(1, { timeout: 1000 });
   }).toPass({ timeout: 20_000 });
   await expect(page.getByTestId('workflow-action').getByLabel('Task title')).toHaveValue('Schedule the onboarding');
-  // Webhook, Flow y si/si no viven en el grupo Avanzado del select.
-  await expect(page.getByTestId('workflow-action').locator('optgroup[label="Advanced"] option')).toHaveCount(3);
+  // IA, Webhook, Flow y si/si no viven en el grupo Avanzado del select.
+  await expect(page.getByTestId('workflow-action').locator('optgroup[label="Advanced"] option')).toHaveCount(4);
   await page.getByTestId('workflow-wizard-next').click();
   await expect(page.getByLabel('Workflow name')).toHaveValue('Task when a deal is won');
   await page.getByTestId('workflow-create').click();

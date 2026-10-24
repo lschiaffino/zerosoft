@@ -1,0 +1,174 @@
+/* IA del CRM: resumen y score en la ficha, resumen de llamadas, asistente
+   y agentes. Solo tokens del tema (claro y oscuro salen solos). */
+
+.ai-card { gap: 8px; }
+.ai-text { margin: 0; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ai-subtitle { margin: 4px 0 0; font-size: 0.8125rem; font-weight: 600; color: var(--ink-2); }
+.ai-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 0.8125rem; color: var(--ink-2); }
+.ai-list li { overflow-wrap: anywhere; }
+.ai-meta { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 0.75rem; color: var(--dim); }
+.ai-stale { color: var(--warn-ink); }
+.ai-empty { font-size: 0.8125rem; }
+.ai-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* Score: número en un recuadro con el tono de la banda. */
+.ai-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: var(--r-xs);
+  font-family: var(--font-data);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.ai-score-high { color: var(--ok-ink); }
+.ai-score-medium { color: var(--warn-ink); }
+.ai-score-low { color: var(--bad-ink); }
+.kb-card-score { height: 20px; min-width: 28px; font-size: 0.6875rem; }
+
+.ai-reasons { list-style: none; padding-left: 0; }
+.ai-reasons li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 4px; }
+.ai-reason-mark { font-family: var(--font-data); font-weight: 600; }
+.ai-reason-positive .ai-reason-mark { color: var(--ok-ink); }
+.ai-reason-negative .ai-reason-mark { color: var(--bad-ink); }
+
+.ai-plan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ai-plan li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.8125rem;
+}
+.ai-plan li:last-child { border-bottom: 0; }
+.ai-plan-title { grid-column: 1; overflow-wrap: anywhere; }
+.ai-plan-due { grid-column: 1; font-size: 0.75rem; }
+.ai-plan li > .btn,
+.ai-plan-done { grid-column: 2; grid-row: 1 / span 2; }
+.ai-plan-done { font-size: 0.75rem; color: var(--ok-ink); }
+
+/* Resumen de llamada en el timeline. */
+.ai-call { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.ai-call-filled { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-xs); background: var(--bg-soft); }
+.ai-call-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ai-call-toggle {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ai-call-toggle::before { content: '▸ '; color: var(--dim); }
+.ai-call-toggle[aria-expanded='true']::before { content: '▾ '; }
+.ai-call-toggle:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ai-sentiment { font-size: 0.75rem; color: var(--dim); margin-right: auto; }
+.ai-sentiment-positive { color: var(--ok-ink); }
+.ai-sentiment-negative { color: var(--bad-ink); }
+
+/* Board: botón de score con su estado. */
+.ai-board { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ai-board .muted, .ai-board .form-error { font-size: 0.8125rem; }
+
+/* Asistente: panel lateral bajo la banda (se abre desde la banda o ⌘K). */
+.ai-panel {
+  position: fixed;
+  top: var(--band-h, 48px);
+  right: 0;
+  bottom: 0;
+  z-index: 58;
+  width: min(420px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-1);
+  border-left: 1px solid var(--line);
+  box-shadow: -8px 0 24px var(--ui-shadow);
+}
+.ai-panel-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.ai-panel-title {
+  margin: 0 auto 0 0;
+  font-family: var(--font-signage);
+  font-weight: var(--signage-weight);
+  letter-spacing: var(--signage-tracking);
+  font-size: 1.0625rem;
+}
+.ai-panel-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.ai-panel-empty { display: flex; flex-direction: column; gap: 10px; color: var(--ink-2); font-size: 0.875rem; }
+.ai-suggestions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ai-suggestions .btn { justify-content: flex-start; text-align: left; white-space: normal; height: auto; min-height: 32px; }
+.ai-msg { display: flex; flex-direction: column; gap: 8px; max-width: 100%; font-size: 0.875rem; }
+.ai-msg-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.ai-msg-user { align-self: flex-end; max-width: 85%; padding: 8px 12px; background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--r-xs); }
+.ai-msg-error .ai-msg-text { color: var(--bad-ink); }
+.ai-records { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.ai-records li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 0.8125rem; }
+.ai-record-link { color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
+.ai-record-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.ai-proposal { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--ink); border-radius: var(--r-xs); }
+.ai-proposal-title { margin: 0; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); }
+.ai-proposal-summary { margin: 0; overflow-wrap: anywhere; }
+.ai-proposal-done { margin: 0; color: var(--ok-ink); font-size: 0.8125rem; }
+.ai-panel-form { display: flex; gap: 8px; align-items: flex-end; padding: 12px 16px 4px; border-top: 1px solid var(--line); }
+.ai-panel-form .textarea { flex: 1; min-height: 44px; resize: vertical; }
+.ai-panel-foot { margin: 0; padding: 0 16px 12px; font-size: 0.75rem; }
+/* El botón flotante de feedback queda abajo a la derecha: el form le deja lugar. */
+body:has(.fl-root:not(.is-tucked)) .ai-panel-form,
+body:has(.fl-root:not(.is-tucked)) .ai-panel-foot { padding-right: 84px; }
+
+/* Agentes: tarjetas de cada agente, corridas e ítems. */
+.ai-banner { margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--warn); background: var(--bg-soft); font-size: 0.875rem; }
+.ai-agent-cards { list-style: none; margin: 0 0 24px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.ai-agent-card { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-xs); }
+.ai-agent-card .muted { font-size: 0.8125rem; flex: 1; }
+.ai-agent-name { margin: 0; font-size: 1rem; font-weight: 600; }
+.ai-section-title { margin: 0 0 8px; font-family: var(--font-signage); font-weight: var(--signage-weight); font-size: 1.25rem; }
+.ai-agent-pick { border: 0; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 8px; }
+.ai-agent-option { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-xs); cursor: pointer; }
+.ai-agent-option:has(input:checked) { border-color: var(--ink); }
+.ai-agent-option span { display: flex; flex-direction: column; gap: 2px; font-size: 0.875rem; }
+.ai-agent-option .muted { font-size: 0.8125rem; }
+.ai-status-running { color: var(--info-ink, var(--ink)); }
+.ai-status-done { color: var(--ok-ink); }
+.ai-status-failed, .ai-status-cancelled { color: var(--dim); }
+
+.ai-run-status { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
+.ai-progress { flex: 1 1 160px; height: 6px; background: var(--line); border-radius: var(--r-xs); overflow: hidden; }
+.ai-progress span { display: block; height: 100%; background: var(--ink); transition: width var(--ui-dur) ease-out; }
+.ai-run-name-input { font: inherit; width: min(100%, 520px); }
+
+.ai-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ai-item { display: flex; flex-direction: column; gap: 8px; padding: 14px 0; border-top: 1px solid var(--line); min-width: 0; }
+.ai-item-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ai-item-name { font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.ai-item-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.ai-item-status-ready { color: var(--info-ink, var(--ink)); }
+.ai-item-status-applied, .ai-item-status-sent { color: var(--ok-ink); }
+.ai-item-status-failed { color: var(--bad-ink); }
+.ai-item-skipped, .ai-item-applied, .ai-item-sent { opacity: 0.85; }
+.ai-changes { margin: 0; display: grid; grid-template-columns: minmax(90px, auto) minmax(0, 1fr); gap: 4px 12px; font-size: 0.875rem; }
+.ai-changes > div { display: contents; }
+.ai-changes dt { color: var(--dim); }
+.ai-changes dd { margin: 0; overflow-wrap: anywhere; }
+.ai-draft { display: flex; flex-direction: column; gap: 6px; max-width: 720px; }
+.ai-draft .muted { margin: 0; font-size: 0.8125rem; overflow-wrap: anywhere; }
+.ai-draft-subject { margin: 0; font-weight: 600; }
+
+@media (max-width: 600px) {
+  .ai-panel { width: 100vw; border-left: 0; }
+  .ai-runs-table th:nth-child(4), .ai-runs-table td:nth-child(4),
+  .ai-runs-table th:nth-child(5), .ai-runs-table td:nth-child(5) { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-progress span { transition: none; }
+}

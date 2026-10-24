@@ -1175,7 +1175,9 @@
     "description": "HubSpot's Breeze record summary card generates on record load from activities, notes and ownership, can be refreshed, and is also a workflow action (https://knowledge.hubspot.com/records/summarize-records). Our only AI touch in the CRM is 'Draft with AI' for emails (components/crm/Timeline.tsx:432, app/api/crm/emails/draft); there is no record summary. Before a call, a founder wants 'where is this deal and what was promised' without scrolling a long timeline. First scope: when AI is enabled, a cached summary card above the timeline built from the last N activities, emails and stage changes, with a refresh button and a 'next step' suggestion; no automatic writes.\n\nPriority: low. Effort: M. Compared with HubSpot.",
     "product": "crm",
     "kind": "idea",
-    "parity": "ai-record-summary"
+    "parity": "ai-record-summary",
+    "status": "done",
+    "changelog": "2026-10-24-crm-ai"
   },
   {
     "title": "CRM: Attach files to notes and records, not only to tasks",

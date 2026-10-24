@@ -20,7 +20,7 @@ export const ACTION_GROUPS: Array<{ key: 'basic' | 'advanced'; types: ActionType
     key: 'basic',
     types: ['create_task', 'send_email', 'notify_user', 'update_field', 'add_to_list', 'enroll_in_sequence', 'create_activity'],
   },
-  { key: 'advanced', types: ['webhook', 'run_flow', 'branch'] },
+  { key: 'advanced', types: ['ai_step', 'webhook', 'run_flow', 'branch'] },
 ];
 
 export const ADVANCED_ACTIONS: readonly ActionType[] = ACTION_GROUPS[1].types;
@@ -83,6 +83,8 @@ export function defaultActionConfig(type: ActionType): Record<string, unknown> {
       return { method: 'POST' };
     case 'create_activity':
       return { type: 'note' };
+    case 'ai_step':
+      return { mode: 'prompt', prompt: '', output: 'note' };
     default:
       return {};
   }
@@ -150,6 +152,11 @@ export function actionMissing(type: ActionType, config: Record<string, unknown> 
       return need('flowId');
     case 'webhook':
       return need('url');
+    case 'ai_step': {
+      const mode = String(config.mode ?? 'prompt');
+      if (mode !== 'prompt') return [];
+      return config.output === 'field' ? need('prompt', 'field') : need('prompt');
+    }
     default:
       return [];
   }

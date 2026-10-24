@@ -15,7 +15,8 @@
     "products": "Produtos",
     "quotes": "Orçamentos",
     "forms": "Formulários",
-    "trash": "Lixeira"
+    "trash": "Lixeira",
+    "agents": "Agentes de IA"
   },
   "switcher": {
     "product": "Produto",
@@ -613,7 +614,8 @@
       "notify_user": "Notificar usuário",
       "enroll_in_sequence": "Inscrever em sequência",
       "run_flow": "Executar um Flow",
-      "branch": "Se / senão"
+      "branch": "Se / senão",
+      "ai_step": "Passo de IA"
     },
     "addTrigger": "Adicionar gatilho",
     "addAction": "Adicionar ação",
@@ -768,7 +770,27 @@
     "updated": "Atualizado",
     "rowActions": "Ações da linha",
     "noTrigger": "Sem gatilho",
-    "ranNow": "«{name}» executado."
+    "ranNow": "«{name}» executado.",
+    "aiStep": {
+      "mode": "O que a IA faz",
+      "modes": {
+        "prompt": "Rodar um prompt sobre o registro",
+        "summary": "Atualizar o resumo do registro",
+        "deal_score": "Calcular o score do negócio"
+      },
+      "prompt": "Prompt",
+      "promptHint": "A IA lê o registro com a atividade e os emails e segue esta instrução.",
+      "promptPlaceholder": "Por exemplo: classifique este lead como quente, morno ou frio e explique por quê em uma linha",
+      "output": "Escrever o resultado em",
+      "outputs": {
+        "note": "Uma nota no registro",
+        "field": "Um campo do registro"
+      },
+      "modeHint": {
+        "summary": "Salva um resumo com IA novo no registro (contato, empresa ou negócio).",
+        "deal_score": "Salva o score com IA e o plano do negócio. Use com gatilhos de negócios."
+      }
+    }
   },
   "history": {
     "title": "Histórico",
@@ -2207,6 +2229,189 @@
       "invalid_input": "Confira o token e tente de novo.",
       "not_found": "Esse import não existe mais.",
       "forbidden": "Só admins do workspace podem importar."
+    }
+  },
+  "ai": {
+    "updatedAt": "Atualizado {when}",
+    "regenerate": "Gerar de novo",
+    "working": "Trabalhando…",
+    "summary": {
+      "title": "Resumo com IA",
+      "nextSteps": "Próximos passos sugeridos",
+      "stale": "Há atividade nova desde este resumo.",
+      "empty": "Receba um resumo curto deste registro a partir da atividade, dos emails e dos negócios.",
+      "loading": "Lendo o registro…",
+      "generate": "Resumir"
+    },
+    "errors": {
+      "generic": "Algo deu errado. Tente de novo.",
+      "ai_disabled": "A IA não está configurada neste workspace. Um admin ativa com uma chave do AI Gateway (AI_GATEWAY_API_KEY).",
+      "quota_exceeded": "Você usou a cota de IA deste mês.",
+      "rate_limited": "Pedidos demais para a IA. Espere um minuto e tente de novo.",
+      "not_found": "Esse registro não existe mais ou você não pode vê-lo.",
+      "no_content": "Primeiro adicione notas ou anexe uma transcrição (.txt, .vtt, .srt) a esta atividade.",
+      "closed_deal": "Este negócio já está fechado.",
+      "no_targets": "Não há registros para este agente trabalhar.",
+      "not_ready": "Este item não está pronto.",
+      "invalid_input": "Há campos inválidos. Revise e tente de novo.",
+      "missing_required": "Essa etapa pede mais campos. Abra o negócio para movê-lo.",
+      "unsubscribed": "Este contato cancelou a inscrição.",
+      "send_failed": "Não foi possível enviar o email.",
+      "missing_recipient": "Adicione um destinatário.",
+      "missing_email": "Este contato não tem email.",
+      "no_website": "Esta empresa não tem site nem domínio.",
+      "site_unreachable": "O site não respondeu.",
+      "site_empty": "O site não tem texto legível."
+    },
+    "score": {
+      "title": "Score do negócio",
+      "band": {
+        "high": "Provável de fechar",
+        "medium": "Pode ir para qualquer lado",
+        "low": "Em risco"
+      },
+      "effect": {
+        "positive": "Soma",
+        "negative": "Subtrai"
+      },
+      "plan": "Plano do negócio",
+      "today": "Hoje",
+      "inDays": "Em {days, plural, one {# dia} other {# dias}}",
+      "added": "Tarefa criada",
+      "addTask": "Criar tarefa",
+      "stale": "Há atividade nova desde este score.",
+      "empty": "Calcule a chance de este negócio fechar e receba um plano de próximos passos.",
+      "loading": "Calculando o score…",
+      "rescore": "Recalcular",
+      "generate": "Calcular score"
+    },
+    "call": {
+      "generate": "Resumir com IA",
+      "title": "Resumo com IA",
+      "sentiment": {
+        "positive": "Positivo",
+        "neutral": "Neutro",
+        "negative": "Negativo"
+      },
+      "nextSteps": "Próximos passos"
+    },
+    "board": {
+      "scoreDeals": "Calcular scores com IA",
+      "progress": "{done} calculados, faltam {left}",
+      "done": "{count, plural, one {# negócio calculado} other {# negócios calculados}}",
+      "upToDate": "Todos os negócios abertos já têm um score em dia."
+    },
+    "assistant": {
+      "open": "Perguntar à IA",
+      "title": "Assistente do CRM",
+      "clear": "Limpar",
+      "close": "Fechar",
+      "intro": "Pergunte sobre seus contatos, negócios, pipeline e tarefas. Se pedir uma mudança, eu preparo e você confirma.",
+      "suggest": {
+        "summarize": "Resuma este registro",
+        "task": "Crie uma tarefa: fazer follow-up na semana que vem",
+        "pipeline": "Como está meu pipeline?",
+        "overdue": "Quais tarefas estão atrasadas?",
+        "find": "Procure negócios que fecham este mês"
+      },
+      "types": {
+        "contact": "Contato",
+        "company": "Empresa",
+        "deal": "Negócio",
+        "task": "Tarefa"
+      },
+      "kinds": {
+        "create_task": "Nova tarefa",
+        "move_stage": "Mover negócio",
+        "update_field": "Atualizar campo"
+      },
+      "applied": "Pronto.",
+      "dismissed": "Descartado.",
+      "confirm": "Confirmar",
+      "dismiss": "Descartar",
+      "thinking": "Procurando…",
+      "placeholder": "Pergunte sobre o CRM…",
+      "send": "Enviar",
+      "foot": "As respostas vêm dos dados do seu CRM. As mudanças só acontecem quando você confirma."
+    },
+    "agents": {
+      "title": "Agentes de IA",
+      "desc": "Agentes que completam dados faltantes e escrevem primeiros emails. Você revisa cada mudança antes de salvar ou enviar.",
+      "new": "Nova execução",
+      "aiOff": "A IA não está configurada neste workspace, então só roda o agente de dados de contatos. Um admin ativa a IA com uma chave do AI Gateway.",
+      "kinds": {
+        "enrich_companies": {
+          "name": "Agente de dados de empresas",
+          "desc": "Lê o site de cada empresa e sugere o setor, o tamanho, a cidade, o país e o telefone que faltam."
+        },
+        "enrich_contacts": {
+          "name": "Agente de dados de contatos",
+          "desc": "Completa nomes a partir do email, vincula a empresa pelo domínio e copia a cidade e o país dela."
+        },
+        "outreach": {
+          "name": "Agente de prospecção",
+          "desc": "Escreve um primeiro email pessoal para cada contato de uma lista, com o que o CRM sabe de cada um."
+        }
+      },
+      "run": "Rodar",
+      "runs": "Execuções",
+      "emptyTitle": "Nenhuma execução ainda",
+      "emptyBody": "Escolha um agente para completar dados ou escrever emails para uma lista.",
+      "cols": {
+        "name": "Nome",
+        "agent": "Agente",
+        "status": "Status",
+        "progress": "Progresso",
+        "created": "Criada"
+      },
+      "rename": "Renomear",
+      "status": {
+        "running": "Rodando",
+        "done": "Concluída",
+        "failed": "Falhou",
+        "cancelled": "Cancelada"
+      },
+      "deleteConfirm": "Excluir esta execução?",
+      "needList": "Escolha uma lista.",
+      "start": "Começar",
+      "list": "Lista",
+      "listOptional": "Lista (opcional)",
+      "pickList": "Escolha uma lista",
+      "allMissing": "Todos os contatos com dados faltantes",
+      "noLists": "Você ainda não tem listas.",
+      "goLists": "Crie uma em Listas",
+      "goal": "O que o email precisa conseguir?",
+      "goalPlaceholder": "Por exemplo: apresentar o plano novo e marcar uma chamada de 15 minutos",
+      "reviewNote": "Usa IA. Nada é salvo nem enviado até você revisar.",
+      "noAiNote": "Não usa IA. Nada é salvo até você revisar.",
+      "cancel": "Parar execução",
+      "progress": "{done} de {total} processados",
+      "applyAll": "Aplicar tudo ({count})",
+      "noItems": "Esta execução não tem registros.",
+      "itemStatus": {
+        "pending": "Na fila",
+        "ready": "Pronto",
+        "failed": "Falhou",
+        "applied": "Aplicado",
+        "skipped": "Pulado",
+        "sent": "Enviado"
+      },
+      "waiting": "Esperando o agente…",
+      "fields": {
+        "industry": "Setor",
+        "employees": "Funcionários",
+        "city": "Cidade",
+        "country": "País",
+        "phone": "Telefone",
+        "firstName": "Nome",
+        "lastName": "Sobrenome",
+        "companyId": "Empresa"
+      },
+      "nothingFound": "Nada para completar.",
+      "to": "Para",
+      "send": "Enviar",
+      "apply": "Aplicar",
+      "skip": "Pular"
     }
   }
 }

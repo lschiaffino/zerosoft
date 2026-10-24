@@ -3478,6 +3478,71 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // IA del CRM (lib/crm-ai*.ts): resultados cacheados por registro (resumen
+    // de contacto/empresa/deal, score y plan del deal, resumen de llamada o
+    // reunión) con el hash del contexto para saber si quedaron viejos, y los
+    // agentes de datos/prospección: corridas con nombre e ítems por registro
+    // (claim por fila en claimed_at, los procesa el request y el cron).
+    id: '071_crm_ai',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS crm_ai_insights (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          entity TEXT NOT NULL CHECK (entity IN ('contact', 'company', 'deal', 'activity')),
+          entity_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('summary', 'deal_score', 'call_summary')),
+          content TEXT NOT NULL DEFAULT '{}',
+          score INTEGER,
+          source_hash TEXT NOT NULL DEFAULT '',
+          model TEXT NOT NULL DEFAULT '',
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, entity, entity_id, kind)
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_ai_insights_kind ON crm_ai_insights(user_id, kind, entity);
+
+        CREATE TABLE IF NOT EXISTS crm_ai_runs (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL DEFAULT '',
+          agent TEXT NOT NULL CHECK (agent IN ('enrich_companies', 'enrich_contacts', 'outreach')),
+          target TEXT NOT NULL DEFAULT '{}',
+          instructions TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'done', 'failed', 'cancelled')),
+          total INTEGER NOT NULL DEFAULT 0,
+          processed INTEGER NOT NULL DEFAULT 0,
+          error TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          finished_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_ai_runs_user ON crm_ai_runs(user_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_crm_ai_runs_status ON crm_ai_runs(status);
+
+        CREATE TABLE IF NOT EXISTS crm_ai_run_items (
+          id TEXT PRIMARY KEY,
+          run_id TEXT NOT NULL REFERENCES crm_ai_runs(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          entity TEXT NOT NULL CHECK (entity IN ('contact', 'company')),
+          entity_id TEXT NOT NULL,
+          label TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK (status IN ('pending', 'ready', 'failed', 'applied', 'skipped', 'sent')),
+          output TEXT NOT NULL DEFAULT '{}',
+          error TEXT,
+          claimed_at TEXT,
+          position INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_ai_run_items_run ON crm_ai_run_items(run_id, position);
+        CREATE INDEX IF NOT EXISTS idx_crm_ai_run_items_pending ON crm_ai_run_items(status, claimed_at);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

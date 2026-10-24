@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-24-crm-ai',
+    date: '2026-10-24',
+    title: {
+      en: 'CRM: AI summaries, deal scores, an assistant and data agents',
+      es: 'CRM: resúmenes con IA, score de deals, un asistente y agentes de datos',
+      pt: 'CRM: resumos com IA, score de negócios, um assistente e agentes de dados',
+    },
+    items: [
+      { product: 'crm', en: 'Contacts, companies and deals have an AI summary card built from their properties, timeline, emails and deals. It stays saved, says when there is new activity and regenerates on demand.', es: 'Contactos, empresas y deals tienen una tarjeta de resumen con IA armada con sus propiedades, timeline, emails y deals. Queda guardada, avisa cuando hay actividad nueva y se regenera a pedido.', pt: 'Contatos, empresas e negócios têm um cartão de resumo com IA feito com propriedades, timeline, emails e negócios. Fica salvo, avisa quando há atividade nova e é gerado de novo sob demanda.' },
+      { product: 'crm', en: 'Deals get an AI score from 0 to 100 with its reasons and a deal plan whose steps turn into tasks. The score shows on board cards, and the board can score every open deal at once.', es: 'Los deals tienen un score con IA de 0 a 100 con sus razones y un plan del deal cuyos pasos se vuelven tareas. El score se ve en las tarjetas del board, y el board calcula todos los deals abiertos de una vez.', pt: 'Os negócios têm um score com IA de 0 a 100 com os motivos e um plano cujos passos viram tarefas. O score aparece nos cartões do board, e o board calcula todos os negócios abertos de uma vez.' },
+      { product: 'crm', en: 'The CRM assistant (Ask AI, or from ⌘K) searches records and answers about deals, pipeline and tasks. When you ask for a change it prepares it, and it only happens when you confirm.', es: 'El asistente del CRM (Preguntar a la IA, o desde ⌘K) busca registros y responde sobre deals, pipeline y tareas. Si pedís un cambio lo prepara, y se hace recién cuando confirmás.', pt: 'O assistente do CRM (Perguntar à IA, ou pelo ⌘K) busca registros e responde sobre negócios, pipeline e tarefas. Se você pede uma mudança, ele prepara, e ela só acontece quando você confirma.' },
+      { product: 'crm', en: 'Calls and meetings on the timeline can be summarized with AI from their notes or an attached transcript, with next steps you turn into tasks in one click.', es: 'Las llamadas y reuniones del timeline se resumen con IA a partir de sus notas o de una transcripción adjunta, con próximos pasos que pasás a tareas con un click.', pt: 'Chamadas e reuniões da timeline podem ser resumidas com IA a partir das notas ou de uma transcrição anexada, com próximos passos que viram tarefas com um clique.' },
+      { product: 'crm', en: 'New AI agents page: fill in missing company data from each website, complete contacts from their email and domain, and draft a first email for every contact in a list. You review each change and email before it is saved or sent.', es: 'Nueva página de agentes de IA: completá datos de empresas desde su sitio, completá contactos desde su email y dominio y redactá un primer email para cada contacto de una lista. Revisás cada cambio y cada email antes de guardarlo o enviarlo.', pt: 'Nova página de agentes de IA: complete dados de empresas a partir do site, complete contatos pelo email e domínio e escreva um primeiro email para cada contato de uma lista. Você revisa cada mudança e cada email antes de salvar ou enviar.' },
+      { product: 'crm', en: 'Workflows have an AI step that runs a prompt on the record and writes the answer to a note or a field, or refreshes the summary or the deal score.', es: 'Los workflows tienen un paso de IA que corre un prompt sobre el registro y escribe la respuesta en una nota o un campo, o actualiza el resumen o el score del deal.', pt: 'Os workflows têm um passo de IA que roda um prompt sobre o registro e escreve a resposta numa nota ou num campo, ou atualiza o resumo ou o score do negócio.' },
+    ],
+  },
+  {
     id: '2026-10-23-groups',
     date: '2026-10-23',
     title: {

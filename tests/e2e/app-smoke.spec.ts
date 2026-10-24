@@ -140,6 +140,18 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/crm/deals/${i.id}`))),
   },
   {
+    app: 'CRM AI agent runs',
+    list: '/en/app/crm/agents',
+    create: async (request, name) => {
+      // El agente de contactos no usa IA: necesita un contacto con datos faltantes.
+      await ok(request.post('/api/crm/contacts', { data: { email: `smoke.agent${uid().replace(/\d/g, 'x')}@smoke-agent.example.com` } }));
+      return { id: (await ok<{ id: string }>(request.post('/api/crm/ai/runs', { data: { agent: 'enrich_contacts', name } }))).id, name };
+    },
+    detail: (i) => `/en/app/crm/agents/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/crm/ai/runs/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/crm/ai/runs/${i.id}`))),
+  },
+  {
     app: 'Cal event types',
     list: '/en/app/calendar/event-types',
     create: async (request, name) => {

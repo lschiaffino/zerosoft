@@ -26,6 +26,9 @@ import PropertiesPanel, { type PropField, type PropSection } from '@/components/
 import Timeline from '@/components/crm/Timeline';
 import FilesPanel from '@/components/crm/FilesPanel';
 import { listRecordFiles, toView, withActivityFiles } from '@/lib/crm-files';
+import AiSummaryCard from '@/components/crm/AiSummaryCard';
+import { crmAiAvailable, getRecordSummary, withCallSummaries, getDealScore } from '@/lib/crm-ai';
+import DealInsightCard from '@/components/crm/DealInsightCard';
 import { getEmailSettings, listEmailTemplates, listEmailThreads, mergeTimelineWithThreads } from '@/lib/crm-email';
 import { aiEnabled } from '@/lib/ai';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
@@ -244,7 +247,8 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
       getEmailSettings(user.id),
       nextTaskFor(user.id, { dealId: id }),
     ]);
-    const timeline = await withActivityFiles(mergeTimelineWithThreads(activities, threads));
+    const timeline = await withCallSummaries(user.id, await withActivityFiles(mergeTimelineWithThreads(activities, threads)));
+    const [aiAvailable, aiSummary, aiScore] = await Promise.all([crmAiAvailable(), getRecordSummary(user.id, 'deal', deal.id, scope), getDealScore(user.id, deal.id, scope)]);
     const recordFiles = (await listRecordFiles(user.id, 'deal', deal.id)).map(toView);
     return (
       <div className="ui-page record-page">
@@ -280,6 +284,8 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
               />
             </div>
             <aside className="record-summary" aria-label={t('record.summary')}>
+              <AiSummaryCard entity="deal" id={deal.id} locale={locale} initial={aiSummary} available={aiAvailable} />
+              <DealInsightCard dealId={deal.id} locale={locale} initial={aiScore} available={aiAvailable} closed={!!(detail.stage?.is_won || detail.stage?.is_lost)} />
               <dl className="record-facts">
                 <div>
                   <dt>{t('deals.form.amount')}</dt>

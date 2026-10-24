@@ -6,6 +6,7 @@ import { searchDocPagesContent } from '@/lib/docs';
 import { listLinks, toLinkDto } from '@/lib/links';
 import { searchNotesForPalette } from '@/lib/notes';
 import { searchApps } from '@/lib/app-search';
+import { searchRuns } from '@/lib/crm-ai-agents';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -41,6 +42,8 @@ export async function GET(req: NextRequest) {
     searchNotesForPalette(user, q),
     // Pizarras, Track, Cal, widgets, Flow, Agents y Robots: por nombre.
     searchApps(user, q, undefined, req.nextUrl.searchParams.get('locale') ?? 'en'),
+    // Corridas de los agentes de IA del CRM, por nombre.
+    searchRuns(user.id, q),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -116,6 +119,10 @@ export async function GET(req: NextRequest) {
       meta: related,
       href: `/app/crm/tasks/${t.id}`,
     });
+  }
+
+  for (const r of aiRuns) {
+    items.push({ id: r.id, group: 'crmAgentRuns', label: r.name, meta: '', href: `/app/crm/agents/${r.id}` });
   }
 
   items.push(...apps);

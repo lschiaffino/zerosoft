@@ -286,6 +286,19 @@ export default function AppSidebar({
             <span className="band-search-label">{labels.search}</span>
             <kbd className="kbd">⌘K</kbd>
           </button>
+          {product === 'crm' && (
+            <button
+              type="button"
+              className="band-search band-ai"
+              onClick={() => window.dispatchEvent(new CustomEvent('zs:crm-assistant'))}
+              aria-label={labels.crm.askAi}
+              aria-haspopup="dialog"
+              data-crm-assistant-trigger
+            >
+              <Icon name="agents" size={15} />
+              <span className="band-search-label">{labels.crm.askAi}</span>
+            </button>
+          )}
           <NotificationBell labels={bellLabels} onCountChange={setUnreadCount} />
         </div>
       </header>

@@ -24,6 +24,8 @@ import PropertiesPanel, { type PropField, type PropSection } from '@/components/
 import Timeline from '@/components/crm/Timeline';
 import FilesPanel from '@/components/crm/FilesPanel';
 import { listRecordFiles, toView, withActivityFiles } from '@/lib/crm-files';
+import AiSummaryCard from '@/components/crm/AiSummaryCard';
+import { crmAiAvailable, getRecordSummary, withCallSummaries } from '@/lib/crm-ai';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
 import ContactAddDeal from '@/components/crm/ContactAddDeal';
 import AssociationPanel from '@/components/crm/AssociationPanel';
@@ -226,7 +228,8 @@ export default async function ContactDetailPage(props: {
       getEmailSettings(user.id),
       nextTaskFor(user.id, { contactId: id }),
     ]);
-    const timelineItems = await withActivityFiles(mergeTimelineWithThreads(timeline, threads));
+    const timelineItems = await withCallSummaries(user.id, await withActivityFiles(mergeTimelineWithThreads(timeline, threads)));
+    const [aiAvailable, aiSummary] = await Promise.all([crmAiAvailable(), getRecordSummary(user.id, 'contact', contact.id, scope)]);
     const recordFiles = (await listRecordFiles(user.id, 'contact', contact.id)).map(toView);
     return (
       <div className="ui-page record-page">
@@ -261,6 +264,7 @@ export default async function ContactDetailPage(props: {
               />
             </div>
             <aside className="record-summary" aria-label={t('record.summary')}>
+              <AiSummaryCard entity="contact" id={contact.id} locale={locale} initial={aiSummary} available={aiAvailable} />
               <dl className="record-facts">
                 <div>
                   <dt>{t('contacts.form.email')}</dt>

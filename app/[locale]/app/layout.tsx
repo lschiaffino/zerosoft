@@ -108,6 +108,7 @@ export default async function AppLayout(
                 { href: '/app/crm/dashboards', label: tCrm('tabs.dashboards') },
                 { href: '/app/crm/reports', label: tCrm('tabs.reports') },
                 { href: '/app/crm/workflows', label: tCrm('tabs.workflows') },
+                { href: '/app/crm/agents', label: tCrm('tabs.agents') },
                 { href: '/app/crm/settings', label: tCrm('tabs.settings') },
                 { href: '/app/crm/trash', label: tCrm('tabs.trash') },
                 { href: '/app/docs', label: tDocs('sidebar.pages') },
@@ -204,6 +205,8 @@ export default async function AppLayout(
               quotes: tCrm('tabs.quotes'),
               forms: tCrm('tabs.forms'),
               trash: tCrm('tabs.trash'),
+              agents: tCrm('tabs.agents'),
+              askAi: tCrm('ai.assistant.open'),
             },
             docs: {
               pages: tDocs('sidebar.pages'),

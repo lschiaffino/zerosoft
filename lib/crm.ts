@@ -1627,6 +1627,9 @@ export interface BoardDeal extends CrmDealRow {
   /** Calculados en la page (días desde created_at / última actividad). */
   age_days?: number;
   idle_days?: number;
+  /** Score con IA guardado (lib/crm-ai.ts) y su primera razón. */
+  ai_score?: number | null;
+  ai_reason?: string;
 }
 
 export interface BoardStage {

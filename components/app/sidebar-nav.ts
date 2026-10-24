@@ -57,6 +57,9 @@ export interface SidebarLabels {
     quotes: string;
     forms: string;
     trash: string;
+    agents: string;
+    /** Botón del asistente del CRM en la banda. */
+    askAi: string;
   };
   docs: {
     pages: string;
@@ -235,6 +238,7 @@ export function buildNav(
           section: labels.workspace,
           items: [
             { href: '/app/crm/workflows', label: labels.crm.workflows, active: at('/app/crm/workflows'), icon: 'workflows' },
+            { href: '/app/crm/agents', label: labels.crm.agents, active: at('/app/crm/agents'), icon: 'agents' },
             { href: '/app/crm/settings', label: labels.crm.settings, active: at('/app/crm/settings'), icon: 'settings' },
             { href: '/app/crm/trash', label: labels.crm.trash, active: at('/app/crm/trash'), icon: 'trash' },
           ],

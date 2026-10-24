@@ -7,6 +7,7 @@ import type { BoardDeal, BoardStage } from '@/lib/crm';
 import { isDealRotting } from '@/lib/crm-rotting';
 import DealForm from './DealForm';
 import RecordPreview from './RecordPreview';
+import { scoreBand } from './DealInsightCard';
 import { AddStageColumn } from './AddPipelineStage';
 import { parseRequiredFields } from '@/lib/crm-stage-rules';
 import StageRequirementsDialog, {
@@ -412,6 +413,15 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
                       {deal.close_date && (
                         <span className="kb-card-date" title={t('deals.table.closeDate')}>
                           {fmtClose(deal.close_date)}
+                        </span>
+                      )}
+                      {deal.ai_score != null && (
+                        <span
+                          className={`ai-score ai-score-${scoreBand(deal.ai_score)} kb-card-score`}
+                          title={deal.ai_reason ? `${t('ai.score.title')}: ${deal.ai_reason}` : t('ai.score.title')}
+                          aria-label={`${t('ai.score.title')} ${deal.ai_score}`}
+                        >
+                          {deal.ai_score}
                         </span>
                       )}
                       {isDealRotting(deal.idle_days, col.stage) && (

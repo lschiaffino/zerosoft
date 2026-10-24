@@ -15,7 +15,8 @@
     "products": "Products",
     "quotes": "Quotes",
     "forms": "Forms",
-    "trash": "Recycle bin"
+    "trash": "Recycle bin",
+    "agents": "AI agents"
   },
   "switcher": {
     "product": "Product",
@@ -613,7 +614,8 @@
       "notify_user": "Notify user",
       "enroll_in_sequence": "Enroll in sequence",
       "run_flow": "Run a Flow",
-      "branch": "If / else"
+      "branch": "If / else",
+      "ai_step": "AI step"
     },
     "addTrigger": "Add trigger",
     "addAction": "Add action",
@@ -768,7 +770,27 @@
     "updated": "Updated",
     "rowActions": "Row actions",
     "noTrigger": "No trigger",
-    "ranNow": "Ran «{name}»."
+    "ranNow": "Ran «{name}».",
+    "aiStep": {
+      "mode": "What the AI does",
+      "modes": {
+        "prompt": "Run a prompt on the record",
+        "summary": "Refresh the record summary",
+        "deal_score": "Score the deal"
+      },
+      "prompt": "Prompt",
+      "promptHint": "The AI reads the record with its activity and emails, then follows this instruction.",
+      "promptPlaceholder": "For example: classify this lead as hot, warm or cold and explain why in one line",
+      "output": "Write the result to",
+      "outputs": {
+        "note": "A note on the record",
+        "field": "A field of the record"
+      },
+      "modeHint": {
+        "summary": "Saves a fresh AI summary on the record (contact, company or deal).",
+        "deal_score": "Saves the AI score and deal plan. Use it with deal triggers."
+      }
+    }
   },
   "history": {
     "title": "History",
@@ -2207,6 +2229,189 @@
       "invalid_input": "Check the token and try again.",
       "not_found": "That import no longer exists.",
       "forbidden": "Only workspace admins can import."
+    }
+  },
+  "ai": {
+    "updatedAt": "Updated {when}",
+    "regenerate": "Regenerate",
+    "working": "Working…",
+    "summary": {
+      "title": "AI summary",
+      "nextSteps": "Suggested next steps",
+      "stale": "New activity since this summary.",
+      "empty": "Get a short summary of this record from its activity, emails and deals.",
+      "loading": "Reading the record…",
+      "generate": "Summarize"
+    },
+    "errors": {
+      "generic": "Something went wrong. Try again.",
+      "ai_disabled": "AI is not set up on this workspace. An admin can turn it on with an AI Gateway key (AI_GATEWAY_API_KEY).",
+      "quota_exceeded": "You've used this month's AI quota.",
+      "rate_limited": "Too many AI requests. Wait a minute and try again.",
+      "not_found": "That record no longer exists or you cannot see it.",
+      "no_content": "Add notes or attach a transcript (.txt, .vtt, .srt) to this activity first.",
+      "closed_deal": "This deal is already closed.",
+      "no_targets": "There are no records for this agent to work on.",
+      "not_ready": "This item is not ready.",
+      "invalid_input": "Some fields are invalid. Check them and try again.",
+      "missing_required": "That stage asks for more fields. Open the deal to move it.",
+      "unsubscribed": "This contact unsubscribed.",
+      "send_failed": "The email could not be sent.",
+      "missing_recipient": "Add a recipient.",
+      "missing_email": "This contact has no email.",
+      "no_website": "This company has no website or domain.",
+      "site_unreachable": "The website did not respond.",
+      "site_empty": "The website has no readable text."
+    },
+    "score": {
+      "title": "Deal score",
+      "band": {
+        "high": "Likely to close",
+        "medium": "Could go either way",
+        "low": "At risk"
+      },
+      "effect": {
+        "positive": "Helps",
+        "negative": "Hurts"
+      },
+      "plan": "Deal plan",
+      "today": "Today",
+      "inDays": "In {days, plural, one {# day} other {# days}}",
+      "added": "Task added",
+      "addTask": "Add task",
+      "stale": "New activity since this score.",
+      "empty": "Score how likely this deal is to close and get a plan of next steps.",
+      "loading": "Scoring the deal…",
+      "rescore": "Rescore",
+      "generate": "Score deal"
+    },
+    "call": {
+      "generate": "Summarize with AI",
+      "title": "AI summary",
+      "sentiment": {
+        "positive": "Positive",
+        "neutral": "Neutral",
+        "negative": "Negative"
+      },
+      "nextSteps": "Next steps"
+    },
+    "board": {
+      "scoreDeals": "Score deals with AI",
+      "progress": "{done} scored, {left} left",
+      "done": "{count, plural, one {# deal scored} other {# deals scored}}",
+      "upToDate": "All open deals already have a current score."
+    },
+    "assistant": {
+      "open": "Ask AI",
+      "title": "CRM assistant",
+      "clear": "Clear",
+      "close": "Close",
+      "intro": "Ask about your contacts, deals, pipeline and tasks. When you ask for a change, I prepare it and you confirm it.",
+      "suggest": {
+        "summarize": "Summarize this record",
+        "task": "Create a task: follow up next week",
+        "pipeline": "How does my pipeline look?",
+        "overdue": "Which tasks are overdue?",
+        "find": "Find deals closing this month"
+      },
+      "types": {
+        "contact": "Contact",
+        "company": "Company",
+        "deal": "Deal",
+        "task": "Task"
+      },
+      "kinds": {
+        "create_task": "New task",
+        "move_stage": "Move deal",
+        "update_field": "Update field"
+      },
+      "applied": "Done.",
+      "dismissed": "Dismissed.",
+      "confirm": "Confirm",
+      "dismiss": "Dismiss",
+      "thinking": "Looking it up…",
+      "placeholder": "Ask about the CRM…",
+      "send": "Send",
+      "foot": "Answers come from your CRM data. Changes only happen when you confirm."
+    },
+    "agents": {
+      "title": "AI agents",
+      "desc": "Agents that fill in missing data and draft first emails. You review every change before it is saved or sent.",
+      "new": "New run",
+      "aiOff": "AI is not set up on this workspace, so only the contact data agent can run. An admin can turn AI on with an AI Gateway key.",
+      "kinds": {
+        "enrich_companies": {
+          "name": "Company data agent",
+          "desc": "Reads each company's website and suggests the missing industry, size, city, country and phone."
+        },
+        "enrich_contacts": {
+          "name": "Contact data agent",
+          "desc": "Fills in names from the email, links the company by domain and copies its city and country."
+        },
+        "outreach": {
+          "name": "Prospecting agent",
+          "desc": "Drafts a personal first email for each contact in a list, using what the CRM knows about them."
+        }
+      },
+      "run": "Run",
+      "runs": "Runs",
+      "emptyTitle": "No runs yet",
+      "emptyBody": "Pick an agent to fill in data or draft emails for a list.",
+      "cols": {
+        "name": "Name",
+        "agent": "Agent",
+        "status": "Status",
+        "progress": "Progress",
+        "created": "Created"
+      },
+      "rename": "Rename",
+      "status": {
+        "running": "Running",
+        "done": "Done",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      },
+      "deleteConfirm": "Delete this run?",
+      "needList": "Pick a list.",
+      "start": "Start",
+      "list": "List",
+      "listOptional": "List (optional)",
+      "pickList": "Pick a list",
+      "allMissing": "All contacts with missing data",
+      "noLists": "You have no lists yet.",
+      "goLists": "Create one in Lists",
+      "goal": "What should the email do?",
+      "goalPlaceholder": "For example: introduce our new plan and book a 15 minute call",
+      "reviewNote": "Uses AI. Nothing is saved or sent until you review it.",
+      "noAiNote": "Does not use AI. Nothing is saved until you review it.",
+      "cancel": "Stop run",
+      "progress": "{done} of {total} processed",
+      "applyAll": "Apply all ({count})",
+      "noItems": "No records in this run.",
+      "itemStatus": {
+        "pending": "Waiting",
+        "ready": "Ready",
+        "failed": "Failed",
+        "applied": "Applied",
+        "skipped": "Skipped",
+        "sent": "Sent"
+      },
+      "waiting": "Waiting for the agent…",
+      "fields": {
+        "industry": "Industry",
+        "employees": "Employees",
+        "city": "City",
+        "country": "Country",
+        "phone": "Phone",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "companyId": "Company"
+      },
+      "nothingFound": "Nothing to fill in.",
+      "to": "To",
+      "send": "Send",
+      "apply": "Apply",
+      "skip": "Skip"
     }
   }
 }

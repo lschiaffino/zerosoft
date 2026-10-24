@@ -10,6 +10,7 @@ import CrmIcon from './CrmIcon';
 import FilesPanel, { type FileItem } from './FilesPanel';
 import MentionTextarea, { MentionText } from './MentionTextarea';
 import type { Mentionable } from '@/lib/crm-mentions';
+import CallSummaryBlock, { type CallSummaryState } from './CallSummaryBlock';
 
 export type TimelineRecordType = 'contact' | 'company' | 'deal';
 
@@ -36,6 +37,12 @@ export interface TimelineItem {
   thread?: EmailThreadView;
   /** Adjuntos de la actividad. */
   files?: FileItem[];
+  /** Registros de la actividad (para las tareas de los próximos pasos). */
+  contact_id?: string | null;
+  company_id?: string | null;
+  deal_id?: string | null;
+  /** Llamadas y reuniones: resumen con IA guardado. */
+  ai_summary?: CallSummaryState | null;
 }
 
 /** Herramientas del composer de email: templates/snippets, IA y tracking. */
@@ -710,6 +717,14 @@ export default function Timeline({
                       </>
                     )}
                   </div>
+                  {!item.external && (item.type === 'call' || item.type === 'meeting') && (
+                    <CallSummaryBlock
+                      activityId={item.id}
+                      locale={locale}
+                      initial={item.ai_summary ?? null}
+                      links={{ contactId: item.contact_id, companyId: item.company_id, dealId: item.deal_id }}
+                    />
+                  )}
                   {!item.external && (
                     <FilesPanel compact endpoint={`/api/crm/activities/${item.id}/files`} files={item.files ?? []} />
                   )}

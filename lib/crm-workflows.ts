@@ -64,6 +64,7 @@ export const ACTION_TYPES = [
   'enroll_in_sequence',
   'run_flow',
   'branch',
+  'ai_step',
 ] as const;
 export type ActionType = (typeof ACTION_TYPES)[number];
 
@@ -544,6 +545,15 @@ async function resolveContactIdForEvent(userId: string, event: WorkflowEvent): P
   return null;
 }
 
+/**
+ * Nombre de campo de la UI ("lifecycle_stage" o "lifecycleStage") al de las
+ * funciones de lib/crm (camelCase). Antes el snake_case del ejemplo del
+ * editor se ignoraba sin avisar.
+ */
+export function apiFieldKey(field: string): string {
+  return field.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase());
+}
+
 // ---------- Ejecución de acciones ----------
 
 interface ActionResult {
@@ -632,7 +642,7 @@ async function executeAction(
         if (field.startsWith('custom.')) {
           const customKey = field.slice(7);
           const row = (await getDb()
-            .prepare(`SELECT custom FROM crm_${entity}s WHERE id = ? AND user_id = ?`)
+            .prepare(`SELECT custom FROM crm_${entity === 'company' ? 'companies' : `${entity}s`} WHERE id = ? AND user_id = ?`)
             .get(targetId, userId)) as { custom: string } | undefined;
           const custom = parseJsonObject(row?.custom ?? '{}');
           custom[customKey] = value;
@@ -644,7 +654,7 @@ async function executeAction(
                 : updateDeal;
           await updater(userId, targetId, { custom }, undefined, '');
         } else {
-          const payload: Record<string, unknown> = { [field]: value };
+          const payload: Record<string, unknown> = { [apiFieldKey(field)]: value };
           const updater =
             entity === 'contact'
               ? updateContact
@@ -722,6 +732,50 @@ async function executeAction(
       case 'branch': {
         // Lo evalúa el runner (evaluateBranch); acá no hace nada.
         return { ok: true, type: action.type };
+      }
+      case 'ai_step': {
+        // Paso de IA (lib/crm-ai.ts): corre un prompt, el resumen o el score
+        // sobre el registro del evento y escribe el resultado en una nota o
+        // un campo (por las mismas funciones que la UI, con historial).
+        const { parseAiStepConfig, runAiStep } = await import('./crm-ai');
+        const stepCfg = parseAiStepConfig(cfg);
+        const entity: 'contact' | 'company' | 'deal' | null =
+          event.entity === 'contact' || event.entity === 'company' || event.entity === 'deal'
+            ? event.entity
+            : ctx.deal?.id
+              ? 'deal'
+              : ctx.contact?.id
+                ? 'contact'
+                : null;
+        const recordId =
+          entity === event.entity ? event.entityId : entity === 'deal' ? ctx.deal?.id : entity === 'contact' ? ctx.contact?.id : undefined;
+        if (!entity || !recordId) return { ok: false, type: action.type, error: 'missing_target' };
+        const out = await runAiStep(userId, stepCfg, { entity, id: recordId });
+        if (stepCfg.mode !== 'prompt') return { ok: true, type: action.type, result: { mode: stepCfg.mode, text: out.text.slice(0, 500) } };
+        if (stepCfg.output === 'field') {
+          if (!stepCfg.field) return { ok: false, type: action.type, error: 'missing_field' };
+          const updater = entity === 'contact' ? updateContact : entity === 'company' ? updateCompany : updateDeal;
+          if (stepCfg.field.startsWith('custom.')) {
+            const row = (await getDb()
+              .prepare(`SELECT custom FROM crm_${entity === 'company' ? 'companies' : `${entity}s`} WHERE id = ? AND user_id = ?`)
+              .get(recordId, userId)) as { custom: string } | undefined;
+            const custom = parseJsonObject(row?.custom ?? '{}');
+            custom[stepCfg.field.slice(7)] = out.text;
+            await updater(userId, recordId, { custom }, undefined, '');
+          } else {
+            await updater(userId, recordId, { [apiFieldKey(stepCfg.field)]: out.text.slice(0, 500) }, undefined, '');
+          }
+          return { ok: true, type: action.type, result: { field: stepCfg.field, text: out.text.slice(0, 500) } };
+        }
+        const note = await createActivity(userId, {
+          type: 'note',
+          subject: 'AI',
+          body: out.text.slice(0, 5000),
+          contactId: entity === 'contact' ? recordId : ctx.contact?.id ?? null,
+          companyId: entity === 'company' ? recordId : ctx.contact?.company_id ?? null,
+          dealId: entity === 'deal' ? recordId : null,
+        });
+        return { ok: true, type: action.type, result: { activityId: note.id, text: out.text.slice(0, 500) } };
       }
       default:
         return { ok: false, type: action.type, error: 'unknown_action' };

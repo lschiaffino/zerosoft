@@ -1,3 +1,5 @@
+import { dealScoresFor } from '@/lib/crm-ai';
+import ScoreDealsButton from '@/components/crm/ScoreDealsButton';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
@@ -405,8 +407,15 @@ export default async function DealsPage(props: DealsPageProps) {
   }
 
   // ---------- Vista board (con totales del pipeline) ----------
-  const boardStages =
-    view === 'board' ? withAges(await listDealsForBoard(user.id, pipeline.id, scope)) : null;
+  const rawBoard = view === 'board' ? withAges(await listDealsForBoard(user.id, pipeline.id, scope)) : null;
+  // Score con IA guardado de cada deal (badge en la tarjeta).
+  const aiScores = rawBoard ? await dealScoresFor(user.id, rawBoard.flatMap((c) => c.deals.map((d) => d.id))) : null;
+  const boardStages = rawBoard
+    ? rawBoard.map((col) => ({
+        ...col,
+        deals: col.deals.map((d) => ({ ...d, ai_score: aiScores?.get(d.id)?.score ?? null, ai_reason: aiScores?.get(d.id)?.reason ?? '' })),
+      }))
+    : null;
   const openStages = boardStages?.filter((c) => !c.stage.is_won && !c.stage.is_lost) ?? [];
   const totals = boardStages
     ? {
@@ -473,6 +482,7 @@ export default async function DealsPage(props: DealsPageProps) {
               {t('deals.totals.forecast')}:{' '}
               <strong>{formatMoney(totals.forecast, currencyCtx.base, locale)}</strong>
             </span>
+            <ScoreDealsButton pipelineId={pipeline.id} locale={locale} />
           </div>
           <DealsBoard
             key={pipeline.id}

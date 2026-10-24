@@ -946,6 +946,54 @@ function ActionConfig({
           </Field>
         </div>
       );
+    case 'ai_step': {
+      const mode = safeString(config.mode) || 'prompt';
+      const output = safeString(config.output) || 'note';
+      return (
+        <div className="wf-config">
+          <Field id={id('aimode')} label={t('aiStep.mode')}>
+            <select id={id('aimode')} className="select" value={mode} onChange={(e) => onChange({ mode: e.target.value })} disabled={dis}>
+              {(['prompt', 'summary', 'deal_score'] as const).map((m) => (
+                <option key={m} value={m}>
+                  {t(`aiStep.modes.${m}`)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          {mode === 'prompt' ? (
+            <>
+              <Field id={id('aiprompt')} label={t('aiStep.prompt')} help={t('aiStep.promptHint')} error={reqMsg('prompt')}>
+                <textarea
+                  id={id('aiprompt')}
+                  className="textarea"
+                  rows={3}
+                  {...req('prompt', id('aiprompt'))}
+                  value={safeString(config.prompt)}
+                  onChange={(e) => onChange({ prompt: e.target.value })}
+                  placeholder={t('aiStep.promptPlaceholder')}
+                  disabled={dis}
+                />
+              </Field>
+              <div className="ui-fields-2">
+                <Field id={id('aiout')} label={t('aiStep.output')}>
+                  <select id={id('aiout')} className="select" value={output} onChange={(e) => onChange({ output: e.target.value })} disabled={dis}>
+                    <option value="note">{t('aiStep.outputs.note')}</option>
+                    <option value="field">{t('aiStep.outputs.field')}</option>
+                  </select>
+                </Field>
+                {output === 'field' && (
+                  <Field id={id('aifield')} label={t('field')} help={t('fieldHint')} error={reqMsg('field')}>
+                    <input id={id('aifield')} className="input data" {...req('field', id('aifield'))} value={safeString(config.field)} onChange={(e) => onChange({ field: e.target.value })} disabled={dis} />
+                  </Field>
+                )}
+              </div>
+            </>
+          ) : (
+            <p className="ui-help">{t(`aiStep.modeHint.${mode === 'deal_score' ? 'deal_score' : 'summary'}`)}</p>
+          )}
+        </div>
+      );
+    }
     case 'branch':
       return (
         <div className="wf-config">

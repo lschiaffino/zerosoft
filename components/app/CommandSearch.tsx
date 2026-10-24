@@ -27,6 +27,7 @@ function useGroupOrder() {
         'contacts',
         'companies',
         'deals',
+        'crmAgentRuns',
         'links',
         'docs',
         'notes',
@@ -70,6 +71,7 @@ export default function CommandSearch() {
   const router = useRouter();
   const pathname = usePathname();
   const inTrack = pathname.startsWith('/app/track');
+  const inCrm = pathname.startsWith('/app/crm');
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [items, setItems] = useState<ResultItem[]>([]);
@@ -105,6 +107,14 @@ export default function CommandSearch() {
       { group, label: t('newTask'), meta: '', href: '/app/crm/tasks' },
       { group, label: t('importFromHubspot'), meta: '', href: '/app/crm/settings?tab=import&from=hubspot' },
       { group, label: t('importFromPipedrive'), meta: '', href: '/app/crm/settings?tab=import&from=pipedrive' },
+      {
+        group,
+        label: t('askCrmAssistant'),
+        meta: '',
+        href: '/app/crm?assistant=1',
+        event: inCrm ? 'zs:crm-assistant' : undefined,
+      },
+      { group, label: t('newCrmAgentRun'), meta: '', href: '/app/crm/agents?new=1' },
       { group, label: t('newLink'), meta: '', href: '/app/links/new' },
       { group, label: t('newDocPage'), meta: '', href: '/app/docs' },
       { group, label: t('newEventType'), meta: '', href: '/app/calendar/event-types/new' },
@@ -116,7 +126,7 @@ export default function CommandSearch() {
       { group, label: t('newGroup'), meta: '', href: '/app/groups/list?new=1' },
     ];
     return inTrack ? [...track, ...rest] : [...rest, ...track];
-  }, [t, tNotes, tBoard, tTrack, inTrack]);
+  }, [t, tNotes, tBoard, tTrack, inTrack, inCrm]);
 
   useEffect(() => {
     function onOpen() {
