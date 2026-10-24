@@ -92,7 +92,9 @@
     "switchProduct": "Trocar de app",
     "closeMenu": "Fechar menu",
     "importFromHubspot": "Importar do HubSpot",
-    "importFromPipedrive": "Importar do Pipedrive"
+    "importFromPipedrive": "Importar do Pipedrive",
+    "groupGroupsTickets": "Tickets de WhatsApp",
+    "groupGroupsMessages": "Mensagens de WhatsApp"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",

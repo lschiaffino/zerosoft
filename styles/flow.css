@@ -538,3 +538,10 @@
 @media (prefers-reduced-motion: reduce) {
   .flow-node, .flow-palette-item, .flow-run-item, .flow-step-chevron svg { transition: none; }
 }
+
+/* Buscador de chats de Groups (paso "Groups: mandar mensaje"). */
+.flow-groups-picker { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.flow-groups-results { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); }
+.flow-groups-results button { display: block; width: 100%; padding: 6px 10px; text-align: left; font-size: 0.875rem; color: var(--ink); background: transparent; border: 0; cursor: pointer; }
+.flow-groups-results button:hover,
+.flow-groups-results button:focus-visible { background: var(--ui-hover); }

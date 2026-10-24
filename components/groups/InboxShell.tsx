@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import type { ChatDto, ChatFilter, LabelDto } from '@/lib/groups';
-import { ChatPlate, LabelTag, useRelativeTime } from './ui';
+import { ChatPlate, LabelTag, useMediaText, useRelativeTime } from './ui';
 
 const FILTERS: ChatFilter[] = ['all', 'unread', 'unanswered', 'flagged', 'mine', 'unassigned', 'closed'];
 const STORE = 'zs-groups-inbox';
@@ -46,6 +46,7 @@ function chatIdFromPath(pathname: string): string | null {
 export default function InboxShell({ labels, children }: { labels: LabelDto[]; children: ReactNode }) {
   const t = useTranslations('groups');
   const rel = useRelativeTime();
+  const mediaText = useMediaText();
   const pathname = usePathname();
   const router = useRouter();
   const current = chatIdFromPath(pathname);
@@ -216,7 +217,7 @@ export default function InboxShell({ labels, children }: { labels: LabelDto[]; c
                         <span className="gr-row-name">{c.name}</span>
                         <span className="gr-row-time">{rel(c.lastMessageAt ?? c.createdAt)}</span>
                       </span>
-                      <span className="gr-row-preview">{c.match ?? c.lastMessagePreview ?? ''}</span>
+                      <span className="gr-row-preview">{c.match ?? mediaText({ preview: c.lastMessagePreview })}</span>
                       {(c.flagged || c.awaitingSince || c.labels.length > 0 || c.unread > 0) && (
                         <span className="gr-row-meta">
                           {c.flagged ? (

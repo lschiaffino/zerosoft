@@ -1,4 +1,5 @@
 {
+  "groupsPicker": {"search": "Buscá un chat o grupo por nombre", "current": "Manda a {name}", "group": "grupo", "dm": "chat 1:1", "help": "O usá una variable, como el chat del evento que disparó el flow."},
   "title": "Flow",
   "subtitle": "Automatizaciones entre todas las apps de zerosoft y cualquier servicio con API.",
   "sidebar": { "flows": "Flows", "credentials": "Credenciales", "tables": "Tablas" },

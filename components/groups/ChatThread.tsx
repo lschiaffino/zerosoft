@@ -8,7 +8,7 @@ import type { ChatDto, GroupsPerson, LabelDto, MemberDto, MessageDto, PropertyDe
 import type { ProviderCaps } from '@/lib/groups-provider';
 import { useGroupsInbox } from './InboxShell';
 import ChatDetails from './ChatDetails';
-import { ChatPlate, Modal, api, useErrorText, useToast } from './ui';
+import { ChatPlate, Modal, api, useErrorText, useMediaText, useToast } from './ui';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🙏', '✅'];
 
@@ -41,6 +41,7 @@ export default function ChatThread(props: ThreadProps) {
   const t = useTranslations('groups');
   const locale = useLocale();
   const errText = useErrorText();
+  const mediaText = useMediaText();
   const { refresh } = useGroupsInbox();
   const [toast, showToast] = useToast();
   const [chat, setChat] = useState(props.chat);
@@ -63,7 +64,6 @@ export default function ChatThread(props: ThreadProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const lastAt = useRef(props.messages[props.messages.length - 1]?.createdAt ?? '');
 
   const peopleById = useMemo(() => new Map(props.people.map((p) => [p.id, p.name || p.email])), [props.people]);
   const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
@@ -73,7 +73,18 @@ export default function ChatThread(props: ThreadProps) {
     if (props.chat.unread > 0) void api(`/api/groups/chats/${props.chat.id}`, { method: 'PATCH', body: { read: true } }).then(() => refresh());
   }, [props.chat.id, props.chat.unread, refresh]);
 
+  // Con #m-<id> (Cmd+K, tickets) va a ese mensaje y lo marca; si no, al final.
+  const jumped = useRef(false);
   useEffect(() => {
+    const hash = typeof window !== 'undefined' ? window.location.hash.slice(1) : '';
+    const target = !jumped.current && hash.startsWith('m-') ? document.getElementById(hash) : null;
+    if (target) {
+      jumped.current = true;
+      target.scrollIntoView({ block: 'center' });
+      target.classList.add('is-target');
+      return;
+    }
+    jumped.current = true;
     endRef.current?.scrollIntoView({ block: 'end' });
   }, [messages.length]);
 
@@ -84,16 +95,13 @@ export default function ChatThread(props: ThreadProps) {
       for (const m of incoming) map.set(m.id, m);
       return [...map.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     });
-    const last = incoming[incoming.length - 1].createdAt;
-    if (last > lastAt.current) lastAt.current = last;
   }, []);
 
-  // Lo nuevo (y los cambios de estado de lo último) cada 4 s.
+  // Cada 4 s, los últimos 60: lo nuevo y los cambios en lo reciente (estado, reacciones, ticket por emoji).
   useEffect(() => {
     const id = setInterval(async () => {
       if (document.visibilityState !== 'visible') return;
-      const since = new Date(Date.parse(lastAt.current || new Date(0).toISOString()) - 120_000).toISOString();
-      const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?after=${encodeURIComponent(since)}`);
+      const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=60`);
       if (res.data) merge(res.data.messages);
     }, 4000);
     return () => clearInterval(id);
@@ -326,6 +334,8 @@ export default function ChatThread(props: ThreadProps) {
                     ? t('thread.byPhone')
                     : m.authorKind === 'broadcast'
                       ? t('thread.byBroadcast')
+                      : m.authorKind === 'scheduled'
+                        ? t('thread.byScheduled')
                       : m.authorKind === 'flow'
                         ? 'Flow'
                         : m.authorKind === 'api'
@@ -343,7 +353,7 @@ export default function ChatThread(props: ThreadProps) {
                         {m.direction === 'note' ? t('thread.noteBy', { name: author || '' }) : author}
                       </p>
                     )}
-                    {quoted && <p className="gr-quote">{quoted.body.slice(0, 140) || '[media]'}</p>}
+                    {quoted && <p className="gr-quote">{quoted.body.slice(0, 140) || mediaText({ media: quoted.media })}</p>}
                     {m.media && (
                       <p className="gr-media">
                         {m.media.url && m.media.type.startsWith('image/') ? (
@@ -351,10 +361,10 @@ export default function ChatThread(props: ThreadProps) {
                           <img src={m.media.url} alt={m.media.name || t('thread.image')} loading="lazy" />
                         ) : m.media.url ? (
                           <a href={m.media.url} target="_blank" rel="noreferrer">
-                            {m.media.name || t('thread.file')}
+                            {mediaText({ media: m.media })}
                           </a>
                         ) : (
-                          <span className="ui-help">[{m.media.type.split('/')[0] || t('thread.file')}]</span>
+                          <span className="ui-help">{mediaText({ media: m.media })}</span>
                         )}
                       </p>
                     )}
@@ -418,7 +428,7 @@ export default function ChatThread(props: ThreadProps) {
           </div>
           {replyTo && (
             <p className="gr-replying">
-              {t('thread.replyingTo')} <span>{replyTo.body.slice(0, 80) || '[media]'}</span>
+              {t('thread.replyingTo')} <span>{replyTo.body.slice(0, 80) || mediaText({ media: replyTo.media })}</span>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setReplyTo(null)}>
                 {t('common.cancel')}
               </button>

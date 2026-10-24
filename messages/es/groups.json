@@ -1,7 +1,7 @@
 {
   "sidebar": {
     "inbox": "Bandeja",
-    "groups": "Groups",
+    "groups": "Grupos",
     "tickets": "Tickets",
     "broadcasts": "Envíos masivos",
     "analytics": "Analítica",
@@ -126,7 +126,8 @@
     "scheduleConfirm": "Programar",
     "scheduleNeedsText": "Primero escribí el mensaje en el cuadro.",
     "scheduleAt": "Enviar el",
-    "scheduled": "Programado para {when}"
+    "scheduled": "Programado para {when}",
+    "byScheduled": "Programado"
   },
   "status": {
     "pending": "Enviando",
@@ -185,7 +186,7 @@
     "superadmin": "Propietario"
   },
   "list": {
-    "title": "Groups",
+    "title": "Grupos",
     "desc": "Todos los grupos de WhatsApp de tus números, con miembros, etiquetas y propiedades.",
     "noNumbersTitle": "Todavía no hay números",
     "noNumbersBody": "Conectá un número de WhatsApp para crear y administrar grupos.",
@@ -321,7 +322,7 @@
     "now": "Ahora",
     "later": "Más tarde",
     "perMinute": "Mensajes por minuto",
-    "perMinuteHelp": "Unos {minutes} min para todos. Más lento es más seguro para el número.",
+    "perMinuteHelp": "{minutes, plural, one {Menos de un minuto para todos.} other {Unos # min para todos.}} Más lento es más seguro para el número.",
     "preview": "Vista previa para {name}",
     "previewEmpty": "Escribí el mensaje para ver la vista previa.",
     "sendNow": "Enviar a {n, plural, one {# chat} other {# chats}}",
@@ -393,7 +394,7 @@
       "labels": "Etiquetas",
       "quick": "Respuestas rápidas",
       "properties": "Propiedades",
-      "rules": "Tickets y SLA",
+      "tickets": "Tickets y SLA",
       "api": "API y webhooks"
     }
   },
@@ -446,10 +447,22 @@
     "webhookBridge": "La registramos en tu gateway al conectar. Lleva un secreto: no la compartas."
   },
   "providers": {
-    "cloud": { "name": "WhatsApp Cloud API (oficial)", "desc": "La API de Meta. Ideal para soporte 1:1 y plantillas." },
-    "waha": { "name": "WAHA (QR)", "desc": "Gateway propio. Grupos, miembros, admins y links de invitación." },
-    "evolution": { "name": "Evolution API (QR)", "desc": "Gateway propio. Grupos, miembros, admins y links de invitación." },
-    "fake": { "name": "Número de demo", "desc": "Un número de prueba que nunca habla con WhatsApp. Solo en entornos de demo y de test." }
+    "cloud": {
+      "name": "WhatsApp Cloud API (oficial)",
+      "desc": "La API de Meta. Ideal para soporte 1:1 y plantillas."
+    },
+    "waha": {
+      "name": "WAHA (QR)",
+      "desc": "Gateway propio. Grupos, miembros, admins y links de invitación."
+    },
+    "evolution": {
+      "name": "Evolution API (QR)",
+      "desc": "Gateway propio. Grupos, miembros, admins y links de invitación."
+    },
+    "fake": {
+      "name": "Número de demo",
+      "desc": "Un número de prueba que nunca habla con WhatsApp. Solo en entornos de demo y de test."
+    }
   },
   "numberStatus": {
     "pending": "No conectado",
@@ -485,7 +498,8 @@
     "shortcut": "Atajo",
     "body": "Texto",
     "add": "Agregar respuesta rápida",
-    "empty": "Todavía no hay respuestas rápidas."
+    "empty": "Todavía no hay respuestas rápidas.",
+    "shortcutPlaceholder": "horarios"
   },
   "props": {
     "intro": "Tus propios campos para chats y grupos (plan, responsable de la cuenta, fecha de renovación). Se ven en el panel de detalles y sirven como variables de envíos masivos.",
@@ -519,7 +533,7 @@
     "scopes": "Creá una clave con los permisos groups:read y groups:write en",
     "keys": "los ajustes del workspace",
     "webhooks": "Webhooks salientes y disparadores de Flow para estos eventos:",
-    "flow": "Flow también puede enviar un mensaje de WhatsApp con el paso Groups: send WhatsApp message."
+    "flow": "Flow también puede mandar un mensaje de WhatsApp con el paso Groups: mandar mensaje de WhatsApp."
   },
   "crmBlock": {
     "title": "WhatsApp",
@@ -602,5 +616,11 @@
     "invalid_type": "Exportación desconocida.",
     "not_deletable": "No se puede borrar mientras se está enviando.",
     "invalid_phone_list": "Revisá los teléfonos."
+  },
+  "media": {
+    "image": "Imagen",
+    "audio": "Audio",
+    "video": "Video",
+    "file": "Archivo"
   }
 }

@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, GroupsPerson, LabelDto, MemberDto, PropertyDef } from '@/lib/groups';
 import type { ProviderCaps } from '@/lib/groups-provider';
+import { useGroupsInbox } from './InboxShell';
 import { LabelTag, api, useErrorText, useToast } from './ui';
 
 interface CrmRef {
@@ -61,6 +62,8 @@ export default function ChatDetails({
   const t = useTranslations('groups');
   const errText = useErrorText();
   const router = useRouter();
+  const locale = useLocale();
+  const inbox = useGroupsInbox();
   const [toast, showToast] = useToast();
   const [members, setMembers] = useState(initialMembers);
   const [props, setProps] = useState<Record<string, unknown>>(chat.properties);
@@ -105,8 +108,12 @@ export default function ChatDetails({
 
   async function patch(body: Record<string, unknown>) {
     const res = await api<ChatDto>(`/api/groups/chats/${chat.id}`, { method: 'PATCH', body });
-    if (res.data) onChange(res.data);
-    else showToast(errText(res.error), true);
+    if (res.data) {
+      onChange(res.data);
+      // El nombre también vive en el título de la página (servidor) y en la lista: se refrescan.
+      if (typeof body.name === 'string') router.refresh();
+      inbox.refresh();
+    } else showToast(errText(res.error), true);
     return res.data;
   }
 
@@ -165,8 +172,20 @@ export default function ChatDetails({
   async function remove() {
     const res = await api(`/api/groups/chats/${chat.id}`, { method: 'DELETE' });
     setConfirmDelete(false);
-    if (res.data) router.push(isGroup ? '/app/groups/list' : '/app/groups/inbox');
-    else showToast(errText(res.error), true);
+    if (!res.data) {
+      showToast(errText(res.error), true);
+      return;
+    }
+    if (compact) {
+      // Desde la bandeja: se sigue en la bandeja, en el chat siguiente.
+      const i = inbox.rows.findIndex((r) => r.id === chat.id);
+      const next = inbox.rows.filter((r) => r.id !== chat.id)[Math.max(0, i)] ?? null;
+      inbox.refresh();
+      router.push(next ? `/app/groups/inbox/${next.id}` : '/app/groups/inbox');
+    } else {
+      router.push('/app/groups/list');
+      router.refresh();
+    }
   }
 
   const toggleLabel = (id: string) => {
@@ -359,8 +378,8 @@ export default function ChatDetails({
               <ul className="gr-members">
                 {members.slice(0, compact ? 30 : 2000).map((m) => (
                   <li key={m.phone}>
-                    <span className="gr-member-phone">+{m.phone}</span>
-                    {m.name && <span className="ui-help">{m.name}</span>}
+                    {m.name && <span className="gr-member-name">{m.name}</span>}
+                    <span className={m.name ? 'gr-member-phone ui-help' : 'gr-member-phone'}>+{m.phone}</span>
                     {m.role !== 'member' && <span className="badge badge-outline">{t(`roles.${m.role}`)}</span>}
                     {m.role !== 'superadmin' && (
                       <span className="gr-member-actions">
@@ -438,7 +457,7 @@ export default function ChatDetails({
             {scheduled.map((s) => (
               <li key={s.id}>
                 <span>
-                  {new Date(s.scheduledAt).toLocaleString()} · {s.body.slice(0, 60)}
+                  {new Date(s.scheduledAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })} · {s.body.slice(0, 60)}
                 </span>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => void cancelScheduled(s.id)}>
                   {t('common.cancel')}
@@ -450,7 +469,7 @@ export default function ChatDetails({
       )}
 
       <section className="gr-detail-section gr-detail-foot">
-        <p className="ui-help">{t('details.since', { time: new Date(chat.createdAt).toLocaleDateString() })}</p>
+        <p className="ui-help">{t('details.since', { time: new Date(chat.createdAt).toLocaleDateString(locale) })}</p>
         <a className="btn btn-ghost btn-sm" href={`/api/groups/export?type=messages&chat=${chat.id}`}>
           {t('details.exportMessages')}
         </a>

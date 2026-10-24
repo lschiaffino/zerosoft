@@ -308,7 +308,9 @@ export type FieldKind =
   /** Expresión cron con vista previa. */
   | 'cron'
   /** Una tabla de datos del workspace (lib/flow-tables.ts). */
-  | 'tableRef';
+  | 'tableRef'
+  /** Un chat o grupo de Groups: buscador por nombre, o una variable ({{trigger.chat.id}}). */
+  | 'groupsChatRef';
 
 export interface FieldDef {
   key: string;
@@ -644,7 +646,7 @@ export const NODE_DEFS = {
     category: 'app',
     outputs: ['out'],
     fields: [
-      { key: 'chatId', kind: 'text', template: true, placeholder: '{{trigger.chat.id}}' },
+      { key: 'chatId', kind: 'groupsChatRef', template: true, placeholder: '{{trigger.chat.id}}' },
       { key: 'body', kind: 'textarea', template: true },
     ],
   },

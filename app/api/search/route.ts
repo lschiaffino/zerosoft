@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     // Notas: solo las de la persona logueada (son privadas aunque el workspace sea compartido).
     searchNotesForPalette(user, q),
     // Pizarras, Track, Cal, widgets, Flow, Agents y Robots: por nombre.
-    searchApps(user, q),
+    searchApps(user, q, undefined, req.nextUrl.searchParams.get('locale') ?? 'en'),
   ]);
 
   const items: SearchResultItem[] = [];

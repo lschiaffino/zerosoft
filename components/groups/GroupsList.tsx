@@ -6,7 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ChatDto, LabelDto, NumberDto, PropertyDef } from '@/lib/groups';
-import { ChatPlate, LabelTag, Modal, api, useErrorText, useRelativeTime, useToast } from './ui';
+import { ChatPlate, LabelTag, Modal, NumberOptions, api, defaultNumberId, useErrorText, useRelativeTime, useToast } from './ui';
 
 type BulkAction = 'add' | 'remove' | 'promote' | 'demote';
 
@@ -299,7 +299,7 @@ function CreateGroupModal({
   const [error, setError] = useState('');
   useEffect(() => {
     if (open) {
-      setNumberId(numbers[0]?.id ?? '');
+      setNumberId(defaultNumberId(numbers));
       setName('');
       setPhones('');
       setDescription('');
@@ -345,15 +345,11 @@ function CreateGroupModal({
       }
     >
       <div className="ui-fields">
-        {numbers.length > 1 && (
+        {numbers.length > 0 && (
           <label className="ui-field">
             <span className="label">{t('list.fromNumber')}</span>
             <select className="select" value={numberId} onChange={(e) => setNumberId(e.target.value)}>
-              {numbers.map((n) => (
-                <option key={n.id} value={n.id}>
-                  {n.name} {n.phone ? `+${n.phone}` : ''}
-                </option>
-              ))}
+              <NumberOptions numbers={numbers} />
             </select>
           </label>
         )}
@@ -412,7 +408,7 @@ function CsvModal({ open, numbers, onClose, onDone }: { open: boolean; numbers: 
   const [error, setError] = useState('');
   useEffect(() => {
     if (open) {
-      setNumberId(numbers[0]?.id ?? '');
+      setNumberId(defaultNumberId(numbers));
       setCsv('');
       setPreview(null);
       setResults(null);
@@ -488,15 +484,11 @@ function CsvModal({ open, numbers, onClose, onDone }: { open: boolean; numbers: 
           </>
         ) : (
           <>
-            {numbers.length > 1 && (
+            {numbers.length > 0 && (
               <label className="ui-field">
                 <span className="label">{t('list.fromNumber')}</span>
                 <select className="select" value={numberId} onChange={(e) => setNumberId(e.target.value)}>
-                  {numbers.map((n) => (
-                    <option key={n.id} value={n.id}>
-                      {n.name}
-                    </option>
-                  ))}
+                  <NumberOptions numbers={numbers} />
                 </select>
               </label>
             )}
