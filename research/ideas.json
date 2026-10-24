@@ -1584,7 +1584,10 @@
     "title": "CRM: Add forecast categories and a per-rep forecast submission with manager roll-up",
     "description": "HubSpot's forecasting tool lets each rep put deals in categories (pipeline, best case, commit, closed) and submit a number per period, with team hierarchies in Pro (https://www.hubspot.com/pricing/sales/starter, Forecasting). Our forecast is the probability-weighted amount in reports and the board header; there is no commit/best case and no way for a rep to submit or a manager to adjust. First scope: a forecast category property on deals (defaulted from the stage), a Forecast page per month or quarter grouped by owner and sales team with commit / best case / pipeline totals against quotas, and a submitted value per rep with history.\n\nPriority: medium. Effort: M. Compared with HubSpot forecasting and Pipedrive revenue forecast.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "forecast",
+    "status": "done",
+    "changelog": "2026-10-24-crm-reports"
   },
   {
     "title": "CRM: Ship a Gmail / Chrome extension that shows the contact and logs emails from the inbox",

@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import type { CrmDashboardWidgetRow } from '@/lib/db';
 import type { CrmDashboardWithWidgets } from '@/lib/crm-dashboards';
 import {
-  DASHBOARD_WIDGET_TYPES,
+  DASHBOARD_MENU_TYPES,
   KPI_METRICS,
   WIDGET_MIN_SIZE,
   type DashboardInitialData,
@@ -15,6 +15,8 @@ import {
   type WidgetDataMap,
 } from '@/lib/crm-dashboards-schema';
 import { formatDate, formatNumber } from '@/lib/utils';
+import { Link } from '@/i18n/navigation';
+import ReportChart from './ReportChart';
 
 const GRID_COLS = 12;
 const ROW_H = 64; // px por fila del grid (ver .dash-grid en crm.css)
@@ -387,6 +389,7 @@ export default function DashboardsView({
   /** Widgets con config no-default se fetchean a /api/crm/dashboards/data. */
   function needsCustomData(w: CrmDashboardWidgetRow): boolean {
     const cfg = parseConfig(w.config);
+    if (w.type === 'custom_report') return true;
     if (w.type === 'funnel' || w.type === 'forecast') {
       return !!cfg.pipelineId && cfg.pipelineId !== defaultPipelineId;
     }
@@ -422,6 +425,7 @@ export default function DashboardsView({
           type: w.type,
           pipelineId: cfg.pipelineId ?? defaultPipelineId,
           range: cfg.range ?? DEFAULT_RANGE,
+          reportId: cfg.reportId,
         }),
       })
         .then(async (res) => {
@@ -749,6 +753,11 @@ export default function DashboardsView({
   function widgetTitle(w: CrmDashboardWidgetRow): string {
     const cfg = parseConfig(w.config);
     if (w.type === 'kpi') return tCrm(`reports.kpi.${cfg.metric ?? 'newContacts'}`);
+    if (w.type === 'custom_report') {
+      const state = dataStateFor(w);
+      const report = state.status === 'ready' ? (state.data as WidgetDataMap['custom_report']).report : null;
+      return report?.name ?? t('widgets.custom_report');
+    }
     return t(`widgets.${w.type}`);
   }
 
@@ -969,6 +978,18 @@ export default function DashboardsView({
           </ul>
         );
       }
+      case 'custom_report': {
+        const { report } = data as WidgetDataMap['custom_report'];
+        if (!report) return <p className="muted dash-loading">{t('reportMissing')}</p>;
+        return (
+          <div className="dash-report" data-no-drag>
+            <ReportChart result={report.result} viz={report.config.viz} locale={locale} baseCurrency={baseCurrency} compact />
+            <p className="dash-report-open">
+              <Link href={`/app/crm/reports/custom/${report.id}`}>{t('openReport')}</Link>
+            </p>
+          </div>
+        );
+      }
       case 'recent_activity': {
         const { activities } = data as WidgetDataMap['recent_activity'];
         if (activities.length === 0) return empty;
@@ -1064,7 +1085,7 @@ export default function DashboardsView({
                 </button>
                 {addMenuOpen && (
                   <div className="dash-add-menu" role="menu">
-                    {DASHBOARD_WIDGET_TYPES.map((type) => (
+                    {DASHBOARD_MENU_TYPES.map((type) => (
                       <button key={type} type="button" onClick={() => void addNewWidget(type)}>
                         {t(`widgets.${type}`)}
                       </button>

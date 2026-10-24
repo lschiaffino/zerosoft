@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 import type { ActivityListRow, WonLostMonth } from './crm';
+import type { ReportConfig, ReportResult } from './crm-report-builder';
 import type {
   ActivityLeaderboard,
   ForecastReportStage,
@@ -26,9 +27,13 @@ export const DASHBOARD_WIDGET_TYPES = [
   'leaderboard',
   'tasks',
   'recent_activity',
+  'custom_report',
 ] as const;
 
 export type DashboardWidgetType = (typeof DASHBOARD_WIDGET_TYPES)[number];
+
+/** Tipos del menú "Add widget": los reportes propios se agregan desde el reporte. */
+export const DASHBOARD_MENU_TYPES = DASHBOARD_WIDGET_TYPES.filter((t) => t !== 'custom_report');
 
 export const KPI_METRICS = ['newContacts', 'newDeals', 'wonAmount', 'activities'] as const;
 export type KpiMetric = (typeof KPI_METRICS)[number];
@@ -43,6 +48,8 @@ export const dashboardWidgetConfigSchema = z.object({
   metric: z.enum(KPI_METRICS).optional(),
   pipelineId: id.nullish(),
   range: z.enum(RANGE_LABELS).optional(),
+  /** Widget custom_report: el reporte propio que muestra (lib/crm-custom-reports.ts). */
+  reportId: id.optional(),
 });
 
 export type DashboardWidgetConfig = z.infer<typeof dashboardWidgetConfigSchema>;
@@ -99,6 +106,7 @@ export const dashboardDataRequestSchema = z.object({
   type: z.enum(DASHBOARD_WIDGET_TYPES),
   pipelineId: id.nullish(),
   range: z.enum(RANGE_LABELS).optional(),
+  reportId: id.optional(),
 });
 
 export type DashboardCreatePayload = z.infer<typeof dashboardCreateSchema>;
@@ -121,6 +129,8 @@ export interface WidgetDataMap {
   leaderboard: { leaderboard: ActivityLeaderboard[] };
   tasks: { tasks: ActivityListRow[] };
   recent_activity: { activities: ActivityListRow[] };
+  /** null si el reporte ya no existe; error si falló al correr. */
+  custom_report: { report: { id: string; name: string; config: ReportConfig; result: ReportResult } | null; error?: string };
 }
 
 export type WidgetData = WidgetDataMap[DashboardWidgetType];
@@ -141,6 +151,7 @@ export const WIDGET_DEFAULT_SIZE: Record<DashboardWidgetType, { w: number; h: nu
   leaderboard: { w: 4, h: 5 },
   tasks: { w: 4, h: 5 },
   recent_activity: { w: 4, h: 5 },
+  custom_report: { w: 6, h: 5 },
 };
 
 export const WIDGET_MIN_SIZE: Record<DashboardWidgetType, { w: number; h: number }> = {
@@ -154,4 +165,5 @@ export const WIDGET_MIN_SIZE: Record<DashboardWidgetType, { w: number; h: number
   leaderboard: { w: 3, h: 3 },
   tasks: { w: 3, h: 3 },
   recent_activity: { w: 3, h: 3 },
+  custom_report: { w: 3, h: 2 },
 };

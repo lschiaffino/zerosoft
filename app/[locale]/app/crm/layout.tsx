@@ -7,6 +7,7 @@ import '@/styles/crm-ai.css';
 import CrmAssistant from '@/components/crm/CrmAssistant';
 import { CrmViewerProvider } from '@/components/crm/CrmViewer';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import '@/styles/crm-reports.css';
 
 /** CRM: sus hojas de estilos y los textos de sus componentes cliente. */
 export default async function CrmLayout(props: { children: ReactNode; params: Promise<{ locale: string }> }) {

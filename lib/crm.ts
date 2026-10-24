@@ -3,6 +3,7 @@
  * Sigue el patrón de lib/links.ts: getDb() singleton, WHERE builders,
  * paginación con clamp, ids crypto.randomUUID(), timestamps UTC.
  */
+import { recordStageEntry } from './crm-stage-history';
 import { assertRefs, CrmRefError, ownedContactIds } from './crm-refs';
 import { deleteUploads } from './uploads';
 import { dayRangeUtc, getUserTimeZone } from './user-tz';
@@ -1925,6 +1926,7 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
         ts,
         ts,
       );
+    await recordStageEntry({ userId, dealId: id, pipelineId: data.pipelineId!, stageId: data.stageId!, at: ts }, tdb);
     if (contactIds.length) await setDealContacts(id, contactIds, tdb);
     if (data.companyId) await associateDealCompany(userId, id, data.companyId, { primary: true }, tdb);
     for (const companyId of data.companyIds ?? []) await associateDealCompany(userId, id, companyId, {}, tdb);
@@ -2144,6 +2146,8 @@ export async function moveDeal(
     await consumeApproval(approvedId, db);
   }
   const oldStageId = deal.stage_id;
+  // Historial completo de etapas (recorrido de deals, lib/crm-stage-history.ts).
+  if (oldStageId !== stageId) await recordStageEntry({ userId, dealId: id, pipelineId: deal.pipeline_id, stageId, at: ts }, db);
   if (oldStageName !== stage.name) {
     await db
       .prepare(

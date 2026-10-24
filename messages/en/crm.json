@@ -19,7 +19,8 @@
     "agents": "AI agents",
     "leads": "Leads",
     "objects": "Custom objects",
-    "playbooks": "Playbooks"
+    "playbooks": "Playbooks",
+    "forecast": "Forecast"
   },
   "switcher": {
     "product": "Product",
@@ -816,7 +817,8 @@
       "source": "Sources",
       "owner": "Owners",
       "activity": "Activity",
-      "conversion": "Conversion"
+      "conversion": "Conversion",
+      "journey": "Deal journey"
     },
     "funnel": "Pipeline funnel",
     "forecastByStage": "Weighted forecast by stage",
@@ -891,8 +893,11 @@
       "owner": "By owner",
       "leaderboard": "Activity leaderboard",
       "tasks": "Open tasks",
-      "recent_activity": "Recent activity"
-    }
+      "recent_activity": "Recent activity",
+      "custom_report": "Custom report"
+    },
+    "reportMissing": "This report was deleted or can't run anymore.",
+    "openReport": "Open report"
   },
   "settings": {
     "title": "Settings",
@@ -2971,5 +2976,266 @@
       "invalid_owner": "Owners have to be people in this workspace.",
       "too_many": "Up to 10 owners per deal."
     }
+  },
+  "reportBuilder": {
+    "nav": {
+      "standard": "Standard reports",
+      "custom": "Custom reports",
+      "forecast": "Forecast"
+    },
+    "listDesc": "Build reports across contacts, companies, deals, activities and tasks, and add them to a dashboard.",
+    "newReport": "New report",
+    "emptyTitle": "No custom reports yet",
+    "emptyDesc": "Pick a data source, choose fields, filters and how to group them, then save the report.",
+    "name": "Name",
+    "rename": "Rename",
+    "updated": "Updated",
+    "back": "← All custom reports",
+    "untitled": "Untitled report",
+    "save": "Save",
+    "saved": "Report saved",
+    "unsaved": "Unsaved changes",
+    "exportCsv": "Export CSV",
+    "addToDashboard": "Add to dashboard",
+    "addedToDashboard": "Added to the dashboard",
+    "noDashboards": "Create a dashboard first in Dashboards.",
+    "confirmDelete": "Delete this report and its dashboard widgets?",
+    "source": "Data source",
+    "sources": {
+      "contacts": "Contacts",
+      "companies": "Companies",
+      "deals": "Deals",
+      "activities": "Activities",
+      "tasks": "Tasks"
+    },
+    "objects": "Associated objects",
+    "objectNames": {
+      "contact": "Contact",
+      "company": "Company",
+      "deal": "Deal",
+      "activity": "Activity"
+    },
+    "viz": "Visualization",
+    "vizs": {
+      "table": "Table",
+      "bar": "Bar",
+      "line": "Line",
+      "pie": "Pie",
+      "kpi": "KPI"
+    },
+    "metric": "Metric",
+    "countWhat": "Object to count",
+    "metricField": "Field",
+    "aggs": {
+      "count": "Count",
+      "sum": "Sum",
+      "avg": "Average",
+      "min": "Minimum",
+      "max": "Maximum"
+    },
+    "countOf": "Count of {object}",
+    "dimensions": "Group by",
+    "dimension": "Group {n}",
+    "addDimension": "Add grouping",
+    "removeDimension": "Remove grouping",
+    "bucket": "Date grouping",
+    "buckets": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "quarter": "Quarter",
+      "year": "Year"
+    },
+    "sort": "Sort",
+    "sorts": {
+      "value_desc": "Highest value first",
+      "value_asc": "Lowest value first",
+      "label": "By label"
+    },
+    "columns": "Columns",
+    "addColumn": "Add column",
+    "removeColumn": "Remove column",
+    "moveUp": "Move up",
+    "columnsHint": "Without a grouping the table lists each record. Add a grouping or pick a chart to summarize.",
+    "filters": "Filters",
+    "ops": {
+      "known": "is known",
+      "unknown": "is unknown",
+      "last": "in the last (days)"
+    },
+    "lastDays": "Days",
+    "chooseValue": "Choose a value",
+    "preview": "Preview",
+    "noValue": "(No value)",
+    "unknownPerson": "Former member",
+    "emptyResult": "No records match this report.",
+    "truncated": "Showing the first 200 groups.",
+    "records": "{count, plural, one {# record} other {# records}}",
+    "recordsTruncated": "Showing {shown} of {total} records. Export or add filters to see the rest.",
+    "total": "Total",
+    "other": "Other",
+    "forecastLinkText": "Categories, goals and each rep's submitted number live in",
+    "openForecast": "Forecast",
+    "errors": {
+      "generic": "Something went wrong. Try again.",
+      "invalid_field": "One of the fields no longer exists. Remove it and try again.",
+      "invalid_metric": "Sum, average, minimum and maximum need a number field.",
+      "invalid_input": "This combination of objects isn't available for the data source.",
+      "network": "Couldn't reach the server. Check your connection."
+    },
+    "fields": {
+      "contact": {
+        "name": "Name",
+        "email": "Email",
+        "phone": "Phone",
+        "jobTitle": "Job title",
+        "city": "City",
+        "country": "Country",
+        "lifecycle": "Lifecycle stage",
+        "leadStatus": "Lead status",
+        "source": "Source",
+        "owner": "Owner",
+        "score": "Lead score",
+        "created": "Create date"
+      },
+      "company": {
+        "name": "Name",
+        "domain": "Domain",
+        "industry": "Industry",
+        "employees": "Employees",
+        "city": "City",
+        "country": "Country",
+        "lifecycle": "Lifecycle stage",
+        "owner": "Owner",
+        "created": "Create date"
+      },
+      "deal": {
+        "name": "Deal name",
+        "amount": "Amount",
+        "pipeline": "Pipeline",
+        "stage": "Stage",
+        "priority": "Priority",
+        "source": "Source",
+        "owner": "Owner",
+        "forecastCategory": "Forecast category",
+        "closeDate": "Close date",
+        "closedAt": "Closed on",
+        "created": "Create date"
+      },
+      "activity": {
+        "type": "Activity type",
+        "subject": "Subject",
+        "done": "Completed",
+        "owner": "Owner",
+        "outcome": "Outcome",
+        "durationMin": "Duration (min)",
+        "dueAt": "Due date",
+        "doneAt": "Completed on",
+        "created": "Create date"
+      }
+    }
+  },
+  "forecast": {
+    "title": "Forecast",
+    "periodLabel": "Period",
+    "period": {
+      "month": "Month",
+      "quarter": "Quarter"
+    },
+    "prev": "Previous period",
+    "next": "Next period",
+    "current": "Current period",
+    "team": "Team",
+    "allTeams": "Everyone",
+    "pipeline": "Pipeline",
+    "allPipelines": "All pipelines",
+    "error": "Couldn't load the forecast. Try again.",
+    "noGoal": "No goal",
+    "byPerson": "By owner",
+    "emptyPeople": "No owners to show for this team.",
+    "attainment": "{pct}% of goal won",
+    "history": "See submission history",
+    "historyTitle": "{name} · submissions for {period}",
+    "historyEmpty": "No submissions yet.",
+    "notSubmitted": "Not submitted",
+    "submit": "Submit",
+    "update": "Update",
+    "submitTitle": "Submit forecast for {name} · {period}",
+    "submitHint": "Closed won plus commit is {mostLikely}. Previous submissions stay in the history.",
+    "note": "Note (optional)",
+    "total": "Total",
+    "help": "Open deals count in the period of their close date, won deals in the period they closed. Each deal's category comes from its stage probability (70% or more is commit, 40% or more is best case) unless you change it below.",
+    "byStage": "by stage",
+    "deals": "Deals in this period",
+    "dealsOf": "Deals of {name}",
+    "dealsEmpty": "No deals close in this period.",
+    "undated": "{count, plural, one {# open deal has} other {# open deals have}} no close date",
+    "cols": {
+      "person": "Owner",
+      "goal": "Goal",
+      "closedWon": "Closed won",
+      "commit": "Commit",
+      "bestCase": "Best case",
+      "pipeline": "Pipeline",
+      "weighted": "Weighted",
+      "submitted": "Submitted",
+      "submission": "Submission",
+      "deal": "Deal",
+      "stage": "Stage",
+      "closeDate": "Close date",
+      "amount": "Amount",
+      "category": "Forecast category"
+    },
+    "category": {
+      "pipeline": "Pipeline",
+      "best_case": "Best case",
+      "commit": "Commit",
+      "omit": "Omit",
+      "closed_won": "Closed won",
+      "lost": "Closed lost",
+      "auto": "Automatic ({category})"
+    }
+  },
+  "journey": {
+    "rangeLabel": "Deals created in",
+    "range": {
+      "30d": "30 days",
+      "90d": "90 days",
+      "quarter": "This quarter",
+      "12m": "12 months",
+      "all": "All time"
+    },
+    "modeLabel": "How stages count",
+    "mode": {
+      "cumulative": "Cumulative",
+      "strict": "Entered stage"
+    },
+    "emptyTitle": "No deals in this period",
+    "emptyDesc": "Deals created in this pipeline and period will show how they move between stages.",
+    "days": "{n} d",
+    "kpi": {
+      "total": "Deals",
+      "won": "Won",
+      "lost": "Lost",
+      "open": "Open",
+      "winRate": "Win rate",
+      "avgDaysToWin": "Avg. time to win"
+    },
+    "funnel": "Stage funnel",
+    "reachedTitle": "{n} deals reached this stage",
+    "biggestDrop": "Most deals are lost at {stage}.",
+    "byStage": "Conversion and time by stage",
+    "cols": {
+      "stage": "Stage",
+      "reached": "Reached",
+      "next": "To next stage",
+      "avgDays": "Avg. time in stage",
+      "current": "In stage now",
+      "lost": "Lost here",
+      "lostRate": "Drop-off"
+    },
+    "exitsTitle": "Average over {n} deals that left the stage",
+    "helpCumulative": "Cumulative: a deal that reached a later stage also counts for the stages before it. Time in stage averages deals that already left it.",
+    "helpStrict": "Entered stage: a deal only counts for the stages it actually entered. Time in stage averages deals that already left it."
   }
 }

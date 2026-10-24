@@ -11,6 +11,7 @@ export type IconName =
   | 'tasks'
   | 'myTasks'
   | 'reports'
+  | 'forecast'
   | 'workflows'
   | 'settings'
   | 'links'
@@ -107,6 +108,7 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   reports: <path d="M6 20v-7M12 20V5M18 20v-4" />,
+  forecast: <path d="M4 18l5-6 4 3 7-9M15 6h5v5" />,
   workflows: (
     <>
       <path d="M4 7h4v10H4zM10 4h4v13h-4zM16 9h4v8h-4z" />

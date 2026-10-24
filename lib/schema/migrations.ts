@@ -3753,6 +3753,106 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // CRM reportes: constructor de reportes propios (config JSON validada en
+    // lib/crm-report-builder.ts), historial completo de etapas de cada deal
+    // (una fila por entrada a una etapa, para el recorrido de deals), categoría
+    // de forecast por deal ('' = la de su etapa) y números de forecast que
+    // envía cada persona por período (el último vale; el resto es historial).
+    // El historial se reconstruye para los deals existentes desde los cambios
+    // de etapa del audit trail (crm_property_events guarda nombres).
+    id: '074_crm_reports',
+    async up(client) {
+      await addColumn(client, "ALTER TABLE crm_deals ADD COLUMN forecast_category TEXT NOT NULL DEFAULT ''");
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS crm_custom_reports (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          config TEXT NOT NULL DEFAULT '{}',
+          created_by TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_custom_reports_user ON crm_custom_reports(user_id, updated_at DESC);
+
+        CREATE TABLE IF NOT EXISTS crm_deal_stage_history (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          deal_id TEXT NOT NULL REFERENCES crm_deals(id) ON DELETE CASCADE,
+          pipeline_id TEXT NOT NULL,
+          stage_id TEXT NOT NULL,
+          entered_at TEXT NOT NULL,
+          exited_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_stage_history_deal ON crm_deal_stage_history(deal_id, entered_at);
+        CREATE INDEX IF NOT EXISTS idx_crm_stage_history_pipeline ON crm_deal_stage_history(user_id, pipeline_id, entered_at);
+
+        CREATE TABLE IF NOT EXISTS crm_forecast_submissions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          period TEXT NOT NULL CHECK (period IN ('month', 'quarter')),
+          period_label TEXT NOT NULL,
+          amount REAL NOT NULL,
+          note TEXT NOT NULL DEFAULT '',
+          submitted_by TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_forecast_sub ON crm_forecast_submissions(user_id, period, period_label, person_id, created_at DESC);
+      `);
+
+      // Backfill del historial (ids deterministas: correr dos veces no duplica).
+      const deals = (await client.execute(
+        `SELECT d.id, d.user_id, d.pipeline_id, d.stage_id, d.created_at, d.closed_at, d.updated_at FROM crm_deals d
+         WHERE NOT EXISTS (SELECT 1 FROM crm_deal_stage_history h WHERE h.deal_id = d.id)`,
+      )).rows;
+      if (!deals.length) return;
+      const stages = (await client.execute('SELECT id, pipeline_id, name FROM crm_stages')).rows;
+      const byName = new Map<string, string>();
+      for (const s of stages) byName.set(`${s.pipeline_id}|${String(s.name).toLowerCase()}`, String(s.id));
+      const events = (await client.execute(
+        "SELECT entity_id, old_value, new_value, created_at FROM crm_property_events WHERE entity = 'deal' AND field = 'stage' ORDER BY created_at ASC",
+      )).rows;
+      const evByDeal = new Map<string, Array<{ old: string; next: string; at: string }>>();
+      for (const e of events) {
+        const k = String(e.entity_id);
+        const list = evByDeal.get(k) ?? [];
+        list.push({ old: String(e.old_value), next: String(e.new_value), at: String(e.created_at) });
+        evByDeal.set(k, list);
+      }
+      const stmts: Array<{ sql: string; args: Array<string | null> }> = [];
+      for (const d of deals) {
+        const dealId = String(d.id);
+        const pipelineId = String(d.pipeline_id);
+        const find = (name: string) => byName.get(`${pipelineId}|${name.toLowerCase()}`) ?? null;
+        const entries: Array<{ stage: string; at: string }> = [];
+        const evs = evByDeal.get(dealId) ?? [];
+        const first = evs.length ? find(evs[0].old) : null;
+        if (first) entries.push({ stage: first, at: String(d.created_at) });
+        for (const e of evs) {
+          const st = find(e.next);
+          if (st) entries.push({ stage: st, at: e.at });
+        }
+        const current = String(d.stage_id);
+        if (!entries.length) entries.push({ stage: current, at: String(d.created_at) });
+        else if (entries[entries.length - 1].stage !== current) {
+          const last = entries[entries.length - 1].at;
+          const at = String(d.closed_at ?? d.updated_at ?? last);
+          entries.push({ stage: current, at: at > last ? at : last });
+        }
+        entries.forEach((e, i) => {
+          const exited = i + 1 < entries.length ? entries[i + 1].at : null;
+          stmts.push({
+            sql: `INSERT OR IGNORE INTO crm_deal_stage_history (id, user_id, deal_id, pipeline_id, stage_id, entered_at, exited_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: [`bf-${dealId}-${i}`, String(d.user_id), dealId, pipelineId, e.stage, e.at, exited],
+          });
+        });
+      }
+      for (let i = 0; i < stmts.length; i += 200) await client.batch(stmts.slice(i, i + 200), 'write');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

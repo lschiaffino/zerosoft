@@ -36,6 +36,7 @@ function useGroupOrder() {
         'boards',
         'tasks',
         'playbooks',
+        'reports',
         'eventTypes',
         'bookings',
         'widgets',

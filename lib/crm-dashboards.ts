@@ -19,6 +19,7 @@ import {
   type ReportFilters,
 } from './crm-reports';
 import { listMembers } from './teams';
+import { getCustomReport, runReport, ReportError } from './crm-custom-reports';
 import type { SessionUser } from './session';
 import {
   WIDGET_DEFAULT_SIZE,
@@ -345,5 +346,18 @@ export async function getWidgetData(
       return { tasks: (await listTasks(userId, { bucket: 'upcoming', ownerScope: scope })).slice(0, 8) };
     case 'recent_activity':
       return { activities: await listTimeline(userId, { limit: 8, ownerScope: scope }) };
+    case 'custom_report': {
+      const report = req.reportId ? await getCustomReport(userId, req.reportId) : null;
+      if (!report) return { report: null };
+      try {
+        const result = await runReport(userId, report.config, {
+          scope,
+          people: owners.map((o) => ({ id: o.id, name: o.name || o.email })),
+        });
+        return { report: { id: report.id, name: report.name, config: report.config, result } };
+      } catch (e) {
+        return { report: null, error: e instanceof ReportError ? e.code : 'report_failed' };
+      }
+    }
   }
 }

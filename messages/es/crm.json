@@ -19,7 +19,8 @@
     "agents": "Agentes de IA",
     "leads": "Leads",
     "objects": "Objetos propios",
-    "playbooks": "Playbooks"
+    "playbooks": "Playbooks",
+    "forecast": "Forecast"
   },
   "switcher": {
     "product": "Producto",
@@ -816,7 +817,8 @@
       "source": "Orígenes",
       "owner": "Responsables",
       "activity": "Actividad",
-      "conversion": "Conversión"
+      "conversion": "Conversión",
+      "journey": "Recorrido de deals"
     },
     "funnel": "Embudo del pipeline",
     "forecastByStage": "Forecast ponderado por etapa",
@@ -891,8 +893,11 @@
       "owner": "Por responsable",
       "leaderboard": "Ranking de actividad",
       "tasks": "Tareas abiertas",
-      "recent_activity": "Actividad reciente"
-    }
+      "recent_activity": "Actividad reciente",
+      "custom_report": "Reporte propio"
+    },
+    "reportMissing": "Este reporte se borró o ya no se puede correr.",
+    "openReport": "Abrir reporte"
   },
   "settings": {
     "title": "Ajustes",
@@ -2971,5 +2976,266 @@
       "invalid_owner": "Los dueños tienen que ser personas de este workspace.",
       "too_many": "Hasta 10 dueños por deal."
     }
+  },
+  "reportBuilder": {
+    "nav": {
+      "standard": "Reportes estándar",
+      "custom": "Reportes propios",
+      "forecast": "Forecast"
+    },
+    "listDesc": "Armá reportes entre contactos, empresas, deals, actividades y tareas, y sumalos a un dashboard.",
+    "newReport": "Nuevo reporte",
+    "emptyTitle": "Todavía no hay reportes propios",
+    "emptyDesc": "Elegí una fuente de datos, los campos, los filtros y cómo agruparlos, y guardá el reporte.",
+    "name": "Nombre",
+    "rename": "Renombrar",
+    "updated": "Actualizado",
+    "back": "← Todos los reportes propios",
+    "untitled": "Reporte sin nombre",
+    "save": "Guardar",
+    "saved": "Reporte guardado",
+    "unsaved": "Cambios sin guardar",
+    "exportCsv": "Exportar CSV",
+    "addToDashboard": "Agregar a un dashboard",
+    "addedToDashboard": "Agregado al dashboard",
+    "noDashboards": "Primero creá un dashboard en Dashboards.",
+    "confirmDelete": "¿Borrar este reporte y sus widgets de dashboard?",
+    "source": "Fuente de datos",
+    "sources": {
+      "contacts": "Contactos",
+      "companies": "Empresas",
+      "deals": "Deals",
+      "activities": "Actividades",
+      "tasks": "Tareas"
+    },
+    "objects": "Objetos asociados",
+    "objectNames": {
+      "contact": "Contacto",
+      "company": "Empresa",
+      "deal": "Deal",
+      "activity": "Actividad"
+    },
+    "viz": "Visualización",
+    "vizs": {
+      "table": "Tabla",
+      "bar": "Barras",
+      "line": "Líneas",
+      "pie": "Torta",
+      "kpi": "KPI"
+    },
+    "metric": "Métrica",
+    "countWhat": "Objeto a contar",
+    "metricField": "Campo",
+    "aggs": {
+      "count": "Conteo",
+      "sum": "Suma",
+      "avg": "Promedio",
+      "min": "Mínimo",
+      "max": "Máximo"
+    },
+    "countOf": "Cantidad de {object}",
+    "dimensions": "Agrupar por",
+    "dimension": "Grupo {n}",
+    "addDimension": "Agregar agrupación",
+    "removeDimension": "Quitar agrupación",
+    "bucket": "Agrupar fecha por",
+    "buckets": {
+      "day": "Día",
+      "week": "Semana",
+      "month": "Mes",
+      "quarter": "Trimestre",
+      "year": "Año"
+    },
+    "sort": "Orden",
+    "sorts": {
+      "value_desc": "Mayor valor primero",
+      "value_asc": "Menor valor primero",
+      "label": "Por nombre"
+    },
+    "columns": "Columnas",
+    "addColumn": "Agregar columna",
+    "removeColumn": "Quitar columna",
+    "moveUp": "Subir",
+    "columnsHint": "Sin agrupación, la tabla lista cada registro. Agregá una agrupación o elegí un gráfico para resumir.",
+    "filters": "Filtros",
+    "ops": {
+      "known": "tiene valor",
+      "unknown": "no tiene valor",
+      "last": "en los últimos (días)"
+    },
+    "lastDays": "Días",
+    "chooseValue": "Elegí un valor",
+    "preview": "Vista previa",
+    "noValue": "(Sin valor)",
+    "unknownPerson": "Ex miembro",
+    "emptyResult": "Ningún registro coincide con este reporte.",
+    "truncated": "Se muestran los primeros 200 grupos.",
+    "records": "{count, plural, one {# registro} other {# registros}}",
+    "recordsTruncated": "Se muestran {shown} de {total} registros. Exportá o agregá filtros para ver el resto.",
+    "total": "Total",
+    "other": "Otros",
+    "forecastLinkText": "Las categorías, las metas y el número que envía cada vendedor están en",
+    "openForecast": "Forecast",
+    "errors": {
+      "generic": "Algo salió mal. Probá de nuevo.",
+      "invalid_field": "Uno de los campos ya no existe. Quitalo y probá de nuevo.",
+      "invalid_metric": "Suma, promedio, mínimo y máximo necesitan un campo numérico.",
+      "invalid_input": "Esa combinación de objetos no está disponible para la fuente de datos.",
+      "network": "No pudimos conectar con el servidor. Revisá tu conexión."
+    },
+    "fields": {
+      "contact": {
+        "name": "Nombre",
+        "email": "Email",
+        "phone": "Teléfono",
+        "jobTitle": "Cargo",
+        "city": "Ciudad",
+        "country": "País",
+        "lifecycle": "Etapa del ciclo de vida",
+        "leadStatus": "Estado del lead",
+        "source": "Origen",
+        "owner": "Responsable",
+        "score": "Puntaje",
+        "created": "Fecha de creación"
+      },
+      "company": {
+        "name": "Nombre",
+        "domain": "Dominio",
+        "industry": "Industria",
+        "employees": "Empleados",
+        "city": "Ciudad",
+        "country": "País",
+        "lifecycle": "Etapa del ciclo de vida",
+        "owner": "Responsable",
+        "created": "Fecha de creación"
+      },
+      "deal": {
+        "name": "Nombre del deal",
+        "amount": "Monto",
+        "pipeline": "Pipeline",
+        "stage": "Etapa",
+        "priority": "Prioridad",
+        "source": "Origen",
+        "owner": "Responsable",
+        "forecastCategory": "Categoría de forecast",
+        "closeDate": "Fecha de cierre",
+        "closedAt": "Cerrado el",
+        "created": "Fecha de creación"
+      },
+      "activity": {
+        "type": "Tipo de actividad",
+        "subject": "Asunto",
+        "done": "Completada",
+        "owner": "Responsable",
+        "outcome": "Resultado",
+        "durationMin": "Duración (min)",
+        "dueAt": "Vencimiento",
+        "doneAt": "Completada el",
+        "created": "Fecha de creación"
+      }
+    }
+  },
+  "forecast": {
+    "title": "Forecast",
+    "periodLabel": "Período",
+    "period": {
+      "month": "Mes",
+      "quarter": "Trimestre"
+    },
+    "prev": "Período anterior",
+    "next": "Período siguiente",
+    "current": "Período actual",
+    "team": "Equipo",
+    "allTeams": "Todos",
+    "pipeline": "Pipeline",
+    "allPipelines": "Todos los pipelines",
+    "error": "No pudimos cargar el forecast. Probá de nuevo.",
+    "noGoal": "Sin meta",
+    "byPerson": "Por responsable",
+    "emptyPeople": "No hay responsables para mostrar en este equipo.",
+    "attainment": "{pct}% de la meta ganado",
+    "history": "Ver historial de envíos",
+    "historyTitle": "{name} · envíos de {period}",
+    "historyEmpty": "Todavía no hay envíos.",
+    "notSubmitted": "Sin enviar",
+    "submit": "Enviar",
+    "update": "Actualizar",
+    "submitTitle": "Enviar forecast de {name} · {period}",
+    "submitHint": "Ganado más commit da {mostLikely}. Los envíos anteriores quedan en el historial.",
+    "note": "Nota (opcional)",
+    "total": "Total",
+    "help": "Los deals abiertos cuentan en el período de su fecha de cierre y los ganados en el período en que se cerraron. La categoría de cada deal sale de la probabilidad de su etapa (70% o más es commit, 40% o más es best case), salvo que la cambies abajo.",
+    "byStage": "según la etapa",
+    "deals": "Deals del período",
+    "dealsOf": "Deals de {name}",
+    "dealsEmpty": "Ningún deal cierra en este período.",
+    "undated": "{count, plural, one {# deal abierto no tiene} other {# deals abiertos no tienen}} fecha de cierre",
+    "cols": {
+      "person": "Responsable",
+      "goal": "Meta",
+      "closedWon": "Ganado",
+      "commit": "Commit",
+      "bestCase": "Best case",
+      "pipeline": "Pipeline",
+      "weighted": "Ponderado",
+      "submitted": "Enviado",
+      "submission": "Envío",
+      "deal": "Deal",
+      "stage": "Etapa",
+      "closeDate": "Fecha de cierre",
+      "amount": "Monto",
+      "category": "Categoría de forecast"
+    },
+    "category": {
+      "pipeline": "Pipeline",
+      "best_case": "Best case",
+      "commit": "Commit",
+      "omit": "Omitir",
+      "closed_won": "Ganado",
+      "lost": "Perdido",
+      "auto": "Automática ({category})"
+    }
+  },
+  "journey": {
+    "rangeLabel": "Deals creados en",
+    "range": {
+      "30d": "30 días",
+      "90d": "90 días",
+      "quarter": "Este trimestre",
+      "12m": "12 meses",
+      "all": "Desde siempre"
+    },
+    "modeLabel": "Cómo cuentan las etapas",
+    "mode": {
+      "cumulative": "Acumulado",
+      "strict": "Entró a la etapa"
+    },
+    "emptyTitle": "No hay deals en este período",
+    "emptyDesc": "Los deals creados en este pipeline y período muestran cómo se mueven entre etapas.",
+    "days": "{n} d",
+    "kpi": {
+      "total": "Deals",
+      "won": "Ganados",
+      "lost": "Perdidos",
+      "open": "Abiertos",
+      "winRate": "Tasa de cierre",
+      "avgDaysToWin": "Tiempo promedio a ganado"
+    },
+    "funnel": "Embudo por etapa",
+    "reachedTitle": "{n} deals llegaron a esta etapa",
+    "biggestDrop": "La mayoría de los deals se pierde en {stage}.",
+    "byStage": "Conversión y tiempo por etapa",
+    "cols": {
+      "stage": "Etapa",
+      "reached": "Llegaron",
+      "next": "A la siguiente",
+      "avgDays": "Tiempo promedio",
+      "current": "Hoy en la etapa",
+      "lost": "Perdidos acá",
+      "lostRate": "Caída"
+    },
+    "exitsTitle": "Promedio de {n} deals que salieron de la etapa",
+    "helpCumulative": "Acumulado: un deal que llegó a una etapa posterior también cuenta en las anteriores. El tiempo por etapa promedia los deals que ya salieron.",
+    "helpStrict": "Entró a la etapa: un deal solo cuenta en las etapas a las que entró. El tiempo por etapa promedia los deals que ya salieron."
   }
 }

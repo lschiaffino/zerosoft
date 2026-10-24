@@ -25,13 +25,15 @@ import {
   type ReportRangeLabel,
 } from '@/lib/crm-reports';
 import ReportsView from '@/components/crm/ReportsView';
+import ReportsSubnav from '@/components/crm/ReportsSubnav';
+import { dealJourney, JOURNEY_RANGES, type JourneyMode, type JourneyRange } from '@/lib/crm-stage-history';
 import { getCrmSettings, missingRates } from '@/lib/crm-currency';
 
 export const dynamic = 'force-dynamic';
 
 const RANGE_LABELS: ReportRangeLabel[] = ['7d', '30d', '90d', 'quarter', '12m'];
 const BUCKETS: ReportBucket[] = ['day', 'week', 'month', 'quarter'];
-const REPORT_TYPES = ['overview', 'funnel', 'forecast', 'source', 'owner', 'activity', 'conversion'] as const;
+const REPORT_TYPES = ['overview', 'funnel', 'forecast', 'journey', 'source', 'owner', 'activity', 'conversion'] as const;
 type ReportType = (typeof REPORT_TYPES)[number];
 
 function one(v: string | string[] | undefined): string | undefined {
@@ -120,6 +122,22 @@ export default async function CrmReportsPage(
     reportConversionRate(user.id, range, filters),
   ]);
 
+  // Recorrido de deals: cohorte por fecha de creación sobre el historial de etapas.
+  const journeyRange: JourneyRange = (JOURNEY_RANGES as readonly string[]).includes(one(searchParams.jrange) ?? '')
+    ? (one(searchParams.jrange) as JourneyRange)
+    : '90d';
+  const journeyMode: JourneyMode = one(searchParams.jmode) === 'strict' ? 'strict' : 'cumulative';
+  const journey =
+    reportType === 'journey' && selectedPipelineId
+      ? await dealJourney(user.id, {
+          pipelineId: selectedPipelineId,
+          range: journeyRange,
+          mode: journeyMode,
+          ownerId: filters.ownerId,
+          scope: scope ?? undefined,
+        })
+      : null;
+
   const [crmSettings, missing] = await Promise.all([getCrmSettings(user.id), missingRates(user.id)]);
   const quotas = await quotaProgress(user.id, {
     ownerIds: scope,
@@ -131,7 +149,11 @@ export default async function CrmReportsPage(
       <div className="page-head">
         <h1 className="app-title">{t('reports.title')}</h1>
       </div>
+      <ReportsSubnav locale={locale} active="standard" />
       <ReportsView
+        journey={journey}
+        journeyRange={journeyRange}
+        journeyMode={journeyMode}
         baseCurrency={crmSettings.baseCurrency}
         missingRates={missing}
         reports={reports}
