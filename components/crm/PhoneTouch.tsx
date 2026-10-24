@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { isDefaultOutcome, telHref, whatsappHref, type CallChannel } from '@/lib/crm-calls';
 import CrmIcon from './CrmIcon';
+import { startBrowserCall, subscribeVoice, voiceAvailable } from './voiceStore';
 
 interface PhoneTouchProps {
   phone: string;
@@ -13,6 +14,8 @@ interface PhoneTouchProps {
   dealId?: string;
   /** En tablas: íconos discretos que aparecen al pasar el mouse. */
   compact?: boolean;
+  /** Nombre para el panel de llamada desde el navegador. */
+  name?: string;
 }
 
 interface ChannelOutcomes {
@@ -42,7 +45,7 @@ function loadOutcomes(): Promise<ChannelOutcomes> {
  * Atajos de llamada y WhatsApp de un teléfono. El link abre la app de
  * siempre y además ofrece registrar el toque en el timeline con su resultado.
  */
-export default function PhoneTouch({ phone, contactId, companyId, dealId, compact = false }: PhoneTouchProps) {
+export default function PhoneTouch({ phone, contactId, companyId, dealId, compact = false, name }: PhoneTouchProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const tel = telHref(phone);
@@ -56,6 +59,8 @@ export default function PhoneTouch({ phone, contactId, companyId, dealId, compac
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
+  // Llamadas desde el navegador: el CallDock del layout dice si están configuradas.
+  const canBrowserCall = useSyncExternalStore(subscribeVoice, voiceAvailable, () => false);
 
   useEffect(() => {
     if (channel === null) return;
@@ -121,6 +126,18 @@ export default function PhoneTouch({ phone, contactId, companyId, dealId, compac
 
   return (
     <span className={`phone-touch${compact ? ' is-compact' : ''}`} ref={ref}>
+      {tel && canBrowserCall && (
+        <button
+          type="button"
+          className={compact ? 'cell-quick' : 'phone-touch-btn'}
+          title={t('voice.callBrowser')}
+          aria-label={t('voice.callBrowser')}
+          onClick={() => startBrowserCall({ phone, name, contactId, companyId, dealId })}
+        >
+          <CrmIcon name="headset" />
+          {!compact && <span>{t('voice.callBrowserShort')}</span>}
+        </button>
+      )}
       {tel && (
         <a
           href={tel}

@@ -181,10 +181,10 @@ export default function ContactsTable({
       />
 
       <div className="table-wrap">
-        <table className="table crm-table">
+        <table className="table crm-table crm-cards">
           <thead>
             <tr>
-              <th className="cell-check">
+              <th className="cell-check" data-card="check">
                 <input
                   type="checkbox"
                   className="row-check"
@@ -194,7 +194,7 @@ export default function ContactsTable({
                 />
               </th>
               {visible.has('name') && (
-                <th>
+                <th data-card="main">
                   <SortTh label={t('contacts.table.name')} asc="name" desc="name_desc" current={sort} />
                 </th>
               )}
@@ -242,7 +242,7 @@ export default function ContactsTable({
           <tbody>
             {rows.map((row) => (
               <tr key={row.id} className={busy && selected.has(row.id) ? 'row-busy' : undefined}>
-                <td className="cell-check">
+                <td className="cell-check" data-card="check">
                   <input
                     type="checkbox"
                     className="row-check"
@@ -252,14 +252,14 @@ export default function ContactsTable({
                   />
                 </td>
                 {visible.has('name') && (
-                  <td>
+                  <td data-card="main">
                     <Link href={`/app/crm/contacts/${row.id}`} className="cell-name">
                       {row.name}
                     </Link>
                   </td>
                 )}
                 {visible.has('email') && (
-                  <td>
+                  <td data-card="line">
                     <InlineEditCell
                       endpoint={`/api/crm/contacts/${row.id}`}
                       field="email"
@@ -280,7 +280,7 @@ export default function ContactsTable({
                   </td>
                 )}
                 {visible.has('phone') && (
-                  <td className="cell-sub">
+                  <td className="cell-sub" data-card="line">
                     <InlineEditCell
                       endpoint={`/api/crm/contacts/${row.id}`}
                       field="phone"
@@ -291,7 +291,7 @@ export default function ContactsTable({
                   </td>
                 )}
                 {visible.has('company') && (
-                  <td>
+                  <td data-card="line">
                     {companies.length > 0 ? (
                       <InlineEditCell
                         endpoint={`/api/crm/contacts/${row.id}`}
@@ -312,7 +312,7 @@ export default function ContactsTable({
                   </td>
                 )}
                 {visible.has('lifecycle') && (
-                  <td>
+                  <td data-card="state">
                     <InlineEditCell
                       endpoint={`/api/crm/contacts/${row.id}`}
                       field="lifecycleStage"

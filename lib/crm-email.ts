@@ -583,7 +583,7 @@ export interface SendCrmEmailInput {
 }
 
 export type SendCrmEmailResult =
-  | { ok: true; email: CrmEmailRow; via: 'gmail' | 'system' }
+  | { ok: true; email: CrmEmailRow; via: 'gmail' | 'outlook' | 'system' }
   | { ok: false; error: string };
 
 /** Gmail con permiso de envío de una persona (o null). */
@@ -593,6 +593,11 @@ export async function gmailSender(personId: string): Promise<{ token: string; em
   const token = await getValidAccessToken(integration);
   if (!token) return null;
   return { token, email: integration.email };
+}
+
+/** Buzón con permiso de envío de una persona: su Gmail o, si no, su Outlook. */
+export async function mailSender(personId: string): Promise<{ token: string; email: string } | null> {
+  return (await gmailSender(personId)) ?? (await (await import('./crm-outlook-sync')).outlookSender(personId));
 }
 
 export async function sendCrmEmail(userId: string, input: SendCrmEmailInput): Promise<SendCrmEmailResult> {
@@ -605,15 +610,38 @@ export async function sendCrmEmail(userId: string, input: SendCrmEmailInput): Pr
   const html = textToEmailHtml(input.body, { token, tracking, unsubscribeLabel: input.unsubscribeLabel ?? null });
   const sentAt = dbNow();
 
-  let via: 'gmail' | 'system';
+  let via: 'gmail' | 'outlook' | 'system';
   let gmailId = emailId;
   let threadId = input.threadId || '';
   let messageId = '';
   let fromEmail = input.senderEmail;
-  let source: 'gmail' | 'zerosoft' = 'zerosoft';
+  let source: 'gmail' | 'outlook' | 'zerosoft' = 'zerosoft';
 
   const gmail = await gmailSender(input.senderId);
-  if (gmail) {
+  // Sin Gmail: Outlook / Microsoft 365 de la persona (lib/crm-outlook-sync.ts).
+  const outlook = gmail ? null : await (await import('./crm-outlook-sync')).outlookSender(input.senderId);
+  if (outlook) {
+    const { graphSendMail } = await import('./microsoft');
+    // Responder en el thread: el último mensaje de Outlook de esa conversación.
+    const last = input.threadId
+      ? ((await getDb()
+          .prepare(
+            "SELECT gmail_id FROM crm_emails WHERE user_id = ? AND thread_id = ? AND source = 'outlook' ORDER BY sent_at DESC LIMIT 1",
+          )
+          .get(userId, input.threadId)) as { gmail_id: string } | undefined)
+      : undefined;
+    try {
+      const sent = await graphSendMail(outlook.token, { to, subject: input.subject, html, replyToId: last?.gmail_id ?? null });
+      gmailId = sent.id || emailId;
+      threadId = sent.conversationId || threadId || `zs-${emailId}`;
+      messageId = sent.internetMessageId;
+    } catch {
+      return { ok: false, error: 'send_failed' };
+    }
+    via = 'outlook';
+    source = 'outlook';
+    fromEmail = outlook.email;
+  } else if (gmail) {
     const mime = buildMime({
       from: gmail.email,
       to,

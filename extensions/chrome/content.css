@@ -1,0 +1,283 @@
+/* Panel de Zerosoft CRM en Gmail. Todo bajo #zs-crm / .zs-* para no tocar Gmail. */
+#zs-crm {
+  --zs-bg: #ffffff;
+  --zs-fg: #0d0d0d;
+  --zs-fg-2: #5e5e5e;
+  --zs-rule: #e8e8e8;
+  --zs-field: #8c8c8c;
+  --zs-hover: #f3f3f3;
+  --zs-accent: #0d0d0d;
+  --zs-on-accent: #ffffff;
+  --zs-error: #b42318;
+  --zs-focus: #1a56db;
+  position: fixed;
+  top: 64px;
+  right: 0;
+  bottom: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: flex-start;
+  font: 13px/1.45 -apple-system, "Helvetica Neue", Arial, sans-serif;
+  color: var(--zs-fg);
+  pointer-events: none;
+}
+@media (prefers-color-scheme: dark) {
+  #zs-crm {
+    --zs-bg: #161616;
+    --zs-fg: #f2f2f2;
+    --zs-fg-2: #b3b3b3;
+    --zs-rule: #2e2e2e;
+    --zs-field: #7a7a7a;
+    --zs-hover: #222222;
+    --zs-accent: #f2f2f2;
+    --zs-on-accent: #0d0d0d;
+    --zs-error: #ff8a80;
+    --zs-focus: #8ab4f8;
+  }
+}
+#zs-crm * {
+  box-sizing: border-box;
+}
+#zs-crm .zs-toggle {
+  pointer-events: auto;
+  margin-top: 12px;
+  width: 28px;
+  height: 32px;
+  border: 1px solid var(--zs-rule);
+  border-right: 0;
+  border-radius: 3px 0 0 3px;
+  background: var(--zs-accent);
+  color: var(--zs-on-accent);
+  cursor: pointer;
+  font: 600 14px/1 ui-monospace, Menlo, monospace;
+}
+#zs-crm .zs-body {
+  pointer-events: auto;
+  width: 300px;
+  max-width: calc(100vw - 40px);
+  height: 100%;
+  overflow-y: auto;
+  background: var(--zs-bg);
+  border-left: 1px solid var(--zs-rule);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08);
+}
+#zs-crm.is-collapsed .zs-body {
+  display: none;
+}
+#zs-crm .zs-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--zs-rule);
+}
+#zs-crm .zs-head strong {
+  flex: 1;
+  font-size: 13px;
+}
+#zs-crm .zs-mark {
+  font: 600 14px/1 ui-monospace, Menlo, monospace;
+}
+#zs-crm .zs-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+#zs-crm .zs-content {
+  padding: 12px;
+}
+#zs-crm p {
+  margin: 0 0 6px;
+}
+#zs-crm .zs-muted {
+  color: var(--zs-fg-2);
+}
+#zs-crm .zs-error {
+  color: var(--zs-error);
+}
+#zs-crm .zs-error:empty,
+#zs-crm .zs-muted:empty {
+  display: none;
+}
+#zs-crm .zs-note {
+  margin: 10px 0;
+}
+#zs-crm .zs-person {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--zs-rule);
+  margin-bottom: 10px;
+  overflow-wrap: anywhere;
+}
+#zs-crm .zs-name {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+#zs-crm .zs-link {
+  color: var(--zs-fg);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+#zs-crm .zs-section {
+  margin-top: 14px;
+}
+#zs-crm .zs-h {
+  margin: 0 0 6px;
+  font: 600 11px/1.2 ui-monospace, Menlo, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--zs-fg-2);
+}
+#zs-crm .zs-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+#zs-crm .zs-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--zs-rule);
+}
+#zs-crm .zs-item > .zs-link {
+  flex: 1 1 100%;
+}
+#zs-crm .zs-task label {
+  flex: 1;
+}
+#zs-crm .zs-due {
+  color: var(--zs-fg-2);
+  font-size: 12px;
+}
+#zs-crm .zs-due.is-overdue {
+  color: var(--zs-error);
+}
+#zs-crm .zs-form {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+#zs-crm .zs-label {
+  font-size: 12px;
+  color: var(--zs-fg-2);
+}
+#zs-crm .zs-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--zs-field);
+  border-radius: 3px;
+  background: var(--zs-bg);
+  color: var(--zs-fg);
+  font: inherit;
+}
+#zs-crm .zs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+#zs-crm .zs-btn {
+  padding: 6px 10px;
+  border: 1px solid var(--zs-field);
+  border-radius: 3px;
+  background: var(--zs-bg);
+  color: var(--zs-fg);
+  font: inherit;
+  cursor: pointer;
+}
+#zs-crm .zs-btn:hover {
+  background: var(--zs-hover);
+}
+#zs-crm .zs-btn-solid {
+  background: var(--zs-accent);
+  border-color: var(--zs-accent);
+  color: var(--zs-on-accent);
+}
+#zs-crm .zs-btn-solid:hover {
+  background: var(--zs-accent);
+  opacity: 0.9;
+}
+#zs-crm .zs-btn-small {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+#zs-crm .zs-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+#zs-crm .zs-icon-btn {
+  border: 0;
+  background: transparent;
+  color: var(--zs-fg-2);
+  cursor: pointer;
+  font-size: 15px;
+  padding: 2px 4px;
+}
+#zs-crm .zs-log {
+  margin-bottom: 4px;
+}
+#zs-crm .zs-log-status {
+  margin-top: 4px;
+}
+#zs-crm .zs-foot {
+  margin-top: 12px;
+}
+#zs-crm :focus-visible,
+.zs-track :focus-visible {
+  outline: 2px solid var(--zs-focus, #1a56db);
+  outline-offset: 2px;
+}
+.zs-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 8px;
+  font: 12px/1.2 -apple-system, "Helvetica Neue", Arial, sans-serif;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.zs-toast {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 2147483001;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 10px 14px;
+  border-radius: 3px;
+  background: #0d0d0d;
+  color: #ffffff;
+  font: 13px/1.4 -apple-system, "Helvetica Neue", Arial, sans-serif;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.15s, transform 0.15s;
+  pointer-events: none;
+}
+.zs-toast.is-visible {
+  opacity: 1;
+  transform: none;
+}
+.zs-toast.is-error {
+  background: #b42318;
+}
+.zs-template {
+  margin: 0 8px 0 0;
+  max-width: 150px;
+  padding: 2px 4px;
+  font: 12px/1.2 -apple-system, "Helvetica Neue", Arial, sans-serif;
+  color: inherit;
+  background: transparent;
+  border: 1px solid #c4c7c5;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+.zs-template:focus-visible {
+  outline: 2px solid var(--zs-focus, #1a56db);
+  outline-offset: 2px;
+}

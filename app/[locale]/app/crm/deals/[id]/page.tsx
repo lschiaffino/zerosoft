@@ -24,6 +24,7 @@ import { listEventTypes } from '@/lib/calendar';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
+import { withCallDetails } from '@/lib/crm-voice';
 import FilesPanel from '@/components/crm/FilesPanel';
 import { listRecordFiles, toView, withActivityFiles } from '@/lib/crm-files';
 import { getEmailSettings, listEmailTemplates, listEmailThreads, mergeTimelineWithThreads } from '@/lib/crm-email';
@@ -244,7 +245,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
       getEmailSettings(user.id),
       nextTaskFor(user.id, { dealId: id }),
     ]);
-    const timeline = await withActivityFiles(mergeTimelineWithThreads(activities, threads));
+    const timeline = await withCallDetails(user.id, await withActivityFiles(mergeTimelineWithThreads(activities, threads)));
     const recordFiles = (await listRecordFiles(user.id, 'deal', deal.id)).map(toView);
     return (
       <div className="ui-page record-page">

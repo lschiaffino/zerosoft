@@ -1891,6 +1891,17 @@
     "paramGroupsTitle": "Título do ticket (padrão: a primeira linha da mensagem)",
     "paramGroupsPriority": "low, medium, high ou urgent",
     "scope_groups_read": "Ler chats, mensagens e tickets de WhatsApp no Groups.",
-    "scope_groups_write": "Enviar mensagens de WhatsApp e criar tickets no Groups."
+    "scope_groups_write": "Enviar mensagens de WhatsApp e criar tickets no Groups.",
+    "extensionSidebarTitle": "Painel do contato de um email",
+    "extensionSidebarDesc": "O que a extensão do Gmail mostra ao lado de um email: o contato com esse endereço, sua empresa, negócios e tarefas abertas. contact é null se ninguém que você vê no CRM tem esse endereço.",
+    "extensionLogTitle": "Registrar um email do Gmail",
+    "extensionLogDesc": "Salva um email na linha do tempo dos contatos que participam. Enviar o mesmo messageId de novo não duplica (200 com duplicate: true). 404 no_contact se nenhum participante for contato.",
+    "extensionTrackTitle": "Registrar e rastrear um email antes de enviar",
+    "extensionTrackDesc": "Salva o email de saída e devolve o pixel de aberturas para adicionar ao corpo. Se nenhum destinatário for contato, o primeiro é criado como contato.",
+    "paramExtMessageId": "Id da mensagem no Gmail (data-legacy-message-id)",
+    "paramExtFrom": "Remetente, como \"Ana <ana@acme.com>\"",
+    "paramExtTo": "Destinatários, separados por vírgulas",
+    "paramExtSubject": "Assunto do email",
+    "paramExtBody": "Corpo em texto simples"
   }
 }

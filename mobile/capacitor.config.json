@@ -1,0 +1,12 @@
+{
+  "appId": "ai.zerosoft.crm",
+  "appName": "zerosoft CRM",
+  "webDir": "www",
+  "server": {
+    "url": "https://zerosoft.ai/app/crm",
+    "allowNavigation": ["zerosoft.ai", "*.zerosoft.ai"],
+    "cleartext": false
+  },
+  "ios": { "contentInset": "automatic" },
+  "android": { "allowMixedContent": false }
+}

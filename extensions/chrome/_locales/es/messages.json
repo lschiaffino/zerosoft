@@ -1,0 +1,222 @@
+{
+  "extName": {
+    "message": "Zerosoft CRM para Gmail"
+  },
+  "extDescription": {
+    "message": "Mirá al remitente en tu CRM de Zerosoft, registrá emails y trackeá aperturas desde Gmail."
+  },
+  "panelToggle": {
+    "message": "Mostrar u ocultar el panel del CRM"
+  },
+  "settings": {
+    "message": "Ajustes de la extensión"
+  },
+  "errNotConfigured": {
+    "message": "Primero conectá la extensión a tu workspace."
+  },
+  "errInvalidKey": {
+    "message": "El token no es válido o fue revocado. Pegá uno nuevo en los ajustes de la extensión."
+  },
+  "errScope": {
+    "message": "Tu token no tiene permiso para esto. Creá uno con acceso de lectura y escritura al CRM."
+  },
+  "errNetwork": {
+    "message": "No se pudo conectar con Zerosoft. Revisá la URL de la app en los ajustes de la extensión."
+  },
+  "errRateLimited": {
+    "message": "Demasiados pedidos. Probá de nuevo en un minuto."
+  },
+  "errReloaded": {
+    "message": "La extensión se actualizó. Recargá Gmail."
+  },
+  "errGeneric": {
+    "message": "Algo salió mal. Probá de nuevo."
+  },
+  "notConfigured": {
+    "message": "Pegá la URL de la app y tu token personal de la API para ver tus contactos acá."
+  },
+  "openSettings": {
+    "message": "Abrir ajustes"
+  },
+  "retry": {
+    "message": "Reintentar"
+  },
+  "loading": {
+    "message": "Cargando…"
+  },
+  "emptyNoEmail": {
+    "message": "Abrí un email para ver quién lo mandó."
+  },
+  "logEmail": {
+    "message": "Registrar email en el CRM"
+  },
+  "logNoMessage": {
+    "message": "Primero abrí un email."
+  },
+  "logging": {
+    "message": "Registrando…"
+  },
+  "logAlready": {
+    "message": "Este email ya estaba registrado."
+  },
+  "logDone": {
+    "message": "Registrado en el timeline del contacto."
+  },
+  "logNoContact": {
+    "message": "Primero creá el contacto para registrar este email."
+  },
+  "firstName": {
+    "message": "Nombre"
+  },
+  "lastName": {
+    "message": "Apellido"
+  },
+  "createContact": {
+    "message": "Crear contacto"
+  },
+  "contactCreated": {
+    "message": "Contacto creado"
+  },
+  "notInCrm": {
+    "message": "Esta persona todavía no está en tu CRM."
+  },
+  "save": {
+    "message": "Guardar"
+  },
+  "cancel": {
+    "message": "Cancelar"
+  },
+  "taskSubject": {
+    "message": "Tarea"
+  },
+  "taskDue": {
+    "message": "Vence"
+  },
+  "taskSubjectRequired": {
+    "message": "Escribí qué hay que hacer."
+  },
+  "taskCreated": {
+    "message": "Tarea creada"
+  },
+  "completeTask": {
+    "message": "Completar $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "addTask": {
+    "message": "Agregar tarea"
+  },
+  "noDeals": {
+    "message": "Todavía no tiene deals."
+  },
+  "noTasks": {
+    "message": "Sin tareas abiertas."
+  },
+  "dealsTitle": {
+    "message": "Deals ($P1$)",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "tasksTitle": {
+    "message": "Tareas abiertas ($P1$)",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "emailsLogged": {
+    "message": "$P1$ emails en el CRM",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "openInCrm": {
+    "message": "Abrir en el CRM"
+  },
+  "trackDone": {
+    "message": "Email registrado. Vas a ver las aperturas en el CRM."
+  },
+  "trackFailed": {
+    "message": "No se pudo registrar este email. Se envió sin tracking."
+  },
+  "trackHint": {
+    "message": "Registrar este email en el CRM y trackear aperturas"
+  },
+  "trackLabel": {
+    "message": "Registrar y trackear"
+  },
+  "optionsTitle": {
+    "message": "Zerosoft CRM para Gmail"
+  },
+  "optionsIntro": {
+    "message": "Conectá la extensión con un token personal de la API. Actúa como vos: ve los mismos contactos y deals que ves en el CRM."
+  },
+  "optionsBaseUrl": {
+    "message": "URL de la app"
+  },
+  "optionsToken": {
+    "message": "Token personal de la API"
+  },
+  "optionsTokenHint": {
+    "message": "Crealo en Ajustes, Workspace, API keys, con acceso de lectura y escritura al CRM. Se guarda solo en este navegador."
+  },
+  "optionsTrackDefault": {
+    "message": "Registrar y trackear los emails nuevos por defecto"
+  },
+  "optionsSave": {
+    "message": "Guardar y conectar"
+  },
+  "optionsDisconnect": {
+    "message": "Quitar token"
+  },
+  "optionsChecking": {
+    "message": "Verificando…"
+  },
+  "optionsConnected": {
+    "message": "Conectado como $P1$ en $P2$.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "optionsReadOnly": {
+    "message": "Este token solo puede leer: crear contactos o tareas y registrar emails va a fallar."
+  },
+  "optionsBadUrl": {
+    "message": "Escribí la dirección donde abrís Zerosoft, como https://zerosoft.ai."
+  },
+  "optionsBadToken": {
+    "message": "El token empieza con zs_. Copialo de nuevo desde API keys."
+  },
+  "optionsPermissionDenied": {
+    "message": "Chrome necesita permiso para llegar a esa dirección. Guardá de nuevo y aceptá."
+  },
+  "optionsDisconnected": {
+    "message": "Token quitado. El panel queda apagado hasta que pegues uno nuevo."
+  },
+  "templateLabel": {
+    "message": "Insertar template"
+  },
+  "templateNone": {
+    "message": "Todavía no hay templates"
+  },
+  "templateInserted": {
+    "message": "Template insertado."
+  },
+  "templateMissing": {
+    "message": "Template insertado. Algunos campos estaban vacíos para este destinatario, revisá el texto."
+  }
+}

@@ -93,6 +93,8 @@
     "closeMenu": "Cerrar menú",
     "importFromHubspot": "Importar desde HubSpot",
     "importFromPipedrive": "Importar desde Pipedrive",
+    "installGmailExtension": "Instalar la extensión de Chrome para Gmail",
+    "installCrmApp": "Instalar la app del CRM en este dispositivo",
     "groupGroupsTickets": "Tickets de WhatsApp",
     "groupGroupsMessages": "Mensajes de WhatsApp"
   },

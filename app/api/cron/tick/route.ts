@@ -8,6 +8,7 @@ import { runDueRobots } from '@/lib/robots';
 import { resyncStaleKnowledgeUrls } from '@/lib/agents';
 import { checkAgentAlerts } from '@/lib/agents-alerts';
 import { syncDueMailboxes } from '@/lib/crm-email-sync';
+import { syncDueOutlookMailboxes } from '@/lib/crm-outlook-sync';
 import { processSequences } from '@/lib/crm-sequences';
 import { runNightlyScoring } from '@/lib/crm-scoring';
 import { sendOfflineReplyEmails } from '@/lib/chat-offline-email';
@@ -71,6 +72,7 @@ export async function GET(req: NextRequest) {
   // Primero el sync (detecta respuestas → salen de la secuencia), después los envíos.
   // Van antes de la cola de Flow: son acotados y no pueden quedar sin correr.
   const emailSync = await syncDueMailboxes({ limit: 25, maxMessages: 50 }).catch(() => null);
+  const outlookSync = await syncDueOutlookMailboxes({ limit: 25, maxMessages: 50 }).catch(() => null);
   const sequences = await processSequences({ limit: 100 }).catch(() => null);
   // Lead scoring: recálculo completo una vez por día por workspace (ventanas de N días).
   const scoring = await runNightlyScoring(new Date(), 10).catch(() => null);
@@ -93,5 +95,5 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, trackCycles, trackRecurring, trackReminders, trackEmails, trackDigests, trashPurged, flowPruned, flow, emailSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, trackCycles, trackRecurring, trackReminders, trackEmails, trackDigests, trashPurged, flowPruned, flow, emailSync, outlookSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
 }

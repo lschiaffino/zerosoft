@@ -1891,6 +1891,17 @@
     "paramGroupsTitle": "Ticket title (default: the first line of the message)",
     "paramGroupsPriority": "low, medium, high or urgent",
     "scope_groups_read": "Read WhatsApp chats, messages and tickets in Groups.",
-    "scope_groups_write": "Send WhatsApp messages and create tickets in Groups."
+    "scope_groups_write": "Send WhatsApp messages and create tickets in Groups.",
+    "extensionSidebarTitle": "Contact panel for an email address",
+    "extensionSidebarDesc": "What the Gmail extension shows next to an email: the contact with that address, its company, deals and open tasks. contact is null if nobody in the CRM you can see has it.",
+    "extensionLogTitle": "Log an email from Gmail",
+    "extensionLogDesc": "Saves an email in the timeline of the contacts who take part in it. Sending the same messageId again does not duplicate it (200 with duplicate: true). 404 no_contact if no participant is a contact.",
+    "extensionTrackTitle": "Log and track an email before sending",
+    "extensionTrackDesc": "Saves the outgoing email and returns the open tracking pixel to add to its body. If no recipient is a contact, the first one is created as a contact.",
+    "paramExtMessageId": "Gmail message id (data-legacy-message-id)",
+    "paramExtFrom": "Sender, like \"Ana <ana@acme.com>\"",
+    "paramExtTo": "Recipients, separated by commas",
+    "paramExtSubject": "Email subject",
+    "paramExtBody": "Plain text body"
   }
 }

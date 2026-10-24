@@ -158,10 +158,10 @@ export default function DealsTable({
       />
 
       <div className="table-wrap">
-        <table className="table crm-table">
+        <table className="table crm-table crm-cards">
           <thead>
             <tr>
-              <th className="cell-check">
+              <th className="cell-check" data-card="check">
                 <input
                   type="checkbox"
                   className="row-check"
@@ -170,7 +170,7 @@ export default function DealsTable({
                   aria-label={t('common.all')}
                 />
               </th>
-              {visible.has('name') && <th>{t('deals.table.name')}</th>}
+              {visible.has('name') && <th data-card="main">{t('deals.table.name')}</th>}
               {visible.has('amount') && (
                 <th className="num">
                   <SortTh label={t('deals.table.amount')} asc="amount_asc" desc="amount" current={sort} />
@@ -221,7 +221,7 @@ export default function DealsTable({
           <tbody>
             {rows.map((row) => (
               <tr key={row.id} className={busy && selected.has(row.id) ? 'row-busy' : undefined}>
-                <td className="cell-check">
+                <td className="cell-check" data-card="check">
                   <input
                     type="checkbox"
                     className="row-check"
@@ -231,14 +231,14 @@ export default function DealsTable({
                   />
                 </td>
                 {visible.has('name') && (
-                  <td>
+                  <td data-card="main">
                     <Link href={`/app/crm/deals/${row.id}`} className="cell-name">
                       {row.name}
                     </Link>
                   </td>
                 )}
                 {visible.has('amount') && (
-                  <td className="cell-amount num">
+                  <td className="cell-amount num" data-card="line">
                     <InlineEditCell
                       endpoint={`/api/crm/deals/${row.id}`}
                       field="amount"
@@ -251,7 +251,7 @@ export default function DealsTable({
                   </td>
                 )}
                 {visible.has('stage') && (
-                  <td>
+                  <td data-card="state">
                     <InlineStageCell dealId={row.id} stageId={row.stageId} stages={stages} />
                   </td>
                 )}
@@ -280,7 +280,7 @@ export default function DealsTable({
                   </td>
                 )}
                 {visible.has('closeDate') && (
-                  <td className="num muted cell-date">
+                  <td className="num muted cell-date" data-card="line" data-card-label={t('deals.table.closeDate')}>
                     <InlineEditCell
                       endpoint={`/api/crm/deals/${row.id}`}
                       field="closeDate"
@@ -294,7 +294,11 @@ export default function DealsTable({
                 )}
                 {visible.has('age') && <td className="num muted">{row.age}d</td>}
                 {visible.has('contacts') && <td className="num">{row.contacts}</td>}
-                {visible.has('company') && <td className="muted cell-sub">{row.companyName || '—'}</td>}
+                {visible.has('company') && (
+                  <td className="muted cell-sub" data-card="line">
+                    {row.companyName || '—'}
+                  </td>
+                )}
                 {visible.has('tags') && (
                   <td className="cell-crm-tags">
                     <TagDots tags={row.tags ?? []} max={2} />

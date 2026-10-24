@@ -1,0 +1,222 @@
+{
+  "extName": {
+    "message": "Zerosoft CRM for Gmail"
+  },
+  "extDescription": {
+    "message": "See the sender in your Zerosoft CRM, log emails and track opens from Gmail."
+  },
+  "panelToggle": {
+    "message": "Show or hide the CRM panel"
+  },
+  "settings": {
+    "message": "Extension settings"
+  },
+  "errNotConfigured": {
+    "message": "Connect the extension to your workspace first."
+  },
+  "errInvalidKey": {
+    "message": "Your token is not valid or was revoked. Paste a new one in the extension settings."
+  },
+  "errScope": {
+    "message": "Your token cannot do this. Create one with CRM read and write access."
+  },
+  "errNetwork": {
+    "message": "Couldn't reach Zerosoft. Check the app URL in the extension settings."
+  },
+  "errRateLimited": {
+    "message": "Too many requests. Try again in a minute."
+  },
+  "errReloaded": {
+    "message": "The extension was updated. Reload Gmail."
+  },
+  "errGeneric": {
+    "message": "Something went wrong. Try again."
+  },
+  "notConfigured": {
+    "message": "Paste your app URL and personal API token to see your contacts here."
+  },
+  "openSettings": {
+    "message": "Open settings"
+  },
+  "retry": {
+    "message": "Try again"
+  },
+  "loading": {
+    "message": "Loading…"
+  },
+  "emptyNoEmail": {
+    "message": "Open an email to see who sent it."
+  },
+  "logEmail": {
+    "message": "Log email in CRM"
+  },
+  "logNoMessage": {
+    "message": "Open an email first."
+  },
+  "logging": {
+    "message": "Logging…"
+  },
+  "logAlready": {
+    "message": "This email was already logged."
+  },
+  "logDone": {
+    "message": "Logged in the contact timeline."
+  },
+  "logNoContact": {
+    "message": "Create the contact first to log this email."
+  },
+  "firstName": {
+    "message": "First name"
+  },
+  "lastName": {
+    "message": "Last name"
+  },
+  "createContact": {
+    "message": "Create contact"
+  },
+  "contactCreated": {
+    "message": "Contact created"
+  },
+  "notInCrm": {
+    "message": "This person is not in your CRM yet."
+  },
+  "save": {
+    "message": "Save"
+  },
+  "cancel": {
+    "message": "Cancel"
+  },
+  "taskSubject": {
+    "message": "Task"
+  },
+  "taskDue": {
+    "message": "Due date"
+  },
+  "taskSubjectRequired": {
+    "message": "Write what needs to be done."
+  },
+  "taskCreated": {
+    "message": "Task created"
+  },
+  "completeTask": {
+    "message": "Complete $P1$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "addTask": {
+    "message": "Add task"
+  },
+  "noDeals": {
+    "message": "No deals yet."
+  },
+  "noTasks": {
+    "message": "No open tasks."
+  },
+  "dealsTitle": {
+    "message": "Deals ($P1$)",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "tasksTitle": {
+    "message": "Open tasks ($P1$)",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "emailsLogged": {
+    "message": "$P1$ emails in CRM",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      }
+    }
+  },
+  "openInCrm": {
+    "message": "Open in CRM"
+  },
+  "trackDone": {
+    "message": "Email logged. You will see opens in the CRM."
+  },
+  "trackFailed": {
+    "message": "Couldn't log this email. It was sent without tracking."
+  },
+  "trackHint": {
+    "message": "Log this email in the CRM and track opens"
+  },
+  "trackLabel": {
+    "message": "Log and track"
+  },
+  "optionsTitle": {
+    "message": "Zerosoft CRM for Gmail"
+  },
+  "optionsIntro": {
+    "message": "Connect the extension with a personal API token. It acts as you: it sees the same contacts and deals you see in the CRM."
+  },
+  "optionsBaseUrl": {
+    "message": "App URL"
+  },
+  "optionsToken": {
+    "message": "Personal API token"
+  },
+  "optionsTokenHint": {
+    "message": "Create it in Settings, Workspace, API keys, with CRM read and write access. It is stored only in this browser."
+  },
+  "optionsTrackDefault": {
+    "message": "Log and track new emails by default"
+  },
+  "optionsSave": {
+    "message": "Save and connect"
+  },
+  "optionsDisconnect": {
+    "message": "Remove token"
+  },
+  "optionsChecking": {
+    "message": "Checking…"
+  },
+  "optionsConnected": {
+    "message": "Connected as $P1$ in $P2$.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "optionsReadOnly": {
+    "message": "This token can only read: creating contacts, tasks and logging emails will fail."
+  },
+  "optionsBadUrl": {
+    "message": "Enter the address where you open Zerosoft, like https://zerosoft.ai."
+  },
+  "optionsBadToken": {
+    "message": "The token starts with zs_. Copy it again from API keys."
+  },
+  "optionsPermissionDenied": {
+    "message": "Chrome needs permission to reach that address. Save again and accept."
+  },
+  "optionsDisconnected": {
+    "message": "Token removed. The panel stays off until you paste a new one."
+  },
+  "templateLabel": {
+    "message": "Insert template"
+  },
+  "templateNone": {
+    "message": "No templates yet"
+  },
+  "templateInserted": {
+    "message": "Template inserted."
+  },
+  "templateMissing": {
+    "message": "Template inserted. Some fields were empty for this recipient, check the text."
+  }
+}
