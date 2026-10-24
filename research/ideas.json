@@ -1569,7 +1569,9 @@
     "description": "HubSpot's Prospecting / Sales Workspace gives reps one screen with today's tasks, sequence steps and leads to work, and a mode that opens each task in order (https://www.hubspot.com/products/sales, Prospecting Workspace; https://vantagepoint.io/blog/hs/hubspot-sales-workspace-update-april-2026-preparation-guide). Our Tasks page has Overdue, Today and Upcoming buckets, but each task opens on its own and manual sequence steps aren't mixed in. First scope: a 'Start queue' button on Tasks that opens the first due item with the contact's timeline beside it, complete or snooze with a key, auto-advance to the next, and a counter of what's left; include manual sequence steps and calls due.\n\nPriority: high. Effort: M. Compared with HubSpot Sales Workspace and Pipedrive's activity focus.",
     "product": "crm",
     "kind": "idea",
-    "parity": "work-queue"
+    "parity": "work-queue",
+    "status": "done",
+    "changelog": "2026-10-24-crm-sales-exec"
   },
   {
     "title": "CRM: Turn Cal meetings into a recap on the timeline (transcript, summary, next steps)",
@@ -1596,7 +1598,9 @@
     "description": "HubSpot playbooks give reps a script or qualification guide on the record and save answers as notes or properties (5 on Starter, 5,000 on Pro with property embedding: https://www.hubspot.com/pricing/sales/starter). We have no guided content on the record. First scope: playbooks built from Docs pages with embedded property questions (text, select, number), opened from the record header or the call composer, answers saved to the record and a note on the timeline, usage counts per playbook.\n\nPriority: medium. Effort: M. Compared with HubSpot playbooks.",
     "product": "crm",
     "kind": "idea",
-    "parity": "playbooks"
+    "parity": "playbooks",
+    "status": "done",
+    "changelog": "2026-10-24-crm-sales-exec"
   },
   {
     "title": "CRM: Let workspaces define their own objects with fields, associations and views",
@@ -1611,7 +1615,10 @@
     "title": "CRM: Make the whole board column a drop target and move deals between stages with the keyboard",
     "description": "In HubSpot and Pipedrive you drop a deal anywhere in a column. Our board only accepts drops on the card list (updateDrag in components/crm/DealsBoard.tsx looks for .kb-cards), so releasing over the column header, the '+ Add deal' button or the empty space below silently puts the deal back. There is also no keyboard way to change stage from the board (reaching a card took 35 Tab presses). First scope: treat the whole column as the drop zone (append at the end when below the last card), highlight it while dragging, show a toast with undo after the move, and add arrow-key focus between cards plus Shift+←/→ to move a focused card one stage.\n\nPriority: medium. Effort: S. Compared with HubSpot deal board and Pipedrive pipeline view.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "board-keyboard",
+    "status": "done",
+    "changelog": "2026-10-24-crm-sales-exec"
   },
   {
     "title": "Docs: Import a Notion or Confluence export (zip of Markdown/HTML and CSV) with its page tree",

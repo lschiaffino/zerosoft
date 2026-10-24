@@ -5,6 +5,10 @@ import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
+import { listApprovals } from '@/lib/crm-approvals';
+import { getSplits } from '@/lib/crm-splits';
+import ApprovalBanner, { type ApprovalBannerItem } from '@/components/crm/ApprovalBanner';
+import DealSplitsPanel from '@/components/crm/DealSplitsPanel';
 import { canSeeOwner, scopeDealDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
 import { getDb, type CrmStageRow } from '@/lib/db';
 import { getDeal, listTimeline, nextTaskFor, parseCustom, PRIORITIES, SOURCES } from '@/lib/crm';
@@ -22,6 +26,7 @@ import LineItemsPanel from '@/components/crm/LineItemsPanel';
 import DealQuotesPanel from '@/components/crm/DealQuotesPanel';
 import { listLineItems, listProducts, listQuotes } from '@/lib/crm-products';
 import BookMeetingMenu from '@/components/crm/BookMeetingMenu';
+import PlaybookLauncher from '@/components/crm/PlaybookLauncher';
 import { listEventTypes } from '@/lib/calendar';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
@@ -65,7 +70,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   const detail = scopeDealDetail(rawDetail, scope);
   const { deal, pipeline, contacts, company, companies: dealCompanies } = detail;
   const base = `/app/crm/deals/${deal.id}`;
-  const [currencyCtx, allTags, recordTags, teamMembers, eventTypes, stages] = await Promise.all([
+  const [currencyCtx, allTags, recordTags, teamMembers, eventTypes, stages, approvals, splits] = await Promise.all([
     getCurrencyContext(user.id),
     listTags(user.id),
     tagsForRecords(user.id, 'deal', [id]),
@@ -76,6 +81,8 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
     getDb()
       .prepare('SELECT * FROM crm_stages WHERE pipeline_id = ? ORDER BY position ASC')
       .all(deal.pipeline_id) as Promise<CrmStageRow[]>,
+    listApprovals(user.id, { dealId: id, limit: 5 }),
+    getSplits(user.id, id),
   ]);
   // Monto en la moneda base del workspace (solo si es otra moneda y hay tipo de cambio).
   const baseAmount =
@@ -84,6 +91,34 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
       : null;
 
   const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
+  const personName = (pid: string | null) => (pid ? ownerOptions.find((o) => o.value === pid)?.label ?? '' : '');
+  // Aprobación a mostrar: la pendiente, o la última resuelta si sigue vigente
+  // (aprobada sin usar o rechazada hace menos de 14 días).
+  const recentCut = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 19).replace('T', ' ');
+  const shownApproval = approvals.find(
+    (a) =>
+      a.status === 'pending' ||
+      (a.status === 'approved' && !a.consumed_at) ||
+      (a.status === 'rejected' && (a.decided_at ?? '') >= recentCut),
+  );
+  const fmtWhen = (iso: string) =>
+    new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(`${iso.replace(' ', 'T')}Z`));
+  const approvalItem: ApprovalBannerItem | null = shownApproval
+    ? {
+        id: shownApproval.id,
+        status: shownApproval.status,
+        stageName: shownApproval.stage_name,
+        requestedBy: shownApproval.requested_by,
+        requestedByName: personName(shownApproval.requested_by),
+        approverIds: shownApproval.approvers,
+        approverNames: shownApproval.approvers.map(personName).filter(Boolean).join(', '),
+        note: shownApproval.note,
+        decidedByName: personName(shownApproval.decided_by),
+        decisionNote: shownApproval.decision_note,
+        when: fmtWhen(shownApproval.status === 'pending' ? shownApproval.created_at : (shownApproval.decided_at ?? shownApproval.updated_at)),
+        consumed: !!shownApproval.consumed_at,
+      }
+    : null;
   const ownerLabel = ownerOptions.find((o) => o.value === (deal.owner_id ?? user.id))?.label ?? '—';
 
   const fmtAmount = (amount: number, currency: string): string =>
@@ -130,6 +165,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
     lost_reason: t('deals.detail.lostReason'),
     stage: t('deals.form.stage'),
     owner_id: t('deals.form.owner'),
+    splits: t('splits.title'),
   };
   const historyValues: Record<string, Record<string, string>> = {
     priority: Object.fromEntries(PRIORITIES.map((v) => [v, t(`enums.priority.${v}`)])),
@@ -160,6 +196,17 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
         }
         actions={
           <>
+            <PlaybookLauncher
+              entity="deal"
+              entityId={deal.id}
+              values={{
+                amount: String(deal.amount ?? ''),
+                closeDate: deal.close_date ? deal.close_date.slice(0, 10) : '',
+                priority: deal.priority,
+                description: deal.description,
+                ...Object.fromEntries(Object.entries(parseCustom(deal.custom)).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
+              }}
+            />
             <BookMeetingMenu
               eventTypes={meetingTypes}
               name={primaryContact ? contactName(primaryContact) || undefined : undefined}
@@ -222,6 +269,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
           stages={stages.map((s) => ({ id: s.id, name: s.name, is_won: s.is_won, is_lost: s.is_lost }))}
           currentStageId={deal.stage_id}
         />
+        {approvalItem && <ApprovalBanner approval={approvalItem} me={realUserId(user)} />}
         {(deal.closed_at || deal.lost_reason) && (
           <p className="record-stage-note">
             {deal.closed_at && (
@@ -310,6 +358,16 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
               <Link href={recordTabHref(base, 'properties')} className="record-summary-more">
                 {t('deals.detail.viewAllProperties')}
               </Link>
+              <DealSplitsPanel
+                key={splits.map((s) => `${s.ownerId}:${s.percent}`).join(',')}
+                dealId={deal.id}
+                ownerId={deal.owner_id ?? user.id}
+                amount={deal.amount}
+                currency={deal.currency}
+                locale={locale}
+                people={ownerOptions}
+                splits={splits}
+              />
               <div className="record-summary-block">
                 <h2 className="record-summary-title">
                   {t('deals.detail.contacts')} <span className="num">{contacts.length}</span>

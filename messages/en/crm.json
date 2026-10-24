@@ -18,7 +18,8 @@
     "trash": "Recycle bin",
     "agents": "AI agents",
     "leads": "Leads",
-    "objects": "Custom objects"
+    "objects": "Custom objects",
+    "playbooks": "Playbooks"
   },
   "switcher": {
     "product": "Product",
@@ -486,7 +487,14 @@
     "stageNamePlaceholder": "Stage name",
     "addStageConfirm": "Add stage",
     "bulkSelected": "{count} selected",
-    "bulkConfirmDelete": "Move {count} deals to the recycle bin?"
+    "bulkConfirmDelete": "Move {count} deals to the recycle bin?",
+    "keyboard": {
+      "hint": "Keyboard: arrows move between cards, Shift + left or right arrow changes the stage, Enter opens the preview, M opens the stage menu.",
+      "cardLabel": "{deal}, in {stage}",
+      "moving": "Moving {deal} to {stage}",
+      "moved": "{deal} moved to {stage}",
+      "edge": "There is no stage on that side"
+    }
   },
   "tasks": {
     "title": "Tasks",
@@ -792,7 +800,8 @@
         "summary": "Saves a fresh AI summary on the record (contact, company or deal).",
         "deal_score": "Saves the AI score and deal plan. Use it with deal triggers."
       }
-    }
+    },
+    "scoreId": "Score"
   },
   "history": {
     "title": "History",
@@ -1153,7 +1162,8 @@
     "no_domain": "Add a domain or website to the company first.",
     "invalid_lead": "That lead doesn't exist.",
     "invalid_record": "That record doesn't exist.",
-    "invalid_pipeline": "Pick a deal pipeline."
+    "invalid_pipeline": "Pick a deal pipeline.",
+    "approval_required": "This stage needs approval."
   },
   "filters": {
     "advanced": "Advanced filters",
@@ -1825,7 +1835,30 @@
     "namePlaceholder": "Name (optional)",
     "name": "Name",
     "add": "Add rule",
-    "recalculate": "Recalculate all"
+    "recalculate": "Recalculate all",
+    "tierOf": "{name}: tier",
+    "decayedNote": "older activity, fewer points",
+    "rulesOf": "Rules of {name}",
+    "scores": "Scores",
+    "newScore": "New score",
+    "newScorePlaceholder": "Product fit, Engagement…",
+    "createScore": "Create",
+    "scoreLimit": "Could not create the score. A workspace can have up to {max}.",
+    "scoreName": "Score name",
+    "tiers": "Tiers",
+    "tiersHelp": "From how many points a contact counts as each tier, for example Cold from 0, Warm from 30, Hot from 60. They show next to the score and work as filters.",
+    "tierLabel": "Tier name",
+    "tierFrom": "from",
+    "addTier": "Add tier",
+    "decay": "Decay",
+    "decayOn": "Activity loses weight over time",
+    "decayAfter": "when the latest is older than (days)",
+    "decayBy": "reduce points by (%)",
+    "decayHelp": "Applies to activity rules: if what meets the rule happened before that window, the rule adds fewer points. The nightly recalculation keeps it up to date.",
+    "saveScore": "Save score",
+    "scoreSaved": "Score saved",
+    "deleteScore": "Delete score",
+    "deleteConfirm": "Its rules and values are deleted too."
   },
   "access": {
     "title": "Access & teams",
@@ -2687,5 +2720,256 @@
     "sourceSite": "From the website",
     "sourceProvider": "From the data provider",
     "lastEnriched": "Updated from the website {date}"
+  },
+  "queue": {
+    "title": "Work queue",
+    "desc": "Your overdue tasks, today's tasks and manual sequence steps, one at a time.",
+    "start": "Start queue ({count})",
+    "backToTasks": "Back to tasks",
+    "me": "My tasks",
+    "everyone": "Everyone",
+    "scopeLabel": "Tasks in the queue",
+    "scope": {
+      "due": "Overdue and today",
+      "overdue": "Overdue",
+      "today": "Today"
+    },
+    "counter": "Task {current} of {total}",
+    "progress": "Queue progress",
+    "doneCount": "{done} done",
+    "overdue": "Overdue",
+    "fromSequence": "Sequence step: {name}",
+    "status": {
+      "done": "Completed",
+      "skipped": "Skipped",
+      "snoozed": "Snoozed",
+      "deleted": "Deleted",
+      "open": "Open"
+    },
+    "untitled": "Untitled task",
+    "due": "Due {date}",
+    "noteLabel": "Note for the record",
+    "notePlaceholder": "Optional. It is saved on the record's timeline when you complete the task.",
+    "noRecord": "This task is not linked to a record.",
+    "complete": "Complete",
+    "skip": "Skip",
+    "snoozeBtn": "Snooze",
+    "snooze": {
+      "1h": "In 1 hour",
+      "3h": "In 3 hours",
+      "tomorrow": "Tomorrow at 9:00",
+      "two_days": "In 2 days at 9:00",
+      "next_week": "Next week at 9:00"
+    },
+    "preview": "Preview",
+    "openRecord": "Open record",
+    "prev": "Previous task",
+    "next": "Next task",
+    "keysHint": "D complete · S skip · Z snooze · P preview · O open · arrows previous and next · Esc exit",
+    "completedOne": "Completed: {subject}",
+    "skippedOne": "Skipped",
+    "snoozedOne": "Snoozed: {when}",
+    "errorSave": "Could not save the change. Try again.",
+    "emptyTitle": "Nothing due",
+    "emptyBody": "There are no overdue tasks or tasks due today in this queue.",
+    "finishedTitle": "Queue finished",
+    "finishedSummary": "{done} completed, {snoozed} snoozed, {skipped} left for later.",
+    "reviewSkipped": "Go through the {count} skipped"
+  },
+  "playbooks": {
+    "title": "Playbooks",
+    "sub": "Call scripts and qualification questions your team opens from a contact, company or deal. Answers can update the record.",
+    "new": "New playbook",
+    "crumbNew": "New playbook",
+    "createSubmit": "Create playbook",
+    "starterBody": "## Opening\nIntroduce yourself and confirm it is a good time to talk.\n\n## Questions\nUse the questions below and write down the answers.\n\n## Next step\nAgree on a date for the next conversation.",
+    "emptyTitle": "No playbooks yet",
+    "emptyBody": "Write a call script with the questions every rep should ask. It shows up in the Playbooks button of each record and when you log a call.",
+    "name": "Name",
+    "questions": "Questions",
+    "availableIn": "Available in",
+    "uses": "Uses",
+    "updated": "Updated",
+    "back": "All playbooks",
+    "editorSub": "The script on top, then the questions. Each answer can be saved to a property of the record.",
+    "entity": {
+      "contact": "Contacts",
+      "company": "Companies",
+      "deal": "Deals"
+    },
+    "script": "Script",
+    "mode": {
+      "write": "Write",
+      "preview": "Preview"
+    },
+    "scriptPlaceholder": "What to say, in Markdown: ## headings, lists with -, **bold** and links.",
+    "emptyPreview": "Nothing to preview yet.",
+    "markdownHelp": "Markdown: ## heading, - list, **bold**, [link](https://…).",
+    "noQuestions": "No questions yet. Add the ones every call should cover.",
+    "questionPlaceholder": "What is your budget for this project?",
+    "questionLabel": "Question {n}",
+    "questionType": "Answer type",
+    "type": {
+      "text": "Short text",
+      "longtext": "Long text",
+      "number": "Number",
+      "select": "Options",
+      "date": "Date"
+    },
+    "options": "Options",
+    "optionsPlaceholder": "Options separated by commas",
+    "savesTo": "Save the answer in",
+    "timelineOnly": "Only in the timeline",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "removeQuestion": "Remove question",
+    "addQuestion": "Add question",
+    "nameRequired": "The playbook needs a name.",
+    "questionRequired": "Every question needs its text.",
+    "saveError": "Could not save the playbook. Try again.",
+    "saved": "Playbook saved",
+    "delete": "Delete playbook",
+    "deleteTitle": "Delete {name}?",
+    "deleteBody": "The playbook disappears from every record. The notes and calls already logged with it stay in the timeline.",
+    "deleteError": "Could not delete the playbook.",
+    "recentUses": "Recent uses",
+    "noUses": "Nobody has used it yet.",
+    "deletedRecord": "Deleted record",
+    "launch": "Playbooks",
+    "loading": "Loading playbooks…",
+    "loadError": "Could not load the playbooks.",
+    "noneForRecord": "There are no playbooks for this kind of record.",
+    "manage": "Create one",
+    "noAnswer": "No answer",
+    "savesToProperty": "Saved to the record",
+    "logAs": "Save in the timeline as",
+    "logNote": "Note",
+    "logCall": "Logged call",
+    "saveRun": "Save to timeline",
+    "runError": "Could not save. Check the answers and try again.",
+    "props": {
+      "contact": {
+        "jobTitle": "Job title",
+        "lifecycleStage": "Lifecycle stage",
+        "leadStatus": "Lead status",
+        "phone": "Phone",
+        "city": "City",
+        "country": "Country",
+        "website": "Website"
+      },
+      "company": {
+        "industry": "Industry",
+        "employees": "Employees",
+        "phone": "Phone",
+        "city": "City",
+        "country": "Country",
+        "website": "Website",
+        "lifecycleStage": "Lifecycle stage"
+      },
+      "deal": {
+        "amount": "Amount",
+        "closeDate": "Close date",
+        "priority": "Priority",
+        "description": "Description"
+      }
+    }
+  },
+  "approvals": {
+    "title": "Approvals",
+    "sub": "Requests to move deals into stages that need someone's approval.",
+    "nav": "Approvals",
+    "navCount": "Approvals ({count})",
+    "views": {
+      "mine": "Waiting on me",
+      "requested": "Requested by me",
+      "all": "All"
+    },
+    "empty": {
+      "mine": "Nothing waiting on you",
+      "requested": "You have not requested any approval",
+      "all": "No approval requests yet"
+    },
+    "emptyBody": "When a stage needs approval, moving a deal into it creates a request here and notifies the approvers.",
+    "setup": "Set up approval rules",
+    "col": {
+      "deal": "Deal",
+      "stage": "Stage",
+      "amount": "Amount",
+      "requestedBy": "Requested by",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "statusShort": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled"
+    },
+    "status": {
+      "pending": "Waiting for approval to move to {stage}.",
+      "approved": "Approved: move to {stage}.",
+      "rejected": "Rejected: move to {stage}.",
+      "cancelled": "Cancelled: move to {stage}."
+    },
+    "pendingLine": "Requested by {name} on {date}. Approvers: {approvers}.",
+    "decidedLine": "By {name} on {date}.",
+    "someone": "someone",
+    "approvedNotMoved": "Approved. The stage still asks for properties: move the deal to fill them in.",
+    "decisionNote": "Comment for whoever asked (optional)",
+    "approve": "Approve",
+    "reject": "Reject",
+    "cancelRequest": "Cancel request",
+    "decideError": "Could not save the decision. Try again.",
+    "dialogTitle": "{stage} needs approval",
+    "needsFrom": "Moving a deal to this stage needs approval from {names}.",
+    "needs": "Moving a deal to this stage needs approval.",
+    "note": "Note for the approvers",
+    "notePlaceholder": "Why this deal should move, discount details…",
+    "request": "Request approval",
+    "requested": "Request sent. The approvers got a notification and the deal moves when one of them approves.",
+    "cancelled": "Request cancelled.",
+    "pendingBy": "{name} already asked on {date}. Waiting for a decision.",
+    "pendingSince": "There is a request since {date}. Waiting for a decision.",
+    "requestError": "Could not send the request. Try again.",
+    "rules": {
+      "title": "Stage approvals",
+      "desc": "Ask for approval before a deal enters a stage, always or from a given amount or discount. Approvers move without asking.",
+      "empty": "No approval rules. Deals move freely between stages.",
+      "always": "always",
+      "amountAtLeast": "amount from {amount}",
+      "discountAtLeast": "discount from {pct}%",
+      "by": "approved by {names}",
+      "pipeline": "Pipeline",
+      "stage": "Stage",
+      "minAmount": "from amount ({currency})",
+      "minDiscount": "from discount (%)",
+      "approvers": "Approvers",
+      "help": "Leave amount and discount empty to always ask. With both, the rule applies when both are met. The discount is the line items' total discount.",
+      "add": "Add rule",
+      "incomplete": "Pick a stage and at least one approver.",
+      "errors": {
+        "invalid_stage": "That stage does not belong to the pipeline.",
+        "invalid_approver": "Approvers have to be people in this workspace."
+      }
+    }
+  },
+  "splits": {
+    "title": "Deal splits",
+    "split": "Split this deal",
+    "edit": "Edit splits",
+    "unknown": "Unknown person",
+    "owner": "Owner {n}",
+    "percent": "Percentage {n}",
+    "remove": "Remove owner",
+    "add": "Add owner",
+    "total": "Total {total}% (has to be 100%)",
+    "clear": "Remove splits",
+    "errors": {
+      "sum_not_100": "The percentages have to add up to 100%.",
+      "duplicate_owner": "Each person can appear only once.",
+      "invalid_percent": "Each percentage has to be more than 0 and up to 100.",
+      "invalid_owner": "Owners have to be people in this workspace.",
+      "too_many": "Up to 10 owners per deal."
+    }
   }
 }

@@ -99,7 +99,9 @@
     "newCrmAgentRun": "Nova execução de agente de IA (CRM)",
     "groupCrmAgentRuns": "Execuções de agentes de IA",
     "groupLeads": "Leads",
-    "groupRecords": "Objetos personalizados"
+    "groupRecords": "Objetos personalizados",
+    "groupPlaybooks": "Playbooks",
+    "startQueue": "Começar a fila de tarefas"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",

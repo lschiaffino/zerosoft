@@ -26,6 +26,8 @@ import { customBuilderFields, customCells, customColumns, customFilterTypes, ext
 import { isExtraSort, type ExtraSort } from '@/lib/crm-list-sort';
 import { formatActivityDate } from '@/lib/crm-activity-dates';
 import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
+import { listScores } from '@/lib/crm-scoring';
+import { scoreTier, tierFilterValue, tierRanges } from '@/lib/crm-scoring-schema';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
 import CrmPager from '@/components/crm/CrmPager';
@@ -133,10 +135,12 @@ export default async function ContactsPage(props: ContactsPageProps) {
     page,
   });
   const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
-  const [allTags, rowTags] = await Promise.all([
+  const [allTags, rowTags, scores] = await Promise.all([
     listTags(user.id),
     tagsForRecords(user.id, 'contact', rows.map((r) => r.id)),
+    listScores(user.id),
   ]);
+  const primaryScore = scores.find((s) => s.isPrimary);
   const tagOptions = allTags.map((x) => ({ id: x.id, name: x.name }));
 
   const companies = (await listCompanies(user.id, { pageSize: 200, sort: 'name', ownerScope: scope })).rows.map((c) => ({
@@ -187,7 +191,21 @@ export default async function ContactsPage(props: ContactsPageProps) {
       type: 'select',
       options: SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) })),
     },
-    { key: 'score', label: t('scoring.column'), type: 'number' },
+    { key: 'score', label: primaryScore?.name ?? t('scoring.column'), type: 'number' },
+    // Los otros scores por puntos y cada score con umbrales por tramo (Hot, Warm…).
+    ...scores
+      .filter((s) => !s.isPrimary)
+      .map((s): FilterBuilderField => ({ key: `score:${s.id}`, label: s.name, type: 'number' })),
+    ...scores
+      .filter((s) => s.thresholds.length > 0)
+      .map(
+        (s): FilterBuilderField => ({
+          key: `scoreTier:${s.id}`,
+          label: t('scoring.tierOf', { name: s.name }),
+          type: 'select',
+          options: tierRanges(s.thresholds).map((r) => ({ value: tierFilterValue(r), label: r.label })),
+        }),
+      ),
     { key: 'created', label: t('filters.field.created'), type: 'date' },
     { key: 'lastActivity', label: t('activityDates.lastActivity'), type: 'date' },
     { key: 'lastContacted', label: t('activityDates.lastContacted'), type: 'date' },
@@ -225,6 +243,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
     leadStatus: c.lead_status,
     source: c.source,
     score: c.score ?? 0,
+    scoreTier: primaryScore ? scoreTier(c.score ?? 0, primaryScore.thresholds) ?? undefined : undefined,
     created: formatDate(c.created_at, locale),
     lastActivity: formatActivityDate(c.last_activity_at, locale),
     lastContacted: formatActivityDate(c.last_contacted_at, locale),

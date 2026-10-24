@@ -35,7 +35,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   }
   let result;
   try {
-    result = await moveDealWithFields(auth.user.id, params.id, { stageId, lostReason, fields }, auth.user.email);
+    result = await moveDealWithFields(auth.user.id, params.id, { stageId, lostReason, fields }, auth.user.email, auth.personId);
   } catch (err) {
     if (err instanceof CrmRefError) return apiError(400, err.code, 'A referenced record is not valid.');
     throw err;
@@ -51,6 +51,19 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
           },
         },
         { status: 422 },
+      );
+    }
+    if (result.reason === 'approval_required') {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'approval_required',
+            message: `Moving a deal to "${stage.name}" needs approval. Request it in the app; the deal moves once an approver accepts.`,
+            approvers: result.approverIds,
+            pendingApprovalId: result.pendingId,
+          },
+        },
+        { status: 409 },
       );
     }
     return result.reason === 'not_found'

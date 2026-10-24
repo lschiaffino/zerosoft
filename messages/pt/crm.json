@@ -18,7 +18,8 @@
     "trash": "Lixeira",
     "agents": "Agentes de IA",
     "leads": "Leads",
-    "objects": "Objetos personalizados"
+    "objects": "Objetos personalizados",
+    "playbooks": "Playbooks"
   },
   "switcher": {
     "product": "Produto",
@@ -486,7 +487,14 @@
     "stageNamePlaceholder": "Nome da etapa",
     "addStageConfirm": "Adicionar etapa",
     "bulkSelected": "{count} selecionados",
-    "bulkConfirmDelete": "Mover {count} negócios para a lixeira?"
+    "bulkConfirmDelete": "Mover {count} negócios para a lixeira?",
+    "keyboard": {
+      "hint": "Teclado: as setas percorrem os cartões, Shift + seta esquerda ou direita muda a etapa, Enter abre a prévia e M o menu de etapa.",
+      "cardLabel": "{deal}, em {stage}",
+      "moving": "Movendo {deal} para {stage}",
+      "moved": "{deal} foi para {stage}",
+      "edge": "Não há outra etapa desse lado"
+    }
   },
   "tasks": {
     "title": "Tarefas",
@@ -792,7 +800,8 @@
         "summary": "Salva um resumo com IA novo no registro (contato, empresa ou negócio).",
         "deal_score": "Salva o score com IA e o plano do negócio. Use com gatilhos de negócios."
       }
-    }
+    },
+    "scoreId": "Score"
   },
   "history": {
     "title": "Histórico",
@@ -1153,7 +1162,8 @@
     "no_domain": "Primeiro adicione o domínio ou o site da empresa.",
     "invalid_lead": "Esse lead não existe.",
     "invalid_record": "Esse registro não existe.",
-    "invalid_pipeline": "Escolha um pipeline de negócios."
+    "invalid_pipeline": "Escolha um pipeline de negócios.",
+    "approval_required": "Esta etapa pede aprovação."
   },
   "filters": {
     "advanced": "Filtros avançados",
@@ -1825,7 +1835,30 @@
     "namePlaceholder": "Nome (opcional)",
     "name": "Nome",
     "add": "Adicionar regra",
-    "recalculate": "Recalcular tudo"
+    "recalculate": "Recalcular tudo",
+    "tierOf": "{name}: faixa",
+    "decayedNote": "atividade antiga, menos pontos",
+    "rulesOf": "Regras de {name}",
+    "scores": "Scores",
+    "newScore": "Novo score",
+    "newScorePlaceholder": "Aderência ao produto, Engajamento…",
+    "createScore": "Criar",
+    "scoreLimit": "Não foi possível criar o score. Um workspace pode ter até {max}.",
+    "scoreName": "Nome do score",
+    "tiers": "Faixas",
+    "tiersHelp": "A partir de quantos pontos um contato entra em cada faixa, por exemplo Frio a partir de 0, Morno a partir de 30 e Quente a partir de 60. Aparecem junto ao score e servem como filtro.",
+    "tierLabel": "Nome da faixa",
+    "tierFrom": "a partir de",
+    "addTier": "Adicionar faixa",
+    "decay": "Decaimento",
+    "decayOn": "A atividade perde peso com o tempo",
+    "decayAfter": "se a última tem mais de (dias)",
+    "decayBy": "reduzir os pontos em (%)",
+    "decayHelp": "Vale para as regras de atividade: se o que cumpre a regra aconteceu antes dessa janela, a regra soma menos pontos. O recálculo de toda noite mantém isso em dia.",
+    "saveScore": "Salvar score",
+    "scoreSaved": "Score salvo",
+    "deleteScore": "Excluir score",
+    "deleteConfirm": "As regras e os valores dele também são excluídos."
   },
   "access": {
     "title": "Acesso e equipes",
@@ -2687,5 +2720,256 @@
     "sourceSite": "Do site",
     "sourceProvider": "Do provedor de dados",
     "lastEnriched": "Atualizada pelo site em {date}"
+  },
+  "queue": {
+    "title": "Fila de trabalho",
+    "desc": "Suas tarefas atrasadas, as de hoje e os passos manuais de sequências, uma por vez.",
+    "start": "Começar fila ({count})",
+    "backToTasks": "Voltar às tarefas",
+    "me": "Minhas tarefas",
+    "everyone": "Toda a equipe",
+    "scopeLabel": "Tarefas da fila",
+    "scope": {
+      "due": "Atrasadas e de hoje",
+      "overdue": "Atrasadas",
+      "today": "Hoje"
+    },
+    "counter": "Tarefa {current} de {total}",
+    "progress": "Progresso da fila",
+    "doneCount": "{done} feitas",
+    "overdue": "Atrasada",
+    "fromSequence": "Passo de sequência: {name}",
+    "status": {
+      "done": "Concluída",
+      "skipped": "Pulada",
+      "snoozed": "Adiada",
+      "deleted": "Excluída",
+      "open": "Pendente"
+    },
+    "untitled": "Tarefa sem título",
+    "due": "Vence {date}",
+    "noteLabel": "Nota para o registro",
+    "notePlaceholder": "Opcional. Fica na linha do tempo do registro ao concluir a tarefa.",
+    "noRecord": "Esta tarefa não está associada a um registro.",
+    "complete": "Concluir",
+    "skip": "Pular",
+    "snoozeBtn": "Adiar",
+    "snooze": {
+      "1h": "Em 1 hora",
+      "3h": "Em 3 horas",
+      "tomorrow": "Amanhã às 9:00",
+      "two_days": "Em 2 dias às 9:00",
+      "next_week": "Na próxima semana às 9:00"
+    },
+    "preview": "Prévia",
+    "openRecord": "Abrir registro",
+    "prev": "Tarefa anterior",
+    "next": "Próxima tarefa",
+    "keysHint": "D concluir · S pular · Z adiar · P prévia · O abrir · setas anterior e próxima · Esc sair",
+    "completedOne": "Concluída: {subject}",
+    "skippedOne": "Pulada",
+    "snoozedOne": "Adiada: {when}",
+    "errorSave": "Não foi possível salvar a mudança. Tente de novo.",
+    "emptyTitle": "Nada pendente",
+    "emptyBody": "Nesta fila não há tarefas atrasadas nem que vencem hoje.",
+    "finishedTitle": "Você terminou a fila",
+    "finishedSummary": "{done} concluídas, {snoozed} adiadas e {skipped} para depois.",
+    "reviewSkipped": "Revisar as {count} puladas"
+  },
+  "playbooks": {
+    "title": "Playbooks",
+    "sub": "Roteiros de chamada e perguntas de qualificação que a equipe abre a partir de um contato, uma empresa ou um negócio. As respostas podem atualizar o registro.",
+    "new": "Novo playbook",
+    "crumbNew": "Novo playbook",
+    "createSubmit": "Criar playbook",
+    "starterBody": "## Abertura\nApresente-se e confirme se é um bom momento para conversar.\n\n## Perguntas\nUse as perguntas abaixo e anote as respostas.\n\n## Próximo passo\nCombine uma data para a próxima conversa.",
+    "emptyTitle": "Ainda não há playbooks",
+    "emptyBody": "Escreva um roteiro de chamada com as perguntas que cada vendedor deve fazer. Ele aparece no botão Playbooks de cada registro e ao registrar uma chamada.",
+    "name": "Nome",
+    "questions": "Perguntas",
+    "availableIn": "Disponível em",
+    "uses": "Usos",
+    "updated": "Atualizado",
+    "back": "Todos os playbooks",
+    "editorSub": "Em cima o roteiro, depois as perguntas. Cada resposta pode ser salva em uma propriedade do registro.",
+    "entity": {
+      "contact": "Contatos",
+      "company": "Empresas",
+      "deal": "Negócios"
+    },
+    "script": "Roteiro",
+    "mode": {
+      "write": "Escrever",
+      "preview": "Prévia"
+    },
+    "scriptPlaceholder": "O que dizer, em Markdown: ## títulos, listas com -, **negrito** e links.",
+    "emptyPreview": "Ainda não há nada para mostrar.",
+    "markdownHelp": "Markdown: ## título, - lista, **negrito**, [link](https://…).",
+    "noQuestions": "Ainda não há perguntas. Adicione as que toda chamada deve cobrir.",
+    "questionPlaceholder": "Qual é o orçamento para este projeto?",
+    "questionLabel": "Pergunta {n}",
+    "questionType": "Tipo de resposta",
+    "type": {
+      "text": "Texto curto",
+      "longtext": "Texto longo",
+      "number": "Número",
+      "select": "Opções",
+      "date": "Data"
+    },
+    "options": "Opções",
+    "optionsPlaceholder": "Opções separadas por vírgulas",
+    "savesTo": "Salvar a resposta em",
+    "timelineOnly": "Só na linha do tempo",
+    "moveUp": "Subir",
+    "moveDown": "Descer",
+    "removeQuestion": "Remover pergunta",
+    "addQuestion": "Adicionar pergunta",
+    "nameRequired": "O playbook precisa de um nome.",
+    "questionRequired": "Cada pergunta precisa do seu texto.",
+    "saveError": "Não foi possível salvar o playbook. Tente de novo.",
+    "saved": "Playbook salvo",
+    "delete": "Excluir playbook",
+    "deleteTitle": "Excluir {name}?",
+    "deleteBody": "O playbook deixa de aparecer nos registros. As notas e chamadas já registradas com ele continuam na linha do tempo.",
+    "deleteError": "Não foi possível excluir o playbook.",
+    "recentUses": "Usos recentes",
+    "noUses": "Ninguém usou ainda.",
+    "deletedRecord": "Registro excluído",
+    "launch": "Playbooks",
+    "loading": "Carregando playbooks…",
+    "loadError": "Não foi possível carregar os playbooks.",
+    "noneForRecord": "Não há playbooks para este tipo de registro.",
+    "manage": "Criar um",
+    "noAnswer": "Sem resposta",
+    "savesToProperty": "Fica salvo no registro",
+    "logAs": "Salvar na linha do tempo como",
+    "logNote": "Nota",
+    "logCall": "Chamada registrada",
+    "saveRun": "Salvar na linha do tempo",
+    "runError": "Não foi possível salvar. Revise as respostas e tente de novo.",
+    "props": {
+      "contact": {
+        "jobTitle": "Cargo",
+        "lifecycleStage": "Etapa do ciclo de vida",
+        "leadStatus": "Status do lead",
+        "phone": "Telefone",
+        "city": "Cidade",
+        "country": "País",
+        "website": "Site"
+      },
+      "company": {
+        "industry": "Setor",
+        "employees": "Funcionários",
+        "phone": "Telefone",
+        "city": "Cidade",
+        "country": "País",
+        "website": "Site",
+        "lifecycleStage": "Etapa do ciclo de vida"
+      },
+      "deal": {
+        "amount": "Valor",
+        "closeDate": "Data de fechamento",
+        "priority": "Prioridade",
+        "description": "Descrição"
+      }
+    }
+  },
+  "approvals": {
+    "title": "Aprovações",
+    "sub": "Pedidos para mover negócios para etapas que precisam da aprovação de alguém.",
+    "nav": "Aprovações",
+    "navCount": "Aprovações ({count})",
+    "views": {
+      "mine": "Aguardando minha decisão",
+      "requested": "Pedidas por mim",
+      "all": "Todas"
+    },
+    "empty": {
+      "mine": "Nada aguardando sua decisão",
+      "requested": "Você não pediu nenhuma aprovação",
+      "all": "Ainda não há pedidos de aprovação"
+    },
+    "emptyBody": "Quando uma etapa pede aprovação, mover um negócio para ela cria um pedido aqui e avisa quem aprova.",
+    "setup": "Configurar regras de aprovação",
+    "col": {
+      "deal": "Negócio",
+      "stage": "Etapa",
+      "amount": "Valor",
+      "requestedBy": "Pedido por",
+      "status": "Status",
+      "actions": "Ações"
+    },
+    "statusShort": {
+      "pending": "Pendente",
+      "approved": "Aprovado",
+      "rejected": "Rejeitado",
+      "cancelled": "Cancelado"
+    },
+    "status": {
+      "pending": "Aguardando aprovação para passar para {stage}.",
+      "approved": "Aprovado: passar para {stage}.",
+      "rejected": "Rejeitado: passar para {stage}.",
+      "cancelled": "Cancelado: passar para {stage}."
+    },
+    "pendingLine": "Pedido por {name} em {date}. Aprovam: {approvers}.",
+    "decidedLine": "Por {name} em {date}.",
+    "someone": "alguém",
+    "approvedNotMoved": "Aprovado. A etapa ainda pede propriedades: mova o negócio para preenchê-las.",
+    "decisionNote": "Comentário para quem pediu (opcional)",
+    "approve": "Aprovar",
+    "reject": "Rejeitar",
+    "cancelRequest": "Cancelar pedido",
+    "decideError": "Não foi possível salvar a decisão. Tente de novo.",
+    "dialogTitle": "{stage} pede aprovação",
+    "needsFrom": "Para passar um negócio para esta etapa é preciso a aprovação de {names}.",
+    "needs": "Para passar um negócio para esta etapa é preciso aprovação.",
+    "note": "Nota para quem aprova",
+    "notePlaceholder": "Por que deve avançar, detalhes do desconto…",
+    "request": "Pedir aprovação",
+    "requested": "Pedido enviado. Quem aprova recebeu um aviso e o negócio avança quando alguém aprovar.",
+    "cancelled": "Pedido cancelado.",
+    "pendingBy": "{name} já pediu em {date}. Falta a decisão.",
+    "pendingSince": "Há um pedido desde {date}. Falta a decisão.",
+    "requestError": "Não foi possível enviar o pedido. Tente de novo.",
+    "rules": {
+      "title": "Aprovações de etapa",
+      "desc": "Peça aprovação antes de um negócio entrar em uma etapa, sempre ou a partir de certo valor ou desconto. Quem aprova move sem pedir.",
+      "empty": "Não há regras de aprovação. Os negócios se movem livremente entre etapas.",
+      "always": "sempre",
+      "amountAtLeast": "valor a partir de {amount}",
+      "discountAtLeast": "desconto a partir de {pct}%",
+      "by": "aprovam {names}",
+      "pipeline": "Pipeline",
+      "stage": "Etapa",
+      "minAmount": "a partir do valor ({currency})",
+      "minDiscount": "a partir do desconto (%)",
+      "approvers": "Quem aprova",
+      "help": "Deixe valor e desconto vazios para pedir sempre. Com os dois, a regra vale quando ambos se cumprem. O desconto é o total dos produtos do negócio.",
+      "add": "Adicionar regra",
+      "incomplete": "Escolha uma etapa e pelo menos uma pessoa que aprove.",
+      "errors": {
+        "invalid_stage": "Essa etapa não é desse pipeline.",
+        "invalid_approver": "Quem aprova tem que ser pessoa deste workspace."
+      }
+    }
+  },
+  "splits": {
+    "title": "Divisão do negócio",
+    "split": "Dividir este negócio",
+    "edit": "Editar divisão",
+    "unknown": "Pessoa desconhecida",
+    "owner": "Dono {n}",
+    "percent": "Porcentagem {n}",
+    "remove": "Remover dono",
+    "add": "Adicionar dono",
+    "total": "Total {total}% (tem que dar 100%)",
+    "clear": "Remover divisão",
+    "errors": {
+      "sum_not_100": "As porcentagens têm que somar 100%.",
+      "duplicate_owner": "Cada pessoa pode aparecer uma vez só.",
+      "invalid_percent": "Cada porcentagem tem que ser maior que 0 e até 100.",
+      "invalid_owner": "Os donos têm que ser pessoas deste workspace.",
+      "too_many": "Até 10 donos por negócio."
+    }
   }
 }

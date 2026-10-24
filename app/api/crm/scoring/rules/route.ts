@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
   const parsed = scoreRuleCreateSchema.safeParse(body);
   if (!parsed.success) return crmError(400, 'invalid_input');
   const rule = await createScoreRule(user.id, parsed.data);
+  if (!rule) return crmError(400, 'invalid_score');
   await recalcWorkspaceScores(user.id, { limit: 2000 });
   return NextResponse.json(rule, { status: 201 });
 }

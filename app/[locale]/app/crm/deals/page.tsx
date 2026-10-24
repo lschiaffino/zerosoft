@@ -3,7 +3,8 @@ import ScoreDealsButton from '@/components/crm/ScoreDealsButton';
 import { getTranslations } from 'next-intl/server';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { Link } from '@/i18n/navigation';
-import { requireUser } from '@/lib/session';
+import { realUserId, requireUser } from '@/lib/session';
+import { countPendingFor } from '@/lib/crm-approvals';
 import { sessionScope } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import {
@@ -115,6 +116,7 @@ export default async function DealsPage(props: DealsPageProps) {
   } = params;
 
   const user = await requireUser(locale);
+  const pendingApprovals = await countPendingFor(user.id, realUserId(user));
   const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
@@ -452,6 +454,9 @@ export default async function DealsPage(props: DealsPageProps) {
                 {t('deals.tableView')}
               </Link>
             </nav>
+            <Link href="/app/crm/approvals" className="btn btn-secondary btn-sm" data-testid="deals-approvals">
+              {pendingApprovals > 0 ? t('approvals.navCount', { count: pendingApprovals }) : t('approvals.nav')}
+            </Link>
             <CrmQuickCreate kind="deal" defaultPipelineId={pipeline.id} buttonClassName="btn btn-primary btn-sm" label={t('record.createDeal')} />
           </>
         }

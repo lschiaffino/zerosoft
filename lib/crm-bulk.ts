@@ -62,7 +62,7 @@ export function buildBulkPatch(
   return { kind: 'field', patch: { [field]: data[field] } };
 }
 
-/** blocked: deals que no pudieron entrar a la etapa porque les faltan propiedades obligatorias. */
+/** blocked: deals que no pudieron entrar a la etapa (les faltan propiedades obligatorias o piden aprobación). */
 export type BulkSetResult = { ok: true; count: number; failed: number; blocked: number } | { ok: false; code: string };
 
 /** Aplica una propiedad a `ids` (ya filtrados por visibilidad en la ruta). */
@@ -73,6 +73,7 @@ export async function bulkSetProperty(
   field: string,
   value: unknown,
   actorEmail = '',
+  actorId: string | null = null,
 ): Promise<BulkSetResult> {
   const defs = field.startsWith('custom:') ? await listCustomFields(userId, FIELD_ENTITY[entity]) : [];
   const patch = buildBulkPatch(entity, field, value, defs);
@@ -84,8 +85,8 @@ export async function bulkSetProperty(
     try {
       let done: unknown = null;
       if (patch.kind === 'stage') {
-        const moved = await moveDeal(userId, id, patch.stageId, null, undefined, actorEmail);
-        if (!moved.ok && moved.reason === 'missing_required') blocked++;
+        const moved = await moveDeal(userId, id, patch.stageId, null, undefined, actorEmail, { actorId });
+        if (!moved.ok && (moved.reason === 'missing_required' || moved.reason === 'approval_required')) blocked++;
         done = moved.ok ? true : null;
       } else {
         let data = patch.kind === 'field' ? patch.patch : null;

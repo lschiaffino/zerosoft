@@ -31,6 +31,8 @@ export interface ContactRow {
   source: string;
   /** Lead score (lib/crm-scoring.ts). */
   score: number;
+  /** Tramo del score principal según sus umbrales (Hot, Warm…). */
+  scoreTier?: string;
   created: string;
   /** Fechas de actividad ya formateadas ('' = sin fecha). */
   lastActivity?: string;
@@ -350,6 +352,7 @@ export default function ContactsTable({
                 {visible.has('score') && (
                   <td className="num cell-score" data-testid="contact-score">
                     {row.score}
+                    {row.scoreTier && <span className="score-tier" data-testid="contact-score-tier">{row.scoreTier}</span>}
                   </td>
                 )}
                 {visible.has('tags') && (

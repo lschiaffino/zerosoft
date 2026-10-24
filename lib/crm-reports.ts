@@ -4,6 +4,7 @@
  */
 import { getDb } from './db';
 import { baseAmountSql } from './crm-currency';
+import { splitShareArgs, splitShareSql } from './crm-splits';
 
 /** Montos de deals convertidos a la moneda base del workspace (tipos de cambio manuales). */
 const AMT = baseAmountSql('d');
@@ -125,6 +126,46 @@ function ownerClause(
     }
   }
   return { sql: parts.join(''), args };
+}
+
+/** Origen y prioridad del filtro (sin owner): para las consultas que reparten por splits. */
+function nonOwnerClauses(filters: Pick<ReportFilters, 'source' | 'priority'>): { sql: string; args: string[] } {
+  const parts: string[] = [];
+  const args: string[] = [];
+  if (filters.source) {
+    parts.push(' AND d.source = ?');
+    args.push(filters.source);
+  }
+  if (filters.priority) {
+    parts.push(' AND d.priority = ?');
+    args.push(filters.priority);
+  }
+  return { sql: parts.join(''), args };
+}
+
+/**
+ * Ganado por una persona con splits (lib/crm-splits.ts): cuenta los deals
+ * donde tiene parte y suma su porcentaje del monto.
+ */
+async function wonShareFor(
+  db: ReturnType<typeof getDb>,
+  userId: string,
+  personId: string,
+  range: ReportRange,
+  filters: Pick<ReportFilters, 'source' | 'priority'>,
+): Promise<{ c: number; a: number }> {
+  const share = splitShareSql('d', 1);
+  const nf = nonOwnerClauses(filters);
+  const row = (await db
+    .prepare(
+      `SELECT COUNT(*) AS c, COALESCE(SUM(${AMT} * sh), 0) AS a FROM (
+         SELECT d.*, ${share} AS sh FROM crm_deals d
+         JOIN crm_stages s ON s.id = d.stage_id
+         WHERE d.user_id = ? AND s.is_won = 1 AND d.closed_at >= datetime(?) AND d.closed_at <= datetime(?, '23:59:59')${nf.sql}
+       ) d WHERE d.sh > 0`,
+    )
+    .get(...splitShareArgs([personId]), userId, range.from, range.to, ...nf.args)) as { c: number; a: number } | undefined;
+  return { c: Number(row?.c ?? 0), a: Number(row?.a ?? 0) };
 }
 
 function filterClauses(filters: ReportFilters): { sql: string; args: (string | undefined)[] } {
@@ -307,13 +348,8 @@ export async function reportByOwner(
        WHERE d.user_id = ? AND COALESCE(d.owner_id, d.user_id) = ? AND d.created_at >= datetime(?) AND d.created_at <= datetime(?, '23:59:59')${fc.sql}`,
       [userId, o.id, range.from, range.to, ...fc.args],
     );
-    const wonAmount = await sum(
-      db,
-      `SELECT COALESCE(SUM(${AMT}), 0) AS s FROM crm_deals d
-       JOIN crm_stages s ON s.id = d.stage_id
-       WHERE d.user_id = ? AND COALESCE(d.owner_id, d.user_id) = ? AND s.is_won = 1 AND d.closed_at >= datetime(?) AND d.closed_at <= datetime(?, '23:59:59')${fc.sql}`,
-      [userId, o.id, range.from, range.to, ...fc.args],
-    );
+    // Ganado con splits: a cada persona su porcentaje del monto.
+    const wonAmount = (await wonShareFor(db, userId, o.id, range, filters)).a;
     // Actividades registradas en el rango por este owner (misma semántica que el KPI).
     const activities = await count(
       db,
@@ -492,20 +528,38 @@ export async function reportForecast(
   ownerIds?: string[],
 ): Promise<ForecastReportStage[]> {
   if (!pipelineId) return [];
-  const oc = ownerClause('d', { ownerIds });
+  if (!ownerIds) {
+    return (await getDb()
+      .prepare(
+        `SELECT s.id, s.name, s.probability,
+           COUNT(d.id) AS count,
+           COALESCE(SUM(${AMT}), 0) AS amount,
+           COALESCE(SUM(${AMT} * s.probability / 100.0), 0) AS forecast
+         FROM crm_stages s
+         LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ? AND d.closed_at IS NULL
+         WHERE s.pipeline_id = ?
+         GROUP BY s.id
+         ORDER BY s.position ASC`,
+      )
+      .all(userId, pipelineId)) as ForecastReportStage[];
+  }
+  // Filtrado por personas: con splits, cada deal aporta la parte de esas personas.
+  const share = splitShareSql('d', ownerIds.length);
   return (await getDb()
     .prepare(
       `SELECT s.id, s.name, s.probability,
          COUNT(d.id) AS count,
-         COALESCE(SUM(${AMT}), 0) AS amount,
-         COALESCE(SUM(${AMT} * s.probability / 100.0), 0) AS forecast
+         COALESCE(SUM(${AMT} * d.sh), 0) AS amount,
+         COALESCE(SUM(${AMT} * d.sh * s.probability / 100.0), 0) AS forecast
        FROM crm_stages s
-       LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ? AND d.closed_at IS NULL${oc.sql}
+       LEFT JOIN (
+         SELECT d.*, ${share} AS sh FROM crm_deals d WHERE d.user_id = ? AND d.closed_at IS NULL
+       ) d ON d.stage_id = s.id AND d.sh > 0
        WHERE s.pipeline_id = ?
        GROUP BY s.id
        ORDER BY s.position ASC`,
     )
-    .all(userId, ...oc.args, pipelineId)) as ForecastReportStage[];
+    .all(...splitShareArgs(ownerIds), userId, pipelineId)) as ForecastReportStage[];
 }
 
 export async function reportSourcePerformance(
@@ -585,16 +639,8 @@ export async function reportOwnerPerformance(
       [userId, o.id, range.from, range.to, ...fc.args],
     );
 
-    const wonRow = (await db
-      .prepare(
-        `SELECT COUNT(*) AS c, COALESCE(SUM(${AMT}), 0) AS a FROM crm_deals d
-         JOIN crm_stages s ON s.id = d.stage_id
-         WHERE d.user_id = ? AND COALESCE(d.owner_id, d.user_id) = ? AND s.is_won = 1 AND d.closed_at >= datetime(?) AND d.closed_at <= datetime(?, '23:59:59')${fc.sql}`,
-      )
-      .get(...[userId, o.id, range.from, range.to, ...fc.args].filter((v): v is string => v !== undefined))) as {
-      c: number;
-      a: number;
-    };
+    // Ganados con splits: cuenta los deals donde tiene parte y suma su porcentaje.
+    const wonRow = await wonShareFor(db, userId, o.id, range, filters);
 
     const lostDeals = await count(
       db,

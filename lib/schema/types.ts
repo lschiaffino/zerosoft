@@ -255,6 +255,8 @@ export interface CrmActivityRow {
   repeat?: 'none' | 'daily' | 'weekly' | 'monthly';
   /** Tarea siguiente de la serie, una vez creada al completar esta. */
   repeat_next_id?: string | null;
+  /** Tareas creadas por un paso de secuencia (la cola de trabajo las marca). */
+  sequence_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1935,6 +1937,8 @@ export interface CrmScoreRuleRow {
   points: number;
   enabled: number;
   position: number;
+  /** Score al que suma (crm_scores); null en bases viejas = el principal. */
+  score_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1955,4 +1959,88 @@ export interface CrmQuotaRow {
   target: number;
   created_at: string;
   updated_at: string;
+}
+
+// ---------- CRM ejecución de ventas (073) ----------
+
+export interface CrmPlaybookRow {
+  id: string;
+  user_id: string;
+  name: string;
+  /** Markdown. */
+  body: string;
+  /** JSON PlaybookQuestion[] (lib/crm-playbooks-schema.ts). */
+  questions: string;
+  /** JSON: registros donde se ofrece ('contact' | 'company' | 'deal'). */
+  entities: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmPlaybookRunRow {
+  id: string;
+  user_id: string;
+  playbook_id: string | null;
+  playbook_name: string;
+  entity: 'contact' | 'company' | 'deal';
+  entity_id: string;
+  activity_id: string | null;
+  answers: string;
+  actor_id: string | null;
+  created_at: string;
+}
+
+export interface CrmScoreRow {
+  id: string;
+  user_id: string;
+  name: string;
+  is_primary: number;
+  /** JSON ScoreThreshold[]. */
+  thresholds: string;
+  decay_days: number | null;
+  decay_pct: number;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmApprovalRuleRow {
+  id: string;
+  user_id: string;
+  pipeline_id: string;
+  stage_id: string;
+  min_amount: number | null;
+  min_discount: number | null;
+  /** JSON string[] de personas. */
+  approver_ids: string;
+  enabled: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmDealApprovalRow {
+  id: string;
+  user_id: string;
+  deal_id: string;
+  rule_id: string | null;
+  stage_id: string;
+  from_stage_id: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  requested_by: string | null;
+  note: string;
+  approver_ids: string;
+  decided_by: string | null;
+  decision_note: string;
+  decided_at: string | null;
+  consumed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmDealSplitRow {
+  deal_id: string;
+  user_id: string;
+  owner_id: string;
+  percent: number;
 }

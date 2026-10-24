@@ -218,6 +218,29 @@ export function buildRuleCondition(
       WHERE xlm.contact_id = c.id AND xlm.list_id = ? AND xl.kind = 'static')`;
     return { sql: rule.o === 'is' ? cond : `NOT ${cond}`, args: [v] };
   }
+  // Lead scores (lib/crm-scoring.ts): `score:<id>` por puntos y `scoreTier:<id>`
+  // por tramo ("min|max"). El principal vive en c.score; los demás en crm_contact_scores.
+  if (alias === 'c' && (rule.f.startsWith('score:') || rule.f.startsWith('scoreTier:'))) {
+    const tier = rule.f.startsWith('scoreTier:');
+    const scoreId = rule.f.slice(tier ? 10 : 6);
+    if (!/^[A-Za-z0-9-]{1,64}$/.test(scoreId)) return null;
+    const expr = `COALESCE((SELECT xs.score FROM crm_contact_scores xs WHERE xs.contact_id = c.id AND xs.score_id = ?),
+      CASE WHEN EXISTS (SELECT 1 FROM crm_scores ps WHERE ps.id = ? AND ps.is_primary = 1) THEN c.score ELSE 0 END)`;
+    const v = (rule.v ?? '').trim();
+    if (tier) {
+      if (!SELECT_OPS.has(rule.o)) return null;
+      const m = /^(-?\d{1,7})\|(-?\d{1,7})?$/.exec(v);
+      if (!m) return null;
+      const inRange = m[2] === undefined ? `${expr} >= ?` : `(${expr} >= ? AND ${expr} < ?)`;
+      const args: Array<string | number> = m[2] === undefined ? [scoreId, scoreId, Number(m[1])] : [scoreId, scoreId, Number(m[1]), scoreId, scoreId, Number(m[2])];
+      return { sql: rule.o === 'is' ? inRange : `NOT ${inRange}`, args };
+    }
+    if (!NUMBER_OPS.has(rule.o)) return null;
+    const n = Number(v);
+    if (!v || Number.isNaN(n)) return null;
+    const op = rule.o === 'eq' ? '=' : rule.o === 'neq' ? '!=' : rule.o === 'gt' ? '>' : '<';
+    return { sql: `${expr} ${op} ?`, args: [scoreId, scoreId, n] };
+  }
   let def = fields[rule.f];
   if (!def && rule.f.startsWith('custom:')) {
     const name = rule.f.slice(7);
@@ -2009,7 +2032,9 @@ export type MoveDealResult =
   | { ok: true; deal: CrmDealRow }
   | { ok: false; reason: 'not_found' | 'invalid_stage' }
   /** La etapa pide propiedades que el deal no tiene (claves de lib/crm-stage-rules.ts). */
-  | { ok: false; reason: 'missing_required'; missing: string[] };
+  | { ok: false; reason: 'missing_required'; missing: string[] }
+  /** La etapa pide aprobación (lib/crm-approvals.ts): `pendingId` si ya hay un pedido abierto. */
+  | { ok: false; reason: 'approval_required'; approverIds: string[]; pendingId: string | null };
 
 /**
  * Propiedades obligatorias de `stage` que le faltan al deal. Los custom
@@ -2046,8 +2071,12 @@ export async function moveDeal(
   beforeId?: string | null,
   lostReason?: string,
   actorEmail = '',
-  /** enforceRequired=false: import y presupuestos aceptados no exigen las propiedades de la etapa. */
-  opts: { enforceRequired?: boolean } = {},
+  /**
+   * enforceRequired=false: import y presupuestos aceptados no exigen las
+   * propiedades de la etapa ni la aprobación. actorId: quien mueve (los
+   * aprobadores de la etapa no necesitan pedir).
+   */
+  opts: { enforceRequired?: boolean; actorId?: string | null } = {},
 ): Promise<MoveDealResult> {
   const db = getDb();
   const deal = (await db
@@ -2056,7 +2085,14 @@ export async function moveDeal(
   if (!deal) return { ok: false, reason: 'not_found' };
   const stage = await stageInPipeline(stageId, deal.pipeline_id);
   if (!stage) return { ok: false, reason: 'invalid_stage' };
+  let approvedId: string | undefined;
   if (opts.enforceRequired !== false && deal.stage_id !== stageId) {
+    const { checkApproval } = await import('./crm-approvals');
+    const approval = await checkApproval(userId, deal, stageId, opts.actorId ?? null, db);
+    if (approval.needed) {
+      return { ok: false, reason: 'approval_required', approverIds: approval.approverIds, pendingId: approval.pending?.id ?? null };
+    }
+    approvedId = approval.approvedId;
     const missing = await dealMissingForStage(userId, deal, stage);
     if (missing.length) return { ok: false, reason: 'missing_required', missing };
   }
@@ -2103,6 +2139,10 @@ export async function moveDeal(
      WHERE id = ?`,
     )
     .run(stageId, position, closedAt, newLostReason, ts, id);
+  if (approvedId) {
+    const { consumeApproval } = await import('./crm-approvals');
+    await consumeApproval(approvedId, db);
+  }
   const oldStageId = deal.stage_id;
   if (oldStageName !== stage.name) {
     await db

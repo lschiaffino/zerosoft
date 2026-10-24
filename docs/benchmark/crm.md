@@ -40,8 +40,8 @@ Leyenda: **tiene**, **parcial**, **falta**, **mejor** (le ganamos al incumbente)
 | Deal estancado por etapa | Pro (Deal Insights) | tiene | |
 | Motivo de ganado/perdido | Starter | tiene | |
 | Deal score, Deal Plans, Deal Progression (IA) | Pro (beta) | falta | |
-| Aprobaciones de pipeline, deal splits | Pro/Enterprise | falta | |
-| Mover etapa con teclado en el board | Starter | parcial | la card se alcanza con Tab (35 pasos), no hay atajo para cambiar etapa |
+| Aprobaciones de pipeline, deal splits | Pro/Enterprise | tiene | reglas por etapa (siempre, monto o descuento), aviso y aprobar/rechazar; splits por % en reportes por persona, cuotas y forecast por owner |
+| Mover etapa con teclado en el board | Starter | tiene | flechas entre cards, Shift + flecha cambia la etapa con aviso aria-live, M abre el menú de etapa |
 
 **Puntaje: 7/10.**
 
@@ -56,9 +56,9 @@ Leyenda: **tiene**, **parcial**, **falta**, **mejor** (le ganamos al incumbente)
 | Secuencias | Starter (500 envíos/día) y Pro | tiene | pasos cada hora (cron), salida al responder, reservar o desuscribirse |
 | Agenda de reuniones | Starter (1 link con marca) / Pro | mejor | Cal completo integrado, sin marca |
 | Llamadas desde el navegador con grabación y transcripción | Starter 500 min / Pro 3.000 min | falta | solo registramos llamadas y WhatsApp desde links `tel:`/`wa.me` con resultado |
-| Cola de trabajo diario (Prospecting / Sales Workspace) | Starter/Pro | falta | Tasks tiene vencidas, hoy y próximas, sin modo "empezar cola" |
+| Cola de trabajo diario (Prospecting / Sales Workspace) | Starter/Pro | tiene | Tareas › Empezar cola: vencidas y de hoy (con pasos de secuencia) de a una, completar, saltear, posponer y atajos |
 | Extensión de Gmail/Outlook/Chrome | Starter | falta | |
-| Playbooks y guiones de llamada | 5 Starter / 5.000 Pro | falta | |
+| Playbooks y guiones de llamada | 5 Starter / 5.000 Pro | tiene | guion en Markdown y preguntas que escriben propiedades; desde el registro o al registrar una llamada |
 | Notetaker y resumen de reuniones | Pro | falta | |
 | Video 1:1, seguimiento de documentos | Starter/Pro | falta | |
 
@@ -70,7 +70,7 @@ Leyenda: **tiene**, **parcial**, **falta**, **mejor** (le ganamos al incumbente)
 |---|---|---|---|
 | Workflows | 50 limitados Starter / 300 Pro | tiene | triggers de registro, email, reunión, formulario, cotización, score; ramas si/no; demoras vía Flow |
 | Inscribir en secuencia desde workflow | Pro | tiene | |
-| Lead scoring | 5 scores Starter / 10 Pro | parcial | un score por workspace con reglas de propiedad y actividad |
+| Lead scoring | 5 scores Starter / 10 Pro | tiene | hasta 10 scores con tramos, decaimiento y recálculo nocturno; filtros y workflows por score |
 | Asignación round-robin | Pro | tiene | con fuera de oficina |
 | Formularios con ruteo | Starter/Pro | tiene | sin pasos múltiples, condiciones ni CAPTCHA |
 | Agentes de IA en workflows | Pro (Agent Builder) | parcial | existe en la suite (Agents, Flow), no como paso nativo del workflow del CRM |

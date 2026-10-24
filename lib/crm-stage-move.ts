@@ -52,6 +52,7 @@ export async function moveDealWithFields(
   dealId: string,
   payload: Pick<DealMovePayload, 'stageId' | 'beforeId' | 'lostReason' | 'fields'>,
   actorEmail: string,
+  actorId: string | null = null,
 ): Promise<MoveDealResult> {
   const f = payload.fields;
   if (f && Object.keys(f).length) {
@@ -73,5 +74,5 @@ export async function moveDealWithFields(
     }
     await updateDeal(userId, dealId, { ...rest, ...(merged ? { custom: merged } : {}) }, actorEmail);
   }
-  return moveDeal(userId, dealId, payload.stageId, payload.beforeId ?? null, payload.lostReason, actorEmail);
+  return moveDeal(userId, dealId, payload.stageId, payload.beforeId ?? null, payload.lostReason, actorEmail, { actorId });
 }

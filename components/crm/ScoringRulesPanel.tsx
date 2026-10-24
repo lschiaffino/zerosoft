@@ -7,13 +7,16 @@ import {
   SCORE_ACTIVITIES,
   SCORE_OPS,
   SCORE_PROPERTY_FIELDS,
+  MAX_SCORES,
   type ActivityRuleConfig,
   type PropertyRuleConfig,
+  type ScoreDef,
   type ScoreRule,
 } from '@/lib/crm-scoring-schema';
 
 interface Props {
   initialRules: ScoreRule[];
+  initialScores: ScoreDef[];
   customFields: Array<{ name: string; label: string }>;
   canEdit: boolean;
 }
@@ -42,11 +45,18 @@ const EMPTY: Draft = {
   min: '1',
 };
 
-/** Reglas de lead scoring: propiedad o actividad, puntos +/−; recalcular todo. */
-export default function ScoringRulesPanel({ initialRules, customFields, canEdit }: Props) {
+/**
+ * Lead scoring: varios scores (como HubSpot), cada uno con umbrales,
+ * decaimiento y sus reglas de propiedad o actividad (puntos +/−).
+ */
+export default function ScoringRulesPanel({ initialRules, initialScores, customFields, canEdit }: Props) {
   const t = useTranslations('crm');
   const router = useRouter();
-  const [rules, setRules] = useState<ScoreRule[]>(initialRules);
+  const [scores, setScores] = useState<ScoreDef[]>(initialScores);
+  const [selectedId, setSelectedId] = useState<string>(initialScores.find((x) => x.isPrimary)?.id ?? initialScores[0]?.id ?? '');
+  const [allRules, setRules] = useState<ScoreRule[]>(initialRules);
+  const selected = scores.find((x) => x.id === selectedId) ?? scores[0];
+  const rules = allRules.filter((r) => !selected || (r.scoreId ?? '') === selected.id);
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,11 +77,13 @@ export default function ScoringRulesPanel({ initialRules, customFields, canEdit 
 
   function body(d: Draft, enabled = true) {
     const points = Math.round(Number(d.points));
+    const scoreId = selected?.id;
     if (d.kind === 'property') {
-      return { kind: 'property', name: d.name.trim(), points, enabled, config: { field: d.field, op: d.op, value: d.value } };
+      return { kind: 'property', scoreId, name: d.name.trim(), points, enabled, config: { field: d.field, op: d.op, value: d.value } };
     }
     return {
       kind: 'activity',
+      scoreId,
       name: d.name.trim(),
       points,
       enabled,
@@ -136,6 +148,34 @@ export default function ScoringRulesPanel({ initialRules, customFields, canEdit 
 
   return (
     <div className="score-panel">
+      <ScoreTabs
+        scores={scores}
+        selectedId={selected?.id ?? ''}
+        canEdit={canEdit}
+        onSelect={setSelectedId}
+        onCreated={(sc) => {
+          setScores((prev) => [...prev, sc]);
+          setSelectedId(sc.id);
+        }}
+      />
+      {selected && (
+        <ScoreSettings
+          key={selected.id}
+          score={selected}
+          canEdit={canEdit}
+          onSaved={(sc) => {
+            setScores((prev) => prev.map((x) => (x.id === sc.id ? sc : x)));
+            router.refresh();
+          }}
+          onDeleted={() => {
+            setScores((prev) => prev.filter((x) => x.id !== selected.id));
+            setRules((prev) => prev.filter((r) => r.scoreId !== selected.id));
+            setSelectedId(scores.find((x) => x.isPrimary)?.id ?? '');
+            router.refresh();
+          }}
+        />
+      )}
+      <h3 className="score-rules-title">{t('scoring.rulesOf', { name: selected?.name ?? '' })}</h3>
       {rules.length === 0 ? (
         <p className="muted">{t('scoring.empty')}</p>
       ) : (
@@ -289,6 +329,258 @@ export default function ScoringRulesPanel({ initialRules, customFields, canEdit 
       ) : (
         <p className="muted">{t('common.adminOnly')}</p>
       )}
+    </div>
+  );
+}
+
+/** Pestañas de scores + crear uno nuevo. Flechas izquierda/derecha cambian de score. */
+function ScoreTabs({
+  scores,
+  selectedId,
+  canEdit,
+  onSelect,
+  onCreated,
+}: {
+  scores: ScoreDef[];
+  selectedId: string;
+  canEdit: boolean;
+  onSelect: (id: string) => void;
+  onCreated: (score: ScoreDef) => void;
+}) {
+  const t = useTranslations('crm');
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  async function create() {
+    if (!name.trim()) return;
+    setError(null);
+    const res = await fetch('/api/crm/scoring/scores', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: name.trim() }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setError(t('scoring.scoreLimit', { max: MAX_SCORES }));
+      return;
+    }
+    onCreated((await res.json()) as ScoreDef);
+    setName('');
+    setAdding(false);
+  }
+
+  return (
+    <div className="score-tabs-row">
+      <div className="ui-tabs score-tabs" role="tablist" aria-label={t('scoring.scores')}>
+        {scores.map((sc, i) => (
+          <button
+            key={sc.id}
+            type="button"
+            role="tab"
+            aria-selected={sc.id === selectedId}
+            tabIndex={sc.id === selectedId ? 0 : -1}
+            className="ui-tab"
+            onClick={() => onSelect(sc.id)}
+            onKeyDown={(e) => {
+              if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+              e.preventDefault();
+              const j = (i + (e.key === 'ArrowRight' ? 1 : -1) + scores.length) % scores.length;
+              onSelect(scores[j].id);
+              e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[j]?.focus();
+            }}
+            data-testid="score-tab"
+          >
+            {sc.name}
+          </button>
+        ))}
+      </div>
+      {canEdit &&
+        (adding ? (
+          <span className="score-new">
+            <input
+              className="input"
+              value={name}
+              autoFocus
+              maxLength={80}
+              placeholder={t('scoring.newScorePlaceholder')}
+              aria-label={t('scoring.newScore')}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void create();
+                } else if (e.key === 'Escape') {
+                  setAdding(false);
+                }
+              }}
+            />
+            <button type="button" className="btn btn-solid btn-small" onClick={() => void create()} disabled={!name.trim()} data-testid="score-create">
+              {t('scoring.createScore')}
+            </button>
+            <button type="button" className="btn btn-ghost btn-small" onClick={() => setAdding(false)}>
+              {t('common.cancel')}
+            </button>
+          </span>
+        ) : (
+          <button type="button" className="btn btn-small" onClick={() => setAdding(true)} disabled={scores.length >= MAX_SCORES} data-testid="score-new">
+            {t('scoring.newScore')}
+          </button>
+        ))}
+      {error && <p className="form-error">{error}</p>}
+    </div>
+  );
+}
+
+/** Nombre, umbrales (tramos) y decaimiento de un score. */
+function ScoreSettings({
+  score,
+  canEdit,
+  onSaved,
+  onDeleted,
+}: {
+  score: ScoreDef;
+  canEdit: boolean;
+  onSaved: (score: ScoreDef) => void;
+  onDeleted: () => void;
+}) {
+  const t = useTranslations('crm');
+  const [name, setName] = useState(score.name);
+  const [tiers, setTiers] = useState(score.thresholds.map((x) => ({ label: x.label, min: String(x.min) })));
+  const [decayOn, setDecayOn] = useState(!!score.decayDays && score.decayPct > 0);
+  const [decayDays, setDecayDays] = useState(String(score.decayDays ?? 90));
+  const [decayPct, setDecayPct] = useState(String(score.decayPct || 50));
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState(false);
+
+  async function save() {
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    const res = await fetch(`/api/crm/scoring/scores/${score.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: name.trim() || score.name,
+        thresholds: tiers
+          .filter((x) => x.label.trim() && x.min.trim() !== '' && !Number.isNaN(Number(x.min)))
+          .map((x) => ({ label: x.label.trim(), min: Math.round(Number(x.min)) })),
+        decayDays: decayOn ? Math.max(1, Math.round(Number(decayDays) || 90)) : null,
+        decayPct: decayOn ? Math.min(100, Math.max(1, Math.round(Number(decayPct) || 50))) : 0,
+      }),
+    }).catch(() => null);
+    setBusy(false);
+    if (!res?.ok) {
+      setError(t('scoring.invalid'));
+      return;
+    }
+    const saved = (await res.json()) as ScoreDef;
+    setTiers(saved.thresholds.map((x) => ({ label: x.label, min: String(x.min) })));
+    setNote(t('scoring.scoreSaved'));
+    onSaved(saved);
+  }
+
+  async function remove() {
+    setBusy(true);
+    const res = await fetch(`/api/crm/scoring/scores/${score.id}`, { method: 'DELETE' }).catch(() => null);
+    setBusy(false);
+    if (res?.ok) onDeleted();
+    else setError(t('errors.generic'));
+  }
+
+  return (
+    <div className="score-settings" data-testid="score-settings">
+      <label className="field score-name">
+        <span className="prop-label">{t('scoring.scoreName')}</span>
+        <input className="input" value={name} maxLength={80} disabled={!canEdit} onChange={(e) => setName(e.target.value)} data-testid="score-name" />
+      </label>
+      <fieldset className="score-tiers">
+        <legend className="prop-label">{t('scoring.tiers')}</legend>
+        <p className="ui-help">{t('scoring.tiersHelp')}</p>
+        {tiers.map((tier, i) => (
+          <div key={i} className="score-add-row" data-testid="score-tier-row">
+            <input
+              className="input"
+              value={tier.label}
+              maxLength={40}
+              disabled={!canEdit}
+              placeholder={t('scoring.tierLabel')}
+              aria-label={t('scoring.tierLabel')}
+              onChange={(e) => setTiers((prev) => prev.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)))}
+            />
+            <label className="score-num">
+              <span className="muted">{t('scoring.tierFrom')}</span>
+              <input
+                className="input mono"
+                type="number"
+                value={tier.min}
+                disabled={!canEdit}
+                onChange={(e) => setTiers((prev) => prev.map((x, k) => (k === i ? { ...x, min: e.target.value } : x)))}
+              />
+            </label>
+            {canEdit && (
+              <button type="button" className="icon-btn danger" onClick={() => setTiers((prev) => prev.filter((_, k) => k !== i))} aria-label={t('common.delete')}>
+                ✕
+              </button>
+            )}
+          </div>
+        ))}
+        {canEdit && tiers.length < 6 && (
+          <button type="button" className="btn btn-small" onClick={() => setTiers((prev) => [...prev, { label: '', min: '' }])} data-testid="score-add-tier">
+            {t('scoring.addTier')}
+          </button>
+        )}
+      </fieldset>
+      <fieldset className="score-decay">
+        <legend className="prop-label">{t('scoring.decay')}</legend>
+        <label className="ui-check">
+          <input type="checkbox" checked={decayOn} disabled={!canEdit} onChange={(e) => setDecayOn(e.target.checked)} data-testid="score-decay-on" />{' '}
+          {t('scoring.decayOn')}
+        </label>
+        {decayOn && (
+          <div className="score-add-row">
+            <label className="score-num">
+              <span className="muted">{t('scoring.decayAfter')}</span>
+              <input className="input mono" type="number" min={1} max={730} value={decayDays} disabled={!canEdit} onChange={(e) => setDecayDays(e.target.value)} />
+            </label>
+            <label className="score-num">
+              <span className="muted">{t('scoring.decayBy')}</span>
+              <input className="input mono" type="number" min={1} max={100} value={decayPct} disabled={!canEdit} onChange={(e) => setDecayPct(e.target.value)} />
+            </label>
+          </div>
+        )}
+        <p className="ui-help">{t('scoring.decayHelp')}</p>
+      </fieldset>
+      {canEdit && (
+        <div className="score-add-row">
+          <button type="button" className="btn btn-solid btn-small" onClick={() => void save()} disabled={busy} data-testid="score-save">
+            {t('scoring.saveScore')}
+          </button>
+          {!score.isPrimary &&
+            (confirm ? (
+              <>
+                <span className="muted">{t('scoring.deleteConfirm')}</span>
+                <button type="button" className="btn btn-small" onClick={() => void remove()} disabled={busy} data-testid="score-delete-confirm">
+                  {t('scoring.deleteScore')}
+                </button>
+                <button type="button" className="btn btn-ghost btn-small" onClick={() => setConfirm(false)}>
+                  {t('common.cancel')}
+                </button>
+              </>
+            ) : (
+              <button type="button" className="btn btn-ghost btn-small" onClick={() => setConfirm(true)} data-testid="score-delete">
+                {t('scoring.deleteScore')}
+              </button>
+            ))}
+          {note && (
+            <span className="muted" role="status">
+              {note}
+            </span>
+          )}
+        </div>
+      )}
+      {error && <p className="form-error">{error}</p>}
     </div>
   );
 }

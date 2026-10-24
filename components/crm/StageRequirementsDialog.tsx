@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { PRIORITIES, SOURCES } from '@/lib/crm-constants';
+import ApprovalDialog, { readApproval, type ApprovalInfo } from './ApprovalDialog';
 
 export { todayIso, wonRequirements } from '@/lib/crm-won-dialog';
 
@@ -46,16 +47,24 @@ interface StageRequirementsDialogProps {
  * Pregunta al server qué pediría la etapa sin mover el deal (dryRun). Así la
  * UI arma un solo diálogo en vez de chocar con un 422. null si falló.
  */
-export async function checkStageMove(dealId: string, stageId: string): Promise<(StageRequirements & { closeDate: string | null }) | null> {
+export async function checkStageMove(
+  dealId: string,
+  stageId: string,
+): Promise<(StageRequirements & { closeDate: string | null; approval: ApprovalInfo | null }) | null> {
   const res = await fetch(`/api/crm/deals/${dealId}/move`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ stageId, dryRun: true }),
   }).catch(() => null);
   if (!res?.ok) return null;
-  const body = (await res.json().catch(() => null)) as { stage?: string; missing?: MissingField[]; closeDate?: string | null } | null;
+  const body = (await res.json().catch(() => null)) as {
+    stage?: string;
+    missing?: MissingField[];
+    closeDate?: string | null;
+    approval?: ApprovalInfo | null;
+  } | null;
   if (!body || !Array.isArray(body.missing)) return null;
-  return { stage: body.stage ?? '', missing: body.missing, closeDate: body.closeDate ?? null };
+  return { stage: body.stage ?? '', missing: body.missing, closeDate: body.closeDate ?? null, approval: body.approval ?? null };
 }
 
 /** Lee el cuerpo de un 422 de /move; null si es otro error. */
@@ -87,6 +96,8 @@ export default function StageRequirementsDialog({
   const [values, setValues] = useState<Record<string, unknown>>(initialValues ?? {});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** La etapa pide aprobación: el diálogo de propiedades deja lugar al de aprobación. */
+  const [approval, setApproval] = useState<ApprovalInfo | null>(null);
 
   const set = (key: string, v: unknown) => setValues((prev) => ({ ...prev, [key]: v }));
   const labelOf = (f: MissingField) => f.label ?? t(`stageRules.fields.${f.key}` as 'stageRules.fields.amount');
@@ -118,6 +129,11 @@ export default function StageRequirementsDialog({
     setBusy(false);
     if (res?.ok) {
       onDone();
+      return;
+    }
+    const needsApproval = await readApproval(res);
+    if (needsApproval) {
+      setApproval(needsApproval);
       return;
     }
     const again = await readRequirements(res);
@@ -221,6 +237,8 @@ export default function StageRequirementsDialog({
   }
 
   const heading = title ?? t('stageRules.dialogTitle', { stage: req.stage });
+  if (approval) return <ApprovalDialog dealId={dealId} info={approval} onClose={onCancel} />;
+
   return (
     <div
       className="modal-overlay"

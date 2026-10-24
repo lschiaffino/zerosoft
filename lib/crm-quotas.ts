@@ -5,6 +5,7 @@
  */
 import { getDb, type CrmQuotaRow, type Db } from './db';
 import { baseAmountSql } from './crm-currency';
+import { splitShareArgs, splitShareSql } from './crm-splits';
 import { isWorkspacePerson } from './crm-refs';
 
 export const QUOTA_METRICS = ['won_value', 'won_count', 'meetings'] as const;
@@ -119,14 +120,16 @@ export async function quotaActual(
       .get(workspaceId, personId, range.start, range.end)) as { c: number };
     return Number(row.c);
   }
+  // Con splits (lib/crm-splits.ts), cada persona suma su porcentaje del deal ganado.
   const row = (await db
     .prepare(
-      `SELECT COUNT(*) AS c, COALESCE(SUM(${baseAmountSql('d')}), 0) AS a
-       FROM crm_deals d JOIN crm_stages s ON s.id = d.stage_id
-       WHERE d.user_id = ? AND s.is_won = 1 AND COALESCE(d.owner_id, d.user_id) = ?
-         AND d.closed_at >= ? AND d.closed_at < ?`,
+      `SELECT COUNT(*) AS c, COALESCE(SUM(${baseAmountSql('d')} * d.sh), 0) AS a FROM (
+         SELECT d.*, ${splitShareSql('d', 1)} AS sh
+         FROM crm_deals d JOIN crm_stages s ON s.id = d.stage_id
+         WHERE d.user_id = ? AND s.is_won = 1 AND d.closed_at >= ? AND d.closed_at < ?
+       ) d WHERE d.sh > 0`,
     )
-    .get(workspaceId, personId, range.start, range.end)) as { c: number; a: number };
+    .get(...splitShareArgs([personId]), workspaceId, range.start, range.end)) as { c: number; a: number };
   return metric === 'won_count' ? Number(row.c) : Math.round(Number(row.a) * 100) / 100;
 }
 

@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       const { restricted } = await fieldAccessFor(sessionFieldViewer(user), 'deals');
       if (restricted.has(field.slice(7))) return crmError(403, 'field_readonly');
     }
-    const res = await bulkSetProperty(user.id, 'deal', ids, field, value, actor);
+    const res = await bulkSetProperty(user.id, 'deal', ids, field, value, actor, user.actingUser?.id ?? user.id);
     if (!res.ok) return crmError(400, res.code);
     return NextResponse.json({ count: res.count, failed: res.failed, blocked: res.blocked });
   }

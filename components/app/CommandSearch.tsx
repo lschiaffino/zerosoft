@@ -35,6 +35,7 @@ function useGroupOrder() {
         'notes',
         'boards',
         'tasks',
+        'playbooks',
         'eventTypes',
         'bookings',
         'widgets',
@@ -107,6 +108,7 @@ export default function CommandSearch() {
       { group, label: t('newCompany'), meta: '', href: '/app/crm/companies/new' },
       { group, label: t('newDeal'), meta: '', href: '/app/crm/deals/new' },
       { group, label: t('newTask'), meta: '', href: '/app/crm/tasks' },
+      { group, label: t('startQueue'), meta: '', href: '/app/crm/tasks/queue' },
       { group, label: t('importFromHubspot'), meta: '', href: '/app/crm/settings?tab=import&from=hubspot' },
       { group, label: t('importFromPipedrive'), meta: '', href: '/app/crm/settings?tab=import&from=pipedrive' },
       {

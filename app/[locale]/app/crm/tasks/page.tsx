@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
+import { realUserId, requireUser } from '@/lib/session';
+import { countQueueTasks } from '@/lib/crm-work-queue';
 import { sessionScope } from '@/lib/crm-visibility';
 import { listTasks, listTaskProjects, type TaskBucket } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
@@ -44,6 +45,7 @@ export default async function TasksPage(props: TasksPageProps) {
   const tasks = await listTasks(user.id, { bucket, ownerId, projectId, ownerScope: scope });
 
   const timeZone = await getUserTimeZone();
+  const queueCount = await countQueueTasks(user.id, { ownerId: realUserId(user), timeZone, ownerScope: scope });
   const fmtDue = (iso: string): string =>
     new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(
       new Date(`${iso.replace(' ', 'T')}Z`),
@@ -97,6 +99,7 @@ export default async function TasksPage(props: TasksPageProps) {
         projects={projectOptions}
         ownerId={ownerId}
         projectId={projectId}
+        queueCount={queueCount}
       >
         <TaskProjectsManager projects={projectOptions} />
       </TasksView>
