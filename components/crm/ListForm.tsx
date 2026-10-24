@@ -3,32 +3,55 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import ListRuleBuilder, { completeRules, draftRules, type DraftRule } from './ListRuleBuilder';
+import type { RuleField } from './listRuleFields';
+import type { FilterBuilderRule } from './FilterBuilder';
 
 export interface EnumOption {
   value: string;
   label: string;
 }
 
-interface ListFormProps {
-  lifecycles: EnumOption[];
-  leadStatuses: EnumOption[];
-  sources: EnumOption[];
-  onCancel: () => void;
+/** Filtro guardado de una lista dinámica (lib/crm.ts ListFilterJson). */
+export interface ListFilterValue {
+  q?: string;
+  lifecycle?: string;
+  leadStatus?: string;
+  source?: string;
+  filters?: FilterBuilderRule[];
+  match?: 'all' | 'any';
 }
 
-/** Nueva lista: nombre + tipo; si es dinámica, mini filter builder → filter JSON. */
-export default function ListForm({ lifecycles, leadStatuses, sources, onCancel }: ListFormProps) {
+/** Los filtros rápidos de las listas viejas pasan a ser reglas del constructor. */
+export function filterToRules(filter: ListFilterValue): FilterBuilderRule[] {
+  const rules: FilterBuilderRule[] = [];
+  if (filter.lifecycle) rules.push({ f: 'lifecycle', o: 'is', v: filter.lifecycle });
+  if (filter.leadStatus) rules.push({ f: 'leadStatus', o: 'is', v: filter.leadStatus });
+  if (filter.source) rules.push({ f: 'source', o: 'is', v: filter.source });
+  return [...rules, ...(filter.filters ?? [])];
+}
+
+interface ListFormProps {
+  fields: RuleField[];
+  onCancel: () => void;
+  /** Edición del filtro de una lista dinámica existente. */
+  edit?: { id: string; name: string; filter: ListFilterValue };
+}
+
+/**
+ * Nueva lista (nombre + tipo) o edición de una dinámica. Las dinámicas se
+ * arman con reglas sobre propiedades, campos propios y actividad, con AND u OR.
+ */
+export default function ListForm({ fields, onCancel, edit }: ListFormProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [name, setName] = useState('');
-  const [kind, setKind] = useState<'static' | 'dynamic'>('static');
-  const [q, setQ] = useState('');
-  const [lifecycle, setLifecycle] = useState('');
-  const [leadStatus, setLeadStatus] = useState('');
-  const [source, setSource] = useState('');
+  const [name, setName] = useState(edit?.name ?? '');
+  const [kind, setKind] = useState<'static' | 'dynamic'>(edit ? 'dynamic' : 'static');
+  const [q, setQ] = useState(edit?.filter.q ?? '');
+  const [rules, setRules] = useState<DraftRule[]>(() => draftRules(edit ? filterToRules(edit.filter) : []));
+  const [match, setMatch] = useState<'all' | 'any'>(edit?.filter.match ?? 'all');
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -38,24 +61,27 @@ export default function ListForm({ lifecycles, leadStatuses, sources, onCancel }
       return;
     }
     setBusy(true);
-    const filter: Record<string, string> = {};
+    const filter: ListFilterValue = {};
     if (kind === 'dynamic') {
       if (q.trim()) filter.q = q.trim();
-      if (lifecycle) filter.lifecycle = lifecycle;
-      if (leadStatus) filter.leadStatus = leadStatus;
-      if (source) filter.source = source;
+      const done = completeRules(rules, fields);
+      if (done.length) filter.filters = done;
+      if (done.length > 1 && match === 'any') filter.match = 'any';
     }
-    const res = await fetch('/api/crm/lists', {
-      method: 'POST',
+    const res = await fetch(edit ? `/api/crm/lists/${edit.id}` : '/api/crm/lists', {
+      method: edit ? 'PATCH' : 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        name: name.trim(),
-        entity: 'contacts',
-        kind,
-        ...(kind === 'dynamic' ? { filter } : {}),
-      }),
+      body: JSON.stringify(
+        edit ? { name: name.trim(), filter } : { name: name.trim(), entity: 'contacts', kind, ...(kind === 'dynamic' ? { filter } : {}) },
+      ),
     }).catch(() => null);
-    if (res && res.status === 201) {
+    if (res && (res.status === 201 || (edit && res.ok))) {
+      if (edit) {
+        setBusy(false);
+        onCancel();
+        router.refresh();
+        return;
+      }
       const created = (await res.json()) as { id: string };
       router.push(`/app/crm/lists/${created.id}`);
       return;
@@ -71,53 +97,21 @@ export default function ListForm({ lifecycles, leadStatuses, sources, onCancel }
           <span className="label">{t('lists.nameLabel')}</span>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} />
         </label>
-        <label className="ui-field">
-          <span className="label">{t('lists.kind')}</span>
-          <select className="select" value={kind} onChange={(e) => setKind(e.target.value as 'static' | 'dynamic')}>
-            <option value="static">{t('lists.static')}</option>
-            <option value="dynamic">{t('lists.dynamic')}</option>
-          </select>
-        </label>
+        {!edit && (
+          <label className="ui-field">
+            <span className="label">{t('lists.kind')}</span>
+            <select className="select" value={kind} onChange={(e) => setKind(e.target.value as 'static' | 'dynamic')}>
+              <option value="static">{t('lists.static')}</option>
+              <option value="dynamic">{t('lists.dynamic')}</option>
+            </select>
+          </label>
+        )}
       </div>
 
       {kind === 'dynamic' && (
         <>
           <p className="ui-help">{t('lists.dynamicNote')}</p>
-          <div className="ui-fields-2">
-            <label className="ui-field">
-              <span className="label">{t('lists.filterLifecycle')}</span>
-              <select className="select" value={lifecycle} onChange={(e) => setLifecycle(e.target.value)}>
-                <option value="">{t('common.all')}</option>
-                {lifecycles.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="ui-field">
-              <span className="label">{t('lists.filterLeadStatus')}</span>
-              <select className="select" value={leadStatus} onChange={(e) => setLeadStatus(e.target.value)}>
-                <option value="">{t('common.all')}</option>
-                {leadStatuses.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="ui-field">
-              <span className="label">{t('lists.filterSource')}</span>
-              <select className="select" value={source} onChange={(e) => setSource(e.target.value)}>
-                <option value="">{t('common.all')}</option>
-                {sources.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+          <ListRuleBuilder fields={fields} rules={rules} match={match} onChange={setRules} onMatch={setMatch} />
           <label className="ui-field">
             <span className="label">{t('lists.filterQ')}</span>
             <input
@@ -139,7 +133,7 @@ export default function ListForm({ lifecycles, leadStatuses, sources, onCancel }
 
       <div className="form-actions">
         <button type="submit" className="btn btn-primary btn-sm" disabled={busy} aria-busy={busy || undefined}>
-          {t('record.createList')}
+          {edit ? t('listFilters.save') : t('record.createList')}
         </button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>
           {t('common.cancel')}

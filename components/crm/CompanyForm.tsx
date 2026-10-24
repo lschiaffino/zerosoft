@@ -6,7 +6,7 @@ import { useRouter } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import { companyPayload } from './formPayload';
-import { DomainPrefillNote, useDomainPrefill } from './DomainPrefill';
+import { DomainPrefillNote, siteExtras, useDomainPrefill } from './DomainPrefill';
 
 /** Códigos de error de la API que tienen traducción en crm.errors.*. */
 const KNOWN_ERRORS = new Set(['invalid_email', 'missing_name', 'not_found', 'invalid_input', 'generic']);
@@ -26,8 +26,13 @@ export default function CompanyForm({ lifecycles }: CompanyFormProps) {
   const [domain, setDomain] = useState('');
 
   async function onSubmit(fd: FormData) {
-    const body = companyPayload(fd);
-    if (!body.name) return t('errors.missing_name');
+    const typed = companyPayload(fd);
+    if (!typed.name) return t('errors.missing_name');
+    // Lo que el sitio publica completa lo que quedó vacío (lo escrito gana).
+    const site = prefill.infoFor(typed.domain);
+    const body: Record<string, unknown> = { ...(site ? siteExtras(site) : {}) };
+    for (const [k, v] of Object.entries(typed)) if (v !== '' && v !== null) body[k] = v;
+    if (!body.industry && site?.industry) body.industry = site.industry;
     const res = await fetch('/api/crm/companies', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

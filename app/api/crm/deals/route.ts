@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
 import { createDeal, listDeals, listDealsForBoard } from '@/lib/crm';
@@ -37,7 +38,8 @@ export async function GET(req: NextRequest) {
     pageSize,
   });
 
-  return NextResponse.json({ rows, total, page, pageSize });
+  const hiddenFields = await hiddenFieldsFor(sessionFieldViewer(user), 'deals');
+  return NextResponse.json({ rows: rows.map((r) => redactRow(r, hiddenFields)), total, page, pageSize });
 }
 
 export async function POST(req: NextRequest) {
@@ -48,7 +50,9 @@ export async function POST(req: NextRequest) {
   const parsed = dealCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const result = await catchRef(createDeal(user.id, { ...parsed.data, ownerId: parsed.data.ownerId ?? realUserId(user) }));
+  const fp = await guardRecordCustomWrite(sessionFieldViewer(user), 'deal', null, parsed.data.custom);
+  if (!fp.ok) return crmError(403, 'field_readonly');
+  const result = await catchRef(createDeal(user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? realUserId(user) }));
   if (result instanceof CrmRefError) return crmError(400, result.code);
   if (!result.ok) {
     return crmError(400, result.reason === 'invalid_stage' ? 'invalid_stage' : 'invalid_input');

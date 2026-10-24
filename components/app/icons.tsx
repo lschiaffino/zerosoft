@@ -6,6 +6,8 @@ export type IconName =
   | 'companies'
   | 'deals'
   | 'lists'
+  | 'leads'
+  | 'objects'
   | 'tasks'
   | 'myTasks'
   | 'reports'
@@ -71,6 +73,19 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <circle cx="9" cy="12" r="6" />
       <circle cx="15" cy="12" r="6" />
+    </>
+  ),
+  leads: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+    </>
+  ),
+  objects: (
+    <>
+      <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
+      <path d="M4 7.5l8 4.5 8-4.5M12 12v9" />
     </>
   ),
   lists: (

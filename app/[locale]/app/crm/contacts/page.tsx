@@ -1,4 +1,5 @@
 import { listSequences } from '@/lib/crm-sequences';
+import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
@@ -10,7 +11,6 @@ import {
   SOURCES,
   listCompanies,
   listContacts,
-  listCustomFields,
   listSavedViews,
   parseCustom,
   parseFilterRules,
@@ -104,7 +104,8 @@ export default async function ContactsPage(props: ContactsPageProps) {
   const sortParam = one(searchParams.sort) ?? str(viewQuery.sort) ?? 'newest';
   const page = Number(one(searchParams.page) ?? '1') || 1;
 
-  const customFieldDefs = await listCustomFields(user.id, 'contacts');
+  // Permisos por campo: sin los ocultos; los de solo lectura no se editan en masa.
+  const customFieldDefs = (await fieldAccessFor(sessionFieldViewer(user), 'contacts')).visible;
   const customTypes = customFilterTypes(customFieldDefs);
   const sort: ContactSort =
     SORTS.includes(sortParam as ContactSort) || isExtraSort(sortParam, customTypes)
@@ -121,8 +122,12 @@ export default async function ContactsPage(props: ContactsPageProps) {
     createdFrom: createdFrom || undefined,
     createdTo: createdTo || undefined,
     tag: tag || undefined,
-    custom: Object.keys(custom).length ? custom : undefined,
-    filters: advancedRules.length ? advancedRules : undefined,
+    custom: Object.keys(custom).length
+      ? Object.fromEntries(Object.entries(custom).filter(([k]) => customFieldDefs.some((d) => d.name === k)))
+      : undefined,
+    filters: advancedRules.length
+      ? advancedRules.filter((r) => !r.f.startsWith('custom:') || customFieldDefs.some((d) => `custom:${d.name}` === r.f))
+      : undefined,
     customTypes,
     sort: sort as ContactFilter['sort'],
     page,
@@ -187,6 +192,17 @@ export default async function ContactsPage(props: ContactsPageProps) {
     { key: 'lastActivity', label: t('activityDates.lastActivity'), type: 'date' },
     { key: 'lastContacted', label: t('activityDates.lastContacted'), type: 'date' },
     { key: 'nextActivity', label: t('activityDates.nextActivity'), type: 'date' },
+    { key: 'daysSinceContacted', label: t('listFilters.fields.daysSinceContacted'), type: 'number' },
+    {
+      key: 'hasOpenDeal',
+      label: t('listFilters.fields.hasOpenDeal'),
+      type: 'select',
+      options: [
+        { value: '1', label: t('common.yes') },
+        { value: '0', label: t('common.no') },
+      ],
+    },
+    { key: 'emailsOpened', label: t('listFilters.fields.emailsOpened'), type: 'number' },
     {
       key: 'tag',
       label: t('filters.field.tag'),
@@ -242,7 +258,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
     { key: 'jobTitle', label: t('contacts.form.jobTitle'), type: 'text' },
     { key: 'city', label: t('contacts.form.city'), type: 'text' },
     { key: 'country', label: t('contacts.form.country'), type: 'text' },
-    ...customBulkFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }, owners),
+    ...customBulkFields(customFieldDefs.filter((d) => d.access === 'edit'), { yes: t('common.yes'), no: t('common.no') }, owners),
   ];
 
   const query: Record<string, string> = {};

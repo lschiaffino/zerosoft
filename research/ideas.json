@@ -1601,7 +1601,9 @@
     "description": "Attio is built on custom objects from its free plan (3 objects free, 12 on Pro: https://attio.com/pricing); HubSpot reserves them for Enterprise. Teams that track partners, properties, candidates or subscriptions next to deals have nowhere to put them in our CRM and fall back to custom fields on companies. First scope: an object editor (name, icon, fields from the existing custom field types), records with the same table, record page, timeline and associations to contacts, companies and deals, ⌘K search, CSV import, API under /api/v1/crm/objects.\n\nPriority: medium. Effort: L. Compared with Attio objects and HubSpot custom objects.",
     "product": "crm",
     "kind": "idea",
-    "parity": "custom-objects"
+    "parity": "custom-objects",
+    "status": "done",
+    "changelog": "2026-10-24-crm-data-model"
   },
   {
     "title": "CRM: Make the whole board column a drop target and move deals between stages with the keyboard",

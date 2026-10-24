@@ -20,8 +20,8 @@ Leyenda: **tiene**, **parcial**, **falta**, **mejor** (le ganamos al incumbente)
 | Asociaciones con etiquetas y primaria | Starter (etiquetas en Pro) | tiene | etiquetas y primaria incluidas sin plan pago |
 | Jerarquía de empresas con roll-up | Pro | tiene | |
 | Campos propios (texto, número, select, multi-select, fecha, URL, teléfono, moneda, usuario) | Starter | tiene | |
-| Objetos propios (custom objects) | Enterprise | falta | Attio los tiene desde el plan gratis |
-| Objeto Lead separado del contacto | Starter/Pro (Prospecting) | falta | usamos lifecycle + lead status |
+| Objetos propios (custom objects) | Enterprise | tiene | propiedades propias, tabla con filtros, ficha con timeline, asociaciones con contactos/empresas/deals, import CSV, ⌘K, sidebar y API v1; workflows y reportes todavía no |
+| Objeto Lead separado del contacto | Starter/Pro (Prospecting) | tiene | pipeline de leads editable, tabla y tablero, conversión a deal; lifecycle y lead status siguen en el contacto |
 | Productos, líneas, cotizaciones públicas con aceptación | Starter/Pro (CPQ en Revenue Hub) | tiene | cotizaciones sin firma electrónica ni cobro |
 | Multi-moneda | Pro | tiene | tipos de cambio manuales |
 | Tags | no nativo (se usan propiedades) | mejor | |
@@ -94,7 +94,7 @@ Leyenda: **tiene**, **parcial**, **falta**, **mejor** (le ganamos al incumbente)
 |---|---|---|---|
 | Equipos, roles, invitaciones | Starter | tiene | |
 | Visibilidad: todo / propios / del equipo | Pro | tiene | aplicada a listas, API, reportes, exportación |
-| Permisos por campo | Enterprise | falta | |
+| Permisos por campo | Enterprise | tiene | campos propios de solo lectura u ocultos por rol member o equipo de ventas, en UI, import y API v1 |
 | SSO | Enterprise | no medido | fuera de alcance de esta comparación |
 
 **Puntaje: 7/10.**

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { sessionScope, visibleIds } from '@/lib/crm-visibility';
@@ -30,6 +31,11 @@ export async function POST(req: NextRequest) {
   if (action === 'set_property') {
     const field = parsed.data.field;
     if (!field || value === undefined) return crmError(400, 'invalid_input');
+    // Permisos por campo: un campo de solo lectura u oculto no se edita en masa.
+    if (field.startsWith('custom:')) {
+      const { restricted } = await fieldAccessFor(sessionFieldViewer(user), 'companies');
+      if (restricted.has(field.slice(7))) return crmError(403, 'field_readonly');
+    }
     const res = await bulkSetProperty(user.id, 'company', ids, field, value, user.actingUser?.email ?? user.email);
     if (!res.ok) return crmError(400, res.code);
     return NextResponse.json({ count: res.count, failed: res.failed });

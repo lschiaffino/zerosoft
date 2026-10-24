@@ -159,6 +159,14 @@ export interface CrmCompanyRow {
   lifecycle_stage: string;
   /** Empresa madre (jerarquía); null = raíz. Sin ciclos (lib/crm-assoc.ts). */
   parent_company_id: string | null;
+  /** Datos del sitio (lib/crm-enrich.ts, 072). */
+  description?: string;
+  linkedin_url?: string;
+  twitter_url?: string;
+  facebook_url?: string;
+  instagram_url?: string;
+  founded_year?: number | null;
+  enriched_at?: string | null;
   custom: string; // JSON object
   created_at: string;
   updated_at: string;
@@ -240,6 +248,9 @@ export interface CrmActivityRow {
   company_id: string | null;
   deal_id: string | null;
   project_id: string | null;
+  /** Lead y registro de objeto propio del timeline (072). */
+  lead_id?: string | null;
+  object_record_id?: string | null;
   /** Repetición de tareas (lib/crm-task-repeat.ts). */
   repeat?: 'none' | 'daily' | 'weekly' | 'monthly';
   /** Tarea siguiente de la serie, una vez creada al completar esta. */
@@ -321,6 +332,69 @@ export const CRM_CUSTOM_FIELD_TYPES = [
   'text', 'number', 'date', 'select', 'boolean', 'multiselect', 'url', 'phone', 'currency', 'user',
 ] as const;
 export type CrmCustomFieldType = (typeof CRM_CUSTOM_FIELD_TYPES)[number];
+
+/** Objeto propio del CRM (072): sus propiedades son custom fields de entidad `obj:<id>`. */
+export interface CrmObjectRow {
+  id: string;
+  user_id: string;
+  slug: string;
+  singular: string;
+  plural: string;
+  /** Label de la propiedad primaria (el nombre del registro). */
+  primary_label: string;
+  description: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmObjectRecordRow {
+  id: string;
+  user_id: string;
+  object_id: string;
+  owner_id: string | null;
+  name: string;
+  custom: string; // JSON object
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmLeadStageRow {
+  id: string;
+  user_id: string;
+  name: string;
+  position: number;
+  kind: 'open' | 'qualified' | 'disqualified';
+}
+
+export interface CrmLeadRow {
+  id: string;
+  user_id: string;
+  owner_id: string | null;
+  name: string;
+  stage_id: string;
+  position: number;
+  contact_id: string | null;
+  company_id: string | null;
+  source: string;
+  disqualify_reason: string;
+  /** Deal creado al convertir el lead. */
+  deal_id: string | null;
+  converted_at: string | null;
+  custom: string; // JSON object
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmFieldPermissionRow {
+  id: string;
+  user_id: string;
+  field_id: string;
+  /** 'role:member' o 'team:<id de crm_sales_teams>'. */
+  subject: string;
+  access: 'read' | 'hidden';
+  created_at: string;
+}
 
 export interface CrmSavedViewRow {
   id: string;

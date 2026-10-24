@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import ClientMessages from '@/components/i18n/ClientMessages';
+import CrmObjectsBranch from '@/components/crm/CrmObjectsBranch';
 import '@/styles/crm.css';
 import '@/styles/crm-records.css';
 
@@ -8,6 +9,7 @@ export default async function CrmLayout(props: { children: ReactNode; params: Pr
   const { locale } = await props.params;
   return (
     <ClientMessages locale={locale} namespaces={['crm']}>
+      <CrmObjectsBranch />
       {props.children}
     </ClientMessages>
   );

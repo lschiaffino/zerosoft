@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { canSeeActivityRefs, sessionScope } from '@/lib/crm-visibility';
+import { canSeeActivityRefs, canSeeOwnedRow, sessionScope } from '@/lib/crm-visibility';
 import {
   ACTIVITY_TYPES,
   createActivity,
@@ -59,7 +59,13 @@ export async function POST(req: NextRequest) {
   const parsed = activityCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  if (!(await canSeeActivityRefs(user.id, { contact_id: parsed.data.contactId, company_id: parsed.data.companyId, deal_id: parsed.data.dealId, owner_id: realUserId(user) }, await sessionScope(user)))) {
+  const scope = await sessionScope(user);
+  if (!(await canSeeActivityRefs(user.id, { contact_id: parsed.data.contactId, company_id: parsed.data.companyId, deal_id: parsed.data.dealId, owner_id: realUserId(user) }, scope))) {
+    return notFound();
+  }
+  // Lead o registro de objeto propio: tiene que verse con la visibilidad por owner.
+  if (parsed.data.leadId && !(await canSeeOwnedRow(user.id, 'crm_leads', parsed.data.leadId, scope))) return notFound();
+  if (parsed.data.objectRecordId && !(await canSeeOwnedRow(user.id, 'crm_object_records', parsed.data.objectRecordId, scope))) {
     return notFound();
   }
   const activity = await catchRef(createActivity(user.id, parsed.data));

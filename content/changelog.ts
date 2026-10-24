@@ -29,6 +29,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-24-crm-data-model',
+    date: '2026-10-24',
+    title: {
+      en: 'CRM: custom objects, a separate lead object, field permissions and richer lists',
+      es: 'CRM: objetos propios, un objeto Lead aparte, permisos por campo y listas más completas',
+      pt: 'CRM: objetos personalizados, um objeto Lead separado, permissões por campo e listas mais completas',
+    },
+    items: [
+      { product: 'crm', en: 'Admins can define custom objects (vehicles, properties, subscriptions) with their own properties. Records get a table with filters, a record page with notes and tasks, associations with contacts, companies and deals, CSV import, ⌘K search, the CRM sidebar and the API.', es: 'Los admins pueden definir objetos propios (vehículos, propiedades, suscripciones) con sus propiedades. Los registros tienen tabla con filtros, ficha con notas y tareas, asociaciones con contactos, empresas y deals, import CSV, búsqueda con ⌘K, el sidebar del CRM y la API.', pt: 'Admins podem definir objetos personalizados (veículos, imóveis, assinaturas) com suas propriedades. Os registros têm tabela com filtros, ficha com notas e tarefas, associações com contatos, empresas e negócios, importação CSV, busca com ⌘K, a barra lateral do CRM e a API.' },
+      { product: 'crm', en: 'Leads are now their own object: owner, a lead pipeline with stages you can edit, contact and company, a table and a board, disqualify with a reason and convert to a deal in one step. Lifecycle stage and lead status on contacts keep working.', es: 'Los leads ahora son un objeto propio: owner, un pipeline de leads con etapas editables, contacto y empresa, tabla y tablero, descalificar con motivo y convertir en deal en un paso. El lifecycle y el lead status del contacto siguen funcionando.', pt: 'Leads agora são um objeto próprio: responsável, um pipeline de leads com etapas editáveis, contato e empresa, tabela e quadro, desqualificar com motivo e converter em negócio em um passo. O lifecycle e o lead status do contato continuam funcionando.' },
+      { product: 'crm', en: 'Field permissions: make a custom field read-only or hidden for members or for a sales team. It applies to record pages, tables, filters, bulk edits and the API.', es: 'Permisos por campo: un campo propio puede ser de solo lectura u oculto para los members o para un equipo de ventas. Aplica en fichas, tablas, filtros, edición en masa y la API.', pt: 'Permissões por campo: um campo personalizado pode ser somente leitura ou oculto para members ou para um time de vendas. Vale nas fichas, tabelas, filtros, edição em massa e na API.' },
+      { product: 'crm', en: 'Dynamic lists filter by custom fields and by activity (last contacted, open deals, emails opened or replied, form submissions, list membership), matching all or any filter, and their filters can be edited later.', es: 'Las listas dinámicas filtran por campos propios y por actividad (último contacto, deals abiertos, emails abiertos o respondidos, formularios, pertenencia a listas), con todos los filtros o cualquiera, y sus filtros se pueden editar después.', pt: 'As listas dinâmicas filtram por campos personalizados e por atividade (último contato, negócios abertos, emails abertos ou respondidos, formulários, participação em listas), com todos os filtros ou qualquer um, e os filtros podem ser editados depois.' },
+      { product: 'crm', en: 'Company details from the domain now include description, industry, size, location, founding year and social profiles from the website, with an optional data provider. It runs when a company is created and from the company page.', es: 'Los datos de la empresa desde el dominio ahora traen descripción, rubro, tamaño, ubicación, año de fundación y redes desde el sitio, con un proveedor de datos opcional. Corre al crear la empresa y desde su ficha.', pt: 'Os dados da empresa a partir do domínio agora trazem descrição, setor, tamanho, localização, ano de fundação e redes a partir do site, com um provedor de dados opcional. Roda ao criar a empresa e a partir da ficha.' },
+    ],
+  },
+  {
     id: '2026-10-23-groups',
     date: '2026-10-23',
     title: {

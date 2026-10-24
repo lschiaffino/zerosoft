@@ -16,7 +16,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const parsed = customFieldUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const field = await updateCustomField(user.id, params.id, parsed.data);
+  // La entidad de un campo no cambia (sus valores viven en los registros de esa entidad).
+  const { entity: _entity, ...patch } = parsed.data;
+  const field = await updateCustomField(user.id, params.id, patch);
   if (!field) return notFound();
   return NextResponse.json(field);
 }

@@ -47,6 +47,8 @@ export interface SidebarLabels {
     deals: string;
     tasks: string;
     lists: string;
+    leads: string;
+    objects: string;
     reports: string;
     dashboards: string;
     workflows: string;
@@ -203,10 +205,13 @@ export function buildNav(
           items: [
             { href: '/app/crm/contacts', label: labels.crm.contacts, active: at('/app/crm/contacts'), icon: 'contacts' },
             { href: '/app/crm/companies', label: labels.crm.companies, active: at('/app/crm/companies'), icon: 'companies' },
+            { href: '/app/crm/leads', label: labels.crm.leads, active: at('/app/crm/leads'), icon: 'leads' },
             { href: '/app/crm/deals', label: labels.crm.deals, active: at('/app/crm/deals'), icon: 'deals' },
             { href: '/app/crm/lists', label: labels.crm.lists, active: at('/app/crm/lists'), icon: 'lists' },
             { href: '/app/crm/products', label: labels.crm.products, active: at('/app/crm/products'), icon: 'products' },
             { href: '/app/crm/quotes', label: labels.crm.quotes, active: at('/app/crm/quotes'), icon: 'quotes' },
+            // Objetos propios: cada uno cuelga debajo (CrmObjectsBranch en el hueco #side-branch).
+            { href: '/app/crm/objects', label: labels.crm.objects, active: pathname === '/app/crm/objects', icon: 'objects', branch: true },
           ],
         },
         {

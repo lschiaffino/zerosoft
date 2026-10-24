@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, realUserId } from '@/lib/session';
+import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import {
   importCompanies,
   importContacts,
@@ -80,13 +81,22 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return crmError(400, 'invalid_input');
 
   const { entity, mode, rows } = parsed.data;
+  // Permisos por campo: lo que la persona no puede editar no entra por un CSV.
+  const { restricted } = await fieldAccessFor(sessionFieldViewer(user), entity);
+  const allowed = (list: Array<Record<string, unknown>>): Array<Record<string, unknown>> =>
+    restricted.size
+      ? list.map((r) => {
+          const custom = r.custom as Record<string, string> | undefined;
+          return custom ? { ...r, custom: Object.fromEntries(Object.entries(custom).filter(([k]) => !restricted.has(k))) } : r;
+        })
+      : list;
   try {
     const result =
       entity === 'contacts'
-        ? await importContacts(user.id, sanitizeRows(rows, importContactRowSchema) as MappedContactRow[], mode)
+        ? await importContacts(user.id, allowed(sanitizeRows(rows, importContactRowSchema)) as MappedContactRow[], mode)
         : entity === 'companies'
-          ? await importCompanies(user.id, sanitizeRows(rows, importCompanyRowSchema) as MappedCompanyRow[], mode)
-          : await importDeals(user.id, sanitizeRows(rows, importDealRowSchema) as MappedDealRow[], mode);
+          ? await importCompanies(user.id, allowed(sanitizeRows(rows, importCompanyRowSchema)) as MappedCompanyRow[], mode)
+          : await importDeals(user.id, allowed(sanitizeRows(rows, importDealRowSchema)) as MappedDealRow[], mode);
     return NextResponse.json(result);
   } catch {
     return crmError(500, 'import_failed');

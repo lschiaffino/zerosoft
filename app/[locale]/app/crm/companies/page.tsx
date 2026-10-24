@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
@@ -7,7 +8,6 @@ import {
   ACTIVITY_DATE_SORTS,
   LIFECYCLE_STAGES,
   listCompanies,
-  listCustomFields,
   parseFilterRules,
   type CompanyFilter,
   parseCustom,
@@ -78,7 +78,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   const rawFilters = one(searchParams.filters) ?? '';
   const advancedRules = parseFilterRules(rawFilters);
 
-  const customFieldDefs = await listCustomFields(user.id, 'companies');
+  // Permisos por campo: sin los ocultos; los de solo lectura no se editan en masa.
+  const customFieldDefs = (await fieldAccessFor(sessionFieldViewer(user), 'companies')).visible;
   const customTypes = customFilterTypes(customFieldDefs);
   const sortParam = one(searchParams.sort);
   const COMPANY_SORTS: readonly string[] = ['oldest', 'name', 'name_desc', ...ACTIVITY_DATE_SORTS];
@@ -96,8 +97,12 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     createdFrom: createdFrom || undefined,
     createdTo: createdTo || undefined,
     tag: tag || undefined,
-    custom: Object.keys(custom).length ? custom : undefined,
-    filters: advancedRules.length ? advancedRules : undefined,
+    custom: Object.keys(custom).length
+      ? Object.fromEntries(Object.entries(custom).filter(([k]) => customFieldDefs.some((d) => d.name === k)))
+      : undefined,
+    filters: advancedRules.length
+      ? advancedRules.filter((r) => !r.f.startsWith('custom:') || customFieldDefs.some((d) => `custom:${d.name}` === r.f))
+      : undefined,
     customTypes,
     sort,
     page,
@@ -224,7 +229,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     { key: 'employees', label: t('companies.form.employees'), type: 'number', nullable: true },
     { key: 'city', label: t('companies.form.city'), type: 'text' },
     { key: 'country', label: t('companies.form.country'), type: 'text' },
-    ...customBulkFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }, owners),
+    ...customBulkFields(customFieldDefs.filter((d) => d.access === 'edit'), { yes: t('common.yes'), no: t('common.no') }, owners),
   ];
 
   const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);

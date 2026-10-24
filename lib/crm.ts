@@ -29,6 +29,7 @@ import {
   type DealCompanyRow,
 } from './crm-assoc';
 import { tagCondition, type TagEntity } from './crm-tags';
+import { filterTypeFor } from './crm-custom-fields';
 import { trashRecords } from './crm-trash';
 import { nextRepeatDue, type TaskRepeat } from './crm-task-repeat';
 import { activityDateOrder, ACTIVITY_DATE_SORTS, type ActivityDateSort } from './crm-activity-dates';
@@ -145,7 +146,7 @@ export interface FilterRule {
 
 export type FilterFieldType = 'text' | 'number' | 'select' | 'date' | 'boolean' | 'multiselect';
 
-interface AdvancedFieldDef {
+export interface AdvancedFieldDef {
   /** Expresión SQL ya aliaseada; sale solo de nuestros mapas internos (nunca del usuario). */
   expr: string;
   type: FilterFieldType;
@@ -185,7 +186,7 @@ export function parseFilterRules(raw: string | undefined): FilterRule[] {
 }
 
 /** Expresión SQL para una regla sobre custom field, según su tipo declarado. */
-function customExpr(alias: 'c' | 'co' | 'd', name: string, type: FilterFieldType): string {
+function customExpr(alias: string, name: string, type: FilterFieldType): string {
   const base = `json_extract(${alias}.custom, '$.${name}')`;
   return type === 'number' ? `CAST(${base} AS REAL)` : base;
 }
@@ -194,10 +195,10 @@ function customExpr(alias: 'c' | 'co' | 'd', name: string, type: FilterFieldType
  * Traduce una regla a una condición WHERE parametrizada.
  * Devuelve null si la regla es inválida o está incompleta (se ignora, no rompe la query).
  */
-const ALIAS_ENTITY: Record<'c' | 'co' | 'd', TagEntity> = { c: 'contact', co: 'company', d: 'deal' };
+const ALIAS_ENTITY: Record<string, TagEntity> = { c: 'contact', co: 'company', d: 'deal' };
 
-function buildRuleCondition(
-  alias: 'c' | 'co' | 'd',
+export function buildRuleCondition(
+  alias: string,
   fields: Record<string, AdvancedFieldDef>,
   rule: FilterRule,
   customTypes?: Record<string, FilterFieldType>,
@@ -205,8 +206,16 @@ function buildRuleCondition(
   // Tag: relación many-to-many, no una columna. is / isnot sobre crm_record_tags.
   if (rule.f === 'tag') {
     const v = (rule.v ?? '').trim();
-    if (!v || !SELECT_OPS.has(rule.o)) return null;
+    if (!v || !SELECT_OPS.has(rule.o) || !ALIAS_ENTITY[alias]) return null;
     const cond = tagCondition(alias, ALIAS_ENTITY[alias]);
+    return { sql: rule.o === 'is' ? cond : `NOT ${cond}`, args: [v] };
+  }
+  // Miembro de una lista estática (solo contactos).
+  if (rule.f === 'list') {
+    const v = (rule.v ?? '').trim();
+    if (!v || !SELECT_OPS.has(rule.o) || alias !== 'c') return null;
+    const cond = `EXISTS (SELECT 1 FROM crm_list_members xlm JOIN crm_lists xl ON xl.id = xlm.list_id
+      WHERE xlm.contact_id = c.id AND xlm.list_id = ? AND xl.kind = 'static')`;
     return { sql: rule.o === 'is' ? cond : `NOT ${cond}`, args: [v] };
   }
   let def = fields[rule.f];
@@ -262,22 +271,32 @@ function buildRuleCondition(
   return { sql: `date(${expr}) BETWEEN date(?) AND date(?)`, args: [v, v2] };
 }
 
-/** Agrega las reglas avanzadas al WHERE (AND). Futuro: combinar grupos con OR. */
-function appendAdvancedFilters(
+/**
+ * Agrega las reglas avanzadas al WHERE: todas (AND, por defecto) o cualquiera
+ * (`match: 'any'`, OR entre las reglas válidas).
+ */
+export function appendAdvancedFilters(
   where: string[],
   args: Array<string | number>,
-  alias: 'c' | 'co' | 'd',
+  alias: string,
   fields: Record<string, AdvancedFieldDef>,
   rules: FilterRule[] | undefined,
   customTypes?: Record<string, FilterFieldType>,
+  match: 'all' | 'any' = 'all',
 ): void {
   if (!rules?.length) return;
+  const conds: string[] = [];
+  const condArgs: Array<string | number> = [];
   for (const rule of rules) {
     const cond = buildRuleCondition(alias, fields, rule, customTypes);
     if (!cond) continue;
-    where.push(cond.sql);
-    args.push(...cond.args);
+    conds.push(cond.sql);
+    condArgs.push(...cond.args);
   }
+  if (!conds.length) return;
+  if (match === 'any' && conds.length > 1) where.push(`(${conds.map((c) => `(${c})`).join(' OR ')})`);
+  else where.push(...conds);
+  args.push(...condArgs);
 }
 
 /** Dispara workflows habilitados para un evento. Import dinámico evita dependencia circular. */
@@ -471,6 +490,8 @@ export interface ContactFilter {
   tag?: string;
   custom?: Record<string, string>;
   filters?: FilterRule[];
+  /** Cómo se combinan las reglas: todas (AND) o cualquiera (OR). */
+  filtersMatch?: 'all' | 'any';
   /** Tipos de los custom fields (para operadores correctos en reglas `custom:*`). */
   customTypes?: Record<string, FilterFieldType>;
   /** Visibilidad por owner (lib/crm-visibility.ts). null/undefined = todo. */
@@ -481,6 +502,38 @@ export interface ContactFilter {
 }
 
 export type ContactListRow = CrmContactRow & { company_name: string | null };
+
+/** Días desde una fecha de la DB (nunca = 100000, así "hace más de N días" incluye a los que nunca tuvieron). */
+function daysSince(col: string): string {
+  return `CAST(julianday('now') - julianday(COALESCE(${col}, '1700-01-01')) AS INTEGER)`;
+}
+
+/**
+ * Filtros de actividad del contacto (listas dinámicas y filtro avanzado):
+ * deals abiertos, emails abiertos o respondidos, formularios enviados y días
+ * desde el último contacto o actividad.
+ */
+export const CONTACT_ACTIVITY_FIELDS: Record<string, AdvancedFieldDef> = {
+  hasOpenDeal: {
+    expr: `EXISTS (SELECT 1 FROM crm_deal_contacts xdc JOIN crm_deals xd ON xd.id = xdc.deal_id
+      JOIN crm_stages xs ON xs.id = xd.stage_id WHERE xdc.contact_id = c.id AND xs.is_won = 0 AND xs.is_lost = 0)`,
+    type: 'boolean',
+  },
+  dealCount: { expr: '(SELECT COUNT(*) FROM crm_deal_contacts xdc WHERE xdc.contact_id = c.id)', type: 'number' },
+  emailsOpened: {
+    expr: `(SELECT COUNT(*) FROM crm_email_contacts xec JOIN crm_emails xe ON xe.id = xec.email_id
+      WHERE xec.contact_id = c.id AND xe.open_count > 0)`,
+    type: 'number',
+  },
+  emailsReplied: {
+    expr: `(SELECT COUNT(*) FROM crm_email_contacts xec JOIN crm_emails xe ON xe.id = xec.email_id
+      WHERE xec.contact_id = c.id AND xe.replied_at IS NOT NULL)`,
+    type: 'number',
+  },
+  formSubmissions: { expr: '(SELECT COUNT(*) FROM crm_form_submissions xf WHERE xf.contact_id = c.id)', type: 'number' },
+  daysSinceContacted: { expr: daysSince('c.last_contacted_at'), type: 'number' },
+  daysSinceActivity: { expr: daysSince('c.last_activity_at'), type: 'number' },
+};
 
 const CONTACT_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   name: { expr: "trim(c.first_name || ' ' || c.last_name)", type: 'text' },
@@ -493,6 +546,7 @@ const CONTACT_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   score: { expr: 'c.score', type: 'number' },
   created: { expr: 'c.created_at', type: 'date' },
   ...activityDateAdvFields('c'),
+  ...CONTACT_ACTIVITY_FIELDS,
 };
 
 /** Agrega la condición de visibilidad por owner al WHERE. */
@@ -559,12 +613,12 @@ function buildContactWhere(
   }
   if (f.custom) {
     for (const [name, value] of Object.entries(f.custom)) {
-      if (!value) continue;
+      if (!value || !CUSTOM_NAME.test(name)) continue;
       where.push(`json_extract(c.custom, '$.${name}') = ?`);
       args.push(value);
     }
   }
-  appendAdvancedFilters(where, args, 'c', CONTACT_ADV_FIELDS, f.filters, f.customTypes);
+  appendAdvancedFilters(where, args, 'c', CONTACT_ADV_FIELDS, f.filters, f.customTypes, f.filtersMatch);
   appendOwnerScope(where, args, 'c', f.ownerScope);
   return { where: where.join(' AND '), args };
 }
@@ -1144,7 +1198,7 @@ export async function listCompanies(
   }
   if (f.custom) {
     for (const [name, value] of Object.entries(f.custom)) {
-      if (!value) continue;
+      if (!value || !CUSTOM_NAME.test(name)) continue;
       where.push(`json_extract(co.custom, '$.${name}') = ?`);
       args.push(value);
     }
@@ -1229,10 +1283,28 @@ export interface CompanyInput {
   ownerId?: string | null;
   /** Empresa madre (jerarquía). null = raíz. Valida ciclos. */
   parentCompanyId?: string | null;
+  /** Datos del sitio (lib/crm-enrich.ts). */
+  description?: string;
+  linkedinUrl?: string;
+  twitterUrl?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  foundedYear?: number | null;
   custom?: Record<string, unknown>;
 }
 
+/** Columnas de datos del sitio (072), que el alta guarda con un UPDATE aparte. */
+const COMPANY_SITE_COLS: Record<string, string> = {
+  description: 'description',
+  linkedinUrl: 'linkedin_url',
+  twitterUrl: 'twitter_url',
+  facebookUrl: 'facebook_url',
+  instagramUrl: 'instagram_url',
+  foundedYear: 'founded_year',
+};
+
 const COMPANY_COLS: Record<string, string> = {
+  ...COMPANY_SITE_COLS,
   name: 'name',
   domain: 'domain',
   industry: 'industry',
@@ -1274,6 +1346,12 @@ export async function createCompany(
       data.lifecycleStage ?? 'lead',
       JSON.stringify(data.custom ?? {}),
     );
+  const siteSets = toColumnValues(COMPANY_SITE_COLS, data as Record<string, unknown>);
+  if (siteSets.length) {
+    await db
+      .prepare(`UPDATE crm_companies SET ${siteSets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`)
+      .run(...siteSets.map(([, v]) => v), id);
+  }
   if (data.parentCompanyId) await setParentCompany(userId, id, data.parentCompanyId, db);
   return (await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id)) as CrmCompanyRow;
 }
@@ -1584,7 +1662,7 @@ export async function listDeals(
   }
   if (f.custom) {
     for (const [name, value] of Object.entries(f.custom)) {
-      if (!value) continue;
+      if (!value || !CUSTOM_NAME.test(name)) continue;
       where.push(`json_extract(d.custom, '$.${name}') = ?`);
       args.push(value);
     }
@@ -2070,6 +2148,9 @@ export interface ActivityInput {
   contactId?: string | null;
   companyId?: string | null;
   dealId?: string | null;
+  /** Lead (lib/crm-leads.ts) o registro de un objeto propio (lib/crm-objects.ts). */
+  leadId?: string | null;
+  objectRecordId?: string | null;
   projectId?: string | null;
   ownerId?: string | null;
   /** Solo tareas: al completarla se crea la siguiente (lib/crm-task-repeat.ts). */
@@ -2107,6 +2188,15 @@ async function assertActivityRefs(userId: string, data: ActivityInput, db: Db): 
     { contactId: data.contactId, companyId: data.companyId, dealId: data.dealId, ownerId: data.ownerId },
     db,
   );
+  if (data.leadId && !(await db.prepare('SELECT 1 FROM crm_leads WHERE id = ? AND user_id = ?').get(data.leadId, userId))) {
+    throw new CrmRefError('invalid_lead');
+  }
+  if (
+    data.objectRecordId &&
+    !(await db.prepare('SELECT 1 FROM crm_object_records WHERE id = ? AND user_id = ?').get(data.objectRecordId, userId))
+  ) {
+    throw new CrmRefError('invalid_record');
+  }
   if (
     data.projectId &&
     !(await db
@@ -2172,8 +2262,8 @@ export async function createActivity(
     .prepare(
       `INSERT INTO crm_activities
        (id, user_id, owner_id, type, subject, body, due_at, direction, outcome, channel, duration_min,
-        contact_id, company_id, deal_id, project_id, repeat, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        contact_id, company_id, deal_id, lead_id, object_record_id, project_id, repeat, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -2190,6 +2280,8 @@ export async function createActivity(
       data.contactId ?? null,
       data.companyId ?? null,
       data.dealId ?? null,
+      data.leadId ?? null,
+      data.objectRecordId ?? null,
       data.projectId ?? null,
       (data.type ?? 'note') === 'task' ? (data.repeat ?? 'none') : 'none',
       ts,
@@ -2437,6 +2529,8 @@ export interface TimelineFilter {
   contactId?: string;
   companyId?: string;
   dealId?: string;
+  leadId?: string;
+  objectRecordId?: string;
   type?: ActivityType;
   limit?: number;
   /** Visibilidad por owner: solo actividades de registros visibles. */
@@ -2462,6 +2556,14 @@ export async function listTimeline(
   if (f.dealId) {
     where.push('a.deal_id = ?');
     args.push(f.dealId);
+  }
+  if (f.leadId) {
+    where.push('a.lead_id = ?');
+    args.push(f.leadId);
+  }
+  if (f.objectRecordId) {
+    where.push('a.object_record_id = ?');
+    args.push(f.objectRecordId);
   }
   if (f.type) {
     where.push('a.type = ?');
@@ -2605,26 +2707,56 @@ export async function countDueTasks(userId: string): Promise<number> {
 // LISTS
 // ============================================================
 
-/** Filtro JSON de una lista dinámica (subset de ContactFilter). */
+/**
+ * Filtro JSON de una lista dinámica: los filtros rápidos de antes (q,
+ * lifecycle, leadStatus, source) más reglas del filtro avanzado (campos
+ * propios, actividad, tags, listas) combinadas con AND (`match: 'all'`) u OR.
+ */
 export interface ListFilterJson {
   q?: string;
   lifecycle?: string;
   leadStatus?: string;
   source?: string;
+  filters?: FilterRule[];
+  match?: 'all' | 'any';
 }
 
-function parseListFilter(json: string): ListFilterJson {
+export function parseListFilter(json: string): ListFilterJson {
   const raw = parseJsonObject(json);
   const out: ListFilterJson = {};
   if (typeof raw.q === 'string') out.q = raw.q;
   if (typeof raw.lifecycle === 'string') out.lifecycle = raw.lifecycle;
   if (typeof raw.leadStatus === 'string') out.leadStatus = raw.leadStatus;
   if (typeof raw.source === 'string') out.source = raw.source;
+  if (Array.isArray(raw.filters)) {
+    const rules = parseFilterRules(JSON.stringify(raw.filters));
+    if (rules.length) out.filters = rules;
+  }
+  if (raw.match === 'any') out.match = 'any';
   return out;
 }
 
-async function countDynamicList(userId: string, filter: ListFilterJson): Promise<number> {
-  const { where, args } = buildContactWhere(userId, filter);
+/** ContactFilter de una lista dinámica (con los tipos de los campos propios de contactos). */
+async function dynamicListWhere(userId: string, filter: ListFilterJson, ownerScope?: OwnerScope) {
+  const customTypes = filter.filters?.some((r) => r.f.startsWith('custom:'))
+    ? Object.fromEntries(
+        (await listCustomFields(userId, 'contacts')).map((d) => [d.name, filterTypeFor(d.type)]),
+      )
+    : undefined;
+  return buildContactWhere(userId, {
+    q: filter.q,
+    lifecycle: filter.lifecycle,
+    leadStatus: filter.leadStatus,
+    source: filter.source,
+    filters: filter.filters,
+    filtersMatch: filter.match,
+    customTypes,
+    ownerScope,
+  });
+}
+
+async function countDynamicList(userId: string, filter: ListFilterJson, ownerScope?: OwnerScope): Promise<number> {
+  const { where, args } = await dynamicListWhere(userId, filter, ownerScope);
   return (
     (await getDb()
       .prepare(`SELECT COUNT(*) AS c FROM crm_contacts c WHERE ${where}`)
@@ -2636,7 +2768,7 @@ export interface ListWithCount extends CrmListRow {
   memberCount: number;
 }
 
-export async function listLists(userId: string): Promise<ListWithCount[]> {
+export async function listLists(userId: string, ownerScope?: OwnerScope): Promise<ListWithCount[]> {
   const db = getDb();
   const lists = (await db
     .prepare('SELECT * FROM crm_lists WHERE user_id = ? ORDER BY created_at ASC')
@@ -2647,7 +2779,7 @@ export async function listLists(userId: string): Promise<ListWithCount[]> {
       ...list,
       memberCount:
         list.kind === 'dynamic'
-          ? await countDynamicList(userId, parseListFilter(list.filter))
+          ? await countDynamicList(userId, parseListFilter(list.filter), ownerScope)
           : ((await countStmt.get(list.id)) as { c: number }).c,
     })),
   );
@@ -2659,7 +2791,7 @@ export interface ListDetail {
   memberCount: number;
 }
 
-export async function getList(userId: string, id: string): Promise<ListDetail | null> {
+export async function getList(userId: string, id: string, ownerScope?: OwnerScope): Promise<ListDetail | null> {
   const db = getDb();
   const list = (await db
     .prepare('SELECT * FROM crm_lists WHERE id = ? AND user_id = ?')
@@ -2667,7 +2799,7 @@ export async function getList(userId: string, id: string): Promise<ListDetail | 
   if (!list) return null;
   if (list.kind === 'dynamic') {
     // Evalúa el filtro con el mismo WHERE builder de listContacts.
-    const { where, args } = buildContactWhere(userId, parseListFilter(list.filter));
+    const { where, args } = await dynamicListWhere(userId, parseListFilter(list.filter), ownerScope);
     const members = (await db
       .prepare(
         `SELECT c.*, co.name AS company_name
@@ -2949,11 +3081,13 @@ export async function updateCustomField(
 }
 
 export async function deleteCustomField(userId: string, id: string): Promise<boolean> {
-  return (
+  const ok =
     (await getDb()
       .prepare('DELETE FROM crm_custom_fields WHERE id = ? AND user_id = ?')
-      .run(id, userId)).changes > 0
-  );
+      .run(id, userId)).changes > 0;
+  // Permisos por campo (lib/crm-field-perms.ts): se van con el campo.
+  if (ok) await getDb().prepare('DELETE FROM crm_field_permissions WHERE field_id = ? AND user_id = ?').run(id, userId);
+  return ok;
 }
 
 // ============================================================

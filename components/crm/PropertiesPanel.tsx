@@ -26,6 +26,8 @@ export interface PropField {
   href?: string;
   /** Tipo del input de texto (url normaliza a https:// al guardar). */
   inputType?: 'url' | 'tel';
+  /** Permisos por campo: la persona lo ve pero no lo edita. */
+  readOnly?: boolean;
 }
 
 function parseList(json: string): string[] {
@@ -63,6 +65,7 @@ const ERROR_CODES = [
   'invalid_company',
   'invalid_owner',
   'forbidden',
+  'field_readonly',
 ] as const;
 
 /**
@@ -103,6 +106,7 @@ export default function PropertiesPanel({
   }, [savedKey]);
 
   function startEdit(field: PropField) {
+    if (field.readOnly) return;
     setDraft(field.value);
     setEditingKey(field.key);
     setError(null);
@@ -236,6 +240,17 @@ export default function PropertiesPanel({
                 onBlur={() => save(field, draft.trim())}
               />
             )
+          ) : field.readOnly ? (
+            <span className={`prop-value prop-readonly${field.value && field.value !== '[]' ? '' : ' empty'}`} data-testid="prop-readonly">
+              {field.href && field.value ? (
+                <a className="prop-link" href={field.href} target={field.href.startsWith('tel:') ? undefined : '_blank'} rel="noreferrer">
+                  {display}
+                </a>
+              ) : (
+                display || '—'
+              )}
+              <span className="sr-only"> ({t('fieldPerms.readOnlyNote')})</span>
+            </span>
           ) : field.href && field.value ? (
             <a
               className="prop-value prop-link"
@@ -257,7 +272,15 @@ export default function PropertiesPanel({
           {savedKey === field.key && <span className="saved-note" role="status"> {t('common.saved')}</span>}
           {savingKey === field.key && <span className="saved-note" role="status"> {t('common.saving')}</span>}
         </dd>
-        {!editing && (
+        {!editing && field.readOnly && (
+          <span className="prop-lock" title={t('fieldPerms.readOnlyNote')} aria-hidden="true">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="5" y="11" width="14" height="9" rx="1" />
+              <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+            </svg>
+          </span>
+        )}
+        {!editing && !field.readOnly && (
           <button
             type="button"
             className="icon-btn prop-edit"

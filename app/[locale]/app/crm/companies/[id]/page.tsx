@@ -1,12 +1,15 @@
 import { getTranslations } from 'next-intl/server';
+import RelatedObjectRecords from '@/components/crm/RelatedObjectRecords';
+import RelatedLeads from '@/components/crm/RelatedLeads';
+import { fieldAccessFor, redactCustomJson, sessionFieldViewer } from '@/lib/crm-field-perms';
 import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
-import { requireUser } from '@/lib/session';
+import { realUserId, requireUser } from '@/lib/session';
 import { canSeeOwner, scopeCompanyDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import { listEmailThreads, mergeTimelineWithThreads } from '@/lib/crm-email';
-import { getCompany, LIFECYCLE_STAGES, listCustomFields, listTimeline, nextTaskFor, parseCustom } from '@/lib/crm';
+import { getCompany, LIFECYCLE_STAGES, listTimeline, nextTaskFor, parseCustom } from '@/lib/crm';
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
 import DangerDelete from '@/components/crm/DangerDelete';
 import AssociationPanel from '@/components/crm/AssociationPanel';
@@ -39,6 +42,8 @@ import CrmGroupsBlock from '@/components/groups/CrmGroupsBlock';
 import RecordTabs from '@/components/crm/RecordTabs';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import CompanyLogo from '@/components/crm/CompanyLogo';
+import CompanyEnrichButton from '@/components/crm/CompanyEnrichButton';
+import { normalizeCompanyDomain } from '@/lib/crm-domain';
 import PhoneTouch from '@/components/crm/PhoneTouch';
 import CompanyDuplicatesPanel from '@/components/crm/CompanyDuplicatesPanel';
 import { parseRecordTab, recordTabHref } from '@/components/crm/recordTab';
@@ -88,6 +93,16 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
     }).format(amount);
 
   const confirmValue = company.domain || company.name;
+  // Dominio para completar desde el sitio (el del campo o el del sitio web).
+  const siteDomain = normalizeCompanyDomain(company.domain || company.website);
+  const socials = (
+    [
+      ['linkedin', company.linkedin_url],
+      ['twitter', company.twitter_url],
+      ['facebook', company.facebook_url],
+      ['instagram', company.instagram_url],
+    ] as const
+  ).filter(([, url]) => !!url) as ReadonlyArray<readonly ['linkedin' | 'twitter' | 'facebook' | 'instagram', string]>;
 
   const historyFields: Record<string, string> = {
     name: t('companies.form.name'),
@@ -101,6 +116,12 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
     lifecycle_stage: t('companies.form.lifecycle'),
     owner_id: t('companies.form.owner'),
     parent_company_id: t('companies.detail.parent'),
+    description: t('companiesEnrich.description'),
+    founded_year: t('companiesEnrich.foundedYear'),
+    linkedin_url: t('companiesEnrich.linkedin'),
+    twitter_url: t('companiesEnrich.twitter'),
+    facebook_url: t('companiesEnrich.facebook'),
+    instagram_url: t('companiesEnrich.instagram'),
   };
   const historyValues: Record<string, Record<string, string>> = {
     lifecycle_stage: Object.fromEntries(LIFECYCLE_STAGES.map((v) => [v, t(`enums.lifecycle.${v}`)])),
@@ -148,6 +169,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         }
         actions={
           <>
+            {siteDomain && <CompanyEnrichButton companyId={company.id} domain={siteDomain} enriched={!!company.enriched_at} />}
             {company.phone && <PhoneTouch phone={company.phone} companyId={company.id} />}
             <CrmQuickCreate
               kind="contact"
@@ -251,6 +273,11 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
               />
             </div>
             <aside className="record-summary" aria-label={t('record.summary')}>
+              {company.description && (
+                <p className="co-about" data-testid="company-description">
+                  {company.description}
+                </p>
+              )}
               <dl className="record-facts">
                 <div>
                   <dt>{t('companies.form.owner')}</dt>
@@ -260,6 +287,24 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
                   <dt>{t('companies.form.employees')}</dt>
                   <dd className="num">{company.employees ?? '—'}</dd>
                 </div>
+                {company.founded_year ? (
+                  <div>
+                    <dt>{t('companiesEnrich.foundedYear')}</dt>
+                    <dd className="num">{company.founded_year}</dd>
+                  </div>
+                ) : null}
+                {socials.length > 0 && (
+                  <div>
+                    <dt>{t('companiesEnrich.socials')}</dt>
+                    <dd className="co-socials">
+                      {socials.map(([key, url]) => (
+                        <a key={key} href={url} target="_blank" rel="noopener noreferrer">
+                          {t(`companiesEnrich.${key}`)}
+                        </a>
+                      ))}
+                    </dd>
+                  </div>
+                )}
                 <div>
                   <dt>{t('companies.detail.rollupOpen')}</dt>
                   <dd className="num">{fmtBase(rollup.own.open)}</dd>
@@ -330,8 +375,9 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
 
   // ---------- Propiedades ----------
   if (tab === 'properties') {
-    const custom = parseCustom(company.custom);
-    const customFieldDefs = await listCustomFields(user.id, 'companies');
+    const fieldAccess = await fieldAccessFor(sessionFieldViewer(user), 'companies');
+    const customFieldDefs = fieldAccess.visible;
+    const custom = parseCustom(redactCustomJson(company.custom, fieldAccess.hidden));
     const customFields = customPropFields(customFieldDefs, custom, {
       yes: t('common.yes'),
       no: t('common.no'),
@@ -352,6 +398,17 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
       { key: 'website', label: t('companies.form.website'), type: 'text', value: company.website },
       { key: 'city', label: t('companies.form.city'), type: 'text', value: company.city },
       { key: 'country', label: t('companies.form.country'), type: 'text', value: company.country },
+      { key: 'description', label: t('companiesEnrich.description'), type: 'textarea', value: company.description ?? '' },
+      {
+        key: 'foundedYear',
+        label: t('companiesEnrich.foundedYear'),
+        type: 'number',
+        value: company.founded_year ? String(company.founded_year) : '',
+      },
+      ...(['linkedin', 'twitter', 'facebook', 'instagram'] as const).map((k): PropField => {
+        const value = company[`${k}_url`] ?? '';
+        return { key: `${k}Url`, label: t(`companiesEnrich.${k}`), type: 'text', inputType: 'url', value, href: value || undefined };
+      }),
       {
         key: 'lifecycleStage',
         label: t('companies.form.lifecycle'),
@@ -371,8 +428,9 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
     const sections: PropSection[] = [
       {
         title: t('companies.detail.aboutSection'),
-        keys: ['name', 'domain', 'industry', 'employees', 'phone', 'website', 'city', 'country'],
+        keys: ['name', 'domain', 'industry', 'employees', 'phone', 'website', 'city', 'country', 'description', 'foundedYear'],
       },
+      { title: t('companiesEnrich.socials'), keys: ['linkedinUrl', 'twitterUrl', 'facebookUrl', 'instagramUrl'] },
       { title: t('companies.detail.lifecycleSection'), keys: ['lifecycleStage'] },
       { title: t('companies.detail.ownershipSection'), keys: ['ownerId'] },
       ...(customFields.length
@@ -539,6 +597,16 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
               emptyLabel={t('companies.detail.noChildren')}
             />
           </section>
+          <RelatedLeads
+            workspaceId={user.id}
+            companyId={company.id}
+            companyName={company.name}
+            scope={scope}
+            locale={locale}
+            owners={ownerOptions}
+            defaultOwner={realUserId(user)}
+          />
+          <RelatedObjectRecords workspaceId={user.id} entity="company" entityId={company.id} scope={scope} locale={locale} />
         </div>
       </RecordTabs>
     </div>

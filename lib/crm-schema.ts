@@ -123,6 +123,12 @@ export const companyCreateSchema = z.object({
   ownerId: id.nullish(),
   /** Empresa madre (jerarquía). null = raíz. */
   parentCompanyId: id.nullish(),
+  description: longText.optional(),
+  linkedinUrl: shortText.optional(),
+  twitterUrl: shortText.optional(),
+  facebookUrl: shortText.optional(),
+  instagramUrl: shortText.optional(),
+  foundedYear: z.number().int().min(1000).max(2100).nullish(),
   custom: custom.optional(),
 });
 
@@ -225,6 +231,8 @@ export const activityCreateSchema = z.object({
   contactId: id.nullish(),
   companyId: id.nullish(),
   dealId: id.nullish(),
+  leadId: id.nullish(),
+  objectRecordId: id.nullish(),
   projectId: id.nullish(),
   ownerId: id.nullish(),
   /** Solo tareas: diaria, semanal o mensual. */
@@ -246,11 +254,23 @@ export const taskProjectUpdateSchema = taskProjectCreateSchema.partial();
 
 // ---------- Lists ----------
 
+/** Regla del filtro avanzado (lib/crm.ts FilterRule): campo, operador y valores. */
+export const filterRuleSchema = z.object({
+  f: z.string().trim().min(1).max(120),
+  o: z.string().trim().min(1).max(20),
+  v: z.string().max(500).optional(),
+  v2: z.string().max(500).optional(),
+});
+
 export const listFilterSchema = z.object({
   q: shortText.optional(),
   lifecycle: lifecycleStage.optional(),
   leadStatus: leadStatus.optional(),
   source: source.optional(),
+  /** Campos propios, actividad, tags y listas (ver CONTACT_ACTIVITY_FIELDS). */
+  filters: z.array(filterRuleSchema).max(20).optional(),
+  /** all = se cumplen todas (AND); any = alcanza con una (OR). */
+  match: z.enum(['all', 'any']).optional(),
 });
 
 export const listCreateSchema = z.object({
@@ -294,8 +314,14 @@ export const savedReportCreateSchema = z.object({
 
 // ---------- Custom fields ----------
 
+/** Entidad de un campo propio: las fijas, leads u `obj:<id>` (objeto propio; la ruta valida que exista). */
+export const customFieldEntity = z.union([
+  z.enum(['contacts', 'companies', 'deals', 'leads']),
+  z.string().regex(/^obj:[A-Za-z0-9-]{1,64}$/),
+]);
+
 export const customFieldCreateSchema = z.object({
-  entity: z.enum(['contacts', 'companies', 'deals']),
+  entity: customFieldEntity,
   name: z
     .string()
     .trim()
@@ -555,4 +581,74 @@ export const quotaUpsertSchema = z.object({
   metric: z.enum(['won_value', 'won_count', 'meetings']),
   period: z.enum(['month', 'quarter']),
   target: z.number().min(0).max(1e12),
+});
+
+// ---------- Objetos propios, leads y permisos por campo (072) ----------
+
+const label = z.string().trim().min(1).max(80);
+
+export const objectCreateSchema = z.object({
+  singular: label,
+  plural: label,
+  /** Label de la propiedad primaria (nombre de cada registro). */
+  primaryLabel: z.string().trim().max(80).optional(),
+  description: shortText.optional(),
+});
+export const objectUpdateSchema = objectCreateSchema.partial();
+
+export const objectRecordCreateSchema = z.object({
+  name,
+  ownerId: id.nullish(),
+  custom: custom.optional(),
+});
+export const objectRecordUpdateSchema = objectRecordCreateSchema.partial();
+
+export const objectLinkSchema = z.object({
+  entity: z.enum(['contact', 'company', 'deal']),
+  entityId: id,
+});
+
+export const leadStageKind = z.enum(['open', 'qualified', 'disqualified']);
+
+export const leadCreateSchema = z.object({
+  name: shortText.optional(),
+  ownerId: id.nullish(),
+  stageId: id.optional(),
+  contactId: id.nullish(),
+  companyId: id.nullish(),
+  source: z.union([source, z.literal('')]).optional(),
+  custom: custom.optional(),
+});
+export const leadUpdateSchema = leadCreateSchema
+  .extend({
+    disqualifyReason: shortText.optional(),
+    position: z.number().finite().optional(),
+  })
+  .partial();
+
+export const leadConvertSchema = z.object({
+  pipelineId: id.optional(),
+  stageId: id.optional(),
+  dealName: shortText.optional(),
+  amount: amount.optional(),
+  currency: currency.optional(),
+  closeDate: dateOnly.nullish(),
+});
+
+export const leadStageCreateSchema = z.object({ name, kind: leadStageKind.optional() });
+export const leadStageUpdateSchema = z.object({
+  name: name.optional(),
+  kind: leadStageKind.optional(),
+  position: z.number().int().min(0).max(1000).optional(),
+});
+
+export const fieldPermissionsSchema = z.object({
+  rules: z
+    .array(
+      z.object({
+        subject: z.string().regex(/^(role:member|team:[A-Za-z0-9_-]{1,64})$/),
+        access: z.enum(['read', 'hidden']),
+      }),
+    )
+    .max(50),
 });

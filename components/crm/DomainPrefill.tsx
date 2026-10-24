@@ -11,7 +11,37 @@ export interface DomainInfo {
   name: string;
   website: string;
   phone: string;
+  description?: string;
+  industry?: string;
+  employees?: number | null;
+  foundedYear?: number | null;
+  city?: string;
+  country?: string;
+  linkedinUrl?: string;
+  twitterUrl?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
   existing: { id: string; name: string } | null;
+}
+
+/** Campos del alta que salen del sitio (vacíos = no se mandan). */
+export function siteExtras(site: DomainInfo): Record<string, string | number> {
+  const out: Record<string, string | number> = {};
+  const put = (k: string, v: string | number | null | undefined) => {
+    if (v !== undefined && v !== null && v !== '') out[k] = v;
+  };
+  put('website', site.website);
+  put('phone', site.phone);
+  put('description', site.description);
+  put('employees', site.employees);
+  put('foundedYear', site.foundedYear);
+  put('city', site.city);
+  put('country', site.country);
+  put('linkedinUrl', site.linkedinUrl);
+  put('twitterUrl', site.twitterUrl);
+  put('facebookUrl', site.facebookUrl);
+  put('instagramUrl', site.instagramUrl);
+  return out;
 }
 
 export interface ExistingCompany {

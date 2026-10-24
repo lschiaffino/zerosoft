@@ -47,7 +47,7 @@ async function readCapped(res: Response, max: number): Promise<Uint8Array | null
 }
 
 /** Home del sitio: HTML (hasta 600 KB) y la URL final tras redirecciones. */
-async function fetchHome(domain: string): Promise<{ html: string; url: string } | null> {
+export async function fetchHome(domain: string): Promise<{ html: string; url: string } | null> {
   for (const base of [`https://${domain}/`, `https://www.${domain}/`]) {
     try {
       const res = await safeFetch(base, { headers: { 'user-agent': UA, accept: 'text/html' } }, 6000, { maxRedirects: 4 });

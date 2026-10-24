@@ -169,6 +169,24 @@ export async function canSeeEntity(
   return canSeeRecord(workspaceId, table, id, scope);
 }
 
+/**
+ * ¿Ve una fila con owner (lead, registro de objeto propio)? false si no
+ * existe en el workspace.
+ */
+export async function canSeeOwnedRow(
+  workspaceId: string,
+  table: 'crm_leads' | 'crm_object_records',
+  id: string,
+  scope: OwnerScope | undefined,
+  db: Db = getDb(),
+): Promise<boolean> {
+  const row = (await db.prepare(`SELECT owner_id FROM ${table} WHERE id = ? AND user_id = ?`).get(id, workspaceId)) as
+    | { owner_id: string | null }
+    | undefined;
+  if (!row) return false;
+  return canSeeOwner(scope, row.owner_id, workspaceId);
+}
+
 /** ¿Ve todos los registros referenciados por una actividad? */
 export async function canSeeActivityRefs(
   workspaceId: string,

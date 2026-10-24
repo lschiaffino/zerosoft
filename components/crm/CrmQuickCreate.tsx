@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { DomainPrefillNote, useDomainPrefill } from './DomainPrefill';
+import { DomainPrefillNote, siteExtras, useDomainPrefill } from './DomainPrefill';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
@@ -257,9 +257,9 @@ function QuickCreateForm({
       body = {
         name: name.trim(),
         domain: domain.trim() || undefined,
-        industry: industry.trim() || undefined,
         // Lo que se precargó del sitio (solo si sigue siendo el mismo dominio).
-        ...(site ? { website: site.website || undefined, phone: site.phone || undefined } : {}),
+        ...(site ? siteExtras(site) : {}),
+        industry: industry.trim() || site?.industry || undefined,
       };
     } else {
       url = '/api/crm/deals';

@@ -6,6 +6,8 @@ import { searchDocPagesContent } from '@/lib/docs';
 import { listLinks, toLinkDto } from '@/lib/links';
 import { searchNotesForPalette } from '@/lib/notes';
 import { searchApps } from '@/lib/app-search';
+import { searchLeads } from '@/lib/crm-leads';
+import { listObjects, searchRecords } from '@/lib/crm-objects';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,7 +33,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, leads, records, objects] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -41,6 +43,10 @@ export async function GET(req: NextRequest) {
     searchNotesForPalette(user, q),
     // Pizarras, Track, Cal, widgets, Flow, Agents y Robots: por nombre.
     searchApps(user, q, undefined, req.nextUrl.searchParams.get('locale') ?? 'en'),
+    // CRM: leads (nombre, contacto, empresa) y registros de objetos propios (propiedad primaria).
+    searchLeads(user.id, q, scope, 8),
+    searchRecords(user.id, q, scope, 8),
+    listObjects(user.id),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -72,6 +78,32 @@ export async function GET(req: NextRequest) {
       label: d.name,
       meta: `${d.currency} ${d.amount}`,
       href: `/app/crm/deals/${d.id}`,
+    });
+  }
+
+  for (const l of leads) {
+    items.push({
+      id: l.id,
+      group: 'leads',
+      label: l.name,
+      meta: [l.stage_name, l.contact_name ?? l.company_name].filter(Boolean).join(' · '),
+      href: `/app/crm/leads/${l.id}`,
+    });
+  }
+
+  // Los objetos propios mismos (por nombre), para ir directo a su lista.
+  const ql = q.toLowerCase();
+  for (const o of objects.filter((x) => x.plural.toLowerCase().includes(ql) || x.singular.toLowerCase().includes(ql)).slice(0, 5)) {
+    items.push({ id: o.id, group: 'records', label: o.plural, meta: '', href: `/app/crm/objects/${o.slug}` });
+  }
+
+  for (const r of records) {
+    items.push({
+      id: r.id,
+      group: 'records',
+      label: r.name,
+      meta: r.singular,
+      href: `/app/crm/objects/${r.slug}/${r.id}`,
     });
   }
 

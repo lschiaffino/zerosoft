@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { apiFieldViewer, guardRecordCustomWrite, hiddenFieldsFor, redactRow } from '@/lib/crm-field-perms';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createContact, listContacts } from '@/lib/crm';
 import { contactCreateSchema } from '@/lib/crm-schema';
@@ -22,7 +23,8 @@ export async function GET(req: NextRequest) {
     pageSize,
   });
 
-  return NextResponse.json({ contacts: rows.map(cleanRow), total, page, pageSize });
+  const hiddenFields = await hiddenFieldsFor(apiFieldViewer(auth), 'contacts');
+  return NextResponse.json({ contacts: rows.map((r) => cleanRow(redactRow(r, hiddenFields))), total, page, pageSize });
 }
 
 export async function POST(req: NextRequest) {
@@ -37,7 +39,9 @@ export async function POST(req: NextRequest) {
 
   // Sin owner explícito: la key crea como la persona que la generó; si hay
   // regla round-robin para la fuente "api", la regla decide.
-  const contact = await catchRef(createContact(auth.user.id, { ...parsed.data, ownerId: parsed.data.ownerId ?? auth.personId }));
+  const fp = await guardRecordCustomWrite(apiFieldViewer(auth), 'contact', null, parsed.data.custom);
+  if (!fp.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
+  const contact = await catchRef(createContact(auth.user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? auth.personId }));
   if (contact instanceof CrmRefError) return apiError(400, contact.code, 'A referenced record does not exist.');
   if (!parsed.data.ownerId) {
     const assigned = await assignNewLead(auth.user.id, contact.id, 'api');
