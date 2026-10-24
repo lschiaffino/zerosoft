@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zerosoft CRM</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="opt">
+      <header class="opt-head">
+        <img src="icons/icon-48.png" width="32" height="32" alt="" />
+        <h1 data-i18n="optionsTitle">Zerosoft CRM</h1>
+      </header>
+      <p class="opt-muted" data-i18n="optionsIntro"></p>
+      <form id="form" class="opt-form" novalidate>
+        <label for="baseUrl" data-i18n="optionsBaseUrl"></label>
+        <input id="baseUrl" name="baseUrl" type="url" placeholder="https://zerosoft.ai" autocomplete="url" required />
+        <label for="token" data-i18n="optionsToken"></label>
+        <input id="token" name="token" type="password" placeholder="zs_…" autocomplete="off" spellcheck="false" required />
+        <p class="opt-muted" data-i18n="optionsTokenHint"></p>
+        <label class="opt-check">
+          <input id="trackByDefault" name="trackByDefault" type="checkbox" checked />
+          <span data-i18n="optionsTrackDefault"></span>
+        </label>
+        <div class="opt-actions">
+          <button id="save" type="submit" class="opt-btn opt-btn-solid" data-i18n="optionsSave"></button>
+          <button id="clear" type="button" class="opt-btn" data-i18n="optionsDisconnect"></button>
+        </div>
+        <p id="status" class="opt-status" role="status" aria-live="polite"></p>
+      </form>
+    </main>
+    <script src="shared.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

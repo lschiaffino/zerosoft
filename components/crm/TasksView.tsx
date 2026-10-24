@@ -4,6 +4,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import { announceQueued, isQueuedResponse } from '@/lib/offline-queue';
 import { Link, useRouter, usePathname } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
@@ -172,7 +173,9 @@ export default function TasksView({
       }),
     }).catch(() => null);
     setComposerBusy(false);
-    if (res && res.status === 201) {
+    const queued = isQueuedResponse(res);
+    if (queued) announceQueued('/api/crm/activities');
+    if (res && (res.status === 201 || queued)) {
       setSubject('');
       setDue('');
       setType('task');

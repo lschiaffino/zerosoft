@@ -109,6 +109,21 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-24-crm-channels',
+    date: '2026-10-24',
+    title: {
+      en: 'CRM: Outlook sync, browser calling, a Gmail extension and a CRM that works on the phone',
+      es: 'CRM: sync de Outlook, llamadas desde el navegador, extensión de Gmail y un CRM que anda en el teléfono',
+      pt: 'CRM: sincronização com Outlook, chamadas pelo navegador, extensão do Gmail e um CRM que funciona no celular',
+    },
+    items: [
+      { product: 'crm', en: 'Connect Outlook or Microsoft 365: email with your contacts and calendar meetings land on the timeline, and emails and sequences go out from your Outlook with open and click tracking.', es: 'Conectá Outlook o Microsoft 365: los emails con tus contactos y las reuniones del calendario llegan al timeline, y los emails y secuencias salen desde tu Outlook con tracking de aperturas y clics.', pt: 'Conecte o Outlook ou o Microsoft 365: os emails com seus contatos e as reuniões do calendário chegam à linha do tempo, e os emails e sequências saem do seu Outlook com rastreamento de aberturas e cliques.' },
+      { product: 'crm', en: 'Call contacts from the browser with your Twilio account. Each call is logged with duration and outcome, can be recorded with a notice to the other person, and gets a transcript and an AI summary. Calls to the workspace number ring in the browser.', es: 'Llamá a tus contactos desde el navegador con tu cuenta de Twilio. Cada llamada queda registrada con duración y resultado, se puede grabar con aviso a la otra persona y suma transcripción y resumen con IA. Las llamadas al número del workspace suenan en el navegador.', pt: 'Ligue para seus contatos pelo navegador com sua conta da Twilio. Cada chamada fica registrada com duração e resultado, pode ser gravada com aviso à outra pessoa e ganha transcrição e resumo com IA. As chamadas para o número do workspace tocam no navegador.' },
+      { product: 'crm', en: 'A Chrome extension for Gmail shows the sender\'s contact, deals and tasks next to each email, creates contacts and tasks, logs emails, inserts CRM templates and tracks opens from compose. Download it from Settings › Integrations.', es: 'Una extensión de Chrome para Gmail muestra contacto, deals y tareas del remitente al lado de cada email, crea contactos y tareas, registra emails, inserta templates del CRM y trackea aperturas desde la redacción. Se descarga desde Configuración › Integraciones.', pt: 'Uma extensão do Chrome para Gmail mostra contato, negócios e tarefas do remetente ao lado de cada email, cria contatos e tarefas, registra emails, insere templates do CRM e rastreia aberturas na redação. Baixe em Configurações › Integrações.' },
+      { product: 'crm', en: 'On the phone, lists turn into cards with large call and WhatsApp buttons and the deal board shows one stage per screen with a Move to menu. The CRM installs on the home screen, opens views you already visited without signal and syncs changes when the connection is back.', es: 'En el teléfono las listas pasan a tarjetas con botones grandes de llamar y WhatsApp, y el board de deals muestra una etapa por pantalla con menú Mover a. El CRM se instala en la pantalla de inicio, abre sin señal las vistas que ya visitaste y sincroniza los cambios al volver la red.', pt: 'No celular as listas viram cartões com botões grandes de ligar e WhatsApp, e o quadro de negócios mostra uma etapa por tela com menu Mover para. O CRM se instala na tela inicial, abre sem sinal as telas que você já visitou e sincroniza as alterações quando a conexão volta.' },
+    ],
+  },
+  {
     id: '2026-10-23-groups',
     date: '2026-10-23',
     title: {

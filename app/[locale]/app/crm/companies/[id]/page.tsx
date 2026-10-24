@@ -32,6 +32,7 @@ import RecordTags from '@/components/crm/RecordTags';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
+import { withCallDetails } from '@/lib/crm-voice';
 import FilesPanel from '@/components/crm/FilesPanel';
 import { listRecordFiles, toView, withActivityFiles } from '@/lib/crm-files';
 import AiSummaryCard from '@/components/crm/AiSummaryCard';
@@ -173,7 +174,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         actions={
           <>
             {siteDomain && <CompanyEnrichButton companyId={company.id} domain={siteDomain} enriched={!!company.enriched_at} />}
-            {company.phone && <PhoneTouch phone={company.phone} companyId={company.id} />}
+            {company.phone && <PhoneTouch phone={company.phone} companyId={company.id} name={company.name} />}
             <PlaybookLauncher
               entity="company"
               entityId={company.id}
@@ -268,7 +269,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
       listEmailThreads(user.id, { companyId: id, limit: 100 }),
       nextTaskFor(user.id, { companyId: id }),
     ]);
-    const timelineItems = await withCallSummaries(user.id, await withActivityFiles(mergeTimelineWithThreads(timeline, threads)));
+    const timelineItems = await withCallSummaries(user.id, await withCallDetails(user.id, await withActivityFiles(mergeTimelineWithThreads(timeline, threads))));
     const [aiAvailable, aiSummary] = await Promise.all([crmAiAvailable(), getRecordSummary(user.id, 'company', company.id, scope)]);
     const recordFiles = (await listRecordFiles(user.id, 'company', company.id)).map(toView);
     return (

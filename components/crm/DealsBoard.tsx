@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { BoardDeal, BoardStage } from '@/lib/crm';
 import { isDealRotting } from '@/lib/crm-rotting';
+import { announceQueued, isQueuedResponse } from '@/lib/offline-queue';
 import DealForm from './DealForm';
 import RecordPreview from './RecordPreview';
 import { scoreBand } from './DealInsightCard';
@@ -31,6 +32,8 @@ const KNOWN_ERRORS = new Set([
 const LOST_REASON_KEYS = ['price', 'timing', 'competitor', 'no budget', 'went silent', 'other'] as const;
 
 const DRAG_THRESHOLD = 6; // px antes de activar el drag (permite clicks normales)
+/** Ancho de teléfono: una columna por pantalla, barra de etapas y sin drag con el dedo. */
+const PHONE_QUERY = '(max-width: 640px)';
 
 interface DealsBoardProps {
   pipelineId: string;
@@ -117,6 +120,9 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
   } | null>(null);
 
   const dragRef = useRef<DragState | null>(null);
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  /** Columna visible en el teléfono (la barra de etapas la marca). */
+  const [activeStageId, setActiveStageId] = useState<string | null>(stages[0]?.stage.id ?? null);
   const suppressClickRef = useRef(false);
   const boardRef = useRef<HTMLDivElement>(null);
   /** Anuncio para lectores de pantalla (región aria-live). */
@@ -139,6 +145,31 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
       focusAfterRef.current = null;
     }
   }, [cols]);
+  // Teléfono: la columna que ocupa la pantalla queda marcada en la barra de etapas.
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board || typeof IntersectionObserver === 'undefined') return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const en of entries) {
+          if (en.isIntersecting && en.intersectionRatio >= 0.6) {
+            const id = (en.target as HTMLElement).dataset.stageCol;
+            if (id) setActiveStageId(id);
+          }
+        }
+      },
+      { root: board, threshold: [0.6] },
+    );
+    board.querySelectorAll('[data-stage-col]').forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, [cols.length]);
+
+  function jumpToStage(stageId: string) {
+    const el = boardRef.current?.querySelector(`[data-stage-col="${stageId}"]`) as HTMLElement | null;
+    if (!el || !boardRef.current) return;
+    setActiveStageId(stageId);
+    boardRef.current.scrollTo({ left: el.offsetLeft - boardRef.current.offsetLeft, behavior: 'smooth' });
+  }
 
   // Limpieza del DOM de drag si el componente se desmonta a mitad de un drag.
   useEffect(() => {
@@ -175,6 +206,8 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
 
   function handlePointerDown(e: ReactPointerEvent<HTMLElement>, deal: BoardDeal, stageId: string) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // En el teléfono el dedo desliza entre columnas: para mover está "Mover a…".
+    if (e.pointerType === 'touch' && window.matchMedia(PHONE_QUERY).matches) return;
     const target = e.target as HTMLElement;
     // Elementos interactivos dentro de la card no inician drag.
     if (target.closest('a, button, select, input, textarea, [data-no-drag]')) return;
@@ -354,6 +387,11 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
         ...(lostReason !== undefined ? { lostReason } : {}),
       }),
     }).catch(() => null);
+    if (isQueuedResponse(res)) {
+      // Sin red: el deal queda en la etapa nueva y se guarda al volver la conexión.
+      announceQueued(`/api/crm/deals/${dealId}/move`);
+      return;
+    }
     if (res && res.ok) {
       const deal = snapshot.flatMap((c) => c.deals).find((d) => d.id === dealId);
       if (deal && target) setAnnounce(t('deals.keyboard.moved', { deal: deal.name, stage: target.stage.name }));
@@ -461,11 +499,27 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
       <p id={`kb-hint-${pipelineId}`} className="muted kb-hint">
         {t('deals.keyboard.hint')}
       </p>
+      <nav className="kb-stagebar" aria-label={t('mobile.stages')}>
+        {cols.map((col) => (
+          <button
+            key={col.stage.id}
+            type="button"
+            className={`kb-stagebar-btn${activeStageId === col.stage.id ? ' is-active' : ''}`}
+            aria-current={activeStageId === col.stage.id ? 'true' : undefined}
+            onClick={() => jumpToStage(col.stage.id)}
+          >
+            <span className="kb-stagebar-name">{col.stage.name}</span>
+            <span className="kb-stagebar-stats">
+              {col.count} · {fmtMoney(col.amount, baseCurrency)}
+            </span>
+          </button>
+        ))}
+      </nav>
       <div className="kb-board" ref={boardRef}>
         {cols.map((col, colIdx) => {
           const closed = !!(col.stage.is_won || col.stage.is_lost);
           return (
-            <div className="kb-col" key={col.stage.id}>
+            <div className="kb-col" key={col.stage.id} data-stage-col={col.stage.id}>
               <div className="kb-col-head">
                 <span className="kb-col-name">{col.stage.name}</span>
                 <span className="kb-col-stats">

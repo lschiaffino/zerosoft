@@ -3,11 +3,14 @@
 import { isDefaultOutcome } from '@/lib/crm-calls';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { announceQueued, isQueuedResponse } from '@/lib/offline-queue';
 import { useRouter } from '@/i18n/navigation';
 import type { EmailThreadView } from '@/lib/crm-email';
 import EmailThread from './EmailThread';
 import CrmIcon from './CrmIcon';
 import FilesPanel, { type FileItem } from './FilesPanel';
+import CallDetails from './CallDetails';
+import type { CallView } from '@/lib/crm-voice';
 import MentionTextarea, { MentionText } from './MentionTextarea';
 import type { Mentionable } from '@/lib/crm-mentions';
 import CallSummaryBlock, { type CallSummaryState } from './CallSummaryBlock';
@@ -44,6 +47,8 @@ export interface TimelineItem {
   deal_id?: string | null;
   /** Llamadas y reuniones: resumen con IA guardado. */
   ai_summary?: CallSummaryState | null;
+  /** Llamada desde el navegador: grabación, transcripción y resumen. */
+  voice?: CallView;
 }
 
 /** Herramientas del composer de email: templates/snippets, IA y tracking. */
@@ -283,14 +288,16 @@ export default function Timeline({
         }),
       }).catch(() => null);
       setPosting(false);
-      const data = (await res?.json().catch(() => ({}))) as { error?: string; via?: 'gmail' | 'system' } | undefined;
+      const data = (await res?.json().catch(() => ({}))) as { error?: string; via?: 'gmail' | 'outlook' | 'system' } | undefined;
       if (res && res.ok) {
         setSubject('');
         setBody('');
         setEmailTo(defaultEmail);
         setReplyTo(null);
         setMissing([]);
-        setNotice(data?.via === 'system' ? t('email.sentSystem') : t('email.sentGmail'));
+        setNotice(
+          data?.via === 'system' ? t('email.sentSystem') : data?.via === 'outlook' ? t('email.sentOutlook') : t('email.sentGmail'),
+        );
         router.refresh();
       } else {
         setEmailError(errorText(data?.error));
@@ -309,7 +316,7 @@ export default function Timeline({
     if (type === 'task' && dueAt) payload.dueAt = dueAt;
     if (type === 'call' && direction) payload.direction = direction;
     if (type === 'meeting' && durationMin) payload.durationMin = Number(durationMin);
-    await fetch('/api/crm/activities', {
+    const res = await fetch('/api/crm/activities', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
@@ -320,6 +327,12 @@ export default function Timeline({
     setDueAt('');
     setDirection('');
     setDurationMin('');
+    // Sin red: quedó en la cola del service worker; aparece al sincronizar.
+    if (isQueuedResponse(res)) {
+      setNotice(t('offline.savedOffline'));
+      announceQueued('/api/crm/activities');
+      return;
+    }
     router.refresh();
   }
 
@@ -665,7 +678,11 @@ export default function Timeline({
                 <>
                   <div className="tl-head">
                     <span className="tl-type">
-                      {item.type === 'call' && item.channel === 'whatsapp' ? t('calls.whatsapp') : t(`enums.activityType.${item.type}`)}
+                      {item.type === 'call' && item.channel === 'whatsapp'
+                        ? t('calls.whatsapp')
+                        : item.type === 'call' && item.channel === 'browser'
+                          ? t('voice.timelineType')
+                          : t(`enums.activityType.${item.type}`)}
                     </span>
                     {item.external ? <span className="badge">Gmail</span> : null}
                     {!item.external && item.type === 'email' && item.direction === 'outbound' ? (
@@ -682,6 +699,7 @@ export default function Timeline({
                       <MentionText text={item.body} people={mentionables} />
                     </p>
                   )}
+                  {item.voice && <CallDetails voice={item.voice} />}
                   <div className="tl-meta">
                     {item.type === 'task' && item.due_at && (
                       <span>

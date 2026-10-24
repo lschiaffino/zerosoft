@@ -507,6 +507,60 @@ export interface CrmEmailSyncRow {
   created_at: string;
 }
 
+export interface CrmOutlookSyncRow {
+  user_id: string;
+  person_id: string;
+  inbox_delta: string | null;
+  sent_delta: string | null;
+  calendar_delta: string | null;
+  calendar_window_at: string | null;
+  status: string;
+  error: string | null;
+  last_sync_at: string | null;
+  last_full_sync_at: string | null;
+  locked_until: string | null;
+  created_at: string;
+}
+
+export interface CrmCallRow {
+  id: string;
+  user_id: string;
+  person_id: string | null;
+  contact_id: string | null;
+  company_id: string | null;
+  deal_id: string | null;
+  call_sid: string | null;
+  direction: 'outbound' | 'inbound';
+  to_number: string;
+  from_number: string;
+  status: string;
+  recorded: 0 | 1;
+  answered_at: string | null;
+  ended_at: string | null;
+  duration_sec: number | null;
+  recording_sid: string | null;
+  recording_duration: number | null;
+  transcript: string;
+  transcript_status: string;
+  summary: string;
+  summary_status: string;
+  activity_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmVoiceSettingsRow {
+  user_id: string;
+  caller_id: string;
+  record_calls: 0 | 1;
+  consent_enabled: 0 | 1;
+  consent_text: string;
+  transcribe: 0 | 1;
+  language: string;
+  inbound_enabled: 0 | 1;
+  updated_at: string;
+}
+
 export interface CrmEmailEventRow {
   id: string;
   user_id: string;

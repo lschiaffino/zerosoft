@@ -122,6 +122,8 @@ export default function CommandSearch() {
         event: inCrm ? 'zs:crm-assistant' : undefined,
       },
       { group, label: t('newCrmAgentRun'), meta: '', href: '/app/crm/agents?new=1' },
+      { group, label: t('installGmailExtension'), meta: '', href: '/app/crm/settings?tab=integrations#chrome-extension' },
+      { group, label: t('installCrmApp'), meta: '', href: '/app/crm?install=1' },
       { group, label: t('newLink'), meta: '', href: '/app/links/new' },
       { group, label: t('newDocPage'), meta: '', href: '/app/docs' },
       { group, label: t('newEventType'), meta: '', href: '/app/calendar/event-types/new' },

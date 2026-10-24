@@ -1063,7 +1063,7 @@ async function resolveContactIdForEmail(
 export async function sendCrmEmailAndSave(
   userId: string,
   input: SendCrmEmailInput & { senderId: string; tracking?: boolean; threadId?: string | null; inReplyTo?: string | null },
-): Promise<{ ok: boolean; email?: CrmEmailRow; via?: 'gmail' | 'system'; error?: string }> {
+): Promise<{ ok: boolean; email?: CrmEmailRow; via?: 'gmail' | 'outlook' | 'system'; error?: string }> {
   const { recordType, recordId, to, subject, body, fromEmail } = input;
   if (!to) return { ok: false, error: 'missing_recipient' };
 

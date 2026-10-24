@@ -10,6 +10,10 @@ const nextConfig = {
   // Keep it external so it is required from node_modules at runtime.
   // playwright-core (runner local de Robots) se carga de node_modules en runtime.
   serverExternalPackages: ['geoip-lite', 'playwright-core'],
+  // La descarga de la extensión de Chrome arma el zip leyendo extensions/chrome en runtime.
+  outputFileTracingIncludes: {
+    '/api/crm/extension/download': ['./extensions/chrome/**/*'],
+  },
   // El widget de Chat corre embebido en sitios de terceros y llama a estos
   // endpoints públicos (sin cookies). Next responde el preflight OPTIONS solo;
   // estos headers lo habilitan cross-origin.

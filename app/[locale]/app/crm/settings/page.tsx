@@ -5,6 +5,10 @@ import { getMailboxSync } from '@/lib/crm-email-sync';
 import { scopeAllowsSend } from '@/lib/gmail';
 import { listCustomFields, listPipelinesWithStages } from '@/lib/crm';
 import { getIntegration, gmailRedirectUri } from '@/lib/integrations';
+import { microsoftConfigured, OUTLOOK_PROVIDER, outlookRedirectUri } from '@/lib/microsoft';
+import { getOutlookSync } from '@/lib/crm-outlook-sync';
+import { defaultConsentText, getVoiceSettings, VOICE_LANGUAGES } from '@/lib/crm-voice';
+import { appBase, missingVoiceEnv } from '@/lib/twilio-voice';
 import { listMemberTeams, listMembers, listOwnedTeams, listPendingInvites } from '@/lib/teams';
 import { listTags } from '@/lib/crm-tags';
 import { getCrmSettings, listExchangeRates, missingRates } from '@/lib/crm-currency';
@@ -23,8 +27,11 @@ import ImportPanel from '@/components/crm/ImportPanel';
 import CrmMigrationPanel from '@/components/crm/CrmMigrationPanel';
 import ExportPanel from '@/components/crm/ExportPanel';
 import GmailPanel from '@/components/crm/GmailPanel';
+import OutlookPanel from '@/components/crm/OutlookPanel';
+import VoicePanel from '@/components/crm/VoicePanel';
 import TeamPanel from '@/components/crm/TeamPanel';
 import EmailTrackingSetting from '@/components/crm/EmailTrackingSetting';
+import ExtensionPanel from '@/components/crm/ExtensionPanel';
 import TagsManager from '@/components/crm/TagsManager';
 import CurrencySettings from '@/components/crm/CurrencySettings';
 import QuoteSettings from '@/components/crm/QuoteSettings';
@@ -62,7 +69,7 @@ async function workspacePeople(user: SessionUser) {
  */
 export default async function CrmSettingsPage(props: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ tab?: string; gmail?: string; from?: string }>;
+  searchParams: Promise<{ tab?: string; gmail?: string; outlook?: string; from?: string }>;
 }) {
   const sp = await props.searchParams;
   const { locale } = await props.params;
@@ -70,7 +77,7 @@ export default async function CrmSettingsPage(props: {
   const t = await getTranslations({ locale, namespace: 'crm' });
   const admin = isWorkspaceAdmin(user);
   // El callback de Gmail vuelve con ?gmail=…: abre Integraciones.
-  const tab = crmSettingsTab(sp.tab, sp.gmail);
+  const tab = crmSettingsTab(sp.tab, sp.gmail ?? sp.outlook);
 
   let body: React.ReactNode = null;
 
@@ -261,11 +268,21 @@ export default async function CrmSettingsPage(props: {
   } else if (tab === 'integrations') {
     // Gmail es personal: el de la persona logueada (no el del dueño del workspace).
     const gmail = await getIntegration(realUserId(user), 'gmail');
-    const [mailbox, emailSettings, apps] = await Promise.all([
+    const outlook = await getIntegration(realUserId(user), OUTLOOK_PROVIDER);
+    const [mailbox, emailSettings, apps, outlookSync, voiceSettings] = await Promise.all([
       gmail ? getMailboxSync(user.id, realUserId(user)) : Promise.resolve(null),
       getEmailSettings(user.id),
       listApps(user.id),
+      outlook ? getOutlookSync(user.id, realUserId(user)) : Promise.resolve(null),
+      getVoiceSettings(user.id),
     ]);
+    const voiceMissing = missingVoiceEnv();
+    const formatSync = (raw: string | null | undefined) =>
+      raw
+        ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
+            new Date(`${raw.replace(' ', 'T')}Z`),
+          )
+        : null;
     const lastSyncRaw = mailbox?.last_sync_at ?? gmail?.last_sync_at ?? null;
     const gmailLastSync = lastSyncRaw
       ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
@@ -287,8 +304,34 @@ export default async function CrmSettingsPage(props: {
             canSend={gmail ? scopeAllowsSend(gmail.scope) : false}
           />
         </FormSection>
+        <FormSection title={t('outlook.title')} description={t('outlook.desc')}>
+          <OutlookPanel
+            configured={microsoftConfigured()}
+            connected={outlook !== null}
+            email={outlook?.email ?? ''}
+            lastSync={formatSync(outlookSync?.last_sync_at ?? outlook?.last_sync_at)}
+            syncError={outlookSync?.status === 'error' ? (outlookSync.error ?? 'sync_failed') : null}
+            notice={sp.outlook ?? null}
+            redirectUri={outlookRedirectUri()}
+          />
+        </FormSection>
         <FormSection title={t('settings.trackingTitle')} description={t('settings.trackingDesc')}>
           <EmailTrackingSetting enabled={emailSettings.trackingEnabled} canEdit={admin} />
+        </FormSection>
+        <FormSection title={t('voice.settings.title')} description={t('voice.settings.desc')}>
+          <VoicePanel
+            configured={voiceMissing.length === 0}
+            missing={voiceMissing}
+            settings={voiceSettings}
+            twimlUrl={`${appBase()}/api/crm/voice/twiml`}
+            inboundUrl={`${appBase()}/api/crm/voice/inbound`}
+            canEdit={admin}
+            languages={VOICE_LANGUAGES}
+            defaultConsent={defaultConsentText(locale)}
+          />
+        </FormSection>
+        <FormSection title={t('extension.title')} description={t('extension.desc')}>
+          <ExtensionPanel appUrl={(process.env.NEXTAUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '')} />
         </FormSection>
       </>
     );

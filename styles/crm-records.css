@@ -774,3 +774,66 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .record-title-error {
   font-size: 0.8125rem;
 }
+/* Llamar desde el navegador (botón de PhoneTouch). */
+button.phone-touch-btn,
+button.cell-quick { background: transparent; font: inherit; cursor: pointer; }
+.phone-touch-btn { white-space: nowrap; }
+button.phone-touch-btn:focus-visible,
+button.cell-quick:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Panel de llamada (CallDock): abajo a la derecha, a lo ancho en el teléfono. */
+.call-dock {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 80;
+  width: min(340px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  box-shadow: var(--ui-shadow-strong);
+}
+.call-dock-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.call-dock-who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.call-dock-who strong,
+.call-dock-who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.call-dock-who span { font-size: 0.8125rem; }
+.call-dock-status { font-family: var(--font-data); font-size: 0.8125rem; color: var(--dim); white-space: nowrap; }
+.call-dock[data-phase='live'] .call-dock-status { color: var(--ink); }
+.call-dock-note { margin: 0; font-size: 0.8125rem; }
+.call-dock-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.call-dock-actions .btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; }
+.call-dock-hangup { margin-left: auto; }
+.call-dock-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.call-dock-keypad .btn { min-height: 40px; font-family: var(--font-data); }
+.call-dock-form { display: flex; flex-direction: column; gap: 10px; }
+.call-dock-form .field { display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem; }
+@media (max-width: 640px) {
+  .call-dock { left: 16px; right: 16px; bottom: 16px; width: auto; }
+  .call-dock-actions .btn { min-height: 44px; }
+}
+
+/* Llamada en el timeline: grabación, transcripción y estado del resumen. */
+.tl-call { display: flex; flex-direction: column; gap: 8px; margin: 6px 0; }
+.tl-call p { margin: 0; font-size: 0.8125rem; }
+.tl-call-recording { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tl-call-recording audio { max-width: 100%; height: 32px; }
+.tl-call-label { font-size: 0.8125rem; color: var(--dim); }
+.tl-call-transcript summary { cursor: pointer; font-size: 0.8125rem; }
+.tl-call-transcript ol { list-style: none; margin: 8px 0 0; padding: 0 0 0 10px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem; }
+.tl-call-speaker { font-weight: 500; }
+.tl-call-transcript li[data-speaker='contact'] .tl-call-speaker { color: var(--dim); }
+.tl-call-summary { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+
+/* Ajustes de llamadas. */
+.voice-panel { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; max-width: 520px; }
+.voice-panel p { margin: 0; font-size: 12px; }
+.voice-panel .field { display: flex; flex-direction: column; gap: 4px; width: 100%; font-size: 0.875rem; }
+.voice-panel-nested { padding-left: 22px; display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.voice-panel code,
+.gmail-panel code { word-break: break-all; }

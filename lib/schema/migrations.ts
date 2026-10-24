@@ -3998,6 +3998,83 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // CRM canales: sync de Outlook / Microsoft 365 (estado delta por buzón y
+    // reuniones del calendario ya volcadas al timeline) y llamadas desde el
+    // navegador con Twilio (llamadas, grabación, transcripción, ajustes).
+    id: '076_crm_channels',
+    up: async (client) => {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS crm_outlook_sync (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          inbox_delta TEXT,
+          sent_delta TEXT,
+          calendar_delta TEXT,
+          calendar_window_at TEXT,
+          status TEXT NOT NULL DEFAULT 'idle',
+          error TEXT,
+          last_sync_at TEXT,
+          last_full_sync_at TEXT,
+          locked_until TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, person_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS crm_outlook_events (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          event_key TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          activity_id TEXT REFERENCES crm_activities(id) ON DELETE SET NULL,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, event_key)
+        );
+
+        CREATE TABLE IF NOT EXISTS crm_calls (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT,
+          contact_id TEXT REFERENCES crm_contacts(id) ON DELETE SET NULL,
+          company_id TEXT REFERENCES crm_companies(id) ON DELETE SET NULL,
+          deal_id TEXT REFERENCES crm_deals(id) ON DELETE SET NULL,
+          call_sid TEXT UNIQUE,
+          direction TEXT NOT NULL DEFAULT 'outbound',
+          to_number TEXT NOT NULL DEFAULT '',
+          from_number TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'initiated',
+          recorded INTEGER NOT NULL DEFAULT 0,
+          answered_at TEXT,
+          ended_at TEXT,
+          duration_sec INTEGER,
+          recording_sid TEXT,
+          recording_duration INTEGER,
+          transcript TEXT NOT NULL DEFAULT '',
+          transcript_status TEXT NOT NULL DEFAULT 'none',
+          summary TEXT NOT NULL DEFAULT '',
+          summary_status TEXT NOT NULL DEFAULT 'none',
+          activity_id TEXT REFERENCES crm_activities(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_calls_user ON crm_calls(user_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_crm_calls_activity ON crm_calls(activity_id);
+        CREATE INDEX IF NOT EXISTS idx_crm_calls_contact ON crm_calls(user_id, contact_id);
+
+        CREATE TABLE IF NOT EXISTS crm_voice_settings (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          caller_id TEXT NOT NULL DEFAULT '',
+          record_calls INTEGER NOT NULL DEFAULT 0,
+          consent_enabled INTEGER NOT NULL DEFAULT 1,
+          consent_text TEXT NOT NULL DEFAULT '',
+          transcribe INTEGER NOT NULL DEFAULT 1,
+          language TEXT NOT NULL DEFAULT 'en-US',
+          inbound_enabled INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_voice_caller ON crm_voice_settings(caller_id) WHERE caller_id <> '';
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

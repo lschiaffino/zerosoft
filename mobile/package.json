@@ -1,0 +1,22 @@
+{
+  "name": "zerosoft-crm-mobile",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Wrapper de Capacitor del CRM (iOS y Android). Carga la app web desde server.url de capacitor.config.json; el offline lo da el service worker de la web. Para un self-host, cambiá server.url por tu dominio.",
+  "scripts": {
+    "add:ios": "cap add ios",
+    "add:android": "cap add android",
+    "sync": "cap sync",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.0",
+    "@capacitor/core": "^7.4.0",
+    "@capacitor/ios": "^7.4.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.0"
+  },
+  "license": "AGPL-3.0-only"
+}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { announceQueued, isQueuedResponse } from '@/lib/offline-queue';
 import { useRouter } from '@/i18n/navigation';
 
 export type InlineEditType = 'text' | 'email' | 'number' | 'date' | 'select';
@@ -51,6 +52,13 @@ export default function InlineEditCell({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [busy, setBusy] = useState(false);
+  /** Valor guardado sin red (en la cola offline) hasta que el server mande el nuevo. */
+  const [pendingValue, setPendingValue] = useState<string | null>(null);
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    setPendingValue(null);
+  }
 
   async function save(raw: string) {
     if (busy) return;
@@ -77,6 +85,13 @@ export default function InlineEditCell({
       body: JSON.stringify({ [field]: payloadValue }),
     }).catch(() => null);
     setBusy(false);
+    if (isQueuedResponse(res)) {
+      // Sin red: se muestra el valor nuevo y se guarda al volver la conexión.
+      setPendingValue(trimmed);
+      setEditing(false);
+      announceQueued(endpoint);
+      return;
+    }
     if (res && res.ok) {
       setEditing(false);
       onSaved?.();
@@ -143,12 +158,13 @@ export default function InlineEditCell({
     );
   }
 
+  const shown = pendingValue ?? value;
   const display =
-    value && displayValue
+    pendingValue === null && value && displayValue
       ? displayValue
       : type === 'select'
-        ? options.find((o) => o.value === value)?.label ?? value
-        : value;
+        ? options.find((o) => o.value === shown)?.label ?? shown
+        : shown;
 
   return (
     <button

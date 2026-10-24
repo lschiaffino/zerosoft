@@ -133,10 +133,10 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
       />
 
       <div className="table-wrap">
-        <table className="table crm-table">
+        <table className="table crm-table crm-cards">
           <thead>
             <tr>
-              <th className="cell-check">
+              <th className="cell-check" data-card="check">
                 <input
                   type="checkbox"
                   className="row-check"
@@ -146,7 +146,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                 />
               </th>
               {visible.has('name') && (
-                <th>
+                <th data-card="main">
                   <SortTh label={t('companies.table.name')} asc="name" desc="name_desc" current={sort} />
                 </th>
               )}
@@ -189,7 +189,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
           <tbody>
             {rows.map((row) => (
               <tr key={row.id} className={busy && selected.has(row.id) ? 'row-busy' : undefined}>
-                <td className="cell-check">
+                <td className="cell-check" data-card="check">
                   <input
                     type="checkbox"
                     className="row-check"
@@ -199,7 +199,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                   />
                 </td>
                 {visible.has('name') && (
-                  <td>
+                  <td data-card="main">
                     <Link href={`/app/crm/companies/${row.id}`} className="cell-name cell-name-logo">
                       <CompanyLogo domain={row.domain} name={row.name} size={18} />
                       {row.name}
@@ -207,7 +207,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                   </td>
                 )}
                 {visible.has('domain') && (
-                  <td>
+                  <td data-card="line">
                     <InlineEditCell
                       endpoint={`/api/crm/companies/${row.id}`}
                       field="domain"
@@ -217,7 +217,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                   </td>
                 )}
                 {visible.has('industry') && (
-                  <td>
+                  <td data-card="line">
                     <InlineEditCell
                       endpoint={`/api/crm/companies/${row.id}`}
                       field="industry"
@@ -227,7 +227,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                   </td>
                 )}
                 {visible.has('phone') && (
-                  <td className="cell-sub">
+                  <td className="cell-sub" data-card="line">
                     <InlineEditCell
                       endpoint={`/api/crm/companies/${row.id}`}
                       field="phone"
@@ -241,7 +241,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                 {visible.has('contacts') && <td className="num">{row.contacts}</td>}
                 {visible.has('deals') && <td className="num">{row.deals}</td>}
                 {visible.has('lifecycle') && (
-                  <td>
+                  <td data-card="state">
                     <InlineEditCell
                       endpoint={`/api/crm/companies/${row.id}`}
                       field="lifecycleStage"

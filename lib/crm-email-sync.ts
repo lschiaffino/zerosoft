@@ -85,7 +85,7 @@ async function releaseMailbox(
 }
 
 /** Contactos del workspace por email (minúsculas). Nunca cruza workspaces. */
-async function contactsByEmail(userId: string, emails: string[]): Promise<Map<string, string>> {
+export async function contactsByEmail(userId: string, emails: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (!emails.length) return out;
   const rows = (await getDb()
@@ -109,6 +109,8 @@ export async function storeGmailMessage(
   mailboxEmail: string,
   msg: ParsedGmailMessage,
   now = new Date(),
+  /** Origen del buzón: el sync de Outlook guarda con el mismo formato. */
+  source: 'gmail' | 'outlook' = 'gmail',
 ): Promise<boolean> {
   if (msg.labelIds.some((l) => l === 'DRAFT' || l === 'SPAM' || l === 'TRASH' || l === 'CHAT')) return false;
   const from = parseAddressList(msg.from);
@@ -141,13 +143,25 @@ export async function storeGmailMessage(
     return false;
   }
 
+  // Enviado desde Gmail/Outlook con "Registrar y trackear" de la extensión: ya
+  // existe con su token de tracking (el pixel va en el HTML). Se completa esa fila.
+  const pixel = outbound ? /\/api\/crm\/t\/o\/([a-f0-9]{32})\.gif/.exec(msg.html) : null;
+  if (pixel) {
+    const tracked = await db
+      .prepare(
+        "UPDATE crm_emails SET gmail_id = ?, thread_id = ?, message_id = ?, source = ? WHERE user_id = ? AND tracking_token = ? AND source = 'extension'",
+      )
+      .run(msg.id, msg.threadId, msg.messageId.slice(0, 500), source, userId, pixel[1]);
+    if (tracked.changes) return false;
+  }
+
   const emailId = crypto.randomUUID();
   const res = await db
     .prepare(
       `INSERT OR IGNORE INTO crm_emails
          (id, user_id, contact_id, gmail_id, thread_id, source, direction, from_email, to_emails, cc_emails,
           subject, snippet, body_text, body_html, sent_at, message_id, in_reply_to, person_id)
-       VALUES (?, ?, ?, ?, ?, 'gmail', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       emailId,
@@ -155,6 +169,7 @@ export async function storeGmailMessage(
       primary!,
       msg.id,
       msg.threadId,
+      source,
       outbound ? 'out' : 'in',
       msg.from.slice(0, 500),
       msg.to.slice(0, 2000),
@@ -198,7 +213,7 @@ export async function storeGmailMessage(
         type: 'email_received',
         entity: 'email',
         entityId: emailId,
-        payload: { contactId: primary, gmailId: msg.id, direction: 'in' },
+        payload: { contactId: primary, gmailId: msg.id, direction: 'in', source },
       }).catch(() => null);
       await emitEvent(userId, 'email.received', {
         email: { id: emailId, subject: msg.subject, from: msg.from, threadId: msg.threadId },
@@ -207,7 +222,7 @@ export async function storeGmailMessage(
     }
   } else if (recent) {
     await emitEvent(userId, 'email.sent', {
-      email: { id: emailId, subject: msg.subject, to: msg.to, threadId: msg.threadId, via: 'gmail' },
+      email: { id: emailId, subject: msg.subject, to: msg.to, threadId: msg.threadId, via: source },
       contactId: primary,
       sequence: null,
     });

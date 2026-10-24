@@ -1929,6 +1929,17 @@
     "paramLeadReason": "Por qué se descalificó el lead.",
     "paramObjectSlug": "Slug del objeto (de Listar objetos propios).",
     "paramRecordName": "Valor de la propiedad primaria.",
-    "paramRecordCustom": "Valores de las propiedades por nombre."
+    "paramRecordCustom": "Valores de las propiedades por nombre.",
+    "extensionSidebarTitle": "Panel del contacto de un email",
+    "extensionSidebarDesc": "Lo que muestra la extensión de Gmail al lado de un email: el contacto con esa dirección, su empresa, deals y tareas abiertas. contact es null si nadie que ves en el CRM la tiene.",
+    "extensionLogTitle": "Registrar un email de Gmail",
+    "extensionLogDesc": "Guarda un email en el timeline de los contactos que participan. Mandar el mismo messageId otra vez no lo duplica (200 con duplicate: true). 404 no_contact si ningún participante es contacto.",
+    "extensionTrackTitle": "Registrar y trackear un email antes de enviarlo",
+    "extensionTrackDesc": "Guarda el email saliente y devuelve el pixel de aperturas para agregar al cuerpo. Si ningún destinatario es contacto, se crea el primero.",
+    "paramExtMessageId": "Id del mensaje en Gmail (data-legacy-message-id)",
+    "paramExtFrom": "Remitente, como \"Ana <ana@acme.com>\"",
+    "paramExtTo": "Destinatarios, separados por comas",
+    "paramExtSubject": "Asunto del email",
+    "paramExtBody": "Cuerpo en texto plano"
   }
 }

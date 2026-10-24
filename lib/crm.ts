@@ -1035,6 +1035,8 @@ export async function mergeContacts(
       .prepare('UPDATE OR IGNORE crm_email_contacts SET contact_id = ? WHERE contact_id = ?')
       .run(keepId, dropId);
     await tdb.prepare('DELETE FROM crm_email_contacts WHERE contact_id = ?').run(dropId);
+    // Llamadas desde el navegador (grabación y transcripción) y reuniones de Outlook.
+    await tdb.prepare('UPDATE crm_calls SET contact_id = ? WHERE contact_id = ?').run(keepId, dropId);
     // Secuencias: si ambos están vivos en la misma secuencia, la del
     // descartado sale con motivo 'merged' (el índice único es parcial sobre
     // active/paused); el historial completo pasa al que queda.

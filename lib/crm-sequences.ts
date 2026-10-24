@@ -13,7 +13,7 @@ import { createActivity } from './crm';
 import {
   dbNow,
   getEmailTemplate,
-  gmailSender,
+  mailSender,
   isUnsubscribed,
   loadTemplateContext,
   renderEmailTemplate,
@@ -331,7 +331,7 @@ export async function defaultSenderFor(userId: string, sequenceId: string, conta
     | { created_by: string | null }
     | undefined;
   for (const candidate of [contact?.owner_id, seq?.created_by]) {
-    if (candidate && (await isWorkspacePersonId(userId, candidate)) && (await gmailSender(candidate))) return candidate;
+    if (candidate && (await isWorkspacePersonId(userId, candidate)) && (await mailSender(candidate))) return candidate;
   }
   return seq?.created_by && (await isWorkspacePersonId(userId, seq.created_by)) ? seq.created_by : userId;
 }
@@ -352,7 +352,7 @@ export async function enrollContacts(
     return { ok: false, error: 'incomplete_steps' };
   }
   if (!(await isWorkspacePersonId(userId, input.senderId))) return { ok: false, error: 'invalid_sender' };
-  if (seq.steps.some((s) => s.type === 'email') && !(await gmailSender(input.senderId))) {
+  if (seq.steps.some((s) => s.type === 'email') && !(await mailSender(input.senderId))) {
     return { ok: false, error: 'gmail_not_connected' };
   }
   const db = getDb();

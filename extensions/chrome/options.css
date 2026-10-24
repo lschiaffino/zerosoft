@@ -1,0 +1,115 @@
+:root {
+  --bg: #ffffff;
+  --fg: #0d0d0d;
+  --fg-2: #5e5e5e;
+  --rule: #e8e8e8;
+  --field: #8c8c8c;
+  --accent: #0d0d0d;
+  --on-accent: #ffffff;
+  --error: #b42318;
+  --ok: #1e7a3c;
+  --focus: #1a56db;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111111;
+    --fg: #f2f2f2;
+    --fg-2: #b3b3b3;
+    --rule: #2e2e2e;
+    --field: #7a7a7a;
+    --accent: #f2f2f2;
+    --on-accent: #0d0d0d;
+    --error: #ff8a80;
+    --ok: #7bd88f;
+    --focus: #8ab4f8;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.5 -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+.opt {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+.opt-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+.opt-muted {
+  color: var(--fg-2);
+}
+.opt-form {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+}
+.opt-form label {
+  font-weight: 600;
+  margin-top: 8px;
+}
+input[type='url'],
+input[type='password'] {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--field);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+.opt-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400 !important;
+}
+.opt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.opt-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--field);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+.opt-btn-solid {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.opt-btn:disabled {
+  opacity: 0.6;
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.opt-status {
+  min-height: 1.5em;
+}
+.opt-status.is-error {
+  color: var(--error);
+}
+.opt-status.is-ok {
+  color: var(--ok);
+}

@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { signOut } from 'next-auth/react';
+import { clearOfflineData } from '@/lib/offline-queue';
 import { useTranslations } from 'next-intl';
 import { TZ_CHANGED_EVENT } from '@/lib/tz-client';
 import { collapsedFrom, denseRoute, storageKey } from '@/lib/sidebar-collapsed';
@@ -412,7 +413,11 @@ export default function AppSidebar({
                 {labels.signOut}
               </Link>
             ) : (
-              <button type="button" className="side-signout side-label" onClick={() => signOut({ callbackUrl: '/' })}>
+              <button
+                type="button"
+                className="side-signout side-label"
+                onClick={() => void clearOfflineData().finally(() => signOut({ callbackUrl: '/' }))}
+              >
                 {labels.signOut}
               </button>
             )}

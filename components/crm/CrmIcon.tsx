@@ -16,6 +16,12 @@ const PATHS = {
   pin: 'M9 3h6M10 3v6l-4 5h12l-4-5V3M12 14v7',
   /** Burbuja de mensaje (WhatsApp). */
   message: 'M4 5h16v11H10l-6 4z',
+  /** Llamada desde el navegador. */
+  headset: 'M4 15v-3a8 8 0 0116 0v3M4 14h3v6H4zM17 14h3v6h-3z',
+  mic: 'M9 3h6v10H9zM5 11a7 7 0 0014 0M12 18v3',
+  micOff: 'M9 3h6v10H9zM5 11a7 7 0 0014 0M12 18v3M4 4l16 16',
+  hangup: 'M3 14c5-5 13-5 18 0l-2 3-4-1v-3a10 10 0 00-6 0v3l-4 1z',
+  keypad: 'M6 4h2M11 4h2M16 4h2M6 9h2M11 9h2M16 9h2M6 14h2M11 14h2M16 14h2M11 19h2',
 } as const;
 
 export type CrmIconName = keyof typeof PATHS;

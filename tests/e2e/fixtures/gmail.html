@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Inbox - Gmail (simulado)</title>
+    <style>
+      body { font: 14px Arial, sans-serif; margin: 0; padding: 72px 340px 24px 24px; }
+      .dialog { border: 1px solid #ccc; padding: 12px; margin-top: 24px; max-width: 520px; }
+      .Am { min-height: 80px; border: 1px solid #ddd; padding: 6px; }
+      .aoO { display: inline-block; background: #0b57d0; color: #fff; padding: 6px 16px; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <!-- Estructura mínima con los mismos atributos que Gmail web. -->
+    <div role="main">
+      <h2 class="hP" data-legacy-thread-id="{{THREAD_ID}}">{{SUBJECT}}</h2>
+      <div class="adn ads" data-legacy-message-id="{{MESSAGE_ID}}" data-message-id="#msg-f:1789">
+        <div class="gE">
+          <span class="gD" email="{{SENDER}}" name="Carla Gómez">Carla Gómez</span>
+          <span class="g2" email="demo@zerosoft.ai" name="Demo">Demo</span>
+          <span class="g3" title="Fri, Oct 24, 2026, 10:12 AM">10:12</span>
+        </div>
+        <div class="a3s">Hola, ¿nos mandan la propuesta con precios para 20 asientos? Gracias.</div>
+      </div>
+    </div>
+
+    <div class="dialog" role="dialog" aria-label="New Message">
+      <div class="aoD">
+        To
+        <div data-hovercard-id="{{SENDER}}">Carla Gómez</div>
+      </div>
+      <input name="subjectbox" value="{{REPLY_SUBJECT}}" aria-label="Subject" />
+      <div class="Am Al editable" contenteditable="true" role="textbox" aria-label="Message Body">Carla, te paso la propuesta.</div>
+      <table><tr><td>
+        <div role="button" class="T-I aoO" tabindex="0" data-tooltip="Send ‪(Ctrl-Enter)‬">Send</div>
+      </td></tr></table>
+    </div>
+    <div id="sent" hidden></div>
+    <script>
+      // "Enviar" como Gmail: copia el cuerpo tal cual sale.
+      document.querySelector('.aoO').addEventListener('click', function () {
+        var sent = document.getElementById('sent');
+        sent.innerHTML = document.querySelector('[role="textbox"]').innerHTML;
+        sent.hidden = false;
+        sent.setAttribute('data-sent', '1');
+      });
+    </script>
+  </body>
+</html>

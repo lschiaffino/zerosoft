@@ -9,6 +9,7 @@ import { formatMoney } from '@/lib/crm-money';
 import { formatDate, formatNumber } from '@/lib/utils';
 import WonLostChart from '@/components/crm/WonLostChart';
 import QuotaProgressList from '@/components/crm/QuotaProgressList';
+import InstallAppPanel from '@/components/crm/InstallAppPanel';
 import { quotaProgress } from '@/lib/crm-quotas';
 import { listMembers } from '@/lib/teams';
 
@@ -257,6 +258,8 @@ export default async function CrmOverviewPage(
           </ul>
         )}
       </section>
+
+      <InstallAppPanel />
     </div>
   );
 }
