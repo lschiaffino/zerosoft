@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'HubSpot',
   alsoCompared: ['Pipedrive', 'Attio'],
-  lastReviewed: '2026-10-22',
+  lastReviewed: '2026-10-24',
   areas: [
     { id: 'records', label: { en: 'Data model and records', es: 'Modelo de datos y registros', pt: 'Modelo de dados e registros' } },
     { id: 'pipeline', label: { en: 'Pipeline and deals', es: 'Pipeline y deals', pt: 'Pipeline e negócios' } },
@@ -451,16 +451,24 @@ const parity: ProductParity = {
       id: 'custom-reports',
       area: 'reports',
       label: { en: 'Custom cross-object reports', es: 'Reportes personalizados entre objetos', pt: 'Relatórios personalizados entre objetos' },
-      detail: { en: 'Filters and grouping on fixed reports; no free-form report builder', es: 'Filtros y agrupación sobre informes fijos; sin constructor libre', pt: 'Filtros e agrupamento sobre relatórios fixos; sem construtor livre' },
-      status: 'partial',
+      detail: {
+        en: 'Builder over contacts, companies, deals, activities or tasks plus associated objects and custom fields: filters, two groupings (dates by day to year), count, sum, average, min and max; table, bar, line, pie or KPI; save, rename, CSV and dashboards. No calculated properties yet',
+        es: 'Constructor sobre contactos, empresas, deals, actividades o tareas más objetos asociados y campos propios: filtros, dos agrupaciones (fechas de día a año), conteo, suma, promedio, mínimo y máximo; tabla, barras, líneas, torta o KPI; guardar, renombrar, CSV y dashboards. Todavía sin propiedades calculadas',
+        pt: 'Construtor sobre contatos, empresas, negócios, atividades ou tarefas mais objetos associados e campos próprios: filtros, dois agrupamentos (datas de dia a ano), contagem, soma, média, mínimo e máximo; tabela, barras, linhas, pizza ou KPI; salvar, renomear, CSV e dashboards. Ainda sem propriedades calculadas',
+      },
+      status: 'have',
       competitorHas: true,
     },
     {
       id: 'forecast',
       area: 'reports',
       label: { en: 'Sales forecast', es: 'Forecast de ventas', pt: 'Previsão de vendas' },
-      detail: { en: 'Weighted by stage probability; no forecast categories or per-rep submissions', es: 'Ponderado por probabilidad de etapa; sin categorías ni envío por vendedor', pt: 'Ponderada pela probabilidade da etapa; sem categorias nem envio por vendedor' },
-      status: 'partial',
+      detail: {
+        en: 'Month or quarter by owner or sales team: goal, closed won, commit, best case, pipeline and weighted; category per deal from stage probability, editable; each rep submits a number with history, admins can adjust',
+        es: 'Por mes o trimestre, por responsable o equipo: meta, ganado, commit, best case, pipeline y ponderado; categoría por deal según la probabilidad de la etapa, editable; cada vendedor envía su número con historial y los admins lo ajustan',
+        pt: 'Por mês ou trimestre, por responsável ou equipe: meta, ganho, commit, best case, pipeline e ponderado; categoria por negócio pela probabilidade da etapa, editável; cada vendedor envia seu número com histórico e os admins ajustam',
+      },
+      status: 'have',
       competitorHas: true,
       weight: 2,
     },
@@ -476,7 +484,12 @@ const parity: ProductParity = {
       id: 'deal-journey',
       area: 'reports',
       label: { en: 'Deal journey analytics', es: 'Analítica del recorrido de deals', pt: 'Análise da jornada de negócios' },
-      status: 'missing',
+      detail: {
+        en: 'From the full stage history of each deal: deals that reach each stage, conversion to the next, average time in stage and drop-off, cumulative or strict',
+        es: 'Con el historial completo de etapas de cada deal: deals que llegan a cada etapa, conversión a la siguiente, tiempo promedio en la etapa y caída, acumulado o estricto',
+        pt: 'Com o histórico completo de etapas de cada negócio: negócios que chegam a cada etapa, conversão para a próxima, tempo médio na etapa e queda, acumulado ou estrito',
+      },
+      status: 'have',
       competitorHas: true,
     },
 

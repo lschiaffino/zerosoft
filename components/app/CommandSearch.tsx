@@ -32,6 +32,7 @@ function useGroupOrder() {
         'notes',
         'boards',
         'tasks',
+        'reports',
         'eventTypes',
         'bookings',
         'widgets',

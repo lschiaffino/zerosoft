@@ -48,6 +48,7 @@ export interface SidebarLabels {
     tasks: string;
     lists: string;
     reports: string;
+    forecast: string;
     dashboards: string;
     workflows: string;
     settings: string;
@@ -229,6 +230,7 @@ export function buildNav(
           items: [
             { href: '/app/crm/dashboards', label: labels.crm.dashboards, active: at('/app/crm/dashboards'), icon: 'dashboards' },
             { href: '/app/crm/reports', label: labels.crm.reports, active: at('/app/crm/reports'), icon: 'reports' },
+            { href: '/app/crm/forecast', label: labels.crm.forecast, active: at('/app/crm/forecast'), icon: 'forecast' },
           ],
         },
         {

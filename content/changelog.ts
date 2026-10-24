@@ -29,6 +29,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-24-crm-reports',
+    date: '2026-10-24',
+    title: {
+      en: 'CRM: custom report builder, sales forecast and deal journey',
+      es: 'CRM: constructor de reportes, forecast de ventas y recorrido de deals',
+      pt: 'CRM: construtor de relatórios, previsão de vendas e jornada dos negócios',
+    },
+    items: [
+      { product: 'crm', en: 'Build your own reports from contacts, companies, deals, activities or tasks, with fields from associated objects and your custom fields, filters, up to two groupings (dates by day, week, month, quarter or year) and count, sum, average, minimum or maximum. Show them as a table, bars, lines, pie or a single number, save, rename, export to CSV and add them to a dashboard.', es: 'Armá tus propios reportes desde contactos, empresas, deals, actividades o tareas, con campos de los objetos asociados y tus campos propios, filtros, hasta dos agrupaciones (fechas por día, semana, mes, trimestre o año) y conteo, suma, promedio, mínimo o máximo. Mostralos como tabla, barras, líneas, torta o un número, guardalos, renombralos, exportalos a CSV y sumalos a un dashboard.', pt: 'Monte seus próprios relatórios a partir de contatos, empresas, negócios, atividades ou tarefas, com campos dos objetos associados e seus campos próprios, filtros, até dois agrupamentos (datas por dia, semana, mês, trimestre ou ano) e contagem, soma, média, mínimo ou máximo. Mostre como tabela, barras, linhas, pizza ou um número, salve, renomeie, exporte para CSV e adicione a um dashboard.' },
+      { product: 'crm', en: 'A Forecast page per month or quarter, by owner or sales team: goal, closed won, commit, best case, pipeline and weighted amount. Each deal gets a forecast category from its stage probability that you can change, and each rep submits their number for the period, with the history of every submission.', es: 'Una página de Forecast por mes o trimestre, por responsable o equipo de ventas: meta, ganado, commit, best case, pipeline y monto ponderado. Cada deal tiene una categoría de forecast que sale de la probabilidad de su etapa y se puede cambiar, y cada vendedor envía su número del período, con el historial de cada envío.', pt: 'Uma página de Previsão por mês ou trimestre, por responsável ou equipe de vendas: meta, ganho, commit, best case, pipeline e valor ponderado. Cada negócio tem uma categoria de previsão que vem da probabilidade da etapa e pode ser mudada, e cada vendedor envia seu número do período, com o histórico de cada envio.' },
+      { product: 'crm', en: 'Deal journey in Reports: how many deals reach each stage, the conversion to the next one, the average time spent in it and where deals are lost, from the full stage history that every deal now keeps.', es: 'Recorrido de deals en Reportes: cuántos deals llegan a cada etapa, la conversión a la siguiente, el tiempo promedio en cada una y dónde se pierden, a partir del historial completo de etapas que ahora guarda cada deal.', pt: 'Jornada dos negócios em Relatórios: quantos negócios chegam a cada etapa, a conversão para a próxima, o tempo médio em cada uma e onde se perdem, a partir do histórico completo de etapas que cada negócio agora guarda.' },
+    ],
+  },
+  {
     id: '2026-10-23-groups',
     date: '2026-10-23',
     title: {

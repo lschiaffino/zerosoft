@@ -15,7 +15,8 @@
     "products": "Produtos",
     "quotes": "Orçamentos",
     "forms": "Formulários",
-    "trash": "Lixeira"
+    "trash": "Lixeira",
+    "forecast": "Previsão"
   },
   "switcher": {
     "product": "Produto",
@@ -783,7 +784,8 @@
       "source": "Origens",
       "owner": "Responsáveis",
       "activity": "Atividade",
-      "conversion": "Conversão"
+      "conversion": "Conversão",
+      "journey": "Jornada dos negócios"
     },
     "funnel": "Funil do pipeline",
     "forecastByStage": "Previsão ponderada por estágio",
@@ -858,8 +860,11 @@
       "owner": "Por responsável",
       "leaderboard": "Ranking de atividade",
       "tasks": "Tarefas abertas",
-      "recent_activity": "Atividade recente"
-    }
+      "recent_activity": "Atividade recente",
+      "custom_report": "Relatório personalizado"
+    },
+    "reportMissing": "Este relatório foi excluído ou não pode mais ser executado.",
+    "openReport": "Abrir relatório"
   },
   "settings": {
     "title": "Configurações",
@@ -2208,5 +2213,266 @@
       "not_found": "Esse import não existe mais.",
       "forbidden": "Só admins do workspace podem importar."
     }
+  },
+  "reportBuilder": {
+    "nav": {
+      "standard": "Relatórios padrão",
+      "custom": "Relatórios personalizados",
+      "forecast": "Previsão"
+    },
+    "listDesc": "Monte relatórios com contatos, empresas, negócios, atividades e tarefas, e adicione-os a um dashboard.",
+    "newReport": "Novo relatório",
+    "emptyTitle": "Ainda não há relatórios personalizados",
+    "emptyDesc": "Escolha uma fonte de dados, os campos, os filtros e como agrupá-los, e salve o relatório.",
+    "name": "Nome",
+    "rename": "Renomear",
+    "updated": "Atualizado",
+    "back": "← Todos os relatórios personalizados",
+    "untitled": "Relatório sem nome",
+    "save": "Salvar",
+    "saved": "Relatório salvo",
+    "unsaved": "Alterações não salvas",
+    "exportCsv": "Exportar CSV",
+    "addToDashboard": "Adicionar a um dashboard",
+    "addedToDashboard": "Adicionado ao dashboard",
+    "noDashboards": "Crie primeiro um dashboard em Dashboards.",
+    "confirmDelete": "Excluir este relatório e seus widgets de dashboard?",
+    "source": "Fonte de dados",
+    "sources": {
+      "contacts": "Contatos",
+      "companies": "Empresas",
+      "deals": "Negócios",
+      "activities": "Atividades",
+      "tasks": "Tarefas"
+    },
+    "objects": "Objetos associados",
+    "objectNames": {
+      "contact": "Contato",
+      "company": "Empresa",
+      "deal": "Negócio",
+      "activity": "Atividade"
+    },
+    "viz": "Visualização",
+    "vizs": {
+      "table": "Tabela",
+      "bar": "Barras",
+      "line": "Linhas",
+      "pie": "Pizza",
+      "kpi": "KPI"
+    },
+    "metric": "Métrica",
+    "countWhat": "Objeto a contar",
+    "metricField": "Campo",
+    "aggs": {
+      "count": "Contagem",
+      "sum": "Soma",
+      "avg": "Média",
+      "min": "Mínimo",
+      "max": "Máximo"
+    },
+    "countOf": "Quantidade de {object}",
+    "dimensions": "Agrupar por",
+    "dimension": "Grupo {n}",
+    "addDimension": "Adicionar agrupamento",
+    "removeDimension": "Remover agrupamento",
+    "bucket": "Agrupar data por",
+    "buckets": {
+      "day": "Dia",
+      "week": "Semana",
+      "month": "Mês",
+      "quarter": "Trimestre",
+      "year": "Ano"
+    },
+    "sort": "Ordem",
+    "sorts": {
+      "value_desc": "Maior valor primeiro",
+      "value_asc": "Menor valor primeiro",
+      "label": "Por nome"
+    },
+    "columns": "Colunas",
+    "addColumn": "Adicionar coluna",
+    "removeColumn": "Remover coluna",
+    "moveUp": "Subir",
+    "columnsHint": "Sem agrupamento, a tabela lista cada registro. Adicione um agrupamento ou escolha um gráfico para resumir.",
+    "filters": "Filtros",
+    "ops": {
+      "known": "tem valor",
+      "unknown": "não tem valor",
+      "last": "nos últimos (dias)"
+    },
+    "lastDays": "Dias",
+    "chooseValue": "Escolha um valor",
+    "preview": "Prévia",
+    "noValue": "(Sem valor)",
+    "unknownPerson": "Ex-membro",
+    "emptyResult": "Nenhum registro corresponde a este relatório.",
+    "truncated": "Mostrando os primeiros 200 grupos.",
+    "records": "{count, plural, one {# registro} other {# registros}}",
+    "recordsTruncated": "Mostrando {shown} de {total} registros. Exporte ou adicione filtros para ver o resto.",
+    "total": "Total",
+    "other": "Outros",
+    "forecastLinkText": "As categorias, as metas e o número enviado por cada vendedor ficam em",
+    "openForecast": "Previsão",
+    "errors": {
+      "generic": "Algo deu errado. Tente de novo.",
+      "invalid_field": "Um dos campos não existe mais. Remova-o e tente de novo.",
+      "invalid_metric": "Soma, média, mínimo e máximo precisam de um campo numérico.",
+      "invalid_input": "Essa combinação de objetos não está disponível para a fonte de dados.",
+      "network": "Não foi possível falar com o servidor. Verifique sua conexão."
+    },
+    "fields": {
+      "contact": {
+        "name": "Nome",
+        "email": "E-mail",
+        "phone": "Telefone",
+        "jobTitle": "Cargo",
+        "city": "Cidade",
+        "country": "País",
+        "lifecycle": "Etapa do ciclo de vida",
+        "leadStatus": "Status do lead",
+        "source": "Origem",
+        "owner": "Responsável",
+        "score": "Pontuação",
+        "created": "Data de criação"
+      },
+      "company": {
+        "name": "Nome",
+        "domain": "Domínio",
+        "industry": "Setor",
+        "employees": "Funcionários",
+        "city": "Cidade",
+        "country": "País",
+        "lifecycle": "Etapa do ciclo de vida",
+        "owner": "Responsável",
+        "created": "Data de criação"
+      },
+      "deal": {
+        "name": "Nome do negócio",
+        "amount": "Valor",
+        "pipeline": "Pipeline",
+        "stage": "Etapa",
+        "priority": "Prioridade",
+        "source": "Origem",
+        "owner": "Responsável",
+        "forecastCategory": "Categoria de previsão",
+        "closeDate": "Data de fechamento",
+        "closedAt": "Fechado em",
+        "created": "Data de criação"
+      },
+      "activity": {
+        "type": "Tipo de atividade",
+        "subject": "Assunto",
+        "done": "Concluída",
+        "owner": "Responsável",
+        "outcome": "Resultado",
+        "durationMin": "Duração (min)",
+        "dueAt": "Vencimento",
+        "doneAt": "Concluída em",
+        "created": "Data de criação"
+      }
+    }
+  },
+  "forecast": {
+    "title": "Previsão",
+    "periodLabel": "Período",
+    "period": {
+      "month": "Mês",
+      "quarter": "Trimestre"
+    },
+    "prev": "Período anterior",
+    "next": "Próximo período",
+    "current": "Período atual",
+    "team": "Equipe",
+    "allTeams": "Todos",
+    "pipeline": "Pipeline",
+    "allPipelines": "Todos os pipelines",
+    "error": "Não foi possível carregar a previsão. Tente de novo.",
+    "noGoal": "Sem meta",
+    "byPerson": "Por responsável",
+    "emptyPeople": "Não há responsáveis para mostrar nesta equipe.",
+    "attainment": "{pct}% da meta ganho",
+    "history": "Ver histórico de envios",
+    "historyTitle": "{name} · envios de {period}",
+    "historyEmpty": "Ainda não há envios.",
+    "notSubmitted": "Não enviado",
+    "submit": "Enviar",
+    "update": "Atualizar",
+    "submitTitle": "Enviar previsão de {name} · {period}",
+    "submitHint": "Ganho mais commit dá {mostLikely}. Os envios anteriores ficam no histórico.",
+    "note": "Nota (opcional)",
+    "total": "Total",
+    "help": "Negócios abertos contam no período da data de fechamento e os ganhos no período em que foram fechados. A categoria de cada negócio vem da probabilidade da etapa (70% ou mais é commit, 40% ou mais é best case), a menos que você a mude abaixo.",
+    "byStage": "pela etapa",
+    "deals": "Negócios do período",
+    "dealsOf": "Negócios de {name}",
+    "dealsEmpty": "Nenhum negócio fecha neste período.",
+    "undated": "{count, plural, one {# negócio aberto não tem} other {# negócios abertos não têm}} data de fechamento",
+    "cols": {
+      "person": "Responsável",
+      "goal": "Meta",
+      "closedWon": "Ganho",
+      "commit": "Commit",
+      "bestCase": "Best case",
+      "pipeline": "Pipeline",
+      "weighted": "Ponderado",
+      "submitted": "Enviado",
+      "submission": "Envio",
+      "deal": "Negócio",
+      "stage": "Etapa",
+      "closeDate": "Data de fechamento",
+      "amount": "Valor",
+      "category": "Categoria de previsão"
+    },
+    "category": {
+      "pipeline": "Pipeline",
+      "best_case": "Best case",
+      "commit": "Commit",
+      "omit": "Omitir",
+      "closed_won": "Ganho",
+      "lost": "Perdido",
+      "auto": "Automática ({category})"
+    }
+  },
+  "journey": {
+    "rangeLabel": "Negócios criados em",
+    "range": {
+      "30d": "30 dias",
+      "90d": "90 dias",
+      "quarter": "Este trimestre",
+      "12m": "12 meses",
+      "all": "Desde sempre"
+    },
+    "modeLabel": "Como as etapas contam",
+    "mode": {
+      "cumulative": "Acumulado",
+      "strict": "Entrou na etapa"
+    },
+    "emptyTitle": "Não há negócios neste período",
+    "emptyDesc": "Os negócios criados neste pipeline e período mostram como passam entre as etapas.",
+    "days": "{n} d",
+    "kpi": {
+      "total": "Negócios",
+      "won": "Ganhos",
+      "lost": "Perdidos",
+      "open": "Abertos",
+      "winRate": "Taxa de ganho",
+      "avgDaysToWin": "Tempo médio até ganhar"
+    },
+    "funnel": "Funil por etapa",
+    "reachedTitle": "{n} negócios chegaram a esta etapa",
+    "biggestDrop": "A maioria dos negócios é perdida em {stage}.",
+    "byStage": "Conversão e tempo por etapa",
+    "cols": {
+      "stage": "Etapa",
+      "reached": "Chegaram",
+      "next": "Para a próxima",
+      "avgDays": "Tempo médio",
+      "current": "Na etapa agora",
+      "lost": "Perdidos aqui",
+      "lostRate": "Queda"
+    },
+    "exitsTitle": "Média de {n} negócios que saíram da etapa",
+    "helpCumulative": "Acumulado: um negócio que chegou a uma etapa posterior também conta nas anteriores. O tempo por etapa considera os negócios que já saíram dela.",
+    "helpStrict": "Entrou na etapa: um negócio só conta nas etapas em que entrou. O tempo por etapa considera os negócios que já saíram dela."
   }
 }

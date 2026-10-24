@@ -26,8 +26,15 @@ import {
 } from '@/lib/crm-reports';
 import { formatNumber } from '@/lib/utils';
 import PipelineSelect from './PipelineSelect';
+import DealJourneyPanel from './DealJourneyPanel';
+import { Link } from '@/i18n/navigation';
+import type { JourneyMode, JourneyRange, JourneyResult } from '@/lib/crm-stage-history';
 
 interface ReportsViewProps {
+  /** Recorrido de deals (pestaña journey); null en las otras pestañas. */
+  journey?: JourneyResult | null;
+  journeyRange?: JourneyRange;
+  journeyMode?: JourneyMode;
   reports: CrmReports;
   funnel: FunnelReportStage[];
   forecastByStage: ForecastReportStage[];
@@ -56,8 +63,8 @@ interface ReportsViewProps {
 
 const RANGES: ReportRangeLabel[] = ['7d', '30d', '90d', 'quarter', '12m'];
 const BUCKETS: ReportBucket[] = ['day', 'week', 'month', 'quarter'];
-const REPORT_TYPES: ReportType[] = ['overview', 'funnel', 'forecast', 'source', 'owner', 'activity', 'conversion'];
-type ReportType = 'overview' | 'funnel' | 'forecast' | 'source' | 'owner' | 'activity' | 'conversion';
+const REPORT_TYPES: ReportType[] = ['overview', 'funnel', 'forecast', 'journey', 'source', 'owner', 'activity', 'conversion'];
+type ReportType = 'overview' | 'funnel' | 'forecast' | 'journey' | 'source' | 'owner' | 'activity' | 'conversion';
 
 function niceCeil(max: number): number {
   if (max <= 1) return 1;
@@ -639,6 +646,9 @@ function SavedReportsBar({
 }
 
 export default function ReportsView({
+  journey = null,
+  journeyRange = '90d',
+  journeyMode = 'cumulative',
   baseCurrency = 'USD',
   missingRates = [],
   reports,
@@ -686,8 +696,8 @@ export default function ReportsView({
       </p>
 
       <div className="report-controls">
-        <RangeSelector range={range} />
-        <BucketSelector bucket={bucket} />
+        {reportType !== 'journey' && <RangeSelector range={range} />}
+        {reportType !== 'journey' && <BucketSelector bucket={bucket} />}
         <SavedReportsBar reportType={reportType} filters={filters} />
       </div>
 
@@ -1021,6 +1031,11 @@ export default function ReportsView({
       )}
 
       {reportType === 'forecast' && (
+        <p className="muted report-forecast-link">
+          {t('reportBuilder.forecastLinkText')} <Link href="/app/crm/forecast">{t('reportBuilder.openForecast')}</Link>
+        </p>
+      )}
+      {reportType === 'forecast' && (
         <section className="panel">
           <div className="panel-head">
             <p className="section-label">{t('reports.forecastByStage')}</p>
@@ -1068,6 +1083,16 @@ export default function ReportsView({
         </section>
       )}
 
+      {reportType === 'journey' && (
+        <DealJourneyPanel
+          journey={journey}
+          range={journeyRange}
+          mode={journeyMode}
+          pipelines={pipelines}
+          selectedPipelineId={selectedPipelineId}
+          locale={locale}
+        />
+      )}
       {reportType === 'source' && (
         <section className="panel">
           <p className="section-label">{t('reports.dealsBySource')}</p>

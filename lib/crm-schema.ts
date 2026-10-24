@@ -280,6 +280,7 @@ export const REPORT_TYPES = [
   'overview',
   'funnel',
   'forecast',
+  'journey',
   'source',
   'owner',
   'activity',

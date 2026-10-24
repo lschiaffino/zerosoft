@@ -125,10 +125,14 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
     lost_reason: t('deals.detail.lostReason'),
     stage: t('deals.form.stage'),
     owner_id: t('deals.form.owner'),
+    forecast_category: t('reportBuilder.fields.deal.forecastCategory'),
   };
   const historyValues: Record<string, Record<string, string>> = {
     priority: Object.fromEntries(PRIORITIES.map((v) => [v, t(`enums.priority.${v}`)])),
     source: Object.fromEntries(SOURCES.map((v) => [v, t(`enums.source.${v}`)])),
+    forecast_category: Object.fromEntries(
+      ['pipeline', 'best_case', 'commit', 'omit'].map((v) => [v, t(`forecast.category.${v}`)]).concat([['', t('forecast.category.auto', { category: t('forecast.byStage') })]]),
+    ),
   };
 
   const header = (

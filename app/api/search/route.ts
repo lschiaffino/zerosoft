@@ -6,6 +6,7 @@ import { searchDocPagesContent } from '@/lib/docs';
 import { listLinks, toLinkDto } from '@/lib/links';
 import { searchNotesForPalette } from '@/lib/notes';
 import { searchApps } from '@/lib/app-search';
+import { searchCustomReports } from '@/lib/crm-custom-reports';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, reports] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -41,6 +42,8 @@ export async function GET(req: NextRequest) {
     searchNotesForPalette(user, q),
     // Pizarras, Track, Cal, widgets, Flow, Agents y Robots: por nombre.
     searchApps(user, q, undefined, req.nextUrl.searchParams.get('locale') ?? 'en'),
+    // Reportes propios del CRM, por nombre.
+    searchCustomReports(user.id, q),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -119,6 +122,10 @@ export async function GET(req: NextRequest) {
   }
 
   items.push(...apps);
+
+  for (const r of reports) {
+    items.push({ id: r.id, group: 'reports', label: r.name, meta: '', href: `/app/crm/reports/custom/${r.id}` });
+  }
 
   return NextResponse.json<SearchResponse>({ q, items });
 }

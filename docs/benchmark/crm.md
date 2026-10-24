@@ -105,10 +105,10 @@ Leyenda: **tiene**, **parcial**, **falta**, **mejor** (le ganamos al incumbente)
 |---|---|---|---|
 | Dashboards | 10 Starter / 30 Pro | tiene | widgets arrastrables y redimensionables |
 | Reportes predefinidos (embudo, fuentes, actividad, conversión) | Starter | tiene | |
-| Reportes personalizados entre objetos | 100 Starter / 500 Pro | parcial | filtros y agrupación sobre informes fijos; no hay constructor libre |
-| Forecast | Starter/Pro, jerarquías en Pro | parcial | forecast ponderado por probabilidad; sin categorías ni envío de forecast por vendedor |
+| Reportes personalizados entre objetos | 100 Starter / 500 Pro | tiene | constructor con objetos asociados, campos propios, dos agrupaciones y cinco visualizaciones; sin propiedades calculadas |
+| Forecast | Starter/Pro, jerarquías en Pro | tiene | categorías por deal, meta, envío por vendedor con historial, vista por equipo de ventas |
 | Metas y cuotas | limitadas Starter / plantillas Pro | tiene | mensuales o trimestrales por responsable |
-| Deal journey analytics | Pro | falta | |
+| Deal journey analytics | Pro | tiene | conversión, tiempo por etapa y caída desde el historial de etapas |
 
 **Puntaje: 6/10.**
 
