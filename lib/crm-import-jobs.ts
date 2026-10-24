@@ -34,6 +34,7 @@ import {
   IMPORT_GROUPS,
   isFatalSourceError,
   phaseGroup,
+  RateLimiter,
   SourceError,
   fieldNameFrom,
   type CrmSource,
@@ -246,9 +247,13 @@ const defaultFactory: SourceFactory = (provider, token, ctx) => {
   // Proveedor falso solo en tests/e2e (CRM_IMPORT_FAKE=1 con NODE_ENV=test o DEMO_MODE).
   if (fakeImportAllowed() && isFakeToken(token)) {
     const ds = fakeDatasetFromToken(token, ctx.ownerEmail);
+    // Sin tope de pedidos: con `sleep` instantáneo, el limitador real (100 cada
+    // 10 s) giraba en microtasks hasta que se vaciara la ventana y frenaba el
+    // servidor entero.
+    const limiter = new RateLimiter(Number.MAX_SAFE_INTEGER, 1);
     return provider === 'hubspot'
-      ? createHubspotSource(token, { fetch: fakeHubspotFetch(ds), sleep: async () => {} })
-      : createPipedriveSource(token, { fetch: fakePipedriveFetch(ds), sleep: async () => {} });
+      ? createHubspotSource(token, { fetch: fakeHubspotFetch(ds), sleep: async () => {}, limiter })
+      : createPipedriveSource(token, { fetch: fakePipedriveFetch(ds), sleep: async () => {}, limiter });
   }
   return provider === 'hubspot' ? createHubspotSource(token) : createPipedriveSource(token);
 };

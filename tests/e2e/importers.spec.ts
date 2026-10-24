@@ -122,7 +122,7 @@ test('Track: GitHub Issues con token (API mockeada)', async ({ page }) => {
   await page.getByRole('button', { name: 'Preview' }).click();
   const preview = page.getByTestId('track-import-preview');
   await expect(preview).toBeVisible({ timeout: 45_000 });
-  await preview.getByRole('button', { name: /^Import \d+ issues$/ }).click();
+  await preview.getByRole('button', { name: /^Import \d+ issues?$/ }).click();
   await expect(page.getByTestId('track-import-done')).toBeVisible({ timeout: 45_000 });
   expect(seen.some((s) => s.startsWith('/github/repos/acme/e2e ') && s.endsWith('Bearer ghp_e2e_token_123'))).toBe(true);
   // El token no vuelve a la página.
