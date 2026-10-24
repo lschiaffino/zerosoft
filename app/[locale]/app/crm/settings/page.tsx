@@ -10,7 +10,7 @@ import { listTags } from '@/lib/crm-tags';
 import { getCrmSettings, listExchangeRates, missingRates } from '@/lib/crm-currency';
 import { getMemberVisibility, listSalesTeams, sessionScope } from '@/lib/crm-visibility';
 import { getAssignmentRule, listAssignmentHistory, unavailablePeople } from '@/lib/crm-assignment';
-import { listScoreRules } from '@/lib/crm-scoring';
+import { listScoreRules, listScores } from '@/lib/crm-scoring';
 import { quotaProgress } from '@/lib/crm-quotas';
 import { CRM_SETTINGS_TABS, crmSettingsTab } from '@/lib/crm-settings-tabs';
 import PageHeader from '@/components/ui/PageHeader';
@@ -32,6 +32,8 @@ import AccessPanel from '@/components/crm/AccessPanel';
 import AssignmentPanel from '@/components/crm/AssignmentPanel';
 import ScoringRulesPanel from '@/components/crm/ScoringRulesPanel';
 import QuotasPanel from '@/components/crm/QuotasPanel';
+import ApprovalRulesPanel from '@/components/crm/ApprovalRulesPanel';
+import { listApprovalRules } from '@/lib/crm-approvals';
 import LegacySettingsAnchor from '@/components/crm/LegacySettingsAnchor';
 
 export const dynamic = 'force-dynamic';
@@ -106,13 +108,14 @@ export default async function CrmSettingsPage(props: {
   } else if (tab === 'sales') {
     const people = await workspacePeople(user);
     const scope = await sessionScope(user);
-    const [pipelines, crmSettings, rates, missing, quotas, dealFields] = await Promise.all([
+    const [pipelines, crmSettings, rates, missing, quotas, dealFields, approvalRules] = await Promise.all([
       listPipelinesWithStages(user.id),
       getCrmSettings(user.id),
       listExchangeRates(user.id),
       missingRates(user.id),
       quotaProgress(user.id, { ownerIds: scope, people: people.map((p) => ({ id: p.id, name: p.label })) }),
       listCustomFields(user.id, 'deals'),
+      listApprovalRules(user.id),
     ]);
     body = (
       <>
@@ -120,6 +123,16 @@ export default async function CrmSettingsPage(props: {
           <PipelinesEditor
             initialPipelines={pipelines}
             customFields={dealFields.map((f) => ({ name: f.name, label: f.label }))}
+          />
+        </FormSection>
+        <FormSection title={t('approvals.rules.title')} description={t('approvals.rules.desc')}>
+          <ApprovalRulesPanel
+            rules={approvalRules}
+            pipelines={pipelines.map((p) => ({ id: p.id, name: p.name, stages: p.stages.map((s) => ({ id: s.id, name: s.name })) }))}
+            people={people}
+            baseCurrency={crmSettings.baseCurrency}
+            locale={locale}
+            canEdit={admin}
           />
         </FormSection>
         <FormSection title={t('quotas.title')} description={t('quotas.desc')}>
@@ -171,13 +184,14 @@ export default async function CrmSettingsPage(props: {
       </>
     );
   } else if (tab === 'automation') {
-    const [people, assignmentRule, away, assignmentHistory, scoreRules, customFields] = await Promise.all([
+    const [people, assignmentRule, away, assignmentHistory, scoreRules, customFields, scores] = await Promise.all([
       workspacePeople(user),
       getAssignmentRule(user.id),
       unavailablePeople(user.id),
       listAssignmentHistory(user.id, 15),
       listScoreRules(user.id),
       listCustomFields(user.id, 'contacts'),
+      listScores(user.id),
     ]);
     body = (
       <>
@@ -201,6 +215,7 @@ export default async function CrmSettingsPage(props: {
         <FormSection title={t('scoring.title')} description={t('scoring.desc')}>
           <ScoringRulesPanel
             initialRules={scoreRules}
+            initialScores={scores}
             customFields={customFields.map((cf) => ({ name: cf.name, label: cf.label }))}
             canEdit={admin}
           />

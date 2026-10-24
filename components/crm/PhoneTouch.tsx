@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { isDefaultOutcome, telHref, whatsappHref, type CallChannel } from '@/lib/crm-calls';
 import CrmIcon from './CrmIcon';
+import PlaybookLauncher from './PlaybookLauncher';
 
 interface PhoneTouchProps {
   phone: string;
@@ -185,6 +186,24 @@ export default function PhoneTouch({ phone, contactId, companyId, dealId, compac
             <button type="button" className="btn btn-ghost btn-small" onClick={() => setChannel(null)}>
               {t('calls.skip')}
             </button>
+            {/* Guion de llamada: el playbook se guarda como esta llamada, con sus respuestas. */}
+            {(contactId || dealId || companyId) && (
+              <PlaybookLauncher
+                compact
+                entity={contactId ? 'contact' : dealId ? 'deal' : 'company'}
+                entityId={(contactId ?? dealId ?? companyId)!}
+                call={{
+                  outcome: outcome || undefined,
+                  durationMin: channel === '' && minutes ? Math.max(0, Math.round(Number(minutes) || 0)) : undefined,
+                  note: note.trim() || undefined,
+                  channel,
+                }}
+                onSaved={() => {
+                  setSaved(true);
+                  setChannel(null);
+                }}
+              />
+            )}
           </div>
         </form>
       )}

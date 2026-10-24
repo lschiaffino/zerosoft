@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-24-crm-sales-exec',
+    date: '2026-10-24',
+    title: {
+      en: 'CRM: a daily work queue, playbooks, several lead scores, stage approvals and deal splits',
+      es: 'CRM: cola de trabajo diaria, playbooks, varios lead scores, aprobaciones de etapa y splits de deals',
+      pt: 'CRM: fila de trabalho diária, playbooks, vários lead scores, aprovações de etapa e divisão de negócios',
+    },
+    items: [
+      { product: 'crm', en: 'Start the work queue from Tasks (or press Q) to go through overdue and today tasks one at a time, sequence steps included, with the contact, company and deal beside each task. Complete, skip, snooze or open the record from the keyboard.', es: 'Empezá la cola de trabajo desde Tareas (o con Q) para recorrer de a una las tareas vencidas y de hoy, pasos de secuencia incluidos, con el contacto, la empresa y el deal al lado. Completá, salteá, posponé o abrí el registro desde el teclado.', pt: 'Comece a fila de trabalho em Tarefas (ou com Q) para percorrer uma por vez as tarefas atrasadas e de hoje, passos de sequência incluídos, com o contato, a empresa e o negócio ao lado. Conclua, pule, adie ou abra o registro pelo teclado.' },
+      { product: 'crm', en: 'Playbooks: call scripts with questions whose answers update the record. Open them from a contact, company or deal, or while logging a call, and they are saved to the timeline.', es: 'Playbooks: guiones de llamada con preguntas cuyas respuestas actualizan el registro. Se abren desde un contacto, una empresa o un deal, o al registrar una llamada, y quedan en el timeline.', pt: 'Playbooks: roteiros de chamada com perguntas cujas respostas atualizam o registro. Abrem a partir de um contato, uma empresa ou um negócio, ou ao registrar uma chamada, e ficam na linha do tempo.' },
+      { product: 'crm', en: 'Lead scoring with up to 10 scores, tiers like Hot or Warm, and decay for old activity. Tiers show next to the score and work as filters and workflow triggers.', es: 'Lead scoring con hasta 10 scores, tramos como Caliente o Tibio y decaimiento de la actividad vieja. Los tramos se ven junto al score y sirven como filtro y disparador de workflows.', pt: 'Lead scoring com até 10 scores, faixas como Quente ou Morno e decaimento da atividade antiga. As faixas aparecem junto ao score e servem como filtro e gatilho de workflows.' },
+      { product: 'crm', en: 'Stage approvals: ask for approval before a deal enters a stage, always or from an amount or discount. Approvers get a notification and approve or reject from the deal or the approvals list.', es: 'Aprobaciones de etapa: pedí aprobación antes de que un deal entre a una etapa, siempre o desde un monto o descuento. Quienes aprueban reciben un aviso y aprueban o rechazan desde el deal o la lista de aprobaciones.', pt: 'Aprovações de etapa: peça aprovação antes de um negócio entrar em uma etapa, sempre ou a partir de um valor ou desconto. Quem aprova recebe um aviso e aprova ou rejeita no negócio ou na lista de aprovações.' },
+      { product: 'crm', en: 'Deal splits share a deal between owners by percentage, and owner reports, quotas and the forecast by owner count each share.', es: 'Los splits reparten un deal entre dueños por porcentaje, y los reportes por persona, las cuotas y el forecast por owner cuentan la parte de cada uno.', pt: 'A divisão reparte um negócio entre donos por porcentagem, e os relatórios por pessoa, as cotas e a previsão por dono contam a parte de cada um.' },
+      { product: 'crm', en: 'Move deals on the board from the keyboard: arrows move between cards and Shift + arrow changes the stage.', es: 'Mové deals en el board con el teclado: las flechas recorren las tarjetas y Shift + flecha cambia la etapa.', pt: 'Mova negócios no quadro pelo teclado: as setas percorrem os cartões e Shift + seta muda a etapa.' },
+    ],
+  },
+  {
     id: '2026-10-23-groups',
     date: '2026-10-23',
     title: {

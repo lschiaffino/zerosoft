@@ -140,6 +140,14 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/crm/deals/${i.id}`))),
   },
   {
+    app: 'CRM playbooks',
+    list: '/en/app/crm/playbooks',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/crm/playbooks', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/crm/playbooks/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/crm/playbooks/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/crm/playbooks/${i.id}`))),
+  },
+  {
     app: 'Cal event types',
     list: '/en/app/calendar/event-types',
     create: async (request, name) => {

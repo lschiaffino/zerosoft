@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   const actor = user.actingUser?.email ?? user.email;
   if (action === 'set_property') {
     if (!field || value === undefined) return crmError(400, 'invalid_input');
-    const res = await bulkSetProperty(user.id, 'deal', ids, field, value, actor);
+    const res = await bulkSetProperty(user.id, 'deal', ids, field, value, actor, user.actingUser?.id ?? user.id);
     if (!res.ok) return crmError(400, res.code);
     return NextResponse.json({ count: res.count, failed: res.failed, blocked: res.blocked });
   }

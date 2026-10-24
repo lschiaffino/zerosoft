@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import ApprovalDialog, { readApproval, type ApprovalInfo } from './ApprovalDialog';
 import StageRequirementsDialog, {
   checkStageMove,
   readRequirements,
@@ -31,6 +32,7 @@ export default function InlineStageCell({ dealId, stageId, stages, className = '
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [req, setReq] = useState<{ body: { stageId: string; lostReason?: string }; requirements: StageRequirements; won?: boolean } | null>(null);
+  const [approval, setApproval] = useState<ApprovalInfo | null>(null);
   const current = stages.find((s) => s.id === stageId);
 
   async function save(nextId: string) {
@@ -42,6 +44,12 @@ export default function InlineStageCell({ dealId, stageId, stages, className = '
     // Se pregunta antes qué pide la etapa: ganado abre su diálogo (fecha de
     // cierre de hoy y lo que falte); el resto, el de propiedades si falta algo.
     const check = await checkStageMove(dealId, nextId);
+    if (check?.approval) {
+      setBusy(false);
+      setEditing(false);
+      setApproval(check.approval);
+      return;
+    }
     if (target?.is_won) {
       setBusy(false);
       setEditing(false);
@@ -63,6 +71,11 @@ export default function InlineStageCell({ dealId, stageId, stages, className = '
     setEditing(false);
     if (res && res.ok) {
       router.refresh();
+      return;
+    }
+    const needsApproval = await readApproval(res);
+    if (needsApproval) {
+      setApproval(needsApproval);
       return;
     }
     const requirements = await readRequirements(res);
@@ -125,6 +138,7 @@ export default function InlineStageCell({ dealId, stageId, stages, className = '
         {current?.name ?? '—'}
       </button>
       {dialog}
+      {approval && <ApprovalDialog dealId={dealId} info={approval} onClose={() => setApproval(null)} />}
     </>
   );
 }

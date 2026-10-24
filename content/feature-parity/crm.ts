@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'HubSpot',
   alsoCompared: ['Pipedrive', 'Attio'],
-  lastReviewed: '2026-10-22',
+  lastReviewed: '2026-10-24',
   areas: [
     { id: 'records', label: { en: 'Data model and records', es: 'Modelo de datos y registros', pt: 'Modelo de dados e registros' } },
     { id: 'pipeline', label: { en: 'Pipeline and deals', es: 'Pipeline y deals', pt: 'Pipeline e negócios' } },
@@ -203,15 +203,24 @@ const parity: ProductParity = {
       id: 'deal-approvals-splits',
       area: 'pipeline',
       label: { en: 'Pipeline approvals and deal splits', es: 'Aprobaciones de pipeline y splits de deals', pt: 'Aprovações de pipeline e divisão de negócios' },
-      status: 'missing',
+      detail: {
+        en: 'Stage rules (always, from an amount or a discount) with approvers, notification, approve or reject and an approvals list; splits by percentage count in owner reports, quotas and the forecast by owner',
+        es: 'Reglas por etapa (siempre, desde un monto o un descuento) con aprobadores, aviso, aprobar o rechazar y lista de aprobaciones; los splits por porcentaje cuentan en los reportes por persona, las cuotas y el forecast por owner',
+        pt: 'Regras por etapa (sempre, a partir de um valor ou desconto) com aprovadores, aviso, aprovar ou rejeitar e lista de aprovações; a divisão por porcentagem conta nos relatórios por pessoa, nas cotas e na previsão por dono',
+      },
+      status: 'have',
       competitorHas: true,
     },
     {
       id: 'board-keyboard',
       area: 'pipeline',
       label: { en: 'Change stage from the keyboard', es: 'Cambiar de etapa con el teclado', pt: 'Mudar de etapa pelo teclado' },
-      detail: { en: 'Stage can be picked from the deal page or the table cell; the board has no keyboard shortcut', es: 'La etapa se elige en el deal o en la celda de la tabla; el board no tiene atajo de teclado', pt: 'A etapa se escolhe no negócio ou na célula da tabela; o quadro não tem atalho de teclado' },
-      status: 'partial',
+      detail: {
+        en: 'Arrow keys move between board cards, Shift + arrow changes the stage with a spoken confirmation, M opens the stage menu',
+        es: 'Las flechas recorren las tarjetas del board, Shift + flecha cambia la etapa con aviso para lectores de pantalla y M abre el menú de etapa',
+        pt: 'As setas percorrem os cartões do quadro, Shift + seta muda a etapa com aviso para leitores de tela e M abre o menu de etapa',
+      },
+      status: 'have',
       competitorHas: true,
     },
 
@@ -288,7 +297,12 @@ const parity: ProductParity = {
       id: 'work-queue',
       area: 'sales',
       label: { en: 'Daily work queue for tasks and sequence steps', es: 'Cola de trabajo diaria de tareas y pasos de secuencia', pt: 'Fila de trabalho diária de tarefas e passos de sequência' },
-      status: 'missing',
+      detail: {
+        en: 'Overdue and today tasks, sequence steps included, one at a time with the record beside them: complete, skip, snooze, preview, call, keyboard shortcuts and a counter',
+        es: 'Tareas vencidas y de hoy, pasos de secuencia incluidos, de a una con el registro al lado: completar, saltear, posponer, vista previa, llamar, atajos de teclado y contador',
+        pt: 'Tarefas atrasadas e de hoje, passos de sequência incluídos, uma por vez com o registro ao lado: concluir, pular, adiar, prévia, ligar, atalhos de teclado e contador',
+      },
+      status: 'have',
       competitorHas: true,
       weight: 2,
     },
@@ -303,7 +317,12 @@ const parity: ProductParity = {
       id: 'playbooks',
       area: 'sales',
       label: { en: 'Playbooks and call scripts', es: 'Playbooks y guiones de llamada', pt: 'Playbooks e roteiros de chamada' },
-      status: 'missing',
+      detail: {
+        en: 'Markdown scripts with questions whose answers update contact, company or deal properties; open from the record or while logging a call and saved to the timeline as a note or call',
+        es: 'Guiones en Markdown con preguntas cuyas respuestas actualizan propiedades del contacto, la empresa o el deal; se abren desde el registro o al registrar una llamada y quedan en el timeline como nota o llamada',
+        pt: 'Roteiros em Markdown com perguntas cujas respostas atualizam propriedades do contato, da empresa ou do negócio; abrem a partir do registro ou ao registrar uma chamada e ficam na linha do tempo como nota ou chamada',
+      },
+      status: 'have',
       competitorHas: true,
     },
     {
@@ -343,8 +362,12 @@ const parity: ProductParity = {
       id: 'lead-scoring',
       area: 'automation',
       label: { en: 'Lead scoring', es: 'Lead scoring', pt: 'Lead scoring' },
-      detail: { en: 'One score per workspace with property and activity rules; HubSpot allows several scores', es: 'Un score por workspace con reglas de propiedad y actividad; HubSpot permite varios', pt: 'Um score por workspace com regras de propriedade e atividade; a HubSpot permite vários' },
-      status: 'partial',
+      detail: {
+        en: 'Up to 10 scores with property, activity and email engagement rules, tiers, optional decay and a nightly recalculation; shown in lists and records, usable in filters and workflows',
+        es: 'Hasta 10 scores con reglas de propiedad, actividad y engagement de email, tramos, decaimiento opcional y recálculo cada noche; se ven en listas y fichas y sirven en filtros y workflows',
+        pt: 'Até 10 scores com regras de propriedade, atividade e engajamento de email, faixas, decaimento opcional e recálculo toda noite; aparecem em listas e fichas e servem em filtros e workflows',
+      },
+      status: 'have',
       competitorHas: true,
     },
     {

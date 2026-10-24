@@ -42,6 +42,8 @@ interface TasksViewProps {
   title: string;
   /** Contenido bajo el header (p. ej. el gestor de proyectos). */
   children?: ReactNode;
+  /** Tareas vencidas y de hoy de la persona: el botón de la cola de trabajo. */
+  queueCount?: number;
 }
 
 interface ContactOption {
@@ -69,6 +71,7 @@ export default function TasksView({
   projectId,
   title,
   children,
+  queueCount,
 }: TasksViewProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -145,6 +148,7 @@ export default function TasksView({
   }
 
   useKeyShortcut('c', () => setShowComposer(true), !showComposer);
+  useKeyShortcut('q', () => router.push('/app/crm/tasks/queue'), !showComposer);
 
   async function onSubmit(e?: FormEvent) {
     e?.preventDefault();
@@ -194,6 +198,12 @@ export default function TasksView({
         actions={
           <>
             {children}
+            <Link href="/app/crm/tasks/queue" className="btn btn-sm" data-testid="start-queue">
+              {t('queue.start', { count: queueCount ?? 0 })}
+              <kbd className="kbd" aria-hidden>
+                Q
+              </kbd>
+            </Link>
             <button
               type="button"
               className="btn btn-primary btn-sm"

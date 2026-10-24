@@ -40,6 +40,7 @@ import RecordTabs from '@/components/crm/RecordTabs';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import CompanyLogo from '@/components/crm/CompanyLogo';
 import PhoneTouch from '@/components/crm/PhoneTouch';
+import PlaybookLauncher from '@/components/crm/PlaybookLauncher';
 import CompanyDuplicatesPanel from '@/components/crm/CompanyDuplicatesPanel';
 import { parseRecordTab, recordTabHref } from '@/components/crm/recordTab';
 
@@ -149,6 +150,20 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         actions={
           <>
             {company.phone && <PhoneTouch phone={company.phone} companyId={company.id} />}
+            <PlaybookLauncher
+              entity="company"
+              entityId={company.id}
+              values={{
+                industry: company.industry,
+                employees: company.employees === null || company.employees === undefined ? '' : String(company.employees),
+                phone: company.phone,
+                city: company.city,
+                country: company.country,
+                website: company.website,
+                lifecycleStage: company.lifecycle_stage,
+                ...Object.fromEntries(Object.entries(parseCustom(company.custom)).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
+              }}
+            />
             <CrmQuickCreate
               kind="contact"
               fixedCompanyId={company.id}

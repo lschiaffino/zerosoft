@@ -753,6 +753,9 @@ function triggerMatches(trigger: WorkflowTrigger, event: WorkflowEvent): boolean
     if (formId && formId !== safeString(event.payload?.formId)) return false;
   }
   if (event.type === 'score_changed') {
+    // Score elegido en el disparador; sin elegir, el principal (los workflows de antes).
+    const wanted = safeString(trigger.config.scoreId);
+    if (wanted ? wanted !== safeString(event.payload?.scoreId) : event.payload?.primary === false) return false;
     const raw = trigger.config.threshold;
     const threshold = raw === undefined || raw === null || raw === '' ? null : Number(raw);
     const dir = safeString(trigger.config.direction);

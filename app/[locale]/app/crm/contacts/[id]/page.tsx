@@ -4,7 +4,8 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { canSeeOwner, ownerScopeSql, scopeContactDetail, sessionScope } from '@/lib/crm-visibility';
-import type { ScoreBreakdownItem } from '@/lib/crm-scoring-schema';
+import { scoreTier } from '@/lib/crm-scoring-schema';
+import { contactScores, listScores } from '@/lib/crm-scoring';
 import { getDb } from '@/lib/db';
 import {
   LEAD_STATUSES,
@@ -30,6 +31,7 @@ import AssociationPanel from '@/components/crm/AssociationPanel';
 import CompanyQuickCreate from '@/components/crm/CompanyQuickCreate';
 import DuplicatesPanel from '@/components/crm/DuplicatesPanel';
 import PhoneTouch from '@/components/crm/PhoneTouch';
+import PlaybookLauncher from '@/components/crm/PlaybookLauncher';
 import {
   associateCompanyToContact,
   removeCompanyFromContact,
@@ -152,6 +154,20 @@ export default async function ContactDetailPage(props: {
         actions={
           <>
             {contact.phone && <PhoneTouch phone={contact.phone} contactId={contact.id} />}
+            <PlaybookLauncher
+              entity="contact"
+              entityId={contact.id}
+              values={{
+                jobTitle: contact.job_title,
+                lifecycleStage: contact.lifecycle_stage,
+                leadStatus: contact.lead_status,
+                phone: contact.phone,
+                city: contact.city,
+                country: contact.country,
+                website: contact.website,
+                ...Object.fromEntries(Object.entries(parseCustom(contact.custom)).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
+              }}
+            />
             <BookMeetingMenu
               eventTypes={meetingTypes}
               name={`${contact.first_name} ${contact.last_name}`.trim() || undefined}
@@ -219,6 +235,8 @@ export default async function ContactDetailPage(props: {
 
   // ---------- Actividad: timeline + resumen a la derecha ----------
   if (tab === 'activity') {
+    const primaryScore = (await listScores(user.id)).find((x) => x.isPrimary);
+    const primaryTier = primaryScore ? scoreTier(contact.score ?? 0, primaryScore.thresholds) : null;
     const [timeline, threads, emailTemplates, emailSettings, nextTask] = await Promise.all([
       listTimeline(user.id, { contactId: id, limit: 100, ownerScope: scope }),
       listEmailThreads(user.id, { contactId: id, limit: 100 }),
@@ -283,8 +301,11 @@ export default async function ContactDetailPage(props: {
                   <dd>{ownerLabel}</dd>
                 </div>
                 <div>
-                  <dt>{t('scoring.column')}</dt>
-                  <dd className="num">{contact.score ?? 0}</dd>
+                  <dt>{primaryScore?.name ?? t('scoring.column')}</dt>
+                  <dd className="num">
+                    {contact.score ?? 0}
+                    {primaryTier && <span className="score-tier">{primaryTier}</span>}
+                  </dd>
                 </div>
                 <ActivityDateFacts record={contact} locale={locale} />
               </dl>
@@ -359,7 +380,7 @@ export default async function ContactDetailPage(props: {
       locale,
       owners: ownerOptions,
     });
-    const scoreBreakdown = parseScoreBreakdown(contact.score_breakdown);
+    const scoreViews = await contactScores(user.id, contact);
     const fields: PropField[] = [
       { key: 'firstName', label: t('contacts.form.firstName'), type: 'text', value: contact.first_name },
       { key: 'lastName', label: t('contacts.form.lastName'), type: 'text', value: contact.last_name },
@@ -433,27 +454,44 @@ export default async function ContactDetailPage(props: {
               custom={custom}
               sections={sections}
             />
-            <section className="record-block score-card" id="score" data-testid="contact-score-card">
-              <div className="assoc-head">
-                <h2 className="assoc-title">{t('scoring.column')}</h2>
-                <span className="num score-card-value">{contact.score ?? 0}</span>
-              </div>
-              {scoreBreakdown.length === 0 ? (
-                <p className="assoc-empty">{t('scoring.noBreakdown')}</p>
-              ) : (
-                <ul className="score-breakdown">
-                  {scoreBreakdown.map((b) => (
-                    <li key={b.ruleId}>
-                      <span className={`num score-points ${b.points >= 0 ? 'pos' : 'neg'}`}>
-                        {b.points > 0 ? `+${b.points}` : b.points}
-                      </span>
-                      <span className="score-why">{b.name || t('scoring.unnamedRule')}</span>
-                      {b.detail && <span className="muted score-detail">{b.detail}</span>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            {scoreViews.map((sv) => (
+              <section
+                key={sv.scoreId}
+                className="record-block score-card"
+                id={sv.isPrimary ? 'score' : `score-${sv.scoreId}`}
+                data-testid="contact-score-card"
+              >
+                <div className="assoc-head">
+                  <h2 className="assoc-title">{sv.name}</h2>
+                  <span className="num score-card-value">{sv.score}</span>
+                  {sv.tier && (
+                    <span className="score-tier" data-testid="score-card-tier">
+                      {sv.tier}
+                    </span>
+                  )}
+                </div>
+                {sv.breakdown.length === 0 ? (
+                  <p className="assoc-empty">{t('scoring.noBreakdown')}</p>
+                ) : (
+                  <ul className="score-breakdown">
+                    {sv.breakdown.map((b) => (
+                      <li key={b.ruleId}>
+                        <span className={`num score-points ${b.points >= 0 ? 'pos' : 'neg'}`}>
+                          {b.points > 0 ? `+${b.points}` : b.points}
+                        </span>
+                        <span className="score-why">{b.name || t('scoring.unnamedRule')}</span>
+                        {(b.detail || b.decayed) && (
+                          <span className="muted score-detail">
+                            {b.detail}
+                            {b.decayed ? ` · ${t('scoring.decayedNote')}` : ''}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ))}
           </div>
         </RecordTabs>
       </div>
@@ -588,11 +626,3 @@ export default async function ContactDetailPage(props: {
   );
 }
 
-function parseScoreBreakdown(raw: string | null | undefined): ScoreBreakdownItem[] {
-  try {
-    const v: unknown = JSON.parse(raw ?? '[]');
-    return Array.isArray(v) ? (v as ScoreBreakdownItem[]) : [];
-  } catch {
-    return [];
-  }
-}

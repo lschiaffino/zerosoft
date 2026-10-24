@@ -613,7 +613,7 @@ export async function processEnrollment(
       }
     }
     if (step.type === 'task') {
-      await createActivity(enr.user_id, {
+      const task = await createActivity(enr.user_id, {
         type: 'task',
         subject: renderEmailTemplate(subjectTpl || seq.sequence.name, ctx).text.slice(0, 500),
         body: renderEmailTemplate(bodyTpl, ctx).text.slice(0, 5000),
@@ -622,6 +622,10 @@ export async function processEnrollment(
         companyId: contact.company_id,
         ownerId: enr.sender_id,
       }).catch(() => null);
+      // La cola de trabajo muestra de qué secuencia viene el paso manual.
+      if (task) {
+        await db.prepare('UPDATE crm_activities SET sequence_id = ? WHERE id = ?').run(seq.sequence.id, task.id).catch(() => null);
+      }
       state.current_step += 1;
       continue;
     }

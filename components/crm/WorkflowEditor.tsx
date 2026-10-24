@@ -37,6 +37,8 @@ export interface WorkflowEditorProps {
   pipelines?: Array<{ id: string; name: string; stages: Option[] }>;
   /** Personas del workspace (responsable de la tarea). */
   owners?: Array<{ id: string; label: string }>;
+  /** Lead scores del workspace (trigger "Score cambió"). */
+  scores?: Array<{ id: string; name: string; isPrimary: boolean }>;
   runs: CrmWorkflowRunRow[];
   canEdit?: boolean;
 }
@@ -57,6 +59,7 @@ export default function WorkflowEditor({
   flows = [],
   pipelines = [],
   owners = [],
+  scores = [],
   runs,
   canEdit = true,
 }: WorkflowEditorProps) {
@@ -87,7 +90,7 @@ export default function WorkflowEditor({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [running, setRunning] = useState(false);
 
-  const ctx: Ctx = { lists, sequences, forms, flows, pipelines, owners, canEdit, idBase, showErrors };
+  const ctx: Ctx = { lists, sequences, forms, flows, pipelines, owners, scores, canEdit, idBase, showErrors };
   const triggerLabel = (type: string) => (t.has(`triggerTypes.${type}`) ? t(`triggerTypes.${type}` as 'triggerTypes.manual') : type);
   const actionLabel = (type: string) => (t.has(`actionTypes.${type}`) ? t(`actionTypes.${type}` as 'actionTypes.webhook') : type);
 
@@ -685,6 +688,23 @@ function TriggerConfig({
       )}
       {trigger.type === 'score_changed' && (
         <div className="ui-fields-2">
+          {ctx.scores.length > 1 && (
+            <Field id={id('score')} label={t('scoreId')}>
+              <select
+                id={id('score')}
+                className="select"
+                value={safeString(cfg.scoreId) || ctx.scores.find((x) => x.isPrimary)?.id || ''}
+                onChange={(e) => onConfig({ scoreId: ctx.scores.find((x) => x.id === e.target.value)?.isPrimary ? '' : e.target.value })}
+                disabled={!ctx.canEdit}
+              >
+                {ctx.scores.map((sc) => (
+                  <option key={sc.id} value={sc.id}>
+                    {sc.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field id={id('threshold')} label={t('threshold')}>
             <input
               id={id('threshold')}

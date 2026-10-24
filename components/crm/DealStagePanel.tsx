@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import ApprovalDialog, { readApproval, type ApprovalInfo } from './ApprovalDialog';
 import StageRequirementsDialog, {
   checkStageMove,
   readRequirements,
@@ -37,12 +38,19 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [req, setReq] = useState<{ stageId: string; lostReason?: string; requirements: StageRequirements; won?: boolean } | null>(null);
+  const [approval, setApproval] = useState<ApprovalInfo | null>(null);
 
   async function move(stageId: string, lostReason?: string) {
     setBusy(true);
     setError(null);
     // Primero se pregunta qué pide la etapa: si falta algo, el diálogo se abre sin un 422 de por medio.
     const check = await checkStageMove(dealId, stageId);
+    if (check?.approval) {
+      setBusy(false);
+      setPending(null);
+      setApproval(check.approval);
+      return;
+    }
     if (check && check.missing.length) {
       setBusy(false);
       setPending(null);
@@ -61,6 +69,12 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
     if (res && res.ok) {
       setPending(null);
       router.refresh();
+      return;
+    }
+    const needsApproval = await readApproval(res);
+    if (needsApproval) {
+      setPending(null);
+      setApproval(needsApproval);
       return;
     }
     const requirements = await readRequirements(res);
@@ -97,6 +111,10 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
     const check = await checkStageMove(dealId, stage.id);
     setBusy(false);
     setPending(null);
+    if (check?.approval) {
+      setApproval(check.approval);
+      return;
+    }
     setReq({ stageId: stage.id, requirements: wonRequirements(check ?? { stage: stage.name, missing: [] }), won: true });
   }
 
@@ -208,6 +226,7 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
           {error}
         </p>
       )}
+      {approval && <ApprovalDialog dealId={dealId} info={approval} onClose={() => setApproval(null)} />}
       {req && (
         <StageRequirementsDialog
           dealId={dealId}

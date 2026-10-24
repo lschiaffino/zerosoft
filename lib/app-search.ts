@@ -13,7 +13,7 @@ import type { TeamRole } from '@/lib/teams';
 
 export interface AppSearchItem {
   id: string;
-  group: 'boards' | 'projects' | 'issues' | 'eventTypes' | 'bookings' | 'widgets' | 'flows' | 'agents' | 'robots' | 'groupsChats' | 'groupsTickets' | 'groupsMessages';
+  group: 'playbooks' | 'boards' | 'projects' | 'issues' | 'eventTypes' | 'bookings' | 'widgets' | 'flows' | 'agents' | 'robots' | 'groupsChats' | 'groupsTickets' | 'groupsMessages';
   label: string;
   meta: string;
   href: string;
@@ -52,7 +52,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
 
   const waGroup = WA_GROUP[locale] ?? WA_GROUP.en;
   const ticketNumber = /^#?\d{1,7}$/.test(needle) ? Number(needle.replace('#', '')) : -1;
-  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages] = await Promise.all([
+  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, playbooks] = await Promise.all([
     all(
       `SELECT b.id, b.name AS label FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND b.name LIKE ? ESCAPE '\\' ORDER BY b.updated_at DESC LIMIT ?`,
       user.id,
@@ -117,6 +117,8 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       user.id,
       like,
     ),
+    // CRM: playbooks por nombre.
+    all(`SELECT id, name AS label FROM crm_playbooks WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT ?`, user.id, like),
   ]);
 
   const map = (rows: Row[], group: AppSearchItem['group'], href: (id: string) => string): AppSearchItem[] =>
@@ -141,6 +143,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(robots, 'robots', (id) => `/app/robots/${id}`),
     ...map(groupChats, 'groupsChats', (id) => `/app/groups/inbox/${id}`),
     ...map(groupTickets, 'groupsTickets', (id) => `/app/groups/tickets?open=${id}`),
+    ...map(playbooks, 'playbooks', (id) => `/app/crm/playbooks/${id}`),
     ...groupMessages.map((r) => {
       const [chatId, ...rest] = String(r.meta ?? '').split('|');
       return { id: r.id, group: 'groupsMessages' as const, label: r.label, meta: rest.join('|'), href: `/app/groups/inbox/${chatId}#m-${r.id}` };

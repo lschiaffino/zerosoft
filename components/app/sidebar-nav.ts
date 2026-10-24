@@ -52,6 +52,7 @@ export interface SidebarLabels {
     workflows: string;
     settings: string;
     sequences: string;
+    playbooks: string;
     templates: string;
     products: string;
     quotes: string;
@@ -220,6 +221,7 @@ export function buildNav(
               badge: tasksDue > 0 ? tasksDue : undefined,
             },
             { href: '/app/crm/sequences', label: labels.crm.sequences, active: at('/app/crm/sequences'), icon: 'flow' },
+            { href: '/app/crm/playbooks', label: labels.crm.playbooks, active: at('/app/crm/playbooks'), icon: 'docs' },
             { href: '/app/crm/templates', label: labels.crm.templates, active: at('/app/crm/templates'), icon: 'templates' },
             { href: '/app/crm/forms', label: labels.crm.forms, active: at('/app/crm/forms'), icon: 'inbox' },
           ],

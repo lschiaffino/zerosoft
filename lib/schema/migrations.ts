@@ -3478,6 +3478,114 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // CRM ejecución de ventas: playbooks y sus usos, varios lead scores con
+    // umbrales y decaimiento, aprobaciones de etapa, splits de deals y el
+    // origen (secuencia) de las tareas que la cola de trabajo recorre.
+    id: '073_crm_sales_exec',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE crm_score_rules ADD COLUMN score_id TEXT');
+      await addColumn(client, 'ALTER TABLE crm_activities ADD COLUMN sequence_id TEXT');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS crm_playbooks (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          body TEXT NOT NULL DEFAULT '',
+          questions TEXT NOT NULL DEFAULT '[]',
+          entities TEXT NOT NULL DEFAULT '["contact","company","deal"]',
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_playbooks_user ON crm_playbooks(user_id, updated_at DESC);
+
+        CREATE TABLE IF NOT EXISTS crm_playbook_runs (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          playbook_id TEXT REFERENCES crm_playbooks(id) ON DELETE SET NULL,
+          playbook_name TEXT NOT NULL DEFAULT '',
+          entity TEXT NOT NULL CHECK (entity IN ('contact', 'company', 'deal')),
+          entity_id TEXT NOT NULL,
+          activity_id TEXT,
+          answers TEXT NOT NULL DEFAULT '{}',
+          actor_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_playbook_runs_entity ON crm_playbook_runs(user_id, entity, entity_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_crm_playbook_runs_playbook ON crm_playbook_runs(playbook_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS crm_scores (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          is_primary INTEGER NOT NULL DEFAULT 0,
+          thresholds TEXT NOT NULL DEFAULT '[]',
+          decay_days INTEGER,
+          decay_pct INTEGER NOT NULL DEFAULT 0,
+          position INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_scores_user ON crm_scores(user_id, position);
+
+        CREATE TABLE IF NOT EXISTS crm_contact_scores (
+          contact_id TEXT NOT NULL REFERENCES crm_contacts(id) ON DELETE CASCADE,
+          score_id TEXT NOT NULL REFERENCES crm_scores(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          score INTEGER NOT NULL DEFAULT 0,
+          breakdown TEXT NOT NULL DEFAULT '[]',
+          updated_at TEXT,
+          PRIMARY KEY (contact_id, score_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_contact_scores_score ON crm_contact_scores(score_id, score);
+
+        CREATE TABLE IF NOT EXISTS crm_approval_rules (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          pipeline_id TEXT NOT NULL REFERENCES crm_pipelines(id) ON DELETE CASCADE,
+          stage_id TEXT NOT NULL REFERENCES crm_stages(id) ON DELETE CASCADE,
+          min_amount REAL,
+          min_discount REAL,
+          approver_ids TEXT NOT NULL DEFAULT '[]',
+          enabled INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_approval_rules_stage ON crm_approval_rules(user_id, stage_id);
+
+        CREATE TABLE IF NOT EXISTS crm_deal_approvals (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          deal_id TEXT NOT NULL REFERENCES crm_deals(id) ON DELETE CASCADE,
+          rule_id TEXT REFERENCES crm_approval_rules(id) ON DELETE SET NULL,
+          stage_id TEXT NOT NULL,
+          from_stage_id TEXT,
+          status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
+          requested_by TEXT,
+          note TEXT NOT NULL DEFAULT '',
+          approver_ids TEXT NOT NULL DEFAULT '[]',
+          decided_by TEXT,
+          decision_note TEXT NOT NULL DEFAULT '',
+          decided_at TEXT,
+          consumed_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_deal_approvals_status ON crm_deal_approvals(user_id, status, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_crm_deal_approvals_deal ON crm_deal_approvals(deal_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS crm_deal_splits (
+          deal_id TEXT NOT NULL REFERENCES crm_deals(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          owner_id TEXT NOT NULL,
+          percent REAL NOT NULL,
+          PRIMARY KEY (deal_id, owner_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_deal_splits_owner ON crm_deal_splits(user_id, owner_id);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { BoardDeal, BoardStage } from '@/lib/crm';
@@ -9,6 +9,7 @@ import DealForm from './DealForm';
 import RecordPreview from './RecordPreview';
 import { AddStageColumn } from './AddPipelineStage';
 import { parseRequiredFields } from '@/lib/crm-stage-rules';
+import ApprovalDialog, { readApproval, type ApprovalInfo } from './ApprovalDialog';
 import StageRequirementsDialog, {
   checkStageMove,
   readRequirements,
@@ -100,6 +101,8 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
   const [lostText, setLostText] = useState('');
   const [lostError, setLostError] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  /** La etapa destino pide aprobación (lib/crm-approvals.ts). */
+  const [approval, setApproval] = useState<{ dealId: string; info: ApprovalInfo } | null>(null);
   /**
    * La etapa destino pide propiedades: diálogo para completarlas y mover. Con
    * `won`, es el mismo diálogo de ganado: fecha de cierre (hoy) y lo que
@@ -114,11 +117,27 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
 
   const dragRef = useRef<DragState | null>(null);
   const suppressClickRef = useRef(false);
+  const boardRef = useRef<HTMLDivElement>(null);
+  /** Anuncio para lectores de pantalla (región aria-live). */
+  const [announce, setAnnounce] = useState('');
+  /** Card a enfocar después de moverla con el teclado (cambia de columna y se re-monta). */
+  const focusAfterRef = useRef<string | null>(null);
 
   // Sync tras router.refresh() (el board se remonta al cambiar de pipeline vía key).
   useEffect(() => {
     setCols(stages);
   }, [stages]);
+
+  // El foco sigue a la card que se movió con el teclado.
+  useEffect(() => {
+    const id = focusAfterRef.current;
+    if (!id) return;
+    const el = boardRef.current?.querySelector<HTMLElement>(`.kb-card[data-deal-id="${CSS.escape(id)}"]`);
+    if (el) {
+      el.focus();
+      focusAfterRef.current = null;
+    }
+  }, [cols]);
 
   // Limpieza del DOM de drag si el componente se desmonta a mitad de un drag.
   useEffect(() => {
@@ -298,7 +317,12 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
     setBoardError(null);
     const target = cols.find((c) => c.stage.id === stageId);
     const needsCheck = target ? parseRequiredFields(target.stage.required_fields).length > 0 : true;
-    const check = needsCheck ? await checkStageMove(dealId, stageId) : null;
+    const check = await checkStageMove(dealId, stageId);
+    if (check?.approval) {
+      setApproval({ dealId, info: check.approval });
+      return;
+    }
+    if (!needsCheck && check) check.missing = [];
     setReqMove({
       dealId,
       request: { stageId, beforeId },
@@ -330,11 +354,19 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
       }),
     }).catch(() => null);
     if (res && res.ok) {
+      const deal = snapshot.flatMap((c) => c.deals).find((d) => d.id === dealId);
+      if (deal && target) setAnnounce(t('deals.keyboard.moved', { deal: deal.name, stage: target.stage.name }));
       router.refresh();
       return;
     }
     // Revert optimista.
     setCols(snapshot);
+    const needsApproval = await readApproval(res);
+    if (needsApproval) {
+      setApproval({ dealId, info: needsApproval });
+      setAnnounce(t('approvals.dialogTitle', { stage: needsApproval.stage }));
+      return;
+    }
     const requirements = await readRequirements(res);
     if (requirements) {
       setReqMove({ dealId, request: { stageId, beforeId, ...(lostReason !== undefined ? { lostReason } : {}) }, requirements });
@@ -358,13 +390,78 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
     void doMove(dealId, stageId, beforeId, label);
   }
 
+  // ---------- Teclado ----------
+
+  /** Card en (columna, índice), con el índice acotado a la columna. */
+  function focusCard(colIdx: number, cardIdx: number) {
+    const col = cols[colIdx];
+    if (!col || !col.deals.length) return false;
+    const deal = col.deals[Math.max(0, Math.min(cardIdx, col.deals.length - 1))];
+    boardRef.current?.querySelector<HTMLElement>(`.kb-card[data-deal-id="${CSS.escape(deal.id)}"]`)?.focus();
+    return true;
+  }
+
+  /**
+   * Flechas: moverse entre cards (arriba/abajo) y columnas (izquierda/derecha,
+   * salteando las vacías). Shift + izquierda/derecha: pasar el deal a la etapa
+   * de al lado. Enter abre la vista previa, O el deal, M el menú de etapa.
+   */
+  function handleCardKey(e: ReactKeyboardEvent<HTMLElement>, deal: BoardDeal, colIdx: number, cardIdx: number) {
+    if (e.target !== e.currentTarget || e.metaKey || e.ctrlKey || e.altKey) return;
+    const key = e.key;
+    if (key === 'ArrowDown' || key === 'ArrowUp') {
+      e.preventDefault();
+      focusCard(colIdx, cardIdx + (key === 'ArrowDown' ? 1 : -1));
+      return;
+    }
+    if (key === 'ArrowLeft' || key === 'ArrowRight') {
+      e.preventDefault();
+      const dir = key === 'ArrowRight' ? 1 : -1;
+      if (e.shiftKey) {
+        const target = cols[colIdx + dir];
+        if (!target) {
+          setAnnounce(t('deals.keyboard.edge'));
+          return;
+        }
+        focusAfterRef.current = deal.id;
+        setAnnounce(t('deals.keyboard.moving', { deal: deal.name, stage: target.stage.name }));
+        requestMove(deal.id, target.stage.id, null);
+        return;
+      }
+      for (let i = colIdx + dir; i >= 0 && i < cols.length; i += dir) {
+        if (focusCard(i, cardIdx)) return;
+      }
+      return;
+    }
+    if (key === 'Enter' || key === ' ') {
+      e.preventDefault();
+      setPreviewId(deal.id);
+      return;
+    }
+    if (key === 'o' || key === 'O') {
+      e.preventDefault();
+      router.push(`/app/crm/deals/${deal.id}`);
+      return;
+    }
+    if (key === 'm' || key === 'M') {
+      e.preventDefault();
+      e.currentTarget.querySelector<HTMLSelectElement>('.kb-move')?.focus();
+    }
+  }
+
   // ---------- Render ----------
 
   return (
     <div className="kb-wrap">
       {boardError && <p className="form-error">{boardError}</p>}
-      <div className="kb-board">
-        {cols.map((col) => {
+      <p className="sr-only" role="status" aria-live="polite" data-testid="board-announce">
+        {announce}
+      </p>
+      <p id={`kb-hint-${pipelineId}`} className="muted kb-hint">
+        {t('deals.keyboard.hint')}
+      </p>
+      <div className="kb-board" ref={boardRef}>
+        {cols.map((col, colIdx) => {
           const closed = !!(col.stage.is_won || col.stage.is_lost);
           return (
             <div className="kb-col" key={col.stage.id}>
@@ -376,12 +473,17 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
               </div>
 
               <div className="kb-cards" data-stage-id={col.stage.id}>
-                {col.deals.map((deal) => (
+                {col.deals.map((deal, cardIdx) => (
                   <article
                     key={deal.id}
                     className={`kb-card${closed ? ' closed' : ''}`}
                     title={!closed && typeof deal.age_days === 'number' ? t('deals.ageDays', { days: deal.age_days }) : undefined}
                     data-deal-id={deal.id}
+                    tabIndex={0}
+                    aria-label={t('deals.keyboard.cardLabel', { deal: deal.name, stage: col.stage.name })}
+                    aria-describedby={`kb-hint-${pipelineId}`}
+                    aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowLeft Shift+ArrowRight Enter O M"
+                    onKeyDown={(e) => handleCardKey(e, deal, colIdx, cardIdx)}
                     onPointerDown={(e) => handlePointerDown(e, deal, col.stage.id)}
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
@@ -428,7 +530,10 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
                       onChange={(e) => {
                         const stageId = e.target.value;
                         e.target.value = '';
-                        if (stageId) requestMove(deal.id, stageId, null);
+                        if (stageId) {
+                          focusAfterRef.current = deal.id;
+                          requestMove(deal.id, stageId, null);
+                        }
                       }}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => e.stopPropagation()}
@@ -536,6 +641,19 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
 
       {previewId && (
         <RecordPreview type="deal" id={previewId} locale={locale} onClose={() => setPreviewId(null)} />
+      )}
+
+      {approval && (
+        <ApprovalDialog
+          dealId={approval.dealId}
+          info={approval.info}
+          locale={locale}
+          onClose={() => {
+            const id = approval.dealId;
+            setApproval(null);
+            boardRef.current?.querySelector<HTMLElement>(`.kb-card[data-deal-id="${CSS.escape(id)}"]`)?.focus();
+          }}
+        />
       )}
     </div>
   );
