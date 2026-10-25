@@ -1,6 +1,7 @@
 import { getDb, type DocsPageRow } from './db';
 import { parseBlocks, updateDocPage } from './docs';
 import type { DocsBlock, DocsVersionSummary } from './docs-types';
+import { stripSyncedChildren } from './docs-synced-refs';
 
 /**
  * Historial de versiones de Docs.
@@ -157,6 +158,7 @@ export async function restoreDocVersion(
   const page = await pageRow(ownerId, pageId);
   if (!page) return false;
   await insertSnapshot(page, authorId, 'restore');
-  await updateDocPage(ownerId, pageId, { title: version.title, icon: version.icon, content: version.content });
+  // Los sincronizados vuelven como referencia: restaurar no pisa su contenido compartido.
+  await updateDocPage(ownerId, pageId, { title: version.title, icon: version.icon, content: stripSyncedChildren(version.content) }, { actorId: authorId });
   return true;
 }

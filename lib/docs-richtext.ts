@@ -183,6 +183,29 @@ function serializeNode(
       out.push(`<span data-tex="${escapeAttr(tex.slice(0, 2000))}">${escapeHtml(tex.slice(0, 2000))}</span>`);
       return;
     }
+    // Resaltado de comentario y sugerencias (lib/docs-marks.ts): el span
+    // envuelve texto con marcas; se conserva con sus atributos validados.
+    const comment = el.getAttribute('data-comment');
+    const sug = el.getAttribute('data-sug');
+    if (comment !== null || sug !== null) {
+      if ((el.textContent ?? '') === '') return;
+      const ID = /^[A-Za-z0-9_-]{1,64}$/;
+      let open: string | null = null;
+      if (comment !== null && ID.test(comment)) open = `<span data-comment="${comment}">`;
+      else if (sug !== null && ID.test(sug)) {
+        const kind = el.getAttribute('data-sug-kind');
+        const by = el.getAttribute('data-sug-by') ?? '';
+        if ((kind === 'ins' || kind === 'del') && ID.test(by)) open = `<span data-sug="${sug}" data-sug-kind="${kind}" data-sug-by="${by}">`;
+      }
+      if (!open) {
+        serializeChildren(el, out, parentMark, stripMark);
+        return;
+      }
+      out.push(open);
+      serializeChildren(el, out, parentMark, stripMark);
+      out.push('</span>');
+      return;
+    }
     // Mención de fecha (lib/docs-dates.ts): atributos validados, texto tal cual.
     const date = el.getAttribute('data-date');
     if (date !== null && DAY_RE.test(date)) {

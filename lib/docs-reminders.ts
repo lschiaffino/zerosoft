@@ -10,7 +10,7 @@
  * fila se reclama con un compare-and-set de sent_at y del remind_at leído.
  */
 import { getDb } from './db';
-import { escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
+import { appSender, escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
 import { siteUrl } from './board-urls';
 import { remindersInHtml, type ParsedReminder } from './docs-dates';
@@ -193,7 +193,7 @@ export async function fireDocReminders(opts: { limit?: number; now?: Date } = {}
     }).catch(() => undefined);
     if (r.email) {
       const link = `${siteUrl()}/${locale(r.locale)}/app/docs/${encodeURIComponent(r.page_id)}`;
-      await sendEmail({ to: r.email, ...buildDocReminderEmail(r, link) }).catch(() => undefined);
+      await sendEmail({ to: r.email, from: appSender(), ...buildDocReminderEmail(r, link) }).catch(() => undefined);
     }
   }
   return fired;

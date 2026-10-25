@@ -16,6 +16,8 @@ const schema = z.object({
   projectId: z.string().max(64).optional(),
   /** Docs: sumar la transcripción a la página (la ve todo el workspace). Por defecto no. */
   includeTranscript: z.boolean().optional(),
+  /** Docs: si no hay teamspace privado posible, crear la página a la vista de todo el workspace (confirmado en la UI). */
+  allowWorkspace: z.boolean().optional(),
 });
 
 /**
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!d || d.kind !== 'meeting') return voiceJsonError(404, 'not_found');
   try {
     if (target === 'markdown') return NextResponse.json({ markdown: meetingMarkdown(d, labels, { transcript: true }) });
-    if (target === 'docs') return NextResponse.json(await sendToDocs(auth.owner, d, labels, { includeTranscript: parsed.data.includeTranscript }), { status: 201 });
+    if (target === 'docs') return NextResponse.json(await sendToDocs(auth.owner, d, labels, { includeTranscript: parsed.data.includeTranscript, allowWorkspace: parsed.data.allowWorkspace }), { status: 201 });
     if (target === 'notes') return NextResponse.json(await sendToNotes(auth.owner, d, labels), { status: 201 });
     const scope = await sessionScope(auth.user);
     if (target === 'contact') {

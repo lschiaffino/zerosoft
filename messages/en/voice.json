@@ -208,12 +208,14 @@
     "notesQueued": "Writing the notes with AI. You can leave this page: they are saved with the meeting.",
     "lagging": "{count, plural, one {Transcription is behind: # part waiting, nothing is lost.} other {Transcription is behind: # parts waiting, nothing is lost.}}",
     "docsConfirmTitle": "Send the notes to Docs?",
-    "docsConfirmBody": "Docs has no private space yet: everyone in the workspace will see this page.",
+    "docsConfirmBody": "The workspace reached its teamspace limit, so the page cannot go to a private space: everyone in the workspace will see this page.",
     "docsIncludeTranscript": "Include the full transcript",
     "docsConfirm": "Create the page",
     "otherRecorder": "This meeting is being recorded in another tab or device. The transcript shows up here as it arrives.",
     "failedParts": "{count, plural, one {# part could not be transcribed.} other {# parts could not be transcribed.}}",
-    "retryParts": "Retry"
+    "retryParts": "Retry",
+    "recoveredParts": "{count, plural, one {# more part was transcribed. Regenerate the note to include it.} other {# more parts were transcribed. Regenerate the note to include them.}}",
+    "docsPrivateBody": "The page goes to your private teamspace “{space}” in Docs: only you can see it until you share it."
   },
   "templates": {
     "builtin": {
@@ -382,6 +384,7 @@
     "stopping": "Saving…"
   },
   "export": {
+    "privateSpace": "Voice meetings",
     "me": "Me",
     "them": "Them",
     "speaker": "Speaker",

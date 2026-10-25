@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { getDocPageRow } from '@/lib/docs';
+import { getDocAccess, getDocPageRow } from '@/lib/docs';
 import {
   addDocFavorite,
   DocsFavoriteLimitError,
@@ -34,6 +34,8 @@ export async function POST(req: NextRequest) {
   const row = await getDocPageRow(parsed.data.page_id);
   // Solo páginas del workspace activo (no las de otro workspace compartidas).
   if (!row || row.user_id !== user.id || row.archived === 1) return notFound();
+  // Una página de un teamspace cerrado o privado del que no es miembro no se puede marcar.
+  if (!(await getDocAccess(row, user))) return notFound();
   try {
     await addDocFavorite(realUserId(user), user.id, row.id);
   } catch (err) {

@@ -225,6 +225,11 @@ describe('voice meetings', () => {
     expect(page.title).toBe('Weekly sync');
     expect(page.content).not.toContain('Transcript');
     expect(page.content).toContain('Summary');
+    // Va al teamspace privado de la persona (Docs D3): ni los admins la ven hasta que la comparta.
+    const ts = (await getDb()
+      .prepare('SELECT t.access, t.name FROM docs_pages p JOIN docs_teamspaces t ON t.id = p.teamspace_id WHERE p.title = ? ORDER BY p.created_at DESC LIMIT 1')
+      .get('Weekly sync')) as { access: string; name: string };
+    expect(ts).toEqual({ access: 'private', name: 'Voice meetings' });
     const withT = await sendRoute.POST(jsonReq('http://t', 'POST', { target: 'docs', includeTranscript: true }), ctx(id));
     const page2 = (await getDb().prepare('SELECT content FROM docs_pages WHERE id = ?').get(((await withT.json()) as { id: string }).id)) as { content: string };
     expect(page2.content).toContain('Transcript');
@@ -330,7 +335,7 @@ describe('voice helpers', () => {
         segments: [],
         speakers: {},
       } as unknown as VoiceSessionDetail,
-      { me: 'Me', them: 'Them', speaker: 'Speaker', summary: 'Summary', decisions: 'Decisions', actionItems: 'Next steps', myNotes: 'My notes', transcript: 'Transcript', fromVoice: 'Meeting' },
+      { me: 'Me', them: 'Them', speaker: 'Speaker', privateSpace: 'Voice meetings', summary: 'Summary', decisions: 'Decisions', actionItems: 'Next steps', myNotes: 'My notes', transcript: 'Transcript', fromVoice: 'Meeting' },
     );
     expect(md).toBe('# Demo\n\n## Summary\n\nS\n\n## H\n\n- p\n\n## Decisions\n\n- d\n\n## Next steps\n\n- [ ] a (Ana, Friday)\n');
   });

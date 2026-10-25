@@ -8,7 +8,8 @@
  */
 import { getDb, getUserById, type DocsPageRow } from './db';
 import { getDocAccess, listPageMentionables, parseBlocks, type DocsActor } from './docs';
-import type { DbAction, DbProperty, DbRow, DbValue, DocsBlock, DocsDatabase } from './docs-types';
+import type { DbAction, DbProperty, DbRow, DbValue, DocsAccess, DocsBlock, DocsDatabase } from './docs-types';
+import { canWriteAccess, hiddenTeamspaceIds, teamspaceFilterSql } from './docs-access';
 import { stringifyBlocks } from './docs-types';
 import { cellValue, formatValue, normalizeDatabase, rowTitle } from './docs-database';
 import { actionIncomplete, applyDbOps, fillTemplate, type DbOp } from './docs-db-ops';
@@ -21,7 +22,7 @@ import { recordRevisions } from './docs-revisions';
 
 export class DbServerError extends Error {
   constructor(
-    public code: 'not_found' | 'forbidden' | 'conflict' | 'invalid_input',
+    public code: 'not_found' | 'forbidden' | 'conflict' | 'invalid_input' | 'locked',
     public status: number,
   ) {
     super(code);
@@ -30,7 +31,7 @@ export class DbServerError extends Error {
 
 export interface LoadedDatabase {
   page: DocsPageRow;
-  access: 'owner' | 'edit' | 'view';
+  access: DocsAccess;
   blocks: DocsBlock[];
   index: number;
   db: DocsDatabase;
@@ -45,7 +46,8 @@ export async function loadDatabase(actor: DocsActor, pageId: string, blockId: st
   const page = await pageRow(pageId);
   const access = page ? await getDocAccess(page, actor) : null;
   if (!page || !access || page.archived === 1) throw new DbServerError('not_found', 404);
-  if (opts.edit && access === 'view') throw new DbServerError('forbidden', 403);
+  // Ver o comentar no alcanza para cambiar filas.
+  if (opts.edit && !canWriteAccess(access)) throw new DbServerError('forbidden', 403);
   const blocks = parseBlocks(page.content);
   const index = blocks.findIndex((b) => b.id === blockId && b.type === 'database' && !b.linked);
   if (index === -1) throw new DbServerError('not_found', 404);
@@ -81,9 +83,12 @@ export async function applyRemoteOps(
   pageId: string,
   blockId: string,
   ops: DbOp[],
+  opts: { respectLock?: boolean } = {},
 ): Promise<{ db: DocsDatabase; effects: DbEffect[]; updated_at: string }> {
   for (let attempt = 0; attempt < 4; attempt++) {
     const loaded = await loadDatabase(actor, pageId, blockId, { edit: true });
+    // Página bloqueada: nadie la edita desde la API de bases (igual que el PATCH de la página).
+    if (opts.respectLock && loaded.page.locked === 1) throw new DbServerError('locked', 423);
     const now = new Date().toISOString();
     const next = applyDbOps(loaded.db, ops, now);
     const blocks = loaded.blocks.map((b, i) => (i === loaded.index ? { ...b, db: next, columns: undefined, rows: undefined, view: undefined } : b));
@@ -109,18 +114,25 @@ export interface DatabaseListItem {
   properties: Array<Pick<DbProperty, 'id' | 'name' | 'type'>>;
 }
 
-/** Bases del workspace (páginas no archivadas), para el selector de relación y de vista vinculada. */
-export async function listWorkspaceDatabases(ownerId: string, q = '', limit = 50): Promise<DatabaseListItem[]> {
+/**
+ * Bases del workspace (páginas no archivadas), para el selector de relación y
+ * de vista vinculada: solo de páginas que quien pide puede abrir (sin las de
+ * teamspaces cerrados o privados de los que no es miembro).
+ */
+export async function listWorkspaceDatabases(actor: DocsActor, q = '', limit = 50): Promise<DatabaseListItem[]> {
+  const ownerId = actor.id;
+  const ts = teamspaceFilterSql(await hiddenTeamspaceIds(ownerId, actor.actingUser?.id ?? actor.id));
   const rows = (await getDb()
     .prepare(
-      `SELECT id, title, icon, content FROM docs_pages
-       WHERE user_id = ? AND archived = 0 AND content LIKE '%"type":"database"%'
+      `SELECT * FROM docs_pages
+       WHERE user_id = ? AND archived = 0 AND content LIKE '%"type":"database"%'${ts.sql}
        ORDER BY updated_at DESC LIMIT 400`,
     )
-    .all(ownerId)) as Array<Pick<DocsPageRow, 'id' | 'title' | 'icon' | 'content'>>;
+    .all(ownerId, ...ts.args)) as DocsPageRow[];
   const needle = q.trim().toLowerCase();
   const out: DatabaseListItem[] = [];
   for (const r of rows) {
+    if (!(await getDocAccess(r, actor, { includePublished: false, includePublicLink: false }))) continue;
     for (const b of parseBlocks(r.content)) {
       if (b.type !== 'database' || b.linked) continue;
       const db = normalizeDatabase(b);

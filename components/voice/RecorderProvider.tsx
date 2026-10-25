@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import { ChunkRecorder, getMic, getTabAudio, mediaErrorCode, stopStream, type AudioChunk } from './audio';
 import { formatDuration, VOICE_CHUNK_MS, type VoiceSegment, type VoiceSource } from '@/lib/voice-types';
+import { chunkKey, deleteFailedChunk, loadFailedChunks, saveFailedChunk } from './failedStore';
 
 export type RecorderState = 'idle' | 'starting' | 'recording' | 'stopping';
 export type CaptureMode = 'mic' | 'mic_tab';
@@ -35,6 +36,8 @@ interface Job {
   durationMs: number;
   blob: Blob;
   attempts: number;
+  /** Vino de "Reintentar" (si sale bien, la reunión puede regenerar su nota). */
+  retry?: boolean;
 }
 
 export interface RecorderApi {
@@ -54,6 +57,8 @@ export interface RecorderApi {
   mode: CaptureMode;
   /** Trozos que no se pudieron transcribir, por reunión (se pueden reintentar). */
   failed: Record<string, number>;
+  /** Trozos recuperados con Reintentar, por reunión (para sugerir regenerar la nota). */
+  recovered: Record<string, number>;
   retryFailed: (sessionId: string) => void;
   start: (args: { sessionId: string; mode: CaptureMode; baseOffsetMs: number }) => Promise<void>;
   stop: () => Promise<void>;
@@ -93,7 +98,7 @@ const sleep = (ms: number, signal?: AbortSignal) =>
  * Una sola pestaña graba cada reunión: claim en el servidor al empezar y un
  * latido cada 30 s (también le dice al cron que la reunión sigue viva).
  */
-export default function RecorderProvider({ children }: { children: ReactNode }) {
+export default function RecorderProvider({ children, owner }: { children: ReactNode; /** persona:workspace (separa los trozos guardados). */ owner: string }) {
   const t = useTranslations('voice.recorder');
   const pathname = usePathname();
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -108,8 +113,29 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
   const [failed, setFailed] = useState<Record<string, number>>({});
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [recovered, setRecovered] = useState<Record<string, number>>({});
+  const menuRef = useRef<HTMLSpanElement>(null);
+  const compactRef = useRef<HTMLButtonElement>(null);
+  // Id de esta pestaña como grabador: sobrevive a una recarga (sessionStorage), así
+  // la pestaña que recarga no se ve a sí misma como "otra pestaña grabando".
   const recorderIdRef = useRef('');
-  if (!recorderIdRef.current) recorderIdRef.current = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `r-${Date.now()}-${Math.random()}`;
+  if (!recorderIdRef.current) {
+    let id = '';
+    try {
+      id = sessionStorage.getItem('zs-voice-recorder') ?? '';
+    } catch {
+      /* sin storage */
+    }
+    if (!id) {
+      id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `r-${Date.now()}-${Math.random()}`;
+      try {
+        sessionStorage.setItem('zs-voice-recorder', id);
+      } catch {
+        /* sin storage */
+      }
+    }
+    recorderIdRef.current = id;
+  }
   const recsRef = useRef<Array<{ rec: ChunkRecorder; source: VoiceSource }>>([]);
   const streamsRef = useRef<MediaStream[]>([]);
   const queueRef = useRef<Job[]>([]);
@@ -161,12 +187,33 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
   const markFailed = useCallback(
     (job: Job) => {
       const list = failedRef.current.get(job.sessionId) ?? [];
-      list.push(job);
+      if (!list.some((j) => j.source === job.source && j.seq === job.seq)) list.push(job);
       failedRef.current.set(job.sessionId, list);
       syncCounts();
+      // Persistente: sobrevive a recargar la página.
+      void saveFailedChunk({ key: chunkKey(owner, job), owner, sessionId: job.sessionId, source: job.source, seq: job.seq, offsetMs: job.offsetMs, durationMs: job.durationMs, blob: job.blob });
     },
-    [syncCounts],
+    [syncCounts, owner],
   );
+
+  // Trozos que quedaron sin transcribir en una visita anterior (de esta persona y workspace).
+  useEffect(() => {
+    let alive = true;
+    void loadFailedChunks(owner).then((rows) => {
+      if (!alive || !rows.length) return;
+      for (const r of rows) {
+        const list = failedRef.current.get(r.sessionId) ?? [];
+        if (!list.some((j) => j.source === r.source && j.seq === r.seq)) {
+          list.push({ sessionId: r.sessionId, source: r.source, seq: r.seq, offsetMs: r.offsetMs, durationMs: r.durationMs, blob: r.blob, attempts: 0 });
+        }
+        failedRef.current.set(r.sessionId, list);
+      }
+      syncCounts();
+    });
+    return () => {
+      alive = false;
+    };
+  }, [owner, syncCounts]);
 
   /** Sube un trozo. 'done' | 'failed' | 'fatal:<code>' | 'aborted'. */
   const send = useCallback(async (job: Job, signal: AbortSignal): Promise<string> => {
@@ -217,6 +264,10 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
       const job = queueRef.current.shift()!;
       syncCounts();
       const result = await send(job, ctrl.signal);
+      if (result === 'done') {
+        void deleteFailedChunk(chunkKey(owner, job));
+        if (job.retry) setRecovered((r) => ({ ...r, [job.sessionId]: (r[job.sessionId] ?? 0) + 1 }));
+      }
       if (result === 'aborted') {
         queueRef.current.unshift(job);
         break;
@@ -235,7 +286,7 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
     setWaiting(false);
     syncCounts();
     if (!queueRef.current.length) idleWaiters.current.splice(0).forEach((fn) => fn());
-  }, [send, syncCounts, markFailed]);
+  }, [send, syncCounts, markFailed, owner]);
 
   const enqueue = useCallback(
     (id: string, source: VoiceSource, chunk: AudioChunk, startedAtBase: number) => {
@@ -252,7 +303,7 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
     (id: string) => {
       const jobs = failedRef.current.get(id) ?? [];
       failedRef.current.delete(id);
-      for (const j of jobs) queueRef.current.push({ ...j, attempts: 0 });
+      for (const j of jobs) queueRef.current.push({ ...j, attempts: 0, retry: true });
       setError(null);
       syncCounts();
       void pump();
@@ -452,13 +503,41 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
       tabLive,
       mode,
       failed,
+      recovered,
       retryFailed,
       start,
       stop: () => stop(),
       subscribe,
     }),
-    [sessionId, state, error, pending, waiting, elapsed, level, tabLive, mode, failed, retryFailed, start, stop, subscribe],
+    [sessionId, state, error, pending, waiting, elapsed, level, tabLive, mode, failed, recovered, retryFailed, start, stop, subscribe],
   );
+
+  // Menú compacto: Esc o un clic afuera lo cierran y el foco vuelve al disparador.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (refocus: boolean) => {
+      setMenuOpen(false);
+      if (refocus) compactRef.current?.focus();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        close(true);
+      }
+    };
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (menuRef.current?.contains(target) || compactRef.current?.contains(target)) return;
+      close(false);
+    };
+    document.addEventListener('keydown', onKey, true);
+    document.addEventListener('mousedown', onDown, true);
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    return () => {
+      document.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('mousedown', onDown, true);
+    };
+  }, [menuOpen]);
 
   const recording = state === 'recording' || state === 'stopping';
   const onOwnPage = !!sessionId && pathname === `/app/voice/meetings/${sessionId}`;
@@ -478,8 +557,10 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
               {state === 'stopping' ? t('stopping') : t('stop')}
             </button>
             <button
+              ref={compactRef}
               type="button"
               className="vc-rec-indicator-compact"
+              aria-haspopup="menu"
               aria-expanded={menuOpen}
               aria-label={t('recordingLabel')}
               onClick={() => setMenuOpen((o) => !o)}
@@ -488,7 +569,7 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
               <span className="data">{formatDuration(elapsed)}</span>
             </button>
             {menuOpen && (
-              <span className="vc-rec-indicator-menu" role="menu" onKeyDown={(e) => e.key === 'Escape' && setMenuOpen(false)}>
+              <span ref={menuRef} className="vc-rec-indicator-menu" role="menu">
                 <Link href={`/app/voice/meetings/${sessionId}`} role="menuitem" onClick={() => setMenuOpen(false)}>
                   {t('openMeeting')}
                 </Link>

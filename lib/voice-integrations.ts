@@ -16,7 +16,8 @@ import { canSeeEntity, type OwnerScope } from './crm-visibility';
 import { findContactByEmail } from './crm-integrations';
 import { listUserBookings } from './calendar';
 import { getDb } from './db';
-import { transcriptAsText, updateSession, type VoiceOwner } from './voice';
+import { transcriptAsText, updateSession, VoiceError, type VoiceOwner } from './voice';
+import { createTeamspace, TeamspaceLimitError } from './docs-access';
 import type { VoiceSessionDetail } from './voice-types';
 
 export interface MeetingLabels {
@@ -29,6 +30,8 @@ export interface MeetingLabels {
   myNotes: string;
   transcript: string;
   fromVoice: string;
+  /** Nombre del teamspace privado de Docs donde van las notas de Voice. */
+  privateSpace: string;
 }
 
 /** Nota de la reunión en Markdown. Sin nota mejorada, van las notas propias. */
@@ -84,24 +87,55 @@ export function meetingPlainText(d: VoiceSessionDetail, labels: MeetingLabels): 
   return out.join('\n\n');
 }
 
+const PRIVATE_SPACE_NAMES = ['Voice meetings', 'Reuniones de Voice', 'Reuniões do Voice'];
+
 /**
- * Página nueva en Docs. Docs todavía no tiene un espacio privado: la página
- * la ve todo el workspace, por eso la UI lo confirma y la transcripción va
- * solo si la persona la incluye.
+ * Teamspace privado de la persona para las notas de Voice (Docs D3): solo ella
+ * es miembro, así que ni los admins ven sus páginas hasta que las comparta.
+ * Se reusa si ya existe; null si no se puede crear (tope de teamspaces).
+ */
+export async function ensurePrivateTeamspace(owner: VoiceOwner, name: string): Promise<string | null> {
+  const names = [...new Set([name, ...PRIVATE_SPACE_NAMES])];
+  const row = (await getDb()
+    .prepare(
+      `SELECT t.id FROM docs_teamspaces t JOIN docs_teamspace_members m ON m.teamspace_id = t.id AND m.user_id = ?
+       WHERE t.workspace_id = ? AND t.access = 'private' AND t.created_by = ? AND t.deleted_at IS NULL
+         AND t.name IN (${names.map(() => '?').join(',')})
+       ORDER BY t.created_at LIMIT 1`,
+    )
+    .get(owner.personId, owner.workspaceId, owner.personId, ...names)) as { id: string } | undefined;
+  if (row) return row.id;
+  try {
+    const ts = await createTeamspace(owner.workspaceId, owner.personId, { name, access: 'private', icon: '🎙' });
+    return ts.id;
+  } catch (err) {
+    if (err instanceof TeamspaceLimitError) return null;
+    throw err;
+  }
+}
+
+/**
+ * Página nueva en Docs, en el teamspace privado de la persona. Si no se puede
+ * crear (tope de teamspaces), solo con `allowWorkspace` va a la raíz, donde
+ * la ve todo el workspace (la UI lo confirma). La transcripción va solo si se
+ * incluye.
  */
 export async function sendToDocs(
   owner: VoiceOwner,
   d: VoiceSessionDetail,
   labels: MeetingLabels,
-  opts: { includeTranscript?: boolean } = {},
-): Promise<{ id: string }> {
+  opts: { includeTranscript?: boolean; allowWorkspace?: boolean } = {},
+): Promise<{ id: string; teamspaceId: string | null }> {
+  const teamspaceId = await ensurePrivateTeamspace(owner, labels.privateSpace);
+  if (!teamspaceId && !opts.allowWorkspace) throw new VoiceError('docs_private_unavailable');
   const md = meetingMarkdown(d, labels, { transcript: opts.includeTranscript === true, title: false });
   const page = await createDocPage(owner.workspaceId, {
     title: d.title || labels.fromVoice,
     content: markdownToBlocks(md, { sanitize: sanitizeDocsHtml }),
+    teamspace_id: teamspaceId,
   });
   await updateSession(owner, d.id, { docsPageId: page.id });
-  return { id: page.id };
+  return { id: page.id, teamspaceId };
 }
 
 export async function sendToNotes(owner: VoiceOwner, d: VoiceSessionDetail, labels: MeetingLabels): Promise<{ id: string }> {

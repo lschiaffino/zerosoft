@@ -46,7 +46,7 @@ export function voiceOwner(user: { id: string; actingUser?: { id: string } | nul
 }
 
 export class VoiceError extends Error {
-  constructor(public code: 'not_found' | 'limit_reached' | 'duplicate' | 'invalid_state' | 'not_recorder' | 'recording_elsewhere') {
+  constructor(public code: 'not_found' | 'limit_reached' | 'duplicate' | 'invalid_state' | 'not_recorder' | 'recording_elsewhere' | 'docs_private_unavailable') {
     super(code);
   }
 }

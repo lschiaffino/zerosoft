@@ -133,7 +133,7 @@ test('reunión: grabar, transcripción en vivo, nota con IA, tareas, chat, busca
   // Docs lo ve todo el workspace: se confirma y la transcripción va solo si se tilda.
   await page.getByRole('button', { name: 'Send to Docs' }).click();
   const docsDialog = page.getByRole('alertdialog', { name: 'Send the notes to Docs?' });
-  await expect(docsDialog).toContainText('everyone in the workspace will see this page');
+  await expect(docsDialog).toContainText('only you can see it');
   await expect(docsDialog.getByRole('checkbox', { name: 'Include the full transcript' })).not.toBeChecked();
   await docsDialog.getByRole('button', { name: 'Create the page' }).click();
   await expect(page.getByText('Created a Docs page')).toBeVisible();
@@ -379,9 +379,18 @@ test('un trozo que la transcripción rechaza no traba la cola y se reintenta des
   await expect(page.getByRole('button', { name: 'Start recording' }).or(page.getByRole('button', { name: 'Keep recording' }))).toBeVisible({ timeout: 25_000 });
   expect(Date.now() - t0).toBeLessThan(25_000);
   await expect(page.getByText('1 part could not be transcribed.')).toBeVisible();
+  // El trozo fallido queda en IndexedDB: sigue ahí después de recargar.
+  await expect
+    .poll(async () => ((await (await request.get(`/api/voice/sessions/${id}`)).json()) as { notesStatus: string }).notesStatus, { timeout: 20_000 })
+    .toBe('done');
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(page.getByText('1 part could not be transcribed.')).toBeVisible();
+  await expect(page.getByText(/being recorded in another tab/)).toHaveCount(0);
   failing = false;
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
   await expect(page.getByText(/could not be transcribed/)).toHaveCount(0, { timeout: 15_000 });
+  // La reunión ya tenía nota: se sugiere regenerarla para sumar lo recuperado.
+  await expect(page.getByText('1 more part was transcribed. Regenerate the note to include it.')).toBeVisible();
 });
 
 test('390px grabando: el indicador es compacto y no ensancha la barra', async ({ page, request }) => {
@@ -402,7 +411,26 @@ test('390px grabando: el indicador es compacto y no ensancha la barra', async ({
   const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
   expect(scroll, `scrollWidth ${scroll} > ${inner}`).toBeLessThanOrEqual(inner + 1);
   const bell = page.locator('.band-right button').last();
-  await expect(bell).toBeInViewport();
+  await expect(bell).toBeInViewport({ ratio: 1 });
+  // Esc y clic afuera cierran el menú; el foco vuelve al indicador.
+  await compact.click();
+  await expect(page.getByRole('menu')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await expect(compact).toBeFocused();
+  await compact.click();
+  await page.mouse.click(200, 500);
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  // En el CRM (con el botón de la IA en la barra) la barra tampoco se corre.
+  await page.keyboard.press('ControlOrMeta+k');
+  const dialog = page.getByRole('dialog', { name: 'Search' });
+  await dialog.getByRole('combobox').fill('CRM');
+  await dialog.getByRole('option', { name: /Open CRM/ }).first().click();
+  await expect(page).toHaveURL(/\/app\/crm$/);
+  await expect(compact).toBeVisible();
+  const crm = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
+  expect(crm.scroll, `CRM scrollWidth ${crm.scroll} > ${crm.inner}`).toBeLessThanOrEqual(crm.inner);
+  await expect(page.locator('.band-right button').last()).toBeInViewport({ ratio: 1 });
   await compact.click();
   await page.getByRole('menuitem', { name: 'Stop' }).click();
   await expect(page.locator('.vc-rec-indicator')).toHaveCount(0, { timeout: 25_000 });

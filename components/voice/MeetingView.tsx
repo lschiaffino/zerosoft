@@ -35,6 +35,7 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
   const t = useTranslations('voice.meeting');
   const tTpl = useTranslations('voice.templates.builtin');
   const tErr = useTranslations('voice.errors');
+  const tExport = useTranslations('voice.export');
   const format = useFormatter();
   const locale = useLocale();
   const router = useRouter();
@@ -52,6 +53,8 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [docsDialog, setDocsDialog] = useState(false);
   const [docsTranscript, setDocsTranscript] = useState(false);
+  // Sin teamspace privado posible, el diálogo pasa a avisar que la ve todo el workspace.
+  const [docsWorkspace, setDocsWorkspace] = useState(false);
   const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Lo que soporta el navegador se mira después de hidratar (en el servidor no hay MediaRecorder).
   const [support, setSupport] = useState({ rec: true, tab: true });
@@ -84,8 +87,12 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
   const active = recorder.sessionId === d.id;
   const recordingElsewhere = !!recorder.sessionId && !active && recorder.state !== 'idle';
   // Otra pestaña u otro dispositivo tomó la grabación de esta reunión (claim con latido en el servidor).
-  const otherRecorder = !active && d.status === 'recording' && d.recorderLive && d.recorderId !== recorder.recorderId;
+  // Se decide con el estado fresco del servidor: al recargar una pestaña que grababa, el cierre
+  // (sendBeacon) puede llegar después del render y la reunión ya no está grabando.
+  const [serverChecked, setServerChecked] = useState(initial.status !== 'recording');
+  const otherRecorder = serverChecked && !active && d.status === 'recording' && d.recorderLive && d.recorderId !== recorder.recorderId;
   const failedParts = recorder.failed[d.id] ?? 0;
+  const recoveredParts = recorder.recovered[d.id] ?? 0;
   const rec = {
     state: active ? recorder.state : ('idle' as const),
     error: active ? recorder.error : null,
@@ -139,10 +146,17 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
     return () => clearInterval(timer);
   }, [notesStatus, refresh]);
 
-  // Mientras graba otra pestaña o dispositivo, esta muestra la transcripción que va llegando.
+  useEffect(() => {
+    if (serverChecked) return;
+    const timer = setTimeout(() => void refresh().finally(() => setServerChecked(true)), 1500);
+    return () => clearTimeout(timer);
+  }, [serverChecked, refresh]);
+
+  // Mientras graba otra pestaña o dispositivo, esta se refresca sola (cada 15 s): muestra la
+  // transcripción que llega y se habilita para grabar cuando la otra deja de latir.
   useEffect(() => {
     if (!otherRecorder) return;
-    const timer = setInterval(() => void refresh(), 5000);
+    const timer = setInterval(() => void refresh(), 15_000);
     return () => clearInterval(timer);
   }, [otherRecorder, refresh]);
 
@@ -214,7 +228,7 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
     if (!(await patch({ speakers }))) setError('generic');
   }
 
-  async function send(target: 'docs' | 'notes' | 'markdown', opts: { includeTranscript?: boolean } = {}) {
+  async function send(target: 'docs' | 'notes' | 'markdown', opts: { includeTranscript?: boolean; allowWorkspace?: boolean } = {}) {
     setBusy(target);
     setError(null);
     setFlash(null);
@@ -222,10 +236,15 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
     const res = await fetch(`/api/voice/sessions/${d.id}/send`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ target, locale, includeTranscript: opts.includeTranscript }),
+      body: JSON.stringify({ target, locale, includeTranscript: opts.includeTranscript, allowWorkspace: opts.allowWorkspace }),
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as { id?: string; markdown?: string; error?: string } | null;
     setBusy(null);
+    if (target === 'docs' && data?.error === 'docs_private_unavailable') {
+      setDocsWorkspace(true);
+      setDocsDialog(true);
+      return;
+    }
     if (!res?.ok || !data) {
       setError(data?.error ?? 'network');
       return;
@@ -405,6 +424,14 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
             {t('otherRecorder')}
           </p>
         )}
+        {recoveredParts > 0 && failedParts === 0 && d.enhanced && rec.state === 'idle' && (
+          <p className="vc-notice" role="status">
+            {t('recoveredParts', { count: recoveredParts })}{' '}
+            <button type="button" className="btn btn-sm btn-secondary" disabled={enhancing} onClick={() => void enhance(d.templateKey)}>
+              {t('regenerate')}
+            </button>
+          </p>
+        )}
         {failedParts > 0 && rec.state !== 'recording' && (
           <p className="vc-notice" role="status">
             {t('failedParts', { count: failedParts })}{' '}
@@ -565,7 +592,7 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
         title={t('docsConfirmTitle')}
         body={
           <>
-            <span className="vc-confirm-text">{t('docsConfirmBody')}</span>
+            <span className="vc-confirm-text">{docsWorkspace ? t('docsConfirmBody') : t('docsPrivateBody', { space: tExport('privateSpace') })}</span>
             <label className="ui-check vc-confirm-check">
               <input type="checkbox" checked={docsTranscript} onChange={(e) => setDocsTranscript(e.target.checked)} />
               <span>{t('docsIncludeTranscript')}</span>
@@ -575,7 +602,7 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
         confirmLabel={t('docsConfirm')}
         cancelLabel={t('cancel')}
         busy={busy === 'docs'}
-        onConfirm={() => void send('docs', { includeTranscript: docsTranscript })}
+        onConfirm={() => void send('docs', { includeTranscript: docsTranscript, allowWorkspace: docsWorkspace })}
         onCancel={() => setDocsDialog(false)}
       />
       <ConfirmDialog

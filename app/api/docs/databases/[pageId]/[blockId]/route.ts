@@ -42,12 +42,12 @@ export async function POST(req: NextRequest, props: Params) {
   if (!parsed.success) return invalidBody(parsed.error);
   const actor = { ...user, realId: realUserId(user) };
   try {
-    let res = await applyRemoteOps(actor, pageId, blockId, parsed.data.ops as DbOp[]);
+    let res = await applyRemoteOps(actor, pageId, blockId, parsed.data.ops as DbOp[], { respectLock: true });
     const effects = [...res.effects];
     const also = parsed.data.also;
     if (also) {
       try {
-        const second = await applyRemoteOps(actor, also.page_id, also.block_id, also.ops as DbOp[]);
+        const second = await applyRemoteOps(actor, also.page_id, also.block_id, also.ops as DbOp[], { respectLock: true });
         effects.push(...second.effects);
       } catch (err) {
         // La segunda no se pudo: la primera se deshace (no queda una mitad suelta).

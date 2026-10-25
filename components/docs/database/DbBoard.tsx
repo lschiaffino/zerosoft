@@ -101,7 +101,10 @@ export default function DbBoard({
   onPickGroup,
   subGroupProp = null,
   refs,
+  canAdd = true,
 }: {
+  /** Agregar filas desde las columnas (no en lectura). */
+  canAdd?: boolean;
   db: DocsDatabase;
   rows: DbRow[];
   groupProp: DbProperty | null;
@@ -171,8 +174,8 @@ export default function DbBoard({
     setOver((o) => (o && o.key === key && o.sub === sub && o.before === before ? o : { key, sub, before }));
   };
 
-  /** Columnas de un subgrupo (o de todo el board si no hay subgrupos). */
-  const columns = (list: DbGroup[], sub: string) =>
+  /** Columnas de un subgrupo (o de todo el board si no hay subgrupos); con subgrupos el encabezado va una sola vez arriba. */
+  const columns = (list: DbGroup[], sub: string, head = true) =>
     list.map((g) => {
       const limitKey = `${sub}\u0000${g.key}`;
       const limit = limits[limitKey] ?? PAGE;
@@ -200,11 +203,13 @@ export default function DbBoard({
             onMove(rowId, g.key, d?.from ?? '', before === rowId ? null : before, subs ? { to: sub, from: d?.sub ?? '' } : undefined);
           }}
         >
-          <header className="docs-db-bcol-head">
-            {groupProp.type === 'status' && g.option && <StatusGlyph group={g.option.group ?? 'todo'} />}
-            <span className="docs-db-bcol-name">{groupLabel(groupProp, g, t)}</span>
-            <span className="docs-db-count">{g.rows.length}</span>
-          </header>
+          {head && (
+            <header className="docs-db-bcol-head">
+              {groupProp.type === 'status' && g.option && <StatusGlyph group={g.option.group ?? 'todo'} />}
+              <span className="docs-db-bcol-name">{groupLabel(groupProp, g, t)}</span>
+              <span className="docs-db-count">{g.rows.length}</span>
+            </header>
+          )}
           <div className="docs-db-bcol-cards" role="list">
             {shown.map((row) => (
               <Card
@@ -234,7 +239,8 @@ export default function DbBoard({
               {t('showMore', { n: g.rows.length - limit })}
             </button>
           )}
-          {(groupProp.type !== 'person' || g.key) && (
+          {/* En cada columna (también "Sin …" y las celdas vacías de los subgrupos), como Notion. */}
+          {canAdd && (
             <button type="button" className="docs-db-new-inline" onClick={() => onAdd(g.key, subs ? sub : undefined)}>
               <DocsGlyph name="plus" size={12} />
               {t('newRow')}
@@ -245,35 +251,47 @@ export default function DbBoard({
     });
 
   if (subs && subGroupProp) {
+    // Como Notion: todos los subgrupos con las mismas columnas, alineadas
+    // debajo de un único encabezado, y un solo scroll horizontal.
     return (
-      <div className="docs-db-subgroups" data-testid="docs-db-subgroups">
-        {subs.map((sg) => {
-          const open = !collapsed[sg.key];
-          const cols = groupRows(db, groupProp, sg.rows, { people }, true);
-          return (
-            <section key={sg.key || 'none'} className="docs-db-subgroup" aria-label={groupLabel(subGroupProp, sg, t)}>
-              <button
-                type="button"
-                className="docs-db-subgroup-head"
-                aria-expanded={open}
-                onClick={() => setCollapsed((c) => ({ ...c, [sg.key]: open }))}
-              >
-                <span className={`docs-db-subgroup-caret${open ? ' open' : ''}`} aria-hidden="true">
-                  ▸
-                </span>
-                {subGroupProp.type === 'status' && sg.option && <StatusGlyph group={sg.option.group ?? 'todo'} />}
-                <span>{groupLabel(subGroupProp, sg, t)}</span>
-                <span className="docs-db-count">{sg.rows.length}</span>
-              </button>
-              {open && (
-                <DbHScroll className="docs-db-board" role="list" aria-label={groupLabel(subGroupProp, sg, t)}>
-                  {columns(cols, sg.key)}
-                </DbHScroll>
-              )}
-            </section>
-          );
-        })}
-      </div>
+      <DbHScroll className="docs-db-board docs-db-board-sub" role="list" aria-label={t('viewTypes.board')}>
+        <div className="docs-db-subgroups" data-testid="docs-db-subgroups">
+          <div className="docs-db-subheads">
+            {groups.map((g) => (
+              <div key={g.key || 'none'} className="docs-db-bcol docs-db-bcol-headonly">
+                <header className="docs-db-bcol-head">
+                  {groupProp.type === 'status' && g.option && <StatusGlyph group={g.option.group ?? 'todo'} />}
+                  <span className="docs-db-bcol-name">{groupLabel(groupProp, g, t)}</span>
+                  <span className="docs-db-count">{g.rows.length}</span>
+                </header>
+              </div>
+            ))}
+          </div>
+          {subs.map((sg) => {
+            const open = !collapsed[sg.key];
+            const ids = new Set(sg.rows.map((r) => r.id));
+            const cols = groups.map((g) => ({ ...g, rows: g.rows.filter((r) => ids.has(r.id)) }));
+            return (
+              <section key={sg.key || 'none'} className="docs-db-subgroup" aria-label={groupLabel(subGroupProp, sg, t)}>
+                <button
+                  type="button"
+                  className="docs-db-subgroup-head"
+                  aria-expanded={open}
+                  onClick={() => setCollapsed((c) => ({ ...c, [sg.key]: open }))}
+                >
+                  <span className={`docs-db-subgroup-caret${open ? ' open' : ''}`} aria-hidden="true">
+                    ▸
+                  </span>
+                  {subGroupProp.type === 'status' && sg.option && <StatusGlyph group={sg.option.group ?? 'todo'} />}
+                  <span>{groupLabel(subGroupProp, sg, t)}</span>
+                  <span className="docs-db-count">{sg.rows.length}</span>
+                </button>
+                {open && <div className="docs-db-subgroup-cols">{columns(cols, sg.key, false)}</div>}
+              </section>
+            );
+          })}
+        </div>
+      </DbHScroll>
     );
   }
 

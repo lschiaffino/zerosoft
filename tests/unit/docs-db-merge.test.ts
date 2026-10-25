@@ -67,12 +67,14 @@ describe('Docs: fusión de tres vías', () => {
     expect(mergeDatabase(base, theirs, ours2).rows[0].values.name).toBe('Eins');
   });
 
-  it('un mismo párrafo editado distinto de los dos lados es conflicto (o gana "ours" al sobrescribir)', () => {
+  it('el mismo tramo de un párrafo editado distinto de los dos lados es conflicto (o gana "ours"); tramos distintos se suman', () => {
     const base = [para('p1', 'hola'), para('p2', 'x')];
-    const theirs = [para('p1', 'hola mundo'), para('p2', 'x')];
-    const ours = [para('p1', 'hola gente'), para('p2', 'x')];
+    const theirs = [para('p1', 'chau'), para('p2', 'x')];
+    const ours = [para('p1', 'adiós'), para('p2', 'x')];
     expect(mergeBlocks(base, theirs, ours)).toBeNull();
-    expect(mergeBlocks(base, theirs, ours, 'ours')?.[0].content).toBe('hola gente');
+    expect(mergeBlocks(base, theirs, ours, 'ours')?.[0].content).toBe('adiós');
+    // Las dos agregaron al final: quedan las dos (primero lo ya guardado).
+    expect(mergeBlocks(base, [para('p1', 'hola mundo'), para('p2', 'x')], [para('p1', 'hola gente'), para('p2', 'x')])?.[0].content).toBe('hola mundo gente');
     // Bloques distintos: sin conflicto, con el agregado del otro lado en su lugar.
     const theirs2 = [para('p1', 'hola'), para('n', 'nuevo'), para('p2', 'x')];
     const ours2 = [para('p1', 'hola'), para('p2', 'y')];
@@ -108,15 +110,19 @@ describe('Docs: guardar sobre una versión vieja', () => {
     expect(saved!.content[0].content).toBe('hola mundo');
   });
 
-  it('el mismo párrafo editado en dos pestañas sigue siendo conflicto', async () => {
+  it('el mismo párrafo editado en dos pestañas: gana quien guarda; sin la revisión base es conflicto salvo "Sobrescribir"', async () => {
     const owner = await makeUser('dmerge2');
     const page = await createDocPage(owner.id, { title: 'P', content: [para('p1', 'hola')] });
     await wait();
     await updateDocPage(owner.id, page.id, { content: [para('p1', 'A')], base_updated_at: page.updated_at });
-    await expect(updateDocPage(owner.id, page.id, { content: [para('p1', 'B')], base_updated_at: page.updated_at })).rejects.toBeInstanceOf(DocsConflictError);
-    // "Sobrescribir" fusiona y gana esta pestaña.
-    const forced = await updateDocPage(owner.id, page.id, { content: [para('p1', 'B')], base_updated_at: page.updated_at, merge: 'ours' });
-    expect(forced?.content[0].content).toBe('B');
+    await wait();
+    const second = await updateDocPage(owner.id, page.id, { content: [para('p1', 'B')], base_updated_at: page.updated_at });
+    expect(second?.content[0].content).toBe('B');
+    await wait();
+    const gone = '2000-01-01T00:00:00.000Z';
+    await expect(updateDocPage(owner.id, page.id, { content: [para('p1', 'C')], base_updated_at: gone })).rejects.toBeInstanceOf(DocsConflictError);
+    const forced = await updateDocPage(owner.id, page.id, { content: [para('p1', 'C')], base_updated_at: gone, merge: 'ours' });
+    expect(forced?.content[0].content).toBe('C');
   });
 
   it('PATCH con la base vieja tras una escritura del servidor responde 200 con merged y el contenido fusionado', async () => {

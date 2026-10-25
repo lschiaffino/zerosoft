@@ -6,6 +6,9 @@ import Icon from '@/components/app/icons';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import { Link } from '@/i18n/navigation';
 import type { DocsMentionableUser, DocsPage, DocsPageShare, DocsShareRole } from '@/lib/docs-types';
+import type { DocsGuestInvite } from '@/lib/docs-guests';
+
+const ROLES: DocsShareRole[] = ['full', 'edit', 'comment', 'view'];
 
 export interface ShareRequest {
   kind: 'team' | 'user';
@@ -17,6 +20,13 @@ export interface ShareRequest {
 interface ShareDialogProps {
   page: DocsPage;
   shares: DocsPageShare[];
+  /** Invitaciones pendientes a emails sin cuenta. */
+  invites?: DocsGuestInvite[];
+  /** Miembro con acceso total: rol de los miembros, publicar e IA (un invitado con acceso total no). */
+  canManageWorkspace?: boolean;
+  /** Rol que hereda la página si no fija uno (Ajustes o teamspace). */
+  memberRoleDefault?: DocsShareRole;
+  onRevokeInvite?: (inviteId: string) => void;
   /** Ruta pública del centro de ayuda del workspace (/<locale>/h/<handle>) o null si no hay handle. */
   helpBase: string | null;
   feedback?: { yes: number; no: number } | null;
@@ -46,6 +56,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function ShareDialog({
   page,
   shares,
+  invites = [],
+  canManageWorkspace = true,
+  memberRoleDefault = 'full',
+  onRevokeInvite,
   helpBase,
   feedback,
   onUpdate,
@@ -116,10 +130,19 @@ export default function ShareDialog({
     }
     if (share.kind === 'user') {
       const m = members.find((x) => x.id === share.target_id);
-      return m ? { label: m.name || m.email, sub: m.email } : { label: t('share.kinds.user'), sub: share.target_id ?? '' };
+      if (m) return { label: m.name || m.email, sub: m.email };
+      const email = share.target_email ?? '';
+      return { label: share.target_name || email || t('share.kinds.user'), sub: share.guest ? `${t('share.guest')} · ${email}` : email };
     }
     return { label: t('share.kinds.public'), sub: t('share.publicHelp') };
   };
+
+  const roleOptions = (current?: DocsShareRole) =>
+    ROLES.map((r) => (
+      <option key={r} value={r} disabled={r === 'full' && !canManageWorkspace && current !== 'full'}>
+        {t(`share.roles.${r}`)}
+      </option>
+    ));
 
   const canInvite = Boolean(picked) || EMAIL_RE.test(query.trim());
   const listOpen = suggestOpen && !picked && options.length > 0;
@@ -141,7 +164,15 @@ export default function ShareDialog({
     const code = await onShare(req);
     setBusy(false);
     if (code) {
-      setError(code === 'user_not_found' ? t('share.userNotFound') : t('share.error'));
+      setError(
+        code === 'user_not_found'
+          ? t('share.userNotFound')
+          : code === 'guests_disabled'
+            ? t('share.guestsDisabled')
+            : code === 'invite_limit'
+              ? t('share.inviteLimit')
+              : t('share.error'),
+      );
       return;
     }
     setQuery('');
@@ -282,8 +313,7 @@ export default function ShareDialog({
               onChange={(e) => setRole(e.target.value as DocsShareRole)}
               aria-label={t('share.role')}
             >
-              <option value="view">{t('share.roles.view')}</option>
-              <option value="edit">{t('share.roles.edit')}</option>
+              {roleOptions()}
             </select>
             <button type="submit" className="btn btn-primary" disabled={!canInvite || busy} aria-busy={busy || undefined}>
               {t('share.invite')}
@@ -301,8 +331,44 @@ export default function ShareDialog({
                 <span className="docs-access-name">{t('share.workspace')}</span>
                 <span className="docs-invite-sub">{t('share.workspaceHelp')}</span>
               </span>
-              <span className="docs-access-role">{t('share.roles.owner')}</span>
+              {canManageWorkspace ? (
+                // "Todos en el workspace": el rol de los miembros (no admins) en esta página y sus subpáginas.
+                <select
+                  className="select docs-access-select"
+                  value={page.member_role ?? ''}
+                  onChange={(e) => onUpdate({ member_role: (e.target.value || null) as DocsShareRole | null })}
+                  aria-label={`${t('share.role')}: ${t('share.workspace')}`}
+                  data-testid="docs-member-role"
+                >
+                  <option value="">{t('share.inheritRole', { role: t(`share.roles.${memberRoleDefault}`) })}</option>
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {t(`share.roles.${r}`)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="docs-access-role">{t(`share.roles.${page.member_role ?? memberRoleDefault}`)}</span>
+              )}
             </li>
+            {invites.map((inv) => (
+              <li key={inv.id} className="docs-access-row" data-testid="docs-access-invite">
+                <span className="docs-access-who">
+                  <span className="docs-access-name">{inv.email}</span>
+                  <span className="docs-invite-sub">{t('share.invitePending')}</span>
+                </span>
+                <span className="docs-access-role">{t(`share.roles.${inv.role}`)}</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm btn-icon"
+                  onClick={() => onRevokeInvite?.(inv.id)}
+                  aria-label={`${t('share.revokeInvite')}: ${inv.email}`}
+                  title={t('share.revokeInvite')}
+                >
+                  <Icon name="close" size={14} />
+                </button>
+              </li>
+            ))}
             {ownShares.map((share) => {
               const who = labelFor(share);
               return (
@@ -320,8 +386,7 @@ export default function ShareDialog({
                       onChange={(e) => onRoleChange(share.id, e.target.value as DocsShareRole)}
                       aria-label={`${t('share.role')}: ${who.label}`}
                     >
-                      <option value="view">{t('share.roles.view')}</option>
-                      <option value="edit">{t('share.roles.edit')}</option>
+                      {roleOptions(share.role)}
                     </select>
                   )}
                   <button
@@ -372,8 +437,7 @@ export default function ShareDialog({
                       aria-label={`${t('share.role')}: ${who.label}`}
                       title={t('share.overrideHelp')}
                     >
-                      <option value="view">{t('share.roles.view')}</option>
-                      <option value="edit">{t('share.roles.edit')}</option>
+                      {roleOptions(share.role)}
                     </select>
                   )}
                   {/* Se quita desde la página de origen o cortando la herencia. */}
@@ -383,7 +447,7 @@ export default function ShareDialog({
             })}
           </ul>
 
-          {page.parent_id && (
+          {page.parent_id && canManageWorkspace && (
             <label className="ui-switch docs-switch-row docs-inherit-row">
               <input
                 type="checkbox"
@@ -400,6 +464,7 @@ export default function ShareDialog({
           )}
         </section>
 
+        {canManageWorkspace && (
         <section className="docs-share-group" aria-labelledby={publishId}>
           <h3 className="docs-share-h" id={publishId}>
             {t('share.publishSection')}
@@ -463,6 +528,7 @@ export default function ShareDialog({
             </label>
           </AdvancedSection>
         </section>
+        )}
       </div>
 
       {/* Publicada, "Abrir" ya lleva al artículo: el pie solo aparece sin publicar. */}

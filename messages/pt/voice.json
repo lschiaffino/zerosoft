@@ -208,12 +208,14 @@
     "notesQueued": "Montando a nota com IA. Você pode sair desta página: ela fica salva na reunião.",
     "lagging": "{count, plural, one {A transcrição está atrasada: # parte na fila, nada se perde.} other {A transcrição está atrasada: # partes na fila, nada se perde.}}",
     "docsConfirmTitle": "Enviar a nota para o Docs?",
-    "docsConfirmBody": "O Docs ainda não tem um espaço privado: todo o workspace vai ver esta página.",
+    "docsConfirmBody": "O workspace chegou ao limite de teamspaces e a página não pode ir para um espaço privado: todo o workspace vai ver esta página.",
     "docsIncludeTranscript": "Incluir a transcrição completa",
     "docsConfirm": "Criar a página",
     "otherRecorder": "Esta reunião está sendo gravada em outra aba ou dispositivo. A transcrição aparece aqui conforme chega.",
     "failedParts": "{count, plural, one {# parte não pôde ser transcrita.} other {# partes não puderam ser transcritas.}}",
-    "retryParts": "Tentar de novo"
+    "retryParts": "Tentar de novo",
+    "recoveredParts": "{count, plural, one {Mais # parte foi transcrita. Gere a nota de novo para incluí-la.} other {Mais # partes foram transcritas. Gere a nota de novo para incluí-las.}}",
+    "docsPrivateBody": "A página vai para o seu teamspace privado “{space}” no Docs: só você vê até compartilhar."
   },
   "templates": {
     "builtin": {
@@ -382,6 +384,7 @@
     "stopping": "Salvando…"
   },
   "export": {
+    "privateSpace": "Reuniões do Voice",
     "me": "Eu",
     "them": "Eles",
     "speaker": "Participante",

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const pageId = req.nextUrl.searchParams.get('page');
   if (pageId) {
     const page = await getDocPageRow(pageId);
-    if (!page || !(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }, DOC_INTERNAL_WRITE))) {
+    if (!page || !(await canReadPage(page, user, DOC_INTERNAL_WRITE))) {
       return notFound();
     }
     return NextResponse.json({ rows: await listPageMentionables(page) });

@@ -359,7 +359,7 @@ describe('Docs: guardar páginas como plantillas del workspace', () => {
     const owner = await makeUser('tdo');
     const member = await makeUser('tdm');
     const page = await createDocPage(owner.id, { title: 'Base' });
-    const tpl = (await createDocWorkspaceTemplate(owner.id, owner.id, { page_id: page.id }))!;
+    const tpl = (await createDocWorkspaceTemplate(owner.id, owner.id, { page_id: page.id }, { id: owner.id }))!;
     // Un miembro sin rol de admin no borra la del dueño.
     as(owner, { role: 'member', actingUser: { id: member.id, email: member.email, name: null } });
     await actions.deleteDocWorkspaceTemplateAction(tpl.id);
@@ -379,7 +379,7 @@ describe('Docs: guardar páginas como plantillas del workspace', () => {
     const owner = await makeUser('tro');
     const member = await makeUser('trm');
     const page = await createDocPage(owner.id, { title: 'Base' });
-    const tpl = (await createDocWorkspaceTemplate(owner.id, member.id, { page_id: page.id }))!;
+    const tpl = (await createDocWorkspaceTemplate(owner.id, member.id, { page_id: page.id }, { id: owner.id }))!;
     const title = async () => (await listDocWorkspaceTemplates(owner.id))[0].title;
     // Quien la guardó (miembro, sin rol de admin) la renombra.
     as(owner, { role: 'member', actingUser: { id: member.id, email: member.email, name: null } });
@@ -413,7 +413,7 @@ describe('Docs: guardar páginas como plantillas del workspace', () => {
         .prepare('INSERT INTO docs_templates (id, workspace_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
         .run(crypto.randomUUID(), owner.id, `t${i}`, now, now);
     }
-    await expect(createDocWorkspaceTemplate(owner.id, owner.id, { page_id: page.id })).rejects.toThrow(DocsTemplateLimitError);
+    await expect(createDocWorkspaceTemplate(owner.id, owner.id, { page_id: page.id }, { id: owner.id })).rejects.toThrow(DocsTemplateLimitError);
     as(owner);
     expect((await templatesRoute.POST(jsonReq('http://x/api/docs/templates', 'POST', { page_id: page.id }))).status).toBe(409);
   });

@@ -29,7 +29,9 @@ function PropRow({
   extras,
   onAutofill,
   filling,
+  readOnly = false,
 }: {
+  readOnly?: boolean;
   prop: DbProperty;
   row: DbRow;
   people: Record<string, string>;
@@ -45,7 +47,7 @@ function PropRow({
   const t = useTranslations('docs.database');
   const [editing, setEditing] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-  const computed = isComputedType(prop.type);
+  const computed = isComputedType(prop.type) || readOnly;
   const start = () => {
     if (computed) return;
     if (prop.type === 'checkbox') onChange(cellValue(prop, row) !== true);
@@ -133,7 +135,10 @@ export default function DbRowPanel({
   onMode,
   onClose,
   renderBody,
+  readOnly = false,
 }: {
+  /** Quien mira no edita (puede comentar, bloqueada): sin plantilla, papelera ni edición de propiedades. */
+  readOnly?: boolean;
   block: DocsBlock;
   rowId: string;
   mode: DbRowPanelMode;
@@ -201,10 +206,27 @@ export default function DbRowPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [row?.id]);
 
+  // Al cerrar, el foco vuelve a lo que abrió el panel (la celda, la tarjeta del
+  // board o del calendario); si se repintó mientras tanto, a la tarjeta de la fila.
+  const openedRow = useRef(row?.id ?? null);
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    panelRef.current?.querySelector<HTMLElement>('.docs-db-panel-close')?.focus({ preventScroll: true });
-    return () => prev?.focus?.({ preventScroll: true });
+    const rowId = openedRow.current;
+    const panel = panelRef.current;
+    panel?.querySelector<HTMLElement>('.docs-db-panel-close')?.focus({ preventScroll: true });
+    return () => {
+      requestAnimationFrame(() => {
+        if (document.activeElement && document.activeElement !== document.body && !panel?.contains(document.activeElement)) return;
+        // "Open" de la tabla solo se ve con hover: si ya no se ve, a la celda de la fila.
+        const visible = (el: HTMLElement) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+        let target: HTMLElement | null = prev && prev.isConnected && prev !== document.body && visible(prev) ? prev : null;
+        if (!target && rowId) {
+          const card = document.querySelector<HTMLElement>(`[data-row="${CSS.escape(rowId)}"]`);
+          target = card?.matches('button, [tabindex]') ? card : card?.querySelector<HTMLElement>('[role="gridcell"], button, [tabindex]') ?? null;
+        }
+        target?.focus({ preventScroll: true });
+      });
+    };
   }, []);
 
   // Click afuera cierra el panel lateral (no la página completa). Un click en
@@ -301,6 +323,7 @@ export default function DbRowPanel({
             <DocsGlyph name={mode === 'peek' ? 'expand' : 'peek'} size={14} />
             <span>{mode === 'peek' ? t('openFullPage') : t('openSidePeek')}</span>
           </button>
+          {!readOnly && (<>
           <button
             type="button"
             className="btn btn-ghost btn-sm"
@@ -336,6 +359,7 @@ export default function DbRowPanel({
               <DocsGlyph name="trash" size={14} />
             </button>
           )}
+          </>)}
           <button type="button" className="btn btn-ghost btn-sm btn-icon docs-db-panel-close" onClick={onClose} aria-label={t('closeRow')} title={t('closeRow')}>
             <DocsGlyph name="close" size={16} />
           </button>
@@ -365,7 +389,8 @@ export default function DbRowPanel({
                   refs={runtime.refs}
                   extras={runtime.extras}
                   filling={autofill.filling === p.id}
-                  onAutofill={p.ai && pageId ? () => void autofill.fill(p.id, [rowId]) : undefined}
+                  readOnly={readOnly}
+                  onAutofill={p.ai && pageId && !readOnly ? () => void autofill.fill(p.id, [rowId]) : undefined}
                   onChange={(v) => runtime.setValue(rowId, p.id, v)}
                   onCreateOption={(name) =>
                     updateDb((cur) => {

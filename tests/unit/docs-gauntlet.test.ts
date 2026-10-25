@@ -21,6 +21,7 @@ const session = vi.hoisted(() => ({
 vi.mock('@/lib/session', () => ({
   getCurrentUser: async () => session.user,
   realUserId: (u: { id: string; actingUser?: { id: string } }) => u.actingUser?.id ?? u.id,
+  isWorkspaceAdmin: (u: { actingUser?: { id: string }; role?: string }) => !u.actingUser || u.role === 'owner' || u.role === 'admin',
 }));
 vi.mock('next/navigation', () => ({
   redirect: (url: string) => {
@@ -120,7 +121,8 @@ describe('Docs: borrar un comentario propio', () => {
     const owner = await makeUser('own');
     const guest = await makeUser('gst');
     const page = await createDocPage(owner.id, { title: 'Review' });
-    const share = await createDocShare(owner.id, page.id, 'user', guest.id, 'view');
+    // Comentar (y borrar lo propio) pide "puede comentar" o más; "puede ver" solo lee.
+    const share = await createDocShare(owner.id, page.id, 'user', guest.id, 'comment');
     if (!share) throw new Error('share');
     const kept = await createDocComment(page.id, guest.id, { body: 'Cambiar el precio' });
     const removed = await createDocComment(page.id, guest.id, { body: 'Typo' });

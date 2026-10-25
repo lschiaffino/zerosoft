@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
 import { searchAll, searchTasks } from '@/lib/crm';
-import { searchDocPagesContent } from '@/lib/docs';
+import { searchDocPagesContent, searchSharedDocPages } from '@/lib/docs';
+import { docsHidden } from '@/lib/docs-guard';
+import { listTeamspaces } from '@/lib/docs-access';
 import { listLinks, toLinkDto } from '@/lib/links';
 import { searchNotesForPalette } from '@/lib/notes';
 import { searchApps } from '@/lib/app-search';
@@ -40,7 +42,11 @@ export async function GET(req: NextRequest) {
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
-    searchDocPagesContent(user.id, q, 10),
+    // Propias y, para un invitado, las compartidas desde otros workspaces.
+    Promise.all([searchDocPagesContent(user.id, q, 10, await docsHidden(user)), searchSharedDocPages(user, q, 5)]).then(([own, shared]) => {
+      const seen = new Set(own.map((h) => h.id));
+      return [...own, ...shared.filter((h) => !seen.has(h.id))];
+    }),
     searchTasks(user.id, q, scope),
     // Notas: solo las de la persona logueada (son privadas aunque el workspace sea compartido).
     searchNotesForPalette(user, q),
@@ -142,10 +148,15 @@ export async function GET(req: NextRequest) {
       id: p.row_id ? `${p.id}:${p.row_id}` : p.id,
       group: 'docs',
       label: p.title || 'Untitled',
-      meta: p.snippet ?? '',
+      meta: p.snippet ?? (p.verified === 'verified' ? '✓' : ''),
       // Fila de una base: abre la fila como página.
       href: p.row_id ? `/app/docs/${p.id}?row=${encodeURIComponent(p.row_id)}` : `/app/docs/${p.id}`,
     });
+  }
+
+  // Teamspaces de Docs que la persona ve, por nombre: van a sus ajustes.
+  for (const ts of (await listTeamspaces(user.id, user.actingUser?.id ?? user.id).catch(() => [])).filter((x) => x.name.toLowerCase().includes(q.toLowerCase())).slice(0, 5)) {
+    items.push({ id: `ts:${ts.id}`, group: 'docs', label: ts.name, meta: 'Teamspace', href: '/app/docs/settings?tab=teamspaces' });
   }
 
   for (const n of notes) {

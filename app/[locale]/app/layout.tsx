@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { canCreateDocPage } from '@/lib/docs-guard';
 import { getTranslations } from 'next-intl/server';
 import { DEMO_MODE, requireUser } from '@/lib/session';
 import { countDueTasks } from '@/lib/crm';
@@ -83,11 +84,12 @@ export default async function AppLayout(
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
     <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder']}>
-      <RecorderProvider>
+      <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
         <AppSidebar
+          docsCanCreate={await canCreateDocPage(user, {}).catch(() => true)}
           demo={DEMO_MODE}
           mode={mode}
           tasksDue={tasksDue}
@@ -346,6 +348,7 @@ export default async function AppLayout(
                 docCommentMention: tTrack.raw('notifications.docCommentMention') as string,
                 docCommentReply: tTrack.raw('notifications.docCommentReply') as string,
                 docShared: tTrack.raw('notifications.docShared') as string,
+                docConflict: tTrack.raw('notifications.docConflict') as string,
                 boardMention: tTrack.raw('notifications.boardMention') as string,
                 boardReply: tTrack.raw('notifications.boardReply') as string,
                 groupsMention: tTrack.raw('notifications.groupsMention') as string,

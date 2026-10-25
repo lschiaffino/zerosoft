@@ -1,9 +1,12 @@
 import { getDb, type DocsPageRow } from './db';
 import { parseBlocks } from './docs';
+import { cleanForReaders } from './docs-marks';
 import { inlineHtmlToText } from './docs-markdown';
 import { rankKnowledge, searchTokens } from './knowledge-search';
-import type { DocsBlock } from './docs-types';
-import { databaseSearchText } from './docs-database';
+import type { DocsBlock, DocsDatabase } from './docs-types';
+import { databaseSearchText, normalizeDatabase } from './docs-database';
+import { dbKey, relatedSources } from './docs-db-compute';
+import { visibleContent, withVisibleContent } from './docs-visible';
 
 /**
  * Centro de ayuda público de un workspace: /h/<handle> y /h/<handle>/<slug>.
@@ -80,7 +83,18 @@ export async function getHelpWorkspace(handle: string): Promise<HelpWorkspace | 
   };
 }
 
+/**
+ * Páginas publicadas con su contenido visible para el público: un bloque
+ * sincronizado cuenta solo si su página de origen también está publicada
+ * (lib/docs-visible.ts). Búsqueda, excerpts y artículo leen de acá.
+ */
 async function publishedRows(ownerId: string): Promise<PublishedRow[]> {
+  return withVisibleContent(ownerId, await publishedRowsRaw(ownerId), PUBLIC);
+}
+
+const PUBLIC = { public: true } as const;
+
+async function publishedRowsRaw(ownerId: string): Promise<PublishedRow[]> {
   return (await getDb()
     .prepare(
       `SELECT id, parent_id, title, icon, content, slug, updated_at FROM docs_pages
@@ -104,7 +118,7 @@ async function publishedTreeRows(ownerId: string): Promise<PublishedTreeRow[]> {
 export function pagePlainText(content: string, maxChars = 12_000): string {
   const out: string[] = [];
   let len = 0;
-  for (const b of parseBlocks(content)) {
+  for (const b of cleanForReaders(parseBlocks(content))) {
     if (len > maxChars) break;
     const text = b.type === 'table'
       ? (b.rows ?? []).map((r) => r.join(' ')).join(' ')
@@ -121,7 +135,7 @@ export function pagePlainText(content: string, maxChars = 12_000): string {
 /** Resumen corto: el texto corrido del principio (sin headings ni código), cortado en una palabra. */
 export function pageExcerpt(content: string, max = 160): string {
   let text = '';
-  for (const b of parseBlocks(content)) {
+  for (const b of cleanForReaders(parseBlocks(content))) {
     if (!['paragraph', 'quote', 'callout', 'toggle', 'bulleted_list_item', 'numbered_list_item', 'todo'].includes(b.type)) {
       if (text && b.type === 'heading') break;
       continue;
@@ -185,7 +199,7 @@ export async function withHelpExcerpts<T extends HelpArticleSummary>(ownerId: st
       `SELECT id, content FROM docs_pages WHERE user_id = ? AND id IN (${items.map(() => '?').join(', ')})`,
     )
     .all(ownerId, ...items.map((i) => i.id))) as Array<{ id: string; content: string }>;
-  const byId = new Map(rows.map((r) => [r.id, r.content]));
+  const byId = new Map((await withVisibleContent(ownerId, rows, PUBLIC)).map((r) => [r.id, r.content]));
   return items.map((i) => {
     const content = byId.get(i.id);
     return content != null ? { ...i, excerpt: pageExcerpt(content) } : i;
@@ -208,7 +222,7 @@ export async function getHelpArticle(ownerId: string, slug: string): Promise<Hel
     .prepare('SELECT content, cover_url, cover_position FROM docs_pages WHERE id = ? AND user_id = ?')
     .get(treeRow.id, ownerId)) as { content: string; cover_url: string | null; cover_position: number | null } | undefined;
   if (!content) return null;
-  const row: PublishedRow = { ...treeRow, content: content.content };
+  const row: PublishedRow = { ...treeRow, content: await visibleContent({ id: treeRow.id, user_id: ownerId }, content.content, PUBLIC) };
   const collections = buildHelpCollections(rows);
   // Orden de lectura: colección y sus artículos, una colección tras otra.
   const order: Array<{ item: HelpArticleSummary; collection: HelpArticleSummary }> = [];
@@ -324,4 +338,33 @@ export async function getHelpFeedbackStats(ownerId: string, pageId: string): Pro
     )
     .get(pageId, ownerId)) as { yes: number; no: number } | undefined;
   return { yes: Number(row?.yes ?? 0), no: Number(row?.no ?? 0) };
+}
+
+/**
+ * Bases de otras páginas a las que apuntan las relaciones (y sus espejos de
+ * dos vías) de un artículo, solo si esa página también está publicada en el
+ * centro de ayuda: así se ven los títulos relacionados sin filtrar nada de
+ * una página interna.
+ */
+export async function publishedRelatedDatabases(workspaceId: string, pageId: string, blocks: DocsBlock[]): Promise<Record<string, DocsDatabase>> {
+  const out: Record<string, DocsDatabase> = {};
+  const wanted = new Map<string, { page_id: string; block_id: string }>();
+  for (const b of blocks) {
+    if (b.type !== 'database' || b.linked) continue;
+    for (const src of relatedSources(normalizeDatabase(b), { pageId, blockId: b.id })) {
+      if (src.page_id !== pageId) wanted.set(dbKey(src.page_id, src.block_id), src);
+    }
+  }
+  const pages = new Map<string, DocsBlock[] | null>();
+  for (const [key, src] of [...wanted].slice(0, 20)) {
+    if (!pages.has(src.page_id)) {
+      const row = (await getDb()
+        .prepare('SELECT content FROM docs_pages WHERE id = ? AND user_id = ? AND published = 1 AND archived = 0')
+        .get(src.page_id, workspaceId)) as { content: string } | undefined;
+      pages.set(src.page_id, row ? parseBlocks(row.content) : null);
+    }
+    const target = pages.get(src.page_id)?.find((x) => x.id === src.block_id && x.type === 'database' && !x.linked);
+    if (target) out[key] = normalizeDatabase(target);
+  }
+  return out;
 }

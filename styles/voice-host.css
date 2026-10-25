@@ -173,7 +173,10 @@
 .vc-rec-indicator-menu > a:hover,
 .vc-rec-indicator-menu > button:hover { background: var(--ui-hover); }
 @media (max-width: 520px) {
-  .vc-rec-indicator { height: 28px; }
+  /* Sin borde ni relleno de más: entra al lado de la campana sin correr la barra. */
+  .vc-rec-indicator { height: 28px; border: 0; }
+  .vc-rec-indicator-compact { padding: 0 2px; gap: 3px; font-size: 0.6875rem; }
+  .vc-rec-indicator .vc-rec-dot { width: 6px; height: 6px; }
   .vc-rec-indicator-link,
   .vc-rec-indicator-stop { display: none; }
   .vc-rec-indicator-compact { display: inline-flex; }

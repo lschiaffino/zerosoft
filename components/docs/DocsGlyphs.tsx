@@ -58,6 +58,10 @@ const PATHS = {
   caption: <path d="M3 5h18v10H3zM6 19h12" />,
   upload: <path d="M12 16V4M7 9l5-5 5 5M4 20h16" />,
   template: <path d="M4 4h16v5H4zM4 13h7v7H4zM15 13h5v7h-5z" />,
+  lock: <path d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3" />,
+  check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  alert: <path d="M12 4l9 16H3zM12 10v4M12 17.5v.5" />,
+  history: <path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4M12 8v4l3 2" />,
 } as const;
 
 export type DocsGlyphName = keyof typeof PATHS;

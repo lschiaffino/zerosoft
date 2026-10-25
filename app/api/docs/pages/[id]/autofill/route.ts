@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getDocAccess, getDocPageRow, parseBlocks } from '@/lib/docs';
+import { canWriteAccess } from '@/lib/docs-access';
 import { autofillRows } from '@/lib/docs-db-ai';
 import { normalizeDatabase } from '@/lib/docs-database';
 import { docsDbAutofillSchema } from '@/lib/docs-schema';
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const page = await getDocPageRow(id);
   const access = page ? await getDocAccess(page, user) : null;
   if (!page || !access) return notFound();
-  if (access === 'view') return forbidden();
+  if (!canWriteAccess(access)) return forbidden();
   const { ai, rows, options, multi, prop_id, block_id } = parsed.data;
   // Nombre de la propiedad (si la base ya está guardada) para el prompt.
   const saved = parseBlocks(page.content).find((b) => b.id === block_id && b.type === 'database');

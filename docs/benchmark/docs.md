@@ -89,19 +89,19 @@ Dónde estamos **mejor** que Notion:
 | Ícono y portada | Sí, portada con subida | Ícono emoji; portada por URL o 4 presets | parcial |
 | Selección múltiple de bloques y acciones en lote | Sí | Sí | tiene |
 | Deshacer/rehacer propio del editor | Sí | Sí | tiene |
-| Wiki con páginas verificadas y vencimiento | Sí ([ayuda](https://www.notion.com/help/wikis-and-verified-pages)) | No | falta |
+| Wiki con páginas verificadas y vencimiento | Sí ([ayuda](https://www.notion.com/help/wikis-and-verified-pages)) | Verificar por 7 a 365 días o sin vencimiento, con dueño; aviso al vencer (app y email) y lista de la wiki en el inicio | tiene |
 
 ### Colaboración
 
 | Capacidad | Notion | Docs | Estado |
 |---|---|---|---|
-| Edición simultánea en tiempo real con cursores | Sí | No: el segundo editor recibe un 409 y elige "cargar" o "sobrescribir" | falta (en ideas.json) |
-| Presencia (avatares de quién está viendo) | Sí | No | falta (en ideas.json) |
+| Edición simultánea en tiempo real con cursores | Sí, tecla por tecla | Cursores y selecciones en vivo; los cambios se fusionan cada 1,5 s por bloque y por tramo (polling, sin websockets). Si dos escriben sobre las mismas palabras gana lo propio | parcial |
+| Presencia (avatares de quién está viendo) | Sí | Sí, con salto al bloque de cada persona | tiene |
 | Comentarios de página y por bloque, resolver/reabrir | Sí | Sí | tiene |
 | Respuestas, @menciones en comentarios, notificaciones | Sí | Sí | tiene |
-| Comentario sobre un texto seleccionado (inline) | Sí | Solo por bloque entero | parcial |
-| Sugerencias de edición (modo sugerir, aceptar/rechazar) | Sí ([ayuda](https://www.notion.com/help/suggested-edits)) | No | falta |
-| Invitados externos a una página | Sí (10 en Free, ilimitados en pagos) | Solo cuentas de zerosoft con el link, y solo lectura | parcial |
+| Comentario sobre un texto seleccionado (inline) | Sí | Sí: resaltado, hilo, ⌘⇧M, pestañas Abiertos/Resueltos | tiene |
+| Sugerencias de edición (modo sugerir, aceptar/rechazar) | Sí ([ayuda](https://www.notion.com/help/suggested-edits)) | Sí, en bloques de texto, de a una o todas, con aviso al dueño | tiene |
+| Invitados externos a una página | Sí (10 en Free, ilimitados en pagos) | Por email, sin cuenta, con rol; solo esa página y sus subpáginas | tiene |
 | Bandeja de notificaciones | Sí | Sí (campana global de la app) | tiene |
 
 ### Automatización
@@ -127,14 +127,14 @@ Dónde estamos **mejor** que Notion:
 
 | Capacidad | Notion | Docs | Estado |
 |---|---|---|---|
-| Compartir por persona o equipo con roles | Sí (ver, comentar, editar, acceso total) | Ver y editar; no hay "puede comentar" | parcial |
+| Compartir por persona o equipo con roles | Sí (ver, comentar, editar, acceso total) | Sí, los cuatro | tiene |
 | Herencia de permisos a subpáginas | Sí | Sí, con opción de cortar la herencia | tiene |
-| Página bloqueada (lock page) | Sí | No | falta |
-| Permisos de solo lectura para miembros del workspace | Sí | No: todo miembro edita | falta |
-| Teamspaces privados | Sí (Business) | Compartir con equipos; no hay espacios con su propio árbol | parcial |
+| Página bloqueada (lock page) | Sí | Sí, también "desbloquear solo para mí" | tiene |
+| Permisos de solo lectura para miembros del workspace | Sí | Sí: rol de los miembros en Ajustes y por página o teamspace | tiene |
+| Teamspaces privados | Sí (Business) | Abiertos, cerrados y privados, con sección en el sidebar, uno por defecto con todos, y fuera de la IA salvo que se habilite | tiene |
 | SSO SAML, SCIM | Business/Enterprise | Fuera de alcance de este benchmark (nivel cuenta) | n/a |
-| Registro de auditoría | Enterprise ([ayuda](https://www.notion.com/help/audit-log)) | No | falta |
-| Desactivar export y publicación | Enterprise | No | falta |
+| Registro de auditoría | Enterprise ([ayuda](https://www.notion.com/help/audit-log)) | Sí, con filtros y CSV, un año | tiene |
+| Desactivar export y publicación | Enterprise | Sí, y también los invitados | tiene |
 
 ### Analítica
 
@@ -181,8 +181,8 @@ Dónde estamos **mejor** que Notion:
 |---|---|---|---|
 | Autoguardado | Continuo | 600 ms después de la última edición, con estado visible | tiene |
 | Historial de versiones con restaurar | 7/30/90 días según plan; ilimitado en Enterprise | Últimas 50 versiones, snapshot cada 5 min como mucho | tiene |
-| Ver qué cambió entre versiones | Sí | No | falta (en ideas.json) |
-| Conflictos entre dos editores | Se fusionan | 409 y elegir | parcial |
+| Ver qué cambió entre versiones | Sí | Sí, por bloque y por palabra, y contra la actual | tiene |
+| Conflictos entre dos editores | Se fusionan | Se fusionan por bloque y por tramo; mismas palabras: gana lo propio | tiene |
 
 ### Pulido de UX
 

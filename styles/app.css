@@ -307,6 +307,7 @@
   border: 1px solid var(--ink);
   border-radius: var(--radius-1);
 }
+.side-menu-note { margin: 0; padding: 8px 10px; font-size: 13px; color: var(--brand-gray-2); }
 .side-menu-item {
   display: flex;
   align-items: center;
