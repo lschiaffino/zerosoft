@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-25-crm-stalled',
+    date: '2026-10-25',
+    title: {
+      en: 'CRM: filter stalled deals',
+      es: 'CRM: filtrá los deals estancados',
+      pt: 'CRM: filtre os negócios parados',
+    },
+    items: [
+      {
+        product: 'crm',
+        en: 'The deals table has a Stalled filter that lists open deals past the rotting threshold of their stage, counting activities and emails, with the same rule as the board warning.',
+        es: 'La tabla de deals tiene un filtro Estancados que lista los deals abiertos que pasaron el umbral de su etapa, contando actividades y emails, con la misma regla que el aviso del board.',
+        pt: 'A tabela de negócios tem um filtro Parados que lista os negócios abertos que passaram do limite da etapa, contando atividades e emails, com a mesma regra do aviso do quadro.',
+      },
+    ],
+  },
+  {
     id: '2026-10-25-platform-settings',
     date: '2026-10-25',
     title: {

@@ -1630,6 +1630,8 @@ export interface DealFilter {
   tag?: string;
   /** Deals asociados a esta empresa. */
   companyId?: string;
+  /** Solo deals abiertos que pasaron el umbral de rotting de su etapa (lib/crm-rotting.ts). */
+  stalled?: boolean;
   custom?: Record<string, string>;
   filters?: FilterRule[];
   customTypes?: Record<string, FilterFieldType>;
@@ -1638,6 +1640,32 @@ export interface DealFilter {
   page?: number;
   pageSize?: number;
 }
+
+/**
+ * Misma regla que `isDealRotting`: días enteros sin actividad ni email (o desde el último
+ * update) mayores al umbral de la etapa, en etapas abiertas.
+ */
+export const STALLED_DEAL_SQL = `EXISTS (
+  SELECT 1 FROM crm_stages sx
+  WHERE sx.id = d.stage_id AND sx.is_won = 0 AND sx.is_lost = 0
+    AND julianday('now') - (
+      CASE WHEN MAX(
+        COALESCE((SELECT julianday(MAX(a.created_at)) FROM crm_activities a WHERE a.deal_id = d.id), 0),
+        COALESCE((SELECT julianday(MAX(e.sent_at)) FROM crm_deal_contacts edc
+                  JOIN crm_email_contacts ec ON ec.contact_id = edc.contact_id
+                  JOIN crm_emails e ON e.id = ec.email_id
+                  WHERE edc.deal_id = d.id AND e.sent_at != ''), 0)
+      ) > 0
+      THEN MAX(
+        COALESCE((SELECT julianday(MAX(a.created_at)) FROM crm_activities a WHERE a.deal_id = d.id), 0),
+        COALESCE((SELECT julianday(MAX(e.sent_at)) FROM crm_deal_contacts edc
+                  JOIN crm_email_contacts ec ON ec.contact_id = edc.contact_id
+                  JOIN crm_emails e ON e.id = ec.email_id
+                  WHERE edc.deal_id = d.id AND e.sent_at != ''), 0)
+      )
+      ELSE julianday(d.updated_at) END
+    ) >= (CASE WHEN sx.rotting_days IS NOT NULL AND sx.rotting_days > 0 THEN sx.rotting_days ELSE 14 END) + 1
+)`;
 
 export type DealListRow = CrmDealRow & { stage_name: string | null; company_name: string | null };
 
@@ -1706,6 +1734,7 @@ export async function listDeals(
     where.push('EXISTS (SELECT 1 FROM crm_deal_companies xdc WHERE xdc.deal_id = d.id AND xdc.company_id = ?)');
     args.push(f.companyId);
   }
+  if (f.stalled) where.push(STALLED_DEAL_SQL);
   if (f.custom) {
     for (const [name, value] of Object.entries(f.custom)) {
       if (!value || !CUSTOM_NAME.test(name)) continue;

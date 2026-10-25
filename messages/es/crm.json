@@ -428,6 +428,7 @@
     },
     "ageDays": "{days}d de antigüedad",
     "rotting": "Sin actividad en {days} días",
+    "filterStalled": "Estancados",
     "sortNewest": "Más nuevos",
     "sortOldest": "Más viejos",
     "sortAmount": "Monto",
