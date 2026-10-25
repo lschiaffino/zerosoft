@@ -3,7 +3,8 @@ import { getMessageRow, reactToMessage } from '@/lib/groups';
 import { deleteMessage, editMessage, forwardMessage, pinMessage } from '@/lib/groups-inbox';
 import { createTicket } from '@/lib/groups-tickets';
 import type { TicketPriority } from '@/lib/groups-rules';
-import { groupsError, groupsSession, handleGroupsError, readJson, str, strArr } from '@/lib/groups-http';
+import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, str, strArr } from '@/lib/groups-http';
+import { canSeeChat } from '@/lib/groups-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
+  const target = await getMessageRow(s.ws, id);
+  if (!target) return groupsError(404, 'not_found');
+  const guard = await chatGuard(s, target.chat_id);
+  if (guard instanceof NextResponse) return guard;
   const b = await readJson(req);
   try {
     if (b.action === 'react') return NextResponse.json(await reactToMessage(s.ws, s.me, id, str(b.emoji, 16) ?? ''));
@@ -36,7 +41,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
     if (b.action === 'edit') return NextResponse.json(await editMessage(s.ws, { me: s.me, isAdmin: s.isAdmin }, id, str(b.body) ?? ''));
     if (b.action === 'pin' || b.action === 'unpin') return NextResponse.json(await pinMessage(s.ws, s.me, id, b.action === 'pin'));
-    if (b.action === 'forward') return NextResponse.json({ results: await forwardMessage(s.ws, s.me, id, strArr(b.chatIds, 20)) });
+    if (b.action === 'forward') {
+      // Solo a chats que esta persona puede ver (acceso por etiqueta).
+      const targets: string[] = [];
+      for (const c of strArr(b.chatIds, 20)) if (await canSeeChat(guard.viewer, c)) targets.push(c);
+      return NextResponse.json({ results: await forwardMessage(s.ws, s.me, id, targets) });
+    }
     return groupsError(400, 'invalid_action');
   } catch (err) {
     return handleGroupsError(err);
@@ -47,8 +57,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
+  const id = (await ctx.params).id;
+  const target = await getMessageRow(s.ws, id);
+  if (!target) return groupsError(404, 'not_found');
+  const guard = await chatGuard(s, target.chat_id);
+  if (guard instanceof NextResponse) return guard;
   try {
-    return NextResponse.json(await deleteMessage(s.ws, { me: s.me, isAdmin: s.isAdmin }, (await ctx.params).id));
+    return NextResponse.json(await deleteMessage(s.ws, { me: s.me, isAdmin: s.isAdmin }, id));
   } catch (err) {
     return handleGroupsError(err);
   }

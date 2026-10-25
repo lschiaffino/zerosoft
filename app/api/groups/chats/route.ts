@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { CHAT_FILTERS, listChats, type ChatFilter, type ChatQuery, type PropertyFilter } from '@/lib/groups';
 import { getSavedList, listQuery } from '@/lib/groups-org';
-import { groupsError, groupsSession } from '@/lib/groups-http';
+import { groupsError, groupsSession, sessionViewer } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -59,6 +59,7 @@ export async function GET(req: Request) {
     kind: kind ?? base.kind,
     limit: Number(p.get('limit')) || 50,
     offset: Number(p.get('offset')) || 0,
+    viewer: await sessionViewer(s),
   });
   return NextResponse.json(res);
 }

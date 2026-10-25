@@ -119,7 +119,8 @@
     "skipToContent": "Ir al contenido",
     "groupGroupsLists": "Listas guardadas de WhatsApp",
     "groupGroupsTemplates": "Plantillas de grupo",
-    "newGroupTemplate": "Nueva plantilla de grupo"
+    "newGroupTemplate": "Nueva plantilla de grupo",
+    "groupGroupsRecurring": "Mensajes recurrentes de WhatsApp"
   },
   "manifesto": {
     "p1": "Un equipo de diez personas paga <strong>$6.000 al año</strong> por un CRM, $1.440 por agendar reuniones y $420 por acortar links. Esos precios se calculan por cabeza o por plan.",

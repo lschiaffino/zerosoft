@@ -61,6 +61,13 @@ export const FLOW_EVENT_TYPES = [
   'groups.message.received',
   'groups.ticket.created',
   'groups.ticket.updated',
+  'groups.message.sent',
+  'groups.chat.created',
+  'groups.chat.assigned',
+  'groups.chat.closed',
+  'groups.member.joined',
+  'groups.member.left',
+  'groups.poll.voted',
 ] as const;
 export type FlowEventType = (typeof FLOW_EVENT_TYPES)[number];
 
@@ -279,6 +286,21 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   },
   'groups.ticket.updated': {
     ticket: { id: 'gt_1', number: 12, title: 'Invoice did not arrive', status: 'resolved', priority: 'medium', assigneeId: 'u_1', source: 'reaction', dueAt: '2026-01-02T15:00:00Z', messageBody: '' },
+  },
+  'groups.message.sent': {
+    message: { id: 'gm_2', body: 'Resending it now', authorId: 'u_1', authorKind: 'person', status: 'sent', createdAt: '2026-01-01T15:05:00Z' },
+    chat: { id: 'gc_1', kind: 'group', name: 'Acme support', crmCompanyId: null, crmContactId: null },
+  },
+  'groups.chat.created': { chat: { id: 'gc_1', kind: 'group', name: 'Acme support', crmCompanyId: null, crmContactId: null } },
+  'groups.chat.assigned': { assignedTo: 'u_1', previous: null, chat: { id: 'gc_1', kind: 'group', name: 'Acme support', crmCompanyId: null, crmContactId: null } },
+  'groups.chat.closed': { closedBy: 'u_1', chat: { id: 'gc_1', kind: 'group', name: 'Acme support', crmCompanyId: null, crmContactId: null } },
+  'groups.member.joined': { phones: ['5491155550000'], chat: { id: 'gc_1', kind: 'group', name: 'Acme support', crmCompanyId: null, crmContactId: null } },
+  'groups.member.left': { phones: ['5491155550000'], chat: { id: 'gc_1', kind: 'group', name: 'Acme support', crmCompanyId: null, crmContactId: null } },
+  'groups.poll.voted': {
+    poll: { messageId: 'gm_3', question: 'Which day works?', options: ['Monday', 'Tuesday'] },
+    vote: { voter: '5491155550000', voterName: 'Ada', options: ['Tuesday'] },
+    results: [{ option: 'Monday', votes: 0 }, { option: 'Tuesday', votes: 1 }],
+    chat: { id: 'gc_1', kind: 'group', name: 'Acme support', crmCompanyId: null, crmContactId: null },
   },
 };
 

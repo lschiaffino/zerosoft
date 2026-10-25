@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-10-24',
+  lastReviewed: '2026-10-25',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -217,9 +217,21 @@ const parity: ProductParity = {
       detail: ['Per broadcast and a cap per number', 'Por envío y un tope por número', 'Por envio e um teto por número'],
     }),
     row('scheduled', 'broadcasts', ['Scheduled messages', 'Mensajes programados', 'Mensagens agendadas'], 'have'),
-    row('recurring', 'broadcasts', ['Recurring messages', 'Mensajes recurrentes', 'Mensagens recorrentes'], 'missing'),
+    row('recurring', 'broadcasts', ['Recurring messages', 'Mensajes recurrentes', 'Mensagens recorrentes'], 'have', {
+      detail: [
+        'Daily, weekly by day, monthly or cron, with time zone and end date, to chats and groups; pause, edit and next runs visible; each run goes out with the broadcast pace',
+        'Diario, semanal por días, mensual o cron, con zona horaria y fecha de fin, a chats y grupos; pausar, editar y próximas corridas a la vista; cada corrida sale con el ritmo de los envíos',
+        'Diário, semanal por dias, mensal ou cron, com fuso e data de fim, para chats e grupos; pausar, editar e próximas execuções visíveis; cada execução sai no ritmo dos envios',
+      ],
+    }),
     row('delivery-log', 'broadcasts', ['Live status per recipient', 'Estado en vivo por destinatario', 'Status ao vivo por destinatário'], 'have'),
-    row('polls', 'broadcasts', ['Polls in broadcasts', 'Encuestas en envíos', 'Enquetes nos envios'], 'missing'),
+    row('polls', 'broadcasts', ['Polls in broadcasts', 'Encuestas en envíos', 'Enquetes nos envios'], 'have', {
+      detail: [
+        'In chats, broadcasts and recurring messages, with live results from WAHA votes; Evolution counts votes when the gateway sends them decrypted; the Meta Cloud API has no polls',
+        'En chats, envíos y recurrentes, con resultados en vivo de los votos de WAHA; Evolution los cuenta cuando el gateway los manda descifrados; la Cloud API de Meta no tiene encuestas',
+        'Em chats, envios e recorrentes, com resultados ao vivo dos votos do WAHA; o Evolution conta quando o gateway manda os votos decifrados; a Cloud API da Meta não tem enquetes',
+      ],
+    }),
     row('no-send-credits', 'broadcasts', ['No per-seat send credits', 'Sin créditos de envío por licencia', 'Sem créditos de envio por licença'], 'better', { competitorHas: false }),
 
     // Automatización y AI
@@ -251,40 +263,90 @@ const parity: ProductParity = {
       weight: 2,
       detail: ['Native: the CRM record shows the WhatsApp messages and open tickets', 'Nativo: la ficha del CRM muestra los mensajes de WhatsApp y los tickets abiertos', 'Nativo: a ficha do CRM mostra as mensagens de WhatsApp e os tickets abertos'],
     }),
-    row('webhooks', 'integrations', ['Outgoing webhooks', 'Webhooks salientes', 'Webhooks de saída'], 'partial', {
-      detail: ['3 events (message received, ticket created, ticket updated); Periskope has 20', '3 eventos (mensaje recibido, ticket creado, ticket actualizado); Periskope tiene 20', '3 eventos (mensagem recebida, ticket criado, ticket atualizado); o Periskope tem 20'],
+    row('webhooks', 'integrations', ['Outgoing webhooks', 'Webhooks salientes', 'Webhooks de saída'], 'have', {
+      detail: [
+        '13 events (messages in and out, chat created, assigned and closed, members in and out, tickets, SLA, poll votes), HMAC signature, retries with backoff, delivery log and resend; Periskope also sends message edits, deletions and number status',
+        '13 eventos (mensajes entrantes y salientes, chat creado, asignado y cerrado, miembros que entran y salen, tickets, SLA, votos), firma HMAC, reintentos con backoff, log de entregas y reenvío; Periskope además manda ediciones, borrados y estado del número',
+        '13 eventos (mensagens recebidas e enviadas, chat criado, atribuído e fechado, membros que entram e saem, tickets, SLA, votos), assinatura HMAC, novas tentativas com backoff, log de entregas e reenvio; o Periskope também manda edições, exclusões e status do número',
+      ],
     }),
-    row('public-api', 'integrations', ['Public REST API', 'API REST pública', 'API REST pública'], 'partial', {
-      detail: ['Chats, messages and tickets; no group admin or number endpoints yet', 'Chats, mensajes y tickets; sin endpoints de grupos ni números por ahora', 'Chats, mensagens e tickets; sem endpoints de grupos nem números por enquanto'],
+    row('public-api', 'integrations', ['Public REST API', 'API REST pública', 'API REST pública'], 'have', {
+      detail: [
+        'Chats, messages (text, media, polls), groups, members and invite links, tickets, labels, numbers, broadcasts and recurring messages, with scoped API keys; no contacts or custom property endpoints yet',
+        'Chats, mensajes (texto, media, encuestas), grupos, miembros y links de invitación, tickets, etiquetas, números, envíos y recurrentes, con API keys por scope; sin endpoints de contactos ni de propiedades por ahora',
+        'Chats, mensagens (texto, mídia, enquetes), grupos, membros e links de convite, tickets, etiquetas, números, envios e recorrentes, com API keys por scope; sem endpoints de contatos nem de propriedades por enquanto',
+      ],
     }),
-    row('helpdesk-integrations', 'integrations', ['Freshdesk, Zoho, Slack and Zapier', 'Freshdesk, Zoho, Slack y Zapier', 'Freshdesk, Zoho, Slack e Zapier'], 'partial', {
-      detail: ['Through Flow (Slack, HTTP, Sheets); no direct Freshdesk or Zoho app', 'Con Flow (Slack, HTTP, Sheets); sin app directa de Freshdesk ni Zoho', 'Com o Flow (Slack, HTTP, Sheets); sem app direto de Freshdesk nem Zoho'],
+    row('helpdesk-integrations', 'integrations', ['Freshdesk, Zoho, Slack and Zapier', 'Freshdesk, Zoho, Slack y Zapier', 'Freshdesk, Zoho, Slack e Zapier'], 'have', {
+      detail: [
+        'Slack channel alerts; Freshdesk and Zoho Desk tickets created from ours with status synced both ways (each workspace pastes its own keys, stored encrypted); Zapier through webhooks and the API, with no app in the Zapier directory',
+        'Avisos en un canal de Slack; tickets de Freshdesk y Zoho Desk creados desde los nuestros con el estado sincronizado en los dos sentidos (cada workspace pega sus claves, guardadas cifradas); Zapier por webhooks y la API, sin app en el directorio de Zapier',
+        'Avisos em um canal do Slack; tickets do Freshdesk e do Zoho Desk criados a partir dos nossos com status sincronizado nos dois sentidos (cada workspace cola suas chaves, guardadas criptografadas); Zapier por webhooks e a API, sem app no diretório do Zapier',
+      ],
     }),
-    row('mcp', 'integrations', ['MCP server', 'Servidor MCP', 'Servidor MCP'], 'missing'),
+    row('mcp', 'integrations', ['MCP server', 'Servidor MCP', 'Servidor MCP'], 'have', {
+      detail: [
+        'Streamable HTTP with an API key: 9 tools to list chats, read and send messages and polls, assign, close and label chats, and handle tickets; Periskope lists 56 tools',
+        'Streamable HTTP con API key: 9 herramientas para listar chats, leer y mandar mensajes y encuestas, asignar, cerrar y etiquetar chats y manejar tickets; Periskope lista 56',
+        'Streamable HTTP com API key: 9 ferramentas para listar chats, ler e enviar mensagens e enquetes, atribuir, fechar e etiquetar chats e cuidar de tickets; o Periskope lista 56',
+      ],
+    }),
 
     // Permisos
     row('roles', 'admin', ['Admin and member roles', 'Roles admin y miembro', 'Papéis admin e membro'], 'have', {
       detail: ['Admins connect numbers and change rules; members work the inbox', 'Admins conectan números y cambian reglas; miembros atienden la bandeja', 'Admins conectam números e mudam regras; membros atendem a caixa'],
     }),
-    row('label-access', 'admin', ['Members see only chats with their labels', 'Miembros ven solo chats con sus etiquetas', 'Membros veem só chats com suas etiquetas'], 'missing'),
-    row('masking', 'admin', ['Phone number masking', 'Ocultar números de teléfono', 'Ocultar números de telefone'], 'missing'),
+    row('label-access', 'admin', ['Members see only chats with their labels', 'Miembros ven solo chats con sus etiquetas', 'Membros veem só chats com suas etiquetas'], 'have', {
+      detail: [
+        'Per label, who sees it; members also see the chats assigned to them; applies to inbox, search, Cmd+K, reports, export, API and MCP',
+        'Por etiqueta, quién la ve; los miembros ven además los chats que tienen asignados; aplica en bandeja, búsqueda, Cmd+K, reportes, export, API y MCP',
+        'Por etiqueta, quem a vê; os membros também veem os chats atribuídos a eles; vale na caixa, na busca, no Cmd+K, nos relatórios, no export, na API e no MCP',
+      ],
+    }),
+    row('masking', 'admin', ['Phone number masking', 'Ocultar números de teléfono', 'Ocultar números de telefone'], 'have', {
+      detail: [
+        'Per role (members, admins); hidden in the app, CSV export, API, MCP and push notifications',
+        'Por rol (miembros, admins); ocultos en la app, el export CSV, la API, el MCP y las notificaciones',
+        'Por papel (membros, admins); ocultos no app, no export CSV, na API, no MCP e nas notificações',
+      ],
+    }),
     row('encrypted-credentials', 'admin', ['Provider credentials encrypted at rest', 'Credenciales del proveedor cifradas', 'Credenciais do provedor criptografadas'], 'have'),
-    row('audit-log', 'admin', ['Audit log per chat', 'Log de auditoría por chat', 'Log de auditoria por chat'], 'missing'),
+    row('audit-log', 'admin', ['Audit log per chat', 'Log de auditoría por chat', 'Log de auditoria por chat'], 'have', {
+      detail: [
+        'Who assigned, closed, labeled, renamed, exported, removed or changed members and tickets, from the app, API or MCP; in each chat and for the whole workspace, filterable by action and person',
+        'Quién asignó, cerró, etiquetó, renombró, exportó, sacó o cambió miembros y tickets, desde la app, la API o el MCP; en cada chat y para todo el workspace, filtrable por acción y persona',
+        'Quem atribuiu, fechou, etiquetou, renomeou, exportou, removeu ou mudou membros e tickets, pelo app, pela API ou pelo MCP; em cada chat e para todo o workspace, filtrável por ação e pessoa',
+      ],
+    }),
 
     // Reportes
     row('response-metrics', 'reports', ['Messages, active chats and median first response', 'Mensajes, chats activos y mediana de primera respuesta', 'Mensagens, chats ativos e mediana de primeira resposta'], 'have'),
     row('ticket-metrics', 'reports', ['Ticket and resolution metrics', 'Métricas de tickets y resolución', 'Métricas de tickets e resolução'], 'have'),
     row('per-agent', 'reports', ['By person and by group', 'Por persona y por grupo', 'Por pessoa e por grupo'], 'have'),
-    row('report-filters', 'reports', ['Filter reports by label and date range', 'Filtrar reportes por etiqueta y rango', 'Filtrar relatórios por etiqueta e período'], 'partial', {
-      detail: ['7, 30 or 90 days; no label filter yet', '7, 30 o 90 días; sin filtro por etiqueta por ahora', '7, 30 ou 90 dias; sem filtro por etiqueta por enquanto'],
+    row('report-filters', 'reports', ['Filter reports by label and date range', 'Filtrar reportes por etiqueta y rango', 'Filtrar relatórios por etiqueta e período'], 'have', {
+      detail: [
+        '7, 30 or 90 days or any date range, by label, by chat or group and by number',
+        '7, 30 o 90 días o cualquier rango de fechas, por etiqueta, por chat o grupo y por número',
+        '7, 30 ou 90 dias ou qualquer período, por etiqueta, por chat ou grupo e por número',
+      ],
     }),
     row('csv-export', 'reports', ['CSV export of chats, messages and tickets', 'Export CSV de chats, mensajes y tickets', 'Exportar CSV de chats, mensagens e tickets'], 'have'),
 
     // Apps
     row('mobile-app', 'apps', ['Mobile app', 'App mobile', 'App mobile'], 'partial', {
-      detail: ['The web app works at phone width; no native app', 'La app web funciona en el teléfono; sin app nativa', 'O app web funciona no celular; sem app nativo'],
+      detail: [
+        'Installable app (PWA, the same one as the CRM) on Android and iPhone with push notifications for assigned chats. It is not in the App Store or Google Play; Periskope has native apps',
+        'App instalable (PWA, la misma del CRM) en Android y iPhone con notificaciones push de los chats asignados. No está en App Store ni Google Play; Periskope tiene apps nativas',
+        'App instalável (PWA, o mesmo do CRM) no Android e no iPhone com notificações push dos chats atribuídos. Não está na App Store nem no Google Play; o Periskope tem apps nativos',
+      ],
     }),
-    row('desktop-app', 'apps', ['Desktop app', 'App de escritorio', 'App desktop'], 'missing'),
+    row('desktop-app', 'apps', ['Desktop app', 'App de escritorio', 'App desktop'], 'partial', {
+      detail: [
+        'The same installable app (PWA) in Chrome or Edge, with its own window and notifications; no downloadable desktop binary',
+        'La misma app instalable (PWA) en Chrome o Edge, con ventana propia y notificaciones; sin binario de escritorio para descargar',
+        'O mesmo app instalável (PWA) no Chrome ou Edge, com janela própria e notificações; sem binário desktop para baixar',
+      ],
+    }),
   ],
 };
 

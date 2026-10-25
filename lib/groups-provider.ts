@@ -61,15 +61,17 @@ export interface ProviderCaps {
   calls: boolean;
   /** Mensajes temporales en grupos (Evolution sí, WAHA no lo expone). */
   ephemeral: boolean;
+  /** Encuestas nativas de WhatsApp (la Cloud API de Meta no las tiene). */
+  polls: boolean;
 }
 
 export const PROVIDER_CAPS: Record<ProviderKind, ProviderCaps> = {
   // Cloud API: los mensajes no se editan ni se borran; las llamadas llegan por el webhook "calls" (Calling API).
-  cloud: { groups: false, qr: false, templates: true, ephemeral: false, edit: false, deleteForAll: false, pin: false, forward: false, calls: true },
-  waha: { groups: true, qr: true, templates: false, ephemeral: false, edit: true, deleteForAll: true, pin: true, forward: true, calls: true },
+  cloud: { groups: false, qr: false, templates: true, ephemeral: false, polls: false, edit: false, deleteForAll: false, pin: false, forward: false, calls: true },
+  waha: { groups: true, qr: true, templates: false, ephemeral: false, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true },
   // Evolution API v2 edita y borra; no tiene endpoint para fijar ni reenviar.
-  evolution: { groups: true, qr: true, templates: false, ephemeral: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true },
-  fake: { groups: true, qr: true, templates: false, ephemeral: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true },
+  evolution: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true },
+  fake: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true },
 };
 
 export type ConnectStatus = 'pending' | 'qr' | 'connected' | 'disconnected' | 'error';
@@ -180,6 +182,16 @@ export type InboundEvent =
       isVideo?: boolean;
       timestamp?: string;
     }
+  | {
+      type: 'poll_vote';
+      chatId: string;
+      /** Id del mensaje de la encuesta en el proveedor. */
+      pollProviderMessageId: string;
+      voterPhone: string;
+      voterName: string;
+      /** Opciones elegidas (nombres o índices); vacío = sacó su voto. */
+      options: Array<string | number>;
+    }
   | { type: 'participants'; chatId: string; action: ParticipantAction; phones: string[] }
   | { type: 'session'; status: ConnectStatus; qr?: string; phone?: string };
 
@@ -203,6 +215,8 @@ export interface GroupsProvider {
   sendMedia(chatId: string, media: MediaInput): Promise<SendResult>;
   react(chatId: string, providerMessageId: string, emoji: string, fromMe: boolean): Promise<void>;
   sendTemplate(chatId: string, name: string, language: string, params: string[]): Promise<SendResult>;
+  /** Encuesta nativa (solo si caps.polls). */
+  sendPoll?(chatId: string, poll: { question: string; options: string[]; multi: boolean }): Promise<SendResult>;
   listTemplates(): Promise<Template[]>;
   listGroups(): Promise<GroupInfo[]>;
   createGroup(name: string, phones: string[]): Promise<GroupInfo>;

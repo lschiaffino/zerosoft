@@ -7,6 +7,8 @@
  */
 import { getDb } from './db';
 import { processBroadcasts } from './groups-broadcasts';
+import { runDueRecurring } from './groups-recurring';
+import { syncRemoteTickets } from './groups-integrations';
 import { markBreachedTickets } from './groups-tickets';
 import { fireTaskReminders } from './groups-tasks';
 import { normalizeSettings } from './groups-rules';
@@ -39,9 +41,13 @@ export async function runGroupsCron(opts: { budgetMs?: number } = {}) {
   const breached = await markBreachedTickets().catch(() => null);
   // Tareas y recordatorios de los chats (claim por fila en reminded_for).
   const reminders = await fireTaskReminders().catch(() => null);
+  // Las corridas recurrentes vencidas pasan a envíos; processBroadcasts los manda con el ritmo de siempre.
+  const recurring = await runDueRecurring().catch(() => null);
   const broadcasts = await processBroadcasts({ budgetMs: opts.budgetMs ?? 30_000 }).catch(() => null);
+  const remoteTickets = await syncRemoteTickets().catch(() => null);
+  // Los reintentos de webhooks (también los de Groups) los corre /api/cron/minute con retryDueWebhooks.
   // Round-robin de lo que quedó sin asignar (nadie disponible cuando llegó, o recién se armó la regla).
   const { sweepAutoAssign } = await import('./groups-inbox');
   const assigned = await sweepAutoAssign().catch(() => null);
-  return { flagged, breached, reminders, broadcasts, assigned };
+  return { flagged, breached, reminders, recurring, broadcasts, remoteTickets, assigned };
 }

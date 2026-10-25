@@ -38,6 +38,13 @@ export const WEBHOOK_EVENTS = [
   'groups.message.received',
   'groups.ticket.created',
   'groups.ticket.updated',
+  'groups.message.sent',
+  'groups.chat.created',
+  'groups.chat.assigned',
+  'groups.chat.closed',
+  'groups.member.joined',
+  'groups.member.left',
+  'groups.poll.voted',
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 

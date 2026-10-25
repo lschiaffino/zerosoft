@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { createTicket, listTickets, type TicketQuery } from '@/lib/groups-tickets';
 import type { PropertyFilter } from '@/lib/groups';
 import { TICKET_STATUSES, type TicketPriority } from '@/lib/groups-rules';
-import { groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
+import { chatGuard, groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
+import { ticketsForViewer } from '@/lib/groups-access';
+import { recordAudit } from '@/lib/groups-audit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,7 +38,7 @@ export async function GET(req: Request) {
     q: p.get('q') ?? undefined,
     fields: parseFields(p.get('fields')),
   };
-  return NextResponse.json({ tickets: await listTickets(s.ws, query) });
+  return NextResponse.json({ tickets: await ticketsForViewer(await sessionViewer(s), await listTickets(s.ws, query)) });
 }
 
 /** Ticket a mano sobre un chat (sin mensaje). */
@@ -44,6 +46,8 @@ export async function POST(req: Request) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   const b = await readJson(req);
+  const guard = await chatGuard(s, str(b.chatId, 100) ?? '');
+  if (guard instanceof NextResponse) return guard;
   try {
     const res = await createTicket(s.ws, s.me, {
       chatId: str(b.chatId, 100) ?? '',
@@ -54,6 +58,9 @@ export async function POST(req: Request) {
       source: 'manual',
       fields: b.fields && typeof b.fields === 'object' && !Array.isArray(b.fields) ? (b.fields as Record<string, unknown>) : undefined,
     });
+    if (res.created) {
+      await recordAudit(s.ws, { chatId: res.ticket.chatId, chatName: res.ticket.chatName, actorId: s.me, action: 'ticket_created', detail: { number: res.ticket.number } });
+    }
     return NextResponse.json(res.ticket, { status: res.created ? 201 : 200 });
   } catch (err) {
     return handleGroupsError(err);

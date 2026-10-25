@@ -54,6 +54,7 @@ function useGroupOrder() {
         'groupsMessages',
         'groupsLists',
         'groupsTemplates',
+        'groupsRecurring',
       ], []);
 }
 

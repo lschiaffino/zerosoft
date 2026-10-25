@@ -117,6 +117,7 @@ const WAHA_EVENTS = [
   'call.received',
   'call.accepted',
   'call.rejected',
+  'poll.vote',
 ];
 
 function wahaStatus(raw: unknown): ConnectStatus {
@@ -236,6 +237,25 @@ export function parseWahaWebhook(body: unknown): InboundEvent[] {
       const me = (p.me ?? (b.me as Json) ?? {}) as Json;
       return [{ type: 'session', status: wahaStatus(p.status), phone: me.id ? phoneDigits(String(me.id)) : undefined }];
     }
+    case 'poll.vote': {
+      // { vote: { from, to, participant?, fromMe, selectedOptions }, poll: { id, to, from } }
+      const vote = (p.vote ?? {}) as Json;
+      const poll = (p.poll ?? {}) as Json;
+      const pollId = idString(poll.id);
+      const chatId = String(poll.fromMe === false ? poll.from ?? '' : poll.to ?? vote.to ?? '');
+      if (!pollId || vote.fromMe === true) return [];
+      const voter = String(vote.participant ?? (isGroupJid(String(vote.from ?? '')) ? '' : vote.from) ?? '');
+      return [
+        {
+          type: 'poll_vote',
+          chatId: chatId || String(vote.to ?? ''),
+          pollProviderMessageId: pollId,
+          voterPhone: phoneDigits(voter),
+          voterName: String(((vote._data ?? {}) as Json).notifyName ?? ''),
+          options: Array.isArray(vote.selectedOptions) ? (vote.selectedOptions as Array<string | number>) : [],
+        },
+      ];
+    }
     case 'group.v2.participants': {
       const group = (p.group ?? {}) as Json;
       const map: Record<string, ParticipantAction> = { join: 'add', leave: 'remove', promote: 'promote', demote: 'demote' };
@@ -333,6 +353,14 @@ export function wahaProvider(
     },
     async react(_chatId, messageId, emoji) {
       await api('/api/reaction', 'PUT', { session: cfg.session || 'default', messageId, reaction: emoji });
+    },
+    async sendPoll(chatId, poll) {
+      const r = (await api('/api/sendPoll', 'POST', {
+        session: cfg.session || 'default',
+        chatId,
+        poll: { name: poll.question, options: poll.options, multipleAnswers: poll.multi },
+      })) as Json;
+      return { id: idString(r.id) || String((r.key as Json | undefined)?.id ?? '') };
     },
     sendTemplate: async () => {
       throw new ProviderError('unsupported');
@@ -521,6 +549,24 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
         if (!chatId || !id || chatId === 'status@broadcast') continue;
         const isGroup = isGroupJid(chatId);
         const fromMe = key.fromMe === true;
+        const pollUpdate = ((m.message ?? {}) as Json).pollUpdateMessage as Json | undefined;
+        if (pollUpdate) {
+          // Evolution manda el voto descifrado en vote.selectedOptions (si el gateway lo descifra).
+          const target = String(((pollUpdate.pollCreationMessageKey ?? {}) as Json).id ?? '');
+          const vote = (pollUpdate.vote ?? m.pollVote ?? {}) as Json;
+          const selected = Array.isArray(vote.selectedOptions) ? (vote.selectedOptions as Array<string | number>) : null;
+          if (target && selected && !fromMe) {
+            out.push({
+              type: 'poll_vote',
+              chatId,
+              pollProviderMessageId: target,
+              voterPhone: phoneDigits(isGroup ? String(key.participant ?? m.participant ?? '') : chatId),
+              voterName: String(m.pushName ?? ''),
+              options: selected,
+            });
+          }
+          continue;
+        }
         const content = baileysContent((m.message ?? {}) as Json);
         const sender = isGroup ? String(key.participant ?? m.participant ?? '') : fromMe ? '' : chatId;
         if (content.protocol) {
@@ -569,6 +615,22 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
         const st = EVOLUTION_ACK[String(u.status ?? '').toUpperCase()];
         const id = String(u.keyId ?? ((u.key ?? {}) as Json).id ?? '');
         if (st && id) out.push({ type: 'status', providerMessageId: id, status: st });
+        // Resultado agregado de una encuesta: [{ name, voters: [jid] }] → un voto por persona.
+        const agg = Array.isArray(u.pollUpdates) ? (u.pollUpdates as Json[]) : null;
+        if (agg && id) {
+          const byVoter = new Map<string, string[]>();
+          for (const opt of agg) {
+            for (const v of Array.isArray(opt.voters) ? (opt.voters as unknown[]) : []) {
+              const phone = phoneDigits(idString(v));
+              if (!phone) continue;
+              byVoter.set(phone, [...(byVoter.get(phone) ?? []), String(opt.name ?? '')]);
+            }
+          }
+          const chatId = String(u.remoteJid ?? ((u.key ?? {}) as Json).remoteJid ?? '');
+          for (const [phone, options] of byVoter) {
+            out.push({ type: 'poll_vote', chatId, pollProviderMessageId: id, voterPhone: phone, voterName: '', options });
+          }
+        }
       }
       return out;
     }
@@ -708,6 +770,15 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     },
     async react(chatId, messageId, emoji, fromMe) {
       await api(`/message/sendReaction/${instance}`, 'POST', { key: { remoteJid: chatId, fromMe, id: messageId }, reaction: emoji });
+    },
+    async sendPoll(chatId, poll) {
+      const r = (await api(`/message/sendPoll/${instance}`, 'POST', {
+        number: chatId,
+        name: poll.question,
+        selectableCount: poll.multi ? poll.options.length : 1,
+        values: poll.options,
+      })) as Json;
+      return { id: String(((r.key ?? {}) as Json).id ?? '') };
     },
     sendTemplate: async () => {
       throw new ProviderError('unsupported');

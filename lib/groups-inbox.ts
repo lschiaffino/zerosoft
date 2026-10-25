@@ -26,7 +26,6 @@ import {
   sendMessage,
   toMessageDto,
   touchChat,
-  updateChat,
   upsertChat,
   type ChatPatch,
   type ChatRow,
@@ -372,9 +371,11 @@ export async function bulkChats(
                 : { assignedTo: value || null };
   let updated = 0;
   let failed = 0;
+  // Como un cambio de a uno: auditoría, eventos (webhooks, Flow) y push al asignado.
+  const { patchChatAs } = await import('./groups-chat-ops');
   for (const id of [...new Set(chatIds)].slice(0, 200)) {
     try {
-      await updateChat(ws, id, patch, actor);
+      await patchChatAs(ws, { id: actor }, id, patch);
       updated++;
     } catch (err) {
       // Una persona que no es del workspace falla igual en todos: se corta.

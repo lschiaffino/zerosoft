@@ -15,7 +15,8 @@ const STATUS_FILTERS = ['active', 'open', 'in_progress', 'resolved', 'closed', '
  * Tickets de los chats: filtros (también por campo propio), y estado,
  * prioridad y asignado editables en la fila. Los campos propios se editan
  * en el ticket (clic en el título del panel o "Campos"); los obligatorios
- * se piden al resolver o cerrar.
+ * se piden al resolver o cerrar. Los vinculados en Freshdesk o Zoho Desk
+ * muestran su enlace.
  */
 export default function TicketsBoard({
   initial,
@@ -23,12 +24,15 @@ export default function TicketsBoard({
   me,
   openId,
   fields = [],
+  remote = {},
 }: {
   initial: TicketDto[];
   people: GroupsPerson[];
   me: string;
   openId: string | null;
   fields?: PropertyDef[];
+  /** Tickets vinculados en Freshdesk o Zoho Desk, por id de ticket. */
+  remote?: Record<string, Array<{ kind: string; remoteId: string; remoteUrl: string }>>;
 }) {
   const t = useTranslations('groups');
   const locale = useLocale();
@@ -203,6 +207,18 @@ export default function TicketsBoard({
                       )}
                       <span className="ui-help">
                         {tk.chatName} · {t(`tickets.source.${tk.source}`)} · {rel(tk.createdAt)}
+                        {(remote[tk.id] ?? []).map((l) => (
+                          <span key={l.kind}>
+                            {' · '}
+                            {l.remoteUrl ? (
+                              <a href={l.remoteUrl} target="_blank" rel="noreferrer">
+                                {t(`integrations.${l.kind === 'zoho' ? 'zoho' : 'freshdesk'}.name`)} #{l.remoteId}
+                              </a>
+                            ) : (
+                              `${t(`integrations.${l.kind === 'zoho' ? 'zoho' : 'freshdesk'}.name`)} #${l.remoteId}`
+                            )}
+                          </span>
+                        ))}
                       </span>
                     </div>
                   </td>

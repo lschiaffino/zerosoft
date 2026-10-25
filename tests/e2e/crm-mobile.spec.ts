@@ -126,7 +126,9 @@ test.describe('CRM instalable y offline', () => {
     expect(res.ok()).toBe(true);
     const m = await res.json();
     expect(m.display).toBe('standalone');
-    expect(m.start_url).toBe('/app/crm');
+    // Manifest de la suite: abre en /app y tiene atajos al CRM.
+    expect(m.start_url).toBe('/app');
+    expect((m.shortcuts as Array<{ url: string }>).map((s) => s.url)).toContain('/app/crm/contacts');
     const sizes = (m.icons as Array<{ sizes: string; purpose?: string }>).map((i) => `${i.sizes}:${i.purpose ?? 'any'}`);
     expect(sizes).toEqual(expect.arrayContaining(['192x192:any', '512x512:any', '512x512:maskable']));
     const icon = await request.get('/api/pwa-icon/512');

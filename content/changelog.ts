@@ -64,6 +64,22 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-25-groups-platform',
+    date: '2026-10-25',
+    title: {
+      en: 'Groups: recurring messages, polls, integrations, MCP and access by label',
+      es: 'Groups: mensajes recurrentes, encuestas, integraciones, MCP y acceso por etiqueta',
+      pt: 'Groups: mensagens recorrentes, enquetes, integrações, MCP e acesso por etiqueta',
+    },
+    items: [
+      { product: 'groups', en: 'Recurring messages to chats and groups: daily, weekly by day, monthly or cron, with time zone, end date, pause and the next runs in view. Each run keeps the broadcast pace.', es: 'Mensajes recurrentes a chats y grupos: diario, semanal por días, mensual o cron, con zona horaria, fecha de fin, pausa y las próximas corridas a la vista. Cada corrida respeta el ritmo de los envíos.', pt: 'Mensagens recorrentes para chats e grupos: diário, semanal por dias, mensal ou cron, com fuso, data de fim, pausa e as próximas execuções à vista. Cada execução respeita o ritmo dos envios.' },
+      { product: 'groups', en: 'WhatsApp polls from a chat, a broadcast or a recurring message, with live results as votes arrive (WAHA and Evolution numbers).', es: 'Encuestas de WhatsApp desde un chat, un envío o un recurrente, con resultados en vivo a medida que llegan los votos (números WAHA y Evolution).', pt: 'Enquetes de WhatsApp a partir de um chat, um envio ou uma recorrente, com resultados ao vivo conforme chegam os votos (números WAHA e Evolution).' },
+      { product: 'groups', en: 'Integrations: Slack alerts, Freshdesk and Zoho Desk tickets with status synced both ways, outgoing webhooks for 13 events with a delivery log and resend, a wider REST API and an MCP server for AI assistants.', es: 'Integraciones: avisos en Slack, tickets en Freshdesk y Zoho Desk con el estado sincronizado en los dos sentidos, webhooks salientes de 13 eventos con log de entregas y reenvío, una API REST más completa y un servidor MCP para asistentes de IA.', pt: 'Integrações: avisos no Slack, tickets no Freshdesk e no Zoho Desk com status sincronizado nos dois sentidos, webhooks de saída de 13 eventos com log de entregas e reenvio, uma API REST mais completa e um servidor MCP para assistentes de IA.' },
+      { product: 'groups', en: 'Access and privacy: members can see only the chats with their labels, phone numbers can be hidden per role, and every chat has an activity log of who assigned, closed, labeled or exported it.', es: 'Acceso y privacidad: los miembros pueden ver solo los chats con sus etiquetas, los teléfonos se pueden ocultar por rol y cada chat tiene un log de quién lo asignó, cerró, etiquetó o exportó.', pt: 'Acesso e privacidade: os membros podem ver só os chats com suas etiquetas, os telefones podem ser ocultados por papel e cada chat tem um log de quem atribuiu, fechou, etiquetou ou exportou.' },
+      { product: 'groups', en: 'Reports filter by any date range, label, group and number. Groups installs as an app on phone and desktop with notifications for chats assigned to you.', es: 'Los reportes se filtran por cualquier rango de fechas, etiqueta, grupo y número. Groups se instala como app en el teléfono y la computadora, con avisos de los chats que tenés asignados.', pt: 'Os relatórios filtram por qualquer período, etiqueta, grupo e número. O Groups se instala como app no celular e no computador, com avisos dos chats atribuídos a você.' },
+    ],
+  },
+  {
     id: '2026-10-24-crm-ai',
     date: '2026-10-24',
     title: {

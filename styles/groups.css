@@ -729,3 +729,36 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 /* Grupos de campos (reglas, plantillas): sin el borde por defecto del navegador. */
 .ui-page fieldset.ui-field { min-width: 0; margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px; }
 .ui-page fieldset.ui-field > legend { padding: 0; margin-bottom: 4px; }
+
+/* ---------- Plataforma: reportes, encuestas, recurrentes, integraciones, auditoría (G3) ---------- */
+.gr-report-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.gr-report-filters .ui-field { flex: 1 1 150px; min-width: 0; max-width: 220px; }
+.gr-report-actions { display: flex; gap: 6px; align-items: center; }
+.gr-event-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 16px; }
+.gr-payload { margin: 6px 0 0; padding: 10px; max-height: 260px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--radius-1); }
+.gr-integration > span:first-child { flex: 1 1 260px; min-width: 0; }
+.gr-audit-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.gr-audit-list li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.875rem; }
+.gr-audit-list li > span { min-width: 0; overflow-wrap: anywhere; }
+.gr-activity > summary { cursor: pointer; list-style: revert; }
+.gr-activity[open] > summary { margin-bottom: 8px; }
+.gr-days { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.gr-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem; }
+.gr-row-actions { justify-content: flex-end; flex-wrap: nowrap; }
+.gr-poll { min-width: min(260px, 100%); }
+.gr-poll-q { margin: 0 0 6px; }
+.gr-poll-results { list-style: none; margin: 0 0 4px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.gr-poll-label { display: flex; justify-content: space-between; gap: 8px; font-size: 0.875rem; }
+.gr-poll-bar { display: block; height: 4px; background: var(--line); border-radius: var(--radius-1); overflow: hidden; }
+.gr-poll-bar i { display: block; height: 100%; background: var(--c-groups); }
+@media (max-width: 640px) {
+  .gr-report-filters .ui-field { max-width: none; flex-basis: calc(50% - 6px); }
+  .gr-row-actions { flex-wrap: wrap; justify-content: flex-start; }
+}
+.gr-composer-page fieldset.ui-field,
+.gr-detail-section fieldset.ui-field,
+.ui-modal .gr-poll-fields fieldset.ui-field,
+.ui-modal .gr-recurrence fieldset.ui-field { border: 0; padding: 0; margin: 0; min-width: 0; }
+.gr-composer-page fieldset.ui-field > legend,
+.gr-detail-section fieldset.ui-field > legend,
+.ui-modal fieldset.ui-field > legend { padding: 0; margin-bottom: 6px; }

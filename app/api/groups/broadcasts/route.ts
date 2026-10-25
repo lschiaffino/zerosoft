@@ -1,6 +1,7 @@
 import { after, NextResponse } from 'next/server';
 import { createBroadcast, listBroadcasts, processBroadcasts } from '@/lib/groups-broadcasts';
-import { groupsSession, handleGroupsError, readJson, str, strArr } from '@/lib/groups-http';
+import { groupsSession, handleGroupsError, readJson, sessionViewer, str, strArr } from '@/lib/groups-http';
+import { visibleChatIds } from '@/lib/groups-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,8 @@ export async function POST(req: Request) {
   if (s instanceof NextResponse) return s;
   const b = await readJson(req);
   const m = b.media && typeof b.media === 'object' ? (b.media as Record<string, unknown>) : null;
+  // Acceso por etiqueta: solo a chats que la persona ve.
+  const visible = await visibleChatIds(await sessionViewer(s));
   try {
     const broadcast = await createBroadcast(s.ws, s.me, {
       numberId: str(b.numberId, 100),
@@ -35,7 +38,8 @@ export async function POST(req: Request) {
               url: m.url.startsWith('/') ? `${(process.env.NEXTAUTH_URL || new URL(req.url).origin).replace(/\/$/, '')}${m.url}` : m.url,
               mimetype: str(m.mimetype, 100) || 'application/octet-stream', filename: str(m.filename, 200) || 'file' }
           : null,
-      chatIds: strArr(b.chatIds, 2000),
+      chatIds: strArr(b.chatIds, 2000).filter((id) => !visible || visible.has(id)),
+      poll: b.poll ?? null,
       scheduledAt: str(b.scheduledAt, 40) || null,
       perMinute: Number(b.perMinute) || undefined,
       kind: b.kind === 'scheduled' ? 'scheduled' : 'broadcast',

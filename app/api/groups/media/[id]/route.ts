@@ -3,7 +3,7 @@ import { getChatRow, getMessageRow, getNumberRow, readConfig } from '@/lib/group
 import { fetchCloudMedia } from '@/lib/groups-provider-cloud';
 import type { BridgeConfig, CloudConfig } from '@/lib/groups-provider';
 import { safeFetch } from '@/lib/safe-fetch';
-import { groupsError, groupsSession } from '@/lib/groups-http';
+import { chatGuard, groupsError, groupsSession } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,6 +18,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   if (s instanceof NextResponse) return s;
   const msg = await getMessageRow(s.ws, (await ctx.params).id);
   if (!msg?.media_url) return groupsError(404, 'not_found');
+  const guard = await chatGuard(s, msg.chat_id);
+  if (guard instanceof NextResponse) return guard;
   const chat = await getChatRow(s.ws, msg.chat_id);
   const number = chat ? await getNumberRow(s.ws, chat.number_id) : null;
   if (!number) return groupsError(404, 'not_found');
