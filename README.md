@@ -64,6 +64,7 @@ npm run build && npm start
 | `ROBOTS_RUNNER` | `sandbox`, `local` or `none`. Default: `sandbox` on Vercel; elsewhere `local` when `playwright-core` is installed (it is, after `npm ci`), else `none`. |
 | `VERCEL_TOKEN` / `VERCEL_PROJECT_ID` / `VERCEL_TEAM_ID` | Link custom domains on Vercel: domains are added to the project (and get HTTPS) through the Vercel API. Self-host: leave unset, domains are verified by DNS. |
 | `APP_HOSTS` | Extra hostnames that serve the app (comma-separated), so they aren't treated as custom short-link domains. |
+| `TRUST_PROXY_HOPS` / `TRUST_PROXY` | Client IP for rate limits when self-hosting. Behind a reverse proxy the app uses the `X-Forwarded-For` entry added by your proxy (the rightmost one); with several proxies in a chain set `TRUST_PROXY_HOPS` to how many there are (default 1). `TRUST_PROXY=0` ignores those headers (use it if nothing in front rewrites them: everyone then shares one quota). On Vercel it uses `X-Vercel-Forwarded-For`. |
 | `ALLOW_PRIVATE_WEBHOOKS` | `true` allows webhooks to private/internal hosts and plain http (self-host on a private network). Never on a public cloud. |
 | `ZEROSOFT_LICENSE_KEY` | Enterprise license key for `/ee` features (optional). |
 | `SHORT_DOMAIN` | Public domain shown in short URLs, e.g. `zs.ai`. No trailing slash. |
@@ -106,6 +107,8 @@ git clone <repo> && cd zerosoft
 cp .env.example .env          # NEXTAUTH_URL, NEXTAUTH_SECRET, Google credentials, SHORT_DOMAIN=your-domain
 docker compose up -d          # http://localhost:3000 — put any HTTPS reverse proxy in front
 ```
+
+Your reverse proxy must add the client address to `X-Forwarded-For` (nginx: `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, Caddy and Traefik do it by default). Rate limits per IP read the rightmost entry; with more than one proxy in a chain, set `TRUST_PROXY_HOPS`.
 
 Data lives in two volumes: `zerosoft-data` (the SQLite file) and `zerosoft-uploads` (attachments). Back them up and you have everything.
 

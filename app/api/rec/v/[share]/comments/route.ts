@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   if ('res' in r) return r.res;
   const { viewer, newKey, user } = await resolveViewer(req, r.v);
   const before = req.nextUrl.searchParams.get('before');
-  const page = await listComments(r.v, viewer.key, { before: before && /^[\d :-]{10,25}\|[0-9a-f-]{36}$/.test(before) ? before : null });
+  const page = await listComments(r.v, viewer.key, { before: before && /^\d{1,15}$/.test(before) ? before : null });
   // Moderar (borrar comentarios ajenos): quien administra el video.
   const canModerate = !!user && canManage(actorOf(user), r.v);
   return withViewerCookie(

@@ -349,11 +349,12 @@
     "deleteBody": "The video, its comments and views are deleted, and the link stops working.",
     "trimInverted": "The end has to be after the start.",
     "cutFailed": "The trimmed copy could not be made. Try again.",
-    "trimNoteWebm": "When you save, a trimmed copy is made without re-encoding and that is what everyone else gets: the player, the shared page, the embed and the captions. The cut snaps to the nearest keyframe before the start (up to 2 seconds earlier).",
-    "trimNoteOther": "This file type cannot be cut in the browser: viewers see the trimmed video, but the file they stream still has the trimmed parts.",
+    "trimNoteWebm": "When you save, a trimmed copy is made without re-encoding and that is what everyone else gets: the player, the shared page, the embed and the captions. The cut snaps to the keyframe before the start, so up to about 2 seconds before the start stay in their file (the player does not show them). The thumbnail and the GIF are made again from the start of the trim.",
+    "trimNoteOther": "This file type cannot be cut in the browser: viewers see the trimmed video, but the file they stream still has the trimmed parts. The thumbnail and the GIF are made again from the start of the trim.",
     "cutting": "Making the trimmed copy… {pct}%",
     "retention": "Retention",
-    "retentionLabel": "{start}% of viewers saw the start and {end}% the end"
+    "retentionLabel": "{start}% of viewers saw the start and {end}% the end",
+    "regenerating": "Making the thumbnail and the GIF from the trim…"
   },
   "pending": {
     "title": "Recordings waiting to upload",
@@ -363,5 +364,12 @@
     "download": "Download",
     "discard": "Discard",
     "error": "The upload could not finish. Try again when you have a connection."
+  },
+  "signout": {
+    "title": "{n, plural, one {You have # recording that has not uploaded} other {You have # recordings that have not uploaded}}",
+    "body": "They are saved only in this browser. If you sign out now they are deleted from here.",
+    "upload": "Upload them",
+    "download": "Download and sign out",
+    "discard": "Discard and sign out"
   }
 }

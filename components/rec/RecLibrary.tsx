@@ -172,7 +172,7 @@ export default function RecLibrary({
       if (!res.ok) throw new Error(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? 'upload_failed');
       const data = (await res.json()) as { video: { id: string }; upload: { mode: 'blob' | 'local'; partBytes: number } };
       await uploadWhole(data.video.id, 'video', file, data.upload.mode, data.upload.partBytes, {}, setUploading);
-      if (meta.thumb) await uploadAsset(data.video.id, 'thumb', meta.thumb).catch(() => undefined);
+      if (meta.thumb) await uploadAsset(data.video.id, 'thumb', meta.thumb, { forTrim: '0:', atSec: Number.isFinite(meta.duration) ? Math.min(1, meta.duration / 2) : 0 }).catch(() => undefined);
       const fin = await fetch(`/api/rec/videos/${data.video.id}/finalize`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

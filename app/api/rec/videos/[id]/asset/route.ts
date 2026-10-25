@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getManageableVideo, setVideoFile } from '@/lib/rec';
+import { getManageableVideo, setAssetMeta, setVideoFile } from '@/lib/rec';
 import { recActor, recFail, recJson } from '@/lib/rec-http';
 import { saveRecAsset } from '@/lib/rec-upload';
 
@@ -25,6 +25,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (file.size > MAX[kind]) return recJson({ error: 'file_too_large' }, 413);
     const url = await saveRecAsset(v.workspace_id, v.id, kind, type, Buffer.from(await file.arrayBuffer()));
     await setVideoFile(v.id, kind, url);
+    // Para qué recorte se armó y de qué segundo sale la miniatura (si no se sabe, solo la ve quien administra).
+    const forTrim = req.nextUrl.searchParams.get('for');
+    const at = Number(req.nextUrl.searchParams.get('at'));
+    await setAssetMeta(v.id, kind, forTrim && /^\d+(\.\d)?:(\d+(\.\d)?)?$/.test(forTrim) ? forTrim : null, Number.isFinite(at) && req.nextUrl.searchParams.has('at') ? at : null);
     return recJson({ ok: true });
   } catch (err) {
     return recFail(err);

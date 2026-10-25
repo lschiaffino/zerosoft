@@ -349,11 +349,12 @@
     "deleteBody": "Se borran el video, sus comentarios y sus vistas, y el link deja de andar.",
     "trimInverted": "El fin tiene que ser después del inicio.",
     "cutFailed": "No se pudo armar la copia recortada. Probá de nuevo.",
-    "trimNoteWebm": "Al guardar se arma una copia recortada sin recodificar y es la que reciben todos los demás: el reproductor, la página compartida, el embed y los subtítulos. El corte cae en el keyframe anterior al inicio (hasta 2 segundos antes).",
-    "trimNoteOther": "Este tipo de archivo no se puede cortar en el navegador: quien mira ve el video recortado, pero el archivo que recibe todavía tiene las partes recortadas.",
+    "trimNoteWebm": "Al guardar se arma una copia recortada sin recodificar y es la que reciben todos los demás: el reproductor, la página compartida, el embed y los subtítulos. El corte cae en el keyframe anterior al inicio, así que hasta unos 2 segundos antes del inicio quedan en su archivo (el reproductor no los muestra). La miniatura y el GIF se vuelven a armar desde el inicio del recorte.",
+    "trimNoteOther": "Este tipo de archivo no se puede cortar en el navegador: quien mira ve el video recortado, pero el archivo que recibe todavía tiene las partes recortadas. La miniatura y el GIF se vuelven a armar desde el inicio del recorte.",
     "cutting": "Armando la copia recortada… {pct}%",
     "retention": "Retención",
-    "retentionLabel": "El {start}% de los espectadores vio el inicio y el {end}% el final"
+    "retentionLabel": "El {start}% de los espectadores vio el inicio y el {end}% el final",
+    "regenerating": "Armando la miniatura y el GIF desde el recorte…"
   },
   "pending": {
     "title": "Grabaciones esperando para subir",
@@ -363,5 +364,12 @@
     "download": "Descargar",
     "discard": "Descartar",
     "error": "La subida no pudo terminar. Probá de nuevo cuando tengas conexión."
+  },
+  "signout": {
+    "title": "{n, plural, one {Tenés # grabación sin subir} other {Tenés # grabaciones sin subir}}",
+    "body": "Están guardadas solo en este navegador. Si cerrás sesión ahora, se borran de acá.",
+    "upload": "Subirlas",
+    "download": "Descargar y cerrar sesión",
+    "discard": "Descartar y cerrar sesión"
   }
 }

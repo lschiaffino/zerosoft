@@ -1,7 +1,7 @@
 'use client';
 
 import { patchWebmDuration } from '@/lib/rec-webm';
-import { extraKey, forget, loadBlob, loadMeta, partKey, saveBlob, saveMeta, type RecPendingMeta } from './recStore';
+import { extraKey, forget, loadBlob, loadMeta, partKey, recScope, saveBlob, saveMeta, type RecPendingMeta } from './recStore';
 
 /**
  * Subida por partes mientras se graba, a prueba de cortes de red.
@@ -101,7 +101,9 @@ export class LiveUpload {
 
   /** Grabación nueva: guarda la ficha en IndexedDB y, con Blob, abre la subida multipart. */
   static async create(info: { videoId: string; shareId: string; title: string; mode: Mode; partBytes: number; contentType: string }): Promise<LiveUpload> {
-    const meta: RecPendingMeta = { ...info, createdAt: Date.now(), next: 1, uploaded: [], etags: [], done: false, bytes: 0 };
+    const owner = recScope();
+    if (!owner) throw new Error('no_scope');
+    const meta: RecPendingMeta = { ...info, userId: owner.userId, ws: owner.ws, createdAt: Date.now(), next: 1, uploaded: [], etags: [], done: false, bytes: 0 };
     if (info.mode === 'blob') {
       const { pathname, token, access } = await blobToken(info.videoId, 'video', info.contentType);
       const { createMultipartUpload } = await import('@vercel/blob/client');
@@ -115,7 +117,9 @@ export class LiveUpload {
   /** Sigue una grabación guardada en este navegador (después de recargar o de volver la red). */
   static async resume(videoId: string): Promise<LiveUpload | null> {
     const meta = await loadMeta(videoId);
-    if (!meta) return null;
+    const owner = recScope();
+    // Solo la persona que la grabó (por si quedó una base vieja compartida).
+    if (!meta || !owner || meta.userId !== owner.userId || meta.ws !== owner.ws) return null;
     const up = new LiveUpload(meta);
     for (let n = 1; n < meta.next; n++) {
       const b = await loadBlob(partKey(videoId, n));
@@ -334,9 +338,10 @@ export async function finishRecording(up: LiveUpload, onStatus?: (s: UploadStatu
     const audio = await loadBlob(extraKey(m.videoId, 'audio')).catch(() => undefined);
     if (audio) await retryForever(() => uploadWhole(m.videoId, 'audio', audio, m.mode, m.partBytes)).catch(() => undefined);
     const thumb = await loadBlob(extraKey(m.videoId, 'thumb')).catch(() => undefined);
-    if (thumb) await retryForever(() => uploadAsset(m.videoId, 'thumb', thumb)).catch(() => undefined);
+    // El grabador toma la miniatura cerca del segundo 1 y el GIF de los primeros segundos.
+    if (thumb) await retryForever(() => uploadAsset(m.videoId, 'thumb', thumb, { forTrim: '0:', atSec: 1 })).catch(() => undefined);
     const gif = await loadBlob(extraKey(m.videoId, 'gif')).catch(() => undefined);
-    if (gif) await retryForever(() => uploadAsset(m.videoId, 'gif', gif)).catch(() => undefined);
+    if (gif) await retryForever(() => uploadAsset(m.videoId, 'gif', gif, { forTrim: '0:' })).catch(() => undefined);
     await retryForever(() =>
       api(`/api/rec/videos/${m.videoId}/finalize`, {
         method: 'POST',
@@ -429,8 +434,16 @@ export async function uploadWhole(
   });
 }
 
-export async function uploadAsset(videoId: string, kind: 'thumb' | 'gif', blob: Blob): Promise<void> {
+/**
+ * Miniatura o GIF. `forTrim`: para qué recorte se armó ("0:" = el video
+ * entero); `atSec`: segundo del original de donde sale la miniatura. Con eso
+ * el servidor sabe si se le puede mostrar a quien no administra el video.
+ */
+export async function uploadAsset(videoId: string, kind: 'thumb' | 'gif', blob: Blob, opts: { forTrim?: string; atSec?: number } = {}): Promise<void> {
   const form = new FormData();
   form.set('file', blob, kind === 'gif' ? 'preview.gif' : 'thumb.jpg');
-  await api(`/api/rec/videos/${videoId}/asset?kind=${kind}`, { method: 'POST', body: form });
+  const q = new URLSearchParams({ kind });
+  if (opts.forTrim !== undefined) q.set('for', opts.forTrim);
+  if (opts.atSec !== undefined) q.set('at', String(Math.round(opts.atSec * 10) / 10));
+  await api(`/api/rec/videos/${videoId}/asset?${q}`, { method: 'POST', body: form });
 }

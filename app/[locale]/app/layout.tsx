@@ -79,7 +79,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'settings.sections', 'settings.cmdk']}>
+    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'settings.sections', 'settings.cmdk', 'rec.signout']}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
@@ -91,6 +91,8 @@ export default async function AppLayout(
             name: user.actingUser?.name ?? user.name,
             email: user.actingUser?.email ?? user.email,
             image: user.actingUser?.image ?? user.image,
+            id: user.actingUser?.id ?? user.id,
+            ws: user.id,
           }}
           teamName={user.actingUser && user.team ? user.team.name : null}
           crumb={

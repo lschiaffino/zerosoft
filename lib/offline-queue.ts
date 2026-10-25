@@ -94,15 +94,28 @@ export function announceQueued(url: string): void {
   window.dispatchEvent(new CustomEvent(QUEUED_EVENT, { detail: { url } }));
 }
 
-/** Al cerrar sesión: borra las vistas guardadas y la cola de este dispositivo. */
-export async function clearOfflineData(): Promise<void> {
+/**
+ * Al cerrar sesión: borra las vistas guardadas y la cola de este
+ * dispositivo, y las grabaciones de Rec guardadas de esa persona (solo las
+ * suyas: cada persona tiene su base, ver components/rec/recStore.ts).
+ */
+export async function clearOfflineData(owner?: { userId: string; ws: string }): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (owner) {
+    const { clearRecData } = await import('@/components/rec/recStore');
+    await clearRecData(owner.userId, owner.ws).catch(() => undefined);
+  }
   if (typeof window === 'undefined') return;
   try {
     if ('caches' in window) {
       const keys = await caches.keys();
       await Promise.all(keys.filter((k) => k.startsWith('zs-crm')).map((k) => caches.delete(k)));
     }
-    if ('indexedDB' in window) indexedDB.deleteDatabase('zs-offline');
+    if ('indexedDB' in window) {
+      indexedDB.deleteDatabase('zs-offline');
+      // Base vieja de Rec, de antes de separarla por persona.
+      indexedDB.deleteDatabase('zs-rec');
+    }
   } catch {
     /* almacenamiento bloqueado: no hay nada que borrar */
   }

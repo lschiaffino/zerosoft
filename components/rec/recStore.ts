@@ -7,8 +7,30 @@
  * desde acá (reanudar o descargar).
  */
 
-const DB = 'zs-rec';
+const DB_PREFIX = 'zs-rec';
 const VERSION = 1;
+
+/**
+ * Cada persona (y workspace) tiene su propia base en el navegador: en una
+ * compu compartida nadie ve, descarga ni descarta las grabaciones de otro.
+ * Las páginas de Rec fijan el dueño con setRecScope antes de usarla.
+ */
+let scope: { userId: string; ws: string } | null = null;
+
+export function recDbName(userId: string, ws: string): string {
+  const safe = (x: string) => x.replace(/[^\w-]/g, '_').slice(0, 80);
+  return `${DB_PREFIX}:${safe(userId)}:${safe(ws)}`;
+}
+
+export function setRecScope(userId: string, ws: string) {
+  if (scope && scope.userId === userId && scope.ws === ws) return;
+  scope = { userId, ws };
+  opening = null;
+}
+
+export function recScope() {
+  return scope;
+}
 
 export interface RecPendingMeta {
   videoId: string;
@@ -18,6 +40,9 @@ export interface RecPendingMeta {
   partBytes: number;
   contentType: string;
   createdAt: number;
+  /** Dueño de la grabación (se guarda también en cada ficha y se filtra al listar). */
+  userId: string;
+  ws: string;
   /** Próximo número de parte (la 1 se guarda hasta el final). */
   next: number;
   /** Partes ya confirmadas por el servidor (o por Blob, con su etag). */
@@ -34,20 +59,26 @@ export interface RecPendingMeta {
 
 let opening: Promise<IDBDatabase> | null = null;
 
-function db(): Promise<IDBDatabase> {
-  if (typeof indexedDB === 'undefined') return Promise.reject(new Error('no_idb'));
-  opening ??= new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, VERSION);
+function openDb(name: string): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(name, VERSION);
     req.onupgradeneeded = () => {
       const d = req.result;
       if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
       if (!d.objectStoreNames.contains('blobs')) d.createObjectStore('blobs');
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => {
-      opening = null;
-      reject(req.error);
-    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function db(): Promise<IDBDatabase> {
+  if (typeof indexedDB === 'undefined') return Promise.reject(new Error('no_idb'));
+  if (!scope) return Promise.reject(new Error('no_scope'));
+  const name = recDbName(scope.userId, scope.ws);
+  opening ??= openDb(name).catch((err) => {
+    opening = null;
+    throw err;
   });
   return opening;
 }
@@ -76,8 +107,36 @@ export function loadMeta(videoId: string): Promise<RecPendingMeta | undefined> {
   return run('meta', 'readonly', (s) => s.get(videoId) as IDBRequest<RecPendingMeta | undefined>);
 }
 
-export function listMetas(): Promise<RecPendingMeta[]> {
-  return run('meta', 'readonly', (s) => s.getAll() as IDBRequest<RecPendingMeta[]>).catch(() => []);
+export async function listMetas(): Promise<RecPendingMeta[]> {
+  const cur = scope;
+  if (!cur) return [];
+  const all = await run('meta', 'readonly', (s) => s.getAll() as IDBRequest<RecPendingMeta[]>).catch(() => [] as RecPendingMeta[]);
+  return all.filter((m) => m.userId === cur.userId && m.ws === cur.ws);
+}
+
+/** Grabaciones sin subir de una persona en este navegador (para avisar al cerrar sesión). */
+export async function pendingFor(userId: string, ws: string): Promise<RecPendingMeta[]> {
+  const prev = scope;
+  setRecScope(userId, ws);
+  try {
+    return (await listMetas()).filter((m) => m.next > 1);
+  } finally {
+    if (prev) setRecScope(prev.userId, prev.ws);
+  }
+}
+
+/** Al cerrar sesión: borra la base de Rec de esa persona en este navegador. */
+export async function clearRecData(userId: string, ws: string): Promise<void> {
+  if (typeof indexedDB === 'undefined') return;
+  if (scope && scope.userId === userId && scope.ws === ws) {
+    const d = await opening?.catch(() => null);
+    d?.close();
+    opening = null;
+  }
+  await new Promise<void>((resolve) => {
+    const req = indexedDB.deleteDatabase(recDbName(userId, ws));
+    req.onsuccess = req.onerror = req.onblocked = () => resolve();
+  });
 }
 
 export function saveBlob(key: string, blob: Blob): Promise<unknown> {

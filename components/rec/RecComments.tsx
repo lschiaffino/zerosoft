@@ -117,9 +117,9 @@ export default function RecComments({
     onMarkers(
       items
         .filter((c) => c.atSec !== null && !c.parentId)
-        .map((c) => ({ id: c.id, atSec: c.atSec as number, emoji: c.kind === 'reaction' ? c.emoji : null, label: c.kind === 'reaction' ? `${c.authorName} ${c.emoji}` : `${c.authorName}: ${c.body.slice(0, 60)}` })),
+        .map((c) => ({ id: c.id, atSec: c.atSec as number, emoji: c.kind === 'reaction' ? c.emoji : null, label: c.kind === 'reaction' ? `${c.authorName || t('guest')} ${c.emoji}` : `${c.authorName || t('guest')}: ${c.body.slice(0, 60)}` })),
     );
-  }, [items, onMarkers]);
+  }, [items, onMarkers, t]);
 
   const errorText = (code: string) => (t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
 
@@ -205,7 +205,7 @@ export default function RecComments({
           {comments.map((c) => (
             <li key={c.id} className="rec-comment" data-testid="rec-comment">
               <div className="rec-comment-head">
-                <strong>{c.authorName}</strong>
+                <strong>{c.authorName || t('guest')}</strong>
                 {c.guest && <span className="rec-badge">{t('guest')}</span>}
                 {c.byAuthor && <span className="rec-badge author">{t('authorBadge')}</span>}
                 {c.atSec !== null && (
@@ -233,7 +233,7 @@ export default function RecComments({
                   {(replies.get(c.id) ?? []).map((r) => (
                     <li key={r.id} className="rec-comment rec-reply">
                       <div className="rec-comment-head">
-                        <strong>{r.authorName}</strong>
+                        <strong>{r.authorName || t('guest')}</strong>
                         {r.guest && <span className="rec-badge">{t('guest')}</span>}
                         {r.byAuthor && <span className="rec-badge author">{t('authorBadge')}</span>}
                         <span className="muted rec-comment-date">{when(r.createdAt)}</span>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { segmentsInTrim, segmentsToVtt, type RecSegment } from './rec-schema';
-import { videoFileFor, type RecVideoRow } from './rec';
+import { assetVisible, videoFileFor, type RecVideoRow } from './rec';
 import type { serveRecFile as ServeFn } from './rec-upload';
 
 /**
@@ -17,6 +17,7 @@ export async function serveRecKind(
 ): Promise<NextResponse> {
   const sp = req.nextUrl.searchParams;
   const kind = sp.get('kind') ?? 'video';
+  if (!['video', 'thumb', 'gif', 'captions'].includes(kind)) return NextResponse.json({ error: 'invalid_kind' }, { status: 400 });
   const notFound = () => NextResponse.json({ error: 'not_found' }, { status: 404 });
   if (kind === 'captions') {
     let segments: RecSegment[] = [];
@@ -33,6 +34,8 @@ export async function serveRecKind(
   if (kind === 'thumb' || kind === 'gif') {
     const url = kind === 'thumb' ? v.thumb_url : v.gif_url;
     if (!url) return notFound();
+    // Con recorte, lo que se armó antes de recortar puede mostrar la parte cortada: no sale hasta regenerarlo.
+    if (!opts.privileged && !assetVisible(v, kind)) return notFound();
     const type = kind === 'gif' ? 'image/gif' : url.endsWith('.png') ? 'image/png' : url.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
     return opts.serveRecFile(req, url, type);
   }

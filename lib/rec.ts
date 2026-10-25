@@ -26,6 +26,7 @@ import {
   retentionCurve,
   segmentsInTrim,
   trimKey,
+  nameKey,
   type Range,
   clampTrim,
   cleanCtaUrl,
@@ -112,6 +113,9 @@ export interface RecVideoRow {
   audio_url: string | null;
   thumb_url: string | null;
   gif_url: string | null;
+  thumb_at: number | null;
+  thumb_for: string | null;
+  gif_for: string | null;
   duration_sec: number;
   width: number;
   height: number;
@@ -182,6 +186,8 @@ export interface RecVideoDto {
   trimCut: boolean;
   hasThumb: boolean;
   hasGif: boolean;
+  /** Segundo del original de donde sale la miniatura (null = no se sabe). */
+  thumbAt: number | null;
   views: number;
   lastViewedAt: string | null;
   createdBy: string;
@@ -241,8 +247,9 @@ export function toDto(row: RecVideoRow & { author_name?: string | null }, actor:
     summaryFitsTrim: summaryFitsTrim(row),
     commentsRequireAccount: !!row.comments_require_account,
     trimCut: !isTrimmed(row.trim_start, row.trim_end) || row.trimmed_for === trimKey(row.trim_start, row.trim_end),
-    hasThumb: !!row.thumb_url,
-    hasGif: !!row.gif_url,
+    hasThumb: !!row.thumb_url && (manager || assetVisible(row, 'thumb')),
+    hasGif: !!row.gif_url && (manager || assetVisible(row, 'gif')),
+    thumbAt: row.thumb_at,
     views: row.views,
     lastViewedAt: row.last_viewed_at,
     createdBy: row.created_by,
@@ -271,6 +278,28 @@ export function canSee(a: RecActor, v: Pick<RecVideoRow, 'workspace_id' | 'creat
 export function canManage(a: RecActor, v: Pick<RecVideoRow, 'workspace_id' | 'created_by' | 'space'>): boolean {
   if (v.workspace_id !== a.ws) return false;
   return v.created_by === a.actor || (v.space === 'workspace' && a.admin);
+}
+
+/**
+ * ¿Se le puede mostrar la miniatura o el GIF a quien no administra el video?
+ * Sin recorte, sí. Con recorte: si se armó para ese recorte, o (miniatura) si
+ * sale de un cuadro que queda adentro. Si no, se muestra un vacío hasta que el
+ * autor los regenere al guardar el recorte.
+ */
+export function assetVisible(
+  v: Pick<RecVideoRow, 'trim_start' | 'trim_end' | 'thumb_at' | 'thumb_for' | 'gif_for'>,
+  kind: 'thumb' | 'gif',
+): boolean {
+  if (!isTrimmed(v.trim_start, v.trim_end)) return true;
+  const key = trimKey(v.trim_start, v.trim_end);
+  if (kind === 'gif') return v.gif_for === key;
+  if (v.thumb_for === key) return true;
+  return v.thumb_at !== null && v.thumb_at >= v.trim_start && (v.trim_end === null || v.thumb_at < v.trim_end);
+}
+
+export async function setAssetMeta(id: string, kind: 'thumb' | 'gif', forTrim: string | null, atSec: number | null): Promise<void> {
+  if (kind === 'gif') await getDb().prepare('UPDATE rec_videos SET gif_for = ? WHERE id = ?').run(forTrim, id);
+  else await getDb().prepare('UPDATE rec_videos SET thumb_for = ?, thumb_at = ? WHERE id = ?').run(forTrim, atSec, id);
 }
 
 /** El resumen se puede mostrar a otros: lo escribió la persona o se armó para el recorte vigente. */
@@ -413,7 +442,7 @@ export async function listVideos(a: RecActor, scope: RecScope, q = ''): Promise<
   const rows = (await getDb()
     .prepare(
       `SELECT v.id, v.share_id, v.title, v.status, v.space, v.folder_id, v.duration_sec, v.trim_start, v.trim_end, v.views,
-              v.thumb_url, v.gif_url, v.created_by, v.workspace_id, v.created_at, v.updated_at, v.description${needle ? ', v.transcript' : ''},
+              v.thumb_url, v.gif_url, v.thumb_at, v.thumb_for, v.gif_for, v.created_by, v.workspace_id, v.created_at, v.updated_at, v.description${needle ? ', v.transcript' : ''},
               COALESCE(u.name, u.email, '') AS author_name,
               (SELECT COUNT(DISTINCT viewer_key) FROM rec_views w WHERE w.video_id = v.id) AS unique_viewers,
               (SELECT COUNT(*) FROM rec_comments c WHERE c.video_id = v.id AND c.kind = 'comment') AS comments
@@ -422,7 +451,10 @@ export async function listVideos(a: RecActor, scope: RecScope, q = ''): Promise<
        ORDER BY v.created_at DESC LIMIT 500`,
     )
     .all(...args)) as Array<
-    Pick<RecVideoRow, 'id' | 'share_id' | 'title' | 'status' | 'space' | 'folder_id' | 'duration_sec' | 'trim_start' | 'trim_end' | 'views' | 'thumb_url' | 'gif_url' | 'created_by' | 'workspace_id' | 'created_at' | 'updated_at'> & {
+    Pick<
+      RecVideoRow,
+      'id' | 'share_id' | 'title' | 'status' | 'space' | 'folder_id' | 'duration_sec' | 'trim_start' | 'trim_end' | 'views' | 'thumb_url' | 'gif_url' | 'thumb_at' | 'thumb_for' | 'gif_for' | 'created_by' | 'workspace_id' | 'created_at' | 'updated_at'
+    > & {
       author_name: string;
       unique_viewers: number;
       comments: number;
@@ -443,8 +475,8 @@ export async function listVideos(a: RecActor, scope: RecScope, q = ''): Promise<
     views: r.views,
     uniqueViewers: Number(r.unique_viewers) || 0,
     comments: Number(r.comments) || 0,
-    hasThumb: !!r.thumb_url,
-    hasGif: !!r.gif_url,
+    hasThumb: !!r.thumb_url && (canManage(a, r) || assetVisible(r, 'thumb')),
+    hasGif: !!r.gif_url && (canManage(a, r) || assetVisible(r, 'gif')),
     createdBy: r.created_by,
     authorName: r.author_name,
     canManage: canManage(a, r),
@@ -844,7 +876,7 @@ export function toPublicDto(v: RecVideoRow & { author_name: string | null }, isA
     ctaLabel: v.cta_label ?? '',
     ctaUrl: v.cta_url ?? '',
     ctaMode: v.cta_mode,
-    hasThumb: !!v.thumb_url,
+    hasThumb: !!v.thumb_url && (isAuthor || assetVisible(v, 'thumb')),
   };
 }
 
@@ -1117,36 +1149,35 @@ export async function listComments(
 ): Promise<RecCommentPage> {
   const db = getDb();
   const limit = Math.max(1, Math.min(opts.limit ?? COMMENTS_PAGE, 200));
-  // Cursor "fecha|id": varios comentarios pueden caer en el mismo segundo.
-  const [bAt, bId] = (opts.before ?? '').split('|');
-  const cursor = bAt && bId ? 'AND (created_at < ? OR (created_at = ? AND id < ?))' : '';
+  // Orden estable por rowid (orden de llegada): varios comentarios pueden caer en el mismo segundo.
+  const before = opts.before && /^\d{1,15}$/.test(opts.before) ? Number(opts.before) : null;
   const top = (await db
     .prepare(
-      `SELECT * FROM rec_comments WHERE video_id = ? AND kind = 'comment' AND parent_id IS NULL ${cursor}
-       ORDER BY created_at DESC, id DESC LIMIT ?`,
+      `SELECT rowid AS rid, * FROM rec_comments WHERE video_id = ? AND kind = 'comment' AND parent_id IS NULL ${before !== null ? 'AND rowid < ?' : ''}
+       ORDER BY rowid DESC LIMIT ?`,
     )
-    .all(...(cursor ? [v.id, bAt, bAt, bId, limit + 1] : [v.id, limit + 1]))) as CommentRow[];
+    .all(...(before !== null ? [v.id, before, limit + 1] : [v.id, limit + 1]))) as Array<CommentRow & { rid: number }>;
   const page = top.slice(0, limit);
   const ids = page.map((c) => c.id);
   const replies = ids.length
     ? ((await db
-        .prepare(`SELECT * FROM rec_comments WHERE video_id = ? AND parent_id IN (${ids.map(() => '?').join(',')}) ORDER BY created_at ASC`)
+        .prepare(`SELECT * FROM rec_comments WHERE video_id = ? AND parent_id IN (${ids.map(() => '?').join(',')}) ORDER BY rowid ASC`)
         .all(v.id, ...ids)) as CommentRow[])
     : [];
   const counts = (await db
     .prepare("SELECT emoji, COUNT(*) AS n FROM rec_comments WHERE video_id = ? AND kind = 'reaction' GROUP BY emoji")
     .all(v.id)) as Array<{ emoji: string; n: number }>;
   const marks = (await db
-    .prepare("SELECT * FROM rec_comments WHERE video_id = ? AND kind = 'reaction' AND at_sec IS NOT NULL ORDER BY created_at DESC LIMIT 50")
+    .prepare("SELECT * FROM rec_comments WHERE video_id = ? AND kind = 'reaction' AND at_sec IS NOT NULL ORDER BY rowid DESC LIMIT 50")
     .all(v.id)) as CommentRow[];
   const total = Number(
     ((await db.prepare("SELECT COUNT(*) AS n FROM rec_comments WHERE video_id = ? AND kind = 'comment' AND parent_id IS NULL").get(v.id)) as { n: number }).n,
   );
   return {
-    comments: [...page, ...replies].map((r) => commentDto(r, viewerKey, v.created_by)),
+    comments: [...page.map(({ rid: _rid, ...r }) => r), ...replies].map((r) => commentDto(r, viewerKey, v.created_by)),
     reactions: Object.fromEntries(counts.map((c) => [c.emoji, Number(c.n)])),
     reactionMarks: marks.map((r) => commentDto(r, viewerKey, v.created_by)),
-    nextBefore: top.length > limit ? `${page[page.length - 1].created_at}|${page[page.length - 1].id}` : null,
+    nextBefore: top.length > limit ? String(page[page.length - 1].rid) : null,
     total,
   };
 }
@@ -1162,12 +1193,13 @@ async function memberNames(ws: string): Promise<Set<string>> {
     .catch(() => [])) as Array<{ name: string | null; email: string | null }>;
   const out = new Set<string>();
   for (const r of rows) {
-    if (r.name) out.add(r.name.trim().toLowerCase());
+    if (r.name) out.add(nameKey(r.name));
     if (r.email) {
-      out.add(r.email.trim().toLowerCase());
-      out.add(r.email.split('@')[0].trim().toLowerCase());
+      out.add(nameKey(r.email));
+      out.add(nameKey(r.email.split('@')[0]));
     }
   }
+  out.delete('');
   return out;
 }
 
@@ -1184,10 +1216,12 @@ export async function addComment(
   const emoji = kind === 'reaction' ? String(input.emoji ?? '') : null;
   if (kind === 'comment' && !body) throw new RecError('empty_comment');
   if (kind === 'reaction' && !(REC_REACTIONS as readonly string[]).includes(emoji ?? '')) throw new RecError('invalid_reaction');
-  const name = viewer.name.trim().slice(0, 80);
+  let name = viewer.name.trim().slice(0, 80);
   if (!name) throw new RecError('name_required');
-  // Un invitado no puede usar el nombre de alguien del workspace.
-  if (!viewer.userId && (await memberNames(v.workspace_id)).has(name.toLowerCase())) throw new RecError('name_taken');
+  // Un invitado no puede firmar con el nombre de alguien del workspace (ni con
+  // variantes: mayúsculas, puntos, letras cirílicas). No se avisa (eso diría
+  // quién es miembro): sale como "Invitado" a secas.
+  if (!viewer.userId && (await memberNames(v.workspace_id)).has(nameKey(name))) name = '';
   if (process.env.RATE_LIMIT_DISABLED !== 'true') {
     const { rateLimit } = await import('./rate-limit');
     const r = await rateLimit(`rec:comment:video:${v.id}`, 120, 600);
@@ -1207,7 +1241,7 @@ export async function addComment(
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(id, v.id, v.workspace_id, parentId, kind, body, emoji, at === null ? null : Math.round(at * 10) / 10, viewer.userId, name, viewer.key);
-  if (!viewer.isAuthor) await notifyCommentGrouped(v, name, kind, body, emoji);
+  if (!viewer.isAuthor) await notifyCommentGrouped(v, name || 'Guest', kind, body, emoji);
   const row = (await getDb().prepare('SELECT * FROM rec_comments WHERE id = ?').get(id)) as CommentRow;
   return commentDto(row, viewer.key, v.created_by);
 }

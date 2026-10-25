@@ -463,6 +463,10 @@ test('se cortó la subida al terminar: descargar local y retomar después de rec
   await again.goto('/en/app/rec', { waitUntil: 'networkidle' });
   const pending = again.getByTestId('rec-pending');
   await expect(pending).toBeVisible();
+  // La base del navegador es de esta persona y este workspace.
+  const names = await again.evaluate(async () => (await indexedDB.databases()).map((d) => d.name ?? ''));
+  expect(names.some((n) => n.startsWith('zs-rec:demo:'))).toBe(true);
+  expect(names).not.toContain('zs-rec');
   await pending.getByTestId('rec-pending-resume').first().click();
   await expect(again).toHaveURL(/\/en\/app\/rec\/[0-9a-f-]{36}$/, { timeout: 60_000 });
   await expect(again.getByTestId('rec-player')).toBeVisible();
@@ -491,8 +495,10 @@ test('recorte: quien no es el autor recibe la copia cortada y la transcripción 
   await page.getByTestId('rec-trim-save').click();
   await expect(page.getByText('Viewers see 0:50.')).toBeVisible({ timeout: 30_000 });
   const c2 = db();
-  const row = (await c2.execute({ sql: 'SELECT trimmed_url, trimmed_for FROM rec_videos WHERE id = ?', args: [v.id] })).rows[0];
+  const row = (await c2.execute({ sql: 'SELECT trimmed_url, trimmed_for, thumb_url, thumb_for, gif_for FROM rec_videos WHERE id = ?', args: [v.id] })).rows[0];
   expect(row.trimmed_for).toBe('10:60');
+  // Miniatura y GIF se rearmaron desde el inicio del recorte.
+  expect([row.thumb_for, row.gif_for]).toEqual(['10:60', '10:60']);
   expect(String(row.trimmed_url)).toMatch(/^\/uploads\/rec\//);
   c2.close();
   // Alguien de otro workspace con el link: transcripción y subtítulos sin lo recortado.
@@ -500,6 +506,19 @@ test('recorte: quien no es el autor recibe la copia cortada y la transcripción 
   const c3 = db();
   await c3.execute({ sql: 'UPDATE rec_videos SET trimmed_url = ?, trimmed_for = ? WHERE id = ?', args: [row.trimmed_url, row.trimmed_for, other.id] });
   c3.close();
+  // Una miniatura armada antes del recorte (del segundo 1) no se le muestra a nadie más, ni como og:image.
+  const c4 = db();
+  await c4.execute({ sql: "UPDATE rec_videos SET thumb_url = ?, thumb_for = '0:', thumb_at = 1 WHERE id = ?", args: [row.thumb_url, other.id] });
+  c4.close();
+  expect((await page.request.get(`/api/rec/v/${other.shareId}/file?kind=thumb`)).status()).toBe(404);
+  expect((await page.request.get(`/api/rec/v/${other.shareId}/file?kind=nope`)).status()).toBe(400);
+  const html = await (await page.request.get(`/en/v/${other.shareId}`)).text();
+  expect(html).not.toContain('og:image');
+  const c5 = db();
+  await c5.execute({ sql: "UPDATE rec_videos SET thumb_for = '10:60' WHERE id = ?", args: [other.id] });
+  c5.close();
+  expect((await page.request.get(`/api/rec/v/${other.shareId}/file?kind=thumb`)).status()).toBe(200);
+  expect(await (await page.request.get(`/en/v/${other.shareId}`)).text()).toContain('og:image');
   await page.goto(`/en/v/${other.shareId}`, { waitUntil: 'networkidle' });
   await page.getByRole('tab', { name: 'Transcript' }).click();
   await expect(page.getByTestId('rec-transcript')).toContainText('lo que queda');

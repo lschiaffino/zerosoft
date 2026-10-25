@@ -349,11 +349,12 @@
     "deleteBody": "O vídeo, seus comentários e visualizações são apagados, e o link para de funcionar.",
     "trimInverted": "O fim tem que ser depois do começo.",
     "cutFailed": "Não foi possível fazer a cópia cortada. Tente de novo.",
-    "trimNoteWebm": "Ao salvar, uma cópia cortada é feita sem recodificar e é ela que todos os outros recebem: o player, a página compartilhada, o embed e as legendas. O corte cai no keyframe anterior ao começo (até 2 segundos antes).",
-    "trimNoteOther": "Este tipo de arquivo não pode ser cortado no navegador: quem assiste vê o vídeo cortado, mas o arquivo que recebe ainda tem as partes cortadas.",
+    "trimNoteWebm": "Ao salvar, uma cópia cortada é feita sem recodificar e é ela que todos os outros recebem: o player, a página compartilhada, o embed e as legendas. O corte cai no keyframe anterior ao começo, então até uns 2 segundos antes do começo ficam no arquivo deles (o player não mostra). A miniatura e o GIF são feitos de novo a partir do começo do corte.",
+    "trimNoteOther": "Este tipo de arquivo não pode ser cortado no navegador: quem assiste vê o vídeo cortado, mas o arquivo que recebe ainda tem as partes cortadas. A miniatura e o GIF são feitos de novo a partir do começo do corte.",
     "cutting": "Fazendo a cópia cortada… {pct}%",
     "retention": "Retenção",
-    "retentionLabel": "{start}% dos espectadores viram o começo e {end}% o final"
+    "retentionLabel": "{start}% dos espectadores viram o começo e {end}% o final",
+    "regenerating": "Fazendo a miniatura e o GIF a partir do corte…"
   },
   "pending": {
     "title": "Gravações esperando envio",
@@ -363,5 +364,12 @@
     "download": "Baixar",
     "discard": "Descartar",
     "error": "O envio não pôde terminar. Tente de novo quando tiver conexão."
+  },
+  "signout": {
+    "title": "{n, plural, one {Você tem # gravação não enviada} other {Você tem # gravações não enviadas}}",
+    "body": "Elas estão salvas só neste navegador. Se você sair agora, elas são apagadas daqui.",
+    "upload": "Enviar",
+    "download": "Baixar e sair",
+    "discard": "Descartar e sair"
   }
 }

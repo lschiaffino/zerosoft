@@ -104,9 +104,9 @@ const parity: ProductParity = {
     row('trim-stitch', 'editing', ['Trim and stitch videos', 'Recortar y unir videos', 'Cortar e unir vídeos'], 'partial', {
       weight: 2,
       detail: [
-        'Trim the start and the end. In WebM recordings everyone else gets a copy cut without re-encoding (from the keyframe before the start, up to 2 s earlier); MP4 and MOV uploads are only trimmed in the player. No joining clips',
-        'Recortar el principio y el final. En las grabaciones WebM los demás reciben una copia cortada sin recodificar (desde el keyframe anterior al inicio, hasta 2 s antes); en MP4 y MOV subidos solo se recorta en el reproductor. Sin unir clips',
-        'Cortar o começo e o fim. Nas gravações WebM os outros recebem uma cópia cortada sem recodificar (desde o keyframe anterior ao começo, até 2 s antes); em MP4 e MOV enviados só corta no player. Sem juntar clipes',
+        'Trim the start and the end. In WebM recordings everyone else gets a copy cut without re-encoding (from the keyframe before the start: up to about 2 s before it stay in that file, hidden by the player); thumbnail, GIF and captions are rebuilt for the trim. MP4 and MOV uploads are only trimmed in the player. No joining clips',
+        'Recortar el principio y el final. En las grabaciones WebM los demás reciben una copia cortada sin recodificar (desde el keyframe anterior al inicio: hasta unos 2 s antes quedan en ese archivo, ocultos por el reproductor); miniatura, GIF y subtítulos se rearman para el recorte. En MP4 y MOV subidos solo se recorta en el reproductor. Sin unir clips',
+        'Cortar o começo e o fim. Nas gravações WebM os outros recebem uma cópia cortada sem recodificar (desde o keyframe anterior ao começo: até uns 2 s antes ficam nesse arquivo, ocultos pelo player); miniatura, GIF e legendas são refeitos para o corte. Em MP4 e MOV enviados só corta no player. Sem juntar clipes',
       ],
     }),
     row('edit-by-transcript', 'editing', ['Edit from the transcript', 'Editar desde la transcripción', 'Editar pela transcrição'], 'missing', {

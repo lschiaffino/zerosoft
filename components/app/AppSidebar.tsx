@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { signOut } from 'next-auth/react';
 import { clearOfflineData } from '@/lib/offline-queue';
+import RecSignOutDialog from '@/components/rec/RecSignOutDialog';
 import { useTranslations } from 'next-intl';
 import { TZ_CHANGED_EVENT } from '@/lib/tz-client';
 import { collapsedFrom, denseRoute, storageKey } from '@/lib/sidebar-collapsed';
@@ -31,6 +32,9 @@ interface SideUser {
   name: string | null;
   email: string;
   image: string | null;
+  /** Persona real y workspace (para sus datos guardados en este navegador). */
+  id?: string;
+  ws?: string;
 }
 
 
@@ -134,6 +138,21 @@ export default function AppSidebar({
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  // Cerrar sesión: si quedaron grabaciones de Rec sin subir en este navegador, primero se avisa.
+  const recOwner = user.id && user.ws ? { userId: user.id, ws: user.ws } : null;
+  const [recPending, setRecPending] = useState(0);
+  const doSignOut = () => void clearOfflineData(recOwner ?? undefined).finally(() => signOut({ callbackUrl: '/' }));
+  async function requestSignOut() {
+    if (recOwner) {
+      const { pendingFor } = await import('@/components/rec/recStore');
+      const pending = await pendingFor(recOwner.userId, recOwner.ws).catch(() => []);
+      if (pending.length) {
+        setRecPending(pending.length);
+        return;
+      }
+    }
+    doSignOut();
+  }
   const [unreadCount, setUnreadCount] = useState(0);
   // Contador de tareas pedido de nuevo cuando la cookie tz recién se escribió
   // (el servidor lo contó con "hoy" en UTC). Ver TimezoneCookie.
@@ -551,13 +570,12 @@ export default function AppSidebar({
                 {labels.signOut}
               </Link>
             ) : (
-              <button
-                type="button"
-                className="side-signout side-label"
-                onClick={() => void clearOfflineData().finally(() => signOut({ callbackUrl: '/' }))}
-              >
-                {labels.signOut}
-              </button>
+              <>
+                <button type="button" className="side-signout side-label" onClick={() => void requestSignOut()}>
+                  {labels.signOut}
+                </button>
+                <RecSignOutDialog open={recPending > 0} count={recPending} owner={recOwner} onClose={() => setRecPending(0)} onSignOut={doSignOut} />
+              </>
             )}
           </div>
           <button

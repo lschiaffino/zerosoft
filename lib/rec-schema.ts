@@ -226,12 +226,13 @@ export function isTrimmed(start: number, end: number | null): boolean {
   return (Number(start) || 0) > 0 || (end !== null && end !== undefined);
 }
 
-/** Segmentos de la transcripción dentro del recorte (los que se cruzan, recortados al borde). */
+/**
+ * Segmentos de la transcripción enteramente dentro del recorte. Los que cruzan
+ * un borde quedan afuera: su texto incluye palabras de la parte recortada.
+ */
 export function segmentsInTrim(segments: RecSegment[], start: number, end: number | null): RecSegment[] {
   const e = end ?? Infinity;
-  return segments
-    .filter((s) => s.end > start && s.start < e)
-    .map((s) => ({ ...s, start: Math.max(s.start, start), end: Math.min(s.end, e) }));
+  return segments.filter((s) => s.start >= start - 0.05 && s.end <= e + 0.05);
 }
 
 /** Capítulos dentro del recorte; el primero pasa a empezar donde empieza el recorte. */
@@ -287,4 +288,28 @@ export function retentionCurve(viewers: Range[][], duration: number, buckets = 2
     const seen = viewers.filter((rs) => rs.some(([x, y]) => x <= mid && y >= mid)).length;
     return Math.round((seen / viewers.length) * 100);
   });
+}
+
+// ---------- Nombres de invitados ----------
+
+/** Letras cirílicas y griegas (y dígitos) que se ven iguales a latinas. */
+const CONFUSABLES: Record<string, string> = {
+  а: 'a', в: 'b', е: 'e', ё: 'e', к: 'k', м: 'm', н: 'h', о: 'o', р: 'p', с: 'c', т: 't', у: 'y', х: 'x', і: 'i', ї: 'i', ј: 'j', ѕ: 's', ԁ: 'd', ԛ: 'q', ԝ: 'w',
+  α: 'a', β: 'b', ε: 'e', η: 'n', ι: 'i', κ: 'k', ν: 'v', ο: 'o', ρ: 'p', τ: 't', υ: 'u', χ: 'x', ω: 'w',
+  '0': 'o', '1': 'l', '3': 'e', '5': 's',
+};
+
+/**
+ * Clave para comparar nombres: NFKC, minúsculas, sin invisibles, espacios,
+ * puntuación, símbolos ni tildes, y con los confusables básicos pasados a
+ * latín ("Ａｎa", "A.n.a", "Аnа" con cirílicas: todos "ana").
+ */
+export function nameKey(name: string): string {
+  const base = name.normalize('NFKC').toLowerCase().normalize('NFD');
+  let out = '';
+  for (const ch of base) {
+    if (/[\p{Cf}\p{Z}\p{P}\p{S}\p{M}\s]/u.test(ch)) continue;
+    out += CONFUSABLES[ch] ?? ch;
+  }
+  return out;
 }

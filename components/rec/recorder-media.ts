@@ -137,3 +137,65 @@ export const QUALITY = {
   '2160': { width: 3840, height: 2160, bitrate: 16_000_000 },
 } as const;
 export type QualityKey = keyof typeof QUALITY;
+
+/**
+ * Miniatura y GIF desde un tramo de un video ya subido (al recortar el
+ * inicio, los del grabador mostraban la parte cortada). Se busca cada cuadro
+ * con seek en un <video> fuera de pantalla.
+ */
+export async function assetsFromVideo(url: string, startSec: number, endSec: number | null): Promise<{ thumb: Blob | null; gif: Blob | null; thumbAt: number }> {
+  const { encodeGif } = await import('@/lib/rec-gif');
+  const v = document.createElement('video');
+  v.muted = true;
+  v.playsInline = true;
+  v.preload = 'auto';
+  v.src = url;
+  await new Promise<void>((resolve, reject) => {
+    v.onloadedmetadata = () => resolve();
+    v.onerror = () => reject(new Error('cut_failed'));
+  });
+  const duration = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : Infinity;
+  const last = Math.min(endSec ?? Infinity, duration) - 0.05;
+  const seek = (t: number) =>
+    new Promise<void>((resolve) => {
+      const target = Math.max(startSec, Math.min(t, last));
+      if (Math.abs(v.currentTime - target) < 0.01 && v.readyState >= 2) return resolve();
+      const done = () => {
+        v.removeEventListener('seeked', done);
+        resolve();
+      };
+      v.addEventListener('seeked', done);
+      v.currentTime = target;
+      setTimeout(done, 3000);
+    });
+  const thumbAt = Math.max(startSec, Math.min(startSec + 0.5, last));
+  await seek(thumbAt);
+  const shot = snapshot(v, 960);
+  const thumb = shot ? await canvasToBlob(shot, 'image/jpeg', 0.82) : null;
+  const frames: Array<{ width: number; height: number; rgba: Uint8ClampedArray }> = [];
+  for (let i = 0; i < 12; i++) {
+    const t = startSec + 0.5 + i * 0.25;
+    if (t > last && frames.length >= 2) break;
+    await seek(t);
+    const c = snapshot(v, 320);
+    const g = c?.getContext('2d');
+    if (c && g && (!frames[0] || (frames[0].width === c.width && frames[0].height === c.height))) {
+      try {
+        frames.push({ width: c.width, height: c.height, rgba: g.getImageData(0, 0, c.width, c.height).data });
+      } catch {
+        break;
+      }
+    }
+  }
+  v.removeAttribute('src');
+  v.load();
+  let gif: Blob | null = null;
+  if (frames.length >= 2) {
+    try {
+      gif = new Blob([encodeGif(frames, 25) as Uint8Array<ArrayBuffer>], { type: 'image/gif' });
+    } catch {
+      gif = null;
+    }
+  }
+  return { thumb, gif, thumbAt };
+}

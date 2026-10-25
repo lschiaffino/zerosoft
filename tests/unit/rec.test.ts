@@ -23,6 +23,7 @@ import {
   mergeRanges,
   retentionCurve,
   segmentsInTrim,
+  nameKey,
 } from '@/lib/rec-schema';
 import {
   addComment,
@@ -41,6 +42,7 @@ import {
   toDto,
   toPublicDto,
   videoFileFor,
+  assetVisible,
   RecError,
   searchRec,
   setVideoFile,
@@ -129,8 +131,31 @@ describe('tiempo visto y recorte para los demás', () => {
     expect(coveredPct([[0, 10], [90, 100]], 100)).toBe(20);
     expect(coveredPct([[0, 50], [0, 50]], 100)).toBe(50);
     expect(retentionCurve([[[0, 100]], [[0, 50]]], 100, 4)).toEqual([100, 100, 50, 50]);
-    expect(segmentsInTrim([{ start: 0, end: 4, text: 'a' }, { start: 4, end: 8, text: 'b' }, { start: 9, end: 12, text: 'c' }], 5, 10).map((x) => [x.start, x.end, x.text])).toEqual([[5, 8, 'b'], [9, 10, 'c']]);
+    // Los que cruzan un borde (b empieza antes del inicio, d termina después del fin) quedan afuera.
+    expect(
+      segmentsInTrim([{ start: 0, end: 4, text: 'a' }, { start: 4, end: 8, text: 'b' }, { start: 6, end: 9, text: 'c' }, { start: 9, end: 12, text: 'd' }], 5, 10).map((x) => x.text),
+    ).toEqual(['c']);
     expect(chaptersInTrim([{ start: 0, title: 'A' }, { start: 30, title: 'B' }, { start: 70, title: 'C' }], 40, 60)).toEqual([{ start: 40, title: 'B' }]);
+  });
+});
+
+describe('miniatura y nombres con recorte', () => {
+  it('la miniatura o el GIF de antes del recorte no se muestran; un cuadro de adentro sí', () => {
+    const base = { trim_start: 10, trim_end: 60, thumb_at: 1, thumb_for: '0:', gif_for: '0:' };
+    expect(assetVisible({ ...base, trim_start: 0, trim_end: null }, 'thumb')).toBe(true);
+    expect(assetVisible(base, 'thumb')).toBe(false);
+    expect(assetVisible(base, 'gif')).toBe(false);
+    expect(assetVisible({ ...base, thumb_at: 20 }, 'thumb')).toBe(true);
+    expect(assetVisible({ ...base, thumb_at: null, thumb_for: '10:60', gif_for: '10:60' }, 'thumb')).toBe(true);
+    expect(assetVisible({ ...base, gif_for: '10:60' }, 'gif')).toBe(true);
+  });
+
+  it('nameKey iguala variantes (NFKC, invisibles, puntuación, cirílicas)', () => {
+    expect(nameKey('Ana')).toBe('ana');
+    expect(nameKey('Ａ.n\u200ba')).toBe('ana');
+    expect(nameKey('Аnа')).toBe('ana');
+    expect(nameKey('José Pérez')).toBe('joseperez');
+    expect(nameKey('Ana')).not.toBe(nameKey('Anna'));
   });
 });
 
@@ -432,18 +457,24 @@ describe('vistas, comentarios y avisos', () => {
     expect(types.length).toBe(1);
     expect(JSON.parse(types[0].meta).count).toBe(2);
     // Un invitado no puede usar el nombre de alguien del workspace.
-    await expect(addComment(v, { ...ana, name: 'Owner' }, { kind: 'comment', body: 'x' })).rejects.toMatchObject({ code: 'name_taken' });
-    await expect(addComment(v, { ...ana, name: 'rec-owner' }, { kind: 'comment', body: 'x' })).rejects.toMatchObject({ code: 'name_taken' });
+    // Sin revelar membresía: el nombre de un miembro (o una variante) sale como invitado a secas.
+    for (const fake of ['Owner', 'rec-owner', 'О.w\u200bn е r', 'ＯＷＮＥＲ']) {
+      const x = await addComment(v, { ...ana, name: fake }, { kind: 'comment', body: 'x' });
+      expect([x.authorName, x.guest]).toEqual(['', true]);
+    }
+    expect((await addComment(v, { ...ana, name: 'Ana María' }, { kind: 'comment', body: 'y' })).authorName).toBe('Ana María');
     // Paginación: de a 50, los más nuevos primero.
     for (let i = 0; i < 55; i++) await addComment(v, { ...ana, name: 'Lote' }, { kind: 'comment', body: `n${i}`, atSec: i });
     const p1 = await listComments(v, null);
     expect(p1.comments.filter((x) => !x.parentId).length).toBe(50);
-    expect(p1.total).toBe(56);
+    // Orden estable aunque caigan en el mismo segundo: el más nuevo primero.
+    expect(p1.comments[0].body).toBe('n54');
+    expect(p1.total).toBe(61);
     const p2 = await listComments(v, null, { before: p1.nextBefore });
     expect(p2.comments.filter((x) => !x.parentId).length).toBeGreaterThan(0);
     await expect(deleteComment(v, c.id, { ...ana, key: 'a:otro' }, null)).rejects.toMatchObject({ code: 'forbidden' });
     await deleteComment(v, c.id, ana, null);
-    expect((await listComments(v, null)).total).toBe(55);
+    expect((await listComments(v, null)).total).toBe(60);
     await updateVideo(owner, v.id, { commentsRequireAccount: true });
     const acc = (await getVideoRow(owner, v.id))!;
     await expect(addComment(acc, ana, { kind: 'comment', body: 'x' })).rejects.toMatchObject({ code: 'signin_required' });

@@ -18,7 +18,7 @@ import RecDownload from './RecDownload';
 import RecShareDialog from './RecShareDialog';
 import { RecTranscript } from './RecWatch';
 import { RecMoveDialog, RecNameDialog, notifyRecChanged, type RecFolder } from './RecDialogs';
-import { canvasToBlob, snapshot } from './recorder-media';
+import { assetsFromVideo, canvasToBlob, snapshot } from './recorder-media';
 import { uploadAsset, uploadWhole } from './liveUpload';
 
 type Tab = 'details' | 'transcript' | 'insights' | 'edit';
@@ -68,6 +68,7 @@ export default function RecDetail({
   const [ctaMode, setCtaMode] = useState(initial.ctaMode);
   const [thumbVer, setThumbVer] = useState(0);
   const [cutting, setCutting] = useState<number | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
   const player = useRef<RecPlayerHandle>(null);
   // Avisa al sidebar y vacía la caché del router: volver atrás no muestra la lista vieja.
   const changed = () => {
@@ -201,6 +202,25 @@ export default function RecDetail({
       }
       setCutting(null);
     }
+    // Miniatura y GIF desde el inicio del recorte (los del grabador muestran lo cortado).
+    // La miniatura elegida a mano se respeta si su cuadro queda adentro.
+    if (isTrimmed(clamped.start, clamped.end)) {
+      setCutting(100);
+      setRegenerating(true);
+      try {
+        const keyNew = trimKey(clamped.start, clamped.end);
+        const keepThumb = video.thumbAt !== null && video.thumbAt >= clamped.start && (clamped.end === null || video.thumbAt < clamped.end);
+        const assets = await assetsFromVideo(`${file}?kind=video`, clamped.start, clamped.end);
+        if (assets.thumb && !keepThumb) await uploadAsset(video.id, 'thumb', assets.thumb, { forTrim: keyNew, atSec: assets.thumbAt });
+        if (assets.gif) await uploadAsset(video.id, 'gif', assets.gif, { forTrim: keyNew });
+        setThumbVer((n) => n + 1);
+      } catch {
+        // Sin miniatura nueva, a los demás no se les muestra ninguna (vacío), nunca la vieja.
+      } finally {
+        setRegenerating(false);
+        setCutting(null);
+      }
+    }
     if (await patch({ trimStart: clamped.start, trimEnd: clamped.end }, t('saved'))) {
       setTrimStart(fmtClock(clamped.start));
       setTrimEnd(clamped.end === null ? '' : fmtClock(clamped.end));
@@ -219,7 +239,8 @@ export default function RecDetail({
     if (!blob) return setError(t('frameFailed'));
     setBusy(true);
     try {
-      await uploadAsset(video.id, 'thumb', blob);
+      // El segundo del cuadro: si queda dentro del recorte, la ven todos.
+      await uploadAsset(video.id, 'thumb', blob, { atSec: relNow() });
       setThumbVer((n) => n + 1);
       setToast(t('thumbSaved'));
       changed();
@@ -525,7 +546,7 @@ export default function RecDetail({
                 </p>
                 {cutting !== null && (
                   <p role="status" className="ui-help" data-testid="rec-trim-cutting">
-                    {t('cutting', { pct: cutting })}
+                    {regenerating ? t('regenerating') : t('cutting', { pct: cutting })}
                   </p>
                 )}
                 <div className="rec-pane-foot">
