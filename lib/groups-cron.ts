@@ -1,6 +1,6 @@
 /**
  * Groups: trabajo del cron de cada minuto. Envíos masivos y programados,
- * chats sin responder (flagged_at) y tickets vencidos. Cada paso reclama sus
+ * chats sin responder (flagged_at), tickets vencidos y asignación automática. Cada paso reclama sus
  * filas con compare-and-set, así dos corridas no hacen lo mismo dos veces.
  * Server-only.
  */
@@ -36,5 +36,8 @@ export async function runGroupsCron(opts: { budgetMs?: number } = {}) {
   const flagged = await flagUnansweredChats().catch(() => null);
   const breached = await markBreachedTickets().catch(() => null);
   const broadcasts = await processBroadcasts({ budgetMs: opts.budgetMs ?? 30_000 }).catch(() => null);
-  return { flagged, breached, broadcasts };
+  // Round-robin de lo que quedó sin asignar (nadie disponible cuando llegó, o recién se armó la regla).
+  const { sweepAutoAssign } = await import('./groups-inbox');
+  const assigned = await sweepAutoAssign().catch(() => null);
+  return { flagged, breached, broadcasts, assigned };
 }

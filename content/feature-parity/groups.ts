@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-10-23',
+  lastReviewed: '2026-10-24',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -67,26 +67,56 @@ const parity: ProductParity = {
     row('chats-and-groups', 'inbox', ['1:1 chats and groups in one list', 'Chats 1:1 y grupos en una lista', 'Chats 1:1 e grupos em uma lista'], 'have', { weight: 2 }),
     row('reply-from-app', 'inbox', ['Reply without the phone, media and replies', 'Responder sin el teléfono, con media y respuestas citadas', 'Responder sem o telefone, com mídia e respostas citadas'], 'have', { weight: 2 }),
     row('reactions', 'inbox', ['Reactions', 'Reacciones', 'Reações'], 'have'),
-    row('edit-delete-forward', 'inbox', ['Edit, delete, forward and pin messages', 'Editar, borrar, reenviar y fijar mensajes', 'Editar, apagar, encaminhar e fixar mensagens'], 'missing'),
-    row('assignment', 'inbox', ['Assign chats', 'Asignar chats', 'Atribuir chats'], 'partial', {
-      weight: 2,
-      detail: ['Manual assignment; no round-robin rules yet', 'Asignación manual; sin reglas round-robin por ahora', 'Atribuição manual; sem regras round-robin por enquanto'],
+    row('edit-delete-forward', 'inbox', ['Edit, delete, forward and pin messages', 'Editar, borrar, reenviar y fijar mensajes', 'Editar, apagar, encaminhar e fixar mensagens'], 'have', {
+      detail: [
+        'Edit (15 min) and delete for everyone on WAHA and Evolution numbers, also when it happens on the phone. Pins go to WhatsApp on WAHA and stay in Groups elsewhere. Forward is native on WAHA and a copy elsewhere. The Cloud API cannot edit or delete',
+        'Editar (15 min) y borrar para todos en números WAHA y Evolution, también cuando pasa desde el teléfono. Fijar llega a WhatsApp en WAHA y queda en Groups en el resto. Reenviar es nativo en WAHA y una copia en el resto. La Cloud API no deja editar ni borrar',
+        'Editar (15 min) e apagar para todos em números WAHA e Evolution, também quando acontece no telefone. Fixar chega ao WhatsApp no WAHA e fica no Groups nos outros. Encaminhar é nativo no WAHA e uma cópia nos outros. A Cloud API não deixa editar nem apagar',
+      ],
     }),
-    row('private-notes', 'inbox', ['Internal notes', 'Notas internas', 'Notas internas'], 'partial', {
-      detail: ['Notes in the thread; no @mentions yet', 'Notas en el hilo; sin @menciones por ahora', 'Notas no fio; sem @menções por enquanto'],
+    row('assignment', 'inbox', ['Assign chats', 'Asignar chats', 'Atribuir chats'], 'have', {
+      weight: 2,
+      detail: [
+        'To a person and a team, Mine, Unassigned and team filters, history in the thread and a notification to the assignee',
+        'A una persona y a un equipo, filtros Míos, Sin asignar y por equipo, historial en el hilo y aviso a quien lo recibe',
+        'A uma pessoa e a uma equipe, filtros Minhas, Sem atribuição e por equipe, histórico no fio e aviso para quem recebe',
+      ],
+    }),
+    row('private-notes', 'inbox', ['Internal notes', 'Notas internas', 'Notas internas'], 'have', {
+      detail: [
+        '@mentions with autocomplete and a notification, edit and delete, marked as internal in the thread',
+        '@menciones con autocompletado y aviso, editar y borrar, marcadas como internas en el hilo',
+        '@menções com autocompletar e aviso, editar e apagar, marcadas como internas no fio',
+      ],
     }),
     row('quick-replies', 'inbox', ['Quick replies with /shortcut', 'Respuestas rápidas con /atajo', 'Respostas rápidas com /atalho'], 'have'),
     row('filters', 'inbox', ['Filters: unread, unanswered, mine, label', 'Filtros: sin leer, sin responder, míos, etiqueta', 'Filtros: não lidas, sem resposta, minhas, etiqueta'], 'have'),
     row('message-search', 'inbox', ['Search chats and message text', 'Buscar chats y texto de mensajes', 'Buscar chats e texto das mensagens'], 'have'),
-    row('close-reopen', 'inbox', ['Close, reopen and mark as read', 'Cerrar, reabrir y marcar leído', 'Fechar, reabrir e marcar como lida'], 'partial', {
-      detail: ['No pin or archive in bulk yet', 'Sin fijar ni archivar en masa por ahora', 'Sem fixar nem arquivar em massa por enquanto'],
+    row('close-reopen', 'inbox', ['Close, reopen and mark as read', 'Cerrar, reabrir y marcar leído', 'Fechar, reabrir e marcar como lida'], 'have', {
+      detail: [
+        'Close, reopen, read or unread and pin chats to the top, one by one or in bulk, with E, U, P and X',
+        'Cerrar, reabrir, leído o no leído y fijar chats arriba, de a uno o en masa, con E, U, P y X',
+        'Fechar, reabrir, lida ou não lida e fixar chats no topo, um por um ou em massa, com E, U, P e X',
+      ],
     }),
     row('keyboard-inbox', 'inbox', ['Keyboard-first inbox', 'Bandeja manejable con teclado', 'Caixa operável pelo teclado'], 'better', {
       competitorHas: false,
       detail: ['J/K, R, N, E, A, T and Cmd+K across the suite', 'J/K, R, N, E, A, T y Cmd+K en toda la suite', 'J/K, R, N, E, A, T e Cmd+K em toda a suíte'],
     }),
-    row('calls', 'inbox', ['Voice calls with recording', 'Llamadas de voz con grabación', 'Chamadas de voz com gravação'], 'missing'),
-    row('translation', 'inbox', ['Message translation', 'Traducción de mensajes', 'Tradução de mensagens'], 'missing'),
+    row('calls', 'inbox', ['Voice calls with recording', 'Llamadas de voz con grabación', 'Chamadas de voz com gravação'], 'partial', {
+      detail: [
+        'Call log in the chat: incoming, outgoing, missed and declined, with duration on the Cloud API (Calling API). Calling from Groups and recordings are not available: the providers do not expose the call audio',
+        'Registro de llamadas en el chat: entrantes, salientes, perdidas y rechazadas, con duración en la Cloud API (Calling API). Llamar desde Groups y grabar no están: los proveedores no dan el audio de la llamada',
+        'Registro de chamadas no chat: recebidas, feitas, perdidas e recusadas, com duração na Cloud API (Calling API). Ligar pelo Groups e gravar não estão disponíveis: os provedores não entregam o áudio da chamada',
+      ],
+    }),
+    row('translation', 'inbox', ['Message translation', 'Traducción de mensajes', 'Tradução de mensagens'], 'have', {
+      detail: [
+        "Incoming messages in your language with L, cached per message, with the original one click away",
+        'Los mensajes entrantes en tu idioma con L, cacheados por mensaje y con el original a un clic',
+        'As mensagens recebidas no seu idioma com L, em cache por mensagem e com o original a um clique',
+      ],
+    }),
 
     // Grupos
     row('create-group', 'groups', ['Create a group', 'Crear un grupo', 'Criar um grupo'], 'have', { weight: 2 }),
@@ -151,12 +181,24 @@ const parity: ProductParity = {
       detail: ['Flow triggers for message received and ticket created or updated, with no rule cap', 'Disparadores de Flow para mensaje recibido y ticket creado o actualizado, sin tope de reglas', 'Gatilhos do Flow para mensagem recebida e ticket criado ou atualizado, sem limite de regras'],
     }),
     row('send-action', 'automation', ['Send a WhatsApp message from an automation', 'Mandar un WhatsApp desde una automatización', 'Enviar um WhatsApp por uma automação'], 'have'),
-    row('auto-assign', 'automation', ['Round-robin auto assignment', 'Asignación automática round-robin', 'Atribuição automática round-robin'], 'missing'),
+    row('auto-assign', 'automation', ['Round-robin auto assignment', 'Asignación automática round-robin', 'Atribuição automática round-robin'], 'have', {
+      detail: [
+        'Rules by number, label or chat type that rotate among a team or some people, only those marked available',
+        'Reglas por número, etiqueta o tipo de chat que rotan entre un equipo o algunas personas, solo entre quienes están disponibles',
+        'Regras por número, etiqueta ou tipo de chat que revezam entre uma equipe ou algumas pessoas, só entre quem está disponível',
+      ],
+    }),
     row('ai-summary', 'automation', ['AI summary of a chat', 'Resumen AI de un chat', 'Resumo IA de um chat'], 'have'),
     row('ai-agent', 'automation', ['AI agent that answers in chats and groups', 'Agente AI que responde en chats y grupos', 'Agente IA que responde em chats e grupos'], 'have', {
       detail: ['Any agent from Agents, with its knowledge, tools and handoff', 'Cualquier agente de Agents, con su conocimiento, herramientas y derivación', 'Qualquer agente do Agents, com seu conhecimento, ferramentas e transferência'],
     }),
-    row('ai-drafts', 'automation', ['AI drafts and translation of replies', 'Borradores y traducción AI de respuestas', 'Rascunhos e tradução IA de respostas'], 'missing'),
+    row('ai-drafts', 'automation', ['AI drafts and translation of replies', 'Borradores y traducción AI de respuestas', 'Rascunhos e tradução IA de respostas'], 'have', {
+      detail: [
+        "Draft or improve a reply from the chat, quick replies and the chat agent's knowledge or public Docs, and translate it to the customer's language before sending",
+        'Borrador o mejora de la respuesta con el chat, las respuestas rápidas y el conocimiento del agente del chat o las páginas públicas de Docs, y traducción al idioma del cliente antes de mandar',
+        'Rascunho ou melhoria da resposta com o chat, as respostas rápidas e o conhecimento do agente do chat ou as páginas públicas do Docs, e tradução para o idioma do cliente antes de enviar',
+      ],
+    }),
 
     // Integraciones
     row('crm-native', 'integrations', ['CRM link with timeline', 'Vínculo con el CRM y timeline', 'Vínculo com o CRM e timeline'], 'better', {

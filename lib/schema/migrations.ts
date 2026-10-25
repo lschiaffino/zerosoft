@@ -4089,6 +4089,70 @@ export const MIGRATIONS: Migration[] = [
       for (const { table } of ACTIVITY_DATE_TABLES) await client.execute(activityDatesUpdateSql(table));
     },
   },
+  {
+    // Groups, bandeja (lib/groups-inbox.ts): mensajes editados, borrados para
+    // todos, fijados, reenviados, traducciones cacheadas por idioma y `meta`
+    // (llamadas, eventos de asignación, menciones). En los chats: fijado y
+    // equipo asignado. Equipos de la bandeja, disponibilidad por persona y
+    // reglas de asignación round-robin (claim con compare-and-set sobre
+    // last_person_id y sobre assigned_to IS NULL).
+    id: '080_groups_inbox',
+    async up(client) {
+      for (const sql of [
+        'ALTER TABLE groups_messages ADD COLUMN edited_at TEXT',
+        'ALTER TABLE groups_messages ADD COLUMN deleted_at TEXT',
+        'ALTER TABLE groups_messages ADD COLUMN pinned_at TEXT',
+        'ALTER TABLE groups_messages ADD COLUMN pinned_by TEXT',
+        'ALTER TABLE groups_messages ADD COLUMN forwarded INTEGER NOT NULL DEFAULT 0',
+        "ALTER TABLE groups_messages ADD COLUMN translations TEXT NOT NULL DEFAULT '{}'",
+        "ALTER TABLE groups_messages ADD COLUMN meta TEXT NOT NULL DEFAULT '{}'",
+        'ALTER TABLE groups_chats ADD COLUMN pinned_at TEXT',
+        'ALTER TABLE groups_chats ADD COLUMN assigned_team_id TEXT',
+      ]) {
+        await addColumn(client, sql);
+      }
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_groups_messages_pinned ON groups_messages(chat_id) WHERE pinned_at IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_groups_chats_unassigned ON groups_chats(user_id, status) WHERE assigned_to IS NULL;
+
+        CREATE TABLE IF NOT EXISTS groups_teams (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, name)
+        );
+        CREATE TABLE IF NOT EXISTS groups_team_members (
+          team_id TEXT NOT NULL REFERENCES groups_teams(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          PRIMARY KEY (team_id, person_id)
+        );
+        CREATE TABLE IF NOT EXISTS groups_availability (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          available INTEGER NOT NULL DEFAULT 1,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, person_id)
+        );
+        CREATE TABLE IF NOT EXISTS groups_assign_rules (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          position INTEGER NOT NULL DEFAULT 0,
+          number_id TEXT,
+          label_id TEXT,
+          kind TEXT CHECK (kind IS NULL OR kind IN ('dm', 'group')),
+          team_id TEXT,
+          person_ids TEXT NOT NULL DEFAULT '[]',
+          last_person_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_assign_rules_user ON groups_assign_rules(user_id, position);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

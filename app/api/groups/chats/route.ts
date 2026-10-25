@@ -5,7 +5,7 @@ import { groupsSession } from '@/lib/groups-http';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Bandeja: chats y grupos con filtros (sin leer, sin responder, míos, etiqueta) y búsqueda en mensajes. */
+/** Bandeja: chats y grupos con filtros (sin leer, sin responder, míos, etiqueta, equipo) y búsqueda en mensajes. Los fijados van primero. */
 export async function GET(req: Request) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
@@ -16,6 +16,7 @@ export async function GET(req: Request) {
     filter,
     q: p.get('q') ?? '',
     labelId: p.get('label') || undefined,
+    teamId: p.get('team') || undefined,
     numberId: p.get('number') || undefined,
     kind,
     limit: Number(p.get('limit')) || 50,

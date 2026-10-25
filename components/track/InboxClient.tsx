@@ -196,6 +196,9 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     docShared: tr.raw('notifications.docShared') as string,
     boardMention: tr.raw('notifications.boardMention') as string,
     boardReply: tr.raw('notifications.boardReply') as string,
+    groupsMention: tr.raw('notifications.groupsMention') as string,
+    groupsAssigned: tr.raw('notifications.groupsAssigned') as string,
+    groupsAutoAssigned: tr.raw('notifications.groupsAutoAssigned') as string,
   };
 
   const firstLoad = loading && rows.length === 0;

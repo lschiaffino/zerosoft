@@ -256,7 +256,7 @@ export function webhookUrlFor(row: Pick<NumberRow, 'id' | 'webhook_secret'>, ori
   return `${groupsBaseUrl(origin)}/api/groups/webhook/${row.id}/${row.webhook_secret}`;
 }
 
-function providerErrorCode(err: unknown): string {
+export function providerErrorCode(err: unknown): string {
   if (err instanceof ProviderError) return err.code;
   if (err instanceof GroupsError) return err.code;
   return 'provider_error';
@@ -332,6 +332,8 @@ export interface ChatRow {
   last_message_preview: string;
   awaiting_since: string | null;
   flagged_at: string | null;
+  pinned_at?: string | null;
+  assigned_team_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -352,6 +354,9 @@ export interface ChatDto {
   inviteLink: string;
   memberCount: number;
   assignedTo: string | null;
+  assignedTeamId: string | null;
+  /** Fijado arriba de la lista. */
+  pinned: boolean;
   properties: Record<string, unknown>;
   crmContactId: string | null;
   crmCompanyId: string | null;
@@ -393,6 +398,8 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     inviteLink: row.invite_link,
     memberCount: row.member_count,
     assignedTo: row.assigned_to,
+    assignedTeamId: row.assigned_team_id ?? null,
+    pinned: Boolean(row.pinned_at),
     properties: parseJson<Record<string, unknown>>(row.properties, {}),
     crmContactId: row.crm_contact_id,
     crmCompanyId: row.crm_company_id,
@@ -443,6 +450,7 @@ export interface ChatQuery {
   filter?: ChatFilter;
   q?: string;
   labelId?: string;
+  teamId?: string;
   kind?: 'dm' | 'group';
   numberId?: string;
   limit?: number;
@@ -475,6 +483,10 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     where.push('c.number_id = ?');
     args.push(query.numberId);
   }
+  if (query.teamId) {
+    where.push('c.assigned_team_id = ?');
+    args.push(query.teamId);
+  }
   if (query.labelId) {
     where.push('EXISTS (SELECT 1 FROM groups_chat_labels cl WHERE cl.chat_id = c.id AND cl.label_id = ?)');
     args.push(query.labelId);
@@ -499,7 +511,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const rows = (await db
     .prepare(
       `SELECT c.*, ${matchSelect} FROM groups_chats c WHERE ${whereSql}
-       ORDER BY COALESCE(c.last_message_at, c.created_at) DESC, c.id LIMIT ? OFFSET ?`,
+       ORDER BY (c.pinned_at IS NULL), c.pinned_at DESC, COALESCE(c.last_message_at, c.created_at) DESC, c.id LIMIT ? OFFSET ?`,
     )
     .all(...matchArgs, ...args, limit, offset)) as Array<ChatRow & { match: string | null }>;
   const labels = await labelsFor(rows.map((r) => r.id));
@@ -537,13 +549,16 @@ export interface ChatPatch {
   name?: string;
   description?: string;
   assignedTo?: string | null;
+  assignedTeamId?: string | null;
+  pinned?: boolean;
+  /** false: marcar como no leído (queda con 1 sin leer si no tenía). */
+  read?: boolean;
   status?: 'open' | 'closed';
   crmContactId?: string | null;
   crmCompanyId?: string | null;
   agentId?: string | null;
   properties?: Record<string, unknown>;
   labelIds?: string[];
-  read?: boolean;
   flagged?: boolean;
 }
 
@@ -552,7 +567,11 @@ async function assertWorkspacePerson(ws: string, personId: string): Promise<void
   if (!(await isWorkspacePerson(ws, personId))) throw new GroupsError('invalid_assignee');
 }
 
-export async function updateChat(ws: string, id: string, patch: ChatPatch): Promise<ChatDto> {
+/**
+ * Cambia un chat. `actor` (la persona que lo hace, o null si es el sistema)
+ * queda en el historial de asignación y cierre, y decide a quién se avisa.
+ */
+export async function updateChat(ws: string, id: string, patch: ChatPatch, actor: string | null = null): Promise<ChatDto> {
   const row = await getChatRow(ws, id);
   if (!row) throw new GroupsError('not_found', 404);
   const db = getDb();
@@ -584,6 +603,14 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch): Prom
     if (patch.assignedTo) await assertWorkspacePerson(ws, patch.assignedTo);
     set('assigned_to', patch.assignedTo || null);
   }
+  if (patch.assignedTeamId !== undefined) {
+    if (patch.assignedTeamId) {
+      const ok = await db.prepare('SELECT 1 AS x FROM groups_teams WHERE id = ? AND user_id = ?').get(patch.assignedTeamId, ws);
+      if (!ok) throw new GroupsError('invalid_team');
+    }
+    set('assigned_team_id', patch.assignedTeamId || null);
+  }
+  if (patch.pinned !== undefined) set('pinned_at', patch.pinned ? row.pinned_at || nowIso() : null);
   if (patch.status) set('status', patch.status);
   if (patch.crmContactId !== undefined) {
     if (patch.crmContactId) {
@@ -608,7 +635,8 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch): Prom
     if (patch.agentId !== row.agent_id) set('agent_conversation_id', null);
   }
   if (patch.properties !== undefined) set('properties', JSON.stringify(await cleanProperties(ws, patch.properties)));
-  if (patch.read) set('unread_count', 0);
+  if (patch.read === true) set('unread_count', 0);
+  if (patch.read === false && row.unread_count === 0) set('unread_count', 1);
   if (patch.flagged === false) {
     set('flagged_at', null);
     set('awaiting_since', null);
@@ -618,6 +646,8 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch): Prom
     await db.prepare(`UPDATE groups_chats SET ${sets.join(', ')}, updated_at = ? WHERE id = ? AND user_id = ?`).run(...args, nowIso(), id, ws);
   }
   if (patch.labelIds !== undefined) await setChatLabels(ws, id, patch.labelIds);
+  const { afterChatChange } = await import('./groups-inbox');
+  await afterChatChange(ws, actor, row, patch);
   return (await getChat(ws, id)) as ChatDto;
 }
 
@@ -654,7 +684,17 @@ export interface MessageRow {
   status: string;
   error: string;
   created_at: string;
+  edited_at?: string | null;
+  deleted_at?: string | null;
+  pinned_at?: string | null;
+  pinned_by?: string | null;
+  forwarded?: number;
+  translations?: string;
+  meta?: string;
 }
+
+/** Traducciones cacheadas: idioma → texto ('' = ya estaba en ese idioma). `_lang` = idioma detectado. */
+export type MessageTranslations = Record<string, string>;
 
 export interface Reaction {
   emoji: string;
@@ -678,6 +718,14 @@ export interface MessageDto {
   error: string;
   createdAt: string;
   ticketId?: string | null;
+  editedAt: string | null;
+  /** Borrado para todos (el texto queda para el equipo). */
+  deletedAt: string | null;
+  pinnedAt: string | null;
+  forwarded: boolean;
+  translations: MessageTranslations;
+  /** Llamadas (author_kind 'call'), eventos ('event') y menciones de notas. */
+  meta: Record<string, unknown>;
 }
 
 /** URL de la media para el navegador: las de proveedor pasan por el proxy autenticado. */
@@ -704,6 +752,12 @@ export function toMessageDto(row: MessageRow & { ticket_id?: string | null }): M
     error: row.error,
     createdAt: row.created_at,
     ticketId: row.ticket_id ?? null,
+    editedAt: row.edited_at ?? null,
+    deletedAt: row.deleted_at ?? null,
+    pinnedAt: row.pinned_at ?? null,
+    forwarded: Boolean(row.forwarded),
+    translations: parseJson<MessageTranslations>(row.translations, {}),
+    meta: parseJson<Record<string, unknown>>(row.meta, {}),
   };
 }
 
@@ -740,7 +794,7 @@ export function previewOf(body: string, mediaType: string, mediaName = ''): stri
   return mediaType ? `[${mediaKind(mediaType)}]` : '';
 }
 
-interface InsertMessage {
+export interface InsertMessage {
   ws: string;
   chatId: string;
   numberId: string;
@@ -756,16 +810,18 @@ interface InsertMessage {
   status: string;
   error?: string;
   createdAt?: string;
+  forwarded?: boolean;
+  meta?: Record<string, unknown>;
 }
 
 /** Inserta un mensaje. null si ya existía (mismo id del proveedor en el número). */
-async function insertMessage(m: InsertMessage): Promise<MessageRow | null> {
+export async function insertMessage(m: InsertMessage): Promise<MessageRow | null> {
   const id = newId();
   const r = await getDb()
     .prepare(
       `INSERT OR IGNORE INTO groups_messages (id, user_id, chat_id, number_id, provider_message_id, direction, sender_phone, sender_name,
-         author_id, author_kind, body, media_url, media_type, media_name, reply_to_id, status, error, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         author_id, author_kind, body, media_url, media_type, media_name, reply_to_id, status, error, created_at, forwarded, meta)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -786,13 +842,15 @@ async function insertMessage(m: InsertMessage): Promise<MessageRow | null> {
       m.status,
       m.error ?? '',
       m.createdAt ?? nowIso(),
+      m.forwarded ? 1 : 0,
+      JSON.stringify(m.meta ?? {}),
     );
   if (r.changes === 0) return null;
   return (await getDb().prepare('SELECT * FROM groups_messages WHERE id = ?').get(id)) as MessageRow;
 }
 
 /** Después de responder: el chat deja de esperar y los tickets abiertos toman su primera respuesta. */
-async function markAnswered(chatId: string, at: string): Promise<void> {
+export async function markAnswered(chatId: string, at: string): Promise<void> {
   const db = getDb();
   await db.prepare('UPDATE groups_chats SET awaiting_since = NULL, flagged_at = NULL, updated_at = ? WHERE id = ?').run(at, chatId);
   await db
@@ -802,7 +860,7 @@ async function markAnswered(chatId: string, at: string): Promise<void> {
     .run(at, at, chatId);
 }
 
-async function touchChat(chatId: string, at: string, preview: string, incoming: boolean): Promise<void> {
+export async function touchChat(chatId: string, at: string, preview: string, incoming: boolean): Promise<void> {
   const db = getDb();
   if (incoming) {
     await db
@@ -824,6 +882,8 @@ export interface SendInput {
   media?: { url: string; mimetype: string; filename: string } | null;
   note?: boolean;
   authorKind?: 'person' | 'agent' | 'broadcast' | 'scheduled' | 'flow' | 'api';
+  /** Reenvío por copia (el proveedor no reenvía nativo). */
+  forwarded?: boolean;
 }
 
 export async function sendMessage(ws: string, actor: string | null, chatId: string, input: SendInput): Promise<MessageDto> {
@@ -843,7 +903,9 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
       body,
       status: 'sent',
     });
-    return toMessageDto(row as MessageRow);
+    const { afterNoteSaved } = await import('./groups-inbox');
+    const saved = await afterNoteSaved(ws, actor, chat, row as MessageRow, '');
+    return toMessageDto(saved);
   }
 
   const number = await getNumberRow(ws, chat.number_id);
@@ -882,6 +944,7 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
     status,
     error,
     createdAt: at,
+    forwarded: input.forwarded,
   });
   if (status === 'sent') {
     await touchChat(chatId, at, previewOf(body, input.media?.mimetype ?? '', input.media?.filename ?? ''), false);
@@ -1014,6 +1077,23 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[]): P
         if (row && (rank[ev.status] ?? 0) > (rank[row.status] ?? 0)) {
           await getDb().prepare('UPDATE groups_messages SET status = ? WHERE id = ?').run(ev.status, row.id);
         }
+      } else if (ev.type === 'edit' || ev.type === 'revoke') {
+        const msg = (await getDb()
+          .prepare('SELECT id FROM groups_messages WHERE number_id = ? AND provider_message_id = ?')
+          .get(number.id, ev.providerMessageId)) as { id: string } | undefined;
+        if (!msg) {
+          res.ignored++;
+          continue;
+        }
+        if (ev.type === 'edit') {
+          await getDb().prepare('UPDATE groups_messages SET body = ?, edited_at = ? WHERE id = ?').run(ev.body.slice(0, 8000), nowIso(), msg.id);
+        } else {
+          await getDb().prepare('UPDATE groups_messages SET deleted_at = COALESCE(deleted_at, ?), pinned_at = NULL WHERE id = ?').run(nowIso(), msg.id);
+        }
+      } else if (ev.type === 'call') {
+        const { ingestCall } = await import('./groups-inbox');
+        await ingestCall(number, ev);
+        res.messages++;
       } else if (ev.type === 'participants') {
         const chat = (await getDb()
           .prepare('SELECT * FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?')
@@ -1043,6 +1123,8 @@ async function afterInbound(ws: string, chat: ChatRow, msg: MessageRow): Promise
     const { createTicket } = await import('./groups-tickets');
     await createTicket(ws, null, { chatId: chat.id, messageId: msg.id, source: 'keyword' }).catch(() => null);
   }
+  const { autoAssignChat } = await import('./groups-inbox');
+  await autoAssignChat(ws, chat.id).catch(() => null);
   await emitEventSoon(ws, 'groups.message.received', {
     message: { id: msg.id, body: msg.body, senderPhone: msg.sender_phone, senderName: msg.sender_name, createdAt: msg.created_at },
     chat: { id: chat.id, kind: chat.kind, name: chatDisplayName(chat), crmCompanyId: chat.crm_company_id, crmContactId: chat.crm_contact_id },

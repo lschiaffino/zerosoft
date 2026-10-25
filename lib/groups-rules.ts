@@ -14,9 +14,9 @@ export function mediaKind(mime: string): 'image' | 'audio' | 'video' | 'file' {
 }
 
 /** Marcador de vista previa sin texto ni nombre ([image], [file]...), o null. */
-export function previewToken(preview: string): 'image' | 'audio' | 'video' | 'file' | null {
-  const m = /^\[(image|audio|video|file)\]$/.exec(String(preview ?? '').trim());
-  return m ? (m[1] as 'image' | 'audio' | 'video' | 'file') : null;
+export function previewToken(preview: string): 'image' | 'audio' | 'video' | 'file' | 'call' | null {
+  const m = /^\[(image|audio|video|file|call)\]$/.exec(String(preview ?? '').trim());
+  return m ? (m[1] as 'image' | 'audio' | 'video' | 'file' | 'call') : null;
 }
 
 export const TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'] as const;

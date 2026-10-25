@@ -295,6 +295,9 @@ export default async function AppLayout(
                 docShared: tTrack.raw('notifications.docShared') as string,
                 boardMention: tTrack.raw('notifications.boardMention') as string,
                 boardReply: tTrack.raw('notifications.boardReply') as string,
+                groupsMention: tTrack.raw('notifications.groupsMention') as string,
+                groupsAssigned: tTrack.raw('notifications.groupsAssigned') as string,
+                groupsAutoAssigned: tTrack.raw('notifications.groupsAutoAssigned') as string,
               },
             },
           }}

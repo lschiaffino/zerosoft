@@ -10,7 +10,8 @@
  *    horario entre las 8 y las 11 de su zona horaria (la de sus ajustes de
  *    Track, si no la de Cal, si no UTC). digest_day reclama el día.
  *  - off: nada por email; la bandeja sigue igual.
- * Los avisos pospuestos no se mandan.
+ * Los avisos pospuestos no se mandan. También salen así las @menciones y
+ * asignaciones de chats de Groups (source_type 'groups_chat').
  *
  * Recordatorios: "Recordarme" en un issue crea un aviso en la bandeja a esa
  * hora (track_issue_reminders, claim por sent_at); el email sigue la
@@ -50,6 +51,12 @@ const ACTIVITY: Record<TrackMailLocale, ActivityStrings> = {
   en: en.activity,
   es: { ...en.activity, ...es.activity },
   pt: { ...en.activity, ...pt.activity },
+};
+type NotificationStrings = typeof en.notifications;
+const NOTIFICATION: Record<TrackMailLocale, NotificationStrings> = {
+  en: en.notifications,
+  es: { ...en.notifications, ...es.notifications },
+  pt: { ...en.notifications, ...pt.notifications },
 };
 
 export function mailLocale(raw: string | null | undefined): TrackMailLocale {
@@ -131,7 +138,15 @@ export function describeItem(item: TrackMailItem, locale: TrackMailLocale): stri
   const meta = parseMeta(item.meta);
   const a = ACTIVITY[locale];
   const m = MAIL[locale];
-  const vars = { actor: String(meta.actorName ?? m.someone), identifier: String(meta.issueIdentifier ?? '') };
+  const vars = { actor: String(meta.actorName || m.someone), identifier: String(meta.issueIdentifier ?? '') };
+  if (meta.chatName) {
+    // Groups: mención en una nota o chat asignado.
+    const n = NOTIFICATION[locale];
+    const g = { actor: vars.actor, title: String(meta.chatName) };
+    if (item.type === 'mention') return fill(n.groupsMention, g);
+    if (item.type === 'assigned') return fill(meta.rule ? n.groupsAutoAssigned : n.groupsAssigned, g);
+    return item.title;
+  }
   switch (item.type) {
     case 'mention':
       return fill(a.mentionedYou, vars);
@@ -202,7 +217,7 @@ export function buildTrackEmail(
 // ---------- Envíos ----------
 
 const ITEM_COLUMNS = 'n.id, n.type, n.title, n.body, n.href, n.meta, n.created_at';
-const VISIBLE = `n.source_type = 'track_issue' AND n.read_at IS NULL AND (n.snoozed_until IS NULL OR n.snoozed_until <= ?)`;
+const VISIBLE = `n.source_type IN ('track_issue', 'groups_chat') AND n.read_at IS NULL AND (n.snoozed_until IS NULL OR n.snoozed_until <= ?)`;
 
 /** Emails inmediatos (cron de cada minuto). Devuelve cuántos emails salieron. */
 export async function sendImmediateTrackEmails(opts: { now?: Date; limit?: number } = {}): Promise<number> {
