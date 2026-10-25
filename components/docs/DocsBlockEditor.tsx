@@ -419,7 +419,7 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           contentEditable={!readOnly}
           suppressContentEditableWarning
           dangerouslySetInnerHTML={initialHtml}
-          data-placeholder={renderPlaceholder(block.type)}
+          data-placeholder={readOnly ? undefined : renderPlaceholder(block.type)}
           onInput={(e) => onChange(index, { content: serializeEditable(e.currentTarget) })}
           onPaste={(e) => {
             // Paste saneado: solo entra el subset HTML-lite (o texto escapado
