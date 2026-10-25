@@ -430,7 +430,7 @@
     "today": {
       "title": "Para hoy",
       "crm": "Tareas del CRM",
-      "crmEmpty": "No tenés tareas que venzan hoy.",
+      "crmEmpty": "No tenés tareas vencidas ni para hoy.",
       "overdue": "Atrasada",
       "dueToday": "Hoy",
       "track": "En curso en Track",
@@ -440,7 +440,11 @@
       "inbox": "Sin leer",
       "inboxEmpty": "Todo leído.",
       "chatUnread": "{n, plural, one {# conversación sin leer en Chat} other {# conversaciones sin leer en Chat}}",
-      "groupsUnread": "{n, plural, one {# chat sin leer en Groups} other {# chats sin leer en Groups}}"
+      "groupsUnread": "{n, plural, one {# chat sin leer en Groups} other {# chats sin leer en Groups}}",
+      "crmEmptyAll": "No hay tareas vencidas ni para hoy.",
+      "crmScope": "Qué tareas ver",
+      "crmMine": "Mías",
+      "crmAll": "Todas"
     },
     "recent": {
       "title": "Recientes",
@@ -455,7 +459,8 @@
         "deal": "Negocio",
         "flow": "Flow"
       },
-      "untitled": "Sin título"
+      "untitled": "Sin título",
+      "partial": "No pudimos cargar algunas apps. Recargá la página para verlas."
     },
     "invite": {
       "title": "Sumá a tu equipo",

@@ -58,7 +58,11 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'agents' }),
       getTranslations({ locale, namespace: 'robots' }),
       getTranslations({ locale, namespace: 'groups' }),
-      countDueTasks(user.id),
+      // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
+      countDueTasks(user.id).catch((err) => {
+        console.error('[app layout] countDueTasks', err);
+        return 0;
+      }),
       getUserTimeZone(),
       getWorkspaceMode(user),
       getTranslations({ locale, namespace: 'common.categories' }),

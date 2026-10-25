@@ -9,7 +9,7 @@ import { listLinks } from '@/lib/links';
 import { viewerOf } from '@/lib/link-folders';
 import { boardViewer, boardVisibleSql } from '@/lib/board-access';
 import { chatAccessSql, groupsViewer } from '@/lib/groups-access';
-import { workspaceWidgetIds } from '@/lib/chat-api';
+import { listChatWidgets } from '@/lib/chat-data';
 import { dayRangeUtc, getUserTimeZone } from '@/lib/user-tz';
 import { normalizeWorkspaceMode, type WorkspaceMode } from '@/lib/workspace-mode';
 import type { TeamRole } from '@/lib/teams';
@@ -77,14 +77,33 @@ export interface HomeTask {
   context: string | null;
 }
 
-/** Tareas abiertas del CRM atrasadas o que vencen hoy, con la misma visibilidad que la lista. */
-export async function homeCrmTasks(user: HomeUser, limit = 5): Promise<{ total: number; items: HomeTask[] }> {
+export type HomeTaskScope = 'mine' | 'all';
+
+export function normalizeTaskScope(value: unknown): HomeTaskScope {
+  return value === 'all' ? 'all' : 'mine';
+}
+
+/**
+ * Tareas abiertas del CRM atrasadas o que vencen hoy, con la misma visibilidad
+ * que la lista. Por defecto las mías (como HubSpot); 'all' trae todas las que
+ * se ven. Una tarea sin owner es del dueño del workspace.
+ */
+export async function homeCrmTasks(
+  user: HomeUser,
+  opts: { scope?: HomeTaskScope; limit?: number } = {},
+): Promise<{ total: number; items: HomeTask[] }> {
+  const limit = opts.limit ?? 5;
+  const me = user.actingUser?.id ?? user.id;
   const scope = await sessionScope(user);
   const [overdue, today] = await Promise.all([
     listTasks(user.id, { bucket: 'overdue', ownerScope: scope }),
     listTasks(user.id, { bucket: 'today', ownerScope: scope }),
   ]);
-  const rows = [...overdue.map((r) => ({ r, overdue: true })), ...today.map((r) => ({ r, overdue: false }))];
+  const mine = (r: { owner_id: string | null }) => opts.scope === 'all' || (r.owner_id ?? user.id) === me;
+  const rows = [
+    ...overdue.filter(mine).map((r) => ({ r, overdue: true })),
+    ...today.filter(mine).map((r) => ({ r, overdue: false })),
+  ];
   return {
     total: rows.length,
     items: rows.slice(0, limit).map(({ r, overdue: late }) => ({
@@ -149,14 +168,21 @@ export async function homeCalBookings(user: HomeUser, limit = 5): Promise<{ tota
   };
 }
 
-/** Sin leer: conversaciones de Chat con mensajes del visitante sin leer y chats de Groups con unread. */
+/**
+ * Sin leer: conversaciones de Chat con mensajes del visitante sin leer (en los
+ * widgets que ve la persona, el mismo alcance que la bandeja:
+ * listChatWidgets) y chats de Groups con unread (con su acceso por etiqueta).
+ * Si no se puede resolver el acceso de Groups, falla: el bloque muestra el
+ * error en vez de contar chats que la persona no ve.
+ */
 export async function homeUnread(user: HomeUser): Promise<{ chat: number; groups: number }> {
   const db = getDb();
   const person = user.actingUser?.id ?? user.id;
-  const [widgetIds, gViewer] = await Promise.all([
-    workspaceWidgetIds(user.id),
-    groupsViewer(user.id, person, user.role).catch(() => null),
+  const [widgets, gViewer] = await Promise.all([
+    listChatWidgets(user.id, user.team?.id ?? null),
+    groupsViewer(user.id, person, user.role),
   ]);
+  const widgetIds = widgets.map((w) => w.id);
   const gAccess = chatAccessSql(gViewer, 'c');
   const [chat, groups] = await Promise.all([
     widgetIds.length === 0
@@ -206,13 +232,22 @@ function sortKey(value: string): string {
   return value.replace(' ', 'T').slice(0, 19);
 }
 
-/** Lo último que se tocó en cada app (mismo alcance que la lista de cada una), mezclado por fecha. */
-export async function homeRecents(user: HomeUser, limit = 8): Promise<RecentItem[]> {
+/**
+ * Lo último que se tocó en cada app (mismo alcance que la lista de cada una),
+ * mezclado por fecha. Si una fuente falla, las demás se muestran igual y
+ * `failed` cuenta las que faltan (la página avisa).
+ */
+export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: RecentItem[]; failed: number }> {
   const db = getDb();
   const per = limit;
   type Row = { id: string; label: string | null; updated_at: string };
-  const all = (sql: string, ...args: Array<string | number>) =>
-    (db.prepare(sql).all(...args) as Promise<Row[]>).catch(() => [] as Row[]);
+  let failed = 0;
+  const fail = (err: unknown): Row[] => {
+    failed += 1;
+    console.error('[home] recientes', err);
+    return [];
+  };
+  const all = (sql: string, ...args: Array<string | number>) => (db.prepare(sql).all(...args) as Promise<Row[]>).catch(fail);
   const teamId = user.team?.id ?? null;
   const projectWhere = teamId ? 'p.team_id = ?' : '(p.team_id IS NULL AND p.owner_id = ?)';
   const boardsVisible = boardVisibleSql(boardViewer(user));
@@ -225,7 +260,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<RecentItem
     // Notas: solo las de la persona (son privadas aunque el workspace sea compartido).
     listNotes(noteOwner(user), { view: 'all', limit: per })
       .then((rows) => rows.map((n) => ({ id: n.id, label: n.title, updated_at: n.updated_at })))
-      .catch(() => [] as Row[]),
+      .catch(fail),
     all(
       `SELECT b.id, b.name AS label, b.updated_at FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} ORDER BY b.updated_at DESC LIMIT ?`,
       user.id,
@@ -240,7 +275,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<RecentItem
     ),
     listLinks(user.id, { archived: '0', viewer: viewerOf({ id: user.id, actingUser: user.actingUser ?? undefined, role: user.role }), pageSize: per })
       .then((r) => r.links.map((l) => ({ id: l.id, label: l.title || `/${l.slug}`, updated_at: l.updated_at ?? l.created_at })))
-      .catch(() => [] as Row[]),
+      .catch(fail),
     all(
       `SELECT c.id, COALESCE(NULLIF(trim(c.first_name || ' ' || c.last_name), ''), c.email) AS label, c.updated_at FROM crm_contacts c
        WHERE c.user_id = ?${contactScope.sql ? ` AND ${contactScope.sql}` : ''} ORDER BY c.updated_at DESC LIMIT ?`,
@@ -278,7 +313,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<RecentItem
     ['deal', deals],
     ['flow', flows],
   ];
-  return groups
+  const items = groups
     .flatMap(([kind, rows]) =>
       rows.map((r) => ({
         kind,
@@ -291,4 +326,5 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<RecentItem
     )
     .sort((a, b) => sortKey(b.updatedAt).localeCompare(sortKey(a.updatedAt)))
     .slice(0, limit);
+  return { items, failed };
 }

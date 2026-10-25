@@ -48,7 +48,8 @@ export default async function LinkOverviewPage(props: { params: Promise<{ locale
           <span className="stat-label">{t('overview.clicksToday')}</span>
         </div>
         <div className="panel stat-card">
-          {o.topLink ? (
+          {/* Sin clics no hay top link: estado vacío en vez de un 0 o de un link con 0 clics. */}
+          {o.topLink && o.topLink.clicks > 0 ? (
             <>
               <span className="stat-num stat-num-small mono">/{o.topLink.slug}</span>
               <span className="stat-label">
@@ -57,7 +58,9 @@ export default async function LinkOverviewPage(props: { params: Promise<{ locale
             </>
           ) : (
             <>
-              <span className="stat-num">0</span>
+              <span className="stat-num stat-num-small muted" data-testid="top-link-empty">
+                {t('overview.noTopLink')}
+              </span>
               <span className="stat-label">{t('overview.topLink')}</span>
             </>
           )}

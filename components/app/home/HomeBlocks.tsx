@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import type { ProductKey } from '@/lib/products';
-import { homeCalBookings, homeCrmTasks, homeRecents, homeTrackIssues, homeUnread, type HomeUser } from '@/lib/home';
+import { homeCalBookings, homeCrmTasks, homeRecents, homeTrackIssues, homeUnread, type HomeTaskScope, type HomeUser } from '@/lib/home';
 import { parseDbUtc, relDate } from '@/lib/utils';
 
 /**
@@ -85,16 +85,35 @@ async function attempt<T>(load: () => Promise<T>): Promise<{ ok: true; data: T }
   }
 }
 
-export async function CrmTasksBlock({ user, locale, hideWhenEmpty }: { user: HomeUser; locale: string; hideWhenEmpty?: boolean }) {
+export async function CrmTasksBlock({
+  user,
+  locale,
+  hideWhenEmpty,
+  scope = 'mine',
+}: {
+  user: HomeUser;
+  locale: string;
+  hideWhenEmpty?: boolean;
+  /** Las mías (por defecto) o todas las que se ven: ?tasks=all en /app. */
+  scope?: HomeTaskScope;
+}) {
   const t = await getTranslations({ locale, namespace: 'common.appHome' });
-  const res = await attempt(() => homeCrmTasks(user));
-  if (hideWhenEmpty && res.ok && res.data.total === 0) return null;
+  const res = await attempt(() => homeCrmTasks(user, { scope }));
+  if (hideWhenEmpty && scope === 'mine' && res.ok && res.data.total === 0) return null;
   return (
     <BlockFrame product="crm" title={t('today.crm')} href="/app/crm/tasks" viewAll={t('viewAll')} testId="home-crm-tasks">
+      <nav className="home-block-scope" aria-label={t('today.crmScope')}>
+        <Link href="/app" scroll={false} aria-current={scope === 'mine' ? 'true' : undefined}>
+          {t('today.crmMine')}
+        </Link>
+        <Link href="/app?tasks=all" scroll={false} aria-current={scope === 'all' ? 'true' : undefined}>
+          {t('today.crmAll')}
+        </Link>
+      </nav>
       {!res.ok ? (
         <BlockError text={t('error')} />
       ) : res.data.items.length === 0 ? (
-        <BlockEmpty text={t('today.crmEmpty')} />
+        <BlockEmpty text={scope === 'all' ? t('today.crmEmptyAll') : t('today.crmEmpty')} />
       ) : (
         <ul className="home-list">
           {res.data.items.map((task) => (
@@ -128,10 +147,10 @@ export async function TrackIssuesBlock({ user, locale }: { user: HomeUser; local
           {res.data.items.map((issue) => (
             <li key={issue.id}>
               <Link href={`/app/track/issues/${issue.id}`} className="home-row">
-                <span className="home-row-label">
+                {/* Todas están en curso: sin columna de estado, el título usa el ancho (dos líneas). */}
+                <span className="home-row-label home-row-wrap" title={issue.title}>
                   <span className="home-row-id data">{issue.identifier}</span> {issue.title}
                 </span>
-                {issue.statusName && <span className="home-row-meta">{issue.statusName}</span>}
               </Link>
             </li>
           ))}
@@ -146,9 +165,17 @@ export async function CalBookingsBlock({ user, locale, timeZone }: { user: HomeU
   const res = await attempt(() => homeCalBookings(user));
   let fmt: Intl.DateTimeFormat;
   try {
-    fmt = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone });
+    fmt = new Intl.DateTimeFormat(locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone,
+    });
   } catch {
-    fmt = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    fmt = new Intl.DateTimeFormat(locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'UTC',
+    });
   }
   return (
     <BlockFrame product="cal" title={t('today.cal')} href="/app/calendar/bookings" viewAll={t('viewAll')} testId="home-cal">
@@ -235,28 +262,38 @@ export async function RecentBlock({ user, locale }: { user: HomeUser; locale: st
       </div>
     );
   }
-  if (res.data.length === 0) {
+  const { items, failed } = res.data;
+  const partial =
+    failed > 0 ? (
+      <p className="home-recent-partial" role="status" data-testid="home-recent-partial">
+        {t('recent.partial')}
+      </p>
+    ) : null;
+  if (items.length === 0) {
     return (
       <div className="home-recent" data-testid="home-recent">
-        <BlockEmpty text={t('recent.empty')} />
+        {failed > 0 ? <BlockError text={t('error')} /> : <BlockEmpty text={t('recent.empty')} />}
       </div>
     );
   }
   return (
-    <ul className="home-recent home-list" data-testid="home-recent">
-      {res.data.map((item) => (
-        <li key={`${item.kind}-${item.id}`}>
-          <Link href={item.href} className={`home-row card-${item.product}`}>
-            <span className="home-row-label">
-              <ProductGlyph product={item.product} size={12} />
-              <span className="home-row-text">{item.label.trim() || t('recent.untitled')}</span>
-            </span>
-            <span className="home-row-meta">
-              {t(`recent.kinds.${item.kind}`)} · {relDate(item.updatedAt, locale)}
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <div className="home-recent" data-testid="home-recent">
+      <ul className="home-list">
+        {items.map((item) => (
+          <li key={`${item.kind}-${item.id}`}>
+            <Link href={item.href} className={`home-row card-${item.product}`}>
+              <span className="home-row-label">
+                <ProductGlyph product={item.product} size={12} />
+                <span className="home-row-text">{item.label.trim() || t('recent.untitled')}</span>
+              </span>
+              <span className="home-row-meta">
+                {t(`recent.kinds.${item.kind}`)} · {relDate(item.updatedAt, locale)}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {partial}
+    </div>
   );
 }

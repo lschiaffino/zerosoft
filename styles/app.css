@@ -1227,3 +1227,24 @@ td.cell-actions > * + * { margin-left: 4px; }
 @media (max-width: 720px) {
   .home-today { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Tareas del CRM: mías o todas, como un par de pestañas chicas. */
+.home-block-scope { display: flex; gap: 12px; font-size: 0.8125rem; }
+.home-block-scope a { color: var(--dim); text-decoration: none; padding-bottom: 2px; border-bottom: 1px solid transparent; }
+.home-block-scope a:hover { color: var(--ink); }
+.home-block-scope a[aria-current='true'] { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+.home-block-scope a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+/* Títulos que se leen enteros: hasta dos líneas. */
+.home-row-label.home-row-wrap {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  line-height: 1.35;
+}
+.home-recent-partial { padding: 8px 0 4px; font-size: 0.8125rem; color: var(--dim); border-top: 1px solid var(--line); }
+.home-split.home-split-full { grid-template-columns: minmax(0, 1fr); }
+
+/* Sidebar del inicio: las 12 apps por categoría entran sin scroll en una pantalla de 900px. */
+.side-line.side-line-compact .side-section { padding: 10px 8px 2px 12px; }
+.side-line.side-line-compact .side-stop { height: 30px; }

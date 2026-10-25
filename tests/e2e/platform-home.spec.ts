@@ -121,3 +121,43 @@ test('sitio: productos por categoría y la nota de equipos y uso personal', asyn
   await page.goto('/es/products/notes', { waitUntil: 'networkidle' });
   await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app/notes');
 });
+
+test('Tareas del CRM: mías por defecto y todas con un clic', async ({ page }) => {
+  await page.goto('/es/app', { waitUntil: 'networkidle' });
+  const block = page.getByTestId('home-crm-tasks');
+  await expect(block.getByRole('link', { name: 'Mías' })).toHaveAttribute('aria-current', 'true');
+  await block.getByRole('link', { name: 'Todas' }).click();
+  await expect(page).toHaveURL(/\/es\/app\?tasks=all$/);
+  await expect(page.getByTestId('home-crm-tasks').getByRole('link', { name: 'Todas' })).toHaveAttribute('aria-current', 'true');
+});
+
+test('sidebar del inicio: las apps de la última categoría entran en 900px', async ({ page }) => {
+  await page.goto('/es/app', { waitUntil: 'networkidle' });
+  const line = page.locator('.side-line');
+  for (const name of ['Docs', 'Notes', 'Cal']) {
+    await expect(line.getByRole('link', { name, exact: true })).toBeInViewport({ ratio: 1 });
+  }
+});
+
+test('switcher en el teléfono: ←/→ cruzan entre columnas', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/es/app/crm', { waitUntil: 'networkidle' });
+  await page.locator('.band-product').click();
+  const menu = page.getByRole('menu', { name: 'Cambiar de app' });
+  const crm = menu.getByRole('menuitem', { name: 'CRM' });
+  await expect(crm).toBeFocused();
+  const before = (await crm.boundingBox())!;
+  await page.keyboard.press('ArrowRight');
+  const after = (await page.locator(':focus').boundingBox())!;
+  expect(after.x).toBeGreaterThan(before.x + 40);
+  expect(Math.abs(after.y - before.y)).toBeLessThan(8);
+  await page.keyboard.press('ArrowLeft');
+  await expect(crm).toBeFocused();
+});
+
+test('Link: sin clics, el top link muestra un estado vacío', async ({ page }) => {
+  await page.goto('/es/app/links/overview', { waitUntil: 'networkidle' });
+  const card = page.locator('.stat-card').nth(3);
+  // Con clics muestra el slug; sin clics, el vacío. Nunca un "0" suelto.
+  await expect(card.locator('.stat-num')).not.toHaveText('0');
+});

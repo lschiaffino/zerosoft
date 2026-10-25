@@ -430,7 +430,7 @@
     "today": {
       "title": "For today",
       "crm": "CRM tasks",
-      "crmEmpty": "No tasks due today.",
+      "crmEmpty": "No overdue tasks or tasks due today.",
       "overdue": "Overdue",
       "dueToday": "Today",
       "track": "In progress in Track",
@@ -440,7 +440,11 @@
       "inbox": "Unread",
       "inboxEmpty": "All caught up.",
       "chatUnread": "{n, plural, one {# unread conversation in Chat} other {# unread conversations in Chat}}",
-      "groupsUnread": "{n, plural, one {# unread chat in Groups} other {# unread chats in Groups}}"
+      "groupsUnread": "{n, plural, one {# unread chat in Groups} other {# unread chats in Groups}}",
+      "crmEmptyAll": "Nobody has overdue tasks or tasks due today.",
+      "crmScope": "Which tasks to show",
+      "crmMine": "Mine",
+      "crmAll": "All"
     },
     "recent": {
       "title": "Recent",
@@ -455,7 +459,8 @@
         "deal": "Deal",
         "flow": "Flow"
       },
-      "untitled": "Untitled"
+      "untitled": "Untitled",
+      "partial": "Some apps couldn't load. Reload the page to see them."
     },
     "invite": {
       "title": "Bring your team",

@@ -50,6 +50,30 @@ function writeCollapsed(dense: string | null, v: boolean) {
   }
 }
 
+/**
+ * Índice del ítem en la columna de al lado (dir 1 = derecha, -1 = izquierda):
+ * el más cercano en altura entre los que empiezan del otro lado. null si no hay.
+ */
+function sideItem(items: HTMLElement[], i: number, dir: 1 | -1): number | null {
+  const from = items[i]?.getBoundingClientRect();
+  if (!from) return null;
+  const cy = from.top + from.height / 2;
+  let best: number | null = null;
+  let bestScore = Infinity;
+  items.forEach((el, j) => {
+    if (j === i) return;
+    const r = el.getBoundingClientRect();
+    const beside = dir === 1 ? r.left >= from.right - 1 : r.right <= from.left + 1;
+    if (!beside) return;
+    const score = Math.abs(r.top + r.height / 2 - cy) * 4 + Math.abs(dir === 1 ? r.left - from.right : from.left - r.right);
+    if (score < bestScore) {
+      bestScore = score;
+      best = j;
+    }
+  });
+  return best;
+}
+
 /** Mueve el foco entre los ítems de un menú con flechas, Home y End. */
 function menuKeys(e: KeyboardEvent<HTMLElement>, close: () => void) {
   const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'));
@@ -58,9 +82,13 @@ function menuKeys(e: KeyboardEvent<HTMLElement>, close: () => void) {
     e.preventDefault();
     items[(n + items.length) % items.length]?.focus();
   };
-  // Flechas: abajo/derecha al siguiente, arriba/izquierda al anterior (el switcher es una grilla).
-  if (e.key === 'ArrowDown' || e.key === 'ArrowRight') go(i + 1);
-  else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') go(i - 1);
+  if (e.key === 'ArrowDown') go(i + 1);
+  else if (e.key === 'ArrowUp') go(i - 1);
+  else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    // En la grilla del switcher, ←/→ van a la columna de al lado (el más cercano en altura); en una lista, siguiente/anterior.
+    const side = sideItem(items, i, e.key === 'ArrowRight' ? 1 : -1);
+    go(side ?? i + (e.key === 'ArrowRight' ? 1 : -1));
+  }
   else if (e.key === 'Home') go(0);
   else if (e.key === 'End') go(items.length - 1);
   else if (e.key === 'Escape') {
@@ -454,7 +482,7 @@ export default function AppSidebar({
           </p>
         )}
 
-        <nav className="side-line" aria-label={current.name} ref={lineRef} onScroll={updateOverflow}>
+        <nav className={`side-line${product === 'home' ? ' side-line-compact' : ''}`} aria-label={current.name} ref={lineRef} onScroll={updateOverflow}>
           {nav.map((group, i) => (
             <div key={group.section ?? `top-${i}`} className="side-group">
               {group.section && <p className="side-section">{group.section}</p>}

@@ -249,6 +249,15 @@ export default function CommandSearch() {
       setItems(actionItems);
       setSel(0);
       setTimeout(() => inputRef.current?.focus(), 30);
+      // Esc cierra aunque el foco todavía no llegó al input (p. ej. abierta desde el switcher, cuyo ítem se desmontó).
+      const onEsc = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && !e.defaultPrevented) {
+          e.preventDefault();
+          setOpen(false);
+        }
+      };
+      window.addEventListener('keydown', onEsc);
+      return () => window.removeEventListener('keydown', onEsc);
     } else {
       prevFocusRef.current?.focus();
       prevFocusRef.current = null;
