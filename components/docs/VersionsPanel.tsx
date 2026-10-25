@@ -5,7 +5,9 @@ import { useLocale, useTranslations } from 'next-intl';
 import type { DocsBlock, DocsVersionSummary } from '@/lib/docs-types';
 import { formatDateTime, formatTimeAgo } from '@/lib/datetime';
 import DocsBlocksView from './DocsBlocksView';
+import DocsDiffView from './DocsDiffView';
 import Icon from '@/components/app/icons';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 interface VersionDetail extends DocsVersionSummary {
   content: DocsBlock[];
@@ -22,6 +24,7 @@ export default function VersionsPanel({
   apiBase,
   fileHref,
   showTitle = true,
+  getCurrent,
 }: {
   pageId: string;
   canEdit: boolean;
@@ -32,13 +35,20 @@ export default function VersionsPanel({
   fileHref?: (blockId: string, opts?: { download?: boolean }) => string;
   /** false: el contenedor ya tiene su título (drawer de Notes). */
   showTitle?: boolean;
+  /** Contenido actual de la página (para "Comparar con la actual"). */
+  getCurrent?: () => DocsBlock[] | null;
 }) {
   const base = apiBase ?? `/api/docs/pages/${pageId}`;
   const t = useTranslations('docs.versions');
   const locale = useLocale();
   const [rows, setRows] = useState<DocsVersionSummary[] | null>(null);
   const [preview, setPreview] = useState<VersionDetail | null>(null);
+  /** Versión anterior a la abierta (para ver qué cambió en esa versión). */
+  const [previous, setPrevious] = useState<VersionDetail | null>(null);
+  /** 'changes' = qué cambió en esta versión; 'current' = contra la página actual; 'page' = la versión como se veía. */
+  const [view, setView] = useState<'changes' | 'current' | 'page'>('changes');
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const [loadError, setLoadError] = useState(false);
@@ -77,11 +87,22 @@ export default function VersionsPanel({
 
   async function open(id: string) {
     const res = await fetch(`${base}/versions/${id}`);
-    if (res.ok) setPreview((await res.json()) as VersionDetail);
+    if (!res.ok) return;
+    setPreview((await res.json()) as VersionDetail);
+    setView('changes');
+    // La anterior en la lista (más vieja): base del "qué cambió".
+    const i = rows?.findIndex((r) => r.id === id) ?? -1;
+    const prevId = i >= 0 ? rows?.[i + 1]?.id : undefined;
+    setPrevious(null);
+    if (prevId) {
+      const pr = await fetch(`${base}/versions/${prevId}`);
+      if (pr.ok) setPrevious((await pr.json()) as VersionDetail);
+    }
   }
 
   async function restore() {
-    if (!preview || !window.confirm(t('restoreConfirm'))) return;
+    setConfirming(false);
+    if (!preview) return;
     setBusy(true);
     try {
       const res = await fetch(`${base}/versions/${preview.id}/restore`, { method: 'POST' });
@@ -106,17 +127,49 @@ export default function VersionsPanel({
             {t('back')}
           </button>
           {canEdit && (
-            <button type="button" className="btn btn-primary btn-sm" onClick={restore} disabled={busy} aria-busy={busy || undefined}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setConfirming(true)} disabled={busy} aria-busy={busy || undefined}>
               {t('restore')}
             </button>
           )}
         </div>
+        <ConfirmDialog
+          open={confirming}
+          title={t('restoreTitle')}
+          body={t('restoreConfirm')}
+          confirmLabel={t('restore')}
+          cancelLabel={t('cancel')}
+          busy={busy}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => void restore()}
+        />
         <p className="docs-versions-meta">
           {formatDateTime(preview.created_at, locale)} · {who(preview)}
         </p>
+        {preview.content.some((b) => b.type === 'synced') && <p className="ui-help docs-versions-synced">{t('syncedCurrent')}</p>}
+        <div className="docs-versions-views" role="tablist" aria-label={t('viewLabel')}>
+          <button type="button" role="tab" aria-selected={view === 'changes'} className={`docs-comments-tab${view === 'changes' ? ' active' : ''}`} onClick={() => setView('changes')}>
+            {t('viewChanges')}
+          </button>
+          {getCurrent && (
+            <button type="button" role="tab" aria-selected={view === 'current'} className={`docs-comments-tab${view === 'current' ? ' active' : ''}`} onClick={() => setView('current')}>
+              {t('viewCurrent')}
+            </button>
+          )}
+          <button type="button" role="tab" aria-selected={view === 'page'} className={`docs-comments-tab${view === 'page' ? ' active' : ''}`} onClick={() => setView('page')}>
+            {t('viewPage')}
+          </button>
+        </div>
         <div className="docs-versions-preview">
           <h3 className="docs-versions-title">{preview.title || t('untitled')}</h3>
-          <DocsBlocksView blocks={preview.content} pageId={pageId} fileHref={fileHref} className="docs-prose" />
+          {view === 'page' ? (
+            <DocsBlocksView blocks={preview.content} pageId={pageId} fileHref={fileHref} className="docs-prose" />
+          ) : view === 'current' ? (
+            // De esta versión a la actual: lo que se agregó después y lo que se quitó.
+            <DocsDiffView before={preview.content} after={getCurrent?.() ?? preview.content} />
+          ) : (
+            <DocsDiffView before={previous?.content ?? []} after={preview.content} />
+          )}
+          {view === 'changes' && !previous && <p className="ui-help docs-versions-first">{t('firstVersion')}</p>}
         </div>
       </div>
     );

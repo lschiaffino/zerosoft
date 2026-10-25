@@ -1,0 +1,488 @@
+/* Track — editor visual de descripción y comentarios (components/track/RichEditor.tsx). */
+
+.track-rte {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.track-rte-content {
+  position: relative;
+  min-height: 1.6em;
+  padding: 2px 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
+  outline: none;
+}
+
+.track-rte-content.is-empty::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  top: 2px;
+  left: 0;
+  color: var(--brand-gray-3);
+  pointer-events: none;
+}
+
+/* Descripción: sin caja, como en Linear; el foco se ve con una línea. */
+.track-description-editor {
+  max-width: calc(70ch + 16px);
+}
+
+.track-description-editor .track-rte-content {
+  min-height: 3.2em;
+  margin: -4px -8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-1);
+}
+
+.track-description-editor .track-rte-content.is-empty::before {
+  top: 4px;
+  left: 8px;
+}
+
+.track-description-editor .track-rte-content:hover:not(:focus) {
+  background: var(--brand-enamel);
+}
+
+/* Comentarios, respuestas, edición y el alta rápida: caja chica con borde. */
+.track-rte.is-compact .track-rte-content {
+  min-height: 64px;
+  padding: 8px 10px;
+  font-size: 0.875rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+
+.track-rte.is-compact .track-rte-content.is-empty::before {
+  top: 8px;
+  left: 10px;
+}
+
+.track-rte.is-compact .track-rte-content:focus {
+  border-color: var(--ink);
+}
+
+.track-qc-desc.track-rte .track-rte-content {
+  min-height: 72px;
+  padding: 4px 20px 12px;
+  font-size: 0.9375rem;
+  border: 0;
+}
+
+.track-qc-desc.track-rte .track-rte-content.is-empty::before {
+  top: 4px;
+  left: 20px;
+}
+
+.track-rte.is-drop .track-rte-content {
+  outline: 2px dashed var(--ink);
+  outline-offset: 2px;
+}
+
+/* Bloques dentro del editor (mismo aspecto que la lectura). */
+.track-rte-content pre {
+  position: relative;
+  white-space: pre;
+  font-family: var(--font-data);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.track-rte-content pre[data-lang]::after {
+  content: attr(data-lang);
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  font-size: 0.6875rem;
+  color: var(--brand-gray-3);
+  pointer-events: none;
+}
+
+.track-rte-content img {
+  display: block;
+  max-width: 100%;
+  max-height: 480px;
+  margin: 4px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+
+.track-rte-content table {
+  width: max-content;
+  max-width: 100%;
+}
+
+.track-rte-content th {
+  font-weight: 600;
+  text-align: left;
+}
+
+/* Checklist: la casilla se dibuja en el margen y se tilda con clic o ⌘↵. */
+.track-rte-content li[data-task] {
+  position: relative;
+  margin-left: -1.4em;
+  padding-left: 1.6em;
+  list-style: none;
+}
+
+.track-rte-content li[data-task]::before {
+  content: '';
+  position: absolute;
+  top: 0.32em;
+  left: 0.1em;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  background: var(--bg);
+  border: 1.5px solid var(--brand-gray-2);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.track-rte-content li[data-task][data-checked='true']::before {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.track-rte-content li[data-task][data-checked='true']::after {
+  content: '';
+  position: absolute;
+  top: calc(0.32em + 2px);
+  left: calc(0.1em + 4.5px);
+  width: 4px;
+  height: 7px;
+  border: solid var(--bg);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.track-rte-content li[data-task][data-checked='true'] {
+  color: var(--brand-gray-2);
+  text-decoration: line-through;
+}
+
+/* Chips de issues y personas (no editables por dentro: se borran enteros). */
+.track-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 0 4px;
+  vertical-align: bottom;
+  font-size: 0.875em;
+  line-height: 1.5;
+  white-space: nowrap;
+  background: var(--ui-hover);
+  border-radius: var(--radius-1);
+  cursor: default;
+  user-select: all;
+}
+
+.track-chip-issue {
+  font-family: var(--font-data);
+}
+
+.track-chip-id {
+  font-family: var(--font-data);
+}
+
+.track-chip-title {
+  max-width: 32ch;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  text-overflow: ellipsis;
+}
+
+.track-chip .track-status-glyph {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+}
+
+.track-chip-mention {
+  font-weight: 500;
+}
+
+.track-uploading {
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+}
+
+/* Menú "/", "@", "#" y barra flotante de formato. */
+.track-rte-menu {
+  width: min(300px, 100%);
+}
+
+.track-md-menu-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--brand-gray-2);
+}
+
+.track-rte-toolbar {
+  position: absolute;
+  z-index: 31;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+}
+
+.track-rte-link {
+  width: min(260px, 70vw);
+  height: 28px;
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 640px) {
+  .track-description-editor .track-rte-content {
+    margin: -4px 0;
+    padding: 4px 0;
+  }
+
+  .track-description-editor .track-rte-content.is-empty::before {
+    left: 0;
+  }
+}
+
+/* ---------- Citas, callouts y colapsables (lectura y editor) ---------- */
+
+.track-markdown blockquote > p:last-child,
+.track-callout > :last-child,
+.track-toggle-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* Callout (alerta de GitHub: > [!NOTE]): fondo suave, raya a la izquierda. */
+.track-markdown .track-callout {
+  position: relative;
+  margin: 0 0 8px;
+  padding: 8px 12px 8px 34px;
+  background: var(--ui-hover);
+  border-left: 2px solid var(--ink-3, var(--brand-gray-2));
+  border-radius: var(--radius-1);
+}
+
+.track-markdown .track-callout::before {
+  content: 'i';
+  position: absolute;
+  top: 9px;
+  left: 11px;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 15px;
+  height: 15px;
+  font-family: var(--font-data);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--bg);
+  background: var(--ink-3, var(--brand-gray-2));
+  border-radius: 50%;
+}
+
+.track-markdown .track-callout:is([data-kind='tip'], [data-callout='tip']) {
+  background: var(--ok-soft, var(--ui-hover));
+  border-left-color: var(--ok, var(--ink));
+}
+
+.track-markdown .track-callout:is([data-kind='tip'], [data-callout='tip'])::before {
+  background: var(--ok, var(--ink));
+}
+
+.track-markdown .track-callout:is([data-kind='warning'], [data-kind='important'], [data-callout='warning'], [data-callout='important']) {
+  background: var(--warn-soft, var(--ui-hover));
+  border-left-color: var(--warn, var(--ink));
+}
+
+.track-markdown .track-callout:is([data-kind='warning'], [data-kind='important'], [data-callout='warning'], [data-callout='important'])::before {
+  content: '!';
+  background: var(--warn, var(--ink));
+}
+
+.track-markdown .track-callout:is([data-kind='caution'], [data-callout='caution']) {
+  background: var(--bad-soft, var(--ui-hover));
+  border-left-color: var(--bad);
+}
+
+.track-markdown .track-callout:is([data-kind='caution'], [data-callout='caution'])::before {
+  content: '!';
+  background: var(--bad);
+}
+
+/* Colapsable en la lectura: <details> nativo (Enter y Espacio lo abren). */
+.track-markdown details.track-toggle {
+  margin: 0 0 8px;
+}
+
+.track-markdown details.track-toggle > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  font-weight: 500;
+  list-style: none;
+  cursor: pointer;
+}
+
+.track-markdown details.track-toggle > summary::-webkit-details-marker {
+  display: none;
+}
+
+.track-markdown details.track-toggle > summary::before,
+.track-rte-content .track-toggle-title::before {
+  content: '';
+  flex-shrink: 0;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid var(--brand-gray-2);
+  transition: transform 120ms ease;
+}
+
+.track-markdown details.track-toggle[open] > summary::before,
+.track-rte-content .track-toggle[data-open='true'] > .track-toggle-title::before {
+  transform: rotate(90deg);
+}
+
+.track-markdown details.track-toggle > summary:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.track-markdown .track-toggle-body {
+  padding: 4px 0 0 18px;
+}
+
+/* Colapsable en el editor: la flecha va en el margen y abre o cierra con clic. */
+.track-rte-content .track-toggle {
+  margin: 0 0 8px;
+}
+
+.track-rte-content .track-toggle-title {
+  position: relative;
+  margin: 0;
+  padding-left: 18px;
+  font-weight: 500;
+}
+
+.track-rte-content .track-toggle-title::before {
+  position: absolute;
+  top: 0.55em;
+  left: 3px;
+  cursor: pointer;
+}
+
+.track-rte-content .track-toggle[data-open='false'] > .track-toggle-body {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track-markdown details.track-toggle > summary::before,
+  .track-rte-content .track-toggle-title::before {
+    transition: none;
+  }
+}
+
+/* ---------- Vista rápida (Espacio): casi el issue entero ---------- */
+
+.track-peek {
+  width: min(560px, 100vw);
+}
+
+.track-peek-props dd.is-overdue {
+  color: var(--bad);
+}
+
+.track-peek-props dd .track-label-chips,
+.track-peek-props dd svg {
+  flex-shrink: 0;
+}
+
+.track-peek-desc {
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.track-peek-subrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.track-peek-subrow .track-subtask-id {
+  flex: 0 0 auto;
+  min-width: 9ch;
+}
+
+.track-peek-subrow .track-subtask-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-peek-section-title {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--brand-gray-2);
+  text-transform: none;
+}
+
+.track-peek-activity {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.track-peek-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.track-peek-comment {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+
+.track-peek-comment-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-size: 0.8125rem;
+}
+
+.track-peek-comment-at {
+  color: var(--brand-gray-2);
+}
+
+.track-peek-comment-body {
+  font-size: 0.8125rem;
+}
+
+/* Actividad: avatar chico del asignado nuevo en la fila del evento. */
+.track-event-icon .track-avatar.is-tiny {
+  width: 14px;
+  height: 14px;
+  font-size: 0.5rem;
+}

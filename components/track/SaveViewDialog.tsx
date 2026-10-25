@@ -2,12 +2,12 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import type { ViewType } from './ViewSwitcher';
-import type { FilterState } from './IssueFilters';
+import type { FilterState } from '@/lib/track-filter';
 
 interface SaveViewDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: (name: string) => Promise<void> | void;
+  onSave: (name: string, shared: boolean) => Promise<void> | void;
   viewType: ViewType;
   filters: FilterState;
   labels: {
@@ -17,6 +17,9 @@ interface SaveViewDialogProps {
     save: string;
     cancel: string;
     error?: string;
+    /** "Compartir con el equipo" (vista de equipo). */
+    shared?: string;
+    sharedHelp?: string;
   };
 }
 
@@ -29,6 +32,7 @@ export default function SaveViewDialog(props: SaveViewDialogProps) {
 function SaveViewDialogBody({ onClose, onSave, labels }: SaveViewDialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState('');
+  const [shared, setShared] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(false);
   const id = useId();
@@ -60,7 +64,7 @@ function SaveViewDialogBody({ onClose, onSave, labels }: SaveViewDialogProps) {
           setSubmitting(true);
           setError(false);
           try {
-            await onSave(name.trim());
+            await onSave(name.trim(), shared);
           } catch {
             setError(true);
             setSubmitting(false);
@@ -87,6 +91,13 @@ function SaveViewDialogBody({ onClose, onSave, labels }: SaveViewDialogProps) {
               maxLength={100}
               autoFocus
             />
+            {labels.shared && (
+              <label className="ui-check track-save-view-shared">
+                <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} data-testid="track-save-view-shared" />
+                <span>{labels.shared}</span>
+              </label>
+            )}
+            {labels.sharedHelp && <p className="ui-help">{labels.sharedHelp}</p>}
             {error && labels.error && (
               <p className="ui-error" role="alert">
                 {labels.error}

@@ -240,7 +240,7 @@
     "noteHint": "“{title}” vira uma issue com o texto da nota como descrição.",
     "untitled": "Sem título",
     "loadingProjects": "Carregando projetos…",
-    "noProjects": "Ainda não há projetos do Track neste workspace.",
+    "noProjects": "Ainda não há equipes do Track neste workspace.",
     "openTrack": "Abrir o Track",
     "project": "Projeto",
     "backlinkHint": "Cada issue leva um link para esta nota, e a nota fica com um link para cada issue.",

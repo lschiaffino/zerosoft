@@ -18,6 +18,10 @@ export interface TrackLabel {
   color: string;
   created_at: string;
   issue_count?: number;
+  /** Grupo de labels (Linear: "Type › Bug"): id del label padre, que es un grupo. */
+  parent_id?: string | null;
+  /** Label propio de un team (null = de todo el workspace). */
+  project_id?: string | null;
 }
 
 export function trackWorkspaceId(teamId: string | null, ownerId: string): string {
@@ -33,6 +37,13 @@ export const DEFAULT_LABEL_COLOR = '#666666';
  */
 export function safeLabelColor(color: string | null | undefined): string {
   return safeHexColor(color, DEFAULT_LABEL_COLOR);
+}
+
+/** Paleta de labels (los colores de Linear): un label nuevo sin color elige uno al azar. */
+export const LABEL_PALETTE = ['#5e6ad2', '#26b5ce', '#4cb782', '#f2c94c', '#f2994a', '#eb5757', '#bb87fc', '#95a2b3', '#0f783c', '#cb4b8a'];
+
+export function randomLabelColor(): string {
+  return LABEL_PALETTE[Math.floor(Math.random() * LABEL_PALETTE.length)];
 }
 
 export function projectWorkspaceId(project: Pick<TrackProjectRow, 'team_id' | 'owner_id'>): string | null {
@@ -78,19 +89,21 @@ async function getLabelByName(workspaceId: string, name: string): Promise<TrackL
     .get(workspaceId, name.trim())) as TrackLabel | undefined;
 }
 
-export type LabelResult = { ok: true; label: TrackLabel } | { ok: false; reason: 'duplicate' | 'not_found' };
+export type LabelResult = { ok: true; label: TrackLabel } | { ok: false; reason: 'duplicate' | 'not_found' | 'invalid_parent' };
 
 export async function createLabel(
   workspaceId: string,
-  input: { name: string; color?: string },
+  input: { name: string; color?: string; parentId?: string | null; projectId?: string | null },
 ): Promise<LabelResult> {
   const name = input.name.trim().slice(0, 50);
   if (await getLabelByName(workspaceId, name)) return { ok: false, reason: 'duplicate' };
+  const parentId = input.parentId ? await validParent(workspaceId, input.parentId, null) : null;
+  if (input.parentId && !parentId) return { ok: false, reason: 'not_found' };
   const id = crypto.randomUUID();
   try {
     await getDb()
-      .prepare('INSERT INTO track_labels (id, workspace_id, name, color) VALUES (?, ?, ?, ?)')
-      .run(id, workspaceId, name, safeLabelColor(input.color));
+      .prepare('INSERT INTO track_labels (id, workspace_id, name, color, parent_id, project_id) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(id, workspaceId, name, input.color ? safeLabelColor(input.color) : randomLabelColor(), parentId, input.projectId ?? null);
   } catch (err) {
     // Otro request creó el mismo nombre entre la búsqueda y el INSERT
     // (idx_track_labels_name): es un duplicado, no un error del servidor.
@@ -100,6 +113,21 @@ export async function createLabel(
     throw err;
   }
   return { ok: true, label: (await getLabel(workspaceId, id)) as TrackLabel };
+}
+
+/**
+ * Padre válido para un label: del workspace, que no sea él mismo y que no sea
+ * a su vez hijo (los grupos tienen un solo nivel, como en Linear).
+ */
+async function validParent(workspaceId: string, parentId: string, selfId: string | null): Promise<string | null> {
+  if (parentId === selfId) return null;
+  const parent = await getLabel(workspaceId, parentId);
+  if (!parent || parent.parent_id) return null;
+  if (selfId) {
+    const kids = await getDb().prepare('SELECT 1 FROM track_labels WHERE parent_id = ? LIMIT 1').get(selfId);
+    if (kids) return null;
+  }
+  return parent.id;
 }
 
 /** Busca por nombre (sin distinguir mayúsculas) o lo crea. */
@@ -143,10 +171,15 @@ function rewriteIssueLabelsStmt(
 export async function updateLabel(
   workspaceId: string,
   id: string,
-  input: { name?: string; color?: string },
+  input: { name?: string; color?: string; parentId?: string | null },
 ): Promise<LabelResult> {
   const existing = await getLabel(workspaceId, id);
   if (!existing) return { ok: false, reason: 'not_found' };
+  if (input.parentId !== undefined) {
+    const parentId = input.parentId ? await validParent(workspaceId, input.parentId, id) : null;
+    if (input.parentId && !parentId) return { ok: false, reason: 'invalid_parent' };
+    await getDb().prepare('UPDATE track_labels SET parent_id = ? WHERE id = ?').run(parentId, id);
+  }
   const name = input.name !== undefined ? input.name.trim().slice(0, 50) : existing.name;
   const color = safeLabelColor(input.color !== undefined ? input.color.trim() || existing.color : existing.color);
   if (name.toLowerCase() !== existing.name.toLowerCase()) {
@@ -177,6 +210,7 @@ export async function deleteLabel(workspaceId: string, id: string): Promise<bool
   await getClient().batch(
     [
       rewriteIssueLabelsStmt(workspaceId, id, null),
+      { sql: 'UPDATE track_labels SET parent_id = NULL WHERE parent_id = ?', args: [id] },
       { sql: 'DELETE FROM track_labels WHERE id = ?', args: [id] },
     ],
     'write',

@@ -52,12 +52,23 @@ export async function POST(req: NextRequest) {
   if (input.app === 'track') {
     if (input.target !== 'new') {
       const project = await getProject(input.target);
-      if (!project || !canAccessTrackProject(project, user.team?.id ?? null, user.id)) return importError(404, 'project_not_found');
+      if (!project || !(await canAccessTrackProject(project, user.team?.id ?? null, user.id))) return importError(404, 'project_not_found');
     }
     if (input.source === 'linear') {
       job = await createImportJob({ ...base, secret: input.token, options: { target: input.target } });
     } else if (input.source === 'github') {
       job = await createImportJob({ ...base, secret: input.token, options: { target: input.target, repo: input.repo } });
+    } else if (input.source === 'jira') {
+      // Basic auth de Jira: el secreto es "email:token" (cifrado como los demás).
+      job = await createImportJob({
+        ...base,
+        secret: `${input.email}:${input.token}`,
+        options: { target: input.target, site: input.site, query: input.query },
+      });
+    } else if (input.source === 'asana') {
+      job = await createImportJob({ ...base, secret: input.token, options: { target: input.target, project: input.project } });
+    } else if (input.source === 'shortcut') {
+      job = await createImportJob({ ...base, secret: input.token, options: { target: input.target, query: input.query ?? '' } });
     } else {
       job = await createImportJob({
         ...base,

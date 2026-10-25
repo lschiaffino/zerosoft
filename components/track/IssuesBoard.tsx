@@ -12,8 +12,11 @@ import { groupIssues, groupPreset, type BoardGroupBy } from '@/lib/track-views';
 import type { IssueDraft } from './useIssueStore';
 import StatusBadge from './StatusBadge';
 import TrackIcon from './TrackIcon';
+import { openCommandMenu } from '@/lib/cmdk-context';
 import { AssigneeMenu, DueDateMenu, PriorityIcon, PriorityMenu, QuickAdd, StatusDot, StatusToggle } from './InlineEditors';
 import { isPendingIssue } from './useIssueStore';
+import { safeHexColor } from '@/lib/track-color';
+import { DEFAULT_DISPLAY_PROPS, type DisplayProp } from './IssueDisplayOptions';
 import type { TrackUiLabels } from './ui-labels';
 
 interface IssuesBoardProps {
@@ -43,6 +46,17 @@ interface IssuesBoardProps {
   };
   /** "+ New task" al pie de cada columna, con el valor de la columna preseteado. */
   onQuickCreate?: (title: string, preset: Partial<IssueDraft>) => void;
+  /** Propiedades visibles de Display: las cards muestran solo esas (y ocultan las vacías). */
+  show?: readonly DisplayProp[];
+}
+
+function cardLabels(raw: string): Array<{ id: string; name: string; color: string }> {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((l) => l && typeof l.id === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 const DRAG_TYPE = 'application/x-track-issue';
@@ -57,8 +71,10 @@ export default function IssuesBoard({
   labels,
   editing,
   onQuickCreate,
+  show: showProps = DEFAULT_DISPLAY_PROPS,
 }: IssuesBoardProps) {
   const t = useTranslations('track');
+  const show = new Set<DisplayProp>(showProps);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStatusId, setOverStatusId] = useState<string | null>(null);
 
@@ -169,6 +185,9 @@ export default function IssuesBoard({
                       .filter(Boolean)
                       .join(' ')}
                     draggable={draggable}
+                    data-issue-key={pending ? undefined : issue.id}
+                    data-issue-row={pending ? undefined : ''}
+                    data-href={pending ? undefined : `/app/track/issues/${issue.id}`}
                     title={draggable && editing ? editing.ui.inline.dragHint : undefined}
                     onDragStart={
                       draggable
@@ -189,26 +208,37 @@ export default function IssuesBoard({
                       <>
                         <div className="track-board-card-head">
                           <span className="track-board-card-id">
-                            <StatusToggle
-                              color={issue.status_color}
-                              category={issue.status_category}
-                              disabled={pending}
-                              onToggle={() => editing.onToggleDone(issue)}
-                              labels={editing.ui.inline}
-                            />
-                            <span className="track-identifier">{issue.identifier}</span>
+                            {show.has('status') && (
+                              <StatusToggle
+                                color={issue.status_color}
+                                category={issue.status_category}
+                                disabled={pending}
+                                onToggle={() => editing.onToggleDone(issue)}
+                                labels={editing.ui.inline}
+                              />
+                            )}
+                            {show.has('id') && <span className="track-identifier">{issue.identifier}</span>}
                           </span>
-                          <span className="track-board-card-tools">
-                            <PriorityMenu
-                              compact
-                              priority={issue.priority}
-                              priorities={editing.ui.priorities}
-                              disabled={pending}
-                              label={editing.ui.inline.priority}
-                              onChange={(priority) => editing.onUpdate(issue.id, { priority })}
-                            />
-                          </span>
+                          {show.has('priority') && issue.priority !== 'none' && (
+                            <span className="track-board-card-tools">
+                              <PriorityMenu
+                                compact
+                                priority={issue.priority}
+                                priorities={editing.ui.priorities}
+                                disabled={pending}
+                                label={editing.ui.inline.priority}
+                                onChange={(priority) => editing.onUpdate(issue.id, { priority })}
+                              />
+                            </span>
+                          )}
                         </div>
+                        {issue.parent_identifier && (
+                          <p className="track-board-card-parent" title={issue.parent_title ?? undefined}>
+                            <TrackIcon name="parent" size={11} />
+                            <span className="track-identifier">{issue.parent_identifier}</span>
+                            <span className="track-board-card-parent-title">{issue.parent_title}</span>
+                          </p>
+                        )}
                         {pending ? (
                           <p className="track-board-card-title">{issue.title || t('issues.untitled')}</p>
                         ) : (
@@ -216,33 +246,52 @@ export default function IssuesBoard({
                             {issue.title || t('issues.untitled')}
                           </Link>
                         )}
+                        {show.has('labels') && cardLabels(issue.labels).length > 0 && (
+                          <div className="track-board-card-labels">
+                            {cardLabels(issue.labels).map((l) => (
+                              <span key={l.id} className="track-label-tag">
+                                <span className="track-label-tag-dot" style={{ background: safeHexColor(l.color, '#767676') }} aria-hidden />
+                                {l.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         <div className="track-board-card-meta">
-                          <AssigneeMenu
-                            compact
-                            assigneeId={issue.assignee_id}
-                            assigneeName={issue.assignee_name}
-                            assigneeEmail={issue.assignee_email}
-                            members={editing.members}
-                            disabled={pending}
-                            label={editing.ui.inline.assignee}
-                            noAssignee={labels.noAssignee}
-                            onChange={(assigneeId) => editing.onUpdate(issue.id, { assigneeId })}
-                          />
-                          <DueDateMenu
-                            dueDate={issue.due_date}
-                            locale={locale}
-                            today={editing.today}
-                            disabled={pending}
-                            labels={editing.ui.inline}
-                            onChange={(dueDate) => editing.onUpdate(issue.id, { dueDate })}
-                          />
+                          {show.has('assignee') && (
+                            <AssigneeMenu
+                              compact
+                              assigneeId={issue.assignee_id}
+                              assigneeName={issue.assignee_name}
+                              assigneeEmail={issue.assignee_email}
+                              members={editing.members}
+                              disabled={pending}
+                              label={editing.ui.inline.assignee}
+                              noAssignee={labels.noAssignee}
+                              onChange={(assigneeId) => editing.onUpdate(issue.id, { assigneeId })}
+                            />
+                          )}
+                          {show.has('due') && issue.due_date && (
+                            <DueDateMenu
+                              dueDate={issue.due_date}
+                              locale={locale}
+                              today={editing.today}
+                              disabled={pending}
+                              labels={editing.ui.inline}
+                              onChange={(dueDate) => editing.onUpdate(issue.id, { dueDate })}
+                            />
+                          )}
                           {issue.child_count > 0 && (
                             <span className="track-subtask-indicator">
                               <TrackIcon name="subtasks" size={12} />
-                              {issue.child_count}
+                              {issue.child_done ?? 0}/{issue.child_count}
                             </span>
                           )}
-                          {issue.cycle_name && <span className="track-board-cycle">{issue.cycle_name}</span>}
+                          {show.has('cycle') && issue.cycle_name && <span className="track-board-cycle">{issue.cycle_name}</span>}
+                          {show.has('project') && issue.plan_name && (
+                            <span className="track-board-cycle">
+                              <TrackIcon name="plans" size={11} /> {issue.plan_name}
+                            </span>
+                          )}
                         </div>
                       </>
                     ) : (
@@ -269,17 +318,17 @@ export default function IssuesBoard({
                         </Link>
                         {onMove && (
                           <div className="track-board-card-actions">
-                            <select
-                              aria-label={t('issues.changeStatus')}
-                              value={issue.status_id ?? ''}
-                              onChange={(e) => onMove(issue.id, { statusId: e.target.value })}
+                            {/* Mover sin arrastrar: el mismo menú de estado que S (filtro, flechas, 1–9). */}
+                            <button
+                              type="button"
+                              className="track-board-status-btn"
+                              aria-label={`${t('issues.changeStatus')}: ${issue.status_name ?? ''}`}
+                              title={`${t('issues.changeStatus')} · S`}
+                              onClick={(e) => openCommandMenu('status', { anchor: e.currentTarget, targetId: issue.id })}
                             >
-                              {statuses.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {s.name}
-                                </option>
-                              ))}
-                            </select>
+                              <StatusDot color={issue.status_color} category={issue.status_category} />
+                              <span>{issue.status_name}</span>
+                            </button>
                           </div>
                         )}
                       </>

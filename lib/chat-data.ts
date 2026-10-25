@@ -1,6 +1,8 @@
 import { getDb, getUserById } from './db';
+import { withVisibleContent } from './docs-visible';
 import { emitChatEvent, emitConversationChanges, toApiMessage } from './chat-api';
 import { inlineHtmlToText } from './docs-markdown';
+import { aiKnowledgeFilterSql } from './docs-access';
 import { mergeVisitorMetadata, type VisitorContextPatch } from './chat-visitor-context';
 import type { ChatAttributeDef } from './chat-attributes';
 import type {
@@ -1923,10 +1925,12 @@ export async function findBotReply(
       .prepare(
         // Solo lo que la IA puede leer (is_public) o ya es público (published):
         // antes respondía con cualquier página privada del workspace.
-        'SELECT title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND (is_public = 1 OR published = 1) ORDER BY updated_at DESC LIMIT 100',
+        // Ni páginas de teamspaces cerrados o privados (salvo que el teamspace lo habilite).
+        `SELECT id, title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND (is_public = 1 OR published = 1)${aiKnowledgeFilterSql()} ORDER BY updated_at DESC LIMIT 100`,
       )
-      .all(widget.user_id)) as Array<{ title: string; content: string }>;
-    for (const page of pages) {
+      .all(widget.user_id)) as Array<{ id: string; title: string; content: string }>;
+    // Sincronizados: solo si su origen también es conocimiento de la IA (lib/docs-visible.ts).
+    for (const page of await withVisibleContent(widget.user_id, pages, { knowledge: [] })) {
       const text = extractDocsText(page.content);
       const score = scoreCandidate(tokens, page.title, text);
       if (score >= BOT_MIN_SCORE && (!best || score > best.score)) {

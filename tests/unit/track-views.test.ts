@@ -53,6 +53,7 @@ describe('track-views', () => {
       'high',
       'medium',
       'low',
+      'none',
     ]);
 
     const byAssignee = groupIssues(

@@ -6,6 +6,7 @@ import type { TalkBootstrap } from '@/lib/talk-boot';
 import type { TalkChannelDto, TalkEvent, TalkMessageDto } from '@/lib/talk';
 import type { TalkDraftDto } from '@/lib/talk-extras';
 import { useRealtime, type RealtimeMode } from '@/lib/realtime-client';
+import { setTopbarLabel } from '@/components/app/AppTopbar';
 import ChannelPane from './ChannelPane';
 import ThreadPane from './ThreadPane';
 import Sidebar, { sidebarOrder } from './Sidebar';
@@ -506,9 +507,9 @@ export default function TalkApp(props: Props) {
     view === 'channel' ? (channel ? (channel.kind === 'public' || channel.kind === 'private' ? `#${channel.name}` : channelTitle(channel)) : null) : view === 'search' ? t('search.title') : view === 'browse' ? t('browse.title') : t(`nav.${view}`);
   useEffect(() => {
     const path = view === 'channel' && channelId ? `/app/talk/${channelId}` : '/app/talk';
-    window.dispatchEvent(new CustomEvent('zs:crumb', { detail: crumbLabel ? { path, label: crumbLabel } : null }));
+    setTopbarLabel(path, crumbLabel);
   }, [crumbLabel, view, channelId]);
-  useEffect(() => () => void window.dispatchEvent(new CustomEvent('zs:crumb', { detail: null })), []);
+  useEffect(() => () => setTopbarLabel('', null), []);
 
   let main: React.ReactNode = null;
   if (view === 'threads') main = <ThreadsView onBack={back} />;

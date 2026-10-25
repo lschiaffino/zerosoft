@@ -277,7 +277,7 @@ test('programado por cron, issue de Track desde el mensaje y tarjeta del link', 
   await msg.getByRole('button', { name: 'More actions' }).click();
   await page.getByRole('menuitem', { name: 'Create Track issue' }).click();
   const dlg = page.getByRole('dialog', { name: 'Create Track issue' });
-  await dlg.getByLabel('Project').selectOption(project.id);
+  await dlg.getByLabel('Team').selectOption(project.id);
   await dlg.getByRole('button', { name: 'Create' }).click();
   await expect(page.getByText(/Issue .+ created/)).toBeVisible();
   const issue = (await sql('SELECT id, title FROM track_issues WHERE project_id = ?', [project.id]))[0] as { id: string; title: string };

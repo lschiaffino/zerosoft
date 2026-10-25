@@ -355,6 +355,10 @@ describe('talk data', () => {
     const project = await createProject(w.owner.id, w.team.id, { name: 'Refs' } as never);
     const issue = await createIssue(project.id, w.owner.id, { title: 'Arreglar login' }, { source: 'app' });
     expect(parseSuiteRef(`https://zerosoft.ai/es/app/track/issues/${issue.id}`)).toEqual({ kind: 'issue', id: issue.id });
+    // Links nuevos de Track: /track/issue/<identificador>/<slug>.
+    expect(parseSuiteRef(`https://zerosoft.ai/en/app/track/issue/${issue.identifier}/arreglar-login`)).toEqual({ kind: 'issue', id: issue.identifier });
+    const byIdent = await resolveRefs(w.a, [{ id: 'm2', body: `https://zerosoft.ai/en/app/track/issue/${issue.identifier}/arreglar-login` }]);
+    expect(byIdent.get('m2')?.[0]).toMatchObject({ kind: 'issue', id: issue.id });
     const refs = await resolveRefs(w.a, [{ id: 'm1', body: `mirá https://zerosoft.ai/en/app/track/issues/${issue.id}` }]);
     expect(refs.get('m1')?.[0]).toMatchObject({ kind: 'issue', title: 'Arreglar login' });
     const other = await makeUser('refs-other');

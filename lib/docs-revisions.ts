@@ -35,7 +35,8 @@ export async function recordRevisions(
   const insert = 'INSERT OR IGNORE INTO docs_page_revisions (page_id, updated_at, title, icon, cover_url, content) VALUES (?, ?, ?, ?, ?, ?)';
   const had = await db.prepare('SELECT 1 FROM docs_page_revisions WHERE page_id = ? AND updated_at = ?').get(prev.id, prev.updated_at);
   if (!had) await db.prepare(insert).run(prev.id, prev.updated_at, prev.title ?? '', prev.icon ?? null, prev.cover_url ?? null, prev.content ?? '[]');
-  await db.prepare(insert).run(prev.id, next.updated_at, next.title ?? '', next.icon ?? null, next.cover_url ?? null, next.content);
+  // La nueva manda (si cae en el mismo milisegundo que la anterior, la reemplaza).
+  await db.prepare(insert.replace('INSERT OR IGNORE', 'INSERT OR REPLACE')).run(prev.id, next.updated_at, next.title ?? '', next.icon ?? null, next.cover_url ?? null, next.content);
   await db
     .prepare(
       `DELETE FROM docs_page_revisions WHERE page_id = ? AND updated_at NOT IN (

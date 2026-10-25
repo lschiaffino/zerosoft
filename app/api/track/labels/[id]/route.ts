@@ -16,7 +16,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const parsed = labelUpdateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
   const res = await updateLabel(trackWorkspaceId(user.team?.id ?? null, user.id), id, parsed.data);
-  if (!res.ok) return res.reason === 'not_found' ? notFound() : trackError(409, 'duplicate_label');
+  if (!res.ok) return res.reason === 'not_found' ? notFound() : res.reason === 'invalid_parent' ? trackError(400, 'invalid_parent') : trackError(409, 'duplicate_label');
   return NextResponse.json(res.label);
 }
 

@@ -4,6 +4,9 @@ import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { TrackStatusRow } from '@/lib/db';
 import TrackIcon from './TrackIcon';
+import { Popover } from './InlineEditors';
+import { StatusDot } from './glyphs';
+import { STATUS_CATEGORY_COLORS, STATUS_PALETTE } from '@/lib/track-color';
 
 const CATEGORIES = ['backlog', 'todo', 'in_progress', 'done', 'cancelled'] as const;
 type Category = (typeof CATEGORIES)[number];
@@ -87,7 +90,7 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
     setBusy(true);
     const res = await call(`/api/track/projects/${projectId}/statuses`, {
       method: 'POST',
-      body: JSON.stringify({ name: newName.trim(), category: newCategory, color: '#767676' }),
+      body: JSON.stringify({ name: newName.trim(), category: newCategory, color: STATUS_CATEGORY_COLORS[newCategory] ?? '#8a8f98' }),
     });
     setBusy(false);
     if (!res) return;
@@ -123,17 +126,36 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
       <ul className="track-status-list">
         {statuses.map((s, i) => (
           <li key={s.id} className="track-status-item" data-testid="track-status-item">
-            <input
-              type="color"
-              className="track-status-color"
-              value={/^#[0-9a-f]{6}$/i.test(s.color) ? s.color : '#767676'}
-              onChange={(e) => {
-                if (!colorBefore.current.has(s.id)) colorBefore.current.set(s.id, s.color);
-                onChange(statuses.map((x) => (x.id === s.id ? { ...x, color: e.target.value } : x)));
-              }}
-              onBlur={(e) => void saveColor(s.id, e.target.value)}
-              aria-label={`${t('statusSettings.color')}: ${s.name}`}
-            />
+            {/* Color como en Linear: el glifo del estado y la paleta de colores. */}
+            <Popover
+              ariaLabel={`${t('statusSettings.color')}: ${s.name}`}
+              className="track-status-color-btn"
+              width={196}
+              trigger={<StatusDot color={s.color} category={s.category} />}
+            >
+              {(close) => (
+                <div className="track-status-palette" role="group" aria-label={t('statusSettings.color')}>
+                  {STATUS_PALETTE.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={s.color.toLowerCase() === c}
+                      aria-label={c}
+                      className="track-status-swatch"
+                      style={{ background: c }}
+                      data-autofocus={s.color.toLowerCase() === c ? '' : undefined}
+                      onClick={() => {
+                        close();
+                        colorBefore.current.set(s.id, s.color);
+                        onChange(statuses.map((x) => (x.id === s.id ? { ...x, color: c } : x)));
+                        void saveColor(s.id, c);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </Popover>
             <input
               className="input track-status-name"
               defaultValue={s.name}

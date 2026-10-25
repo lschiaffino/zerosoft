@@ -5,7 +5,7 @@
 import { getDb } from './db';
 import type { NotificationRow } from './db';
 
-export type NotificationType = 'mention' | 'assigned' | 'status_change' | 'issue_update' | 'comment' | 'subtask' | 'relation' | 'chat_message' | 'email_activity' | 'crm_quote' | 'crm_form' | 'crm_lead' | 'crm_approval' | 'crm_document' | 'crm_video' | 'roadmap_status' | 'note_reminder' | 'track_reminder' | 'groups_sla' | 'groups_reminder' | 'docs_reminder' | 'db_automation' | 'talk_mention' | 'talk_dm' | 'talk_thread' | 'talk_keyword' | 'talk_message' | 'talk_reminder';
+export type NotificationType = 'mention' | 'assigned' | 'status_change' | 'issue_update' | 'comment' | 'subtask' | 'relation' | 'chat_message' | 'email_activity' | 'crm_quote' | 'crm_form' | 'crm_lead' | 'crm_approval' | 'crm_document' | 'crm_video' | 'roadmap_status' | 'note_reminder' | 'track_reminder' | 'groups_sla' | 'groups_reminder' | 'project_update' | 'docs_reminder' | 'db_automation' | 'talk_mention' | 'talk_dm' | 'talk_thread' | 'talk_keyword' | 'talk_message' | 'talk_reminder';
 
 export interface NotificationCreatePayload {
   userId: string;
@@ -381,6 +381,32 @@ export async function createDocsShareNotification(args: {
     sourceType: 'docs_page',
     sourceId: pageId,
     meta: { pageTitle: title, actorName: actorName(actor), actorId: actor.id, shared: true },
+  });
+}
+
+/**
+ * Docs: dos personas cambiaron lo mismo a la vez y ganó el último guardado. A
+ * quien había guardado antes se le avisa que su versión quedó en el historial.
+ */
+export async function createDocsConflictNotification(args: {
+  pageId: string;
+  pageTitle: string;
+  loserId: string;
+  actorId: string;
+}): Promise<void> {
+  const { pageId, loserId, actorId } = args;
+  if (loserId === actorId) return;
+  const actor = (await getDb().prepare('SELECT id, name, email FROM users WHERE id = ?').get(actorId)) as Actor | undefined;
+  const title = args.pageTitle || 'Untitled';
+  const name = actor ? actorName(actor) : 'Someone';
+  await createNotification({
+    userId: loserId,
+    type: 'comment',
+    title: `${name} changed the same part of ${title}: your version is in the page history`,
+    href: `/app/docs/${pageId}`,
+    sourceType: 'docs_page',
+    sourceId: pageId,
+    meta: { pageTitle: title, actorName: name, actorId, conflict: true },
   });
 }
 

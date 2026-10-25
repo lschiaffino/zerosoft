@@ -9,6 +9,13 @@ export interface WorkspaceLabel {
   id: string;
   name: string;
   color: string;
+  /** Label de un team (track_labels.project_id); null = del workspace. */
+  project_id?: string | null;
+}
+
+/** Labels que valen para un team: los del workspace y los de ese team (como Linear). */
+export function labelsForTeam<T extends { project_id?: string | null }>(labels: T[], teamId: string | null | undefined): T[] {
+  return labels.filter((l) => !l.project_id || (teamId ? l.project_id === teamId : false));
 }
 
 let cache: Promise<WorkspaceLabel[]> | null = null;

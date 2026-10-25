@@ -4,7 +4,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { TrackIssueTemplateRow, TrackStatusRow } from '@/lib/db';
 import type { ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
-import { applyIssuePatch, defaultIssueStatus, toggleDoneStatus, type IssuePatch, type IssuePriority } from '@/lib/track-tasks';
+import {
+  applyIssuePatch,
+  defaultIssueStatus,
+  inversePatch,
+  revertPatchFields,
+  toggleDoneStatus,
+  type IssuePatch,
+  type IssuePriority,
+} from '@/lib/track-tasks';
+import { pushUndo } from './trackUndo';
 import { insertIssueSorted, type IssueSort } from '@/lib/track-views';
 
 /** Lo que una vista necesita saber de un proyecto para editar inline. */
@@ -20,6 +29,8 @@ export interface ProjectContext {
   milestones?: Array<{ id: string; name: string }>;
   /** Plantillas de issue (el quick-create las aplica sobre el borrador). */
   templates?: TrackIssueTemplateRow[];
+  /** Labels del workspace (nombres y colores para el cambio optimista). */
+  labels?: Array<{ id: string; name: string; color: string }>;
 }
 
 export type ProjectMap = Record<string, ProjectContext>;
@@ -38,12 +49,24 @@ export interface IssueDraft {
   estimate?: number | null;
   /** Labels del workspace (por id). */
   labels?: Array<{ id: string }>;
+  /** Project (track_plans) y fecha de inicio, desde los chips del composer. */
+  planId?: string | null;
+  startDate?: string | null;
+  /** Mandarlo a triage del team (opción "Triage" del composer). */
+  triage?: boolean;
 }
 
 export interface IssueStore {
   issues: TrackIssueWithStatus[];
   setIssues: Dispatch<SetStateAction<TrackIssueWithStatus[]>>;
-  update: (issueId: string, patch: IssuePatch) => Promise<void>;
+  /** Cambio optimista; deja una entrada de ⌘Z salvo `{ undo: false }`. */
+  update: (issueId: string, patch: IssuePatch, opts?: UpdateOptions) => Promise<void>;
+  /** El mismo cambio (o uno por issue) sobre varios, con un solo ⌘Z. */
+  updateMany: (
+    issueIds: string[],
+    patch: IssuePatch | ((issue: TrackIssueWithStatus) => IssuePatch),
+    opts?: UpdateOptions,
+  ) => Promise<void>;
   toggleDone: (issue: TrackIssueWithStatus) => Promise<void>;
   /** `sort`: orden de la vista, para ubicar el issue nuevo donde va (Newest → arriba). */
   create: (projectId: string, draft: IssueDraft, sort?: IssueSort) => Promise<TrackIssueWithStatus | null>;
@@ -55,9 +78,16 @@ export function isPendingIssue(issue: Pick<TrackIssueWithStatus, 'id'>): boolean
   return issue.id.startsWith('tmp-');
 }
 
+export interface UpdateOptions {
+  /** false = no deja entrada de deshacer (el propio deshacer, arrastres internos). */
+  undo?: boolean;
+}
+
 interface Messages {
   saveError: string;
   createError: string;
+  /** Texto del toast de deshacer ("ZER-12 actualizado", "3 issues actualizados"). */
+  updated?: (what: string, count: number) => string;
   noDoneStatus: string;
 }
 
@@ -71,7 +101,7 @@ function draftIssue(projectId: string, id: string, draft: IssueDraft, ctx?: Proj
     title: draft.title.trim(),
     description: '[]',
     status_id: null,
-    priority: draft.priority ?? 'medium',
+    priority: draft.priority ?? 'none',
     assignee_id: null,
     creator_id: '',
     estimate: null,
@@ -129,12 +159,24 @@ export function useIssueStore(
     setIssues((list) => list.map((i) => (i.id === id ? fn(i) : i)));
   }, []);
 
-  const update = useCallback(
-    async (issueId: string, patch: IssuePatch) => {
+  // Un PATCH optimista. Si el issue ya no está en la lista (deshacer después
+  // de que un filtro lo sacó, o desde otra página), se manda igual sin
+  // cambio optimista: el sondeo en vivo trae el resultado.
+  const patchOne = useCallback(
+    async (issueId: string, patch: IssuePatch): Promise<TrackIssueWithStatus | null> => {
       const prev = issuesRef.current.find((i) => i.id === issueId);
-      if (!prev || isPendingIssue(prev)) return;
+      if (prev && isPendingIssue(prev)) return null;
+      if (!prev) {
+        const res = await fetch(`/api/track/issues/${issueId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patch),
+        }).catch(() => null);
+        if (!res?.ok) setError(messages.saveError);
+        return null;
+      }
       const ctx = projects[prev.project_id];
-      replace(issueId, (i) => applyIssuePatch(i, patch, ctx?.statuses, ctx?.members));
+      replace(issueId, (i) => applyIssuePatch(i, patch, ctx?.statuses, ctx?.members, ctx));
       const seq = (patchSeq.current.get(issueId) ?? 0) + 1;
       patchSeq.current.set(issueId, seq);
       const send = async () => {
@@ -151,31 +193,51 @@ export function useIssueStore(
       try {
         const saved = await request;
         if (patchSeq.current.get(issueId) === seq) replace(issueId, (i) => ({ ...i, ...saved }));
+        return prev;
       } catch {
         // Revertir solo los campos de este parche, para no pisar otros
         // cambios optimistas que hayan llegado mientras tanto.
-        replace(issueId, (i) => {
-          const r = { ...i };
-          if (patch.title !== undefined) r.title = prev.title;
-          if (patch.priority !== undefined) r.priority = prev.priority;
-          if (patch.dueDate !== undefined) r.due_date = prev.due_date;
-          if (patch.statusId !== undefined) {
-            r.status_id = prev.status_id;
-            r.status_name = prev.status_name;
-            r.status_color = prev.status_color;
-            r.status_category = prev.status_category;
-          }
-          if (patch.assigneeId !== undefined) {
-            r.assignee_id = prev.assignee_id;
-            r.assignee_name = prev.assignee_name;
-            r.assignee_email = prev.assignee_email;
-          }
-          return r;
-        });
+        replace(issueId, (i) => revertPatchFields(i, prev, patch));
         setError(messages.saveError);
+        return null;
       }
     },
     [projects, replace, messages.saveError],
+  );
+
+  const updated = messages.updated;
+  const updateMany = useCallback(
+    async (issueIds: string[], patch: IssuePatch | ((issue: TrackIssueWithStatus) => IssuePatch), opts: UpdateOptions = {}) => {
+      const list = issueIds
+        .map((id) => issuesRef.current.find((i) => i.id === id))
+        .filter((i): i is TrackIssueWithStatus => Boolean(i));
+      const results = await Promise.all(
+        list.map(async (issue) => {
+          const p = typeof patch === 'function' ? patch(issue) : patch;
+          const prev = await patchOne(issue.id, p);
+          return prev ? { id: issue.id, inverse: inversePatch(prev, p), forward: p } : null;
+        }),
+      );
+      const done = results.filter((r): r is { id: string; inverse: IssuePatch; forward: IssuePatch } => Boolean(r));
+      if (opts.undo === false || done.length === 0 || !updated) return;
+      const what = done.length === 1 ? (list.find((i) => i.id === done[0].id)?.identifier ?? '') : '';
+      pushUndo(
+        updated(what, done.length),
+        async () => {
+          await Promise.all(done.map((d) => patchOne(d.id, d.inverse)));
+        },
+        async () => {
+          await Promise.all(done.map((d) => patchOne(d.id, d.forward)));
+        },
+        { silent: done.length === 1 },
+      );
+    },
+    [patchOne, updated],
+  );
+
+  const update = useCallback(
+    (issueId: string, patch: IssuePatch, opts: UpdateOptions = {}) => updateMany([issueId], patch, opts),
+    [updateMany],
   );
 
   const toggleDone = useCallback(
@@ -214,6 +276,9 @@ export function useIssueStore(
               milestoneId: draft.milestoneId || undefined,
               estimate: draft.estimate ?? undefined,
               labels: draft.labels?.length ? draft.labels : undefined,
+              planId: draft.planId || undefined,
+              startDate: draft.startDate || undefined,
+              triage: draft.triage || undefined,
             }),
           });
           if (!res.ok) throw new Error(`create ${res.status}`);
@@ -237,7 +302,7 @@ export function useIssueStore(
 
   const clearError = useCallback(() => setError(null), []);
 
-  return { issues, setIssues, update, toggleDone, create, error, clearError };
+  return { issues, setIssues, update, updateMany, toggleDone, create, error, clearError };
 }
 
 /**
@@ -265,7 +330,8 @@ export function useCreateShortcut(onCreate: () => void, enabled = true): void {
     window.addEventListener(TRACK_NEW_ISSUE_EVENT, onEvent);
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'c' && e.key !== 'C') return;
-      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat || e.defaultPrevented) return;
+      // Con Shift es otro atajo (⇧C: cycle), como en Linear.
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.repeat || e.defaultPrevented) return;
       const el = e.target as HTMLElement | null;
       if (
         el &&

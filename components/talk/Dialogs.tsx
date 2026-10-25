@@ -891,7 +891,7 @@ function ShareDialog({ onPick, onClose }: { onPick: (url: string) => void; onClo
         .then((r) => r.json())
         .then((r: { items?: Array<{ id: string; group: string; label: string; meta?: string; href: string }> }) => {
           const list = r.items ?? [];
-          setItems(list.filter((x) => /^\/app\/(track\/issues|crm\/deals|docs)\/[^/?#]+$/.test(x.href)).slice(0, 12));
+          setItems(list.filter((x) => /^\/app\/(track\/issues?|crm\/deals|docs)\/[^?#]+$/.test(x.href)).slice(0, 12));
         })
         .catch(() => setItems([]))
         .finally(() => setLoading(false));

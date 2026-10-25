@@ -259,6 +259,10 @@ describe('Track: posponer y recordar', () => {
     const monday = snoozeAt('nextWeek', now);
     expect([monday.getDay(), monday.getDate(), monday.getHours()]).toEqual([1, 26, 9]);
     expect(snoozeAt('nextWeek', new Date(2026, 9, 26, 8)).getDate()).toBe(2);
+    // Domingo: mañana es lunes 26 y la semana que viene es el lunes 2.
+    const sunday = new Date(2026, 9, 25, 11);
+    expect(snoozeAt('tomorrow', sunday).getDate()).toBe(26);
+    expect([snoozeAt('nextWeek', sunday).getMonth(), snoozeAt('nextWeek', sunday).getDate()]).toEqual([10, 2]);
   });
 
   it('un aviso pospuesto sale de la bandeja y del contador hasta que vence', async () => {

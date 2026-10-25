@@ -134,11 +134,14 @@ describe('Track gauntlet r3: identificadores', () => {
     const pb = await createProject(a.id, null, { name: 'B', slug });
     expect(pb.slug).toBe(slug);
     const b1 = await createIssue(pb.id, a.id, { title: 'b1', description: [] }, app);
-    expect(b1.identifier).toBe(`${slug.toUpperCase()}-3`);
-    expect(b1.identifier).not.toBe(a1.identifier);
+    // Cambiar la clave renombra los issues (como Linear): los de A pasan a -CORE y B arranca en 1.
+    const a1now = (await getIssue(a1.id))!;
+    expect(a1now.identifier).toBe(`${slug.toUpperCase()}-CORE-1`);
+    expect(b1.identifier).toBe(`${slug.toUpperCase()}-1`);
+    expect(b1.identifier).not.toBe(a1now.identifier);
     // El proyecto renombrado sigue numerando con su prefijo nuevo.
     const a3 = await createIssue(pa.id, a.id, { title: 'a3', description: [] }, app);
-    expect(a3.identifier).toBe(`${slug.toUpperCase()}-CORE-1`);
+    expect(a3.identifier).toBe(`${slug.toUpperCase()}-CORE-3`);
   });
 
   it('la búsqueda por identifier no elige uno cualquiera si hay dos', async () => {

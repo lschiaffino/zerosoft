@@ -63,7 +63,7 @@ beforeEach(() => {
 });
 
 describe('Docs: concurrencia optimista al guardar', () => {
-  it('rechaza un guardado hecho sobre una versión vieja de la página', async () => {
+  it('un guardado hecho sobre una versión vieja se fusiona con lo de la otra persona (no la pisa)', async () => {
     const owner = await makeUser('dconf');
     const page = await createDocPage(owner.id, { title: 'P', content: [{ id: 'p1', type: 'paragraph', content: '' }] });
     const base = page.updated_at;
@@ -71,26 +71,33 @@ describe('Docs: concurrencia optimista al guardar', () => {
     // A guarda X en el párrafo.
     const afterA = await updateDocPage(owner.id, page.id, { content: [{ id: 'p1', type: 'paragraph', content: 'X' }], base_updated_at: base });
     expect(afterA?.updated_at).not.toBe(base);
-    // B sigue con la base vieja y cambió el mismo párrafo: no pisa lo de A (lo que no choca se fusiona).
-    await expect(updateDocPage(owner.id, page.id, { content: [{ id: 'p1', type: 'paragraph', content: 'Y' }], base_updated_at: base })).rejects.toBeInstanceOf(
+    await new Promise((r) => setTimeout(r, 5));
+    // B sigue con la base vieja y escribió en el mismo párrafo: quedan las dos (primero lo ya guardado).
+    const afterB = await updateDocPage(owner.id, page.id, { content: [{ id: 'p1', type: 'paragraph', content: 'Y' }], base_updated_at: base });
+    expect(afterB?.content[0].content).toBe('XY');
+    // Una base que ya no está entre las revisiones: conflicto (el editor fusiona con la versión actual y reintenta).
+    await expect(updateDocPage(owner.id, page.id, { content: [{ id: 'p1', type: 'paragraph', content: 'Z' }], base_updated_at: '2000-01-01T00:00:00.000Z' })).rejects.toBeInstanceOf(
       DocsConflictError,
     );
-    const row = await getDocPageRow(page.id);
-    expect(row?.content).toContain('X');
-    expect(row?.content).not.toContain('"Y"');
+    expect((await getDocPageRow(page.id))?.content).toContain('XY');
   });
 
-  it('PATCH devuelve 409 con base vieja y 200 con la base actual', async () => {
+  it('PATCH con base vieja: 200 fusionado; sin la revisión base, 409; con la base actual, 200', async () => {
     const owner = await makeUser('dconf2');
     asUser(owner);
     const page = await createDocPage(owner.id, { title: 'P', content: [{ id: 'p1', type: 'paragraph', content: '' }] });
     await new Promise((r) => setTimeout(r, 5));
     const ok = await pageRoute.PATCH(docReq(page.id, 'PATCH', { content: [{ id: 'p1', type: 'paragraph', content: 'X' }], base_updated_at: page.updated_at }), ctx(page.id));
     expect(ok.status).toBe(200);
-    const fresh = (await ok.json()) as { updated_at: string };
+    await new Promise((r) => setTimeout(r, 5));
     const stale = await pageRoute.PATCH(docReq(page.id, 'PATCH', { content: [{ id: 'p1', type: 'paragraph', content: 'Y' }], base_updated_at: page.updated_at }), ctx(page.id));
-    expect(stale.status).toBe(409);
-    const next = await pageRoute.PATCH(docReq(page.id, 'PATCH', { content: [para('Z')], base_updated_at: fresh.updated_at }), ctx(page.id));
+    expect(stale.status).toBe(200);
+    const merged = (await stale.json()) as { updated_at: string; merged: boolean; content: Array<{ content: string }> };
+    expect(merged.merged).toBe(true);
+    expect(merged.content[0].content).toBe('XY');
+    const gone = await pageRoute.PATCH(docReq(page.id, 'PATCH', { content: [para('Z')], base_updated_at: '2000-01-01T00:00:00.000Z' }), ctx(page.id));
+    expect(gone.status).toBe(409);
+    const next = await pageRoute.PATCH(docReq(page.id, 'PATCH', { content: [para('Z')], base_updated_at: merged.updated_at }), ctx(page.id));
     expect(next.status).toBe(200);
   });
 });

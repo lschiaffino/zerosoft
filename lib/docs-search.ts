@@ -21,6 +21,8 @@ export interface DocsSearchHit {
   /** Hit de una fila de una base: id de la fila (se abre con ?row=) y título de su página. */
   row_id?: string | null;
   page_title?: string | null;
+  /** Wiki: página verificada (o vencida), para el check en la búsqueda. */
+  verified?: 'verified' | 'expired' | null;
 }
 
 /** Minúsculas y sin tildes: "Canción" y "cancion" matchean igual. */

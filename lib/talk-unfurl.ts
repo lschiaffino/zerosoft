@@ -18,6 +18,8 @@ export type TalkRefCard =
   | { kind: 'doc'; url: string; id: string; title: string; icon: string | null };
 
 const REF_RE = /^\/(?:(?:en|es|pt)\/)?app\/(track\/issues|crm\/deals|docs)\/([A-Za-z0-9_-]{6,64})\/?$/;
+/** Links nuevos de Track: /app/track/issue/WEB-12/titulo (identificador y slug opcional). */
+const ISSUE_REF_RE = /^\/(?:(?:en|es|pt)\/)?app\/track\/issue\/([A-Za-z0-9_-]{1,64})(?:\/[^/]*)?\/?$/;
 
 /** Link de la suite → tipo e id (sin mirar el host: el acceso se chequea al resolver). */
 export function parseSuiteRef(url: string): { kind: 'issue' | 'deal' | 'doc'; id: string } | null {
@@ -27,6 +29,8 @@ export function parseSuiteRef(url: string): { kind: 'issue' | 'deal' | 'doc'; id
   } catch {
     return null;
   }
+  const byRef = ISSUE_REF_RE.exec(path);
+  if (byRef) return { kind: 'issue', id: byRef[1] };
   const m = REF_RE.exec(path);
   if (!m) return null;
   return { kind: m[1] === 'track/issues' ? 'issue' : m[1] === 'crm/deals' ? 'deal' : 'doc', id: m[2] };
@@ -45,8 +49,10 @@ export async function unfurlExternal(urls: string[]): Promise<TalkUnfurl[]> {
 }
 
 async function issueCard(actor: TalkActor, id: string, url: string): Promise<TalkRefCard | null> {
-  const { getAccessibleIssue } = await import('./track-data');
-  const found = await getAccessibleIssue(id, actor.teamId, actor.workspaceId).catch(() => null);
+  const { getAccessibleIssue, resolveIssueRef } = await import('./track-data');
+  // El id puede ser un identificador (WEB-12) de los links nuevos de Track.
+  const issueId = (await resolveIssueRef(id, actor.teamId, actor.workspaceId).catch(() => null)) ?? id;
+  const found = await getAccessibleIssue(issueId, actor.teamId, actor.workspaceId).catch(() => null);
   if (!found) return null;
   const i = found.issue;
   return { kind: 'issue', url, id: i.id, identifier: i.identifier, title: i.title, status: i.status_name, statusColor: i.status_color, assignee: i.assignee_name ?? i.assignee_email, priority: i.priority };

@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 import { buildZip } from '../../lib/zip-reader';
 
 /**
- * Importadores de punta a punta en la UI: Track (CSV de Linear y GitHub),
+ * Importadores de punta a punta en la UI: Track (CSV de Linear, GitHub, Jira,
+ * Asana y Shortcut),
  * Cal (Calendly) y Docs (export de Notion). Las APIs de terceros son un mock
  * local en PORT + 1 (playwright.config.ts apunta IMPORT_*_API_URL ahí): nada
  * sale a internet.
@@ -29,6 +30,36 @@ function mockRoutes(path: string, auth: string | undefined): unknown {
     '/github/repos/acme/e2e/issues/comments': [
       { id: 7, body: 'Seen it too', created_at: '2024-01-03T00:00:00Z', issue_url: 'https://api.github.com/repos/acme/e2e/issues/1', user: { login: 'octo' } },
     ],
+    '/jira/rest/api/3/search/jql': {
+      issues: [
+        {
+          id: '1',
+          key: 'JE-1',
+          fields: {
+            summary: 'Jira login fails',
+            description: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'From Jira' }] }] },
+            status: { name: 'In Progress', statusCategory: { key: 'indeterminate' } },
+            priority: { name: 'High' },
+            project: { key: 'JE', name: 'Jira E2E' },
+            issuetype: { name: 'Bug' },
+          },
+        },
+      ],
+      isLast: true,
+    },
+    '/asana/api/1.0/projects/1201234567890': { data: { name: 'Asana E2E' } },
+    '/asana/api/1.0/projects/1201234567890/tasks': {
+      data: [{ gid: '11', name: 'Asana launch checklist', memberships: [{ section: { name: 'Doing' } }] }],
+      next_page: null,
+    },
+    '/asana/api/1.0/tasks/11/stories': { data: [{ gid: 's1', resource_subtype: 'comment_added', text: 'On it', created_by: { name: 'Bo' } }] },
+    '/shortcut/api/v3/workflows': [{ name: 'Shortcut E2E', states: [{ id: 500, name: 'Ready', type: 'unstarted' }] }],
+    '/shortcut/api/v3/members': [],
+    '/shortcut/api/v3/epics': [],
+    '/shortcut/api/v3/search/stories': {
+      data: [{ id: 77, name: 'Shortcut onboarding story', story_type: 'feature', workflow_state_id: 500, comments: [] }],
+      next: null,
+    },
     '/calendly/users/me': { resource: { uri: 'https://api.calendly.com/users/U1' } },
     '/calendly/user_availability_schedules': {
       collection: [{ uri: 'S1', name: 'Working hours', default: true, timezone: 'UTC', rules: [{ type: 'wday', wday: 'monday', intervals: [{ from: '09:00', to: '17:00' }] }] }],
@@ -56,7 +87,7 @@ function mockRoutes(path: string, auth: string | undefined): unknown {
 test.beforeAll(async () => {
   server = http.createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://x');
-    const body = mockRoutes(url.pathname, req.headers.authorization);
+    const body = mockRoutes(url.pathname, req.headers.authorization ?? (req.headers['shortcut-token'] as string | undefined));
     res.writeHead(body ? 200 : 404, { 'content-type': 'application/json' }).end(JSON.stringify(body ?? { message: 'Not Found' }));
   });
   await new Promise<void>((resolve) => server!.listen(PORT + 1, '127.0.0.1', () => resolve()));
@@ -105,7 +136,7 @@ test('Track: CSV de Linear con vista previa, import y export', async ({ page, re
   await expect(done).toBeVisible({ timeout: 45_000 });
   await expect(done).toContainText('2 issues');
   await done.getByRole('link', { name: `Open ${team}` }).click();
-  await expect(page).toHaveURL(/\/app\/track\/projects\//, { timeout: 45_000 });
+  await expect(page).toHaveURL(/\/app\/track\/team\//, { timeout: 45_000 });
   await expect(page.getByText(title).first()).toBeVisible({ timeout: 45_000 });
 
   const exported = await request.get('/api/track/export');
@@ -127,6 +158,48 @@ test('Track: GitHub Issues con token (API mockeada)', async ({ page }) => {
   expect(seen.some((s) => s.startsWith('/github/repos/acme/e2e ') && s.endsWith('Bearer ghp_e2e_token_123'))).toBe(true);
   // El token no vuelve a la página.
   expect(await page.content()).not.toContain('ghp_e2e_token_123');
+});
+
+/** Vista previa → import → el issue se ve en el proyecto creado. */
+async function importAndOpen(page: import('@playwright/test').Page, projectName: string, title: string) {
+  await page.getByRole('button', { name: 'Preview' }).click();
+  const preview = page.getByTestId('track-import-preview');
+  await expect(preview).toBeVisible({ timeout: 45_000 });
+  await preview.getByRole('button', { name: /^Import \d+ issues?$/ }).click();
+  const done = page.getByTestId('track-import-done');
+  await expect(done).toBeVisible({ timeout: 45_000 });
+  await done.getByRole('link', { name: `Open ${projectName}` }).first().click();
+  await expect(page).toHaveURL(/\/app\/track\/team\//, { timeout: 45_000 });
+  await expect(page.getByText(title).first()).toBeVisible({ timeout: 45_000 });
+}
+
+test('Track: Jira Cloud por API (mockeada)', async ({ page }) => {
+  await page.goto('/en/app/track/settings?tab=import');
+  await page.getByLabel('Import from').selectOption('jira');
+  await page.getByLabel('Jira site').fill('acme.atlassian.net');
+  await page.getByLabel('Atlassian account email').fill('demo@zerosoft.ai');
+  await page.getByLabel('Project key or JQL').fill('JE');
+  await page.getByLabel('Jira API token').fill('jira_e2e_token_123');
+  await importAndOpen(page, 'Jira E2E', 'Jira login fails');
+  const auth = `Basic ${Buffer.from('demo@zerosoft.ai:jira_e2e_token_123').toString('base64')}`;
+  expect(seen.some((s) => s.startsWith('/jira/rest/api/3/search/jql ') && s.endsWith(auth))).toBe(true);
+});
+
+test('Track: Asana (API mockeada)', async ({ page }) => {
+  await page.goto('/en/app/track/settings?tab=import');
+  await page.getByLabel('Import from').selectOption('asana');
+  await page.getByLabel('Asana project').fill('https://app.asana.com/0/1201234567890/list');
+  await page.getByLabel('Asana personal access token').fill('asana_e2e_token_123');
+  await importAndOpen(page, 'Asana E2E', 'Asana launch checklist');
+  expect(seen.some((s) => s.startsWith('/asana/api/1.0/tasks/11/stories ') && s.endsWith('Bearer asana_e2e_token_123'))).toBe(true);
+});
+
+test('Track: Shortcut (API mockeada)', async ({ page }) => {
+  await page.goto('/en/app/track/settings?tab=import');
+  await page.getByLabel('Import from').selectOption('shortcut');
+  await page.getByLabel('Shortcut API token').fill('sc_e2e_token_123');
+  await importAndOpen(page, 'Shortcut E2E', 'Shortcut onboarding story');
+  expect(seen.some((s) => s.startsWith('/shortcut/api/v3/search/stories ') && s.endsWith('sc_e2e_token_123'))).toBe(true);
 });
 
 test('Cal: import desde Calendly (API mockeada)', async ({ page }) => {

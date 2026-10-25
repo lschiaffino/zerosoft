@@ -1,16 +1,19 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { activeRowElement } from './kbCursor';
 import { useTranslations } from 'next-intl';
 import type { TrackStatusRow } from '@/lib/db';
 import type { ProjectMember } from '@/lib/track-data';
 import type { WorkspaceLabel } from './LabelPicker';
-import { issueKeyAction } from '@/lib/track-keys';
+import { openCommandMenu } from '@/lib/cmdk-context';
+import { isTypingTarget as isTextTarget } from './trackCommands';
 
+// Casillas y botones no cuentan como tipeo: X sigue andando después de un clic.
 function isTypingTarget(el: EventTarget | null): boolean {
   const node = el as HTMLElement | null;
-  if (!node || typeof node.closest !== 'function') return false;
-  return node.isContentEditable || Boolean(node.closest('input, textarea, select, [contenteditable="true"], dialog, [role="dialog"]'));
+  if (isTextTarget(el)) return true;
+  return Boolean(node && typeof node.closest === 'function' && node.closest('dialog, [role="dialog"]'));
 }
 
 export interface IssueSelection {
@@ -71,15 +74,19 @@ export function useIssueSelection(orderedIds: string[]): IssueSelection {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      // Con la paleta o un menú abiertos, Esc los cierra a ellos (no la selección).
+      if (document.querySelector('.cmdk, [role="menu"]')) return;
       if (e.key === 'Escape') {
         setSelected((prev) => (prev.size ? new Set() : prev));
         return;
       }
       if (e.key.toLowerCase() !== 'x') return;
+      const kb = activeRowElement();
       const row =
+        (kb?.dataset.issueId ? kb : null) ??
         document.querySelector<HTMLElement>('[data-issue-id].is-kb-active') ??
         document.querySelector<HTMLElement>('[data-issue-id]:hover');
-      const id = row?.dataset.issueId;
+      const id = row?.dataset.issueId ?? kb?.dataset.issueKey;
       if (!id) return;
       e.preventDefault();
       toggle(id, e.shiftKey);
@@ -113,33 +120,17 @@ interface BulkBarProps {
   onClear: () => void;
 }
 
-/** Barra de acciones para los issues seleccionados. */
-export function BulkBar({
-  count,
-  statuses,
-  members,
-  cycles,
-  labels,
-  priorities,
-  canDelete,
-  onApply,
-  onDelete,
-  onClear,
-}: BulkBarProps) {
+/**
+ * Barra de acciones para los issues seleccionados, como la de Linear: cada
+ * acción abre la misma página de ⌘K que su atajo (estado, prioridad,
+ * asignado, labels, project, cycle, padre, mover de team), con filtro tipeado.
+ * ⌘⌫ borra (con Deshacer) desde la paleta; acá queda el botón con confirmación.
+ */
+export function BulkBar({ count, cycles, canDelete, onDelete, onClear }: BulkBarProps) {
   const t = useTranslations('track');
+  const tb = useTranslations('track.ux.bulk');
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  // ⌘⌫ pide borrar la selección (el mismo atajo que en la página del issue).
-  useEffect(() => {
-    if (count === 0 || !canDelete) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (issueKeyAction(e) !== 'delete' || isTypingTarget(e.target)) return;
-      e.preventDefault();
-      setConfirming(true);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [count, canDelete]);
   if (count === 0) return null;
 
   const run = async (fn: () => Promise<void>) => {
@@ -151,63 +142,33 @@ export function BulkBar({
     }
   };
 
-  const select = (label: string, onPick: (v: string) => void, options: Array<{ value: string; label: string }>, testId: string) => (
-    <select
-      className="select track-bulk-select"
-      value=""
+  const action = (page: string, label: string, shortcut: string, testId: string) => (
+    <button
+      type="button"
+      className="btn btn-ghost btn-sm track-bulk-action"
       disabled={busy}
-      aria-label={label}
+      onClick={() => openCommandMenu(page)}
+      aria-keyshortcuts={shortcut.replace('⇧', 'Shift+').replace('⌘', 'Meta+')}
       data-testid={testId}
-      onChange={(e) => {
-        const v = e.target.value;
-        if (v) onPick(v);
-      }}
     >
-      <option value="">{label}</option>
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+      {label}
+      <kbd className="kbd track-kbd" aria-hidden>
+        {shortcut}
+      </kbd>
+    </button>
   );
 
   return (
     <div className="track-bulk-bar" role="toolbar" aria-label={t('bulk.selected', { count })} data-testid="track-bulk-bar">
       <span className="track-bulk-count">{t('bulk.selected', { count })}</span>
-      {select(
-        t('bulk.status'),
-        (v) => void run(() => onApply({ statusId: v })),
-        statuses.map((s) => ({ value: s.id, label: s.name })),
-        'track-bulk-status',
-      )}
-      {select(t('bulk.priority'), (v) => void run(() => onApply({ priority: v })), priorities, 'track-bulk-priority')}
-      {select(
-        t('bulk.assignee'),
-        (v) => void run(() => onApply({ assigneeId: v === '__none' ? null : v })),
-        [{ value: '__none', label: t('bulk.unassign') }, ...members.map((m) => ({ value: m.id, label: m.name ?? m.email }))],
-        'track-bulk-assignee',
-      )}
-      {labels.length > 0 &&
-        select(
-          t('bulk.labels'),
-          (v) =>
-            void run(() =>
-              onApply(v.startsWith('-') ? { removeLabelIds: [v.slice(1)] } : { addLabelIds: [v.slice(1)] }),
-            ),
-          [
-            ...labels.map((l) => ({ value: `+${l.id}`, label: t('bulk.addLabel', { name: l.name }) })),
-            ...labels.map((l) => ({ value: `-${l.id}`, label: t('bulk.removeLabel', { name: l.name }) })),
-          ],
-          'track-bulk-labels',
-        )}
-      {cycles.length > 0 &&
-        select(
-          t('bulk.cycle'),
-          (v) => void run(() => onApply({ cycleId: v === '__none' ? null : v })),
-          [{ value: '__none', label: t('bulk.noCycle') }, ...cycles.map((c) => ({ value: c.id, label: c.name }))],
-          'track-bulk-cycle',
-        )}
+      {action('status', tb('status'), 'S', 'track-bulk-status')}
+      {action('priority', tb('priority'), 'P', 'track-bulk-priority')}
+      {action('assignee', tb('assignee'), 'A', 'track-bulk-assignee')}
+      {action('labels', tb('labels'), 'L', 'track-bulk-labels')}
+      {action('project', tb('project'), '⇧P', 'track-bulk-project')}
+      {cycles.length > 0 && action('cycle', tb('cycle'), '⇧C', 'track-bulk-cycle')}
+      {action('parent', tb('parent'), '⌘⇧P', 'track-bulk-parent')}
+      {action('move-team', tb('move'), '⌘⇧M', 'track-bulk-move')}
       {canDelete &&
         (confirming ? (
           <span className="track-bulk-confirm">
@@ -230,7 +191,7 @@ export function BulkBar({
             </button>
           </span>
         ) : (
-          <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setConfirming(true)}>
+          <button type="button" className="btn btn-sm btn-ghost btn-danger" disabled={busy} onClick={() => setConfirming(true)}>
             {t('bulk.delete')}
           </button>
         ))}
