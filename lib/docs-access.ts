@@ -118,6 +118,14 @@ export interface DocsTeamspace {
   access: TeamspaceAccess;
   /** Rol de los miembros del teamspace en sus páginas. */
   member_role: DocsRole;
+  /**
+   * La IA (bot de Chat y Agents) puede usar sus páginas como conocimiento.
+   * Los abiertos siguen la regla del workspace; en cerrados y privados hay que
+   * prenderlo a propósito.
+   */
+  ai_knowledge: boolean;
+  /** Teamspace por defecto: todos los miembros del workspace son miembros (como "General" de Notion). */
+  is_default: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -136,11 +144,16 @@ export interface TeamspaceMember {
   email: string;
 }
 
-type TeamspaceRow = Omit<DocsTeamspace, 'access' | 'member_role'> & { access: string; member_role: string };
+type TeamspaceRow = Omit<DocsTeamspace, 'access' | 'member_role' | 'ai_knowledge' | 'is_default'> & {
+  access: string;
+  member_role: string;
+  ai_knowledge?: number;
+  is_default?: number;
+};
 
 function toTeamspace(r: TeamspaceRow): DocsTeamspace {
   const access: TeamspaceAccess = r.access === 'closed' || r.access === 'private' ? r.access : 'open';
-  return { ...r, access, member_role: normalizeDocsRole(r.member_role, 'edit') };
+  return { ...r, access, member_role: normalizeDocsRole(r.member_role, 'edit'), ai_knowledge: r.ai_knowledge === 1, is_default: r.is_default === 1 };
 }
 
 export async function getTeamspace(id: string): Promise<DocsTeamspace | null> {
@@ -148,12 +161,20 @@ export async function getTeamspace(id: string): Promise<DocsTeamspace | null> {
   return row ? toTeamspace(row) : null;
 }
 
+/**
+ * Rol de la persona en el teamspace. En el teamspace por defecto todos los
+ * miembros del workspace son miembros (quien llama ya sabe que la persona
+ * actúa en ese workspace).
+ */
 export async function teamspaceRoleOf(teamspaceId: string, userId: string): Promise<'owner' | 'member' | null> {
   const row = (await getDb()
     .prepare('SELECT role FROM docs_teamspace_members WHERE teamspace_id = ? AND user_id = ?')
     .get(teamspaceId, userId)) as { role: string } | undefined;
-  if (!row) return null;
-  return row.role === 'owner' ? 'owner' : 'member';
+  if (row) return row.role === 'owner' ? 'owner' : 'member';
+  const ts = (await getDb().prepare('SELECT is_default FROM docs_teamspaces WHERE id = ?').get(teamspaceId)) as
+    | { is_default: number }
+    | undefined;
+  return ts?.is_default === 1 ? 'member' : null;
 }
 
 /**
@@ -174,9 +195,10 @@ export async function listTeamspaces(workspaceId: string, userId: string): Promi
     .map((r) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { my_role, member_count, ...rest } = r;
+      const ts = toTeamspace(rest);
       return {
-        ...toTeamspace(rest),
-        my_role: my_role === 'owner' ? ('owner' as const) : my_role ? ('member' as const) : null,
+        ...ts,
+        my_role: my_role === 'owner' ? ('owner' as const) : my_role || ts.is_default ? ('member' as const) : null,
         member_count: Number(member_count ?? 0),
       };
     })
@@ -188,11 +210,20 @@ export async function hiddenTeamspaceIds(workspaceId: string, userId: string): P
   const rows = (await getDb()
     .prepare(
       `SELECT t.id FROM docs_teamspaces t
-       WHERE t.workspace_id = ? AND t.access IN ('closed', 'private')
+       WHERE t.workspace_id = ? AND t.access IN ('closed', 'private') AND t.is_default = 0
          AND NOT EXISTS (SELECT 1 FROM docs_teamspace_members m WHERE m.teamspace_id = t.id AND m.user_id = ?)`,
     )
     .all(workspaceId, userId)) as Array<{ id: string }>;
   return rows.map((r) => r.id);
+}
+
+/**
+ * Conocimiento de la IA (bot de Chat, Agents): las páginas de teamspaces
+ * cerrados o privados no entran salvo que el teamspace lo habilite
+ * (ai_knowledge). Fragmento SQL sobre la columna teamspace_id de docs_pages.
+ */
+export function aiKnowledgeFilterSql(column = 'teamspace_id'): string {
+  return ` AND (${column} IS NULL OR ${column} IN (SELECT id FROM docs_teamspaces WHERE access = 'open' OR ai_knowledge = 1))`;
 }
 
 /** Fragmento SQL que deja afuera las páginas de esos teamspaces. */
@@ -212,7 +243,15 @@ export const TEAMSPACES_MAX = 50;
 export async function createTeamspace(
   workspaceId: string,
   createdBy: string,
-  input: { name: string; icon?: string | null; description?: string; access?: TeamspaceAccess; member_role?: DocsRole },
+  input: {
+    name: string;
+    icon?: string | null;
+    description?: string;
+    access?: TeamspaceAccess;
+    member_role?: DocsRole;
+    ai_knowledge?: boolean;
+    is_default?: boolean;
+  },
 ): Promise<DocsTeamspace> {
   const count = (await getDb()
     .prepare('SELECT COUNT(*) AS n FROM docs_teamspaces WHERE workspace_id = ?')
@@ -222,8 +261,8 @@ export async function createTeamspace(
   const now = new Date().toISOString();
   await getDb()
     .prepare(
-      `INSERT INTO docs_teamspaces (id, workspace_id, name, icon, description, access, member_role, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO docs_teamspaces (id, workspace_id, name, icon, description, access, member_role, ai_knowledge, is_default, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
     )
     .run(
       id,
@@ -233,10 +272,12 @@ export async function createTeamspace(
       (input.description ?? '').trim().slice(0, 500),
       input.access ?? 'open',
       input.member_role ?? 'edit',
+      input.ai_knowledge ? 1 : 0,
       createdBy,
       now,
       now,
     );
+  if (input.is_default) await updateTeamspace(id, { is_default: true });
   await getDb()
     .prepare("INSERT OR IGNORE INTO docs_teamspace_members (teamspace_id, user_id, role, created_at) VALUES (?, ?, 'owner', ?)")
     .run(id, createdBy, now);
@@ -245,10 +286,23 @@ export async function createTeamspace(
 
 export async function updateTeamspace(
   id: string,
-  patch: Partial<Pick<DocsTeamspace, 'name' | 'icon' | 'description' | 'access' | 'member_role'>>,
+  patch: Partial<Pick<DocsTeamspace, 'name' | 'icon' | 'description' | 'access' | 'member_role' | 'ai_knowledge' | 'is_default'>>,
 ): Promise<DocsTeamspace | null> {
   const sets: string[] = [];
-  const args: Array<string | null> = [];
+  const args: Array<string | number | null> = [];
+  if (patch.ai_knowledge !== undefined) {
+    sets.push('ai_knowledge = ?');
+    args.push(patch.ai_knowledge ? 1 : 0);
+  }
+  if (patch.is_default !== undefined) {
+    // Uno solo por workspace.
+    if (patch.is_default) {
+      const ts = await getTeamspace(id);
+      if (ts) await getDb().prepare('UPDATE docs_teamspaces SET is_default = 0 WHERE workspace_id = ? AND id != ?').run(ts.workspace_id, id);
+    }
+    sets.push('is_default = ?');
+    args.push(patch.is_default ? 1 : 0);
+  }
   if (patch.name !== undefined) {
     sets.push('name = ?');
     args.push(patch.name.trim().slice(0, 120));

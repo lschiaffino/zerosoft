@@ -16,6 +16,7 @@
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 import { getDb } from './db';
+import { aiKnowledgeFilterSql } from './docs-access';
 import type { AgentChannel, AgentConversationRow, AgentToolCallRow, RobotRow } from './db';
 import {
   AGENT_HTTP_METHODS,
@@ -168,7 +169,7 @@ export async function searchAgentKnowledge(
   if (cfg.allPublicDocs) {
     const rows = (await db
       .prepare(
-        'SELECT id, title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND (is_public = 1 OR published = 1) ORDER BY updated_at DESC LIMIT 200',
+        `SELECT id, title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND (is_public = 1 OR published = 1)${aiKnowledgeFilterSql()} ORDER BY updated_at DESC LIMIT 200`,
       )
       .all(workspaceId)) as Array<{ id: string; title: string; content: string }>;
     for (const r of rows) pages.set(r.id, r);
@@ -176,7 +177,8 @@ export async function searchAgentKnowledge(
   if (cfg.docsPageIds.length) {
     const ph = cfg.docsPageIds.map(() => '?').join(', ');
     const rows = (await db
-      .prepare(`SELECT id, title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND id IN (${ph})`)
+      // Elegidas a mano en el agente: tampoco las de teamspaces cerrados o privados sin permiso de IA.
+      .prepare(`SELECT id, title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND id IN (${ph})${aiKnowledgeFilterSql()}`)
       .all(workspaceId, ...cfg.docsPageIds)) as Array<{ id: string; title: string; content: string }>;
     for (const r of rows) pages.set(r.id, r);
   }

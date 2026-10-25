@@ -229,6 +229,8 @@ export const docPageUpdateSchema = z.object({
   cover_position: z.number().min(0).max(100).optional(),
   /** Bloquear la página (nadie edita el contenido; los comentarios siguen). */
   locked: z.boolean().optional(),
+  /** "Desbloquear solo para mí": quien puede editar guarda sin quitar el bloqueo a los demás. */
+  bypass_lock: z.boolean().optional(),
   /** Rol de los miembros del workspace en esta página y subpáginas (null = hereda). */
   member_role: z.enum(['view', 'comment', 'edit', 'full']).nullable().optional(),
   /** Wiki: dueño de la página. */

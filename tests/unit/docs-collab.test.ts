@@ -340,3 +340,111 @@ describe('Docs D3: comentarios sobre texto', () => {
     expect(reply).toMatchObject({ anchor_id: null, quote: '' });
   });
 });
+
+describe('Docs D3: la IA no lee teamspaces cerrados o privados', () => {
+  /** Página con "La IA puede usarla" prendido, con una palabra única para buscarla. */
+  async function aiPage(owner: { id: string }, word: string, teamspace_id: string | null) {
+    const page = await createDocPage(owner.id, { title: `Política ${word}`, teamspace_id, content: [para('a', `La ${word} se pide con una semana de anticipo.`)] });
+    await updateDocPage(owner.id, page.id, { is_public: true });
+    return page;
+  }
+
+  it('Chat (bot y retrieval) y Agents filtran por teamspace; habilitarlo en el teamspace lo vuelve a sumar', async () => {
+    const owner = await makeUser('own');
+    const priv = await createTeamspace(owner.id, owner.id, { name: 'RRHH', access: 'private' });
+    const closed = await createTeamspace(owner.id, owner.id, { name: 'Legal', access: 'closed' });
+    const open = await createTeamspace(owner.id, owner.id, { name: 'Todos', access: 'open' });
+    const secret = await aiPage(owner, 'licenciazeta', priv.id);
+    await aiPage(owner, 'contratoomega', closed.id);
+    await aiPage(owner, 'bienvenidaalfa', open.id);
+    await aiPage(owner, 'vacacionesbeta', null);
+
+    const { retrieveKnowledge } = await import('@/lib/chat-bot-ai');
+    const { findBotReply } = await import('@/lib/chat-data');
+    const { searchAgentKnowledge } = await import('@/lib/agent-tools');
+    const widget = { id: `w-${crypto.randomUUID()}`, user_id: owner.id, bot_enabled: 1, bot_source: 'docs', bot_greeting: null } as never;
+    const agent = { id: `ag-${crypto.randomUUID()}`, knowledge: { allPublicDocs: true, docsPageIds: [secret.id], cannedFromWidgetId: null, urls: [] } } as never;
+
+    const titles = async (q: string) => [
+      ...(await retrieveKnowledge(widget, q)).map((c) => c.title),
+      ...(await searchAgentKnowledge(agent, owner.id, q)).map((c) => c.title),
+    ];
+    expect(await titles('licenciazeta')).not.toContain('Política licenciazeta');
+    expect(await titles('contratoomega')).not.toContain('Política contratoomega');
+    expect(await titles('bienvenidaalfa')).toContain('Política bienvenidaalfa');
+    expect(await titles('vacacionesbeta')).toContain('Política vacacionesbeta');
+    expect(((await findBotReply(widget, 'licenciazeta anticipo'))?.body ?? '')).not.toContain('licenciazeta');
+
+    // Búsqueda de Docs y ⌘K (searchDocPagesContent con los teamspaces ocultos de quien busca).
+    const { searchDocPagesContent } = await import('@/lib/docs');
+    const member = await makeUser('mem');
+    const hide = await hiddenTeamspaceIds(owner.id, member.id);
+    expect((await searchDocPagesContent(owner.id, 'licenciazeta', 20, hide)).length).toBe(0);
+    expect((await searchDocPagesContent(owner.id, 'licenciazeta', 20, [])).length).toBe(1);
+
+    // Prenderlo en el teamspace: entra.
+    const { updateTeamspace } = await import('@/lib/docs-access');
+    await updateTeamspace(priv.id, { ai_knowledge: true });
+    expect(await titles('licenciazeta')).toContain('Política licenciazeta');
+  });
+});
+
+describe('Docs D3: bloques sincronizados', () => {
+  it('copiar un sincronizado pide poder abrir la página de origen', async () => {
+    const { owner, member, asMember } = await workspace();
+    const priv = await createTeamspace(owner.id, owner.id, { name: 'Dirección', access: 'private' });
+    const src = await createDocPage(owner.id, { title: 'Origen', teamspace_id: priv.id });
+    const { persistSyncedBlocks } = await import('@/lib/docs-synced');
+    await persistSyncedBlocks({
+      workspaceId: owner.id,
+      pageId: src.id,
+      actorId: owner.id,
+      previous: [],
+      next: [{ id: 's', type: 'synced', content: '', synced_id: 'sync-secreto' }, { id: 'c', type: 'paragraph', content: 'Sueldos', indent: 1 }],
+    });
+    const route = await import('@/app/api/docs/synced/[id]/route');
+    const get = () => route.GET(req('http://x/api/docs/synced/sync-secreto', 'GET'), ctx('sync-secreto'));
+    session.user = { id: owner.id, email: owner.email };
+    expect((await get()).status).toBe(200);
+    session.user = asMember;
+    expect((await get()).status).toBe(404);
+    await setTeamspaceMember(priv.id, member.id, 'member');
+    expect((await get()).status).toBe(200);
+  });
+});
+
+describe('Docs D3: teamspace por defecto y desbloquear solo para mí', () => {
+  it('el teamspace por defecto incluye a todo el workspace aunque sea cerrado', async () => {
+    const { owner, member, asMember } = await workspace();
+    const general = await createTeamspace(owner.id, owner.id, { name: 'General', access: 'closed', is_default: true });
+    const other = await createTeamspace(owner.id, owner.id, { name: 'Otro', access: 'closed', is_default: true });
+    // Uno solo por workspace: el último gana.
+    const { getTeamspace, listTeamspaces } = await import('@/lib/docs-access');
+    expect((await getTeamspace(general.id))!.is_default).toBe(false);
+    expect((await getTeamspace(other.id))!.is_default).toBe(true);
+    const page = await createDocPage(owner.id, { title: 'Hola', teamspace_id: other.id });
+    expect(await hiddenTeamspaceIds(owner.id, member.id)).toEqual([general.id]);
+    expect(await getDocAccess((await getDocPageRow(page.id))!, asMember as never)).toBe('edit');
+    expect((await listTeamspaces(owner.id, member.id)).find((t) => t.id === other.id)?.my_role).toBe('member');
+  });
+
+  it('con "solo para mí" quien edita guarda en una página bloqueada; sin eso, 423', async () => {
+    const owner = await makeUser('own');
+    const page = await createDocPage(owner.id, { title: 'Bloq', content: [para('a', 'uno')] });
+    await updateDocPage(owner.id, page.id, { locked: true });
+    session.user = { id: owner.id, email: owner.email };
+    const url = `http://x/api/docs/pages/${page.id}`;
+    let row = (await getDocPageRow(page.id))!;
+    expect((await pageRoute.PATCH(req(url, 'PATCH', { content: [para('a', 'dos')], base_updated_at: row.updated_at }), ctx(page.id))).status).toBe(423);
+    const res = await pageRoute.PATCH(req(url, 'PATCH', { content: [para('a', 'dos')], base_updated_at: row.updated_at, bypass_lock: true }), ctx(page.id));
+    expect(res.status).toBe(200);
+    row = (await getDocPageRow(page.id))!;
+    expect(row.locked).toBe(1);
+    // Quien solo comenta no puede saltear el bloqueo.
+    const guest = await makeUser('gst');
+    await createDocShare(owner.id, page.id, 'user', guest.id, 'comment');
+    session.user = { id: guest.id, email: guest.email };
+    const g = await pageRoute.PATCH(req(url, 'PATCH', { content: [para('a', 'tres')], base_updated_at: row.updated_at, bypass_lock: true }), ctx(page.id));
+    expect([403, 423]).toContain(g.status);
+  });
+});

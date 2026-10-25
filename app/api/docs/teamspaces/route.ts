@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
   const parsed = teamspaceCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
   if (!isWorkspaceAdmin(user) && roleRank((await getDocsSettings(user.id)).member_role) < roleRank('edit')) return forbidden();
+  if (parsed.data.is_default && !isWorkspaceAdmin(user)) return forbidden();
   try {
     const ts = await createTeamspace(user.id, realUserId(user), parsed.data);
     await logDocsAudit({

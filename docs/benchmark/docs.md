@@ -129,9 +129,9 @@ Dónde estamos **mejor** que Notion:
 |---|---|---|---|
 | Compartir por persona o equipo con roles | Sí (ver, comentar, editar, acceso total) | Sí, los cuatro | tiene |
 | Herencia de permisos a subpáginas | Sí | Sí, con opción de cortar la herencia | tiene |
-| Página bloqueada (lock page) | Sí | Sí (sin "desbloquear solo para mí") | tiene |
+| Página bloqueada (lock page) | Sí | Sí, también "desbloquear solo para mí" | tiene |
 | Permisos de solo lectura para miembros del workspace | Sí | Sí: rol de los miembros en Ajustes y por página o teamspace | tiene |
-| Teamspaces privados | Sí (Business) | Abiertos, cerrados y privados, con sección en el sidebar | tiene |
+| Teamspaces privados | Sí (Business) | Abiertos, cerrados y privados, con sección en el sidebar, uno por defecto con todos, y fuera de la IA salvo que se habilite | tiene |
 | SSO SAML, SCIM | Business/Enterprise | Fuera de alcance de este benchmark (nivel cuenta) | n/a |
 | Registro de auditoría | Enterprise ([ayuda](https://www.notion.com/help/audit-log)) | Sí, con filtros y CSV, un año | tiene |
 | Desactivar export y publicación | Enterprise | Sí, y también los invitados | tiene |

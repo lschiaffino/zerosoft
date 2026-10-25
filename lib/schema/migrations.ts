@@ -4178,6 +4178,8 @@ export const MIGRATIONS: Migration[] = [
           description TEXT NOT NULL DEFAULT '',
           access TEXT NOT NULL DEFAULT 'open',
           member_role TEXT NOT NULL DEFAULT 'edit',
+          ai_knowledge INTEGER NOT NULL DEFAULT 0,
+          is_default INTEGER NOT NULL DEFAULT 0,
           created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL

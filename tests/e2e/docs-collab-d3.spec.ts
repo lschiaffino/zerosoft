@@ -180,9 +180,18 @@ test('Docs: bloquear la página la deja en lectura hasta desbloquearla', async (
   // Un PATCH de contenido se rechaza.
   const res = await request.patch(`/api/docs/pages/${doc.id}`, { data: { content: [{ id: 'a', type: 'paragraph', content: 'Cambiada' }] } });
   expect(res.status()).toBe(423);
-  await p.getByTestId('docs-locked-banner').getByRole('button', { name: 'Unlock' }).click();
+  // Desbloquear solo para mí: edito y para el resto sigue bloqueada.
+  await p.getByTestId('docs-unlock-me').click();
+  await expect(p.getByTestId('docs-unlocked-me-banner')).toBeVisible();
+  await editable(p, 'Política vigente').click();
+  await p.keyboard.press('End');
+  await p.keyboard.type(' 2026');
+  await expect.poll(async () => (await content(request, doc.id))[0].content, { timeout: 10_000 }).toBe('Política vigente 2026');
+  expect(((await (await request.get(`/api/docs/pages/${doc.id}`)).json()) as { locked: boolean }).locked).toBe(true);
+  await p.getByTestId('docs-unlocked-me-banner').getByRole('button', { name: 'Lock again' }).click();
+  await p.getByTestId('docs-locked-banner').getByRole('button', { name: 'Unlock', exact: true }).click();
   await expect(p.getByTestId('docs-locked-banner')).toHaveCount(0);
-  await expect(editable(p, 'Política vigente')).toHaveAttribute('contenteditable', 'true');
+  await expect(editable(p, 'Política vigente 2026')).toHaveAttribute('contenteditable', 'true');
 });
 
 test('Docs: el historial muestra qué cambió en cada versión', async ({ page: p, request }) => {

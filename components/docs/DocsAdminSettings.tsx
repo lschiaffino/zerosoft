@@ -129,7 +129,13 @@ export function DocsTeamspacesSettings({
     const res = await fetch('/api/docs/teamspaces', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, access: fd.get('access'), member_role: fd.get('member_role'), icon: String(fd.get('icon') ?? '').trim() || null }),
+      body: JSON.stringify({
+        name,
+        access: fd.get('access'),
+        member_role: fd.get('member_role'),
+        icon: String(fd.get('icon') ?? '').trim() || null,
+        ai_knowledge: fd.get('ai_knowledge') === 'on',
+      }),
     });
     if (!res.ok) return t('saveError');
     const ts = (await res.json()) as DocsTeamspaceWithMe;
@@ -238,6 +244,13 @@ export function DocsTeamspacesSettings({
             </div>
           </div>
           <p className="ui-help">{t('accessHelp')}</p>
+          <label className="ui-switch docs-switch-row">
+            <input type="checkbox" role="switch" name="ai_knowledge" />
+            <span className="docs-switch-text">
+              <span className="docs-switch-label">{t('aiKnowledge')}</span>
+              <span className="ui-help">{t('aiKnowledgeHelp')}</span>
+            </span>
+          </label>
         </FormSection>
       )}
 
@@ -260,7 +273,8 @@ export function DocsTeamspacesSettings({
                   <span className="docs-ts-main">
                     <span className="docs-ts-name">{ts.name}</span>
                     <span className="ui-help">
-                      {tt(`access.${ts.access}`)} · {t('memberCount', { count: ts.member_count })} · {tr(ts.member_role)}
+                      {ts.is_default ? `${t('defaultBadge')} · ` : ''}
+                      {tt(`access.${ts.access}`)} · {ts.is_default ? t('everyone') : t('memberCount', { count: ts.member_count })} · {tr(ts.member_role)}
                     </span>
                   </span>
                   <span className="docs-ts-actions">
@@ -269,7 +283,7 @@ export function DocsTeamspacesSettings({
                         {tt('join')}
                       </button>
                     )}
-                    {ts.my_role === 'member' && (
+                    {ts.my_role === 'member' && !ts.is_default && (
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => void removeMember(ts.id, meId)}>
                         {tt('leave')}
                       </button>
@@ -333,6 +347,37 @@ export function DocsTeamspacesSettings({
                           </select>
                         </div>
                       </div>
+                    )}
+                    {manage(ts) && (
+                      <label className="ui-switch docs-switch-row">
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          checked={ts.ai_knowledge || ts.access === 'open'}
+                          disabled={ts.access === 'open'}
+                          onChange={(e) => void patch(ts.id, { ai_knowledge: e.target.checked })}
+                          data-testid="docs-ts-ai"
+                        />
+                        <span className="docs-switch-text">
+                          <span className="docs-switch-label">{t('aiKnowledge')}</span>
+                          <span className="ui-help">{ts.access === 'open' ? t('aiKnowledgeOpen') : t('aiKnowledgeHelp')}</span>
+                        </span>
+                      </label>
+                    )}
+                    {isAdmin && (
+                      <label className="ui-switch docs-switch-row">
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          checked={ts.is_default}
+                          onChange={(e) => void patch(ts.id, { is_default: e.target.checked }).then(() => setList((prev) => prev.map((x) => ({ ...x, is_default: e.target.checked ? x.id === ts.id : x.id === ts.id ? false : x.is_default }))))}
+                          data-testid="docs-ts-default"
+                        />
+                        <span className="docs-switch-text">
+                          <span className="docs-switch-label">{t('isDefault')}</span>
+                          <span className="ui-help">{t('isDefaultHelp')}</span>
+                        </span>
+                      </label>
                     )}
                     <h3 className="docs-ts-sub">{t('members')}</h3>
                     {members === null ? (

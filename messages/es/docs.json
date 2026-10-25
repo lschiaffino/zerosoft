@@ -812,7 +812,11 @@
     "unlock": "Desbloquear",
     "badge": "Bloqueada",
     "banner": "Esta página está bloqueada. Nadie la edita hasta que se desbloquee; los comentarios siguen.",
-    "lockedMeanwhile": "Alguien bloqueó esta página mientras editabas. Tu último cambio no se guardó."
+    "lockedMeanwhile": "Alguien bloqueó esta página mientras editabas. Tu último cambio no se guardó.",
+    "unlockForMe": "Desbloquear solo para mí",
+    "unlockedForMe": "Desbloqueada solo para vos: para el resto sigue bloqueada.",
+    "lockAgain": "Volver a bloquear",
+    "unlockAll": "Desbloquear para todos"
   },
   "verify": {
     "title": "Verificar página",
@@ -924,7 +928,14 @@
     "auditPage": "Página",
     "auditSystem": "Sistema",
     "untitled": "Sin título",
-    "loadMore": "Ver más"
+    "loadMore": "Ver más",
+    "aiKnowledge": "La IA puede usar sus páginas",
+    "aiKnowledgeHelp": "El bot de Chat y Agents leen sus páginas con \"La IA puede usarla\" o publicadas. Apagado por defecto en teamspaces cerrados y privados.",
+    "aiKnowledgeOpen": "Los teamspaces abiertos siguen la regla del workspace: páginas con \"La IA puede usarla\" o publicadas.",
+    "isDefault": "Teamspace por defecto",
+    "isDefaultHelp": "Todo el workspace es miembro, ahora y quien se sume después. Uno solo por workspace.",
+    "defaultBadge": "Por defecto",
+    "everyone": "todo el workspace"
   },
   "audit": {
     "group": {

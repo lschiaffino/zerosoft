@@ -4,7 +4,8 @@
  */
 import type { SessionUser } from './session';
 import type { DocsPageRow } from './db';
-import { getDocAccess, getDocPageRow, parseBlocks, readableLinkTitles, type DocsActor } from './docs';
+import { DOC_INTERNAL_READ, getDocAccess, getDocPageRow, parseBlocks, readableLinkTitles, type DocsActor } from './docs';
+import { getDb } from './db';
 import {
   canWriteAccess,
   getDocsSettings,
@@ -66,6 +67,32 @@ export async function isDocOwnerAccess(user: SessionUser, pageId: string): Promi
   const row = await getDocPageRow(pageId);
   if (!row || row.user_id !== user.id) return null;
   return (await getDocAccess(row, user)) === 'owner' ? row : null;
+}
+
+/**
+ * ¿Puede leer un bloque sincronizado? Si puede abrir la página de origen o,
+ * si se borró, alguna página activa del workspace que lo contiene.
+ */
+export async function canReadSynced(user: SessionUser, syncedId: string): Promise<boolean> {
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(syncedId)) return false;
+  const db = getDb();
+  const src = (await db.prepare('SELECT source_page_id FROM docs_synced_blocks WHERE id = ? AND workspace_id = ?').get(syncedId, user.id)) as
+    | { source_page_id: string | null }
+    | undefined;
+  if (!src) return false;
+  const candidates: string[] = [];
+  if (src.source_page_id) candidates.push(src.source_page_id);
+  else {
+    const rows = (await db
+      .prepare(`SELECT id FROM docs_pages WHERE user_id = ? AND archived = 0 AND content LIKE ? LIMIT 20`)
+      .all(user.id, `%"synced_id":"${syncedId}"%`)) as Array<{ id: string }>;
+    candidates.push(...rows.map((r) => r.id));
+  }
+  for (const id of candidates) {
+    const row = await getDocPageRow(id);
+    if (row && row.user_id === user.id && (await getDocAccess(row, user, DOC_INTERNAL_READ))) return true;
+  }
+  return false;
 }
 
 /** Ajuste de seguridad (exportar, publicar, invitados): si está apagado, solo admins. */

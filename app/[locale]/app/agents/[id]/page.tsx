@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
+import { aiKnowledgeFilterSql } from '@/lib/docs-access';
 import { getAgentRow, listKnowledgeUrls, listSecretHeaders, listWorkspaceWidgets, toAgentDto } from '@/lib/agents';
 import { listTestCases } from '@/lib/agents-tests';
 import { canEditAgents } from '@/lib/agents-http';
@@ -37,7 +38,8 @@ export default async function AgentEditorPage(props: {
     listKnowledgeUrls(id),
     listWorkspaceWidgets(user.id),
     db
-      .prepare('SELECT id, title, is_public FROM docs_pages WHERE user_id = ? AND archived = 0 ORDER BY title COLLATE NOCASE LIMIT 300')
+      // Para elegir como conocimiento: sin las de teamspaces cerrados o privados sin permiso de IA.
+      .prepare(`SELECT id, title, is_public FROM docs_pages WHERE user_id = ? AND archived = 0${aiKnowledgeFilterSql()} ORDER BY title COLLATE NOCASE LIMIT 300`)
       .all(user.id) as Promise<Array<{ id: string; title: string; is_public: number }>>,
     db
       .prepare('SELECT id, title, duration_min FROM calendar_event_types WHERE user_id = ? AND active = 1 ORDER BY title')

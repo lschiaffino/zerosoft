@@ -67,7 +67,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (!row || !access) return notFound();
   if (access === 'view') return forbidden();
 
-  const { locale: bodyLocale, timezone: bodyTimezone, ...patch } = parsed.data;
+  const { locale: bodyLocale, timezone: bodyTimezone, bypass_lock: bypassLock, ...patch } = parsed.data;
   // El editor manda título, ícono y portada con cada guardado: si no cambiaron
   // no cuentan (quien solo comenta, o una página bloqueada, no los toca).
   if (patch.title !== undefined && patch.title.trim() === row.title) delete patch.title;
@@ -97,7 +97,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 
   // Bloqueada o "puede comentar": el contenido solo cambia en resaltados de
   // comentarios (y, comentando sin bloqueo, en las sugerencias propias).
-  const locked = row.locked === 1 && patch.locked !== false;
+  // "Desbloquear solo para mí": quien puede editar sigue editando; el bloqueo queda para el resto.
+  const locked = row.locked === 1 && patch.locked !== false && !(bypassLock && canWriteAccess(access));
   const marksOnly = access === 'comment' || locked;
   if (marksOnly) {
     if (CONTENT_FIELDS.some((k) => k !== 'content' && k in patch)) return docsError(423, 'locked');

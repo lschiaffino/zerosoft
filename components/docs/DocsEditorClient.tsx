@@ -131,10 +131,15 @@ export default function DocsEditorClient({
   const [focusAnchor, setFocusAnchor] = useState<string | null>(null);
   const [commentsSig, setCommentsSig] = useState<string | undefined>(undefined);
   const [lockNote, setLockNote] = useState<string | null>(null);
+  /** "Desbloquear solo para mí" (como Notion): el bloqueo sigue para los demás. */
+  const [unlockedForMe, setUnlockedForMe] = useState(false);
+  const bypassRef = useRef(false);
 
   const locked = !!current.locked;
+  const lockActive = locked && !(unlockedForMe && canWrite);
+  bypassRef.current = locked && unlockedForMe && canWrite;
   // Bloqueada: solo leer y comentar. "Puede comentar": leer y, si lo elige, sugerir.
-  const mode: DocsEditorMode = locked ? 'readonly' : suggesting ? 'suggest' : canWrite ? 'edit' : 'readonly';
+  const mode: DocsEditorMode = lockActive ? 'readonly' : suggesting ? 'suggest' : canWrite ? 'edit' : 'readonly';
 
   useEffect(() => {
     setAllComments(comments);
@@ -188,7 +193,7 @@ export default function DocsEditorClient({
       } catch {
         tz = undefined;
       }
-      const withCtx = { ...patch, ...reminderContext(patch, locale, tz) };
+      const withCtx = { ...patch, ...reminderContext(patch, locale, tz), ...(bypassRef.current && !('locked' in patch) ? { bypass_lock: true } : {}) };
       const body = JSON.stringify(guarded ? { ...withCtx, base_updated_at: base.current.updated_at } : withCtx);
       const prevTitle = base.current.snap.title;
       let retry: Partial<DocsPage> | null = null;
@@ -493,6 +498,7 @@ export default function DocsEditorClient({
     const next = !locked;
     setCurrent((prev) => ({ ...prev, locked: next }));
     setLockNote(null);
+    setUnlockedForMe(false);
     if (next) setSuggesting(false);
     await savePage({ locked: next });
   }, [locked, savePage]);
@@ -660,15 +666,32 @@ export default function DocsEditorClient({
           )}
         </div>
       )}
-      {locked && (
+      {lockActive && (
         <div className="docs-banner docs-banner-quiet" role="status" data-testid="docs-locked-banner">
           <DocsGlyph name="lock" size={14} />
           <span>{lockNote ?? t('lock.banner')}</span>
           {canWrite && (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void toggleLock()}>
-              {t('lock.unlock')}
-            </button>
+            <>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setUnlockedForMe(true)} data-testid="docs-unlock-me">
+                {t('lock.unlockForMe')}
+              </button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void toggleLock()}>
+                {t('lock.unlock')}
+              </button>
+            </>
           )}
+        </div>
+      )}
+      {locked && !lockActive && (
+        <div className="docs-banner docs-banner-quiet" role="status" data-testid="docs-unlocked-me-banner">
+          <DocsGlyph name="lock" size={14} />
+          <span>{t('lock.unlockedForMe')}</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setUnlockedForMe(false)}>
+            {t('lock.lockAgain')}
+          </button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => void toggleLock()}>
+            {t('lock.unlockAll')}
+          </button>
         </div>
       )}
       {!locked && mode === 'suggest' && (
@@ -709,11 +732,11 @@ export default function DocsEditorClient({
         onDelete={isOwner ? trashPage : undefined}
         topActions={topActions}
         menuExtra={menuExtra}
-        layoutToggles={isOwner && !locked}
+        layoutToggles={isOwner && !lockActive}
         onAddComment={handlePageComment}
         commentCounts={commentCounts}
         onBlockComment={handleBlockComment}
-        importUrl={canWrite && !locked ? `/api/docs/pages/${page.id}/import` : undefined}
+        importUrl={canWrite && !lockActive ? `/api/docs/pages/${page.id}/import` : undefined}
         mode={mode}
         apiRef={editorApi}
         currentUserId={currentUserId}

@@ -812,7 +812,11 @@
     "unlock": "Unlock",
     "badge": "Locked",
     "banner": "This page is locked. Nobody can edit it until it is unlocked; comments still work.",
-    "lockedMeanwhile": "Someone locked this page while you were editing. Your last change was not saved."
+    "lockedMeanwhile": "Someone locked this page while you were editing. Your last change was not saved.",
+    "unlockForMe": "Unlock for me",
+    "unlockedForMe": "Unlocked only for you: it stays locked for everyone else.",
+    "lockAgain": "Lock again",
+    "unlockAll": "Unlock for everyone"
   },
   "verify": {
     "title": "Verify page",
@@ -924,7 +928,14 @@
     "auditPage": "Page",
     "auditSystem": "System",
     "untitled": "Untitled",
-    "loadMore": "Load more"
+    "loadMore": "Load more",
+    "aiKnowledge": "AI can use its pages",
+    "aiKnowledgeHelp": "The Chat bot and Agents read its pages that have \"AI can use it\" on or are published. Off by default in closed and private teamspaces.",
+    "aiKnowledgeOpen": "Open teamspaces follow the workspace rule: pages with \"AI can use it\" on or published.",
+    "isDefault": "Default teamspace",
+    "isDefaultHelp": "Everyone in the workspace is a member, now and when they join. Only one per workspace.",
+    "defaultBadge": "Default",
+    "everyone": "everyone in the workspace"
   },
   "audit": {
     "group": {

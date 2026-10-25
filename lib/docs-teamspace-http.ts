@@ -14,6 +14,10 @@ export const teamspaceCreateSchema = z.object({
   description: z.string().trim().max(500).optional(),
   access: z.enum(['open', 'closed', 'private']).optional(),
   member_role: z.enum(['view', 'comment', 'edit', 'full']).optional(),
+  /** La IA puede usar sus páginas (cerrados y privados: apagado por defecto). */
+  ai_knowledge: z.boolean().optional(),
+  /** Teamspace por defecto: todos los miembros del workspace (solo admins lo cambian). */
+  is_default: z.boolean().optional(),
 });
 
 export const teamspaceUpdateSchema = teamspaceCreateSchema.partial();
