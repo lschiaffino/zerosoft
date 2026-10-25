@@ -3645,6 +3645,103 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Groups, organización y tickets (lib/groups-org.ts, lib/groups-tasks.ts):
+    // propiedades propias con más tipos (multiselección, archivo, casilla,
+    // URL y desplegable dependiente) y también para tickets (scope, required
+    // al cerrar), ajustes del grupo (foto, solo admins escriben o editan,
+    // mensajes temporales, salida), marca de pregunta por mensaje (needs_reply),
+    // campos propios del ticket, plantillas de grupo, listas guardadas y
+    // tareas desde el chat (la tarea vive en crm_activities; reminded_for es
+    // el claim del cron por vencimiento).
+    id: '081_groups_org_tickets',
+    async up(client) {
+      // La tabla de propiedades tenía un CHECK con 4 tipos: se rehace con los
+      // nuevos, en una transacción (client.migrate) y solo si todavía no tiene
+      // scope, así dos instancias migrando a la vez no se pisan.
+      const defsTable = `(
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          scope TEXT NOT NULL DEFAULT 'chat' CHECK (scope IN ('chat', 'ticket')),
+          key TEXT NOT NULL,
+          label TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'text'
+            CHECK (type IN ('text', 'number', 'select', 'multiselect', 'date', 'checkbox', 'url', 'file', 'cascade')),
+          options TEXT NOT NULL DEFAULT '[]',
+          required INTEGER NOT NULL DEFAULT 0,
+          position INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, scope, key)
+        )`;
+      const current = await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'groups_property_defs'");
+      const currentSql = String(current.rows[0]?.sql ?? '');
+      if (!currentSql) {
+        await client.execute(`CREATE TABLE IF NOT EXISTS groups_property_defs ${defsTable}`);
+      } else if (!/\bscope\b/.test(currentSql)) {
+        const cols = 'id, user_id, key, label, type, options, position, created_at';
+        await client.migrate([
+          'DROP TABLE IF EXISTS groups_property_defs_v2',
+          `CREATE TABLE groups_property_defs_v2 ${defsTable}`,
+          `INSERT INTO groups_property_defs_v2 (${cols}) SELECT ${cols} FROM groups_property_defs`,
+          'DROP TABLE groups_property_defs',
+          'ALTER TABLE groups_property_defs_v2 RENAME TO groups_property_defs',
+        ]);
+      }
+      await addColumn(client, "ALTER TABLE groups_chats ADD COLUMN picture_url TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, 'ALTER TABLE groups_chats ADD COLUMN announce INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE groups_chats ADD COLUMN locked INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE groups_chats ADD COLUMN ephemeral INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE groups_chats ADD COLUMN left_at TEXT');
+      await addColumn(client, 'ALTER TABLE groups_messages ADD COLUMN needs_reply INTEGER');
+      await addColumn(client, "ALTER TABLE groups_tickets ADD COLUMN fields TEXT NOT NULL DEFAULT '{}'");
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS groups_templates (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          group_name TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          members TEXT NOT NULL DEFAULT '[]',
+          admins TEXT NOT NULL DEFAULT '[]',
+          label_ids TEXT NOT NULL DEFAULT '[]',
+          welcome TEXT NOT NULL DEFAULT '',
+          settings TEXT NOT NULL DEFAULT '{}',
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_templates_user ON groups_templates(user_id, name);
+
+        CREATE TABLE IF NOT EXISTS groups_saved_lists (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          owner_id TEXT NOT NULL,
+          shared INTEGER NOT NULL DEFAULT 0,
+          name TEXT NOT NULL,
+          filters TEXT NOT NULL DEFAULT '{}',
+          position INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_saved_lists_user ON groups_saved_lists(user_id, position);
+
+        CREATE TABLE IF NOT EXISTS groups_tasks (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          chat_id TEXT NOT NULL REFERENCES groups_chats(id) ON DELETE CASCADE,
+          message_id TEXT,
+          activity_id TEXT NOT NULL UNIQUE,
+          created_by TEXT,
+          locale TEXT NOT NULL DEFAULT 'en',
+          timezone TEXT NOT NULL DEFAULT 'UTC',
+          reminded_for TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_tasks_chat ON groups_tasks(chat_id);
+        CREATE INDEX IF NOT EXISTS idx_groups_tasks_user ON groups_tasks(user_id, created_at DESC);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

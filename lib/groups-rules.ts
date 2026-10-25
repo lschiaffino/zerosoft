@@ -13,6 +13,14 @@ export function mediaKind(mime: string): 'image' | 'audio' | 'video' | 'file' {
   return 'file';
 }
 
+/** Valor de una propiedad propia como texto (listas, CSV, variables). */
+export function propertyText(v: unknown, type?: string): string {
+  if (v === undefined || v === null) return '';
+  if (Array.isArray(v)) return v.map(String).join(type === 'cascade' ? ' › ' : ', ');
+  if (typeof v === 'object') return String((v as { name?: unknown }).name ?? '');
+  return String(v);
+}
+
 /** Marcador de vista previa sin texto ni nombre ([image], [file]...), o null. */
 export function previewToken(preview: string): 'image' | 'audio' | 'video' | 'file' | null {
   const m = /^\[(image|audio|video|file)\]$/.exec(String(preview ?? '').trim());
@@ -36,6 +44,20 @@ export interface GroupsSettings {
   /** Un chat con un mensaje de cliente sin respuesta por más de esto queda marcado. */
   unansweredMin: number;
   defaultPriority: TicketPriority;
+  /** 'time': todo mensaje de cliente espera respuesta; 'questions': la AI marca solo preguntas y pedidos. */
+  flagMode: 'time' | 'questions';
+  /** Reglas en texto para la AI ("los 'gracias' no son preguntas", "todo lo de facturación sí"). */
+  flagRules: string;
+  /** Crear un ticket desde un mensaje saca al chat de "sin responder". */
+  unflagOnTicket: boolean;
+  /** Email cuando vence el SLA de un ticket. */
+  slaEmail: boolean;
+  slaEmailAssignee: boolean;
+  slaEmailAdmins: boolean;
+  /** Emails extra (hasta 10). */
+  slaEmailExtra: string[];
+  /** Idioma de los emails del workspace (el de quien guardó los ajustes). */
+  locale: 'en' | 'es' | 'pt';
 }
 
 export const DEFAULT_SETTINGS: GroupsSettings = {
@@ -45,7 +67,23 @@ export const DEFAULT_SETTINGS: GroupsSettings = {
   resolutionMin: { urgent: 240, high: 480, medium: 1440, low: 4320 },
   unansweredMin: 30,
   defaultPriority: 'medium',
+  flagMode: 'time',
+  flagRules: '',
+  unflagOnTicket: true,
+  slaEmail: false,
+  slaEmailAssignee: true,
+  slaEmailAdmins: false,
+  slaEmailExtra: [],
+  locale: 'en',
 };
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Emails pegados (comas, espacios, saltos) → válidos, únicos, en minúscula. */
+export function parseEmails(raw: unknown, max = 10): string[] {
+  const list = Array.isArray(raw) ? raw.map(String) : String(raw ?? '').split(/[\s,;]+/);
+  return [...new Set(list.map((e) => e.trim().toLowerCase()).filter((e) => e.length <= 200 && EMAIL_RE.test(e)))].slice(0, max);
+}
 
 const MAX_MIN = 60 * 24 * 60; // 60 días
 
@@ -80,7 +118,29 @@ export function normalizeSettings(raw: unknown): GroupsSettings {
     defaultPriority: (TICKET_PRIORITIES as readonly string[]).includes(String(r.defaultPriority))
       ? (r.defaultPriority as TicketPriority)
       : DEFAULT_SETTINGS.defaultPriority,
+    flagMode: r.flagMode === 'questions' ? 'questions' : 'time',
+    flagRules: typeof r.flagRules === 'string' ? r.flagRules.trim().slice(0, 1000) : '',
+    unflagOnTicket: typeof r.unflagOnTicket === 'boolean' ? r.unflagOnTicket : DEFAULT_SETTINGS.unflagOnTicket,
+    slaEmail: r.slaEmail === true,
+    slaEmailAssignee: typeof r.slaEmailAssignee === 'boolean' ? r.slaEmailAssignee : DEFAULT_SETTINGS.slaEmailAssignee,
+    slaEmailAdmins: r.slaEmailAdmins === true,
+    slaEmailExtra: parseEmails(r.slaEmailExtra),
+    locale: r.locale === 'es' || r.locale === 'pt' ? r.locale : 'en',
   };
+}
+
+/**
+ * Sin AI (o si falla), una regla simple decide si un mensaje pide respuesta:
+ * signo de pregunta o palabras de pedido al principio. Lo usan el modo
+ * "preguntas" de respaldo y los tests.
+ */
+export function looksLikeQuestion(body: string): boolean {
+  const text = String(body ?? '').trim().toLowerCase();
+  if (!text) return false;
+  if (/[?¿]/.test(text)) return true;
+  return /^(how|what|when|where|why|who|which|can|could|is|are|do|does|did|will|would|please|help|need|cómo|qué|cuándo|dónde|por qué|quién|cuál|pueden|podés|podrías|podrían|necesito|necesitamos|ayuda|por favor|me pasan|como faço|quando|onde|quem|qual|pode|preciso|precisamos|ajuda)(?=[\s,.!:]|$)/.test(
+    text,
+  );
 }
 
 /** Sin selectores de variante ni tono de piel: "🎫️" y "🎫" son el mismo. */
@@ -227,6 +287,8 @@ export function chatVariables(chat: { name: string; phone: string; properties: R
   const vars: Record<string, string> = { name: chat.name ?? '', phone: chat.phone ? `+${chat.phone}` : '' };
   const first = (chat.name ?? '').trim().split(/\s+/)[0] ?? '';
   vars.first_name = first;
-  for (const [k, v] of Object.entries(chat.properties ?? {})) vars[`prop.${k}`] = v == null ? '' : String(v);
+  for (const [k, v] of Object.entries(chat.properties ?? {})) {
+    vars[`prop.${k}`] = v == null ? '' : Array.isArray(v) ? v.map(String).join(', ') : typeof v === 'object' ? String((v as { name?: unknown }).name ?? '') : String(v);
+  }
   return vars;
 }

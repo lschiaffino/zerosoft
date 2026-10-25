@@ -1,10 +1,27 @@
 import { NextResponse } from 'next/server';
 import { createTicket, listTickets, type TicketQuery } from '@/lib/groups-tickets';
+import type { PropertyFilter } from '@/lib/groups';
 import { TICKET_STATUSES, type TicketPriority } from '@/lib/groups-rules';
 import { groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+/** ?fields=[{"key":"area","op":"is","value":"Billing"}] */
+function parseFields(raw: string | null): PropertyFilter[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw) as unknown;
+    return Array.isArray(v)
+      ? v.slice(0, 10).map((f) => {
+          const o = (f ?? {}) as Record<string, unknown>;
+          return { key: String(o.key ?? ''), op: (['set', 'unset'].includes(String(o.op)) ? o.op : 'is') as PropertyFilter['op'], value: o.value == null ? undefined : String(o.value) };
+        })
+      : [];
+  } catch {
+    return [];
+  }
+}
 
 export async function GET(req: Request) {
   const s = await groupsSession();
@@ -17,6 +34,7 @@ export async function GET(req: Request) {
     chatId: p.get('chat') || undefined,
     breached: p.get('breached') === '1',
     q: p.get('q') ?? undefined,
+    fields: parseFields(p.get('fields')),
   };
   return NextResponse.json({ tickets: await listTickets(s.ws, query) });
 }
@@ -34,6 +52,7 @@ export async function POST(req: Request) {
       priority: str(b.priority, 10) as TicketPriority | undefined,
       assigneeId: str(b.assigneeId, 100) || null,
       source: 'manual',
+      fields: b.fields && typeof b.fields === 'object' && !Array.isArray(b.fields) ? (b.fields as Record<string, unknown>) : undefined,
     });
     return NextResponse.json(res.ticket, { status: res.created ? 201 : 200 });
   } catch (err) {

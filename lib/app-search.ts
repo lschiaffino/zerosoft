@@ -13,7 +13,21 @@ import type { TeamRole } from '@/lib/teams';
 
 export interface AppSearchItem {
   id: string;
-  group: 'boards' | 'projects' | 'issues' | 'eventTypes' | 'bookings' | 'widgets' | 'flows' | 'agents' | 'robots' | 'groupsChats' | 'groupsTickets' | 'groupsMessages';
+  group:
+    | 'boards'
+    | 'projects'
+    | 'issues'
+    | 'eventTypes'
+    | 'bookings'
+    | 'widgets'
+    | 'flows'
+    | 'agents'
+    | 'robots'
+    | 'groupsChats'
+    | 'groupsTickets'
+    | 'groupsMessages'
+    | 'groupsLists'
+    | 'groupsTemplates';
   label: string;
   meta: string;
   href: string;
@@ -52,7 +66,8 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
 
   const waGroup = WA_GROUP[locale] ?? WA_GROUP.en;
   const ticketNumber = /^#?\d{1,7}$/.test(needle) ? Number(needle.replace('#', '')) : -1;
-  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages] = await Promise.all([
+  const person = user.actingUser?.id ?? user.id;
+  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupLists, groupTemplates] = await Promise.all([
     all(
       `SELECT b.id, b.name AS label FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND b.name LIKE ? ESCAPE '\\' ORDER BY b.updated_at DESC LIMIT ?`,
       user.id,
@@ -117,6 +132,15 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       user.id,
       like,
     ),
+    // Groups: listas guardadas (las compartidas y las propias) y plantillas. Las tareas de los chats son
+    // tareas del CRM (mismo id): ⌘K ya las encuentra en Tareas.
+    all(
+      `SELECT id, name AS label FROM groups_saved_lists WHERE user_id = ? AND (shared = 1 OR owner_id = ?) AND name LIKE ? ESCAPE '\\' ORDER BY position LIMIT ?`,
+      user.id,
+      person,
+      like,
+    ),
+    all(`SELECT id, name AS label, group_name AS meta FROM groups_templates WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, like),
   ]);
 
   const map = (rows: Row[], group: AppSearchItem['group'], href: (id: string) => string): AppSearchItem[] =>
@@ -145,5 +169,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       const [chatId, ...rest] = String(r.meta ?? '').split('|');
       return { id: r.id, group: 'groupsMessages' as const, label: r.label, meta: rest.join('|'), href: `/app/groups/inbox/${chatId}#m-${r.id}` };
     }),
+    ...map(groupLists, 'groupsLists', (id) => `/app/groups/inbox?list=${id}`),
+    ...map(groupTemplates, 'groupsTemplates', (id) => `/app/groups/templates?use=${id}`),
   ];
 }

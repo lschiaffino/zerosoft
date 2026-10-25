@@ -8,6 +8,7 @@ import type { ChatDto, GroupsPerson, LabelDto, MemberDto, MessageDto, PropertyDe
 import type { ProviderCaps } from '@/lib/groups-provider';
 import { useGroupsInbox } from './InboxShell';
 import ChatDetails from './ChatDetails';
+import TaskModal from './TaskModal';
 import { ChatPlate, Modal, api, useErrorText, useMediaText, useToast } from './ui';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🙏', '✅'];
@@ -61,6 +62,7 @@ export default function ChatThread(props: ThreadProps) {
   const [ticketTitle, setTicketTitle] = useState('');
   const [ticketPriority, setTicketPriority] = useState('medium');
   const [ticketBusy, setTicketBusy] = useState(false);
+  const [taskFor, setTaskFor] = useState<MessageDto | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -377,6 +379,7 @@ export default function ChatThread(props: ThreadProps) {
                           {t('thread.hasTicket')}
                         </Link>
                       )}
+                      {m.direction === 'in' && m.needsReply === true && <span className="gr-question-tag">{t('thread.question')}</span>}
                     </p>
                     {m.reactions.length > 0 && (
                       <p className="gr-reactions" aria-label={t('thread.reactions')}>
@@ -399,6 +402,9 @@ export default function ChatThread(props: ThreadProps) {
                           {t('thread.ticket')}
                         </button>
                       )}
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTaskFor(m)}>
+                        {t('thread.task')}
+                      </button>
                       {pickerFor === m.id && (
                         <span className="gr-emoji-picker" role="group" aria-label={t('thread.react')}>
                           {[...new Set([...QUICK_EMOJIS, props.ticketEmoji].filter(Boolean))].map((e) => (
@@ -508,9 +514,23 @@ export default function ChatThread(props: ThreadProps) {
           agents={props.agents}
           crm={props.crm}
           caps={props.caps}
+          me={props.me}
           compact
         />
       </aside>
+
+      <TaskModal
+        open={!!taskFor}
+        chatId={chat.id}
+        message={taskFor}
+        people={props.people}
+        me={props.me}
+        onClose={() => setTaskFor(null)}
+        onCreated={() => {
+          setTaskFor(null);
+          showToast(t('tasks.created'));
+        }}
+      />
 
       <Modal
         open={!!ticketFor}

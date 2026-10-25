@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-10-23',
+  lastReviewed: '2026-10-24',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -40,12 +40,12 @@ const parity: ProductParity = {
   ],
   rows: [
     // Números
-    row('qr-connect', 'numbers', ['Connect a number with a QR code', 'Conectar un número con QR', 'Conectar um número com QR'], 'partial', {
+    row('qr-connect', 'numbers', ['Connect a number with a QR code', 'Conectar un número con QR', 'Conectar um número com QR'], 'have', {
       weight: 2,
       detail: [
-        'Through your own WAHA or Evolution API gateway; Periskope hosts the session for you',
-        'A través de tu propio gateway WAHA o Evolution API; Periskope aloja la sesión por vos',
-        'Pelo seu próprio gateway WAHA ou Evolution API; o Periskope hospeda a sessão para você',
+        'From Settings with a WAHA or Evolution API gateway: the QR refreshes by itself, the status follows the phone and a new QR reconnects it',
+        'Desde Ajustes con un gateway WAHA o Evolution API: el QR se actualiza solo, el estado sigue al teléfono y un QR nuevo lo reconecta',
+        'Pelas Configurações com um gateway WAHA ou Evolution API: o QR se atualiza sozinho, o status acompanha o telefone e um QR novo reconecta',
       ],
     }),
     row('multi-number', 'numbers', ['Several numbers in one inbox', 'Varios números en una bandeja', 'Vários números em uma caixa'], 'have', {
@@ -97,22 +97,48 @@ const parity: ProductParity = {
     row('bulk-members', 'groups', ['Add and remove members in many groups', 'Agregar y quitar miembros en muchos grupos', 'Adicionar e remover membros em muitos grupos'], 'have', { weight: 2 }),
     row('admins', 'groups', ['Promote and demote admins in bulk', 'Promover y degradar admins en masa', 'Promover e rebaixar admins em massa'], 'have'),
     row('invite-links', 'groups', ['Invite link and reset', 'Link de invitación y regenerarlo', 'Link de convite e redefinir'], 'have'),
-    row('group-settings', 'groups', ['Group settings (name, description, who can write or edit)', 'Ajustes del grupo (nombre, descripción, quién escribe o edita)', 'Configurações do grupo (nome, descrição, quem escreve ou edita)'], 'partial', {
-      detail: ['Name and description; no photo, admin-only or disappearing messages yet', 'Nombre y descripción; sin foto, solo admins ni mensajes temporales por ahora', 'Nome e descrição; sem foto, só admins nem mensagens temporárias por enquanto'],
+    row('group-settings', 'groups', ['Group settings (name, description, who can write or edit)', 'Ajustes del grupo (nombre, descripción, quién escribe o edita)', 'Configurações do grupo (nome, descrição, quem escreve ou edita)'], 'have', {
+      detail: [
+        'Name, description, photo, admin-only messages and edits, invite link; disappearing messages with Evolution API',
+        'Nombre, descripción, foto, solo admins escriben y editan, link de invitación; mensajes temporales con Evolution API',
+        'Nome, descrição, foto, só admins escrevem e editam, link de convite; mensagens temporárias com Evolution API',
+      ],
     }),
-    row('group-templates', 'groups', ['Group templates with preset members', 'Plantillas de grupo con miembros fijos', 'Modelos de grupo com membros predefinidos'], 'missing'),
+    row('group-templates', 'groups', ['Group templates with preset members', 'Plantillas de grupo con miembros fijos', 'Modelos de grupo com membros predefinidos'], 'have', {
+      detail: [
+        'Fixed members and admins, name with variables, labels, settings and a welcome message; one group or many from a CSV',
+        'Miembros y admins fijos, nombre con variables, etiquetas, ajustes y mensaje de bienvenida; un grupo o varios desde un CSV',
+        'Membros e admins fixos, nome com variáveis, etiquetas, configurações e mensagem de boas-vindas; um grupo ou vários de um CSV',
+      ],
+    }),
     row('sync-groups', 'groups', ['Refresh groups and members from WhatsApp', 'Refrescar grupos y miembros desde WhatsApp', 'Atualizar grupos e membros pelo WhatsApp'], 'have'),
-    row('leave-join', 'groups', ['Join by invite and leave a group', 'Entrar por invitación y salir de un grupo', 'Entrar por convite e sair de um grupo'], 'missing'),
+    row('leave-join', 'groups', ['Join by invite and leave a group', 'Entrar por invitación y salir de un grupo', 'Entrar por convite e sair de um grupo'], 'have', {
+      detail: [
+        'Join with the invite link and the group arrives with its members; leaving keeps the history',
+        'Entrar con el link de invitación trae el grupo con sus miembros; salir conserva el historial',
+        'Entrar com o link de convite traz o grupo com os membros; sair mantém o histórico',
+      ],
+    }),
 
     // Organización
     row('labels', 'organize', ['Colored labels on chats', 'Etiquetas con color en chats', 'Etiquetas coloridas nos chats'], 'have'),
-    row('custom-properties', 'organize', ['Custom properties on chats and groups', 'Propiedades propias en chats y grupos', 'Propriedades próprias em chats e grupos'], 'partial', {
-      detail: ['Text, number, option and date; no file, multi-select or dependent dropdowns', 'Texto, número, opción y fecha; sin archivo, multiselección ni dependientes', 'Texto, número, opção e data; sem arquivo, seleção múltipla nem dependentes'],
+    row('custom-properties', 'organize', ['Custom properties on chats and groups', 'Propiedades propias en chats y grupos', 'Propriedades próprias em chats e grupos'], 'have', {
+      detail: [
+        'Text, number, option, multi-select, date, checkbox, link, file and dependent dropdowns up to 3 levels; filters, list columns and CSV',
+        'Texto, número, opción, multiselección, fecha, casilla, link, archivo y desplegables dependientes de hasta 3 niveles; filtros, columnas y CSV',
+        'Texto, número, opção, seleção múltipla, data, caixa, link, arquivo e listas dependentes de até 3 níveis; filtros, colunas e CSV',
+      ],
     }),
     row('contacts-crm', 'organize', ['Contacts', 'Contactos', 'Contatos'], 'better', {
       detail: ['Chats and groups link to CRM contacts and companies, with messages and tickets on the record', 'Chats y grupos se vinculan a contactos y empresas del CRM, con mensajes y tickets en la ficha', 'Chats e grupos se vinculam a contatos e empresas do CRM, com mensagens e tickets na ficha'],
     }),
-    row('saved-lists', 'organize', ['Saved chat lists', 'Listas guardadas de chats', 'Listas salvas de chats'], 'missing'),
+    row('saved-lists', 'organize', ['Saved chat lists', 'Listas guardadas de chats', 'Listas salvas de chats'], 'have', {
+      detail: [
+        'Filters by tab, label, type, assignee and property; shared or personal, in the sidebar and ⌘K, and as a broadcast audience',
+        'Filtros por pestaña, etiqueta, tipo, asignado y propiedad; compartidas o personales, en el sidebar y ⌘K, y como audiencia de envíos',
+        'Filtros por aba, etiqueta, tipo, responsável e propriedade; compartilhadas ou pessoais, na barra lateral e no ⌘K, e como público de envios',
+      ],
+    }),
 
     // Tickets
     row('ticket-from-message', 'tickets', ['Ticket from a message', 'Ticket desde un mensaje', 'Ticket a partir de uma mensagem'], 'have', { weight: 2 }),
@@ -123,16 +149,36 @@ const parity: ProductParity = {
     row('keyword-ticket', 'tickets', ['Ticket by keyword', 'Ticket por palabra clave', 'Ticket por palavra-chave'], 'have'),
     row('ticket-fields', 'tickets', ['Status, priority, assignee and due time', 'Estado, prioridad, asignado y vencimiento', 'Status, prioridade, responsável e vencimento'], 'have'),
     row('sla', 'tickets', ['First response and resolution SLA', 'SLA de primera respuesta y resolución', 'SLA de primeira resposta e resolução'], 'have'),
-    row('unanswered-flag', 'tickets', ['Flag unanswered messages', 'Marcar mensajes sin responder', 'Marcar mensagens sem resposta'], 'partial', {
+    row('unanswered-flag', 'tickets', ['Flag unanswered messages', 'Marcar mensajes sin responder', 'Marcar mensagens sem resposta'], 'have', {
       weight: 2,
-      detail: ['By time without reply per chat; Periskope uses AI to tell questions from comments', 'Por tiempo sin respuesta por chat; Periskope usa AI para separar preguntas de comentarios', 'Por tempo sem resposta por chat; o Periskope usa IA para separar perguntas de comentários'],
+      detail: [
+        'By time or with AI that tells questions from comments, with your own rules; a reply, a ticket or a click clears it',
+        'Por tiempo o con AI que separa preguntas de comentarios, con reglas propias; lo desmarca una respuesta, un ticket o un clic',
+        'Por tempo ou com IA que separa perguntas de comentários, com regras próprias; desmarca com uma resposta, um ticket ou um clique',
+      ],
     }),
     row('phone-replies-count', 'tickets', ['Replies from the phone count as answered', 'Lo respondido desde el teléfono cuenta como respuesta', 'O respondido pelo telefone conta como resposta'], 'better', { competitorHas: false }),
-    row('sla-email', 'tickets', ['Email when an SLA is breached', 'Email cuando vence un SLA', 'Email quando um SLA vence'], 'partial', {
-      detail: ['Breach events go to webhooks and Flow, which can send the email', 'El vencimiento sale por webhook y Flow, que puede mandar el email', 'O vencimento sai por webhook e Flow, que pode enviar o email'],
+    row('sla-email', 'tickets', ['Email when an SLA is breached', 'Email cuando vence un SLA', 'Email quando um SLA vence'], 'have', {
+      detail: [
+        'To the assignee, the admins or other addresses, once per breach, plus webhooks and Flow',
+        'A la persona asignada, los admins u otras direcciones, una vez por vencimiento, además de webhooks y Flow',
+        'Para o responsável, os admins ou outros endereços, uma vez por vencimento, além de webhooks e Flow',
+      ],
     }),
-    row('ticket-custom-fields', 'tickets', ['Custom fields on tickets', 'Campos propios en tickets', 'Campos próprios em tickets'], 'missing'),
-    row('tasks-reminders', 'tickets', ['Tasks and reminders from a chat', 'Tareas y recordatorios desde el chat', 'Tarefas e lembretes pelo chat'], 'missing'),
+    row('ticket-custom-fields', 'tickets', ['Custom fields on tickets', 'Campos propios en tickets', 'Campos próprios em tickets'], 'have', {
+      detail: [
+        'Same field types as chats, required to close, filters and CSV export',
+        'Los mismos tipos que en los chats, obligatorios al cerrar, filtros y export CSV',
+        'Os mesmos tipos dos chats, obrigatórios para fechar, filtros e exportação CSV',
+      ],
+    }),
+    row('tasks-reminders', 'tickets', ['Tasks and reminders from a chat', 'Tareas y recordatorios desde el chat', 'Tarefas e lembretes pelo chat'], 'have', {
+      detail: [
+        'From any message, with an in-app and email reminder on time; they are CRM tasks too',
+        'Desde cualquier mensaje, con aviso en la app y por email a la hora; también son tareas del CRM',
+        'De qualquer mensagem, com aviso no app e por email no horário; também são tarefas do CRM',
+      ],
+    }),
 
     // Envíos
     row('broadcast', 'broadcasts', ['Broadcast to many groups and chats', 'Envío a muchos grupos y chats', 'Envio para muitos grupos e chats'], 'have', { weight: 2 }),

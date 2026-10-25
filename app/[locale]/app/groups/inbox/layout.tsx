@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
-import { listLabels, listNumbers } from '@/lib/groups';
+import { listLabels, listNumbers, listPeople, listPropertyDefs } from '@/lib/groups';
+import { listSavedLists } from '@/lib/groups-org';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import InboxShell from '@/components/groups/InboxShell';
@@ -13,7 +14,14 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   const { locale } = await props.params;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
-  const [numbers, labels] = await Promise.all([listNumbers(user.id), listLabels(user.id)]);
+  const me = user.actingUser?.id ?? user.id;
+  const [numbers, labels, people, properties, lists] = await Promise.all([
+    listNumbers(user.id),
+    listLabels(user.id),
+    listPeople(user.id, user.team?.id ?? null),
+    listPropertyDefs(user.id),
+    listSavedLists(user.id, me),
+  ]);
 
   if (numbers.length === 0) {
     return (
@@ -29,5 +37,17 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
     );
   }
 
-  return <InboxShell labels={labels.map((l) => ({ id: l.id, name: l.name, color: l.color }))}>{props.children}</InboxShell>;
+  return (
+    <Suspense fallback={null}>
+      <InboxShell
+        labels={labels.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
+        people={people}
+        properties={properties}
+        me={me}
+        initialLists={lists}
+      >
+        {props.children}
+      </InboxShell>
+    </Suspense>
+  );
 }

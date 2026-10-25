@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { listChats } from '@/lib/groups';
-import { listTickets } from '@/lib/groups-tickets';
+import { listChats, listPropertyDefs, propertyText, type PropertyFilter } from '@/lib/groups';
+import { listTickets, type TicketQuery } from '@/lib/groups-tickets';
+import { TICKET_STATUSES } from '@/lib/groups-rules';
 import { groupsError, groupsSession } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
@@ -12,6 +13,21 @@ function cell(v: unknown): string {
   let s = v == null ? '' : String(v);
   if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function jsonFilters(raw: string | null): PropertyFilter[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw) as unknown;
+    return Array.isArray(v)
+      ? v.slice(0, 10).map((f) => {
+          const o = (f ?? {}) as Record<string, unknown>;
+          return { key: String(o.key ?? ''), op: (['set', 'unset'].includes(String(o.op)) ? o.op : 'is') as PropertyFilter['op'], value: o.value == null ? undefined : String(o.value) };
+        })
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 function csv(rows: unknown[][]): string {
@@ -26,10 +42,11 @@ export async function GET(req: Request) {
   const type = p.get('type') ?? 'chats';
   let body: string;
   if (type === 'chats') {
+    const defs = await listPropertyDefs(s.ws, 'chat');
     const { rows } = await listChats(s.ws, s.me, { filter: 'all', limit: 200 });
     const closed = await listChats(s.ws, s.me, { filter: 'closed', limit: 200 });
     body = csv([
-      ['id', 'kind', 'name', 'phone', 'members', 'status', 'assigned_to', 'labels', 'last_message_at', 'awaiting_since', 'crm_company_id', 'crm_contact_id', 'properties'],
+      ['id', 'kind', 'name', 'phone', 'members', 'status', 'assigned_to', 'labels', 'last_message_at', 'awaiting_since', 'crm_company_id', 'crm_contact_id', ...defs.map((d) => d.label)],
       ...[...rows, ...closed.rows].map((c) => [
         c.id,
         c.kind,
@@ -43,14 +60,38 @@ export async function GET(req: Request) {
         c.awaitingSince,
         c.crmCompanyId,
         c.crmContactId,
-        JSON.stringify(c.properties),
+        ...defs.map((d) => propertyText(c.properties[d.key], d.type)),
       ]),
     ]);
   } else if (type === 'tickets') {
-    const tickets = await listTickets(s.ws, { status: 'all', limit: 500 });
+    // Mismos filtros que la pantalla de tickets (estado, asignado, vencidos, búsqueda y campos propios).
+    const defs = await listPropertyDefs(s.ws, 'ticket');
+    const status = p.get('status') ?? 'all';
+    const tickets = await listTickets(s.ws, {
+      status: (['active', 'all', ...TICKET_STATUSES] as string[]).includes(status) ? (status as TicketQuery['status']) : 'all',
+      assignee: p.get('assignee') === 'me' ? s.me : p.get('assignee') || undefined,
+      breached: p.get('breached') === '1',
+      q: p.get('q') ?? undefined,
+      fields: jsonFilters(p.get('fields')),
+      limit: 500,
+    });
     body = csv([
-      ['number', 'title', 'status', 'priority', 'assignee_id', 'chat', 'source', 'created_at', 'due_at', 'first_response_at', 'resolved_at', 'breached'],
-      ...tickets.map((t) => [t.number, t.title, t.status, t.priority, t.assigneeId, t.chatName, t.source, t.createdAt, t.dueAt, t.firstResponseAt, t.resolvedAt, t.breached ? 'yes' : 'no']),
+      ['number', 'title', 'status', 'priority', 'assignee_id', 'chat', 'source', 'created_at', 'due_at', 'first_response_at', 'resolved_at', 'breached', ...defs.map((d) => d.label)],
+      ...tickets.map((t) => [
+        t.number,
+        t.title,
+        t.status,
+        t.priority,
+        t.assigneeId,
+        t.chatName,
+        t.source,
+        t.createdAt,
+        t.dueAt,
+        t.firstResponseAt,
+        t.resolvedAt,
+        t.breached ? 'yes' : 'no',
+        ...defs.map((d) => propertyText(t.fields[d.key], d.type)),
+      ]),
     ]);
   } else if (type === 'messages') {
     const chat = p.get('chat');

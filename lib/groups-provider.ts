@@ -49,13 +49,15 @@ export interface ProviderCaps {
   qr: boolean;
   /** Plantillas aprobadas por Meta (fuera de la ventana de 24 h). */
   templates: boolean;
+  /** Mensajes temporales en grupos (Evolution sí, WAHA no lo expone). */
+  ephemeral: boolean;
 }
 
 export const PROVIDER_CAPS: Record<ProviderKind, ProviderCaps> = {
-  cloud: { groups: false, qr: false, templates: true },
-  waha: { groups: true, qr: true, templates: false },
-  evolution: { groups: true, qr: true, templates: false },
-  fake: { groups: true, qr: true, templates: false },
+  cloud: { groups: false, qr: false, templates: true, ephemeral: false },
+  waha: { groups: true, qr: true, templates: false, ephemeral: false },
+  evolution: { groups: true, qr: true, templates: false, ephemeral: true },
+  fake: { groups: true, qr: true, templates: false, ephemeral: true },
 };
 
 export type ConnectStatus = 'pending' | 'qr' | 'connected' | 'disconnected' | 'error';
@@ -85,7 +87,21 @@ export interface GroupInfo {
   description?: string;
   participants?: Participant[];
   inviteLink?: string;
+  /** Solo los admins mandan mensajes. */
+  announce?: boolean;
+  /** Solo los admins editan nombre, descripción y foto. */
+  locked?: boolean;
 }
+
+/** Ajustes del grupo que se cambian en WhatsApp. `ephemeral` en segundos (0 apaga). */
+export interface GroupSettingsPatch {
+  announce?: boolean;
+  locked?: boolean;
+  ephemeral?: number;
+}
+
+/** Duraciones de mensajes temporales que acepta WhatsApp (segundos). */
+export const EPHEMERAL_OPTIONS = [0, 86_400, 604_800, 7_776_000] as const;
 
 export type ParticipantAction = 'add' | 'remove' | 'promote' | 'demote';
 
@@ -160,6 +176,13 @@ export interface GroupsProvider {
   updateParticipants(groupId: string, action: ParticipantAction, phones: string[]): Promise<ParticipantResult[]>;
   inviteLink(groupId: string, revoke?: boolean): Promise<string>;
   updateGroup(groupId: string, patch: { name?: string; description?: string }): Promise<void>;
+  /** Solo admins escriben, solo admins editan, mensajes temporales. */
+  updateGroupSettings(groupId: string, patch: GroupSettingsPatch): Promise<void>;
+  /** Foto del grupo desde una URL pública (null la saca). */
+  setGroupPicture(groupId: string, image: { url: string; mimetype: string } | null): Promise<void>;
+  /** Entra al grupo con el código o link de invitación. */
+  joinGroup(inviteCode: string): Promise<{ id: string; name?: string }>;
+  leaveGroup(groupId: string): Promise<void>;
   /** Firma o token del webhook. `secret` es el del número (va en la URL). */
   verifyWebhook(req: WebhookRequest, secret: string): boolean;
   parseWebhook(body: unknown): InboundEvent[];
@@ -254,6 +277,14 @@ export function parsePhoneList(raw: string | string[]): { valid: string[]; inval
     } else invalid.push(p);
   }
   return { valid, invalid };
+}
+
+/** "https://chat.whatsapp.com/AbC123" o "AbC123" → "AbC123" (vacío si no parece un código). */
+export function inviteCodeFrom(raw: string): string {
+  const t = String(raw ?? '').trim();
+  const m = /chat\.whatsapp\.com\/(?:invite\/)?([A-Za-z0-9_-]{6,64})/.exec(t);
+  const code = m ? m[1] : t;
+  return /^[A-Za-z0-9_-]{6,64}$/.test(code) ? code : '';
 }
 
 export function unsupported(): never {

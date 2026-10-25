@@ -483,3 +483,91 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
   .gr-tickets-table .gr-hide-sm { display: block; }
   .gr-tickets-table .select { width: 100%; max-width: none; }
 }
+
+/* ---------- Organización y tickets (G2): listas guardadas, propiedades, ajustes del grupo, tareas, plantillas ---------- */
+.gr-list-titlebar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.gr-list-titlebar .gr-list-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-list-views { display: flex; gap: 4px; overflow-x: auto; min-width: 0; padding-bottom: 2px; scrollbar-width: thin; }
+.gr-view {
+  flex: none;
+  padding: 3px 8px;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+  text-decoration: none;
+  white-space: nowrap;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.gr-view:hover { background: var(--ui-hover); color: var(--ink); }
+.gr-view.is-on { color: var(--ink); border-color: var(--ink); font-weight: 600; }
+.gr-view:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.gr-list-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 0; }
+.gr-list-save { display: flex; justify-content: flex-end; }
+.gr-branch-count { margin-left: auto; font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); }
+.gr-multi { display: flex; flex-wrap: wrap; gap: 4px; }
+.gr-multi-opt {
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.gr-multi-opt:hover { background: var(--ui-hover); }
+.gr-multi-opt.is-on { border-color: var(--ink); background: var(--bg-soft); font-weight: 600; }
+.gr-multi-opt:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.gr-cascade { display: flex; flex-direction: column; gap: 6px; }
+.gr-file-prop { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.gr-file-prop a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-group-photo { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.gr-group-photo img,
+.gr-group-photo-empty { width: 48px; height: 48px; border: 1px solid var(--line); border-radius: var(--radius-1); object-fit: cover; background: var(--bg-soft); }
+.gr-question-tag { color: var(--warn-ink); font-weight: 600; }
+.gr-task-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.gr-task-list li { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.gr-task-list li.is-done .gr-task-title,
+.gr-tasks-table tr.is-done .gr-link-button { text-decoration: line-through; color: var(--brand-gray-2); }
+.gr-task-main { display: flex; flex-direction: column; min-width: 0; }
+.gr-task-title { overflow-wrap: anywhere; }
+.gr-link-button {
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.gr-link-button:hover { text-decoration: underline; text-underline-offset: 2px; }
+.gr-link-button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.gr-prop-edit { display: flex; flex-direction: column; gap: 8px; }
+.gr-tree-input { font-family: var(--font-data); }
+.gr-columns { position: relative; }
+.gr-columns-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.gr-template-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.gr-vars-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.gr-ticket-fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+@media (max-width: 640px) {
+  .gr-vars-grid,
+  .gr-ticket-fields-grid { grid-template-columns: minmax(0, 1fr); }
+  .gr-columns-menu { right: auto; left: 0; }
+}
+/* Grupos de campos (reglas, plantillas): sin el borde por defecto del navegador. */
+.ui-page fieldset.ui-field { min-width: 0; margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px; }
+.ui-page fieldset.ui-field > legend { padding: 0; margin-bottom: 4px; }

@@ -88,6 +88,14 @@ function roleOf(raw: unknown): MemberRole {
   return 'member';
 }
 
+/** announce / restrict de la metadata del grupo (WAHA y Evolution usan los nombres de WhatsApp). */
+function flagsOf(g: Json): { announce?: boolean; locked?: boolean } {
+  const out: { announce?: boolean; locked?: boolean } = {};
+  if (typeof g.announce === 'boolean') out.announce = g.announce;
+  if (typeof g.restrict === 'boolean') out.locked = g.restrict;
+  return out;
+}
+
 /** Tipo de media corto a partir del mimetype o del tipo de mensaje. */
 function shortType(mime: string): string {
   return mime || 'file';
@@ -293,6 +301,7 @@ export function wahaProvider(
           id: idString(g.id ?? g.JID),
           name: String(g.subject ?? g.name ?? g.Name ?? ''),
           description: String(g.description ?? g.desc ?? ''),
+          ...flagsOf(g),
         }))
         .filter((g) => isGroupJid(g.id));
     },
@@ -322,6 +331,27 @@ export function wahaProvider(
       if (patch.name !== undefined) await api(`/api/${session}/groups/${gid(groupId)}/subject`, 'PUT', { subject: patch.name });
       if (patch.description !== undefined)
         await api(`/api/${session}/groups/${gid(groupId)}/description`, 'PUT', { description: patch.description });
+    },
+    async updateGroupSettings(groupId, patch) {
+      const base = `/api/${session}/groups/${gid(groupId)}/settings/security`;
+      if (patch.locked !== undefined) await api(`${base}/info-admin-only`, 'PUT', { adminsOnly: patch.locked });
+      if (patch.announce !== undefined) await api(`${base}/messages-admin-only`, 'PUT', { adminsOnly: patch.announce });
+      // WAHA no expone los mensajes temporales de un grupo.
+      if (patch.ephemeral !== undefined) throw new ProviderError('unsupported');
+    },
+    async setGroupPicture(groupId, image) {
+      const path = `/api/${session}/groups/${gid(groupId)}/picture`;
+      if (!image) await api(path, 'DELETE');
+      else await api(path, 'PUT', { file: { url: image.url, mimetype: image.mimetype } });
+    },
+    async joinGroup(code) {
+      const r = (await api(`/api/${session}/groups/join`, 'POST', { code })) as Json;
+      const id = idString(r.id ?? r.gid ?? r.groupId);
+      if (!id) throw new ProviderError('provider_error');
+      return { id };
+    },
+    async leaveGroup(groupId) {
+      await api(`/api/${session}/groups/${gid(groupId)}/leave`, 'POST');
     },
     verifyWebhook: verifyWahaHmac,
     parseWebhook: parseWahaWebhook,
@@ -555,7 +585,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     async listGroups(): Promise<GroupInfo[]> {
       const rows = (await api(`/group/fetchAllGroups/${instance}?getParticipants=false`)) as Json[];
       return (Array.isArray(rows) ? rows : [])
-        .map((g) => ({ id: String(g.id ?? ''), name: String(g.subject ?? ''), description: String(g.desc ?? '') }))
+        .map((g) => ({ id: String(g.id ?? ''), name: String(g.subject ?? ''), description: String(g.desc ?? ''), ...flagsOf(g) }))
         .filter((g) => isGroupJid(g.id));
     },
     async createGroup(name, phones) {
@@ -581,6 +611,26 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       if (patch.name !== undefined) await api(`/group/updateGroupSubject/${instance}${q(groupId)}`, 'POST', { subject: patch.name });
       if (patch.description !== undefined)
         await api(`/group/updateGroupDescription/${instance}${q(groupId)}`, 'POST', { description: patch.description });
+    },
+    async updateGroupSettings(groupId, patch) {
+      const path = `/group/updateSetting/${instance}${q(groupId)}`;
+      if (patch.announce !== undefined) await api(path, 'POST', { action: patch.announce ? 'announcement' : 'not_announcement' });
+      if (patch.locked !== undefined) await api(path, 'POST', { action: patch.locked ? 'locked' : 'unlocked' });
+      if (patch.ephemeral !== undefined) await api(`/group/toggleEphemeral/${instance}${q(groupId)}`, 'POST', { expiration: patch.ephemeral });
+    },
+    async setGroupPicture(groupId, image) {
+      // Evolution cambia la foto pero no tiene cómo sacarla.
+      if (!image) throw new ProviderError('unsupported');
+      await api(`/group/updateGroupPicture/${instance}${q(groupId)}`, 'POST', { image: image.url });
+    },
+    async joinGroup(code) {
+      const r = (await api(`/group/acceptInviteCode/${instance}?inviteCode=${encodeURIComponent(code)}`)) as Json;
+      const id = String(r.groupJid ?? r.id ?? (typeof r.accepted === 'string' ? r.accepted : ''));
+      if (!id || !isGroupJid(id)) throw new ProviderError(r.accepted === false ? 'not_found' : 'provider_error');
+      return { id };
+    },
+    async leaveGroup(groupId) {
+      await api(`/group/leaveGroup/${instance}${q(groupId)}`, 'DELETE');
     },
     // Evolution no firma los webhooks: alcanza con el secreto de la URL.
     verifyWebhook: () => true,

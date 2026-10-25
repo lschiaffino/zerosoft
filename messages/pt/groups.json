@@ -5,7 +5,9 @@
     "tickets": "Tickets",
     "broadcasts": "Envios em massa",
     "analytics": "Análises",
-    "settings": "Configurações"
+    "settings": "Configurações",
+    "tasks": "Tarefas",
+    "templates": "Modelos"
   },
   "common": {
     "retry": "Tente de novo",
@@ -127,7 +129,9 @@
     "scheduleNeedsText": "Primeiro escreva a mensagem na caixa.",
     "scheduleAt": "Enviar em",
     "scheduled": "Agendada para {when}",
-    "byScheduled": "Agendada"
+    "byScheduled": "Agendada",
+    "task": "Tarefa",
+    "question": "Pede resposta"
   },
   "status": {
     "pending": "Enviando",
@@ -221,7 +225,8 @@
     "groupNamePlaceholder": "Acme · Suporte",
     "participants": "Participantes",
     "participantsHelp": "Telefones com código do país. Quem bloqueia ser adicionado recebe o link de convite.",
-    "description": "Descrição"
+    "description": "Descrição",
+    "columns": "Colunas"
   },
   "csv": {
     "title": "Criar grupos a partir de um CSV",
@@ -249,7 +254,13 @@
     "help": "Telefones com código do país, separados por vírgulas ou por linhas.",
     "run": "Aplicar",
     "done": "{ok} de {total} grupos atualizados. {failed} telefones falharam.",
-    "partial": "Falharam: {phones}"
+    "partial": "Falharam: {phones}",
+    "settings": "Configurações",
+    "settingsTitle": "Configurações de {n} grupos",
+    "keep": "Deixar como está",
+    "on": "Ativado",
+    "off": "Desativado",
+    "settingsDone": "{ok} de {total} grupos atualizados."
   },
   "detail": {
     "openInbox": "Abrir na caixa de entrada",
@@ -395,7 +406,8 @@
       "quick": "Respostas rápidas",
       "properties": "Propriedades",
       "tickets": "Tickets e SLA",
-      "api": "API e webhooks"
+      "api": "API e webhooks",
+      "ticketFields": "Campos de ticket"
     }
   },
   "numbers": {
@@ -444,7 +456,13 @@
     "qr3": "Escaneie este código. Esta tela se atualiza sozinha.",
     "webhookUrl": "URL do webhook",
     "webhookCloud": "Cole no seu app da Meta (WhatsApp, Configuração) com o mesmo token de verificação e assine as mensagens.",
-    "webhookBridge": "Registramos no seu gateway ao conectar. Ela leva um segredo: não compartilhe."
+    "webhookBridge": "Registramos no seu gateway ao conectar. Ela leva um segredo: não compartilhe.",
+    "reconnect": "Reconectar",
+    "tryAgain": "Tentar de novo",
+    "qrRefresh": "O QR se atualiza sozinho.",
+    "qrUpdated": "Atualizado há {s} s.",
+    "newQr": "Pedir um QR novo",
+    "disconnectedBanner": "A sessão está desconectada. Peça um QR novo e escaneie pelo telefone para vincular o número de novo."
   },
   "providers": {
     "cloud": {
@@ -513,8 +531,22 @@
       "text": "Texto",
       "number": "Número",
       "select": "Opção",
-      "date": "Data"
-    }
+      "date": "Data",
+      "multiselect": "Seleção múltipla",
+      "checkbox": "Caixa de seleção",
+      "url": "Link",
+      "file": "Arquivo",
+      "cascade": "Lista dependente"
+    },
+    "none": "Nenhum",
+    "level": "{name}, nível {n}",
+    "yes": "Sim",
+    "tree": "Opções por nível",
+    "treePlaceholder": "Brasil\n  São Paulo\n    Campinas\n  Rio de Janeiro\nPortugal\n  Lisboa",
+    "treeHelp": "Uma opção por linha. Com dois espaços no início ela fica dentro da de cima, até 3 níveis.",
+    "editTitle": "Editar propriedade",
+    "deleteTitle": "Apagar {name}?",
+    "deleteBody": "Os valores somem de todos os chats ou tickets. Não dá para desfazer."
   },
   "rules": {
     "intro": "Quando uma conversa conta como sem resposta, o que cria um ticket e quanto tempo cada prioridade tem.",
@@ -526,7 +558,23 @@
     "unanswered": "Marcar como atrasada depois de (minutos sem resposta)",
     "firstResponse": "SLA de primeira resposta (minutos)",
     "resolution": "SLA de resolução por prioridade (minutos)",
-    "defaultPriority": "Prioridade padrão"
+    "defaultPriority": "Prioridade padrão",
+    "flagMode": "O que conta como sem resposta",
+    "flagModes": {
+      "time": "Toda mensagem de cliente, até alguém responder",
+      "questions": "Só perguntas e pedidos (a IA separa de comentários como obrigado ou ok)"
+    },
+    "flagNoAi": "A IA não está configurada neste servidor, então toda mensagem conta até alguém responder. Configure AI_GATEWAY_API_KEY para ativá-la.",
+    "flagRules": "Regras para a IA (opcional)",
+    "flagRulesPlaceholder": "Assuntos de faturas sempre pedem resposta. Cumprimentos nunca.",
+    "flagRulesHelp": "Texto livre. Valem mais que o padrão.",
+    "unflagOnTicket": "Criar um ticket a partir de uma mensagem tira o chat de sem resposta",
+    "slaEmail": "Email quando um SLA vence",
+    "slaEmailOn": "Enviar um email quando um ticket passa do tempo de primeira resposta ou de resolução",
+    "slaEmailAssignee": "Para a pessoa responsável pelo ticket",
+    "slaEmailAdmins": "Para os admins do workspace",
+    "slaEmailExtra": "Outros emails",
+    "slaEmailHelp": "Separados por vírgula, até 10. Cada vencimento envia um email por endereço."
   },
   "api": {
     "intro": "Leia conversas, envie mensagens e crie tickets a partir dos seus próprios sistemas com a API pública.",
@@ -615,12 +663,195 @@
     "missing_chat": "Falta a conversa.",
     "invalid_type": "Exportação desconhecida.",
     "not_deletable": "Não pode ser excluído enquanto está sendo enviado.",
-    "invalid_phone_list": "Confira os telefones."
+    "invalid_phone_list": "Confira os telefones.",
+    "invalid_image": "Use uma imagem PNG, JPG ou WebP.",
+    "group_left": "Este número já saiu do grupo.",
+    "invalid_ephemeral": "Essa duração não está disponível.",
+    "invalid_invite": "Isso não parece um link de convite do WhatsApp.",
+    "invite_invalid": "O link de convite venceu ou foi redefinido. Peça um novo.",
+    "too_many_properties": "Há propriedades demais. Apague alguma antes.",
+    "too_many_templates": "Há modelos demais. Apague algum antes.",
+    "too_many_lists": "Há listas salvas demais. Apague alguma antes.",
+    "missing_fields": "Primeiro preencha os campos obrigatórios.",
+    "date_in_past": "Escolha um horário no futuro.",
+    "missing_columns": "Falta no CSV uma coluna para uma variável do modelo."
   },
   "media": {
     "image": "Imagem",
     "audio": "Áudio",
     "video": "Vídeo",
     "file": "Arquivo"
+  },
+  "groupSettings": {
+    "title": "Configurações do grupo",
+    "left": "Você saiu do grupo.",
+    "leftBanner": "Este número saiu do grupo. O histórico fica aqui e você pode entrar de novo com um link de convite.",
+    "leftTag": "Saiu",
+    "photoAlt": "Foto do grupo",
+    "changePhoto": "Trocar foto",
+    "addPhoto": "Adicionar foto",
+    "announce": "Só admins enviam mensagens",
+    "locked": "Só admins editam nome, descrição e foto",
+    "ephemeral": "Mensagens temporárias",
+    "ephemeralOptions": {
+      "0": "Desativadas",
+      "86400": "24 horas",
+      "604800": "7 dias",
+      "7776000": "90 dias"
+    },
+    "ephemeralUnsupported": "Mensagens temporárias não estão disponíveis com este gateway (WAHA). O Evolution API tem.",
+    "help": "As mudanças valem no WhatsApp. O número conectado precisa ser admin do grupo.",
+    "leave": "Sair do grupo",
+    "leaveTitle": "Sair de {name}?",
+    "leaveBody": "O número sai do grupo no WhatsApp. O chat fica no Groups como histórico, fechado e sem membros."
+  },
+  "join": {
+    "button": "Entrar com link",
+    "title": "Entrar em um grupo por convite",
+    "submit": "Entrar no grupo",
+    "link": "Link de convite",
+    "help": "Cole o link de convite do WhatsApp ou o código. O grupo aparece no Groups com os membros.",
+    "done": "Você entrou no grupo"
+  },
+  "templates": {
+    "title": "Modelos de grupo",
+    "desc": "Crie grupos com os mesmos membros, admins, etiquetas, configurações e mensagem de boas-vindas toda vez.",
+    "intro": "Use variáveis como {example} no nome, na descrição e nas boas-vindas. As de data ({auto}) se preenchem sozinhas.",
+    "new": "Novo modelo",
+    "emptyTitle": "Ainda não há modelos",
+    "emptyBody": "Um modelo guarda quem está sempre no grupo (seu time, um bot) para que um grupo novo de cliente seja um passo só.",
+    "colName": "Modelo",
+    "colGroupName": "Nome do grupo",
+    "colMembers": "Membros fixos",
+    "use": "Usar",
+    "created": "Modelo criado",
+    "deleteTitle": "Apagar {name}?",
+    "deleteBody": "Os grupos criados com ele ficam como estão.",
+    "editTitle": "Editar modelo",
+    "newTitle": "Novo modelo de grupo",
+    "name": "Nome do modelo",
+    "namePlaceholder": "Onboarding de clientes",
+    "groupName": "Nome do grupo",
+    "groupNameHelp": "Pode usar variáveis, como {example}. Vazio usa o nome do modelo.",
+    "members": "Membros fixos",
+    "membersHelp": "Um telefone por linha, com código do país.",
+    "admins": "Admins",
+    "adminsHelp": "São adicionados como membros e promovidos.",
+    "welcome": "Mensagem de boas-vindas",
+    "welcomePlaceholder": "Olá time da {example}, este é o grupo de suporte de vocês.",
+    "welcomeHelp": "Sai do número logo depois de criar o grupo. Mesmas variáveis.",
+    "useTitle": "Criar grupos com {name}",
+    "check": "Prévia",
+    "mode": "Quantos",
+    "modes": {
+      "one": "Um grupo",
+      "csv": "Vários de um CSV"
+    },
+    "fixedMembers": "{n} membros fixos",
+    "extraPhones": "Participantes extras (opcional)",
+    "csvHelp": "Primeira linha com as colunas: {columns}. Um grupo por linha, até 50.",
+    "sameName": "O do modelo"
+  },
+  "lists": {
+    "sidebar": "Listas salvas",
+    "pick": "Lista salva",
+    "allChats": "Todos os chats",
+    "sharedTag": "Compartilhada com o time",
+    "privateTag": "Só você",
+    "saveChanges": "Salvar mudanças",
+    "rename": "Renomear",
+    "moreFilters": "Mais filtros",
+    "assignee": "Atribuído a",
+    "property": "Propriedade",
+    "anyProperty": "Qualquer propriedade",
+    "propertyValue": "Valor",
+    "hasValue": "Tem valor",
+    "save": "Salvar como lista",
+    "empty": "Agora não há chats nesta lista.",
+    "deleteTitle": "Apagar {name}?",
+    "deleteBody": "Só a lista é apagada. Os chats ficam como estão.",
+    "renameTitle": "Renomear lista",
+    "saveTitle": "Salvar como lista",
+    "name": "Nome da lista",
+    "namePlaceholder": "Clientes Pro esperando",
+    "shared": "Compartilhar com o time",
+    "saveHelp": "Salva os filtros de agora: aba, busca, etiqueta, tipo, responsável e propriedade. Aparece na barra lateral e no ⌘K, e serve como público de um envio em massa.",
+    "broadcast": "Envio em massa"
+  },
+  "tasks": {
+    "fromMessage": "Tarefa a partir da mensagem",
+    "newTitle": "Nova tarefa",
+    "create": "Criar tarefa",
+    "title": "Tarefa",
+    "remindAt": "Lembrar",
+    "quick": {
+      "hour": "Em 1 hora",
+      "tomorrow": "Amanhã 9:00",
+      "monday": "Segunda 9:00"
+    },
+    "noDate": "Sem data",
+    "owner": "Para",
+    "notes": "Notas",
+    "help": "Nesse horário a pessoa recebe um aviso e um email. A tarefa também aparece em CRM › Tarefas.",
+    "section": "Tarefas ({n})",
+    "add": "Adicionar tarefa",
+    "chatEmpty": "Este chat não tem tarefas.",
+    "markDone": "Marcar {title} como feita",
+    "all": "Todas as tarefas",
+    "created": "Tarefa criada",
+    "pageTitle": "Tarefas",
+    "desc": "Tarefas e lembretes criados pelos chats e mensagens.",
+    "search": "Buscar tarefas ou chats",
+    "status": "Status",
+    "filter": {
+      "open": "Pendentes",
+      "done": "Feitas",
+      "all": "Todas"
+    },
+    "inCrm": "Abrir no CRM",
+    "loadError": "Não foi possível carregar as tarefas.",
+    "noResults": "Nenhuma tarefa bate com os filtros.",
+    "emptyTitle": "Não há tarefas pendentes",
+    "emptyBody": "Em qualquer mensagem escolha Tarefa e avisamos no horário que você disser.",
+    "goInbox": "Ir para a caixa",
+    "done": "Feita",
+    "actions": "Ações",
+    "editTitle": "Editar tarefa",
+    "deleteTitle": "Apagar {title}?",
+    "deleteBody": "Ela também sai de CRM › Tarefas."
+  },
+  "ticketFields": {
+    "filter": "Filtrar por campo",
+    "anyField": "Qualquer campo",
+    "title": "Campos",
+    "editAria": "Editar os campos do ticket {n}",
+    "edit": "Campos",
+    "modalTitle": "#{n} {title}",
+    "saveAnd": "Salvar e marcar {status}",
+    "requiredBanner": "Preencha os campos obrigatórios para mudar o status.",
+    "requiredHelp": "Os campos com * são obrigatórios para resolver ou fechar.",
+    "intro": "Seus próprios campos para tickets (área, causa, número do pedido). São editados no ticket, filtram a lista e saem no CSV.",
+    "placeholder": "Área",
+    "required": "Obrigatório para fechar",
+    "empty": "Ainda não há campos de ticket.",
+    "requiredTag": "Obrigatório"
+  },
+  "slaEmail": {
+    "subject": "SLA vencido: #{number} {title}",
+    "heading": "Um ticket passou do SLA",
+    "body": "O ticket #{number} \"{title}\" de {chat} passou do tempo de {kind}.",
+    "firstResponse": "primeira resposta",
+    "resolution": "resolução",
+    "open": "Abrir o ticket",
+    "why": "Você recebe este email porque os avisos de SLA estão ativos nas configurações do Groups."
+  },
+  "taskEmail": {
+    "subject": "Lembrete: {title}",
+    "heading": "Lembrete de tarefa",
+    "body": "\"{title}\" vence {when}.",
+    "chat": "Do chat {chat}.",
+    "open": "Abrir o chat",
+    "why": "Você recebe este email porque a tarefa é sua no Groups.",
+    "notification": "Lembrete: {title}"
   }
 }

@@ -4,6 +4,8 @@ import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { isWorkspaceAdmin } from '@/lib/session';
 import { availableProviders, getSettings, listLabels, listNumbers, listPropertyDefs, listQuickReplies } from '@/lib/groups';
+import { aiEnabled } from '@/lib/ai';
+import { groupsAiFakeActive } from '@/lib/groups-flag';
 import PageHeader from '@/components/ui/PageHeader';
 import SettingsTabs from '@/components/ui/SettingsTabs';
 import NumbersSettings from '@/components/groups/NumbersSettings';
@@ -11,9 +13,9 @@ import { LabelsPanel, PropertiesPanel, QuickRepliesPanel, TicketRulesPanel } fro
 
 export const dynamic = 'force-dynamic';
 
-const TABS = ['numbers', 'labels', 'quick', 'properties', 'tickets', 'api'] as const;
+const TABS = ['numbers', 'labels', 'quick', 'properties', 'ticketFields', 'tickets', 'api'] as const;
 /** Nombres viejos o cercanos de pestañas que llevan a la que corresponde. */
-const TAB_ALIASES: Record<string, (typeof TABS)[number]> = { rules: 'tickets', sla: 'tickets', webhooks: 'api', replies: 'quick' };
+const TAB_ALIASES: Record<string, (typeof TABS)[number]> = { rules: 'tickets', sla: 'tickets', webhooks: 'api', replies: 'quick', fields: 'ticketFields' };
 
 export default async function GroupsSettingsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ tab?: string; new?: string }> }) {
   const { locale } = await props.params;
@@ -30,7 +32,8 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
   else if (tab === 'labels') body = <LabelsPanel initial={await listLabels(user.id)} />;
   else if (tab === 'quick') body = <QuickRepliesPanel initial={await listQuickReplies(user.id)} />;
   else if (tab === 'properties') body = <PropertiesPanel initial={await listPropertyDefs(user.id)} canEdit={admin} />;
-  else if (tab === 'tickets') body = <TicketRulesPanel initial={await getSettings(user.id)} canEdit={admin} />;
+  else if (tab === 'ticketFields') body = <PropertiesPanel initial={await listPropertyDefs(user.id, 'ticket')} canEdit={admin} scope="ticket" />;
+  else if (tab === 'tickets') body = <TicketRulesPanel initial={await getSettings(user.id)} canEdit={admin} aiAvailable={aiEnabled() || groupsAiFakeActive()} />;
   else
     body = (
       <div className="ui-fields gr-api">

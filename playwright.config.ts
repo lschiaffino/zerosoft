@@ -44,6 +44,10 @@ export default defineConfig({
       CRM_ENRICH_FAKE: '1',
       // Groups contra el proveedor de WhatsApp falso (lib/groups-provider-fake.ts): nada sale a WhatsApp.
       GROUPS_FAKE: '1',
+      // Marcado de preguntas sin responder contra el modelo falso (lib/groups-flag.ts).
+      GROUPS_AI_FAKE: '1',
+      // Los e2e del cron (/api/cron/minute) mandan este Bearer: sin él, next start se niega a correrlo.
+      CRON_SECRET: 'e2e-cron',
       // IA del CRM contra el modelo falso (lib/crm-ai-fake.ts): cuota y ai_usage
       // corren igual; con la cookie crm_ai_fake=off se ve el error ai_disabled.
       CRM_AI_FAKE: '1',
