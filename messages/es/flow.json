@@ -536,6 +536,7 @@
     "is_false": "es falso"
   },
   "runs": {
+    "dataHidden": "Los datos de esta corrida solo los ve quien creó el flow y los admins que pueden abrirlos.",
     "loadError": "No se pudieron cargar las ejecuciones.",
     "emptyBody": "Usá Probar para correrlo con datos de prueba, o activalo para que corra solo.",
     "emptyTitle": "Todavía no hay ejecuciones",

@@ -263,6 +263,11 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
               !detail.steps.some((s) => s.error) &&
               errorBlock(detail.error.replace(/^[A-Za-z0-9_-]+: /, ''), null, '')}
             {detail.rerunOf && <p className="ui-help">{t('runs.rerunOf', { id: detail.rerunOf.slice(0, 8) })}</p>}
+            {(detail as { dataHidden?: boolean }).dataHidden && (
+              <p className="ui-help" data-testid="flow-run-data-hidden">
+                {t('runs.dataHidden')}
+              </p>
+            )}
             {rerunError && (
               <p className="ui-error" role="alert">
                 {rerunError}

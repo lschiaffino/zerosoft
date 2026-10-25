@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { cancelRun, getRunWithSteps } from '@/lib/flow';
-import { canEditFlows, flowError, forbidden, notFound, unauthorized } from '@/lib/flow-http';
+import { canEditFlows, flowError, forbidden, notFound, runViewer, unauthorized } from '@/lib/flow-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,5 +17,5 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
     if (res.error === 'not_found') return notFound();
     return flowError(409, res.error);
   }
-  return NextResponse.json({ run: await getRunWithSteps(user.id, id) });
+  return NextResponse.json({ run: await getRunWithSteps(user.id, id, runViewer(user)) });
 }
