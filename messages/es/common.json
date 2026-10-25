@@ -139,7 +139,12 @@
     "groupApps": "Apps",
     "openApp": "Abrir {name}",
     "goHome": "Ir al inicio",
-    "linkOverview": "Resumen de Link"
+    "linkOverview": "Resumen de Link",
+    "groupTeams": "Equipos",
+    "groupTrackViews": "Vistas",
+    "groupTrackCycles": "Cycles",
+    "groupTrackMilestones": "Milestones",
+    "groupTrackLabels": "Labels"
   },
   "manifesto": {
     "p1": "Un equipo de diez personas paga <strong>$6.000 al año</strong> por un CRM, $1.440 por agendar reuniones y $420 por acortar links. Esos precios se calculan por cabeza o por plan.",

@@ -134,4 +134,48 @@ test.describe('Track: editor como Linear', () => {
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(new RegExp(`/app/track/(issues/${issue.id}|issue/${issue.identifier})`));
   });
+  test('@ + Enter y @ + Tab dejan el chip dentro del mismo párrafo (descripción y comentario)', async ({ page, request }) => {
+    const t = await team(request, `Chip ${uid()}`);
+    const issue = await ok<Issue>(request.post(`/api/track/projects/${t.id}/issues`, { data: { title: 'Chip en línea' } }));
+    await page.goto(`/en/app/track/issues/${issue.id}`);
+    const editor = page.getByTestId('track-issue-description');
+    await editor.click();
+    await page.keyboard.type('antes @demo');
+    await expect(page.getByTestId('track-md-menu')).toBeVisible();
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('después');
+    // Un solo párrafo con texto, chip y texto (el chip no parte el <p>).
+    await expect(editor.locator('p')).toHaveCount(1);
+    await expect(editor.locator('p .track-chip-mention')).toHaveCount(1);
+    await expect(editor.locator('p')).toContainText(/antes\s+@Demo User\s+después/);
+
+    const composer = page.getByTestId('track-comment-input');
+    await composer.click();
+    await page.keyboard.type('hola @demo');
+    await expect(page.getByTestId('track-md-menu')).toBeVisible();
+    await page.keyboard.press('Tab');
+    await page.keyboard.type('chau');
+    await expect(composer.locator('p')).toHaveCount(1);
+    await expect(composer.locator('p .track-chip-mention')).toHaveCount(1);
+    await expect(composer.locator('p')).toContainText(/hola\s+@Demo User\s+chau/);
+  });
+
+  test('quitar el padre y deshacer dejan rastro en la actividad del hijo y del padre', async ({ page, request }) => {
+    const t = await team(request, `Rastro ${uid()}`);
+    const parent = await ok<Issue>(request.post(`/api/track/projects/${t.id}/issues`, { data: { title: 'Padre rastro' } }));
+    const child = await ok<Issue>(request.post(`/api/track/projects/${t.id}/issues`, { data: { title: 'Hijo rastro', parentId: parent.id } }));
+    await page.goto(`/en/app/track/issues/${child.id}`);
+    await page.locator('.track-detail-more').click();
+    await page.getByTestId('track-remove-parent').click();
+    await expect(page.getByTestId('track-parent-line')).toHaveCount(0);
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press('ControlOrMeta+z');
+    const feed = page.locator('.track-activity');
+    await expect(feed).toContainText(`removed the parent ${parent.identifier}`);
+    await expect(feed).toContainText(`set the parent to ${parent.identifier}`);
+    await expect(feed).not.toContainText('…');
+    await page.goto(`/en/app/track/issues/${parent.id}`);
+    await expect(page.locator('.track-activity')).toContainText(`removed the sub-issue ${child.identifier}`);
+    await expect(page.locator('.track-activity')).toContainText(`added a sub-issue: ${child.identifier}`);
+  });
 });

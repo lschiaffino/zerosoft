@@ -467,11 +467,8 @@ export function buildNav(
               : []),
             { href: '/app/track/teams', label: labels.track.projects, active: at('/app/track/teams'), icon: 'lists' },
             { href: '/app/track', label: labels.track.overview, active: pathname === '/app/track', icon: 'overview' },
-          ],
-        },
-        {
-          items: [
-            { href: '/app/track/settings', label: labels.track.settings, active: at('/app/track/settings'), icon: 'settings' },
+            // Un solo "Settings" a la vista (el de la cuenta, abajo): los de Track van en More, como en Linear.
+            { href: '/app/track/settings', label: labels.appSettings, active: at('/app/track/settings'), icon: 'settings' },
           ],
         },
       ];

@@ -59,6 +59,8 @@ export const projectUpdateSchema = z.object({
   /** Auto-cierre como Linear: el padre al terminar todos sus sub-issues, y los sub-issues al cerrar el padre. */
   autoCloseParent: z.boolean().optional(),
   autoCloseChildren: z.boolean().optional(),
+  /** Escala de estimación del team (lib/track-estimates). */
+  estimateScale: z.enum(['fibonacci', 'linear', 'exponential', 'tshirt', 'none']).optional(),
 });
 
 // ---------- Statuses ----------
@@ -132,11 +134,15 @@ export const issueCreateSchema = z.object({
   dueDate: isoDate.nullish(),
   labels: z.array(issueLabelInputSchema).max(10).optional(),
   milestoneId: id.nullish(),
+  /** Milestone del project del issue (track_plan_milestones). */
+  planMilestoneId: id.nullish(),
   /** Project (como en Linear; en la base, track_plans). */
   planId: id.nullish(),
+  /** Crear en triage (el team tiene triage activo). */
+  triage: z.boolean().optional(),
 });
 
-export const issueUpdateSchema = issueCreateSchema.partial().extend({
+export const issueUpdateSchema = issueCreateSchema.omit({ triage: true }).partial().extend({
   title: shortText.optional(),
   /** Orden manual dentro de los sub-issues del padre (arrastrar). */
   subOrder: z.number().finite().nullish(),

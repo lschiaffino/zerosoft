@@ -378,7 +378,11 @@
       "project": "Project",
       "estimate": "Estimate",
       "more": "More properties"
-    }
+    },
+    "triage": "Triage",
+    "createdKeep": "Issue created. Same properties for the next one",
+    "attach": "Attach files",
+    "removeAttachment": "Remove {name}"
   },
   "inline": {
     "markDone": "Mark as done",
@@ -624,7 +628,8 @@
       "general": "General",
       "members": "Members",
       "labels": "Labels",
-      "integrations": "Integrations"
+      "integrations": "Integrations",
+      "estimates": "Estimates"
     }
   },
   "markdown": {
@@ -1218,7 +1223,7 @@
       "inTwoWeeks": "In two weeks",
       "noDue": "Remove due date",
       "dueOn": "Due {date}",
-      "cycle": "Move to cycle…",
+      "cycle": "Add to cycle…",
       "noCycle": "No cycle",
       "milestone": "Set milestone…",
       "noMilestone": "No milestone",
@@ -1258,7 +1263,10 @@
       "markedDuplicate": "{id} marked as duplicate of {of}",
       "start": "Set start date…",
       "noStart": "Remove start date",
-      "startOn": "Starts {date}"
+      "startOn": "Starts {date}",
+      "currentCycle": "Current",
+      "upcomingCycle": "Upcoming",
+      "addToCycle": "Add to cycle {name}"
     },
     "editor": {
       "todo": "Checklist",
@@ -1328,7 +1336,13 @@
         "dueDate": "the due date",
         "estimate": "the estimate"
       },
-      "createSubIssue": "Create sub-issue from comment"
+      "createSubIssue": "Create sub-issue from comment",
+      "parentSet": "{user} set the parent to",
+      "parentRemoved": "{user} removed the parent",
+      "subissueAdded": "{user} added a sub-issue:",
+      "subissueRemoved": "{user} removed the sub-issue",
+      "autoClosedSubs": "Track closed this issue because all its sub-issues are done",
+      "autoClosedParent": "Track closed this issue because its parent was closed"
     },
     "sub": {
       "title": "Sub-issues",
@@ -1391,7 +1405,9 @@
       "saved": "View saved",
       "linkCopied": "View link copied",
       "shareOnSave": "Share with the team",
-      "shareHelp": "Everyone in the team sees team views. Only you can edit them."
+      "shareHelp": "Everyone in the team sees team views. Only you can edit them.",
+      "updateView": "Update view",
+      "saveAsNew": "Save as new view"
     },
     "filter": {
       "fields": {
@@ -1573,6 +1589,14 @@
     "autoCloseParent": "Close the parent when all its sub-issues are done",
     "autoCloseChildren": "Close the open sub-issues when the parent is done or canceled",
     "housekeeping": "Auto-close and auto-archive",
-    "integrationsHelp": "GitHub, Slack, Sentry and the API are set up for the workspace."
+    "integrationsHelp": "GitHub, Slack, Sentry and the API are set up for the workspace.",
+    "estimatesHelp": "Pick the scale for estimates in this team. ⇧E offers these values.",
+    "scales": {
+      "fibonacci": "Fibonacci",
+      "linear": "Linear",
+      "exponential": "Exponential",
+      "tshirt": "T-shirt sizes",
+      "none": "Not used"
+    }
   }
 }

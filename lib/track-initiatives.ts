@@ -7,6 +7,7 @@
 import { getDb } from './db';
 import { inScope, listPlans, listWorkspaceMembers, scopeWhere, type PlanSummary, type WorkspaceScope } from './track-plans';
 import type { HealthState } from './track-planning-core';
+import { STARTED_WEIGHT } from './track-planning-core';
 import type { InitiativeCreatePayload, InitiativeStatus, InitiativeUpdatePayload } from './track-planning-schema';
 
 export interface TrackInitiativeRow {
@@ -191,7 +192,8 @@ export async function listInitiatives(scope: WorkspaceScope, opts: { ids?: strin
   let out: InitiativeSummary[] = rows.map((r) => {
     const all = [...new Set(collect(r.id))].map((pid) => byId.get(pid)).filter((p): p is PlanSummary => Boolean(p));
     const points = all.reduce((a, p) => a + p.progress.points, 0);
-    const done = all.reduce((a, p) => a + p.progress.donePoints, 0);
+    // Como el progreso del proyecto: los empezados suman la mitad.
+    const done = all.reduce((a, p) => a + p.progress.donePoints + p.progress.startedPoints * STARTED_WEIGHT, 0);
     const starts = all.map((p) => p.start_date ?? p.created_at.slice(0, 10)).sort();
     const ends = all.map((p) => p.target_date).filter((d): d is string => Boolean(d)).sort();
     return {

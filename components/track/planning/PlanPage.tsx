@@ -370,7 +370,47 @@ function PlanChips({
           </>
         }
       />
+      <PlanLabelsChip plan={plan} onPatch={onPatch} />
     </div>
+  );
+}
+
+/** Labels del project (como Linear): varios, con filtro tipeado y "Crear «…»". */
+function PlanLabelsChip({ plan, onPatch }: { plan: PlanSummary; onPatch: (b: Record<string, unknown>) => Promise<boolean> }) {
+  const t = useTranslations('trackPlanning');
+  const [all, setAll] = useState<Array<{ id: string; name: string; color: string }>>([]);
+  const load = useCallback(async () => {
+    const res = await api<{ rows: Array<{ id: string; name: string; color: string }> }>('/api/track/labels');
+    if (res.ok) setAll(res.data.rows);
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  const ids = (plan.labels ?? []).map((l) => l.id);
+  const dot = (color: string) => <span className="track-label-dot" style={{ background: color }} aria-hidden />;
+  return (
+    <KeyPicker
+      ariaLabel={t('plan.labels')}
+      multi
+      className={`tp-chip${ids.length ? '' : ' is-empty'}`}
+      testId="tp-prop-labels"
+      value={ids}
+      options={all.map((l) => ({ value: l.id, label: l.name, icon: dot(l.color) }))}
+      onSelect={(id) => void onPatch({ labelIds: toggleId(ids, id) })}
+      createLabel={(q) => t('plan.createLabel', { name: q })}
+      onCreate={async (q) => {
+        const res = await api<{ id: string; name: string; color: string }>('/api/track/labels', 'POST', { name: q });
+        if (!res.ok) return;
+        setAll((cur) => [...cur, res.data]);
+        await onPatch({ labelIds: [...ids, res.data.id] });
+      }}
+      trigger={
+        <>
+          {ids.length ? <span className="tp-chip-dots">{(plan.labels ?? []).slice(0, 3).map((l) => <span key={l.id}>{dot(l.color)}</span>)}</span> : <TrackIcon name="tag" size={13} />}
+          <span className="track-inline-text">{ids.length ? (plan.labels ?? []).map((l) => l.name).join(', ') : t('plan.labels')}</span>
+        </>
+      }
+    />
   );
 }
 

@@ -177,7 +177,7 @@ export default function TrackBranch() {
             const onTeamPage = isTeamPath(pathname, p);
             const here = onTeamPage || contextTeam === p.id;
             const team = searchParams.get('team');
-            const open = expanded[p.id] ?? (here || (team === p.id && (pathname.startsWith('/app/track/cycles') || pathname === '/app/track/projects')));
+            const open = expanded[p.id] ?? (here || ((team === p.id || team?.toLowerCase() === p.slug.toLowerCase()) && (pathname.startsWith('/app/track/cycles') || pathname === '/app/track/projects')));
             const tab = searchParams.get('tab');
             const triageCount = p.triage_count ?? 0;
             const children: Array<{ key: string; href: string; active: boolean; icon: TrackIconName; count?: number }> = [
@@ -185,7 +185,13 @@ export default function TrackBranch() {
               ...(p.triage_enabled || triageCount > 0
                 ? [{ key: 'triage', href: `${href}?tab=triage`, active: onTeamPage && tab === 'triage', icon: 'inbox' as TrackIconName, count: triageCount }]
                 : []),
-              { key: 'cycles', href: `/app/track/cycles?team=${encodeURIComponent(p.id)}`, active: pathname.startsWith('/app/track/cycles') && team === p.id, icon: 'cycle' },
+              {
+                key: 'cycles',
+                // URL con la clave del team (como Linear); ?team=<id> sigue andando.
+                href: `/app/track/cycles?team=${encodeURIComponent(p.slug.toUpperCase())}`,
+                active: pathname.startsWith('/app/track/cycles') && (team === p.id || team?.toLowerCase() === p.slug.toLowerCase()),
+                icon: 'cycle',
+              },
               { key: 'projects', href: `/app/track/projects?team=${encodeURIComponent(p.id)}`, active: pathname === '/app/track/projects' && team === p.id, icon: 'plans' },
               { key: 'views', href: `${href}?views=1`, active: onTeamPage && searchParams.get('views') === '1', icon: 'views' },
             ];

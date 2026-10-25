@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
+import KeyPicker from '@/components/track/KeyPicker';
+import TrackIcon from '@/components/track/TrackIcon';
+import { isTypingTarget } from '@/components/track/trackCommands';
+import { addDays } from '@/lib/track-tasks';
 import EmptyState from '@/components/ui/EmptyState';
 import type { CycleListItem, CycleMetricsResult } from '@/lib/track-cycle-metrics';
 import { api, fmtDay, LoadingRows, ProgressBar } from './shared';
@@ -21,10 +25,57 @@ const localToday = () => {
 export function CyclesIndex() {
   const t = useTranslations('trackPlanning');
   const locale = useLocale();
-  // ?team=<id>: los cycles de un team (sidebar › team › Cycles).
+  const router = useRouter();
+  // ?team=MOB (o el id): los cycles de un team (sidebar › team › Cycles), como Linear.
   const team = useSearchParams().get('team');
   const [allRows, setRows] = useState<CycleListItem[] | null>(null);
-  const rows = allRows && team ? allRows.filter((r) => r.project_id === team) : allRows;
+  const [teams, setTeams] = useState<Array<{ id: string; name: string; slug: string }>>([]);
+  const teamMatch = (r: { project_id: string; project_slug?: string }) => r.project_id === team || (r.project_slug ?? '').toLowerCase() === (team ?? '').toLowerCase();
+  const rows = allRows && team ? allRows.filter(teamMatch) : allRows;
+  const currentTeam = team ? (teams.find((x) => x.id === team || x.slug.toLowerCase() === team.toLowerCase()) ?? null) : null;
+  const [createError, setCreateError] = useState<string | null>(null);
+  useEffect(() => {
+    void api<{
+      rows: Array<{ id: string; name: string; slug: string; status: string }>;
+    }>('/api/track/projects?pageSize=100').then((r) => {
+      if (r.ok) setTeams(r.data.rows.filter((p) => p.status === 'active'));
+    });
+  }, []);
+  // "New cycle" (como Linear): arranca el día después del último cycle del team y dura dos semanas.
+  const createCycle = async (teamId: string) => {
+    setCreateError(null);
+    const own = (allRows ?? []).filter((r) => r.project_id === teamId).sort((a, b) => b.end_at.localeCompare(a.end_at));
+    const today = localToday();
+    const lastEnd = own[0]?.end_at.slice(0, 10);
+    const start = lastEnd && lastEnd >= today ? addDays(lastEnd, 1) : today;
+    const end = addDays(start, 13);
+    const res = await api<{ id: string; error?: string }>(`/api/track/projects/${teamId}/cycles`, 'POST', {
+      name: t('cycles.newName', { n: own.length + 1 }),
+      startAt: start,
+      endAt: end,
+    });
+    if (!res.ok) {
+      setCreateError(res.data.error === 'cycle_overlap' ? t('cycles.overlap') : t('common.saveError'));
+      return;
+    }
+    router.push(`/app/track/cycles/${res.data.id}`);
+  };
+  // J/K recorren los cycles y Enter abre (como las listas de Linear).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      if (document.querySelector('.cmdk, [role="menu"], [role="listbox"], dialog[open]')) return;
+      if (e.key !== 'j' && e.key !== 'k') return;
+      const links = [...document.querySelectorAll<HTMLAnchorElement>('[data-testid="tp-cycles"] .tp-row-link')];
+      if (!links.length) return;
+      e.preventDefault();
+      const cur = links.indexOf(document.activeElement as HTMLAnchorElement);
+      const next = cur < 0 ? 0 : Math.max(0, Math.min(links.length - 1, cur + (e.key === 'j' ? 1 : -1)));
+      links[next].focus();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const [failed, setFailed] = useState(false);
   const load = useCallback(async () => {
     const res = await api<{ rows: CycleListItem[] }>(`/api/track/cycles?today=${localToday()}`);
@@ -34,6 +85,42 @@ export function CyclesIndex() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const newCycle = currentTeam ? (
+    <button type="button" className="btn btn-sm" onClick={() => void createCycle(currentTeam.id)} data-testid="tp-new-cycle">
+      <TrackIcon name="plus" size={12} /> {t('cycles.new')}
+    </button>
+  ) : teams.length > 0 ? (
+    <KeyPicker
+      ariaLabel={t('cycles.new')}
+      className="btn btn-sm"
+      testId="tp-new-cycle"
+      placeholder={t('cycles.pickTeam')}
+      options={teams.map((x) => ({
+        value: x.id,
+        label: x.name,
+        meta: x.slug.toUpperCase(),
+      }))}
+      onSelect={(id) => void createCycle(id)}
+      trigger={
+        <>
+          <TrackIcon name="plus" size={12} /> {t('cycles.new')}
+        </>
+      }
+    />
+  ) : null;
+  const toolbar = (
+    <div className="tp-toolbar tp-cycles-toolbar">
+      {currentTeam && <span className="tp-cycles-team">{currentTeam.name}</span>}
+      <span className="tp-toolbar-spacer" />
+      {newCycle}
+      {createError && (
+        <p className="ui-error" role="alert">
+          {createError}
+        </p>
+      )}
+    </div>
+  );
 
   if (rows === null) return <LoadingRows />;
   if (failed)
@@ -48,48 +135,59 @@ export function CyclesIndex() {
         }
       />
     );
-  if (!rows.length) return <EmptyState title={t('cycles.emptyTitle')} body={t('cycles.emptyBody')} action={{ label: t('cycles.goTeams'), href: TEAMS_PATH }} />;
+  if (!rows.length)
+    return (
+      <>
+        {toolbar}
+        <EmptyState title={t('cycles.emptyTitle')} body={t('cycles.emptyBody')} action={currentTeam ? undefined : { label: t('cycles.goTeams'), href: TEAMS_PATH }} />
+      </>
+    );
   const sections = (['active', 'upcoming', 'past'] as const).map((s) => ({
     key: s,
     rows: rows.filter((r) => r.state === s).sort((a, b) => (s === 'upcoming' ? a.start_at.localeCompare(b.start_at) : b.start_at.localeCompare(a.start_at))),
   }));
   return (
-    <div className="tp-list" data-testid="tp-cycles">
-      {sections
-        .filter((s) => s.rows.length)
-        .map((s) => (
-          <section key={s.key} className="tp-group" aria-label={t(`cycles.${s.key}`)}>
-            <h2 className="tp-group-head">
-              <span>{t(`cycles.${s.key}`)}</span>
-              <span className="tp-group-count">{s.rows.length}</span>
-            </h2>
-            <ul className="tp-rows" role="list">
-              {s.rows.map((c) => (
-                <li key={c.id} className="tp-row">
-                  <Link href={`/app/track/cycles/${c.id}`} className="tp-row-link">
-                    <span className="tp-row-icon" aria-hidden="true">
-                      {c.project_icon ?? ''}
+    <>
+      {toolbar}
+      <div className="tp-list" data-testid="tp-cycles">
+        {sections
+          .filter((s) => s.rows.length)
+          .map((s) => (
+            <section key={s.key} className="tp-group" aria-label={t(`cycles.${s.key}`)}>
+              <h2 className="tp-group-head">
+                <span>{t(`cycles.${s.key}`)}</span>
+                <span className="tp-group-count">{s.rows.length}</span>
+              </h2>
+              <ul className="tp-rows" role="list">
+                {s.rows.map((c) => (
+                  <li key={c.id} className="tp-row">
+                    <Link href={`/app/track/cycles/${c.id}`} className="tp-row-link">
+                      <span className="tp-row-icon" aria-hidden="true">
+                        {c.project_icon ?? ''}
+                      </span>
+                      <span className="tp-row-name">{c.name}</span>
+                      <span className="tp-row-summary">{c.project_name}</span>
+                    </Link>
+                    <span className="tp-row-cell tp-row-date tp-row-wide">
+                      {fmtDay(c.start_at, locale)} – {fmtDay(c.end_at, locale)}
                     </span>
-                    <span className="tp-row-name">{c.name}</span>
-                    <span className="tp-row-summary">{c.project_name}</span>
-                  </Link>
-                  <span className="tp-row-cell tp-row-date tp-row-wide">
-                    {fmtDay(c.start_at, locale)} – {fmtDay(c.end_at, locale)}
-                  </span>
-                  <span className="tp-row-cell tp-row-lead">{t('cycles.doneOf', { done: c.done, total: c.total })}</span>
-                  <span className="tp-row-cell tp-row-progress">
-                    <ProgressBar percent={c.total ? (c.done / c.total) * 100 : 0} />
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-    </div>
+                    <span className="tp-row-cell tp-row-lead">{t('cycles.doneOf', { done: c.done, total: c.total })}</span>
+                    <span className="tp-row-cell tp-row-progress">
+                      <ProgressBar percent={c.total ? (c.done / c.total) * 100 : 0} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+      </div>
+    </>
   );
 }
 
-type MetricsResponse = CycleMetricsResult & { project: { id: string; name: string; icon: string | null } };
+type MetricsResponse = CycleMetricsResult & {
+  project: { id: string; name: string; icon: string | null };
+};
 
 /** Detalle de un cycle (como Linear): burn-up, alcance, scope creep, rollover, velocidad y capacidad. */
 export function CycleDetail({ cycleId }: { cycleId: string }) {
@@ -146,7 +244,15 @@ export function CycleDetail({ cycleId }: { cycleId: string }) {
         <Stat label={t('cycles.scope')} value={`${data.scope}`} hint={unit} />
         <Stat label={t('cycles.started')} value={`${data.started}`} hint={unit} />
         <Stat label={t('cycles.completed')} value={`${data.completed}`} hint={`${data.completionPercent}%`} testId="tp-stat-completed" />
-        <Stat label={t('cycles.scopeCreep')} value={`+${data.added}`} hint={t('cycles.scopeCreepHint', { percent: data.scopeCreepPercent, removed: data.removed })} testId="tp-stat-creep" />
+        <Stat
+          label={t('cycles.scopeCreep')}
+          value={`+${data.added}`}
+          hint={t('cycles.scopeCreepHint', {
+            percent: data.scopeCreepPercent,
+            removed: data.removed,
+          })}
+          testId="tp-stat-creep"
+        />
         <Stat label={t('cycles.carried')} value={`${data.carriedOver}`} hint={t('cycles.carriedHint')} />
         <Stat
           label={t('cycles.velocity')}
@@ -173,10 +279,33 @@ export function CycleDetail({ cycleId }: { cycleId: string }) {
             label={t('cycles.burnup')}
             labels={days}
             series={[
-              { key: 'scope', label: t('cycles.legendScope'), color: 'var(--ink)', values: data.points.map((p) => p.scope) },
-              { key: 'started', label: t('cycles.legendStarted'), color: 'var(--c-notes)', values: data.points.map((p) => p.started + p.completed), area: true },
-              { key: 'completed', label: t('cycles.legendCompleted'), color: 'var(--accent)', values: data.points.map((p) => p.completed), area: true },
-              { key: 'ideal', label: t('cycles.legendIdeal'), color: 'var(--brand-gray-3)', values: ideal, dashed: true },
+              {
+                key: 'scope',
+                label: t('cycles.legendScope'),
+                color: 'var(--ink)',
+                values: data.points.map((p) => p.scope),
+              },
+              {
+                key: 'started',
+                label: t('cycles.legendStarted'),
+                color: 'var(--c-notes)',
+                values: data.points.map((p) => p.started + p.completed),
+                area: true,
+              },
+              {
+                key: 'completed',
+                label: t('cycles.legendCompleted'),
+                color: 'var(--accent)',
+                values: data.points.map((p) => p.completed),
+                area: true,
+              },
+              {
+                key: 'ideal',
+                label: t('cycles.legendIdeal'),
+                color: 'var(--brand-gray-3)',
+                values: ideal,
+                dashed: true,
+              },
             ]}
           />
         )}

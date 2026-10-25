@@ -75,7 +75,7 @@ export function TriageActions({
   handleRef,
   locale,
 }: {
-  issue: Pick<TrackIssueWithStatus, 'id'> & { snoozed_until?: string | null };
+  issue: Pick<TrackIssueWithStatus, 'id' | 'project_id'> & { snoozed_until?: string | null };
   statuses: TrackStatusRow[];
   onResolved: () => void;
   handleRef?: (h: TriageActionsHandle | null) => void;
@@ -139,7 +139,17 @@ export function TriageActions({
       const seq = ++searchSeq.current;
       const query = q.trim();
       if (!query) {
-        setFound([]);
+        // Sin tipear: los issues recientes del team abajo de los sugeridos (como Linear), no un menú vacío.
+        void call<{ rows: TrackIssueWithStatus[] }>(`/api/track/projects/${issue.project_id}/issues?pageSize=12`).then((res) => {
+          if (seq !== searchSeq.current) return;
+          setFound(
+            res.ok
+              ? res.data.rows
+                  .filter((r) => r.id !== issue.id && !r.triage)
+                  .map((r) => ({ value: r.id, label: r.title || r.identifier, meta: r.identifier, keywords: r.identifier, group: tt('queue.recent') }))
+              : [],
+          );
+        });
         return;
       }
       window.setTimeout(async () => {
@@ -155,7 +165,7 @@ export function TriageActions({
         );
       }, 150);
     },
-    [issue.id, tt],
+    [issue.id, issue.project_id, tt],
   );
 
   const dupOptions = useMemo(() => {
@@ -165,8 +175,9 @@ export function TriageActions({
 
   const openDuplicate = useCallback(() => {
     void loadSuggested();
+    search('');
     dupRef.current?.open();
-  }, [loadSuggested]);
+  }, [loadSuggested, search]);
 
   useEffect(() => {
     if (!handleRef) return;
@@ -331,7 +342,7 @@ export function TriageBanner({
   statuses,
   onResolved,
 }: {
-  issue: Pick<TrackIssueWithStatus, 'id'>;
+  issue: Pick<TrackIssueWithStatus, 'id' | 'project_id'>;
   statuses: TrackStatusRow[];
   onResolved: () => void;
 }) {

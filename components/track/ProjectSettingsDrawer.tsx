@@ -9,13 +9,14 @@ import { teamPath } from '@/lib/track-routes';
 import TrackIcon from './TrackIcon';
 import { LabelsSettings } from './TrackSettingsClient';
 import { TeamAutomation } from './planning/AutomationSettings';
+import { ESTIMATE_SCALES, estimateOptions, isEstimateScale, type EstimateScale } from '@/lib/track-estimates';
 
 /** Pestañas que arma la página del team (ProjectPageClient). */
 export type ProjectSettingsTab = 'cycles' | 'statuses' | 'milestones' | 'templates' | 'recurring' | 'triage';
 /** Todas, como los ajustes de un team en Linear: las propias del drawer van primero. */
-type DrawerTab = 'general' | 'members' | 'labels' | ProjectSettingsTab | 'integrations';
+type DrawerTab = 'general' | 'members' | 'labels' | 'estimates' | ProjectSettingsTab | 'integrations';
 
-const TABS: DrawerTab[] = ['general', 'members', 'labels', 'statuses', 'triage', 'cycles', 'templates', 'recurring', 'milestones', 'integrations'];
+const TABS: DrawerTab[] = ['general', 'members', 'labels', 'estimates', 'statuses', 'triage', 'cycles', 'templates', 'recurring', 'milestones', 'integrations'];
 
 interface ProjectSettingsDrawerProps {
   projectName: string;
@@ -192,11 +193,18 @@ function SubIssueAutomation({ projectId, isAdmin }: { projectId: string; isAdmin
   useEffect(() => {
     void send<TrackProjectRow>(`/api/track/projects/${projectId}`).then((r) => r.ok && setProject(r.data));
   }, [projectId]);
+  // Optimista: el cuadrado se tilda al instante (y vuelve si el servidor rechaza).
   const toggle = async (field: 'autoCloseParent' | 'autoCloseChildren', value: boolean) => {
     setError(null);
+    const column = field === 'autoCloseParent' ? 'auto_close_parent' : 'auto_close_children';
+    const prev = project;
+    setProject((p) => (p ? { ...p, [column]: value ? 1 : 0 } : p));
     const r = await send<TrackProjectRow>(`/api/track/projects/${projectId}`, 'PATCH', { [field]: value });
     if (r.ok) setProject(r.data);
-    else setError(r.status === 403 ? t('teamSettings.adminOnly') : t('errors.generic'));
+    else {
+      setProject(prev);
+      setError(r.status === 403 ? t('teamSettings.adminOnly') : t('errors.generic'));
+    }
   };
   if (!project) return null;
   return (
@@ -207,7 +215,7 @@ function SubIssueAutomation({ projectId, isAdmin }: { projectId: string; isAdmin
           {error}
         </p>
       )}
-      <label className="ui-check">
+      <label className="ui-check track-autoclose-row">
         <input
           type="checkbox"
           checked={Boolean(project.auto_close_parent)}
@@ -217,7 +225,7 @@ function SubIssueAutomation({ projectId, isAdmin }: { projectId: string; isAdmin
         />
         <span>{t('teamSettings.autoCloseParent')}</span>
       </label>
-      <label className="ui-check">
+      <label className="ui-check track-autoclose-row">
         <input
           type="checkbox"
           checked={Boolean(project.auto_close_children)}
@@ -228,6 +236,59 @@ function SubIssueAutomation({ projectId, isAdmin }: { projectId: string; isAdmin
         <span>{t('teamSettings.autoCloseChildren')}</span>
       </label>
     </fieldset>
+  );
+}
+
+/** Estimates: la escala del team (como Linear); ⇧E ofrece esos valores. */
+function EstimatesPanel({ projectId, isAdmin }: { projectId: string; isAdmin: boolean }) {
+  const t = useTranslations('track');
+  const [scale, setScale] = useState<EstimateScale | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    void send<TrackProjectRow>(`/api/track/projects/${projectId}`).then((r) => {
+      if (r.ok) setScale(isEstimateScale(r.data.estimate_scale) ? r.data.estimate_scale : 'fibonacci');
+    });
+  }, [projectId]);
+  const pick = async (next: EstimateScale) => {
+    if (!isAdmin || next === scale) return;
+    setError(null);
+    const prev = scale;
+    setScale(next);
+    const r = await send<TrackProjectRow>(`/api/track/projects/${projectId}`, 'PATCH', { estimateScale: next });
+    if (!r.ok) {
+      setScale(prev);
+      setError(r.status === 403 ? t('teamSettings.adminOnly') : t('errors.generic'));
+    }
+  };
+  if (!scale) return <p className="ui-help">{t('common.loading')}</p>;
+  return (
+    <div data-testid="track-team-estimates">
+      <p className="ui-help">{t('teamSettings.estimatesHelp')}</p>
+      {error && (
+        <p className="ui-error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="track-estimate-scales" role="radiogroup" aria-label={t('projectSettings.tabs.estimates')}>
+        {ESTIMATE_SCALES.map((s) => {
+          const opts = estimateOptions(s);
+          return (
+            <label key={s} className={`track-estimate-scale${scale === s ? ' is-on' : ''}`}>
+              <input
+                type="radio"
+                name={`est-${projectId}`}
+                checked={scale === s}
+                disabled={!isAdmin}
+                onChange={() => void pick(s)}
+                data-testid={`track-estimate-scale-${s}`}
+              />
+              <span className="track-estimate-scale-name">{t(`teamSettings.scales.${s}`)}</span>
+              <span className="track-estimate-scale-values data">{opts.length ? opts.map((o) => o.label).join(', ') : '–'}</span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -290,7 +351,7 @@ export default function ProjectSettingsDrawer({ projectName, projectId: idProp, 
   }, []);
 
   const body = (() => {
-    if (!projectId && (tab === 'general' || tab === 'members' || tab === 'labels')) return null;
+    if (!projectId && (tab === 'general' || tab === 'members' || tab === 'labels' || tab === 'estimates')) return null;
     switch (tab) {
       case 'general':
         return <GeneralPanel projectId={projectId!} isAdmin={isAdmin} />;
@@ -298,6 +359,8 @@ export default function ProjectSettingsDrawer({ projectName, projectId: idProp, 
         return <MembersPanel projectId={projectId!} />;
       case 'labels':
         return <LabelsSettings isAdmin={isAdmin} projectId={projectId!} />;
+      case 'estimates':
+        return projectId ? <EstimatesPanel projectId={projectId} isAdmin={isAdmin} /> : null;
       case 'integrations':
         return <IntegrationsPanel />;
       case 'statuses':

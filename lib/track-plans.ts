@@ -9,6 +9,7 @@
  */
 import { currentVisibleSql } from './track-access';
 import { getDb } from './db';
+import { trackWorkspaceId } from './track-labels';
 import type { UserRow } from './db';
 import { likeContains } from './track-views';
 import { computeProgress, healthState, nextReminderAt, type HealthState, type Progress, type StatusCategory } from './track-planning-core';
@@ -80,6 +81,8 @@ export interface PlanSummary extends TrackPlanRow {
   lead_email: string | null;
   teams: PlanTeam[];
   member_ids: string[];
+  /** Labels del project (track_plan_labels), como en Linear. */
+  labels: Array<{ id: string; name: string; color: string }>;
   initiatives: Array<{ id: string; name: string }>;
   progress: Progress;
   health: HealthState;
@@ -233,6 +236,24 @@ async function setPlanMembers(planId: string, memberIds: string[]): Promise<void
   }
 }
 
+/** Labels del workspace (los generales y los de cualquier team) que existen de verdad. */
+async function validLabelIds(scope: WorkspaceScope, ids: string[]): Promise<string[]> {
+  if (!ids.length) return [];
+  const ws = trackWorkspaceId(scope.teamId, scope.ownerId);
+  const rows = (await getDb()
+    .prepare(`SELECT id FROM track_labels WHERE workspace_id = ? AND id IN ${inClause(ids.length)}`)
+    .all(ws, ...ids)) as Array<{ id: string }>;
+  return rows.map((r) => r.id);
+}
+
+async function setPlanLabels(planId: string, labelIds: string[]): Promise<void> {
+  const db = getDb();
+  await db.prepare('DELETE FROM track_plan_labels WHERE plan_id = ?').run(planId);
+  for (const l of labelIds) {
+    await db.prepare('INSERT OR IGNORE INTO track_plan_labels (plan_id, label_id) VALUES (?, ?)').run(planId, l);
+  }
+}
+
 async function setPlanInitiatives(planId: string, initiativeIds: string[]): Promise<void> {
   const db = getDb();
   await db.prepare('DELETE FROM track_initiative_plans WHERE plan_id = ?').run(planId);
@@ -288,6 +309,7 @@ export async function createPlan(
   await setPlanTeams(id, await validTeamIds(scope, payload.teamIds ?? []));
   await setPlanMembers(id, await validMemberIds(scope, payload.memberIds ?? []));
   await setPlanInitiatives(id, await validInitiativeIds(scope, payload.initiativeIds ?? []));
+  if (payload.labelIds?.length) await setPlanLabels(id, await validLabelIds(scope, payload.labelIds));
   await logEvent(id, actorId, 'created', {});
   await scheduleReminder(id);
   return { ok: true, plan: (await getPlan(id)) as TrackPlanRow };
@@ -354,6 +376,7 @@ export async function updatePlan(
     if (added.length) events.push({ type: 'members', meta: { added } });
   }
   if (payload.initiativeIds !== undefined) await setPlanInitiatives(plan.id, await validInitiativeIds(scope, payload.initiativeIds));
+  if (payload.labelIds !== undefined) await setPlanLabels(plan.id, await validLabelIds(scope, payload.labelIds));
   for (const e of events) await logEvent(plan.id, actorId, e.type, e.meta);
   if (
     payload.status !== undefined ||
@@ -443,7 +466,7 @@ export async function listPlans(scope: WorkspaceScope, opts: ListPlansOptions = 
   if (!rows.length) return [];
   const ids = rows.map((r) => r.id);
   const inIds = inClause(ids.length);
-  const [teams, members, inits, stats, milestones] = await Promise.all([
+  const [teams, members, inits, stats, milestones, planLabels] = await Promise.all([
     db
       .prepare(
         `SELECT t.plan_id, p.id, p.name, p.icon FROM track_plan_teams t JOIN track_projects p ON p.id = t.project_id
@@ -469,6 +492,13 @@ export async function listPlans(scope: WorkspaceScope, opts: ListPlansOptions = 
     db
       .prepare(`SELECT id, plan_id, name, target_date, position FROM track_plan_milestones WHERE plan_id IN ${inIds} ORDER BY position, target_date`)
       .all(...ids) as Promise<Array<{ id: string; plan_id: string; name: string; target_date: string | null; position: number }>>,
+    db
+      .prepare(
+        `SELECT pl.plan_id, l.id, l.name, l.color FROM track_plan_labels pl JOIN track_labels l ON l.id = pl.label_id
+         WHERE pl.plan_id IN ${inIds} ORDER BY l.name COLLATE NOCASE`,
+      )
+      .all(...ids)
+      .catch(() => []) as Promise<Array<{ plan_id: string; id: string; name: string; color: string }>>,
   ]);
   return rows.map((r) => {
     const own = stats.filter((x) => x.plan_id === r.id);
@@ -476,6 +506,7 @@ export async function listPlans(scope: WorkspaceScope, opts: ListPlansOptions = 
       ...r,
       teams: teams.filter((t) => t.plan_id === r.id).map(({ id, name, icon }) => ({ id, name, icon })),
       member_ids: members.filter((m) => m.plan_id === r.id).map((m) => m.user_id),
+      labels: planLabels.filter((l) => l.plan_id === r.id).map(({ id, name, color }) => ({ id, name, color })),
       initiatives: inits.filter((i) => i.plan_id === r.id).map(({ id, name }) => ({ id, name })),
       progress: computeProgress(own),
       health: healthState({

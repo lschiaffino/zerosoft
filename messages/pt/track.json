@@ -378,7 +378,11 @@
       "project": "Projeto",
       "estimate": "Estimativa",
       "more": "Mais propriedades"
-    }
+    },
+    "triage": "Triage",
+    "createdKeep": "Issue criado. Mesmas propriedades para o próximo",
+    "attach": "Anexar arquivos",
+    "removeAttachment": "Remover {name}"
   },
   "inline": {
     "markDone": "Marcar como concluído",
@@ -624,7 +628,8 @@
       "general": "Geral",
       "members": "Membros",
       "labels": "Labels",
-      "integrations": "Integrações"
+      "integrations": "Integrações",
+      "estimates": "Estimativas"
     }
   },
   "markdown": {
@@ -1218,7 +1223,7 @@
       "inTwoWeeks": "Em duas semanas",
       "noDue": "Remover prazo",
       "dueOn": "Prazo {date}",
-      "cycle": "Mover para cycle…",
+      "cycle": "Adicionar a um cycle…",
       "noCycle": "Sem cycle",
       "milestone": "Milestone…",
       "noMilestone": "Sem milestone",
@@ -1258,7 +1263,10 @@
       "markedDuplicate": "{id} ficou como duplicado de {of}",
       "start": "Data de início…",
       "noStart": "Remover data de início",
-      "startOn": "Começa em {date}"
+      "startOn": "Começa em {date}",
+      "currentCycle": "Atual",
+      "upcomingCycle": "Próximo",
+      "addToCycle": "Adicionar ao cycle {name}"
     },
     "editor": {
       "todo": "Lista de tarefas",
@@ -1328,7 +1336,13 @@
         "dueDate": "o prazo",
         "estimate": "a estimativa"
       },
-      "createSubIssue": "Criar sub-issue a partir do comentário"
+      "createSubIssue": "Criar sub-issue a partir do comentário",
+      "parentSet": "{user} definiu como pai",
+      "parentRemoved": "{user} removeu o pai",
+      "subissueAdded": "{user} adicionou um sub-issue:",
+      "subissueRemoved": "{user} removeu o sub-issue",
+      "autoClosedSubs": "O Track fechou este issue porque todos os sub-issues estão concluídos",
+      "autoClosedParent": "O Track fechou este issue porque o pai foi fechado"
     },
     "sub": {
       "title": "Sub-issues",
@@ -1391,7 +1405,9 @@
       "saved": "Visualização salva",
       "linkCopied": "Link da visualização copiado",
       "shareOnSave": "Compartilhar com a equipe",
-      "shareHelp": "Toda a equipe vê as visualizações da equipe. Só você as edita."
+      "shareHelp": "Toda a equipe vê as visualizações da equipe. Só você as edita.",
+      "updateView": "Atualizar visualização",
+      "saveAsNew": "Salvar como nova visualização"
     },
     "filter": {
       "fields": {
@@ -1573,6 +1589,14 @@
     "autoCloseParent": "Fechar o pai quando todos os sub-issues terminarem",
     "autoCloseChildren": "Fechar os sub-issues abertos quando o pai for concluído ou cancelado",
     "housekeeping": "Fechamento e arquivamento automáticos",
-    "integrationsHelp": "GitHub, Slack, Sentry e a API são configurados para todo o workspace."
+    "integrationsHelp": "GitHub, Slack, Sentry e a API são configurados para todo o workspace.",
+    "estimatesHelp": "Escolha a escala das estimativas da equipe. ⇧E oferece esses valores.",
+    "scales": {
+      "fibonacci": "Fibonacci",
+      "linear": "Linear",
+      "exponential": "Exponencial",
+      "tshirt": "Tamanhos de camiseta",
+      "none": "Sem estimativas"
+    }
   }
 }

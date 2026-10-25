@@ -35,7 +35,8 @@
     "duplicateSearch": "Search the original issue…",
     "duplicateEmpty": "Type to search an issue",
     "noDescription": "No description.",
-    "openIssue": "Open issue"
+    "openIssue": "Open issue",
+    "recent": "Recent"
   },
   "ai": {
     "suggestions": "Suggestions",

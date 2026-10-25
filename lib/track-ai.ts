@@ -150,6 +150,14 @@ export function blocksText(raw: string): string {
   }
 }
 
+/** Raíz simple (crashes/crashing → crash, notifications → notification) para comparar títulos. */
+function stem(w: string): string {
+  for (const suf of ['ing', 'ed', 'es', 's']) {
+    if (w.length > suf.length + 3 && w.endsWith(suf)) return w.slice(0, -suf.length);
+  }
+  return w;
+}
+
 function words(s: string): Set<string> {
   return new Set(
     s
@@ -157,7 +165,8 @@ function words(s: string): Set<string> {
       .replace(/\p{M}+/gu, '')
       .toLowerCase()
       .split(/[^a-z0-9]+/)
-      .filter((w) => w.length > 2 && !STOP.has(w)),
+      .filter((w) => w.length > 2 && !STOP.has(w))
+      .map(stem),
   );
 }
 

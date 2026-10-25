@@ -9,6 +9,9 @@ import type { PlanSummary } from '@/lib/track-plans';
 import { PLAN_STATUSES, type PlanStatus } from '@/lib/track-planning-schema';
 import { api, fmtDay, HealthDot, LoadingRows, Modal, PlanStatusIcon, ProgressBar, personName, type Person } from './shared';
 import { projectPath } from '@/lib/track-routes';
+import KeyPicker from '@/components/track/KeyPicker';
+import TrackIcon from '@/components/track/TrackIcon';
+import { DateChip } from './pickers';
 
 export interface PlansMeta {
   members: Person[];
@@ -98,51 +101,74 @@ export default function PlansList() {
   return (
     <>
       <div className="tp-toolbar" role="toolbar" aria-label={t('plans.filters')}>
-        <label className="sr-only" htmlFor="tp-filter-status">
-          {t('plans.filterStatus')}
-        </label>
-        <select id="tp-filter-status" className="select select-sm" value={status} onChange={(e) => setParam('status', e.target.value)}>
-          <option value="all">{t('plans.anyStatus')}</option>
-          <option value="active">{t('plans.activeOnly')}</option>
-          {PLAN_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {t(`status.${s}`)}
-            </option>
-          ))}
-        </select>
-        <label className="sr-only" htmlFor="tp-filter-lead">
-          {t('plans.filterLead')}
-        </label>
-        <select id="tp-filter-lead" className="select select-sm" value={lead} onChange={(e) => setParam('lead', e.target.value)}>
-          <option value="">{t('plans.anyLead')}</option>
-          {meta?.members.map((m) => (
-            <option key={m.id} value={m.id}>
-              {personName(m)}
-            </option>
-          ))}
-        </select>
-        <label className="sr-only" htmlFor="tp-filter-team">
-          {t('plans.filterTeam')}
-        </label>
-        <select id="tp-filter-team" className="select select-sm" value={team} onChange={(e) => setParam('team', e.target.value)}>
-          <option value="">{t('plans.anyTeam')}</option>
-          {meta?.teams.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-        <label className="sr-only" htmlFor="tp-group">
-          {t('plans.groupBy')}
-        </label>
-        <select id="tp-group" className="select select-sm" value={group} onChange={(e) => setParam('group', e.target.value === 'status' ? '' : e.target.value)}>
-          <option value="status">{t('plans.groupStatus')}</option>
-          <option value="lead">{t('plans.groupLead')}</option>
-          <option value="none">{t('plans.groupNone')}</option>
-        </select>
-        <Link href="/app/track/roadmap" className="btn btn-sm btn-ghost tp-toolbar-end">
-          {t('plans.timeline')}
-        </Link>
+        {/* Filtros como chips con menú tipeado (sin <select>), como el Filter de Linear. */}
+        <span className="tp-toolbar-label" aria-hidden>
+          <TrackIcon name="filter" size={12} />
+        </span>
+        <KeyPicker
+          ariaLabel={t('plans.filterStatus')}
+          className={`tp-chip${status === 'all' ? ' is-empty' : ''}`}
+          testId="tp-filter-status"
+          value={status}
+          options={[
+            { value: 'all', label: t('plans.anyStatus') },
+            { value: 'active', label: t('plans.activeOnly') },
+            ...PLAN_STATUSES.map((s) => ({ value: s, label: t(`status.${s}`), icon: <PlanStatusIcon status={s} /> })),
+          ]}
+          onSelect={(v) => setParam('status', v)}
+          trigger={
+            <>
+              {status !== 'all' && status !== 'active' && <PlanStatusIcon status={status as PlanStatus} />}
+              <span className="track-inline-text">
+                {status === 'all' ? t('plans.anyStatus') : status === 'active' ? t('plans.activeOnly') : t(`status.${status}`)}
+              </span>
+            </>
+          }
+        />
+        <KeyPicker
+          ariaLabel={t('plans.filterLead')}
+          className={`tp-chip${lead ? '' : ' is-empty'}`}
+          testId="tp-filter-lead"
+          value={lead}
+          options={[{ value: '', label: t('plans.anyLead') }, ...(meta?.members ?? []).map((m) => ({ value: m.id, label: personName(m), keywords: m.email ?? '' }))]}
+          onSelect={(v) => setParam('lead', v)}
+          trigger={
+            <span className="track-inline-text">{lead ? personName(meta?.members.find((m) => m.id === lead)) : t('plans.anyLead')}</span>
+          }
+        />
+        <KeyPicker
+          ariaLabel={t('plans.filterTeam')}
+          className={`tp-chip${team ? '' : ' is-empty'}`}
+          testId="tp-filter-team"
+          value={team}
+          options={[{ value: '', label: t('plans.anyTeam') }, ...(meta?.teams ?? []).map((m) => ({ value: m.id, label: m.name }))]}
+          onSelect={(v) => setParam('team', v)}
+          trigger={<span className="track-inline-text">{team ? (meta?.teams.find((m) => m.id === team)?.name ?? '') : t('plans.anyTeam')}</span>}
+        />
+        <span className="tp-toolbar-end">
+          {/* Display: agrupación (y la vista de línea de tiempo), como el botón Display de Linear. */}
+          <KeyPicker
+            ariaLabel={t('plans.groupBy')}
+            className="btn btn-ghost btn-sm track-display-btn"
+            testId="tp-group"
+            value={group}
+            options={[
+              { value: 'status', label: t('plans.groupStatus') },
+              { value: 'lead', label: t('plans.groupLead') },
+              { value: 'none', label: t('plans.groupNone') },
+            ]}
+            onSelect={(v) => setParam('group', v === 'status' ? '' : v)}
+            trigger={
+              <>
+                <TrackIcon name="settings" size={12} />
+                <span>{t('plans.display')}</span>
+              </>
+            }
+          />
+          <Link href="/app/track/roadmap" className="btn btn-sm btn-ghost">
+            {t('plans.timeline')}
+          </Link>
+        </span>
       </div>
 
       {rows === null ? (
@@ -234,6 +260,7 @@ export function NewPlanModal({
   initiativeId?: string;
 }) {
   const t = useTranslations('trackPlanning');
+  const locale = useLocale();
   const [name, setName] = useState('');
   const [summary, setSummary] = useState('');
   const [status, setStatus] = useState<PlanStatus>('planned');
@@ -331,57 +358,76 @@ export function NewPlanModal({
             maxLength={255}
           />
         </div>
-        <div className="tp-form-grid">
-          <div className="ui-field">
-            <label className="label" htmlFor="tp-plan-status">
-              {t('plan.status')}
-            </label>
-            <select id="tp-plan-status" className="select" value={status} onChange={(e) => setStatus(e.target.value as PlanStatus)}>
-              {PLAN_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {t(`status.${s}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="tp-plan-lead">
-              {t('plan.lead')}
-            </label>
-            <select id="tp-plan-lead" className="select" value={lead} onChange={(e) => setLead(e.target.value)}>
-              <option value="">{t('common.noLead')}</option>
-              {meta?.members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {personName(m)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="tp-plan-team">
-              {t('plan.team')}
-            </label>
-            <select id="tp-plan-team" className="select" value={team} onChange={(e) => setTeam(e.target.value)}>
-              <option value="">{t('common.none')}</option>
-              {meta?.teams.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="tp-plan-start">
-              {t('plan.startDate')}
-            </label>
-            <input id="tp-plan-start" type="date" className="input" value={start} onChange={(e) => setStart(e.target.value)} />
-          </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="tp-plan-target">
-              {t('plan.targetDate')}
-            </label>
-            <input id="tp-plan-target" type="date" className="input" value={target} onChange={(e) => setTarget(e.target.value)} />
-          </div>
+        {/* Propiedades como chips (como el "New project" de Linear): sin selects ni fechas mm/dd/yyyy. */}
+        <div className="tp-new-plan-chips" role="group" aria-label={t('plan.properties')}>
+          <KeyPicker
+            ariaLabel={t('plan.status')}
+            className="tp-chip"
+            testId="tp-new-status"
+            value={status}
+            options={PLAN_STATUSES.map((s) => ({ value: s, label: t(`status.${s}`), icon: <PlanStatusIcon status={s} /> }))}
+            onSelect={(v) => setStatus(v as PlanStatus)}
+            trigger={
+              <>
+                <PlanStatusIcon status={status} />
+                <span className="track-inline-text">{t(`status.${status}`)}</span>
+              </>
+            }
+          />
+          <KeyPicker
+            ariaLabel={t('plan.lead')}
+            className={`tp-chip${lead ? '' : ' is-empty'}`}
+            testId="tp-new-lead"
+            value={lead}
+            options={[
+              { value: '', label: t('common.noLead'), icon: <span className="track-avatar track-avatar-empty" aria-hidden /> },
+              ...(meta?.members ?? []).map((m) => ({
+                value: m.id,
+                label: personName(m),
+                keywords: m.email,
+                icon: <span className="track-avatar">{personName(m).charAt(0).toUpperCase()}</span>,
+              })),
+            ]}
+            onSelect={(v) => setLead(v)}
+            trigger={
+              <>
+                <TrackIcon name="user" size={13} />
+                <span className="track-inline-text">{lead ? personName(meta?.members.find((m) => m.id === lead)) : t('plan.lead')}</span>
+              </>
+            }
+          />
+          <KeyPicker
+            ariaLabel={t('plan.team')}
+            className={`tp-chip${team ? '' : ' is-empty'}`}
+            testId="tp-new-team"
+            value={team}
+            options={[{ value: '', label: t('common.none') }, ...(meta?.teams ?? []).map((m) => ({ value: m.id, label: m.name }))]}
+            onSelect={(v) => setTeam(v)}
+            trigger={
+              <>
+                <TrackIcon name="team" size={13} />
+                <span className="track-inline-text">{team ? (meta?.teams.find((m) => m.id === team)?.name ?? '') : t('plan.team')}</span>
+              </>
+            }
+          />
+          <DateChip
+            value={start || null}
+            onChange={(d) => setStart(d ?? '')}
+            label={t('plan.startDate')}
+            emptyLabel={t('plan.startDate')}
+            locale={locale}
+            icon={<TrackIcon name="calendar" size={13} />}
+            testId="tp-new-start"
+          />
+          <DateChip
+            value={target || null}
+            onChange={(d) => setTarget(d ?? '')}
+            label={t('plan.targetDate')}
+            emptyLabel={t('plan.targetDate')}
+            locale={locale}
+            icon={<TrackIcon name="flag" size={13} />}
+            testId="tp-new-target"
+          />
         </div>
       </form>
     </Modal>

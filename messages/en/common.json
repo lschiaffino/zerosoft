@@ -139,7 +139,12 @@
     "groupApps": "Apps",
     "openApp": "Open {name}",
     "goHome": "Go to home",
-    "linkOverview": "Link overview"
+    "linkOverview": "Link overview",
+    "groupTeams": "Teams",
+    "groupTrackViews": "Views",
+    "groupTrackCycles": "Cycles",
+    "groupTrackMilestones": "Milestones",
+    "groupTrackLabels": "Labels"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",

@@ -310,7 +310,10 @@ const KeyPicker = forwardRef<KeyPickerHandle, KeyPickerProps>(function KeyPicker
           {trigger}
         </button>
       )}
-      {menu && typeof document !== 'undefined' ? createPortal(menu, document.body) : null}
+      {menu && typeof document !== 'undefined'
+        ? // Dentro de un <dialog> modal, el resto de la página queda inerte: el menú va dentro del diálogo.
+          createPortal(menu, (triggerRef.current ?? anchorRef.current?.() ?? null)?.closest('dialog[open]') ?? document.body)
+        : null}
     </>
   );
 });

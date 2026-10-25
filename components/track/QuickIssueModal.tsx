@@ -19,6 +19,7 @@ import { Popover, PriorityIcon, StatusDot } from './InlineEditors';
 import RichEditor from './RichEditor';
 import TrackIcon from './TrackIcon';
 import { buildIssueActions } from './trackCommands';
+import { pushNotice } from './trackUndo';
 import type { TrackUiLabels } from './ui-labels';
 
 export interface QuickIssueDefaults {
@@ -32,6 +33,9 @@ export interface QuickIssueDefaults {
   parentId?: string | null;
   /** Texto del padre para el breadcrumb (p. ej. "TRK-12"). */
   parentLabel?: string;
+  /** Prellenado (p. ej. "Crear sub-issue desde el comentario"). */
+  title?: string;
+  description?: string;
 }
 
 interface QuickIssueModalProps {
@@ -40,7 +44,8 @@ interface QuickIssueModalProps {
   projects: ProjectContext[];
   defaults?: QuickIssueDefaults;
   /** Crea el issue de forma optimista (los errores los muestra la vista). */
-  onCreate: (projectId: string, draft: IssueDraft) => void;
+  /** Si devuelve el issue creado, los adjuntos del composer se suben a ese issue. */
+  onCreate: (projectId: string, draft: IssueDraft) => void | Promise<{ id: string } | null | undefined | void>;
   labels: TrackUiLabels;
   today: string;
   /** Quién crea (para "Asignarme"). */
@@ -85,6 +90,8 @@ interface DraftState {
   labels: Array<{ id: string; name: string; color: string }>;
   planId: string;
   planName: string;
+  /** Status "Triage": entra a la cola de triage del team. */
+  triage?: boolean;
   parentLabel: string;
 }
 
@@ -124,8 +131,8 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
     (p: ProjectContext | undefined): DraftState => ({
       projectId: p?.id ?? '',
       parentId: fixedParent,
-      title: '',
-      description: '',
+      title: defaults?.title ?? '',
+      description: defaults?.description ?? '',
       statusId:
         (defaults?.statusId && p?.statuses.some((s) => s.id === defaults.statusId) ? defaults.statusId : undefined) ??
         (p ? defaultIssueStatus(p.statuses)?.id : undefined) ??
@@ -155,6 +162,9 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
   const project = projects.find((p) => p.id === d.projectId);
   const [templateId, setTemplateId] = useState('');
   const [createMore, setCreateMore] = useState(false);
+  // Adjuntos del composer (clip, como Linear): se suben al crear.
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -298,7 +308,10 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
 
   const applyPatch = useCallback((patch: IssuePatch) => {
     const next: Partial<DraftState> = {};
-    if (patch.statusId !== undefined) next.statusId = patch.statusId ?? '';
+    if (patch.statusId !== undefined) {
+      next.statusId = patch.statusId ?? '';
+      next.triage = false;
+    }
     if (patch.priority !== undefined) next.priority = patch.priority;
     if (patch.assigneeId !== undefined) next.assigneeId = patch.assigneeId ?? '';
     if (patch.dueDate !== undefined) next.dueDate = patch.dueDate ?? '';
@@ -343,6 +356,25 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
     setD((cur) => ({ ...cur, ...next }));
   }, []);
 
+  // Teams con triage activo (para ofrecer "Triage" en el estado).
+  const [triageTeams, setTriageTeams] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    const pid = d.projectId;
+    if (!pid || pid in triageTeams) return;
+    let alive = true;
+    void fetch(`/api/track/projects/${pid}`)
+      .then((r) => (r.ok ? (r.json() as Promise<{ triage_enabled?: number; project?: { triage_enabled?: number } }>) : null))
+      .then((row) => {
+        if (!alive) return;
+        const on = Boolean(row?.triage_enabled ?? row?.project?.triage_enabled);
+        setTriageTeams((m) => ({ ...m, [pid]: on }));
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [d.projectId, triageTeams]);
+
   // Mientras el composer está abierto, ⌘K y los chips operan sobre el borrador.
   useEffect(() => {
     const build = () => {
@@ -365,7 +397,26 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
         { apply: (_targets, patch) => applyPatch(typeof patch === 'function' ? patch(draftRef.current) : patch) },
         (k, v) => tc(k, v),
         (iso) => formatDay(iso, lang, today),
-      ).filter((a) => COMPOSER_PAGES.has(a.id) && (a.id !== 'assign-me' || Boolean(meId)));
+      )
+        .filter((a) => COMPOSER_PAGES.has(a.id) && (a.id !== 'assign-me' || Boolean(meId)))
+        .map((a) => {
+          // Team con triage: "Triage" como primera opción del estado (como el composer de Linear).
+          if (a.id !== 'status' || !triageTeams[cur.projectId] || !a.children) return a;
+          const base = a.children;
+          return {
+            ...a,
+            children: () => [
+              {
+                id: 'status:triage',
+                label: tq('triage'),
+                icon: { kind: 'glyph' as const, name: 'duplicate' as const },
+                checked: Boolean(dRef.current.triage),
+                run: () => setD((c) => ({ ...c, triage: true })),
+              },
+              ...base().map((o) => ({ ...o, checked: o.checked && !dRef.current.triage })),
+            ],
+          };
+        });
       const extra: CommandAction[] = [];
       if (projects.length > 1 && !fixedParent) {
         extra.push({
@@ -398,7 +449,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
       return { title: cur.parentLabel ? labels.modal.subTitle : labels.modal.title, actions: [...actions, ...extra] };
     };
     return setCommandContext(build);
-  }, [projects, labels, meId, today, tc, lang, applyPatch, fixedParent, changeProject, templates, templateId, applyTemplate, t]);
+  }, [projects, labels, meId, today, tc, tq, lang, applyPatch, fixedParent, changeProject, templates, templateId, applyTemplate, t, triageTeams]);
 
   const close = () => {
     // Esc o clic afuera: el borrador queda guardado (como Linear).
@@ -418,13 +469,16 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
     titleRef.current?.focus();
   };
 
-  const submit = () => {
+  // ⌘⇧↵ crea y vuelve a abrir con las mismas propiedades (como Linear).
+  const submit = (keep = false) => {
     if (!d.projectId) return;
     // Los tokens (!high, @tomorrow) también funcionan acá; los campos
     // elegidos a mano tienen prioridad solo si el token no aparece.
     const parsed = parseQuickTitle(d.title, today);
     if (!parsed.title) return;
-    onCreate(d.projectId, {
+    const files = attachments;
+    setAttachments([]);
+    const created = onCreate(d.projectId, {
       title: parsed.title,
       description: d.description,
       statusId: d.statusId || undefined,
@@ -438,13 +492,27 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
       estimate: d.estimate,
       planId: d.planId || null,
       labels: d.labels.map((l) => ({ id: l.id })),
+      triage: d.triage || undefined,
     });
+    // Adjuntos elegidos con el clip: se suben al issue cuando existe.
+    if (files.length && created && typeof (created as Promise<unknown>).then === 'function') {
+      void (created as Promise<{ id: string } | null | undefined | void>).then(async (issue) => {
+        if (!issue || !('id' in issue)) return;
+        for (const file of files) {
+          const form = new FormData();
+          form.append('file', file);
+          await fetch(`/api/track/issues/${issue.id}/attachments`, { method: 'POST', body: form }).catch(() => null);
+        }
+      });
+    }
     writeDraft(null);
     setRestored(false);
-    if (createMore) {
+    if (createMore || keep) {
       set({ title: '', description: '' });
       setDescKey((n) => n + 1);
-      titleRef.current?.focus();
+      // Después del remonte del editor, el foco vuelve al título.
+      window.setTimeout(() => titleRef.current?.focus(), 0);
+      if (keep) pushNotice(tq('createdKeep'));
     } else {
       onClose();
     }
@@ -459,7 +527,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
     }
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      submit();
+      submit(e.shiftKey);
       return;
     }
     // Trap de foco simple dentro del diálogo.
@@ -584,12 +652,14 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
             ariaLabel={labels.modal.descriptionPlaceholder}
             members={project?.members}
             compact
-            onSubmit={submit}
+            onSubmit={() => submit()}
             onEscape={close}
           />
 
           <div className="track-qc-chips" role="group" aria-label={tq('properties')} data-testid="track-qc-chips">
-            {chip('status', labels.modal.status, <StatusDot color={status?.color ?? null} category={status?.category ?? 'todo'} />, status?.name ?? labels.modal.status, !status, 'track-qc-status')}
+            {d.triage
+              ? chip('status', labels.modal.status, <TrackIcon name="views" size={14} />, tq('triage'), false, 'track-qc-status')
+              : chip('status', labels.modal.status, <StatusDot color={status?.color ?? null} category={status?.category ?? 'todo'} />, status?.name ?? labels.modal.status, !status, 'track-qc-status')}
             {chip('priority', labels.modal.priority, <PriorityIcon priority={d.priority} />, prioLabel, d.priority === 'none', 'track-qc-priority')}
             {chip(
               'assignee',
@@ -641,6 +711,43 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
                 {template && chip('template', t('templates.pick'), <TrackIcon name="views" size={14} />, template.name, false, 'track-qc-template')}
               </span>
             )}
+            <button
+              type="button"
+              className="track-qc-chip is-icon"
+              aria-label={tq('attach')}
+              title={tq('attach')}
+              onClick={() => fileRef.current?.click()}
+              data-testid="track-qc-attach"
+            >
+              <TrackIcon name="paperclip" size={14} />
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden
+              data-testid="track-qc-file"
+              onChange={(e) => {
+                const list = Array.from(e.target.files ?? []).filter((f) => f.size <= 10 * 1024 * 1024);
+                setAttachments((cur) => [...cur, ...list].slice(0, 10));
+                e.currentTarget.value = '';
+              }}
+            />
+            {attachments.map((f, i) => (
+              <span key={`${f.name}-${i}`} className="track-qc-chip track-qc-file" data-testid="track-qc-attachment">
+                <span className="track-qc-chip-text">{f.name}</span>
+                <button
+                  type="button"
+                  className="track-qc-file-remove"
+                  aria-label={tq('removeAttachment', { name: f.name })}
+                  onClick={() => setAttachments((cur) => cur.filter((_, j) => j !== i))}
+                >
+                  <TrackIcon name="close" size={10} />
+                </button>
+              </span>
+            ))}
             <Popover ariaLabel={tq('chip.more')} className="track-qc-chip is-icon" width={220} trigger={<TrackIcon name="more" size={14} />}>
               {(closeMenu) => (
                 <>

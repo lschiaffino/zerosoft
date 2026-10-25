@@ -40,6 +40,8 @@ export const planCreateSchema = z.object({
   leadId: id.nullish(),
   memberIds: z.array(id).max(100).optional(),
   teamIds: z.array(id).max(50).optional(),
+  /** Labels del project (como Linear). */
+  labelIds: z.array(id).max(50).optional(),
   initiativeIds: z.array(id).max(20).optional(),
   startDate: day.nullish(),
   targetDate: day.nullish(),

@@ -2052,3 +2052,88 @@ a.track-issue-link .track-status-glyph {
 .track-toolbar-end-only {
   justify-content: flex-end;
 }
+
+/* ---------- Board: cards según Display (TL3) ---------- */
+
+.track-board-card-parent {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin: 2px 0 0;
+  font-size: 0.6875rem;
+  color: var(--brand-gray-2);
+}
+
+.track-board-card-parent-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-board-card-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* Barra de lote: centrada en el área de contenido (no sobre el sidebar) y sin el botón de feedback encima. */
+@media (min-width: 1024px) {
+  .track-bulk-bar {
+    left: var(--side-w, 240px);
+    max-width: calc(100vw - var(--side-w, 240px) - 32px);
+  }
+}
+
+body:has(.track-bulk-bar) .fl-root {
+  display: none;
+}
+
+/* Projects: Filter (chips) y Display a la derecha. */
+.tp-toolbar .tp-toolbar-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tp-toolbar-label {
+  display: inline-flex;
+  color: var(--brand-gray-2);
+}
+
+/* Árbol de sub-issues en la lista: chevron del padre. */
+.track-table td.track-col-title.has-tree-toggle {
+  position: relative;
+}
+
+.track-tree-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  padding: 0;
+  vertical-align: -3px;
+  color: var(--brand-gray-2);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+  transition: transform 120ms var(--ease, ease);
+}
+
+.track-tree-toggle:hover {
+  color: var(--ink);
+  background: var(--ui-hover);
+}
+
+.track-tree-toggle:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.track-tree-toggle.is-folded {
+  transform: rotate(-90deg);
+}

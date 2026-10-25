@@ -21,15 +21,19 @@ export interface Progress {
   points: number;
   donePoints: number;
   startedPoints: number;
-  /** 0..100: hechos sobre el alcance (por puntos si hay estimaciones, si no por cantidad). */
+  /** 0..100: hechos (y la mitad de los empezados, como Linear) sobre el alcance (por puntos si hay estimaciones, si no por cantidad). */
   percent: number;
   byPoints: boolean;
 }
 
 /**
- * Progreso como Linear: los cancelados salen del alcance; con estimaciones
- * cuenta por puntos (un issue sin estimar vale 1), si no por cantidad.
+ * Progreso como Linear: los cancelados salen del alcance, los empezados
+ * cuentan por la mitad y con estimaciones va por puntos (un issue sin estimar
+ * vale 1), si no por cantidad.
  */
+/** Cuánto vale un issue empezado en el progreso del proyecto (Linear lo cuenta parcialmente). */
+export const STARTED_WEIGHT = 0.5;
+
 export function computeProgress(issues: ProgressIssue[]): Progress {
   const scope = issues.filter((i) => i.category !== 'cancelled');
   const byPoints = scope.some((i) => (i.estimate ?? 0) > 0);
@@ -49,7 +53,7 @@ export function computeProgress(issues: ProgressIssue[]): Progress {
       startedPoints += w(i);
     }
   }
-  const percent = points > 0 ? Math.round((donePoints / points) * 100) : 0;
+  const percent = points > 0 ? Math.round(((donePoints + startedPoints * STARTED_WEIGHT) / points) * 100) : 0;
   return { total: scope.length, started, done, points, donePoints, startedPoints, percent, byPoints };
 }
 

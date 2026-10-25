@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-25-track-keyboard-round-3',
+    date: '2026-10-25',
+    title: {
+      en: 'Track: the keyboard cursor follows the issue, milestones from the issue and estimates per team',
+      es: 'Track: el cursor del teclado sigue al issue, milestones desde el issue y estimaciones por equipo',
+      pt: 'Track: o cursor do teclado segue o issue, milestones a partir do issue e estimativas por equipe',
+    },
+    items: [
+      { product: 'track', en: 'After S, P or ⌘Z the keyboard cursor stays on the same issue even when it moves to another group, and goes to the next one after a delete. Esc on an issue goes back to the list it came from.', es: 'Después de S, P o ⌘Z el cursor del teclado queda en el mismo issue aunque cambie de grupo, y pasa al siguiente si se borra. Esc en un issue vuelve a la lista de la que vino.', pt: 'Depois de S, P ou ⌘Z o cursor do teclado fica no mesmo issue mesmo quando muda de grupo, e passa para o próximo se for apagado. Esc num issue volta para a lista de onde veio.' },
+      { product: 'track', en: '⌘⇧O opens the composer with the parent set, or Set parent when several issues are selected; ⌘⇧↵ creates and keeps the same properties; the composer attaches files and can send to triage; a comment becomes a sub-issue you can edit first.', es: '⌘⇧O abre el composer con el padre puesto, o Elegir padre si hay varios seleccionados; ⌘⇧↵ crea y mantiene las mismas propiedades; el composer adjunta archivos y puede mandar a triage; un comentario se vuelve un sub-issue que se edita antes de crear.', pt: '⌘⇧O abre o composer com o pai definido, ou Escolher pai quando há vários selecionados; ⌘⇧↵ cria e mantém as mesmas propriedades; o composer anexa arquivos e pode enviar para o triage; um comentário vira um sub-issue editável antes de criar.' },
+      { product: 'track', en: 'Project milestones are set from the issue, ⇧C puts the current cycle first, ⌘K finds views, cycles, milestones and labels, and each team picks its estimate scale (Fibonacci, linear, exponential or t-shirt sizes).', es: 'Los milestones del proyecto se eligen desde el issue, ⇧C pone primero el cycle actual, ⌘K encuentra vistas, cycles, milestones y labels, y cada equipo elige su escala de estimación (Fibonacci, lineal, exponencial o talles).', pt: 'Os milestones do projeto são escolhidos no issue, ⇧C coloca primeiro o cycle atual, ⌘K encontra visualizações, cycles, milestones e labels, e cada equipe escolhe sua escala de estimativa (Fibonacci, linear, exponencial ou tamanhos).' },
+      { product: 'track', en: 'Sub-issues nest under their parent in lists, board cards follow Display, statuses use the Linear colors, projects take labels and new projects are set with chips.', es: 'Los sub-issues se anidan bajo el padre en las listas, las tarjetas del tablero siguen a Display, los estados usan los colores de Linear, los proyectos tienen labels y los proyectos nuevos se arman con chips.', pt: 'Os sub-issues se aninham sob o pai nas listas, os cartões do quadro seguem o Display, os status usam as cores do Linear, os projetos têm labels e os projetos novos são criados com chips.' },
+    ],
+  },
+  {
     id: '2026-10-25-track-keyboard-menus',
     date: '2026-10-25',
     title: {

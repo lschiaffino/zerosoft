@@ -372,6 +372,50 @@ export function nestIssues<T extends Pick<TrackIssueWithStatus, 'id' | 'parent_i
   return out;
 }
 
+/**
+ * Árbol en una lista agrupada: los sub-issues van debajo de su padre (en el
+ * grupo del padre) aunque su propio estado sea otro, como "Show sub-issues"
+ * de Linear. `groups` se arma con las raíces; esto devuelve, por raíz, la
+ * raíz y todos sus descendientes presentes en la lista.
+ */
+export function treeRoots<T extends Pick<TrackIssueWithStatus, 'id' | 'parent_id'>>(issues: T[]): {
+  roots: T[];
+  expand: (rows: T[]) => T[];
+} {
+  const byId = new Map(issues.map((i) => [i.id, i]));
+  const kids = new Map<string, T[]>();
+  const rootOf = (i: T): T => {
+    let cur = i;
+    const seen = new Set<string>();
+    while (cur.parent_id && byId.has(cur.parent_id) && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      cur = byId.get(cur.parent_id)!;
+    }
+    return cur;
+  };
+  for (const i of issues) {
+    if (i.parent_id && byId.has(i.parent_id)) {
+      const list = kids.get(i.parent_id) ?? [];
+      list.push(i);
+      kids.set(i.parent_id, list);
+    }
+  }
+  const roots = issues.filter((i) => rootOf(i) === i);
+  const expand = (rows: T[]) => {
+    const out: T[] = [];
+    const seen = new Set<string>();
+    const walk = (i: T, depth: number) => {
+      if (seen.has(i.id) || depth > 8) return;
+      seen.add(i.id);
+      out.push(i);
+      for (const k of kids.get(i.id) ?? []) walk(k, depth + 1);
+    };
+    for (const r of rows) walk(r, 0);
+    return out;
+  };
+  return { roots, expand };
+}
+
 /** Pestañas del team como en Linear: todos, activos (sin empezar y empezados) y backlog. */
 export type TeamScope = 'all' | 'active' | 'backlog';
 export const TEAM_SCOPES: TeamScope[] = ['all', 'active', 'backlog'];

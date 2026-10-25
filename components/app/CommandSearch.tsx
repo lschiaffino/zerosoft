@@ -64,6 +64,7 @@ const GLYPHS: Record<Extract<CommandIcon, { kind: 'glyph' }>['name'], TrackIconN
   duplicate: 'views',
   subissue: 'subtasks',
   user: 'user',
+  milestone: 'milestone',
 };
 
 /** Ícono de una opción: glifo de estado, barras de prioridad, avatar o color. */
@@ -110,8 +111,13 @@ function useGroupOrder() {
         'track',
         'actions',
         'settings',
+        'teams',
         'projects',
         'issues',
+        'trackViews',
+        'trackCycles',
+        'trackMilestones',
+        'trackLabels',
         'trackPlans',
         'trackInitiatives',
         'trackDashboards',
@@ -419,7 +425,17 @@ export default function CommandSearch() {
         const text = q.trim();
         pageItems = [
           ...pageItems,
-          { id: `create:${text}`, label: create.label(text), icon: { kind: 'glyph', name: 'plus' }, run: () => void create.run(text) },
+          {
+            id: `create:${text}`,
+            label: create.label(text),
+            icon: { kind: 'glyph', name: 'plus' },
+            keepOpen: create.keepOpen,
+            run: () => {
+              const done = create.run(text);
+              // Lo creado aparece tildado en cuanto vuelve el servidor.
+              if (done && typeof (done as Promise<void>).then === 'function') void (done as Promise<void>).then(() => setTick((n) => n + 1));
+            },
+          },
         ];
       }
     }
@@ -524,6 +540,7 @@ export default function CommandSearch() {
       }
       if (action.keepOpen) {
         action.run?.();
+        if (action.id.startsWith('create:')) setQ('');
         setTick((n) => n + 1);
         return;
       }

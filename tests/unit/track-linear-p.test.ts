@@ -97,10 +97,12 @@ describe('Track: auto-cerrar padre y sub-issues', () => {
     expect((await getIssue(parent.id))!.status_category).toBe('in_progress');
     await updateIssue(b.id, { statusId: by('cancelled') }, owner.id);
     expect((await getIssue(parent.id))!.status_category).toBe('done');
+    // Una sola línea, firmada por Track (no por quien cerró el último sub-issue).
     const acts = (await getDb()
-      .prepare("SELECT type FROM track_issue_activities WHERE issue_id = ? AND type = 'status_change'")
-      .all(parent.id)) as unknown[];
-    expect(acts.length).toBeGreaterThan(0);
+      .prepare('SELECT type, meta FROM track_issue_activities WHERE issue_id = ? AND type IN (?, ?)')
+      .all(parent.id, 'status_change', 'closed')) as Array<{ type: string; meta: string }>;
+    expect(acts.map((x) => x.type)).toEqual(['closed']);
+    expect(JSON.parse(acts[0].meta)).toMatchObject({ viaAuthor: 'Track', auto: 'sub_issues_done' });
   });
 
   it('al cerrar el padre se cierran sus sub-issues abiertos con el mismo estado', async () => {
@@ -141,5 +143,88 @@ describe('Track: posponer el triage', () => {
   it('un domingo, mañana y la semana que viene son días distintos', () => {
     const sunday = new Date(2026, 9, 25, 11);
     expect(snoozeAt('tomorrow', sunday).getDate()).not.toBe(snoozeAt('nextWeek', sunday).getDate());
+  });
+});
+
+// ---------- Ronda 3: estimaciones por team, colores de estado, labels de team y de project ----------
+
+import { estimateLabel, estimateOptions } from '@/lib/track-estimates';
+import { STATUS_CATEGORY_COLORS, statusGlyphColor } from '@/lib/track-color';
+import { createPlan, getPlanSummary } from '@/lib/track-plans';
+
+const labelsRoute = await import('@/app/api/track/labels/route');
+const planRoute = await import('@/app/api/track/plans/[id]/route');
+
+describe('Track: escala de estimación por team', () => {
+  it('opciones por escala y talles con su número', () => {
+    expect(estimateOptions('fibonacci').map((o) => o.value)).toEqual([0, 1, 2, 3, 5, 8]);
+    expect(estimateOptions('linear').map((o) => o.value)).toEqual([1, 2, 3, 4, 5]);
+    expect(estimateOptions('exponential').map((o) => o.value)).toEqual([1, 2, 4, 8, 16]);
+    expect(estimateOptions('tshirt').map((o) => o.label)).toEqual(['XS', 'S', 'M', 'L', 'XL']);
+    expect(estimateOptions('none')).toEqual([]);
+    expect(estimateOptions('raro').length).toBe(6);
+    expect(estimateLabel(5, 'tshirt')).toBe('L');
+  });
+
+  it('se guarda por PATCH del team (solo admins)', async () => {
+    const { owner, project } = await team();
+    expect(project.estimate_scale).toBe('fibonacci');
+    session.user = { ...owner, team: null, role: 'owner' };
+    const res = await projectRoute.PATCH(req('PATCH', { estimateScale: 'tshirt' }), params(project.id));
+    expect(res.status).toBe(200);
+    expect((await getProject(project.id))!.estimate_scale).toBe('tshirt');
+    session.user = { ...owner, team: null, role: 'member' };
+    expect((await projectRoute.PATCH(req('PATCH', { estimateScale: 'linear' }), params(project.id))).status).toBe(403);
+    expect((await projectRoute.PATCH(req('PATCH', { estimateScale: 'nope' }), params(project.id))).status).toBe(400);
+  });
+});
+
+describe('Track: colores de estado como Linear', () => {
+  it('los estados nuevos nacen con el color de su categoría y los viejos se pintan por categoría', async () => {
+    const { project } = await team();
+    const statuses = await listStatuses(project.id);
+    expect(statuses.find((s) => s.category === 'in_progress')!.color).toBe(STATUS_CATEGORY_COLORS.in_progress);
+    expect(statuses.find((s) => s.category === 'done')!.color).toBe(STATUS_CATEGORY_COLORS.done);
+    expect(statusGlyphColor('#000000', 'done')).toBe(STATUS_CATEGORY_COLORS.done);
+    expect(statusGlyphColor(null, 'in_progress')).toBe(STATUS_CATEGORY_COLORS.in_progress);
+    expect(statusGlyphColor('#eb5757', 'todo')).toBe('#eb5757');
+  });
+});
+
+describe('Track: labels de team y de project', () => {
+  it('?projectId= devuelve los generales y los del team', async () => {
+    const { owner, project } = await team();
+    const other = await createProject(owner.id, null, { name: 'Otro team' });
+    await createLabel(owner.id, { name: 'General' });
+    await createLabel(owner.id, { name: 'Solo este', projectId: project.id });
+    await createLabel(owner.id, { name: 'Del otro', projectId: other.id });
+    session.user = { ...owner, team: null, role: 'owner' };
+    const res = await labelsRoute.GET(new NextRequest(`http://x/api/track/labels?projectId=${project.id}`) as never);
+    const names = ((await res.json()) as { rows: Array<{ name: string }> }).rows.map((l) => l.name);
+    expect(names).toEqual(expect.arrayContaining(['General', 'Solo este']));
+    expect(names).not.toContain('Del otro');
+  });
+
+  it('un project guarda sus labels (solo del workspace)', async () => {
+    const { owner } = await team();
+    const scope = { teamId: null, ownerId: owner.id };
+    const res = await createPlan(scope, owner.id, { name: 'Con labels' });
+    if (!res.ok) throw new Error('plan');
+    const mine = await createLabel(owner.id, { name: 'Q4' });
+    const stranger = await makeUser('tlp-x');
+    const theirs = await createLabel(stranger.id, { name: 'Ajeno' });
+    if (!mine.ok || !theirs.ok) throw new Error('labels');
+    session.user = { ...owner, team: null, role: 'owner' };
+    const patch = await planRoute.PATCH(
+      new NextRequest(`http://x/api/track/plans/${res.plan.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ labelIds: [mine.label.id, theirs.label.id] }),
+      }) as never,
+      params(res.plan.id),
+    );
+    expect(patch.status).toBe(200);
+    const summary = await getPlanSummary(res.plan.id, scope);
+    expect(summary!.labels.map((l) => l.name)).toEqual(['Q4']);
   });
 });

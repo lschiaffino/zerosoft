@@ -101,7 +101,8 @@
     "nameLabel": "Nombre",
     "namePlaceholder": "Checkout mobile",
     "summaryLabel": "Resumen",
-    "summaryPlaceholder": "Una línea sobre lo que entrega este proyecto"
+    "summaryPlaceholder": "Una línea sobre lo que entrega este proyecto",
+    "display": "Display"
   },
   "plan": {
     "tabs": {
@@ -171,7 +172,9 @@
     "searchIssues": "Sumar issues: buscá por título o ID",
     "noIssues": "Este proyecto no tiene issues",
     "noIssuesBody": "Creá un issue arriba o buscá los que ya existen para sumarlos.",
-    "removeFromPlan": "Sacar {id} del proyecto"
+    "removeFromPlan": "Sacar {id} del proyecto",
+    "labels": "Labels",
+    "createLabel": "Crear label “{name}”"
   },
   "updates": {
     "composerTitle": "Nuevo update",
@@ -292,7 +295,11 @@
     "history": "Cycles anteriores",
     "rolloverHelp": "Cuando un cycle termina, lo que no se terminó pasa solo al siguiente, una vez por día.",
     "metrics": "Métricas",
-    "viewIssues": "Ver issues"
+    "viewIssues": "Ver issues",
+    "new": "Nuevo cycle",
+    "newName": "Cycle {n}",
+    "overlap": "Ese cycle se pisaría con otro del equipo.",
+    "pickTeam": "Elegí un equipo…"
   },
   "insights": {
     "title": "Insights",

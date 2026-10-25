@@ -8,13 +8,20 @@ import { invalidBody, trackError, unauthorized } from '@/lib/track-http';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Labels del workspace activo (con ?counts=1, cuántos issues usan cada uno). Cada uno trae parent_id (grupo) y project_id (team). */
+/**
+ * Labels del workspace activo (con ?counts=1, cuántos issues usan cada uno).
+ * Cada uno trae parent_id (grupo) y project_id (team). Con ?projectId=<team>
+ * (o ?teamId=), solo los que valen para ese team: los generales y los suyos
+ * (como el menú L de Linear).
+ */
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const ws = trackWorkspaceId(user.team?.id ?? null, user.id);
-  const rows = await listLabels(ws, req.nextUrl.searchParams.get('counts') === '1');
-  return NextResponse.json({ rows });
+  const sp = req.nextUrl.searchParams;
+  const rows = await listLabels(ws, sp.get('counts') === '1');
+  const team = sp.get('projectId') ?? sp.get('teamId');
+  return NextResponse.json({ rows: team ? rows.filter((l) => !l.project_id || l.project_id === team) : rows });
 }
 
 export async function POST(req: NextRequest) {

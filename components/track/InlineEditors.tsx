@@ -77,12 +77,16 @@ interface PopoverProps {
  */
 export function Popover({ trigger, ariaLabel, disabled, className, children, width = 220 }: PopoverProps) {
   const [open, setOpen] = useState(false);
-  const [style, setStyle] = useState<CSSProperties>({});
+  // Fuera del flujo desde el primer render: si no, el menú empuja al trigger
+  // (en una fila flex) antes de medirlo y queda corrido.
+  const HIDDEN: CSSProperties = { position: 'fixed', top: 0, left: 0, visibility: 'hidden' };
+  const [style, setStyle] = useState<CSSProperties>(HIDDEN);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const close = useCallback((refocus = true) => {
     setOpen(false);
+    setStyle({ position: 'fixed', top: 0, left: 0, visibility: 'hidden' });
     if (refocus) triggerRef.current?.focus();
   }, []);
 

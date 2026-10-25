@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { TrackStatusRow } from "@/lib/db";
 import type { TrackIssueWithStatus } from "@/lib/track-data";
-import {
+import { treeRoots,
   groupIssues,
   groupPreset,
   type GroupPreset,
@@ -82,11 +82,15 @@ export default function GroupedIssuesTable({
   // Grupos contraídos (clic o Enter en el encabezado), como en Linear.
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const idWidth = useMemo(() => identifierWidth(issues), [issues]);
-  const groups = useMemo(
-    () =>
-      groupIssues(issues, groupBy, { statuses, projectNames, statusByName, activeFirst: true }),
-    [issues, groupBy, statuses, projectNames, statusByName],
-  );
+  const groups = useMemo(() => {
+    if (!nested) return groupIssues(issues, groupBy, { statuses, projectNames, statusByName, activeFirst: true });
+    // Árbol: se agrupan las raíces y cada sub-issue va bajo su padre, en el grupo del padre.
+    const { roots, expand } = treeRoots(issues);
+    return groupIssues(roots, groupBy, { statuses, projectNames, statusByName, activeFirst: true }).map((g) => ({
+      ...g,
+      issues: expand(g.issues),
+    }));
+  }, [issues, groupBy, statuses, projectNames, statusByName, nested]);
 
   if (groups.length === 0) return <EmptyState quiet title={labels.empty} />;
 

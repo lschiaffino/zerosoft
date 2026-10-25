@@ -215,9 +215,14 @@ test.describe('Track como Linear', () => {
     // ⌘⇧O abre el composer.
     await page.mouse.move(5, 5);
     await blur(page);
+    // Como Linear: el composer modal con el padre puesto.
     await page.keyboard.press('ControlOrMeta+Shift+O');
-    await expect(page.getByTestId('track-subissue-input')).toBeFocused();
+    const sub = page.getByRole('dialog', { name: /New sub-issue/ });
+    await expect(sub).toBeVisible();
+    await expect(sub).toContainText(parent.identifier);
+    await expect(sub.getByRole('textbox', { name: 'Issue title' })).toBeFocused();
     await page.keyboard.press('Escape');
+    await expect(sub).toBeHidden();
 
     // Descripción en el editor visual (como Linear): tareas que siguen con
     // Enter, "/" para un bloque de código y una referencia a otro issue.

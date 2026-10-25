@@ -78,6 +78,7 @@ export default async function IssueDetailPage(
       initialReactions={reactions}
       initialSubscribed={subscribed}
       initialFavorite={favorite}
+      estimateScale={project.estimate_scale ?? 'fibonacci'}
       ui={buildTrackUiLabels(t)}
       canDelete={isWorkspaceAdmin(user)}
       labels={{

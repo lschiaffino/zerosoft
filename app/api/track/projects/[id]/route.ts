@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (!parsed.success) return invalidBody(parsed.error);
   // Slug (cambia los identificadores y rompe GitHub), archivar, triage y
   // cycles automáticos son configuración compartida: solo owner/admin.
-  const { slug, status, triageEnabled, cycleAuto, cycleWeeks, cycleName, autoCloseParent, autoCloseChildren } = parsed.data;
+  const { slug, status, triageEnabled, cycleAuto, cycleWeeks, cycleName, autoCloseParent, autoCloseChildren, estimateScale } = parsed.data;
   const adminOnly =
     (slug !== undefined && slug !== project.slug) ||
     (status !== undefined && status !== project.status) ||
@@ -49,7 +49,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     (cycleWeeks !== undefined && cycleWeeks !== project.cycle_weeks) ||
     (cycleName !== undefined && cycleName !== project.cycle_name) ||
     (autoCloseParent !== undefined && autoCloseParent !== Boolean(project.auto_close_parent)) ||
-    (autoCloseChildren !== undefined && autoCloseChildren !== Boolean(project.auto_close_children));
+    (autoCloseChildren !== undefined && autoCloseChildren !== Boolean(project.auto_close_children)) ||
+    (estimateScale !== undefined && estimateScale !== (project.estimate_scale ?? 'fibonacci'));
   if (adminOnly && !isWorkspaceAdmin(user)) return trackError(403, 'forbidden');
   // Identificador ocupado por otro team: se avisa en vez de inventar otro.
   if (slug !== undefined && slug !== project.slug) {

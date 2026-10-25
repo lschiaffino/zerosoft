@@ -35,7 +35,9 @@ export function rememberListOrder(): void {
       }
     }
     if (ids.length === 0) return;
-    const nav: ListNav = { ids: ids.slice(0, 2000), href: `${path}${window.location.search}`, at: Date.now() };
+    // Sin el prefijo de idioma: el router de next-intl lo agrega (si no, /en/en/app/...).
+    const bare = path.replace(/^\/[a-z]{2}(?=\/)/, '');
+    const nav: ListNav = { ids: ids.slice(0, 2000), href: `${bare}${window.location.search}`, at: Date.now() };
     window.sessionStorage.setItem(KEY, JSON.stringify(nav));
   } catch {
     // Sin storage (modo privado): el issue navega por sus hermanos.
@@ -47,7 +49,9 @@ export function readListNav(): ListNav | null {
     const raw = window.sessionStorage.getItem(KEY);
     if (!raw) return null;
     const nav = JSON.parse(raw) as ListNav;
-    return Array.isArray(nav.ids) && typeof nav.href === 'string' ? nav : null;
+    if (!Array.isArray(nav.ids) || typeof nav.href !== 'string') return null;
+    // Guardados por una versión anterior con el idioma adelante.
+    return { ...nav, href: nav.href.replace(/^\/[a-z]{2}(?=\/)/, '') };
   } catch {
     return null;
   }

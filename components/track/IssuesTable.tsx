@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import IssueDemandBadges from "./triage/IssueDemandBadges";
 import { Link } from "@/i18n/navigation";
 import { formatDate, parseDbUtc } from "@/lib/utils";
@@ -142,13 +142,36 @@ export default function IssuesTable({
     });
   }, [issues, sort, sortDir]);
 
-  const rows = useMemo(
+  const allRows = useMemo(
     () =>
       nested
         ? nestIssues(sorted)
         : sorted.map((issue) => ({ issue, depth: 0 })),
     [nested, sorted],
   );
+  // Árbol plegable: el chevron de un padre esconde sus sub-issues (como Linear).
+  const [folded, setFolded] = useState<Set<string>>(new Set());
+  const { rows, hasKids } = useMemo(() => {
+    const kids = new Set<string>();
+    allRows.forEach((r, i) => {
+      if (allRows[i + 1] && allRows[i + 1].depth > r.depth) kids.add(r.issue.id);
+    });
+    const out: typeof allRows = [];
+    let hideBelow = Infinity;
+    for (const r of allRows) {
+      if (r.depth > hideBelow) continue;
+      hideBelow = folded.has(r.issue.id) && kids.has(r.issue.id) ? r.depth : Infinity;
+      out.push(r);
+    }
+    return { rows: out, hasKids: kids };
+  }, [allRows, folded]);
+  const toggleFold = (id: string) =>
+    setFolded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   if (sorted.length === 0 && !quickAdd) {
     return <EmptyState quiet title={labels.empty} />;
@@ -383,13 +406,30 @@ export default function IssuesTable({
                   </td>
                 )}
                 <td
-                  className="track-col-title"
+                  className={`track-col-title${nested && hasKids.has(issue.id) ? " has-tree-toggle" : ""}`}
                   style={
                     depth > 0
                       ? ({ "--depth": depth } as React.CSSProperties)
                       : undefined
                   }
                 >
+                  {nested && hasKids.has(issue.id) && (
+                    <button
+                      type="button"
+                      className={`track-tree-toggle${folded.has(issue.id) ? " is-folded" : ""}`}
+                      aria-expanded={!folded.has(issue.id)}
+                      aria-label={`${labels.hasSubtasks}: ${issue.identifier}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleFold(issue.id);
+                        (e.currentTarget as HTMLButtonElement).blur();
+                      }}
+                      data-testid="track-tree-toggle"
+                    >
+                      <TrackIcon name="chevronDown" size={10} />
+                    </button>
+                  )}
                   {pending ? (
                     titleContent
                   ) : (

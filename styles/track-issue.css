@@ -650,3 +650,58 @@
 .app-frame .track-issue-page .track-inline-trigger.track-detail-more:hover {
   background: var(--ui-hover);
 }
+
+/* Con el composer de sub-issues abierto no se repite "+ Add sub-issues" (como Linear). */
+.track-detail-main:has(.track-subtask-row.is-composer) .track-tool[data-testid='track-add-subissue'] {
+  display: none;
+}
+
+/* 390 px: las propiedades van como chips debajo del título (no al final de la página). */
+@media (max-width: 767px) {
+  .track-issue-page .track-detail-grid {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .track-issue-page .track-detail-main {
+    display: contents;
+  }
+
+  .track-issue-page .track-detail-main > * {
+    order: 4;
+  }
+
+  .track-issue-page .track-detail-main > .track-parent-row {
+    order: 1;
+  }
+
+  .track-issue-page .track-detail-main > .track-detail-title {
+    order: 2;
+  }
+
+  .track-issue-page .track-detail-side {
+    order: 3;
+    margin: 4px 0 8px;
+    padding: 8px 0;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+.track-qc-file {
+  gap: 4px;
+  cursor: default;
+}
+
+.track-qc-file-remove {
+  display: inline-flex;
+  padding: 2px;
+  color: var(--brand-gray-2);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.track-qc-file-remove:hover {
+  color: var(--ink);
+}

@@ -15,13 +15,15 @@ export type CommandIcon =
   | { kind: 'priority'; value: string }
   | { kind: 'avatar'; name: string | null; empty?: boolean }
   | { kind: 'swatch'; color: string }
-  | { kind: 'glyph'; name: 'plus' | 'tag' | 'project' | 'cycle' | 'estimate' | 'calendar' | 'parent' | 'team' | 'link' | 'copy' | 'archive' | 'trash' | 'open' | 'bell' | 'duplicate' | 'subissue' | 'user' };
+  | { kind: 'glyph'; name: 'plus' | 'tag' | 'project' | 'cycle' | 'estimate' | 'calendar' | 'parent' | 'team' | 'link' | 'copy' | 'archive' | 'trash' | 'open' | 'bell' | 'duplicate' | 'subissue' | 'user' | 'milestone' };
 
 /** Crear en línea desde una página (tipear un label nuevo + Enter lo crea). */
 export interface CommandCreate {
   /** Texto de la opción: "Crear label “bug”". */
   label: (query: string) => string;
   run: (query: string) => void | Promise<void>;
+  /** Después de crear, el menú queda abierto (labels: multi-selección como Linear). */
+  keepOpen?: boolean;
 }
 
 export interface CommandAction {

@@ -44,7 +44,7 @@ import type {
   StatusUpdatePayload,
   StatusesReorderPayload,
 } from './track-schema';
-import { safeHexColor } from './track-color';
+import { safeHexColor, STATUS_CATEGORY_COLORS } from './track-color';
 import { normalizeIssueLabels, projectWorkspaceId } from './track-labels';
 import { notifyTrackEvent } from './track-events';
 import { currentTrackViewer, projectVisibleTo, trackVisibleExpr, trackVisibleSql } from './track-access';
@@ -64,6 +64,8 @@ export interface TrackIssueWithStatus extends TrackIssueRow {
   milestone_name?: string | null;
   /** Nombre del project (plan) del issue. */
   plan_name?: string | null;
+  /** Milestone del project (track_plan_milestones). */
+  plan_milestone_name?: string | null;
   /** Sub-issues terminados (done o cancelled), para el progreso x/y. */
   child_done?: number;
   /** Padre del sub-issue (para mostrarlo en la fila sin cargarlo). */
@@ -437,11 +439,12 @@ export async function createProject(
   // Crear estados por defecto
   const names = DEFAULT_STATUS_NAMES[(opts.locale ?? 'en') as keyof typeof DEFAULT_STATUS_NAMES] ?? DEFAULT_STATUS_NAMES.en;
   const defaults: Array<{ name: string; category: TrackStatusRow['category']; color: string }> = [
-    { name: names.backlog, category: 'backlog', color: '#666666' },
-    { name: names.todo, category: 'todo', color: '#000000' },
-    { name: names.in_progress, category: 'in_progress', color: '#000000' },
-    { name: names.done, category: 'done', color: '#000000' },
-    { name: names.cancelled, category: 'cancelled', color: '#999999' },
+    // Colores de Linear por categoría (lib/track-color).
+    { name: names.backlog, category: 'backlog', color: STATUS_CATEGORY_COLORS.backlog },
+    { name: names.todo, category: 'todo', color: STATUS_CATEGORY_COLORS.todo },
+    { name: names.in_progress, category: 'in_progress', color: STATUS_CATEGORY_COLORS.in_progress },
+    { name: names.done, category: 'done', color: STATUS_CATEGORY_COLORS.done },
+    { name: names.cancelled, category: 'cancelled', color: STATUS_CATEGORY_COLORS.cancelled },
   ];
 
   for (let i = 0; i < defaults.length; i++) {
@@ -516,6 +519,10 @@ export async function updateProject(
   if (payload.autoCloseParent !== undefined) {
     fields.push('auto_close_parent = ?');
     args.push(payload.autoCloseParent ? 1 : 0);
+  }
+  if (payload.estimateScale !== undefined) {
+    fields.push('estimate_scale = ?');
+    args.push(payload.estimateScale);
   }
   if (payload.autoCloseChildren !== undefined) {
     fields.push('auto_close_children = ?');
@@ -608,7 +615,7 @@ export async function createStatus(
       id,
       projectId,
       payload.name.trim(),
-      safeHexColor(payload.color, '#666666'),
+      safeHexColor(payload.color, STATUS_CATEGORY_COLORS[payload.category ?? 'todo'] ?? '#8a8f98'),
       payload.position ?? max.p + 1,
       payload.category ?? 'todo',
     );
@@ -901,6 +908,7 @@ export function issueSelect(extraWhere = ''): string {
       c.name AS cycle_name,
       ms.name AS milestone_name,
       (SELECT tp.name FROM track_plans tp WHERE tp.id = i.plan_id) AS plan_name,
+      (SELECT pm.name FROM track_plan_milestones pm WHERE pm.id = i.plan_milestone_id) AS plan_milestone_name,
       (SELECT COUNT(*) FROM track_issues child WHERE child.parent_id = i.id) AS child_count,
       (SELECT COUNT(*) FROM track_issues child JOIN track_statuses cs ON cs.id = child.status_id
         WHERE child.parent_id = i.id AND cs.category IN ('done', 'cancelled')) AS child_done,
@@ -1365,7 +1373,9 @@ export async function createIssue(
   const source: TrackIssueSource = opts.source ?? 'api';
   const projectRow = await getProject(projectId);
   // Los que se repiten los configuró un miembro: no pasan por triage.
-  const triage = source !== 'app' && source !== 'recurring' && projectRow?.triage_enabled ? 1 : 0;
+  // Desde la app, el composer puede mandarlo a triage a propósito (como Linear: status "Triage").
+  const wantsTriage = (payload as { triage?: boolean }).triage === true && Boolean(projectRow?.triage_enabled);
+  const triage = wantsTriage || (source !== 'app' && source !== 'recurring' && projectRow?.triage_enabled) ? 1 : 0;
   const ws = projectRow ? projectWorkspaceId(projectRow) : null;
   const labelsJson =
     payload.labels && ws ? JSON.stringify(await normalizeIssueLabels(ws, payload.labels)) : '[]';
@@ -1518,6 +1528,7 @@ export async function updateIssue(
         to: newStatus?.name ?? '',
         fromCategory: existing.status_category ?? '',
         toCategory: newStatus?.category ?? '',
+        toColor: newStatus?.color ?? '',
       },
     });
     if (newStatus && (newStatus.category === 'done' || newStatus.category === 'cancelled')) {
@@ -1558,9 +1569,26 @@ export async function updateIssue(
     fields.push('sub_order = ?');
     args.push(payload.subOrder ?? null);
   }
+  // Padre nuevo o quitado (también el ⌘Z): rastro en el hijo y en los dos padres, como Linear.
+  const parentTrail: Array<{ issueId: string; meta: Record<string, string> }> = [];
   if (payload.parentId !== undefined && payload.parentId !== existing.parent_id) {
     fields.push('parent_id = ?');
     args.push(payload.parentId ?? null);
+    const brief = async (pid: string | null) =>
+      pid ? ((await db.prepare('SELECT id, identifier, title FROM track_issues WHERE id = ?').get(pid)) as { id: string; identifier: string; title: string } | undefined) : undefined;
+    const [oldParent, newParent] = await Promise.all([brief(existing.parent_id), brief(payload.parentId ?? null)]);
+    activities.push({
+      type: 'cycle_change',
+      meta: {
+        field: 'parent',
+        from: oldParent?.identifier ?? '',
+        to: newParent?.identifier ?? '',
+        fromId: oldParent?.id ?? '',
+        toId: newParent?.id ?? '',
+      },
+    });
+    if (oldParent) parentTrail.push({ issueId: oldParent.id, meta: { field: 'subissue', action: 'removed', childId: id, child: existing.identifier } });
+    if (newParent) parentTrail.push({ issueId: newParent.id, meta: { field: 'subissue', action: 'added', childId: id, child: existing.identifier } });
   }
   if (payload.dueDate !== undefined && payload.dueDate !== existing.due_date) {
     fields.push('due_date = ?');
@@ -1570,6 +1598,18 @@ export async function updateIssue(
   if (payload.milestoneId !== undefined && payload.milestoneId !== (existing.milestone_id ?? null)) {
     fields.push('milestone_id = ?');
     args.push(payload.milestoneId ?? null);
+  }
+  // Milestone del project: tiene que ser del project del issue (el nuevo si también cambia).
+  const planMilestoneId = (payload as { planMilestoneId?: string | null }).planMilestoneId;
+  if (planMilestoneId !== undefined && payload.planId === undefined && planMilestoneId !== (existing.plan_milestone_id ?? null)) {
+    const planOf = existing.plan_id ?? null;
+    const ok = !planMilestoneId
+      ? true
+      : Boolean(planOf && (await db.prepare('SELECT 1 AS x FROM track_plan_milestones WHERE id = ? AND plan_id = ?').get(planMilestoneId, planOf)));
+    if (ok) {
+      fields.push('plan_milestone_id = ?');
+      args.push(planMilestoneId ?? null);
+    }
   }
   // Sin activity type dedicado en el CHECK de track_issue_activity: se
   // actualiza la columna sin registrar actividad (igual que parent_id).
@@ -1616,6 +1656,9 @@ export async function updateIssue(
         : {};
       for (const activity of activities) {
         await createIssueActivity(id, actorId, activity.type, { ...activity.meta, ...viaMeta });
+      }
+      for (const trail of parentTrail) {
+        await createIssueActivity(trail.issueId, actorId, 'cycle_change', { ...trail.meta, ...viaMeta }).catch(() => undefined);
       }
 
       const [owner, project] = await Promise.all([
@@ -1726,7 +1769,7 @@ export async function autoCloseRelated(
            AND (s.category IS NULL OR s.category NOT IN ('done', 'cancelled'))`,
       )
       .all(after.id, after.project_id)) as Array<{ id: string }>;
-    for (const c of open) await updateIssue(c.id, { statusId: after.status_id }, actorId, { autoDepth: depth });
+    for (const c of open) await autoCloseOne(c.id, after.status_id, 'parent_closed', depth);
   }
 
   if (after.parent_id) {
@@ -1746,8 +1789,32 @@ export async function autoCloseRelated(
     const done = (await db
       .prepare("SELECT id FROM track_statuses WHERE project_id = ? AND category = 'done' ORDER BY position ASC LIMIT 1")
       .get(parent.project_id)) as { id: string } | undefined;
-    if (done) await updateIssue(parent.id, { statusId: done.id }, actorId, { autoDepth: depth });
+    if (done) await autoCloseOne(parent.id, done.id, 'sub_issues_done', depth);
   }
+}
+
+/**
+ * Un cierre automático: el cambio va sin actor (updateIssue no firma la
+ * actividad a nombre de quien cerró el otro issue) y queda UNA línea "Track
+ * closed this issue" con el motivo, como en Linear.
+ */
+async function autoCloseOne(issueId: string, statusId: string, reason: 'sub_issues_done' | 'parent_closed', depth: number): Promise<void> {
+  const before = await getIssue(issueId);
+  if (!before) return;
+  const updated = await updateIssue(issueId, { statusId }, undefined, { autoDepth: depth });
+  if (!updated || updated.status_id !== statusId) return;
+  const owner = (await getDb().prepare('SELECT owner_id FROM track_projects WHERE id = ?').get(updated.project_id)) as
+    | { owner_id: string | null }
+    | undefined;
+  if (!owner?.owner_id) return;
+  await createIssueActivity(issueId, owner.owner_id, 'closed', {
+    status: updated.status_name,
+    category: updated.status_category,
+    from: before.status_name ?? '',
+    via: 'agent',
+    viaAuthor: 'Track',
+    auto: reason,
+  });
 }
 
 /**

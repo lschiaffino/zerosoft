@@ -101,7 +101,8 @@
     "nameLabel": "Name",
     "namePlaceholder": "Mobile checkout",
     "summaryLabel": "Summary",
-    "summaryPlaceholder": "One line on what this project delivers"
+    "summaryPlaceholder": "One line on what this project delivers",
+    "display": "Display"
   },
   "plan": {
     "tabs": {
@@ -171,7 +172,9 @@
     "searchIssues": "Add issues: search by title or ID",
     "noIssues": "No issues in this project",
     "noIssuesBody": "Create an issue above or search for existing ones to add them.",
-    "removeFromPlan": "Remove {id} from the project"
+    "removeFromPlan": "Remove {id} from the project",
+    "labels": "Labels",
+    "createLabel": "Create label “{name}”"
   },
   "updates": {
     "composerTitle": "New update",
@@ -292,7 +295,11 @@
     "history": "Previous cycles",
     "rolloverHelp": "When a cycle ends, what is not done moves to the next cycle on its own, once a day.",
     "metrics": "Metrics",
-    "viewIssues": "View issues"
+    "viewIssues": "View issues",
+    "new": "New cycle",
+    "newName": "Cycle {n}",
+    "overlap": "That cycle would overlap another one of the team.",
+    "pickTeam": "Pick a team…"
   },
   "insights": {
     "title": "Insights",

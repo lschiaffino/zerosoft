@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { activeRowElement } from './kbCursor';
 import { useTranslations } from 'next-intl';
 import type { TrackStatusRow } from '@/lib/db';
 import type { ProjectMember } from '@/lib/track-data';
@@ -80,10 +81,12 @@ export function useIssueSelection(orderedIds: string[]): IssueSelection {
         return;
       }
       if (e.key.toLowerCase() !== 'x') return;
+      const kb = activeRowElement();
       const row =
+        (kb?.dataset.issueId ? kb : null) ??
         document.querySelector<HTMLElement>('[data-issue-id].is-kb-active') ??
         document.querySelector<HTMLElement>('[data-issue-id]:hover');
-      const id = row?.dataset.issueId;
+      const id = row?.dataset.issueId ?? kb?.dataset.issueKey;
       if (!id) return;
       e.preventDefault();
       toggle(id, e.shiftKey);

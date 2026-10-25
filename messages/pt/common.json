@@ -139,7 +139,12 @@
     "groupApps": "Apps",
     "openApp": "Abrir {name}",
     "goHome": "Ir para o início",
-    "linkOverview": "Resumo do Link"
+    "linkOverview": "Resumo do Link",
+    "groupTeams": "Equipes",
+    "groupTrackViews": "Visualizações",
+    "groupTrackCycles": "Cycles",
+    "groupTrackMilestones": "Milestones",
+    "groupTrackLabels": "Labels"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",

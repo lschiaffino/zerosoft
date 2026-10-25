@@ -869,11 +869,12 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
     void store.update(issueId, patch);
   };
 
-  const createIssue = (draft: IssueDraft) => {
-    void store.create(projectId, draft, sort).then((created) => {
+  // Devuelve el issue creado (el composer sube los adjuntos cuando termina).
+  const createIssue = (draft: IssueDraft) =>
+    store.create(projectId, draft, sort).then((created) => {
       if (created) setIssuesTotal((n) => n + 1);
+      return created;
     });
-  };
 
   const quickCreate = (raw: string, extra: Partial<IssueDraft> = {}) => {
     const parsed = parseQuickTitle(raw, today);
@@ -1176,6 +1177,11 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
             filters={filters}
             onChange={(f) => setFilters(f)}
             onSaveView={() => setSaveDialogOpen(true)}
+            updateView={
+              activeView && viewDirty && activeView.user_id === userId
+                ? { onUpdate: () => void handleUpdateView(activeView.id), updateLabel: tx('views.updateView'), saveAsNewLabel: tx('views.saveAsNew') }
+                : undefined
+            }
             statuses={statuses}
             priorities={labels.priorities}
             members={members}
@@ -1263,6 +1269,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
                 }}
                 editing={{ ...editing, members }}
                 onQuickCreate={(title, preset) => quickCreate(title, preset)}
+                show={displayProps}
               />
             )}
             {view === 'calendar' && (

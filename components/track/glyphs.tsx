@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { glyphColor } from '@/lib/track-color';
+import { statusGlyphColor } from '@/lib/track-color';
 
 /*
  * Glifos de Track como los de Linear (estado y prioridad). Sin dependencias
@@ -68,7 +68,7 @@ export function PriorityIcon({ priority }: { priority: string }) {
  */
 export function StatusDot({ color, category }: { color: string | null; category: string | null }) {
   const cancelled = category === 'cancelled';
-  const c = cancelled ? 'var(--brand-gray-3)' : glyphColor(color);
+  const c = statusGlyphColor(color, category);
   const filled = category === 'done' || cancelled;
   return (
     <svg className="track-status-glyph" viewBox="0 0 14 14" width="14" height="14" aria-hidden style={{ color: c } as CSSProperties}>

@@ -151,6 +151,8 @@ export interface CycleListItem {
   project_id: string;
   project_name: string;
   project_icon: string | null;
+  /** Clave del team (MOB): /app/track/cycles?team=MOB. */
+  project_slug: string;
   start_at: string;
   end_at: string;
   completed_at: string | null;
@@ -165,7 +167,7 @@ export async function listWorkspaceCycles(scopeWhereSql: string, scopeArg: strin
   const vis = await currentVisibleSql('p');
   const rows = (await getDb()
     .prepare(
-      `SELECT c.id, c.name, c.project_id, p.name AS project_name, p.icon AS project_icon, c.start_at, c.end_at, c.completed_at,
+      `SELECT c.id, c.name, c.project_id, p.name AS project_name, p.icon AS project_icon, p.slug AS project_slug, c.start_at, c.end_at, c.completed_at,
          (SELECT COUNT(*) FROM track_issues i LEFT JOIN track_statuses s ON s.id = i.status_id
             WHERE i.cycle_id = c.id AND i.triage = 0 AND (s.category IS NULL OR s.category != 'cancelled')) AS total,
          (SELECT COUNT(*) FROM track_issues i JOIN track_statuses s ON s.id = i.status_id

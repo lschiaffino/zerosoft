@@ -71,6 +71,10 @@ test.describe('Track como Linear: teclado y menús', () => {
     await expect(palette.getByRole('option', { name: new RegExp(`Create new label.*${label}`) })).toBeVisible();
     await page.keyboard.press('Enter');
     await expect.poll(async () => labelNames(await issueOf(request, a.id))).toContain(label);
+    // Como Linear, el menú de labels queda abierto (multi-selección) con el nuevo tildado.
+    await expect(palette.getByRole('option', { name: new RegExp(label) })).toContainText('✓');
+    await page.keyboard.press('Escape');
+    await expect(palette).toBeHidden();
 
     // ⇧P + parte del nombre + Enter: el proyecto, no "No project".
     await hoverRow(page, a.id);
@@ -155,6 +159,8 @@ test.describe('Track como Linear: teclado y menús', () => {
     await page.keyboard.type(label);
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('track-qc-labels')).toContainText(label);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.cmdk')).toBeHidden();
     await shot(page, 'tl2-composer-chips');
 
     // Esc cierra y guarda; C de nuevo lo recupera.
@@ -220,4 +226,60 @@ test.describe('Track como Linear: teclado y menús', () => {
     await expect(page.getByTestId('track-branch-favorite-issue').filter({ hasText: 'Hijo uno' })).toBeVisible();
     void two;
   });
+});
+
+test.describe('Track como Linear: volver con Esc y foco', () => {
+  for (const locale of ['en', 'es']) {
+    test(`Esc en un issue abierto desde la lista vuelve a la lista (${locale})`, async ({ page, request }) => {
+      const t = await team(request);
+      const a = await ok<Issue>(request.post(`/api/track/projects/${t.id}/issues`, { data: { title: `Volver ${uid()}` } }));
+      await page.goto(`/${locale}/app/track/team/${t.id}`);
+      await page.waitForURL(/\/app\/track\/team\/[A-Z0-9]{2,5}(\?|$)/);
+      await page.waitForLoadState('networkidle');
+      const listUrl = page.url();
+      await page.locator(`[data-issue-key="${a.id}"]`).first().getByText(/Volver/).click();
+      await expect(page.getByTestId('track-issue-title')).toHaveValue(/Volver/);
+      await blur(page);
+      await page.keyboard.press('Escape');
+      await expect(page).toHaveURL(new RegExp(`^${listUrl.split('?')[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+      expect(page.url()).not.toContain(`/${locale}/${locale}/`);
+      await expect(page.locator(`[data-issue-key="${a.id}"]`).first()).toBeVisible();
+    });
+  }
+
+  test('clic en el espacio vacío del issue no manda el foco al comentario: S y ⌘⇧O siguen andando', async ({ page, request }) => {
+    const t = await team(request);
+    const a = await ok<Issue>(request.post(`/api/track/projects/${t.id}/issues`, { data: { title: 'Foco' } }));
+    await page.goto(`/en/app/track/issues/${a.id}`);
+    await expect(page.getByTestId('track-issue-title')).toHaveValue('Foco');
+    const main = page.locator('.track-detail-main');
+    const box = (await main.boundingBox())!;
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height - 4);
+    const tag = await page.evaluate(() => (document.activeElement as HTMLElement | null)?.closest('[contenteditable="true"], textarea, input') ? 'editable' : 'other');
+    expect(tag).toBe('other');
+    await page.keyboard.press('s');
+    await expect(page.locator('.cmdk')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('ControlOrMeta+Shift+O');
+    await expect(page.getByRole('dialog', { name: /New sub-issue/ })).toBeVisible();
+  });
+});
+
+test('⇧C: el cycle activo va primero y Enter lo asigna; "No cycle" al final', async ({ page, request }) => {
+  const t = await team(request);
+  const today = new Date();
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const plus = (n: number) => new Date(today.getTime() + n * 86_400_000);
+  await ok(request.post(`/api/track/projects/${t.id}/cycles`, { data: { name: `Old ${uid()}`, startAt: iso(plus(-30)), endAt: iso(plus(-16)) } }));
+  const now = await ok<{ id: string; name: string }>(request.post(`/api/track/projects/${t.id}/cycles`, { data: { name: `Now ${uid()}`, startAt: iso(plus(-3)), endAt: iso(plus(10)) } }));
+  const a = await ok<Issue>(request.post(`/api/track/projects/${t.id}/issues`, { data: { title: 'Cycle me' } }));
+  await page.goto(`/en/app/track/issues/${a.id}`);
+  await expect(page.getByTestId('track-issue-title')).toHaveValue('Cycle me');
+  await blur(page);
+  await page.keyboard.press('Shift+C');
+  const opts = page.locator('.cmdk').getByRole('option');
+  await expect(opts.first()).toContainText(now.name);
+  await expect(opts.last()).toContainText('No cycle');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => ((await (await request.get(`/api/track/issues/${a.id}`)).json()) as { cycle_id: string | null }).cycle_id).toBe(now.id);
 });

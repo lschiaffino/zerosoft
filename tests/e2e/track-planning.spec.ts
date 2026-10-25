@@ -15,9 +15,10 @@ async function ok<T = Record<string, unknown>>(res: Promise<import('@playwright/
 }
 
 async function team(request: APIRequestContext) {
-  const p = await ok<{ id: string }>(request.post('/api/track/projects', { data: { name: `Plan team ${uid()}` } }));
+  const name = `Plan team ${uid()}`;
+  const p = await ok<{ id: string }>(request.post('/api/track/projects', { data: { name } }));
   const statuses = await ok<{ rows: Array<{ id: string; category: string }> }>(request.get(`/api/track/projects/${p.id}/statuses`));
-  return { id: p.id, status: (c: string) => statuses.rows.find((s) => s.category === c)!.id };
+  return { id: p.id, name, status: (c: string) => statuses.rows.find((s) => s.category === c)!.id };
 }
 
 test.beforeEach(async ({ page }) => {
@@ -33,8 +34,17 @@ test('plan: crear desde la lista, propiedades, issues y update con salud', async
   await page.getByTestId('tp-new-plan').click();
   const modal = page.getByTestId('tp-new-plan-modal');
   await modal.getByLabel('Name').fill(name);
-  await modal.getByLabel('Status').selectOption('in_progress');
-  await modal.getByLabel('Team').selectOption(t.id);
+  // Chips con picker tipeado (sin selects): estado y team.
+  await expect(modal.locator('select, input[type="date"]')).toHaveCount(0);
+  await page.getByTestId('tp-new-status').click();
+  await page.keyboard.type('progress');
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('tp-new-status')).toContainText('In progress');
+  await page.getByTestId('tp-new-team').click();
+  await page.keyboard.type(t.name);
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('tp-new-team')).toContainText(t.name);
+  await modal.getByLabel('Name').focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/app\/track\/projects\/[0-9a-f-]{36}/);
   await expect(page.getByTestId('tp-plan-name')).toHaveValue(name);

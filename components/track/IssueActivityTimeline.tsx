@@ -11,7 +11,8 @@ import type { CommentReaction } from '@/lib/track-ux';
 import { MarkdownView, type MarkdownLabels } from './MarkdownView';
 import RichEditor, { type UploadResult } from './RichEditor';
 import { Popover } from './InlineEditors';
-import TrackIcon from './TrackIcon';
+import { PriorityIcon, StatusDot } from './glyphs';
+import TrackIcon, { type TrackIconName } from './TrackIcon';
 import { pushNotice } from './trackUndo';
 
 interface ActivityLabels {
@@ -65,7 +66,7 @@ interface IssueActivityTimelineProps {
   onUpload?: (file: File) => Promise<UploadResult | null>;
   onChange?: () => void;
   /** "Crear sub-issue desde el comentario" (como Linear): título con la primera línea. */
-  onCreateSubIssue?: (title: string) => void;
+  onCreateSubIssue?: (title: string, body: string) => void;
 }
 
 
@@ -100,13 +101,18 @@ function userName(activity: TrackIssueActivityWithAuthor, meta: Record<string, u
 }
 
 /** Ícono chico de cada evento de la línea de tiempo (como el feed de Linear). */
-function eventIcon(type: string) {
+function eventIcon(type: string, meta: Record<string, unknown> = {}): TrackIconName {
   switch (type) {
     case 'assignee_change':
       return 'user' as const;
     case 'priority_change':
       return 'flag' as const;
     case 'cycle_change':
+      // Sin activity type propio en el CHECK: project, team, padre y sub-issues van por acá.
+      if (meta.field === 'project') return 'plans';
+      if (meta.field === 'team') return 'team';
+      if (meta.field === 'parent') return 'parent';
+      if (meta.field === 'subissue') return 'subtasks';
       return 'cycle' as const;
     case 'due_date_change':
       return 'calendar' as const;
@@ -119,14 +125,29 @@ function eventIcon(type: string) {
     case 'relation_removed':
       return 'link' as const;
     case 'attachment_added':
-      return 'pin' as const;
+      return 'paperclip' as const;
     case 'subtask_added':
       return 'subtasks' as const;
     case 'closed':
       return 'check' as const;
+    case 'reopened':
+      return 'refresh' as const;
     default:
       return 'clock' as const;
   }
+}
+
+/** Glifo del evento: el estado nuevo con su color, la prioridad con sus barras, el resto con su ícono. */
+function EventGlyph({ activity, meta, members }: { activity: TrackIssueActivityWithAuthor; meta: Record<string, unknown>; members: ProjectMember[] }) {
+  if (activity.type === 'status_change' && meta.toCategory) {
+    return <StatusDot color={typeof meta.toColor === 'string' && meta.toColor ? meta.toColor : null} category={String(meta.toCategory)} />;
+  }
+  if (activity.type === 'priority_change' && typeof meta.to === 'string') return <PriorityIcon priority={meta.to || 'none'} />;
+  if (activity.type === 'assignee_change' && typeof meta.to === 'string' && meta.to) {
+    const m = members.find((x) => x.id === meta.to);
+    return <span className="track-avatar is-tiny">{(m?.name || m?.email || '?').trim().charAt(0).toUpperCase()}</span>;
+  }
+  return <TrackIcon name={eventIcon(activity.type, meta)} size={12} />;
 }
 
 interface CommentItem {
@@ -361,6 +382,30 @@ export default function IssueActivityTimeline({
           if (!to) return tt('projectRemoved', { user: name, from });
           return from ? tt('projectChange', { user: name, from, to }) : tt('projectAdded', { user: name, to });
         }
+        if (meta.field === 'parent') {
+          const link = (ident: string, issueId: string) =>
+            issueId ? (
+              <Link href={`/app/track/issues/${issueId}`} className="track-activity-link">
+                {ident || issueId}
+              </Link>
+            ) : (
+              ident
+            );
+          if (!to) return <>{tt('parentRemoved', { user: name })} {link(from, String(meta.fromId ?? ''))}</>;
+          return <>{tt('parentSet', { user: name })} {link(to, String(meta.toId ?? ''))}</>;
+        }
+        if (meta.field === 'subissue') {
+          const child = String(meta.child ?? '');
+          const childId = String(meta.childId ?? '');
+          const link = childId ? (
+            <Link href={`/app/track/issues/${childId}`} className="track-activity-link">
+              {child}
+            </Link>
+          ) : (
+            child
+          );
+          return <>{tt(meta.action === 'removed' ? 'subissueRemoved' : 'subissueAdded', { user: name })} {link}</>;
+        }
         if (meta.field === 'team') {
           return tt('teamMoved', {
             user: name,
@@ -411,6 +456,9 @@ export default function IssueActivityTimeline({
       case 'subtask_added':
         return labels.subtaskAdded.replace('{user}', name);
       case 'closed':
+        // Auto-cierre (como Linear): una línea de Track con el porqué.
+        if (meta.auto === 'sub_issues_done') return tt('autoClosedSubs');
+        if (meta.auto === 'parent_closed') return tt('autoClosedParent');
         return labels.closed.replace('{user}', name);
       case 'reopened':
         return labels.reopened.replace('{user}', name);
@@ -517,7 +565,7 @@ export default function IssueActivityTimeline({
                 data-testid="track-comment-subissue"
                 onClick={() => {
                   close();
-                  onCreateSubIssue(titleFromComment(c.body));
+                  onCreateSubIssue(titleFromComment(c.body), c.body);
                 }}
               >
                 <span className="track-menu-label">{tt('createSubIssue')}</span>
@@ -725,7 +773,7 @@ export default function IssueActivityTimeline({
             ) : (
               <li key={activity.id} className="track-activity-entry track-activity-event">
                 <span className="track-event-icon" aria-hidden>
-                  <TrackIcon name={eventIcon(activity.type)} size={12} />
+                  <EventGlyph activity={activity} meta={parseMeta(activity.meta)} members={members} />
                 </span>
                 <span className="track-activity-text">{renderEvent(activity)}</span>
                 <time className="track-activity-time" dateTime={activity.created_at} title={activity.created_at}>

@@ -538,8 +538,41 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
     window.getSelection()?.addRange(range);
   }
 
+  // El chip va en el lugar del cursor, dentro del párrafo o ítem actual (insertHTML
+  // de Chrome a veces parte el bloque y deja el chip afuera del <p>), seguido de
+  // un espacio con el cursor después, como en Linear.
   function insertChip(html: string) {
-    exec('insertHTML', `${html}&nbsp;`);
+    const root = rootRef.current;
+    const sel = window.getSelection();
+    const range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+    if (!root || !range || !root.contains(range.startContainer)) {
+      exec('insertHTML', `${html}&nbsp;`);
+    } else {
+      const tpl = document.createElement('template');
+      tpl.innerHTML = html.trim();
+      const chip = tpl.content.firstChild;
+      if (!chip) return;
+      range.deleteContents();
+      let at = range;
+      // Si el cursor quedó directo en la raíz (bloque vacío), el chip va en un párrafo.
+      if (range.startContainer === root) {
+        const p = document.createElement('p');
+        range.insertNode(p);
+        at = document.createRange();
+        at.setStart(p, 0);
+      }
+      const space = document.createTextNode(' ');
+      at.insertNode(space);
+      at.insertNode(chip);
+      // Un <br> de relleno del bloque vacío ya no hace falta.
+      const next = space.nextSibling;
+      if (next && next.nodeName === 'BR' && !next.nextSibling) next.parentNode?.removeChild(next);
+      const after = document.createRange();
+      after.setStart(space, 1);
+      after.collapse(true);
+      sel!.removeAllRanges();
+      sel!.addRange(after);
+    }
     upgradeChips();
     emit();
   }

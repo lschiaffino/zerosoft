@@ -111,3 +111,45 @@ describe('track editor: colapsables, callouts y citas (como Linear)', () => {
     expect(renderTrackMarkdown('hola @ana@example.com')).toContain('data-mention="@ana@example.com"');
   });
 });
+
+describe('track editor: menciones dentro del párrafo', () => {
+  it('un chip de mención o issue dentro del <p> queda en la misma línea', () => {
+    const html =
+      '<p>hola <span class="track-chip track-chip-mention" contenteditable="false" data-md="@ana@x.io" data-mention="@ana@x.io">@Ana</span>&nbsp;y chau</p>' +
+      '<ul><li>ver <span class="track-chip track-chip-issue" contenteditable="false" data-md="WEB-1" data-issue-ref="WEB-1">WEB-1</span>&nbsp;hoy</li></ul>';
+    const md = nodesToMarkdown(parse(html));
+    expect(md.split('\n')[0]).toBe('hola @ana@x.io y chau');
+    expect(md).toContain('- ver WEB-1 hoy');
+    expect(roundTrip('hola @ana@x.io y chau')).toBe('hola @ana@x.io y chau');
+  });
+});
+
+import { createIssue, createProject, listIssueActivities, updateIssue } from '@/lib/track-data';
+import { makeUser } from './helpers';
+
+describe('track: quitar el padre deja rastro (como Linear)', () => {
+  it('el hijo y los dos padres registran el cambio, también al deshacer', async () => {
+    const u = await makeUser('ptrail');
+    const p = await createProject(u.id, null, { name: 'Rastro' });
+    const parent = await createIssue(p.id, u.id, { title: 'padre', description: [] });
+    const child = await createIssue(p.id, u.id, { title: 'hijo', description: [], parentId: parent.id });
+    await updateIssue(child.id, { parentId: null }, u.id);
+    await updateIssue(child.id, { parentId: parent.id }, u.id);
+    const metas = async (id: string) =>
+      (await listIssueActivities(id)).filter((a) => a.type === 'cycle_change').map((a) => JSON.parse(a.meta) as Record<string, string>);
+    const mine = await metas(child.id);
+    expect(mine.map((m) => [m.field, m.from, m.to])).toEqual(
+      expect.arrayContaining([
+        ['parent', parent.identifier, ''],
+        ['parent', '', parent.identifier],
+      ]),
+    );
+    const theirs = await metas(parent.id);
+    expect(theirs.map((m) => [m.field, m.action, m.child])).toEqual(
+      expect.arrayContaining([
+        ['subissue', 'removed', child.identifier],
+        ['subissue', 'added', child.identifier],
+      ]),
+    );
+  });
+});

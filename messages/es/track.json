@@ -378,7 +378,11 @@
       "project": "Proyecto",
       "estimate": "Estimación",
       "more": "Más propiedades"
-    }
+    },
+    "triage": "Triage",
+    "createdKeep": "Issue creado. Mismas propiedades para el siguiente",
+    "attach": "Adjuntar archivos",
+    "removeAttachment": "Quitar {name}"
   },
   "inline": {
     "markDone": "Marcar como terminado",
@@ -624,7 +628,8 @@
       "general": "General",
       "members": "Miembros",
       "labels": "Labels",
-      "integrations": "Integraciones"
+      "integrations": "Integraciones",
+      "estimates": "Estimaciones"
     }
   },
   "markdown": {
@@ -1218,7 +1223,7 @@
       "inTwoWeeks": "En dos semanas",
       "noDue": "Quitar vencimiento",
       "dueOn": "Vence el {date}",
-      "cycle": "Mover a cycle…",
+      "cycle": "Agregar a un cycle…",
       "noCycle": "Sin cycle",
       "milestone": "Milestone…",
       "noMilestone": "Sin milestone",
@@ -1258,7 +1263,10 @@
       "markedDuplicate": "{id} quedó como duplicado de {of}",
       "start": "Fecha de inicio…",
       "noStart": "Quitar fecha de inicio",
-      "startOn": "Empieza el {date}"
+      "startOn": "Empieza el {date}",
+      "currentCycle": "Actual",
+      "upcomingCycle": "Próximo",
+      "addToCycle": "Agregar al cycle {name}"
     },
     "editor": {
       "todo": "Lista de tareas",
@@ -1328,7 +1336,13 @@
         "dueDate": "el vencimiento",
         "estimate": "la estimación"
       },
-      "createSubIssue": "Crear sub-issue desde el comentario"
+      "createSubIssue": "Crear sub-issue desde el comentario",
+      "parentSet": "{user} puso como padre a",
+      "parentRemoved": "{user} quitó el padre",
+      "subissueAdded": "{user} sumó un sub-issue:",
+      "subissueRemoved": "{user} sacó el sub-issue",
+      "autoClosedSubs": "Track cerró este issue porque todos sus sub-issues están terminados",
+      "autoClosedParent": "Track cerró este issue porque se cerró su padre"
     },
     "sub": {
       "title": "Sub-issues",
@@ -1391,7 +1405,9 @@
       "saved": "Vista guardada",
       "linkCopied": "Link a la vista copiado",
       "shareOnSave": "Compartir con el equipo",
-      "shareHelp": "Las vistas del equipo las ve todo el equipo. Solo vos las editás."
+      "shareHelp": "Las vistas del equipo las ve todo el equipo. Solo vos las editás.",
+      "updateView": "Actualizar vista",
+      "saveAsNew": "Guardar como vista nueva"
     },
     "filter": {
       "fields": {
@@ -1573,6 +1589,14 @@
     "autoCloseParent": "Cerrar el padre cuando terminan todos sus sub-issues",
     "autoCloseChildren": "Cerrar los sub-issues abiertos cuando el padre se termina o se cancela",
     "housekeeping": "Auto-cierre y auto-archivo",
-    "integrationsHelp": "GitHub, Slack, Sentry y la API se configuran para todo el workspace."
+    "integrationsHelp": "GitHub, Slack, Sentry y la API se configuran para todo el workspace.",
+    "estimatesHelp": "Elegí la escala de las estimaciones del equipo. ⇧E ofrece esos valores.",
+    "scales": {
+      "fibonacci": "Fibonacci",
+      "linear": "Lineal",
+      "exponential": "Exponencial",
+      "tshirt": "Talles de remera",
+      "none": "Sin estimaciones"
+    }
   }
 }

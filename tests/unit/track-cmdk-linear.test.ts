@@ -156,3 +156,28 @@ describe('Track: issues favoritos (estrella)', () => {
     expect(await listFavoriteIssues(null, u.id, u.id)).toEqual([]);
   });
 });
+
+import { createCycle } from '@/lib/track-data';
+import { createLabel } from '@/lib/track-labels';
+import { searchApps } from '@/lib/app-search';
+import { estimateChoices } from '@/components/track/trackCommands';
+
+describe('⌘K de Track: cycles, labels y teams', () => {
+  it('encuentra cycles y labels del workspace y el team va bajo "Teams"', async () => {
+    const word = `zeta${crypto.randomUUID().slice(0, 5)}`;
+    const u = await makeUser('cmdk3');
+    const p = await createProject(u.id, null, { name: `Team ${word}` });
+    await createCycle(p.id, { name: `Sprint ${word}`, startAt: '2026-10-20', endAt: '2026-11-03' });
+    const label = await createLabel(u.id, { name: `lbl-${word}` });
+    expect(label.ok).toBe(true);
+    const groups = (await searchApps(u, word)).map((i) => i.group);
+    expect(groups).toEqual(expect.arrayContaining(['teams', 'trackCycles', 'trackLabels']));
+    expect(groups).not.toContain('projects');
+  });
+
+  it('escalas de estimación como Linear', () => {
+    expect(estimateChoices().map((o) => o.value)).toEqual([0, 1, 2, 3, 5, 8]);
+    expect(estimateChoices('tshirt').map((o) => o.label)).toEqual(['XS', 'S', 'M', 'L', 'XL']);
+    expect(estimateChoices('none')).toEqual([]);
+  });
+});

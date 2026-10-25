@@ -32,6 +32,7 @@ export interface IssuePatch {
   estimate?: number | null;
   cycleId?: string | null;
   milestoneId?: string | null;
+  planMilestoneId?: string | null;
   parentId?: string | null;
   subOrder?: number | null;
   /** Project (plan) del issue. */
@@ -121,6 +122,10 @@ export function applyIssuePatch(
     next.milestone_name = patch.milestoneId
       ? (extras.milestones?.find((m) => m.id === patch.milestoneId)?.name ?? null)
       : null;
+  }
+  if (patch.planMilestoneId !== undefined) {
+    next.plan_milestone_id = patch.planMilestoneId ?? null;
+    next.plan_milestone_name = patch.planMilestoneId ? (next.plan_milestone_name ?? null) : null;
   }
   if (patch.planId !== undefined) {
     next.plan_id = patch.planId ?? null;
@@ -407,6 +412,7 @@ export function inversePatch(prev: TrackIssueWithStatus, patch: IssuePatch): Iss
   if (patch.estimate !== undefined) out.estimate = prev.estimate;
   if (patch.cycleId !== undefined) out.cycleId = prev.cycle_id;
   if (patch.milestoneId !== undefined) out.milestoneId = prev.milestone_id ?? null;
+  if (patch.planMilestoneId !== undefined) out.planMilestoneId = prev.plan_milestone_id ?? null;
   if (patch.parentId !== undefined) out.parentId = prev.parent_id;
   if (patch.subOrder !== undefined) out.subOrder = prev.sub_order ?? null;
   if (patch.planId !== undefined) out.planId = prev.plan_id ?? null;

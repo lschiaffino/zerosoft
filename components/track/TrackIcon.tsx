@@ -50,12 +50,14 @@ export type TrackIconName =
   | 'table'
   | 'todo'
   | 'paperclip'
+  | 'milestone'
   | 'toggle'
   | 'callout'
   | 'inbox';
 
 // Trazo de 2px, cuadrado (mismo idioma que components/app/icons.tsx).
 const PATHS: Record<TrackIconName, ReactNode> = {
+  milestone: <path d="M12 3l9 9-9 9-9-9z" />,
   paperclip: <path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7" />,
   inbox: <path d="M4 13l2.5-8h11L20 13v6H4zM4 13h5l1 2h4l1-2h5" />,
   settings: <path d="M4 7h8M16 7h4M12 4v6M4 17h4M12 17h8M8 14v6" />,
@@ -85,7 +87,7 @@ const PATHS: Record<TrackIconName, ReactNode> = {
   tag: <path d="M4 4h8l8 8-8 8-8-8zM8.5 8.5h.01" />,
   cycle: <path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5" />,
   flag: <path d="M5 21V4h11l-2 4 2 4H5" />,
-  estimate: <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5" />,
+  estimate: <path d="M12 4l8.5 15h-17zM8.6 13h6.8M10.3 16h3.4" />,
   parent: <path d="M6 4v8a4 4 0 0 0 4 4h8M14 12l4 4-4 4" />,
   star: <path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7L12 3z" />,
   users: <path d="M9 4a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM2 20a7 7 0 0 1 14 0M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14a6 6 0 0 1 4 6" />,

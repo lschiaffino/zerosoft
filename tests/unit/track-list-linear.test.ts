@@ -48,3 +48,19 @@ describe('grupos por estado como Linear', () => {
     expect(groupIssues(rows, 'status', { statuses: full, activeFirst: true }).map((g) => g.key)).toEqual(['p', 't', 'b', 'd']);
   });
 });
+
+import { treeRoots } from '@/lib/track-views';
+
+describe('árbol de sub-issues en listas agrupadas', () => {
+  it('agrupa por raíz y expande los descendientes bajo su padre', () => {
+    const rows = [
+      { id: 'c', parent_id: 'p' },
+      { id: 'p', parent_id: null },
+      { id: 'g', parent_id: 'c' },
+      { id: 'x', parent_id: 'fuera' },
+    ];
+    const { roots, expand } = treeRoots(rows);
+    expect(roots.map((r) => r.id)).toEqual(['p', 'x']);
+    expect(expand([rows[1]]).map((r) => r.id)).toEqual(['p', 'c', 'g']);
+  });
+});

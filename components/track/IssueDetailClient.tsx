@@ -9,6 +9,7 @@ import { formatDate, relDate } from '@/lib/utils';
 import type { CommandAction } from '@/lib/cmdk-context';
 import { openCommandMenu } from '@/lib/cmdk-context';
 import IssueActivityTimeline from './IssueActivityTimeline';
+import dynamic from 'next/dynamic';
 import { IssueGithubPanel, useIssueGithub } from './IssueGithub';
 import { IssueLinksPanel } from './IssueLinks';
 import { Popover, TrackToast, useToday } from './InlineEditors';
@@ -42,6 +43,8 @@ import type {
 } from '@/lib/track-data';
 import { teamKeyOf, teamPath } from '@/lib/track-routes';
 import { TRACK_MARKDOWN_MAX } from '@/lib/track-markdown';
+
+const QuickIssueModal = dynamic(() => import('./QuickIssueModal'));
 
 interface DetailLabels {
   back: string;
@@ -176,6 +179,8 @@ interface IssueDetailClientProps {
   initialSubscribed: boolean;
   /** Si el issue está en sus favoritos (estrella). */
   initialFavorite?: boolean;
+  /** Escala de estimación del team (⇧E). */
+  estimateScale?: string;
   labels: DetailLabels;
   /** Labels del quick-create y de la edición en línea. */
   ui: TrackUiLabels;
@@ -243,6 +248,7 @@ export default function IssueDetailClient({
   initialReactions = [],
   initialSubscribed,
   initialFavorite = false,
+  estimateScale,
   labels,
   ui,
   canDelete = false,
@@ -267,6 +273,8 @@ export default function IssueDetailClient({
   const [titleDraft, setTitleDraft] = useState(initialIssue.title);
   const [descDraft, setDescDraft] = useState(() => parseDescription(initialIssue.description));
   const [composerSignal, setComposerSignal] = useState(0);
+  // Composer modal de sub-issue (⌘⇧O, "Crear sub-issue desde el comentario"): null = cerrado.
+  const [subComposer, setSubComposer] = useState<{ title?: string; description?: string } | null>(null);
   // Secciones que no se muestran vacías (como Linear): se abren desde el menú "+".
   const [linksSignal, setLinksSignal] = useState(0);
   const [summarizeSignal, setSummarizeSignal] = useState(0);
@@ -316,7 +324,7 @@ export default function IssueDetailClient({
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     if (sp.get('sub') !== '1') return;
-    setComposerSignal((n) => n + 1);
+    setSubComposer({});
     sp.delete('sub');
     const qs = sp.toString();
     window.history.replaceState(window.history.state, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
@@ -853,6 +861,7 @@ export default function IssueDetailClient({
       priorities: labels.priorities,
       meId: userId,
       today,
+      estimateScale,
     },
     handlers: {
       apply: (targets, patch) => {
@@ -863,7 +872,8 @@ export default function IssueDetailClient({
         }
       },
       createSubIssue: (p) => {
-        if (p.id === issueRef.current.id) setComposerSignal((n) => n + 1);
+        // ⌘⇧O como Linear: el composer con el padre puesto.
+        if (p.id === issueRef.current.id) setSubComposer({});
         else router.push(`/app/track/issues/${p.id}`);
       },
       remove: canDelete
@@ -1168,7 +1178,7 @@ export default function IssueDetailClient({
                     }, undefined, { autoFocus: true, testId: 'track-close-issue' })}
                   {moreItem('sub', tc('createSubIssue'), () => {
                     close();
-                    setComposerSignal((n) => n + 1);
+                    setSubComposer({});
                   }, mac ? '⌘⇧O' : 'Ctrl+Shift+O', { testId: 'track-menu-subissue' })}
                   {moreItem('parent', tc('setParent'), () => {
                     close();
@@ -1248,8 +1258,25 @@ export default function IssueDetailClient({
         )}
       </header>
 
-      <div className="track-detail-grid">
-        <div className="track-detail-main">
+      <div
+        className="track-detail-grid"
+        onMouseDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          e.preventDefault();
+          (document.activeElement as HTMLElement | null)?.blur?.();
+        }}
+      >
+        <div
+          className="track-detail-main"
+          // Clic en el espacio vacío de la columna: Chrome mandaría el cursor al
+          // editor más cercano (el comentario) y S/P/⌘⇧O escribirían ahí. Como
+          // Linear, el foco solo va al comentario si se clickea el comentario.
+          onMouseDown={(e) => {
+            if (e.target !== e.currentTarget) return;
+            e.preventDefault();
+            (document.activeElement as HTMLElement | null)?.blur?.();
+          }}
+        >
           {parent && (
             <div className="track-parent-row">
               <Link
@@ -1500,9 +1527,7 @@ export default function IssueDetailClient({
               attachments={attachments}
               onUpload={uploadInline}
               onChange={refreshActivities}
-              onCreateSubIssue={(title) => {
-                void createSubIssue(title).then(() => pushNotice(tx('sub.createdFromComment', { title })));
-              }}
+              onCreateSubIssue={(title, body) => setSubComposer({ title, description: body })}
             />
           </section>
         </div>
@@ -1522,11 +1547,36 @@ export default function IssueDetailClient({
               today={today}
               labels={labels.properties}
               onPatch={(patch) => void patchIssue(patch)}
+              estimateScale={estimateScale}
             />
             <IssueSideExtras issueId={issue.id} watch={`${issue.priority}|${issue.status_id}|${issue.triage}`} />
           </section>
         </aside>
       </div>
+      {subComposer && (
+        <QuickIssueModal
+          open
+          onClose={() => setSubComposer(null)}
+          projects={[project]}
+          defaults={{
+            projectId: issue.project_id,
+            parentId: issue.id,
+            parentLabel: issue.identifier,
+            priority: issue.priority,
+            title: subComposer.title,
+            description: subComposer.description,
+          }}
+          onCreate={(projectId, draft) =>
+            childStore.create(projectId, draft).then((saved) => {
+              void refreshActivities();
+              return saved;
+            })
+          }
+          labels={ui}
+          today={today}
+          meId={userId}
+        />
+      )}
       <TrackToast message={saveError} onDismiss={() => setSaveError(null)} dismissLabel={ui.inline.dismiss} />
       <ConfirmDialog
         open={confirmDelete}

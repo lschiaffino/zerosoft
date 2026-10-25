@@ -4,9 +4,11 @@ import { useEffect, useRef } from 'react';
 import { CMDK_CLOSED_EVENT, OPEN_SEARCH_EVENT, openCommandMenu, setCommandContext, type CommandAction, type OpenCommandDetail } from '@/lib/cmdk-context';
 import type { TrackIssueWithStatus } from '@/lib/track-data';
 import { branchNameFor } from '@/lib/track-branch';
+import { estimateOptions } from '@/lib/track-estimates';
 import { addDays, type IssuePatch, type IssuePriority } from '@/lib/track-tasks';
 import { glyphColor, safeHexColor } from '@/lib/track-color';
 import { pushNotice } from './trackUndo';
+import { activeRowElement } from './kbCursor';
 
 /**
  * Track — acciones sobre issues para la paleta ⌘K y los atajos de una tecla
@@ -23,11 +25,13 @@ export interface CommandData {
   statuses: Array<{ id: string; name: string; color: string; category: string; position: number; project_id?: string }>;
   members: Array<{ id: string; name: string | null; email: string }>;
   labels: Array<{ id: string; name: string; color: string }>;
-  cycles: Array<{ id: string; name: string }>;
+  cycles: Array<{ id: string; name: string; start_at?: string; end_at?: string }>;
   milestones: Array<{ id: string; name: string }>;
   priorities: Array<{ value: string; label: string }>;
   meId: string;
   today: string;
+  /** Escala de estimación del team (fibonacci por defecto). */
+  estimateScale?: string;
 }
 
 export interface CommandHandlers {
@@ -111,6 +115,11 @@ export function parseDueQuery(raw: string, today: string): string | null {
 }
 
 export const ESTIMATE_OPTIONS = [0, 1, 2, 3, 5, 8, 13];
+
+/** Opciones de estimación según la escala del team (lib/track-estimates; talles con su etiqueta). */
+export function estimateChoices(scale?: string): Array<{ value: number; label?: string }> {
+  return estimateOptions(scale).map((o) => (scale === 'tshirt' ? o : { value: o.value }));
+}
 
 /** Orden del menú de prioridad (como Linear): Sin prioridad 0, Urgente 1 … Baja 4. */
 export const PRIORITY_MENU_ORDER: IssuePriority[] = ['none', 'urgent', 'high', 'medium', 'low'];
@@ -372,6 +381,7 @@ export function buildIssueActions(
       return [];
     },
     create: {
+      keepOpen: true,
       label: (q) => t('createLabel', { name: q }),
       run: async (q) => {
         const label = await createLabelNamed(q);
@@ -408,6 +418,7 @@ export function buildIssueActions(
     });
   }
 
+  if (data.estimateScale !== 'none')
   actions.push({
     id: 'estimate',
     label: t('estimate'),
@@ -415,19 +426,32 @@ export function buildIssueActions(
     keywords: 'estimate estimación estimativa points puntos',
     placeholder: t('estimatePlaceholder'),
     icon: { kind: 'glyph', name: 'estimate' },
+    // Como Linear: dígitos que eligen (1 = la primera opción…, 0 = sin estimación) y la escala del team.
     children: () => [
-      { id: 'estimate:none', label: t('noEstimate'), isNone: true, checked: Boolean(one && one.estimate == null), run: () => apply({ estimate: null }) },
-      ...ESTIMATE_OPTIONS.map((n) => ({
-        id: `estimate:${n}`,
-        label: t('points', { count: n }),
-        keywords: String(n),
-        checked: Boolean(one && one.estimate === n),
-        run: () => apply({ estimate: n }),
-      })),
+      // El dígito es el valor (2 = 2 puntos); en talles, su posición (1 = XS).
+      ...estimateChoices(data.estimateScale).map((o, i) => {
+        const key = o.label ? (i < 9 ? String(i + 1) : undefined) : o.value <= 9 ? String(o.value) : undefined;
+        return {
+          id: `estimate:${o.value}`,
+          label: o.label ?? t('points', { count: o.value }),
+          keywords: String(o.value),
+          checked: Boolean(one && one.estimate === o.value),
+          meta: key,
+          digit: key,
+          run: () => apply({ estimate: o.value }),
+        };
+      }),
+      {
+        id: 'estimate:none',
+        label: t('noEstimate'),
+        isNone: true,
+        checked: Boolean(one && one.estimate == null),
+        run: () => apply({ estimate: null }),
+      },
     ],
     dynamic: (q) => {
       const n = Number(q.trim());
-      if (!q.trim() || !Number.isInteger(n) || n < 0 || n > 999 || ESTIMATE_OPTIONS.includes(n)) return [];
+      if (!q.trim() || !Number.isInteger(n) || n < 0 || n > 999 || estimateChoices(data.estimateScale).some((o) => o.value === n)) return [];
       return [{ id: `estimate:${n}`, label: t('points', { count: n }), run: () => apply({ estimate: n }) }];
     },
   });
@@ -494,42 +518,83 @@ export function buildIssueActions(
       id: 'cycle',
       label: t('cycle'),
       meta: '⇧C',
-      keywords: 'cycle ciclo sprint set',
+      keywords: 'cycle ciclo sprint set add agregar mover move',
       placeholder: t('cycle'),
       icon: { kind: 'glyph', name: 'cycle' },
-      children: () => [
-        { id: 'cycle:none', label: t('noCycle'), isNone: true, checked: Boolean(one && !one.cycle_id), run: () => apply({ cycleId: null }) },
-        ...data.cycles.map((c) => ({
-          id: `cycle:${c.id}`,
-          label: c.name,
-          icon: { kind: 'glyph' as const, name: 'cycle' as const },
-          checked: Boolean(one && one.cycle_id === c.id),
-          run: () => apply({ cycleId: c.id }),
-        })),
-      ],
+      // Como Linear: el cycle activo primero (Enter lo asigna), después los próximos, y "Sin cycle" al final.
+      children: () => {
+        const day = (iso?: string) => (iso ?? '').slice(0, 10);
+        const state = (c: CommandData['cycles'][number]) =>
+          !c.start_at || !c.end_at ? 1 : day(c.start_at) <= data.today && data.today <= day(c.end_at) ? 0 : day(c.start_at) > data.today ? 1 : 2;
+        const sorted = [...data.cycles].sort((a, b) => state(a) - state(b) || day(a.start_at).localeCompare(day(b.start_at)));
+        return [
+          ...sorted.map((c) => ({
+            id: `cycle:${c.id}`,
+            label: c.name,
+            meta: state(c) === 0 ? t('currentCycle') : state(c) === 1 && c.start_at ? t('upcomingCycle') : undefined,
+            icon: { kind: 'glyph' as const, name: 'cycle' as const },
+            checked: Boolean(one && one.cycle_id === c.id),
+            run: () => apply({ cycleId: c.id }),
+          })),
+          { id: 'cycle:none', label: t('noCycle'), isNone: true, checked: Boolean(one && !one.cycle_id), run: () => apply({ cycleId: null }) },
+        ];
+      },
     });
   }
-  if (sameProject && data.milestones.length) {
+  if (sameProject) {
+    for (const c of data.cycles) {
+      flat.push({
+        id: `flat-cycle:${c.id}`,
+        label: t('addToCycle', { name: c.name }),
+        keywords: `cycle ciclo sprint ${c.name}`,
+        icon: { kind: 'glyph', name: 'cycle' },
+        searchOnly: true,
+        run: () => apply({ cycleId: c.id }),
+      });
+    }
+  }
+  // Milestone: uno solo visible, como Linear. Con project, los milestones del
+  // project; sin project, los del team.
+  const planOf = targets.every((i) => i.plan_id && i.plan_id === targets[0].plan_id) ? (targets[0].plan_id ?? null) : null;
+  if (planOf || (sameProject && data.milestones.length)) {
     actions.push({
       id: 'milestone',
       label: t('milestone'),
       keywords: 'milestone hito marco',
       placeholder: t('milestone'),
+      icon: { kind: 'glyph', name: 'milestone' },
       children: () => [
+        ...(planOf
+          ? []
+          : data.milestones.map((m) => ({
+              id: `milestone:${m.id}`,
+              label: m.name,
+              icon: { kind: 'glyph' as const, name: 'milestone' as const },
+              checked: Boolean(one && one.milestone_id === m.id),
+              run: () => apply({ milestoneId: m.id }),
+            }))),
         {
           id: 'milestone:none',
           label: t('noMilestone'),
           isNone: true,
-          checked: Boolean(one && !one.milestone_id),
-          run: () => apply({ milestoneId: null }),
+          checked: Boolean(one && !(planOf ? one.plan_milestone_id : one.milestone_id)),
+          run: () => apply(planOf ? { planMilestoneId: null } : { milestoneId: null }),
         },
-        ...data.milestones.map((m) => ({
-          id: `milestone:${m.id}`,
-          label: m.name,
-          checked: Boolean(one && one.milestone_id === m.id),
-          run: () => apply({ milestoneId: m.id }),
-        })),
       ],
+      load: planOf
+        ? async () => {
+            const res = await fetch(`/api/track/plans/${planOf}`).catch(() => null);
+            const rows = res?.ok ? ((await res.json()) as { milestones?: Array<{ id: string; name: string; target_date?: string | null }> }).milestones ?? [] : [];
+            return rows.map((m) => ({
+              id: `plan-milestone:${m.id}`,
+              label: m.name,
+              meta: m.target_date ? formatDay(m.target_date.slice(0, 10)) : undefined,
+              icon: { kind: 'glyph' as const, name: 'milestone' as const },
+              checked: Boolean(one && one.plan_milestone_id === m.id),
+              run: () => apply({ planMilestoneId: m.id }),
+            }));
+          }
+        : undefined,
     });
   }
 
@@ -716,6 +781,9 @@ function inGoSequence(): boolean {
 
 /** Fila de issue activa (J/K) o bajo el mouse, si hay. */
 export function rowTargetId(): string | null {
+  // El cursor de J/K va por id (kbCursor) y sobrevive a que la fila se re-monte.
+  const kb = activeRowElement();
+  if (kb?.dataset.issueKey) return kb.dataset.issueKey;
   const row =
     document.querySelector<HTMLElement>('[data-issue-key].is-kb-active') ??
     document.querySelector<HTMLElement>('[data-issue-key]:hover');
@@ -873,6 +941,13 @@ export function useTrackCommands(opts: UseTrackCommandsOptions): void {
         if (!p) return;
         e.preventDefault();
         o.handlers.apply(targets, { priority: p });
+        return;
+      }
+      // ⌘⇧O con varios seleccionados: como Linear, elegir de qué issue pasan a ser sub-issues.
+      if (sc.run === 'sub-issue' && targets.length > 1) {
+        e.preventDefault();
+        pin(targets);
+        openCommandMenu('parent');
         return;
       }
       if (sc.run === 'due:clear') {

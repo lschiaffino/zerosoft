@@ -11,6 +11,7 @@ import { safeHexColor } from '@/lib/track-color';
 import { openCommandMenu } from '@/lib/cmdk-context';
 import { PriorityIcon, StatusDot } from './InlineEditors';
 import TrackIcon, { type TrackIconName } from './TrackIcon';
+import { estimateChoices } from './trackCommands';
 import type { TrackUiLabels } from './ui-labels';
 
 interface IssueSidebarProps {
@@ -39,6 +40,7 @@ interface IssueSidebarProps {
   onPatch: (patch: IssuePatch) => void;
   /** Labels por id o por nombre (se crean al vuelo). */
   onLabels?: (next: Array<{ id: string } | { name: string }>) => void;
+  estimateScale?: string;
 }
 
 function parseLabels(raw: string): IssueLabel[] {
@@ -112,7 +114,7 @@ function Glyph({ name }: { name: TrackIconName }) {
  * tipeado, flechas, Enter y crear en línea. Los cambios los aplica la página
  * (optimistas, con ⌘Z).
  */
-export default function IssueSidebar({ issue, cycles, milestones, locale, ui, today, labels }: IssueSidebarProps) {
+export default function IssueSidebar({ issue, cycles, milestones, locale, ui, today, labels, estimateScale }: IssueSidebarProps) {
   const t = useTranslations('track');
   const tx = useTranslations('track.ux.side');
   const tp = useTranslations('track.ux.props');
@@ -215,27 +217,34 @@ export default function IssueSidebar({ issue, cycles, milestones, locale, ui, to
           testId="track-side-cycle"
         />
       )}
-      {milestones.length > 0 && (
+      {/* Un solo Milestone (como Linear): el del project si el issue tiene project, si no el del team. */}
+      {(issue.plan_id || milestones.length > 0) && (
         <Chip
           page="milestone"
           issueId={issue.id}
           name={t('milestones.property')}
-          value={issue.milestone_name ?? tp('addMilestone')}
-          empty={!issue.milestone_id}
-          icon={<Glyph name="flag" />}
+          value={(issue.plan_id ? issue.plan_milestone_name : issue.milestone_name) ?? tp('addMilestone')}
+          empty={!(issue.plan_id ? issue.plan_milestone_id : issue.milestone_id)}
+          icon={<Glyph name="milestone" />}
           testId="track-prop-milestone"
         />
       )}
-      <Chip
-        page="estimate"
-        issueId={issue.id}
-        name={labels.estimate}
-        value={issue.estimate == null ? tp('setEstimate') : tx('points', { count: issue.estimate })}
-        shortcut="⇧E"
-        empty={issue.estimate == null}
-        icon={<Glyph name="estimate" />}
-        testId="track-side-estimate"
-      />
+      {estimateScale !== 'none' && (
+        <Chip
+          page="estimate"
+          issueId={issue.id}
+          name={labels.estimate}
+          value={
+            issue.estimate == null
+              ? tp('setEstimate')
+              : (estimateChoices(estimateScale).find((o) => o.value === issue.estimate)?.label ?? tx('points', { count: issue.estimate }))
+          }
+          shortcut="⇧E"
+          empty={issue.estimate == null}
+          icon={<Glyph name="estimate" />}
+          testId="track-side-estimate"
+        />
+      )}
       <Chip
         page="start"
         issueId={issue.id}

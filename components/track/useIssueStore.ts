@@ -52,6 +52,8 @@ export interface IssueDraft {
   /** Project (track_plans) y fecha de inicio, desde los chips del composer. */
   planId?: string | null;
   startDate?: string | null;
+  /** Mandarlo a triage del team (opción "Triage" del composer). */
+  triage?: boolean;
 }
 
 export interface IssueStore {
@@ -276,6 +278,7 @@ export function useIssueStore(
               labels: draft.labels?.length ? draft.labels : undefined,
               planId: draft.planId || undefined,
               startDate: draft.startDate || undefined,
+              triage: draft.triage || undefined,
             }),
           });
           if (!res.ok) throw new Error(`create ${res.status}`);

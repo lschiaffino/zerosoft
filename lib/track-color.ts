@@ -34,3 +34,33 @@ export function glyphColor(color: string | null | undefined, fallback = '#767676
   if (spread < 24 && (luma < 0.22 || luma > 0.85)) return 'var(--ink)';
   return `#${full}`;
 }
+
+/**
+ * Colores de estado como Linear, por categoría: backlog y por hacer en gris,
+ * en curso en amarillo, terminado en violeta y cancelado en gris. Son los
+ * defaults al crear estados y la paleta del workflow.
+ */
+export const STATUS_CATEGORY_COLORS: Record<string, string> = {
+  backlog: '#8a8f98',
+  todo: '#8a8f98',
+  in_progress: '#e5a800',
+  done: '#5e6ad2',
+  cancelled: '#8a8f98',
+};
+
+/** Paleta del selector de color del workflow (la de Linear, con contraste en claro y oscuro). */
+export const STATUS_PALETTE = ['#8a8f98', '#e5a800', '#5e6ad2', '#4cb782', '#eb5757', '#f2994a', '#26b5ce', '#bb87fc'];
+
+// Los defaults viejos de Track (negro y grises): se pintan con el color de la categoría.
+const LEGACY_DEFAULTS = new Set(['#000', '#000000', '#666666', '#999999']);
+
+/**
+ * Color del glifo de un estado: el del estado si se eligió uno, y si es el
+ * default viejo (o falta), el de su categoría. Así los estados existentes se
+ * ven con los colores de Linear sin tocar los datos.
+ */
+export function statusGlyphColor(color: string | null | undefined, category: string | null | undefined): string {
+  const c = (color ?? '').trim().toLowerCase();
+  if (!c || LEGACY_DEFAULTS.has(c)) return STATUS_CATEGORY_COLORS[category ?? ''] ?? glyphColor(color);
+  return glyphColor(color);
+}

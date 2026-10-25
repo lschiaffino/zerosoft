@@ -479,3 +479,10 @@
 .track-peek-comment-body {
   font-size: 0.8125rem;
 }
+
+/* Actividad: avatar chico del asignado nuevo en la fila del evento. */
+.track-event-icon .track-avatar.is-tiny {
+  width: 14px;
+  height: 14px;
+  font-size: 0.5rem;
+}

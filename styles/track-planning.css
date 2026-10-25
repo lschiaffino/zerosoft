@@ -278,3 +278,120 @@
 .tp-desc .track-rte-content { min-height: 80px; }
 .tp-update-editor .track-rte-content { min-height: 90px; }
 .tp-ms-date.tp-chip { min-height: 24px; }
+
+/* Ajustes del team: auto-cierre (toda la fila tilda) y escalas de estimación. */
+.track-team-autoclose {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 24px 0 8px;
+  padding: 16px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.track-team-autoclose .ui-check.track-autoclose-row {
+  display: flex;
+  width: 100%;
+  padding: 8px 4px;
+  border-radius: var(--radius-1);
+}
+
+.track-team-autoclose .ui-check.track-autoclose-row:hover {
+  background: var(--ui-hover);
+}
+
+.track-team-settings h3.tp-card-title {
+  margin: 24px 0 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.track-estimate-scales {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+
+.track-estimate-scale {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 160px) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.track-estimate-scale + .track-estimate-scale {
+  border-top: 1px solid var(--line);
+}
+
+.track-estimate-scale.is-on {
+  background: var(--ui-hover);
+}
+
+.track-estimate-scale-values {
+  color: var(--brand-gray-2);
+}
+
+/* Workflow: color del estado con la paleta de Linear. */
+.track-status-color-btn.track-inline-trigger {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  justify-content: center;
+}
+
+.track-status-palette {
+  display: grid;
+  grid-template-columns: repeat(4, 32px);
+  gap: 8px;
+  padding: 8px;
+}
+
+.track-status-swatch {
+  width: 32px;
+  height: 32px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.track-status-swatch[aria-checked='true'],
+.track-status-swatch:focus-visible {
+  border-color: var(--ink);
+  outline: 2px solid var(--bg);
+  outline-offset: -4px;
+}
+
+/* New project: propiedades como chips. */
+.tp-new-plan-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Cycles: "New cycle" arriba de la lista. */
+.tp-cycles-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tp-cycles-toolbar .tp-toolbar-spacer {
+  flex: 1;
+}
+
+.tp-cycles-team {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.tp-chip-dots {
+  display: inline-flex;
+  gap: 2px;
+}
