@@ -278,6 +278,8 @@ describe('edición', () => {
     expect(db.properties.map((p) => p.type)).toEqual(['title', 'status', 'date']);
     expect(db.properties[1].options?.map((o) => o.group)).toEqual(['todo', 'in_progress', 'done']);
     expect(db.rows).toHaveLength(1);
+    // La primera fila arranca en "Not started", como las que se agregan después.
+    expect(db.rows[0].values[db.properties[1].id]).toBe(db.properties[1].options![0].id);
   });
 });
 

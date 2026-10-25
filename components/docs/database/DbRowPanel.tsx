@@ -201,10 +201,25 @@ export default function DbRowPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [row?.id]);
 
+  // Al cerrar, el foco vuelve a lo que abrió el panel (la celda, la tarjeta del
+  // board o del calendario); si se repintó mientras tanto, a la tarjeta de la fila.
+  const openedRow = useRef(row?.id ?? null);
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    panelRef.current?.querySelector<HTMLElement>('.docs-db-panel-close')?.focus({ preventScroll: true });
-    return () => prev?.focus?.({ preventScroll: true });
+    const rowId = openedRow.current;
+    const panel = panelRef.current;
+    panel?.querySelector<HTMLElement>('.docs-db-panel-close')?.focus({ preventScroll: true });
+    return () => {
+      requestAnimationFrame(() => {
+        if (document.activeElement && document.activeElement !== document.body && !panel?.contains(document.activeElement)) return;
+        let target: HTMLElement | null = prev && prev.isConnected && prev !== document.body ? prev : null;
+        if (!target && rowId) {
+          const card = document.querySelector<HTMLElement>(`[data-row="${CSS.escape(rowId)}"]`);
+          target = card?.matches('button, [tabindex]') ? card : card?.querySelector<HTMLElement>('button, [tabindex]') ?? null;
+        }
+        target?.focus({ preventScroll: true });
+      });
+    };
   }, []);
 
   // Click afuera cierra el panel lateral (no la página completa). Un click en

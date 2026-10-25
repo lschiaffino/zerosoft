@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { cache, type CSSProperties } from 'react';
 import { notFound } from 'next/navigation';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
-import { getHelpArticle as loadHelpArticle, getHelpWorkspace as loadHelpWorkspace } from '@/lib/docs-help';
+import { getHelpArticle as loadHelpArticle, getHelpWorkspace as loadHelpWorkspace, publishedRelatedDatabases } from '@/lib/docs-help';
 import { sanitizeBlocks } from '@/lib/docs-sanitize';
 import { stripFileUrls } from '@/lib/docs-files';
 import { resolveBlocksPageLinks } from '@/lib/docs-page-links';
@@ -60,6 +60,8 @@ export default async function HelpArticlePage(props: Props) {
     return target ? { href: `${base}/${target.slug}`, title: target.title || t('untitled'), keepId: false } : null;
   });
   const toc = buildToc(blocks);
+  // Relaciones y espejos de dos vías con bases de otras páginas publicadas.
+  const dbForeign = await publishedRelatedDatabases(ws.id, article.id, blocks);
   const style = helpAccentStyle(ws.accent) as CSSProperties;
 
   return (
@@ -94,7 +96,7 @@ export default async function HelpArticlePage(props: Props) {
                 {t('updated', { date: format.dateTime(new Date(article.updated_at), { dateStyle: 'medium' }) })}
               </p>
             </header>
-            <DocsBlocksView blocks={blocks} pageId={article.id} className="docs-prose help-body" boards={false} syncedNoAccess={tEditor('synced.noAccess')} />
+            <DocsBlocksView blocks={blocks} pageId={article.id} className="docs-prose help-body" boards={false} syncedNoAccess={tEditor('synced.noAccess')} dbForeign={dbForeign} dbDefaultView />
 
             {/* Portada de colección: la lista de sus artículos. */}
             {article.children.length > 0 ? (

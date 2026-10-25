@@ -126,11 +126,7 @@ const TableRow = memo(function TableRow({
             onClick={(e) => {
               const target = e.target as HTMLElement;
               if (target.closest('a, button, input')) return;
-              // Click en el texto del título: abre la fila (como un link de Notion); en el resto de la celda, edita.
-              if (p.type === 'title' && !isEditing && target.closest('.docs-db-title-text')) {
-                onOpenRow(row.id);
-                return;
-              }
+              // Como Notion: el click edita (también sobre el texto de un título largo); la fila se abre con "Open".
               onCellClick(nav, c);
             }}
           >

@@ -12,7 +12,7 @@
  */
 import type { DbProperty, DbRollupFn, DbRow, DbValue, DocsDatabase } from './docs-types';
 import { cellValue, dayKey, effectiveType, formatValue, isEmptyValue, optionById, rowTitle, titleProperty, type DbFormatContext } from './docs-database';
-import { FDate, FormulaError, dateKeyOf, evaluateFormula, kindOf, parseFDate, toText, type FKind, type FValue } from './docs-formula';
+import { FDate, FormulaError, dateKeyOf, evaluateFormula, formulaProps, kindOf, parseFDate, parseFormula, toText, type FKind, type FValue } from './docs-formula';
 
 /** Clave de una base: página + bloque. */
 export const dbKey = (pageId: string, blockId: string) => `${pageId}:${blockId}`;
@@ -304,6 +304,34 @@ export function computeDatabase(db: DocsDatabase, env: DbComputeEnv = {}, depth 
 
   // 3) Fórmulas (en orden de dependencias; un ciclo da error).
   const formulas = properties.filter((p) => p.type === 'formula');
+  // Ciclo (una fórmula que se usa a sí misma, o A usa B y B usa A): error
+  // aunque la base no tenga filas (con filas también lo detecta la evaluación).
+  if (formulas.length) {
+    const uses = new Map<string, string[]>();
+    for (const fp of formulas) {
+      try {
+        uses.set(fp.id, formulaProps(parseFormula(fp.formula ?? '', names)));
+      } catch {
+        uses.set(fp.id, []);
+      }
+    }
+    const inCycle = (start: DbProperty): boolean => {
+      const seen = new Set<string>();
+      const walk = (id: string): boolean => {
+        for (const name of uses.get(id) ?? []) {
+          const target = byName.get(name);
+          if (!target || target.type !== 'formula') continue;
+          if (target.id === start.id) return true;
+          if (seen.has(target.id)) continue;
+          seen.add(target.id);
+          if (walk(target.id)) return true;
+        }
+        return false;
+      };
+      return walk(start.id);
+    };
+    for (const fp of formulas) if (!fp.error && inCycle(fp)) fp.error = 'cycle';
+  }
   if (formulas.length) {
     const kinds = new Map<string, FKind | null>();
     for (const r of rows) {
@@ -362,9 +390,11 @@ export function computeDatabase(db: DocsDatabase, env: DbComputeEnv = {}, depth 
 }
 
 /** Valor de una fórmula sobre una fila de muestra (vista previa del editor). */
-export function previewFormula(db: DocsDatabase, formula: string, env: DbComputeEnv = {}): { value: string; error?: string } {
-  const probe: DbProperty = { id: '__preview__', name: '\u0000preview', type: 'formula', formula };
-  const withProbe: DocsDatabase = { ...db, properties: [...db.properties, probe] };
+export function previewFormula(db: DocsDatabase, formula: string, env: DbComputeEnv = {}, selfId?: string): { value: string; error?: string } {
+  // La propiedad que se está editando se prueba en su lugar: si se usa a sí misma (o a una que la usa), es un ciclo.
+  const self = selfId ? db.properties.find((p) => p.id === selfId) : undefined;
+  const probe: DbProperty = self ? { ...self, type: 'formula', formula, error: undefined } : { id: '__preview__', name: '\u0000preview', type: 'formula', formula };
+  const withProbe: DocsDatabase = { ...db, properties: self ? db.properties.map((p) => (p.id === self.id ? probe : p)) : [...db.properties, probe] };
   const out = computeDatabase(withProbe, env);
   const p = out.properties.find((x) => x.id === probe.id)!;
   const row = out.rows[0];

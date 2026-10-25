@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
-import type { DocsBlock } from '@/lib/docs-types';
+import type { DocsBlock, DocsDatabase } from '@/lib/docs-types';
+import { normalizeDatabase } from '@/lib/docs-database';
+import { dbKey } from '@/lib/docs-db-compute';
 import { buildToc } from '@/lib/docs-toc';
 import { docsFileHref, formatFileSize } from '@/lib/docs-files';
 import { blocksToTree, isToggleBlock, type DocsBlockNode } from '@/lib/docs-blocks';
@@ -31,6 +33,8 @@ export default function DocsBlocksView({
   locale,
   trail,
   syncedNoAccess = 'No access to this synced block.',
+  dbForeign,
+  dbDefaultView = false,
 }: {
   blocks: DocsBlock[];
   pageId?: string;
@@ -46,9 +50,16 @@ export default function DocsBlocksView({
   trail?: Array<{ id: string; title: string; href?: string }>;
   /** Texto de un sincronizado sin acceso a su página de origen. */
   syncedNoAccess?: string;
+  /** Bases de otras páginas que quien lee puede ver (por dbKey); las de esta página se suman solas. */
+  dbForeign?: Record<string, DocsDatabase>;
+  /** Bases en su vista por defecto (centro de ayuda), no en la que quedó abierta en el editor. */
+  dbDefaultView?: boolean;
 }) {
   const hrefFor = fileHref ?? (pageId ? (blockId: string, opts?: { download?: boolean }) => docsFileHref(pageId, blockId, opts) : null);
   const toc = buildToc(blocks);
+  // Las bases de esta página se ven entre sí (relaciones y espejos de dos vías).
+  const foreign: Record<string, DocsDatabase> = { ...dbForeign };
+  if (pageId) for (const b of blocks) if (b.type === 'database' && !b.linked) foreign[dbKey(pageId, b.id)] = normalizeDatabase(b);
   const anchors = new Map(toc.map((e) => [e.blockId, e.anchor]));
   /** HTML de un bloque con las ecuaciones en línea ya dibujadas (KaTeX en el servidor). */
   const rich = (html: string) => ({ __html: withInlineMath(html) });
@@ -198,7 +209,7 @@ export default function DocsBlocksView({
         return <DocsBoardPreview key={b.id} boardId={b.board_id} />;
       case 'database':
         // La vista activa de la base (filtro, orden, agrupado), en lectura.
-        return <DbReadOnly key={b.id} block={b} people={people} locale={locale} />;
+        return <DbReadOnly key={b.id} block={b} people={people} locale={locale} pageId={pageId} foreign={foreign} defaultView={dbDefaultView} />;
       case 'table': {
         return (
           <div key={b.id} className="dbv-table">

@@ -2938,15 +2938,24 @@ export default function DocsEditor({
   const membersUrl = embedded ? '/api/docs/members' : `/api/docs/members?page=${encodeURIComponent(page.id)}`;
 
   /** ?row=<id> en la URL de la página (Docs): la fila abierta como página completa. */
+  const pushedRow = useRef<string | null>(null);
   const setRowUrl = useCallback(
     (rowId: string | null, push: boolean) => {
       if (embedded || typeof window === 'undefined') return;
       const url = new URL(window.location.href);
+      // Cerrar la fila que abrió esta pestaña: se vuelve atrás (no queda una entrada de más en el historial).
+      if (!rowId && pushedRow.current && url.searchParams.get('row') === pushedRow.current) {
+        pushedRow.current = null;
+        window.history.back();
+        return;
+      }
       if (rowId) url.searchParams.set('row', rowId);
       else url.searchParams.delete('row');
       if (url.href === window.location.href) return;
-      if (push) window.history.pushState(null, '', url.href);
-      else window.history.replaceState(null, '', url.href);
+      if (push) {
+        window.history.pushState(null, '', url.href);
+        pushedRow.current = rowId;
+      } else window.history.replaceState(null, '', url.href);
     },
     [embedded],
   );
@@ -2971,6 +2980,8 @@ export default function DocsEditor({
   // Link a una fila (?row=): se abre como página completa; volver atrás la cierra.
   useEffect(() => {
     if (!rowParam) {
+      // "Atrás" del navegador: la entrada que se agregó al abrir ya no está.
+      pushedRow.current = null;
       setOpenRow((cur) => (cur?.mode === 'full' ? null : cur));
       return;
     }
