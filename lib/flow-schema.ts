@@ -43,6 +43,11 @@ export const FLOW_EVENT_TYPES = [
   'conversation.resolved',
   'conversation.rated',
   'page.created',
+  'page.updated',
+  'page.archived',
+  'page.comment_created',
+  'database.row_created',
+  'database.property_changed',
   'robot.run.finished',
   'robot.run.failed',
   'robot.output.changed',
@@ -216,6 +221,35 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
     widget: { id: 'w_1', name: 'Site' },
   },
   'page.created': { page: { id: 'pg_1', title: 'Untitled' } },
+  'page.updated': {
+    page: { id: 'pg_1', title: 'Weekly sync', parentId: null, url: '/app/docs/pg_1', updatedAt: '' },
+    editedBy: { id: 'u_1', name: 'Ada Lovelace', email: 'ada@example.com' },
+    text: 'Agenda. Decisions. Next steps.',
+  },
+  'page.archived': {
+    page: { id: 'pg_1', title: 'Old notes', parentId: null, url: '/app/docs/pg_1', updatedAt: '' },
+    editedBy: { id: 'u_1', name: 'Ada Lovelace', email: 'ada@example.com' },
+  },
+  'page.comment_created': {
+    page: { id: 'pg_1', title: 'Roadmap', parentId: null, url: '/app/docs/pg_1', updatedAt: '' },
+    comment: { id: 'cm_1', text: 'Can we ship this in May?', blockId: null, parentId: null },
+    author: { id: 'u_1', name: 'Ada Lovelace', email: 'ada@example.com' },
+  },
+  'database.row_created': {
+    page: { id: 'pg_1', title: 'Projects', parentId: null, url: '/app/docs/pg_1', updatedAt: '' },
+    database: { blockId: 'b_1', title: 'Projects' },
+    row: { id: 'r_1', title: 'Website refresh', url: '/app/docs/pg_1?row=r_1', properties: { Status: 'Not started', Owner: 'Ada Lovelace' } },
+    editedBy: { id: 'u_1', name: 'Ada Lovelace', email: 'ada@example.com' },
+  },
+  'database.property_changed': {
+    page: { id: 'pg_1', title: 'Projects', parentId: null, url: '/app/docs/pg_1', updatedAt: '' },
+    database: { blockId: 'b_1', title: 'Projects' },
+    row: { id: 'r_1', title: 'Website refresh', url: '/app/docs/pg_1?row=r_1', properties: { Status: 'Done', Owner: 'Ada Lovelace' } },
+    property: { id: 'status', name: 'Status', type: 'status' },
+    value: 'Done',
+    previous: 'In progress',
+    editedBy: { id: 'u_1', name: 'Ada Lovelace', email: 'ada@example.com' },
+  },
   'robot.run.finished': {
     robot: { id: 'rb_1', name: 'Price check' },
     run: { id: 'rr_1', status: 'success', trigger: 'schedule', durationMs: 4200, error: null, warnings: 0 },
@@ -332,7 +366,13 @@ export type FieldKind =
   /** Una tabla de datos del workspace (lib/flow-tables.ts). */
   | 'tableRef'
   /** Un chat o grupo de Groups: buscador por nombre, o una variable ({{trigger.chat.id}}). */
-  | 'groupsChatRef';
+  | 'groupsChatRef'
+  /** Una página de Docs: buscador por título, o una variable ({{trigger.page.id}}). */
+  | 'docsPageRef'
+  /** Una base de Docs ("página/bloque"). */
+  | 'docsDatabaseRef'
+  /** Una plantilla de Docs (del workspace o integrada: builtin:<key>). */
+  | 'docsTemplateRef';
 
 export interface FieldDef {
   key: string;
@@ -358,6 +398,10 @@ export interface NodeDef {
 
 /** Modos del nodo Esperar. */
 export const DELAY_MODES = ['duration', 'until', 'resume'] as const;
+/** Operaciones del nodo Docs: página. */
+export const DOCS_PAGE_OPERATIONS = ['page_create', 'page_append', 'page_replace', 'page_rename', 'page_archive'] as const;
+/** Operaciones del nodo Docs: fila de una base. */
+export const DOCS_ROW_OPERATIONS = ['row_create', 'row_update'] as const;
 /** Operaciones del nodo Tabla de datos. */
 export const TABLE_OPERATIONS = ['find', 'insert', 'upsert', 'delete'] as const;
 
@@ -677,8 +721,44 @@ export const NODE_DEFS = {
     category: 'app',
     outputs: ['out'],
     fields: [
+      { key: 'operation', kind: 'select', options: DOCS_PAGE_OPERATIONS, default: 'page_create' },
+      /** Página a cambiar (id o {{variable}}). */
+      {
+        key: 'pageId',
+        kind: 'docsPageRef',
+        template: true,
+        placeholder: '{{trigger.page.id}}',
+        showIf: { key: 'operation', values: ['page_append', 'page_replace', 'page_rename', 'page_archive'] },
+      },
+      { key: 'title', kind: 'text', template: true, showIf: { key: 'operation', values: ['page_create', 'page_rename'] } },
+      /** Markdown: títulos, listas, to-dos, citas, código y tablas. */
+      { key: 'content', kind: 'textarea', template: true, showIf: { key: 'operation', values: ['page_create', 'page_append', 'page_replace'] } },
+      /** Plantilla del workspace o integrada; sus {{variables}} se completan con los datos del flow. */
+      { key: 'templateId', kind: 'docsTemplateRef', showIf: { key: 'operation', values: ['page_create'] } },
+      /** Subpágina de (vacío = en la raíz). */
+      { key: 'parentId', kind: 'docsPageRef', template: true, showIf: { key: 'operation', values: ['page_create'] } },
+    ],
+  },
+  'app.docs_row': {
+    type: 'app.docs_row',
+    category: 'app',
+    outputs: ['out'],
+    fields: [
+      { key: 'operation', kind: 'select', options: DOCS_ROW_OPERATIONS, default: 'row_create' },
+      /** Base de Docs: "página/bloque". */
+      { key: 'database', kind: 'docsDatabaseRef' },
+      /** Fila a cambiar: id, o vacío para buscarla por título. */
+      { key: 'rowId', kind: 'text', template: true, placeholder: '{{trigger.row.id}}', showIf: { key: 'operation', values: ['row_update'] } },
+      /** create: título de la fila nueva. update: busca la fila con este título si no hay id. */
       { key: 'title', kind: 'text', template: true },
+      /** Propiedad (nombre) → valor. Select crea la opción si no existe; persona por email. */
+      { key: 'values', kind: 'kv', template: true, default: [] },
+      /** Cuerpo de la fila en Markdown (update: se agrega al final). */
       { key: 'content', kind: 'textarea', template: true },
+      /** Plantilla de fila de la base (nombre). */
+      { key: 'template', kind: 'text', placeholder: 'Bug report', showIf: { key: 'operation', values: ['row_create'] }, advanced: true },
+      /** update: el título nuevo (si se buscó por título). */
+      { key: 'newTitle', kind: 'text', template: true, showIf: { key: 'operation', values: ['row_update'] }, advanced: true },
     ],
   },
   'app.robot_run': {

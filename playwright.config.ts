@@ -73,6 +73,10 @@ export default defineConfig({
       IMPORT_CALENDLY_API_URL: `http://127.0.0.1:${PORT + 1}/calendly`,
       // Bookmarks de Docs sin salir a internet (lib/docs-unfurl.ts arma un HTML fijo por dominio).
       DOCS_UNFURL_FAKE: '1',
+      // Bases sincronizadas de Docs (GitHub, Jira, Salesforce) con datos fijos (lib/docs-sync.ts) y
+      // page.updated sin espera (el cron de cada minuto lo emite en la próxima corrida).
+      DOCS_SYNC_FAKE: '1',
+      DOCS_EVENT_WINDOW_SEC: '0',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

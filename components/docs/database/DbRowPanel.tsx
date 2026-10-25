@@ -13,6 +13,7 @@ import { peopleMap, useDbMembers } from './useDbMembers';
 import { useDbRuntime, withAutomations } from './useDbRuntime';
 import { useAutofill } from './useAutofill';
 import DbGlyph from './DbGlyph';
+import DocsBlocksView from '../DocsBlocksView';
 
 export type DbRowPanelMode = 'peek' | 'full';
 
@@ -29,6 +30,7 @@ function PropRow({
   extras,
   onAutofill,
   filling,
+  readOnly = false,
 }: {
   prop: DbProperty;
   row: DbRow;
@@ -41,11 +43,13 @@ function PropRow({
   extras?: DbCellExtras;
   onAutofill?: () => void;
   filling?: boolean;
+  /** Base sincronizada: se ve, no se edita. */
+  readOnly?: boolean;
 }) {
   const t = useTranslations('docs.database');
   const [editing, setEditing] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-  const computed = isComputedType(prop.type);
+  const computed = isComputedType(prop.type) || readOnly;
   const start = () => {
     if (computed) return;
     if (prop.type === 'checkbox') onChange(cellValue(prop, row) !== true);
@@ -228,6 +232,8 @@ export default function DbRowPanel({
 
   if (!db || !row || !shownRow || !bodyPage || typeof document === 'undefined') return null;
   const props = runtime.shown.properties.filter((p) => p.type !== 'title');
+  // Base sincronizada (GitHub, Jira, Salesforce, CRM): la fila se lee, no se edita.
+  const readOnly = Boolean(db.sync);
 
   const onSave = (patch: Partial<DocsPage>) => {
     updateDb((cur) => {
@@ -301,6 +307,7 @@ export default function DbRowPanel({
             <DocsGlyph name={mode === 'peek' ? 'expand' : 'peek'} size={14} />
             <span>{mode === 'peek' ? t('openFullPage') : t('openSidePeek')}</span>
           </button>
+          {!readOnly && (
           <button
             type="button"
             className="btn btn-ghost btn-sm"
@@ -318,7 +325,8 @@ export default function DbRowPanel({
             <DocsGlyph name="template" size={14} />
             <span>{templateSaved ? t('templates.saved') : t('templates.saveRow')}</span>
           </button>
-          {confirmDelete ? (
+          )}
+          {readOnly ? null : confirmDelete ? (
             <button
               type="button"
               className="btn btn-ghost btn-sm docs-db-danger"
@@ -349,7 +357,13 @@ export default function DbRowPanel({
       <div className="docs-db-rowpanel-scroll">
         <div className="docs-db-rowpanel-inner">
           <div className="docs-db-rowpanel-body">
-            {renderBody(
+            {(readOnly ? (bp: DocsPage, _s: unknown, properties: ReactNode) => (
+              <div className="docs-db-rowpanel-readonly" data-testid="docs-db-row-readonly">
+                <h1 className="docs-title">{bp.title || t('untitledRow')}</h1>
+                {properties}
+                {bp.content.length > 0 && <DocsBlocksView blocks={bp.content} boards={false} />}
+              </div>
+            ) : renderBody)(
               bodyPage,
               onSave,
               props.length > 0 ? (
@@ -365,7 +379,8 @@ export default function DbRowPanel({
                   refs={runtime.refs}
                   extras={runtime.extras}
                   filling={autofill.filling === p.id}
-                  onAutofill={p.ai && pageId ? () => void autofill.fill(p.id, [rowId]) : undefined}
+                  readOnly={readOnly}
+                  onAutofill={p.ai && pageId && !readOnly ? () => void autofill.fill(p.id, [rowId]) : undefined}
                   onChange={(v) => runtime.setValue(rowId, p.id, v)}
                   onCreateOption={(name) =>
                     updateDb((cur) => {

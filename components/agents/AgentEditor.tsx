@@ -290,6 +290,7 @@ export default function AgentEditor(props: Props) {
     if (key === 'track_create_issue' && !draft.tools.trackProjectId) return t('tools.needsProject');
     if (key === 'run_flow' && draft.tools.flowIds.length === 0) return t('tools.needsFlows');
     if (key === 'run_robot' && draft.tools.robotIds.length === 0) return t('tools.needsRobots');
+    if (key.startsWith('docs_') && draft.tools.docsPageIds.length === 0) return t('tools.needsDocsPages');
     if (key === 'http_request' && lines(domainsRaw).length === 0) return t('tools.needsDomains');
     return null;
   };
@@ -377,6 +378,38 @@ export default function AgentEditor(props: Props) {
           </div>
         )}
         {on && key === 'cal_book_meeting' && <p className="ui-help ag-tool-config">{t('tools.bookingSafety')}</p>}
+        {key === 'docs_read_pages' && draft.tools.enabled.some((k) => k.startsWith('docs_')) && (
+          <fieldset className="ag-tool-config ag-fieldset" data-testid="ag-docs-pages">
+            <legend className="label">{t('tools.docsPages')}</legend>
+            {props.docsPages.length === 0 ? (
+              <p className="ui-help">
+                {t('tools.noDocsPages')} <Link href="/app/docs">{t('tools.create')}</Link>
+              </p>
+            ) : (
+              <ul className="ag-checklist">
+                {props.docsPages.map((p) => (
+                  <li key={p.id}>
+                    <label className="ui-check">
+                      <input
+                        type="checkbox"
+                        checked={draft.tools.docsPageIds.includes(p.id)}
+                        disabled={ro}
+                        onChange={(e) =>
+                          set('tools', {
+                            ...draft.tools,
+                            docsPageIds: e.target.checked ? [...draft.tools.docsPageIds, p.id] : draft.tools.docsPageIds.filter((x) => x !== p.id),
+                          })
+                        }
+                      />
+                      {p.title || t('tools.untitledPage')}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="ui-help">{t('tools.docsPagesHint')}</p>
+          </fieldset>
+        )}
         {on && key === 'track_create_issue' && (
           <div className="ag-tool-config">
             <div className="ui-field">

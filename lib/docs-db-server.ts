@@ -49,7 +49,10 @@ export async function loadDatabase(actor: DocsActor, pageId: string, blockId: st
   const blocks = parseBlocks(page.content);
   const index = blocks.findIndex((b) => b.id === blockId && b.type === 'database' && !b.linked);
   if (index === -1) throw new DbServerError('not_found', 404);
-  return { page, access, blocks, index, db: normalizeDatabase(blocks[index]) };
+  const db = normalizeDatabase(blocks[index]);
+  // Base sincronizada: filas y propiedades las escribe solo la sincronización.
+  if (opts.edit && db.sync) throw new DbServerError('forbidden', 403);
+  return { page, access, blocks, index, db };
 }
 
 /** La base tal como viaja a otra página: sin cuerpos de fila (pesan) y sin URLs de archivo para quien solo ve. */
@@ -94,6 +97,14 @@ export async function applyRemoteOps(
       .run(stringifyBlocks(saved.blocks), now, pageId, loaded.page.updated_at);
     if (res.changes === 0) continue;
     await recordRevisions(loaded.page, { updated_at: now, title: loaded.page.title, icon: loaded.page.icon, cover_url: loaded.page.cover_url, content: stringifyBlocks(saved.blocks) }).catch(() => undefined);
+    const { afterDocsPageSaved } = await import('./docs-events');
+    await afterDocsPageSaved({
+      ws: loaded.page.user_id,
+      before: loaded.page,
+      after: { ...loaded.page, content: stringifyBlocks(saved.blocks), updated_at: now },
+      actorId: actor.realId ?? actor.actingUser?.id ?? actor.id,
+      titleOrContent: true,
+    });
     const block = saved.blocks.find((b) => b.id === blockId)!;
     return { db: normalizeDatabase(block), effects: saved.effects, updated_at: now };
   }

@@ -19,6 +19,7 @@ const EVENT_LINES: Array<[string, ProductKey]> = [
   ['conversation.', 'chat'],
   ['message.', 'chat'],
   ['page.', 'docs'],
+  ['database.', 'docs'],
   ['robot.', 'robots'],
   ['note.', 'notes'],
   ['board.', 'board'],
@@ -38,6 +39,7 @@ const NODE_LINES: Partial<Record<FlowNodeType, ProductKey>> = {
   'app.link': 'link',
   'app.chat_message': 'chat',
   'app.docs_page': 'docs',
+  'app.docs_row': 'docs',
   'app.robot_run': 'robots',
   'app.groups_message': 'groups',
   'ai.agent': 'agents',
@@ -172,6 +174,24 @@ export function pretty(value: unknown): string {
  * si el código no es conocido: entonces solo se muestra el código.
  * `inEditor`: se arregla en la configuración del nodo.
  */
+const DOCS_STEP_ERRORS = new Set([
+  'missing_page',
+  'missing_content',
+  'missing_title',
+  'missing_database',
+  'missing_row',
+  'not_found',
+  'parent_not_found',
+  'template_not_found',
+  'database_not_found',
+  'row_not_found',
+  'read_only',
+  'unknown_property',
+  'invalid_option',
+  'invalid_person',
+  'invalid_value',
+]);
+
 export function stepErrorInfo(raw: string): { code: string; key: string; values?: Record<string, string>; inEditor: boolean } | null {
   const code = raw.trim().match(/^[a-z0-9_]+/i)?.[0]?.toLowerCase() ?? '';
   if (!code) return null;
@@ -190,6 +210,8 @@ export function stepErrorInfo(raw: string): { code: string; key: string; values?
   if (code === 'table_not_found') return { code, key: 'table_not_found', inEditor: true };
   if (code === 'table_invalid_value' || code === 'table_unknown_column') return { code, key: 'table_value', inEditor: true };
   if (code === 'table_full' || code === 'table_row_too_large') return { code, key: 'table_full', inEditor: false };
+  // Pasos de Docs (lib/docs-platform.ts).
+  if (DOCS_STEP_ERRORS.has(code)) return { code, key: code, inEditor: code !== 'not_found' && code !== 'row_not_found' };
   if (code.startsWith('missing_')) return { code, key: 'missing_field', inEditor: true };
   return null;
 }

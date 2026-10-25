@@ -118,7 +118,9 @@
       "company": "Empresas",
       "task": "Tareas",
       "quote": "Cotizaciones",
-      "form": "Formularios"
+      "form": "Formularios",
+      "page": "Páginas de Docs",
+      "database": "Bases de Docs"
     },
     "eventLabels": {
       "booking_created": "Reserva creada",
@@ -165,7 +167,13 @@
       "groups_chat_closed": "Chat cerrado (Groups)",
       "groups_member_joined": "Miembro entró a un grupo (Groups)",
       "groups_member_left": "Miembro salió de un grupo (Groups)",
-      "groups_poll_voted": "Voto en una encuesta (Groups)"
+      "groups_poll_voted": "Voto en una encuesta (Groups)",
+      "page_created": "Página creada (Docs)",
+      "page_updated": "Página editada (Docs)",
+      "page_archived": "Página a la papelera (Docs)",
+      "page_comment_created": "Comentario nuevo (Docs)",
+      "database_row_created": "Fila nueva en una base (Docs)",
+      "database_property_changed": "Cambió una propiedad de una base (Docs)"
     },
     "errors": {
       "https_required": "La URL tiene que usar https.",

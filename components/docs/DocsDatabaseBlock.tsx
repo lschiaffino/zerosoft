@@ -1,5 +1,6 @@
 'use client';
 
+import DocsSyncBanner from './DocsSyncBanner';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { DbLinkedSource, DbPropertyType, DbValue, DbViewConfig, DbViewType, DocsBlock, DocsDatabase } from '@/lib/docs-types';
@@ -145,7 +146,9 @@ function DbOwnBlock({ block, index, onChange, onFocus, hooks }: DocsDatabaseBloc
       index={index}
       onFocus={onFocus}
       membersUrl={hooks.membersUrl}
-      editable
+      // Base sincronizada (GitHub, Jira, Salesforce, CRM): filas de solo lectura.
+      editable={!db.sync}
+      linkedHeader={db.sync ? <DocsSyncBanner db={db} canEdit onDb={commit} /> : undefined}
       openRow={(rowId, mode) => hooks.onOpenRow(block.id, rowId, mode)}
     />
   );
@@ -223,7 +226,7 @@ function DbLinkedBlock({ block, index, onChange, onFocus, hooks }: DocsDatabaseB
       index={index}
       onFocus={onFocus}
       membersUrl={`/api/docs/members?page=${encodeURIComponent(linked.page_id)}`}
-      editable={src?.access !== 'view'}
+      editable={src?.access !== 'view' && !sourceDb?.sync}
       linkedHeader={
         <a className="docs-db-linked-src" href={href} title={t('linked.openSource')}>
           <DocsGlyph name="peek" size={12} />
@@ -630,6 +633,7 @@ function DbView({ db, commitData, source, hostPageId, hooks, index, onFocus, mem
               onCell={runtime.setValue}
               onCreateOption={onCreateOption}
               onAddRow={newRow}
+              readOnly={!editable}
               onDeleteRow={(rowId) => commit(deleteRows(db, [rowId]))}
               onOpenRow={openRow}
               onWidth={(propId, w) => commit(updateView(db, view.id, { widths: { ...(view.widths ?? {}), [propId]: w } }))}

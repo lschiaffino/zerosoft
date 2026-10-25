@@ -100,6 +100,7 @@ export default function CommandSearch() {
   const pathname = usePathname();
   const inTrack = pathname.startsWith('/app/track');
   const inCrm = pathname.startsWith('/app/crm');
+  const inDocs = pathname.startsWith('/app/docs');
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [items, setItems] = useState<ResultItem[]>([]);
@@ -154,6 +155,7 @@ export default function CommandSearch() {
       { group, label: t('installCrmApp'), meta: '', href: '/app/crm?install=1' },
       { group, label: t('newLink'), meta: '', href: '/app/links/new' },
       { group, label: t('newDocPage'), meta: '', href: '/app/docs' },
+      { group, label: t('askDocs'), meta: '', href: '/app/docs?ask=1', event: inDocs ? 'zs:docs-ask' : undefined },
       { group, label: t('newEventType'), meta: '', href: '/app/calendar/event-types/new' },
       { group, label: t('newFlow'), meta: '', href: '/app/flow' },
       { group, label: tNotes('actions.newNote'), meta: '', href: '/app/notes?new=1' },
@@ -164,7 +166,7 @@ export default function CommandSearch() {
       { group, label: t('newGroupTemplate'), meta: '', href: '/app/groups/templates?new=1' },
     ];
     return inTrack ? [...track, ...rest] : [...rest, ...track];
-  }, [t, tNotes, tBoard, tTrack, inTrack, inCrm]);
+  }, [t, tNotes, tBoard, tTrack, inTrack, inCrm, inDocs]);
 
   // Las apps (y el inicio): "crm", "hubspot" o "vender" llevan a la app. Solo al buscar.
   const appItems = useMemo<ResultItem[]>(

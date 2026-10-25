@@ -188,6 +188,20 @@ export function sanitizeDatabase(db: DocsDatabase): DocsDatabase {
     ...(fixed.title ? { title: plainCell(fixed.title).slice(0, 500) } : {}),
     ...(templates.length ? { templates } : {}),
     ...(fixed.automations?.length ? { automations: sanitizeAutomations(fixed.automations, byId, views) } : {}),
+    ...(sanitizeSync(fixed.sync) ? { sync: sanitizeSync(fixed.sync) } : {}),
+  };
+}
+
+const SYNC_PROVIDERS = new Set(['github', 'jira', 'salesforce', 'crm']);
+
+function sanitizeSync(sync: DocsDatabase['sync']): DocsDatabase['sync'] {
+  if (!sync || typeof sync !== 'object') return undefined;
+  if (typeof sync.source_id !== 'string' || !ID_RE.test(sync.source_id) || !SYNC_PROVIDERS.has(sync.provider)) return undefined;
+  return {
+    source_id: sync.source_id,
+    provider: sync.provider,
+    label: plainCell(String(sync.label ?? '')).slice(0, 300),
+    ...(typeof sync.synced_at === 'string' && !Number.isNaN(Date.parse(sync.synced_at)) ? { synced_at: sync.synced_at } : {}),
   };
 }
 
@@ -251,8 +265,9 @@ const CAPTIONED = new Set(['image', 'video', 'audio', 'pdf', 'file', 'bookmark',
  * http(s), alto del embed, id de bloque sincronizado, botón).
  */
 function sanitizeExtraFields(block: DocsBlock): DocsBlock {
-  const { width, align, caption, ratio, link, height, synced_id, button, ...rest } = block;
+  const { width, align, caption, ratio, link, height, synced_id, button, meeting_id, ...rest } = block;
   const out: DocsBlock = rest;
+  if (block.type === 'meeting' && typeof meeting_id === 'string' && ID_RE.test(meeting_id)) out.meeting_id = meeting_id;
   if (MEDIA_SIZED.has(block.type)) {
     if (typeof width === 'number' && Number.isFinite(width)) out.width = Math.max(10, Math.min(100, Math.round(width)));
     if (align === 'left' || align === 'center' || align === 'right') out.align = align;

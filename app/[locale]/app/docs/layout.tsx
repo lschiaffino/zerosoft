@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import ClientMessages from '@/components/i18n/ClientMessages';
+import DocsAskPanel from '@/components/docs/DocsAskPanel';
 import '@/styles/docs.css';
+import '@/styles/docs-platform.css';
 
 /** Docs: su hoja de estilos y los textos de sus componentes cliente. */
 export default async function DocsLayout(props: { children: ReactNode; params: Promise<{ locale: string }> }) {
@@ -8,6 +10,10 @@ export default async function DocsLayout(props: { children: ReactNode; params: P
   return (
     <ClientMessages locale={locale} namespaces={['docs']}>
       {props.children}
+      {/* "Ask AI": preguntas sobre todo el workspace (banda, sidebar ?ask=1 y ⌘K). */}
+      <Suspense fallback={null}>
+        <DocsAskPanel />
+      </Suspense>
     </ClientMessages>
   );
 }

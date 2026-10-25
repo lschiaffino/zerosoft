@@ -7,6 +7,9 @@ import { z } from 'zod';
 
 export const AGENT_TOOL_KEYS = [
   'search_knowledge',
+  'docs_read_pages',
+  'docs_write_page',
+  'docs_write_row',
   'crm_find_contact',
   'crm_upsert_contact',
   'crm_log_note',
@@ -24,6 +27,9 @@ export type AgentToolKey = (typeof AGENT_TOOL_KEYS)[number];
 /** Grupo de cada herramienta (para agrupar en la UI). */
 export const AGENT_TOOL_GROUP: Record<AgentToolKey, 'knowledge' | 'crm' | 'cal' | 'track' | 'flow' | 'robots' | 'handoff' | 'http'> = {
   search_knowledge: 'knowledge',
+  docs_read_pages: 'knowledge',
+  docs_write_page: 'knowledge',
+  docs_write_row: 'knowledge',
   crm_find_contact: 'crm',
   crm_upsert_contact: 'crm',
   crm_log_note: 'crm',
@@ -61,6 +67,8 @@ export const APPROVABLE_AGENT_TOOLS = [
   'track_create_issue',
   'run_flow',
   'http_request',
+  'docs_write_page',
+  'docs_write_row',
 ] as const satisfies readonly AgentToolKey[];
 export type ApprovableAgentTool = (typeof APPROVABLE_AGENT_TOOLS)[number];
 
@@ -118,6 +126,11 @@ export const toolsConfigSchema = z.object({
   flowIds: z.array(id).max(20).default([]),
   /** Robots que el agente puede correr (run_robot). */
   robotIds: z.array(id).max(20).default([]),
+  /**
+   * Páginas de Docs con las que trabaja el agente (docs_*): las lee, edita y
+   * crea subpáginas y filas adentro. Incluye sus subpáginas. Vacío = ninguna.
+   */
+  docsPageIds: z.array(id).max(50).default([]),
   httpAllowedDomains: z.array(domain).max(20).default([]),
   /** Acciones que esperan la aprobación de alguien del equipo (lib/agents-approvals.ts). */
   requireApproval: z.array(z.enum(APPROVABLE_AGENT_TOOLS)).max(APPROVABLE_AGENT_TOOLS.length).default([]),

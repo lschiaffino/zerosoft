@@ -54,6 +54,8 @@ interface DbTableProps {
   onFocusBlock: () => void;
   refs?: DbRefs;
   extras?: DbCellExtras;
+  /** Solo lectura (base sincronizada o sin permiso de edición): sin editar celdas ni agregar filas o propiedades. */
+  readOnly?: boolean;
 }
 
 /** Fila de la tabla: memo por objeto de fila (tipear en una celda no repinta las otras 999). */
@@ -99,7 +101,7 @@ const TableRow = memo(function TableRow({
   onEditCreate: (rowId: string, propId: string, name: string) => void;
   onEditExit: (move: DbExitMove) => void;
   onOpenRow: (rowId: string) => void;
-  onDeleteRow: (rowId: string) => void;
+  onDeleteRow?: (rowId: string) => void;
   labels: { open: string; remove: string };
 }) {
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -188,16 +190,18 @@ const TableRow = memo(function TableRow({
         );
       })}
       <div className="docs-db-td docs-db-td-actions" role="gridcell">
-        <button
-          type="button"
-          className="docs-db-remove"
-          tabIndex={-1}
-          onClick={() => onDeleteRow(row.id)}
-          aria-label={labels.remove}
-          title={labels.remove}
-        >
-          ×
-        </button>
+        {onDeleteRow && (
+          <button
+            type="button"
+            className="docs-db-remove"
+            tabIndex={-1}
+            onClick={() => onDeleteRow(row.id)}
+            aria-label={labels.remove}
+            title={labels.remove}
+          >
+            ×
+          </button>
+        )}
       </div>
     </div>
   );
@@ -358,7 +362,7 @@ export default function DbTable(p: DbTableProps) {
     const { navRows: nr, props: ps, p: pp } = latest.current;
     const item = nr[r];
     const prop = ps[c];
-    if (!item || !prop || isComputedType(prop.type)) return;
+    if (!item || !prop || isComputedType(prop.type) || pp.readOnly) return;
     if (prop.type === 'checkbox') {
       pp.onCell(item.row.id, prop.id, cellValue(prop, item.row) !== true);
       return;
@@ -472,7 +476,7 @@ export default function DbTable(p: DbTableProps) {
       case 'Delete':
         e.preventDefault();
         e.stopPropagation();
-        if (item && prop && !isComputedType(prop.type)) p.onCell(item.row.id, prop.id, prop.type === 'checkbox' ? false : null);
+        if (item && prop && !isComputedType(prop.type) && !p.readOnly) p.onCell(item.row.id, prop.id, prop.type === 'checkbox' ? false : null);
         return;
       default:
         // Tipear sobre una celda de texto o número empieza a editarla con esa tecla.
@@ -524,6 +528,7 @@ export default function DbTable(p: DbTableProps) {
       );
     }
     if (it.kind === 'add') {
+      if (p.readOnly) return null;
       return (
         <div key={it.key} className="docs-db-group-add" style={{ height: DB_ROW_H }}>
           <button type="button" className="docs-db-new-inline" onClick={() => p.onAddRow(it.groupKey)}>
@@ -554,7 +559,7 @@ export default function DbTable(p: DbTableProps) {
         onEditCreate={onCreate}
         onEditExit={onEditExit}
         onOpenRow={onOpen}
-        onDeleteRow={onDelete}
+        onDeleteRow={p.readOnly ? undefined : onDelete}
         labels={labels}
         refs={p.refs}
         extras={p.extras}
@@ -599,6 +604,7 @@ export default function DbTable(p: DbTableProps) {
             <button
               type="button"
               className="docs-db-th-btn"
+              disabled={p.readOnly}
               onClick={(e) => p.onAddProperty(e.currentTarget)}
               aria-label={t('addProperty')}
               title={t('addProperty')}
@@ -613,7 +619,7 @@ export default function DbTable(p: DbTableProps) {
           {virtual && end < items.length && <div style={{ height: (items.length - end) * DB_ROW_H }} aria-hidden="true" />}
         </div>
       </div>
-      {!groupProp && (
+      {!groupProp && !p.readOnly && (
         <button type="button" className="docs-db-new-row" onClick={() => p.onAddRow(null)} style={{ width: totalW }}>
           <DocsGlyph name="plus" size={12} />
           {t('newRow')}

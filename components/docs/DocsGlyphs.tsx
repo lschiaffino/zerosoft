@@ -58,6 +58,11 @@ const PATHS = {
   caption: <path d="M3 5h18v10H3zM6 19h12" />,
   upload: <path d="M12 16V4M7 9l5-5 5 5M4 20h16" />,
   template: <path d="M4 4h16v5H4zM4 13h7v7H4zM15 13h5v7h-5z" />,
+  // Tanda D4: IA, notas de reunión, bases sincronizadas.
+  sparkle: <path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z" />,
+  meeting: <path d="M9 4a3 3 0 0 1 3 3v4a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3zM4 11a5 5 0 0 0 10 0M9 16v4M15 8h5M15 12h5M15 16h5" />,
+  sync: <path d="M20 8a8 8 0 0 0-14.5-2M4 4v4h4M4 16a8 8 0 0 0 14.5 2M20 20v-4h-4" />,
+  send: <path d="M4 12l16-8-6 16-3-6zM11 14l9-10" />,
 } as const;
 
 export type DocsGlyphName = keyof typeof PATHS;

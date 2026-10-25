@@ -330,3 +330,128 @@ export async function trackUpdateNode(ws: string, actorId: string, cfg: Cfg, tct
     commentId,
   };
 }
+
+// ---------- Docs: páginas y filas ----------
+
+/** Errores de lib/docs-platform.ts como errores del paso ("unknown_property:Plan" → "unknown_property (Plan)"). */
+async function docsCall<T>(fn: () => Promise<T>): Promise<T> {
+  const { DocsPlatformError } = await import('./docs-platform');
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof DocsPlatformError) {
+      const [code, detail] = err.code.split(':');
+      throw new StepError(detail ? `${code} (${detail.slice(0, 40)})` : code);
+    }
+    throw err;
+  }
+}
+
+async function flowDocsActor(ws: string, actorId: string) {
+  const { docsActorFor } = await import('./docs-platform-access');
+  const actor = await docsActorFor(ws, actorId);
+  if (!actor) throw new StepError('workspace_not_found');
+  return actor;
+}
+
+/** Variables de la plantilla: los datos del trigger aplanados (trigger.page.title → "page.title" y "trigger.page.title"). */
+export function templateVars(tctx: Ctx): Record<string, string> {
+  const out: Record<string, string> = {};
+  const walk = (v: unknown, path: string, depth: number) => {
+    if (Object.keys(out).length >= 200 || depth > 4) return;
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      for (const [k, x] of Object.entries(v as Record<string, unknown>)) walk(x, path ? `${path}.${k}` : k, depth + 1);
+    } else if (path) out[path] = stringify(v);
+  };
+  walk(tctx.trigger, '', 0);
+  for (const [k, v] of Object.entries({ ...out })) out[`trigger.${k}`] = v;
+  out.today = new Date().toISOString().slice(0, 10);
+  return out;
+}
+
+/**
+ * Docs: crea una página (con plantilla y como subpágina de otra), le agrega
+ * o reemplaza el contenido (Markdown), la renombra o la manda a la papelera.
+ * Actúa con los permisos de quien creó el flow.
+ */
+export async function docsPageFlowNode(ws: string, actorId: string, cfg: Cfg, tctx: Ctx) {
+  const op = String(cfg.operation || 'page_create');
+  const platform = await import('./docs-platform');
+  const actor = await flowDocsActor(ws, actorId);
+  const content = renderString(cfg.content ?? '', tctx);
+  const title = text(cfg, 'title', tctx).slice(0, 300);
+  const out = (p: { id: string; title: string; url: string; parentId: string | null }) => ({ page: { id: p.id, title: p.title, url: p.url, parentId: p.parentId } });
+  if (op === 'page_create') {
+    const templateId = String(cfg.templateId ?? '').trim();
+    const page = await docsCall(() =>
+      platform.createPage(actor, {
+        title,
+        parentId: text(cfg, 'parentId', tctx) || null,
+        markdown: content,
+        templateId: templateId || null,
+        vars: templateId ? templateVars(tctx) : undefined,
+      }),
+    );
+    return out(page);
+  }
+  const pageId = text(cfg, 'pageId', tctx);
+  if (!pageId) throw new StepError('missing_page');
+  if (op === 'page_append' || op === 'page_replace') {
+    if (!content.trim()) throw new StepError('missing_content');
+    const page = await docsCall(() => platform.updatePage(actor, pageId, op === 'page_append' ? { appendMarkdown: content } : { markdown: content }));
+    return out(page);
+  }
+  if (op === 'page_rename') {
+    if (!title) throw new StepError('missing_title');
+    return out(await docsCall(() => platform.updatePage(actor, pageId, { title })));
+  }
+  if (op === 'page_archive') return { ...out(await docsCall(() => platform.updatePage(actor, pageId, { archived: true }))), archived: true };
+  throw new StepError('invalid_operation');
+}
+
+export function databaseRef(raw: string): { pageId: string; blockId: string } {
+  const [pageId, blockId] = raw.split('/');
+  if (!pageId?.trim() || !blockId?.trim()) throw new StepError('missing_database');
+  return { pageId: pageId.trim(), blockId: blockId.trim() };
+}
+
+/** Docs: agrega una fila a una base (con plantilla de fila) o cambia una (por id o por título). */
+export async function docsRowFlowNode(ws: string, actorId: string, cfg: Cfg, tctx: Ctx) {
+  const op = String(cfg.operation || 'row_create');
+  const { pageId, blockId } = databaseRef(String(cfg.database ?? ''));
+  const platform = await import('./docs-platform');
+  const actor = await flowDocsActor(ws, actorId);
+  const values: Record<string, unknown> = {};
+  for (const f of Array.isArray(cfg.values) ? (cfg.values as Array<{ key?: string; value?: unknown }>) : []) {
+    const key = String(f?.key ?? '').trim();
+    if (!key || key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+    values[key] = renderValue(f?.value ?? '', tctx);
+  }
+  const title = text(cfg, 'title', tctx);
+  const content = renderString(cfg.content ?? '', tctx);
+  const rowOut = (r: { id: string; title: string; url: string; properties: Record<string, string> }) => ({
+    row: { id: r.id, title: r.title, url: r.url, properties: r.properties },
+    database: { pageId, blockId },
+  });
+  if (op === 'row_create') {
+    const template = String(cfg.template ?? '').trim();
+    const row = await docsCall(() => platform.createRow(actor, pageId, blockId, { title, values, markdown: content || undefined, template: template || undefined }));
+    return { ...rowOut(row), created: true };
+  }
+  let rowId = text(cfg, 'rowId', tctx);
+  const byTitle = !rowId;
+  if (byTitle) {
+    if (!title) throw new StepError('missing_row');
+    rowId = (await docsCall(() => platform.findRowByTitle(actor, pageId, blockId, title))) ?? '';
+    if (!rowId) throw new StepError('row_not_found');
+  }
+  const newTitle = text(cfg, 'newTitle', tctx) || (!byTitle ? title : '');
+  const row = await docsCall(() =>
+    platform.updateRow(actor, pageId, blockId, rowId, {
+      values,
+      ...(newTitle ? { title: newTitle } : {}),
+      ...(content.trim() ? { appendMarkdown: content } : {}),
+    }),
+  );
+  return { ...rowOut(row), created: false };
+}

@@ -10,6 +10,8 @@ import { processImportJobs } from '@/lib/import-runner';
 import { runGroupsCron } from '@/lib/groups-cron';
 import { processAiRuns } from '@/lib/crm-ai-agents';
 import { retryDueWebhooks } from '@/lib/webhooks';
+import { flushPageUpdatedEvents } from '@/lib/docs-events';
+import { syncDueSources } from '@/lib/docs-sync';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
 
 export const runtime = 'nodejs';
@@ -56,10 +58,13 @@ export async function GET(req: NextRequest) {
   const groups = await runGroupsCron({ budgetMs: 30_000 }).catch(() => null);
   // Agentes de datos y prospección del CRM (claim por ítem en claimed_at).
   const crmAiRuns = await processAiRuns({ budgetMs: 20_000 }).catch(() => null);
+  // Docs: page.updated agrupado (claim por marca) y bases sincronizadas vencidas (claim por origen).
+  const docsEvents = await flushPageUpdatedEvents().catch(() => null);
+  const docsSync = await syncDueSources({ budgetMs: 20_000 }).catch(() => null);
   const flow = await processFlowQueue({ limit: 200, budgetMs: Math.max(0, FLOW_BUDGET_MS - (Date.now() - start)) });
   // Imports grandes (Track, Cal, Docs) que no entraron en el request de la pestaña.
   const imports = await processImportJobs({ budgetMs: Math.max(5_000, IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
   // Imports del CRM con lo que queda de los 300 s (dejando margen).
   const crmImports = await processCrmImportJobs({ budgetMs: Math.max(0, CRM_IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, docReminders, trackReminders, trackEmails, groups, crmAiRuns, flow, imports, crmImports });
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, docReminders, trackReminders, trackEmails, groups, crmAiRuns, docsEvents, docsSync, flow, imports, crmImports });
 }

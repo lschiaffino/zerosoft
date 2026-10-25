@@ -118,7 +118,9 @@
       "company": "Empresas",
       "task": "Tarefas",
       "quote": "Cotações",
-      "form": "Formulários"
+      "form": "Formulários",
+      "page": "Páginas do Docs",
+      "database": "Bancos do Docs"
     },
     "eventLabels": {
       "booking_created": "Reserva criada",
@@ -165,7 +167,13 @@
       "groups_chat_closed": "Chat fechado (Groups)",
       "groups_member_joined": "Membro entrou em um grupo (Groups)",
       "groups_member_left": "Membro saiu de um grupo (Groups)",
-      "groups_poll_voted": "Voto em uma enquete (Groups)"
+      "groups_poll_voted": "Voto em uma enquete (Groups)",
+      "page_created": "Página criada (Docs)",
+      "page_updated": "Página editada (Docs)",
+      "page_archived": "Página na lixeira (Docs)",
+      "page_comment_created": "Novo comentário (Docs)",
+      "database_row_created": "Nova linha em um banco (Docs)",
+      "database_property_changed": "Propriedade de um banco mudou (Docs)"
     },
     "errors": {
       "https_required": "A URL precisa usar https.",

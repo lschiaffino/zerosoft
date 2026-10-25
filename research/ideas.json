@@ -802,7 +802,9 @@
     "description": "Notion AI offers summarize, fix spelling and grammar, translate and brainstorm/draft directly on selected text or a whole page (https://www.notion.com/help/guides/using-notion-ai), and Outline answers questions about your docs (https://www.getoutline.com/). Docs has no AI at all today, while the suite already has lib/ai.ts with a per-workspace free token quota used by CRM email drafts and Notes ask. For a bilingual LATAM team, 'translate this page to English' and 'summarize these meeting notes into action items' are high-frequency and a strong differentiator for an open source suite. First scope: an AI option in the selection toolbar and slash menu (/ai) with summarize, improve writing, translate (es/en/pt) and continue writing, inserting the result as new blocks the user can accept or discard.\n\nPriority: medium. Effort: M. Compared with Notion.",
     "product": "docs",
     "kind": "idea",
-    "parity": "ai-editor"
+    "parity": "ai-editor",
+    "status": "done",
+    "changelog": "2026-10-25-docs-platform"
   },
   {
     "title": "Docs: Show backlinks ('Linked from') under the page title",
@@ -817,7 +819,9 @@
     "description": "Notion's public API exposes pages, blocks, databases, comments and search (https://developers.notion.com/reference/block), and Notion 3.8 adds MCP access so agents can read and update the workspace (https://www.notion.com/releases); Outline also ships an open API and MCP server (https://www.getoutline.com/). Our lib/api-scopes.ts defines scopes for crm, links, cal and agents but none for docs, and there is no app/api/v1/docs, so API keys cannot create or read pages. Small teams want to push release notes or meeting summaries into Docs from scripts, Flow or Agents. First scope: /api/v1/docs/pages list/get/create/update (content as Markdown in and out using lib/docs-markdown.ts) and search, behind docs:read and docs:write, documented in the existing openapi.json.\n\nPriority: medium. Effort: M. Compared with Notion.",
     "product": "docs",
     "kind": "idea",
-    "parity": "public-api"
+    "parity": "public-api",
+    "status": "done",
+    "changelog": "2026-10-25-docs-platform"
   },
   {
     "title": "Flow: Prune old runs and steps with a retention window per workspace",
@@ -1693,7 +1697,9 @@
     "description": "Notion automations and buttons create pages, edit pages and send webhooks (https://www.notion.com/help/database-automations, https://www.notion.com/help/buttons). Docs only emits page.created to Flow (app/api/docs/pages/route.ts) and Flow has no Docs action, so 'when a deal is won, create the onboarding page from our template' or 'append each meeting summary to the weekly page' is not possible. First scope: Flow actions 'Create Docs page' (title, parent, optional workspace template, content as Markdown run through lib/docs-import.ts) and 'Append to Docs page'; emit page.updated (debounced) and comment.created events.\n\nPriority: low. Effort: M. Compared with Notion.",
     "product": "docs",
     "kind": "idea",
-    "parity": "flow-page-action"
+    "parity": "flow-page-action",
+    "status": "done",
+    "changelog": "2026-10-25-docs-platform"
   },
   {
     "title": "Flow: Build a flow from a plain-language description",

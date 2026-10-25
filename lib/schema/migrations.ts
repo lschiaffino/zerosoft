@@ -4476,6 +4476,63 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Docs como plataforma (tanda D4): eventos de página hacia Flow y
+    // webhooks (con un tope por página para las ediciones), bases
+    // sincronizadas con GitHub, Jira, Salesforce o el CRM (se refrescan por
+    // cron con claim) y notas de reunión con IA.
+    id: '094_docs_platform',
+    up: async (client) => {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS docs_event_marks (
+          page_id TEXT PRIMARY KEY REFERENCES docs_pages(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          actor_id TEXT,
+          due_at TEXT NOT NULL,
+          claimed_until TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_event_marks_due ON docs_event_marks(due_at);
+        CREATE TABLE IF NOT EXISTS docs_synced_sources (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+          block_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          config TEXT NOT NULL DEFAULT '{}',
+          secret TEXT,
+          created_by TEXT,
+          status TEXT NOT NULL DEFAULT 'pending',
+          last_error TEXT,
+          item_count INTEGER NOT NULL DEFAULT 0,
+          interval_min INTEGER NOT NULL DEFAULT 15,
+          last_synced_at TEXT,
+          next_sync_at TEXT,
+          claimed_until TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (page_id, block_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_synced_due ON docs_synced_sources(next_sync_at);
+        CREATE TABLE IF NOT EXISTS docs_meetings (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+          title TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'idle',
+          transcript TEXT NOT NULL DEFAULT '',
+          summary TEXT NOT NULL DEFAULT '',
+          decisions TEXT NOT NULL DEFAULT '[]',
+          actions TEXT NOT NULL DEFAULT '[]',
+          duration_sec INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_meetings_page ON docs_meetings(page_id);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

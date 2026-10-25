@@ -323,3 +323,74 @@ export async function aiStreamText(opts: AiCallOptions) {
     },
   });
 }
+
+// ---------- Transcripción ----------
+
+/**
+ * Proveedor de transcripción (audio → texto). Cualquier API compatible con
+ * POST /v1/audio/transcriptions de OpenAI (OpenAI, Groq, una instancia propia
+ * de Whisper): AI_TRANSCRIBE_URL (por defecto la de OpenAI),
+ * AI_TRANSCRIBE_API_KEY y AI_TRANSCRIBE_MODEL. Sin key no hay transcripción
+ * (ai_disabled); la cuota y el rate limit son los mismos que el resto de la IA.
+ */
+export function transcriptionConfig(): { url: string; key: string; model: string } | null {
+  if (process.env.AI_ENABLED === 'false') return null;
+  const key = process.env.AI_TRANSCRIBE_API_KEY?.trim();
+  if (!key) return null;
+  return {
+    url: process.env.AI_TRANSCRIBE_URL?.trim() || 'https://api.openai.com/v1/audio/transcriptions',
+    key,
+    model: process.env.AI_TRANSCRIBE_MODEL?.trim() || 'gpt-4o-mini-transcribe',
+  };
+}
+
+export interface AiTranscribeOptions {
+  workspaceId: string;
+  feature: string;
+  audio: Blob;
+  filename: string;
+  /** Duración del trozo (segundos), para el registro de uso. */
+  seconds: number;
+  /** Código ISO del idioma, si se sabe (mejora la precisión). */
+  language?: string;
+  /** e2e: respuesta fija sin proveedor (mide cuota y uso igual). */
+  fake?: () => string;
+}
+
+/**
+ * Transcribe un trozo de audio. El uso se registra en ai_usage como tokens
+ * estimados (10 por segundo de audio de entrada, texto/4 de salida): la
+ * cuota del workspace los cuenta igual que el resto de la IA.
+ */
+export async function aiTranscribe(opts: AiTranscribeOptions): Promise<{ text: string; model: string }> {
+  const seconds = Math.max(0, Math.min(Math.round(opts.seconds), 3600));
+  if (opts.fake) {
+    await assertAiQuota(opts.workspaceId);
+    const text = opts.fake();
+    await recordAiUsage({ workspaceId: opts.workspaceId, feature: opts.feature, model: 'transcribe-fake', inputTokens: seconds * 10, outputTokens: Math.ceil(text.length / 4) });
+    return { text, model: 'transcribe-fake' };
+  }
+  const cfg = transcriptionConfig();
+  if (!cfg) throw new AiError('ai_disabled');
+  await assertAiQuota(opts.workspaceId);
+  const form = new FormData();
+  form.set('file', opts.audio, opts.filename);
+  form.set('model', cfg.model);
+  form.set('response_format', 'json');
+  if (opts.language) form.set('language', opts.language.slice(0, 5));
+  const res = await fetch(cfg.url, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${cfg.key}` },
+    body: form,
+    signal: AbortSignal.timeout(120_000),
+  });
+  if (res.status === 429) throw new AiError('rate_limited');
+  if (!res.ok) {
+    await res.body?.cancel().catch(() => {});
+    throw new Error(`transcribe_http_${res.status}`);
+  }
+  const data = (await res.json()) as { text?: string };
+  const text = String(data.text ?? '').trim();
+  await recordAiUsage({ workspaceId: opts.workspaceId, feature: opts.feature, model: `transcribe:${cfg.model}`, inputTokens: seconds * 10, outputTokens: Math.ceil(text.length / 4) });
+  return { text, model: cfg.model };
+}

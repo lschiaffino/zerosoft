@@ -35,7 +35,10 @@ export type DocsBlockType =
   | 'equation'
   | 'toc'
   | 'button'
-  | 'breadcrumb';
+  | 'breadcrumb'
+  // Notas de reunión con IA (tanda D4): la transcripción y el resumen viven
+  // en docs_meetings; el bloque guarda el id y el resumen como texto.
+  | 'meeting';
 
 /** Niveles de anidado (Tab): el bloque cuelga del anterior con un nivel menos. */
 export const DOCS_MAX_INDENT = 6;
@@ -314,6 +317,22 @@ export interface DocsDatabase {
   templates?: DbRowTemplate[];
   /** Automatizaciones (disparador → acciones). */
   automations?: DbAutomation[];
+  /**
+   * Base sincronizada (GitHub, Jira, Salesforce, CRM): filas y propiedades las
+   * escribe solo la sincronización (lib/docs-sync.ts); en el editor es de solo
+   * lectura salvo las vistas.
+   */
+  sync?: DbSyncInfo;
+}
+
+export type DbSyncProvider = 'github' | 'jira' | 'salesforce' | 'crm';
+
+export interface DbSyncInfo {
+  source_id: string;
+  provider: DbSyncProvider;
+  /** Lo que se sincroniza, para mostrar ("acme/web · issues"). */
+  label: string;
+  synced_at?: string;
 }
 
 /** Plantilla de fila de una base: valores iniciales y cuerpo. */
@@ -399,6 +418,8 @@ export interface DocsBlock {
   synced_id?: string;
   /** Botón: qué hace al hacer clic. */
   button?: DocsButtonConfig;
+  /** Notas de reunión: id en docs_meetings (el resumen va en content). */
+  meeting_id?: string;
 }
 
 export interface DocsLinkPreview {

@@ -29,7 +29,7 @@ import {
   WEBHOOK_REPLY_LIMIT,
   type WebhookReply,
 } from './flow';
-import { crmTaskNode, crmUpdateNode, trackUpdateNode } from './flow-app-nodes';
+import { crmTaskNode, crmUpdateNode, docsPageFlowNode, docsRowFlowNode, trackUpdateNode } from './flow-app-nodes';
 import { CODE_MAX_TIMEOUT_SEC, runFlowCode } from './flow-code';
 import { resolveCredential, secretValues, type ResolvedCredential } from './flow-credentials';
 import { redact, type CredentialType } from './flow-credentials-schema';
@@ -418,20 +418,6 @@ async function groupsMessageNode(ws: string, cfg: Record<string, unknown>, tctx:
     if (err instanceof GroupsError) throw new StepError(err.code === 'not_found' ? 'chat_not_found' : err.code);
     throw err;
   }
-}
-
-async function docsPageNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
-  const title = renderString(cfg.title ?? '', tctx).trim().slice(0, 300);
-  const content = renderString(cfg.content ?? '', tctx);
-  const { createDocPage } = await import('./docs');
-  const blocks = content
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .slice(0, 200)
-    .map((p) => ({ id: crypto.randomUUID(), type: 'paragraph' as const, content: p }));
-  const page = await createDocPage(ws, { title, content: blocks.length ? blocks : undefined });
-  return { page: { id: page.id, title: page.title } };
 }
 
 async function aiNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
@@ -952,7 +938,9 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
     case 'app.chat_message':
       return { kind: 'ok', output: await chatMessageNode(ws, cfg, tctx), handles: ['out'] };
     case 'app.docs_page':
-      return { kind: 'ok', output: await docsPageNode(ws, cfg, tctx), handles: ['out'] };
+      return { kind: 'ok', output: await docsPageFlowNode(ws, state.flow.created_by ?? ws, cfg, tctx), handles: ['out'] };
+    case 'app.docs_row':
+      return { kind: 'ok', output: await docsRowFlowNode(ws, state.flow.created_by ?? ws, cfg, tctx), handles: ['out'] };
     case 'app.groups_message':
       return { kind: 'ok', output: await groupsMessageNode(ws, cfg, tctx), handles: ['out'] };
     case 'app.robot_run':

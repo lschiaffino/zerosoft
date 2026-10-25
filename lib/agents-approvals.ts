@@ -94,6 +94,10 @@ export function approvalSummary(tool: ApprovableAgentTool, input: Record<string,
       return `Run a flow`;
     case 'http_request':
       return `${s('method')} ${s('url')}`;
+    case 'docs_write_page':
+      return s('operation') === 'create' ? `Create the page "${s('title')}"` : `Edit a Docs page (${s('operation') || 'append'})`;
+    case 'docs_write_row':
+      return s('rowId') ? `Update a row in a Docs database` : `Add the row "${s('title')}" to a Docs database`;
   }
 }
 

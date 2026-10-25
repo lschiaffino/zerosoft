@@ -118,7 +118,9 @@
       "company": "Companies",
       "task": "Tasks",
       "quote": "Quotes",
-      "form": "Forms"
+      "form": "Forms",
+      "page": "Docs pages",
+      "database": "Docs databases"
     },
     "eventLabels": {
       "booking_created": "Booking created",
@@ -165,7 +167,13 @@
       "groups_chat_closed": "Chat closed (Groups)",
       "groups_member_joined": "Member joined a group (Groups)",
       "groups_member_left": "Member left a group (Groups)",
-      "groups_poll_voted": "Poll vote (Groups)"
+      "groups_poll_voted": "Poll vote (Groups)",
+      "page_created": "Page created (Docs)",
+      "page_updated": "Page edited (Docs)",
+      "page_archived": "Page moved to trash (Docs)",
+      "page_comment_created": "Comment added (Docs)",
+      "database_row_created": "Database row added (Docs)",
+      "database_property_changed": "Database property changed (Docs)"
     },
     "errors": {
       "https_required": "The URL must use https.",

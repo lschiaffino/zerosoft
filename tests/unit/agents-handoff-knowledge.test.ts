@@ -50,7 +50,7 @@ async function setupAgent(label: string, patch: AgentUpdatePayload = {}) {
 }
 
 const HANDOFF_TOOLS: AgentUpdatePayload = {
-  tools: { enabled: ['handoff_to_human'], calEventTypeId: null, calDays: 7, trackProjectId: null, flowIds: [], robotIds: [], httpAllowedDomains: [], requireApproval: [] },
+  tools: { enabled: ['handoff_to_human'], calEventTypeId: null, calDays: 7, trackProjectId: null, flowIds: [], robotIds: [], docsPageIds: [], httpAllowedDomains: [], requireApproval: [] },
 };
 
 describe('Agents: después de derivar, el agente no responde y el equipo sí', () => {

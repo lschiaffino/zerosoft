@@ -243,6 +243,18 @@
       "http_request": {
         "name": "HTTP request",
         "desc": "Calls your own APIs, only on allowlisted domains. Off by default."
+      },
+      "docs_read_pages": {
+        "name": "Read Docs pages",
+        "desc": "Reads, searches and lists the pages you pick below and their subpages, including their databases."
+      },
+      "docs_write_page": {
+        "name": "Write Docs pages",
+        "desc": "Adds to, replaces or renames those pages and creates subpages inside them. Each change stays in the page history."
+      },
+      "docs_write_row": {
+        "name": "Add and update database rows",
+        "desc": "Adds rows to the databases on those pages or changes them. Synced databases stay read-only."
       }
     },
     "groups": {
@@ -256,7 +268,12 @@
     },
     "advancedHint": "HTTP requests to your own APIs",
     "approval": "Ask a teammate to approve before it runs",
-    "approvalHttp": "Ask a teammate to approve requests that write (anything but GET)"
+    "approvalHttp": "Ask a teammate to approve requests that write (anything but GET)",
+    "docsPages": "Pages this agent works with",
+    "noDocsPages": "There are no Docs pages yet.",
+    "docsPagesHint": "Subpages are included. Pages in teamspaces that do not allow AI are left out.",
+    "needsDocsPages": "Pick at least one Docs page.",
+    "untitledPage": "Untitled"
   },
   "channels": {
     "chatTitle": "Chat widgets",

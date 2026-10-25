@@ -243,6 +243,18 @@
       "http_request": {
         "name": "Request HTTP",
         "desc": "Llama a tus propias APIs, solo en dominios permitidos. Apagada por defecto."
+      },
+      "docs_read_pages": {
+        "name": "Leer páginas de Docs",
+        "desc": "Lee, busca y lista las páginas que elegís abajo y sus subpáginas, con sus bases."
+      },
+      "docs_write_page": {
+        "name": "Escribir páginas de Docs",
+        "desc": "Agrega, reemplaza o renombra esas páginas y crea subpáginas adentro. Cada cambio queda en el historial de la página."
+      },
+      "docs_write_row": {
+        "name": "Agregar y actualizar filas",
+        "desc": "Agrega filas a las bases de esas páginas o las cambia. Las bases sincronizadas siguen de solo lectura."
       }
     },
     "groups": {
@@ -256,7 +268,12 @@
     },
     "advancedHint": "Request HTTP a tus propias APIs",
     "approval": "Pedir que alguien del equipo lo apruebe antes de que corra",
-    "approvalHttp": "Pedir aprobación para los pedidos que escriben (todo menos GET)"
+    "approvalHttp": "Pedir aprobación para los pedidos que escriben (todo menos GET)",
+    "docsPages": "Páginas con las que trabaja el agente",
+    "noDocsPages": "Todavía no hay páginas en Docs.",
+    "docsPagesHint": "Incluye las subpáginas. Quedan afuera las páginas de teamspaces que no permiten la IA.",
+    "needsDocsPages": "Elegí al menos una página de Docs.",
+    "untitledPage": "Sin título"
   },
   "channels": {
     "chatTitle": "Widgets de Chat",

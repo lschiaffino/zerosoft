@@ -516,7 +516,7 @@ const BASE_TOOLS: Omit<AgentToolsConfig, 'enabled'> = {
   calDays: 7,
   trackProjectId: null,
   flowIds: [],
-  robotIds: [],
+  robotIds: [], docsPageIds: [],
   httpAllowedDomains: [],
   requireApproval: [],
 };

@@ -261,6 +261,7 @@ export default async function AppLayout(
               pages: tDocs('sidebar.pages'),
               templates: tSide('docsTemplates'),
               trash: tDocs('trash.title'),
+              askAi: tDocs('ask.open'),
             },
             calendar: {
               overview: tCalendar('sidebar.overview'),

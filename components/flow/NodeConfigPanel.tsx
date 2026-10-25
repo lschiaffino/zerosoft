@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import { DocsDatabasePicker, DocsPagePicker, DocsTemplatePicker } from './DocsRefPickers';
 import GroupsChatPicker from './GroupsChatPicker';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -496,6 +497,25 @@ export default function NodeConfigPanel({
             {!readOnly && <GroupsChatPicker value={String(value ?? '')} onPick={(chatId) => set(field.key, chatId)} />}
           </>
         );
+      case 'docsPageRef':
+        return (
+          <>
+            <TemplateInput
+              id={id}
+              label={label}
+              value={String(value ?? '')}
+              placeholder={field.placeholder}
+              variables={variables}
+              readOnly={readOnly}
+              onChange={(v) => set(field.key, v)}
+            />
+            {!readOnly && <DocsPagePicker value={String(value ?? '')} onPick={(pageId) => set(field.key, pageId)} />}
+          </>
+        );
+      case 'docsDatabaseRef':
+        return <DocsDatabasePicker id={id} value={String(value ?? '')} readOnly={readOnly} onPick={(v) => set(field.key, v)} />;
+      case 'docsTemplateRef':
+        return <DocsTemplatePicker id={id} value={String(value ?? '')} readOnly={readOnly} onPick={(v) => set(field.key, v)} />;
       case 'tableRef': {
         const tables = refs.tables ?? [];
         const current = String(value ?? '');

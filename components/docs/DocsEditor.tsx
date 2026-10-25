@@ -126,6 +126,7 @@ import EmojiPicker from './EmojiPicker';
 import DocsGlyph, { type DocsGlyphName } from './DocsGlyphs';
 import DbRowPanel, { type DbRowPanelMode } from './database/DbRowPanel';
 import { rememberUploadPreview, uploadPreview } from './DocsEditorImage';
+import DocsEditorPlugins, { type DocsPluginApi, type DocsPluginHandle } from './DocsEditorPlugins';
 
 /** Lo que el servidor fusionó (una automatización, una base, otra pestaña): se suma a lo que hay en pantalla. */
 export interface DocsRemoteMerge {
@@ -182,7 +183,7 @@ interface DocsEditorProps {
 }
 
 /** Acciones del menú `/` que no son "convertir este bloque en otro tipo". */
-type CommandSpecial = 'columns' | 'date' | 'reminder' | 'inlineEquation';
+type CommandSpecial = 'columns' | 'date' | 'reminder' | 'inlineEquation' | 'ai' | 'syncedDatabase';
 
 const BLOCK_COMMANDS: {
   key: string;
@@ -225,6 +226,10 @@ const BLOCK_COMMANDS: {
   { key: 'bookmark', type: 'bookmark', group: 'media' },
   { key: 'embed', type: 'embed', group: 'media' },
   { key: 'board', type: 'board', group: 'media' },
+  // Tanda D4: IA, notas de reunión y bases sincronizadas (components/docs/DocsEditorPlugins.tsx).
+  { key: 'ai', type: 'paragraph', special: 'ai', group: 'advanced' },
+  { key: 'meeting', type: 'meeting', group: 'advanced' },
+  { key: 'syncedDatabase', type: 'database', special: 'syncedDatabase', group: 'advanced' },
   { key: 'col2', type: 'columns', special: 'columns', count: 2, group: 'advanced' },
   { key: 'col3', type: 'columns', special: 'columns', count: 3, group: 'advanced' },
   { key: 'col4', type: 'columns', special: 'columns', count: 4, group: 'advanced' },
@@ -240,13 +245,13 @@ const BLOCK_COMMANDS: {
 ];
 
 /** Bloques atómicos (se enfocan enteros): archivos, links, pizarra y los avanzados. */
-const CARD_TYPES = new Set<DocsBlockType>(['board', 'bookmark', 'embed', 'equation', 'toc', 'button', 'breadcrumb']);
+const CARD_TYPES = new Set<DocsBlockType>(['board', 'bookmark', 'embed', 'equation', 'toc', 'button', 'breadcrumb', 'meeting']);
 function isCardBlockType(type: DocsBlockType): boolean {
   return isFileBlockType(type) || CARD_TYPES.has(type);
 }
 
 /** Bloques que se crean enteros (no se convierte un texto en ellos): van debajo con un párrafo. */
-const INSERT_TYPES = new Set<DocsBlockType>(['board', 'bookmark', 'embed', 'equation', 'toc', 'button', 'breadcrumb']);
+const INSERT_TYPES = new Set<DocsBlockType>(['board', 'bookmark', 'embed', 'equation', 'toc', 'button', 'breadcrumb', 'meeting']);
 
 /** "Convertir en": los bloques de archivo, link, contenedores y avanzados no salen de un texto. */
 const TURN_INTO_COMMANDS = BLOCK_COMMANDS.filter(
@@ -293,6 +298,9 @@ const COMMAND_KEYWORDS: Record<string, string[]> = {
   date: ['date', 'today', 'tomorrow', 'fecha', 'hoy', 'data', 'hoje', '@'],
   reminder: ['remind', 'reminder', 'recordatorio', 'recordar', 'lembrete', 'alarm'],
   inlineEquation: ['inline equation', 'math', 'latex', 'ecuación en línea', 'equação em linha', '$$'],
+  ai: ['ai', 'ask ai', 'ia', 'write', 'summarize', 'translate', 'escribir', 'resumir', 'traducir', 'escrever', 'traduzir'],
+  meeting: ['meeting', 'meet', 'notes', 'transcribe', 'record', 'reunión', 'reunion', 'notas', 'grabar', 'transcribir', 'reunião', 'gravar'],
+  syncedDatabase: ['synced database', 'sync', 'github', 'jira', 'salesforce', 'crm', 'base sincronizada', 'banco sincronizado', 'issues'],
 };
 
 const BLOCK_ICONS: Record<DocsBlockType, DocsGlyphName> = {
@@ -323,12 +331,15 @@ const BLOCK_ICONS: Record<DocsBlockType, DocsGlyphName> = {
   toc: 'toc',
   button: 'button',
   breadcrumb: 'breadcrumb',
+  meeting: 'meeting',
 };
 
 /** Ícono de un comando del menú `/` (los especiales tienen el suyo). */
 function commandIcon(cmd: { type: DocsBlockType; special?: CommandSpecial }): DocsGlyphName {
   if (cmd.special === 'date') return 'calendar';
   if (cmd.special === 'reminder') return 'bell';
+  if (cmd.special === 'ai') return 'sparkle';
+  if (cmd.special === 'syncedDatabase') return 'sync';
   return BLOCK_ICONS[cmd.type];
 }
 
@@ -489,6 +500,8 @@ export default function DocsEditor({
     setBlocksRaw((prev) => normalizeStructure(typeof update === 'function' ? update(prev) : update, newId));
   }, []);
   const [title, setTitle] = useState(page.title);
+  /** IA del editor y bases sincronizadas (components/docs/DocsEditorPlugins.tsx). */
+  const pluginRef = useRef<DocsPluginHandle | null>(null);
   const [icon, setIcon] = useState(page.icon ?? '');
   const [coverUrl, setCoverUrl] = useState(page.cover_url ?? '');
   const [coverPosition, setCoverPosition] = useState(page.cover_position ?? 50);
@@ -918,6 +931,74 @@ export default function DocsEditor({
   /** Última versión de triggerSave para callbacks async (subidas): no guardar un título viejo. */
   const triggerSaveRef = useRef(triggerSave);
   triggerSaveRef.current = triggerSave;
+
+  // Agregados de la tanda D4: leen el estado actual y escriben como cualquier edición (deshacer incluido).
+  const blocksNow = useRef(blocks);
+  blocksNow.current = blocks;
+  const titleNow = useRef(title);
+  titleNow.current = title;
+  const pluginApi = useMemo<DocsPluginApi>(
+    () => ({
+      pageId: page.id,
+      getTitle: () => titleNow.current,
+      getBlocks: () => blocksNow.current,
+      insertBlocks: (index, created, opts) => {
+        const prev = blocksNow.current;
+        const target = prev[index];
+        const empty = Boolean(opts?.replaceEmpty && target?.type === 'paragraph' && !htmlToFlatText(target.content ?? '').trim());
+        const base = target ? blockIndent(target) : 0;
+        const placed = created.map((b) => setIndent({ ...b, id: b.id || newId() }, blockIndent(b) + base));
+        if (!placed.length) return;
+        const at = !target ? prev.length : empty ? index : subtreeEnd(prev, index) + 1;
+        const next = [...prev];
+        next.splice(at, empty ? 1 : 0, ...placed);
+        setBlocks(next);
+        triggerSaveRef.current(next);
+        // El cursor queda al final de lo insertado (como al aceptar en Notion).
+        const last = at + placed.length - 1;
+        pendingCaret.current = { index: last, offset: htmlToFlatText(placed[placed.length - 1].content ?? '').length };
+        setFocusIndex(last);
+        setFocusTick((v) => v + 1);
+      },
+      focusBlock: (index) => {
+        const b = blocksNow.current[index];
+        if (!b) return;
+        pendingCaret.current = { index, offset: htmlToFlatText(b.content ?? '').length };
+        setFocusIndex(index);
+        setFocusTick((v) => v + 1);
+      },
+      replaceSelection: (index, start, end, created) => {
+        const prev = blocksNow.current;
+        const target = prev[index];
+        if (!target || !created.length) return;
+        const [before, rest] = splitHtmlAt(target.content, start);
+        const after = splitHtmlAt(rest, Math.max(0, end - start))[1];
+        let next: DocsBlock[];
+        let caret: { index: number; offset: number };
+        if (created.length === 1 && created[0].type === 'paragraph') {
+          next = prev.map((b, i) => (i === index ? { ...b, content: `${before}${created[0].content}${after}` } : b));
+          caret = { index, offset: htmlToFlatText(`${before}${created[0].content}`).length };
+        } else {
+          const placed = created.map((b) => setIndent({ ...b }, blockIndent(b) + blockIndent(target)));
+          next = [...prev];
+          if (!`${htmlToFlatText(before)}${htmlToFlatText(after)}`.trim()) {
+            next.splice(index, 1, ...placed);
+            caret = { index: index + placed.length - 1, offset: htmlToFlatText(placed[placed.length - 1].content ?? '').length };
+          } else {
+            next[index] = { ...target, content: `${before}${after}` };
+            next.splice(index + 1, 0, ...placed);
+            caret = { index: index + placed.length, offset: htmlToFlatText(placed[placed.length - 1].content ?? '').length };
+          }
+        }
+        setBlocks(next);
+        triggerSaveRef.current(next);
+        pendingCaret.current = caret;
+        setFocusIndex(caret.index);
+        setFocusTick((v) => v + 1);
+      },
+    }),
+    [page.id, setBlocks],
+  );
 
   // Fusión del servidor: lo de afuera (fila de una automatización, cambio de
   // otra pestaña) entra sin pisar lo que se editó acá desde entonces.
@@ -1663,6 +1744,14 @@ export default function DocsEditor({
         setFocusTick((v) => v + 1);
       };
 
+      if (cmd.special === 'ai' || cmd.special === 'syncedDatabase') {
+        // Se borra el `/query` y se abre el agregado (menú de IA o diálogo de la base sincronizada).
+        updateBlock(index, { content: stripped });
+        closeMenu();
+        if (cmd.special === 'ai') pluginRef.current?.openAi({ index });
+        else pluginRef.current?.openSync(index);
+        return;
+      }
       if (cmd.special === 'columns') {
         place(makeColumnList(cmd.count ?? 2, 0, newId), 2);
         return;
@@ -1786,6 +1875,8 @@ export default function DocsEditor({
         if (!allowDatabase && c.type === 'database') return false;
         // Pizarras, sincronizados, vistas vinculadas, breadcrumb y fechas con recordatorio: solo en Docs (no en Notes ni en filas).
         if (embedded && (c.type === 'board' || c.type === 'synced' || c.linked || c.type === 'breadcrumb' || c.special === 'date' || c.special === 'reminder')) return false;
+        // IA, notas de reunión y bases sincronizadas: solo en páginas de Docs.
+        if (embedded && (c.special === 'ai' || c.type === 'meeting' || c.special === 'syncedDatabase')) return false;
         return commandMatches(c.label, COMMAND_KEYWORDS[c.key] ?? [], query);
       }),
     [t, uploadsEnabled, embedded, allowDatabase],
@@ -2215,6 +2306,13 @@ export default function DocsEditor({
         return;
       }
 
+      // Espacio en una línea vacía: abre la IA (como Notion).
+      if (e.key === ' ' && isEditable && collapsed && block.type === 'paragraph' && !embedded && !e.shiftKey && htmlToFlatText(block.content) === '') {
+        e.preventDefault();
+        pluginRef.current?.openAi({ index });
+        return;
+      }
+
       // Markdown: "# ", "## ", "### ", "- ", "* ", "1. ", "[] ", "[ ] ", "> ".
       if (e.key === ' ' && isEditable && collapsed && block.type === 'paragraph') {
         const flatBefore = htmlToFlatText(block.content).slice(0, caret);
@@ -2266,6 +2364,7 @@ export default function DocsEditor({
     },
     [
       blocks,
+      embedded,
       cmdOpen,
       slash,
       filteredCommands,
@@ -4066,6 +4165,8 @@ export default function DocsEditor({
         document.body,
       )}
 
+      {!embedded && <DocsEditorPlugins ref={pluginRef} api={pluginApi} />}
+
       {toolbar &&
         !linkDialog &&
         // Portal a body: un ancestro con transform (sidebar/reveal) rompería
@@ -4076,6 +4177,25 @@ export default function DocsEditor({
           style={{ top: toolbar.top, left: toolbar.left }}
           onMouseDown={(e) => e.preventDefault()}
         >
+          {!embedded && (
+            <>
+              <button
+                type="button"
+                className="docs-format-btn docs-format-ai"
+                title={t('ai.askAi')}
+                data-testid="docs-format-ai"
+                onClick={() => {
+                  const tb = toolbar;
+                  setToolbar(null);
+                  pluginRef.current?.openAi({ index: tb.index, start: tb.start, end: tb.end });
+                }}
+              >
+                <DocsGlyph name="sparkle" size={13} />
+                <span>{t('ai.askAi')}</span>
+              </button>
+              <span className="docs-format-sep" aria-hidden />
+            </>
+          )}
           <button
             type="button"
             className={`docs-format-btn${markActive('strong') ? ' active' : ''}`}
