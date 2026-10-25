@@ -1740,8 +1740,8 @@ export default function DocsEditor({
       BLOCK_COMMANDS.map((c) => ({ ...c, label: t(`editor.commands.${c.key}`) })).filter((c) => {
         if (!uploadsEnabled && isFileBlockType(c.type)) return false;
         if (!allowDatabase && c.type === 'database') return false;
-        // Pizarras, sincronizados, breadcrumb y fechas con recordatorio: solo en Docs (no en Notes ni en filas).
-        if (embedded && (c.type === 'board' || c.type === 'synced' || c.type === 'breadcrumb' || c.special === 'date' || c.special === 'reminder')) return false;
+        // Pizarras, sincronizados, vistas vinculadas, breadcrumb y fechas con recordatorio: solo en Docs (no en Notes ni en filas).
+        if (embedded && (c.type === 'board' || c.type === 'synced' || c.linked || c.type === 'breadcrumb' || c.special === 'date' || c.special === 'reminder')) return false;
         return commandMatches(c.label, COMMAND_KEYWORDS[c.key] ?? [], query);
       }),
     [t, uploadsEnabled, embedded, allowDatabase],

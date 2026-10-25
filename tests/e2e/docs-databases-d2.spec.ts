@@ -96,7 +96,7 @@ test('D2: fórmula, ID único y creado por; relación de dos vías y rollups ent
   await expect(cell(page, 'Review', 5)).toHaveText('TSK-2');
 
   // Fila nueva: ID 3 y, guardada, "Creado por" la persona.
-  await page.getByTestId('docs-database').locator('.docs-db-new').click();
+  await page.getByTestId('docs-database').locator('.docs-db-new:not(.docs-db-new-more)').click();
   await page.keyboard.type('Ship');
   await page.keyboard.press('Enter');
   await expect(cell(page, 'Ship', 5)).toHaveText('TSK-3');
@@ -269,7 +269,7 @@ test('D2: automatización al agregar fila y botón con aviso, con registro de co
   const doc = await pageWith(request, `Auto ${uid()}`, [{ id: 'db', type: 'database', content: '', db }]);
   await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
 
-  await page.getByTestId('docs-database').locator('.docs-db-new').click();
+  await page.getByTestId('docs-database').locator('.docs-db-new:not(.docs-db-new-more)').click();
   await page.keyboard.type('Monitor');
   await page.keyboard.press('Enter');
   await expect(cell(page, 'Monitor', 1)).toHaveText('New');
