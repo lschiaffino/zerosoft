@@ -219,6 +219,16 @@ export async function persistSyncedBlocks(opts: {
   if (!candidates.length) return { blocks: opts.next, base: nextBase };
   const owned = await getSyncedContents(workspaceId, candidates);
   const ownedAt = await getSyncedVersions(workspaceId, candidates);
+  // Ids que existieron en este workspace (tienen historial) aunque hoy no tengan fila.
+  const known = new Set<string>();
+  const missing = candidates.filter((id) => SYNCED_ID_RE.test(id) && !owned.has(id));
+  if (missing.length) {
+    const rows = (await getDb()
+      .prepare(`SELECT DISTINCT synced_id FROM docs_synced_history WHERE workspace_id = ? AND synced_id IN (${missing.map(() => '?').join(',')})`)
+      .all(workspaceId, ...missing)
+      .catch(() => [])) as Array<{ synced_id: string }>;
+    for (const r of rows) known.add(r.synced_id);
+  }
   const foreign = new Set<string>();
   const valid = candidates.filter((id) => SYNCED_ID_RE.test(id));
   if (valid.length) {
@@ -273,6 +283,11 @@ export async function persistSyncedBlocks(opts: {
         }
         continue;
       }
+      // Referencia huérfana: la página ya lo tenía (o existió alguna vez) y su
+      // fila no está. Un guardado no lo "adopta": no crea la fila ni escribe
+      // hijos (lo que llegue adentro se descarta). Solo un bloque nuevo de
+      // esta página crea su fila.
+      if (!owned.has(id) && id === orig && (previousIds.has(id) || known.has(id))) continue;
       written.add(id);
       const fixed = depth < MAX_SYNCED_DEPTH ? await process(kids, depth + 1) : stripSyncedChildren(kids);
       const clean = sanitizeBlocks(fixed.filter((c) => c.type !== 'database')).slice(0, MAX_SYNCED_BLOCKS);

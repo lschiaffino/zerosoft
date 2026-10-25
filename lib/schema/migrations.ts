@@ -4607,10 +4607,18 @@ export const MIGRATIONS: Migration[] = [
         for (const [sid, kids] of children) {
           const json = JSON.stringify(kids);
           base[sid] = json;
+          // Sin fila (raro): se crea con la copia de la página. Es su origen solo
+          // si es la única página que lo usa; si lo usan varias, queda sin origen
+          // (solo el dueño lo ve): una fila existente nunca cambia de origen acá.
+          const users = await client.execute({
+            sql: `SELECT COUNT(*) AS n FROM docs_pages WHERE user_id = ? AND content LIKE ?`,
+            args: [String(r.user_id), `%"synced_id":"${sid}"%`],
+          });
+          const only = Number(users.rows[0]?.n ?? 0) <= 1;
           await client.execute({
             sql: `INSERT INTO docs_synced_blocks (id, workspace_id, source_page_id, content, created_at, updated_at)
                   VALUES (?, ?, ?, ?, datetime('now'), datetime('now')) ON CONFLICT(id) DO NOTHING`,
-            args: [sid, String(r.user_id), String(r.id), json],
+            args: [sid, String(r.user_id), only ? String(r.id) : null, json],
           });
         }
         await client.execute({

@@ -215,3 +215,84 @@ describe('Mover y "+ Nuevo"', () => {
     expect(buildNewItems('docs', labels).length).toBe(1);
   });
 });
+
+describe('Un guardado nunca "adopta" un sincronizado ajeno', () => {
+  const row = async (id: string) =>
+    (await getDb().prepare('SELECT source_page_id, content FROM docs_synced_blocks WHERE id = ?').get(id)) as { source_page_id: string | null; content: string } | undefined;
+
+  it('origen null (borrado con el código viejo): ni Bob ni la dueña lo pasan a la página que guarda', async () => {
+    const { owner, asOwner, asBob, host, syncedId } = await setup();
+    await getDb().prepare('UPDATE docs_synced_blocks SET source_page_id = NULL WHERE id = ?').run(syncedId);
+    const save = (content: DocsBlock[], base: string) =>
+      pageRoute.PATCH(req(`http://x/api/docs/pages/${host.id}`, 'PATCH', { content, base_updated_at: base }), { params: Promise.resolve({ id: host.id }) });
+    session.user = asBob;
+    let seen = await load(host.id);
+    expect(JSON.stringify(seen)).not.toContain(SECRET);
+    // Bob guarda la página (e inventa hijos adentro del sincronizado).
+    const at = seen.content.findIndex((b) => b.type === 'synced');
+    await save([...seen.content.slice(0, at + 1), para('x', 'Pisado por Bob', 1), ...seen.content.slice(at + 1), para('b', 'de Bob')], seen.updated_at);
+    expect((await row(syncedId))!.source_page_id).toBeNull();
+    expect((await row(syncedId))!.content).toContain(SECRET);
+    // La dueña la guarda también: el contenido sigue sin origen.
+    session.user = asOwner;
+    seen = await load(host.id);
+    await save([...seen.content, para('o', 'de la dueña')], seen.updated_at);
+    expect((await row(syncedId))!.source_page_id).toBeNull();
+    session.user = asBob;
+    expect(JSON.stringify(await load(host.id))).not.toContain(SECRET);
+    void owner;
+  });
+
+  it('fila inexistente: el guardado de la página que ya lo tenía no crea la fila ni escribe hijos', async () => {
+    const { asOwner, asBob, host, syncedId } = await setup();
+    await getDb().prepare('DELETE FROM docs_synced_blocks WHERE id = ?').run(syncedId);
+    for (const who of [asBob, asOwner]) {
+      session.user = who;
+      const seen = await load(host.id);
+      const at = seen.content.findIndex((b) => b.type === 'synced');
+      await pageRoute.PATCH(
+        req(`http://x/api/docs/pages/${host.id}`, 'PATCH', {
+          content: [...seen.content.slice(0, at + 1), para('x', `reclamo ${SECRET}`, 1), ...seen.content.slice(at + 1)],
+          base_updated_at: seen.updated_at,
+        }),
+        { params: Promise.resolve({ id: host.id }) },
+      );
+      expect(await row(syncedId)).toBeUndefined();
+    }
+    session.user = asBob;
+    expect(JSON.stringify(await load(host.id))).not.toContain(SECRET);
+  });
+
+  it('un bloque sincronizado nuevo de la página sí crea su fila con esa página de origen', async () => {
+    const owner = await makeUser('own');
+    session.user = { id: owner.id, email: owner.email };
+    const page = await createDocPage(owner.id, { title: 'Nueva' });
+    const sid = `sync-${crypto.randomUUID().slice(0, 12)}`;
+    const base = (await getDocPageRow(page.id))!.updated_at;
+    await pageRoute.PATCH(req(`http://x/api/docs/pages/${page.id}`, 'PATCH', { content: [{ id: 's', type: 'synced', content: '', synced_id: sid }, para('c', 'Mío', 1)], base_updated_at: base }), {
+      params: Promise.resolve({ id: page.id }),
+    });
+    expect((await row(sid))?.source_page_id).toBe(page.id);
+  });
+
+  it('migración 094: con origen null no cambia el origen; sin fila y varias páginas, queda sin origen', async () => {
+    const { MIGRATIONS } = await import('@/lib/schema/migrations');
+    const { getClient } = await import('@/lib/db');
+    const owner = await makeUser('own');
+    const a = await createDocPage(owner.id, { title: 'A' });
+    const b = await createDocPage(owner.id, { title: 'B' });
+    const nullSrc = `sync-${crypto.randomUUID().slice(0, 12)}`;
+    const missing = `sync-${crypto.randomUUID().slice(0, 12)}`;
+    const now = new Date().toISOString();
+    await getDb().prepare("INSERT INTO docs_synced_blocks (id, workspace_id, source_page_id, content, created_at, updated_at) VALUES (?, ?, NULL, '[]', ?, ?)").run(nullSrc, owner.id, now, now);
+    const legacy = (sid: string) => JSON.stringify([{ id: 's', type: 'synced', content: '', synced_id: sid }, para('c', `Copia ${SECRET}`, 1)]);
+    // A tiene uno con origen null y uno sin fila; B también usa el que no tiene fila.
+    const renamed = (list: DocsBlock[], suffix: string) => list.map((x) => ({ ...x, id: `${x.id}${suffix}` }));
+    await getDb().prepare('UPDATE docs_pages SET content = ? WHERE id = ?').run(JSON.stringify([...JSON.parse(legacy(nullSrc)), ...renamed(JSON.parse(legacy(missing)), 'm')]), a.id);
+    await getDb().prepare('UPDATE docs_pages SET content = ? WHERE id = ?').run(legacy(missing), b.id);
+    await MIGRATIONS.find((m) => m.id === '094_docs_synced_refs')!.up(getClient());
+    expect((await row(nullSrc))!.source_page_id).toBeNull();
+    expect((await row(nullSrc))!.content).toBe('[]');
+    expect((await row(missing))!.source_page_id).toBeNull();
+  });
+});
