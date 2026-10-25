@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
@@ -9,7 +9,8 @@ import type { PlanSummary } from '@/lib/track-plans';
 import { PLAN_STATUSES, type PlanStatus } from '@/lib/track-planning-schema';
 import { api, fmtDay, HealthDot, LoadingRows, Modal, PlanStatusIcon, ProgressBar, personName, type Person } from './shared';
 import { projectPath } from '@/lib/track-routes';
-import KeyPicker from '@/components/track/KeyPicker';
+import KeyPicker, { type KeyPickerHandle } from '@/components/track/KeyPicker';
+import { isTypingTarget } from '@/components/track/trackCommands';
 import TrackIcon from '@/components/track/TrackIcon';
 import { DateChip } from './pickers';
 
@@ -66,6 +67,22 @@ export default function PlansList() {
     return () => window.removeEventListener('zs:track-new-plan', onNew);
   }, []);
 
+  // F como en las listas de issues: elegir la propiedad y después el valor, todo con teclado.
+  const filterRef = useRef<KeyPickerHandle>(null);
+  const statusRef = useRef<KeyPickerHandle>(null);
+  const leadRef = useRef<KeyPickerHandle>(null);
+  const teamRef = useRef<KeyPickerHandle>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'f' || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.repeat || isTypingTarget(e.target)) return;
+      if (document.querySelector('dialog[open], [role="dialog"], [role="menu"], .cmdk, .track-keypicker')) return;
+      e.preventDefault();
+      filterRef.current?.open();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(sp.toString());
     if (value && value !== 'all') next.set(key, value);
@@ -102,10 +119,32 @@ export default function PlansList() {
     <>
       <div className="tp-toolbar" role="toolbar" aria-label={t('plans.filters')}>
         {/* Filtros como chips con menú tipeado (sin <select>), como el Filter de Linear. */}
-        <span className="tp-toolbar-label" aria-hidden>
-          <TrackIcon name="filter" size={12} />
-        </span>
         <KeyPicker
+          ref={filterRef}
+          ariaLabel={t('plans.filters')}
+          className="btn btn-ghost btn-sm tp-filter-btn"
+          testId="tp-filter"
+          options={[
+            { value: 'status', label: t('plans.filterStatus'), icon: <PlanStatusIcon status="in_progress" /> },
+            { value: 'lead', label: t('plans.filterLead'), icon: <TrackIcon name="user" size={13} /> },
+            { value: 'team', label: t('plans.filterTeam'), icon: <TrackIcon name="team" size={13} /> },
+          ]}
+          onSelect={(v) => {
+            const next = v === 'status' ? statusRef : v === 'lead' ? leadRef : teamRef;
+            window.setTimeout(() => next.current?.open(), 0);
+          }}
+          trigger={
+            <>
+              <TrackIcon name="filter" size={12} />
+              <span>{t('plans.filters')}</span>
+              <kbd className="kbd" aria-hidden>
+                f
+              </kbd>
+            </>
+          }
+        />
+        <KeyPicker
+          ref={statusRef}
           ariaLabel={t('plans.filterStatus')}
           className={`tp-chip${status === 'all' ? ' is-empty' : ''}`}
           testId="tp-filter-status"
@@ -126,6 +165,7 @@ export default function PlansList() {
           }
         />
         <KeyPicker
+          ref={leadRef}
           ariaLabel={t('plans.filterLead')}
           className={`tp-chip${lead ? '' : ' is-empty'}`}
           testId="tp-filter-lead"
@@ -137,6 +177,7 @@ export default function PlansList() {
           }
         />
         <KeyPicker
+          ref={teamRef}
           ariaLabel={t('plans.filterTeam')}
           className={`tp-chip${team ? '' : ' is-empty'}`}
           testId="tp-filter-team"
@@ -246,6 +287,9 @@ export default function PlansList() {
   );
 }
 
+// Borrador del project nuevo: Esc o Cancelar lo guardan (como Linear) y vuelve al abrir.
+let planDraft: { name: string; summary: string } | null = null;
+
 export function NewPlanModal({
   open,
   meta,
@@ -273,8 +317,8 @@ export function NewPlanModal({
 
   useEffect(() => {
     if (open) {
-      setName('');
-      setSummary('');
+      setName(planDraft?.name ?? '');
+      setSummary(planDraft?.summary ?? '');
       setStatus('planned');
       setLead(meta?.me ?? '');
       setTeam('');
@@ -304,18 +348,24 @@ export function NewPlanModal({
       setError(res.data.error === 'invalid_range' ? t('plan.invalidRange') : t('common.saveError'));
       return;
     }
+    planDraft = null;
     onCreated(res.data.id);
+  };
+
+  const closeKeeping = () => {
+    planDraft = name.trim() || summary.trim() ? { name, summary } : null;
+    onClose();
   };
 
   return (
     <Modal
       open={open}
       title={t('plans.new')}
-      onClose={onClose}
+      onClose={closeKeeping}
       testId="tp-new-plan-modal"
       footer={
         <>
-          <button type="button" className="btn btn-sm" onClick={onClose}>
+          <button type="button" className="btn btn-sm" onClick={closeKeeping}>
             {t('common.cancel')}
           </button>
           <button type="submit" form="tp-new-plan-form" className="btn btn-sm btn-primary" disabled={!name.trim() || busy} aria-busy={busy}>
@@ -324,7 +374,18 @@ export function NewPlanModal({
         </>
       }
     >
-      <form id="tp-new-plan-form" className="ui-fields" onSubmit={submit}>
+      <form
+        id="tp-new-plan-form"
+        className="ui-fields"
+        onSubmit={submit}
+        onKeyDown={(e) => {
+          // ⌘↵ crea desde cualquier campo, como el composer de issues.
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            void submit();
+          }
+        }}
+      >
         {error && (
           <p className="ui-error" role="alert">
             {error}

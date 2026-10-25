@@ -455,7 +455,7 @@
   },
   "labelsSettings": {
     "title": "Labels",
-    "help": "Labels belong to the workspace and are shared by every team.",
+    "help": "Workspace labels are shared by every team. Team labels only show up in that team.",
     "newPlaceholder": "New label",
     "add": "Add",
     "name": "Label name",
@@ -472,7 +472,11 @@
     "group": "Group",
     "groupPlaceholder": "Move to group…",
     "noGroup": "No group",
-    "colorPick": "Without a color, one is picked at random"
+    "colorPick": "Without a color, one is picked at random",
+    "helpTeam": "Labels you create here belong to this team. Workspace labels are available in every team.",
+    "teamSection": "Team labels",
+    "workspaceSection": "Workspace labels",
+    "teamEmpty": "This team has no labels of its own yet."
   },
   "github": {
     "title": "GitHub",
@@ -613,7 +617,8 @@
       "import": "import",
       "recurring": "recurring issue"
     },
-    "emptyBody": "Issues from the API, Chat, Flow or GitHub wait here until someone accepts them."
+    "emptyBody": "Issues from the API, Chat, Flow or GitHub wait here until someone accepts them.",
+    "createdInApp": "Created in app"
   },
   "projectSettings": {
     "title": "Team settings",

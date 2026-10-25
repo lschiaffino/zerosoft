@@ -22,11 +22,12 @@ import IssueSubscription from './IssueSubscription';
 import IssueReminder from './IssueReminder';
 import IssueSidebar from './IssueSidebar';
 import SubIssues, { ProgressRing } from './SubIssues';
-import { useWorkspaceLabels } from './LabelPicker';
+import { labelsForTeam, useWorkspaceLabels } from './LabelPicker';
 import { applyIssuePatch, findDoneStatus, findOpenStatus, formatDay, inversePatch, type IssuePatch } from '@/lib/track-tasks';
 import { useIssueStore, type ProjectContext } from './useIssueStore';
 import { issueHref, isTypingTarget as isTextTarget, rowTargetId, useTrackCommands } from './trackCommands';
 import { readListNav } from './trackNav';
+import { restoreCursorOnReturn } from './kbCursor';
 import { TRACK_VIEWS_CHANGED } from './TrackBranch';
 import { pushNotice, pushUndo, scheduleDelete } from './trackUndo';
 import { useTrackLive } from './useTrackLive';
@@ -303,7 +304,8 @@ export default function IssueDetailClient({
   const [copied, setCopied] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [mac, setMac] = useState(true);
-  const [workspaceLabels] = useWorkspaceLabels();
+  const [allLabels] = useWorkspaceLabels();
+  const workspaceLabels = useMemo(() => labelsForTeam(allLabels, issue.project_id), [allLabels, issue.project_id]);
   useEffect(() => {
     setMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent));
   }, []);
@@ -1032,6 +1034,7 @@ export default function IssueDetailClient({
         goSibling(e.key === 'j' ? 1 : -1);
       } else if (e.key === 'Escape' && listNav) {
         e.preventDefault();
+        restoreCursorOnReturn(issueRef.current.id);
         router.push(listNav.href);
       }
     };

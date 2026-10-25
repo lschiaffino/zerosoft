@@ -31,6 +31,8 @@ interface IssueFiltersProps {
   onSaveView: () => void;
   /** Vista activa con cambios sin guardar: "Update view" la pisa y "Save as new" crea otra (como Linear). */
   updateView?: { onUpdate: () => void; updateLabel: string; saveAsNewLabel: string };
+  /** Hay una vista guardada aplicada sin cambios: no se ofrece "Save view". */
+  viewClean?: boolean;
   statuses: TrackStatusRow[];
   priorities: Array<{ value: string; label: string }>;
   members: Array<{ id: string; name: string | null; email: string }>;
@@ -356,6 +358,7 @@ export default function IssueFilters({
   onChange,
   onSaveView,
   updateView,
+  viewClean = false,
   statuses,
   priorities,
   members,
@@ -873,7 +876,7 @@ export default function IssueFilters({
             </button>
           </>
         ) : (
-          activeCount > 0 && (
+          activeCount > 0 && !viewClean && (
             <button type="button" className="btn btn-ghost btn-sm track-filter-save" onClick={onSaveView} data-testid="track-save-view">
               {labels.saveView}
             </button>

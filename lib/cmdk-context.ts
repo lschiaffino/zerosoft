@@ -146,12 +146,17 @@ export function matchesQuery(action: Pick<CommandAction, 'label' | 'keywords' | 
   return q.split(/\s+/).every((w) => hay.includes(w));
 }
 
-/** Qué tan bien coincide el label: 0 empieza igual, 1 una palabra empieza, 2 contiene, 3 solo keywords, -1 no. */
+/**
+ * Qué tan bien coincide el label: 0 la primera palabra es exactamente lo
+ * tipeado ("MOB-1" en "MOB-1 Login…", como Linear), 0.5 empieza igual, 1 una
+ * palabra empieza, 2 contiene, 3 solo keywords, -1 no.
+ */
 export function queryRank(action: Pick<CommandAction, 'label' | 'keywords'>, query: string): number {
   const q = fold(query.trim());
   if (!q) return 0;
   const l = fold(action.label);
-  if (l.startsWith(q)) return 0;
+  if (l === q || l.split(/\s+/)[0] === q) return 0;
+  if (l.startsWith(q)) return 0.5;
   if (l.split(/[\s(“"'·›/-]+/).some((w) => w.startsWith(q))) return 1;
   if (l.includes(q)) return 2;
   return matchesQuery(action, query) ? 3 : -1;
@@ -168,7 +173,7 @@ export function rankPageItems(items: CommandAction[], query: string, fromServer:
   const scored = items
     .map((a, i) => {
       let r = queryRank(a, query);
-      if (r < 0 && fromServer.has(a) && !a.isNone) r = 3;
+      if (r < 0 && fromServer.has(a) && !a.isNone) r = 3.5;
       if (a.isNone && r >= 0) r += 10;
       return { a, i, r };
     })

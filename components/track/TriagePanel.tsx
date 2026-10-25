@@ -386,7 +386,8 @@ function TriageDetail({
 }) {
   const t = useTranslations('track');
   const tt = useTranslations('trackTriage');
-  const source = issue.source && issue.source !== 'app' ? issue.source : 'api';
+  // Creado en la app (composer con Triage): "Created in app", no "From API".
+  const source = issue.source || 'api';
   const customers = issue.customer_count ?? 0;
   const labels = parseLabels(issue.labels);
   const desc = descriptionText(issue.description).trim();
@@ -398,7 +399,7 @@ function TriageDetail({
         <p className="track-triage-detail-id">
           <span className="track-identifier">{issue.identifier}</span>
           <span className="track-triage-meta">
-            {t('triage.from', { source: t(`triage.sources.${source}`) })} · {relDate(issue.created_at, locale)}
+            {source === 'app' ? t('triage.createdInApp') : t('triage.from', { source: t(`triage.sources.${source}`) })} · {relDate(issue.created_at, locale)}
             {customers > 0 && <> · {tt('queue.customers', { count: customers })}</>}
             {issue.snoozed_until && <> · {tt('queue.snoozedUntil', { date: formatWhenShort(issue.snoozed_until, locale) })}</>}
           </span>
@@ -607,7 +608,7 @@ export default function TriagePanel(props: TriagePanelProps) {
                     </span>
                     <span className="track-triage-row-title">{issue.title || t('issues.untitled')}</span>
                     <span className="track-triage-row-meta">
-                      {t('triage.from', { source: t(`triage.sources.${issue.source && issue.source !== 'app' ? issue.source : 'api'}`) })}
+                      {issue.source === 'app' ? t('triage.createdInApp') : t('triage.from', { source: t(`triage.sources.${issue.source || 'api'}`) })}
                       {issue.sla_due_at && <SlaChip dueAt={issue.sla_due_at} riskAt={issue.sla_risk_at} compact />}
                     </span>
                   </li>

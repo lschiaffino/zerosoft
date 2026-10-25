@@ -70,8 +70,25 @@ export function moveActive(delta: number): string | null {
   return activeId;
 }
 
+// Al volver de un issue con Esc, el cursor queda en ese issue apenas su fila aparece (como Linear).
+let pendingId: string | null = null;
+let pendingUntil = 0;
+export function restoreCursorOnReturn(id: string): void {
+  pendingId = id;
+  pendingUntil = Date.now() + 8000;
+}
+
 /** Re-aplica el cursor tras un render; si el issue ya no está, pasa al vecino. */
 export function syncCursor(): void {
+  if (pendingId) {
+    if (Date.now() > pendingUntil) pendingId = null;
+    else if (visibleRows().some((r) => r.dataset.issueKey === pendingId)) {
+      const id = pendingId;
+      pendingId = null;
+      setActiveIssue(id, { scroll: true });
+      return;
+    }
+  }
   if (!activeId) return;
   const rows = visibleRows();
   const ids = rows.map((r) => r.dataset.issueKey ?? '');

@@ -165,6 +165,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
   // Adjuntos del composer (clip, como Linear): se suben al crear.
   const [attachments, setAttachments] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const addFiles = (list: File[]) => setAttachments((cur) => [...cur, ...list.filter((f) => f.size <= 10 * 1024 * 1024)].slice(0, 10));
   const titleRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -487,7 +488,8 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
       dueDate: parsed.dueDate ?? (d.dueDate || null),
       startDate: d.startDate || null,
       parentId: d.parentId ?? null,
-      cycleId: d.cycleId || null,
+      // En triage no entra a ningún cycle (como Linear: se planifica al aceptarlo).
+      cycleId: d.triage ? null : d.cycleId || null,
       milestoneId: d.milestoneId || null,
       estimate: d.estimate,
       planId: d.planId || null,
@@ -582,6 +584,24 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
         aria-labelledby="track-qc-title"
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={onKeyDown}
+        // Pegar o soltar archivos los suma como adjuntos (se suben al crear).
+        onPasteCapture={(e) => {
+          const files = Array.from(e.clipboardData?.files ?? []);
+          if (!files.length) return;
+          e.preventDefault();
+          e.stopPropagation();
+          addFiles(files);
+        }}
+        onDragOver={(e) => {
+          if (Array.from(e.dataTransfer?.types ?? []).includes('Files')) e.preventDefault();
+        }}
+        onDropCapture={(e) => {
+          const files = Array.from(e.dataTransfer?.files ?? []);
+          if (!files.length) return;
+          e.preventDefault();
+          e.stopPropagation();
+          addFiles(files);
+        }}
       >
         <form
           onSubmit={(e) => {
@@ -730,8 +750,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
               aria-hidden
               data-testid="track-qc-file"
               onChange={(e) => {
-                const list = Array.from(e.target.files ?? []).filter((f) => f.size <= 10 * 1024 * 1024);
-                setAttachments((cur) => [...cur, ...list].slice(0, 10));
+                addFiles(Array.from(e.target.files ?? []));
                 e.currentTarget.value = '';
               }}
             />

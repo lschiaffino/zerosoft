@@ -244,6 +244,8 @@ test.describe('Track como Linear: volver con Esc y foco', () => {
       await expect(page).toHaveURL(new RegExp(`^${listUrl.split('?')[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
       expect(page.url()).not.toContain(`/${locale}/${locale}/`);
       await expect(page.locator(`[data-issue-key="${a.id}"]`).first()).toBeVisible();
+      // El cursor queda en el issue del que se volvió (como Linear).
+      await expect(page.locator(`[data-issue-key="${a.id}"]`).first()).toHaveClass(/is-kb-active/);
     });
   }
 
@@ -282,4 +284,70 @@ test('⇧C: el cycle activo va primero y Enter lo asigna; "No cycle" al final', 
   await expect(opts.last()).toContainText('No cycle');
   await page.keyboard.press('Enter');
   await expect.poll(async () => ((await (await request.get(`/api/track/issues/${a.id}`)).json()) as { cycle_id: string | null }).cycle_id).toBe(now.id);
+});
+
+test('pickers de issues: el ID exacto primero; ⌘⇧O en una fila abre el composer sobre la lista', async ({ page, request }) => {
+  const t = await team(request);
+  const made: Issue[] = [];
+  for (let n = 0; n < 12; n++) made.push(await ok<Issue>(request.post(`/api/track/projects/${t.id}/issues`, { data: { title: `Uno ${n}` } })));
+  const first = made[0];
+  const last = made[made.length - 1];
+  await page.goto(`/en/app/track/team/${t.id}`);
+  await page.waitForURL(/\/app\/track\/team\/[A-Z0-9]{2,5}(\?|$)/);
+  await page.waitForLoadState('networkidle');
+  // ⌘⇧P en la última fila, tipeando el ID de la primera: va primero aunque haya -10, -11, -12.
+  await hoverRow(page, last.id);
+  await page.keyboard.press('ControlOrMeta+Shift+P');
+  await page.keyboard.type(first.identifier);
+  await expect(page.locator('.cmdk').getByRole('option').first()).toContainText(`${first.identifier} `);
+  await page.keyboard.press('Escape');
+  // ⌘⇧O en una fila: modal con el padre, sin salir de la lista.
+  const url = page.url();
+  await hoverRow(page, first.id);
+  await page.keyboard.press('ControlOrMeta+Shift+O');
+  const dlg = page.getByRole('dialog', { name: /New sub-issue/ });
+  await expect(dlg).toBeVisible();
+  await expect(dlg).toContainText(first.identifier);
+  expect(page.url()).toBe(url);
+  await page.keyboard.press('Escape');
+});
+
+test('Projects: F abre el filtro por propiedad y después el valor', async ({ page, request }) => {
+  await ok(request.post('/api/track/plans', { data: { name: `Filtro ${uid()}`, status: 'in_progress' } }));
+  await page.goto('/en/app/track/projects', { waitUntil: 'networkidle' });
+  await blur(page);
+  await page.keyboard.press('f');
+  await page.keyboard.type('stat');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('progress');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/status=in_progress/);
+});
+
+test('composer: Triage crea el issue en triage desde la app, sin cycle', async ({ page, request }) => {
+  const t = await team(request);
+  await ok(request.patch(`/api/track/projects/${t.id}`, { data: { triageEnabled: true } }));
+  await page.goto(`/en/app/track/team/${t.id}`);
+  await page.waitForURL(/\/app\/track\/team\/[A-Z0-9]{2,5}(\?|$)/);
+  await page.waitForLoadState('networkidle');
+  const dialog = page.getByRole('dialog', { name: /New issue/ });
+  await expect(async () => {
+    await page.locator('body').click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press('c');
+    await expect(dialog).toBeVisible({ timeout: 1500 });
+  }).toPass({ timeout: 15_000 });
+  const title = `A triage ${uid()}`;
+  await page.keyboard.type(title);
+  await page.getByTestId('track-qc-status').click();
+  await page.locator('.cmdk').getByRole('option', { name: /Triage/ }).click();
+  await expect(page.getByTestId('track-qc-status')).toContainText('Triage');
+  await page.keyboard.press('ControlOrMeta+Enter');
+  await expect(dialog).toBeHidden();
+  await expect
+    .poll(async () => {
+      const rows = ((await (await request.get(`/api/track/projects/${t.id}/triage`)).json()) as { rows: Array<Issue & { title: string; triage: number; source: string; cycle_id: string | null }> }).rows;
+      const it = rows.find((r) => r.title === title);
+      return it ? `${it.triage}|${it.source}|${it.cycle_id}` : 'missing';
+    })
+    .toBe('1|app|null');
 });

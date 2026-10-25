@@ -705,3 +705,15 @@
 .track-qc-file-remove:hover {
   color: var(--ink);
 }
+
+/* Settings › Labels: secciones Team / Workspace. */
+.track-labels-section + .track-labels-section {
+  margin-top: 16px;
+}
+
+.track-labels-section-title {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--brand-gray-2);
+}

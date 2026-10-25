@@ -58,7 +58,9 @@ describe('menús de ⌘K como Linear', () => {
   });
 
   it('ranking y opción exacta (sin tildes)', () => {
-    expect(queryRank(opt('x', 'Diseño'), 'dise')).toBe(0);
+    expect(queryRank(opt('x', 'Diseño'), 'dise')).toBe(0.5);
+    expect(queryRank(opt('x', 'MOB-1 Login'), 'mob-1')).toBe(0);
+    expect(rankPageItems([opt('a', 'MOB-12 Otro'), opt('b', 'MOB-10 X'), opt('c', 'MOB-1 Login')], 'MOB-1')[0].id).toBe('c');
     expect(queryRank(opt('x', 'Nuevo diseño'), 'dis')).toBe(1);
     expect(queryRank(opt('x', 'Rediseño'), 'dis')).toBe(2);
     expect(queryRank(opt('x', 'Algo', { keywords: 'bug' }), 'bug')).toBe(3);

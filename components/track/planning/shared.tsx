@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode, useLayoutEffect } from 'react';
 import type { HealthState } from '@/lib/track-planning-core';
 
 /** fetch JSON con { ok, status, data } (sin tirar en errores de red). */
@@ -101,10 +101,14 @@ export function Modal({
   testId?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
+  // Antes del paint: el foco llega al primer campo en el mismo frame y no se pierden letras tipeadas enseguida.
+  useLayoutEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
+    if (open && !d.open) {
+      d.showModal();
+      d.querySelector<HTMLElement>('[autofocus], [data-autofocus]')?.focus();
+    }
     if (!open && d.open) d.close();
   }, [open]);
   return (

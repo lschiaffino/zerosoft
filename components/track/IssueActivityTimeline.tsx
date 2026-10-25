@@ -442,14 +442,20 @@ export default function IssueActivityTimeline({
       case 'attachment_added': {
         const filename = String(meta.filename ?? '');
         const url = attachmentUrls.get(String(meta.attachmentId ?? ''));
+        // El nombre del archivo una sola vez: como link si el adjunto sigue estando.
+        const text = labels.attachmentAdded.replace('{user}', name);
+        const [before, after = ''] = text.includes('{filename}') ? text.split('{filename}') : [`${text} `, ''];
         return (
           <>
-            {labels.attachmentAdded.replace('{user}', name).replace('{filename}', filename)}{' '}
-            {url && (
+            {before}
+            {url ? (
               <a href={url} target="_blank" rel="noreferrer" className="track-activity-link">
                 {filename}
               </a>
+            ) : (
+              filename
             )}
+            {after}
           </>
         );
       }

@@ -27,7 +27,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import TrackIcon from './TrackIcon';
 import type { TrackUiLabels } from './ui-labels';
 import { BulkBar, useIssueSelection, type BulkPatch } from './BulkEdit';
-import { useWorkspaceLabels } from './LabelPicker';
+import { labelsForTeam, useWorkspaceLabels } from './LabelPicker';
 import IssueDisplayOptions, { readDisplayProps, writeDisplayProps, type DisplayProp } from './IssueDisplayOptions';
 import GroupedIssuesTable from './GroupedIssuesTable';
 import {
@@ -273,7 +273,9 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
   const [tab, setTab] = useState<'issues' | 'triage'>(() => (searchParams.get('tab') === 'triage' ? 'triage' : 'issues'));
   const [triageIssues, setTriageIssues] = useState<TrackIssueWithStatus[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
-  const [workspaceLabels] = useWorkspaceLabels(true);
+  const [allLabels] = useWorkspaceLabels(true);
+  // Labels del workspace más los de este team (los de otros teams no aparecen en L ni en filtros).
+  const workspaceLabels = useMemo(() => labelsForTeam(allLabels, projectId), [allLabels, projectId]);
   const today = useToday();
 
   const projectMap = useMemo<ProjectMap>(
@@ -605,7 +607,9 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
     },
     handlers: {
       apply: (targets, patch) => void store.updateMany(targets.map((i) => i.id), patch),
-      createSubIssue: (parent) => router.push(`/app/track/issues/${parent.id}?sub=1`),
+      // ⌘⇧O sobre una fila: el composer con el padre, encima de la lista (sin navegar), como Linear.
+      createSubIssue: (parent) =>
+        openComposer({ projectId: parent.project_id, parentId: parent.id, parentLabel: parent.identifier, priority: parent.priority }),
       remove: isAdmin ? (targets) => deleteIssues(targets.map((i) => i.id)) : undefined,
       open: (issue) => router.push(`/app/track/issues/${issue.id}`),
       // Mover de team y archivar sacan los issues de esta lista (como en Linear).
@@ -1177,6 +1181,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
             filters={filters}
             onChange={(f) => setFilters(f)}
             onSaveView={() => setSaveDialogOpen(true)}
+            viewClean={Boolean(activeView) && !viewDirty}
             updateView={
               activeView && viewDirty && activeView.user_id === userId
                 ? { onUpdate: () => void handleUpdateView(activeView.id), updateLabel: tx('views.updateView'), saveAsNewLabel: tx('views.saveAsNew') }

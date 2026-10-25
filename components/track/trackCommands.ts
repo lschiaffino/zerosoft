@@ -24,7 +24,7 @@ import { activeRowElement } from './kbCursor';
 export interface CommandData {
   statuses: Array<{ id: string; name: string; color: string; category: string; position: number; project_id?: string }>;
   members: Array<{ id: string; name: string | null; email: string }>;
-  labels: Array<{ id: string; name: string; color: string }>;
+  labels: Array<{ id: string; name: string; color: string; project_id?: string | null }>;
   cycles: Array<{ id: string; name: string; start_at?: string; end_at?: string }>;
   milestones: Array<{ id: string; name: string }>;
   priorities: Array<{ value: string; label: string }>;
@@ -130,18 +130,20 @@ let labelCache: CommandData['labels'] | null = null;
 export function rememberLabels(rows: CommandData['labels'] | null): void {
   labelCache = rows;
 }
-function currentLabels(data: CommandData): CommandData['labels'] {
-  if (!labelCache) return data.labels;
+function currentLabels(data: CommandData, teamId: string | null): CommandData['labels'] {
   const byId = new Map(data.labels.map((l) => [l.id, l]));
-  for (const l of labelCache) byId.set(l.id, l);
-  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+  for (const l of labelCache ?? []) byId.set(l.id, l);
+  // Solo los del workspace y los del team del issue (como Linear).
+  return [...byId.values()]
+    .filter((l) => !l.project_id || (teamId !== null && l.project_id === teamId))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 async function fetchLabels(): Promise<void> {
   const res = await fetch('/api/track/labels').catch(() => null);
   if (!res?.ok) return;
   const rows = ((await res.json()) as { rows: CommandData['labels'] }).rows;
-  labelCache = rows.map((r) => ({ id: r.id, name: r.name, color: r.color }));
+  labelCache = rows.map((r) => ({ id: r.id, name: r.name, color: r.color, project_id: r.project_id ?? null }));
 }
 
 /** Crea un label del workspace (o lo encuentra si ya existe con ese nombre). */
@@ -375,7 +377,7 @@ export function buildIssueActions(
     keywords: 'labels etiquetas tags add agregar',
     placeholder: t('labelsPlaceholder'),
     icon: { kind: 'glyph', name: 'tag' },
-    children: () => currentLabels(data).map(labelOption),
+    children: () => currentLabels(data, sameProject ? targets[0].project_id : null).map(labelOption),
     load: async () => {
       await fetchLabels();
       return [];

@@ -109,7 +109,7 @@ export function LabelsSettings({ isAdmin, projectId }: { isAdmin: boolean; proje
     <div data-testid="track-labels-settings">
     <FormSection
       title={t('labelsSettings.title')}
-      description={t('labelsSettings.help')}
+      description={projectId ? t('labelsSettings.helpTeam') : t('labelsSettings.help')}
       footer={!isAdmin ? <span className="ui-section-note">{t('labelsSettings.adminOnly')}</span> : undefined}
     >
       <div className="track-settings-block">
@@ -133,8 +133,18 @@ export function LabelsSettings({ isAdmin, projectId }: { isAdmin: boolean; proje
         ) : labels.length === 0 ? (
           <p className="ui-help">{t('labelsSettings.empty')}</p>
         ) : (
+          // Como Linear: labels del team y del workspace, cada uno en su sección.
+          labelSections(labels, projectId, {
+            team: t('labelsSettings.teamSection'),
+            workspace: t('labelsSettings.workspaceSection'),
+          }).map((sec) => (
+            <div key={sec.key} className="track-labels-section" data-testid={`track-labels-${sec.key}`}>
+              <h3 className="track-labels-section-title">{sec.title}</h3>
+              {sec.rows.length === 0 ? (
+                <p className="ui-help">{sec.key === 'team' ? t('labelsSettings.teamEmpty') : t('labelsSettings.empty')}</p>
+              ) : (
           <ul className="track-status-list">
-            {groupedLabels(labels, projectId).map((l) => (
+            {sec.rows.map((l) => (
               <li key={l.id} className={`track-status-item${l.parent_id ? ' is-child' : ''}`} data-testid="track-label-row">
                 <input
                   type="color"
@@ -220,6 +230,9 @@ export function LabelsSettings({ isAdmin, projectId }: { isAdmin: boolean; proje
               </li>
             ))}
           </ul>
+              )}
+            </div>
+          ))
         )}
         <form className="track-status-add" onSubmit={add}>
           <input
@@ -256,9 +269,24 @@ export function LabelsSettings({ isAdmin, projectId }: { isAdmin: boolean; proje
   );
 }
 
-/** Grupos primero y sus labels debajo; con un team, solo los generales y los de ese team. */
-function groupedLabels(labels: TrackLabel[], projectId?: string): TrackLabel[] {
-  const visible = labels.filter((l) => !l.project_id || l.project_id === projectId);
+/** Secciones de Settings: en un team, sus labels y después los del workspace; en el workspace, los generales y los de cada team. */
+function labelSections(
+  labels: TrackLabel[],
+  projectId: string | undefined,
+  titles: { team: string; workspace: string },
+): Array<{ key: 'team' | 'workspace'; title: string; rows: TrackLabel[] }> {
+  const ws = groupedLabels(labels.filter((l) => !l.project_id));
+  const team = groupedLabels(labels.filter((l) => Boolean(l.project_id) && (!projectId || l.project_id === projectId)));
+  const out: Array<{ key: 'team' | 'workspace'; title: string; rows: TrackLabel[] }> = [
+    { key: 'workspace', title: titles.workspace, rows: ws },
+    { key: 'team', title: titles.team, rows: team },
+  ];
+  return projectId ? out.reverse() : out.filter((x) => x.key === 'workspace' || x.rows.length > 0);
+}
+
+/** Grupos primero y sus labels debajo. */
+function groupedLabels(labels: TrackLabel[]): TrackLabel[] {
+  const visible = labels;
   const top = visible.filter((l) => !l.parent_id || !visible.some((p) => p.id === l.parent_id));
   const out: TrackLabel[] = [];
   for (const l of top) {

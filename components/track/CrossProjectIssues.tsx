@@ -100,6 +100,8 @@ export default function CrossProjectIssues({
   const [group, setGroup] = useState<IssueGroupBy>(display?.group ?? 'none');
   const today = useToday();
   const [modalOpen, setModalOpen] = useState(false);
+  // ⌘⇧O sobre una fila: el composer con el padre puesto, sin salir de la lista.
+  const [subParent, setSubParent] = useState<TrackIssueWithStatus | null>(null);
   const projectMap = useMemo<ProjectMap>(() => Object.fromEntries(projects.map((p) => [p.id, p])), [projects]);
   const tx = useTranslations('track.ux');
   const tc = useTranslations('track.ux.cmd');
@@ -148,7 +150,10 @@ export default function CrossProjectIssues({
     },
     handlers: {
       apply: (targets, patch) => void store.updateMany(targets.map((i) => i.id), patch),
-      createSubIssue: (parent) => router.push(`/app/track/issues/${parent.id}?sub=1`),
+      createSubIssue: (parent) => {
+        setSubParent(parent);
+        setModalOpen(true);
+      },
       open: (issue) => router.push(`/app/track/issues/${issue.id}`),
     },
     t: (k, v) => tc(k, v),
@@ -379,9 +384,18 @@ export default function CrossProjectIssues({
 
       <QuickIssueModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setSubParent(null);
+        }}
         projects={projects}
-        defaults={mine ? { assigneeId: mine.userId } : undefined}
+        defaults={
+          subParent
+            ? { projectId: subParent.project_id, parentId: subParent.id, parentLabel: subParent.identifier, priority: subParent.priority }
+            : mine
+              ? { assigneeId: mine.userId }
+              : undefined
+        }
         onCreate={create}
         meId={mine?.userId ?? userId}
         labels={ui}

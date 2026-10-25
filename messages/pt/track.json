@@ -455,7 +455,7 @@
   },
   "labelsSettings": {
     "title": "Etiquetas",
-    "help": "As etiquetas são do workspace e valem para todas as equipes.",
+    "help": "Os labels do workspace são compartilhados por todas as equipes. Os da equipe aparecem só nela.",
     "newPlaceholder": "Nova etiqueta",
     "add": "Adicionar",
     "name": "Nome da etiqueta",
@@ -472,7 +472,11 @@
     "group": "Grupo",
     "groupPlaceholder": "Mover para o grupo…",
     "noGroup": "Sem grupo",
-    "colorPick": "Sem cor escolhida, uma é sorteada"
+    "colorPick": "Sem cor escolhida, uma é sorteada",
+    "helpTeam": "Os labels que você cria aqui são desta equipe. Os do workspace estão em todas as equipes.",
+    "teamSection": "Labels da equipe",
+    "workspaceSection": "Labels do workspace",
+    "teamEmpty": "Esta equipe ainda não tem labels próprios."
   },
   "github": {
     "title": "GitHub",
@@ -613,7 +617,8 @@
       "import": "importação",
       "recurring": "issue recorrente"
     },
-    "emptyBody": "Os issues que chegam pela API, Chat, Flow ou GitHub esperam aqui até alguém aceitá-los."
+    "emptyBody": "Os issues que chegam pela API, Chat, Flow ou GitHub esperam aqui até alguém aceitá-los.",
+    "createdInApp": "Criado no app"
   },
   "projectSettings": {
     "title": "Ajustes da equipe",

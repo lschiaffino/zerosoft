@@ -1095,11 +1095,19 @@ export async function listAllIssues(
       .get(...args)) as { c: number }
   ).c;
 
+  // Con texto, como Linear: el ID exacto primero, después los que empiezan con ese ID y después por título.
+  const needle = options.q?.trim() ?? '';
+  const rank = needle
+    ? {
+        sql: "CASE WHEN UPPER(i.identifier) = UPPER(?) THEN 0 WHEN UPPER(i.identifier) LIKE UPPER(?) ESCAPE '\\' THEN 1 WHEN i.title LIKE ? ESCAPE '\\' THEN 2 ELSE 3 END, ",
+        args: [needle, `${needle.replace(/[\\%_]/g, (c) => `\\${c}`)}%`, `${needle.replace(/[\\%_]/g, (c) => `\\${c}`)}%`],
+      }
+    : { sql: '', args: [] as string[] };
   const rows = (await db
     .prepare(
-      `${issueSelect(`WHERE ${whereSql}`)} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
+      `${issueSelect(`WHERE ${whereSql}`)} ORDER BY ${rank.sql}${orderBy} LIMIT ? OFFSET ?`,
     )
-    .all(...args, pageSize, (page - 1) * pageSize)) as TrackIssueWithStatus[];
+    .all(...args, ...rank.args, pageSize, (page - 1) * pageSize)) as TrackIssueWithStatus[];
 
   return { rows, total, page, pageSize };
 }
@@ -1406,7 +1414,8 @@ export async function createIssue(
           payload.priority ?? 'none',
           payload.assigneeId ?? null,
           creatorId,
-          payload.cycleId ?? null,
+          // Lo que entra a triage desde el composer no se planifica todavía (sin cycle).
+          wantsTriage ? null : (payload.cycleId ?? null),
           payload.estimate ?? null,
           payload.parentId ?? null,
           payload.startDate ?? null,
