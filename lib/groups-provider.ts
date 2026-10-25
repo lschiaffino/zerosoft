@@ -49,13 +49,25 @@ export interface ProviderCaps {
   qr: boolean;
   /** Plantillas aprobadas por Meta (fuera de la ventana de 24 h). */
   templates: boolean;
+  /** Editar en WhatsApp un mensaje que mandamos (hasta 15 min). */
+  edit: boolean;
+  /** Borrar para todos un mensaje que mandamos. */
+  deleteForAll: boolean;
+  /** Fijar mensajes en el chat de WhatsApp (si no, se fijan solo en Groups). */
+  pin: boolean;
+  /** Reenvío nativo (con la marca "Reenviado"); si no, se manda una copia. */
+  forward: boolean;
+  /** El proveedor avisa las llamadas de voz (registro en el chat). */
+  calls: boolean;
 }
 
 export const PROVIDER_CAPS: Record<ProviderKind, ProviderCaps> = {
-  cloud: { groups: false, qr: false, templates: true },
-  waha: { groups: true, qr: true, templates: false },
-  evolution: { groups: true, qr: true, templates: false },
-  fake: { groups: true, qr: true, templates: false },
+  // Cloud API: los mensajes no se editan ni se borran; las llamadas llegan por el webhook "calls" (Calling API).
+  cloud: { groups: false, qr: false, templates: true, edit: false, deleteForAll: false, pin: false, forward: false, calls: true },
+  waha: { groups: true, qr: true, templates: false, edit: true, deleteForAll: true, pin: true, forward: true, calls: true },
+  // Evolution API v2 edita y borra; no tiene endpoint para fijar ni reenviar.
+  evolution: { groups: true, qr: true, templates: false, edit: true, deleteForAll: true, pin: false, forward: false, calls: true },
+  fake: { groups: true, qr: true, templates: false, edit: true, deleteForAll: true, pin: true, forward: true, calls: true },
 };
 
 export type ConnectStatus = 'pending' | 'qr' | 'connected' | 'disconnected' | 'error';
@@ -134,8 +146,30 @@ export type InboundEvent =
       fromMe: boolean;
     }
   | { type: 'status'; providerMessageId: string; status: 'sent' | 'delivered' | 'read' | 'failed' }
+  /** Alguien editó un mensaje (texto nuevo). */
+  | { type: 'edit'; chatId: string; providerMessageId: string; body: string }
+  /** Alguien borró un mensaje para todos. */
+  | { type: 'revoke'; chatId: string; providerMessageId: string }
+  | {
+      type: 'call';
+      chatId: string;
+      callId: string;
+      direction: CallDirection;
+      status: CallStatus;
+      senderPhone: string;
+      senderName?: string;
+      durationSec?: number;
+      /** URL de la grabación si el proveedor la da (ninguno de los actuales la da). */
+      recordingUrl?: string;
+      isVideo?: boolean;
+      timestamp?: string;
+    }
   | { type: 'participants'; chatId: string; action: ParticipantAction; phones: string[] }
   | { type: 'session'; status: ConnectStatus; qr?: string; phone?: string };
+
+export type CallDirection = 'in' | 'out';
+/** ringing: sonando; answered: atendida; ended: terminó (con duración si se sabe); missed y rejected: no se atendió. */
+export type CallStatus = 'ringing' | 'answered' | 'ended' | 'missed' | 'rejected';
 
 export interface WebhookRequest {
   headers: Headers;
@@ -160,6 +194,14 @@ export interface GroupsProvider {
   updateParticipants(groupId: string, action: ParticipantAction, phones: string[]): Promise<ParticipantResult[]>;
   inviteLink(groupId: string, revoke?: boolean): Promise<string>;
   updateGroup(groupId: string, patch: { name?: string; description?: string }): Promise<void>;
+  /** Edita un mensaje propio (caps.edit). */
+  editMessage(chatId: string, providerMessageId: string, text: string): Promise<void>;
+  /** Borra para todos un mensaje propio (caps.deleteForAll). */
+  deleteMessage(chatId: string, providerMessageId: string): Promise<void>;
+  /** Fija o desfija un mensaje en WhatsApp (caps.pin). */
+  pinMessage(chatId: string, providerMessageId: string, pin: boolean): Promise<void>;
+  /** Reenvío nativo a otro chat (caps.forward). */
+  forwardMessage(toChatId: string, fromChatId: string, providerMessageId: string): Promise<SendResult>;
   /** Firma o token del webhook. `secret` es el del número (va en la URL). */
   verifyWebhook(req: WebhookRequest, secret: string): boolean;
   parseWebhook(body: unknown): InboundEvent[];

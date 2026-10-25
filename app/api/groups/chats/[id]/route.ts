@@ -16,7 +16,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   return NextResponse.json({ chat, members: await listMembers(s.ws, id) });
 }
 
-/** Renombrar (también en WhatsApp si es grupo), asignar, cerrar, etiquetas, propiedades, CRM, agente, leído. */
+/** Renombrar (también en WhatsApp si es grupo), asignar a persona o equipo, cerrar, fijar, etiquetas, propiedades, CRM, agente, leído o no leído. */
 export async function PATCH(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
@@ -25,16 +25,18 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (typeof b.name === 'string') patch.name = b.name;
   if (typeof b.description === 'string') patch.description = b.description;
   if (b.assignedTo === null || typeof b.assignedTo === 'string') patch.assignedTo = (b.assignedTo as string | null) || null;
+  if (b.assignedTeamId === null || typeof b.assignedTeamId === 'string') patch.assignedTeamId = (b.assignedTeamId as string | null) || null;
+  if (typeof b.pinned === 'boolean') patch.pinned = b.pinned;
   if (b.status === 'open' || b.status === 'closed') patch.status = b.status;
   if (b.crmContactId === null || typeof b.crmContactId === 'string') patch.crmContactId = (b.crmContactId as string | null) || null;
   if (b.crmCompanyId === null || typeof b.crmCompanyId === 'string') patch.crmCompanyId = (b.crmCompanyId as string | null) || null;
   if (b.agentId === null || typeof b.agentId === 'string') patch.agentId = (b.agentId as string | null) || null;
   if (b.properties && typeof b.properties === 'object' && !Array.isArray(b.properties)) patch.properties = b.properties as Record<string, unknown>;
   if (Array.isArray(b.labelIds)) patch.labelIds = strArr(b.labelIds, 20);
-  if (b.read === true) patch.read = true;
+  if (typeof b.read === 'boolean') patch.read = b.read;
   if (typeof b.flagged === 'boolean') patch.flagged = b.flagged;
   try {
-    return NextResponse.json(await updateChat(s.ws, (await ctx.params).id, patch));
+    return NextResponse.json(await updateChat(s.ws, (await ctx.params).id, patch, s.me));
   } catch (err) {
     return handleGroupsError(err);
   }

@@ -2090,7 +2090,9 @@
     "description": "Periskope assigns new chats by rules (round-robin among online agents). Today Groups assigns by hand. First scope: an on/off rule per number that rotates new chats among chosen people, skipping people marked away.\n\nPriority: high. Effort: M.",
     "product": "groups",
     "kind": "idea",
-    "parity": "auto-assign"
+    "parity": "auto-assign",
+    "status": "done",
+    "changelog": "2026-10-24-groups-inbox"
   },
   {
     "title": "Groups: Members see only the chats with their labels",
@@ -2125,7 +2127,9 @@
     "description": "Notes in a chat are visible to the team but do not notify anyone. First scope: @person in a note sends an in-app notification (the bell) and an email per the person's Track notification settings.\n\nPriority: medium. Effort: S.",
     "product": "groups",
     "kind": "idea",
-    "parity": "private-notes"
+    "parity": "private-notes",
+    "status": "done",
+    "changelog": "2026-10-24-groups-inbox"
   },
   {
     "title": "Groups: AI flags only real questions as unanswered",
@@ -2139,7 +2143,9 @@
     "description": "Periskope edits, deletes, forwards and pins WhatsApp messages from the inbox. The WAHA and Evolution APIs support them. First scope: the message actions menu plus the provider calls.\n\nPriority: low. Effort: M.",
     "product": "groups",
     "kind": "idea",
-    "parity": "edit-delete-forward"
+    "parity": "edit-delete-forward",
+    "status": "done",
+    "changelog": "2026-10-24-groups-inbox"
   },
   {
     "title": "Groups: More webhook events and group endpoints in the public API",

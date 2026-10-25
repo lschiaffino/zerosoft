@@ -325,7 +325,10 @@
     "docCommentReply": "{actor} respondió un comentario en {title}",
     "docShared": "{actor} compartió {title} con vos",
     "boardMention": "{actor} te mencionó en {title}",
-    "boardReply": "{actor} respondió en {title}"
+    "boardReply": "{actor} respondió en {title}",
+    "groupsMention": "{actor} te mencionó en {title}",
+    "groupsAssigned": "{actor} te asignó {title}",
+    "groupsAutoAssigned": "Chat de WhatsApp nuevo para vos: {title}"
   },
   "errors": {
     "invalid_slug": "Slug inválido. Usá letras minúsculas, números y guiones.",

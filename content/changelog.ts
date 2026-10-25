@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-24-groups-inbox',
+    date: '2026-10-24',
+    title: {
+      en: 'Groups: message actions, round-robin, translation and AI drafts in the inbox',
+      es: 'Groups: acciones sobre mensajes, round-robin, traducción y borradores AI en la bandeja',
+      pt: 'Groups: ações nas mensagens, round-robin, tradução e rascunhos IA na caixa',
+    },
+    items: [
+      { product: 'groups', en: 'Edit and delete for everyone the messages you sent, forward them to other chats and pin up to three at the top of the chat. Edits and deletions made on the phone show up too.', es: 'Editá y borrá para todos los mensajes que mandaste, reenvialos a otros chats y fijá hasta tres arriba del chat. Las ediciones y borrados hechos desde el teléfono también se ven.', pt: 'Edite e apague para todos as mensagens que você enviou, encaminhe para outros chats e fixe até três no topo do chat. Edições e exclusões feitas no telefone também aparecem.' },
+      { product: 'groups', en: 'Assign chats to a person and a team, with the history in the thread and a notification for the assignee. Round-robin rules by number, label or chat type rotate new chats among the people marked as available.', es: 'Asigná chats a una persona y a un equipo, con el historial en el hilo y un aviso para quien lo recibe. Las reglas round-robin por número, etiqueta o tipo de chat rotan los chats nuevos entre quienes están disponibles.', pt: 'Atribua chats a uma pessoa e a uma equipe, com o histórico no fio e um aviso para quem recebe. As regras round-robin por número, etiqueta ou tipo de chat revezam os chats novos entre quem está disponível.' },
+      { product: 'groups', en: 'Internal notes take @mentions with autocomplete and notify the person. Notes can be edited and deleted.', es: 'Las notas internas aceptan @menciones con autocompletado y le avisan a la persona. Las notas se editan y se borran.', pt: 'As notas internas aceitam @menções com autocompletar e avisam a pessoa. As notas podem ser editadas e apagadas.' },
+      { product: 'groups', en: 'Mark chats as unread, pin them to the top and close, reopen or assign many at once from the list.', es: 'Marcá chats como no leídos, fijalos arriba y cerrá, reabrí o asigná varios a la vez desde la lista.', pt: 'Marque chats como não lidos, fixe no topo e feche, reabra ou atribua vários de uma vez pela lista.' },
+      { product: 'groups', en: 'Translate incoming messages into your language, translate your reply into the customer\'s before sending, and ask AI for a draft built from the chat, your quick replies and your knowledge base.', es: 'Traducí los mensajes entrantes a tu idioma, traducí tu respuesta al idioma del cliente antes de mandarla y pedile a la AI un borrador armado con el chat, tus respuestas rápidas y tu base de conocimiento.', pt: 'Traduza as mensagens recebidas para o seu idioma, traduza sua resposta para o idioma do cliente antes de enviar e peça à IA um rascunho feito com o chat, suas respostas rápidas e sua base de conhecimento.' },
+      { product: 'groups', en: 'Voice calls show up in the chat as incoming, outgoing or missed, with the duration on Cloud API numbers.', es: 'Las llamadas de voz aparecen en el chat como entrantes, salientes o perdidas, con la duración en números de la Cloud API.', pt: 'As chamadas de voz aparecem no chat como recebidas, feitas ou perdidas, com a duração em números da Cloud API.' },
+    ],
+  },
+  {
     id: '2026-10-24-crm-ai',
     date: '2026-10-24',
     title: {

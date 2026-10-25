@@ -10,6 +10,7 @@
  *   escaneara).
  * - Los teléfonos que terminan en 99 rechazan altas a grupos (privacidad).
  * - El webhook acepta eventos ya normalizados: { events: InboundEvent[] }.
+ * - Edita, borra para todos, fija y reenvía (lo deja en `sent` para los tests).
  */
 import { randomUUID } from 'crypto';
 import {
@@ -36,7 +37,7 @@ interface FakeGroup extends GroupInfo {
 export interface FakeSent {
   chatId: string;
   text: string;
-  kind: 'text' | 'media' | 'reaction';
+  kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward';
   at: number;
 }
 
@@ -187,13 +188,23 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       if (patch.name !== undefined) g.name = patch.name;
       if (patch.description !== undefined) g.description = patch.description;
     },
+    async editMessage(chatId, providerMessageId, text) {
+      send(chatId, `${providerMessageId}:${text}`, 'edit');
+    },
+    async deleteMessage(chatId, providerMessageId) {
+      send(chatId, providerMessageId, 'delete');
+    },
+    async pinMessage(chatId, providerMessageId, pin) {
+      send(chatId, providerMessageId, pin ? 'pin' : 'unpin');
+    },
+    forwardMessage: async (toChatId, _fromChatId, providerMessageId) => send(toChatId, providerMessageId, 'forward'),
     verifyWebhook: () => true,
     parseWebhook(body) {
       const events = (body as { events?: unknown })?.events;
       if (!Array.isArray(events)) return [];
       return events.filter((e): e is InboundEvent => {
         const t = (e as { type?: unknown })?.type;
-        return t === 'message' || t === 'reaction' || t === 'status' || t === 'participants' || t === 'session';
+        return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call'].includes(String(t));
       });
     },
   };

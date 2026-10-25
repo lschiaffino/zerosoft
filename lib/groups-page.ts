@@ -16,13 +16,15 @@ import {
   listQuickReplies,
 } from './groups';
 import { PROVIDER_CAPS } from './groups-provider';
+import { listPinned, listTeams } from './groups-inbox';
+import { isWorkspaceAdmin } from './session';
 
 export async function loadChatPage(user: SessionUser, chatId: string) {
   const ws = user.id;
   const chat = await getChat(ws, chatId);
   if (!chat) return null;
   const db = getDb();
-  const [messages, members, people, labels, quickReplies, properties, number, settings, agents] = await Promise.all([
+  const [messages, members, people, labels, quickReplies, properties, number, settings, agents, pinned, teams] = await Promise.all([
     listMessages(ws, chatId),
     listMembers(ws, chatId),
     listPeople(ws, user.team?.id ?? null),
@@ -32,6 +34,8 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
     getNumberRow(ws, chat.numberId),
     getSettings(ws),
     db.prepare('SELECT id, name FROM agents WHERE user_id = ? ORDER BY name COLLATE NOCASE').all(ws) as Promise<Array<{ id: string; name: string }>>,
+    listPinned(ws, chatId),
+    listTeams(ws),
   ]);
   const contact = chat.crmContactId
     ? ((await db
@@ -57,6 +61,9 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
       company: company ? { id: company.id, name: company.name } : null,
     },
     me: user.actingUser?.id ?? user.id,
+    isAdmin: isWorkspaceAdmin(user),
+    pinned,
+    teams: teams.map((t) => ({ id: t.id, name: t.name })),
     numberName: number ? number.name || (number.phone ? `+${number.phone}` : '') : '',
     caps: number ? PROVIDER_CAPS[number.provider] : PROVIDER_CAPS.cloud,
     ticketEmoji: settings.ticketEmoji,

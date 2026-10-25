@@ -4,6 +4,8 @@ import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { isWorkspaceAdmin } from '@/lib/session';
 import { availableProviders, getSettings, listLabels, listNumbers, listPropertyDefs, listQuickReplies } from '@/lib/groups';
+import { getAvailability, listRules, listTeams, workspacePeople } from '@/lib/groups-inbox';
+import AssignmentSettings from '@/components/groups/AssignmentSettings';
 import PageHeader from '@/components/ui/PageHeader';
 import SettingsTabs from '@/components/ui/SettingsTabs';
 import NumbersSettings from '@/components/groups/NumbersSettings';
@@ -11,9 +13,16 @@ import { LabelsPanel, PropertiesPanel, QuickRepliesPanel, TicketRulesPanel } fro
 
 export const dynamic = 'force-dynamic';
 
-const TABS = ['numbers', 'labels', 'quick', 'properties', 'tickets', 'api'] as const;
+const TABS = ['numbers', 'labels', 'quick', 'properties', 'assignment', 'tickets', 'api'] as const;
 /** Nombres viejos o cercanos de pestañas que llevan a la que corresponde. */
-const TAB_ALIASES: Record<string, (typeof TABS)[number]> = { rules: 'tickets', sla: 'tickets', webhooks: 'api', replies: 'quick' };
+const TAB_ALIASES: Record<string, (typeof TABS)[number]> = {
+  rules: 'tickets',
+  sla: 'tickets',
+  webhooks: 'api',
+  replies: 'quick',
+  teams: 'assignment',
+  'round-robin': 'assignment',
+};
 
 export default async function GroupsSettingsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ tab?: string; new?: string }> }) {
   const { locale } = await props.params;
@@ -31,7 +40,27 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
   else if (tab === 'quick') body = <QuickRepliesPanel initial={await listQuickReplies(user.id)} />;
   else if (tab === 'properties') body = <PropertiesPanel initial={await listPropertyDefs(user.id)} canEdit={admin} />;
   else if (tab === 'tickets') body = <TicketRulesPanel initial={await getSettings(user.id)} canEdit={admin} />;
-  else
+  else if (tab === 'assignment') {
+    const [teams, rules, people, numbers, labels, availability] = await Promise.all([
+      listTeams(user.id),
+      listRules(user.id),
+      workspacePeople(user.id),
+      listNumbers(user.id),
+      listLabels(user.id),
+      getAvailability(user.id),
+    ]);
+    body = (
+      <AssignmentSettings
+        teams={teams}
+        rules={rules}
+        people={people}
+        numbers={numbers.map((n) => ({ id: n.id, name: n.name, phone: n.phone }))}
+        labels={labels.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
+        availability={availability}
+        canEdit={admin}
+      />
+    );
+  } else
     body = (
       <div className="ui-fields gr-api">
         <p>{t('api.intro')}</p>
