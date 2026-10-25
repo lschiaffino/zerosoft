@@ -39,6 +39,13 @@ vi.mock('@/lib/session', () => ({
   isWorkspaceAdmin: (u: { role?: string }) => u.role === 'owner' || u.role === 'admin',
 }));
 
+// Lo que va a after() (audit log y webhooks de Track, lib/track-events) no corre
+// en paralelo con el test: fuera de un request Next lo dispararía al instante.
+vi.mock('next/server', async (orig) => ({
+  ...(await orig<typeof import('next/server')>()),
+  after: () => {},
+}));
+
 const plansRoute = await import('@/app/api/track/plans/route');
 const planRoute = await import('@/app/api/track/plans/[id]/route');
 const planUpdatesRoute = await import('@/app/api/track/plans/[id]/updates/route');
