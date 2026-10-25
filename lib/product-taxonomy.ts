@@ -48,11 +48,16 @@ export function productColor(product: string): string {
   return isProductKey(product) ? PRODUCT_COLOR[product] : 'var(--dim)';
 }
 
-/** Producto a partir de la ruta de la app (/app/crm/... → crm). Fuera de /app: sitio. */
+/** Producto a partir de la ruta de la app (/app/crm/... → crm). /app (inicio) y /app/settings: plataforma. Fuera de /app: sitio. */
 export function productFromPath(pathname: string): ProductKey {
   const m = /^(?:\/(?:en|es|pt))?\/app(?:\/([a-z]+))?(?:\/|$)/.exec(pathname);
   if (!m) return 'site';
   switch (m[1]) {
+    case undefined:
+    case 'settings':
+      return 'platform';
+    case 'links':
+      return 'link';
     case 'crm':
       return 'crm';
     case 'calendar':

@@ -120,7 +120,7 @@
   z-index: 60;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 240px;
-  width: min(880px, calc(100vw - 48px));
+  width: min(1040px, calc(100vw - 48px));
   background: var(--bg);
   color: var(--ink);
   border: 1px solid var(--brand-ink);
@@ -129,7 +129,14 @@
 .hd-mega::before { content: ''; position: absolute; left: 0; right: 0; top: -14px; height: 14px; }
 .hd-mega[hidden] { display: none; }
 
-.hd-mega-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 20px; }
+.hd-mega-main { display: flex; flex-direction: column; min-width: 0; }
+/* Cinco categorías en tres columnas: vender, atender, automatizar / construir, trabajo diario. */
+.hd-mega-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 24px; padding: 20px; }
+.hd-mega-note,
+.mobile-panel-note { font-size: 13px; line-height: 1.45; color: var(--brand-gray-2); }
+.hd-mega-note { padding: 14px 28px 18px; border-top: 1px solid var(--line); }
+.hd-mega-note strong,
+.mobile-panel-note strong { color: var(--ink); font-weight: 600; }
 .hd-group { display: flex; flex-direction: column; gap: 2px; }
 .hd-group-title {
   font-family: var(--font-signage);
@@ -214,8 +221,8 @@
     color: var(--ink);
     border-bottom: var(--stroke-rule) solid var(--brand-ink);
   }
-  .mobile-panel .hd-group-title { display: none; }
-  .mobile-panel-products { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .mobile-panel .hd-group-title { font-size: 1rem; padding: 0 8px 6px; margin-bottom: 2px; }
+  .mobile-panel-products { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 4px; }
   .mobile-panel-links { display: flex; flex-wrap: wrap; gap: 4px; border-top: 1px solid var(--line); padding-top: 12px; }
   .mobile-panel .hd-link { color: var(--ink); padding: 0 8px; }
   .mobile-panel-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

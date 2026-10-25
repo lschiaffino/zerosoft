@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-25-platform-home',
+    date: '2026-10-25',
+    title: {
+      en: 'A home for the whole platform, and menus by category',
+      es: 'Un inicio para toda la plataforma, y menús por categoría',
+      pt: 'Um início para toda a plataforma, e menus por categoria',
+    },
+    items: [
+      { product: 'platform', en: 'Dashboard opens a home of its own instead of Link: what is due today (CRM tasks, your Track issues in progress, today’s Cal bookings, unread Chat and Groups), what you touched last in every app, your apps and shortcuts to invite your team and import your data.', es: 'Dashboard abre un inicio propio en vez de Link: lo que vence hoy (tareas del CRM, tus issues de Track en curso, las reservas de Cal de hoy, lo sin leer de Chat y Groups), lo último que tocaste en cada app, tus apps y atajos para invitar a tu equipo e importar tus datos.', pt: 'Dashboard abre um início próprio em vez do Link: o que vence hoje (tarefas do CRM, suas issues do Track em andamento, as reservas do Cal de hoje, o não lido do Chat e do Groups), o que você mexeu por último em cada app, seus apps e atalhos para convidar sua equipe e importar seus dados.' },
+      { product: 'platform', en: 'The app switcher shows featured apps first and the rest grouped by category (sell, support, automate, build, daily work), works with the arrow keys and opens ⌘K. ⌘K also finds every app by name, by the tool it replaces or by category.', es: 'El switcher de apps muestra primero las destacadas y el resto agrupado por categoría (vender, atender, automatizar, construir, trabajo diario), se maneja con flechas y abre ⌘K. ⌘K también encuentra cada app por nombre, por la herramienta que reemplaza o por categoría.', pt: 'O seletor de apps mostra primeiro os destaques e o resto agrupado por categoria (vender, atender, automatizar, construir, trabalho diário), funciona com as setas e abre o ⌘K. O ⌘K também encontra cada app pelo nome, pela ferramenta que substitui ou pela categoria.' },
+      { product: 'link', en: 'The Link overview moved to Link › Overview (/app/links/overview), and the switcher opens Link on your links.', es: 'El resumen de Link pasó a Link › Resumen (/app/links/overview), y el switcher abre Link en tus links.', pt: 'A visão geral do Link passou para Link › Visão geral (/app/links/overview), e o seletor abre o Link nos seus links.' },
+      { product: 'site', en: 'The products menu and the suite on the site are grouped by category, with a note on using every app with a team or on your own.', es: 'El menú de productos y la suite del sitio se agrupan por categoría, con una nota sobre usar cada app en equipo o por tu cuenta.', pt: 'O menu de produtos e a suíte do site são agrupados por categoria, com uma nota sobre usar cada app em equipe ou sozinho.' },
+    ],
+  },
+  {
     id: '2026-10-25-platform-settings',
     date: '2026-10-25',
     title: {

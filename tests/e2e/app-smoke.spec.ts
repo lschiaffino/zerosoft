@@ -511,6 +511,39 @@ for (const c of APPS) {
   });
 }
 
+// El inicio de la plataforma (/app) junta lo último de todas las apps.
+test.describe('smoke inicio', () => {
+  test('lo creado en una app aparece en Recientes y lo abre', async ({ page, request }) => {
+    const errors = watchErrors(page);
+    const name = freshName();
+    const { id } = await ok<{ id: string }>(request.post('/api/docs/pages', { data: { title: name } }));
+    await page.goto('/en/app', { waitUntil: 'networkidle' });
+    const recent = page.getByTestId('home-recent');
+    await expect(recent.getByRole('link', { name: new RegExp(name) })).toBeVisible();
+    await recent.getByRole('link', { name: new RegExp(name) }).click();
+    await expect(page).toHaveURL(new RegExp(`/en/app/docs/${id}`));
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  for (const theme of ['light', 'dark'] as const) {
+    test(`inicio en tema ${theme} sin errores`, async ({ page, context, baseURL }) => {
+      await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
+      const errors = watchErrors(page);
+      await page.goto('/en/app', { waitUntil: 'networkidle' });
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await expect(page.getByTestId('home-featured')).toBeVisible();
+      expect(errors, errors.join('\n')).toEqual([]);
+    });
+  }
+
+  test('390px: el inicio no scrollea en horizontal', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/en/app', { waitUntil: 'networkidle' });
+    const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
+    expect(scroll, `scrollWidth ${scroll} > innerWidth ${inner}`).toBeLessThanOrEqual(inner + 1);
+  });
+});
+
 // En DEMO_MODE toda request es el mismo usuario demo (con datos de seed) y no
 // hay forma barata de entrar como una persona nueva sin ítems.
 test.fixme('estado vacío con un usuario nuevo', () => {});

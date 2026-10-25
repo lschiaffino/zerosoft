@@ -10,12 +10,16 @@ import { Link, usePathname } from '@/i18n/navigation';
 import Icon from './icons';
 import {
   appProductFromPath,
+  appProductOf,
   buildNav,
   buildNewItems,
   settingsNavItem,
+  switcherHref,
   SWITCHER_PRODUCTS,
   type SidebarLabels,
 } from './sidebar-nav';
+import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import { DEFAULT_WORKSPACE_MODE, featuredApps, moreAppsByCategory, type WorkspaceMode } from '@/lib/workspace-mode';
 import NotificationBell from './NotificationBell';
 import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
@@ -54,8 +58,9 @@ function menuKeys(e: KeyboardEvent<HTMLElement>, close: () => void) {
     e.preventDefault();
     items[(n + items.length) % items.length]?.focus();
   };
-  if (e.key === 'ArrowDown') go(i + 1);
-  else if (e.key === 'ArrowUp') go(i - 1);
+  // Flechas: abajo/derecha al siguiente, arriba/izquierda al anterior (el switcher es una grilla).
+  if (e.key === 'ArrowDown' || e.key === 'ArrowRight') go(i + 1);
+  else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') go(i - 1);
   else if (e.key === 'Home') go(0);
   else if (e.key === 'End') go(items.length - 1);
   else if (e.key === 'Escape') {
@@ -78,7 +83,10 @@ export default function AppSidebar({
   tasksDue = 0,
   teamName = null,
   crumb = null,
+  mode = DEFAULT_WORKSPACE_MODE,
 }: {
+  /** Modo del workspace: ordena el switcher (destacadas y "Más apps"). */
+  mode?: WorkspaceMode;
   labels: SidebarLabels;
   user: SideUser;
   demo: boolean;
@@ -228,6 +236,26 @@ export default function AppSidebar({
     window.dispatchEvent(new CustomEvent('zs:open-search'));
   }
 
+  // Switcher: destacadas según el modo del workspace y el resto por categoría.
+  const featured = featuredApps({ mode });
+  const more = moreAppsByCategory({ mode });
+  const switcherItem = (line: ProductKey, small = false) => {
+    const key = appProductOf(line);
+    return (
+      <Link
+        key={line}
+        href={switcherHref(line)}
+        role="menuitem"
+        className={`band-menu-item${small ? ' band-menu-item-sm' : ''}`}
+        onClick={() => setSwitcherOpen(false)}
+        aria-current={key === product ? 'page' : undefined}
+      >
+        <ProductGlyph product={line} size={small ? 12 : 14} />
+        <span>{PRODUCT_CONFIG[line].name}</span>
+      </Link>
+    );
+  };
+
   return (
     <>
       {/* Color de la app activa (SSR, sin parpadeo). */}
@@ -301,24 +329,57 @@ export default function AppSidebar({
           </button>
           {switcherOpen && (
             <div
-              className="band-menu-panel"
+              className="band-menu-panel band-switcher-panel"
               role="menu"
               aria-label={t('switchProduct')}
               onKeyDown={(e) => menuKeys(e, () => closeSwitcher(true))}
             >
-              {SWITCHER_PRODUCTS.map((p) => (
-                <Link
-                  key={p.key}
-                  href={p.href}
-                  role="menuitem"
-                  className="band-menu-item"
-                  onClick={() => setSwitcherOpen(false)}
-                  aria-current={p.key === product ? 'page' : undefined}
-                >
-                  <ProductGlyph product={p.line} size={14} />
-                  <span>{p.name}</span>
-                </Link>
-              ))}
+              <Link
+                href="/app"
+                role="menuitem"
+                className="band-menu-item band-menu-home"
+                onClick={() => setSwitcherOpen(false)}
+                aria-current={pathname === '/app' ? 'page' : undefined}
+              >
+                <Icon name="overview" size={14} />
+                <span>{labels.platformHome}</span>
+              </Link>
+              <p className="band-menu-section" aria-hidden="true">
+                {labels.featured}
+              </p>
+              <div className="band-menu-featured" role="group" aria-label={labels.featured}>
+                {featured.map((line) => switcherItem(line))}
+              </div>
+              {more.length > 0 && (
+                <>
+                  <p className="band-menu-section" aria-hidden="true">
+                    {labels.moreApps}
+                  </p>
+                  <div className="band-menu-grid">
+                    {more.map(({ category, apps }) => (
+                      <div key={category} className="band-menu-cat" role="group" aria-label={labels.categories[category]}>
+                        <p className="band-menu-cat-title" aria-hidden="true">
+                          {labels.categories[category]}
+                        </p>
+                        {apps.map((line) => switcherItem(line, true))}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              <button
+                type="button"
+                role="menuitem"
+                className="band-menu-item band-menu-search"
+                onClick={() => {
+                  closeSwitcher();
+                  openSearch();
+                }}
+              >
+                <Icon name="search" size={14} />
+                <span>{labels.search}</span>
+                <kbd className="kbd">⌘K</kbd>
+              </button>
             </div>
           )}
         </div>
@@ -401,7 +462,7 @@ export default function AppSidebar({
                 <Fragment key={item.href}>
                   <Link
                     href={item.href}
-                    // En la plataforma el sidebar lista las 12 apps: sin prefetch, que cada una es una página dinámica.
+                    // En la plataforma el sidebar lista todas las apps: sin prefetch, que cada una es una página dinámica.
                     prefetch={product === 'home' ? false : undefined}
                     className={`side-stop${item.active ? ' active' : ''}`}
                     aria-current={item.active ? 'page' : undefined}

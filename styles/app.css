@@ -137,6 +137,44 @@
   background: var(--ink);
 }
 
+/* Switcher de la plataforma: inicio, destacadas en dos columnas y el resto por categoría. */
+.band-switcher-panel {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100svh - 72px);
+  overflow-y: auto;
+  padding: 6px;
+}
+.band-menu-section {
+  padding: 10px 10px 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--dim);
+}
+.band-menu-featured { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; }
+.band-menu-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 6px; }
+.band-menu-cat { display: flex; flex-direction: column; min-width: 0; }
+.band-menu-cat-title { padding: 4px 10px 2px; font-size: 0.75rem; color: var(--dim); }
+.band-menu-item-sm { height: 32px; gap: 10px; font-size: 1rem; }
+.band-menu-home { margin-bottom: 2px; }
+.band-menu-search {
+  width: 100%;
+  margin-top: 6px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--dim);
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  cursor: pointer;
+}
+.band-menu-search .kbd { margin-left: auto; }
+@media (max-width: 560px) {
+  /* En el teléfono el panel se ancla a la pantalla, no al botón (sin scroll horizontal). */
+  .band-switcher-panel { position: fixed; top: calc(var(--band-h) + 4px); left: 16px; right: 16px; width: auto; }
+  .band-menu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 .band-crumb { min-width: 0; }
 .band-section {
   display: flex;
@@ -1055,4 +1093,137 @@ td.cell-actions > * + * { margin-left: 4px; }
 @media (max-width: 720px) {
   .app-home-apps ul { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .app-home-app { padding: 12px; }
+}
+
+/* ---------- Inicio de la plataforma (/app) ---------- */
+
+.home-section { padding: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.home-h {
+  font-family: var(--font-signage);
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+
+/* "Para hoy": un bloque por app, cada uno con su propio estado. */
+.home-today {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.home-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.home-block-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.home-block-title { flex: 1; min-width: 0; font-size: 0.9375rem; font-weight: 600; line-height: 1.2; }
+.home-block-more { font-size: 0.8125rem; color: var(--dim); white-space: nowrap; }
+.home-block-more:hover { color: var(--ink); text-decoration: underline; }
+.home-block-empty { font-size: 0.875rem; color: var(--dim); }
+.home-block-error { font-size: 0.875rem; color: var(--bad-ink); }
+
+.home-list { list-style: none; display: flex; flex-direction: column; min-width: 0; }
+.home-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: var(--radius-1);
+}
+.home-row:hover { background: var(--ui-hover); }
+.home-row:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.home-row-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-row-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.home-row-id { color: var(--dim); font-size: 0.8125rem; }
+.home-row-meta { flex-shrink: 0; max-width: 45%; font-size: 0.8125rem; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-row-meta.is-late { color: var(--bad-ink); }
+
+.home-skeleton { display: flex; flex-direction: column; gap: 8px; padding: 4px 0; }
+.home-skeleton span { display: block; height: 12px; background: var(--ui-hover); border-radius: var(--radius-1); }
+.home-skeleton span:nth-child(2) { width: 80%; }
+.home-skeleton span:nth-child(3) { width: 60%; }
+@media (prefers-reduced-motion: no-preference) {
+  .home-skeleton span { animation: home-pulse 1.4s ease-in-out infinite; }
+}
+@keyframes home-pulse { 50% { opacity: 0.5; } }
+
+/* Recientes a la izquierda, invitar e importar a la derecha. */
+.home-split { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
+.home-recent {
+  min-width: 0;
+  padding: 8px 16px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.home-recent .home-block-empty, .home-recent .home-block-error { padding: 8px 0; }
+.home-cards { display: flex; flex-direction: column; gap: 12px; padding-top: 34px; }
+.home-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 16px;
+  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+}
+.home-card-title { font-size: 0.9375rem; font-weight: 600; }
+.home-card-body { font-size: 0.8125rem; line-height: 1.45; color: var(--brand-gray-1); }
+
+/* Más apps: una columna por categoría. */
+.home-more { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px 24px; }
+.home-more-group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.home-more-title {
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--dim);
+  border-bottom: 1px solid var(--line);
+}
+.home-more-list { list-style: none; display: flex; flex-direction: column; }
+.home-more-app {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+  padding: 8px;
+  margin: 0 -8px;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: var(--radius-1);
+}
+.home-more-app:hover { background: var(--ui-hover); }
+.home-more-app:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.home-more-name { font-size: 0.875rem; font-weight: 600; }
+.home-more-desc { grid-column: 2; font-size: 0.8125rem; color: var(--dim); line-height: 1.35; }
+
+@media (max-width: 900px) {
+  .home-split { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .home-cards { padding-top: 0; }
+}
+@media (max-width: 720px) {
+  .home-today { grid-template-columns: minmax(0, 1fr); }
 }

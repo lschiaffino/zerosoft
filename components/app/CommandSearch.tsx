@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { SETTINGS_SECTION_KEYS, settingsSectionHref } from '@/lib/settings-nav';
 import { PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref } from '@/lib/products';
+import { RIVALS } from '@/components/site/catalog';
 
 interface ResultItem {
   group: string;
@@ -29,6 +30,7 @@ interface SearchResponse {
 
 function useGroupOrder() {
   return useMemo(() => [
+        'apps',
         'track',
         'actions',
         'settings',
@@ -93,6 +95,7 @@ export default function CommandSearch() {
   const tTrack = useTranslations('track');
   const tSections = useTranslations('settings.sections');
   const tSettingsCmdk = useTranslations('settings.cmdk');
+  const tCategories = useTranslations('common.categories');
   const router = useRouter();
   const pathname = usePathname();
   const inTrack = pathname.startsWith('/app/track');
@@ -162,6 +165,22 @@ export default function CommandSearch() {
     ];
     return inTrack ? [...track, ...rest] : [...rest, ...track];
   }, [t, tNotes, tBoard, tTrack, inTrack, inCrm]);
+
+  // Las apps (y el inicio): "crm", "hubspot" o "vender" llevan a la app. Solo al buscar.
+  const appItems = useMemo<ResultItem[]>(
+    () => [
+      { group: 'apps', label: t('goHome'), meta: '', href: '/app', keywords: `home,inicio,início,dashboard,${t('platformHome')}` },
+      ...PRODUCT_KEYS.map((key) => ({
+        group: 'apps',
+        label: t('openApp', { name: PRODUCT_CONFIG[key].name }),
+        meta: tCategories(`${PRODUCT_CONFIG[key].category}.title`),
+        href: PRODUCT_CONFIG[key].launch,
+        keywords: `${PRODUCT_CONFIG[key].name},${RIVALS[key]},${tCategories(`${PRODUCT_CONFIG[key].category}.title`)}`,
+      })),
+      { group: 'apps', label: t('linkOverview'), meta: 'Link', href: '/app/links/overview', keywords: 'link,overview,resumen,resumo' },
+    ],
+    [t, tCategories],
+  );
 
   // Secciones de Ajustes (plataforma y cada app): solo aparecen al buscar.
   const settingsItems = useMemo<ResultItem[]>(
@@ -263,7 +282,7 @@ export default function CommandSearch() {
           return a.keywords.split(',').some((k) => fold(k.trim()).startsWith(needle)) ? 1 : -1;
         };
         const byGroup = (a: ResultItem, b: ResultItem) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group);
-        const matchingActions = [...actionItems, ...settingsItems].filter((a) => rankItem(a) >= 0);
+        const matchingActions = [...appItems, ...actionItems, ...settingsItems].filter((a) => rankItem(a) >= 0);
         const results = [...(data.items ?? [])].sort(byGroup);
         setItems(
           matchingActions.some((a) => rankItem(a) < 2)
@@ -277,7 +296,7 @@ export default function CommandSearch() {
         setSel(0);
       }
     },
-    [actionItems, settingsItems, groupOrder, locale],
+    [appItems, actionItems, settingsItems, groupOrder, locale],
   );
 
   useEffect(() => {

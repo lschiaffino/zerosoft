@@ -1,4 +1,12 @@
-import { PRODUCT_CONFIG, PRODUCT_KEYS, productsByAudience, type SiteProductKey as ProductKey } from '@/lib/products';
+import {
+  PRODUCT_CATEGORIES,
+  PRODUCT_CONFIG,
+  PRODUCT_KEYS,
+  productsByAudience,
+  productsByCategory,
+  type ProductCategory,
+  type SiteProductKey as ProductKey,
+} from '@/lib/products';
 
 /** Repositorio público (self-host, estrellas, issues). */
 export const GITHUB_URL = 'https://github.com/lschiaffino/zerosoft';
@@ -58,6 +66,13 @@ export const AUDIENCE_PRODUCTS: Record<Audience, readonly ProductKey[]> = {
   teams: productsByAudience('team'),
   personal: productsByAudience('personal'),
 };
+
+/**
+ * Menú de productos y la suite del sitio: por categoría (vender, atender,
+ * automatizar, construir, trabajo diario), en el orden de PRODUCT_CATEGORIES.
+ */
+export const CATEGORY_PRODUCTS: ReadonlyArray<{ category: ProductCategory; products: readonly ProductKey[] }> =
+  PRODUCT_CATEGORIES.map((category) => ({ category, products: productsByCategory(category) })).filter((g) => g.products.length > 0);
 
 /** Productos con endpoints en la API v1 pública (ver lib/api-docs.ts). */
 export const HAS_API: readonly ProductKey[] = ['link', 'crm', 'cal'];

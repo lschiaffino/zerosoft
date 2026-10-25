@@ -27,7 +27,7 @@ const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'trac
 function fakeLabels(): SidebarLabels {
   const proxy = (prefix: string): unknown =>
     new Proxy({}, { get: (_t, key) => (typeof key === 'string' ? `${prefix}${key}` : undefined) });
-  const nested = ['link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'notifications'];
+  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'notifications'];
   return new Proxy({} as SidebarLabels, {
     get: (_t, key) => (typeof key === 'string' && nested.includes(key) ? proxy(`${key}.`) : String(key)),
   });
@@ -42,7 +42,10 @@ describe('sidebar de la app', () => {
   const labels = fakeLabels();
 
   it('detecta el producto por la ruta', () => {
-    expect(appProductFromPath('/app')).toBe('link');
+    // /app es el inicio de la plataforma (shell neutro); Link vive en /app/links.
+    expect(appProductFromPath('/app')).toBe('home');
+    expect(appProductFromPath('/app/links')).toBe('link');
+    expect(appProductFromPath('/app/links/overview')).toBe('link');
     // Ajustes de la plataforma: shell neutro, sin app activa.
     expect(appProductFromPath('/app/settings')).toBe('home');
     expect(appProductFromPath('/app/settings/api')).toBe('home');
@@ -105,7 +108,8 @@ describe('sidebar de la app', () => {
   it('el switcher sale de PRODUCT_CONFIG: las 12 apps, en el orden de siempre', () => {
     expect(SWITCHER_PRODUCTS.map((p) => p.key)).toEqual(PRODUCTS.filter((p) => p !== 'home').sort((a, b) => SWITCHER_ORDER.indexOf(a) - SWITCHER_ORDER.indexOf(b)));
     expect(SWITCHER_PRODUCTS.find((p) => p.key === 'calendar')).toMatchObject({ line: 'cal', name: 'Cal', href: '/app/calendar' });
-    expect(SWITCHER_PRODUCTS[0]).toMatchObject({ key: 'link', href: '/app' });
+    expect(SWITCHER_PRODUCTS[0]).toMatchObject({ key: 'link', href: '/app/links' });
+    for (const p of SWITCHER_PRODUCTS) expect(p.href, p.key).not.toBe('/app');
   });
 
   it('Ajustes globales están en el pie, no dentro de un producto', () => {
@@ -137,6 +141,9 @@ describe('sidebar de la app', () => {
       expect(active(app, `/app/${app}/settings`), app).toEqual([`/app/${app}/settings`]);
     }
     expect(active('link', '/app/links/abc123')).toEqual(['/app/links']);
+    expect(active('link', '/app/links/overview')).toEqual(['/app/links/overview']);
+    expect(active('link', '/app/links')).toEqual(['/app/links']);
+    expect(active('home', '/app')).toEqual(['/app']);
     expect(active('track', '/app/track/projects')).toEqual(['/app/track/projects']);
   });
 

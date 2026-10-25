@@ -1,148 +1,163 @@
+import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
-import { getUserOverview } from '@/lib/track';
-import { formatNumber, shortUrl } from '@/lib/utils';
-import LinkChart from '@/components/link/LinkChart';
+import { dayPart, getWorkspaceMode } from '@/lib/home';
+import { getUserTimeZone } from '@/lib/user-tz';
+import { featuredApps, moreAppsByCategory, showTeamUi } from '@/lib/workspace-mode';
+import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import PageHeader from '@/components/ui/PageHeader';
-import { PRODUCT_CONFIG, PRODUCT_KEYS } from '@/lib/products';
+import {
+  CalBookingsBlock,
+  CrmTasksBlock,
+  HomeBlockLoading,
+  RecentBlock,
+  RecentLoading,
+  TrackIssuesBlock,
+  UnreadBlock,
+} from '@/components/app/home/HomeBlocks';
 
 export const dynamic = 'force-dynamic';
 
-export default async function OverviewPage(props: { params: Promise<{ locale: string }> }) {
-  const params = await props.params;
-
-  const {
-    locale
-  } = params;
-
+/**
+ * Inicio de la plataforma: saludo, "Para hoy" (CRM, Track, Cal, sin leer),
+ * recientes de todas las apps, las apps destacadas según el modo del
+ * workspace y el resto por categoría. Cada bloque con datos va en su propio
+ * Suspense: la página pinta enseguida y cada bloque llega cuando está.
+ */
+export default async function PlatformHomePage(props: { params: Promise<{ locale: string }> }) {
+  const { locale } = await props.params;
   const user = await requireUser(locale);
-  const t = await getTranslations({ locale, namespace: 'link' });
-  const tHome = await getTranslations({ locale, namespace: 'common.appHome' });
-  const tProducts = await getTranslations({ locale, namespace: 'common.products' });
-  const o = await getUserOverview(user.id);
+  const [t, tProducts, tCat, mode, timeZone] = await Promise.all([
+    getTranslations({ locale, namespace: 'common.appHome' }),
+    getTranslations({ locale, namespace: 'common.products' }),
+    getTranslations({ locale, namespace: 'common.categories' }),
+    getWorkspaceMode(user),
+    getUserTimeZone(),
+  ]);
 
-  const maxTop = Math.max(...o.topLinks.map((l) => l.clicks), 1);
+  const person = user.actingUser ?? user;
+  const firstName = (person.name ?? '').trim().split(/\s+/)[0] ?? '';
+  const part = dayPart(timeZone);
+  const partKey = part === 'morning' ? 'Morning' : part === 'afternoon' ? 'Afternoon' : 'Evening';
+  const greeting = firstName ? t(`greeting${partKey}`, { name: firstName }) : t(`greeting${partKey}Anon`);
+
+  const team = showTeamUi(mode);
+  const featured = featuredApps({ mode });
+  const more = moreAppsByCategory({ mode });
+
+  const appCard = (k: ProductKey) => (
+    <li key={k}>
+      <Link
+        href={PRODUCT_CONFIG[k].launch}
+        className={`app-home-app card-${k}`}
+        aria-label={t('open', { name: PRODUCT_CONFIG[k].name })}
+      >
+        <ProductGlyph product={k} size={20} />
+        <span className="app-home-app-name">{PRODUCT_CONFIG[k].name}</span>
+        <span className="app-home-app-desc">{tProducts(`${k}.desc`)}</span>
+      </Link>
+    </li>
+  );
 
   return (
-    <div className="app-page app-home">
-      <PageHeader title={tHome('title')} description={tHome('lead')} />
+    <div className="app-page app-home" data-mode={mode}>
+      <PageHeader title={greeting} description={t('homeLead')} />
 
-      {/* Las once apps en una grilla sobria, cada una con su cero. */}
-      <nav className="app-home-apps" aria-label={tHome('apps')}>
-        <ul>
-          {PRODUCT_KEYS.map((k) => (
-            <li key={k}>
-              <Link
-                href={PRODUCT_CONFIG[k].launch}
-                className={`app-home-app card-${k}`}
-                aria-label={tHome('open', { name: PRODUCT_CONFIG[k].name })}
-              >
-                <ProductGlyph product={k} size={20} />
-                <span className="app-home-app-name">{PRODUCT_CONFIG[k].name}</span>
-                <span className="app-home-app-desc">{tProducts(`${k}.desc`)}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      <h2 className="app-home-sub">
-        <ProductGlyph product="link" size={14} />
-        {tHome('linkSummary')}
-      </h2>
-
-      <div className="stat-cards">
-        <div className="panel stat-card">
-          <span className="stat-num">{formatNumber(o.activeLinks, locale)}</span>
-          <span className="stat-label">{t('overview.activeLinks')}</span>
+      <section className="home-section" aria-labelledby="home-today">
+        <h2 id="home-today" className="home-h">
+          {t('today.title')}
+        </h2>
+        <div className="home-today">
+          <Suspense
+            fallback={<HomeBlockLoading locale={locale} product="crm" titleKey="today.crm" href="/app/crm/tasks" testId="home-crm-tasks" />}
+          >
+            {/* En uso personal el CRM no está destacado: el bloque aparece solo si hay tareas. */}
+            <CrmTasksBlock user={user} locale={locale} hideWhenEmpty={!team} />
+          </Suspense>
+          <Suspense
+            fallback={<HomeBlockLoading locale={locale} product="track" titleKey="today.track" href="/app/track/my-tasks" testId="home-track" />}
+          >
+            <TrackIssuesBlock user={user} locale={locale} />
+          </Suspense>
+          <Suspense
+            fallback={<HomeBlockLoading locale={locale} product="cal" titleKey="today.cal" href="/app/calendar/bookings" testId="home-cal" />}
+          >
+            <CalBookingsBlock user={user} locale={locale} timeZone={timeZone} />
+          </Suspense>
+          <Suspense
+            fallback={<HomeBlockLoading locale={locale} product="chat" titleKey="today.inbox" href="/app/chat/inbox" testId="home-unread" />}
+          >
+            <UnreadBlock user={user} locale={locale} hideWhenEmpty={!team} />
+          </Suspense>
         </div>
-        <div className="panel stat-card">
-          <span className="stat-num">{formatNumber(o.totalClicks, locale)}</span>
-          <span className="stat-label">{t('overview.totalClicks')}</span>
-        </div>
-        <div className="panel stat-card">
-          <span className="stat-num">{formatNumber(o.clicksToday, locale)}</span>
-          <span className="stat-label">{t('overview.clicksToday')}</span>
-        </div>
-        <div className="panel stat-card">
-          {o.topLink ? (
-            <>
-              <span className="stat-num stat-num-small mono">/{o.topLink.slug}</span>
-              <span className="stat-label">
-                {t('overview.topLink')} · {formatNumber(o.topLink.clicks, locale)}
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="stat-num">0</span>
-              <span className="stat-label">{t('overview.topLink')}</span>
-            </>
-          )}
-        </div>
-      </div>
-
-      <section className="panel chart-panel">
-        <p className="section-label">{t('overview.chartLabel')}</p>
-        <LinkChart data={o.byDay} />
       </section>
 
-      <div className="overview-grid">
-        <section className="panel">
-          <p className="section-label">{t('overview.topLinks')}</p>
-          {o.topLinks.length === 0 ? (
-            <p className="muted">{t('overview.noClicksYet')}</p>
-          ) : (
-            <div className="toplinks">
-              {o.topLinks.map((l) => (
-                <Link key={l.id} href={`/app/links/${l.id}`} className="toplinks-row">
-                  <span className="mono toplinks-slug">/{l.slug}</span>
-                  <span className="breakdown-track">
-                    <span
-                      className="breakdown-bar"
-                      style={{ width: `${Math.max((l.clicks / maxTop) * 100, 2)}%` }}
-                    />
-                  </span>
-                  <span className="mono toplinks-count">{formatNumber(l.clicks, locale)}</span>
-                </Link>
-              ))}
-            </div>
-          )}
+      <div className="home-split">
+        <section className="home-section" aria-labelledby="home-recent">
+          <h2 id="home-recent" className="home-h">
+            {t('recent.title')}
+          </h2>
+          <Suspense fallback={<RecentLoading locale={locale} />}>
+            <RecentBlock user={user} locale={locale} />
+          </Suspense>
         </section>
 
-        <section className="panel">
-          <div className="panel-head">
-            <p className="section-label">{t('overview.recent')}</p>
-            <Link href="/app/links" className="mono panel-more">
-              {t('overview.viewAll')} →
-            </Link>
-          </div>
-          {o.recent.length === 0 ? (
-            <div className="empty-inline">
-              <p className="empty-zeros mono" aria-hidden>
-                0 0 0 0 0
-              </p>
-              <p className="muted">{t('overview.emptySub')}</p>
-              <Link href="/app/links/new" className="btn btn-solid btn-small">
-                {t('overview.emptyCta')}
+        <aside className="home-cards" aria-label={t('import.title')}>
+          {team && (
+            <div className="home-card" data-testid="home-invite">
+              <h3 className="home-card-title">{t('invite.title')}</h3>
+              <p className="home-card-body">{t('invite.body')}</p>
+              <Link href="/app/settings/members" className="btn btn-secondary btn-sm">
+                {t('invite.cta')}
               </Link>
             </div>
-          ) : (
-            <ul className="recent-list">
-              {o.recent.map((l) => (
-                <li key={l.id}>
-                  <Link href={`/app/links/${l.id}`} className="recent-row">
-                    <span className="mono recent-slug">{shortUrl(l.slug, l.domain_hostname)}</span>
-                    <span className="muted recent-url">{l.url}</span>
-                    <span className="mono recent-clicks">{formatNumber(l.clicks, locale)}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
           )}
-        </section>
+          <div className="home-card" data-testid="home-import">
+            <h3 className="home-card-title">{t('import.title')}</h3>
+            <p className="home-card-body">{t('import.body')}</p>
+            <Link href="/app/settings/import" className="btn btn-secondary btn-sm">
+              {t('import.cta')}
+            </Link>
+          </div>
+        </aside>
       </div>
+
+      <section className="home-section" aria-labelledby="home-apps">
+        <h2 id="home-apps" className="home-h">
+          {t('featured')}
+        </h2>
+        <nav className="app-home-apps" aria-labelledby="home-apps" data-testid="home-featured">
+          <ul>{featured.map(appCard)}</ul>
+        </nav>
+      </section>
+
+      {more.length > 0 && (
+        <section className="home-section" aria-labelledby="home-more">
+          <h2 id="home-more" className="home-h">
+            {t('more')}
+          </h2>
+          <div className="home-more" data-testid="home-more">
+            {more.map(({ category, apps }) => (
+              <div key={category} className="home-more-group">
+                <h3 className="home-more-title">{tCat(`${category}.title`)}</h3>
+                <ul className="home-more-list">
+                  {apps.map((k) => (
+                    <li key={k}>
+                      <Link href={PRODUCT_CONFIG[k].launch} className={`home-more-app card-${k}`}>
+                        <ProductGlyph product={k} size={14} />
+                        <span className="home-more-name">{PRODUCT_CONFIG[k].name}</span>
+                        <span className="home-more-desc">{tProducts(`${k}.desc`)}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
