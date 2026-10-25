@@ -489,7 +489,9 @@
       "invalid_input": "Revisá los campos y probá de nuevo.",
       "not_ready": "La vista previa ya no está disponible. Empezá de nuevo.",
       "internal_error": "Algo falló de nuestro lado. No se cambió nada más.",
-      "generic": "No se pudo importar. Probá de nuevo."
+      "generic": "No se pudo importar. Probá de nuevo.",
+      "invalid_site": "Usá la dirección de tu Jira Cloud, como https://acme.atlassian.net.",
+      "invalid_project": "Pegá la URL del proyecto de Asana o su id numérico."
     },
     "readFailed": "No pudimos leer {source}: {reason}"
   }

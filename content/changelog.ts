@@ -83,6 +83,22 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-25-track-integrations',
+    date: '2026-10-25',
+    title: {
+      en: 'Track connects to Slack, GitHub, Sentry and AI agents, with an API, private projects and an audit log',
+      es: 'Track se conecta con Slack, GitHub, Sentry y agentes de IA, con API, proyectos privados y audit log',
+      pt: 'O Track se conecta com Slack, GitHub, Sentry e agentes de IA, com API, projetos privados e audit log',
+    },
+    items: [
+      { product: 'track', en: 'Public API for issues, comments, projects, cycles, labels and people, signed webhooks for issue, comment and project events with a delivery log, and an MCP server so Claude, Cursor or any MCP client can search, create and update issues.', es: 'API pública de issues, comentarios, proyectos, cycles, labels y personas, webhooks firmados de issues, comentarios y proyectos con log de entregas, y un servidor MCP para que Claude, Cursor o cualquier cliente MCP busque, cree y edite issues.', pt: 'API pública de issues, comentários, projetos, cycles, labels e pessoas, webhooks assinados de issues, comentários e projetos com log de entregas, e um servidor MCP para que Claude, Cursor ou qualquer cliente MCP busque, crie e edite issues.' },
+      { product: 'track', en: 'Slack: create issues from a message or with /track, keep the thread in sync with the comments, post project updates to channels and preview issue links.', es: 'Slack: creá issues desde un mensaje o con /track, mantené el hilo sincronizado con los comentarios, publicá novedades de proyectos en canales y mirá la vista previa de los links de issues.', pt: 'Slack: crie issues a partir de uma mensagem ou com /track, mantenha a thread sincronizada com os comentários, publique novidades de projetos em canais e veja a prévia dos links de issues.' },
+      { product: 'track', en: 'GitHub App, statuses per project for draft, open, review and merge, checks and reviews on the issue, words that link without closing, and GitHub Issues synced into a project.', es: 'GitHub App, status por proyecto para draft, abierto, review y merge, checks y reviews en el issue, palabras que vinculan sin cerrar y GitHub Issues sincronizados a un proyecto.', pt: 'GitHub App, status por projeto para draft, aberto, review e merge, checks e reviews no issue, palavras que vinculam sem fechar e GitHub Issues sincronizados em um projeto.' },
+      { product: 'track', en: 'Sentry errors become issues and get resolved when the issue is done, Zendesk and Intercom tickets get a note when it closes, and Figma links show a live preview.', es: 'Los errores de Sentry se vuelven issues y se resuelven cuando el issue se completa, los tickets de Zendesk e Intercom reciben una nota al cerrarse y los links de Figma muestran vista previa en vivo.', pt: 'Os erros do Sentry viram issues e são resolvidos quando o issue é concluído, os tickets do Zendesk e Intercom recebem uma nota ao fechar e os links do Figma mostram prévia ao vivo.' },
+      { product: 'track', en: 'Private projects, guests limited to the projects you pick, importers for Jira Cloud, Asana and Shortcut, and an audit log with filters and CSV export.', es: 'Proyectos privados, invitados limitados a los proyectos que elijas, importadores de Jira Cloud, Asana y Shortcut, y un audit log con filtros y export a CSV.', pt: 'Projetos privados, convidados limitados aos projetos que você escolher, importadores do Jira Cloud, Asana e Shortcut, e um audit log com filtros e export para CSV.' },
+    ],
+  },
+  {
     id: '2026-10-24-crm-ai',
     date: '2026-10-24',
     title: {

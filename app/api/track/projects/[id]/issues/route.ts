@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 async function accessibleProject(id: string, teamId: string | null, ownerId: string) {
   const project = await getProject(id);
   if (!project) return null;
-  if (!canAccessTrackProject(project, teamId, ownerId)) return null;
+  if (!(await canAccessTrackProject(project, teamId, ownerId))) return null;
   return project;
 }
 

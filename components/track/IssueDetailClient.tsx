@@ -10,6 +10,7 @@ import type { CommandAction } from '@/lib/cmdk-context';
 import { openCommandMenu } from '@/lib/cmdk-context';
 import IssueActivityTimeline from './IssueActivityTimeline';
 import { IssueGithubPanel, useIssueGithub } from './IssueGithub';
+import { IssueLinksPanel } from './IssueLinks';
 import { Popover, TrackToast, useToday } from './InlineEditors';
 import { branchNameFor } from '@/lib/track-branch';
 import { TriageBanner } from './TriagePanel';
@@ -1105,6 +1106,7 @@ export default function IssueDetailClient({
           )}
 
           <IssueGithubPanel data={github} />
+          <IssueLinksPanel issueId={issue.id} />
 
           {attachments.length > 0 && (
             <section className="track-detail-section">

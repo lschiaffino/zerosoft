@@ -24,7 +24,7 @@ export async function issueAccess(id: string): Promise<IssueAccess> {
   if (!user) return { ok: false, res: unauthorized() };
   const issue = await getIssue(id);
   const project = issue ? await getProject(issue.project_id) : undefined;
-  if (!issue || !project || !canAccessTrackProject(project, user.team?.id ?? null, user.id)) return { ok: false, res: notFound() };
+  if (!issue || !project || !(await canAccessTrackProject(project, user.team?.id ?? null, user.id))) return { ok: false, res: notFound() };
   return { ok: true, user, actorId: realUserId(user), issue, project };
 }
 
@@ -36,7 +36,7 @@ export async function projectAccess(id: string): Promise<ProjectAccess> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, res: unauthorized() };
   const project = await getProject(id);
-  if (!project || !canAccessTrackProject(project, user.team?.id ?? null, user.id)) return { ok: false, res: notFound() };
+  if (!project || !(await canAccessTrackProject(project, user.team?.id ?? null, user.id))) return { ok: false, res: notFound() };
   return { ok: true, user, actorId: realUserId(user), project, admin: isWorkspaceAdmin(user) };
 }
 

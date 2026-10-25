@@ -13,7 +13,7 @@ async function accessible(id: string, teamId: string | null, ownerId: string) {
   const template = await getTemplate(id);
   if (!template) return null;
   const project = await getProject(template.project_id);
-  if (!project || !canAccessTrackProject(project, teamId, ownerId)) return null;
+  if (!project || !(await canAccessTrackProject(project, teamId, ownerId))) return null;
   return { template, project };
 }
 

@@ -1150,6 +1150,8 @@ export interface TrackProjectRow {
   cycle_name?: string;
   /** Último día (UTC) en que el tick revisó los cycles automáticos. */
   cycle_auto_day?: string | null;
+  /** 'private' = solo lo ven los miembros del proyecto (track_project_access). */
+  visibility?: 'workspace' | 'private';
   created_at: string;
   updated_at: string;
 }

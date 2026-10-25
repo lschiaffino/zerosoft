@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   if (by.companyId || by.contactId || by.domain || by.name) {
     const rows = await listCustomerRequests(user.id, by, async (pid) => {
       const p = await getProject(pid);
-      return Boolean(p && canAccessTrackProject(p, teamId, user.id));
+      return Boolean(p && (await canAccessTrackProject(p, teamId, user.id)));
     });
     return NextResponse.json({ rows });
   }

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const view = await getSavedView(params.id, me);
   if (!view || !canSeeView(view, me)) return notFound();
   const project = await getProject(view.project_id);
-  if (!project || !canAccessTrackProject(project, user.team?.id ?? null, user.id)) return notFound();
+  if (!project || !(await canAccessTrackProject(project, user.team?.id ?? null, user.id))) return notFound();
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);

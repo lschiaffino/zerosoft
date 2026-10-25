@@ -118,7 +118,10 @@
       "company": "Empresas",
       "task": "Tarefas",
       "quote": "Cotações",
-      "form": "Formulários"
+      "form": "Formulários",
+      "issue": "Issues do Track",
+      "comment": "Comentários do Track",
+      "project": "Projetos do Track"
     },
     "eventLabels": {
       "booking_created": "Reserva criada",
@@ -158,7 +161,15 @@
       "task_completed": "Tarefa concluída",
       "quote_accepted": "Cotação assinada",
       "quote_paid": "Cotação paga",
-      "form_submitted": "Formulário enviado"
+      "form_submitted": "Formulário enviado",
+      "issue_created": "Issue criado",
+      "issue_updated": "Issue editado",
+      "issue_status_changed": "Mudança de status",
+      "issue_deleted": "Issue excluído",
+      "comment_created": "Comentário novo",
+      "project_created": "Projeto criado",
+      "project_updated": "Projeto editado",
+      "project_deleted": "Projeto excluído"
     },
     "errors": {
       "https_required": "A URL precisa usar https.",
@@ -203,6 +214,15 @@
       "request": "Corpo enviado",
       "response": "Resposta",
       "noBody": "Resposta vazia"
+    },
+    "deliveries": {
+      "show": "Entregas",
+      "title": "Entregas recentes",
+      "empty": "Ainda não há entregas.",
+      "attempts": "{count, plural, one {# tentativa} other {# tentativas}}",
+      "retryAt": "próxima tentativa {date}",
+      "redeliver": "Reenviar",
+      "close": "Fechar"
     }
   },
   "credentials": {

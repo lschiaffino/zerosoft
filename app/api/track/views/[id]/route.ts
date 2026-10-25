@@ -19,7 +19,7 @@ async function accessibleView(id: string, user: SessionUser, own: boolean) {
   if (!view || !canSeeView(view, me)) return null;
   if (own && view.user_id !== me) return null;
   const project = await getProject(view.project_id);
-  if (!project || !canAccessTrackProject(project, user.team?.id ?? null, user.id)) return null;
+  if (!project || !(await canAccessTrackProject(project, user.team?.id ?? null, user.id))) return null;
   return view;
 }
 

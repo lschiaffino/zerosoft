@@ -50,7 +50,10 @@ export type WebhookGroupKey =
   | 'form'
   | 'robot'
   | 'chat'
-  | 'groups';
+  | 'groups'
+  | 'issue'
+  | 'comment'
+  | 'project';
 
 /** Los eventos agrupados por recurso (el prefijo antes del primer punto), en el orden de WEBHOOK_EVENTS. */
 export function webhookEventGroups(

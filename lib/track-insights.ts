@@ -4,6 +4,7 @@
  * Inicio y fin salen de la actividad: el primer paso a un status "in
  * progress" y el último cierre como done.
  */
+import { currentVisibleSql } from './track-access';
 import { getDb } from './db';
 import { scopeWhere, type WorkspaceScope } from './track-plans';
 import { labelIdLike } from './track-views';
@@ -39,8 +40,10 @@ export function mergeFilters(base: InsightFilters = {}, extra: InsightFilters = 
 
 export async function loadInsightIssues(scope: WorkspaceScope, filters: InsightFilters): Promise<InsightIssue[]> {
   const s = scopeWhere(scope, 'p');
-  const where = [s.where, "p.status = 'active'", 'i.triage = 0'];
-  const args: Array<string | number> = [s.arg];
+  // Proyectos privados: solo los que ve quien mira (lib/track-access).
+  const vis = await currentVisibleSql('p');
+  const where = [s.where, "p.status = 'active'", 'i.triage = 0', vis.sql];
+  const args: Array<string | number> = [s.arg, ...vis.args];
   if (!filters.includeArchived) where.push('i.archived_at IS NULL');
   const list = (col: string, ids?: string[]) => {
     if (!ids?.length) return;

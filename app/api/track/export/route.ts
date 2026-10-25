@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   let name = 'issues';
   if (projectId) {
     const project = await getProject(projectId);
-    if (!project || !canAccessTrackProject(project, teamId, user.id)) return notFound();
+    if (!project || !(await canAccessTrackProject(project, teamId, user.id))) return notFound();
     name = project.slug;
   }
   const csv = await exportIssuesCsv(teamId, user.id, projectId);

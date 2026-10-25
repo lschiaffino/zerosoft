@@ -12,7 +12,7 @@ async function accessibleIssue(id: string, teamId: string | null, ownerId: strin
   if (!issue) return null;
   const project = await getProject(issue.project_id);
   if (!project) return null;
-  if (!canAccessTrackProject(project, teamId, ownerId)) return null;
+  if (!(await canAccessTrackProject(project, teamId, ownerId))) return null;
   return issue;
 }
 

@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const project = await getProject(id);
-  if (!project || !canAccessTrackProject(project, user.team?.id ?? null, user.id)) return notFound();
+  if (!project || !(await canAccessTrackProject(project, user.team?.id ?? null, user.id))) return notFound();
   const snoozed = req.nextUrl.searchParams.get('snoozed') === '1';
   const [rows, snoozes] = await Promise.all([listTriageIssues(id, { snoozed }), listTriageSnoozes(id)]);
   return NextResponse.json({

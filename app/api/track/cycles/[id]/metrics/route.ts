@@ -16,7 +16,7 @@ export async function GET(req: NextRequest, props: Props) {
   if (!ctx) return unauthorized();
   const cycle = await getCycle(id);
   const project = cycle ? await getProject(cycle.project_id) : undefined;
-  if (!cycle || !project || !canAccessTrackProject(project, ctx.scope.teamId, ctx.scope.ownerId)) return notFound();
+  if (!cycle || !project || !(await canAccessTrackProject(project, ctx.scope.teamId, ctx.scope.ownerId))) return notFound();
   const raw = req.nextUrl.searchParams.get('today') ?? '';
   const today = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : new Date().toISOString().slice(0, 10);
   return NextResponse.json({ ...(await cycleMetrics(cycle, today)), project: { id: project.id, name: project.name, icon: project.icon } });

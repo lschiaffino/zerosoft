@@ -14,7 +14,7 @@ async function load(id: string) {
   const ctx = await planningContext();
   if (!ctx) return { error: unauthorized() } as const;
   const project = await getProject(id);
-  if (!project || !canAccessTrackProject(project, ctx.scope.teamId, ctx.scope.ownerId)) return { error: notFound() } as const;
+  if (!project || !(await canAccessTrackProject(project, ctx.scope.teamId, ctx.scope.ownerId))) return { error: notFound() } as const;
   return { ctx, project } as const;
 }
 

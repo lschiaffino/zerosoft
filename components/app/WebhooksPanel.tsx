@@ -367,7 +367,12 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
                 >
                   {t('test')}
                 </button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLogFor({ id: r.id, url: r.url })}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  data-testid="webhook-deliveries-toggle"
+                  onClick={() => setLogFor({ id: r.id, url: r.url })}
+                >
                   {t('log.open')}
                 </button>
                 <button

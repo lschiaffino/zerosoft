@@ -11,6 +11,7 @@ import { processAiRuns } from '@/lib/crm-ai-agents';
 import { retryDueWebhooks } from '@/lib/webhooks';
 import { runSlaChecks } from '@/lib/track-sla';
 import { processPendingAgentSessions } from '@/lib/track-agents';
+import { processTrackIntegrationQueue } from '@/lib/track-events';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
 
 export const runtime = 'nodejs';
@@ -54,6 +55,8 @@ export async function GET(req: NextRequest) {
   // Track: avisos de SLA en riesgo / vencido (claim por fila) y trabajo pendiente de agentes (claim por sesión).
   const trackSla = await runSlaChecks({ limit: 200 }).catch(() => null);
   const trackAgents = await processPendingAgentSessions({ limit: 10, budgetMs: 20_000 }).catch(() => null);
+  // Cola de Track hacia Slack y Sentry (claim por fila).
+  const trackIntegrations = await processTrackIntegrationQueue({ limit: 100 }).catch(() => null);
   // Groups: envíos masivos y programados, chats sin responder y tickets vencidos (claims por fila).
   const groups = await runGroupsCron({ budgetMs: 30_000 }).catch(() => null);
   // Agentes de datos y prospección del CRM (claim por ítem en claimed_at).
@@ -63,5 +66,5 @@ export async function GET(req: NextRequest) {
   const imports = await processImportJobs({ budgetMs: Math.max(5_000, IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
   // Imports del CRM con lo que queda de los 300 s (dejando margen).
   const crmImports = await processCrmImportJobs({ budgetMs: Math.max(0, CRM_IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, trackReminders, trackEmails, trackSla, trackAgents, groups, crmAiRuns, flow, imports, crmImports });
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, groups, crmAiRuns, flow, imports, crmImports });
 }

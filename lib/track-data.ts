@@ -45,6 +45,8 @@ import type {
 } from './track-schema';
 import { safeHexColor } from './track-color';
 import { normalizeIssueLabels, projectWorkspaceId } from './track-labels';
+import { notifyTrackEvent } from './track-events';
+import { currentTrackViewer, projectVisibleTo, trackVisibleExpr, trackVisibleSql } from './track-access';
 import { ISSUE_CUSTOMERS_SQL, ISSUE_REVENUE_SQL, issueOrderBy, issueSearchClause, labelIdLike, type IssueSort } from './track-views';
 import { defaultIssueStatus } from './track-tasks';
 
@@ -224,19 +226,33 @@ export async function nextIdentifier(projectId: string): Promise<string> {
  * (sin team) y su dueño es el usuario. `ownerId` es el id efectivo del
  * workspace (SessionUser.id).
  */
-export function canAccessTrackProject(
-  project: Pick<TrackProjectRow, 'team_id' | 'owner_id'>,
+export async function canAccessTrackProject(
+  project: Pick<TrackProjectRow, 'team_id' | 'owner_id'> & { id?: string; visibility?: TrackProjectRow['visibility'] },
   teamId: string | null,
   ownerId: string,
-): boolean {
-  if (teamId) return project.team_id === teamId;
-  return project.team_id === null && project.owner_id === ownerId;
+): Promise<boolean> {
+  if (!teamId) return project.team_id === null && project.owner_id === ownerId;
+  if (project.team_id !== teamId) return false;
+  // Proyectos privados e invitados (lib/track-access): sin persona es el sistema.
+  const viewer = await currentTrackViewer();
+  if (!viewer || !project.id) return true;
+  return projectVisibleTo(project.id, viewer);
 }
 
-function projectScope(teamId: string | null, ownerId: string): { where: string; arg: string } {
-  return teamId
-    ? { where: 'team_id = ?', arg: teamId }
-    : { where: '(team_id IS NULL AND owner_id = ?)', arg: ownerId };
+/**
+ * Alcance de los proyectos visibles (con alias): los del workspace y, en un
+ * team, solo los que la persona que mira puede ver (privados e invitados).
+ */
+async function projectScope(
+  teamId: string | null,
+  ownerId: string,
+  alias = 'p',
+): Promise<{ where: string; args: string[] }> {
+  if (!teamId) return { where: `(${alias}.team_id IS NULL AND ${alias}.owner_id = ?)`, args: [ownerId] };
+  const viewer = await currentTrackViewer();
+  if (!viewer) return { where: `${alias}.team_id = ?`, args: [teamId] };
+  const v = trackVisibleSql(alias, viewer);
+  return { where: `(${alias}.team_id = ? AND ${v.sql})`, args: [teamId, ...v.args] };
 }
 
 /** Slug único globalmente: si está tomado, agrega un sufijo corto. */
@@ -263,12 +279,12 @@ export async function listProjects(
   const pageSize = Math.min(Math.max(options.pageSize ?? 50, 1), 100);
   const page = Math.max(options.page ?? 1, 1);
 
-  const scope = projectScope(teamId, userId);
+  const scope = await projectScope(teamId, userId);
   const where = scope.where;
-  const args: Array<string | number> = [scope.arg];
+  const args: Array<string | number> = [...scope.args];
 
   const total = (
-    (await db.prepare(`SELECT COUNT(*) AS c FROM track_projects WHERE ${where}`).get(...args)) as {
+    (await db.prepare(`SELECT COUNT(*) AS c FROM track_projects p WHERE ${where}`).get(...args)) as {
       c: number;
     }
   ).c;
@@ -312,7 +328,7 @@ export async function listProjectOverview(
   userId: string,
   today: string,
 ): Promise<TrackProjectOverview[]> {
-  const scope = projectScope(teamId, userId);
+  const scope = await projectScope(teamId, userId);
   const open = `SELECT s.id FROM track_statuses s WHERE s.project_id = p.id AND s.category IN ('backlog','todo','in_progress')`;
   const rows = (await getDb()
     .prepare(
@@ -335,7 +351,7 @@ export async function listProjectOverview(
        ORDER BY p.name ASC
        LIMIT 100`,
     )
-    .all(today, today, today, scope.arg)) as TrackProjectOverview[];
+    .all(today, today, today, ...scope.args)) as TrackProjectOverview[];
   return rows;
 }
 
@@ -409,7 +425,9 @@ export async function createProject(
       .run(crypto.randomUUID(), id, s.name, s.color, i, s.category);
   }
 
-  return (await db.prepare('SELECT * FROM track_projects WHERE id = ?').get(id)) as TrackProjectRow;
+  const created = (await db.prepare('SELECT * FROM track_projects WHERE id = ?').get(id)) as TrackProjectRow;
+  notifyTrackEvent({ type: 'project.created', project: created });
+  return created;
 }
 
 export async function updateProject(
@@ -473,11 +491,15 @@ export async function updateProject(
     await db.prepare(`UPDATE track_projects SET ${fields.join(', ')} WHERE id = ?`).run(...args);
   }
 
-  return getProject(id);
+  const updated = await getProject(id);
+  const changes = Object.keys(payload).filter((k) => payload[k as keyof ProjectUpdatePayload] !== undefined);
+  if (updated && changes.length > 0) notifyTrackEvent({ type: 'project.updated', project: updated, changes });
+  return updated;
 }
 
 export async function deleteProject(id: string): Promise<boolean> {
   const db = getDb();
+  const snapshot = await getProject(id);
   const files = (await db
     .prepare(
       'SELECT a.url FROM track_issue_attachments a JOIN track_issues i ON i.id = a.issue_id WHERE i.project_id = ?',
@@ -485,6 +507,7 @@ export async function deleteProject(id: string): Promise<boolean> {
     .all(id)) as Array<{ url: string }>;
   const res = await db.prepare('DELETE FROM track_projects WHERE id = ?').run(id);
   if (res.changes > 0) await deleteUploads(files.map((f) => f.url));
+  if (res.changes > 0 && snapshot) notifyTrackEvent({ type: 'project.deleted', project: snapshot });
   return res.changes > 0;
 }
 
@@ -802,7 +825,7 @@ export async function deleteCycle(id: string): Promise<boolean> {
 
 // ---------- Issues ----------
 
-function issueSelect(extraWhere = ''): string {
+export function issueSelect(extraWhere = ''): string {
   return `
     SELECT
       i.*,
@@ -925,18 +948,17 @@ export async function listAllIssues(
   const pageSize = Math.min(Math.max(options.pageSize ?? 50, 1), 100);
   const page = Math.max(options.page ?? 1, 1);
 
-  const scope = projectScope(teamId, userId);
+  const scope = await projectScope(teamId, userId, 'tp');
   const projectWhere = scope.where;
-  const projectArg = scope.arg;
 
   // Solo proyectos activos, como listMyIssues y listProjectMetas: los de un
   // proyecto archivado no se pueden editar desde la lista.
   const where: string[] = [
-    `i.project_id IN (SELECT id FROM track_projects WHERE ${projectWhere} AND status = 'active')`,
+    `i.project_id IN (SELECT tp.id FROM track_projects tp WHERE ${projectWhere} AND tp.status = 'active')`,
     'i.triage = 0',
     'i.archived_at IS NULL',
   ];
-  const args: Array<string | number> = [projectArg];
+  const args: Array<string | number> = [...scope.args];
 
   if (options.projectId) {
     where.push('i.project_id = ?');
@@ -1021,10 +1043,10 @@ export async function listMyIssues(
   assigneeId: string,
   options: { includeCompleted?: boolean; limit?: number } = {},
 ): Promise<TrackIssueWithStatus[]> {
-  const scope = projectScope(teamId, ownerId);
+  const scope = await projectScope(teamId, ownerId, 'tp');
   const limit = Math.min(Math.max(options.limit ?? 200, 1), 500);
   const where = [
-    `i.project_id IN (SELECT id FROM track_projects WHERE ${scope.where} AND status = 'active')`,
+    `i.project_id IN (SELECT tp.id FROM track_projects tp WHERE ${scope.where} AND tp.status = 'active')`,
     'i.assignee_id = ?',
     'i.triage = 0',
     'i.archived_at IS NULL',
@@ -1040,7 +1062,7 @@ export async function listMyIssues(
          i.created_at ASC
        LIMIT ?`,
     )
-    .all(scope.arg, assigneeId, limit)) as TrackIssueWithStatus[];
+    .all(...scope.args, assigneeId, limit)) as TrackIssueWithStatus[];
 }
 
 export async function getIssue(id: string): Promise<TrackIssueWithStatus | undefined> {
@@ -1061,7 +1083,7 @@ export async function getAccessibleIssue(
   const issue = await getIssue(id);
   if (!issue) return null;
   const project = await getProject(issue.project_id);
-  if (!project || !canAccessTrackProject(project, teamId, ownerId)) return null;
+  if (!project || !(await canAccessTrackProject(project, teamId, ownerId))) return null;
   return { issue, project };
 }
 
@@ -1079,7 +1101,19 @@ export async function getIssueByIdentifier(
  * (API, Chat, Flow, GitHub, agentes) entra a triage si el proyecto lo tiene
  * activo. Por defecto se asume origen externo.
  */
-export type TrackIssueSource = 'app' | 'api' | 'chat' | 'flow' | 'github' | 'agent' | 'recurring' | 'import';
+export type TrackIssueSource =
+  | 'app'
+  | 'api'
+  | 'chat'
+  | 'flow'
+  | 'github'
+  | 'agent'
+  | 'recurring'
+  | 'import'
+  | 'mcp'
+  | 'slack'
+  | 'sentry'
+  | 'support';
 
 export async function createIssue(
   projectId: string,
@@ -1159,6 +1193,7 @@ export async function createIssue(
     created = (await onIssueEnteredTriage(created).catch(() => null)) ?? created;
   }
   await (await import('./track-sla')).syncIssueSla(id).catch(() => undefined);
+  notifyTrackEvent({ type: 'issue.created', issueId: id, actorId: creatorId, source });
 
   if (payload.assigneeId && payload.assigneeId !== creatorId) {
     const [project, creator] = await Promise.all([
@@ -1379,11 +1414,16 @@ export async function updateIssue(
   if (fields.length > 0) await (await import('./track-sla')).syncIssueSla(id).catch(() => undefined);
   const updated = await getIssue(id);
   if (updated && fields.length > 0) {
-    scheduleIssueEvents(
-      existing,
-      updated,
-      Object.keys(payload).filter((k) => payload[k as keyof IssueUpdatePayload] !== undefined),
-    );
+    const changed = Object.keys(payload).filter((k) => payload[k as keyof IssueUpdatePayload] !== undefined);
+    scheduleIssueEvents(existing, updated, changed);
+    notifyTrackEvent({
+      type: 'issue.updated',
+      before: existing,
+      after: updated,
+      changes: changed,
+      actorId: actorId ?? null,
+      via: opts.via ? opts.via.source : undefined,
+    });
   }
   return updated;
 }
@@ -1440,6 +1480,7 @@ const ISSUE_TREE_CTE = `WITH RECURSIVE tree(id) AS (
  */
 export async function deleteIssueTree(id: string): Promise<string[]> {
   const db = getDb();
+  const snapshot = await getIssue(id);
   const ids = ((await db.prepare(`${ISSUE_TREE_CTE} SELECT id FROM tree`).all(id)) as Array<{ id: string }>).map(
     (r) => r.id,
   );
@@ -1451,6 +1492,7 @@ export async function deleteIssueTree(id: string): Promise<string[]> {
   // Un solo DELETE: atómico, y las filas hijas de otras tablas se borran por FK.
   await db.prepare(`DELETE FROM track_issues WHERE id IN (${ISSUE_TREE_CTE} SELECT id FROM tree)`).run(id);
   await deleteUploads(files.map((f) => f.url));
+  if (snapshot) notifyTrackEvent({ type: 'issue.deleted', issue: snapshot, count: ids.length });
   return ids;
 }
 
@@ -1510,15 +1552,17 @@ export async function listProjectMembers(projectId: string, userId: string): Pro
   if (!project) return [];
 
   if (project.team_id) {
+    // Solo quienes ven el proyecto (privados e invitados, lib/track-access).
     return (await db
       .prepare(
         `SELECT u.id, u.email, u.name, m.role
          FROM team_members m
          JOIN users u ON u.id = m.user_id
-         WHERE m.team_id = ?
+         JOIN track_projects p ON p.id = ?
+         WHERE m.team_id = ? AND ${trackVisibleExpr('p', 'u.id')}
          ORDER BY m.role = 'owner' DESC, u.name ASC, u.email ASC`,
       )
-      .all(project.team_id)) as ProjectMember[];
+      .all(projectId, project.team_id)) as ProjectMember[];
   }
 
   const owner = (await db.prepare('SELECT id, email, name FROM users WHERE id = ?').get(userId)) as
@@ -1543,12 +1587,12 @@ export interface TrackProjectMeta {
  */
 export async function listProjectMetas(teamId: string | null, ownerId: string): Promise<TrackProjectMeta[]> {
   const db = getDb();
-  const scope = projectScope(teamId, ownerId);
+  const scope = await projectScope(teamId, ownerId);
   const projects = (await db
     .prepare(
-      `SELECT id, name, icon FROM track_projects WHERE ${scope.where} AND status = 'active' ORDER BY name ASC LIMIT 100`,
+      `SELECT p.id, p.name, p.icon FROM track_projects p WHERE ${scope.where} AND p.status = 'active' ORDER BY p.name ASC LIMIT 100`,
     )
-    .all(scope.arg)) as Array<{ id: string; name: string; icon: string | null }>;
+    .all(...scope.args)) as Array<{ id: string; name: string; icon: string | null }>;
   if (projects.length === 0) return [];
 
   const statuses = (await db
@@ -1557,14 +1601,24 @@ export async function listProjectMetas(teamId: string | null, ownerId: string): 
     )
     .all(...projects.map((p) => p.id))) as TrackStatusRow[];
 
-  // Todos los proyectos del scope comparten miembros (mismo team o mismo dueño).
-  const members = await listProjectMembers(projects[0].id, ownerId);
-
-  return projects.map((p) => ({
-    ...p,
-    statuses: statuses.filter((s) => s.project_id === p.id),
-    members,
-  }));
+  // Los proyectos del workspace comparten miembros, salvo los privados (sus
+  // miembros explícitos): esos se calculan aparte.
+  const privateIds = new Set(
+    ((await db
+      .prepare(`SELECT id FROM track_projects WHERE id IN ${inClause(projects.length)} AND visibility = 'private'`)
+      .all(...projects.map((p) => p.id))) as Array<{ id: string }>).map((r) => r.id),
+  );
+  const shared = projects.find((p) => !privateIds.has(p.id));
+  const sharedMembers = shared ? await listProjectMembers(shared.id, ownerId) : [];
+  const out: TrackProjectMeta[] = [];
+  for (const p of projects) {
+    out.push({
+      ...p,
+      statuses: statuses.filter((s) => s.project_id === p.id),
+      members: privateIds.has(p.id) ? await listProjectMembers(p.id, ownerId) : sharedMembers,
+    });
+  }
+  return out;
 }
 
 // ---------- Saved views ----------
@@ -1787,6 +1841,7 @@ export async function createIssueComment(
     });
   }
 
+  notifyTrackEvent({ type: 'comment.created', issueId, commentId: id, actorId: userId, body: payload.body.trim() });
   return comment;
 }
 

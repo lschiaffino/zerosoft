@@ -7,10 +7,11 @@ import { useSearchParams } from 'next/navigation';
 import { Link, usePathname } from '@/i18n/navigation';
 import type { TrackProjectRow } from '@/lib/schema/types';
 import Icon from '@/components/app/icons';
+import PrivateMark from './PrivateMark';
 import { useShellBranch } from '@/components/app/useShellBranch';
 import TrackIcon from './TrackIcon';
 
-type ProjectItem = Pick<TrackProjectRow, 'id' | 'name' | 'icon' | 'status'>;
+type ProjectItem = Pick<TrackProjectRow, 'id' | 'name' | 'icon' | 'status' | 'visibility'>;
 type FavoriteView = { id: string; name: string; project_id: string; project_name?: string };
 
 /** Evento que avisan las vistas al marcar/desmarcar favoritas o renombrarlas. */
@@ -101,6 +102,7 @@ export default function TrackBranch() {
                     {p.icon ? p.icon : <Icon name="lists" size={14} />}
                   </span>
                   <span className="docs-tree-title">{p.name}</span>
+                  {p.visibility === 'private' ? <PrivateMark label={t('private')} /> : null}
                 </Link>
               </li>
             );

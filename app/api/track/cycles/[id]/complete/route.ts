@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   const cycle = await getCycle(params.id);
   const project = cycle ? await getProject(cycle.project_id) : undefined;
-  if (!cycle || !project || !canAccessTrackProject(project, user.team?.id ?? null, user.id)) return notFound();
+  if (!cycle || !project || !(await canAccessTrackProject(project, user.team?.id ?? null, user.id))) return notFound();
 
   const body: unknown = await req.json().catch(() => ({}));
   const parsed = cycleCompleteSchema.safeParse(body ?? {});

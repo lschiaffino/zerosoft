@@ -118,7 +118,10 @@
       "company": "Companies",
       "task": "Tasks",
       "quote": "Quotes",
-      "form": "Forms"
+      "form": "Forms",
+      "issue": "Track issues",
+      "comment": "Track comments",
+      "project": "Track projects"
     },
     "eventLabels": {
       "booking_created": "Booking created",
@@ -158,7 +161,15 @@
       "task_completed": "Task completed",
       "quote_accepted": "Quote signed",
       "quote_paid": "Quote paid",
-      "form_submitted": "Form submitted"
+      "form_submitted": "Form submitted",
+      "issue_created": "Issue created",
+      "issue_updated": "Issue updated",
+      "issue_status_changed": "Issue status changed",
+      "issue_deleted": "Issue deleted",
+      "comment_created": "Comment added",
+      "project_created": "Project created",
+      "project_updated": "Project updated",
+      "project_deleted": "Project deleted"
     },
     "errors": {
       "https_required": "The URL must use https.",
@@ -203,6 +214,15 @@
       "request": "Body sent",
       "response": "Response",
       "noBody": "Empty response"
+    },
+    "deliveries": {
+      "show": "Deliveries",
+      "title": "Recent deliveries",
+      "empty": "No deliveries yet.",
+      "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+      "retryAt": "next retry {date}",
+      "redeliver": "Resend",
+      "close": "Close"
     }
   },
   "credentials": {

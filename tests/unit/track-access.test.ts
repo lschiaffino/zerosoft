@@ -3,18 +3,18 @@ import { canAccessTrackProject, createProject, listAllIssues, listProjects, crea
 import { makeUser } from './helpers';
 
 describe('Track: aislamiento entre usuarios', () => {
-  it('un proyecto personal solo lo ve su dueño', () => {
+  it('un proyecto personal solo lo ve su dueño', async () => {
     const p = { team_id: null, owner_id: 'a' };
-    expect(canAccessTrackProject(p, null, 'a')).toBe(true);
-    expect(canAccessTrackProject(p, null, 'b')).toBe(false);
-    expect(canAccessTrackProject(p, 'team-1', 'a')).toBe(false);
+    expect(await canAccessTrackProject(p, null, 'a')).toBe(true);
+    expect(await canAccessTrackProject(p, null, 'b')).toBe(false);
+    expect(await canAccessTrackProject(p, 'team-1', 'a')).toBe(false);
   });
 
-  it('un proyecto de team lo ve el team, no los usuarios sueltos', () => {
+  it('un proyecto de team lo ve el team, no los usuarios sueltos', async () => {
     const p = { team_id: 'team-1', owner_id: 'a' };
-    expect(canAccessTrackProject(p, 'team-1', 'x')).toBe(true);
-    expect(canAccessTrackProject(p, null, 'a')).toBe(false);
-    expect(canAccessTrackProject(p, 'team-2', 'a')).toBe(false);
+    expect(await canAccessTrackProject(p, 'team-1', 'x')).toBe(true);
+    expect(await canAccessTrackProject(p, null, 'a')).toBe(false);
+    expect(await canAccessTrackProject(p, 'team-2', 'a')).toBe(false);
   });
 
   it('listProjects y listAllIssues no filtran datos de otros usuarios', async () => {

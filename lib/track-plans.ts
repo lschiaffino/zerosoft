@@ -7,6 +7,7 @@
  * Alcance: como los proyectos de Track, un plan es del team activo o, sin
  * team, del dueño del workspace (owner_id = SessionUser.id).
  */
+import { currentVisibleSql } from './track-access';
 import { getDb } from './db';
 import type { UserRow } from './db';
 import { likeContains } from './track-views';
@@ -513,28 +514,31 @@ const ISSUE_SELECT = `SELECT i.id, i.identifier, i.title, i.project_id, p.name A
   LEFT JOIN users u ON u.id = i.assignee_id`;
 
 export async function listPlanIssues(planId: string): Promise<PlanIssue[]> {
+  // Un plan cruza equipos: los issues de proyectos privados que no ve quien mira no salen.
+  const vis = await currentVisibleSql('p');
   return (await getDb()
     .prepare(
-      `${ISSUE_SELECT} WHERE i.plan_id = ? AND i.triage = 0
+      `${ISSUE_SELECT} WHERE i.plan_id = ? AND i.triage = 0 AND ${vis.sql}
        ORDER BY CASE s.category WHEN 'in_progress' THEN 0 WHEN 'todo' THEN 1 WHEN 'backlog' THEN 2 WHEN 'done' THEN 3 ELSE 4 END,
          CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, i.created_at DESC
        LIMIT 1000`,
     )
-    .all(planId)) as PlanIssue[];
+    .all(planId, ...vis.args)) as PlanIssue[];
 }
 
 /** Issues del workspace que se pueden sumar al plan (búsqueda por título o identificador). */
 export async function searchIssuesForPlan(scope: WorkspaceScope, planId: string, q: string): Promise<PlanIssue[]> {
   const s = scopeWhere(scope, 'p');
+  const vis = await currentVisibleSql('p');
   const like = likeContains(q.trim());
   return (await getDb()
     .prepare(
-      `${ISSUE_SELECT} WHERE ${s.where} AND p.status = 'active' AND i.triage = 0 AND i.archived_at IS NULL
+      `${ISSUE_SELECT} WHERE ${s.where} AND ${vis.sql} AND p.status = 'active' AND i.triage = 0 AND i.archived_at IS NULL
          AND (i.plan_id IS NULL OR i.plan_id != ?)
          AND (i.title LIKE ? ESCAPE '\\' OR i.identifier LIKE ? ESCAPE '\\')
        ORDER BY i.updated_at DESC LIMIT 20`,
     )
-    .all(s.arg, planId, like, like)) as PlanIssue[];
+    .all(s.arg, ...vis.args, planId, like, like)) as PlanIssue[];
 }
 
 /**
@@ -551,12 +555,13 @@ export async function setPlanIssues(
 ): Promise<number> {
   const db = getDb();
   const s = scopeWhere(scope, 'p');
+  const vis = await currentVisibleSql('p');
   const rows = (await db
     .prepare(
       `SELECT i.id, i.project_id FROM track_issues i JOIN track_projects p ON p.id = i.project_id
-       WHERE ${s.where} AND i.id IN ${inClause(issueIds.length)}`,
+       WHERE ${s.where} AND ${vis.sql} AND i.id IN ${inClause(issueIds.length)}`,
     )
-    .all(s.arg, ...issueIds)) as Array<{ id: string; project_id: string }>;
+    .all(s.arg, ...vis.args, ...issueIds)) as Array<{ id: string; project_id: string }>;
   if (!rows.length) return 0;
   const ids = rows.map((r) => r.id);
   const now = nowIso();

@@ -74,7 +74,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Actualización en tiempo real | falta | Probado: con la lista abierta, otro usuario renombra un issue y a los 15 s (y tras un evento de foco) la lista sigue mostrando el título viejo |
 | Reacciones, hilos en comentarios | falta | |
 | Project updates con health y recordatorios | tiene | Salud, texto, comentarios, historial, recordatorio al lead por cron y aviso a seguidores en el Inbox. Sin Slack (2026-10-25) |
-| Notificaciones a Slack / Teams | falta | Solo armando un Flow con el nodo de Slack |
+| Notificaciones a Slack / Teams | parcial | Slack: avisos por proyecto a canales (creado, cambio de estado, completado, comentario). Teams solo con Flow |
 
 ### Planificación
 
@@ -92,7 +92,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Capacidad | Track | Nota |
 |---|---|---|
 | Disparadores sobre issues | tiene | Flow recibe `issue.created`, `issue.updated`, `issue.status_changed` y puede crear o actualizar issues. Comparable a Jira Automation y más abierto que Linear |
-| Automatización por PR (GitHub) | tiene | PR abierto → in progress, merge → done |
+| Automatización por PR (GitHub) | tiene | Por defecto PR abierto → in progress, merge → done; por proyecto, status elegido para draft, abierto, review y merge |
 | Auto-close y auto-archive de issues viejos | tiene | Ajustes › Automatizaciones, por proyecto, con archivo para restaurar (2026-10-25) |
 | Agentes que trabajan issues (Linear Agent, Loops, coding sessions) | tiene | (T3) Delegar a un agente de Agents o externo; sesión con thought/action/elicitation/response en el issue; webhook firmado y `/api/v1/track/agent-sessions` |
 
@@ -100,18 +100,18 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 
 | Capacidad | Track | Nota |
 |---|---|---|
-| API pública y webhooks de issues | falta | `/api/v1` no tiene recursos de Track y `issue.*` no está en `WEBHOOK_EVENTS`. Ya está en el backlog |
-| GitHub | parcial | Webhook por workspace con secret, sin GitHub App instalable, sin GitLab |
-| Slack (crear issue desde un mensaje, hilos sincronizados, notificaciones por canal) | falta | |
-| Intercom, Zendesk, Sentry, Figma, MCP | falta | Chat de zerosoft ya crea issues, que cubre parte del caso Intercom |
+| API pública y webhooks de issues | tiene | REST `/api/v1/track` (issues, comentarios, proyectos, cycles, status, labels, personas) con scopes `track:read`/`track:write`; webhooks `issue.*`, `comment.created`, `project.*` firmados, con reintentos (claim en el cron de cada minuto) y log de entregas. Linear usa GraphQL |
+| GitHub | tiene | GitHub App (o webhook manual), palabras clave que cierran, que solo vinculan (ref, part of) y skip, checks y reviews en el issue, sync de GitHub Issues de GitHub a Track. Sin GitLab ni sync de Track a GitHub |
+| Slack (crear issue desde un mensaje, hilos sincronizados, notificaciones por canal) | tiene | OAuth, `/track`, atajo de mensaje con modal, hilo sincronizado en los dos sentidos, avisos por canal, unfurl (nunca de privados). Sin DMs personales ni Asks |
+| Intercom, Zendesk, Sentry, Figma, MCP | parcial | Sentry (issue desde el webhook y se resuelve al completar), Figma (vista previa embebida), Zendesk e Intercom (vínculo, nota interna al cerrar, alta por API), MCP. Sin app dentro del sidebar de Zendesk o Intercom |
 
 ### Admin y permisos
 
 | Capacidad | Track | Nota |
 |---|---|---|
 | Miembros del workspace | tiene | |
-| Proyectos privados, invitados, roles por proyecto | falta | Todo miembro ve y edita todo |
-| SSO / SAML / SCIM, audit log, IP restrictions | falta | (Enterprise en Linear) |
+| Proyectos privados, invitados, roles por proyecto | parcial | Privados para sus miembros e invitados limitados a ciertos proyectos (también en API, ⌘K, avisos y unfurls). Sin rol de dueño por proyecto |
+| SSO / SAML / SCIM, audit log, IP restrictions | parcial | Audit log de Track (actor, antes y después, origen, IP, filtros, CSV). Login solo con Google: sin SAML, SCIM ni restricción por IP |
 
 ### Analítica
 
@@ -135,13 +135,13 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 |---|---|---|
 | Sugerencias de triage (labels, asignado, duplicados) | tiene | (T3) Asignado, labels, prioridad y duplicados con su porqué; aceptar o descartar; modo sugerir, aplicar solo o apagado por proyecto |
 | Resumen de hilos, issue desde texto libre | tiene | (T3) Resumen del issue y su discusión, borrador de update del proyecto, issue desde texto pegado |
-| MCP para agentes externos | falta | |
+| MCP para agentes externos | tiene | `/api/mcp/track` por Streamable HTTP con API key; URL de solo lectura |
 
 ### Importar y exportar
 
 | Capacidad | Track | Nota |
 |---|---|---|
-| Importadores Jira, GitHub Issues, Asana, Shortcut, Linear | falta | |
+| Importadores Jira, GitHub Issues, Asana, Shortcut, Linear | tiene | Linear (API o CSV), Jira Cloud (API o CSV), GitHub Issues, Asana, Shortcut, con vista previa y reimport sin duplicados |
 | CSV de entrada o salida | falta | |
 
 ### Pulido de UX y teclado

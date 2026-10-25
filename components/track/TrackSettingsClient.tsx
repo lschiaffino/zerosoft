@@ -221,7 +221,7 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
-function CopyField({ id, label, value, testId }: { id: string; label: string; value: string; testId?: string }) {
+export function CopyField({ id, label, value, testId }: { id: string; label: string; value: string; testId?: string }) {
   const t = useTranslations('track');
   const [copied, setCopied] = useState(false);
   return (

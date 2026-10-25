@@ -143,6 +143,10 @@ export default function CommandSearch() {
       { group: 'track', label: tPlanning('cycles'), meta: '', href: '/app/track/cycles' },
       { group: 'track', label: tPlanning('insights'), meta: '', href: '/app/track/insights' },
       { group: 'track', label: tPlanning('dashboards'), meta: '', href: '/app/track/dashboards' },
+      { group: 'track', label: tTrack('cmdk.integrations'), meta: '', href: '/app/track/settings?tab=integrations' },
+      { group: 'track', label: tTrack('cmdk.apiMcp'), meta: '', href: '/app/track/settings?tab=api' },
+      { group: 'track', label: tTrack('cmdk.access'), meta: '', href: '/app/track/settings?tab=access' },
+      { group: 'track', label: tTrack('cmdk.audit'), meta: '', href: '/app/track/settings?tab=audit' },
     ];
     const rest: ResultItem[] = [
       { group, label: t('newContact'), meta: '', href: '/app/crm/contacts/new' },

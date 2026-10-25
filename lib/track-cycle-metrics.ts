@@ -7,6 +7,7 @@
  * (cycle_change, por nombre de cycle dentro del proyecto) y los de status
  * (status_change con fromCategory/toCategory, o por nombre del status).
  */
+import { currentVisibleSql } from './track-access';
 import { getDb } from './db';
 import type { TrackCycleRow, TrackStatusRow } from './db';
 import {
@@ -161,6 +162,7 @@ export interface CycleListItem {
 
 /** Cycles de todos los proyectos del workspace (como la vista Cycles de Linear). */
 export async function listWorkspaceCycles(scopeWhereSql: string, scopeArg: string, today: string): Promise<CycleListItem[]> {
+  const vis = await currentVisibleSql('p');
   const rows = (await getDb()
     .prepare(
       `SELECT c.id, c.name, c.project_id, p.name AS project_name, p.icon AS project_icon, c.start_at, c.end_at, c.completed_at,
@@ -171,9 +173,9 @@ export async function listWorkspaceCycles(scopeWhereSql: string, scopeArg: strin
          (SELECT COUNT(*) FROM track_issues i JOIN track_statuses s ON s.id = i.status_id
             WHERE i.cycle_id = c.id AND i.triage = 0 AND s.category = 'in_progress') AS started
        FROM track_cycles c JOIN track_projects p ON p.id = c.project_id
-       WHERE ${scopeWhereSql} AND p.status = 'active'
+       WHERE ${scopeWhereSql} AND ${vis.sql} AND p.status = 'active'
        ORDER BY c.start_at DESC LIMIT 300`,
     )
-    .all(scopeArg)) as Array<Omit<CycleListItem, 'state'>>;
+    .all(scopeArg, ...vis.args)) as Array<Omit<CycleListItem, 'state'>>;
   return rows.map((r) => ({ ...r, state: stateOf(r as unknown as TrackCycleRow, today) }));
 }

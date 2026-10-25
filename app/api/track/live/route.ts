@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   }
   if (projectId) {
     const project = await getProject(projectId);
-    if (!project || !canAccessTrackProject(project, teamId, user.id)) return notFound();
+    if (!project || !(await canAccessTrackProject(project, teamId, user.id))) return notFound();
     return NextResponse.json({ sig: await projectSignature(projectId) });
   }
   if (workspace) return NextResponse.json({ sig: await workspaceSignature(teamId, user.id) });
