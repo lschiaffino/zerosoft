@@ -59,7 +59,10 @@
     "pageTitle": "Voice could not load",
     "pageBody": "Try again in a moment. Your meetings and dictations are safe.",
     "retry": "Try again",
-    "backToList": "Back to meetings"
+    "backToList": "Back to meetings",
+    "chunks_failed": "Some parts could not be transcribed. You can retry them from the meeting.",
+    "recording_elsewhere": "This meeting is being recorded in another tab or device.",
+    "not_recorder": "Another tab or device took over this recording."
   },
   "meetings": {
     "title": "Meetings",
@@ -207,7 +210,10 @@
     "docsConfirmTitle": "Send the notes to Docs?",
     "docsConfirmBody": "Docs has no private space yet: everyone in the workspace will see this page.",
     "docsIncludeTranscript": "Include the full transcript",
-    "docsConfirm": "Create the page"
+    "docsConfirm": "Create the page",
+    "otherRecorder": "This meeting is being recorded in another tab or device. The transcript shows up here as it arrives.",
+    "failedParts": "{count, plural, one {# part could not be transcribed.} other {# parts could not be transcribed.}}",
+    "retryParts": "Retry"
   },
   "templates": {
     "builtin": {

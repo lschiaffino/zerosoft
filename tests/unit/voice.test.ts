@@ -64,7 +64,7 @@ async function newMeeting(title = 'Acme pricing call'): Promise<string> {
 }
 
 async function chunk(id: string, source: string, seq: number, offsetMs = 0) {
-  return chunksRoute.POST(audioReq(`http://t/api/voice/sessions/${id}/chunks`, { source, seq: String(seq), offsetMs: String(offsetMs), durationMs: '20000' }), ctx(id));
+  return chunksRoute.POST(audioReq(`http://t/api/voice/sessions/${id}/chunks`, { source, seq: String(seq), offsetMs: String(offsetMs), durationMs: '20000', recorderId: 'tab-aaaaaaaa' }), ctx(id));
 }
 
 beforeEach(() => {
@@ -340,7 +340,7 @@ describe('voice recordings lifecycle', () => {
   it('closing a recording queues the notes and the queue writes them', async () => {
     await asUser();
     const id = await newMeeting();
-    await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { status: 'recording' }), ctx(id));
+    await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { status: 'recording', recorderId: 'tab-aaaaaaaa' }), ctx(id));
     await chunk(id, 'them', 0);
     const { closeRecording } = await import('@/lib/voice');
     const { processQueuedNote } = await import('@/lib/voice-jobs');
@@ -358,10 +358,10 @@ describe('voice recordings lifecycle', () => {
   it('the cron closes stale recordings, writes their notes and cleans untouched meetings', async () => {
     const u = await asUser();
     const stale = await newMeeting('Stale call');
-    await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { status: 'recording' }), ctx(stale));
+    await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { status: 'recording', recorderId: 'tab-aaaaaaaa' }), ctx(stale));
     await chunk(stale, 'them', 0);
     const fresh = await newMeeting('Live call');
-    await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { status: 'recording' }), ctx(fresh));
+    await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { status: 'recording', recorderId: 'tab-aaaaaaaa' }), ctx(fresh));
     await chunk(fresh, 'them', 0);
     // Reunión vacía sin tocar (sin título, sin audio, sin notas): no se lista.
     const empty = await newMeeting('');
@@ -370,7 +370,7 @@ describe('voice recordings lifecycle', () => {
     expect(list.sessions.map((s) => s.id)).toContain(stale);
     const db = getDb();
     const old = new Date(Date.now() - 11 * 60_000).toISOString();
-    await db.prepare('UPDATE voice_sessions SET last_chunk_at = ? WHERE id = ?').run(old, stale);
+    await db.prepare('UPDATE voice_sessions SET last_chunk_at = ?, recorder_seen_at = ?, updated_at = ? WHERE id = ?').run(old, old, old, stale);
     await db.prepare('UPDATE voice_sessions SET created_at = ? WHERE id = ?').run(new Date(Date.now() - 25 * 3_600_000).toISOString(), empty);
     const { runVoiceCron } = await import('@/lib/voice-jobs');
     const res = await runVoiceCron();
@@ -399,5 +399,62 @@ describe('voice recordings lifecycle', () => {
   it('rejects Blob URLs with credentials', () => {
     const prefix = voiceBlobPrefix('user-1');
     expect(isVoiceBlobUrl(`https://u:p@abc123.public.blob.vercel-storage.com/${prefix}rec.webm`, 'user-1')).toBe(false);
+  });
+});
+
+describe('voice recorder ownership', () => {
+  it('only one tab records a meeting and only it uploads chunks', async () => {
+    await asUser();
+    const id = await newMeeting('Two tabs');
+    const claimA = await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { status: 'recording', recorderId: 'tab-aaaaaaaa' }), ctx(id));
+    expect(claimA.status).toBe(200);
+    const claimB = await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { status: 'recording', recorderId: 'tab-bbbbbbbb' }), ctx(id));
+    expect(claimB.status).toBe(409);
+    expect(await claimB.json()).toEqual({ error: 'recording_elsewhere' });
+    const fromB = await chunksRoute.POST(audioReq(`http://t/api/voice/sessions/${id}/chunks`, { source: 'me', seq: '0', recorderId: 'tab-bbbbbbbb' }), ctx(id));
+    expect(fromB.status).toBe(409);
+    const fromA = await chunksRoute.POST(audioReq(`http://t/api/voice/sessions/${id}/chunks`, { source: 'me', seq: '0', recorderId: 'tab-aaaaaaaa' }), ctx(id));
+    expect(fromA.status).toBe(201);
+    const { recorderHeartbeat, claimRecorder } = await import('@/lib/voice');
+    expect(await recorderHeartbeat(id, 'tab-aaaaaaaa')).toBe(true);
+    expect(await recorderHeartbeat(id, 'tab-bbbbbbbb')).toBe(false);
+    // Sin latido ni trozos por más de 90 s, la otra pestaña puede tomarla.
+    const later = new Date(Date.now() + 120_000);
+    expect(await claimRecorder(id, 'tab-bbbbbbbb', later)).toBe(true);
+    expect(await recorderHeartbeat(id, 'tab-aaaaaaaa')).toBe(false);
+    // Con la reunión cerrada se aceptan reintentos de trozos que fallaron.
+    await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { status: 'done', queueNotes: false }), ctx(id));
+    const retry = await chunksRoute.POST(audioReq(`http://t/api/voice/sessions/${id}/chunks`, { source: 'me', seq: '50', recorderId: 'tab-aaaaaaaa' }), ctx(id));
+    expect(retry.status).toBe(201);
+  });
+
+  it('the cron keeps a silent recording alive while the recorder beats', async () => {
+    await asUser();
+    const id = await newMeeting('Long silence');
+    await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { status: 'recording', recorderId: 'tab-cccccccc' }), ctx(id));
+    const db = getDb();
+    const old = new Date(Date.now() - 15 * 60_000).toISOString();
+    // Ningún trozo en 15 minutos, pero el grabador latió recién.
+    await db.prepare('UPDATE voice_sessions SET last_chunk_at = ?, updated_at = ?, recorder_seen_at = ? WHERE id = ?').run(old, old, new Date().toISOString(), id);
+    const { runVoiceCron } = await import('@/lib/voice-jobs');
+    await runVoiceCron({ cleanup: false });
+    expect(((await db.prepare('SELECT status FROM voice_sessions WHERE id = ?').get(id)) as { status: string }).status).toBe('recording');
+    // Sin latido tampoco: ahora sí se cierra.
+    await db.prepare('UPDATE voice_sessions SET recorder_seen_at = ? WHERE id = ?').run(old, id);
+    await runVoiceCron({ cleanup: false });
+    expect(((await db.prepare('SELECT status FROM voice_sessions WHERE id = ?').get(id)) as { status: string }).status).toBe('done');
+  });
+
+  it('closing a meeting that already has AI notes does not regenerate them', async () => {
+    await asUser();
+    const id = await newMeeting('Already written');
+    await chunk(id, 'them', 0);
+    await enhanceRoute.POST(jsonReq('http://t', 'POST', {}), ctx(id));
+    const { closeRecording, queueNotes } = await import('@/lib/voice');
+    await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { status: 'recording', recorderId: 'tab-dddddddd' }), ctx(id));
+    expect((await closeRecording(id, { queueNotes: true })).queued).toBe(false);
+    expect(await queueNotes(id)).toBe(false);
+    // Regenerar es explícito: el botón llama a /enhance.
+    expect((await enhanceRoute.POST(jsonReq('http://t', 'POST', {}), ctx(id))).status).toBe(200);
   });
 });

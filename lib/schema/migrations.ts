@@ -4511,6 +4511,9 @@ export const MIGRATIONS: Migration[] = [
           -- Nota con IA en cola al cerrar la grabación: '' | queued | running | done | error.
           notes_status TEXT NOT NULL DEFAULT '',
           last_chunk_at TEXT,
+          -- Pestaña o dispositivo que está grabando (claim al empezar) y su último latido.
+          recorder_id TEXT,
+          recorder_seen_at TEXT,
           started_at TEXT NOT NULL,
           ended_at TEXT,
           created_at TEXT NOT NULL,

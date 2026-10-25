@@ -26,6 +26,9 @@ const KNOWN_ERRORS = new Set([
   'nothing_to_send',
   'storage_unavailable',
   'network',
+  'chunks_failed',
+  'recording_elsewhere',
+  'not_recorder',
 ]);
 
 /** Código de error de la API o del navegador → clave en voice.errors. */

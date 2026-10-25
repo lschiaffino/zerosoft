@@ -59,7 +59,10 @@
     "pageTitle": "Não foi possível carregar o Voice",
     "pageBody": "Tente de novo em instantes. Suas reuniões e ditados estão salvos.",
     "retry": "Tentar de novo",
-    "backToList": "Voltar para as reuniões"
+    "backToList": "Voltar para as reuniões",
+    "chunks_failed": "Algumas partes não puderam ser transcritas. Dá para tentar de novo na reunião.",
+    "recording_elsewhere": "Esta reunião está sendo gravada em outra aba ou dispositivo.",
+    "not_recorder": "Outra aba ou dispositivo assumiu esta gravação."
   },
   "meetings": {
     "title": "Reuniões",
@@ -207,7 +210,10 @@
     "docsConfirmTitle": "Enviar a nota para o Docs?",
     "docsConfirmBody": "O Docs ainda não tem um espaço privado: todo o workspace vai ver esta página.",
     "docsIncludeTranscript": "Incluir a transcrição completa",
-    "docsConfirm": "Criar a página"
+    "docsConfirm": "Criar a página",
+    "otherRecorder": "Esta reunião está sendo gravada em outra aba ou dispositivo. A transcrição aparece aqui conforme chega.",
+    "failedParts": "{count, plural, one {# parte não pôde ser transcrita.} other {# partes não puderam ser transcritas.}}",
+    "retryParts": "Tentar de novo"
   },
   "templates": {
     "builtin": {

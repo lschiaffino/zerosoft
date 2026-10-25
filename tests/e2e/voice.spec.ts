@@ -356,3 +356,54 @@ test('importar un archivo que no es audio no crea una reunión y muestra el erro
   expect(created).toEqual([]);
   expect(((await (await request.get('/api/voice/sessions?kind=meeting&limit=500')).json()) as { sessions: unknown[] }).sessions.length).toBe(before);
 });
+
+
+test('un trozo que la transcripción rechaza no traba la cola y se reintenta desde la reunión', async ({ page, request }) => {
+  const { id } = (await (await request.post('/api/voice/sessions', { data: { title: `Flaky ${uid()}` } })).json()) as { id: string };
+  let failing = true;
+  let failures = 0;
+  await page.route('**/api/voice/sessions/*/chunks', async (route) => {
+    if (failing && failures < 3) {
+      failures += 1;
+      await route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ error: 'transcribe_failed' }) });
+      return;
+    }
+    await route.continue();
+  });
+  await page.goto(`/en/app/voice/meetings/${id}`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Start recording' }).click();
+  // El primer trozo falla 3 veces y queda aparte; los siguientes se transcriben igual.
+  await expect(page.locator('.vc-seg').first()).toBeVisible({ timeout: 30_000 });
+  const t0 = Date.now();
+  await page.getByRole('button', { name: 'Stop', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Start recording' }).or(page.getByRole('button', { name: 'Keep recording' }))).toBeVisible({ timeout: 25_000 });
+  expect(Date.now() - t0).toBeLessThan(25_000);
+  await expect(page.getByText('1 part could not be transcribed.')).toBeVisible();
+  failing = false;
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(page.getByText(/could not be transcribed/)).toHaveCount(0, { timeout: 15_000 });
+});
+
+test('390px grabando: el indicador es compacto y no ensancha la barra', async ({ page, request }) => {
+  const { id } = (await (await request.post('/api/voice/sessions', { data: { title: `Narrow ${uid()}` } })).json()) as { id: string };
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/en/app/voice/meetings/${id}`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Start recording' }).click();
+  await expect(page.getByRole('timer')).toBeVisible();
+  // Navegación dentro de la app (menú del sidebar en mobile).
+  await page.evaluate(() => {
+    const a = document.querySelector('#app-side a[href$="/app/voice/dictation"]') as HTMLAnchorElement | null;
+    a?.click();
+  });
+  await expect(page).toHaveURL(/\/app\/voice\/dictation$/);
+  const compact = page.locator('.vc-rec-indicator-compact');
+  await expect(compact).toBeVisible();
+  await expect(page.locator('.vc-rec-indicator-stop')).toBeHidden();
+  const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
+  expect(scroll, `scrollWidth ${scroll} > ${inner}`).toBeLessThanOrEqual(inner + 1);
+  const bell = page.locator('.band-right button').last();
+  await expect(bell).toBeInViewport();
+  await compact.click();
+  await page.getByRole('menuitem', { name: 'Stop' }).click();
+  await expect(page.locator('.vc-rec-indicator')).toHaveCount(0, { timeout: 25_000 });
+});

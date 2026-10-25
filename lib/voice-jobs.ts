@@ -76,8 +76,12 @@ export async function runVoiceCron(opts: { budgetMs?: number; now?: Date; cleanu
 
   // 1. Grabaciones colgadas.
   const staleBefore = new Date(now.getTime() - STALE_RECORDING_MS).toISOString();
+  // Solo se cierra si no hubo latido del grabador ni trozos en 10 minutos (un silencio largo no la corta).
   const stale = (await db
-    .prepare("SELECT id FROM voice_sessions WHERE status = 'recording' AND COALESCE(last_chunk_at, updated_at) < ? LIMIT 100")
+    .prepare(
+      `SELECT id FROM voice_sessions WHERE status = 'recording'
+       AND MAX(COALESCE(recorder_seen_at, ''), COALESCE(last_chunk_at, ''), updated_at) < ? LIMIT 100`,
+    )
     .all(staleBefore)) as Array<{ id: string }>;
   for (const s of stale) {
     const res = await closeRecording(s.id, { queueNotes: true });

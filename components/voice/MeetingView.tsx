@@ -83,6 +83,9 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
   const recorder = useRecorder();
   const active = recorder.sessionId === d.id;
   const recordingElsewhere = !!recorder.sessionId && !active && recorder.state !== 'idle';
+  // Otra pestaña u otro dispositivo tomó la grabación de esta reunión (claim con latido en el servidor).
+  const otherRecorder = !active && d.status === 'recording' && d.recorderLive && d.recorderId !== recorder.recorderId;
+  const failedParts = recorder.failed[d.id] ?? 0;
   const rec = {
     state: active ? recorder.state : ('idle' as const),
     error: active ? recorder.error : null,
@@ -104,6 +107,8 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
     setD((prev) => ({
       ...prev,
       status: fresh.status,
+      recorderId: fresh.recorderId,
+      recorderLive: fresh.recorderLive,
       durationMs: Math.max(prev.durationMs, fresh.durationMs),
       enhanced: fresh.enhanced,
       enhancedAt: fresh.enhancedAt,
@@ -133,6 +138,13 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
     }, 2000);
     return () => clearInterval(timer);
   }, [notesStatus, refresh]);
+
+  // Mientras graba otra pestaña o dispositivo, esta muestra la transcripción que va llegando.
+  useEffect(() => {
+    if (!otherRecorder) return;
+    const timer = setInterval(() => void refresh(), 5000);
+    return () => clearInterval(timer);
+  }, [otherRecorder, refresh]);
 
   async function flushNotes() {
     if (notesTimer.current) {
@@ -352,7 +364,7 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
               <button
                 type="button"
                 className="btn btn-primary"
-                disabled={!canRecord || rec.state === 'starting' || recordingElsewhere}
+                disabled={!canRecord || rec.state === 'starting' || recordingElsewhere || otherRecorder}
                 aria-busy={rec.state === 'starting' || undefined}
                 onClick={() => void recorder.start({ sessionId: d.id, mode, baseOffsetMs: d.durationMs })}
               >
@@ -388,6 +400,19 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
           )}
         </div>
         {mode === 'mic_tab' && rec.state === 'idle' && <p className="vc-muted">{t('tabHelp')}</p>}
+        {otherRecorder && (
+          <p className="vc-notice" role="status">
+            {t('otherRecorder')}
+          </p>
+        )}
+        {failedParts > 0 && rec.state !== 'recording' && (
+          <p className="vc-notice" role="status">
+            {t('failedParts', { count: failedParts })}{' '}
+            <button type="button" className="btn btn-sm btn-secondary" onClick={() => recorder.retryFailed(d.id)}>
+              {t('retryParts')}
+            </button>
+          </p>
+        )}
         {recordingElsewhere && (
           <p className="vc-notice" role="status">
             {t('recordingElsewhere')} <Link href={`/app/voice/meetings/${recorder.sessionId}`}>{t('openOther')}</Link>

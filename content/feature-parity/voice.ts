@@ -163,11 +163,11 @@ const parity: ProductParity = {
         'Teclado do Wispr Flow no iPhone e Android; apps do Granola para iOS, Android e Apple Watch',
       ],
     }),
-    row('device-sync', 'apps', ['Sync across devices', 'Sincronizar entre dispositivos', 'Sincronizar entre dispositivos'], 'have', {
+    row('device-sync', 'apps', ['Sync across devices', 'Sincronizar entre dispositivos', 'Sincronizar entre dispositivos'], 'partial', {
       detail: [
-        "Dictionary, styles and history live on the server: every browser and the desktop app (its dictations are cleaned up there) use the same ones. The shortcut is per device",
-        "El diccionario, los estilos y el historial viven en el servidor: cualquier navegador y la app de escritorio (sus dictados se limpian ahí) usan los mismos. El atajo es por dispositivo",
-        "O dicionário, os estilos e o histórico ficam no servidor: qualquer navegador e o app desktop (os ditados dele são limpos lá) usam os mesmos. O atalho é por dispositivo",
+        "Dictionary, styles and history live on the server, so every browser uses the same ones; the desktop app would use them too through the API, but it is not built yet",
+        "El diccionario, los estilos y el historial viven en el servidor y cualquier navegador usa los mismos; la app de escritorio los usaría por la API, pero todavía no está compilada",
+        "O dicionário, os estilos e o histórico ficam no servidor e qualquer navegador usa os mesmos; o app desktop usaria pela API, mas ainda não está compilado",
       ],
     }),
     row('usage-stats', 'apps', ['Usage stats', 'Estadísticas de uso', 'Estatísticas de uso'], 'partial', {

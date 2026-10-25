@@ -4,25 +4,44 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
-import { ChunkRecorder, getMic, getTabAudio, mediaErrorCode, postUntilDone, stopStream, type AudioChunk } from './audio';
+import { ChunkRecorder, getMic, getTabAudio, mediaErrorCode, stopStream, type AudioChunk } from './audio';
 import { formatDuration, VOICE_CHUNK_MS, type VoiceSegment, type VoiceSource } from '@/lib/voice-types';
 
 export type RecorderState = 'idle' | 'starting' | 'recording' | 'stopping';
 export type CaptureMode = 'mic' | 'mic_tab';
 
 /** Errores con los que no tiene sentido seguir grabando. */
-const FATAL = new Set(['ai_disabled', 'transcribe_disabled', 'quota_exceeded', 'not_found']);
+const FATAL = new Set(['ai_disabled', 'transcribe_disabled', 'quota_exceeded', 'not_found', 'not_recorder']);
 /** Pico mínimo para subir un trozo (más bajo = silencio, no se transcribe). */
 const SILENCE_PEAK = 0.012;
+/** Trozos más cortos que esto no se mandan. */
+const MIN_CHUNK_MS = 100;
 /** Con tantos trozos esperando, se avisa que la transcripción viene atrasada. */
 const LAG_PENDING = 3;
+/** Reintentos de un trozo que falla en la transcripción (5xx u otros 4xx); 429 y red se reintentan siempre. */
+const MAX_FAILED_ATTEMPTS = 3;
+/** Terminar espera como mucho esto a que se suban los trozos pendientes; lo que queda pasa a reintentar. */
+const STOP_WAIT_MS = 20_000;
+const HEARTBEAT_MS = 30_000;
 
 type SegmentsListener = (segs: VoiceSegment[]) => void;
 type DoneListener = () => void;
 
+interface Job {
+  sessionId: string;
+  source: VoiceSource;
+  seq: number;
+  offsetMs: number;
+  durationMs: number;
+  blob: Blob;
+  attempts: number;
+}
+
 export interface RecorderApi {
-  /** Reunión que se está grabando (o la última que se grabó, hasta que termina de cerrarse). */
+  /** Reunión que se está grabando en esta pestaña (o la última). */
   sessionId: string | null;
+  /** Id de esta pestaña como grabador (claim de la grabación en el servidor). */
+  recorderId: string;
   state: RecorderState;
   error: string | null;
   setError: (e: string | null) => void;
@@ -33,6 +52,9 @@ export interface RecorderApi {
   level: number;
   tabLive: boolean;
   mode: CaptureMode;
+  /** Trozos que no se pudieron transcribir, por reunión (se pueden reintentar). */
+  failed: Record<string, number>;
+  retryFailed: (sessionId: string) => void;
   start: (args: { sessionId: string; mode: CaptureMode; baseOffsetMs: number }) => Promise<void>;
   stop: () => Promise<void>;
   /** Escuchar los segmentos nuevos y el cierre de una reunión. */
@@ -47,15 +69,29 @@ export function useRecorder(): RecorderApi {
   return ctx;
 }
 
+const sleep = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    const t = setTimeout(resolve, ms);
+    signal?.addEventListener('abort', () => {
+      clearTimeout(t);
+      resolve();
+    });
+  });
+
 /**
  * Grabador de reuniones de toda la app (montado en el layout de /app, como el
  * dictado): la grabación sigue al navegar dentro de zerosoft y un indicador
- * discreto en la barra de arriba (punto rojo, tiempo y Terminar) lleva a la
- * reunión. Micrófono solo (fuente "mixed") o micrófono + pestaña ("me" y
- * "them"). Cada trozo de ~20 s se sube con reintentos (respeta Retry-After y
- * nunca descarta un trozo por un error pasajero). Al cerrar la pestaña avisa
- * y, si igual se cierra, cierra la sesión con sendBeacon; la nota con IA
- * queda en cola en el servidor.
+ * discreto en la barra de arriba lleva a la reunión. Micrófono solo (fuente
+ * "mixed") o micrófono + pestaña ("me" y "them").
+ *
+ * Trozos: una cola en serie. 429 y red caída se reintentan hasta que pasan
+ * (respetando Retry-After); un trozo que la transcripción rechaza (5xx u otro
+ * 4xx) se reintenta unas pocas veces y pasa a "no se pudo transcribir" para
+ * reintentarlo después desde la reunión, sin trabar a los siguientes.
+ * Terminar espera como mucho 20 s y cierra igual.
+ *
+ * Una sola pestaña graba cada reunión: claim en el servidor al empezar y un
+ * latido cada 30 s (también le dice al cron que la reunión sigue viva).
  */
 export default function RecorderProvider({ children }: { children: ReactNode }) {
   const t = useTranslations('voice.recorder');
@@ -69,18 +105,27 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
   const [level, setLevel] = useState(0);
   const [tabLive, setTabLive] = useState(false);
   const [mode, setMode] = useState<CaptureMode>('mic');
+  const [failed, setFailed] = useState<Record<string, number>>({});
   const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const recorderIdRef = useRef('');
+  if (!recorderIdRef.current) recorderIdRef.current = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `r-${Date.now()}-${Math.random()}`;
   const recsRef = useRef<Array<{ rec: ChunkRecorder; source: VoiceSource }>>([]);
   const streamsRef = useRef<MediaStream[]>([]);
-  const queueRef = useRef<Promise<void>>(Promise.resolve());
+  const queueRef = useRef<Job[]>([]);
+  const failedRef = useRef(new Map<string, Job[]>());
+  const pumpingRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const idleWaiters = useRef<Array<() => void>>([]);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const beatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const t0Ref = useRef(0);
   const baseRef = useRef(0);
   const stateRef = useRef<RecorderState>('idle');
   const sessionRef = useRef<string | null>(null);
   const segListeners = useRef(new Map<string, Set<SegmentsListener>>());
   const doneListeners = useRef(new Map<string, Set<DoneListener>>());
-  const stopRef = useRef<() => Promise<void>>(async () => {});
+  const stopRef = useRef<(opts?: { local?: boolean }) => Promise<void>>(async () => {});
 
   const set = (s: RecorderState) => {
     stateRef.current = s;
@@ -90,6 +135,7 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
   // El indicador va en el hueco de la barra de arriba (AppSidebar › #band-voice-slot).
   useEffect(() => {
     setSlot(document.getElementById('band-voice-slot'));
+    setMenuOpen(false);
   }, [pathname]);
 
   const subscribe = useCallback((id: string, onSegments: SegmentsListener, onDone?: DoneListener) => {
@@ -105,69 +151,177 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
     };
   }, []);
 
-  const upload = useCallback((id: string, source: VoiceSource, chunk: AudioChunk, startedAtBase: number) => {
-    if (chunk.peak < SILENCE_PEAK) return;
-    const offsetMs = startedAtBase + chunk.startMs;
-    const seq = Math.round(offsetMs / 100);
-    setPending((n) => n + 1);
-    queueRef.current = queueRef.current.then(async () => {
-      const res = await postUntilDone(
-        `/api/voice/sessions/${id}/chunks`,
-        () => {
-          const form = new FormData();
-          form.append('audio', chunk.blob, `chunk.${chunk.blob.type.includes('mp4') ? 'm4a' : 'webm'}`);
-          form.append('source', source);
-          form.append('seq', String(seq));
-          form.append('offsetMs', String(offsetMs));
-          form.append('durationMs', String(chunk.durationMs));
-          return form;
-        },
-        { onWait: () => setWaiting(true) },
-      );
-      setWaiting(false);
-      setPending((n) => n - 1);
-      const data = (await res?.json().catch(() => null)) as { segments?: VoiceSegment[]; error?: string } | null;
-      if (!res?.ok) {
-        const code = data?.error ?? 'network';
-        setError(code);
-        if (FATAL.has(code) && stateRef.current === 'recording') void stopRef.current();
-        return;
+  const syncCounts = useCallback(() => {
+    setPending(queueRef.current.length + (pumpingRef.current ? 1 : 0));
+    const counts: Record<string, number> = {};
+    for (const [id, jobs] of failedRef.current) if (jobs.length) counts[id] = jobs.length;
+    setFailed(counts);
+  }, []);
+
+  const markFailed = useCallback(
+    (job: Job) => {
+      const list = failedRef.current.get(job.sessionId) ?? [];
+      list.push(job);
+      failedRef.current.set(job.sessionId, list);
+      syncCounts();
+    },
+    [syncCounts],
+  );
+
+  /** Sube un trozo. 'done' | 'failed' | 'fatal:<code>' | 'aborted'. */
+  const send = useCallback(async (job: Job, signal: AbortSignal): Promise<string> => {
+    for (;;) {
+      if (signal.aborted) return 'aborted';
+      let res: Response | null = null;
+      try {
+        const form = new FormData();
+        form.append('audio', job.blob, `chunk.${job.blob.type.includes('mp4') ? 'm4a' : 'webm'}`);
+        form.append('source', job.source);
+        form.append('seq', String(job.seq));
+        form.append('offsetMs', String(job.offsetMs));
+        form.append('durationMs', String(job.durationMs));
+        form.append('recorderId', recorderIdRef.current);
+        res = await fetch(`/api/voice/sessions/${job.sessionId}/chunks`, { method: 'POST', body: form, signal });
+      } catch {
+        if (signal.aborted) return 'aborted';
+        res = null;
       }
-      if (data?.segments?.length) segListeners.current.get(id)?.forEach((fn) => fn(data.segments!));
+      if (res?.ok) {
+        setWaiting(false);
+        const data = (await res.json().catch(() => null)) as { segments?: VoiceSegment[] } | null;
+        if (data?.segments?.length) segListeners.current.get(job.sessionId)?.forEach((fn) => fn(data.segments!));
+        return 'done';
+      }
+      const code = ((await res?.json().catch(() => null)) as { error?: string } | null)?.error ?? (res ? `http_${res.status}` : 'network');
+      if (res && FATAL.has(code)) return `fatal:${code}`;
+      // Red caída o rate limit: se espera y se vuelve a intentar, sin límite.
+      if (!res || res.status === 429) {
+        setWaiting(true);
+        const retryAfter = Number(res?.headers.get('retry-after'));
+        await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 3000, signal);
+        continue;
+      }
+      // La transcripción rechazó el trozo: unos pocos reintentos y después queda para reintentar a mano.
+      job.attempts += 1;
+      if (job.attempts >= MAX_FAILED_ATTEMPTS) return 'failed';
+      await sleep(1500 * job.attempts, signal);
+    }
+  }, []);
+
+  const pump = useCallback(async () => {
+    if (pumpingRef.current) return;
+    pumpingRef.current = true;
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    while (queueRef.current.length && !ctrl.signal.aborted) {
+      const job = queueRef.current.shift()!;
+      syncCounts();
+      const result = await send(job, ctrl.signal);
+      if (result === 'aborted') {
+        queueRef.current.unshift(job);
+        break;
+      }
+      if (result === 'failed') {
+        markFailed(job);
+        setError('chunks_failed');
+      } else if (result.startsWith('fatal:')) {
+        markFailed(job);
+        const code = result.slice(6);
+        setError(code === 'not_recorder' ? 'recording_elsewhere' : code);
+        if (stateRef.current === 'recording') void stopRef.current({ local: code === 'not_recorder' });
+      }
+    }
+    pumpingRef.current = false;
+    setWaiting(false);
+    syncCounts();
+    if (!queueRef.current.length) idleWaiters.current.splice(0).forEach((fn) => fn());
+  }, [send, syncCounts, markFailed]);
+
+  const enqueue = useCallback(
+    (id: string, source: VoiceSource, chunk: AudioChunk, startedAtBase: number) => {
+      if (chunk.peak < SILENCE_PEAK || chunk.durationMs < MIN_CHUNK_MS || !chunk.blob.size) return;
+      const offsetMs = startedAtBase + chunk.startMs;
+      queueRef.current.push({ sessionId: id, source, seq: Math.round(offsetMs / 100), offsetMs, durationMs: chunk.durationMs, blob: chunk.blob, attempts: 0 });
+      syncCounts();
+      void pump();
+    },
+    [pump, syncCounts],
+  );
+
+  const retryFailed = useCallback(
+    (id: string) => {
+      const jobs = failedRef.current.get(id) ?? [];
+      failedRef.current.delete(id);
+      for (const j of jobs) queueRef.current.push({ ...j, attempts: 0 });
+      setError(null);
+      syncCounts();
+      void pump();
+    },
+    [pump, syncCounts],
+  );
+
+  /** Espera a que la cola se vacíe, como mucho `ms`. true = se vació. */
+  const waitIdle = useCallback((ms: number) => {
+    if (!queueRef.current.length && !pumpingRef.current) return Promise.resolve(true);
+    return new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(false), ms);
+      idleWaiters.current.push(() => {
+        clearTimeout(timer);
+        resolve(true);
+      });
     });
   }, []);
 
   const teardown = useCallback(() => {
     if (tickRef.current) clearInterval(tickRef.current);
+    if (beatRef.current) clearInterval(beatRef.current);
     tickRef.current = null;
+    beatRef.current = null;
     streamsRef.current.forEach(stopStream);
     streamsRef.current = [];
     setTabLive(false);
     setLevel(0);
   }, []);
 
-  const stop = useCallback(async () => {
-    if (stateRef.current !== 'recording') return;
-    const id = sessionRef.current;
-    set('stopping');
-    if (tickRef.current) clearInterval(tickRef.current);
-    await Promise.all(recsRef.current.map((r) => r.rec.stop()));
-    recsRef.current = [];
-    teardown();
-    await queueRef.current;
-    baseRef.current += Date.now() - t0Ref.current;
-    if (id) {
-      // Cierra la sesión y deja la nota con IA en cola (el servidor la arma aunque se navegue).
-      await fetch(`/api/voice/sessions/${id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ status: 'done', queueNotes: true }),
-        keepalive: true,
-      }).catch(() => null);
-      doneListeners.current.get(id)?.forEach((fn) => fn());
-    }
-    set('idle');
-  }, [teardown]);
+  /**
+   * Terminar: corta los grabadores, espera hasta 20 s a que suban los trozos
+   * (lo que no llegó queda para reintentar) y cierra la sesión dejando la nota
+   * en cola. Con `local` (otra pestaña tomó la grabación) solo corta acá.
+   */
+  const stop = useCallback(
+    async (opts: { local?: boolean } = {}) => {
+      if (stateRef.current !== 'recording') return;
+      const id = sessionRef.current;
+      set('stopping');
+      setMenuOpen(false);
+      if (tickRef.current) clearInterval(tickRef.current);
+      await Promise.all(recsRef.current.map((r) => r.rec.stop()));
+      recsRef.current = [];
+      teardown();
+      baseRef.current += Date.now() - t0Ref.current;
+      if (!(await waitIdle(STOP_WAIT_MS))) {
+        abortRef.current?.abort();
+        await waitIdle(2000);
+        // Lo que quedó en la cola de esta reunión pasa a "no se pudo transcribir".
+        const rest = queueRef.current.filter((j) => j.sessionId === id);
+        queueRef.current = queueRef.current.filter((j) => j.sessionId !== id);
+        rest.forEach((j) => markFailed(j));
+        if (rest.length) setError('chunks_failed');
+        if (queueRef.current.length) void pump();
+      }
+      if (id && !opts.local) {
+        await fetch(`/api/voice/sessions/${id}`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ status: 'done', queueNotes: true }),
+          keepalive: true,
+        }).catch(() => null);
+      }
+      if (id) doneListeners.current.get(id)?.forEach((fn) => fn());
+      set('idle');
+    },
+    [teardown, waitIdle, markFailed, pump],
+  );
   stopRef.current = stop;
 
   const start = useCallback(
@@ -176,6 +330,19 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
       setError(null);
       set('starting');
       setMode(args.mode);
+      const id = args.sessionId;
+      // Claim de la grabación: si otra pestaña o dispositivo graba esta reunión, no se empieza.
+      const claim = await fetch(`/api/voice/sessions/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status: 'recording', capture: args.mode, recorderId: recorderIdRef.current }),
+      }).catch(() => null);
+      if (!claim?.ok) {
+        const code = ((await claim?.json().catch(() => null)) as { error?: string } | null)?.error ?? 'network';
+        set('idle');
+        setError(code);
+        return;
+      }
       const streams: MediaStream[] = [];
       try {
         const mic = await getMic();
@@ -187,17 +354,16 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
         }
         streamsRef.current = streams;
         // Solo crece: un trozo nuevo nunca reusa el número (seq) de uno anterior de la misma reunión.
-        baseRef.current = sessionRef.current === args.sessionId ? Math.max(baseRef.current, args.baseOffsetMs) : args.baseOffsetMs;
-        sessionRef.current = args.sessionId;
-        setSessionId(args.sessionId);
-        const id = args.sessionId;
+        baseRef.current = sessionRef.current === id ? Math.max(baseRef.current, args.baseOffsetMs) : args.baseOffsetMs;
+        sessionRef.current = id;
+        setSessionId(id);
         const base = baseRef.current;
         // Los e2e acortan los trozos con window.__zsVoiceChunkMs.
         const chunkMs = Number((window as unknown as { __zsVoiceChunkMs?: number }).__zsVoiceChunkMs) || VOICE_CHUNK_MS;
         const micSource: VoiceSource = tab ? 'me' : 'mixed';
-        recsRef.current = [{ rec: new ChunkRecorder(mic, chunkMs, (c) => upload(id, micSource, c, base)), source: micSource }];
+        recsRef.current = [{ rec: new ChunkRecorder(mic, chunkMs, (c) => enqueue(id, micSource, c, base)), source: micSource }];
         if (tab) {
-          recsRef.current.push({ rec: new ChunkRecorder(tab, chunkMs, (c) => upload(id, 'them', c, base)), source: 'them' });
+          recsRef.current.push({ rec: new ChunkRecorder(tab, chunkMs, (c) => enqueue(id, 'them', c, base)), source: 'them' });
           setTabLive(true);
           // Si se deja de compartir la pestaña, se sigue con el micrófono.
           tab.getAudioTracks()[0]?.addEventListener('ended', () => setTabLive(false));
@@ -209,19 +375,33 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
           setElapsed(base + Date.now() - t0Ref.current);
           setLevel(Math.max(...recsRef.current.map((r) => r.rec.level())));
         }, 200);
-        await fetch(`/api/voice/sessions/${id}`, {
-          method: 'PATCH',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ status: 'recording', capture: args.mode }),
-        }).catch(() => null);
+        // Latido: mantiene el claim y le avisa al cron que la reunión sigue viva aunque haya silencio.
+        const beatMs = Number((window as unknown as { __zsVoiceHeartbeatMs?: number }).__zsVoiceHeartbeatMs) || HEARTBEAT_MS;
+        beatRef.current = setInterval(async () => {
+          const res = await fetch(`/api/voice/sessions/${id}/heartbeat`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ recorderId: recorderIdRef.current }),
+          }).catch(() => null);
+          if (res?.status === 409 && stateRef.current === 'recording') {
+            setError('recording_elsewhere');
+            void stopRef.current({ local: true });
+          }
+        }, beatMs);
         set('recording');
       } catch (err) {
         streams.forEach(stopStream);
+        // Se suelta el claim: la reunión vuelve a estar libre.
+        await fetch(`/api/voice/sessions/${id}`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ status: 'done', queueNotes: false }),
+        }).catch(() => null);
         set('idle');
         setError(mediaErrorCode(err));
       }
     },
-    [upload],
+    [enqueue],
   );
 
   // Cerrar la pestaña con una grabación en curso: el navegador pregunta, y si se
@@ -251,6 +431,7 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
       recsRef.current.forEach((r) => void r.rec.stop());
       streamsRef.current.forEach(stopStream);
       if (tickRef.current) clearInterval(tickRef.current);
+      if (beatRef.current) clearInterval(beatRef.current);
       const id = sessionRef.current;
       if (id) void fetch(`/api/voice/sessions/${id}/close`, { method: 'POST', keepalive: true }).catch(() => null);
     },
@@ -258,8 +439,25 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
   );
 
   const api = useMemo<RecorderApi>(
-    () => ({ sessionId, state, error, setError, pending, lagging: waiting || pending >= LAG_PENDING, elapsed, level, tabLive, mode, start, stop, subscribe }),
-    [sessionId, state, error, pending, waiting, elapsed, level, tabLive, mode, start, stop, subscribe],
+    () => ({
+      sessionId,
+      recorderId: recorderIdRef.current,
+      state,
+      error,
+      setError,
+      pending,
+      lagging: waiting || pending >= LAG_PENDING,
+      elapsed,
+      level,
+      tabLive,
+      mode,
+      failed,
+      retryFailed,
+      start,
+      stop: () => stop(),
+      subscribe,
+    }),
+    [sessionId, state, error, pending, waiting, elapsed, level, tabLive, mode, failed, retryFailed, start, stop, subscribe],
   );
 
   const recording = state === 'recording' || state === 'stopping';
@@ -268,6 +466,7 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
     recording && sessionId && !onOwnPage && slot
       ? createPortal(
           <span className="vc-rec-indicator" role="status">
+            {/* Ancho: link a la reunión + Terminar. Angosto: solo punto y tiempo; el toque abre Abrir / Terminar. */}
             <Link href={`/app/voice/meetings/${sessionId}`} className="vc-rec-indicator-link" title={t('openMeeting')}>
               <span className="vc-rec-dot" aria-hidden="true" />
               <span className="data" role="timer">
@@ -278,6 +477,26 @@ export default function RecorderProvider({ children }: { children: ReactNode }) 
             <button type="button" className="vc-rec-indicator-stop" disabled={state === 'stopping'} onClick={() => void stop()}>
               {state === 'stopping' ? t('stopping') : t('stop')}
             </button>
+            <button
+              type="button"
+              className="vc-rec-indicator-compact"
+              aria-expanded={menuOpen}
+              aria-label={t('recordingLabel')}
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              <span className="vc-rec-dot" aria-hidden="true" />
+              <span className="data">{formatDuration(elapsed)}</span>
+            </button>
+            {menuOpen && (
+              <span className="vc-rec-indicator-menu" role="menu" onKeyDown={(e) => e.key === 'Escape' && setMenuOpen(false)}>
+                <Link href={`/app/voice/meetings/${sessionId}`} role="menuitem" onClick={() => setMenuOpen(false)}>
+                  {t('openMeeting')}
+                </Link>
+                <button type="button" role="menuitem" disabled={state === 'stopping'} onClick={() => void stop()}>
+                  {state === 'stopping' ? t('stopping') : t('stop')}
+                </button>
+              </span>
+            )}
           </span>,
           slot,
         )

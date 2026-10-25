@@ -221,31 +221,3 @@ export class ChunkRecorder {
     this.meter.close();
   }
 }
-
-/**
- * POST que no se rinde con errores pasajeros (red caída, 5xx, 429): reintenta
- * con backoff y, en un 429, espera lo que dice Retry-After. Los demás 4xx se
- * devuelven enseguida (el trozo es inválido y reintentar no sirve).
- * `onWait` avisa cada vez que se queda esperando (para mostrar el atraso).
- */
-export async function postUntilDone(
-  url: string,
-  makeBody: () => BodyInit,
-  opts: { onWait?: (ms: number) => void; maxAttempts?: number } = {},
-): Promise<Response | null> {
-  const max = opts.maxAttempts ?? 1000;
-  let last: Response | null = null;
-  for (let i = 0; i < max; i++) {
-    try {
-      last = await fetch(url, { method: 'POST', body: makeBody() });
-      if (last.ok || (last.status < 500 && last.status !== 429)) return last;
-    } catch {
-      last = null;
-    }
-    const retryAfter = Number(last?.headers.get('retry-after'));
-    const wait = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : Math.min(30_000, 1000 * 2 ** Math.min(i, 5));
-    opts.onWait?.(wait);
-    await new Promise((r) => setTimeout(r, wait));
-  }
-  return last;
-}

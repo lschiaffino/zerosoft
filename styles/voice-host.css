@@ -128,4 +128,53 @@
 .vc-rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); flex: none; animation: vc-pulse 1.2s ease-in-out infinite; }
 @keyframes vc-pulse { 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { .vc-rec-dot { animation: none; } }
-@media (max-width: 520px) { .vc-rec-indicator-stop { padding: 0 6px; } }
+/* Angosto: solo punto y tiempo; el toque abre Abrir / Terminar sin ensanchar la barra. */
+.vc-rec-indicator { position: relative; flex: none; }
+.vc-rec-indicator-compact {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  padding: 0 6px;
+  font: 500 0.75rem var(--font-ui);
+  color: var(--ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.vc-rec-indicator-compact:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.vc-rec-indicator-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.12);
+}
+.vc-rec-indicator-menu > a,
+.vc-rec-indicator-menu > button {
+  display: block;
+  padding: 8px 10px;
+  font: 500 0.8125rem var(--font-ui);
+  color: var(--ink);
+  text-align: left;
+  text-decoration: none;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.vc-rec-indicator-menu > a:hover,
+.vc-rec-indicator-menu > button:hover { background: var(--ui-hover); }
+@media (max-width: 520px) {
+  .vc-rec-indicator { height: 28px; }
+  .vc-rec-indicator-link,
+  .vc-rec-indicator-stop { display: none; }
+  .vc-rec-indicator-compact { display: inline-flex; }
+}

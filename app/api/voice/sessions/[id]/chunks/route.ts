@@ -35,6 +35,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       durationMs: Number.isFinite(durationMs) && durationMs > 0 ? Math.min(durationMs, 600_000) : 0,
       audio: bytes,
       type,
+      recorderId: String(fields.get('recorderId') ?? '') || null,
     });
     return NextResponse.json(res, { status: res.duplicate ? 200 : 201 });
   } catch (err) {

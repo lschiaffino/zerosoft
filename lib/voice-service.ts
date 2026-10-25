@@ -5,6 +5,7 @@
 import { transcribeAudio, providerDiarizes, FAKE_MEETING_ME, FAKE_MEETING_THEM } from './voice-transcribe';
 import { askMeetings, cleanupDictation, enhanceMeeting } from './voice-ai';
 import {
+  canUploadChunk,
   claimChunk,
   createSession,
   getCustomTemplate,
@@ -154,9 +155,12 @@ export async function ingestChunk(args: {
   audio: Uint8Array;
   type: string;
   fakeText?: string;
+  /** Pestaña que graba (la app web); la app de escritorio no lo manda. */
+  recorderId?: string | null;
 }): Promise<{ segments: VoiceSegment[]; duplicate: boolean }> {
   const row = await getSessionRow(args.owner, args.sessionId);
   if (!row || row.kind !== 'meeting') throw new VoiceError('not_found');
+  if (!canUploadChunk(row, args.recorderId ?? null)) throw new VoiceError('not_recorder');
   if (!(await claimChunk(args.sessionId, args.source, args.seq))) return { segments: [], duplicate: true };
   try {
     const [settings, dictionary] = await Promise.all([getVoiceSettings(args.owner), listDictionary(args.owner)]);

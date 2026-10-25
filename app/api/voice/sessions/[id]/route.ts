@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { closeRecording, deleteSession, getSessionDetail, getSessionRow, saveEnhanced, saveMyNotes, updateSession } from '@/lib/voice';
+import { claimRecorder, closeRecording, deleteSession, getSessionDetail, getSessionRow, saveEnhanced, saveMyNotes, updateSession } from '@/lib/voice';
 import { queueNoteAfterResponse } from '@/lib/voice-jobs';
 import { renameSpeakersInNote } from '@/lib/voice-speakers';
 import { voiceAuth } from '@/lib/voice-route';
@@ -35,6 +35,8 @@ const patchSchema = z.object({
   speakers: z.record(z.string().max(40), z.string().max(80)).optional(),
   /** Con status "done": armar la nota con IA en segundo plano (default sí). */
   queueNotes: z.boolean().optional(),
+  /** Con status "recording": id de la pestaña que graba (claim de la grabación). */
+  recorderId: z.string().min(8).max(64).optional(),
 });
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
@@ -56,6 +58,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       if (row.kind !== 'meeting') return voiceJsonError(400, 'invalid_input');
       await saveMyNotes(id, p.myNotes);
     }
+    if (p.status === 'recording') {
+      // Una sola pestaña o dispositivo graba cada reunión (compare-and-set con latido).
+      if (!p.recorderId) return voiceJsonError(400, 'invalid_input');
+      if (!(await claimRecorder(id, p.recorderId))) return voiceJsonError(409, 'recording_elsewhere');
+    }
     if (p.speakers) {
       // Renombrar a quien habla también cambia la nota con IA ya armada.
       const before = await getSessionDetail(auth.owner, id);
@@ -64,7 +71,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
     await updateSession(auth.owner, id, {
       title: p.title,
-      status: p.status === 'recording' ? 'recording' : undefined,
+      status: undefined,
       text: row.kind === 'dictation' ? p.text : undefined,
       templateKey: p.templateKey,
       contactId: p.contactId,

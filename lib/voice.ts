@@ -46,7 +46,7 @@ export function voiceOwner(user: { id: string; actingUser?: { id: string } | nul
 }
 
 export class VoiceError extends Error {
-  constructor(public code: 'not_found' | 'limit_reached' | 'duplicate' | 'invalid_state') {
+  constructor(public code: 'not_found' | 'limit_reached' | 'duplicate' | 'invalid_state' | 'not_recorder' | 'recording_elsewhere') {
     super(code);
   }
 }
@@ -88,6 +88,8 @@ export interface VoiceSessionRow {
   locale: string;
   notes_status: '' | 'queued' | 'running' | 'done' | 'error';
   last_chunk_at: string | null;
+  recorder_id: string | null;
+  recorder_seen_at: string | null;
   started_at: string;
   ended_at: string | null;
   created_at: string;
@@ -245,6 +247,8 @@ export async function getSessionDetail(owner: VoiceOwner, id: string): Promise<V
     noteId: row.note_id,
     error: row.error,
     notesStatus: row.notes_status,
+    recorderId: row.recorder_id,
+    recorderLive: isRecorderLive(row),
     segments,
     myNotes: notes?.my_notes ?? '',
     enhanced: parseJson<VoiceEnhanced | null>(notes?.enhanced, null),
@@ -617,6 +621,54 @@ export async function dictationStats(owner: VoiceOwner, now = new Date()): Promi
   };
 }
 
+// ---------- Quién graba (una pestaña o dispositivo por reunión) ----------
+
+/** Sin latido por este tiempo, otra pestaña puede tomar la grabación. */
+export const RECORDER_LIVE_MS = 90_000;
+
+/** ¿Hay una pestaña o un dispositivo grabando ahora? (latido o trozo reciente). */
+export function isRecorderLive(row: Pick<VoiceSessionRow, 'status' | 'recorder_seen_at' | 'last_chunk_at'>, now = Date.now()): boolean {
+  if (row.status !== 'recording') return false;
+  const last = Math.max(Date.parse(row.recorder_seen_at ?? '') || 0, Date.parse(row.last_chunk_at ?? '') || 0);
+  return now - last < RECORDER_LIVE_MS;
+}
+
+/**
+ * Reclama la grabación para una pestaña (compare-and-set): sale bien si nadie
+ * graba, si ya era de esta pestaña o si la otra dejó de latir hace más de
+ * RECORDER_LIVE_MS. Así dos pestañas no graban la misma reunión.
+ */
+export async function claimRecorder(sessionId: string, recorderId: string, now = new Date()): Promise<boolean> {
+  const iso = now.toISOString();
+  const staleBefore = new Date(now.getTime() - RECORDER_LIVE_MS).toISOString();
+  const res = await getDb()
+    .prepare(
+      `UPDATE voice_sessions SET status = 'recording', recorder_id = ?, recorder_seen_at = ?, updated_at = ?
+       WHERE id = ? AND kind = 'meeting' AND (status != 'recording' OR recorder_id IS NULL OR recorder_id = ?
+         OR MAX(COALESCE(recorder_seen_at, ''), COALESCE(last_chunk_at, '')) < ?)`,
+    )
+    .run(recorderId, iso, iso, sessionId, recorderId, staleBefore);
+  return res.changes > 0;
+}
+
+/** Latido de la pestaña que graba. false = ya no es la dueña (otra la tomó o se cerró). */
+export async function recorderHeartbeat(sessionId: string, recorderId: string): Promise<boolean> {
+  const res = await getDb()
+    .prepare("UPDATE voice_sessions SET recorder_seen_at = ? WHERE id = ? AND status = 'recording' AND recorder_id = ?")
+    .run(new Date().toISOString(), sessionId, recorderId);
+  return res.changes > 0;
+}
+
+/**
+ * ¿Puede este grabador subir un trozo? Mientras una pestaña graba, solo ella;
+ * con la reunión cerrada (reintentos de trozos que fallaron) o sin dueño
+ * (app de escritorio), cualquiera de la misma persona.
+ */
+export function canUploadChunk(row: Pick<VoiceSessionRow, 'status' | 'recorder_id'>, recorderId: string | null): boolean {
+  if (row.status !== 'recording' || !row.recorder_id) return true;
+  return row.recorder_id === recorderId;
+}
+
 // ---------- Cierre de una grabación ----------
 
 /**
@@ -635,11 +687,16 @@ export async function closeRecording(sessionId: string, opts: { queueNotes: bool
   return { closed: res.changes > 0, queued };
 }
 
-/** Pone en cola la nota con IA si hay algo que resumir y no se está armando ya. */
+/**
+ * Pone en cola la nota con IA solo si la reunión nunca tuvo una (regenerar es
+ * explícito, con el botón): hay algo que resumir y no se está armando ya.
+ * Compare-and-set sobre notes_status.
+ */
 export async function queueNotes(sessionId: string): Promise<boolean> {
   const res = await getDb()
     .prepare(
-      `UPDATE voice_sessions SET notes_status = 'queued' WHERE id = ? AND kind = 'meeting' AND notes_status NOT IN ('queued', 'running')
+      `UPDATE voice_sessions SET notes_status = 'queued' WHERE id = ? AND kind = 'meeting' AND notes_status IN ('', 'error')
+       AND NOT EXISTS (SELECT 1 FROM voice_notes n WHERE n.session_id = voice_sessions.id AND n.enhanced IS NOT NULL)
        AND (EXISTS (SELECT 1 FROM voice_segments g WHERE g.session_id = voice_sessions.id)
             OR EXISTS (SELECT 1 FROM voice_notes n WHERE n.session_id = voice_sessions.id AND n.my_notes != ''))`,
     )

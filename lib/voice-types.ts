@@ -143,6 +143,9 @@ export interface VoiceSessionDetail extends VoiceSessionSummary {
   error: string;
   /** Nota con IA en cola o armándose después de cortar la grabación. */
   notesStatus: '' | 'queued' | 'running' | 'done' | 'error';
+  /** Pestaña o dispositivo que tomó la grabación y si sigue latiendo. */
+  recorderId: string | null;
+  recorderLive: boolean;
   segments: VoiceSegment[];
   myNotes: string;
   enhanced: VoiceEnhanced | null;

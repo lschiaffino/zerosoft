@@ -49,7 +49,7 @@ export function voiceErrorResponse(err: unknown): NextResponse {
     return voiceJsonError(status, err.code);
   }
   if (err instanceof VoiceError) {
-    const status = err.code === 'not_found' ? 404 : err.code === 'duplicate' ? 409 : 400;
+    const status = err.code === 'not_found' ? 404 : err.code === 'duplicate' || err.code === 'not_recorder' || err.code === 'recording_elsewhere' ? 409 : 400;
     return voiceJsonError(status, err.code);
   }
   console.error('[voice] request failed', err instanceof Error ? err.name : 'error');
