@@ -399,6 +399,12 @@ export default function DbTable(p: DbTableProps) {
       latest.current.p.onFocusBlock();
       const prop = latest.current.props[c];
       setActive({ r, c });
+      // Solo lectura: el título abre la fila (como en Notion); el resto solo se selecciona.
+      const item = latest.current.navRows[r];
+      if (latest.current.p.readOnly && prop?.type === 'title' && item) {
+        latest.current.p.onOpenRow(item.row.id);
+        return;
+      }
       if (prop && !isComputedType(prop.type)) startEdit(r, c);
     },
     [startEdit],
