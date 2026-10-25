@@ -119,6 +119,9 @@
       "task": "Tasks",
       "quote": "Quotes",
       "form": "Forms",
+      "issue": "Track issues",
+      "comment": "Track comments",
+      "project": "Track teams",
       "page": "Docs pages",
       "database": "Docs databases"
     },
@@ -161,6 +164,14 @@
       "quote_accepted": "Quote signed",
       "quote_paid": "Quote paid",
       "form_submitted": "Form submitted",
+      "issue_created": "Issue created",
+      "issue_updated": "Issue updated",
+      "issue_status_changed": "Issue status changed",
+      "issue_deleted": "Issue deleted",
+      "comment_created": "Comment added",
+      "project_created": "Project created",
+      "project_updated": "Project updated",
+      "project_deleted": "Project deleted",
       "groups_message_sent": "Message sent (Groups)",
       "groups_chat_created": "New chat or group (Groups)",
       "groups_chat_assigned": "Chat assigned (Groups)",
@@ -218,6 +229,15 @@
       "request": "Body sent",
       "response": "Response",
       "noBody": "Empty response"
+    },
+    "deliveries": {
+      "show": "Deliveries",
+      "title": "Recent deliveries",
+      "empty": "No deliveries yet.",
+      "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+      "retryAt": "next retry {date}",
+      "redeliver": "Resend",
+      "close": "Close"
     }
   },
   "credentials": {

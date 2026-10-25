@@ -80,6 +80,9 @@
     "groupReports": "Reportes",
     "groupProjects": "Proyectos",
     "groupIssues": "Issues",
+    "groupTrackPlans": "Proyectos",
+    "groupTrackInitiatives": "Iniciativas",
+    "groupTrackDashboards": "Dashboards de Track",
     "groupBoards": "Pizarras",
     "groupEventTypes": "Tipos de evento",
     "groupBookings": "Reservas",
@@ -138,6 +141,11 @@
     "openApp": "Abrir {name}",
     "goHome": "Ir al inicio",
     "linkOverview": "Resumen de Link",
+    "groupTeams": "Equipos",
+    "groupTrackViews": "Vistas",
+    "groupTrackCycles": "Cycles",
+    "groupTrackMilestones": "Milestones",
+    "groupTrackLabels": "Labels",
     "askDocs": "Preguntarle a la IA sobre tus docs"
   },
   "manifesto": {
@@ -586,7 +594,9 @@
       "invalid_input": "Revisá los campos y probá de nuevo.",
       "not_ready": "La vista previa ya no está disponible. Empezá de nuevo.",
       "internal_error": "Algo falló de nuestro lado. No se cambió nada más.",
-      "generic": "No se pudo importar. Probá de nuevo."
+      "generic": "No se pudo importar. Probá de nuevo.",
+      "invalid_site": "Usá la dirección de tu Jira Cloud, como https://acme.atlassian.net.",
+      "invalid_project": "Pegá la URL del proyecto de Asana o su id numérico."
     },
     "readFailed": "No pudimos leer {source}: {reason}"
   },

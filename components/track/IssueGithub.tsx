@@ -27,6 +27,20 @@ export function useIssueGithub(issueId: string): GithubData | null {
   return data;
 }
 
+const REVIEW_STATES = ['approved', 'changes_requested', 'commented', 'requested'] as const;
+
+/** Reviews del PR (login → estado) en el orden en que llegaron. */
+function reviewsOf(l: TrackIssueLink): Array<[string, (typeof REVIEW_STATES)[number]]> {
+  try {
+    const v = JSON.parse(l.reviews ?? '{}') as Record<string, string>;
+    return Object.entries(v).filter((e): e is [string, (typeof REVIEW_STATES)[number]] =>
+      (REVIEW_STATES as readonly string[]).includes(e[1]),
+    );
+  } catch {
+    return [];
+  }
+}
+
 /** PRs y commits de GitHub vinculados al issue: solo con GitHub conectado o con vínculos. */
 export function IssueGithubPanel({ data }: { data: GithubData | null }) {
   const t = useTranslations('track');
@@ -44,8 +58,28 @@ export function IssueGithubPanel({ data }: { data: GithubData | null }) {
               <a href={l.url} target="_blank" rel="noreferrer" className="track-gh-title">
                 {l.title || l.url}
               </a>
-              <span className={`badge track-gh-state is-${l.state}`}>{t(`github.states.${l.state}`)}</span>
+              <span className="track-gh-badges">
+                <span className={`badge track-gh-state is-${l.state}`}>{t(`github.states.${l.state}`)}</span>
+                {l.kind === 'pr' && l.checks ? (
+                  <span
+                    className={`badge track-gh-checks ${l.checks === 'success' ? 'badge-ok' : l.checks === 'failure' ? 'badge-bad' : 'badge-warn'}`}
+                    data-testid="track-gh-checks"
+                  >
+                    {t(`github.checks.${l.checks}`)}
+                  </span>
+                ) : null}
+              </span>
               <span className="track-gh-repo data">{l.repo}</span>
+              {l.kind === 'pr' && reviewsOf(l).length > 0 ? (
+                <span className="track-gh-reviews" data-testid="track-gh-reviews">
+                  {reviewsOf(l).map(([login, st]) => (
+                    <span key={login} className={`track-gh-review is-${st}`}>
+                      {login} · {t(`github.reviews.${st}`)}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
+              {l.kind === 'pr' && l.closes === 0 ? <span className="st-muted track-gh-ref">{t('github.refOnly')}</span> : null}
             </li>
           ))}
         </ul>

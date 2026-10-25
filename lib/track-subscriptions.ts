@@ -11,6 +11,7 @@
  * Track de los suscriptos, nunca a quien hizo el cambio.
  */
 import { getDb } from './db';
+import { trackVisibleExpr } from './track-access';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -52,7 +53,7 @@ export async function listIssueSubscriberIds(issueId: string): Promise<string[]>
   const rows = (await getDb()
     .prepare(
       `WITH issue AS (
-         SELECT i.id, i.creator_id, i.assignee_id, p.team_id, p.owner_id
+         SELECT i.id, i.project_id, i.creator_id, i.assignee_id, p.team_id, p.owner_id
          FROM track_issues i JOIN track_projects p ON p.id = i.project_id
          WHERE i.id = ?
        ),
@@ -72,6 +73,8 @@ export async function listIssueSubscriberIds(issueId: string): Promise<string[]>
            (issue.team_id IS NULL AND c.user_id = issue.owner_id)
            OR (issue.team_id IS NOT NULL AND EXISTS (
              SELECT 1 FROM team_members m WHERE m.team_id = issue.team_id AND m.user_id = c.user_id
+           ) AND EXISTS (
+             SELECT 1 FROM track_projects vp WHERE vp.id = issue.project_id AND ${trackVisibleExpr('vp', 'c.user_id')}
            ))
          )
        ORDER BY c.user_id`,

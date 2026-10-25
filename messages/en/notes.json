@@ -240,7 +240,7 @@
     "noteHint": "“{title}” becomes one issue with the note’s text as its description.",
     "untitled": "Untitled",
     "loadingProjects": "Loading projects…",
-    "noProjects": "There are no Track projects in this workspace yet.",
+    "noProjects": "There are no Track teams in this workspace yet.",
     "openTrack": "Open Track",
     "project": "Project",
     "backlinkHint": "Each issue links back to this note, and the note gets a link to each issue.",

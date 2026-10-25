@@ -1166,6 +1166,11 @@ export interface TrackProjectRow {
   status: 'active' | 'archived';
   /** 1 = los issues creados desde afuera entran a la cola de triage. */
   triage_enabled?: number;
+  /** Auto-cierre (114): el padre al terminar sus sub-issues / los sub-issues al cerrar el padre. */
+  auto_close_parent?: number;
+  auto_close_children?: number;
+  /** Escala de estimación del team: fibonacci, linear, exponential, tshirt o none (migración 115). */
+  estimate_scale?: string;
   /** 1 = Track crea los cycles solo (cada `cycle_weeks` semanas) y arrastra lo sin terminar. */
   cycle_auto?: number;
   cycle_weeks?: number;
@@ -1173,6 +1178,8 @@ export interface TrackProjectRow {
   cycle_name?: string;
   /** Último día (UTC) en que el tick revisó los cycles automáticos. */
   cycle_auto_day?: string | null;
+  /** 'private' = solo lo ven los miembros del proyecto (track_project_access). */
+  visibility?: 'workspace' | 'private';
   created_at: string;
   updated_at: string;
 }
@@ -1205,7 +1212,8 @@ export interface TrackIssueRow {
   title: string;
   description: string; // JSON TrackBlock[]
   status_id: string | null;
-  priority: 'urgent' | 'high' | 'medium' | 'low';
+  /** 'none' = sin prioridad (como Linear). */
+  priority: 'none' | 'urgent' | 'high' | 'medium' | 'low';
   assignee_id: string | null;
   creator_id: string;
   cycle_id: string | null;
@@ -1219,6 +1227,13 @@ export interface TrackIssueRow {
   /** 1 = pendiente en la cola de triage del proyecto. */
   triage?: number;
   milestone_id?: string | null;
+  /** Orden manual dentro de los sub-issues del padre (null = por creación). */
+  sub_order?: number | null;
+  /** Project de Linear (track_plans) al que pertenece. */
+  plan_id?: string | null;
+  plan_milestone_id?: string | null;
+  /** Archivado (a mano o por el auto-archivo del team): sale de las listas. */
+  archived_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1283,6 +1298,8 @@ export interface TrackIssueViewRow {
   sort: string;
   columns: string | null; // JSON string[]
   is_default: 0 | 1;
+  /** 1 = vista de equipo: la ven todos los que acceden al proyecto. */
+  shared?: 0 | 1;
   created_at: string;
   updated_at: string;
 }
@@ -1295,6 +1312,11 @@ export interface TrackIssueCommentRow {
   created_at: string;
   /** Última edición del autor (null si nunca se editó). */
   updated_at: string | null;
+  /** Respuesta en hilo: id del comentario raíz. */
+  parent_id?: string | null;
+  /** Hilo resuelto (solo en el comentario raíz). */
+  resolved_at?: string | null;
+  resolved_by?: string | null;
 }
 
 export interface TrackIssueRelationRow {

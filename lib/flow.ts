@@ -562,17 +562,10 @@ export async function canSeeRunData(
 ): Promise<boolean> {
   if (!viewer) return true;
   if (flowCreator && viewer.personId === flowCreator) return true;
-  if (!viewer.admin) return false;
-  const input = parseJson(run.input, {}) as Record<string, unknown>;
-  const type = (input.event as { type?: unknown } | undefined)?.type;
-  void type;
-  // Eventos de Docs: además, el admin tiene que poder abrir la página (teamspaces privados).
-  if (typeof type === 'string' && (type.startsWith('page.') || type.startsWith('database.'))) {
-    const pageId = String(((input as { page?: { id?: unknown } }).page?.id) ?? '');
-    const { docsDeliveryAllowed } = await import('./docs-events');
-    return docsDeliveryAllowed(workspaceId, viewer.personId, pageId);
-  }
-  return true;
+  // Datos capturados con el acceso de quien creó el flow: solo los ve esa persona
+  // (un admin puede no tener acceso a lo mismo: páginas privadas, canales).
+  void run;
+  return false;
 }
 
 function redactRun<T extends FlowRunDto>(run: T): T {

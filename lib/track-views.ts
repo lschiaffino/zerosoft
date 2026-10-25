@@ -10,14 +10,23 @@ import type { TrackIssueWithStatus } from './track-data';
 
 // ---------- Orden ----------
 
-export const ISSUE_SORTS = ['newest', 'oldest', 'updated', 'priority', 'due', 'identifier'] as const;
+export const ISSUE_SORTS = ['newest', 'oldest', 'updated', 'priority', 'due', 'identifier', 'customers', 'revenue'] as const;
 export type IssueSort = (typeof ISSUE_SORTS)[number];
 
 export function parseIssueSort(value: unknown): IssueSort {
   return ISSUE_SORTS.includes(value as IssueSort) ? (value as IssueSort) : 'newest';
 }
 
-const PRIORITY_ORDER = "CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END";
+const PRIORITY_ORDER = "CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END";
+
+/** Clientes distintos que pidieron el issue (pedidos de clientes). */
+export const ISSUE_CUSTOMERS_SQL =
+  '(SELECT COUNT(DISTINCT COALESCE(cr.company_id, cr.contact_id, cr.customer_email, cr.customer_name)) FROM track_customer_requests cr WHERE cr.issue_id = i.id)';
+/** Ingresos de esos clientes: suma de deals ganados de sus empresas en el CRM. */
+export const ISSUE_REVENUE_SQL = `(SELECT COALESCE(SUM(d.amount), 0) FROM crm_deals d
+  JOIN crm_stages st ON st.id = d.stage_id AND st.is_won = 1
+  JOIN crm_deal_companies dc ON dc.deal_id = d.id
+  WHERE dc.company_id IN (SELECT cr.company_id FROM track_customer_requests cr WHERE cr.issue_id = i.id AND cr.company_id IS NOT NULL))`;
 
 /**
  * ORDER BY para cada orden. Todos desempatan por fecha de creación (y luego
@@ -36,14 +45,19 @@ export function issueOrderBy(sort: IssueSort | undefined): string {
       return 'i.due_date IS NULL, i.due_date ASC, ' + `${PRIORITY_ORDER}, i.created_at DESC, i.id DESC`;
     case 'identifier':
       return 'i.identifier ASC, i.id ASC';
+    case 'customers':
+      return `${ISSUE_CUSTOMERS_SQL} DESC, ${PRIORITY_ORDER}, i.created_at DESC, i.id DESC`;
+    case 'revenue':
+      return `${ISSUE_REVENUE_SQL} DESC, ${ISSUE_CUSTOMERS_SQL} DESC, i.created_at DESC, i.id DESC`;
     default:
       return 'i.created_at DESC, i.id DESC';
   }
 }
 
-const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, medium: 2 };
+const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 };
 
-type SortableIssue = Pick<TrackIssueWithStatus, 'id' | 'created_at' | 'updated_at' | 'priority' | 'due_date' | 'identifier'>;
+type SortableIssue = Pick<TrackIssueWithStatus, 'id' | 'created_at' | 'updated_at' | 'priority' | 'due_date' | 'identifier'> &
+  Partial<Pick<TrackIssueWithStatus, 'customer_count' | 'customer_revenue'>>;
 
 function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
@@ -69,6 +83,10 @@ export function compareIssues(sort: IssueSort | undefined, a: SortableIssue, b: 
     }
     case 'identifier':
       return cmp(a.identifier, b.identifier) || cmp(a.id, b.id);
+    case 'customers':
+      return (b.customer_count ?? 0) - (a.customer_count ?? 0) || prio() || newest();
+    case 'revenue':
+      return (b.customer_revenue ?? 0) - (a.customer_revenue ?? 0) || (b.customer_count ?? 0) - (a.customer_count ?? 0) || newest();
     default:
       return newest();
   }
@@ -182,14 +200,21 @@ export interface GroupContext {
    * por nombre (dos "Todo" van juntos) y se ordenan por categoría.
    */
   statusByName?: boolean;
+  /**
+   * Lista como Linear: primero lo empezado, después por hacer, backlog y al
+   * final lo terminado y cancelado (dentro de cada categoría, el orden del team).
+   */
+  activeFirst?: boolean;
 }
+
+const ACTIVE_FIRST_ORDER = ['in_progress', 'todo', 'backlog', 'done', 'cancelled'];
 
 /** Prefijo de las claves de status agrupados por nombre (no son ids asignables). */
 export const STATUS_NAME_KEY = 'name:';
 
 const CATEGORY_ORDER = ['backlog', 'todo', 'in_progress', 'done', 'cancelled'];
 
-const PRIORITY_KEYS = ['urgent', 'high', 'medium', 'low'] as const;
+const PRIORITY_KEYS = ['urgent', 'high', 'medium', 'low', 'none'] as const;
 
 function parseLabelList(raw: string): Array<{ id: string; name: string; color: string }> {
   try {
@@ -272,6 +297,13 @@ export function groupIssues<T extends GroupableIssue>(
     // Por nombre; status sin lista de referencia también.
     out.sort((a, b) => (a.key === '' ? 1 : b.key === '' ? -1 : a.name.localeCompare(b.name)));
   }
+  if (groupBy === 'status' && ctx.activeFirst) {
+    const rank = (g: IssueGroup<T>) => {
+      const i = ACTIVE_FIRST_ORDER.indexOf(g.category ?? '');
+      return i < 0 ? ACTIVE_FIRST_ORDER.length : i;
+    };
+    out = out.map((g, i) => ({ g, i })).sort((a, b) => rank(a.g) - rank(b.g) || a.i - b.i).map((x) => x.g);
+  }
   // "Sin valor" al final siempre.
   const none = out.findIndex((g) => g.key === '');
   if (none >= 0 && none !== out.length - 1) out.push(...out.splice(none, 1));
@@ -303,4 +335,103 @@ export function groupPreset(groupBy: IssueGroupBy, key: string, opts: { movable?
     default:
       return null;
   }
+}
+
+// ---------- Sub-issues bajo el padre ----------
+
+/**
+ * Ordena para mostrar cada sub-issue debajo de su padre (si el padre está en
+ * la lista), manteniendo el orden de la vista entre hermanos. Devuelve la
+ * profundidad de cada uno (0 = primer nivel en la lista).
+ */
+export function nestIssues<T extends Pick<TrackIssueWithStatus, 'id' | 'parent_id'>>(
+  issues: T[],
+): Array<{ issue: T; depth: number }> {
+  const ids = new Set(issues.map((i) => i.id));
+  const kids = new Map<string, T[]>();
+  for (const i of issues) {
+    if (i.parent_id && ids.has(i.parent_id)) {
+      const list = kids.get(i.parent_id) ?? [];
+      list.push(i);
+      kids.set(i.parent_id, list);
+    }
+  }
+  const out: Array<{ issue: T; depth: number }> = [];
+  const seen = new Set<string>();
+  const walk = (issue: T, depth: number) => {
+    if (seen.has(issue.id)) return;
+    seen.add(issue.id);
+    out.push({ issue, depth });
+    for (const k of kids.get(issue.id) ?? []) walk(k, Math.min(depth + 1, 4));
+  };
+  for (const i of issues) {
+    if (!i.parent_id || !ids.has(i.parent_id)) walk(i, 0);
+  }
+  // Ciclos raros (no debería haber): lo que quedó afuera va al final.
+  for (const i of issues) if (!seen.has(i.id)) out.push({ issue: i, depth: 0 });
+  return out;
+}
+
+/**
+ * Árbol en una lista agrupada: los sub-issues van debajo de su padre (en el
+ * grupo del padre) aunque su propio estado sea otro, como "Show sub-issues"
+ * de Linear. `groups` se arma con las raíces; esto devuelve, por raíz, la
+ * raíz y todos sus descendientes presentes en la lista.
+ */
+export function treeRoots<T extends Pick<TrackIssueWithStatus, 'id' | 'parent_id'>>(issues: T[]): {
+  roots: T[];
+  expand: (rows: T[]) => T[];
+} {
+  const byId = new Map(issues.map((i) => [i.id, i]));
+  const kids = new Map<string, T[]>();
+  const rootOf = (i: T): T => {
+    let cur = i;
+    const seen = new Set<string>();
+    while (cur.parent_id && byId.has(cur.parent_id) && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      cur = byId.get(cur.parent_id)!;
+    }
+    return cur;
+  };
+  for (const i of issues) {
+    if (i.parent_id && byId.has(i.parent_id)) {
+      const list = kids.get(i.parent_id) ?? [];
+      list.push(i);
+      kids.set(i.parent_id, list);
+    }
+  }
+  const roots = issues.filter((i) => rootOf(i) === i);
+  const expand = (rows: T[]) => {
+    const out: T[] = [];
+    const seen = new Set<string>();
+    const walk = (i: T, depth: number) => {
+      if (seen.has(i.id) || depth > 8) return;
+      seen.add(i.id);
+      out.push(i);
+      for (const k of kids.get(i.id) ?? []) walk(k, depth + 1);
+    };
+    for (const r of rows) walk(r, 0);
+    return out;
+  };
+  return { roots, expand };
+}
+
+/** Pestañas del team como en Linear: todos, activos (sin empezar y empezados) y backlog. */
+export type TeamScope = 'all' | 'active' | 'backlog';
+export const TEAM_SCOPES: TeamScope[] = ['all', 'active', 'backlog'];
+
+/** Status que entran en la pestaña y con "completados" visibles o no (null = todos). */
+export function scopeStatusIds(
+  statuses: Array<{ id: string; category: string }>,
+  scope: TeamScope,
+  showCompleted: boolean,
+): string[] | null {
+  if (scope === 'all' && showCompleted) return null;
+  const keep = statuses.filter((s) => {
+    if (scope === 'active' && s.category !== 'todo' && s.category !== 'in_progress') return false;
+    if (scope === 'backlog' && s.category !== 'backlog') return false;
+    if (!showCompleted && (s.category === 'done' || s.category === 'cancelled')) return false;
+    return true;
+  });
+  return keep.length ? keep.map((s) => s.id) : ['__none__'];
 }

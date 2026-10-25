@@ -41,8 +41,8 @@ describe('renderTrackMarkdown', () => {
 
   it('marca menciones fuera del código', () => {
     const html = renderTrackMarkdown('hola @ana@x.com y @Juan Perez\n\n`@nope`');
-    expect(html).toContain('<span class="track-mention">@ana@x.com</span>');
-    expect(html).toContain('<span class="track-mention">@Juan Perez</span>');
+    expect(html).toContain('<span class="track-mention" data-mention="@ana@x.com">@ana@x.com</span>');
+    expect(html).toContain('<span class="track-mention" data-mention="@Juan Perez">@Juan Perez</span>');
     expect(html).toContain('<code>@nope</code>');
   });
 

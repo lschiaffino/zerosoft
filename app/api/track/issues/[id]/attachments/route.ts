@@ -12,7 +12,7 @@ async function accessibleIssue(id: string, teamId: string | null, ownerId: strin
   if (!issue) return null;
   const project = await getProject(issue.project_id);
   if (!project) return null;
-  if (!canAccessTrackProject(project, teamId, ownerId)) return null;
+  if (!(await canAccessTrackProject(project, teamId, ownerId))) return null;
   return issue;
 }
 
@@ -57,6 +57,12 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   } catch (err) {
     if (err instanceof UploadError) return NextResponse.json({ error: err.code }, { status: err.status });
     throw err;
+  }
+
+  // Imagen pegada en la descripción o un comentario (`inline=1`): queda en el
+  // texto, como en Linear, y no se lista otra vez en Adjuntos.
+  if (form.get('inline') === '1') {
+    return NextResponse.json({ url, filename, content_type: contentType, inline: true }, { status: 201 });
   }
 
   const row = await createIssueAttachment(params.id, realUserId(user), {

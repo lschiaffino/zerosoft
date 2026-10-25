@@ -9,6 +9,7 @@ import { getCurrentUser, isWorkspaceAdmin, type SessionUser } from './session';
 import { getWorkspaceImportJob, type ImportApp, type ImportJob } from './import-jobs';
 import { CSV_FIELDS, TRACK_IMPORT_MAX_CSV_BYTES } from './track-import-map';
 import { GITHUB_REPO_RE } from './track-import-sources';
+import { asanaProjectGid, normalizeJiraSite } from './track-import-sources-more';
 import { NOTION_MAX_ZIP_BYTES } from './docs-notion-import';
 
 export function importError(status: number, code: string): NextResponse {
@@ -46,6 +47,43 @@ export const importCreateSchema = z.discriminatedUnion('source', [
       .refine((r) => GITHUB_REPO_RE.test(r), { message: 'invalid_repo' }),
     target: z.string().min(1).max(64),
   }),
+  z.object({
+    app: z.literal('track'),
+    source: z.literal('jira'),
+    /** https://<sitio>.atlassian.net */
+    site: z
+      .string()
+      .trim()
+      .max(200)
+      .refine((s) => normalizeJiraSite(s) !== null, { message: 'invalid_site' })
+      .transform((s) => normalizeJiraSite(s) as string),
+    email: z.string().trim().email().max(200),
+    token,
+    /** Clave de proyecto (ENG) o una JQL. */
+    query: z.string().trim().min(1).max(1000),
+    target: z.string().min(1).max(64),
+  }),
+  z.object({
+    app: z.literal('track'),
+    source: z.literal('asana'),
+    token,
+    /** URL o gid del proyecto. */
+    project: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((p) => asanaProjectGid(p) !== null, { message: 'invalid_project' })
+      .transform((p) => asanaProjectGid(p) as string),
+    target: z.string().min(1).max(64),
+  }),
+  z.object({
+    app: z.literal('track'),
+    source: z.literal('shortcut'),
+    token,
+    /** Búsqueda de Shortcut (vacía = todas las stories no archivadas). */
+    query: z.string().trim().max(500).optional(),
+    target: z.string().min(1).max(64),
+  }),
   csvSchema('linear_csv'),
   csvSchema('jira_csv'),
   csvSchema('csv'),
@@ -64,7 +102,7 @@ export type ImportCreatePayload = z.infer<typeof importCreateSchema>;
 
 /** Código de error del zod (invalid_repo, csv_no_title o invalid_input). */
 export function importZodCode(error: z.ZodError): string {
-  const msg = error.issues.find((i) => i.message === 'invalid_repo' || i.message === 'csv_no_title')?.message;
+  const msg = error.issues.find((i) => ['invalid_repo', 'csv_no_title', 'invalid_site', 'invalid_project'].includes(i.message))?.message;
   if (msg) return msg;
   if (error.issues.some((i) => i.path[0] === 'csv' && i.code === 'too_big')) return 'file_too_large';
   return 'invalid_input';

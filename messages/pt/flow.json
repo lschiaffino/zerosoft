@@ -227,7 +227,7 @@
     "app_crm_contact": { "title": "CRM: criar contato", "desc": "Cria um contato (ou devolve o existente com o mesmo email)." },
     "app_crm_sequence": { "title": "CRM: inscrever em sequência", "desc": "Inscreve o contato com este email em uma sequência de vendas. Os emails saem do Gmail do owner do contato." },
     "app_crm_deals": { "title": "CRM: deals recentes", "desc": "Lista os deals criados nas últimas N horas." },
-    "app_track_issue": { "title": "Track: criar issue", "desc": "Cria um issue num projeto do Track deste workspace." },
+    "app_track_issue": { "title": "Track: criar issue", "desc": "Cria um issue numa equipe do Track deste workspace." },
     "app_link": { "title": "Link: criar link curto", "desc": "Cria um link curto." },
     "app_chat_message": { "title": "Chat: enviar mensagem", "desc": "Responde numa conversa do Chat como o bot." },
     "app_groups_message": { "title": "Groups: enviar mensagem de WhatsApp", "desc": "Envia uma mensagem para um chat ou grupo de WhatsApp pelo número conectado." },

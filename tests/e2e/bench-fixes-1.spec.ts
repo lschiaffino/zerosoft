@@ -35,7 +35,7 @@ test.describe('Track', () => {
     for (const n of [1, 2]) {
       await ok(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: `Viejo ${n}`, statusId: todo.id } }));
     }
-    await page.goto(`/en/app/track/projects/${p.id}`);
+    await page.goto(`/en/app/track/team/${p.id}`);
     await expect(page.locator('tr[data-issue-row]', { hasText: 'Viejo 1' })).toBeVisible();
     await page.locator('body').click({ position: { x: 5, y: 5 } });
     await page.keyboard.press('c');
@@ -57,20 +57,24 @@ test.describe('Track', () => {
       await page.emulateMedia({ colorScheme: scheme });
       const p = await trackProject(request);
       await ok(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Uno' } }));
-      await page.goto(`/en/app/track/projects/${p.id}`);
+      await page.goto(`/en/app/track/team/${p.id}`);
+      // El diseño (lista, tablero, cronograma) vive en Display, como en Linear.
+      await page.getByTestId('track-display').click();
       for (const view of ['board', 'gantt']) {
         const btn = page.getByTestId(`track-view-${view}`);
         await btn.click();
         await expect(btn).toHaveAttribute('aria-pressed', 'true');
         await btn.hover();
         await page.waitForTimeout(250);
-        const { color, bg } = await btn.evaluate((el) => {
+        const { color, bg, border } = await btn.evaluate((el) => {
           const cs = getComputedStyle(el);
-          return { color: cs.color, bg: cs.backgroundColor };
+          return { color: cs.color, bg: cs.backgroundColor, border: cs.borderTopColor };
         });
         expect(color).not.toBe(bg);
-        // Sigue siendo la placa de tinta: el fondo no es el gris claro/oscuro del hover común.
-        expect(bg).not.toBe(scheme === 'light' ? 'rgb(245, 245, 245)' : 'rgb(29, 28, 26)');
+        // La activa lleva el filete de tinta (las otras, la línea gris).
+        const other = page.getByTestId('track-view-list');
+        const otherBorder = await other.evaluate((el) => getComputedStyle(el).borderTopColor);
+        expect(border).not.toBe(otherBorder);
       }
       await shot(page, `track_view_hover_${scheme}`);
     });
@@ -87,7 +91,8 @@ test.describe('Track', () => {
     await expect(page.getByTestId('track-copy-link')).toBeVisible();
     await shot(page, 'track_issue_menu');
     await page.getByTestId('track-copy-link').click();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(`/app/track/issues/${a.id}`);
+    // Como Linear: el link lleva el identificador y el título.
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(`/app/track/issue/${a.identifier}/para-borrar`);
 
     await page.getByRole('button', { name: 'More actions' }).click();
     await page.getByTestId('track-issue-delete').click();
@@ -96,8 +101,10 @@ test.describe('Track', () => {
     await page.waitForTimeout(300);
     await shot(page, 'track_issue_delete_confirm');
     await dialog.getByTestId('confirm-dialog-confirm').click();
-    await expect(page).toHaveURL(new RegExp(`/app/track/projects/${p.id}`));
-    expect((await request.get(`/api/track/issues/${a.id}`)).status()).toBe(404);
+    await expect(page).toHaveURL(/\/app\/track\/team\/[A-Z0-9]{2,5}(\?|$)/);
+    // Borrar deja "Deshacer" unos segundos (como Linear) y después borra de verdad.
+    await expect(page.getByTestId('track-undo-toast')).toContainText(a.identifier);
+    await expect.poll(async () => (await request.get(`/api/track/issues/${a.id}`)).status(), { timeout: 15_000 }).toBe(404);
 
     // Atajo: ⌘⌫ abre la misma confirmación; Esc la cancela.
     await page.goto(`/en/app/track/issues/${b.id}`);
@@ -114,9 +121,9 @@ test.describe('Track', () => {
     const issue = await ok<{ id: string }>(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Con inicio' } }));
     await page.goto(`/en/app/track/issues/${issue.id}`);
     const start = page.getByTestId('track-property-start');
-    await expect(start).toContainText('Start');
+    await expect(start).toContainText('Set start date');
     await start.getByRole('button').click();
-    await page.getByRole('menuitem', { name: /Tomorrow/ }).click();
+    await page.locator('.cmdk').getByRole('option', { name: /Tomorrow/ }).click();
     await expect
       .poll(async () => ((await (await request.get(`/api/track/issues/${issue.id}`)).json()) as { start_date: string | null }).start_date)
       .not.toBeNull();
@@ -129,12 +136,16 @@ test.describe('Track', () => {
       request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Por API' } }),
     );
     expect(viaApi.status_category).toBe('todo');
-    await page.goto(`/en/app/track/projects/${p.id}`);
+    await page.goto(`/en/app/track/team/${p.id}`);
+    // /team/<id> redirige a la clave (/team/BEN): se espera a que termine antes de tipear.
+    await page.waitForURL(/\/app\/track\/team\/[A-Z0-9]{2,5}(\?|$)/);
+    await page.waitForLoadState('networkidle');
     await page.locator('body').click({ position: { x: 5, y: 5 } });
     await page.keyboard.press('c');
     await expect(page.getByRole('textbox', { name: 'Issue title' })).toBeVisible();
-    const select = page.getByRole('dialog').locator('select').first();
-    await expect(select).toHaveValue(viaApi.status_id);
+    // El chip de estado del composer arranca en el mismo status que la API.
+    const statusName = ((await (await request.get(`/api/track/projects/${p.id}/statuses`)).json()) as { rows: Array<{ id: string; name: string }> }).rows.find((s) => s.id === viaApi.status_id)!.name;
+    await expect(page.getByTestId('track-qc-status')).toContainText(statusName);
   });
 });
 
@@ -162,6 +173,7 @@ test.describe('Cal', () => {
     await page.goto('/en/app/calendar/analytics');
     await expect(page.locator('.band-section-name')).toHaveText('Analytics');
     for (const id of ['#cal-an-from', '#cal-an-to']) {
+      await expect(page.locator(id)).toBeVisible();
       const box = await page.locator(id).boundingBox();
       expect(box!.height).toBeLessThan(50);
     }

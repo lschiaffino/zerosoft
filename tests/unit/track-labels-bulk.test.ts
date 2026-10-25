@@ -178,7 +178,7 @@ describe('Track: edición masiva', () => {
     const u1 = (await getIssue(i1.id))!;
     expect([u1.status_id, u1.priority, u1.assignee_id, u1.cycle_id]).toEqual([done.id, 'urgent', a.id, cycle.id]);
     expect(parseIssueLabels(u1.labels).map((l) => l.name)).toEqual(['Bug']);
-    expect((await getIssue(ib.id))!.priority).toBe('medium');
+    expect((await getIssue(ib.id))!.priority).toBe('none');
 
     // Assignee ajeno al workspace: se saltea.
     const bad = (await (

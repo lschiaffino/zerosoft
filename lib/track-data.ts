@@ -4,10 +4,12 @@
  * Nota: el módulo `lib/track.ts` ya existe para el tracking de clicks de
  * links, por lo que este feature vive en `lib/track-data.ts`.
  */
+import { teamKeyCandidates } from './track-team-key';
 import { after } from 'next/server';
 import { getDb, getClient, txDb, getUserById } from './db';
 import { emitEvent } from './events';
 import { deleteUploads } from './uploads';
+import { filterToSql, type IssueFilter } from './track-filter';
 import type {
   TrackCycleRow,
   TrackIssueActivityRow,
@@ -42,9 +44,11 @@ import type {
   StatusUpdatePayload,
   StatusesReorderPayload,
 } from './track-schema';
-import { safeHexColor } from './track-color';
+import { safeHexColor, STATUS_CATEGORY_COLORS } from './track-color';
 import { normalizeIssueLabels, projectWorkspaceId } from './track-labels';
-import { issueOrderBy, issueSearchClause, labelIdLike, type IssueSort } from './track-views';
+import { notifyTrackEvent } from './track-events';
+import { currentTrackViewer, projectVisibleTo, trackVisibleExpr, trackVisibleSql } from './track-access';
+import { ISSUE_CUSTOMERS_SQL, ISSUE_REVENUE_SQL, issueOrderBy, issueSearchClause, labelIdLike, type IssueSort } from './track-views';
 import { defaultIssueStatus } from './track-tasks';
 
 // ---------- Tipos públicos ----------
@@ -58,10 +62,28 @@ export interface TrackIssueWithStatus extends TrackIssueRow {
   cycle_name: string | null;
   child_count: number;
   milestone_name?: string | null;
+  /** Nombre del project (plan) del issue. */
+  plan_name?: string | null;
+  /** Milestone del project (track_plan_milestones). */
+  plan_milestone_name?: string | null;
+  /** Sub-issues terminados (done o cancelled), para el progreso x/y. */
+  child_done?: number;
+  /** Padre del sub-issue (para mostrarlo en la fila sin cargarlo). */
+  parent_identifier?: string | null;
+  parent_title?: string | null;
+  /** Clientes distintos que lo pidieron (track_customer_requests). */
+  customer_count?: number;
+  /** Ingresos de esos clientes: deals ganados de sus empresas en el CRM. */
+  customer_revenue?: number;
+  /** SLA abierto (track_issue_slas): vencimiento y desde cuándo está en riesgo. */
+  sla_due_at?: string | null;
+  sla_risk_at?: string | null;
 }
 
 export interface TrackProjectWithStats extends TrackProjectRow {
   open_issues: number;
+  /** Issues esperando triage (sin los pospuestos): el contador del sidebar. */
+  triage_count?: number;
 }
 
 export interface TrackCommentWithAuthor extends TrackIssueCommentRow {
@@ -112,6 +134,12 @@ export interface ListIssuesOptions {
   q?: string;
   dueAfter?: string;
   dueBefore?: string;
+  /** Filtro avanzado (reglas con AND/OR, lib/track-filter). */
+  filter?: IssueFilter;
+  /** Día local de quien filtra, para fechas relativas ("hace 7 días"). */
+  today?: string;
+  /** Solo issues de primer nivel (opción "Ocultar sub-issues" de la vista). */
+  topLevel?: boolean;
   sort?: IssueSort;
   page?: number;
   pageSize?: number;
@@ -205,31 +233,56 @@ export async function nextIdentifier(projectId: string): Promise<string> {
  * (sin team) y su dueño es el usuario. `ownerId` es el id efectivo del
  * workspace (SessionUser.id).
  */
-export function canAccessTrackProject(
-  project: Pick<TrackProjectRow, 'team_id' | 'owner_id'>,
+export async function canAccessTrackProject(
+  project: Pick<TrackProjectRow, 'team_id' | 'owner_id'> & { id?: string; visibility?: TrackProjectRow['visibility'] },
   teamId: string | null,
   ownerId: string,
-): boolean {
-  if (teamId) return project.team_id === teamId;
-  return project.team_id === null && project.owner_id === ownerId;
+): Promise<boolean> {
+  if (!teamId) return project.team_id === null && project.owner_id === ownerId;
+  if (project.team_id !== teamId) return false;
+  // Proyectos privados e invitados (lib/track-access): sin persona es el sistema.
+  const viewer = await currentTrackViewer();
+  if (!viewer || !project.id) return true;
+  return projectVisibleTo(project.id, viewer);
 }
 
-function projectScope(teamId: string | null, ownerId: string): { where: string; arg: string } {
-  return teamId
-    ? { where: 'team_id = ?', arg: teamId }
-    : { where: '(team_id IS NULL AND owner_id = ?)', arg: ownerId };
+/**
+ * Alcance de los proyectos visibles (con alias): los del workspace y, en un
+ * team, solo los que la persona que mira puede ver (privados e invitados).
+ */
+async function projectScope(
+  teamId: string | null,
+  ownerId: string,
+  alias = 'p',
+): Promise<{ where: string; args: string[] }> {
+  if (!teamId) return { where: `(${alias}.team_id IS NULL AND ${alias}.owner_id = ?)`, args: [ownerId] };
+  const viewer = await currentTrackViewer();
+  if (!viewer) return { where: `${alias}.team_id = ?`, args: [teamId] };
+  const v = trackVisibleSql(alias, viewer);
+  return { where: `(${alias}.team_id = ? AND ${v.sql})`, args: [teamId, ...v.args] };
 }
 
 /** Slug único globalmente: si está tomado, agrega un sufijo corto. */
-async function uniqueProjectSlug(base: string, excludeId?: string): Promise<string> {
+/** Primera clave libre de teamKeyCandidates (MOB, MBL…, MOB2); si no, la de siempre por nombre. */
+// La clave del team es única dentro del workspace (como Linear), no en toda la base.
+async function uniqueTeamKey(name: string, ws: string): Promise<string> {
+  const db = getDb();
+  for (const candidate of teamKeyCandidates(name)) {
+    const taken = await db.prepare('SELECT id FROM track_projects WHERE slug = ? AND COALESCE(team_id, owner_id) = ?').get(candidate, ws);
+    if (!taken) return candidate;
+  }
+  return uniqueProjectSlug(slugify(name), ws);
+}
+
+async function uniqueProjectSlug(base: string, ws: string | null, excludeId?: string): Promise<string> {
   const db = getDb();
   const root = base || 'project';
   for (let i = 0; i < 20; i++) {
     const candidate =
       i === 0 ? root : `${root.slice(0, 57)}-${Math.random().toString(36).slice(2, 6)}`;
     const taken = (await db
-      .prepare('SELECT id FROM track_projects WHERE slug = ?')
-      .get(candidate)) as { id: string } | undefined;
+      .prepare('SELECT id FROM track_projects WHERE slug = ? AND COALESCE(team_id, owner_id) IS ?')
+      .get(candidate, ws)) as { id: string } | undefined;
     if (!taken || taken.id === excludeId) return candidate;
   }
   return `${root.slice(0, 50)}-${crypto.randomUUID().slice(0, 12)}`;
@@ -244,12 +297,12 @@ export async function listProjects(
   const pageSize = Math.min(Math.max(options.pageSize ?? 50, 1), 100);
   const page = Math.max(options.page ?? 1, 1);
 
-  const scope = projectScope(teamId, userId);
+  const scope = await projectScope(teamId, userId);
   const where = scope.where;
-  const args: Array<string | number> = [scope.arg];
+  const args: Array<string | number> = [...scope.args];
 
   const total = (
-    (await db.prepare(`SELECT COUNT(*) AS c FROM track_projects WHERE ${where}`).get(...args)) as {
+    (await db.prepare(`SELECT COUNT(*) AS c FROM track_projects p WHERE ${where}`).get(...args)) as {
       c: number;
     }
   ).c;
@@ -259,13 +312,15 @@ export async function listProjects(
       `SELECT p.*,
         (SELECT COUNT(*) FROM track_issues i WHERE i.project_id = p.id AND i.triage = 0 AND i.status_id IN (
           SELECT s.id FROM track_statuses s WHERE s.project_id = p.id AND s.category IN ('backlog','todo','in_progress')
-        )) AS open_issues
+        )) AS open_issues,
+        (SELECT COUNT(*) FROM track_issues i WHERE i.project_id = p.id AND i.triage = 1 AND i.archived_at IS NULL
+          AND NOT EXISTS (SELECT 1 FROM track_triage_snoozes z WHERE z.issue_id = i.id AND z.until > ?)) AS triage_count
        FROM track_projects p
        WHERE ${where}
        ORDER BY p.status ASC, p.name ASC
        LIMIT ? OFFSET ?`,
     )
-    .all(...args, pageSize, (page - 1) * pageSize)) as TrackProjectWithStats[];
+    .all(new Date().toISOString(), ...args, pageSize, (page - 1) * pageSize)) as TrackProjectWithStats[];
 
   return { rows, total, page, pageSize };
 }
@@ -293,7 +348,7 @@ export async function listProjectOverview(
   userId: string,
   today: string,
 ): Promise<TrackProjectOverview[]> {
-  const scope = projectScope(teamId, userId);
+  const scope = await projectScope(teamId, userId);
   const open = `SELECT s.id FROM track_statuses s WHERE s.project_id = p.id AND s.category IN ('backlog','todo','in_progress')`;
   const rows = (await getDb()
     .prepare(
@@ -316,7 +371,7 @@ export async function listProjectOverview(
        ORDER BY p.name ASC
        LIMIT 100`,
     )
-    .all(today, today, today, scope.arg)) as TrackProjectOverview[];
+    .all(today, today, today, ...scope.args)) as TrackProjectOverview[];
   return rows;
 }
 
@@ -326,10 +381,14 @@ export async function getProject(id: string): Promise<TrackProjectRow | undefine
     | undefined;
 }
 
-export async function getProjectBySlug(slug: string): Promise<TrackProjectRow | undefined> {
-  return (await getDb().prepare('SELECT * FROM track_projects WHERE slug = ?').get(slug)) as
-    | TrackProjectRow
-    | undefined;
+/** Team por su clave; con `ws`, dentro de ese workspace (la clave es única por workspace). */
+export async function getProjectBySlug(slug: string, ws?: string): Promise<TrackProjectRow | undefined> {
+  if (ws) {
+    return (await getDb()
+      .prepare('SELECT * FROM track_projects WHERE slug = ? AND COALESCE(team_id, owner_id) = ? LIMIT 1')
+      .get(slug, ws)) as TrackProjectRow | undefined;
+  }
+  return (await getDb().prepare('SELECT * FROM track_projects WHERE slug = ? LIMIT 1').get(slug)) as TrackProjectRow | undefined;
 }
 
 /**
@@ -350,7 +409,9 @@ export async function createProject(
 ): Promise<TrackProjectRow> {
   const db = getDb();
   const id = crypto.randomUUID();
-  const slug = await uniqueProjectSlug(payload.slug ?? slugify(payload.name));
+  // Sin identificador elegido: tres letras del nombre como Linear (MOB), sin repetir.
+  const ws = teamId ?? userId;
+  const slug = payload.slug ? await uniqueProjectSlug(payload.slug, ws) : await uniqueTeamKey(payload.name, ws);
   const now = nowIso();
 
   await db
@@ -371,14 +432,19 @@ export async function createProject(
       now,
     );
 
+  // Auto-archivo por defecto a los 6 meses, como Linear (se cambia en Ajustes ›
+  // Automatizaciones). La columna llega con 111_track_planning.
+  await db.prepare('UPDATE track_projects SET auto_archive_months = 6 WHERE id = ?').run(id).catch(() => undefined);
+
   // Crear estados por defecto
   const names = DEFAULT_STATUS_NAMES[(opts.locale ?? 'en') as keyof typeof DEFAULT_STATUS_NAMES] ?? DEFAULT_STATUS_NAMES.en;
   const defaults: Array<{ name: string; category: TrackStatusRow['category']; color: string }> = [
-    { name: names.backlog, category: 'backlog', color: '#666666' },
-    { name: names.todo, category: 'todo', color: '#000000' },
-    { name: names.in_progress, category: 'in_progress', color: '#000000' },
-    { name: names.done, category: 'done', color: '#000000' },
-    { name: names.cancelled, category: 'cancelled', color: '#999999' },
+    // Colores de Linear por categoría (lib/track-color).
+    { name: names.backlog, category: 'backlog', color: STATUS_CATEGORY_COLORS.backlog },
+    { name: names.todo, category: 'todo', color: STATUS_CATEGORY_COLORS.todo },
+    { name: names.in_progress, category: 'in_progress', color: STATUS_CATEGORY_COLORS.in_progress },
+    { name: names.done, category: 'done', color: STATUS_CATEGORY_COLORS.done },
+    { name: names.cancelled, category: 'cancelled', color: STATUS_CATEGORY_COLORS.cancelled },
   ];
 
   for (let i = 0; i < defaults.length; i++) {
@@ -390,7 +456,9 @@ export async function createProject(
       .run(crypto.randomUUID(), id, s.name, s.color, i, s.category);
   }
 
-  return (await db.prepare('SELECT * FROM track_projects WHERE id = ?').get(id)) as TrackProjectRow;
+  const created = (await db.prepare('SELECT * FROM track_projects WHERE id = ?').get(id)) as TrackProjectRow;
+  notifyTrackEvent({ type: 'project.created', project: created });
+  return created;
 }
 
 export async function updateProject(
@@ -408,9 +476,11 @@ export async function updateProject(
     fields.push('name = ?');
     args.push(payload.name.trim());
   }
+  let newSlug: string | null = null;
   if (payload.slug !== undefined) {
+    newSlug = await uniqueProjectSlug(payload.slug, existing.team_id ?? existing.owner_id ?? null, id);
     fields.push('slug = ?');
-    args.push(await uniqueProjectSlug(payload.slug, id));
+    args.push(newSlug);
   }
   if (payload.description !== undefined) {
     fields.push('description = ?');
@@ -446,6 +516,18 @@ export async function updateProject(
     fields.push('cycle_name = ?');
     args.push(payload.cycleName.trim());
   }
+  if (payload.autoCloseParent !== undefined) {
+    fields.push('auto_close_parent = ?');
+    args.push(payload.autoCloseParent ? 1 : 0);
+  }
+  if (payload.estimateScale !== undefined) {
+    fields.push('estimate_scale = ?');
+    args.push(payload.estimateScale);
+  }
+  if (payload.autoCloseChildren !== undefined) {
+    fields.push('auto_close_children = ?');
+    args.push(payload.autoCloseChildren ? 1 : 0);
+  }
 
   if (fields.length > 0) {
     fields.push('updated_at = ?');
@@ -453,12 +535,42 @@ export async function updateProject(
     args.push(id);
     await db.prepare(`UPDATE track_projects SET ${fields.join(', ')} WHERE id = ?`).run(...args);
   }
+  // Nuevo identificador del team: los issues pasan a NEW-n (como Linear) y los
+  // IDs viejos quedan como alias para que los links y ⌘K los sigan encontrando.
+  if (newSlug && newSlug !== existing.slug) await renameTeamIdentifiers(id, existing.slug, newSlug);
 
-  return getProject(id);
+  const updated = await getProject(id);
+  const changes = Object.keys(payload).filter((k) => payload[k as keyof ProjectUpdatePayload] !== undefined);
+  if (updated && changes.length > 0) notifyTrackEvent({ type: 'project.updated', project: updated, changes });
+  return updated;
+}
+
+/** OLD-12 → NEW-12 en los issues del team, guardando OLD-12 en track_issue_aliases. */
+export async function renameTeamIdentifiers(projectId: string, oldSlug: string, newSlug: string): Promise<number> {
+  const db = getDb();
+  const oldPrefix = `${oldSlug.toUpperCase()}-`;
+  const newPrefix = `${newSlug.toUpperCase()}-`;
+  const rows = (await db
+    .prepare('SELECT id, identifier FROM track_issues WHERE project_id = ? AND identifier >= ? AND identifier < ?')
+    .all(projectId, oldPrefix, `${oldSlug.toUpperCase()}.`)) as Array<{ id: string; identifier: string }>;
+  let n = 0;
+  for (const r of rows) {
+    const next = `${newPrefix}${r.identifier.slice(oldPrefix.length)}`;
+    const clash = await db.prepare('SELECT 1 FROM track_issues WHERE project_id = ? AND identifier = ?').get(projectId, next);
+    if (clash) continue;
+    await db
+      .prepare('INSERT OR IGNORE INTO track_issue_aliases (project_id, identifier, issue_id, created_at) VALUES (?, ?, ?, ?)')
+      .run(projectId, r.identifier, r.id, nowIso())
+      .catch(() => undefined);
+    await db.prepare('UPDATE track_issues SET identifier = ? WHERE id = ?').run(next, r.id);
+    n++;
+  }
+  return n;
 }
 
 export async function deleteProject(id: string): Promise<boolean> {
   const db = getDb();
+  const snapshot = await getProject(id);
   const files = (await db
     .prepare(
       'SELECT a.url FROM track_issue_attachments a JOIN track_issues i ON i.id = a.issue_id WHERE i.project_id = ?',
@@ -466,6 +578,7 @@ export async function deleteProject(id: string): Promise<boolean> {
     .all(id)) as Array<{ url: string }>;
   const res = await db.prepare('DELETE FROM track_projects WHERE id = ?').run(id);
   if (res.changes > 0) await deleteUploads(files.map((f) => f.url));
+  if (res.changes > 0 && snapshot) notifyTrackEvent({ type: 'project.deleted', project: snapshot });
   return res.changes > 0;
 }
 
@@ -502,7 +615,7 @@ export async function createStatus(
       id,
       projectId,
       payload.name.trim(),
-      safeHexColor(payload.color, '#666666'),
+      safeHexColor(payload.color, STATUS_CATEGORY_COLORS[payload.category ?? 'todo'] ?? '#8a8f98'),
       payload.position ?? max.p + 1,
       payload.category ?? 'todo',
     );
@@ -596,7 +709,7 @@ export async function deleteStatusWithReassign(id: string, reassignTo: string): 
   const tdb = txDb(tx);
   try {
     const moved = await tdb
-      .prepare("UPDATE track_issues SET status_id = ?, updated_at = datetime('now') WHERE status_id = ? AND project_id = ?")
+      .prepare("UPDATE track_issues SET status_id = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE status_id = ? AND project_id = ?")
       .run(target.id, id, status.project_id);
     await tdb.prepare('DELETE FROM track_statuses WHERE id = ?').run(id);
     await tx.commit();
@@ -743,7 +856,7 @@ export async function completeCycle(
       )
       .all(cycle.id, cycle.project_id, cycle.project_id)) as TrackIssueWithStatus[];
     const res = await tdb
-      .prepare(`UPDATE track_issues SET cycle_id = ?, updated_at = datetime('now') WHERE ${unfinished}`)
+      .prepare(`UPDATE track_issues SET cycle_id = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE ${unfinished}`)
       .run(target, cycle.id, cycle.project_id, cycle.project_id);
     moved = res.changes;
     if (cycle.end_at.slice(0, 10) > today) {
@@ -783,7 +896,7 @@ export async function deleteCycle(id: string): Promise<boolean> {
 
 // ---------- Issues ----------
 
-function issueSelect(extraWhere = ''): string {
+export function issueSelect(extraWhere = ''): string {
   return `
     SELECT
       i.*,
@@ -794,7 +907,17 @@ function issueSelect(extraWhere = ''): string {
       u.email AS assignee_email,
       c.name AS cycle_name,
       ms.name AS milestone_name,
-      (SELECT COUNT(*) FROM track_issues child WHERE child.parent_id = i.id) AS child_count
+      (SELECT tp.name FROM track_plans tp WHERE tp.id = i.plan_id) AS plan_name,
+      (SELECT pm.name FROM track_plan_milestones pm WHERE pm.id = i.plan_milestone_id) AS plan_milestone_name,
+      (SELECT COUNT(*) FROM track_issues child WHERE child.parent_id = i.id) AS child_count,
+      (SELECT COUNT(*) FROM track_issues child JOIN track_statuses cs ON cs.id = child.status_id
+        WHERE child.parent_id = i.id AND cs.category IN ('done', 'cancelled')) AS child_done,
+      (SELECT pi.identifier FROM track_issues pi WHERE pi.id = i.parent_id) AS parent_identifier,
+      (SELECT pi.title FROM track_issues pi WHERE pi.id = i.parent_id) AS parent_title,
+      ${ISSUE_CUSTOMERS_SQL} AS customer_count,
+      ${ISSUE_REVENUE_SQL} AS customer_revenue,
+      (SELECT sla.due_at FROM track_issue_slas sla WHERE sla.issue_id = i.id AND sla.completed_at IS NULL) AS sla_due_at,
+      (SELECT sla.risk_at FROM track_issue_slas sla WHERE sla.issue_id = i.id AND sla.completed_at IS NULL) AS sla_risk_at
     FROM track_issues i
     LEFT JOIN track_statuses s ON s.id = i.status_id
     LEFT JOIN users u ON u.id = i.assignee_id
@@ -819,7 +942,8 @@ export async function listIssues(
   const pageSize = Math.min(Math.max(options.pageSize ?? 50, 1), 100);
   const page = Math.max(options.page ?? 1, 1);
 
-  const where: string[] = ['i.project_id = ?', 'i.triage = 0'];
+  // Los archivados (auto-archivo, lib/track-housekeeping) no salen en las listas.
+  const where: string[] = ['i.project_id = ?', 'i.triage = 0', 'i.archived_at IS NULL'];
   const args: Array<string | number> = [projectId];
 
   const statusIds = toArray(options.statusId);
@@ -863,6 +987,12 @@ export async function listIssues(
     where.push(`(${placeholders})`);
     args.push(...labelIds.map(labelIdLike));
   }
+  const advanced = filterToSql(options.filter, options.today ?? new Date().toISOString().slice(0, 10));
+  if (advanced) {
+    where.push(advanced.sql);
+    args.push(...advanced.args);
+  }
+  if (options.topLevel) where.push('i.parent_id IS NULL');
 
   const whereSql = where.join(' AND ');
   const orderBy = issueOrderBy(options.sort);
@@ -891,17 +1021,17 @@ export async function listAllIssues(
   const pageSize = Math.min(Math.max(options.pageSize ?? 50, 1), 100);
   const page = Math.max(options.page ?? 1, 1);
 
-  const scope = projectScope(teamId, userId);
+  const scope = await projectScope(teamId, userId, 'tp');
   const projectWhere = scope.where;
-  const projectArg = scope.arg;
 
   // Solo proyectos activos, como listMyIssues y listProjectMetas: los de un
   // proyecto archivado no se pueden editar desde la lista.
   const where: string[] = [
-    `i.project_id IN (SELECT id FROM track_projects WHERE ${projectWhere} AND status = 'active')`,
+    `i.project_id IN (SELECT tp.id FROM track_projects tp WHERE ${projectWhere} AND tp.status = 'active')`,
     'i.triage = 0',
+    'i.archived_at IS NULL',
   ];
-  const args: Array<string | number> = [projectArg];
+  const args: Array<string | number> = [...scope.args];
 
   if (options.projectId) {
     where.push('i.project_id = ?');
@@ -949,6 +1079,12 @@ export async function listAllIssues(
     where.push(`(${placeholders})`);
     args.push(...labelIds.map(labelIdLike));
   }
+  const advanced = filterToSql(options.filter, options.today ?? new Date().toISOString().slice(0, 10));
+  if (advanced) {
+    where.push(advanced.sql);
+    args.push(...advanced.args);
+  }
+  if (options.topLevel) where.push('i.parent_id IS NULL');
 
   const whereSql = where.join(' AND ');
   const orderBy = issueOrderBy(options.sort);
@@ -959,11 +1095,19 @@ export async function listAllIssues(
       .get(...args)) as { c: number }
   ).c;
 
+  // Con texto, como Linear: el ID exacto primero, después los que empiezan con ese ID y después por título.
+  const needle = options.q?.trim() ?? '';
+  const rank = needle
+    ? {
+        sql: "CASE WHEN UPPER(i.identifier) = UPPER(?) THEN 0 WHEN UPPER(i.identifier) LIKE UPPER(?) ESCAPE '\\' THEN 1 WHEN i.title LIKE ? ESCAPE '\\' THEN 2 ELSE 3 END, ",
+        args: [needle, `${needle.replace(/[\\%_]/g, (c) => `\\${c}`)}%`, `${needle.replace(/[\\%_]/g, (c) => `\\${c}`)}%`],
+      }
+    : { sql: '', args: [] as string[] };
   const rows = (await db
     .prepare(
-      `${issueSelect(`WHERE ${whereSql}`)} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
+      `${issueSelect(`WHERE ${whereSql}`)} ORDER BY ${rank.sql}${orderBy} LIMIT ? OFFSET ?`,
     )
-    .all(...args, pageSize, (page - 1) * pageSize)) as TrackIssueWithStatus[];
+    .all(...args, ...rank.args, pageSize, (page - 1) * pageSize)) as TrackIssueWithStatus[];
 
   return { rows, total, page, pageSize };
 }
@@ -980,12 +1124,13 @@ export async function listMyIssues(
   assigneeId: string,
   options: { includeCompleted?: boolean; limit?: number } = {},
 ): Promise<TrackIssueWithStatus[]> {
-  const scope = projectScope(teamId, ownerId);
+  const scope = await projectScope(teamId, ownerId, 'tp');
   const limit = Math.min(Math.max(options.limit ?? 200, 1), 500);
   const where = [
-    `i.project_id IN (SELECT id FROM track_projects WHERE ${scope.where} AND status = 'active')`,
+    `i.project_id IN (SELECT tp.id FROM track_projects tp WHERE ${scope.where} AND tp.status = 'active')`,
     'i.assignee_id = ?',
     'i.triage = 0',
+    'i.archived_at IS NULL',
   ];
   if (!options.includeCompleted) {
     where.push("(s.category IS NULL OR s.category NOT IN ('done', 'cancelled'))");
@@ -994,11 +1139,57 @@ export async function listMyIssues(
     .prepare(
       `${issueSelect(`WHERE ${where.join(' AND ')}`)}
        ORDER BY i.due_date IS NULL, i.due_date ASC,
-         CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+         CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END,
          i.created_at ASC
        LIMIT ?`,
     )
-    .all(scope.arg, assigneeId, limit)) as TrackIssueWithStatus[];
+    .all(...scope.args, assigneeId, limit)) as TrackIssueWithStatus[];
+}
+
+export type MyIssuesTab = 'assigned' | 'created' | 'subscribed' | 'activity';
+export const MY_ISSUES_TABS: readonly MyIssuesTab[] = ['assigned', 'created', 'subscribed', 'activity'];
+
+/**
+ * My issues como en Linear: asignados, creados, suscriptos (explícitos, más
+ * los que creé o tengo asignados, menos los que silencié) y actividad (issues
+ * donde hice algo, del más reciente). Incluye completados: la vista los agrupa
+ * por estado.
+ */
+export async function listMyIssuesTab(
+  teamId: string | null,
+  ownerId: string,
+  me: string,
+  tab: MyIssuesTab,
+  limit = 200,
+): Promise<TrackIssueWithStatus[]> {
+  if (tab === 'assigned') return listMyIssues(teamId, ownerId, me, { includeCompleted: true, limit });
+  const scope = await projectScope(teamId, ownerId, 'tp');
+  const where = [
+    `i.project_id IN (SELECT tp.id FROM track_projects tp WHERE ${scope.where} AND tp.status = 'active')`,
+    'i.triage = 0',
+    'i.archived_at IS NULL',
+  ];
+  const args: Array<string | number> = [...scope.args];
+  let order = 'i.updated_at DESC';
+  if (tab === 'created') {
+    where.push('i.creator_id = ?');
+    args.push(me);
+  } else if (tab === 'subscribed') {
+    where.push(
+      `((i.creator_id = ? OR i.assignee_id = ? OR EXISTS (SELECT 1 FROM track_issue_subscriptions su WHERE su.issue_id = i.id AND su.user_id = ? AND su.subscribed = 1))
+        AND NOT EXISTS (SELECT 1 FROM track_issue_subscriptions sx WHERE sx.issue_id = i.id AND sx.user_id = ? AND sx.subscribed = 0))`,
+    );
+    args.push(me, me, me, me);
+  } else {
+    where.push('EXISTS (SELECT 1 FROM track_issue_activities ma WHERE ma.issue_id = i.id AND ma.user_id = ?)');
+    args.push(me);
+    order = '(SELECT MAX(ma2.created_at) FROM track_issue_activities ma2 WHERE ma2.issue_id = i.id AND ma2.user_id = ?) DESC';
+    args.push(me);
+  }
+  args.push(Math.min(Math.max(limit, 1), 500));
+  return (await getDb()
+    .prepare(`${issueSelect(`WHERE ${where.join(' AND ')}`)} ORDER BY ${order} LIMIT ?`)
+    .all(...args)) as TrackIssueWithStatus[];
 }
 
 export async function getIssue(id: string): Promise<TrackIssueWithStatus | undefined> {
@@ -1011,16 +1202,144 @@ export async function getIssue(id: string): Promise<TrackIssueWithStatus | undef
  * Issue con su proyecto, solo si el proyecto es del workspace activo
  * (ver canAccessTrackProject). Para páginas que cargan un issue por id.
  */
+const ISSUE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Id del issue a partir de un id o un identificador ("WEB-12", también el ID
+ * viejo de un issue que se movió de team) dentro del workspace. null si no hay
+ * uno solo.
+ */
+export async function resolveIssueRef(ref: string, teamId: string | null, ownerId: string): Promise<string | null> {
+  const raw = decodeURIComponent(ref).trim();
+  if (!raw) return null;
+  if (ISSUE_UUID_RE.test(raw)) return raw;
+  if (!/^[A-Za-z0-9_-]{1,40}-\d{1,9}$/.test(raw)) return raw;
+  const ws = teamId ?? ownerId;
+  const col = teamId ? 'p.team_id' : 'p.owner_id';
+  const extra = teamId ? '' : ' AND p.team_id IS NULL';
+  const db = getDb();
+  const direct = (await db
+    .prepare(
+      `SELECT i.id FROM track_issues i JOIN track_projects p ON p.id = i.project_id
+       WHERE ${col} = ?${extra} AND UPPER(i.identifier) = ? LIMIT 2`,
+    )
+    .all(ws, raw.toUpperCase())) as Array<{ id: string }>;
+  if (direct.length === 1) return direct[0].id;
+  const alias = (await db
+    .prepare(
+      `SELECT a.issue_id AS id FROM track_issue_aliases a JOIN track_projects p ON p.id = a.project_id
+       WHERE ${col} = ?${extra} AND UPPER(a.identifier) = ? ORDER BY a.created_at DESC LIMIT 1`,
+    )
+    .all(ws, raw.toUpperCase())
+    .catch(() => [])) as Array<{ id: string }>;
+  // Sin coincidencia: puede ser un id con otra forma (se busca tal cual).
+  return alias[0]?.id ?? raw;
+}
+
 export async function getAccessibleIssue(
   id: string,
   teamId: string | null,
   ownerId: string,
 ): Promise<{ issue: TrackIssueWithStatus; project: TrackProjectRow } | null> {
-  const issue = await getIssue(id);
+  const resolved = ISSUE_UUID_RE.test(id) ? id : await resolveIssueRef(id, teamId, ownerId);
+  if (!resolved) return null;
+  const issue = await getIssue(resolved);
   if (!issue) return null;
   const project = await getProject(issue.project_id);
-  if (!project || !canAccessTrackProject(project, teamId, ownerId)) return null;
+  if (!project || !(await canAccessTrackProject(project, teamId, ownerId))) return null;
   return { issue, project };
+}
+
+/**
+ * Estado equivalente en otro team: mismo nombre, si no la misma categoría (el
+ * primero por posición), si no el estado por defecto. Como "Move to team" de
+ * Linear, que mapea los estados al mover.
+ */
+export function mapStatusToTeam(
+  from: { name: string | null; category: string | null },
+  target: TrackStatusRow[],
+): TrackStatusRow | undefined {
+  const sorted = [...target].sort((a, b) => a.position - b.position);
+  const name = (from.name ?? '').trim().toLowerCase();
+  return (
+    sorted.find((s) => s.name.trim().toLowerCase() === name) ??
+    sorted.find((s) => s.category === from.category) ??
+    (defaultIssueStatus(sorted) as TrackStatusRow | undefined) ??
+    sorted[0]
+  );
+}
+
+/**
+ * Mueve un issue (y sus sub-issues) a otro team, como "Move to team" de
+ * Linear: estado equivalente, identificador nuevo con la clave del team
+ * (WEB-12 → OPS-31), sin cycle ni milestone (son del team anterior). El
+ * identificador viejo queda en la actividad y sigue resolviendo (refs).
+ */
+export async function moveIssueToTeam(
+  issueId: string,
+  targetProjectId: string,
+  actorId: string,
+): Promise<TrackIssueWithStatus | undefined> {
+  const db = getDb();
+  const existing = await getIssue(issueId);
+  if (!existing) return undefined;
+  if (existing.project_id === targetProjectId) return existing;
+  const [from, to] = await Promise.all([getProject(existing.project_id), getProject(targetProjectId)]);
+  if (!from || !to) return undefined;
+  const statuses = await listStatuses(targetProjectId);
+  const descendants = (await db
+    .prepare(
+      `WITH RECURSIVE d(id, depth) AS (
+         SELECT id, 1 FROM track_issues WHERE parent_id = ?
+         UNION ALL SELECT i.id, d.depth + 1 FROM track_issues i JOIN d ON i.parent_id = d.id WHERE d.depth < 20
+       ) SELECT id FROM d ORDER BY depth`,
+    )
+    .all(issueId)) as Array<{ id: string }>;
+  const now = nowIso();
+  for (const id of [issueId, ...descendants.map((d) => d.id)]) {
+    const issue = id === issueId ? existing : await getIssue(id);
+    if (!issue || issue.project_id === targetProjectId) continue;
+    const status = mapStatusToTeam({ name: issue.status_name, category: issue.status_category }, statuses);
+    let identifier = await nextIdentifier(targetProjectId);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await db
+          .prepare(
+            `UPDATE track_issues SET project_id = ?, identifier = ?, status_id = ?, cycle_id = NULL, milestone_id = NULL,
+               triage = 0, updated_at = ? WHERE id = ?`,
+          )
+          .run(targetProjectId, identifier, status?.id ?? null, now, id);
+        break;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '';
+        if (attempt >= 5 || !msg.includes('UNIQUE')) throw err;
+        identifier = await nextIdentifier(targetProjectId);
+      }
+    }
+    // El ID viejo sigue llevando al issue (⌘K, links, /issue/WEB-12), como en Linear.
+    await db
+      .prepare('INSERT OR REPLACE INTO track_issue_aliases (project_id, identifier, issue_id) VALUES (?, ?, ?)')
+      .run(issue.project_id, issue.identifier, id)
+      .catch(() => undefined);
+    // Sin activity type propio en el CHECK: va como cambio con `field: 'team'`.
+    await createIssueActivity(id, actorId, 'cycle_change', {
+      field: 'team',
+      from: from.name,
+      to: to.name,
+      fromIdentifier: issue.identifier,
+      toIdentifier: identifier,
+    });
+    if (issue.plan_id) {
+      await db.prepare('INSERT OR IGNORE INTO track_plan_teams (plan_id, project_id) VALUES (?, ?)').run(issue.plan_id, targetProjectId);
+    }
+    await (await import('./track-sla')).syncIssueSla(id).catch(() => undefined);
+  }
+  const updated = await getIssue(issueId);
+  if (updated) {
+    scheduleIssueEvents(existing, updated, ['projectId', 'identifier', 'statusId']);
+    notifyTrackEvent({ type: 'issue.updated', before: existing, after: updated, changes: ['projectId', 'identifier', 'statusId'], actorId });
+  }
+  return updated;
 }
 
 export async function getIssueByIdentifier(
@@ -1037,20 +1356,34 @@ export async function getIssueByIdentifier(
  * (API, Chat, Flow, GitHub, agentes) entra a triage si el proyecto lo tiene
  * activo. Por defecto se asume origen externo.
  */
-export type TrackIssueSource = 'app' | 'api' | 'chat' | 'flow' | 'github' | 'agent' | 'recurring' | 'import';
+export type TrackIssueSource =
+  | 'app'
+  | 'api'
+  | 'chat'
+  | 'flow'
+  | 'github'
+  | 'agent'
+  | 'recurring'
+  | 'import'
+  | 'mcp'
+  | 'slack'
+  | 'sentry'
+  | 'support';
 
 export async function createIssue(
   projectId: string,
   creatorId: string,
   payload: IssueCreatePayload,
-  opts: { source?: TrackIssueSource } = {},
+  opts: { source?: TrackIssueSource; deferTriage?: boolean } = {},
 ): Promise<TrackIssueWithStatus> {
   const db = getDb();
   const id = crypto.randomUUID();
   const source: TrackIssueSource = opts.source ?? 'api';
   const projectRow = await getProject(projectId);
   // Los que se repiten los configuró un miembro: no pasan por triage.
-  const triage = source !== 'app' && source !== 'recurring' && projectRow?.triage_enabled ? 1 : 0;
+  // Desde la app, el composer puede mandarlo a triage a propósito (como Linear: status "Triage").
+  const wantsTriage = (payload as { triage?: boolean }).triage === true && Boolean(projectRow?.triage_enabled);
+  const triage = wantsTriage || (source !== 'app' && source !== 'recurring' && projectRow?.triage_enabled) ? 1 : 0;
   const ws = projectRow ? projectWorkspaceId(projectRow) : null;
   const labelsJson =
     payload.labels && ws ? JSON.stringify(await normalizeIssueLabels(ws, payload.labels)) : '[]';
@@ -1069,7 +1402,7 @@ export async function createIssue(
     try {
       await db
         .prepare(
-          'INSERT INTO track_issues (id, project_id, identifier, title, description, status_id, priority, assignee_id, creator_id, cycle_id, estimate, parent_id, start_date, due_date, labels, source, triage, milestone_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO track_issues (id, project_id, identifier, title, description, status_id, priority, assignee_id, creator_id, cycle_id, estimate, parent_id, start_date, due_date, labels, source, triage, milestone_id, plan_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run(
           id,
@@ -1078,10 +1411,11 @@ export async function createIssue(
           payload.title?.trim() ?? '',
           blocksToJson(payload.description),
           statusId,
-          payload.priority ?? 'medium',
+          payload.priority ?? 'none',
           payload.assigneeId ?? null,
           creatorId,
-          payload.cycleId ?? null,
+          // Lo que entra a triage desde el composer no se planifica todavía (sin cycle).
+          wantsTriage ? null : (payload.cycleId ?? null),
           payload.estimate ?? null,
           payload.parentId ?? null,
           payload.startDate ?? null,
@@ -1090,6 +1424,7 @@ export async function createIssue(
           source,
           triage,
           payload.milestoneId ?? null,
+          payload.planId ?? null,
           now,
           now,
         );
@@ -1101,6 +1436,9 @@ export async function createIssue(
     }
   }
 
+  if (payload.planId) {
+    await db.prepare('INSERT OR IGNORE INTO track_plan_teams (plan_id, project_id) VALUES (?, ?)').run(payload.planId, projectId);
+  }
   await createIssueActivity(id, creatorId, 'created', source === 'app' ? {} : { source });
   if (payload.parentId) {
     await createIssueActivity(id, creatorId, 'subtask_added', { parentId: payload.parentId });
@@ -1108,7 +1446,16 @@ export async function createIssue(
 
   await autoSubscribe(id, [creatorId, payload.assigneeId]);
 
-  const created = (await getIssue(id)) as TrackIssueWithStatus;
+  let created = (await getIssue(id)) as TrackIssueWithStatus;
+
+  // Triage (reglas, responsable de turno, IA) y SLA por prioridad: lib/track-triage.ts y lib/track-sla.ts.
+  // deferTriage: el llamador agrega antes el pedido del cliente (las reglas lo miran) y corre el triage él.
+  if (triage && !opts.deferTriage) {
+    const { onIssueEnteredTriage } = await import('./track-triage');
+    created = (await onIssueEnteredTriage(created).catch(() => null)) ?? created;
+  }
+  await (await import('./track-sla')).syncIssueSla(id).catch(() => undefined);
+  notifyTrackEvent({ type: 'issue.created', issueId: id, actorId: creatorId, source });
 
   if (payload.assigneeId && payload.assigneeId !== creatorId) {
     const [project, creator] = await Promise.all([
@@ -1141,7 +1488,8 @@ const NOTIFY_CHANGE: Partial<Record<TrackIssueActivityRow['type'], string>> = {
 
 /** Origen de un cambio automático (hoy solo GitHub): se guarda en la actividad. */
 export interface IssueChangeVia {
-  source: 'github';
+  /** github: PRs; triage: reglas y responsable de triage; agent: un agente que trabaja el issue. */
+  source: 'github' | 'triage' | 'agent';
   author?: string | null;
   ref?: string | null;
 }
@@ -1150,7 +1498,7 @@ export async function updateIssue(
   id: string,
   payload: IssueUpdatePayload,
   actorId?: string,
-  opts: { via?: IssueChangeVia } = {},
+  opts: { via?: IssueChangeVia; autoDepth?: number } = {},
 ): Promise<TrackIssueWithStatus | undefined> {
   const db = getDb();
   const existing = await getIssue(id);
@@ -1189,6 +1537,7 @@ export async function updateIssue(
         to: newStatus?.name ?? '',
         fromCategory: existing.status_category ?? '',
         toCategory: newStatus?.category ?? '',
+        toColor: newStatus?.color ?? '',
       },
     });
     if (newStatus && (newStatus.category === 'done' || newStatus.category === 'cancelled')) {
@@ -1225,9 +1574,30 @@ export async function updateIssue(
     args.push(payload.estimate ?? null);
     activities.push({ type: 'estimate_change', meta: { from: existing.estimate ?? '', to: payload.estimate ?? '' } });
   }
+  if (payload.subOrder !== undefined && payload.subOrder !== (existing.sub_order ?? null)) {
+    fields.push('sub_order = ?');
+    args.push(payload.subOrder ?? null);
+  }
+  // Padre nuevo o quitado (también el ⌘Z): rastro en el hijo y en los dos padres, como Linear.
+  const parentTrail: Array<{ issueId: string; meta: Record<string, string> }> = [];
   if (payload.parentId !== undefined && payload.parentId !== existing.parent_id) {
     fields.push('parent_id = ?');
     args.push(payload.parentId ?? null);
+    const brief = async (pid: string | null) =>
+      pid ? ((await db.prepare('SELECT id, identifier, title FROM track_issues WHERE id = ?').get(pid)) as { id: string; identifier: string; title: string } | undefined) : undefined;
+    const [oldParent, newParent] = await Promise.all([brief(existing.parent_id), brief(payload.parentId ?? null)]);
+    activities.push({
+      type: 'cycle_change',
+      meta: {
+        field: 'parent',
+        from: oldParent?.identifier ?? '',
+        to: newParent?.identifier ?? '',
+        fromId: oldParent?.id ?? '',
+        toId: newParent?.id ?? '',
+      },
+    });
+    if (oldParent) parentTrail.push({ issueId: oldParent.id, meta: { field: 'subissue', action: 'removed', childId: id, child: existing.identifier } });
+    if (newParent) parentTrail.push({ issueId: newParent.id, meta: { field: 'subissue', action: 'added', childId: id, child: existing.identifier } });
   }
   if (payload.dueDate !== undefined && payload.dueDate !== existing.due_date) {
     fields.push('due_date = ?');
@@ -1237,6 +1607,18 @@ export async function updateIssue(
   if (payload.milestoneId !== undefined && payload.milestoneId !== (existing.milestone_id ?? null)) {
     fields.push('milestone_id = ?');
     args.push(payload.milestoneId ?? null);
+  }
+  // Milestone del project: tiene que ser del project del issue (el nuevo si también cambia).
+  const planMilestoneId = (payload as { planMilestoneId?: string | null }).planMilestoneId;
+  if (planMilestoneId !== undefined && payload.planId === undefined && planMilestoneId !== (existing.plan_milestone_id ?? null)) {
+    const planOf = existing.plan_id ?? null;
+    const ok = !planMilestoneId
+      ? true
+      : Boolean(planOf && (await db.prepare('SELECT 1 AS x FROM track_plan_milestones WHERE id = ? AND plan_id = ?').get(planMilestoneId, planOf)));
+    if (ok) {
+      fields.push('plan_milestone_id = ?');
+      args.push(planMilestoneId ?? null);
+    }
   }
   // Sin activity type dedicado en el CHECK de track_issue_activity: se
   // actualiza la columna sin registrar actividad (igual que parent_id).
@@ -1253,6 +1635,18 @@ export async function updateIssue(
       args.push(next);
     }
   }
+  // Project (plan). Sin activity type propio en el CHECK: va como cambio con
+  // `field: 'project'` (el timeline lo muestra como "cambió el project").
+  let planLinked: string | null = null;
+  if (payload.planId !== undefined && (payload.planId ?? null) !== (existing.plan_id ?? null)) {
+    fields.push('plan_id = ?', 'plan_milestone_id = ?');
+    args.push(payload.planId ?? null, null);
+    const plan = payload.planId
+      ? ((await db.prepare('SELECT name FROM track_plans WHERE id = ?').get(payload.planId)) as { name: string } | undefined)
+      : undefined;
+    activities.push({ type: 'cycle_change', meta: { field: 'project', from: existing.plan_name ?? '', to: plan?.name ?? '' } });
+    planLinked = payload.planId ?? null;
+  }
 
   if (fields.length > 0) {
     fields.push('updated_at = ?');
@@ -1260,6 +1654,10 @@ export async function updateIssue(
     args.push(id);
     await db.prepare(`UPDATE track_issues SET ${fields.join(', ')} WHERE id = ?`).run(...args);
     if (newAssigneeId) await autoSubscribe(id, [newAssigneeId]);
+    // El team del issue pasa a contribuir al project (como en Linear).
+    if (planLinked) {
+      await db.prepare('INSERT OR IGNORE INTO track_plan_teams (plan_id, project_id) VALUES (?, ?)').run(planLinked, existing.project_id);
+    }
 
     if (actorId) {
       const viaMeta = opts.via
@@ -1267,6 +1665,9 @@ export async function updateIssue(
         : {};
       for (const activity of activities) {
         await createIssueActivity(id, actorId, activity.type, { ...activity.meta, ...viaMeta });
+      }
+      for (const trail of parentTrail) {
+        await createIssueActivity(trail.issueId, actorId, 'cycle_change', { ...trail.meta, ...viaMeta }).catch(() => undefined);
       }
 
       const [owner, project] = await Promise.all([
@@ -1277,7 +1678,14 @@ export async function updateIssue(
       // actor es la integración, así que el owner también recibe el aviso.
       const actor =
         owner && opts.via
-          ? { id: '', email: '', name: `GitHub${opts.via.author ? ` (@${opts.via.author})` : ''}` }
+          ? {
+              id: '',
+              email: '',
+              name:
+                opts.via.source === 'github'
+                  ? `GitHub${opts.via.author ? ` (@${opts.via.author})` : ''}`
+                  : opts.via.author || 'Track',
+            }
           : owner;
       if (actor && project) {
         // El nuevo asignado recibe "te asignaron"; el resto de los suscriptos,
@@ -1314,15 +1722,108 @@ export async function updateIssue(
     }
   }
 
-  const updated = await getIssue(id);
+  if (fields.length > 0) await (await import('./track-sla')).syncIssueSla(id).catch(() => undefined);
+  let updated = await getIssue(id);
+  // Auto-cierre del team (como Linear): padre y sub-issues. Profundidad acotada.
+  if (statusChanged && updated && (opts.autoDepth ?? 0) < 4) {
+    await autoCloseRelated(existing, updated, actorId, (opts.autoDepth ?? 0) + 1).catch(() => undefined);
+    updated = (await getIssue(id)) ?? updated;
+  }
   if (updated && fields.length > 0) {
-    scheduleIssueEvents(
-      existing,
-      updated,
-      Object.keys(payload).filter((k) => payload[k as keyof IssueUpdatePayload] !== undefined),
-    );
+    const changed = Object.keys(payload).filter((k) => payload[k as keyof IssueUpdatePayload] !== undefined);
+    scheduleIssueEvents(existing, updated, changed);
+    notifyTrackEvent({
+      type: 'issue.updated',
+      before: existing,
+      after: updated,
+      changes: changed,
+      actorId: actorId ?? null,
+      via: opts.via ? opts.via.source : undefined,
+    });
   }
   return updated;
+}
+
+function isClosedCategory(c: string | null | undefined): boolean {
+  return c === 'done' || c === 'cancelled';
+}
+
+/**
+ * Auto-cierre por team (track_projects.auto_close_parent / auto_close_children):
+ * - el padre pasa al primer "done" de su team cuando todos sus sub-issues quedan
+ *   terminados o cancelados;
+ * - los sub-issues abiertos pasan al mismo estado que el padre cuando este se
+ *   cierra (solo los del mismo team, que comparten los estados).
+ * Cada cambio pasa por updateIssue (actividad, avisos y webhooks), con
+ * `autoDepth` para no encadenar sin fin.
+ */
+export async function autoCloseRelated(
+  before: TrackIssueWithStatus,
+  after: TrackIssueWithStatus,
+  actorId: string | undefined,
+  depth: number,
+): Promise<void> {
+  const db = getDb();
+  const nowClosed = isClosedCategory(after.status_category) && !isClosedCategory(before.status_category);
+  if (!nowClosed) return;
+  const project = (await db
+    .prepare('SELECT auto_close_parent, auto_close_children FROM track_projects WHERE id = ?')
+    .get(after.project_id)) as { auto_close_parent?: number; auto_close_children?: number } | undefined;
+
+  if (project?.auto_close_children && after.status_id) {
+    const open = (await db
+      .prepare(
+        `SELECT i.id FROM track_issues i LEFT JOIN track_statuses s ON s.id = i.status_id
+         WHERE i.parent_id = ? AND i.project_id = ? AND i.archived_at IS NULL
+           AND (s.category IS NULL OR s.category NOT IN ('done', 'cancelled'))`,
+      )
+      .all(after.id, after.project_id)) as Array<{ id: string }>;
+    for (const c of open) await autoCloseOne(c.id, after.status_id, 'parent_closed', depth);
+  }
+
+  if (after.parent_id) {
+    const parent = await getIssue(after.parent_id);
+    if (!parent || isClosedCategory(parent.status_category)) return;
+    const parentProject = (await db
+      .prepare('SELECT auto_close_parent FROM track_projects WHERE id = ?')
+      .get(parent.project_id)) as { auto_close_parent?: number } | undefined;
+    if (!parentProject?.auto_close_parent) return;
+    const pending = (await db
+      .prepare(
+        `SELECT COUNT(*) AS c FROM track_issues i LEFT JOIN track_statuses s ON s.id = i.status_id
+         WHERE i.parent_id = ? AND i.archived_at IS NULL AND (s.category IS NULL OR s.category NOT IN ('done', 'cancelled'))`,
+      )
+      .get(parent.id)) as { c: number };
+    if (pending.c > 0) return;
+    const done = (await db
+      .prepare("SELECT id FROM track_statuses WHERE project_id = ? AND category = 'done' ORDER BY position ASC LIMIT 1")
+      .get(parent.project_id)) as { id: string } | undefined;
+    if (done) await autoCloseOne(parent.id, done.id, 'sub_issues_done', depth);
+  }
+}
+
+/**
+ * Un cierre automático: el cambio va sin actor (updateIssue no firma la
+ * actividad a nombre de quien cerró el otro issue) y queda UNA línea "Track
+ * closed this issue" con el motivo, como en Linear.
+ */
+async function autoCloseOne(issueId: string, statusId: string, reason: 'sub_issues_done' | 'parent_closed', depth: number): Promise<void> {
+  const before = await getIssue(issueId);
+  if (!before) return;
+  const updated = await updateIssue(issueId, { statusId }, undefined, { autoDepth: depth });
+  if (!updated || updated.status_id !== statusId) return;
+  const owner = (await getDb().prepare('SELECT owner_id FROM track_projects WHERE id = ?').get(updated.project_id)) as
+    | { owner_id: string | null }
+    | undefined;
+  if (!owner?.owner_id) return;
+  await createIssueActivity(issueId, owner.owner_id, 'closed', {
+    status: updated.status_name,
+    category: updated.status_category,
+    from: before.status_name ?? '',
+    via: 'agent',
+    viaAuthor: 'Track',
+    auto: reason,
+  });
 }
 
 /**
@@ -1331,7 +1832,7 @@ export async function updateIssue(
  * caminos lo usen: detalle, edición masiva, triage y GitHub. Corre después de
  * responder (after) si hay request; si no, en segundo plano.
  */
-function scheduleIssueEvents(before: TrackIssueWithStatus, updated: TrackIssueWithStatus, changes: string[]): void {
+export function scheduleIssueEvents(before: TrackIssueWithStatus, updated: TrackIssueWithStatus, changes: string[]): void {
   const job = async () => {
     const project = await getProject(updated.project_id);
     if (!project?.owner_id) return;
@@ -1377,6 +1878,7 @@ const ISSUE_TREE_CTE = `WITH RECURSIVE tree(id) AS (
  */
 export async function deleteIssueTree(id: string): Promise<string[]> {
   const db = getDb();
+  const snapshot = await getIssue(id);
   const ids = ((await db.prepare(`${ISSUE_TREE_CTE} SELECT id FROM tree`).all(id)) as Array<{ id: string }>).map(
     (r) => r.id,
   );
@@ -1388,6 +1890,7 @@ export async function deleteIssueTree(id: string): Promise<string[]> {
   // Un solo DELETE: atómico, y las filas hijas de otras tablas se borran por FK.
   await db.prepare(`DELETE FROM track_issues WHERE id IN (${ISSUE_TREE_CTE} SELECT id FROM tree)`).run(id);
   await deleteUploads(files.map((f) => f.url));
+  if (snapshot) notifyTrackEvent({ type: 'issue.deleted', issue: snapshot, count: ids.length });
   return ids;
 }
 
@@ -1396,7 +1899,10 @@ export async function deleteIssue(id: string): Promise<boolean> {
 }
 
 export async function listIssueChildren(issueId: string): Promise<TrackIssueWithStatus[]> {
-  return (await getDb().prepare(`${issueSelect('WHERE i.parent_id = ?')} ORDER BY i.created_at ASC`).all(issueId)) as TrackIssueWithStatus[];
+  // Orden manual (arrastrar) y, sin orden, por creación.
+  return (await getDb()
+    .prepare(`${issueSelect('WHERE i.parent_id = ?')} ORDER BY i.sub_order IS NULL, i.sub_order ASC, i.created_at ASC`)
+    .all(issueId)) as TrackIssueWithStatus[];
 }
 
 export async function getIssueParentChain(issueId: string): Promise<IssueParentSummary[]> {
@@ -1444,15 +1950,17 @@ export async function listProjectMembers(projectId: string, userId: string): Pro
   if (!project) return [];
 
   if (project.team_id) {
+    // Solo quienes ven el proyecto (privados e invitados, lib/track-access).
     return (await db
       .prepare(
         `SELECT u.id, u.email, u.name, m.role
          FROM team_members m
          JOIN users u ON u.id = m.user_id
-         WHERE m.team_id = ?
+         JOIN track_projects p ON p.id = ?
+         WHERE m.team_id = ? AND ${trackVisibleExpr('p', 'u.id')}
          ORDER BY m.role = 'owner' DESC, u.name ASC, u.email ASC`,
       )
-      .all(project.team_id)) as ProjectMember[];
+      .all(projectId, project.team_id)) as ProjectMember[];
   }
 
   const owner = (await db.prepare('SELECT id, email, name FROM users WHERE id = ?').get(userId)) as
@@ -1477,12 +1985,12 @@ export interface TrackProjectMeta {
  */
 export async function listProjectMetas(teamId: string | null, ownerId: string): Promise<TrackProjectMeta[]> {
   const db = getDb();
-  const scope = projectScope(teamId, ownerId);
+  const scope = await projectScope(teamId, ownerId);
   const projects = (await db
     .prepare(
-      `SELECT id, name, icon FROM track_projects WHERE ${scope.where} AND status = 'active' ORDER BY name ASC LIMIT 100`,
+      `SELECT p.id, p.name, p.icon FROM track_projects p WHERE ${scope.where} AND p.status = 'active' ORDER BY p.name ASC LIMIT 100`,
     )
-    .all(scope.arg)) as Array<{ id: string; name: string; icon: string | null }>;
+    .all(...scope.args)) as Array<{ id: string; name: string; icon: string | null }>;
   if (projects.length === 0) return [];
 
   const statuses = (await db
@@ -1491,14 +1999,24 @@ export async function listProjectMetas(teamId: string | null, ownerId: string): 
     )
     .all(...projects.map((p) => p.id))) as TrackStatusRow[];
 
-  // Todos los proyectos del scope comparten miembros (mismo team o mismo dueño).
-  const members = await listProjectMembers(projects[0].id, ownerId);
-
-  return projects.map((p) => ({
-    ...p,
-    statuses: statuses.filter((s) => s.project_id === p.id),
-    members,
-  }));
+  // Los proyectos del workspace comparten miembros, salvo los privados (sus
+  // miembros explícitos): esos se calculan aparte.
+  const privateIds = new Set(
+    ((await db
+      .prepare(`SELECT id FROM track_projects WHERE id IN ${inClause(projects.length)} AND visibility = 'private'`)
+      .all(...projects.map((p) => p.id))) as Array<{ id: string }>).map((r) => r.id),
+  );
+  const shared = projects.find((p) => !privateIds.has(p.id));
+  const sharedMembers = shared ? await listProjectMembers(shared.id, ownerId) : [];
+  const out: TrackProjectMeta[] = [];
+  for (const p of projects) {
+    out.push({
+      ...p,
+      statuses: statuses.filter((s) => s.project_id === p.id),
+      members: privateIds.has(p.id) ? await listProjectMembers(p.id, ownerId) : sharedMembers,
+    });
+  }
+  return out;
 }
 
 // ---------- Saved views ----------
@@ -1670,11 +2188,24 @@ export async function createIssueComment(
 ): Promise<TrackCommentWithAuthor> {
   const db = getDb();
   const id = crypto.randomUUID();
+  // Los hilos tienen un solo nivel, como en Linear: responder a una respuesta
+  // cuelga del mismo comentario raíz. Un padre de otro issue se ignora.
+  let parentId: string | null = null;
+  if (payload.parentId) {
+    const parent = (await db
+      .prepare('SELECT id, parent_id FROM track_issue_comments WHERE id = ? AND issue_id = ?')
+      .get(payload.parentId, issueId)) as { id: string; parent_id: string | null } | undefined;
+    parentId = parent ? (parent.parent_id ?? parent.id) : null;
+  }
   await db
     .prepare(
-      'INSERT INTO track_issue_comments (id, issue_id, user_id, body, created_at) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO track_issue_comments (id, issue_id, user_id, body, created_at, parent_id) VALUES (?, ?, ?, ?, ?, ?)',
     )
-    .run(id, issueId, userId, payload.body.trim(), nowIso());
+    .run(id, issueId, userId, payload.body.trim(), nowIso(), parentId);
+  // Responder reabre el hilo si estaba resuelto.
+  if (parentId) {
+    await db.prepare('UPDATE track_issue_comments SET resolved_at = NULL, resolved_by = NULL WHERE id = ?').run(parentId);
+  }
 
   // El cuerpo vive solo en track_issue_comments: el timeline lo lee de ahí,
   // así una edición o un borrado del autor no deja copias viejas en el log.
@@ -1708,6 +2239,7 @@ export async function createIssueComment(
     });
   }
 
+  notifyTrackEvent({ type: 'comment.created', issueId, commentId: id, actorId: userId, body: payload.body.trim() });
   return comment;
 }
 
@@ -1773,6 +2305,15 @@ export async function deleteIssueComment(
        WHERE issue_id = ? AND type = 'comment' AND json_extract(meta, '$.commentId') = ?`,
     )
     .run(issueId, commentId);
+  // Borrar la raíz de un hilo borra sus respuestas (y sus entradas del timeline).
+  await db
+    .prepare(
+      `DELETE FROM track_issue_activities
+       WHERE issue_id = ? AND type = 'comment' AND json_extract(meta, '$.commentId') IN
+         (SELECT id FROM track_issue_comments WHERE parent_id = ? AND issue_id = ?)`,
+    )
+    .run(issueId, commentId, issueId);
+  await db.prepare('DELETE FROM track_issue_comments WHERE parent_id = ? AND issue_id = ?').run(commentId, issueId);
   await db.prepare('DELETE FROM track_issue_comments WHERE id = ? AND issue_id = ?').run(commentId, issueId);
   return { ok: true, value: null };
 }
@@ -1928,7 +2469,9 @@ export async function listIssueActivities(issueId: string): Promise<TrackIssueAc
        UNION ALL
        -- Los comentarios se leen siempre de su tabla (texto vigente, editado o no).
        SELECT c.id, c.issue_id, c.user_id, 'comment' AS type,
-         json_object('commentId', c.id, 'body', c.body, 'editedAt', c.updated_at) AS meta,
+         json_object('commentId', c.id, 'body', c.body, 'editedAt', c.updated_at,
+           'parentId', c.parent_id, 'resolvedAt', c.resolved_at,
+           'resolvedBy', (SELECT COALESCE(rb.name, rb.email) FROM users rb WHERE rb.id = c.resolved_by)) AS meta,
          c.created_at, u.name AS user_name, u.email AS user_email
        FROM track_issue_comments c
        JOIN users u ON u.id = c.user_id

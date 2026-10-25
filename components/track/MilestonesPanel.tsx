@@ -225,7 +225,7 @@ function MilestoneForm({
           className="textarea"
           rows={2}
           value={description}
-          maxLength={5000}
+          maxLength={200000}
           onChange={(e) => setDescription(e.target.value)}
         />
       </div>

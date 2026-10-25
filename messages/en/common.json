@@ -80,6 +80,9 @@
     "groupReports": "Reports",
     "groupProjects": "Projects",
     "groupIssues": "Issues",
+    "groupTrackPlans": "Projects",
+    "groupTrackInitiatives": "Initiatives",
+    "groupTrackDashboards": "Track dashboards",
     "groupBoards": "Boards",
     "groupEventTypes": "Event types",
     "groupBookings": "Bookings",
@@ -138,6 +141,11 @@
     "openApp": "Open {name}",
     "goHome": "Go to home",
     "linkOverview": "Link overview",
+    "groupTeams": "Teams",
+    "groupTrackViews": "Views",
+    "groupTrackCycles": "Cycles",
+    "groupTrackMilestones": "Milestones",
+    "groupTrackLabels": "Labels",
     "askDocs": "Ask AI about your docs"
   },
   "manifesto": {
@@ -586,7 +594,9 @@
       "invalid_input": "Check the fields and try again.",
       "not_ready": "The preview is no longer available. Start again.",
       "internal_error": "Something went wrong on our side. Nothing else was changed.",
-      "generic": "Could not import. Try again."
+      "generic": "Could not import. Try again.",
+      "invalid_site": "Use your Jira Cloud address, like https://acme.atlassian.net.",
+      "invalid_project": "Paste the Asana project URL or its numeric id."
     },
     "readFailed": "We couldn't read {source}: {reason}"
   },

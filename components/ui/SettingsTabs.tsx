@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import { activeRouteTab } from '@/lib/settings-nav';
 
@@ -46,8 +46,25 @@ export default function SettingsTabs({
   className?: string;
 }) {
   const t = useTranslations('common.ui');
+  const locale = useLocale();
   const pathname = usePathname();
   const search = useSearchParams();
+  // Hasta hidratar, las pestañas son <a> comunes: un clic temprano navega igual
+  // (con <Link> el router todavía no está listo y el clic se perdía).
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  // Red de seguridad: si la navegación suave no llega (el router de Next a veces
+  // descarta el clic en páginas dinámicas pesadas), se navega de verdad.
+  const pendingTarget = useRef<string | null>(null);
+  const guard = (e: MouseEvent<HTMLAnchorElement>, target: string) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    pendingTarget.current = target;
+    window.setTimeout(() => {
+      if (pendingTarget.current !== target) return;
+      pendingTarget.current = null;
+      if (`${window.location.pathname}${window.location.search}` !== target) window.location.assign(target);
+    }, 2500);
+  };
 
   const hrefFor = (tab: SettingsTab): string => {
     if (mode === 'route') return tab.href ?? pathname;
@@ -93,17 +110,27 @@ export default function SettingsTabs({
 
   const nav = (
     <nav ref={navRef} className={layout === 'side' ? 'ui-settings-nav' : 'ui-tabs'} aria-label={label ?? t('sections')}>
-      {items.map((tab) => (
-        <Link
-          key={tab.key}
-          href={hrefFor(tab)}
-          scroll={false}
-          className={layout === 'side' ? 'ui-settings-link' : 'ui-tab'}
-          aria-current={tab.key === activeKey ? 'page' : undefined}
-        >
-          {tab.label}
-        </Link>
-      ))}
+      {items.map((tab) => {
+        const props = {
+          className: layout === 'side' ? 'ui-settings-link' : 'ui-tab',
+          'aria-current': tab.key === activeKey ? ('page' as const) : undefined,
+        };
+        return hydrated ? (
+          <Link
+            key={tab.key}
+            href={hrefFor(tab)}
+            scroll={false}
+            onClick={(e) => guard(e, `/${locale}${hrefFor(tab)}`)}
+            {...props}
+          >
+            {tab.label}
+          </Link>
+        ) : (
+          <a key={tab.key} href={`/${locale}${hrefFor(tab)}`} {...props}>
+            {tab.label}
+          </a>
+        );
+      })}
     </nav>
   );
 

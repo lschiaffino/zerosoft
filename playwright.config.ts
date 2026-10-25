@@ -66,11 +66,22 @@ export default defineConfig({
       // Autocompletar de las bases de Docs contra el modelo falso (lib/docs-db-ai.ts);
       // con la cookie docs_ai_fake=off se ve el error ai_disabled.
       DOCS_AI_FAKE: '1',
-      // Importadores: Linear, GitHub y Calendly apuntan a un mock local
+      // IA de Track (triage, resúmenes, agentes) contra el mismo modelo falso
+      // (lib/track-ai.ts); con la cookie track_ai_fake=off se ve ai_disabled.
+      TRACK_AI_FAKE: '1',
+      // Importadores: Linear, GitHub, Jira, Asana, Shortcut y Calendly apuntan a un mock local
       // (tests/e2e/importers.spec.ts lo levanta en PORT + 1). Nada sale a internet.
       IMPORT_LINEAR_API_URL: `http://127.0.0.1:${PORT + 1}/linear`,
       IMPORT_GITHUB_API_URL: `http://127.0.0.1:${PORT + 1}/github`,
       IMPORT_CALENDLY_API_URL: `http://127.0.0.1:${PORT + 1}/calendly`,
+      IMPORT_JIRA_API_URL: `http://127.0.0.1:${PORT + 1}/jira`,
+      IMPORT_ASANA_API_URL: `http://127.0.0.1:${PORT + 1}/asana`,
+      IMPORT_SHORTCUT_API_URL: `http://127.0.0.1:${PORT + 1}/shortcut`,
+      // Track: Slack, GitHub App y Sentry/Zendesk/Intercom sin salir a internet
+      // (lib/track-slack.ts, lib/track-github-app.ts, lib/track-support.ts).
+      SLACK_FAKE: '1',
+      GITHUB_APP_FAKE: '1',
+      TRACK_SUPPORT_FAKE: '1',
       // Bookmarks de Docs sin salir a internet (lib/docs-unfurl.ts arma un HTML fijo por dominio).
       DOCS_UNFURL_FAKE: '1',
       // Bases sincronizadas de Docs (GitHub, Jira, Salesforce) con datos fijos (lib/docs-sync.ts) y

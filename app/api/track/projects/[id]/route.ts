@@ -4,6 +4,7 @@ import { deleteProject, getProject, updateProject, canAccessTrackProject } from 
 import { projectUpdateSchema } from '@/lib/track-schema';
 import { syncAutoCycles } from '@/lib/track-auto-cycles';
 import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
+import { getDb } from '@/lib/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,7 +12,7 @@ export const dynamic = 'force-dynamic';
 async function accessibleProject(id: string, teamId: string | null, ownerId: string) {
   const project = await getProject(id);
   if (!project) return null;
-  if (!canAccessTrackProject(project, teamId, ownerId)) return null;
+  if (!(await canAccessTrackProject(project, teamId, ownerId))) return null;
   return project;
 }
 
@@ -39,15 +40,25 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (!parsed.success) return invalidBody(parsed.error);
   // Slug (cambia los identificadores y rompe GitHub), archivar, triage y
   // cycles automáticos son configuración compartida: solo owner/admin.
-  const { slug, status, triageEnabled, cycleAuto, cycleWeeks, cycleName } = parsed.data;
+  const { slug, status, triageEnabled, cycleAuto, cycleWeeks, cycleName, autoCloseParent, autoCloseChildren, estimateScale } = parsed.data;
   const adminOnly =
     (slug !== undefined && slug !== project.slug) ||
     (status !== undefined && status !== project.status) ||
     (triageEnabled !== undefined && triageEnabled !== Boolean(project.triage_enabled)) ||
     (cycleAuto !== undefined && cycleAuto !== Boolean(project.cycle_auto)) ||
     (cycleWeeks !== undefined && cycleWeeks !== project.cycle_weeks) ||
-    (cycleName !== undefined && cycleName !== project.cycle_name);
+    (cycleName !== undefined && cycleName !== project.cycle_name) ||
+    (autoCloseParent !== undefined && autoCloseParent !== Boolean(project.auto_close_parent)) ||
+    (autoCloseChildren !== undefined && autoCloseChildren !== Boolean(project.auto_close_children)) ||
+    (estimateScale !== undefined && estimateScale !== (project.estimate_scale ?? 'fibonacci'));
   if (adminOnly && !isWorkspaceAdmin(user)) return trackError(403, 'forbidden');
+  // Identificador ocupado por otro team: se avisa en vez de inventar otro.
+  if (slug !== undefined && slug !== project.slug) {
+    const taken = (await getDb()
+      .prepare('SELECT id FROM track_projects WHERE slug = ? AND id != ? AND COALESCE(team_id, owner_id) IS ?')
+      .get(slug, project.id, project.team_id ?? project.owner_id ?? null)) as { id: string } | undefined;
+    if (taken) return trackError(409, 'slug_taken');
+  }
 
   let updated = await updateProject(params.id, parsed.data);
   // Al activar los cycles automáticos se crean ya el actual y el próximo.

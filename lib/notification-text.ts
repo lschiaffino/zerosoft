@@ -25,6 +25,12 @@ export interface NotificationTextLabels {
   docConflict?: string;
   boardMention: string;
   boardReply: string;
+  /** Track, plans: "{actor} publicó un update en {plan}" y similares (opcionales). */
+  planUpdate?: string;
+  planComment?: string;
+  planReminder?: string;
+  /** Track triage, SLAs y agentes (meta.kind): "{identifier} espera triage" y similares. */
+  trackKinds?: Partial<Record<'triage_owner' | 'sla_risk' | 'sla_breach' | 'agent_update', string>>;
   /** Groups: "{actor} te mencionó en {title}", "{actor} te asignó {title}", "Chat nuevo para vos: {title}". */
   groupsMention?: string;
   groupsAssigned?: string;
@@ -57,6 +63,18 @@ export function notificationTitle(n: NotificationLike, L: NotificationTextLabels
   const meta = parseNotificationMeta(n.meta);
   const actor = String(meta.actorName || L.someone);
   const source = n.source_type ?? '';
+
+  if (source === 'track_plan') {
+    const vars = { actor, plan: String(meta.planName ?? '') };
+    const tpl = meta.kind === 'reminder' ? L.planReminder : meta.kind === 'comment' ? L.planComment : L.planUpdate;
+    return tpl && vars.plan ? fill(tpl, vars) : n.title;
+  }
+
+  if (source === 'track_triage' || source === 'track_sla' || source === 'track_agent') {
+    const identifier = String(meta.issueIdentifier ?? '');
+    const tpl = L.trackKinds?.[String(meta.kind) as keyof NonNullable<NotificationTextLabels['trackKinds']>];
+    return identifier && tpl ? fill(tpl, { actor, identifier, agent: String(meta.agentName ?? '') }) : n.title;
+  }
 
   if (source === 'track_issue' || n.type === 'track_reminder') {
     const identifier = String(meta.issueIdentifier ?? '');

@@ -4,64 +4,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import type { TrackStatusRow } from '@/lib/db';
 import type { ProjectMember } from '@/lib/track-data';
-import { safeHexColor } from '@/lib/track-color';
+
 import { addDays, formatDay, isCompletedCategory, toIsoDay, type IssuePriority } from '@/lib/track-tasks';
 import type { TrackUiLabels } from './ui-labels';
 
 // ---------- Visuales chicos ----------
 
-/**
- * Prioridad en tinta: el color de Track queda solo para orientarse. Urgente
- * en rojo, alta y media en tinta, baja en gris (≥3:1 como gráfico).
- */
-export function priorityColor(priority: string): string {
-  return priority === 'urgent'
-    ? 'var(--bad)'
-    : priority === 'high' || priority === 'medium'
-      ? 'var(--ink)'
-      : 'var(--brand-gray-3)';
-}
-
-/** Barras de prioridad estilo Linear (1–4 barras llenas). */
-export function PriorityIcon({ priority }: { priority: string }) {
-  const level = priority === 'urgent' ? 4 : priority === 'high' ? 3 : priority === 'medium' ? 2 : 1;
-  const color = priorityColor(priority);
-  return (
-    <span className="track-prio-icon" aria-hidden>
-      {[1, 2, 3, 4].map((n) => (
-        <span key={n} style={{ height: 3 + n * 2, background: n <= level ? color : 'var(--line)' }} />
-      ))}
-    </span>
-  );
-}
-
-/**
- * Glifo de status: un cuadrado. Backlog
- * punteado, por hacer vacío, en progreso lleno a la mitad, hecho lleno con
- * tilde y cancelado lleno en gris con cruz.
- */
-export function StatusDot({ color, category }: { color: string | null; category: string | null }) {
-  const cancelled = category === 'cancelled';
-  const c = cancelled ? 'var(--brand-gray-3)' : safeHexColor(color, '#767676');
-  const filled = category === 'done' || cancelled;
-  return (
-    <svg className="track-status-glyph" viewBox="0 0 12 12" width="12" height="12" aria-hidden style={{ color: c } as CSSProperties}>
-      <rect
-        x="0.75"
-        y="0.75"
-        width="10.5"
-        height="10.5"
-        fill={filled ? 'currentColor' : 'none'}
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeDasharray={category === 'backlog' ? '2 1.5' : undefined}
-      />
-      {category === 'in_progress' && <rect x="0.75" y="0.75" width="5.25" height="10.5" fill="currentColor" />}
-      {category === 'done' && <path d="M3.2 6.2l1.9 1.9 3.7-4" fill="none" stroke="var(--bg)" strokeWidth="1.6" />}
-      {cancelled && <path d="M3.8 3.8l4.4 4.4M8.2 3.8l-4.4 4.4" fill="none" stroke="var(--bg)" strokeWidth="1.6" />}
-    </svg>
-  );
-}
+export { priorityColor, PriorityIcon, StatusDot } from './glyphs';
+import { PriorityIcon, StatusDot } from './glyphs';
 
 function initials(name: string | null | undefined, email?: string | null): string {
   const src = (name || email || '?').trim();
@@ -127,12 +77,16 @@ interface PopoverProps {
  */
 export function Popover({ trigger, ariaLabel, disabled, className, children, width = 220 }: PopoverProps) {
   const [open, setOpen] = useState(false);
-  const [style, setStyle] = useState<CSSProperties>({});
+  // Fuera del flujo desde el primer render: si no, el menú empuja al trigger
+  // (en una fila flex) antes de medirlo y queda corrido.
+  const HIDDEN: CSSProperties = { position: 'fixed', top: 0, left: 0, visibility: 'hidden' };
+  const [style, setStyle] = useState<CSSProperties>(HIDDEN);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const close = useCallback((refocus = true) => {
     setOpen(false);
+    setStyle({ position: 'fixed', top: 0, left: 0, visibility: 'hidden' });
     if (refocus) triggerRef.current?.focus();
   }, []);
 
@@ -243,7 +197,7 @@ interface MenuOption {
   icon?: ReactNode;
 }
 
-function OptionList({
+export function OptionList({
   options,
   value,
   onSelect,
@@ -288,6 +242,7 @@ export function StatusMenu({
   disabled,
   label,
   textOnly,
+  glyphOnly,
 }: {
   statusId: string | null;
   statusName: string | null;
@@ -299,15 +254,18 @@ export function StatusMenu({
   label: string;
   /** Solo el nombre: el glifo va aparte como control de terminado. */
   textOnly?: boolean;
+  /** Solo el glifo (filas densas como los sub-issues). */
+  glyphOnly?: boolean;
 }) {
   return (
     <Popover
       ariaLabel={`${label}: ${statusName ?? '–'}`}
       disabled={disabled || statuses.length === 0}
+      className={glyphOnly ? 'is-glyph' : undefined}
       trigger={
         <>
           {!textOnly && <StatusDot color={statusColor} category={statusCategory} />}
-          <span className="track-inline-text">{statusName ?? '–'}</span>
+          {!glyphOnly && <span className="track-inline-text">{statusName ?? '–'}</span>}
         </>
       }
     >
@@ -582,18 +540,25 @@ export function QuickAdd({
       }}
     >
       {projects && projects.length > 1 && (
-        <select
+        // Team del issue nuevo: menú con flechas (sin <select>), como el chip del composer.
+        <Popover
+          ariaLabel={`${labels.project}: ${projects.find((p) => p.id === projectId)?.name ?? ''}`}
           className="track-quick-add-project"
-          aria-label={labels.project}
-          value={projectId}
-          onChange={(e) => setProjectId(e.target.value)}
+          width={220}
+          trigger={<span className="track-inline-text">{projects.find((p) => p.id === projectId)?.name}</span>}
         >
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+          {(close) => (
+            <OptionList
+              value={projectId}
+              options={projects.map((p) => ({ value: p.id, label: p.name }))}
+              onSelect={(v) => {
+                close();
+                setProjectId(v);
+                window.setTimeout(() => inputRef.current?.focus(), 0);
+              }}
+            />
+          )}
+        </Popover>
       )}
       <input
         ref={inputRef}

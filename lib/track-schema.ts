@@ -3,11 +3,13 @@
  */
 import { z } from 'zod';
 import { ISSUE_SORTS } from './track-views';
+import { TRACK_MARKDOWN_MAX } from './track-markdown';
 
 const id = z.string().trim().min(1).max(64);
 const name = z.string().trim().min(1).max(200);
 const shortText = z.string().trim().max(500);
-const longText = z.string().trim().max(5000);
+// Descripciones y comentarios (markdown): el mismo tope que el editor.
+const longText = z.string().trim().max(TRACK_MARKDOWN_MAX);
 const slug = z
   .string()
   .trim()
@@ -29,7 +31,7 @@ const isoDate = z
   .regex(/^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?)?$/, { message: 'invalid_date' });
 
 const statusCategory = z.enum(['backlog', 'todo', 'in_progress', 'done', 'cancelled']);
-const issuePriority = z.enum(['urgent', 'high', 'medium', 'low']);
+const issuePriority = z.enum(['none', 'urgent', 'high', 'medium', 'low']);
 const relationType = z.enum(['blocks', 'related', 'duplicates']);
 
 // ---------- Projects ----------
@@ -54,6 +56,11 @@ export const projectUpdateSchema = z.object({
   cycleAuto: z.boolean().optional(),
   cycleWeeks: z.number().int().min(1).max(8).optional(),
   cycleName: z.string().trim().max(40).optional(),
+  /** Auto-cierre como Linear: el padre al terminar todos sus sub-issues, y los sub-issues al cerrar el padre. */
+  autoCloseParent: z.boolean().optional(),
+  autoCloseChildren: z.boolean().optional(),
+  /** Escala de estimación del team (lib/track-estimates). */
+  estimateScale: z.enum(['fibonacci', 'linear', 'exponential', 'tshirt', 'none']).optional(),
 });
 
 // ---------- Statuses ----------
@@ -127,10 +134,18 @@ export const issueCreateSchema = z.object({
   dueDate: isoDate.nullish(),
   labels: z.array(issueLabelInputSchema).max(10).optional(),
   milestoneId: id.nullish(),
+  /** Milestone del project del issue (track_plan_milestones). */
+  planMilestoneId: id.nullish(),
+  /** Project (como en Linear; en la base, track_plans). */
+  planId: id.nullish(),
+  /** Crear en triage (el team tiene triage activo). */
+  triage: z.boolean().optional(),
 });
 
-export const issueUpdateSchema = issueCreateSchema.partial().extend({
+export const issueUpdateSchema = issueCreateSchema.omit({ triage: true }).partial().extend({
   title: shortText.optional(),
+  /** Orden manual dentro de los sub-issues del padre (arrastrar). */
+  subOrder: z.number().finite().nullish(),
 });
 
 // ---------- Labels del workspace ----------
@@ -138,9 +153,13 @@ export const issueUpdateSchema = issueCreateSchema.partial().extend({
 export const labelCreateSchema = z.object({
   name: z.string().trim().min(1).max(50),
   color: hexColor.optional(),
+  /** Grupo (label padre). */
+  parentId: z.string().trim().min(1).max(64).nullable().optional(),
+  /** Label propio de un team. */
+  projectId: z.string().trim().min(1).max(64).nullable().optional(),
 });
 
-export const labelUpdateSchema = labelCreateSchema.partial();
+export const labelUpdateSchema = labelCreateSchema.omit({ projectId: true }).partial();
 
 // ---------- Bulk edit ----------
 
@@ -199,9 +218,22 @@ export const githubConfigSchema = z.object({
 
 export const commentCreateSchema = z.object({
   body: longText.min(1),
+  /** Respuesta en hilo: comentario raíz (o una respuesta, que se sube a su raíz). */
+  parentId: id.optional(),
 });
 
-export const commentUpdateSchema = commentCreateSchema;
+export const commentUpdateSchema = z.object({
+  body: longText.min(1),
+});
+
+/** Resolver o reabrir un hilo (lo puede hacer cualquier miembro). */
+export const commentResolveSchema = z.object({
+  resolved: z.boolean(),
+});
+
+export const commentReactionSchema = z.object({
+  emoji: z.string().min(1).max(16),
+});
 
 // ---------- Suscripción ----------
 
@@ -227,6 +259,8 @@ export const issueViewCreateSchema = z.object({
   filters: z.record(z.unknown()).default({}),
   sort: z.enum(ISSUE_SORTS).default('newest'),
   columns: z.array(z.string()).max(20).optional(),
+  /** Vista de equipo (la ven todos los del proyecto). */
+  shared: z.boolean().optional(),
 });
 
 export const issueViewUpdateSchema = z.object({
@@ -235,6 +269,7 @@ export const issueViewUpdateSchema = z.object({
   filters: z.record(z.unknown()).optional(),
   sort: z.enum(ISSUE_SORTS).optional(),
   columns: z.array(z.string()).max(20).optional(),
+  shared: z.boolean().optional(),
 });
 
 // ---------- Milestones ----------

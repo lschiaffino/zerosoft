@@ -190,7 +190,7 @@
     "days": "Días hacia adelante",
     "noEventTypes": "No hay tipos de evento activos.",
     "bookingSafety": "Para reservar hace falta un horario que el agente ofreció en un mensaje anterior, la confirmación explícita del visitante, su nombre y email. El horario se vuelve a verificar justo antes de reservar; las confirmaciones y la sincronización con el CRM funcionan igual que en la página de reservas.",
-    "project": "Proyecto de Track",
+    "project": "Equipo de Track",
     "flows": "Flows que el agente puede iniciar",
     "noFlows": "Todavía no hay flows.",
     "needsRobots": "Elegí al menos un robot para que esta herramienta funcione.",
@@ -226,7 +226,7 @@
       },
       "track_create_issue": {
         "name": "Crear issue en Track",
-        "desc": "Carga bugs y pedidos en un proyecto de Track."
+        "desc": "Carga bugs y pedidos en un equipo de Track."
       },
       "run_flow": {
         "name": "Ejecutar flow",
@@ -375,7 +375,7 @@
     "invalid_docs_page": "No podés usar alguna de esas páginas, o no la podés editar y el agente escribe.",
     "invalid_widget": "Ese widget de Chat no es de este workspace.",
     "invalid_event_type": "Ese tipo de evento no es de este workspace.",
-    "invalid_project": "Ese proyecto de Track no es de este workspace.",
+    "invalid_project": "Ese equipo de Track no es de este workspace.",
     "invalid_flow": "Uno de los flows elegidos no es de este workspace.",
     "invalid_robot": "Uno de los robots elegidos no es de este workspace.",
     "invalid_url": "Ingresá una URL completa http(s).",

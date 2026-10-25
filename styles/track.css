@@ -2639,3 +2639,261 @@ a.track-board-card-title:hover {
     transition: none;
   }
 }
+
+
+/* ---------- T4: integraciones, acceso y audit log ---------- */
+
+.track-gh-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.track-gh-reviews,
+.track-gh-ref {
+  grid-column: 2 / 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+.track-gh-review.is-approved {
+  color: var(--ink);
+}
+
+.track-gh-review.is-changes_requested {
+  color: var(--bad-ink);
+}
+
+.track-links-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.track-link-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 4px 0;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.track-link-item .track-gh-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.track-links-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.track-figma-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.track-figma-item {
+  font-size: 0.875rem;
+}
+
+.track-figma-item .track-gh-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.track-figma-frame {
+  display: block;
+  width: 100%;
+  height: 360px;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+}
+
+.track-int-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.track-int-row > .data,
+.track-int-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.track-int-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  justify-items: start;
+}
+
+.track-int-form > .ui-fields-2,
+.track-int-form > .ui-field,
+.track-int-form > .track-gh-rules-grid {
+  width: 100%;
+}
+
+.track-int-events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.track-int-events > legend {
+  margin-bottom: 6px;
+}
+
+.track-int-check {
+  align-self: end;
+}
+
+.track-int-subtitle {
+  margin: 16px 0 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.track-int-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.8125rem;
+}
+
+.track-int-log li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.track-int-log li.is-error {
+  color: var(--bad-ink);
+}
+
+.track-int-log-text {
+  overflow-wrap: anywhere;
+}
+
+.track-int-code {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  font-size: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--ui-hover);
+}
+
+.track-gh-rules-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.track-access-item {
+  display: block;
+  padding: 10px 0;
+}
+
+.track-access-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+}
+
+.track-access-members {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.track-access-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.track-access-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 0 0 8px;
+  font-size: 0.8125rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+
+.track-private-mark {
+  display: inline-flex;
+  margin-left: 6px;
+  color: var(--brand-gray-2);
+  vertical-align: middle;
+}
+
+.track-audit-filters {
+  align-items: end;
+}
+
+.track-audit-filters .ui-field {
+  flex: 1 1 180px;
+  margin: 0;
+}
+
+.track-audit-list {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.track-audit-row {
+  display: grid;
+  gap: 2px;
+  padding: 8px 0;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.track-audit-row a {
+  color: var(--ink);
+}
+
+.track-audit-detail,
+.track-audit-meta {
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .track-gh-rules-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .track-figma-frame {
+    height: 240px;
+  }
+}

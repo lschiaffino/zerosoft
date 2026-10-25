@@ -396,7 +396,7 @@ export async function sourceFetch<T>(url: string, init: RequestInit = {}): Promi
 }
 
 /** Base de la API de una fuente; en los tests e2e apunta a un mock local. */
-export function sourceBase(name: 'linear' | 'github' | 'calendly', fallback: string): string {
+export function sourceBase(name: 'linear' | 'github' | 'calendly' | 'jira' | 'asana' | 'shortcut', fallback: string): string {
   const env = process.env[`IMPORT_${name.toUpperCase()}_API_URL`];
   return (env || fallback).replace(/\/$/, '');
 }

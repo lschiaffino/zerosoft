@@ -23,12 +23,32 @@ import {
   type CsvField,
   type CsvMapping,
 } from '@/lib/track-import-map';
+import { teamPath } from '@/lib/track-routes';
 
-type Source = 'linear' | 'linear_csv' | 'jira_csv' | 'github' | 'csv';
-const SOURCES: Source[] = ['linear', 'linear_csv', 'jira_csv', 'github', 'csv'];
+type Source = 'linear' | 'linear_csv' | 'jira' | 'jira_csv' | 'github' | 'asana' | 'shortcut' | 'csv';
+const SOURCES: Source[] = ['linear', 'linear_csv', 'jira', 'jira_csv', 'github', 'asana', 'shortcut', 'csv'];
 const CSV_SOURCES: Source[] = ['linear_csv', 'jira_csv', 'csv'];
 /** Nombre de la fuente en el aviso de lectura fallida. */
-const SOURCE_NAMES: Record<string, string> = { linear: 'Linear', github: 'GitHub', linear_csv: 'Linear', jira_csv: 'Jira', csv: 'CSV' };
+const SOURCE_NAMES: Record<string, string> = {
+  linear: 'Linear',
+  github: 'GitHub',
+  linear_csv: 'Linear',
+  jira: 'Jira',
+  jira_csv: 'Jira',
+  asana: 'Asana',
+  shortcut: 'Shortcut',
+  csv: 'CSV',
+};
+/** Etiqueta y ayuda del campo del token por fuente (claves de track.importer). */
+const TOKEN_KEYS: Partial<Record<Source, { label: string; help: string }>> = {
+  linear: { label: 'linearToken', help: 'linearHelp' },
+  github: { label: 'githubToken', help: 'githubHelp' },
+  jira: { label: 'jiraToken', help: 'jiraHelp' },
+  asana: { label: 'asanaToken', help: 'asanaHelp' },
+  shortcut: { label: 'shortcutToken', help: 'shortcutHelp' },
+};
+const JIRA_SITE_RE = /^(https:\/\/)?[a-z0-9-]+\.(atlassian\.net|jira\.com)\/?$/i;
+const ASANA_PROJECT_RE = /^\d{6,25}$|\/project\/\d{6,25}|app\.asana\.com\/0\/\d{6,25}/;
 const PRESET: Record<string, 'linear' | 'jira' | 'csv'> = { linear_csv: 'linear', jira_csv: 'jira', csv: 'csv' };
 
 interface ProjectOption {
@@ -66,7 +86,8 @@ interface Report {
 
 /**
  * Track › Ajustes › Importar y exportar: issues desde Linear (API key o CSV),
- * Jira (CSV), GitHub Issues (token + repo) o un CSV con mapeo de columnas.
+ * Jira Cloud (API o CSV), GitHub Issues, Asana y Shortcut (token) o un CSV
+ * con mapeo de columnas.
  * Primero una vista previa con conteos y mapeo; después se confirma.
  */
 export default function TrackImportPanel({ isAdmin }: { isAdmin: boolean }) {
@@ -161,6 +182,10 @@ function ImportForm({
   const [source, setSource] = useState<Source>('linear');
   const [token, setToken] = useState('');
   const [repo, setRepo] = useState('');
+  const [site, setSite] = useState('');
+  const [email, setEmail] = useState('');
+  const [query, setQuery] = useState('');
+  const [asanaProject, setAsanaProject] = useState('');
   const [target, setTarget] = useState('new');
   const [csv, setCsv] = useState<{ name: string; text: string; headers: string[]; rows: number } | null>(null);
   const [mapping, setMapping] = useState<CsvMapping>({});
@@ -196,14 +221,29 @@ function ImportForm({
     setCsv({ name: file.name.replace(/\.csv$/i, ''), text, headers, rows });
   }
 
-  const ready = isCsv ? Boolean(csv && mapping.title) : source === 'github' ? token.trim().length >= 8 && /^[^/\s]+\/[^/\s]+$/.test(repo.trim().replace(/^https?:\/\/github\.com\//, '')) : token.trim().length >= 8;
+  const tokenOk = token.trim().length >= 8;
+  const ready = isCsv
+    ? Boolean(csv && mapping.title)
+    : source === 'github'
+      ? tokenOk && /^[^/\s]+\/[^/\s]+$/.test(repo.trim().replace(/^https?:\/\/github\.com\//, ''))
+      : source === 'jira'
+        ? tokenOk && JIRA_SITE_RE.test(site.trim()) && /\S+@\S+/.test(email.trim()) && query.trim().length > 0
+        : source === 'asana'
+          ? tokenOk && ASANA_PROJECT_RE.test(asanaProject.trim())
+          : tokenOk;
 
   async function submit() {
     if (!ready || busy) return;
     setBusy(true);
     const body: Record<string, unknown> = { source, target };
     if (isCsv) Object.assign(body, { csv: csv!.text, mapping, projectName: csv!.name });
-    else Object.assign(body, { token: token.trim(), ...(source === 'github' ? { repo: repo.trim() } : {}) });
+    else {
+      Object.assign(body, { token: token.trim() });
+      if (source === 'github') body.repo = repo.trim();
+      if (source === 'jira') Object.assign(body, { site: site.trim(), email: email.trim(), query: query.trim() });
+      if (source === 'asana') body.project = asanaProject.trim();
+      if (source === 'shortcut') body.query = query.trim();
+    }
     await onCreate(body);
     setBusy(false);
   }
@@ -262,10 +302,62 @@ function ImportForm({
         </div>
       )}
 
+      {source === 'jira' && (
+        <>
+          <div className="ui-fields-2">
+            <div className="ui-field">
+              <label className="label" htmlFor="imp-jira-site">
+                {t('jiraSite')}
+              </label>
+              <input id="imp-jira-site" className="input data" value={site} onChange={(e) => setSite(e.target.value)} placeholder="https://acme.atlassian.net" autoComplete="off" spellCheck={false} />
+            </div>
+            <div className="ui-field">
+              <label className="label" htmlFor="imp-jira-email">
+                {t('jiraEmail')}
+              </label>
+              <input id="imp-jira-email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" spellCheck={false} />
+            </div>
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor="imp-jira-query">
+              {t('jiraQuery')}
+            </label>
+            <input id="imp-jira-query" className="input data" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ENG" autoComplete="off" spellCheck={false} aria-describedby="imp-jira-query-help" />
+            <p id="imp-jira-query-help" className="ui-help">
+              {t('jiraQueryHelp')}
+            </p>
+          </div>
+        </>
+      )}
+
+      {source === 'asana' && (
+        <div className="ui-field">
+          <label className="label" htmlFor="imp-asana-project">
+            {t('asanaProject')}
+          </label>
+          <input id="imp-asana-project" className="input data" value={asanaProject} onChange={(e) => setAsanaProject(e.target.value)} placeholder="https://app.asana.com/0/1201234567890/list" autoComplete="off" spellCheck={false} aria-describedby="imp-asana-project-help" />
+          <p id="imp-asana-project-help" className="ui-help">
+            {t('asanaProjectHelp')}
+          </p>
+        </div>
+      )}
+
+      {source === 'shortcut' && (
+        <div className="ui-field">
+          <label className="label" htmlFor="imp-shortcut-query">
+            {t('shortcutQuery')}
+          </label>
+          <input id="imp-shortcut-query" className="input data" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="!is:archived" autoComplete="off" spellCheck={false} aria-describedby="imp-shortcut-query-help" />
+          <p id="imp-shortcut-query-help" className="ui-help">
+            {t('shortcutQueryHelp')}
+          </p>
+        </div>
+      )}
+
       {!isCsv && (
         <div className="ui-field">
           <label className="label" htmlFor="imp-token">
-            {t(source === 'github' ? 'githubToken' : 'linearToken')}
+            {t(TOKEN_KEYS[source]?.label ?? 'linearToken')}
           </label>
           <input
             id="imp-token"
@@ -278,7 +370,7 @@ function ImportForm({
             aria-describedby="imp-token-help imp-token-note"
           />
           <p id="imp-token-help" className="ui-help">
-            {t(source === 'github' ? 'githubHelp' : 'linearHelp')}
+            {t(TOKEN_KEYS[source]?.help ?? 'linearHelp')}
           </p>
           <p id="imp-token-note" className="ximp-note">
             {t('tokenNote')}
@@ -313,6 +405,7 @@ function ImportForm({
       {isCsv && csv && <MappingEditor headers={csv.headers} rows={csv.rows} mapping={mapping} onChange={setMapping} />}
 
       {source === 'linear' || source === 'linear_csv' ? <p className="ui-help">{t('linearNote')}</p> : null}
+      {source === 'asana' || source === 'shortcut' ? <p className="ui-help">{t(`${source}Note`)}</p> : null}
 
       <div className="ximp-actions">
         <button type="submit" className="btn btn-primary" disabled={!ready || busy} aria-busy={busy || undefined}>
@@ -505,7 +598,7 @@ function DoneView({ job, onAgain }: { job: ImportJobView; onAgain: () => void })
         <ul className="ximp-links">
           {r.projects.map((p) => (
             <li key={p.id}>
-              <Link href={`/app/track/projects/${p.id}`}>{t('openProject', { name: p.name })}</Link>
+              <Link href={teamPath(p)}>{t('openProject', { name: p.name })}</Link>
             </li>
           ))}
         </ul>

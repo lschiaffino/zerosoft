@@ -18,7 +18,11 @@ import { fireVerificationExpiry } from '@/lib/docs-verify';
 import { pruneDocsAudit } from '@/lib/docs-audit';
 import { runAutoCycles } from '@/lib/track-auto-cycles';
 import { runRecurringIssues } from '@/lib/track-recurring';
+import { runHousekeeping } from '@/lib/track-housekeeping';
+import { runPlanUpdateReminders } from '@/lib/track-plan-updates';
 import { fireIssueReminders, sendImmediateTrackEmails, sendTrackDigests } from '@/lib/track-notify';
+import { runSlaChecks } from '@/lib/track-sla';
+import { processPendingAgentSessions } from '@/lib/track-agents';
 import { importResearchIdeas, researchIdeaSchema } from '@/lib/roadmap';
 import researchIdeas from '@/research/ideas.json';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
@@ -48,7 +52,10 @@ const FLOW_BUDGET_MS = 150_000;
  * de pasos de Agents y avisa por email al dueño (lib/agents-alerts.ts).
  * Track: cycles automáticos (una vez por día y proyecto), issues que se
  * repiten (claim por regla), recordatorios de issues, emails inmediatos y el
- * resumen diario a las 8 de cada persona (claim por persona y día).
+ * resumen diario a las 8 de cada persona (claim por persona y día). Planificación:
+ * recordatorio de update al lead de cada plan en curso (claim sobre
+ * next_reminder_at) y, una vez por día y proyecto, auto-cierre, auto-archivo y
+ * cierre de cycles vencidos con rollover (claim en housekeeping_day).
  * Misma autorización que el cron de
  * recordatorios (CRON_SECRET).
  */
@@ -72,6 +79,10 @@ export async function GET(req: NextRequest) {
   const trackCycles = await runAutoCycles().catch(() => null);
   const trackRecurring = await runRecurringIssues({ limit: 200 }).catch(() => null);
   const trackReminders = await fireIssueReminders({ limit: 500 }).catch(() => null);
+  const trackPlanReminders = await runPlanUpdateReminders({ limit: 500 }).catch(() => null);
+  const trackHousekeeping = await runHousekeeping({ limit: 200 }).catch(() => null);
+  const trackSla = await runSlaChecks({ limit: 500 }).catch(() => null);
+  const trackAgents = await processPendingAgentSessions({ limit: 20, budgetMs: 20_000 }).catch(() => null);
   const trackEmails = await sendImmediateTrackEmails({ limit: 200 }).catch(() => null);
   const trackDigests = await sendTrackDigests({ limit: 500 }).catch(() => null);
   // Papelera del CRM: lo borrado hace más de 90 días se descarta para siempre.
@@ -104,5 +115,5 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackEmails, trackDigests, trashPurged, flowPruned, flow, emailSync, outlookSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, trashPurged, flowPruned, flow, emailSync, outlookSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
 }

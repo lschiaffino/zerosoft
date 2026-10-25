@@ -3,6 +3,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
+import {
+  findAction,
+  getCommandContext,
+  hasExactOption,
+  matchesQuery,
+  queryRank,
+  rankPageItems,
+  OPEN_SEARCH_EVENT,
+  CMDK_CLOSED_EVENT,
+  type CommandAction,
+  type CommandAnchor,
+  type OpenCommandDetail,
+  type CommandIcon,
+} from '@/lib/cmdk-context';
+import { PriorityIcon, StatusDot } from '@/components/track/glyphs';
+import TrackIcon, { type TrackIconName } from '@/components/track/TrackIcon';
 import { SETTINGS_SECTION_KEYS, settingsSectionHref } from '@/lib/settings-nav';
 import { PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref } from '@/lib/products';
 import { RIVALS } from '@/components/site/catalog';
@@ -14,6 +30,8 @@ interface ResultItem {
   href: string;
   /** Acción en página (evento de window) en vez de navegar. */
   event?: string;
+  /** Acción en contexto (issue abierto, selección): corre en la página. */
+  action?: CommandAction;
   /** Otras palabras con las que se encuentra (sinónimos, otros idiomas). */
   keywords?: string;
 }
@@ -28,14 +46,81 @@ interface SearchResponse {
   items: ResultItem[];
 }
 
+const GLYPHS: Record<Extract<CommandIcon, { kind: 'glyph' }>['name'], TrackIconName> = {
+  plus: 'plus',
+  tag: 'tag',
+  project: 'plans',
+  cycle: 'cycle',
+  estimate: 'estimate',
+  calendar: 'calendar',
+  parent: 'parent',
+  team: 'team',
+  link: 'link',
+  copy: 'link',
+  archive: 'archive',
+  trash: 'close',
+  open: 'up',
+  bell: 'bell',
+  duplicate: 'views',
+  subissue: 'subtasks',
+  user: 'user',
+  milestone: 'milestone',
+};
+
+/** Ícono de una opción: glifo de estado, barras de prioridad, avatar o color. */
+function OptionIcon({ icon, swatch }: { icon?: CommandIcon; swatch?: string }) {
+  if (!icon) return swatch ? <span className="cmdk-swatch" style={{ background: swatch }} aria-hidden /> : null;
+  switch (icon.kind) {
+    case 'status':
+      return (
+        <span className="cmdk-icon" aria-hidden>
+          <StatusDot color={icon.color} category={icon.category} />
+        </span>
+      );
+    case 'priority':
+      return (
+        <span className="cmdk-icon" aria-hidden>
+          <PriorityIcon priority={icon.value} />
+        </span>
+      );
+    case 'avatar':
+      return (
+        <span className="cmdk-icon" aria-hidden>
+          {icon.empty ? (
+            <span className="track-avatar track-avatar-empty" />
+          ) : (
+            <span className="track-avatar">{(icon.name ?? '?').trim().charAt(0).toUpperCase() || '?'}</span>
+          )}
+        </span>
+      );
+    case 'swatch':
+      return <span className="cmdk-swatch" style={{ background: icon.color }} aria-hidden />;
+    case 'glyph':
+      return (
+        <span className="cmdk-icon is-glyph" aria-hidden>
+          <TrackIcon name={GLYPHS[icon.name]} size={14} />
+        </span>
+      );
+  }
+}
+
 function useGroupOrder() {
   return useMemo(() => [
+        'context',
         'apps',
         'track',
         'actions',
         'settings',
+        'teams',
         'projects',
         'issues',
+        'trackViews',
+        'trackCycles',
+        'trackMilestones',
+        'trackLabels',
+        'trackPlans',
+        'trackInitiatives',
+        'trackDashboards',
         'contacts',
         'companies',
         'leads',
@@ -93,6 +178,7 @@ export default function CommandSearch() {
   const tNotes = useTranslations('notes');
   const tBoard = useTranslations('board');
   const tTrack = useTranslations('track');
+  const tPlanning = useTranslations('trackPlanning.cmdk');
   const tSections = useTranslations('settings.sections');
   const tSettingsCmdk = useTranslations('settings.cmdk');
   const tCategories = useTranslations('common.categories');
@@ -106,6 +192,19 @@ export default function CommandSearch() {
   const [items, setItems] = useState<ResultItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [sel, setSel] = useState(0);
+  // Páginas abiertas dentro de las acciones en contexto (ids), p. ej. ["status"].
+  const [pages, setPages] = useState<string[]>([]);
+  // Menú anclado a un chip (propiedad del issue): la página se abre debajo del chip.
+  const [anchor, setAnchor] = useState<CommandAnchor | null>(null);
+  // Fuerza un render después de una acción que deja la paleta abierta.
+  const [, setTick] = useState(0);
+  // Opciones de una página que vienen del servidor (p. ej. elegir el issue padre).
+  const [asyncItems, setAsyncItems] = useState<CommandAction[]>([]);
+  // Tipear o cambiar de página vuelve a la primera opción (el mouse quieto
+  // sobre la lista no deja elegida una que el filtro ya sacó).
+  useEffect(() => {
+    setSel(0);
+  }, [q, pages]);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevFocusRef = useRef<HTMLElement | null>(null);
   const groupOrder = useGroupOrder();
@@ -128,6 +227,18 @@ export default function CommandSearch() {
       { group: 'track', label: tTrack('cmdk.myTasks'), meta: '', href: '/app/track/my-tasks' },
       { group: 'track', label: tTrack('cmdk.allIssues'), meta: '', href: '/app/track/issues' },
       { group: 'track', label: tTrack('cmdk.inbox'), meta: '', href: '/app/track/inbox' },
+      // Planificación (como Linear): plans, initiatives, roadmap, cycles, insights y dashboards.
+      { group: 'track', label: tPlanning('newPlan'), meta: '', href: '/app/track/projects?new=1' },
+      { group: 'track', label: tPlanning('newInitiative'), meta: '', href: '/app/track/initiatives?new=1' },
+      { group: 'track', label: tPlanning('plans'), meta: '', href: '/app/track/projects' },
+      { group: 'track', label: tPlanning('roadmap'), meta: '', href: '/app/track/roadmap' },
+      { group: 'track', label: tPlanning('cycles'), meta: '', href: '/app/track/cycles' },
+      { group: 'track', label: tPlanning('insights'), meta: '', href: '/app/track/insights' },
+      { group: 'track', label: tPlanning('dashboards'), meta: '', href: '/app/track/dashboards' },
+      { group: 'track', label: tTrack('cmdk.integrations'), meta: '', href: '/app/track/settings?tab=integrations' },
+      { group: 'track', label: tTrack('cmdk.apiMcp'), meta: '', href: '/app/track/settings?tab=api' },
+      { group: 'track', label: tTrack('cmdk.access'), meta: '', href: '/app/track/settings?tab=access' },
+      { group: 'track', label: tTrack('cmdk.audit'), meta: '', href: '/app/track/settings?tab=audit' },
     ];
     const rest: ResultItem[] = [
       { group, label: t('newContact'), meta: '', href: '/app/crm/contacts/new' },
@@ -166,7 +277,7 @@ export default function CommandSearch() {
       { group, label: t('newGroupTemplate'), meta: '', href: '/app/groups/templates?new=1' },
     ];
     return inTrack ? [...track, ...rest] : [...rest, ...track];
-  }, [t, tNotes, tBoard, tTrack, inTrack, inCrm, inDocs]);
+  }, [t, tNotes, tBoard, tTrack, tPlanning, inTrack, inCrm, inDocs]);
 
   // Las apps (y el inicio): "crm", "hubspot" o "vender" llevan a la app. Solo al buscar.
   const appItems = useMemo<ResultItem[]>(
@@ -211,13 +322,29 @@ export default function CommandSearch() {
     [tSections, tSettingsCmdk],
   );
 
+  // Dónde estaba el foco antes de abrir (el chip, la fila): vuelve ahí al cerrar.
+  // Se guarda al pedir la apertura: en el efecto, el input ya tomó el foco.
+  const rememberFocus = useCallback(() => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el && !el.closest('.cmdk')) prevFocusRef.current = el;
+  }, []);
+
   useEffect(() => {
-    function onOpen() {
+    function onOpen(e: Event) {
+      const detail = (e as CustomEvent<OpenCommandDetail | undefined>).detail;
+      const page = detail?.page;
+      setPages(page ? [page] : []);
+      setAnchor(page && detail?.anchor && window.innerWidth >= 640 ? detail.anchor : null);
+      rememberFocus();
+      setQ('');
       setOpen(true);
     }
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
+        setPages([]);
+        setAnchor(null);
+        rememberFocus();
         // Un <dialog> modal abierto queda en la capa superior y taparía la
         // paleta: se le pide cerrar (su Esc) y la paleta abre si cerró.
         const modals = [...document.querySelectorAll<HTMLDialogElement>('dialog[open]')];
@@ -235,18 +362,19 @@ export default function CommandSearch() {
         setOpen((v) => !v);
       }
     }
-    window.addEventListener('zs:open-search', onOpen);
+    window.addEventListener(OPEN_SEARCH_EVENT, onOpen);
     window.addEventListener('keydown', onKey);
     return () => {
-      window.removeEventListener('zs:open-search', onOpen);
+      window.removeEventListener(OPEN_SEARCH_EVENT, onOpen);
       window.removeEventListener('keydown', onKey);
     };
-  }, []);
+  }, [rememberFocus]);
 
   useEffect(() => {
     if (open) {
       // Remember the trigger to restore focus when the palette closes.
-      prevFocusRef.current = document.activeElement as HTMLElement | null;
+      const active = document.activeElement as HTMLElement | null;
+      if (!prevFocusRef.current && active && !active.closest('.cmdk')) prevFocusRef.current = active;
       setQ('');
       setItems(actionItems);
       setSel(0);
@@ -261,10 +389,74 @@ export default function CommandSearch() {
       window.addEventListener('keydown', onEsc);
       return () => window.removeEventListener('keydown', onEsc);
     } else {
-      prevFocusRef.current?.focus();
+      const back = prevFocusRef.current;
+      if (back?.isConnected) back.focus();
       prevFocusRef.current = null;
+      // Lo tipeado no queda para la próxima apertura (un chip después de otro).
+      setQ('');
+      setPages([]);
+      setAnchor(null);
+      window.dispatchEvent(new Event(CMDK_CLOSED_EVENT));
     }
   }, [open, actionItems]);
+
+  // Acciones en contexto de la página (se consultan en cada render: nunca viejas).
+  const context = open ? getCommandContext() : null;
+  let page: CommandAction | null = null;
+  let pageItems: CommandAction[] | null = null;
+  if (context && pages.length > 0) {
+    let list = context.actions;
+    for (const id of pages) {
+      const found = findAction(list, id);
+      if (!found?.children) {
+        page = null;
+        break;
+      }
+      page = found;
+      list = found.children();
+    }
+    if (page) {
+      const dyn = page.dynamic ? page.dynamic(q) : [];
+      const server = page.load ? asyncItems : [];
+      // Lo del servidor primero (puede traer más que el filtro local), sin repetir ids.
+      const seen = new Set<string>();
+      const merged = [...dyn, ...server, ...list].filter((a) => (seen.has(a.id) ? false : (seen.add(a.id), true)));
+      pageItems = rankPageItems(merged, q, new Set([...dyn, ...server]));
+      const create = page.create;
+      if (create && q.trim() && !hasExactOption(merged, q)) {
+        const text = q.trim();
+        pageItems = [
+          ...pageItems,
+          {
+            id: `create:${text}`,
+            label: create.label(text),
+            icon: { kind: 'glyph', name: 'plus' },
+            keepOpen: create.keepOpen,
+            run: () => {
+              const done = create.run(text);
+              // Lo creado aparece tildado en cuanto vuelve el servidor.
+              if (done && typeof (done as Promise<void>).then === 'function') void (done as Promise<void>).then(() => setTick((n) => n + 1));
+            },
+          },
+        ];
+      }
+    }
+  }
+  const pageKey = page ? pages.join('/') : '';
+  const pageLoad = page?.load;
+  const contextItems: ResultItem[] = context
+    ? context.actions
+        .filter((a) => (a.searchOnly ? Boolean(q.trim()) && queryRank(a, q) >= 0 && queryRank(a, q) < 3 : matchesQuery(a, q)))
+        .map((a, i) => ({ a, i, r: queryRank(a, q) }))
+        .sort((x, y) => (q.trim() ? x.r - y.r || x.i - y.i : x.i - y.i))
+        .map(({ a }) => ({ group: 'context', label: a.label, meta: a.meta ?? '', href: '', action: a }))
+    : [];
+  // En Track, con un issue o una selección en contexto y sin tipear, la paleta
+  // es la del issue (como Linear): sin las acciones de otras apps.
+  const shownItems = context && inTrack && !q.trim() ? items.filter((i) => i.group === 'track') : items;
+  const visible: ResultItem[] = pageItems
+    ? pageItems.map((a) => ({ group: 'context', label: a.label, meta: a.meta ?? '', href: '', action: a }))
+    : [...contextItems, ...shownItems];
 
   const search = useCallback(
     async (query: string) => {
@@ -315,7 +507,50 @@ export default function CommandSearch() {
     return () => clearTimeout(id);
   }, [q, search]);
 
+  // Las páginas con `load` piden opciones al servidor según lo tipeado.
+  const loadRef = useRef(pageLoad);
+  loadRef.current = pageLoad;
+  const hasLoad = Boolean(pageLoad);
+  useEffect(() => {
+    if (!pageKey || !hasLoad) {
+      setAsyncItems([]);
+      return;
+    }
+    let alive = true;
+    const timer = window.setTimeout(() => {
+      void loadRef.current?.(q).then((rows) => {
+        if (alive) setAsyncItems(rows);
+      }).catch(() => {
+        if (alive) setAsyncItems([]);
+      });
+    }, 150);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [pageKey, hasLoad, q]);
+
   function go(item: ResultItem) {
+    const action = item.action;
+    if (action) {
+      if (action.children) {
+        setPages((p) => [...p, action.id]);
+        setQ('');
+        setSel(0);
+        window.setTimeout(() => inputRef.current?.focus(), 0);
+        return;
+      }
+      if (action.keepOpen) {
+        action.run?.();
+        if (action.id.startsWith('create:')) setQ('');
+        setTick((n) => n + 1);
+        return;
+      }
+      setOpen(false);
+      // Después de cerrar la paleta (el foco vuelve a la página).
+      window.setTimeout(() => action.run?.(), 0);
+      return;
+    }
     setOpen(false);
     if (item.event) {
       const name = item.event;
@@ -332,15 +567,30 @@ export default function CommandSearch() {
     if (e.key === 'Escape') {
       e.preventDefault();
       setOpen(false);
+    } else if (e.key === 'Backspace' && !q && pages.length > 0 && anchor) {
+      // Menú anclado: Backspace con el input vacío no navega (no hay página anterior a la vista).
+      e.preventDefault();
+    } else if (e.key === 'Backspace' && !q && pages.length > 0) {
+      // Como en Linear: borrar con el input vacío vuelve a la página anterior.
+      e.preventDefault();
+      setPages((p) => p.slice(0, -1));
+      setSel(0);
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSel((s) => Math.min(s + 1, items.length - 1));
+      setSel((s) => Math.min(s + 1, visible.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSel((s) => Math.max(s - 1, 0));
-    } else if (e.key === 'Enter' && items[sel]) {
+    } else if (pageItems && !q && /^[0-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      // Como en Linear: en Prioridad 0–4 y en Estado 1–9 eligen directo.
+      const hit = visible.find((v) => v.action?.digit === e.key);
+      if (hit) {
+        e.preventDefault();
+        go(hit);
+      }
+    } else if (e.key === 'Enter' && visible.length > 0) {
       e.preventDefault();
-      go(items[sel]);
+      go(visible[Math.min(sel, visible.length - 1)]);
     } else if (e.key === 'Tab') {
       // Focus trap: the input is the only tabbable element while open.
       e.preventDefault();
@@ -351,45 +601,66 @@ export default function CommandSearch() {
   if (!open) return null;
 
   let lastGroup = '';
+  const anchored = Boolean(anchor && page);
+  let anchorStyle: React.CSSProperties | undefined;
+  if (anchor && page) {
+    const width = 300;
+    const left = Math.max(8, Math.min(anchor.left, window.innerWidth - width - 8));
+    const below = window.innerHeight - anchor.bottom;
+    anchorStyle =
+      below < 320 && anchor.top > below
+        ? { position: 'fixed', left, bottom: window.innerHeight - anchor.top + 4, width }
+        : { position: 'fixed', left, top: anchor.bottom + 4, width };
+  }
   return (
-    <div className="cmdk-backdrop" onMouseDown={() => setOpen(false)}>
+    <div className={`cmdk-backdrop${anchored ? ' is-anchored' : ''}`} onMouseDown={() => setOpen(false)}>
       <div
-        className="cmdk"
+        className={`cmdk${anchored ? ' is-anchored' : ''}`}
         role="dialog"
         aria-modal="true"
-        aria-label={t('search')}
+        aria-label={page ? page.label : t('search')}
+        style={anchorStyle}
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={onKeyDown}
       >
+        {context && page && (
+          <div className="cmdk-crumbs" data-testid="cmdk-crumbs">
+            <span className="cmdk-crumb">{context.title}</span>
+            <span aria-hidden>›</span>
+            <span className="cmdk-crumb is-current">{page.label}</span>
+          </div>
+        )}
         <input
           ref={inputRef}
           className="cmdk-input"
+          // Enfocado al montar: quien tipea rápido después de S o ⌘K no pierde teclas.
+          autoFocus
           role="combobox"
           aria-expanded="true"
           aria-controls="cmdk-listbox"
-          aria-activedescendant={items[sel] ? `cmdk-option-${sel}` : undefined}
+          aria-activedescendant={visible[sel] ? `cmdk-option-${sel}` : undefined}
           aria-autocomplete="list"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={t('searchPlaceholder')}
+          placeholder={page?.placeholder ?? t('searchPlaceholder')}
           aria-label={t('search')}
         />
         <div className="cmdk-results" role="listbox" id="cmdk-listbox" aria-label={t('search')}>
-          {loading && <p className="cmdk-state">{t('searchLoading')}</p>}
-          {!loading && q.trim() && items.length === 0 && (
+          {loading && !pageItems && <p className="cmdk-state">{t('searchLoading')}</p>}
+          {(!loading || pageItems) && q.trim() && visible.length === 0 && (
             <p className="cmdk-state">{t('searchEmpty')}</p>
           )}
-          {!loading &&
-            items.map((item, i) => {
+          {(!loading || pageItems) &&
+            visible.map((item, i) => {
               const header =
-                item.group !== lastGroup ? (
+                item.group !== lastGroup && !pageItems ? (
                   <p className="cmdk-group" key={`g-${item.group}`} role="presentation">
-                    {groupLabel(item.group)}
+                    {item.group === 'context' ? (context?.title ?? '') : groupLabel(item.group)}
                   </p>
                 ) : null;
               lastGroup = item.group;
               return (
-                <div key={`${item.href}-${i}`} role="presentation">
+                <div key={`${item.action?.id ?? item.href}-${i}`} role="presentation">
                   {header}
                   <button
                     type="button"
@@ -401,8 +672,14 @@ export default function CommandSearch() {
                     onMouseEnter={() => setSel(i)}
                     onClick={() => go(item)}
                   >
-                    <span>{item.label}</span>
-                    <span className="cmdk-meta">{item.meta}</span>
+                    <span className="cmdk-item-label">
+                      <OptionIcon icon={item.action?.icon} swatch={item.action?.swatch} />
+                      <span className="cmdk-item-text">{item.label}</span>
+                    </span>
+                    <span className="cmdk-meta">
+                      {item.action?.checked && <span className="cmdk-check">✓</span>}
+                      {item.meta}
+                    </span>
                   </button>
                 </div>
               );

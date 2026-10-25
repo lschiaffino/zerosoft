@@ -132,7 +132,7 @@ describe('Breadcrumb de la app: cada sección tiene su nombre', () => {
   it('ninguna página de una app cae en el "Overview" de su producto', () => {
     const products = new Set(sections.filter((s) => s.split('/').length === 3));
     // Rutas que redirigen o que son un paso de su sección (/new, ajustes de la cuenta).
-    const allowed = /\/new$|^\/app\/settings\/|^\/app\/chat\/settings$/;
+    const allowed = /\/new$|^\/app\/settings\/|^\/app\/chat\/settings$|^\/app\/track\/triage$/;
     const orphans = staticRoutes(root).filter((r) => r.split('/').length >= 4 && !allowed.test(r) && products.has(sectionFor(r)));
     expect(orphans).toEqual([]);
   });

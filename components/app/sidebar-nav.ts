@@ -108,6 +108,20 @@ export interface SidebarLabels {
     cycles: string;
     settings: string;
     inbox: string;
+    /** Planificación (como Linear): plans, initiatives, roadmap, cycles, insights y dashboards. */
+    planning?: string;
+    plans?: string;
+    initiatives?: string;
+    roadmap?: string;
+    analytics?: string;
+    insights?: string;
+    dashboards?: string;
+    /** Pedidos de clientes (T3). */
+    customers?: string;
+    /** Secciones como en Linear: "Workspace" y "Your teams". */
+    workspace?: string;
+    yourTeams?: string;
+    more?: string;
   };
   chat: {
     overview: string;
@@ -165,6 +179,8 @@ export interface NavItem {
    * El shell deja el hueco #side-branch (uno por producto).
    */
   branch?: boolean;
+  /** Solo el hueco del árbol, sin el ítem (Track lista los teams directo bajo "Your teams"). */
+  branchOnly?: boolean;
   /** App en construcción (Voice, Rec, Talk): el sidebar le suma la marca "pronto". */
   soon?: boolean;
 }
@@ -172,6 +188,8 @@ export interface NavItem {
 export interface NavGroup {
   section?: string;
   items: NavItem[];
+  /** El encabezado pliega el grupo (como el "More" de Linear): cerrado salvo que haya un ítem activo. */
+  collapsible?: boolean;
 }
 
 export type AppProduct =
@@ -394,22 +412,11 @@ export function buildNav(
       ];
 
     case 'track':
+      // Como el sidebar de Linear: Inbox y My issues arriba, el workspace
+      // (projects, initiatives, vistas de todos los issues) y los teams con
+      // sus Issues / Cycles / Projects / Views (TrackBranch).
       return [
         {
-          items: [
-            { href: '/app/track', label: labels.track.overview, active: pathname === '/app/track', icon: 'overview' },
-            { href: '/app/track/my-tasks', label: labels.track.myTasks, active: at('/app/track/my-tasks'), icon: 'myTasks' },
-          ],
-        },
-        {
-          section: labels.records,
-          items: [
-            { href: '/app/track/projects', label: labels.track.projects, active: at('/app/track/projects'), icon: 'lists', branch: true },
-            { href: '/app/track/issues', label: labels.track.issues, active: at('/app/track/issues'), icon: 'tasks' },
-          ],
-        },
-        {
-          section: labels.activity,
           items: [
             {
               href: '/app/track/inbox',
@@ -418,11 +425,53 @@ export function buildNav(
               icon: 'inbox',
               badge: unread > 0 ? unread : undefined,
             },
+            { href: '/app/track/my-tasks', label: labels.track.myTasks, active: at('/app/track/my-tasks'), icon: 'myTasks' },
           ],
         },
         {
+          section: labels.track.workspace ?? labels.records,
           items: [
-            { href: '/app/track/settings', label: labels.track.settings, active: at('/app/track/settings'), icon: 'settings' },
+            ...(labels.track.plans
+              ? [
+                  { href: '/app/track/projects', label: labels.track.plans, active: pathname === '/app/track/projects' || at('/app/track/projects/'), icon: 'plans' as const },
+                  { href: '/app/track/initiatives', label: labels.track.initiatives ?? '', active: at('/app/track/initiatives'), icon: 'initiatives' as const },
+                ]
+              : []),
+            // Todos los issues del workspace: no se marca dentro de un issue (ahí se marca su team).
+            { href: '/app/track/issues', label: labels.track.issues, active: pathname === '/app/track/issues', icon: 'tasks' },
+          ],
+        },
+        {
+          // Los teams cuelgan directo (TrackBranch en el hueco): Issues, Triage, Cycles, Projects y Views.
+          section: labels.track.yourTeams,
+          items: [
+            { href: '/app/track/teams', label: labels.track.projects, active: false, icon: 'lists', branch: true, branchOnly: true },
+          ],
+        },
+        {
+          // Lo menos usado va plegado, como el "More" del sidebar de Linear.
+          section: labels.track.more,
+          collapsible: true,
+          items: [
+            ...(labels.track.plans
+              ? [{ href: '/app/track/cycles', label: labels.track.cycles, active: at('/app/track/cycles'), icon: 'cycles' as const }]
+              : []),
+            ...(labels.track.roadmap
+              ? [{ href: '/app/track/roadmap', label: labels.track.roadmap, active: at('/app/track/roadmap'), icon: 'roadmap' as const }]
+              : []),
+            ...(labels.track.customers
+              ? [{ href: '/app/track/customers', label: labels.track.customers, active: at('/app/track/customers'), icon: 'contacts' as const }]
+              : []),
+            ...(labels.track.insights
+              ? [
+                  { href: '/app/track/insights', label: labels.track.insights ?? '', active: at('/app/track/insights'), icon: 'insights' as const },
+                  { href: '/app/track/dashboards', label: labels.track.dashboards ?? '', active: at('/app/track/dashboards'), icon: 'dashboards' as const },
+                ]
+              : []),
+            { href: '/app/track/teams', label: labels.track.projects, active: at('/app/track/teams'), icon: 'lists' },
+            { href: '/app/track', label: labels.track.overview, active: pathname === '/app/track', icon: 'overview' },
+            // Un solo "Settings" a la vista (el de la cuenta, abajo): los de Track van en More, como en Linear.
+            { href: '/app/track/settings', label: labels.appSettings, active: at('/app/track/settings'), icon: 'settings' },
           ],
         },
       ];
@@ -617,7 +666,7 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
         item('/app/links/new', labels.newLink, 'newLink'),
         item('/app/crm/contacts/new', labels.newContact, 'contacts'),
         item('/app/docs?new=1', labels.newDocPage, 'docs'),
-        item('/app/track/projects/new', labels.newProject, 'lists'),
+        item('/app/track/teams/new', labels.newProject, 'lists'),
         item('/app/calendar/event-types/new', labels.newEventType, 'tasks'),
         item('/app/notes?new=1', labels.notes.newNote, 'notes'),
       ];
@@ -633,7 +682,7 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
     case 'calendar':
       return [item('/app/calendar/event-types/new', labels.newEventType, 'tasks')];
     case 'track':
-      return [item('/app/track/projects/new', labels.newProject, 'lists')];
+      return [item('/app/track/teams/new', labels.newProject, 'lists')];
     case 'chat':
       return [item('/app/chat/widgets/new', labels.newWidget, 'chat')];
     case 'flow':

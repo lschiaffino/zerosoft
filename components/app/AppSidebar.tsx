@@ -137,6 +137,27 @@ export default function AppSidebar({
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  // Grupos plegables abiertos o cerrados a mano (por producto y sección).
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem('zs:side-groups');
+      if (raw) setOpenGroups(JSON.parse(raw) as Record<string, boolean>);
+    } catch {
+      // Sin storage: plegados por defecto.
+    }
+  }, []);
+  const toggleGroup = useCallback((key: string, open: boolean) => {
+    setOpenGroups((prev) => {
+      const next = { ...prev, [key]: open };
+      try {
+        window.localStorage.setItem('zs:side-groups', JSON.stringify(next));
+      } catch {
+        // Solo comodidad.
+      }
+      return next;
+    });
+  }, []);
   const [unreadCount, setUnreadCount] = useState(0);
   // Contador de tareas pedido de nuevo cuando la cookie tz recién se escribió
   // (el servidor lo contó con "hoy" en UTC). Ver TimezoneCookie.
@@ -494,10 +515,33 @@ export default function AppSidebar({
         </div>
 
         <nav className={`side-line${product === 'home' ? ' side-line-compact' : ''}`} aria-label={current.name} ref={lineRef} onScroll={updateOverflow}>
-          {nav.map((group, i) => (
-            <div key={group.section ?? `top-${i}`} className="side-group">
-              {group.section && <p className="side-section">{group.section}</p>}
-              {group.items.map((item) => (
+          {nav.map((group, i) => {
+            const key = group.section ?? `top-${i}`;
+            // Grupo plegable ("More"): abierto si la persona lo abrió o si tiene el ítem activo.
+            const folded = Boolean(group.collapsible) && !(openGroups[`${product}:${key}`] ?? group.items.some((it) => it.active));
+            return (
+            <div key={key} className="side-group">
+              {group.section &&
+                (group.collapsible ? (
+                  <button
+                    type="button"
+                    className="side-section side-section-toggle"
+                    aria-expanded={!folded}
+                    onClick={() => toggleGroup(`${product}:${key}`, folded)}
+                    data-testid="side-section-toggle"
+                  >
+                    <span>{group.section}</span>
+                    <span className={`side-section-chevron${folded ? '' : ' open'}`} aria-hidden="true">
+                      <Icon name="chevronRight" size={11} />
+                    </span>
+                  </button>
+                ) : (
+                  <p className="side-section">{group.section}</p>
+                ))}
+              {!folded && group.items.map((item) =>
+                item.branchOnly ? (
+                  <Fragment key={item.href}>{item.branch && <div id="side-branch" className="side-branch" />}</Fragment>
+                ) : (
                 <Fragment key={item.href}>
                   <Link
                     href={item.href}
@@ -517,9 +561,11 @@ export default function AppSidebar({
                   {/* Hueco bajo el ítem: la página del producto lo llena con un portal (el árbol de Docs). */}
                   {item.branch && <div id="side-branch" className="side-branch" />}
                 </Fragment>
-              ))}
+                ),
+              )}
             </div>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="side-foot">

@@ -148,6 +148,9 @@ export type WebhookGroupKey =
   | 'robot'
   | 'chat'
   | 'groups'
+  | 'issue'
+  | 'comment'
+  | 'project'
   | 'page'
   | 'database';
 

@@ -28,6 +28,7 @@ export default async function ProjectsPage({ locale }: { locale: string }) {
           emptyTitle: t('overview.emptyTitle'),
           emptyBody: t('overview.emptySub'),
           emptySecondary: t('overview.emptySecondary'),
+          private: t('access.privateBadge'),
         }}
       />
     </div>

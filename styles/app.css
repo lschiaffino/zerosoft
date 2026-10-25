@@ -506,7 +506,8 @@
 .cmdk-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  /* Encima de los modales de las apps (el composer de Track abre sus menús acá). */
+  z-index: 120;
   display: flex;
   justify-content: center;
   padding-top: 14vh;
@@ -562,6 +563,30 @@
 }
 .cmdk-item.sel { background: var(--ui-hover); }
 .cmdk-state { padding: 24px; font-size: 0.875rem; text-align: center; color: var(--brand-gray-2); }
+/* Acciones en contexto (Track): página abierta y marcas. */
+.cmdk-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px 0;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+.cmdk-crumb { font-family: var(--font-data); }
+.cmdk-crumb.is-current { color: var(--ink); font-family: var(--font-ui); font-weight: 600; }
+.cmdk-item-label { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.cmdk-swatch { width: 10px; height: 10px; flex: none; border-radius: 50%; }
+.cmdk-check { margin-right: 8px; color: var(--ink); font-family: var(--font-ui); }
+.cmdk-icon { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 16px; height: 16px; color: var(--brand-gray-2); }
+.cmdk-icon .track-avatar { width: 16px; height: 16px; font-size: 0.5625rem; }
+.cmdk-item-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmdk-item-label { flex: 1 1 auto; }
+/* Menú anclado a un chip (propiedad del issue, como los dropdowns de Linear). */
+.cmdk-backdrop.is-anchored { padding-top: 0; background: transparent; }
+.cmdk.is-anchored { z-index: 91; }
+.cmdk.is-anchored .cmdk-input { height: 36px; padding: 0 10px; font-size: 0.8125rem; }
+.cmdk.is-anchored .cmdk-results { max-height: 320px; }
+.cmdk.is-anchored .cmdk-item { min-height: 30px; padding: 4px 8px; font-size: 0.8125rem; }
 
 /* Column toggle */
 .column-toggle {
@@ -1241,6 +1266,24 @@ td.cell-actions > * + * { margin-left: 4px; }
 .side-line.side-line-compact .side-section { padding: 10px 8px 2px 12px; }
 .side-line.side-line-compact .side-stop { height: 30px; }
 
+/* Encabezado que pliega su grupo (el "More" de Track, como en Linear). */
+.side-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.side-section-toggle:hover { color: var(--ink); }
+.side-section-toggle:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.side-section-chevron { display: inline-flex; transition: transform 120ms var(--ease); }
+.side-section-chevron.open { transform: rotate(90deg); }
 /* Marca "pronto" de las apps en construcción (Voice, Rec, Talk) en el switcher y el sidebar del inicio. */
 .app-soon-tag { margin-left: auto; padding: 0 4px; font-family: var(--mono); font-size: 11px; line-height: 16px; color: var(--brand-gray-2); border: 1px solid var(--line); }
 .sidebar-collapsed .side-soon { display: none; }

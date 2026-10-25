@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   if (!user) return unauthorized();
   const issue = await getIssue(id);
   const project = issue ? await getProject(issue.project_id) : undefined;
-  if (!issue || !project || !canAccessTrackProject(project, user.team?.id ?? null, user.id)) return notFound();
+  if (!issue || !project || !(await canAccessTrackProject(project, user.team?.id ?? null, user.id))) return notFound();
   const workspaceId = projectWorkspaceId(project);
   const [rows, config] = await Promise.all([
     listIssueLinks(id),

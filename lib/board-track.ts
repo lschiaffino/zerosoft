@@ -45,7 +45,7 @@ export async function createIssuesFromStickies(args: {
   fromLabel?: string;
 }): Promise<CreateFromStickiesResult> {
   const project = await getProject(args.projectId);
-  if (!project || !canAccessTrackProject(project, args.teamId, args.workspaceId)) return { ok: false, code: 'project_not_found' };
+  if (!project || !(await canAccessTrackProject(project, args.teamId, args.workspaceId))) return { ok: false, code: 'project_not_found' };
   const linked = new Set((await listBoardTrackCards(args.boardId)).map((c) => c.element_id));
   let skipped = 0;
   const createdIds: string[] = [];

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import EmptyState from '@/components/ui/EmptyState';
+import { Link } from '@/i18n/navigation';
 import type { TrackCycleRow } from '@/lib/db';
 import { cycleState, formatDay, nextCycleDraft, overlappingCycle } from '@/lib/track-tasks';
 
@@ -27,6 +28,7 @@ const STATE_ORDER = { active: 0, upcoming: 1, past: 2 } as const;
  */
 export default function CyclesPanel({ projectId, cycles, today, onChanged }: CyclesPanelProps) {
   const t = useTranslations('track');
+  const tp = useTranslations('trackPlanning');
   const locale = useLocale();
   const [editing, setEditing] = useState<string | 'new' | null>(null);
   const [completing, setCompleting] = useState<string | null>(null);
@@ -137,6 +139,10 @@ export default function CyclesPanel({ projectId, cycles, today, onChanged }: Cyc
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(c.id)}>
                       {t('cycles.edit')}
                     </button>
+                    {/* Métricas del cycle: burn-up, scope creep, velocidad y capacidad. */}
+                    <Link href={`/app/track/cycles/${c.id}`} className="btn btn-ghost btn-sm" data-testid="track-cycle-metrics">
+                      {tp('cycles.metrics')}
+                    </Link>
                     {st !== 'upcoming' && total > done && (
                       <button
                         type="button"
