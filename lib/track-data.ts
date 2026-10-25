@@ -1393,7 +1393,7 @@ export async function createIssue(
           payload.title?.trim() ?? '',
           blocksToJson(payload.description),
           statusId,
-          payload.priority ?? 'medium',
+          payload.priority ?? 'none',
           payload.assigneeId ?? null,
           creatorId,
           payload.cycleId ?? null,

@@ -1148,6 +1148,8 @@ export interface TrackProjectRow {
   /** Auto-cierre (114): el padre al terminar sus sub-issues / los sub-issues al cerrar el padre. */
   auto_close_parent?: number;
   auto_close_children?: number;
+  /** Escala de estimación del team: fibonacci, linear, exponential, tshirt o none (migración 115). */
+  estimate_scale?: string;
   /** 1 = Track crea los cycles solo (cada `cycle_weeks` semanas) y arrastra lo sin terminar. */
   cycle_auto?: number;
   cycle_weeks?: number;

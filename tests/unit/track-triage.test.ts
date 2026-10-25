@@ -148,7 +148,7 @@ describe('Track T3: entrada a triage', () => {
     // Un issue creado desde la app no pasa por triage ni por las reglas.
     const own = await createIssue(project.id, owner.id, { title: 'crash too' }, { source: 'app' });
     expect(own.triage).toBe(0);
-    expect(own.priority).toBe('medium');
+    expect(own.priority).toBe('none');
 
     expect((await listTriageIssues(project.id)).map((i) => i.id)).toContain(issue.id);
     await snoozeTriageIssue(issue.id, new Date(Date.now() + 3_600_000).toISOString(), owner.id);

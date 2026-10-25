@@ -4958,6 +4958,8 @@ export const MIGRATIONS: Migration[] = [
       if (sql && check.test(sql) && !/'none'/.test(sql.match(check)?.[0] ?? '')) {
         const newSql = sql
           .replace(check, "CHECK (priority IN ('none', 'urgent', 'high', 'medium', 'low'))")
+          // Como Linear, un issue nace sin prioridad.
+          .replace(/priority\s+TEXT\s+NOT\s+NULL\s+DEFAULT\s+'medium'/i, "priority TEXT NOT NULL DEFAULT 'none'")
           .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?track_issues["`]?/i, 'CREATE TABLE track_issues_new');
         const cols = (await client.execute('PRAGMA table_info(track_issues)')).rows
           .map((r) => `"${String(r.name)}"`)
@@ -5024,6 +5026,46 @@ export const MIGRATIONS: Migration[] = [
           PRIMARY KEY (user_id, issue_id)
         );
         CREATE INDEX IF NOT EXISTS idx_track_issue_favorites_user ON track_issue_favorites(user_id, created_at);
+      `);
+    },
+  },
+  {
+    // Track: prioridad por defecto 'none' en bases que ya corrieron la 114
+    // antes de que la 114 cambiara el DEFAULT (solo reconstruye si hace falta;
+    // en una base nueva es un no-op), escala de estimación por team y labels
+    // de los projects (track_plans).
+    id: '115_track_priority_default',
+    async up(client) {
+      const sql = String(
+        (await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'track_issues'")).rows[0]?.sql ?? '',
+      );
+      const oldDefault = /priority\s+TEXT\s+NOT\s+NULL\s+DEFAULT\s+'medium'/i;
+      if (sql && oldDefault.test(sql)) {
+        const newSql = sql
+          .replace(oldDefault, "priority TEXT NOT NULL DEFAULT 'none'")
+          .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?track_issues["`]?/i, 'CREATE TABLE track_issues_new');
+        const cols = (await client.execute('PRAGMA table_info(track_issues)')).rows.map((r) => `"${String(r.name)}"`).join(', ');
+        const indexes = (
+          await client.execute("SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'track_issues' AND sql IS NOT NULL")
+        ).rows.map((r) => String(r.sql));
+        await client.migrate([
+          'DROP TABLE IF EXISTS track_issues_new',
+          newSql,
+          `INSERT INTO track_issues_new (${cols}) SELECT ${cols} FROM track_issues`,
+          'DROP TABLE track_issues',
+          'ALTER TABLE track_issues_new RENAME TO track_issues',
+          ...indexes,
+        ]);
+      }
+      // Escala de estimación del team (como Linear): fibonacci, linear, exponential, tshirt o none.
+      await addColumn(client, "ALTER TABLE track_projects ADD COLUMN estimate_scale TEXT NOT NULL DEFAULT 'fibonacci'");
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_plan_labels (
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          label_id TEXT NOT NULL REFERENCES track_labels(id) ON DELETE CASCADE,
+          PRIMARY KEY (plan_id, label_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_plan_labels_label ON track_plan_labels(label_id);
       `);
     },
   },

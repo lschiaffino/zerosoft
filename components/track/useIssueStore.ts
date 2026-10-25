@@ -99,7 +99,7 @@ function draftIssue(projectId: string, id: string, draft: IssueDraft, ctx?: Proj
     title: draft.title.trim(),
     description: '[]',
     status_id: null,
-    priority: draft.priority ?? 'medium',
+    priority: draft.priority ?? 'none',
     assignee_id: null,
     creator_id: '',
     estimate: null,
