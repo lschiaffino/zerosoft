@@ -176,6 +176,8 @@ const BLOCK_COMMANDS: {
   level?: 1 | 2 | 3;
   /** Heading con toggle. */
   toggle?: boolean;
+  /** Base: vista vinculada de otra base. */
+  linked?: boolean;
   shortcut?: string;
   special?: CommandSpecial;
   /** Columnas: cuántas. */
@@ -200,6 +202,7 @@ const BLOCK_COMMANDS: {
   { key: 'divider', type: 'divider' },
   { key: 'table', type: 'table' },
   { key: 'database', type: 'database' },
+  { key: 'linkedDatabase', type: 'database', linked: true },
   { key: 'image', type: 'image', group: 'media' },
   { key: 'video', type: 'video', group: 'media' },
   { key: 'audio', type: 'audio', group: 'media' },
@@ -255,6 +258,7 @@ const COMMAND_KEYWORDS: Record<string, string[]> = {
   divider: ['divider', 'hr', 'line', 'separator', '---'],
   table: ['table', 'grid'],
   database: ['database', 'db', 'table', 'grid', 'view', 'data'],
+  linkedDatabase: ['linked', 'linked view', 'view of database', 'vista vinculada', 'visualização vinculada', 'database view'],
   image: ['image', 'picture', 'photo', 'img', 'upload', 'imagen', 'foto', 'imagem'],
   file: ['file', 'attachment', 'upload', 'pdf', 'document', 'archivo', 'adjunto', 'arquivo', 'anexo'],
   board: ['board', 'whiteboard', 'canvas', 'excalidraw', 'pizarra', 'quadro', 'lousa'],
@@ -1513,7 +1517,7 @@ export default function DocsEditor({
       level?: 1 | 2 | 3,
       content?: string,
       caretOffset = 0,
-      extra: { toggle?: boolean } = {},
+      extra: { toggle?: boolean; linked?: boolean } = {},
     ) => {
       setBlocks((prev) => {
         const next = prev.map((b, i) => {
@@ -1533,8 +1537,14 @@ export default function DocsEditor({
           if (type === 'todo') converted.checked = converted.checked ?? false;
           // Code es texto plano (pre-wrap): sin marcas en línea dentro.
           if (type === 'code') converted.content = escapeHtml(htmlToFlatText(converted.content));
-          // Database: Name, Status y Due, una fila vacía y una vista tabla.
-          if (type === 'database' && !converted.db && !converted.columns?.length) {
+          // Vista vinculada: el bloque elige su base de origen al mostrarse.
+          if (type === 'database' && extra.linked) {
+            const viewId = crypto.randomUUID().slice(0, 12);
+            converted.linked = { page_id: '_pick', block_id: '_pick', views: [{ id: viewId, name: '', type: 'table' }], active_view: viewId };
+            delete converted.db;
+            converted.content = '';
+          } else if (type === 'database' && !converted.db && !converted.columns?.length) {
+            // Database: Name, Status y Due, una fila vacía y una vista tabla.
             converted.db = defaultDatabase({
               name: t('database.defaults.name'),
               status: t('database.defaults.status'),
@@ -1578,7 +1588,7 @@ export default function DocsEditor({
 
   /** Aplica un comando del menú `/`: borra solo el `/query` tipeado y convierte/inserta. */
   const applyCommand = useCallback(
-    (index: number, cmd: { type: DocsBlockType; level?: 1 | 2 | 3; toggle?: boolean; special?: CommandSpecial; count?: number }) => {
+    (index: number, cmd: { type: DocsBlockType; level?: 1 | 2 | 3; toggle?: boolean; linked?: boolean; special?: CommandSpecial; count?: number }) => {
       const block = blocks[index];
       if (!block) return;
       const s = slash && slash.index === index ? slash : null;
@@ -1718,7 +1728,7 @@ export default function DocsEditor({
         return;
       }
 
-      convertBlock(index, cmd.type, cmd.level, stripped, caret, { toggle: cmd.toggle });
+      convertBlock(index, cmd.type, cmd.level, stripped, caret, { toggle: cmd.toggle, linked: cmd.linked });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [blocks, slash, convertBlock, triggerSave, setBlocks, updateBlock, locale, readCaretMenuPos, dateHtmlFor],
@@ -2803,7 +2813,10 @@ export default function DocsEditor({
     [triggerSave, setBlocks],
   );
 
-  const dbHooks = useMemo(() => ({ onOpenRow, membersUrl }), [onOpenRow, membersUrl]);
+  const dbHooks = useMemo(
+    () => ({ onOpenRow, membersUrl, pageId: embedded ? null : page.id, updateDatabase }),
+    [onOpenRow, membersUrl, embedded, page.id, updateDatabase],
+  );
 
   /** [[ y archivos en el cuerpo de una fila: los de Notes, o los de esta página de Docs. */
   const rowPageLinks = useMemo<PageLinkSource>(
@@ -3142,7 +3155,7 @@ export default function DocsEditor({
                               className="docs-bmenu-item"
                               onClick={() => {
                                 closeBlockMenu();
-                                convertBlock(index, cmd.type, cmd.level, undefined, 0, { toggle: cmd.toggle });
+                                convertBlock(index, cmd.type, cmd.level, undefined, 0, { toggle: cmd.toggle, linked: cmd.linked });
                               }}
                             >
                               <span className="docs-command-icon"><DocsGlyph name={BLOCK_ICONS[cmd.type]} size={14} /></span>
@@ -4193,6 +4206,8 @@ export default function DocsEditor({
         rowId={openRow.rowId}
         mode={openRow.mode}
         membersUrl={membersUrl}
+        pageId={embedded ? null : page.id}
+        updateDatabase={updateDatabase}
         pageTitle={title}
         updateDb={(fn) => updateDatabase(openRow.blockId, fn)}
         onMode={(mode) => onOpenRow(openRow.blockId, openRow.rowId, mode)}

@@ -12,6 +12,7 @@ import {
   type DbGroup,
 } from '@/lib/docs-database';
 import DbValueView, { StatusGlyph } from './DbValueView';
+import { computeDatabase, rowTitlesFor } from '@/lib/docs-db-compute';
 
 /**
  * Base de datos de solo lectura: la vista activa tal como la dejó quien la
@@ -31,11 +32,15 @@ export default function DbReadOnly({
   locale?: string;
   className?: string;
 }) {
-  const db = normalizeDatabase(block);
+  // Vista vinculada: en lectura no se trae la otra base (quien lee puede no tener acceso a ella).
+  if (block.linked) return null;
+  // Fórmulas y relaciones dentro de la misma base se calculan; las de otras bases quedan vacías.
+  const db = computeDatabase(normalizeDatabase(block), { people, locale });
   const view = activeView(db);
-  const ctx = { people, locale };
+  const refs = { titles: rowTitlesFor(db, {}) };
+  const ctx = { people, locale, rowTitles: refs.titles };
   const rows = viewRows(db, view, ctx);
-  const props = visibleProperties(db, view).filter((p) => p.type !== 'person' || people);
+  const props = visibleProperties(db, view).filter((p) => (p.type !== 'person' && p.type !== 'created_by' && p.type !== 'last_edited_by') || people).filter((p) => p.type !== 'button' && p.type !== 'files');
   const groupProp = groupProperty(db, view);
   const usableGroup = groupProp && (groupProp.type !== 'person' || people) ? groupProp : null;
 
@@ -60,7 +65,7 @@ export default function DbReadOnly({
           <tr key={r.id}>
             {props.map((p) => (
               <td key={p.id}>
-                {p.type === 'title' ? rowTitle(db, r) : <DbValueView prop={p} row={r} people={people} locale={locale} />}
+                {p.type === 'title' ? rowTitle(db, r) : <DbValueView prop={p} row={r} people={people} locale={locale} refs={refs} />}
               </td>
             ))}
           </tr>
@@ -89,7 +94,7 @@ export default function DbReadOnly({
                     .filter((p) => !cardHidesValue(p, cellValue(p, r)))
                     .map((p) => (
                       <div key={p.id} className="docs-db-bcard-prop">
-                        <DbValueView prop={p} row={r} people={people} locale={locale} />
+                        <DbValueView prop={p} row={r} people={people} locale={locale} refs={refs} />
                       </div>
                     ))}
                 </div>
@@ -110,7 +115,7 @@ export default function DbReadOnly({
               <span key={p.id} className="docs-db-prop">
                 <span className="docs-db-prop-label">{p.name}</span>
                 <span className="docs-db-prop-value">
-                  <DbValueView prop={p} row={r} people={people} locale={locale} />
+                  <DbValueView prop={p} row={r} people={people} locale={locale} refs={refs} />
                 </span>
               </span>
             ))}

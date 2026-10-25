@@ -80,6 +80,21 @@ const dbOption = z.object({
   name: shortText,
   group: z.enum(['todo', 'in_progress', 'done']).optional(),
 });
+const dbTarget = z.object({ page_id: dbId, block_id: dbId });
+/** Acción de un botón o automatización (lib/docs-db-ops.ts). */
+const dbAction = z.discriminatedUnion('type', [
+  z.object({ id: dbId, type: z.literal('set_prop'), prop: dbId, value: dbValue, mode: z.enum(['set', 'add', 'remove']).optional() }),
+  z.object({ id: dbId, type: z.literal('add_row'), target: dbTarget, title: z.string().max(500).optional(), values: z.record(dbValue).optional() }),
+  z.object({
+    id: dbId,
+    type: z.literal('notify'),
+    people: z.array(dbId).max(20).optional(),
+    person_prop: dbId.optional(),
+    message: z.string().max(1000).optional(),
+  }),
+  z.object({ id: dbId, type: z.literal('webhook'), url: z.string().max(2048) }),
+  z.object({ id: dbId, type: z.literal('open_url'), url: z.string().max(2048) }),
+]);
 const dbProperty = z.object({
   id: dbId,
   name: shortText,
@@ -98,8 +113,67 @@ const dbProperty = z.object({
     'phone',
     'created_time',
     'last_edited_time',
+    'formula',
+    'relation',
+    'rollup',
+    'files',
+    'created_by',
+    'last_edited_by',
+    'unique_id',
+    'button',
+    'place',
   ]),
   options: z.array(dbOption).max(100).optional(),
+  formula: z.string().max(4000).optional(),
+  relation: z
+    .object({
+      page_id: dbId,
+      block_id: dbId,
+      limit: z.literal(1).optional(),
+      synced_prop: dbId.optional(),
+      mirror_of: dbId.optional(),
+    })
+    .optional(),
+  rollup: z
+    .object({
+      relation: dbId,
+      property: dbId,
+      fn: z.enum([
+        'show_original',
+        'show_unique',
+        'count_all',
+        'count_values',
+        'count_unique',
+        'count_empty',
+        'count_not_empty',
+        'percent_empty',
+        'percent_not_empty',
+        'sum',
+        'average',
+        'median',
+        'min',
+        'max',
+        'range',
+        'checked',
+        'unchecked',
+        'percent_checked',
+        'earliest',
+        'latest',
+        'date_range',
+      ]),
+    })
+    .optional(),
+  prefix: z.string().max(20).optional(),
+  next_id: z.number().int().min(1).max(1_000_000_000).optional(),
+  button: z.object({ label: shortText, actions: z.array(dbAction).max(10) }).optional(),
+  ai: z
+    .object({
+      mode: z.enum(['summary', 'extract', 'translate', 'classify', 'custom']),
+      prompt: z.string().max(2000).optional(),
+      language: z.string().max(40).optional(),
+      auto: z.boolean().optional(),
+    })
+    .optional(),
 });
 const dbFilter = z.object({
   id: dbId,
@@ -131,12 +205,16 @@ const dbFilter = z.object({
 const dbView = z.object({
   id: dbId,
   name: shortText,
-  type: z.enum(['table', 'board', 'gallery']),
+  type: z.enum(['table', 'board', 'gallery', 'list', 'calendar', 'timeline']),
   filters: z.array(dbFilter).max(20).optional(),
   sorts: z.array(z.object({ property: dbId, direction: z.enum(['asc', 'desc']) })).max(10).optional(),
   group_by: dbId.nullish(),
   hidden: z.array(dbId).max(40).optional(),
   widths: z.record(z.number().min(40).max(2000)).optional(),
+  sub_group_by: dbId.nullish(),
+  date_by: dbId.nullish(),
+  end_by: dbId.nullish(),
+  zoom: z.enum(['week', 'month', 'quarter']).optional(),
 });
 
 /** Bloque sin base adentro: el cuerpo de una fila no anida bases. */
@@ -172,12 +250,35 @@ const docsBaseBlockSchema = z.object({
   button: docsButtonSchema.optional(),
 });
 
+const dbFile = z.object({
+  id: dbId,
+  url: z.string().max(2048),
+  name: z.string().max(255),
+  size: z.number().int().min(0).max(1024 * 1024 * 1024).optional(),
+  mime: z.string().max(255).optional(),
+});
+
 const dbRow = z.object({
   id: dbId,
   values: z.record(dbValue),
   body: z.array(docsBaseBlockSchema).max(500).optional(),
+  files: z.record(z.array(dbFile).max(20)).optional(),
   created_at: z.string().max(40),
   updated_at: z.string().max(40),
+  created_by: dbId.optional(),
+  updated_by: dbId.optional(),
+});
+
+const dbAutomation = z.object({
+  id: dbId,
+  name: shortText,
+  enabled: z.boolean(),
+  trigger: z.discriminatedUnion('type', [
+    z.object({ type: z.literal('row_added') }),
+    z.object({ type: z.literal('prop_changed'), prop: dbId, to: dbValue.optional() }),
+  ]),
+  view: dbId.nullish(),
+  actions: z.array(dbAction).max(10),
 });
 
 /** Base de datos de un bloque `database` (ver lib/docs-database.ts; el servidor la sanea igual). */
@@ -198,10 +299,74 @@ export const docsDatabaseSchema = z.object({
     )
     .max(30)
     .optional(),
+  automations: z.array(dbAutomation).max(20).optional(),
+});
+
+/** Vista vinculada: el bloque guarda solo sus vistas; filas y propiedades son de la base de origen. */
+export const docsLinkedSourceSchema = z.object({
+  page_id: dbId,
+  block_id: dbId,
+  views: z.array(dbView).min(1).max(20),
+  active_view: dbId.optional(),
 });
 
 export const docsBlockSchema = docsBaseBlockSchema.extend({
   db: docsDatabaseSchema.optional(),
+  linked: docsLinkedSourceSchema.optional(),
+});
+
+/** Operaciones sobre una base de otra página (lib/docs-db-ops.ts). */
+const dbPropertyFull = dbProperty;
+export const docsDbOpSchema = z.discriminatedUnion('op', [
+  z.object({ op: z.literal('set_cell'), row: dbId, prop: dbId, value: dbValue }),
+  z.object({ op: z.literal('relation'), row: dbId, prop: dbId, add: z.array(dbId).max(100).optional(), remove: z.array(dbId).max(100).optional() }),
+  z.object({
+    op: z.literal('add_row'),
+    id: dbId.optional(),
+    values: z.record(dbValue).optional(),
+    title: z.string().max(500).optional(),
+    body: z.array(docsBaseBlockSchema).max(500).optional(),
+    files: z.record(z.array(dbFile).max(20)).optional(),
+    before: dbId.nullish(),
+  }),
+  z.object({ op: z.literal('delete_rows'), rows: z.array(dbId).max(2000) }),
+  z.object({ op: z.literal('set_body'), row: dbId, body: z.array(docsBaseBlockSchema).max(500) }),
+  z.object({ op: z.literal('set_files'), row: dbId, prop: dbId, files: z.array(dbFile).max(20) }),
+  z.object({ op: z.literal('move_row'), row: dbId, before: dbId.nullable() }),
+  z.object({ op: z.literal('add_property'), property: dbPropertyFull }),
+  z.object({ op: z.literal('update_property'), property: dbPropertyFull }),
+  z.object({ op: z.literal('remove_property'), prop: dbId }),
+  z.object({ op: z.literal('set_title'), title: shortText }),
+  z.object({ op: z.literal('set_automations'), automations: z.array(dbAutomation).max(20) }),
+]);
+
+export const docsDbOpsSchema = z.object({ ops: z.array(docsDbOpSchema).min(1).max(500) });
+
+/** Correr las acciones de afuera de un botón (notificar, webhook, agregar fila en otra base). */
+export const docsDbRunSchema = z.object({
+  row_id: dbId,
+  prop_id: dbId,
+  /** La fila como la ve el editor (puede no estar guardada todavía): para el mensaje y el webhook. */
+  row: z.object({ title: z.string().max(2000), values: z.record(z.string().max(2000)) }).optional(),
+  actions: z.array(dbAction).max(10),
+});
+
+/** Autocompletar con IA una propiedad en varias filas. */
+export const docsDbAutofillSchema = z.object({
+  block_id: dbId,
+  prop_id: dbId,
+  ai: z.object({
+    mode: z.enum(['summary', 'extract', 'translate', 'classify', 'custom']),
+    prompt: z.string().max(2000).optional(),
+    language: z.string().max(40).optional(),
+  }),
+  /** Para classify: las opciones que se pueden elegir. */
+  options: z.array(z.object({ id: dbId, name: shortText })).max(100).optional(),
+  multi: z.boolean().optional(),
+  rows: z
+    .array(z.object({ id: dbId, title: z.string().max(2000), properties: z.string().max(8000), body: z.string().max(20000) }))
+    .min(1)
+    .max(25),
 });
 
 export const docPageCreateSchema = z.object({

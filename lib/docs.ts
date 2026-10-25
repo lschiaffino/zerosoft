@@ -14,6 +14,7 @@ import { persistSyncedBlocks } from './docs-synced';
 import { syncDocReminders } from './docs-reminders';
 import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
 import { databaseRowEntries } from './docs-database';
+import { prepareDatabaseSave, type DbEffect } from './docs-db-save';
 import {
   buildSnippet,
   matchesAll,
@@ -405,12 +406,21 @@ export class DocsConflictError extends Error {
   }
 }
 
+/** Opciones del guardado: quién edita (autor de filas) y dónde dejar las automatizaciones disparadas. */
+export interface UpdateDocPageOptions {
+  /** Quién guarda (autor de filas, bloques sincronizados y recordatorios). */
+  actorId?: string | null;
+  effects?: DbEffect[];
+  /** Idioma y zona horaria de quien guarda (recordatorios). */
+  locale?: string | null;
+  timezone?: string | null;
+}
+
 export async function updateDocPage(
   ownerId: string,
   pageId: string,
   input: UpdateDocPageInput,
-  /** Quién guarda (bloques sincronizados y recordatorios) y su idioma/zona horaria. */
-  ctx: { actorId?: string | null; locale?: string | null; timezone?: string | null } = {},
+  opts: UpdateDocPageOptions = {},
 ): Promise<DocsPage | null> {
   const row = (await getDb()
     .prepare('SELECT * FROM docs_pages WHERE id = ?')
@@ -448,13 +458,16 @@ export async function updateDocPage(
   }
   let savedContent: DocsBlock[] | null = null;
   if (input.content !== undefined) {
+    // Bases: autor de cada fila y automatizaciones contra lo guardado.
+    const saved = prepareDatabaseSave(pageId, parseBlocks(row.content), cleanContent(input.content), opts.actorId ?? null);
+    opts.effects?.push(...saved.effects);
     // Bloques sincronizados: lo editado adentro se escribe en su tabla.
     savedContent = await persistSyncedBlocks({
       workspaceId: ownerId,
       pageId,
-      actorId: ctx.actorId ?? null,
+      actorId: opts.actorId ?? null,
       previous: parseBlocks(row.content),
-      next: cleanContent(input.content),
+      next: saved.blocks,
     });
     updates.push('content = ?');
     args.push(stringifyBlocks(savedContent));
@@ -528,14 +541,14 @@ export async function updateDocPage(
   if (base !== undefined && result.changes === 0) throw new DocsConflictError();
 
   // Recordatorios de las menciones de fecha: la tabla queda igual al contenido.
-  if (savedContent && ctx.actorId) {
+  if (savedContent && opts.actorId) {
     await syncDocReminders({
       pageId,
       workspaceId: ownerId,
-      actorId: ctx.actorId,
+      actorId: opts.actorId,
       blocks: savedContent,
-      locale: ctx.locale,
-      timezone: ctx.timezone,
+      locale: opts.locale,
+      timezone: opts.timezone,
     }).catch(() => undefined);
   }
 

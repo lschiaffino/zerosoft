@@ -13,7 +13,8 @@ import type {
 } from '@/lib/docs-types';
 import {
   DB_GROUPABLE_TYPES,
-  filterOps,
+  effectiveType,
+  filterOpsFor,
   newDbId,
   opNeedsValue,
   orderedOptions,
@@ -27,7 +28,7 @@ import { PropertyTypeIcon } from './DbPropertyMenu';
 type Commit = (next: DocsDatabase) => void;
 
 export function newFilter(prop: DbProperty): DbFilter {
-  return { id: newDbId(), property: prop.id, op: filterOps(prop.type)[0] };
+  return { id: newDbId(), property: prop.id, op: filterOpsFor(prop)[0] ?? 'not_empty' };
 }
 
 function FilterValue({
@@ -44,6 +45,7 @@ function FilterValue({
   const t = useTranslations('docs.database');
   if (!opNeedsValue(filter.op)) return null;
   const v = filter.value;
+  const type = effectiveType(prop);
   if (prop.type === 'select' || prop.type === 'status' || prop.type === 'multi_select') {
     return (
       <select className="docs-db-select" aria-label={t('filterValue')} value={typeof v === 'string' ? v : ''} onChange={(e) => onChange(e.target.value || null)}>
@@ -56,7 +58,7 @@ function FilterValue({
       </select>
     );
   }
-  if (prop.type === 'person') {
+  if (type === 'person') {
     return (
       <select className="docs-db-select" aria-label={t('filterValue')} value={typeof v === 'string' ? v : ''} onChange={(e) => onChange(e.target.value || null)}>
         <option value="">{t('pickPerson')}</option>
@@ -68,12 +70,12 @@ function FilterValue({
       </select>
     );
   }
-  if (prop.type === 'date' || prop.type === 'created_time' || prop.type === 'last_edited_time') {
+  if (type === 'date' || prop.type === 'created_time' || prop.type === 'last_edited_time') {
     return (
       <input className="docs-db-field mono" type="date" aria-label={t('filterValue')} value={typeof v === 'string' ? v : ''} onChange={(e) => onChange(e.target.value || null)} />
     );
   }
-  if (prop.type === 'number') {
+  if (type === 'number') {
     return (
       <input
         className="docs-db-field mono"
@@ -118,10 +120,10 @@ export function DbFilterPanel({ db, view, members, commit }: { db: DocsDatabase;
               data-autofocus={i === filters.length - 1 || undefined}
               onChange={(e) => {
                 const next = db.properties.find((p) => p.id === e.target.value);
-                if (next) patch(f.id, { property: next.id, op: filterOps(next.type)[0], value: undefined });
+                if (next) patch(f.id, { property: next.id, op: filterOpsFor(next)[0] ?? 'not_empty', value: undefined });
               }}
             >
-              {db.properties.map((p) => (
+              {db.properties.filter((p) => p.type !== 'button').map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name || t('untitledProperty')}
                 </option>
@@ -133,7 +135,7 @@ export function DbFilterPanel({ db, view, members, commit }: { db: DocsDatabase;
               value={f.op}
               onChange={(e) => patch(f.id, { op: e.target.value as DbFilterOp })}
             >
-              {filterOps(prop.type).map((op) => (
+              {filterOpsFor(prop).map((op) => (
                 <option key={op} value={op}>
                   {t(`ops.${op}`)}
                 </option>
@@ -157,7 +159,7 @@ export function DbFilterPanel({ db, view, members, commit }: { db: DocsDatabase;
           type="button"
           className="docs-db-link-btn"
           disabled={filters.length >= 20}
-          onClick={() => set([...filters, newFilter(db.properties[0])])}
+          onClick={() => set([...filters, newFilter(db.properties.find((p) => p.type !== 'button') ?? db.properties[0])])}
         >
           <DocsGlyph name="plus" size={12} />
           {t('addFilter')}
@@ -287,6 +289,26 @@ export function DbGroupPanel({
           ))}
         </select>
       </label>
+      {view.type === 'board' && groupable.length > 1 && (
+        <label className="docs-db-row-field">
+          <span>{t('subGroupBy')}</span>
+          <select
+            className="docs-db-select"
+            value={view.sub_group_by ?? ''}
+            data-testid="docs-db-subgroup-select"
+            onChange={(e) => commit(updateView(db, view.id, { sub_group_by: e.target.value || null }))}
+          >
+            <option value="">{t('noGrouping')}</option>
+            {groupable
+              .filter((p) => p.id !== view.group_by)
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name || t('untitledProperty')}
+                </option>
+              ))}
+          </select>
+        </label>
+      )}
       {groupable.length === 0 && (
         <div className="docs-db-panel-foot">
           <p className="docs-db-panel-empty">{t('noGroupable')}</p>
