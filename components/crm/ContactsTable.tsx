@@ -14,6 +14,7 @@ import PhoneTouch from './PhoneTouch';
 import BulkEditControls, { type BulkEditField } from './BulkEditControls';
 import type { CustomCell, CustomColumn } from './customFieldViews';
 import { CustomColumnHeader, OwnerCell, OwnerHeader } from './TableExtraColumns';
+import { formatPhoneDisplay } from '@/lib/crm-calls';
 
 export interface ContactRow {
   id: string;
@@ -287,6 +288,7 @@ export default function ContactsTable({
                       endpoint={`/api/crm/contacts/${row.id}`}
                       field="phone"
                       value={row.phone}
+                      displayValue={formatPhoneDisplay(row.phone)}
                       className="muted"
                     />
                     {row.phone ? <PhoneTouch phone={row.phone} contactId={row.id} compact /> : null}

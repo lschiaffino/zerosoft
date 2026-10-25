@@ -52,6 +52,7 @@ import PhoneTouch from '@/components/crm/PhoneTouch';
 import PlaybookLauncher from '@/components/crm/PlaybookLauncher';
 import CompanyDuplicatesPanel from '@/components/crm/CompanyDuplicatesPanel';
 import { parseRecordTab, recordTabHref } from '@/components/crm/recordTab';
+import { formatPhoneDisplay } from '@/lib/crm-calls';
 
 export const dynamic = 'force-dynamic';
 
@@ -415,7 +416,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         type: 'number',
         value: company.employees === null ? '' : String(company.employees),
       },
-      { key: 'phone', label: t('companies.form.phone'), type: 'text', value: company.phone },
+      { key: 'phone', label: t('companies.form.phone'), type: 'text', value: company.phone, display: formatPhoneDisplay(company.phone) },
       { key: 'website', label: t('companies.form.website'), type: 'text', value: company.website },
       { key: 'city', label: t('companies.form.city'), type: 'text', value: company.city },
       { key: 'country', label: t('companies.form.country'), type: 'text', value: company.country },

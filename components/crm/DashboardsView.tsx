@@ -17,6 +17,7 @@ import {
 import { formatAxis, formatDate, formatNumber } from '@/lib/utils';
 import { Link } from '@/i18n/navigation';
 import ReportChart from './ReportChart';
+import { bucketLabel, monthLabel } from '@/lib/crm-buckets';
 
 const GRID_COLS = 12;
 const ROW_H = 64; // px por fila del grid (ver .dash-grid en crm.css)
@@ -101,22 +102,6 @@ function niceCeil(max: number): number {
   return nice * pow;
 }
 
-function monthLabel(month: string, locale: string): string {
-  const [y, m] = month.split('-').map(Number);
-  return new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }).format(
-    new Date(Date.UTC(y, m - 1, 1)),
-  );
-}
-
-function bucketLabel(bucket: string, locale: string): string {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(bucket)) {
-    return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(
-      new Date(`${bucket}T00:00:00Z`),
-    );
-  }
-  if (/^\d{4}-\d{2}$/.test(bucket)) return monthLabel(bucket, locale);
-  return bucket; // semanas y quarters quedan como vienen (2026-W03, 2026-Q1)
-}
 
 // ---------- Layout: resolución de colisiones (empuja hacia abajo) ----------
 

@@ -1204,7 +1204,9 @@
     "description": "Notion embeds YouTube, Loom, Figma and other links, renders web bookmarks as preview cards, and lets you drag blocks side by side into resizable columns (https://www.notion.com/help/images-files-and-media, https://www.notion.com/help/columns-headings-and-dividers). Our block schema (lib/docs-schema.ts) has no embed, bookmark or column type, and the sanitizer drops IFRAME/EMBED (lib/docs-richtext.ts), so a pasted Loom link stays a plain link. Async teams share Loom walkthroughs and Figma files inside specs constantly. First scope: when a lone URL is pasted, offer 'Embed' for an allowlist of providers (YouTube, Vimeo, Loom, Figma, Google Docs) and 'Bookmark' for anything else (fetch title, description and favicon server side); columns can follow as a second step.\n\nPriority: low. Effort: M. Compared with Notion.",
     "product": "docs",
     "kind": "idea",
-    "parity": "embeds-bookmarks"
+    "parity": "embeds-bookmarks",
+    "status": "done",
+    "changelog": "2026-10-25-docs-editor"
   },
   {
     "title": "Link: Group links into folders with view or edit access per folder",
@@ -1670,14 +1672,18 @@
     "description": "Notion has a Favorites section at the top of the sidebar and 'Lock page' in the page menu, which also blocks suggestions (https://www.notion.com/help/suggested-edits). Docs has no favorites (components/docs/DocsSidebar.tsx shows the tree and 'Shared with me') and no lock, so a long tree means scrolling every time and anyone in the workspace can edit the onboarding page by mistake. First scope: per-user favorites stored server-side, shown above the tree and in Cmd+P; a page lock that owners and editors toggle, rendering the editor read-only with an 'Unlock' button and logging who locked it.\n\nPriority: medium. Effort: S. Compared with Notion.",
     "product": "docs",
     "kind": "idea",
-    "parity": "favorites"
+    "parity": "favorites",
+    "status": "done",
+    "changelog": "2026-10-25-docs-editor"
   },
   {
     "title": "Docs: Add date mentions and reminders inside a page",
     "description": "In Notion you type @today, @tomorrow or @remind to insert a date that can notify you (https://www.notion.com/help/comments-mentions-and-reminders). Docs supports @ for members and [[ for pages, but no dates, so to-dos inside a page have no due date and nothing reminds anyone. Notes already has reminders with in-app and email delivery (lib/notes-reminders.ts). First scope: '@' menu offers dates (today, tomorrow, a picker) rendered as an inline chip; a reminder variant that notifies the author (and mentioned member, if any) through the existing notification and email path, claimed by the minute cron like Notes reminders.\n\nPriority: medium. Effort: S. Compared with Notion.",
     "product": "docs",
     "kind": "idea",
-    "parity": "date-reminders"
+    "parity": "date-reminders",
+    "status": "done",
+    "changelog": "2026-10-25-docs-editor"
   },
   {
     "title": "Docs: Show page views and who viewed a page",

@@ -226,7 +226,9 @@ export default function CallDock() {
     const res = await fetch(`/api/crm/voice/calls/${id}/end`, { method: 'POST' }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as { call?: CallInfo } | null;
     if (data?.call) setInfo(data.call);
-  }, []);
+    // La llamada ya quedó en el timeline: se ve sin esperar a Guardar o Cerrar.
+    router.refresh();
+  }, [router]);
 
   const start = useCallback(
     async (r: BrowserCallRequest) => {

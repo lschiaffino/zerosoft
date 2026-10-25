@@ -1,6 +1,8 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { listDocPageSummaries, listDocWorkspaceTemplates, listSharedWithMe } from '@/lib/docs';
+import { listDocFavorites } from '@/lib/docs-favorites';
+import DocsPageIcon from '@/components/docs/DocsPageIcon';
 import {
   createDocPageAction,
   createDocPageFromTemplateAction,
@@ -22,6 +24,7 @@ import DocsSidebar from '@/components/docs/DocsSidebar';
 import DocsTrashList from '@/components/docs/DocsTrashList';
 import DocsAutoCreate from '@/components/docs/DocsAutoCreate';
 import WorkspaceTemplateCard from '@/components/docs/WorkspaceTemplateCard';
+import DocsTemplateGalleryButton from '@/components/docs/DocsTemplateGalleryButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,11 +40,12 @@ export default async function DocsLandingPage(props: {
   setRequestLocale(locale);
   const user = await requireUser(locale);
   // Sin content: el sidebar y las listas solo muestran título, ícono y fecha.
-  const [pages, trashed, shared, workspaceTemplates] = await Promise.all([
+  const [pages, trashed, shared, workspaceTemplates, favorites] = await Promise.all([
     listDocPageSummaries(user.id, { archived: false }),
     listDocPageSummaries(user.id, { archived: true }),
     listSharedWithMe(realUserId(user), user.id),
     listDocWorkspaceTemplates(user.id),
+    listDocFavorites(realUserId(user), user.id),
   ]);
   const canDeleteAnyTemplate = isWorkspaceAdmin(user);
   const templates = getDocTemplates(locale);
@@ -54,6 +58,11 @@ export default async function DocsLandingPage(props: {
       <Link href="/app/docs/import" className="btn" data-testid="docs-import-link">
         {t('notionImport.link')}
       </Link>
+      <DocsTemplateGalleryButton
+        createFromTemplate={createDocPageFromTemplateAction.bind(null, locale)}
+        createFromWorkspace={createDocPageFromWorkspaceTemplateAction.bind(null, locale)}
+        workspaceTemplates={workspaceTemplates}
+      />
     <form action={createAction.bind(null, null)}>
       <button type="submit" className="btn btn-primary" aria-keyshortcuts="C">
         <Icon name="plus" size={15} />
@@ -69,6 +78,7 @@ export default async function DocsLandingPage(props: {
       <DocsSidebar
         pages={pages}
         shared={shared}
+        favorites={favorites}
         mobileOpenByDefault={false}
         createAction={createAction}
         moveAction={moveDocPageAction}
@@ -119,7 +129,7 @@ export default async function DocsLandingPage(props: {
                   header: t('landing.colPage'),
                   cell: (p) => (
                     <span className="docs-cell-page">
-                      {p.icon && <span aria-hidden="true">{p.icon}</span>}
+                      <DocsPageIcon icon={p.icon} pageId={p.id} size={16} />
                       {p.title || t('untitled')}
                     </span>
                   ),
@@ -141,7 +151,7 @@ export default async function DocsLandingPage(props: {
             {t('templates.title')}
           </h2>
           <ul className="docs-templates">
-            {templates.map((tpl) => (
+            {templates.slice(0, 8).map((tpl) => (
               <li key={tpl.key}>
                 <form action={createDocPageFromTemplateAction.bind(null, locale, tpl.key)}>
                   <button type="submit" className="docs-template">

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslations } from 'next-intl';
 import type { PageLinkCandidate } from '@/lib/docs-page-links';
 import DocsGlyph from './DocsGlyphs';
+import DocsPageIcon from './DocsPageIcon';
 
 interface MentionPopoverProps {
   query: string;
@@ -128,7 +129,7 @@ export default function MentionPopover({ query, style, onSelect, onClose, search
             onClick={() => onSelect(page)}
           >
             {page.icon ? (
-              <span className="docs-mention-icon" aria-hidden="true">{page.icon}</span>
+              <span className="docs-mention-icon" aria-hidden="true"><DocsPageIcon icon={page.icon} pageId={page.id} size={16} /></span>
             ) : (
               <span className="docs-mention-page" aria-hidden="true">
                 <DocsGlyph name="page" size={16} />

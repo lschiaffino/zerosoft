@@ -11,6 +11,8 @@ import {
   CMDK_CLOSED_EVENT,
   type CommandAction,
 } from '@/lib/cmdk-context';
+import { SETTINGS_SECTION_KEYS, settingsSectionHref } from '@/lib/settings-nav';
+import { PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref } from '@/lib/products';
 
 interface ResultItem {
   group: string;
@@ -33,6 +35,7 @@ function useGroupOrder() {
         'context',
         'track',
         'actions',
+        'settings',
         'projects',
         'issues',
         'trackPlans',
@@ -93,6 +96,8 @@ export default function CommandSearch() {
   const tBoard = useTranslations('board');
   const tTrack = useTranslations('track');
   const tPlanning = useTranslations('trackPlanning.cmdk');
+  const tSections = useTranslations('settings.sections');
+  const tSettingsCmdk = useTranslations('settings.cmdk');
   const router = useRouter();
   const pathname = usePathname();
   const inTrack = pathname.startsWith('/app/track');
@@ -159,6 +164,7 @@ export default function CommandSearch() {
       { group, label: t('openForms'), meta: '', href: '/app/crm/forms' },
       { group, label: t('openQuotes'), meta: '', href: '/app/crm/quotes' },
       { group, label: t('openScoring'), meta: '', href: '/app/crm/settings?tab=automation' },
+      { group, label: t('openPlaybooks'), meta: '', href: '/app/crm/playbooks' },
       { group, label: t('importFromHubspot'), meta: '', href: '/app/crm/settings?tab=import&from=hubspot' },
       { group, label: t('importFromPipedrive'), meta: '', href: '/app/crm/settings?tab=import&from=pipedrive' },
       {
@@ -183,6 +189,25 @@ export default function CommandSearch() {
     ];
     return inTrack ? [...track, ...rest] : [...rest, ...track];
   }, [t, tNotes, tBoard, tTrack, tPlanning, inTrack, inCrm]);
+
+  // Secciones de Ajustes (plataforma y cada app): solo aparecen al buscar.
+  const settingsItems = useMemo<ResultItem[]>(
+    () => [
+      ...SETTINGS_SECTION_KEYS.map((key) => ({
+        group: 'settings',
+        label: tSettingsCmdk('section', { section: tSections(key) }),
+        meta: '',
+        href: settingsSectionHref(key),
+      })),
+      ...PRODUCT_KEYS.map((key) => ({
+        group: 'settings',
+        label: tSettingsCmdk('product', { app: PRODUCT_CONFIG[key].name }),
+        meta: '',
+        href: productSettingsHref(key),
+      })),
+    ],
+    [tSections, tSettingsCmdk],
+  );
 
   useEffect(() => {
     function onOpen(e: Event) {
@@ -273,7 +298,7 @@ export default function CommandSearch() {
           return l.includes(needle) ? 2 : -1;
         };
         const byGroup = (a: ResultItem, b: ResultItem) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group);
-        const matchingActions = actionItems.filter((a) => rank(a.label) >= 0);
+        const matchingActions = [...actionItems, ...settingsItems].filter((a) => rank(a.label) >= 0);
         const results = [...(data.items ?? [])].sort(byGroup);
         setItems(
           matchingActions.some((a) => rank(a.label) < 2)
@@ -287,7 +312,7 @@ export default function CommandSearch() {
         setSel(0);
       }
     },
-    [actionItems, groupOrder, locale],
+    [actionItems, settingsItems, groupOrder, locale],
   );
 
   useEffect(() => {

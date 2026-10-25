@@ -63,6 +63,7 @@ import CrmGroupsBlock from '@/components/groups/CrmGroupsBlock';
 import RecordTabs from '@/components/crm/RecordTabs';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import { parseRecordTab, recordTabHref } from '@/components/crm/recordTab';
+import { formatPhoneDisplay } from '@/lib/crm-calls';
 
 export const dynamic = 'force-dynamic';
 
@@ -297,7 +298,7 @@ export default async function ContactDetailPage(props: {
                   <dd>
                     {contact.phone ? (
                       <a href={`tel:${contact.phone}`} className="num">
-                        {contact.phone}
+                        {formatPhoneDisplay(contact.phone)}
                       </a>
                     ) : (
                       '—'
@@ -394,7 +395,7 @@ export default async function ContactDetailPage(props: {
       { key: 'firstName', label: t('contacts.form.firstName'), type: 'text', value: contact.first_name },
       { key: 'lastName', label: t('contacts.form.lastName'), type: 'text', value: contact.last_name },
       { key: 'email', label: t('contacts.form.email'), type: 'text', value: contact.email },
-      { key: 'phone', label: t('contacts.form.phone'), type: 'text', value: contact.phone },
+      { key: 'phone', label: t('contacts.form.phone'), type: 'text', value: contact.phone, display: formatPhoneDisplay(contact.phone) },
       { key: 'jobTitle', label: t('contacts.form.jobTitle'), type: 'text', value: contact.job_title },
       { key: 'website', label: t('contacts.form.website'), type: 'text', value: contact.website },
       { key: 'city', label: t('contacts.form.city'), type: 'text', value: contact.city },

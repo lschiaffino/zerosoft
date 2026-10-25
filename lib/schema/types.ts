@@ -849,6 +849,8 @@ export interface DocsPageRow {
   archived_by_parent?: 0 | 1;
   /** 1 = hereda los shares de los ancestros (default); 0 = solo los propios. */
   inherit_shares?: 0 | 1;
+  /** Posición vertical de la portada (0-100, NULL = centro). */
+  cover_position?: number | null;
   created_at: string;
   updated_at: string;
 }

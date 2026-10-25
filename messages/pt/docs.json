@@ -103,7 +103,24 @@
       "th2": "Título recolhível 2",
       "th3": "Título recolhível 3",
       "callout": "Destaque",
-      "board": "Quadro"
+      "board": "Quadro",
+      "video": "Vídeo",
+      "audio": "Áudio",
+      "pdf": "PDF",
+      "bookmark": "Bookmark web",
+      "embed": "Embed",
+      "col2": "2 colunas",
+      "col3": "3 colunas",
+      "col4": "4 colunas",
+      "col5": "5 colunas",
+      "synced": "Bloco sincronizado",
+      "equation": "Equação em bloco",
+      "toc": "Sumário",
+      "button": "Botão",
+      "breadcrumb": "Breadcrumb",
+      "date": "Data",
+      "reminder": "Lembrete",
+      "inlineEquation": "Equação em linha"
     },
     "breadcrumb": "Caminho",
     "closePanel": "Fechar painel",
@@ -112,7 +129,7 @@
     "published": "Publicada",
     "upload": {
       "uploading": "{count, plural, one {Enviando # arquivo...} other {Enviando # arquivos...}}",
-      "tooLarge": "\"{name}\" tem mais de 10 MB.",
+      "tooLarge": "\"{name}\" tem mais de {max}.",
       "typeNotAllowed": "\"{name}\" é de um tipo que não pode ser enviado (HTML, SVG e scripts são bloqueados).",
       "storageUnavailable": "Este servidor não tem o armazenamento de arquivos configurado, então \"{name}\" não foi enviado.",
       "failed": "Não foi possível enviar \"{name}\". Tente de novo.",
@@ -120,7 +137,8 @@
       "missing": "Arquivo indisponível",
       "untitledFile": "Arquivo sem nome",
       "imageLabel": "Imagem: {name}",
-      "fileLabel": "Arquivo: {name}"
+      "fileLabel": "Arquivo: {name}",
+      "videoLabel": "Vídeo: {name}"
     },
     "togglePlaceholder": "Recolhível",
     "calloutPlaceholder": "Escreva uma nota…",
@@ -153,7 +171,128 @@
       "updated": "Editado {when}",
       "empty": "Quadro vazio",
       "noAccess": "Você não tem acesso a este quadro."
-    }
+    },
+    "changeIcon": "Trocar ícone",
+    "commandGroups": {
+      "basic": "Blocos básicos",
+      "media": "Mídia e links",
+      "advanced": "Avançados",
+      "inline": "Em linha"
+    },
+    "media": {
+      "videoLabel": "Vídeo: {name}",
+      "audioLabel": "Áudio: {name}",
+      "pdfLabel": "PDF: {name}",
+      "openPdf": "Abrir {name}",
+      "resize": "Redimensionar (setas)",
+      "toolbar": "Opções do arquivo",
+      "caption": "Legenda",
+      "captionPlaceholder": "Escreva uma legenda…",
+      "download": "Baixar",
+      "align": {
+        "left": "Alinhar à esquerda",
+        "center": "Centralizar",
+        "right": "Alinhar à direita"
+      }
+    },
+    "link": {
+      "label": "Bookmark web",
+      "placeholder": "Cole um link para criar um bookmark…",
+      "submit": "Criar bookmark",
+      "loading": "Carregando…",
+      "invalid": "Esse não é um link web válido."
+    },
+    "embed": {
+      "label": "Embed",
+      "placeholder": "Cole um link do YouTube, Figma, Loom, Maps ou outro…",
+      "submit": "Incorporar link",
+      "unsupported": "Este link não pode ser incorporado. Funcionam YouTube, Vimeo, Loom, Figma, Google Maps, Docs e Drive, CodePen, CodeSandbox, X, GitHub Gist, Spotify, Miro, Excalidraw, Typeform, Airtable e Calendly.",
+      "asBookmark": "Mostrar como bookmark",
+      "frameTitle": "Conteúdo incorporado de {provider}",
+      "resize": "Mudar a altura (setas)"
+    },
+    "paste": {
+      "title": "Colar como",
+      "link": "Manter como link",
+      "mention": "Menção",
+      "bookmark": "Bookmark",
+      "embed": "Embed"
+    },
+    "equation": {
+      "label": "Equação",
+      "edit": "Editar equação",
+      "empty": "Equação vazia. Clique para escrever LaTeX.",
+      "input": "LaTeX",
+      "done": "Pronto",
+      "inline": "Equação em linha"
+    },
+    "toc": {
+      "label": "Sumário",
+      "empty": "Adicione títulos à página para montar o sumário."
+    },
+    "button": {
+      "label": "Botão",
+      "defaultLabel": "Botão novo",
+      "configure": "Configurações do botão",
+      "name": "Nome do botão",
+      "action": "Ao clicar",
+      "insert": "Inserir blocos abaixo",
+      "link": "Abrir um link",
+      "blocks": "Blocos a inserir (Markdown)",
+      "blocksPlaceholder": "- [ ] Tarefa de acompanhamento\n## Notas",
+      "url": "Link",
+      "save": "Salvar botão"
+    },
+    "synced": {
+      "label": "Bloco sincronizado",
+      "copy": "Copiar e sincronizar",
+      "unsync": "Dessincronizar",
+      "copied": "Copiado. Cole em qualquer página deste workspace e o que você editar vai aparecer nos dois lugares.",
+      "notFound": "Esse bloco sincronizado não é deste workspace."
+    },
+    "columns": {
+      "label": "{count} colunas",
+      "resize": "Mudar a largura das colunas (setas)",
+      "add": "Adicionar uma coluna"
+    },
+    "cover": {
+      "change": "Trocar capa",
+      "reposition": "Reposicionar",
+      "savePosition": "Salvar posição",
+      "dragHint": "Arraste a imagem (ou use as setas para cima e para baixo) para reposicionar, Enter para salvar",
+      "tabs": {
+        "gallery": "Galeria",
+        "upload": "Enviar",
+        "link": "Link"
+      },
+      "colors": "Cores e degradês",
+      "photos": "Fotos",
+      "color": "Capa: {name}",
+      "photo": "Foto {n}",
+      "colorNames": {
+        "red": "Vermelho",
+        "orange": "Laranja",
+        "yellow": "Amarelo",
+        "green": "Verde",
+        "blue": "Azul",
+        "purple": "Roxo",
+        "pink": "Rosa",
+        "gray": "Cinza",
+        "sunset": "Pôr do sol",
+        "ocean": "Oceano",
+        "forest": "Floresta",
+        "dusk": "Crepúsculo"
+      },
+      "uploadButton": "Enviar uma imagem",
+      "uploading": "Enviando…",
+      "uploadHelp": "Imagens com mais de 1500 pixels de largura ficam melhores.",
+      "submitLink": "Usar link",
+      "notImage": "Escolha um arquivo de imagem.",
+      "tooLarge": "Essa imagem é grande demais.",
+      "uploadFailed": "Não foi possível enviar a imagem. Tente de novo."
+    },
+    "favorite": "Adicionar aos favoritos",
+    "unfavorite": "Remover dos favoritos"
   },
   "database": {
     "database": "Banco de dados",
@@ -303,12 +442,28 @@
       "notStarted": "Não iniciado",
       "inProgress": "Em andamento",
       "done": "Concluído"
+    },
+    "templates": {
+      "open": "Novo a partir de um modelo",
+      "title": "Modelos",
+      "untitled": "Modelo sem título",
+      "delete": "Excluir o modelo {name}",
+      "empty": "Ainda não há modelos. Abra uma linha e escolha Salvar como modelo.",
+      "hint": "Para adicionar um, abra uma linha e escolha Salvar como modelo.",
+      "saveRow": "Salvar como modelo",
+      "saved": "Salvo como modelo"
     }
   },
   "mentions": {
     "noPages": "Sem páginas",
     "noMembers": "Sem membros",
-    "linkedFrom": "Vinculada em"
+    "linkedFrom": "Vinculada em",
+    "dates": "Datas",
+    "people": "Pessoas",
+    "today": "Hoje",
+    "tomorrow": "Amanhã",
+    "remindAt": "Lembrar-me {when}",
+    "reminderHint": "Avisa você no app e por email"
   },
   "emoji": {
     "pick": "Escolher ícone",
@@ -322,7 +477,8 @@
       "nature": "Natureza",
       "food": "Comida",
       "results": "Resultados"
-    }
+    },
+    "upload": "Enviar imagem"
   },
   "share": {
     "title": "Compartilhar",
@@ -404,7 +560,23 @@
     "renameLabel": "Nome do modelo",
     "options": "Opções do modelo {name}",
     "confirmDelete": "Excluir o modelo {name}? As páginas já criadas com ele não mudam.",
-    "editError": "Não foi possível salvar a alteração. Tente de novo."
+    "editError": "Não foi possível salvar a alteração. Tente de novo.",
+    "gallery": "Modelos",
+    "sections": "Seções de modelos",
+    "browse": "Modelos",
+    "startWith": "Começar com um modelo",
+    "useThis": "Usar este modelo",
+    "using": "Abrindo…",
+    "preview": "Prévia",
+    "blank": "Página vazia",
+    "categories": {
+      "basic": "Básicos",
+      "personal": "Pessoal",
+      "work": "Trabalho",
+      "product": "Produto",
+      "engineering": "Engenharia",
+      "workspace": "Seu workspace"
+    }
   },
   "trash": {
     "title": "Lixeira",
@@ -542,5 +714,18 @@
     "failedTitle": "A importação parou.",
     "rowsNote": "A página de cada linha de uma base entra como corpo dessa linha, não como uma página separada.",
     "doneRows": "{count, plural, one {# linha de base ficou} other {# linhas de bases ficaram}} com sua página como corpo."
+  },
+  "reminderEmail": {
+    "subject": "Lembrete: {title}",
+    "heading": "Lembrete",
+    "body": "Você pediu um lembrete de \"{title}\" em {when}.",
+    "open": "Abrir a página",
+    "why": "Você recebe isto porque criou um lembrete nesta página do zerosoft Docs.",
+    "notification": "Lembrete: {title}",
+    "untitled": "Sem título"
+  },
+  "favorites": {
+    "title": "Favoritos",
+    "error": "Não foi possível atualizar os favoritos. Tente de novo."
   }
 }

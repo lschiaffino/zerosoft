@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatDate } from '@/lib/utils';
 import type { DocsPageSummary } from '@/lib/docs-types';
+import DocsPageIcon from './DocsPageIcon';
 
 interface DocsTrashListProps {
   pages: DocsPageSummary[];
@@ -53,7 +54,7 @@ export default function DocsTrashList({ pages, canDelete = true, labels }: DocsT
       {pages.map((page) => (
         <li key={page.id} className="docs-trash-row">
           <span className="docs-trash-title">
-            {page.icon && <span aria-hidden="true">{page.icon}</span>}
+            <DocsPageIcon icon={page.icon} pageId={page.id} size={16} />
             {page.title || t('untitled')}
           </span>
           <span className="docs-trash-date num">{formatDate(page.updated_at, locale)}</span>

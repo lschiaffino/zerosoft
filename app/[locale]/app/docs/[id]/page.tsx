@@ -20,6 +20,8 @@ import {
 import { getHelpFeedbackStats } from '@/lib/docs-help';
 import { sanitizeBlocks } from '@/lib/docs-sanitize';
 import { stripFileUrls } from '@/lib/docs-files';
+import { hydrateSyncedBlocks } from '@/lib/docs-synced';
+import { listDocFavorites } from '@/lib/docs-favorites';
 import { pageLinkHref, resolveBlocksPageLinks } from '@/lib/docs-page-links';
 import {
   createDocPageAction,
@@ -30,6 +32,7 @@ import {
 import DocsSidebar from '@/components/docs/DocsSidebar';
 import DocsEditorClient from '@/components/docs/DocsEditorClient';
 import DocsReadOnlyView from '@/components/docs/DocsReadOnlyView';
+import DocsPageIcon from '@/components/docs/DocsPageIcon';
 import '@/styles/help.css';
 
 export const dynamic = 'force-dynamic';
@@ -53,16 +56,19 @@ export default async function DocsPageEditor(
   if (!resolved) notFound();
   const { row, access } = resolved;
   const page = toDocPage(row);
+  // Bloques sincronizados: el contenido actual (puede haberse editado en otra página).
+  page.content = await hydrateSyncedBlocks(row.user_id, page.content);
   const isOwner = access === 'owner';
   // El historial no se expone a quien solo llega porque la página está publicada.
   const canSeeVersions =
     access !== 'view' || (await getDocAccess(row, user, DOC_INTERNAL_READ)) !== null;
 
   // El árbol va sin content (solo título, ícono y orden).
-  const [allPages, shared, comments] = await Promise.all([
+  const [allPages, shared, comments, favorites] = await Promise.all([
     listDocPageSummaries(user.id, { archived: false }),
     listSharedWithMe(realUserId(user), user.id),
     listDocComments(id),
+    listDocFavorites(realUserId(user), user.id),
   ]);
   // A un invitado no se le muestran los ancestros (títulos de otro workspace).
   const ancestors = isOwner ? await getDocPageAncestors(user.id, id) : [];
@@ -101,6 +107,7 @@ export default async function DocsPageEditor(
         pages={allPages}
         currentId={id}
         shared={shared}
+        favorites={favorites}
         createAction={createDocPageAction.bind(null, locale)}
         moveAction={moveDocPageAction}
         reorderAction={reorderDocPageAction}
@@ -136,6 +143,7 @@ export default async function DocsPageEditor(
               feedback={feedback}
               backlinks={backlinks}
               currentUserId={user.actingUser?.id ?? user.id}
+              favorite={isOwner ? favorites.some((f) => f.id === id) : null}
               commentsLabels={{
                 title: t('comments.title'),
                 empty: t('comments.empty'),
@@ -159,7 +167,7 @@ export default async function DocsPageEditor(
               {subpages.map((p) => (
                 <li key={p.id}>
                   <Link href={`/app/docs/${p.id}`} className="docs-subpages-link">
-                    {p.icon && <span aria-hidden="true">{p.icon}</span>}
+                    <DocsPageIcon icon={p.icon} pageId={p.id} size={14} />
                     <span>{p.title || t('untitled')}</span>
                   </Link>
                 </li>

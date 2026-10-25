@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { BoardDeal, BoardStage } from '@/lib/crm';
@@ -160,16 +161,23 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
     };
   }, [moveMenuFor]);
 
+  const moveCardRect = useRef<DOMRect | null>(null);
   function openMoveMenu(card: HTMLElement, dealId: string) {
     const r = card.getBoundingClientRect();
-    const menuH = 270;
-    const below = r.bottom - 6;
-    setMoveMenuPos({
-      top: below + menuH > window.innerHeight ? Math.max(8, r.top - menuH + 6) : below,
-      left: Math.max(8, Math.min(r.left + 8, window.innerWidth - 200)),
-    });
+    moveCardRect.current = r;
+    setMoveMenuPos({ top: r.bottom - 6, left: Math.max(8, Math.min(r.left + 8, window.innerWidth - 200)) });
     setMoveMenuFor(dealId);
   }
+  // Con el menú ya en pantalla se mide su alto real: si abajo no entra, va
+  // pegado arriba de la card (con un alto fijo quedaba lejos si había pocas etapas).
+  useLayoutEffect(() => {
+    const r = moveCardRect.current;
+    const el = moveMenuRef.current;
+    if (!moveMenuFor || !r || !el) return;
+    const h = el.offsetHeight;
+    const below = r.bottom - 6;
+    if (below + h > window.innerHeight) setMoveMenuPos((p) => ({ ...p, top: Math.max(8, r.top - h + 6) }));
+  }, [moveMenuFor]);
 
   function closeMoveMenu(refocus: boolean) {
     const id = moveMenuFor;
@@ -679,7 +687,10 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
                           </option>
                         ))}
                     </select>
-                    {moveMenuFor === deal.id && (
+                    {/* En el body: dentro del board (scroll-snap y columnas al 100% en el
+                        teléfono) el fixed quedaba lejos de la card. */}
+                    {moveMenuFor === deal.id &&
+                      createPortal(
                       <div
                         ref={moveMenuRef}
                         role="menu"
@@ -711,8 +722,9 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
                               {c.stage.name}
                             </button>
                           ))}
-                      </div>
-                    )}
+                      </div>,
+                        document.body,
+                      )}
                   </article>
                 ))}
                 {col.count === 0 && <p className="muted kb-empty">{t('deals.emptyStage')}</p>}

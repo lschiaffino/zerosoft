@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation';
 import BookMeetingMenu from '@/components/crm/BookMeetingMenu';
 import CrmIcon from './CrmIcon';
 import PhoneTouch from './PhoneTouch';
+import { formatPhoneDisplay } from '@/lib/crm-calls';
 
 export type PreviewType = 'contact' | 'company' | 'deal';
 
@@ -240,7 +241,7 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
             )}
             {c.phone && (
               <span className="preview-meta-item">
-                {c.phone} <PhoneTouch phone={c.phone} contactId={c.id} />
+                {formatPhoneDisplay(c.phone)} <PhoneTouch phone={c.phone} contactId={c.id} />
               </span>
             )}
             {c.job_title && <span className="preview-meta-item muted">{c.job_title}</span>}

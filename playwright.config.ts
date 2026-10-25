@@ -70,6 +70,10 @@ export default defineConfig({
       SLACK_FAKE: '1',
       GITHUB_APP_FAKE: '1',
       TRACK_SUPPORT_FAKE: '1',
+      // Bookmarks de Docs sin salir a internet (lib/docs-unfurl.ts arma un HTML fijo por dominio).
+      DOCS_UNFURL_FAKE: '1',
+      // Los crons exigen el secreto en producción (next start): las suites que los llaman lo mandan.
+      CRON_SECRET: 'e2e-cron',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

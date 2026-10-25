@@ -119,7 +119,13 @@
     "openForms": "Abrir formulários",
     "openQuotes": "Abrir orçamentos",
     "openScoring": "Abrir lead scoring",
-    "skipToContent": "Ir para o conteúdo"
+    "openPlaybooks": "Abrir playbooks",
+    "skipToContent": "Ir para o conteúdo",
+    "appSettings": "Ajustes do app",
+    "platformHome": "Início",
+    "apps": "Apps",
+    "platform": "zerosoft",
+    "groupSettings": "Ajustes"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",

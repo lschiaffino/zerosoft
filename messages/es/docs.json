@@ -103,7 +103,24 @@
       "th2": "Título desplegable 2",
       "th3": "Título desplegable 3",
       "callout": "Destacado",
-      "board": "Pizarra"
+      "board": "Pizarra",
+      "video": "Video",
+      "audio": "Audio",
+      "pdf": "PDF",
+      "bookmark": "Bookmark web",
+      "embed": "Embed",
+      "col2": "2 columnas",
+      "col3": "3 columnas",
+      "col4": "4 columnas",
+      "col5": "5 columnas",
+      "synced": "Bloque sincronizado",
+      "equation": "Ecuación en bloque",
+      "toc": "Índice",
+      "button": "Botón",
+      "breadcrumb": "Breadcrumb",
+      "date": "Fecha",
+      "reminder": "Recordatorio",
+      "inlineEquation": "Ecuación en línea"
     },
     "breadcrumb": "Ruta",
     "closePanel": "Cerrar panel",
@@ -112,7 +129,7 @@
     "published": "Publicada",
     "upload": {
       "uploading": "{count, plural, one {Subiendo # archivo...} other {Subiendo # archivos...}}",
-      "tooLarge": "\"{name}\" pesa más de 10 MB.",
+      "tooLarge": "\"{name}\" pesa más de {max}.",
       "typeNotAllowed": "\"{name}\" es de un tipo que no se puede subir (HTML, SVG y scripts están bloqueados).",
       "storageUnavailable": "Este servidor no tiene configurado el almacenamiento de archivos, así que \"{name}\" no se subió.",
       "failed": "No se pudo subir \"{name}\". Probá de nuevo.",
@@ -120,7 +137,8 @@
       "missing": "Archivo no disponible",
       "untitledFile": "Archivo sin nombre",
       "imageLabel": "Imagen: {name}",
-      "fileLabel": "Archivo: {name}"
+      "fileLabel": "Archivo: {name}",
+      "videoLabel": "Video: {name}"
     },
     "togglePlaceholder": "Desplegable",
     "calloutPlaceholder": "Escribí una nota…",
@@ -153,7 +171,128 @@
       "updated": "Editada {when}",
       "empty": "Pizarra vacía",
       "noAccess": "No tenés acceso a esta pizarra."
-    }
+    },
+    "changeIcon": "Cambiar ícono",
+    "commandGroups": {
+      "basic": "Bloques básicos",
+      "media": "Multimedia y links",
+      "advanced": "Avanzados",
+      "inline": "En línea"
+    },
+    "media": {
+      "videoLabel": "Video: {name}",
+      "audioLabel": "Audio: {name}",
+      "pdfLabel": "PDF: {name}",
+      "openPdf": "Abrir {name}",
+      "resize": "Cambiar tamaño (flechas)",
+      "toolbar": "Opciones del archivo",
+      "caption": "Leyenda",
+      "captionPlaceholder": "Escribí una leyenda…",
+      "download": "Descargar",
+      "align": {
+        "left": "Alinear a la izquierda",
+        "center": "Centrar",
+        "right": "Alinear a la derecha"
+      }
+    },
+    "link": {
+      "label": "Bookmark web",
+      "placeholder": "Pegá un link para crear un bookmark…",
+      "submit": "Crear bookmark",
+      "loading": "Cargando…",
+      "invalid": "Ese no es un link web válido."
+    },
+    "embed": {
+      "label": "Embed",
+      "placeholder": "Pegá un link de YouTube, Figma, Loom, Maps u otro…",
+      "submit": "Embeber link",
+      "unsupported": "Este link no se puede embeber. Funcionan YouTube, Vimeo, Loom, Figma, Google Maps, Docs y Drive, CodePen, CodeSandbox, X, GitHub Gist, Spotify, Miro, Excalidraw, Typeform, Airtable y Calendly.",
+      "asBookmark": "Mostrar como bookmark",
+      "frameTitle": "Contenido embebido de {provider}",
+      "resize": "Cambiar el alto (flechas)"
+    },
+    "paste": {
+      "title": "Pegar como",
+      "link": "Dejar como link",
+      "mention": "Mención",
+      "bookmark": "Bookmark",
+      "embed": "Embed"
+    },
+    "equation": {
+      "label": "Ecuación",
+      "edit": "Editar ecuación",
+      "empty": "Ecuación vacía. Hacé clic para escribir LaTeX.",
+      "input": "LaTeX",
+      "done": "Listo",
+      "inline": "Ecuación en línea"
+    },
+    "toc": {
+      "label": "Índice",
+      "empty": "Agregá títulos a la página para armar el índice."
+    },
+    "button": {
+      "label": "Botón",
+      "defaultLabel": "Botón nuevo",
+      "configure": "Ajustes del botón",
+      "name": "Nombre del botón",
+      "action": "Al hacer clic",
+      "insert": "Insertar bloques debajo",
+      "link": "Abrir un link",
+      "blocks": "Bloques a insertar (Markdown)",
+      "blocksPlaceholder": "- [ ] Tarea de seguimiento\n## Notas",
+      "url": "Link",
+      "save": "Guardar botón"
+    },
+    "synced": {
+      "label": "Bloque sincronizado",
+      "copy": "Copiar y sincronizar",
+      "unsync": "Desincronizar",
+      "copied": "Copiado. Pegalo en cualquier página de este workspace y lo que edites se va a ver en los dos lugares.",
+      "notFound": "Ese bloque sincronizado no es de este workspace."
+    },
+    "columns": {
+      "label": "{count} columnas",
+      "resize": "Cambiar el ancho de las columnas (flechas)",
+      "add": "Agregar una columna"
+    },
+    "cover": {
+      "change": "Cambiar portada",
+      "reposition": "Reposicionar",
+      "savePosition": "Guardar posición",
+      "dragHint": "Arrastrá la imagen (o usá las flechas arriba y abajo) para reposicionarla, Enter para guardar",
+      "tabs": {
+        "gallery": "Galería",
+        "upload": "Subir",
+        "link": "Link"
+      },
+      "colors": "Colores y degradés",
+      "photos": "Fotos",
+      "color": "Portada: {name}",
+      "photo": "Foto {n}",
+      "colorNames": {
+        "red": "Rojo",
+        "orange": "Naranja",
+        "yellow": "Amarillo",
+        "green": "Verde",
+        "blue": "Azul",
+        "purple": "Violeta",
+        "pink": "Rosa",
+        "gray": "Gris",
+        "sunset": "Atardecer",
+        "ocean": "Océano",
+        "forest": "Bosque",
+        "dusk": "Crepúsculo"
+      },
+      "uploadButton": "Subir una imagen",
+      "uploading": "Subiendo…",
+      "uploadHelp": "Se ven mejor las imágenes de más de 1500 píxeles de ancho.",
+      "submitLink": "Usar link",
+      "notImage": "Elegí un archivo de imagen.",
+      "tooLarge": "Esa imagen es demasiado grande.",
+      "uploadFailed": "No se pudo subir la imagen. Probá de nuevo."
+    },
+    "favorite": "Agregar a favoritos",
+    "unfavorite": "Quitar de favoritos"
   },
   "database": {
     "database": "Base de datos",
@@ -303,12 +442,28 @@
       "notStarted": "Sin empezar",
       "inProgress": "En curso",
       "done": "Hecho"
+    },
+    "templates": {
+      "open": "Nuevo desde una plantilla",
+      "title": "Plantillas",
+      "untitled": "Plantilla sin título",
+      "delete": "Borrar la plantilla {name}",
+      "empty": "Todavía no hay plantillas. Abrí una fila y elegí Guardar como plantilla.",
+      "hint": "Para agregar una, abrí una fila y elegí Guardar como plantilla.",
+      "saveRow": "Guardar como plantilla",
+      "saved": "Guardada como plantilla"
     }
   },
   "mentions": {
     "noPages": "Sin páginas",
     "noMembers": "Sin miembros",
-    "linkedFrom": "Enlazada desde"
+    "linkedFrom": "Enlazada desde",
+    "dates": "Fechas",
+    "people": "Personas",
+    "today": "Hoy",
+    "tomorrow": "Mañana",
+    "remindAt": "Recordarme {when}",
+    "reminderHint": "Te avisa en la app y por email"
   },
   "emoji": {
     "pick": "Elegir ícono",
@@ -322,7 +477,8 @@
       "nature": "Naturaleza",
       "food": "Comida",
       "results": "Resultados"
-    }
+    },
+    "upload": "Subir imagen"
   },
   "share": {
     "title": "Compartir",
@@ -404,7 +560,23 @@
     "renameLabel": "Nombre de la plantilla",
     "options": "Opciones de la plantilla {name}",
     "confirmDelete": "¿Borrar la plantilla {name}? Las páginas que ya se crearon con ella no cambian.",
-    "editError": "No se pudo guardar el cambio. Probá de nuevo."
+    "editError": "No se pudo guardar el cambio. Probá de nuevo.",
+    "gallery": "Plantillas",
+    "sections": "Secciones de plantillas",
+    "browse": "Plantillas",
+    "startWith": "Empezar con una plantilla",
+    "useThis": "Usar esta plantilla",
+    "using": "Abriendo…",
+    "preview": "Vista previa",
+    "blank": "Página vacía",
+    "categories": {
+      "basic": "Básicas",
+      "personal": "Personal",
+      "work": "Trabajo",
+      "product": "Producto",
+      "engineering": "Ingeniería",
+      "workspace": "Tu workspace"
+    }
   },
   "trash": {
     "title": "Papelera",
@@ -542,5 +714,18 @@
     "failedTitle": "El import se cortó.",
     "rowsNote": "La página de cada fila de una base entra como cuerpo de esa fila, no como una página aparte.",
     "doneRows": "{count, plural, one {# fila de base quedó} other {# filas de bases quedaron}} con su página como cuerpo."
+  },
+  "reminderEmail": {
+    "subject": "Recordatorio: {title}",
+    "heading": "Recordatorio",
+    "body": "Pediste que te recordemos \"{title}\" el {when}.",
+    "open": "Abrir la página",
+    "why": "Te llega porque pusiste un recordatorio en esta página de zerosoft Docs.",
+    "notification": "Recordatorio: {title}",
+    "untitled": "Sin título"
+  },
+  "favorites": {
+    "title": "Favoritos",
+    "error": "No se pudieron actualizar los favoritos. Probá de nuevo."
   }
 }

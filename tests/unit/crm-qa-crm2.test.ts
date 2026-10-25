@@ -58,7 +58,14 @@ describe('fechas sin hora', () => {
 describe('formatos de llamadas y gráficos', () => {
   it('teléfono E.164 legible', () => {
     expect(formatPhoneDisplay('+14155550132')).toBe('+1 415 555 0132');
-    expect(formatPhoneDisplay('+5491155550101')).toBe('+54 911 5555 0101');
+    expect(formatPhoneDisplay('+5491155550101')).toBe('+54 9 11 5555-0101');
+    expect(formatPhoneDisplay('+54 9 11 5555 0100')).toBe('+54 9 11 5555-0100');
+    expect(formatPhoneDisplay('+5491155550100')).toBe('+54 9 11 5555-0100');
+    expect(formatPhoneDisplay('+541145678900')).toBe('+54 11 4567-8900');
+    expect(formatPhoneDisplay('+5493514123456')).toBe('+54 9 351 412-3456');
+    expect(formatPhoneDisplay('+5492944123456')).toBe('+54 9 2944 12-3456');
+    expect(formatPhoneDisplay('+5511912345678')).toBe('+55 11 91234-5678');
+    expect(formatPhoneDisplay('+525512345678')).toBe('+52 55 1234 5678');
     expect(formatPhoneDisplay('+59899123456')).toBe('+598 9912 3456');
     expect(formatPhoneDisplay('11 5555 0100')).toBe('11 5555 0100');
   });

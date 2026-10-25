@@ -103,7 +103,24 @@
       "th2": "Toggle heading 2",
       "th3": "Toggle heading 3",
       "callout": "Callout",
-      "board": "Board"
+      "board": "Board",
+      "video": "Video",
+      "audio": "Audio",
+      "pdf": "PDF",
+      "bookmark": "Web bookmark",
+      "embed": "Embed",
+      "col2": "2 columns",
+      "col3": "3 columns",
+      "col4": "4 columns",
+      "col5": "5 columns",
+      "synced": "Synced block",
+      "equation": "Block equation",
+      "toc": "Table of contents",
+      "button": "Button",
+      "breadcrumb": "Breadcrumb",
+      "date": "Date",
+      "reminder": "Reminder",
+      "inlineEquation": "Inline equation"
     },
     "breadcrumb": "Breadcrumb",
     "closePanel": "Close panel",
@@ -112,7 +129,7 @@
     "published": "Published",
     "upload": {
       "uploading": "{count, plural, one {Uploading # file...} other {Uploading # files...}}",
-      "tooLarge": "\"{name}\" is larger than 10 MB.",
+      "tooLarge": "\"{name}\" is larger than {max}.",
       "typeNotAllowed": "\"{name}\" is a file type that cannot be uploaded (HTML, SVG and scripts are blocked).",
       "storageUnavailable": "File storage is not configured on this server, so \"{name}\" was not uploaded.",
       "failed": "Could not upload \"{name}\". Try again.",
@@ -120,7 +137,8 @@
       "missing": "File not available",
       "untitledFile": "Untitled file",
       "imageLabel": "Image: {name}",
-      "fileLabel": "File: {name}"
+      "fileLabel": "File: {name}",
+      "videoLabel": "Video: {name}"
     },
     "togglePlaceholder": "Toggle",
     "calloutPlaceholder": "Write a note…",
@@ -153,7 +171,128 @@
       "updated": "Edited {when}",
       "empty": "Empty board",
       "noAccess": "You don’t have access to this board."
-    }
+    },
+    "changeIcon": "Change icon",
+    "commandGroups": {
+      "basic": "Basic blocks",
+      "media": "Media and links",
+      "advanced": "Advanced",
+      "inline": "Inline"
+    },
+    "media": {
+      "videoLabel": "Video: {name}",
+      "audioLabel": "Audio: {name}",
+      "pdfLabel": "PDF: {name}",
+      "openPdf": "Open {name}",
+      "resize": "Resize (arrow keys)",
+      "toolbar": "Media options",
+      "caption": "Caption",
+      "captionPlaceholder": "Write a caption…",
+      "download": "Download",
+      "align": {
+        "left": "Align left",
+        "center": "Center",
+        "right": "Align right"
+      }
+    },
+    "link": {
+      "label": "Web bookmark",
+      "placeholder": "Paste a link to create a bookmark…",
+      "submit": "Create bookmark",
+      "loading": "Loading…",
+      "invalid": "That isn't a valid web link."
+    },
+    "embed": {
+      "label": "Embed",
+      "placeholder": "Paste a YouTube, Figma, Loom, Maps or other link…",
+      "submit": "Embed link",
+      "unsupported": "This link can't be embedded. YouTube, Vimeo, Loom, Figma, Google Maps, Docs and Drive, CodePen, CodeSandbox, X, GitHub Gist, Spotify, Miro, Excalidraw, Typeform, Airtable and Calendly work.",
+      "asBookmark": "Show as bookmark",
+      "frameTitle": "Embedded content from {provider}",
+      "resize": "Resize height (arrow keys)"
+    },
+    "paste": {
+      "title": "Paste as",
+      "link": "Keep as link",
+      "mention": "Mention",
+      "bookmark": "Bookmark",
+      "embed": "Embed"
+    },
+    "equation": {
+      "label": "Equation",
+      "edit": "Edit equation",
+      "empty": "Empty equation. Click to write LaTeX.",
+      "input": "LaTeX",
+      "done": "Done",
+      "inline": "Inline equation"
+    },
+    "toc": {
+      "label": "Table of contents",
+      "empty": "Add headings to the page to build the table of contents."
+    },
+    "button": {
+      "label": "Button",
+      "defaultLabel": "New button",
+      "configure": "Button settings",
+      "name": "Button name",
+      "action": "When clicked",
+      "insert": "Insert blocks below",
+      "link": "Open a link",
+      "blocks": "Blocks to insert (Markdown)",
+      "blocksPlaceholder": "- [ ] Follow-up task\n## Notes",
+      "url": "Link",
+      "save": "Save button"
+    },
+    "synced": {
+      "label": "Synced block",
+      "copy": "Copy and sync",
+      "unsync": "Unsync",
+      "copied": "Copied. Paste it on any page of this workspace and edits will show up in both places.",
+      "notFound": "That synced block isn't in this workspace."
+    },
+    "columns": {
+      "label": "{count} columns",
+      "resize": "Resize columns (arrow keys)",
+      "add": "Add a column"
+    },
+    "cover": {
+      "change": "Change cover",
+      "reposition": "Reposition",
+      "savePosition": "Save position",
+      "dragHint": "Drag the image (or use the up and down arrows) to reposition, Enter to save",
+      "tabs": {
+        "gallery": "Gallery",
+        "upload": "Upload",
+        "link": "Link"
+      },
+      "colors": "Colors and gradients",
+      "photos": "Photos",
+      "color": "Cover: {name}",
+      "photo": "Photo {n}",
+      "colorNames": {
+        "red": "Red",
+        "orange": "Orange",
+        "yellow": "Yellow",
+        "green": "Green",
+        "blue": "Blue",
+        "purple": "Purple",
+        "pink": "Pink",
+        "gray": "Gray",
+        "sunset": "Sunset",
+        "ocean": "Ocean",
+        "forest": "Forest",
+        "dusk": "Dusk"
+      },
+      "uploadButton": "Upload an image",
+      "uploading": "Uploading…",
+      "uploadHelp": "Images wider than 1500 pixels look best.",
+      "submitLink": "Use link",
+      "notImage": "Choose an image file.",
+      "tooLarge": "That image is too large.",
+      "uploadFailed": "Couldn't upload the image. Try again."
+    },
+    "favorite": "Add to favorites",
+    "unfavorite": "Remove from favorites"
   },
   "database": {
     "database": "Database",
@@ -303,12 +442,28 @@
       "notStarted": "Not started",
       "inProgress": "In progress",
       "done": "Done"
+    },
+    "templates": {
+      "open": "New from a template",
+      "title": "Templates",
+      "untitled": "Untitled template",
+      "delete": "Delete template {name}",
+      "empty": "No templates yet. Open a row and choose Save as template.",
+      "hint": "To add one, open a row and choose Save as template.",
+      "saveRow": "Save as template",
+      "saved": "Saved as template"
     }
   },
   "mentions": {
     "noPages": "No pages",
     "noMembers": "No members",
-    "linkedFrom": "Linked from"
+    "linkedFrom": "Linked from",
+    "dates": "Dates",
+    "people": "People",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "remindAt": "Remind me {when}",
+    "reminderHint": "Notifies you in the app and by email"
   },
   "emoji": {
     "pick": "Pick icon",
@@ -322,7 +477,8 @@
       "nature": "Nature",
       "food": "Food",
       "results": "Results"
-    }
+    },
+    "upload": "Upload image"
   },
   "share": {
     "title": "Share",
@@ -404,7 +560,23 @@
     "renameLabel": "Template name",
     "options": "Options for template {name}",
     "confirmDelete": "Delete the template {name}? Pages already created from it stay as they are.",
-    "editError": "Couldn't save the change. Try again."
+    "editError": "Couldn't save the change. Try again.",
+    "gallery": "Templates",
+    "sections": "Template sections",
+    "browse": "Templates",
+    "startWith": "Start with a template",
+    "useThis": "Use this template",
+    "using": "Opening…",
+    "preview": "Preview",
+    "blank": "Empty page",
+    "categories": {
+      "basic": "Basic",
+      "personal": "Personal",
+      "work": "Work",
+      "product": "Product",
+      "engineering": "Engineering",
+      "workspace": "Your workspace"
+    }
   },
   "trash": {
     "title": "Trash",
@@ -542,5 +714,18 @@
     "failedTitle": "The import stopped.",
     "rowsNote": "The page of each database row goes in as the body of that row, not as a separate page.",
     "doneRows": "{count, plural, one {# database row kept its page as the body} other {# database rows kept their pages as the body}}."
+  },
+  "reminderEmail": {
+    "subject": "Reminder: {title}",
+    "heading": "Reminder",
+    "body": "You asked to be reminded about \"{title}\" on {when}.",
+    "open": "Open the page",
+    "why": "You get this because you set a reminder on this page in zerosoft Docs.",
+    "notification": "Reminder: {title}",
+    "untitled": "Untitled"
+  },
+  "favorites": {
+    "title": "Favorites",
+    "error": "Couldn't update favorites. Try again."
   }
 }

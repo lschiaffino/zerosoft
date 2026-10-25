@@ -701,8 +701,10 @@ test('Link: "New" tiene Single / Bulk / Import y Dominios su propia pantalla', a
   await expect(page).toHaveURL(/\/app\/links\/import$/);
   await expect(page.getByRole('heading', { name: 'Import from Bitly' })).toBeVisible();
 
+  // /app/links/domains quedó como pestaña de los ajustes de Link.
   await page.goto('/en/app/links/domains', { waitUntil: 'networkidle' });
-  await expect(page.getByRole('heading', { name: 'Domains', level: 1 })).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/links\/settings\?tab=domains$/);
+  await expect(page.getByRole('heading', { name: 'Link settings', level: 1 })).toBeVisible();
   await expect(page.getByLabel('Domain', { exact: true })).toBeVisible();
 });
 
