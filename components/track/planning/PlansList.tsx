@@ -131,7 +131,8 @@ export default function PlansList() {
           ]}
           onSelect={(v) => {
             const next = v === 'status' ? statusRef : v === 'lead' ? leadRef : teamRef;
-            window.setTimeout(() => next.current?.open(), 0);
+            // En el mismo tick (no se pierden letras tipeadas enseguida): el de valores toma el foco al montarse.
+            next.current?.open();
           }}
           trigger={
             <>

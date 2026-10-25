@@ -319,6 +319,7 @@ test('Projects: F abre el filtro por propiedad y después el valor', async ({ pa
   await page.keyboard.press('f');
   await page.keyboard.type('stat');
   await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog', { name: 'Status' })).toBeVisible();
   await page.keyboard.type('progress');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/status=in_progress/);
