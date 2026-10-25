@@ -1388,7 +1388,34 @@ section.talk-pane,
 
 .talk-modal .ui-tabs {
   margin-bottom: 12px;
-  overflow-x: auto;
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.talk-dot-inline {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--brand-gray-3);
+  vertical-align: middle;
+}
+
+.talk-dot-inline.is-active {
+  background: var(--ok, #2e7d32);
+}
+
+.talk-side-archived {
+  margin: 4px 0 0 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand-gray-2);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 .talk-picker {

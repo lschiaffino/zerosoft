@@ -167,6 +167,74 @@ export async function listEventsSince(actor: TalkActor, cursor: number, limit = 
   };
 }
 
+// ---------- Avisos: que nunca quede texto de lo que ya no se puede ver ----------
+
+/** Borra los avisos (campana y emails en cola) de estos mensajes, para todas las personas o una. */
+export async function purgeMessageNotifications(messageIds: string[], userId?: string): Promise<void> {
+  if (!messageIds.length) return;
+  const db = getDb();
+  for (let i = 0; i < messageIds.length; i += 200) {
+    const ids = messageIds.slice(i, i + 200);
+    const marks = inList(ids.length);
+    const who = userId ? ' AND user_id = ?' : '';
+    const args = userId ? [...ids, userId] : ids;
+    const reminderIds = ((await db
+      .prepare(`SELECT id FROM talk_reminders WHERE message_id IN (${marks})${who}`)
+      .all(...args)) as Array<{ id: string }>).map((r) => r.id);
+    const where = `(source_type = 'talk_message' AND source_id IN (${marks}))${
+      reminderIds.length ? ` OR (source_type = 'talk_reminder' AND source_id IN (${inList(reminderIds.length)}))` : ''
+    }`;
+    const whereArgs = [...ids, ...reminderIds];
+    await db
+      .prepare(`DELETE FROM talk_email_queue WHERE notification_id IN (SELECT id FROM notifications WHERE (${where})${who})`)
+      .run(...whereArgs, ...(userId ? [userId] : []));
+    await db.prepare(`DELETE FROM notifications WHERE (${where})${who}`).run(...whereArgs, ...(userId ? [userId] : []));
+    if (reminderIds.length) await db.prepare(`DELETE FROM talk_reminders WHERE id IN (${inList(reminderIds.length)})`).run(...reminderIds);
+  }
+}
+
+/** Quien pierde acceso a un canal: fuera sus avisos, recordatorios, guardados, borradores y programados de ahí. */
+export async function purgeChannelFor(channelId: string, userId: string): Promise<void> {
+  const db = getDb();
+  const ids = ((await db.prepare('SELECT id FROM talk_messages WHERE channel_id = ?').all(channelId)) as Array<{ id: string }>).map((r) => r.id);
+  await purgeMessageNotifications(ids, userId);
+  await db.prepare('DELETE FROM talk_saved WHERE user_id = ? AND message_id IN (SELECT id FROM talk_messages WHERE channel_id = ?)').run(userId, channelId);
+  await db.prepare('DELETE FROM talk_thread_follows WHERE user_id = ? AND message_id IN (SELECT id FROM talk_messages WHERE channel_id = ?)').run(userId, channelId);
+  await db.prepare('DELETE FROM talk_drafts WHERE user_id = ? AND channel_id = ?').run(userId, channelId);
+  await db.prepare("UPDATE talk_scheduled SET status = 'cancelled' WHERE user_id = ? AND channel_id = ? AND status IN ('pending', 'failed')").run(userId, channelId);
+}
+
+/**
+ * Una persona sale del workspace (lib/teams.ts removeMember): deja los canales,
+ * no recibe más avisos ni emails de Talk, y sus DMs quedan desactivados para
+ * el resto (se leen, no se escribe).
+ */
+export async function talkPersonRemoved(workspaceId: string, userId: string): Promise<void> {
+  if (userId === workspaceId) return;
+  const db = getDb();
+  const channels = ((await db.prepare('SELECT c.id, c.kind FROM talk_channels c JOIN talk_members m ON m.channel_id = c.id AND m.user_id = ? WHERE c.workspace_id = ?').all(userId, workspaceId)) as Array<{
+    id: string;
+    kind: TalkChannelKind;
+  }>);
+  for (const c of channels) {
+    await purgeChannelFor(c.id, userId);
+    if (c.kind === 'public' || c.kind === 'private') await db.prepare('DELETE FROM talk_members WHERE channel_id = ? AND user_id = ?').run(c.id, userId);
+  }
+  // Avisos y emails pendientes de Talk de este workspace (incluidos los de canales públicos donde no estaba).
+  const wsMessages = ((await db
+    .prepare("SELECT source_id FROM notifications WHERE user_id = ? AND source_type = 'talk_message'")
+    .all(userId)) as Array<{ source_id: string }>).map((r) => r.source_id);
+  if (wsMessages.length) {
+    const mine = ((await db
+      .prepare(`SELECT id FROM talk_messages WHERE workspace_id = ? AND id IN (${inList(Math.min(wsMessages.length, 500))})`)
+      .all(workspaceId, ...wsMessages.slice(0, 500))) as Array<{ id: string }>).map((r) => r.id);
+    await purgeMessageNotifications(mine, userId);
+  }
+  await db.prepare('DELETE FROM talk_reminders WHERE workspace_id = ? AND user_id = ?').run(workspaceId, userId);
+  await db.prepare('DELETE FROM talk_presence WHERE workspace_id = ? AND user_id = ?').run(workspaceId, userId);
+  for (const c of channels) await emitTalkEvent(workspaceId, 'channel', { channelId: c.id, payload: { change: 'members' } });
+}
+
 // ---------- Canales ----------
 
 export type TalkChannelKind = 'public' | 'private' | 'dm' | 'group';
@@ -210,6 +278,10 @@ export interface TalkChannelDto {
   memberCount: number;
   /** DMs y grupos: las personas (sin contarme). */
   memberIds: string[];
+  /** DMs y grupos: personas que ya no están en el workspace. */
+  inactiveIds: string[];
+  /** DM con alguien que salió del workspace: se lee, no se escribe. */
+  deactivated: boolean;
   isMember: boolean;
   role: 'admin' | 'member' | null;
   starred: boolean;
@@ -239,6 +311,8 @@ export interface ChannelAccess {
 export async function readableChannel(actor: TalkActor, id: string): Promise<ChannelAccess | null> {
   const channel = await getChannelRow(actor.workspaceId, id);
   if (!channel) return null;
+  // Solo personas actuales del workspace (un aviso o un cron no puede leer por alguien que salió).
+  if (!(await isWorkspacePerson(actor.workspaceId, actor.personId))) return null;
   const member = await getMembership(id, actor.personId);
   if (!member && channel.kind !== 'public') return null;
   return { channel, member };
@@ -250,6 +324,10 @@ export async function writableChannel(actor: TalkActor, id: string): Promise<Cha
   if (!access) throw new TalkError('not_found', 404);
   if (access.channel.archived_at) throw new TalkError('channel_archived', 409);
   if (!access.member) throw new TalkError('not_member', 403);
+  if (access.channel.kind === 'dm') {
+    const other = (await getDb().prepare('SELECT user_id FROM talk_members WHERE channel_id = ? AND user_id != ?').get(id, actor.personId)) as { user_id: string } | undefined;
+    if (other && !(await isWorkspacePerson(actor.workspaceId, other.user_id))) throw new TalkError('dm_deactivated', 409);
+  }
   return access;
 }
 
@@ -265,6 +343,8 @@ const CHANNEL_DTO_SQL = `
     m.user_id AS m_user, m.role AS m_role, m.last_read_at AS m_read, m.notify AS m_notify, m.starred AS m_starred, m.hidden AS m_hidden,
     (SELECT COUNT(*) FROM talk_members mm WHERE mm.channel_id = c.id) AS member_count,
     (SELECT group_concat(mm.user_id) FROM talk_members mm WHERE mm.channel_id = c.id AND c.kind IN ('dm', 'group') AND mm.user_id != ?) AS others,
+    (SELECT group_concat(mm.user_id) FROM talk_members mm WHERE mm.channel_id = c.id AND c.kind IN ('dm', 'group') AND mm.user_id != c.workspace_id
+       AND mm.user_id NOT IN (SELECT tm.user_id FROM team_members tm JOIN teams tt ON tt.id = tm.team_id WHERE tt.owner_id = c.workspace_id)) AS gone,
     CASE WHEN m.user_id IS NULL THEN 0 ELSE EXISTS (
       SELECT 1 FROM talk_messages x WHERE x.channel_id = c.id AND (x.parent_id IS NULL OR x.also_in_channel = 1)
         AND x.deleted_at IS NULL AND (x.user_id IS NULL OR x.user_id != ?) AND x.created_at > COALESCE(m.last_read_at, '')
@@ -286,6 +366,7 @@ type ChannelJoinRow = TalkChannelRow & {
   m_hidden: number | null;
   member_count: number;
   others: string | null;
+  gone: string | null;
   unread: number;
   mention_count: number;
 };
@@ -308,6 +389,8 @@ function toChannelDto(actor: TalkActor, r: ChannelJoinRow): TalkChannelDto {
     lastMessageAt: r.last_message_at,
     memberCount: Number(r.member_count),
     memberIds: r.others ? r.others.split(',') : [],
+    inactiveIds: r.gone ? r.gone.split(',') : [],
+    deactivated: r.kind === 'dm' && !!r.gone,
     isMember: !!r.m_user,
     role: r.m_role,
     starred: !!r.m_starred,
@@ -322,7 +405,7 @@ function toChannelDto(actor: TalkActor, r: ChannelJoinRow): TalkChannelDto {
 /** Canales del sidebar: donde soy miembro (sin los DMs que cerré, salvo que tengan algo nuevo). */
 export async function listMyChannels(actor: TalkActor): Promise<TalkChannelDto[]> {
   const rows = (await getDb()
-    .prepare(`${CHANNEL_DTO_SQL} WHERE c.workspace_id = ? AND m.user_id IS NOT NULL ORDER BY c.kind IN ('dm', 'group'), c.name, c.last_message_at DESC`)
+    .prepare(`${CHANNEL_DTO_SQL} WHERE c.workspace_id = ? AND m.user_id IS NOT NULL AND c.archived_at IS NULL ORDER BY c.kind IN ('dm', 'group'), c.name, c.last_message_at DESC`)
     .all(...channelArgs(actor), actor.workspaceId)) as ChannelJoinRow[];
   return rows
     .filter((r) => !(r.m_hidden && !Number(r.unread)))
@@ -430,10 +513,11 @@ async function validPeople(workspaceId: string, ids: string[]): Promise<string[]
   return [...new Set(ids)];
 }
 
-/** Abre (o crea) el DM con estas personas. Una sola persona = DM 1:1; yo solo = DM conmigo. Hasta 8 más. */
+/** Abre (o crea) el DM con estas personas. Una sola persona = DM 1:1; yo solo = DM conmigo. Hasta 9 más. */
 export async function openDm(actor: TalkActor, userIds: string[]): Promise<TalkChannelDto> {
   const others = await validPeople(actor.workspaceId, userIds.filter((u) => u !== actor.personId));
-  if (others.length > 8) throw new TalkError('too_many_members');
+  // Como Slack: hasta 9 personas más vos.
+  if (others.length > 9) throw new TalkError('too_many_members');
   const all = [...new Set([actor.personId, ...others])].sort();
   const key = all.join(',');
   const kind: TalkChannelKind = all.length > 2 ? 'group' : 'dm';
@@ -507,6 +591,9 @@ export async function deleteChannel(actor: TalkActor, id: string): Promise<{ fil
   if (access.channel.name === 'general' && access.channel.kind === 'public') throw new TalkError('general_locked', 409);
   const db = getDb();
   const files = (await db.prepare('SELECT url FROM talk_files WHERE channel_id = ?').all(id)) as Array<{ url: string }>;
+  const ids = ((await db.prepare('SELECT id FROM talk_messages WHERE channel_id = ?').all(id)) as Array<{ id: string }>).map((r) => r.id);
+  await purgeMessageNotifications(ids);
+  await db.prepare('DELETE FROM talk_events WHERE channel_id = ?').run(id);
   await db.prepare('DELETE FROM talk_channels WHERE id = ?').run(id);
   await emitTalkEvent(actor.workspaceId, 'channel', { channelId: null, actorId: actor.personId, payload: { change: 'deleted', id } });
   return { fileUrls: files.map((f) => f.url) };
@@ -546,6 +633,8 @@ export async function removeMember(actor: TalkActor, id: string, userId: string)
   if (channel.name === 'general' && channel.kind === 'public') throw new TalkError('general_locked', 409);
   if (userId !== actor.personId && !canManageChannel(actor, channel, access.member)) throw new TalkError('forbidden', 403);
   await db.prepare('DELETE FROM talk_members WHERE channel_id = ? AND user_id = ?').run(id, userId);
+  // En un privado deja de poder leer: fuera lo que tenía de ahí (avisos con texto, recordatorios…).
+  if (channel.kind === 'private') await purgeChannelFor(id, userId);
   await emitTalkEvent(actor.workspaceId, 'channel', { channelId: id, actorId: actor.personId, payload: { change: 'members' } });
   // Quien sale deja de recibir eventos del canal (si es privado): el aviso le llega por su cuenta.
   await emitTalkEvent(actor.workspaceId, 'channel', { userId, actorId: actor.personId, payload: { change: 'left', id } });
@@ -572,7 +661,7 @@ export async function updateMemberPrefs(actor: TalkActor, id: string, input: { s
 /** Marca leído hasta `at` (por defecto, ahora). También sirve para "marcar como no leído desde acá". */
 export async function markRead(actor: TalkActor, id: string, at?: string | null): Promise<void> {
   const access = await readableChannel(actor, id);
-  if (!access?.member) return;
+  if (!access?.member) throw new TalkError('not_found', 404);
   const when = at ?? nowIso();
   await getDb().prepare('UPDATE talk_members SET last_read_at = ? WHERE channel_id = ? AND user_id = ?').run(when, id, actor.personId);
   await emitTalkEvent(actor.workspaceId, 'read', { userId: actor.personId, payload: { channelId: id, at: when } });
@@ -825,6 +914,8 @@ export interface PostMessageInput {
   fileIds?: string[];
   /** Mensajes de integraciones (webhook entrante, Flow, API) sin persona. */
   botName?: string | null;
+  /** Lo manda el cron de programados. */
+  scheduled?: boolean;
 }
 
 export interface PostResult {
@@ -934,7 +1025,33 @@ export async function postMessage(actor: TalkActor, input: PostMessageInput, opt
   await emitTalkEvent(actor.workspaceId, 'message', {
     channelId: channel.id,
     actorId: opts.asBot ? null : actor.personId,
-    payload: { id, parentId: parent?.id ?? null, alsoInChannel: !!(parent && input.alsoInChannel), change: 'new' },
+    payload: {
+      id,
+      parentId: parent?.id ?? null,
+      alsoInChannel: !!(parent && input.alsoInChannel),
+      change: 'new',
+      at: now,
+      mentions: mentionIds,
+      broadcast,
+      // Hilos: quiénes lo siguen (para "Hilos" sin leer).
+      followers: parent
+        ? (((await db.prepare('SELECT user_id FROM talk_thread_follows WHERE message_id = ?').all(parent.id)) as Array<{ user_id: string }>).map((f) => f.user_id))
+        : [],
+      scheduled: !!input.scheduled,
+      // El mensaje tal cual (solo para quien ya puede leer el canal: el feed filtra por acceso),
+      // así se pinta al toque; lo que depende de quién mira (tarjetas, guardado) llega después.
+      message: {
+        id,
+        channelId: channel.id,
+        parentId: parent?.id ?? null,
+        userId: opts.asBot ? null : actor.personId,
+        botName: input.botName ?? null,
+        body,
+        alsoInChannel: !!(parent && input.alsoInChannel),
+        createdAt: now,
+        hasFiles: fileIds.length > 0,
+      },
+    },
   });
   const [message] = await toMessageDtos(actor, [row]);
   return { message, row, channel };
@@ -953,21 +1070,48 @@ export async function afterPost(actor: TalkActor, result: PostResult, opts: { as
       await emitTalkEvent(actor.workspaceId, 'message', { channelId: result.channel.id, payload: { id: result.row.id, parentId: result.row.parent_id, change: 'updated' } });
     }
   }
-  // Flow y webhooks: canales (públicos y privados). Los DMs no salen del workspace.
+  // Flow y webhooks del workspace. Como en Slack: los DMs nunca salen; un
+  // canal privado solo llega a los webhooks y flows cuya persona creadora es
+  // miembro del canal (la que lo podría leer).
   if (result.channel.kind === 'public' || result.channel.kind === 'private') {
     const { emitEvent } = await import('./events');
     const { talkPlainText } = await import('./talk-markdown');
-    await emitEvent(actor.workspaceId, 'talk.message.posted', {
-      id: result.row.id,
-      channel: { id: result.channel.id, name: result.channel.name, kind: result.channel.kind },
-      text: talkPlainText(result.row.body),
-      body: result.row.body,
-      userId: result.row.user_id,
-      botName: result.row.bot_name,
-      threadId: result.row.parent_id,
-      createdAt: result.row.created_at,
-    });
+    const names = await plainNames(actor.workspaceId);
+    const channelId = result.channel.id;
+    const audience =
+      result.channel.kind === 'private'
+        ? async (creatorId: string | null) => !!creatorId && (await isWorkspacePerson(actor.workspaceId, creatorId)) && !!(await getMembership(channelId, creatorId))
+        : undefined;
+    await emitEvent(
+      actor.workspaceId,
+      'talk.message.posted',
+      {
+        id: result.row.id,
+        channel: { id: result.channel.id, name: result.channel.name, kind: result.channel.kind },
+        text: talkPlainText(result.row.body, names),
+        body: result.row.body,
+        userId: result.row.user_id,
+        userName: result.row.user_id ? (names.user(result.row.user_id) ?? null) : null,
+        botName: result.row.bot_name,
+        threadId: result.row.parent_id,
+        createdAt: result.row.created_at,
+      },
+      { audience },
+    );
   }
+}
+
+/** Nombres para pasar el texto guardado (con <@id>, <#id>) a texto legible. */
+export async function plainNames(workspaceId: string): Promise<{ user: (id: string) => string | undefined; channel: (id: string) => string | undefined; group: (id: string) => string | undefined }> {
+  const [people, groups, channels] = await Promise.all([
+    listTalkPeople(workspaceId),
+    listTalkGroups(workspaceId),
+    getDb().prepare("SELECT id, name FROM talk_channels WHERE workspace_id = ? AND kind IN ('public', 'private')").all(workspaceId) as Promise<Array<{ id: string; name: string }>>,
+  ]);
+  const p = new Map(people.map((x) => [x.id, x.name]));
+  const g = new Map(groups.map((x) => [x.id, x.handle]));
+  const c = new Map(channels.map((x) => [x.id, x.name]));
+  return { user: (id) => p.get(id), channel: (id) => c.get(id), group: (id) => g.get(id) };
 }
 
 export async function editMessage(actor: TalkActor, id: string, body: string): Promise<TalkMessageDto> {
@@ -987,6 +1131,17 @@ export async function editMessage(actor: TalkActor, id: string, body: string): P
   await getDb()
     .prepare('UPDATE talk_messages SET body = ?, mentions = ?, broadcast = ?, edited_at = ?, unfurls = ? WHERE id = ?')
     .run(text, JSON.stringify([...new Set([...mentions.users])]), broadcast, nowIso(), found.message.unfurls, id);
+  // El evento del feed no conserva el texto viejo.
+  await getDb()
+    .prepare("UPDATE talk_events SET payload = json_remove(payload, '$.message') WHERE kind = 'message' AND channel_id = ? AND json_extract(payload, '$.id') = ?")
+    .run(found.message.channel_id, id);
+  // Los avisos de este mensaje muestran el texto editado (no el viejo).
+  {
+    const { talkPlainText } = await import('./talk-markdown');
+    await getDb()
+      .prepare("UPDATE notifications SET body = ? WHERE source_type = 'talk_message' AND source_id = ?")
+      .run(talkPlainText(text, await plainNames(actor.workspaceId)).slice(0, 280), id);
+  }
   await emitTalkEvent(actor.workspaceId, 'message', { channelId: found.message.channel_id, actorId: actor.personId, payload: { id, parentId: found.message.parent_id, change: 'updated' } });
   const row = (await getMessageRow(actor.workspaceId, id))!;
   // Menciones nuevas al editar también avisan (solo las que no estaban).
@@ -1007,6 +1162,12 @@ export async function deleteMessage(actor: TalkActor, id: string): Promise<{ fil
   const db = getDb();
   const files = (await db.prepare('SELECT url FROM talk_files WHERE message_id = ?').all(id)) as Array<{ url: string }>;
   await db.prepare('DELETE FROM talk_files WHERE message_id = ?').run(id);
+  // Campana, emails en cola y recordatorios de este mensaje.
+  await purgeMessageNotifications([id]);
+  // El evento del feed llevaba el texto: se le saca (una reconexión no lo vuelve a traer).
+  await db
+    .prepare("UPDATE talk_events SET payload = json_remove(payload, '$.message') WHERE kind = 'message' AND channel_id = ? AND json_extract(payload, '$.id') = ?")
+    .run(m.channel_id, id);
   if (m.reply_count > 0) {
     await db.prepare("UPDATE talk_messages SET deleted_at = ?, body = '', unfurls = '[]', pinned_at = NULL WHERE id = ?").run(nowIso(), id);
     await db.prepare('DELETE FROM talk_reactions WHERE message_id = ?').run(id);
@@ -1098,14 +1259,20 @@ export async function listThreads(actor: TalkActor, limit = 50): Promise<Array<{
 }
 
 export async function countUnreadThreads(actor: TalkActor): Promise<number> {
-  const row = (await getDb()
+  return (await listUnreadThreadIds(actor)).length;
+}
+
+/** Hilos que sigo con respuestas que no leí (ids de los mensajes raíz). */
+export async function listUnreadThreadIds(actor: TalkActor): Promise<string[]> {
+  const rows = (await getDb()
     .prepare(
-      `SELECT COUNT(*) AS n FROM talk_thread_follows f JOIN talk_messages m ON m.id = f.message_id
+      `SELECT m.id FROM talk_thread_follows f JOIN talk_messages m ON m.id = f.message_id
        WHERE f.user_id = ? AND m.workspace_id = ? AND m.last_reply_at IS NOT NULL AND (f.last_read_at IS NULL OR m.last_reply_at > f.last_read_at)
-         AND EXISTS (SELECT 1 FROM talk_messages r WHERE r.parent_id = m.id AND r.deleted_at IS NULL AND (r.user_id IS NULL OR r.user_id != f.user_id) AND r.created_at > COALESCE(f.last_read_at, ''))`,
+         AND EXISTS (SELECT 1 FROM talk_messages r WHERE r.parent_id = m.id AND r.deleted_at IS NULL AND (r.user_id IS NULL OR r.user_id != f.user_id) AND r.created_at > COALESCE(f.last_read_at, ''))
+       LIMIT 500`,
     )
-    .get(actor.personId, actor.workspaceId)) as { n: number };
-  return Number(row?.n ?? 0);
+    .all(actor.personId, actor.workspaceId)) as Array<{ id: string }>;
+  return rows.map((r) => r.id);
 }
 
 /** Actividad: menciones a mí (y @canal / @aquí) en lo que puedo leer. */

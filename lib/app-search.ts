@@ -37,7 +37,8 @@ export interface AppSearchItem {
     | 'groupsTemplates'
     | 'groupsRecurring'
     | 'talkChannels'
-    | 'talkDms';
+    | 'talkDms'
+    | 'talkPeople';
   label: string;
   meta: string;
   href: string;
@@ -85,7 +86,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   const gMask = (r: Row): Row => (gViewer?.mask ? { ...r, label: maskPhoneText(r.label), meta: r.meta ? maskPhoneText(r.meta) : r.meta } : r);
   const ticketNumber = /^#?\d{1,7}$/.test(needle) ? Number(needle.replace('#', '')) : -1;
   const person = user.actingUser?.id ?? user.id;
-  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates, talkChannels, talkDms] = await Promise.all([
+  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates, talkChannels, talkDms, talkPeople] = await Promise.all([
     all(
       `SELECT b.id, b.name AS label FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND b.name LIKE ? ESCAPE '\\' ORDER BY b.updated_at DESC LIMIT ?`,
       user.id,
@@ -200,15 +201,33 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       person,
       like,
     ),
+    // DMs 1:1, grupales y el DM con uno mismo: por el nombre o email de cualquiera de las personas.
     all(
-      `SELECT c.id, COALESCE(u.name, u.email) AS label, ? AS meta FROM talk_channels c
-       JOIN talk_members me ON me.channel_id = c.id AND me.user_id = ?
-       JOIN talk_members o ON o.channel_id = c.id AND o.user_id != ?
-       JOIN users u ON u.id = o.user_id
-       WHERE c.workspace_id = ? AND c.kind = 'dm' AND (u.name LIKE ? ESCAPE '\\' OR u.email LIKE ? ESCAPE '\\') ORDER BY c.last_message_at DESC LIMIT ?`,
+      `SELECT c.id,
+         COALESCE((SELECT group_concat(COALESCE(u.name, u.email), ', ') FROM talk_members o JOIN users u ON u.id = o.user_id WHERE o.channel_id = c.id AND o.user_id != ?),
+                  (SELECT COALESCE(u.name, u.email) FROM users u WHERE u.id = ?)) AS label,
+         ? AS meta
+       FROM talk_channels c JOIN talk_members me ON me.channel_id = c.id AND me.user_id = ?
+       WHERE c.workspace_id = ? AND c.kind IN ('dm', 'group')
+         AND EXISTS (SELECT 1 FROM talk_members o JOIN users u ON u.id = o.user_id WHERE o.channel_id = c.id
+                       AND (o.user_id != ? OR (SELECT COUNT(*) FROM talk_members x WHERE x.channel_id = c.id) = 1)
+                       AND (u.name LIKE ? ESCAPE '\\' OR u.email LIKE ? ESCAPE '\\'))
+       ORDER BY c.last_message_at DESC LIMIT ?`,
+      person,
+      person,
       TALK_DM[locale] ?? TALK_DM.en,
       person,
+      user.id,
       person,
+      like,
+      like,
+    ),
+    // Personas del workspace: abrir (o empezar) un DM con ellas.
+    all(
+      `SELECT u.id, COALESCE(u.name, u.email) AS label, u.email AS meta FROM users u
+       WHERE (u.id = ? OR u.id IN (SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ?))
+         AND (u.name LIKE ? ESCAPE '\\' OR u.email LIKE ? ESCAPE '\\') ORDER BY COALESCE(u.name, u.email) LIMIT ?`,
+      user.id,
       user.id,
       like,
       like,
@@ -251,5 +270,6 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(groupTemplates, 'groupsTemplates', (id) => `/app/groups/templates?use=${id}`),
     ...map(talkChannels, 'talkChannels', (id) => `/app/talk/${id}`),
     ...map(talkDms, 'talkDms', (id) => `/app/talk/${id}`),
+    ...map(talkPeople, 'talkPeople', (id) => `/app/talk?dm=${encodeURIComponent(id)}`),
   ];
 }

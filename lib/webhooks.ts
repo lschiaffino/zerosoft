@@ -353,11 +353,22 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
  * eventos link.* respeta el filtro de links de cada webhook. Intenta la
  * entrega en el momento (con timeout); nunca lanza.
  */
-export async function emitWebhook(userId: string, event: WebhookEvent, data: unknown): Promise<void> {
+export async function emitWebhook(
+  userId: string,
+  event: WebhookEvent,
+  data: unknown,
+  audience?: (creatorId: string | null) => Promise<boolean>,
+): Promise<void> {
   try {
-    const hooks = (await getDb()
-      .prepare('SELECT id, events, filters, crm_filter FROM webhooks WHERE user_id = ? AND active = 1')
-      .all(userId)) as Array<{ id: string; events: string; filters: string | null; crm_filter: string | null }>;
+    let hooks = (await getDb()
+      .prepare('SELECT id, events, filters, crm_filter, created_by FROM webhooks WHERE user_id = ? AND active = 1')
+      .all(userId)) as Array<{ id: string; events: string; filters: string | null; crm_filter: string | null; created_by: string | null }>;
+    // Contenido restringido: solo los webhooks de quien puede verlo.
+    if (audience) {
+      const allowed: typeof hooks = [];
+      for (const h of hooks) if (parseEvents(h.events).includes(event) && (await audience(h.created_by))) allowed.push(h);
+      hooks = allowed;
+    }
     const scope = event.startsWith('link.') ? linkScopeOf(data) : null;
     const targets = hooks.filter(
       (h) =>

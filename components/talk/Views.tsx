@@ -435,11 +435,12 @@ export function SearchView({ query, onBack }: { query: string; onBack: () => voi
   );
 }
 
-export function BrowseView({ onBack }: { onBack: (v?: TalkView) => void }) {
+export function BrowseView({ onBack, archivedOnly = false }: { onBack: (v?: TalkView) => void; archivedOnly?: boolean }) {
   const t = useTranslations('talk');
   const ctx = useTalk();
   const [q, setQ] = useState('');
-  const [archived, setArchived] = useState(false);
+  const [archived, setArchived] = useState(archivedOnly);
+  useEffect(() => setArchived(archivedOnly), [archivedOnly]);
   const { data, error, reload } = useLoader<{ channels: TalkChannelDto[] }>(`/api/talk/channels?q=${encodeURIComponent(q)}${archived ? '&archived=1' : ''}`, [q, archived]);
   async function join(c: TalkChannelDto) {
     try {

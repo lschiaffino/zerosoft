@@ -83,12 +83,11 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
       if (!isMember) return;
       if (readTimer.current) clearTimeout(readTimer.current);
       readTimer.current = setTimeout(() => {
-        void api(`/api/talk/channels/${channel.id}/read`, { method: 'POST', json: at ? { at } : {} })
-          .then(() => refreshBoot())
-          .catch(() => undefined);
+        // El sidebar se actualiza con el evento "read" del tiempo real (sin pedir todo).
+        void api(`/api/talk/channels/${channel.id}/read`, { method: 'POST', json: at ? { at } : {} }).catch(() => undefined);
       }, 400);
     },
-    [api, channel.id, isMember, refreshBoot],
+    [api, channel.id, isMember],
   );
 
   const load = useCallback(async () => {
@@ -156,11 +155,14 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
       }
       const ids = new Set<string>();
       const removed = new Set<string>();
+      const quick: TalkMessageDto[] = [];
       let fromOthers = false;
       for (const ev of e.events) {
         if (ev.channelId !== channel.id) continue;
         if (ev.kind === 'message' || ev.kind === 'reaction') {
-          const p = ev.payload as { id: string; parentId?: string | null; change?: string; alsoInChannel?: boolean };
+          const p = ev.payload as { id: string; parentId?: string | null; change?: string; alsoInChannel?: boolean; message?: LiteMessage };
+          // Mensaje nuevo de otra persona: se pinta ya con lo que trae el evento (sin archivos ni tarjetas, que llegan en el refresco).
+          if (p.change === 'new' && p.message && ev.actorId !== ctx.boot.me && (!p.parentId || p.alsoInChannel) && !p.message.hasFiles) quick.push(liteToDto(p.message));
           if (p.change === 'deleted') removed.add(p.id);
           if (!p.parentId || p.alsoInChannel) ids.add(p.id);
           if (p.parentId) ids.add(p.parentId);
@@ -168,6 +170,11 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
         }
       }
       if (!ids.size && !removed.size) return;
+      if (quick.length) {
+        const el = listRef.current;
+        stick.current = !!el && el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+        setMessages((prev) => upsertSorted(prev, quick.filter((q) => !prev.some((m) => m.id === q.id))));
+      }
       void api<{ messages: TalkMessageDto[] }>(`/api/talk/messages?ids=${[...ids].join(',')}`)
         .then((res) => {
           const el = listRef.current;
@@ -276,11 +283,14 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
             )}
             {channel.archived && <span className="badge badge-outline">{t('channel.archived')}</span>}
           </h1>
-          {channel.topic ? (
+          {channel.kind === 'dm' ? (
+            <DmStatus channel={channel} />
+          ) : channel.topic ? (
             <button type="button" className="talk-head-topic" onClick={() => dialog({ kind: 'details', channelId: channel.id, tab: 'about' })} title={channel.topic}>
               {channel.topic}
             </button>
           ) : (
+            isChannel &&
             isMember &&
             !channel.archived && (
               <button type="button" className="talk-head-topic is-empty" onClick={() => dialog({ kind: 'details', channelId: channel.id, tab: 'about' })}>
@@ -404,6 +414,8 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
       <TypingLine channelId={channel.id} parentId={null} />
       {channel.archived ? (
         <div className="talk-banner">{t('channel.archivedBanner')}</div>
+      ) : channel.deactivated ? (
+        <div className="talk-banner">{t('channel.deactivated', { name: title })}</div>
       ) : isMember ? (
         <Composer
           key={channel.id}
@@ -425,4 +437,58 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
       )}
     </section>
   );
+}
+
+/** Encabezado de un DM: estado y presencia de la otra persona (no hay tema que agregar). */
+function DmStatus({ channel }: { channel: TalkChannelDto }) {
+  const t = useTranslations('talk');
+  const { presence, boot } = useTalk();
+  const other = channel.memberIds[0] ?? boot.me;
+  if (channel.deactivated) return <span className="talk-head-topic is-static">{t('channel.deactivatedShort')}</span>;
+  const p = presence.get(other);
+  const state = p?.away ? t('status.away') : p?.active ? t('status.active') : t('status.away');
+  return (
+    <span className="talk-head-topic is-static">
+      <span className={`talk-dot-inline${p?.active ? ' is-active' : ''}`} aria-hidden="true" />
+      {state}
+      {p?.statusEmoji || p?.statusText ? ` · ${p.statusEmoji ?? ''} ${p.statusText ?? ''}`.trimEnd() : ''}
+    </span>
+  );
+}
+
+interface LiteMessage {
+  id: string;
+  channelId: string;
+  parentId: string | null;
+  userId: string | null;
+  botName: string | null;
+  body: string;
+  alsoInChannel: boolean;
+  createdAt: string;
+  hasFiles: boolean;
+}
+
+/** El mensaje del evento como DTO provisorio (el refresco trae reacciones, tarjetas y guardado). */
+function liteToDto(m: LiteMessage): TalkMessageDto {
+  return {
+    id: m.id,
+    channelId: m.channelId,
+    parentId: m.parentId,
+    userId: m.userId,
+    botName: m.botName,
+    body: m.body,
+    files: [],
+    unfurls: [],
+    reactions: [],
+    replyCount: 0,
+    replyUsers: [],
+    lastReplyAt: null,
+    alsoInChannel: m.alsoInChannel,
+    editedAt: null,
+    deleted: false,
+    pinned: false,
+    saved: false,
+    createdAt: m.createdAt,
+    refs: [],
+  };
 }

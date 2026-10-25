@@ -7,7 +7,8 @@
     "save": "Save",
     "loading": "Loading…",
     "retry": "Try again",
-    "someone": "Someone"
+    "someone": "Someone",
+    "close": "Close"
   },
   "nav": {
     "label": "Channels and messages",
@@ -26,7 +27,8 @@
     "back": "Back",
     "you": "{name} (you)",
     "allRead": "Everything marked as read",
-    "offline": "Offline. Retrying…"
+    "offline": "Offline. Retrying…",
+    "archived": "Archived channels"
   },
   "empty": {
     "title": "No channels yet",
@@ -53,7 +55,9 @@
     "join": "Join channel",
     "muted": "Muted",
     "notFound": "Channel not found",
-    "notFoundBody": "It was deleted, it is private, or you don't have access."
+    "notFoundBody": "It was deleted, it is private, or you don't have access.",
+    "deactivated": "{name} is no longer in the workspace. You can read this conversation but not reply.",
+    "deactivatedShort": "Deactivated"
   },
   "composer": {
     "formatting": "Formatting",
@@ -239,7 +243,7 @@
     "searchPeople": "Search people",
     "noPeople": "No people found",
     "newMessage": "New message",
-    "dmHelp": "Pick one person for a direct message or up to 8 for a group. With nobody, it opens your own notes.",
+    "dmHelp": "Pick one person for a direct message or up to 9 for a group. With nobody, it opens your own notes.",
     "to": "To",
     "openDm": "Open conversation",
     "noteToSelf": "Message yourself",
@@ -267,7 +271,8 @@
     "emojiSearch": "Search emoji",
     "deleteMessageTitle": "Delete message?",
     "deleteMessageBody": "It can't be undone. Files attached to it are deleted too.",
-    "messageDeleted": "Message deleted"
+    "messageDeleted": "Message deleted",
+    "scheduling": "Scheduling…"
   },
   "details": {
     "about": "About",
@@ -383,7 +388,7 @@
     "name_taken": "There is already a channel with that name",
     "general_locked": "#general is for everyone: it cannot be renamed, archived or left",
     "invalid_member": "That person is not in the workspace",
-    "too_many_members": "A group conversation has up to 9 people",
+    "too_many_members": "A group conversation has up to 9 people plus you",
     "empty_message": "Write something first",
     "message_too_long": "The message is too long",
     "invalid_parent": "That thread is no longer available",
@@ -398,7 +403,9 @@
     "storage_unavailable": "File storage is not configured",
     "upload_failed": "The file couldn't upload",
     "invalid_input": "Check the data and try again",
-    "project_not_found": "That Track project is not available"
+    "project_not_found": "That Track project is not available",
+    "dm_deactivated": "That person is no longer in the workspace",
+    "not_channel_member": "The person who created the flow is not in that channel"
   },
   "email": {
     "mentionSubject": "{actor} mentioned you in #{channel}",

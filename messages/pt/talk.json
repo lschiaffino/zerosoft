@@ -7,7 +7,8 @@
     "save": "Salvar",
     "loading": "Carregando…",
     "retry": "Tentar de novo",
-    "someone": "Alguém"
+    "someone": "Alguém",
+    "close": "Fechar"
   },
   "nav": {
     "label": "Canais e mensagens",
@@ -26,7 +27,8 @@
     "back": "Voltar",
     "you": "{name} (você)",
     "allRead": "Tudo marcado como lido",
-    "offline": "Sem conexão. Tentando de novo…"
+    "offline": "Sem conexão. Tentando de novo…",
+    "archived": "Canais arquivados"
   },
   "empty": {
     "title": "Ainda não há canais",
@@ -53,7 +55,9 @@
     "join": "Entrar no canal",
     "muted": "Silenciado",
     "notFound": "Canal não encontrado",
-    "notFoundBody": "Foi apagado, é privado ou você não tem acesso."
+    "notFoundBody": "Foi apagado, é privado ou você não tem acesso.",
+    "deactivated": "{name} não está mais no workspace. Dá para ler esta conversa, mas não responder.",
+    "deactivatedShort": "Desativado"
   },
   "composer": {
     "formatting": "Formatação",
@@ -239,7 +243,7 @@
     "searchPeople": "Buscar pessoas",
     "noPeople": "Ninguém encontrado",
     "newMessage": "Nova mensagem",
-    "dmHelp": "Escolha uma pessoa para uma mensagem direta ou até 8 para um grupo. Sem ninguém, abrem suas notas.",
+    "dmHelp": "Escolha uma pessoa para uma mensagem direta ou até 9 para um grupo. Sem ninguém, abrem suas notas.",
     "to": "Para",
     "openDm": "Abrir conversa",
     "noteToSelf": "Mensagem para mim",
@@ -267,7 +271,8 @@
     "emojiSearch": "Buscar emoji",
     "deleteMessageTitle": "Apagar a mensagem?",
     "deleteMessageBody": "Não dá para desfazer. Os arquivos anexados também são apagados.",
-    "messageDeleted": "Mensagem apagada"
+    "messageDeleted": "Mensagem apagada",
+    "scheduling": "Agendando…"
   },
   "details": {
     "about": "Sobre",
@@ -383,7 +388,7 @@
     "name_taken": "Já existe um canal com esse nome",
     "general_locked": "#general é de todos: não dá para renomear, arquivar ou sair",
     "invalid_member": "Essa pessoa não está no workspace",
-    "too_many_members": "Uma conversa em grupo tem até 9 pessoas",
+    "too_many_members": "Uma conversa em grupo tem até 9 pessoas mais você",
     "empty_message": "Escreva algo primeiro",
     "message_too_long": "A mensagem é longa demais",
     "invalid_parent": "Esse fio não está mais disponível",
@@ -398,7 +403,9 @@
     "storage_unavailable": "O armazenamento de arquivos não está configurado",
     "upload_failed": "Não foi possível enviar o arquivo",
     "invalid_input": "Verifique os dados e tente de novo",
-    "project_not_found": "Esse projeto do Track não está disponível"
+    "project_not_found": "Esse projeto do Track não está disponível",
+    "dm_deactivated": "Essa pessoa não está mais no workspace",
+    "not_channel_member": "Quem criou o flow não está nesse canal"
   },
   "email": {
     "mentionSubject": "{actor} mencionou você em #{channel}",

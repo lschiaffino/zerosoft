@@ -11,7 +11,7 @@ import { draftKey, useTalk } from './talk-context';
 export default function ThreadPane({ rootId, channel, onClose }: { rootId: string; channel: TalkChannelDto | null; onClose: () => void }) {
   const t = useTranslations('talk');
   const ctx = useTalk();
-  const { api, subscribe, toast, drafts, setDraft, channelTitle, refreshBoot } = ctx;
+  const { api, subscribe, toast, drafts, setDraft, channelTitle } = ctx;
   const [root, setRoot] = useState<TalkMessageDto | null>(null);
   const [replies, setReplies] = useState<TalkMessageDto[]>([]);
   const [following, setFollowing] = useState(false);
@@ -32,12 +32,12 @@ export default function ThreadPane({ rootId, channel, onClose }: { rootId: strin
         setReplies(res.replies);
         setFollowing(res.following);
         setState('ready');
-        if (res.following) void api(`/api/talk/messages/${rootId}`, { method: 'PATCH', json: { read: true } }).then(() => refreshBoot()).catch(() => undefined);
+        if (res.following) void api(`/api/talk/messages/${rootId}`, { method: 'PATCH', json: { read: true } }).catch(() => undefined);
       } catch {
         setState('error');
       }
     },
-    [api, rootId, refreshBoot],
+    [api, rootId],
   );
 
   useEffect(() => {

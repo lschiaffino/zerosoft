@@ -10,6 +10,7 @@ import { emojiFromName } from './talk-emoji';
 import { parseTalkSearch, hasSearchCriteria } from './talk-search';
 import {
   TalkError,
+  canManageChannel,
   emitTalkEvent,
   listTalkPeople,
   nowIso,
@@ -42,7 +43,7 @@ export async function setSaved(actor: TalkActor, messageId: string, saved: boole
   } else {
     await db.prepare('DELETE FROM talk_saved WHERE user_id = ? AND message_id = ?').run(actor.personId, messageId);
   }
-  await emitTalkEvent(actor.workspaceId, 'saved', { userId: actor.personId, payload: { id: messageId } });
+  await emitTalkEvent(actor.workspaceId, 'saved', { userId: actor.personId, payload: { id: messageId, refresh: true } });
 }
 
 export async function completeSaved(actor: TalkActor, messageId: string, done: boolean): Promise<void> {
@@ -268,7 +269,16 @@ export async function listPresence(workspaceId: string): Promise<TalkPresenceDto
 }
 
 /** Latido de la pestaña abierta. Avisa el cambio de ausente → activo. */
-export async function heartbeat(actor: TalkActor): Promise<void> {
+/** Último latido escrito por persona (en memoria): varias pestañas no escriben más de uno por ventana. */
+const lastBeat = new Map<string, number>();
+const BEAT_EVERY_MS = 45_000;
+
+export async function heartbeat(actor: TalkActor, opts: { force?: boolean } = {}): Promise<void> {
+  const key = `${actor.workspaceId}|${actor.personId}`;
+  const t = Date.now();
+  if (!opts.force && t - (lastBeat.get(key) ?? 0) < BEAT_EVERY_MS) return;
+  lastBeat.set(key, t);
+  if (lastBeat.size > 5000) lastBeat.clear();
   const db = getDb();
   const now = nowIso();
   const prev = (await db.prepare('SELECT * FROM talk_presence WHERE workspace_id = ? AND user_id = ?').get(actor.workspaceId, actor.personId)) as Parameters<typeof toPresence>[0] | undefined;
@@ -279,7 +289,8 @@ export async function heartbeat(actor: TalkActor): Promise<void> {
     )
     .run(actor.workspaceId, actor.personId, now);
   if (!prev || !toPresence(prev).active) {
-    await emitTalkEvent(actor.workspaceId, 'presence', { actorId: actor.personId, payload: { userId: actor.personId } });
+    const row = { ...(prev ?? { user_id: actor.personId, away: 0, status_emoji: '', status_text: '', status_expires_at: null, dnd_until: null }), last_seen_at: now };
+    await emitTalkEvent(actor.workspaceId, 'presence', { actorId: actor.personId, payload: { userId: actor.personId, presence: toPresence(row) } });
   }
 }
 
@@ -302,9 +313,10 @@ export async function setStatus(
     if (until && Number.isNaN(until.getTime())) throw new TalkError('invalid_time');
     await db.prepare('UPDATE talk_presence SET dnd_until = ? WHERE workspace_id = ? AND user_id = ?').run(until ? until.toISOString() : null, actor.workspaceId, actor.personId);
   }
-  await emitTalkEvent(actor.workspaceId, 'presence', { actorId: actor.personId, payload: { userId: actor.personId } });
   const row = (await db.prepare('SELECT * FROM talk_presence WHERE workspace_id = ? AND user_id = ?').get(actor.workspaceId, actor.personId)) as Parameters<typeof toPresence>[0];
-  return toPresence(row);
+  const dto = toPresence(row);
+  await emitTalkEvent(actor.workspaceId, 'presence', { actorId: actor.personId, payload: { userId: actor.personId, presence: dto } });
+  return dto;
 }
 
 // ---------- Preferencias ----------
@@ -469,9 +481,23 @@ export async function searchMessages(actor: TalkActor, raw: string, limit = 50):
     }
     return ids;
   };
+  // Texto: índice FTS5 (palabras y prefijos, sin tildes); si la base no lo tiene, LIKE.
+  const ftsQuery = q.terms
+    .map((term) => term.replace(/"/g, ' ').trim())
+    .filter(Boolean)
+    .map((term) => (/\s/.test(term) ? `"${term}"` : `"${term}"*`))
+    .join(' ');
+  const textWhere: string[] = [];
+  const textArgs: Array<string | number> = [];
+  const likeWhere: string[] = [];
+  const likeArgs: Array<string | number> = [];
   for (const term of q.terms) {
-    where.push("m.body LIKE ? ESCAPE '\\'");
-    args.push(likeContains(term));
+    likeWhere.push("m.body LIKE ? ESCAPE '\\'");
+    likeArgs.push(likeContains(term));
+  }
+  if (ftsQuery) {
+    textWhere.push('m.rowid IN (SELECT rowid FROM talk_messages_fts WHERE talk_messages_fts MATCH ?)');
+    textArgs.push(ftsQuery);
   }
   for (const term of q.excludes) {
     where.push("m.body NOT LIKE ? ESCAPE '\\'");
@@ -530,12 +556,19 @@ export async function searchMessages(actor: TalkActor, raw: string, limit = 50):
     where.push('m.created_at < ?');
     args.push(q.before);
   }
-  const rows = (await db
-    .prepare(
-      `SELECT m.*, c.name AS c_name, c.kind AS c_kind FROM talk_messages m JOIN talk_channels c ON c.id = m.channel_id
-       WHERE ${where.join(' AND ')} ORDER BY m.created_at DESC LIMIT ?`,
-    )
-    .all(...args, Math.min(limit, 100))) as Array<TalkMessageRow & { c_name: string; c_kind: TalkChannelKind }>;
+  const run = (extraWhere: string[], extraArgs: Array<string | number>) =>
+    db
+      .prepare(
+        `SELECT m.*, c.name AS c_name, c.kind AS c_kind FROM talk_messages m JOIN talk_channels c ON c.id = m.channel_id
+         WHERE ${[...where, ...extraWhere].join(' AND ')} ORDER BY m.created_at DESC LIMIT ?`,
+      )
+      .all(...args, ...extraArgs, Math.min(limit, 100)) as Promise<Array<TalkMessageRow & { c_name: string; c_kind: TalkChannelKind }>>;
+  let rows: Array<TalkMessageRow & { c_name: string; c_kind: TalkChannelKind }>;
+  try {
+    rows = await run(textWhere, textArgs);
+  } catch {
+    rows = await run(likeWhere, likeArgs);
+  }
   const dtos = await toMessageDtos(actor, rows);
   // Canales cuyo nombre coincide con el texto (como el "Canales" de los resultados de Slack).
   let channels: Array<{ id: string; name: string; kind: TalkChannelKind }> = [];
@@ -585,7 +618,14 @@ export async function listHooks(actor: TalkActor, channelId: string): Promise<Ta
 }
 
 export async function deleteHook(actor: TalkActor, channelId: string, id: string): Promise<boolean> {
-  if (!(await readableChannel(actor, channelId))?.member) throw new TalkError('not_found', 404);
+  const access = await readableChannel(actor, channelId);
+  if (!access?.member) throw new TalkError('not_found', 404);
+  const hook = (await getDb().prepare('SELECT created_by FROM talk_hooks WHERE id = ? AND channel_id = ? AND workspace_id = ?').get(id, channelId, actor.workspaceId)) as
+    | { created_by: string }
+    | undefined;
+  if (!hook) return false;
+  // Quien lo creó o quien administra el canal (como en Slack).
+  if (hook.created_by !== actor.personId && !canManageChannel(actor, access.channel, access.member)) throw new TalkError('forbidden', 403);
   const res = await getDb().prepare('DELETE FROM talk_hooks WHERE id = ? AND channel_id = ? AND workspace_id = ?').run(id, channelId, actor.workspaceId);
   return res.changes > 0;
 }

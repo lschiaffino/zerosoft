@@ -13,7 +13,8 @@ export function v1Actor(auth: ApiKeyAuth): TalkActor {
 
 /** Canal por id o nombre, si la persona de la key lo puede leer. */
 export async function v1Channel(actor: TalkActor, ref: string): Promise<string | null> {
-  const found = (await readableChannel(actor, ref)) ? { id: ref } : await findChannel(actor.workspaceId, ref);
+  // findChannel solo devuelve canales (públicos o privados): los DMs no salen por la API.
+  const found = await findChannel(actor.workspaceId, ref);
   if (!found) return null;
   return (await readableChannel(actor, found.id)) ? found.id : null;
 }

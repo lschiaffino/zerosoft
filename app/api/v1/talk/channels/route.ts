@@ -14,7 +14,8 @@ export async function GET(req: Request) {
   const actor = v1Actor(auth);
   const p = new URL(req.url).searchParams;
   const rows = p.get('scope') === 'all' ? await browseChannels(actor, { q: p.get('q') ?? '' }) : await listMyChannels(actor);
-  return NextResponse.json({ data: rows.map(channelV1) });
+  // Solo canales: los DMs no salen por la API.
+  return NextResponse.json({ data: rows.filter((c) => c.kind === 'public' || c.kind === 'private').map(channelV1) });
 }
 
 const createSchema = z.object({ name: z.string().min(1).max(100), kind: z.enum(['public', 'private']).default('public'), topic: z.string().max(250).optional(), description: z.string().max(1000).optional() });

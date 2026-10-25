@@ -140,6 +140,10 @@ export default function Sidebar({ activeId, view, onNavigate }: { activeId: stri
         </div>
         {starred.length > 0 && section('starred', t('nav.starred'), starred)}
         {section('channels', t('nav.channels'), chans, { label: t('nav.addChannel'), onClick: () => dialog({ kind: 'create-channel' }) })}
+        {/* Los archivados no ocupan el sidebar: se ven desde el directorio. */}
+        <button type="button" className="talk-side-archived" onClick={() => go({ view: 'browse', query: 'archived' })}>
+          {t('nav.archived')}
+        </button>
         {section('dms', t('nav.dms'), dms, { label: t('nav.newMessage'), onClick: () => dialog({ kind: 'new-dm' }) })}
       </div>
       <div className="talk-side-foot">

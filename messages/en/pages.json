@@ -1289,7 +1289,7 @@
       },
       "f2": {
         "t": "Direct messages",
-        "d": "One-to-one conversations or groups of up to nine people."
+        "d": "One-to-one conversations or groups of up to nine people plus you."
       },
       "f3": {
         "t": "Threads",
@@ -1305,7 +1305,7 @@
       },
       "f6": {
         "t": "The same workspace",
-        "d": "The same people you already work with in CRM, Track and Docs. A message becomes a Track issue in two clicks."
+        "d": "The same people you already work with in CRM, Track and Docs. A message becomes a Track issue in three clicks."
       },
       "steps": {
         "s1": {

@@ -123,10 +123,25 @@ export function parseRemindCommand(input: string, now: Date = new Date()): Remin
 
 /** Programar mensaje: mañana 9:00 y el lunes 9:00, como Slack. */
 export function schedulePresets(now: Date = new Date()): Array<{ key: 'tomorrow' | 'monday'; at: Date }> {
+  const tomorrow = presetTime('tomorrow', now);
+  let monday = presetTime('nextweek', now);
+  // Un domingo "mañana" ya es lunes: el otro preset pasa al lunes siguiente.
+  if (monday.getTime() === tomorrow.getTime()) monday = new Date(monday.getTime() + 7 * 86_400_000);
   return [
-    { key: 'tomorrow', at: presetTime('tomorrow', now) },
-    { key: 'monday', at: presetTime('nextweek', now) },
+    { key: 'tomorrow', at: tomorrow },
+    { key: 'monday', at: monday },
   ];
+}
+
+/** Presets de recordatorio sin repetir hora (un domingo "mañana" y "la semana que viene" coinciden). */
+export function remindPresets(now: Date = new Date()): Array<{ key: RemindPreset; at: Date }> {
+  const out: Array<{ key: RemindPreset; at: Date }> = [];
+  for (const key of REMIND_PRESETS) {
+    let at = presetTime(key, now);
+    if (key === 'nextweek' && out.some((o) => o.at.getTime() === at.getTime())) at = new Date(at.getTime() + 7 * 86_400_000);
+    out.push({ key, at });
+  }
+  return out;
 }
 
 /** Vence un estado "por hoy": fin del día local. */

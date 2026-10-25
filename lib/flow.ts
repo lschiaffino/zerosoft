@@ -724,6 +724,7 @@ export async function enqueueEventRuns(
   workspaceId: string,
   type: FlowEventType,
   data: Record<string, unknown>,
+  audience?: (creatorId: string | null) => Promise<boolean>,
 ): Promise<string[]> {
   const parent = flowChain.getStore();
   const depth = parent ? parent.depth + 1 : 0;
@@ -736,6 +737,8 @@ export async function enqueueEventRuns(
   const ids: string[] = [];
   for (const row of rows) {
     if (parent?.seen.includes(row.id)) continue;
+    // Contenido restringido (canal privado de Talk): solo flows de quien lo puede ver.
+    if (audience && !(await audience(row.created_by ?? null))) continue;
     const trigger = triggerNode(parseGraph(row.graph));
     if (!trigger || !matchesFilter(trigger.config, data)) continue;
     const input = { ...data, event: { type, at: nowIso() } };

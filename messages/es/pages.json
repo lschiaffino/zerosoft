@@ -1289,7 +1289,7 @@
       },
       "f2": {
         "t": "Mensajes directos",
-        "d": "Conversaciones de a dos o en grupos de hasta nueve personas."
+        "d": "Conversaciones de a dos o en grupos de hasta nueve personas más vos."
       },
       "f3": {
         "t": "Hilos",
@@ -1305,7 +1305,7 @@
       },
       "f6": {
         "t": "El mismo workspace",
-        "d": "Las mismas personas que ya usás en CRM, Track y Docs. Un mensaje pasa a issue de Track en dos clics."
+        "d": "Las mismas personas que ya usás en CRM, Track y Docs. Un mensaje pasa a issue de Track en tres clics."
       },
       "steps": {
         "s1": {

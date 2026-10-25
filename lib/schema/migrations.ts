@@ -4540,6 +4540,19 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_talk_messages_parent ON talk_messages(parent_id, created_at);
         CREATE INDEX IF NOT EXISTS idx_talk_messages_ws ON talk_messages(workspace_id, created_at);
 
+        -- Búsqueda: índice de texto completo (FTS5, lo soportan libsql y Turso) sobre el texto de los mensajes.
+        CREATE VIRTUAL TABLE IF NOT EXISTS talk_messages_fts USING fts5(body, content='talk_messages', content_rowid='rowid', tokenize='unicode61 remove_diacritics 2');
+        CREATE TRIGGER IF NOT EXISTS talk_messages_fts_ai AFTER INSERT ON talk_messages BEGIN
+          INSERT INTO talk_messages_fts(rowid, body) VALUES (new.rowid, new.body);
+        END;
+        CREATE TRIGGER IF NOT EXISTS talk_messages_fts_ad AFTER DELETE ON talk_messages BEGIN
+          INSERT INTO talk_messages_fts(talk_messages_fts, rowid, body) VALUES ('delete', old.rowid, old.body);
+        END;
+        CREATE TRIGGER IF NOT EXISTS talk_messages_fts_au AFTER UPDATE OF body ON talk_messages BEGIN
+          INSERT INTO talk_messages_fts(talk_messages_fts, rowid, body) VALUES ('delete', old.rowid, old.body);
+          INSERT INTO talk_messages_fts(rowid, body) VALUES (new.rowid, new.body);
+        END;
+
         CREATE TABLE IF NOT EXISTS talk_reactions (
           message_id TEXT NOT NULL REFERENCES talk_messages(id) ON DELETE CASCADE,
           user_id TEXT NOT NULL,

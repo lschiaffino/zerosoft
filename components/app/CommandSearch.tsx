@@ -69,6 +69,7 @@ function useGroupOrder() {
         'groupsRecurring',
         'talkChannels',
         'talkDms',
+        'talkPeople',
       ], []);
 }
 

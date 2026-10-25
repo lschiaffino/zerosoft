@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { listEventsSince, talkActor } from '@/lib/talk';
-import { heartbeat } from '@/lib/talk-extras';
-import { requestCursor, sseResponse } from '@/lib/realtime';
+import { talkActor } from '@/lib/talk';
+import { talkStream } from '@/lib/talk-realtime';
+import { requestCursor } from '@/lib/realtime';
 import { jsonError } from '@/lib/write-limit';
 
 export const runtime = 'nodejs';
@@ -10,18 +10,12 @@ export const dynamic = 'force-dynamic';
 // Fluid: la conexión queda abierta unos minutos y el navegador se reconecta.
 export const maxDuration = 300;
 
-/** Stream SSE del feed de Talk (lib/realtime.ts). También marca presencia mientras está abierto. */
+/**
+ * Stream SSE de Talk. Todas las pestañas de esta instancia comparten una sola
+ * lectura del feed (lib/talk-realtime.ts); acá solo se filtra por acceso.
+ */
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
-  const actor = talkActor(user);
-  return sseResponse({
-    cursor: requestCursor(req),
-    poll: (cursor) => listEventsSince(actor, cursor),
-    intervalMs: 3000,
-    maxMs: 240_000,
-    tick: () => heartbeat(actor),
-    tickMs: 60_000,
-    signal: req.signal,
-  });
+  return talkStream(talkActor(user), requestCursor(req), req.signal);
 }

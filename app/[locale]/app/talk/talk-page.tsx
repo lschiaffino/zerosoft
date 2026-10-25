@@ -1,7 +1,8 @@
 import { setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { pathWithQuery } from '@/lib/return-path';
-import { talkActor } from '@/lib/talk';
+import { redirect } from 'next/navigation';
+import { openDm, talkActor, TalkError } from '@/lib/talk';
 import { loadTalkBootstrap } from '@/lib/talk-boot';
 import TalkApp from '@/components/talk/TalkApp';
 import type { TalkView } from '@/components/talk/talk-context';
@@ -14,6 +15,18 @@ export async function renderTalk(locale: string, channelId: string | null, sp: R
   const path = channelId ? `/${locale}/app/talk/${channelId}` : `/${locale}/app/talk`;
   const user = await requireUser(locale, pathWithQuery(path, sp as Record<string, string>));
   const actor = talkActor(user);
+  const one0 = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
+  // ⌘K "escribirle a alguien": ?dm=<id> abre el DM (o el propio) y entra ahí.
+  const dmWith = one0(sp.dm);
+  if (!channelId && dmWith) {
+    let target: string | null = null;
+    try {
+      target = (await openDm(actor, dmWith === actor.personId ? [] : [dmWith])).id;
+    } catch (err) {
+      if (!(err instanceof TalkError)) throw err;
+    }
+    if (target) redirect(`/${locale}/app/talk/${target}`);
+  }
   const boot = await loadTalkBootstrap(actor, { locale, heartbeat: true });
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
   const view = one(sp.view) as TalkView | null;

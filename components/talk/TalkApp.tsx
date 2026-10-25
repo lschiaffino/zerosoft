@@ -40,14 +40,27 @@ export default function TalkApp(props: Props) {
   const [toasts, setToasts] = useState<Array<{ id: number; text: string; kind: 'ok' | 'error' }>>([]);
   const [typing, setTyping] = useState<Map<string, Map<string, number>>>(new Map());
   const [drafts, setDrafts] = useState<Map<string, string>>(new Map());
+  const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [extraChannel, setExtraChannel] = useState<TalkChannelDto | null>(null);
   const [missing, setMissing] = useState(false);
   const [mobilePane, setMobilePane] = useState<'side' | 'main' | 'thread'>(props.initialChannelId || props.initialView ? (props.initialThreadId ? 'thread' : 'main') : 'side');
   const listeners = useRef(new Set<(e: TalkBusEvent) => void>());
   const bootTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const people = useMemo(() => new Map(boot.people.map((p) => [p.id, p])), [boot.people]);
-  const presence = useMemo(() => new Map(boot.presence.map((p) => [p.userId, p])), [boot.presence]);
+  const people = useMemo(() => new Map([...(boot.formerPeople ?? []), ...boot.people].map((p) => [p.id, p])), [boot.people, boot.formerPeople]);
+  // La presencia "activo" vence sola (3 min sin latido): se recalcula cada minuto.
+  const [presenceTick, setPresenceTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setPresenceTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const presence = useMemo(() => {
+    const now = Date.now();
+    return new Map(
+      boot.presence.map((p) => [p.userId, { ...p, active: !p.away && !!p.lastSeenAt && now - new Date(p.lastSeenAt).getTime() < 3 * 60_000 }]),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boot.presence, presenceTick]);
   const channelById = useMemo(() => {
     const m = new Map(boot.channels.map((c) => [c.id, c]));
     if (extraChannel && !m.has(extraChannel.id)) m.set(extraChannel.id, extraChannel);
@@ -74,13 +87,47 @@ export default function TalkApp(props: Props) {
     for (const fn of listeners.current) fn(e);
   }, []);
 
+  // Estado completo: al reconectar, si el servidor avisa un hueco o después de
+  // una acción propia que cambia varias cosas. Si falla, reintenta con backoff.
+  const bootTry = useRef(0);
   const refreshBoot = useCallback(() => {
     if (bootTimer.current) clearTimeout(bootTimer.current);
-    bootTimer.current = setTimeout(() => {
-      void talkFetch<TalkBootstrap>('/api/talk/bootstrap')
-        .then(setBoot)
-        .catch(() => undefined);
-    }, 250);
+    const run = (delay: number) => {
+      bootTimer.current = setTimeout(() => {
+        void talkFetch<TalkBootstrap>('/api/talk/bootstrap')
+          .then((b) => {
+            bootTry.current = 0;
+            setBoot(b);
+          })
+          .catch(() => {
+            bootTry.current += 1;
+            if (bootTry.current <= 6) run(Math.min(30_000, 1000 * 2 ** bootTry.current));
+          });
+      }, delay);
+    };
+    run(250);
+  }, []);
+
+  // Un canal puntual (tiempo real): se agrega, actualiza o saca del sidebar sin pedir todo.
+  const channelTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const refreshChannel = useCallback((id: string) => {
+    const timers = channelTimers.current;
+    const prev = timers.get(id);
+    if (prev) clearTimeout(prev);
+    timers.set(
+      id,
+      setTimeout(() => {
+        timers.delete(id);
+        void talkFetch<TalkChannelDto>(`/api/talk/channels/${id}`)
+          .then((c) =>
+            setBoot((b) => {
+              const rest = b.channels.filter((x) => x.id !== id);
+              return { ...b, channels: c.isMember ? [...rest, c] : rest };
+            }),
+          )
+          .catch(() => setBoot((b) => ({ ...b, channels: b.channels.filter((x) => x.id !== id) })));
+      }, 150),
+    );
   }, []);
 
   // Ruta → estado (atrás / adelante del navegador).
@@ -137,7 +184,7 @@ export default function TalkApp(props: Props) {
       }
       setView(v);
       setThreadId(null);
-      if (v === 'search') setQuery(target.query ?? '');
+      if (v === 'search' || v === 'browse') setQuery(target.query ?? '');
       setMobilePane('main');
       syncUrl({ view: v, channelId: null, query: target.query });
     },
@@ -209,7 +256,10 @@ export default function TalkApp(props: Props) {
   // Borradores (para precargar el editor de cada canal e hilo).
   useEffect(() => {
     void talkFetch<{ drafts: TalkDraftDto[] }>('/api/talk/views?view=drafts')
-      .then((r) => setDrafts(new Map(r.drafts.map((d) => [draftKey(d.channelId, d.parentId), d.body]))))
+      .then((r) => {
+        setDrafts(new Map(r.drafts.map((d) => [draftKey(d.channelId, d.parentId), d.body])));
+        setDraftsLoaded(true);
+      })
       .catch(() => undefined);
   }, []);
 
@@ -222,12 +272,13 @@ export default function TalkApp(props: Props) {
     });
   }, []);
 
-  // Presencia: latido cada minuto con la pestaña visible.
+  // Presencia: con SSE la marca el stream; sin SSE (polling), un latido por minuto con la pestaña visible.
+  const liveRef = useRef(false);
   useEffect(() => {
     const beat = () => {
-      if (document.visibilityState === 'visible') void talkFetch('/api/talk/me', { method: 'POST' }).catch(() => undefined);
+      if (liveRef.current || document.visibilityState !== 'visible') return;
+      void talkFetch('/api/talk/me', { method: 'POST' }).catch(() => undefined);
     };
-    beat();
     const id = setInterval(beat, 60_000);
     document.addEventListener('visibilitychange', beat);
     return () => {
@@ -272,12 +323,74 @@ export default function TalkApp(props: Props) {
       const meaningful = events.filter((e) => e.kind !== 'typing');
       if (!meaningful.length) return;
       publish({ type: 'events', events: meaningful });
-      refreshBoot();
+      applyEvents(meaningful);
       const gone = meaningful.find((e) => e.kind === 'channel' && (e.payload as { change?: string; id?: string }).change === 'deleted' && (e.payload as { id?: string }).id === channelId);
       if (gone) open({ view: 'channel' });
     },
-    [publish, refreshBoot, channelId, open],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [publish, channelId, open],
   );
+
+  // Aplica los eventos al estado del sidebar de a poco (sin rehacer el bootstrap).
+  const activeRef = useRef<string | null>(null);
+  activeRef.current = view === 'channel' ? channelId : null;
+  function applyEvents(evs: TalkEvent[]) {
+    const me = boot.me;
+    const toFetch = new Set<string>();
+    let fullRefresh = false;
+    setBoot((b) => {
+      let channels = b.channels;
+      let presenceList = b.presence;
+      let unreadThreadIds = b.unreadThreadIds ?? [];
+      let counts = b.counts;
+      const patch = (id: string, fn: (c: TalkChannelDto) => TalkChannelDto) => {
+        channels = channels.map((c) => (c.id === id ? fn(c) : c));
+      };
+      for (const e of evs) {
+        const p = e.payload as Record<string, unknown>;
+        if (e.kind === 'message' && p.change === 'new' && e.channelId) {
+          const known = channels.find((c) => c.id === e.channelId);
+          const channelLevel = !p.parentId || !!p.alsoInChannel;
+          if (!known) {
+            // Un DM nuevo o uno que había cerrado: se pide ese canal.
+            toFetch.add(e.channelId);
+          } else if (e.actorId !== me && channelLevel) {
+            const looking = activeRef.current === e.channelId && document.visibilityState === 'visible' && document.hasFocus();
+            const mentioned =
+              known.kind === 'dm' || known.kind === 'group' || (Array.isArray(p.mentions) && (p.mentions as string[]).includes(me)) || !!p.broadcast;
+            patch(e.channelId, (c) => ({
+              ...c,
+              lastMessageAt: (p.at as string) ?? c.lastMessageAt,
+              unread: looking ? c.unread : true,
+              mentions: looking ? c.mentions : c.mentions + (mentioned ? 1 : 0),
+            }));
+          } else if (channelLevel) {
+            patch(e.channelId, (c) => ({ ...c, lastMessageAt: (p.at as string) ?? c.lastMessageAt }));
+          }
+          if (p.parentId && e.actorId !== me && Array.isArray(p.followers) && (p.followers as string[]).includes(me) && !unreadThreadIds.includes(p.parentId as string)) {
+            unreadThreadIds = [...unreadThreadIds, p.parentId as string];
+          }
+          if (p.scheduled && e.actorId === me) counts = { ...counts, scheduled: Math.max(0, counts.scheduled - 1) };
+        } else if (e.kind === 'read') {
+          if (p.all) channels = channels.map((c) => ({ ...c, unread: false, mentions: 0, lastReadAt: e.at }));
+          else if (typeof p.threadId === 'string') unreadThreadIds = unreadThreadIds.filter((id) => id !== p.threadId);
+          else if (typeof p.channelId === 'string') toFetch.add(p.channelId);
+        } else if (e.kind === 'channel') {
+          if (p.change === 'deleted' && typeof p.id === 'string') channels = channels.filter((c) => c.id !== p.id);
+          else if (p.change === 'left' && typeof p.id === 'string') channels = channels.filter((c) => c.id !== p.id);
+          else if (e.channelId) toFetch.add(e.channelId);
+        } else if (e.kind === 'presence' && p.presence) {
+          const dto = p.presence as (typeof presenceList)[number];
+          presenceList = [...presenceList.filter((x) => x.userId !== dto.userId), dto];
+        } else if (e.kind === 'saved') {
+          fullRefresh = true;
+        }
+      }
+      return { ...b, channels, presence: presenceList, unreadThreadIds, unreadThreads: unreadThreadIds.length, counts };
+    });
+    for (const id of toFetch) refreshChannel(id);
+    if (fullRefresh) refreshBoot();
+  }
 
   const { status, nudge } = useRealtime<TalkEvent>({
     streamUrl: '/api/talk/stream',
@@ -285,7 +398,11 @@ export default function TalkApp(props: Props) {
     cursor: props.initial.cursor,
     mode: props.realtimeMode,
     onEvents,
+    // Reconexión o hueco grande: el estado se rehace una vez.
+    onConnect: refreshBoot,
+    onReset: refreshBoot,
   });
+  liveRef.current = status === 'live';
 
   const api = useCallback<TalkCtx['api']>(
     async <T,>(url: string, init?: RequestInit & { json?: unknown }) => {
@@ -352,7 +469,7 @@ export default function TalkApp(props: Props) {
   }, [boot.channels, channelId, open, api, refreshBoot, toast, t]);
 
   const ctx: TalkCtx = {
-    boot,
+    boot: { ...boot, counts: { ...boot.counts, drafts: draftsLoaded ? drafts.size : boot.counts.drafts } },
     locale,
     people,
     presence,
@@ -377,6 +494,15 @@ export default function TalkApp(props: Props) {
   const channel = channelId ? (channelById.get(channelId) ?? null) : null;
   const back = () => setMobilePane('side');
 
+  // Banda de arriba: "Talk / #canal" (o la vista abierta).
+  const crumbLabel =
+    view === 'channel' ? (channel ? (channel.kind === 'public' || channel.kind === 'private' ? `#${channel.name}` : channelTitle(channel)) : null) : view === 'search' ? t('search.title') : view === 'browse' ? t('browse.title') : t(`nav.${view}`);
+  useEffect(() => {
+    const path = view === 'channel' && channelId ? `/app/talk/${channelId}` : '/app/talk';
+    window.dispatchEvent(new CustomEvent('zs:crumb', { detail: crumbLabel ? { path, label: crumbLabel } : null }));
+  }, [crumbLabel, view, channelId]);
+  useEffect(() => () => void window.dispatchEvent(new CustomEvent('zs:crumb', { detail: null })), []);
+
   let main: React.ReactNode = null;
   if (view === 'threads') main = <ThreadsView onBack={back} />;
   else if (view === 'activity') main = <ActivityView onBack={back} />;
@@ -384,7 +510,7 @@ export default function TalkApp(props: Props) {
   else if (view === 'drafts') main = <DraftsView onBack={back} />;
   else if (view === 'files') main = <FilesView onBack={back} />;
   else if (view === 'search') main = <SearchView query={query} onBack={back} />;
-  else if (view === 'browse') main = <BrowseView onBack={back} />;
+  else if (view === 'browse') main = <BrowseView onBack={back} archivedOnly={query === 'archived'} />;
   else if (channel) main = <ChannelPane channel={channel} highlightId={highlightId} onBack={back} />;
   else if (missing)
     main = (

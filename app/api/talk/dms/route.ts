@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 import { openDm } from '@/lib/talk';
 
-const schema = z.object({ userIds: z.array(z.string().max(64)).max(8) });
+const schema = z.object({ userIds: z.array(z.string().max(64)).max(9) });
 
 /** Abre (o crea) el DM con estas personas (vacío = DM conmigo). */
 export async function POST(req: NextRequest) {

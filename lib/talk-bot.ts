@@ -1,10 +1,10 @@
 /**
  * Talk: mensajes de integraciones (Flow, webhooks entrantes). Publican como
- * bot con un nombre, sin persona detrás, en canales públicos o privados del
- * workspace (nunca en DMs). Server-only.
+ * bot con un nombre en canales del workspace (nunca en DMs), y solo donde la
+ * persona dueña de la integración es miembro. Server-only.
  */
 import { getDb } from './db';
-import { afterPost, postMessage, TalkError, type TalkActor, type TalkMessageDto } from './talk';
+import { afterPost, getMembership, isWorkspacePerson, postMessage, TalkError, type TalkActor, type TalkMessageDto } from './talk';
 import { normalizeChannelName } from './talk-markdown';
 
 /** Canal por id o por nombre (#general / general). Solo canales, no DMs. */
@@ -25,10 +25,15 @@ export async function findChannel(workspaceId: string, ref: string): Promise<{ i
 
 export async function postAsBot(
   workspaceId: string,
-  input: { channel: string; body: string; threadId?: string | null; botName: string },
+  input: { channel: string; body: string; threadId?: string | null; botName: string; memberId: string },
 ): Promise<TalkMessageDto> {
   const channel = await findChannel(workspaceId, input.channel);
   if (!channel) throw new TalkError('not_found', 404);
+  // Publica solo donde la persona dueña de la integración (quien creó el flow
+  // o el webhook) sigue en el workspace y es miembro del canal.
+  if (!(await isWorkspacePerson(workspaceId, input.memberId)) || !(await getMembership(channel.id, input.memberId))) {
+    throw new TalkError('not_member', 403);
+  }
   const actor: TalkActor = { workspaceId, personId: workspaceId, role: 'owner', teamId: null };
   const result = await postMessage(
     actor,

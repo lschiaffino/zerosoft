@@ -26,6 +26,8 @@ import { talkPlainText } from './talk-markdown';
 import {
   afterPost,
   emitTalkEvent,
+  isWorkspacePerson,
+  readableChannel,
   listTalkPeople,
   listTalkGroups,
   nowIso,
@@ -123,6 +125,8 @@ export async function notifyForMessage(actor: TalkActor, row: TalkMessageRow, ch
   const isDm = channel.kind === 'dm' || channel.kind === 'group';
   const recipients = new Map<string, Reason>();
   for (const uid of ids) {
+    // Solo personas que siguen en el workspace (quien salió no recibe nada, ni de sus DMs).
+    if (!byId.has(uid)) continue;
     const p = prefs.get(uid);
     if (p?.notify === 'none') continue;
     const memberNotify = memberSet.get(uid);
@@ -187,6 +191,19 @@ export async function notifyMentionsAdded(actor: TalkActor, row: TalkMessageRow,
 
 // ---------- Email ----------
 
+/** ¿La persona todavía puede ver lo que dice este aviso? (sigue en el workspace y lee el canal). */
+async function stillAllowed(userId: string, meta: Record<string, string>): Promise<boolean> {
+  const db = getDb();
+  let ws = meta.workspaceId ?? '';
+  if (meta.channelId) {
+    const ch = (await db.prepare('SELECT workspace_id FROM talk_channels WHERE id = ?').get(meta.channelId)) as { workspace_id: string } | undefined;
+    if (!ch) return false;
+    ws = ch.workspace_id;
+    return !!(await readableChannel({ workspaceId: ws, personId: userId, role: 'member', teamId: null }, meta.channelId));
+  }
+  return ws ? isWorkspacePerson(ws, userId) : true;
+}
+
 function mailLocale(raw: string | null | undefined): Locale {
   return raw === 'es' || raw === 'pt' ? raw : 'en';
 }
@@ -221,6 +238,11 @@ export async function sendTalkEmails(opts: { limit?: number; now?: Date } = {}):
     const meta = parseJson<Record<string, string>>(r.meta, {});
     // Ya lo vio (aviso leído o canal leído después del mensaje): no sale.
     if (r.read_at) {
+      skipped++;
+      continue;
+    }
+    // Al momento de mandar: la persona sigue en el workspace y puede leer el canal.
+    if (!(await stillAllowed(r.user_id, meta))) {
       skipped++;
       continue;
     }
@@ -266,16 +288,21 @@ export async function fireTalkReminders(opts: { limit?: number; now?: Date } = {
     if (!claim.changes) continue;
     let href = '/app/talk?view=later';
     let body = r.text;
-    let meta: Record<string, string> = { reason: 'reminder' };
+    let meta: Record<string, string> = { reason: 'reminder', workspaceId: r.workspace_id };
+    // Quien ya no está en el workspace no recibe el recordatorio.
+    if (!(await isWorkspacePerson(r.workspace_id, r.user_id))) continue;
     if (r.message_id) {
       const m = (await db.prepare('SELECT m.*, c.name AS c_name, c.kind AS c_kind FROM talk_messages m JOIN talk_channels c ON c.id = m.channel_id WHERE m.id = ?').get(r.message_id)) as
         | (TalkMessageRow & { c_name: string; c_kind: string })
         | undefined;
+      // Sin acceso al canal ahora (salió de un privado): no sale el texto del mensaje.
+      if (m && !(await readableChannel({ workspaceId: r.workspace_id, personId: r.user_id, role: 'member', teamId: null }, m.channel_id))) continue;
+      if (!m) continue;
       if (m) {
         const { names } = await namesFor(r.workspace_id);
         href = talkHref(m.channel_id, m.id, m.parent_id);
         body = r.text || talkPlainText(m.body, names).slice(0, 280);
-        meta = { reason: 'reminder', channelId: m.channel_id, channelName: m.c_kind === 'public' || m.c_kind === 'private' ? m.c_name : '' };
+        meta = { reason: 'reminder', workspaceId: r.workspace_id, channelId: m.channel_id, channelName: m.c_kind === 'public' || m.c_kind === 'private' ? m.c_name : '' };
       }
     }
     const n = await createNotification({
@@ -314,7 +341,7 @@ export async function sendScheduledMessages(opts: { limit?: number; now?: Date }
     if (!claim.changes) continue;
     try {
       const actor: TalkActor = { workspaceId: r.workspace_id, personId: r.user_id, role: await workspaceRole(r.workspace_id, r.user_id), teamId: null };
-      const result = await postMessage(actor, { channelId: r.channel_id, parentId: r.parent_id, body: r.body, fileIds: parseJson<string[]>(r.files, []) });
+      const result = await postMessage(actor, { channelId: r.channel_id, parentId: r.parent_id, body: r.body, fileIds: parseJson<string[]>(r.files, []), scheduled: true });
       await db.prepare("UPDATE talk_scheduled SET status = 'sent', message_id = ? WHERE id = ?").run(result.row.id, r.id);
       await afterPost(actor, result);
       sent++;

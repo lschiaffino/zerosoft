@@ -282,7 +282,7 @@ type Built = { status: ParityStatus; detail?: L };
 /** Lo que Talk ya hace (tanda 4d, 2026-10-25). Lo que no está acá sigue en missing. */
 const BUILT: Record<string, Built> = {
   'public-channels': { status: 'have' },
-  'private-channels': { status: 'have' },
+  'private-channels': { status: 'have', detail: ['Only members read them; webhooks and flows only get their messages if the person who created them is a member', 'Solo los leen sus miembros; webhooks y flows reciben sus mensajes solo si quien los creó es miembro', 'Só os membros leem; webhooks e flows recebem as mensagens só se quem os criou for membro'] },
   'channel-manage': { status: 'have', detail: ['Rename, topic, description, archive and restore, change to private and delete', 'Renombrar, tema, descripción, archivar y restaurar, pasar a privado y borrar', 'Renomear, tema, descrição, arquivar e restaurar, tornar privado e apagar'] },
   'channel-header': {
     status: 'partial',
@@ -293,8 +293,15 @@ const BUILT: Record<string, Built> = {
     detail: ['Fixed Starred, Channels and Direct messages sections that collapse. You cannot create your own sections yet', 'Secciones fijas de Destacados, Canales y Mensajes directos, que se colapsan. Todavía no se crean secciones propias', 'Seções fixas de Favoritos, Canais e Mensagens diretas, que recolhem. Ainda não dá para criar seções próprias'],
   },
   'direct-messages': { status: 'have', detail: ['Including a DM with yourself', 'También el DM con vos mismo', 'Também a DM com você mesmo'] },
-  'group-dms': { status: 'have', detail: ['Up to 9 people. Converting a group into a private channel is not there yet', 'Hasta 9 personas. Todavía no se convierte un grupo en canal privado', 'Até 9 pessoas. Ainda não dá para converter um grupo em canal privado'] },
-  'realtime-messages': { status: 'have', detail: ['Real time with SSE and short polling as fallback, typing indicator', 'Tiempo real con SSE y polling corto de respaldo, con quién está escribiendo', 'Tempo real com SSE e polling curto de reserva, com quem está digitando'] },
+  'group-dms': { status: 'have', detail: ['Up to 9 people plus you. Converting a group into a private channel is not there yet', 'Hasta 9 personas más vos. Todavía no se convierte un grupo en canal privado', 'Até 9 pessoas mais você. Ainda não dá para converter um grupo em canal privado'] },
+  'realtime-messages': {
+    status: 'have',
+    detail: [
+      'SSE over one shared feed per server instance, with short polling as fallback and typing indicator. A message shows up in other tabs in about 0.8 s (median of 5 measurements, Oct 25, 2026)',
+      'SSE sobre un feed compartido por instancia del servidor, con polling corto de respaldo y quién está escribiendo. Un mensaje aparece en otras pestañas en unos 0,8 s (mediana de 5 mediciones, 25/10/2026)',
+      'SSE sobre um feed compartilhado por instância do servidor, com polling curto de reserva e quem está digitando. Uma mensagem aparece em outras abas em cerca de 0,8 s (mediana de 5 medições, 25/10/2026)',
+    ],
+  },
   'rich-composer': { status: 'have', detail: ['Toolbar and markup (bold, italic, strikethrough, code, lists, quotes, links), :emoji:, link previews', 'Barra y marcado (negrita, itálica, tachado, código, listas, citas, links), :emoji:, vista previa de links', 'Barra e marcação (negrito, itálico, tachado, código, listas, citações, links), :emoji:, prévia de links'] },
   threads: { status: 'have', detail: ['Side panel with "also send to the channel" and a Threads view', 'Panel lateral con "también enviar al canal" y vista de Hilos', 'Painel lateral com "também enviar ao canal" e visão de Fios'] },
   mentions: { status: 'have', detail: ['People, @channel, @here and workspace teams (the CRM sales teams for now)', 'Personas, @canal, @aquí y equipos del workspace (por ahora los equipos de ventas del CRM)', 'Pessoas, @canal, @aqui e equipes do workspace (por enquanto as equipes de vendas do CRM)'] },
@@ -327,7 +334,11 @@ const BUILT: Record<string, Built> = {
   },
   'api-bots': {
     status: 'partial',
-    detail: ['API v1 (talk:read, talk:write), incoming webhooks per channel and outgoing workspace webhooks. No slash commands or interactive bots yet', 'API v1 (talk:read, talk:write), webhooks entrantes por canal y webhooks salientes del workspace. Todavía sin slash commands ni bots interactivos', 'API v1 (talk:read, talk:write), webhooks de entrada por canal e webhooks de saída do workspace. Ainda sem slash commands nem bots interativos'],
+    detail: [
+      'API v1 for channels and their messages (talk:read, talk:write; direct messages are not exposed), incoming webhooks per channel and outgoing workspace webhooks. No slash commands or interactive bots yet',
+      'API v1 de canales y sus mensajes (talk:read, talk:write; los mensajes directos no se exponen), webhooks entrantes por canal y webhooks salientes del workspace. Todavía sin slash commands ni bots interactivos',
+      'API v1 de canais e suas mensagens (talk:read, talk:write; as mensagens diretas não são expostas), webhooks de entrada por canal e webhooks de saída do workspace. Ainda sem slash commands nem bots interativos',
+    ],
   },
   roles: {
     status: 'partial',

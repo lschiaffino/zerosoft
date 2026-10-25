@@ -139,7 +139,7 @@ describe('talk search parser', () => {
 });
 
 describe('talk time parsing', () => {
-  const now = new Date(2026, 9, 25, 10, 0, 0); // sábado 25/10 10:00 local
+  const now = new Date(2026, 9, 25, 10, 0, 0); // domingo 25/10 10:00 local
   it('relative and clock times', () => {
     expect(parseWhen('in 1h', now)?.getTime()).toBe(now.getTime() + 3_600_000);
     expect(parseWhen('en 20 minutos', now)?.getTime()).toBe(now.getTime() + 20 * 60_000);
@@ -369,10 +369,10 @@ describe('talk data', () => {
     const hook = await hookByToken(token);
     expect(hook?.channel_id).toBe(c.id);
     expect(await hookByToken('zth_nope')).toBeNull();
-    const msg = await postAsBot(w.owner.id, { channel: 'alerts', body: 'build ok', botName: 'CI' });
+    const msg = await postAsBot(w.owner.id, { channel: 'alerts', body: 'build ok', botName: 'CI', memberId: w.ana.id });
     expect([msg.botName, msg.userId]).toEqual(['CI', null]);
     const dm = await openDm(w.a, [w.bob.id]);
-    await expect(postAsBot(w.owner.id, { channel: dm.id, body: 'x', botName: 'CI' })).rejects.toBeInstanceOf(TalkError);
+    await expect(postAsBot(w.owner.id, { channel: dm.id, body: 'x', botName: 'CI', memberId: w.ana.id })).rejects.toBeInstanceOf(TalkError);
   });
 
   it('⌘K finds channels and DMs the person can see', async () => {

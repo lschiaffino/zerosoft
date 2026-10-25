@@ -28,6 +28,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
       body: parsed.data.text,
       threadId: parsed.data.thread_id ?? null,
       botName: parsed.data.username?.trim() || hook.name,
+      memberId: hook.created_by,
     });
     return NextResponse.json({ ok: true, id: msg.id });
   } catch (err) {

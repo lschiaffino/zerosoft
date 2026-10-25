@@ -6,7 +6,7 @@ import type { TalkChannelDto, TalkMessageDto } from '@/lib/talk';
 import type { TalkHookDto } from '@/lib/talk-extras';
 import { normalizeChannelName } from '@/lib/talk-markdown';
 import { QUICK_REACTIONS, STATUS_PRESETS, TALK_EMOJI, emojiName, searchEmoji } from '@/lib/talk-emoji';
-import { REMIND_PRESETS, endOfToday, presetTime, schedulePresets } from '@/lib/talk-time';
+import { endOfToday, presetTime, remindPresets, schedulePresets } from '@/lib/talk-time';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { Avatar } from './MessageBody';
 import { errorText } from './Composer';
@@ -15,6 +15,7 @@ import { useTalk, type TalkDialog } from './talk-context';
 
 /** <dialog class="ui-modal"> con foco atrapado; Esc y clic afuera cierran. */
 export function Modal({ title, onClose, children, foot, wide }: { title: string; onClose: () => void; children: ReactNode; foot?: ReactNode; wide?: boolean }) {
+  const t = useTranslations('talk');
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useEffect(() => {
@@ -39,7 +40,7 @@ export function Modal({ title, onClose, children, foot, wide }: { title: string;
         <h2 className="ui-modal-title" id={titleId}>
           {title}
         </h2>
-        <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label="×" onClick={onClose}>
+        <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label={t('common.close')} onClick={onClose}>
           ×
         </button>
       </div>
@@ -227,7 +228,7 @@ function NewDm({ onClose }: { onClose: () => void }) {
           <button type="button" className="btn btn-sm" onClick={onClose}>
             {t('common.cancel')}
           </button>
-          <button type="button" className="btn btn-primary btn-sm" disabled={busy || members.length > 8} onClick={() => void submit()}>
+          <button type="button" className="btn btn-primary btn-sm" disabled={busy || members.length > 9} onClick={() => void submit()}>
             {members.length === 0 ? t('dialogs.noteToSelf') : t('dialogs.openDm')}
           </button>
         </>
@@ -721,10 +722,10 @@ function RemindDialog({ messageId, onClose }: { messageId: string; onClose: () =
   return (
     <Modal title={t('dialogs.remindTitle')} onClose={onClose}>
       <ul className="talk-presets">
-        {REMIND_PRESETS.map((p) => (
-          <li key={p}>
-            <button type="button" className="talk-preset" onClick={() => void set(presetTime(p))}>
-              {t(`time.presets.${p}`)}
+        {remindPresets().map((p) => (
+          <li key={p.key}>
+            <button type="button" className="talk-preset" onClick={() => void set(p.at)}>
+              {t(`time.presets.${p.key}`)} <span className="talk-muted">{fmtFull(p.at.toISOString(), ctx.locale)}</span>
             </button>
           </li>
         ))}
@@ -751,7 +752,10 @@ function ScheduleDialog({ d, onClose }: { d: Extract<TalkDialog, { kind: 'schedu
   const ctx = useTalk();
   const presets = useMemo(() => schedulePresets(), []);
   const [custom, setCustom] = useState(() => toLocalInput(presets[0].at));
+  const [busy, setBusy] = useState(false);
   async function set(at: Date) {
+    if (busy) return;
+    setBusy(true);
     try {
       await ctx.api('/api/talk/scheduled', { method: 'POST', json: { channelId: d.channelId, parentId: d.parentId, body: d.body, fileIds: d.fileIds, sendAt: at.toISOString() } });
       d.onDone();
@@ -760,6 +764,7 @@ function ScheduleDialog({ d, onClose }: { d: Extract<TalkDialog, { kind: 'schedu
       onClose();
     } catch (err) {
       ctx.toast(errorText(t, err), 'error');
+      setBusy(false);
     }
   }
   return (
@@ -767,7 +772,7 @@ function ScheduleDialog({ d, onClose }: { d: Extract<TalkDialog, { kind: 'schedu
       <ul className="talk-presets">
         {presets.map((p) => (
           <li key={p.key}>
-            <button type="button" className="talk-preset" onClick={() => void set(p.at)}>
+            <button type="button" className="talk-preset" disabled={busy} onClick={() => void set(p.at)}>
               {t(`time.schedule.${p.key}`)} <span className="talk-muted">{fmtFull(p.at.toISOString(), ctx.locale)}</span>
             </button>
           </li>
@@ -782,8 +787,8 @@ function ScheduleDialog({ d, onClose }: { d: Extract<TalkDialog, { kind: 'schedu
         }}
       >
         <input className="input" type="datetime-local" value={custom} onChange={(e) => setCustom(e.target.value)} aria-label={t('dialogs.custom')} />
-        <button type="submit" className="btn btn-primary btn-sm">
-          {t('dialogs.scheduleBtn')}
+        <button type="submit" className="btn btn-primary btn-sm" disabled={busy} aria-busy={busy}>
+          {busy ? t('dialogs.scheduling') : t('dialogs.scheduleBtn')}
         </button>
       </form>
     </Modal>
