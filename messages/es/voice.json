@@ -5,6 +5,9 @@
     "dictation": "Dictado · Voice",
     "settings": "Ajustes · Voice"
   },
+  "sidebar": {
+    "home": "Inicio"
+  },
   "loading": "Cargando Voice",
   "nav": {
     "label": "Secciones de Voice",
@@ -217,7 +220,7 @@
     "transcribing": "Transcribiendo…",
     "cancel": "Cancelar",
     "context": "Escribirlo como",
-    "hint": "En todo zerosoft: mantené {shortcut} para dictar en el campo enfocado, tocalo una vez para manos libres y Esc cancela. Alt+Shift+V pega el último dictado.",
+    "hint": "En todo zerosoft: mantené {shortcut} para dictar en el campo enfocado, hacé doble toque para manos libres y Esc cancela. Un toque corto escribe la tecla como siempre. Ctrl+Cmd+V en Mac, o Ctrl+Alt+Shift+V, pega el último dictado.",
     "copy": "Copiar",
     "copied": "Copiado",
     "rulesOnly": "La IA no estaba disponible: solo limpieza básica.",
@@ -280,9 +283,9 @@
       "generalTitle": "Dictado",
       "generalDesc": "Cómo empezás a dictar y en qué idioma hablás.",
       "shortcut": "Mantener para dictar",
-      "shortcutHelp": "Anda en cualquier página de zerosoft. Tocalo una vez para manos libres.",
+      "shortcutHelp": "Anda en cualquier página de zerosoft. Doble toque para manos libres; un toque corto escribe la tecla como siempre.",
       "language": "Idioma",
-      "showBar": "Mostrar el botón de dictar al enfocar un campo de texto",
+      "showBar": "Mostrar un botón chico de dictar al enfocar un campo de texto",
       "aiCleanup": "Limpiar con IA (puntuación, muletillas, correcciones y listas)",
       "stylesTitle": "Estilo según el contexto",
       "stylesDesc": "Un mismo dictado se escribe distinto en un email y en un chat. Voice toma el contexto de la app y del campo."

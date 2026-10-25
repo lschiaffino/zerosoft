@@ -204,3 +204,83 @@ test('ajustes: diccionario, plantillas y estilo; 390px y oscuro', async ({ page,
     expect(scroll, `${path}: scrollWidth ${scroll} > ${inner}`).toBeLessThanOrEqual(inner + 1);
   }
 });
+
+/** Mantener el atajo más de 300 ms (Alt+Space por defecto). */
+async function holdShortcut(page: Page, ms = 1200) {
+  await page.keyboard.down('Alt');
+  await page.keyboard.down('Space');
+  await page.waitForTimeout(ms);
+  await page.keyboard.up('Space');
+  await page.keyboard.up('Alt');
+}
+
+test('dictado en el editor de Docs (contenteditable) y guardado', async ({ page, context, baseURL, request }) => {
+  await context.addCookies([{ name: 'voice_fake_text', value: encodeURIComponent('dictated into docs'), url: baseURL! }]);
+  const { id } = (await (await request.post('/api/docs/pages', { data: { title: `Voice doc ${uid()}` } })).json()) as { id: string };
+  await page.goto(`/en/app/docs/${id}`, { waitUntil: 'networkidle' });
+  const block = page.locator('main .docs-editable').first();
+  await block.click();
+  await holdShortcut(page);
+  await expect(block).toContainText('Dictated into docs', { timeout: 15_000 });
+  // El editor lo guarda como cualquier texto tipeado.
+  await expect
+    .poll(async () => JSON.stringify(await (await request.get(`/api/docs/pages/${id}`)).json()), { timeout: 15_000 })
+    .toContain('Dictated into docs');
+});
+
+test('un toque corto deja pasar la tecla y el doble toque entra en manos libres', async ({ page }) => {
+  await page.goto('/en/app/voice/dictation', { waitUntil: 'networkidle' });
+  const field = page.getByRole('textbox', { name: 'Try it here' });
+  await field.click();
+  await field.pressSequentially('ab');
+  // Toque corto: no dicta y la tecla se escribe igual.
+  await page.keyboard.press('Alt+Space');
+  await page.waitForTimeout(700);
+  await expect(page.getByRole('status').filter({ hasText: /Listening/ })).toHaveCount(0);
+  await expect(field).toHaveValue(/^ab.$/);
+  // Doble toque: manos libres hasta el próximo toque.
+  await page.keyboard.press('Alt+Space');
+  await page.waitForTimeout(80);
+  await page.keyboard.press('Alt+Space');
+  await expect(page.getByRole('status').filter({ hasText: /Press Alt\+Space again/ })).toBeVisible();
+  await page.waitForTimeout(900);
+  await page.keyboard.press('Alt+Space');
+  await expect(field).toHaveValue(/launch is on tuesday/i, { timeout: 15_000 });
+});
+
+test('el botón de dictar no tapa otros controles y se apaga en ajustes', async ({ page, request }) => {
+  const overlaps = async () =>
+    page.evaluate(() => {
+      const bar = document.querySelector('.vc-bar');
+      if (!bar) return 'hidden';
+      const r = bar.getBoundingClientRect();
+      if (r.right > window.innerWidth || r.left < 0) return 'offscreen';
+      const hit = Array.from(document.querySelectorAll('button, a[href], input, textarea, select')).find((el) => {
+        if (el === bar) return false;
+        const o = el.getBoundingClientRect();
+        if (!o.width || !o.height) return false;
+        return !(o.right <= r.left || o.left >= r.right || o.bottom <= r.top || o.top >= r.bottom);
+      });
+      return hit ? `overlaps ${hit.outerHTML.slice(0, 80)}` : 'ok';
+    });
+  for (const [path, selector] of [
+    ['/en/app/crm/contacts/new', 'main input'],
+    ['/en/app/track/projects/new', 'main input'],
+    ['/en/app/notes', 'main input[type="search"]'],
+  ] as const) {
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(path, { waitUntil: 'networkidle' });
+      await page.locator(selector).first().focus();
+      await page.waitForTimeout(150);
+      expect(['ok', 'hidden'], `${path} @${width}`).toContain(await overlaps());
+    }
+  }
+  await request.patch('/api/voice/settings', { data: { showBar: false } });
+  await page.setViewportSize({ width: 1280, height: 844 });
+  await page.goto('/en/app/notes', { waitUntil: 'networkidle' });
+  await page.locator('main input[type="search"]').first().focus();
+  await page.waitForTimeout(300);
+  await expect(page.locator('.vc-bar')).toHaveCount(0);
+  await request.patch('/api/voice/settings', { data: { showBar: true } });
+});

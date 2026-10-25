@@ -52,7 +52,7 @@ test('la nav tiene dos grupos y marca la sección abierta en cada ruta', async (
   }
   await expect(nav.getByRole('group', { name: 'Account and workspace' })).toBeVisible();
   const products = nav.getByRole('group', { name: 'Products' });
-  await expect(products.getByRole('link')).toHaveCount(12);
+  await expect(products.getByRole('link')).toHaveCount(15);
 
   // Productos lleva a los ajustes de la app, y de ahí se vuelve a la plataforma.
   await products.getByRole('link', { name: 'Docs', exact: true }).click();

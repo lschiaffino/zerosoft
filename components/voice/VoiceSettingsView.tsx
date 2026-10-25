@@ -20,7 +20,7 @@ import {
   type VoiceSettings,
   type VoiceTemplate,
 } from '@/lib/voice-types';
-import { VoiceNav, voiceErrorKey } from './voice-ui';
+import { voiceErrorKey } from './voice-ui';
 
 interface Props {
   settings: VoiceSettings;
@@ -41,7 +41,6 @@ export default function VoiceSettingsView(props: Props) {
   return (
     <div className="app-page ui-page vc-page">
       <PageHeader title={t('title')} description={t('subtitle')} />
-      <VoiceNav />
       <SettingsTabs mode="query" param="tab" layout="top" label={t('title')} items={TABS.map((k) => ({ key: k, label: t(`tabs.${k}`) }))}>
         {tab === 'dictation' && <DictationSettings initial={props.settings} />}
         {tab === 'dictionary' && <DictionarySettings initial={props.dictionary} />}

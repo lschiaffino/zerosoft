@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test';
  * link al board. Y el porcentaje al lado de cada app en /products.
  */
 
-const PRODUCTS = ['crm', 'chat', 'groups', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board'];
+const PRODUCTS = ['crm', 'chat', 'groups', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk'];
 
 for (const product of PRODUCTS) {
   test(`paridad en /es/products/${product}`, async ({ page }) => {
@@ -14,11 +14,16 @@ for (const product of PRODUCTS) {
     const section = page.locator('#parity');
     await expect(section.locator('.parity-num .data')).toHaveText(/^\d{1,3}%$/);
     await expect(section.locator('.parity-method')).toContainText('Medimos');
-    const rows = section.locator('.parity-table tbody tr:not(.parity-group)');
+    // Las apps en construcción no incluyen nada todavía: cuentan las filas de lo que falta (abierto).
+    const building = ['rec', 'talk'].includes(product);
+    const rows = building
+      ? section.locator('details.parity-missing[open] .parity-list li')
+      : section.locator('.parity-table tbody tr:not(.parity-group)');
     expect(await rows.count()).toBeGreaterThan(10);
+    if (building) await expect(section.locator('.parity-table')).toHaveCount(0);
     const missing = section.locator('details.parity-missing');
     if (await missing.count()) {
-      await missing.locator('summary').click();
+      if (!building) await missing.locator('summary').click();
       await expect(missing.locator('a[href*="/feedback-board"]').first()).toBeVisible();
     }
   });
@@ -44,8 +49,28 @@ for (const path of ['/es', '/es/products']) {
     const table = page.locator('#paridad .parity-overview-table');
     await expect(table.locator('tbody tr')).toHaveCount(PRODUCTS.length);
     await expect(table.locator('.po-percent').first()).toHaveText(/^\d{1,3}%$/);
-    await expect(page.locator('#paridad .parity-overview-lead')).toContainText('12 apps');
+    await expect(page.locator('#paridad .parity-overview-lead')).toContainText('15 apps');
     await table.locator('a.po-app', { hasText: 'Groups' }).click();
     await expect(page).toHaveURL(/\/es\/products\/groups#parity$/);
   });
 }
+
+// Las apps en construcción lo dicen arriba del título, con la paridad en 0 % y sin mandar a una app que no existe.
+for (const product of ['rec', 'talk']) {
+  test(`/es/products/${product} está marcada en construcción`, async ({ page }) => {
+    await page.goto(`/es/products/${product}`);
+    await expect(page.locator('.pd-building')).toHaveText('En construcción');
+    await expect(page.locator('#parity .parity-num .data')).toHaveText('0%');
+    await expect(page.locator('.pd-actions .btn-primary')).toHaveAttribute('href', new RegExp(`/es/feedback-board/new\\?product=${product}$`));
+    await expect(page.locator('.pd-shot-note')).toContainText('boceto');
+  });
+}
+
+// Voice ya salió (web): app real con paridad mayor a 0 y la app de escritorio "en camino".
+test('/es/products/voice es una app real', async ({ page }) => {
+  await page.goto('/es/products/voice');
+  await expect(page.locator('.pd-building')).toHaveCount(0);
+  await expect(page.locator('#parity .parity-num .data')).not.toHaveText('0%');
+  await expect(page.locator('.pd-actions .btn-primary')).toHaveAttribute('href', /\/app\/voice/);
+  await expect(page.locator('main')).toContainText('Está en camino');
+});

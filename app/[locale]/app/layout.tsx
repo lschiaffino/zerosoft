@@ -44,7 +44,7 @@ export default async function AppLayout(
 
   const user = await requireUser(locale);
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tasksDue, serverTz, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tasksDue, serverTz, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -60,6 +60,9 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'agents' }),
       getTranslations({ locale, namespace: 'robots' }),
       getTranslations({ locale, namespace: 'groups' }),
+      getTranslations({ locale, namespace: 'voice' }),
+      getTranslations({ locale, namespace: 'rec' }),
+      getTranslations({ locale, namespace: 'talk' }),
       // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
       countDueTasks(user.id).catch((err) => {
         console.error('[app layout] countDueTasks', err);
@@ -114,6 +117,9 @@ export default async function AppLayout(
                 { href: '/app/flow/settings', label: tSide('appSettings') },
                 { href: '/app/agents/settings', label: tSide('appSettings') },
                 { href: '/app/robots/settings', label: tSide('appSettings') },
+                { href: '/app/voice/settings', label: tSide('appSettings') },
+                { href: '/app/rec/settings', label: tSide('appSettings') },
+                { href: '/app/talk/settings', label: tSide('appSettings') },
                 { href: '/app/crm', label: tCrm('tabs.overview') },
                 { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
                 { href: '/app/crm/companies', label: tCrm('tabs.companies') },
@@ -178,6 +184,10 @@ export default async function AppLayout(
                 { href: '/app/groups/broadcasts', label: tGroups('sidebar.broadcasts') },
                 { href: '/app/groups/analytics', label: tGroups('sidebar.analytics') },
                 { href: '/app/groups/settings', label: tGroups('sidebar.settings') },
+                { href: '/app/voice', label: tVoice('nav.meetings') },
+                { href: '/app/voice/dictation', label: tVoice('nav.dictation') },
+                { href: '/app/rec', label: tRec('sidebar.home') },
+                { href: '/app/talk', label: tTalk('sidebar.home') },
               ]}
             />
           }
@@ -313,6 +323,9 @@ export default async function AppLayout(
               analytics: tGroups('sidebar.analytics'),
               settings: tGroups('sidebar.settings'),
             },
+            voice: { meetings: tVoice('nav.meetings'), dictation: tVoice('nav.dictation'), newMeeting: tVoice('meetings.new') },
+            rec: { home: tRec('sidebar.home') },
+            talk: { home: tTalk('sidebar.home') },
             notifications: {
               title: tTrack('notifications.title'),
               markRead: tTrack('notifications.markRead'),

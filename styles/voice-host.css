@@ -2,7 +2,6 @@
    en el layout de /app porque el atajo y el botón andan en todas las apps. */
 
 .vc-host,
-.vc-bar,
 .vc-toast {
   position: fixed;
   left: 50%;
@@ -29,22 +28,23 @@
 .vc-host-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 .vc-bar {
+  position: fixed;
+  z-index: 105;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 10px;
-  font: 500 0.8125rem var(--font-ui);
-  color: var(--ink);
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--ink-3);
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-1);
-  box-shadow: 0 2px 10px rgb(0 0 0 / 0.08);
+  opacity: 0.85;
   cursor: pointer;
 }
-.vc-bar:hover { background: var(--ui-hover); }
-.vc-bar:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.vc-bar-text { white-space: nowrap; }
+.vc-bar:hover { color: var(--ink); opacity: 1; background: var(--ui-hover); }
+.vc-bar:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; opacity: 1; }
 
 .vc-toast {
   bottom: 60px;
@@ -88,6 +88,5 @@
 }
 
 @media (max-width: 520px) {
-  .vc-bar-text { display: none; }
   .vc-host { gap: 8px; padding: 6px 8px 6px 10px; }
 }

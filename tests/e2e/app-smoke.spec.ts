@@ -552,6 +552,79 @@ test.describe('smoke inicio', () => {
   });
 });
 
+// Apps en construcción (Rec, Talk): todavía no crean nada, pero el shell
+// cumple lo común: estado vacío claro, ítem activo en el sidebar, ⌘K las abre,
+// claro y oscuro sin errores y 390px sin scroll horizontal.
+for (const app of [
+  { key: 'rec', name: 'Rec' },
+  { key: 'talk', name: 'Talk' },
+]) {
+  test.describe(`smoke ${app.name} (en construcción)`, () => {
+    const list = `/en/app/${app.key}`;
+
+    test('estado vacío claro y el ítem marcado en el sidebar', async ({ page }) => {
+      const errors = watchErrors(page);
+      await page.goto(list, { waitUntil: 'networkidle' });
+      await expect(content(page).getByRole('heading', { name: `Coming soon: we are building ${app.name}` })).toBeVisible();
+      await expect(content(page).getByRole('link', { name: 'Propose an idea' })).toHaveAttribute('href', `/en/feedback-board/new?product=${app.key}`);
+      await expect(page.locator('.side-line [aria-current="page"]')).toHaveAttribute('href', new RegExp(`${list}$`));
+      expect(errors, errors.join('\n')).toEqual([]);
+    });
+
+    test('⌘K la encuentra y la abre', async ({ page }) => {
+      await page.goto('/en/app', { waitUntil: 'networkidle' });
+      await page.keyboard.press('ControlOrMeta+k');
+      const dialog = page.getByRole('dialog', { name: 'Search' });
+      await dialog.getByRole('combobox').fill(app.name);
+      const option = dialog.getByRole('option', { name: new RegExp(`Open ${app.name}`) });
+      await expect(option.first()).toBeVisible();
+      await option.first().click();
+      await expect(page).toHaveURL(new RegExp(`${list}$`));
+    });
+
+    test('el switcher la lista', async ({ page }) => {
+      await page.goto('/en/app/crm', { waitUntil: 'networkidle' });
+      await page.locator('.band-product').click();
+      const item = page.getByRole('menuitem', { name: new RegExp(`^${app.name}`) });
+      // Marca discreta de app en construcción, también en el sidebar del inicio.
+      await expect(item.locator('.app-soon-tag')).toHaveText('soon');
+      await item.click();
+      await expect(page).toHaveURL(new RegExp(`${list}$`));
+    });
+
+    test('el sidebar del inicio la marca como pronto', async ({ page }) => {
+      await page.goto('/en/app', { waitUntil: 'networkidle' });
+      await expect(page.locator('.side-line').getByRole('link', { name: new RegExp(`^${app.name}`) }).locator('.app-soon-tag')).toHaveText('soon');
+    });
+
+    test('ajustes abren sin errores', async ({ page }) => {
+      const errors = watchErrors(page);
+      const res = await page.goto(`${list}/settings`, { waitUntil: 'networkidle' });
+      expect(res?.status()).toBeLessThan(400);
+      await expect(content(page).getByRole('heading', { level: 1 })).toContainText(app.name);
+      expect(errors, errors.join('\n')).toEqual([]);
+    });
+
+    for (const theme of ['light', 'dark'] as const) {
+      test(`tema ${theme} sin errores`, async ({ page, context, baseURL }) => {
+        await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
+        const errors = watchErrors(page);
+        await page.goto(list, { waitUntil: 'networkidle' });
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+        await expect(page.getByTestId('app-soon')).toBeVisible();
+        expect(errors, errors.join('\n')).toEqual([]);
+      });
+    }
+
+    test('390px: sin scroll horizontal', async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(list, { waitUntil: 'networkidle' });
+      const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
+      expect(scroll, `scrollWidth ${scroll} > innerWidth ${inner}`).toBeLessThanOrEqual(inner + 1);
+    });
+  });
+}
+
 // En DEMO_MODE toda request es el mismo usuario demo (con datos de seed) y no
 // hay forma barata de entrar como una persona nueva sin ítems.
 test.fixme('estado vacío con un usuario nuevo', () => {});

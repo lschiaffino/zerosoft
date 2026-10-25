@@ -9,7 +9,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { formatDuration, type VoiceSessionSummary } from '@/lib/voice-types';
 import type { LinkableBooking } from '@/lib/voice-integrations';
-import { VoiceNav, voiceErrorKey } from './voice-ui';
+import { voiceErrorKey } from './voice-ui';
 import { importRecording } from './importRecording';
 
 interface Props {
@@ -202,7 +202,6 @@ export default function MeetingsHome({ initialSessions, bookings, transcription,
           </>
         }
       />
-      <VoiceNav />
 
       {!transcription && (
         <p className="vc-notice" role="note">

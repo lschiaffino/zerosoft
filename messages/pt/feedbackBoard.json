@@ -61,6 +61,9 @@
     "board": "Board",
     "robots": "Robots",
     "groups": "Groups",
+    "voice": "Voice",
+    "rec": "Rec",
+    "talk": "Talk",
     "platform": "Plataforma",
     "site": "Site",
     "other": "Outro"

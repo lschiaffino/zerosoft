@@ -4,7 +4,6 @@
 .vc-recorder.vc-recorder { padding: 12px 14px; }
 .vc-page { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .vc-page > * { min-width: 0; }
-.vc-nav { margin-top: -8px; }
 .vc-muted { color: var(--ink-3); font-size: 0.875rem; }
 .vc-ok { color: var(--ok-ink); font-size: 0.875rem; margin: 0; }
 .vc-notice {

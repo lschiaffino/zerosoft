@@ -18,7 +18,7 @@ import {
   SWITCHER_PRODUCTS,
   type SidebarLabels,
 } from './sidebar-nav';
-import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, isBuildingProduct, type ProductKey } from '@/lib/products';
 import { DEFAULT_WORKSPACE_MODE, featuredApps, moreAppsByCategory, type WorkspaceMode } from '@/lib/workspace-mode';
 import NotificationBell from './NotificationBell';
 import Logo from '@/components/brand/Logo';
@@ -280,6 +280,7 @@ export default function AppSidebar({
       >
         <ProductGlyph product={line} size={small ? 12 : 14} />
         <span>{PRODUCT_CONFIG[line].name}</span>
+        {isBuildingProduct(line) && <span className="app-soon-tag">{labels.soon}</span>}
       </Link>
     );
   };
@@ -493,6 +494,7 @@ export default function AppSidebar({
                       <Icon name={item.icon} size={15} />
                     </span>
                     <span className="side-label">{item.label}</span>
+                    {item.soon && <span className="app-soon-tag side-soon">{labels.soon}</span>}
                     {item.badge ? <span className="side-badge data">{item.badge}</span> : null}
                   </Link>
                   {/* Hueco bajo el ítem: la página del producto lo llena con un portal (el árbol de Docs). */}

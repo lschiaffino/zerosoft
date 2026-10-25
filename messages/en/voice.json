@@ -5,6 +5,9 @@
     "dictation": "Dictation · Voice",
     "settings": "Settings · Voice"
   },
+  "sidebar": {
+    "home": "Home"
+  },
   "loading": "Loading Voice",
   "nav": {
     "label": "Voice sections",
@@ -217,7 +220,7 @@
     "transcribing": "Transcribing…",
     "cancel": "Cancel",
     "context": "Write it as",
-    "hint": "Anywhere in zerosoft: hold {shortcut} to dictate into the focused field, tap it for hands-free and press Esc to cancel. Alt+Shift+V pastes the last dictation.",
+    "hint": "Anywhere in zerosoft: hold {shortcut} to dictate into the focused field, double tap it for hands-free and press Esc to cancel. A short tap still types the key as usual. Ctrl+Cmd+V on Mac, or Ctrl+Alt+Shift+V, pastes the last dictation.",
     "copy": "Copy",
     "copied": "Copied",
     "rulesOnly": "AI was not available: basic cleanup only.",
@@ -280,9 +283,9 @@
       "generalTitle": "Dictation",
       "generalDesc": "How you start dictating and what language you speak.",
       "shortcut": "Hold to dictate",
-      "shortcutHelp": "Works on any zerosoft page. Tap it once for hands-free mode.",
+      "shortcutHelp": "Works on any zerosoft page. Double tap it for hands-free; a short tap types the key as usual.",
       "language": "Language",
-      "showBar": "Show the dictate button when a text field is focused",
+      "showBar": "Show a small dictate button when a text field is focused",
       "aiCleanup": "Clean up with AI (punctuation, filler words, corrections and lists)",
       "stylesTitle": "Style by context",
       "stylesDesc": "The same dictation reads differently in an email and in a chat. Voice picks the context from the app and the field."

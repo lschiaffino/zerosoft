@@ -5,7 +5,7 @@ import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { formatDuration, VOICE_BUILTIN_TEMPLATES, type VoiceSegment, type VoiceSessionDetail, type VoiceTemplate } from '@/lib/voice-types';
-import { LevelBars, MicIcon, VoiceNav, voiceErrorKey } from './voice-ui';
+import { LevelBars, MicIcon, voiceErrorKey } from './voice-ui';
 import { useMeetingRecorder, type CaptureMode } from './useMeetingRecorder';
 import { recordingSupported, tabAudioSupported } from './audio';
 import EnhancedNotes from './EnhancedNotes';
@@ -248,7 +248,6 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
           </button>
         </div>
       </header>
-      <VoiceNav />
 
       {flash && (
         <p className="vc-ok" role="status">

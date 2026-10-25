@@ -9,7 +9,7 @@ import { VOICE_CONTEXTS, type VoiceContext, type VoiceSessionSummary } from '@/l
 import type { DictationStats } from '@/lib/voice';
 import { useDictation, type DictationResult } from './useDictation';
 import { copyText } from './insert';
-import { LevelBars, MicIcon, VoiceNav, voiceErrorKey } from './voice-ui';
+import { LevelBars, MicIcon, voiceErrorKey } from './voice-ui';
 
 interface Props {
   initialHistory: VoiceSessionSummary[];
@@ -101,7 +101,6 @@ export default function DictationPage({ initialHistory, stats, shortcut, transcr
   return (
     <div className="app-page ui-page vc-page">
       <PageHeader title={t('title')} description={t('subtitle', { shortcut })} />
-      <VoiceNav />
 
       {!transcription && <p className="vc-notice">{tErr('transcribe_disabled')}</p>}
       {transcription && !ai && <p className="vc-notice">{t('noAi')}</p>}
