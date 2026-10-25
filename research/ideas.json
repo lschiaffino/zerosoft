@@ -2207,5 +2207,35 @@
     "parity": "masking",
     "status": "done",
     "changelog": "2026-10-25-groups-platform"
+  },
+  {
+    "title": "CRM: Add calculated rollup properties (count, sum, min, max) from associated records",
+    "description": "HubSpot lets admins create rollup properties that compute count, sum, min, max or average over associated records, optionally filtered by association label, plus calculation properties built from an equation or time-between logic (https://knowledge.hubspot.com/properties/create-calculation-properties). Our custom fields in lib/crm-custom-fields.ts are all typed inputs entered by hand, and companyRollup in lib/crm.ts is a fixed set of totals. A small team wants 'total won revenue' on a company or 'open deals' on a contact as a column and a filter without building a report. A first scope is a read-only property type on companies and contacts with count and sum over associated deals, recomputed when a deal changes, usable as a column, sort and filter.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Let admins arrange the cards and properties of the record sidebar",
+    "description": "HubSpot admins customize record layouts under Settings > Objects > Record Customization, adding cards and choosing which properties show in the About card, and each user can reorder cards (https://knowledge.hubspot.com/object-settings/customize-records). In our CRM the contact, company and deal pages show a fixed set of panels under app/[locale]/app/crm. Teams with many custom fields end up scrolling past properties they never use. A first scope is a per-object list of visible properties and their order for the side panel, stored per workspace, with a reset to default.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Group custom properties into named sections",
+    "description": "HubSpot organizes properties into property groups that appear as sections in forms, record pages and imports (https://knowledge.hubspot.com/properties/create-and-edit-property-groups). Our custom fields in crm_custom_fields have a name, label, type and position with no grouping, so a workspace with 20 fields gets one flat list in components/crm/CustomFieldsPanel.tsx. A first scope is an optional group name on each field, shown as collapsible sections on the record page and the settings screen, with a migration that keeps existing fields ungrouped.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Add a unique-value option to custom properties to block duplicate IDs",
+    "description": "HubSpot custom properties can be marked as unique identifiers so two records cannot share the same value, which keeps external IDs and tax numbers clean (https://knowledge.hubspot.com/properties/create-and-edit-properties). Our custom field definitions in lib/crm-custom-fields.ts have no uniqueness rule, so the same external ID can be saved on two contacts and only the duplicate finder catches it later. A first scope is a unique flag on text and number fields that rejects the save in the UI, the CSV import and API v1 with a message naming the record that already has the value.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Propose stakeholders and pain points from deal notes and call transcripts",
+    "description": "HubSpot now scans notes and call or meeting transcripts on a deal and adds stakeholders and pain points as structured signals on the associated company record (https://martech.org/hubspots-june-2026-updates-agents-get-more-access-revenue-hub-starts-connecting-the-dots/). We have an AI summary card and call summaries in lib/crm-ai.ts, but their output stays as text on the timeline and nothing is written to properties or associations. A first scope is a button on the deal that proposes people mentioned in notes as contacts with a role label and a short list of pain points, applied only after the user confirms each one.",
+    "product": "crm",
+    "kind": "idea"
   }
 ]

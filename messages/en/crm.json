@@ -428,6 +428,7 @@
     },
     "ageDays": "{days}d old",
     "rotting": "No activity in {days} days",
+    "filterStalled": "Stalled",
     "sortNewest": "Newest",
     "sortOldest": "Oldest",
     "sortAmount": "Amount",

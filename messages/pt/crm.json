@@ -428,6 +428,7 @@
     },
     "ageDays": "{days}d de idade",
     "rotting": "Sem atividade em {days} dias",
+    "filterStalled": "Parados",
     "sortNewest": "Mais recentes",
     "sortOldest": "Mais antigos",
     "sortAmount": "Valor",

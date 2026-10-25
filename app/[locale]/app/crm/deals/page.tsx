@@ -211,6 +211,7 @@ export default async function DealsPage(props: DealsPageProps) {
     const createdTo = one(searchParams.createdTo) ?? '';
     const custom = parseCustomFilter(searchParams);
     const tag = one(searchParams.tag) ?? '';
+    const stalled = one(searchParams.stalled) === '1';
     const rawFilters = one(searchParams.filters) ?? '';
     const advancedRules = parseFilterRules(rawFilters);
     const sortParam = one(searchParams.sort);
@@ -231,6 +232,7 @@ export default async function DealsPage(props: DealsPageProps) {
       createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined,
       tag: tag || undefined,
+      stalled: stalled || undefined,
       custom: Object.keys(custom).length
       ? Object.fromEntries(Object.entries(custom).filter(([k]) => customFieldDefs.some((d) => d.name === k)))
       : undefined,
@@ -327,6 +329,7 @@ export default async function DealsPage(props: DealsPageProps) {
     if (source) query.source = source;
     if (owner) query.owner = owner;
     if (tag) query.tag = tag;
+    if (stalled) query.stalled = '1';
     if (createdFrom) query.createdFrom = createdFrom;
     if (createdTo) query.createdTo = createdTo;
     Object.entries(custom).forEach(([k, v]) => {
@@ -345,6 +348,7 @@ export default async function DealsPage(props: DealsPageProps) {
           source={source}
           owner={owner}
           tag={tag}
+          stalled={stalled}
           tags={tagOptions}
           createdFrom={createdFrom}
           createdTo={createdTo}
