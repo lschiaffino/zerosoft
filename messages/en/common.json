@@ -99,7 +99,8 @@
     "newCrmAgentRun": "New AI agent run (CRM)",
     "groupCrmAgentRuns": "AI agent runs",
     "groupLeads": "Leads",
-    "groupRecords": "Custom objects"
+    "groupRecords": "Custom objects",
+    "groupGroupsRecurring": "Recurring WhatsApp messages"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",

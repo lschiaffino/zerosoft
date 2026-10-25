@@ -2097,14 +2097,18 @@
     "description": "Periskope limits what a Member sees by label, which is how teams keep private chats per account owner. First scope: a label list per person in Groups settings; members only list, search and open chats with one of their labels; admins see everything.\n\nPriority: high. Effort: M.",
     "product": "groups",
     "kind": "idea",
-    "parity": "label-access"
+    "parity": "label-access",
+    "status": "done",
+    "changelog": "2026-10-25-groups-platform"
   },
   {
     "title": "Groups: Recurring scheduled messages",
     "description": "Periskope repeats scheduled messages daily, weekly or monthly with an end date. Groups schedules one-off messages and broadcasts. First scope: a repeat rule on a scheduled message that creates the next send after each run (cron claim per row).\n\nPriority: medium. Effort: S.",
     "product": "groups",
     "kind": "idea",
-    "parity": "recurring"
+    "parity": "recurring",
+    "status": "done",
+    "changelog": "2026-10-25-groups-platform"
   },
   {
     "title": "Groups: Group templates with preset members and settings",
@@ -2146,7 +2150,9 @@
     "description": "Groups emits message received and ticket created or updated, and the API covers chats, messages and tickets. Periskope has 20 webhook events and group endpoints (create, members, admins, invite). First scope: chat.created, message.ack, ticket.closed, and /api/v1/groups/groups endpoints for create and members.\n\nPriority: medium. Effort: M.",
     "product": "groups",
     "kind": "idea",
-    "parity": "webhooks"
+    "parity": "webhooks",
+    "status": "done",
+    "changelog": "2026-10-25-groups-platform"
   },
   {
     "title": "Groups: Saved chat lists as broadcast audiences",
@@ -2160,6 +2166,8 @@
     "description": "Periskope hides customer phone numbers from some roles. First scope: a workspace setting that shows only the last 4 digits to members in the inbox, lists, exports and API.\n\nPriority: low. Effort: S.",
     "product": "groups",
     "kind": "idea",
-    "parity": "masking"
+    "parity": "masking",
+    "status": "done",
+    "changelog": "2026-10-25-groups-platform"
   }
 ]

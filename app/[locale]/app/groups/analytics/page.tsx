@@ -1,8 +1,10 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
-import { listPeople } from '@/lib/groups';
+import { listChats, listLabels, listNumbers, listPeople } from '@/lib/groups';
 import { groupsAnalytics } from '@/lib/groups-analytics';
+import { visibleChatIds } from '@/lib/groups-access';
+import { pageViewer } from '@/lib/groups-page';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 
@@ -11,14 +13,40 @@ export const dynamic = 'force-dynamic';
 const PERIODS = [7, 30, 90];
 
 /** Métricas: volumen, primera respuesta, tickets, por persona y por grupo. */
-export default async function GroupsAnalyticsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ days?: string }> }) {
+type Search = { days?: string; from?: string; to?: string; label?: string; chat?: string; number?: string };
+
+export default async function GroupsAnalyticsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<Search> }) {
   const { locale } = await props.params;
   const sp = await props.searchParams;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
   const days = PERIODS.includes(Number(sp.days)) ? Number(sp.days) : 30;
-  const people = await listPeople(user.id, user.team?.id ?? null);
-  const a = await groupsAnalytics(user.id, days, people);
+  const viewer = await pageViewer(user);
+  const [people, labels, numbers, groups] = await Promise.all([
+    listPeople(user.id, user.team?.id ?? null),
+    listLabels(user.id),
+    listNumbers(user.id),
+    listChats(user.id, viewer.me, { kind: 'group', limit: 200, viewer }),
+  ]);
+  const day = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
+  const filters = {
+    from: day(sp.from),
+    to: day(sp.to),
+    labelId: labels.some((l) => l.id === sp.label) ? sp.label : undefined,
+    chatId: groups.rows.some((g) => g.id === sp.chat) ? sp.chat : undefined,
+    numberId: numbers.some((n) => n.id === sp.number) ? sp.number : undefined,
+  };
+  const custom = Boolean(filters.from);
+  const filtered = custom || Boolean(filters.labelId || filters.chatId || filters.numberId);
+  const a = await groupsAnalytics(user.id, days, people, { ...filters, visible: await visibleChatIds(viewer) });
+  const keep = (extra: Record<string, string>) => {
+    const q = new URLSearchParams();
+    if (filters.labelId) q.set('label', filters.labelId);
+    if (filters.chatId) q.set('chat', filters.chatId);
+    if (filters.numberId) q.set('number', filters.numberId);
+    for (const [k, v] of Object.entries(extra)) q.set(k, v);
+    return `/app/groups/analytics?${q.toString()}`;
+  };
   const dur = (min: number | null) => {
     if (min == null) return '—';
     if (min < 60) return t('time.minLong', { n: min });
@@ -36,15 +64,81 @@ export default async function GroupsAnalyticsPage(props: { params: Promise<{ loc
         actions={
           <nav className="gr-periods" aria-label={t('analytics.period')}>
             {PERIODS.map((p) => (
-              <Link key={p} href={`/app/groups/analytics?days=${p}`} className={`btn btn-sm ${p === days ? 'btn-primary' : 'btn-secondary'}`} aria-current={p === days ? 'page' : undefined}>
+              <Link
+                key={p}
+                href={keep({ days: String(p) })}
+                className={`btn btn-sm ${!custom && p === days ? 'btn-primary' : 'btn-secondary'}`}
+                aria-current={!custom && p === days ? 'page' : undefined}
+              >
                 {t('analytics.days', { n: p })}
               </Link>
             ))}
           </nav>
         }
       />
+      <form className="gr-report-filters" method="get" action={`/${locale}/app/groups/analytics`} aria-label={t('analytics.filters')}>
+        <label className="ui-field">
+          <span className="label">{t('analytics.from')}</span>
+          <input className="input" type="date" name="from" defaultValue={custom ? a.from : ''} max={a.to} />
+        </label>
+        <label className="ui-field">
+          <span className="label">{t('analytics.to')}</span>
+          <input className="input" type="date" name="to" defaultValue={custom ? a.to : ''} />
+        </label>
+        <label className="ui-field">
+          <span className="label">{t('inbox.label')}</span>
+          <select className="select" name="label" defaultValue={filters.labelId ?? ''}>
+            <option value="">{t('inbox.labelAll')}</option>
+            {labels.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="ui-field">
+          <span className="label">{t('analytics.group')}</span>
+          <select className="select" name="chat" defaultValue={filters.chatId ?? ''}>
+            <option value="">{t('analytics.allGroups')}</option>
+            {groups.rows.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {numbers.length > 1 && (
+          <label className="ui-field">
+            <span className="label">{t('analytics.number')}</span>
+            <select className="select" name="number" defaultValue={filters.numberId ?? ''}>
+              <option value="">{t('analytics.allNumbers')}</option>
+              {numbers.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {!custom && <input type="hidden" name="days" value={days} />}
+        <div className="gr-report-actions">
+          <button type="submit" className="btn btn-secondary btn-sm">
+            {t('analytics.apply')}
+          </button>
+          {filtered && (
+            <Link href="/app/groups/analytics" className="btn btn-ghost btn-sm">
+              {t('list.clear')}
+            </Link>
+          )}
+        </div>
+      </form>
+      {filtered && (
+        <p className="ui-help" role="status">
+          {t('analytics.showing', { from: a.from, to: a.to })}
+        </p>
+      )}
       {empty ? (
-        <EmptyState title={t('analytics.emptyTitle')} body={t('analytics.emptyBody')} product="groups" />
+        <EmptyState title={filtered ? t('analytics.emptyFilteredTitle') : t('analytics.emptyTitle')} body={filtered ? t('analytics.emptyFilteredBody') : t('analytics.emptyBody')} product="groups" />
       ) : (
         <>
           <div className="gr-stats">

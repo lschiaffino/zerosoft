@@ -44,6 +44,7 @@ function useGroupOrder() {
         'groupsChats',
         'groupsTickets',
         'groupsMessages',
+        'groupsRecurring',
       ], []);
 }
 

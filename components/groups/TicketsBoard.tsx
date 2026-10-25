@@ -11,7 +11,20 @@ import { api, useErrorText, useRelativeTime, useToast } from './ui';
 const STATUS_FILTERS = ['active', 'open', 'in_progress', 'resolved', 'closed', 'all'] as const;
 
 /** Tickets de los chats: filtros, y estado, prioridad y asignado editables en la fila. */
-export default function TicketsBoard({ initial, people, me, openId }: { initial: TicketDto[]; people: GroupsPerson[]; me: string; openId: string | null }) {
+export default function TicketsBoard({
+  initial,
+  people,
+  me,
+  openId,
+  remote = {},
+}: {
+  initial: TicketDto[];
+  people: GroupsPerson[];
+  me: string;
+  openId: string | null;
+  /** Tickets vinculados en Freshdesk o Zoho Desk, por id de ticket. */
+  remote?: Record<string, Array<{ kind: string; remoteId: string; remoteUrl: string }>>;
+}) {
   const t = useTranslations('groups');
   const locale = useLocale();
   const rel = useRelativeTime();
@@ -120,6 +133,18 @@ export default function TicketsBoard({ initial, people, me, openId }: { initial:
                       )}
                       <span className="ui-help">
                         {tk.chatName} · {t(`tickets.source.${tk.source}`)} · {rel(tk.createdAt)}
+                        {(remote[tk.id] ?? []).map((l) => (
+                          <span key={l.kind}>
+                            {' · '}
+                            {l.remoteUrl ? (
+                              <a href={l.remoteUrl} target="_blank" rel="noreferrer">
+                                {t(`integrations.${l.kind === 'zoho' ? 'zoho' : 'freshdesk'}.name`)} #{l.remoteId}
+                              </a>
+                            ) : (
+                              `${t(`integrations.${l.kind === 'zoho' ? 'zoho' : 'freshdesk'}.name`)} #${l.remoteId}`
+                            )}
+                          </span>
+                        ))}
                       </span>
                     </div>
                   </td>

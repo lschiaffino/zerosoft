@@ -6,6 +6,9 @@
  */
 import { getDb } from './db';
 import { processBroadcasts } from './groups-broadcasts';
+import { runDueRecurring } from './groups-recurring';
+import { syncRemoteTickets } from './groups-integrations';
+import { retryDueWebhooks } from './webhooks';
 import { markBreachedTickets } from './groups-tickets';
 import { normalizeSettings } from './groups-rules';
 
@@ -35,6 +38,11 @@ export async function flagUnansweredChats(now = new Date(), limit = 1000): Promi
 export async function runGroupsCron(opts: { budgetMs?: number } = {}) {
   const flagged = await flagUnansweredChats().catch(() => null);
   const breached = await markBreachedTickets().catch(() => null);
+  // Las corridas recurrentes vencidas pasan a envíos; processBroadcasts los manda con el ritmo de siempre.
+  const recurring = await runDueRecurring().catch(() => null);
   const broadcasts = await processBroadcasts({ budgetMs: opts.budgetMs ?? 30_000 }).catch(() => null);
-  return { flagged, breached, broadcasts };
+  const remoteTickets = await syncRemoteTickets().catch(() => null);
+  // Reintentos de webhooks (backoff desde 1 minuto; cada entrega con claim).
+  const webhookRetries = await retryDueWebhooks().catch(() => null);
+  return { flagged, breached, recurring, broadcasts, remoteTickets, webhookRetries };
 }

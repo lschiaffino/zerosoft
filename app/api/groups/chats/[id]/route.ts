@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import { deleteChat, getChat, listMembers, updateChat, type ChatPatch } from '@/lib/groups';
-import { groupsError, groupsSession, handleGroupsError, readJson, strArr } from '@/lib/groups-http';
+import { getChat, listMembers, type ChatPatch } from '@/lib/groups';
+import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, strArr } from '@/lib/groups-http';
+import { maskChat, maskMember } from '@/lib/groups-access';
+import { patchChatAs, removeChatAs } from '@/lib/groups-chat-ops';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,15 +13,20 @@ export async function GET(_req: Request, ctx: Ctx) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
+  const guard = await chatGuard(s, id);
+  if (guard instanceof NextResponse) return guard;
   const chat = await getChat(s.ws, id);
   if (!chat) return groupsError(404, 'not_found');
-  return NextResponse.json({ chat, members: await listMembers(s.ws, id) });
+  return NextResponse.json({ chat: maskChat(guard.viewer, chat), members: (await listMembers(s.ws, id)).map((m) => maskMember(guard.viewer, m)) });
 }
 
 /** Renombrar (también en WhatsApp si es grupo), asignar, cerrar, etiquetas, propiedades, CRM, agente, leído. */
 export async function PATCH(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
+  const id = (await ctx.params).id;
+  const guard = await chatGuard(s, id);
+  if (guard instanceof NextResponse) return guard;
   const b = await readJson(req);
   const patch: ChatPatch = {};
   if (typeof b.name === 'string') patch.name = b.name;
@@ -34,7 +41,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (b.read === true) patch.read = true;
   if (typeof b.flagged === 'boolean') patch.flagged = b.flagged;
   try {
-    return NextResponse.json(await updateChat(s.ws, (await ctx.params).id, patch));
+    return NextResponse.json(maskChat(guard.viewer, await patchChatAs(s.ws, { id: s.me }, id, patch)));
   } catch (err) {
     return handleGroupsError(err);
   }
@@ -44,6 +51,9 @@ export async function PATCH(req: Request, ctx: Ctx) {
 export async function DELETE(_req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
-  const ok = await deleteChat(s.ws, (await ctx.params).id);
+  const id = (await ctx.params).id;
+  const guard = await chatGuard(s, id);
+  if (guard instanceof NextResponse) return guard;
+  const ok = await removeChatAs(s.ws, { id: s.me }, id);
   return ok ? NextResponse.json({ ok: true }) : groupsError(404, 'not_found');
 }

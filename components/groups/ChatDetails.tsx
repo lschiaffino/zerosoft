@@ -8,6 +8,7 @@ import type { ChatDto, GroupsPerson, LabelDto, MemberDto, PropertyDef } from '@/
 import type { ProviderCaps } from '@/lib/groups-provider';
 import { useGroupsInbox } from './InboxShell';
 import { LabelTag, api, useErrorText, useToast } from './ui';
+import { AuditLog } from './PlatformPanels';
 
 interface CrmRef {
   id: string;
@@ -66,6 +67,7 @@ export default function ChatDetails({
   const inbox = useGroupsInbox();
   const [toast, showToast] = useToast();
   const [members, setMembers] = useState(initialMembers);
+  const [activityOpen, setActivityOpen] = useState(false);
   const [props, setProps] = useState<Record<string, unknown>>(chat.properties);
   const [phones, setPhones] = useState('');
   const [memberBusy, setMemberBusy] = useState(false);
@@ -381,7 +383,7 @@ export default function ChatDetails({
                     {m.name && <span className="gr-member-name">{m.name}</span>}
                     <span className={m.name ? 'gr-member-phone ui-help' : 'gr-member-phone'}>+{m.phone}</span>
                     {m.role !== 'member' && <span className="badge badge-outline">{t(`roles.${m.role}`)}</span>}
-                    {m.role !== 'superadmin' && (
+                    {m.role !== 'superadmin' && !(m as MemberDto & { masked?: boolean }).masked && (
                       <span className="gr-member-actions">
                         <button type="button" className="btn btn-ghost btn-sm" onClick={() => void memberAction(m.role === 'admin' ? 'demote' : 'promote', [m.phone])} disabled={memberBusy}>
                           {m.role === 'admin' ? t('details.demote') : t('details.promote')}
@@ -467,6 +469,15 @@ export default function ChatDetails({
           </ul>
         </section>
       )}
+
+      <section className="gr-detail-section" aria-labelledby={`gr-activity-${chat.id}`}>
+        <details className="gr-activity" onToggle={(e) => setActivityOpen((e.currentTarget as HTMLDetailsElement).open)}>
+          <summary className="gr-detail-title" id={`gr-activity-${chat.id}`}>
+            {t('audit.title')}
+          </summary>
+          {activityOpen && <AuditLog key={`${chat.assignedTo}-${chat.status}-${chat.labels.length}`} chatId={chat.id} people={people} compact />}
+        </details>
+      </section>
 
       <section className="gr-detail-section gr-detail-foot">
         <p className="ui-help">{t('details.since', { time: new Date(chat.createdAt).toLocaleDateString(locale) })}</p>

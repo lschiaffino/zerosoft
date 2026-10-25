@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getMessageRow, reactToMessage } from '@/lib/groups';
 import { createTicket } from '@/lib/groups-tickets';
 import type { TicketPriority } from '@/lib/groups-rules';
-import { groupsError, groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
+import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,6 +15,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
+  const target = await getMessageRow(s.ws, id);
+  if (!target) return groupsError(404, 'not_found');
+  const guard = await chatGuard(s, target.chat_id);
+  if (guard instanceof NextResponse) return guard;
   const b = await readJson(req);
   try {
     if (b.action === 'react') return NextResponse.json(await reactToMessage(s.ws, s.me, id, str(b.emoji, 16) ?? ''));

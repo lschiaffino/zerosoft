@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { summarizeChat } from '@/lib/groups-ai';
-import { groupsSession, handleGroupsError, readJson } from '@/lib/groups-http';
+import { chatGuard, groupsSession, handleGroupsError, readJson } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,6 +10,8 @@ export const maxDuration = 60;
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
+  const guard = await chatGuard(s, (await ctx.params).id);
+  if (guard instanceof NextResponse) return guard;
   const b = await readJson(req);
   const days = Math.min(90, Math.max(1, Number(b.days) || 7));
   const locale = b.locale === 'es' || b.locale === 'pt' ? b.locale : 'en';

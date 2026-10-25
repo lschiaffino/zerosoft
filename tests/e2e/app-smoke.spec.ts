@@ -266,6 +266,24 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/groups/chats/${i.id}`))),
   },
   {
+    // Groups: mensajes recurrentes (lista en Envíos, detalle con su editor).
+    app: 'Groups recurring',
+    list: '/en/app/groups/broadcasts',
+    create: async (request, name) => {
+      const numberId = await groupsNumber(request);
+      const g = await ok<{ results: Array<{ ok: boolean; chatId?: string }> }>(
+        request.post('/api/groups/create', { data: { numberId, name: `Rec ${uid()}`, phones: ['+15550009002'] } }),
+      );
+      const rec = await ok<{ id: string }>(
+        request.post('/api/groups/recurring', { data: { name, chatIds: [g.results[0].chatId], body: 'Weekly check-in', rule: { freq: 'weekly', time: '09:00', days: [1] }, timezone: 'UTC' } }),
+      );
+      return { id: rec.id, name };
+    },
+    detail: (i) => `/en/app/groups/broadcasts/recurring/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/recurring/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/groups/recurring/${i.id}`))),
+  },
+  {
     app: 'Robots',
     list: '/en/app/robots',
     create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/robots', { data: { name } }))).id, name }),

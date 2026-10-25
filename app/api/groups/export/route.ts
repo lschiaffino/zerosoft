@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { listChats } from '@/lib/groups';
 import { listTickets } from '@/lib/groups-tickets';
-import { groupsError, groupsSession } from '@/lib/groups-http';
+import { chatGuard, groupsError, groupsSession, sessionViewer } from '@/lib/groups-http';
+import { maskPhone, ticketsForViewer } from '@/lib/groups-access';
+import { recordAudit } from '@/lib/groups-audit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,10 +26,11 @@ export async function GET(req: Request) {
   if (s instanceof NextResponse) return s;
   const p = new URL(req.url).searchParams;
   const type = p.get('type') ?? 'chats';
+  const viewer = await sessionViewer(s);
   let body: string;
   if (type === 'chats') {
-    const { rows } = await listChats(s.ws, s.me, { filter: 'all', limit: 200 });
-    const closed = await listChats(s.ws, s.me, { filter: 'closed', limit: 200 });
+    const { rows } = await listChats(s.ws, s.me, { filter: 'all', limit: 200, viewer });
+    const closed = await listChats(s.ws, s.me, { filter: 'closed', limit: 200, viewer });
     body = csv([
       ['id', 'kind', 'name', 'phone', 'members', 'status', 'assigned_to', 'labels', 'last_message_at', 'awaiting_since', 'crm_company_id', 'crm_contact_id', 'properties'],
       ...[...rows, ...closed.rows].map((c) => [
@@ -47,7 +50,7 @@ export async function GET(req: Request) {
       ]),
     ]);
   } else if (type === 'tickets') {
-    const tickets = await listTickets(s.ws, { status: 'all', limit: 500 });
+    const tickets = await ticketsForViewer(viewer, await listTickets(s.ws, { status: 'all', limit: 500 }));
     body = csv([
       ['number', 'title', 'status', 'priority', 'assignee_id', 'chat', 'source', 'created_at', 'due_at', 'first_response_at', 'resolved_at', 'breached'],
       ...tickets.map((t) => [t.number, t.title, t.status, t.priority, t.assigneeId, t.chatName, t.source, t.createdAt, t.dueAt, t.firstResponseAt, t.resolvedAt, t.breached ? 'yes' : 'no']),
@@ -55,6 +58,8 @@ export async function GET(req: Request) {
   } else if (type === 'messages') {
     const chat = p.get('chat');
     if (!chat) return groupsError(400, 'missing_chat');
+    const guard = await chatGuard(s, chat);
+    if (guard instanceof NextResponse) return guard;
     const rows = (await getDb()
       .prepare(
         `SELECT m.created_at, m.direction, m.sender_name, m.sender_phone, m.author_id, m.body, m.media_type, m.status
@@ -63,9 +68,13 @@ export async function GET(req: Request) {
       .all(chat, s.ws)) as Array<Record<string, unknown>>;
     body = csv([
       ['created_at', 'direction', 'sender_name', 'sender_phone', 'author_id', 'body', 'media_type', 'status'],
-      ...rows.map((r) => [r.created_at, r.direction, r.sender_name, r.sender_phone, r.author_id, r.body, r.media_type, r.status]),
+      ...rows.map((r) => [r.created_at, r.direction, r.sender_name, viewer.mask && r.sender_phone ? maskPhone(String(r.sender_phone)) : r.sender_phone, r.author_id, r.body, r.media_type, r.status]),
     ]);
+    const { getChat } = await import('@/lib/groups');
+    const c = await getChat(s.ws, chat);
+    await recordAudit(s.ws, { chatId: chat, chatName: c?.name ?? '', actorId: s.me, action: 'exported', detail: { type: 'messages', rows: rows.length } });
   } else return groupsError(400, 'invalid_type');
+  if (type !== 'messages') await recordAudit(s.ws, { chatId: null, actorId: s.me, action: 'exported', detail: { type } });
   return new NextResponse(body, {
     headers: {
       'content-type': 'text/csv; charset=utf-8',

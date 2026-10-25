@@ -16,11 +16,20 @@ import {
   listQuickReplies,
 } from './groups';
 import { PROVIDER_CAPS } from './groups-provider';
+import { canSeeChat, groupsViewer, maskChat, maskMember, maskMessage, type GroupsViewer } from './groups-access';
+
+/** Quién mira en una página de Groups (acceso por etiqueta y teléfonos ocultos). */
+export function pageViewer(user: SessionUser): Promise<GroupsViewer> {
+  return groupsViewer(user.id, user.actingUser?.id ?? user.id, user.role);
+}
 
 export async function loadChatPage(user: SessionUser, chatId: string) {
   const ws = user.id;
-  const chat = await getChat(ws, chatId);
-  if (!chat) return null;
+  const viewer = await pageViewer(user);
+  if (!(await canSeeChat(viewer, chatId))) return null;
+  const raw = await getChat(ws, chatId);
+  if (!raw) return null;
+  const chat = maskChat(viewer, raw);
   const db = getDb();
   const [messages, members, people, labels, quickReplies, properties, number, settings, agents] = await Promise.all([
     listMessages(ws, chatId),
@@ -45,8 +54,8 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
     : undefined;
   return {
     chat,
-    messages,
-    members,
+    messages: messages.map((m) => maskMessage(viewer, m)),
+    members: members.map((m) => maskMember(viewer, m)),
     people,
     labels: labels.map((l) => ({ id: l.id, name: l.name, color: l.color })),
     quickReplies,

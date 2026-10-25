@@ -49,13 +49,15 @@ export interface ProviderCaps {
   qr: boolean;
   /** Plantillas aprobadas por Meta (fuera de la ventana de 24 h). */
   templates: boolean;
+  /** Encuestas nativas de WhatsApp (la Cloud API de Meta no las tiene). */
+  polls: boolean;
 }
 
 export const PROVIDER_CAPS: Record<ProviderKind, ProviderCaps> = {
-  cloud: { groups: false, qr: false, templates: true },
-  waha: { groups: true, qr: true, templates: false },
-  evolution: { groups: true, qr: true, templates: false },
-  fake: { groups: true, qr: true, templates: false },
+  cloud: { groups: false, qr: false, templates: true, polls: false },
+  waha: { groups: true, qr: true, templates: false, polls: true },
+  evolution: { groups: true, qr: true, templates: false, polls: true },
+  fake: { groups: true, qr: true, templates: false, polls: true },
 };
 
 export type ConnectStatus = 'pending' | 'qr' | 'connected' | 'disconnected' | 'error';
@@ -134,6 +136,16 @@ export type InboundEvent =
       fromMe: boolean;
     }
   | { type: 'status'; providerMessageId: string; status: 'sent' | 'delivered' | 'read' | 'failed' }
+  | {
+      type: 'poll_vote';
+      chatId: string;
+      /** Id del mensaje de la encuesta en el proveedor. */
+      pollProviderMessageId: string;
+      voterPhone: string;
+      voterName: string;
+      /** Opciones elegidas (nombres o índices); vacío = sacó su voto. */
+      options: Array<string | number>;
+    }
   | { type: 'participants'; chatId: string; action: ParticipantAction; phones: string[] }
   | { type: 'session'; status: ConnectStatus; qr?: string; phone?: string };
 
@@ -153,6 +165,8 @@ export interface GroupsProvider {
   sendMedia(chatId: string, media: MediaInput): Promise<SendResult>;
   react(chatId: string, providerMessageId: string, emoji: string, fromMe: boolean): Promise<void>;
   sendTemplate(chatId: string, name: string, language: string, params: string[]): Promise<SendResult>;
+  /** Encuesta nativa (solo si caps.polls). */
+  sendPoll?(chatId: string, poll: { question: string; options: string[]; multi: boolean }): Promise<SendResult>;
   listTemplates(): Promise<Template[]>;
   listGroups(): Promise<GroupInfo[]>;
   createGroup(name: string, phones: string[]): Promise<GroupInfo>;

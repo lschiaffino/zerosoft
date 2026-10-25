@@ -11,6 +11,8 @@
 import { randomUUID } from 'crypto';
 import { getDb } from './db';
 import { GroupsError, chatDisplayName, getNumberRow, sendMessage, type ChatRow } from './groups';
+import { PROVIDER_CAPS } from './groups-provider';
+import { normalizePoll, parsePoll, type PollInput } from './groups-polls';
 import { allowedSends, chatVariables, clampPerMinute, renderVariables, sendGapMs } from './groups-rules';
 
 const nowIso = () => new Date().toISOString();
@@ -35,6 +37,8 @@ export interface BroadcastRow {
   created_by: string | null;
   created_at: string;
   finished_at: string | null;
+  recurring_id?: string | null;
+  poll?: string;
 }
 
 export interface BroadcastDto {
@@ -52,6 +56,9 @@ export interface BroadcastDto {
   failed: number;
   createdAt: string;
   finishedAt: string | null;
+  /** Serie recurrente de la que salió esta corrida. */
+  recurringId: string | null;
+  poll: PollInput | null;
 }
 
 export interface RecipientDto {
@@ -80,6 +87,8 @@ export function toBroadcastDto(r: BroadcastRow): BroadcastDto {
     failed: r.failed,
     createdAt: r.created_at,
     finishedAt: r.finished_at,
+    recurringId: r.recurring_id ?? null,
+    poll: parsePoll(r.poll),
   };
 }
 
@@ -94,10 +103,20 @@ export interface CreateBroadcastInput {
   scheduledAt?: string | null;
   perMinute?: number;
   kind?: 'broadcast' | 'scheduled';
+  /** Encuesta en lugar de texto (solo números WAHA o Evolution). */
+  poll?: unknown;
 }
 
 export async function createBroadcast(ws: string, actor: string, input: CreateBroadcastInput): Promise<BroadcastDto> {
-  const body = String(input.body ?? '').slice(0, 4096);
+  let poll: PollInput | null = null;
+  if (input.poll != null && input.poll !== '') {
+    try {
+      poll = normalizePoll(input.poll);
+    } catch (err) {
+      throw new GroupsError((err as Error).message);
+    }
+  }
+  const body = poll ? poll.question : String(input.body ?? '').slice(0, 4096);
   if (!body.trim() && !input.media) throw new GroupsError('empty_message');
   const chatIds = [...new Set(input.chatIds ?? [])];
   if (chatIds.length === 0) throw new GroupsError('no_recipients');
@@ -112,6 +131,7 @@ export async function createBroadcast(ws: string, actor: string, input: CreateBr
   const numberId = input.numberId || chats[0].number_id;
   const number = await getNumberRow(ws, numberId);
   if (!number) throw new GroupsError('invalid_number');
+  if (poll && !PROVIDER_CAPS[number.provider].polls) throw new GroupsError('polls_unsupported');
   const mine = chats.filter((c) => c.number_id === numberId);
   if (mine.length === 0) throw new GroupsError('no_recipients');
   let scheduled = new Date();
@@ -127,8 +147,8 @@ export async function createBroadcast(ws: string, actor: string, input: CreateBr
   await db
     .prepare(
       `INSERT INTO groups_broadcasts (id, user_id, number_id, name, body, media_url, media_type, media_name, kind, status, scheduled_at,
-         per_minute, total, created_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?)`,
+         per_minute, total, created_by, created_at, poll)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -145,6 +165,7 @@ export async function createBroadcast(ws: string, actor: string, input: CreateBr
       mine.length,
       actor,
       now,
+      poll ? JSON.stringify(poll) : '',
     );
   for (const c of mine) {
     await db.prepare('INSERT OR IGNORE INTO groups_broadcast_recipients (id, broadcast_id, chat_id) VALUES (?, ?, ?)').run(randomUUID(), id, c.id);
@@ -352,6 +373,7 @@ export async function processBroadcasts(
           const text = renderVariables(b.body, chatVariables({ name: chatDisplayName(chat), phone: chat.phone, properties: JSON.parse(chat.properties || '{}') }));
           try {
             const msg = await sendMessage(b.user_id, b.created_by, chat.id, {
+              poll: parsePoll(b.poll),
               body: text,
               media: b.media_type ? { url: b.media_url, mimetype: b.media_type, filename: b.media_name } : null,
               // Un programado a un chat es una respuesta; un envío masivo, no.

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { CHAT_FILTERS, listChats, type ChatFilter } from '@/lib/groups';
-import { groupsSession } from '@/lib/groups-http';
+import { groupsSession, sessionViewer } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,6 +20,7 @@ export async function GET(req: Request) {
     kind,
     limit: Number(p.get('limit')) || 50,
     offset: Number(p.get('offset')) || 0,
+    viewer: await sessionViewer(s),
   });
   return NextResponse.json(res);
 }

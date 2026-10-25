@@ -9,6 +9,8 @@ import type { ProviderCaps } from '@/lib/groups-provider';
 import { useGroupsInbox } from './InboxShell';
 import ChatDetails from './ChatDetails';
 import { ChatPlate, Modal, api, useErrorText, useMediaText, useToast } from './ui';
+import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezone, checkRule, endsIso } from './RecurringParts';
+import type { RecurrenceRule } from '@/lib/groups-recurrence';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🙏', '✅'];
 
@@ -57,6 +59,14 @@ export default function ChatThread(props: ThreadProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [summary, setSummary] = useState<{ text: string; error: string; busy: boolean } | null>(null);
   const [schedule, setSchedule] = useState<{ open: boolean; at: string; busy: boolean; error: string }>({ open: false, at: '', busy: false, error: '' });
+  const [pollOpen, setPollOpen] = useState(false);
+  const [poll, setPoll] = useState({ question: '', options: ['', ''], multi: false });
+  const [pollBusy, setPollBusy] = useState(false);
+  const [pollError, setPollError] = useState('');
+  const [repeat, setRepeat] = useState(false);
+  const [rule, setRule] = useState<RecurrenceRule>(DEFAULT_RULE);
+  const [timezone, setTimezone] = useState(browserTimezone);
+  const [endsAt, setEndsAt] = useState('');
   const [ticketFor, setTicketFor] = useState<MessageDto | null>(null);
   const [ticketTitle, setTicketTitle] = useState('');
   const [ticketPriority, setTicketPriority] = useState('medium');
@@ -214,9 +224,40 @@ export default function ChatThread(props: ThreadProps) {
     setSummary({ text: res.data?.summary ?? '', error: res.error ? errText(res.error) : '', busy: false });
   }
 
+  async function sendPoll() {
+    const options = poll.options.map((o) => o.trim()).filter(Boolean);
+    if (!poll.question.trim()) return setPollError(errText('poll_question'));
+    if (options.length < 2) return setPollError(errText('poll_options'));
+    setPollBusy(true);
+    setPollError('');
+    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: { poll: { ...poll, options } } });
+    setPollBusy(false);
+    if (!res.data) return setPollError(errText(res.error));
+    merge([res.data]);
+    if (res.data.status === 'failed') return setPollError(errText(res.data.error || 'send_failed'));
+    setPollOpen(false);
+    setPoll({ question: '', options: ['', ''], multi: false });
+    refresh();
+  }
+
   async function scheduleSend() {
     if (!text.trim()) {
       setSchedule((s) => ({ ...s, error: errText('empty_message') }));
+      return;
+    }
+    if (repeat) {
+      const bad = checkRule(rule);
+      if (bad) return setSchedule((s) => ({ ...s, error: errText(bad) }));
+      setSchedule((s) => ({ ...s, busy: true, error: '' }));
+      const res = await api<{ nextRunAt: string | null }>('/api/groups/recurring', {
+        body: { chatIds: [chat.id], body: text, media: attachment, rule, timezone, endsAt: endsIso(endsAt) },
+      });
+      if (!res.data) return setSchedule((s) => ({ ...s, busy: false, error: errText(res.error) }));
+      setSchedule({ open: false, at: '', busy: false, error: '' });
+      setText('');
+      setAttachment(null);
+      setRepeat(false);
+      showToast(t('recurring.created', { when: res.data.nextRunAt ? new Date(res.data.nextRunAt).toLocaleString(locale) : '' }));
       return;
     }
     const when = Date.parse(schedule.at);
@@ -368,7 +409,7 @@ export default function ChatThread(props: ThreadProps) {
                         )}
                       </p>
                     )}
-                    {m.body && <p className="gr-pre">{m.body}</p>}
+                    {m.poll ? <PollResults poll={m.poll} /> : m.body && <p className="gr-pre">{m.body}</p>}
                     <p className="gr-msg-foot">
                       <time dateTime={m.createdAt}>{new Date(m.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</time>
                       {m.direction === 'out' && <span className={m.status === 'failed' ? 'gr-failed' : ''}>{t(`status.${m.status}`)}</span>}
@@ -487,6 +528,16 @@ export default function ChatThread(props: ThreadProps) {
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSchedule({ open: true, at: '', busy: false, error: '' })}>
                   {t('thread.schedule')}
                 </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    setPollError('');
+                    setPollOpen(true);
+                  }}
+                >
+                  {t('polls.button')}
+                </button>
               </>
             )}
             <span className="ui-help gr-composer-hint">{t('thread.hint')}</span>
@@ -560,20 +611,59 @@ export default function ChatThread(props: ThreadProps) {
               {t('common.cancel')}
             </button>
             <button type="submit" className="btn btn-primary" aria-busy={schedule.busy || undefined}>
-              {t('thread.scheduleConfirm')}
+              {repeat ? t('recurring.confirm') : t('thread.scheduleConfirm')}
             </button>
           </>
         }
       >
         <div className="ui-fields">
           <p className="ui-help">{text.trim() ? text.slice(0, 200) : t('thread.scheduleNeedsText')}</p>
-          <label className="ui-field">
-            <span className="label">{t('thread.scheduleAt')}</span>
-            <input className="input" type="datetime-local" value={schedule.at} onChange={(e) => setSchedule((s) => ({ ...s, at: e.target.value }))} autoFocus required />
+          <label className="gr-check-label">
+            <input type="checkbox" className="ui-check" checked={repeat} onChange={(e) => setRepeat(e.target.checked)} />
+            {t('recurring.repeatCheck')}
           </label>
+          {repeat ? (
+            <RecurrenceFields rule={rule} onChange={setRule} timezone={timezone} onTimezone={setTimezone} endsAt={endsAt} onEndsAt={setEndsAt} />
+          ) : (
+            <label className="ui-field">
+              <span className="label">{t('thread.scheduleAt')}</span>
+              <input className="input" type="datetime-local" value={schedule.at} onChange={(e) => setSchedule((s) => ({ ...s, at: e.target.value }))} autoFocus required />
+            </label>
+          )}
           {schedule.error && (
             <p className="ui-error" role="alert">
               {schedule.error}
+            </p>
+          )}
+        </div>
+      </Modal>
+      <Modal
+        open={pollOpen}
+        title={t('polls.title')}
+        onClose={() => setPollOpen(false)}
+        onSubmit={() => void sendPoll()}
+        busy={pollBusy}
+        foot={
+          <>
+            <button type="button" className="btn btn-ghost" onClick={() => setPollOpen(false)}>
+              {t('common.cancel')}
+            </button>
+            <button type="submit" className="btn btn-primary" aria-busy={pollBusy || undefined} disabled={!props.caps.polls}>
+              {t('polls.send')}
+            </button>
+          </>
+        }
+      >
+        <div className="ui-fields">
+          {!props.caps.polls && (
+            <p className="gr-banner is-bad" role="alert">
+              {t('polls.unsupported')}
+            </p>
+          )}
+          <PollFields question={poll.question} options={poll.options} multi={poll.multi} onChange={setPoll} idPrefix="chat" />
+          {pollError && (
+            <p className="ui-error" role="alert">
+              {pollError}
             </p>
           )}
         </div>

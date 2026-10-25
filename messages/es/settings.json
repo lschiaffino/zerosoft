@@ -141,7 +141,14 @@
       "chat_conversation_resolved": "Conversación resuelta",
       "groups_message_received": "Mensaje de WhatsApp recibido (Groups)",
       "groups_ticket_created": "Ticket creado (Groups)",
-      "groups_ticket_updated": "Ticket actualizado (Groups)"
+      "groups_ticket_updated": "Ticket actualizado (Groups)",
+      "groups_message_sent": "Mensaje enviado (Groups)",
+      "groups_chat_created": "Chat o grupo nuevo (Groups)",
+      "groups_chat_assigned": "Chat asignado (Groups)",
+      "groups_chat_closed": "Chat cerrado (Groups)",
+      "groups_member_joined": "Miembro entró a un grupo (Groups)",
+      "groups_member_left": "Miembro salió de un grupo (Groups)",
+      "groups_poll_voted": "Voto en una encuesta (Groups)"
     },
     "errors": {
       "https_required": "La URL tiene que usar https.",

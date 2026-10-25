@@ -7,8 +7,38 @@
 import { getDb } from './db';
 import { chatDisplayName } from './groups';
 
+export interface AnalyticsFilters {
+  /** Rango propio (YYYY-MM-DD, inclusive). Si no, los últimos `days`. */
+  from?: string;
+  to?: string;
+  labelId?: string;
+  chatId?: string;
+  numberId?: string;
+  kind?: 'dm' | 'group';
+  /** Chats que la persona ve (acceso por etiqueta). null = todos. */
+  visible?: Set<string> | null;
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Rango del reporte: [since, until) en ISO y la cantidad de días. Puro. */
+export function reportRange(days: number, filters: Pick<AnalyticsFilters, 'from' | 'to'> = {}, now = new Date()): { since: string; until: string; days: number; from: string; to: string } {
+  if (filters.from && DAY.test(filters.from)) {
+    const to = filters.to && DAY.test(filters.to) && filters.to >= filters.from ? filters.to : now.toISOString().slice(0, 10);
+    const sinceMs = Date.parse(`${filters.from}T00:00:00.000Z`);
+    const untilMs = Math.min(Date.parse(`${to}T00:00:00.000Z`) + 86_400_000, sinceMs + 366 * 86_400_000);
+    const n = Math.max(1, Math.round((untilMs - sinceMs) / 86_400_000));
+    return { since: new Date(sinceMs).toISOString(), until: new Date(untilMs).toISOString(), days: n, from: filters.from, to: new Date(untilMs - 86_400_000).toISOString().slice(0, 10) };
+  }
+  const until = new Date(now.getTime() + 1000);
+  const since = new Date(now.getTime() - days * 86_400_000);
+  return { since: since.toISOString(), until: until.toISOString(), days, from: since.toISOString().slice(0, 10), to: now.toISOString().slice(0, 10) };
+}
+
 export interface Analytics {
   days: number;
+  from: string;
+  to: string;
   totals: { inbound: number; outbound: number; activeChats: number; awaiting: number; flagged: number };
   firstResponse: { medianMin: number | null; samples: number };
   tickets: { created: number; open: number; resolved: number; breached: number; medianResolutionMin: number | null };
@@ -52,24 +82,47 @@ export function firstResponses(messages: Msg[]): Array<{ chatId: string; minutes
   return out;
 }
 
-export async function groupsAnalytics(ws: string, days = 30, people: Array<{ id: string; name: string; email: string }> = []): Promise<Analytics> {
+export async function groupsAnalytics(
+  ws: string,
+  daysIn = 30,
+  people: Array<{ id: string; name: string; email: string }> = [],
+  filters: AnalyticsFilters = {},
+): Promise<Analytics> {
   const db = getDb();
-  const since = new Date(Date.now() - days * 86_400_000).toISOString();
-  const msgs = (await db
+  const range = reportRange(daysIn, filters);
+  const { since, until, days } = range;
+  // Chats del reporte: etiqueta, chat o grupo, número, tipo y lo que la persona ve.
+  const allChats = (await db
+    .prepare('SELECT id, name, phone, provider_chat_id, kind, number_id, awaiting_since, flagged_at FROM groups_chats WHERE user_id = ?')
+    .all(ws)) as Array<{ id: string; name: string; phone: string; provider_chat_id: string; kind: 'dm' | 'group'; number_id: string; awaiting_since: string | null; flagged_at: string | null }>;
+  const labelled = filters.labelId
+    ? new Set(((await db.prepare('SELECT chat_id FROM groups_chat_labels WHERE label_id = ?').all(filters.labelId)) as Array<{ chat_id: string }>).map((r) => r.chat_id))
+    : null;
+  const chats = allChats.filter(
+    (c) =>
+      (!labelled || labelled.has(c.id)) &&
+      (!filters.chatId || c.id === filters.chatId) &&
+      (!filters.numberId || c.number_id === filters.numberId) &&
+      (!filters.kind || c.kind === filters.kind) &&
+      (!filters.visible || filters.visible.has(c.id)),
+  );
+  const scoped = chats.length !== allChats.length;
+  const inScope = new Set(chats.map((c) => c.id));
+  const msgs = ((await db
     .prepare(
       `SELECT chat_id, direction, author_id, author_kind, created_at FROM groups_messages
-       WHERE user_id = ? AND direction IN ('in', 'out') AND created_at >= ? ORDER BY created_at ASC LIMIT 100000`,
+       WHERE user_id = ? AND direction IN ('in', 'out') AND created_at >= ? AND created_at < ? ORDER BY created_at ASC LIMIT 100000`,
     )
-    .all(ws, since)) as Msg[];
-  const chats = (await db
-    .prepare('SELECT id, name, phone, provider_chat_id, kind, awaiting_since, flagged_at FROM groups_chats WHERE user_id = ?')
-    .all(ws)) as Array<{ id: string; name: string; phone: string; provider_chat_id: string; kind: 'dm' | 'group'; awaiting_since: string | null; flagged_at: string | null }>;
-  const tickets = (await db
-    .prepare('SELECT status, assignee_id, created_at, resolved_at, breached_at FROM groups_tickets WHERE user_id = ? AND created_at >= ?')
-    .all(ws, since)) as Array<{ status: string; assignee_id: string | null; created_at: string; resolved_at: string | null; breached_at: string | null }>;
+    .all(ws, since, until)) as Msg[]).filter((m) => !scoped || inScope.has(m.chat_id));
+  const tickets = ((await db
+    .prepare('SELECT chat_id, status, assignee_id, created_at, resolved_at, breached_at FROM groups_tickets WHERE user_id = ? AND created_at >= ? AND created_at < ?')
+    .all(ws, since, until)) as Array<{ chat_id: string | null; status: string; assignee_id: string | null; created_at: string; resolved_at: string | null; breached_at: string | null }>).filter(
+    (t) => !scoped || (t.chat_id !== null && inScope.has(t.chat_id)),
+  );
 
   const perDayMap = new Map<string, { inbound: number; outbound: number }>();
-  for (let i = days - 1; i >= 0; i--) perDayMap.set(new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10), { inbound: 0, outbound: 0 });
+  const lastDay = Date.parse(`${range.to}T00:00:00.000Z`);
+  for (let i = days - 1; i >= 0; i--) perDayMap.set(new Date(lastDay - i * 86_400_000).toISOString().slice(0, 10), { inbound: 0, outbound: 0 });
   const perChatMap = new Map<string, { inbound: number; outbound: number }>();
   const replies = new Map<string, number>();
   let inbound = 0;
@@ -123,6 +176,8 @@ export async function groupsAnalytics(ws: string, days = 30, people: Array<{ id:
 
   return {
     days,
+    from: range.from,
+    to: range.to,
     totals: {
       inbound,
       outbound,

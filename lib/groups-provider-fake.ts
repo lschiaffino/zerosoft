@@ -36,7 +36,7 @@ interface FakeGroup extends GroupInfo {
 export interface FakeSent {
   chatId: string;
   text: string;
-  kind: 'text' | 'media' | 'reaction';
+  kind: 'text' | 'media' | 'reaction' | 'poll';
   at: number;
 }
 
@@ -133,6 +133,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     sendTemplate: async () => {
       throw new ProviderError('unsupported');
     },
+    sendPoll: async (chatId, poll) => send(chatId, `${poll.question} [${poll.options.join(' | ')}]`, 'poll'),
     listTemplates: async () => [],
     async listGroups() {
       requireConnected();
@@ -193,7 +194,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       if (!Array.isArray(events)) return [];
       return events.filter((e): e is InboundEvent => {
         const t = (e as { type?: unknown })?.type;
-        return t === 'message' || t === 'reaction' || t === 'status' || t === 'participants' || t === 'session';
+        return t === 'message' || t === 'reaction' || t === 'status' || t === 'participants' || t === 'session' || t === 'poll_vote';
       });
     },
   };

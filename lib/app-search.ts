@@ -2,6 +2,8 @@ import { getDb } from '@/lib/db';
 import { likeContains } from '@/lib/track-views';
 import { boardViewer, boardVisibleSql } from '@/lib/board-access';
 import type { TeamRole } from '@/lib/teams';
+import { chatAccessSql, groupsViewer } from '@/lib/groups-access';
+import { maskPhoneText } from '@/lib/groups-mask';
 
 /**
  * Búsqueda global (⌘K) en las apps que no tienen una propia: pizarras,
@@ -13,7 +15,20 @@ import type { TeamRole } from '@/lib/teams';
 
 export interface AppSearchItem {
   id: string;
-  group: 'boards' | 'projects' | 'issues' | 'eventTypes' | 'bookings' | 'widgets' | 'flows' | 'agents' | 'robots' | 'groupsChats' | 'groupsTickets' | 'groupsMessages';
+  group:
+    | 'boards'
+    | 'projects'
+    | 'issues'
+    | 'eventTypes'
+    | 'bookings'
+    | 'widgets'
+    | 'flows'
+    | 'agents'
+    | 'robots'
+    | 'groupsChats'
+    | 'groupsTickets'
+    | 'groupsMessages'
+    | 'groupsRecurring';
   label: string;
   meta: string;
   href: string;
@@ -51,8 +66,14 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   const boardsVisible = boardVisibleSql(boardViewer(user));
 
   const waGroup = WA_GROUP[locale] ?? WA_GROUP.en;
+  // Groups: acceso por etiqueta y teléfonos ocultos, como la bandeja.
+  const gViewer = await groupsViewer(user.id, user.actingUser?.id ?? user.id, user.role ?? 'owner').catch(() => null);
+  const gAccess = chatAccessSql(gViewer, 'c');
+  const gWhere = gAccess ? ` AND ${gAccess.sql}` : '';
+  const gArgs = gAccess?.args ?? [];
+  const gMask = (r: Row): Row => (gViewer?.mask ? { ...r, label: maskPhoneText(r.label), meta: r.meta ? maskPhoneText(r.meta) : r.meta } : r);
   const ticketNumber = /^#?\d{1,7}$/.test(needle) ? Number(needle.replace('#', '')) : -1;
-  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages] = await Promise.all([
+  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring] = await Promise.all([
     all(
       `SELECT b.id, b.name AS label FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND b.name LIKE ? ESCAPE '\\' ORDER BY b.updated_at DESC LIMIT ?`,
       user.id,
@@ -93,10 +114,11 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     all(`SELECT id, name AS label FROM robots WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT ?`, user.id, like),
     // Groups: chats y grupos de WhatsApp por nombre o teléfono.
     all(
-      `SELECT id, CASE WHEN name != '' THEN name ELSE '+' || phone END AS label, CASE kind WHEN 'group' THEN ? ELSE '+' || phone END AS meta
-       FROM groups_chats WHERE user_id = ? AND (name LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\') ORDER BY last_message_at DESC LIMIT ?`,
+      `SELECT c.id, CASE WHEN c.name != '' THEN c.name ELSE '+' || c.phone END AS label, CASE c.kind WHEN 'group' THEN ? ELSE '+' || c.phone END AS meta
+       FROM groups_chats c WHERE c.user_id = ?${gWhere} AND (c.name LIKE ? ESCAPE '\\' OR c.phone LIKE ? ESCAPE '\\') ORDER BY c.last_message_at DESC LIMIT ?`,
       waGroup,
       user.id,
+      ...gArgs,
       like,
       like,
     ),
@@ -104,8 +126,9 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     all(
       `SELECT t.id, t.title AS label, '#' || t.number || CASE WHEN c.name != '' THEN ' · ' || c.name ELSE '' END AS meta
        FROM groups_tickets t LEFT JOIN groups_chats c ON c.id = t.chat_id
-       WHERE t.user_id = ? AND (t.title LIKE ? ESCAPE '\\' OR t.number = ?) ORDER BY t.created_at DESC LIMIT ?`,
+       WHERE t.user_id = ?${gAccess ? ` AND c.id IS NOT NULL${gWhere}` : ''} AND (t.title LIKE ? ESCAPE '\\' OR t.number = ?) ORDER BY t.created_at DESC LIMIT ?`,
       user.id,
+      ...gArgs,
       like,
       ticketNumber,
     ),
@@ -113,8 +136,17 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     all(
       `SELECT m.id, substr(m.body, 1, 120) AS label, m.chat_id || '|' || CASE WHEN c.name != '' THEN c.name ELSE '+' || c.phone END AS meta
        FROM groups_messages m JOIN groups_chats c ON c.id = m.chat_id
-       WHERE m.user_id = ? AND m.direction IN ('in', 'out', 'note') AND m.body LIKE ? ESCAPE '\\' ORDER BY m.created_at DESC LIMIT ?`,
+       WHERE m.user_id = ?${gWhere} AND m.direction IN ('in', 'out', 'note') AND m.body LIKE ? ESCAPE '\\' ORDER BY m.created_at DESC LIMIT ?`,
       user.id,
+      ...gArgs,
+      like,
+    ),
+    // Groups: mensajes recurrentes por nombre o texto.
+    all(
+      `SELECT id, CASE WHEN name != '' THEN name ELSE substr(body, 1, 80) END AS label, '' AS meta
+       FROM groups_recurring WHERE user_id = ? AND (name LIKE ? ESCAPE '\\' OR body LIKE ? ESCAPE '\\') ORDER BY created_at DESC LIMIT ?`,
+      user.id,
+      like,
       like,
     ),
   ]);
@@ -139,9 +171,10 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(flows, 'flows', (id) => `/app/flow/${id}`),
     ...map(agents, 'agents', (id) => `/app/agents/${id}`),
     ...map(robots, 'robots', (id) => `/app/robots/${id}`),
-    ...map(groupChats, 'groupsChats', (id) => `/app/groups/inbox/${id}`),
-    ...map(groupTickets, 'groupsTickets', (id) => `/app/groups/tickets?open=${id}`),
-    ...groupMessages.map((r) => {
+    ...map(groupChats.map(gMask), 'groupsChats', (id) => `/app/groups/inbox/${id}`),
+    ...map(groupTickets.map(gMask), 'groupsTickets', (id) => `/app/groups/tickets?open=${id}`),
+    ...map(groupRecurring, 'groupsRecurring', (id) => `/app/groups/broadcasts/recurring/${id}`),
+    ...groupMessages.map(gMask).map((r) => {
       const [chatId, ...rest] = String(r.meta ?? '').split('|');
       return { id: r.id, group: 'groupsMessages' as const, label: r.label, meta: rest.join('|'), href: `/app/groups/inbox/${chatId}#m-${r.id}` };
     }),

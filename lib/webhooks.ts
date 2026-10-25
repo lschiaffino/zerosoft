@@ -223,18 +223,101 @@ export async function emitWebhook(userId: string, event: WebhookEvent, data: unk
   }
 }
 
-/** Reintentos vencidos (lo llama el cron). */
+/**
+ * Reintentos vencidos (lo llaman el cron de cada minuto y el de cada hora).
+ * Cada entrega se reclama 2 minutos (locked_until, compare-and-set): dos
+ * corridas a la vez no la mandan dos veces.
+ */
 export async function retryDueWebhooks(limit = 50): Promise<number> {
-  const due = (await getDb()
+  const db = getDb();
+  const now = new Date().toISOString();
+  const due = (await db
     .prepare(
       `SELECT id FROM webhook_deliveries
        WHERE status = 'pending'
          AND ((attempts > 0 AND next_attempt_at <= ?) OR (attempts = 0 AND created_at <= datetime('now', '-2 minutes')))
+         AND (locked_until IS NULL OR locked_until < ?)
        ORDER BY created_at LIMIT ?`,
     )
-    .all(new Date().toISOString(), limit)) as Array<{ id: string }>;
-  for (const d of due) await attempt(d.id).catch(() => {});
-  return due.length;
+    .all(now, now, limit)) as Array<{ id: string }>;
+  let n = 0;
+  for (const d of due) {
+    const lock = new Date(Date.now() + 120_000).toISOString();
+    const claim = await db
+      .prepare("UPDATE webhook_deliveries SET locked_until = ? WHERE id = ? AND status = 'pending' AND (locked_until IS NULL OR locked_until < ?)")
+      .run(lock, d.id, new Date().toISOString());
+    if (claim.changes === 0) continue;
+    n++;
+    await attempt(d.id).catch(() => {});
+    await db.prepare('UPDATE webhook_deliveries SET locked_until = NULL WHERE id = ? AND locked_until = ?').run(d.id, lock);
+  }
+  return n;
+}
+
+export interface DeliveryDto {
+  id: string;
+  webhookId: string;
+  event: string;
+  status: string;
+  attempts: number;
+  responseCode: number | null;
+  lastError: string | null;
+  nextAttemptAt: string | null;
+  createdAt: string;
+  deliveredAt: string | null;
+  payload: string;
+}
+
+/** Últimas entregas de un webhook del workspace (log con el payload). */
+export async function listDeliveries(userId: string, webhookId: string, limit = 50): Promise<DeliveryDto[]> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT d.* FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhook_id
+       WHERE d.webhook_id = ? AND w.user_id = ? ORDER BY d.created_at DESC, d.rowid DESC LIMIT ?`,
+    )
+    .all(webhookId, userId, Math.min(200, Math.max(1, limit)))) as Array<{
+    id: string;
+    webhook_id: string;
+    event: string;
+    status: string;
+    attempts: number;
+    response_code: number | null;
+    last_error: string | null;
+    next_attempt_at: string | null;
+    created_at: string;
+    delivered_at: string | null;
+    payload: string;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    webhookId: r.webhook_id,
+    event: r.event,
+    status: r.status,
+    attempts: r.attempts,
+    responseCode: r.response_code,
+    lastError: r.last_error,
+    nextAttemptAt: r.next_attempt_at,
+    createdAt: r.created_at,
+    deliveredAt: r.delivered_at,
+    payload: r.payload.slice(0, 20_000),
+  }));
+}
+
+/** Reenvía una entrega (mismo payload, entrega nueva) y la intenta en el momento. */
+export async function redeliverWebhook(userId: string, deliveryId: string): Promise<DeliveryDto | null> {
+  const db = getDb();
+  const row = (await db
+    .prepare('SELECT d.webhook_id, d.event, d.payload FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhook_id WHERE d.id = ? AND w.user_id = ?')
+    .get(deliveryId, userId)) as { webhook_id: string; event: string; payload: string } | undefined;
+  if (!row) return null;
+  const id = crypto.randomUUID();
+  await db.prepare('INSERT INTO webhook_deliveries (id, webhook_id, event, payload) VALUES (?, ?, ?, ?)').run(id, row.webhook_id, row.event, row.payload);
+  await attempt(id).catch(() => {});
+  return (await listDeliveries(userId, row.webhook_id, 200)).find((d) => d.id === id) ?? null;
+}
+
+export async function setWebhookActive(userId: string, id: string, active: boolean): Promise<boolean> {
+  return (await getDb().prepare('UPDATE webhooks SET active = ? WHERE id = ? AND user_id = ?').run(active ? 1 : 0, id, userId)).changes > 0;
 }
 
 /** Entrega de prueba para el botón "Enviar prueba" del panel. */
