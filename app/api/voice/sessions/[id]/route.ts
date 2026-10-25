@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { deleteSession, getSessionDetail, getSessionRow, saveMyNotes, updateSession } from '@/lib/voice';
+import { closeRecording, deleteSession, getSessionDetail, getSessionRow, saveEnhanced, saveMyNotes, updateSession } from '@/lib/voice';
+import { queueNoteAfterResponse } from '@/lib/voice-jobs';
+import { renameSpeakersInNote } from '@/lib/voice-speakers';
 import { voiceAuth } from '@/lib/voice-route';
 import { voiceErrorResponse, voiceJsonError } from '@/lib/voice-http';
 import { canSeeEntity, sessionScope } from '@/lib/crm-visibility';
@@ -31,6 +33,8 @@ const patchSchema = z.object({
   contactId: z.string().max(64).nullable().optional(),
   calBookingId: z.null().optional(),
   speakers: z.record(z.string().max(40), z.string().max(80)).optional(),
+  /** Con status "done": armar la nota con IA en segundo plano (default sí). */
+  queueNotes: z.boolean().optional(),
 });
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
@@ -52,9 +56,15 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       if (row.kind !== 'meeting') return voiceJsonError(400, 'invalid_input');
       await saveMyNotes(id, p.myNotes);
     }
+    if (p.speakers) {
+      // Renombrar a quien habla también cambia la nota con IA ya armada.
+      const before = await getSessionDetail(auth.owner, id);
+      const renamed = renameSpeakersInNote(before?.enhanced ?? null, before?.speakers ?? {}, p.speakers, row.locale);
+      if (renamed) await saveEnhanced(id, renamed);
+    }
     await updateSession(auth.owner, id, {
       title: p.title,
-      status: p.status,
+      status: p.status === 'recording' ? 'recording' : undefined,
       text: row.kind === 'dictation' ? p.text : undefined,
       templateKey: p.templateKey,
       contactId: p.contactId,
@@ -66,6 +76,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (p.capture) {
       const { getDb } = await import('@/lib/db');
       await getDb().prepare('UPDATE voice_sessions SET capture = ? WHERE id = ?').run(p.capture, id);
+    }
+    if (p.status === 'done') {
+      // Cortar la grabación cierra la sesión y deja la nota con IA en cola (se arma después de responder).
+      const res = await closeRecording(id, { queueNotes: p.queueNotes !== false });
+      if (res.queued) await queueNoteAfterResponse(id);
     }
     const detail = await getSessionDetail(auth.owner, id);
     return NextResponse.json({ ...detail, contact: await contactLabel(auth.owner.workspaceId, detail?.contactId ?? null) });

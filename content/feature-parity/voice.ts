@@ -60,12 +60,12 @@ const parity: ProductParity = {
         "Toque duplo no atalho, ou clique no botão do campo, e o Voice ouve até o próximo toque",
       ],
     }),
-    row('languages', 'dictation', ['More than 100 languages', 'Más de 100 idiomas', 'Mais de 100 idiomas'], 'have', {
+    row('languages', 'dictation', ['More than 100 languages', 'Más de 100 idiomas', 'Mais de 100 idiomas'], 'partial', {
       weight: 2,
       detail: [
-        "Any language the configured provider supports (Whisper, Deepgram or AssemblyAI), detected or fixed in settings",
-        "Los idiomas del proveedor configurado (Whisper, Deepgram o AssemblyAI), detectados solos o fijados en ajustes",
-        "Os idiomas do provedor configurado (Whisper, Deepgram ou AssemblyAI), detectados sozinhos ou fixados nos ajustes",
+        "16 languages to pick in settings, plus automatic detection with whatever the configured provider supports (Whisper, Deepgram or AssemblyAI)",
+        "16 idiomas para elegir en ajustes, más la detección automática con lo que soporte el proveedor configurado (Whisper, Deepgram o AssemblyAI)",
+        "16 idiomas para escolher nos ajustes, mais a detecção automática com o que o provedor configurado suportar (Whisper, Deepgram ou AssemblyAI)",
       ],
     }),
     row('whisper-mode', 'dictation', ['Whisper mode', 'Modo susurro', 'Modo sussurro'], 'missing', {
@@ -73,9 +73,9 @@ const parity: ProductParity = {
     }),
     row('paste-last', 'dictation', ['Paste or copy the last dictation', 'Pegar o copiar el último dictado', 'Colar ou copiar o último ditado'], 'have', {
       detail: [
-        "Every dictation stays in the history to copy again, and Ctrl+Cmd+V (Mac) or Ctrl+Alt+Shift+V pastes the last one into the focused field",
-        "Cada dictado queda en el historial para copiarlo de nuevo, y Ctrl+Cmd+V (Mac) o Ctrl+Alt+Shift+V pega el último en el campo enfocado",
-        "Cada ditado fica no histórico para copiar de novo, e Ctrl+Cmd+V (Mac) ou Ctrl+Alt+Shift+V cola o último no campo em foco",
+        "Ctrl+Cmd+V (Mac) or Ctrl+Alt+Shift+V pastes the last dictation from the server history, also the ones made in the desktop app; every dictation can be copied again from the history",
+        "Ctrl+Cmd+V (Mac) o Ctrl+Alt+Shift+V pega el último dictado del historial del servidor, también los de la app de escritorio; cada dictado se puede volver a copiar desde el historial",
+        "Ctrl+Cmd+V (Mac) ou Ctrl+Alt+Shift+V cola o último ditado do histórico do servidor, também os do app desktop; cada ditado pode ser copiado de novo pelo histórico",
       ],
     }),
 
@@ -88,11 +88,11 @@ const parity: ProductParity = {
         "Limpeza com IA de vícios, pontuação e maiúsculas, com limpeza por regras se a IA estiver desligada",
       ],
     }),
-    row('backtrack', 'cleanup', ['Apply spoken self-corrections', 'Aplicar las autocorrecciones dichas', 'Aplicar as autocorreções faladas'], 'have', {
+    row('backtrack', 'cleanup', ['Apply spoken self-corrections', 'Aplicar las autocorrecciones dichas', 'Aplicar as autocorreções faladas'], 'partial', {
       detail: [
-        'Wispr Flow Backtrack: "Monday, scratch that, Tuesday" becomes "Tuesday"',
-        'Backtrack de Wispr Flow: "el lunes, no, mejor el martes" queda "el martes"',
-        'Backtrack do Wispr Flow: "segunda, não, melhor terça" vira "terça"',
+        "Spoken corrections (\"Monday, no, I mean Tuesday\", \"scratch that\") are applied by the AI prompt and by a rules fallback; the rules cover clear cases only and the AI behaviour has not been measured against real recordings yet",
+        "Las correcciones dichas (\"el lunes, no, quise decir el martes\", \"borrá eso\") las aplica la IA y una limpieza por reglas de respaldo; las reglas cubren solo los casos claros y todavía no medimos la IA con grabaciones reales",
+        "As correções faladas (\"segunda, não, quis dizer terça\", \"apaga isso\") são aplicadas pela IA e por uma limpeza por regras de reserva; as regras cobrem só os casos claros e ainda não medimos a IA com gravações reais",
       ],
     }),
     row('lists-punctuation', 'cleanup', ['Spoken lists and punctuation', 'Listas y puntuación dictadas', 'Listas e pontuação ditadas'], 'have', {
@@ -163,11 +163,11 @@ const parity: ProductParity = {
         'Teclado do Wispr Flow no iPhone e Android; apps do Granola para iOS, Android e Apple Watch',
       ],
     }),
-    row('device-sync', 'apps', ['Sync across devices', 'Sincronizar entre dispositivos', 'Sincronizar entre dispositivos'], 'partial', {
+    row('device-sync', 'apps', ['Sync across devices', 'Sincronizar entre dispositivos', 'Sincronizar entre dispositivos'], 'have', {
       detail: [
-        "Dictionary, styles and history live on the server, so every browser sees them; the desktop app does not sync them yet",
-        "El diccionario, los estilos y el historial viven en el servidor y se ven en cualquier navegador; la app de escritorio todavía no los sincroniza",
-        "O dicionário, os estilos e o histórico ficam no servidor e aparecem em qualquer navegador; o app desktop ainda não sincroniza",
+        "Dictionary, styles and history live on the server: every browser and the desktop app (its dictations are cleaned up there) use the same ones. The shortcut is per device",
+        "El diccionario, los estilos y el historial viven en el servidor: cualquier navegador y la app de escritorio (sus dictados se limpian ahí) usan los mismos. El atajo es por dispositivo",
+        "O dicionário, os estilos e o histórico ficam no servidor: qualquer navegador e o app desktop (os ditados dele são limpos lá) usam os mesmos. O atalho é por dispositivo",
       ],
     }),
     row('usage-stats', 'apps', ['Usage stats', 'Estadísticas de uso', 'Estatísticas de uso'], 'partial', {
@@ -190,9 +190,9 @@ const parity: ProductParity = {
     row('live-transcript', 'capture', ['Live transcript', 'Transcripción en vivo', 'Transcrição ao vivo'], 'have', {
       weight: 2,
       detail: [
-        "Searchable transcript split into Me (mic) and Them (tab), updated about every 20 seconds",
-        "Transcripción con búsqueda separada en Yo (micrófono) y Ellos (pestaña), que se actualiza cada unos 20 segundos",
-        "Transcrição com busca separada em Eu (microfone) e Eles (aba), atualizada a cada 20 segundos mais ou menos",
+        "Searchable transcript split into Me (mic) and Them (tab), arriving in parts of about 20 seconds",
+        "Transcripción con búsqueda separada en Yo (micrófono) y Ellos (pestaña), que llega en partes de unos 20 segundos",
+        "Transcrição com busca separada em Eu (microfone) e Eles (aba), que chega em partes de uns 20 segundos",
       ],
     }),
     row('calendar-sync', 'capture', ['Calendar sync and meeting reminders', 'Calendario y aviso al empezar la reunión', 'Calendário e aviso no início da reunião'], 'partial', {

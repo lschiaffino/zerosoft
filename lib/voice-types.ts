@@ -123,6 +123,8 @@ export interface VoiceEnhanced {
   sections: Array<{ heading: string; points: VoiceEnhancedPoint[] }>;
   decisions: string[];
   actionItems: Array<{ text: string; owner: string; due: string }>;
+  /** Lo que ya se creó con los próximos pasos (para no crearlo dos veces). */
+  sent?: { track?: Array<{ id: string; label: string }>; crm?: Array<{ id: string; label: string }> };
 }
 
 export interface VoiceChatMessage {
@@ -139,6 +141,8 @@ export interface VoiceSessionDetail extends VoiceSessionSummary {
   docsPageId: string | null;
   noteId: string | null;
   error: string;
+  /** Nota con IA en cola o armándose después de cortar la grabación. */
+  notesStatus: '' | 'queued' | 'running' | 'done' | 'error';
   segments: VoiceSegment[];
   myNotes: string;
   enhanced: VoiceEnhanced | null;

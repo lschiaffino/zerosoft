@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { voiceApiAuth, v1Error } from '@/lib/voice-v1';
-import { getSessionDetail, updateSession } from '@/lib/voice';
+import { closeRecording, getSessionDetail, updateSession } from '@/lib/voice';
+import { queueNoteAfterResponse } from '@/lib/voice-jobs';
 import { VOICE_TITLE_MAX } from '@/lib/voice-types';
 
 export const runtime = 'nodejs';
@@ -31,7 +32,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (auth.res) return auth.res;
   const parsed = schema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return v1Error(400, 'invalid_input');
-  const row = await updateSession(auth.owner, id, parsed.data);
+  const row = await updateSession(auth.owner, id, { title: parsed.data.title, status: parsed.data.status === 'recording' ? 'recording' : undefined });
   if (!row) return v1Error(404, 'not_found');
+  if (parsed.data.status === 'done') {
+    // Igual que en la app: se cierra la grabación y la nota con IA queda en cola.
+    const res = await closeRecording(id, { queueNotes: true });
+    if (res.queued) await queueNoteAfterResponse(id);
+    row.status = 'done';
+  }
   return NextResponse.json({ data: { id: row.id, title: row.title, status: row.status, durationMs: row.duration_ms } });
 }

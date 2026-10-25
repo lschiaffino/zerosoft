@@ -1123,7 +1123,7 @@
       },
       "f3": {
         "t": "Notas de reunião sem bot",
-        "d": "Grave seu microfone, ou o microfone e a aba com Meet, Zoom ou Teams. Nenhum participante extra entra na chamada e o áudio é descartado depois da transcrição."
+        "d": "Grave seu microfone, ou o microfone e a aba com Meet, Zoom ou Teams. Nenhum participante extra entra na chamada e o áudio é descartado depois de transcrito."
       },
       "f4": {
         "t": "Transcrição, resumo e tarefas",
@@ -1144,7 +1144,7 @@
         },
         "s2": {
           "t": "Grave a reunião",
-          "d": "O Voice ouve seu microfone e a aba da chamada, e transcreve com quem fala enquanto vocês conversam."
+          "d": "O Voice ouve seu microfone e a aba da chamada e transcreve enquanto vocês falam, separado em Eu e Eles. Com Deepgram ou AssemblyAI também distingue cada participante."
         },
         "s3": {
           "t": "Use a nota",
@@ -1162,7 +1162,7 @@
       "faq": {
         "f1": {
           "q": "Já posso usar o Voice?",
-          "a": "Sim, na web: ditado em todos os campos do zerosoft e notas de reunião em /app/voice. Precisa de um provedor de transcrição configurado no servidor; na zerosoft Cloud ele já vem pronto."
+          "a": "Sim, na web: ditado em todos os campos do zerosoft e notas de reunião em /app/voice. O workspace precisa de um provedor de transcrição configurado (o AI Gateway, OpenAI, Deepgram ou AssemblyAI)."
         },
         "f2": {
           "q": "Tem app desktop?",
@@ -1170,7 +1170,7 @@
         },
         "f3": {
           "q": "Onde o áudio é processado?",
-          "a": "No provedor de transcrição do seu workspace. O áudio é transcrito em partes de 20 segundos e depois descartado. Se você hospeda o zerosoft, escolhe o provedor e a chave."
+          "a": "No provedor de transcrição do seu workspace. Uma gravação ao vivo vai em partes de 20 segundos que são transcritas e descartadas; um arquivo importado é apagado do armazenamento ao ser transcrito, ou depois de 24 horas se nunca foi processado. Se você hospeda o zerosoft, escolhe o provedor e a chave."
         },
         "f4": {
           "q": "Coloca um bot nas minhas reuniões?",

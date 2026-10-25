@@ -198,14 +198,23 @@ export async function assertAiAvailable(workspaceId: string): Promise<void> {
  * necesitan Gateway pero sí tienen que medir y limitar igual.
  */
 export async function assertAiQuota(workspaceId: string): Promise<void> {
+  await assertAiMonthlyQuota(workspaceId);
+  if (process.env.RATE_LIMIT_DISABLED !== 'true') {
+    const res = await rateLimit(`ai:${workspaceId}`, aiRateLimitPerMinute(), 60);
+    if (!res.ok) throw new AiError('rate_limited');
+  }
+}
+
+/**
+ * Solo la cuota del mes (sin rate limit). La usa la transcripción de Voice,
+ * que tiene su propio rate limit por workspace (los trozos de una reunión no
+ * compiten con el chat ni con las notas).
+ */
+export async function assertAiMonthlyQuota(workspaceId: string): Promise<void> {
   const free = aiFreeTokensPerMonth();
   if (free !== null) {
     const usage = await getAiUsage(workspaceId);
     if (usage.totalTokens >= free) throw new AiError('quota_exceeded');
-  }
-  if (process.env.RATE_LIMIT_DISABLED !== 'true') {
-    const res = await rateLimit(`ai:${workspaceId}`, aiRateLimitPerMinute(), 60);
-    if (!res.ok) throw new AiError('rate_limited');
   }
 }
 

@@ -1,11 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
-interface Config {
+/** Lo que devuelve la app: la API key queda en el llavero del sistema y no llega acá. */
+interface PublicConfig {
   server: string;
-  api_key: string;
   shortcut: string;
   context: string;
+  has_key: boolean;
 }
 
 interface Status {
@@ -25,12 +26,15 @@ function render(s: Status) {
 }
 
 async function init() {
-  const cfg = await invoke<Config>('get_config');
+  const cfg = await invoke<PublicConfig>('get_config');
   const form = $<HTMLFormElement>('config');
-  for (const [k, v] of Object.entries(cfg)) {
+  for (const k of ['server', 'shortcut', 'context'] as const) {
     const el = form.elements.namedItem(k) as HTMLInputElement | HTMLSelectElement | null;
-    if (el) el.value = v;
+    if (el) el.value = cfg[k];
   }
+  const keyInput = form.elements.namedItem('api_key') as HTMLInputElement;
+  keyInput.required = !cfg.has_key;
+  if (cfg.has_key) keyInput.placeholder = 'Saved in the system keychain (leave empty to keep it)';
   $('shortcut-label').textContent = cfg.shortcut;
   render(await invoke<Status>('get_status'));
   await listen<Status>('voice://status', (e) => render(e.payload));
@@ -38,15 +42,18 @@ async function init() {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const data = new FormData(form);
-    const next: Config = {
+    const next = {
       server: String(data.get('server') ?? '').trim(),
-      api_key: String(data.get('api_key') ?? '').trim(),
+      api_key: String(data.get('api_key') ?? '').trim() || null,
       shortcut: String(data.get('shortcut') ?? '').trim(),
       context: String(data.get('context') ?? 'other'),
     };
     $('config-error').textContent = '';
     try {
-      await invoke('save_config', { config: next });
+      await invoke('save_config', { input: next });
+      keyInput.value = '';
+      keyInput.required = false;
+      keyInput.placeholder = 'Saved in the system keychain (leave empty to keep it)';
       $('shortcut-label').textContent = next.shortcut;
       $('status').textContent = 'Connected';
     } catch (err) {

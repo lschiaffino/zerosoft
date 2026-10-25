@@ -19,6 +19,8 @@ App de escritorio de Voice para macOS y Windows:
 ## Estado
 
 - **No está compilada ni probada en esta tanda**: la máquina donde se escribió no tiene Rust.
+  `package-lock.json` está versionado; `Cargo.lock` todavía no (hace falta correr
+  `cargo generate-lockfile` en `src-tauri/` con Rust instalado y commitearlo).
   La API que usa (`/api/v1/voice/*`) sí está probada con tests. El archivo más propenso a
   ajustes es `system_audio/macos.rs`, que sigue la API del crate `screencapturekit` 0.3.
 - **No hay instaladores firmados.** Firmar y publicar necesita cuentas del dueño:
@@ -55,8 +57,10 @@ npm run tauri build    # instaladores en src-tauri/target/release/bundle/
 3. macOS pide permisos la primera vez: Micrófono, Grabación de pantalla y audio (para el audio
    del sistema) y Accesibilidad (para pegar).
 
-La configuración queda en el directorio de configuración de la app (`config.json`); la key no
-sale de la compu salvo para llamar a la API.
+El servidor, el atajo y el contexto quedan en `config.json` (directorio de configuración de la
+app). La API key va al llavero del sistema (Keychain en macOS, Credential Manager en Windows,
+Secret Service en Linux) con el crate `keyring`, nunca vuelve a la ventana (`get_config` solo
+dice si hay una guardada) y solo viaja a servidores `https://` (http solo para localhost).
 
 ## API que usa
 

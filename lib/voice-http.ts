@@ -38,7 +38,12 @@ export function voiceJsonError(status: number, code: string): NextResponse {
 
 /** Error conocido → respuesta con código; el resto, 500 sin detalles. */
 export function voiceErrorResponse(err: unknown): NextResponse {
-  if (err instanceof AiError) return voiceJsonError(err.code === 'ai_disabled' ? 503 : 429, err.code);
+  if (err instanceof AiError) {
+    const res = voiceJsonError(err.code === 'ai_disabled' ? 503 : 429, err.code);
+    // El grabador reintenta el trozo cuando pasa la ventana del rate limit.
+    if (err.code === 'rate_limited') res.headers.set('retry-after', '20');
+    return res;
+  }
   if (err instanceof VoiceTranscribeError) {
     const status = err.code === 'transcribe_disabled' ? 503 : err.code === 'audio_too_large' ? 413 : err.code === 'audio_type' || err.code === 'empty_audio' ? 400 : 502;
     return voiceJsonError(status, err.code);

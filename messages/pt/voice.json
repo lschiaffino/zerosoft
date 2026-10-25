@@ -158,7 +158,7 @@
     "copyFailed": "O navegador não deixou copiar.",
     "sendDocs": "Enviar para Docs",
     "sendNotes": "Enviar para Notes",
-    "sentDocs": "Foi criada uma página do Docs com a nota e a transcrição.",
+    "sentDocs": "Foi criada uma página do Docs com a nota.",
     "sentNotes": "Foi criada uma nota no Notes.",
     "open": "Abrir",
     "delete": "Apagar",
@@ -180,7 +180,7 @@
     "transcribingN": "{count, plural, one {Transcrevendo # parte…} other {Transcrevendo # partes…}}",
     "tabEnded": "A aba parou de ser compartilhada. Só o microfone está sendo gravado.",
     "tabHelp": "Quando o navegador perguntar, escolha a aba da reunião e ative \"Compartilhar áudio da guia\".",
-    "consent": "Avise a todos que você está transcrevendo a reunião. O áudio é transcrito e descartado.",
+    "consent": "Avise a todos que você está transcrevendo a reunião. O áudio é transcrito e descartado. Você pode trocar de página: a gravação continua.",
     "myNotes": "Minhas notas",
     "aiNotes": "Nota da reunião",
     "viewLabel": "Qual nota ver",
@@ -199,7 +199,15 @@
       "transcript": "Transcrição",
       "chat": "Perguntar",
       "details": "Vínculos"
-    }
+    },
+    "recordingElsewhere": "Outra reunião está sendo gravada.",
+    "openOther": "Abrir",
+    "notesQueued": "Montando a nota com IA. Você pode sair desta página: ela fica salva na reunião.",
+    "lagging": "{count, plural, one {A transcrição está atrasada: # parte na fila, nada se perde.} other {A transcrição está atrasada: # partes na fila, nada se perde.}}",
+    "docsConfirmTitle": "Enviar a nota para o Docs?",
+    "docsConfirmBody": "O Docs ainda não tem um espaço privado: todo o workspace vai ver esta página.",
+    "docsIncludeTranscript": "Incluir a transcrição completa",
+    "docsConfirm": "Criar a página"
   },
   "templates": {
     "builtin": {
@@ -352,7 +360,7 @@
       "whatDesc": "Usa a mesma API desta página, com sua chave.",
       "what1": "Atalho global: dita e cola o texto no app ativo.",
       "what2": "Reuniões com o áudio do sistema: ScreenCaptureKit no macOS e WASAPI loopback no Windows, mais o microfone.",
-      "what3": "Seu dicionário e seu estilo sincronizam daqui.",
+      "what3": "Seu dicionário e seus estilos valem lá também, porque a limpeza roda no servidor, e os ditados de lá caem no seu histórico daqui.",
       "provider": "Transcrição neste servidor: {provider}."
     }
   },
@@ -360,6 +368,12 @@
     "newMeeting": "Nova nota de reunião",
     "dictate": "Ditar no campo em foco",
     "dictation": "Histórico de ditados"
+  },
+  "recorder": {
+    "openMeeting": "Abrir a reunião que está sendo gravada",
+    "recordingLabel": "Gravando uma reunião",
+    "stop": "Encerrar",
+    "stopping": "Salvando…"
   },
   "export": {
     "me": "Eu",

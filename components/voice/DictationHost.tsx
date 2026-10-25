@@ -29,8 +29,47 @@ function isPasteLast(e: KeyboardEvent): boolean {
  * cancela. Ctrl+Cmd+V (Mac) o Ctrl+Alt+Shift+V pega el último dictado. Con un
  * campo enfocado aparece un botón chico de dictar (se apaga en Voice › Ajustes).
  */
+interface PendingTap {
+  char: string;
+  target: HTMLElement | null;
+  /** Inputs y textareas: dónde estaba el cursor al tocar. */
+  pos?: number;
+  /** Contenteditable: el rango del cursor al tocar. */
+  range?: Range;
+}
+
+function captureTap(char: string, target: HTMLElement | null): PendingTap {
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return { char, target, pos: target.selectionStart ?? target.value.length };
+  const sel = window.getSelection();
+  return { char, target, range: sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : undefined };
+}
+
+/** Escribe el carácter del toque corto en su posición original, sin mover el cursor de quien sigue escribiendo. */
+function insertTapChar(tap: PendingTap) {
+  const el = tap.target;
+  if (!tap.char || !el?.isConnected) return;
+  if ((el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) && tap.pos !== undefined) {
+    const pos = Math.min(tap.pos, el.value.length);
+    const caret = el.selectionStart ?? el.value.length;
+    const proto = el instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(el, el.value.slice(0, pos) + tap.char + el.value.slice(pos));
+    const next = caret >= pos ? caret + 1 : caret;
+    if (document.activeElement === el) el.setSelectionRange(next, next);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
+  if (tap.range) {
+    try {
+      tap.range.insertNode(document.createTextNode(tap.char));
+      el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: tap.char }));
+    } catch {
+      /* el nodo ya no existe */
+    }
+  }
+}
+
 const BAR = 24;
-const GAP = 4;
+const GAP = 8;
 const INTERACTIVE = 'button, a[href], input, textarea, select, [role="button"], [role="tab"], [contenteditable="true"], [contenteditable=""]';
 
 /**
@@ -59,11 +98,17 @@ function useBarPosition(field: HTMLElement | null, barRef: RefObject<HTMLButtonE
       ];
       const free = (c: { top: number; left: number }) => {
         if (c.top < 4 || c.left < 4 || c.top + BAR > vh - 4 || c.left + BAR > vw - 4) return false;
+        // Con un margen alrededor: tampoco se apoya sobre el borde de otro campo o botón.
+        const m = 4;
         const points = [
-          [c.left + 2, c.top + 2],
-          [c.left + BAR - 2, c.top + 2],
-          [c.left + 2, c.top + BAR - 2],
-          [c.left + BAR - 2, c.top + BAR - 2],
+          [c.left - m, c.top - m],
+          [c.left + BAR + m, c.top - m],
+          [c.left - m, c.top + BAR + m],
+          [c.left + BAR + m, c.top + BAR + m],
+          [c.left + BAR / 2, c.top - m],
+          [c.left + BAR / 2, c.top + BAR + m],
+          [c.left - m, c.top + BAR / 2],
+          [c.left + BAR + m, c.top + BAR / 2],
           [c.left + BAR / 2, c.top + BAR / 2],
         ];
         for (const [x, y] of points) {
@@ -105,10 +150,10 @@ export default function DictationHost() {
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Primer toque corto pendiente: el carácter que hay que dejar pasar si no llega un segundo toque. */
-  const pendingTapRef = useRef<{ char: string; target: HTMLElement | null } | null>(null);
+  const pendingTapRef = useRef<PendingTap | null>(null);
   const startedHoldRef = useRef(false);
   const barRef = useRef<HTMLButtonElement>(null);
-  const lastKeyRef = useRef<{ char: string; target: HTMLElement | null } | null>(null);
+  const lastKeyRef = useRef<PendingTap | null>(null);
   const handsFreeRef = useRef(false);
   const lastTextRef = useRef('');
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -197,10 +242,16 @@ export default function DictationHost() {
       }
       if (isPasteLast(e)) {
         const target = editableTarget(document.activeElement);
-        if (lastTextRef.current && target) {
-          e.preventDefault();
-          insertIntoField(target, lastTextRef.current);
-        }
+        if (!target) return;
+        e.preventDefault();
+        // El último dictado sale del historial del servidor (también los de la app de escritorio).
+        void fetch('/api/voice/sessions?kind=dictation&limit=1')
+          .then((r) => (r.ok ? (r.json() as Promise<{ sessions: Array<{ text: string }> }>) : null))
+          .then((data) => {
+            const text = data?.sessions[0]?.text || lastTextRef.current;
+            if (text) insertIntoField(target, text);
+          })
+          .catch(() => lastTextRef.current && insertIntoField(target, lastTextRef.current));
         return;
       }
       if (!matches(e)) return;
@@ -217,6 +268,7 @@ export default function DictationHost() {
       startedHoldRef.current = false;
       const char = e.key.length === 1 && !e.ctrlKey && !e.metaKey ? e.key : '';
       const target = editableTarget(document.activeElement);
+      const tapInfo = captureTap(char, target);
       clearHold();
       holdTimerRef.current = setTimeout(() => {
         holdTimerRef.current = null;
@@ -227,7 +279,7 @@ export default function DictationHost() {
         void begin({ handsFree: false });
       }, HOLD_MS);
       // Para el keyup: el carácter de este toque.
-      lastKeyRef.current = { char, target };
+      lastKeyRef.current = tapInfo;
     };
 
     const onUp = (e: KeyboardEvent) => {
@@ -257,11 +309,9 @@ export default function DictationHost() {
       tapTimerRef.current = setTimeout(() => {
         const pending = pendingTapRef.current;
         pendingTapRef.current = null;
-        // No hubo segundo toque: se escribe el carácter original (p. ej. el espacio duro de Option+Space).
-        if (pending?.char && pending.target?.isConnected) {
-          pending.target.focus();
-          document.execCommand('insertText', false, pending.char);
-        }
+        // No hubo segundo toque: se escribe el carácter original (p. ej. el espacio duro de
+        // Option+Space) donde estaba el cursor al tocar, aunque se haya seguido escribiendo.
+        if (pending) insertTapChar(pending);
       }, DOUBLE_TAP_MS);
     };
 

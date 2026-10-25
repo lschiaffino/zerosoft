@@ -16,7 +16,8 @@
  * transcripción.
  */
 import { experimental_transcribe as transcribe, gateway } from 'ai';
-import { aiEnabled, AiError, assertAiQuota, recordAiUsage } from './ai';
+import { aiEnabled, AiError, assertAiMonthlyQuota, recordAiUsage } from './ai';
+import { rateLimit } from './rate-limit';
 
 export type TranscribeProvider = 'gateway' | 'openai' | 'deepgram' | 'assemblyai' | 'fake';
 
@@ -43,6 +44,12 @@ export class VoiceTranscribeError extends Error {
     super(code);
     this.name = 'VoiceTranscribeError';
   }
+}
+
+/** Trozos por minuto y workspace (VOICE_TRANSCRIBE_RATE_PER_MINUTE, default 120). */
+export function transcribeRatePerMinute(): number {
+  const n = Number(process.env.VOICE_TRANSCRIBE_RATE_PER_MINUTE);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 120;
 }
 
 /** Tokens equivalentes por segundo de audio (cuota y ai_usage). */
@@ -280,7 +287,13 @@ export async function transcribeAudio(input: TranscribeInput): Promise<Transcrip
   if (!transcriptionConfigured(provider)) {
     throw provider === 'gateway' ? new AiError('ai_disabled') : new VoiceTranscribeError('transcribe_disabled');
   }
-  await assertAiQuota(input.workspaceId);
+  await assertAiMonthlyQuota(input.workspaceId);
+  // Rate limit propio de la transcripción (más alto que el del chat): una reunión
+  // con dos pistas manda unos 6 trozos por minuto por persona.
+  if (process.env.RATE_LIMIT_DISABLED !== 'true') {
+    const res = await rateLimit(`ai:transcribe:${input.workspaceId}`, transcribeRatePerMinute(), 60);
+    if (!res.ok) throw new AiError('rate_limited');
+  }
   const model = transcribeModel(provider);
   let result: Omit<TranscriptResult, 'provider'>;
   try {

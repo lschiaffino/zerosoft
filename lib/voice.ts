@@ -85,6 +85,9 @@ export interface VoiceSessionRow {
   docs_page_id: string | null;
   note_id: string | null;
   error: string;
+  locale: string;
+  notes_status: '' | 'queued' | 'running' | 'done' | 'error';
+  last_chunk_at: string | null;
   started_at: string;
   ended_at: string | null;
   created_at: string;
@@ -154,6 +157,14 @@ export async function saveVoiceSettings(owner: VoiceOwner, patch: Partial<VoiceS
 
 // ---------- Sesiones ----------
 
+/**
+ * Reunión vacía que nadie tocó (se creó y se salió sin grabar ni escribir): no
+ * se lista y el cron la borra al día (lib/voice-jobs.ts).
+ */
+export const UNTOUCHED_SQL = `s.kind = 'meeting' AND s.title = '' AND s.status != 'recording'
+  AND NOT EXISTS (SELECT 1 FROM voice_segments g WHERE g.session_id = s.id)
+  AND NOT EXISTS (SELECT 1 FROM voice_notes n WHERE n.session_id = s.id AND (n.my_notes != '' OR n.enhanced IS NOT NULL))`;
+
 export interface ListSessionsOptions {
   kind?: 'dictation' | 'meeting';
   q?: string | null;
@@ -163,7 +174,7 @@ export interface ListSessionsOptions {
 
 /** Lista propia, más nueva primero. Con `q`, busca en título, texto, notas y transcripción. */
 export async function listSessions(owner: VoiceOwner, opts: ListSessionsOptions = {}): Promise<VoiceSessionSummary[]> {
-  const where = ['s.workspace_id = ?', 's.person_id = ?'];
+  const where = ['s.workspace_id = ?', 's.person_id = ?', `NOT (${UNTOUCHED_SQL})`];
   const args: Array<string | number> = [owner.workspaceId, owner.personId];
   if (opts.kind) {
     where.push('s.kind = ?');
@@ -233,6 +244,7 @@ export async function getSessionDetail(owner: VoiceOwner, id: string): Promise<V
     docsPageId: row.docs_page_id,
     noteId: row.note_id,
     error: row.error,
+    notesStatus: row.notes_status,
     segments,
     myNotes: notes?.my_notes ?? '',
     enhanced: parseJson<VoiceEnhanced | null>(notes?.enhanced, null),
@@ -255,6 +267,7 @@ export interface CreateSessionInput {
   templateKey?: string;
   calBookingId?: string | null;
   contactId?: string | null;
+  locale?: string;
 }
 
 export async function createSession(owner: VoiceOwner, input: CreateSessionInput): Promise<VoiceSessionRow> {
@@ -265,8 +278,8 @@ export async function createSession(owner: VoiceOwner, input: CreateSessionInput
   await getDb()
     .prepare(
       `INSERT INTO voice_sessions (id, workspace_id, person_id, kind, title, status, capture, context, source_app, raw_text, text,
-         language, duration_ms, words, template_key, cal_booking_id, contact_id, started_at, ended_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         language, duration_ms, words, template_key, cal_booking_id, contact_id, locale, started_at, ended_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -286,6 +299,7 @@ export async function createSession(owner: VoiceOwner, input: CreateSessionInput
       input.templateKey ?? 'general',
       input.calBookingId ?? null,
       input.contactId ?? null,
+      ['en', 'es', 'pt'].includes(input.locale ?? '') ? (input.locale as string) : 'en',
       now,
       done ? now : null,
       now,
@@ -409,8 +423,8 @@ export async function saveChunkSegments(args: {
     .run(Math.round(args.durationMs), args.sessionId, args.source, args.seq);
   // La duración de la reunión es el final del último trozo recibido.
   await db
-    .prepare('UPDATE voice_sessions SET duration_ms = MAX(duration_ms, ?), updated_at = ? WHERE id = ?')
-    .run(Math.round(args.offsetMs + args.durationMs), now, args.sessionId);
+    .prepare('UPDATE voice_sessions SET duration_ms = MAX(duration_ms, ?), last_chunk_at = ?, updated_at = ? WHERE id = ?')
+    .run(Math.round(args.offsetMs + args.durationMs), now, now, args.sessionId);
   return out;
 }
 
@@ -601,4 +615,34 @@ export async function dictationStats(owner: VoiceOwner, now = new Date()): Promi
     wordsTotal: Number(row.wt),
     minutesTotal: Math.round(Number(row.ms) / 60_000),
   };
+}
+
+// ---------- Cierre de una grabación ----------
+
+/**
+ * Cierra una reunión que estaba grabando (compare-and-set sobre status) y, si
+ * tiene transcripción o notas y todavía no tiene nota con IA, la deja en cola
+ * para que se arme sola (lib/voice-jobs.ts). Devuelve si quedó en cola.
+ */
+export async function closeRecording(sessionId: string, opts: { queueNotes: boolean }): Promise<{ closed: boolean; queued: boolean }> {
+  const db = getDb();
+  const now = nowIso();
+  const res = await db
+    .prepare("UPDATE voice_sessions SET status = 'done', ended_at = COALESCE(ended_at, ?), updated_at = ? WHERE id = ? AND status IN ('recording', 'processing')")
+    .run(now, now, sessionId);
+  if (!opts.queueNotes) return { closed: res.changes > 0, queued: false };
+  const queued = await queueNotes(sessionId);
+  return { closed: res.changes > 0, queued };
+}
+
+/** Pone en cola la nota con IA si hay algo que resumir y no se está armando ya. */
+export async function queueNotes(sessionId: string): Promise<boolean> {
+  const res = await getDb()
+    .prepare(
+      `UPDATE voice_sessions SET notes_status = 'queued' WHERE id = ? AND kind = 'meeting' AND notes_status NOT IN ('queued', 'running')
+       AND (EXISTS (SELECT 1 FROM voice_segments g WHERE g.session_id = voice_sessions.id)
+            OR EXISTS (SELECT 1 FROM voice_notes n WHERE n.session_id = voice_sessions.id AND n.my_notes != ''))`,
+    )
+    .run(sessionId);
+  return res.changes > 0;
 }

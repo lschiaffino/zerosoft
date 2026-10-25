@@ -60,8 +60,42 @@ export function meetingMarkdown(d: VoiceSessionDetail, labels: MeetingLabels, op
   return out.join('\n').trim() + '\n';
 }
 
-export async function sendToDocs(owner: VoiceOwner, d: VoiceSessionDetail, labels: MeetingLabels): Promise<{ id: string }> {
-  const md = meetingMarkdown(d, labels, { transcript: true, title: false });
+/**
+ * Nota en texto plano para el timeline del CRM (que muestra el cuerpo tal cual):
+ * títulos en su línea, viñetas con •, sin sintaxis Markdown.
+ */
+export function meetingPlainText(d: VoiceSessionDetail, labels: MeetingLabels): string {
+  const out: string[] = [];
+  const e = d.enhanced;
+  const block = (title: string, lines: string[]) => {
+    if (lines.length) out.push(`${title}\n${lines.join('\n')}`);
+  };
+  if (e) {
+    if (e.summary) block(labels.summary, [e.summary]);
+    for (const s of e.sections) block(s.heading, s.points.map((p) => `• ${p.text}`));
+    block(labels.decisions, e.decisions.map((x) => `• ${x}`));
+    block(
+      labels.actionItems,
+      e.actionItems.map((a) => `• ${a.text}${a.owner || a.due ? ` (${[a.owner, a.due].filter(Boolean).join(', ')})` : ''}`),
+    );
+  } else if (d.myNotes.trim()) {
+    block(labels.myNotes, [d.myNotes.trim()]);
+  }
+  return out.join('\n\n');
+}
+
+/**
+ * Página nueva en Docs. Docs todavía no tiene un espacio privado: la página
+ * la ve todo el workspace, por eso la UI lo confirma y la transcripción va
+ * solo si la persona la incluye.
+ */
+export async function sendToDocs(
+  owner: VoiceOwner,
+  d: VoiceSessionDetail,
+  labels: MeetingLabels,
+  opts: { includeTranscript?: boolean } = {},
+): Promise<{ id: string }> {
+  const md = meetingMarkdown(d, labels, { transcript: opts.includeTranscript === true, title: false });
   const page = await createDocPage(owner.workspaceId, {
     title: d.title || labels.fromVoice,
     content: markdownToBlocks(md, { sanitize: sanitizeDocsHtml }),
@@ -153,7 +187,7 @@ export async function logMeetingToContact(args: {
   if (!d.contactId || !(await canSeeEntity(args.owner.workspaceId, 'contact', d.contactId, args.scope))) {
     return { ok: false, code: 'contact_not_found' };
   }
-  const body = meetingMarkdown(d, args.labels, { transcript: false, title: false }).slice(0, 8000);
+  const body = meetingPlainText(d, args.labels).slice(0, 8000);
   const subject = (d.title || args.labels.fromVoice).slice(0, 200);
   const durationMin = Math.max(1, Math.round(d.durationMs / 60_000));
   if (d.crmActivityId && d.crmActivityId !== 'pending') {

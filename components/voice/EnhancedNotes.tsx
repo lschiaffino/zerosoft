@@ -32,11 +32,13 @@ export default function EnhancedNotes({
   const [projects, setProjects] = useState<ProjectOption[] | null>(null);
   const [projectId, setProjectId] = useState('');
   const [busy, setBusy] = useState<'track' | 'crm' | null>(null);
-  const [result, setResult] = useState<{ target: 'track' | 'crm'; created: Array<{ id: string; label: string }> } | null>(null);
+  // Lo ya creado con estos próximos pasos (se guarda con la nota: no se crea dos veces).
+  const [sent, setSent] = useState<NonNullable<VoiceEnhanced['sent']>>(enhanced.sent ?? {});
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setPicked(new Set(enhanced.actionItems.map((_, i) => i)));
+    setSent(enhanced.sent ?? {});
   }, [enhanced]);
 
   useEffect(() => {
@@ -61,7 +63,6 @@ export default function EnhancedNotes({
     if (!items.length) return;
     setBusy(target);
     setError(null);
-    setResult(null);
     const res = await fetch(`/api/voice/sessions/${sessionId}/send`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -73,7 +74,7 @@ export default function EnhancedNotes({
       setError(data?.error ?? 'network');
       return;
     }
-    setResult({ target, created: data.created });
+    setSent((prev) => ({ ...prev, [target]: data.created }));
   }
 
   return (
@@ -152,7 +153,7 @@ export default function EnhancedNotes({
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                disabled={busy !== null || !picked.size || !projectId}
+                disabled={busy !== null || !picked.size || !projectId || !!sent.track?.length}
                 aria-busy={busy === 'track' || undefined}
                 onClick={() => void send('track')}
               >
@@ -161,7 +162,7 @@ export default function EnhancedNotes({
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                disabled={busy !== null || !picked.size}
+                disabled={busy !== null || !picked.size || !!sent.crm?.length}
                 aria-busy={busy === 'crm' || undefined}
                 onClick={() => void send('crm')}
                 title={hasContact ? t('sendCrmContact') : undefined}
@@ -177,19 +178,20 @@ export default function EnhancedNotes({
             {tErr(voiceErrorKey(error))}
           </p>
         )}
-        {result && (
+        {!!sent.track?.length && (
           <p className="vc-ok" role="status">
-            {result.target === 'track' ? t('sentTrack', { count: result.created.length }) : t('sentCrm', { count: result.created.length })}{' '}
-            {result.target === 'track' ? (
-              result.created.map((c, i) => (
-                <span key={c.id}>
-                  {i > 0 && ', '}
-                  <Link href={`/app/track/issues/${c.id}`}>{c.label}</Link>
-                </span>
-              ))
-            ) : (
-              <Link href="/app/crm/tasks">{t('openTasks')}</Link>
-            )}
+            {t('sentTrack', { count: sent.track.length })}{' '}
+            {sent.track.map((c, i) => (
+              <span key={c.id}>
+                {i > 0 && ', '}
+                <Link href={`/app/track/issues/${c.id}`}>{c.label}</Link>
+              </span>
+            ))}
+          </p>
+        )}
+        {!!sent.crm?.length && (
+          <p className="vc-ok" role="status">
+            {t('sentCrm', { count: sent.crm.length })} <Link href="/app/crm/tasks">{t('openTasks')}</Link>
           </p>
         )}
       </section>

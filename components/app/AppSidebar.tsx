@@ -417,6 +417,8 @@ export default function AppSidebar({
         {crumb && <div className="band-crumb">{crumb}</div>}
 
         <div className="band-right">
+          {/* Indicador de Voice cuando hay una reunión grabando (lo llena components/voice/RecorderProvider). */}
+          <span id="band-voice-slot" className="band-voice-slot" />
           <button type="button" className="band-search" onClick={openSearch} aria-label={labels.search}>
             <Icon name="search" size={15} />
             <span className="band-search-label">{labels.search}</span>

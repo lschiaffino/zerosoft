@@ -4507,6 +4507,10 @@ export const MIGRATIONS: Migration[] = [
           docs_page_id TEXT,
           note_id TEXT,
           error TEXT NOT NULL DEFAULT '',
+          locale TEXT NOT NULL DEFAULT 'en',
+          -- Nota con IA en cola al cerrar la grabación: '' | queued | running | done | error.
+          notes_status TEXT NOT NULL DEFAULT '',
+          last_chunk_at TEXT,
           started_at TEXT NOT NULL,
           ended_at TEXT,
           created_at TEXT NOT NULL,
@@ -4514,6 +4518,7 @@ export const MIGRATIONS: Migration[] = [
         );
         CREATE INDEX IF NOT EXISTS idx_voice_sessions_person ON voice_sessions(workspace_id, person_id, kind, updated_at DESC);
         CREATE INDEX IF NOT EXISTS idx_voice_sessions_booking ON voice_sessions(workspace_id, cal_booking_id);
+        CREATE INDEX IF NOT EXISTS idx_voice_sessions_status ON voice_sessions(status, notes_status);
 
         CREATE TABLE IF NOT EXISTS voice_chunks (
           session_id TEXT NOT NULL REFERENCES voice_sessions(id) ON DELETE CASCADE,

@@ -30,6 +30,7 @@ const createSchema = z.object({
   capture: z.enum(['mic', 'mic_tab', 'file', 'desktop']).optional(),
   templateKey: z.string().max(64).optional(),
   bookingId: z.string().max(64).optional(),
+  locale: z.enum(['en', 'es', 'pt']).optional(),
 });
 
 /** Reunión nueva (los dictados se crean en /api/voice/dictate). */
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
       templateKey: parsed.data.templateKey ?? 'general',
       // 'recording' solo mientras graba (lo pone el grabador).
       status: 'done',
+      locale: parsed.data.locale,
     });
     if (parsed.data.bookingId) {
       await linkBooking({

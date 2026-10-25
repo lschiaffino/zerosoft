@@ -227,9 +227,10 @@ impl Meeting {
 
 // ---------- Comandos de la ventana ----------
 
+/// La ventana nunca recibe la API key: solo si hay una guardada.
 #[tauri::command]
-fn get_config(state: State<'_, AppState>) -> Config {
-    state.config.lock().clone()
+fn get_config(state: State<'_, AppState>) -> config::PublicConfig {
+    state.config.lock().public()
 }
 
 #[tauri::command]
@@ -238,7 +239,17 @@ fn get_status(state: State<'_, AppState>) -> Status {
 }
 
 #[tauri::command]
-fn save_config(app: AppHandle, state: State<'_, AppState>, config: Config) -> Result<(), String> {
+fn save_config(app: AppHandle, state: State<'_, AppState>, input: config::ConfigInput) -> Result<(), String> {
+    if !config::valid_server(&input.server) {
+        return Err("The server must use https:// (http only for localhost)".into());
+    }
+    let current_key = state.config.lock().api_key.clone();
+    let config = Config {
+        server: input.server.trim().trim_end_matches('/').to_string(),
+        api_key: input.api_key.filter(|k| !k.trim().is_empty()).map(|k| k.trim().to_string()).unwrap_or(current_key),
+        shortcut: input.shortcut,
+        context: input.context,
+    };
     api::ping(&config).map_err(|e| format!("Could not connect: {e}"))?;
     config::save(&state.config_dir, &config).map_err(|e| e.to_string())?;
     let old = std::mem::replace(&mut *state.config.lock(), config.clone());

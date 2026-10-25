@@ -1,3 +1,4 @@
+import { runVoiceCron } from '@/lib/voice-jobs';
 import { NextRequest, NextResponse } from 'next/server';
 import { fireDueTasks } from '@/lib/crm';
 import { processFlowQueue } from '@/lib/flow-worker';
@@ -54,6 +55,8 @@ export async function GET(req: NextRequest) {
   const trackEmails = await sendImmediateTrackEmails({ limit: 200 }).catch(() => null);
   // Groups: envíos masivos y programados, chats sin responder y tickets vencidos (claims por fila).
   const groups = await runGroupsCron({ budgetMs: 30_000 }).catch(() => null);
+  // Voice: grabaciones colgadas y notas con IA en cola (claim por fila en notes_status).
+  const voice = await runVoiceCron({ budgetMs: 20_000, cleanup: false }).catch(() => null);
   // Agentes de datos y prospección del CRM (claim por ítem en claimed_at).
   const crmAiRuns = await processAiRuns({ budgetMs: 20_000 }).catch(() => null);
   const flow = await processFlowQueue({ limit: 200, budgetMs: Math.max(0, FLOW_BUDGET_MS - (Date.now() - start)) });
@@ -61,5 +64,5 @@ export async function GET(req: NextRequest) {
   const imports = await processImportJobs({ budgetMs: Math.max(5_000, IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
   // Imports del CRM con lo que queda de los 300 s (dejando margen).
   const crmImports = await processCrmImportJobs({ budgetMs: Math.max(0, CRM_IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, docReminders, trackReminders, trackEmails, groups, crmAiRuns, flow, imports, crmImports });
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, docReminders, trackReminders, trackEmails, groups, voice, crmAiRuns, flow, imports, crmImports });
 }

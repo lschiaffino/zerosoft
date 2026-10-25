@@ -158,7 +158,7 @@
     "copyFailed": "The browser did not allow copying.",
     "sendDocs": "Send to Docs",
     "sendNotes": "Send to Notes",
-    "sentDocs": "Created a Docs page with the notes and transcript.",
+    "sentDocs": "Created a Docs page with the notes.",
     "sentNotes": "Created a note in Notes.",
     "open": "Open",
     "delete": "Delete",
@@ -180,7 +180,7 @@
     "transcribingN": "{count, plural, one {Transcribing # part…} other {Transcribing # parts…}}",
     "tabEnded": "The tab stopped sharing. Recording the microphone only.",
     "tabHelp": "When the browser asks, pick the meeting tab and turn on \"Share tab audio\".",
-    "consent": "Let everyone know you are transcribing the meeting. The audio is transcribed and then discarded.",
+    "consent": "Let everyone know you are transcribing the meeting. The audio is transcribed and then discarded. You can switch pages: the recording keeps going.",
     "myNotes": "My notes",
     "aiNotes": "Meeting notes",
     "viewLabel": "Which notes to show",
@@ -199,7 +199,15 @@
       "transcript": "Transcript",
       "chat": "Ask",
       "details": "Links"
-    }
+    },
+    "recordingElsewhere": "Another meeting is being recorded.",
+    "openOther": "Open it",
+    "notesQueued": "Writing the notes with AI. You can leave this page: they are saved with the meeting.",
+    "lagging": "{count, plural, one {Transcription is behind: # part waiting, nothing is lost.} other {Transcription is behind: # parts waiting, nothing is lost.}}",
+    "docsConfirmTitle": "Send the notes to Docs?",
+    "docsConfirmBody": "Docs has no private space yet: everyone in the workspace will see this page.",
+    "docsIncludeTranscript": "Include the full transcript",
+    "docsConfirm": "Create the page"
   },
   "templates": {
     "builtin": {
@@ -352,7 +360,7 @@
       "whatDesc": "It uses the same API as this page, with your key.",
       "what1": "Global shortcut: dictates and pastes the text into the active app.",
       "what2": "Meetings with system audio: ScreenCaptureKit on macOS and WASAPI loopback on Windows, plus the microphone.",
-      "what3": "Your dictionary and style sync from here.",
+      "what3": "Your dictionary and styles apply there too, because the cleanup runs on the server, and its dictations land in your history here.",
       "provider": "Transcription on this server: {provider}."
     }
   },
@@ -360,6 +368,12 @@
     "newMeeting": "New meeting notes",
     "dictate": "Dictate into the focused field",
     "dictation": "Dictation history"
+  },
+  "recorder": {
+    "openMeeting": "Open the meeting being recorded",
+    "recordingLabel": "Recording a meeting",
+    "stop": "Stop",
+    "stopping": "Saving…"
   },
   "export": {
     "me": "Me",

@@ -194,7 +194,9 @@ describe('voice meetings', () => {
     const act = (await getDb().prepare('SELECT type, contact_id, body FROM crm_activities WHERE id = ?').get(data.crmActivityId)) as { type: string; contact_id: string; body: string };
     expect(act.type).toBe('meeting');
     expect(act.contact_id).toBe(contact.id);
-    expect(act.body).toContain('## Summary');
+    // Texto plano (el timeline del CRM no renderiza Markdown).
+    expect(act.body).toMatch(/^Summary\n/);
+    expect(act.body).not.toContain('##');
     // Regenerar actualiza la misma actividad.
     const again = (await (await enhanceRoute.POST(jsonReq('http://t', 'POST', {}), ctx(id))).json()) as { crmActivityId: string };
     expect(again.crmActivityId).toBe(data.crmActivityId);
@@ -216,25 +218,36 @@ describe('voice meetings', () => {
     const id = await newMeeting('Weekly sync');
     await chunk(id, 'them', 0);
     await enhanceRoute.POST(jsonReq('http://t', 'POST', {}), ctx(id));
+    // Docs la ve todo el workspace: sin transcripción salvo que se pida.
     const docs = await sendRoute.POST(jsonReq('http://t', 'POST', { target: 'docs' }), ctx(id));
     expect(docs.status).toBe(201);
     const page = (await getDb().prepare('SELECT title, content FROM docs_pages WHERE id = ?').get(((await docs.json()) as { id: string }).id)) as { title: string; content: string };
     expect(page.title).toBe('Weekly sync');
-    expect(page.content).toContain('Transcript');
+    expect(page.content).not.toContain('Transcript');
+    expect(page.content).toContain('Summary');
+    const withT = await sendRoute.POST(jsonReq('http://t', 'POST', { target: 'docs', includeTranscript: true }), ctx(id));
+    const page2 = (await getDb().prepare('SELECT content FROM docs_pages WHERE id = ?').get(((await withT.json()) as { id: string }).id)) as { content: string };
+    expect(page2.content).toContain('Transcript');
     const notes = await sendRoute.POST(jsonReq('http://t', 'POST', { target: 'notes' }), ctx(id));
     expect(notes.status).toBe(201);
     const md = await sendRoute.POST(jsonReq('http://t', 'POST', { target: 'markdown' }), ctx(id));
     expect(((await md.json()) as { markdown: string }).markdown).toMatch(/^# Weekly sync/);
 
     const project = await createProject(u.id, null, { name: 'Launch' } as Parameters<typeof createProject>[2]);
+    const foreign = await sendRoute.POST(jsonReq('http://t', 'POST', { target: 'track', projectId: 'nope', items: ['x'] }), ctx(id));
+    expect(foreign.status).toBe(404);
     const track = await sendRoute.POST(jsonReq('http://t', 'POST', { target: 'track', projectId: project.id, items: ['Send the contract'] }), ctx(id));
     expect(track.status).toBe(201);
     const issue = (await getDb().prepare('SELECT title FROM track_issues WHERE project_id = ?').get(project.id)) as { title: string };
     expect(issue.title).toBe('Send the contract');
-    const foreign = await sendRoute.POST(jsonReq('http://t', 'POST', { target: 'track', projectId: 'nope', items: ['x'] }), ctx(id));
-    expect(foreign.status).toBe(404);
     const crm = await sendRoute.POST(jsonReq('http://t', 'POST', { target: 'crm', items: ['Call Ana', 'Send quote'] }), ctx(id));
     expect(((await crm.json()) as { created: unknown[] }).created).toHaveLength(2);
+    // Un segundo envío devuelve lo ya creado (no duplica tareas).
+    const again = (await (await sendRoute.POST(jsonReq('http://t', 'POST', { target: 'crm', items: ['Call Ana'] }), ctx(id))).json()) as { already: boolean; created: unknown[] };
+    expect(again.already).toBe(true);
+    expect(again.created).toHaveLength(2);
+    const tasks = (await getDb().prepare("SELECT COUNT(*) AS n FROM crm_activities WHERE user_id = ? AND type = 'task'").get(u.id)) as { n: number };
+    expect(Number(tasks.n)).toBe(2);
     const contactLog = await sendRoute.POST(jsonReq('http://t', 'POST', { target: 'contact' }), ctx(id));
     expect(contactLog.status).toBe(404);
   });
@@ -320,5 +333,71 @@ describe('voice helpers', () => {
       { me: 'Me', them: 'Them', speaker: 'Speaker', summary: 'Summary', decisions: 'Decisions', actionItems: 'Next steps', myNotes: 'My notes', transcript: 'Transcript', fromVoice: 'Meeting' },
     );
     expect(md).toBe('# Demo\n\n## Summary\n\nS\n\n## H\n\n- p\n\n## Decisions\n\n- d\n\n## Next steps\n\n- [ ] a (Ana, Friday)\n');
+  });
+});
+
+describe('voice recordings lifecycle', () => {
+  it('closing a recording queues the notes and the queue writes them', async () => {
+    await asUser();
+    const id = await newMeeting();
+    await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { status: 'recording' }), ctx(id));
+    await chunk(id, 'them', 0);
+    const { closeRecording } = await import('@/lib/voice');
+    const { processQueuedNote } = await import('@/lib/voice-jobs');
+    expect(await closeRecording(id, { queueNotes: true })).toEqual({ closed: true, queued: true });
+    // Dos cierres a la vez no encolan dos veces.
+    expect((await closeRecording(id, { queueNotes: true })).queued).toBe(false);
+    expect(await processQueuedNote(id)).toBe('done');
+    expect(await processQueuedNote(id)).toBe('skipped');
+    const d = (await (await sessionRoute.GET(new Request('http://t') as never, ctx(id))).json()) as VoiceSessionDetail;
+    expect(d.status).toBe('done');
+    expect(d.notesStatus).toBe('done');
+    expect(d.enhanced?.summary).toBeTruthy();
+  });
+
+  it('the cron closes stale recordings, writes their notes and cleans untouched meetings', async () => {
+    const u = await asUser();
+    const stale = await newMeeting('Stale call');
+    await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { status: 'recording' }), ctx(stale));
+    await chunk(stale, 'them', 0);
+    const fresh = await newMeeting('Live call');
+    await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { status: 'recording' }), ctx(fresh));
+    await chunk(fresh, 'them', 0);
+    // Reunión vacía sin tocar (sin título, sin audio, sin notas): no se lista.
+    const empty = await newMeeting('');
+    const list = (await (await sessionsRoute.GET(new Request('http://t/api/voice/sessions?kind=meeting') as never)).json()) as { sessions: Array<{ id: string }> };
+    expect(list.sessions.map((s) => s.id)).not.toContain(empty);
+    expect(list.sessions.map((s) => s.id)).toContain(stale);
+    const db = getDb();
+    const old = new Date(Date.now() - 11 * 60_000).toISOString();
+    await db.prepare('UPDATE voice_sessions SET last_chunk_at = ? WHERE id = ?').run(old, stale);
+    await db.prepare('UPDATE voice_sessions SET created_at = ? WHERE id = ?').run(new Date(Date.now() - 25 * 3_600_000).toISOString(), empty);
+    const { runVoiceCron } = await import('@/lib/voice-jobs');
+    const res = await runVoiceCron();
+    expect(res.closed).toBeGreaterThanOrEqual(1);
+    expect(res.notes).toBeGreaterThanOrEqual(1);
+    expect(res.emptyDeleted).toBeGreaterThanOrEqual(1);
+    const rows = (await db.prepare('SELECT id, status, notes_status FROM voice_sessions WHERE workspace_id = ?').all(u.id)) as Array<{ id: string; status: string; notes_status: string }>;
+    expect(rows.find((r) => r.id === stale)).toMatchObject({ status: 'done', notes_status: 'done' });
+    expect(rows.find((r) => r.id === fresh)?.status).toBe('recording');
+    expect(rows.find((r) => r.id === empty)).toBeUndefined();
+  });
+
+  it('renaming a speaker updates the generated notes', async () => {
+    await asUser();
+    const id = await newMeeting();
+    await chunk(id, 'them', 0);
+    await enhanceRoute.POST(jsonReq('http://t', 'POST', {}), ctx(id));
+    const before = (await (await sessionRoute.GET(new Request('http://t') as never, ctx(id))).json()) as VoiceSessionDetail;
+    expect(JSON.stringify(before.enhanced)).toContain('Them 1');
+    await sessionRoute.PATCH(jsonReq('http://t', 'PATCH', { speakers: { 'them:0': 'Ana' } }), ctx(id));
+    const after = (await (await sessionRoute.GET(new Request('http://t') as never, ctx(id))).json()) as VoiceSessionDetail;
+    expect(JSON.stringify(after.enhanced)).not.toContain('Them 1');
+    expect(after.enhanced?.actionItems[0].owner).toBe('Ana');
+  });
+
+  it('rejects Blob URLs with credentials', () => {
+    const prefix = voiceBlobPrefix('user-1');
+    expect(isVoiceBlobUrl(`https://u:p@abc123.public.blob.vercel-storage.com/${prefix}rec.webm`, 'user-1')).toBe(false);
   });
 });

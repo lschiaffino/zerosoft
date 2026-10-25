@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { voiceAuth } from '@/lib/voice-route';
 import { meetingLabels, voiceErrorResponse, voiceJsonError, voiceMessages } from '@/lib/voice-http';
-import { getSessionDetail } from '@/lib/voice';
+import { getSessionDetail, saveEnhanced } from '@/lib/voice';
 import { logMeetingToContact, meetingMarkdown, sendToDocs, sendToNotes, tasksToCrm, tasksToTrack } from '@/lib/voice-integrations';
 import { sessionScope } from '@/lib/crm-visibility';
 
@@ -14,6 +14,8 @@ const schema = z.object({
   locale: z.string().max(5).optional(),
   items: z.array(z.string().max(500)).max(40).optional(),
   projectId: z.string().max(64).optional(),
+  /** Docs: sumar la transcripción a la página (la ve todo el workspace). Por defecto no. */
+  includeTranscript: z.boolean().optional(),
 });
 
 /**
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!d || d.kind !== 'meeting') return voiceJsonError(404, 'not_found');
   try {
     if (target === 'markdown') return NextResponse.json({ markdown: meetingMarkdown(d, labels, { transcript: true }) });
-    if (target === 'docs') return NextResponse.json(await sendToDocs(auth.owner, d, labels), { status: 201 });
+    if (target === 'docs') return NextResponse.json(await sendToDocs(auth.owner, d, labels, { includeTranscript: parsed.data.includeTranscript }), { status: 201 });
     if (target === 'notes') return NextResponse.json(await sendToNotes(auth.owner, d, labels), { status: 201 });
     const scope = await sessionScope(auth.user);
     if (target === 'contact') {
@@ -42,6 +44,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       if (!res.ok) return voiceJsonError(404, res.code);
       return NextResponse.json(res, { status: 201 });
     }
+    // Los próximos pasos se mandan una vez por destino: un segundo clic devuelve lo ya creado.
+    const already = d.enhanced?.sent?.[target];
+    if (already?.length) return NextResponse.json({ ok: true, created: already, already: true });
     const meetingUrl = `${new URL(req.url).origin}/${locale}/app/voice/meetings/${d.id}`;
     const res =
       target === 'track'
@@ -62,6 +67,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
             body: `${voiceMessages(locale).export.fromMeeting}: ${d.title || labels.fromVoice} (${meetingUrl})`,
           });
     if (!res.ok) return voiceJsonError(res.code === 'nothing_to_send' ? 400 : 404, res.code);
+    if (d.enhanced) await saveEnhanced(d.id, { ...d.enhanced, sent: { ...(d.enhanced.sent ?? {}), [target]: res.created } });
     return NextResponse.json(res, { status: 201 });
   } catch (err) {
     return voiceErrorResponse(err);

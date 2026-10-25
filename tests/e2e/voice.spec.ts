@@ -104,7 +104,7 @@ test('reunión: grabar, transcripción en vivo, nota con IA, tareas, chat, busca
   await expect(page.getByRole('timer')).toBeVisible();
   // Transcripción en vivo (trozos de 1,5 s).
   await expect(page.locator('.vc-seg').first()).toBeVisible({ timeout: 20_000 });
-  await page.getByRole('button', { name: 'Stop' }).click();
+  await page.getByRole('button', { name: 'Stop', exact: true }).click();
   // Al cortar, la IA arma la nota.
   const enhanced = page.getByTestId('voice-enhanced');
   await expect(enhanced).toBeVisible({ timeout: 20_000 });
@@ -130,7 +130,12 @@ test('reunión: grabar, transcripción en vivo, nota con IA, tareas, chat, busca
   await expect(page.getByText(/tasks? created/)).toBeVisible();
 
   // Mandar a Docs.
+  // Docs lo ve todo el workspace: se confirma y la transcripción va solo si se tilda.
   await page.getByRole('button', { name: 'Send to Docs' }).click();
+  const docsDialog = page.getByRole('alertdialog', { name: 'Send the notes to Docs?' });
+  await expect(docsDialog).toContainText('everyone in the workspace will see this page');
+  await expect(docsDialog.getByRole('checkbox', { name: 'Include the full transcript' })).not.toBeChecked();
+  await docsDialog.getByRole('button', { name: 'Create the page' }).click();
   await expect(page.getByText('Created a Docs page')).toBeVisible();
 
   // Lista y búsqueda en transcripciones.
@@ -283,4 +288,71 @@ test('el botón de dictar no tapa otros controles y se apaga en ajustes', async 
   await page.waitForTimeout(300);
   await expect(page.locator('.vc-bar')).toHaveCount(0);
   await request.patch('/api/voice/settings', { data: { showBar: true } });
+});
+
+
+test('la grabación sigue al navegar dentro de zerosoft, con indicador arriba', async ({ page, request }) => {
+  const { id } = (await (await request.post('/api/voice/sessions', { data: { title: `Nav call ${uid()}` } })).json()) as { id: string };
+  await page.goto(`/en/app/voice/meetings/${id}`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Start recording' }).click();
+  await expect(page.getByRole('timer')).toBeVisible();
+  // Navegación dentro de la app (sin recargar): el grabador vive en el layout.
+  await page.locator('#app-side').getByRole('link', { name: 'Dictation' }).click();
+  await expect(page).toHaveURL(/\/app\/voice\/dictation$/);
+  const indicator = page.locator('.vc-rec-indicator');
+  await expect(indicator).toBeVisible();
+  await expect(indicator.getByRole('timer')).toHaveText(/\d+:\d{2}/);
+  // Los trozos se siguen subiendo mientras tanto.
+  await expect
+    .poll(async () => ((await (await request.get(`/api/voice/sessions/${id}`)).json()) as { segments: unknown[] }).segments.length, { timeout: 20_000 })
+    .toBeGreaterThan(0);
+  const before = ((await (await request.get(`/api/voice/sessions/${id}`)).json()) as { status: string }).status;
+  expect(before).toBe('recording');
+  // El indicador lleva a la reunión, que sigue grabando.
+  await indicator.getByRole('link').click();
+  await expect(page).toHaveURL(new RegExp(`/app/voice/meetings/${id}$`));
+  await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible();
+  await expect(page.locator('.vc-rec-indicator')).toHaveCount(0);
+  // Terminar desde el indicador en otra página: cierra la sesión y la nota se arma sola.
+  await page.locator('#app-side').getByRole('link', { name: 'Dictation' }).click();
+  await page.locator('.vc-rec-indicator').getByRole('button', { name: 'Stop' }).click();
+  await expect(page.locator('.vc-rec-indicator')).toHaveCount(0);
+  await expect
+    .poll(async () => ((await (await request.get(`/api/voice/sessions/${id}`)).json()) as { status: string; notesStatus: string; enhanced: unknown }), { timeout: 20_000 })
+    .toMatchObject({ status: 'done', notesStatus: 'done' });
+});
+
+test('atrás desde una reunión nueva no crea otra; las vacías no se listan', async ({ page, request }) => {
+  const creates: string[] = [];
+  page.on('request', (r) => {
+    if (r.method() === 'POST' && r.url().endsWith('/api/voice/sessions')) creates.push(r.url());
+  });
+  await page.goto('/en/app/notes', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/voice?new=1');
+  await expect(page).toHaveURL(/\/app\/voice\/meetings\/[^?]+$/);
+  const id = page.url().split('/').pop()!;
+  expect(creates).toHaveLength(1);
+  // ?new=1 no quedó en el historial: Atrás vuelve a Notes sin crear otra reunión.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/app\/notes/);
+  await page.goForward();
+  await expect(page).toHaveURL(new RegExp(`/app/voice/meetings/${id}$`));
+  await page.waitForTimeout(800);
+  expect(creates).toHaveLength(1);
+  // La reunión quedó vacía (sin título, audio ni notas): no se lista.
+  const list = (await (await request.get('/api/voice/sessions?kind=meeting&limit=500')).json()) as { sessions: Array<{ id: string }> };
+  expect(list.sessions.map((x) => x.id)).not.toContain(id);
+});
+
+test('importar un archivo que no es audio no crea una reunión y muestra el error', async ({ page, request }) => {
+  const before = ((await (await request.get('/api/voice/sessions?kind=meeting&limit=500')).json()) as { sessions: unknown[] }).sessions.length;
+  const created: string[] = [];
+  page.on('request', (r) => {
+    if (r.method() === 'POST' && r.url().endsWith('/api/voice/sessions')) created.push(r.url());
+  });
+  await page.goto('/en/app/voice', { waitUntil: 'networkidle' });
+  await page.getByTestId('voice-import-input').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('not audio') });
+  await expect(page.getByRole('alert').filter({ hasText: 'That file type is not supported' })).toBeVisible();
+  expect(created).toEqual([]);
+  expect(((await (await request.get('/api/voice/sessions?kind=meeting&limit=500')).json()) as { sessions: unknown[] }).sessions.length).toBe(before);
 });

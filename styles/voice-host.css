@@ -90,3 +90,42 @@
 @media (max-width: 520px) {
   .vc-host { gap: 8px; padding: 6px 8px 6px 10px; }
 }
+
+/* Reunión grabando: punto rojo, tiempo y Terminar en la barra de arriba. */
+.band-voice-slot { display: contents; }
+.vc-rec-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  font-size: 0.8125rem;
+}
+.vc-rec-indicator-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 8px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.vc-rec-indicator-link:hover { background: var(--ui-hover); }
+.vc-rec-indicator-link:focus-visible,
+.vc-rec-indicator-stop:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.vc-rec-indicator-stop {
+  height: 100%;
+  padding: 0 8px;
+  font: 500 0.8125rem var(--font-ui);
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-left: 1px solid var(--line);
+  cursor: pointer;
+}
+.vc-rec-indicator-stop:hover:not(:disabled) { background: var(--ui-hover); }
+.vc-rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); flex: none; animation: vc-pulse 1.2s ease-in-out infinite; }
+@keyframes vc-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .vc-rec-dot { animation: none; } }
+@media (max-width: 520px) { .vc-rec-indicator-stop { padding: 0 6px; } }

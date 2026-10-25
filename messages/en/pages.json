@@ -1115,7 +1115,7 @@
       "featuresTitleDim": "Dictation and meetings in one app.",
       "f1": {
         "t": "Dictation anywhere",
-        "d": "Hold Alt+Space in any zerosoft text field, or tap it for hands-free. A desktop app to dictate into any program is on the way."
+        "d": "Hold Alt+Space in any zerosoft text field, or double tap it for hands-free. A desktop app to dictate into any program is on the way."
       },
       "f2": {
         "t": "AI cleanup",
@@ -1123,7 +1123,7 @@
       },
       "f3": {
         "t": "Meeting notes with no bot",
-        "d": "Record your microphone, or your microphone and a browser tab with Meet, Zoom or Teams. No extra participant joins the call and the audio is discarded after transcribing."
+        "d": "Record your microphone, or your microphone and a browser tab with Meet, Zoom or Teams. No extra participant joins the call and the audio is discarded once transcribed."
       },
       "f4": {
         "t": "Transcript, summary and tasks",
@@ -1144,7 +1144,7 @@
         },
         "s2": {
           "t": "Record the meeting",
-          "d": "Voice listens to your mic and the call tab, and transcribes with speakers as you talk."
+          "d": "Voice listens to your mic and the call tab and transcribes as you talk, split into Me and Them. With Deepgram or AssemblyAI it also tells speakers apart."
         },
         "s3": {
           "t": "Use the note",
@@ -1162,7 +1162,7 @@
       "faq": {
         "f1": {
           "q": "Can I use Voice today?",
-          "a": "Yes, on the web: dictation in every zerosoft field and meeting notes at /app/voice. It needs a transcription provider set up on the server; on zerosoft Cloud it comes configured."
+          "a": "Yes, on the web: dictation in every zerosoft field and meeting notes at /app/voice. The workspace needs a transcription provider configured (the AI Gateway, OpenAI, Deepgram or AssemblyAI)."
         },
         "f2": {
           "q": "Is there a desktop app?",
@@ -1170,7 +1170,7 @@
         },
         "f3": {
           "q": "Where is the audio processed?",
-          "a": "By the transcription provider your workspace uses. The audio is transcribed in 20-second parts and then discarded. If you self-host zerosoft, you pick the provider and the key."
+          "a": "By the transcription provider your workspace uses. A live recording goes in 20-second parts that are transcribed and discarded; an imported file is deleted from storage once it is transcribed, or after 24 hours if it never was. If you self-host zerosoft, you pick the provider and the key."
         },
         "f4": {
           "q": "Does it add a bot to my meetings?",

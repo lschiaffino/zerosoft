@@ -114,8 +114,7 @@ a.vc-row-main:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px
 .vc-recorder-row .btn-primary { display: inline-flex; align-items: center; gap: 6px; }
 .vc-mode { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; border: 0; flex: 1 1 280px; min-width: 0; }
 .vc-mode .ui-check input[type='radio'] { accent-color: var(--ink); }
-.vc-rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--bad); animation: vc-pulse 1.2s ease-in-out infinite; }
-@keyframes vc-pulse { 50% { opacity: 0.35; } }
+.vc-recorder .vc-rec-dot { width: 10px; height: 10px; }
 .vc-rec-time { font-size: 1rem; min-width: 52px; }
 .vc-recorder .vc-level { color: var(--bad); }
 .vc-consent { font-size: 0.8125rem; }
@@ -226,3 +225,6 @@ a.vc-row-main:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px
 @media (prefers-reduced-motion: reduce) {
   .vc-rec-dot { animation: none; }
 }
+
+.vc-confirm-text { display: block; margin-bottom: 12px; }
+.vc-confirm-check { margin-top: 4px; }

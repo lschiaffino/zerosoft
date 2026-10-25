@@ -3,9 +3,9 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { getSessionDetail, listCustomTemplates, voiceOwner } from '@/lib/voice';
 import { contactLabel } from '@/lib/voice-integrations';
-import { transcriptionConfigured } from '@/lib/voice-transcribe';
+import { transcribeProvider, transcriptionConfigured } from '@/lib/voice-transcribe';
 import { voiceAiAvailable } from '@/lib/voice-ai';
-import { voiceBlobEnabled, voiceBlobPrefix } from '@/lib/voice-blob';
+import { voiceBlobAccess, voiceBlobEnabled, voiceBlobPrefix, voiceImportMaxBytes } from '@/lib/voice-blob';
 import MeetingView from '@/components/voice/MeetingView';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +36,8 @@ export default async function VoiceMeetingPage(props: { params: Promise<{ locale
       transcription={transcriptionConfigured()}
       ai={ai}
       blobPrefix={voiceBlobEnabled() ? voiceBlobPrefix(owner.personId) : null}
+      blobAccess={voiceBlobAccess()}
+      importMaxBytes={voiceImportMaxBytes(transcribeProvider(), voiceBlobEnabled())}
     />
   );
 }

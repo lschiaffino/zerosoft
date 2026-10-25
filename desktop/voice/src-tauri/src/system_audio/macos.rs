@@ -57,9 +57,6 @@ impl Drop for MacCapture {
     }
 }
 
-// SCStream se usa solo para pararlo al soltar la captura.
-unsafe impl Send for MacCapture {}
-
 pub fn start() -> Result<(SharedBuffer, MacCapture)> {
     let content = SCShareableContent::get().map_err(|e| anyhow!("screen capture permission: {e:?}"))?;
     let display = content.displays().into_iter().next().ok_or_else(|| anyhow!("no display"))?;

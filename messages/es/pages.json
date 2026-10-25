@@ -1123,7 +1123,7 @@
       },
       "f3": {
         "t": "Notas de reunión sin bot",
-        "d": "Grabá tu micrófono, o tu micrófono y la pestaña con Meet, Zoom o Teams. No entra ningún participante extra y el audio se descarta después de transcribir."
+        "d": "Grabá tu micrófono, o tu micrófono y la pestaña con Meet, Zoom o Teams. No entra ningún participante extra y el audio se descarta una vez transcrito."
       },
       "f4": {
         "t": "Transcripción, resumen y tareas",
@@ -1144,7 +1144,7 @@
         },
         "s2": {
           "t": "Grabá la reunión",
-          "d": "Voice escucha tu micrófono y la pestaña de la llamada, y transcribe con hablantes mientras hablan."
+          "d": "Voice escucha tu micrófono y la pestaña de la llamada y transcribe mientras hablan, separado en Yo y Ellos. Con Deepgram o AssemblyAI además distingue a cada participante."
         },
         "s3": {
           "t": "Usá la nota",
@@ -1162,7 +1162,7 @@
       "faq": {
         "f1": {
           "q": "¿Ya puedo usar Voice?",
-          "a": "Sí, en la web: dictado en todos los campos de zerosoft y notas de reunión en /app/voice. Necesita un proveedor de transcripción configurado en el servidor; en zerosoft Cloud viene listo."
+          "a": "Sí, en la web: dictado en todos los campos de zerosoft y notas de reunión en /app/voice. El workspace necesita un proveedor de transcripción configurado (el AI Gateway, OpenAI, Deepgram o AssemblyAI)."
         },
         "f2": {
           "q": "¿Hay app de escritorio?",
@@ -1170,7 +1170,7 @@
         },
         "f3": {
           "q": "¿Dónde se procesa el audio?",
-          "a": "En el proveedor de transcripción de tu workspace. El audio se transcribe en partes de 20 segundos y después se descarta. Si hosteás zerosoft vos, elegís el proveedor y la clave."
+          "a": "En el proveedor de transcripción de tu workspace. Una grabación en vivo va en partes de 20 segundos que se transcriben y se descartan; un archivo importado se borra del almacenamiento al transcribirse, o a las 24 horas si nunca se procesó. Si hosteás zerosoft vos, elegís el proveedor y la clave."
         },
         "f4": {
           "q": "¿Suma un bot a mis reuniones?",

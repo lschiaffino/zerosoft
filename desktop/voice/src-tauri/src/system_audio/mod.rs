@@ -10,11 +10,12 @@ use crate::audio::SharedBuffer;
 #[cfg(target_os = "macos")]
 mod macos;
 
-/// Captura viva del audio del sistema; al soltarla se corta.
+/// Captura viva del audio del sistema; al soltarla se corta. Vive y se suelta
+/// en el hilo de audio (lib.rs › audio_thread), así que no necesita ser Send.
 pub struct SystemCapture {
     pub buffer: SharedBuffer,
     #[allow(dead_code)]
-    inner: Box<dyn std::any::Any + Send>,
+    inner: Box<dyn std::any::Any>,
 }
 
 #[cfg(target_os = "macos")]
@@ -27,16 +28,10 @@ pub fn start() -> Result<SystemCapture> {
 pub fn start() -> Result<SystemCapture> {
     let cap = crate::audio::capture_loopback()?;
     let buffer = cap.buffer.clone();
-    Ok(SystemCapture { buffer, inner: Box::new(SendStream(cap)) })
+    Ok(SystemCapture { buffer, inner: Box::new(cap) })
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn start() -> Result<SystemCapture> {
     Err(anyhow::anyhow!("system audio capture is only available on macOS and Windows"))
 }
-
-/// cpal::Stream no es Send en todas las plataformas; se mantiene en el hilo que lo creó.
-#[cfg(target_os = "windows")]
-struct SendStream(#[allow(dead_code)] crate::audio::Capture);
-#[cfg(target_os = "windows")]
-unsafe impl Send for SendStream {}

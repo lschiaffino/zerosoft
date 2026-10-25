@@ -10,7 +10,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { formatDuration, type VoiceSessionSummary } from '@/lib/voice-types';
 import type { LinkableBooking } from '@/lib/voice-integrations';
 import { voiceErrorKey } from './voice-ui';
-import { importRecording } from './importRecording';
+import { checkRecordingFile, importRecording } from './importRecording';
 
 interface Props {
   initialSessions: VoiceSessionSummary[];
@@ -18,10 +18,12 @@ interface Props {
   transcription: boolean;
   ai: boolean;
   blobPrefix: string | null;
+  blobAccess: 'public' | 'private';
+  importMaxBytes: number;
 }
 
 /** /app/voice: reuniones (lista, búsqueda, preguntas entre reuniones, próximas de Cal). */
-export default function MeetingsHome({ initialSessions, bookings, transcription, ai, blobPrefix }: Props) {
+export default function MeetingsHome({ initialSessions, bookings, transcription, ai, blobPrefix, blobAccess, importMaxBytes }: Props) {
   const t = useTranslations('voice.meetings');
   const tErr = useTranslations('voice.errors');
   const format = useFormatter();
@@ -87,26 +89,42 @@ export default function MeetingsHome({ initialSessions, bookings, transcription,
     return data.id;
   }
 
-  async function newMeeting(bookingId?: string) {
-    const id = await create({ title: '', bookingId }, bookingId ?? 'new');
-    if (id) router.push(`/app/voice/meetings/${id}${bookingId ? '' : '?record=1'}`);
+  async function newMeeting(opts: { bookingId?: string; replace?: boolean } = {}) {
+    const id = await create({ title: '', bookingId: opts.bookingId, locale }, opts.bookingId ?? 'new');
+    if (!id) return;
+    // Con ?new=1 la URL se reemplaza: "Atrás" desde la reunión no vuelve a crear otra.
+    if (opts.replace) router.replace(`/app/voice/meetings/${id}`);
+    else router.push(`/app/voice/meetings/${id}`);
   }
 
-  // ?new=1 (⌘K / sidebar): reunión nueva.
+  // ?new=1 (⌘K / sidebar): reunión nueva, sin dejar ?new=1 en el historial.
   useEffect(() => {
     if (params.get('new') === '1' && !autoCreated.current) {
       autoCreated.current = true;
-      void newMeeting();
+      void newMeeting({ replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
   async function onFile(file: File | undefined) {
+    if (fileRef.current) fileRef.current.value = '';
     if (!file) return;
-    const id = await create({ title: file.name.replace(/\.[^.]+$/, '').slice(0, 200), capture: 'file' }, 'import');
+    // Primero se valida: un archivo que no sirve no crea una reunión vacía.
+    const invalid = checkRecordingFile(file, importMaxBytes);
+    if (invalid) {
+      setError(invalid);
+      return;
+    }
+    const id = await create({ title: file.name.replace(/\.[^.]+$/, '').slice(0, 200), capture: 'file', locale }, 'import');
     if (!id) return;
-    const res = await importRecording({ sessionId: id, file, blobPrefix });
-    if (!res.ok) setError(res.error);
+    const res = await importRecording({ sessionId: id, file, blobPrefix, blobAccess });
+    if (!res.ok) {
+      // Si la subida o la transcripción fallan, la reunión no queda creada.
+      await fetch(`/api/voice/sessions/${id}`, { method: 'DELETE' }).catch(() => null);
+      setBusy(null);
+      setError(res.error);
+      return;
+    }
     router.push(`/app/voice/meetings/${id}`);
   }
 
@@ -233,7 +251,7 @@ export default function MeetingsHome({ initialSessions, bookings, transcription,
                     {b.inviteeName} · {format.dateTime(new Date(b.startsAt), { weekday: 'short', hour: 'numeric', minute: '2-digit' })}
                   </span>
                 </span>
-                <button type="button" className="btn btn-secondary btn-sm" disabled={busy !== null} onClick={() => void newMeeting(b.id)}>
+                <button type="button" className="btn btn-secondary btn-sm" disabled={busy !== null} onClick={() => void newMeeting({ bookingId: b.id })}>
                   {t('takeNotes')}
                 </button>
               </li>

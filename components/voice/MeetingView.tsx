@@ -6,12 +6,12 @@ import { Link, useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { formatDuration, VOICE_BUILTIN_TEMPLATES, type VoiceSegment, type VoiceSessionDetail, type VoiceTemplate } from '@/lib/voice-types';
 import { LevelBars, MicIcon, voiceErrorKey } from './voice-ui';
-import { useMeetingRecorder, type CaptureMode } from './useMeetingRecorder';
+import { useRecorder, type CaptureMode } from './RecorderProvider';
 import { recordingSupported, tabAudioSupported } from './audio';
 import EnhancedNotes from './EnhancedNotes';
 import { ChatPanel, DetailsPanel, TranscriptPanel } from './MeetingSide';
 import { copyText } from './insert';
-import { importRecording } from './importRecording';
+import { checkRecordingFile, importRecording } from './importRecording';
 
 type Detail = VoiceSessionDetail & { contact: { id: string; name: string; email: string } | null };
 
@@ -21,6 +21,8 @@ interface Props {
   transcription: boolean;
   ai: boolean;
   blobPrefix: string | null;
+  blobAccess: 'public' | 'private';
+  importMaxBytes: number;
 }
 
 /**
@@ -29,7 +31,7 @@ interface Props {
  * A la derecha, la transcripción en vivo, el chat sobre la reunión y los
  * vínculos (Cal, CRM, Docs, Notes).
  */
-export default function MeetingView({ initial, templates, transcription, ai, blobPrefix }: Props) {
+export default function MeetingView({ initial, templates, transcription, ai, blobPrefix, blobAccess, importMaxBytes }: Props) {
   const t = useTranslations('voice.meeting');
   const tTpl = useTranslations('voice.templates.builtin');
   const tErr = useTranslations('voice.errors');
@@ -48,6 +50,8 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [docsDialog, setDocsDialog] = useState(false);
+  const [docsTranscript, setDocsTranscript] = useState(false);
   const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Lo que soporta el navegador se mira después de hidratar (en el servidor no hay MediaRecorder).
   const [support, setSupport] = useState({ rec: true, tab: true });
@@ -75,15 +79,74 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
     });
   }, []);
 
-  const rec = useMeetingRecorder({
-    sessionId: d.id,
-    baseOffsetMs: d.durationMs,
-    onSegments,
-    onStatus: (status) => {
-      setD((prev) => ({ ...prev, status }));
-      void patch({ status, capture: mode });
-    },
-  });
+  // El grabador vive en el layout de la app: sigue grabando si se navega a otra página.
+  const recorder = useRecorder();
+  const active = recorder.sessionId === d.id;
+  const recordingElsewhere = !!recorder.sessionId && !active && recorder.state !== 'idle';
+  const rec = {
+    state: active ? recorder.state : ('idle' as const),
+    error: active ? recorder.error : null,
+    pending: active ? recorder.pending : 0,
+    lagging: active && recorder.lagging,
+    elapsed: active ? recorder.elapsed : 0,
+    level: active ? recorder.level : 0,
+    tabLive: active && recorder.tabLive,
+  };
+
+  // Nota con IA en cola en el servidor (al cortar la grabación o al importar): se espera a que esté.
+  const [notesStatus, setNotesStatus] = useState(initial.notesStatus);
+  const refresh = useCallback(async () => {
+    const fresh = await fetch(`/api/voice/sessions/${d.id}`)
+      .then((r) => (r.ok ? (r.json() as Promise<Detail>) : null))
+      .catch(() => null);
+    if (!fresh) return null;
+    setNotesStatus(fresh.notesStatus);
+    setD((prev) => ({
+      ...prev,
+      status: fresh.status,
+      durationMs: Math.max(prev.durationMs, fresh.durationMs),
+      enhanced: fresh.enhanced,
+      enhancedAt: fresh.enhancedAt,
+      crmActivityId: fresh.crmActivityId,
+      segments: fresh.segments.length >= prev.segments.length ? fresh.segments : prev.segments,
+    }));
+    if (fresh.enhanced && fresh.notesStatus === 'done') setView('enhanced');
+    return fresh;
+  }, [d.id]);
+
+  useEffect(
+    () =>
+      recorder.subscribe(d.id, onSegments, () => {
+        setNotesStatus('queued');
+        void refresh();
+      }),
+    [recorder, d.id, onSegments, refresh],
+  );
+
+  useEffect(() => {
+    if (notesStatus !== 'queued' && notesStatus !== 'running') return;
+    let tries = 0;
+    const timer = setInterval(async () => {
+      tries += 1;
+      const fresh = await refresh();
+      if (!fresh || (fresh.notesStatus !== 'queued' && fresh.notesStatus !== 'running') || tries > 90) clearInterval(timer);
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [notesStatus, refresh]);
+
+  async function flushNotes() {
+    if (notesTimer.current) {
+      clearTimeout(notesTimer.current);
+      notesTimer.current = null;
+      await patch({ myNotes: notes });
+    }
+  }
+
+  async function stopRecording() {
+    // Lo último que se escribió entra en la nota que se arma al cortar.
+    await flushNotes();
+    await recorder.stop();
+  }
 
   const enhance = useCallback(
     async (templateKey?: string) => {
@@ -112,13 +175,6 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
     [d.id, locale, notes, patch],
   );
 
-  // Al cortar la grabación, la IA arma la nota (como Granola al terminar la llamada).
-  const prevState = useRef(rec.state);
-  useEffect(() => {
-    if (prevState.current === 'stopping' && rec.state === 'idle' && ai && d.segments.length > 0 && !rec.error) void enhance();
-    prevState.current = rec.state;
-  }, [rec.state, ai, d.segments.length, rec.error, enhance]);
-
   function onNotesChange(v: string) {
     setNotes(v);
     setSaveState('saving');
@@ -146,14 +202,15 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
     if (!(await patch({ speakers }))) setError('generic');
   }
 
-  async function send(target: 'docs' | 'notes' | 'markdown') {
+  async function send(target: 'docs' | 'notes' | 'markdown', opts: { includeTranscript?: boolean } = {}) {
     setBusy(target);
     setError(null);
     setFlash(null);
+    setDocsDialog(false);
     const res = await fetch(`/api/voice/sessions/${d.id}/send`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ target, locale }),
+      body: JSON.stringify({ target, locale, includeTranscript: opts.includeTranscript }),
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as { id?: string; markdown?: string; error?: string } | null;
     setBusy(null);
@@ -174,14 +231,22 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
     if (!file) return;
     setBusy('import');
     setError(null);
-    const res = await importRecording({ sessionId: d.id, file, blobPrefix });
+    const invalid = checkRecordingFile(file, importMaxBytes);
+    if (invalid) {
+      setBusy(null);
+      setError(invalid);
+      return;
+    }
+    const res = await importRecording({ sessionId: d.id, file, blobPrefix, blobAccess });
     setBusy(null);
+    if (fileRef.current) fileRef.current.value = '';
     if (!res.ok) {
       setError(res.error);
       return;
     }
-    const fresh = await fetch(`/api/voice/sessions/${d.id}`).then((r) => (r.ok ? (r.json() as Promise<Detail>) : null)).catch(() => null);
-    if (fresh) setD(fresh);
+    // La nota con IA se arma sola en el servidor; se espera a que esté.
+    setNotesStatus('queued');
+    await refresh();
   }
 
   async function remove() {
@@ -237,7 +302,7 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
           <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || !hasContent} onClick={() => void send('markdown')}>
             {t('copyMarkdown')}
           </button>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || !hasContent} aria-busy={busy === 'docs' || undefined} onClick={() => void send('docs')}>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || !hasContent} aria-busy={busy === 'docs' || undefined} onClick={() => setDocsDialog(true)}>
             {t('sendDocs')}
           </button>
           <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || !hasContent} aria-busy={busy === 'notes' || undefined} onClick={() => void send('notes')}>
@@ -287,9 +352,9 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
               <button
                 type="button"
                 className="btn btn-primary"
-                disabled={!canRecord || rec.state === 'starting'}
+                disabled={!canRecord || rec.state === 'starting' || recordingElsewhere}
                 aria-busy={rec.state === 'starting' || undefined}
-                onClick={() => void rec.start(mode)}
+                onClick={() => void recorder.start({ sessionId: d.id, mode, baseOffsetMs: d.durationMs })}
               >
                 <MicIcon /> {d.segments.length ? t('resume') : t('start')}
               </button>
@@ -306,15 +371,33 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
                 {formatDuration(rec.elapsed)}
               </span>
               <span className="vc-muted" role="status">
-                {rec.state === 'stopping' ? t('finishing') : rec.pending > 0 ? t('transcribingN', { count: rec.pending }) : mode === 'mic_tab' && !rec.tabLive ? t('tabEnded') : t('recording')}
+                {rec.state === 'stopping'
+                  ? t('finishing')
+                  : rec.lagging
+                    ? t('lagging', { count: rec.pending })
+                    : rec.pending > 0
+                      ? t('transcribingN', { count: rec.pending })
+                      : recorder.mode === 'mic_tab' && !rec.tabLive
+                        ? t('tabEnded')
+                        : t('recording')}
               </span>
-              <button type="button" className="btn btn-primary" disabled={rec.state === 'stopping'} onClick={() => void rec.stop()}>
+              <button type="button" className="btn btn-primary" disabled={rec.state === 'stopping'} onClick={() => void stopRecording()}>
                 {t('stop')}
               </button>
             </>
           )}
         </div>
         {mode === 'mic_tab' && rec.state === 'idle' && <p className="vc-muted">{t('tabHelp')}</p>}
+        {recordingElsewhere && (
+          <p className="vc-notice" role="status">
+            {t('recordingElsewhere')} <Link href={`/app/voice/meetings/${recorder.sessionId}`}>{t('openOther')}</Link>
+          </p>
+        )}
+        {(notesStatus === 'queued' || notesStatus === 'running') && !recording && (
+          <p className="vc-muted" role="status">
+            {t('notesQueued')}
+          </p>
+        )}
         <p className="vc-muted vc-consent">{t('consent')}</p>
         {recError && (
           <p className="ui-error" role="alert">
@@ -451,6 +534,25 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
         </aside>
       </div>
 
+      {/* Docs no tiene espacio privado todavía: la página la ve todo el workspace. */}
+      <ConfirmDialog
+        open={docsDialog}
+        title={t('docsConfirmTitle')}
+        body={
+          <>
+            <span className="vc-confirm-text">{t('docsConfirmBody')}</span>
+            <label className="ui-check vc-confirm-check">
+              <input type="checkbox" checked={docsTranscript} onChange={(e) => setDocsTranscript(e.target.checked)} />
+              <span>{t('docsIncludeTranscript')}</span>
+            </label>
+          </>
+        }
+        confirmLabel={t('docsConfirm')}
+        cancelLabel={t('cancel')}
+        busy={busy === 'docs'}
+        onConfirm={() => void send('docs', { includeTranscript: docsTranscript })}
+        onCancel={() => setDocsDialog(false)}
+      />
       <ConfirmDialog
         open={confirmDelete}
         title={t('deleteTitle')}
