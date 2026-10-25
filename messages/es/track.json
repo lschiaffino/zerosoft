@@ -6,7 +6,8 @@
     "issues": "Issues",
     "cycles": "Ciclos",
     "settings": "Ajustes",
-    "inbox": "Bandeja"
+    "inbox": "Bandeja",
+    "customers": "Clientes"
   },
   "common": {
     "viewAll": "Ver todo",
@@ -574,7 +575,9 @@
       "updated": "Actualizados hace poco",
       "priority": "Prioridad",
       "due": "Vencimiento",
-      "identifier": "Identificador"
+      "identifier": "Identificador",
+      "customers": "Cantidad de clientes",
+      "revenue": "Ingresos de clientes"
     }
   },
   "subscription": {

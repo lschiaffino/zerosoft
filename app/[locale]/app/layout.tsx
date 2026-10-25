@@ -39,6 +39,7 @@ export default async function AppLayout(
   } = props;
 
   const user = await requireUser(locale);
+  const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
   const [tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tasksDue, serverTz] =
     await Promise.all([
@@ -126,6 +127,7 @@ export default async function AppLayout(
                 { href: '/app/track/my-tasks', label: tTrack('sidebar.myTasks') },
                 { href: '/app/track/projects', label: tTrack('sidebar.projects') },
                 { href: '/app/track/issues', label: tTrack('sidebar.issues') },
+                { href: '/app/track/customers', label: tTrack('sidebar.customers') },
                 { href: '/app/track/inbox', label: tTrack('sidebar.inbox') },
                 { href: '/app/track/settings', label: tTrack('sidebar.settings') },
                 { href: '/app/chat', label: tChat('sidebar.overview') },
@@ -234,6 +236,7 @@ export default async function AppLayout(
               cycles: tTrack('sidebar.cycles'),
               settings: tTrack('sidebar.settings'),
               inbox: tTrack('sidebar.inbox'),
+              customers: tTrack('sidebar.customers'),
             },
             chat: {
               overview: tChat('sidebar.overview'),
@@ -284,6 +287,12 @@ export default async function AppLayout(
                 docShared: tTrack.raw('notifications.docShared') as string,
                 boardMention: tTrack.raw('notifications.boardMention') as string,
                 boardReply: tTrack.raw('notifications.boardReply') as string,
+                trackKinds: {
+                  triage_owner: tTriage.raw('notifications.triage_owner') as string,
+                  sla_risk: tTriage.raw('notifications.sla_risk') as string,
+                  sla_breach: tTriage.raw('notifications.sla_breach') as string,
+                  agent_update: tTriage.raw('notifications.agent_update') as string,
+                },
               },
             },
           }}

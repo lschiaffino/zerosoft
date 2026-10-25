@@ -36,6 +36,8 @@ import TrackIcon from './TrackIcon';
 import type { TrackUiLabels } from './ui-labels';
 import { BulkBar, useIssueSelection, type BulkPatch } from './BulkEdit';
 import { useWorkspaceLabels } from './LabelPicker';
+import TriageSettingsPanel from './triage/TriageSettingsPanel';
+import ProjectUpdateDraftButton from './triage/ProjectUpdateDraftButton';
 import TriagePanel from './TriagePanel';
 import IssueDisplayOptions from './IssueDisplayOptions';
 import GroupedIssuesTable from './GroupedIssuesTable';
@@ -744,6 +746,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
         }
         actions={
           <>
+            <ProjectUpdateDraftButton projectId={projectId} />
             <button
               type="button"
               className="btn"
@@ -1060,6 +1063,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
                   {t('triage.enableHelp')}
                 </p>
                 {!isAdmin && <p className="ui-help">{t('triage.adminOnly')}</p>}
+                <TriageSettingsPanel projectId={projectId} isAdmin={isAdmin} members={members} statuses={statuses} />
               </div>
             ),
           }}

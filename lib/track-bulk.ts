@@ -193,8 +193,12 @@ export async function bulkEditIssues(payload: BulkIssuesPayload, scope: Scope): 
 
 // ---------- Triage ----------
 
-export async function listTriageIssues(projectId: string): Promise<TrackIssueWithStatus[]> {
-  return listProjectTriageIssues(projectId, 200);
+/** Cola de triage sin los pospuestos (snooze, lib/track-triage.ts); con `snoozed` solo los pospuestos. */
+export async function listTriageIssues(projectId: string, opts: { snoozed?: boolean } = {}): Promise<TrackIssueWithStatus[]> {
+  const all = await listProjectTriageIssues(projectId, 200);
+  const { listTriageSnoozes } = await import('./track-triage');
+  const snoozes = await listTriageSnoozes(projectId);
+  return all.filter((i) => (opts.snoozed ? snoozes.has(i.id) : !snoozes.has(i.id)));
 }
 
 export async function countTriage(projectId: string): Promise<number> {

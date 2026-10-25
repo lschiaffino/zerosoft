@@ -15,6 +15,8 @@ import { fireNoteReminders } from '@/lib/notes-reminders';
 import { runAutoCycles } from '@/lib/track-auto-cycles';
 import { runRecurringIssues } from '@/lib/track-recurring';
 import { fireIssueReminders, sendImmediateTrackEmails, sendTrackDigests } from '@/lib/track-notify';
+import { runSlaChecks } from '@/lib/track-sla';
+import { processPendingAgentSessions } from '@/lib/track-agents';
 import { importResearchIdeas, researchIdeaSchema } from '@/lib/roadmap';
 import researchIdeas from '@/research/ideas.json';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
@@ -62,6 +64,8 @@ export async function GET(req: NextRequest) {
   const trackCycles = await runAutoCycles().catch(() => null);
   const trackRecurring = await runRecurringIssues({ limit: 200 }).catch(() => null);
   const trackReminders = await fireIssueReminders({ limit: 500 }).catch(() => null);
+  const trackSla = await runSlaChecks({ limit: 500 }).catch(() => null);
+  const trackAgents = await processPendingAgentSessions({ limit: 20, budgetMs: 20_000 }).catch(() => null);
   const trackEmails = await sendImmediateTrackEmails({ limit: 200 }).catch(() => null);
   const trackDigests = await sendTrackDigests({ limit: 500 }).catch(() => null);
   // Papelera del CRM: lo borrado hace más de 90 días se descarta para siempre.
@@ -93,5 +97,5 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, trackCycles, trackRecurring, trackReminders, trackEmails, trackDigests, trashPurged, flowPruned, flow, emailSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, trackCycles, trackRecurring, trackReminders, trackSla, trackAgents, trackEmails, trackDigests, trashPurged, flowPruned, flow, emailSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
 }

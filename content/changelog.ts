@@ -29,6 +29,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-25-track-triage',
+    date: '2026-10-25',
+    title: {
+      en: 'Track: customer requests, triage rules, SLAs, AI triage and agents that work issues',
+      es: 'Track: pedidos de clientes, reglas de triage, SLAs, triage con IA y agentes que trabajan issues',
+      pt: 'Track: pedidos de clientes, regras de triage, SLAs, triage com IA e agentes que trabalham em issues',
+    },
+    items: [
+      { product: 'track', en: 'Link customer requests to issues from the issue, from a CRM company or contact, or through the API (email, forms, Flow), with the quote and an important flag. Track › Customers lists who asked for what, and lists sort by customer count or won-deal revenue.', es: 'Los pedidos de clientes se enlazan a issues desde el issue, desde una empresa o un contacto del CRM o por la API (email, formularios, Flow), con la cita y la marca de importante. Track › Clientes muestra quién pidió qué, y las listas ordenan por cantidad de clientes o ingresos de deals ganados.', pt: 'Os pedidos de clientes são ligados a issues pelo issue, por uma empresa ou um contato do CRM ou pela API (e-mail, formulários, Flow), com a citação e a marca de importante. Track › Clientes mostra quem pediu o quê, e as listas ordenam por quantidade de clientes ou receita de deals ganhos.' },
+      { product: 'track', en: 'Triage works from the keyboard (1 accept, 2 decline, 3 duplicate, H snooze), with an optional comment. Rules set priority, assignee, labels or accept issues as they arrive, and a daily or weekly rotation notifies or assigns the person on duty.', es: 'El triage se maneja con teclado (1 aceptar, 2 rechazar, 3 duplicado, H posponer), con comentario opcional. Las reglas fijan prioridad, asignado, labels o aceptan los issues al llegar, y una rotación diaria o semanal avisa o asigna a quien está de turno.', pt: 'O triage funciona pelo teclado (1 aceitar, 2 recusar, 3 duplicado, H adiar), com comentário opcional. As regras definem prioridade, responsável, labels ou aceitam os issues ao chegar, e um rodízio diário ou semanal avisa ou atribui a quem está de plantão.' },
+      { product: 'track', en: 'SLAs by priority per project, with a countdown in the issue and the lists and notices when an issue is at risk or breached.', es: 'SLAs por prioridad en cada proyecto, con cuenta regresiva en el issue y las listas, y avisos cuando un issue está en riesgo o vence.', pt: 'SLAs por prioridade em cada projeto, com contagem regressiva no issue e nas listas, e avisos quando um issue está em risco ou vence.' },
+      { product: 'track', en: 'AI suggests assignee, labels, priority and duplicates for issues in triage, summarizes an issue and its discussion, drafts project updates and turns pasted text into an issue.', es: 'La IA sugiere asignado, labels, prioridad y duplicados para los issues en triage, resume un issue y su discusión, arma borradores de update del proyecto y convierte un texto pegado en un issue.', pt: 'A IA sugere responsável, labels, prioridade e duplicados para os issues no triage, resume um issue e a discussão, monta rascunhos de update do projeto e transforma um texto colado em issue.' },
+      { product: 'track', en: 'Delegate an issue to an agent from the Agents app or to an external agent: its work shows up as a session in the issue, and external agents answer through a signed webhook and the API.', es: 'Un issue se puede delegar a un agente de la app Agents o a un agente externo: su trabajo aparece como una sesión en el issue, y los externos responden por un webhook firmado y la API.', pt: 'Um issue pode ser delegado a um agente do app Agents ou a um agente externo: o trabalho aparece como uma sessão no issue, e os externos respondem por um webhook assinado e pela API.' },
+    ],
+  },
+  {
     id: '2026-10-24-crm-ai',
     date: '2026-10-24',
     title: {

@@ -47,6 +47,9 @@ export default defineConfig({
       // IA del CRM contra el modelo falso (lib/crm-ai-fake.ts): cuota y ai_usage
       // corren igual; con la cookie crm_ai_fake=off se ve el error ai_disabled.
       CRM_AI_FAKE: '1',
+      // IA de Track (triage, resúmenes, agentes) contra el mismo modelo falso
+      // (lib/track-ai.ts); con la cookie track_ai_fake=off se ve ai_disabled.
+      TRACK_AI_FAKE: '1',
       // Importadores: Linear, GitHub y Calendly apuntan a un mock local
       // (tests/e2e/importers.spec.ts lo levanta en PORT + 1). Nada sale a internet.
       IMPORT_LINEAR_API_URL: `http://127.0.0.1:${PORT + 1}/linear`,

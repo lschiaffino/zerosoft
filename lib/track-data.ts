@@ -44,7 +44,7 @@ import type {
 } from './track-schema';
 import { safeHexColor } from './track-color';
 import { normalizeIssueLabels, projectWorkspaceId } from './track-labels';
-import { issueOrderBy, issueSearchClause, labelIdLike, type IssueSort } from './track-views';
+import { ISSUE_CUSTOMERS_SQL, ISSUE_REVENUE_SQL, issueOrderBy, issueSearchClause, labelIdLike, type IssueSort } from './track-views';
 import { defaultIssueStatus } from './track-tasks';
 
 // ---------- Tipos públicos ----------
@@ -58,6 +58,13 @@ export interface TrackIssueWithStatus extends TrackIssueRow {
   cycle_name: string | null;
   child_count: number;
   milestone_name?: string | null;
+  /** Clientes distintos que lo pidieron (track_customer_requests). */
+  customer_count?: number;
+  /** Ingresos de esos clientes: deals ganados de sus empresas en el CRM. */
+  customer_revenue?: number;
+  /** SLA abierto (track_issue_slas): vencimiento y desde cuándo está en riesgo. */
+  sla_due_at?: string | null;
+  sla_risk_at?: string | null;
 }
 
 export interface TrackProjectWithStats extends TrackProjectRow {
@@ -794,7 +801,11 @@ function issueSelect(extraWhere = ''): string {
       u.email AS assignee_email,
       c.name AS cycle_name,
       ms.name AS milestone_name,
-      (SELECT COUNT(*) FROM track_issues child WHERE child.parent_id = i.id) AS child_count
+      (SELECT COUNT(*) FROM track_issues child WHERE child.parent_id = i.id) AS child_count,
+      ${ISSUE_CUSTOMERS_SQL} AS customer_count,
+      ${ISSUE_REVENUE_SQL} AS customer_revenue,
+      (SELECT sla.due_at FROM track_issue_slas sla WHERE sla.issue_id = i.id AND sla.completed_at IS NULL) AS sla_due_at,
+      (SELECT sla.risk_at FROM track_issue_slas sla WHERE sla.issue_id = i.id AND sla.completed_at IS NULL) AS sla_risk_at
     FROM track_issues i
     LEFT JOIN track_statuses s ON s.id = i.status_id
     LEFT JOIN users u ON u.id = i.assignee_id
@@ -1043,7 +1054,7 @@ export async function createIssue(
   projectId: string,
   creatorId: string,
   payload: IssueCreatePayload,
-  opts: { source?: TrackIssueSource } = {},
+  opts: { source?: TrackIssueSource; deferTriage?: boolean } = {},
 ): Promise<TrackIssueWithStatus> {
   const db = getDb();
   const id = crypto.randomUUID();
@@ -1108,7 +1119,15 @@ export async function createIssue(
 
   await autoSubscribe(id, [creatorId, payload.assigneeId]);
 
-  const created = (await getIssue(id)) as TrackIssueWithStatus;
+  let created = (await getIssue(id)) as TrackIssueWithStatus;
+
+  // Triage (reglas, responsable de turno, IA) y SLA por prioridad: lib/track-triage.ts y lib/track-sla.ts.
+  // deferTriage: el llamador agrega antes el pedido del cliente (las reglas lo miran) y corre el triage él.
+  if (triage && !opts.deferTriage) {
+    const { onIssueEnteredTriage } = await import('./track-triage');
+    created = (await onIssueEnteredTriage(created).catch(() => null)) ?? created;
+  }
+  await (await import('./track-sla')).syncIssueSla(id).catch(() => undefined);
 
   if (payload.assigneeId && payload.assigneeId !== creatorId) {
     const [project, creator] = await Promise.all([
@@ -1141,7 +1160,8 @@ const NOTIFY_CHANGE: Partial<Record<TrackIssueActivityRow['type'], string>> = {
 
 /** Origen de un cambio automático (hoy solo GitHub): se guarda en la actividad. */
 export interface IssueChangeVia {
-  source: 'github';
+  /** github: PRs; triage: reglas y responsable de triage; agent: un agente que trabaja el issue. */
+  source: 'github' | 'triage' | 'agent';
   author?: string | null;
   ref?: string | null;
 }
@@ -1277,7 +1297,14 @@ export async function updateIssue(
       // actor es la integración, así que el owner también recibe el aviso.
       const actor =
         owner && opts.via
-          ? { id: '', email: '', name: `GitHub${opts.via.author ? ` (@${opts.via.author})` : ''}` }
+          ? {
+              id: '',
+              email: '',
+              name:
+                opts.via.source === 'github'
+                  ? `GitHub${opts.via.author ? ` (@${opts.via.author})` : ''}`
+                  : opts.via.author || 'Track',
+            }
           : owner;
       if (actor && project) {
         // El nuevo asignado recibe "te asignaron"; el resto de los suscriptos,
@@ -1314,6 +1341,7 @@ export async function updateIssue(
     }
   }
 
+  if (fields.length > 0) await (await import('./track-sla')).syncIssueSla(id).catch(() => undefined);
   const updated = await getIssue(id);
   if (updated && fields.length > 0) {
     scheduleIssueEvents(

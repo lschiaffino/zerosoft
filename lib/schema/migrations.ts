@@ -3645,6 +3645,128 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Track (T3, triage e IA): pedidos de clientes enlazados a issues, ajustes
+    // de triage por proyecto (responsable rotativo, SLAs por prioridad, modo
+    // de las sugerencias de IA), reglas de triage, snooze de la cola, SLA de
+    // cada issue, caché de IA (sugerencias y resumen) y agentes que trabajan
+    // issues (apps externas con webhook y sesiones con actividades).
+    id: '112_track_triage',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_triage_settings (
+          project_id TEXT PRIMARY KEY REFERENCES track_projects(id) ON DELETE CASCADE,
+          owner_ids TEXT NOT NULL DEFAULT '[]',
+          owner_rotation TEXT NOT NULL DEFAULT 'weekly' CHECK (owner_rotation IN ('daily', 'weekly')),
+          owner_action TEXT NOT NULL DEFAULT 'off' CHECK (owner_action IN ('off', 'notify', 'assign')),
+          owner_anchor TEXT NOT NULL DEFAULT (date('now')),
+          sla_enabled INTEGER NOT NULL DEFAULT 0,
+          sla_hours TEXT NOT NULL DEFAULT '{}',
+          ai_modes TEXT NOT NULL DEFAULT '{}',
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS track_triage_rules (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          position INTEGER NOT NULL DEFAULT 0,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          conditions TEXT NOT NULL DEFAULT '[]',
+          actions TEXT NOT NULL DEFAULT '{}',
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_triage_rules_project ON track_triage_rules(project_id, position);
+        CREATE TABLE IF NOT EXISTS track_triage_snoozes (
+          issue_id TEXT PRIMARY KEY REFERENCES track_issues(id) ON DELETE CASCADE,
+          until TEXT NOT NULL,
+          user_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS track_issue_slas (
+          issue_id TEXT PRIMARY KEY REFERENCES track_issues(id) ON DELETE CASCADE,
+          priority TEXT NOT NULL,
+          started_at TEXT NOT NULL,
+          risk_at TEXT NOT NULL,
+          due_at TEXT NOT NULL,
+          completed_at TEXT,
+          risk_notified_at TEXT,
+          breach_notified_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_issue_slas_open ON track_issue_slas(completed_at, risk_at);
+        CREATE TABLE IF NOT EXISTS track_customer_requests (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          company_id TEXT REFERENCES crm_companies(id) ON DELETE SET NULL,
+          contact_id TEXT REFERENCES crm_contacts(id) ON DELETE SET NULL,
+          customer_name TEXT NOT NULL DEFAULT '',
+          customer_email TEXT NOT NULL DEFAULT '',
+          important INTEGER NOT NULL DEFAULT 0,
+          body TEXT NOT NULL DEFAULT '',
+          source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'crm', 'chat', 'groups', 'email', 'form', 'api')),
+          source_url TEXT NOT NULL DEFAULT '',
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_customer_requests_issue ON track_customer_requests(issue_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_track_customer_requests_company ON track_customer_requests(workspace_id, company_id);
+        CREATE INDEX IF NOT EXISTS idx_track_customer_requests_contact ON track_customer_requests(workspace_id, contact_id);
+        CREATE TABLE IF NOT EXISTS track_issue_ai (
+          issue_id TEXT PRIMARY KEY REFERENCES track_issues(id) ON DELETE CASCADE,
+          suggestions TEXT NOT NULL DEFAULT '[]',
+          suggestions_at TEXT,
+          summary TEXT NOT NULL DEFAULT '',
+          summary_at TEXT,
+          claimed_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS track_agent_apps (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          webhook_url TEXT NOT NULL DEFAULT '',
+          secret TEXT NOT NULL,
+          token_hash TEXT NOT NULL UNIQUE,
+          token_hint TEXT NOT NULL DEFAULT '',
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_agent_apps_ws ON track_agent_apps(workspace_id, name);
+        CREATE TABLE IF NOT EXISTS track_agent_sessions (
+          id TEXT PRIMARY KEY,
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          agent_kind TEXT NOT NULL CHECK (agent_kind IN ('zerosoft', 'external')),
+          agent_id TEXT NOT NULL,
+          agent_name TEXT NOT NULL DEFAULT '',
+          state TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'active', 'awaiting_input', 'complete', 'error', 'stopped')),
+          created_by TEXT,
+          external_url TEXT NOT NULL DEFAULT '',
+          pending_event TEXT,
+          pending_since TEXT,
+          claimed_at TEXT,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_agent_sessions_issue ON track_agent_sessions(issue_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_track_agent_sessions_pending ON track_agent_sessions(pending_since) WHERE pending_since IS NOT NULL;
+        CREATE TABLE IF NOT EXISTS track_agent_activities (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL REFERENCES track_agent_sessions(id) ON DELETE CASCADE,
+          type TEXT NOT NULL CHECK (type IN ('prompt', 'thought', 'action', 'elicitation', 'response', 'error')),
+          body TEXT NOT NULL DEFAULT '',
+          meta TEXT NOT NULL DEFAULT '{}',
+          user_id TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_agent_activities_session ON track_agent_activities(session_id, created_at);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

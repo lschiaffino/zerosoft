@@ -1892,6 +1892,8 @@
     "paramGroupsPriority": "low, medium, high or urgent",
     "scope_groups_read": "Read WhatsApp chats, messages and tickets in Groups.",
     "scope_groups_write": "Send WhatsApp messages and create tickets in Groups.",
+    "scope_track_read": "Read Track issues and customer requests.",
+    "scope_track_write": "Create Track issues from customer requests (email, forms, Flow).",
     "crmLeadsTitle": "CRM · Leads",
     "crmLeadsDesc": "Leads are prospects before they become a deal: owner, stage of the lead pipeline, contact and company. Converting a lead creates a deal from the app. Custom fields of leads go in custom; fields a key cannot edit return 403 field_readonly and hidden fields are left out of responses.",
     "crmObjectsTitle": "CRM · Custom objects",
