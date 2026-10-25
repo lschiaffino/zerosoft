@@ -115,6 +115,31 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/track/issues/${i.id}`))),
   },
   {
+    // Planes de Track (los projects de Linear).
+    app: 'Track plans',
+    list: '/en/app/track/plans',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/track/plans', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/track/plans/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/track/plans/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/track/plans/${i.id}`))),
+  },
+  {
+    app: 'Track initiatives',
+    list: '/en/app/track/initiatives',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/track/initiatives', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/track/initiatives/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/track/initiatives/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/track/initiatives/${i.id}`))),
+  },
+  {
+    app: 'Track dashboards',
+    list: '/en/app/track/dashboards',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/track/dashboards', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/track/dashboards/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/track/dashboards/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/track/dashboards/${i.id}`))),
+  },
+  {
     app: 'CRM contacts',
     list: '/en/app/crm/contacts',
     create: async (request, name) => {

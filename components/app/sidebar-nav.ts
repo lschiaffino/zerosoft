@@ -85,6 +85,14 @@ export interface SidebarLabels {
     cycles: string;
     settings: string;
     inbox: string;
+    /** Planificación (como Linear): plans, initiatives, roadmap, cycles, insights y dashboards. */
+    planning?: string;
+    plans?: string;
+    initiatives?: string;
+    roadmap?: string;
+    analytics?: string;
+    insights?: string;
+    dashboards?: string;
   };
   chat: {
     overview: string;
@@ -302,6 +310,26 @@ export function buildNav(
             { href: '/app/track/issues', label: labels.track.issues, active: at('/app/track/issues'), icon: 'tasks' },
           ],
         },
+        ...(labels.track.plans
+          ? [
+              {
+                section: labels.track.planning,
+                items: [
+                  { href: '/app/track/plans', label: labels.track.plans, active: at('/app/track/plans'), icon: 'plans' as const },
+                  { href: '/app/track/initiatives', label: labels.track.initiatives ?? '', active: at('/app/track/initiatives'), icon: 'initiatives' as const },
+                  { href: '/app/track/roadmap', label: labels.track.roadmap ?? '', active: at('/app/track/roadmap'), icon: 'roadmap' as const },
+                  { href: '/app/track/cycles', label: labels.track.cycles, active: at('/app/track/cycles'), icon: 'cycles' as const },
+                ],
+              },
+              {
+                section: labels.track.analytics,
+                items: [
+                  { href: '/app/track/insights', label: labels.track.insights ?? '', active: at('/app/track/insights'), icon: 'insights' as const },
+                  { href: '/app/track/dashboards', label: labels.track.dashboards ?? '', active: at('/app/track/dashboards'), icon: 'dashboards' as const },
+                ],
+              },
+            ]
+          : []),
         {
           section: labels.activity,
           items: [

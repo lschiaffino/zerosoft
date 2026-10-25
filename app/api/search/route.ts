@@ -9,6 +9,7 @@ import { searchApps } from '@/lib/app-search';
 import { searchRuns } from '@/lib/crm-ai-agents';
 import { searchLeads } from '@/lib/crm-leads';
 import { listObjects, searchRecords } from '@/lib/crm-objects';
+import { searchPlanning } from '@/lib/track-planning-search';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, planning] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -50,6 +51,8 @@ export async function GET(req: NextRequest) {
     searchLeads(user.id, q, scope, 8),
     searchRecords(user.id, q, scope, 8),
     listObjects(user.id),
+    // Track: plans, initiatives y dashboards por nombre.
+    searchPlanning({ teamId: user.team?.id ?? null, ownerId: user.id }, user.actingUser?.id ?? user.id, q).catch(() => []),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -158,6 +161,7 @@ export async function GET(req: NextRequest) {
   }
 
   items.push(...apps);
+  items.push(...planning);
 
   return NextResponse.json<SearchResponse>({ q, items });
 }

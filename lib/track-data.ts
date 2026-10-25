@@ -819,7 +819,8 @@ export async function listIssues(
   const pageSize = Math.min(Math.max(options.pageSize ?? 50, 1), 100);
   const page = Math.max(options.page ?? 1, 1);
 
-  const where: string[] = ['i.project_id = ?', 'i.triage = 0'];
+  // Los archivados (auto-archivo, lib/track-housekeeping) no salen en las listas.
+  const where: string[] = ['i.project_id = ?', 'i.triage = 0', 'i.archived_at IS NULL'];
   const args: Array<string | number> = [projectId];
 
   const statusIds = toArray(options.statusId);
@@ -900,6 +901,7 @@ export async function listAllIssues(
   const where: string[] = [
     `i.project_id IN (SELECT id FROM track_projects WHERE ${projectWhere} AND status = 'active')`,
     'i.triage = 0',
+    'i.archived_at IS NULL',
   ];
   const args: Array<string | number> = [projectArg];
 
@@ -986,6 +988,7 @@ export async function listMyIssues(
     `i.project_id IN (SELECT id FROM track_projects WHERE ${scope.where} AND status = 'active')`,
     'i.assignee_id = ?',
     'i.triage = 0',
+    'i.archived_at IS NULL',
   ];
   if (!options.includeCompleted) {
     where.push("(s.category IS NULL OR s.category NOT IN ('done', 'cancelled'))");

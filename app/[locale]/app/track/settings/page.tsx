@@ -5,6 +5,7 @@ import SettingsTabs from '@/components/ui/SettingsTabs';
 import { GithubSettings, LabelsSettings } from '@/components/track/TrackSettingsClient';
 import NotifySettings from '@/components/track/NotifySettings';
 import TrackImportPanel from '@/components/track/TrackImportPanel';
+import AutomationSettings from '@/components/track/planning/AutomationSettings';
 import { listProjects } from '@/lib/track-data';
 
 export const dynamic = 'force-dynamic';
@@ -15,9 +16,10 @@ export default async function TrackSettingsPage(props: {
 }) {
   const { locale } = await props.params;
   const rawTab = (await props.searchParams)?.tab;
-  const tab = rawTab === 'github' || rawTab === 'notifications' || rawTab === 'import' ? rawTab : 'labels';
+  const tab = rawTab === 'github' || rawTab === 'notifications' || rawTab === 'import' || rawTab === 'automations' ? rawTab : 'labels';
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'track' });
+  const tp = await getTranslations({ locale, namespace: 'trackPlanning' });
   const admin = isWorkspaceAdmin(user);
   // Ejemplo de identificador con el prefijo de un proyecto real (WEB-123).
   const example =
@@ -37,6 +39,7 @@ export default async function TrackSettingsPage(props: {
           { key: 'github', label: t('github.title') },
           { key: 'notifications', label: t('notifySettings.title') },
           { key: 'import', label: t('importer.tab') },
+          { key: 'automations', label: tp('automation.tab') },
         ]}
       >
         {tab === 'labels' ? (
@@ -45,6 +48,8 @@ export default async function TrackSettingsPage(props: {
           <NotifySettings locale={locale} />
         ) : tab === 'import' ? (
           <TrackImportPanel isAdmin={admin} />
+        ) : tab === 'automations' ? (
+          <AutomationSettings isAdmin={admin} />
         ) : (
           <GithubSettings isAdmin={admin} locale={locale} example={example} />
         )}

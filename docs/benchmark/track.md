@@ -45,8 +45,8 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Templates de issue | tiene | Por proyecto |
 | Issues recurrentes | tiene | Diario, semanal, mensual, anual |
 | Workflow de estados editable | tiene | Por proyecto, con categorías |
-| Projects de Linear (entidad con lead, fecha objetivo, estado, health, updates) | falta | En Track "proyecto" equivale al *team* de Linear. Hay milestones adentro, pero no un proyecto con lead, health y updates que cruce equipos |
-| Initiatives / sub-initiatives | falta | |
+| Projects de Linear (entidad con lead, fecha objetivo, estado, health, updates) | tiene | Se llaman **planes** (Track › Planes): lead, miembros, varios equipos, seis estados, fechas, descripción, milestones propios y progreso por issues o estimación. En Track "proyecto" sigue siendo el *team* de Linear (2026-10-25) |
+| Initiatives / sub-initiatives | tiene | Responsable, estado, fecha, planes y sub-iniciativas con progreso sumado; la salud sale de sus planes (sin updates propios) (2026-10-25) |
 | Campos propios (GitHub Projects: texto, número, select, iteración; Jira) | falta | |
 | Borrar, duplicar o copiar link de un issue desde su página | falta | El menú "…" solo trae "Copy branch name". Borrar existe solo desde la barra de selección masiva de la lista |
 | Customer requests (issue ↔ cliente con revenue) | falta | Tenemos CRM propio, así que es un diferencial posible |
@@ -61,7 +61,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Vistas guardadas | parcial | Personales, una por defecto. Linear: vistas de equipo y de workspace, con dueño, favoritos y alertas a Slack |
 | Vista de issues de todos los proyectos | tiene | Track › Issues y My tasks |
 | Cmd+K encuentra issues | tiene | Busca por título e identificador (`TRACKBENCH-3`) desde cualquier app |
-| Roadmap de proyectos / initiatives | falta | |
+| Roadmap de proyectos / initiatives | tiene | Track › Roadmap: timeline por semanas, meses o trimestres, barras arrastrables, milestones, hoy, agrupar por iniciativa (2026-10-25) |
 
 ### Colaboración y notificaciones
 
@@ -73,7 +73,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Mails inmediatos o digest diario | tiene | |
 | Actualización en tiempo real | falta | Probado: con la lista abierta, otro usuario renombra un issue y a los 15 s (y tras un evento de foco) la lista sigue mostrando el título viejo |
 | Reacciones, hilos en comentarios | falta | |
-| Project updates con health y recordatorios | falta | |
+| Project updates con health y recordatorios | tiene | Salud, texto, comentarios, historial, recordatorio al lead por cron y aviso a seguidores en el Inbox. Sin Slack (2026-10-25) |
 | Notificaciones a Slack / Teams | falta | Solo armando un Flow con el nodo de Slack |
 
 ### Planificación
@@ -85,7 +85,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Triage (aceptar, rechazar, duplicado) | tiene | Entra lo creado por API, Chat, Flow, GitHub y Agents |
 | Reglas de triage, responsable de triage rotativo | falta | |
 | SLAs por prioridad | falta | |
-| Velocidad, burn-up, scope creep del cycle | falta | El overview muestra solo done/total del cycle actual |
+| Velocidad, burn-up, scope creep del cycle | tiene | Track › Cycles: burn-up, agregado y sacado, rollover, velocidad de 3 cycles y capacidad; los cycles vencidos se cierran solos (2026-10-25) |
 
 ### Automatización
 
@@ -93,7 +93,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 |---|---|---|
 | Disparadores sobre issues | tiene | Flow recibe `issue.created`, `issue.updated`, `issue.status_changed` y puede crear o actualizar issues. Comparable a Jira Automation y más abierto que Linear |
 | Automatización por PR (GitHub) | tiene | PR abierto → in progress, merge → done |
-| Auto-close y auto-archive de issues viejos | falta | |
+| Auto-close y auto-archive de issues viejos | tiene | Ajustes › Automatizaciones, por proyecto, con archivo para restaurar (2026-10-25) |
 | Agentes que trabajan issues (Linear Agent, Loops, coding sessions) | falta | Nuestros Agents pueden crear issues, nada más |
 
 ### Integraciones y API
@@ -118,8 +118,8 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Capacidad | Track | Nota |
 |---|---|---|
 | Overview por proyecto | tiene | Cycle actual, vencidos, triage, abiertos |
-| Insights (cycle time, lead time, burn-up, cortes y segmentos, CSV) | falta | |
-| Dashboards | falta | |
+| Insights (cycle time, lead time, burn-up, cortes y segmentos, CSV) | tiene | Track › Insights. Tiempos como barras de mediana (sin scatter) y sin triage time (2026-10-25) |
+| Dashboards | tiene | Widgets de insights (gráfico, tabla, número), filtros del dashboard, personal o del workspace (2026-10-25) |
 
 ### Mobile y offline
 
