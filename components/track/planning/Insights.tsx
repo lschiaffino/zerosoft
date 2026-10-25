@@ -441,17 +441,19 @@ function AddToDashboard({ open, query, onClose, onAdded }: { open: boolean; quer
   useEffect(() => {
     if (!open) return;
     setError(null);
+    setTarget('');
     setTitle(`${t(`insights.measures.${query.measure}`)} · ${t(`insights.slices.${query.slice}`)}`);
     void api<{ rows: Array<{ id: string; name: string }> }>('/api/track/dashboards').then((r) => {
       const list = r.ok ? r.data.rows : [];
       setRows(list);
-      setTarget(list[0]?.id ?? 'new');
+      // Si la persona ya eligió (p. ej. "nuevo") antes de que llegue la lista, se respeta.
+      setTarget((cur) => cur || (list[0]?.id ?? 'new'));
     });
   }, [open, query.measure, query.slice, t]);
   const submit = async () => {
-    let id = target;
-    let dname = rows?.find((r) => r.id === target)?.name ?? '';
-    if (target === 'new') {
+    let id = target || (rows?.[0]?.id ?? 'new');
+    let dname = rows?.find((r) => r.id === id)?.name ?? '';
+    if (id === 'new') {
       if (!name.trim()) return setError(t('dashboards.nameRequired'));
       const c = await api<{ id: string; name: string }>('/api/track/dashboards', 'POST', { name: name.trim() });
       if (!c.ok) return setError(t('common.saveError'));

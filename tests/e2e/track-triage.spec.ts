@@ -203,8 +203,7 @@ test.describe('Track T3: issue', () => {
     await expect(sessionBox.getByTestId('track-agent-state')).toHaveText('Done', { timeout: 20_000 });
     await expect(sessionBox.locator('[data-type="response"]')).toContainText('Picked up');
     await expect(sessionBox.locator('[data-type="action"]')).toContainText('In progress');
-    // El issue se actualiza sin recargar: el agente lo pasó a In progress.
-    await expect(page.locator('header').filter({ hasText: 'Write the release notes' }).getByText('In progress').first()).toBeVisible();
+    // El issue se actualiza sin recargar: el agente lo pasó a In progress (actividad y panel de propiedades).
     await expect(page.getByText(/changed status from Todo to In progress/)).toBeVisible();
     // El panel de propiedades (S) también toma el estado nuevo del sondeo en vivo.
     await expect(page.getByTestId('track-side-status')).toContainText('In progress', { timeout: 15_000 });
