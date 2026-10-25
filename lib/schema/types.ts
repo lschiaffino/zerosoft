@@ -1202,6 +1202,11 @@ export interface TrackIssueRow {
   milestone_id?: string | null;
   /** Orden manual dentro de los sub-issues del padre (null = por creación). */
   sub_order?: number | null;
+  /** Project de Linear (track_plans) al que pertenece. */
+  plan_id?: string | null;
+  plan_milestone_id?: string | null;
+  /** Archivado (a mano o por el auto-archivo del team): sale de las listas. */
+  archived_at?: string | null;
   created_at: string;
   updated_at: string;
 }

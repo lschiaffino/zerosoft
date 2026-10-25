@@ -127,6 +127,8 @@ export const issueCreateSchema = z.object({
   dueDate: isoDate.nullish(),
   labels: z.array(issueLabelInputSchema).max(10).optional(),
   milestoneId: id.nullish(),
+  /** Project (como en Linear; en la base, track_plans). */
+  planId: id.nullish(),
 });
 
 export const issueUpdateSchema = issueCreateSchema.partial().extend({

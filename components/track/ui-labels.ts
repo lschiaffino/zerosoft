@@ -4,7 +4,7 @@
  * y se pasan a los componentes cliente.
  */
 import type { IssuePriority } from '@/lib/track-tasks';
-import type { MarkdownLabels } from './MarkdownEditor';
+import type { MarkdownLabels } from './MarkdownView';
 import type { DisplayLabels } from './IssueDisplayOptions';
 
 export interface TrackUiLabels {

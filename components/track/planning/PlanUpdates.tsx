@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
-import { MarkdownView } from '@/components/track/MarkdownEditor';
+import { MarkdownView } from '@/components/track/MarkdownView';
 import type { PlanSummary, PlanEvent } from '@/lib/track-plans';
 import type { PlanUpdate, PlanUpdateComment } from '@/lib/track-plan-updates';
 import { PLAN_HEALTH, type PlanHealth } from '@/lib/track-planning-schema';

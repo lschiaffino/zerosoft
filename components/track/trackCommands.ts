@@ -32,6 +32,10 @@ export interface CommandData {
 
 export interface CommandHandlers {
   apply: (targets: TrackIssueWithStatus[], patch: IssuePatch | ((issue: TrackIssueWithStatus) => IssuePatch)) => void;
+  /** "Move to team" (⌘⇧M): mueve los issues a otro team. */
+  moveToTeam?: (targets: TrackIssueWithStatus[], teamId: string) => void;
+  /** Archivar (⌘K › Archive), como en Linear. */
+  archive?: (targets: TrackIssueWithStatus[]) => void;
   createSubIssue?: (parent: TrackIssueWithStatus) => void;
   remove?: (targets: TrackIssueWithStatus[]) => void;
   open?: (issue: TrackIssueWithStatus) => void;
@@ -82,6 +86,46 @@ export function parseDueQuery(raw: string, today: string): string | null {
 }
 
 export const ESTIMATE_OPTIONS = [0, 1, 2, 3, 5, 8, 13];
+
+/** Project (como en Linear, ⇧P): los del workspace, buscados en el servidor. */
+export function projectCommand(
+  targets: TrackIssueWithStatus[],
+  apply: (patch: IssuePatch) => void,
+  t: T,
+): CommandAction {
+  const one = targets.length === 1 ? targets[0] : null;
+  return {
+    id: 'project',
+    label: t('project'),
+    meta: '⇧P',
+    keywords: 'project proyecto projeto plan roadmap',
+    placeholder: t('searchProject'),
+    children: () => [],
+    load: async (q) => {
+      const sp = new URLSearchParams();
+      if (q.trim()) sp.set('q', q.trim());
+      const res = await fetch(`/api/track/plans?${sp.toString()}`).catch(() => null);
+      const rows = res?.ok ? ((await res.json()) as { rows: Array<{ id: string; name: string; color?: string; status: string }> }).rows : [];
+      return [
+        {
+          id: 'project:none',
+          label: t('noProject'),
+          checked: Boolean(one && !one.plan_id),
+          run: () => apply({ planId: null }),
+        },
+        ...rows
+          .filter((p) => p.status !== 'canceled' || (one && one.plan_id === p.id))
+          .map((p) => ({
+            id: `project:${p.id}`,
+            label: p.name,
+            swatch: p.color ? safeHexColor(p.color, '#5e6ad2') : undefined,
+            checked: Boolean(one && one.plan_id === p.id),
+            run: () => apply({ planId: p.id }),
+          })),
+      ];
+    },
+  };
+}
 
 /** Acciones de la paleta para `targets`. Puro salvo los handlers (fácil de testear). */
 export function buildIssueActions(
@@ -282,6 +326,34 @@ export function buildIssueActions(
     });
   }
 
+  actions.push(projectCommand(targets, apply, t));
+
+  if (handlers.moveToTeam) {
+    const move = handlers.moveToTeam;
+    actions.push({
+      id: 'move-team',
+      label: t('moveToTeam'),
+      meta: '⌘⇧M',
+      keywords: 'move team mover equipo equipe transferir',
+      placeholder: t('searchTeam'),
+      children: () => [],
+      load: async (q) => {
+        const res = await fetch('/api/track/projects?pageSize=100').catch(() => null);
+        const rows = res?.ok ? ((await res.json()) as { rows: Array<{ id: string; name: string; slug: string; status: string; icon: string | null }> }).rows : [];
+        const needle = q.trim().toLowerCase();
+        return rows
+          .filter((r) => r.status === 'active' && !targets.every((i) => i.project_id === r.id))
+          .filter((r) => !needle || r.name.toLowerCase().includes(needle) || r.slug.toLowerCase().includes(needle))
+          .map((r) => ({
+            id: `move-team:${r.id}`,
+            label: r.name,
+            meta: r.slug.toUpperCase(),
+            run: () => move(targets, r.id),
+          }));
+      },
+    });
+  }
+
   // Jerarquía: elegir padre (búsqueda en el servidor), sacarlo, crear sub-issue.
   const targetIds = new Set(targets.map((i) => i.id));
   actions.push({
@@ -363,6 +435,15 @@ export function buildIssueActions(
       actions.push({ id: 'open', label: t('open'), meta: '↵', keywords: 'open abrir', run: () => open(one) });
     }
   }
+  if (handlers.archive && targets.every((i) => !i.archived_at)) {
+    const archive = handlers.archive;
+    actions.push({
+      id: 'archive',
+      label: targets.length > 1 ? t('archiveMany', { count: targets.length }) : t('archive'),
+      keywords: 'archive archivar arquivar',
+      run: () => archive(targets),
+    });
+  }
   if (handlers.remove) {
     const remove = handlers.remove;
     actions.push({
@@ -415,6 +496,7 @@ export function shortcutFor(e: Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 
   const key = e.key.toLowerCase();
   if (mod) {
     if (e.shiftKey && (key === 'p' || e.code === 'KeyP')) return { page: 'parent' };
+    if (e.shiftKey && (key === 'm' || e.code === 'KeyM')) return { page: 'move-team' };
     if (e.shiftKey && (key === 'o' || e.code === 'KeyO')) return { run: 'sub-issue' };
     if (e.shiftKey && (key === '.' || key === '>' || e.code === 'Period')) return { run: 'copy-branch' };
     if (!e.shiftKey && (key === '.' || e.code === 'Period')) return { run: 'copy-id' };
@@ -424,6 +506,7 @@ export function shortcutFor(e: Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 
     if (e.code === 'KeyE' || key === 'e') return { page: 'estimate' };
     if (e.code === 'KeyD' || key === 'd') return { page: 'due' };
     if (e.code === 'KeyC' || key === 'c') return { page: 'cycle' };
+    if (e.code === 'KeyP' || key === 'p') return { page: 'project' };
     const digit = /^Digit([1-4])$/.exec(e.code ?? '');
     if (digit) return { run: `priority:${digit[1]}` };
     return null;

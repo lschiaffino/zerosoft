@@ -25,7 +25,7 @@ export function escapeHtml(value: string): string {
 }
 
 /** Deshace las entidades que marked ya aplicó, para re-escapar una sola vez. */
-function unescapeEntities(value: string): string {
+export function unescapeEntities(value: string): string {
   return value
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
@@ -52,14 +52,14 @@ export function safeHref(raw: string | null | undefined): string | null {
 }
 
 // Mismas menciones que el timeline: @email@dominio.com y @Nombre Apellido.
-const MENTION_RE = /^@(?:[\w.-]+@[\w.-]+\.\w{2,}|[A-Z][a-zA-Z]*(?:[ \t]+[A-Z][a-zA-Z]*){0,2})/;
+export const MENTION_RE = /^@(?:[\w.-]+@[\w.-]+\.\w{2,}|[A-Z][a-zA-Z]*(?:[ \t]+[A-Z][a-zA-Z]*){0,2})/;
 
 /** Identificador de issue (ZER-12): proyecto en mayúsculas, guion y número. */
 export const ISSUE_REF_RE = /^@?([A-Z][A-Z0-9]{1,15}(?:-[A-Z0-9]{1,16}){0,3}-\d{1,6})(?![\w-])/;
-const ISSUE_REF_START = /(^|[^\w@/-])@?[A-Z][A-Z0-9]{1,15}(?:-[A-Z0-9]{1,16}){0,3}-\d/;
+export const ISSUE_REF_START = /(^|[^\w@/-])@?[A-Z][A-Z0-9]{1,15}(?:-[A-Z0-9]{1,16}){0,3}-\d/;
 
 /** Link a un issue de Track (/app/track/issues/<id>, con o sin locale y dominio). */
-const ISSUE_URL_RE = /\/(?:[a-z]{2}\/)?app\/track\/issues\/([A-Za-z0-9-]{8,80})(?:[?#].*)?$/;
+export const ISSUE_URL_RE = /\/(?:[a-z]{2}\/)?app\/track\/issues\/([A-Za-z0-9-]{8,80})(?:[?#].*)?$/;
 
 /** Archivos subidos a zerosoft (adjuntos): estos sí se muestran como imagen. */
 export function isOwnUpload(href: string): boolean {

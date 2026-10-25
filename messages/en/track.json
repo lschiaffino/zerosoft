@@ -342,7 +342,9 @@
     "last_status": "The team needs at least one status.",
     "cycle_overlap": "That overlaps another cycle. Pick other dates.",
     "invalid_milestone": "That milestone is not in this team.",
-    "reminder_in_past": "Pick a time in the future."
+    "reminder_in_past": "Pick a time in the future.",
+    "invalid_plan": "That project is not in this workspace.",
+    "invalid_team": "Pick a team of this workspace."
   },
   "quick": {
     "newTask": "New issue",
@@ -1192,7 +1194,14 @@
       "open": "Open issue",
       "delete": "Delete issue",
       "deleteMany": "Delete {count} issues",
-      "many": "{count} issues"
+      "many": "{count} issues",
+      "project": "Project",
+      "searchProject": "Search projects…",
+      "noProject": "No project",
+      "moveToTeam": "Move to team…",
+      "searchTeam": "Search teams…",
+      "archive": "Archive issue",
+      "archiveMany": "Archive {count} issues"
     },
     "editor": {
       "todo": "Checklist",
@@ -1210,13 +1219,21 @@
         "code": "Code block",
         "quote": "Quote",
         "divider": "Divider",
-        "table": "Table"
+        "table": "Table",
+        "image": "Image or file"
       },
       "menu": {
         "slash": "Insert",
         "mention": "People and issues",
         "issue": "Issues"
-      }
+      },
+      "toolbar": "Formatting",
+      "bold": "Bold",
+      "italic": "Italic",
+      "code": "Code",
+      "link": "Link",
+      "linkPlaceholder": "Paste or type a link and press Enter",
+      "tooLong": "Too long: the limit is 5,000 characters. The rest will not be saved."
     },
     "thread": {
       "postError": "Couldn’t post the comment. Try again.",
@@ -1236,7 +1253,11 @@
       "hide": "Hide",
       "show": "Show",
       "replyPlaceholder": "Reply…",
-      "replySubmit": "Reply"
+      "replySubmit": "Reply",
+      "projectAdded": "{user} added the issue to {to}",
+      "projectChange": "{user} moved the issue from {from} to {to}",
+      "projectRemoved": "{user} removed the issue from {from}",
+      "teamMoved": "{user} moved the issue from {from} to {to} ({fromId} → {toId})"
     },
     "sub": {
       "title": "Sub-issues",
@@ -1251,7 +1272,15 @@
     },
     "side": {
       "project": "Team",
-      "points": "{count, plural, one {# point} other {# points}}"
+      "points": "{count, plural, one {# point} other {# points}}",
+      "team": "Team",
+      "plan": "Project",
+      "archived": "This issue is archived. It doesn’t show in lists or search.",
+      "restore": "Restore",
+      "restored": "{id} restored",
+      "archivedNotice": "{id} archived",
+      "moved": "Moved to {team} as {id}",
+      "moveError": "Couldn’t move the issue. Try again."
     },
     "presence": {
       "viewing": "Also viewing: {names}"

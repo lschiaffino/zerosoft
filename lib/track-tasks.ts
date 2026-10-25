@@ -34,6 +34,8 @@ export interface IssuePatch {
   milestoneId?: string | null;
   parentId?: string | null;
   subOrder?: number | null;
+  /** Project (plan) del issue. */
+  planId?: string | null;
   /** Lista completa de labels (ids del workspace). */
   labels?: Array<{ id: string }>;
 }
@@ -43,6 +45,7 @@ export interface PatchExtras {
   cycles?: Array<{ id: string; name: string }>;
   milestones?: Array<{ id: string; name: string }>;
   labels?: Array<{ id: string; name: string; color: string }>;
+  plans?: Array<{ id: string; name: string }>;
 }
 
 export function isCompletedCategory(category: string | null | undefined): boolean {
@@ -118,6 +121,10 @@ export function applyIssuePatch(
     next.milestone_name = patch.milestoneId
       ? (extras.milestones?.find((m) => m.id === patch.milestoneId)?.name ?? null)
       : null;
+  }
+  if (patch.planId !== undefined) {
+    next.plan_id = patch.planId ?? null;
+    next.plan_name = patch.planId ? (extras.plans?.find((p) => p.id === patch.planId)?.name ?? next.plan_name ?? null) : null;
   }
   if (patch.labels !== undefined && extras.labels) {
     const byId = new Map(extras.labels.map((l) => [l.id, l]));
@@ -401,6 +408,7 @@ export function inversePatch(prev: TrackIssueWithStatus, patch: IssuePatch): Iss
   if (patch.milestoneId !== undefined) out.milestoneId = prev.milestone_id ?? null;
   if (patch.parentId !== undefined) out.parentId = prev.parent_id;
   if (patch.subOrder !== undefined) out.subOrder = prev.sub_order ?? null;
+  if (patch.planId !== undefined) out.planId = prev.plan_id ?? null;
   if (patch.labels !== undefined) out.labels = labelIds(prev.labels);
   return out;
 }
@@ -419,6 +427,10 @@ export function revertPatchFields(
   if (patch.estimate !== undefined) r.estimate = prev.estimate;
   if (patch.parentId !== undefined) r.parent_id = prev.parent_id;
   if (patch.subOrder !== undefined) r.sub_order = prev.sub_order;
+  if (patch.planId !== undefined) {
+    r.plan_id = prev.plan_id;
+    r.plan_name = prev.plan_name;
+  }
   if (patch.labels !== undefined) r.labels = prev.labels;
   if (patch.cycleId !== undefined) {
     r.cycle_id = prev.cycle_id;

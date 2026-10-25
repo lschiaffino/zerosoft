@@ -6,6 +6,7 @@ import type { TrackIssueTemplateRow } from '@/lib/db';
 import { activeCycle, defaultIssueStatus, parseQuickTitle, type IssuePriority } from '@/lib/track-tasks';
 import type { IssueDraft, ProjectContext } from './useIssueStore';
 import { DueDateMenu } from './InlineEditors';
+import RichEditor from './RichEditor';
 import { safeHexColor } from '@/lib/track-color';
 import type { TrackUiLabels } from './ui-labels';
 
@@ -180,7 +181,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
     // Trap de foco simple dentro del diálogo.
     if (e.key === 'Tab' && dialogRef.current) {
       const focusables = Array.from(
-        dialogRef.current.querySelectorAll<HTMLElement>('input, textarea, select, button:not([disabled])'),
+        dialogRef.current.querySelectorAll<HTMLElement>('input, textarea, select, [contenteditable="true"], button:not([disabled])'),
       );
       if (focusables.length === 0) return;
       const first = focusables[0];
@@ -270,13 +271,16 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
             placeholder={labels.modal.titlePlaceholder}
             aria-label={labels.modal.titlePlaceholder}
           />
-          <textarea
+          <RichEditor
             className="track-qc-desc"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={setDescription}
             placeholder={labels.modal.descriptionPlaceholder}
-            aria-label={labels.modal.descriptionPlaceholder}
-            rows={3}
+            ariaLabel={labels.modal.descriptionPlaceholder}
+            members={project?.members}
+            compact
+            onSubmit={submit}
+            onEscape={onClose}
           />
 
           <div className="track-qc-props">

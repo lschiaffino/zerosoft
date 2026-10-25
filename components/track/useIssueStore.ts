@@ -210,15 +210,21 @@ export function useIssueStore(
         list.map(async (issue) => {
           const p = typeof patch === 'function' ? patch(issue) : patch;
           const prev = await patchOne(issue.id, p);
-          return prev ? { id: issue.id, inverse: inversePatch(prev, p) } : null;
+          return prev ? { id: issue.id, inverse: inversePatch(prev, p), forward: p } : null;
         }),
       );
-      const done = results.filter((r): r is { id: string; inverse: IssuePatch } => Boolean(r));
+      const done = results.filter((r): r is { id: string; inverse: IssuePatch; forward: IssuePatch } => Boolean(r));
       if (opts.undo === false || done.length === 0 || !updated) return;
       const what = done.length === 1 ? (list.find((i) => i.id === done[0].id)?.identifier ?? '') : '';
-      pushUndo(updated(what, done.length), async () => {
-        await Promise.all(done.map((d) => patchOne(d.id, d.inverse)));
-      });
+      pushUndo(
+        updated(what, done.length),
+        async () => {
+          await Promise.all(done.map((d) => patchOne(d.id, d.inverse)));
+        },
+        async () => {
+          await Promise.all(done.map((d) => patchOne(d.id, d.forward)));
+        },
+      );
     },
     [patchOne, updated],
   );

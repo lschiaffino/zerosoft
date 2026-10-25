@@ -13,6 +13,8 @@ export interface UndoEntry {
   id: string;
   label: string;
   undo: () => void | Promise<void>;
+  /** Vuelve a aplicar el cambio (⌘⇧Z después de deshacer). */
+  redo?: () => void | Promise<void>;
   createdAt: number;
 }
 
@@ -27,6 +29,8 @@ const MAX_STACK = 30;
 export const UNDO_WINDOW_MS = 8000;
 
 let stack: UndoEntry[] = [];
+/** Lo deshecho que se puede rehacer (se vacía con cada cambio nuevo). */
+let redoStack: UndoEntry[] = [];
 const pending = new Map<string, PendingDelete>();
 const listeners = new Set<() => void>();
 let counter = 0;
@@ -46,12 +50,29 @@ export function latestUndo(): UndoEntry | null {
   return stack[stack.length - 1] ?? null;
 }
 
-/** Registra una acción deshacible. Devuelve su id. */
-export function pushUndo(label: string, undo: () => void | Promise<void>): string {
+/** Registra una acción deshacible (y, si se puede, cómo rehacerla). Devuelve su id. */
+export function pushUndo(label: string, undo: () => void | Promise<void>, redo?: () => void | Promise<void>): string {
   const id = `u${++counter}`;
-  stack = [...stack.slice(-(MAX_STACK - 1)), { id, label, undo, createdAt: Date.now() }];
+  stack = [...stack.slice(-(MAX_STACK - 1)), { id, label, undo, redo, createdAt: Date.now() }];
+  redoStack = [];
   emit();
   return id;
+}
+
+export function latestRedo(): UndoEntry | null {
+  return redoStack[redoStack.length - 1] ?? null;
+}
+
+/** Rehace lo último que se deshizo (⌘⇧Z), como en Linear. */
+export async function runRedo(): Promise<boolean> {
+  const entry = redoStack[redoStack.length - 1];
+  if (!entry?.redo) return false;
+  redoStack = redoStack.slice(0, -1);
+  await entry.redo();
+  // Vuelve a quedar deshacible, sin vaciar lo que queda para rehacer.
+  stack = [...stack.slice(-(MAX_STACK - 1)), { ...entry, id: `u${++counter}`, createdAt: Date.now() }];
+  emit();
+  return true;
 }
 
 /** Aviso corto sin deshacer ("ID copiado"): usa el mismo toast. */
@@ -69,6 +90,7 @@ export async function runUndo(id?: string): Promise<boolean> {
   const entry = id ? stack.find((e) => e.id === id) : stack[stack.length - 1];
   if (!entry) return false;
   stack = stack.filter((e) => e !== entry);
+  if (entry.redo) redoStack = [...redoStack.slice(-(MAX_STACK - 1)), entry];
   emit();
   await entry.undo();
   return true;
@@ -131,6 +153,7 @@ export function flushPendingDeletes(keepalive = true) {
 /** Solo para tests. */
 export function resetUndoForTests() {
   stack = [];
+  redoStack = [];
   pending.forEach((p) => window.clearTimeout(p.timer));
   pending.clear();
   emit();

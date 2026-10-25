@@ -292,6 +292,8 @@ export interface IssueRef {
   status_name: string | null;
   status_color: string | null;
   status_category: string | null;
+  /** Identificador pedido cuando es uno viejo (el issue se movió de team). */
+  ref?: string;
 }
 
 /** Identificadores (ZER-12) e ids → issue con su estado, solo del workspace de la persona. */
@@ -304,7 +306,7 @@ export async function resolveIssueRefs(
   if (list.length === 0) return [];
   const s = scope(teamId, ownerId);
   const ph = list.map(() => '?').join(', ');
-  return (await getDb()
+  const rows = (await getDb()
     .prepare(
       `SELECT i.id, i.identifier, i.title, st.name AS status_name, st.color AS status_color, st.category AS status_category
        FROM track_issues i
@@ -313,4 +315,22 @@ export async function resolveIssueRefs(
        WHERE ${s.where} AND (i.identifier IN (${ph}) OR i.id IN (${ph}))`,
     )
     .all(s.arg, ...list, ...list)) as IssueRef[];
+  // Identificadores viejos de issues que se movieron de team (WEB-12 → OPS-31):
+  // siguen llevando al issue, como en Linear.
+  const found = new Set(rows.flatMap((r) => [r.id, r.identifier]));
+  const missing = list.filter((r) => !found.has(r) && /^[A-Z][A-Z0-9-]*-\d+$/.test(r)).slice(0, 10);
+  for (const old of missing) {
+    const hit = (await getDb()
+      .prepare(
+        `SELECT i.id, i.identifier, i.title, st.name AS status_name, st.color AS status_color, st.category AS status_category
+         FROM track_issue_activities a
+         JOIN track_issues i ON i.id = a.issue_id
+         JOIN track_projects p ON p.id = i.project_id
+         LEFT JOIN track_statuses st ON st.id = i.status_id
+         WHERE ${s.where} AND a.type = 'cycle_change' AND a.meta LIKE ? ORDER BY a.created_at DESC LIMIT 1`,
+      )
+      .get(s.arg, `%"fromIdentifier":"${old}"%`)) as IssueRef | undefined;
+    if (hit) rows.push({ ...hit, ref: old });
+  }
+  return rows;
 }

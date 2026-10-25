@@ -41,19 +41,22 @@ export interface CommandContext {
 
 type Provider = () => CommandContext | null;
 
-let provider: Provider | null = null;
+// Pila: un panel encima de la página (la vista rápida de un issue) registra
+// su proveedor y, al cerrarse, vuelve a mandar el de la página.
+let providers: Provider[] = [];
 
-/** Registra el proveedor de la página; devuelve la limpieza (solo borra si sigue siendo el suyo). */
+/** Registra el proveedor de la página; devuelve la limpieza (saca solo el suyo). */
 export function setCommandContext(next: Provider): () => void {
-  provider = next;
+  providers = [...providers.filter((p) => p !== next), next];
   return () => {
-    if (provider === next) provider = null;
+    providers = providers.filter((p) => p !== next);
   };
 }
 
 export function getCommandContext(): CommandContext | null {
   try {
-    return provider ? provider() : null;
+    const top = providers[providers.length - 1];
+    return top ? top() : null;
   } catch {
     return null;
   }

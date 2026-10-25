@@ -13,7 +13,7 @@ import TrackIcon from './TrackIcon';
 import { AssigneeMenu, DueDateMenu, PriorityIcon, PriorityMenu, QuickAdd, StatusMenu, StatusToggle } from './InlineEditors';
 import { isPendingIssue, type ProjectMap } from './useIssueStore';
 import { nestIssues } from '@/lib/track-views';
-import { ProgressRing } from './SubIssues';
+import { ProgressRing } from './ProgressRing';
 import type { TrackUiLabels } from './ui-labels';
 import type { IssueSelection } from './BulkEdit';
 

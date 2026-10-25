@@ -6,7 +6,9 @@ import {
   dismissUndo,
   flushPendingDeletes,
   latestNotice,
+  latestRedo,
   latestUndo,
+  runRedo,
   runUndo,
   subscribeUndo,
   UNDO_WINDOW_MS,
@@ -21,8 +23,8 @@ function isTypingTarget(el: EventTarget | null): boolean {
 }
 
 /**
- * Toast "Deshacer" de Track y el atajo ⌘Z / Ctrl+Z (fuera de los campos de
- * texto, donde ⌘Z deshace lo tipeado). Montado una vez en el layout.
+ * Toast "Deshacer" de Track y los atajos ⌘Z / ⌘⇧Z (fuera de los campos de
+ * texto, donde deshacen lo tipeado). Montado una vez en el layout.
  */
 export default function TrackUndoToast() {
   const t = useTranslations('track.ux.undo');
@@ -54,8 +56,15 @@ export default function TrackUndoToast() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'z') return;
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.key.toLowerCase() !== 'z') return;
       if (isTypingTarget(e.target) || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      // ⌘⇧Z rehace, como en Linear.
+      if (e.shiftKey) {
+        if (!latestRedo()) return;
+        e.preventDefault();
+        void runRedo();
+        return;
+      }
       if (!latestUndo()) return;
       e.preventDefault();
       void runUndo();

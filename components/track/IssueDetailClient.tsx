@@ -15,7 +15,7 @@ import { Popover, TrackToast, useToday } from './InlineEditors';
 import { branchNameFor } from '@/lib/track-branch';
 import { TriageBanner } from './TriagePanel';
 import { IssueMainExtras, IssueSideExtras } from './triage/IssueExtras';
-import MarkdownEditor, { MarkdownView, type UploadResult } from './MarkdownEditor';
+import RichEditor, { type UploadResult } from './RichEditor';
 import TrackIcon from './TrackIcon';
 import IssueSubscription from './IssueSubscription';
 import IssueReminder from './IssueReminder';
@@ -23,7 +23,6 @@ import IssueSidebar from './IssueSidebar';
 import SubIssues from './SubIssues';
 import { useWorkspaceLabels } from './LabelPicker';
 import { applyIssuePatch, findDoneStatus, findOpenStatus, formatDay, inversePatch, type IssuePatch } from '@/lib/track-tasks';
-import { toggleTaskInSource } from '@/lib/track-markdown';
 import { useIssueStore, type ProjectContext } from './useIssueStore';
 import { rowTargetId, useTrackCommands } from './trackCommands';
 import { pushNotice, pushUndo, scheduleDelete } from './trackUndo';
@@ -265,7 +264,6 @@ export default function IssueDetailClient({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [titleDraft, setTitleDraft] = useState(initialIssue.title);
   const [descDraft, setDescDraft] = useState(() => parseDescription(initialIssue.description));
-  const [editingDesc, setEditingDesc] = useState(false);
   const [composerSignal, setComposerSignal] = useState(0);
   // Aviso para lectores de pantalla tras copiar (rama o link).
   const [copied, setCopied] = useState<string | null>(null);
@@ -276,7 +274,6 @@ export default function IssueDetailClient({
     setMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent));
   }, []);
   const titleRef = useAutosize(titleDraft);
-  const descRef = useAutosize(editingDesc ? descDraft : '');
   const titleFocused = useRef(false);
 
   // ?sub=1 (⌘⇧O desde una lista): abre el composer de sub-issues.
@@ -323,7 +320,12 @@ export default function IssueDetailClient({
     setIssue(next);
     // El título y la descripción solo se pisan si no se están editando.
     if (!titleFocused.current) setTitleDraft(next.title);
-    if (!descOpen.current) setDescDraft(parseDescription(next.description));
+    if (!descOpen.current && !descTimer.current) {
+      const text = parseDescription(next.description);
+      descSaved.current = text.trim();
+      descLatest.current = text;
+      setDescDraft(text);
+    }
   }, [issue.id]);
 
   const refreshChildren = useCallback(async () => {
@@ -380,9 +382,15 @@ export default function IssueDetailClient({
       if (patch.parentId !== undefined) router.refresh();
       if (opts.undo !== false) {
         const inverse = inversePatch(prev, patch);
-        pushUndo(tx('undo.updatedOne', { id: prev.identifier }), async () => {
-          await patchIssueRef.current(inverse, { undo: false });
-        });
+        pushUndo(
+          tx('undo.updatedOne', { id: prev.identifier }),
+          async () => {
+            await patchIssueRef.current(inverse, { undo: false });
+          },
+          async () => {
+            await patchIssueRef.current(patch, { undo: false });
+          },
+        );
       }
       return true;
     },
@@ -405,9 +413,21 @@ export default function IssueDetailClient({
     setIssue((await res.json()) as TrackIssueWithStatus);
     void refreshActivities();
     const inverse = inversePatch(prev, { labels: [] });
-    pushUndo(tx('undo.updatedOne', { id: prev.identifier }), async () => {
-      await patchIssueRef.current(inverse, { undo: false });
-    });
+    pushUndo(
+      tx('undo.updatedOne', { id: prev.identifier }),
+      async () => {
+        await patchIssueRef.current(inverse, { undo: false });
+      },
+      async () => {
+        const again = await fetch(`/api/track/issues/${prev.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ labels: next }),
+        }).catch(() => null);
+        if (again?.ok) setIssue((await again.json()) as TrackIssueWithStatus);
+        void refreshActivities();
+      },
+    );
   }
 
   // Igual que el checkbox de las listas (useIssueStore.toggleDone): cerrar va al
@@ -473,14 +493,15 @@ export default function IssueDetailClient({
                 return;
               }
               await refreshChildren();
-              pushUndo(tx('undo.updatedOne', { id: r.identifier }), async () => {
+              const setParent = (parentId: string | null) => async () => {
                 await fetch(`/api/track/issues/${r.id}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ parentId: r.parent_id }),
+                  body: JSON.stringify({ parentId }),
                 });
                 await refreshChildren();
-              });
+              };
+              pushUndo(tx('undo.updatedOne', { id: r.identifier }), setParent(r.parent_id), setParent(me.id));
             },
           }));
       },
@@ -501,18 +522,12 @@ export default function IssueDetailClient({
     if (!(await patchIssue({ title: next }))) setTitleDraft(issue.title);
   }
 
-  // El editor puede avisar dos veces (botón Guardar y foco que sale): el ref
-  // evita guardar después de cancelar o de haber guardado ya.
+  // Descripción siempre editable: se guarda al dejar de tipear un momento y al
+  // salir del editor. Mientras tiene el foco, los refrescos no la pisan.
   const descOpen = useRef(false);
-  useEffect(() => {
-    descOpen.current = editingDesc;
-  }, [editingDesc]);
-
-  function cancelDescription() {
-    descOpen.current = false;
-    setDescDraft(parseDescription(issue.description));
-    setEditingDesc(false);
-  }
+  const descTimer = useRef<number | null>(null);
+  const descLatest = useRef(descDraft);
+  const descSaved = useRef(parseDescription(initialIssue.description).trim());
 
   async function saveDescriptionText(next: string): Promise<boolean> {
     const res = await fetch(`/api/track/issues/${issue.id}`, {
@@ -524,28 +539,44 @@ export default function IssueDetailClient({
       setSaveError(ui.inline.saveError);
       return false;
     }
+    descSaved.current = next;
     await handleIssueChange();
     return true;
   }
 
-  async function saveDescription() {
-    if (!descOpen.current) return;
-    descOpen.current = false;
-    setEditingDesc(false);
-    const next = descDraft.trim();
-    const current = parseDescription(issue.description).trim();
-    if (next === current) return;
-    if (!(await saveDescriptionText(next))) setDescDraft(current);
+  async function flushDescription() {
+    if (descTimer.current) window.clearTimeout(descTimer.current);
+    descTimer.current = null;
+    const next = descLatest.current.trim();
+    if (next === descSaved.current || next.length > 5000) return;
+    await saveDescriptionText(next);
   }
 
-  // Tildar una tarea de la descripción desde la lectura (como en Linear).
-  async function toggleTask(index: number) {
-    const before = descDraft;
-    const next = toggleTaskInSource(before, index);
-    if (next === before) return;
-    setDescDraft(next);
-    if (!(await saveDescriptionText(next.trim()))) setDescDraft(before);
+  function changeDescription(md: string) {
+    descLatest.current = md;
+    setDescDraft(md);
+    if (descTimer.current) window.clearTimeout(descTimer.current);
+    descTimer.current = window.setTimeout(() => void flushDescription(), 1500);
   }
+
+  // Al salir de la página con cambios sin guardar, se mandan igual.
+  useEffect(
+    () => () => {
+      if (descTimer.current) {
+        window.clearTimeout(descTimer.current);
+        const next = descLatest.current.trim();
+        if (next !== descSaved.current && next.length <= 5000) {
+          void fetch(`/api/track/issues/${issue.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ description: next ? [{ type: 'text', text: next }] : [] }),
+            keepalive: true,
+          }).catch(() => null);
+        }
+      }
+    },
+    [issue.id],
+  );
 
   // Pegar o soltar imágenes en la descripción o un comentario: se suben como adjunto.
   const uploadInline = useCallback(
@@ -620,6 +651,90 @@ export default function IssueDetailClient({
     return () => window.removeEventListener('keydown', onKey);
   }, [canDelete, copyLink, parent, router]);
 
+  // ---------- Mover de team, archivar y restaurar (como Linear) ----------
+
+  const moveToTeam = useCallback(
+    async (targets: TrackIssueWithStatus[], teamId: string, opts: { undo?: boolean } = {}) => {
+      const moved: Array<{ before: TrackIssueWithStatus; after: TrackIssueWithStatus }> = [];
+      for (const target of targets) {
+        const res = await fetch(`/api/track/issues/${target.id}/move`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ teamId }),
+        }).catch(() => null);
+        if (!res?.ok) {
+          setSaveError(tx('side.moveError'));
+          continue;
+        }
+        moved.push({ before: target, after: (await res.json()) as TrackIssueWithStatus });
+      }
+      if (!moved.length) return;
+      const main = moved.find((m) => m.before.id === issueRef.current.id);
+      if (main) setIssue(main.after);
+      await refreshChildren();
+      // Estados, cycles y miembros del team nuevo vienen del servidor.
+      router.refresh();
+      const team = moved[0].after;
+      if (opts.undo === false) pushNotice(tx('side.moved', { team: teamKeyOf(team), id: team.identifier }));
+      else {
+        const back = moved.map((m) => ({ id: m.before.id, teamId: m.before.project_id }));
+        pushUndo(
+          tx('side.moved', { team: teamKeyOf(team), id: team.identifier }),
+          async () => {
+            for (const b of back) {
+              await fetch(`/api/track/issues/${b.id}/move`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ teamId: b.teamId }),
+              }).catch(() => null);
+            }
+            await handleIssueChange();
+            router.refresh();
+          },
+          async () => {
+            await moveToTeamRef.current(
+              moved.map((m) => m.after),
+              teamId,
+              { undo: false },
+            );
+          },
+        );
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [router, tx, refreshChildren],
+  );
+  const moveToTeamRef = useRef(moveToTeam);
+  moveToTeamRef.current = moveToTeam;
+
+  const setArchived = useCallback(
+    async (ids: string[], archive: boolean, opts: { undo?: boolean } = {}) => {
+      const res = await fetch('/api/track/archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(archive ? { issueIds: ids, archive: true } : { issueIds: ids }),
+      }).catch(() => null);
+      if (!res?.ok) {
+        setSaveError(ui.inline.saveError);
+        return;
+      }
+      await handleIssueChange();
+      await refreshChildren();
+      const label = tx(archive ? 'side.archivedNotice' : 'side.restored', { id: issueRef.current.identifier });
+      if (opts.undo === false) pushNotice(label);
+      else
+        pushUndo(
+          label,
+          () => setArchivedRef.current(ids, !archive, { undo: false }),
+          () => setArchivedRef.current(ids, archive, { undo: false }),
+        );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tx, ui.inline.saveError, refreshChildren],
+  );
+  const setArchivedRef = useRef(setArchived);
+  setArchivedRef.current = setArchived;
+
   // ---------- ⌘K y atajos de una tecla ----------
 
   useTrackCommands({
@@ -672,6 +787,8 @@ export default function IssueDetailClient({
           }
         : undefined,
       open: (i) => router.push(`/app/track/issues/${i.id}`),
+      moveToTeam: (targets, teamId) => void moveToTeam(targets, teamId),
+      archive: (targets) => void setArchived(targets.map((x) => x.id), true),
     },
     t: (k, v) => tc(k, v),
     formatDay: (iso) => formatDay(iso, locale, today),
@@ -934,6 +1051,15 @@ export default function IssueDetailClient({
         <span className="sr-only" role="status">
           {copied ?? ''}
         </span>
+        {issue.archived_at && (
+          <div className="track-archived-banner" role="status" data-testid="track-archived-banner">
+            <TrackIcon name="archive" size={14} />
+            <span>{tx('side.archived')}</span>
+            <button type="button" className="btn btn-sm" onClick={() => void setArchived([issue.id], false)} data-testid="track-restore-issue">
+              {tx('side.restore')}
+            </button>
+          </div>
+        )}
         {issue.triage === 1 && (
           <TriageBanner key={issue.id} issue={issue} statuses={initialStatuses} onResolved={() => void handleIssueChange()} />
         )}
@@ -979,91 +1105,23 @@ export default function IssueDetailClient({
           </h1>
 
           <section className="track-detail-section track-detail-description" aria-label={labels.description}>
-            {editingDesc ? (
-              <div className="track-description-editor">
-                <MarkdownEditor
-                  value={descDraft}
-                  onValueChange={setDescDraft}
-                  labels={ui.markdown}
-                  textareaRef={descRef}
-                  members={initialMembers}
-                  onUpload={uploadInline}
-                  // Salir del editor (clic afuera) guarda, como antes con el blur del textarea.
-                  onBlurOutside={() => void saveDescription()}
-                  textareaProps={{
-                    className: 'textarea',
-                    rows: 4,
-                    autoFocus: true,
-                    maxLength: 5000,
-                    placeholder: labels.edit.descriptionPlaceholder,
-                    'aria-label': labels.description,
-                    onKeyDown: (e) => {
-                      if (e.key === 'Escape') {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        cancelDescription();
-                      } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                        e.preventDefault();
-                        void saveDescription();
-                      }
-                    },
-                    'data-testid': 'track-issue-description',
-                  }}
-                />
-                <div className="track-description-actions">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={cancelDescription}
-                  >
-                    {labels.activity.cancelEdit}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => void saveDescription()}
-                  >
-                    {labels.activity.saveComment}
-                  </button>
-                </div>
-              </div>
-            ) : descDraft.trim() ? (
-              // Con contenido: se lee renderizado (links y tareas funcionan); clic en el texto edita.
-              <div className="track-description-read">
-                <div
-                  className="track-description"
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('a, input, button')) return;
-                    if (window.getSelection()?.toString()) return;
-                    setEditingDesc(true);
-                  }}
-                  data-testid="track-issue-description"
-                >
-                  <MarkdownView source={descDraft} onToggleTask={(i) => void toggleTask(i)} />
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm btn-icon track-description-edit"
-                  onClick={() => setEditingDesc(true)}
-                  aria-label={labels.edit.editDescription}
-                  title={labels.edit.editDescription}
-                >
-                  <TrackIcon name="pencil" />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="track-description is-empty"
-                onClick={() => setEditingDesc(true)}
-                aria-label={labels.edit.descriptionPlaceholder}
-                data-testid="track-issue-description"
-              >
-                {labels.edit.descriptionPlaceholder}
-              </button>
-            )}
+            {/* Siempre editable, como en Linear: se guarda solo al dejar de tipear y al salir. */}
+            <RichEditor
+              key={issue.id}
+              value={descDraft}
+              onChange={changeDescription}
+              ariaLabel={labels.description}
+              placeholder={labels.edit.descriptionPlaceholder}
+              testId="track-issue-description"
+              members={initialMembers}
+              onUpload={uploadInline}
+              onFocus={() => (descOpen.current = true)}
+              onBlur={() => {
+                descOpen.current = false;
+                void flushDescription();
+              }}
+              className="track-description-editor"
+            />
           </section>
 
           <SubIssues

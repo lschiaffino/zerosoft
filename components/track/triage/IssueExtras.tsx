@@ -9,7 +9,7 @@ import type { CustomerRequestDto, CustomerOption } from '@/lib/track-customers';
 import { CustomerPicker, RequestRow } from './RequestRow';
 import type { AgentSessionDto } from '@/lib/track-agents';
 import { Popover } from '../InlineEditors';
-import { MarkdownView } from '../MarkdownEditor';
+import { MarkdownView } from '../MarkdownView';
 import SlaChip from './SlaChip';
 import { aiErrorKey, call, useIssueInsights } from './api';
 

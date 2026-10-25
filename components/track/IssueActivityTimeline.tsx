@@ -7,7 +7,8 @@ import { relDate } from '@/lib/utils';
 import type { TrackIssueAttachmentRow } from '@/lib/db';
 import type { TrackIssueActivityWithAuthor, ProjectMember } from '@/lib/track-data';
 import type { CommentReaction } from '@/lib/track-ux';
-import MarkdownEditor, { MarkdownView, type MarkdownLabels, type UploadResult } from './MarkdownEditor';
+import { MarkdownView, type MarkdownLabels } from './MarkdownView';
+import RichEditor, { type UploadResult } from './RichEditor';
 import { Popover } from './InlineEditors';
 import TrackIcon from './TrackIcon';
 import { pushNotice } from './trackUndo';
@@ -173,7 +174,6 @@ export default function IssueActivityTimeline({
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState('');
   const [openResolved, setOpenResolved] = useState<Set<string>>(new Set());
-  const composerRef = useRef<HTMLTextAreaElement>(null);
 
   const sorted = useMemo(
     () => [...activities].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
@@ -335,6 +335,20 @@ export default function IssueActivityTimeline({
       case 'priority_change':
         return fill(labels.priorityChange);
       case 'cycle_change':
+        // Cambios sin activity type propio (CHECK de la tabla): project y team.
+        if (meta.field === 'project') {
+          if (!to) return tt('projectRemoved', { user: name, from });
+          return from ? tt('projectChange', { user: name, from, to }) : tt('projectAdded', { user: name, to });
+        }
+        if (meta.field === 'team') {
+          return tt('teamMoved', {
+            user: name,
+            from,
+            to,
+            fromId: String(meta.fromIdentifier ?? ''),
+            toId: String(meta.toIdentifier ?? ''),
+          });
+        }
         return fill(labels.cycleChange);
       case 'due_date_change':
         return fill(labels.dueDateChange);
@@ -548,25 +562,16 @@ export default function IssueActivityTimeline({
         </div>
         {editing ? (
           <div className="track-comment-edit">
-            <MarkdownEditor
+            <RichEditor
               value={editBody}
-              onValueChange={setEditBody}
-              labels={markdownLabels}
+              onChange={setEditBody}
+              ariaLabel={labels.editComment}
               members={members}
               onUpload={onUpload}
-              textareaProps={{
-                'aria-label': labels.editComment,
-                rows: 3,
-                maxLength: 5000,
-                autoFocus: true,
-                onKeyDown: (e) => {
-                  if (e.key === 'Escape') setEditingId(null);
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                    e.preventDefault();
-                    void saveEdit(c.id);
-                  }
-                },
-              }}
+              autoFocus
+              compact
+              onEscape={() => setEditingId(null)}
+              onSubmit={() => void saveEdit(c.id)}
             />
             <span className="track-comment-edit-actions">
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingId(null)}>
@@ -623,29 +628,18 @@ export default function IssueActivityTimeline({
             {list.length > 0 && <div className="track-thread-replies">{list.map((r) => <div key={r.activity.id}>{commentBlock(r, false)}</div>)}</div>}
             {replyTo === root.id ? (
               <div className="track-thread-reply">
-                <MarkdownEditor
+                <RichEditor
                   value={replyBody}
-                  onValueChange={setReplyBody}
-                  labels={markdownLabels}
+                  onChange={setReplyBody}
+                  ariaLabel={tt('replyPlaceholder')}
+                  placeholder={tt('replyPlaceholder')}
                   members={members}
                   onUpload={onUpload}
-                  textareaProps={{
-                    'aria-label': tt('replyPlaceholder'),
-                    placeholder: tt('replyPlaceholder'),
-                    rows: 2,
-                    maxLength: 5000,
-                    autoFocus: true,
-                    onKeyDown: (e) => {
-                      if (e.key === 'Escape') {
-                        e.preventDefault();
-                        setReplyTo(null);
-                      } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                        e.preventDefault();
-                        void submitReply(root.id);
-                      }
-                    },
-                    'data-testid': 'track-reply-input',
-                  }}
+                  autoFocus
+                  compact
+                  testId="track-reply-input"
+                  onEscape={() => setReplyTo(null)}
+                  onSubmit={() => void submitReply(root.id)}
                 />
                 <span className="track-comment-edit-actions">
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setReplyTo(null)}>
@@ -715,26 +709,17 @@ export default function IssueActivityTimeline({
       )}
 
       <form className="track-activity-composer" onSubmit={submitComment}>
-        <MarkdownEditor
+        <RichEditor
           className="track-activity-composer-input"
           value={comment}
-          onValueChange={setComment}
-          labels={markdownLabels}
-          textareaRef={composerRef}
+          onChange={setComment}
+          ariaLabel={labels.addComment}
+          placeholder={labels.addComment}
           members={members}
           onUpload={onUpload}
-          textareaProps={{
-            'aria-label': labels.addComment,
-            placeholder: labels.addComment,
-            rows: 3,
-            maxLength: 5000,
-            onKeyDown: (e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                void submitComment();
-              }
-            },
-          }}
+          compact
+          testId="track-comment-input"
+          onSubmit={() => void submitComment()}
         />
         <button type="submit" className="btn btn-primary btn-sm" disabled={!comment.trim()} aria-busy={submitting || undefined}>
           {labels.submitComment}

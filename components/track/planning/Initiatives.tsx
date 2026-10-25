@@ -6,7 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
-import { MarkdownView } from '@/components/track/MarkdownEditor';
+import { MarkdownView } from '@/components/track/MarkdownView';
 import type { InitiativeSummary } from '@/lib/track-initiatives';
 import type { PlanSummary } from '@/lib/track-plans';
 import { INITIATIVE_STATUSES, type InitiativeStatus } from '@/lib/track-planning-schema';

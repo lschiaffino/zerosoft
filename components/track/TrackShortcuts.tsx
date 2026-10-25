@@ -4,11 +4,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { usePathname, useRouter } from '@/i18n/navigation';
-import QuickIssueModal from './QuickIssueModal';
+import dynamic from 'next/dynamic';
 import { markGoPending } from './trackCommands';
 import { TrackToast, useToday } from './InlineEditors';
 import { buildTrackUiLabels } from './ui-labels';
 import { openTrackNewIssue, TRACK_NEW_ISSUE_EVENT, type IssueDraft, type ProjectContext } from './useIssueStore';
+
+// El alta rápida (con el editor visual) se baja aparte y se precarga en reposo.
+const loadQuickIssueModal = () => import('./QuickIssueModal');
+const QuickIssueModal = dynamic(loadQuickIssueModal);
 
 function isTypingTarget(el: EventTarget | null): boolean {
   const node = el as HTMLElement | null;
@@ -74,6 +78,13 @@ export default function TrackShortcuts() {
 
   // Si una vista ya manejó el atajo/evento (preventDefault), no hacemos nada:
   // revisamos después de que el evento terminó de despacharse.
+  useEffect(() => {
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    const run = () => void loadQuickIssueModal().catch(() => undefined);
+    if (idle) idle(run);
+    else window.setTimeout(run, 1500);
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;

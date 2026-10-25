@@ -9,6 +9,7 @@ import '@/styles/track-quick.css';
 import '@/styles/track-ux.css';
 import '@/styles/track-planning.css';
 import '@/styles/track-triage.css';
+import '@/styles/track-editor.css';
 
 /** Layout de Track: atajos globales (C, J/K, Enter), quick-create en contexto y los proyectos en el sidebar. */
 export default async function TrackLayout(props: { children: ReactNode; params: Promise<{ locale: string }> }) {

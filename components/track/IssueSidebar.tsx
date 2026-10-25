@@ -13,6 +13,7 @@ import TrackIcon, { type TrackIconName } from './TrackIcon';
 import type { TrackUiLabels } from './ui-labels';
 import { ESTIMATE_OPTIONS } from './trackCommands';
 import { teamPath } from '@/lib/track-routes';
+import { openCommandMenu } from '@/lib/cmdk-context';
 
 interface IssueSidebarProps {
   issue: TrackIssueWithStatus;
@@ -137,7 +138,18 @@ export default function IssueSidebar({
       <Row label={labels.labels} icon="tag" shortcut="L" testId="track-side-labels" top>
         <LabelPicker value={issueLabels} onChange={onLabels} />
       </Row>
-      <Row label={tx('project')} icon="settings" testId="track-side-project">
+      <Row label={tx('plan')} icon="plans" shortcut="⇧P" testId="track-side-plan">
+        <button
+          type="button"
+          className={`track-inline-trigger track-side-plan${issue.plan_id ? '' : ' is-dim'}`}
+          aria-label={`${tx('plan')}: ${issue.plan_name ?? labels.none}`}
+          aria-keyshortcuts="Shift+P"
+          onClick={() => openCommandMenu('project')}
+        >
+          <span className="track-inline-text">{issue.plan_name ?? labels.none}</span>
+        </button>
+      </Row>
+      <Row label={tx('team')} icon="team" shortcut="⌘⇧M" testId="track-side-project">
         <Link href={teamPath(projectId)} className="track-side-link">
           {projectName}
         </Link>

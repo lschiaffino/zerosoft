@@ -239,6 +239,20 @@ export async function listArchivedIssues(projectId: string, limit = 200): Promis
 }
 
 /** Restaura issues archivados; actualiza updated_at para que no se vuelvan a archivar enseguida. */
+/** Archiva a mano (como "Archive" en Linear); los sub-issues van con el padre. */
+export async function archiveIssues(projectIds: string[], issueIds: string[]): Promise<number> {
+  if (!projectIds.length || !issueIds.length) return 0;
+  const q = (n: number) => `(${Array.from({ length: n }, () => '?').join(', ')})`;
+  const now = new Date().toISOString();
+  const res = await getDb()
+    .prepare(
+      `UPDATE track_issues SET archived_at = ? WHERE archived_at IS NULL AND project_id IN ${q(projectIds.length)}
+       AND (id IN ${q(issueIds.length)} OR parent_id IN ${q(issueIds.length)})`,
+    )
+    .run(now, ...projectIds, ...issueIds, ...issueIds);
+  return res.changes;
+}
+
 export async function restoreIssues(projectIds: string[], issueIds: string[]): Promise<number> {
   if (!projectIds.length || !issueIds.length) return 0;
   const q = (n: number) => `(${Array.from({ length: n }, () => '?').join(', ')})`;

@@ -6,7 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
-import { MarkdownView } from '@/components/track/MarkdownEditor';
+import { MarkdownView } from '@/components/track/MarkdownView';
 import type { PlanIssue, PlanMilestone, PlanSummary } from '@/lib/track-plans';
 import { PLAN_PRIORITIES, PLAN_STATUSES } from '@/lib/track-planning-schema';
 import { api, CheckList, fmtDay, HealthDot, LoadingRows, PlanStatusIcon, ProgressBar, personName } from './shared';

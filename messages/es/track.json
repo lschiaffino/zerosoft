@@ -342,7 +342,9 @@
     "last_status": "El equipo necesita al menos un estado.",
     "cycle_overlap": "Se superpone con otro ciclo. Elegí otras fechas.",
     "invalid_milestone": "Ese hito no es de este equipo.",
-    "reminder_in_past": "Elegí un momento en el futuro."
+    "reminder_in_past": "Elegí un momento en el futuro.",
+    "invalid_plan": "Ese proyecto no es de este workspace.",
+    "invalid_team": "Elegí un equipo de este workspace."
   },
   "quick": {
     "newTask": "Nuevo issue",
@@ -1192,7 +1194,14 @@
       "open": "Abrir issue",
       "delete": "Borrar issue",
       "deleteMany": "Borrar {count} issues",
-      "many": "{count} issues"
+      "many": "{count} issues",
+      "project": "Proyecto",
+      "searchProject": "Buscar proyectos…",
+      "noProject": "Sin proyecto",
+      "moveToTeam": "Mover a otro equipo…",
+      "searchTeam": "Buscar equipos…",
+      "archive": "Archivar issue",
+      "archiveMany": "Archivar {count} issues"
     },
     "editor": {
       "todo": "Lista de tareas",
@@ -1210,13 +1219,21 @@
         "code": "Bloque de código",
         "quote": "Cita",
         "divider": "Separador",
-        "table": "Tabla"
+        "table": "Tabla",
+        "image": "Imagen o archivo"
       },
       "menu": {
         "slash": "Insertar",
         "mention": "Personas e issues",
         "issue": "Issues"
-      }
+      },
+      "toolbar": "Formato",
+      "bold": "Negrita",
+      "italic": "Itálica",
+      "code": "Código",
+      "link": "Link",
+      "linkPlaceholder": "Pegá o escribí un link y apretá Enter",
+      "tooLong": "Muy largo: el límite es de 5.000 caracteres. Lo que pase no se guarda."
     },
     "thread": {
       "postError": "No se pudo publicar el comentario. Probá de nuevo.",
@@ -1236,7 +1253,11 @@
       "hide": "Ocultar",
       "show": "Ver",
       "replyPlaceholder": "Responder…",
-      "replySubmit": "Responder"
+      "replySubmit": "Responder",
+      "projectAdded": "{user} sumó el issue a {to}",
+      "projectChange": "{user} pasó el issue de {from} a {to}",
+      "projectRemoved": "{user} sacó el issue de {from}",
+      "teamMoved": "{user} movió el issue de {from} a {to} ({fromId} → {toId})"
     },
     "sub": {
       "title": "Sub-issues",
@@ -1251,7 +1272,15 @@
     },
     "side": {
       "project": "Equipo",
-      "points": "{count, plural, one {# punto} other {# puntos}}"
+      "points": "{count, plural, one {# punto} other {# puntos}}",
+      "team": "Equipo",
+      "plan": "Proyecto",
+      "archived": "Este issue está archivado. No aparece en las listas ni en la búsqueda.",
+      "restore": "Restaurar",
+      "restored": "{id} restaurado",
+      "archivedNotice": "{id} archivado",
+      "moved": "Movido a {team} como {id}",
+      "moveError": "No se pudo mover el issue. Probá de nuevo."
     },
     "presence": {
       "viewing": "También lo están viendo: {names}"

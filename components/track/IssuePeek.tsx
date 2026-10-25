@@ -5,11 +5,15 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import type { TrackIssueWithStatus } from '@/lib/track-data';
 import { isCompletedCategory } from '@/lib/track-tasks';
-import { MarkdownView } from './MarkdownEditor';
+import dynamic from 'next/dynamic';
 import { PriorityIcon, StatusDot } from './InlineEditors';
-import { ProgressRing } from './SubIssues';
+import { ProgressRing } from './ProgressRing';
 import TrackIcon from './TrackIcon';
-import { rowTargetId } from './trackCommands';
+import { projectCommand, rowTargetId } from './trackCommands';
+import { openCommandMenu, setCommandContext } from '@/lib/cmdk-context';
+
+// El render de markdown (marked) se carga recién al abrir el peek.
+const MarkdownView = dynamic(() => import('./MarkdownView').then((m) => m.MarkdownView));
 
 function isTypingTarget(el: EventTarget | null): boolean {
   const node = el as HTMLElement | null;
@@ -43,6 +47,8 @@ function parseLabels(raw: string): Array<{ id: string; name: string; color: stri
 export default function IssuePeek() {
   const t = useTranslations('track');
   const tx = useTranslations('track.ux.peek');
+  const tc = useTranslations('track.ux.cmd');
+  const ts = useTranslations('track.ux.side');
   const router = useRouter();
   const pathname = usePathname();
   const [issueId, setIssueId] = useState<string | null>(null);
@@ -107,6 +113,23 @@ export default function IssuePeek() {
     };
   }, [issueId]);
 
+  // Mientras está abierta, ⌘K y ⇧P actúan sobre el issue de la vista rápida.
+  useEffect(() => {
+    if (!issue) return;
+    const apply = async (patch: { planId?: string | null }) => {
+      const res = await fetch(`/api/track/issues/${issue.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      }).catch(() => null);
+      if (res?.ok) setIssue((await res.json()) as TrackIssueWithStatus);
+    };
+    return setCommandContext(() => ({
+      title: issue.identifier,
+      actions: [projectCommand([issue], (p) => void apply(p), (k, v) => tc(k, v))],
+    }));
+  }, [issue, tc]);
+
   if (!issueId) return null;
   const done = children.filter((c) => isCompletedCategory(c.status_category)).length;
   const labels = issue ? parseLabels(issue.labels) : [];
@@ -124,6 +147,9 @@ export default function IssuePeek() {
           e.preventDefault();
           e.stopPropagation();
           close();
+        } else if (e.key.toLowerCase() === 'p' && e.shiftKey && !e.metaKey && !e.ctrlKey && issue && !isTypingTarget(e.target)) {
+          e.preventDefault();
+          openCommandMenu('project');
         } else if (e.key === 'Enter' && issue && !isTypingTarget(e.target) && e.target === panel.current) {
           e.preventDefault();
           router.push(`/app/track/issues/${issue.id}`);
@@ -188,6 +214,20 @@ export default function IssuePeek() {
                 </dd>
               </div>
             )}
+            <div>
+              <dt>{ts('plan')}</dt>
+              <dd>
+                <button
+                  type="button"
+                  className={`track-inline-trigger${issue.plan_id ? '' : ' is-dim'}`}
+                  onClick={() => openCommandMenu('project')}
+                  aria-keyshortcuts="Shift+P"
+                  data-testid="track-peek-plan"
+                >
+                  {issue.plan_name ?? tc('noProject')}
+                </button>
+              </dd>
+            </div>
             {issue.due_date && (
               <div>
                 <dt>{t('issues.dueDate')}</dt>

@@ -188,6 +188,8 @@ export const automationSchema = z.object({
 
 export const archiveRestoreSchema = z.object({
   issueIds: z.array(id).min(1).max(200),
+  /** true = archivar a mano (Linear: ⌘K › Archive); sin él, restaurar. */
+  archive: z.boolean().optional(),
 });
 
 export type PlanCreatePayload = z.infer<typeof planCreateSchema>;

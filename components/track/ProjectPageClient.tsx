@@ -19,35 +19,40 @@ import { useTrackLive } from './useTrackLive';
 import ViewSwitcher from './ViewSwitcher';
 import IssueFilters, { activeFilterCount } from './IssueFilters';
 import SavedViewsMenu from './SavedViewsMenu';
-import SaveViewDialog from './SaveViewDialog';
 import IssuesTable from './IssuesTable';
-import IssuesBoard from './IssuesBoard';
-import IssuesCalendar from './IssuesCalendar';
-import IssuesGantt from './IssuesGantt';
-import QuickIssueModal from './QuickIssueModal';
-import CyclesPanel, { type CycleWithProgress } from './CyclesPanel';
-import StatusesSettings from './StatusesSettings';
+import type { CycleWithProgress } from './CyclesPanel';
 import { TrackToast, useToday } from './InlineEditors';
 import { TRACK_NEW_ISSUE_EVENT, useCreateShortcut, useIssueStore, type IssueDraft, type ProjectMap } from './useIssueStore';
 import { activeCycle, formatDay, parseQuickTitle } from '@/lib/track-tasks';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
-import ProjectSettingsDrawer from './ProjectSettingsDrawer';
-import AutoCyclesSettings from './AutoCyclesSettings';
-import MilestonesPanel from './MilestonesPanel';
-import TemplatesPanel from './TemplatesPanel';
-import RecurringPanel from './RecurringPanel';
 import TrackIcon from './TrackIcon';
 import type { TrackUiLabels } from './ui-labels';
 import { BulkBar, useIssueSelection, type BulkPatch } from './BulkEdit';
 import { useWorkspaceLabels } from './LabelPicker';
-import TriageSettingsPanel from './triage/TriageSettingsPanel';
 import ProjectUpdateDraftButton from './triage/ProjectUpdateDraftButton';
-import TriagePanel from './TriagePanel';
 import IssueDisplayOptions from './IssueDisplayOptions';
 import GroupedIssuesTable from './GroupedIssuesTable';
 import { parseIssueGroup, parseIssueSort, type BoardGroupBy, type IssueGroupBy, type IssueSort } from '@/lib/track-views';
 import { TEAMS_PATH, teamPath } from '@/lib/track-routes';
+import dynamic from 'next/dynamic';
+// Vistas y paneles que no se ven al entrar (tablero, calendario, Gantt, ajustes,
+// alta rápida): cada uno en su chunk, se bajan al abrirlos.
+const IssuesBoard = dynamic(() => import('./IssuesBoard'));
+const IssuesCalendar = dynamic(() => import('./IssuesCalendar'));
+const IssuesGantt = dynamic(() => import('./IssuesGantt'));
+const QuickIssueModal = dynamic(() => import('./QuickIssueModal'));
+const StatusesSettings = dynamic(() => import('./StatusesSettings'));
+const ProjectSettingsDrawer = dynamic(() => import('./ProjectSettingsDrawer'));
+const AutoCyclesSettings = dynamic(() => import('./AutoCyclesSettings'));
+const MilestonesPanel = dynamic(() => import('./MilestonesPanel'));
+const TemplatesPanel = dynamic(() => import('./TemplatesPanel'));
+const RecurringPanel = dynamic(() => import('./RecurringPanel'));
+const TriagePanel = dynamic(() => import('./TriagePanel'));
+const SaveViewDialog = dynamic(() => import('./SaveViewDialog'));
+const TriageSettingsPanel = dynamic(() => import('./triage/TriageSettingsPanel'));
+const CyclesPanel = dynamic(() => import('./CyclesPanel'));
+
 
 interface ProjectPageClientProps {
   locale: string;
@@ -521,6 +526,13 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
           ),
         );
         await reloadLoadedPagesRef.current().catch(() => undefined);
+      }, async () => {
+        await fetch('/api/track/issues/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...body, issueIds: undo.map((u) => u.id) }),
+        }).catch(() => null);
+        await reloadLoadedPagesRef.current().catch(() => undefined);
       });
     }
     await reloadLoadedPages().catch(() => setNotice(t('errors.generic')));
@@ -559,6 +571,46 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
       createSubIssue: (parent) => router.push(`/app/track/issues/${parent.id}?sub=1`),
       remove: isAdmin ? (targets) => deleteIssues(targets.map((i) => i.id)) : undefined,
       open: (issue) => router.push(`/app/track/issues/${issue.id}`),
+      // Mover de team y archivar sacan los issues de esta lista (como en Linear).
+      moveToTeam: (targets, teamId) =>
+        void (async () => {
+          let last: { identifier: string } | null = null;
+          for (const target of targets) {
+            const res = await fetch(`/api/track/issues/${target.id}/move`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ teamId }),
+            }).catch(() => null);
+            if (res?.ok) last = (await res.json()) as { identifier: string };
+          }
+          selection.clear();
+          await reloadLoadedPagesRef.current().catch(() => undefined);
+          if (last) pushNotice(tx('side.moved', { team: last.identifier.replace(/-\d+$/, ''), id: last.identifier }));
+          else setNotice(tx('side.moveError'));
+        })(),
+      archive: (targets) =>
+        void (async () => {
+          const ids = targets.map((i) => i.id);
+          const res = await fetch('/api/track/archive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ issueIds: ids, archive: true }),
+          }).catch(() => null);
+          if (!res?.ok) {
+            setNotice(t('errors.generic'));
+            return;
+          }
+          selection.clear();
+          await reloadLoadedPagesRef.current().catch(() => undefined);
+          pushUndo(tx('side.archivedNotice', { id: targets.length === 1 ? targets[0].identifier : String(targets.length) }), async () => {
+            await fetch('/api/track/archive', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ issueIds: ids }),
+            }).catch(() => null);
+            await reloadLoadedPagesRef.current().catch(() => undefined);
+          });
+        })(),
     },
     t: (k, v) => tc(k, v),
     formatDay: (iso) => formatDayLabel(iso, locale, today),
@@ -622,6 +674,8 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
       viewKey({ view: activeView.view_type, sort: activeView.sort, ...splitViewFilters(activeView.filters) })
     : false;
 
+  // La URL del team usa su clave (/app/track/team/WEB) apenas se conoce.
+  const teamHref = teamPath(project ?? projectId);
   useEffect(() => {
     const sp = filtersToParams(filters, sort);
     sp.set('view', view);
@@ -631,8 +685,8 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     if (activeViewId && !viewDirty) sp.set('savedView', activeViewId);
     if (tab === 'triage') sp.set('tab', 'triage');
     const qs = sp.toString();
-    router.replace(`${teamPath(project ?? projectId)}?${qs}`, { scroll: false });
-  }, [filters, sort, group, view, tab, projectId, locale, router, showSub, activeViewId, viewDirty]);
+    router.replace(`${teamHref}?${qs}`, { scroll: false });
+  }, [filters, sort, group, view, tab, teamHref, locale, router, showSub, activeViewId, viewDirty]);
 
   // ⌘B alterna lista y tablero, como en Linear.
   useEffect(() => {
@@ -758,7 +812,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     });
 
   const handleCopyViewLink = (id: string) => {
-    const url = new URL(`${teamPath(project ?? projectId)}?savedView=${id}`, window.location.origin).toString();
+    const url = new URL(`${teamHref}?savedView=${id}`, window.location.origin).toString();
     void navigator.clipboard?.writeText(url).catch(() => undefined);
     pushNotice(tx('views.linkCopied'));
   };
