@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { getIssueView, setDefaultIssueView } from '@/lib/track-data';
 import { notFound, unauthorized } from '@/lib/track-http';
+import { getSavedView } from '@/lib/track-ux';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,5 +18,5 @@ export async function POST(_req: NextRequest, props: { params: Promise<{ id: str
   const updated = await setDefaultIssueView(view.project_id, realUserId(user), params.id);
   if (!updated) return notFound();
 
-  return NextResponse.json(updated);
+  return NextResponse.json(await getSavedView(params.id, realUserId(user)));
 }

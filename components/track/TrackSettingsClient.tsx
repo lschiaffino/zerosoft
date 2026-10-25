@@ -8,10 +8,12 @@ import EmptyState from '@/components/ui/EmptyState';
 import type { TrackLabel } from '@/lib/track-labels';
 import { invalidateWorkspaceLabels } from './LabelPicker';
 import TrackIcon from './TrackIcon';
+import KeyPicker from './KeyPicker';
 import type { GithubConfig } from '@/lib/track-github';
 import { parseDbUtc } from '@/lib/utils';
 
-const LABEL_COLORS = ['#666666', '#d14343', '#d9822b', '#3f8f4f', '#2f6fd1', '#7a4fd1'];
+// Colores de Linear; sin elegir, el servidor asigna uno al azar.
+const LABEL_COLORS = ['#5e6ad2', '#26b5ce', '#4cb782', '#f2c94c', '#f2994a', '#eb5757', '#bb87fc', '#95a2b3'];
 
 async function send<T>(url: string, method: string, body?: unknown): Promise<{ ok: boolean; status: number; data: T }> {
   const res = await fetch(url, {
@@ -33,13 +35,18 @@ function SettingsSkeleton() {
   );
 }
 
-/** Labels del workspace: crear, renombrar, cambiar color y borrar (admin). */
-export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
+/**
+ * Labels del workspace: crear (color al azar si no se elige), renombrar,
+ * cambiar color, agrupar (un label puede ser grupo de otros, como "Type ›
+ * Bug" en Linear) y borrar (admin). Con `projectId` (ajustes del team), los
+ * nuevos quedan como labels de ese team y se listan los del team y los generales.
+ */
+export function LabelsSettings({ isAdmin, projectId }: { isAdmin: boolean; projectId?: string }) {
   const t = useTranslations('track');
   const [labels, setLabels] = useState<TrackLabel[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [name, setName] = useState('');
-  const [color, setColor] = useState(LABEL_COLORS[0]);
+  const [color, setColor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -60,17 +67,22 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
     if (!name.trim() || adding) return;
     setError(null);
     setAdding(true);
-    const res = await send<TrackLabel>('/api/track/labels', 'POST', { name: name.trim(), color }).catch(() => null);
+    const res = await send<TrackLabel>('/api/track/labels', 'POST', {
+      name: name.trim(),
+      color: color ?? undefined,
+      projectId: projectId ?? undefined,
+    }).catch(() => null);
     setAdding(false);
     if (!res?.ok) {
       setError(res?.status === 409 ? t('labelsSettings.duplicate') : t('labelsSettings.error'));
       return;
     }
     setName('');
+    setColor(null);
     await load();
   };
 
-  const patch = async (id: string, body: { name?: string; color?: string }): Promise<boolean> => {
+  const patch = async (id: string, body: { name?: string; color?: string; parentId?: string | null }): Promise<boolean> => {
     setError(null);
     const res = await send<TrackLabel>(`/api/track/labels/${id}`, 'PATCH', body).catch(() => null);
     if (!res?.ok) {
@@ -97,7 +109,7 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
     <div data-testid="track-labels-settings">
     <FormSection
       title={t('labelsSettings.title')}
-      description={t('labelsSettings.help')}
+      description={projectId ? t('labelsSettings.helpTeam') : t('labelsSettings.help')}
       footer={!isAdmin ? <span className="ui-section-note">{t('labelsSettings.adminOnly')}</span> : undefined}
     >
       <div className="track-settings-block">
@@ -121,9 +133,19 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
         ) : labels.length === 0 ? (
           <p className="ui-help">{t('labelsSettings.empty')}</p>
         ) : (
+          // Como Linear: labels del team y del workspace, cada uno en su sección.
+          labelSections(labels, projectId, {
+            team: t('labelsSettings.teamSection'),
+            workspace: t('labelsSettings.workspaceSection'),
+          }).map((sec) => (
+            <div key={sec.key} className="track-labels-section" data-testid={`track-labels-${sec.key}`}>
+              <h3 className="track-labels-section-title">{sec.title}</h3>
+              {sec.rows.length === 0 ? (
+                <p className="ui-help">{sec.key === 'team' ? t('labelsSettings.teamEmpty') : t('labelsSettings.empty')}</p>
+              ) : (
           <ul className="track-status-list">
-            {labels.map((l) => (
-              <li key={l.id} className="track-status-item" data-testid="track-label-row">
+            {sec.rows.map((l) => (
+              <li key={l.id} className={`track-status-item${l.parent_id ? ' is-child' : ''}`} data-testid="track-label-row">
                 <input
                   type="color"
                   className="track-status-color"
@@ -161,6 +183,27 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
                 />
                 <span className="track-settings-count">{t('labelsSettings.issues', { count: l.issue_count ?? 0 })}</span>
                 {isAdmin && (
+                  <KeyPicker
+                    ariaLabel={`${t('labelsSettings.group')}: ${l.name}`}
+                    placeholder={t('labelsSettings.groupPlaceholder')}
+                    className="track-label-group-btn"
+                    testId="track-label-group"
+                    value={l.parent_id ?? ''}
+                    options={[
+                      { value: '', label: t('labelsSettings.noGroup') },
+                      ...labels
+                        .filter((o) => o.id !== l.id && !o.parent_id)
+                        .map((o) => ({ value: o.id, label: o.name, icon: <span className="track-label-dot" style={{ background: o.color }} aria-hidden /> })),
+                    ]}
+                    onSelect={(v) => void patch(l.id, { parentId: v || null })}
+                    trigger={
+                      <span className="track-inline-text is-dim">
+                        {l.parent_id ? labels.find((o) => o.id === l.parent_id)?.name ?? t('labelsSettings.group') : t('labelsSettings.group')}
+                      </span>
+                    }
+                  />
+                )}
+                {isAdmin && (
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm btn-icon btn-danger"
@@ -187,6 +230,9 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
               </li>
             ))}
           </ul>
+              )}
+            </div>
+          ))
         )}
         <form className="track-status-add" onSubmit={add}>
           <input
@@ -206,9 +252,10 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
                 role="radio"
                 aria-checked={color === c}
                 aria-label={c}
+                title={t('labelsSettings.colorPick')}
                 className={`track-color-swatch${color === c ? ' is-active' : ''}`}
                 style={{ background: c }}
-                onClick={() => setColor(c)}
+                onClick={() => setColor((cur) => (cur === c ? null : c))}
               />
             ))}
           </span>
@@ -222,7 +269,34 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
-function CopyField({ id, label, value, testId }: { id: string; label: string; value: string; testId?: string }) {
+/** Secciones de Settings: en un team, sus labels y después los del workspace; en el workspace, los generales y los de cada team. */
+function labelSections(
+  labels: TrackLabel[],
+  projectId: string | undefined,
+  titles: { team: string; workspace: string },
+): Array<{ key: 'team' | 'workspace'; title: string; rows: TrackLabel[] }> {
+  const ws = groupedLabels(labels.filter((l) => !l.project_id));
+  const team = groupedLabels(labels.filter((l) => Boolean(l.project_id) && (!projectId || l.project_id === projectId)));
+  const out: Array<{ key: 'team' | 'workspace'; title: string; rows: TrackLabel[] }> = [
+    { key: 'workspace', title: titles.workspace, rows: ws },
+    { key: 'team', title: titles.team, rows: team },
+  ];
+  return projectId ? out.reverse() : out.filter((x) => x.key === 'workspace' || x.rows.length > 0);
+}
+
+/** Grupos primero y sus labels debajo. */
+function groupedLabels(labels: TrackLabel[]): TrackLabel[] {
+  const visible = labels;
+  const top = visible.filter((l) => !l.parent_id || !visible.some((p) => p.id === l.parent_id));
+  const out: TrackLabel[] = [];
+  for (const l of top) {
+    out.push(l);
+    for (const c of visible) if (c.parent_id === l.id) out.push(c);
+  }
+  return out;
+}
+
+export function CopyField({ id, label, value, testId }: { id: string; label: string; value: string; testId?: string }) {
   const t = useTranslations('track');
   const [copied, setCopied] = useState(false);
   return (

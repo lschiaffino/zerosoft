@@ -29,6 +29,8 @@ interface AppCase {
   remove?: (request: APIRequestContext, item: Created) => Promise<void>;
   /** Lista los ítems en el sidebar del shell (#side-branch), como Docs. */
   sidebar?: boolean;
+  /** URL del detalle cuando no lleva el id (los teams de Track usan su clave: /track/team/WEB). */
+  detailUrl?: (item: Created) => RegExp;
 }
 
 async function ok<T = Record<string, unknown>>(res: Promise<import('@playwright/test').APIResponse>): Promise<T> {
@@ -116,11 +118,14 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/boards/${i.id}`))),
   },
   {
-    app: 'Track projects',
-    list: '/en/app/track/projects',
+    // Teams de Track (lo que antes se llamaba proyecto): clave, estados y cycles.
+    app: 'Track teams',
+    list: '/en/app/track/teams',
     sidebar: true,
     create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/track/projects', { data: { name } }))).id, name }),
-    detail: (i) => `/en/app/track/projects/${i.id}`,
+    detail: (i) => `/en/app/track/team/${i.id}`,
+    // Identificador de tres letras como Linear (SMO, o la que esté libre).
+    detailUrl: () => /\/app\/track\/team\/S[A-Z0-9]{1,4}(\?|$)/,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/track/projects/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/track/projects/${i.id}`))),
   },
@@ -132,8 +137,35 @@ const APPS: AppCase[] = [
       return { id: (await ok<{ id: string }>(request.post(`/api/track/projects/${project}/issues`, { data: { title: name } }))).id, name };
     },
     detail: (i) => `/en/app/track/issues/${i.id}`,
+    // Como Linear, la URL queda con el identificador y el título (/issue/WEB-12/titulo).
+    detailUrl: (i) => new RegExp(`/app/track/(issues/${i.id}|issue/[A-Z0-9]+-\\d+/${i.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')})`),
     rename: async (request, i, name) => void (await ok(request.patch(`/api/track/issues/${i.id}`, { data: { title: name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/track/issues/${i.id}`))),
+  },
+  {
+    // Projects de Track (como los de Linear).
+    app: 'Track projects',
+    list: '/en/app/track/projects',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/track/plans', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/track/projects/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/track/plans/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/track/plans/${i.id}`))),
+  },
+  {
+    app: 'Track initiatives',
+    list: '/en/app/track/initiatives',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/track/initiatives', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/track/initiatives/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/track/initiatives/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/track/initiatives/${i.id}`))),
+  },
+  {
+    app: 'Track dashboards',
+    list: '/en/app/track/dashboards',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/track/dashboards', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/track/dashboards/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/track/dashboards/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/track/dashboards/${i.id}`))),
   },
   {
     app: 'CRM contacts',
@@ -463,7 +495,7 @@ for (const c of APPS) {
       const option = dialog.getByRole('option', { name: new RegExp(item.name) });
       await expect(option.first()).toBeVisible();
       await option.first().click();
-      await expect(page).toHaveURL(new RegExp(item.id));
+      await expect(page).toHaveURL(c.detailUrl ? c.detailUrl(item) : new RegExp(item.id));
     });
 
     test('detalle: abre sin errores', async ({ page, request }) => {

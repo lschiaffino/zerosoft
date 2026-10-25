@@ -69,7 +69,8 @@ describe('sidebar de la app', () => {
   });
 
   it.each(PRODUCTS)('los íconos de %s no se repiten', (product) => {
-    const icons = buildNav(product, '/app', labels).flatMap((g) => g.items.map((i) => i.icon));
+    // El hueco del árbol (branchOnly) no se ve como ítem: su ícono no cuenta.
+    const icons = buildNav(product, '/app', labels).flatMap((g) => g.items.filter((i) => !i.branchOnly).map((i) => i.icon));
     expect(new Set(icons).size).toBe(icons.length);
   });
 
@@ -144,14 +145,14 @@ describe('sidebar de la app', () => {
       expect(active(app, `/app/${app}/settings`), app).toEqual([`/app/${app}/settings`]);
     }
     expect(active('link', '/app/links/abc123')).toEqual(['/app/links']);
+    expect(active('track', '/app/track/teams')).toEqual(['/app/track/teams']);
     expect(active('link', '/app/links/overview')).toEqual(['/app/links/overview']);
     expect(active('link', '/app/links')).toEqual(['/app/links']);
     expect(active('home', '/app')).toEqual(['/app']);
-    expect(active('track', '/app/track/projects')).toEqual(['/app/track/projects']);
   });
 
   it('Track › Proyectos es una lista real y /app/chat/widgets no da 404', () => {
-    const projects = readFileSync(join(appDir, 'app', 'track', 'projects', 'page.tsx'), 'utf8');
+    const projects = readFileSync(join(appDir, 'app', 'track', 'teams', 'page.tsx'), 'utf8');
     // La página delega en ProjectsPage (compartida con el Resumen), que renderiza la lista.
     expect(projects).toContain('ProjectsPage');
     const shared = readFileSync(join(root, 'components', 'track', 'ProjectsPage.tsx'), 'utf8');
@@ -167,7 +168,7 @@ describe('sidebar de la app', () => {
         .map((i) => i.href);
     expect(branches('docs')).toEqual(['/app/docs']);
     expect(branches('board')).toEqual(['/app/board']);
-    expect(branches('track')).toEqual(['/app/track/projects']);
+    expect(branches('track')).toEqual(['/app/track/teams']);
     for (const p of PRODUCTS) expect(branches(p).length, p).toBeLessThanOrEqual(1);
     // Y cada uno monta el componente que llena el hueco.
     const layout = (app: string) => readFileSync(join(appDir, 'app', app, 'layout.tsx'), 'utf8');

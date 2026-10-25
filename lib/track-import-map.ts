@@ -10,7 +10,7 @@
  */
 import { parseCsv } from './csv-parse';
 
-export const TRACK_IMPORT_SOURCES = ['linear', 'jira', 'github', 'csv'] as const;
+export const TRACK_IMPORT_SOURCES = ['linear', 'jira', 'github', 'asana', 'shortcut', 'csv'] as const;
 export type TrackImportSource = (typeof TRACK_IMPORT_SOURCES)[number];
 
 export type ImportStatusCategory = 'backlog' | 'todo' | 'in_progress' | 'done' | 'cancelled';

@@ -29,22 +29,30 @@ test('Docs: el aviso de papelera no crece en una página corta', async ({ page, 
   expect((await banner.boundingBox())!.height).toBeLessThan(80);
 });
 
-test('Docs: el aviso de conflicto no crece en una página corta', async ({ page, request }) => {
-  const id = await createDoc(request, `Conflicto ${uid()}`);
+test('Docs: otra pestaña guarda primero y se fusiona sin aviso de conflicto', async ({ page, request }) => {
+  const title = `Conflicto ${uid()}`;
+  const id = await createDoc(request, title);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`/en/app/docs/${id}`, { waitUntil: 'networkidle' });
-  // Otra pestaña cambia el título primero; lo que se escribe acá en el título choca
-  // con esa versión (lo que no choca se fusiona sin aviso).
+  // Otra pestaña cambia el título y el contenido primero; lo que se escribe acá
+  // se fusiona en el servidor contra la versión que vio este editor (el título
+  // por tramos: lo de la otra pestaña y lo agregado acá quedan los dos).
   const other = await request.patch(`/api/docs/pages/${id}`, {
     data: { title: 'Desde otra pestaña', content: [{ id: 'b-other', type: 'paragraph', content: 'Desde otra pestaña' }] },
   });
   expect(other.ok()).toBe(true);
   await page.locator('.docs-title').click();
+  await page.keyboard.press('End');
   await page.keyboard.type(' editado');
-  const banner = page.locator('.docs-banner-bad');
-  await expect(banner).toBeVisible({ timeout: 15_000 });
-  await page.screenshot({ path: shot('docs-conflict-banner.png') });
-  expect((await banner.boundingBox())!.height).toBeLessThan(80);
+  await expect
+    .poll(async () => {
+      const p = (await (await request.get(`/api/docs/pages/${id}`)).json()) as { title: string; content: Array<{ content: string }> };
+      return [p.title, p.content.map((b) => b.content).join('|')];
+    }, { timeout: 15_000 })
+    .toEqual(['Desde otra pestaña editado', 'Desde otra pestaña']);
+  await expect(page.locator('.docs-editable', { hasText: 'Desde otra pestaña' })).toBeVisible();
+  await expect(page.locator('.docs-banner-bad')).toHaveCount(0);
+  await page.screenshot({ path: shot('docs-conflict-merged.png') });
 });
 
 // ---------- Notes ----------

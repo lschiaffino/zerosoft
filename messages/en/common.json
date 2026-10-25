@@ -40,6 +40,7 @@
     "building": "In the works"
   },
   "sidebar": {
+    "newReadOnly": "Your role here is view or comment: ask an admin to create pages.",
     "search": "Search",
     "new": "New",
     "backToSite": "Back to site",
@@ -79,6 +80,9 @@
     "groupReports": "Reports",
     "groupProjects": "Projects",
     "groupIssues": "Issues",
+    "groupTrackPlans": "Projects",
+    "groupTrackInitiatives": "Initiatives",
+    "groupTrackDashboards": "Track dashboards",
     "groupBoards": "Boards",
     "groupEventTypes": "Event types",
     "groupBookings": "Bookings",
@@ -138,7 +142,12 @@
     "groupApps": "Apps",
     "openApp": "Open {name}",
     "goHome": "Go to home",
-    "linkOverview": "Link overview"
+    "linkOverview": "Link overview",
+    "groupTeams": "Teams",
+    "groupTrackViews": "Views",
+    "groupTrackCycles": "Cycles",
+    "groupTrackMilestones": "Milestones",
+    "groupTrackLabels": "Labels"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
@@ -586,7 +595,9 @@
       "invalid_input": "Check the fields and try again.",
       "not_ready": "The preview is no longer available. Start again.",
       "internal_error": "Something went wrong on our side. Nothing else was changed.",
-      "generic": "Could not import. Try again."
+      "generic": "Could not import. Try again.",
+      "invalid_site": "Use your Jira Cloud address, like https://acme.atlassian.net.",
+      "invalid_project": "Paste the Asana project URL or its numeric id."
     },
     "readFailed": "We couldn't read {source}: {reason}"
   },

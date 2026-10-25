@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getIssue, getProject, listIssueActivities, canAccessTrackProject } from '@/lib/track-data';
 import { notFound, unauthorized } from '@/lib/track-http';
+import { listIssueReactions } from '@/lib/track-ux';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,7 +12,7 @@ async function accessibleIssue(id: string, teamId: string | null, ownerId: strin
   if (!issue) return null;
   const project = await getProject(issue.project_id);
   if (!project) return null;
-  if (!canAccessTrackProject(project, teamId, ownerId)) return null;
+  if (!(await canAccessTrackProject(project, teamId, ownerId))) return null;
   return issue;
 }
 
@@ -23,6 +24,6 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const issue = await accessibleIssue(params.id, user.team?.id ?? null, user.id);
   if (!issue) return notFound();
 
-  const rows = await listIssueActivities(params.id);
-  return NextResponse.json({ rows });
+  const [rows, reactions] = await Promise.all([listIssueActivities(params.id), listIssueReactions(params.id)]);
+  return NextResponse.json({ rows, reactions });
 }

@@ -559,17 +559,21 @@ test('Track: sub-issue, cycles y status del proyecto sin salir de la vista', asy
 
   await page.goto(`/en/app/track/issues/${parent.id}`, { waitUntil: 'networkidle' });
   await page.getByTestId('track-add-subissue').click();
-  await page.getByRole('dialog').getByRole('textbox').first().fill('Hijo');
+  // Composer en línea como en Linear: título y Enter.
+  await page.getByTestId('track-subissue-input').fill('Hijo');
   await page.keyboard.press('Enter');
   await expect(page.locator('.track-subtask-list')).toContainText('Hijo');
-  expect(page.url()).toContain(`/issues/${parent.id}`);
+  expect(page.url()).toMatch(new RegExp(`/issues/${parent.id}|/issue/${parent.identifier}`));
 
   // Ciclos y status viven en el drawer de ajustes del proyecto, no sobre la lista.
-  await page.goto(`/en/app/track/projects/${project.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/track/team/${project.id}`, { waitUntil: 'networkidle' });
   await expect(page.getByTestId('track-cycles')).toHaveCount(0);
   await page.getByTestId('track-project-settings').click();
   const drawer = page.getByTestId('track-project-drawer');
   await expect(drawer).toBeVisible();
+  // Como Linear, abre en General; Cycles es una pestaña más.
+  await expect(drawer.getByTestId('track-team-general')).toBeVisible();
+  await drawer.getByTestId('track-settings-tab-cycles').click();
   await drawer.getByTestId('track-new-cycle').click();
   await drawer.getByLabel('Name').fill('Sprint E2E');
   await drawer.getByRole('button', { name: 'Create cycle' }).click();
@@ -582,15 +586,15 @@ test('Track: sub-issue, cycles y status del proyecto sin salir de la vista', asy
 
 test('Track: el drawer de ajustes cierra con Esc y devuelve el foco', async ({ request, page }) => {
   const project = await (await request.post('/api/track/projects', { data: { name: `Drawer ${uid()}` } })).json();
-  await page.goto(`/en/app/track/projects/${project.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/track/team/${project.id}`, { waitUntil: 'networkidle' });
   const opener = page.getByTestId('track-project-settings');
   await opener.click();
   const drawer = page.getByTestId('track-project-drawer');
   await expect(drawer).toBeVisible();
   // Flechas entre pestañas.
-  await drawer.getByTestId('track-settings-tab-cycles').focus();
-  await page.keyboard.press('ArrowRight');
-  await expect(drawer.getByTestId('track-settings-tab-statuses')).toHaveAttribute('aria-selected', 'true');
+  await drawer.getByTestId('track-settings-tab-cycles').click();
+  await page.keyboard.press('ArrowDown');
+  await expect(drawer.getByTestId('track-settings-tab-templates')).toHaveAttribute('aria-selected', 'true');
   // C no abre el quick-create con el drawer abierto.
   await page.keyboard.press('c');
   await expect(page.getByPlaceholder('Issue title')).toHaveCount(0);
@@ -603,7 +607,8 @@ test('Track: /issues/new abre el quick-create en el proyecto y "/" enfoca la bú
   const project = await (await request.post('/api/track/projects', { data: { name: `Nuevo ${uid()}` } })).json();
   await request.post(`/api/track/projects/${project.id}/issues`, { data: { title: 'Existente' } });
   await page.goto(`/en/app/track/projects/${project.id}/issues/new`, { waitUntil: 'networkidle' });
-  await expect(page).toHaveURL(new RegExp(`/app/track/projects/${project.id}`));
+  // El link viejo cae en la página del team (por su clave).
+  await expect(page).toHaveURL(/\/app\/track\/team\/[A-Z0-9-]+/);
   const title = page.getByPlaceholder('Issue title');
   await expect(title).toBeVisible();
   await title.fill('Desde el link viejo');
@@ -617,13 +622,12 @@ test('Track: /issues/new abre el quick-create en el proyecto y "/" enfoca la bú
 
 test('Track: proyecto nuevo deriva el identificador y GitHub arranca colapsado', async ({ page }) => {
   const name = `Kit ${uid()}`;
-  await page.goto('/en/app/track/projects/new', { waitUntil: 'networkidle' });
-  await expect(page.getByTestId('track-project-slug')).toBeHidden();
+  await page.goto('/en/app/track/teams/new', { waitUntil: 'networkidle' });
+  // Como Linear: el identificador son tres letras del nombre (KIT), visible y editable.
   await page.getByLabel('Name').fill(name);
-  await page.getByRole('button', { name: 'Advanced' }).click();
-  await expect(page.getByTestId('track-project-slug')).toHaveAttribute('placeholder', name.toLowerCase().replace(' ', '-'));
-  await page.getByRole('button', { name: 'Create project' }).click();
-  await expect(page).toHaveURL(/\/app\/track\/projects\/[0-9a-f-]{36}/);
+  await expect(page.getByTestId('track-project-slug')).toHaveAttribute('placeholder', 'KIT');
+  await page.getByRole('button', { name: 'Create team' }).click();
+  await expect(page).toHaveURL(/\/app\/track\/team\/K[A-Z0-9]{1,4}(\?|$)/);
 
   await page.goto('/en/app/track/settings?tab=github', { waitUntil: 'networkidle' });
   await expect(page.getByTestId('track-github-repos')).toHaveCount(0);
@@ -631,12 +635,12 @@ test('Track: proyecto nuevo deriva el identificador y GitHub arranca colapsado',
   await expect(page.getByTestId('track-github-repos')).toBeVisible();
 });
 
-test('Track: "New project" abre un modal en el overview', async ({ page }) => {
+test('Track: "New team" abre un modal en el overview', async ({ page }) => {
   await page.goto('/en/app/track', { waitUntil: 'networkidle' });
   await page.getByTestId('track-new-project').click();
   await page.getByRole('dialog').getByLabel('Name').fill(`Modal ${uid()}`);
   await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
-  await expect(page).toHaveURL(/\/app\/track\/projects\/[0-9a-f-]{36}/);
+  await expect(page).toHaveURL(/\/app\/track\/team\/M[A-Z0-9]{1,4}(\?|$)/);
 });
 
 test('Link: multi-select archiva en lote y la edición abre un panel lateral', async ({ request, page }) => {
@@ -886,20 +890,26 @@ test.describe('track d9', () => {
     await expect(page.getByTestId('track-label-row').locator(`input[value="${labelName}"]`)).toBeVisible();
 
     // Edición masiva: checkbox + shift+clic y barra de acciones.
-    await page.goto(`/en/app/track/projects/${project.id}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/track/team/${project.id}`, { waitUntil: 'networkidle' });
     const boxes = page.getByTestId('track-select-row');
     await expect(boxes).toHaveCount(3);
     await boxes.nth(0).click();
     await boxes.nth(2).click({ modifiers: ['Shift'] });
     await expect(page.getByTestId('track-bulk-bar')).toContainText('3 selected');
-    await page.getByTestId('track-bulk-priority').selectOption('urgent');
+    // Las acciones de la barra abren la página de ⌘K (como en Linear): tipear y Enter.
+    await page.getByTestId('track-bulk-priority').click();
+    await page.keyboard.type('Urgent');
+    await page.keyboard.press('Enter');
     await expect
       .poll(async () => {
         const res = await request.get(`/api/track/projects/${project.id}/issues?priority=urgent`);
         return (await res.json()).total;
       }, { timeout: 20_000 })
       .toBe(3);
-    await page.getByTestId('track-bulk-labels').selectOption({ label: `Add ${labelName}` });
+    await page.getByTestId('track-bulk-labels').click();
+    await page.keyboard.type(labelName);
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Escape');
     await expect
       .poll(async () => (await (await request.get(`/api/track/issues/${ids[0]}`)).json()).labels, { timeout: 20_000 })
       .toContain(labelName);
@@ -939,7 +949,7 @@ test.describe('track d9', () => {
     await expect(page.getByTestId('track-copy-branch')).toHaveAttribute('data-branch', /-uno$/);
 
     // Triage: se activa desde la configuración del proyecto.
-    await page.goto(`/en/app/track/projects/${project.id}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/track/team/${project.id}`, { waitUntil: 'networkidle' });
     await page.getByTestId('track-project-settings').click();
     await page.getByTestId('track-settings-tab-triage').click();
     await page.getByTestId('track-triage-toggle').check();

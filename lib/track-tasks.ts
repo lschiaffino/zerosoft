@@ -9,7 +9,7 @@ import type { TrackIssueWithStatus } from './track-data';
 export type StatusCategory = TrackStatusRow['category'];
 export type IssuePriority = TrackIssueWithStatus['priority'];
 
-export const PRIORITIES: IssuePriority[] = ['urgent', 'high', 'medium', 'low'];
+export const PRIORITIES: IssuePriority[] = ['urgent', 'high', 'medium', 'low', 'none'];
 
 /** Miembro mínimo necesario para resolver nombre/email del asignado. */
 export interface MemberLike {
@@ -28,6 +28,25 @@ export interface IssuePatch {
   priority?: IssuePriority;
   assigneeId?: string | null;
   dueDate?: string | null;
+  startDate?: string | null;
+  estimate?: number | null;
+  cycleId?: string | null;
+  milestoneId?: string | null;
+  planMilestoneId?: string | null;
+  parentId?: string | null;
+  subOrder?: number | null;
+  /** Project (plan) del issue. */
+  planId?: string | null;
+  /** Lista completa de labels (ids del workspace). */
+  labels?: Array<{ id: string }>;
+}
+
+/** Nombres para el parche optimista de cycle, milestone y labels. */
+export interface PatchExtras {
+  cycles?: Array<{ id: string; name: string }>;
+  milestones?: Array<{ id: string; name: string }>;
+  labels?: Array<{ id: string; name: string; color: string }>;
+  plans?: Array<{ id: string; name: string }>;
 }
 
 export function isCompletedCategory(category: string | null | undefined): boolean {
@@ -87,8 +106,35 @@ export function applyIssuePatch(
   patch: IssuePatch,
   statuses: StatusLike[] = [],
   members: MemberLike[] = [],
+  extras: PatchExtras = {},
 ): TrackIssueWithStatus {
   const next: TrackIssueWithStatus = { ...issue };
+  if (patch.estimate !== undefined) next.estimate = patch.estimate ?? null;
+  if (patch.startDate !== undefined) next.start_date = patch.startDate ?? null;
+  if (patch.parentId !== undefined) next.parent_id = patch.parentId ?? null;
+  if (patch.subOrder !== undefined) next.sub_order = patch.subOrder ?? null;
+  if (patch.cycleId !== undefined) {
+    next.cycle_id = patch.cycleId ?? null;
+    next.cycle_name = patch.cycleId ? (extras.cycles?.find((c) => c.id === patch.cycleId)?.name ?? null) : null;
+  }
+  if (patch.milestoneId !== undefined) {
+    next.milestone_id = patch.milestoneId ?? null;
+    next.milestone_name = patch.milestoneId
+      ? (extras.milestones?.find((m) => m.id === patch.milestoneId)?.name ?? null)
+      : null;
+  }
+  if (patch.planMilestoneId !== undefined) {
+    next.plan_milestone_id = patch.planMilestoneId ?? null;
+    next.plan_milestone_name = patch.planMilestoneId ? (next.plan_milestone_name ?? null) : null;
+  }
+  if (patch.planId !== undefined) {
+    next.plan_id = patch.planId ?? null;
+    next.plan_name = patch.planId ? (extras.plans?.find((p) => p.id === patch.planId)?.name ?? next.plan_name ?? null) : null;
+  }
+  if (patch.labels !== undefined && extras.labels) {
+    const byId = new Map(extras.labels.map((l) => [l.id, l]));
+    next.labels = JSON.stringify(patch.labels.map((l) => byId.get(l.id)).filter(Boolean));
+  }
   if (patch.title !== undefined) next.title = patch.title.trim();
   if (patch.priority !== undefined) next.priority = patch.priority;
   if (patch.dueDate !== undefined) next.due_date = patch.dueDate ?? null;
@@ -185,6 +231,7 @@ const PRIORITY_TOKENS: Record<string, IssuePriority> = {
   '2': 'high',
   '3': 'medium',
   '4': 'low',
+  '0': 'none',
 };
 
 const TODAY_TOKENS = new Set(['today', 'hoy', 'hoje']);
@@ -340,4 +387,76 @@ export function nextCycleDraft(
   const after = addDays(last.end_at.slice(0, 10), 1);
   const startAt = after > today ? after : today;
   return { n, startAt, endAt: addDays(startAt, length) };
+}
+
+// ---------- Deshacer ----------
+
+function labelIds(raw: string | null | undefined): Array<{ id: string }> {
+  try {
+    const parsed = JSON.parse(raw ?? '[]');
+    return Array.isArray(parsed) ? parsed.filter((l) => l && typeof l.id === 'string').map((l) => ({ id: l.id })) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Parche que devuelve el issue a como estaba antes de `patch` (para ⌘Z). */
+export function inversePatch(prev: TrackIssueWithStatus, patch: IssuePatch): IssuePatch {
+  const out: IssuePatch = {};
+  if (patch.title !== undefined) out.title = prev.title;
+  if (patch.statusId !== undefined) out.statusId = prev.status_id;
+  if (patch.priority !== undefined) out.priority = prev.priority;
+  if (patch.assigneeId !== undefined) out.assigneeId = prev.assignee_id;
+  if (patch.dueDate !== undefined) out.dueDate = prev.due_date;
+  if (patch.startDate !== undefined) out.startDate = prev.start_date;
+  if (patch.estimate !== undefined) out.estimate = prev.estimate;
+  if (patch.cycleId !== undefined) out.cycleId = prev.cycle_id;
+  if (patch.milestoneId !== undefined) out.milestoneId = prev.milestone_id ?? null;
+  if (patch.planMilestoneId !== undefined) out.planMilestoneId = prev.plan_milestone_id ?? null;
+  if (patch.parentId !== undefined) out.parentId = prev.parent_id;
+  if (patch.subOrder !== undefined) out.subOrder = prev.sub_order ?? null;
+  if (patch.planId !== undefined) out.planId = prev.plan_id ?? null;
+  if (patch.labels !== undefined) out.labels = labelIds(prev.labels);
+  return out;
+}
+
+/** Copia de `prev` los campos que toca `patch` (revertir un parche que falló). */
+export function revertPatchFields(
+  current: TrackIssueWithStatus,
+  prev: TrackIssueWithStatus,
+  patch: IssuePatch,
+): TrackIssueWithStatus {
+  const r = { ...current };
+  if (patch.title !== undefined) r.title = prev.title;
+  if (patch.priority !== undefined) r.priority = prev.priority;
+  if (patch.dueDate !== undefined) r.due_date = prev.due_date;
+  if (patch.startDate !== undefined) r.start_date = prev.start_date;
+  if (patch.estimate !== undefined) r.estimate = prev.estimate;
+  if (patch.parentId !== undefined) r.parent_id = prev.parent_id;
+  if (patch.subOrder !== undefined) r.sub_order = prev.sub_order;
+  if (patch.planId !== undefined) {
+    r.plan_id = prev.plan_id;
+    r.plan_name = prev.plan_name;
+  }
+  if (patch.labels !== undefined) r.labels = prev.labels;
+  if (patch.cycleId !== undefined) {
+    r.cycle_id = prev.cycle_id;
+    r.cycle_name = prev.cycle_name;
+  }
+  if (patch.milestoneId !== undefined) {
+    r.milestone_id = prev.milestone_id;
+    r.milestone_name = prev.milestone_name;
+  }
+  if (patch.statusId !== undefined) {
+    r.status_id = prev.status_id;
+    r.status_name = prev.status_name;
+    r.status_color = prev.status_color;
+    r.status_category = prev.status_category;
+  }
+  if (patch.assigneeId !== undefined) {
+    r.assignee_id = prev.assignee_id;
+    r.assignee_name = prev.assignee_name;
+    r.assignee_email = prev.assignee_email;
+  }
+  return r;
 }

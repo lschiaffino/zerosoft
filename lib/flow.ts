@@ -75,6 +75,8 @@ export interface FlowRunDto {
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
+  /** Los datos de la corrida no se muestran a quien mira (ver canSeeRunData). */
+  dataHidden?: boolean;
 }
 
 export interface FlowStepDto {
@@ -527,16 +529,54 @@ export async function deleteFlow(workspaceId: string, id: string): Promise<boole
 
 // ---------- Corridas ----------
 
-export async function listRuns(workspaceId: string, flowId: string, limit = 30): Promise<FlowRunDto[]> {
+/** Quién mira las corridas (los datos del disparador y de cada paso no son para todo el workspace). */
+export interface FlowRunViewer {
+  /** Persona real. */
+  personId: string;
+  /** Owner o admin del workspace. */
+  admin: boolean;
+}
+
+/**
+ * ¿Puede ver los datos de la corrida (entrada del disparador, entrada y
+ * salida de cada paso)? Quien creó el flow sí (corre con sus permisos); un
+ * admin también. El resto del workspace ve el estado, los tiempos y los
+ * errores, sin los datos: un evento puede traer registros que esa persona no
+ * puede abrir (visibilidad del CRM, páginas privadas, canales).
+ */
+export async function canSeeRunData(
+  workspaceId: string,
+  viewer: FlowRunViewer | undefined,
+  flowCreator: string | null,
+  run: Pick<FlowRunRow, 'input'>,
+): Promise<boolean> {
+  if (!viewer) return true;
+  if (flowCreator && viewer.personId === flowCreator) return true;
+  void run;
+  return viewer.admin;
+}
+
+function redactRun<T extends FlowRunDto>(run: T): T {
+  return { ...run, input: {}, dataHidden: true };
+}
+
+export async function listRuns(workspaceId: string, flowId: string, limit = 30, viewer?: FlowRunViewer): Promise<FlowRunDto[]> {
   const rows = (await getDb()
     .prepare('SELECT * FROM flow_runs WHERE flow_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT ?')
     .all(flowId, workspaceId, Math.min(Math.max(limit, 1), 100))) as FlowRunRow[];
-  return rows.map(toRunDto);
+  if (!viewer) return rows.map(toRunDto);
+  const flow = (await getDb().prepare('SELECT created_by FROM flow_flows WHERE id = ? AND user_id = ?').get(flowId, workspaceId)) as
+    | { created_by: string | null }
+    | undefined;
+  const out: FlowRunDto[] = [];
+  for (const r of rows) out.push((await canSeeRunData(workspaceId, viewer, flow?.created_by ?? null, r)) ? toRunDto(r) : redactRun(toRunDto(r)));
+  return out;
 }
 
 export async function getRunWithSteps(
   workspaceId: string,
   runId: string,
+  viewer?: FlowRunViewer,
 ): Promise<(FlowRunDto & { steps: FlowStepDto[] }) | null> {
   const row = (await getDb()
     .prepare('SELECT * FROM flow_runs WHERE id = ? AND user_id = ?')
@@ -545,6 +585,10 @@ export async function getRunWithSteps(
   const steps = (await getDb()
     .prepare('SELECT * FROM flow_steps WHERE run_id = ? ORDER BY started_at ASC, rowid ASC')
     .all(runId)) as FlowStepRow[];
+  const flow = (await getDb().prepare('SELECT created_by FROM flow_flows WHERE id = ?').get(row.flow_id)) as { created_by: string | null } | undefined;
+  if (!(await canSeeRunData(workspaceId, viewer, flow?.created_by ?? null, row))) {
+    return { ...redactRun(toRunDto(row)), steps: steps.map((s) => ({ ...toStepDto(s), input: null, output: null })) };
+  }
   return { ...toRunDto(row), steps: steps.map(toStepDto) };
 }
 
@@ -573,13 +617,17 @@ export async function cancelRun(
 }
 
 /** Última salida de cada nodo del flow (para el selector de variables). */
-export async function lastOutputs(workspaceId: string, flowId: string): Promise<Record<string, unknown>> {
+export async function lastOutputs(workspaceId: string, flowId: string, viewer?: FlowRunViewer): Promise<Record<string, unknown>> {
   const run = (await getDb()
     .prepare(
-      "SELECT id FROM flow_runs WHERE flow_id = ? AND user_id = ? AND status IN ('success', 'failed', 'waiting') ORDER BY created_at DESC LIMIT 1",
+      "SELECT id, input FROM flow_runs WHERE flow_id = ? AND user_id = ? AND status IN ('success', 'failed', 'waiting') ORDER BY created_at DESC LIMIT 1",
     )
-    .get(flowId, workspaceId)) as { id: string } | undefined;
+    .get(flowId, workspaceId)) as { id: string; input: string } | undefined;
   if (!run) return {};
+  if (viewer) {
+    const flow = (await getDb().prepare('SELECT created_by FROM flow_flows WHERE id = ?').get(flowId)) as { created_by: string | null } | undefined;
+    if (!(await canSeeRunData(workspaceId, viewer, flow?.created_by ?? null, run))) return {};
+  }
   // Una fila por nodo (la última): con Loops una corrida tiene cientos de pasos.
   const steps = (await getDb()
     .prepare(

@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
-import { projectSlug } from '@/lib/track-tasks';
+import { normalizeTeamKey, teamKeyCandidates } from '@/lib/track-team-key';
+import { teamPath } from '@/lib/track-routes';
 
 const KNOWN_ERRORS = new Set(['invalid_slug', 'slug_taken', 'missing_name', 'invalid_input']);
 
@@ -18,8 +19,9 @@ export default function ProjectForm() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
-  const derived = projectSlug(name);
-  const effective = projectSlug(slug) || derived;
+  // Tres letras del nombre (MOB), como Linear; el servidor elige otra si ya existe.
+  const derived = name.trim() ? teamKeyCandidates(name)[0] : '';
+  const effective = normalizeTeamKey(slug) ?? derived;
 
   async function submit(fd: FormData): Promise<string | void> {
     const res = await fetch('/api/track/projects', {
@@ -28,14 +30,14 @@ export default function ProjectForm() {
       body: JSON.stringify({
         name: name.trim(),
         // Sin slug propio, el servidor lo deriva del nombre y lo hace único.
-        slug: projectSlug(slug) || undefined,
+        slug: normalizeTeamKey(slug) ?? undefined,
         description: String(fd.get('description') ?? '').trim(),
         icon: String(fd.get('icon') ?? '').trim() || undefined,
       }),
     }).catch(() => null);
-    const data = res ? ((await res.json().catch(() => null)) as { id?: string; error?: string } | null) : null;
+    const data = res ? ((await res.json().catch(() => null)) as { id?: string; slug?: string; error?: string } | null) : null;
     if (res?.ok && data?.id) {
-      router.push(`/app/track/projects/${data.id}`);
+      router.push(teamPath({ id: data.id, slug: data.slug }));
       return;
     }
     const code = data?.error ?? 'generic';
@@ -67,39 +69,30 @@ export default function ProjectForm() {
         />
       </div>
       <div className="ui-field">
+        <label className="label" htmlFor="project-slug">
+          {t('projects.form.identifier')}
+        </label>
+        <input
+          id="project-slug"
+          className="input data track-key-input"
+          value={slug.toUpperCase()}
+          onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 5))}
+          placeholder={derived.toUpperCase() || 'MOB'}
+          aria-describedby="project-slug-help"
+          maxLength={5}
+          data-testid="track-project-slug"
+        />
+        <p className="ui-help" id="project-slug-help">
+          {t('projects.form.identifierHelp', { example: `${(effective || 'mob').toUpperCase()}-12` })}
+        </p>
+      </div>
+      <div className="ui-field">
         <label className="label" htmlFor="project-description">
           {t('projects.form.description')} <span className="ui-optional">{t('common.optional')}</span>
         </label>
         <textarea id="project-description" name="description" className="textarea" rows={3} maxLength={5000} />
       </div>
       <AdvancedSection storageKey="track.project.new" hint={t('projects.form.advancedHint')}>
-        <div className="ui-field">
-          <label className="label" htmlFor="project-slug">
-            {t('projects.form.slug')}
-          </label>
-          <input
-            id="project-slug"
-            className="input data"
-            value={slug}
-            onChange={(e) =>
-              // Mientras se escribe se permite el guion final; al enviar se normaliza.
-              setSlug(
-                e.target.value
-                  .toLowerCase()
-                  .replace(/[^a-z0-9-]+/g, '-')
-                  .replace(/-{2,}/g, '-')
-                  .slice(0, 64),
-              )
-            }
-            placeholder={derived || t('projects.form.slugPlaceholder')}
-            aria-describedby="project-slug-help"
-            maxLength={64}
-            data-testid="track-project-slug"
-          />
-          <p className="ui-help" id="project-slug-help">
-            {t('projects.form.slugHelp', { example: `${(effective || 'web').toUpperCase()}-1` })}
-          </p>
-        </div>
         <div className="ui-field">
           <label className="label" htmlFor="project-icon">
             {t('projects.form.icon')} <span className="ui-optional">{t('common.optional')}</span>

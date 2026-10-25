@@ -19,8 +19,11 @@ export function snoozeAt(preset: SnoozePreset, now: Date): Date {
     d.setDate(d.getDate() + 1);
     return d;
   }
-  // El lunes que viene (si hoy es lunes, el de la semana próxima).
-  const offset = ((8 - d.getDay()) % 7) || 7;
+  // El lunes de la semana que viene (si hoy es lunes, el de la próxima). Si
+  // mañana ya es lunes (hoy domingo), es el siguiente: "mañana" y "la semana
+  // que viene" nunca caen el mismo día.
+  let offset = ((8 - d.getDay()) % 7) || 7;
+  if (offset === 1) offset = 8;
   d.setDate(d.getDate() + offset);
   return d;
 }

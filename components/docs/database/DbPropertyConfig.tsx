@@ -47,7 +47,7 @@ export function DbFormulaEditor({ db, prop, env, commit }: { db: DocsDatabase; p
   const t = useTranslations('docs.database');
   const [text, setText] = useState(prop.formula ?? '');
   const ref = useRef<HTMLTextAreaElement | null>(null);
-  const preview = useMemo(() => previewFormula({ ...db, properties: db.properties.filter((p) => p.id !== prop.id) }, text, env), [db, prop.id, text, env]);
+  const preview = useMemo(() => previewFormula(db, text, env, prop.id), [db, prop.id, text, env]);
   const insert = (snippet: string) => {
     const el = ref.current;
     const start = el?.selectionStart ?? text.length;

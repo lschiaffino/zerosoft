@@ -13,8 +13,10 @@ import {
   getIssueParentChain,
 } from '@/lib/track-data';
 import { isSubscribedToIssue } from '@/lib/track-subscriptions';
+import { isIssueFavorite } from '@/lib/track-issue-favorites';
 import { listMilestones } from '@/lib/track-milestones';
 import { getIssueReminder } from '@/lib/track-notify';
+import { listIssueReactions } from '@/lib/track-ux';
 import IssueDetailClient from '@/components/track/IssueDetailClient';
 import { buildTrackUiLabels } from '@/components/track/ui-labels';
 
@@ -27,20 +29,19 @@ export default async function IssueDetailPage(
 ) {
   const params = await props.params;
 
-  const {
-    locale,
-    id
-  } = params;
+  const { locale } = params;
 
   const user = await requireUser(locale);
   // El issue tiene que ser de un proyecto del workspace activo: sin esto
   // cualquiera con el UUID vería el issue, sus adjuntos y los miembros.
-  const found = await getAccessibleIssue(id, user.team?.id ?? null, user.id);
+  // Acepta el UUID o el identificador (WEB-12, también el ID viejo de un issue movido).
+  const found = await getAccessibleIssue(decodeURIComponent(params.id), user.team?.id ?? null, user.id);
   if (!found) notFound();
   const { issue, project } = found;
+  const id = issue.id;
 
   const projectId = issue.project_id;
-  const [statuses, cycles, members, children, parentChain, attachments, relations, activities, subscribed, milestones, reminder] = await Promise.all([
+  const [statuses, cycles, members, children, parentChain, attachments, relations, activities, subscribed, milestones, reminder, reactions, favorite] = await Promise.all([
     listStatuses(projectId),
     listCycles(projectId),
     listProjectMembers(projectId, user.id),
@@ -52,6 +53,8 @@ export default async function IssueDetailPage(
     isSubscribedToIssue(id, realUserId(user)),
     listMilestones(projectId),
     getIssueReminder(id, realUserId(user)),
+    listIssueReactions(id),
+    isIssueFavorite(id, realUserId(user)),
   ]);
 
   const t = await getTranslations({ locale, namespace: 'track' });
@@ -72,7 +75,10 @@ export default async function IssueDetailPage(
       initialAttachments={attachments}
       initialActivities={activities}
       initialRelations={relations}
+      initialReactions={reactions}
       initialSubscribed={subscribed}
+      initialFavorite={favorite}
+      estimateScale={project.estimate_scale ?? 'fibonacci'}
       ui={buildTrackUiLabels(t)}
       canDelete={isWorkspaceAdmin(user)}
       labels={{
@@ -117,6 +123,7 @@ export default async function IssueDetailPage(
           { value: 'high', label: t('priorities.high') },
           { value: 'medium', label: t('priorities.medium') },
           { value: 'low', label: t('priorities.low') },
+          { value: 'none', label: t('priorities.none') },
         ],
         subtasks: {
           title: t('subtasks.title'),

@@ -226,7 +226,7 @@
     "app_crm_contact": { "title": "CRM: crear contacto", "desc": "Crea un contacto (o devuelve el existente con el mismo email)." },
     "app_crm_sequence": { "title": "CRM: inscribir en secuencia", "desc": "Inscribe al contacto con este email en una secuencia de ventas. Los emails salen del Gmail del owner del contacto." },
     "app_crm_deals": { "title": "CRM: deals recientes", "desc": "Lista los deals creados en las últimas N horas." },
-    "app_track_issue": { "title": "Track: crear issue", "desc": "Crea un issue en un proyecto de Track de este workspace." },
+    "app_track_issue": { "title": "Track: crear issue", "desc": "Crea un issue en un equipo de Track de este workspace." },
     "app_link": { "title": "Link: crear link corto", "desc": "Crea un link corto." },
     "app_chat_message": { "title": "Chat: enviar mensaje", "desc": "Responde en una conversación de Chat como el bot." },
     "app_groups_message": { "title": "Groups: mandar mensaje de WhatsApp", "desc": "Manda un mensaje a un chat o grupo de WhatsApp desde su número conectado." },
@@ -536,6 +536,7 @@
     "is_false": "es falso"
   },
   "runs": {
+    "dataHidden": "Los datos de esta corrida solo los ve quien creó el flow y los admins que pueden abrirlos.",
     "loadError": "No se pudieron cargar las ejecuciones.",
     "emptyBody": "Usá Probar para correrlo con datos de prueba, o activalo para que corra solo.",
     "emptyTitle": "Todavía no hay ejecuciones",

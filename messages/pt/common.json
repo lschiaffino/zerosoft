@@ -40,6 +40,7 @@
     "building": "Em construção"
   },
   "sidebar": {
+    "newReadOnly": "Seu papel aqui é ver ou comentar: peça a um admin para criar a página.",
     "search": "Buscar",
     "new": "Novo",
     "backToSite": "Voltar ao site",
@@ -79,6 +80,9 @@
     "groupReports": "Relatórios",
     "groupProjects": "Projetos",
     "groupIssues": "Issues",
+    "groupTrackPlans": "Projetos",
+    "groupTrackInitiatives": "Iniciativas",
+    "groupTrackDashboards": "Dashboards do Track",
     "groupBoards": "Quadros",
     "groupEventTypes": "Tipos de evento",
     "groupBookings": "Reservas",
@@ -138,7 +142,12 @@
     "groupApps": "Apps",
     "openApp": "Abrir {name}",
     "goHome": "Ir para o início",
-    "linkOverview": "Resumo do Link"
+    "linkOverview": "Resumo do Link",
+    "groupTeams": "Equipes",
+    "groupTrackViews": "Visualizações",
+    "groupTrackCycles": "Cycles",
+    "groupTrackMilestones": "Milestones",
+    "groupTrackLabels": "Labels"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
@@ -586,7 +595,9 @@
       "invalid_input": "Confira os campos e tente de novo.",
       "not_ready": "A prévia não está mais disponível. Comece de novo.",
       "internal_error": "Algo falhou do nosso lado. Nada mais foi alterado.",
-      "generic": "Não foi possível importar. Tente de novo."
+      "generic": "Não foi possível importar. Tente de novo.",
+      "invalid_site": "Use o endereço do seu Jira Cloud, como https://acme.atlassian.net.",
+      "invalid_project": "Cole a URL do projeto do Asana ou o id numérico."
     },
     "readFailed": "Não conseguimos ler {source}: {reason}"
   },

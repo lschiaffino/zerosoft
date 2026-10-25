@@ -30,6 +30,7 @@ import {
 import { getDb } from './db';
 import type { FetchStepResult } from './track-import-sources';
 import { fetchGithubStep, fetchLinearStep } from './track-import-sources';
+import { fetchAsanaStep, fetchJiraStep, fetchShortcutStep } from './track-import-sources-more';
 import { csvToIssues, TRACK_IMPORT_MAX_ISSUES, type CsvMapping } from './track-import-map';
 import { emptyTrackReport, trackPreview, trackWriteStep, TRACK_WRITE_STAGES, type TrackImportReport } from './track-import';
 import { calFetchStep, calPreview, calWriteStep, emptyCalReport, type CalImportReport } from './cal-import';
@@ -70,6 +71,9 @@ const trackAdapter = (fetchStep: ImportAdapter['fetchStep']): ImportAdapter => (
 const ADAPTERS: Record<string, ImportAdapter> = {
   'track:linear': trackAdapter((job) => fetchLinearStep(job.secret, job.cursor)),
   'track:github': trackAdapter((job) => fetchGithubStep(job.secret, String(job.options.repo ?? ''), job.cursor)),
+  'track:jira': trackAdapter((job) => fetchJiraStep(job.secret, String(job.options.site ?? ''), String(job.options.query ?? ''), job.cursor)),
+  'track:asana': trackAdapter((job) => fetchAsanaStep(job.secret, String(job.options.project ?? ''), job.cursor)),
+  'track:shortcut': trackAdapter((job) => fetchShortcutStep(job.secret, String(job.options.query ?? ''), job.cursor)),
   'track:linear_csv': trackAdapter(csvSource('linear')),
   'track:jira_csv': trackAdapter(csvSource('jira')),
   'track:csv': trackAdapter(csvSource('csv')),

@@ -18,7 +18,7 @@ async function accessibleStatus(id: string, teamId: string | null, ownerId: stri
   const status = await getStatus(id);
   if (!status) return null;
   const project = await getProject(status.project_id);
-  if (!project || !canAccessTrackProject(project, teamId, ownerId)) return null;
+  if (!project || !(await canAccessTrackProject(project, teamId, ownerId))) return null;
   return status;
 }
 

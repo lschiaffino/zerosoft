@@ -50,7 +50,8 @@ describe('búsqueda global en las apps', () => {
     const byGroup = Object.fromEntries(items.map((i) => [i.group, i.href]));
     expect(byGroup).toEqual({
       boards: `/app/board/${s.board.id}`,
-      projects: `/app/track/projects/${s.project.id}`,
+      // Los teams de Track van bajo "Teams".
+      teams: `/app/track/team/${s.project.id}`,
       issues: `/app/track/issues/${s.issue.id}`,
       eventTypes: `/app/calendar/event-types/${s.et.id}`,
       widgets: `/app/chat/widgets/${s.widget.id}`,

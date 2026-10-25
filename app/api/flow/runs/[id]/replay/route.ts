@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getRunWithSteps } from '@/lib/flow';
 import { replayRun } from '@/lib/flow-alerts';
-import { canEditFlows, flowError, forbidden, notFound, unauthorized } from '@/lib/flow-http';
+import { canEditFlows, flowError, forbidden, notFound, runViewer, unauthorized } from '@/lib/flow-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,5 +19,5 @@ export async function POST(_req: NextRequest, props: { params: Promise<{ id: str
     if (res.error === 'not_found') return notFound();
     return flowError(res.error === 'rate_limited' ? 429 : 400, res.error);
   }
-  return NextResponse.json({ run: await getRunWithSteps(user.id, res.runId), mode: res.mode });
+  return NextResponse.json({ run: await getRunWithSteps(user.id, res.runId, runViewer(user)), mode: res.mode });
 }

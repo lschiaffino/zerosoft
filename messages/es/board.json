@@ -199,7 +199,7 @@
     "someLinked": "{count, plural, one {# ya tiene issue.} other {# ya tienen issue.}}",
     "allLinked": "Todo lo seleccionado ya tiene issue.",
     "loading": "Cargando proyectos…",
-    "noProjects": "Todavía no hay proyectos de Track en este workspace.",
+    "noProjects": "Todavía no hay equipos de Track en este workspace.",
     "openTrack": "Abrir Track",
     "project": "Proyecto",
     "create": "{count, plural, one {Crear # issue} other {Crear # issues}}",

@@ -1,6 +1,8 @@
 # Benchmark: Track vs Linear (y Jira / GitHub Projects)
 
-Fecha: 2026-10-22.
+Fecha: 2026-10-22. Revisado el 2026-10-25 (tanda de pulido).
+
+> **Vocabulario (2026-10-25):** Track usa los nombres de Linear. Lo que las filas viejas de este documento llaman *proyecto* (clave como WEB, estados, cycles) ahora es un **team** (`/app/track/team/WEB`, lista en `/app/track/teams`), y los *planes* son **projects** (`/app/track/projects`). Las rutas viejas redirigen y la API v1 acepta `teamId` y `/api/v1/track/teams` sin dejar de responder a `projectId` y `/projects`.
 
 Cómo se hizo:
 
@@ -40,16 +42,18 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 |---|---|---|
 | Issues con estado, prioridad, asignado, labels, estimación, fechas | tiene | Prioridad sin "No priority" (urgent/high/medium/low). Fecha de inicio solo se edita arrastrando en Gantt, no está en el panel de propiedades |
 | Sub-issues, relaciones blocks / related / duplicate | tiene | |
-| Descripción y comentarios en Markdown | parcial | Editor con pestañas Write/Preview y toolbar (títulos, listas, checkboxes renderizan bien). Linear es WYSIWYG con pegado de imágenes, callouts y menciones a issues |
+| Descripción y comentarios en Markdown | tiene | (2026-10-25) Editor visual como el de Linear: atajos de markdown al tipear, `/` para bloques, `@` personas e issues, `#` issues con su estado, tareas que se tildan con clic o ⌘↵, imágenes pegadas y barra de formato al seleccionar. La descripción se guarda sola. Se guarda markdown. Sin callouts ni bloques colapsables (`>>>`) |
 | Adjuntos | tiene | Hasta 10 MB |
 | Templates de issue | tiene | Por proyecto |
 | Issues recurrentes | tiene | Diario, semanal, mensual, anual |
 | Workflow de estados editable | tiene | Por proyecto, con categorías |
-| Projects de Linear (entidad con lead, fecha objetivo, estado, health, updates) | falta | En Track "proyecto" equivale al *team* de Linear. Hay milestones adentro, pero no un proyecto con lead, health y updates que cruce equipos |
-| Initiatives / sub-initiatives | falta | |
+| Projects de Linear (entidad con lead, fecha objetivo, estado, health, updates) | tiene | **Projects** (Track › Projects): lead, miembros, varios teams, seis estados, fechas, descripción, milestones propios y progreso por issues o estimación. Propiedad Project en el issue y en la vista rápida con ⇧P (2026-10-25) |
+| Mover un issue de team | tiene | (2026-10-25) ⌘⇧M o ⌘K › Move to team: estado equivalente, identificador nuevo y sub-issues incluidos; el ID viejo sigue resolviendo |
+| Archivar y restaurar | tiene | (2026-10-25) ⌘K › Archive, aviso de archivado con Restaurar y auto-archivo por defecto a 6 meses en los teams nuevos |
+| Initiatives / sub-initiatives | tiene | Responsable, estado, fecha, projects y sub-iniciativas con progreso sumado; la salud sale de sus projects (sin updates propios) (2026-10-25) |
 | Campos propios (GitHub Projects: texto, número, select, iteración; Jira) | falta | |
 | Borrar, duplicar o copiar link de un issue desde su página | falta | El menú "…" solo trae "Copy branch name". Borrar existe solo desde la barra de selección masiva de la lista |
-| Customer requests (issue ↔ cliente con revenue) | falta | Tenemos CRM propio, así que es un diferencial posible |
+| Customer requests (issue ↔ cliente con revenue) | tiene | (T3, 2026-10-25) Desde el issue, la ficha del CRM o `POST /api/v1/track/requests`; cita, importante, Track › Clientes y orden por clientes o ingresos de deals ganados. Chat y Groups sin botón propio (API o Flow) |
 
 ### Vistas, filtros y navegación
 
@@ -61,7 +65,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Vistas guardadas | parcial | Personales, una por defecto. Linear: vistas de equipo y de workspace, con dueño, favoritos y alertas a Slack |
 | Vista de issues de todos los proyectos | tiene | Track › Issues y My tasks |
 | Cmd+K encuentra issues | tiene | Busca por título e identificador (`TRACKBENCH-3`) desde cualquier app |
-| Roadmap de proyectos / initiatives | falta | |
+| Roadmap de proyectos / initiatives | tiene | Track › Roadmap: timeline por semanas, meses o trimestres, barras arrastrables, milestones, hoy, agrupar por iniciativa (2026-10-25) |
 
 ### Colaboración y notificaciones
 
@@ -73,8 +77,8 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Mails inmediatos o digest diario | tiene | |
 | Actualización en tiempo real | falta | Probado: con la lista abierta, otro usuario renombra un issue y a los 15 s (y tras un evento de foco) la lista sigue mostrando el título viejo |
 | Reacciones, hilos en comentarios | falta | |
-| Project updates con health y recordatorios | falta | |
-| Notificaciones a Slack / Teams | falta | Solo armando un Flow con el nodo de Slack |
+| Project updates con health y recordatorios | tiene | Salud, texto, comentarios, historial, recordatorio al lead por cron y aviso a seguidores en el Inbox. Sin Slack (2026-10-25) |
+| Notificaciones a Slack / Teams | parcial | Slack: avisos por proyecto a canales (creado, cambio de estado, completado, comentario). Teams solo con Flow |
 
 ### Planificación
 
@@ -82,44 +86,44 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 |---|---|---|
 | Cycles con cadencia automática y rollover | tiene | |
 | Milestones con fecha y progreso | tiene | |
-| Triage (aceptar, rechazar, duplicado) | tiene | Entra lo creado por API, Chat, Flow, GitHub y Agents |
-| Reglas de triage, responsable de triage rotativo | falta | |
-| SLAs por prioridad | falta | |
-| Velocidad, burn-up, scope creep del cycle | falta | El overview muestra solo done/total del cycle actual |
+| Velocidad, burn-up, scope creep del cycle | tiene | Track › Cycles: burn-up, agregado y sacado, rollover, velocidad de 3 cycles y capacidad; los cycles vencidos se cierran solos (2026-10-25) |
+| Triage (aceptar, rechazar, duplicado) | tiene | Entra lo creado por API, Chat, Flow, GitHub y Agents. (T3) Atajos 1/2/3/H como Linear, snooze y comentario al resolver |
+| Reglas de triage, responsable de triage rotativo | tiene | (T3) Reglas en orden con condiciones (texto, origen, prioridad, label, cliente) y acciones (prioridad, asignado, labels, cycle, aceptar); rotación diaria o semanal que avisa o asigna. Sin mover de equipo ni PagerDuty |
+| SLAs por prioridad | tiene | (T3) Por proyecto, urgente 24 h y alta 1 semana por defecto, contador en issue, listas y triage, avisos de en riesgo y vencido (cron con claim). Horas corridas |
 
 ### Automatización
 
 | Capacidad | Track | Nota |
 |---|---|---|
 | Disparadores sobre issues | tiene | Flow recibe `issue.created`, `issue.updated`, `issue.status_changed` y puede crear o actualizar issues. Comparable a Jira Automation y más abierto que Linear |
-| Automatización por PR (GitHub) | tiene | PR abierto → in progress, merge → done |
-| Auto-close y auto-archive de issues viejos | falta | |
-| Agentes que trabajan issues (Linear Agent, Loops, coding sessions) | falta | Nuestros Agents pueden crear issues, nada más |
+| Automatización por PR (GitHub) | tiene | Por defecto PR abierto → in progress, merge → done; por proyecto, status elegido para draft, abierto, review y merge |
+| Auto-close y auto-archive de issues viejos | tiene | Ajustes › Automatizaciones, por proyecto, con archivo para restaurar (2026-10-25) |
+| Agentes que trabajan issues (Linear Agent, Loops, coding sessions) | tiene | (T3) Delegar a un agente de Agents o externo; sesión con thought/action/elicitation/response en el issue; webhook firmado y `/api/v1/track/agent-sessions` |
 
 ### Integraciones y API
 
 | Capacidad | Track | Nota |
 |---|---|---|
-| API pública y webhooks de issues | falta | `/api/v1` no tiene recursos de Track y `issue.*` no está en `WEBHOOK_EVENTS`. Ya está en el backlog |
-| GitHub | parcial | Webhook por workspace con secret, sin GitHub App instalable, sin GitLab |
-| Slack (crear issue desde un mensaje, hilos sincronizados, notificaciones por canal) | falta | |
-| Intercom, Zendesk, Sentry, Figma, MCP | falta | Chat de zerosoft ya crea issues, que cubre parte del caso Intercom |
+| API pública y webhooks de issues | tiene | REST `/api/v1/track` (issues, comentarios, proyectos, cycles, status, labels, personas) con scopes `track:read`/`track:write`; webhooks `issue.*`, `comment.created`, `project.*` firmados, con reintentos (claim en el cron de cada minuto) y log de entregas. Linear usa GraphQL |
+| GitHub | tiene | GitHub App (o webhook manual), palabras clave que cierran, que solo vinculan (ref, part of) y skip, checks y reviews en el issue, sync de GitHub Issues de GitHub a Track. Sin GitLab ni sync de Track a GitHub |
+| Slack (crear issue desde un mensaje, hilos sincronizados, notificaciones por canal) | tiene | OAuth, `/track`, atajo de mensaje con modal, hilo sincronizado en los dos sentidos, avisos por canal, unfurl (nunca de privados). Sin DMs personales ni Asks |
+| Intercom, Zendesk, Sentry, Figma, MCP | parcial | Sentry (issue desde el webhook y se resuelve al completar), Figma (vista previa embebida), Zendesk e Intercom (vínculo, nota interna al cerrar, alta por API), MCP. Sin app dentro del sidebar de Zendesk o Intercom |
 
 ### Admin y permisos
 
 | Capacidad | Track | Nota |
 |---|---|---|
 | Miembros del workspace | tiene | |
-| Proyectos privados, invitados, roles por proyecto | falta | Todo miembro ve y edita todo |
-| SSO / SAML / SCIM, audit log, IP restrictions | falta | (Enterprise en Linear) |
+| Proyectos privados, invitados, roles por proyecto | parcial | Privados para sus miembros e invitados limitados a ciertos proyectos (también en API, ⌘K, avisos y unfurls). Sin rol de dueño por proyecto |
+| SSO / SAML / SCIM, audit log, IP restrictions | parcial | Audit log de Track (actor, antes y después, origen, IP, filtros, CSV). Login solo con Google: sin SAML, SCIM ni restricción por IP |
 
 ### Analítica
 
 | Capacidad | Track | Nota |
 |---|---|---|
 | Overview por proyecto | tiene | Cycle actual, vencidos, triage, abiertos |
-| Insights (cycle time, lead time, burn-up, cortes y segmentos, CSV) | falta | |
-| Dashboards | falta | |
+| Insights (cycle time, lead time, burn-up, cortes y segmentos, CSV) | tiene | Track › Insights. Tiempos como barras de mediana (sin scatter) y sin triage time (2026-10-25) |
+| Dashboards | tiene | Widgets de insights (gráfico, tabla, número), filtros del dashboard, personal o del workspace (2026-10-25) |
 
 ### Mobile y offline
 
@@ -133,15 +137,15 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 
 | Capacidad | Track | Nota |
 |---|---|---|
-| Sugerencias de triage (labels, asignado, duplicados) | falta | |
-| Resumen de hilos, issue desde texto libre | falta | |
-| MCP para agentes externos | falta | |
+| Sugerencias de triage (labels, asignado, duplicados) | tiene | (T3) Asignado, labels, prioridad y duplicados con su porqué; aceptar o descartar; modo sugerir, aplicar solo o apagado por proyecto |
+| Resumen de hilos, issue desde texto libre | tiene | (T3) Resumen del issue y su discusión, borrador de update del proyecto, issue desde texto pegado |
+| MCP para agentes externos | tiene | `/api/mcp/track` por Streamable HTTP con API key; URL de solo lectura |
 
 ### Importar y exportar
 
 | Capacidad | Track | Nota |
 |---|---|---|
-| Importadores Jira, GitHub Issues, Asana, Shortcut, Linear | falta | |
+| Importadores Jira, GitHub Issues, Asana, Shortcut, Linear | tiene | Linear (API o CSV), Jira Cloud (API o CSV), GitHub Issues, Asana, Shortcut, con vista previa y reimport sin duplicados |
 | CSV de entrada o salida | falta | |
 
 ### Pulido de UX y teclado
@@ -151,7 +155,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | `C` nuevo issue con contexto, "Create more", `!high @tomorrow` en el título | tiene | |
 | `J`/`K`, `X`, `Enter`, `Esc`, `/` para buscar | tiene | |
 | Atajos de propiedad (`S`, `P`, `A`, `L`), `G` + tecla para navegar, acciones en Cmd+K | falta | Probado: `P` con una fila activa no abre nada |
-| Undo | falta | |
+| Undo y redo | tiene | (2026-10-25) ⌘Z con aviso Deshacer para propiedades, lote, reordenar, mover de team y borrar; ⌘⇧Z rehace |
 | Estados vacíos, carga y error | tiene | |
 | Claro y oscuro | tiene | |
 

@@ -18,7 +18,19 @@ interface IssueSubscriptionProps {
 }
 
 /** Suscribirse o darse de baja de los avisos del issue (bandeja de Track). */
-export default function IssueSubscription({ issueId, initialSubscribed, refreshKey, labels }: IssueSubscriptionProps) {
+export default function IssueSubscription({
+  issueId,
+  initialSubscribed,
+  refreshKey,
+  labels,
+  compact = false,
+  apiRef,
+}: IssueSubscriptionProps & {
+  /** Solo la campana (header del issue, como Linear). */
+  compact?: boolean;
+  /** Para ⌘K ("Subscribe to issue") y el atajo ⇧S. */
+  apiRef?: { current: { subscribed: boolean; toggle: () => void } | null };
+}) {
   const [subscribed, setSubscribed] = useState(initialSubscribed);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -61,19 +73,28 @@ export default function IssueSubscription({ issueId, initialSubscribed, refreshK
     setBusy(false);
   }
 
+  const toggleRef = useRef(toggle);
+  toggleRef.current = toggle;
+  useEffect(() => {
+    if (!apiRef) return;
+    apiRef.current = { subscribed, toggle: () => void toggleRef.current() };
+  }, [apiRef, subscribed]);
+
   return (
     <>
       <button
         type="button"
-        className="btn"
+        className={compact ? `btn btn-ghost btn-icon track-head-icon${subscribed ? ' is-on' : ''}` : 'btn'}
         aria-busy={busy || undefined}
+        aria-pressed={compact ? subscribed : undefined}
+        aria-label={compact ? (subscribed ? labels.unsubscribe : labels.subscribe) : undefined}
         disabled={busy}
         onClick={() => void toggle()}
         title={subscribed ? labels.subscribed : labels.notSubscribed}
         data-testid="track-issue-subscribe"
       >
         <TrackIcon name="bell" />
-        {subscribed ? labels.unsubscribe : labels.subscribe}
+        {!compact && (subscribed ? labels.unsubscribe : labels.subscribe)}
       </button>
       <span className="sr-only" role="status">
         {error ? labels.error : ''}

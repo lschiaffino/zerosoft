@@ -7,7 +7,7 @@ import { flowCodeAvailable } from '@/lib/flow-code';
 import { listCredentials } from '@/lib/flow-credentials';
 import { listTables } from '@/lib/flow-tables';
 import { listRobots } from '@/lib/robots';
-import { canEditFlows } from '@/lib/flow-http';
+import { canEditFlows, runViewer } from '@/lib/flow-http';
 import FlowEditor from '@/components/flow/FlowEditor';
 
 export const dynamic = 'force-dynamic';
@@ -37,7 +37,7 @@ export default async function FlowEditorPage(props: {
       flow={flow}
       canEdit={canEdit}
       webhooks={canEdit ? await listFlowWebhooks(user.id, id) : []}
-      lastOutputs={await lastOutputs(user.id, id)}
+      lastOutputs={await lastOutputs(user.id, id, runViewer(user))}
       initialRunId={typeof run === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(run) ? run : null}
       refs={{
         credentials: credentials.map((c) => ({ id: c.id, name: c.name, type: c.type })),

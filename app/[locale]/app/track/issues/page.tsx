@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
+import { realUserId, requireUser } from '@/lib/session';
 import { listAllIssues, listProjectMetas } from '@/lib/track-data';
 import CrossProjectIssues from '@/components/track/CrossProjectIssues';
 import { buildTrackUiLabels } from '@/components/track/ui-labels';
@@ -19,7 +19,8 @@ export default async function IssuesPage(
   const search = await props.searchParams;
   // ?sort= y ?group= (los deja CrossProjectIssues al cambiar la vista).
   const sort = parseIssueSort(search.sort);
-  const group = parseIssueGroup(search.group);
+  // Como Linear: agrupado por estado salvo que se pida otra cosa (?group=none la deja plana).
+  const group = parseIssueGroup(search.group ?? 'status');
 
   const {
     locale
@@ -36,6 +37,7 @@ export default async function IssuesPage(
   return (
     <div className="app-page track-page ui-page">
       <CrossProjectIssues
+        userId={realUserId(user)}
         initialIssues={issues}
         projects={projects}
         locale={locale}

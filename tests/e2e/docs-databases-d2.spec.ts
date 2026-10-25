@@ -8,6 +8,12 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
+/** Abre una fila de la tabla con su botón "Open" (click en el título lo edita, como Notion). */
+async function openRowNamed(p: Page, text: string) {
+  const tr = p.locator('.docs-db-tr', { hasText: text }).first();
+  await tr.hover();
+  await tr.locator('.docs-db-open').click();
+}
 const T = '2026-01-01T10:00:00.000Z';
 
 type Row = { id: string; values: Record<string, unknown>; body?: unknown[]; files?: unknown; created_at: string; updated_at: string; created_by?: string };
@@ -67,12 +73,12 @@ function projectsDb(tasksPage: string): Db {
   };
 }
 
-test('D2: el título de una fila abre el panel; el resto de la celda edita', async ({ request, page }) => {
+test('D2: "Open" abre el panel de la fila; un click en el título (también sobre el texto) lo edita', async ({ request, page }) => {
   const doc = await pageWith(request, `Titulo ${uid()}`, [
     { id: 'db', type: 'database', content: '', db: { properties: [{ id: 'name', name: 'Name', type: 'title' }], rows: [row('r1', { name: 'Click me' })], views: [{ id: 'v', name: '', type: 'table' }] } },
   ]);
   await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
-  await page.locator('.docs-db-title-text', { hasText: 'Click me' }).click();
+  await openRowNamed(page, 'Click me');
   await expect(page.getByTestId('docs-db-rowpanel')).toBeVisible();
   await page.getByTestId('docs-db-rowpanel').getByRole('button', { name: 'Close' }).click();
   await expect(page.getByTestId('docs-db-rowpanel')).toHaveCount(0);
@@ -80,6 +86,11 @@ test('D2: el título de una fila abre el panel; el resto de la celda edita', asy
   const box = await cell(page, 'Click me', 0).boundingBox();
   await page.mouse.click(box!.x + box!.width - 90, box!.y + box!.height / 2);
   await expect(page.locator('.docs-db-td.editing input')).toBeFocused();
+  await page.keyboard.press('Escape');
+  // Click sobre el texto mismo (un título largo ocupa toda la celda): también edita, no abre.
+  await page.locator('.docs-db-title-text', { hasText: 'Click me' }).click();
+  await expect(page.locator('.docs-db-td.editing input')).toBeFocused();
+  await expect(page.getByTestId('docs-db-rowpanel')).toHaveCount(0);
 });
 
 test('D2: fórmula, ID único y creado por; relación de dos vías y rollups entre páginas', async ({ request, page }) => {

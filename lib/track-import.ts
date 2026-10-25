@@ -47,8 +47,11 @@ export function trackImportWorkspace(job: Pick<ImportJob, 'team_id' | 'workspace
 /** Fuente para los ids externos: Linear por CSV o por API comparte ids (ENG-12). */
 export function externalSource(source: string): string {
   if (source === 'linear' || source === 'linear_csv') return 'linear';
-  if (source === 'jira_csv') return 'jira';
+  // Jira por API o CSV comparte ids (la key PROJ-3).
+  if (source === 'jira_csv' || source === 'jira') return 'jira';
   if (source === 'github') return 'github';
+  if (source === 'asana') return 'asana';
+  if (source === 'shortcut') return 'shortcut';
   return 'csv';
 }
 
