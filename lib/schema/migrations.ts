@@ -4481,7 +4481,7 @@ export const MIGRATIONS: Migration[] = [
     // webhooks (con un tope por página para las ediciones), bases
     // sincronizadas con GitHub, Jira, Salesforce o el CRM (se refrescan por
     // cron con claim) y notas de reunión con IA.
-    id: '094_docs_platform',
+    id: '095_docs_platform',
     up: async (client) => {
       await client.executeMultiple(`
         CREATE TABLE IF NOT EXISTS docs_event_marks (

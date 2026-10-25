@@ -21,7 +21,9 @@
  * Server-only.
  */
 import { getDb, getUserById, type DocsPageRow, type UserRow } from './db';
-import { getDocAccess, type DocsActor } from './docs';
+import { getDocAccess, parseBlocks, type DocsActor } from './docs';
+import type { DocsBlock } from './docs-types';
+import { hydrateSyncedBlocks } from './docs-synced';
 
 export interface SqlFilter {
   sql: string;
@@ -107,4 +109,29 @@ export async function readablePageRows(
     if (access) out.push(r);
   }
   return out;
+}
+
+/**
+ * Para quién se lee el contenido: una persona (API, MCP, Flow, la IA que le
+ * responde a ella) o el conocimiento de un agente (páginas que le dieron).
+ */
+export type PlatformAudience = { actor: DocsActor } | { knowledge: Iterable<string> };
+
+/**
+ * Bloques de una página tal como los puede ver `audience`. Todo lo que lee
+ * contenido para la API, el MCP, Flow, la IA o Agents pasa por acá, nunca
+ * por `content` crudo.
+ *
+ * PUNTO DE INTEGRACIÓN CON D3: con lib/docs-visible.ts en main, el cuerpo es
+ *   return visibleBlocks({ id: host.id, user_id: host.user_id }, content, audience);
+ * (los bloques sincronizados se resuelven con los permisos de la audiencia).
+ * Hoy, como en main, se completan los sincronizados del workspace.
+ */
+export async function visibleBlocksFor(
+  host: Pick<DocsPageRow, 'id' | 'user_id'>,
+  content: string | null | undefined,
+  audience: PlatformAudience,
+): Promise<DocsBlock[]> {
+  void audience;
+  return hydrateSyncedBlocks(host.user_id, parseBlocks(content));
 }

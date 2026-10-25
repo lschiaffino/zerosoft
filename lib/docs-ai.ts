@@ -14,8 +14,7 @@ import { AiError, assertAiAvailable, assertAiQuota, recordAiUsage, resolveAiMode
 import { fakeModel } from './crm-ai-fake';
 import { docsAiFakeActive, languageName } from './docs-db-ai';
 import type { DocsActor } from './docs';
-import { parseBlocks } from './docs';
-import { readablePageRows } from './docs-platform-access';
+import { readablePageRows, visibleBlocksFor } from './docs-platform-access';
 import { blocksToPlainText } from './docs-platform-text';
 import { rankKnowledge } from './knowledge-search';
 
@@ -198,7 +197,14 @@ export interface AskResult {
 export async function askWorkspace(actor: DocsActor, question: string): Promise<AskResult | { error: 'no_matches' }> {
   const q = question.trim().slice(0, 1000);
   const pages = await readablePageRows(actor, { forAi: true, limit: 400 });
-  const docs = pages.map((p) => ({ kind: 'page' as const, title: p.title || 'Untitled', source: p.id, text: blocksToPlainText(parseBlocks(p.content), 30_000) }));
+  const docs = await Promise.all(
+    pages.map(async (p) => ({
+      kind: 'page' as const,
+      title: p.title || 'Untitled',
+      source: p.id,
+      text: blocksToPlainText(await visibleBlocksFor(p, p.content, { actor }), 30_000),
+    })),
+  );
   const ranked = rankKnowledge(docs, q, 8);
   if (ranked.length === 0) return { error: 'no_matches' };
   // Una cita por página (la primera vez que aparece), numeradas en orden de relevancia.

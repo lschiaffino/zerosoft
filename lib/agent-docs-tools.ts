@@ -48,7 +48,8 @@ export async function readDocsForAgent(ws: string, roots: string[], input: { que
   try {
     if (input.pageId) {
       if (!scope.has(input.pageId)) return { error: 'page_not_allowed' };
-      const page = await platform.getPage(actor, input.pageId);
+      // Conocimiento del agente: solo lo de su árbol de páginas.
+      const page = await platform.getPage(actor, input.pageId, { audience: { knowledge: scope } });
       const databases = [];
       for (const d of page.databases.slice(0, 5)) {
         const db = await platform.getDatabase(actor, page.id, d.blockId);

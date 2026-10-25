@@ -38,7 +38,7 @@ import {
 } from './docs-database';
 import { applyRemoteOps, DbServerError, loadDatabase, runDbEffects } from './docs-db-server';
 import type { DbOp } from './docs-db-ops';
-import { actorPersonId, pageFor, readablePageRows } from './docs-platform-access';
+import { actorPersonId, pageFor, readablePageRows, visibleBlocksFor, type PlatformAudience } from './docs-platform-access';
 import { blocksToMd, blocksToPlainText, mdToBlocks } from './docs-platform-text';
 import { emitCommentCreated, emitPageCreated } from './docs-events';
 
@@ -143,10 +143,14 @@ export async function searchPages(actor: DocsActor, q: string, limit = 20): Prom
   return out;
 }
 
-export async function getPage(actor: DocsActor, pageId: string, opts: { blocks?: boolean; includeArchived?: boolean } = {}): Promise<PageOut> {
+export async function getPage(
+  actor: DocsActor,
+  pageId: string,
+  opts: { blocks?: boolean; includeArchived?: boolean; audience?: PlatformAudience } = {},
+): Promise<PageOut> {
   const res = await pageFor(actor, pageId, { includeArchived: opts.includeArchived });
   if (!res) throw notFound();
-  const blocks = parseBlocks(res.row.content);
+  const blocks = await visibleBlocksFor(res.row, res.row.content, opts.audience ?? { actor });
   return {
     ...pageSummary(res.row),
     access: res.access,
@@ -160,7 +164,7 @@ export async function getPage(actor: DocsActor, pageId: string, opts: { blocks?:
 export async function pageText(actor: DocsActor, pageId: string, maxChars = 20_000): Promise<{ page: PageSummaryOut; text: string } | null> {
   const res = await pageFor(actor, pageId);
   if (!res) return null;
-  return { page: pageSummary(res.row), text: blocksToPlainText(parseBlocks(res.row.content), maxChars) };
+  return { page: pageSummary(res.row), text: blocksToPlainText(await visibleBlocksFor(res.row, res.row.content, { actor }), maxChars) };
 }
 
 export interface CreatePageInput {
@@ -389,7 +393,7 @@ export async function listDatabases(actor: DocsActor, q = ''): Promise<DatabaseO
   const out: DatabaseOut[] = [];
   for (const r of await readablePageRows(actor, { limit: 400 })) {
     if (!r.content?.includes('"database"')) continue;
-    for (const b of parseBlocks(r.content)) {
+    for (const b of await visibleBlocksFor(r, r.content, { actor })) {
       if (b.type !== 'database' || b.linked) continue;
       const db = normalizeDatabase(b);
       if (needle && !`${db.title ?? ''} ${r.title}`.toLowerCase().includes(needle)) continue;
@@ -403,7 +407,7 @@ export async function listDatabases(actor: DocsActor, q = ''): Promise<DatabaseO
 async function loadReadable(actor: DocsActor, pageId: string, blockId: string) {
   const res = await pageFor(actor, pageId);
   if (!res) throw notFound();
-  const block = parseBlocks(res.row.content).find((b) => b.id === blockId && b.type === 'database' && !b.linked);
+  const block = (await visibleBlocksFor(res.row, res.row.content, { actor })).find((b) => b.id === blockId && b.type === 'database' && !b.linked);
   if (!block) throw new DocsPlatformError('database_not_found', 404);
   return { row: res.row, access: res.access, db: normalizeDatabase(block) };
 }
@@ -679,7 +683,7 @@ export async function findRowByTitle(actor: DocsActor, pageId: string, blockId: 
 export async function getBlocks(actor: DocsActor, pageId: string): Promise<DocsBlock[]> {
   const res = await pageFor(actor, pageId);
   if (!res) throw notFound();
-  return parseBlocks(res.row.content);
+  return visibleBlocksFor(res.row, res.row.content, { actor });
 }
 
 export { stringifyBlocks };

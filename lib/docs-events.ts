@@ -106,7 +106,10 @@ export async function flushPageUpdatedEvents(now = new Date(), limit = 50): Prom
       | undefined;
     const row = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(m.page_id)) as DocsPageRow | undefined;
     if (mark && row && row.archived === 0) {
-      const text = blocksToPlainText(parseContent(row.content), 4000);
+      // Lo que ve el dueño del workspace (Flow corre en su nombre); nunca el content crudo.
+      const { docsActorFor, visibleBlocksFor } = await import('./docs-platform-access');
+      const owner = await docsActorFor(mark.workspace_id, mark.workspace_id);
+      const text = owner ? blocksToPlainText(await visibleBlocksFor(row, row.content, { actor: owner }), 4000) : '';
       await emitEventSoon(
         mark.workspace_id,
         'page.updated',
