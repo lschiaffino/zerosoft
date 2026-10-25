@@ -40,7 +40,7 @@ const parity: ProductParity = {
     { id: 'huddles', label: loc(['Huddles', 'Huddles', 'Huddles']) },
     { id: 'canvases', label: loc(['Canvases and lists', 'Canvases y listas', 'Canvases e listas']) },
     { id: 'automation', label: loc(['Workflows and apps', 'Workflows y apps', 'Workflows e apps']) },
-    { id: 'external', label: loc(['External people and AI', 'Externos y AI', 'Externos e IA']) },
+    { id: 'external', label: loc(['External people and AI', 'Externos y IA', 'Externos e IA']) },
     { id: 'admin', label: loc(['Admin and security', 'Admin y seguridad', 'Admin e segurança']) },
     { id: 'apps', label: loc(['Desktop and mobile', 'Escritorio y mobile', 'Desktop e mobile']) },
   ],
@@ -187,10 +187,10 @@ const parity: ProductParity = {
         'Até duas telas ao mesmo tempo, desenho no app desktop',
       ],
     }),
-    row('huddle-notes', 'huddles', ['Huddle thread and AI notes', 'Hilo y notas AI del huddle', 'Thread e notas de IA do huddle'], 'missing', {
+    row('huddle-notes', 'huddles', ['Huddle thread and AI notes', 'Hilo y notas de IA del huddle', 'Thread e notas de IA do huddle'], 'missing', {
       detail: [
         'Each huddle has a thread and a canvas; AI notes on paid plans',
-        'Cada huddle tiene hilo y canvas; notas AI en los planes pagos',
+        'Cada huddle tiene hilo y canvas; notas de IA en los planes pagos',
         'Cada huddle tem thread e canvas; notas de IA nos planos pagos',
       ],
     }),
@@ -240,13 +240,13 @@ const parity: ProductParity = {
     row('guests', 'external', ['Guest accounts', 'Cuentas de invitado', 'Contas de convidado'], 'missing', {
       detail: ['Limited to some channels', 'Limitadas a algunos canales', 'Limitadas a alguns canais'],
     }),
-    row('ai-summaries', 'external', ['AI summaries of channels and threads', 'Resúmenes AI de canales e hilos', 'Resumos de IA de canais e threads'], 'missing', {
+    row('ai-summaries', 'external', ['AI summaries of channels and threads', 'Resúmenes de IA de canales e hilos', 'Resumos de IA de canais e threads'], 'missing', {
       detail: ['All paid plans', 'Todos los planes pagos', 'Todos os planos pagos'],
     }),
-    row('ai-search-recaps', 'external', ['AI search, daily recaps and translation', 'Búsqueda AI, recaps diarios y traducción', 'Busca com IA, resumos diários e tradução'], 'missing', {
+    row('ai-search-recaps', 'external', ['AI search, daily recaps and translation', 'Búsqueda con IA, recaps diarios y traducción', 'Busca com IA, resumos diários e tradução'], 'missing', {
       detail: ['Business+ and Enterprise+', 'Business+ y Enterprise+', 'Business+ e Enterprise+'],
     }),
-    row('ai-agent', 'external', ['Personal AI agent and agents in channels', 'Agente AI personal y agentes en canales', 'Agente de IA pessoal e agentes em canais'], 'missing', {
+    row('ai-agent', 'external', ['Personal AI agent and agents in channels', 'Agente de IA personal y agentes en canales', 'Agente de IA pessoal e agentes em canais'], 'missing', {
       detail: [
         'Slackbot on Business+ and up, plus Agentforce and partner agents in channels and DMs',
         'Slackbot desde Business+, y agentes de Agentforce y de terceros en canales y DMs',

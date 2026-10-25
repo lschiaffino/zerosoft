@@ -1428,7 +1428,10 @@
       "tagline": "Estamos construindo a alternativa open source ao {rival}",
       "propose": "Propor uma ideia",
       "roadmap": "Ver o roadmap",
-      "shotFig": "fig. 1 · {name}, esboço do design: ainda não dá para usar"
+      "shotFig": "fig. 1 · {name}, esboço do design: ainda não dá para usar",
+      "faqTitleDim": "O que já sabemos e o que falta.",
+      "compareZero": "Com a zerosoft, quando estiver pronto",
+      "zeroApp": "{name} no seu servidor, quando estiver pronto"
     }
   },
   "mockups": {

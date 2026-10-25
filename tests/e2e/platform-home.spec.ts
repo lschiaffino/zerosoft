@@ -125,6 +125,18 @@ test('sitio: productos por categoría y la nota de equipos y uso personal', asyn
   await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app/notes');
 });
 
+for (const [width, height] of [[1280, 720], [1440, 900]] as const) {
+  test(`sitio: el menú de productos entra entero en ${width}×${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto('/es', { waitUntil: 'networkidle' });
+    await page.locator('.site-header .hd-trigger').click();
+    const mega = page.locator('#hd-mega');
+    // Las apps en construcción van en una fila compacta aparte.
+    await expect(mega.locator('.hd-building a.hd-prod')).toHaveCount(2);
+    for (const link of await mega.locator('a.hd-prod').all()) await expect(link).toBeInViewport({ ratio: 1 });
+  });
+}
+
 test('Tareas del CRM: mías por defecto y todas con un clic', async ({ page }) => {
   await page.goto('/es/app', { waitUntil: 'networkidle' });
   const block = page.getByTestId('home-crm-tasks');

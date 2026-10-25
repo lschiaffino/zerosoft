@@ -210,11 +210,11 @@ export default async function ProductPage({ locale, product }: { locale: string;
             <p className="pd-compare-note">{t(`${p}.compare.note`)}</p>
           </div>
           <div className="pd-compare-zero">
-            <p className="pd-compare-label">{t('product.compareZero')}</p>
+            <p className="pd-compare-label">{building ? t('product.building.compareZero') : t('product.compareZero')}</p>
             <span className="pd-compare-num">{t(`${p}.compare.zero`)}</span>
             <dl className="zero-receipt">
               <div>
-                <dt>{t('product.zeroApp', { name: cfg.name })}</dt>
+                <dt>{building ? t('product.building.zeroApp', { name: cfg.name }) : t('product.zeroApp', { name: cfg.name })}</dt>
                 <dd>{t(`${p}.compare.zero`)}</dd>
               </div>
               <div>
@@ -246,7 +246,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
 
     faq: () => (
       <section className="lp-section" id={SECTION_IDS.faq} key="faq" aria-labelledby={`h-${SECTION_IDS.faq}`}>
-        {sign('faq', t('product.faqTitle', { name: cfg.name }), t('product.faqTitleDim'))}
+        {sign('faq', t('product.faqTitle', { name: cfg.name }), building ? t('product.building.faqTitleDim') : t('product.faqTitleDim'))}
         <div className="container">
           <div className="faq">
             {ids('f', spec.faqs).map((id) => (

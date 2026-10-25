@@ -612,8 +612,16 @@ for (const app of [
     test('el switcher la lista', async ({ page }) => {
       await page.goto('/en/app/crm', { waitUntil: 'networkidle' });
       await page.locator('.band-product').click();
-      await page.getByRole('menuitem', { name: app.name, exact: true }).click();
+      const item = page.getByRole('menuitem', { name: new RegExp(`^${app.name}`) });
+      // Marca discreta de app en construcción, también en el sidebar del inicio.
+      await expect(item.locator('.app-soon-tag')).toHaveText('soon');
+      await item.click();
       await expect(page).toHaveURL(new RegExp(`${list}$`));
+    });
+
+    test('el sidebar del inicio la marca como pronto', async ({ page }) => {
+      await page.goto('/en/app', { waitUntil: 'networkidle' });
+      await expect(page.locator('.side-line').getByRole('link', { name: new RegExp(`^${app.name}`) }).locator('.app-soon-tag')).toHaveText('soon');
     });
 
     test('ajustes abren sin errores', async ({ page }) => {

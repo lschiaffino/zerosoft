@@ -1,7 +1,7 @@
 import type { IconName } from './icons';
 import { isNewLinkPath } from '@/lib/link-detail-tabs';
 import type { NotificationTextLabels } from '@/lib/notification-text';
-import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, type ProductCategory, type ProductKey } from '@/lib/products';
+import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, isBuildingProduct, type ProductCategory, type ProductKey } from '@/lib/products';
 import { appsByCategory } from '@/lib/workspace-mode';
 
 /** Resumen de Link (antes vivía en /app, que ahora es el inicio de la plataforma). */
@@ -164,6 +164,8 @@ export interface NavItem {
    * El shell deja el hueco #side-branch (uno por producto).
    */
   branch?: boolean;
+  /** App en construcción (Voice, Talk): el sidebar le suma la marca "pronto". */
+  soon?: boolean;
 }
 
 export interface NavGroup {
@@ -287,7 +289,13 @@ export function buildNav(
         { items: [{ href: '/app', label: labels.platformHome, active: pathname === '/app', icon: 'overview' }] },
         ...appsByCategory().map(({ category, apps }) => ({
           section: labels.categories[category],
-          items: apps.map((line) => ({ href: switcherHref(line), label: PRODUCT_CONFIG[line].name, active: false, icon: APP_ICONS[line] })),
+          items: apps.map((line) => ({
+            href: switcherHref(line),
+            label: PRODUCT_CONFIG[line].name,
+            active: false,
+            icon: APP_ICONS[line],
+            soon: isBuildingProduct(line) || undefined,
+          })),
         })),
       ];
 

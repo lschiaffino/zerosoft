@@ -36,7 +36,8 @@
       "voice": "In the works: voice dictation and meeting notes",
       "rec": "Screen and camera videos shared with a link",
       "talk": "In the works: team messaging"
-    }
+    },
+    "building": "In the works"
   },
   "sidebar": {
     "search": "Search",
