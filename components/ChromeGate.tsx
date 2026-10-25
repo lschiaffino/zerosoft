@@ -72,6 +72,8 @@ export default function ChromeGate({
     // Documentos y videos compartidos desde el CRM (/view/<token>, /watch/<token>).
     pathname.startsWith('/view/') ||
     pathname.startsWith('/watch/') ||
+    // Videos de Rec compartidos por link y su reproductor para insertar (/v/<id>, /v/<id>/embed).
+    pathname.startsWith('/v/') ||
     // Centro de ayuda público de un workspace (/h/<handle>): página del cliente.
     pathname.startsWith('/h/') ||
     // /@handle se reescribe a /bio/<handle>, pero el navegador ve /@handle.

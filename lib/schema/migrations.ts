@@ -4476,6 +4476,110 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Rec (como Loom): videos de pantalla y cámara, carpetas por espacio
+    // (personal o del workspace), vistas por visor y comentarios/reacciones
+    // con marca de tiempo. Todo en una migración (id reservado 107).
+    id: '107_rec',
+    up: async (client) => {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS rec_folders (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          space TEXT NOT NULL DEFAULT 'personal' CHECK (space IN ('personal', 'workspace')),
+          name TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_rec_folders_ws ON rec_folders(workspace_id, space, name);
+
+        CREATE TABLE IF NOT EXISTS rec_videos (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_by TEXT NOT NULL,
+          share_id TEXT NOT NULL UNIQUE,
+          title TEXT NOT NULL DEFAULT '',
+          title_source TEXT NOT NULL DEFAULT 'auto',
+          description TEXT NOT NULL DEFAULT '',
+          chapters TEXT NOT NULL DEFAULT '[]',
+          chapters_source TEXT NOT NULL DEFAULT 'auto',
+          folder_id TEXT REFERENCES rec_folders(id) ON DELETE SET NULL,
+          space TEXT NOT NULL DEFAULT 'personal' CHECK (space IN ('personal', 'workspace')),
+          mode TEXT NOT NULL DEFAULT 'screen_camera',
+          status TEXT NOT NULL DEFAULT 'recording' CHECK (status IN ('recording', 'ready', 'failed')),
+          url TEXT,
+          content_type TEXT NOT NULL DEFAULT 'video/webm',
+          size INTEGER NOT NULL DEFAULT 0,
+          audio_url TEXT,
+          thumb_url TEXT,
+          gif_url TEXT,
+          duration_sec REAL NOT NULL DEFAULT 0,
+          width INTEGER NOT NULL DEFAULT 0,
+          height INTEGER NOT NULL DEFAULT 0,
+          trim_start REAL NOT NULL DEFAULT 0,
+          trim_end REAL,
+          privacy TEXT NOT NULL DEFAULT 'link' CHECK (privacy IN ('link', 'workspace')),
+          password_hash TEXT,
+          expires_at TEXT,
+          allow_download INTEGER NOT NULL DEFAULT 1,
+          allow_comments INTEGER NOT NULL DEFAULT 1,
+          notify INTEGER NOT NULL DEFAULT 1,
+          cta_label TEXT,
+          cta_url TEXT,
+          cta_mode TEXT NOT NULL DEFAULT 'always' CHECK (cta_mode IN ('always', 'end')),
+          transcript TEXT NOT NULL DEFAULT '[]',
+          transcript_status TEXT NOT NULL DEFAULT 'none',
+          transcript_error TEXT,
+          transcript_lang TEXT,
+          summary TEXT NOT NULL DEFAULT '',
+          processing_at TEXT,
+          views INTEGER NOT NULL DEFAULT 0,
+          last_viewed_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_rec_videos_ws ON rec_videos(workspace_id, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_rec_videos_folder ON rec_videos(folder_id);
+        CREATE INDEX IF NOT EXISTS idx_rec_videos_pending ON rec_videos(transcript_status, processing_at);
+
+        CREATE TABLE IF NOT EXISTS rec_views (
+          id TEXT PRIMARY KEY,
+          video_id TEXT NOT NULL REFERENCES rec_videos(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          viewer_key TEXT NOT NULL,
+          user_id TEXT,
+          viewer_name TEXT NOT NULL DEFAULT '',
+          watched_sec REAL NOT NULL DEFAULT 0,
+          max_position REAL NOT NULL DEFAULT 0,
+          duration_sec REAL NOT NULL DEFAULT 0,
+          cta_clicks INTEGER NOT NULL DEFAULT 0,
+          ip_hash TEXT NOT NULL DEFAULT '',
+          user_agent TEXT NOT NULL DEFAULT '',
+          started_at TEXT NOT NULL,
+          last_ping_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_rec_views_video ON rec_views(video_id, started_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_rec_views_viewer ON rec_views(video_id, viewer_key);
+
+        CREATE TABLE IF NOT EXISTS rec_comments (
+          id TEXT PRIMARY KEY,
+          video_id TEXT NOT NULL REFERENCES rec_videos(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          parent_id TEXT,
+          kind TEXT NOT NULL DEFAULT 'comment' CHECK (kind IN ('comment', 'reaction')),
+          body TEXT NOT NULL DEFAULT '',
+          emoji TEXT,
+          at_sec REAL,
+          user_id TEXT,
+          author_name TEXT NOT NULL DEFAULT '',
+          viewer_key TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_rec_comments_video ON rec_comments(video_id, created_at);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -5,6 +5,8 @@ import { directUploadEnabled } from '@/lib/crm-media-http';
 import PageHeader from '@/components/ui/PageHeader';
 import VideosLibrary from '@/components/crm/VideosLibrary';
 import { Link } from '@/i18n/navigation';
+import ClientMessages from '@/components/i18n/ClientMessages';
+import '@/styles/rec.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +30,8 @@ export default async function VideosPage(props: { params: Promise<{ locale: stri
           </Link>
         }
       />
+      {/* El grabador es el de Rec (components/rec/Recorder): sus textos y estilos. */}
+      <ClientMessages locale={locale} namespaces={['rec.recorder']}>
       <VideosLibrary
         direct={directUploadEnabled()}
         baseUrl={baseUrl}
@@ -43,6 +47,7 @@ export default async function VideosPage(props: { params: Promise<{ locale: stri
           canManage: admin || !v.created_by || v.created_by === me,
         }))}
       />
+      </ClientMessages>
     </div>
   );
 }

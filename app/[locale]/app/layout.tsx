@@ -184,6 +184,8 @@ export default async function AppLayout(
                 { href: '/app/groups/settings', label: tGroups('sidebar.settings') },
                 { href: '/app/voice', label: tVoice('sidebar.home') },
                 { href: '/app/rec', label: tRec('sidebar.home') },
+                { href: '/app/rec/workspace', label: tRec('sidebar.workspace') },
+                { href: '/app/rec/new', label: tRec('sidebar.newVideo') },
                 { href: '/app/talk', label: tTalk('sidebar.home') },
               ]}
             />
@@ -321,7 +323,7 @@ export default async function AppLayout(
               settings: tGroups('sidebar.settings'),
             },
             voice: { home: tVoice('sidebar.home') },
-            rec: { home: tRec('sidebar.home') },
+            rec: { home: tRec('sidebar.home'), workspace: tRec('sidebar.workspace'), newVideo: tRec('sidebar.newVideo') },
             talk: { home: tTalk('sidebar.home') },
             notifications: {
               title: tTrack('notifications.title'),
@@ -346,6 +348,9 @@ export default async function AppLayout(
                 groupsMention: tTrack.raw('notifications.groupsMention') as string,
                 groupsAssigned: tTrack.raw('notifications.groupsAssigned') as string,
                 groupsAutoAssigned: tTrack.raw('notifications.groupsAutoAssigned') as string,
+                recView: tRec.raw('notifications.view') as string,
+                recComment: tRec.raw('notifications.comment') as string,
+                recReaction: tRec.raw('notifications.reaction') as string,
               },
             },
           }}

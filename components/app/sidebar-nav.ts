@@ -138,9 +138,10 @@ export interface SidebarLabels {
     analytics: string;
     settings: string;
   };
-  /** Apps en construcción (Voice, Rec, Talk): por ahora solo su inicio. */
+  /** Apps en construcción (Voice, Talk): por ahora solo su inicio. */
   voice: { home: string };
-  rec: { home: string };
+  /** Rec: Mis videos (con las carpetas colgando), Workspace y grabar. */
+  rec: { home: string; workspace: string; newVideo: string };
   talk: { home: string };
   notifications: {
     title: string;
@@ -537,9 +538,27 @@ export function buildNav(
         },
       ];
 
+    case 'rec':
+      return [
+        {
+          items: [
+            {
+              href: '/app/rec',
+              label: labels.rec.home,
+              active: pathname === '/app/rec' || (at('/app/rec') && !at('/app/rec/workspace') && !at('/app/rec/new') && !at('/app/rec/settings') && !at('/app/rec/f/')),
+              icon: 'rec',
+              // Carpetas (RecBranch en el hueco #side-branch).
+              branch: true,
+            },
+            { href: '/app/rec/workspace', label: labels.rec.workspace, active: at('/app/rec/workspace'), icon: 'groups' },
+            { href: '/app/rec/new', label: labels.rec.newVideo, active: at('/app/rec/new'), icon: 'recorder' },
+          ],
+        },
+        appSettingsGroup('/app/rec/settings'),
+      ];
+
     // Apps en construcción: su inicio (el estado "Próximamente") y sus ajustes.
     case 'voice':
-    case 'rec':
     case 'talk': {
       const base = `/app/${product}`;
       return [
@@ -597,7 +616,6 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels): NavIt
     case 'home':
     // Las apps en construcción todavía no crean nada: lo más común de las demás.
     case 'voice':
-    case 'rec':
     case 'talk':
       // Sin app activa: crear lo más común de cada una.
       return [
@@ -629,6 +647,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels): NavIt
       return [item('/app/notes?new=1', labels.notes.newNote, 'notes')];
     case 'board':
       return [item('/app/board?new=1', labels.board.newBoard, 'board')];
+    case 'rec':
+      return [item('/app/rec/new', labels.rec.newVideo, 'rec')];
     case 'agents':
       return [item('/app/agents?new=1', labels.newAgent, 'agents')];
     case 'robots':

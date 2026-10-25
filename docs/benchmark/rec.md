@@ -7,7 +7,7 @@ Fecha: 2026-10-25. Referencia: Loom Business (USD 15 por usuario al mes en pago 
 - **Competidor:** página de precios con su tabla comparativa completa (incluido el JSON de precios que trae la página, con montos anuales y mensuales), help center de Loom (hoy dentro de `support.atlassian.com/loom`, los links viejos de `support.loom.com` redirigen ahí), ficha de la extensión en Chrome Web Store y el blog de Atlassian sobre Loom (resumen de 2025 y anuncios de reuniones con IA). Las fuentes están al final.
   - Loom no publica un changelog aparte: las novedades salen en el blog de Atlassian y como "New" en la tabla de precios.
   - "Record for agents" figura como nuevo en Business + AI, pero no encontramos una página de ayuda que explique qué hace. No lo contamos como fila.
-- **Nuestra app:** Rec todavía no existe en el código. `app/[locale]/app/rec` es solo un shell con el estado vacío "Próximamente" (tanda 4a), sin `lib/rec-*.ts`, tablas ni API. El CRM ya graba videos 1:1 (`/app/crm/videos`), que Rec va a reusar. Todas las capacidades marcan **falta**.
+- **Nuestra app:** al registrarse (tanda 4a) Rec era solo un shell y todo marcaba **falta**. La tanda 4c construyó la primera versión (grabador en el navegador, subida por partes, `/v/<id>`, comentarios, analítica, transcripción e IA, carpetas); el estado al día de cada capacidad está en `content/feature-parity/rec.ts`, que es la fuente de la página de producto. Las tablas de abajo quedan como foto del punto de partida.
 - **Limitaciones:** no hay recorrido en navegador porque no hay app que recorrer. No grabamos con Loom: lo descrito sale de su documentación pública y su tabla de planes.
 
 ## Capacidades por área

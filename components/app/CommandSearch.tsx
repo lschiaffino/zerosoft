@@ -44,6 +44,8 @@ function useGroupOrder() {
         'records',
         'crmDocuments',
         'crmVideos',
+        'recVideos',
+        'recFolders',
         'links',
         'docs',
         'notes',

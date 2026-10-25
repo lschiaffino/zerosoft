@@ -11,6 +11,8 @@ import { searchLeads } from '@/lib/crm-leads';
 import { listObjects, searchRecords } from '@/lib/crm-objects';
 import { searchCustomReports } from '@/lib/crm-custom-reports';
 import { searchMedia } from '@/lib/crm-media';
+import { searchRec } from '@/lib/rec';
+import { actorOf } from '@/lib/rec-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,7 +38,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, rec] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -56,6 +58,8 @@ export async function GET(req: NextRequest) {
     searchCustomReports(user.id, q),
     // CRM: documentos con seguimiento y videos 1:1, por nombre.
     searchMedia(user.id, q).catch(() => []),
+    // Rec: videos y carpetas, con el alcance de la biblioteca (míos y del workspace).
+    searchRec(actorOf(user), q).catch(() => []),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -123,6 +127,16 @@ export async function GET(req: NextRequest) {
       label: m.label,
       meta: '',
       href: m.kind === 'document' ? `/app/crm/documents/${m.id}` : `/app/crm/videos/${m.id}`,
+    });
+  }
+
+  for (const r of rec) {
+    items.push({
+      id: r.id,
+      group: r.kind === 'video' ? 'recVideos' : 'recFolders',
+      label: r.label,
+      meta: r.meta,
+      href: r.kind === 'video' ? `/app/rec/${r.id}` : `/app/rec/f/${r.id}`,
     });
   }
 
