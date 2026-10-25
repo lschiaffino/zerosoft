@@ -99,7 +99,7 @@ test('Docs: video, PDF e imagen con ancho, alineación y leyenda', async ({ requ
   await slash(p, 'video');
   await p.getByTestId('docs-file-input').setInputFiles({ name: 'clip.mp4', mimeType: 'video/mp4', buffer: Buffer.from('fake video bytes') });
   await expect(p.getByTestId('docs-video-block').locator('video')).toBeVisible();
-  await expect.poll(async () => (await content(request, doc.id)).map((b) => b.type)).toEqual(['video']);
+  await expect.poll(async () => (await content(request, doc.id)).map((b) => b.type)).toEqual(['video', 'paragraph']);
   // La ruta con permisos sirve el video en línea (y acepta rangos).
   const vid = (await content(request, doc.id))[0];
   const ranged = await request.get(`/api/docs/files/${doc.id}/${vid.id}`, { headers: { Range: 'bytes=0-3' } });
@@ -387,4 +387,57 @@ test('Docs: galería de plantillas, página vacía con plantilla y plantillas de
       return db ? [db.rows.length, db.rows[1]?.body?.[0]?.content, db.templates?.length] : null;
     }, { timeout: 10_000 })
     .toEqual([2, 'Pasos para reproducir', 1]);
+});
+
+test('Docs y Notes: al terminar de subir, lo tipeado va a la línea de abajo (sin atajos globales)', async ({ request, page: p }) => {
+  const doc = await pageWith(request, `Subir y tipear ${uid()}`, [{ id: 'a', type: 'paragraph', content: '' }]);
+  await p.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+  const url = p.url();
+  await p.locator('.docs-blocks .docs-editable').first().click();
+  const chooser = p.waitForEvent('filechooser');
+  await slash(p, 'image');
+  await (await chooser).setFiles({ name: 'dot.png', mimeType: 'image/png', buffer: PNG });
+  await expect(p.getByTestId('docs-image-block').locator('img')).toBeVisible();
+  await expect(p.locator('.docs-blocks .docs-editable').last()).toBeFocused();
+  // "c" crea una página si el foco quedó en body: acá tiene que escribir.
+  await p.keyboard.type('cnsigo');
+  await expect(p).toHaveURL(url);
+  await expect
+    .poll(async () => (await content(request, doc.id)).map((b) => [b.type, b.content]))
+    .toEqual([['image', ''], ['paragraph', 'cnsigo']]);
+
+  const note = (await (await request.post('/api/notes', { data: { title: `Nota subir ${uid()}`, content: [{ id: 'n1', type: 'paragraph', content: '' }] } })).json()) as { id: string };
+  await p.goto(`/en/app/notes?note=${note.id}`, { waitUntil: 'networkidle' });
+  await p.locator('.note-body .docs-blocks .docs-editable').first().click();
+  const chooser2 = p.waitForEvent('filechooser');
+  await slash(p, 'image');
+  await (await chooser2).setFiles({ name: 'dot.png', mimeType: 'image/png', buffer: PNG });
+  await expect(p.locator('.note-body').getByTestId('docs-image-block').locator('img')).toBeVisible();
+  await expect(p.locator('.note-body .docs-blocks .docs-editable').last()).toBeFocused();
+  await p.keyboard.type('nsigo');
+  await expect(p.locator('.note-body .docs-blocks .docs-editable').last()).toHaveText('nsigo');
+});
+
+test.describe('Docs: recordatorio con el idioma y la zona del navegador', () => {
+  test.use({ timezoneId: 'Asia/Tokyo' });
+  test('el recordatorio guarda es + Asia/Tokyo', async ({ request, page: p }) => {
+    const doc = await pageWith(request, `Zona ${uid()}`, [{ id: 'a', type: 'paragraph', content: '' }]);
+    await p.goto(`/es/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+    await p.locator('.docs-blocks .docs-editable').first().click();
+    await p.keyboard.type('Llamar @recordar mañana 9:00');
+    await expect(p.getByTestId('docs-date-option')).toHaveCount(1);
+    await p.keyboard.press('Enter');
+    await expect(p.locator('.docs-blocks .docs-date-mention.has-reminder')).toHaveCount(1);
+    const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+    await expect
+      .poll(
+        async () => {
+          const r = (await db.execute({ sql: 'SELECT locale, timezone FROM docs_reminders WHERE page_id = ?', args: [doc.id] })).rows[0];
+          return r ? [r.locale, r.timezone] : null;
+        },
+        { timeout: 10_000 },
+      )
+      .toEqual(['es', 'Asia/Tokyo']);
+    db.close();
+  });
 });

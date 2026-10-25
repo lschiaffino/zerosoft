@@ -1,6 +1,6 @@
 /**
  * Board — imágenes de las pizarras en el storage de uploads (Vercel Blob o
- * public/uploads), una fila por (pizarra, fileId de Excalidraw).
+ * UPLOADS_DIR), una fila por (pizarra, fileId de Excalidraw).
  *
  * La migración de las escenas viejas es perezosa: cada guardado saca de la
  * escena los dataURL en base64 que encuentre, los sube y deja la URL propia.
@@ -12,9 +12,8 @@
  * cuando ya ninguna fila la usa.
  */
 import { readFile } from 'fs/promises';
-import path from 'path';
 import { getDb, type BoardFileRow } from './db';
-import { deleteUploads, saveUpload } from './uploads';
+import { deleteUploads, localUploadPath, saveUpload } from './uploads';
 import {
   BOARD_MAX_FILE_BYTES,
   boardFileHref,
@@ -162,9 +161,8 @@ export async function canReadBoardFiles(boardId: string, workspaceId: string | n
 export async function readBoardFile(row: BoardFileRow): Promise<Uint8Array | null> {
   if (!isBoardUploadUrl(row.url)) return null;
   if (row.url.startsWith('/uploads/')) {
-    const root = path.join(process.cwd(), 'public', 'uploads');
-    const file = path.join(process.cwd(), 'public', row.url);
-    if (!file.startsWith(root + path.sep)) return null;
+    const file = localUploadPath(row.url, 'boards');
+    if (!file) return null;
     try {
       return new Uint8Array(await readFile(file));
     } catch {

@@ -24,8 +24,8 @@ const RETRIES = 3;
 /**
  * Imagen de un bloque en el editor. Sale de la ruta con permisos
  * (/api/docs/files o la de Notes), nunca de la URL del storage: en un
- * servidor propio sin Blob, `next start` no sirve lo subido a public/uploads
- * después del build. Si el bloque se pegó o se movió y la página todavía no
+ * servidor propio sin Blob lo subido vive fuera de public/ y solo sale por
+ * esas rutas. Si el bloque se pegó o se movió y la página todavía no
  * se guardó, la ruta responde 404 un momento: se reintenta.
  */
 export default function DocsEditorImage({ storageUrl, href, alt }: { storageUrl: string; href: string; alt: string }) {

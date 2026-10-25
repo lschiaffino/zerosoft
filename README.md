@@ -56,7 +56,7 @@ npm run build && npm start
 | `TURSO_AUTH_TOKEN` | Auth token for the remote Turso database (`turso db tokens create <db>`). Ignored for local files. |
 | `DEMO_MODE` | `true` = everyone is the shared demo user, no login. Ignored when `NODE_ENV=production` unless `DEMO_MODE_ALLOW_PRODUCTION=true`. |
 | `RESEND_API_KEY` / `EMAIL_FROM` | Transactional email (booking confirmations, reminders). Unset → emails are logged to the console. |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob for file uploads. Required on Vercel; elsewhere, unset → files go to `public/uploads`. |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob for file uploads. Required on Vercel; elsewhere, unset → files go to `UPLOADS_DIR` (default `data/uploads`, outside `public/`) and are always served through access-checked routes. |
 | `CRON_SECRET` | Required in production for `/api/cron/tick` (Cal reminders + webhook retries; Vercel Cron sends it as a Bearer token). |
 | `ENCRYPTION_KEY` | Encrypts OAuth tokens and webhook secrets at rest. Unset → derived from `NEXTAUTH_SECRET`. |
 | `CREDENTIALS_KEY` | Optional dedicated key for Flow/Robots credentials (AES-256-GCM, bound to each workspace). Unset → derived from `ENCRYPTION_KEY` or `NEXTAUTH_SECRET`. Rotating it means re-entering saved credentials. |

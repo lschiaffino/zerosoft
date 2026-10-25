@@ -108,7 +108,7 @@ describe('archivos del CRM por ruta API', () => {
     expect(parseRange('items=0-1', 100)).toBe('invalid');
   });
   it('solo subidas locales del CRM, sin salirse de la carpeta', () => {
-    expect(localUploadPath('/uploads/crm/a.pdf')).toMatch(/public\/uploads\/crm\/a\.pdf$/);
+    expect(localUploadPath('/uploads/crm/a.pdf')).toMatch(/uploads\/crm\/a\.pdf$/);
     expect(localUploadPath('/uploads/crm/../../.env')).toBeNull();
     expect(localUploadPath('/uploads/docs/a.pdf')).toBeNull();
     expect(localUploadPath('https://x.public.blob.vercel-storage.com/crm/a.pdf')).toBeNull();

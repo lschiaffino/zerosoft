@@ -30,8 +30,9 @@ vi.mock('@/lib/uploads', async (orig) => ({
 vi.mock('fs/promises', async (orig) => {
   const real = await orig<typeof import('fs/promises')>();
   const readFile = async (p: string, ...rest: unknown[]) => {
-    const rel = String(p).split(`${path.sep}public`).pop() ?? '';
-    const hit = storage.files.get(rel.split(path.sep).join('/'));
+    // ".../data/uploads/boards/x.png" (o el public/uploads viejo) → "/uploads/boards/x.png".
+    const posix = String(p).split(path.sep).join('/');
+    const hit = storage.files.get(posix.slice(posix.lastIndexOf('/uploads/')));
     if (hit) return hit;
     return (real.readFile as (...a: unknown[]) => Promise<Buffer>)(p, ...rest);
   };

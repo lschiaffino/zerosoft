@@ -25,6 +25,16 @@ const nextConfig = {
       { source: `/blog/${from}`, destination: `/blog/${to}`, permanent: true },
     ]);
   },
+  // Subidas locales (sin Blob): /uploads/* siempre pasa por la ruta que
+  // chequea carpeta y pone headers seguros. beforeFiles corre antes de mirar
+  // public/, así que un archivo viejo en public/uploads nunca sale estático.
+  async rewrites() {
+    return {
+      beforeFiles: [{ source: '/uploads/:path*', destination: '/api/uploads/:path*' }],
+      afterFiles: [],
+      fallback: [],
+    };
+  },
   async headers() {
     const cors = [
       { key: 'Access-Control-Allow-Origin', value: '*' },

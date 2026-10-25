@@ -162,10 +162,12 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
   }, [moveMenuFor]);
 
   const moveCardRect = useRef<DOMRect | null>(null);
+  /** Aire entre la card y el menú M (antes se superponía 6px con la card). */
+  const MOVE_MENU_GAP = 4;
   function openMoveMenu(card: HTMLElement, dealId: string) {
     const r = card.getBoundingClientRect();
     moveCardRect.current = r;
-    setMoveMenuPos({ top: r.bottom - 6, left: Math.max(8, Math.min(r.left + 8, window.innerWidth - 200)) });
+    setMoveMenuPos({ top: r.bottom + MOVE_MENU_GAP, left: Math.max(8, Math.min(r.left + 8, window.innerWidth - 200)) });
     setMoveMenuFor(dealId);
   }
   // Con el menú ya en pantalla se mide su alto real: si abajo no entra, va
@@ -175,8 +177,8 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
     const el = moveMenuRef.current;
     if (!moveMenuFor || !r || !el) return;
     const h = el.offsetHeight;
-    const below = r.bottom - 6;
-    if (below + h > window.innerHeight) setMoveMenuPos((p) => ({ ...p, top: Math.max(8, r.top - h + 6) }));
+    const below = r.bottom + MOVE_MENU_GAP;
+    if (below + h > window.innerHeight) setMoveMenuPos((p) => ({ ...p, top: Math.max(8, r.top - h - MOVE_MENU_GAP) }));
   }, [moveMenuFor]);
 
   function closeMoveMenu(refocus: boolean) {

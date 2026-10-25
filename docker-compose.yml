@@ -12,7 +12,7 @@ services:
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
     volumes:
       - zerosoft-data:/app/data
-      - zerosoft-uploads:/app/public/uploads
+      - zerosoft-uploads:/app/uploads
 
 volumes:
   zerosoft-data:
