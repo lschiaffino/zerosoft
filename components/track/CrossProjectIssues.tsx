@@ -1,9 +1,14 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import type { TrackIssueWithStatus, TrackProjectMeta } from '@/lib/track-data';
-import { DUE_BUCKETS, groupByDue, parseQuickTitle, type DueBucket } from '@/lib/track-tasks';
+import { DUE_BUCKETS, formatDay, groupByDue, parseQuickTitle, type DueBucket } from '@/lib/track-tasks';
+import { rowTargetId, useTrackCommands } from './trackCommands';
+import { pendingDeleteIds } from './trackUndo';
+import { useTrackLive } from './useTrackLive';
+import { useWorkspaceLabels } from './LabelPicker';
 import IssuesTable, { type OptionalColumn } from './IssuesTable';
 import QuickIssueModal from './QuickIssueModal';
 import { TrackToast, useToday } from './InlineEditors';
@@ -32,6 +37,8 @@ interface TableLabels {
 }
 
 interface CrossProjectIssuesProps {
+  /** Usuario actual ("Asignarme" con I). */
+  userId?: string;
   initialIssues: TrackIssueWithStatus[];
   projects: TrackProjectMeta[];
   locale: string;
@@ -65,6 +72,7 @@ interface CrossProjectIssuesProps {
  * checkbox, edición inline, quick-add con selector de proyecto y modal con "C".
  */
 export default function CrossProjectIssues({
+  userId,
   initialIssues,
   projects,
   locale,
@@ -85,10 +93,58 @@ export default function CrossProjectIssues({
   const today = useToday();
   const [modalOpen, setModalOpen] = useState(false);
   const projectMap = useMemo<ProjectMap>(() => Object.fromEntries(projects.map((p) => [p.id, p])), [projects]);
+  const tx = useTranslations('track.ux');
+  const tc = useTranslations('track.ux.cmd');
+  const updatedLabel = useCallback(
+    (what: string, count: number) => (count === 1 ? tx('undo.updatedOne', { id: what }) : tx('undo.updatedMany', { count })),
+    [tx],
+  );
   const store = useIssueStore(initialIssues, projectMap, {
     saveError: ui.inline.saveError,
     createError: ui.inline.createError,
     noDoneStatus: ui.inline.noDoneStatus,
+    updated: updatedLabel,
+  });
+  const [workspaceLabels] = useWorkspaceLabels();
+
+  // Cambios de otros: el servidor vuelve a renderizar la lista y se toma acá.
+  const { setIssues } = store;
+  useEffect(() => {
+    const hidden = pendingDeleteIds();
+    setIssues(initialIssues.filter((i) => !hidden.has(i.id)));
+  }, [initialIssues, setIssues]);
+  useTrackLive({ workspace: true }, () => router.refresh(), { syncOnStart: true });
+
+  const allStatuses = useMemo(() => projects.flatMap((p) => p.statuses), [projects]);
+  const allMembers = useMemo(() => {
+    const seen = new Map<string, TrackProjectMeta['members'][number]>();
+    projects.forEach((p) => p.members.forEach((m) => seen.set(m.id, m)));
+    return Array.from(seen.values());
+  }, [projects]);
+  useTrackCommands({
+    lookup: (id) => store.issues.find((i) => i.id === id),
+    getTargets: () => {
+      const id = rowTargetId();
+      const row = id ? store.issues.find((i) => i.id === id) : null;
+      return row ? [row] : [];
+    },
+    data: {
+      statuses: allStatuses,
+      members: allMembers,
+      labels: workspaceLabels,
+      cycles: [],
+      milestones: [],
+      priorities: ui.priorities,
+      meId: userId ?? '',
+      today,
+    },
+    handlers: {
+      apply: (targets, patch) => void store.updateMany(targets.map((i) => i.id), patch),
+      createSubIssue: (parent) => router.push(`/app/track/issues/${parent.id}?sub=1`),
+      open: (issue) => router.push(`/app/track/issues/${issue.id}`),
+    },
+    t: (k, v) => tc(k, v),
+    formatDay: (iso) => formatDay(iso, locale, today),
   });
 
   const [total, setTotal] = useState(pagination?.total ?? 0);

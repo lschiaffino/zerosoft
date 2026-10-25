@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import QuickIssueModal from './QuickIssueModal';
+import { markGoPending } from './trackCommands';
 import { TrackToast, useToday } from './InlineEditors';
 import { buildTrackUiLabels } from './ui-labels';
 import { openTrackNewIssue, TRACK_NEW_ISSUE_EVENT, type IssueDraft, type ProjectContext } from './useIssueStore';
@@ -22,6 +23,16 @@ function isTypingTarget(el: EventTarget | null): boolean {
   );
 }
 
+/** G + tecla: a dónde lleva (Linear: G I inbox, G M my issues, G E all issues, G P projects, G S settings). */
+export const GO_TARGETS: Record<string, string> = {
+  i: '/app/track/inbox',
+  m: '/app/track/my-tasks',
+  e: '/app/track/issues',
+  p: '/app/track/projects',
+  s: '/app/track/settings',
+  o: '/app/track',
+};
+
 function issueRows(): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>('[data-issue-row]')).filter(
     (el) => el.offsetParent !== null,
@@ -34,6 +45,7 @@ function issueRows(): HTMLElement[] {
  *   (proyecto, My tasks, Issues) lo maneja ella (preventDefault); si no, se
  *   abre este modal, con el proyecto del issue abierto preseleccionado.
  * - J / K: mueve la fila activa en las listas de issues; Enter la abre.
+ * - G y una tecla: navegar (I inbox, M mis tareas, E issues, P proyectos, S ajustes, O overview).
  */
 export default function TrackShortcuts() {
   const t = useTranslations('track');
@@ -46,6 +58,7 @@ export default function TrackShortcuts() {
   const [contextProjectId, setContextProjectId] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const activeRow = useRef<HTMLElement | null>(null);
+  const goPending = useRef(0);
 
   const openModal = useCallback(async () => {
     const ctx = document.querySelector<HTMLElement>('[data-track-project-id]')?.dataset.trackProjectId;
@@ -66,7 +79,23 @@ export default function TrackShortcuts() {
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
       if (isTypingTarget(e.target) || document.querySelector('[role="dialog"], dialog[open]')) return;
       const key = e.key.toLowerCase();
-      if (key === 'c') {
+      // G y después una tecla navega, como en Linear (G I inbox, G M mis tareas…).
+      if (goPending.current && Date.now() - goPending.current < 1200 && !e.shiftKey) {
+        goPending.current = 0;
+        markGoPending(0);
+        const target = GO_TARGETS[key];
+        if (target) {
+          e.preventDefault();
+          router.push(target);
+        }
+        return;
+      }
+      if (key === 'g' && !e.shiftKey) {
+        goPending.current = Date.now();
+        markGoPending(goPending.current);
+        return;
+      }
+      if (key === 'c' && !e.shiftKey) {
         window.setTimeout(() => {
           if (!e.defaultPrevented) void openModal();
         }, 0);

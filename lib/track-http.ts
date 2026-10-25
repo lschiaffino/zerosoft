@@ -66,3 +66,8 @@ export function stringArrayParam(sp: URLSearchParams, name: string): string[] | 
     .filter(Boolean);
   return out.length ? out : undefined;
 }
+
+/** `today=YYYY-MM-DD` del cliente (fechas relativas de los filtros); undefined si no es válido. */
+export function dayParam(value: string | null): string | undefined {
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
+}

@@ -519,6 +519,20 @@
 }
 .cmdk-item.sel { background: var(--ui-hover); }
 .cmdk-state { padding: 24px; font-size: 0.875rem; text-align: center; color: var(--brand-gray-2); }
+/* Acciones en contexto (Track): página abierta y marcas. */
+.cmdk-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px 0;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+.cmdk-crumb { font-family: var(--font-data); }
+.cmdk-crumb.is-current { color: var(--ink); font-family: var(--font-ui); font-weight: 600; }
+.cmdk-item-label { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.cmdk-swatch { width: 10px; height: 10px; flex: none; border-radius: 50%; }
+.cmdk-check { margin-right: 8px; color: var(--ink); font-family: var(--font-ui); }
 
 /* Column toggle */
 .column-toggle {

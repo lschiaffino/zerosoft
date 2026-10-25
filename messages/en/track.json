@@ -867,5 +867,210 @@
       "cycles": "{count, plural, one {# cycle} other {# cycles}}",
       "milestones": "{count, plural, one {# milestone} other {# milestones}}"
     }
+  },
+  "ux": {
+    "undo": {
+      "action": "Undo",
+      "dismiss": "Dismiss",
+      "updatedOne": "{id} updated",
+      "updatedMany": "{count} issues updated",
+      "deleted": "{id} deleted",
+      "deletedMany": "{count} issues deleted"
+    },
+    "cmd": {
+      "status": "Change status…",
+      "priority": "Change priority…",
+      "assignee": "Assign to…",
+      "noAssignee": "No assignee",
+      "assignMe": "Assign to me",
+      "labels": "Change labels…",
+      "estimate": "Set estimate…",
+      "estimatePlaceholder": "Type a number of points…",
+      "noEstimate": "No estimate",
+      "points": "{count, plural, one {# point} other {# points}}",
+      "due": "Set due date…",
+      "duePlaceholder": "Type a date: 2026-11-03, 3/11, +5d…",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "endOfWeek": "End of this week",
+      "nextWeek": "Next week",
+      "inTwoWeeks": "In two weeks",
+      "noDue": "Remove due date",
+      "dueOn": "Due {date}",
+      "cycle": "Move to cycle…",
+      "noCycle": "No cycle",
+      "milestone": "Set milestone…",
+      "noMilestone": "No milestone",
+      "setParent": "Set parent issue…",
+      "searchParent": "Search issues…",
+      "removeParent": "Remove parent",
+      "createSubIssue": "Create sub-issue",
+      "copyId": "Copy issue ID",
+      "copyLink": "Copy issue URL",
+      "copyBranch": "Copy git branch name",
+      "link": "Link",
+      "copied": "Copied {what}",
+      "open": "Open issue",
+      "delete": "Delete issue",
+      "deleteMany": "Delete {count} issues",
+      "many": "{count} issues"
+    },
+    "editor": {
+      "todo": "Checklist",
+      "strike": "Strikethrough",
+      "uploading": "Uploading {name}…",
+      "uploadError": "Couldn’t upload {name}.",
+      "hint": "Markdown. / inserts blocks, @ mentions people and issues, # links an issue. Paste or drop images.",
+      "slash": {
+        "h1": "Heading 1",
+        "h2": "Heading 2",
+        "h3": "Heading 3",
+        "bullet": "Bulleted list",
+        "numbered": "Numbered list",
+        "todo": "Checklist",
+        "code": "Code block",
+        "quote": "Quote",
+        "divider": "Divider",
+        "table": "Table"
+      },
+      "menu": {
+        "slash": "Insert",
+        "mention": "People and issues",
+        "issue": "Issues"
+      }
+    },
+    "thread": {
+      "postError": "Couldn’t post the comment. Try again.",
+      "reactError": "Couldn’t save the reaction.",
+      "resolveError": "Couldn’t update the thread.",
+      "you": "You",
+      "reactions": "Reactions",
+      "reactionLabel": "{emoji} {count}: {who}",
+      "addReaction": "Add reaction",
+      "more": "Comment actions",
+      "reopen": "Reopen thread",
+      "resolve": "Resolve thread",
+      "copyLink": "Copy link to comment",
+      "linkCopied": "Comment link copied",
+      "reply": "Reply",
+      "resolvedBy": "Resolved by {name} · {count, plural, one {# comment} other {# comments}}",
+      "hide": "Hide",
+      "show": "Show",
+      "replyPlaceholder": "Reply…",
+      "replySubmit": "Reply"
+    },
+    "sub": {
+      "title": "Sub-issues",
+      "add": "Add sub-issue",
+      "addFirst": "Add sub-issues",
+      "addExisting": "Add existing issue as sub-issue",
+      "placeholder": "Sub-issue title",
+      "hint": "Enter to create · Esc to close",
+      "nested": "{done} of {total} sub-issues done",
+      "of": "Sub-issue of",
+      "show": "Show sub-issues"
+    },
+    "side": {
+      "project": "Project",
+      "points": "{count, plural, one {# point} other {# points}}"
+    },
+    "presence": {
+      "viewing": "Also viewing: {names}"
+    },
+    "views": {
+      "team": "Team",
+      "favorite": "Add to favorites",
+      "unfavorite": "Remove from favorites",
+      "copyLink": "Copy link to view",
+      "share": "Share with the team",
+      "unshare": "Make personal",
+      "unsaved": "Unsaved changes",
+      "update": "Save changes to “{name}”",
+      "mine": "My views",
+      "teamViews": "Team views",
+      "favorites": "Favorites",
+      "sharedOn": "The team can see this view now",
+      "sharedOff": "This view is personal again",
+      "saved": "View saved",
+      "linkCopied": "View link copied",
+      "shareOnSave": "Share with the team",
+      "shareHelp": "Everyone in the project sees team views. Only you can edit them."
+    },
+    "filter": {
+      "fields": {
+        "creator": "Creator",
+        "milestone": "Milestone",
+        "estimate": "Estimate",
+        "start": "Start date",
+        "created": "Created",
+        "updated": "Updated",
+        "relation": "Relations",
+        "hierarchy": "Sub-issues"
+      },
+      "noAssignee": "No assignee",
+      "noCycle": "No cycle",
+      "noMilestone": "No milestone",
+      "points": "{count, plural, one {# point} other {# points}}",
+      "relation": {
+        "blocked": "Blocked",
+        "blocking": "Blocking",
+        "related": "Has related",
+        "duplicate": "Duplicate"
+      },
+      "hierarchy": {
+        "top": "Top-level issues",
+        "sub": "Sub-issues",
+        "parent": "Issues with sub-issues"
+      },
+      "rel": {
+        "today": "today",
+        "-1d": "yesterday",
+        "-7d": "1 week ago",
+        "-14d": "2 weeks ago",
+        "-30d": "1 month ago",
+        "+1d": "tomorrow",
+        "+7d": "in 1 week",
+        "+14d": "in 2 weeks",
+        "+30d": "in 1 month"
+      },
+      "nValues": "{first} +{count}",
+      "searchPlaceholder": "Filter…",
+      "preset": {
+        "overdue": "Before today",
+        "fromToday": "From today on",
+        "next7": "In the next 7 days",
+        "last7": "In the last 7 days",
+        "last30": "In the last 30 days",
+        "olderThan30": "More than 30 days ago",
+        "none": "No date"
+      },
+      "before": "Before a date",
+      "operator": "Operator",
+      "op": {
+        "is": "is",
+        "is_not": "is not",
+        "empty": "is empty",
+        "not_empty": "is set",
+        "gte": "at least",
+        "lte": "at most",
+        "date_before": "before",
+        "date_after": "after",
+        "date_empty": "is empty",
+        "date_not_empty": "is set"
+      },
+      "pickDate": "Pick a date",
+      "remove": "Remove filter {field}",
+      "matchHelp": "Switch between matching all filters or any of them",
+      "matchAll": "All filters",
+      "matchAny": "Any filter"
+    },
+    "peek": {
+      "title": "Issue preview",
+      "hint": "Space or Esc closes · Enter opens",
+      "close": "Close preview",
+      "open": "Open issue",
+      "noDescription": "No description.",
+      "subIssues": "{done} of {total} sub-issues done"
+    }
   }
 }

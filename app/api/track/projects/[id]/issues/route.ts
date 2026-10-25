@@ -5,7 +5,8 @@ import { validateIssueRefs } from '@/lib/track-bulk';
 import { createIssue, getProject, listIssues, canAccessTrackProject } from '@/lib/track-data';
 import { issueCreateSchema } from '@/lib/track-schema';
 import { ISSUE_SORTS } from '@/lib/track-views';
-import { invalidBody, notFound, pageParams, sortParam, stringArrayParam, trackError, unauthorized } from '@/lib/track-http';
+import { decodeFilter } from '@/lib/track-filter';
+import { invalidBody, notFound, pageParams, sortParam, stringArrayParam, trackError, unauthorized, dayParam } from '@/lib/track-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,9 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
     q: sp.get('q') ?? undefined,
     dueAfter: sp.get('dueAfter') ?? undefined,
     dueBefore: sp.get('dueBefore') ?? undefined,
+    filter: decodeFilter(sp.get('filter')),
+    today: dayParam(sp.get('today')),
+    topLevel: sp.get('topLevel') === '1',
     sort: sortParam(sp, ISSUE_SORTS),
     page,
     pageSize,

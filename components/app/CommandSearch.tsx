@@ -3,6 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
+import {
+  findAction,
+  getCommandContext,
+  matchesQuery,
+  OPEN_SEARCH_EVENT,
+  CMDK_CLOSED_EVENT,
+  type CommandAction,
+} from '@/lib/cmdk-context';
 
 interface ResultItem {
   group: string;
@@ -11,6 +19,8 @@ interface ResultItem {
   href: string;
   /** Acción en página (evento de window) en vez de navegar. */
   event?: string;
+  /** Acción en contexto (issue abierto, selección): corre en la página. */
+  action?: CommandAction;
 }
 
 interface SearchResponse {
@@ -20,6 +30,7 @@ interface SearchResponse {
 
 function useGroupOrder() {
   return useMemo(() => [
+        'context',
         'track',
         'actions',
         'projects',
@@ -79,6 +90,17 @@ export default function CommandSearch() {
   const [items, setItems] = useState<ResultItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [sel, setSel] = useState(0);
+  // Páginas abiertas dentro de las acciones en contexto (ids), p. ej. ["status"].
+  const [pages, setPages] = useState<string[]>([]);
+  // Fuerza un render después de una acción que deja la paleta abierta.
+  const [, setTick] = useState(0);
+  // Opciones de una página que vienen del servidor (p. ej. elegir el issue padre).
+  const [asyncItems, setAsyncItems] = useState<CommandAction[]>([]);
+  // Tipear o cambiar de página vuelve a la primera opción (el mouse quieto
+  // sobre la lista no deja elegida una que el filtro ya sacó).
+  useEffect(() => {
+    setSel(0);
+  }, [q, pages]);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevFocusRef = useRef<HTMLElement | null>(null);
   const groupOrder = useGroupOrder();
@@ -131,19 +153,22 @@ export default function CommandSearch() {
   }, [t, tNotes, tBoard, tTrack, inTrack, inCrm]);
 
   useEffect(() => {
-    function onOpen() {
+    function onOpen(e: Event) {
+      const page = (e as CustomEvent<{ page?: string } | undefined>).detail?.page;
+      setPages(page ? [page] : []);
       setOpen(true);
     }
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
+        setPages([]);
         setOpen((v) => !v);
       }
     }
-    window.addEventListener('zs:open-search', onOpen);
+    window.addEventListener(OPEN_SEARCH_EVENT, onOpen);
     window.addEventListener('keydown', onKey);
     return () => {
-      window.removeEventListener('zs:open-search', onOpen);
+      window.removeEventListener(OPEN_SEARCH_EVENT, onOpen);
       window.removeEventListener('keydown', onKey);
     };
   }, []);
@@ -159,8 +184,41 @@ export default function CommandSearch() {
     } else {
       prevFocusRef.current?.focus();
       prevFocusRef.current = null;
+      setPages([]);
+      window.dispatchEvent(new Event(CMDK_CLOSED_EVENT));
     }
   }, [open, actionItems]);
+
+  // Acciones en contexto de la página (se consultan en cada render: nunca viejas).
+  const context = open ? getCommandContext() : null;
+  let page: CommandAction | null = null;
+  let pageItems: CommandAction[] | null = null;
+  if (context && pages.length > 0) {
+    let list = context.actions;
+    for (const id of pages) {
+      const found = findAction(list, id);
+      if (!found?.children) {
+        page = null;
+        break;
+      }
+      page = found;
+      list = found.children();
+    }
+    if (page) {
+      const dyn = page.dynamic ? page.dynamic(q) : [];
+      pageItems = [...dyn, ...(page.load ? asyncItems : []), ...list.filter((a) => matchesQuery(a, q))];
+    }
+  }
+  const pageKey = page ? pages.join('/') : '';
+  const pageLoad = page?.load;
+  const contextItems: ResultItem[] = context
+    ? context.actions
+        .filter((a) => matchesQuery(a, q))
+        .map((a) => ({ group: 'context', label: a.label, meta: a.meta ?? '', href: '', action: a }))
+    : [];
+  const visible: ResultItem[] = pageItems
+    ? pageItems.map((a) => ({ group: 'context', label: a.label, meta: a.meta ?? '', href: '', action: a }))
+    : [...contextItems, ...items];
 
   const search = useCallback(
     async (query: string) => {
@@ -194,7 +252,49 @@ export default function CommandSearch() {
     return () => clearTimeout(id);
   }, [q, search]);
 
+  // Las páginas con `load` piden opciones al servidor según lo tipeado.
+  const loadRef = useRef(pageLoad);
+  loadRef.current = pageLoad;
+  const hasLoad = Boolean(pageLoad);
+  useEffect(() => {
+    if (!pageKey || !hasLoad) {
+      setAsyncItems([]);
+      return;
+    }
+    let alive = true;
+    const timer = window.setTimeout(() => {
+      void loadRef.current?.(q).then((rows) => {
+        if (alive) setAsyncItems(rows);
+      }).catch(() => {
+        if (alive) setAsyncItems([]);
+      });
+    }, 150);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [pageKey, hasLoad, q]);
+
   function go(item: ResultItem) {
+    const action = item.action;
+    if (action) {
+      if (action.children) {
+        setPages((p) => [...p, action.id]);
+        setQ('');
+        setSel(0);
+        window.setTimeout(() => inputRef.current?.focus(), 0);
+        return;
+      }
+      if (action.keepOpen) {
+        action.run?.();
+        setTick((n) => n + 1);
+        return;
+      }
+      setOpen(false);
+      // Después de cerrar la paleta (el foco vuelve a la página).
+      window.setTimeout(() => action.run?.(), 0);
+      return;
+    }
     setOpen(false);
     if (item.event) {
       const name = item.event;
@@ -211,15 +311,20 @@ export default function CommandSearch() {
     if (e.key === 'Escape') {
       e.preventDefault();
       setOpen(false);
+    } else if (e.key === 'Backspace' && !q && pages.length > 0) {
+      // Como en Linear: borrar con el input vacío vuelve a la página anterior.
+      e.preventDefault();
+      setPages((p) => p.slice(0, -1));
+      setSel(0);
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSel((s) => Math.min(s + 1, items.length - 1));
+      setSel((s) => Math.min(s + 1, visible.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSel((s) => Math.max(s - 1, 0));
-    } else if (e.key === 'Enter' && items[sel]) {
+    } else if (e.key === 'Enter' && visible.length > 0) {
       e.preventDefault();
-      go(items[sel]);
+      go(visible[Math.min(sel, visible.length - 1)]);
     } else if (e.key === 'Tab') {
       // Focus trap: the input is the only tabbable element while open.
       e.preventDefault();
@@ -240,35 +345,44 @@ export default function CommandSearch() {
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={onKeyDown}
       >
+        {context && page && (
+          <div className="cmdk-crumbs" data-testid="cmdk-crumbs">
+            <span className="cmdk-crumb">{context.title}</span>
+            <span aria-hidden>›</span>
+            <span className="cmdk-crumb is-current">{page.label}</span>
+          </div>
+        )}
         <input
           ref={inputRef}
           className="cmdk-input"
+          // Enfocado al montar: quien tipea rápido después de S o ⌘K no pierde teclas.
+          autoFocus
           role="combobox"
           aria-expanded="true"
           aria-controls="cmdk-listbox"
-          aria-activedescendant={items[sel] ? `cmdk-option-${sel}` : undefined}
+          aria-activedescendant={visible[sel] ? `cmdk-option-${sel}` : undefined}
           aria-autocomplete="list"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={t('searchPlaceholder')}
+          placeholder={page?.placeholder ?? t('searchPlaceholder')}
           aria-label={t('search')}
         />
         <div className="cmdk-results" role="listbox" id="cmdk-listbox" aria-label={t('search')}>
-          {loading && <p className="cmdk-state">{t('searchLoading')}</p>}
-          {!loading && q.trim() && items.length === 0 && (
+          {loading && !pageItems && <p className="cmdk-state">{t('searchLoading')}</p>}
+          {(!loading || pageItems) && q.trim() && visible.length === 0 && (
             <p className="cmdk-state">{t('searchEmpty')}</p>
           )}
-          {!loading &&
-            items.map((item, i) => {
+          {(!loading || pageItems) &&
+            visible.map((item, i) => {
               const header =
-                item.group !== lastGroup ? (
+                item.group !== lastGroup && !pageItems ? (
                   <p className="cmdk-group" key={`g-${item.group}`} role="presentation">
-                    {groupLabel(item.group)}
+                    {item.group === 'context' ? (context?.title ?? '') : groupLabel(item.group)}
                   </p>
                 ) : null;
               lastGroup = item.group;
               return (
-                <div key={`${item.href}-${i}`} role="presentation">
+                <div key={`${item.action?.id ?? item.href}-${i}`} role="presentation">
                   {header}
                   <button
                     type="button"
@@ -280,8 +394,16 @@ export default function CommandSearch() {
                     onMouseEnter={() => setSel(i)}
                     onClick={() => go(item)}
                   >
-                    <span>{item.label}</span>
-                    <span className="cmdk-meta">{item.meta}</span>
+                    <span className="cmdk-item-label">
+                      {item.action?.swatch && (
+                        <span className="cmdk-swatch" style={{ background: item.action.swatch }} aria-hidden />
+                      )}
+                      {item.label}
+                    </span>
+                    <span className="cmdk-meta">
+                      {item.action?.checked && <span className="cmdk-check">✓</span>}
+                      {item.meta}
+                    </span>
                   </button>
                 </div>
               );

@@ -15,6 +15,7 @@ import {
 import { isSubscribedToIssue } from '@/lib/track-subscriptions';
 import { listMilestones } from '@/lib/track-milestones';
 import { getIssueReminder } from '@/lib/track-notify';
+import { listIssueReactions } from '@/lib/track-ux';
 import IssueDetailClient from '@/components/track/IssueDetailClient';
 import { buildTrackUiLabels } from '@/components/track/ui-labels';
 
@@ -40,7 +41,7 @@ export default async function IssueDetailPage(
   const { issue, project } = found;
 
   const projectId = issue.project_id;
-  const [statuses, cycles, members, children, parentChain, attachments, relations, activities, subscribed, milestones, reminder] = await Promise.all([
+  const [statuses, cycles, members, children, parentChain, attachments, relations, activities, subscribed, milestones, reminder, reactions] = await Promise.all([
     listStatuses(projectId),
     listCycles(projectId),
     listProjectMembers(projectId, user.id),
@@ -52,6 +53,7 @@ export default async function IssueDetailPage(
     isSubscribedToIssue(id, realUserId(user)),
     listMilestones(projectId),
     getIssueReminder(id, realUserId(user)),
+    listIssueReactions(id),
   ]);
 
   const t = await getTranslations({ locale, namespace: 'track' });
@@ -72,6 +74,7 @@ export default async function IssueDetailPage(
       initialAttachments={attachments}
       initialActivities={activities}
       initialRelations={relations}
+      initialReactions={reactions}
       initialSubscribed={subscribed}
       ui={buildTrackUiLabels(t)}
       canDelete={isWorkspaceAdmin(user)}

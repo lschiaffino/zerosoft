@@ -17,7 +17,24 @@ export type TrackIconName =
   | 'list'
   | 'link'
   | 'bell'
-  | 'clock';
+  | 'clock'
+  | 'reply'
+  | 'smile'
+  | 'more'
+  | 'check'
+  | 'plus'
+  | 'grip'
+  | 'user'
+  | 'tag'
+  | 'cycle'
+  | 'flag'
+  | 'estimate'
+  | 'parent'
+  | 'eye'
+  | 'star'
+  | 'users'
+  | 'filter'
+  | 'refresh';
 
 // Trazo de 2px, cuadrado (mismo idioma que components/app/icons.tsx).
 const PATHS: Record<TrackIconName, ReactNode> = {
@@ -38,6 +55,23 @@ const PATHS: Record<TrackIconName, ReactNode> = {
   link: <path d="M10 14l4-4M9 7l2-2a4 4 0 0 1 6 6l-2 2M15 17l-2 2a4 4 0 0 1-6-6l2-2" />,
   bell: <path d="M6 16V10a6 6 0 0 1 12 0v6l2 2H4zM10 21h4" />,
   clock: <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 3" />,
+  reply: <path d="M10 7L4 12l6 5M4 12h10a6 6 0 0 1 6 6v1" />,
+  smile: <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM8.5 14a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01" />,
+  more: <path d="M5 12h.01M12 12h.01M19 12h.01" />,
+  check: <path d="M5 12l5 5 9-10" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  grip: <path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" />,
+  user: <path d="M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 20a8 8 0 0 1 16 0" />,
+  tag: <path d="M4 4h8l8 8-8 8-8-8zM8.5 8.5h.01" />,
+  cycle: <path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5" />,
+  flag: <path d="M5 21V4h11l-2 4 2 4H5" />,
+  estimate: <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5" />,
+  parent: <path d="M6 4v8a4 4 0 0 0 4 4h8M14 12l4 4-4 4" />,
+  star: <path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7L12 3z" />,
+  users: <path d="M9 4a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM2 20a7 7 0 0 1 14 0M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14a6 6 0 0 1 4 6" />,
+  filter: <path d="M3 5h18l-7 8v6l-4 2v-8z" />,
+  refresh: <path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5" />,
+  eye: <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />,
 };
 
 /** Íconos de trazo de Track. Decorativos: el texto o aria-label va en el control. */

@@ -559,7 +559,8 @@ test('Track: sub-issue, cycles y status del proyecto sin salir de la vista', asy
 
   await page.goto(`/en/app/track/issues/${parent.id}`, { waitUntil: 'networkidle' });
   await page.getByTestId('track-add-subissue').click();
-  await page.getByRole('dialog').getByRole('textbox').first().fill('Hijo');
+  // Composer en línea como en Linear: título y Enter.
+  await page.getByTestId('track-subissue-input').fill('Hijo');
   await page.keyboard.press('Enter');
   await expect(page.locator('.track-subtask-list')).toContainText('Hijo');
   expect(page.url()).toContain(`/issues/${parent.id}`);

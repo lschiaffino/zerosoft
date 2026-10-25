@@ -97,7 +97,9 @@ test.describe('Track', () => {
     await shot(page, 'track_issue_delete_confirm');
     await dialog.getByTestId('confirm-dialog-confirm').click();
     await expect(page).toHaveURL(new RegExp(`/app/track/projects/${p.id}`));
-    expect((await request.get(`/api/track/issues/${a.id}`)).status()).toBe(404);
+    // Borrar deja "Deshacer" unos segundos (como Linear) y después borra de verdad.
+    await expect(page.getByTestId('track-undo-toast')).toContainText(a.identifier);
+    await expect.poll(async () => (await request.get(`/api/track/issues/${a.id}`)).status(), { timeout: 15_000 }).toBe(404);
 
     // Atajo: ⌘⌫ abre la misma confirmación; Esc la cancela.
     await page.goto(`/en/app/track/issues/${b.id}`);
