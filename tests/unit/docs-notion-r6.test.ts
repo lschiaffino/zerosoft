@@ -14,6 +14,7 @@ import { mergeInheritedShares, type DocsBlock, type DocsPageShare } from '@/lib/
 import { docPageUpdateSchema, SHARED_EDITABLE_FIELDS } from '@/lib/docs-schema';
 import { sanitizeBlocks } from '@/lib/docs-sanitize';
 import {
+  DOCS_MAX_BLOB_UPLOAD,
   DOCS_MAX_UPLOAD,
   contentDisposition,
   docsFileHref,
@@ -115,14 +116,17 @@ describe('Docs: bloques de imagen y archivo', () => {
     expect(file.mime).toBeUndefined();
   });
 
-  it('el tope del editor es el mismo que el del storage', () => {
-    expect(DOCS_MAX_UPLOAD).toBe(MAX_UPLOAD_SIZE);
+  it('topes: 50 MB por el servidor (disco propio) y 5 GB subiendo directo a Blob', () => {
+    expect(DOCS_MAX_UPLOAD).toBe(50 * 1024 * 1024);
+    expect(DOCS_MAX_BLOB_UPLOAD).toBe(5 * 1024 * 1024 * 1024);
+    expect(DOCS_MAX_UPLOAD).toBeGreaterThan(MAX_UPLOAD_SIZE);
   });
 
   it('helpers: tipo, tamaño, href, disposición, strip', () => {
     expect(fileKindFor('image/png')).toBe('image');
     expect(fileKindFor('image/svg+xml')).toBe('file');
-    expect(fileKindFor('application/pdf')).toBe('file');
+    expect(fileKindFor('application/pdf')).toBe('pdf');
+    expect(fileKindFor('application/zip')).toBe('file');
     expect(formatFileSize(900)).toBe('900 B');
     expect(formatFileSize(1536)).toBe('1.5 KB');
     expect(formatFileSize(3 * 1024 * 1024)).toBe('3 MB');

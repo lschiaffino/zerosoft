@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getDocAccess, getDocPageRow } from '@/lib/docs';
-import { MAX_UPLOAD_SIZE, saveUpload, UploadError } from '@/lib/uploads';
-import { cleanFileName, type DocsUploadResult } from '@/lib/docs-files';
+import { saveUpload, UploadError } from '@/lib/uploads';
+import { cleanFileName, DOCS_MAX_BLOB_UPLOAD, DOCS_MAX_UPLOAD, type DocsUploadConfig, type DocsUploadResult } from '@/lib/docs-files';
 import { docsError, forbidden, notFound, unauthorized } from '@/lib/docs-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+/**
+ * Cómo sube el editor: directo a Vercel Blob (hasta 5 GB, ver ./blob) o por
+ * este servidor a disco local (servidor propio sin Blob, hasta 50 MB).
+ */
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const user = await getCurrentUser();
+  if (!user) return unauthorized();
+  const row = await getDocPageRow(params.id);
+  const access = row ? await getDocAccess(row, user) : null;
+  if (!row || !access) return notFound();
+  const config: DocsUploadConfig = process.env.BLOB_READ_WRITE_TOKEN
+    ? { mode: 'blob', max: DOCS_MAX_BLOB_UPLOAD }
+    : { mode: 'server', max: DOCS_MAX_UPLOAD };
+  return NextResponse.json(config);
+}
 
 /**
  * Sube el archivo de un bloque image/file. Hace falta poder editar la página
@@ -26,7 +43,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const form = await req.formData().catch(() => null);
   const file = form?.get('file');
   if (!(file instanceof Blob) || file.size === 0) return docsError(400, 'invalid_input');
-  if (file.size > MAX_UPLOAD_SIZE) return docsError(413, 'file_too_large');
+  if (file.size > DOCS_MAX_UPLOAD) return docsError(413, 'file_too_large');
 
   const name = cleanFileName((file as File).name) || 'file';
   const mime = file.type || 'application/octet-stream';

@@ -13,6 +13,7 @@ import { processSequences } from '@/lib/crm-sequences';
 import { runNightlyScoring } from '@/lib/crm-scoring';
 import { sendOfflineReplyEmails } from '@/lib/chat-offline-email';
 import { fireNoteReminders } from '@/lib/notes-reminders';
+import { fireDocReminders } from '@/lib/docs-reminders';
 import { runAutoCycles } from '@/lib/track-auto-cycles';
 import { runRecurringIssues } from '@/lib/track-recurring';
 import { fireIssueReminders, sendImmediateTrackEmails, sendTrackDigests } from '@/lib/track-notify';
@@ -59,6 +60,8 @@ export async function GET(req: NextRequest) {
   const chatEmails = await sendOfflineReplyEmails({ limit: 200 }).catch(() => null);
   // Recordatorios de Notes (también cada minuto en Vercel; claim por fila).
   const noteReminders = await fireNoteReminders({ limit: 500 }).catch(() => null);
+  // Recordatorios de las menciones de fecha de Docs (también cada minuto; claim por fila).
+  const docReminders = await fireDocReminders({ limit: 500 }).catch(() => null);
   // Track: lo que corre solo. Los recordatorios van antes que los emails.
   const trackCycles = await runAutoCycles().catch(() => null);
   const trackRecurring = await runRecurringIssues({ limit: 200 }).catch(() => null);
@@ -95,5 +98,5 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, trackCycles, trackRecurring, trackReminders, trackEmails, trackDigests, trashPurged, flowPruned, flow, emailSync, outlookSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, docReminders, trackCycles, trackRecurring, trackReminders, trackEmails, trackDigests, trashPurged, flowPruned, flow, emailSync, outlookSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
 }

@@ -1,6 +1,7 @@
 import type { DocsBlock } from './docs-types';
 import { blockIndent, listNumbers } from './docs-blocks';
 import { databaseTable } from './docs-database';
+import { flattenContainers } from './docs-columns';
 
 /**
  * Bloques de Docs → Markdown (export). Puro, sin DB ni DOM: el contenido de
@@ -39,14 +40,24 @@ export function inlineHtmlToMd(html: string): string {
   let out = '';
   const re = /<(\/?)([a-z]+)([^>]*)>|([^<]+)/gi;
   const linkStack: string[] = [];
+  // Ecuación en línea: $LaTeX$ (el texto del span es el mismo LaTeX y se saltea).
+  let inTex = false;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html))) {
     if (m[4] !== undefined) {
-      out += escapeMd(decodeEntities(m[4]));
+      if (!inTex) out += escapeMd(decodeEntities(m[4]));
       continue;
     }
     const closing = m[1] === '/';
     const tag = m[2].toLowerCase();
+    if (tag === 'span') {
+      const tex = /data-tex="([^"]*)"/i.exec(m[3])?.[1];
+      if (!closing && tex !== undefined) {
+        out += `$${decodeEntities(tex)}$`;
+        inTex = true;
+      } else if (closing) inTex = false;
+      continue;
+    }
     switch (tag) {
       case 'strong':
       case 'b':
@@ -97,7 +108,9 @@ export interface BlocksToMarkdownOptions {
   fileHref?: (blockId: string) => string;
 }
 
-export function blocksToMarkdown(blocks: DocsBlock[], title?: string, opts: BlocksToMarkdownOptions = {}): string {
+export function blocksToMarkdown(input: DocsBlock[], title?: string, opts: BlocksToMarkdownOptions = {}): string {
+  // Columnas y sincronizados: su contenido en orden, sin el contenedor.
+  const blocks = flattenContainers(input);
   const parts: string[] = [];
   if (title && title.trim()) parts.push(`# ${title.trim()}`);
   const numbers = listNumbers(blocks);
@@ -145,12 +158,30 @@ export function blocksToMarkdown(blocks: DocsBlock[], title?: string, opts: Bloc
         text = '---';
         break;
       case 'image':
-      case 'file': {
+      case 'file':
+      case 'video':
+      case 'audio':
+      case 'pdf': {
         const name = escapeMd(b.name || 'file');
         const href = opts.fileHref?.(b.id);
         text = href ? `${b.type === 'image' ? '!' : ''}[${name}](${href})` : name;
+        if (b.caption) text += `\n${inlineHtmlToMd(b.caption)}`;
         break;
       }
+      case 'bookmark':
+      case 'embed':
+        text = b.link ? `[${escapeMd(b.link.title || b.link.url)}](${b.link.url})` : '';
+        break;
+      case 'equation':
+        text = `$$\n${inlineHtmlToText(b.content)}\n$$`;
+        break;
+      case 'button':
+        text = b.button?.action === 'link' && b.button.url ? `[${escapeMd(b.button.label || b.button.url)}](${b.button.url})` : '';
+        break;
+      case 'toc':
+      case 'breadcrumb':
+        text = '';
+        break;
       case 'board':
         text = b.board_id ? `[Board](/app/board/${b.board_id})` : '';
         break;

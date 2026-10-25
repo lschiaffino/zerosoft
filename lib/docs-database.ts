@@ -13,6 +13,7 @@
  * guardan en el formato nuevo con la primera edición.
  */
 import type {
+  DbRowTemplate,
   DbFilter,
   DbFilterOp,
   DbOption,
@@ -75,6 +76,7 @@ export const DB_MAX_PROPERTIES = 40;
 export const DB_MAX_OPTIONS = 100;
 export const DB_MAX_VIEWS = 20;
 export const DB_MAX_BODY_BLOCKS = 500;
+export const DB_MAX_TEMPLATES = 30;
 
 /** Tipos cuyo valor es texto libre. */
 const TEXT_TYPES = new Set<DbPropertyType>(['title', 'text', 'url', 'email', 'phone']);
@@ -546,6 +548,51 @@ export function addRow(db: DocsDatabase, values: Record<string, DbValue> = {}, n
   const rows = [...db.rows];
   rows.splice(at === undefined ? rows.length : Math.max(0, Math.min(at, rows.length)), 0, row);
   return { db: { ...db, rows }, row };
+}
+
+// ---------- Plantillas de fila ----------
+
+/** Guarda una fila (valores y cuerpo) como plantilla con ese nombre. */
+export function saveRowAsTemplate(db: DocsDatabase, rowId: string, name: string, newId: () => string = newDbId): DocsDatabase {
+  const row = findRow(db, rowId);
+  if (!row || (db.templates?.length ?? 0) >= DB_MAX_TEMPLATES) return db;
+  const tpl: DbRowTemplate = {
+    id: newId(),
+    name: name.trim().slice(0, 500),
+    values: { ...row.values },
+    ...(row.body?.length ? { body: row.body.map((b) => ({ ...b })) } : {}),
+  };
+  return { ...db, templates: [...(db.templates ?? []), tpl] };
+}
+
+/** Fila nueva desde una plantilla (ids de bloque nuevos; los valores pisan a `extra`). */
+export function addRowFromTemplate(
+  db: DocsDatabase,
+  templateId: string,
+  extra: Record<string, DbValue> = {},
+  now = new Date().toISOString(),
+  newId: () => string = () => crypto.randomUUID(),
+): { db: DocsDatabase; row: DbRow } | null {
+  const tpl = db.templates?.find((x) => x.id === templateId);
+  if (!tpl) return null;
+  const valid = new Set(db.properties.map((p) => p.id));
+  const values: Record<string, DbValue> = { ...extra };
+  for (const [k, v] of Object.entries(tpl.values)) if (valid.has(k)) values[k] = v;
+  const res = addRow(db, values, now);
+  if (!tpl.body?.length) return res;
+  const body = tpl.body.map((b) => ({ ...b, id: newId() }));
+  return { db: updateRow(res.db, res.row.id, { body }, now), row: { ...res.row, body } };
+}
+
+export function removeRowTemplate(db: DocsDatabase, templateId: string): DocsDatabase {
+  const templates = (db.templates ?? []).filter((x) => x.id !== templateId);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { templates: _old, ...rest } = db;
+  return templates.length ? { ...rest, templates } : rest;
+}
+
+export function renameRowTemplate(db: DocsDatabase, templateId: string, name: string): DocsDatabase {
+  return { ...db, templates: (db.templates ?? []).map((x) => (x.id === templateId ? { ...x, name: name.trim().slice(0, 500) } : x)) };
 }
 
 export function updateRow(db: DocsDatabase, rowId: string, patch: Partial<Pick<DbRow, 'values' | 'body'>>, now = new Date().toISOString()): DocsDatabase {

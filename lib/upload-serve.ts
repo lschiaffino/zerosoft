@@ -2,47 +2,84 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import { NextResponse } from 'next/server';
 import type { DocsBlock } from './docs-types';
-import { contentDisposition, isInlineImageMime } from './docs-files';
+import { contentDisposition, isInlineImageMime, isInlineMediaMime, isPdfMime } from './docs-files';
+
+/** "bytes=0-1023" → [inicio, fin] dentro de `size`; null si no hay rango válido. */
+export function parseRange(header: string | null, size: number): [number, number] | null {
+  const m = header?.match(/^bytes=(\d*)-(\d*)$/);
+  if (!m || size <= 0) return null;
+  let start: number;
+  let end: number;
+  if (m[1] === '') {
+    if (m[2] === '') return null;
+    start = Math.max(0, size - Number(m[2]));
+    end = size - 1;
+  } else {
+    start = Number(m[1]);
+    end = m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1);
+  }
+  if (start > end || start >= size) return null;
+  return [start, end];
+}
 
 /**
- * Sirve el archivo de un bloque image/file (Docs y Notes) una vez que la ruta
- * chequeó el acceso. El bloque viene de findFileBlock, que solo deja pasar
- * URLs del storage propio (disco local o el Blob de Docs): nada de SSRF.
+ * Sirve el archivo de un bloque (imagen, video, audio, PDF o archivo) de Docs
+ * y Notes una vez que la ruta chequeó el acceso. El bloque viene de
+ * findFileBlock, que solo deja pasar URLs del storage propio (disco local o
+ * el Blob de Docs): nada de SSRF. Video y audio aceptan Range (el reproductor
+ * pide de a partes) y lo de Blob se pasa en stream sin cargarlo entero.
  * null = el archivo no está (la ruta responde 404).
  */
 export async function fileBlockResponse(
   block: DocsBlock & { url: string },
-  opts: { download?: boolean } = {},
+  opts: { download?: boolean; range?: string | null } = {},
 ): Promise<NextResponse | null> {
-  let body: Uint8Array;
+  const mime = block.mime || 'application/octet-stream';
+  const pdf = isPdfMime(mime);
+  // En línea: imágenes, video, audio y PDF que se muestran; todo lo demás se descarga.
+  const inline = !opts.download && (isInlineImageMime(mime) || isInlineMediaMime(mime) || pdf);
+  const headers: Record<string, string> = {
+    'Content-Type': inline ? mime : 'application/octet-stream',
+    'Content-Disposition': contentDisposition(block.name || 'file', inline),
+    'X-Content-Type-Options': 'nosniff',
+    // El visor de PDF del navegador no abre con sandbox; el resto va aislado.
+    ...(pdf && inline
+      ? { 'Content-Security-Policy': "default-src 'none'; img-src data:; style-src 'unsafe-inline'; frame-ancestors 'self'" }
+      : { 'Content-Security-Policy': "default-src 'none'; sandbox" }),
+    'Accept-Ranges': 'bytes',
+    // El permiso se chequea en cada request: nada de caches compartidos.
+    'Cache-Control': 'private, max-age=300',
+  };
+
   if (block.url.startsWith('/uploads/')) {
     const root = path.join(process.cwd(), 'public', 'uploads');
     const file = path.join(process.cwd(), 'public', block.url);
     if (!file.startsWith(root + path.sep)) return null;
+    let body: Uint8Array;
     try {
       body = new Uint8Array(await readFile(file));
     } catch {
       return null;
     }
-  } else {
-    const res = await fetch(block.url).catch(() => null);
-    if (!res?.ok) return null;
-    body = new Uint8Array(await res.arrayBuffer());
+    const range = parseRange(opts.range ?? null, body.length);
+    if (range) {
+      const [start, end] = range;
+      return new NextResponse(body.slice(start, end + 1) as BodyInit, {
+        status: 206,
+        headers: { ...headers, 'Content-Range': `bytes ${start}-${end}/${body.length}`, 'Content-Length': String(end - start + 1) },
+      });
+    }
+    return new NextResponse(body as BodyInit, { headers: { ...headers, 'Content-Length': String(body.length) } });
   }
 
-  const mime = block.mime || 'application/octet-stream';
-  // En línea solo las imágenes que se muestran; todo lo demás se descarga.
-  const inline = isInlineImageMime(mime) && !opts.download;
-  return new NextResponse(body as BodyInit, {
-    headers: {
-      'Content-Type': inline ? mime : 'application/octet-stream',
-      'Content-Disposition': contentDisposition(block.name || 'file', inline),
-      'X-Content-Type-Options': 'nosniff',
-      'Content-Security-Policy': "default-src 'none'; sandbox",
-      // El permiso se chequea en cada request: nada de caches compartidos.
-      'Cache-Control': 'private, max-age=300',
-    },
-  });
+  const res = await fetch(block.url, opts.range ? { headers: { Range: opts.range } } : undefined).catch(() => null);
+  if (!res || (!res.ok && res.status !== 206) || !res.body) return null;
+  const out: Record<string, string> = { ...headers };
+  const len = res.headers.get('content-length');
+  if (len) out['Content-Length'] = len;
+  const cr = res.headers.get('content-range');
+  if (res.status === 206 && cr) out['Content-Range'] = cr;
+  return new NextResponse(res.body as BodyInit, { status: res.status === 206 ? 206 : 200, headers: out });
 }
 
 /** Carpetas de public/uploads que se sirven sin chequeo (sus URLs ya son públicas). */

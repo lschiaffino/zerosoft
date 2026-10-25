@@ -10,10 +10,24 @@ import { withDatabaseBodies, type DocsBlock } from './docs-types';
  * en cada request (un link copiado deja de andar si se pierde el acceso).
  */
 
-export type DocsFileKind = 'image' | 'file';
+export type DocsFileKind = 'image' | 'file' | 'video' | 'audio' | 'pdf';
 
-/** Tope por archivo: el mismo MAX_UPLOAD_SIZE de lib/uploads.ts (el editor avisa antes de subir). */
-export const DOCS_MAX_UPLOAD = 10 * 1024 * 1024;
+/**
+ * Tope por archivo cuando pasa por nuestro servidor (multipart a
+ * /api/docs/pages/<id>/files): disco local en un servidor propio.
+ */
+export const DOCS_MAX_UPLOAD = 50 * 1024 * 1024;
+/**
+ * Tope con Vercel Blob: el navegador sube directo al storage (subida de
+ * cliente, en partes para lo grande); el servidor solo firma el permiso.
+ */
+export const DOCS_MAX_BLOB_UPLOAD = 5 * 1024 * 1024 * 1024;
+
+/** Cómo sube el editor: directo a Blob o por el servidor (y hasta cuánto). */
+export interface DocsUploadConfig {
+  mode: 'blob' | 'server';
+  max: number;
+}
 
 export interface DocsUploadResult {
   url: string;
@@ -24,6 +38,10 @@ export interface DocsUploadResult {
 
 /** Imágenes que se muestran en línea (el resto de los tipos van como archivo). */
 const INLINE_IMAGE = /^image\/(png|jpe?g|gif|webp|avif|bmp)$/i;
+/** Video y audio que el navegador reproduce con <video>/<audio>. */
+const INLINE_VIDEO = /^video\/(mp4|webm|ogg|quicktime)$/i;
+const INLINE_AUDIO = /^audio\/(mpeg|mp3|mp4|x-m4a|aac|ogg|wav|x-wav|webm|flac)$/i;
+const PDF_MIME = /^application\/pdf$/i;
 
 // URL que devuelve saveUpload('docs', …): disco local o Vercel Blob. Solo
 // estas se aceptan en un bloque (y solo estas pide el proxy: nada de SSRF).
@@ -40,13 +58,59 @@ export function isInlineImageMime(mime: string | null | undefined): boolean {
   return INLINE_IMAGE.test(mime ?? '');
 }
 
-export function isFileBlockType(type: string): type is DocsFileKind {
-  return type === 'image' || type === 'file';
+export function isInlineMediaMime(mime: string | null | undefined): boolean {
+  return INLINE_VIDEO.test(mime ?? '') || INLINE_AUDIO.test(mime ?? '');
 }
 
-/** Tipo de bloque para un archivo soltado o pegado: imagen si se puede mostrar. */
+export function isPdfMime(mime: string | null | undefined): boolean {
+  return PDF_MIME.test(mime ?? '');
+}
+
+export function isFileBlockType(type: string): type is DocsFileKind {
+  return type === 'image' || type === 'file' || type === 'video' || type === 'audio' || type === 'pdf';
+}
+
+/** Tipo de bloque para un archivo soltado o pegado: imagen, video, audio o PDF si se puede mostrar. */
 export function fileKindFor(mime: string): DocsFileKind {
-  return isInlineImageMime(mime) ? 'image' : 'file';
+  if (isInlineImageMime(mime)) return 'image';
+  if (INLINE_VIDEO.test(mime)) return 'video';
+  if (INLINE_AUDIO.test(mime)) return 'audio';
+  if (PDF_MIME.test(mime)) return 'pdf';
+  return 'file';
+}
+
+/** El tipo pedido ("/video", "/pdf") si el archivo lo soporta; si no, el que le corresponde. */
+export function fileKindForRequest(requested: DocsFileKind | undefined, mime: string): DocsFileKind {
+  const natural = fileKindFor(mime);
+  if (!requested || requested === 'file') return requested === 'file' ? 'file' : natural;
+  return requested === natural ? requested : natural;
+}
+
+/** Atributo accept del selector de archivos para cada "/comando". */
+export function acceptFor(kind: DocsFileKind | undefined): string {
+  switch (kind) {
+    case 'image':
+      return 'image/*';
+    case 'video':
+      return 'video/*';
+    case 'audio':
+      return 'audio/*';
+    case 'pdf':
+      return 'application/pdf,.pdf';
+    default:
+      return '';
+  }
+}
+
+/** Nombre guardado en el storage: "<uuid>-<nombre saneado>" (lo que acepta isDocsUploadUrl). */
+export function docsStoragePathname(name: string, uuid: string): string {
+  const safe = name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120) || 'upload';
+  return `docs/${uuid}-${safe}`;
+}
+
+/** Pathname válido para una subida de cliente a Blob (el servidor lo chequea antes de firmar). */
+export function isDocsStoragePathname(pathname: unknown): pathname is string {
+  return typeof pathname === 'string' && /^docs\/[0-9a-f-]{36}-[A-Za-z0-9._-]{1,120}$/.test(pathname);
 }
 
 /** URL (de nuestro origen) que sirve el archivo de un bloque con chequeo de acceso. */
@@ -143,4 +207,41 @@ export function contentDisposition(name: string, inline: boolean): string {
 export interface DocsFileSource {
   uploadUrl: string;
   href: (blockId: string, opts?: { download?: boolean }) => string;
+}
+
+/** Prefijo del ícono de página subido (el resto del valor es la URL del storage). */
+export const ICON_IMAGE_PREFIX = 'img:';
+
+/** URL del storage de un ícono subido ("img:<url>"), o null si es un emoji. */
+export function iconImageUrl(icon: string | null | undefined): string | null {
+  if (!icon || !icon.startsWith(ICON_IMAGE_PREFIX)) return null;
+  const url = icon.slice(ICON_IMAGE_PREFIX.length);
+  return isDocsUploadUrl(url) ? url : null;
+}
+
+/** Portada: color o degradé de la galería ("color:<clave>"). */
+export const COVER_COLOR_PREFIX = 'color:';
+
+/**
+ * Bloque "virtual" para servir el ícono o la portada subidos de una página por
+ * /api/docs/files/<página>/icon|cover (mismo chequeo de acceso que un bloque).
+ */
+export function pageImageBlock(value: string | null | undefined, kind: 'icon' | 'cover'): (DocsBlock & { url: string }) | null {
+  const url = kind === 'icon' ? iconImageUrl(value) : isDocsUploadUrl(value) ? value : null;
+  if (!url) return null;
+  const ext = url.toLowerCase().split('.').pop() ?? '';
+  const mime = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : ext === 'avif' ? 'image/avif' : 'image/jpeg';
+  return { id: kind, type: 'image', content: '', url, name: kind, mime };
+}
+
+/** Hash corto de un string (para que el navegador no muestre un ícono o portada viejos). */
+function shortHash(s: string): string {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+/** URL (con chequeo de acceso) del ícono o la portada subidos de una página. */
+export function pageImageHref(pageId: string, kind: 'icon' | 'cover', value: string): string {
+  return `${docsFileHref(pageId, kind)}?v=${shortHash(value)}`;
 }

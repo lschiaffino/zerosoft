@@ -21,6 +21,7 @@
  */
 
 import { isPageLinkId, pageLinkHref } from './docs-page-links';
+import { DAY_RE, RID_RE, TIME_RE } from './docs-dates';
 
 export type DocsMarkTag = 'strong' | 'em' | 'u' | 's' | 'code';
 
@@ -173,6 +174,32 @@ function serializeNode(
     out.push('</a>');
     return;
   }
+  if (tag === 'SPAN') {
+    // Ecuación en línea: el LaTeX vive en data-tex (el render de KaTeX va en
+    // un shadow root, así que el texto del span es el LaTeX mismo).
+    const tex = el.getAttribute('data-tex');
+    if (tex !== null) {
+      if (!tex) return;
+      out.push(`<span data-tex="${escapeAttr(tex.slice(0, 2000))}">${escapeHtml(tex.slice(0, 2000))}</span>`);
+      return;
+    }
+    // Mención de fecha (lib/docs-dates.ts): atributos validados, texto tal cual.
+    const date = el.getAttribute('data-date');
+    if (date !== null && DAY_RE.test(date)) {
+      const text = el.textContent ?? '';
+      if (!text) return;
+      const attrs = [`data-date="${date}"`];
+      const time = el.getAttribute('data-time');
+      if (time && TIME_RE.test(time)) attrs.push(`data-time="${time}"`);
+      const remind = el.getAttribute('data-remind');
+      const rid = el.getAttribute('data-rid');
+      if (remind && rid && RID_RE.test(rid) && !Number.isNaN(Date.parse(remind))) {
+        attrs.push(`data-remind="${new Date(remind).toISOString()}"`, `data-rid="${rid}"`);
+      }
+      out.push(`<span ${attrs.join(' ')}>${escapeHtml(text)}</span>`);
+      return;
+    }
+  }
   const mark = TAG_MAP[tag];
   if (mark) {
     // Marca sin texto (cloneContents deja wrappers vacíos en los bordes de un
@@ -225,7 +252,7 @@ export function htmlToFlatText(html: string): string {
 
 /** Contenido viejo (texto plano) → HTML-lite escapado; si ya trae tags del
  * subset, se sanitiza. Heurística: contiene un tag del subset bien formado. */
-const HTML_TAG_RE = /<\/?(?:strong|em|u|s|code|a)(?:\s[^>]*)?>/i;
+const HTML_TAG_RE = /<\/?(?:strong|em|u|s|code|a|span)(?:\s[^>]*)?>/i;
 
 export function upgradeToHtml(content: string): string {
   if (!content) return '';

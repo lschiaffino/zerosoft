@@ -5,6 +5,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import Icon from '@/components/app/icons';
 import type { DocsPage } from '@/lib/docs-types';
 import DocsBlocksView from './DocsBlocksView';
+import DocsPageIcon from './DocsPageIcon';
+import { DocsStaticCover } from './DocsStaticCover';
 import VersionsPanel from './VersionsPanel';
 
 /** Página compartida con permiso de lectura: sin editor, con export y versiones (solo ver). */
@@ -52,8 +54,13 @@ export default function DocsReadOnlyView({
             </button>
           </div>
         </div>
+        {page.cover_url && <DocsStaticCover pageId={page.id} value={page.cover_url} position={page.cover_position} />}
         <div className="docs-page-header">
-          {page.icon && <span className="docs-icon" aria-hidden="true">{page.icon}</span>}
+          {page.icon && (
+            <span className="docs-icon" aria-hidden="true">
+              <DocsPageIcon icon={page.icon} pageId={page.id} size={56} />
+            </span>
+          )}
           <h1 className="docs-title docs-readonly-title">{page.title || t('untitled')}</h1>
         </div>
         <DocsBlocksView blocks={page.content} pageId={page.id} people={people} locale={locale} className="docs-prose docs-readonly-body" />

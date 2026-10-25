@@ -9,6 +9,9 @@ import {
   type UserRow,
 } from './db';
 import { sanitizeBlocks } from './docs-sanitize';
+import { normalizeStructure } from './docs-columns';
+import { persistSyncedBlocks } from './docs-synced';
+import { syncDocReminders } from './docs-reminders';
 import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
 import { databaseRowEntries } from './docs-database';
 import {
@@ -71,6 +74,7 @@ export function toDocPage(row: DocsPageRow): DocsPage {
     full_width: row.full_width === 1,
     position: row.position ?? null,
     inherit_shares: row.inherit_shares !== 0,
+    cover_position: row.cover_position ?? undefined,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -353,7 +357,7 @@ export async function createDocPage(
   }
   const icon = input.icon ?? null;
   const coverUrl = input.cover_url ?? null;
-  const content = stringifyBlocks(sanitizeBlocks(input.content ?? defaultBlocks()));
+  const content = stringifyBlocks(cleanContent(input.content ?? defaultBlocks()));
 
   await getDb()
     .prepare(
@@ -366,7 +370,13 @@ export async function createDocPage(
   return toDocPage(row);
 }
 
+/** Bloques listos para guardar: saneados y con columnas/sincronizados válidos. */
+export function cleanContent(blocks: DocsBlock[]): DocsBlock[] {
+  return normalizeStructure(sanitizeBlocks(blocks), () => crypto.randomUUID());
+}
+
 export interface UpdateDocPageInput {
+  cover_position?: number;
   title?: string;
   icon?: string | null;
   cover_url?: string | null;
@@ -399,6 +409,8 @@ export async function updateDocPage(
   ownerId: string,
   pageId: string,
   input: UpdateDocPageInput,
+  /** Quién guarda (bloques sincronizados y recordatorios) y su idioma/zona horaria. */
+  ctx: { actorId?: string | null; locale?: string | null; timezone?: string | null } = {},
 ): Promise<DocsPage | null> {
   const row = (await getDb()
     .prepare('SELECT * FROM docs_pages WHERE id = ?')
@@ -434,9 +446,22 @@ export async function updateDocPage(
     updates.push('cover_url = ?');
     args.push(input.cover_url);
   }
+  let savedContent: DocsBlock[] | null = null;
   if (input.content !== undefined) {
+    // Bloques sincronizados: lo editado adentro se escribe en su tabla.
+    savedContent = await persistSyncedBlocks({
+      workspaceId: ownerId,
+      pageId,
+      actorId: ctx.actorId ?? null,
+      previous: parseBlocks(row.content),
+      next: cleanContent(input.content),
+    });
     updates.push('content = ?');
-    args.push(stringifyBlocks(sanitizeBlocks(input.content)));
+    args.push(stringifyBlocks(savedContent));
+  }
+  if (input.cover_position !== undefined) {
+    updates.push('cover_position = ?');
+    args.push(Math.max(0, Math.min(100, Math.round(input.cover_position))));
   }
   if (input.parent_id !== undefined) {
     updates.push('parent_id = ?');
@@ -501,6 +526,18 @@ export async function updateDocPage(
     .run(...args);
   // Otro guardado se coló entre el SELECT y el UPDATE.
   if (base !== undefined && result.changes === 0) throw new DocsConflictError();
+
+  // Recordatorios de las menciones de fecha: la tabla queda igual al contenido.
+  if (savedContent && ctx.actorId) {
+    await syncDocReminders({
+      pageId,
+      workspaceId: ownerId,
+      actorId: ctx.actorId,
+      blocks: savedContent,
+      locale: ctx.locale,
+      timezone: ctx.timezone,
+    }).catch(() => undefined);
+  }
 
   // Papelera: archivar/restaurar arrastra a las subpáginas (si no, quedaban
   // huérfanas en la raíz del árbol al mandar el padre a la papelera).

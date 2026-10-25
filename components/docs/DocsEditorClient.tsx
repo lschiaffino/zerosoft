@@ -18,6 +18,8 @@ import VersionsPanel from './VersionsPanel';
 import SaveTemplateDialog from './SaveTemplateDialog';
 import Icon from '@/components/app/icons';
 import DocsGlyph from './DocsGlyphs';
+import DocsPageIcon from './DocsPageIcon';
+import DocsFavoriteButton from './DocsFavoriteButton';
 
 interface CommentsLabels {
   title: string;
@@ -44,6 +46,7 @@ export default function DocsEditorClient({
   helpBase = null,
   feedback = null,
   backlinks = [],
+  favorite = null,
 }: {
   page: DocsPage;
   ancestors: DocsPage[];
@@ -57,6 +60,8 @@ export default function DocsEditorClient({
   feedback?: { yes: number; no: number } | null;
   /** Páginas con un link `[[` a esta (solo el dueño). */
   backlinks?: Array<{ id: string; title: string; icon: string | null }>;
+  /** Está en los favoritos de la persona (null = no se puede marcar: página de otro workspace). */
+  favorite?: boolean | null;
 }) {
   const router = useRouter();
   const t = useTranslations('docs');
@@ -326,6 +331,7 @@ export default function DocsEditorClient({
         {t('comments.title')}
         {openComments > 0 && <span className="docs-top-count">{openComments}</span>}
       </button>
+      {favorite !== null && <DocsFavoriteButton pageId={page.id} initial={favorite} />}
       {isOwner && (
         <button
           type="button"
@@ -438,7 +444,7 @@ export default function DocsEditorClient({
                 {backlinks.map((b) => (
                   <li key={b.id}>
                     <Link href={`/app/docs/${b.id}`} className="docs-backlink">
-                      {b.icon ? <span aria-hidden="true">{b.icon}</span> : <DocsGlyph name="page" size={14} />}
+                      <DocsPageIcon icon={b.icon} pageId={b.id} size={14} fallback />
                       <span>{b.title || t('untitled')}</span>
                     </Link>
                   </li>

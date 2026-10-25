@@ -5,6 +5,11 @@ import { docsFileHref, formatFileSize } from '@/lib/docs-files';
 import { blocksToTree, isToggleBlock, type DocsBlockNode } from '@/lib/docs-blocks';
 import { DocsBoardPreview } from './DocsBoardEmbed';
 import DbReadOnly from './database/DbReadOnly';
+import { BookmarkCard, EmbedFrame } from './DocsLinkCards';
+import { columnRatio } from '@/lib/docs-columns';
+import { renderTex, texFromContent, withInlineMath } from '@/lib/docs-math';
+import 'katex/dist/katex.min.css';
+import '@/styles/docs-blocks-shared.css';
 
 /**
  * Render de solo lectura de los bloques de una página de Docs: centro de
@@ -24,6 +29,7 @@ export default function DocsBlocksView({
   boards = true,
   people,
   locale,
+  trail,
 }: {
   blocks: DocsBlock[];
   pageId?: string;
@@ -35,15 +41,21 @@ export default function DocsBlocksView({
   /** Nombres de los miembros (propiedades persona de las bases); sin esto no se muestran. */
   people?: Record<string, string>;
   locale?: string;
+  /** Ruta de la página (bloque breadcrumb); sin esto no se muestra. */
+  trail?: Array<{ id: string; title: string; href?: string }>;
 }) {
   const hrefFor = fileHref ?? (pageId ? (blockId: string, opts?: { download?: boolean }) => docsFileHref(pageId, blockId, opts) : null);
-  const anchors = new Map(buildToc(blocks).map((e) => [e.blockId, e.anchor]));
+  const toc = buildToc(blocks);
+  const anchors = new Map(toc.map((e) => [e.blockId, e.anchor]));
+  /** HTML de un bloque con las ecuaciones en línea ya dibujadas (KaTeX en el servidor). */
+  const rich = (html: string) => ({ __html: withInlineMath(html) });
+  const caption = (b: DocsBlock) => (b.caption ? <figcaption dangerouslySetInnerHTML={rich(b.caption)} /> : null);
 
   /** Un bloque (sin hijos). null si no se muestra (archivo sin URL). */
   const renderBlock = (b: DocsBlock): ReactNode => {
     switch (b.type) {
       case 'heading': {
-        const html = { __html: b.content };
+        const html = rich(b.content);
         const id = anchors.get(b.id);
         return b.level === 3 ? (
           <h4 key={b.id} id={id} dangerouslySetInnerHTML={html} />
@@ -57,18 +69,18 @@ export default function DocsBlocksView({
         return (
           <p key={b.id} className={`dbv-todo${b.checked ? ' done' : ''}`}>
             <input type="checkbox" checked={Boolean(b.checked)} readOnly disabled aria-hidden />
-            <span dangerouslySetInnerHTML={{ __html: b.content }} />
+            <span dangerouslySetInnerHTML={rich(b.content)} />
           </p>
         );
       case 'quote':
-        return <blockquote key={b.id} dangerouslySetInnerHTML={{ __html: b.content }} />;
+        return <blockquote key={b.id} dangerouslySetInnerHTML={rich(b.content)} />;
       case 'callout':
         return (
           <div key={b.id} className="dbv-callout">
             <span className="dbv-callout-icon" aria-hidden="true">
               {b.icon || '💡'}
             </span>
-            <div dangerouslySetInnerHTML={{ __html: b.content }} />
+            <div dangerouslySetInnerHTML={rich(b.content)} />
           </div>
         );
       case 'code':
@@ -82,10 +94,38 @@ export default function DocsBlocksView({
       case 'image':
         if (!hrefFor || b.url === undefined) return null;
         return (
-          <figure key={b.id} className="dbv-image">
+          <figure key={b.id} className={`dbv-image dbv-align-${b.align ?? 'center'}`}>
             {/* Servida por nuestra API con chequeo de acceso: next/image no aplica. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={hrefFor(b.id)} alt={b.name ?? ''} loading="lazy" />
+            <img src={hrefFor(b.id)} alt={b.name ?? ''} loading="lazy" style={b.width ? { width: `${b.width}%` } : undefined} />
+            {caption(b)}
+          </figure>
+        );
+      case 'video':
+        if (!hrefFor || b.url === undefined) return null;
+        return (
+          <figure key={b.id} className="dbv-media">
+            <video src={hrefFor(b.id)} controls preload="metadata" style={b.width ? { width: `${b.width}%` } : undefined} />
+            {caption(b)}
+          </figure>
+        );
+      case 'audio':
+        if (!hrefFor || b.url === undefined) return null;
+        return (
+          <figure key={b.id} className="dbv-media">
+            <audio src={hrefFor(b.id)} controls preload="metadata" />
+            {caption(b)}
+          </figure>
+        );
+      case 'pdf':
+        if (!hrefFor || b.url === undefined) return null;
+        return (
+          <figure key={b.id} className="dbv-media dbv-pdf">
+            <iframe src={hrefFor(b.id)} title={b.name ?? 'PDF'} loading="lazy" style={b.width ? { width: `${b.width}%` } : undefined} />
+            <a href={hrefFor(b.id)} target="_blank" rel="noopener noreferrer">
+              {b.name || 'PDF'}
+            </a>
+            {caption(b)}
           </figure>
         );
       case 'file':
@@ -98,6 +138,57 @@ export default function DocsBlocksView({
             <span className="dbv-file-size">{formatFileSize(b.size)}</span>
           </p>
         );
+      case 'bookmark':
+        return b.link ? (
+          <div key={b.id} className="dbv-bookmark">
+            <BookmarkCard link={b.link} />
+          </div>
+        ) : null;
+      case 'embed':
+        return b.link ? (
+          <div key={b.id} className="dbv-embed">
+            <EmbedFrame url={b.link.url} height={b.height} width={b.width} />
+          </div>
+        ) : null;
+      case 'equation': {
+        const tex = texFromContent(b.content);
+        return tex ? <div key={b.id} className="dbv-equation" dangerouslySetInnerHTML={{ __html: renderTex(tex, true) }} /> : null;
+      }
+      case 'toc':
+        return toc.length ? (
+          <nav key={b.id} className="dbv-toc" aria-label="Table of contents">
+            <ul>
+              {toc.map((e) => (
+                <li key={e.blockId} className={`dbv-toc-l${e.level}`}>
+                  <a href={`#${e.anchor}`}>{e.text}</a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ) : null;
+      case 'breadcrumb':
+        return trail?.length ? (
+          <nav key={b.id} className="dbv-breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              {trail.map((p) => (
+                <li key={p.id}>{p.href ? <a href={p.href}>{p.title}</a> : <span>{p.title}</span>}</li>
+              ))}
+            </ol>
+          </nav>
+        ) : null;
+      case 'button':
+        // En lectura el botón no hace nada salvo abrir su link.
+        return b.button?.action === 'link' && b.button.url ? (
+          <p key={b.id} className="dbv-button">
+            <a className="btn btn-secondary btn-sm" href={b.button.url} target={b.button.url.startsWith('/') ? undefined : '_blank'} rel="noopener noreferrer">
+              {b.button.label || b.button.url}
+            </a>
+          </p>
+        ) : null;
+      case 'columns':
+      case 'column':
+      case 'synced':
+        return null;
       case 'board':
         // Vista previa con chequeo de acceso de quien mira (sin acceso: aviso, sin datos).
         if (!boards || !b.board_id) return null;
@@ -124,7 +215,7 @@ export default function DocsBlocksView({
       }
       default:
         if (!b.content) return <p key={b.id} className="dbv-empty" aria-hidden />;
-        return <p key={b.id} dangerouslySetInnerHTML={{ __html: b.content }} />;
+        return <p key={b.id} dangerouslySetInnerHTML={rich(b.content)} />;
     }
   };
 
@@ -144,7 +235,7 @@ export default function DocsBlocksView({
         while (i < nodes.length && nodes[i].block.type === type) items.push(nodes[i++]);
         const children = items.map((it) => (
           <li key={it.block.id}>
-            <span dangerouslySetInnerHTML={{ __html: it.block.content }} />
+            <span dangerouslySetInnerHTML={rich(it.block.content)} />
             {it.children.length > 0 && renderNodes(it.children)}
           </li>
         ));
@@ -152,9 +243,28 @@ export default function DocsBlocksView({
         continue;
       }
       const node = nodes[i++];
+      // Columnas: una fila con cada columna al lado (se apilan en el teléfono).
+      if (b.type === 'columns') {
+        const cols = node.children.filter((c) => c.block.type === 'column');
+        out.push(
+          <div key={b.id} className="dbv-columns">
+            {cols.map((c) => (
+              <div key={c.block.id} className="dbv-column" style={{ flexGrow: columnRatio(c.block) }}>
+                {renderNodes(c.children)}
+              </div>
+            ))}
+          </div>,
+        );
+        continue;
+      }
+      // Sincronizado: en lectura es su contenido, sin marco.
+      if (b.type === 'synced') {
+        out.push(<div key={b.id} className="dbv-synced">{renderNodes(node.children)}</div>);
+        continue;
+      }
       if (isToggleBlock(b)) {
         const summary =
-          b.type === 'heading' ? renderBlock(b) : <span dangerouslySetInnerHTML={{ __html: b.content }} />;
+          b.type === 'heading' ? renderBlock(b) : <span dangerouslySetInnerHTML={rich(b.content)} />;
         out.push(
           <details key={b.id} className={`dbv-toggle${b.type === 'heading' ? ' dbv-toggle-heading' : ''}`} open={!b.collapsed}>
             <summary>{summary}</summary>

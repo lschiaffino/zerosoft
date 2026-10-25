@@ -12,13 +12,14 @@ import {
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { Link } from '@/i18n/navigation';
 import {
   defaultBlocks,
   type DocsBlock,
+  type DocsButtonConfig,
   type DocsDatabase,
   type DocsBlockType,
   type DocsMentionableUser,
@@ -35,15 +36,37 @@ import {
   setSelectionOffsets,
 } from '@/lib/docs-caret';
 import {
-  DOCS_MAX_UPLOAD,
+  acceptFor,
+  ICON_IMAGE_PREFIX,
+  iconImageUrl,
+  pageImageHref,
   fileBlockFromUpload,
+  fileKindForRequest,
   isFileBlockType,
-  isInlineImageMime,
   docsFileHref,
+  formatFileSize,
   type DocsFileKind,
   type DocsFileSource,
-  type DocsUploadResult,
 } from '@/lib/docs-files';
+import { DocsUploadError, uploadDocsFile, uploadLimit } from '@/lib/docs-upload-client';
+import {
+  containerOf,
+  columnRatio,
+  columnsIn,
+  dropBeside,
+  isStructuralBlock,
+  makeColumnList,
+  normalizeStructure,
+  resizeRatios,
+  scopeBaseIndent,
+  visualIndent,
+  MAX_COLUMNS,
+} from '@/lib/docs-columns';
+import { embedFor, pastedUrl } from '@/lib/docs-embeds';
+import { dateLabel, dateMentionHtml, dateSuggestions, localInstant } from '@/lib/docs-dates';
+import { buildToc } from '@/lib/docs-toc';
+import { markdownToBlocks } from '@/lib/docs-import';
+import { sanitizeHtml as sanitizeRichHtml } from '@/lib/docs-richtext';
 import {
   escapeHtml,
   getLinkAt,
@@ -90,11 +113,17 @@ import {
 import { DOCS_IMPORT_MAX_BYTES, docsImportKind } from '@/lib/docs-import';
 import DocsBlockEditor from './DocsBlockEditor';
 import MentionPopover from './MentionPopover';
-import UserMentionPopover from './UserMentionPopover';
+import UserMentionPopover, { type DateMentionOption } from './UserMentionPopover';
+import { fetchLinkPreview } from './DocsLinkBlocks';
+import { InlineEquationEditor } from './DocsAdvancedBlocks';
+import DocsPageIcon from './DocsPageIcon';
+import DocsCoverPicker, { DocsCover } from './DocsCoverPicker';
+import DocsTemplateGallery from './DocsTemplateGallery';
+import type { DocTemplate } from '@/lib/docs-templates';
 import EmojiPicker from './EmojiPicker';
 import DocsGlyph, { type DocsGlyphName } from './DocsGlyphs';
 import DbRowPanel, { type DbRowPanelMode } from './database/DbRowPanel';
-import { rememberUploadPreview } from './DocsEditorImage';
+import { rememberUploadPreview, uploadPreview } from './DocsEditorImage';
 
 interface DocsEditorProps {
   page: DocsPage;
@@ -137,6 +166,9 @@ interface DocsEditorProps {
   allowDatabase?: boolean;
 }
 
+/** Acciones del menú `/` que no son "convertir este bloque en otro tipo". */
+type CommandSpecial = 'columns' | 'date' | 'reminder' | 'inlineEquation';
+
 const BLOCK_COMMANDS: {
   key: string;
   type: DocsBlockType;
@@ -144,6 +176,11 @@ const BLOCK_COMMANDS: {
   /** Heading con toggle. */
   toggle?: boolean;
   shortcut?: string;
+  special?: CommandSpecial;
+  /** Columnas: cuántas. */
+  count?: number;
+  /** Sección del menú `/`. */
+  group?: 'basic' | 'media' | 'advanced' | 'inline';
 }[] = [
   { key: 'p', type: 'paragraph' },
   { key: 'h1', type: 'heading', level: 1, shortcut: '#' },
@@ -162,18 +199,41 @@ const BLOCK_COMMANDS: {
   { key: 'divider', type: 'divider' },
   { key: 'table', type: 'table' },
   { key: 'database', type: 'database' },
-  { key: 'image', type: 'image' },
-  { key: 'file', type: 'file' },
-  { key: 'board', type: 'board' },
+  { key: 'image', type: 'image', group: 'media' },
+  { key: 'video', type: 'video', group: 'media' },
+  { key: 'audio', type: 'audio', group: 'media' },
+  { key: 'pdf', type: 'pdf', group: 'media' },
+  { key: 'file', type: 'file', group: 'media' },
+  { key: 'bookmark', type: 'bookmark', group: 'media' },
+  { key: 'embed', type: 'embed', group: 'media' },
+  { key: 'board', type: 'board', group: 'media' },
+  { key: 'col2', type: 'columns', special: 'columns', count: 2, group: 'advanced' },
+  { key: 'col3', type: 'columns', special: 'columns', count: 3, group: 'advanced' },
+  { key: 'col4', type: 'columns', special: 'columns', count: 4, group: 'advanced' },
+  { key: 'col5', type: 'columns', special: 'columns', count: 5, group: 'advanced' },
+  { key: 'synced', type: 'synced', group: 'advanced' },
+  { key: 'equation', type: 'equation', group: 'advanced' },
+  { key: 'toc', type: 'toc', group: 'advanced' },
+  { key: 'button', type: 'button', group: 'advanced' },
+  { key: 'breadcrumb', type: 'breadcrumb', group: 'advanced' },
+  { key: 'date', type: 'paragraph', special: 'date', group: 'inline' },
+  { key: 'reminder', type: 'paragraph', special: 'reminder', group: 'inline' },
+  { key: 'inlineEquation', type: 'equation', special: 'inlineEquation', group: 'inline' },
 ];
 
-/** Bloques atómicos (se enfocan enteros): imagen, archivo y pizarra embebida. */
+/** Bloques atómicos (se enfocan enteros): archivos, links, pizarra y los avanzados. */
+const CARD_TYPES = new Set<DocsBlockType>(['board', 'bookmark', 'embed', 'equation', 'toc', 'button', 'breadcrumb']);
 function isCardBlockType(type: DocsBlockType): boolean {
-  return isFileBlockType(type) || type === 'board';
+  return isFileBlockType(type) || CARD_TYPES.has(type);
 }
 
-/** "Convertir en": los bloques de archivo y de pizarra no salen de un bloque de texto. */
-const TURN_INTO_COMMANDS = BLOCK_COMMANDS.filter((c) => !isCardBlockType(c.type));
+/** Bloques que se crean enteros (no se convierte un texto en ellos): van debajo con un párrafo. */
+const INSERT_TYPES = new Set<DocsBlockType>(['board', 'bookmark', 'embed', 'equation', 'toc', 'button', 'breadcrumb']);
+
+/** "Convertir en": los bloques de archivo, link, contenedores y avanzados no salen de un texto. */
+const TURN_INTO_COMMANDS = BLOCK_COMMANDS.filter(
+  (c) => !isCardBlockType(c.type) && !c.special && c.type !== 'synced' && c.type !== 'columns',
+);
 
 /** Keywords extra para matchear el menú `/` (el label traducido no alcanza: "To-do" ≠ "todo"). */
 const COMMAND_KEYWORDS: Record<string, string[]> = {
@@ -197,6 +257,23 @@ const COMMAND_KEYWORDS: Record<string, string[]> = {
   image: ['image', 'picture', 'photo', 'img', 'upload', 'imagen', 'foto', 'imagem'],
   file: ['file', 'attachment', 'upload', 'pdf', 'document', 'archivo', 'adjunto', 'arquivo', 'anexo'],
   board: ['board', 'whiteboard', 'canvas', 'excalidraw', 'pizarra', 'quadro', 'lousa'],
+  video: ['video', 'movie', 'mp4', 'vídeo'],
+  audio: ['audio', 'sound', 'music', 'mp3', 'podcast', 'sonido', 'áudio'],
+  pdf: ['pdf', 'document', 'documento'],
+  bookmark: ['bookmark', 'link', 'url', 'preview', 'marcador', 'enlace'],
+  embed: ['embed', 'iframe', 'youtube', 'vimeo', 'loom', 'figma', 'maps', 'codepen', 'twitter', 'gist', 'spotify', 'miro', 'incrustar', 'incorporar'],
+  col2: ['columns', 'column', '2', 'layout', 'columnas', 'colunas'],
+  col3: ['columns', 'column', '3', 'layout', 'columnas', 'colunas'],
+  col4: ['columns', 'column', '4', 'layout', 'columnas', 'colunas'],
+  col5: ['columns', 'column', '5', 'layout', 'columnas', 'colunas'],
+  synced: ['synced', 'sync', 'sincronizado', 'sincronizar'],
+  equation: ['equation', 'math', 'latex', 'katex', 'formula', 'ecuación', 'equação', 'tex'],
+  toc: ['toc', 'table of contents', 'contents', 'índice', 'indice', 'sumário', 'sumario'],
+  button: ['button', 'botón', 'boton', 'botão', 'action'],
+  breadcrumb: ['breadcrumb', 'path', 'ruta', 'migas', 'caminho'],
+  date: ['date', 'today', 'tomorrow', 'fecha', 'hoy', 'data', 'hoje', '@'],
+  reminder: ['remind', 'reminder', 'recordatorio', 'recordar', 'lembrete', 'alarm'],
+  inlineEquation: ['inline equation', 'math', 'latex', 'ecuación en línea', 'equação em linha', '$$'],
 };
 
 const BLOCK_ICONS: Record<DocsBlockType, DocsGlyphName> = {
@@ -215,7 +292,26 @@ const BLOCK_ICONS: Record<DocsBlockType, DocsGlyphName> = {
   toggle: 'toggle',
   callout: 'callout',
   board: 'board',
+  video: 'video',
+  audio: 'audio',
+  pdf: 'pdf',
+  columns: 'columns',
+  column: 'columns',
+  bookmark: 'bookmark',
+  embed: 'embed',
+  synced: 'synced',
+  equation: 'equation',
+  toc: 'toc',
+  button: 'button',
+  breadcrumb: 'breadcrumb',
 };
+
+/** Ícono de un comando del menú `/` (los especiales tienen el suyo). */
+function commandIcon(cmd: { type: DocsBlockType; special?: CommandSpecial }): DocsGlyphName {
+  if (cmd.special === 'date') return 'calendar';
+  if (cmd.special === 'reminder') return 'bell';
+  return BLOCK_ICONS[cmd.type];
+}
 
 const LIST_TYPES: DocsBlockType[] = ['bulleted_list_item', 'numbered_list_item', 'todo'];
 
@@ -233,12 +329,42 @@ interface BlockDragState {
   offsetY: number;
   /** Posición de inserción (antes del bloque en ese índice; = length para el final). */
   dropIndex: number;
+  /** Nivel con que entra (dentro de una columna o un sincronizado); sin esto, el del bloque de arriba. */
+  dropIndent?: number;
+  /** Soltar al costado de un bloque: crea columnas. */
+  side?: { target: number; side: 'left' | 'right' } | null;
 }
 
-/** Bloques cuyo contenido es texto editable en línea (no divider/table/database/image/file). */
-function isTextBlockType(type: DocsBlockType): boolean {
-  return type !== 'divider' && type !== 'table' && type !== 'database' && !isCardBlockType(type);
+/** Línea indicadora de drop (px relativos a .docs-blocks); vertical = al costado (columnas). */
+interface DropLine {
+  top: number;
+  left: number;
+  width: number;
+  height?: number;
+  vertical?: boolean;
 }
+
+/** Dónde caería un bloque arrastrado (o un archivo soltado) en ese punto. */
+interface DropTarget {
+  index: number;
+  indent?: number;
+  side: { target: number; side: 'left' | 'right' } | null;
+  line: DropLine;
+}
+
+/** Bloques cuyo contenido es texto editable en línea (no divider/table/database/archivos/contenedores). */
+function isTextBlockType(type: DocsBlockType): boolean {
+  return (
+    type !== 'divider' &&
+    type !== 'table' &&
+    type !== 'database' &&
+    !isCardBlockType(type) &&
+    !isStructuralBlock({ type }) &&
+    type !== 'synced'
+  );
+}
+
+const newId = () => crypto.randomUUID();
 
 /**
  * Contenido cargado de la DB → modelo HTML-lite: el texto plano viejo se
@@ -328,13 +454,23 @@ export default function DocsEditor({
   allowDatabase = true,
 }: DocsEditorProps) {
   const t = useTranslations('docs');
+  const locale = useLocale();
   const searchParams = useSearchParams();
-  const [blocks, setBlocks] = useState<DocsBlock[]>(() =>
-    upgradeBlocks(page.content.length ? page.content : defaultBlocks()),
+  const [blocks, setBlocksRaw] = useState<DocsBlock[]>(() =>
+    normalizeStructure(upgradeBlocks(page.content.length ? page.content : defaultBlocks()), newId),
   );
+  /**
+   * Toda escritura de bloques pasa por acá: columnas y bloques sincronizados
+   * quedan siempre válidos (una columna vacía se va, una fila de una sola
+   * columna se deshace). El servidor aplica lo mismo al guardar.
+   */
+  const setBlocks = useCallback((update: DocsBlock[] | ((prev: DocsBlock[]) => DocsBlock[])) => {
+    setBlocksRaw((prev) => normalizeStructure(typeof update === 'function' ? update(prev) : update, newId));
+  }, []);
   const [title, setTitle] = useState(page.title);
   const [icon, setIcon] = useState(page.icon ?? '');
   const [coverUrl, setCoverUrl] = useState(page.cover_url ?? '');
+  const [coverPosition, setCoverPosition] = useState(page.cover_position ?? 50);
   const [smallText, setSmallText] = useState(!!page.small_text);
   const [fullWidth, setFullWidth] = useState(!!page.full_width);
   const [focusIndex, setFocusIndex] = useState<number>(0);
@@ -371,7 +507,6 @@ export default function DocsEditor({
   const titleRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
-  const coverRef = useRef<HTMLDivElement>(null);
   /** Caret pendiente de aplicar después del próximo render (split/merge/conversión). */
   const pendingCaret = useRef<{ index: number; offset: number } | null>(null);
   /** Último índice enfocado conocido, para no re-mover el caret en cada render. */
@@ -386,7 +521,7 @@ export default function DocsEditor({
   /** Índice del bloque que se está arrastrando (para atenuarlo). */
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   /** Top (px, relativo a .docs-blocks) de la línea indicadora de drop; null si no hay drag. */
-  const [dropLine, setDropLine] = useState<number | null>(null);
+  const [dropLine, setDropLine] = useState<DropLine | null>(null);
   const dragRef = useRef<BlockDragState | null>(null);
   /** El click posterior a un drag no debe abrir el menú. */
   const suppressGripClick = useRef(false);
@@ -411,6 +546,10 @@ export default function DocsEditor({
     top: number;
     left: number;
   } | null>(null);
+  /** Editor de una ecuación en línea: rango plano [start, start+length) del span (0 = nueva). */
+  const [eqPopover, setEqPopover] = useState<{ index: number; start: number; length: number; tex: string; top: number; left: number } | null>(null);
+  /** Link pegado solo: ofrecer mención, bookmark o embed (como Notion). */
+  const [pastePrompt, setPastePrompt] = useState<{ index: number; blockId: string; url: string; start: number; end: number; top: number; left: number; embeddable: boolean } | null>(null);
   const linkPopoverRef = useRef<HTMLDivElement | null>(null);
   const linkInputRef = useRef<HTMLInputElement | null>(null);
   /** Espejo del estado para el listener de selectionchange (sin re-suscribir). */
@@ -433,7 +572,7 @@ export default function DocsEditor({
   const [uploading, setUploading] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   /** Línea de drop (px, relativa a .docs-blocks) al arrastrar archivos del sistema. */
-  const [fileDropLine, setFileDropLine] = useState<number | null>(null);
+  const [fileDropLine, setFileDropLine] = useState<DropLine | null>(null);
   /**
    * Selección de bloques (Esc, o Shift+↑/↓ en el borde del bloque): rango de
    * índices con ancla y foco. Mientras hay selección el foco está en el
@@ -460,13 +599,14 @@ export default function DocsEditor({
   const pendingLoad = useRef<DocsBlock[] | null>(null);
 
   useEffect(() => {
-    const loaded = upgradeBlocks(page.content.length ? page.content : defaultBlocks());
+    const loaded = normalizeStructure(upgradeBlocks(page.content.length ? page.content : defaultBlocks()), newId);
     // Página nueva: el historial arranca de cero cuando se pinta lo cargado.
     pendingLoad.current = loaded;
-    setBlocks(loaded);
+    setBlocksRaw(loaded);
     setTitle(page.title);
     setIcon(page.icon ?? '');
     setCoverUrl(page.cover_url ?? '');
+    setCoverPosition(page.cover_position ?? 50);
     setBlockMenu(null);
     setToolbar(null);
     setLinkDialog(null);
@@ -554,6 +694,9 @@ export default function DocsEditor({
     if (prevFocus.current !== focusIndex) {
       prevFocus.current = focusIndex;
       const el = blockRefs.current[focusIndex];
+      // El foco ya está adentro del bloque (leyenda, campo de un link o de una ecuación): no se lo saca.
+      const active = document.activeElement;
+      if (el && active && active !== el && el.contains(active)) return;
       if (el) {
         el.focus();
         const range = document.createRange();
@@ -576,14 +719,6 @@ export default function DocsEditor({
     return () => document.removeEventListener('click', onClick);
   }, [menuOpen]);
 
-  useEffect(() => {
-    if (!coverOpen) return;
-    const onClick = (e: MouseEvent) => {
-      if (!coverRef.current?.contains(e.target as Node)) setCoverOpen(false);
-    };
-    document.addEventListener('click', onClick);
-    return () => document.removeEventListener('click', onClick);
-  }, [coverOpen]);
 
   // Menú contextual de bloque: cierra con Esc o click afuera (el click en otro
   // grip lo maneja el propio grip, que togglea).
@@ -788,7 +923,7 @@ export default function DocsEditor({
     } else {
       requestAnimationFrame(() => blockRefs.current[i]?.focus());
     }
-  }, []);
+  }, [, setBlocks]);
 
   // Cmd/Ctrl+Z con el foco fuera de todo (después de un click en el fondo):
   // también deshace en el editor. Con el foco adentro lo atrapa onKeyDownCapture.
@@ -843,39 +978,24 @@ export default function DocsEditor({
     async (
       files: File[],
       anchorId: string | null,
-      opts: { replaceId?: string | null; kind?: DocsFileKind } = {},
+      opts: { replaceId?: string | null; kind?: DocsFileKind; indent?: number } = {},
     ) => {
       if (!uploadsEnabled || files.length === 0) return;
       setUploadError(null);
       let anchor = anchorId;
       let replaceId = opts.replaceId ?? null;
+      const max = await uploadLimit(uploadUrl);
       for (const file of files) {
-        if (file.size > DOCS_MAX_UPLOAD) {
-          setUploadError(t('editor.upload.tooLarge', { name: file.name }));
+        if (file.size > max) {
+          setUploadError(t('editor.upload.tooLarge', { name: file.name, max: formatFileSize(max) }));
           continue;
         }
         setUploading((n) => n + 1);
         try {
-          const body = new FormData();
-          body.append('file', file);
-          const res = await fetch(uploadUrl, { method: 'POST', body });
-          if (!res.ok) {
-            const code = ((await res.json().catch(() => null)) as { error?: string } | null)?.error;
-            const key =
-              code === 'file_type_not_allowed'
-                ? 'editor.upload.typeNotAllowed'
-                : code === 'storage_unavailable'
-                  ? 'editor.upload.storageUnavailable'
-                  : code === 'file_too_large'
-                    ? 'editor.upload.tooLarge'
-                    : 'editor.upload.failed';
-            setUploadError(t(key, { name: file.name }));
-            continue;
-          }
-          const up = (await res.json()) as DocsUploadResult;
+          const up = await uploadDocsFile(file, { uploadUrl });
           rememberUploadPreview(up.url, file);
-          // "/imagen" con algo que no se puede mostrar en línea: queda como archivo.
-          const kind = opts.kind === 'image' && !isInlineImageMime(up.mime) ? 'file' : opts.kind;
+          // "/imagen" (o video, PDF) con algo que no se muestra así: queda con el tipo que le corresponde.
+          const kind = fileKindForRequest(opts.kind, up.mime);
           const newBlock = fileBlockFromUpload(up, kind);
           const rid = replaceId;
           const aid = anchor;
@@ -883,25 +1003,40 @@ export default function DocsEditor({
             const next = [...prev];
             const ri = rid ? next.findIndex((b) => b.id === rid) : -1;
             if (ri !== -1 && next[ri].type === 'paragraph' && next[ri].content === '') {
-              next[ri] = newBlock;
+              next[ri] = setIndent(newBlock, blockIndent(next[ri]));
             } else {
               const ai = aid ? next.findIndex((b) => b.id === aid) : -1;
-              // Ancla borrada mientras subía: al final.
-              next.splice(aid === null ? 0 : ai === -1 ? next.length : ai + 1, 0, newBlock);
+              // Ancla borrada mientras subía: al final. Toma el nivel pedido o el
+              // del ancla (adentro de una columna o un sincronizado si el ancla es el contenedor).
+              const anchorBlock = ai === -1 ? null : next[ai];
+              const level =
+                opts.indent ??
+                (anchorBlock ? blockIndent(anchorBlock) + (anchorBlock.type === 'column' || anchorBlock.type === 'synced' ? 1 : 0) : 0);
+              const placed = ai === -1 && opts.indent === undefined ? newBlock : setIndent(newBlock, level);
+              next.splice(aid === null ? 0 : ai === -1 ? next.length : ai + 1, 0, placed);
             }
             triggerSaveRef.current(next);
             return next;
           });
           anchor = newBlock.id;
           replaceId = null;
-        } catch {
-          setUploadError(t('editor.upload.failed', { name: file.name }));
+        } catch (err) {
+          const code = err instanceof DocsUploadError ? err.code : 'failed';
+          const key =
+            code === 'file_type_not_allowed'
+              ? 'editor.upload.typeNotAllowed'
+              : code === 'storage_unavailable'
+                ? 'editor.upload.storageUnavailable'
+                : code === 'file_too_large'
+                  ? 'editor.upload.tooLarge'
+                  : 'editor.upload.failed';
+          setUploadError(t(key, { name: file.name, max: formatFileSize(max) }));
         } finally {
           setUploading((n) => n - 1);
         }
       }
     },
-    [uploadUrl, t, uploadsEnabled],
+    [uploadUrl, t, uploadsEnabled, setBlocks],
   );
 
   /** Pegar archivos en un bloque: si es un párrafo vacío, lo reemplaza. */
@@ -915,26 +1050,64 @@ export default function DocsEditor({
     [blocks, uploadFiles],
   );
 
-  /** Bloque después del cual cae un archivo soltado (-1 = al principio) y la y de la línea. */
-  const fileDropTarget = useCallback((clientY: number): { index: number; top: number } => {
-    const wrap = blocksWrapRef.current;
-    if (!wrap) return { index: -1, top: 0 };
-    const outers = Array.from(wrap.querySelectorAll<HTMLElement>(':scope > .docs-block-outer'));
-    const wrapTop = wrap.getBoundingClientRect().top;
-    let index = outers.length - 1;
-    for (let i = 0; i < outers.length; i++) {
-      const r = outers[i].getBoundingClientRect();
-      if (clientY < r.top + r.height / 2) {
-        index = i - 1;
-        break;
+  /**
+   * Destino de un drop en (x, y): el contenedor más profundo bajo el puntero
+   * (una columna o un bloque sincronizado, o la página) y, adentro, el primer
+   * bloque cuyo centro queda abajo. Con `allowSide`, el borde derecho o
+   * izquierdo de un bloque es "al costado" (arma columnas, como en Notion).
+   */
+  const computeDrop = useCallback(
+    (clientX: number, clientY: number, allowSide: boolean, list: DocsBlock[]): DropTarget | null => {
+      const wrap = blocksWrapRef.current;
+      if (!wrap) return null;
+      const w = wrap.getBoundingClientRect();
+      let scope = -1;
+      let scopeRect: DOMRect = w;
+      wrap.querySelectorAll<HTMLElement>('[data-scope]').forEach((el) => {
+        const r = el.getBoundingClientRect();
+        const idx = Number(el.dataset.scope);
+        if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom && idx > scope) {
+          scope = idx;
+          scopeRect = r;
+        }
+      });
+      const outers = Array.from(wrap.querySelectorAll<HTMLElement>(`.docs-block-outer[data-in="${scope}"]`)).filter(
+        (o) => !o.classList.contains('is-hidden'),
+      );
+      const lineFor = (top: number): DropLine => ({ top: top - w.top, left: scopeRect.left - w.left, width: scopeRect.width });
+      if (allowSide) {
+        for (const o of outers) {
+          if (o.classList.contains('docs-container-outer')) continue;
+          const r = o.getBoundingClientRect();
+          if (clientY < r.top || clientY > r.bottom || clientX < r.left || clientX > r.right + 40) continue;
+          const bi = Number(o.dataset.bi);
+          const right = clientX > r.left + r.width * 0.85;
+          const left = clientX < r.left + Math.min(40, r.width * 0.08);
+          if (right || left) {
+            const x = right ? Math.min(r.right, w.right) - w.left - 2 : r.left - w.left;
+            return {
+              index: bi,
+              side: { target: bi, side: right ? 'right' : 'left' },
+              line: { top: r.top - w.top, left: x, width: 3, height: r.height, vertical: true },
+            };
+          }
+        }
       }
-    }
-    const top =
-      index >= 0
-        ? outers[index].getBoundingClientRect().bottom - wrapTop
-        : (outers[0]?.getBoundingClientRect().top ?? wrapTop) - wrapTop;
-    return { index, top };
-  }, []);
+      for (const o of outers) {
+        const r = o.getBoundingClientRect();
+        const threshold = o.classList.contains('docs-container-outer') ? r.top + Math.min(r.height / 2, 24) : r.top + r.height / 2;
+        if (clientY < threshold) {
+          const bi = Number(o.dataset.bi);
+          return { index: bi, indent: scope === -1 ? undefined : blockIndent(list[bi]), side: null, line: lineFor(r.top - 3) };
+        }
+      }
+      const last = outers[outers.length - 1];
+      const bottom = last ? last.getBoundingClientRect().bottom + 1 : scopeRect.top + 4;
+      if (scope === -1) return { index: list.length, side: null, line: lineFor(bottom) };
+      return { index: subtreeEnd(list, scope) + 1, indent: blockIndent(list[scope]) + 1, side: null, line: lineFor(bottom) };
+    },
+    [],
+  );
 
   const updateBlock = useCallback(
     (index: number, patch: Partial<DocsBlock>) => {
@@ -944,14 +1117,20 @@ export default function DocsEditor({
         return next;
       });
     },
-    [triggerSave],
+    [triggerSave, setBlocks],
   );
 
   const insertBlock = useCallback(
     (index: number, type: DocsBlockType, level?: 1 | 2 | 3) => {
       // Debajo de un bloque con hijos entra como primer hijo; debajo de un
       // toggle plegado, después de todo lo que esconde.
-      const { at, indent } = insertionPoint(blocks, index);
+      // Después de un contenedor (columnas, sincronizado): debajo de todo su contenido.
+      const container = blocks[index]?.type === 'columns' || blocks[index]?.type === 'synced';
+      const { at, indent } = container
+        ? { at: subtreeEnd(blocks, index) + 1, indent: blockIndent(blocks[index]) }
+        : blocks[index]?.type === 'column'
+          ? { at: index + 1, indent: blockIndent(blocks[index]) + 1 }
+          : insertionPoint(blocks, index);
       const newBlock = setIndent({ id: crypto.randomUUID(), type, content: '', level }, indent);
       setBlocks((prev) => {
         const next = [...prev.slice(0, at), newBlock, ...prev.slice(at)];
@@ -965,7 +1144,7 @@ export default function DocsEditor({
       setUserMention(null);
       setFocusIndex(at);
     },
-    [blocks, triggerSave],
+    [blocks, triggerSave, setBlocks],
   );
 
   const removeBlock = useCallback(
@@ -979,7 +1158,7 @@ export default function DocsEditor({
       });
       setFocusIndex(Math.max(0, index - 1));
     },
-    [triggerSave],
+    [triggerSave, setBlocks],
   );
 
   /** Reemplaza todos los bloques (ya con la estructura válida) y guarda. */
@@ -988,7 +1167,7 @@ export default function DocsEditor({
       setBlocks(next);
       triggerSave(next);
     },
-    [triggerSave],
+    [triggerSave, setBlocks],
   );
 
   /**
@@ -1067,9 +1246,7 @@ export default function DocsEditor({
   const startBlockDrag = useCallback(
     (d: BlockDragState, e: ReactPointerEvent<HTMLElement>) => {
       const container = blocksWrapRef.current;
-      const outer = container?.querySelectorAll<HTMLElement>(':scope > .docs-block-outer')[
-        d.index
-      ];
+      const outer = container?.querySelector<HTMLElement>(`.docs-block-outer[data-bi="${d.index}"]`);
       if (!container || !outer) return;
       d.dragging = true;
       setBlockMenu(null);
@@ -1089,32 +1266,25 @@ export default function DocsEditor({
     [],
   );
 
-  const updateBlockDrag = useCallback((d: BlockDragState, e: ReactPointerEvent<HTMLElement>) => {
-    if (d.ghostEl) {
-      d.ghostEl.style.top = `${e.clientY - d.offsetY}px`;
-    }
-    const container = blocksWrapRef.current;
-    if (!container) return;
-    const outers = Array.from(
-      container.querySelectorAll<HTMLElement>(':scope > .docs-block-outer'),
-    );
-    if (!outers.length) return;
-    // dropIndex = primer bloque cuyo centro vertical esté por debajo del pointer.
-    let dropIndex = outers.length;
-    for (let i = 0; i < outers.length; i++) {
-      const r = outers[i].getBoundingClientRect();
-      if (e.clientY < r.top + r.height / 2) {
-        dropIndex = i;
-        break;
+  const updateBlockDrag = useCallback(
+    (d: BlockDragState, e: ReactPointerEvent<HTMLElement>) => {
+      if (d.ghostEl) {
+        d.ghostEl.style.top = `${e.clientY - d.offsetY}px`;
       }
-    }
-    d.dropIndex = dropIndex;
-    const top =
-      dropIndex < outers.length
-        ? outers[dropIndex].offsetTop - 4
-        : outers[outers.length - 1].offsetTop + outers[outers.length - 1].offsetHeight + 2;
-    setDropLine(top);
-  }, []);
+      const list = live.current.blocks;
+      // Al costado solo bloques sueltos (una fila de columnas no entra en otra).
+      const target = computeDrop(e.clientX, e.clientY, list[d.index]?.type !== 'columns', list);
+      if (!target) return;
+      const end = subtreeEnd(list, d.index);
+      // Al costado de sí mismo (o de algo que lleva adentro) no hace nada.
+      const side = target.side && (target.side.target < d.index || target.side.target > end) ? target.side : null;
+      d.side = side;
+      d.dropIndex = target.index;
+      d.dropIndent = target.indent;
+      setDropLine(side || !target.side ? target.line : null);
+    },
+    [computeDrop],
+  );
 
   const handleGripPointerMove = useCallback(
     (e: ReactPointerEvent<HTMLElement>) => {
@@ -1134,25 +1304,42 @@ export default function DocsEditor({
     (d: BlockDragState) => {
       const from = d.index;
       const dropIndex = d.dropIndex;
+      const side = d.side;
+      const dropIndent = d.dropIndent;
       setBlocks((prev) => {
         if (from < 0 || from >= prev.length) return prev;
+        // Al costado de un bloque: columnas (nueva fila o una columna más).
+        if (side) {
+          const next = dropBeside(prev, from, side.target, side.side, newId);
+          if (!next) return prev;
+          triggerSave(next);
+          return next;
+        }
         // El bloque viaja con sus hijos. Soltarlo dentro de sí mismo (o en
         // el mismo lugar) no hace nada.
         const end = subtreeEnd(prev, from);
         if (dropIndex >= from && dropIndex <= end + 1) return prev;
         const moved = prev.slice(from, end + 1);
+        // Una fila de columnas no entra en una columna.
+        if (moved[0].type === 'columns' && dropIndent !== undefined) return prev;
         const rest = [...prev.slice(0, from), ...prev.slice(end + 1)];
         const insertAt = Math.max(0, Math.min(dropIndex > end ? dropIndex - moved.length : dropIndex, rest.length));
-        // Toma el nivel del bloque de arriba del destino (como en Notion).
+        // Dentro de un contenedor: el nivel del destino. Si no, el del bloque
+        // de arriba (como en Notion), salvo que ese esté adentro de columnas.
         const above = rest[insertAt - 1];
-        const shift = (above ? blockIndent(above) : 0) - blockIndent(moved[0]);
+        let level = dropIndent ?? (above ? blockIndent(above) : 0);
+        if (dropIndent === undefined && above && scopeBaseIndent(rest, insertAt - 1) > 0) {
+          const below = rest[insertAt];
+          level = below && scopeBaseIndent(rest, insertAt) === 0 ? blockIndent(below) : 0;
+        }
+        const shift = level - blockIndent(moved[0]);
         const placed = moved.map((b) => setIndent(b, blockIndent(b) + shift));
         const next = normalizeIndents([...rest.slice(0, insertAt), ...placed, ...rest.slice(insertAt)]);
         triggerSave(next);
         return next;
       });
     },
-    [triggerSave],
+    [triggerSave, setBlocks],
   );
 
   const handleGripPointerUp = useCallback(
@@ -1327,17 +1514,97 @@ export default function DocsEditor({
       setFocusIndex(index);
       setFocusTick((v) => v + 1);
     },
-    [triggerSave, t],
+    [triggerSave, t, setBlocks],
+  );
+
+  /** HTML de una mención de fecha (con recordatorio: instante en la zona del navegador e id propio). */
+  const dateHtmlFor = useCallback(
+    (date: string, time: string | undefined, remind: boolean) =>
+      dateMentionHtml({
+        date,
+        time,
+        remindAt: remind ? localInstant(date, time) : undefined,
+        rid: remind ? newId() : undefined,
+        label: dateLabel(date, time, locale),
+      }),
+    [locale],
   );
 
   /** Aplica un comando del menú `/`: borra solo el `/query` tipeado y convierte/inserta. */
   const applyCommand = useCallback(
-    (index: number, cmd: { type: DocsBlockType; level?: 1 | 2 | 3; toggle?: boolean }) => {
+    (index: number, cmd: { type: DocsBlockType; level?: 1 | 2 | 3; toggle?: boolean; special?: CommandSpecial; count?: number }) => {
       const block = blocks[index];
       if (!block) return;
       const s = slash && slash.index === index ? slash : null;
       const stripped = s ? removeHtmlRange(block.content, s.start, s.end) : block.content;
       const caret = s ? s.start : htmlToFlatText(block.content).length;
+      const closeMenu = () => {
+        setCmdOpen(false);
+        setCmdQuery('');
+        setCmdSel(0);
+        setSlash(null);
+      };
+      const replace = block.type === 'paragraph' && stripped === '';
+      /** Inserta bloques nuevos en lugar de la línea vacía (o debajo de todo lo que cuelga del bloque). */
+      const place = (created: DocsBlock[], focusOffset: number) => {
+        const base = blockIndent(block);
+        const placed = created.map((b) => setIndent(b, blockIndent(b) + base));
+        const at = replace ? index : subtreeEnd(blocks, index) + 1;
+        setBlocks((prev) => {
+          const next = prev.map((b, i) => (i === index ? { ...b, content: stripped } : b));
+          next.splice(at, replace ? 1 : 0, ...placed);
+          triggerSave(next);
+          return next;
+        });
+        closeMenu();
+        const target = at + focusOffset;
+        if (isTextBlockType(placed[focusOffset]?.type ?? 'divider')) pendingCaret.current = { index: target, offset: 0 };
+        setFocusIndex(target);
+        setFocusTick((v) => v + 1);
+      };
+
+      if (cmd.special === 'columns') {
+        place(makeColumnList(cmd.count ?? 2, 0, newId), 2);
+        return;
+      }
+      if (cmd.type === 'synced') {
+        place(
+          [
+            { id: newId(), type: 'synced', content: '', synced_id: newId() },
+            setIndent({ id: newId(), type: 'paragraph', content: '' }, 1),
+          ],
+          1,
+        );
+        return;
+      }
+      if (cmd.special === 'date' || cmd.special === 'reminder') {
+        // Mención de fecha en el caret: hoy, o un recordatorio mañana a las 9.
+        const today = new Date();
+        const opt = cmd.special === 'date' ? dateSuggestions('', today, locale)[0] : dateSuggestions('', today, locale)[2];
+        const html = dateHtmlFor(opt.date, opt.remind ? opt.time : undefined, opt.remind);
+        const [before, after] = splitHtmlAt(stripped, caret);
+        const content = `${before}${html} ${after}`;
+        updateBlock(index, { content });
+        closeMenu();
+        pendingCaret.current = { index, offset: caret + htmlToFlatText(html).length + 1 };
+        setFocusIndex(index);
+        setFocusTick((v) => v + 1);
+        return;
+      }
+      if (cmd.special === 'inlineEquation') {
+        updateBlock(index, { content: stripped });
+        closeMenu();
+        const pos = readCaretMenuPos(index);
+        setEqPopover({ index, start: caret, length: 0, tex: '', top: (pos?.bottom ?? 120) + 6, left: pos?.left ?? 120 });
+        return;
+      }
+      if (INSERT_TYPES.has(cmd.type)) {
+        // Bloques que nacen enteros (bookmark, embed, ecuación, índice, botón,
+        // breadcrumb, pizarra): reemplazan la línea vacía o van debajo, más un
+        // párrafo para seguir escribiendo.
+        place([{ id: newId(), type: cmd.type, content: '' }, { id: newId(), type: 'paragraph', content: '' }], 0);
+        return;
+      }
 
       if (isFileBlockType(cmd.type)) {
         // "/imagen" o "/archivo": se borra el `/query`, se abre el selector y
@@ -1358,7 +1625,7 @@ export default function DocsEditor({
         };
         const input = fileInputRef.current;
         if (input) {
-          input.accept = cmd.type === 'image' ? 'image/*' : '';
+          input.accept = acceptFor(cmd.type as DocsFileKind);
           input.value = '';
           input.click();
         }
@@ -1407,7 +1674,8 @@ export default function DocsEditor({
 
       convertBlock(index, cmd.type, cmd.level, stripped, caret, { toggle: cmd.toggle });
     },
-    [blocks, slash, convertBlock, triggerSave],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [blocks, slash, convertBlock, triggerSave, setBlocks, updateBlock, locale, readCaretMenuPos, dateHtmlFor],
   );
 
   const filteredCommands = useMemo(() => {
@@ -1417,8 +1685,8 @@ export default function DocsEditor({
       (c) => {
         if (!uploadsEnabled && isFileBlockType(c.type)) return false;
         if (!allowDatabase && c.type === 'database') return false;
-        // Pizarras embebidas: solo en Docs (no en Notes).
-        if (embedded && c.type === 'board') return false;
+        // Pizarras, sincronizados, breadcrumb y fechas con recordatorio: solo en Docs (no en Notes ni en filas).
+        if (embedded && (c.type === 'board' || c.type === 'synced' || c.type === 'breadcrumb' || c.special === 'date' || c.special === 'reminder')) return false;
         if (!q) return true;
         const label = c.label.toLowerCase();
         if (label.includes(q)) return true;
@@ -1440,7 +1708,7 @@ export default function DocsEditor({
 
       // Bloque anidado vacío + Enter (párrafo, ítem, toggle…): sube un nivel
       // en vez de crear otro anidado, como en Notion.
-      if (block.content === '' && blockIndent(block) > 0 && indentBlocks(index, index, -1)) {
+      if (block.content === '' && blockIndent(block) > scopeBaseIndent(blocks, index) && indentBlocks(index, index, -1)) {
         pendingCaret.current = { index, offset: 0 };
         setFocusTick((v) => v + 1);
         return;
@@ -1485,7 +1753,7 @@ export default function DocsEditor({
       setFocusIndex(at);
       setFocusTick((v) => v + 1);
     },
-    [blocks, convertBlock, indentBlocks, triggerSave],
+    [blocks, convertBlock, indentBlocks, triggerSave, setBlocks],
   );
 
   /** Inserta un '\n' dentro del bloque en la posición del caret (offset plano). */
@@ -1551,7 +1819,7 @@ export default function DocsEditor({
       // Caso normal: newline dentro del mismo bloque.
       insertSoftNewline(index, caret);
     },
-    [blocks, convertBlock, insertSoftNewline, triggerSave],
+    [blocks, convertBlock, insertSoftNewline, triggerSave, setBlocks],
   );
 
   /** Backspace con caret al inicio: fusiona con el bloque anterior (o borra divider). */
@@ -1561,7 +1829,7 @@ export default function DocsEditor({
       if (!block) return false;
 
       // Un bloque anidado primero sube de nivel (como en Notion).
-      if (blockIndent(block) > 0 && isTextBlockType(block.type)) {
+      if (blockIndent(block) > scopeBaseIndent(blocks, index) && isTextBlockType(block.type)) {
         if (indentBlocks(index, index, -1)) {
           pendingCaret.current = { index, offset: 0 };
           setFocusTick((v) => v + 1);
@@ -1620,7 +1888,7 @@ export default function DocsEditor({
       }
       return false;
     },
-    [blocks, convertBlock, hidden, indentBlocks, removeBlock, triggerSave],
+    [blocks, convertBlock, hidden, indentBlocks, removeBlock, triggerSave, setBlocks],
   );
 
   /**
@@ -1632,7 +1900,12 @@ export default function DocsEditor({
   const moveVertical = useCallback(
     (index: number, dir: -1 | 1, x: number): boolean => {
       // Lo que esconde un toggle plegado se saltea como un divider.
-      const target = findVerticalTarget(blocks.map((b, i) => (hidden[i] ? 'divider' : b.type)), index, dir);
+      // Contenedores (columnas, sincronizados) no se enfocan: se pasa a su contenido.
+      const target = findVerticalTarget(
+        blocks.map((b, i) => (hidden[i] || isStructuralBlock(b) || b.type === 'synced' ? 'divider' : b.type)),
+        index,
+        dir,
+      );
       if (target === -1) {
         if (dir === -1 && index >= 0 && titleRef.current) {
           placeCaretAtX(titleRef.current, x, 'bottom');
@@ -1954,6 +2227,24 @@ export default function DocsEditor({
         setCmdSel(0);
       };
 
+      // `$$x^2$$`: al cerrar el segundo `$$` queda una ecuación en línea.
+      const texMatch = !isCode ? beforeCaret.match(/\$\$([^$\n]{1,500})\$\$$/) : null;
+      if (texMatch) {
+        const start = caret - texMatch[0].length;
+        const tex = texMatch[1].trim();
+        if (tex) {
+          const html = `<span data-tex="${escapeHtml(tex).replace(/"/g, '&quot;')}">${escapeHtml(tex)}</span>`;
+          const [before, after] = splitHtmlAt(removeHtmlRange(text, start, caret), start);
+          // Un espacio después: el caret no puede quedar adentro del span atómico.
+          const gap = /^\s/.test(htmlToFlatText(after)) ? '' : ' ';
+          updateBlock(index, { content: `${before}${html}${gap}${after}` });
+          pendingCaret.current = { index, offset: start + tex.length + gap.length };
+          setFocusTick((v) => v + 1);
+          closeSlash();
+          return;
+        }
+      }
+
       // `[[query`: la query no cruza '[' ni ']' (otro '[[' reinicia el trigger).
       const mentionMatch = !isCode && pageLinksEnabled ? beforeCaret.match(/\[\[([^\][]*)$/) : null;
       if (mentionMatch) {
@@ -1967,8 +2258,11 @@ export default function DocsEditor({
       }
       setMention(null);
 
-      // @mención: '@' al inicio o tras un espacio, query sin espacios.
-      const userMatch = !isCode && !embedded ? beforeCaret.match(/(?:^|\s)@([^\s@]*)$/) : null;
+      // @mención: '@' al inicio o tras un espacio, query sin espacios (o con
+      // espacios si es una fecha: "@recordar mañana 9am").
+      const spaced = !isCode && !embedded ? beforeCaret.match(/(?:^|\s)@([^@\n]{1,40})$/) : null;
+      const spacedDate = spaced && /\s/.test(spaced[1]) && dateSuggestions(spaced[1], new Date(), locale).length > 0;
+      const userMatch = !isCode && !embedded ? (spacedDate ? spaced : beforeCaret.match(/(?:^|\s)@([^\s@]*)$/)) : null;
       if (userMatch) {
         const query = userMatch[1] ?? '';
         setUserMention({ index, query, start: caret - query.length - 1, end: caret });
@@ -1993,7 +2287,7 @@ export default function DocsEditor({
         closeSlash();
       }
     },
-    [blocks, convertBlock, embedded, pageLinksEnabled, readCaretMenuPos],
+    [blocks, convertBlock, embedded, pageLinksEnabled, readCaretMenuPos, updateBlock, locale],
   );
 
   const handleBlockChange = useCallback(
@@ -2044,7 +2338,7 @@ export default function DocsEditor({
       setFocusIndex(index);
       setFocusTick((v) => v + 1);
     },
-    [blocks, mention, triggerSave, t],
+    [blocks, mention, triggerSave, t, setBlocks],
   );
 
   const onSelectUserMention = useCallback(
@@ -2080,7 +2374,53 @@ export default function DocsEditor({
         body: JSON.stringify({ user_id: selected.id }),
       }).catch(() => {});
     },
-    [blocks, page.id, triggerSave, userMention],
+    [blocks, page.id, triggerSave, userMention, setBlocks],
+  );
+
+  /** Fechas que ofrece el popover de @ para lo tipeado (hoy, mañana, recordatorios). */
+  const dateOptions = useMemo(() => {
+    if (!userMention || embedded) return [];
+    return dateSuggestions(userMention.query, new Date(), locale);
+  }, [userMention, embedded, locale]);
+
+  const dateOptionLabels = useMemo<DateMentionOption[]>(
+    () =>
+      dateOptions.map((d) => ({
+        key: d.key,
+        remind: d.remind,
+        label: d.remind
+          ? t('mentions.remindAt', { when: dateLabel(d.date, d.time, locale) })
+          : d.key === 'today'
+            ? t('mentions.today')
+            : d.key === 'tomorrow'
+              ? t('mentions.tomorrow')
+              : dateLabel(d.date, d.time, locale),
+        detail: d.remind ? t('mentions.reminderHint') : d.key === 'date' ? '' : dateLabel(d.date, d.time, locale),
+      })),
+    [dateOptions, locale, t],
+  );
+
+  /** Elige una fecha del popover de @: reemplaza el `@query` por la mención (con recordatorio si corresponde). */
+  const onSelectDateMention = useCallback(
+    (i: number) => {
+      const opt = dateOptions[i];
+      if (!userMention || !opt) return;
+      const { index, start, end } = userMention;
+      const block = blocks[index];
+      setUserMention(null);
+      if (!block) return;
+      const html = dateHtmlFor(opt.date, opt.time, opt.remind);
+      const [before, after] = splitHtmlAt(removeHtmlRange(block.content, start, end), start);
+      setBlocks((prev) => {
+        const next = prev.map((b, k) => (k === index ? { ...b, content: `${before}${html} ${after}` } : b));
+        triggerSave(next);
+        return next;
+      });
+      pendingCaret.current = { index, offset: start + htmlToFlatText(html).length + 1 };
+      setFocusIndex(index);
+      setFocusTick((v) => v + 1);
+    },
+    [blocks, dateHtmlFor, dateOptions, setBlocks, triggerSave, userMention],
   );
 
   /**
@@ -2095,9 +2435,8 @@ export default function DocsEditor({
     const key = e.key;
     const keep = (start: number, end: number) =>
       setBlockSel(blockSel.anchor <= blockSel.focus ? { anchor: start, focus: end } : { anchor: end, focus: start });
-    const reveal = (i: number) => blocksWrapRef.current
-      ?.querySelectorAll<HTMLElement>(':scope > .docs-block-outer')
-      [i]?.scrollIntoView?.({ block: 'nearest' });
+    const reveal = (i: number) =>
+      blocksWrapRef.current?.querySelector<HTMLElement>(`.docs-block-outer[data-bi="${i}"]`)?.scrollIntoView?.({ block: 'nearest' });
 
     if (key === 'Escape') {
       e.preventDefault();
@@ -2250,7 +2589,7 @@ export default function DocsEditor({
         setImporting(false);
       }
     },
-    [importUrl, t],
+    [importUrl, t, setBlocks],
   );
 
   /** Menú "…": flechas entre ítems, Esc cierra y devuelve el foco al botón. */
@@ -2284,8 +2623,39 @@ export default function DocsEditor({
 
   const addCover = (url: string) => {
     setCoverUrl(url);
+    setCoverPosition(50);
     triggerSave(undefined, undefined, undefined, url);
     setCoverOpen(false);
+  };
+
+  /** Página vacía (sin título ni texto): se ofrece empezar con una plantilla. */
+  const pageIsEmpty = !embedded && !title.trim() && blocks.length === 1 && blocks[0].type === 'paragraph' && !blocks[0].content;
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+
+  /** Llena la página vacía con una plantilla (título y bloques; queda en el historial). */
+  const applyTemplate = (tpl: DocTemplate) => {
+    const next = normalizeStructure(upgradeBlocks(tpl.makeBlocks()), newId);
+    setBlocks(next);
+    setTitle(tpl.title);
+    if (titleRef.current) titleRef.current.textContent = tpl.title;
+    triggerSaveRef.current(next, tpl.title);
+  };
+
+  /** Imagen subida como ícono de la página ("img:<url del storage>"). */
+  const uploadIcon = async (file: File) => {
+    setUploadError(null);
+    setUploading((n) => n + 1);
+    try {
+      const up = await uploadDocsFile(file, { uploadUrl });
+      rememberUploadPreview(up.url, file);
+      const next = `${ICON_IMAGE_PREFIX}${up.url}`;
+      setIcon(next);
+      triggerSaveRef.current(undefined, undefined, next);
+    } catch {
+      setUploadError(t('editor.upload.failed', { name: file.name }));
+    } finally {
+      setUploading((n) => n - 1);
+    }
   };
 
   const removeCover = () => {
@@ -2387,7 +2757,7 @@ export default function DocsEditor({
         return next;
       });
     },
-    [triggerSave],
+    [triggerSave, setBlocks],
   );
 
   const dbHooks = useMemo(() => ({ onOpenRow, membersUrl }), [onOpenRow, membersUrl]);
@@ -2411,323 +2781,258 @@ export default function DocsEditor({
   );
   const openRowBlock = openRow ? blocks.find((b) => b.id === openRow.blockId) : undefined;
 
-  return (
-    <>
-    <div
-      ref={rootRef}
-      className={`docs-editor${smallText ? ' docs-editor-small' : ''}${fullWidth ? ' docs-editor-full' : ''}${embedded ? ' docs-editor-embedded' : ''}`}
-      onKeyDownCapture={handleHistoryKeys}
-    >
-      {!embedded && (
-      <div className="docs-top-bar">
-        <nav className="docs-breadcrumb" aria-label={t('editor.breadcrumb')}>
-          {/* La banda ya dice "Docs / Páginas": acá van solo ancestros y título. */}
-          <ol>
-            {ancestorChain.map((a) => (
-              <li key={a.id} className="docs-breadcrumb-segment">
-                <Link href={`/app/docs/${a.id}`} className="docs-breadcrumb-link">
-                  {a.icon && <span aria-hidden="true">{a.icon}</span>}
-                  <span className="docs-breadcrumb-title">{a.title || t('untitled')}</span>
-                </Link>
-              </li>
-            ))}
-            <li className="docs-breadcrumb-segment">
-              <span className="docs-breadcrumb-current" aria-current="page">
-                {title || t('untitled')}
-              </span>
-            </li>
-          </ol>
-        </nav>
+  // ---------- Bloques nuevos: índice, breadcrumb, botón, ecuación en línea, links pegados, sincronizados, columnas ----------
 
-        <div className="docs-page-actions">
-          <span
-            className={`docs-save-status${saveError && !saving && !dirty ? ' is-error' : ''}`}
-            aria-live="polite"
-          >
-            {saving || dirty
-              ? t('editor.saving')
-              : saveError === 'conflict'
-                ? t('editor.saveConflict')
-                : saveError
-                ? (
-                    <>
-                      {t(saveError === 'tooLong' ? 'editor.saveTooLong' : 'editor.saveFailed')}{' '}
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => triggerSave()}>
-                        {t('editor.retrySave')}
-                      </button>
-                    </>
-                  )
-                : t('editor.saved')}
-          </span>
-          {topActions}
-          <div className="docs-action-menu-wrap" ref={menuRef}>
-            <button
-              type="button"
-              ref={menuBtnRef}
-              className="btn btn-ghost btn-sm btn-icon docs-action-btn"
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-label={t('editor.pageOptions')}
-              title={t('editor.pageOptions')}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-            >
-              <DocsGlyph name="more" size={16} />
-            </button>
-            {menuOpen && (
-              <div className="docs-menu docs-page-menu" role="menu" aria-label={t('editor.pageOptions')} onKeyDown={pageMenuKeys}>
-                <button type="button" role="menuitem" className="docs-menu-item" onClick={copyLink}>
-                  {t('editor.copyLink')}
-                </button>
-                <button type="button" role="menuitem" className="docs-menu-item" onClick={copyContents}>
-                  {t('editor.copyContents')}
-                </button>
-                {importUrl && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="docs-menu-item"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      importInputRef.current?.click();
-                    }}
-                  >
-                    {t('editor.import.menu')}
-                  </button>
-                )}
-                {onDuplicate && (
-                  <button type="button" role="menuitem" className="docs-menu-item" onClick={onDuplicate}>
-                    {t('editor.duplicate')}
-                  </button>
-                )}
-                {menuExtra && (
-                  <>
-                    <hr className="docs-menu-divider" />
-                    {menuExtra(() => setMenuOpen(false))}
-                  </>
-                )}
-                {layoutToggles && (<>
-                <hr className="docs-menu-divider" />
-                <button
-                  type="button"
-                  role="menuitemcheckbox"
-                  aria-checked={smallText}
-                  className="docs-menu-item docs-menu-toggle"
-                  onClick={() => {
-                    // Se persiste en la página (antes se perdía al recargar).
-                    const next = !smallText;
-                    setSmallText(next);
-                    onSave({ small_text: next });
-                    setMenuOpen(false);
-                  }}
-                >
-                  {t('editor.smallText')}
-                  <span className={`docs-toggle${smallText ? ' on' : ''}`} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  role="menuitemcheckbox"
-                  aria-checked={fullWidth}
-                  className="docs-menu-item docs-menu-toggle"
-                  onClick={() => {
-                    const next = !fullWidth;
-                    setFullWidth(next);
-                    onSave({ full_width: next });
-                    setMenuOpen(false);
-                  }}
-                >
-                  {t('editor.fullWidth')}
-                  <span className={`docs-toggle${fullWidth ? ' on' : ''}`} aria-hidden="true" />
-                </button>
-                </>)}
-                {onDelete && <hr className="docs-menu-divider" />}
-                {onDelete && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="docs-menu-item docs-menu-danger"
-                    onClick={onDelete}
-                  >
-                    {t('editor.moveToTrash')}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+  const toc = useMemo(() => buildToc(blocks), [blocks]);
+  const trail = useMemo(
+    () => [
+      ...ancestors.filter((a) => a.id !== page.id).map((a) => ({ id: a.id, title: a.title, icon: a.icon })),
+      { id: page.id, title, icon: icon || null },
+    ],
+    [ancestors, page.id, title, icon],
+  );
 
-      )}
+  /** Botón: abre su link o inserta sus bloques (Markdown) debajo. */
+  const runButton = useCallback(
+    (index: number, button: DocsButtonConfig) => {
+      if (button.action === 'link') {
+        const url = button.url ?? '';
+        if (/^https?:\/\//i.test(url)) window.open(url, '_blank', 'noopener,noreferrer');
+        else if (url.startsWith('/')) window.location.assign(url.startsWith(`/${locale}/`) ? url : `/${locale}${url}`);
+        return;
+      }
+      const created = markdownToBlocks(button.markdown ?? '', { sanitize: sanitizeRichHtml }).map((b) => ({ ...b, id: newId() }));
+      if (!created.length) return;
+      setBlocks((prev) => {
+        const i = prev.findIndex((b) => b.id === blocks[index]?.id);
+        if (i === -1) return prev;
+        const at = subtreeEnd(prev, i) + 1;
+        const base = blockIndent(prev[i]);
+        const placed = created.map((b) => setIndent(b, blockIndent(b) + base));
+        const next = normalizeIndents([...prev.slice(0, at), ...placed, ...prev.slice(at)]);
+        triggerSave(next);
+        return next;
+      });
+    },
+    [blocks, locale, setBlocks, triggerSave],
+  );
 
-      {embedded ? null : coverUrl ? (
-        <div className="docs-cover">
-          {/* URL arbitraria del usuario: next/image exigiría allowlist de dominios. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={coverUrl} alt="" className="docs-cover-img" />
-          <button type="button" className="btn btn-secondary btn-sm docs-cover-remove" onClick={removeCover}>
-            {t('editor.removeCover')}
-          </button>
-        </div>
-      ) : null}
+  /** Clic en una ecuación en línea: abre su editor. */
+  const openInlineEquation = useCallback((index: number, start: number, tex: string) => {
+    const el = blockRefs.current[index];
+    const span = Array.from(el?.querySelectorAll<HTMLElement>('span[data-tex]') ?? []).find((x) => x.getAttribute('data-tex') === tex);
+    const r = span?.getBoundingClientRect() ?? el?.getBoundingClientRect();
+    setEqPopover({ index, start, length: tex.length, tex, top: (r?.bottom ?? 120) + 6, left: r?.left ?? 120 });
+  }, []);
 
-      <div className="docs-page-header">
-        {!embedded && icon && (
-          <EmojiPicker
-            value={icon}
-            onChange={(next) => {
-              setIcon(next);
-              triggerSave(undefined, undefined, next);
-            }}
-            onRemove={() => {
-              setIcon('');
-              triggerSave(undefined, undefined, '');
-            }}
-          >
-            <span className="docs-icon">{icon}</span>
-          </EmojiPicker>
-        )}
+  /** Guarda la ecuación en línea del popover (vacía = se borra). */
+  const saveInlineEquation = useCallback(
+    (tex: string) => {
+      const pop = eqPopover;
+      setEqPopover(null);
+      if (!pop) return;
+      const block = blocks[pop.index];
+      if (!block) return;
+      const clean = tex.trim();
+      const base = pop.length ? removeHtmlRange(block.content, pop.start, pop.start + pop.length) : block.content;
+      const html = clean ? `<span data-tex="${escapeHtml(clean).replace(/"/g, '&quot;')}">${escapeHtml(clean)}</span>` : '';
+      const [before, after] = splitHtmlAt(base, pop.start);
+      const gap = html && !/^\s/.test(htmlToFlatText(after)) ? ' ' : '';
+      updateBlock(pop.index, { content: `${before}${html}${gap}${after}` });
+      pendingCaret.current = { index: pop.index, offset: pop.start + clean.length + gap.length };
+      setFocusIndex(pop.index);
+      setFocusTick((v) => v + 1);
+    },
+    [blocks, eqPopover, updateBlock],
+  );
 
-        {!embedded && (
-          <div className="docs-page-meta">
-            {!icon && (
-              <EmojiPicker
-                value=""
-                triggerClassName="btn btn-ghost btn-sm docs-meta-btn"
-                triggerLabel={t('editor.addIcon')}
-                onChange={(next) => {
-                  setIcon(next);
-                  triggerSave(undefined, undefined, next);
-                }}
-              >
-                {t('editor.addIcon')}
-              </EmojiPicker>
-            )}
-            {!coverUrl && (
-              <div className="docs-cover-anchor">
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm docs-meta-btn"
-                  onClick={() => setCoverOpen(true)}
-                  aria-expanded={coverOpen}
-                  aria-haspopup="dialog"
-                >
-                  {t('editor.addCover')}
-                </button>
-                {coverOpen && (
-                  <div className="docs-menu docs-cover-popover" ref={coverRef}>
-                    <input
-                      type="url"
-                      placeholder={t('editor.coverUrlPlaceholder')}
-                      aria-label={t('editor.coverUrlPlaceholder')}
-                      className="input docs-cover-input"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') addCover((e.target as HTMLInputElement).value);
-                        if (e.key === 'Escape') setCoverOpen(false);
-                      }}
-                    />
-                    <div className="docs-cover-presets">
-                      {[
-                        'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&q=80',
-                        'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1200&q=80',
-                        'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=1200&q=80',
-                        'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1200&q=80',
-                      ].map((url) => (
-                        <button
-                          key={url}
-                          type="button"
-                          className="docs-cover-preset"
-                          style={{ backgroundImage: `url(${url})` }}
-                          onClick={() => addCover(url)}
-                          aria-label={t('editor.coverPreset')}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            <button type="button" className="btn btn-ghost btn-sm docs-meta-btn" onClick={() => onAddComment?.()}>
-              {t('editor.addComment')}
-            </button>
-          </div>
-        )}
+  /** Se pegó un link solo: ofrecer mención, bookmark o embed (queda como link si no se elige). */
+  const onPasteUrl = useCallback((index: number, url: string) => {
+    requestAnimationFrame(() => {
+      const el = blockRefs.current[index];
+      const blockId = live.current.blocks[index]?.id;
+      if (!el || !blockId) return;
+      const end = getCaretOffset(el);
+      const rect = getCaretViewportRect() ?? el.getBoundingClientRect();
+      setPastePrompt({ index, blockId, url, start: Math.max(0, end - url.length), end, top: rect.bottom + 6, left: rect.left, embeddable: Boolean(embedFor(url)) });
+    });
+  }, []);
 
-        <div
-          ref={titleRef}
-          className="docs-title"
-          contentEditable
-          suppressContentEditableWarning
-          role="textbox"
-          aria-multiline="true"
-          aria-label={t('editor.pageTitle')}
-          data-placeholder={titlePlaceholder ?? t('editor.untitled')}
-          onInput={(e) => {
-            const next = e.currentTarget.textContent ?? '';
-            setTitle(next);
-            triggerSave(undefined, next);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              // Enter en el título NO inserta newline: pasa el foco al primer bloque.
-              e.preventDefault();
-              pendingCaret.current = { index: 0, offset: 0 };
-              setFocusIndex(0);
-              setFocusTick((v) => v + 1);
-              return;
-            }
-            // Abajo en la última línea del título: al primer bloque, con la x del caret.
-            if (
-              e.key === 'ArrowDown' &&
-              !e.shiftKey &&
-              !e.altKey &&
-              !e.metaKey &&
-              !e.ctrlKey &&
-              (window.getSelection()?.isCollapsed ?? true) &&
-              isCaretOnEdgeLine(e.currentTarget, 1)
-            ) {
-              const x = getCaretViewportRect()?.left ?? e.currentTarget.getBoundingClientRect().left;
-              if (moveVertical(-1, 1, x)) e.preventDefault();
-            }
-          }}
-        />
-        {belowTitle}
-      </div>
+  /** Elige qué hacer con el link pegado. */
+  const resolvePaste = useCallback(
+    async (choice: 'link' | 'mention' | 'bookmark' | 'embed') => {
+      const prompt = pastePrompt;
+      setPastePrompt(null);
+      if (!prompt || choice === 'link') return;
+      const current = live.current.blocks;
+      const index = current.findIndex((b) => b.id === prompt.blockId);
+      if (index === -1) return;
+      const block = current[index];
+      const preview = await fetchLinkPreview(prompt.url);
+      if (choice === 'mention') {
+        const label = preview.title || preview.url;
+        const [before, rest] = splitHtmlAt(block.content, prompt.start);
+        const [, after] = splitHtmlAt(rest, prompt.end - prompt.start);
+        const html = `<a href="${escapeHtml(preview.url).replace(/"/g, '&quot;')}">${escapeHtml(label)}</a>`;
+        updateBlock(index, { content: `${before}${html}${after}` });
+        return;
+      }
+      // Bookmark o embed: el link sale del texto y entra un bloque debajo (o en lugar de la línea si quedó vacía).
+      const stripped = removeHtmlRange(block.content, prompt.start, prompt.end);
+      const created: DocsBlock = setIndent({ id: newId(), type: choice, content: '', link: preview }, blockIndent(block));
+      const empty = block.type === 'paragraph' && htmlToFlatText(stripped).trim() === '';
+      setBlocks((prev) => {
+        const i = prev.findIndex((b) => b.id === prompt.blockId);
+        if (i === -1) return prev;
+        const next = [...prev];
+        if (empty) next.splice(i, 1, created, setIndent({ id: newId(), type: 'paragraph', content: '' }, blockIndent(block)));
+        else {
+          next[i] = { ...next[i], content: stripped };
+          next.splice(subtreeEnd(next, i) + 1, 0, created);
+        }
+        triggerSave(next);
+        return next;
+      });
+    },
+    [pastePrompt, setBlocks, triggerSave, updateBlock],
+  );
 
-      <div
-        className={`docs-blocks${fileDropLine !== null ? ' file-dragover' : ''}${blockSel ? ' has-selection' : ''}`}
-        ref={blocksWrapRef}
-        tabIndex={-1}
-        aria-label={blockSel ? t('editor.selection.label', { count: selMax - selMin + 1 }) : undefined}
-        onKeyDown={handleSelectionKeyDown}
-        onMouseDown={(e) => {
-          // Un click (salvo Shift+click en el asa) deja la selección de bloques.
-          if (blockSel && !(e.shiftKey && (e.target as HTMLElement).closest('.docs-block-grip'))) setBlockSel(null);
-        }}
-        onBlur={(e) => {
-          if (blockSel && e.target === e.currentTarget && !e.currentTarget.contains(e.relatedTarget as Node | null)) {
-            setBlockSel(null);
-          }
-        }}
-        onDragOver={(e) => {
-          if (!uploadsEnabled || !Array.from(e.dataTransfer.types).includes('Files')) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'copy';
-          setFileDropLine(fileDropTarget(e.clientY).top);
-        }}
-        onDragLeave={(e) => {
-          if (!blocksWrapRef.current?.contains(e.relatedTarget as Node | null)) setFileDropLine(null);
-        }}
-        onDrop={(e) => {
-          if (!uploadsEnabled || !Array.from(e.dataTransfer.types).includes('Files')) return;
-          e.preventDefault();
-          setFileDropLine(null);
-          const { index } = fileDropTarget(e.clientY);
-          void uploadFiles(Array.from(e.dataTransfer.files), index >= 0 ? blocks[index]?.id ?? null : null);
-        }}
-      >
-        {blocks.map((block, index) => {
+  // Menú de link pegado: ↑/↓ elige, Enter aplica, Esc lo deja como link. Cualquier otra tecla lo cierra.
+  const [pasteSel, setPasteSel] = useState(0);
+  const pasteSelRef = useRef(0);
+  pasteSelRef.current = pasteSel;
+  const pasteChoices = useMemo<Array<'link' | 'mention' | 'bookmark' | 'embed'>>(
+    () => (pastePrompt ? (['mention', 'bookmark', ...(pastePrompt.embeddable ? ['embed' as const] : []), 'link'] as Array<'link' | 'mention' | 'bookmark' | 'embed'>) : []),
+    [pastePrompt],
+  );
+  useEffect(() => {
+    if (!pastePrompt) return;
+    setPasteSel(0);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopPropagation();
+        setPasteSel((v) => (v + (e.key === 'ArrowDown' ? 1 : -1) + pasteChoices.length) % pasteChoices.length);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        void resolvePaste(pasteChoices[pasteSelRef.current] ?? 'link');
+        return;
+      }
+      if (e.key === 'Escape') e.stopPropagation();
+      setPastePrompt(null);
+    };
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.docs-paste-menu')) setPastePrompt(null);
+    };
+    window.addEventListener('keydown', onKey, true);
+    document.addEventListener('mousedown', onDown);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('mousedown', onDown);
+    };
+  }, [pastePrompt, pasteChoices, resolvePaste]);
+
+  const [syncedNotice, setSyncedNotice] = useState<string | null>(null);
+
+  /** "Copiar y sincronizar": el id va al portapapeles; pegarlo en otra página crea la copia sincronizada. */
+  const copySynced = useCallback(
+    (block: DocsBlock) => {
+      if (!block.synced_id) return;
+      const text = `zerosoft-synced:${block.synced_id}`;
+      navigator.clipboard?.writeText(text).catch(() => {});
+      setSyncedNotice(t('editor.synced.copied'));
+      window.setTimeout(() => setSyncedNotice(null), 4000);
+    },
+    [t],
+  );
+
+  /** Pegaron un bloque sincronizado: se inserta con el contenido actual. */
+  const onPasteSynced = useCallback(
+    async (index: number, syncedId: string) => {
+      const res = await fetch(`/api/docs/synced/${encodeURIComponent(syncedId)}`).catch(() => null);
+      if (!res?.ok) {
+        setSyncedNotice(t('editor.synced.notFound'));
+        window.setTimeout(() => setSyncedNotice(null), 4000);
+        return;
+      }
+      const data = (await res.json()) as { blocks?: DocsBlock[] };
+      const children = upgradeBlocks(data.blocks?.length ? data.blocks : [{ id: newId(), type: 'paragraph', content: '' }]);
+      setBlocks((prev) => {
+        const i = Math.min(index, prev.length - 1);
+        const cur = prev[i];
+        const base = cur ? blockIndent(cur) : 0;
+        const created = [
+          setIndent({ id: newId(), type: 'synced', content: '', synced_id: syncedId }, base),
+          ...children.map((c) => setIndent(c, blockIndent(c) + base + 1)),
+        ];
+        const replace = cur && cur.type === 'paragraph' && cur.content === '';
+        const at = replace ? i : subtreeEnd(prev, i) + 1;
+        const next = [...prev.slice(0, at), ...created, ...prev.slice(at + (replace ? 1 : 0))];
+        triggerSave(next);
+        return next;
+      });
+    },
+    [setBlocks, t, triggerSave],
+  );
+
+  /** Desincronizar: el contenido queda como bloques comunes de esta página. */
+  const unsync = useCallback(
+    (index: number) => {
+      setBlocks((prev) => {
+        if (prev[index]?.type !== 'synced') return prev;
+        const end = subtreeEnd(prev, index);
+        const kids = prev.slice(index + 1, end + 1).map((b) => setIndent(b, blockIndent(b) - 1));
+        const next = normalizeIndents([...prev.slice(0, index), ...kids, ...prev.slice(end + 1)]);
+        triggerSave(next);
+        return next;
+      });
+    },
+    [setBlocks, triggerSave],
+  );
+
+  /** Una columna más (vacía) al final de la fila, con anchos parejos. */
+  const addColumn = useCallback(
+    (listIndex: number) => {
+      setBlocks((prev) => {
+        if (prev[listIndex]?.type !== 'columns') return prev;
+        const cols = columnsIn(prev, listIndex);
+        if (cols.length >= MAX_COLUMNS) return prev;
+        const d = blockIndent(prev[listIndex]);
+        const at = subtreeEnd(prev, listIndex) + 1;
+        const added = [
+          setIndent({ id: newId(), type: 'column', content: '', ratio: 1 }, d + 1),
+          setIndent({ id: newId(), type: 'paragraph', content: '' }, d + 2),
+        ];
+        const set = new Set(cols);
+        const even = prev.map((b, k) => (set.has(k) ? { ...b, ratio: 1 } : b));
+        const next = [...even.slice(0, at), ...added, ...even.slice(at)];
+        triggerSave(next);
+        return next;
+      });
+    },
+    [setBlocks, triggerSave],
+  );
+
+  /** Pesos nuevos de las columnas (por id). */
+  const setColumnRatios = useCallback(
+    (ids: string[], ratios: number[]) => {
+      const byId = new Map(ids.map((id, k) => [id, ratios[k]]));
+      setBlocks((prev) => {
+        const next = prev.map((b) => (byId.has(b.id) ? { ...b, ratio: byId.get(b.id) } : b));
+        triggerSave(next);
+        return next;
+      });
+    },
+    [setBlocks, triggerSave],
+  );
+
+  /** Un bloque suelto (no contenedor) con su asa, menú, comentarios y el "+" de abajo. */
+  const renderLeaf = (block: DocsBlock, index: number) => {
           const commentCount = commentCounts?.[block.id] ?? 0;
-          const indent = blockIndent(block);
+          const indent = visualIndent(blocks, index);
           const isHidden = hidden[index];
           const selected = !isHidden && index >= selMin && index <= selMax;
           return (
@@ -2736,6 +3041,9 @@ export default function DocsEditor({
                 className={`docs-block-outer${dragIndex === index ? ' dragging' : ''}${blockMenu === index ? ' menu-open' : ''}${isHidden ? ' is-hidden' : ''}${selected ? ' is-selected' : ''}`}
                 style={indent ? ({ '--docs-indent': indent } as CSSProperties) : undefined}
                 data-indent={indent || undefined}
+                data-bi={index}
+                data-in={containerOf(blocks, index)}
+                data-block-anchor={block.id}
                 aria-hidden={isHidden || undefined}
               >
                 <button
@@ -2910,6 +3218,12 @@ export default function DocsEditor({
                   database={dbHooks}
                   onPasteFiles={uploadsEnabled ? handlePasteFiles : undefined}
                   onPasteBlocks={handlePasteBlocks}
+                  onPasteUrl={embedded && !pageLinks ? undefined : onPasteUrl}
+                  onPasteSynced={embedded ? undefined : onPasteSynced}
+                  toc={toc}
+                  trail={trail}
+                  onRunButton={runButton}
+                  onInlineEquation={openInlineEquation}
                   ref={(el) => { blockRefs.current[index] = el; }}
                 />
               </div>
@@ -2928,12 +3242,604 @@ export default function DocsEditor({
               </div>
             </Fragment>
           );
-        })}
-        {dropLine !== null && (
-          <div className="docs-drop-line" style={{ top: dropLine }} aria-hidden />
+  };
+
+  /** Asa de un contenedor (columnas, sincronizado): arrastra todo y abre su menú. */
+  const renderContainerGrip = (index: number) => (
+    <button
+      type="button"
+      className="docs-block-grip"
+      aria-label={t('editor.blockMenu.dragHandle')}
+      title={t('editor.blockMenu.dragHandle')}
+      data-no-drag
+      onPointerDown={(e) => handleGripPointerDown(e, index)}
+      onPointerMove={handleGripPointerMove}
+      onPointerUp={handleGripPointerUp}
+      onPointerCancel={handleGripPointerCancel}
+      onClick={() => handleGripClick(index)}
+    >
+      <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden>
+        <rect x="1" y="1" width="2.4" height="2.4" />
+        <rect x="6.6" y="1" width="2.4" height="2.4" />
+        <rect x="1" y="5.8" width="2.4" height="2.4" />
+        <rect x="6.6" y="5.8" width="2.4" height="2.4" />
+        <rect x="1" y="10.6" width="2.4" height="2.4" />
+        <rect x="6.6" y="10.6" width="2.4" height="2.4" />
+      </svg>
+    </button>
+  );
+
+  /** Menú de un contenedor: duplicar, mover, borrar (y en un sincronizado, copiar y sincronizar o desincronizar). */
+  const renderContainerMenu = (index: number, block: DocsBlock) =>
+    blockMenu === index && (
+      <div className="docs-block-menu" ref={blockMenuRef} data-no-drag>
+        {block.type === 'synced' && (
+          <>
+            <button
+              type="button"
+              className="docs-bmenu-item"
+              onClick={() => {
+                closeBlockMenu();
+                copySynced(block);
+              }}
+            >
+              {t('editor.synced.copy')}
+            </button>
+            <button
+              type="button"
+              className="docs-bmenu-item"
+              onClick={() => {
+                closeBlockMenu();
+                unsync(index);
+              }}
+            >
+              {t('editor.synced.unsync')}
+            </button>
+            <hr className="docs-bmenu-divider" />
+          </>
         )}
-        {fileDropLine !== null && (
-          <div className="docs-drop-line" style={{ top: fileDropLine }} aria-hidden />
+        {block.type === 'columns' && columnsIn(blocks, index).length < MAX_COLUMNS && (
+          <button
+            type="button"
+            className="docs-bmenu-item"
+            onClick={() => {
+              closeBlockMenu();
+              addColumn(index);
+            }}
+          >
+            {t('editor.columns.add')}
+          </button>
+        )}
+        <button
+          type="button"
+          className="docs-bmenu-item"
+          onClick={() => {
+            closeBlockMenu();
+            duplicateBlocks(index, index);
+          }}
+        >
+          {t('editor.blockMenu.duplicate')}
+        </button>
+        <button
+          type="button"
+          className="docs-bmenu-item"
+          disabled={index === 0}
+          onClick={() => {
+            closeBlockMenu();
+            moveBlocks(index, index, -1);
+          }}
+        >
+          {t('editor.blockMenu.moveUp')}
+        </button>
+        <button
+          type="button"
+          className="docs-bmenu-item"
+          disabled={subtreeEnd(blocks, index) === blocks.length - 1}
+          onClick={() => {
+            closeBlockMenu();
+            moveBlocks(index, index, 1);
+          }}
+        >
+          {t('editor.blockMenu.moveDown')}
+        </button>
+        <hr className="docs-bmenu-divider" />
+        <button
+          type="button"
+          className="docs-bmenu-item docs-bmenu-danger"
+          onClick={() => {
+            closeBlockMenu();
+            deleteBlocks(index, index);
+          }}
+        >
+          {t('editor.blockMenu.delete')}
+        </button>
+      </div>
+    );
+
+  /** El "+" de abajo de un bloque o contenedor. */
+  const renderGap = (index: number, isHidden: boolean) => (
+    <div className={`docs-gap${isHidden ? ' is-hidden' : ''}`}>
+      <button
+        type="button"
+        className="docs-gap-add"
+        aria-label={t('editor.blockMenu.insertBelow')}
+        title={t('editor.blockMenu.insertBelow')}
+        data-no-drag
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => insertBlock(index, 'paragraph')}
+      >
+        <DocsGlyph name="plus" size={12} />
+      </button>
+    </div>
+  );
+
+  /** Separador entre dos columnas: arrastrar (o ←/→) cambia sus anchos. */
+  const startColumnResize = (e: ReactPointerEvent<HTMLElement>, listIndex: number, left: number) => {
+    e.preventDefault();
+    const row = (e.currentTarget.parentElement as HTMLElement | null) ?? null;
+    if (!row) return;
+    const total = row.getBoundingClientRect().width;
+    const cols = columnsIn(blocks, listIndex);
+    const ids = cols.map((c) => blocks[c].id);
+    const start = cols.map((c) => columnRatio(blocks[c]));
+    const x0 = e.clientX;
+    let last = start;
+    const move = (ev: PointerEvent) => {
+      last = resizeRatios(start, left, ev.clientX - x0, total);
+      row.querySelectorAll<HTMLElement>(':scope > .docs-column').forEach((el, k) => {
+        el.style.flexGrow = String(last[k]);
+      });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setColumnRatios(ids, last);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  /** Una fila de columnas: cada columna es un contenedor con sus bloques. */
+  const renderColumns = (index: number) => {
+    const block = blocks[index];
+    const cols = columnsIn(blocks, index);
+    const isHidden = hidden[index];
+    const indent = visualIndent(blocks, index);
+    const selected = !isHidden && index >= selMin && index <= selMax;
+    const ratios = cols.map((c) => columnRatio(blocks[c]));
+    return (
+      <Fragment key={block.id}>
+        <div
+          className={`docs-block-outer docs-container-outer docs-columns-outer${dragIndex === index ? ' dragging' : ''}${blockMenu === index ? ' menu-open' : ''}${isHidden ? ' is-hidden' : ''}${selected ? ' is-selected' : ''}`}
+          style={indent ? ({ '--docs-indent': indent } as CSSProperties) : undefined}
+          data-indent={indent || undefined}
+          data-bi={index}
+          data-in={containerOf(blocks, index)}
+          data-testid="docs-columns"
+          aria-hidden={isHidden || undefined}
+        >
+          {renderContainerGrip(index)}
+          {renderContainerMenu(index, block)}
+          <div className="docs-columns" role="group" aria-label={t('editor.columns.label', { count: cols.length })}>
+            {cols.map((c, k) => (
+              <Fragment key={blocks[c].id}>
+                <div className="docs-column" data-scope={c} data-testid="docs-column" style={{ flexGrow: ratios[k] }}>
+                  {renderRange(c + 1, subtreeEnd(blocks, c))}
+                </div>
+                {k < cols.length - 1 && (
+                  <div
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label={t('editor.columns.resize')}
+                    tabIndex={0}
+                    className="docs-column-resizer"
+                    data-no-drag
+                    onPointerDown={(e) => startColumnResize(e, index, k)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                      e.preventDefault();
+                      const ids = cols.map((x) => blocks[x].id);
+                      // De a 5% del ancho de la fila.
+                      setColumnRatios(ids, resizeRatios(ratios, k, e.key === 'ArrowRight' ? 50 : -50, 1000));
+                    }}
+                  />
+                )}
+              </Fragment>
+            ))}
+          </div>
+        </div>
+        {renderGap(index, isHidden)}
+      </Fragment>
+    );
+  };
+
+  /** Bloque sincronizado: su contenido se comparte con las otras páginas que lo usan. */
+  const renderSynced = (index: number) => {
+    const block = blocks[index];
+    const isHidden = hidden[index];
+    const indent = visualIndent(blocks, index);
+    const selected = !isHidden && index >= selMin && index <= selMax;
+    return (
+      <Fragment key={block.id}>
+        <div
+          className={`docs-block-outer docs-container-outer docs-synced-outer${dragIndex === index ? ' dragging' : ''}${blockMenu === index ? ' menu-open' : ''}${isHidden ? ' is-hidden' : ''}${selected ? ' is-selected' : ''}`}
+          style={indent ? ({ '--docs-indent': indent } as CSSProperties) : undefined}
+          data-indent={indent || undefined}
+          data-bi={index}
+          data-in={containerOf(blocks, index)}
+          data-testid="docs-synced"
+          aria-hidden={isHidden || undefined}
+        >
+          {renderContainerGrip(index)}
+          {renderContainerMenu(index, block)}
+          <div className="docs-synced" data-scope={index} role="group" aria-label={t('editor.synced.label')}>
+            <div className="docs-synced-bar">
+              <DocsGlyph name="synced" size={13} />
+              <span>{t('editor.synced.label')}</span>
+              <button type="button" className="docs-synced-copy" onClick={() => copySynced(block)}>
+                {t('editor.synced.copy')}
+              </button>
+            </div>
+            {renderRange(index + 1, subtreeEnd(blocks, index))}
+          </div>
+        </div>
+        {renderGap(index, isHidden)}
+      </Fragment>
+    );
+  };
+
+  /** Bloques [start, end] en orden; los contenedores dibujan su subárbol adentro. */
+  function renderRange(start: number, end: number): ReactNode[] {
+    const out: ReactNode[] = [];
+    let i = start;
+    while (i <= end && i < blocks.length) {
+      const b = blocks[i];
+      if (b.type === 'columns') {
+        out.push(renderColumns(i));
+        i = subtreeEnd(blocks, i) + 1;
+      } else if (b.type === 'synced') {
+        out.push(renderSynced(i));
+        i = subtreeEnd(blocks, i) + 1;
+      } else if (b.type === 'column') {
+        // Columna suelta (no debería quedar: normalizeStructure la deshace).
+        i = subtreeEnd(blocks, i) + 1;
+      } else {
+        out.push(renderLeaf(b, i));
+        i++;
+      }
+    }
+    return out;
+  }
+  return (
+    <>
+    <div
+      ref={rootRef}
+      className={`docs-editor${smallText ? ' docs-editor-small' : ''}${fullWidth ? ' docs-editor-full' : ''}${embedded ? ' docs-editor-embedded' : ''}`}
+      onKeyDownCapture={handleHistoryKeys}
+    >
+      {!embedded && (
+      <div className="docs-top-bar">
+        <nav className="docs-breadcrumb" aria-label={t('editor.breadcrumb')}>
+          {/* La banda ya dice "Docs / Páginas": acá van solo ancestros y título. */}
+          <ol>
+            {ancestorChain.map((a) => (
+              <li key={a.id} className="docs-breadcrumb-segment">
+                <Link href={`/app/docs/${a.id}`} className="docs-breadcrumb-link">
+                  <DocsPageIcon icon={a.icon} pageId={a.id} size={14} />
+                  <span className="docs-breadcrumb-title">{a.title || t('untitled')}</span>
+                </Link>
+              </li>
+            ))}
+            <li className="docs-breadcrumb-segment">
+              <span className="docs-breadcrumb-current" aria-current="page">
+                {title || t('untitled')}
+              </span>
+            </li>
+          </ol>
+        </nav>
+
+        <div className="docs-page-actions">
+          <span
+            className={`docs-save-status${saveError && !saving && !dirty ? ' is-error' : ''}`}
+            aria-live="polite"
+          >
+            {saving || dirty
+              ? t('editor.saving')
+              : saveError === 'conflict'
+                ? t('editor.saveConflict')
+                : saveError
+                ? (
+                    <>
+                      {t(saveError === 'tooLong' ? 'editor.saveTooLong' : 'editor.saveFailed')}{' '}
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => triggerSave()}>
+                        {t('editor.retrySave')}
+                      </button>
+                    </>
+                  )
+                : t('editor.saved')}
+          </span>
+          {topActions}
+          <div className="docs-action-menu-wrap" ref={menuRef}>
+            <button
+              type="button"
+              ref={menuBtnRef}
+              className="btn btn-ghost btn-sm btn-icon docs-action-btn"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label={t('editor.pageOptions')}
+              title={t('editor.pageOptions')}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+            >
+              <DocsGlyph name="more" size={16} />
+            </button>
+            {menuOpen && (
+              <div className="docs-menu docs-page-menu" role="menu" aria-label={t('editor.pageOptions')} onKeyDown={pageMenuKeys}>
+                <button type="button" role="menuitem" className="docs-menu-item" onClick={copyLink}>
+                  {t('editor.copyLink')}
+                </button>
+                <button type="button" role="menuitem" className="docs-menu-item" onClick={copyContents}>
+                  {t('editor.copyContents')}
+                </button>
+                {importUrl && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="docs-menu-item"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      importInputRef.current?.click();
+                    }}
+                  >
+                    {t('editor.import.menu')}
+                  </button>
+                )}
+                {onDuplicate && (
+                  <button type="button" role="menuitem" className="docs-menu-item" onClick={onDuplicate}>
+                    {t('editor.duplicate')}
+                  </button>
+                )}
+                {menuExtra && (
+                  <>
+                    <hr className="docs-menu-divider" />
+                    {menuExtra(() => setMenuOpen(false))}
+                  </>
+                )}
+                {layoutToggles && (<>
+                <hr className="docs-menu-divider" />
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={smallText}
+                  className="docs-menu-item docs-menu-toggle"
+                  onClick={() => {
+                    // Se persiste en la página (antes se perdía al recargar).
+                    const next = !smallText;
+                    setSmallText(next);
+                    onSave({ small_text: next });
+                    setMenuOpen(false);
+                  }}
+                >
+                  {t('editor.smallText')}
+                  <span className={`docs-toggle${smallText ? ' on' : ''}`} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={fullWidth}
+                  className="docs-menu-item docs-menu-toggle"
+                  onClick={() => {
+                    const next = !fullWidth;
+                    setFullWidth(next);
+                    onSave({ full_width: next });
+                    setMenuOpen(false);
+                  }}
+                >
+                  {t('editor.fullWidth')}
+                  <span className={`docs-toggle${fullWidth ? ' on' : ''}`} aria-hidden="true" />
+                </button>
+                </>)}
+                {onDelete && <hr className="docs-menu-divider" />}
+                {onDelete && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="docs-menu-item docs-menu-danger"
+                    onClick={onDelete}
+                  >
+                    {t('editor.moveToTrash')}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      )}
+
+      {embedded ? null : coverUrl ? (
+        <div className="docs-cover-anchor docs-cover-anchor-top">
+          <DocsCover
+            pageId={page.id}
+            value={coverUrl}
+            position={coverPosition}
+            editable
+            onChangeClick={() => setCoverOpen(true)}
+            onRemove={removeCover}
+            onPosition={(pos) => {
+              setCoverPosition(pos);
+              onSave({ cover_position: pos });
+            }}
+          />
+          {coverOpen && <DocsCoverPicker uploadUrl={uploadsEnabled ? uploadUrl : null} onPick={addCover} onClose={() => setCoverOpen(false)} />}
+        </div>
+      ) : null}
+
+      <div className="docs-page-header">
+        {!embedded && icon && (
+          <EmojiPicker
+            value={icon.startsWith('img:') ? '' : icon}
+            onChange={(next) => {
+              setIcon(next);
+              triggerSave(undefined, undefined, next);
+            }}
+            onRemove={() => {
+              setIcon('');
+              triggerSave(undefined, undefined, '');
+            }}
+            onUpload={uploadsEnabled ? uploadIcon : undefined}
+            triggerLabel={t('editor.changeIcon')}
+          >
+            {iconImageUrl(icon) ? (
+              // Ícono subido: la ruta con permisos (o el archivo local recién subido).
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className="docs-icon docs-icon-img" src={uploadPreview(iconImageUrl(icon)!) ?? pageImageHref(page.id, 'icon', icon)} alt="" />
+            ) : (
+              <span className="docs-icon">{icon}</span>
+            )}
+          </EmojiPicker>
+        )}
+
+        {!embedded && (
+          <div className="docs-page-meta">
+            {!icon && (
+              <EmojiPicker
+                value=""
+                triggerClassName="btn btn-ghost btn-sm docs-meta-btn"
+                triggerLabel={t('editor.addIcon')}
+                onUpload={uploadsEnabled ? uploadIcon : undefined}
+                onChange={(next) => {
+                  setIcon(next);
+                  triggerSave(undefined, undefined, next);
+                }}
+              >
+                {t('editor.addIcon')}
+              </EmojiPicker>
+            )}
+            {!coverUrl && (
+              <div className="docs-cover-anchor">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm docs-meta-btn"
+                  onClick={() => setCoverOpen(true)}
+                  aria-expanded={coverOpen}
+                  aria-haspopup="dialog"
+                >
+                  {t('editor.addCover')}
+                </button>
+                {coverOpen && <DocsCoverPicker uploadUrl={uploadsEnabled ? uploadUrl : null} onPick={addCover} onClose={() => setCoverOpen(false)} />}
+              </div>
+            )}
+            <button type="button" className="btn btn-ghost btn-sm docs-meta-btn" onClick={() => onAddComment?.()}>
+              {t('editor.addComment')}
+            </button>
+            {pageIsEmpty && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm docs-meta-btn"
+                onClick={() => setTemplatesOpen(true)}
+                aria-haspopup="dialog"
+                data-testid="docs-page-templates"
+              >
+                {t('templates.startWith')}
+              </button>
+            )}
+          </div>
+        )}
+        {!embedded && (
+          <DocsTemplateGallery open={templatesOpen} onClose={() => setTemplatesOpen(false)} onUseBuiltIn={applyTemplate} />
+        )}
+
+        <div
+          ref={titleRef}
+          className="docs-title"
+          contentEditable
+          suppressContentEditableWarning
+          role="textbox"
+          aria-multiline="true"
+          aria-label={t('editor.pageTitle')}
+          data-placeholder={titlePlaceholder ?? t('editor.untitled')}
+          onInput={(e) => {
+            const next = e.currentTarget.textContent ?? '';
+            setTitle(next);
+            triggerSave(undefined, next);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              // Enter en el título NO inserta newline: pasa el foco al primer bloque.
+              e.preventDefault();
+              pendingCaret.current = { index: 0, offset: 0 };
+              setFocusIndex(0);
+              setFocusTick((v) => v + 1);
+              return;
+            }
+            // Abajo en la última línea del título: al primer bloque, con la x del caret.
+            if (
+              e.key === 'ArrowDown' &&
+              !e.shiftKey &&
+              !e.altKey &&
+              !e.metaKey &&
+              !e.ctrlKey &&
+              (window.getSelection()?.isCollapsed ?? true) &&
+              isCaretOnEdgeLine(e.currentTarget, 1)
+            ) {
+              const x = getCaretViewportRect()?.left ?? e.currentTarget.getBoundingClientRect().left;
+              if (moveVertical(-1, 1, x)) e.preventDefault();
+            }
+          }}
+        />
+        {belowTitle}
+      </div>
+
+      <div
+        className={`docs-blocks${fileDropLine !== null ? ' file-dragover' : ''}${blockSel ? ' has-selection' : ''}`}
+        ref={blocksWrapRef}
+        tabIndex={-1}
+        aria-label={blockSel ? t('editor.selection.label', { count: selMax - selMin + 1 }) : undefined}
+        onKeyDown={handleSelectionKeyDown}
+        onMouseDown={(e) => {
+          // Un click (salvo Shift+click en el asa) deja la selección de bloques.
+          if (blockSel && !(e.shiftKey && (e.target as HTMLElement).closest('.docs-block-grip'))) setBlockSel(null);
+        }}
+        onBlur={(e) => {
+          if (blockSel && e.target === e.currentTarget && !e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setBlockSel(null);
+          }
+        }}
+        onDragOver={(e) => {
+          if (!uploadsEnabled || !Array.from(e.dataTransfer.types).includes('Files')) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+          setFileDropLine(computeDrop(e.clientX, e.clientY, false, blocks)?.line ?? null);
+        }}
+        onDragLeave={(e) => {
+          if (!blocksWrapRef.current?.contains(e.relatedTarget as Node | null)) setFileDropLine(null);
+        }}
+        onDrop={(e) => {
+          if (!uploadsEnabled || !Array.from(e.dataTransfer.types).includes('Files')) return;
+          e.preventDefault();
+          setFileDropLine(null);
+          // Cae antes del bloque destino: se ancla al anterior (o al contenedor si es el primero).
+          const target = computeDrop(e.clientX, e.clientY, false, blocks);
+          const at = target ? target.index - 1 : blocks.length - 1;
+          // En la página (fuera de contenedores) después de unas columnas: al nivel del bloque que sigue.
+          const indent =
+            target?.indent ??
+            (at >= 0 && scopeBaseIndent(blocks, at) > 0 ? (blocks[target?.index ?? -1] ? blockIndent(blocks[target!.index]) : 0) : undefined);
+          void uploadFiles(Array.from(e.dataTransfer.files), at >= 0 ? blocks[at]?.id ?? null : null, { indent });
+        }}
+      >
+        {renderRange(0, blocks.length - 1)}
+        {[dropLine, fileDropLine].map(
+          (line, k) =>
+            line && (
+              <div
+                key={k}
+                className={`docs-drop-line${line.vertical ? ' is-vertical' : ''}`}
+                style={{ top: line.top, left: line.left, width: line.vertical ? 3 : line.width, height: line.vertical ? line.height : undefined }}
+                aria-hidden
+              />
+            ),
         )}
       </div>
 
@@ -3000,20 +3906,23 @@ export default function DocsEditor({
           style={caretMenuStyle(caretMenuPos, 280, 320)}
           onMouseDown={(e) => e.preventDefault()}
         >
-          <div className="docs-command-title">{t('editor.basicBlocks')}</div>
           {filteredCommands.map((cmd, i) => (
+            <Fragment key={cmd.key}>
+            {(i === 0 || (filteredCommands[i - 1].group ?? 'basic') !== (cmd.group ?? 'basic')) && (
+              <div className="docs-command-title">{t(`editor.commandGroups.${cmd.group ?? 'basic'}`)}</div>
+            )}
             <button
-              key={cmd.key}
               type="button"
               className={`docs-command-item${i === cmdSel ? ' sel' : ''}`}
               onClick={() => applyCommand(slash.index, cmd)}
             >
-              <span className="docs-command-icon"><DocsGlyph name={BLOCK_ICONS[cmd.type]} size={14} /></span>
+              <span className="docs-command-icon"><DocsGlyph name={commandIcon(cmd)} size={14} /></span>
               <span className="docs-command-label">{cmd.label}</span>
               {cmd.shortcut && (
                 <span className="docs-command-shortcut">{cmd.shortcut}</span>
               )}
             </button>
+            </Fragment>
           ))}
           {filteredCommands.length === 0 && (
             <div className="docs-command-empty">{t('editor.noCommands')}</div>
@@ -3048,6 +3957,8 @@ export default function DocsEditor({
           style={caretMenuStyle(caretMenuPos, 260, 280)}
           onSelect={onSelectUserMention}
           onClose={() => setUserMention(null)}
+          dates={dateOptionLabels}
+          onSelectDate={onSelectDateMention}
         />,
         document.body,
       )}
@@ -3183,6 +4094,53 @@ export default function DocsEditor({
           )}
         </div>,
         document.body,
+      )}
+      {pastePrompt &&
+        createPortal(
+          <div
+            className="docs-menu docs-paste-menu"
+            role="menu"
+            aria-label={t('editor.paste.title')}
+            style={{ position: 'fixed', top: pastePrompt.top, left: Math.max(8, Math.min(pastePrompt.left, window.innerWidth - 228)) }}
+            onMouseDown={(e) => e.preventDefault()}
+            data-testid="docs-paste-menu"
+          >
+            <div className="docs-command-title">{t('editor.paste.title')}</div>
+            {pasteChoices.map((c, i) => (
+              <button
+                key={c}
+                type="button"
+                role="menuitem"
+                className={`docs-menu-item${i === pasteSel ? ' sel' : ''}`}
+                onMouseEnter={() => setPasteSel(i)}
+                onClick={() => void resolvePaste(c)}
+              >
+                <DocsGlyph name={c === 'bookmark' ? 'bookmark' : c === 'embed' ? 'embed' : 'link'} size={14} />
+                {t(`editor.paste.${c}`)}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+      {eqPopover &&
+        createPortal(
+          <InlineEquationEditor
+            tex={eqPopover.tex}
+            style={{ position: 'fixed', top: eqPopover.top, left: Math.max(8, Math.min(eqPopover.left, window.innerWidth - 300)) }}
+            onSave={saveInlineEquation}
+            onCancel={() => {
+              const pop = eqPopover;
+              setEqPopover(null);
+              setFocusIndex(pop.index);
+              setFocusTick((v) => v + 1);
+            }}
+          />,
+          document.body,
+        )}
+      {syncedNotice && (
+        <p className="docs-upload-status" role="status">
+          <span>{syncedNotice}</span>
+        </p>
       )}
     </div>
     {openRow && openRowBlock && (

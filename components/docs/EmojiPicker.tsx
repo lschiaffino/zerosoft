@@ -13,6 +13,8 @@ interface EmojiPickerProps {
   triggerClassName?: string;
   /** Nombre accesible del botón (por defecto "Elegir ícono"). */
   triggerLabel?: string;
+  /** Si está, el popover ofrece subir una imagen como ícono (ícono de página). */
+  onUpload?: (file: File) => void;
   children: React.ReactNode;
 }
 
@@ -43,12 +45,13 @@ const EMOJI_CATEGORIES: { key: string; emojis: string[] }[] = [
   },
 ];
 
-export default function EmojiPicker({ value, onChange, onRemove, triggerClassName, triggerLabel, children }: EmojiPickerProps) {
+export default function EmojiPicker({ value, onChange, onRemove, triggerClassName, triggerLabel, onUpload, children }: EmojiPickerProps) {
   const t = useTranslations('docs');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -108,6 +111,28 @@ export default function EmojiPicker({ value, onChange, onRemove, triggerClassNam
               onChange={(e) => setQuery(e.target.value)}
               autoFocus
             />
+            {onUpload && (
+              <>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => fileRef.current?.click()}>
+                  {t('emoji.upload')}
+                </button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  hidden
+                  data-testid="docs-icon-file"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = '';
+                    if (f) {
+                      onUpload(f);
+                      setOpen(false);
+                    }
+                  }}
+                />
+              </>
+            )}
             {onRemove && value && (
               <button
                 type="button"

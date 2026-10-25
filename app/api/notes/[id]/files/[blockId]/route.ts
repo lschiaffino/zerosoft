@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string;
   const block = findFileBlock(blocks, blockId);
   if (!block) return jsonError(404, 'not_found');
   return (
-    (await fileBlockResponse(block, { download: req.nextUrl.searchParams.get('download') === '1' })) ??
+    (await fileBlockResponse(block, { download: req.nextUrl.searchParams.get('download') === '1', range: req.headers.get('range') })) ??
     jsonError(404, 'not_found')
   );
 }

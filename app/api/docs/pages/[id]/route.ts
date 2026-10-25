@@ -4,6 +4,7 @@ import { DocsConflictError, deleteDocPage, getDocAccess, getDocPageRow, listEffe
 import { stripFileUrls } from '@/lib/docs-files';
 import { SHARED_EDITABLE_FIELDS, docPageUpdateSchema } from '@/lib/docs-schema';
 import { maybeAutoSnapshot } from '@/lib/docs-versions';
+import { hydrateSyncedBlocks } from '@/lib/docs-synced';
 import { notFound, unauthorized, invalidBody, forbidden, docsError } from '@/lib/docs-http';
 
 export const runtime = 'nodejs';
@@ -19,6 +20,8 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   // Los shares (quién tiene acceso, propios y heredados) solo los ve el dueño.
   const shares = access === 'owner' ? await listEffectiveDocShares(row) : [];
   const page = toDocPage(row);
+  // Bloques sincronizados con el contenido actual (puede haberse editado en otra página).
+  page.content = await hydrateSyncedBlocks(row.user_id, page.content);
   // Solo lectura: la URL del storage de imágenes/archivos no viaja (se sirven por /api/docs/files).
   if (access === 'view') page.content = stripFileUrls(page.content);
   return NextResponse.json({ ...page, access, shares });
@@ -38,7 +41,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (!row || !access) return notFound();
   if (access === 'view') return forbidden();
 
-  const patch = parsed.data;
+  const { locale, timezone, ...patch } = parsed.data;
   if (access === 'edit') {
     // Un invitado con edición cambia el contenido, nunca la publicación, la
     // IA, el árbol ni la papelera del workspace ajeno.
@@ -48,7 +51,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 
   let page;
   try {
-    page = await updateDocPage(row.user_id, params.id, patch);
+    page = await updateDocPage(row.user_id, params.id, patch, { actorId: realUserId(user), locale, timezone });
   } catch (err) {
     // Otra persona guardó (o se restauró una versión) desde que el editor
     // cargó la página: no pisar su contenido en silencio.
