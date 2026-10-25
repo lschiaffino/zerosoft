@@ -14,6 +14,11 @@ export function rememberUploadPreview(storageUrl: string, file: Blob): void {
   if (!previews.has(storageUrl)) previews.set(storageUrl, URL.createObjectURL(file));
 }
 
+/** blob: local de lo recién subido (video, audio, PDF), si lo hay. */
+export function uploadPreview(storageUrl: string | undefined): string | undefined {
+  return storageUrl ? previews.get(storageUrl) : undefined;
+}
+
 const RETRIES = 3;
 
 /**

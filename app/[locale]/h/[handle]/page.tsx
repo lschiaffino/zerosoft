@@ -7,6 +7,7 @@ import { helpAccentStyle } from '@/lib/docs-accent';
 import Icon from '@/components/app/icons';
 import EmptyState from '@/components/ui/EmptyState';
 import HelpHeader from '@/components/docs/HelpHeader';
+import DocsPageIcon from '@/components/docs/DocsPageIcon';
 import '@/styles/help.css';
 
 export const dynamic = 'force-dynamic';
@@ -119,7 +120,7 @@ export default async function HelpCenterHome(props: Props) {
                 <div className="help-collection-body">
                   <h2 className="help-collection-title">
                     <a href={`${base}/${c.slug}`}>
-                      {c.icon && <span aria-hidden="true">{c.icon} </span>}
+                      {c.icon && <span aria-hidden="true"><DocsPageIcon icon={c.icon} pageId={c.id} size={16} /> </span>}
                       {c.title || t('untitled')}
                     </a>
                   </h2>

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocale, useTranslations } from 'next-intl';
 import type { DbProperty, DbRow, DbValue, DocsBlock, DocsDatabase, DocsPage } from '@/lib/docs-types';
-import { cellValue, isComputedType, newDbId, normalizeDatabase, rowTitle, setCell, updateProperty } from '@/lib/docs-database';
+import { cellValue, DB_MAX_TEMPLATES, isComputedType, newDbId, normalizeDatabase, rowTitle, saveRowAsTemplate, setCell, updateProperty } from '@/lib/docs-database';
 import DocsGlyph from '../DocsGlyphs';
 import DbValueView from './DbValueView';
 import DbCellEditor from './DbCellEditor';
@@ -132,6 +132,7 @@ export default function DbRowPanel({
   const people = useMemo(() => peopleMap(members), [members]);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [templateSaved, setTemplateSaved] = useState(false);
   // Base vieja (sin `db` todavía): mismos ids que ve la tabla.
   const db = block.type === 'database' ? normalizeDatabase(block) : null;
   const row = db?.rows.find((r) => r.id === rowId);
@@ -239,6 +240,20 @@ export default function DbRowPanel({
           >
             <DocsGlyph name={mode === 'peek' ? 'expand' : 'peek'} size={14} />
             {mode === 'peek' ? t('openFullPage') : t('openSidePeek')}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            disabled={(db.templates?.length ?? 0) >= DB_MAX_TEMPLATES}
+            data-testid="docs-db-save-template"
+            onClick={() => {
+              updateDb((cur) => saveRowAsTemplate(cur, rowId, rowTitle(cur, row) || t('templates.untitled')));
+              setTemplateSaved(true);
+              window.setTimeout(() => setTemplateSaved(false), 3000);
+            }}
+          >
+            <DocsGlyph name="template" size={14} />
+            {templateSaved ? t('templates.saved') : t('templates.saveRow')}
           </button>
           {confirmDelete ? (
             <button

@@ -10,6 +10,8 @@ import { useShellBranch } from '@/components/app/useShellBranch';
 import { buildPageTree, type DocsPageSummary } from '@/lib/docs-types';
 import DocsGlyph from './DocsGlyphs';
 import DocsPageSwitcher, { DOCS_SWITCHER_EVENT } from './DocsPageSwitcher';
+import DocsPageIcon from './DocsPageIcon';
+import { DOCS_FAVORITES_EVENT, type DocsFavoriteRow } from './favorites';
 
 interface DocsSidebarProps {
   pages: DocsPageSummary[];
@@ -29,6 +31,8 @@ interface DocsSidebarProps {
   };
   /** Páginas de otros workspaces compartidas con la persona. */
   shared?: Array<{ id: string; title: string; icon: string | null; role: 'view' | 'edit'; owner_name: string | null; owner_email: string }>;
+  /** Favoritos de la persona (en orden). */
+  favorites?: DocsFavoriteRow[];
 }
 
 type TreeNode = DocsPageSummary & { children?: TreeNode[] };
@@ -64,6 +68,7 @@ export default function DocsSidebar({
   stepAction,
   labels,
   shared = [],
+  favorites: initialFavorites = [],
 }: DocsSidebarProps) {
   const t = useTranslations('docs');
   const router = useRouter();
@@ -77,6 +82,46 @@ export default function DocsSidebar({
   const [mobileOpen, setMobileOpen] = useState(mobileOpenByDefault);
   const menuRef = useRef<HTMLSpanElement>(null);
   const branch = useShellBranch();
+  // Favoritos: la estrella de la página los cambia al instante (evento), el server los trae al navegar.
+  const [favorites, setFavorites] = useState<DocsFavoriteRow[]>(initialFavorites);
+  const [favDrag, setFavDrag] = useState<string | null>(null);
+  const [favDrop, setFavDrop] = useState<{ id: string; zone: 'before' | 'after' } | null>(null);
+  const favKey = initialFavorites.map((f) => `${f.id}:${f.title}:${f.icon ?? ''}`).join('|');
+  useEffect(() => {
+    setFavorites(initialFavorites);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [favKey]);
+  useEffect(() => {
+    const on = (e: Event) => {
+      const rows = (e as CustomEvent<DocsFavoriteRow[]>).detail;
+      if (Array.isArray(rows)) setFavorites(rows);
+    };
+    window.addEventListener(DOCS_FAVORITES_EVENT, on);
+    return () => window.removeEventListener(DOCS_FAVORITES_EVENT, on);
+  }, []);
+
+  /** Reordenar favoritos: soltar arriba o abajo de otro (o Alt+↑/↓ en el link). */
+  const reorderFavorites = useCallback((ids: string[]) => {
+    setFavorites((prev) => ids.map((id) => prev.find((f) => f.id === id)!).filter(Boolean));
+    fetch('/api/docs/favorites', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { rows?: DocsFavoriteRow[] } | null) => {
+        if (d?.rows) window.dispatchEvent(new CustomEvent(DOCS_FAVORITES_EVENT, { detail: d.rows }));
+      })
+      .catch(() => {});
+  }, []);
+
+  const moveFavorite = (id: string, targetId: string, zone: 'before' | 'after') => {
+    const ids = favorites.map((f) => f.id).filter((x) => x !== id);
+    const at = ids.indexOf(targetId) + (zone === 'after' ? 1 : 0);
+    if (at < 0) return;
+    ids.splice(at, 0, id);
+    reorderFavorites(ids);
+  };
 
   // Ramas plegadas: preferencia local del navegador.
   useEffect(() => {
@@ -234,7 +279,7 @@ export default function DocsSidebar({
             aria-keyshortcuts={stepAction ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
           >
             <span className="docs-tree-icon" aria-hidden="true">
-              {node.icon ? node.icon : <DocsGlyph name="page" size={16} />}
+              <DocsPageIcon icon={node.icon} pageId={node.id} size={16} fallback />
             </span>
             <span className="docs-tree-title">{node.title || t('untitled')}</span>
           </Link>
@@ -313,6 +358,71 @@ export default function DocsSidebar({
         <span className="docs-tree-search-label">{t('switcher.open')}</span>
         <kbd className="docs-tree-search-kbd">{t('switcher.shortcut')}</kbd>
       </button>
+      {favorites.length > 0 && (
+        <div className="docs-favorites" role="group" aria-label={t('favorites.title')} data-testid="docs-favorites">
+          <p className="docs-shared-label">{t('favorites.title')}</p>
+          <ul className="docs-favorites-list">
+            {favorites.map((f, i) => (
+              <li key={f.id} style={{ '--d': 0 } as CSSProperties}>
+                <div
+                  className={`docs-tree-row${f.id === currentId ? ' active' : ''}${favDrop?.id === f.id ? ` drop drop-${favDrop.zone}` : ''}${favDrag === f.id ? ' dragging' : ''}`}
+                  data-testid="docs-favorite-row"
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/x-docs-favorite', f.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                    setFavDrag(f.id);
+                  }}
+                  onDragEnd={() => {
+                    setFavDrag(null);
+                    setFavDrop(null);
+                  }}
+                  onDragOver={(e) => {
+                    if (!favDrag || favDrag === f.id) return;
+                    e.preventDefault();
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setFavDrop({ id: f.id, zone: e.clientY < r.top + r.height / 2 ? 'before' : 'after' });
+                  }}
+                  onDragLeave={() => setFavDrop((d) => (d?.id === f.id ? null : d))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const id = e.dataTransfer.getData('text/x-docs-favorite');
+                    const zone = favDrop?.zone ?? 'before';
+                    setFavDrag(null);
+                    setFavDrop(null);
+                    if (id && id !== f.id) moveFavorite(id, f.id, zone);
+                  }}
+                >
+                  <span className="docs-tree-chevron-spacer" aria-hidden="true" />
+                  <Link
+                    href={`/app/docs/${f.id}`}
+                    className="docs-tree-link"
+                    aria-current={f.id === currentId ? 'page' : undefined}
+                    aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+                    onClick={() => setMobileOpen(false)}
+                    onKeyDown={(e) => {
+                      if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+                      e.preventDefault();
+                      const j = i + (e.key === 'ArrowUp' ? -1 : 1);
+                      if (j < 0 || j >= favorites.length) return;
+                      const ids = favorites.map((x) => x.id);
+                      [ids[i], ids[j]] = [ids[j], ids[i]];
+                      reorderFavorites(ids);
+                      requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-fav-link="${f.id}"]`)?.focus());
+                    }}
+                    data-fav-link={f.id}
+                  >
+                    <span className="docs-tree-icon" aria-hidden="true">
+                      <DocsPageIcon icon={f.icon} pageId={f.id} size={16} fallback />
+                    </span>
+                    <span className="docs-tree-title">{f.title || t('untitled')}</span>
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {tree.length === 0 ? (
         <div className="docs-sidebar-empty">
           <p>{labels.empty}</p>

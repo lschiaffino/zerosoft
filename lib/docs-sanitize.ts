@@ -3,6 +3,9 @@ import type { DbProperty, DbValue, DocsBlock, DocsDatabase } from './docs-types'
 import { isPageLinkId, pageLinkHref } from './docs-page-links';
 import { DB_MAX_BODY_BLOCKS, isComputedType, isOptionType, isTextType, normalizeDatabase } from './docs-database';
 import { sanitizeFileFields } from './docs-files';
+import { cleanExternalUrl } from './docs-embeds';
+import { DAY_RE as DATE_DAY_RE, RID_RE, TIME_RE } from './docs-dates';
+import type { DocsButtonConfig, DocsLinkPreview } from './docs-types';
 
 /**
  * Sanitización de Docs en el servidor. El editor ya sanitiza en el navegador
@@ -13,8 +16,12 @@ import { sanitizeFileFields } from './docs-files';
  * (lib/docs-page-links.ts), así que nunca queda otro destino que /app/docs/<id>.
  */
 const OPTIONS: sanitizeHtml.IOptions = {
-  allowedTags: ['strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del', 'code', 'a', 'br'],
-  allowedAttributes: { a: ['href', 'target', 'rel', 'data-page', 'data-row'] },
+  allowedTags: ['strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del', 'code', 'a', 'br', 'span'],
+  allowedAttributes: {
+    a: ['href', 'target', 'rel', 'data-page', 'data-row'],
+    // Menciones de fecha (lib/docs-dates.ts) y ecuaciones en línea.
+    span: ['data-date', 'data-time', 'data-remind', 'data-rid', 'data-tex'],
+  },
   allowedSchemes: ['http', 'https', 'mailto', 'tel'],
   allowProtocolRelative: false,
   disallowedTagsMode: 'discard',
@@ -28,6 +35,25 @@ const OPTIONS: sanitizeHtml.IOptions = {
         return { tagName, attribs: { href: pageLinkHref(page), 'data-page': page } };
       }
       return { tagName, attribs: { href: attribs.href ?? '', target: '_blank', rel: 'noopener noreferrer' } };
+    },
+    // Solo spans con forma válida: fecha (con recordatorio) o ecuación. El resto queda sin atributos.
+    span: (tagName, attribs): sanitizeHtml.Tag => {
+      const tex = attribs['data-tex'];
+      if (typeof tex === 'string' && tex.length > 0 && tex.length <= 2000) return { tagName, attribs: { 'data-tex': tex } };
+      const date = attribs['data-date'];
+      if (typeof date === 'string' && DATE_DAY_RE.test(date)) {
+        const out: Record<string, string> = { 'data-date': date };
+        const time = attribs['data-time'];
+        if (typeof time === 'string' && TIME_RE.test(time)) out['data-time'] = time;
+        const remind = attribs['data-remind'];
+        const rid = attribs['data-rid'];
+        if (typeof remind === 'string' && !Number.isNaN(Date.parse(remind)) && typeof rid === 'string' && RID_RE.test(rid)) {
+          out['data-remind'] = new Date(remind).toISOString();
+          out['data-rid'] = rid;
+        }
+        return { tagName, attribs: out };
+      }
+      return { tagName, attribs: {} };
     },
   },
 };
@@ -133,21 +159,123 @@ export function sanitizeDatabase(db: DocsDatabase): DocsDatabase {
     widths: v.widths ? Object.fromEntries(Object.entries(v.widths).filter(([k]) => byId.has(k))) : undefined,
   }));
   const active = views.some((v) => v.id === fixed.active_view) ? fixed.active_view : views[0]?.id;
+  // Plantillas de fila: los mismos valores saneados que una fila y un cuerpo sin bases.
+  const templates = (fixed.templates ?? []).slice(0, 30).flatMap((tpl) => {
+    if (!tpl || typeof tpl.id !== 'string' || !ID_RE.test(tpl.id)) return [];
+    const values: Record<string, DbValue> = {};
+    for (const [key, v] of Object.entries(tpl.values ?? {})) {
+      const prop = byId.get(key);
+      if (!prop) continue;
+      const clean = sanitizeDbValue(prop, v);
+      if (clean !== undefined) values[key] = clean;
+    }
+    const body = tpl.body?.length
+      ? sanitizeBlocks(tpl.body.filter((b) => b.type !== 'database').slice(0, DB_MAX_BODY_BLOCKS))
+      : undefined;
+    return [{ id: tpl.id, name: plainCell(tpl.name).slice(0, 500), values, ...(body ? { body } : {}) }];
+  });
   return {
     properties,
     rows,
     views,
     ...(active ? { active_view: active } : {}),
     ...(fixed.title ? { title: plainCell(fixed.title).slice(0, 500) } : {}),
+    ...(templates.length ? { templates } : {}),
   };
+}
+
+function plainText(v: unknown, max: number): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  const out = v.replace(/<[^>]*>?/g, '').trim().slice(0, max);
+  return out || undefined;
+}
+
+function sanitizeLink(link: unknown): DocsLinkPreview | undefined {
+  if (!link || typeof link !== 'object') return undefined;
+  const l = link as Record<string, unknown>;
+  const url = cleanExternalUrl(l.url);
+  if (!url) return undefined;
+  const out: DocsLinkPreview = { url };
+  const title = plainText(l.title, 300);
+  const description = plainText(l.description, 500);
+  const site = plainText(l.site, 120);
+  // Imagen e ícono: solo https (se muestran con <img> en la página).
+  const image = cleanExternalUrl(l.image);
+  const favicon = cleanExternalUrl(l.favicon);
+  if (title) out.title = title;
+  if (description) out.description = description;
+  if (site) out.site = site;
+  if (image?.startsWith('https://')) out.image = image;
+  if (favicon?.startsWith('https://')) out.favicon = favicon;
+  return out;
+}
+
+function sanitizeButton(button: unknown): DocsButtonConfig | undefined {
+  if (!button || typeof button !== 'object') return undefined;
+  const b = button as Record<string, unknown>;
+  const label = plainText(b.label, 200) ?? '';
+  if (b.action === 'link') {
+    const raw = typeof b.url === 'string' ? b.url.trim() : '';
+    const url = raw.startsWith('/') && !raw.startsWith('//') ? raw.slice(0, 2048) : cleanExternalUrl(raw) ?? undefined;
+    return { label, action: 'link', ...(url ? { url } : {}) };
+  }
+  const markdown = typeof b.markdown === 'string' ? b.markdown.slice(0, 10000) : '';
+  return { label, action: 'insert', markdown };
+}
+
+/** LaTeX de un bloque ecuación: texto plano escapado una sola vez (nada de tags). */
+export function equationContent(raw: string): string {
+  const plain = String(raw ?? '')
+    .replace(/<[^>]*>?/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .slice(0, 5000);
+  return plain.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+const MEDIA_SIZED = new Set(['image', 'video', 'pdf', 'embed']);
+const CAPTIONED = new Set(['image', 'video', 'audio', 'pdf', 'file', 'bookmark', 'embed']);
+
+/**
+ * Campos de los bloques nuevos: cada uno solo en su tipo y con su forma
+ * (ancho 10-100, alineación, leyenda HTML-lite, peso de columna, link externo
+ * http(s), alto del embed, id de bloque sincronizado, botón).
+ */
+function sanitizeExtraFields(block: DocsBlock): DocsBlock {
+  const { width, align, caption, ratio, link, height, synced_id, button, ...rest } = block;
+  const out: DocsBlock = rest;
+  if (MEDIA_SIZED.has(block.type)) {
+    if (typeof width === 'number' && Number.isFinite(width)) out.width = Math.max(10, Math.min(100, Math.round(width)));
+    if (align === 'left' || align === 'center' || align === 'right') out.align = align;
+  }
+  if (CAPTIONED.has(block.type) && typeof caption === 'string' && caption) {
+    const clean = sanitizeDocsHtml(caption.slice(0, 2000));
+    if (clean) out.caption = clean;
+  }
+  if (block.type === 'column' && typeof ratio === 'number' && Number.isFinite(ratio) && ratio > 0) out.ratio = Math.min(100, ratio);
+  if (block.type === 'bookmark' || block.type === 'embed') {
+    const l = sanitizeLink(link);
+    if (l) out.link = l;
+  }
+  if (block.type === 'embed' && typeof height === 'number' && Number.isFinite(height)) out.height = Math.max(80, Math.min(2000, Math.round(height)));
+  if (block.type === 'synced' && typeof synced_id === 'string' && ID_RE.test(synced_id)) out.synced_id = synced_id;
+  if (block.type === 'button') {
+    const btn = sanitizeButton(button);
+    if (btn) out.button = btn;
+  }
+  // Ecuación: el contenido es LaTeX en texto plano (escapado, como el código).
+  if (block.type === 'equation') out.content = equationContent(block.content);
+  return out;
 }
 
 export function sanitizeBlocks(blocks: DocsBlock[]): DocsBlock[] {
   return blocks.map((b) => ({
     // image/file: URL solo del storage de Docs, nombre/MIME saneados.
     // board: solo un id de pizarra válido.
-    ...sanitizeBoardField(sanitizeFileFields(b)),
-    content: sanitizeDocsHtml(b.content),
+    ...sanitizeExtraFields(sanitizeBoardField(sanitizeFileFields(b))),
+    content: b.type === 'equation' ? equationContent(b.content) : sanitizeDocsHtml(b.content),
     // Las celdas de tablas/bases son texto plano (se renderizan en <input> y
     // como texto, nunca con innerHTML): escaparlas como HTML mostraba "&amp;"
     // y lo duplicaba en cada guardado.

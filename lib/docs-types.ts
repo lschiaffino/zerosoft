@@ -18,7 +18,24 @@ export type DocsBlockType =
   | 'file'
   | 'toggle'
   | 'callout'
-  | 'board';
+  | 'board'
+  // Archivos que se muestran en línea (subidos como image/file).
+  | 'video'
+  | 'audio'
+  | 'pdf'
+  // Columnas: `columns` contiene bloques `column` (indent + 1) y cada columna
+  // a sus bloques (indent + 2). Ver lib/docs-columns.ts.
+  | 'columns'
+  | 'column'
+  // Links con vista previa y contenido de terceros (lib/docs-embeds.ts).
+  | 'bookmark'
+  | 'embed'
+  // Bloques avanzados.
+  | 'synced'
+  | 'equation'
+  | 'toc'
+  | 'button'
+  | 'breadcrumb';
 
 /** Niveles de anidado (Tab): el bloque cuelga del anterior con un nivel menos. */
 export const DOCS_MAX_INDENT = 6;
@@ -155,6 +172,16 @@ export interface DocsDatabase {
   active_view?: string;
   /** Nombre de la base (encabezado y breadcrumb de una fila abierta). */
   title?: string;
+  /** Plantillas de fila: "Nuevo" puede crear la fila desde una de estas. */
+  templates?: DbRowTemplate[];
+}
+
+/** Plantilla de fila de una base: valores iniciales y cuerpo. */
+export interface DbRowTemplate {
+  id: string;
+  name: string;
+  values: Record<string, DbValue>;
+  body?: DocsBlock[];
 }
 
 export interface DocsBlock {
@@ -197,6 +224,45 @@ export interface DocsBlock {
    * la página pueda ver la pizarra.
    */
   board_id?: string;
+  /** Imagen, video, PDF o embed: ancho en % del ancho de la página (10-100). */
+  width?: number;
+  /** Imagen: alineación. */
+  align?: 'left' | 'center' | 'right';
+  /** Leyenda (HTML-lite) de imagen, video, audio, PDF, archivo, bookmark o embed. */
+  caption?: string;
+  /** Columna: peso relativo del ancho (las columnas de una fila suman lo que sumen). */
+  ratio?: number;
+  /**
+   * Bookmark y embed: link externo (http/https) y los metadatos que trajo el
+   * servidor (lib/docs-unfurl.ts). La imagen y el favicon son URLs externas
+   * que se muestran con <img>; el iframe del embed se arma siempre desde
+   * `link.url` (lib/docs-embeds.ts), nunca desde algo guardado.
+   */
+  link?: DocsLinkPreview;
+  /** Embed: alto del iframe en px. */
+  height?: number;
+  /** Bloque sincronizado: id del contenido compartido (tabla docs_synced_blocks). */
+  synced_id?: string;
+  /** Botón: qué hace al hacer clic. */
+  button?: DocsButtonConfig;
+}
+
+export interface DocsLinkPreview {
+  url: string;
+  title?: string;
+  description?: string;
+  image?: string;
+  site?: string;
+  favicon?: string;
+}
+
+export interface DocsButtonConfig {
+  label: string;
+  action: 'insert' | 'link';
+  /** action 'link': adónde va (http/https o una ruta relativa). */
+  url?: string;
+  /** action 'insert': los bloques que agrega debajo del botón, en Markdown. */
+  markdown?: string;
 }
 
 export interface DocsPage {
@@ -220,6 +286,8 @@ export interface DocsPage {
   position?: number | null;
   /** Hereda los shares de la página padre (y de sus ancestros). */
   inherit_shares?: boolean;
+  /** Posición vertical de la portada (0 arriba, 100 abajo; default 50). */
+  cover_position?: number;
   created_at: string;
   updated_at: string;
 }

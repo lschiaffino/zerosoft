@@ -30,7 +30,35 @@ const docsBlockType = z.enum([
   'toggle',
   'callout',
   'board',
+  'video',
+  'audio',
+  'pdf',
+  'columns',
+  'column',
+  'bookmark',
+  'embed',
+  'synced',
+  'equation',
+  'toc',
+  'button',
+  'breadcrumb',
 ]);
+
+const docsLinkSchema = z.object({
+  url: z.string().max(2048),
+  title: z.string().max(1000).optional(),
+  description: z.string().max(2000).optional(),
+  image: z.string().max(2048).optional(),
+  site: z.string().max(500).optional(),
+  favicon: z.string().max(2048).optional(),
+});
+
+const docsButtonSchema = z.object({
+  label: z.string().max(500),
+  action: z.enum(['insert', 'link']),
+  url: z.string().max(2048).optional(),
+  markdown: z.string().max(10000).optional(),
+});
 
 const docsDatabaseColumnSchema = z.object({
   id: z.string().min(1).max(64),
@@ -125,7 +153,7 @@ const docsBaseBlockSchema = z.object({
   // Bloques image/file (sanitizeBlocks descarta la URL si no es del storage).
   url: z.string().max(2048).optional(),
   name: z.string().max(255).optional(),
-  size: z.number().int().min(0).max(1024 * 1024 * 1024).optional(),
+  size: z.number().int().min(0).max(5 * 1024 * 1024 * 1024).optional(),
   mime: z.string().max(255).optional(),
   indent: z.number().int().min(0).max(DOCS_MAX_INDENT).optional(),
   collapsed: z.boolean().optional(),
@@ -133,6 +161,15 @@ const docsBaseBlockSchema = z.object({
   icon: z.string().max(16).optional(),
   // Bloque board (sanitizeBlocks lo descarta si no es un id válido o el bloque no es board).
   board_id: z.string().max(64).optional(),
+  // Bloques nuevos (sanitizeBlocks valida cada campo según el tipo).
+  width: z.number().min(0).max(100).optional(),
+  align: z.enum(['left', 'center', 'right']).optional(),
+  caption: z.string().max(4000).optional(),
+  ratio: z.number().min(0).max(100).optional(),
+  link: docsLinkSchema.optional(),
+  height: z.number().min(0).max(4000).optional(),
+  synced_id: z.string().max(64).optional(),
+  button: docsButtonSchema.optional(),
 });
 
 const dbRow = z.object({
@@ -150,6 +187,17 @@ export const docsDatabaseSchema = z.object({
   views: z.array(dbView).min(1).max(20),
   active_view: dbId.optional(),
   title: shortText.optional(),
+  templates: z
+    .array(
+      z.object({
+        id: dbId,
+        name: shortText,
+        values: z.record(dbValue),
+        body: z.array(docsBaseBlockSchema).max(500).optional(),
+      }),
+    )
+    .max(30)
+    .optional(),
 });
 
 export const docsBlockSchema = docsBaseBlockSchema.extend({
@@ -175,6 +223,10 @@ export const docPageUpdateSchema = z.object({
   small_text: z.boolean().optional(),
   full_width: z.boolean().optional(),
   inherit_shares: z.boolean().optional(),
+  cover_position: z.number().min(0).max(100).optional(),
+  /** Idioma y zona horaria del navegador: los recordatorios de fecha avisan en ese idioma. */
+  locale: z.enum(['en', 'es', 'pt']).optional(),
+  timezone: z.string().max(64).optional(),
   /** updated_at sobre el que se editó (concurrencia optimista: 409 si cambió). */
   base_updated_at: z.string().min(1).max(64).optional(),
 });
@@ -194,7 +246,7 @@ export const docShareUpdateSchema = z.object({
 });
 
 /** Campos que puede tocar alguien con un share de edición (no el dueño). */
-export const SHARED_EDITABLE_FIELDS = ['title', 'icon', 'cover_url', 'content', 'base_updated_at'] as const;
+export const SHARED_EDITABLE_FIELDS = ['title', 'icon', 'cover_url', 'cover_position', 'content', 'base_updated_at', 'locale', 'timezone'] as const;
 
 export const docCommentCreateSchema = z.object({
   body: z.string().trim().min(1).max(5000),
