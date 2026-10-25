@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   let tpl;
   try {
-    tpl = await createDocWorkspaceTemplate(user.id, realUserId(user), parsed.data);
+    tpl = await createDocWorkspaceTemplate(user.id, realUserId(user), parsed.data, user);
   } catch (err) {
     if (err instanceof DocsTemplateLimitError) return docsError(409, 'template_limit');
     throw err;

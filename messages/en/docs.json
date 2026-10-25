@@ -926,6 +926,7 @@
     "articlesIn": "Articles in {title}"
   },
   "versions": {
+    "syncedCurrent": "Synced blocks show their current content, not the one from this version.",
     "title": "Version history",
     "save": "Save version",
     "saved": "Saved",
@@ -1183,6 +1184,7 @@
     "deleteTeamspace": "Delete teamspace",
     "deleteTitle": "Delete {name}?",
     "deleteBody": "Its pages stay in the workspace, nothing is lost.",
+    "deleteBodyPrivate": "Its pages go to the trash. Only its members and workspace admins can see and restore them; nobody else in the workspace gets access.",
     "lastOwner": "A teamspace needs at least one owner.",
     "cancel": "Cancel",
     "auditHelp": "Who did what with pages, access and security in the last year. Only admins see it.",

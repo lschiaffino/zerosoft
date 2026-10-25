@@ -9,7 +9,7 @@
 import { getDb, getUserById, type DocsPageRow } from './db';
 import { getDocAccess, listPageMentionables, parseBlocks, type DocsActor } from './docs';
 import type { DbAction, DbProperty, DbRow, DbValue, DocsAccess, DocsBlock, DocsDatabase } from './docs-types';
-import { canWriteAccess } from './docs-access';
+import { canWriteAccess, hiddenTeamspaceIds, teamspaceFilterSql } from './docs-access';
 import { stringifyBlocks } from './docs-types';
 import { cellValue, formatValue, normalizeDatabase, rowTitle } from './docs-database';
 import { actionIncomplete, applyDbOps, fillTemplate, type DbOp } from './docs-db-ops';
@@ -114,18 +114,25 @@ export interface DatabaseListItem {
   properties: Array<Pick<DbProperty, 'id' | 'name' | 'type'>>;
 }
 
-/** Bases del workspace (páginas no archivadas), para el selector de relación y de vista vinculada. */
-export async function listWorkspaceDatabases(ownerId: string, q = '', limit = 50): Promise<DatabaseListItem[]> {
+/**
+ * Bases del workspace (páginas no archivadas), para el selector de relación y
+ * de vista vinculada: solo de páginas que quien pide puede abrir (sin las de
+ * teamspaces cerrados o privados de los que no es miembro).
+ */
+export async function listWorkspaceDatabases(actor: DocsActor, q = '', limit = 50): Promise<DatabaseListItem[]> {
+  const ownerId = actor.id;
+  const ts = teamspaceFilterSql(await hiddenTeamspaceIds(ownerId, actor.actingUser?.id ?? actor.id));
   const rows = (await getDb()
     .prepare(
-      `SELECT id, title, icon, content FROM docs_pages
-       WHERE user_id = ? AND archived = 0 AND content LIKE '%"type":"database"%'
+      `SELECT * FROM docs_pages
+       WHERE user_id = ? AND archived = 0 AND content LIKE '%"type":"database"%'${ts.sql}
        ORDER BY updated_at DESC LIMIT 400`,
     )
-    .all(ownerId)) as Array<Pick<DocsPageRow, 'id' | 'title' | 'icon' | 'content'>>;
+    .all(ownerId, ...ts.args)) as DocsPageRow[];
   const needle = q.trim().toLowerCase();
   const out: DatabaseListItem[] = [];
   for (const r of rows) {
+    if (!(await getDocAccess(r, actor, { includePublished: false, includePublicLink: false }))) continue;
     for (const b of parseBlocks(r.content)) {
       if (b.type !== 'database' || b.linked) continue;
       const db = normalizeDatabase(b);

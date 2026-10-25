@@ -34,7 +34,7 @@ export type TeamspaceGate =
 /** Teamspace del workspace activo que la persona puede ver (privado: solo miembros). */
 export async function gateTeamspace(user: SessionUser, id: string): Promise<TeamspaceGate> {
   const ts = await getTeamspace(id);
-  if (!ts || ts.workspace_id !== user.id) return { ok: false, status: 404 };
+  if (!ts || ts.workspace_id !== user.id || ts.deleted_at) return { ok: false, status: 404 };
   const myRole = await teamspaceRoleOf(ts.id, realUserId(user));
   const admin = isWorkspaceAdmin(user);
   if (ts.access === 'private' && !myRole && !admin) return { ok: false, status: 404 };

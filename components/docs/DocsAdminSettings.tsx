@@ -453,7 +453,7 @@ export function DocsTeamspacesSettings({
       <ConfirmDialog
         open={!!confirmDelete}
         title={t('deleteTitle', { name: confirmDelete?.name ?? '' })}
-        body={t('deleteBody')}
+        body={confirmDelete && (confirmDelete.access === 'open' || confirmDelete.is_default) ? t('deleteBody') : t('deleteBodyPrivate')}
         confirmLabel={t('deleteTeamspace')}
         cancelLabel={t('cancel')}
         danger

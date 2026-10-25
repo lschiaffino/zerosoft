@@ -126,6 +126,8 @@ export interface DocsTeamspace {
   ai_knowledge: boolean;
   /** Teamspace por defecto: todos los miembros del workspace son miembros (como "General" de Notion). */
   is_default: boolean;
+  /** Borrado (cerrado o privado): sus páginas siguen en la papelera solo para sus miembros y los admins. */
+  deleted_at?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -187,7 +189,7 @@ export async function listTeamspaces(workspaceId: string, userId: string): Promi
       `SELECT t.*, m.role AS my_role, (SELECT COUNT(*) FROM docs_teamspace_members x WHERE x.teamspace_id = t.id) AS member_count
        FROM docs_teamspaces t
        LEFT JOIN docs_teamspace_members m ON m.teamspace_id = t.id AND m.user_id = ?
-       WHERE t.workspace_id = ?
+       WHERE t.workspace_id = ? AND t.deleted_at IS NULL
        ORDER BY t.name COLLATE NOCASE, t.created_at`,
     )
     .all(userId, workspaceId)) as Array<TeamspaceRow & { my_role: string | null; member_count: number }>;
@@ -254,7 +256,7 @@ export async function createTeamspace(
   },
 ): Promise<DocsTeamspace> {
   const count = (await getDb()
-    .prepare('SELECT COUNT(*) AS n FROM docs_teamspaces WHERE workspace_id = ?')
+    .prepare('SELECT COUNT(*) AS n FROM docs_teamspaces WHERE workspace_id = ? AND deleted_at IS NULL')
     .get(workspaceId)) as { n: number };
   if (Number(count.n) >= TEAMSPACES_MAX) throw new TeamspaceLimitError();
   const id = crypto.randomUUID();
@@ -331,11 +333,25 @@ export async function updateTeamspace(
   return getTeamspace(id);
 }
 
-/** Borra el teamspace: sus páginas quedan en el workspace (sin teamspace). */
-export async function deleteTeamspace(id: string): Promise<boolean> {
-  await getDb().prepare('UPDATE docs_pages SET teamspace_id = NULL WHERE teamspace_id = ?').run(id);
-  const res = await getDb().prepare('DELETE FROM docs_teamspaces WHERE id = ?').run(id);
-  return res.changes > 0;
+/**
+ * Borra el teamspace. Abierto: sus páginas quedan en el workspace (ya las veía
+ * todo el workspace). Cerrado o privado: sus páginas van a la papelera y siguen
+ * siendo del teamspace (borrado), así solo las ven y restauran sus miembros y
+ * los admins: nunca quedan expuestas a todo el workspace.
+ */
+export async function deleteTeamspace(id: string): Promise<'workspace' | 'trash' | null> {
+  const ts = await getTeamspace(id);
+  if (!ts || ts.deleted_at) return null;
+  const db = getDb();
+  if (ts.access === 'open' || ts.is_default) {
+    await db.prepare('UPDATE docs_pages SET teamspace_id = NULL WHERE teamspace_id = ?').run(id);
+    await db.prepare('DELETE FROM docs_teamspaces WHERE id = ?').run(id);
+    return 'workspace';
+  }
+  const now = new Date().toISOString();
+  await db.prepare('UPDATE docs_pages SET archived = 1, archived_by_parent = 0 WHERE teamspace_id = ? AND archived = 0').run(id);
+  await db.prepare('UPDATE docs_teamspaces SET deleted_at = ?, is_default = 0, updated_at = ? WHERE id = ?').run(now, now, id);
+  return 'trash';
 }
 
 export async function listTeamspaceMembers(id: string): Promise<TeamspaceMember[]> {

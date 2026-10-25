@@ -41,7 +41,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   return NextResponse.json(ts);
 }
 
-/** Borrar: sus páginas quedan en el workspace (nada se pierde). */
+/** Borrar: abierto, sus páginas quedan en el workspace; cerrado o privado, van a la papelera solo para sus miembros. */
 export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
   const user = await getCurrentUser();
@@ -49,7 +49,8 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const gate = await gateTeamspace(user, id);
   if (!gate.ok) return notFound();
   if (!gate.manage) return forbidden();
-  await deleteTeamspace(id);
-  await logDocsAudit({ workspaceId: user.id, actor: user.actingUser ?? user, action: 'teamspace.deleted', detail: gate.ts.name, ip: requestIp(req.headers) });
-  return new NextResponse(null, { status: 204 });
+  const result = await deleteTeamspace(id);
+  if (!result) return notFound();
+  await logDocsAudit({ workspaceId: user.id, actor: user.actingUser ?? user, action: 'teamspace.deleted', detail: `${gate.ts.name} · ${result}`, ip: requestIp(req.headers) });
+  return NextResponse.json({ pages: result });
 }

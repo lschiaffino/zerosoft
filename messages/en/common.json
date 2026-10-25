@@ -36,6 +36,7 @@
     }
   },
   "sidebar": {
+    "newReadOnly": "Your role here is view or comment: ask an admin to create pages.",
     "search": "Search",
     "new": "New",
     "backToSite": "Back to site",

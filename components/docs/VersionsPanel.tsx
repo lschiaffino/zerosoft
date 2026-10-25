@@ -145,6 +145,7 @@ export default function VersionsPanel({
         <p className="docs-versions-meta">
           {formatDateTime(preview.created_at, locale)} · {who(preview)}
         </p>
+        {preview.content.some((b) => b.type === 'synced') && <p className="ui-help docs-versions-synced">{t('syncedCurrent')}</p>}
         <div className="docs-versions-views" role="tablist" aria-label={t('viewLabel')}>
           <button type="button" role="tab" aria-selected={view === 'changes'} className={`docs-comments-tab${view === 'changes' ? ' active' : ''}`} onClick={() => setView('changes')}>
             {t('viewChanges')}

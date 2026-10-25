@@ -2,6 +2,7 @@ import { getDb } from './db';
 import { blockIndent, setIndent, subtreeEnd } from './docs-blocks';
 import { sanitizeBlocks } from './docs-sanitize';
 import { stripSyncedChildren, syncedIdsOf } from './docs-synced-refs';
+import { mergeBlocksDetailed } from './docs-merge';
 import type { DocsBlock } from './docs-types';
 
 /**
@@ -21,6 +22,10 @@ interface SyncedRow {
   id: string;
   workspace_id: string;
   content: string;
+}
+
+function parseList(raw: string): DocsBlock[] {
+  return parse(raw);
 }
 
 function parse(raw: string): DocsBlock[] {
@@ -161,6 +166,13 @@ export async function persistSyncedBlocks(opts: {
    * contenido no se toca y lo que llegue adentro se descarta.
    */
   locked?: Set<string>;
+  /**
+   * Lo que el editor vio de cada sincronizado (revisión de la página sobre la
+   * que guarda, docs_page_revisions.synced_seen). Con eso un guardado viejo
+   * se fusiona contra el contenido actual: lo que no cambió quien guarda no
+   * pisa lo que otra página editó después.
+   */
+  seen?: Record<string, string>;
 }): Promise<{ blocks: DocsBlock[]; base: Record<string, string> }> {
   const { workspaceId, pageId, actorId, base, previousIds, children } = opts;
   const locked = opts.locked ?? new Set<string>();
@@ -222,15 +234,28 @@ export async function persistSyncedBlocks(opts: {
       written.add(id);
       const fixed = depth < MAX_SYNCED_DEPTH ? await process(kids, depth + 1) : stripSyncedChildren(kids);
       const clean = sanitizeBlocks(fixed.filter((c) => c.type !== 'database')).slice(0, MAX_SYNCED_BLOCKS);
-      const json = JSON.stringify(clean);
-      nextBase[id] = json;
+      let json = JSON.stringify(clean);
       if (!owned.has(id)) {
+        nextBase[id] = json;
         await insert(id, json);
         continue;
       }
+      const seenJson = opts.seen?.[id];
+      const ownedJson = JSON.stringify(owned.get(id));
+      if (seenJson !== undefined && seenJson !== ownedJson) {
+        // Cambió en otra página desde que este editor lo cargó.
+        if (seenJson === json) {
+          // Quien guarda no lo tocó: queda lo actual.
+          nextBase[id] = ownedJson;
+          continue;
+        }
+        // Los dos lo cambiaron: fusión de tres vías contra lo que vio.
+        json = JSON.stringify(sanitizeBlocks(mergeBlocksDetailed(parseList(seenJson), owned.get(id)!, clean).blocks).slice(0, MAX_SYNCED_BLOCKS));
+      }
+      nextBase[id] = json;
       // Solo si cambió en esta página (no si es la copia que ya traía).
-      if (base[id] === json) continue;
-      if (JSON.stringify(owned.get(id)) === json) continue;
+      if (seenJson === undefined && base[id] === json) continue;
+      if (ownedJson === json) continue;
       await db
         .prepare('UPDATE docs_synced_blocks SET content = ?, updated_by = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
         .run(json, actorId, now, id, workspaceId);
@@ -248,4 +273,53 @@ export async function getSyncedBlock(workspaceId: string, id: string): Promise<D
     .prepare('SELECT id, workspace_id, content FROM docs_synced_blocks WHERE id = ? AND workspace_id = ?')
     .get(id, workspaceId)) as SyncedRow | undefined;
   return row ? parse(row.content) : null;
+}
+
+/**
+ * Antes de borrar para siempre páginas: cada sincronizado cuyo origen se va
+ * pasa a tener como origen otra página activa que lo use y esté en el mismo
+ * teamspace que el origen (quien podía abrir el origen puede abrirla). Si no
+ * hay ninguna, el origen queda vacío y el contenido solo lo ve el dueño del
+ * workspace (lib/docs-guard.ts falla cerrado).
+ */
+export async function reassignSyncedSources(workspaceId: string, deletedIds: string[]): Promise<void> {
+  if (!deletedIds.length) return;
+  const db = getDb();
+  const ph = deletedIds.map(() => '?').join(',');
+  const rows = (await db
+    .prepare(
+      `SELECT s.id, p.teamspace_id FROM docs_synced_blocks s JOIN docs_pages p ON p.id = s.source_page_id
+       WHERE s.workspace_id = ? AND s.source_page_id IN (${ph})`,
+    )
+    .all(workspaceId, ...deletedIds)) as Array<{ id: string; teamspace_id: string | null }>;
+  for (const r of rows) {
+    const host = (await db
+      .prepare(
+        `SELECT id FROM docs_pages WHERE user_id = ? AND archived = 0 AND id NOT IN (${ph})
+           AND ${r.teamspace_id ? 'teamspace_id = ?' : 'teamspace_id IS NULL'} AND content LIKE ?
+         ORDER BY updated_at DESC LIMIT 1`,
+      )
+      .get(workspaceId, ...deletedIds, ...(r.teamspace_id ? [r.teamspace_id] : []), `%"synced_id":"${r.id}"%`)) as { id: string } | undefined;
+    await db.prepare('UPDATE docs_synced_blocks SET source_page_id = ? WHERE id = ? AND workspace_id = ?').run(host?.id ?? null, r.id, workspaceId);
+  }
+}
+
+/** Lo que un editor ve hoy de los sincronizados de una página (id → JSON), para la revisión. */
+export async function syncedSnapshot(workspaceId: string, blocks: DocsBlock[]): Promise<Record<string, string> | null> {
+  const ids = syncedIdsOf(blocks);
+  if (!ids.length) return null;
+  const contents = await getSyncedContents(workspaceId, ids);
+  const out: Record<string, string> = {};
+  for (const [id, c] of contents) out[id] = JSON.stringify(c);
+  return out;
+}
+
+/** Última edición (updated_at más nuevo) de los sincronizados de una página: '' si no tiene. */
+export async function syncedUpdatedAt(workspaceId: string, blocks: DocsBlock[]): Promise<string> {
+  const ids = syncedIdsOf(blocks).filter((id) => SYNCED_ID_RE.test(id));
+  if (!ids.length) return '';
+  const row = (await getDb()
+    .prepare(`SELECT MAX(updated_at) AS at FROM docs_synced_blocks WHERE workspace_id = ? AND id IN (${ids.map(() => '?').join(',')})`)
+    .get(workspaceId, ...ids)) as { at: string | null } | undefined;
+  return row?.at ?? '';
 }

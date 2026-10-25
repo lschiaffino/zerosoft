@@ -10,7 +10,7 @@ import {
 } from './db';
 import { sanitizeBlocks } from './docs-sanitize';
 import { normalizeStructure } from './docs-columns';
-import { persistSyncedBlocks } from './docs-synced';
+import { persistSyncedBlocks, reassignSyncedSources, syncedSnapshot } from './docs-synced';
 import { parseSyncedBase, stripSyncedChildren, syncedChildren, syncedIdsOf } from './docs-synced-refs';
 import { syncDocReminders } from './docs-reminders';
 import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
@@ -541,6 +541,9 @@ export async function updateDocPage(
   };
   /** Choques de la fusión: antes de guardar queda una versión con lo que había. */
   let clashed = false;
+  // Lo que el editor vio de los sincronizados (revisión de su base): un guardado viejo no los pisa.
+  const seenRev = incoming !== undefined && base !== undefined ? await getRevision(pageId, base) : null;
+  const seen = seenRev?.synced_seen ? parseSyncedBase(seenRev.synced_seen) : undefined;
   if (base !== undefined && row.updated_at !== base) {
     // La página cambió desde la versión que vio el editor (otra persona, otra
     // pestaña, una automatización o una operación del servidor sobre una base):
@@ -634,6 +637,7 @@ export async function updateDocPage(
       next: blocksOut,
       children: incomingSynced,
       locked: opts.lockedSynced,
+      seen,
     });
     savedContent = synced.blocks;
     const nextContent = stringifyBlocks(savedContent);
@@ -742,6 +746,10 @@ export async function updateDocPage(
     icon: fields.icon !== undefined ? fields.icon : row.icon,
     cover_url: fields.cover_url !== undefined ? fields.cover_url : row.cover_url,
     content: savedContent ? stringifyBlocks(savedContent) : row.content,
+    // Lo que verá el editor al recibir esta versión (base de su próximo guardado).
+    synced_seen: await syncedSnapshot(ownerId, savedContent ?? parseBlocks(row.content))
+      .then((m) => (m ? JSON.stringify(m) : null))
+      .catch(() => null),
   }).catch(() => undefined);
 
   // Mover bajo otra página: el subárbol pasa al teamspace del nuevo padre.
@@ -962,6 +970,8 @@ export async function deleteDocPage(ownerId: string, pageId: string): Promise<bo
   // con su subárbol, si no el DELETE (y el ON DELETE CASCADE) la borraba.
   const ids = row.archived === 1 ? await collectArchivedSubtree(ownerId, pageId) : await collectDescendants(ownerId, pageId);
   const placeholders = ids.map(() => '?').join(',');
+  // Sincronizados con origen en lo que se borra: a otra página del mismo teamspace (o sin origen: solo el dueño).
+  await reassignSyncedSources(ownerId, ids);
   await getDb()
     .prepare(`DELETE FROM docs_pages WHERE id IN (${placeholders})`)
     .run(...ids);
@@ -1428,11 +1438,14 @@ export async function createDocWorkspaceTemplate(
   workspaceId: string,
   createdBy: string,
   input: { page_id: string; title?: string; description?: string },
+  /** Quien la guarda: tiene que poder abrir la página (no alcanza con saber el id). */
+  actor: DocsActor,
 ): Promise<DocsWorkspaceTemplate | null> {
   const page = (await getDb()
     .prepare('SELECT * FROM docs_pages WHERE id = ? AND user_id = ?')
     .get(input.page_id, workspaceId)) as DocsPageRow | undefined;
-  if (!page) return null;
+  if (!page || page.archived === 1) return null;
+  if (!(await getDocAccess(page, actor, { includePublished: false, includePublicLink: false }))) return null;
   const count = (await getDb()
     .prepare('SELECT COUNT(*) AS c FROM docs_templates WHERE workspace_id = ?')
     .get(workspaceId)) as { c: number };
@@ -1452,7 +1465,8 @@ export async function createDocWorkspaceTemplate(
       title,
       page.icon,
       (input.description ?? '').trim(),
-      stringifyBlocks(sanitizeBlocks(parseBlocks(page.content))),
+      // Sincronizados como referencia: quien use la plantilla ve su contenido solo si puede abrir el origen.
+      stringifyBlocks(stripSyncedChildren(sanitizeBlocks(parseBlocks(page.content)))),
       now,
       now,
     );

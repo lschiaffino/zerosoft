@@ -51,7 +51,7 @@ export async function canCreateDocPage(
   }
   if (input.teamspace_id) {
     const ts = await getTeamspace(input.teamspace_id);
-    if (!ts || ts.workspace_id !== user.id) return false;
+    if (!ts || ts.workspace_id !== user.id || ts.deleted_at) return false;
     const mine = await teamspaceRoleOf(ts.id, me(user));
     if (mine === 'owner') return true;
     if (!mine && ts.access !== 'open') return false;
@@ -70,59 +70,56 @@ export async function isDocOwnerAccess(user: SessionUser, pageId: string): Promi
   return (await getDocAccess(row, user)) === 'owner' ? row : null;
 }
 
+/** Dueño real del workspace (no un miembro, ni un admin, ni un invitado). */
+function isWorkspaceOwner(actor: DocsActor, workspaceId: string): boolean {
+  return actor.id === workspaceId && (!actor.actingUser || actor.actingUser.id === workspaceId || actor.role === 'owner');
+}
+
 /**
- * ¿Puede leer un bloque sincronizado? Si puede abrir la página de origen o,
- * si se borró, alguna página activa del workspace que lo contiene.
+ * ¿Puede leer un bloque sincronizado? Si puede abrir su página de origen. Sin
+ * origen (se borró y no quedó otra página del mismo teamspace que lo use)
+ * falla cerrado: solo el dueño del workspace.
  */
 export async function canReadSynced(user: SessionUser, syncedId: string): Promise<boolean> {
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(syncedId)) return false;
-  const db = getDb();
-  const src = (await db.prepare('SELECT source_page_id FROM docs_synced_blocks WHERE id = ? AND workspace_id = ?').get(syncedId, user.id)) as
+  const src = (await getDb().prepare('SELECT source_page_id FROM docs_synced_blocks WHERE id = ? AND workspace_id = ?').get(syncedId, user.id)) as
     | { source_page_id: string | null }
     | undefined;
   if (!src) return false;
-  const candidates: string[] = [];
-  if (src.source_page_id) candidates.push(src.source_page_id);
-  else {
-    const rows = (await db
-      .prepare(`SELECT id FROM docs_pages WHERE user_id = ? AND archived = 0 AND content LIKE ? LIMIT 20`)
-      .all(user.id, `%"synced_id":"${syncedId}"%`)) as Array<{ id: string }>;
-    candidates.push(...rows.map((r) => r.id));
-  }
-  for (const id of candidates) {
-    const row = await getDocPageRow(id);
-    if (row && row.user_id === user.id && (await getDocAccess(row, user, DOC_INTERNAL_READ))) return true;
-  }
-  return false;
+  return syncedReader(user, { id: '', user_id: user.id })(src.source_page_id);
 }
 
 /**
  * Quién puede ver el contenido de un bloque sincronizado dentro de `host`:
- * quien puede abrir su página de origen (como Notion). La propia página, o
- * un origen que ya no existe, no limitan (quien mira ya abrió `host`).
+ * quien puede abrir su página de origen (como Notion). La propia página no
+ * limita. Un origen que ya no existe falla cerrado (solo el dueño del workspace).
  */
 export function syncedReader(actor: DocsActor, host: Pick<DocsPageRow, 'id' | 'user_id'>): SyncedReader {
   const cache = new Map<string, boolean>();
   return async (src) => {
-    if (!src || src === host.id) return true;
+    if (src && src === host.id) return true;
+    if (!src) return isWorkspaceOwner(actor, host.user_id);
     const hit = cache.get(src);
     if (hit !== undefined) return hit;
     const row = await getDocPageRow(src);
-    const ok = !row || (row.user_id === host.user_id && (await getDocAccess(row, actor, DOC_INTERNAL_READ)) !== null);
+    const ok = row
+      ? row.user_id === host.user_id && (await getDocAccess(row, actor, DOC_INTERNAL_READ)) !== null
+      : isWorkspaceOwner(actor, host.user_id);
     cache.set(src, ok);
     return ok;
   };
 }
 
-/** Lectores del centro de ayuda (sin sesión): solo si el origen también está publicado. */
+/** Lectores del centro de ayuda (sin sesión): solo si el origen existe y también está publicado. */
 export function publicSyncedReader(host: Pick<DocsPageRow, 'id' | 'user_id'>): SyncedReader {
   const cache = new Map<string, boolean>();
   return async (src) => {
-    if (!src || src === host.id) return true;
+    if (src && src === host.id) return true;
+    if (!src) return false;
     const hit = cache.get(src);
     if (hit !== undefined) return hit;
     const row = await getDocPageRow(src);
-    const ok = !row || (row.user_id === host.user_id && row.published === 1 && row.archived === 0);
+    const ok = !!row && row.user_id === host.user_id && row.published === 1 && row.archived === 0;
     cache.set(src, ok);
     return ok;
   };
@@ -130,21 +127,22 @@ export function publicSyncedReader(host: Pick<DocsPageRow, 'id' | 'user_id'>): S
 
 /**
  * Bots y agentes (conocimiento de IA): un sincronizado cuenta solo si su
- * origen también es conocimiento (la IA lo puede leer o está publicado, o es
- * una de las páginas elegidas a mano en `pageIds`) y su teamspace lo permite.
+ * origen existe y también es conocimiento (la IA lo puede leer o está
+ * publicado, o es una de las páginas elegidas a mano en `pageIds`) y su
+ * teamspace lo permite.
  */
 export function knowledgeSyncedReader(host: Pick<DocsPageRow, 'id' | 'user_id'>, pageIds: Iterable<string> = []): SyncedReader {
   const picked = new Set(pageIds);
   const cache = new Map<string, boolean>();
   return async (src) => {
-    if (!src || src === host.id) return true;
+    if (src && src === host.id) return true;
+    if (!src) return false;
     const hit = cache.get(src);
     if (hit !== undefined) return hit;
     const row = (await getDb()
       .prepare(`SELECT id FROM docs_pages WHERE id = ? AND user_id = ? AND archived = 0 AND (is_public = 1 OR published = 1 OR id IN (${[...picked].map(() => '?').join(',') || "''"}))${aiKnowledgeFilterSql()}`)
       .get(src, host.user_id, ...picked)) as { id: string } | undefined;
-    // Un origen borrado (sin fila) no limita, igual que en el editor.
-    const ok = !!row || !(await getDocPageRow(src));
+    const ok = !!row;
     cache.set(src, ok);
     return ok;
   };

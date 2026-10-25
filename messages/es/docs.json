@@ -926,6 +926,7 @@
     "articlesIn": "Artículos de {title}"
   },
   "versions": {
+    "syncedCurrent": "Los bloques sincronizados muestran su contenido actual, no el de esta versión.",
     "title": "Historial de versiones",
     "save": "Guardar versión",
     "saved": "Guardada",
@@ -1183,6 +1184,7 @@
     "deleteTeamspace": "Borrar teamspace",
     "deleteTitle": "¿Borrar {name}?",
     "deleteBody": "Sus páginas quedan en el workspace: no se pierde nada.",
+    "deleteBodyPrivate": "Sus páginas van a la papelera. Solo sus miembros y los admins del workspace las ven y pueden restaurarlas; el resto del workspace no gana acceso.",
     "lastOwner": "Un teamspace necesita al menos un owner.",
     "cancel": "Cancelar",
     "auditHelp": "Quién hizo qué con las páginas, los accesos y la seguridad en el último año. Solo lo ven los admins.",

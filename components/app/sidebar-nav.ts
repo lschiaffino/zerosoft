@@ -567,7 +567,9 @@ export function buildNav(
 }
 
 /** Acciones del menú "+ Nuevo": cada una crea algo (ruta /new o ?new=1). */
-export function buildNewItems(product: AppProduct, labels: SidebarLabels): NavItem[] {
+export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: { docsCanCreate?: boolean } = {}): NavItem[] {
+  // Un miembro de solo lectura en Docs no ve "Nueva página" (crearla le daría error).
+  if (opts.docsCanCreate === false) return buildNewItems(product, labels).filter((i) => !i.href.startsWith('/app/docs'));
   const item = (href: string, label: string, icon: IconName): NavItem => ({ href, label, icon, active: false });
   switch (product) {
     case 'home':

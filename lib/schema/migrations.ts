@@ -4589,6 +4589,12 @@ export const MIGRATIONS: Migration[] = [
       // Quién guardó el contenido por última vez: autor de la versión que queda
       // cuando una fusión choca y a quién avisarle que perdió ese cambio.
       await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN content_by TEXT');
+      // Teamspaces cerrados o privados borrados: sus páginas quedan en la papelera, solo para sus miembros.
+      await addColumn(client, 'ALTER TABLE docs_teamspaces ADD COLUMN deleted_at TEXT');
+      // Versión de cada bloque sincronizado (sube en cada cambio) y, por
+      // revisión de página, lo que el editor vio de cada uno: un guardado viejo
+      // se fusiona contra eso en vez de pisar.
+      await addColumn(client, 'ALTER TABLE docs_page_revisions ADD COLUMN synced_seen TEXT');
       const parse = (raw: unknown): DocsBlock[] | null => {
         try {
           const v = JSON.parse(String(raw ?? '[]')) as unknown;

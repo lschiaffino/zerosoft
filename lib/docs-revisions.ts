@@ -11,6 +11,8 @@ export interface DocsRevision {
   icon: string | null;
   cover_url: string | null;
   content: string;
+  /** Lo que el editor vio de cada sincronizado en esta versión (id → JSON). */
+  synced_seen?: string | null;
 }
 
 const KEEP = 12;
@@ -18,7 +20,7 @@ const KEEP = 12;
 export async function getRevision(pageId: string, updatedAt: string): Promise<DocsRevision | null> {
   return (
     ((await getDb()
-      .prepare('SELECT updated_at, title, icon, cover_url, content FROM docs_page_revisions WHERE page_id = ? AND updated_at = ?')
+      .prepare('SELECT updated_at, title, icon, cover_url, content, synced_seen FROM docs_page_revisions WHERE page_id = ? AND updated_at = ?')
       .get(pageId, updatedAt)) as DocsRevision | undefined) ?? null
   );
 }
@@ -32,10 +34,11 @@ export async function recordRevisions(
   next: Omit<DocsRevision, 'content'> & { content: string },
 ): Promise<void> {
   const db = getDb();
-  const insert = 'INSERT OR IGNORE INTO docs_page_revisions (page_id, updated_at, title, icon, cover_url, content) VALUES (?, ?, ?, ?, ?, ?)';
+  const insert = 'INSERT OR IGNORE INTO docs_page_revisions (page_id, updated_at, title, icon, cover_url, content, synced_seen) VALUES (?, ?, ?, ?, ?, ?, ?)';
   const had = await db.prepare('SELECT 1 FROM docs_page_revisions WHERE page_id = ? AND updated_at = ?').get(prev.id, prev.updated_at);
-  if (!had) await db.prepare(insert).run(prev.id, prev.updated_at, prev.title ?? '', prev.icon ?? null, prev.cover_url ?? null, prev.content ?? '[]');
-  await db.prepare(insert).run(prev.id, next.updated_at, next.title ?? '', next.icon ?? null, next.cover_url ?? null, next.content);
+  if (!had) await db.prepare(insert).run(prev.id, prev.updated_at, prev.title ?? '', prev.icon ?? null, prev.cover_url ?? null, prev.content ?? '[]', null);
+  // La nueva manda (si cae en el mismo milisegundo que la anterior, la reemplaza).
+  await db.prepare(insert.replace('INSERT OR IGNORE', 'INSERT OR REPLACE')).run(prev.id, next.updated_at, next.title ?? '', next.icon ?? null, next.cover_url ?? null, next.content, next.synced_seen ?? null);
   await db
     .prepare(
       `DELETE FROM docs_page_revisions WHERE page_id = ? AND updated_at NOT IN (

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { DOC_INTERNAL_READ, getDocAccess, getDocPageRow, toDocPage } from '@/lib/docs';
+import { DOC_INTERNAL_READ, getDocAccess, getDocPageRow, parseBlocks, toDocPage } from '@/lib/docs';
+import { syncedUpdatedAt } from '@/lib/docs-synced';
 import { stripFileUrls } from '@/lib/docs-files';
 import { editorBlocks } from '@/lib/docs-guard';
 import { SESSION_RE, commentsSignature, leavePresence, listPeers, touchPresence } from '@/lib/docs-live';
@@ -18,6 +19,8 @@ const bodySchema = z.object({
   mode: z.enum(['edit', 'suggest', 'comment', 'view']).optional(),
   /** updated_at que tiene el editor: si la página cambió, viene la versión nueva. */
   since: z.string().max(64).nullish(),
+  /** Última edición de los sincronizados que contiene la página, según el editor. */
+  synced_at: z.string().max(64).nullish(),
   leave: z.boolean().optional(),
 });
 
@@ -62,8 +65,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const [allPeers, comments] = await Promise.all([listPeers(id, body.session), commentsSignature(id)]);
   // Uno mismo en otra pestaña no aparece como otra persona presente.
   const peers = allPeers.filter((p) => p.user_id !== me);
+  // Un sincronizado que se editó en otra página también trae la versión nueva.
+  const syncedAt = await syncedUpdatedAt(row.user_id, parseBlocks(row.content));
   let page = null;
-  if (body.since && body.since !== row.updated_at) {
+  if ((body.since && body.since !== row.updated_at) || (body.synced_at !== undefined && body.synced_at !== null && body.synced_at !== syncedAt)) {
     const p = toDocPage(row);
     p.content = await editorBlocks(row, user);
     if (access === 'view') p.content = stripFileUrls(p.content);
@@ -71,6 +76,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   }
   return NextResponse.json({
     updated_at: row.updated_at,
+    synced_at: syncedAt,
     locked: row.locked === 1,
     access,
     peers,

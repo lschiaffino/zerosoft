@@ -117,6 +117,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     }
   }
   if (patch.locked !== undefined && !canWriteAccess(access)) return forbidden();
+  // Mover adentro de otra página: también hay que poder editar el destino.
+  if (patch.parent_id && patch.parent_id !== row.parent_id) {
+    const target = await getDocPageRow(patch.parent_id);
+    const targetAccess = target && target.user_id === row.user_id ? await getDocAccess(target, user, { includePublished: false, includePublicLink: false }) : null;
+    if (!targetAccess || !canWriteAccess(targetAccess)) return notFound();
+  }
 
   let page;
   // Automatizaciones de las bases que disparó este guardado (corren después de responder).

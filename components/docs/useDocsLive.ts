@@ -13,6 +13,8 @@ import { getSelectionOffsets } from '@/lib/docs-caret';
 
 export interface LivePulse {
   updated_at: string;
+  /** Última edición de los sincronizados de la página. */
+  synced_at?: string;
   locked: boolean;
   access: DocsAccess;
   peers: DocsPeer[];
@@ -51,6 +53,8 @@ export function useDocsLive(opts: {
   pageId: string;
   /** updated_at de la versión que tiene el editor (el server manda la nueva si difiere). */
   since: () => string;
+  /** synced_at que ya incorporó el editor (null hasta el primer pulso). */
+  syncedAt?: () => string | null;
   mode: string;
   rootRef: React.RefObject<HTMLElement | null>;
   onPulse: (pulse: LivePulse) => void;
@@ -79,7 +83,7 @@ export function useDocsLive(opts: {
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session: session.current, mode: o.mode, since: o.since(), ...readCursor(o.rootRef.current) }),
+          body: JSON.stringify({ session: session.current, mode: o.mode, since: o.since(), synced_at: o.syncedAt?.() ?? null, ...readCursor(o.rootRef.current) }),
         });
         if (res.ok) {
           const pulse = (await res.json()) as LivePulse;

@@ -131,6 +131,8 @@ export default function DocsEditorClient({
   const inFlight = useRef(0);
   /** Guardados esperando turno: se rebasan sobre los cambios del servidor que lleguen antes. */
   const queued = useRef<SaveItem[]>([]);
+  /** Última edición de los sincronizados que ya se ve (pulso en vivo). */
+  const syncedSeen = useRef<string | null>(null);
   /** Cambios del servidor que el editor todavía no sumó (lo que guarde mientras tanto viene sin ellos). */
   const unapplied = useRef<Array<Merge & { seq: number }>>([]);
   const mergeSeq = useRef(0);
@@ -363,10 +365,14 @@ export default function DocsEditorClient({
         if (pulse.locked) setLockNote(queued.current.length ? t('lock.lockedMeanwhile') : t('lock.lockedLive'));
       }
       const remote = pulse.page;
+      const syncedChanged = syncedSeen.current !== null && pulse.synced_at !== undefined && pulse.synced_at !== syncedSeen.current;
+      if (syncedSeen.current === null && pulse.synced_at !== undefined) syncedSeen.current = pulse.synced_at;
       // Con un guardado en camino no: su respuesta ya trae lo fusionado.
       if (!remote || inFlight.current > 0 || queued.current.length) return;
-      // Más vieja que lo que ya se incorporó (el pulso salió antes de un guardado).
-      if (remote.updated_at <= base.current.updated_at) return;
+      // Más vieja que lo que ya se incorporó (el pulso salió antes de un guardado),
+      // salvo que haya cambiado un bloque sincronizado desde otra página.
+      if (remote.updated_at <= base.current.updated_at && !syncedChanged) return;
+      if (pulse.synced_at !== undefined) syncedSeen.current = pulse.synced_at;
       adoptServer(remote);
       setCurrent((prev) => ({ ...prev, locked: remote.locked, verified_at: remote.verified_at, verified_until: remote.verified_until }));
     },
@@ -375,6 +381,7 @@ export default function DocsEditorClient({
   const { peers } = useDocsLive({
     pageId: page.id,
     since: () => base.current.updated_at,
+    syncedAt: () => syncedSeen.current,
     mode: mode === 'edit' ? 'edit' : mode === 'suggest' ? 'suggest' : canWrite ? 'view' : 'comment',
     rootRef: wrapRef,
     onPulse,
