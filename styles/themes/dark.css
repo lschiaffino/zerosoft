@@ -58,6 +58,9 @@
     --c-board-ink: #00b8a9;
     --c-robots-ink: #898e99;
     --c-groups-ink: #84cc16;
+    --c-voice-ink: #d05ede;
+    --c-rec-ink: #ea5f7d;
+    --c-talk-ink: #b37baa;
 
     /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
     --ok-ink: #2bb062;
@@ -138,6 +141,9 @@
   --c-board-ink: #00b8a9;
   --c-robots-ink: #898e99;
   --c-groups-ink: #84cc16;
+  --c-voice-ink: #d05ede;
+  --c-rec-ink: #ea5f7d;
+  --c-talk-ink: #b37baa;
 
   /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
   --ok-ink: #2bb062;

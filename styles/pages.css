@@ -612,6 +612,7 @@
 .parity-missing summary::-webkit-details-marker { display: none; }
 .parity-missing[open] .faq-plus::after { transform: rotate(0deg); }
 .parity-missing-lead { margin-bottom: 12px; font-size: 15px; color: var(--brand-gray-1); }
+.parity-none { margin: 24px 0 16px; font-size: 15px; color: var(--brand-gray-1); }
 
 /* Índice /products: el porcentaje bajo "Reemplaza a …". */
 .suite-parity { display: block; margin-top: 2px; font-size: 12px; color: var(--brand-gray-2); text-align: right; }
@@ -1110,6 +1111,22 @@
 :is(.pd-page, .showcase-frame) .mk-brand .zero-mark { color: var(--accent); }
 :is(.pd-page, .showcase-frame) .mk-agents-tools li.on .mk-toggle { background: var(--accent); }
 .card-chat .mk-msg-us { color: var(--c-chat-on); }
+
+/* ---------- Apps en construcción (Voice, Rec, Talk) ----------
+   El boceto lo dice en la vista, y la portada lleva el aviso arriba del título. */
+.mk-sketch { font-family: var(--mono); font-size: 12px; color: var(--brand-gray-2); border: 1px dashed var(--line); padding: 1px 6px; }
+.mk-note { display: flex; flex: 1; flex-direction: column; gap: 6px; padding: 18px 0; font-size: 14px; line-height: 1.45; }
+.mk-note h5 { margin: 8px 0 0; font-size: 13px; font-weight: 700; }
+.mk-note h5:first-child { margin-top: 0; }
+.mk-note p { margin: 0; color: var(--ink); }
+.mk-note ul { margin: 0; padding-left: 18px; }
+.mk-rec-frame { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 9; margin-top: 16px; background: var(--brand-enamel); border: 1px solid var(--line); }
+.mk-rec-screen { font-family: var(--mono); font-size: 12px; color: var(--brand-gray-2); }
+.mk-rec-cam { position: absolute; right: 14px; bottom: 22px; width: 64px; height: 64px; border-radius: 50%; background: var(--accent); }
+.mk-rec-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--line); }
+.mk-rec-bar i { display: block; width: 38%; height: 100%; background: var(--accent); }
+.mk-talk-dms { margin-top: 16px; }
+.pd-building { display: inline-block; margin: 0 0 12px; padding: 2px 8px; font-family: var(--mono); font-size: 13px; color: var(--accent-ink); border: 1px solid currentColor; }
 
 /* ---------- Mockups en el teléfono ----------
    Una sola vista a tamaño real: se esconde lo lateral y queda el panel

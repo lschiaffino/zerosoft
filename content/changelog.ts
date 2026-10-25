@@ -29,6 +29,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-25-voice-rec-talk',
+    date: '2026-10-25',
+    title: {
+      en: 'Voice, Rec and Talk join the suite, in the works',
+      es: 'Voice, Rec y Talk se suman a la suite, en construcción',
+      pt: 'Voice, Rec e Talk entram na suíte, em construção',
+    },
+    items: [
+      { product: 'voice', en: 'Voice, the app we are building to take on Wispr Flow and Granola (dictation and meeting notes), has a page with the plan and its parity at 0 %, and /app/voice says it is being built. You can propose ideas for it on the board.', es: 'Voice, la app que estamos construyendo frente a Wispr Flow y Granola (dictado y notas de reunión), tiene su página con el plan y la paridad en 0 %, y /app/voice avisa que está en construcción. Se le pueden proponer ideas en el board.', pt: 'O Voice, o app que estamos construindo frente ao Wispr Flow e ao Granola (ditado e notas de reunião), tem sua página com o plano e a paridade em 0 %, e /app/voice avisa que está em construção. Dá para propor ideias para ele no board.' },
+      { product: 'rec', en: 'Rec, our Loom alternative for screen and camera recording, has its page and /app/rec, both marked as in the works.', es: 'Rec, nuestra alternativa a Loom para grabar pantalla y cámara, tiene su página y /app/rec, las dos marcadas en construcción.', pt: 'O Rec, nossa alternativa ao Loom para gravar tela e câmera, tem sua página e /app/rec, as duas marcadas em construção.' },
+      { product: 'talk', en: 'Talk, our Slack alternative for team messaging, has its page and /app/talk, both marked as in the works.', es: 'Talk, nuestra alternativa a Slack para la mensajería del equipo, tiene su página y /app/talk, las dos marcadas en construcción.', pt: 'O Talk, nossa alternativa ao Slack para as mensagens do time, tem sua página e /app/talk, as duas marcadas em construção.' },
+    ],
+  },
+  {
     id: '2026-10-25-platform-home',
     date: '2026-10-25',
     title: {

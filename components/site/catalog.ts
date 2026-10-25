@@ -33,6 +33,9 @@ export const RIVALS: Record<ProductKey, string> = {
   notes: 'Evernote',
   cal: 'Calendly',
   board: 'Miro',
+  voice: 'Wispr Flow · Granola',
+  rec: 'Loom',
+  talk: 'Slack',
 };
 
 /** Las seis apps de la tabla de costos del home (precio por usuario o plan fijo). */
@@ -131,4 +134,8 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   notes: { sections: ['features', 'shot', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   cal: { sections: ['shot', 'how', 'compare', 'features', 'parity', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'columns' },
   board: { sections: ['shot', 'features', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
+  // En construcción: lo que va a hacer, la paridad en 0 % y la cuenta contra el rival.
+  voice: { sections: ['features', 'parity', 'how', 'compare', 'shot', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  rec: { sections: ['features', 'how', 'parity', 'compare', 'shot', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
+  talk: { sections: ['features', 'parity', 'compare', 'how', 'shot', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
 };

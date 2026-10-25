@@ -1,6 +1,6 @@
 {
   "meta": {
-    "tagline": "Twelve open-source apps for your team.",
+    "tagline": "Fifteen open-source apps for your team.",
     "description": "CRM, support chat, AI agents, automations, browser robots, projects, links, docs, notes, scheduling and a whiteboard. Open source (AGPLv3): run them on your server for $0 or use zerosoft Cloud, with a free plan and usage-based pricing."
   },
   "header": {
@@ -32,7 +32,10 @@
       "robots": "Browser automation and data extraction",
       "groups": "Shared WhatsApp inbox and group management",
       "notes": "Notes, notebooks, checklists and a web clipper",
-      "board": "Shared infinite whiteboard"
+      "board": "Shared infinite whiteboard",
+      "voice": "In the works: voice dictation and meeting notes",
+      "rec": "In the works: screen and camera recording",
+      "talk": "In the works: team messaging"
     }
   },
   "sidebar": {
@@ -136,7 +139,7 @@
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
-    "p2": "Running that software costs far less. All twelve zerosoft apps fit in <strong>one container and one SQLite file</strong> on a small server.",
+    "p2": "Running that software costs far less. All fifteen zerosoft apps fit in <strong>one container and one SQLite file</strong> on a small server.",
     "p3": "So we publish the code. The core of every app is AGPLv3: you can read it, change it and run it on your server without paying us.",
     "final": "Why we build zerosoft.",
     "p4": "If you would rather we run it, zerosoft Cloud bills per workspace, by usage. Adding someone to the team does not change the bill.",
@@ -178,6 +181,15 @@
     },
     "board": {
       "desc": "An infinite whiteboard for your team."
+    },
+    "voice": {
+      "desc": "Dictation and AI meeting notes. In the works."
+    },
+    "rec": {
+      "desc": "Screen and camera videos to share. In the works."
+    },
+    "talk": {
+      "desc": "Channels, direct messages and threads. In the works."
     }
   },
   "model": {
@@ -246,7 +258,7 @@
   },
   "home": {
     "hero": {
-      "title1": "Twelve apps for your team.",
+      "title1": "Fifteen apps for your team.",
       "title2": "Zero licenses.",
       "sub": "Open-source alternatives to HubSpot, Intercom, Calendly, Linear, Notion and five more products your team pays for every month. Run them on your server for $0 or use them on zerosoft Cloud.",
       "ctaStart": "Start free",
@@ -303,7 +315,7 @@
         "b3": "Templates, comments and sharing"
       },
       "one": {
-        "title": "One account for all twelve apps.",
+        "title": "One account for all fifteen apps.",
         "desc": "Invite your team once. Find contacts, companies, deals, links, docs and tasks from a single search bar, and jump between apps without changing tools."
       },
       "replaces": "Replaces {rival}",
@@ -326,7 +338,17 @@
         "line": "An infinite whiteboard."
       },
       "audienceTitle": "For teams and for personal use",
-      "audienceDesc": "Every app works for one person or for a whole team. Start with the one you need and invite your team whenever you want. The account and the search are the same across all of them."
+      "audienceDesc": "Every app works for one person or for a whole team. Start with the one you need and invite your team whenever you want. The account and the search are the same across all of them.",
+      "voice": {
+        "line": "Dictation in any app and meeting notes."
+      },
+      "rec": {
+        "line": "Screen and camera videos to share."
+      },
+      "talk": {
+        "line": "Channels, direct messages and threads for your team."
+      },
+      "building": "In the works · like {rival}"
     },
     "stack": {
       "title": "{total} a year.",
@@ -340,7 +362,7 @@
       "total": "Total per year",
       "zeroTitle": "zerosoft, on your server",
       "footnote": "List prices as cited on our product pages, billed monthly, for 10 users (Bitly Core is a flat plan). Vendors change their prices, so check their sites. zerosoft is not affiliated with any of these companies.",
-      "rApps": "All twelve apps",
+      "rApps": "All fifteen apps",
       "rSeats": "Users",
       "rLicense": "License",
       "rData": "Your data",
@@ -411,7 +433,7 @@
   },
   "appHome": {
     "title": "Your apps",
-    "lead": "The twelve apps in your workspace. Pick one to get started.",
+    "lead": "The fifteen apps in your workspace. Pick one to get started.",
     "apps": "Apps",
     "open": "Open {name}",
     "linkSummary": "Link overview",
@@ -525,7 +547,7 @@
   "notFound": {
     "sign": "Error 404",
     "title": "This page does not exist.",
-    "body": "The link may have a typo or the page moved. The home page takes you to all twelve apps.",
+    "body": "The link may have a typo or the page moved. The home page takes you to all fifteen apps.",
     "cta": "Go to the home page",
     "meta": "Page not found"
   },
@@ -586,5 +608,16 @@
       "title": "Daily work",
       "desc": "Docs, notes and scheduling for every day."
     }
+  },
+  "appSoon": {
+    "desc": "{app} isn't ready yet.",
+    "title": "Coming soon: we are building {app}",
+    "body": "There is nothing to use here yet. When the first version ships, you'll see it on this page and in the changelog.",
+    "propose": "Propose an idea",
+    "plan": "See what {app} will do",
+    "loading": "Loading {app}…",
+    "errorTitle": "We couldn't load {app}",
+    "errorBody": "Try again in a moment.",
+    "retry": "Retry"
   }
 }

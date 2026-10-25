@@ -1,7 +1,7 @@
 import type { ComponentType, ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { PRODUCT_CONFIG, type SiteProductKey as ProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, isBuildingProduct, type SiteProductKey as ProductKey } from '@/lib/products';
 import Icon from '@/components/site/Icon';
 import { GITHUB_URL, HAS_API, PRODUCT_PAGES, SECTION_IDS, type PageSection } from '@/components/site/catalog';
 import SectionSign from '@/components/site/SectionSign';
@@ -28,6 +28,9 @@ import RobotsMockup from './mockups/RobotsMockup';
 import GroupsMockup from './mockups/GroupsMockup';
 import NotesMockup from './mockups/NotesMockup';
 import BoardMockup from './mockups/BoardMockup';
+import VoiceMockup from './mockups/VoiceMockup';
+import RecMockup from './mockups/RecMockup';
+import TalkMockup from './mockups/TalkMockup';
 
 const MOCKUPS: Record<ProductKey, ComponentType> = {
   link: LinkMockup,
@@ -42,6 +45,9 @@ const MOCKUPS: Record<ProductKey, ComponentType> = {
   groups: GroupsMockup,
   notes: NotesMockup,
   board: BoardMockup,
+  voice: VoiceMockup,
+  rec: RecMockup,
+  talk: TalkMockup,
 };
 
 const STEP_IDS = ['s1', 's2', 's3'] as const;
@@ -49,11 +55,14 @@ const STEP_IDS = ['s1', 's2', 's3'] as const;
 const ids = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${i + 1}`);
 
 /**
- * Página de producto. Una sola plantilla para las once apps: el orden de los
+ * Página de producto. Una sola plantilla para todas las apps: el orden de los
  * bloques, la cantidad de features y la forma de la lista salen de
  * components/site/catalog.ts (PRODUCT_PAGES). El color del producto tiñe el
  * cero del primer viewport y el índice de secciones (ProductSectionNav). El
  * copy vive en messages/<locale>/pages.json (products.<key> y product.*).
+ *
+ * Las apps en construcción (BUILDING_PRODUCTS) lo dicen arriba del título,
+ * muestran la vista como boceto y llevan a proponer ideas en vez de a la app.
  */
 export default async function ProductPage({ locale, product }: { locale: string; product: ProductKey }) {
   const t = await getTranslations({ locale, namespace: 'pages' });
@@ -65,6 +74,9 @@ export default async function ProductPage({ locale, product }: { locale: string;
   const Mockup = MOCKUPS[product];
   const p = `products.${product}`;
   const rival = t(`${p}.compare.rival`);
+  const building = isBuildingProduct(product);
+  // En construcción no hay app para probar: las acciones llevan al board público.
+  const primaryHref = building ? `/feedback-board/new?product=${product}` : cfg.launch;
 
   const sign = (key: PageSection, title: ReactNode, sub?: ReactNode) => (
     <SectionSign id={`h-${SECTION_IDS[key]}`} title={title} sub={sub} product={product} />
@@ -79,10 +91,16 @@ export default async function ProductPage({ locale, product }: { locale: string;
             <Mockup />
           </BrowserFrame>
           <p className="pd-shot-note lp-proof-foot">
-            <span className="fig-cap">{t('product.shotFig', { name: cfg.name.toLowerCase() })}</span>
-            <Link href={cfg.launch} className="lp-textlink">
-              {t('product.launch', { name: cfg.name })} <Icon name="arrow" size={14} />
-            </Link>
+            {building ? (
+              <span className="fig-cap">{t('product.building.shotFig', { name: cfg.name.toLowerCase() })}</span>
+            ) : (
+              <>
+                <span className="fig-cap">{t('product.shotFig', { name: cfg.name.toLowerCase() })}</span>
+                <Link href={cfg.launch} className="lp-textlink">
+                  {t('product.launch', { name: cfg.name })} <Icon name="arrow" size={14} />
+                </Link>
+              </>
+            )}
           </p>
         </div>
       </section>
@@ -273,18 +291,27 @@ export default async function ProductPage({ locale, product }: { locale: string;
             <span aria-hidden="true">/</span>
             <span aria-current="page">{cfg.name}</span>
           </nav>
+          {building && <p className="pd-building">{t('product.building.badge')}</p>}
           <h1 id="pd-title" className="pd-title">
             <span className="pd-title-name">{cfg.name}</span>
-            <span className="pd-tagline">{t('product.alternative', { rival })}</span>
+            <span className="pd-tagline">
+              {building ? t('product.building.tagline', { rival }) : t('product.alternative', { rival })}
+            </span>
           </h1>
           <p className="pd-sub">{t(`${p}.hero.sub`)}</p>
           <div className="pd-actions">
-            <Link className="btn btn-primary btn-lg" href={cfg.launch}>
-              {t('product.launch', { name: cfg.name })}
+            <Link className="btn btn-primary btn-lg" href={primaryHref}>
+              {building ? t('product.building.propose') : t('product.launch', { name: cfg.name })}
             </Link>
-            <a className="btn btn-secondary btn-lg" href={GITHUB_URL} target="_blank" rel="noreferrer">
-              <Icon name="github" size={16} /> {t('product.selfHost')}
-            </a>
+            {building ? (
+              <Link className="btn btn-secondary btn-lg" href="/feedback-board/roadmap">
+                {t('product.building.roadmap')}
+              </Link>
+            ) : (
+              <a className="btn btn-secondary btn-lg" href={GITHUB_URL} target="_blank" rel="noreferrer">
+                <Icon name="github" size={16} /> {t('product.selfHost')}
+              </a>
+            )}
             {HAS_API.includes(product) && (
               <Link className="btn btn-ghost btn-lg" href="/docs">
                 <Icon name="code" size={16} /> {t('product.apiDocs')}
@@ -310,7 +337,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
           </h2>
           <p className="lp-end-sub">{t(`${p}.cta.sub`)}</p>
           <div className="lp-ctas">
-            <Link className="btn btn-invert-solid btn-lg" href={cfg.launch}>
+            <Link className="btn btn-invert-solid btn-lg" href={primaryHref}>
               {t(`${p}.cta.button`)}
             </Link>
             <a className="btn btn-invert btn-lg" href={GITHUB_URL} target="_blank" rel="noreferrer">

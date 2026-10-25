@@ -58,6 +58,9 @@
   --c-board: #00b8a9;
   --c-robots: #6b7280;
   --c-groups: #65a30d;
+  --c-voice: #c026d3;
+  --c-rec: #e11d48;
+  --c-talk: #8e3a80;
 
   /* Forma: la del tema (--radius-1). */
   --r-xs: var(--radius-1);
@@ -122,7 +125,7 @@ body {
 
 /* Acento por producto: disponible en todo el sitio (header, footer, páginas). */
 /* --on-accent: el texto más legible sobre ese color (contraste WCAG medido:
-   blanco en Link, CRM y Robots; tinta en el resto, incluido el amarillo de Notes). */
+   blanco en Link, CRM, Robots, Voice, Rec y Talk; tinta en el resto, incluido el amarillo de Notes). */
 .card-link { --accent: var(--c-link); --on-accent: #ffffff; }
 .card-crm { --accent: var(--c-crm); --on-accent: #ffffff; }
 .card-cal { --accent: var(--c-cal); --on-accent: var(--ink); }
@@ -135,6 +138,9 @@ body {
 .card-board { --accent: var(--c-board); --on-accent: var(--ink); }
 .card-robots { --accent: var(--c-robots); --on-accent: #ffffff; }
 .card-groups { --accent: var(--c-groups); --on-accent: var(--ink); }
+.card-voice { --accent: var(--c-voice); --on-accent: #ffffff; }
+.card-rec { --accent: var(--c-rec); --on-accent: #ffffff; }
+.card-talk { --accent: var(--c-talk); --on-accent: #ffffff; }
 /* El color del producto, oscurecido para usarlo como texto sobre blanco. */
 [class*='card-'] { --accent-ink: color-mix(in srgb, var(--accent) 74%, var(--ink)); }
 
