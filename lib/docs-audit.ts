@@ -57,6 +57,24 @@ export interface AuditActor {
   name?: string | null;
 }
 
+/**
+ * Nombre legible de a quién apunta un share o un cambio de miembros (persona
+ * o team), para el detalle del registro: así se lee "Carol · comment" y no un id.
+ */
+export async function auditTargetLabel(kind: string, targetId: string | null | undefined): Promise<string> {
+  if (!targetId) return kind;
+  try {
+    if (kind === 'team') {
+      const team = (await getDb().prepare('SELECT name FROM teams WHERE id = ?').get(targetId)) as { name: string } | undefined;
+      return team?.name || targetId;
+    }
+    const u = (await getDb().prepare('SELECT name, email FROM users WHERE id = ?').get(targetId)) as { name: string | null; email: string } | undefined;
+    return u ? u.name?.trim() || u.email : targetId;
+  } catch {
+    return targetId;
+  }
+}
+
 /** Retención: un año (como Notion). */
 export const AUDIT_RETENTION_DAYS = 365;
 

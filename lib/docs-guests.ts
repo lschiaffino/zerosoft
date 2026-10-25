@@ -12,7 +12,7 @@ import { createHash, randomBytes } from 'crypto';
 import { getDb, getUserByEmail, type DocsPageRow, type UserRow } from './db';
 import { createDocShare } from './docs';
 import { normalizeDocsRole, type DocsRole } from './docs-access';
-import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
+import { appSender, escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { siteUrl } from './board-urls';
 import en from '@/messages/en/docs.json';
 import es from '@/messages/es/docs.json';
@@ -83,6 +83,7 @@ export async function createGuestInvite(args: {
   const title = args.page.title.trim() || s.untitled;
   const link = `${siteUrl()}/${locale}/app/docs/invite/${token}`;
   const sent = await sendEmail({
+    from: appSender(),
     to: email,
     subject: fill(s.guestSubject, { name: inviter, title }),
     text: `${fill(s.guestLine, { name: inviter, title })}\n\n${link}\n\n${s.guestNote}`,
@@ -119,7 +120,7 @@ export async function revokeGuestInvite(pageId: string, inviteId: string): Promi
 }
 
 export type AcceptResult =
-  | { ok: true; pageId: string; workspaceId: string; email: string }
+  | { ok: true; pageId: string; workspaceId: string; email: string; /** Recién aceptada (no una segunda visita al link). */ first: boolean }
   | { ok: false; reason: 'invalid' | 'expired' | 'email_mismatch'; email?: string };
 
 /**
@@ -137,7 +138,7 @@ export async function acceptGuestInvite(token: string, user: UserRow, now = new 
   if (!row) return { ok: false, reason: 'invalid' };
   if (row.accepted_at) {
     // Ya aceptada por esta misma persona: vuelve a la página.
-    if (row.accepted_user_id === user.id) return { ok: true, pageId: row.page_id, workspaceId: row.workspace_id, email: row.email };
+    if (row.accepted_user_id === user.id) return { ok: true, pageId: row.page_id, workspaceId: row.workspace_id, email: row.email, first: false };
     return { ok: false, reason: 'invalid' };
   }
   if (now.getTime() - Date.parse(row.created_at) > INVITE_TTL_DAYS * 86_400_000) return { ok: false, reason: 'expired' };
@@ -147,7 +148,7 @@ export async function acceptGuestInvite(token: string, user: UserRow, now = new 
     .run(now.toISOString(), user.id, row.id);
   if (!claim.changes) return { ok: false, reason: 'invalid' };
   await createDocShare(row.workspace_id, row.page_id, 'user', user.id, normalizeDocsRole(row.role));
-  return { ok: true, pageId: row.page_id, workspaceId: row.workspace_id, email: row.email };
+  return { ok: true, pageId: row.page_id, workspaceId: row.workspace_id, email: row.email, first: true };
 }
 
 /** ¿El email ya tiene cuenta? (para decidir share directo o invitación). */

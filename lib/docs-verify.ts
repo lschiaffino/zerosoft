@@ -5,7 +5,7 @@
  */
 import { getDb, type DocsPageRow } from './db';
 import { createNotification } from './notifications';
-import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
+import { appSender, escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { siteUrl } from './board-urls';
 import en from '@/messages/en/docs.json';
 import es from '@/messages/es/docs.json';
@@ -119,6 +119,7 @@ export async function fireVerificationExpiry(opts: { now?: Date; limit?: number 
     if (r.email) {
       const link = `${siteUrl()}/${locale}/app/docs/${encodeURIComponent(r.id)}`;
       await sendEmail({
+        from: appSender(),
         to: r.email,
         subject: fill(s.verifyExpiredTitle, { title }),
         text: `${s.verifyExpiredBody}\n\n${link}`,

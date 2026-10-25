@@ -40,6 +40,8 @@ interface DocsSidebarProps {
   shared?: Array<{ id: string; title: string; icon: string | null; role: DocsShareRole; owner_name: string | null; owner_email: string }>;
   /** Favoritos de la persona (en orden). */
   favorites?: DocsFavoriteRow[];
+  /** Puede crear páginas de primer nivel en el workspace (un miembro de solo lectura no). */
+  canCreateRoot?: boolean;
 }
 
 type TreeNode = DocsPageSummary & { children?: TreeNode[] };
@@ -77,6 +79,7 @@ export default function DocsSidebar({
   shared = [],
   favorites: initialFavorites = [],
   teamspaces = [],
+  canCreateRoot = true,
   moveToTeamspaceAction,
   meId,
 }: DocsSidebarProps) {
@@ -219,7 +222,7 @@ export default function DocsSidebar({
   );
 
   // "C" crea una página nueva desde cualquier vista de Docs (fuera de campos editables).
-  useKeyShortcut('c', () => create(null), !isPending);
+  useKeyShortcut('c', () => create(null), !isPending && canCreateRoot);
 
   const handleDrop = useCallback(
     (e: React.DragEvent, targetId: string | null, zone: DropZone = 'inside') => {
@@ -550,10 +553,12 @@ export default function DocsSidebar({
       {tree.length === 0 ? (
         <div className="docs-sidebar-empty">
           <p>{labels.empty}</p>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => create(null)} disabled={isPending}>
-            <Icon name="plus" size={14} />
-            {labels.newPage}
-          </button>
+          {canCreateRoot && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => create(null)} disabled={isPending}>
+              <Icon name="plus" size={14} />
+              {labels.newPage}
+            </button>
+          )}
         </div>
       ) : inShell ? (
         // Ya está dentro del <nav> del sidebar: una lista, no otro landmark.
@@ -630,18 +635,20 @@ export default function DocsSidebar({
           {t('sidebar.pages')}
           <span className="docs-sidebar-count">{count}</span>
         </p>
-        <button
-          type="button"
-          className="docs-tree-btn docs-sidebar-new"
-          onClick={() => create(null)}
-          title={`${labels.newPage} (C)`}
-          aria-label={labels.newPage}
-          aria-keyshortcuts="C"
-          disabled={isPending}
-          aria-busy={isPending || undefined}
-        >
-          <Icon name="plus" size={16} />
-        </button>
+        {canCreateRoot && (
+          <button
+            type="button"
+            className="docs-tree-btn docs-sidebar-new"
+            onClick={() => create(null)}
+            title={`${labels.newPage} (C)`}
+            aria-label={labels.newPage}
+            aria-keyshortcuts="C"
+            disabled={isPending}
+            aria-busy={isPending || undefined}
+          >
+            <Icon name="plus" size={16} />
+          </button>
+        )}
       </div>
 
       <div className="docs-sidebar-body" id="docs-sidebar-body">

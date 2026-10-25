@@ -204,7 +204,7 @@ export function DocsTeamspacesSettings({
   return (
     <>
       {canCreate && (
-        <FormSection title={t('newTeamspace')} description={t('newTeamspaceHelp')} onSubmit={create} submitLabel={t('create')}>
+        <FormSection title={t('newTeamspace')} description={t('newTeamspaceHelp')} onSubmit={create} submitLabel={t('create')} resetOnSave>
           <div className="docs-ts-form">
             <div className="ui-field docs-ts-icon-field">
               <label className="label" htmlFor={`${uid}-icon`}>

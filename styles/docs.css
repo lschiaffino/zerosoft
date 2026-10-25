@@ -143,6 +143,14 @@
 @media (hover: none) {
   .docs-tree-actions { display: inline-flex; }
 }
+/* Fila de un teamspace: no tiene nada enfocable antes de sus acciones (Join,
+   página nueva), así que siempre están en el flujo y se ven al pasar o enfocar. */
+.docs-teamspace-row .docs-tree-actions { display: inline-flex; opacity: 0; }
+.docs-teamspace-row:hover .docs-tree-actions,
+.docs-teamspace-row:focus-within .docs-tree-actions { opacity: 1; }
+@media (hover: none) {
+  .docs-teamspace-row .docs-tree-actions { opacity: 1; }
+}
 
 .docs-tree-more-wrap { position: relative; display: inline-flex; }
 .docs-tree-menu { position: absolute; top: calc(100% + 2px); right: 0; z-index: 75; min-width: 180px; }

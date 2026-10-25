@@ -7,6 +7,7 @@ import { formatDateTime, formatTimeAgo } from '@/lib/datetime';
 import DocsBlocksView from './DocsBlocksView';
 import DocsDiffView from './DocsDiffView';
 import Icon from '@/components/app/icons';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 interface VersionDetail extends DocsVersionSummary {
   content: DocsBlock[];
@@ -47,6 +48,7 @@ export default function VersionsPanel({
   /** 'changes' = qué cambió en esta versión; 'current' = contra la página actual; 'page' = la versión como se veía. */
   const [view, setView] = useState<'changes' | 'current' | 'page'>('changes');
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const [loadError, setLoadError] = useState(false);
@@ -99,7 +101,8 @@ export default function VersionsPanel({
   }
 
   async function restore() {
-    if (!preview || !window.confirm(t('restoreConfirm'))) return;
+    setConfirming(false);
+    if (!preview) return;
     setBusy(true);
     try {
       const res = await fetch(`${base}/versions/${preview.id}/restore`, { method: 'POST' });
@@ -124,11 +127,21 @@ export default function VersionsPanel({
             {t('back')}
           </button>
           {canEdit && (
-            <button type="button" className="btn btn-primary btn-sm" onClick={restore} disabled={busy} aria-busy={busy || undefined}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setConfirming(true)} disabled={busy} aria-busy={busy || undefined}>
               {t('restore')}
             </button>
           )}
         </div>
+        <ConfirmDialog
+          open={confirming}
+          title={t('restoreTitle')}
+          body={t('restoreConfirm')}
+          confirmLabel={t('restore')}
+          cancelLabel={t('cancel')}
+          busy={busy}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => void restore()}
+        />
         <p className="docs-versions-meta">
           {formatDateTime(preview.created_at, locale)} · {who(preview)}
         </p>

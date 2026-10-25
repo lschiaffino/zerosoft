@@ -22,7 +22,7 @@ import { recordRevisions } from './docs-revisions';
 
 export class DbServerError extends Error {
   constructor(
-    public code: 'not_found' | 'forbidden' | 'conflict' | 'invalid_input',
+    public code: 'not_found' | 'forbidden' | 'conflict' | 'invalid_input' | 'locked',
     public status: number,
   ) {
     super(code);
@@ -83,9 +83,12 @@ export async function applyRemoteOps(
   pageId: string,
   blockId: string,
   ops: DbOp[],
+  opts: { respectLock?: boolean } = {},
 ): Promise<{ db: DocsDatabase; effects: DbEffect[]; updated_at: string }> {
   for (let attempt = 0; attempt < 4; attempt++) {
     const loaded = await loadDatabase(actor, pageId, blockId, { edit: true });
+    // Página bloqueada: nadie la edita desde la API de bases (igual que el PATCH de la página).
+    if (opts.respectLock && loaded.page.locked === 1) throw new DbServerError('locked', 423);
     const now = new Date().toISOString();
     const next = applyDbOps(loaded.db, ops, now);
     const blocks = loaded.blocks.map((b, i) => (i === loaded.index ? { ...b, db: next, columns: undefined, rows: undefined, view: undefined } : b));

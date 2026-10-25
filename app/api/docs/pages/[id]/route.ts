@@ -23,7 +23,7 @@ import { getUserTimeZone } from '@/lib/user-tz';
 import { canShareAccess, canWriteAccess } from '@/lib/docs-access';
 import { docsAllowed, editorBlocks, lockedSyncedIds } from '@/lib/docs-guard';
 import { checkMarksOnlyChange, newSuggestionIds } from '@/lib/docs-marks';
-import { logDocsAudit, requestIp, type DocsAuditAction } from '@/lib/docs-audit';
+import { auditTargetLabel, logDocsAudit, requestIp, type DocsAuditAction } from '@/lib/docs-audit';
 import { notifyDocsSuggestions } from '@/lib/docs-live';
 import { listPageInvites } from '@/lib/docs-guests';
 import type { DocsPageRow } from '@/lib/db';
@@ -142,7 +142,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     const actor = { ...user, realId: realUserId(user) };
     after(() => runDbEffects(effects, actor).catch(() => {}));
   }
-  if (patch.content !== undefined || patch.title !== undefined) {
+  // Sin cambios (autosave con lo mismo) no hay versión nueva.
+  if ((patch.content !== undefined || patch.title !== undefined) && page.updated_at !== row.updated_at) {
     await maybeAutoSnapshot(row.user_id, params.id, actorId, row).catch(() => {});
   }
 
@@ -165,6 +166,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (patch.page_owner_id !== undefined && patch.page_owner_id !== (row.page_owner_id ?? null)) audits.push(['page.owner', patch.page_owner_id ?? '']);
   const ip = requestIp(req.headers);
   const actor = user.actingUser ?? user;
+  // Dueño de la wiki: el nombre, no el id.
+  for (const a of audits) if (a[0] === 'page.owner' && a[1]) a[1] = await auditTargetLabel('user', a[1]);
   for (const [action, detail] of audits) {
     await logDocsAudit({ workspaceId: row.user_id, actor, action, page: { id: row.id, title: page.title }, detail, ip });
   }

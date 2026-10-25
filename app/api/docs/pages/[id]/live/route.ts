@@ -59,7 +59,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     end: body.end ?? null,
     mode: body.mode ?? (access === 'view' ? 'view' : 'edit'),
   });
-  const [peers, comments] = await Promise.all([listPeers(id, body.session), commentsSignature(id)]);
+  const [allPeers, comments] = await Promise.all([listPeers(id, body.session), commentsSignature(id)]);
+  // Uno mismo en otra pestaña no aparece como otra persona presente.
+  const peers = allPeers.filter((p) => p.user_id !== me);
   let page = null;
   if (body.since && body.since !== row.updated_at) {
     const p = toDocPage(row);

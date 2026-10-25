@@ -834,7 +834,11 @@ export interface DocsPageRow {
   title: string;
   icon: string | null;
   cover_url: string | null;
-  content: string; // JSON DocsBlock[]
+  content: string; // JSON DocsBlock[] (sincronizados solo con su referencia)
+  /** Hijos de cada sincronizado que guardó esta página (id → JSON). Solo lo lee el guardado. */
+  synced_base?: string | null;
+  /** Quién guardó el contenido por última vez (migración 094). */
+  content_by?: string | null;
   is_public: 0 | 1;
   archived: 0 | 1;
   /** Orden manual entre hermanos (NULL = sin orden manual). */

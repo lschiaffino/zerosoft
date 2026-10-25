@@ -11,6 +11,7 @@ import {
 import { sanitizeBlocks } from './docs-sanitize';
 import { normalizeStructure } from './docs-columns';
 import { persistSyncedBlocks } from './docs-synced';
+import { parseSyncedBase, stripSyncedChildren, syncedChildren, syncedIdsOf } from './docs-synced-refs';
 import { syncDocReminders } from './docs-reminders';
 import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
 import { databaseRowEntries } from './docs-database';
@@ -434,7 +435,8 @@ export async function createDocPage(
   }
   const icon = input.icon ?? null;
   const coverUrl = input.cover_url ?? null;
-  const content = stringifyBlocks(cleanContent(input.content ?? defaultBlocks()));
+  // Sincronizados: solo la referencia (plantillas e importaciones no traen copias).
+  const content = stringifyBlocks(stripSyncedChildren(cleanContent(input.content ?? defaultBlocks())));
 
   await getDb()
     .prepare(
@@ -523,6 +525,15 @@ export async function updateDocPage(
   if (!row || row.user_id !== ownerId) return null;
   let base = input.base_updated_at;
   let incoming = input.content !== undefined ? cleanContent(input.content) : undefined;
+  // Sincronizados: sus hijos se guardan aparte (docs_synced_blocks) y la
+  // página queda solo con la referencia. Fusión y bases trabajan sin ellos.
+  // Solo cuentan los que llegaron con hijos: uno sin hijos (restaurar una
+  // versión, una API) no vacía el contenido compartido; el párrafo vacío que
+  // le agrega cleanContent no es un cambio.
+  const sent = new Set([...syncedChildren(input.content ?? [])].filter(([, kids]) => kids.length > 0).map(([id]) => id));
+  const incomingSynced = new Map([...(incoming ? syncedChildren(incoming) : [])].filter(([id]) => sent.has(id)));
+  if (incoming) incoming = stripSyncedChildren(incoming);
+  const rowBlocks = stripSyncedChildren(parseBlocks(row.content));
   const fields: { title?: string; icon?: string | null; cover_url?: string | null } = {
     title: input.title?.trim(),
     icon: input.icon,
@@ -546,7 +557,7 @@ export async function updateDocPage(
         clashed = true;
       } else {
         if (incoming !== undefined) {
-          const merged = mergeBlocksDetailed(parseBlocks(rev.content), parseBlocks(row.content), incoming);
+          const merged = mergeBlocksDetailed(stripSyncedChildren(parseBlocks(rev.content)), rowBlocks, incoming);
           incoming = merged.blocks;
           if (merged.conflicts.length) clashed = true;
         }
@@ -597,7 +608,7 @@ export async function updateDocPage(
   let savedContent: DocsBlock[] | null = null;
   if (incoming !== undefined) {
     // Bases: autor de cada fila y automatizaciones contra lo guardado.
-    const saved = prepareDatabaseSave(pageId, parseBlocks(row.content), incoming, opts.actorId ?? null);
+    const saved = prepareDatabaseSave(pageId, rowBlocks, incoming, opts.actorId ?? null);
     // "Agregar fila" hacia otra base de esta página: en el mismo guardado (y
     // sus automatizaciones, hasta tres vueltas). La respuesta trae las filas.
     let blocksOut = saved.blocks;
@@ -614,16 +625,25 @@ export async function updateDocPage(
     }
     opts.effects?.push(...pending);
     // Bloques sincronizados: lo editado adentro se escribe en su tabla.
-    savedContent = await persistSyncedBlocks({
+    const synced = await persistSyncedBlocks({
       workspaceId: ownerId,
       pageId,
       actorId: opts.actorId ?? null,
-      previous: parseBlocks(row.content),
+      base: parseSyncedBase(row.synced_base),
+      previousIds: new Set(syncedIdsOf(rowBlocks)),
       next: blocksOut,
+      children: incomingSynced,
       locked: opts.lockedSynced,
     });
-    updates.push('content = ?');
-    args.push(stringifyBlocks(savedContent));
+    savedContent = synced.blocks;
+    const nextContent = stringifyBlocks(savedContent);
+    const nextBase = Object.keys(synced.base).length ? JSON.stringify(synced.base) : null;
+    // Lo mismo que ya estaba (un autosave sin cambios): no cuenta como guardado ni deja revisión.
+    if (nextContent === row.content && nextBase === (row.synced_base ?? null)) savedContent = null;
+    else {
+      updates.push('content = ?', 'synced_base = ?', 'content_by = ?');
+      args.push(nextContent, nextBase, opts.actorId ?? null);
+    }
   }
   if (input.cover_position !== undefined) {
     updates.push('cover_position = ?');
@@ -701,9 +721,15 @@ export async function updateDocPage(
   if (base !== undefined) args.push(base);
 
   // Choque al fusionar: lo que había guardado queda como versión (se puede ver y restaurar).
+  // La versión es de quien había guardado lo que se pisa, y a esa persona se le avisa.
   if (clashed) {
     const { saveDocVersion } = await import('./docs-versions');
-    await saveDocVersion(ownerId, pageId, null, 'auto').catch(() => null);
+    const loser = row.content_by ?? null;
+    await saveDocVersion(ownerId, pageId, loser, 'auto').catch(() => null);
+    if (loser && opts.actorId && loser !== opts.actorId) {
+      const { createDocsConflictNotification } = await import('./notifications');
+      await createDocsConflictNotification({ pageId, pageTitle: fields.title ?? row.title, loserId: loser, actorId: opts.actorId }).catch(() => undefined);
+    }
   }
   const result = await getDb()
     .prepare(`UPDATE docs_pages SET ${updates.join(', ')} WHERE id = ?${base !== undefined ? ' AND updated_at = ?' : ''}`)
@@ -1522,6 +1548,36 @@ export async function searchDocPagesContent(
         )
         .all(ownerId, like(query.trim()), ...ts.args)) as Row[];
 
+  // Sincronizados: su texto cuenta en su página de origen (las que lo pegan
+  // guardan solo la referencia y quien busca puede no poder abrir el origen).
+  const own = new Map<string, string[]>();
+  if (term) {
+    const synced = (await getDb()
+      .prepare(
+        `SELECT id, source_page_id, content FROM docs_synced_blocks
+         WHERE workspace_id = ? AND source_page_id IS NOT NULL AND content LIKE ? ESCAPE '\\' LIMIT 100`,
+      )
+      .all(ownerId, like(term))) as Array<{ id: string; source_page_id: string; content: string }>;
+    const known = new Set(rows.map((r) => r.id));
+    const missing = [...new Set(synced.map((x) => x.source_page_id))].filter((id) => !known.has(id));
+    if (missing.length) {
+      rows.push(
+        ...((await getDb()
+          .prepare(
+            `SELECT id, parent_id, title, icon, content, updated_at, verified_at, verified_until FROM docs_pages
+             WHERE user_id = ? AND archived = 0 AND id IN (${missing.map(() => '?').join(',')})${ts.sql}`,
+          )
+          .all(ownerId, ...missing, ...ts.args)) as Row[]),
+      );
+    }
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    for (const x of synced) {
+      const page = byId.get(x.source_page_id);
+      if (!page || !page.content.includes(`"synced_id":"${x.id}"`)) continue;
+      own.set(page.id, [...(own.get(page.id) ?? []), x.content]);
+    }
+  }
+
   const hits: DocsSearchHit[] = [];
   for (const r of rows) {
     const verified = verificationState(r.verified_at, r.verified_until);
@@ -1533,7 +1589,8 @@ export async function searchDocPagesContent(
       updated_at: r.updated_at,
       ...(verified ? { verified } : {}),
     };
-    const blocks = parseBlocks(r.content);
+    // Sincronizados: solo la referencia (su texto se busca en su página de origen).
+    const blocks = stripSyncedChildren(parseBlocks(r.content));
     // Filas de bases cuyo título matchea: se abren como página (?row=).
     if (r.content.includes('"database"')) {
       for (const e of databaseRowEntries(blocks)) {
@@ -1545,10 +1602,37 @@ export async function searchDocPagesContent(
       hits.push({ ...base, match: 'title', snippet: null });
       continue;
     }
-    const text = pageSearchText(blocks);
+    const text = [pageSearchText(blocks), ...(own.get(r.id) ?? []).map((c) => pageSearchText(stripSyncedChildren(parseBlocks(c))))].filter(Boolean).join(' ');
     if (matchesAll(`${r.title} ${text}`, tokens)) {
       hits.push({ ...base, match: 'content', snippet: buildSnippet(text, tokens) });
     }
+  }
+  return rankHits(hits, limit);
+}
+
+/**
+ * Páginas de otros workspaces compartidas con quien busca (invitados): por
+ * título y por texto, solo las que puede abrir. Sin esto un invitado no
+ * encontraba lo que le compartieron.
+ */
+export async function searchSharedDocPages(actor: DocsActor, query: string, limit = 20): Promise<DocsSearchHit[]> {
+  const tokens = searchTokens(query);
+  if (tokens.length === 0) return [];
+  const shared = await listSharedWithMe(actor.actingUser?.id ?? actor.id, actor.id);
+  if (!shared.length) return [];
+  const rows = (await getDb()
+    .prepare(`SELECT * FROM docs_pages WHERE archived = 0 AND id IN (${shared.map(() => '?').join(',')})`)
+    .all(...shared.map((p) => p.id))) as DocsPageRow[];
+  const hits: DocsSearchHit[] = [];
+  for (const r of rows) {
+    if (!(await getDocAccess(r, actor))) continue;
+    const base = { id: r.id, parent_id: null, title: r.title, icon: r.icon ?? null, updated_at: r.updated_at };
+    if (matchesAll(r.title, tokens)) {
+      hits.push({ ...base, match: 'title', snippet: null });
+      continue;
+    }
+    const text = pageSearchText(stripSyncedChildren(parseBlocks(r.content)));
+    if (matchesAll(`${r.title} ${text}`, tokens)) hits.push({ ...base, match: 'content', snippet: buildSnippet(text, tokens) });
   }
   return rankHits(hits, limit);
 }

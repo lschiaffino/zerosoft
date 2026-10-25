@@ -3,7 +3,7 @@ import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { listDocPageSummaries, listDocWorkspaceTemplates, listSharedWithMe } from '@/lib/docs';
 import { listDocFavorites } from '@/lib/docs-favorites';
 import { listTeamspaces } from '@/lib/docs-access';
-import { docsHidden } from '@/lib/docs-guard';
+import { canCreateDocPage, docsHidden } from '@/lib/docs-guard';
 import { listWikiPages } from '@/lib/docs-verify';
 import DocsPageIcon from '@/components/docs/DocsPageIcon';
 import {
@@ -55,6 +55,8 @@ export default async function DocsLandingPage(props: {
     listTeamspaces(user.id, realUserId(user)),
     listWikiPages(user.id, hide),
   ]);
+  // Miembros de solo lectura (o comentario): el inicio no ofrece crear, importar ni plantillas.
+  const canCreate = await canCreateDocPage(user, {});
   const now = Date.now();
   const canDeleteAnyTemplate = isWorkspaceAdmin(user);
   const templates = getDocTemplates(locale);
@@ -62,7 +64,7 @@ export default async function DocsLandingPage(props: {
   const createAction = createDocPageAction.bind(null, locale);
   const recent = [...pages].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 8);
 
-  const newPageButton = (
+  const newPageButton = !canCreate ? null : (
     <div className="docs-landing-actions">
       <Link href="/app/docs/import" className="btn" data-testid="docs-import-link">
         {t('notionImport.link')}
@@ -93,6 +95,7 @@ export default async function DocsLandingPage(props: {
         moveToTeamspaceAction={moveDocPageToTeamspaceAction}
         mobileOpenByDefault={false}
         createAction={createAction}
+        canCreateRoot={canCreate}
         moveAction={moveDocPageAction}
         reorderAction={reorderDocPageAction}
         stepAction={moveDocPageStepAction}
@@ -104,7 +107,7 @@ export default async function DocsLandingPage(props: {
       />
 
       <div className="docs-main docs-landing ui-page">
-        {sp.new === '1' && <DocsAutoCreate action={createAction.bind(null, null)} />}
+        {sp.new === '1' && canCreate && <DocsAutoCreate action={createAction.bind(null, null)} />}
         <PageHeader title={t('landing.title')} actions={newPageButton} />
         {sp.denied === '1' && (
           <p className="ui-notice docs-denied" role="alert">
@@ -116,18 +119,22 @@ export default async function DocsLandingPage(props: {
           <EmptyState
             product="docs"
             title={t('landing.emptyTitle')}
-            body={t('landing.emptySub')}
+            body={canCreate ? t('landing.emptySub') : t('landing.emptyReadOnly')}
             action={
-              <form action={createAction.bind(null, null)}>
-                <button type="submit" className="btn btn-primary">
-                  {t('landing.newPage')}
-                </button>
-              </form>
+              canCreate ? (
+                <form action={createAction.bind(null, null)}>
+                  <button type="submit" className="btn btn-primary">
+                    {t('landing.newPage')}
+                  </button>
+                </form>
+              ) : undefined
             }
             secondary={
-              <a href="#templates" className="docs-inline-link">
-                {t('templates.use')}
-              </a>
+              canCreate ? (
+                <a href="#templates" className="docs-inline-link">
+                  {t('templates.use')}
+                </a>
+              ) : undefined
             }
           />
         ) : (
@@ -203,6 +210,7 @@ export default async function DocsLandingPage(props: {
           </section>
         )}
 
+        {canCreate && (
         <section className="docs-section" id="templates" aria-labelledby="docs-templates">
           <h2 className="docs-section-title" id="docs-templates">
             {t('templates.title')}
@@ -237,6 +245,7 @@ export default async function DocsLandingPage(props: {
             </>
           )}
         </section>
+        )}
 
         {(trashed.length > 0 || showTrash) && (
           <details className="docs-section docs-trash" id="trash" open={showTrash || undefined}>

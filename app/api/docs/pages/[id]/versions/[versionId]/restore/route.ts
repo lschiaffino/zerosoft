@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { getDocPage, resolveDocAccess } from '@/lib/docs';
+import { getDocPage, getDocPageRow, resolveDocAccess } from '@/lib/docs';
+import { editorBlocks } from '@/lib/docs-guard';
 import { restoreDocVersion } from '@/lib/docs-versions';
 import { docsError, forbidden, notFound, unauthorized } from '@/lib/docs-http';
 import { canWriteAccess } from '@/lib/docs-access';
@@ -27,5 +28,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     detail: versionId,
     ip: requestIp(req.headers),
   });
-  return NextResponse.json(await getDocPage(res.row.user_id, id));
+  const page = await getDocPage(res.row.user_id, id);
+  const row = await getDocPageRow(id);
+  if (page && row) page.content = await editorBlocks(row, user);
+  return NextResponse.json(page);
 }

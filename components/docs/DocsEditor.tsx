@@ -3014,8 +3014,8 @@ export default function DocsEditor({
   );
 
   const dbHooks = useMemo(
-    () => ({ onOpenRow, membersUrl, pageId: embedded ? null : page.id, updateDatabase }),
-    [onOpenRow, membersUrl, embedded, page.id, updateDatabase],
+    () => ({ onOpenRow, membersUrl, pageId: embedded ? null : page.id, updateDatabase, readOnly: mode !== 'edit' }),
+    [onOpenRow, membersUrl, embedded, page.id, updateDatabase, mode],
   );
 
   /** [[ y archivos en el cuerpo de una fila: los de Notes, o los de esta página de Docs. */
@@ -4441,6 +4441,7 @@ export default function DocsEditor({
         rowId={openRow.rowId}
         mode={openRow.mode}
         membersUrl={membersUrl}
+        readOnly={mode !== 'edit'}
         pageId={embedded ? null : page.id}
         updateDatabase={updateDatabase}
         pageTitle={title}
@@ -4453,6 +4454,7 @@ export default function DocsEditor({
             ancestors={[]}
             onSave={onSaveRow}
             embedded
+            mode={mode === 'edit' ? 'edit' : 'readonly'}
             allowDatabase={false}
             pageLinks={rowPageLinks}
             files={rowFiles}

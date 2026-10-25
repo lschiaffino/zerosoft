@@ -6,6 +6,7 @@ import { rankKnowledge, searchTokens } from './knowledge-search';
 import type { DocsBlock, DocsDatabase } from './docs-types';
 import { databaseSearchText, normalizeDatabase } from './docs-database';
 import { dbKey, relatedSources } from './docs-db-compute';
+import { visibleContent, withVisibleContent } from './docs-visible';
 
 /**
  * Centro de ayuda público de un workspace: /h/<handle> y /h/<handle>/<slug>.
@@ -82,7 +83,18 @@ export async function getHelpWorkspace(handle: string): Promise<HelpWorkspace | 
   };
 }
 
+/**
+ * Páginas publicadas con su contenido visible para el público: un bloque
+ * sincronizado cuenta solo si su página de origen también está publicada
+ * (lib/docs-visible.ts). Búsqueda, excerpts y artículo leen de acá.
+ */
 async function publishedRows(ownerId: string): Promise<PublishedRow[]> {
+  return withVisibleContent(ownerId, await publishedRowsRaw(ownerId), PUBLIC);
+}
+
+const PUBLIC = { public: true } as const;
+
+async function publishedRowsRaw(ownerId: string): Promise<PublishedRow[]> {
   return (await getDb()
     .prepare(
       `SELECT id, parent_id, title, icon, content, slug, updated_at FROM docs_pages
@@ -187,7 +199,7 @@ export async function withHelpExcerpts<T extends HelpArticleSummary>(ownerId: st
       `SELECT id, content FROM docs_pages WHERE user_id = ? AND id IN (${items.map(() => '?').join(', ')})`,
     )
     .all(ownerId, ...items.map((i) => i.id))) as Array<{ id: string; content: string }>;
-  const byId = new Map(rows.map((r) => [r.id, r.content]));
+  const byId = new Map((await withVisibleContent(ownerId, rows, PUBLIC)).map((r) => [r.id, r.content]));
   return items.map((i) => {
     const content = byId.get(i.id);
     return content != null ? { ...i, excerpt: pageExcerpt(content) } : i;
@@ -210,7 +222,7 @@ export async function getHelpArticle(ownerId: string, slug: string): Promise<Hel
     .prepare('SELECT content, cover_url, cover_position FROM docs_pages WHERE id = ? AND user_id = ?')
     .get(treeRow.id, ownerId)) as { content: string; cover_url: string | null; cover_position: number | null } | undefined;
   if (!content) return null;
-  const row: PublishedRow = { ...treeRow, content: content.content };
+  const row: PublishedRow = { ...treeRow, content: await visibleContent({ id: treeRow.id, user_id: ownerId }, content.content, PUBLIC) };
   const collections = buildHelpCollections(rows);
   // Orden de lectura: colección y sus artículos, una colección tras otra.
   const order: Array<{ item: HelpArticleSummary; collection: HelpArticleSummary }> = [];

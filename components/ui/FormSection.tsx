@@ -31,7 +31,10 @@ export default function FormSection({
   titleHidden = false,
   id,
   className = '',
+  resetOnSave = false,
 }: {
+  /** Formularios de "crear": al guardar bien, los campos vuelven a vacío. */
+  resetOnSave?: boolean;
   title: ReactNode;
   /** El título solo nombra la sección para lectores de pantalla (cuando la pestaña o la página ya lo dicen). */
   titleHidden?: boolean;
@@ -65,13 +68,15 @@ export default function FormSection({
     e.preventDefault();
     if (!onSubmit || state === 'saving') return;
     setState('saving');
+    const form = e.currentTarget;
     try {
-      const res = await onSubmit(new FormData(e.currentTarget));
+      const res = await onSubmit(new FormData(form));
       const msg = typeof res === 'string' ? res : res && typeof res === 'object' ? res.error : '';
       if (msg) {
         setError(msg);
         setState('error');
       } else {
+        if (resetOnSave) form.reset();
         setState('saved');
       }
     } catch (err) {

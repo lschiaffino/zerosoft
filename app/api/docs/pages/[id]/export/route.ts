@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { parseBlocks, readableLinkTitles, resolveDocAccess, slugifyTitle } from '@/lib/docs';
+import { readableLinkTitles, resolveDocAccess, slugifyTitle } from '@/lib/docs';
 import { pageLinkHref, resolveBlocksPageLinks } from '@/lib/docs-page-links';
 import { blocksToMarkdown } from '@/lib/docs-markdown';
 import { docsFileHref } from '@/lib/docs-files';
 import { docsError, notFound, unauthorized } from '@/lib/docs-http';
-import { docsAllowed, syncedReader } from '@/lib/docs-guard';
-import { hydrateSyncedBlocks } from '@/lib/docs-synced';
+import { docsAllowed } from '@/lib/docs-guard';
+import { visibleBlocks } from '@/lib/docs-visible';
 import { logDocsAudit, requestIp } from '@/lib/docs-audit';
 import { cleanForReaders } from '@/lib/docs-marks';
 
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   // títulos de páginas que también puede abrir; el resto queda como se insertó.
   // Lo sugerido sin aceptar no se exporta (sale el texto vigente) ni los resaltados.
   // Sincronizados con su contenido actual; sin acceso a su origen, sin contenido.
-  const raw = cleanForReaders(await hydrateSyncedBlocks(res.row.user_id, parseBlocks(res.row.content), syncedReader(user, res.row)));
+  const raw = cleanForReaders(await visibleBlocks(res.row, res.row.content, { actor: user }));
   const titles = await readableLinkTitles(user, res.row, raw);
   const origin = req.nextUrl.origin;
   const blocks = resolveBlocksPageLinks(raw, (pageId) => ({

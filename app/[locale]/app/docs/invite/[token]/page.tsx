@@ -20,7 +20,8 @@ export default async function DocsInvitePage(props: { params: Promise<{ locale: 
   const res = await acceptGuestInvite(token, me);
   if (res.ok) {
     const page = await getDocPageRow(res.pageId);
-    await logDocsAudit({ workspaceId: res.workspaceId, actor: me, action: 'guest.accepted', page: page ? { id: page.id, title: page.title } : null, detail: res.email });
+    // Volver a abrir el link ya aceptado no vuelve a registrar la aceptación.
+    if (res.first) await logDocsAudit({ workspaceId: res.workspaceId, actor: me, action: 'guest.accepted', page: page ? { id: page.id, title: page.title } : null, detail: res.email });
     redirect(`/${locale}/app/docs/${res.pageId}`);
   }
   const t = await getTranslations({ locale, namespace: 'docs.guests' });

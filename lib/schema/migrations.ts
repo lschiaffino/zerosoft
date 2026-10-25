@@ -1,6 +1,8 @@
 import type { Client } from '@libsql/client';
 import { baseline } from './baseline';
 import { pickHandle } from './handles';
+import { stripSyncedChildren, syncedChildren } from '../docs-synced-refs';
+import type { DocsBlock } from '../docs-types';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -4571,6 +4573,61 @@ export const MIGRATIONS: Migration[] = [
           updated_at TEXT NOT NULL
         );
       `);
+    },
+  },
+  {
+    // Docs: los bloques sincronizados quedan en el content solo como
+    // referencia. Antes cada página guardaba una copia de los hijos y lo que
+    // lee el content crudo (búsqueda, versiones, centro de ayuda, bots) la veía
+    // aunque quien mira no pudiera abrir la página de origen. La copia pasa a
+    // docs_pages.synced_base (solo la usa el guardado) y se borra de las
+    // versiones, revisiones y plantillas. Si un sincronizado no tenía fila en
+    // docs_synced_blocks, se crea con esa copia (no se pierde contenido).
+    id: '094_docs_synced_refs',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN synced_base TEXT');
+      // Quién guardó el contenido por última vez: autor de la versión que queda
+      // cuando una fusión choca y a quién avisarle que perdió ese cambio.
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN content_by TEXT');
+      const parse = (raw: unknown): DocsBlock[] | null => {
+        try {
+          const v = JSON.parse(String(raw ?? '[]')) as unknown;
+          return Array.isArray(v) ? (v as DocsBlock[]) : null;
+        } catch {
+          return null;
+        }
+      };
+      const pages = await client.execute(`SELECT id, user_id, content FROM docs_pages WHERE content LIKE '%"synced"%'`);
+      for (const r of pages.rows) {
+        const blocks = parse(r.content);
+        if (!blocks || !blocks.some((b) => b.type === 'synced')) continue;
+        const children = syncedChildren(blocks);
+        const base: Record<string, string> = {};
+        for (const [sid, kids] of children) {
+          const json = JSON.stringify(kids);
+          base[sid] = json;
+          await client.execute({
+            sql: `INSERT INTO docs_synced_blocks (id, workspace_id, source_page_id, content, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, datetime('now'), datetime('now')) ON CONFLICT(id) DO NOTHING`,
+            args: [sid, String(r.user_id), String(r.id), json],
+          });
+        }
+        await client.execute({
+          sql: 'UPDATE docs_pages SET content = ?, synced_base = ? WHERE id = ?',
+          args: [JSON.stringify(stripSyncedChildren(blocks)), JSON.stringify(base), String(r.id)],
+        });
+      }
+      const strip = async (table: string) => {
+        const rows = await client.execute(`SELECT rowid AS rid, content FROM ${table} WHERE content LIKE '%"synced"%'`);
+        for (const r of rows.rows) {
+          const blocks = parse(r.content);
+          if (!blocks || !blocks.some((b) => b.type === 'synced')) continue;
+          await client.execute({ sql: `UPDATE ${table} SET content = ? WHERE rowid = ?`, args: [JSON.stringify(stripSyncedChildren(blocks)), r.rid] });
+        }
+      };
+      await strip('docs_versions');
+      await strip('docs_page_revisions');
+      await strip('docs_templates');
     },
   },
 ];

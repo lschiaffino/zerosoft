@@ -1,10 +1,11 @@
+import { getDb } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { deleteDocShare, getDocAccess, getDocPageRow, updateDocShareRole } from '@/lib/docs';
 import { docShareUpdateSchema } from '@/lib/docs-schema';
 import { forbidden, invalidBody, notFound, unauthorized } from '@/lib/docs-http';
 import { canShareAccess } from '@/lib/docs-access';
-import { logDocsAudit, requestIp } from '@/lib/docs-audit';
+import { auditTargetLabel, logDocsAudit, requestIp } from '@/lib/docs-audit';
 import { revokeGuestInvite } from '@/lib/docs-guests';
 import type { SessionUser } from '@/lib/session';
 
@@ -36,7 +37,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     actor: user.actingUser ?? user,
     action: 'share.role',
     page: { id: res.row.id, title: res.row.title },
-    detail: `${share.kind}:${share.target_id ?? ''} · ${share.role}`,
+    detail: `${share.kind === 'public' ? 'public' : await auditTargetLabel(share.kind, share.target_id)} · ${share.role}`,
     ip: requestIp(req.headers),
   });
   return NextResponse.json(share);
@@ -57,7 +58,11 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
     await logDocsAudit({ workspaceId: res.row.user_id, actor, action: 'guest.revoked', page: { id: res.row.id, title: res.row.title }, detail: invite.email, ip });
     return new NextResponse(null, { status: 204 });
   }
+  const removed = (await getDb().prepare('SELECT kind, target_id FROM docs_shares WHERE id = ? AND page_id = ?').get(params.shareId, params.id)) as
+    | { kind: string; target_id: string | null }
+    | undefined;
   if (!(await deleteDocShare(res.row.user_id, params.id, params.shareId))) return notFound();
-  await logDocsAudit({ workspaceId: res.row.user_id, actor, action: 'share.removed', page: { id: res.row.id, title: res.row.title }, detail: params.shareId, ip });
+  const detail = removed ? (removed.kind === 'public' ? 'public' : await auditTargetLabel(removed.kind, removed.target_id)) : params.shareId;
+  await logDocsAudit({ workspaceId: res.row.user_id, actor, action: 'share.removed', page: { id: res.row.id, title: res.row.title }, detail, ip });
   return new NextResponse(null, { status: 204 });
 }

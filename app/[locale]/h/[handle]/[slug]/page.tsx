@@ -12,8 +12,6 @@ import DocsBlocksView from '@/components/docs/DocsBlocksView';
 import { cleanForReaders } from '@/lib/docs-marks';
 import DocsPageIcon from '@/components/docs/DocsPageIcon';
 import { DocsStaticCover } from '@/components/docs/DocsStaticCover';
-import { hydrateSyncedBlocks } from '@/lib/docs-synced';
-import { publicSyncedReader } from '@/lib/docs-guard';
 import HelpHeader from '@/components/docs/HelpHeader';
 import HelpFeedback from '@/components/docs/HelpFeedback';
 import '@/styles/help.css';
@@ -53,10 +51,11 @@ export default async function HelpArticlePage(props: Props) {
   const tEditor = await getTranslations({ locale, namespace: 'docs.editor' });
   const format = await getFormatter({ locale });
   const base = `/${locale}/h/${ws.handle}`;
+  // Sincronizados: getHelpArticle ya trae solo los de origen publicado.
   // Defensa en profundidad: se re-sanitiza al servir una página pública. Los
   // links `[[` van al artículo publicado; a una página sin publicar quedan
   // como texto plano (ni id ni href: no se filtra qué hay en el workspace).
-  const blocks = resolveBlocksPageLinks(stripFileUrls(sanitizeBlocks(cleanForReaders(await hydrateSyncedBlocks(ws.id, article.content, publicSyncedReader({ id: article.id, user_id: ws.id }))))), (pageId) => {
+  const blocks = resolveBlocksPageLinks(stripFileUrls(sanitizeBlocks(cleanForReaders(article.content))), (pageId) => {
     const target = article.linkTargets[pageId];
     return target ? { href: `${base}/${target.slug}`, title: target.title || t('untitled'), keepId: false } : null;
   });

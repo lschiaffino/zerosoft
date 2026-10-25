@@ -194,6 +194,7 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     docCommentMention: tr.raw('notifications.docCommentMention') as string,
     docCommentReply: tr.raw('notifications.docCommentReply') as string,
     docShared: tr.raw('notifications.docShared') as string,
+    docConflict: tr.raw('notifications.docConflict') as string,
     boardMention: tr.raw('notifications.boardMention') as string,
     boardReply: tr.raw('notifications.boardReply') as string,
     groupsMention: tr.raw('notifications.groupsMention') as string,

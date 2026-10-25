@@ -14,6 +14,7 @@
  * Server-only.
  */
 import { tool, type Tool } from 'ai';
+import { withVisibleContent } from './docs-visible';
 import { z } from 'zod';
 import { getDb } from './db';
 import { aiKnowledgeFilterSql } from './docs-access';
@@ -182,7 +183,8 @@ export async function searchAgentKnowledge(
       .all(workspaceId, ...cfg.docsPageIds)) as Array<{ id: string; title: string; content: string }>;
     for (const r of rows) pages.set(r.id, r);
   }
-  for (const p of pages.values()) {
+  // Sincronizados: solo si su origen también es conocimiento del agente (lib/docs-visible.ts).
+  for (const p of await withVisibleContent(workspaceId, [...pages.values()], { knowledge: cfg.docsPageIds })) {
     docs.push({ kind: 'doc', title: p.title || 'Untitled', text: extractDocsText(p.content, 12_000) });
   }
   const urls = (await db

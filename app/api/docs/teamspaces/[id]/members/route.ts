@@ -3,7 +3,7 @@ import { getCurrentUser, realUserId } from '@/lib/session';
 import { listTeamspaceMembers, removeTeamspaceMember, setTeamspaceMember } from '@/lib/docs-access';
 import { gateTeamspace, teamspaceMemberSchema, workspacePeople } from '@/lib/docs-teamspace-http';
 import { docsError, forbidden, invalidBody, notFound, unauthorized } from '@/lib/docs-http';
-import { logDocsAudit, requestIp } from '@/lib/docs-audit';
+import { auditTargetLabel, logDocsAudit, requestIp } from '@/lib/docs-audit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     workspaceId: user.id,
     actor: user.actingUser ?? user,
     action: 'teamspace.member_added',
-    detail: `${gate.ts.name} · ${parsed.data.user_id} · ${role}`,
+    detail: `${gate.ts.name} · ${await auditTargetLabel('user', parsed.data.user_id)} · ${role}`,
     ip: requestIp(req.headers),
   });
   return NextResponse.json({ rows: await listTeamspaceMembers(id) }, { status: 201 });
@@ -54,7 +54,7 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
     workspaceId: user.id,
     actor: user.actingUser ?? user,
     action: 'teamspace.member_removed',
-    detail: `${gate.ts.name} · ${target}`,
+    detail: `${gate.ts.name} · ${await auditTargetLabel('user', target)}`,
     ip: requestIp(req.headers),
   });
   return NextResponse.json({ rows: await listTeamspaceMembers(id) });

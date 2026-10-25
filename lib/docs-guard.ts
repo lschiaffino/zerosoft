@@ -7,6 +7,7 @@ import type { DocsPageRow } from './db';
 import { DOC_INTERNAL_READ, getDocAccess, getDocPageRow, parseBlocks, readableLinkTitles, type DocsActor } from './docs';
 import { getDb } from './db';
 import {
+  aiKnowledgeFilterSql,
   canWriteAccess,
   getDocsSettings,
   getTeamspace,
@@ -122,6 +123,28 @@ export function publicSyncedReader(host: Pick<DocsPageRow, 'id' | 'user_id'>): S
     if (hit !== undefined) return hit;
     const row = await getDocPageRow(src);
     const ok = !row || (row.user_id === host.user_id && row.published === 1 && row.archived === 0);
+    cache.set(src, ok);
+    return ok;
+  };
+}
+
+/**
+ * Bots y agentes (conocimiento de IA): un sincronizado cuenta solo si su
+ * origen también es conocimiento (la IA lo puede leer o está publicado, o es
+ * una de las páginas elegidas a mano en `pageIds`) y su teamspace lo permite.
+ */
+export function knowledgeSyncedReader(host: Pick<DocsPageRow, 'id' | 'user_id'>, pageIds: Iterable<string> = []): SyncedReader {
+  const picked = new Set(pageIds);
+  const cache = new Map<string, boolean>();
+  return async (src) => {
+    if (!src || src === host.id) return true;
+    const hit = cache.get(src);
+    if (hit !== undefined) return hit;
+    const row = (await getDb()
+      .prepare(`SELECT id FROM docs_pages WHERE id = ? AND user_id = ? AND archived = 0 AND (is_public = 1 OR published = 1 OR id IN (${[...picked].map(() => '?').join(',') || "''"}))${aiKnowledgeFilterSql()}`)
+      .get(src, host.user_id, ...picked)) as { id: string } | undefined;
+    // Un origen borrado (sin fila) no limita, igual que en el editor.
+    const ok = !!row || !(await getDocPageRow(src));
     cache.set(src, ok);
     return ok;
   };

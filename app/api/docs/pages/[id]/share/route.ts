@@ -7,7 +7,7 @@ import { docsError, forbidden, invalidBody, notFound, unauthorized } from '@/lib
 import { canShareAccess } from '@/lib/docs-access';
 import { docsAllowed } from '@/lib/docs-guard';
 import { GuestInviteLimitError, createGuestInvite, existingUserByEmail } from '@/lib/docs-guests';
-import { logDocsAudit, requestIp } from '@/lib/docs-audit';
+import { auditTargetLabel, logDocsAudit, requestIp } from '@/lib/docs-audit';
 import { isMember, listOwnedTeams } from '@/lib/teams';
 
 export const runtime = 'nodejs';
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     actor,
     action: 'share.added',
     page: { id: row.id, title: row.title },
-    detail: `${kind}${targetId ? `:${targetId}` : ''} · ${share.role}`,
+    detail: `${kind === 'public' ? 'public' : await auditTargetLabel(kind, targetId)} · ${share.role}`,
     ip,
   });
 

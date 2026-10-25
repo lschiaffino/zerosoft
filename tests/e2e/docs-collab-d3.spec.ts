@@ -58,9 +58,12 @@ test('Docs: dos editores a la vez se ven y sus cambios se fusionan sin pisarse',
   await a.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
   await b.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
 
-  // Presencia: cada uno ve el avatar del otro.
-  await expect(a.getByTestId('docs-presence')).toBeVisible({ timeout: 15_000 });
-  await expect(b.getByTestId('docs-presence')).toBeVisible({ timeout: 15_000 });
+  // Presencia: las dos pestañas son de la misma persona (DEMO_MODE), así que
+  // ninguna muestra a la otra como alguien más (entre personas distintas lo
+  // cubre tests/unit/docs-collab.test.ts).
+  await a.waitForTimeout(4_000);
+  await expect(a.getByTestId('docs-presence')).toHaveCount(0);
+  await expect(b.getByTestId('docs-presence')).toHaveCount(0);
 
   // A escribe en el primer bloque y B, a la vez, en el segundo.
   await editable(a, 'Primer bloque').click();
@@ -79,9 +82,10 @@ test('Docs: dos editores a la vez se ven y sus cambios se fusionan sin pisarse',
   // Sin el viejo aviso de "cargar o sobrescribir".
   await expect(a.getByRole('alert').filter({ hasText: /merge|overwrite/i })).toHaveCount(0);
 
-  // El cursor de B se ve en A (B tiene el caret en el segundo bloque).
+  // Tampoco su cursor.
   await b.keyboard.press('ArrowLeft');
-  await expect(a.getByTestId('docs-peer-caret')).toBeVisible({ timeout: 15_000 });
+  await a.waitForTimeout(3_000);
+  await expect(a.getByTestId('docs-peer-caret')).toHaveCount(0);
 
   // Las dos escriben en el mismo párrafo, en lugares distintos: quedan las dos cosas.
   await editable(a, 'Primer bloque de A').click();

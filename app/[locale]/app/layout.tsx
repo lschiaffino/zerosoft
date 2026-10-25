@@ -329,6 +329,7 @@ export default async function AppLayout(
                 docCommentMention: tTrack.raw('notifications.docCommentMention') as string,
                 docCommentReply: tTrack.raw('notifications.docCommentReply') as string,
                 docShared: tTrack.raw('notifications.docShared') as string,
+                docConflict: tTrack.raw('notifications.docConflict') as string,
                 boardMention: tTrack.raw('notifications.boardMention') as string,
                 boardReply: tTrack.raw('notifications.boardReply') as string,
                 groupsMention: tTrack.raw('notifications.groupsMention') as string,

@@ -101,7 +101,10 @@ export default function DbBoard({
   onPickGroup,
   subGroupProp = null,
   refs,
+  canAdd = true,
 }: {
+  /** Agregar filas desde las columnas (no en lectura). */
+  canAdd?: boolean;
   db: DocsDatabase;
   rows: DbRow[];
   groupProp: DbProperty | null;
@@ -236,7 +239,8 @@ export default function DbBoard({
               {t('showMore', { n: g.rows.length - limit })}
             </button>
           )}
-          {(groupProp.type !== 'person' || g.key) && (
+          {/* En cada columna (también "Sin …" y las celdas vacías de los subgrupos), como Notion. */}
+          {canAdd && (
             <button type="button" className="docs-db-new-inline" onClick={() => onAdd(g.key, subs ? sub : undefined)}>
               <DocsGlyph name="plus" size={12} />
               {t('newRow')}

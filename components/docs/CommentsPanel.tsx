@@ -445,7 +445,8 @@ export default function CommentsPanel({
             title={format.dateTime(parseDbUtc(comment.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
             suppressHydrationWarning
           >
-            {format.relativeTime(parseDbUtc(comment.created_at), now)}
+            {/* `now` se actualiza cada minuto: uno recién creado no queda "en 5 segundos". */}
+            {format.relativeTime(new Date(Math.min(parseDbUtc(comment.created_at).getTime(), now.getTime())), now)}
           </time>
         </div>
         {renderBody(comment.body)}

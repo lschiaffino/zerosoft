@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
 import { searchAll, searchTasks } from '@/lib/crm';
-import { searchDocPagesContent } from '@/lib/docs';
+import { searchDocPagesContent, searchSharedDocPages } from '@/lib/docs';
 import { docsHidden } from '@/lib/docs-guard';
 import { listTeamspaces } from '@/lib/docs-access';
 import { listLinks, toLinkDto } from '@/lib/links';
@@ -42,7 +42,11 @@ export async function GET(req: NextRequest) {
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
-    searchDocPagesContent(user.id, q, 10, await docsHidden(user)),
+    // Propias y, para un invitado, las compartidas desde otros workspaces.
+    Promise.all([searchDocPagesContent(user.id, q, 10, await docsHidden(user)), searchSharedDocPages(user, q, 5)]).then(([own, shared]) => {
+      const seen = new Set(own.map((h) => h.id));
+      return [...own, ...shared.filter((h) => !seen.has(h.id))];
+    }),
     searchTasks(user.id, q, scope),
     // Notas: solo las de la persona logueada (son privadas aunque el workspace sea compartido).
     searchNotesForPalette(user, q),

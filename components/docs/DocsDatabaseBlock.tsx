@@ -67,6 +67,8 @@ export interface DbHooks {
   pageId?: string | null;
   /** Cambiar otra base de esta página (relaciones de dos vías, vistas vinculadas). */
   updateDatabase?: (blockId: string, fn: (db: DocsDatabase) => DocsDatabase) => void;
+  /** Quien mira no edita la página (puede comentar, bloqueada): la base va en lectura. */
+  readOnly?: boolean;
 }
 
 interface DocsDatabaseBlockProps {
@@ -145,7 +147,8 @@ function DbOwnBlock({ block, index, onChange, onFocus, hooks }: DocsDatabaseBloc
       index={index}
       onFocus={onFocus}
       membersUrl={hooks.membersUrl}
-      editable
+      editable={!hooks.readOnly}
+      configurable={!hooks.readOnly}
       openRow={(rowId, mode) => hooks.onOpenRow(block.id, rowId, mode)}
     />
   );
@@ -223,7 +226,8 @@ function DbLinkedBlock({ block, index, onChange, onFocus, hooks }: DocsDatabaseB
       index={index}
       onFocus={onFocus}
       membersUrl={`/api/docs/members?page=${encodeURIComponent(linked.page_id)}`}
-      editable={src?.access === 'owner' || src?.access === 'full' || src?.access === 'edit'}
+      editable={!hooks.readOnly && (src?.access === 'owner' || src?.access === 'full' || src?.access === 'edit')}
+      configurable={!hooks.readOnly}
       linkedHeader={
         <a className="docs-db-linked-src" href={href} title={t('linked.openSource')}>
           <DocsGlyph name="peek" size={12} />
@@ -323,15 +327,19 @@ interface DbViewProps {
   onFocus: (index: number) => void;
   membersUrl: string | null;
   editable: boolean;
+  /** Vistas, filtros, orden y anchos (de este bloque): false para quien no edita la página. */
+  configurable?: boolean;
   openRow: (rowId: string, mode: DbOpenMode) => void;
   linkedHeader?: ReactNode;
   testId?: string;
 }
 
-function DbView({ db, commitData, source, hostPageId, hooks, index, onFocus, membersUrl, editable, openRow: openRowRaw, linkedHeader, testId = 'docs-database' }: DbViewProps) {
+function DbView({ db, commitData, source, hostPageId, hooks, index, onFocus, membersUrl, editable, configurable = true, openRow: openRowRaw, linkedHeader, testId = 'docs-database' }: DbViewProps) {
   const t = useTranslations('docs.database');
   const locale = useLocale();
-  const view = activeView(db);
+  // En lectura, cambiar de vista no se guarda (queda en esta pestaña).
+  const [localView, setLocalView] = useState<string | null>(null);
+  const view = (!configurable && localView ? db.views.find((v) => v.id === localView) : null) ?? activeView(db);
   const members = useDbMembers(membersUrl);
   const people = useMemo(() => peopleMap(members), [members]);
   const [pop, setPop] = useState<Pop | null>(null);
@@ -570,6 +578,7 @@ function DbView({ db, commitData, source, hostPageId, hooks, index, onFocus, mem
               if (next !== db) commit(next);
             }}
             onAdd={(key, sub) => newRow(key, {}, sub)}
+            canAdd={editable && db.rows.length < DB_MAX_ROWS}
             onPickGroup={(anchor) => setPop({ kind: 'group', anchor })}
           />
         );
@@ -636,13 +645,17 @@ function DbView({ db, commitData, source, hostPageId, hooks, index, onFocus, mem
               onHeader={(propId, anchor) => setPop({ kind: 'propMenu', anchor, propId })}
               onAddProperty={(anchor) => setPop({ kind: 'addProp', anchor })}
               onFocusBlock={() => onFocus(index)}
+              readOnly={!editable}
+              resizable={configurable}
             />
             {rows.length === 0 && db.rows.length > 0 && (
               <p className="docs-db-empty">
                 {t('noMatches')}{' '}
-                <button type="button" className="docs-db-link-btn" onClick={() => commit(updateView(db, view.id, { filters: [] }))}>
-                  {t('clearFilters')}
-                </button>
+                {configurable && (
+                  <button type="button" className="docs-db-link-btn" onClick={() => commit(updateView(db, view.id, { filters: [] }))}>
+                    {t('clearFilters')}
+                  </button>
+                )}
               </p>
             )}
           </>
@@ -703,10 +716,11 @@ function DbView({ db, commitData, source, hostPageId, hooks, index, onFocus, mem
                     aria-selected={on}
                     className="docs-db-tab-btn"
                     onClick={(e) => {
-                      if (on) setPop({ kind: 'viewMenu', anchor: e.currentTarget });
+                      if (!configurable) setLocalView(v.id);
+                      else if (on) setPop({ kind: 'viewMenu', anchor: e.currentTarget });
                       else commit({ ...db, active_view: v.id });
                     }}
-                    onDoubleClick={() => on && setRenaming(true)}
+                    onDoubleClick={() => on && configurable && setRenaming(true)}
                   >
                     <DbGlyph name={VIEW_GLYPH[v.type]} size={13} />
                     <span>{viewName(v)}</span>
@@ -715,23 +729,29 @@ function DbView({ db, commitData, source, hostPageId, hooks, index, onFocus, mem
               </div>
             );
           })}
-          <button
-            type="button"
-            className="docs-db-tab-add"
-            aria-label={t('addView')}
-            title={t('addView')}
-            disabled={db.views.length >= DB_MAX_VIEWS}
-            onClick={(e) => setPop({ kind: 'addView', anchor: e.currentTarget })}
-          >
-            <DocsGlyph name="plus" size={13} />
-          </button>
+          {configurable && (
+            <button
+              type="button"
+              className="docs-db-tab-add"
+              aria-label={t('addView')}
+              title={t('addView')}
+              disabled={db.views.length >= DB_MAX_VIEWS}
+              onClick={(e) => setPop({ kind: 'addView', anchor: e.currentTarget })}
+            >
+              <DocsGlyph name="plus" size={13} />
+            </button>
+          )}
         </div>
         <div className="docs-db-tools">
-          {toolButton('filter', 'filter', t('filter'), filters.length)}
-          {toolButton('sort', 'sort', t('sort'), sorts.length)}
-          {(view.type === 'table' || view.type === 'board') && toolButton('group', 'group', view.type === 'board' ? t('boardColumns') : t('group'), view.type === 'table' && groupProp ? 1 : 0)}
-          {toolButton('props', 'eye', t('properties'), view.hidden?.length ?? 0)}
-          {toolButton('more', 'more', t('more.title'))}
+          {configurable && (
+            <>
+              {toolButton('filter', 'filter', t('filter'), filters.length)}
+              {toolButton('sort', 'sort', t('sort'), sorts.length)}
+              {(view.type === 'table' || view.type === 'board') && toolButton('group', 'group', view.type === 'board' ? t('boardColumns') : t('group'), view.type === 'table' && groupProp ? 1 : 0)}
+              {toolButton('props', 'eye', t('properties'), view.hidden?.length ?? 0)}
+              {toolButton('more', 'more', t('more.title'))}
+            </>
+          )}
           {editable && (
             <span className="docs-db-new-group">
               <button type="button" className="docs-db-new" onClick={() => newRow(null)} disabled={db.rows.length >= DB_MAX_ROWS}>

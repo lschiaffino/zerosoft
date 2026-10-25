@@ -68,6 +68,7 @@ export default function DocsEditorClient({
   invites = [],
   comments,
   currentUserId,
+  commentNote,
   commentsLabels,
   access = 'owner',
   helpBase = null,
@@ -86,6 +87,8 @@ export default function DocsEditorClient({
   invites?: DocsGuestInvite[];
   comments: DocsComment[];
   currentUserId: string;
+  /** Invitado que puede comentar: el aviso dice quién la compartió (un solo banner). */
+  commentNote?: string;
   commentsLabels: CommentsLabels;
   access?: DocsEditorAccess;
   helpBase?: string | null;
@@ -356,7 +359,8 @@ export default function DocsEditorClient({
       setCommentsSig(pulse.comments);
       if (pulse.locked !== !!current.locked && inFlight.current === 0) {
         setCurrent((prev) => ({ ...prev, locked: pulse.locked }));
-        if (pulse.locked) setLockNote(t('lock.lockedMeanwhile'));
+        // Sin cambios esperando guardarse no hay nada que se haya perdido.
+        if (pulse.locked) setLockNote(queued.current.length ? t('lock.lockedMeanwhile') : t('lock.lockedLive'));
       }
       const remote = pulse.page;
       // Con un guardado en camino no: su respuesta ya trae lo fusionado.
@@ -759,7 +763,7 @@ export default function DocsEditorClient({
       )}
       {!locked && access === 'comment' && !suggesting && (
         <div className="docs-banner docs-banner-quiet" role="status">
-          <span>{t('suggest.commentOnly')}</span>
+          <span>{commentNote ?? t('suggest.commentOnly')}</span>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSuggesting(true)}>
             {t('suggest.start')}
           </button>

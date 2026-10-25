@@ -422,8 +422,10 @@ describe('Docs D3: bloques sincronizados', () => {
       workspaceId: owner.id,
       pageId: src.id,
       actorId: owner.id,
-      previous: [],
-      next: [{ id: 's', type: 'synced', content: '', synced_id: 'sync-secreto' }, { id: 'c', type: 'paragraph', content: 'Sueldos', indent: 1 }],
+      base: {},
+      previousIds: new Set(),
+      next: [{ id: 's', type: 'synced', content: '', synced_id: 'sync-secreto' }],
+      children: new Map([['sync-secreto', [{ id: 'c', type: 'paragraph', content: 'Sueldos' }]]]),
     });
     const route = await import('@/app/api/docs/synced/[id]/route');
     const get = () => route.GET(req('http://x/api/docs/synced/sync-secreto', 'GET'), ctx('sync-secreto'));
@@ -461,7 +463,8 @@ describe('Docs D3: bloques sincronizados', () => {
     const { getSyncedBlock } = await import('@/lib/docs-synced');
     expect((await getSyncedBlock(owner.id, 'sync-sueldos'))?.map((b) => b.content)).toEqual(['Sueldos 2027']);
     const stored = parseBlocks((await getDocPageRow(host.id))!.content);
-    expect(stored.map((b) => b.content)).toEqual(['Hola mundo', '', 'Sueldos 2027']);
+    // La página guarda solo la referencia (sin copia de los hijos).
+    expect(stored.map((b) => b.content)).toEqual(['Hola mundo', '']);
     // Con acceso al teamspace, se ve el contenido.
     await setTeamspaceMember(priv.id, member.id, 'member');
     res = await pageRoute.GET(req(url, 'GET'), ctx(host.id));

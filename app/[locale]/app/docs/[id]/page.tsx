@@ -21,7 +21,7 @@ import {
 import { getHelpFeedbackStats } from '@/lib/docs-help';
 import { sanitizeBlocks } from '@/lib/docs-sanitize';
 import { stripFileUrls } from '@/lib/docs-files';
-import { hydrateSyncedBlocks } from '@/lib/docs-synced';
+import { visibleBlocks } from '@/lib/docs-visible';
 import { listDocFavorites } from '@/lib/docs-favorites';
 import { pageLinkHref, resolveBlocksPageLinks } from '@/lib/docs-page-links';
 import {
@@ -32,7 +32,7 @@ import {
   reorderDocPageAction,
 } from '@/lib/docs-actions';
 import { canShareAccess, getDocsSettings, getTeamspace, listTeamspaces } from '@/lib/docs-access';
-import { docsAllowed, docsHidden, editorBlocks, syncedReader } from '@/lib/docs-guard';
+import { canCreateDocPage, docsAllowed, docsHidden, editorBlocks } from '@/lib/docs-guard';
 import { listPageInvites } from '@/lib/docs-guests';
 import { cleanForReaders } from '@/lib/docs-marks';
 import DocsSidebar from '@/components/docs/DocsSidebar';
@@ -64,7 +64,7 @@ export default async function DocsPageEditor(
   const page = toDocPage(row);
   // Bloques sincronizados: el contenido actual (puede haberse editado en otra
   // página); sin acceso a su página de origen, "sin acceso" (como Notion).
-  page.content = await hydrateSyncedBlocks(row.user_id, page.content, syncedReader(user, row));
+  page.content = await visibleBlocks(row, row.content, { actor: user });
   const isOwner = access === 'owner';
   // Miembro del workspace (con cualquier rol): ve el árbol y los ancestros.
   const inWorkspace = row.user_id === user.id;
@@ -135,6 +135,7 @@ export default async function DocsPageEditor(
         meId={realUserId(user)}
         moveToTeamspaceAction={moveDocPageToTeamspaceAction}
         createAction={createDocPageAction.bind(null, locale)}
+        canCreateRoot={inWorkspace && (await canCreateDocPage(user, {}))}
         moveAction={moveDocPageAction}
         reorderAction={reorderDocPageAction}
         stepAction={moveDocPageStepAction}
@@ -155,9 +156,10 @@ export default async function DocsPageEditor(
           />
         ) : (
           <>
-            {!inWorkspace && sharedBy && (
+            {/* Comentar: el aviso va en el banner del editor (uno solo). */}
+            {!inWorkspace && sharedBy && access !== 'comment' && (
               <p className="docs-shared-banner" role="status">
-                {t(access === 'comment' ? 'share.sharedCommentBanner' : 'share.sharedEditBanner', { name: sharedBy })}
+                {t('share.sharedEditBanner', { name: sharedBy })}
               </p>
             )}
             <DocsEditorClient
@@ -171,6 +173,7 @@ export default async function DocsPageEditor(
               feedback={feedback}
               backlinks={backlinks}
               currentUserId={user.actingUser?.id ?? user.id}
+              commentNote={!inWorkspace && sharedBy && access === 'comment' ? t('share.sharedCommentBanner', { name: sharedBy }) : undefined}
               favorite={inWorkspace ? favorites.some((f) => f.id === id) : null}
               people={people}
               canVerify={canVerify}

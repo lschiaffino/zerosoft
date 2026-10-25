@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { searchDocPages, searchDocPagesContent, searchDocRows } from '@/lib/docs';
+import { searchDocPages, searchDocPagesContent, searchDocRows, searchSharedDocPages } from '@/lib/docs';
 import { unauthorized } from '@/lib/docs-http';
 import { docsHidden } from '@/lib/docs-guard';
 
@@ -16,7 +16,10 @@ export async function GET(req: NextRequest) {
   // content=1 (switcher Cmd+P): también busca en el texto de los bloques y
   // devuelve el fragmento. Sin el flag (links `[[`): solo por título.
   if (req.nextUrl.searchParams.get('content') === '1') {
-    const rows = q.trim().length > 0 ? await searchDocPagesContent(user.id, q, 20, hide) : [];
+    // Más lo compartido desde otros workspaces (un invitado no tiene páginas propias).
+    const [own, shared] = q.trim().length > 0 ? await Promise.all([searchDocPagesContent(user.id, q, 20, hide), searchSharedDocPages(user, q, 10)]) : [[], []];
+    const seen = new Set(own.map((h) => h.id));
+    const rows = [...own, ...shared.filter((h) => !seen.has(h.id))];
     return NextResponse.json({ rows, q });
   }
   // Páginas y, después, filas de bases (link a una fila: row_id).
