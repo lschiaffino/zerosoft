@@ -464,7 +464,8 @@
     "apply": "Apply",
     "showing": "Showing {from} to {to}",
     "emptyFilteredTitle": "Nothing in this range",
-    "emptyFilteredBody": "Try other dates, another label or all groups."
+    "emptyFilteredBody": "Try other dates, another label or all groups.",
+    "rangeInverted": "The end date is before the start date. Pick an end date on or after the start to apply the range."
   },
   "settings": {
     "title": "Groups settings",
@@ -536,7 +537,9 @@
     "qrRefresh": "The QR refreshes by itself.",
     "qrUpdated": "Updated {s} s ago.",
     "newQr": "Get a new QR",
-    "disconnectedBanner": "The session is disconnected. Get a new QR and scan it from the phone to link the number again."
+    "disconnectedBanner": "The session is disconnected. Get a new QR and scan it from the phone to link the number again.",
+    "disconnectTitle": "Disconnect {name}?",
+    "disconnectBody": "Chats and history stay. New messages stop arriving until you connect the number again."
   },
   "providers": {
     "cloud": {
@@ -792,14 +795,17 @@
     "invalid_subscription": "The browser returned an invalid subscription.",
     "no_devices": "Turn on notifications in a browser first.",
     "push_failed": "Could not turn on notifications in this browser.",
-    "invalid_label": "Invalid label."
+    "invalid_label": "Invalid label.",
+    "missing_variables": "Fill in every template variable.",
+    "missing_tree": "Write the options, one per line."
   },
   "media": {
     "image": "Image",
     "audio": "Audio",
     "video": "Video",
     "file": "File",
-    "call": "Call"
+    "call": "Call",
+    "deleted": "Message deleted"
   },
   "langs": {
     "en": "English",
@@ -871,7 +877,7 @@
     "members": "Members",
     "edit": "Edit",
     "rules": "Round-robin rules",
-    "rulesIntro": "When a chat gets a new message and nobody has it, the first rule that matches gives it to the next available person in turn.",
+    "rulesIntro": "When a chat gets a new message and nobody has it, the first rule that matches gives it to the next available person in turn. Chats already waiting for a reply with nobody assigned get assigned too, right after you save the rule.",
     "newRule": "New rule",
     "editRule": "Edit rule",
     "noRules": "No rules yet. New chats stay unassigned until someone takes them.",
@@ -972,7 +978,8 @@
     "fixedMembers": "{n} fixed members",
     "extraPhones": "Extra participants (optional)",
     "csvHelp": "First row with the columns: {columns}. One group per row, up to 50.",
-    "sameName": "Same as the template"
+    "sameName": "Same as the template",
+    "varRequired": "Required"
   },
   "lists": {
     "sidebar": "Saved lists",
@@ -1134,7 +1141,10 @@
       "members": "{action} {count} members",
       "ticket_created": "created ticket #{n}",
       "ticket_updated": "updated ticket #{n} {status}",
-      "ticket_deleted": "deleted ticket #{n}"
+      "ticket_deleted": "deleted ticket #{n}",
+      "labelsAdded": "added labels: {added}",
+      "labelsRemoved": "removed labels: {removed}",
+      "assignedSelf": "assigned the chat to themselves"
     },
     "memberActions": {
       "add": "added",
@@ -1227,7 +1237,20 @@
     "mcpUrl": "MCP server URL",
     "mcpTools": "It acts as the person who created the API key (groups:read to read, groups:write to send and change). Create one in",
     "copy": "Copy",
-    "copied": "Copied"
+    "copied": "Copied",
+    "deliveryErrors": {
+      "timeout": "The endpoint took too long to answer",
+      "connection_refused": "Connection refused by the endpoint",
+      "unresolvable_host": "The domain could not be found",
+      "connection_reset": "The connection was cut",
+      "tls_error": "Certificate (HTTPS) error",
+      "network_error": "Could not reach the endpoint",
+      "private_host": "Private or local addresses are not allowed",
+      "https_required": "The URL must use HTTPS",
+      "invalid_url": "Invalid URL",
+      "invalid_redirect": "Invalid redirect",
+      "http": "The endpoint answered {code}"
+    }
   },
   "apps": {
     "installTitle": "Install the app",

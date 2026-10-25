@@ -36,7 +36,7 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
   const [messages, members, people, labels, quickReplies, properties, number, settings, agents, pinned, teams] = await Promise.all([
     listMessages(ws, chatId),
     listMembers(ws, chatId),
-    listPeople(ws, user.team?.id ?? null),
+    listPeople(ws),
     listLabels(ws),
     listQuickReplies(ws),
     listPropertyDefs(ws),

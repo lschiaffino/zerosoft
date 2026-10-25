@@ -242,6 +242,11 @@ describe('plantillas de grupo', () => {
     expect(csv.rows.map((r) => r.vars.company)).toEqual(['Globex', 'Initech']);
     expect(csv.errors).toEqual([{ line: 4, error: 'invalid_phone:bad' }]);
     expect(parseTemplateCsv([['name'], ['x']], tpl).errors[0].error).toBe('missing_columns:company');
+    // Variable vacía: la fila no se crea ("· Soporte"), ni por CSV ni de a uno.
+    const blank = parseTemplateCsv([['company', 'participants'], [' ', '+15550002003']], tpl);
+    expect(blank.rows).toHaveLength(0);
+    expect(blank.errors).toEqual([{ line: 2, error: 'missing_variables:company' }]);
+    await expect(createFromTemplate(user.id, user.id, row.id, tpl.id, [{ vars: { company: '' } }])).rejects.toMatchObject({ code: 'missing_variables' });
   });
 });
 
@@ -490,5 +495,64 @@ describe('tareas desde el chat', () => {
     expect(await fireTaskReminders({ now: new Date(now.getTime() + 5 * 3600_000) })).toBe(0);
     expect(await listGroupTasks(user.id, user.id, { status: 'open' })).toHaveLength(0);
     expect((await listGroupTasks(user.id, user.id, { status: 'done', chatId })).map((t) => t.id)).toEqual([task.id]);
+  });
+});
+
+describe('QA int-4: tareas en el formato del CRM y gente del workspace', () => {
+  it('la tarea guarda due_at como el CRM y el formateador lee los dos formatos', async () => {
+    const { parseDbUtc } = await import('@/lib/utils');
+    const { listTasks } = await import('@/lib/crm');
+    const { user, row } = await setup('int4-due');
+    await ingestEvents(row, [inbound('120363000000000441@g.us', 'D-1', 'Llamame mañana')]);
+    const chatId = await chatOf(user.id, '120363000000000441@g.us');
+    const due = new Date(Date.now() + 3 * 86_400_000);
+    due.setUTCSeconds(0, 0);
+    const task = await createGroupTask(user.id, user.id, { chatId, title: 'Llamar', dueAt: due.toISOString() });
+    const raw = (await getDb().prepare('SELECT due_at FROM crm_activities WHERE id = ?').get(task.activityId)) as { due_at: string };
+    expect(raw.due_at).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+    expect(task.dueAt).toBe(due.toISOString());
+    const upcoming = await listTasks(user.id, { bucket: 'upcoming' });
+    const crmTask = upcoming.find((t) => t.id === task.activityId)!;
+    expect(parseDbUtc(crmTask.due_at!).getTime()).toBe(due.getTime());
+    // Filas viejas con ISO completo tampoco rompen (antes quedaba '…ZZ' → Invalid time value).
+    expect(parseDbUtc(due.toISOString()).getTime()).toBe(due.getTime());
+    expect(() => new Intl.DateTimeFormat('es', { dateStyle: 'medium' }).format(parseDbUtc(due.toISOString()))).not.toThrow();
+  });
+
+  it('el dueño con equipo y sin team activo ve y asigna a sus compañeros', async () => {
+    const { listPeople } = await import('@/lib/groups');
+    const { workspacePeople } = await import('@/lib/groups-inbox');
+    const owner = await makeUser('int4-owner');
+    const mate = await makeUser('int4-mate');
+    const team = await createTeam(owner.id, 'Soporte');
+    await addMember(team.id, mate.id);
+    await getDb().prepare('UPDATE users SET active_team_id = NULL WHERE id = ?').run(owner.id);
+    const people = await listPeople(owner.id);
+    expect(people.map((p) => p.id)).toEqual(expect.arrayContaining([owner.id, mate.id]));
+    expect((await workspacePeople(owner.id)).map((p) => p.id)).toEqual(people.map((p) => p.id));
+  });
+});
+
+describe('QA int-4: remitente de los avisos y vista previa', () => {
+  it('los emails de Groups salen con el remitente general, no el de Calendar', async () => {
+    const { appSender } = await import('@/lib/email');
+    vi.stubEnv('EMAIL_FROM', 'calendar@zerosoft.ai');
+    expect(appSender()).toBe('zerosoft <notifications@zerosoft.ai>');
+    vi.stubEnv('EMAIL_FROM', 'zerosoft <hola@acme.com>');
+    expect(appSender()).toBe('zerosoft <hola@acme.com>');
+  });
+
+  it('editar o borrar el último mensaje actualiza la vista previa del chat', async () => {
+    const { refreshChatPreview } = await import('@/lib/groups');
+    const { user, row } = await setup('int4-preview');
+    await ingestEvents(row, [inbound('5491155557777@c.us', 'PV-1', 'Hola, ¿precio?')]);
+    const chatId = await chatOf(user.id, '5491155557777@c.us');
+    const msg = (await listMessages(user.id, chatId))[0];
+    await getDb().prepare('UPDATE groups_messages SET body = ? WHERE id = ?').run('Hola, ¿precio final?', msg.id);
+    await refreshChatPreview(msg.id);
+    expect((await getChat(user.id, chatId))!.lastMessagePreview).toBe('Hola, ¿precio final?');
+    await getDb().prepare('UPDATE groups_messages SET deleted_at = ? WHERE id = ?').run(new Date().toISOString(), msg.id);
+    await refreshChatPreview(msg.id);
+    expect((await getChat(user.id, chatId))!.lastMessagePreview).toBe('[deleted]');
   });
 });

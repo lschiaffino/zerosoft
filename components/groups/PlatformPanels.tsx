@@ -226,6 +226,12 @@ export function AuditLog({ chatId, people, compact = false }: { chatId?: string;
       action: d.action ? t(`audit.memberActions.${String(d.action)}`) : '',
       status: d.status ? t(`ticketStatus.${String(d.status)}`) : '',
     };
+    // Sin "sacó: " vacío ni "asignó el chat a <sí mismo>".
+    if (e.action === 'labels' && (!v.added || !v.removed)) {
+      if (v.added) return t('audit.actions.labelsAdded', v);
+      if (v.removed) return t('audit.actions.labelsRemoved', v);
+    }
+    if (e.action === 'assigned' && d.to && e.actorId && String(d.to) === e.actorId) return t('audit.actions.assignedSelf');
     return t(`audit.actions.${e.action}`, v);
   };
 
@@ -293,6 +299,11 @@ const eventKey = (e: string) => e.replace(/\./g, '_');
 
 function WebhooksSection({ events, canEdit }: { events: string[]; canEdit: boolean }) {
   const t = useTranslations('groups');
+  const deliveryError = (code: string) => {
+    const http = /^http_(\d{3})$/.exec(code);
+    if (http) return t('integrations.deliveryErrors.http', { code: http[1] });
+    return t.has(`integrations.deliveryErrors.${code}`) ? t(`integrations.deliveryErrors.${code}`) : code;
+  };
   const locale = useLocale();
   const errText = useErrorText();
   const [toast, showToast] = useToast();
@@ -468,8 +479,14 @@ function WebhooksSection({ events, canEdit }: { events: string[]; canEdit: boole
                 <span>
                   <strong className="gr-mono">{d.event}</strong>{' '}
                   <span className={d.status === 'failed' ? 'ui-error' : 'ui-help'}>
-                    {t(`integrations.delivery.${d.status}`)} · {d.responseCode ?? '-'} · {t('integrations.attempts', { n: d.attempts })}
-                    {d.error ? ` · ${d.error}` : ''}
+                    {[
+                      t(`integrations.delivery.${d.status}`),
+                      d.responseCode != null && !d.error?.startsWith('http_') ? String(d.responseCode) : '',
+                      t('integrations.attempts', { n: d.attempts }),
+                      d.error ? deliveryError(d.error) : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </span>
                   <br />
                   <time className="ui-help" dateTime={d.createdAt}>

@@ -352,6 +352,8 @@ export default function ChatThread(props: ThreadProps) {
     }
     merge([{ ...ticketFor, ticketId: res.data.ticket.id }]);
     setTicketFor(null);
+    // El ticket desmarca el chat (deja de estar sin responder o vencido): la fila de la lista también.
+    refresh();
     showToast(res.data.created ? t('thread.ticketCreated', { n: res.data.ticket.number }) : t('thread.ticketExists', { n: res.data.ticket.number }));
   }
 
@@ -368,6 +370,7 @@ export default function ChatThread(props: ThreadProps) {
     merge([res.data]);
     setPinned((list) => list.map((p) => (p.id === res.data!.id ? res.data! : p)));
     setEditing(null);
+    refresh();
   }
 
   async function confirmDelete() {
@@ -384,6 +387,7 @@ export default function ChatThread(props: ThreadProps) {
     if (res.data.removed) setMessages((list) => list.filter((m) => m.id !== target.id));
     else if (res.data.message) merge([res.data.message]);
     setPinned((list) => list.filter((p) => p.id !== target.id));
+    refresh();
     showToast(res.data.removed ? t('thread.noteDeleted') : t('thread.deletedForAll'));
   }
 

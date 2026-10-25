@@ -215,9 +215,17 @@ export function PropertiesPanel({ initial, canEdit, scope = 'chat' }: { initial:
   const [required, setRequired] = useState(false);
   const [editing, setEditing] = useState<PropertyDef | null>(null);
   const [removing, setRemoving] = useState<PropertyDef | null>(null);
+  const [treeError, setTreeError] = useState('');
   const isTicket = scope === 'ticket';
 
   async function add() {
+    // Desplegable dependiente sin opciones: el aviso va en el campo, con el copy de ese campo (una por línea).
+    if (type === 'cascade' && !treeFromText(tree).length) {
+      setTreeError(t('errors.missing_tree'));
+      document.getElementById('gr-prop-tree')?.focus();
+      return;
+    }
+    setTreeError('');
     const res = await api<PropertyDef>('/api/groups/properties', {
       body: {
         label,
@@ -228,7 +236,10 @@ export function PropertiesPanel({ initial, canEdit, scope = 'chat' }: { initial:
         tree: type === 'cascade' ? treeFromText(tree) : undefined,
       },
     });
-    if (!res.data) return showToast(errText(res.error), true);
+    if (!res.data) {
+      if (type === 'cascade' && res.error === 'missing_options') return setTreeError(t('errors.missing_tree'));
+      return showToast(errText(res.error), true);
+    }
     setList((l) => [...l, res.data!]);
     setLabel('');
     setOptions('');
@@ -273,16 +284,42 @@ export function PropertiesPanel({ initial, canEdit, scope = 'chat' }: { initial:
                 {t('ticketFields.required')}
               </label>
             )}
-            <button type="submit" className="btn btn-primary btn-sm" disabled={!label.trim()}>
-              {t('props.add')}
-            </button>
+            {type !== 'cascade' && (
+              <button type="submit" className="btn btn-primary btn-sm" disabled={!label.trim()}>
+                {t('props.add')}
+              </button>
+            )}
           </div>
           {type === 'cascade' && (
-            <label className="ui-field">
-              <span className="label">{t('props.tree')}</span>
-              <textarea className="textarea gr-tree-input" rows={6} value={tree} onChange={(e) => setTree(e.target.value)} placeholder={t('props.treePlaceholder')} />
-              <span className="ui-help">{t('props.treeHelp')}</span>
-            </label>
+            <>
+              <label className="ui-field">
+                <span className="label">{t('props.tree')}</span>
+                <textarea
+                  id="gr-prop-tree"
+                  className="textarea gr-tree-input"
+                  rows={6}
+                  value={tree}
+                  onChange={(e) => {
+                    setTree(e.target.value);
+                    if (treeError) setTreeError('');
+                  }}
+                  placeholder={t('props.treePlaceholder')}
+                  aria-invalid={treeError ? true : undefined}
+                  aria-describedby={treeError ? 'gr-prop-tree-err' : undefined}
+                />
+                <span className="ui-help">{t('props.treeHelp')}</span>
+                {treeError && (
+                  <span id="gr-prop-tree-err" className="ui-error" role="alert">
+                    {treeError}
+                  </span>
+                )}
+              </label>
+              <div>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={!label.trim()}>
+                  {t('props.add')}
+                </button>
+              </div>
+            </>
           )}
         </form>
       )}

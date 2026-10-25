@@ -77,6 +77,7 @@ test('mensaje recurrente: se arma en Envíos, muestra las próximas corridas, se
   await expect(page.getByLabel('Repeat', { exact: true })).toBeChecked();
   await page.getByRole('combobox', { name: /^Repeats/ }).selectOption('weekly');
   await page.getByLabel('Time', { exact: true }).fill('09:30');
+  await expect(page.getByRole('checkbox', { name: 'Mon' })).not.toBeChecked();
   await page.getByLabel('Wed').check();
   await expect(page.getByText(/^Next: /)).toBeVisible();
   await page.getByRole('searchbox').fill(`Rec${tag}`);

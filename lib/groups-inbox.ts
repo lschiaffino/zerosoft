@@ -20,6 +20,8 @@ import {
   getMessageRow,
   getNumberRow,
   insertMessage,
+  listPeople,
+  refreshChatPreview,
   markAnswered,
   providerErrorCode,
   providerFor,
@@ -52,19 +54,9 @@ function parseJson<T>(raw: string | null | undefined, fallback: T): T {
 // Personas
 // ======================================================================
 
-/** Dueño del workspace y miembros de sus teams (a quién se puede asignar o mencionar). */
+/** Dueño del workspace y miembros de sus teams (a quién se puede asignar o mencionar). Misma lista que listPeople. */
 export async function workspacePeople(ws: string): Promise<GroupsPerson[]> {
-  const db = getDb();
-  const owner = (await db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(ws)) as GroupsPerson | undefined;
-  const rows = (await db
-    .prepare(
-      `SELECT DISTINCT u.id, u.name, u.email FROM team_members m JOIN teams t ON t.id = m.team_id JOIN users u ON u.id = m.user_id
-       WHERE t.owner_id = ?`,
-    )
-    .all(ws)) as GroupsPerson[];
-  const out: GroupsPerson[] = owner ? [{ ...owner, name: owner.name ?? '' }] : [];
-  for (const r of rows) if (!out.some((p) => p.id === r.id)) out.push({ ...r, name: r.name ?? '' });
-  return out;
+  return listPeople(ws);
 }
 
 async function personName(id: string | null): Promise<string> {
@@ -206,6 +198,7 @@ export async function editMessage(ws: string, viewer: { me: string; isAdmin: boo
     }
   }
   await getDb().prepare('UPDATE groups_messages SET body = ?, edited_at = ? WHERE id = ?').run(body, nowIso(), msg.id);
+  await refreshChatPreview(msg.id);
   if (msg.direction === 'note') {
     const updated = (await getMessageRow(ws, msg.id)) as MessageRow;
     return toMessageDto(await afterNoteSaved(ws, viewer.me, chat, updated, msg.body));
@@ -239,6 +232,7 @@ export async function deleteMessage(
     throw new GroupsError(providerErrorCode(err), 502);
   }
   await getDb().prepare('UPDATE groups_messages SET deleted_at = ?, pinned_at = NULL, pinned_by = NULL WHERE id = ?').run(nowIso(), msg.id);
+  await refreshChatPreview(msg.id);
   return { removed: false, message: await freshDto(ws, msg.id) };
 }
 

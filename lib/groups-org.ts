@@ -211,6 +211,11 @@ export function templateVariables(...texts: string[]): string[] {
   return [...out];
 }
 
+/** Variables de la plantilla que faltan o vienen vacías (todas son obligatorias). */
+export function missingVariables(template: Pick<TemplateDto, 'variables'>, vars: Record<string, string>): string[] {
+  return template.variables.filter((v) => !(vars[v] ?? '').trim());
+}
+
 /** Reemplaza {{var}}; las automáticas (date, month, year) salen de `now`. Las que faltan quedan vacías. */
 export function renderTemplate(text: string, vars: Record<string, string>, now = new Date()): string {
   const auto: Record<string, string> = {
@@ -365,6 +370,11 @@ export function parseTemplateCsv(rows: string[][], template: TemplateDto): { row
     head.forEach((h, j) => {
       if (j !== iPhones && h) vars[h] = (r[j] ?? '').trim();
     });
+    const empty = missingVariables(template, vars);
+    if (empty.length) {
+      errors.push({ line: i + 2, error: `missing_variables:${empty.join(' ')}` });
+      return;
+    }
     if (!renderTemplate(template.groupName || template.name, vars)) {
       errors.push({ line: i + 2, error: 'invalid_name' });
       return;
@@ -400,6 +410,7 @@ export async function createFromTemplate(
   const template = await getTemplate(ws, templateId);
   if (!template) throw new GroupsError('not_found', 404);
   if (uses.length === 0) throw new GroupsError('empty');
+  if (uses.some((u) => missingVariables(template, u.vars).length > 0)) throw new GroupsError('missing_variables');
   const rows: CreateGroupRow[] = uses.map((u) => ({
     name: renderTemplate(template.groupName || template.name, u.vars).slice(0, 100),
     phones: [...new Set([...template.members, ...phonesOf(u.phones ?? [])])],

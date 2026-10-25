@@ -12,7 +12,7 @@
  */
 import { getDb } from './db';
 import { createActivity, deleteActivity, updateActivity } from './crm';
-import { escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
+import { appSender, escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
 import { siteUrl } from './board-urls';
 import { safeTimezone } from './notes-reminders';
@@ -86,12 +86,24 @@ function toDto(r: TaskJoin): GroupTaskDto {
     messageBody: (r.message_body ?? '').slice(0, 280),
     title: r.subject,
     notes: r.body,
-    dueAt: r.due_at,
+    dueAt: dbToIso(r.due_at),
     done: Boolean(r.done),
     ownerId: r.owner_id,
     ownerName: r.owner_name || r.owner_email || '',
     createdAt: r.created_at,
   };
+}
+
+/** Formato de fechas del CRM en la base (crm_activities.due_at): 'YYYY-MM-DD HH:MM:SS' en UTC. */
+export function toCrmDate(d: Date): string {
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+/** due_at de la base (formato del CRM o ISO viejo con Z) a ISO completo para el cliente y la API. */
+export function dbToIso(raw: string | null): string | null {
+  if (!raw) return null;
+  const t = Date.parse(raw.includes('T') ? raw : `${raw.replace(' ', 'T')}Z`);
+  return Number.isFinite(t) ? new Date(t).toISOString() : null;
 }
 
 function cleanDue(raw: string | null | undefined, now = new Date()): string | null {
@@ -100,7 +112,7 @@ function cleanDue(raw: string | null | undefined, now = new Date()): string | nu
   if (!Number.isFinite(t)) throw new GroupsError('invalid_date');
   if (t < now.getTime() - PAST_GRACE_MS) throw new GroupsError('date_in_past');
   if (t > now.getTime() + MAX_AHEAD_MS) throw new GroupsError('invalid_date');
-  return new Date(t).toISOString();
+  return toCrmDate(new Date(t));
 }
 
 async function assertPerson(ws: string, personId: string): Promise<void> {
@@ -243,7 +255,7 @@ export function buildTaskEmail(
   link: string,
 ): { subject: string; text: string; html: string } {
   const s = STRINGS[locale];
-  const when = formatWhen(new Date(t.dueAt), safeTimezone(t.timezone), locale);
+  const when = formatWhen(new Date(dbToIso(t.dueAt) ?? t.dueAt), safeTimezone(t.timezone), locale);
   const vars = { title: t.title, chat: t.chatName, when };
   const subject = fill(s.subject, vars);
   const lines = [fill(s.body, vars), fill(s.chat, vars)];
@@ -261,14 +273,15 @@ export function buildTaskEmail(
 /** Cron: avisa las tareas que llegaron a su hora. Devuelve cuántas avisó. */
 export async function fireTaskReminders(opts: { now?: Date; limit?: number } = {}): Promise<number> {
   const db = getDb();
-  const now = (opts.now ?? new Date()).toISOString();
+  // Mismo formato que due_at (el del CRM): la comparación es de texto.
+  const now = toCrmDate(opts.now ?? new Date());
   const rows = (await db
     .prepare(
       `SELECT t.id, t.user_id, t.chat_id, t.created_by, t.locale, t.timezone, a.subject, a.due_at, a.owner_id, c.name AS chat_name, c.phone AS chat_phone,
          c.provider_chat_id AS chat_pid, u.email AS owner_email
        FROM groups_tasks t JOIN crm_activities a ON a.id = t.activity_id JOIN groups_chats c ON c.id = t.chat_id
        LEFT JOIN users u ON u.id = COALESCE(a.owner_id, t.created_by)
-       WHERE a.done = 0 AND a.due_at IS NOT NULL AND a.due_at <= ? AND (t.reminded_for IS NULL OR t.reminded_for != a.due_at)
+       WHERE a.done = 0 AND a.due_at IS NOT NULL AND datetime(a.due_at) <= datetime(?) AND (t.reminded_for IS NULL OR t.reminded_for != a.due_at)
        ORDER BY a.due_at ASC LIMIT ?`,
     )
     .all(now, Math.min(Math.max(opts.limit ?? 200, 1), 1000))) as Array<{
@@ -309,7 +322,7 @@ export async function fireTaskReminders(opts: { now?: Date; limit?: number } = {
         sourceId: r.id,
       }).catch(() => undefined);
     }
-    if (r.owner_email) await sendEmail({ to: r.owner_email, ...mail }).catch(() => undefined);
+    if (r.owner_email) await sendEmail({ to: r.owner_email, from: appSender(), ...mail }).catch(() => undefined);
   }
   return fired;
 }

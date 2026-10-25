@@ -182,6 +182,20 @@ export default function CommandSearch() {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
+        // Un <dialog> modal abierto queda en la capa superior y taparía la
+        // paleta: se le pide cerrar (su Esc) y la paleta abre si cerró.
+        const modals = [...document.querySelectorAll<HTMLDialogElement>('dialog[open]')];
+        if (modals.length) {
+          for (const d of modals) d.dispatchEvent(new Event('cancel', { cancelable: true }));
+          // El modal cierra con su estado de React (un render después): se espera hasta ~300 ms.
+          let tries = 0;
+          const wait = () => {
+            if (!document.querySelector('dialog[open]')) setOpen(true);
+            else if (++tries < 18) requestAnimationFrame(wait);
+          };
+          requestAnimationFrame(wait);
+          return;
+        }
         setOpen((v) => !v);
       }
     }

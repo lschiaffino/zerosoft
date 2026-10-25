@@ -23,15 +23,17 @@ export default async function GroupsAnalyticsPage(props: { params: Promise<{ loc
   const days = PERIODS.includes(Number(sp.days)) ? Number(sp.days) : 30;
   const viewer = await pageViewer(user);
   const [people, labels, numbers, groups] = await Promise.all([
-    listPeople(user.id, user.team?.id ?? null),
+    listPeople(user.id),
     listLabels(user.id),
     listNumbers(user.id),
     listChats(user.id, viewer.me, { kind: 'group', limit: 200, viewer }),
   ]);
   const day = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
+  // Rango invertido ("hasta" antes de "desde"): no se aplica y se avisa, en vez de cambiar la fecha en silencio.
+  const inverted = Boolean(day(sp.from) && day(sp.to) && (day(sp.to) as string) < (day(sp.from) as string));
   const filters = {
-    from: day(sp.from),
-    to: day(sp.to),
+    from: inverted ? undefined : day(sp.from),
+    to: inverted ? undefined : day(sp.to),
     labelId: labels.some((l) => l.id === sp.label) ? sp.label : undefined,
     chatId: groups.rows.some((g) => g.id === sp.chat) ? sp.chat : undefined,
     numberId: numbers.some((n) => n.id === sp.number) ? sp.number : undefined,
@@ -79,11 +81,25 @@ export default async function GroupsAnalyticsPage(props: { params: Promise<{ loc
       <form className="gr-report-filters" method="get" action={`/${locale}/app/groups/analytics`} aria-label={t('analytics.filters')}>
         <label className="ui-field">
           <span className="label">{t('analytics.from')}</span>
-          <input className="input" type="date" name="from" defaultValue={custom ? a.from : ''} max={a.to} />
+          <input
+            className="input"
+            type="date"
+            name="from"
+            defaultValue={inverted ? day(sp.from) : custom ? a.from : ''}
+            aria-invalid={inverted || undefined}
+            aria-describedby={inverted ? 'gr-range-error' : undefined}
+          />
         </label>
         <label className="ui-field">
           <span className="label">{t('analytics.to')}</span>
-          <input className="input" type="date" name="to" defaultValue={custom ? a.to : ''} />
+          <input
+            className="input"
+            type="date"
+            name="to"
+            defaultValue={inverted ? day(sp.to) : custom ? a.to : ''}
+            aria-invalid={inverted || undefined}
+            aria-describedby={inverted ? 'gr-range-error' : undefined}
+          />
         </label>
         <label className="ui-field">
           <span className="label">{t('inbox.label')}</span>
@@ -132,6 +148,11 @@ export default async function GroupsAnalyticsPage(props: { params: Promise<{ loc
           )}
         </div>
       </form>
+      {inverted && (
+        <p className="ui-error" role="alert" id="gr-range-error">
+          {t('analytics.rangeInverted')}
+        </p>
+      )}
       {filtered && (
         <p className="ui-help" role="status">
           {t('analytics.showing', { from: a.from, to: a.to })}

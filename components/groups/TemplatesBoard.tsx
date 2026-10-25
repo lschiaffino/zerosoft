@@ -337,9 +337,12 @@ function UseTemplateModal({ template, numbers, onClose }: { template: TemplateDt
   const [results, setResults] = useState<CreateResult[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [showMissing, setShowMissing] = useState(false);
+  const missing = template && mode === 'one' ? template.variables.filter((v) => !(vars[v] ?? '').trim()) : [];
 
   useEffect(() => {
     if (!template) return;
+    setShowMissing(false);
     setMode('one');
     setNumberId(defaultNumberId(numbers));
     setVars({});
@@ -354,8 +357,17 @@ function UseTemplateModal({ template, numbers, onClose }: { template: TemplateDt
   const body = () =>
     mode === 'one' ? { numberId, vars, phones: phones.split(/[\n,;]+/).filter(Boolean) } : { numberId, csv };
 
+  /** Todas las variables son obligatorias: sin ellas el nombre queda roto ("· Soporte"). */
+  function varsOk(): boolean {
+    if (missing.length === 0) return true;
+    setShowMissing(true);
+    document.getElementById(`gr-tpl-var-${missing[0]}`)?.focus();
+    return false;
+  }
+
   async function check() {
     if (!template) return;
+    if (!varsOk()) return;
     setError('');
     const r = await api<{ rows: Array<{ name: string; phones: number }>; errors: Array<{ line: number; error: string }> }>(`/api/groups/templates/${template.id}/use`, {
       body: { ...body(), preview: true },
@@ -366,6 +378,7 @@ function UseTemplateModal({ template, numbers, onClose }: { template: TemplateDt
 
   async function run() {
     if (!template) return;
+    if (!varsOk()) return;
     setBusy(true);
     setError('');
     const r = await api<{ results: CreateResult[] }>(`/api/groups/templates/${template.id}/use`, { body: body() });
@@ -455,20 +468,32 @@ function UseTemplateModal({ template, numbers, onClose }: { template: TemplateDt
               <>
                 {template && template.variables.length > 0 && (
                   <div className="gr-vars-grid">
-                    {template.variables.map((v) => (
-                      <label key={v} className="ui-field">
-                        <span className="label gr-mono">{`{{${v}}}`}</span>
-                        <input
-                          className="input"
-                          value={vars[v] ?? ''}
-                          onChange={(e) => {
-                            setVars({ ...vars, [v]: e.target.value });
-                            setPreview(null);
-                          }}
-                          maxLength={200}
-                        />
-                      </label>
-                    ))}
+                    {template.variables.map((v) => {
+                      const bad = showMissing && missing.includes(v);
+                      return (
+                        <label key={v} className="ui-field">
+                          <span className="label gr-mono">{`{{${v}}}`}</span>
+                          <input
+                            id={`gr-tpl-var-${v}`}
+                            className="input"
+                            value={vars[v] ?? ''}
+                            onChange={(e) => {
+                              setVars({ ...vars, [v]: e.target.value });
+                              setPreview(null);
+                            }}
+                            maxLength={200}
+                            aria-required="true"
+                            aria-invalid={bad || undefined}
+                            aria-describedby={bad ? `gr-tpl-var-${v}-err` : undefined}
+                          />
+                          {bad && (
+                            <span id={`gr-tpl-var-${v}-err`} className="ui-error">
+                              {t('templates.varRequired')}
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
                 <label className="ui-field">

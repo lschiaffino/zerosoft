@@ -17,7 +17,7 @@ export default async function GroupsTicketsPage(props: { params: Promise<{ local
   const t = await getTranslations({ locale, namespace: 'groups' });
   const [tickets, people, settings, fields] = await Promise.all([
     listTickets(user.id, { status: sp.open ? 'all' : 'active' }).then(async (list) => ticketsForViewer(await pageViewer(user), list)),
-    listPeople(user.id, user.team?.id ?? null),
+    listPeople(user.id),
     getSettings(user.id),
     listPropertyDefs(user.id, 'ticket'),
   ]);

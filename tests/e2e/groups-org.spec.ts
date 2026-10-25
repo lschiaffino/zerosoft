@@ -69,10 +69,10 @@ async function createGroup(request: APIRequestContext, numberId: string, name: s
   return res.results[0].chatId;
 }
 
-async function sql(statement: string, args: Array<string | number | null>) {
+async function sql(statement: string, args: Array<string | number | null>): Promise<unknown[]> {
   const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
   try {
-    await db.execute({ sql: statement, args });
+    return (await db.execute({ sql: statement, args })).rows as unknown[];
   } finally {
     db.close();
   }
@@ -167,6 +167,11 @@ test('plantillas: crear, usar con variables y encontrarla con ⌘K', async ({ pa
   await row.getByRole('button', { name: 'Use' }).click();
   const use = page.getByRole('dialog', { name: `Create groups with ${tpl}` });
   await use.getByLabel('From number').selectOption(n.id);
+  // Sin la variable no se arma un grupo "· Support": el campo pide completarla.
+  await use.getByRole('button', { name: 'Preview' }).click();
+  await expect(use.getByText('Required')).toBeVisible();
+  await expect(use.getByLabel('{{company}}')).toBeFocused();
+  await expect(use.getByText(/ready to create/)).toHaveCount(0);
   await use.getByLabel('{{company}}').fill(company);
   await use.getByRole('button', { name: 'Preview' }).click();
   await expect(use.getByText('1 group ready to create')).toBeVisible();
@@ -415,6 +420,41 @@ test('tareas: desde un mensaje, en el chat y en Tareas, con aviso a su hora', as
   await page.locator('tr', { hasText: body }).getByRole('checkbox').check();
   await page.reload({ waitUntil: 'networkidle' });
   await expect(page.locator('tr', { hasText: body })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('tarea creada desde Groups: CRM › Tareas (hoy y próximas) abre sin error y la muestra', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const n = await fakeNumber(request);
+  const tag = uid();
+  const body = `Call back about invoice ${tag}`;
+  await inbound(request, n, `120363${Date.now()}6@g.us`, body, `CrmTasks ${tag}`);
+  const chat = (await chatByName(request, `CrmTasks ${tag}`))!;
+  await page.goto(`/en/app/groups/inbox/${chat.id}`, { waitUntil: 'networkidle' });
+  const msg = page.locator('.gr-msg-in', { hasText: body });
+  await msg.hover();
+  await msg.getByRole('button', { name: 'Task', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Task from message' });
+  await dialog.getByRole('button', { name: 'In 1 hour' }).click();
+  await dialog.getByRole('button', { name: 'Create task' }).click();
+  await expect(page.getByText('Task created')).toBeVisible();
+  // Otra para dentro de 3 días (Próximas), por la API como la usa Groups.
+  const later = `Renewal follow-up ${tag}`;
+  const res = await request.post('/api/groups/tasks', { data: { chatId: chat.id, title: later, dueAt: new Date(Date.now() + 3 * 86_400_000).toISOString() } });
+  expect(res.ok(), await res.text()).toBe(true);
+  // due_at queda en el formato del CRM ('YYYY-MM-DD HH:MM:SS').
+  const rows = (await sql('SELECT due_at FROM crm_activities WHERE subject IN (?, ?)', [body, later])) as Array<{ due_at: string }>;
+  expect(rows).toHaveLength(2);
+  for (const r of rows) expect(r.due_at).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+
+  const seen: string[] = [];
+  for (const bucket of ['today', 'upcoming']) {
+    const resp = await page.goto(`/en/app/crm/tasks?bucket=${bucket}`, { waitUntil: 'networkidle' });
+    expect(resp?.status()).toBe(200);
+    await expect(page.getByText(/Invalid time value|Application error/)).toHaveCount(0);
+    for (const s of [body, later]) if ((await page.getByText(s).count()) > 0) seen.push(s);
+  }
+  expect(seen).toEqual(expect.arrayContaining([body, later]));
   expect(errors).toEqual([]);
 });
 

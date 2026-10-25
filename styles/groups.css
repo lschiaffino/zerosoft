@@ -8,7 +8,8 @@
 .gr-list,
 .gr-thread,
 .gr-details,
-.gr-detail-section { padding-top: 0; padding-bottom: 0; }
+.gr-detail-section,
+.gr-settings-block { padding-top: 0; padding-bottom: 0; }
 
 .gr-mono { font-family: var(--font-data); font-size: 0.8125rem; }
 .gr-pre { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -762,3 +763,21 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-composer-page fieldset.ui-field > legend,
 .gr-detail-section fieldset.ui-field > legend,
 .ui-modal fieldset.ui-field > legend { padding: 0; margin-bottom: 6px; }
+
+/* Ajustes a <900px: las pestañas van en una fila con scroll; el borde del lado
+   donde hay más se desvanece (SettingsTabs marca data-more-left/right). */
+@media (max-width: 900px) {
+  /* Hay más pestañas a un lado: ese borde se desvanece (SettingsTabs marca data-more-*). */
+  .ui-settings-nav[data-more-right] {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+  }
+  .ui-settings-nav[data-more-left] {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent);
+  }
+  .ui-settings-nav[data-more-left][data-more-right] {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+  }
+}

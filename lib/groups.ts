@@ -957,6 +957,23 @@ export async function touchChat(chatId: string, at: string, preview: string, inc
   }
 }
 
+/**
+ * Tras editar o borrar un mensaje (desde Groups o desde el teléfono): si era
+ * el último del chat, la vista previa de la lista pasa a mostrar el texto
+ * nuevo o el marcador [deleted]. No toca la hora ni los no leídos.
+ */
+export async function refreshChatPreview(messageId: string): Promise<void> {
+  const db = getDb();
+  const msg = (await db.prepare('SELECT * FROM groups_messages WHERE id = ?').get(messageId)) as MessageRow | undefined;
+  if (!msg || (msg.direction !== 'in' && msg.direction !== 'out')) return;
+  const last = (await db
+    .prepare("SELECT id FROM groups_messages WHERE chat_id = ? AND direction IN ('in', 'out') ORDER BY created_at DESC, rowid DESC LIMIT 1")
+    .get(msg.chat_id)) as { id: string } | undefined;
+  if (last?.id !== msg.id) return;
+  const preview = msg.deleted_at ? '[deleted]' : previewOf(msg.body, msg.media_type, msg.media_name);
+  await db.prepare('UPDATE groups_chats SET last_message_preview = ? WHERE id = ?').run(preview, msg.chat_id);
+}
+
 export interface SendInput {
   body: string;
   replyToId?: string | null;
@@ -1220,6 +1237,7 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[]): P
         } else {
           await getDb().prepare('UPDATE groups_messages SET deleted_at = COALESCE(deleted_at, ?), pinned_at = NULL WHERE id = ?').run(nowIso(), msg.id);
         }
+        await refreshChatPreview(msg.id);
       } else if (ev.type === 'call') {
         const { ingestCall } = await import('./groups-inbox');
         await ingestCall(number, ev);
@@ -1993,16 +2011,23 @@ export interface GroupsPerson {
   email: string;
 }
 
-export async function listPeople(ws: string, teamId: string | null): Promise<GroupsPerson[]> {
+/**
+ * La gente del workspace: el dueño y los miembros de todos sus teams (los
+ * mismos que acepta isWorkspacePerson). Única fuente para el select de
+ * asignar, el filtro, los nombres en las filas, las líneas de sistema y el
+ * round-robin: no depende del team activo de quien mira.
+ */
+export async function listPeople(ws: string): Promise<GroupsPerson[]> {
   const db = getDb();
   const owner = (await db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(ws)) as GroupsPerson | undefined;
+  const rows = (await db
+    .prepare(
+      `SELECT DISTINCT u.id, u.name, u.email FROM team_members m JOIN teams t ON t.id = m.team_id JOIN users u ON u.id = m.user_id
+       WHERE t.owner_id = ? ORDER BY COALESCE(u.name, u.email)`,
+    )
+    .all(ws)) as GroupsPerson[];
   const people: GroupsPerson[] = owner ? [{ ...owner, name: owner.name ?? '' }] : [];
-  if (teamId) {
-    const rows = (await db
-      .prepare('SELECT u.id, u.name, u.email FROM team_members m JOIN users u ON u.id = m.user_id WHERE m.team_id = ?')
-      .all(teamId)) as GroupsPerson[];
-    for (const r of rows) if (!people.some((p) => p.id === r.id)) people.push({ ...r, name: r.name ?? '' });
-  }
+  for (const r of rows) if (!people.some((p) => p.id === r.id)) people.push({ ...r, name: r.name ?? '' });
   return people;
 }
 

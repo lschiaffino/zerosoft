@@ -4,7 +4,7 @@ import { countQueueTasks } from '@/lib/crm-work-queue';
 import { sessionScope } from '@/lib/crm-visibility';
 import { listTasks, listTaskProjects, type TaskBucket } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
-import { relDate } from '@/lib/utils';
+import { relDate, parseDbUtc } from '@/lib/utils';
 import { getUserTimeZone } from '@/lib/user-tz';
 import TasksView, { type TaskRow } from '@/components/crm/TasksView';
 import TaskProjectsManager from '@/components/crm/TaskProjectsManager';
@@ -48,7 +48,7 @@ export default async function TasksPage(props: TasksPageProps) {
   const queueCount = await countQueueTasks(user.id, { ownerId: realUserId(user), timeZone, ownerScope: scope });
   const fmtDue = (iso: string): string =>
     new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(
-      new Date(`${iso.replace(' ', 'T')}Z`),
+      parseDbUtc(iso),
     );
 
   const ownerMap = new Map(teamMembers.map((m) => [m.user_id, m.name ?? m.email]));

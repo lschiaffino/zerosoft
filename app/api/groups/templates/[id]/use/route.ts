@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { parseCsv } from '@/lib/csv-parse';
-import { createFromTemplate, getTemplate, parseTemplateCsv, previewTemplateUse, type TemplateUse } from '@/lib/groups-org';
+import { createFromTemplate, getTemplate, missingVariables, parseTemplateCsv, previewTemplateUse, type TemplateUse } from '@/lib/groups-org';
 import { groupsError, groupsSession, handleGroupsError, readJson, str, strArr } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
@@ -31,6 +31,8 @@ export async function POST(req: Request, ctx: Ctx) {
     const raw = b.vars && typeof b.vars === 'object' && !Array.isArray(b.vars) ? (b.vars as Record<string, unknown>) : {};
     const vars: Record<string, string> = {};
     for (const [k, v] of Object.entries(raw).slice(0, 40)) if (typeof v === 'string') vars[k.slice(0, 40)] = v.slice(0, 200);
+    // Sin una variable el grupo quedaría con un nombre roto ("· Soporte").
+    if (missingVariables(template, vars).length) return groupsError(400, 'missing_variables');
     uses = [{ vars, phones: strArr(b.phones, 1000) }];
   }
   if (b.preview === true) return NextResponse.json({ rows: previewTemplateUse(template, uses), errors });

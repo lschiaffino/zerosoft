@@ -43,6 +43,7 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
   const [adding, setAdding] = useState(openNew && canEdit);
   const [connecting, setConnecting] = useState<NumberDto | null>(null);
   const [removing, setRemoving] = useState<NumberDto | null>(null);
+  const [disconnecting, setDisconnecting] = useState<NumberDto | null>(null);
   const [editing, setEditing] = useState<NumberDto | null>(null);
 
   const reload = useCallback(async () => {
@@ -112,7 +113,7 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
                     {t('numbers.edit')}
                   </button>
                   {n.status === 'connected' && (
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => void act(n, 'disconnect')}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDisconnecting(n)}>
                       {t('numbers.disconnect')}
                     </button>
                   )}
@@ -159,6 +160,20 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
         danger
         onConfirm={() => void remove()}
         onCancel={() => setRemoving(null)}
+      />
+      <ConfirmDialog
+        open={!!disconnecting}
+        title={t('numbers.disconnectTitle', { name: disconnecting?.name ?? '' })}
+        body={t('numbers.disconnectBody')}
+        confirmLabel={t('numbers.disconnect')}
+        cancelLabel={t('common.cancel')}
+        danger
+        onConfirm={() => {
+          const n = disconnecting;
+          setDisconnecting(null);
+          if (n) void act(n, 'disconnect');
+        }}
+        onCancel={() => setDisconnecting(null)}
       />
       {toast}
     </div>

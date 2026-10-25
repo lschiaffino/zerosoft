@@ -464,7 +464,8 @@
     "apply": "Aplicar",
     "showing": "Del {from} al {to}",
     "emptyFilteredTitle": "No hay nada en este rango",
-    "emptyFilteredBody": "Probá otras fechas, otra etiqueta o todos los grupos."
+    "emptyFilteredBody": "Probá otras fechas, otra etiqueta o todos los grupos.",
+    "rangeInverted": "La fecha de fin es anterior a la de inicio. Elegí una fecha de fin igual o posterior para aplicar el rango."
   },
   "settings": {
     "title": "Ajustes de Groups",
@@ -536,7 +537,9 @@
     "qrRefresh": "El QR se actualiza solo.",
     "qrUpdated": "Actualizado hace {s} s.",
     "newQr": "Pedir un QR nuevo",
-    "disconnectedBanner": "La sesión está desconectada. Pedí un QR nuevo y escanealo desde el teléfono para volver a vincular el número."
+    "disconnectedBanner": "La sesión está desconectada. Pedí un QR nuevo y escanealo desde el teléfono para volver a vincular el número.",
+    "disconnectTitle": "¿Desconectar {name}?",
+    "disconnectBody": "Los chats y el historial quedan. Los mensajes nuevos dejan de llegar hasta que vuelvas a conectar el número."
   },
   "providers": {
     "cloud": {
@@ -792,14 +795,17 @@
     "invalid_subscription": "El navegador devolvió una suscripción inválida.",
     "no_devices": "Primero activá los avisos en un navegador.",
     "push_failed": "No se pudieron activar los avisos en este navegador.",
-    "invalid_label": "Etiqueta inválida."
+    "invalid_label": "Etiqueta inválida.",
+    "missing_variables": "Completá todas las variables de la plantilla.",
+    "missing_tree": "Escribí las opciones, una por línea."
   },
   "media": {
     "image": "Imagen",
     "audio": "Audio",
     "video": "Video",
     "file": "Archivo",
-    "call": "Llamada"
+    "call": "Llamada",
+    "deleted": "Mensaje borrado"
   },
   "langs": {
     "en": "inglés",
@@ -871,7 +877,7 @@
     "members": "Miembros",
     "edit": "Editar",
     "rules": "Reglas round-robin",
-    "rulesIntro": "Cuando un chat recibe un mensaje y nadie lo tiene, la primera regla que aplica se lo da a la próxima persona disponible, por turno.",
+    "rulesIntro": "Cuando un chat recibe un mensaje y nadie lo tiene, la primera regla que aplica se lo da a la próxima persona disponible, por turno. Los chats que ya esperan respuesta sin nadie asignado también se reparten apenas guardás la regla.",
     "newRule": "Nueva regla",
     "editRule": "Editar regla",
     "noRules": "Todavía no hay reglas. Los chats nuevos quedan sin asignar hasta que alguien los tome.",
@@ -972,7 +978,8 @@
     "fixedMembers": "{n} miembros fijos",
     "extraPhones": "Participantes extra (opcional)",
     "csvHelp": "Primera fila con las columnas: {columns}. Un grupo por fila, hasta 50.",
-    "sameName": "El de la plantilla"
+    "sameName": "El de la plantilla",
+    "varRequired": "Obligatoria"
   },
   "lists": {
     "sidebar": "Listas guardadas",
@@ -1134,7 +1141,10 @@
       "members": "{action} {count} miembros",
       "ticket_created": "creó el ticket #{n}",
       "ticket_updated": "actualizó el ticket #{n} {status}",
-      "ticket_deleted": "borró el ticket #{n}"
+      "ticket_deleted": "borró el ticket #{n}",
+      "labelsAdded": "sumó etiquetas: {added}",
+      "labelsRemoved": "sacó etiquetas: {removed}",
+      "assignedSelf": "se asignó el chat"
     },
     "memberActions": {
       "add": "sumó",
@@ -1227,7 +1237,20 @@
     "mcpUrl": "URL del servidor MCP",
     "mcpTools": "Actúa como la persona que creó la API key (groups:read para leer, groups:write para mandar y cambiar). Creala en",
     "copy": "Copiar",
-    "copied": "Copiado"
+    "copied": "Copiado",
+    "deliveryErrors": {
+      "timeout": "El endpoint tardó demasiado en responder",
+      "connection_refused": "El endpoint rechazó la conexión",
+      "unresolvable_host": "No se encontró el dominio",
+      "connection_reset": "Se cortó la conexión",
+      "tls_error": "Error de certificado (HTTPS)",
+      "network_error": "No se pudo llegar al endpoint",
+      "private_host": "No se permiten direcciones privadas o locales",
+      "https_required": "La URL tiene que usar HTTPS",
+      "invalid_url": "URL inválida",
+      "invalid_redirect": "Redirección inválida",
+      "http": "El endpoint respondió {code}"
+    }
   },
   "apps": {
     "installTitle": "Instalar la app",

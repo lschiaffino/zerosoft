@@ -16,7 +16,7 @@ export default async function GroupsTasksPage(props: { params: Promise<{ locale:
   const me = user.actingUser?.id ?? user.id;
   const [tasks, people, opened] = await Promise.all([
     listGroupTasks(user.id, me, { status: 'open' }),
-    listPeople(user.id, user.team?.id ?? null),
+    listPeople(user.id),
     sp.open ? getGroupTask(user.id, sp.open) : Promise.resolve(null),
   ]);
   // ?open=<id> (⌘K): la tarea abierta va en la lista aunque ya esté hecha.

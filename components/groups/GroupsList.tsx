@@ -837,18 +837,23 @@ function JoinModal({ open, numbers, onClose, onJoined }: { open: boolean; number
   );
 }
 
-/** Solo admins escriben o editan, en varios grupos a la vez (con resultado por grupo). */
+/** Duraciones de los mensajes temporales (las mismas que el ajuste de un grupo). */
+const BULK_EPHEMERAL = [0, 86_400, 604_800, 7_776_000] as const;
+
+/** Solo admins escriben o editan y mensajes temporales, en varios grupos a la vez (con resultado por grupo). */
 function BulkSettingsModal({ open, chats, onClose, onDone }: { open: boolean; chats: ChatDto[]; onClose: () => void; onDone: () => void }) {
   const t = useTranslations('groups');
   const errText = useErrorText();
   const [announce, setAnnounce] = useState('');
   const [locked, setLocked] = useState('');
+  const [ephemeral, setEphemeral] = useState('');
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<Array<{ id: string; name: string; error: string | null }> | null>(null);
   useEffect(() => {
     if (!open) return;
     setAnnounce('');
     setLocked('');
+    setEphemeral('');
     setResults(null);
   }, [open]);
 
@@ -857,6 +862,7 @@ function BulkSettingsModal({ open, chats, onClose, onDone }: { open: boolean; ch
     const body: Record<string, unknown> = { action: 'settings' };
     if (announce) body.announce = announce === 'on';
     if (locked) body.locked = locked === 'on';
+    if (ephemeral) body.ephemeral = Number(ephemeral);
     setBusy(true);
     const out: Array<{ id: string; name: string; error: string | null }> = [];
     for (const c of chats) {
@@ -892,7 +898,7 @@ function BulkSettingsModal({ open, chats, onClose, onDone }: { open: boolean; ch
             {results ? t('common.close') : t('common.cancel')}
           </button>
           {!results && (
-            <button type="submit" className="btn btn-primary" disabled={!announce && !locked} aria-busy={busy || undefined}>
+            <button type="submit" className="btn btn-primary" disabled={!announce && !locked && !ephemeral} aria-busy={busy || undefined}>
               {t('bulk.run')}
             </button>
           )}
@@ -916,6 +922,17 @@ function BulkSettingsModal({ open, chats, onClose, onDone }: { open: boolean; ch
           <>
             {pick(announce, setAnnounce, t('groupSettings.announce'))}
             {pick(locked, setLocked, t('groupSettings.locked'))}
+            <label className="ui-field">
+              <span className="label">{t('groupSettings.ephemeral')}</span>
+              <select className="select" value={ephemeral} onChange={(e) => setEphemeral(e.target.value)}>
+                <option value="">{t('bulk.keep')}</option>
+                {BULK_EPHEMERAL.map((sec) => (
+                  <option key={sec} value={String(sec)}>
+                    {t(`groupSettings.ephemeralOptions.${sec}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
             <p className="ui-help">{t('groupSettings.help')}</p>
           </>
         )}

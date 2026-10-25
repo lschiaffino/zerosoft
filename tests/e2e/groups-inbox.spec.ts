@@ -79,6 +79,8 @@ test('mensajes: editar, fijar, reenviar y borrar para todos', async ({ page, req
   await editor.press('Enter');
   const edited = page.locator('.gr-msg-out', { hasText: 'before 5 pm' });
   await expect(edited.getByText('Edited')).toBeVisible();
+  // La vista previa de la bandeja sigue al mensaje editado, sin recargar.
+  await expect(page.locator('.gr-row', { hasText: a })).toContainText('before 5 pm');
 
   // Fijar: aparece arriba del hilo.
   await edited.hover();
@@ -103,6 +105,7 @@ test('mensajes: editar, fijar, reenviar y borrar para todos', async ({ page, req
   await page.getByRole('alertdialog', { name: 'Delete for everyone?' }).getByRole('button', { name: 'Delete for everyone' }).click();
   await expect(page.locator('.gr-msg-out.is-deleted').getByText('Deleted for everyone')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Pinned messages' })).toHaveCount(0);
+  await expect(page.locator('.gr-row', { hasText: a })).toContainText('Message deleted');
 
   // La copia reenviada está en el otro chat.
   await openChat(page, b);

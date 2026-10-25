@@ -19,7 +19,7 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   const [numbers, labels, people, teams, properties, lists] = await Promise.all([
     listNumbers(user.id),
     listLabels(user.id),
-    listPeople(user.id, user.team?.id ?? null),
+    listPeople(user.id),
     listTeams(user.id),
     listPropertyDefs(user.id),
     listSavedLists(user.id, me),

@@ -8,6 +8,7 @@ import type { QueueTask, SnoozeOption } from '@/lib/crm-work-queue';
 import PhoneTouch from './PhoneTouch';
 import RecordPreview, { type PreviewType } from './RecordPreview';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
+import { parseDbUtc } from '@/lib/utils';
 
 type ItemStatus = 'open' | 'done' | 'skipped' | 'snoozed' | 'deleted';
 
@@ -64,7 +65,7 @@ export default function WorkQueue({ tasks, locale, timeZone }: WorkQueueProps) {
   const fmtDue = useCallback(
     (iso: string) =>
       new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(
-        new Date(`${iso.replace(' ', 'T')}Z`),
+        parseDbUtc(iso),
       ),
     [locale, timeZone],
   );

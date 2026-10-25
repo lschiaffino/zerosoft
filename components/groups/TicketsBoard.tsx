@@ -80,6 +80,18 @@ export default function TicketsBoard({
   }, [openId]);
 
   async function update(id: string, body: Record<string, unknown>) {
+    // Resolver o cerrar con campos obligatorios vacíos: se abre el ticket para completarlos, sin pedirle nada al servidor.
+    const current = (tickets ?? []).find((x) => x.id === id);
+    if (current && !('fields' in body) && (body.status === 'resolved' || body.status === 'closed')) {
+      const empty = fields.some((f) => {
+        const v = current.fields[f.key];
+        return f.required && (v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0));
+      });
+      if (empty) {
+        setEditing({ ticket: current, status: body.status });
+        return false;
+      }
+    }
     const res = await api<TicketDto>(`/api/groups/tickets/${id}`, { method: 'PATCH', body });
     if (res.data) {
       setTickets((list) => (list ?? []).map((x) => (x.id === id ? (res.data as TicketDto) : x)));

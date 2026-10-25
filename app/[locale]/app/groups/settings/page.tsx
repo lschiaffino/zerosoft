@@ -97,7 +97,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
         initial={await getPlatformSettings(user.id)}
         access={await listLabelAccess(user.id)}
         labels={(await listLabels(user.id)).map((l) => ({ id: l.id, name: l.name, color: l.color }))}
-        people={await listPeople(user.id, user.team?.id ?? null)}
+        people={await listPeople(user.id)}
         canEdit={admin}
       />
     ) : (
@@ -107,7 +107,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
     body = admin ? (
       <div className="ui-fields">
         <p className="ui-help">{t('audit.intro')}</p>
-        <AuditLog people={await listPeople(user.id, user.team?.id ?? null)} />
+        <AuditLog people={await listPeople(user.id)} />
       </div>
     ) : (
       <p className="ui-help">{t('access.adminsOnly')}</p>

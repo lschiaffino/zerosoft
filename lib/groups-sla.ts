@@ -7,7 +7,7 @@
  * RESEND_API_KEY; si no, a la consola). Server-only.
  */
 import { getDb } from './db';
-import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
+import { appSender, escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
 import { siteUrl } from './board-urls';
 import { getSettings } from './groups';
@@ -100,7 +100,7 @@ export async function notifyBreach(ws: string, ticket: TicketDto, kind: 'first_r
   const mail = buildSlaEmail(ticket, kind, locale, `${siteUrl()}/${locale}${href}`);
   let sent = 0;
   for (const r of recipients) {
-    const res = await sendEmail({ to: r.email, ...mail }).catch(() => ({ ok: false }));
+    const res = await sendEmail({ to: r.email, from: appSender(), ...mail }).catch(() => ({ ok: false }));
     if (res.ok) sent++;
     if (r.userId) {
       await createNotification({

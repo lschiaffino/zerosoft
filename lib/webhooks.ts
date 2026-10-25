@@ -317,7 +317,7 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
     body = responseSnippet(await res.text().catch(() => ''));
     if (!res.ok) error = `http_${res.status}`;
   } catch (err) {
-    error = err instanceof UnsafeUrlError ? err.message : err instanceof Error ? err.name : 'error';
+    error = deliveryErrorCode(err);
   }
   const duration = Date.now() - started;
 
@@ -415,4 +415,22 @@ export async function sendTestWebhook(userId: string, id: string): Promise<boole
   await insertDelivery(deliveryId, hook.id, 'ping', payload);
   await attempt(deliveryId, { force: true });
   return true;
+}
+
+/**
+ * Código legible de por qué falló una entrega (sin "TypeError"): el log lo
+ * traduce (webhookErrors.<código>) y la API lo devuelve tal cual.
+ */
+export function deliveryErrorCode(err: unknown): string {
+  if (err instanceof UnsafeUrlError) return err.message;
+  if (!(err instanceof Error)) return 'network_error';
+  if (err.name === 'TimeoutError' || err.name === 'AbortError') return 'timeout';
+  const cause = (err as Error & { cause?: { code?: string } }).cause;
+  const code = String(cause?.code ?? (err as Error & { code?: string }).code ?? '');
+  if (code === 'ECONNREFUSED') return 'connection_refused';
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') return 'unresolvable_host';
+  if (code === 'ECONNRESET' || code === 'UND_ERR_SOCKET' || code === 'EPIPE') return 'connection_reset';
+  if (code === 'ETIMEDOUT' || code === 'UND_ERR_CONNECT_TIMEOUT' || code === 'UND_ERR_HEADERS_TIMEOUT') return 'timeout';
+  if (/CERT|SSL|TLS/i.test(code)) return 'tls_error';
+  return 'network_error';
 }

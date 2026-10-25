@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { POLL_MAX_OPTIONS, type PollDto } from '@/lib/groups-polls';
 import { normalizeRule, upcomingRuns, type RecurrenceRule } from '@/lib/groups-recurrence';
 
-export const DEFAULT_RULE: RecurrenceRule = { freq: 'weekly', time: '09:00', days: [1], dayOfMonth: 1, cron: '' };
+// Semanal sin días marcados: lo que se ve tildado es lo que se guarda (nada de un lunes por defecto).
+export const DEFAULT_RULE: RecurrenceRule = { freq: 'weekly', time: '09:00', days: [], dayOfMonth: 1, cron: '' };
 
 /** Zona horaria del navegador (o UTC). */
 export function browserTimezone(): string {
@@ -54,6 +55,7 @@ export function RecurrenceFields({
 }) {
   const t = useTranslations('groups');
   const locale = useLocale();
+  const uid = useId();
   const error = checkRule(rule);
   const next = useMemo(() => {
     if (error) return [];
@@ -135,23 +137,29 @@ export function RecurrenceFields({
         </label>
       )}
       <div className="ui-fields-2">
-        <label className="ui-field">
-          <span className="label">{t('recurring.timezone')}</span>
-          <select className="select" value={timezone} onChange={(e) => onTimezone(e.target.value)}>
+        <div className="ui-field">
+          <label className="label" htmlFor={`${uid}-tz`}>
+            {t('recurring.timezone')}
+          </label>
+          <select id={`${uid}-tz`} className="select" value={timezone} onChange={(e) => onTimezone(e.target.value)}>
             {zones.map((z) => (
               <option key={z} value={z}>
                 {z}
               </option>
             ))}
           </select>
-        </label>
+        </div>
         <label className="ui-field">
           <span className="label">{t('recurring.endsAt')}</span>
           <input className="input" type="date" value={endsAt} onChange={(e) => onEndsAt(e.target.value)} />
           <span className="ui-help">{t('recurring.endsAtHelp')}</span>
         </label>
       </div>
-      {error ? (
+      {error === 'invalid_days' ? (
+        <p className="ui-help" role="status">
+          {t('errors.invalid_days')}
+        </p>
+      ) : error ? (
         <p className="ui-error" role="alert">
           {t(`errors.${error}`)}
         </p>
