@@ -1941,5 +1941,20 @@
     "paramExtTo": "Recipients, separated by commas",
     "paramExtSubject": "Email subject",
     "paramExtBody": "Plain text body"
+  },
+  "parityOverview": {
+    "title": "Feature parity, app by app.",
+    "titleDim": "Measured against each competitor.",
+    "lead": "Average parity across the 12 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "col": {
+      "app": "App",
+      "competitor": "Compared with",
+      "parity": "Parity",
+      "have": "Included",
+      "partial": "Partial",
+      "missing": "Missing",
+      "beyond": "Beyond"
+    },
+    "method": "Each app counts 1 for an included capability, 0.5 for a partial one and 0 for a missing one, with double weight for core capabilities. It is our own review against the code, updated with every release. Open an app to see its full list."
   }
 }

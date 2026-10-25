@@ -5,6 +5,7 @@ import SectionSign from '@/components/site/SectionSign';
 import HeroVisual from '@/components/site/HeroVisual';
 import CloudPricing from '@/components/site/CloudPricing';
 import ProductLinks from '@/components/site/ProductLinks';
+import ParityOverview from '@/components/products/ParityOverview';
 import { ZeroEdge } from '@/components/zero/ZeroTexture';
 import { PARITY } from '@/content/feature-parity';
 import { computeParity } from '@/lib/feature-parity';
@@ -53,6 +54,8 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
           <SuiteGrid parity={parity} />
         </div>
       </section>
+
+      <ParityOverview locale={locale} headingId="h-parity" />
 
       <section className="lp-section" id="precios" aria-labelledby="h-pricing">
         <SectionSign id="h-pricing" title={tc('pricing.title')} sub={tc('pricing.titleDim')} />

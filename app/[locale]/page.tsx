@@ -16,6 +16,7 @@ import FlowMockup from '@/components/products/mockups/FlowMockup';
 import Icon from '@/components/site/Icon';
 import CodeTabs from '@/components/site/CodeTabs';
 import SuiteGrid from '@/components/site/SuiteGrid';
+import ParityOverview from '@/components/products/ParityOverview';
 import SectionSign from '@/components/site/SectionSign';
 import HeroVisual from '@/components/site/HeroVisual';
 import CloudPricing from '@/components/site/CloudPricing';
@@ -141,6 +142,9 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
           <SuiteGrid cta={{ label: t('header.allProducts'), href: '/products' }} />
         </div>
       </section>
+
+      {/* Paridad de cada app contra su competidor, en vivo desde content/feature-parity. */}
+      <ParityOverview locale={locale} headingId="h-parity" />
 
       {/* La cuenta: lo que se paga hoy a precio de lista. */}
       <section className="lp-section" id="stack" aria-labelledby="h-stack">

@@ -10,6 +10,7 @@ import Icon from './site/Icon';
 import { AUDIENCE_PRODUCTS, GITHUB_URL, PRODUCT_NAMES, type Audience } from './site/catalog';
 import Logo from './brand/Logo';
 import ProductGlyph from './brand/ProductGlyph';
+import { PRODUCT_CONFIG, isProductKey } from '@/lib/products';
 
 interface HeaderClientProps {
   locale: string;
@@ -76,6 +77,9 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
   }, [menuOpen, megaOpen]);
 
   /** aria-current del link de la sección en la que estás. */
+  // Desde la landing de un producto, Dashboard y el alta llevan a esa app.
+  const landing = pathname.match(/^\/products\/([a-z]+)/)?.[1];
+  const appHref = landing && isProductKey(landing) ? PRODUCT_CONFIG[landing].launch : '/app';
   const current = (href: string) => (pathname === href || pathname.startsWith(`${href}/`) ? ('page' as const) : undefined);
 
   /** Cuándo se abrió el menú por hover: un clic justo después no lo cierra. */
@@ -183,7 +187,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
           <ThemeSwitcher />
           <LocaleSwitcher locale={locale} />
           {user ? (
-            <Link className="btn btn-chrome btn-sm" href="/app" title={user.email}>
+            <Link className="btn btn-chrome btn-sm" href={appHref} title={user.email}>
               {labels.dashboard}
             </Link>
           ) : (
@@ -191,11 +195,11 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
               <button
                 type="button"
                 className="hd-link hd-signin"
-                onClick={() => signIn('google', { callbackUrl: `/${locale}/app` })}
+                onClick={() => signIn('google', { callbackUrl: `/${locale}${appHref}` })}
               >
                 {labels.signIn}
               </button>
-              <Link className="btn btn-chrome btn-sm" href="/app">
+              <Link className="btn btn-chrome btn-sm" href={appHref}>
                 {labels.startFree}
               </Link>
             </>
@@ -254,7 +258,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
             <button
               type="button"
               className="btn btn-secondary btn-sm"
-              onClick={() => signIn('google', { callbackUrl: `/${locale}/app` })}
+              onClick={() => signIn('google', { callbackUrl: `/${locale}${appHref}` })}
             >
               {labels.signIn}
             </button>
