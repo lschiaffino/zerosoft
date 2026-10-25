@@ -21,7 +21,7 @@ import type { DbEffect } from '@/lib/docs-db-save';
 import { notFound, unauthorized, invalidBody, forbidden, docsError } from '@/lib/docs-http';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { canShareAccess, canWriteAccess } from '@/lib/docs-access';
-import { docsAllowed, editorBlocks, lockedSyncedIds } from '@/lib/docs-guard';
+import { docsAllowed, editorBlocks, syncedLocks } from '@/lib/docs-guard';
 import { checkMarksOnlyChange, newSuggestionIds } from '@/lib/docs-marks';
 import { auditTargetLabel, logDocsAudit, requestIp, type DocsAuditAction } from '@/lib/docs-audit';
 import { notifyDocsSuggestions } from '@/lib/docs-live';
@@ -132,8 +132,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const outcome: { merged?: boolean; staleBase?: boolean } = {};
   try {
     // Sincronizados de páginas que esta persona no puede abrir: llegan sin hijos y no se tocan.
-    const lockedSynced = patch.content !== undefined ? await lockedSyncedIds(user, row, patch.content) : undefined;
-    page = await updateDocPage(row.user_id, params.id, patch, { actorId, locale, timezone, effects, outcome, lockedSynced });
+    // Y los que puede ver pero no editar en su origen: tampoco se tocan.
+    const locks = patch.content !== undefined ? await syncedLocks(user, row, patch.content) : undefined;
+    page = await updateDocPage(row.user_id, params.id, patch, { actorId, locale, timezone, effects, outcome, lockedSynced: locks?.locked, deniedSynced: locks?.denied });
   } catch (err) {
     // Otra persona guardó (o se restauró una versión) desde que el editor
     // cargó la página: se devuelve la versión actual para fusionar en el

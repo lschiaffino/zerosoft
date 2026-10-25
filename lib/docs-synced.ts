@@ -204,6 +204,8 @@ export async function persistSyncedBlocks(opts: {
    * contenido no se toca y lo que llegue adentro se descarta.
    */
   locked?: Set<string>;
+  /** Los que ni puede ver (subconjunto de `locked`): pegados sabiendo el id, son un bloque propio nuevo. */
+  denied?: Set<string>;
   /**
    * Versión de cada sincronizado que vio el editor (synced_at de lo que
    * cargó). Si cambió desde entonces en otra página, lo que llega se fusiona
@@ -252,10 +254,11 @@ export async function persistSyncedBlocks(opts: {
 
   const process = async (list: DocsBlock[], depth: number): Promise<DocsBlock[]> => {
     const out = stripSyncedChildren(list).map((b) => {
-      if (!b.no_access && !b.synced_at) return b;
-      const { no_access: _n, synced_at: _a, ...clean } = b;
+      if (!b.no_access && !b.synced_at && !b.no_edit) return b;
+      const { no_access: _n, synced_at: _a, no_edit: _e, ...clean } = b;
       void _n;
       void _a;
+      void _e;
       return clean;
     });
     for (let i = 0; i < out.length; i++) {
@@ -263,7 +266,8 @@ export async function persistSyncedBlocks(opts: {
       if (b.type !== 'synced') continue;
       const orig = b.synced_id;
       // Uno sin acceso que no estaba en la página (pegado sabiendo el id): bloque propio nuevo.
-      const lockedNew = !!orig && locked.has(orig) && !previousIds.has(orig);
+      const denied = opts.denied ?? locked;
+      const lockedNew = !!orig && denied.has(orig) && !previousIds.has(orig);
       let id = orig && SYNCED_ID_RE.test(orig) && !foreign.has(orig) && !lockedNew ? orig : null;
       if (!id) {
         id = crypto.randomUUID();
@@ -301,7 +305,14 @@ export async function persistSyncedBlocks(opts: {
       const sawAt = opts.seenAt?.get(id);
       const seenBlocks = sawAt && sawAt !== ownedAt.get(id) ? await syncedAtVersion(workspaceId, id, sawAt) : null;
       const seenJson = seenBlocks ? JSON.stringify(seenBlocks) : sawAt && sawAt === ownedAt.get(id) ? ownedJson : undefined;
-      if (seenJson !== undefined && seenJson !== ownedJson) {
+      // Sin la versión que vio (falta synced_at, es inválido, futuro o ya no
+      // está en el historial): el bloque cuenta como sin cambios. Solo un
+      // bloque nuevo para la página se crea sin versión.
+      if (seenJson === undefined) {
+        nextBase[id] = ownedJson;
+        continue;
+      }
+      if (seenJson !== ownedJson) {
         // Cambió en otra página desde que este editor lo cargó.
         if (seenJson === json) {
           // Quien guarda no lo tocó: queda lo actual.
@@ -312,8 +323,6 @@ export async function persistSyncedBlocks(opts: {
         json = JSON.stringify(sanitizeBlocks(mergeBlocksDetailed(seenBlocks ?? [], owned.get(id)!, clean).blocks).slice(0, MAX_SYNCED_BLOCKS));
       }
       nextBase[id] = json;
-      // Solo si cambió en esta página (no si es la copia que ya traía).
-      if (seenJson === undefined && base[id] === json) continue;
       if (ownedJson === json) continue;
       await db
         .prepare('UPDATE docs_synced_blocks SET content = ?, updated_by = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
@@ -338,42 +347,34 @@ export async function getSyncedBlock(workspaceId: string, id: string): Promise<D
   return row ? parse(row.content) : null;
 }
 
-/**
- * Antes de borrar para siempre páginas: cada sincronizado cuyo origen se va
- * pasa a tener como origen otra página activa que lo use y esté en el mismo
- * teamspace que el origen (quien podía abrir el origen puede abrirla). Si no
- * hay ninguna, el origen queda vacío y el contenido solo lo ve el dueño del
- * workspace (lib/docs-guard.ts falla cerrado).
- */
-export async function reassignSyncedSources(workspaceId: string, deletedIds: string[]): Promise<void> {
-  if (!deletedIds.length) return;
-  const db = getDb();
-  const ph = deletedIds.map(() => '?').join(',');
-  const rows = (await db
-    .prepare(
-      `SELECT s.id, p.teamspace_id FROM docs_synced_blocks s JOIN docs_pages p ON p.id = s.source_page_id
-       WHERE s.workspace_id = ? AND s.source_page_id IN (${ph})`,
-    )
-    .all(workspaceId, ...deletedIds)) as Array<{ id: string; teamspace_id: string | null }>;
-  for (const r of rows) {
-    const host = (await db
-      .prepare(
-        `SELECT id FROM docs_pages WHERE user_id = ? AND archived = 0 AND id NOT IN (${ph})
-           AND ${r.teamspace_id ? 'teamspace_id = ?' : 'teamspace_id IS NULL'} AND content LIKE ?
-         ORDER BY updated_at DESC LIMIT 1`,
-      )
-      .get(workspaceId, ...deletedIds, ...(r.teamspace_id ? [r.teamspace_id] : []), `%"synced_id":"${r.id}"%`)) as { id: string } | undefined;
-    await db.prepare('UPDATE docs_synced_blocks SET source_page_id = ? WHERE id = ? AND workspace_id = ?').run(host?.id ?? null, r.id, workspaceId);
-  }
-}
 
 
 /** Última edición (updated_at más nuevo) de los sincronizados de una página: '' si no tiene. */
-export async function syncedUpdatedAt(workspaceId: string, blocks: DocsBlock[]): Promise<string> {
-  const ids = syncedIdsOf(blocks).filter((id) => SYNCED_ID_RE.test(id));
+export async function syncedUpdatedAt(workspaceId: string, blocks: DocsBlock[], canRead?: SyncedReader): Promise<string> {
+  let ids = syncedIdsOf(blocks).filter((id) => SYNCED_ID_RE.test(id));
+  // Solo los que quien pregunta puede ver: cuándo se editó uno ajeno tampoco se cuenta.
+  if (canRead && ids.length) {
+    const denied = await unreadableSyncedIds(workspaceId, blocks, canRead);
+    ids = ids.filter((id) => !denied.has(id));
+  }
   if (!ids.length) return '';
   const row = (await getDb()
     .prepare(`SELECT MAX(updated_at) AS at FROM docs_synced_blocks WHERE workspace_id = ? AND id IN (${ids.map(() => '?').join(',')})`)
     .get(workspaceId, ...ids)) as { at: string | null } | undefined;
   return row?.at ?? '';
+}
+
+/**
+ * Marca `no_edit` en los sincronizados que se ven pero quien mira no puede
+ * editar en su origen: el editor los muestra en solo lectura (el guardado
+ * igual descarta lo que llegue adentro). Nunca se guarda.
+ */
+export async function markUneditableSynced(workspaceId: string, blocks: DocsBlock[], canEdit: SyncedReader): Promise<DocsBlock[]> {
+  const visible = blocks.filter((b) => b.type === 'synced' && b.synced_id && !b.no_access);
+  if (!visible.length) return blocks;
+  const sources = await getSyncedSources(workspaceId, visible.map((b) => b.synced_id!)).catch(() => new Map<string, string | null>());
+  const locked = new Set<string>();
+  for (const [id, src] of sources) if (!(await canEdit(src))) locked.add(id);
+  if (!locked.size) return blocks;
+  return blocks.map((b) => (b.type === 'synced' && b.synced_id && locked.has(b.synced_id) && !b.no_access ? { ...b, no_edit: true } : b));
 }

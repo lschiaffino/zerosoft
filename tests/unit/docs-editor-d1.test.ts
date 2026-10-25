@@ -259,15 +259,19 @@ describe('Docs D1: bloques sincronizados', () => {
     const syncedId = crypto.randomUUID();
     const a = await createDocPage(owner.id, { title: 'A' });
     const b = await createDocPage(owner.id, { title: 'B' });
-    const block = (text: string): DocsBlock[] => [
-      { id: id(), type: 'synced', content: '', synced_id: syncedId },
+    const block = (text: string, syncedAt?: string): DocsBlock[] => [
+      { id: id(), type: 'synced', content: '', synced_id: syncedId, ...(syncedAt ? { synced_at: syncedAt } : {}) },
       p(text, 1),
     ];
     await updateDocPage(owner.id, a.id, { content: block('Primera versión') }, { actorId: owner.id });
     expect((await getSyncedBlock(owner.id, syncedId))?.[0]?.content).toBe('Primera versión');
     // B pega el mismo bloque (la copia que trajo) y después lo edita.
     await updateDocPage(owner.id, b.id, { content: block('Primera versión') }, { actorId: owner.id });
-    await updateDocPage(owner.id, b.id, { content: block('Editada en B') }, { actorId: owner.id });
+    // El editor devuelve la versión que vio (synced_at); sin ella no se pisa nada.
+    const seenB = (await hydrateSyncedBlocks(owner.id, (await getDocPage(owner.id, b.id))!.content)).find((x) => x.type === 'synced')!.synced_at;
+    await updateDocPage(owner.id, b.id, { content: block('Sin versión') }, { actorId: owner.id });
+    expect((await getSyncedBlock(owner.id, syncedId))?.[0]?.content).toBe('Primera versión');
+    await updateDocPage(owner.id, b.id, { content: block('Editada en B', seenB) }, { actorId: owner.id });
     const pageA = (await getDocPage(owner.id, a.id))!;
     const hydrated = await hydrateSyncedBlocks(owner.id, pageA.content);
     expect(hydrated.map((x) => [x.type, x.content, x.indent ?? 0])).toEqual([

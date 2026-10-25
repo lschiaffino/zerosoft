@@ -1666,6 +1666,9 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 }
 .docs-synced:hover .docs-synced-bar,
 .docs-synced:focus-within .docs-synced-bar { opacity: 1; }
+/* Solo lectura (no edita el origen): la barra queda a la vista con el aviso. */
+.docs-synced-bar:has(.docs-synced-readonly) { opacity: 1; }
+.docs-synced-readonly { color: var(--brand-gray-2); }
 .docs-synced-noaccess {
   margin: 4px 0;
   font-size: 0.875rem;

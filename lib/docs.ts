@@ -10,7 +10,7 @@ import {
 } from './db';
 import { sanitizeBlocks } from './docs-sanitize';
 import { normalizeStructure } from './docs-columns';
-import { persistSyncedBlocks, reassignSyncedSources } from './docs-synced';
+import { persistSyncedBlocks } from './docs-synced';
 import { parseSyncedBase, stripSyncedChildren, syncedChildren, syncedIdsOf } from './docs-synced-refs';
 import { syncDocReminders } from './docs-reminders';
 import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
@@ -511,6 +511,8 @@ export interface UpdateDocPageOptions {
   outcome?: { merged?: boolean; staleBase?: boolean };
   /** Bloques sincronizados que quien guarda no puede ver: su contenido no se toca (lib/docs-synced.ts). */
   lockedSynced?: Set<string>;
+  /** De esos, los que ni puede ver: pegados sabiendo el id, quedan como un bloque propio nuevo. */
+  deniedSynced?: Set<string>;
 }
 
 export async function updateDocPage(
@@ -636,6 +638,7 @@ export async function updateDocPage(
       next: blocksOut,
       children: incomingSynced,
       locked: opts.lockedSynced,
+      denied: opts.deniedSynced ?? opts.lockedSynced,
       seenAt: syncedSeenAt,
     });
     savedContent = synced.blocks;
@@ -707,6 +710,12 @@ export async function updateDocPage(
     // Restaurar una subpágina cuyo padre sigue en la papelera: pasa a la raíz.
     // Si no, quedaba colgando de un padre archivado y el borrado definitivo
     // del padre se la llevaba aunque estuviera activa.
+    // Restaurar una página de un teamspace borrado (cerrado o privado) restaura
+    // el teamspace entero, con sus miembros y su acceso: la página nunca queda
+    // a la vista de todo el workspace.
+    if (!input.archived && row.archived === 1 && row.teamspace_id) {
+      await getDb().prepare('UPDATE docs_teamspaces SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL').run(row.teamspace_id);
+    }
     if (!input.archived && row.archived === 1 && row.parent_id && input.parent_id === undefined) {
       const parent = (await getDb()
         .prepare('SELECT archived FROM docs_pages WHERE id = ?')
@@ -965,8 +974,8 @@ export async function deleteDocPage(ownerId: string, pageId: string): Promise<bo
   // con su subárbol, si no el DELETE (y el ON DELETE CASCADE) la borraba.
   const ids = row.archived === 1 ? await collectArchivedSubtree(ownerId, pageId) : await collectDescendants(ownerId, pageId);
   const placeholders = ids.map(() => '?').join(',');
-  // Sincronizados con origen en lo que se borra: a otra página del mismo teamspace (o sin origen: solo el dueño).
-  await reassignSyncedSources(ownerId, ids);
+  // Sincronizados con origen en lo que se borra: quedan sin origen (ON DELETE
+  // SET NULL) y solo los ve el dueño del workspace. Sin reasignación automática.
   await getDb()
     .prepare(`DELETE FROM docs_pages WHERE id IN (${placeholders})`)
     .run(...ids);

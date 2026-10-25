@@ -408,6 +408,8 @@ export interface DocsBlock {
    * nunca queda en el content de la página.
    */
   synced_at?: string;
+  /** Sincronizado que quien mira ve pero no puede editar (no edita su origen). Lo pone el servidor; nunca se guarda. */
+  no_edit?: boolean;
   /** Botón: qué hace al hacer clic. */
   button?: DocsButtonConfig;
   /** Bloque sugerido (Enter en modo sugerir): se acepta o se rechaza entero. */

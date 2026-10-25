@@ -625,6 +625,17 @@ export default function DocsEditor({
   /** Bloques dentro de un toggle plegado: no se muestran ni reciben foco. */
   const hidden = useMemo(() => hiddenBlocks(blocks), [blocks]);
   const numbers = useMemo(() => listNumbers(blocks), [blocks]);
+  /** Bloques adentro de un sincronizado que quien mira no puede editar (no edita su origen). */
+  const noEdit = useMemo(() => {
+    const out = new Array<boolean>(blocks.length).fill(false);
+    blocks.forEach((b, i) => {
+      if (b.type !== 'synced' || !b.no_edit) return;
+      for (let j = i + 1; j <= subtreeEnd(blocks, i); j++) out[j] = true;
+    });
+    return out;
+  }, [blocks]);
+  const noEditRef = useRef(noEdit);
+  noEditRef.current = noEdit;
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [importing, setImporting] = useState(false);
   /**
@@ -2099,6 +2110,7 @@ export default function DocsEditor({
       if (!block) return;
       if (modeRef.current === 'suggest' && suggestKeyDownRef.current(index, e)) return;
       if (modeRef.current === 'readonly') return;
+      if (noEditRef.current[index]) return;
 
       if (cmdOpen && slash?.index === index) {
         const filtered = filteredCommands;
@@ -2441,7 +2453,7 @@ export default function DocsEditor({
         setFocusTick((v) => v + 1);
         return;
       }
-      if (modeRef.current === 'readonly') return;
+      if (modeRef.current === 'readonly' || noEditRef.current[index]) return;
       updateBlock(index, patch);
       if (patch.content !== undefined) handleInput(index, patch.content);
     },
@@ -3477,7 +3489,7 @@ export default function DocsEditor({
                   onPasteBlocks={mode === 'edit' ? handlePasteBlocks : undefined}
                   onPasteUrl={(embedded && !pageLinks) || mode !== 'edit' ? undefined : onPasteUrl}
                   onPasteSynced={embedded || mode !== 'edit' ? undefined : onPasteSynced}
-                  readOnly={mode === 'readonly'}
+                  readOnly={mode === 'readonly' || noEdit[index]}
                   toc={toc}
                   trail={trail}
                   onRunButton={runButton}
@@ -3734,6 +3746,7 @@ export default function DocsEditor({
             <div className="docs-synced-bar">
               <DocsGlyph name="synced" size={13} />
               <span>{t('editor.synced.label')}</span>
+              {block.no_edit && <span className="docs-synced-readonly" data-testid="docs-synced-readonly">{t('editor.synced.readOnly')}</span>}
               {!block.no_access && (
                 <button type="button" className="docs-synced-copy" onClick={() => copySynced(block)}>
                   {t('editor.synced.copy')}

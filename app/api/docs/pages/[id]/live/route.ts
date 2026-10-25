@@ -4,7 +4,7 @@ import { getCurrentUser, realUserId } from '@/lib/session';
 import { DOC_INTERNAL_READ, getDocAccess, getDocPageRow, parseBlocks, toDocPage } from '@/lib/docs';
 import { syncedUpdatedAt } from '@/lib/docs-synced';
 import { stripFileUrls } from '@/lib/docs-files';
-import { editorBlocks } from '@/lib/docs-guard';
+import { editorBlocks, syncedReader } from '@/lib/docs-guard';
 import { SESSION_RE, commentsSignature, leavePresence, listPeers, touchPresence } from '@/lib/docs-live';
 import { invalidBody, notFound, unauthorized } from '@/lib/docs-http';
 
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   // Uno mismo en otra pestaña no aparece como otra persona presente.
   const peers = allPeers.filter((p) => p.user_id !== me);
   // Un sincronizado que se editó en otra página también trae la versión nueva.
-  const syncedAt = await syncedUpdatedAt(row.user_id, parseBlocks(row.content));
+  const syncedAt = await syncedUpdatedAt(row.user_id, parseBlocks(row.content), syncedReader(user, row));
   let page = null;
   if ((body.since && body.since !== row.updated_at) || (body.synced_at !== undefined && body.synced_at !== null && body.synced_at !== syncedAt)) {
     const p = toDocPage(row);

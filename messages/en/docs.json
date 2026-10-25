@@ -251,6 +251,7 @@
       "unsync": "Unsync",
       "copied": "Copied. Paste it on any page of this workspace and edits will show up in both places.",
       "notFound": "That synced block isn't in this workspace.",
+      "readOnly": "View only: you can't edit the page it comes from.",
       "noAccess": "You don’t have access to this synced block. Ask for access to the page it comes from."
     },
     "columns": {
@@ -1184,7 +1185,7 @@
     "deleteTeamspace": "Delete teamspace",
     "deleteTitle": "Delete {name}?",
     "deleteBody": "Its pages stay in the workspace, nothing is lost.",
-    "deleteBodyPrivate": "Its pages go to the trash. Only its members and workspace admins can see and restore them; nobody else in the workspace gets access.",
+    "deleteBodyPrivate": "Its pages go to the trash. Only its members and workspace admins can see and restore them; nobody else in the workspace gets access. Restoring one of them brings the teamspace back.",
     "lastOwner": "A teamspace needs at least one owner.",
     "cancel": "Cancel",
     "auditHelp": "Who did what with pages, access and security in the last year. Only admins see it.",

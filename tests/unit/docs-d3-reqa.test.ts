@@ -75,15 +75,17 @@ describe('Sin página de origen: falla cerrado', () => {
     expect(JSON.stringify(await load(host.id))).toContain(SECRET);
   });
 
-  it('si otra página del mismo teamspace lo usa, pasa a ser el origen (y sigue privado)', async () => {
+  it('aunque otra página del mismo teamspace lo use, no se reasigna: queda sin origen', async () => {
     const { owner, asBob, priv, src, host, synced, syncedId } = await setup();
     const sibling = await createDocPage(owner.id, { title: 'Otra privada', teamspace_id: priv.id });
     await updateDocPage(owner.id, sibling.id, { content: synced }, { actorId: owner.id });
     await updateDocPage(owner.id, src.id, { archived: true });
     await deleteDocPage(owner.id, src.id);
-    expect(((await getDb().prepare('SELECT source_page_id FROM docs_synced_blocks WHERE id = ?').get(syncedId)) as { source_page_id: string }).source_page_id).toBe(sibling.id);
+    expect(((await getDb().prepare('SELECT source_page_id FROM docs_synced_blocks WHERE id = ?').get(syncedId)) as { source_page_id: string | null }).source_page_id).toBeNull();
     session.user = asBob;
     expect(JSON.stringify(await load(host.id))).not.toContain(SECRET);
+    // Ni el centro de ayuda (la página que lo pega está publicada).
+    expect(JSON.stringify(await getHelpArticle(owner.id, (await getDocPageRow(host.id))!.slug!))).not.toContain(SECRET);
   });
 });
 
@@ -294,5 +296,102 @@ describe('Un guardado nunca "adopta" un sincronizado ajeno', () => {
     expect((await row(nullSrc))!.source_page_id).toBeNull();
     expect((await row(nullSrc))!.content).toBe('[]');
     expect((await row(missing))!.source_page_id).toBeNull();
+  });
+});
+
+describe('Re-QA 2: editar sincronizados, versiones y teamspaces restaurados', () => {
+  /** Origen en un teamspace abierto donde los miembros solo ven; la página que lo pega es editable. */
+  async function viewOnly() {
+    const owner = await makeUser('own');
+    const bob = await makeUser('bob');
+    const team = await createTeam(owner.id, 'Equipo');
+    await addMember(team.id, bob.id, 'member');
+    const asBob: FakeUser = { id: owner.id, email: owner.email, actingUser: { id: bob.id, email: bob.email, name: bob.name }, role: 'member', team };
+    const asOwner: FakeUser = { id: owner.id, email: owner.email };
+    const ts = await createTeamspace(owner.id, owner.id, { name: 'Lectura', access: 'open', member_role: 'view' });
+    const sid = `sync-${crypto.randomUUID().slice(0, 12)}`;
+    const synced: DocsBlock[] = [{ id: 's', type: 'synced', content: '', synced_id: sid }, para('c', 'Política oficial', 1)];
+    const src = await createDocPage(owner.id, { title: 'Políticas', teamspace_id: ts.id });
+    await updateDocPage(owner.id, src.id, { content: synced }, { actorId: owner.id });
+    const host = await createDocPage(owner.id, { title: 'Editable' });
+    await updateDocPage(owner.id, host.id, { content: [para('a', 'Hola'), ...synced] }, { actorId: owner.id });
+    return { owner, bob, asBob, asOwner, sid, src, host };
+  }
+  const save = (id: string, content: DocsBlock[], base: string) =>
+    pageRoute.PATCH(req(`http://x/api/docs/pages/${id}`, 'PATCH', { content, base_updated_at: base }), { params: Promise.resolve({ id }) });
+
+  it('quien solo ve el origen no edita el sincronizado desde una página editable (y el editor lo muestra en lectura)', async () => {
+    const { owner, asBob, sid, host } = await viewOnly();
+    session.user = asBob;
+    const seen = await load(host.id);
+    const syncedBlock = seen.content.find((b) => b.type === 'synced')!;
+    expect(syncedBlock.no_edit).toBe(true);
+    expect(syncedBlock.no_access).toBeUndefined();
+    const res = await save(host.id, seen.content.map((b) => (b.id === 'c' ? { ...b, content: 'DEFACED by bob' } : b)).concat([para('b', 'de Bob')]), seen.updated_at);
+    expect(res.status).toBe(200);
+    expect((await getSyncedBlock(owner.id, sid))?.[0]?.content).toBe('Política oficial');
+    expect((await load(host.id)).content.map((b) => b.content)).toContain('de Bob');
+    // Pegarlo en una página suya sigue siendo una referencia (en lectura), no una copia editable.
+    const mine = await createDocPage(owner.id, { title: 'De Bob' });
+    const m = await load(mine.id);
+    await save(mine.id, [...m.content, syncedBlock, para('x', 'DEFACED', 1)], m.updated_at);
+    expect((await getSyncedBlock(owner.id, sid))?.[0]?.content).toBe('Política oficial');
+    expect((await getDocPageRow(mine.id))!.content).toContain(sid);
+  });
+
+  it('la dueña (puede editar el origen) sí edita desde la página que lo pega', async () => {
+    const { owner, asOwner, sid, host } = await viewOnly();
+    session.user = asOwner;
+    const seen = await load(host.id);
+    expect(seen.content.find((b) => b.type === 'synced')!.no_edit).toBeUndefined();
+    await save(host.id, seen.content.map((b) => (b.id === 'c' ? { ...b, content: 'Política 2' } : b)), seen.updated_at);
+    expect((await getSyncedBlock(owner.id, sid))?.[0]?.content).toBe('Política 2');
+  });
+
+  it('sin synced_at, con uno inválido o futuro, el bloque cuenta como sin cambios', async () => {
+    const { owner, asOwner, sid, host } = await viewOnly();
+    session.user = asOwner;
+    for (const at of [undefined, 'no-es-fecha', '2999-01-01T00:00:00.000Z']) {
+      const seen = await load(host.id);
+      const content = seen.content.map((b) => {
+        if (b.type === 'synced') {
+          const { synced_at: _x, ...rest } = b;
+          void _x;
+          return at ? { ...rest, synced_at: at } : rest;
+        }
+        return b.id === 'c' ? { ...b, content: `Pisado ${at}` } : b;
+      });
+      await save(host.id, content, seen.updated_at);
+      expect((await getSyncedBlock(owner.id, sid))?.[0]?.content).toBe('Política oficial');
+    }
+  });
+
+  it('el pulso en vivo no cuenta sincronizados que quien pregunta no ve', async () => {
+    const { owner, asBob, host, src } = await setup();
+    session.user = asBob;
+    const ctx = { params: Promise.resolve({ id: host.id }) };
+    const pulse = async () =>
+      (await (await liveRoute.POST(req(`http://x/api/docs/pages/${host.id}/live`, 'POST', { session: 'tab-bob-live', since: (await getDocPageRow(host.id))!.updated_at, synced_at: 'x' }), ctx)).json()) as {
+        synced_at: string;
+        page: unknown;
+      };
+    const before = await pulse();
+    expect(before.synced_at).toBe('');
+    const s = (await (async () => {
+      session.user = { id: owner.id, email: owner.email };
+      return load(src.id);
+    })());
+    await updateDocPage(owner.id, src.id, { content: s.content.map((b) => (b.id === 'c' ? { ...b, content: 'Cambio privado' } : b)), base_updated_at: s.updated_at }, { actorId: owner.id });
+    session.user = asBob;
+    expect((await pulse()).synced_at).toBe('');
+  });
+
+  it('restaurar una página de un teamspace privado borrado restaura el teamspace', async () => {
+    const { owner, bob, priv, src } = await setup();
+    await deleteTeamspace(priv.id);
+    await updateDocPage(owner.id, src.id, { archived: false });
+    expect((await listTeamspaces(owner.id, owner.id)).map((t) => t.id)).toContain(priv.id);
+    const asBob = { id: owner.id, actingUser: { id: bob.id, email: bob.email } as never, role: 'member' as const };
+    expect(await getDocAccess((await getDocPageRow(src.id))!, asBob)).toBeNull();
   });
 });

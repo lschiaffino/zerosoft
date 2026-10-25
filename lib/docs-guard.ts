@@ -16,7 +16,7 @@ import {
   teamspaceRoleOf,
   type DocsSettings,
 } from './docs-access';
-import { hydrateSyncedBlocks, unreadableSyncedIds, type SyncedReader } from './docs-synced';
+import { hydrateSyncedBlocks, markUneditableSynced, unreadableSyncedIds, type SyncedReader } from './docs-synced';
 import { pageLinkHref, resolveBlocksPageLinks } from './docs-page-links';
 import type { DocsAccess, DocsBlock } from './docs-types';
 
@@ -150,9 +150,40 @@ export function knowledgeSyncedReader(host: Pick<DocsPageRow, 'id' | 'user_id'>,
 
 /** Sincronizados que `actor` no puede ver entre lo guardado y lo que llega (su contenido no se toca al guardar). */
 export async function lockedSyncedIds(actor: DocsActor, row: DocsPageRow, incoming: DocsBlock[]): Promise<Set<string>> {
-  const reader = syncedReader(actor, row);
-  const out = await unreadableSyncedIds(row.user_id, [...parseBlocks(row.content), ...incoming], reader);
-  return out;
+  return (await syncedLocks(actor, row, incoming)).locked;
+}
+
+/**
+ * Sincronizados que `actor` no puede cambiar al guardar `row`: los que no
+ * puede editar en su página de origen (`locked`, entre ellos los que ni
+ * puede ver, `denied`). Su contenido no se toca; lo que llegue adentro se descarta.
+ */
+export async function syncedLocks(actor: DocsActor, row: DocsPageRow, incoming: DocsBlock[]): Promise<{ locked: Set<string>; denied: Set<string> }> {
+  const all = [...parseBlocks(row.content), ...incoming];
+  const denied = await unreadableSyncedIds(row.user_id, all, syncedReader(actor, row));
+  const locked = new Set([...denied, ...(await unreadableSyncedIds(row.user_id, all, syncedEditor(actor, row)))]);
+  return { locked, denied };
+}
+
+/**
+ * Quién puede cambiar el contenido de un sincronizado desde `host`: quien
+ * puede editar su página de origen. Ver el origen no alcanza. Sin origen,
+ * solo el dueño del workspace.
+ */
+export function syncedEditor(actor: DocsActor, host: Pick<DocsPageRow, 'id' | 'user_id'>): SyncedReader {
+  const cache = new Map<string, boolean>();
+  return async (src) => {
+    // La propia página: quien guarda ya la puede editar.
+    if (src && src === host.id) return true;
+    if (!src) return isWorkspaceOwner(actor, host.user_id);
+    const hit = cache.get(src);
+    if (hit !== undefined) return hit;
+    const row = await getDocPageRow(src);
+    const access = row && row.user_id === host.user_id ? await getDocAccess(row, actor, { includePublished: false, includePublicLink: false }) : null;
+    const ok = row ? !!access && canWriteAccess(access) && row.locked !== 1 : isWorkspaceOwner(actor, host.user_id);
+    cache.set(src, ok);
+    return ok;
+  };
 }
 
 /** Ajuste de seguridad (exportar, publicar, invitados): si está apagado, solo admins. */
@@ -174,7 +205,7 @@ export async function docsAllowed(
  * la base de la fusión es la misma en todos lados.
  */
 export async function editorBlocks(row: DocsPageRow, actor: DocsActor, blocks?: DocsBlock[]): Promise<DocsBlock[]> {
-  const hydrated = await hydrateSyncedBlocks(row.user_id, blocks ?? parseBlocks(row.content), syncedReader(actor, row));
+  const hydrated = await markUneditableSynced(row.user_id, await hydrateSyncedBlocks(row.user_id, blocks ?? parseBlocks(row.content), syncedReader(actor, row)), syncedEditor(actor, row));
   const titles = await readableLinkTitles(actor, row, hydrated);
   return resolveBlocksPageLinks(hydrated, (id) => ({ href: pageLinkHref(id), title: titles.get(id) ?? null }));
 }
