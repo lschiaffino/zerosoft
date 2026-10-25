@@ -19,6 +19,9 @@ import {
 } from '@/lib/docs-database';
 import DocsGlyph from '../DocsGlyphs';
 import { StatusGlyph } from './DbValueView';
+import type { DbComputeEnv } from '@/lib/docs-db-compute';
+import type { DbRuntime, DbSource } from './useDbRuntime';
+import { DbAiConfig, DbButtonConfig, DbFormulaEditor, DbRelationConfig, DbRollupConfig, DbUniqueIdConfig } from './DbPropertyConfig';
 
 const TYPE_PATHS: Record<DbPropertyType, string> = {
   title: 'M4 7h16M4 12h10M4 17h13',
@@ -35,7 +38,19 @@ const TYPE_PATHS: Record<DbPropertyType, string> = {
   phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4H18A15 15 0 0 1 5 6z',
   created_time: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2',
   last_edited_time: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2',
+  formula: 'M7 20c2 0 2-2 3-8s1-8 3-8M6 10h8M14 14l5 5M19 14l-5 5',
+  relation: 'M7 17L17 7M9 7h8v8',
+  rollup: 'M4 6h16M7 12h10M10 18h4',
+  files: 'M8 12l6-6a3 3 0 0 1 4 4l-8 8a5 5 0 0 1-7-7l7-7',
+  created_by: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
+  last_edited_by: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
+  unique_id: 'M4 9h16M4 15h16M10 3L8 21M16 3l-2 18',
+  button: 'M4 7h16v10H4zM9 12h6',
+  place: 'M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12zM12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
 };
+
+/** Tipos que necesitan una página de Docs (en Notes no hay bases de otras páginas ni subida de archivos de base). */
+export const DOCS_ONLY_TYPES = new Set<DbPropertyType>(['relation', 'rollup', 'files']);
 
 export function PropertyTypeIcon({ type }: { type: DbPropertyType }) {
   return (
@@ -49,11 +64,11 @@ export function PropertyTypeIcon({ type }: { type: DbPropertyType }) {
 export const typeKey = (type: DbPropertyType) => `types.${type}` as const;
 
 /** Lista de tipos para crear una propiedad (popover "+" del encabezado y panel de propiedades). */
-export function PropertyTypeList({ onPick }: { onPick: (type: DbPropertyType) => void }) {
+export function PropertyTypeList({ onPick, docsOnly = true }: { onPick: (type: DbPropertyType) => void; docsOnly?: boolean }) {
   const t = useTranslations('docs.database');
   return (
-    <div className="docs-db-menu" role="menu" aria-label={t('addProperty')}>
-      {DB_PROPERTY_TYPES.map((type) => (
+    <div className="docs-db-menu docs-db-typelist" role="menu" aria-label={t('addProperty')}>
+      {DB_PROPERTY_TYPES.filter((type) => docsOnly || !DOCS_ONLY_TYPES.has(type)).map((type) => (
         <button key={type} type="button" role="menuitem" className="docs-db-menu-item" onClick={() => onPick(type)}>
           <PropertyTypeIcon type={type} />
           {t(typeKey(type))}
@@ -76,6 +91,11 @@ export default function DbPropertyMenu({
   commit,
   onFilter,
   onClose,
+  source,
+  runtime,
+  env,
+  onAutofill,
+  filling = false,
 }: {
   db: DocsDatabase;
   view: DbViewConfig;
@@ -84,6 +104,11 @@ export default function DbPropertyMenu({
   commit: (next: DocsDatabase) => void;
   onFilter: (propId: string) => void;
   onClose: () => void;
+  source?: DbSource;
+  runtime?: DbRuntime;
+  env?: DbComputeEnv;
+  onAutofill?: (propId: string, onlyEmpty: boolean) => void;
+  filling?: boolean;
 }) {
   const t = useTranslations('docs.database');
   const prop = db.properties.find((p) => p.id === propId);
@@ -133,10 +158,11 @@ export default function DbPropertyMenu({
         ) : (
           <select
             className="docs-db-select"
+            aria-label={t('propertyType')}
             value={prop.type}
             onChange={(e) => commit(changePropertyType(db, prop.id, e.target.value as DbPropertyType, { members }))}
           >
-            {DB_PROPERTY_TYPES.map((type) => (
+            {DB_PROPERTY_TYPES.filter((type) => source?.pageId || !DOCS_ONLY_TYPES.has(type) || type === prop.type).map((type) => (
               <option key={type} value={type}>
                 {t(typeKey(type))}
               </option>
@@ -144,6 +170,15 @@ export default function DbPropertyMenu({
           </select>
         )}
       </label>
+
+      {prop.type === 'formula' && <DbFormulaEditor db={db} prop={prop} env={env ?? {}} commit={commit} />}
+      {prop.type === 'relation' && source && runtime && <DbRelationConfig db={db} prop={prop} source={source} runtime={runtime} commit={commit} />}
+      {prop.type === 'rollup' && runtime && <DbRollupConfig db={db} prop={prop} runtime={runtime} commit={commit} />}
+      {prop.type === 'unique_id' && <DbUniqueIdConfig db={db} prop={prop} commit={commit} />}
+      {prop.type === 'button' && <DbButtonConfig db={db} prop={prop} members={members} commit={commit} />}
+      {(prop.type === 'text' || prop.type === 'select' || prop.type === 'multi_select') && onAutofill && source?.pageId && (
+        <DbAiConfig db={db} prop={prop} commit={commit} filling={filling} onFill={(onlyEmpty) => onAutofill(prop.id, onlyEmpty)} />
+      )}
 
       {isOptionType(prop.type) && (
         <div className="docs-db-optedit" role="group" aria-label={t('options')}>
@@ -262,7 +297,24 @@ export default function DbPropertyMenu({
               className="docs-db-menu-item danger"
               data-autofocus
               onClick={() => {
-                commit(removeProperty(db, prop.id));
+                // Relación de dos vías: la otra punta se va también (o deja de estar sincronizada).
+                const r = prop.relation;
+                const isSelf = r && source?.pageId === r.page_id && source?.blockId === r.block_id;
+                if (r && runtime && !isSelf) {
+                  const tgt = { page_id: r.page_id, block_id: r.block_id };
+                  if (r.synced_prop) void runtime.writeTo(tgt, [{ op: 'remove_property', prop: r.synced_prop }]);
+                  if (r.mirror_of) {
+                    const orig = runtime.targetOf(prop).db?.properties.find((p) => p.id === r.mirror_of);
+                    if (orig?.relation) {
+                      const { synced_prop: _s, ...rest } = orig.relation;
+                      void _s;
+                      void runtime.writeTo(tgt, [{ op: 'update_property', property: { ...orig, relation: rest } }]);
+                    }
+                  }
+                }
+                let next = removeProperty(db, prop.id);
+                if (isSelf && r?.synced_prop) next = removeProperty(next, r.synced_prop);
+                commit(next);
                 onClose();
               }}
             >

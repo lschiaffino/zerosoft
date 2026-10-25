@@ -1,11 +1,10 @@
 import sanitizeHtml from 'sanitize-html';
-import type { DbProperty, DbValue, DocsBlock, DocsDatabase } from './docs-types';
+import type { DbAction, DbAutomation, DbFile, DbProperty, DbRow, DbValue, DbViewConfig, DocsBlock, DocsButtonConfig, DocsDatabase, DocsLinkPreview } from './docs-types';
 import { isPageLinkId, pageLinkHref } from './docs-page-links';
 import { DB_MAX_BODY_BLOCKS, isComputedType, isOptionType, isTextType, normalizeDatabase } from './docs-database';
-import { sanitizeFileFields } from './docs-files';
+import { cleanFileName, isDocsUploadUrl, sanitizeFileFields } from './docs-files';
 import { cleanExternalUrl } from './docs-embeds';
 import { DAY_RE as DATE_DAY_RE, RID_RE, TIME_RE } from './docs-dates';
-import type { DocsButtonConfig, DocsLinkPreview } from './docs-types';
 
 /**
  * Sanitización de Docs en el servidor. El editor ya sanitiza en el navegador
@@ -81,7 +80,15 @@ const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** Valor de una celda según el tipo de su propiedad; undefined = se descarta. */
 function sanitizeDbValue(prop: DbProperty, v: DbValue): DbValue | undefined {
+  if (prop.type === 'unique_id') return typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : undefined;
   if (isComputedType(prop.type)) return undefined;
+  if (prop.type === 'relation') {
+    // El espejo de una relación de dos vías no guarda valores (se calcula del otro lado).
+    if (prop.relation?.mirror_of || !Array.isArray(v)) return undefined;
+    const ids = [...new Set(v.filter((id) => ID_RE.test(id)))];
+    return prop.relation?.limit === 1 ? ids.slice(-1) : ids.slice(0, 100);
+  }
+  if (prop.type === 'files') return undefined;
   if (isTextType(prop.type)) return typeof v === 'string' ? plainCell(v) : undefined;
   switch (prop.type) {
     case 'number':
@@ -127,6 +134,7 @@ export function sanitizeDatabase(db: DocsDatabase): DocsDatabase {
           ...(p.type === 'status' ? { group: o.group ?? 'todo' } : {}),
         }));
       }
+      sanitizePropertyConfig(p, out);
       return out;
     });
   const byId = new Map(properties.map((p) => [p.id, p]));
@@ -141,23 +149,21 @@ export function sanitizeDatabase(db: DocsDatabase): DocsDatabase {
     const body = r.body?.length
       ? sanitizeBlocks(r.body.filter((b) => b.type !== 'database').slice(0, DB_MAX_BODY_BLOCKS))
       : undefined;
-    return {
+    const files = sanitizeRowFiles(r.files, byId);
+    const out: DbRow = {
       id: r.id,
       values,
       ...(body ? { body } : {}),
+      ...(files ? { files } : {}),
       created_at: isoOr(r.created_at, now),
       updated_at: isoOr(r.updated_at, now),
     };
+    if (r.created_by && ID_RE.test(r.created_by)) out.created_by = r.created_by;
+    if (r.updated_by && ID_RE.test(r.updated_by)) out.updated_by = r.updated_by;
+    return out;
   });
-  const views = fixed.views.map((v) => ({
-    ...v,
-    name: plainCell(v.name).slice(0, 500),
-    filters: v.filters?.filter((f) => byId.has(f.property)),
-    sorts: v.sorts?.filter((x) => byId.has(x.property)),
-    group_by: v.group_by && byId.has(v.group_by) ? v.group_by : null,
-    hidden: v.hidden?.filter((h) => byId.has(h)),
-    widths: v.widths ? Object.fromEntries(Object.entries(v.widths).filter(([k]) => byId.has(k))) : undefined,
-  }));
+  repairUniqueIds(properties, rows);
+  const views = fixed.views.map((v) => sanitizeView(v, byId));
   const active = views.some((v) => v.id === fixed.active_view) ? fixed.active_view : views[0]?.id;
   // Plantillas de fila: los mismos valores saneados que una fila y un cuerpo sin bases.
   const templates = (fixed.templates ?? []).slice(0, 30).flatMap((tpl) => {
@@ -181,6 +187,7 @@ export function sanitizeDatabase(db: DocsDatabase): DocsDatabase {
     ...(active ? { active_view: active } : {}),
     ...(fixed.title ? { title: plainCell(fixed.title).slice(0, 500) } : {}),
     ...(templates.length ? { templates } : {}),
+    ...(fixed.automations?.length ? { automations: sanitizeAutomations(fixed.automations, byId, views) } : {}),
   };
 }
 
@@ -270,6 +277,179 @@ function sanitizeExtraFields(block: DocsBlock): DocsBlock {
   return out;
 }
 
+
+/** Configuración de los tipos nuevos (fórmula, relación, rollup, ID único, botón, IA). */
+function sanitizePropertyConfig(p: DbProperty, out: DbProperty): void {
+  if (p.type === 'formula') out.formula = String(p.formula ?? '').slice(0, 4000);
+  if (p.type === 'relation' && p.relation && ID_RE.test(p.relation.page_id) && ID_RE.test(p.relation.block_id)) {
+    out.relation = {
+      page_id: p.relation.page_id,
+      block_id: p.relation.block_id,
+      ...(p.relation.limit === 1 ? { limit: 1 as const } : {}),
+      ...(p.relation.synced_prop && ID_RE.test(p.relation.synced_prop) ? { synced_prop: p.relation.synced_prop } : {}),
+      ...(p.relation.mirror_of && ID_RE.test(p.relation.mirror_of) ? { mirror_of: p.relation.mirror_of } : {}),
+    };
+  }
+  if (p.type === 'rollup' && p.rollup && ID_RE.test(p.rollup.relation) && ID_RE.test(p.rollup.property)) {
+    out.rollup = { relation: p.rollup.relation, property: p.rollup.property, fn: p.rollup.fn };
+  }
+  if (p.type === 'unique_id') {
+    const prefix = plainCell(p.prefix ?? '').replace(/[^\p{L}\p{N}_]/gu, '').slice(0, 20);
+    if (prefix) out.prefix = prefix;
+    if (typeof p.next_id === 'number' && p.next_id >= 1) out.next_id = Math.floor(p.next_id);
+  }
+  if (p.type === 'button') {
+    out.button = { label: plainCell(p.button?.label ?? p.name).slice(0, 200), actions: sanitizeActions(p.button?.actions ?? []) };
+  }
+  if (p.ai && (p.type === 'text' || p.type === 'select' || p.type === 'multi_select')) {
+    out.ai = {
+      mode: p.ai.mode,
+      ...(p.ai.prompt ? { prompt: plainCell(p.ai.prompt).slice(0, 2000) } : {}),
+      ...(p.ai.language ? { language: plainCell(p.ai.language).slice(0, 40) } : {}),
+      ...(p.ai.auto ? { auto: true } : {}),
+    };
+  }
+}
+
+/** Vista: solo propiedades que existen (con `byId` null, de una vista vinculada: no se pueden chequear). */
+function sanitizeView(v: DbViewConfig, byId: Map<string, DbProperty> | null): DbViewConfig {
+  const has = (id: string | null | undefined): id is string => Boolean(id) && (!byId || byId.has(id!));
+  const out: DbViewConfig = {
+    ...v,
+    name: plainCell(v.name).slice(0, 500),
+    filters: v.filters?.filter((f) => has(f.property)),
+    sorts: v.sorts?.filter((x) => has(x.property)),
+    group_by: has(v.group_by) ? v.group_by : null,
+    hidden: v.hidden?.filter((h) => has(h)),
+    widths: v.widths ? Object.fromEntries(Object.entries(v.widths).filter(([k]) => has(k))) : undefined,
+  };
+  for (const k of ['sub_group_by', 'date_by', 'end_by'] as const) {
+    if (v[k] !== undefined) out[k] = has(v[k]) ? v[k] : null;
+  }
+  return out;
+}
+
+const MIME_RE = /^[\w.+-]+\/[\w.+-]+$/;
+
+function sanitizeRowFiles(files: Record<string, DbFile[]> | undefined, byId: Map<string, DbProperty>): Record<string, DbFile[]> | undefined {
+  if (!files || typeof files !== 'object') return undefined;
+  const out: Record<string, DbFile[]> = {};
+  for (const [propId, list] of Object.entries(files)) {
+    if (byId.get(propId)?.type !== 'files' || !Array.isArray(list)) continue;
+    const clean = list
+      .filter((f) => f && ID_RE.test(f.id) && isDocsUploadUrl(f.url))
+      .slice(0, 20)
+      .map((f) => {
+        const file: DbFile = { id: f.id, url: f.url, name: cleanFileName(f.name) || 'file' };
+        if (typeof f.size === 'number' && Number.isFinite(f.size) && f.size >= 0) file.size = Math.round(f.size);
+        if (typeof f.mime === 'string' && MIME_RE.test(f.mime) && f.mime.length <= 255) file.mime = f.mime.toLowerCase();
+        return file;
+      });
+    if (clean.length) out[propId] = clean;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * IDs únicos: cada fila con un número distinto; las que no tienen (filas que
+ * llegaron por la API o de una copia) toman el próximo. El contador nunca
+ * baja.
+ */
+function repairUniqueIds(properties: DbProperty[], rows: DbRow[]): void {
+  for (const p of properties) {
+    if (p.type !== 'unique_id') continue;
+    const seen = new Set<number>();
+    let max = 0;
+    for (const r of rows) {
+      const v = r.values[p.id];
+      if (typeof v === 'number' && v > max) max = v;
+    }
+    let next = Math.max(p.next_id ?? 1, max + 1);
+    for (const r of rows) {
+      const v = r.values[p.id];
+      if (typeof v === 'number' && !seen.has(v)) {
+        seen.add(v);
+        continue;
+      }
+      r.values[p.id] = next;
+      seen.add(next);
+      next++;
+    }
+    p.next_id = next;
+  }
+}
+
+const SAFE_URL_RE = /^https?:\/\/\S+$/i;
+
+export function sanitizeActions(actions: DbAction[]): DbAction[] {
+  const out: DbAction[] = [];
+  for (const a of actions.slice(0, 10)) {
+    if (!a || !ID_RE.test(a.id)) continue;
+    switch (a.type) {
+      case 'set_prop':
+        if (ID_RE.test(a.prop)) out.push({ id: a.id, type: 'set_prop', prop: a.prop, value: a.value ?? null, ...(a.mode ? { mode: a.mode } : {}) });
+        break;
+      case 'add_row':
+        {
+          // Sin base elegida (o inválida): queda como borrador, con destino vacío.
+          const ok = ID_RE.test(a.target?.page_id ?? '') && ID_RE.test(a.target?.block_id ?? '');
+          out.push({
+            id: a.id,
+            type: 'add_row',
+            target: ok ? { page_id: a.target.page_id, block_id: a.target.block_id } : { page_id: '', block_id: '' },
+            ...(a.title ? { title: plainCell(a.title).slice(0, 500) } : {}),
+            ...(a.values ? { values: a.values } : {}),
+          });
+        }
+        break;
+      case 'notify':
+        out.push({
+          id: a.id,
+          type: 'notify',
+          ...(a.people?.length ? { people: a.people.filter((x) => ID_RE.test(x)).slice(0, 20) } : {}),
+          ...(a.person_prop && ID_RE.test(a.person_prop) ? { person_prop: a.person_prop } : {}),
+          ...(a.message ? { message: plainCell(a.message).slice(0, 1000) } : {}),
+        });
+        break;
+      case 'webhook':
+      case 'open_url':
+        // open_url también acepta rutas de la app ("/app/docs/…"); un webhook solo http(s).
+        // Una URL vacía o a medio escribir queda como borrador (vacía): el motor la saltea.
+        if (SAFE_URL_RE.test(a.url) || (a.type === 'open_url' && /^\/[^/\\]/.test(a.url))) out.push({ id: a.id, type: a.type, url: a.url.slice(0, 2048) });
+        else out.push({ id: a.id, type: a.type, url: '' });
+        break;
+    }
+  }
+  return out;
+}
+
+function sanitizeAutomations(list: DbAutomation[], byId: Map<string, DbProperty>, views: DbViewConfig[]): DbAutomation[] {
+  return list.slice(0, 20).flatMap((a) => {
+    if (!a || !ID_RE.test(a.id)) return [];
+    const trigger = a.trigger?.type === 'prop_changed' ? (byId.has(a.trigger.prop) ? a.trigger : null) : { type: 'row_added' as const };
+    if (!trigger) return [];
+    return [
+      {
+        id: a.id,
+        name: plainCell(a.name).slice(0, 200),
+        enabled: a.enabled === true,
+        trigger,
+        view: a.view && views.some((v) => v.id === a.view) ? a.view : null,
+        actions: sanitizeActions(a.actions ?? []).filter((x) => x.type !== 'open_url'),
+      },
+    ];
+  });
+}
+
+/** Vista vinculada: ids válidos y vistas saneadas (las propiedades se validan al leer la base de origen). */
+function sanitizeLinked(linked: NonNullable<DocsBlock['linked']>): DocsBlock['linked'] | undefined {
+  if (!ID_RE.test(linked.page_id ?? '') || !ID_RE.test(linked.block_id ?? '')) return undefined;
+  const views = (linked.views ?? []).slice(0, 20).map((v) => sanitizeView(v, null));
+  if (!views.length) return undefined;
+  const active = views.some((v) => v.id === linked.active_view) ? linked.active_view : views[0].id;
+  return { page_id: linked.page_id, block_id: linked.block_id, views, active_view: active };
+}
+
 export function sanitizeBlocks(blocks: DocsBlock[]): DocsBlock[] {
   return blocks.map((b) => ({
     // image/file: URL solo del storage de Docs, nombre/MIME saneados.
@@ -283,5 +463,6 @@ export function sanitizeBlocks(blocks: DocsBlock[]): DocsBlock[] {
     ...(b.rows ? { rows: b.rows.map((row) => row.map(plainCell)) } : {}),
     // La base solo vive en bloques database.
     ...(b.db ? { db: b.type === 'database' ? sanitizeDatabase(b.db) : undefined } : {}),
+    ...(b.linked ? { linked: b.type === 'database' ? sanitizeLinked(b.linked) : undefined } : {}),
   }));
 }

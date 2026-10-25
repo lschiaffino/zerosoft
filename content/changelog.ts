@@ -77,6 +77,23 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-25-docs-databases',
+    date: '2026-10-25',
+    title: {
+      en: 'Docs: databases with formulas, relations, new views, automations, AI autofill and CSV',
+      es: 'Docs: bases con fórmulas, relaciones, vistas nuevas, automatizaciones, autocompletado con IA y CSV',
+      pt: 'Docs: bancos com fórmulas, relações, novas visualizações, automações, preenchimento com IA e CSV',
+    },
+    items: [
+      { product: 'docs', en: 'New property types: formula (Notion syntax with prop("Name"), if, text, number and date functions), relation, rollup, files, created by, last edited by, unique ID with prefix, button and place.', es: 'Tipos de propiedad nuevos: fórmula (sintaxis de Notion con prop("Nombre"), if y funciones de texto, número y fecha), relación, rollup, archivos, creado por, editado por, ID único con prefijo, botón y lugar.', pt: 'Novos tipos de propriedade: fórmula (sintaxe do Notion com prop("Nome"), if e funções de texto, número e data), relação, rollup, arquivos, criado por, editado por, ID único com prefixo, botão e local.' },
+      { product: 'docs', en: 'Relations link rows to the same database or one on another page, one-way or two-way. Rollups count, sum, average or show the related values.', es: 'Las relaciones unen filas con la misma base o con una de otra página, en una o dos vías. Los rollups cuentan, suman, promedian o muestran los valores relacionados.', pt: 'Relações ligam linhas ao mesmo banco ou a um de outra página, em uma ou duas vias. Rollups contam, somam, fazem média ou mostram os valores relacionados.' },
+      { product: 'docs', en: 'New views: list, calendar (drag rows to another day) and timeline (drag and resize bars). Boards can be split into sub-groups, and /linked shows a database from another page with its own views.', es: 'Vistas nuevas: lista, calendario (arrastrá filas a otro día) y timeline (mové y estirá barras). Los boards se pueden partir en subgrupos y /linked muestra una base de otra página con sus propias vistas.', pt: 'Novas visualizações: lista, calendário (arraste linhas para outro dia) e linha do tempo (mova e estique barras). Boards podem ser divididos em subgrupos e /linked mostra um banco de outra página com suas próprias visualizações.' },
+      { product: 'docs', en: 'Database automations: when a row is added or a property changes, edit a property, add a row to another database, notify people or send a webhook. Button properties run the same actions with one click.', es: 'Automatizaciones de base: cuando se agrega una fila o cambia una propiedad, editar una propiedad, agregar una fila en otra base, avisar a personas o mandar un webhook. La propiedad botón corre las mismas acciones con un click.', pt: 'Automações de banco: quando uma linha é adicionada ou uma propriedade muda, editar uma propriedade, adicionar uma linha em outro banco, avisar pessoas ou enviar um webhook. A propriedade botão roda as mesmas ações com um clique.' },
+      { product: 'docs', en: 'AI autofill for text, select and multi-select properties: summary, key information, translation, best option or your own instruction, on demand or whenever the row changes.', es: 'Autocompletar con IA en propiedades de texto, select y multi-select: resumen, dato clave, traducción, mejor opción o una instrucción propia, a pedido o cada vez que cambia la fila.', pt: 'Preenchimento com IA em propriedades de texto, select e multisseleção: resumo, informação-chave, tradução, melhor opção ou uma instrução própria, sob demanda ou sempre que a linha muda.' },
+      { product: 'docs', en: 'Import a CSV into any database, choosing where each column goes, and export the current view or every row as CSV. Clicking a row title in a table now opens the row.', es: 'Importá un CSV a cualquier base eligiendo adónde va cada columna, y exportá en CSV la vista o todas las filas. Hacer click en el título de una fila de la tabla ahora abre la fila.', pt: 'Importe um CSV para qualquer banco escolhendo para onde vai cada coluna, e exporte em CSV a visualização ou todas as linhas. Clicar no título de uma linha da tabela agora abre a linha.' },
+    ],
+  },
+  {
     id: '2026-10-24-groups-inbox',
     date: '2026-10-24',
     title: {

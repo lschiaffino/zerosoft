@@ -33,9 +33,10 @@ test('Docs: el aviso de conflicto no crece en una página corta', async ({ page,
   const id = await createDoc(request, `Conflicto ${uid()}`);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`/en/app/docs/${id}`, { waitUntil: 'networkidle' });
-  // Otra pestaña guarda primero; lo que se escribe acá choca con esa versión.
+  // Otra pestaña cambia el título primero; lo que se escribe acá en el título choca
+  // con esa versión (lo que no choca se fusiona sin aviso).
   const other = await request.patch(`/api/docs/pages/${id}`, {
-    data: { content: [{ id: 'b-other', type: 'paragraph', content: 'Desde otra pestaña' }] },
+    data: { title: 'Desde otra pestaña', content: [{ id: 'b-other', type: 'paragraph', content: 'Desde otra pestaña' }] },
   });
   expect(other.ok()).toBe(true);
   await page.locator('.docs-title').click();

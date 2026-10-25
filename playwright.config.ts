@@ -63,6 +63,9 @@ export default defineConfig({
       // desde el navegador con el dispositivo simulado (lib/crm-voice-fake.ts).
       MS_GRAPH_FAKE: '1',
       CRM_VOICE_FAKE: '1',
+      // Autocompletar de las bases de Docs contra el modelo falso (lib/docs-db-ai.ts);
+      // con la cookie docs_ai_fake=off se ve el error ai_disabled.
+      DOCS_AI_FAKE: '1',
       // Importadores: Linear, GitHub y Calendly apuntan a un mock local
       // (tests/e2e/importers.spec.ts lo levanta en PORT + 1). Nada sale a internet.
       IMPORT_LINEAR_API_URL: `http://127.0.0.1:${PORT + 1}/linear`,

@@ -6,10 +6,13 @@ import { useLocale, useTranslations } from 'next-intl';
 import type { DbProperty, DbRow, DbValue, DocsBlock, DocsDatabase, DocsPage } from '@/lib/docs-types';
 import { cellValue, DB_MAX_TEMPLATES, isComputedType, newDbId, normalizeDatabase, rowTitle, saveRowAsTemplate, setCell, updateProperty } from '@/lib/docs-database';
 import DocsGlyph from '../DocsGlyphs';
-import DbValueView from './DbValueView';
-import DbCellEditor from './DbCellEditor';
+import DbValueView, { type DbRefs } from './DbValueView';
+import DbCellEditor, { POPOVER_TYPES, type DbCellExtras } from './DbCellEditor';
 import { PropertyTypeIcon } from './DbPropertyMenu';
 import { peopleMap, useDbMembers } from './useDbMembers';
+import { useDbRuntime, withAutomations } from './useDbRuntime';
+import { useAutofill } from './useAutofill';
+import DbGlyph from './DbGlyph';
 
 export type DbRowPanelMode = 'peek' | 'full';
 
@@ -22,6 +25,10 @@ function PropRow({
   locale,
   onChange,
   onCreateOption,
+  refs,
+  extras,
+  onAutofill,
+  filling,
 }: {
   prop: DbProperty;
   row: DbRow;
@@ -30,6 +37,10 @@ function PropRow({
   locale: string;
   onChange: (value: DbValue) => void;
   onCreateOption: (name: string) => void;
+  refs?: DbRefs;
+  extras?: DbCellExtras;
+  onAutofill?: () => void;
+  filling?: boolean;
 }) {
   const t = useTranslations('docs.database');
   const [editing, setEditing] = useState(false);
@@ -40,7 +51,7 @@ function PropRow({
     if (prop.type === 'checkbox') onChange(cellValue(prop, row) !== true);
     else setEditing(true);
   };
-  const isPopover = prop.type === 'select' || prop.type === 'status' || prop.type === 'multi_select' || prop.type === 'person';
+  const isPopover = POPOVER_TYPES.has(prop.type);
   return (
     <div className="docs-db-prow">
       <span className="docs-db-prow-label">
@@ -55,7 +66,7 @@ function PropRow({
         aria-label={prop.name}
         aria-disabled={computed || undefined}
         onClick={(e) => {
-          if ((e.target as HTMLElement).closest('a, input')) return;
+          if ((e.target as HTMLElement).closest('a, input, button')) return;
           if (!editing) start();
         }}
         onKeyDown={(e) => {
@@ -68,7 +79,7 @@ function PropRow({
       >
         {(!editing || isPopover) && (
           <span className="docs-db-cell-value">
-            <DbValueView prop={prop} row={row} people={people} locale={locale} />
+            <DbValueView prop={prop} row={row} people={people} locale={locale} refs={refs} />
             {!computed && prop.type !== 'checkbox' && !cellValueShown(prop, row) && <span className="docs-db-placeholder">{t('emptyValue')}</span>}
           </span>
         )}
@@ -76,6 +87,7 @@ function PropRow({
           <DbCellEditor
             prop={prop}
             row={row}
+            extras={extras}
             members={members}
             anchor={ref.current}
             onChange={onChange}
@@ -87,11 +99,17 @@ function PropRow({
           />
         )}
       </div>
+      {onAutofill && (
+        <button type="button" className="docs-db-ai-btn" disabled={filling} onClick={onAutofill} aria-label={t('ai.fillRow', { name: prop.name })} title={t('ai.fillRow', { name: prop.name })} data-testid="docs-db-ai-row">
+          <DbGlyph name="sparkle" size={13} />
+        </button>
+      )}
     </div>
   );
 }
 
 function cellValueShown(prop: DbProperty, row: DbRow): boolean {
+  if (prop.type === 'files') return Boolean(row.files?.[prop.id]?.length);
   const v = cellValue(prop, row);
   if (v === null || v === undefined || v === '') return false;
   return !(Array.isArray(v) && v.length === 0);
@@ -108,6 +126,8 @@ export default function DbRowPanel({
   rowId,
   mode,
   membersUrl,
+  pageId = null,
+  updateDatabase,
   pageTitle,
   updateDb,
   onMode,
@@ -118,6 +138,10 @@ export default function DbRowPanel({
   rowId: string;
   mode: DbRowPanelMode;
   membersUrl: string | null;
+  /** Página de Docs (relaciones, archivos, botones e IA); null en Notes. */
+  pageId?: string | null;
+  /** Cambiar otra base de la página (relaciones de dos vías). */
+  updateDatabase?: (blockId: string, fn: (db: DocsDatabase) => DocsDatabase) => void;
   pageTitle: string;
   /** Cambio sobre la base más reciente (no la del render: el cuerpo guarda con debounce). */
   updateDb: (fn: (db: DocsDatabase) => DocsDatabase) => void;
@@ -132,10 +156,30 @@ export default function DbRowPanel({
   const people = useMemo(() => peopleMap(members), [members]);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [templateSaved, setTemplateSaved] = useState(false);
+  const [templateSaved, setTemplateSaved] = useState<string | null>(null);
   // Base vieja (sin `db` todavía): mismos ids que ve la tabla.
   const db = block.type === 'database' ? normalizeDatabase(block) : null;
+  const emptyDb = useMemo<DocsDatabase>(() => ({ properties: [{ id: 'title', name: '', type: 'title' }], rows: [], views: [{ id: 'v', name: '', type: 'table' }] }), []);
+  const source = useMemo(() => ({ pageId, blockId: block.id }), [pageId, block.id]);
+  const commit = (next: DocsDatabase) => updateDb((cur) => withAutomations(cur, next));
+  const labels = useMemo(() => ({ untitled: t('untitledRow'), error: t('formula.errorShort'), openMap: t('place.openMap') }), [t]);
+  const runtime = useDbRuntime(
+    { db: db ?? emptyDb, source, hostPageId: pageId, commit, updateDatabase, people, locale, labels },
+    { buttonDone: t('button.done'), buttonError: t('button.failed'), writeError: t('relation.writeError') },
+  );
+  const autofill = useAutofill({
+    db: db ?? emptyDb,
+    shown: runtime.shown,
+    source,
+    commit,
+    people,
+    rowTitles: runtime.refs.titles ?? {},
+    editable: false,
+    onError: (code) =>
+      runtime.setNotice({ kind: 'error', text: code === 'ai_disabled' ? t('ai.disabled') : code === 'quota_exceeded' ? t('ai.quota') : code === 'rate_limited' ? t('ai.rateLimited') : t('ai.failed') }),
+  });
   const row = db?.rows.find((r) => r.id === rowId);
+  const shownRow = runtime.shown.rows.find((r) => r.id === rowId) ?? row;
 
   // La página del cuerpo cambia solo al cambiar de fila (el editor guarda su propio estado).
   const bodyPage = useMemo<DocsPage | null>(() => {
@@ -182,8 +226,8 @@ export default function DbRowPanel({
     if (!row) onClose();
   }, [row, onClose]);
 
-  if (!db || !row || !bodyPage || typeof document === 'undefined') return null;
-  const props = db.properties.filter((p) => p.type !== 'title');
+  if (!db || !row || !shownRow || !bodyPage || typeof document === 'undefined') return null;
+  const props = runtime.shown.properties.filter((p) => p.type !== 'title');
 
   const onSave = (patch: Partial<DocsPage>) => {
     updateDb((cur) => {
@@ -211,11 +255,25 @@ export default function DbRowPanel({
       aria-modal={mode === 'full' || undefined}
       aria-label={rowTitle(db, row) || t('untitledRow')}
       data-testid="docs-db-rowpanel"
-      onKeyDown={(e) => {
+      onKeyDownCapture={(e) => {
         if (e.key !== 'Escape') return;
         const target = e.target as HTMLElement;
-        // Esc mientras se escribe es del editor (seleccionar bloques); afuera cierra.
-        if (target.isContentEditable || target.closest('input, textarea, select, .docs-blocks')) return;
+        // Las propiedades (editores de celda, popovers) manejan su propio Esc.
+        if (target.closest('.docs-db-props, .docs-db-popover')) return;
+        // En el título o el cuerpo: Esc cierra (como el peek de Notion), salvo
+        // que haya un menú del editor abierto (/, @, links, formato): ese se cierra primero.
+        if (target.closest('.docs-title, .docs-blocks, .docs-db-rowpanel-body')) {
+          const menu = document.querySelector('.docs-command-menu, .docs-mention-popover, .docs-link-popover, .docs-block-menu, .docs-format-toolbar');
+          if (menu) return;
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape' || e.defaultPrevented) return;
+        const target = e.target as HTMLElement;
+        if (target.isContentEditable || target.closest('input, textarea, select')) return;
         e.preventDefault();
         onClose();
       }}
@@ -235,25 +293,30 @@ export default function DbRowPanel({
         <div className="docs-db-rowpanel-actions">
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm docs-db-rowpanel-mode"
+            aria-label={mode === 'peek' ? t('openFullPage') : t('openSidePeek')}
+            title={mode === 'peek' ? t('openFullPage') : t('openSidePeek')}
             onClick={() => onMode(mode === 'peek' ? 'full' : 'peek')}
           >
             <DocsGlyph name={mode === 'peek' ? 'expand' : 'peek'} size={14} />
-            {mode === 'peek' ? t('openFullPage') : t('openSidePeek')}
+            <span>{mode === 'peek' ? t('openFullPage') : t('openSidePeek')}</span>
           </button>
           <button
             type="button"
             className="btn btn-ghost btn-sm"
+            aria-label={templateSaved ? t('templates.saved') : t('templates.saveRow')}
+            title={t('templates.saveRow')}
             disabled={(db.templates?.length ?? 0) >= DB_MAX_TEMPLATES}
             data-testid="docs-db-save-template"
             onClick={() => {
+              const name = rowTitle(db, row) || t('templates.untitled');
               updateDb((cur) => saveRowAsTemplate(cur, rowId, rowTitle(cur, row) || t('templates.untitled')));
-              setTemplateSaved(true);
-              window.setTimeout(() => setTemplateSaved(false), 3000);
+              setTemplateSaved(name);
+              window.setTimeout(() => setTemplateSaved(null), 4000);
             }}
           >
             <DocsGlyph name="template" size={14} />
-            {templateSaved ? t('templates.saved') : t('templates.saveRow')}
+            <span>{templateSaved ? t('templates.saved') : t('templates.saveRow')}</span>
           </button>
           {confirmDelete ? (
             <button
@@ -278,6 +341,11 @@ export default function DbRowPanel({
           </button>
         </div>
       </div>
+      {templateSaved && (
+        <p className="docs-db-toast" role="status" data-testid="docs-db-template-toast">
+          {t('templates.savedToast', { name: templateSaved })}
+        </p>
+      )}
       <div className="docs-db-rowpanel-scroll">
         <div className="docs-db-rowpanel-inner">
           <div className="docs-db-rowpanel-body">
@@ -290,11 +358,15 @@ export default function DbRowPanel({
                 <PropRow
                   key={p.id}
                   prop={p}
-                  row={row}
+                  row={shownRow}
                   people={people}
                   members={members}
                   locale={locale}
-                  onChange={(v) => updateDb((cur) => setCell(cur, rowId, p.id, v))}
+                  refs={runtime.refs}
+                  extras={runtime.extras}
+                  filling={autofill.filling === p.id}
+                  onAutofill={p.ai && pageId ? () => void autofill.fill(p.id, [rowId]) : undefined}
+                  onChange={(v) => runtime.setValue(rowId, p.id, v)}
                   onCreateOption={(name) =>
                     updateDb((cur) => {
                       const prop = cur.properties.find((x) => x.id === p.id);
@@ -303,11 +375,16 @@ export default function DbRowPanel({
                       const withOpt = updateProperty(cur, p.id, { options: [...(prop.options ?? []), option] });
                       const curV = withOpt.rows.find((x) => x.id === rowId)?.values[p.id];
                       const value = prop.type === 'multi_select' ? [...(Array.isArray(curV) ? curV : []), option.id] : option.id;
-                      return setCell(withOpt, rowId, p.id, value);
+                      return withAutomations(cur, setCell(withOpt, rowId, p.id, value));
                     })
                   }
                 />
               ))}
+              {runtime.notice && (
+                <p className={`docs-db-notice${runtime.notice.kind === 'error' ? ' is-error' : ''}`} role={runtime.notice.kind === 'error' ? 'alert' : 'status'}>
+                  {runtime.notice.text}
+                </p>
+              )}
             </div>
               ) : null,
             )}

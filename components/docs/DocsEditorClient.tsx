@@ -5,13 +5,15 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import {
   type DocsAccess,
+  type DocsBlock,
   type DocsComment,
   type DocsPage,
   type DocsPageShare,
   type DocsShareRole,
 } from '@/lib/docs-types';
 import { docsPatchTooLong, reminderContext } from '@/lib/docs-schema';
-import DocsEditor from './DocsEditor';
+import { mergeBlocks, sameContent } from '@/lib/docs-merge';
+import DocsEditor, { type DocsRemoteMerge } from './DocsEditor';
 import ShareDialog, { type ShareRequest } from './ShareDialog';
 import CommentsPanel from './CommentsPanel';
 import VersionsPanel from './VersionsPanel';
@@ -77,6 +79,21 @@ export default function DocsEditorClient({
   const saveChain = useRef<Promise<void>>(Promise.resolve());
   /** Último cambio de contenido rechazado por conflicto (para "Sobrescribir"). */
   const conflictPatch = useRef<Partial<DocsPage> | null>(null);
+  /**
+   * Fusiones del servidor (la página había cambiado: una automatización, una
+   * operación sobre una base, otra pestaña): el editor las suma a lo suyo y
+   * los guardados que ya estaban en cola se rebasan sobre ellas, así no
+   * deshacen lo fusionado.
+   */
+  type Merge = { sent: DocsBlock[]; merged: DocsBlock[] };
+  const queued = useRef<Array<{ patch: Partial<DocsPage>; rebase: Merge[] }>>([]);
+  /** Fusiones que el editor todavía no aplicó (lo que guarde mientras tanto viene sin ellas). */
+  const unapplied = useRef<Array<Merge & { seq: number }>>([]);
+  const mergeSeq = useRef(0);
+  const [remoteMerge, setRemoteMerge] = useState<DocsRemoteMerge | null>(null);
+  /** Último contenido conocido del servidor (base para traer lo de otra pestaña al volver). */
+  const serverContent = useRef<DocsBlock[]>(page.content);
+  const inFlight = useRef(0);
   const [current, setCurrent] = useState<DocsPage>(page);
   const [editorKey, setEditorKey] = useState(0);
   const [localShares, setLocalShares] = useState(shares);
@@ -121,13 +138,32 @@ export default function DocsEditorClient({
     setCommentFocus((n) => n + 1);
   }, []);
 
+  const pushMerge = useCallback((m: Merge & { sentTitle?: string; title?: string }) => {
+    const seq = ++mergeSeq.current;
+    for (const q of queued.current) q.rebase.push(m);
+    unapplied.current.push({ ...m, seq });
+    setRemoteMerge({ seq, sent: m.sent, merged: m.merged, sentTitle: m.sentTitle, title: m.title });
+  }, []);
+
+  const onRemoteApplied = useCallback((seq: number) => {
+    unapplied.current = unapplied.current.filter((m) => m.seq > seq);
+  }, []);
+
   const runSave = useCallback(
-    async (patch: Partial<DocsPage>, force: boolean) => {
+    async (item: { patch: Partial<DocsPage>; rebase: Merge[] }, force: boolean) => {
+      queued.current = queued.current.filter((q) => q !== item);
+      let patch = item.patch;
+      // Guardado armado antes de una fusión: se rebasa sobre lo fusionado.
+      for (const m of item.rebase) {
+        if (patch.content) patch = { ...patch, content: mergeBlocks(m.sent, m.merged, patch.content, 'ours') ?? patch.content };
+      }
       setSaving(true);
+      inFlight.current++;
       // Todo PATCH (contenido, publicar, ancho, tamaño del texto, restaurar)
       // va con la base: si no, uno que no toca el contenido adelantaba la base
       // a la versión ajena y el próximo guardado la pisaba sin 409.
-      const guarded = !force;
+      // "Sobrescribir" también va con la base: el servidor fusiona y solo en lo que choca gana esta pestaña.
+      const guarded = true;
       // Con el contenido van el idioma y la zona del navegador: los
       // recordatorios (@recordar) avisan con ellos.
       let tz: string | undefined;
@@ -137,7 +173,7 @@ export default function DocsEditorClient({
         tz = undefined;
       }
       const withCtx = { ...patch, ...reminderContext(patch, locale, tz) };
-      const body = JSON.stringify(guarded ? { ...withCtx, base_updated_at: baseUpdatedAt.current } : withCtx);
+      const body = JSON.stringify(guarded ? { ...withCtx, base_updated_at: baseUpdatedAt.current, ...(force ? { merge: 'ours' } : {}) } : withCtx);
       try {
         const res = await fetch(`/api/docs/pages/${page.id}`, {
           method: 'PATCH',
@@ -149,6 +185,8 @@ export default function DocsEditorClient({
         });
         if (res.status === 409) {
           conflictPatch.current = patch;
+          // Lo que estaba en cola va con la misma base vieja: también chocaría.
+          queued.current = [];
           setSaveError('conflict');
           return;
         }
@@ -160,10 +198,14 @@ export default function DocsEditorClient({
         }
         conflictPatch.current = null;
         setSaveError(null);
-        const updated = (await res.json().catch(() => null)) as DocsPage | null;
-        // Un "Sobrescribir" sin contenido no trae la versión ajena al editor:
-        // la base queda vieja y el próximo guardado de contenido vuelve a avisar.
-        if (updated?.updated_at && (guarded || 'content' in patch)) baseUpdatedAt.current = updated.updated_at;
+        const updated = (await res.json().catch(() => null)) as (DocsPage & { merged?: boolean; stale_base?: boolean }) | null;
+        // Un cambio sin contenido sobre una versión vieja no adelanta la base:
+        // el próximo guardado de contenido se fusiona con lo ajeno.
+        if (updated?.updated_at && !updated.stale_base) baseUpdatedAt.current = updated.updated_at;
+        if (updated?.content && 'content' in patch) serverContent.current = updated.content;
+        if (updated?.merged && patch.content && updated.content && !sameContent(patch.content, updated.content)) {
+          pushMerge({ sent: patch.content, merged: updated.content, sentTitle: patch.title, title: updated.title });
+        }
         if (updated && ('published' in patch || 'is_public' in patch)) {
           setCurrent((prev) => ({ ...prev, published: updated.published, slug: updated.slug, is_public: updated.is_public }));
         }
@@ -171,10 +213,11 @@ export default function DocsEditorClient({
       } catch {
         setSaveError('failed');
       } finally {
+        inFlight.current--;
         setSaving(false);
       }
     },
-    [page.id, router, locale],
+    [page.id, router, locale, pushMerge],
   );
 
   const savePage = useCallback(
@@ -185,12 +228,38 @@ export default function DocsEditorClient({
         setSaveError('tooLong');
         return;
       }
-      const next = saveChain.current.then(() => runSave(patch, false));
+      const item = { patch, rebase: unapplied.current.map(({ sent, merged }) => ({ sent, merged })) };
+      queued.current.push(item);
+      const next = saveChain.current.then(() => runSave(item, false));
       saveChain.current = next;
       await next;
     },
     [runSave],
   );
+
+  // Al volver a la pestaña: si la página cambió en otra (u otra persona, o el
+  // servidor), se trae y se suma a lo que hay en pantalla, como en Notion.
+  useEffect(() => {
+    const check = async () => {
+      if (document.visibilityState !== 'visible' || inFlight.current > 0 || queued.current.length) return;
+      const res = await fetch(`/api/docs/pages/${page.id}`).catch(() => null);
+      if (!res?.ok) return;
+      const fresh = (await res.json().catch(() => null)) as DocsPage | null;
+      if (!fresh?.updated_at || fresh.updated_at === baseUpdatedAt.current) return;
+      if (inFlight.current > 0 || queued.current.length) return;
+      const base = serverContent.current;
+      baseUpdatedAt.current = fresh.updated_at;
+      serverContent.current = fresh.content;
+      if (!sameContent(base, fresh.content)) pushMerge({ sent: base, merged: fresh.content });
+    };
+    const onVis = () => void check();
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('focus', onVis);
+    };
+  }, [page.id, pushMerge]);
 
   // Conflicto: o se trae la versión del server (descartando lo propio sin
   // guardar) o se sobrescribe a sabiendas con lo que hay en este editor.
@@ -199,6 +268,8 @@ export default function DocsEditorClient({
     if (!res.ok) return;
     const fresh = (await res.json()) as DocsPage;
     baseUpdatedAt.current = fresh.updated_at;
+    serverContent.current = fresh.content;
+    unapplied.current = [];
     conflictPatch.current = null;
     setSaveError(null);
     setCurrent(fresh);
@@ -209,7 +280,8 @@ export default function DocsEditorClient({
   const overwriteAfterConflict = useCallback(async () => {
     const patch = conflictPatch.current;
     if (!patch) return;
-    const next = saveChain.current.then(() => runSave(patch, true));
+    const item = { patch, rebase: [] };
+    const next = saveChain.current.then(() => runSave(item, true));
     saveChain.current = next;
     await next;
   }, [runSave]);
@@ -435,6 +507,8 @@ export default function DocsEditorClient({
         page={current}
         ancestors={ancestors}
         onSave={savePage}
+        remoteMerge={remoteMerge}
+        onRemoteApplied={onRemoteApplied}
         saving={saving}
         saveError={saveError}
         onDuplicate={isOwner ? duplicatePage : undefined}

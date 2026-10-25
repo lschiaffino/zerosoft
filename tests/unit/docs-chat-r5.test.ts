@@ -120,7 +120,7 @@ describe('Chat: respuesta del visitante a una conversación pendiente', () => {
 });
 
 describe('Docs: concurrencia en PATCH que no tocan el contenido', () => {
-  it('publicar sobre una base vieja da 409 (no adelanta la base a la versión ajena)', async () => {
+  it('publicar sobre una base vieja se aplica pero avisa stale_base (el editor no adelanta su base)', async () => {
     const owner = await makeUser('r5conf');
     const page = await createDocPage(owner.id, { title: 'P' });
     const base = page.updated_at;
@@ -131,7 +131,10 @@ describe('Docs: concurrencia en PATCH que no tocan el contenido', () => {
       jsonReq(`http://t/api/docs/pages/${page.id}`, 'PATCH', { published: true, base_updated_at: base }),
       ctx(page.id),
     );
-    expect(res.status).toBe(409);
+    // No toca el contenido: no pisa nada. El editor sigue con su base vieja y su
+    // próximo guardado de contenido se fusiona con lo de B (o choca).
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { stale_base: boolean }).stale_base).toBe(true);
   });
 });
 
