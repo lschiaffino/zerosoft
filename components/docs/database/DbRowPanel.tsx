@@ -32,6 +32,7 @@ function PropRow({
   filling,
   readOnly = false,
 }: {
+  readOnly?: boolean;
   prop: DbProperty;
   row: DbRow;
   people: Record<string, string>;
@@ -43,8 +44,6 @@ function PropRow({
   extras?: DbCellExtras;
   onAutofill?: () => void;
   filling?: boolean;
-  /** Base sincronizada: se ve, no se edita. */
-  readOnly?: boolean;
 }) {
   const t = useTranslations('docs.database');
   const [editing, setEditing] = useState(false);
@@ -137,7 +136,10 @@ export default function DbRowPanel({
   onMode,
   onClose,
   renderBody,
+  readOnly: readOnlyProp = false,
 }: {
+  /** Quien mira no edita (puede comentar, bloqueada): sin plantilla, papelera ni edición de propiedades. */
+  readOnly?: boolean;
   block: DocsBlock;
   rowId: string;
   mode: DbRowPanelMode;
@@ -163,6 +165,9 @@ export default function DbRowPanel({
   const [templateSaved, setTemplateSaved] = useState<string | null>(null);
   // Base vieja (sin `db` todavía): mismos ids que ve la tabla.
   const db = block.type === 'database' ? normalizeDatabase(block) : null;
+  // Base sincronizada (GitHub, Jira, Salesforce, CRM): la fila se lee, no se edita.
+  const synced = Boolean(db?.sync);
+  const readOnly = readOnlyProp || synced;
   const emptyDb = useMemo<DocsDatabase>(() => ({ properties: [{ id: 'title', name: '', type: 'title' }], rows: [], views: [{ id: 'v', name: '', type: 'table' }] }), []);
   const source = useMemo(() => ({ pageId, blockId: block.id }), [pageId, block.id]);
   const commit = (next: DocsDatabase) => updateDb((cur) => withAutomations(cur, next));
@@ -205,10 +210,27 @@ export default function DbRowPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [row?.id]);
 
+  // Al cerrar, el foco vuelve a lo que abrió el panel (la celda, la tarjeta del
+  // board o del calendario); si se repintó mientras tanto, a la tarjeta de la fila.
+  const openedRow = useRef(row?.id ?? null);
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    panelRef.current?.querySelector<HTMLElement>('.docs-db-panel-close')?.focus({ preventScroll: true });
-    return () => prev?.focus?.({ preventScroll: true });
+    const rowId = openedRow.current;
+    const panel = panelRef.current;
+    panel?.querySelector<HTMLElement>('.docs-db-panel-close')?.focus({ preventScroll: true });
+    return () => {
+      requestAnimationFrame(() => {
+        if (document.activeElement && document.activeElement !== document.body && !panel?.contains(document.activeElement)) return;
+        // "Open" de la tabla solo se ve con hover: si ya no se ve, a la celda de la fila.
+        const visible = (el: HTMLElement) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+        let target: HTMLElement | null = prev && prev.isConnected && prev !== document.body && visible(prev) ? prev : null;
+        if (!target && rowId) {
+          const card = document.querySelector<HTMLElement>(`[data-row="${CSS.escape(rowId)}"]`);
+          target = card?.matches('button, [tabindex]') ? card : card?.querySelector<HTMLElement>('[role="gridcell"], button, [tabindex]') ?? null;
+        }
+        target?.focus({ preventScroll: true });
+      });
+    };
   }, []);
 
   // Click afuera cierra el panel lateral (no la página completa). Un click en
@@ -232,8 +254,6 @@ export default function DbRowPanel({
 
   if (!db || !row || !shownRow || !bodyPage || typeof document === 'undefined') return null;
   const props = runtime.shown.properties.filter((p) => p.type !== 'title');
-  // Base sincronizada (GitHub, Jira, Salesforce, CRM): la fila se lee, no se edita.
-  const readOnly = Boolean(db.sync);
 
   const onSave = (patch: Partial<DocsPage>) => {
     updateDb((cur) => {
@@ -307,7 +327,7 @@ export default function DbRowPanel({
             <DocsGlyph name={mode === 'peek' ? 'expand' : 'peek'} size={14} />
             <span>{mode === 'peek' ? t('openFullPage') : t('openSidePeek')}</span>
           </button>
-          {!readOnly && (
+          {!readOnly && (<>
           <button
             type="button"
             className="btn btn-ghost btn-sm"
@@ -325,8 +345,7 @@ export default function DbRowPanel({
             <DocsGlyph name="template" size={14} />
             <span>{templateSaved ? t('templates.saved') : t('templates.saveRow')}</span>
           </button>
-          )}
-          {readOnly ? null : confirmDelete ? (
+          {confirmDelete ? (
             <button
               type="button"
               className="btn btn-ghost btn-sm docs-db-danger"
@@ -344,6 +363,7 @@ export default function DbRowPanel({
               <DocsGlyph name="trash" size={14} />
             </button>
           )}
+          </>)}
           <button type="button" className="btn btn-ghost btn-sm btn-icon docs-db-panel-close" onClick={onClose} aria-label={t('closeRow')} title={t('closeRow')}>
             <DocsGlyph name="close" size={16} />
           </button>
@@ -357,13 +377,15 @@ export default function DbRowPanel({
       <div className="docs-db-rowpanel-scroll">
         <div className="docs-db-rowpanel-inner">
           <div className="docs-db-rowpanel-body">
-            {(readOnly ? (bp: DocsPage, _s: unknown, properties: ReactNode) => (
-              <div className="docs-db-rowpanel-readonly" data-testid="docs-db-row-readonly">
-                <h1 className="docs-title">{bp.title || t('untitledRow')}</h1>
-                {properties}
-                {bp.content.length > 0 && <DocsBlocksView blocks={bp.content} boards={false} />}
-              </div>
-            ) : renderBody)(
+            {(synced
+              ? (bp: DocsPage, _s: unknown, properties: ReactNode) => (
+                  <div className="docs-db-rowpanel-readonly" data-testid="docs-db-row-readonly">
+                    <h1 className="docs-title">{bp.title || t('untitledRow')}</h1>
+                    {properties}
+                    {bp.content.length > 0 && <DocsBlocksView blocks={bp.content} boards={false} />}
+                  </div>
+                )
+              : renderBody)(
               bodyPage,
               onSave,
               props.length > 0 ? (

@@ -416,8 +416,23 @@ export interface DocsBlock {
   height?: number;
   /** Bloque sincronizado: id del contenido compartido (tabla docs_synced_blocks). */
   synced_id?: string;
+  /**
+   * Bloque sincronizado que quien mira no puede ver (no puede abrir su página
+   * de origen): llega sin hijos. Lo pone el servidor al leer; nunca se guarda.
+   */
+  no_access?: boolean;
+  /**
+   * Bloque sincronizado: versión de su contenido que vio el editor (updated_at
+   * de docs_synced_blocks). La pone el servidor al leer y vuelve al guardar;
+   * nunca queda en el content de la página.
+   */
+  synced_at?: string;
+  /** Sincronizado que quien mira ve pero no puede editar (no edita su origen). Lo pone el servidor; nunca se guarda. */
+  no_edit?: boolean;
   /** Botón: qué hace al hacer clic. */
   button?: DocsButtonConfig;
+  /** Bloque sugerido (Enter en modo sugerir): se acepta o se rechaza entero. */
+  suggestion?: { id: string; by: string } | null;
   /** Notas de reunión: id en docs_meetings (el resumen va en content). */
   meeting_id?: string;
 }
@@ -463,12 +478,27 @@ export interface DocsPage {
   inherit_shares?: boolean;
   /** Posición vertical de la portada (0 arriba, 100 abajo; default 50). */
   cover_position?: number;
+  /** Bloqueada: nadie edita el contenido hasta desbloquearla. */
+  locked?: boolean;
+  locked_by?: string | null;
+  /** Rol de los miembros del workspace en esta página (null = el que hereda). */
+  member_role?: DocsShareRole | null;
+  teamspace_id?: string | null;
+  /** Wiki: dueño de la página y verificación (hasta una fecha o sin vencimiento). */
+  page_owner_id?: string | null;
+  verified_by?: string | null;
+  verified_at?: string | null;
+  verified_until?: string | null;
   created_at: string;
   updated_at: string;
 }
 
 /** Lo que necesitan el árbol del sidebar y las listas: sin content (que pesa). */
-export type DocsPageSummary = Pick<DocsPage, 'id' | 'parent_id' | 'title' | 'icon' | 'position' | 'updated_at'>;
+export type DocsPageSummary = Pick<DocsPage, 'id' | 'parent_id' | 'title' | 'icon' | 'position' | 'updated_at'> & {
+  teamspace_id?: string | null;
+  /** Wiki: verificada o vencida (null/ausente = sin verificar). */
+  verified?: 'verified' | 'expired' | null;
+};
 
 export interface DocsPageShare {
   id: string;
@@ -479,12 +509,20 @@ export interface DocsPageShare {
   created_at: string;
   /** Share heredado de un ancestro (null/ausente = propio de esta página). */
   inherited_from?: { id: string; title: string } | null;
+  /** Persona del share (para el diálogo de compartir); guest = no es del workspace. */
+  target_name?: string | null;
+  target_email?: string | null;
+  guest?: boolean;
 }
 
-export type DocsShareRole = 'view' | 'edit';
+export type DocsShareRole = 'view' | 'comment' | 'edit' | 'full';
 
-/** Acceso efectivo de quien abre una página. */
-export type DocsAccess = 'owner' | 'edit' | 'view';
+/**
+ * Acceso efectivo de quien abre una página: 'owner' = miembro del workspace
+ * con acceso total (compartir, publicar, mover, papelera); 'full' = invitado
+ * que además de editar comparte esa página.
+ */
+export type DocsAccess = 'owner' | 'full' | 'edit' | 'comment' | 'view';
 
 export interface DocsVersionSummary {
   id: string;
@@ -507,6 +545,9 @@ export interface DocsComment {
   body: string;
   resolved: boolean;
   created_at: string;
+  /** Comentario sobre texto: id del resaltado en el bloque y el texto citado. */
+  anchor_id?: string | null;
+  quote?: string;
   user_name: string | null;
   user_email: string;
   user_image: string | null;

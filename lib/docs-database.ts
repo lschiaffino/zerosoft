@@ -176,7 +176,8 @@ export function defaultDatabase(labels: DefaultDatabaseLabels = EN_LABELS, now =
   const view: DbViewConfig = { id: newDbId(), name: '', type: 'table' };
   return {
     properties: [title, status, due],
-    rows: [{ id: newDbId(), values: {}, created_at: now, updated_at: now }],
+    // La primera fila arranca en "Not started", como las que se agregan después (y como Notion).
+    rows: [{ id: newDbId(), values: { [status.id]: status.options![0].id }, created_at: now, updated_at: now }],
     views: [view],
     active_view: view.id,
   };

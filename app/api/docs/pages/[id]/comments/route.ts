@@ -16,7 +16,8 @@ import {
 import { createDocsCommentNotifications } from '@/lib/notifications';
 import { docCommentCreateSchema } from '@/lib/docs-schema';
 import { mentionedInBody } from '@/lib/docs-comments';
-import { docsError, invalidBody, notFound, unauthorized } from '@/lib/docs-http';
+import { docsError, forbidden, invalidBody, notFound, unauthorized } from '@/lib/docs-http';
+import { canCommentAccess } from '@/lib/docs-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,7 +29,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
 
   const page = await getDocPageRow(params.id);
   if (!page) return notFound();
-  if (!(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }, DOC_INTERNAL_READ))) {
+  if (!(await canReadPage(page, user, DOC_INTERNAL_READ))) {
     return notFound();
   }
 
@@ -43,9 +44,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   const page = await getDocPageRow(params.id);
   if (!page) return notFound();
-  if (!(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }, DOC_INTERNAL_WRITE))) {
-    return notFound();
-  }
+  // Comentar, resolver y borrar: "puede comentar" o más (ver no alcanza).
+  const access = await getDocAccess(page, user, DOC_INTERNAL_WRITE);
+  if (!access) return notFound();
+  if (!canCommentAccess(access)) return forbidden();
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = docCommentCreateSchema.safeParse(body);

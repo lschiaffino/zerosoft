@@ -7,6 +7,12 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
+/** Abre una fila de la tabla con su botón "Open" (click en el título lo edita, como Notion). */
+async function openRowNamed(p: Page, text: string) {
+  const tr = p.locator('.docs-db-tr', { hasText: text }).first();
+  await tr.hover();
+  await tr.locator('.docs-db-open').click();
+}
 const T = '2026-01-01T10:00:00.000Z';
 
 type Block = { id: string; type: string; content: string; indent?: number; [k: string]: unknown };
@@ -57,7 +63,7 @@ test('D1+D2: plantilla de fila en una base con fórmula, ID único y relación',
   await p.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
   const table = p.getByTestId('docs-database');
   await expect(table.locator('.docs-db-tr', { hasText: 'Bug' })).toContainText('8');
-  await p.locator('.docs-db-title-text', { hasText: 'Bug' }).click();
+  await openRowNamed(p, 'Bug');
   const panel = p.getByTestId('docs-db-rowpanel');
   await expect(panel).toBeVisible();
   await panel.getByTestId('docs-db-save-template').click();

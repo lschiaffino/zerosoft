@@ -9,21 +9,18 @@
  *   la persona no ve, y lo que lee la IA excluye además los teamspaces sin
  *   "conocimiento de IA".
  *
- * PUNTO DE INTEGRACIÓN CON D3: los teamspaces (lib/docs-access.ts:
- * hiddenTeamspaceIds, teamspaceFilterSql, aiKnowledgeFilterSql) llegan en otra
- * rama. Mientras main no los tenga, `hiddenPagesFilter` y `aiKnowledgeFilter`
- * no filtran nada (en main no hay teamspaces). Al integrar D3 se reemplaza el
- * cuerpo de esas dos funciones por:
- *
- *   hiddenPagesFilter: teamspaceFilterSql(await hiddenTeamspaceIds(ws, personId), column)
- *   aiKnowledgeFilter: aiKnowledgeFilterSql(column)
+ * Integrado con D3: teamspaces ocultos y conocimiento de IA
+ * (lib/docs-access.ts), roles por página (getDocAccess: ver, comentar,
+ * editar, total) y contenido visible por audiencia (lib/docs-visible.ts).
  *
  * Server-only.
  */
 import { getDb, getUserById, type DocsPageRow, type UserRow } from './db';
-import { getDocAccess, parseBlocks, type DocsActor } from './docs';
-import type { DocsBlock } from './docs-types';
-import { hydrateSyncedBlocks } from './docs-synced';
+import { getDocAccess, type DocsActor } from './docs';
+import type { DocsAccess, DocsBlock } from './docs-types';
+import { aiKnowledgeFilterSql, canWriteAccess, hiddenTeamspaceIds, teamspaceFilterSql } from './docs-access';
+import { visibleBlocks } from './docs-visible';
+import { workspaceRole } from './api-auth';
 
 export interface SqlFilter {
   sql: string;
@@ -35,32 +32,29 @@ export interface SqlFilter {
  * `column`, la columna teamspace_id de docs_pages). Sin teamspaces: vacío.
  */
 export async function hiddenPagesFilter(workspaceId: string, personId: string, column = 'teamspace_id'): Promise<SqlFilter> {
-  void workspaceId;
-  void personId;
-  void column;
-  return { sql: '', args: [] };
+  return teamspaceFilterSql(await hiddenTeamspaceIds(workspaceId, personId), column);
 }
 
 /** Lo que la IA no puede leer como conocimiento (teamspaces cerrados o privados sin ai_knowledge). */
 export function aiKnowledgeFilter(column = 'teamspace_id'): string {
-  void column;
-  return '';
+  return aiKnowledgeFilterSql(column);
 }
 
 /** Actor de Docs para una persona que actúa en el workspace `ws` (API key, Flow, agente). */
 export async function docsActorFor(ws: string, personId: string): Promise<DocsActor | null> {
   const owner = await getUserById(ws);
   if (!owner) return null;
-  if (personId === ws) return { ...owner };
+  if (personId === ws) return { ...owner, role: 'owner' };
   const person = await getUserById(personId);
-  return person ? { ...owner, actingUser: person as UserRow } : { ...owner };
+  // Su rol en el workspace: admins tienen acceso total; un miembro, el de cada página.
+  return person ? { ...owner, actingUser: person as UserRow, role: await workspaceRole(ws, personId) } : null;
 }
 
 export function actorPersonId(actor: DocsActor): string {
   return actor.actingUser?.id ?? actor.id;
 }
 
-export type PlatformAccess = 'owner' | 'edit' | 'view';
+export type PlatformAccess = DocsAccess;
 
 /** Página + acceso de la persona, o null (no existe, no la ve o está en un teamspace oculto). */
 export async function pageFor(
@@ -79,7 +73,8 @@ export async function pageFor(
   // solo valen el dueño y los shares de persona o equipo.
   const access = (await getDocAccess(row, actor, { includePublished: false, includePublicLink: false })) as PlatformAccess | null;
   if (!access) return null;
-  if (opts.write && access === 'view') return null;
+  // Escribir pide editar (ver o comentar no alcanza), como en el editor.
+  if (opts.write && !canWriteAccess(access)) return null;
   return { row, access };
 }
 
@@ -122,16 +117,13 @@ export type PlatformAudience = { actor: DocsActor } | { knowledge: Iterable<stri
  * contenido para la API, el MCP, Flow, la IA o Agents pasa por acá, nunca
  * por `content` crudo.
  *
- * PUNTO DE INTEGRACIÓN CON D3: con lib/docs-visible.ts en main, el cuerpo es
- *   return visibleBlocks({ id: host.id, user_id: host.user_id }, content, audience);
- * (los bloques sincronizados se resuelven con los permisos de la audiencia).
- * Hoy, como en main, se completan los sincronizados del workspace.
+ * Usa visibleBlocks (lib/docs-visible.ts): los bloques sincronizados se
+ * resuelven con los permisos de la audiencia.
  */
 export async function visibleBlocksFor(
   host: Pick<DocsPageRow, 'id' | 'user_id'>,
   content: string | null | undefined,
   audience: PlatformAudience,
 ): Promise<DocsBlock[]> {
-  void audience;
-  return hydrateSyncedBlocks(host.user_id, parseBlocks(content));
+  return visibleBlocks({ id: host.id, user_id: host.user_id }, content, audience);
 }

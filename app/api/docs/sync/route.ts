@@ -1,3 +1,4 @@
+import { canWriteAccess } from '@/lib/docs-access';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, realUserId } from '@/lib/session';
@@ -31,7 +32,8 @@ export async function POST(req: NextRequest) {
   const page = await getDocPageRow(parsed.data.pageId);
   const access = page ? await getDocAccess(page, user, { includePublished: false, includePublicLink: false }) : null;
   if (!page || !access) return notFound();
-  if (access === 'view') return forbidden();
+  if (!canWriteAccess(access)) return forbidden();
+  if (page.locked === 1) return docsError(423, 'locked');
   const limited = await rateLimit(`docs-sync-create:${realUserId(user)}`, 10, 60);
   if (!limited.ok) return docsError(429, 'rate_limited');
   try {

@@ -14,6 +14,9 @@ export const PRODUCT_KEYS = [
   'board',
   'robots',
   'groups',
+  'voice',
+  'rec',
+  'talk',
   'platform',
   'site',
   'other',
@@ -39,6 +42,9 @@ export const PRODUCT_COLOR: Record<ProductKey, string> = {
   board: 'var(--c-board)',
   robots: 'var(--c-robots)',
   groups: 'var(--c-groups)',
+  voice: 'var(--c-voice)',
+  rec: 'var(--c-rec)',
+  talk: 'var(--c-talk)',
   platform: 'var(--ink)',
   site: 'var(--ink)',
   other: 'var(--dim)',
@@ -80,6 +86,12 @@ export function productFromPath(pathname: string): ProductKey {
       return 'robots';
     case 'groups':
       return 'groups';
+    case 'voice':
+      return 'voice';
+    case 'rec':
+      return 'rec';
+    case 'talk':
+      return 'talk';
     default:
       return 'link';
   }

@@ -13,6 +13,7 @@
  */
 import { generateText, isStepCount, streamText, type ModelMessage, type StepResult, type ToolSet } from 'ai';
 import { getDb } from './db';
+import { aiKnowledgeFilterSql } from './docs-access';
 import type { AgentConversationRow, AgentMessageRow, AgentRow, AgentToolCallRow, AgentChannel } from './db';
 import { aiEnabled, assertAiAvailable, recordAiUsage, resolveAiModel } from './ai';
 import { rateLimit } from './rate-limit';
@@ -281,7 +282,8 @@ async function assertConfigRefs(workspaceId: string, payload: AgentUpdatePayload
   if (k?.docsPageIds.length) {
     const ph = k.docsPageIds.map(() => '?').join(', ');
     const row = (await db
-      .prepare(`SELECT COUNT(*) AS c FROM docs_pages WHERE user_id = ? AND id IN (${ph})`)
+      // Solo páginas que la IA puede leer (no las de teamspaces cerrados o privados sin permiso).
+      .prepare(`SELECT COUNT(*) AS c FROM docs_pages WHERE user_id = ? AND id IN (${ph})${aiKnowledgeFilterSql()}`)
       .get(workspaceId, ...k.docsPageIds)) as { c: number };
     if (Number(row.c) !== new Set(k.docsPageIds).size) return 'invalid_docs_page';
   }

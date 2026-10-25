@@ -112,18 +112,30 @@ test('sitio: productos por categoría y la nota de equipos y uso personal', asyn
   await trigger.click();
   const mega = page.locator('#hd-mega');
   await expect(mega.locator('.hd-group-title')).toHaveText(['Vender', 'Atender', 'Automatizar', 'Construir', 'Trabajo diario']);
-  await expect(mega.locator('a.hd-prod')).toHaveCount(12);
+  await expect(mega.locator('a.hd-prod')).toHaveCount(15);
   await expect(mega.locator('.hd-mega-note')).toContainText('Para equipos y para uso personal');
   await page.keyboard.press('Escape');
   const suite = page.locator('#productos .suite');
   await expect(suite.locator('.suite-group')).toHaveCount(5);
-  await expect(suite.locator('.suite-row')).toHaveCount(12);
+  await expect(suite.locator('.suite-row')).toHaveCount(15);
   await expect(suite.locator('.suite-audience')).toContainText('Para equipos y para uso personal');
   // Desde el sitio, Dashboard lleva al inicio (no a Link); desde una landing, a esa app.
   await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app');
   await page.goto('/es/products/notes', { waitUntil: 'networkidle' });
   await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app/notes');
 });
+
+for (const [width, height] of [[1280, 720], [1440, 900]] as const) {
+  test(`sitio: el menú de productos entra entero en ${width}×${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto('/es', { waitUntil: 'networkidle' });
+    await page.locator('.site-header .hd-trigger').click();
+    const mega = page.locator('#hd-mega');
+    // Las apps en construcción van en una fila compacta aparte.
+    await expect(mega.locator('.hd-building a.hd-prod')).toHaveCount(3);
+    for (const link of await mega.locator('a.hd-prod').all()) await expect(link).toBeInViewport({ ratio: 1 });
+  });
+}
 
 test('Tareas del CRM: mías por defecto y todas con un clic', async ({ page }) => {
   await page.goto('/es/app', { waitUntil: 'networkidle' });

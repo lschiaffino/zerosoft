@@ -18,7 +18,7 @@ import {
   SWITCHER_PRODUCTS,
   type SidebarLabels,
 } from './sidebar-nav';
-import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, isBuildingProduct, type ProductKey } from '@/lib/products';
 import { DEFAULT_WORKSPACE_MODE, featuredApps, moreAppsByCategory, type WorkspaceMode } from '@/lib/workspace-mode';
 import NotificationBell from './NotificationBell';
 import Logo from '@/components/brand/Logo';
@@ -112,7 +112,10 @@ export default function AppSidebar({
   teamName = null,
   crumb = null,
   mode = DEFAULT_WORKSPACE_MODE,
+  docsCanCreate = true,
 }: {
+  /** Puede crear páginas de Docs de primer nivel (si no, el "+ Nuevo" no las ofrece). */
+  docsCanCreate?: boolean;
   /** Modo del workspace: ordena el switcher (destacadas y "Más apps"). */
   mode?: WorkspaceMode;
   labels: SidebarLabels;
@@ -257,7 +260,7 @@ export default function AppSidebar({
   }
 
   const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount });
-  const newItems = buildNewItems(product, labels);
+  const newItems = buildNewItems(product, labels, { docsCanCreate });
   const settingsItem = settingsNavItem(pathname, labels);
 
   function openSearch() {
@@ -280,6 +283,7 @@ export default function AppSidebar({
       >
         <ProductGlyph product={line} size={small ? 12 : 14} />
         <span>{PRODUCT_CONFIG[line].name}</span>
+        {isBuildingProduct(line) && <span className="app-soon-tag">{labels.soon}</span>}
       </Link>
     );
   };
@@ -472,6 +476,7 @@ export default function AppSidebar({
           </button>
           {newOpen && (
             <div className="side-menu" role="menu" onKeyDown={(e) => menuKeys(e, () => closeNew(true))}>
+              {newItems.length === 0 && <p className="side-menu-note">{t('newReadOnly')}</p>}
               {newItems.map((item) => (
                 <Link
                   key={item.href + item.label}
@@ -506,6 +511,7 @@ export default function AppSidebar({
                       <Icon name={item.icon} size={15} />
                     </span>
                     <span className="side-label">{item.label}</span>
+                    {item.soon && <span className="app-soon-tag side-soon">{labels.soon}</span>}
                     {item.badge ? <span className="side-badge data">{item.badge}</span> : null}
                   </Link>
                   {/* Hueco bajo el ítem: la página del producto lo llena con un portal (el árbol de Docs). */}

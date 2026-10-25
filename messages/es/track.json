@@ -324,6 +324,7 @@
     "docCommentMention": "{actor} te mencionó en un comentario de {title}",
     "docCommentReply": "{actor} respondió un comentario en {title}",
     "docShared": "{actor} compartió {title} con vos",
+    "docConflict": "{actor} cambió lo mismo que vos en {title}: tu versión quedó en el historial",
     "boardMention": "{actor} te mencionó en {title}",
     "boardReply": "{actor} respondió en {title}",
     "groupsMention": "{actor} te mencionó en {title}",

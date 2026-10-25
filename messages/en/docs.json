@@ -6,6 +6,7 @@
     "latest": "Latest pages",
     "emptyTitle": "No pages yet",
     "emptySub": "Write a page from scratch or start from a template. Pages nest like folders.",
+    "emptyReadOnly": "Pages your workspace shares with you show up here.",
     "edited": "Edited {date}",
     "colPage": "Page",
     "colEdited": "Edited"
@@ -36,7 +37,7 @@
     "saveFailed": "Couldn't save your changes.",
     "retrySave": "Retry",
     "saveConflict": "Not saved: someone else made newer changes.",
-    "conflict": "Someone else edited this page while you were typing. Your latest changes weren't saved.",
+    "conflict": "Your changes could not be merged with someone else’s after several tries.",
     "conflictReload": "Load the new version",
     "conflictOverwrite": "Overwrite with my changes",
     "pageOptions": "Page options",
@@ -252,7 +253,9 @@
       "copy": "Copy and sync",
       "unsync": "Unsync",
       "copied": "Copied. Paste it on any page of this workspace and edits will show up in both places.",
-      "notFound": "That synced block isn't in this workspace."
+      "notFound": "That synced block isn't in this workspace.",
+      "readOnly": "View only: you can't edit the page it comes from.",
+      "noAccess": "You don’t have access to this synced block. Ask for access to the page it comes from."
     },
     "columns": {
       "label": "{count} columns",
@@ -777,7 +780,9 @@
     "roles": {
       "view": "Can view",
       "edit": "Can edit",
-      "owner": "Full access"
+      "owner": "Full access",
+      "full": "Full access",
+      "comment": "Can comment"
     },
     "invite": "Invite",
     "workspace": "Your workspace",
@@ -806,7 +811,14 @@
     "inherit": "Inherit access from the parent page",
     "inheritOnHelp": "People with access to the parent page can also open this page. Roles set here take priority.",
     "inheritOffHelp": "Only the people listed here can open this page. The parent page access no longer applies.",
-    "subpages": "Subpages"
+    "subpages": "Subpages",
+    "guest": "Guest",
+    "guestsDisabled": "An admin turned off inviting people from outside the workspace.",
+    "inviteLimit": "This page has too many pending invites. Revoke some first.",
+    "inheritRole": "Default ({role})",
+    "invitePending": "Invited by email · pending",
+    "revokeInvite": "Revoke invite",
+    "sharedCommentBanner": "{name} shared this page with you so you can comment and suggest edits."
   },
   "templates": {
     "title": "Start from a template",
@@ -875,7 +887,16 @@
     "reply": "Reply",
     "replyPlaceholder": "Reply…",
     "cancel": "Cancel",
-    "mentionHint": "Type @ to mention someone. They get a notification."
+    "mentionHint": "Type @ to mention someone. They get a notification.",
+    "commentSelection": "Comment on selection",
+    "commentShort": "Comment",
+    "you": "You",
+    "someone": "Someone",
+    "open": "Open",
+    "resolvedTab": "Resolved",
+    "emptyResolved": "No resolved comments yet.",
+    "goToText": "Go to the highlighted text",
+    "readOnlyHint": "You can read the comments on this page."
   },
   "help": {
     "notFound": "Help center not found",
@@ -909,11 +930,14 @@
     "articlesIn": "Articles in {title}"
   },
   "versions": {
+    "syncedCurrent": "Synced blocks show their current content, not the one from this version.",
     "title": "Version history",
     "save": "Save version",
     "saved": "Saved",
     "restore": "Restore",
-    "restoreConfirm": "Restore this version? The current state stays in the history.",
+    "restoreConfirm": "The current state stays in the history.",
+    "restoreTitle": "Restore this version?",
+    "cancel": "Cancel",
     "back": "Versions",
     "unknownAuthor": "Earlier version",
     "untitled": "Untitled",
@@ -926,7 +950,23 @@
     },
     "note": "The last 50 versions are kept.",
     "loadError": "Could not load the history.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "viewLabel": "What to show",
+    "viewChanges": "Changes",
+    "viewCurrent": "Compare with now",
+    "viewPage": "Page",
+    "firstVersion": "This is the first saved version: everything shows as added.",
+    "noChanges": "No changes.",
+    "statAdded": "{count} added",
+    "statRemoved": "{count} removed",
+    "statChanged": "{count} changed",
+    "unchanged": "{count, plural, one {# block without changes} other {# blocks without changes}}",
+    "kind": {
+      "added": "Added",
+      "removed": "Removed",
+      "changed": "Changed"
+    },
+    "blockType": "Block: {type}"
   },
   "export": {
     "markdown": "Export as Markdown",
@@ -998,6 +1038,235 @@
   "favorites": {
     "title": "Favorites",
     "error": "Couldn't update favorites. Try again."
+  },
+  "emails": {
+    "untitled": "Untitled",
+    "guestSubject": "{name} shared “{title}” with you",
+    "guestLine": "{name} invited you to the page “{title}” in zerosoft Docs.",
+    "guestOpen": "Open the page",
+    "guestNote": "Sign in or create an account with this email to see it. You only get access to this page and its subpages. The link expires in 30 days.",
+    "verifyExpiredTitle": "Verification expired: {title}",
+    "verifyExpiredBody": "You own this page. Check that it is still right and verify it again.",
+    "verifyOpen": "Review the page"
+  },
+  "guests": {
+    "backToDocs": "Back to Docs",
+    "fail": {
+      "invalidTitle": "This invite link does not work",
+      "invalid": "It was already used or revoked. Ask the person who shared the page for a new one.",
+      "expiredTitle": "This invite expired",
+      "expired": "Invites last 30 days. Ask for a new one.",
+      "email_mismatchTitle": "This invite is for another email",
+      "email_mismatch": "It was sent to {email} and you are signed in as {me}. Sign in with that email to open the page."
+    }
+  },
+  "suggest": {
+    "title": "Suggestions",
+    "acceptAll": "Accept all",
+    "rejectAll": "Reject all",
+    "addedBlock": "suggested a new paragraph",
+    "replaced": "suggested a change",
+    "added": "suggested adding",
+    "deleted": "suggested removing",
+    "accept": "Accept",
+    "reject": "Reject",
+    "withdraw": "Withdraw",
+    "start": "Suggest edits",
+    "stop": "Stop suggesting",
+    "banner": "Suggesting: what you type or delete shows as a suggestion until someone with edit access accepts it.",
+    "commentOnly": "You can comment on this page. To propose changes, suggest edits."
+  },
+  "live": {
+    "here": "{count, plural, one {# other person here} other {# other people here}}",
+    "mode": {
+      "edit": "editing",
+      "suggest": "suggesting",
+      "view": "viewing"
+    }
+  },
+  "lock": {
+    "lock": "Lock page",
+    "unlock": "Unlock",
+    "badge": "Locked",
+    "banner": "This page is locked. Nobody can edit it until it is unlocked; comments still work.",
+    "lockedMeanwhile": "Someone locked this page while you were editing. Your last change was not saved.",
+    "lockedLive": "Someone locked this page. You can read and comment until it is unlocked.",
+    "unlockForMe": "Unlock for me",
+    "unlockedForMe": "Unlocked only for you: it stays locked for everyone else.",
+    "lockAgain": "Lock again",
+    "unlockAll": "Unlock for everyone"
+  },
+  "verify": {
+    "title": "Verify page",
+    "close": "Close",
+    "help": "A verified page shows a check in the page and in search. When it expires, the owner gets a notice to review it.",
+    "expiredOn": "Verification expired on {date}",
+    "validUntil": "Verified until {date}",
+    "validForever": "Verified with no expiry",
+    "duration": "Verify for",
+    "days": "{count, plural, one {# day} other {# days}}",
+    "forever": "No expiry",
+    "owner": "Owner",
+    "ownerMe": "Keep the current owner (or me)",
+    "ownerHelp": "Gets the notice when the verification expires.",
+    "error": "Could not save the verification. Try again.",
+    "remove": "Remove verification",
+    "reverify": "Verify again",
+    "verify": "Verify",
+    "badge": "Verified",
+    "expiredBadge": "Verification expired",
+    "manage": "Verification",
+    "open": "Verify page",
+    "wikiTitle": "Wiki: verified pages",
+    "colState": "Verification",
+    "unverified": "Not verified",
+    "until": "Until {date}",
+    "noOwner": "No owner"
+  },
+  "teamspaces": {
+    "title": "Teamspaces",
+    "moveTo": "Move to",
+    "workspace": "Workspace",
+    "access": {
+      "open": "Open",
+      "closed": "Closed",
+      "private": "Private"
+    },
+    "join": "Join",
+    "leave": "Leave",
+    "newPageIn": "New page in {name}",
+    "empty": "No pages yet.",
+    "closedNotice": "Members only. Ask an owner to add you.",
+    "roleOwner": "Owner",
+    "roleMember": "Member"
+  },
+  "access": {
+    "createDenied": "Your role in this workspace does not let you create pages here. Ask an admin for edit access."
+  },
+  "admin": {
+    "teamspacesTab": "Teamspaces",
+    "auditTab": "Audit log",
+    "saveError": "Could not save. Try again.",
+    "membersTitle": "Workspace members",
+    "membersHelp": "What members (not admins) can do on pages by default. A page or a teamspace can set its own role in Share.",
+    "adminsOnly": "Only admins can change this.",
+    "memberRole": "Members can",
+    "memberRoleHelp": "Full access also lets them share, publish, move pages and use the trash. Can view or Can comment makes Docs read only for members.",
+    "securityTitle": "Security",
+    "securityHelp": "When something is off, only admins can do it.",
+    "allow_export": {
+      "label": "Export pages",
+      "help": "Markdown and PDF from the page menu."
+    },
+    "allow_publish": {
+      "label": "Publish to the help center",
+      "help": "Make a page public on the web."
+    },
+    "allow_guests": {
+      "label": "Invite guests",
+      "help": "Share a page with people outside the workspace by email."
+    },
+    "nameRequired": "Give the teamspace a name.",
+    "newTeamspace": "New teamspace",
+    "newTeamspaceHelp": "A space with its own pages and members, for a team or a project.",
+    "create": "Create teamspace",
+    "icon": "Icon",
+    "name": "Name",
+    "access": "Type",
+    "teamspaceRole": "Members can",
+    "accessHelp": "Open: everyone in the workspace sees its pages and can join. Closed: everyone sees it exists; only members see its pages. Private: only members see it.",
+    "teamspacesHelp": "Each teamspace has its own section in the sidebar. Move a page into one from its menu in the sidebar.",
+    "noTeamspaces": "No teamspaces yet",
+    "noTeamspacesBody": "Pages live in the workspace until you create one.",
+    "memberCount": "{count, plural, one {# member} other {# members}}",
+    "manage": "Manage",
+    "members": "Members",
+    "memberRoleIn": "Role",
+    "remove": "Remove",
+    "addMember": "Add someone",
+    "pickPerson": "Pick a person",
+    "deleteTeamspace": "Delete teamspace",
+    "deleteTitle": "Delete {name}?",
+    "deleteBody": "Its pages stay in the workspace, nothing is lost.",
+    "deleteBodyPrivate": "Its pages go to the trash. Only its members and workspace admins can see and restore them; nobody else in the workspace gets access. Restoring one of them brings the teamspace back.",
+    "lastOwner": "A teamspace needs at least one owner.",
+    "cancel": "Cancel",
+    "auditHelp": "Who did what with pages, access and security in the last year. Only admins see it.",
+    "exportCsv": "Export CSV",
+    "auditAction": "Event",
+    "auditAll": "All events",
+    "auditActor": "Person",
+    "auditAnyone": "Anyone",
+    "auditFrom": "From",
+    "auditTo": "To",
+    "auditError": "Could not load the log.",
+    "retry": "Retry",
+    "loading": "Loading",
+    "auditEmpty": "No events for these filters.",
+    "auditWhen": "When",
+    "auditPage": "Page",
+    "auditSystem": "System",
+    "untitled": "Untitled",
+    "loadMore": "Load more",
+    "aiKnowledge": "AI can use its pages",
+    "aiKnowledgeHelp": "The Chat bot and Agents read its pages that have \"AI can use it\" on or are published. Off by default in closed and private teamspaces.",
+    "aiKnowledgeOpen": "Open teamspaces follow the workspace rule: pages with \"AI can use it\" on or published.",
+    "isDefault": "Default teamspace",
+    "isDefaultHelp": "Everyone in the workspace is a member, now and when they join. Only one per workspace.",
+    "defaultBadge": "Default",
+    "everyone": "everyone in the workspace"
+  },
+  "audit": {
+    "group": {
+      "page": "Pages",
+      "share": "Sharing",
+      "guest": "Guests",
+      "version": "Versions",
+      "teamspace": "Teamspaces",
+      "settings": "Settings"
+    },
+    "action": {
+      "page": {
+        "created": "Created a page",
+        "trashed": "Moved a page to trash",
+        "restored": "Restored a page from trash",
+        "deleted": "Deleted a page forever",
+        "moved": "Moved a page",
+        "duplicated": "Duplicated a page",
+        "exported": "Exported a page",
+        "published": "Published to the help center",
+        "unpublished": "Unpublished from the help center",
+        "locked": "Locked a page",
+        "unlocked": "Unlocked a page",
+        "member_role": "Changed workspace access to a page",
+        "verified": "Verified a page",
+        "unverified": "Removed a verification",
+        "owner": "Changed a page owner"
+      },
+      "version": {
+        "restored": "Restored a version"
+      },
+      "share": {
+        "added": "Shared a page",
+        "role": "Changed a share role",
+        "removed": "Removed access to a page"
+      },
+      "guest": {
+        "invited": "Invited a guest",
+        "accepted": "A guest accepted an invite",
+        "revoked": "Revoked a guest invite"
+      },
+      "teamspace": {
+        "created": "Created a teamspace",
+        "updated": "Updated a teamspace",
+        "deleted": "Deleted a teamspace",
+        "member_added": "Added a teamspace member",
+        "member_removed": "Removed a teamspace member"
+      },
+      "settings": {
+        "updated": "Changed Docs settings"
+      }
+    }
   },
   "ai": {
     "askAi": "Ask AI",

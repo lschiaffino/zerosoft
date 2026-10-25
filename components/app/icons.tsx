@@ -30,6 +30,9 @@ export type IconName =
   | 'agents'
   | 'robots'
   | 'groups'
+  | 'voice'
+  | 'rec'
+  | 'talk'
   | 'products'
   | 'quotes'
   | 'templates'
@@ -216,6 +219,23 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M4 5h16v11H9l-5 4z" />
       <circle cx="9.5" cy="10.5" r="1.5" />
       <circle cx="14.5" cy="10.5" r="1.5" />
+    </>
+  ),
+  voice: (
+    <>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+    </>
+  ),
+  rec: (
+    <>
+      <rect x="3" y="6" width="13" height="12" rx="2" />
+      <path d="M16 10l5-3v10l-5-3z" />
+    </>
+  ),
+  talk: (
+    <>
+      <path d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16" />
     </>
   ),
   products: (

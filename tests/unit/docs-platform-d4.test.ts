@@ -116,6 +116,22 @@ describe('Docs D4: API de páginas (lib/docs-platform.ts)', () => {
   });
 });
 
+describe('Docs D4: mismas reglas que el editor (D3)', () => {
+  it('página bloqueada: 423 al cambiar contenido; sin edición: 403', async () => {
+    const { user: owner, actor } = await workspace('dp-lock');
+    const page = await createPage(actor, { title: 'Locked', markdown: 'x' });
+    await getDb().prepare('UPDATE docs_pages SET locked = 1 WHERE id = ?').run(page.id);
+    await expect(updatePage(actor, page.id, { appendMarkdown: 'y' })).rejects.toMatchObject({ status: 423 });
+    await getDb().prepare('UPDATE docs_pages SET locked = 0, member_role = ? WHERE id = ?').run('view', page.id);
+    const member = await makeUser('dp-lock-m');
+    const team = await createTeam(owner.id, 'T');
+    await addMember(team.id, member.id, 'member');
+    const viewer = (await docsActorFor(owner.id, member.id))!;
+    expect((await pageFor(viewer, page.id))?.access).toBe('view');
+    await expect(updatePage(viewer, page.id, { appendMarkdown: 'z' })).rejects.toMatchObject({ status: 403 });
+  });
+});
+
 describe('Docs D4: filas de bases', () => {
   it('agrega y cambia filas por nombre de propiedad (crea opciones, persona por email, fechas) y filtra', async () => {
     const { user, actor } = await workspace('dp-rows');

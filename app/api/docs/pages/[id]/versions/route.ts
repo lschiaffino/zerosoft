@@ -3,6 +3,7 @@ import { getCurrentUser, realUserId } from '@/lib/session';
 import { DOC_INTERNAL_READ, resolveDocAccess } from '@/lib/docs';
 import { listDocVersions, saveDocVersion } from '@/lib/docs-versions';
 import { forbidden, notFound, unauthorized } from '@/lib/docs-http';
+import { canWriteAccess } from '@/lib/docs-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,7 +24,7 @@ export async function POST(_req: NextRequest, props: { params: Promise<{ id: str
   if (!user) return unauthorized();
   const res = await resolveDocAccess(user, id, DOC_INTERNAL_READ);
   if (!res) return notFound();
-  if (res.access === 'view') return forbidden();
+  if (!canWriteAccess(res.access)) return forbidden();
   const versionId = await saveDocVersion(res.row.user_id, id, realUserId(user), 'manual');
   if (!versionId) return notFound();
   return NextResponse.json({ id: versionId }, { status: 201 });

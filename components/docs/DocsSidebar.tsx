@@ -7,18 +7,25 @@ import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import Icon from '@/components/app/icons';
 import { useShellBranch } from '@/components/app/useShellBranch';
-import { buildPageTree, type DocsPageSummary } from '@/lib/docs-types';
+import { buildPageTree, type DocsPageSummary, type DocsShareRole } from '@/lib/docs-types';
 import DocsGlyph from './DocsGlyphs';
 import DocsPageSwitcher, { DOCS_SWITCHER_EVENT } from './DocsPageSwitcher';
 import DocsPageIcon from './DocsPageIcon';
 import { DOCS_FAVORITES_EVENT, type DocsFavoriteRow } from './favorites';
+import type { DocsTeamspaceWithMe } from '@/lib/docs-access';
 
 interface DocsSidebarProps {
   pages: DocsPageSummary[];
   currentId?: string;
   /** En mobile el árbol arranca abierto (landing) o plegado (editor). */
   mobileOpenByDefault?: boolean;
-  createAction: (parentId?: string | null) => void;
+  createAction: (parentId?: string | null, teamspaceId?: string | null) => void;
+  /** "Mover a" un teamspace o al workspace (null). */
+  moveToTeamspaceAction?: (pageId: string, teamspaceId: string | null) => Promise<boolean>;
+  /** Teamspaces que la persona ve (sección propia con sus páginas). */
+  teamspaces?: DocsTeamspaceWithMe[];
+  /** Id real de quien mira (unirse a un teamspace abierto). */
+  meId?: string;
   moveAction: (pageId: string, parentId: string | null) => void | Promise<void>;
   /** Reordenar entre hermanas (soltar arriba/abajo de una fila). */
   reorderAction?: (pageId: string, targetId: string, placement: 'before' | 'after') => void | Promise<void>;
@@ -30,9 +37,11 @@ interface DocsSidebarProps {
     empty: string;
   };
   /** Páginas de otros workspaces compartidas con la persona. */
-  shared?: Array<{ id: string; title: string; icon: string | null; role: 'view' | 'edit'; owner_name: string | null; owner_email: string }>;
+  shared?: Array<{ id: string; title: string; icon: string | null; role: DocsShareRole; owner_name: string | null; owner_email: string }>;
   /** Favoritos de la persona (en orden). */
   favorites?: DocsFavoriteRow[];
+  /** Puede crear páginas de primer nivel en el workspace (un miembro de solo lectura no). */
+  canCreateRoot?: boolean;
 }
 
 type TreeNode = DocsPageSummary & { children?: TreeNode[] };
@@ -69,6 +78,10 @@ export default function DocsSidebar({
   labels,
   shared = [],
   favorites: initialFavorites = [],
+  teamspaces = [],
+  canCreateRoot = true,
+  moveToTeamspaceAction,
+  meId,
 }: DocsSidebarProps) {
   const t = useTranslations('docs');
   const router = useRouter();
@@ -171,12 +184,45 @@ export default function DocsSidebar({
   };
 
   const create = useCallback(
-    (parentId: string | null) => startTransition(() => createAction(parentId)),
+    (parentId: string | null, teamspaceId: string | null = null) => startTransition(() => createAction(parentId, teamspaceId)),
     [createAction],
   );
 
+  /** Mover una página (con su subárbol) a un teamspace o al workspace. */
+  const moveTo = useCallback(
+    (pageId: string, teamspaceId: string | null) => {
+      setMenuId(null);
+      if (!moveToTeamspaceAction) return;
+      startTransition(async () => {
+        await moveToTeamspaceAction(pageId, teamspaceId);
+        router.refresh();
+      });
+    },
+    [moveToTeamspaceAction, router],
+  );
+
+  /** Unirse o salir de un teamspace desde su encabezado. */
+  const membership = useCallback(
+    (ts: DocsTeamspaceWithMe, join: boolean) => {
+      if (!meId) return;
+      startTransition(async () => {
+        if (join) {
+          await fetch(`/api/docs/teamspaces/${ts.id}/members`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: meId }),
+          });
+        } else {
+          await fetch(`/api/docs/teamspaces/${ts.id}/members?user=${encodeURIComponent(meId)}`, { method: 'DELETE' });
+        }
+        router.refresh();
+      });
+    },
+    [router, meId],
+  );
+
   // "C" crea una página nueva desde cualquier vista de Docs (fuera de campos editables).
-  useKeyShortcut('c', () => create(null), !isPending);
+  useKeyShortcut('c', () => create(null), !isPending && canCreateRoot);
 
   const handleDrop = useCallback(
     (e: React.DragEvent, targetId: string | null, zone: DropZone = 'inside') => {
@@ -321,6 +367,26 @@ export default function DocsSidebar({
                     <Icon name="plus" size={14} />
                     {labels.newSubpage}
                   </button>
+                  {moveToTeamspaceAction && !node.parent_id && teamspaces.length > 0 && (
+                    <>
+                      <span className="docs-menu-label" role="presentation">
+                        {t('teamspaces.moveTo')}
+                      </span>
+                      {node.teamspace_id && (
+                        <button type="button" role="menuitem" className="docs-menu-item" onClick={() => moveTo(node.id, null)} disabled={isPending}>
+                          {t('teamspaces.workspace')}
+                        </button>
+                      )}
+                      {teamspaces
+                        .filter((ts) => ts.id !== node.teamspace_id && (ts.my_role || ts.access === 'open'))
+                        .map((ts) => (
+                          <button key={ts.id} type="button" role="menuitem" className="docs-menu-item" onClick={() => moveTo(node.id, ts.id)} disabled={isPending}>
+                            {ts.icon ? `${ts.icon} ` : ''}
+                            {ts.name}
+                          </button>
+                        ))}
+                    </>
+                  )}
                 </span>
               )}
             </span>
@@ -343,6 +409,60 @@ export default function DocsSidebar({
   };
 
   const count = t('sidebar.count', { count: pages.length });
+  // Páginas de primer nivel por teamspace (las de teamspaces que no ve no llegan del server).
+  const tsIds = new Set(teamspaces.map((ts) => ts.id));
+  const workspaceRoots = tree.filter((n) => !n.teamspace_id || !tsIds.has(n.teamspace_id));
+  const rootsOf = (id: string) => tree.filter((n) => n.teamspace_id === id);
+
+  const teamspaceSection =
+    teamspaces.length > 0 ? (
+      <div className="docs-teamspaces" role="group" aria-label={t('teamspaces.title')} data-testid="docs-teamspaces">
+        <p className="docs-shared-label">{t('teamspaces.title')}</p>
+        {teamspaces.map((ts) => {
+          const roots = rootsOf(ts.id);
+          const canSee = ts.my_role !== null || ts.access === 'open';
+          return (
+            <div key={ts.id} className="docs-teamspace" data-testid="docs-teamspace">
+              <div className="docs-tree-row docs-teamspace-row" style={{ '--d': 0 } as CSSProperties}>
+                <span className="docs-teamspace-icon" aria-hidden="true">
+                  {ts.icon || ts.name.charAt(0).toUpperCase()}
+                </span>
+                <span className="docs-tree-title docs-teamspace-name">{ts.name}</span>
+                {ts.access !== 'open' && <span className="docs-teamspace-access">{t(`teamspaces.access.${ts.access}`)}</span>}
+                <span className="docs-tree-actions">
+                  {!ts.my_role && ts.access === 'open' && (
+                    <button type="button" className="docs-tree-btn docs-teamspace-join" onClick={() => membership(ts, true)} disabled={isPending}>
+                      {t('teamspaces.join')}
+                    </button>
+                  )}
+                  {canSee && (
+                    <button
+                      type="button"
+                      className="docs-tree-btn docs-tree-add"
+                      onClick={() => create(null, ts.id)}
+                      disabled={isPending}
+                      title={t('teamspaces.newPageIn', { name: ts.name })}
+                      aria-label={t('teamspaces.newPageIn', { name: ts.name })}
+                    >
+                      <Icon name="plus" size={14} />
+                    </button>
+                  )}
+                </span>
+              </div>
+              {canSee ? (
+                roots.length > 0 ? (
+                  <ul className="docs-tree">{roots.map((n) => renderNode(n, 1))}</ul>
+                ) : (
+                  <p className="docs-teamspace-empty">{t('teamspaces.empty')}</p>
+                )
+              ) : (
+                <p className="docs-teamspace-empty">{t('teamspaces.closedNotice')}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    ) : null;
 
   const body = (inShell: boolean) => (
     <>
@@ -423,8 +543,9 @@ export default function DocsSidebar({
           </ul>
         </div>
       )}
-      {favorites.length > 0 && tree.length > 0 && (
-        // Con Favoritos arriba, la lista general lleva su propio encabezado (como en Notion).
+      {teamspaceSection}
+      {(favorites.length > 0 || teamspaces.length > 0) && workspaceRoots.length > 0 && (
+        // Con Favoritos o teamspaces arriba, la lista general lleva su propio encabezado (como en Notion).
         <p className="docs-shared-label docs-tree-label" data-testid="docs-tree-label">
           {t('sidebar.pages')}
         </p>
@@ -432,19 +553,21 @@ export default function DocsSidebar({
       {tree.length === 0 ? (
         <div className="docs-sidebar-empty">
           <p>{labels.empty}</p>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => create(null)} disabled={isPending}>
-            <Icon name="plus" size={14} />
-            {labels.newPage}
-          </button>
+          {canCreateRoot && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => create(null)} disabled={isPending}>
+              <Icon name="plus" size={14} />
+              {labels.newPage}
+            </button>
+          )}
         </div>
       ) : inShell ? (
         // Ya está dentro del <nav> del sidebar: una lista, no otro landmark.
         <ul className="docs-tree" aria-label={t('sidebar.pages')}>
-          {tree.map((n) => renderNode(n, 0))}
+          {workspaceRoots.map((n) => renderNode(n, 0))}
         </ul>
       ) : (
         <nav aria-label={t('sidebar.pages')}>
-          <ul className="docs-tree">{tree.map((n) => renderNode(n, 0))}</ul>
+          <ul className="docs-tree">{workspaceRoots.map((n) => renderNode(n, 0))}</ul>
         </nav>
       )}
 
@@ -512,18 +635,20 @@ export default function DocsSidebar({
           {t('sidebar.pages')}
           <span className="docs-sidebar-count">{count}</span>
         </p>
-        <button
-          type="button"
-          className="docs-tree-btn docs-sidebar-new"
-          onClick={() => create(null)}
-          title={`${labels.newPage} (C)`}
-          aria-label={labels.newPage}
-          aria-keyshortcuts="C"
-          disabled={isPending}
-          aria-busy={isPending || undefined}
-        >
-          <Icon name="plus" size={16} />
-        </button>
+        {canCreateRoot && (
+          <button
+            type="button"
+            className="docs-tree-btn docs-sidebar-new"
+            onClick={() => create(null)}
+            title={`${labels.newPage} (C)`}
+            aria-label={labels.newPage}
+            aria-keyshortcuts="C"
+            disabled={isPending}
+            aria-busy={isPending || undefined}
+          >
+            <Icon name="plus" size={16} />
+          </button>
+        )}
       </div>
 
       <div className="docs-sidebar-body" id="docs-sidebar-body">

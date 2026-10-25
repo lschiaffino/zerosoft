@@ -360,9 +360,16 @@ export function DbTimeline({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   /** Parte visible del lienzo: las barras fuera de vista muestran una flecha para ir a ellas (como Notion). */
   const [viewport, setViewport] = useState({ left: 0, width: 0 });
+  /** Tramo del canvas que se ve de verdad (lo que la ventana corta no cuenta): ahí no van las flechas "Ir a". */
   const syncViewport = () => {
     const el = scrollRef.current;
-    if (el) setViewport((v) => (v.left === el.scrollLeft && v.width === el.clientWidth ? v : { left: el.scrollLeft, width: el.clientWidth }));
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const clipLeft = Math.max(0, -rect.left);
+    const clipRight = Math.max(0, rect.right - (window.innerWidth || rect.right));
+    const left = el.scrollLeft + clipLeft;
+    const width = Math.max(0, el.clientWidth - clipLeft - clipRight);
+    setViewport((v) => (v.left === left && v.width === width ? v : { left, width }));
   };
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef(drag);
@@ -404,9 +411,17 @@ export function DbTimeline({
   }, [zoom, today, from, dayW]);
 
   useEffect(() => {
+    // También cuando cambia el ancho sin que cambie la ventana (panel lateral, sidebar).
+    const el = scrollRef.current;
+    const ro = el && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => syncViewport()) : null;
+    if (el) ro?.observe(el);
     window.addEventListener('resize', syncViewport);
-    return () => window.removeEventListener('resize', syncViewport);
-  }, []);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', syncViewport);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startProp]);
 
   if (!startProp) {
     return (

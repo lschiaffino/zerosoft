@@ -55,6 +55,11 @@ export function DbRelationPicker({
   const titleOf = (id: string) => choices.find((c) => c.id === id)?.title || t('untitledRow');
 
   const toggle = (id: string) => {
+    // Elegida: la búsqueda se limpia (como Notion), así otro Enter no crea una "Nueva fila" con lo tipeado.
+    if (!value.includes(id)) {
+      setQ('');
+      setActive(null);
+    }
     if (single) {
       onChange(value[0] === id ? [] : [id]);
       onDone();

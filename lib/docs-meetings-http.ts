@@ -1,3 +1,4 @@
+import { canWriteAccess } from './docs-access';
 /**
  * Rutas de notas de reunión: la reunión y el acceso de quien llama a su
  * página (ver para leer, editar para grabar, resumir y mandar tareas).
@@ -17,6 +18,6 @@ export async function meetingFor(
   const meeting = await getMeetingRow(id);
   const access = meeting ? await getDocAccess(meeting.page, user, { includePublished: false, includePublicLink: false }) : null;
   if (!meeting || !access) return { res: notFound() };
-  if (write && access === 'view') return { res: forbidden() };
+  if (write && !canWriteAccess(access)) return { res: forbidden() };
   return { user, meeting };
 }

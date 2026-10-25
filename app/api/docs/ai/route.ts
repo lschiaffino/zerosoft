@@ -1,3 +1,4 @@
+import { canWriteAccess } from '@/lib/docs-access';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, realUserId } from '@/lib/session';
@@ -39,7 +40,8 @@ export async function POST(req: NextRequest) {
   const access = page ? await getDocAccess(page, user, { includePublished: false, includePublicLink: false }) : null;
   if (!page || !access) return notFound();
   // El resultado se inserta en la página: hace falta poder editarla (y consume la IA del workspace dueño).
-  if (access === 'view') return forbidden();
+  if (!canWriteAccess(access)) return forbidden();
+  if (page.locked === 1) return docsError(423, 'locked');
   const limited = await limitWrites('docs:ai', realUserId(user), 30);
   if (limited) return limited;
   try {

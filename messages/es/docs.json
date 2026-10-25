@@ -6,6 +6,7 @@
     "latest": "Últimas páginas",
     "emptyTitle": "Todavía no hay páginas",
     "emptySub": "Escribí una página desde cero o empezá con una plantilla. Las páginas se anidan como carpetas.",
+    "emptyReadOnly": "Acá aparecen las páginas que tu workspace comparte con vos.",
     "edited": "Editada {date}",
     "colPage": "Página",
     "colEdited": "Editada"
@@ -36,7 +37,7 @@
     "saveFailed": "No se pudieron guardar los cambios.",
     "retrySave": "Reintentar",
     "saveConflict": "Sin guardar: hay cambios nuevos de otra persona.",
-    "conflict": "Otra persona editó esta página mientras escribías. Tus últimos cambios no se guardaron.",
+    "conflict": "No se pudieron combinar tus cambios con los de otra persona después de varios intentos.",
     "conflictReload": "Ver la versión nueva",
     "conflictOverwrite": "Sobrescribir con mis cambios",
     "pageOptions": "Opciones de página",
@@ -252,7 +253,9 @@
       "copy": "Copiar y sincronizar",
       "unsync": "Desincronizar",
       "copied": "Copiado. Pegalo en cualquier página de este workspace y lo que edites se va a ver en los dos lugares.",
-      "notFound": "Ese bloque sincronizado no es de este workspace."
+      "notFound": "Ese bloque sincronizado no es de este workspace.",
+      "readOnly": "Solo lectura: no podés editar la página de la que viene.",
+      "noAccess": "No tenés acceso a este bloque sincronizado. Pedí acceso a la página de donde viene."
     },
     "columns": {
       "label": "{count} columnas",
@@ -777,7 +780,9 @@
     "roles": {
       "view": "Puede ver",
       "edit": "Puede editar",
-      "owner": "Acceso completo"
+      "owner": "Acceso completo",
+      "full": "Acceso total",
+      "comment": "Puede comentar"
     },
     "invite": "Invitar",
     "workspace": "Tu workspace",
@@ -806,7 +811,14 @@
     "inherit": "Heredar el acceso de la página padre",
     "inheritOnHelp": "Quien tiene acceso a la página padre también puede abrir esta. Los roles que pongas acá tienen prioridad.",
     "inheritOffHelp": "Solo las personas de esta lista pueden abrir la página. El acceso de la página padre deja de aplicar.",
-    "subpages": "Subpáginas"
+    "subpages": "Subpáginas",
+    "guest": "Invitado",
+    "guestsDisabled": "Un admin desactivó invitar personas de afuera del workspace.",
+    "inviteLimit": "Esta página tiene demasiadas invitaciones pendientes. Revocá algunas primero.",
+    "inheritRole": "Por defecto ({role})",
+    "invitePending": "Invitado por email · pendiente",
+    "revokeInvite": "Revocar invitación",
+    "sharedCommentBanner": "{name} te compartió esta página para comentar y sugerir cambios."
   },
   "templates": {
     "title": "Empezar desde una plantilla",
@@ -875,7 +887,16 @@
     "reply": "Responder",
     "replyPlaceholder": "Respondé…",
     "cancel": "Cancelar",
-    "mentionHint": "Escribí @ para mencionar a alguien. Le llega un aviso."
+    "mentionHint": "Escribí @ para mencionar a alguien. Le llega un aviso.",
+    "commentSelection": "Comentar la selección",
+    "commentShort": "Comentar",
+    "you": "Vos",
+    "someone": "Alguien",
+    "open": "Abiertos",
+    "resolvedTab": "Resueltos",
+    "emptyResolved": "Todavía no hay comentarios resueltos.",
+    "goToText": "Ir al texto resaltado",
+    "readOnlyHint": "Podés leer los comentarios de esta página."
   },
   "help": {
     "notFound": "Centro de ayuda no encontrado",
@@ -909,11 +930,14 @@
     "articlesIn": "Artículos de {title}"
   },
   "versions": {
+    "syncedCurrent": "Los bloques sincronizados muestran su contenido actual, no el de esta versión.",
     "title": "Historial de versiones",
     "save": "Guardar versión",
     "saved": "Guardada",
     "restore": "Restaurar",
-    "restoreConfirm": "¿Restaurar esta versión? El estado actual queda guardado en el historial.",
+    "restoreConfirm": "Lo que hay ahora queda en el historial.",
+    "restoreTitle": "¿Restaurar esta versión?",
+    "cancel": "Cancelar",
     "back": "Versiones",
     "unknownAuthor": "Versión anterior",
     "untitled": "Sin título",
@@ -926,7 +950,23 @@
     },
     "note": "Se guardan las últimas 50 versiones.",
     "loadError": "No se pudo cargar el historial.",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "viewLabel": "Qué mostrar",
+    "viewChanges": "Cambios",
+    "viewCurrent": "Comparar con la actual",
+    "viewPage": "Página",
+    "firstVersion": "Es la primera versión guardada: todo aparece como agregado.",
+    "noChanges": "Sin cambios.",
+    "statAdded": "{count} agregados",
+    "statRemoved": "{count} quitados",
+    "statChanged": "{count} cambiados",
+    "unchanged": "{count, plural, one {# bloque sin cambios} other {# bloques sin cambios}}",
+    "kind": {
+      "added": "Agregado",
+      "removed": "Quitado",
+      "changed": "Cambiado"
+    },
+    "blockType": "Bloque: {type}"
   },
   "export": {
     "markdown": "Exportar como Markdown",
@@ -998,6 +1038,235 @@
   "favorites": {
     "title": "Favoritos",
     "error": "No se pudieron actualizar los favoritos. Probá de nuevo."
+  },
+  "emails": {
+    "untitled": "Sin título",
+    "guestSubject": "{name} compartió “{title}” con vos",
+    "guestLine": "{name} te invitó a la página “{title}” en zerosoft Docs.",
+    "guestOpen": "Abrir la página",
+    "guestNote": "Entrá o creá una cuenta con este email para verla. Solo vas a tener acceso a esta página y sus subpáginas. El link vence en 30 días.",
+    "verifyExpiredTitle": "Venció la verificación: {title}",
+    "verifyExpiredBody": "Sos dueño de esta página. Revisá que siga al día y verificala de nuevo.",
+    "verifyOpen": "Revisar la página"
+  },
+  "guests": {
+    "backToDocs": "Volver a Docs",
+    "fail": {
+      "invalidTitle": "Este link de invitación no funciona",
+      "invalid": "Ya se usó o lo revocaron. Pedile uno nuevo a quien te compartió la página.",
+      "expiredTitle": "Esta invitación venció",
+      "expired": "Las invitaciones duran 30 días. Pedí una nueva.",
+      "email_mismatchTitle": "Esta invitación es para otro email",
+      "email_mismatch": "Se mandó a {email} y entraste como {me}. Entrá con ese email para abrir la página."
+    }
+  },
+  "suggest": {
+    "title": "Sugerencias",
+    "acceptAll": "Aceptar todas",
+    "rejectAll": "Rechazar todas",
+    "addedBlock": "sugirió un párrafo nuevo",
+    "replaced": "sugirió un cambio",
+    "added": "sugirió agregar",
+    "deleted": "sugirió quitar",
+    "accept": "Aceptar",
+    "reject": "Rechazar",
+    "withdraw": "Retirar",
+    "start": "Sugerir cambios",
+    "stop": "Dejar de sugerir",
+    "banner": "Sugiriendo: lo que escribas o borres queda como sugerencia hasta que alguien con edición la acepte.",
+    "commentOnly": "Podés comentar esta página. Para proponer cambios, sugerí ediciones."
+  },
+  "live": {
+    "here": "{count, plural, one {# persona más acá} other {# personas más acá}}",
+    "mode": {
+      "edit": "editando",
+      "suggest": "sugiriendo",
+      "view": "mirando"
+    }
+  },
+  "lock": {
+    "lock": "Bloquear página",
+    "unlock": "Desbloquear",
+    "badge": "Bloqueada",
+    "banner": "Esta página está bloqueada. Nadie la edita hasta que se desbloquee; los comentarios siguen.",
+    "lockedMeanwhile": "Alguien bloqueó esta página mientras editabas. Tu último cambio no se guardó.",
+    "lockedLive": "Alguien bloqueó esta página. Podés leerla y comentar hasta que la desbloqueen.",
+    "unlockForMe": "Desbloquear solo para mí",
+    "unlockedForMe": "Desbloqueada solo para vos: para el resto sigue bloqueada.",
+    "lockAgain": "Volver a bloquear",
+    "unlockAll": "Desbloquear para todos"
+  },
+  "verify": {
+    "title": "Verificar página",
+    "close": "Cerrar",
+    "help": "Una página verificada muestra un check en la página y en la búsqueda. Cuando vence, el dueño recibe un aviso para revisarla.",
+    "expiredOn": "La verificación venció el {date}",
+    "validUntil": "Verificada hasta el {date}",
+    "validForever": "Verificada sin vencimiento",
+    "duration": "Verificar por",
+    "days": "{count, plural, one {# día} other {# días}}",
+    "forever": "Sin vencimiento",
+    "owner": "Dueño",
+    "ownerMe": "Dejar el dueño actual (o yo)",
+    "ownerHelp": "Recibe el aviso cuando vence la verificación.",
+    "error": "No se pudo guardar la verificación. Probá de nuevo.",
+    "remove": "Quitar verificación",
+    "reverify": "Verificar de nuevo",
+    "verify": "Verificar",
+    "badge": "Verificada",
+    "expiredBadge": "Verificación vencida",
+    "manage": "Verificación",
+    "open": "Verificar página",
+    "wikiTitle": "Wiki: páginas verificadas",
+    "colState": "Verificación",
+    "unverified": "Sin verificar",
+    "until": "Hasta el {date}",
+    "noOwner": "Sin dueño"
+  },
+  "teamspaces": {
+    "title": "Teamspaces",
+    "moveTo": "Mover a",
+    "workspace": "Workspace",
+    "access": {
+      "open": "Abierto",
+      "closed": "Cerrado",
+      "private": "Privado"
+    },
+    "join": "Unirme",
+    "leave": "Salir",
+    "newPageIn": "Página nueva en {name}",
+    "empty": "Todavía no hay páginas.",
+    "closedNotice": "Solo para miembros. Pedile a un owner que te sume.",
+    "roleOwner": "Owner",
+    "roleMember": "Miembro"
+  },
+  "access": {
+    "createDenied": "Tu rol en este workspace no te deja crear páginas acá. Pedile acceso de edición a un admin."
+  },
+  "admin": {
+    "teamspacesTab": "Teamspaces",
+    "auditTab": "Auditoría",
+    "saveError": "No se pudo guardar. Probá de nuevo.",
+    "membersTitle": "Miembros del workspace",
+    "membersHelp": "Qué pueden hacer los miembros (no admins) en las páginas por defecto. Una página o un teamspace puede fijar su propio rol en Compartir.",
+    "adminsOnly": "Solo los admins lo cambian.",
+    "memberRole": "Los miembros pueden",
+    "memberRoleHelp": "Acceso total también deja compartir, publicar, mover páginas y usar la papelera. Puede ver o Puede comentar deja Docs en solo lectura para los miembros.",
+    "securityTitle": "Seguridad",
+    "securityHelp": "Lo que esté apagado solo lo pueden hacer los admins.",
+    "allow_export": {
+      "label": "Exportar páginas",
+      "help": "Markdown y PDF desde el menú de la página."
+    },
+    "allow_publish": {
+      "label": "Publicar en el centro de ayuda",
+      "help": "Hacer pública una página en la web."
+    },
+    "allow_guests": {
+      "label": "Invitar invitados",
+      "help": "Compartir una página por email con personas de afuera del workspace."
+    },
+    "nameRequired": "Ponele un nombre al teamspace.",
+    "newTeamspace": "Teamspace nuevo",
+    "newTeamspaceHelp": "Un espacio con sus propias páginas y miembros, para un equipo o un proyecto.",
+    "create": "Crear teamspace",
+    "icon": "Ícono",
+    "name": "Nombre",
+    "access": "Tipo",
+    "teamspaceRole": "Los miembros pueden",
+    "accessHelp": "Abierto: todo el workspace ve sus páginas y se puede unir. Cerrado: todos ven que existe; sus páginas, solo los miembros. Privado: solo lo ven sus miembros.",
+    "teamspacesHelp": "Cada teamspace tiene su sección en el sidebar. Para mover una página, usá su menú en el sidebar.",
+    "noTeamspaces": "Todavía no hay teamspaces",
+    "noTeamspacesBody": "Las páginas viven en el workspace hasta que crees uno.",
+    "memberCount": "{count, plural, one {# miembro} other {# miembros}}",
+    "manage": "Administrar",
+    "members": "Miembros",
+    "memberRoleIn": "Rol",
+    "remove": "Quitar",
+    "addMember": "Sumar a alguien",
+    "pickPerson": "Elegí una persona",
+    "deleteTeamspace": "Borrar teamspace",
+    "deleteTitle": "¿Borrar {name}?",
+    "deleteBody": "Sus páginas quedan en el workspace: no se pierde nada.",
+    "deleteBodyPrivate": "Sus páginas van a la papelera. Solo sus miembros y los admins del workspace las ven y pueden restaurarlas; el resto del workspace no gana acceso. Restaurar una de ellas devuelve el teamspace.",
+    "lastOwner": "Un teamspace necesita al menos un owner.",
+    "cancel": "Cancelar",
+    "auditHelp": "Quién hizo qué con las páginas, los accesos y la seguridad en el último año. Solo lo ven los admins.",
+    "exportCsv": "Exportar CSV",
+    "auditAction": "Evento",
+    "auditAll": "Todos los eventos",
+    "auditActor": "Persona",
+    "auditAnyone": "Cualquiera",
+    "auditFrom": "Desde",
+    "auditTo": "Hasta",
+    "auditError": "No se pudo cargar el registro.",
+    "retry": "Reintentar",
+    "loading": "Cargando",
+    "auditEmpty": "No hay eventos con estos filtros.",
+    "auditWhen": "Cuándo",
+    "auditPage": "Página",
+    "auditSystem": "Sistema",
+    "untitled": "Sin título",
+    "loadMore": "Ver más",
+    "aiKnowledge": "La IA puede usar sus páginas",
+    "aiKnowledgeHelp": "El bot de Chat y Agents leen sus páginas con \"La IA puede usarla\" o publicadas. Apagado por defecto en teamspaces cerrados y privados.",
+    "aiKnowledgeOpen": "Los teamspaces abiertos siguen la regla del workspace: páginas con \"La IA puede usarla\" o publicadas.",
+    "isDefault": "Teamspace por defecto",
+    "isDefaultHelp": "Todo el workspace es miembro, ahora y quien se sume después. Uno solo por workspace.",
+    "defaultBadge": "Por defecto",
+    "everyone": "todo el workspace"
+  },
+  "audit": {
+    "group": {
+      "page": "Páginas",
+      "share": "Compartir",
+      "guest": "Invitados",
+      "version": "Versiones",
+      "teamspace": "Teamspaces",
+      "settings": "Ajustes"
+    },
+    "action": {
+      "page": {
+        "created": "Creó una página",
+        "trashed": "Mandó una página a la papelera",
+        "restored": "Restauró una página de la papelera",
+        "deleted": "Borró una página para siempre",
+        "moved": "Movió una página",
+        "duplicated": "Duplicó una página",
+        "exported": "Exportó una página",
+        "published": "Publicó en el centro de ayuda",
+        "unpublished": "Despublicó del centro de ayuda",
+        "locked": "Bloqueó una página",
+        "unlocked": "Desbloqueó una página",
+        "member_role": "Cambió el acceso del workspace a una página",
+        "verified": "Verificó una página",
+        "unverified": "Quitó una verificación",
+        "owner": "Cambió el dueño de una página"
+      },
+      "version": {
+        "restored": "Restauró una versión"
+      },
+      "share": {
+        "added": "Compartió una página",
+        "role": "Cambió un rol de acceso",
+        "removed": "Quitó el acceso a una página"
+      },
+      "guest": {
+        "invited": "Invitó a un invitado externo",
+        "accepted": "Un invitado aceptó la invitación",
+        "revoked": "Revocó una invitación"
+      },
+      "teamspace": {
+        "created": "Creó un teamspace",
+        "updated": "Cambió un teamspace",
+        "deleted": "Borró un teamspace",
+        "member_added": "Sumó a alguien a un teamspace",
+        "member_removed": "Sacó a alguien de un teamspace"
+      },
+      "settings": {
+        "updated": "Cambió los ajustes de Docs"
+      }
+    }
   },
   "ai": {
     "askAi": "Preguntarle a la IA",

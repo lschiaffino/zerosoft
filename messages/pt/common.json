@@ -1,6 +1,6 @@
 {
   "meta": {
-    "tagline": "Doze apps open source para o seu time.",
+    "tagline": "Quinze apps open source para o seu time.",
     "description": "CRM, chat de suporte, agentes de IA, automações, robôs de navegador, projetos, links, docs, notas, agenda e quadro branco. Open source (AGPLv3): rode no seu servidor por $0 ou use a zerosoft Cloud, com plano grátis e cobrança por uso."
   },
   "header": {
@@ -32,10 +32,15 @@
       "robots": "Automação de navegador e extração de dados",
       "groups": "Caixa compartilhada de WhatsApp e gestão de grupos",
       "notes": "Notas, cadernos, checklists e clipper web",
-      "board": "Quadro branco infinito compartilhado"
-    }
+      "board": "Quadro branco infinito compartilhado",
+      "voice": "Em construção: ditado por voz e notas de reunião",
+      "rec": "Em construção: gravação de tela e câmera",
+      "talk": "Em construção: mensagens de equipe"
+    },
+    "building": "Em construção"
   },
   "sidebar": {
+    "newReadOnly": "Seu papel aqui é ver ou comentar: peça a um admin para criar a página.",
     "search": "Buscar",
     "new": "Novo",
     "backToSite": "Voltar ao site",
@@ -137,7 +142,7 @@
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
-    "p2": "Rodar esse software custa bem menos. Os doze apps da zerosoft cabem em <strong>um contêiner e um arquivo SQLite</strong>, num servidor pequeno.",
+    "p2": "Rodar esse software custa bem menos. Os quinze apps da zerosoft cabem em <strong>um contêiner e um arquivo SQLite</strong>, num servidor pequeno.",
     "p3": "Por isso publicamos o código. O core de cada app é AGPLv3: você pode ler, modificar e rodar no seu servidor sem nos pagar nada.",
     "final": "Por que fazemos a zerosoft.",
     "p4": "Se preferir que a gente opere, a zerosoft Cloud cobra por workspace e por uso. Colocar mais alguém no time não muda a fatura.",
@@ -179,6 +184,15 @@
     },
     "board": {
       "desc": "Um quadro branco infinito para o seu time."
+    },
+    "voice": {
+      "desc": "Ditado e notas de reunião com IA. Em construção."
+    },
+    "rec": {
+      "desc": "Vídeos de tela e câmera para compartilhar. Em construção."
+    },
+    "talk": {
+      "desc": "Canais, mensagens diretas e threads. Em construção."
     }
   },
   "model": {
@@ -247,7 +261,7 @@
   },
   "home": {
     "hero": {
-      "title1": "Doze apps para o seu time.",
+      "title1": "Quinze apps para o seu time.",
       "title2": "Zero licenças.",
       "sub": "Alternativas open source ao HubSpot, Intercom, Calendly, Linear, Notion e mais cinco produtos que o seu time paga todo mês. Rode no seu servidor por $0 ou use na zerosoft Cloud.",
       "ctaStart": "Comece grátis",
@@ -304,7 +318,7 @@
         "b3": "Modelos, comentários e compartilhamento"
       },
       "one": {
-        "title": "Uma conta para os doze apps.",
+        "title": "Uma conta para os quinze apps.",
         "desc": "Convide seu time uma vez. Encontre contatos, empresas, negócios, links, docs e tarefas em uma única barra de busca, e pule entre apps sem trocar de ferramenta."
       },
       "replaces": "Substitui {rival}",
@@ -327,7 +341,17 @@
         "line": "Um quadro branco infinito."
       },
       "audienceTitle": "Para equipes e para uso pessoal",
-      "audienceDesc": "Todos os apps servem para uma pessoa ou para uma equipe inteira. Comece com o que você precisa e convide sua equipe quando quiser. A conta e a busca são as mesmas em todos."
+      "audienceDesc": "Todos os apps servem para uma pessoa ou para uma equipe inteira. Comece com o que você precisa e convide sua equipe quando quiser. A conta e a busca são as mesmas em todos.",
+      "voice": {
+        "line": "Ditado em qualquer app e notas de reunião."
+      },
+      "rec": {
+        "line": "Vídeos de tela e câmera para compartilhar."
+      },
+      "talk": {
+        "line": "Canais, mensagens diretas e threads para o seu time."
+      },
+      "building": "Em construção · como {rival}"
     },
     "stack": {
       "title": "{total} por ano.",
@@ -341,7 +365,7 @@
       "total": "Total por ano",
       "zeroTitle": "zerosoft, no seu servidor",
       "footnote": "Preços de tabela citados nas nossas páginas de produto, com cobrança mensal, para 10 usuários (Bitly Core é um plano fixo). Os fornecedores mudam os preços: confira nos sites deles. A zerosoft não tem afiliação com nenhuma dessas empresas.",
-      "rApps": "Os doze apps",
+      "rApps": "Os quinze apps",
       "rSeats": "Usuários",
       "rLicense": "Licença",
       "rData": "Seus dados",
@@ -412,7 +436,7 @@
   },
   "appHome": {
     "title": "Seus apps",
-    "lead": "Os doze apps do seu workspace. Escolha um para começar.",
+    "lead": "Os quinze apps do seu workspace. Escolha um para começar.",
     "apps": "Apps",
     "open": "Abrir {name}",
     "linkSummary": "Visão geral do Link",
@@ -526,7 +550,7 @@
   "notFound": {
     "sign": "Erro 404",
     "title": "Esta página não existe.",
-    "body": "O link pode ter um erro ou a página mudou de lugar. Pelo início você chega aos doze apps.",
+    "body": "O link pode ter um erro ou a página mudou de lugar. Pelo início você chega aos quinze apps.",
     "cta": "Ir para o início",
     "meta": "Página não encontrada"
   },
@@ -587,5 +611,16 @@
       "title": "Trabalho diário",
       "desc": "Docs, notas e agenda para o dia a dia."
     }
+  },
+  "appSoon": {
+    "desc": "O {app} ainda não está pronto.",
+    "title": "Em breve: estamos construindo o {app}",
+    "body": "Ainda não há nada para usar aqui. Quando a primeira versão sair, você vai ver nesta página e no changelog.",
+    "propose": "Propor uma ideia",
+    "plan": "Ver o que o {app} vai fazer",
+    "loading": "Carregando {app}…",
+    "errorTitle": "Não conseguimos carregar o {app}",
+    "errorBody": "Tente de novo em um momento.",
+    "retry": "Tentar de novo"
   }
 }

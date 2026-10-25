@@ -54,6 +54,19 @@ export class DocsPlatformError extends Error {
 
 const notFound = () => new DocsPlatformError('not_found', 404);
 
+/**
+ * Página para escribir, con las mismas reglas que el editor: ver o comentar
+ * no alcanza (403) y una página bloqueada no cambia su contenido (423).
+ */
+async function pageForWrite(actor: DocsActor, pageId: string, opts: { includeArchived?: boolean; content?: boolean } = {}) {
+  const res = await pageFor(actor, pageId, { includeArchived: opts.includeArchived });
+  if (!res) throw notFound();
+  const { canWriteAccess } = await import('./docs-access');
+  if (!canWriteAccess(res.access)) throw new DocsPlatformError('forbidden', 403);
+  if (opts.content !== false && res.row.locked === 1) throw new DocsPlatformError('locked', 423);
+  return res;
+}
+
 // ---------- Salidas ----------
 
 export interface PageSummaryOut {
@@ -68,7 +81,7 @@ export interface PageSummaryOut {
 }
 
 export interface PageOut extends PageSummaryOut {
-  access: 'owner' | 'edit' | 'view';
+  access: 'owner' | 'full' | 'edit' | 'comment' | 'view';
   markdown: string;
   blocks?: DocsBlock[];
   databases: Array<{ blockId: string; title: string; rows: number; synced: boolean }>;
@@ -210,6 +223,7 @@ export async function createPage(actor: DocsActor, input: CreatePageInput): Prom
   if (input.parentId) {
     const parent = await pageFor(actor, input.parentId, { write: true });
     if (!parent) throw new DocsPlatformError('parent_not_found', 404);
+    if (parent.row.locked === 1) throw new DocsPlatformError('locked', 423);
     // Las subpáginas viven en el workspace del padre.
     if (parent.row.user_id !== actor.id) throw new DocsPlatformError('parent_not_found', 404);
     parentId = parent.row.id;
@@ -251,10 +265,12 @@ export interface UpdatePageInput {
  */
 export async function updatePage(actor: DocsActor, pageId: string, input: UpdatePageInput): Promise<PageOut> {
   for (let attempt = 0; attempt < 4; attempt++) {
-    const res = await pageFor(actor, pageId, { write: true, includeArchived: input.archived === false });
-    if (!res) throw notFound();
-    if (res.access !== 'owner' && (input.archived !== undefined)) throw new DocsPlatformError('forbidden', 403);
-    const current = parseBlocks(res.row.content);
+    const touchesContent = input.title !== undefined || input.icon !== undefined || input.markdown !== undefined || Boolean(input.blocks?.length) || Boolean(input.appendMarkdown) || Boolean(input.appendBlocks?.length);
+    const res = await pageForWrite(actor, pageId, { includeArchived: input.archived === false, content: touchesContent });
+    if (res.access !== 'owner' && input.archived !== undefined) throw new DocsPlatformError('forbidden', 403);
+    // La página como la ve el editor de esta persona (sincronizados con su contenido): base del cambio.
+    const { editorBlocks, syncedLocks } = await import('./docs-guard');
+    const current = await editorBlocks(res.row, actor);
     let next: DocsBlock[] | undefined;
     const replace = input.blocks?.length ? input.blocks : input.markdown !== undefined ? mdToBlocks(input.markdown) : undefined;
     if (replace) {
@@ -272,6 +288,8 @@ export async function updatePage(actor: DocsActor, pageId: string, input: Update
       const trimmed = at === -1 && base.length === 1 && base[0].type === 'paragraph' && !base[0].content?.trim() ? [] : base;
       next = at === -1 ? [...trimmed, ...fresh] : [...base.slice(0, at + 1), ...fresh, ...base.slice(at + 1)];
     }
+    // Sincronizados que esta persona no puede editar en su origen: no se tocan (como en el editor).
+    const locks = next ? await syncedLocks(actor, res.row, next) : undefined;
     try {
       const saved = await updateDocPage(
         res.row.user_id,
@@ -283,7 +301,7 @@ export async function updatePage(actor: DocsActor, pageId: string, input: Update
           ...(input.archived !== undefined ? { archived: input.archived } : {}),
           base_updated_at: res.row.updated_at,
         },
-        { actorId: actorPersonId(actor) },
+        { actorId: actorPersonId(actor), lockedSynced: locks?.locked, deniedSynced: locks?.denied },
       );
       if (!saved) throw notFound();
       return getPage(actor, pageId, { includeArchived: true });
@@ -336,6 +354,9 @@ export async function listComments(actor: DocsActor, pageId: string): Promise<Co
 export async function addComment(actor: DocsActor, pageId: string, input: { text: string; blockId?: string | null; parentId?: string | null }): Promise<CommentOut> {
   const res = await pageFor(actor, pageId);
   if (!res) throw notFound();
+  // Comentar pide "puede comentar" o más (como en el editor).
+  const { canCommentAccess } = await import('./docs-access');
+  if (!canCommentAccess(res.access)) throw new DocsPlatformError('forbidden', 403);
   const text = input.text.trim().slice(0, 5000);
   if (!text) throw new DocsPlatformError('empty_comment');
   const { DocsCommentParentError } = await import('./docs');
@@ -590,8 +611,7 @@ function dbError(err: unknown): never {
 }
 
 async function writable(actor: DocsActor, pageId: string, blockId: string) {
-  const res = await pageFor(actor, pageId, { write: true });
-  if (!res) throw notFound();
+  const res = await pageForWrite(actor, pageId);
   try {
     const loaded = await loadDatabase(actor, pageId, blockId, { edit: true });
     return { row: res.row, db: loaded.db };

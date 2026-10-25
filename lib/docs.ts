@@ -11,12 +11,13 @@ import {
 import { sanitizeBlocks } from './docs-sanitize';
 import { normalizeStructure } from './docs-columns';
 import { persistSyncedBlocks } from './docs-synced';
+import { parseSyncedBase, stripSyncedChildren, syncedChildren, syncedIdsOf } from './docs-synced-refs';
 import { keepSyncedDatabases } from './docs-sync-guard';
 import { syncDocReminders } from './docs-reminders';
 import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
 import { databaseRowEntries } from './docs-database';
 import { applySamePageRows, prepareDatabaseSave, type DbEffect } from './docs-db-save';
-import { mergeBlocks, mergeField } from './docs-merge';
+import { mergeBlocksDetailed, mergeField } from './docs-merge';
 import { getRevision, recordRevisions } from './docs-revisions';
 import {
   buildSnippet,
@@ -27,7 +28,18 @@ import {
   searchTokens,
   type DocsSearchHit,
 } from './docs-search';
-import { isMember, listMembers, listOwnedTeams } from './teams';
+import { isMember, listMembers, listOwnedTeams, type TeamRole } from './teams';
+import {
+  canWriteAccess,
+  getDocsSettings,
+  getTeamspace,
+  hiddenTeamspaceIds,
+  maxRole,
+  normalizeDocsRole,
+  teamspaceFilterSql,
+  teamspaceRoleOf,
+  type DocsRole,
+} from './docs-access';
 import {
   type DocsAccess,
   type DocsBlock,
@@ -79,13 +91,21 @@ export function toDocPage(row: DocsPageRow): DocsPage {
     position: row.position ?? null,
     inherit_shares: row.inherit_shares !== 0,
     cover_position: row.cover_position ?? undefined,
+    locked: row.locked === 1,
+    locked_by: row.locked_by ?? null,
+    member_role: row.member_role ? normalizeDocsRole(row.member_role) : null,
+    teamspace_id: row.teamspace_id ?? null,
+    page_owner_id: row.page_owner_id ?? null,
+    verified_by: row.verified_by ?? null,
+    verified_at: row.verified_at ?? null,
+    verified_until: row.verified_until ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
 }
 
 function toShare(row: DocsShareRow): DocsPageShare {
-  return { ...row, role: row.role === 'edit' ? 'edit' : 'view' };
+  return { ...row, role: row.kind === 'public' ? 'view' : normalizeDocsRole(row.role) };
 }
 
 /** "Cómo empezar ¿rápido?" → "como-empezar-rapido". */
@@ -119,6 +139,8 @@ export interface DocsActor {
   id: string; // owner workspace id (datos viven bajo este id)
   actingUser?: UserRow; // usuario real cuando actúa en un team ajeno
   team?: TeamRow | null;
+  /** Rol en el workspace activo (admins y el dueño tienen acceso total siempre). */
+  role?: TeamRole;
 }
 
 /**
@@ -153,21 +175,57 @@ export async function getDocAccess(
 ): Promise<DocsAccess | null> {
   const includePublished = opts.includePublished ?? true;
   const includePublicLink = opts.includePublicLink ?? true;
-  if (page.user_id === actor.id) return 'owner';
   const userId = actor.actingUser?.id ?? actor.id;
+  // Miembro del workspace dueño de la página: su rol en la página.
+  let access: DocsAccess | null = page.user_id === actor.id ? await workspaceAccess(page, actor) : null;
+  if (access === 'owner') return 'owner';
   const shares = await listEffectiveDocShares(page);
-  let access: DocsAccess | null = null;
   for (const share of shares) {
     let match = false;
     if (share.kind === 'public') match = includePublicLink;
     else if (share.kind === 'user' && share.target_id === userId) match = true;
     else if (share.kind === 'team' && share.target_id) match = await isMember(share.target_id, userId);
     if (!match) continue;
-    if (share.role === 'edit' && share.kind !== 'public') return 'edit';
-    access = 'view';
+    // El link público solo da lectura.
+    const role: DocsAccess = share.kind === 'public' ? 'view' : share.role;
+    access = maxRole(access, role);
   }
   if (!access && includePublished && page.published === 1 && page.archived === 0) access = 'view';
   return access;
+}
+
+/**
+ * Acceso de un miembro del workspace dueño de la página (sin contar shares):
+ * - dueño y admins: total;
+ * - página en un teamspace cerrado o privado del que no es miembro: ninguno;
+ *   owner del teamspace: total;
+ * - si no, el rol de los miembros: el de la página o el ancestro más cercano
+ *   que lo fije, si no el del teamspace, si no el del workspace (Ajustes).
+ *   "Acceso total" es el acceso de siempre ('owner').
+ */
+async function workspaceAccess(page: DocsPageRow, actor: DocsActor): Promise<DocsAccess | null> {
+  const userId = actor.actingUser?.id ?? actor.id;
+  const admin = !actor.actingUser || actor.role === 'owner' || actor.role === 'admin';
+  let tsRole: 'owner' | 'member' | null = null;
+  let tsMemberRole: DocsRole | null = null;
+  if (page.teamspace_id) {
+    const ts = await getTeamspace(page.teamspace_id);
+    if (ts && ts.workspace_id === page.user_id) {
+      tsRole = await teamspaceRoleOf(ts.id, userId);
+      if (!tsRole && ts.access !== 'open') return null;
+      tsMemberRole = ts.member_role;
+    }
+  }
+  if (admin || tsRole === 'owner') return 'owner';
+  let role: DocsRole | null = null;
+  for (const p of await shareChain(page)) {
+    if (p.member_role) {
+      role = normalizeDocsRole(p.member_role);
+      break;
+    }
+  }
+  role ??= tsMemberRole ?? (await getDocsSettings(page.user_id)).member_role;
+  return role === 'full' ? 'owner' : role;
 }
 
 /** Fila + acceso del actor, o null si la página no existe o no la puede ver. */
@@ -207,7 +265,9 @@ export async function readableLinkTitles(
   const titles = new Map<string, string>();
   if (ids.length === 0) return titles;
   if (page.user_id === actor.id) {
-    for (const p of await listDocPageSummaries(actor.id)) if (ids.includes(p.id)) titles.set(p.id, p.title);
+    // Sin las de teamspaces cerrados o privados de los que no es miembro.
+    const hide = await hiddenTeamspaceIds(actor.id, actor.actingUser?.id ?? actor.id);
+    for (const p of await listDocPageSummaries(actor.id, { hide })) if (ids.includes(p.id)) titles.set(p.id, p.title);
     return titles;
   }
   for (const id of ids.slice(0, LINK_TITLES_MAX)) {
@@ -227,8 +287,7 @@ export async function canReadPage(
 }
 
 export async function canEditPage(page: DocsPageRow, actor: DocsActor): Promise<boolean> {
-  const access = await getDocAccess(page, actor);
-  return access === 'owner' || access === 'edit';
+  return canWriteAccess(await getDocAccess(page, actor));
 }
 
 /**
@@ -272,19 +331,21 @@ export async function listDocPages(
  */
 export async function listDocPageSummaries(
   ownerId: string,
-  opts: { archived?: boolean; limit?: number; offset?: number } = {},
+  opts: { archived?: boolean; limit?: number; offset?: number; hide?: string[] } = {},
 ): Promise<DocsPageSummary[]> {
   const archived = opts.archived ? 1 : 0;
   // Sin limit trae todas (el árbol del sidebar las necesita enteras).
   const page = opts.limit != null ? ' LIMIT ? OFFSET ?' : '';
-  const args: Array<string | number> = [ownerId, archived];
+  // Teamspaces cerrados o privados de los que la persona no es miembro.
+  const ts = teamspaceFilterSql(opts.hide);
+  const args: Array<string | number> = [ownerId, archived, ...ts.args];
   if (opts.limit != null) args.push(opts.limit, opts.offset ?? 0);
   const rows = (await getDb()
     .prepare(
-      `SELECT id, parent_id, title, icon, position, updated_at FROM docs_pages
-       WHERE user_id = ? AND archived = ? ORDER BY (position IS NULL) ASC, position ASC, updated_at DESC, id${page}`,
+      `SELECT id, parent_id, title, icon, position, updated_at, teamspace_id, verified_at, verified_until FROM docs_pages
+       WHERE user_id = ? AND archived = ?${ts.sql} ORDER BY (position IS NULL) ASC, position ASC, updated_at DESC, id${page}`,
     )
-    .all(...args)) as DocsPageSummary[];
+    .all(...args)) as Array<DocsPageSummary & { verified_at?: string | null; verified_until?: string | null }>;
   return rows.map((r) => ({
     id: r.id,
     parent_id: r.parent_id ?? null,
@@ -292,6 +353,8 @@ export async function listDocPageSummaries(
     icon: r.icon ?? null,
     position: r.position ?? null,
     updated_at: r.updated_at,
+    teamspace_id: r.teamspace_id ?? null,
+    verified: verificationState(r.verified_at ?? null, r.verified_until ?? null),
   }));
 }
 
@@ -302,14 +365,16 @@ export async function listDocPageSummaries(
 export async function listDocBacklinks(
   ownerId: string,
   pageId: string,
+  hide?: string[],
 ): Promise<Array<Pick<DocsPageSummary, 'id' | 'title' | 'icon'>>> {
+  const ts = teamspaceFilterSql(hide);
   const rows = (await getDb()
     .prepare(
       `SELECT id, title, icon, content FROM docs_pages
-       WHERE user_id = ? AND archived = 0 AND id != ? AND content LIKE ?
+       WHERE user_id = ? AND archived = 0 AND id != ? AND content LIKE ?${ts.sql}
        ORDER BY updated_at DESC LIMIT 200`,
     )
-    .all(ownerId, pageId, `%data-page=%${pageId}%`)) as Array<Pick<DocsPageRow, 'id' | 'title' | 'icon' | 'content'>>;
+    .all(ownerId, pageId, `%data-page=%${pageId}%`, ...ts.args)) as Array<Pick<DocsPageRow, 'id' | 'title' | 'icon' | 'content'>>;
   return rows
     .filter((r) => withDatabaseBodies(parseBlocks(r.content)).some((b) => pageLinkIds(b.content).includes(pageId)))
     .slice(0, 50)
@@ -342,6 +407,8 @@ export interface CreateDocPageInput {
   icon?: string | null;
   cover_url?: string | null;
   content?: DocsBlock[];
+  /** Teamspace de una página de primer nivel (las subpáginas toman el del padre). */
+  teamspace_id?: string | null;
 }
 
 export async function createDocPage(
@@ -352,23 +419,32 @@ export async function createDocPage(
   const now = new Date().toISOString();
   const title = (input.title ?? '').trim();
   let parentId = input.parent_id ?? null;
+  let teamspaceId = input.teamspace_id ?? null;
   if (parentId) {
-    // Solo se cuelga de páginas del mismo workspace.
+    // Solo se cuelga de páginas del mismo workspace; la subpágina vive en el teamspace del padre.
     const parent = (await getDb()
-      .prepare('SELECT user_id FROM docs_pages WHERE id = ?')
-      .get(parentId)) as { user_id: string } | undefined;
+      .prepare('SELECT user_id, teamspace_id FROM docs_pages WHERE id = ?')
+      .get(parentId)) as { user_id: string; teamspace_id: string | null } | undefined;
     if (!parent || parent.user_id !== ownerId) parentId = null;
+    else teamspaceId = parent.teamspace_id ?? null;
+  }
+  if (teamspaceId && !parentId) {
+    const ts = (await getDb().prepare('SELECT workspace_id FROM docs_teamspaces WHERE id = ?').get(teamspaceId)) as
+      | { workspace_id: string }
+      | undefined;
+    if (!ts || ts.workspace_id !== ownerId) teamspaceId = null;
   }
   const icon = input.icon ?? null;
   const coverUrl = input.cover_url ?? null;
-  const content = stringifyBlocks(cleanContent(input.content ?? defaultBlocks()));
+  // Sincronizados: solo la referencia (plantillas e importaciones no traen copias).
+  const content = stringifyBlocks(stripSyncedChildren(cleanContent(input.content ?? defaultBlocks())));
 
   await getDb()
     .prepare(
-      `INSERT INTO docs_pages (id, user_id, parent_id, title, icon, cover_url, content, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO docs_pages (id, user_id, parent_id, title, icon, cover_url, content, teamspace_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, ownerId, parentId, title, icon, coverUrl, content, now, now);
+    .run(id, ownerId, parentId, title, icon, coverUrl, content, teamspaceId, now, now);
 
   const row = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(id)) as DocsPageRow;
   return toDocPage(row);
@@ -393,6 +469,12 @@ export interface UpdateDocPageInput {
   full_width?: boolean;
   /** Hereda los shares del padre (solo el dueño lo cambia). */
   inherit_shares?: boolean;
+  /** Bloqueo de la página (quien bloquea queda en locked_by). */
+  locked?: boolean;
+  /** Rol de los miembros del workspace en la página (null = el que hereda). */
+  member_role?: DocsRole | null;
+  /** Wiki: dueño de la página. */
+  page_owner_id?: string | null;
   /**
    * Concurrencia optimista: `updated_at` sobre el que el cliente hizo sus
    * cambios. Si la página cambió desde entonces (otra persona guardó o se
@@ -400,8 +482,8 @@ export interface UpdateDocPageInput {
    */
   base_updated_at?: string;
   /**
-   * "Sobrescribir" tras un conflicto: se fusiona igual (las bases por fila,
-   * lo que no choca de los dos lados) y en lo que choca gana lo que llega.
+   * "Sobrescribir" (último recurso del editor): si no está la versión base
+   * para fusionar, guarda igual. Con la base, la fusión ya hace ganar lo que llega.
    */
   merge?: 'ours';
 }
@@ -428,6 +510,10 @@ export interface UpdateDocPageOptions {
    * cambio sin contenido sobre una versión vieja (el editor no adelanta su base).
    */
   outcome?: { merged?: boolean; staleBase?: boolean };
+  /** Bloques sincronizados que quien guarda no puede ver: su contenido no se toca (lib/docs-synced.ts). */
+  lockedSynced?: Set<string>;
+  /** De esos, los que ni puede ver: pegados sabiendo el id, quedan como un bloque propio nuevo. */
+  deniedSynced?: Set<string>;
 }
 
 export async function updateDocPage(
@@ -442,31 +528,50 @@ export async function updateDocPage(
   if (!row || row.user_id !== ownerId) return null;
   let base = input.base_updated_at;
   let incoming = input.content !== undefined ? cleanContent(input.content) : undefined;
+  // Sincronizados: sus hijos se guardan aparte (docs_synced_blocks) y la
+  // página queda solo con la referencia. Fusión y bases trabajan sin ellos.
+  // Solo cuentan los que llegaron con hijos: uno sin hijos (restaurar una
+  // versión, una API) no vacía el contenido compartido; el párrafo vacío que
+  // le agrega cleanContent no es un cambio.
+  const sent = new Set([...syncedChildren(input.content ?? [])].filter(([, kids]) => kids.length > 0).map(([id]) => id));
+  const incomingSynced = new Map([...(incoming ? syncedChildren(incoming) : [])].filter(([id]) => sent.has(id)));
+  // Versión de cada sincronizado que vio el editor (synced_at): un guardado viejo no pisa lo editado en otra página.
+  const syncedSeenAt = new Map((incoming ?? []).filter((b) => b.type === 'synced' && b.synced_id && b.synced_at).map((b) => [b.synced_id!, b.synced_at!]));
+  if (incoming) incoming = stripSyncedChildren(incoming);
+  const rowBlocks = stripSyncedChildren(parseBlocks(row.content));
   const fields: { title?: string; icon?: string | null; cover_url?: string | null } = {
     title: input.title?.trim(),
     icon: input.icon,
     cover_url: input.cover_url,
   };
+  /** Choques de la fusión: antes de guardar queda una versión con lo que había. */
+  let clashed = false;
   if (base !== undefined && row.updated_at !== base) {
-    // La página cambió desde la versión que vio el editor (otra pestaña, otra
-    // persona, una automatización o una operación del servidor sobre una base):
-    // se fusiona contra esa versión; solo es conflicto si chocan.
-    const prefer = input.merge === 'ours' ? 'ours' : 'conflict';
+    // La página cambió desde la versión que vio el editor (otra persona, otra
+    // pestaña, una automatización o una operación del servidor sobre una base):
+    // se fusiona contra esa versión (lib/docs-merge.ts). Donde los dos tocaron
+    // lo mismo gana quien guarda y lo otro queda en el historial de versiones.
     const rev = await getRevision(pageId, base);
     const touchesText = incoming !== undefined || fields.title !== undefined || fields.icon !== undefined || fields.cover_url !== undefined;
     if (touchesText) {
       if (!rev) {
-        if (prefer !== 'ours') throw new DocsConflictError();
+        // Sin la versión base (muy vieja) no se puede fusionar acá: el editor
+        // recibe la actual (409), fusiona en el navegador y reintenta.
+        // "Sobrescribir" (último recurso) guarda igual.
+        if (input.merge !== 'ours') throw new DocsConflictError();
+        clashed = true;
       } else {
         if (incoming !== undefined) {
-          const merged = mergeBlocks(parseBlocks(rev.content), parseBlocks(row.content), incoming, prefer);
-          if (!merged) throw new DocsConflictError();
-          incoming = merged;
+          const merged = mergeBlocksDetailed(stripSyncedChildren(parseBlocks(rev.content)), rowBlocks, incoming);
+          incoming = merged.blocks;
+          if (merged.conflicts.length) clashed = true;
         }
         for (const k of ['title', 'icon', 'cover_url'] as const) {
           if (fields[k] === undefined) continue;
-          const m = mergeField<string | null>(k === 'title' ? rev.title.trim() : (rev[k] ?? null), k === 'title' ? row.title : (row[k] ?? null), fields[k] ?? null, prefer);
-          if (!m) throw new DocsConflictError();
+          const b = k === 'title' ? rev.title.trim() : (rev[k] ?? null);
+          const t = k === 'title' ? row.title : (row[k] ?? null);
+          const m = mergeField<string | null>(b, t, fields[k] ?? null, 'ours')!;
+          if (mergeField<string | null>(b, t, fields[k] ?? null, 'conflict') === null) clashed = true;
           (fields as Record<string, string | null>)[k] = k === 'title' ? (m.value ?? '') : m.value;
         }
         if (opts.outcome) opts.outcome.merged = true;
@@ -514,7 +619,7 @@ export async function updateDocPage(
     const registered = newSynced ? await (await import('./docs-sync')).registeredSyncKeys(pageId) : undefined;
     incoming = keepSyncedDatabases(previousBlocks, incoming, registered);
     // Bases: autor de cada fila y automatizaciones contra lo guardado.
-    const saved = prepareDatabaseSave(pageId, parseBlocks(row.content), incoming, opts.actorId ?? null);
+    const saved = prepareDatabaseSave(pageId, rowBlocks, incoming, opts.actorId ?? null);
     // "Agregar fila" hacia otra base de esta página: en el mismo guardado (y
     // sus automatizaciones, hasta tres vueltas). La respuesta trae las filas.
     let blocksOut = saved.blocks;
@@ -531,15 +636,27 @@ export async function updateDocPage(
     }
     opts.effects?.push(...pending);
     // Bloques sincronizados: lo editado adentro se escribe en su tabla.
-    savedContent = await persistSyncedBlocks({
+    const synced = await persistSyncedBlocks({
       workspaceId: ownerId,
       pageId,
       actorId: opts.actorId ?? null,
-      previous: parseBlocks(row.content),
+      base: parseSyncedBase(row.synced_base),
+      previousIds: new Set(syncedIdsOf(rowBlocks)),
       next: blocksOut,
+      children: incomingSynced,
+      locked: opts.lockedSynced,
+      denied: opts.deniedSynced ?? opts.lockedSynced,
+      seenAt: syncedSeenAt,
     });
-    updates.push('content = ?');
-    args.push(stringifyBlocks(savedContent));
+    savedContent = synced.blocks;
+    const nextContent = stringifyBlocks(savedContent);
+    const nextBase = Object.keys(synced.base).length ? JSON.stringify(synced.base) : null;
+    // Lo mismo que ya estaba (un autosave sin cambios): no cuenta como guardado ni deja revisión.
+    if (nextContent === row.content && nextBase === (row.synced_base ?? null)) savedContent = null;
+    else {
+      updates.push('content = ?', 'synced_base = ?', 'content_by = ?');
+      args.push(nextContent, nextBase, opts.actorId ?? null);
+    }
   }
   if (input.cover_position !== undefined) {
     updates.push('cover_position = ?');
@@ -562,6 +679,18 @@ export async function updateDocPage(
   if (input.inherit_shares !== undefined) {
     updates.push('inherit_shares = ?');
     args.push(input.inherit_shares ? 1 : 0);
+  }
+  if (input.locked !== undefined) {
+    updates.push('locked = ?', 'locked_by = ?');
+    args.push(input.locked ? 1 : 0, input.locked ? opts.actorId ?? null : null);
+  }
+  if (input.member_role !== undefined) {
+    updates.push('member_role = ?');
+    args.push(input.member_role);
+  }
+  if (input.page_owner_id !== undefined) {
+    updates.push('page_owner_id = ?');
+    args.push(input.page_owner_id);
   }
   if (input.is_public !== undefined) {
     updates.push('is_public = ?');
@@ -588,6 +717,12 @@ export async function updateDocPage(
     // Restaurar una subpágina cuyo padre sigue en la papelera: pasa a la raíz.
     // Si no, quedaba colgando de un padre archivado y el borrado definitivo
     // del padre se la llevaba aunque estuviera activa.
+    // Restaurar una página de un teamspace borrado (cerrado o privado) restaura
+    // el teamspace entero, con sus miembros y su acceso: la página nunca queda
+    // a la vista de todo el workspace.
+    if (!input.archived && row.archived === 1 && row.teamspace_id) {
+      await getDb().prepare('UPDATE docs_teamspaces SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL').run(row.teamspace_id);
+    }
     if (!input.archived && row.archived === 1 && row.parent_id && input.parent_id === undefined) {
       const parent = (await getDb()
         .prepare('SELECT archived FROM docs_pages WHERE id = ?')
@@ -604,6 +739,17 @@ export async function updateDocPage(
   args.push(pageId);
   if (base !== undefined) args.push(base);
 
+  // Choque al fusionar: lo que había guardado queda como versión (se puede ver y restaurar).
+  // La versión es de quien había guardado lo que se pisa, y a esa persona se le avisa.
+  if (clashed) {
+    const { saveDocVersion } = await import('./docs-versions');
+    const loser = row.content_by ?? null;
+    await saveDocVersion(ownerId, pageId, loser, 'auto').catch(() => null);
+    if (loser && opts.actorId && loser !== opts.actorId) {
+      const { createDocsConflictNotification } = await import('./notifications');
+      await createDocsConflictNotification({ pageId, pageTitle: fields.title ?? row.title, loserId: loser, actorId: opts.actorId }).catch(() => undefined);
+    }
+  }
   const result = await getDb()
     .prepare(`UPDATE docs_pages SET ${updates.join(', ')} WHERE id = ?${base !== undefined ? ' AND updated_at = ?' : ''}`)
     .run(...args);
@@ -616,6 +762,16 @@ export async function updateDocPage(
     cover_url: fields.cover_url !== undefined ? fields.cover_url : row.cover_url,
     content: savedContent ? stringifyBlocks(savedContent) : row.content,
   }).catch(() => undefined);
+
+  // Mover bajo otra página: el subárbol pasa al teamspace del nuevo padre.
+  if (input.parent_id != null && input.parent_id !== row.parent_id) {
+    const parent = (await getDb().prepare('SELECT teamspace_id FROM docs_pages WHERE id = ?').get(input.parent_id)) as
+      | { teamspace_id: string | null }
+      | undefined;
+    if ((parent?.teamspace_id ?? null) !== (row.teamspace_id ?? null)) {
+      await setSubtreeTeamspaceRaw(ownerId, await collectDescendants(ownerId, pageId), parent?.teamspace_id ?? null);
+    }
+  }
 
   // Recordatorios de las menciones de fecha: la tabla queda igual al contenido.
   if (savedContent && opts.actorId) {
@@ -714,8 +870,8 @@ export async function duplicateDocPage(
     await getDb()
       .prepare(
         `INSERT INTO docs_pages
-         (id, user_id, parent_id, title, icon, cover_url, content, is_public, archived, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, parent_id, title, icon, cover_url, content, is_public, archived, teamspace_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         newId,
@@ -727,6 +883,7 @@ export async function duplicateDocPage(
         row.content,
         0,
         0,
+        row.teamspace_id ?? null,
         now,
         now,
       );
@@ -833,6 +990,8 @@ export async function deleteDocPage(ownerId: string, pageId: string): Promise<bo
   // con su subárbol, si no el DELETE (y el ON DELETE CASCADE) la borraba.
   const ids = row.archived === 1 ? await collectArchivedSubtree(ownerId, pageId) : await collectDescendants(ownerId, pageId);
   const placeholders = ids.map(() => '?').join(',');
+  // Sincronizados con origen en lo que se borra: quedan sin origen (ON DELETE
+  // SET NULL) y solo los ve el dueño del workspace. Sin reasignación automática.
   await getDb()
     .prepare(`DELETE FROM docs_pages WHERE id IN (${placeholders})`)
     .run(...ids);
@@ -884,6 +1043,10 @@ export async function reorderDocPage(
   if (page.parent_id !== parentId) {
     await db.prepare('UPDATE docs_pages SET parent_id = ? WHERE id = ? AND user_id = ?').run(parentId, pageId, ownerId);
   }
+  // Soltar al lado de una página de otro teamspace: el subárbol se muda con ella.
+  if ((target.teamspace_id ?? null) !== (page.teamspace_id ?? null)) {
+    await setSubtreeTeamspaceRaw(ownerId, descendants, target.teamspace_id ?? null);
+  }
   for (const [i, id] of order.entries()) {
     await db.prepare('UPDATE docs_pages SET position = ? WHERE id = ? AND user_id = ?').run(i, id, ownerId);
   }
@@ -906,6 +1069,46 @@ export async function moveDocPageStep(ownerId: string, pageId: string, dir: -1 |
   const neighbor = siblings[idx + dir];
   if (idx === -1 || !neighbor) return false;
   return reorderDocPage(ownerId, pageId, neighbor.id, dir === -1 ? 'before' : 'after');
+}
+
+/**
+ * Shares con el nombre y el email de cada persona, y si es un invitado de
+ * afuera del workspace (para el diálogo de compartir; solo quien comparte).
+ */
+export async function decorateShares(workspaceId: string, shares: DocsPageShare[]): Promise<DocsPageShare[]> {
+  const ids = [...new Set(shares.filter((s) => s.kind === 'user' && s.target_id).map((s) => s.target_id!))];
+  if (!ids.length) return shares;
+  const users = (await getDb()
+    .prepare(`SELECT id, name, email FROM users WHERE id IN (${ids.map(() => '?').join(',')})`)
+    .all(...ids)) as Array<{ id: string; name: string | null; email: string }>;
+  const byId = new Map(users.map((u) => [u.id, u]));
+  const insiders = new Set((await listPageMentionables({ user_id: workspaceId })).map((m) => m.id));
+  return shares.map((s) => {
+    if (s.kind !== 'user' || !s.target_id) return s;
+    const u = byId.get(s.target_id);
+    return { ...s, target_name: u?.name ?? null, target_email: u?.email ?? null, guest: !insiders.has(s.target_id) };
+  });
+}
+
+/** Teamspace de todo un subárbol (ids ya del workspace). */
+async function setSubtreeTeamspaceRaw(ownerId: string, ids: string[], teamspaceId: string | null): Promise<void> {
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200);
+    await getDb()
+      .prepare(`UPDATE docs_pages SET teamspace_id = ? WHERE user_id = ? AND id IN (${chunk.map(() => '?').join(',')})`)
+      .run(teamspaceId, ownerId, ...chunk);
+  }
+}
+
+/** Estado de verificación de la wiki: null (sin verificar), 'verified' o 'expired'. */
+export function verificationState(
+  verifiedAt: string | null | undefined,
+  verifiedUntil: string | null | undefined,
+  now = new Date(),
+): 'verified' | 'expired' | null {
+  if (!verifiedAt) return null;
+  if (verifiedUntil && Date.parse(verifiedUntil) <= now.getTime()) return 'expired';
+  return 'verified';
 }
 
 // ---------- Shares ----------
@@ -1059,9 +1262,9 @@ export async function listSharedWithMe(realUserId: string, workspaceId: string):
     .all(workspaceId, realUserId, realUserId, realUserId)) as Array<SharedDocPage & { role: string }>;
   const byId = new Map<string, SharedDocPage>();
   for (const r of rows) {
-    const role: DocsShareRole = r.role === 'edit' ? 'edit' : 'view';
+    const role: DocsShareRole = normalizeDocsRole(r.role);
     const prev = byId.get(r.id);
-    if (!prev || (prev.role === 'view' && role === 'edit')) byId.set(r.id, { ...r, role });
+    if (!prev || maxRole(prev.role, role) !== prev.role) byId.set(r.id, { ...r, role });
   }
   return [...byId.values()];
 }
@@ -1100,6 +1303,8 @@ function toComment(row: DocsCommentJoinedRow): DocsComment {
     body: row.body,
     resolved: row.resolved === 1,
     created_at: row.created_at,
+    anchor_id: row.anchor_id ?? null,
+    quote: row.quote ?? '',
     user_name: row.user_name,
     user_email: row.user_email,
     user_image: row.user_image,
@@ -1142,7 +1347,7 @@ export async function listDocComments(pageId: string): Promise<DocsComment[]> {
 export async function createDocComment(
   pageId: string,
   userId: string,
-  input: { body: string; block_id?: string | null; parent_id?: string | null },
+  input: { body: string; block_id?: string | null; parent_id?: string | null; anchor_id?: string | null; quote?: string },
 ): Promise<DocsComment> {
   const id = crypto.randomUUID();
   // Una respuesta cuelga siempre de la raíz del hilo (responder a una
@@ -1158,10 +1363,20 @@ export async function createDocComment(
   }
   await getDb()
     .prepare(
-      `INSERT INTO docs_comments (id, page_id, user_id, block_id, parent_id, body, resolved, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 0, ?)`,
+      `INSERT INTO docs_comments (id, page_id, user_id, block_id, parent_id, body, resolved, created_at, anchor_id, quote)
+       VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
     )
-    .run(id, pageId, userId, blockId, parentId, input.body.trim(), new Date().toISOString());
+    .run(
+      id,
+      pageId,
+      userId,
+      blockId,
+      parentId,
+      input.body.trim(),
+      new Date().toISOString(),
+      parentId ? null : input.anchor_id ?? null,
+      parentId ? '' : (input.quote ?? '').slice(0, 500),
+    );
   // Responder reabre un hilo resuelto (como en Notion).
   if (parentId) {
     await getDb().prepare('UPDATE docs_comments SET resolved = 0 WHERE id = ? OR parent_id = ?').run(parentId, parentId);
@@ -1243,11 +1458,14 @@ export async function createDocWorkspaceTemplate(
   workspaceId: string,
   createdBy: string,
   input: { page_id: string; title?: string; description?: string },
+  /** Quien la guarda: tiene que poder abrir la página (no alcanza con saber el id). */
+  actor: DocsActor,
 ): Promise<DocsWorkspaceTemplate | null> {
   const page = (await getDb()
     .prepare('SELECT * FROM docs_pages WHERE id = ? AND user_id = ?')
     .get(input.page_id, workspaceId)) as DocsPageRow | undefined;
-  if (!page) return null;
+  if (!page || page.archived === 1) return null;
+  if (!(await getDocAccess(page, actor, { includePublished: false, includePublicLink: false }))) return null;
   const count = (await getDb()
     .prepare('SELECT COUNT(*) AS c FROM docs_templates WHERE workspace_id = ?')
     .get(workspaceId)) as { c: number };
@@ -1267,7 +1485,8 @@ export async function createDocWorkspaceTemplate(
       title,
       page.icon,
       (input.description ?? '').trim(),
-      stringifyBlocks(sanitizeBlocks(parseBlocks(page.content))),
+      // Sincronizados como referencia: quien use la plantilla ve su contenido solo si puede abrir el origen.
+      stringifyBlocks(stripSyncedChildren(sanitizeBlocks(parseBlocks(page.content)))),
       now,
       now,
     );
@@ -1314,16 +1533,18 @@ export async function createDocPageFromWorkspaceTemplate(
 export async function searchDocPages(
   ownerId: string,
   query: string,
+  hide?: string[],
 ): Promise<DocsPage[]> {
   const q = `%${query.trim().replace(/[%_]/g, '\\$&')}%`;
+  const ts = teamspaceFilterSql(hide);
   const rows = (await getDb()
     .prepare(
       `SELECT * FROM docs_pages
-       WHERE user_id = ? AND archived = 0 AND title LIKE ? ESCAPE '\\'
+       WHERE user_id = ? AND archived = 0 AND title LIKE ? ESCAPE '\\'${ts.sql}
        ORDER BY updated_at DESC
        LIMIT 20`,
     )
-    .all(ownerId, q)) as DocsPageRow[];
+    .all(ownerId, q, ...ts.args)) as DocsPageRow[];
   return rows.map(toDocPage);
 }
 
@@ -1337,32 +1558,73 @@ export async function searchDocPagesContent(
   ownerId: string,
   query: string,
   limit = 20,
+  hide?: string[],
 ): Promise<DocsSearchHit[]> {
   const tokens = searchTokens(query);
   if (tokens.length === 0) return [];
   const like = (v: string) => `%${v.replace(/[\\%_]/g, '\\$&')}%`;
   const term = prefilterTerm(query);
-  type Row = Pick<DocsPageRow, 'id' | 'parent_id' | 'title' | 'icon' | 'content' | 'updated_at'>;
+  const ts = teamspaceFilterSql(hide);
+  type Row = Pick<DocsPageRow, 'id' | 'parent_id' | 'title' | 'icon' | 'content' | 'updated_at' | 'verified_at' | 'verified_until'>;
   const rows = (term
     ? await getDb()
         .prepare(
-          `SELECT id, parent_id, title, icon, content, updated_at FROM docs_pages
-           WHERE user_id = ? AND archived = 0 AND (title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\')
+          `SELECT id, parent_id, title, icon, content, updated_at, verified_at, verified_until FROM docs_pages
+           WHERE user_id = ? AND archived = 0 AND (title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\')${ts.sql}
            ORDER BY updated_at DESC LIMIT 300`,
         )
-        .all(ownerId, like(term), like(term))
+        .all(ownerId, like(term), like(term), ...ts.args)
     : await getDb()
         .prepare(
-          `SELECT id, parent_id, title, icon, content, updated_at FROM docs_pages
-           WHERE user_id = ? AND archived = 0 AND title LIKE ? ESCAPE '\\'
+          `SELECT id, parent_id, title, icon, content, updated_at, verified_at, verified_until FROM docs_pages
+           WHERE user_id = ? AND archived = 0 AND title LIKE ? ESCAPE '\\'${ts.sql}
            ORDER BY updated_at DESC LIMIT 300`,
         )
-        .all(ownerId, like(query.trim()))) as Row[];
+        .all(ownerId, like(query.trim()), ...ts.args)) as Row[];
+
+  // Sincronizados: su texto cuenta en su página de origen (las que lo pegan
+  // guardan solo la referencia y quien busca puede no poder abrir el origen).
+  const own = new Map<string, string[]>();
+  if (term) {
+    const synced = (await getDb()
+      .prepare(
+        `SELECT id, source_page_id, content FROM docs_synced_blocks
+         WHERE workspace_id = ? AND source_page_id IS NOT NULL AND content LIKE ? ESCAPE '\\' LIMIT 100`,
+      )
+      .all(ownerId, like(term))) as Array<{ id: string; source_page_id: string; content: string }>;
+    const known = new Set(rows.map((r) => r.id));
+    const missing = [...new Set(synced.map((x) => x.source_page_id))].filter((id) => !known.has(id));
+    if (missing.length) {
+      rows.push(
+        ...((await getDb()
+          .prepare(
+            `SELECT id, parent_id, title, icon, content, updated_at, verified_at, verified_until FROM docs_pages
+             WHERE user_id = ? AND archived = 0 AND id IN (${missing.map(() => '?').join(',')})${ts.sql}`,
+          )
+          .all(ownerId, ...missing, ...ts.args)) as Row[]),
+      );
+    }
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    for (const x of synced) {
+      const page = byId.get(x.source_page_id);
+      if (!page || !page.content.includes(`"synced_id":"${x.id}"`)) continue;
+      own.set(page.id, [...(own.get(page.id) ?? []), x.content]);
+    }
+  }
 
   const hits: DocsSearchHit[] = [];
   for (const r of rows) {
-    const base = { id: r.id, parent_id: r.parent_id ?? null, title: r.title, icon: r.icon ?? null, updated_at: r.updated_at };
-    const blocks = parseBlocks(r.content);
+    const verified = verificationState(r.verified_at, r.verified_until);
+    const base = {
+      id: r.id,
+      parent_id: r.parent_id ?? null,
+      title: r.title,
+      icon: r.icon ?? null,
+      updated_at: r.updated_at,
+      ...(verified ? { verified } : {}),
+    };
+    // Sincronizados: solo la referencia (su texto se busca en su página de origen).
+    const blocks = stripSyncedChildren(parseBlocks(r.content));
     // Filas de bases cuyo título matchea: se abren como página (?row=).
     if (r.content.includes('"database"')) {
       for (const e of databaseRowEntries(blocks)) {
@@ -1374,7 +1636,7 @@ export async function searchDocPagesContent(
       hits.push({ ...base, match: 'title', snippet: null });
       continue;
     }
-    const text = pageSearchText(blocks);
+    const text = [pageSearchText(blocks), ...(own.get(r.id) ?? []).map((c) => pageSearchText(stripSyncedChildren(parseBlocks(c))))].filter(Boolean).join(' ');
     if (matchesAll(`${r.title} ${text}`, tokens)) {
       hits.push({ ...base, match: 'content', snippet: buildSnippet(text, tokens) });
     }
@@ -1383,21 +1645,49 @@ export async function searchDocPagesContent(
 }
 
 /**
+ * Páginas de otros workspaces compartidas con quien busca (invitados): por
+ * título y por texto, solo las que puede abrir. Sin esto un invitado no
+ * encontraba lo que le compartieron.
+ */
+export async function searchSharedDocPages(actor: DocsActor, query: string, limit = 20): Promise<DocsSearchHit[]> {
+  const tokens = searchTokens(query);
+  if (tokens.length === 0) return [];
+  const shared = await listSharedWithMe(actor.actingUser?.id ?? actor.id, actor.id);
+  if (!shared.length) return [];
+  const rows = (await getDb()
+    .prepare(`SELECT * FROM docs_pages WHERE archived = 0 AND id IN (${shared.map(() => '?').join(',')})`)
+    .all(...shared.map((p) => p.id))) as DocsPageRow[];
+  const hits: DocsSearchHit[] = [];
+  for (const r of rows) {
+    if (!(await getDocAccess(r, actor))) continue;
+    const base = { id: r.id, parent_id: null, title: r.title, icon: r.icon ?? null, updated_at: r.updated_at };
+    if (matchesAll(r.title, tokens)) {
+      hits.push({ ...base, match: 'title', snippet: null });
+      continue;
+    }
+    const text = pageSearchText(stripSyncedChildren(parseBlocks(r.content)));
+    if (matchesAll(`${r.title} ${text}`, tokens)) hits.push({ ...base, match: 'content', snippet: buildSnippet(text, tokens) });
+  }
+  return rankHits(hits, limit);
+}
+
+/**
  * Filas de bases por título (popover `[[`): links a una fila. Prefiltro LIKE
  * sobre el content y confirmación con todas las palabras.
  */
-export async function searchDocRows(ownerId: string, query: string, limit = 10): Promise<PageLinkCandidate[]> {
+export async function searchDocRows(ownerId: string, query: string, limit = 10, hide?: string[]): Promise<PageLinkCandidate[]> {
   const tokens = searchTokens(query);
   const term = prefilterTerm(query);
   if (tokens.length === 0 || !term) return [];
   const like = `%${term.replace(/[\\%_]/g, '\\$&')}%`;
+  const ts = teamspaceFilterSql(hide);
   const rows = (await getDb()
     .prepare(
       `SELECT id, title, content FROM docs_pages
-       WHERE user_id = ? AND archived = 0 AND content LIKE '%"database"%' AND content LIKE ? ESCAPE '\\'
+       WHERE user_id = ? AND archived = 0 AND content LIKE '%"database"%' AND content LIKE ? ESCAPE '\\'${ts.sql}
        ORDER BY updated_at DESC LIMIT 100`,
     )
-    .all(ownerId, like)) as Array<Pick<DocsPageRow, 'id' | 'title' | 'content'>>;
+    .all(ownerId, like, ...ts.args)) as Array<Pick<DocsPageRow, 'id' | 'title' | 'content'>>;
   const out: PageLinkCandidate[] = [];
   for (const r of rows) {
     for (const e of databaseRowEntries(parseBlocks(r.content))) {

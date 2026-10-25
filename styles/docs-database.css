@@ -161,6 +161,9 @@
   cursor: pointer;
 }
 .docs-db-th-btn:hover { background: var(--ui-hover); color: var(--ink); }
+/* Encabezado en lectura (puede comentar, bloqueada): no abre el menú de la propiedad. */
+.docs-db-th-btn.is-static { cursor: default; }
+.docs-db-th-btn.is-static:hover { background: none; color: inherit; }
 .docs-db-th-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .docs-db-th-add { width: 40px; }
 .docs-db-th-add .docs-db-th-btn { justify-content: center; padding: 0; }

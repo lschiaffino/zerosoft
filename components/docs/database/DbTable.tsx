@@ -54,8 +54,10 @@ interface DbTableProps {
   onFocusBlock: () => void;
   refs?: DbRefs;
   extras?: DbCellExtras;
-  /** Solo lectura (base sincronizada o sin permiso de edición): sin editar celdas ni agregar filas o propiedades. */
+  /** Solo lectura (puede comentar, página bloqueada): sin editar celdas, ni filas ni propiedades. */
   readOnly?: boolean;
+  /** Cambiar el ancho de las columnas (se guarda en la vista). */
+  resizable?: boolean;
 }
 
 /** Fila de la tabla: memo por objeto de fila (tipear en una celda no repinta las otras 999). */
@@ -80,7 +82,9 @@ const TableRow = memo(function TableRow({
   labels,
   refs,
   extras,
+  readOnly,
 }: {
+  readOnly?: boolean;
   refs?: DbRefs;
   extras?: DbCellExtras;
   row: DbRow;
@@ -101,12 +105,12 @@ const TableRow = memo(function TableRow({
   onEditCreate: (rowId: string, propId: string, name: string) => void;
   onEditExit: (move: DbExitMove) => void;
   onOpenRow: (rowId: string) => void;
-  onDeleteRow?: (rowId: string) => void;
+  onDeleteRow: (rowId: string) => void;
   labels: { open: string; remove: string };
 }) {
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
   return (
-    <div className="docs-db-tr" role="row" aria-rowindex={nav + 2}>
+    <div className="docs-db-tr" role="row" aria-rowindex={nav + 2} data-row={row.id}>
       {props.map((p, c) => {
         const isEditing = editing === c;
         return (
@@ -128,11 +132,7 @@ const TableRow = memo(function TableRow({
             onClick={(e) => {
               const target = e.target as HTMLElement;
               if (target.closest('a, button, input')) return;
-              // Click en el texto del título: abre la fila (como un link de Notion); en el resto de la celda, edita.
-              if (p.type === 'title' && !isEditing && target.closest('.docs-db-title-text')) {
-                onOpenRow(row.id);
-                return;
-              }
+              // Como Notion: el click edita (también sobre el texto de un título largo); la fila se abre con "Open".
               onCellClick(nav, c);
             }}
           >
@@ -190,7 +190,7 @@ const TableRow = memo(function TableRow({
         );
       })}
       <div className="docs-db-td docs-db-td-actions" role="gridcell">
-        {onDeleteRow && (
+        {!readOnly && (
           <button
             type="button"
             className="docs-db-remove"
@@ -362,7 +362,9 @@ export default function DbTable(p: DbTableProps) {
     const { navRows: nr, props: ps, p: pp } = latest.current;
     const item = nr[r];
     const prop = ps[c];
-    if (!item || !prop || isComputedType(prop.type) || pp.readOnly) return;
+    if (!item || !prop || isComputedType(prop.type)) return;
+    // Solo lectura: Enter o click abren la fila (para leerla o comentar) en vez de editar.
+    if (pp.readOnly) return;
     if (prop.type === 'checkbox') {
       pp.onCell(item.row.id, prop.id, cellValue(prop, item.row) !== true);
       return;
@@ -458,7 +460,7 @@ export default function DbTable(p: DbTableProps) {
       case 'Enter':
         e.preventDefault();
         e.stopPropagation();
-        if (meta && item) p.onOpenRow(item.row.id);
+        if ((meta || p.readOnly) && item) p.onOpenRow(item.row.id);
         else startEdit(r, c);
         return;
       case ' ':
@@ -476,7 +478,7 @@ export default function DbTable(p: DbTableProps) {
       case 'Delete':
         e.preventDefault();
         e.stopPropagation();
-        if (item && prop && !isComputedType(prop.type) && !p.readOnly) p.onCell(item.row.id, prop.id, prop.type === 'checkbox' ? false : null);
+        if (item && prop && !p.readOnly && !isComputedType(prop.type)) p.onCell(item.row.id, prop.id, prop.type === 'checkbox' ? false : null);
         return;
       default:
         // Tipear sobre una celda de texto o número empieza a editarla con esa tecla.
@@ -559,10 +561,11 @@ export default function DbTable(p: DbTableProps) {
         onEditCreate={onCreate}
         onEditExit={onEditExit}
         onOpenRow={onOpen}
-        onDeleteRow={p.readOnly ? undefined : onDelete}
+        onDeleteRow={onDelete}
         labels={labels}
         refs={p.refs}
         extras={p.extras}
+        readOnly={p.readOnly}
       />
     );
   };
@@ -582,35 +585,45 @@ export default function DbTable(p: DbTableProps) {
         <div className="docs-db-thead" role="row" aria-rowindex={1}>
           {props.map((prop) => (
             <div key={prop.id} role="columnheader" className="docs-db-th" style={{ width: columnWidth(prop, liveWidths) }}>
-              <button
-                type="button"
-                className="docs-db-th-btn"
-                onClick={(e) => p.onHeader(prop.id, e.currentTarget)}
-                aria-haspopup="dialog"
-              >
-                <PropertyTypeIcon type={prop.type} />
-                <span className="docs-db-th-name">{prop.name || t('untitledProperty')}</span>
-              </button>
-              <span
-                className="docs-db-resize"
-                role="separator"
-                aria-orientation="vertical"
-                aria-label={t('resizeColumn', { name: prop.name })}
-                onPointerDown={(e) => startResize(e, prop)}
-              />
+              {p.readOnly ? (
+                <span className="docs-db-th-btn is-static">
+                  <PropertyTypeIcon type={prop.type} />
+                  <span className="docs-db-th-name">{prop.name || t('untitledProperty')}</span>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="docs-db-th-btn"
+                  onClick={(e) => p.onHeader(prop.id, e.currentTarget)}
+                  aria-haspopup="dialog"
+                >
+                  <PropertyTypeIcon type={prop.type} />
+                  <span className="docs-db-th-name">{prop.name || t('untitledProperty')}</span>
+                </button>
+              )}
+              {p.resizable !== false && (
+                <span
+                  className="docs-db-resize"
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label={t('resizeColumn', { name: prop.name })}
+                  onPointerDown={(e) => startResize(e, prop)}
+                />
+              )}
             </div>
           ))}
           <div className="docs-db-th docs-db-th-add">
-            <button
-              type="button"
-              className="docs-db-th-btn"
-              disabled={p.readOnly}
-              onClick={(e) => p.onAddProperty(e.currentTarget)}
-              aria-label={t('addProperty')}
-              title={t('addProperty')}
-            >
-              <DocsGlyph name="plus" size={13} />
-            </button>
+            {!p.readOnly && (
+              <button
+                type="button"
+                className="docs-db-th-btn"
+                onClick={(e) => p.onAddProperty(e.currentTarget)}
+                aria-label={t('addProperty')}
+                title={t('addProperty')}
+              >
+                <DocsGlyph name="plus" size={13} />
+              </button>
+            )}
           </div>
         </div>
         <div ref={bodyRef} className="docs-db-tbody" role="rowgroup">

@@ -1,3 +1,4 @@
+import { canWriteAccess } from '@/lib/docs-access';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/session';
@@ -21,7 +22,7 @@ async function load(id: string, write: boolean) {
   const page = source ? await getDocPageRow(source.page_id) : null;
   const access = page ? await getDocAccess(page, user, { includePublished: false, includePublicLink: false }) : null;
   if (!source || !page || !access) return { res: notFound() } as const;
-  if (write && access === 'view') return { res: forbidden() } as const;
+  if (write && !canWriteAccess(access)) return { res: forbidden() } as const;
   return { source, page } as const;
 }
 

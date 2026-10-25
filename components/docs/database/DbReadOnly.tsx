@@ -1,4 +1,4 @@
-import type { DbProperty, DocsBlock } from '@/lib/docs-types';
+import type { DbProperty, DocsBlock, DocsDatabase } from '@/lib/docs-types';
 import {
   activeView,
   cardHidesValue,
@@ -26,18 +26,28 @@ export default function DbReadOnly({
   people,
   locale,
   className = 'dbv-table',
+  pageId,
+  foreign,
+  defaultView = false,
 }: {
   block: DocsBlock;
   people?: Record<string, string>;
   locale?: string;
   className?: string;
+  /** Página de la base (reconoce las relaciones a sí misma). */
+  pageId?: string;
+  /** Otras bases que quien lee puede ver (de la misma página o publicadas), por dbKey: relaciones, espejos y rollups. */
+  foreign?: Record<string, DocsDatabase>;
+  /** La vista por defecto (la primera, como un lector en Notion), no la que dejó abierta quien editó. */
+  defaultView?: boolean;
 }) {
   // Vista vinculada: en lectura no se trae la otra base (quien lee puede no tener acceso a ella).
   if (block.linked) return null;
-  // Fórmulas y relaciones dentro de la misma base se calculan; las de otras bases quedan vacías.
-  const db = computeDatabase(normalizeDatabase(block), { people, locale });
-  const view = activeView(db);
-  const refs = { titles: rowTitlesFor(db, {}) };
+  // Fórmulas, relaciones y espejos se calculan con las bases que llegan en `foreign`; las demás quedan vacías.
+  const env = { people, locale, pageId: pageId ?? null, blockId: block.id, foreign };
+  const db = computeDatabase(normalizeDatabase(block), env);
+  const view = defaultView ? db.views[0] : activeView(db);
+  const refs = { titles: rowTitlesFor(db, env) };
   const ctx = { people, locale, rowTitles: refs.titles };
   const rows = viewRows(db, view, ctx);
   const props = visibleProperties(db, view).filter((p) => (p.type !== 'person' && p.type !== 'created_by' && p.type !== 'last_edited_by') || people).filter((p) => p.type !== 'button' && p.type !== 'files');

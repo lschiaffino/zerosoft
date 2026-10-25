@@ -202,6 +202,25 @@ describe('relaciones, espejos, rollups y fórmulas en una base', () => {
     expect(previewFormula(tasks(), 'prop("Points") + 1')).toEqual({ value: '4' });
     expect(previewFormula(tasks(), 'prop("Nope")').error).toBe('unknown_property:Nope');
   });
+
+  it('una fórmula que se usa a sí misma (o en ronda) da error de ciclo, con o sin filas', () => {
+    const self = (rows: DbRow[]): DocsDatabase => ({
+      properties: [
+        { id: 't', name: 'Name', type: 'title' },
+        { id: 'f', name: 'Total', type: 'formula', formula: 'prop("Total") + 1' },
+        { id: 'a', name: 'A', type: 'formula', formula: 'prop("B")' },
+        { id: 'b', name: 'B', type: 'formula', formula: 'prop("A")' },
+      ],
+      rows,
+      views: [{ id: 'v', name: '', type: 'table' }],
+    });
+    for (const db of [self([]), self([row('r', { t: 'x' })])]) {
+      const out = computeDatabase(db);
+      expect(out.properties.filter((p) => p.type === 'formula').map((p) => p.error)).toEqual(['cycle', 'cycle', 'cycle']);
+      // El editor prueba la fórmula en el lugar de la propiedad que se edita.
+      expect(previewFormula(db, 'prop("Total") * 2', {}, 'f').error).toBe('cycle');
+    }
+  });
 });
 
 describe('ID único, archivos, persona automática', () => {

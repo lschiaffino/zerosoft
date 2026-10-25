@@ -327,21 +327,26 @@ export async function aiStreamText(opts: AiCallOptions) {
 // ---------- Transcripción ----------
 
 /**
- * Proveedor de transcripción (audio → texto). Cualquier API compatible con
- * POST /v1/audio/transcriptions de OpenAI (OpenAI, Groq, una instancia propia
- * de Whisper): AI_TRANSCRIBE_URL (por defecto la de OpenAI),
- * AI_TRANSCRIBE_API_KEY y AI_TRANSCRIBE_MODEL. Sin key no hay transcripción
- * (ai_disabled); la cuota y el rate limit son los mismos que el resto de la IA.
+ * Proveedor de transcripción (audio → texto). Por defecto el mismo AI Gateway
+ * que el resto de la IA (AI_TRANSCRIBE_MODEL, por defecto `openai/whisper-1`,
+ * con experimental_transcribe del AI SDK): no hace falta otra key. Con
+ * AI_TRANSCRIBE_API_KEY se usa en cambio una API compatible con
+ * POST /v1/audio/transcriptions de OpenAI (AI_TRANSCRIBE_URL), por ejemplo un
+ * Whisper propio en self-host.
  */
-export function transcriptionConfig(): { url: string; key: string; model: string } | null {
+export function transcriptionConfig(): { kind: 'gateway'; model: string } | { kind: 'http'; url: string; key: string; model: string } | null {
   if (process.env.AI_ENABLED === 'false') return null;
   const key = process.env.AI_TRANSCRIBE_API_KEY?.trim();
-  if (!key) return null;
-  return {
-    url: process.env.AI_TRANSCRIBE_URL?.trim() || 'https://api.openai.com/v1/audio/transcriptions',
-    key,
-    model: process.env.AI_TRANSCRIBE_MODEL?.trim() || 'gpt-4o-mini-transcribe',
-  };
+  if (key) {
+    return {
+      kind: 'http',
+      url: process.env.AI_TRANSCRIBE_URL?.trim() || 'https://api.openai.com/v1/audio/transcriptions',
+      key,
+      model: process.env.AI_TRANSCRIBE_MODEL?.trim() || 'gpt-4o-mini-transcribe',
+    };
+  }
+  if (!aiEnabled()) return null;
+  return { kind: 'gateway', model: process.env.AI_TRANSCRIBE_MODEL?.trim() || 'openai/whisper-1' };
 }
 
 export interface AiTranscribeOptions {
@@ -373,24 +378,36 @@ export async function aiTranscribe(opts: AiTranscribeOptions): Promise<{ text: s
   const cfg = transcriptionConfig();
   if (!cfg) throw new AiError('ai_disabled');
   await assertAiQuota(opts.workspaceId);
-  const form = new FormData();
-  form.set('file', opts.audio, opts.filename);
-  form.set('model', cfg.model);
-  form.set('response_format', 'json');
-  if (opts.language) form.set('language', opts.language.slice(0, 5));
-  const res = await fetch(cfg.url, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${cfg.key}` },
-    body: form,
-    signal: AbortSignal.timeout(120_000),
-  });
-  if (res.status === 429) throw new AiError('rate_limited');
-  if (!res.ok) {
-    await res.body?.cancel().catch(() => {});
-    throw new Error(`transcribe_http_${res.status}`);
+  let text: string;
+  if (cfg.kind === 'gateway') {
+    const { experimental_transcribe, gateway } = await import('ai');
+    const res = await experimental_transcribe({
+      model: gateway.transcriptionModel(cfg.model),
+      audio: new Uint8Array(await opts.audio.arrayBuffer()),
+      ...(opts.language ? { providerOptions: { openai: { language: opts.language.slice(0, 5) } } } : {}),
+      abortSignal: AbortSignal.timeout(120_000),
+    });
+    text = res.text.trim();
+  } else {
+    const form = new FormData();
+    form.set('file', opts.audio, opts.filename);
+    form.set('model', cfg.model);
+    form.set('response_format', 'json');
+    if (opts.language) form.set('language', opts.language.slice(0, 5));
+    const res = await fetch(cfg.url, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${cfg.key}` },
+      body: form,
+      signal: AbortSignal.timeout(120_000),
+    });
+    if (res.status === 429) throw new AiError('rate_limited');
+    if (!res.ok) {
+      await res.body?.cancel().catch(() => {});
+      throw new Error(`transcribe_http_${res.status}`);
+    }
+    const data = (await res.json()) as { text?: string };
+    text = String(data.text ?? '').trim();
   }
-  const data = (await res.json()) as { text?: string };
-  const text = String(data.text ?? '').trim();
   await recordAiUsage({ workspaceId: opts.workspaceId, feature: opts.feature, model: `transcribe:${cfg.model}`, inputTokens: seconds * 10, outputTokens: Math.ceil(text.length / 4) });
   return { text, model: cfg.model };
 }

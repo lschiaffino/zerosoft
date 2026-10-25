@@ -249,7 +249,10 @@ const docsBaseBlockSchema = z.object({
   link: docsLinkSchema.optional(),
   height: z.number().min(0).max(4000).optional(),
   synced_id: z.string().max(64).optional(),
+  synced_at: z.string().max(40).optional(),
   button: docsButtonSchema.optional(),
+  // Bloque sugerido en modo sugerir (sanitizeBlocks valida los ids).
+  suggestion: z.object({ id: z.string().max(64), by: z.string().max(64) }).nullish(),
   // Notas de reunión (sanitizeBlocks lo descarta si el bloque no es meeting).
   meeting_id: z.string().max(64).optional(),
 });
@@ -393,6 +396,7 @@ export const docsDbAutofillSchema = z.object({
 export const docPageCreateSchema = z.object({
   title: shortText.optional(),
   parent_id: id.nullish(),
+  teamspace_id: id.nullish(),
   icon: shortText.nullish(),
   cover_url: shortText.nullish(),
 });
@@ -410,6 +414,14 @@ export const docPageUpdateSchema = z.object({
   full_width: z.boolean().optional(),
   inherit_shares: z.boolean().optional(),
   cover_position: z.number().min(0).max(100).optional(),
+  /** Bloquear la página (nadie edita el contenido; los comentarios siguen). */
+  locked: z.boolean().optional(),
+  /** "Desbloquear solo para mí": quien puede editar guarda sin quitar el bloqueo a los demás. */
+  bypass_lock: z.boolean().optional(),
+  /** Rol de los miembros del workspace en esta página y subpáginas (null = hereda). */
+  member_role: z.enum(['view', 'comment', 'edit', 'full']).nullable().optional(),
+  /** Wiki: dueño de la página. */
+  page_owner_id: id.nullable().optional(),
   /** Idioma y zona horaria del navegador: los recordatorios de fecha avisan en ese idioma. */
   locale: z.enum(['en', 'es', 'pt']).optional(),
   timezone: z.string().max(64).optional(),
@@ -419,7 +431,7 @@ export const docPageUpdateSchema = z.object({
   merge: z.literal('ours').optional(),
 });
 
-export const docShareRoleSchema = z.enum(['view', 'edit']);
+export const docShareRoleSchema = z.enum(['view', 'comment', 'edit', 'full']);
 
 /** Compartir con un team/persona por id, o con una persona por email. */
 export const docShareCreateSchema = z.object({
@@ -443,6 +455,9 @@ export const docCommentCreateSchema = z.object({
   parent_id: id.nullish(),
   /** Personas elegidas en el popover de @ (el server valida que sean del workspace). */
   mention_ids: z.array(id).max(20).optional(),
+  /** Comentario sobre texto: id del resaltado `<span data-comment>` y el texto citado. */
+  anchor_id: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).nullish(),
+  quote: z.string().max(500).optional(),
 });
 
 export const docCommentUpdateSchema = z.object({

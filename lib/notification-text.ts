@@ -21,6 +21,8 @@ export interface NotificationTextLabels {
   docCommentMention: string;
   docCommentReply: string;
   docShared: string;
+  /** "{actor} cambió lo mismo en {title}: tu versión quedó en el historial". */
+  docConflict?: string;
   boardMention: string;
   boardReply: string;
   /** Groups: "{actor} te mencionó en {title}", "{actor} te asignó {title}", "Chat nuevo para vos: {title}". */
@@ -82,6 +84,7 @@ export function notificationTitle(n: NotificationLike, L: NotificationTextLabels
     const title = String(meta.pageTitle || L.untitled);
     const vars = { actor, title };
     if (source === 'docs_page' && meta.shared) return fill(L.docShared, vars);
+    if (source === 'docs_page' && meta.conflict && L.docConflict) return fill(L.docConflict, vars);
     if (source === 'docs_page' && n.type === 'mention') return fill(L.docMention, vars);
     if (source === 'docs_comment') return fill(meta.reply ? L.docCommentReply : L.docCommentMention, vars);
     return n.title;
