@@ -32,6 +32,8 @@ export interface RealtimeOptions<E> {
   onConnect?: () => void;
   /** El servidor dice que el hueco es grande: rehacer el estado. */
   onReset?: () => void;
+  /** El servidor cortó porque la persona perdió el acceso: no se reconecta. */
+  onRevoked?: () => void;
   /** Polling con la pestaña visible / oculta. */
   pollMs?: number;
   hiddenPollMs?: number;
@@ -151,8 +153,21 @@ export class RealtimeClient<E> {
       }
       this.opts.onReset?.();
     });
-    es.addEventListener('bye', () => {
+    es.addEventListener('bye', (ev) => {
       seen();
+      let reason = '';
+      try {
+        reason = (JSON.parse((ev as MessageEvent).data) as { reason?: string }).reason ?? '';
+      } catch {
+        /* sin motivo */
+      }
+      if (reason === 'revoked') {
+        // Perdió el acceso: se corta todo (ni reconexión ni polling).
+        this.stop();
+        this.setStatus('offline');
+        this.opts.onRevoked?.();
+        return;
+      }
       // El servidor cierra a los pocos minutos: EventSource reconecta solo con Last-Event-ID.
       this.setStatus('connecting');
     });
@@ -227,10 +242,11 @@ export class RealtimeClient<E> {
 
 /** Hook: conecta mientras el componente está montado. Los callbacks pueden cambiar sin reconectar. */
 export function useRealtime<E>(
-  opts: Omit<RealtimeOptions<E>, 'onEvents' | 'onStatus' | 'onConnect' | 'onReset'> & {
+  opts: Omit<RealtimeOptions<E>, 'onEvents' | 'onStatus' | 'onConnect' | 'onReset' | 'onRevoked'> & {
     onEvents: (events: E[]) => void;
     onConnect?: () => void;
     onReset?: () => void;
+    onRevoked?: () => void;
     enabled?: boolean;
   },
 ) {
@@ -252,6 +268,7 @@ export function useRealtime<E>(
       onEvents: (events) => handlers.current.onEvents(events),
       onConnect: () => handlers.current.onConnect?.(),
       onReset: () => handlers.current.onReset?.(),
+      onRevoked: () => handlers.current.onRevoked?.(),
       onStatus: setStatus,
     });
     clientRef.current = client;

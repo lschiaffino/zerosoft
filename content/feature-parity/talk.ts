@@ -297,9 +297,9 @@ const BUILT: Record<string, Built> = {
   'realtime-messages': {
     status: 'have',
     detail: [
-      'SSE over one shared feed per server instance, with short polling as fallback and typing indicator. A message shows up in other tabs in about 0.8 s (median of 5 measurements, Oct 25, 2026)',
-      'SSE sobre un feed compartido por instancia del servidor, con polling corto de respaldo y quién está escribiendo. Un mensaje aparece en otras pestañas en unos 0,8 s (mediana de 5 mediciones, 25/10/2026)',
-      'SSE sobre um feed compartilhado por instância do servidor, com polling curto de reserva e quem está digitando. Uma mensagem aparece em outras abas em cerca de 0,8 s (mediana de 5 medições, 25/10/2026)',
+      'SSE over one shared feed per server instance, with short polling as fallback and typing indicator. A message shows up in other tabs in under 1 s (median 0.8 to 0.9 s across runs of 5 messages, Oct 25, 2026)',
+      'SSE sobre un feed compartido por instancia del servidor, con polling corto de respaldo y quién está escribiendo. Un mensaje aparece en otras pestañas en menos de 1 s (mediana de 0,8 a 0,9 s en tandas de 5 mensajes, 25/10/2026)',
+      'SSE sobre um feed compartilhado por instância do servidor, com polling curto de reserva e quem está digitando. Uma mensagem aparece em outras abas em menos de 1 s (mediana de 0,8 a 0,9 s em séries de 5 mensagens, 25/10/2026)',
     ],
   },
   'rich-composer': { status: 'have', detail: ['Toolbar and markup (bold, italic, strikethrough, code, lists, quotes, links), :emoji:, link previews', 'Barra y marcado (negrita, itálica, tachado, código, listas, citas, links), :emoji:, vista previa de links', 'Barra e marcação (negrito, itálico, tachado, código, listas, citações, links), :emoji:, prévia de links'] },

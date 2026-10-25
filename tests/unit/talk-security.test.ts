@@ -11,13 +11,15 @@ import {
   openDm,
   postMessage,
   removeMember,
+  talkDeliveryAllowed,
+  updateChannel,
   type TalkActor,
 } from '@/lib/talk';
-import { createHook, createReminder, deleteHook } from '@/lib/talk-extras';
+import { createHook, createReminder, deleteHook, heartbeat, searchMessages } from '@/lib/talk-extras';
 import { fireTalkReminders, notifyForMessage, sendTalkEmails } from '@/lib/talk-notify';
 import { postAsBot } from '@/lib/talk-bot';
-import { connectionFilter, visibleChannels } from '@/lib/talk-realtime';
-import { createWebhook } from '@/lib/webhooks';
+import { connectionFilter, talkStream, visibleChannels } from '@/lib/talk-realtime';
+import { createWebhook, retryDueWebhooks } from '@/lib/webhooks';
 import { createFlow, updateFlow } from '@/lib/flow';
 import { schedulePresets, remindPresets } from '@/lib/talk-time';
 import { makeUser } from './helpers';
@@ -217,6 +219,104 @@ describe('tiempo real: filtro por conexión', () => {
     // Otro workspace o eventos personales de otra persona: nunca.
     expect(await filter([{ ...base, id: 4, kind: 'message', channelId: priv.id, workspaceId: 'otro' }])).toHaveLength(0);
     expect(await filter([{ ...base, id: 5, kind: 'read', channelId: null, userId: w.ana.id }])).toHaveLength(0);
+  });
+});
+
+describe('N1: quien sale del workspace con el tiempo real abierto', () => {
+  it('la conexión deja de recibir y se corta al llegar el evento de acceso; el latido no lo revive', async () => {
+    const w = await workspace('n1');
+    const general = await createChannel(w.a, { name: 'n1-todos', kind: 'public', memberIds: [w.bob.id] });
+    let revoked = 0;
+    const filter = connectionFilter(w.b, () => revoked++);
+    const base = { workspaceId: w.owner.id, actorId: w.ana.id, at: new Date().toISOString() };
+    expect(await filter([{ ...base, id: 1, kind: 'message', channelId: general.id, userId: null, payload: {} }])).toHaveLength(1);
+    await removeTeamMember(w.team.id, w.bob.id);
+    const ev = (await getDb().prepare("SELECT * FROM talk_events WHERE kind = 'access' AND user_id = ? ORDER BY id DESC LIMIT 1").get(w.bob.id)) as { id: number } | undefined;
+    expect(ev).toBeTruthy();
+    const out = await filter([
+      { ...base, id: 2, kind: 'access', channelId: null, userId: w.bob.id, payload: { change: 'removed' } },
+      { ...base, id: 3, kind: 'message', channelId: general.id, userId: null, payload: { message: { body: 'secreto' } } },
+    ]);
+    expect(out).toHaveLength(0);
+    expect(revoked).toBe(1);
+    // Y nada más pasa por esa conexión.
+    expect(await filter([{ ...base, id: 4, kind: 'message', channelId: general.id, userId: null, payload: {} }])).toHaveLength(0);
+    expect((await visibleChannels(w.b)).size).toBe(0);
+    // El latido de una conexión vieja no vuelve a escribir presencia.
+    await heartbeat(w.b, { force: true });
+    expect(await getDb().prepare('SELECT 1 AS x FROM talk_presence WHERE workspace_id = ? AND user_id = ?').get(w.owner.id, w.bob.id)).toBeUndefined();
+  });
+
+  it('el stream SSE manda bye revoked y corta', async () => {
+    const w = await workspace('n1s');
+    await createChannel(w.a, { name: 'n1s', kind: 'public', memberIds: [w.bob.id] });
+    const res = talkStream(w.b, 0);
+    const reader = res.body!.getReader();
+    const dec = new TextDecoder();
+    let text = '';
+    // Una sola lectura pendiente a la vez (si no, un chunk se pierde en una promesa abandonada).
+    let pending: Promise<ReadableStreamReadResult<Uint8Array>> | null = null;
+    let done = false;
+    const read = async (until: (t: string) => boolean, ms = 8000) => {
+      const end = Date.now() + ms;
+      while (!until(text) && !done && Date.now() < end) {
+        pending ??= reader.read();
+        const r = await Promise.race([pending, new Promise<null>((ok) => setTimeout(() => ok(null), 300))]);
+        if (!r) continue;
+        pending = null;
+        if (r.value) text += dec.decode(r.value);
+        if (r.done) done = true;
+      }
+    };
+    await read((t) => t.includes('event: ready'));
+    expect(text).toMatch(/event: ready\ndata: \{"cursor":\d+\}/);
+    await removeTeamMember(w.team.id, w.bob.id);
+    await read((t) => t.includes('"reason":"revoked"'));
+    expect(text).toContain('event: bye\ndata: {"reason":"revoked"}');
+    await reader.cancel().catch(() => undefined);
+  }, 20_000);
+
+  it('al volver al workspace vuelve a #general', async () => {
+    const w = await workspace('b6');
+    const { ensureGeneral } = await import('@/lib/talk');
+    await ensureGeneral(w.o);
+    await ensureGeneral(w.b);
+    await removeTeamMember(w.team.id, w.bob.id);
+    expect((await listMyChannels(w.b)).length).toBe(0);
+    await addMember(w.team.id, w.bob.id);
+    await ensureGeneral(w.b);
+    expect((await listMyChannels(w.b)).map((c) => c.name)).toContain('general');
+  });
+});
+
+describe('B3/B4: reintentos y público que pasa a privado', () => {
+  it('un reintento revalida la audiencia; pasar a privado limpia lo de los que no son miembros', async () => {
+    const w = await workspace('b3');
+    const c = await createChannel(w.a, { name: 'b3', kind: 'public', memberIds: [w.bob.id] });
+    const bobHook = await createWebhook(w.owner.id, { url: 'http://127.0.0.1:9/b3', events: ['talk.message.posted'], createdBy: w.bob.id });
+    const r = await postMessage(w.a, { channelId: c.id, body: `hola <@${w.bob.id}>` });
+    await afterPost(w.a, r);
+    await notifyForMessage(w.a, r.row, r.channel);
+    expect(await talkDeliveryAllowed(w.owner.id, w.bob.id, { channel: { id: c.id } })).toBe(true);
+    // Bob sale y el canal pasa a privado: la entrega pendiente ya no va y sus avisos se borran.
+    await removeMember(w.b, c.id, w.bob.id);
+    await updateChannel(w.a, c.id, { kind: 'private' });
+    expect(await talkDeliveryAllowed(w.owner.id, w.bob.id, { channel: { id: c.id } })).toBe(false);
+    expect(await notes(w.bob.id, r.row.id)).toHaveLength(0);
+    await getDb().prepare("UPDATE webhook_deliveries SET status = 'pending', attempts = 1, next_attempt_at = ?, claimed_until = NULL WHERE webhook_id = ?").run(new Date(Date.now() - 1000).toISOString(), bobHook.id);
+    await retryDueWebhooks(100);
+    const d = (await getDb().prepare('SELECT status, last_error FROM webhook_deliveries WHERE webhook_id = ?').get(bobHook.id)) as { status: string; last_error: string };
+    expect(d).toEqual({ status: 'failed', last_error: 'audience_revoked' });
+  });
+
+  it('B5: comillas solas o vacío no buscan nada', async () => {
+    const w = await workspace('b5');
+    const c = await createChannel(w.a, { name: 'b5', kind: 'public' });
+    await postMessage(w.a, { channelId: c.id, body: 'dijo "hola"' });
+    expect((await searchMessages(w.a, '""')).results).toHaveLength(0);
+    expect((await searchMessages(w.a, '"  "')).results).toHaveLength(0);
+    expect((await searchMessages(w.a, '   ')).results).toHaveLength(0);
+    expect((await searchMessages(w.a, 'hola')).results).toHaveLength(1);
   });
 });
 

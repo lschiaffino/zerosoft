@@ -43,6 +43,7 @@ export default function TalkApp(props: Props) {
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [extraChannel, setExtraChannel] = useState<TalkChannelDto | null>(null);
   const [missing, setMissing] = useState(false);
+  const [revoked, setRevoked] = useState(false);
   const [mobilePane, setMobilePane] = useState<'side' | 'main' | 'thread'>(props.initialChannelId || props.initialView ? (props.initialThreadId ? 'thread' : 'main') : 'side');
   const listeners = useRef(new Set<(e: TalkBusEvent) => void>());
   const bootTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -374,7 +375,12 @@ export default function TalkApp(props: Props) {
         } else if (e.kind === 'read') {
           if (p.all) channels = channels.map((c) => ({ ...c, unread: false, mentions: 0, lastReadAt: e.at }));
           else if (typeof p.threadId === 'string') unreadThreadIds = unreadThreadIds.filter((id) => id !== p.threadId);
-          else if (typeof p.channelId === 'string') toFetch.add(p.channelId);
+          else if (typeof p.channelId === 'string') {
+            const c = channels.find((x) => x.id === p.channelId);
+            const at = typeof p.at === 'string' ? p.at : e.at;
+            if (c && (!c.lastMessageAt || at >= c.lastMessageAt)) patch(c.id, (x) => ({ ...x, unread: false, mentions: 0, lastReadAt: at }));
+            else toFetch.add(p.channelId);
+          }
         } else if (e.kind === 'channel') {
           if (p.change === 'deleted' && typeof p.id === 'string') channels = channels.filter((c) => c.id !== p.id);
           else if (p.change === 'left' && typeof p.id === 'string') channels = channels.filter((c) => c.id !== p.id);
@@ -401,6 +407,7 @@ export default function TalkApp(props: Props) {
     // Reconexión o hueco grande: el estado se rehace una vez.
     onConnect: refreshBoot,
     onReset: refreshBoot,
+    onRevoked: () => setRevoked(true),
   });
   liveRef.current = status === 'live';
 
@@ -542,6 +549,21 @@ export default function TalkApp(props: Props) {
     );
 
   const threadChannel = threadId ? channel : null;
+  if (revoked) {
+    return (
+      <div className="talk-app talk-app-revoked" role="alert">
+        <div className="ui-empty talk-empty">
+          <p className="ui-empty-title">{t('revoked.title')}</p>
+          <p className="ui-empty-body">{t('revoked.body')}</p>
+          <div className="ui-empty-actions">
+            <a className="btn btn-primary btn-sm" href={`/${locale}/app`}>
+              {t('revoked.action')}
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <TalkContext.Provider value={ctx}>

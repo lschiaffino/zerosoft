@@ -141,6 +141,9 @@ export interface SharedFeed<E extends { id: number }> {
 interface FeedState<E> {
   listeners: Set<(events: E[]) => void | Promise<void>>;
   cursor: number;
+  initialized: boolean;
+  /** Lectura del cursor inicial, lanzada al suscribirse (antes de que la conexión lea su atraso). */
+  starting: Promise<number> | null;
   started: boolean;
 }
 
@@ -154,7 +157,7 @@ export function sharedFeed<E extends { id: number }>(
   g[FEEDS_KEY] ??= new Map();
   let state = g[FEEDS_KEY].get(key);
   if (!state) {
-    state = { listeners: new Set(), cursor: 0, started: false };
+    state = { listeners: new Set(), cursor: 0, initialized: false, starting: null, started: false };
     g[FEEDS_KEY].set(key, state);
   }
   const s = state;
@@ -165,7 +168,11 @@ export function sharedFeed<E extends { id: number }>(
       return;
     }
     try {
-      if (!s.cursor) s.cursor = await opts.start();
+      if (!s.initialized) {
+        s.cursor = await (s.starting ?? opts.start());
+        s.initialized = true;
+        s.starting = null;
+      }
       const events = await opts.fetchSince(s.cursor);
       if (events.length) {
         s.cursor = events[events.length - 1].id;
@@ -175,13 +182,20 @@ export function sharedFeed<E extends { id: number }>(
       // Un error de la base no corta el feed: se reintenta en la próxima vuelta.
     }
     if (s.listeners.size) setTimeout(() => void loop(), interval);
-    else s.started = false;
+    else {
+      // Sin nadie conectado se deja de leer; al volver se toma el cursor de nuevo.
+      s.started = false;
+      s.initialized = false;
+    }
   };
   return {
     subscribe(fn) {
       s.listeners.add(fn);
       if (!s.started) {
         s.started = true;
+        // El cursor se toma ya, en el momento de la suscripción: lo que pase después
+        // llega por el feed y lo de antes, por el atraso de cada conexión.
+        if (!s.initialized && !s.starting) s.starting = opts.start();
         setTimeout(() => void loop(), 0);
       }
       return () => {
@@ -198,24 +212,33 @@ export interface SseLiveOptions<E> {
   cursor: number;
   /** Lo que el cliente se perdió antes de engancharse (una sola consulta); `gap` pide recargar. */
   backlog: (cursor: number) => Promise<{ events: E[]; cursor: number; gap?: boolean }>;
-  /** Suscripción al feed compartido; `push` recibe lo de esta conexión ya filtrado. */
-  subscribe: (push: (batch: { events: E[]; cursor: number }) => void) => () => void;
+  /**
+   * Suscripción al feed compartido; `push` recibe lo de esta conexión ya
+   * filtrado y `revoke` corta la conexión (p. ej. la persona perdió el acceso).
+   */
+  subscribe: (push: (batch: { events: E[]; cursor: number }) => void, revoke: (reason: string) => void) => () => void;
   maxMs?: number;
   heartbeatMs?: number;
+  /** Red de seguridad periódica: false corta la conexión con `bye` { reason: 'revoked' }. */
+  check?: () => Promise<boolean>;
+  checkMs?: number;
   tickMs?: number;
   tick?: () => Promise<void>;
   signal?: AbortSignal;
 }
 
 /**
- * SSE sobre un feed compartido: manda `ready`, el atraso (o `reset` si el
- * hueco es grande y conviene recargar) y después lo que llega en vivo. Ping
- * cada `heartbeatMs` y cierre a los `maxMs` (el navegador reconecta solo).
+ * SSE sobre un feed compartido: manda `ready` (con el cursor real, después de
+ * leer el atraso), el atraso (o `reset` si el hueco es grande) y después lo
+ * que llega en vivo. Ping cada `heartbeatMs`, revalidación cada `checkMs` y
+ * cierre a los `maxMs` (el navegador reconecta solo). Si se revoca el acceso
+ * manda `bye` con `reason: 'revoked'` y el navegador no reconecta.
  */
 export function sseLiveResponse<E extends { id?: number }>(opts: SseLiveOptions<E>): Response {
   const maxMs = Math.max(5_000, opts.maxMs ?? 240_000);
   const heartbeat = Math.max(2_000, opts.heartbeatMs ?? 15_000);
   const tickMs = opts.tickMs ?? 60_000;
+  const checkMs = Math.max(1_000, opts.checkMs ?? heartbeat);
   const encoder = new TextEncoder();
   let closed = false;
   let unsubscribe: (() => void) | null = null;
@@ -236,9 +259,9 @@ export function sseLiveResponse<E extends { id?: number }>(opts: SseLiveOptions<
           stopAll();
         }
       };
-      const close = () => {
+      const close = (reason?: string) => {
         if (closed) return;
-        write(sseFrame('bye', {}));
+        write(sseFrame('bye', reason ? { reason } : {}));
         closed = true;
         stopAll();
         try {
@@ -247,30 +270,38 @@ export function sseLiveResponse<E extends { id?: number }>(opts: SseLiveOptions<
           /* ya cerrado */
         }
       };
-      opts.signal?.addEventListener('abort', close);
+      opts.signal?.addEventListener('abort', () => close());
       let cursor = opts.cursor;
       // Lo que llega mientras se lee el atraso se guarda y sale después, en orden.
       const pending: Array<{ events: E[]; cursor: number }> = [];
       let live = false;
       const send = (batch: { events: E[]; cursor: number }) => {
+        if (closed) return;
         const events = batch.events.filter((e) => typeof e.id !== 'number' || e.id > cursor);
         cursor = Math.max(cursor, batch.cursor);
         if (events.length) write(sseFrame('events', { events, cursor }, cursor));
       };
-      unsubscribe = opts.subscribe((batch) => {
-        if (live) send(batch);
-        else pending.push(batch);
-      });
-      write(`retry: 1500\n${sseFrame('ready', { cursor }, cursor || undefined)}`);
+      unsubscribe = opts.subscribe(
+        (batch) => {
+          if (live) send(batch);
+          else pending.push(batch);
+        },
+        (reason) => close(reason),
+      );
+      let back: { events: E[]; cursor: number; gap?: boolean } = { events: [], cursor };
       try {
-        const back = await opts.backlog(cursor);
-        if (back.gap) {
-          cursor = Math.max(cursor, back.cursor);
-          write(sseFrame('reset', { cursor }, cursor));
-        } else send(back);
+        back = await opts.backlog(cursor);
       } catch {
         /* sin atraso: sigue en vivo */
       }
+      if (opts.check && !(await opts.check().catch(() => true))) return close('revoked');
+      // El cursor real (hasta dónde llega lo que sigue). Sin id: el id lo llevan los frames de eventos.
+      const readyCursor = back.gap ? back.cursor : Math.max(cursor, back.cursor);
+      write(`retry: 1500\n${sseFrame('ready', { cursor: readyCursor })}`);
+      if (back.gap) {
+        cursor = Math.max(cursor, back.cursor);
+        write(sseFrame('reset', { cursor }, cursor));
+      } else send(back);
       live = true;
       for (const b of pending.splice(0)) send(b);
       const ping = () => {
@@ -279,6 +310,15 @@ export function sseLiveResponse<E extends { id?: number }>(opts: SseLiveOptions<
         timers.push(setTimeout(ping, heartbeat));
       };
       timers.push(setTimeout(ping, heartbeat));
+      if (opts.check) {
+        const check = () => {
+          if (closed) return;
+          void opts.check!()
+            .then((ok) => (ok ? timers.push(setTimeout(check, checkMs)) : close('revoked')))
+            .catch(() => timers.push(setTimeout(check, checkMs)));
+        };
+        timers.push(setTimeout(check, checkMs));
+      }
       if (opts.tick) {
         const tick = () => {
           if (closed) return;
@@ -287,7 +327,7 @@ export function sseLiveResponse<E extends { id?: number }>(opts: SseLiveOptions<
         };
         tick();
       }
-      timers.push(setTimeout(close, maxMs));
+      timers.push(setTimeout(() => close(), maxMs));
     },
     cancel() {
       closed = true;

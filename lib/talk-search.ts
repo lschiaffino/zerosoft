@@ -132,10 +132,13 @@ export function parseTalkSearch(q: string): TalkSearchQuery {
         continue;
       }
     }
-    if (tok.startsWith('"') && tok.endsWith('"') && tok.length > 2) {
-      out.terms.push(tok.slice(1, -1));
+    if (tok.startsWith('"') && tok.endsWith('"')) {
+      // Una frase vacía (o solo comillas) no busca nada.
+      const phrase = tok.slice(1, -1).trim();
+      if (phrase) out.terms.push(phrase);
       continue;
     }
+    if (!tok.replace(/["']/g, '').trim()) continue;
     if (tok.startsWith('-') && tok.length > 1) {
       out.excludes.push(tok.slice(1));
       continue;

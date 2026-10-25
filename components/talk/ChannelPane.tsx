@@ -10,6 +10,8 @@ import Message, { fmtFull } from './Message';
 import { draftKey, useTalk, type TalkBusEvent } from './talk-context';
 
 const GROUP_MS = 5 * 60_000;
+/** Marcar leído espera un poco: con mensajes seguidos se manda uno solo. */
+const READ_DEBOUNCE_MS = 2000;
 
 export function dayLabel(iso: string, locale: string, t: (k: string) => string): string {
   const key = dayKey(iso);
@@ -85,7 +87,7 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
       readTimer.current = setTimeout(() => {
         // El sidebar se actualiza con el evento "read" del tiempo real (sin pedir todo).
         void api(`/api/talk/channels/${channel.id}/read`, { method: 'POST', json: at ? { at } : {} }).catch(() => undefined);
-      }, 400);
+      }, at ? 0 : READ_DEBOUNCE_MS);
     },
     [api, channel.id, isMember],
   );
@@ -156,25 +158,45 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
       const ids = new Set<string>();
       const removed = new Set<string>();
       const quick: TalkMessageDto[] = [];
+      const threads: Array<{ id: string; replyCount: number; replyUsers: string[]; lastReplyAt: string }> = [];
       let fromOthers = false;
       for (const ev of e.events) {
         if (ev.channelId !== channel.id) continue;
         if (ev.kind === 'message' || ev.kind === 'reaction') {
-          const p = ev.payload as { id: string; parentId?: string | null; change?: string; alsoInChannel?: boolean; message?: LiteMessage };
-          // Mensaje nuevo de otra persona: se pinta ya con lo que trae el evento (sin archivos ni tarjetas, que llegan en el refresco).
-          if (p.change === 'new' && p.message && ev.actorId !== ctx.boot.me && (!p.parentId || p.alsoInChannel) && !p.message.hasFiles) quick.push(liteToDto(p.message));
-          if (p.change === 'deleted') removed.add(p.id);
-          if (!p.parentId || p.alsoInChannel) ids.add(p.id);
-          if (p.parentId) ids.add(p.parentId);
-          if (p.change === 'new' && ev.actorId !== ctx.boot.me && (!p.parentId || p.alsoInChannel)) fromOthers = true;
+          const p = ev.payload as {
+            id: string;
+            parentId?: string | null;
+            change?: string;
+            alsoInChannel?: boolean;
+            message?: LiteMessage;
+            thread?: { replyCount: number; replyUsers: string[]; lastReplyAt: string } | null;
+          };
+          const channelLevel = !p.parentId || !!p.alsoInChannel;
+          if (p.change === 'new' && p.message && !p.message.hasFiles && !/https?:\/\//i.test(p.message.body)) {
+            // El evento ya trae todo (sin archivos ni links que pidan tarjetas): no hace falta pedir nada.
+            if (channelLevel) quick.push(liteToDto(p.message));
+            if (p.parentId && p.thread) threads.push({ id: p.parentId, ...p.thread });
+            else if (p.parentId) ids.add(p.parentId);
+          } else {
+            if (p.change === 'new' && p.message && channelLevel && ev.actorId !== ctx.boot.me && !p.message.hasFiles) quick.push(liteToDto(p.message));
+            if (p.change === 'deleted') removed.add(p.id);
+            if (channelLevel) ids.add(p.id);
+            if (p.parentId) ids.add(p.parentId);
+          }
+          if (p.change === 'new' && ev.actorId !== ctx.boot.me && channelLevel) fromOthers = true;
         }
       }
-      if (!ids.size && !removed.size) return;
-      if (quick.length) {
+      if (quick.length || threads.length) {
         const el = listRef.current;
         stick.current = !!el && el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-        setMessages((prev) => upsertSorted(prev, quick.filter((q) => !prev.some((m) => m.id === q.id))));
+        setMessages((prev) => {
+          let next = upsertSorted(prev, quick.filter((q) => !prev.some((m) => m.id === q.id)));
+          for (const th of threads) next = next.map((m) => (m.id === th.id ? { ...m, replyCount: th.replyCount, replyUsers: th.replyUsers, lastReplyAt: th.lastReplyAt } : m));
+          return next;
+        });
+        if (fromOthers && !ids.size && document.visibilityState === 'visible' && document.hasFocus() && !manualUnread.current) markRead();
       }
+      if (!ids.size && !removed.size) return;
       void api<{ messages: TalkMessageDto[] }>(`/api/talk/messages?ids=${[...ids].join(',')}`)
         .then((res) => {
           const el = listRef.current;

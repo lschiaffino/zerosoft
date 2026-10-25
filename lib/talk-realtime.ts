@@ -7,7 +7,7 @@
  */
 import { getDb } from './db';
 import { sharedFeed, sseLiveResponse, type SharedFeed } from './realtime';
-import { latestEventId, listEventsSince, type TalkActor, type TalkEvent, type TalkEventKind } from './talk';
+import { isWorkspacePerson, latestEventId, listEventsSince, type TalkActor, type TalkEvent, type TalkEventKind } from './talk';
 import { heartbeat } from './talk-extras';
 
 export const TALK_FEED_INTERVAL_MS = 700;
@@ -57,6 +57,7 @@ export function talkFeed(): SharedFeed<RawEvent> {
 
 /** Canales cuyos eventos ve esta persona: donde es miembro y los públicos del workspace. */
 export async function visibleChannels(actor: TalkActor): Promise<Set<string>> {
+  if (!(await isWorkspacePerson(actor.workspaceId, actor.personId))) return new Set();
   const rows = (await getDb()
     .prepare(
       `SELECT id FROM talk_channels WHERE workspace_id = ? AND (kind = 'public' OR id IN (SELECT channel_id FROM talk_members WHERE user_id = ?))`,
@@ -66,11 +67,19 @@ export async function visibleChannels(actor: TalkActor): Promise<Set<string>> {
 }
 
 /** Filtra un lote del feed para esta conexión (refresca el acceso si cambió algún canal). */
-export function connectionFilter(actor: TalkActor) {
+export function connectionFilter(actor: TalkActor, onRevoked?: () => void) {
   let access: Set<string> | null = null;
+  let revoked = false;
   return async (events: RawEvent[]): Promise<TalkEvent[]> => {
+    if (revoked) return [];
     const mine = events.filter((e) => e.workspaceId === actor.workspaceId);
     if (!mine.length) return [];
+    // La persona salió del workspace: no pasa nada más por esta conexión y se corta.
+    if (mine.some((e) => e.kind === 'access' && e.userId === actor.personId) && !(await isWorkspacePerson(actor.workspaceId, actor.personId))) {
+      revoked = true;
+      onRevoked?.();
+      return [];
+    }
     if (!access || mine.some((e) => e.kind === 'channel')) access = await visibleChannels(actor);
     const seen = access;
     return mine
@@ -85,7 +94,8 @@ export function connectionFilter(actor: TalkActor) {
 
 /** Stream SSE de Talk para esta persona. */
 export function talkStream(actor: TalkActor, cursor: number, signal?: AbortSignal): Response {
-  const filter = connectionFilter(actor);
+  let revoke: ((reason: string) => void) | null = null;
+  const filter = connectionFilter(actor, () => revoke?.('revoked'));
   return sseLiveResponse<TalkEvent>({
     cursor,
     backlog: async (c) => {
@@ -94,11 +104,16 @@ export function talkStream(actor: TalkActor, cursor: number, signal?: AbortSigna
       // Demasiado atrasado: mejor que el navegador recargue el estado.
       return back.events.length >= BACKLOG_LIMIT ? { events: [], cursor: await latestEventId(actor.workspaceId), gap: true } : back;
     },
-    subscribe: (push) =>
-      talkFeed().subscribe(async (events) => {
+    subscribe: (push, close) => {
+      revoke = close;
+      return talkFeed().subscribe(async (events) => {
         const visible = await filter(events);
         push({ events: visible, cursor: events[events.length - 1]?.id ?? 0 });
-      }),
+      });
+    },
+    // Red de seguridad: cada 15 s se revalida que siga en el workspace.
+    check: () => isWorkspacePerson(actor.workspaceId, actor.personId),
+    checkMs: 15_000,
     heartbeatMs: 15_000,
     maxMs: 240_000,
     // Presencia mientras la pestaña está conectada (heartbeat deduplica por persona).

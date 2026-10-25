@@ -62,14 +62,31 @@ export default function ThreadPane({ rootId, channel, onClose }: { rootId: strin
           setReplies((prev) => prev.filter((r) => r.id !== e.id));
           return;
         }
-        const touched = e.events.some((ev) => {
-          if (ev.kind !== 'message' && ev.kind !== 'reaction') return false;
-          const p = ev.payload as { id?: string; parentId?: string | null };
-          return p.id === rootId || p.parentId === rootId;
-        });
-        if (touched) void load(true);
+        let reload = false;
+        const add: TalkMessageDto[] = [];
+        for (const ev of e.events) {
+          if (ev.kind !== 'message' && ev.kind !== 'reaction') continue;
+          const p = ev.payload as {
+            id?: string;
+            parentId?: string | null;
+            change?: string;
+            message?: { id: string; channelId: string; parentId: string | null; userId: string | null; botName: string | null; body: string; alsoInChannel: boolean; createdAt: string; hasFiles: boolean };
+          };
+          if (p.id !== rootId && p.parentId !== rootId) continue;
+          if (p.change === 'new' && p.parentId === rootId && p.message && !p.message.hasFiles && !/https?:\/\//i.test(p.message.body)) {
+            const m = p.message;
+            add.push({ ...m, files: [], unfurls: [], reactions: [], replyCount: 0, replyUsers: [], lastReplyAt: null, editedAt: null, deleted: false, pinned: false, saved: false, refs: [] });
+          } else reload = true;
+        }
+        if (reload) void load(true);
+        else if (add.length) {
+          const el = listRef.current;
+          stick.current = !!el && el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+          setReplies((prev) => [...prev, ...add.filter((a) => !prev.some((r) => r.id === a.id))]);
+          if (following) void api(`/api/talk/messages/${rootId}`, { method: 'PATCH', json: { read: true } }).catch(() => undefined);
+        }
       }),
-    [subscribe, rootId, load],
+    [subscribe, rootId, load, api, following],
   );
 
   // Esc cierra el hilo (si no hay un modal o un editor abierto).

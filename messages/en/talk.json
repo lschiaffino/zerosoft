@@ -416,5 +416,10 @@
   },
   "sidebar": {
     "home": "Home"
+  },
+  "revoked": {
+    "title": "You no longer have access to this workspace",
+    "body": "Someone removed you from the workspace. Your Talk messages here are no longer available to you.",
+    "action": "Go to home"
   }
 }

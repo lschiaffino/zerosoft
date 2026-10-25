@@ -96,7 +96,7 @@ export async function listTalkGroups(workspaceId: string): Promise<Array<{ id: s
 
 // ---------- Eventos (tiempo real) ----------
 
-export type TalkEventKind = 'message' | 'reaction' | 'channel' | 'typing' | 'read' | 'presence' | 'saved';
+export type TalkEventKind = 'message' | 'reaction' | 'channel' | 'typing' | 'read' | 'presence' | 'saved' | 'access';
 
 export interface TalkEvent {
   id: number;
@@ -232,7 +232,11 @@ export async function talkPersonRemoved(workspaceId: string, userId: string): Pr
   }
   await db.prepare('DELETE FROM talk_reminders WHERE workspace_id = ? AND user_id = ?').run(workspaceId, userId);
   await db.prepare('DELETE FROM talk_presence WHERE workspace_id = ? AND user_id = ?').run(workspaceId, userId);
+  // Si vuelve al workspace arranca de cero (ensureGeneral lo suma otra vez a #general).
+  await db.prepare('DELETE FROM talk_prefs WHERE workspace_id = ? AND user_id = ?').run(workspaceId, userId);
   for (const c of channels) await emitTalkEvent(workspaceId, 'channel', { channelId: c.id, payload: { change: 'members' } });
+  // Sus conexiones de tiempo real abiertas se cortan al recibir esto (lib/talk-realtime.ts).
+  await emitTalkEvent(workspaceId, 'access', { userId, payload: { change: 'removed' } });
 }
 
 // ---------- Canales ----------
@@ -573,6 +577,18 @@ export async function updateChannel(actor: TalkActor, id: string, input: UpdateC
     if (!manage || channel.kind !== 'public') throw new TalkError('forbidden', 403);
     if (channel.name === 'general') throw new TalkError('general_locked', 409);
     await db.prepare("UPDATE talk_channels SET kind = 'private', updated_at = ? WHERE id = ?").run(now, id);
+    // Quien no es miembro deja de verlo: fuera sus avisos, recordatorios y guardados de ese canal.
+    const outsiders = (await db
+      .prepare(
+        `SELECT DISTINCT user_id FROM (
+           SELECT n.user_id FROM notifications n JOIN talk_messages m ON m.id = n.source_id WHERE n.source_type = 'talk_message' AND m.channel_id = ?
+           UNION SELECT s.user_id FROM talk_saved s JOIN talk_messages m ON m.id = s.message_id WHERE m.channel_id = ?
+           UNION SELECT r.user_id FROM talk_reminders r JOIN talk_messages m ON m.id = r.message_id WHERE m.channel_id = ?
+           UNION SELECT f.user_id FROM talk_thread_follows f JOIN talk_messages m ON m.id = f.message_id WHERE m.channel_id = ?
+         ) WHERE user_id NOT IN (SELECT user_id FROM talk_members WHERE channel_id = ?)`,
+      )
+      .all(id, id, id, id, id)) as Array<{ user_id: string }>;
+    for (const o of outsiders) await purgeChannelFor(id, o.user_id);
   }
   if (input.archived !== undefined) {
     if (!manage) throw new TalkError('forbidden', 403);
@@ -946,6 +962,7 @@ export async function postMessage(actor: TalkActor, input: PostMessageInput, opt
     channel = (await writableChannel(actor, input.channelId)).channel;
   }
   let parent: TalkMessageRow | null = null;
+  let threadState: { replyCount: number; replyUsers: string[]; lastReplyAt: string } | null = null;
   if (input.parentId) {
     parent = await getMessageRow(actor.workspaceId, input.parentId);
     if (!parent || parent.channel_id !== channel.id || parent.parent_id) throw new TalkError('invalid_parent');
@@ -1001,6 +1018,7 @@ export async function postMessage(actor: TalkActor, input: PostMessageInput, opt
     await db
       .prepare('UPDATE talk_messages SET reply_count = reply_count + 1, last_reply_at = ?, reply_users = ? WHERE id = ?')
       .run(now, JSON.stringify(users.slice(-10)), parent.id);
+    threadState = { replyCount: Number(parent.reply_count) + 1, replyUsers: users.slice(-10), lastReplyAt: now };
     // Siguen el hilo: quien lo empezó, quien responde y las personas mencionadas.
     const followers = [parent.user_id, opts.asBot ? null : actor.personId, ...mentionIds].filter((u): u is string => !!u);
     for (const u of new Set(followers)) {
@@ -1051,6 +1069,7 @@ export async function postMessage(actor: TalkActor, input: PostMessageInput, opt
         createdAt: now,
         hasFiles: fileIds.length > 0,
       },
+      thread: threadState,
     },
   });
   const [message] = await toMessageDtos(actor, [row]);
@@ -1099,6 +1118,20 @@ export async function afterPost(actor: TalkActor, result: PostResult, opts: { as
       { audience },
     );
   }
+}
+
+/**
+ * ¿Un webhook o flow de `creatorId` puede recibir este evento de Talk hoy?
+ * Público: sí. Privado (o un público que pasó a privado): si es miembro. DM o
+ * canal borrado: no.
+ */
+export async function talkDeliveryAllowed(workspaceId: string, creatorId: string | null, data: unknown): Promise<boolean> {
+  const channelId = (data as { channel?: { id?: string } } | null)?.channel?.id;
+  if (!channelId) return true;
+  const row = await getChannelRow(workspaceId, channelId);
+  if (!row || row.kind === 'dm' || row.kind === 'group') return false;
+  if (row.kind === 'public') return true;
+  return !!creatorId && (await isWorkspacePerson(workspaceId, creatorId)) && !!(await getMembership(channelId, creatorId));
 }
 
 /** Nombres para pasar el texto guardado (con <@id>, <#id>) a texto legible. */

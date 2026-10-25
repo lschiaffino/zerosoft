@@ -12,6 +12,7 @@ import {
   TalkError,
   canManageChannel,
   emitTalkEvent,
+  isWorkspacePerson,
   listTalkPeople,
   nowIso,
   readableChannel,
@@ -274,6 +275,8 @@ const lastBeat = new Map<string, number>();
 const BEAT_EVERY_MS = 45_000;
 
 export async function heartbeat(actor: TalkActor, opts: { force?: boolean } = {}): Promise<void> {
+  // Quien ya salió del workspace no vuelve a aparecer como activo (una conexión vieja no escribe).
+  if (!(await isWorkspacePerson(actor.workspaceId, actor.personId))) return;
   const key = `${actor.workspaceId}|${actor.personId}`;
   const t = Date.now();
   if (!opts.force && t - (lastBeat.get(key) ?? 0) < BEAT_EVERY_MS) return;

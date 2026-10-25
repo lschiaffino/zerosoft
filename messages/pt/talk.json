@@ -416,5 +416,10 @@
   },
   "sidebar": {
     "home": "Início"
+  },
+  "revoked": {
+    "title": "Você não tem mais acesso a este workspace",
+    "body": "Removeram você do workspace. Suas mensagens do Talk daqui não estão mais disponíveis para você.",
+    "action": "Ir para o início"
   }
 }
