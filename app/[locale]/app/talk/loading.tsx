@@ -1,23 +1,18 @@
-import { getTranslations } from 'next-intl/server';
-
-/** Carga de /app/talk: la cabecera y el bloque como placas de esmalte. */
-export default async function TalkLoading() {
-  const t = await getTranslations('common.appSoon');
+export default function TalkLoading() {
   return (
-    <div className="app-page ui-page" aria-busy="true">
-      <span className="sr-only" role="status">
-        {t('loading', { app: 'Talk' })}
-      </span>
-      <div className="ui-page-header">
-        <div className="ui-page-header-text">
-          <span className="ui-skeleton ui-skeleton-title" />
-          <span className="ui-skeleton ui-skeleton-text" />
+    <div className="talk-app talk-app-loading" aria-busy="true">
+      <div className="talk-side">
+        <div className="ui-loading-stack">
+          <div className="ui-skeleton ui-skeleton-row" />
+          <div className="ui-skeleton ui-skeleton-row" />
+          <div className="ui-skeleton ui-skeleton-row" />
         </div>
       </div>
-      <div className="ui-loading-stack">
-        {[0, 1, 2].map((i) => (
-          <span key={i} className="ui-skeleton ui-skeleton-row" />
-        ))}
+      <div className="talk-main">
+        <div className="ui-loading-stack">
+          <div className="ui-skeleton ui-skeleton-title" />
+          <div className="ui-skeleton ui-skeleton-row" />
+        </div>
       </div>
     </div>
   );

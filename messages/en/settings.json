@@ -115,6 +115,7 @@
       "robot": "Robots",
       "chat": "Chat",
       "groups": "Groups (WhatsApp)",
+      "talk": "Talk",
       "company": "Companies",
       "task": "Tasks",
       "quote": "Quotes",
@@ -176,7 +177,8 @@
       "groups_chat_closed": "Chat closed (Groups)",
       "groups_member_joined": "Member joined a group (Groups)",
       "groups_member_left": "Member left a group (Groups)",
-      "groups_poll_voted": "Poll vote (Groups)"
+      "groups_poll_voted": "Poll vote (Groups)",
+      "talk_message_posted": "Message in a channel (Talk)"
     },
     "errors": {
       "https_required": "The URL must use https.",

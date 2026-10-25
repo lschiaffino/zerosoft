@@ -151,6 +151,11 @@ export async function removeMember(teamId: string, userId: string): Promise<void
        WHERE assigned_to = ? AND widget_id IN (SELECT id FROM chat_widgets WHERE team_id = ?)`,
     )
     .run(userId, teamId);
+  // Talk: deja los canales, sin avisos ni emails pendientes, sus DMs quedan desactivados.
+  if (team) {
+    const { talkPersonRemoved } = await import('./talk');
+    await talkPersonRemoved(team.owner_id, userId).catch((err) => console.error('[teams] talk cleanup', err));
+  }
   // Si el usuario tenía este team como activo, vuelve a su workspace personal.
   await getDb()
     .prepare('UPDATE users SET active_team_id = NULL WHERE id = ? AND active_team_id = ?')

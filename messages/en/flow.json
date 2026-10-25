@@ -230,6 +230,7 @@
     "app_link": { "title": "Link: create short link", "desc": "Creates a short link." },
     "app_chat_message": { "title": "Chat: send message", "desc": "Replies in a Chat conversation as the bot." },
     "app_groups_message": { "title": "Groups: send WhatsApp message", "desc": "Sends a message to a WhatsApp chat or group from its connected number." },
+    "app_talk_message": {"title": "Talk: send message", "desc": "Posts a message in a Talk channel of this workspace, with the bot name you choose. It can reply in a thread.", "fields": {"channel": "Channel (name or ID)", "body": "Message", "threadId": "Reply in thread (message ID)", "botName": "Bot name"}},
     "app_docs_page": { "title": "Docs: create page", "desc": "Creates a Docs page. Blank lines separate paragraphs." },
     "app_robot_run": { "title": "Robots: run robot", "desc": "Runs a browser robot with these inputs and waits for its extracted data (up to the robot's timeout)." },
     "ai_text": { "title": "AI: generate text", "desc": "Writes, summarizes or classifies text with AI. Counts toward your AI quota." },
@@ -518,7 +519,8 @@
     "groups_chat_closed": "Groups: chat closed",
     "groups_member_joined": "Groups: member joined a group",
     "groups_member_left": "Groups: member left a group",
-    "groups_poll_voted": "Groups: poll vote"
+    "groups_poll_voted": "Groups: poll vote",
+    "talk_message_posted": "Talk: message in a channel"
   },
   "ops": {
     "equals": "equals",

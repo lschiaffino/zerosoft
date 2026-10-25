@@ -154,6 +154,9 @@ function useGroupOrder() {
         'groupsLists',
         'groupsTemplates',
         'groupsRecurring',
+        'talkChannels',
+        'talkDms',
+        'talkPeople',
       ], []);
 }
 

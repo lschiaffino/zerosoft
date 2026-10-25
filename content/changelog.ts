@@ -44,6 +44,21 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-25-talk',
+    date: '2026-10-25',
+    title: {
+      en: 'Talk: team messaging with channels, DMs and threads',
+      es: 'Talk: mensajería de equipo con canales, DMs e hilos',
+      pt: 'Talk: mensagens de equipe com canais, DMs e fios',
+    },
+    items: [
+      { product: 'talk', en: 'Talk opens at /app/talk with public and private channels (create, join, leave, topic, description, members, archive and delete), direct messages and group DMs, threads with "also send to the channel", reactions, editing and deleting, pinned messages and a directory of channels.', es: 'Talk abre en /app/talk con canales públicos y privados (crear, unirse, salir, tema, descripción, miembros, archivar y borrar), mensajes directos y grupales, hilos con "también enviar al canal", reacciones, editar y borrar, mensajes fijados y un directorio de canales.', pt: 'O Talk abre em /app/talk com canais públicos e privados (criar, entrar, sair, tema, descrição, membros, arquivar e apagar), mensagens diretas e em grupo, fios com "também enviar ao canal", reações, editar e apagar, mensagens fixadas e um diretório de canais.' },
+      { product: 'talk', en: 'The editor formats like Slack (bold, italic, strikethrough, code, lists, quotes, links, :emoji:), suggests @people, @channel, @here, teams and #channels, attaches files and images, keeps drafts, schedules messages and understands /remind me in 1h.', es: 'El editor formatea como Slack (negrita, itálica, tachado, código, listas, citas, links, :emoji:), sugiere @personas, @canal, @aquí, equipos y #canales, adjunta archivos e imágenes, guarda borradores, programa mensajes y entiende /recordar en 1h.', pt: 'O editor formata como o Slack (negrito, itálico, tachado, código, listas, citações, links, :emoji:), sugere @pessoas, @canal, @aqui, equipes e #canais, anexa arquivos e imagens, guarda rascunhos, agenda mensagens e entende /lembrar em 1h.' },
+      { product: 'talk', en: 'Messages arrive in real time, with typing and presence. Unreads and mentions per channel, Threads, Mentions, Later (saved and reminders) and Files views, search with in:, from:, has:, is: and dates, notifications in the bell and by email, and status with expiry.', es: 'Los mensajes llegan en tiempo real, con quién está escribiendo y presencia. Sin leer y menciones por canal, vistas de Hilos, Menciones, Más tarde (guardados y recordatorios) y Archivos, búsqueda con in:, from:, has:, is: y fechas, avisos en la campana y por email, y estado con vencimiento.', pt: 'As mensagens chegam em tempo real, com quem está digitando e presença. Não lidas e menções por canal, visões de Fios, Menções, Mais tarde (salvas e lembretes) e Arquivos, busca com in:, from:, has:, is: e datas, avisos no sino e por e-mail, e status com validade.' },
+      { product: 'talk', en: 'Links to Track issues, CRM deals and Docs pages show a card with their state to whoever can open them, a message becomes a Track issue in three clicks, Flow gets a "message in a channel" trigger and a "send message" action, and there are incoming webhooks and an API (talk:read, talk:write).', es: 'Los links a issues de Track, deals del CRM y páginas de Docs muestran una tarjeta con su estado a quien los puede abrir, un mensaje pasa a issue de Track en tres clics, Flow suma el disparador "mensaje en un canal" y la acción "enviar mensaje", y hay webhooks entrantes y API (talk:read, talk:write).', pt: 'Links para issues do Track, negócios do CRM e páginas do Docs mostram um cartão com o status para quem pode abri-los, uma mensagem vira issue do Track em três cliques, o Flow ganha o gatilho "mensagem em um canal" e a ação "enviar mensagem", e há webhooks de entrada e API (talk:read, talk:write).' },
+    ],
+  },
+  {
     id: '2026-10-25-track-keyboard-round-3',
     date: '2026-10-25',
     title: {

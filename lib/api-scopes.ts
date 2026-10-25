@@ -18,6 +18,8 @@ export const API_SCOPES = [
   'groups:write',
   'track:read',
   'track:write',
+  'talk:read',
+  'talk:write',
 ] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
