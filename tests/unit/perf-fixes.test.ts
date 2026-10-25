@@ -90,7 +90,7 @@ describe('Docs API: lista liviana y paginada', () => {
     expect(first.rows).toHaveLength(2);
     expect(first.nextOffset).toBe(2);
     expect(first.rows[0]).not.toHaveProperty('content');
-    expect(Object.keys(first.rows[0]).sort()).toEqual(['icon', 'id', 'parent_id', 'position', 'title', 'updated_at']);
+    expect(Object.keys(first.rows[0]).sort()).toEqual(['icon', 'id', 'parent_id', 'position', 'teamspace_id', 'title', 'updated_at', 'verified']);
     const rest = await (await docsPagesRoute.GET(new NextRequest('http://t/api/docs/pages?limit=2&offset=2'))).json();
     const ids = [...first.rows, ...rest.rows].map((r: { id: string }) => r.id);
     expect(new Set(ids).size).toBe(ids.length);

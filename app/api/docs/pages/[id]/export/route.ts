@@ -5,6 +5,10 @@ import { pageLinkHref, resolveBlocksPageLinks } from '@/lib/docs-page-links';
 import { blocksToMarkdown } from '@/lib/docs-markdown';
 import { docsFileHref } from '@/lib/docs-files';
 import { docsError, notFound, unauthorized } from '@/lib/docs-http';
+import { docsAllowed, syncedReader } from '@/lib/docs-guard';
+import { hydrateSyncedBlocks } from '@/lib/docs-synced';
+import { logDocsAudit, requestIp } from '@/lib/docs-audit';
+import { cleanForReaders } from '@/lib/docs-marks';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,10 +22,22 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   if (format !== 'md') return docsError(400, 'invalid_format');
   const res = await resolveDocAccess(user, id);
   if (!res) return notFound();
+  // Exportar desactivado en Ajustes › Seguridad: solo admins del workspace.
+  if (!(await docsAllowed(user, res.row.user_id, 'allow_export'))) return docsError(403, 'export_disabled');
+  await logDocsAudit({
+    workspaceId: res.row.user_id,
+    actor: user.actingUser ?? user,
+    action: 'page.exported',
+    page: { id, title: res.row.title },
+    detail: 'md',
+    ip: requestIp(req.headers),
+  });
   // Links `[[` → links Markdown absolutos con el título actual (una página
   // renombrada no queda con el viejo). A un invitado solo se le resuelven los
   // títulos de páginas que también puede abrir; el resto queda como se insertó.
-  const raw = parseBlocks(res.row.content);
+  // Lo sugerido sin aceptar no se exporta (sale el texto vigente) ni los resaltados.
+  // Sincronizados con su contenido actual; sin acceso a su origen, sin contenido.
+  const raw = cleanForReaders(await hydrateSyncedBlocks(res.row.user_id, parseBlocks(res.row.content), syncedReader(user, res.row)));
   const titles = await readableLinkTitles(user, res.row, raw);
   const origin = req.nextUrl.origin;
   const blocks = resolveBlocksPageLinks(raw, (pageId) => ({

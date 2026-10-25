@@ -9,9 +9,11 @@ import { resolveBlocksPageLinks } from '@/lib/docs-page-links';
 import { buildToc } from '@/lib/docs-toc';
 import { helpAccentStyle } from '@/lib/docs-accent';
 import DocsBlocksView from '@/components/docs/DocsBlocksView';
+import { cleanForReaders } from '@/lib/docs-marks';
 import DocsPageIcon from '@/components/docs/DocsPageIcon';
 import { DocsStaticCover } from '@/components/docs/DocsStaticCover';
 import { hydrateSyncedBlocks } from '@/lib/docs-synced';
+import { publicSyncedReader } from '@/lib/docs-guard';
 import HelpHeader from '@/components/docs/HelpHeader';
 import HelpFeedback from '@/components/docs/HelpFeedback';
 import '@/styles/help.css';
@@ -47,12 +49,13 @@ export default async function HelpArticlePage(props: Props) {
   const article = await getHelpArticle(ws.id, slug);
   if (!article) notFound();
   const t = await getTranslations({ locale, namespace: 'docs.help' });
+  const tEditor = await getTranslations({ locale, namespace: 'docs.editor' });
   const format = await getFormatter({ locale });
   const base = `/${locale}/h/${ws.handle}`;
   // Defensa en profundidad: se re-sanitiza al servir una página pública. Los
   // links `[[` van al artículo publicado; a una página sin publicar quedan
   // como texto plano (ni id ni href: no se filtra qué hay en el workspace).
-  const blocks = resolveBlocksPageLinks(stripFileUrls(sanitizeBlocks(await hydrateSyncedBlocks(ws.id, article.content))), (pageId) => {
+  const blocks = resolveBlocksPageLinks(stripFileUrls(sanitizeBlocks(cleanForReaders(await hydrateSyncedBlocks(ws.id, article.content, publicSyncedReader({ id: article.id, user_id: ws.id }))))), (pageId) => {
     const target = article.linkTargets[pageId];
     return target ? { href: `${base}/${target.slug}`, title: target.title || t('untitled'), keepId: false } : null;
   });
@@ -91,7 +94,7 @@ export default async function HelpArticlePage(props: Props) {
                 {t('updated', { date: format.dateTime(new Date(article.updated_at), { dateStyle: 'medium' }) })}
               </p>
             </header>
-            <DocsBlocksView blocks={blocks} pageId={article.id} className="docs-prose help-body" boards={false} />
+            <DocsBlocksView blocks={blocks} pageId={article.id} className="docs-prose help-body" boards={false} syncedNoAccess={tEditor('synced.noAccess')} />
 
             {/* Portada de colección: la lista de sus artículos. */}
             {article.children.length > 0 ? (

@@ -48,18 +48,54 @@ export async function getSyncedContents(workspaceId: string, ids: string[]): Pro
   return out;
 }
 
+/** Página de origen de cada bloque sincronizado del workspace (null = se borró). */
+export async function getSyncedSources(workspaceId: string, ids: string[]): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  const unique = [...new Set(ids.filter((id) => SYNCED_ID_RE.test(id)))];
+  if (!unique.length) return out;
+  const rows = (await getDb()
+    .prepare(`SELECT id, source_page_id FROM docs_synced_blocks WHERE workspace_id = ? AND id IN (${unique.map(() => '?').join(',')})`)
+    .all(workspaceId, ...unique)) as Array<{ id: string; source_page_id: string | null }>;
+  for (const r of rows) out.set(r.id, r.source_page_id ?? null);
+  return out;
+}
+
+/**
+ * ¿Quien mira puede ver un bloque sincronizado? Recibe la página de origen
+ * (null = se borró). Lo arma lib/docs-guard.ts según quién mira.
+ */
+export type SyncedReader = (sourcePageId: string | null) => Promise<boolean>;
+
+/** Ids de bloques sincronizados de `blocks` que quien mira no puede ver. */
+export async function unreadableSyncedIds(workspaceId: string, blocks: DocsBlock[], canRead: SyncedReader): Promise<Set<string>> {
+  const ids = blocks.filter((b) => b.type === 'synced' && b.synced_id).map((b) => b.synced_id!);
+  const denied = new Set<string>();
+  if (!ids.length) return denied;
+  const sources = await getSyncedSources(workspaceId, ids).catch(() => new Map<string, string | null>());
+  for (const [id, src] of sources) if (!(await canRead(src))) denied.add(id);
+  return denied;
+}
+
 /**
  * Reemplaza los hijos de cada bloque sincronizado por el contenido actual
  * (al leer una página). Los que no existen en el workspace quedan como están.
+ * Con `canRead`: si quien mira no puede abrir la página de origen, el bloque
+ * queda sin hijos y con `no_access` (como Notion: "no tenés acceso").
  */
-export async function hydrateSyncedBlocks(workspaceId: string, blocks: DocsBlock[]): Promise<DocsBlock[]> {
+export async function hydrateSyncedBlocks(workspaceId: string, blocks: DocsBlock[], canRead?: SyncedReader): Promise<DocsBlock[]> {
   const ids = blocks.filter((b) => b.type === 'synced' && b.synced_id).map((b) => b.synced_id!);
   if (!ids.length) return blocks;
+  const denied = canRead ? await unreadableSyncedIds(workspaceId, blocks, canRead) : new Set<string>();
   const contents = await getSyncedContents(workspaceId, ids).catch(() => new Map<string, DocsBlock[]>());
-  if (!contents.size) return blocks;
+  if (!contents.size && !denied.size) return blocks;
   const out: DocsBlock[] = [];
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
+    if (b.type === 'synced' && b.synced_id && denied.has(b.synced_id)) {
+      out.push({ ...b, no_access: true });
+      i = subtreeEnd(blocks, i);
+      continue;
+    }
     out.push(b);
     const content = b.type === 'synced' && b.synced_id ? contents.get(b.synced_id) : undefined;
     if (!content) continue;
@@ -84,8 +120,15 @@ export async function persistSyncedBlocks(opts: {
   actorId: string | null;
   previous: DocsBlock[];
   next: DocsBlock[];
+  /**
+   * Sincronizados que quien guarda no puede ver (le llegaron sin hijos): su
+   * contenido no se toca; en la página queda la copia que ya tenía.
+   */
+  locked?: Set<string>;
 }): Promise<DocsBlock[]> {
-  const { workspaceId, pageId, actorId, previous, next } = opts;
+  const { workspaceId, pageId, actorId, previous } = opts;
+  const locked = opts.locked ?? new Set<string>();
+  const next = locked.size ? restoreLocked(previous, opts.next, locked) : opts.next;
   const indexes = next.map((b, i) => (b.type === 'synced' ? i : -1)).filter((i) => i !== -1);
   if (!indexes.length) return next;
   const before = new Map<string, string>();
@@ -106,12 +149,14 @@ export async function persistSyncedBlocks(opts: {
   const written = new Set<string>();
   for (const i of indexes) {
     const b = out[i];
-    let id = b.synced_id && SYNCED_ID_RE.test(b.synced_id) && !foreign.has(b.synced_id) ? b.synced_id : null;
+    // Uno sin acceso que no estaba en la página (pegado sabiendo el id): bloque propio nuevo.
+    const lockedNew = !!b.synced_id && locked.has(b.synced_id) && !before.has(b.synced_id);
+    let id = b.synced_id && SYNCED_ID_RE.test(b.synced_id) && !foreign.has(b.synced_id) && !lockedNew ? b.synced_id : null;
     if (!id) {
       id = crypto.randomUUID();
       out = out.map((x, k) => (k === i ? { ...x, synced_id: id! } : x));
     }
-    if (written.has(id)) continue;
+    if (written.has(id) || locked.has(id)) continue;
     written.add(id);
     const children = sanitizeBlocks(childrenOf(out, i).filter((c) => c.type !== 'database')).slice(0, MAX_SYNCED_BLOCKS);
     const json = JSON.stringify(children);
@@ -130,6 +175,36 @@ export async function persistSyncedBlocks(opts: {
     await getDb()
       .prepare('UPDATE docs_synced_blocks SET content = ?, updated_by = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
       .run(json, actorId, now, id, workspaceId);
+  }
+  return out;
+}
+
+/**
+ * Sincronizados sin acceso: cada uno vuelve a ser el que estaba guardado en
+ * la página (con su copia de los hijos), en el lugar y la sangría nuevos.
+ */
+function restoreLocked(previous: DocsBlock[], next: DocsBlock[], locked: Set<string>): DocsBlock[] {
+  const out: DocsBlock[] = [];
+  for (let i = 0; i < next.length; i++) {
+    const b = next[i];
+    const { no_access: _n, ...clean } = b;
+    void _n;
+    if (b.type !== 'synced' || !b.synced_id || !locked.has(b.synced_id)) {
+      out.push(b.no_access ? clean : b);
+      continue;
+    }
+    const j = previous.findIndex((x) => x.type === 'synced' && x.synced_id === b.synced_id);
+    const end = subtreeEnd(next, i);
+    if (j === -1) {
+      out.push(clean);
+      i = end;
+      continue;
+    }
+    const prevEnd = subtreeEnd(previous, j);
+    const shift = blockIndent(b) - blockIndent(previous[j]);
+    out.push({ ...setIndent(previous[j], blockIndent(b)), id: b.id });
+    for (const c of previous.slice(j + 1, prevEnd + 1)) out.push(setIndent(c, blockIndent(c) + shift));
+    i = end;
   }
   return out;
 }

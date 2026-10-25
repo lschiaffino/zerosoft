@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
 import type { DocsComment, DocsMentionableUser } from '@/lib/docs-types';
+import type { DocsSuggestion } from '@/lib/docs-marks';
 import {
   activeMentionQuery,
   commentBodyParts,
@@ -38,6 +39,31 @@ interface CommentsPanelProps {
   /** Notifica al padre cada cambio de la lista (para badges por bloque). */
   onCommentsChange?: (comments: DocsComment[]) => void;
   labels: CommentsPanelLabels;
+  /** Comentario nuevo sobre texto seleccionado (el resaltado ya está en el bloque). */
+  pendingAnchor?: { id: string; quote: string; blockId: string } | null;
+  /** Se canceló el comentario sobre texto: el padre saca el resaltado. */
+  onAnchorCancel?: () => void;
+  onAnchorPosted?: () => void;
+  /** Click en un hilo sobre texto: el padre lleva la vista al resaltado. */
+  onThreadFocus?: (anchorId: string) => void;
+  /** Hilo marcado desde el texto (click en un resaltado). */
+  focusAnchor?: string | null;
+  /** Cambia cuando otra persona comentó (el polling en vivo lo detecta): se recarga la lista. */
+  refreshSignal?: string;
+  /** Al borrar un hilo sobre texto: el padre saca el resaltado. */
+  onThreadDeleted?: (anchorId: string) => void;
+  /** Puede comentar (si no, solo lee). */
+  canComment?: boolean;
+  /** Puede borrar comentarios ajenos (acceso total). */
+  canModerate?: boolean;
+  /** Sugerencias de edición de la página (modo sugerir). */
+  suggestions?: DocsSuggestion[];
+  /** Puede aceptar o rechazar (edición). */
+  canResolveSuggestions?: boolean;
+  onResolveSuggestion?: (id: string | null, accept: boolean) => void;
+  onSuggestionFocus?: (s: DocsSuggestion) => void;
+  /** Nombres de las personas por id (autores de sugerencias). */
+  peopleNames?: Record<string, string>;
 }
 
 function CommentAvatar({ comment }: { comment: DocsComment }) {
@@ -238,11 +264,28 @@ export default function CommentsPanel({
   onClearBlockFilter,
   onCommentsChange,
   labels,
+  pendingAnchor = null,
+  onAnchorCancel,
+  onAnchorPosted,
+  onThreadFocus,
+  focusAnchor = null,
+  refreshSignal,
+  onThreadDeleted,
+  canComment = true,
+  canModerate: canModerateProp,
+  suggestions = [],
+  canResolveSuggestions = false,
+  onResolveSuggestion,
+  onSuggestionFocus,
+  peopleNames = {},
 }: CommentsPanelProps) {
   const [comments, setComments] = useState<DocsComment[]>(initialComments);
   const [members, setMembers] = useState<DocsMentionableUser[] | null>(null);
   const [replyTo, setReplyTo] = useState<string | null>(null);
+  // Abiertos o resueltos (como el filtro del panel de Notion).
+  const [tab, setTab] = useState<'open' | 'resolved'>('open');
   const t = useTranslations('docs.comments');
+  const ts = useTranslations('docs.suggest');
   const format = useFormatter();
   // Se refresca cada minuto: "hace un momento" no queda fijo.
   const now = useNow({ updateInterval: 60_000 });
@@ -254,6 +297,34 @@ export default function CommentsPanel({
   useEffect(() => {
     onCommentsChange?.(comments);
   }, [comments, onCommentsChange]);
+
+  // Otra persona comentó, respondió o resolvió: se recarga la lista.
+  const firstSignal = useRef(refreshSignal);
+  useEffect(() => {
+    if (refreshSignal === undefined || refreshSignal === firstSignal.current) return;
+    firstSignal.current = refreshSignal;
+    let cancelled = false;
+    fetch(`/api/docs/pages/${encodeURIComponent(pageId)}/comments`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { rows?: DocsComment[] } | null) => {
+        if (!cancelled && data?.rows) setComments(data.rows);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshSignal, pageId]);
+
+  // Un hilo marcado desde el texto: a la vista, en su pestaña.
+  useEffect(() => {
+    if (!focusAnchor) return;
+    const root = comments.find((c) => !c.parent_id && c.anchor_id === focusAnchor);
+    if (!root) return;
+    setTab(root.resolved ? 'resolved' : 'open');
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-thread-anchor="${CSS.escape(focusAnchor)}"]`)?.scrollIntoView({ block: 'nearest' });
+    });
+  }, [focusAnchor, comments]);
 
   // Personas mencionables (las del workspace dueño de la página).
   useEffect(() => {
@@ -271,26 +342,35 @@ export default function CommentsPanel({
     };
   }, [pageId]);
 
-  const canModerate = currentUserId === pageOwnerId;
-  const threads = useMemo(() => {
+  const canModerate = canModerateProp ?? currentUserId === pageOwnerId;
+  const allThreads = useMemo(() => {
     const all = groupCommentThreads(comments);
     return blockFilter ? all.filter((th) => th.root.block_id === blockFilter) : all;
   }, [comments, blockFilter]);
+  const openCount = allThreads.filter((th) => !th.root.resolved).length;
+  const resolvedCount = allThreads.length - openCount;
+  const threads = allThreads.filter((th) => (tab === 'open' ? !th.root.resolved : th.root.resolved));
   const mentionNames = useMemo(
     () => (members ?? []).flatMap((m) => [m.name ?? '', m.email]).filter(Boolean),
     [members],
   );
 
-  const post = async (body: string, mentionIds: string[], parentId: string | null): Promise<boolean> => {
+  const post = async (
+    body: string,
+    mentionIds: string[],
+    parentId: string | null,
+    anchor: { id: string; quote: string; blockId: string } | null = null,
+  ): Promise<boolean> => {
     try {
       const res = await fetch(`/api/docs/pages/${pageId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           body,
-          block_id: parentId ? null : blockFilter ?? null,
+          block_id: parentId ? null : anchor?.blockId ?? blockFilter ?? null,
           parent_id: parentId,
           mention_ids: mentionIds,
+          ...(anchor ? { anchor_id: anchor.id, quote: anchor.quote } : {}),
         }),
       });
       if (!res.ok) return false;
@@ -303,6 +383,10 @@ export default function CommentsPanel({
         comment,
       ]);
       if (parentId) setReplyTo(null);
+      if (anchor) {
+        setTab('open');
+        onAnchorPosted?.();
+      }
       return true;
     } catch {
       return false;
@@ -329,6 +413,7 @@ export default function CommentsPanel({
     });
     if (!res.ok) return;
     setComments((prev) => prev.filter((c) => c.id !== comment.id && c.parent_id !== comment.id));
+    if (!comment.parent_id && comment.anchor_id) onThreadDeleted?.(comment.anchor_id);
   };
 
   const renderBody = (body: string) => (
@@ -351,7 +436,7 @@ export default function CommentsPanel({
       <div className="docs-comment-main">
         <div className="docs-comment-head">
           <span className="docs-comment-author">{comment.user_name ?? comment.user_email}</span>
-          {isRoot && comment.block_id && <span className="badge badge-outline">{labels.blockTag}</span>}
+          {isRoot && comment.block_id && !comment.anchor_id && <span className="badge badge-outline">{labels.blockTag}</span>}
           {isRoot && comment.resolved && <span className="badge badge-ok">{labels.resolved}</span>}
           <time
             className="docs-comment-date num"
@@ -363,6 +448,7 @@ export default function CommentsPanel({
           </time>
         </div>
         {renderBody(comment.body)}
+        {canComment && (
         <div className="docs-comment-actions">
           {isRoot && (
             <button
@@ -389,9 +475,12 @@ export default function CommentsPanel({
             </button>
           )}
         </div>
+        )}
       </div>
     </div>
   );
+
+  const nameOf = (id: string) => peopleNames[id] ?? (id === currentUserId ? t('you') : t('someone'));
 
   return (
     <div className="docs-comments">
@@ -406,16 +495,102 @@ export default function CommentsPanel({
         </div>
       )}
 
+      {suggestions.length > 0 && (
+        <section className="docs-suggestions" aria-label={ts('title')} data-testid="docs-suggestions">
+          <div className="docs-suggestions-head">
+            <h3 className="docs-suggestions-title">
+              {ts('title')} <span className="num">{suggestions.length}</span>
+            </h3>
+            {canResolveSuggestions && suggestions.length > 1 && (
+              <span className="docs-suggestions-all">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => onResolveSuggestion?.(null, true)}>
+                  {ts('acceptAll')}
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => onResolveSuggestion?.(null, false)}>
+                  {ts('rejectAll')}
+                </button>
+              </span>
+            )}
+          </div>
+          <ul className="docs-suggestions-list">
+            {suggestions.map((s) => (
+              <li key={s.id} className="docs-suggestion" data-testid="docs-suggestion">
+                <button type="button" className="docs-suggestion-main" onClick={() => onSuggestionFocus?.(s)}>
+                  <span className="docs-suggestion-who">{nameOf(s.by)}</span>
+                  <span className="docs-suggestion-what">
+                    {s.block ? ts('addedBlock') : s.inserted && s.deleted ? ts('replaced') : s.inserted ? ts('added') : ts('deleted')}
+                  </span>
+                  {s.deleted && <del className="docs-suggestion-del">{s.deleted}</del>}
+                  {s.inserted && <ins className="docs-suggestion-ins">{s.inserted}</ins>}
+                </button>
+                {canResolveSuggestions && (
+                  <span className="docs-suggestion-actions">
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => onResolveSuggestion?.(s.id, true)} aria-label={`${ts('accept')}: ${s.inserted || s.deleted}`}>
+                      {ts('accept')}
+                    </button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => onResolveSuggestion?.(s.id, false)} aria-label={`${ts('reject')}: ${s.inserted || s.deleted}`}>
+                      {ts('reject')}
+                    </button>
+                  </span>
+                )}
+                {!canResolveSuggestions && s.by === currentUserId && (
+                  <span className="docs-suggestion-actions">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => onResolveSuggestion?.(s.id, false)}>
+                      {ts('withdraw')}
+                    </button>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {pendingAnchor && canComment && (
+        <div className="docs-comment-thread docs-comment-pending" data-testid="docs-inline-composer">
+          <blockquote className="docs-comment-quote">{pendingAnchor.quote}</blockquote>
+          <CommentComposer
+            members={members}
+            placeholder={labels.placeholder}
+            submitLabel={labels.add}
+            cancelLabel={t('cancel')}
+            autoFocus
+            onCancel={() => onAnchorCancel?.()}
+            onSubmit={(body, ids) => post(body, ids, null, pendingAnchor)}
+          />
+        </div>
+      )}
+
+      <div className="docs-comments-tabs" role="tablist" aria-label={labels.title}>
+        <button type="button" role="tab" aria-selected={tab === 'open'} className={`docs-comments-tab${tab === 'open' ? ' active' : ''}`} onClick={() => setTab('open')}>
+          {t('open')} <span className="num">{openCount}</span>
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'resolved'} className={`docs-comments-tab${tab === 'resolved' ? ' active' : ''}`} onClick={() => setTab('resolved')}>
+          {t('resolvedTab')} <span className="num">{resolvedCount}</span>
+        </button>
+      </div>
+
       <div className="docs-comments-list">
         {threads.length === 0 ? (
-          <p className="docs-comments-empty">{labels.empty}</p>
+          <p className="docs-comments-empty">{tab === 'resolved' ? t('emptyResolved') : labels.empty}</p>
         ) : (
           threads.map((thread) => (
             <div
               key={thread.root.id}
-              className={`docs-comment-thread${thread.root.resolved ? ' resolved' : ''}`}
+              className={`docs-comment-thread${thread.root.resolved ? ' resolved' : ''}${thread.root.anchor_id && thread.root.anchor_id === focusAnchor ? ' is-focused' : ''}`}
               data-testid="docs-comment-thread"
+              data-thread-anchor={thread.root.anchor_id ?? undefined}
             >
+              {thread.root.quote && (
+                <button
+                  type="button"
+                  className="docs-comment-quote"
+                  onClick={() => thread.root.anchor_id && onThreadFocus?.(thread.root.anchor_id)}
+                  title={t('goToText')}
+                >
+                  {thread.root.quote}
+                </button>
+              )}
               {renderComment(thread.root, thread, true)}
               {thread.replies.length > 0 && (
                 <div className="docs-comment-replies">
@@ -441,14 +616,20 @@ export default function CommentsPanel({
         )}
       </div>
 
-      <CommentComposer
-        members={members}
-        placeholder={labels.placeholder}
-        submitLabel={labels.add}
-        focusSignal={focusSignal}
-        onSubmit={(body, ids) => post(body, ids, null)}
-      />
-      <p className="docs-comment-hint">{t('mentionHint')}</p>
+      {canComment ? (
+        <>
+          <CommentComposer
+            members={members}
+            placeholder={labels.placeholder}
+            submitLabel={labels.add}
+            focusSignal={focusSignal}
+            onSubmit={(body, ids) => post(body, ids, null)}
+          />
+          <p className="docs-comment-hint">{t('mentionHint')}</p>
+        </>
+      ) : (
+        <p className="docs-comment-hint">{t('readOnlyHint')}</p>
+      )}
     </div>
   );
 }

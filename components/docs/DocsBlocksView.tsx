@@ -30,6 +30,7 @@ export default function DocsBlocksView({
   people,
   locale,
   trail,
+  syncedNoAccess = 'No access to this synced block.',
 }: {
   blocks: DocsBlock[];
   pageId?: string;
@@ -43,6 +44,8 @@ export default function DocsBlocksView({
   locale?: string;
   /** Ruta de la página (bloque breadcrumb); sin esto no se muestra. */
   trail?: Array<{ id: string; title: string; href?: string }>;
+  /** Texto de un sincronizado sin acceso a su página de origen. */
+  syncedNoAccess?: string;
 }) {
   const hrefFor = fileHref ?? (pageId ? (blockId: string, opts?: { download?: boolean }) => docsFileHref(pageId, blockId, opts) : null);
   const toc = buildToc(blocks);
@@ -259,7 +262,13 @@ export default function DocsBlocksView({
       }
       // Sincronizado: en lectura es su contenido, sin marco.
       if (b.type === 'synced') {
-        out.push(<div key={b.id} className="dbv-synced">{renderNodes(node.children)}</div>);
+        out.push(
+          b.no_access ? (
+            <p key={b.id} className="dbv-synced dbv-synced-noaccess">{syncedNoAccess}</p>
+          ) : (
+            <div key={b.id} className="dbv-synced">{renderNodes(node.children)}</div>
+          ),
+        );
         continue;
       }
       if (isToggleBlock(b)) {

@@ -29,6 +29,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-25-docs-collab',
+    date: '2026-10-25',
+    title: {
+      en: 'Docs: edit together, comment on text, suggest edits and manage access',
+      es: 'Docs: editar juntos, comentar el texto, sugerir cambios y manejar los accesos',
+      pt: 'Docs: editar juntos, comentar o texto, sugerir mudanças e controlar os acessos',
+    },
+    items: [
+      { product: 'docs', en: 'Edit a page with other people at the same time: you see who is there and where their cursor is, and their changes merge into yours every second and a half, block by block and phrase by phrase. The old "load or overwrite" prompt is gone.', es: 'Editá una página con otras personas a la vez: ves quién está y dónde tiene el cursor, y sus cambios se fusionan con los tuyos cada segundo y medio, por bloque y por frase. Ya no aparece el "cargar o sobrescribir".', pt: 'Edite uma página com outras pessoas ao mesmo tempo: você vê quem está lá e onde está o cursor, e as mudanças delas se mesclam com as suas a cada segundo e meio, por bloco e por frase. O "carregar ou sobrescrever" sumiu.' },
+      { product: 'docs', en: 'Select text and press Comment (or ⌘⇧M) to discuss that phrase. The comments panel has Open and Resolved tabs and updates live.', es: 'Seleccioná texto y tocá Comentar (o ⌘⇧M) para hablar de esa frase. El panel de comentarios tiene pestañas Abiertos y Resueltos y se actualiza en vivo.', pt: 'Selecione texto e toque Comentar (ou ⌘⇧M) para discutir essa frase. O painel de comentários tem abas Abertos e Resolvidos e se atualiza ao vivo.' },
+      { product: 'docs', en: 'Suggest edits: what you type shows underlined and what you delete struck through, until someone with edit access accepts or rejects it, one by one or all at once.', es: 'Sugerir cambios: lo que escribís aparece subrayado y lo que borrás tachado, hasta que alguien con edición lo acepta o lo rechaza, de a uno o todo junto.', pt: 'Sugerir mudanças: o que você digita aparece sublinhado e o que apaga riscado, até alguém com edição aceitar ou rejeitar, um por um ou tudo de uma vez.' },
+      { product: 'docs', en: 'Page history shows what changed in each version, block by block, and compares any version with the current page.', es: 'El historial muestra qué cambió en cada versión, bloque por bloque, y compara cualquier versión con la página actual.', pt: 'O histórico mostra o que mudou em cada versão, bloco a bloco, e compara qualquer versão com a página atual.' },
+      { product: 'docs', en: 'Share with four roles: Can view, Can comment, Can edit and Full access. Invite anyone by email: without an account they get a link that opens only that page and its subpages.', es: 'Compartí con cuatro roles: Puede ver, Puede comentar, Puede editar y Acceso total. Invitá a cualquiera por email: sin cuenta recibe un link que abre solo esa página y sus subpáginas.', pt: 'Compartilhe com quatro funções: Pode ver, Pode comentar, Pode editar e Acesso total. Convide qualquer pessoa por email: sem conta, ela recebe um link que abre só essa página e as subpáginas.' },
+      { product: 'docs', en: 'Lock a page so nobody edits it by accident, and choose what workspace members can do: view, comment, edit or full access, for all of Docs or page by page.', es: 'Bloqueá una página para que nadie la edite sin querer, y elegí qué pueden hacer los miembros del workspace: ver, comentar, editar o acceso total, en todo Docs o página por página.', pt: 'Bloqueie uma página para ninguém editar sem querer, e escolha o que os membros do workspace podem fazer: ver, comentar, editar ou acesso total, em todo o Docs ou página por página.' },
+      { product: 'docs', en: 'Teamspaces: open, closed or private spaces with their own members and pages, each with a section in the sidebar.', es: 'Teamspaces: espacios abiertos, cerrados o privados con sus propios miembros y páginas, cada uno con su sección en el sidebar.', pt: 'Teamspaces: espaços abertos, fechados ou privados com membros e páginas próprios, cada um com sua seção na barra lateral.' },
+      { product: 'docs', en: 'Admins get an audit log with filters and CSV export, and security switches for export, publishing and guests.', es: 'Los admins tienen un registro de auditoría con filtros y export a CSV, y switches de seguridad para exportar, publicar e invitados.', pt: 'Os admins têm um registro de auditoria com filtros e export em CSV, e chaves de segurança para exportar, publicar e convidados.' },
+      { product: 'docs', en: 'Verify a page for a number of days or with no expiry: the owner gets a notice when it expires, and the Docs home lists the wiki.', es: 'Verificá una página por unos días o sin vencimiento: el dueño recibe un aviso cuando vence, y el inicio de Docs lista la wiki.', pt: 'Verifique uma página por alguns dias ou sem vencimento: o dono recebe um aviso quando vence, e o início do Docs lista a wiki.' },
+    ],
+  },
+  {
     id: '2026-10-25-platform-home',
     date: '2026-10-25',
     title: {

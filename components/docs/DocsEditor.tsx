@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MutableRefObject,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
@@ -16,7 +17,6 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { Link } from '@/i18n/navigation';
-import { mergeBlocks, sameContent } from '@/lib/docs-merge';
 import {
   defaultBlocks,
   type DocsBlock,
@@ -114,6 +114,7 @@ import {
 } from '@/lib/docs-history';
 import { DOCS_IMPORT_MAX_BYTES, docsImportKind } from '@/lib/docs-import';
 import DocsBlockEditor from './DocsBlockEditor';
+import { useDocsCollab, type DocsEditorApi, type DocsEditorMode } from './useDocsCollab';
 import MentionPopover from './MentionPopover';
 import UserMentionPopover, { type DateMentionOption } from './UserMentionPopover';
 import { fetchLinkPreview } from './DocsLinkBlocks';
@@ -141,7 +142,8 @@ export interface DocsRemoteMerge {
 interface DocsEditorProps {
   page: DocsPage;
   remoteMerge?: DocsRemoteMerge | null;
-  onRemoteApplied?: (seq: number) => void;
+  /** Ya se sumó a la pantalla (con el resultado: título y bloques). */
+  onRemoteApplied?: (seq: number, merged: DocsSnapshot) => void;
   ancestors: DocsPage[];
   /** Guarda solo lo que edita el editor (no pisa archived/is_public). */
   onSave: (patch: Partial<DocsPage>) => void;
@@ -179,6 +181,18 @@ interface DocsEditorProps {
   titlePlaceholder?: string;
   /** Ofrecer el bloque base de datos (no en el cuerpo de una fila: no se anidan bases). */
   allowDatabase?: boolean;
+  /**
+   * Colaboración (Docs): 'suggest' = lo que se escribe queda como sugerencia;
+   * 'readonly' = solo leer y comentar sobre el texto (página bloqueada o
+   * permiso de comentar). Default 'edit'.
+   */
+  mode?: DocsEditorMode;
+  /** Acceso imperativo para fusionar cambios en vivo, comentar y resolver sugerencias. */
+  apiRef?: MutableRefObject<DocsEditorApi | null>;
+  /** Quien escribe (firma de las sugerencias). */
+  currentUserId?: string | null;
+  /** Botón "Comentar" de la toolbar de selección. */
+  onInlineComment?: (sel: { blockId: string; start: number; end: number; quote: string }) => void;
 }
 
 /** Acciones del menú `/` que no son "convertir este bloque en otro tipo". */
@@ -473,6 +487,10 @@ export default function DocsEditor({
   importUrl,
   titlePlaceholder,
   allowDatabase = true,
+  mode = 'edit',
+  apiRef,
+  currentUserId = null,
+  onInlineComment,
 }: DocsEditorProps) {
   const t = useTranslations('docs');
   const locale = useLocale();
@@ -637,6 +655,9 @@ export default function DocsEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page.id]);
 
+  /** Fusión remota en curso (useDocsCollab): no es un paso propio del historial. */
+  const consumeRemoteRef = useRef<(next: DocsSnapshot) => boolean>(() => false);
+
   // Cada cambio de título o bloques (tipeo, Enter, borrar, mover, pegar,
   // subir un archivo…) deja un paso en el historial; el tipeo se agrupa.
   useEffect(() => {
@@ -649,6 +670,7 @@ export default function DocsEditor({
       lastSnap.current = next;
       return;
     }
+    if (consumeRemoteRef.current(next)) return;
     if (lastSnap.current) {
       historyRef.current = recordChange(historyRef.current, lastSnap.current, next, Date.now());
     }
@@ -919,33 +941,6 @@ export default function DocsEditor({
   const triggerSaveRef = useRef(triggerSave);
   triggerSaveRef.current = triggerSave;
 
-  // Fusión del servidor: lo de afuera (fila de una automatización, cambio de
-  // otra pestaña) entra sin pisar lo que se editó acá desde entonces.
-  const appliedMerge = useRef(0);
-  useEffect(() => {
-    if (!remoteMerge || remoteMerge.seq <= appliedMerge.current) return;
-    appliedMerge.current = remoteMerge.seq;
-    const cur = live.current;
-    const merged = mergeBlocks(remoteMerge.sent, remoteMerge.merged, cur.blocks, 'ours');
-    let nextTitle = cur.title;
-    if (remoteMerge.title !== undefined && remoteMerge.sentTitle !== undefined && cur.title === remoteMerge.sentTitle) nextTitle = remoteMerge.title;
-    if (merged && !sameContent(merged, cur.blocks)) {
-      // Los bloques que no cambiaron quedan con el mismo objeto (no se repinta lo que se está escribiendo).
-      const byId = new Map(cur.blocks.map((b) => [b.id, b]));
-      const next = normalizeStructure(
-        merged.map((b) => {
-          const old = byId.get(b.id);
-          return old && sameContent(old, b) ? old : b;
-        }),
-        newId,
-      );
-      setBlocksRaw(next);
-      // Con cambios propios todavía sin guardar, el guardado pendiente lleva lo fusionado.
-      if (pendingSave.current || !sameContent(cur.blocks, remoteMerge.sent)) triggerSaveRef.current(next, nextTitle);
-    }
-    if (nextTitle !== cur.title) setTitle(nextTitle);
-    onRemoteApplied?.(remoteMerge.seq);
-  }, [remoteMerge, onRemoteApplied]);
 
   /**
    * Deshacer (dir -1) o rehacer (+1): vuelve a la foto, la guarda y deja el
@@ -1037,6 +1032,49 @@ export default function DocsEditor({
     root.addEventListener('beforeinput', onBeforeInput);
     return () => root.removeEventListener('beforeinput', onBeforeInput);
   }, [stepHistory]);
+
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const collab = useDocsCollab({
+    mode,
+    userId: currentUserId,
+    newId,
+    live,
+    lastSnap,
+    historyRef,
+    blockRefs,
+    setBlocksRaw,
+    setTitle,
+    normalize: (list) => normalizeStructure(list, newId),
+    triggerSave: (b, ti) => triggerSaveRef.current(b, ti),
+    saveTimeout,
+    pendingSave,
+    setDirty,
+    apiRef,
+    rootRef,
+    titleRef,
+  });
+  consumeRemoteRef.current = collab.consumeRemote;
+
+  // Lo que cambió en el servidor (la respuesta fusionada de un guardado, la
+  // versión de otra persona que trae el pulso en vivo, una automatización):
+  // entra sin pisar lo que se editó acá desde entonces (lib/docs-merge.ts).
+  const appliedMerge = useRef(0);
+  const applyRemote = collab.api.applyRemote;
+  useEffect(() => {
+    if (!remoteMerge || remoteMerge.seq <= appliedMerge.current) return;
+    appliedMerge.current = remoteMerge.seq;
+    const cur = live.current;
+    const baseTitle = remoteMerge.sentTitle ?? cur.title;
+    const res = applyRemote({ title: baseTitle, blocks: remoteMerge.sent }, { title: remoteMerge.title ?? baseTitle, blocks: remoteMerge.merged });
+    // Un guardado pendiente se armó con lo de antes: va con lo fusionado.
+    if (res.changed && pendingSave.current) triggerSaveRef.current(res.merged.blocks, res.merged.title);
+    onRemoteApplied?.(remoteMerge.seq, res.merged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remoteMerge, onRemoteApplied]);
+  const { suggestChange, onCompositionEnd, composing } = collab;
+  /** Teclas del modo sugerir (se define más abajo, junto al cambio de bloque). */
+  const suggestKeyDownRef = useRef<(index: number, e: React.KeyboardEvent<HTMLElement>) => boolean>(() => false);
 
   /**
    * Sube archivos y crea un bloque image/file por cada uno, después de
@@ -2059,6 +2097,8 @@ export default function DocsEditor({
     (index: number, e: React.KeyboardEvent<HTMLElement>) => {
       const block = blocks[index];
       if (!block) return;
+      if (modeRef.current === 'suggest' && suggestKeyDownRef.current(index, e)) return;
+      if (modeRef.current === 'readonly') return;
 
       if (cmdOpen && slash?.index === index) {
         const filtered = filteredCommands;
@@ -2389,11 +2429,113 @@ export default function DocsEditor({
 
   const handleBlockChange = useCallback(
     (index: number, patch: Partial<DocsBlock>) => {
+      // Modo sugerir: el texto nuevo o borrado queda marcado como sugerencia
+      // (sin menús de / [[ @ ni atajos Markdown).
+      if (modeRef.current === 'suggest' && patch.content !== undefined) {
+        const block = blocks[index];
+        if (!block) return;
+        const res = suggestChange(block, patch.content, blockRefs.current[index]);
+        if (!res) return;
+        updateBlock(index, { content: res.content });
+        pendingCaret.current = { index, offset: res.caret };
+        setFocusTick((v) => v + 1);
+        return;
+      }
+      if (modeRef.current === 'readonly') return;
       updateBlock(index, patch);
       if (patch.content !== undefined) handleInput(index, patch.content);
     },
-    [handleInput, updateBlock],
+    [handleInput, updateBlock, blocks, suggestChange],
   );
+
+  // Fin de una composición (acentos, IME) en modo sugerir: se procesa el texto final.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const onEnd = (e: CompositionEvent) => {
+      const host = (e.target as HTMLElement | null)?.closest?.('.docs-editable') as HTMLElement | null;
+      const index = host ? blockRefs.current.indexOf(host as HTMLDivElement) : -1;
+      setTimeout(() => {
+        if (index < 0) {
+          composing.current = false;
+          return;
+        }
+        onCompositionEnd(index, (i, content, caret) => {
+          updateBlock(i, { content });
+          pendingCaret.current = { index: i, offset: caret };
+          setFocusTick((v) => v + 1);
+        });
+      }, 0);
+    };
+    root.addEventListener('compositionend', onEnd);
+    return () => root.removeEventListener('compositionend', onEnd);
+  }, [composing, onCompositionEnd, updateBlock]);
+
+  /**
+   * Teclas en modo sugerir: se escribe y se borra adentro de un bloque (el
+   * cambio se vuelve sugerencia); Enter al final sugiere un párrafo nuevo; el
+   * resto de la estructura (unir, anidar, formato) no se toca. true = ya está.
+   */
+  const suggestKeyDown = useCallback(
+    (index: number, e: React.KeyboardEvent<HTMLElement>): boolean => {
+      const nav = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'];
+      if (nav.includes(e.key)) return false;
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod) {
+        if (['c', 'a', 'z', 'y', 'x', 'v'].includes(e.key.toLowerCase())) return true;
+        e.preventDefault();
+        return true;
+      }
+      const block = blocks[index];
+      const el = blockRefs.current[index];
+      if (!block || !el) return true;
+      const sel = getSelectionOffsets(el);
+      const len = htmlToFlatText(block.content).length;
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!sel || sel.start !== sel.end || sel.end < len || !currentUserId) return true;
+        const sugId = block.suggestion?.id ?? newId();
+        const nb: DocsBlock = setIndent({ id: newId(), type: 'paragraph', content: '', suggestion: { id: sugId, by: currentUserId } }, blockIndent(block));
+        setBlocks((prev) => {
+          const next = [...prev.slice(0, index + 1), nb, ...prev.slice(index + 1)];
+          triggerSave(next);
+          return next;
+        });
+        pendingCaret.current = { index: index + 1, offset: 0 };
+        setFocusIndex(index + 1);
+        setFocusTick((v) => v + 1);
+        return true;
+      }
+      if (e.key === 'Tab' || e.key === 'Escape') {
+        e.preventDefault();
+        return true;
+      }
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        const collapsed = !!sel && sel.start === sel.end;
+        const atEdge = collapsed && (e.key === 'Backspace' ? sel!.start === 0 : sel!.end >= len);
+        if (atEdge) {
+          e.preventDefault();
+          // Un párrafo sugerido propio y vacío se puede sacar con Backspace.
+          if (e.key === 'Backspace' && block.suggestion?.by === currentUserId && !block.content) {
+            setBlocks((prev) => {
+              const next = prev.filter((_, i) => i !== index);
+              triggerSave(next);
+              return next;
+            });
+            if (index > 0) {
+              pendingCaret.current = { index: index - 1, offset: htmlToFlatText(blocks[index - 1].content).length };
+              setFocusIndex(index - 1);
+              setFocusTick((v) => v + 1);
+            }
+          }
+        }
+        return true;
+      }
+      return true;
+    },
+    [blocks, currentUserId, setBlocks, triggerSave],
+  );
+  suggestKeyDownRef.current = suggestKeyDown;
 
   /** El click del usuario ya posiciona el caret: no hay que re-moverlo en el efecto. */
   const handleFocus = useCallback((index: number) => {
@@ -3141,7 +3283,8 @@ export default function DocsEditor({
           return (
             <Fragment key={block.id}>
               <div
-                className={`docs-block-outer${dragIndex === index ? ' dragging' : ''}${blockMenu === index ? ' menu-open' : ''}${isHidden ? ' is-hidden' : ''}${selected ? ' is-selected' : ''}`}
+                className={`docs-block-outer${dragIndex === index ? ' dragging' : ''}${blockMenu === index ? ' menu-open' : ''}${isHidden ? ' is-hidden' : ''}${selected ? ' is-selected' : ''}${block.suggestion ? ' is-suggested-block' : ''}`}
+                data-sug-block={block.suggestion?.id}
                 style={indent ? ({ '--docs-indent': indent } as CSSProperties) : undefined}
                 data-indent={indent || undefined}
                 data-bi={index}
@@ -3319,10 +3462,11 @@ export default function DocsEditor({
                   fileHref={uploadsEnabled ? fileHref : undefined}
                   pageLinks={pageLinks}
                   database={dbHooks}
-                  onPasteFiles={uploadsEnabled ? handlePasteFiles : undefined}
-                  onPasteBlocks={handlePasteBlocks}
-                  onPasteUrl={embedded && !pageLinks ? undefined : onPasteUrl}
-                  onPasteSynced={embedded ? undefined : onPasteSynced}
+                  onPasteFiles={uploadsEnabled && mode === 'edit' ? handlePasteFiles : undefined}
+                  onPasteBlocks={mode === 'edit' ? handlePasteBlocks : undefined}
+                  onPasteUrl={(embedded && !pageLinks) || mode !== 'edit' ? undefined : onPasteUrl}
+                  onPasteSynced={embedded || mode !== 'edit' ? undefined : onPasteSynced}
+                  readOnly={mode === 'readonly'}
                   toc={toc}
                   trail={trail}
                   onRunButton={runButton}
@@ -3579,11 +3723,20 @@ export default function DocsEditor({
             <div className="docs-synced-bar">
               <DocsGlyph name="synced" size={13} />
               <span>{t('editor.synced.label')}</span>
-              <button type="button" className="docs-synced-copy" onClick={() => copySynced(block)}>
-                {t('editor.synced.copy')}
-              </button>
+              {!block.no_access && (
+                <button type="button" className="docs-synced-copy" onClick={() => copySynced(block)}>
+                  {t('editor.synced.copy')}
+                </button>
+              )}
             </div>
-            {renderRange(index + 1, subtreeEnd(blocks, index))}
+            {block.no_access ? (
+              // Sin acceso a la página de origen (como Notion): ni el contenido ni dónde está.
+              <p className="docs-synced-noaccess" data-testid="docs-synced-noaccess">
+                {t('editor.synced.noAccess')}
+              </p>
+            ) : (
+              renderRange(index + 1, subtreeEnd(blocks, index))
+            )}
           </div>
         </div>
         {renderGap(index, isHidden)}
@@ -3617,7 +3770,7 @@ export default function DocsEditor({
     <>
     <div
       ref={rootRef}
-      className={`docs-editor${smallText ? ' docs-editor-small' : ''}${fullWidth ? ' docs-editor-full' : ''}${embedded ? ' docs-editor-embedded' : ''}`}
+      className={`docs-editor${smallText ? ' docs-editor-small' : ''}${fullWidth ? ' docs-editor-full' : ''}${embedded ? ' docs-editor-embedded' : ''}${mode === 'suggest' ? ' is-suggesting' : ''}${mode === 'readonly' ? ' is-readonly' : ''}`}
       onKeyDownCapture={handleHistoryKeys}
     >
       {!embedded && (
@@ -3856,7 +4009,7 @@ export default function DocsEditor({
         <div
           ref={titleRef}
           className="docs-title"
-          contentEditable
+          contentEditable={mode === 'edit'}
           suppressContentEditableWarning
           role="textbox"
           aria-multiline="true"
@@ -4076,6 +4229,28 @@ export default function DocsEditor({
           style={{ top: toolbar.top, left: toolbar.left }}
           onMouseDown={(e) => e.preventDefault()}
         >
+          {onInlineComment && (
+            <>
+              <button
+                type="button"
+                className="docs-format-btn docs-format-btn-text"
+                title={`${t('comments.commentSelection')} (⌘⇧M)`}
+                aria-label={t('comments.commentSelection')}
+                data-testid="docs-inline-comment"
+                onClick={() => {
+                  const b = blocks[toolbar.index];
+                  if (!b) return;
+                  onInlineComment({ blockId: b.id, start: toolbar.start, end: toolbar.end, quote: htmlToFlatText(b.content).slice(toolbar.start, toolbar.end) });
+                  setToolbar(null);
+                }}
+              >
+                {t('comments.commentShort')}
+              </button>
+              {mode === 'edit' && <span className="docs-format-sep" aria-hidden />}
+            </>
+          )}
+          {mode === 'edit' && (
+          <>
           <button
             type="button"
             className={`docs-format-btn${markActive('strong') ? ' active' : ''}`}
@@ -4144,6 +4319,8 @@ export default function DocsEditor({
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
             </svg>
           </button>
+          </>
+          )}
         </div>,
         document.body,
       )}

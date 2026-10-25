@@ -2,6 +2,9 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { listDocPageSummaries, listDocWorkspaceTemplates, listSharedWithMe } from '@/lib/docs';
 import { listDocFavorites } from '@/lib/docs-favorites';
+import { listTeamspaces } from '@/lib/docs-access';
+import { docsHidden } from '@/lib/docs-guard';
+import { listWikiPages } from '@/lib/docs-verify';
 import DocsPageIcon from '@/components/docs/DocsPageIcon';
 import {
   createDocPageAction,
@@ -11,6 +14,7 @@ import {
   renameDocWorkspaceTemplateAction,
   moveDocPageAction,
   moveDocPageStepAction,
+  moveDocPageToTeamspaceAction,
   reorderDocPageAction,
 } from '@/lib/docs-actions';
 import { getDocTemplates } from '@/lib/docs-templates';
@@ -30,7 +34,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function DocsLandingPage(props: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ new?: string; trash?: string }>;
+  searchParams: Promise<{ new?: string; trash?: string; denied?: string }>;
 }) {
   const { locale } = await props.params;
   const sp = await props.searchParams;
@@ -40,13 +44,18 @@ export default async function DocsLandingPage(props: {
   setRequestLocale(locale);
   const user = await requireUser(locale);
   // Sin content: el sidebar y las listas solo muestran título, ícono y fecha.
-  const [pages, trashed, shared, workspaceTemplates, favorites] = await Promise.all([
-    listDocPageSummaries(user.id, { archived: false }),
-    listDocPageSummaries(user.id, { archived: true }),
+  // Sin las páginas de teamspaces cerrados o privados de los que no es miembro.
+  const hide = await docsHidden(user);
+  const [pages, trashed, shared, workspaceTemplates, favorites, teamspaces, wiki] = await Promise.all([
+    listDocPageSummaries(user.id, { archived: false, hide }),
+    listDocPageSummaries(user.id, { archived: true, hide }),
     listSharedWithMe(realUserId(user), user.id),
     listDocWorkspaceTemplates(user.id),
     listDocFavorites(realUserId(user), user.id),
+    listTeamspaces(user.id, realUserId(user)),
+    listWikiPages(user.id, hide),
   ]);
+  const now = Date.now();
   const canDeleteAnyTemplate = isWorkspaceAdmin(user);
   const templates = getDocTemplates(locale);
   const t = await getTranslations({ locale, namespace: 'docs' });
@@ -79,6 +88,9 @@ export default async function DocsLandingPage(props: {
         pages={pages}
         shared={shared}
         favorites={favorites}
+        teamspaces={teamspaces}
+        meId={realUserId(user)}
+        moveToTeamspaceAction={moveDocPageToTeamspaceAction}
         mobileOpenByDefault={false}
         createAction={createAction}
         moveAction={moveDocPageAction}
@@ -94,6 +106,11 @@ export default async function DocsLandingPage(props: {
       <div className="docs-main docs-landing ui-page">
         {sp.new === '1' && <DocsAutoCreate action={createAction.bind(null, null)} />}
         <PageHeader title={t('landing.title')} actions={newPageButton} />
+        {sp.denied === '1' && (
+          <p className="ui-notice docs-denied" role="alert">
+            {t('access.createDenied')}
+          </p>
+        )}
 
         {pages.length === 0 ? (
           <EmptyState
@@ -141,6 +158,46 @@ export default async function DocsLandingPage(props: {
                   numeric: true,
                   width: '200px',
                 },
+              ]}
+            />
+          </section>
+        )}
+
+        {wiki.length > 0 && (
+          <section className="docs-section" id="wiki" aria-labelledby="docs-wiki">
+            <h2 className="docs-section-title" id="docs-wiki">
+              {t('verify.wikiTitle')}
+            </h2>
+            <DataTable
+              caption={t('verify.wikiTitle')}
+              rows={wiki}
+              rowKey={(p) => p.id}
+              rowHref={(p) => `/app/docs/${p.id}`}
+              columns={[
+                {
+                  key: 'title',
+                  header: t('landing.colPage'),
+                  cell: (p) => (
+                    <span className="docs-cell-page">
+                      <DocsPageIcon icon={p.icon} pageId={p.id} size={16} />
+                      {p.title || t('untitled')}
+                    </span>
+                  ),
+                },
+                {
+                  key: 'state',
+                  header: t('verify.colState'),
+                  cell: (p) => {
+                    const expired = !!p.verified_until && Date.parse(p.verified_until) <= now;
+                    if (!p.verified_at) return <span className="docs-wiki-state">{t('verify.unverified')}</span>;
+                    return (
+                      <span className={`docs-wiki-state${expired ? ' is-expired' : ' is-ok'}`}>
+                        {expired ? t('verify.expiredBadge') : p.verified_until ? t('verify.until', { date: formatDateTime(p.verified_until, locale) }) : t('verify.forever')}
+                      </span>
+                    );
+                  },
+                },
+                { key: 'owner', header: t('verify.owner'), cell: (p) => p.owner_name || t('verify.noOwner') },
               ]}
             />
           </section>

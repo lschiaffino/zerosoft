@@ -8,7 +8,8 @@
  */
 import { getDb, getUserById, type DocsPageRow } from './db';
 import { getDocAccess, listPageMentionables, parseBlocks, type DocsActor } from './docs';
-import type { DbAction, DbProperty, DbRow, DbValue, DocsBlock, DocsDatabase } from './docs-types';
+import type { DbAction, DbProperty, DbRow, DbValue, DocsAccess, DocsBlock, DocsDatabase } from './docs-types';
+import { canWriteAccess } from './docs-access';
 import { stringifyBlocks } from './docs-types';
 import { cellValue, formatValue, normalizeDatabase, rowTitle } from './docs-database';
 import { actionIncomplete, applyDbOps, fillTemplate, type DbOp } from './docs-db-ops';
@@ -30,7 +31,7 @@ export class DbServerError extends Error {
 
 export interface LoadedDatabase {
   page: DocsPageRow;
-  access: 'owner' | 'edit' | 'view';
+  access: DocsAccess;
   blocks: DocsBlock[];
   index: number;
   db: DocsDatabase;
@@ -45,7 +46,8 @@ export async function loadDatabase(actor: DocsActor, pageId: string, blockId: st
   const page = await pageRow(pageId);
   const access = page ? await getDocAccess(page, actor) : null;
   if (!page || !access || page.archived === 1) throw new DbServerError('not_found', 404);
-  if (opts.edit && access === 'view') throw new DbServerError('forbidden', 403);
+  // Ver o comentar no alcanza para cambiar filas.
+  if (opts.edit && !canWriteAccess(access)) throw new DbServerError('forbidden', 403);
   const blocks = parseBlocks(page.content);
   const index = blocks.findIndex((b) => b.id === blockId && b.type === 'database' && !b.linked);
   if (index === -1) throw new DbServerError('not_found', 404);

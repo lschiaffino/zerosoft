@@ -1,5 +1,6 @@
 import type { ModelMessage } from 'ai';
 import { getDb } from './db';
+import { aiKnowledgeFilterSql } from './docs-access';
 import type { ChatConversationRow, ChatMessageRow, ChatWidgetRow } from './db';
 import { aiEnabled, aiGenerateText } from './ai';
 import {
@@ -60,7 +61,7 @@ export async function retrieveKnowledge(
   const docs: Array<KnowledgeDoc<'doc' | 'canned'> & { chunk?: boolean; titleExtra?: string }> = [];
   const pages = (await getDb()
     .prepare(
-      'SELECT title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND (is_public = 1 OR published = 1) ORDER BY updated_at DESC LIMIT 200',
+      `SELECT title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND (is_public = 1 OR published = 1)${aiKnowledgeFilterSql()} ORDER BY updated_at DESC LIMIT 200`,
     )
     .all(widget.user_id)) as Array<{ title: string; content: string }>;
   for (const page of pages) {

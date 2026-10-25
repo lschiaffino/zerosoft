@@ -223,7 +223,7 @@ function DbLinkedBlock({ block, index, onChange, onFocus, hooks }: DocsDatabaseB
       index={index}
       onFocus={onFocus}
       membersUrl={`/api/docs/members?page=${encodeURIComponent(linked.page_id)}`}
-      editable={src?.access !== 'view'}
+      editable={src?.access === 'owner' || src?.access === 'full' || src?.access === 'edit'}
       linkedHeader={
         <a className="docs-db-linked-src" href={href} title={t('linked.openSource')}>
           <DocsGlyph name="peek" size={12} />

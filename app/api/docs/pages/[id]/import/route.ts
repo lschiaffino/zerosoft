@@ -5,6 +5,7 @@ import { sanitizeBlocks, sanitizeDocsHtml } from '@/lib/docs-sanitize';
 import { DOCS_IMPORT_MAX_BYTES, docsImportKind, markdownToBlocks } from '@/lib/docs-import';
 import { docxToBlocks, DocxImportError } from '@/lib/docs-docx';
 import { docsError, forbidden, notFound, unauthorized } from '@/lib/docs-http';
+import { canWriteAccess } from '@/lib/docs-access';
 import type { DocsBlock } from '@/lib/docs-types';
 
 export const runtime = 'nodejs';
@@ -23,7 +24,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const row = await getDocPageRow(params.id);
   const access = row ? await getDocAccess(row, user) : null;
   if (!row || !access) return notFound();
-  if (access === 'view') return forbidden();
+  if (!canWriteAccess(access)) return forbidden();
+  if (row.locked === 1) return docsError(423, 'locked');
 
   const form = await req.formData().catch(() => null);
   const file = form?.get('file');
