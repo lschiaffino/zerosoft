@@ -7,6 +7,7 @@ import { parseDbUtc } from '@/lib/utils';
 import RecPlayer, { type RecMarker, type RecPlayerHandle } from './RecPlayer';
 import RecComments, { storedViewerName } from './RecComments';
 import RecCopy from './RecCopy';
+import RecDownload from './RecDownload';
 
 export interface RecWatchVideo {
   shareId: string;
@@ -68,9 +69,7 @@ export default function RecWatch({ video, shareUrl, member }: { video: RecWatchV
           <div className="rec-watch-actions">
             <RecCopy text={shareUrl} label={t('copyLink')} />
             {(video.allowDownload || member) && (
-              <a className="btn btn-secondary btn-sm" href={`${file}?download=1`} download>
-                {t('download')}
-              </a>
+              <RecDownload url={`${file}?download=1`} label={t('download')} />
             )}
           </div>
         </header>

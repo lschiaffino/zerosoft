@@ -42,13 +42,13 @@ async function retry<T>(fn: () => Promise<T>, tries = 4): Promise<T> {
 }
 
 async function blobUploader(videoId: string, kind: 'video' | 'audio', contentType: string): Promise<BlobUploader> {
-  const { pathname, token } = await api<{ pathname: string; token: string }>(`/api/rec/videos/${videoId}/upload-token`, {
+  const { pathname, token, access } = await api<{ pathname: string; token: string; access: 'public' | 'private' }>(`/api/rec/videos/${videoId}/upload-token`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ kind, contentType }),
   });
   const { createMultipartUploader } = await import('@vercel/blob/client');
-  const up = await createMultipartUploader(pathname, { access: 'public', token, contentType: contentType.split(';')[0] });
+  const up = await createMultipartUploader(pathname, { access, token, contentType: contentType.split(';')[0] });
   return {
     uploadPart: (n, body) => up.uploadPart(n, body),
     complete: (parts) => up.complete(parts),

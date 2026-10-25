@@ -12,6 +12,7 @@ import { parseDbUtc } from '@/lib/utils';
 import RecPlayer, { type RecMarker, type RecPlayerHandle } from './RecPlayer';
 import RecComments from './RecComments';
 import RecCopy from './RecCopy';
+import RecDownload from './RecDownload';
 import RecShareDialog from './RecShareDialog';
 import { RecTranscript } from './RecWatch';
 import { RecMoveDialog, RecNameDialog, notifyRecChanged, type RecFolder } from './RecDialogs';
@@ -212,9 +213,7 @@ export default function RecDetail({ initial, folders, baseUrl }: { initial: RecV
         }
       />
       <div className="rec-detail-tools">
-        <a className="btn btn-ghost btn-sm" href={`${file}?download=1`} download data-testid="rec-download">
-          {t('download')}
-        </a>
+        <RecDownload url={`${file}?download=1`} label={t('download')} className="btn btn-ghost btn-sm" testId="rec-download" />
         <Link className="btn btn-ghost btn-sm" href={`/v/${video.shareId}`} target="_blank">
           {t('openPage')}
         </Link>

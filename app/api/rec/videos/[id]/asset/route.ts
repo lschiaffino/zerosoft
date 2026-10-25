@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getManageableVideo, setVideoFile } from '@/lib/rec';
 import { recActor, recFail, recJson } from '@/lib/rec-http';
-import { saveUpload } from '@/lib/uploads';
+import { saveRecAsset } from '@/lib/rec-upload';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,8 +23,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const ok = kind === 'gif' ? type === 'image/gif' : type === 'image/jpeg' || type === 'image/png' || type === 'image/webp';
     if (!ok) return recJson({ error: 'invalid_type' }, 415);
     if (file.size > MAX[kind]) return recJson({ error: 'file_too_large' }, 413);
-    const ext = type === 'image/gif' ? 'gif' : type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
-    const url = await saveUpload('rec', `${v.id}-${kind}.${ext}`, type, Buffer.from(await file.arrayBuffer()));
+    const url = await saveRecAsset(v.workspace_id, v.id, kind, type, Buffer.from(await file.arrayBuffer()));
     await setVideoFile(v.id, kind, url);
     return recJson({ ok: true });
   } catch (err) {

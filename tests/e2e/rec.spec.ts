@@ -252,6 +252,8 @@ test('compartir: contraseña, vencimiento, solo workspace, comentarios, reaccion
   await page.getByLabel('Password').fill('secret1');
   await page.getByRole('button', { name: 'Watch' }).click();
   await expect(page.getByTestId('rec-watch')).toBeVisible();
+  // La URL del archivo guardado nunca llega al HTML de una página protegida.
+  expect(await page.content()).not.toMatch(/uploads\/rec\/|blob\.vercel-storage\.com/);
 
   // Mirar abre una vista; comentar y reaccionar avisan a la autora.
   const track = page.waitForResponse((r) => r.url().includes(`/api/rec/v/${other.shareId}/track`) && r.ok());
@@ -382,8 +384,13 @@ test('subir un video que ya tenés: mismo camino por partes, con miniatura y des
   await expect(page).toHaveURL(/\/en\/app\/rec\/[0-9a-f-]{36}$/, { timeout: 30_000 });
   const id = /rec\/([0-9a-f-]{36})/.exec(page.url())![1];
   await expect(page.getByTestId('rec-player')).toBeVisible();
-  await expect(page.getByTestId('rec-download')).toHaveAttribute('href', `/api/rec/videos/${id}/file?download=1`);
-  const dl = await page.request.get(`/api/rec/videos/${id}/file?download=1`);
+  // La descarga se arma de a partes en el navegador (las respuestas van de a 4 MB como máximo).
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('rec-download').click()]);
+  expect(download.suggestedFilename()).toMatch(/\.webm$/);
+  const { statSync } = await import('fs');
+  expect(statSync(await download.path()).size).toBeGreaterThan(body.length - 64);
+  const dl = await page.request.get(`/api/rec/videos/${id}/file?download=1`, { headers: { range: 'bytes=0-' } });
   expect(dl.headers()['content-disposition']).toContain('attachment');
+  expect(dl.headers()['location']).toBeUndefined();
   expect((await dl.body()).length).toBeGreaterThan(body.length - 64);
 });

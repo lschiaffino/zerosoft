@@ -35,6 +35,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (blobUploadEnabled()) {
       if (!parsed.data.url || !isOwnRecUrl(parsed.data.url, v.workspace_id, v.id)) return recJson({ error: 'invalid_file' }, 400);
       url = parsed.data.url;
+      // El tamaño real (la parte 1 crece unos bytes al escribirle la duración): se sirve por rangos contra este número.
+      const { head } = await import('@vercel/blob');
+      const meta = await head(url).catch(() => null);
+      if (!meta) return recJson({ error: 'upload_incomplete' }, 409);
+      size = meta.size;
     } else {
       if (!parsed.data.parts) return recJson({ error: 'invalid_input' }, 400);
       const out = await assembleLocal(v.id, kind, contentType, parsed.data.parts);

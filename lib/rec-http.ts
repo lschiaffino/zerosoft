@@ -3,7 +3,7 @@
  */
 import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isWorkspaceAdmin, realUserId, type SessionUser } from './session';
+import { getCurrentUser, realUserId, type SessionUser } from './session';
 import { AiError } from './ai';
 import { UploadError } from './uploads';
 import { getPublicVideoRow, publicAccess, RecError, unlockCookieName, type RecActor, type RecVideoRow, type RecViewer } from './rec';
@@ -21,7 +21,8 @@ export function recFail(err: unknown) {
 
 export function actorOf(user: SessionUser): RecActor {
   const person = user.actingUser ?? user;
-  return { ws: user.id, actor: realUserId(user), admin: isWorkspaceAdmin(user), name: person.name || person.email || '' };
+  // Sin pasar por los helpers de sesión: la búsqueda global (Cmd+K) lo llama con el usuario ya resuelto.
+  return { ws: user.id, actor: person.id, admin: user.role === 'owner' || user.role === 'admin', name: person.name || person.email || '' };
 }
 
 export async function recActor(): Promise<{ actor: RecActor; user: SessionUser } | { res: NextResponse }> {

@@ -23,6 +23,24 @@ import { MAX_REC_BYTES, MAX_REC_BYTES_LOCAL, MAX_REC_PARTS } from './rec-schema'
 
 export type RecFileKind = 'video' | 'audio';
 
+/**
+ * Acceso de los archivos de Rec en Blob. Con REC_BLOB_ACCESS=private (un store
+ * privado de Vercel Blob) nada se puede leer sin el token del servidor. Con un
+ * store público (el default) las URLs siguen siendo leíbles por quien las
+ * tenga, pero nunca salen de acá: los paths llevan un sufijo al azar y todo se
+ * sirve por nuestras rutas después de chequear el acceso (sin redirigir).
+ */
+export function recBlobAccess(): 'public' | 'private' {
+  return process.env.REC_BLOB_ACCESS?.trim().toLowerCase() === 'private' ? 'private' : 'public';
+}
+
+/**
+ * Tope por respuesta al servir desde Blob: las Vercel Functions cortan el cuerpo
+ * de la respuesta en 4,5 MB, así que cada pedido con Range recibe hasta 4 MB
+ * (206) y el reproductor pide el resto. La descarga arma el archivo de a partes.
+ */
+export const REC_SERVE_CHUNK = 4 * 1024 * 1024;
+
 export function blobUploadEnabled(): boolean {
   return !!process.env.BLOB_READ_WRITE_TOKEN;
 }
@@ -45,7 +63,12 @@ export function recBlobPathname(ws: string, videoId: string, kind: RecFileKind, 
 }
 
 /** Token de cliente de Blob para un solo archivo de un video (6 h: alcanza para grabaciones largas). */
-export async function issueBlobToken(ws: string, videoId: string, kind: RecFileKind, contentType: string): Promise<{ pathname: string; token: string }> {
+export async function issueBlobToken(
+  ws: string,
+  videoId: string,
+  kind: RecFileKind,
+  contentType: string,
+): Promise<{ pathname: string; token: string; access: 'public' | 'private' }> {
   const { generateClientTokenFromReadWriteToken } = await import('@vercel/blob/client');
   const pathname = recBlobPathname(ws, videoId, kind, contentType);
   const token = await generateClientTokenFromReadWriteToken({
@@ -55,7 +78,31 @@ export async function issueBlobToken(ws: string, videoId: string, kind: RecFileK
     validUntil: Date.now() + 6 * 3600_000,
     addRandomSuffix: false,
   });
-  return { pathname, token };
+  return { pathname, token, access: recBlobAccess() };
+}
+
+/** Miniatura o GIF: a Blob (con el acceso de Rec y path al azar) o al disco local. */
+export async function saveRecAsset(ws: string, videoId: string, kind: 'thumb' | 'gif', type: string, body: Buffer): Promise<string> {
+  const ext = type === 'image/gif' ? 'gif' : type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
+  if (blobUploadEnabled()) {
+    const { put } = await import('@vercel/blob');
+    const res = await put(`rec/${ws}/${videoId}/${randomBytes(9).toString('base64url')}-${kind}.${ext}`, body, {
+      access: recBlobAccess(),
+      contentType: type,
+      addRandomSuffix: false,
+    });
+    return res.url;
+  }
+  const { saveUpload } = await import('./uploads');
+  return saveUpload('rec', `${videoId}-${kind}.${ext}`, type, body);
+}
+
+/** Archivo entero desde Blob (público o privado), para transcribir el audio. */
+export async function readRecBlob(url: string): Promise<Uint8Array> {
+  const { get } = await import('@vercel/blob');
+  const res = await get(url, { access: recBlobAccess() });
+  if (!res || !res.stream) throw new Error('audio_fetch_failed');
+  return new Uint8Array(await new Response(res.stream).arrayBuffer());
 }
 
 /** URL guardada válida para ese video: subida local propia o el Blob bajo rec/<ws>/<id>/. */
@@ -126,14 +173,15 @@ function attachment(filename: string): string {
 
 /**
  * Sirve un archivo de Rec ya autorizado: local en stream con rangos (para
- * adelantar sin cargarlo entero); Blob, redirigido (Blob ya sirve rangos y,
- * con ?download=1, lo baja como adjunto).
+ * adelantar sin cargarlo entero); Blob, leído del lado del servidor por partes
+ * (nunca se redirige a la URL de Blob, que en un store público sería
+ * reutilizable por quien la vea).
  */
 export async function serveRecFile(
   req: NextRequest,
   url: string,
   contentType: string,
-  opts: { download?: string | null } = {},
+  opts: { download?: string | null; size?: number } = {},
 ): Promise<NextResponse> {
   const notFound = () => NextResponse.json({ error: 'not_found' }, { status: 404 });
   const type = contentType.split(';')[0] || 'application/octet-stream';
@@ -160,5 +208,40 @@ export async function serveRecFile(
   }
   if (url.startsWith('/')) return notFound();
   if (!/^https:\/\/[^/]+\.blob\.vercel-storage\.com\//.test(url)) return notFound();
-  return NextResponse.redirect(opts.download ? `${url}?download=1` : url, 302);
+  return proxyBlob(req, url, type, opts);
+}
+
+/**
+ * Lee de Blob del lado del servidor y responde por nuestra ruta (la URL de
+ * Blob no llega al navegador). Con Range, a lo sumo REC_SERVE_CHUNK bytes por
+ * respuesta (206); sin Range y si el archivo entra, 200 completo.
+ */
+async function proxyBlob(req: NextRequest, url: string, type: string, opts: { download?: string | null; size?: number }): Promise<NextResponse> {
+  const { get, head } = await import('@vercel/blob');
+  const access = recBlobAccess();
+  let size = opts.size && opts.size > 0 ? opts.size : 0;
+  if (!size) {
+    const meta = await head(url).catch(() => null);
+    size = meta?.size ?? 0;
+  }
+  if (!size) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  const header = req.headers.get('range');
+  const range = parseRange(header, size);
+  if (range === 'invalid') return new NextResponse(null, { status: 416, headers: { 'content-range': `bytes */${size}` } });
+  const partial = !!range || size > REC_SERVE_CHUNK;
+  const start = range?.start ?? 0;
+  const end = partial ? Math.min(range?.end ?? size - 1, start + REC_SERVE_CHUNK - 1, size - 1) : size - 1;
+  const res = await get(url, { access, headers: partial ? { range: `bytes=${start}-${end}` } : undefined }).catch(() => null);
+  if (!res?.stream) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  return new NextResponse(res.stream, {
+    status: partial ? 206 : 200,
+    headers: {
+      ...COMMON,
+      'content-type': type,
+      'accept-ranges': 'bytes',
+      'content-length': String(end - start + 1),
+      ...(partial ? { 'content-range': `bytes ${start}-${end}/${size}` } : {}),
+      ...(opts.download ? { 'content-disposition': attachment(opts.download) } : {}),
+    },
+  });
 }

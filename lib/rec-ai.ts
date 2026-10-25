@@ -56,9 +56,8 @@ async function readAudio(url: string): Promise<Uint8Array> {
   const local = localUploadPath(url, 'rec');
   if (local) return new Uint8Array(await readFile(local));
   if (!/^https:\/\/[^/]+\.blob\.vercel-storage\.com\//.test(url)) throw new Error('invalid_audio_url');
-  const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
-  if (!res.ok) throw new Error('audio_fetch_failed');
-  return new Uint8Array(await res.arrayBuffer());
+  const { readRecBlob } = await import('./rec-upload');
+  return readRecBlob(url);
 }
 
 /** Transcripción falsa para e2e: un segmento cada 5 s, en el idioma del workspace no importa. */

@@ -38,5 +38,5 @@ export async function serveRecKind(
   if (wantDownload && !opts.allowDownload) return NextResponse.json({ error: 'download_disabled' }, { status: 403 });
   const ext = v.content_type.includes('mp4') ? 'mp4' : v.content_type.includes('quicktime') ? 'mov' : 'webm';
   const filename = `${(v.title || 'video').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 100) || 'video'}.${ext}`;
-  return opts.serveRecFile(req, v.url, v.content_type, { download: wantDownload ? filename : null });
+  return opts.serveRecFile(req, v.url, v.content_type, { download: wantDownload ? filename : null, size: v.size });
 }

@@ -123,8 +123,10 @@
       "already_uploaded": "Este video ya se subió.",
       "part_too_large": "Una parte de la subida es demasiado grande.",
       "invalid_file": "Ese archivo no es válido.",
-      "invalid_type": "Ese tipo de archivo no está permitido."
-    }
+      "invalid_type": "Ese tipo de archivo no está permitido.",
+      "download_failed": "La descarga falló. Probá de nuevo."
+    },
+    "downloading": "Descargando {pct}%"
   },
   "watch": {
     "copyLink": "Copiar link",

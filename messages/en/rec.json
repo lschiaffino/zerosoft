@@ -123,8 +123,10 @@
       "already_uploaded": "This video was already uploaded.",
       "part_too_large": "An upload part is too large.",
       "invalid_file": "That file is not valid.",
-      "invalid_type": "That file type is not allowed."
-    }
+      "invalid_type": "That file type is not allowed.",
+      "download_failed": "The download failed. Try again."
+    },
+    "downloading": "Downloading {pct}%"
   },
   "watch": {
     "copyLink": "Copy link",

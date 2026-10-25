@@ -171,7 +171,13 @@ const parity: ProductParity = {
         'Qualquer pessoa com o link ou só membros do workspace com sessão. Ainda não pessoas específicas nem privacidade padrão do workspace',
       ],
     }),
-    row('password-protect', 'privacy', ['Password-protected videos', 'Videos con contraseña', 'Vídeos com senha'], 'have'),
+    row('password-protect', 'privacy', ['Password-protected videos', 'Videos con contraseña', 'Vídeos com senha'], 'have', {
+      detail: [
+        'The video, thumbnail, GIF and captions are only served through our routes after checking the password, expiry and workspace. With REC_BLOB_ACCESS=private the Blob store is private; with a public store the file path is random and never shown',
+        'El video, la miniatura, el GIF y los subtítulos solo salen por nuestras rutas después de chequear contraseña, vencimiento y workspace. Con REC_BLOB_ACCESS=private el store de Blob es privado; con uno público el path del archivo es al azar y nunca se muestra',
+        'O vídeo, a miniatura, o GIF e as legendas só saem pelas nossas rotas depois de checar senha, expiração e workspace. Com REC_BLOB_ACCESS=private o store do Blob é privado; com um público o path do arquivo é aleatório e nunca aparece',
+      ],
+    }),
     row('request-access', 'privacy', ['Request access or ask for an email to watch', 'Pedir acceso o pedir email para ver', 'Pedir acesso ou pedir email para assistir'], 'missing'),
     row('download-restriction', 'privacy', ['Block downloads', 'Bloquear la descarga', 'Bloquear o download'], 'have', {
       detail: [
