@@ -23,7 +23,19 @@ const PROVIDER_LABEL: Record<string, string> = {
   intercom: 'Intercom',
 };
 
-export function IssueLinksPanel({ issueId, refreshKey = 0 }: { issueId: string; refreshKey?: number }) {
+export function IssueLinksPanel({
+  issueId,
+  refreshKey = 0,
+  hideEmpty = false,
+  addSignal = 0,
+}: {
+  issueId: string;
+  refreshKey?: number;
+  /** Sin vínculos no se muestra (como Linear): se agrega desde el menú "+" del issue. */
+  hideEmpty?: boolean;
+  /** Abre el formulario de vincular (desde ese menú). */
+  addSignal?: number;
+}) {
   const t = useTranslations('track');
   const [data, setData] = useState<LinksData | null>(null);
   const [failed, setFailed] = useState(false);
@@ -45,6 +57,10 @@ export function IssueLinksPanel({ issueId, refreshKey = 0 }: { issueId: string; 
   useEffect(() => {
     void load();
   }, [load, refreshKey]);
+
+  useEffect(() => {
+    if (addSignal > 0) setAdding(true);
+  }, [addSignal]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -70,6 +86,7 @@ export function IssueLinksPanel({ issueId, refreshKey = 0 }: { issueId: string; 
 
   if (failed) return null;
   const empty = !data || (data.refs.length === 0 && data.figma.length === 0);
+  if (hideEmpty && empty && !adding) return null;
 
   return (
     <section className="track-detail-section" data-testid="track-issue-links">

@@ -40,7 +40,11 @@ test('plan: crear desde la lista, propiedades, issues y update con salud', async
   await expect(page.getByTestId('tp-plan-name')).toHaveValue(name);
 
   // Fecha objetivo desde el panel de propiedades.
-  await page.getByTestId('tp-prop-target').fill('2026-12-15');
+  // Chip de fecha como Linear: se tipea la fecha y Enter.
+  await page.getByTestId('tp-prop-target').click();
+  await page.keyboard.type('2026-12-15');
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('tp-prop-target')).toContainText('Dec 15');
   await expect.poll(async () => (await (await request.get(page.url().replace(/.*\/app\/track\/projects\//, '/api/track/plans/'))).json()).plan.target_date).toBe('2026-12-15');
 
   // Issues: buscar uno existente y sumarlo.

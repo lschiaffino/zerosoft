@@ -47,3 +47,20 @@ export function statusGlyph(info: RefInfo): string {
   return `<svg class="track-status-glyph" viewBox="0 0 14 14" width="12" height="12" aria-hidden="true" style="color:${c}"><circle cx="7" cy="7" r="5.75" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.5"${dash}/>${half}</svg>`;
 }
 
+
+// ---------- Menciones (@email → nombre) ----------
+
+// Nombres de las personas que ya vio esta pestaña (el editor y el timeline
+// los registran): la lectura muestra "@Ana Díaz" en vez de "@ana@acme.com".
+const memberNames = new Map<string, string>();
+
+export function rememberMembers(list: ReadonlyArray<{ email: string; name: string | null }>): void {
+  for (const m of list) if (m.name && m.email) memberNames.set(m.email.toLowerCase(), m.name);
+}
+
+/** "@ana@acme.com" → "@Ana Díaz" si se conoce el nombre; si no, null. */
+export function mentionLabel(mention: string): string | null {
+  const email = mention.replace(/^@/, '').toLowerCase();
+  const name = memberNames.get(email);
+  return name ? `@${name}` : null;
+}

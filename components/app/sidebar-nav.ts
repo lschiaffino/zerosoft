@@ -173,11 +173,15 @@ export interface NavItem {
    * El shell deja el hueco #side-branch (uno por producto).
    */
   branch?: boolean;
+  /** Solo el hueco del árbol, sin el ítem (Track lista los teams directo bajo "Your teams"). */
+  branchOnly?: boolean;
 }
 
 export interface NavGroup {
   section?: string;
   items: NavItem[];
+  /** El encabezado pliega el grupo (como el "More" de Linear): cerrado salvo que haya un ítem activo. */
+  collapsible?: boolean;
 }
 
 export type AppProduct =
@@ -405,26 +409,29 @@ export function buildNav(
           items: [
             ...(labels.track.plans
               ? [
-                  { href: '/app/track/projects', label: labels.track.plans, active: at('/app/track/projects'), icon: 'plans' as const },
+                  { href: '/app/track/projects', label: labels.track.plans, active: pathname === '/app/track/projects' || at('/app/track/projects/'), icon: 'plans' as const },
                   { href: '/app/track/initiatives', label: labels.track.initiatives ?? '', active: at('/app/track/initiatives'), icon: 'initiatives' as const },
                 ]
               : []),
-            { href: '/app/track/issues', label: labels.track.issues, active: at('/app/track/issues'), icon: 'tasks' },
+            // Todos los issues del workspace: no se marca dentro de un issue (ahí se marca su team).
+            { href: '/app/track/issues', label: labels.track.issues, active: pathname === '/app/track/issues', icon: 'tasks' },
+          ],
+        },
+        {
+          // Los teams cuelgan directo (TrackBranch en el hueco): Issues, Triage, Cycles, Projects y Views.
+          section: labels.track.yourTeams,
+          items: [
+            { href: '/app/track/teams', label: labels.track.projects, active: false, icon: 'lists', branch: true, branchOnly: true },
+          ],
+        },
+        {
+          // Lo menos usado va plegado, como el "More" del sidebar de Linear.
+          section: labels.track.more,
+          collapsible: true,
+          items: [
             ...(labels.track.plans
               ? [{ href: '/app/track/cycles', label: labels.track.cycles, active: at('/app/track/cycles'), icon: 'cycles' as const }]
               : []),
-          ],
-        },
-        {
-          section: labels.track.yourTeams,
-          items: [
-            { href: '/app/track/teams', label: labels.track.projects, active: at('/app/track/teams') || at('/app/track/team/'), icon: 'lists', branch: true },
-          ],
-        },
-        {
-          // Lo menos usado va abajo, como el "More" del sidebar de Linear.
-          section: labels.track.more,
-          items: [
             ...(labels.track.roadmap
               ? [{ href: '/app/track/roadmap', label: labels.track.roadmap, active: at('/app/track/roadmap'), icon: 'roadmap' as const }]
               : []),
@@ -437,6 +444,7 @@ export function buildNav(
                   { href: '/app/track/dashboards', label: labels.track.dashboards ?? '', active: at('/app/track/dashboards'), icon: 'dashboards' as const },
                 ]
               : []),
+            { href: '/app/track/teams', label: labels.track.projects, active: at('/app/track/teams'), icon: 'lists' },
             { href: '/app/track', label: labels.track.overview, active: pathname === '/app/track', icon: 'overview' },
           ],
         },

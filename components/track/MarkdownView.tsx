@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from '@/i18n/navigation';
 import { renderTrackMarkdown } from '@/lib/track-markdown';
-import { refCache, resolveRefs, statusGlyph } from './issueRefs';
+import { mentionLabel, refCache, rememberMembers, resolveRefs, statusGlyph } from './issueRefs';
 
 export interface MarkdownLabels {
   write: string;
@@ -29,10 +29,13 @@ export function MarkdownView({
   source,
   className = '',
   onToggleTask,
+  members,
 }: {
   source: string;
   className?: string;
   onToggleTask?: (index: number) => void;
+  /** Personas del workspace: las @menciones por email se muestran con su nombre. */
+  members?: ReadonlyArray<{ email: string; name: string | null }>;
 }) {
   const interactive = Boolean(onToggleTask);
   const html = useMemo(() => renderTrackMarkdown(source, { interactive }), [source, interactive]);
@@ -67,6 +70,21 @@ export function MarkdownView({
       node.replaceWith(a);
     }
   }, []);
+
+  // @email → @Nombre (como un chip de persona), con el email en el tooltip.
+  useEffect(() => {
+    if (members) rememberMembers(members);
+    const root = ref.current;
+    if (!root) return;
+    for (const node of Array.from(root.querySelectorAll<HTMLElement>('.track-mention[data-mention]'))) {
+      const raw = node.dataset.mention!;
+      const label = mentionLabel(raw);
+      if (label && node.textContent !== label) {
+        node.textContent = label;
+        node.title = raw.slice(1);
+      }
+    }
+  }, [html, members]);
 
   useEffect(() => {
     const root = ref.current;

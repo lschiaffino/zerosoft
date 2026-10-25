@@ -56,7 +56,7 @@ test.describe('Track como Linear', () => {
     await page.keyboard.press('Enter');
     await expect(palette).toBeHidden();
     await expect.poll(async () => (await issueOf(request, a.id)).status_id).toBe(done.id);
-    await expect(page.getByTestId('track-undo-toast')).toContainText(a.identifier);
+    // Como Linear: el cambio de una propiedad no muestra toast (⌘Z igual lo deshace).
 
     // ⌘Z deshace el cambio.
     await page.keyboard.press('ControlOrMeta+z');
@@ -126,14 +126,15 @@ test.describe('Track como Linear', () => {
 
     // "is" → "is not".
     await page.getByTestId('track-filter-op').click();
-    await page.getByRole('button', { name: 'is not' }).click();
+    await page.getByRole('menuitemcheckbox', { name: 'is not' }).click();
     await expect(page.locator('tr[data-issue-row]')).toHaveCount(2);
 
     // Segunda regla (estimación con valor) y OR.
     await page.getByTestId('track-filter-add').click();
     await page.getByTestId('track-filter-field-estimate').click();
-    // Elegir un valor agrega la regla y cierra el menú.
-    await page.getByRole('checkbox', { name: /5 points/ }).click();
+    // Tildar un valor agrega la regla al instante (el menú queda abierto para sumar más).
+    await page.getByRole('menuitemcheckbox', { name: /5 points/ }).click();
+    await page.keyboard.press('Escape');
     await expect(page.locator('tr[data-issue-row]')).toHaveCount(1);
     await page.getByTestId('track-filter-match').click();
     await expect(page.getByTestId('track-filter-match')).toHaveText('Any filter');

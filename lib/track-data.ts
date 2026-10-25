@@ -4,6 +4,7 @@
  * Nota: el módulo `lib/track.ts` ya existe para el tracking de clicks de
  * links, por lo que este feature vive en `lib/track-data.ts`.
  */
+import { teamKeyCandidates } from './track-team-key';
 import { after } from 'next/server';
 import { getDb, getClient, txDb, getUserById } from './db';
 import { emitEvent } from './events';
@@ -79,6 +80,8 @@ export interface TrackIssueWithStatus extends TrackIssueRow {
 
 export interface TrackProjectWithStats extends TrackProjectRow {
   open_issues: number;
+  /** Issues esperando triage (sin los pospuestos): el contador del sidebar. */
+  triage_count?: number;
 }
 
 export interface TrackCommentWithAuthor extends TrackIssueCommentRow {
@@ -258,15 +261,26 @@ async function projectScope(
 }
 
 /** Slug único globalmente: si está tomado, agrega un sufijo corto. */
-async function uniqueProjectSlug(base: string, excludeId?: string): Promise<string> {
+/** Primera clave libre de teamKeyCandidates (MOB, MBL…, MOB2); si no, la de siempre por nombre. */
+// La clave del team es única dentro del workspace (como Linear), no en toda la base.
+async function uniqueTeamKey(name: string, ws: string): Promise<string> {
+  const db = getDb();
+  for (const candidate of teamKeyCandidates(name)) {
+    const taken = await db.prepare('SELECT id FROM track_projects WHERE slug = ? AND COALESCE(team_id, owner_id) = ?').get(candidate, ws);
+    if (!taken) return candidate;
+  }
+  return uniqueProjectSlug(slugify(name), ws);
+}
+
+async function uniqueProjectSlug(base: string, ws: string | null, excludeId?: string): Promise<string> {
   const db = getDb();
   const root = base || 'project';
   for (let i = 0; i < 20; i++) {
     const candidate =
       i === 0 ? root : `${root.slice(0, 57)}-${Math.random().toString(36).slice(2, 6)}`;
     const taken = (await db
-      .prepare('SELECT id FROM track_projects WHERE slug = ?')
-      .get(candidate)) as { id: string } | undefined;
+      .prepare('SELECT id FROM track_projects WHERE slug = ? AND COALESCE(team_id, owner_id) IS ?')
+      .get(candidate, ws)) as { id: string } | undefined;
     if (!taken || taken.id === excludeId) return candidate;
   }
   return `${root.slice(0, 50)}-${crypto.randomUUID().slice(0, 12)}`;
@@ -296,13 +310,15 @@ export async function listProjects(
       `SELECT p.*,
         (SELECT COUNT(*) FROM track_issues i WHERE i.project_id = p.id AND i.triage = 0 AND i.status_id IN (
           SELECT s.id FROM track_statuses s WHERE s.project_id = p.id AND s.category IN ('backlog','todo','in_progress')
-        )) AS open_issues
+        )) AS open_issues,
+        (SELECT COUNT(*) FROM track_issues i WHERE i.project_id = p.id AND i.triage = 1 AND i.archived_at IS NULL
+          AND NOT EXISTS (SELECT 1 FROM track_triage_snoozes z WHERE z.issue_id = i.id AND z.until > ?)) AS triage_count
        FROM track_projects p
        WHERE ${where}
        ORDER BY p.status ASC, p.name ASC
        LIMIT ? OFFSET ?`,
     )
-    .all(...args, pageSize, (page - 1) * pageSize)) as TrackProjectWithStats[];
+    .all(new Date().toISOString(), ...args, pageSize, (page - 1) * pageSize)) as TrackProjectWithStats[];
 
   return { rows, total, page, pageSize };
 }
@@ -363,10 +379,14 @@ export async function getProject(id: string): Promise<TrackProjectRow | undefine
     | undefined;
 }
 
-export async function getProjectBySlug(slug: string): Promise<TrackProjectRow | undefined> {
-  return (await getDb().prepare('SELECT * FROM track_projects WHERE slug = ?').get(slug)) as
-    | TrackProjectRow
-    | undefined;
+/** Team por su clave; con `ws`, dentro de ese workspace (la clave es única por workspace). */
+export async function getProjectBySlug(slug: string, ws?: string): Promise<TrackProjectRow | undefined> {
+  if (ws) {
+    return (await getDb()
+      .prepare('SELECT * FROM track_projects WHERE slug = ? AND COALESCE(team_id, owner_id) = ? LIMIT 1')
+      .get(slug, ws)) as TrackProjectRow | undefined;
+  }
+  return (await getDb().prepare('SELECT * FROM track_projects WHERE slug = ? LIMIT 1').get(slug)) as TrackProjectRow | undefined;
 }
 
 /**
@@ -387,7 +407,9 @@ export async function createProject(
 ): Promise<TrackProjectRow> {
   const db = getDb();
   const id = crypto.randomUUID();
-  const slug = await uniqueProjectSlug(payload.slug ?? slugify(payload.name));
+  // Sin identificador elegido: tres letras del nombre como Linear (MOB), sin repetir.
+  const ws = teamId ?? userId;
+  const slug = payload.slug ? await uniqueProjectSlug(payload.slug, ws) : await uniqueTeamKey(payload.name, ws);
   const now = nowIso();
 
   await db
@@ -451,9 +473,11 @@ export async function updateProject(
     fields.push('name = ?');
     args.push(payload.name.trim());
   }
+  let newSlug: string | null = null;
   if (payload.slug !== undefined) {
+    newSlug = await uniqueProjectSlug(payload.slug, existing.team_id ?? existing.owner_id ?? null, id);
     fields.push('slug = ?');
-    args.push(await uniqueProjectSlug(payload.slug, id));
+    args.push(newSlug);
   }
   if (payload.description !== undefined) {
     fields.push('description = ?');
@@ -489,6 +513,14 @@ export async function updateProject(
     fields.push('cycle_name = ?');
     args.push(payload.cycleName.trim());
   }
+  if (payload.autoCloseParent !== undefined) {
+    fields.push('auto_close_parent = ?');
+    args.push(payload.autoCloseParent ? 1 : 0);
+  }
+  if (payload.autoCloseChildren !== undefined) {
+    fields.push('auto_close_children = ?');
+    args.push(payload.autoCloseChildren ? 1 : 0);
+  }
 
   if (fields.length > 0) {
     fields.push('updated_at = ?');
@@ -496,11 +528,37 @@ export async function updateProject(
     args.push(id);
     await db.prepare(`UPDATE track_projects SET ${fields.join(', ')} WHERE id = ?`).run(...args);
   }
+  // Nuevo identificador del team: los issues pasan a NEW-n (como Linear) y los
+  // IDs viejos quedan como alias para que los links y ⌘K los sigan encontrando.
+  if (newSlug && newSlug !== existing.slug) await renameTeamIdentifiers(id, existing.slug, newSlug);
 
   const updated = await getProject(id);
   const changes = Object.keys(payload).filter((k) => payload[k as keyof ProjectUpdatePayload] !== undefined);
   if (updated && changes.length > 0) notifyTrackEvent({ type: 'project.updated', project: updated, changes });
   return updated;
+}
+
+/** OLD-12 → NEW-12 en los issues del team, guardando OLD-12 en track_issue_aliases. */
+export async function renameTeamIdentifiers(projectId: string, oldSlug: string, newSlug: string): Promise<number> {
+  const db = getDb();
+  const oldPrefix = `${oldSlug.toUpperCase()}-`;
+  const newPrefix = `${newSlug.toUpperCase()}-`;
+  const rows = (await db
+    .prepare('SELECT id, identifier FROM track_issues WHERE project_id = ? AND identifier >= ? AND identifier < ?')
+    .all(projectId, oldPrefix, `${oldSlug.toUpperCase()}.`)) as Array<{ id: string; identifier: string }>;
+  let n = 0;
+  for (const r of rows) {
+    const next = `${newPrefix}${r.identifier.slice(oldPrefix.length)}`;
+    const clash = await db.prepare('SELECT 1 FROM track_issues WHERE project_id = ? AND identifier = ?').get(projectId, next);
+    if (clash) continue;
+    await db
+      .prepare('INSERT OR IGNORE INTO track_issue_aliases (project_id, identifier, issue_id, created_at) VALUES (?, ?, ?, ?)')
+      .run(projectId, r.identifier, r.id, nowIso())
+      .catch(() => undefined);
+    await db.prepare('UPDATE track_issues SET identifier = ? WHERE id = ?').run(next, r.id);
+    n++;
+  }
+  return n;
 }
 
 export async function deleteProject(id: string): Promise<boolean> {
@@ -1065,11 +1123,57 @@ export async function listMyIssues(
     .prepare(
       `${issueSelect(`WHERE ${where.join(' AND ')}`)}
        ORDER BY i.due_date IS NULL, i.due_date ASC,
-         CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+         CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END,
          i.created_at ASC
        LIMIT ?`,
     )
     .all(...scope.args, assigneeId, limit)) as TrackIssueWithStatus[];
+}
+
+export type MyIssuesTab = 'assigned' | 'created' | 'subscribed' | 'activity';
+export const MY_ISSUES_TABS: readonly MyIssuesTab[] = ['assigned', 'created', 'subscribed', 'activity'];
+
+/**
+ * My issues como en Linear: asignados, creados, suscriptos (explícitos, más
+ * los que creé o tengo asignados, menos los que silencié) y actividad (issues
+ * donde hice algo, del más reciente). Incluye completados: la vista los agrupa
+ * por estado.
+ */
+export async function listMyIssuesTab(
+  teamId: string | null,
+  ownerId: string,
+  me: string,
+  tab: MyIssuesTab,
+  limit = 200,
+): Promise<TrackIssueWithStatus[]> {
+  if (tab === 'assigned') return listMyIssues(teamId, ownerId, me, { includeCompleted: true, limit });
+  const scope = await projectScope(teamId, ownerId, 'tp');
+  const where = [
+    `i.project_id IN (SELECT tp.id FROM track_projects tp WHERE ${scope.where} AND tp.status = 'active')`,
+    'i.triage = 0',
+    'i.archived_at IS NULL',
+  ];
+  const args: Array<string | number> = [...scope.args];
+  let order = 'i.updated_at DESC';
+  if (tab === 'created') {
+    where.push('i.creator_id = ?');
+    args.push(me);
+  } else if (tab === 'subscribed') {
+    where.push(
+      `((i.creator_id = ? OR i.assignee_id = ? OR EXISTS (SELECT 1 FROM track_issue_subscriptions su WHERE su.issue_id = i.id AND su.user_id = ? AND su.subscribed = 1))
+        AND NOT EXISTS (SELECT 1 FROM track_issue_subscriptions sx WHERE sx.issue_id = i.id AND sx.user_id = ? AND sx.subscribed = 0))`,
+    );
+    args.push(me, me, me, me);
+  } else {
+    where.push('EXISTS (SELECT 1 FROM track_issue_activities ma WHERE ma.issue_id = i.id AND ma.user_id = ?)');
+    args.push(me);
+    order = '(SELECT MAX(ma2.created_at) FROM track_issue_activities ma2 WHERE ma2.issue_id = i.id AND ma2.user_id = ?) DESC';
+    args.push(me);
+  }
+  args.push(Math.min(Math.max(limit, 1), 500));
+  return (await getDb()
+    .prepare(`${issueSelect(`WHERE ${where.join(' AND ')}`)} ORDER BY ${order} LIMIT ?`)
+    .all(...args)) as TrackIssueWithStatus[];
 }
 
 export async function getIssue(id: string): Promise<TrackIssueWithStatus | undefined> {
@@ -1082,12 +1186,48 @@ export async function getIssue(id: string): Promise<TrackIssueWithStatus | undef
  * Issue con su proyecto, solo si el proyecto es del workspace activo
  * (ver canAccessTrackProject). Para páginas que cargan un issue por id.
  */
+const ISSUE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Id del issue a partir de un id o un identificador ("WEB-12", también el ID
+ * viejo de un issue que se movió de team) dentro del workspace. null si no hay
+ * uno solo.
+ */
+export async function resolveIssueRef(ref: string, teamId: string | null, ownerId: string): Promise<string | null> {
+  const raw = decodeURIComponent(ref).trim();
+  if (!raw) return null;
+  if (ISSUE_UUID_RE.test(raw)) return raw;
+  if (!/^[A-Za-z0-9_-]{1,40}-\d{1,9}$/.test(raw)) return raw;
+  const ws = teamId ?? ownerId;
+  const col = teamId ? 'p.team_id' : 'p.owner_id';
+  const extra = teamId ? '' : ' AND p.team_id IS NULL';
+  const db = getDb();
+  const direct = (await db
+    .prepare(
+      `SELECT i.id FROM track_issues i JOIN track_projects p ON p.id = i.project_id
+       WHERE ${col} = ?${extra} AND UPPER(i.identifier) = ? LIMIT 2`,
+    )
+    .all(ws, raw.toUpperCase())) as Array<{ id: string }>;
+  if (direct.length === 1) return direct[0].id;
+  const alias = (await db
+    .prepare(
+      `SELECT a.issue_id AS id FROM track_issue_aliases a JOIN track_projects p ON p.id = a.project_id
+       WHERE ${col} = ?${extra} AND UPPER(a.identifier) = ? ORDER BY a.created_at DESC LIMIT 1`,
+    )
+    .all(ws, raw.toUpperCase())
+    .catch(() => [])) as Array<{ id: string }>;
+  // Sin coincidencia: puede ser un id con otra forma (se busca tal cual).
+  return alias[0]?.id ?? raw;
+}
+
 export async function getAccessibleIssue(
   id: string,
   teamId: string | null,
   ownerId: string,
 ): Promise<{ issue: TrackIssueWithStatus; project: TrackProjectRow } | null> {
-  const issue = await getIssue(id);
+  const resolved = ISSUE_UUID_RE.test(id) ? id : await resolveIssueRef(id, teamId, ownerId);
+  if (!resolved) return null;
+  const issue = await getIssue(resolved);
   if (!issue) return null;
   const project = await getProject(issue.project_id);
   if (!project || !(await canAccessTrackProject(project, teamId, ownerId))) return null;
@@ -1160,6 +1300,11 @@ export async function moveIssueToTeam(
         identifier = await nextIdentifier(targetProjectId);
       }
     }
+    // El ID viejo sigue llevando al issue (⌘K, links, /issue/WEB-12), como en Linear.
+    await db
+      .prepare('INSERT OR REPLACE INTO track_issue_aliases (project_id, identifier, issue_id) VALUES (?, ?, ?)')
+      .run(issue.project_id, issue.identifier, id)
+      .catch(() => undefined);
     // Sin activity type propio en el CHECK: va como cambio con `field: 'team'`.
     await createIssueActivity(id, actorId, 'cycle_change', {
       field: 'team',
@@ -1334,7 +1479,7 @@ export async function updateIssue(
   id: string,
   payload: IssueUpdatePayload,
   actorId?: string,
-  opts: { via?: IssueChangeVia } = {},
+  opts: { via?: IssueChangeVia; autoDepth?: number } = {},
 ): Promise<TrackIssueWithStatus | undefined> {
   const db = getDb();
   const existing = await getIssue(id);
@@ -1526,7 +1671,12 @@ export async function updateIssue(
   }
 
   if (fields.length > 0) await (await import('./track-sla')).syncIssueSla(id).catch(() => undefined);
-  const updated = await getIssue(id);
+  let updated = await getIssue(id);
+  // Auto-cierre del team (como Linear): padre y sub-issues. Profundidad acotada.
+  if (statusChanged && updated && (opts.autoDepth ?? 0) < 4) {
+    await autoCloseRelated(existing, updated, actorId, (opts.autoDepth ?? 0) + 1).catch(() => undefined);
+    updated = (await getIssue(id)) ?? updated;
+  }
   if (updated && fields.length > 0) {
     const changed = Object.keys(payload).filter((k) => payload[k as keyof IssueUpdatePayload] !== undefined);
     scheduleIssueEvents(existing, updated, changed);
@@ -1540,6 +1690,64 @@ export async function updateIssue(
     });
   }
   return updated;
+}
+
+function isClosedCategory(c: string | null | undefined): boolean {
+  return c === 'done' || c === 'cancelled';
+}
+
+/**
+ * Auto-cierre por team (track_projects.auto_close_parent / auto_close_children):
+ * - el padre pasa al primer "done" de su team cuando todos sus sub-issues quedan
+ *   terminados o cancelados;
+ * - los sub-issues abiertos pasan al mismo estado que el padre cuando este se
+ *   cierra (solo los del mismo team, que comparten los estados).
+ * Cada cambio pasa por updateIssue (actividad, avisos y webhooks), con
+ * `autoDepth` para no encadenar sin fin.
+ */
+export async function autoCloseRelated(
+  before: TrackIssueWithStatus,
+  after: TrackIssueWithStatus,
+  actorId: string | undefined,
+  depth: number,
+): Promise<void> {
+  const db = getDb();
+  const nowClosed = isClosedCategory(after.status_category) && !isClosedCategory(before.status_category);
+  if (!nowClosed) return;
+  const project = (await db
+    .prepare('SELECT auto_close_parent, auto_close_children FROM track_projects WHERE id = ?')
+    .get(after.project_id)) as { auto_close_parent?: number; auto_close_children?: number } | undefined;
+
+  if (project?.auto_close_children && after.status_id) {
+    const open = (await db
+      .prepare(
+        `SELECT i.id FROM track_issues i LEFT JOIN track_statuses s ON s.id = i.status_id
+         WHERE i.parent_id = ? AND i.project_id = ? AND i.archived_at IS NULL
+           AND (s.category IS NULL OR s.category NOT IN ('done', 'cancelled'))`,
+      )
+      .all(after.id, after.project_id)) as Array<{ id: string }>;
+    for (const c of open) await updateIssue(c.id, { statusId: after.status_id }, actorId, { autoDepth: depth });
+  }
+
+  if (after.parent_id) {
+    const parent = await getIssue(after.parent_id);
+    if (!parent || isClosedCategory(parent.status_category)) return;
+    const parentProject = (await db
+      .prepare('SELECT auto_close_parent FROM track_projects WHERE id = ?')
+      .get(parent.project_id)) as { auto_close_parent?: number } | undefined;
+    if (!parentProject?.auto_close_parent) return;
+    const pending = (await db
+      .prepare(
+        `SELECT COUNT(*) AS c FROM track_issues i LEFT JOIN track_statuses s ON s.id = i.status_id
+         WHERE i.parent_id = ? AND i.archived_at IS NULL AND (s.category IS NULL OR s.category NOT IN ('done', 'cancelled'))`,
+      )
+      .get(parent.id)) as { c: number };
+    if (pending.c > 0) return;
+    const done = (await db
+      .prepare("SELECT id FROM track_statuses WHERE project_id = ? AND category = 'done' ORDER BY position ASC LIMIT 1")
+      .get(parent.project_id)) as { id: string } | undefined;
+    if (done) await updateIssue(parent.id, { statusId: done.id }, actorId, { autoDepth: depth });
+  }
 }
 
 /**

@@ -5,6 +5,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import { MarkdownView } from '@/components/track/MarkdownView';
+import RichEditor from '@/components/track/RichEditor';
+import KeyPicker from '@/components/track/KeyPicker';
 import type { PlanSummary, PlanEvent } from '@/lib/track-plans';
 import type { PlanUpdate, PlanUpdateComment } from '@/lib/track-plan-updates';
 import { PLAN_HEALTH, type PlanHealth } from '@/lib/track-planning-schema';
@@ -33,6 +35,8 @@ export default function PlanUpdates({
   const [failed, setFailed] = useState(false);
   const [health, setHealth] = useState<PlanHealth>((plan.last_update_health as PlanHealth) ?? 'on_track');
   const [body, setBody] = useState('');
+  // El editor se rearma vacío después de publicar.
+  const [composerKey, setComposerKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -58,6 +62,7 @@ export default function PlanUpdates({
     setBusy(false);
     if (!res.ok) return setError(t('common.saveError'));
     setBody('');
+    setComposerKey((k) => k + 1);
     await load();
     await onPosted();
   };
@@ -101,7 +106,7 @@ export default function PlanUpdates({
 
   return (
     <div className="tp-updates">
-      <form className="tp-card tp-composer" onSubmit={post} aria-labelledby="tp-compose-h">
+      <form id="tp-compose-form" className="tp-card tp-composer" onSubmit={post} aria-labelledby="tp-compose-h">
         <h3 id="tp-compose-h" className="tp-card-title">
           {t('updates.composerTitle')}
         </h3>
@@ -115,19 +120,16 @@ export default function PlanUpdates({
             </label>
           ))}
         </fieldset>
-        <textarea
-          className="textarea"
-          aria-label={t('updates.bodyLabel')}
-          placeholder={t('updates.bodyPlaceholder')}
+        <RichEditor
+          key={composerKey}
           value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={4}
-          maxLength={20000}
+          onChange={setBody}
+          ariaLabel={t('updates.bodyLabel')}
+          placeholder={t('updates.bodyPlaceholder')}
           autoFocus={composeOpen}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) (e.currentTarget.form as HTMLFormElement).requestSubmit();
-          }}
-          data-testid="tp-update-body"
+          onSubmit={() => (document.getElementById('tp-compose-form') as HTMLFormElement | null)?.requestSubmit()}
+          testId="tp-update-body"
+          className="tp-update-editor"
         />
         {error && (
           <p className="ui-error" role="alert">
@@ -254,21 +256,21 @@ function EditUpdate({ update, onDone }: { update: PlanUpdate; onDone: () => Prom
         await onDone();
       }}
     >
-      <select className="select" aria-label={t('plan.health')} value={health} onChange={(e) => setHealth(e.target.value as PlanHealth)}>
-        {PLAN_HEALTH.map((h) => (
-          <option key={h} value={h}>
-            {t(`health.${h}`)}
-          </option>
-        ))}
-      </select>
-      <textarea
-        className="textarea"
-        aria-label={t('updates.bodyLabel')}
+      <KeyPicker
+        ariaLabel={t('plan.health')}
+        className="tp-chip"
+        value={health}
+        options={PLAN_HEALTH.map((h) => ({ value: h, label: t(`health.${h}`), icon: <HealthDot health={h} label="" /> }))}
+        onSelect={(v) => setHealth(v as PlanHealth)}
+        trigger={<HealthDot health={health} label={t(`health.${health}`)} />}
+      />
+      <RichEditor
         value={body}
-        onChange={(e) => setBody(e.target.value)}
-        rows={4}
+        onChange={setBody}
+        ariaLabel={t('updates.bodyLabel')}
         autoFocus
-        onKeyDown={(e) => e.key === 'Escape' && void onDone()}
+        onEscape={() => void onDone()}
+        className="tp-update-editor"
       />
       <div className="tp-form-actions">
         <button type="button" className="btn btn-sm" onClick={() => void onDone()}>

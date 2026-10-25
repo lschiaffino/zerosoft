@@ -14,6 +14,8 @@
  */
 import { Marked, type Tokens } from 'marked';
 import {
+  blockExtensions,
+  CALLOUT_KINDS,
   escapeHtml,
   ISSUE_REF_RE,
   ISSUE_REF_START,
@@ -32,6 +34,20 @@ const editorMd = new Marked({
   gfm: true,
   breaks: true,
   extensions: [
+    // Colapsable: título y cuerpo editables; al cargar queda cerrado si tiene
+    // cuerpo (como al leer). Callout: un bloque con párrafos adentro.
+    ...blockExtensions({
+      toggle(token) {
+        const title = this.parser.parseInline(token.titleTokens) || '<br>';
+        const body = this.parser.parse(token.tokens).trim() || '<p><br></p>';
+        const open = token.body.trim() ? 'false' : 'true';
+        return `<div class="track-toggle" data-toggle="1" data-open="${open}"><p class="track-toggle-title" data-toggle-title="1">${title}</p><div class="track-toggle-body" data-toggle-body="1">${body}</div></div>`;
+      },
+      callout(token) {
+        const body = this.parser.parse(token.tokens).trim() || '<p><br></p>';
+        return `<div class="track-callout" data-callout="${token.kind}">${body}</div>`;
+      },
+    }),
     {
       name: 'issueRef',
       level: 'inline',
@@ -122,7 +138,7 @@ export interface RtNode {
   getAttribute?: (name: string) => string | null;
 }
 
-const BLOCKS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'PRE', 'BLOCKQUOTE', 'HR', 'TABLE', 'FIGURE', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER']);
+const BLOCKS = new Set(['DETAILS', 'SUMMARY', 'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'PRE', 'BLOCKQUOTE', 'HR', 'TABLE', 'FIGURE', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER']);
 const SKIP = new Set(['SCRIPT', 'STYLE', 'TEMPLATE', 'HEAD', 'META', 'LINK', 'TITLE', 'NOSCRIPT', 'INPUT', 'BUTTON', 'SELECT', 'TEXTAREA', 'SVG', 'IFRAME', 'OBJECT']);
 
 function kids(n: RtNode): RtNode[] {
@@ -156,7 +172,7 @@ export function escapeInline(text: string): string {
 function escapeLineStart(line: string): string {
   const ordered = /^(\d+)([.)])(\s)/.exec(line);
   if (ordered) return `${ordered[1]}\\${ordered[2]}${ordered[3]}${line.slice(ordered[0].length)}`;
-  if (/^(#{1,6}(\s|$)|>|[-+](\s|$)|```|~~~|-{3,}\s*$|={3,}\s*$)/.test(line)) return `\\${line}`;
+  if (/^(#{1,6}(\s|$)|>|[-+](\s|$)|```|~~~|-{3,}\s*$|={3,}\s*$|\+{3})/.test(line)) return `\\${line}`;
   return line;
 }
 
@@ -308,10 +324,44 @@ function block(n: RtNode): string {
       return '---';
     case 'TABLE':
       return table(n);
+    case 'DETAILS':
+      return toggleBlock(n, true);
     default:
+      if (attr(n, 'data-toggle') !== null) return toggleBlock(n, false);
+      if (attr(n, 'data-callout') !== null) return calloutBlock(n);
       // P, DIV, FIGURE…: párrafo, o sus bloques si los tiene adentro.
       return hasBlockChild(n) ? blocks(n).join('\n\n') : paragraph(kids(n));
   }
+}
+
+/** Colapsable (editor: div[data-toggle]; pegado: <details>) → `+++ Título` … `+++`. */
+function toggleBlock(n: RtNode, details: boolean): string {
+  const children = kids(n).filter((c) => c.nodeType === 1 || (c.nodeType === 3 && (c.textContent ?? '').trim()));
+  let titleNode: RtNode | undefined;
+  let bodyNodes: RtNode[] = [];
+  if (details) {
+    titleNode = children.find((c) => c.nodeType === 1 && name(c) === 'SUMMARY');
+    bodyNodes = children.filter((c) => c !== titleNode);
+  } else {
+    titleNode = children.find((c) => c.nodeType === 1 && attr(c, 'data-toggle-title') !== null) ?? children[0];
+    const body = children.find((c) => c.nodeType === 1 && attr(c, 'data-toggle-body') !== null);
+    bodyNodes = body ? kids(body) : children.filter((c) => c !== titleNode);
+  }
+  const title = titleNode ? inlineMd(kids(titleNode)).replace(/\n+/g, ' ').trim() : '';
+  const holder: RtNode = { nodeType: 1, nodeName: 'DIV', childNodes: bodyNodes, textContent: null };
+  const body = blocks(holder).join('\n\n');
+  if (!title && !body.trim()) return '';
+  return [`+++${title ? ` ${title}` : ''}`, ...(body.trim() ? [body] : []), '+++'].join('\n');
+}
+
+/** Callout (div[data-callout]) → alerta de GitHub: `> [!NOTE]` y el cuerpo citado. */
+function calloutBlock(n: RtNode): string {
+  const raw = (attr(n, 'data-callout') ?? 'note').toLowerCase();
+  const kind = (CALLOUT_KINDS as readonly string[]).includes(raw) ? raw : 'note';
+  const inner = blocks(n).join('\n\n');
+  const lines = [`> [!${kind.toUpperCase()}]`];
+  if (inner.trim()) lines.push(...inner.split('\n').map((l) => (l ? `> ${l}` : '>')));
+  return lines.join('\n');
 }
 
 /** Texto de un bloque de código: los <br> y <div> que mete el navegador cuentan como saltos. */
@@ -438,6 +488,7 @@ export type BlockRule =
   | { kind: 'numbered' }
   | { kind: 'todo'; checked: boolean }
   | { kind: 'quote' }
+  | { kind: 'toggle' }
   | { kind: 'code'; lang: string };
 
 /**
@@ -453,6 +504,7 @@ export function blockRuleFor(prefix: string): BlockRule | null {
   if (/^1[.)]\s$/.test(prefix)) return { kind: 'numbered' };
   if (/^\[\s?\]\s$/.test(prefix)) return { kind: 'todo', checked: false };
   if (/^\[x\]\s$/i.test(prefix)) return { kind: 'todo', checked: true };
+  if (/^>>>\s$/.test(prefix)) return { kind: 'toggle' };
   if (/^>\s$/.test(prefix)) return { kind: 'quote' };
   const code = /^```([\w+#.-]*)$/.exec(prefix);
   if (code) return { kind: 'code', lang: code[1] };

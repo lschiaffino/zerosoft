@@ -16,7 +16,6 @@ import { formatDay as formatDayLabel, inversePatch, type IssuePatch } from '@/li
 import { rowTargetId, useTrackCommands } from './trackCommands';
 import { pendingDeleteIds, pushNotice, pushUndo, scheduleDelete } from './trackUndo';
 import { useTrackLive } from './useTrackLive';
-import ViewSwitcher from './ViewSwitcher';
 import IssueFilters, { activeFilterCount } from './IssueFilters';
 import SavedViewsMenu from './SavedViewsMenu';
 import IssuesTable from './IssuesTable';
@@ -24,16 +23,26 @@ import type { CycleWithProgress } from './CyclesPanel';
 import { TrackToast, useToday } from './InlineEditors';
 import { TRACK_NEW_ISSUE_EVENT, useCreateShortcut, useIssueStore, type IssueDraft, type ProjectMap } from './useIssueStore';
 import { activeCycle, formatDay, parseQuickTitle } from '@/lib/track-tasks';
-import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import TrackIcon from './TrackIcon';
 import type { TrackUiLabels } from './ui-labels';
 import { BulkBar, useIssueSelection, type BulkPatch } from './BulkEdit';
 import { useWorkspaceLabels } from './LabelPicker';
-import ProjectUpdateDraftButton from './triage/ProjectUpdateDraftButton';
-import IssueDisplayOptions from './IssueDisplayOptions';
+import IssueDisplayOptions, { readDisplayProps, writeDisplayProps, type DisplayProp } from './IssueDisplayOptions';
 import GroupedIssuesTable from './GroupedIssuesTable';
-import { parseIssueGroup, parseIssueSort, type BoardGroupBy, type IssueGroupBy, type IssueSort } from '@/lib/track-views';
+import {
+  parseIssueGroup,
+  parseIssueSort,
+  scopeStatusIds,
+  TEAM_SCOPES as SCOPES,
+  type BoardGroupBy,
+  type GroupPreset,
+  type IssueGroupBy,
+  type IssueSort,
+  type TeamScope,
+} from '@/lib/track-views';
+import type { QuickIssueDefaults } from './QuickIssueModal';
+import type { OptionalColumn } from './IssuesTable';
 import { TEAMS_PATH, teamPath } from '@/lib/track-routes';
 import dynamic from 'next/dynamic';
 // Vistas y paneles que no se ven al entrar (tablero, calendario, Gantt, ajustes,
@@ -143,6 +152,12 @@ type SortValue = IssueSort;
 /** Agrupados de la lista y del tablero de un proyecto (por proyecto no tiene sentido acá). */
 const LIST_GROUPS: IssueGroupBy[] = ['none', 'status', 'assignee', 'priority', 'cycle', 'label'];
 const PROJECT_BOARD_GROUPS: BoardGroupBy[] = ['status', 'assignee', 'priority', 'cycle', 'label'];
+const LAYOUTS: ViewType[] = ['list', 'board', 'calendar', 'gantt'];
+/** Propiedades de fila que se pueden mostrar u ocultar en un team. */
+const TEAM_PROPS: DisplayProp[] = ['id', 'priority', 'labels', 'cycle', 'due', 'assignee', 'created'];
+const TEAM_DEFAULT_PROPS: DisplayProp[] = ['id', 'priority', 'labels', 'cycle', 'due', 'assignee'];
+const PROPS_KEY = 'track:display-props';
+
 
 // Matches the server-side cap in lib/track-data.ts (listIssues clamps pageSize to 100).
 const ISSUES_PAGE_SIZE = 100;
@@ -157,8 +172,9 @@ function parseLabels(raw: string): IssueLabel[] {
 }
 
 /** Filtros → URL (y API): `filter` con las reglas, `q` y el orden. */
-function filtersToParams(filters: FilterState, sort: SortValue): URLSearchParams {
+function filtersToParams(filters: FilterState, sort: SortValue, statusIds?: string[] | null): URLSearchParams {
   const sp = new URLSearchParams();
+  if (statusIds) sp.set('statusId', statusIds.join(','));
   const encoded = encodeFilter(filters);
   if (encoded) sp.set('filter', encoded);
   if (filters.q) sp.set('q', filters.q);
@@ -237,6 +253,18 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
   // Un solo param `group` en la URL; cada vista lo interpreta con sus opciones
   // (la lista arranca sin agrupar, el tablero por status).
   const [group, setGroup] = useState<string>(() => searchParams.get('group') ?? '');
+  const [scope, setScope] = useState<TeamScope>(() => {
+    const v = searchParams.get('scope') as TeamScope | null;
+    return v && SCOPES.includes(v) ? v : 'all';
+  });
+  const [showCompleted, setShowCompleted] = useState(() => searchParams.get('done') !== 'hide');
+  const [displayProps, setDisplayProps] = useState<DisplayProp[]>(TEAM_DEFAULT_PROPS);
+  useEffect(() => setDisplayProps(readDisplayProps(PROPS_KEY, TEAM_DEFAULT_PROPS)), []);
+  const changeDisplayProps = (next: DisplayProp[]) => {
+    setDisplayProps(next);
+    writeDisplayProps(PROPS_KEY, next);
+  };
+  const [modalDefaults, setModalDefaults] = useState<QuickIssueDefaults | undefined>();
   // "Mostrar sub-issues" (Display options): por defecto sí, debajo de su padre.
   const [showSub, setShowSub] = useState(() => searchParams.get('sub') !== 'hide');
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -268,6 +296,11 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
   );
   const tx = useTranslations('track.ux');
   const tc = useTranslations('track.ux.cmd');
+  const tt = useTranslations('track.ux.team');
+  const openComposer = (defaults?: QuickIssueDefaults) => {
+    setModalDefaults(defaults);
+    setModalOpen(true);
+  };
   const updatedLabel = useCallback(
     (what: string, count: number) => (count === 1 ? tx('undo.updatedOne', { id: what }) : tx('undo.updatedMany', { count })),
     [tx],
@@ -298,7 +331,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
   const fetchIssues = useCallback(
     async (page: number, append: boolean) => {
       const seq = append ? issuesRequest.current : ++issuesRequest.current;
-      const sp = filtersToParams(filters, sort);
+      const sp = filtersToParams(filters, sort, scopeStatusIds(statuses, scope, showCompleted));
       sp.set('pageSize', String(ISSUES_PAGE_SIZE));
       sp.set('page', String(page));
       sp.set('today', today);
@@ -314,7 +347,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
       setIssuesTotal(Math.max(0, data.total - (data.rows.length - rows.length)));
       setIssuesPage(page);
     },
-    [projectId, filters, sort, setIssues, today, showSub],
+    [projectId, filters, sort, setIssues, today, showSub, statuses, scope, showCompleted],
   );
 
   // Vuelve a pedir las páginas ya cargadas (1..issuesPage) sin volver a la
@@ -322,7 +355,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
   // selección de los issues de más abajo.
   const reloadLoadedPages = useCallback(async () => {
     const seq = ++issuesRequest.current;
-    const sp = filtersToParams(filters, sort);
+    const sp = filtersToParams(filters, sort, scopeStatusIds(statuses, scope, showCompleted));
     sp.set('pageSize', String(ISSUES_PAGE_SIZE));
     sp.set('today', today);
     if (!showSub) sp.set('topLevel', '1');
@@ -348,7 +381,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
     }
     setIssues(rows);
     setIssuesTotal(Math.max(0, pages[pages.length - 1].total - hidden.size));
-  }, [projectId, filters, sort, issuesPage, setIssues, today, showSub]);
+  }, [projectId, filters, sort, issuesPage, setIssues, today, showSub, statuses, scope, showCompleted]);
 
   const handleLoadMore = async () => {
     setLoadingMore(true);
@@ -399,7 +432,9 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
             initialParams.current.get('filter') ||
             initialParams.current.get('statusId') ||
             initialParams.current.get('priority') ||
-            initialParams.current.get('q'));
+            initialParams.current.get('q') ||
+            initialParams.current.get('scope') ||
+            initialParams.current.get('done'));
         const pick = (linked ? v.find((x) => x.id === linked) : undefined) ?? (!hasUrlState ? v.find((x) => x.is_default) : undefined);
         if (pick) {
           const saved = splitViewFilters(pick.filters);
@@ -429,7 +464,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
       fetchIssues(1, false).catch(() => setNotice(t('errors.generic')));
     }, 250);
     return () => clearTimeout(timer);
-  }, [filters, sort, fetchIssues, loading, loadError, t]);
+  }, [filters, sort, scope, showCompleted, fetchIssues, loading, loadError, t]);
 
   const loadTriage = useCallback(async () => {
     const data = await api<{ rows: TrackIssueWithStatus[] }>(`/api/track/projects/${projectId}/triage`).catch(() => null);
@@ -682,13 +717,15 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
     const sp = filtersToParams(filters, sort);
     sp.set('view', view);
     if (group) sp.set('group', group);
+    if (scope !== 'all') sp.set('scope', scope);
+    if (!showCompleted) sp.set('done', 'hide');
     if (!showSub) sp.set('sub', 'hide');
     // El link de la vista solo mientras no se cambió nada (si no, mandan los filtros).
     if (activeViewId && !viewDirty) sp.set('savedView', activeViewId);
     if (tab === 'triage') sp.set('tab', 'triage');
     const qs = sp.toString();
     router.replace(`${teamHref}?${qs}`, { scroll: false });
-  }, [filters, sort, group, view, tab, teamHref, locale, router, showSub, activeViewId, viewDirty]);
+  }, [filters, sort, group, view, tab, scope, showCompleted, teamHref, locale, router, showSub, activeViewId, viewDirty]);
 
   // ⌘B alterna lista y tablero, como en Linear.
   useEffect(() => {
@@ -734,6 +771,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
 
   const handleSelectView = (selected: TrackSavedView) => {
     const saved = splitViewFilters(selected.filters);
+    setScope('all');
     setView(selected.view_type);
     setFilters(saved.filters);
     setGroup(saved.group);
@@ -848,7 +886,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
     });
   };
 
-  useCreateShortcut(() => setModalOpen(true), !loading && !loadError && !modalOpen && !saveDialogOpen && !settingsOpen);
+  useCreateShortcut(() => openComposer(), !loading && !loadError && !modalOpen && !saveDialogOpen && !settingsOpen);
 
   // "Nuevo issue" pedido mientras la vista carga (⌘K, o el link viejo
   // /issues/new → ?newIssue=1): se recuerda y el modal abre al terminar. El
@@ -860,12 +898,12 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
   useEffect(() => {
     if (!loading && pendingCreate.current && !loadError) {
       pendingCreate.current = false;
-      setModalOpen(true);
+      openComposer();
     }
     const onEvent = (e: Event) => {
       e.preventDefault();
       if (loading) pendingCreate.current = true;
-      else if (!loadError) setModalOpen(true);
+      else if (!loadError) openComposer();
     };
     window.addEventListener(TRACK_NEW_ISSUE_EVENT, onEvent);
     return () => window.removeEventListener(TRACK_NEW_ISSUE_EVENT, onEvent);
@@ -958,112 +996,157 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
     />
   );
 
-  const listGroup = parseIssueGroup(group || 'none', LIST_GROUPS);
+  // Como Linear, la lista arranca agrupada por estado ("none" explícito la deja plana).
+  const listGroup = parseIssueGroup(group || 'status', LIST_GROUPS);
   const boardGroup = parseIssueGroup(group || 'status', PROJECT_BOARD_GROUPS) as BoardGroupBy;
 
   const current = activeCycle(cycles, today);
   const nextMilestone = upcomingMilestone(milestones, today);
-  const filtersActive = activeFilterCount(filters) > 0 || Boolean(filters.q);
+  const filtersActive = activeFilterCount(filters) > 0 || Boolean(filters.q) || scope !== 'all' || !showCompleted;
+  // Display properties → columnas ocultas (cycle solo si el team usa cycles).
+  const hiddenColumns: OptionalColumn[] = [
+    ...TEAM_PROPS.filter((p) => !displayProps.includes(p)).map((p) => p as OptionalColumn),
+    ...(cycles.length > 0 && !filters.rules.some((r) => r.field === 'cycle') ? [] : (['cycle'] as OptionalColumn[])),
+  ];
+  const addInGroup = (preset: GroupPreset) =>
+    openComposer({
+      statusId: preset.statusId,
+      ...(preset.assigneeId !== undefined ? { assigneeId: preset.assigneeId } : {}),
+    });
   const projectEmpty = issuesTotal === 0 && issues.length === 0 && !filtersActive;
   const showTriageTab = Boolean(project.triage_enabled) || triageIssues.length > 0;
 
   return (
     <div className="app-page track-page" data-track-project-id={project.id}>
-      <PageHeader
-        back={{ href: TEAMS_PATH, label: t('projects.title') }}
-        title={
-          <>
+      <header className="track-team-head">
+        <nav className="track-team-crumbs" aria-label={tt('teams')}>
+          <Link href={TEAMS_PATH} className="track-team-crumb">
+            {tt('teams')}
+          </Link>
+          <span aria-hidden className="track-team-crumb-sep">
+            ›
+          </span>
+          <h1 className="track-team-name">
             {project.icon ? <span className="track-project-icon">{project.icon}</span> : null}
             {project.name}
-          </>
-        }
-        description={
-          project.description || current || nextMilestone ? (
-            <>
-              {project.description}
-              {current && (
-                <span className="track-cycle-meta" data-testid="track-active-cycle">
-                  {t('project.activeCycleMeta', {
-                    name: current.name,
-                    done: current.done ?? 0,
-                    total: current.total ?? 0,
-                    end: formatDay(current.end_at.slice(0, 10), locale, today),
+          </h1>
+          {current && (
+            <span className="track-team-meta" data-testid="track-active-cycle">
+              <TrackIcon name="cycle" size={11} />
+              {t('project.activeCycleMeta', {
+                name: current.name,
+                done: current.done ?? 0,
+                total: current.total ?? 0,
+                end: formatDay(current.end_at.slice(0, 10), locale, today),
+              })}
+            </span>
+          )}
+          {nextMilestone && (
+            <span className="track-team-meta" data-testid="track-next-milestone">
+              <TrackIcon name="flag" size={11} />
+              {nextMilestone.target_date
+                ? t('milestones.headerMeta', {
+                    name: nextMilestone.name,
+                    done: nextMilestone.done,
+                    total: nextMilestone.total,
+                    date: formatDay(nextMilestone.target_date, locale, today),
+                  })
+                : t('milestones.headerMetaNoDate', {
+                    name: nextMilestone.name,
+                    done: nextMilestone.done,
+                    total: nextMilestone.total,
                   })}
-                </span>
-              )}
-              {nextMilestone && (
-                <span className="track-cycle-meta" data-testid="track-next-milestone">
-                  {nextMilestone.target_date
-                    ? t('milestones.headerMeta', {
-                        name: nextMilestone.name,
-                        done: nextMilestone.done,
-                        total: nextMilestone.total,
-                        date: formatDay(nextMilestone.target_date, locale, today),
-                      })
-                    : t('milestones.headerMetaNoDate', {
-                        name: nextMilestone.name,
-                        done: nextMilestone.done,
-                        total: nextMilestone.total,
-                      })}
-                </span>
-              )}
-            </>
-          ) : undefined
-        }
-        actions={
-          <>
-            <ProjectUpdateDraftButton projectId={projectId} />
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setSettingsOpen(true)}
-              aria-haspopup="dialog"
-              data-testid="track-project-settings"
-            >
-              <TrackIcon name="settings" />
-              {labels.settings}
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => setModalOpen(true)}
-              title={labels.ui.modal.shortcutHint}
-              aria-keyshortcuts="C"
-            >
-              {labels.newIssue}
-              <kbd className="kbd track-kbd" aria-hidden>
-                C
-              </kbd>
-            </button>
-          </>
-        }
-      />
-
-      {showTriageTab && (
-        <div className="ui-tabs track-project-tabs" role="tablist" aria-label={project.name}>
+            </span>
+          )}
+        </nav>
+        <div className="track-team-actions">
           <button
             type="button"
-            role="tab"
-            aria-selected={tab === 'issues'}
-            className="ui-tab"
-            onClick={() => setTab('issues')}
+            className="btn btn-ghost btn-sm btn-icon"
+            onClick={() => setSettingsOpen(true)}
+            aria-haspopup="dialog"
+            aria-label={labels.settings}
+            title={labels.settings}
+            data-testid="track-project-settings"
           >
-            {labels.issues}
-            <span className="ui-tab-count">{issuesTotal}</span>
+            <TrackIcon name="settings" />
           </button>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => openComposer()}
+            title={labels.ui.modal.shortcutHint}
+            aria-keyshortcuts="C"
+          >
+            {labels.newIssue}
+            <kbd className="kbd track-kbd" aria-hidden>
+              C
+            </kbd>
+          </button>
+        </div>
+      </header>
+
+      <div className="track-team-tabs" role="tablist" aria-label={tt('tabs')}>
+        {SCOPES.map((sc) => {
+          const on = tab === 'issues' && !activeViewId && scope === sc;
+          return (
+            <button
+              key={sc}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              className={`track-team-tab${on ? ' is-on' : ''}`}
+              onClick={() => {
+                setTab('issues');
+                setActiveViewId(undefined);
+                setScope(sc);
+              }}
+              data-testid={`track-scope-${sc}`}
+            >
+              {tt(sc)}
+              {on && <span className="track-team-tab-count">{issuesTotal}</span>}
+            </button>
+          );
+        })}
+        {views
+          .filter((v) => v.favorite || v.id === activeViewId)
+          .map((v) => {
+            const on = tab === 'issues' && v.id === activeViewId;
+            return (
+              <button
+                key={v.id}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                className={`track-team-tab${on ? ' is-on' : ''}`}
+                onClick={() => {
+                  setTab('issues');
+                  setScope('all');
+                  handleSelectView(v);
+                }}
+                data-testid="track-team-view-tab"
+              >
+                <TrackIcon name="views" size={12} />
+                {v.name}
+                {on && viewDirty && <span className="track-view-dirty" title={tx('views.unsaved')} aria-label={tx('views.unsaved')} />}
+              </button>
+            );
+          })}
+        {showTriageTab && (
           <button
             type="button"
             role="tab"
             aria-selected={tab === 'triage'}
-            className="ui-tab"
+            className={`track-team-tab${tab === 'triage' ? ' is-on' : ''}`}
             onClick={() => setTab('triage')}
             data-testid="track-triage-tab"
           >
             {t('triage.tab')}
-            {triageIssues.length > 0 && <span className="ui-tab-count">{triageIssues.length}</span>}
+            {triageIssues.length > 0 && <span className="track-team-tab-count">{triageIssues.length}</span>}
           </button>
-        </div>
-      )}
+        )}
+        <span className="track-team-tabs-end">{savedViewsMenu}</span>
+      </div>
 
       {tab === 'triage' ? (
         <TriagePanel
@@ -1081,7 +1164,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
           title={t('project.emptyTitle')}
           body={t('project.emptyBody')}
           action={
-            <button type="button" className="btn btn-primary" onClick={() => setModalOpen(true)} data-testid="track-empty-new-issue">
+            <button type="button" className="btn btn-primary" onClick={() => openComposer()} data-testid="track-empty-new-issue">
               {labels.newIssue}
             </button>
           }
@@ -1089,28 +1172,6 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
         />
       ) : (
         <>
-          <div className="track-toolbar">
-            <ViewSwitcher
-              active={view}
-              onChange={handleViewChange}
-              labels={{ ...labels.viewSwitcher, group: t('views.group') }}
-            />
-            <span className="track-toolbar-end">
-              {(view === 'list' || view === 'board') && (
-                <IssueDisplayOptions
-                  group={view === 'board' ? boardGroup : listGroup}
-                  groups={view === 'board' ? PROJECT_BOARD_GROUPS : LIST_GROUPS}
-                  sort={sort}
-                  onGroupChange={(g) => setGroup(g === 'none' ? '' : g)}
-                  onSortChange={(s) => setSort(s)}
-                  labels={labels.ui.display}
-                  subIssues={{ show: showSub, onChange: setShowSub, label: tx('sub.show') }}
-                />
-              )}
-              {savedViewsMenu}
-            </span>
-          </div>
-
           <IssueFilters
             filters={filters}
             onChange={(f) => setFilters(f)}
@@ -1122,7 +1183,31 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
             milestones={milestones.map((m) => ({ id: m.id, name: m.name }))}
             issueLabels={issueLabels}
             labels={{ ...labels.filters, filter: t('filters.button'), done: t('filters.done') }}
-            savedViews={savedViewsMenu}
+            trailing={
+              <IssueDisplayOptions
+                layout={{ value: view, options: LAYOUTS, onChange: handleViewChange }}
+                group={view === 'board' ? boardGroup : listGroup}
+                groups={view === 'board' ? PROJECT_BOARD_GROUPS : LIST_GROUPS}
+                sort={sort}
+                onGroupChange={(g) => setGroup(g)}
+                onSortChange={(s) => setSort(s)}
+                labels={labels.ui.display}
+                subIssues={{ show: showSub, onChange: setShowSub, label: tx('sub.show') }}
+                completed={{ show: showCompleted, onChange: setShowCompleted }}
+                properties={view === 'list' ? { visible: displayProps, available: TEAM_PROPS, onChange: changeDisplayProps } : undefined}
+                onReset={
+                  group || sort !== 'newest' || !showSub || !showCompleted || displayProps.join() !== TEAM_DEFAULT_PROPS.join()
+                    ? () => {
+                        setGroup('');
+                        setSort('newest');
+                        setShowSub(true);
+                        setShowCompleted(true);
+                        changeDisplayProps(TEAM_DEFAULT_PROPS);
+                      }
+                    : undefined
+                }
+              />
+            }
           />
 
           <div className="track-view">
@@ -1141,9 +1226,10 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
                 priorities={labels.priorities}
                 editing={{ ...editing, projects: projectMap }}
                 onQuickCreate={(title, preset) => quickCreate(title, preset)}
-                hideColumns={cycles.length > 0 && !filters.rules.some((r) => r.field === 'cycle') ? [] : ['cycle']}
+                hideColumns={hiddenColumns}
                 selection={{ ...selection, label: t('bulk.select'), allLabel: t('bulk.selectAll') }}
                 nested={showSub}
+                onAddInGroup={(preset) => addInGroup(preset)}
               />
             )}
             {view === 'list' && listGroup === 'none' && (
@@ -1157,7 +1243,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
                 }}
                 editing={{ ...editing, projects: projectMap }}
                 quickAdd={{ onCreate: (title) => quickCreate(title) }}
-                hideColumns={cycles.length > 0 && !filters.rules.some((r) => r.field === 'cycle') ? [] : ['cycle']}
+                hideColumns={hiddenColumns}
                 selection={{ ...selection, label: t('bulk.select'), allLabel: t('bulk.selectAll') }}
                 nested={showSub}
               />
@@ -1243,6 +1329,8 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
       {settingsOpen && (
         <ProjectSettingsDrawer
           projectName={project.name}
+          projectId={projectId}
+          isAdmin={isAdmin}
           onClose={() => setSettingsOpen(false)}
           panels={{
             cycles: (
@@ -1335,7 +1423,9 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         projects={Object.values(projectMap)}
+        defaults={modalDefaults}
         onCreate={(_pid, draft) => createIssue(draft)}
+        meId={userId}
         labels={labels.ui}
         today={today}
       />

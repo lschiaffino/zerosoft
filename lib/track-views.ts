@@ -17,7 +17,7 @@ export function parseIssueSort(value: unknown): IssueSort {
   return ISSUE_SORTS.includes(value as IssueSort) ? (value as IssueSort) : 'newest';
 }
 
-const PRIORITY_ORDER = "CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END";
+const PRIORITY_ORDER = "CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END";
 
 /** Clientes distintos que pidieron el issue (pedidos de clientes). */
 export const ISSUE_CUSTOMERS_SQL =
@@ -54,7 +54,7 @@ export function issueOrderBy(sort: IssueSort | undefined): string {
   }
 }
 
-const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, medium: 2 };
+const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 };
 
 type SortableIssue = Pick<TrackIssueWithStatus, 'id' | 'created_at' | 'updated_at' | 'priority' | 'due_date' | 'identifier'> &
   Partial<Pick<TrackIssueWithStatus, 'customer_count' | 'customer_revenue'>>;
@@ -200,14 +200,21 @@ export interface GroupContext {
    * por nombre (dos "Todo" van juntos) y se ordenan por categoría.
    */
   statusByName?: boolean;
+  /**
+   * Lista como Linear: primero lo empezado, después por hacer, backlog y al
+   * final lo terminado y cancelado (dentro de cada categoría, el orden del team).
+   */
+  activeFirst?: boolean;
 }
+
+const ACTIVE_FIRST_ORDER = ['in_progress', 'todo', 'backlog', 'done', 'cancelled'];
 
 /** Prefijo de las claves de status agrupados por nombre (no son ids asignables). */
 export const STATUS_NAME_KEY = 'name:';
 
 const CATEGORY_ORDER = ['backlog', 'todo', 'in_progress', 'done', 'cancelled'];
 
-const PRIORITY_KEYS = ['urgent', 'high', 'medium', 'low'] as const;
+const PRIORITY_KEYS = ['urgent', 'high', 'medium', 'low', 'none'] as const;
 
 function parseLabelList(raw: string): Array<{ id: string; name: string; color: string }> {
   try {
@@ -290,6 +297,13 @@ export function groupIssues<T extends GroupableIssue>(
     // Por nombre; status sin lista de referencia también.
     out.sort((a, b) => (a.key === '' ? 1 : b.key === '' ? -1 : a.name.localeCompare(b.name)));
   }
+  if (groupBy === 'status' && ctx.activeFirst) {
+    const rank = (g: IssueGroup<T>) => {
+      const i = ACTIVE_FIRST_ORDER.indexOf(g.category ?? '');
+      return i < 0 ? ACTIVE_FIRST_ORDER.length : i;
+    };
+    out = out.map((g, i) => ({ g, i })).sort((a, b) => rank(a.g) - rank(b.g) || a.i - b.i).map((x) => x.g);
+  }
   // "Sin valor" al final siempre.
   const none = out.findIndex((g) => g.key === '');
   if (none >= 0 && none !== out.length - 1) out.push(...out.splice(none, 1));
@@ -356,4 +370,24 @@ export function nestIssues<T extends Pick<TrackIssueWithStatus, 'id' | 'parent_i
   // Ciclos raros (no debería haber): lo que quedó afuera va al final.
   for (const i of issues) if (!seen.has(i.id)) out.push({ issue: i, depth: 0 });
   return out;
+}
+
+/** Pestañas del team como en Linear: todos, activos (sin empezar y empezados) y backlog. */
+export type TeamScope = 'all' | 'active' | 'backlog';
+export const TEAM_SCOPES: TeamScope[] = ['all', 'active', 'backlog'];
+
+/** Status que entran en la pestaña y con "completados" visibles o no (null = todos). */
+export function scopeStatusIds(
+  statuses: Array<{ id: string; category: string }>,
+  scope: TeamScope,
+  showCompleted: boolean,
+): string[] | null {
+  if (scope === 'all' && showCompleted) return null;
+  const keep = statuses.filter((s) => {
+    if (scope === 'active' && s.category !== 'todo' && s.category !== 'in_progress') return false;
+    if (scope === 'backlog' && s.category !== 'backlog') return false;
+    if (!showCompleted && (s.category === 'done' || s.category === 'cancelled')) return false;
+    return true;
+  });
+  return keep.length ? keep.map((s) => s.id) : ['__none__'];
 }

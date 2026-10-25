@@ -19,7 +19,8 @@ export default async function IssuesPage(
   const search = await props.searchParams;
   // ?sort= y ?group= (los deja CrossProjectIssues al cambiar la vista).
   const sort = parseIssueSort(search.sort);
-  const group = parseIssueGroup(search.group);
+  // Como Linear: agrupado por estado salvo que se pida otra cosa (?group=none la deja plana).
+  const group = parseIssueGroup(search.group ?? 'status');
 
   const {
     locale

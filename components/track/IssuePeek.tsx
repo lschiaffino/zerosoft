@@ -1,10 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
-import type { TrackIssueWithStatus } from '@/lib/track-data';
-import { isCompletedCategory } from '@/lib/track-tasks';
+import type { TrackIssueActivityWithAuthor, TrackIssueWithStatus } from '@/lib/track-data';
+import { formatDay, isCompletedCategory, toIsoDay } from '@/lib/track-tasks';
+import { relDate } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 import { PriorityIcon, StatusDot } from './InlineEditors';
 import { ProgressRing } from './ProgressRing';
@@ -54,6 +55,8 @@ export default function IssuePeek() {
   const [issueId, setIssueId] = useState<string | null>(null);
   const [issue, setIssue] = useState<TrackIssueWithStatus | null>(null);
   const [children, setChildren] = useState<TrackIssueWithStatus[]>([]);
+  const [activity, setActivity] = useState<TrackIssueActivityWithAuthor[]>([]);
+  const locale = useLocale();
   const [error, setError] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
@@ -62,6 +65,7 @@ export default function IssuePeek() {
     setIssueId(null);
     setIssue(null);
     setChildren([]);
+    setActivity([]);
     opener.current?.focus?.();
   }, []);
 
@@ -99,12 +103,17 @@ export default function IssuePeek() {
       fetch(`/api/track/issues/${issueId}/children`).then((r) =>
         r.ok ? (r.json() as Promise<{ rows: TrackIssueWithStatus[] }>) : { rows: [] },
       ),
+      // Actividad reciente (los comentarios): no frena la vista si falla.
+      fetch(`/api/track/issues/${issueId}/activities`)
+        .then((r) => (r.ok ? (r.json() as Promise<{ rows: TrackIssueActivityWithAuthor[] }>) : { rows: [] }))
+        .catch(() => ({ rows: [] as TrackIssueActivityWithAuthor[] })),
     ])
-      .then(([i, c]) => {
+      .then(([i, c, a]) => {
         if (!alive) return;
         if (!i) setError(true);
         setIssue(i);
         setChildren(c.rows);
+        setActivity(a.rows);
         window.setTimeout(() => panel.current?.focus(), 0);
       })
       .catch(() => alive && setError(true));
@@ -133,6 +142,20 @@ export default function IssuePeek() {
   if (!issueId) return null;
   const done = children.filter((c) => isCompletedCategory(c.status_category)).length;
   const labels = issue ? parseLabels(issue.labels) : [];
+  const today = toIsoDay(new Date());
+  const comments = activity
+    .filter((a) => a.type === 'comment')
+    .map((a) => {
+      let body = '';
+      try {
+        body = String((JSON.parse(a.meta) as { body?: string }).body ?? '');
+      } catch {
+        body = '';
+      }
+      return { id: a.id, who: a.user_name ?? a.user_email, at: a.created_at, body };
+    })
+    .filter((c) => c.body.trim());
+  const recent = comments.slice(-3);
 
   return (
     <div
@@ -150,7 +173,12 @@ export default function IssuePeek() {
         } else if (e.key.toLowerCase() === 'p' && e.shiftKey && !e.metaKey && !e.ctrlKey && issue && !isTypingTarget(e.target)) {
           e.preventDefault();
           openCommandMenu('project');
-        } else if (e.key === 'Enter' && issue && !isTypingTarget(e.target) && e.target === panel.current) {
+        } else if (
+          e.key === 'Enter' &&
+          issue &&
+          !isTypingTarget(e.target) &&
+          !(e.target as HTMLElement).closest('a, button, summary')
+        ) {
           e.preventDefault();
           router.push(`/app/track/issues/${issue.id}`);
         }
@@ -228,10 +256,28 @@ export default function IssuePeek() {
                 </button>
               </dd>
             </div>
+            {issue.cycle_name && (
+              <div>
+                <dt>{t('issues.cycle')}</dt>
+                <dd>
+                  <TrackIcon name="cycle" size={12} /> {issue.cycle_name}
+                </dd>
+              </div>
+            )}
+            {issue.estimate != null && (
+              <div>
+                <dt>{t('issues.estimate')}</dt>
+                <dd>
+                  <TrackIcon name="estimate" size={12} /> {issue.estimate}
+                </dd>
+              </div>
+            )}
             {issue.due_date && (
               <div>
                 <dt>{t('issues.dueDate')}</dt>
-                <dd>{issue.due_date}</dd>
+                <dd className={issue.due_date.slice(0, 10) < today && !isCompletedCategory(issue.status_category) ? 'is-overdue' : undefined}>
+                  <TrackIcon name="calendar" size={12} /> {formatDay(issue.due_date.slice(0, 10), locale, today)}
+                </dd>
               </div>
             )}
           </dl>
@@ -246,18 +292,50 @@ export default function IssuePeek() {
                 <ProgressRing done={done} total={children.length} /> {tx('subIssues', { done, total: children.length })}
               </p>
               <ul className="track-subtask-list" role="list">
-                {children.map((c) => (
-                  <li key={c.id} className="track-subtask-row">
+                {children.slice(0, 12).map((c) => (
+                  <li key={c.id} className="track-subtask-row track-peek-subrow">
                     <StatusDot color={c.status_color} category={c.status_category} />
                     <span className="track-identifier track-subtask-id">{c.identifier}</span>
                     <Link href={`/app/track/issues/${c.id}`} className="track-subtask-title">
                       {c.title || '–'}
                     </Link>
+                    {c.assignee_id && (
+                      <span className="track-avatar is-small" title={c.assignee_name ?? c.assignee_email ?? ''} aria-hidden>
+                        {(c.assignee_name ?? c.assignee_email ?? '?')[0]?.toUpperCase()}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
+              {children.length > 12 && <p className="ui-help">{tx('moreSubIssues', { count: children.length - 12 })}</p>}
             </section>
           )}
+          <section className="track-peek-activity" aria-label={tx('activity')}>
+            <h3 className="track-peek-section-title">{tx('activity')}</h3>
+            {recent.length === 0 ? (
+              <p className="ui-help">{tx('noComments')}</p>
+            ) : (
+              <>
+                {comments.length > recent.length && (
+                  <p className="ui-help">{tx('olderComments', { count: comments.length - recent.length })}</p>
+                )}
+                <ul className="track-peek-comments" role="list">
+                  {recent.map((c) => (
+                    <li key={c.id} className="track-peek-comment">
+                      <p className="track-peek-comment-head">
+                        <span className="track-avatar is-small" aria-hidden>
+                          {c.who?.[0]?.toUpperCase() ?? '?'}
+                        </span>
+                        <strong>{c.who}</strong>
+                        <span className="track-peek-comment-at">{relDate(c.at, locale)}</span>
+                      </p>
+                      <MarkdownView source={c.body} className="track-peek-comment-body" />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
           <Link href={`/app/track/issues/${issue.id}`} className="btn btn-sm track-peek-open">
             {tx('open')} <kbd className="kbd track-kbd">↵</kbd>
           </Link>

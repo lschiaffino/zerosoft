@@ -18,7 +18,7 @@ export default async function TeamPage(
   const param = decodeURIComponent(key);
 
   const user = await requireUser(locale);
-  const project = (await getProject(param)) ?? (await getProjectBySlug(param.toLowerCase()));
+  const project = (await getProject(param)) ?? (await getProjectBySlug(param.toLowerCase(), user.team?.id ?? user.id));
   if (!project || !(await canAccessTrackProject(project, user.team?.id ?? null, user.id))) notFound();
   // URL canónica con la clave (como Linear): /team/<id> → /team/WEB, con la query.
   const canonical = project.slug.toUpperCase();
@@ -109,6 +109,7 @@ export default async function TeamPage(
           { value: 'high', label: t('priorities.high') },
           { value: 'medium', label: t('priorities.medium') },
           { value: 'low', label: t('priorities.low') },
+          { value: 'none', label: t('priorities.none') },
         ],
         ui: buildTrackUiLabels(t),
         settings: t('project.settings'),

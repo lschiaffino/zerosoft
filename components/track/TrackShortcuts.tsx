@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import dynamic from 'next/dynamic';
-import { markGoPending } from './trackCommands';
+import { isTypingTarget as isTextTarget, markGoPending } from './trackCommands';
 import { TrackToast, useToday } from './InlineEditors';
 import { buildTrackUiLabels } from './ui-labels';
 import { openTrackNewIssue, TRACK_NEW_ISSUE_EVENT, type IssueDraft, type ProjectContext } from './useIssueStore';
@@ -14,20 +14,16 @@ import { openTrackNewIssue, TRACK_NEW_ISSUE_EVENT, type IssueDraft, type Project
 const loadQuickIssueModal = () => import('./QuickIssueModal');
 const QuickIssueModal = dynamic(loadQuickIssueModal);
 
+// Teclas dentro de un campo de texto o de un menú/diálogo no son atajos. Un
+// checkbox o un botón de la barra no cuentan como tipeo (bug: J/G dejaban de
+// andar después de tildar "Show sub-issues").
 function isTypingTarget(el: EventTarget | null): boolean {
   const node = el as HTMLElement | null;
   if (!node || typeof node.closest !== 'function') return false;
-  return (
-    node.isContentEditable ||
-    Boolean(
-      node.closest(
-        'input, textarea, select, [contenteditable="true"], dialog, [role="dialog"], [role="menu"], [role="listbox"]',
-      ),
-    )
-  );
+  return isTextTarget(node) || Boolean(node.closest('dialog, [role="dialog"], [role="menu"], [role="listbox"]'));
 }
 
-/** G + tecla: a dónde lleva (Linear: G I inbox, G M my issues, G E all issues, G P projects, G S settings). */
+/** G + tecla: a dónde lleva (Linear: G I inbox, G M my issues, G E all issues, G P projects, G S settings, G T triage, G C cycles). */
 export const GO_TARGETS: Record<string, string> = {
   i: '/app/track/inbox',
   m: '/app/track/my-tasks',
@@ -35,6 +31,8 @@ export const GO_TARGETS: Record<string, string> = {
   p: '/app/track/projects',
   s: '/app/track/settings',
   o: '/app/track',
+  c: '/app/track/cycles',
+  t: '/app/track/triage',
 };
 
 function issueRows(): HTMLElement[] {
@@ -94,9 +92,13 @@ export default function TrackShortcuts() {
       if (goPending.current && Date.now() - goPending.current < 1200 && !e.shiftKey) {
         goPending.current = 0;
         markGoPending(0);
-        const target = GO_TARGETS[key];
+        let target = GO_TARGETS[key];
         if (target) {
           e.preventDefault();
+          // G T: el triage del team que se está mirando (la página resuelve el primero si no hay).
+          const team = document.querySelector<HTMLElement>('[data-track-project-id]')?.dataset.trackProjectId;
+          if (key === 't' && team) target = `${target}?team=${encodeURIComponent(team)}`;
+          if (key === 'c' && team) target = `${target}?team=${encodeURIComponent(team)}`;
           router.push(target);
         }
         return;

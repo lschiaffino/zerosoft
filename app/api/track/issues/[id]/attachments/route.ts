@@ -59,6 +59,12 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     throw err;
   }
 
+  // Imagen pegada en la descripción o un comentario (`inline=1`): queda en el
+  // texto, como en Linear, y no se lista otra vez en Adjuntos.
+  if (form.get('inline') === '1') {
+    return NextResponse.json({ url, filename, content_type: contentType, inline: true }, { status: 201 });
+  }
+
   const row = await createIssueAttachment(params.id, realUserId(user), {
     filename,
     contentType,

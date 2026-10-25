@@ -8,20 +8,35 @@ import { REQUEST_SOURCES, sessionIsOpen, type RequestSource } from '@/lib/track-
 import type { CustomerRequestDto, CustomerOption } from '@/lib/track-customers';
 import { CustomerPicker, RequestRow } from './RequestRow';
 import type { AgentSessionDto } from '@/lib/track-agents';
-import { Popover } from '../InlineEditors';
+import { OptionList, Popover } from '../InlineEditors';
 import { MarkdownView } from '../MarkdownView';
 import SlaChip from './SlaChip';
 import { aiErrorKey, call, useIssueInsights } from './api';
 
 // ---------- Resumen con IA ----------
 
-function SummaryBlock({ issueId, locale }: { issueId: string; locale: string }) {
+function SummaryBlock({ issueId, locale, hideEmpty = false, runSignal = 0 }: { issueId: string; locale: string; hideEmpty?: boolean; runSignal?: number }) {
   const t = useTranslations('trackTriage');
   const { data, patch } = useIssueInsights(issueId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // "Summarize" desde el menú "+" del issue (la sección vacía no se muestra).
+  const ran = useRef(runSignal);
+  useEffect(() => {
+    if (runSignal === ran.current || !data) return;
+    ran.current = runSignal;
+    void (async () => {
+      setBusy(true);
+      setError(null);
+      const res = await call<{ summary: string; generatedAt: string }>(`/api/track/issues/${issueId}/ai/summary`, { method: 'POST' });
+      setBusy(false);
+      if (res.ok) patch((p) => ({ ...p, summary: res.data }));
+      else setError(t(aiErrorKey(res.error, 'ai.summaryError')));
+    })();
+  }, [runSignal, data, issueId, patch, t]);
   if (!data) return null;
   const { summary, generatedAt } = data.summary;
+  if (hideEmpty && !summary && !busy && !error) return null;
 
   const run = async () => {
     setBusy(true);
@@ -139,16 +154,21 @@ function AddRequestForm({ issueId, onDone, onCancel }: { issueId: string; onDone
           <input type="checkbox" checked={important} onChange={(e) => setImportant(e.target.checked)} data-testid="track-request-important-input" />
           {t('important')}
         </label>
-        <label className="track-request-source">
-          <span className="sr-only">{t('source')}</span>
-          <select className="select" value={source} onChange={(e) => setSource(e.target.value as RequestSource)} aria-label={t('source')}>
-            {REQUEST_SOURCES.map((s) => (
-              <option key={s} value={s}>
-                {t(`sources.${s}`)}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/* Origen del pedido: menú con flechas (sin <select>). */}
+        <span className="track-request-source">
+          <Popover ariaLabel={`${t('source')}: ${t(`sources.${source}`)}`} className="track-qc-chip" width={200} trigger={<span>{t(`sources.${source}`)}</span>}>
+            {(close) => (
+              <OptionList
+                value={source}
+                options={REQUEST_SOURCES.map((s) => ({ value: s, label: t(`sources.${s}`) }))}
+                onSelect={(v) => {
+                  close();
+                  setSource(v as RequestSource);
+                }}
+              />
+            )}
+          </Popover>
+        </span>
         <input
           className="input track-request-url"
           type="url"
@@ -177,13 +197,17 @@ function AddRequestForm({ issueId, onDone, onCancel }: { issueId: string; onDone
   );
 }
 
-function RequestsBlock({ issueId, locale }: { issueId: string; locale: string }) {
+function RequestsBlock({ issueId, locale, hideEmpty = false, addSignal = 0 }: { issueId: string; locale: string; hideEmpty?: boolean; addSignal?: number }) {
   const t = useTranslations('trackTriage.customers');
   const { data, patch, error } = useIssueInsights(issueId);
   const [adding, setAdding] = useState(false);
+  useEffect(() => {
+    if (addSignal > 0) setAdding(true);
+  }, [addSignal]);
   if (error && !data) return null;
   if (!data) return null;
   const rows = data.requests;
+  if (hideEmpty && rows.length === 0 && !adding) return null;
   const count = new Set(rows.map((r) => r.companyId ?? r.contactId ?? r.email ?? r.customer)).size;
 
   return (
@@ -369,11 +393,26 @@ function AgentBlock({ issueId, locale, onIssueChange }: { issueId: string; local
 }
 
 /** Bloques de la columna principal del issue: resumen IA, pedidos de clientes y sesión del agente. */
-export function IssueMainExtras({ issueId, locale, onIssueChange }: { issueId: string; locale: string; onIssueChange?: () => void }) {
+export function IssueMainExtras({
+  issueId,
+  locale,
+  onIssueChange,
+  hideEmpty = false,
+  summarizeSignal = 0,
+  requestSignal = 0,
+}: {
+  issueId: string;
+  locale: string;
+  onIssueChange?: () => void;
+  /** Página del issue como Linear: sin resumen ni pedidos no se muestran (se agregan desde "+"). */
+  hideEmpty?: boolean;
+  summarizeSignal?: number;
+  requestSignal?: number;
+}) {
   return (
     <>
-      <SummaryBlock issueId={issueId} locale={locale} />
-      <RequestsBlock issueId={issueId} locale={locale} />
+      <SummaryBlock issueId={issueId} locale={locale} hideEmpty={hideEmpty} runSignal={summarizeSignal} />
+      <RequestsBlock issueId={issueId} locale={locale} hideEmpty={hideEmpty} addSignal={requestSignal} />
       <AgentBlock issueId={issueId} locale={locale} onIssueChange={onIssueChange} />
     </>
   );

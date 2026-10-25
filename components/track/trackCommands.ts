@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { CMDK_CLOSED_EVENT, openCommandMenu, setCommandContext, type CommandAction } from '@/lib/cmdk-context';
+import { CMDK_CLOSED_EVENT, OPEN_SEARCH_EVENT, openCommandMenu, setCommandContext, type CommandAction, type OpenCommandDetail } from '@/lib/cmdk-context';
 import type { TrackIssueWithStatus } from '@/lib/track-data';
 import { branchNameFor } from '@/lib/track-branch';
 import { addDays, type IssuePatch, type IssuePriority } from '@/lib/track-tasks';
@@ -39,17 +39,42 @@ export interface CommandHandlers {
   createSubIssue?: (parent: TrackIssueWithStatus) => void;
   remove?: (targets: TrackIssueWithStatus[]) => void;
   open?: (issue: TrackIssueWithStatus) => void;
+  /** "Mark as duplicate": relación duplicates con el canónico y estado cancelado. */
+  markDuplicate?: (issue: TrackIssueWithStatus, canonical: TrackIssueWithStatus) => void;
+  /** Suscripción a los avisos del issue abierto. */
+  subscription?: { subscribed: () => boolean; toggle: () => void };
 }
 
 type T = (key: string, values?: Record<string, string | number>) => string;
 
-function parseLabelIds(raw: string): string[] {
+function parseLabelList(raw: string): Array<{ id: string; name: string; color: string }> {
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.map((l: { id?: string }) => l.id).filter((x): x is string => Boolean(x)) : [];
+    return Array.isArray(parsed)
+      ? parsed
+          .filter((l: { id?: unknown }) => typeof l?.id === 'string')
+          .map((l: { id: string; name?: string; color?: string }) => ({ id: l.id, name: l.name ?? '', color: l.color ?? '#767676' }))
+      : [];
   } catch {
     return [];
   }
+}
+
+function parseLabelIds(raw: string): string[] {
+  return parseLabelList(raw).map((l) => l.id);
+}
+
+/** URL del issue (por identificador, como Linear: /app/track/issue/WEB-12). */
+export function issueHref(issue: Pick<TrackIssueWithStatus, 'id' | 'identifier'> & { title?: string }): string {
+  const slug = (issue.title ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+    .replace(/-+$/, '');
+  return `/app/track/issue/${encodeURIComponent(issue.identifier)}${slug ? `/${slug}` : ''}`;
 }
 
 /** Día de la semana (0 = domingo) → próximo viernes / lunes. */
@@ -87,7 +112,49 @@ export function parseDueQuery(raw: string, today: string): string | null {
 
 export const ESTIMATE_OPTIONS = [0, 1, 2, 3, 5, 8, 13];
 
-/** Project (como en Linear, ⇧P): los del workspace, buscados en el servidor. */
+/** Orden del menú de prioridad (como Linear): Sin prioridad 0, Urgente 1 … Baja 4. */
+export const PRIORITY_MENU_ORDER: IssuePriority[] = ['none', 'urgent', 'high', 'medium', 'low'];
+
+// Labels frescos: el menú L los vuelve a pedir al abrirse (los creados en el
+// sidebar o en otra pestaña aparecen sin recargar) y suma los creados en línea.
+let labelCache: CommandData['labels'] | null = null;
+export function rememberLabels(rows: CommandData['labels'] | null): void {
+  labelCache = rows;
+}
+function currentLabels(data: CommandData): CommandData['labels'] {
+  if (!labelCache) return data.labels;
+  const byId = new Map(data.labels.map((l) => [l.id, l]));
+  for (const l of labelCache) byId.set(l.id, l);
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function fetchLabels(): Promise<void> {
+  const res = await fetch('/api/track/labels').catch(() => null);
+  if (!res?.ok) return;
+  const rows = ((await res.json()) as { rows: CommandData['labels'] }).rows;
+  labelCache = rows.map((r) => ({ id: r.id, name: r.name, color: r.color }));
+}
+
+/** Crea un label del workspace (o lo encuentra si ya existe con ese nombre). */
+export async function createLabelNamed(name: string): Promise<CommandData['labels'][number] | null> {
+  const res = await fetch('/api/track/labels', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  }).catch(() => null);
+  if (res?.ok) {
+    const label = (await res.json()) as CommandData['labels'][number];
+    labelCache = [...(labelCache ?? []).filter((l) => l.id !== label.id), { id: label.id, name: label.name, color: label.color }];
+    return label;
+  }
+  if (res?.status === 409) {
+    await fetchLabels();
+    return (labelCache ?? []).find((l) => l.name.toLowerCase() === name.toLowerCase()) ?? null;
+  }
+  return null;
+}
+
+/** Project (como en Linear, ⇧P): los del workspace, buscados en el servidor, y crear uno nuevo tipeando. */
 export function projectCommand(
   targets: TrackIssueWithStatus[],
   apply: (patch: IssuePatch) => void,
@@ -100,29 +167,47 @@ export function projectCommand(
     meta: '⇧P',
     keywords: 'project proyecto projeto plan roadmap',
     placeholder: t('searchProject'),
-    children: () => [],
+    icon: { kind: 'glyph', name: 'project' },
+    children: () => [
+      {
+        id: 'project:none',
+        label: t('noProject'),
+        isNone: true,
+        icon: { kind: 'glyph', name: 'project' },
+        checked: Boolean(one && !one.plan_id),
+        run: () => apply({ planId: null }),
+      },
+    ],
     load: async (q) => {
       const sp = new URLSearchParams();
       if (q.trim()) sp.set('q', q.trim());
       const res = await fetch(`/api/track/plans?${sp.toString()}`).catch(() => null);
       const rows = res?.ok ? ((await res.json()) as { rows: Array<{ id: string; name: string; color?: string; status: string }> }).rows : [];
-      return [
-        {
-          id: 'project:none',
-          label: t('noProject'),
-          checked: Boolean(one && !one.plan_id),
-          run: () => apply({ planId: null }),
-        },
-        ...rows
-          .filter((p) => p.status !== 'canceled' || (one && one.plan_id === p.id))
-          .map((p) => ({
-            id: `project:${p.id}`,
-            label: p.name,
-            swatch: p.color ? safeHexColor(p.color, '#5e6ad2') : undefined,
-            checked: Boolean(one && one.plan_id === p.id),
-            run: () => apply({ planId: p.id }),
-          })),
-      ];
+      return rows
+        .filter((p) => p.status !== 'canceled' || (one && one.plan_id === p.id))
+        .map((p) => ({
+          id: `project:${p.id}`,
+          label: p.name,
+          icon: { kind: 'swatch' as const, color: p.color ? safeHexColor(p.color, '#5e6ad2') : '#5e6ad2' },
+          checked: Boolean(one && one.plan_id === p.id),
+          run: () => apply({ planId: p.id }),
+        }));
+    },
+    create: {
+      label: (q) => t('createProject', { name: q }),
+      run: async (q) => {
+        const res = await fetch('/api/track/plans', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: q, teamIds: [...new Set(targets.map((i) => i.project_id))] }),
+        }).catch(() => null);
+        if (!res?.ok) {
+          pushNotice(t('createFailed'));
+          return;
+        }
+        const plan = (await res.json()) as { id: string };
+        apply({ planId: plan.id });
+      },
     },
   };
 }
@@ -140,44 +225,74 @@ export function buildIssueActions(
   const sameProject = targets.every((i) => i.project_id === targets[0].project_id);
   const apply = (patch: IssuePatch | ((issue: TrackIssueWithStatus) => IssuePatch)) => handlers.apply(targets, patch);
   const actions: CommandAction[] = [];
+  const flat: CommandAction[] = [];
 
   const statuses = data.statuses
     .filter((s) => !s.project_id || s.project_id === targets[0].project_id)
     .sort((a, b) => a.position - b.position);
   if (sameProject && statuses.length) {
+    const cur = one ? statuses.find((s) => s.id === one.status_id) : undefined;
     actions.push({
       id: 'status',
       label: t('status'),
       meta: 'S',
       keywords: 'status estado state workflow',
       placeholder: t('status'),
+      icon: { kind: 'status', color: cur?.color ?? null, category: cur?.category ?? 'todo' },
       children: () =>
         statuses.map((s, n) => ({
           id: `status:${s.id}`,
           label: s.name,
-          swatch: glyphColor(s.color),
+          icon: { kind: 'status' as const, color: s.color, category: s.category },
           checked: Boolean(one && one.status_id === s.id),
           meta: n < 9 ? String(n + 1) : undefined,
+          digit: n < 9 ? String(n + 1) : undefined,
           run: () => apply({ statusId: s.id }),
         })),
     });
+    for (const s of statuses) {
+      flat.push({
+        id: `flat-status:${s.id}`,
+        label: t('changeStatusTo', { name: s.name }),
+        keywords: `status estado ${s.name}`,
+        icon: { kind: 'status', color: s.color, category: s.category },
+        searchOnly: true,
+        checked: Boolean(one && one.status_id === s.id),
+        run: () => apply({ statusId: s.id }),
+      });
+    }
   }
 
+  const priorityLabel = (v: string) => data.priorities.find((p) => p.value === v)?.label ?? v;
+  const prioOptions = PRIORITY_MENU_ORDER.filter((v) => v === 'none' || data.priorities.some((p) => p.value === v));
   actions.push({
     id: 'priority',
     label: t('priority'),
     meta: 'P',
     keywords: 'priority prioridad prioridade urgent',
     placeholder: t('priority'),
+    icon: { kind: 'priority', value: one?.priority ?? 'medium' },
     children: () =>
-      data.priorities.map((p, n) => ({
-        id: `priority:${p.value}`,
-        label: p.label,
-        checked: Boolean(one && one.priority === p.value),
-        meta: `⇧${n + 1}`,
-        run: () => apply({ priority: p.value as IssuePriority }),
+      prioOptions.map((v, n) => ({
+        id: `priority:${v}`,
+        label: v === 'none' ? t('noPriority') : priorityLabel(v),
+        icon: { kind: 'priority' as const, value: v },
+        checked: Boolean(one && one.priority === v),
+        meta: String(n),
+        digit: String(n),
+        run: () => apply({ priority: v }),
       })),
   });
+  for (const v of prioOptions) {
+    flat.push({
+      id: `flat-priority:${v}`,
+      label: t('setPriorityTo', { name: v === 'none' ? t('noPriority') : priorityLabel(v) }),
+      keywords: `priority prioridad ${v}`,
+      icon: { kind: 'priority', value: v },
+      searchOnly: true,
+      run: () => apply({ priority: v }),
+    });
+  }
 
   actions.push({
     id: 'assignee',
@@ -185,54 +300,111 @@ export function buildIssueActions(
     meta: 'A',
     keywords: 'assign assignee asignar atribuir owner',
     placeholder: t('assignee'),
+    icon: { kind: 'glyph', name: 'user' },
     children: () => [
       {
         id: 'assignee:none',
         label: t('noAssignee'),
+        isNone: true,
+        icon: { kind: 'avatar', name: null, empty: true },
         checked: Boolean(one && !one.assignee_id),
+        meta: '0',
+        digit: '0',
         run: () => apply({ assigneeId: null }),
       },
       ...data.members.map((m) => ({
         id: `assignee:${m.id}`,
         label: m.name ?? m.email,
         keywords: m.email,
+        icon: { kind: 'avatar' as const, name: m.name ?? m.email },
         checked: Boolean(one && one.assignee_id === m.id),
         meta: m.id === data.meId ? 'I' : undefined,
         run: () => apply({ assigneeId: m.id }),
       })),
     ],
   });
+  for (const m of data.members) {
+    flat.push({
+      id: `flat-assignee:${m.id}`,
+      label: t('assignTo', { name: m.name ?? m.email }),
+      keywords: `assign asignar ${m.email}`,
+      icon: { kind: 'avatar', name: m.name ?? m.email },
+      searchOnly: true,
+      run: () => apply({ assigneeId: m.id }),
+    });
+  }
   actions.push({
     id: 'assign-me',
     label: t('assignMe'),
     meta: 'I',
     keywords: 'assign me mí mim self',
+    icon: { kind: 'glyph', name: 'user' },
     run: () => apply({ assigneeId: data.meId }),
   });
 
-  if (data.labels.length) {
-    actions.push({
-      id: 'labels',
-      label: t('labels'),
-      meta: 'L',
-      keywords: 'labels etiquetas tags',
-      placeholder: t('labels'),
-      children: () =>
-        data.labels.map((l) => {
-          const all = targets.every((i) => parseLabelIds(i.labels).includes(l.id));
-          return {
-            id: `label:${l.id}`,
-            label: l.name,
-            swatch: safeHexColor(l.color, '#767676'),
-            checked: all,
-            keepOpen: true,
-            run: () =>
-              apply((issue) => {
-                const ids = parseLabelIds(issue.labels).filter((x) => x !== l.id);
-                return { labels: (all ? ids : [...ids, l.id]).map((id) => ({ id })) };
-              }),
-          };
+  // Labels: siempre (aunque el team no tenga ninguno todavía), frescos al
+  // abrir y con "Crear label" al tipear uno que no existe.
+  const labelOption = (l: CommandData['labels'][number]): CommandAction => {
+    const all = targets.every((i) => parseLabelIds(i.labels).includes(l.id));
+    return {
+      id: `label:${l.id}`,
+      label: l.name,
+      icon: { kind: 'swatch', color: safeHexColor(l.color, '#767676') },
+      checked: all,
+      keepOpen: true,
+      run: () =>
+        apply((issue) => {
+          const cur = parseLabelList(issue.labels).filter((x) => x.id !== l.id);
+          return { labels: all ? cur : [...cur, { id: l.id, name: l.name, color: l.color }] };
         }),
+    };
+  };
+  actions.push({
+    id: 'labels',
+    label: t('labels'),
+    meta: 'L',
+    keywords: 'labels etiquetas tags add agregar',
+    placeholder: t('labelsPlaceholder'),
+    icon: { kind: 'glyph', name: 'tag' },
+    children: () => currentLabels(data).map(labelOption),
+    load: async () => {
+      await fetchLabels();
+      return [];
+    },
+    create: {
+      label: (q) => t('createLabel', { name: q }),
+      run: async (q) => {
+        const label = await createLabelNamed(q);
+        if (!label) {
+          pushNotice(t('createFailed'));
+          return;
+        }
+        apply((issue) => {
+          const cur = parseLabelList(issue.labels).filter((x) => x.id !== label.id);
+          return { labels: [...cur, { id: label.id, name: label.name, color: label.color }] };
+        });
+      },
+    },
+  });
+  if (targets.some((i) => parseLabelIds(i.labels).length > 0)) {
+    actions.push({
+      id: 'remove-labels',
+      label: t('removeLabels'),
+      meta: '⇧L',
+      keywords: 'labels remove quitar sacar remover',
+      placeholder: t('labelsPlaceholder'),
+      icon: { kind: 'glyph', name: 'tag' },
+      children: () => {
+        const present = new Map<string, { id: string; name: string; color: string }>();
+        for (const i of targets) for (const l of parseLabelList(i.labels)) present.set(l.id, l);
+        return [...present.values()].map((l) => ({
+          id: `unlabel:${l.id}`,
+          label: l.name,
+          icon: { kind: 'swatch' as const, color: safeHexColor(l.color, '#767676') },
+          keepOpen: true,
+          run: () => apply((issue) => ({ labels: parseLabelList(issue.labels).filter((x) => x.id !== l.id) })),
+        }));
+      },
     });
   }
 
@@ -242,11 +414,13 @@ export function buildIssueActions(
     meta: '⇧E',
     keywords: 'estimate estimación estimativa points puntos',
     placeholder: t('estimatePlaceholder'),
+    icon: { kind: 'glyph', name: 'estimate' },
     children: () => [
-      { id: 'estimate:none', label: t('noEstimate'), checked: Boolean(one && one.estimate == null), run: () => apply({ estimate: null }) },
+      { id: 'estimate:none', label: t('noEstimate'), isNone: true, checked: Boolean(one && one.estimate == null), run: () => apply({ estimate: null }) },
       ...ESTIMATE_OPTIONS.map((n) => ({
         id: `estimate:${n}`,
         label: t('points', { count: n }),
+        keywords: String(n),
         checked: Boolean(one && one.estimate === n),
         run: () => apply({ estimate: n }),
       })),
@@ -262,6 +436,8 @@ export function buildIssueActions(
     id,
     label,
     meta: iso ? formatDay(iso) : undefined,
+    isNone: iso === null,
+    icon: { kind: 'glyph', name: 'calendar' },
     checked: Boolean(one && one.due_date === iso),
     run: () => apply({ dueDate: iso }),
   });
@@ -271,6 +447,7 @@ export function buildIssueActions(
     meta: '⇧D',
     keywords: 'due date vencimiento prazo deadline',
     placeholder: t('duePlaceholder'),
+    icon: { kind: 'glyph', name: 'calendar' },
     children: () => [
       due(data.today, t('today'), 'due:today'),
       due(addDays(data.today, 1), t('tomorrow'), 'due:tomorrow'),
@@ -285,18 +462,47 @@ export function buildIssueActions(
     },
   });
 
+  const start = (iso: string | null, label: string, id: string): CommandAction => ({
+    id,
+    label,
+    meta: iso ? formatDay(iso) : undefined,
+    isNone: iso === null,
+    icon: { kind: 'glyph', name: 'calendar' },
+    checked: Boolean(one && (one.start_date ?? null) === iso),
+    run: () => apply({ startDate: iso }),
+  });
+  actions.push({
+    id: 'start',
+    label: t('start'),
+    keywords: 'start date inicio início comienzo',
+    placeholder: t('duePlaceholder'),
+    icon: { kind: 'glyph', name: 'calendar' },
+    children: () => [
+      start(data.today, t('today'), 'start:today'),
+      start(addDays(data.today, 1), t('tomorrow'), 'start:tomorrow'),
+      start(nextWeekday(data.today, 1, true), t('nextWeek'), 'start:nextweek'),
+      start(null, t('noStart'), 'start:none'),
+    ],
+    dynamic: (q) => {
+      const iso = parseDueQuery(q, data.today);
+      return iso ? [start(iso, t('startOn', { date: formatDay(iso) }), `start:${iso}`)] : [];
+    },
+  });
+
   if (sameProject && data.cycles.length) {
     actions.push({
       id: 'cycle',
       label: t('cycle'),
       meta: '⇧C',
-      keywords: 'cycle ciclo sprint',
+      keywords: 'cycle ciclo sprint set',
       placeholder: t('cycle'),
+      icon: { kind: 'glyph', name: 'cycle' },
       children: () => [
-        { id: 'cycle:none', label: t('noCycle'), checked: Boolean(one && !one.cycle_id), run: () => apply({ cycleId: null }) },
+        { id: 'cycle:none', label: t('noCycle'), isNone: true, checked: Boolean(one && !one.cycle_id), run: () => apply({ cycleId: null }) },
         ...data.cycles.map((c) => ({
           id: `cycle:${c.id}`,
           label: c.name,
+          icon: { kind: 'glyph' as const, name: 'cycle' as const },
           checked: Boolean(one && one.cycle_id === c.id),
           run: () => apply({ cycleId: c.id }),
         })),
@@ -313,6 +519,7 @@ export function buildIssueActions(
         {
           id: 'milestone:none',
           label: t('noMilestone'),
+          isNone: true,
           checked: Boolean(one && !one.milestone_id),
           run: () => apply({ milestoneId: null }),
         },
@@ -336,6 +543,7 @@ export function buildIssueActions(
       meta: '⌘⇧M',
       keywords: 'move team mover equipo equipe transferir',
       placeholder: t('searchTeam'),
+      icon: { kind: 'glyph', name: 'team' },
       children: () => [],
       load: async (q) => {
         const res = await fetch('/api/track/projects?pageSize=100').catch(() => null);
@@ -348,6 +556,7 @@ export function buildIssueActions(
             id: `move-team:${r.id}`,
             label: r.name,
             meta: r.slug.toUpperCase(),
+            keywords: r.slug,
             run: () => move(targets, r.id),
           }));
       },
@@ -356,35 +565,36 @@ export function buildIssueActions(
 
   // Jerarquía: elegir padre (búsqueda en el servidor), sacarlo, crear sub-issue.
   const targetIds = new Set(targets.map((i) => i.id));
+  const searchIssues = async (q: string): Promise<TrackIssueWithStatus[]> => {
+    const sp = new URLSearchParams({ pageSize: '12' });
+    if (q.trim()) sp.set('q', q.trim());
+    const res = await fetch(`/api/track/issues?${sp.toString()}`).catch(() => null);
+    if (!res?.ok) return [];
+    return ((await res.json()) as { rows: TrackIssueWithStatus[] }).rows.filter((r) => !targetIds.has(r.id));
+  };
   actions.push({
     id: 'parent',
     label: t('setParent'),
     meta: '⌘⇧P',
     keywords: 'parent padre pai sub-issue subissue convert',
     placeholder: t('searchParent'),
+    icon: { kind: 'glyph', name: 'parent' },
     children: () => [],
-    load: async (q) => {
-      const sp = new URLSearchParams({ pageSize: '12' });
-      if (q.trim()) sp.set('q', q.trim());
-      const res = await fetch(`/api/track/issues?${sp.toString()}`);
-      if (!res.ok) return [];
-      const rows = ((await res.json()) as { rows: TrackIssueWithStatus[] }).rows;
-      return rows
-        .filter((r) => !targetIds.has(r.id))
-        .map((r) => ({
-          id: `parent:${r.id}`,
-          label: `${r.identifier} ${r.title}`,
-          swatch: r.status_color ? safeHexColor(r.status_color, '#767676') : undefined,
-          checked: Boolean(one && one.parent_id === r.id),
-          run: () => apply({ parentId: r.id }),
-        }));
-    },
+    load: async (q) =>
+      (await searchIssues(q)).map((r) => ({
+        id: `parent:${r.id}`,
+        label: `${r.identifier} ${r.title}`,
+        icon: { kind: 'status' as const, color: r.status_color ?? null, category: r.status_category ?? null },
+        checked: Boolean(one && one.parent_id === r.id),
+        run: () => apply({ parentId: r.id }),
+      })),
   });
   if (targets.some((i) => i.parent_id)) {
     actions.push({
       id: 'remove-parent',
       label: t('removeParent'),
       keywords: 'parent padre quitar remove',
+      icon: { kind: 'glyph', name: 'parent' },
       run: () => apply({ parentId: null }),
     });
   }
@@ -395,7 +605,38 @@ export function buildIssueActions(
       label: t('createSubIssue'),
       meta: '⌘⇧O',
       keywords: 'sub-issue subissue child hijo filho create crear',
+      icon: { kind: 'glyph', name: 'subissue' },
       run: () => create(one),
+    });
+  }
+  if (one && handlers.markDuplicate) {
+    const mark = handlers.markDuplicate;
+    actions.push({
+      id: 'duplicate',
+      label: t('markDuplicate'),
+      keywords: 'duplicate duplicado duplicata mark marcar',
+      placeholder: t('searchDuplicate'),
+      icon: { kind: 'glyph', name: 'duplicate' },
+      children: () => [],
+      load: async (q) =>
+        (await searchIssues(q)).map((r) => ({
+          id: `duplicate:${r.id}`,
+          label: `${r.identifier} ${r.title}`,
+          icon: { kind: 'status' as const, color: r.status_color ?? null, category: r.status_category ?? null },
+          run: () => mark(one, r),
+        })),
+    });
+  }
+  if (one && handlers.subscription) {
+    const sub = handlers.subscription;
+    const on = sub.subscribed();
+    actions.push({
+      id: 'subscribe',
+      label: on ? t('unsubscribe') : t('subscribe'),
+      meta: '⇧S',
+      keywords: 'subscribe suscribir notifications avisos inscrever',
+      icon: { kind: 'glyph', name: 'bell' },
+      run: () => sub.toggle(),
     });
   }
 
@@ -410,6 +651,7 @@ export function buildIssueActions(
         label: t('copyId'),
         meta: '⌘.',
         keywords: 'copy copiar id identifier',
+        icon: { kind: 'glyph', name: 'copy' },
         run: () => copy(one.identifier, one.identifier),
       },
       {
@@ -417,13 +659,15 @@ export function buildIssueActions(
         label: t('copyLink'),
         meta: '⌘⇧,',
         keywords: 'copy copiar link url',
-        run: () => copy(new URL(`/app/track/issues/${one.id}`, window.location.origin).toString(), t('link')),
+        icon: { kind: 'glyph', name: 'link' },
+        run: () => copy(new URL(issueHref(one), window.location.origin).toString(), t('link')),
       },
       {
         id: 'copy-branch',
         label: t('copyBranch'),
         meta: '⌘⇧.',
         keywords: 'copy copiar git branch rama',
+        icon: { kind: 'glyph', name: 'copy' },
         run: () => {
           const branch = branchNameFor(one.identifier, one.title);
           copy(branch, branch);
@@ -432,7 +676,7 @@ export function buildIssueActions(
     );
     if (handlers.open) {
       const open = handlers.open;
-      actions.push({ id: 'open', label: t('open'), meta: '↵', keywords: 'open abrir', run: () => open(one) });
+      actions.push({ id: 'open', label: t('open'), meta: '↵', keywords: 'open abrir', icon: { kind: 'glyph', name: 'open' }, run: () => open(one) });
     }
   }
   if (handlers.archive && targets.every((i) => !i.archived_at)) {
@@ -441,6 +685,7 @@ export function buildIssueActions(
       id: 'archive',
       label: targets.length > 1 ? t('archiveMany', { count: targets.length }) : t('archive'),
       keywords: 'archive archivar arquivar',
+      icon: { kind: 'glyph', name: 'archive' },
       run: () => archive(targets),
     });
   }
@@ -451,10 +696,11 @@ export function buildIssueActions(
       label: targets.length > 1 ? t('deleteMany', { count: targets.length }) : t('delete'),
       meta: '⌘⌫',
       keywords: 'delete borrar excluir remove',
+      icon: { kind: 'glyph', name: 'trash' },
       run: () => remove(targets),
     });
   }
-  return actions;
+  return [...actions, ...flat];
 }
 
 // ---------- Objetivo y atajos ----------
@@ -476,10 +722,15 @@ export function rowTargetId(): string | null {
   return row?.dataset.issueKey ?? null;
 }
 
-function isTypingTarget(el: EventTarget | null): boolean {
+const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file', 'image']);
+
+/** ¿El foco está donde se escribe? Un checkbox o un botón de la barra no cuentan (los atajos siguen). */
+export function isTypingTarget(el: EventTarget | null): boolean {
   const node = el as HTMLElement | null;
   if (!node || typeof node.closest !== 'function') return false;
-  return node.isContentEditable || Boolean(node.closest('input, textarea, select, [contenteditable="true"]'));
+  if (node.isContentEditable || node.closest('textarea, select, [contenteditable="true"]')) return true;
+  const input = node.closest('input') as HTMLInputElement | null;
+  return Boolean(input && !NON_TEXT_INPUTS.has((input.type || 'text').toLowerCase()));
 }
 
 function overlayOpen(): boolean {
@@ -500,6 +751,9 @@ export function shortcutFor(e: Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 
     if (e.shiftKey && (key === 'o' || e.code === 'KeyO')) return { run: 'sub-issue' };
     if (e.shiftKey && (key === '.' || key === '>' || e.code === 'Period')) return { run: 'copy-branch' };
     if (!e.shiftKey && (key === '.' || e.code === 'Period')) return { run: 'copy-id' };
+    if (e.shiftKey && (key === ',' || key === '<' || e.code === 'Comma')) return { run: 'copy-link' };
+    if (e.shiftKey && (key === 'd' || e.code === 'KeyD')) return { run: 'due:clear' };
+    if (!e.shiftKey && (key === 'backspace' || key === 'delete')) return { run: 'delete' };
     return null;
   }
   if (e.shiftKey) {
@@ -507,7 +761,9 @@ export function shortcutFor(e: Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 
     if (e.code === 'KeyD' || key === 'd') return { page: 'due' };
     if (e.code === 'KeyC' || key === 'c') return { page: 'cycle' };
     if (e.code === 'KeyP' || key === 'p') return { page: 'project' };
-    const digit = /^Digit([1-4])$/.exec(e.code ?? '');
+    if (e.code === 'KeyL' || key === 'l') return { page: 'remove-labels' };
+    if (e.code === 'KeyS' || key === 's') return { run: 'subscribe' };
+    const digit = /^Digit([0-4])$/.exec(e.code ?? '');
     if (digit) return { run: `priority:${digit[1]}` };
     return null;
   }
@@ -538,6 +794,8 @@ interface UseTrackCommandsOptions {
   lookup?: (id: string) => TrackIssueWithStatus | undefined;
   /** Acciones propias de la vista (p. ej. "Agregar sub-issue existente"). */
   extra?: (targets: TrackIssueWithStatus[]) => CommandAction[];
+  /** Chip donde anclar el menú de un atajo (S abre el menú bajo el estado del panel, como Linear). */
+  anchorFor?: (page: string, targets: TrackIssueWithStatus[]) => Element | null;
   enabled?: boolean;
 }
 
@@ -568,8 +826,22 @@ export function useTrackCommands(opts: UseTrackCommandsOptions): void {
     const onClosed = () => {
       pinned = null;
     };
+    // Abierta desde un chip o el menú "…" de una fila: fija ese issue (o la fila/issue de siempre).
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<OpenCommandDetail | undefined>).detail;
+      const o = ref.current;
+      if (detail?.targetId) {
+        const hit = o.lookup?.(detail.targetId);
+        if (hit) {
+          pin([hit]);
+          return;
+        }
+      }
+      if (!pinned) pin(o.getTargets());
+    };
     window.addEventListener('keydown', onCmdK, true);
     window.addEventListener(CMDK_CLOSED_EVENT, onClosed);
+    window.addEventListener(OPEN_SEARCH_EVENT, onOpen);
     const build = () => {
       const o = ref.current;
       const targets = current();
@@ -592,14 +864,20 @@ export function useTrackCommands(opts: UseTrackCommandsOptions): void {
         if (!actions.some((a) => a.id === sc.page)) return;
         e.preventDefault();
         pin(targets);
-        openCommandMenu(sc.page);
+        openCommandMenu(sc.page, { anchor: o.anchorFor?.(sc.page, targets) ?? null });
         return;
       }
       if (sc.run.startsWith('priority:')) {
-        const p = o.data.priorities[Number(sc.run.slice(9)) - 1];
+        // ⇧0 sin prioridad, ⇧1 urgente … ⇧4 baja (el orden del menú de Linear).
+        const p = PRIORITY_MENU_ORDER[Number(sc.run.slice(9))];
         if (!p) return;
         e.preventDefault();
-        o.handlers.apply(targets, { priority: p.value as IssuePriority });
+        o.handlers.apply(targets, { priority: p });
+        return;
+      }
+      if (sc.run === 'due:clear') {
+        e.preventDefault();
+        o.handlers.apply(targets, { dueDate: null });
         return;
       }
       const action = actions.find((a) => a.id === sc.run);
@@ -613,6 +891,7 @@ export function useTrackCommands(opts: UseTrackCommandsOptions): void {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('keydown', onCmdK, true);
       window.removeEventListener(CMDK_CLOSED_EVENT, onClosed);
+      window.removeEventListener(OPEN_SEARCH_EVENT, onOpen);
     };
   }, [enabled]);
 }

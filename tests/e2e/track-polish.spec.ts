@@ -75,7 +75,7 @@ test.describe('Track como Linear (pulido)', () => {
     const ref = await ok<Issue>(request.post(`/api/track/projects/${a.id}/issues`, { data: { title: 'Lo cita', description: [{ type: 'text', text: `Ver ${issue.identifier}` }] } }));
 
     await page.goto(`/en/app/track/issues/${issue.id}`);
-    await expect(page.getByTestId('track-side-plan')).toContainText('None');
+    await expect(page.getByTestId('track-side-plan')).toContainText('Add to project');
 
     // ⇧P abre la paleta en Project; elegir uno lo asigna.
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());

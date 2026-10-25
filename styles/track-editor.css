@@ -255,3 +255,227 @@
     left: 0;
   }
 }
+
+/* ---------- Citas, callouts y colapsables (lectura y editor) ---------- */
+
+.track-markdown blockquote > p:last-child,
+.track-callout > :last-child,
+.track-toggle-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* Callout (alerta de GitHub: > [!NOTE]): fondo suave, raya a la izquierda. */
+.track-markdown .track-callout {
+  position: relative;
+  margin: 0 0 8px;
+  padding: 8px 12px 8px 34px;
+  background: var(--ui-hover);
+  border-left: 2px solid var(--ink-3, var(--brand-gray-2));
+  border-radius: var(--radius-1);
+}
+
+.track-markdown .track-callout::before {
+  content: 'i';
+  position: absolute;
+  top: 9px;
+  left: 11px;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 15px;
+  height: 15px;
+  font-family: var(--font-data);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--bg);
+  background: var(--ink-3, var(--brand-gray-2));
+  border-radius: 50%;
+}
+
+.track-markdown .track-callout:is([data-kind='tip'], [data-callout='tip']) {
+  background: var(--ok-soft, var(--ui-hover));
+  border-left-color: var(--ok, var(--ink));
+}
+
+.track-markdown .track-callout:is([data-kind='tip'], [data-callout='tip'])::before {
+  background: var(--ok, var(--ink));
+}
+
+.track-markdown .track-callout:is([data-kind='warning'], [data-kind='important'], [data-callout='warning'], [data-callout='important']) {
+  background: var(--warn-soft, var(--ui-hover));
+  border-left-color: var(--warn, var(--ink));
+}
+
+.track-markdown .track-callout:is([data-kind='warning'], [data-kind='important'], [data-callout='warning'], [data-callout='important'])::before {
+  content: '!';
+  background: var(--warn, var(--ink));
+}
+
+.track-markdown .track-callout:is([data-kind='caution'], [data-callout='caution']) {
+  background: var(--bad-soft, var(--ui-hover));
+  border-left-color: var(--bad);
+}
+
+.track-markdown .track-callout:is([data-kind='caution'], [data-callout='caution'])::before {
+  content: '!';
+  background: var(--bad);
+}
+
+/* Colapsable en la lectura: <details> nativo (Enter y Espacio lo abren). */
+.track-markdown details.track-toggle {
+  margin: 0 0 8px;
+}
+
+.track-markdown details.track-toggle > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  font-weight: 500;
+  list-style: none;
+  cursor: pointer;
+}
+
+.track-markdown details.track-toggle > summary::-webkit-details-marker {
+  display: none;
+}
+
+.track-markdown details.track-toggle > summary::before,
+.track-rte-content .track-toggle-title::before {
+  content: '';
+  flex-shrink: 0;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid var(--brand-gray-2);
+  transition: transform 120ms ease;
+}
+
+.track-markdown details.track-toggle[open] > summary::before,
+.track-rte-content .track-toggle[data-open='true'] > .track-toggle-title::before {
+  transform: rotate(90deg);
+}
+
+.track-markdown details.track-toggle > summary:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.track-markdown .track-toggle-body {
+  padding: 4px 0 0 18px;
+}
+
+/* Colapsable en el editor: la flecha va en el margen y abre o cierra con clic. */
+.track-rte-content .track-toggle {
+  margin: 0 0 8px;
+}
+
+.track-rte-content .track-toggle-title {
+  position: relative;
+  margin: 0;
+  padding-left: 18px;
+  font-weight: 500;
+}
+
+.track-rte-content .track-toggle-title::before {
+  position: absolute;
+  top: 0.55em;
+  left: 3px;
+  cursor: pointer;
+}
+
+.track-rte-content .track-toggle[data-open='false'] > .track-toggle-body {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track-markdown details.track-toggle > summary::before,
+  .track-rte-content .track-toggle-title::before {
+    transition: none;
+  }
+}
+
+/* ---------- Vista rápida (Espacio): casi el issue entero ---------- */
+
+.track-peek {
+  width: min(560px, 100vw);
+}
+
+.track-peek-props dd.is-overdue {
+  color: var(--bad);
+}
+
+.track-peek-props dd .track-label-chips,
+.track-peek-props dd svg {
+  flex-shrink: 0;
+}
+
+.track-peek-desc {
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.track-peek-subrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.track-peek-subrow .track-subtask-id {
+  flex: 0 0 auto;
+  min-width: 9ch;
+}
+
+.track-peek-subrow .track-subtask-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-peek-section-title {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--brand-gray-2);
+  text-transform: none;
+}
+
+.track-peek-activity {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.track-peek-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.track-peek-comment {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+
+.track-peek-comment-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-size: 0.8125rem;
+}
+
+.track-peek-comment-at {
+  color: var(--brand-gray-2);
+}
+
+.track-peek-comment-body {
+  font-size: 0.8125rem;
+}

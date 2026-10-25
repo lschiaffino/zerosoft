@@ -9,7 +9,7 @@ import type { TrackIssueWithStatus } from './track-data';
 export type StatusCategory = TrackStatusRow['category'];
 export type IssuePriority = TrackIssueWithStatus['priority'];
 
-export const PRIORITIES: IssuePriority[] = ['urgent', 'high', 'medium', 'low'];
+export const PRIORITIES: IssuePriority[] = ['urgent', 'high', 'medium', 'low', 'none'];
 
 /** Miembro mínimo necesario para resolver nombre/email del asignado. */
 export interface MemberLike {
@@ -226,6 +226,7 @@ const PRIORITY_TOKENS: Record<string, IssuePriority> = {
   '2': 'high',
   '3': 'medium',
   '4': 'low',
+  '0': 'none',
 };
 
 const TODAY_TOKENS = new Set(['today', 'hoy', 'hoje']);

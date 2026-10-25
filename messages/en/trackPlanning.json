@@ -96,7 +96,7 @@
     "timeline": "Timeline",
     "emptyTitle": "No projects yet",
     "emptyBody": "A project groups the issues behind one outcome, like a launch. Give it a lead and a target date, and post updates as it moves.",
-    "linearNote": "Works like Projects in Linear: issues from one or more teams behind one outcome.",
+    "linearNote": "A project groups issues from one or more teams behind one outcome.",
     "noMatches": "No projects match these filters.",
     "nameLabel": "Name",
     "namePlaceholder": "Mobile checkout",
@@ -404,7 +404,7 @@
   "automation": {
     "tab": "Automations",
     "title": "Auto-close and auto-archive",
-    "help": "Per team, like Linear's team settings. Runs once a day.",
+    "help": "Per team. Runs once a day.",
     "team": "Team",
     "noTeams": "Create a team first.",
     "adminOnly": "Only workspace admins can change these settings.",
@@ -424,5 +424,18 @@
     "restore": "Restore",
     "restoreAll": "Restore all",
     "restored": "{count, plural, one {# issue restored} other {# issues restored}}"
+  },
+  "pickers": {
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "nextWeek": "Next week",
+    "inTwoWeeks": "In two weeks",
+    "endOfMonth": "End of month",
+    "endOfQuarter": "End of quarter",
+    "clear": "No date",
+    "datePlaceholder": "Type a date: 2026-12-15, 15/12, +10…",
+    "typed": "Typed",
+    "people": "{count} people",
+    "noInitiatives": "No initiatives yet"
   }
 }

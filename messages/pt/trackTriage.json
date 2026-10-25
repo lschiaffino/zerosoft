@@ -21,15 +21,21 @@
     "noSnoozed": "Não há issues adiados.",
     "snoozedUntil": "adiado até {date}",
     "snoozePresets": {
-      "hour": "Por uma hora",
-      "tomorrow": "Até amanhã",
-      "nextWeek": "Até a semana que vem"
+      "hour": "1 hora",
+      "tomorrow": "Amanhã",
+      "nextWeek": "Semana que vem"
     },
     "unsnooze": "Mostrar de novo agora",
     "snoozeError": "Não foi possível adiar o issue.",
     "addComment": "Comentário",
     "comment": "Comentário para quem reportou",
-    "commentPlaceholder": "Opcional: por que você aceita ou recusa"
+    "commentPlaceholder": "Opcional: por que você aceita ou recusa",
+    "suggested": "Sugeridos",
+    "allIssues": "Issues",
+    "duplicateSearch": "Busque o issue original…",
+    "duplicateEmpty": "Digite para buscar um issue",
+    "noDescription": "Sem descrição.",
+    "openIssue": "Abrir issue"
   },
   "ai": {
     "suggestions": "Sugestões",

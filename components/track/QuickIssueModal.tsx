@@ -1,13 +1,24 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { TrackIssueTemplateRow } from '@/lib/db';
-import { activeCycle, defaultIssueStatus, parseQuickTitle, type IssuePriority } from '@/lib/track-tasks';
-import type { IssueDraft, ProjectContext } from './useIssueStore';
-import { DueDateMenu } from './InlineEditors';
-import RichEditor from './RichEditor';
+import type { TrackIssueWithStatus } from '@/lib/track-data';
+import { openCommandMenu, setCommandContext, type CommandAction } from '@/lib/cmdk-context';
+import {
+  activeCycle,
+  defaultIssueStatus,
+  formatDay,
+  parseQuickTitle,
+  type IssuePatch,
+  type IssuePriority,
+} from '@/lib/track-tasks';
 import { safeHexColor } from '@/lib/track-color';
+import type { IssueDraft, ProjectContext } from './useIssueStore';
+import { Popover, PriorityIcon, StatusDot } from './InlineEditors';
+import RichEditor from './RichEditor';
+import TrackIcon from './TrackIcon';
+import { buildIssueActions } from './trackCommands';
 import type { TrackUiLabels } from './ui-labels';
 
 export interface QuickIssueDefaults {
@@ -15,6 +26,8 @@ export interface QuickIssueDefaults {
   statusId?: string;
   assigneeId?: string | null;
   dueDate?: string | null;
+  /** Prioridad del grupo desde el que se crea ("+" en un grupo por prioridad). */
+  priority?: IssuePriority;
   /** Crea un sub-issue de este padre (el proyecto queda fijo). */
   parentId?: string | null;
   /** Texto del padre para el breadcrumb (p. ej. "TRK-12"). */
@@ -30,12 +43,17 @@ interface QuickIssueModalProps {
   onCreate: (projectId: string, draft: IssueDraft) => void;
   labels: TrackUiLabels;
   today: string;
+  /** Quién crea (para "Asignarme"). */
+  meId?: string;
 }
 
 /**
- * Modal liviano para crear un issue sin salir de la vista: título,
- * descripción opcional y las propiedades principales. Enter (o Cmd/Ctrl+Enter
- * desde la descripción) crea; Esc cierra.
+ * Composer de issues como el de Linear: team arriba, título, descripción y
+ * una fila de chips compactos con íconos (Status, Priority, Assignee, Labels,
+ * Project, Cycle, Estimate, Due y "…" con padre, milestone, inicio y
+ * plantilla). Cada chip abre el mismo menú que los atajos (filtro tipeado,
+ * flechas, Enter, dígitos y crear en línea). Enter o ⌘↵ crea; Esc cierra y
+ * guarda el borrador, que vuelve al abrir otra vez.
  */
 export default function QuickIssueModal(props: QuickIssueModalProps) {
   if (!props.open) return null;
@@ -51,50 +69,127 @@ function parseTemplateLabels(raw: string): Array<{ id: string; name: string; col
   }
 }
 
-function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, today }: QuickIssueModalProps) {
+interface DraftState {
+  projectId: string;
+  parentId: string | null;
+  title: string;
+  description: string;
+  statusId: string;
+  priority: IssuePriority;
+  assigneeId: string;
+  dueDate: string;
+  startDate: string;
+  cycleId: string;
+  milestoneId: string;
+  estimate: number | null;
+  labels: Array<{ id: string; name: string; color: string }>;
+  planId: string;
+  planName: string;
+  parentLabel: string;
+}
+
+const DRAFT_KEY = 'track:composer-draft';
+
+function readDraft(): DraftState | null {
+  try {
+    const raw = window.sessionStorage.getItem(DRAFT_KEY);
+    return raw ? (JSON.parse(raw) as DraftState) : null;
+  } catch {
+    return null;
+  }
+}
+function writeDraft(d: DraftState | null): void {
+  try {
+    if (d) window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+    else window.sessionStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // Sin storage: el borrador vive mientras el modal está abierto.
+  }
+}
+
+const COMPOSER_PAGES = new Set(['status', 'priority', 'assignee', 'assign-me', 'labels', 'estimate', 'due', 'start', 'cycle', 'milestone', 'project', 'parent']);
+
+function initial(name: string | null | undefined): string {
+  return (name ?? '?').trim().charAt(0).toUpperCase() || '?';
+}
+
+function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, today, meId }: QuickIssueModalProps) {
   const lang = useLocale();
   const t = useTranslations('track');
-  const initialProject = projects.find((p) => p.id === defaults?.projectId) ?? projects[0];
-  const [projectId, setProjectId] = useState(initialProject?.id ?? '');
-  const project = projects.find((p) => p.id === projectId);
-  const defaultStatus = (p: ProjectContext | undefined) =>
-    (defaults?.statusId && p?.statuses.some((s) => s.id === defaults.statusId) ? defaults.statusId : undefined) ??
-    (p ? defaultIssueStatus(p.statuses)?.id : undefined) ??
-    '';
+  const tq = useTranslations('track.quick');
+  const tc = useTranslations('track.ux.cmd');
+  const fixedParent = defaults?.parentId ?? null;
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [statusId, setStatusId] = useState(() => defaultStatus(initialProject));
-  const [priority, setPriority] = useState<IssuePriority>('medium');
-  const [assigneeId, setAssigneeId] = useState(defaults?.assigneeId ?? '');
-  const [dueDate, setDueDate] = useState(defaults?.dueDate ?? '');
-  // El ciclo arranca en el activo del proyecto (si hay), como en Linear.
-  const defaultCycle = (p: ProjectContext | undefined) => (p?.cycles ? (activeCycle(p.cycles, today)?.id ?? '') : '');
-  const [cycleId, setCycleId] = useState(() => (defaults?.parentId ? '' : defaultCycle(initialProject)));
-  const [milestoneId, setMilestoneId] = useState('');
+  const fresh = useCallback(
+    (p: ProjectContext | undefined): DraftState => ({
+      projectId: p?.id ?? '',
+      parentId: fixedParent,
+      title: '',
+      description: '',
+      statusId:
+        (defaults?.statusId && p?.statuses.some((s) => s.id === defaults.statusId) ? defaults.statusId : undefined) ??
+        (p ? defaultIssueStatus(p.statuses)?.id : undefined) ??
+        '',
+      // Como Linear: sin prioridad salvo que se cree desde un grupo de prioridad.
+      priority: defaults?.priority ?? 'none',
+      assigneeId: defaults?.assigneeId ?? '',
+      dueDate: defaults?.dueDate ?? '',
+      startDate: '',
+      // El ciclo arranca en el activo del proyecto (si hay), como en Linear.
+      cycleId: fixedParent ? '' : p?.cycles ? (activeCycle(p.cycles, today)?.id ?? '') : '',
+      milestoneId: '',
+      estimate: null,
+      labels: [],
+      planId: '',
+      planName: '',
+      parentLabel: defaults?.parentLabel ?? '',
+    }),
+    [defaults, fixedParent, today],
+  );
+
+  const initialProject = projects.find((p) => p.id === defaults?.projectId) ?? projects[0];
+  const [restored, setRestored] = useState(false);
+  const [d, setD] = useState<DraftState>(() => fresh(initialProject));
+  const dRef = useRef(d);
+  dRef.current = d;
+  const project = projects.find((p) => p.id === d.projectId);
   const [templateId, setTemplateId] = useState('');
-  const [estimate, setEstimate] = useState<number | null>(null);
-  const [presetLabels, setPresetLabels] = useState<Array<{ id: string; name: string; color: string }>>([]);
+  const [createMore, setCreateMore] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
+  // Remonta el editor de la descripción cuando cambia desde afuera (borrador, plantilla).
+  const [descKey, setDescKey] = useState(0);
+
+  // Borrador guardado (Esc lo conserva, como Linear): vuelve si es del mismo contexto.
+  useEffect(() => {
+    const saved = readDraft();
+    if (!saved || (saved.parentId ?? null) !== fixedParent) return;
+    if (!projects.some((p) => p.id === saved.projectId)) return;
+    if (!saved.title.trim() && !saved.description.trim()) return;
+    setD(saved);
+    setRestored(true);
+    setDescKey((n) => n + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Plantillas: las trae la vista o se piden al abrir (una vez por proyecto).
   const [fetchedTemplates, setFetchedTemplates] = useState<Record<string, TrackIssueTemplateRow[]>>({});
-  const templates = project?.templates ?? fetchedTemplates[projectId] ?? [];
+  const templates = useMemo(() => project?.templates ?? fetchedTemplates[d.projectId] ?? [], [project?.templates, fetchedTemplates, d.projectId]);
   useEffect(() => {
-    if (!projectId || project?.templates || fetchedTemplates[projectId]) return;
+    const pid = d.projectId;
+    if (!pid || project?.templates || fetchedTemplates[pid]) return;
     let alive = true;
-    void fetch(`/api/track/projects/${projectId}/templates`)
+    void fetch(`/api/track/projects/${pid}/templates`)
       .then((res) => (res.ok ? (res.json() as Promise<{ rows: TrackIssueTemplateRow[] }>) : null))
       .then((data) => {
-        if (alive && data) setFetchedTemplates((prev) => ({ ...prev, [projectId]: data.rows }));
+        if (alive && data) setFetchedTemplates((prev) => ({ ...prev, [pid]: data.rows }));
       })
       .catch(() => undefined);
     return () => {
       alive = false;
     };
-  }, [projectId, project?.templates, fetchedTemplates]);
-  const [createMore, setCreateMore] = useState(false);
-  const titleRef = useRef<HTMLInputElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const returnFocus = useRef<HTMLElement | null>(null);
+  }, [d.projectId, project?.templates, fetchedTemplates]);
 
   useEffect(() => {
     returnFocus.current = document.activeElement as HTMLElement | null;
@@ -107,59 +202,248 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
     };
   }, []);
 
-  const changeProject = (id: string) => {
-    setProjectId(id);
-    const p = projects.find((x) => x.id === id);
-    setStatusId(defaultStatus(p));
-    setCycleId(defaultCycle(p));
-    if (assigneeId && !p?.members.some((m) => m.id === assigneeId)) setAssigneeId('');
-    setMilestoneId('');
-    setTemplateId('');
-    setEstimate(null);
-    setPresetLabels([]);
-  };
+  const set = (patch: Partial<DraftState>) => setD((cur) => ({ ...cur, ...patch }));
+
+  // Esc cierra aunque el foco haya quedado afuera (p. ej. después de un menú de ⌘K).
+  const closeRef = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || document.querySelector('.cmdk')) return;
+      if (dialogRef.current?.contains(document.activeElement)) return;
+      e.preventDefault();
+      closeRef.current();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const changeProject = useCallback(
+    (id: string) => {
+      const p = projects.find((x) => x.id === id);
+      setD((cur) => ({
+        ...fresh(p),
+        title: cur.title,
+        description: cur.description,
+        priority: cur.priority,
+        labels: cur.labels,
+        planId: cur.planId,
+        planName: cur.planName,
+        dueDate: cur.dueDate,
+        startDate: cur.startDate,
+        estimate: cur.estimate,
+        assigneeId: cur.assigneeId && p?.members.some((m) => m.id === cur.assigneeId) ? cur.assigneeId : '',
+      }));
+      setTemplateId('');
+    },
+    [projects, fresh],
+  );
 
   // Aplicar una plantilla: precarga lo que tenga definido (el título y la
   // descripción solo si todavía están vacíos, para no pisar lo tipeado).
-  const applyTemplate = (id: string) => {
-    setTemplateId(id);
-    const tpl = templates.find((x) => x.id === id);
-    if (!tpl) {
-      setEstimate(null);
-      setPresetLabels([]);
-      return;
+  const applyTemplate = useCallback(
+    (id: string) => {
+      setTemplateId(id);
+      const tpl = templates.find((x) => x.id === id);
+      if (!tpl) return;
+      setD((cur) => ({
+        ...cur,
+        title: tpl.title && !cur.title.trim() ? tpl.title : cur.title,
+        description: tpl.description && !cur.description.trim() ? tpl.description : cur.description,
+        statusId: tpl.status_id && project?.statuses.some((s) => s.id === tpl.status_id) ? tpl.status_id : cur.statusId,
+        priority: tpl.priority ?? cur.priority,
+        assigneeId: tpl.assignee_id && project?.members.some((m) => m.id === tpl.assignee_id) ? tpl.assignee_id : cur.assigneeId,
+        estimate: tpl.estimate ?? cur.estimate,
+        labels: parseTemplateLabels(tpl.labels),
+      }));
+      setDescKey((n) => n + 1);
+    },
+    [templates, project],
+  );
+
+  // El borrador como un issue (para reusar los mismos menús de ⌘K que los atajos).
+  const draftIssue = useMemo((): TrackIssueWithStatus => {
+    const st = project?.statuses.find((s) => s.id === d.statusId);
+    const m = project?.members.find((x) => x.id === d.assigneeId);
+    return {
+      id: 'draft',
+      project_id: d.projectId,
+      identifier: '',
+      title: d.title,
+      description: '[]',
+      status_id: d.statusId || null,
+      priority: d.priority,
+      assignee_id: d.assigneeId || null,
+      creator_id: meId ?? '',
+      estimate: d.estimate,
+      parent_id: d.parentId,
+      start_date: d.startDate || null,
+      due_date: d.dueDate || null,
+      labels: JSON.stringify(d.labels),
+      created_at: '',
+      updated_at: '',
+      status_name: st?.name ?? null,
+      status_color: st?.color ?? null,
+      status_category: st?.category ?? null,
+      assignee_name: m?.name ?? null,
+      assignee_email: m?.email ?? null,
+      cycle_id: d.cycleId || null,
+      cycle_name: null,
+      milestone_id: d.milestoneId || null,
+      plan_id: d.planId || null,
+      child_count: 0,
+    } as TrackIssueWithStatus;
+  }, [d, project, meId]);
+  const draftRef = useRef(draftIssue);
+  draftRef.current = draftIssue;
+
+  const applyPatch = useCallback((patch: IssuePatch) => {
+    const next: Partial<DraftState> = {};
+    if (patch.statusId !== undefined) next.statusId = patch.statusId ?? '';
+    if (patch.priority !== undefined) next.priority = patch.priority;
+    if (patch.assigneeId !== undefined) next.assigneeId = patch.assigneeId ?? '';
+    if (patch.dueDate !== undefined) next.dueDate = patch.dueDate ?? '';
+    if (patch.startDate !== undefined) next.startDate = patch.startDate ?? '';
+    if (patch.cycleId !== undefined) next.cycleId = patch.cycleId ?? '';
+    if (patch.milestoneId !== undefined) next.milestoneId = patch.milestoneId ?? '';
+    if (patch.estimate !== undefined) next.estimate = patch.estimate;
+    if (patch.labels !== undefined) {
+      next.labels = patch.labels.map((l) => ({
+        id: l.id,
+        name: 'name' in l && typeof l.name === 'string' ? l.name : '',
+        color: 'color' in l && typeof l.color === 'string' ? l.color : '#767676',
+      }));
     }
-    if (tpl.title && !title.trim()) setTitle(tpl.title);
-    if (tpl.description && !description.trim()) setDescription(tpl.description);
-    if (tpl.status_id && project?.statuses.some((s) => s.id === tpl.status_id)) setStatusId(tpl.status_id);
-    if (tpl.priority) setPriority(tpl.priority);
-    if (tpl.assignee_id && project?.members.some((m) => m.id === tpl.assignee_id)) setAssigneeId(tpl.assignee_id);
-    setEstimate(tpl.estimate ?? null);
-    setPresetLabels(parseTemplateLabels(tpl.labels));
+    if (patch.planId !== undefined) {
+      next.planId = patch.planId ?? '';
+      next.planName = '';
+      if (patch.planId) {
+        const pid = patch.planId;
+        void fetch(`/api/track/plans/${pid}`)
+          .then((res) => (res.ok ? (res.json() as Promise<{ name?: string; plan?: { name?: string } }>) : null))
+          .then((data) => {
+            const name = data?.name ?? data?.plan?.name ?? '';
+            setD((cur) => (cur.planId === pid ? { ...cur, planName: name } : cur));
+          })
+          .catch(() => undefined);
+      }
+    }
+    if (patch.parentId !== undefined) {
+      next.parentId = patch.parentId ?? null;
+      next.parentLabel = '';
+      if (patch.parentId) {
+        const pid = patch.parentId;
+        void fetch(`/api/track/issues/${pid}`)
+          .then((res) => (res.ok ? (res.json() as Promise<{ identifier: string }>) : null))
+          .then((data) => {
+            if (data) setD((cur) => (cur.parentId === pid ? { ...cur, parentLabel: data.identifier } : cur));
+          })
+          .catch(() => undefined);
+      }
+    }
+    setD((cur) => ({ ...cur, ...next }));
+  }, []);
+
+  // Mientras el composer está abierto, ⌘K y los chips operan sobre el borrador.
+  useEffect(() => {
+    const build = () => {
+      const cur = dRef.current;
+      const p = projects.find((x) => x.id === cur.projectId);
+      if (!p) return null;
+      const data = {
+        statuses: p.statuses.map((s) => ({ ...s, project_id: p.id })),
+        members: p.members,
+        labels: p.labels ?? [],
+        cycles: p.cycles ?? [],
+        milestones: p.milestones ?? [],
+        priorities: labels.priorities,
+        meId: meId ?? '',
+        today,
+      };
+      const actions = buildIssueActions(
+        [draftRef.current],
+        data,
+        { apply: (_targets, patch) => applyPatch(typeof patch === 'function' ? patch(draftRef.current) : patch) },
+        (k, v) => tc(k, v),
+        (iso) => formatDay(iso, lang, today),
+      ).filter((a) => COMPOSER_PAGES.has(a.id) && (a.id !== 'assign-me' || Boolean(meId)));
+      const extra: CommandAction[] = [];
+      if (projects.length > 1 && !fixedParent) {
+        extra.push({
+          id: 'team',
+          label: labels.modal.project,
+          keywords: 'team equipo equipe',
+          placeholder: tc('searchTeam'),
+          icon: { kind: 'glyph', name: 'team' },
+          children: () =>
+            projects.map((x) => ({
+              id: `team:${x.id}`,
+              label: x.name,
+              checked: x.id === cur.projectId,
+              run: () => changeProject(x.id),
+            })),
+        });
+      }
+      if (templates.length > 0) {
+        extra.push({
+          id: 'template',
+          label: t('templates.pick'),
+          keywords: 'template plantilla modelo',
+          placeholder: t('templates.pick'),
+          children: () => [
+            { id: 'template:none', label: t('templates.none'), isNone: true, checked: !templateId, run: () => setTemplateId('') },
+            ...templates.map((tpl) => ({ id: `template:${tpl.id}`, label: tpl.name, checked: tpl.id === templateId, run: () => applyTemplate(tpl.id) })),
+          ],
+        });
+      }
+      return { title: cur.parentLabel ? labels.modal.subTitle : labels.modal.title, actions: [...actions, ...extra] };
+    };
+    return setCommandContext(build);
+  }, [projects, labels, meId, today, tc, lang, applyPatch, fixedParent, changeProject, templates, templateId, applyTemplate, t]);
+
+  const close = () => {
+    // Esc o clic afuera: el borrador queda guardado (como Linear).
+    const cur = dRef.current;
+    writeDraft(cur.title.trim() || cur.description.trim() ? cur : null);
+    onClose();
+  };
+
+  closeRef.current = close;
+
+  const discard = () => {
+    writeDraft(null);
+    setD(fresh(initialProject));
+    setTemplateId('');
+    setRestored(false);
+    setDescKey((n) => n + 1);
+    titleRef.current?.focus();
   };
 
   const submit = () => {
-    if (!projectId) return;
+    if (!d.projectId) return;
     // Los tokens (!high, @tomorrow) también funcionan acá; los campos
     // elegidos a mano tienen prioridad solo si el token no aparece.
-    const parsed = parseQuickTitle(title, today);
+    const parsed = parseQuickTitle(d.title, today);
     if (!parsed.title) return;
-    onCreate(projectId, {
+    onCreate(d.projectId, {
       title: parsed.title,
-      description,
-      statusId: statusId || undefined,
-      priority: parsed.priority ?? priority,
-      assigneeId: assigneeId || null,
-      dueDate: parsed.dueDate ?? (dueDate || null),
-      parentId: defaults?.parentId ?? null,
-      cycleId: cycleId || null,
-      milestoneId: milestoneId || null,
-      estimate,
-      labels: presetLabels.map((l) => ({ id: l.id })),
+      description: d.description,
+      statusId: d.statusId || undefined,
+      priority: parsed.priority ?? d.priority,
+      assigneeId: d.assigneeId || null,
+      dueDate: parsed.dueDate ?? (d.dueDate || null),
+      startDate: d.startDate || null,
+      parentId: d.parentId ?? null,
+      cycleId: d.cycleId || null,
+      milestoneId: d.milestoneId || null,
+      estimate: d.estimate,
+      planId: d.planId || null,
+      labels: d.labels.map((l) => ({ id: l.id })),
     });
+    writeDraft(null);
+    setRestored(false);
     if (createMore) {
-      setTitle('');
-      setDescription('');
+      set({ title: '', description: '' });
+      setDescKey((n) => n + 1);
       titleRef.current?.focus();
     } else {
       onClose();
@@ -170,7 +454,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
-      onClose();
+      close();
       return;
     }
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -181,7 +465,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
     // Trap de foco simple dentro del diálogo.
     if (e.key === 'Tab' && dialogRef.current) {
       const focusables = Array.from(
-        dialogRef.current.querySelectorAll<HTMLElement>('input, textarea, select, [contenteditable="true"], button:not([disabled])'),
+        dialogRef.current.querySelectorAll<HTMLElement>('input, textarea, [contenteditable="true"], button:not([disabled])'),
       );
       if (focusables.length === 0) return;
       const first = focusables[0];
@@ -196,8 +480,32 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
     }
   };
 
+  const chip = (page: string, label: string, icon: React.ReactNode, text: React.ReactNode, empty: boolean, testId?: string) => (
+    <button
+      type="button"
+      className={`track-qc-chip${empty ? ' is-empty' : ''}`}
+      data-cmd-anchor={page}
+      aria-label={`${label}: ${typeof text === 'string' ? text : ''}`.replace(/: $/, '')}
+      title={label}
+      data-testid={testId}
+      onClick={(e) => openCommandMenu(page, { anchor: e.currentTarget })}
+    >
+      <span className="track-qc-chip-icon" aria-hidden>
+        {icon}
+      </span>
+      <span className="track-qc-chip-text">{text}</span>
+    </button>
+  );
+
+  const status = project?.statuses.find((s) => s.id === d.statusId);
+  const member = project?.members.find((m) => m.id === d.assigneeId);
+  const cycle = project?.cycles?.find((c) => c.id === d.cycleId);
+  const milestone = project?.milestones?.find((m) => m.id === d.milestoneId);
+  const prioLabel = d.priority === 'none' ? labels.modal.priority : (labels.priorities.find((p) => p.value === d.priority)?.label ?? d.priority);
+  const template = templates.find((x) => x.id === templateId);
+
   return (
-    <div className="track-dialog-overlay track-qc-overlay" onMouseDown={onClose}>
+    <div className="track-dialog-overlay track-qc-overlay" onMouseDown={close}>
       <div
         ref={dialogRef}
         className="track-qc"
@@ -214,153 +522,154 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
           }}
         >
           <div className="track-qc-head">
-            {projects.length > 1 && !defaults?.parentId ? (
-              <select
-                className="track-qc-project"
-                aria-label={labels.modal.project}
-                value={projectId}
-                onChange={(e) => changeProject(e.target.value)}
+            {projects.length > 1 && !fixedParent ? (
+              <button
+                type="button"
+                className="track-qc-team"
+                data-cmd-anchor="team"
+                aria-label={`${labels.modal.project}: ${project?.name ?? ''}`}
+                onClick={(e) => openCommandMenu('team', { anchor: e.currentTarget })}
+                data-testid="track-qc-team"
               >
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.icon ? `${p.icon} ` : ''}
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                {project?.icon ? `${project.icon} ` : ''}
+                {project?.name}
+                <TrackIcon name="chevronDown" size={12} />
+              </button>
             ) : (
               <span className="track-qc-crumb">{project?.name}</span>
             )}
             <span className="track-qc-sep" aria-hidden>
               ›
             </span>
-            {defaults?.parentLabel && (
+            {d.parentLabel && (
               <>
-                <span className="track-qc-crumb track-identifier">{defaults.parentLabel}</span>
+                <span className="track-qc-crumb track-identifier">{d.parentLabel}</span>
                 <span className="track-qc-sep" aria-hidden>
                   ›
                 </span>
               </>
             )}
             <span id="track-qc-title" className="track-qc-crumb">
-              {defaults?.parentId ? labels.modal.subTitle : labels.modal.title}
+              {d.parentId ? labels.modal.subTitle : labels.modal.title}
             </span>
+            {restored && (
+              <span className="track-qc-draft" role="status">
+                {tq('draftRestored')}
+                <button type="button" className="track-qc-discard" onClick={discard} data-testid="track-qc-discard">
+                  {tq('discard')}
+                </button>
+              </span>
+            )}
+            <button type="button" className="btn btn-ghost btn-icon track-qc-close" onClick={close} aria-label={tq('close')} title={tq('close')}>
+              <TrackIcon name="close" size={14} />
+            </button>
           </div>
-
-          {templates.length > 0 && (
-            <label className="track-qc-prop track-qc-template">
-              <span>{t('templates.pick')}</span>
-              <select value={templateId} onChange={(e) => applyTemplate(e.target.value)} data-testid="track-qc-template">
-                <option value="">{t('templates.none')}</option>
-                {templates.map((tpl) => (
-                  <option key={tpl.id} value={tpl.id}>
-                    {tpl.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
 
           <input
             ref={titleRef}
             className="track-qc-title"
             type="text"
-            value={title}
+            value={d.title}
             maxLength={500}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => set({ title: e.target.value })}
             placeholder={labels.modal.titlePlaceholder}
             aria-label={labels.modal.titlePlaceholder}
           />
           <RichEditor
+            key={descKey}
             className="track-qc-desc"
-            value={description}
-            onChange={setDescription}
+            value={d.description}
+            onChange={(md) => set({ description: md })}
             placeholder={labels.modal.descriptionPlaceholder}
             ariaLabel={labels.modal.descriptionPlaceholder}
             members={project?.members}
             compact
             onSubmit={submit}
-            onEscape={onClose}
+            onEscape={close}
           />
 
-          <div className="track-qc-props">
-            <label className="track-qc-prop">
-              <span>{labels.modal.status}</span>
-              <select value={statusId} onChange={(e) => setStatusId(e.target.value)}>
-                {(project?.statuses ?? []).map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="track-qc-prop">
-              <span>{labels.modal.priority}</span>
-              <select value={priority} onChange={(e) => setPriority(e.target.value as IssuePriority)}>
-                {labels.priorities.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="track-qc-prop">
-              <span>{labels.modal.assignee}</span>
-              <select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
-                <option value="">{labels.noAssignee}</option>
-                {(project?.members ?? []).map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name || m.email}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <span className="track-qc-prop">
-              <span>{labels.modal.dueDate}</span>
-              <DueDateMenu
-                dueDate={dueDate || null}
-                locale={lang}
-                today={today}
-                labels={labels.inline}
-                onChange={(v) => setDueDate(v ?? '')}
-              />
-            </span>
-            {project?.cycles && project.cycles.length > 0 && (
-              <label className="track-qc-prop">
-                <span>{labels.modal.cycle}</span>
-                <select value={cycleId} onChange={(e) => setCycleId(e.target.value)}>
-                  <option value="">{labels.modal.noCycle}</option>
-                  {project.cycles.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+          <div className="track-qc-chips" role="group" aria-label={tq('properties')} data-testid="track-qc-chips">
+            {chip('status', labels.modal.status, <StatusDot color={status?.color ?? null} category={status?.category ?? 'todo'} />, status?.name ?? labels.modal.status, !status, 'track-qc-status')}
+            {chip('priority', labels.modal.priority, <PriorityIcon priority={d.priority} />, prioLabel, d.priority === 'none', 'track-qc-priority')}
+            {chip(
+              'assignee',
+              labels.modal.assignee,
+              member ? <span className="track-avatar is-small">{initial(member.name || member.email)}</span> : <span className="track-avatar is-small track-avatar-empty" />,
+              member ? member.name || member.email : labels.modal.assignee,
+              !member,
+              'track-qc-assignee',
             )}
-            {project?.milestones && project.milestones.length > 0 && (
-              <label className="track-qc-prop">
-                <span>{t('milestones.property')}</span>
-                <select value={milestoneId} onChange={(e) => setMilestoneId(e.target.value)} data-testid="track-qc-milestone">
-                  <option value="">{t('issues.none')}</option>
-                  {project.milestones.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
+            {chip(
+              'labels',
+              tq('chip.labels'),
+              d.labels.length ? (
+                <span className="track-qc-dots">
+                  {d.labels.slice(0, 3).map((l) => (
+                    <span key={l.id} className="track-label-dot" style={{ background: safeHexColor(l.color, '#767676') }} />
                   ))}
-                </select>
-              </label>
+                </span>
+              ) : (
+                <TrackIcon name="tag" size={14} />
+              ),
+              d.labels.length === 0 ? tq('chip.labels') : d.labels.length === 1 ? d.labels[0].name : tq('chip.labelCount', { count: d.labels.length }),
+              d.labels.length === 0,
+              'track-qc-labels',
             )}
-            {presetLabels.length > 0 && (
-              <span className="track-label-chips track-qc-labels">
-                {presetLabels.map((l) => (
-                  <span key={l.id} className="track-label-tag">
-                    <span className="track-label-tag-dot" style={{ background: safeHexColor(l.color, '#767676') }} aria-hidden />
-                    {l.name}
-                  </span>
-                ))}
+            {chip('project', tq('chip.project'), <TrackIcon name="plans" size={14} />, d.planId ? d.planName || '…' : tq('chip.project'), !d.planId, 'track-qc-project')}
+            {project?.cycles && project.cycles.length > 0 &&
+              chip('cycle', labels.modal.cycle, <TrackIcon name="cycle" size={14} />, cycle?.name ?? labels.modal.cycle, !cycle, 'track-qc-cycle')}
+            {chip(
+              'estimate',
+              tq('chip.estimate'),
+              <TrackIcon name="estimate" size={14} />,
+              d.estimate == null ? tq('chip.estimate') : tc('points', { count: d.estimate }),
+              d.estimate == null,
+              'track-qc-estimate',
+            )}
+            {chip(
+              'due',
+              labels.modal.dueDate,
+              <TrackIcon name="calendar" size={14} />,
+              d.dueDate ? formatDay(d.dueDate, lang, today) : labels.modal.dueDate,
+              !d.dueDate,
+              'track-qc-due',
+            )}
+            {(d.startDate || milestone || template) && (
+              <span className="track-qc-extra">
+                {d.startDate && chip('start', t('issues.startDate'), <TrackIcon name="calendar" size={14} />, formatDay(d.startDate, lang, today), false)}
+                {milestone && chip('milestone', t('milestones.property'), <TrackIcon name="flag" size={14} />, milestone.name, false)}
+                {template && chip('template', t('templates.pick'), <TrackIcon name="views" size={14} />, template.name, false, 'track-qc-template')}
               </span>
             )}
+            <Popover ariaLabel={tq('chip.more')} className="track-qc-chip is-icon" width={220} trigger={<TrackIcon name="more" size={14} />}>
+              {(closeMenu) => (
+                <>
+                  {[
+                    { page: 'parent', label: tc('setParent'), show: !fixedParent },
+                    { page: 'start', label: tc('start'), show: true },
+                    { page: 'milestone', label: tc('milestone'), show: Boolean(project?.milestones?.length) },
+                    { page: 'template', label: t('templates.pick'), show: templates.length > 0 },
+                  ]
+                    .filter((x) => x.show)
+                    .map((x, i) => (
+                      <button
+                        key={x.page}
+                        type="button"
+                        role="menuitem"
+                        className="track-menu-item"
+                        data-autofocus={i === 0 ? '' : undefined}
+                        onClick={() => {
+                          closeMenu();
+                          const anchor = dialogRef.current?.querySelector('.track-qc-chips');
+                          window.setTimeout(() => openCommandMenu(x.page, { anchor }), 0);
+                        }}
+                      >
+                        <span className="track-menu-label">{x.label}</span>
+                      </button>
+                    ))}
+                </>
+              )}
+            </Popover>
           </div>
 
           <div className="track-qc-foot">
@@ -369,16 +678,17 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
               <input type="checkbox" checked={createMore} onChange={(e) => setCreateMore(e.target.checked)} />
               {labels.modal.createMore}
             </label>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
-              {labels.modal.cancel}
-            </button>
             <button
               type="submit"
               className="btn btn-sm btn-primary"
-              disabled={!title.trim() || !projectId}
+              disabled={!d.title.trim() || !d.projectId}
               title={labels.modal.submitHint}
+              data-testid="track-qc-create"
             >
               {labels.modal.create}
+              <kbd className="track-qc-kbd" aria-hidden>
+                ⌘↵
+              </kbd>
             </button>
           </div>
         </form>

@@ -67,6 +67,7 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
       { value: 'high', label: t('priorities.high') },
       { value: 'medium', label: t('priorities.medium') },
       { value: 'low', label: t('priorities.low') },
+      { value: 'none', label: t('priorities.none') },
     ],
     noAssignee: t('issues.noAssignee'),
     quick: {

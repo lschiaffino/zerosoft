@@ -45,6 +45,7 @@ export default function ProjectUpdateDraftButton({ projectId }: { projectId: str
       <dialog
         ref={ref}
         className="ui-modal"
+        aria-modal="true"
         aria-labelledby={titleId}
         onCancel={(e) => {
           e.preventDefault();

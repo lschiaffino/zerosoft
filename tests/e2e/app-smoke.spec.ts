@@ -106,7 +106,8 @@ const APPS: AppCase[] = [
     sidebar: true,
     create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/track/projects', { data: { name } }))).id, name }),
     detail: (i) => `/en/app/track/team/${i.id}`,
-    detailUrl: () => /\/app\/track\/team\/SMOKE-/,
+    // Identificador de tres letras como Linear (SMO, o la que esté libre).
+    detailUrl: () => /\/app\/track\/team\/S[A-Z0-9]{1,4}(\?|$)/,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/track/projects/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/track/projects/${i.id}`))),
   },
@@ -118,6 +119,8 @@ const APPS: AppCase[] = [
       return { id: (await ok<{ id: string }>(request.post(`/api/track/projects/${project}/issues`, { data: { title: name } }))).id, name };
     },
     detail: (i) => `/en/app/track/issues/${i.id}`,
+    // Como Linear, la URL queda con el identificador y el título (/issue/WEB-12/titulo).
+    detailUrl: (i) => new RegExp(`/app/track/(issues/${i.id}|issue/[A-Z0-9]+-\\d+/${i.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')})`),
     rename: async (request, i, name) => void (await ok(request.patch(`/api/track/issues/${i.id}`, { data: { title: name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/track/issues/${i.id}`))),
   },

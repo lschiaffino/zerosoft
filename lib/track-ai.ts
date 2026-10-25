@@ -222,6 +222,29 @@ async function candidatesFor(issue: IssueCtx): Promise<Candidates> {
 }
 
 /**
+ * Posibles duplicados de un issue (para el picker de "Duplicate" del triage):
+ * issues del workspace con más palabras del título en común, sin IA.
+ */
+export async function duplicateCandidates(
+  issueId: string,
+  limit = 5,
+): Promise<Array<{ id: string; identifier: string; title: string; score: number }>> {
+  const issue = await issueCtx(issueId);
+  if (!issue) return [];
+  const c = await candidatesFor(issue);
+  const mine = words(`${issue.title}\n${blocksText(issue.description)}`);
+  const titleWords = words(issue.title);
+  return c.issues
+    .map((i) => {
+      const w = words(i.title);
+      return { id: i.id, identifier: i.identifier, title: i.title, score: Math.max(similarity(titleWords, w), similarity(mine, w) * 0.8) };
+    })
+    .filter((x) => x.score >= 0.34)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
+/**
  * Sugerencias sin modelo (modelo falso de e2e): labels cuyo nombre aparece en
  * el texto, duplicados por palabras en común, el asignado que más tomó issues
  * parecidos y prioridad por palabras como "crash" o "urgent".

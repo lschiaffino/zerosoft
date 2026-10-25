@@ -96,7 +96,7 @@
     "timeline": "Timeline",
     "emptyTitle": "Ainda não há projetos",
     "emptyBody": "Um projeto reúne os issues por trás de um resultado, como um lançamento. Defina um lead e uma data-alvo e publique updates conforme avança.",
-    "linearNote": "Funciona como os Projects do Linear: issues de uma ou mais equipes por trás de um resultado.",
+    "linearNote": "Um projeto agrupa issues de uma ou mais equipes por trás de um resultado.",
     "noMatches": "Nenhum projeto corresponde a esses filtros.",
     "nameLabel": "Nome",
     "namePlaceholder": "Checkout mobile",
@@ -404,7 +404,7 @@
   "automation": {
     "tab": "Automações",
     "title": "Fechamento e arquivamento automáticos",
-    "help": "Por equipe, como os ajustes de team do Linear. Roda uma vez por dia.",
+    "help": "Por equipe. Roda uma vez por dia.",
     "team": "Equipe",
     "noTeams": "Crie uma equipe primeiro.",
     "adminOnly": "Só os admins do workspace mudam esses ajustes.",
@@ -424,5 +424,18 @@
     "restore": "Restaurar",
     "restoreAll": "Restaurar todos",
     "restored": "{count, plural, one {# issue restaurado} other {# issues restaurados}}"
+  },
+  "pickers": {
+    "today": "Hoje",
+    "tomorrow": "Amanhã",
+    "nextWeek": "Semana que vem",
+    "inTwoWeeks": "Em duas semanas",
+    "endOfMonth": "Fim do mês",
+    "endOfQuarter": "Fim do trimestre",
+    "clear": "Sem data",
+    "datePlaceholder": "Digite uma data: 2026-12-15, 15/12, +10…",
+    "typed": "Digitada",
+    "people": "{count} pessoas",
+    "noInitiatives": "Ainda não há iniciativas"
   }
 }

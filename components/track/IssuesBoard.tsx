@@ -12,6 +12,7 @@ import { groupIssues, groupPreset, type BoardGroupBy } from '@/lib/track-views';
 import type { IssueDraft } from './useIssueStore';
 import StatusBadge from './StatusBadge';
 import TrackIcon from './TrackIcon';
+import { openCommandMenu } from '@/lib/cmdk-context';
 import { AssigneeMenu, DueDateMenu, PriorityIcon, PriorityMenu, QuickAdd, StatusDot, StatusToggle } from './InlineEditors';
 import { isPendingIssue } from './useIssueStore';
 import type { TrackUiLabels } from './ui-labels';
@@ -272,17 +273,17 @@ export default function IssuesBoard({
                         </Link>
                         {onMove && (
                           <div className="track-board-card-actions">
-                            <select
-                              aria-label={t('issues.changeStatus')}
-                              value={issue.status_id ?? ''}
-                              onChange={(e) => onMove(issue.id, { statusId: e.target.value })}
+                            {/* Mover sin arrastrar: el mismo menú de estado que S (filtro, flechas, 1–9). */}
+                            <button
+                              type="button"
+                              className="track-board-status-btn"
+                              aria-label={`${t('issues.changeStatus')}: ${issue.status_name ?? ''}`}
+                              title={`${t('issues.changeStatus')} · S`}
+                              onClick={(e) => openCommandMenu('status', { anchor: e.currentTarget, targetId: issue.id })}
                             >
-                              {statuses.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {s.name}
-                                </option>
-                              ))}
-                            </select>
+                              <StatusDot color={issue.status_color} category={issue.status_category} />
+                              <span>{issue.status_name}</span>
+                            </button>
                           </div>
                         )}
                       </>

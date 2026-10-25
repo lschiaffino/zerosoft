@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
 import type { IssueLabel } from '@/lib/track-schema';
@@ -18,7 +18,8 @@ import {
   type FilterRule,
   type FilterState,
 } from '@/lib/track-filter';
-import TrackIcon from './TrackIcon';
+import TrackIcon, { type TrackIconName } from './TrackIcon';
+import { PriorityIcon, StatusDot } from './InlineEditors';
 import { ESTIMATE_OPTIONS } from './trackCommands';
 
 export type { FilterState } from '@/lib/track-filter';
@@ -35,8 +36,10 @@ interface IssueFiltersProps {
   milestones?: Array<{ id: string; name: string }>;
   issueLabels: IssueLabel[];
   labels: FilterLabels;
-  /** Vistas guardadas: en pantallas chicas viven dentro de la hoja "Filtrar". */
+  /** Compat: las vistas guardadas ahora viven en la barra de pestañas del team. */
   savedViews?: ReactNode;
+  /** Controles al final de la barra (el botón Display). */
+  trailing?: ReactNode;
 }
 
 export interface FilterLabels {
@@ -63,12 +66,186 @@ interface ValueOption {
   value: string;
   label: string;
   color?: string;
+  icon?: ReactNode;
 }
 
-function isTypingTarget(el: EventTarget | null): boolean {
+/**
+ * ¿El foco está en un campo de texto? Las casillas y botones no cuentan: después
+ * de clickear un control, F, J/K y el resto de los atajos siguen andando.
+ */
+export function isTextEntry(el: EventTarget | null): boolean {
   const node = el as HTMLElement | null;
   if (!node || typeof node.closest !== 'function') return false;
-  return node.isContentEditable || Boolean(node.closest('input, textarea, select, [contenteditable="true"], dialog, [role="dialog"]'));
+  if (node.isContentEditable || node.closest('[contenteditable="true"], textarea, select, dialog, [role="dialog"]')) return true;
+  const input = node.closest('input') as HTMLInputElement | null;
+  if (!input) return false;
+  return !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file'].includes(input.type);
+}
+
+function initial(name: string | null | undefined): string {
+  return (name ?? '?').trim().charAt(0).toUpperCase() || '?';
+}
+
+// ---------- Menú de teclado (como el de Linear) ----------
+
+export interface KeyMenuItem {
+  key: string;
+  label: string;
+  meta?: string;
+  icon?: ReactNode;
+  /** Casilla (valores múltiples): marca a la derecha y aria-checked. */
+  checked?: boolean;
+  /** Abre un submenú (→ o Enter). */
+  hasChildren?: boolean;
+  testId?: string;
+  onPick: () => void;
+}
+
+/**
+ * Lista con filtro tipeado: ↑/↓ mueven, Enter o → eligen, ← o Backspace con
+ * el campo vacío vuelven (si hay `onBack`). El primero queda resaltado.
+ */
+export function KeyMenu({
+  items,
+  query,
+  onQuery,
+  placeholder,
+  onBack,
+  searchable = true,
+  inputTestId,
+  head,
+  hint,
+  emptyLabel,
+  ariaLabel,
+}: {
+  items: KeyMenuItem[];
+  query?: string;
+  onQuery?: (q: string) => void;
+  placeholder?: string;
+  onBack?: () => void;
+  searchable?: boolean;
+  inputTestId?: string;
+  head?: ReactNode;
+  hint?: string;
+  emptyLabel?: string;
+  ariaLabel: string;
+}) {
+  const [active, setActive] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const signature = items.map((i) => i.key).join('|');
+  useEffect(() => {
+    setActive(0);
+  }, [query, signature]);
+  useEffect(() => {
+    if (!searchable) rootRef.current?.focus();
+  }, [searchable]);
+  useEffect(() => {
+    const el = listRef.current?.querySelector<HTMLElement>(`[data-index="${active}"]`);
+    el?.scrollIntoView?.({ block: 'nearest' });
+  }, [active]);
+  const idBase = useMemo(() => `km-${Math.random().toString(36).slice(2, 8)}`, []);
+  const current = Math.min(active, Math.max(0, items.length - 1));
+
+  const onKeyDown = (e: ReactKeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (items.length) setActive((current + 1) % items.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (items.length) setActive((current - 1 + items.length) % items.length);
+    } else if (e.key === 'Home' && !searchable) {
+      e.preventDefault();
+      setActive(0);
+    } else if (e.key === 'End' && !searchable) {
+      e.preventDefault();
+      setActive(Math.max(0, items.length - 1));
+    } else if (e.key === 'Enter') {
+      const item = items[current];
+      if (!item) return;
+      e.preventDefault();
+      item.onPick();
+    } else if (e.key === 'ArrowRight') {
+      const item = items[current];
+      if (!item?.hasChildren) return;
+      const input = e.target as HTMLInputElement;
+      if (searchable && input.selectionStart !== null && input.selectionStart < (query ?? '').length) return;
+      e.preventDefault();
+      item.onPick();
+    } else if ((e.key === 'ArrowLeft' || e.key === 'Backspace') && onBack) {
+      const input = e.target as HTMLInputElement;
+      const atStart = !searchable || !(query ?? '') || (e.key === 'ArrowLeft' && input.selectionStart === 0 && input.selectionEnd === 0);
+      if (!atStart) return;
+      e.preventDefault();
+      onBack();
+    } else if (e.key === ' ' && !searchable) {
+      const item = items[current];
+      if (!item) return;
+      e.preventDefault();
+      item.onPick();
+    }
+  };
+
+  return (
+    <div
+      className="track-keymenu"
+      ref={rootRef}
+      tabIndex={searchable ? undefined : -1}
+      onKeyDown={searchable ? undefined : onKeyDown}
+    >
+      {head}
+      {searchable && (
+        <input
+          className="input track-filter-search-input"
+          value={query ?? ''}
+          onChange={(e) => onQuery?.(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          aria-label={placeholder ?? ariaLabel}
+          role="combobox"
+          aria-expanded="true"
+          aria-controls={`${idBase}-list`}
+          aria-activedescendant={items[current] ? `${idBase}-${current}` : undefined}
+          autoFocus
+          data-testid={inputTestId}
+        />
+      )}
+      <div className="track-keymenu-list" role="menu" aria-label={ariaLabel} id={`${idBase}-list`} ref={listRef}>
+        {items.length === 0 && emptyLabel && <p className="track-keymenu-empty">{emptyLabel}</p>}
+        {items.map((item, i) => (
+          <button
+            key={item.key}
+            id={`${idBase}-${i}`}
+            type="button"
+            tabIndex={-1}
+            data-index={i}
+            role={item.checked !== undefined ? 'menuitemcheckbox' : 'menuitem'}
+            aria-checked={item.checked !== undefined ? item.checked : undefined}
+            className={`track-filter-prop${i === current ? ' is-active' : ''}`}
+            onMouseMove={() => i !== current && setActive(i)}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => item.onPick()}
+            data-testid={item.testId}
+          >
+            {item.checked !== undefined && (
+              <span className={`track-keymenu-box${item.checked ? ' is-on' : ''}`} aria-hidden>
+                {item.checked && <TrackIcon name="check" size={10} />}
+              </span>
+            )}
+            {item.icon && <span className="track-keymenu-icon">{item.icon}</span>}
+            <span className="track-keymenu-label">{item.label}</span>
+            {item.meta && <span className="track-filter-prop-meta">{item.meta}</span>}
+            {item.hasChildren && (
+              <span className="track-filter-prop-chevron" aria-hidden>
+                <TrackIcon name="chevronDown" size={10} />
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+      {hint && <p className="track-keymenu-hint">{hint}</p>}
+    </div>
+  );
 }
 
 /** Menú desplegable simple (Esc y clic afuera lo cierran, el foco vuelve al botón). */
@@ -117,7 +294,7 @@ function Dropdown({
         type="button"
         className={triggerClass}
         aria-expanded={open}
-        aria-haspopup="true"
+        aria-haspopup="menu"
         aria-label={label}
         onClick={() => onOpenChange(!open)}
         data-testid={testId}
@@ -133,53 +310,6 @@ function Dropdown({
   );
 }
 
-/** Lista con búsqueda y checkboxes (valores de una regla). */
-function ValuePicker({
-  options,
-  values,
-  onChange,
-  placeholder,
-  multiple = true,
-}: {
-  options: ValueOption[];
-  values: string[];
-  onChange: (values: string[]) => void;
-  placeholder: string;
-  multiple?: boolean;
-}) {
-  const [q, setQ] = useState('');
-  const list = options.filter((o) => !q || o.label.toLowerCase().includes(q.toLowerCase()));
-  return (
-    <div className="track-filter-values">
-      {options.length > 6 && (
-        <input
-          className="input track-filter-search-input"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={placeholder}
-          aria-label={placeholder}
-          autoFocus
-        />
-      )}
-      {list.map((o) => (
-        <label key={o.value} className="ui-check track-filter-option">
-          <input
-            type={multiple ? 'checkbox' : 'radio'}
-            checked={values.includes(o.value)}
-            onChange={(e) => {
-              if (!multiple) onChange([o.value]);
-              else if (e.target.checked) onChange([...values, o.value]);
-              else onChange(values.filter((v) => v !== o.value));
-            }}
-          />
-          {o.color && <span className="track-filter-swatch" style={{ background: safeHexColor(o.color, '#767676') }} aria-hidden />}
-          <span>{o.label}</span>
-        </label>
-      ))}
-    </div>
-  );
-}
-
 const DATE_PRESETS: Array<{ op: FilterOperator; value: string; key: string }> = [
   { op: 'before', value: 'today', key: 'overdue' },
   { op: 'after', value: '-1d', key: 'fromToday' },
@@ -189,12 +319,35 @@ const DATE_PRESETS: Array<{ op: FilterOperator; value: string; key: string }> = 
   { op: 'before', value: '-30d', key: 'olderThan30' },
 ];
 
+const FIELD_ICONS: Partial<Record<FilterField, TrackIconName>> = {
+  assignee: 'user',
+  creator: 'user',
+  label: 'tag',
+  cycle: 'cycle',
+  milestone: 'flag',
+  estimate: 'estimate',
+  due: 'calendar',
+  start: 'calendar',
+  created: 'clock',
+  updated: 'clock',
+  relation: 'link',
+  hierarchy: 'subtasks',
+};
+
+function fieldIcon(f: FilterField): ReactNode {
+  if (f === 'status') return <StatusDot color={null} category="in_progress" />;
+  if (f === 'priority') return <PriorityIcon priority="high" />;
+  const name = FIELD_ICONS[f];
+  return name ? <TrackIcon name={name} size={13} /> : null;
+}
+
 /**
- * Filtros como en Linear: "Filtro" (o F) abre el menú de propiedades; cada
- * filtro es un chip "Estado · es · Todo, En curso" donde se cambia el
- * operador (es, no es, vacío, antes, después…) y los valores. Con dos o más,
- * se elige si tienen que cumplirse todos (AND) o alguno (OR). Tipear en el
- * menú busca valores en todas las propiedades (filtro rápido).
+ * Filtros como en Linear: "Filter" (o F) abre el menú de propiedades con
+ * búsqueda; ↑/↓ y Enter (o →) entran a una propiedad, Enter tilda valores
+ * (se aplican al instante) y ← vuelve. Cada filtro es un chip
+ * "Status · is · Todo" con el operador clickeable (is, is not, is any of…), y
+ * con dos o más se alterna entre que se cumplan todos (and) o alguno (or).
+ * Tipear en el menú también busca valores en todas las propiedades.
  */
 export default function IssueFilters({
   filters,
@@ -207,18 +360,25 @@ export default function IssueFilters({
   milestones = [],
   issueLabels,
   labels,
-  savedViews,
+  trailing,
 }: IssueFiltersProps) {
-  const t = useTranslations('track');
   const tf = useTranslations('track.ux.filter');
   const search = useRef<HTMLInputElement>(null);
   const [adding, setAdding] = useState(false);
   const [addField, setAddField] = useState<FilterField | null>(null);
   const [quick, setQuick] = useState('');
+  const [valueQuery, setValueQuery] = useState('');
   const [openChip, setOpenChip] = useState<string | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [chipQuery, setChipQuery] = useState('');
   const activeCount = activeFilterCount(filters);
-  const update = (patch: Partial<FilterState>) => onChange({ ...filters, ...patch });
+  // Lo último que se mandó (varios toques seguidos en el mismo render no se pisan).
+  const latest = useRef(filters);
+  latest.current = filters;
+  const update = (patch: Partial<FilterState>) => {
+    const next = { ...latest.current, ...patch };
+    latest.current = next;
+    onChange(next);
+  };
 
   const fieldLabel = (f: FilterField): string => {
     switch (f) {
@@ -247,28 +407,41 @@ export default function IssueFilters({
     return list;
   }, [cycles.length, milestones.length]);
 
+  const avatar = (name: string | null | undefined) => <span className="track-avatar">{initial(name)}</span>;
+  const swatch = (color: string) => (
+    <span className="track-filter-swatch" style={{ background: safeHexColor(color, '#767676') }} aria-hidden />
+  );
+
   const optionsFor = (f: FilterField): ValueOption[] => {
     switch (f) {
       case 'status':
-        return statuses.map((s) => ({ value: s.id, label: s.name, color: s.color }));
+        return statuses.map((s) => ({ value: s.id, label: s.name, icon: <StatusDot color={s.color} category={s.category} /> }));
       case 'priority':
-        return priorities;
+        return priorities.map((p) => ({ ...p, icon: <PriorityIcon priority={p.value} /> }));
       case 'assignee':
-        return [{ value: NONE_VALUE, label: tf('noAssignee') }, ...members.map((m) => ({ value: m.id, label: m.name ?? m.email }))];
+        return [
+          { value: NONE_VALUE, label: tf('noAssignee'), icon: <span className="track-avatar track-avatar-empty" aria-hidden /> },
+          ...members.map((m) => ({ value: m.id, label: m.name ?? m.email, icon: avatar(m.name ?? m.email) })),
+        ];
       case 'creator':
-        return members.map((m) => ({ value: m.id, label: m.name ?? m.email }));
+        return members.map((m) => ({ value: m.id, label: m.name ?? m.email, icon: avatar(m.name ?? m.email) }));
       case 'label':
-        return issueLabels.map((l) => ({ value: l.id, label: l.name, color: l.color }));
+        return issueLabels.map((l) => ({ value: l.id, label: l.name, color: l.color, icon: swatch(l.color) }));
       case 'cycle':
-        return [{ value: NONE_VALUE, label: tf('noCycle') }, ...cycles.map((c) => ({ value: c.id, label: c.name }))];
+        return [{ value: NONE_VALUE, label: tf('noCycle') }, ...cycles.map((c) => ({ value: c.id, label: c.name }))].map((o) => ({
+          ...o,
+          icon: <TrackIcon name="cycle" size={13} />,
+        }));
       case 'milestone':
-        return [{ value: NONE_VALUE, label: tf('noMilestone') }, ...milestones.map((m) => ({ value: m.id, label: m.name }))];
+        return [{ value: NONE_VALUE, label: tf('noMilestone') }, ...milestones.map((m) => ({ value: m.id, label: m.name }))].map(
+          (o) => ({ ...o, icon: <TrackIcon name="flag" size={13} /> }),
+        );
       case 'estimate':
-        return ESTIMATE_OPTIONS.map((n) => ({ value: String(n), label: tf('points', { count: n }) }));
+        return ESTIMATE_OPTIONS.map((n) => ({ value: String(n), label: tf('points', { count: n }), icon: <TrackIcon name="estimate" size={13} /> }));
       case 'relation':
-        return RELATION_VALUES.map((v) => ({ value: v, label: tf(`relation.${v}`) }));
+        return RELATION_VALUES.map((v) => ({ value: v, label: tf(`relation.${v}`), icon: <TrackIcon name="link" size={13} /> }));
       case 'hierarchy':
-        return HIERARCHY_VALUES.map((v) => ({ value: v, label: tf(`hierarchy.${v}`) }));
+        return HIERARCHY_VALUES.map((v) => ({ value: v, label: tf(`hierarchy.${v}`), icon: <TrackIcon name="subtasks" size={13} /> }));
       default:
         return [];
     }
@@ -286,8 +459,21 @@ export default function IssueFilters({
     return names.length > 2 ? tf('nValues', { first: names[0], count: names.length - 1 }) : names.join(', ');
   };
 
+  const valueIcon = (rule: FilterRule): ReactNode => {
+    if (rule.values.length !== 1 || fieldKind(rule.field) === 'date') return null;
+    return optionsFor(rule.field).find((o) => o.value === rule.values[0])?.icon ?? null;
+  };
+
+  const opLabel = (rule: FilterRule, op: FilterOperator = rule.op): string => {
+    const kind = fieldKind(rule.field);
+    if (kind === 'date') return tf(`op.date_${op}`);
+    if (op === 'is' && rule.values.length > 1) return tf('op.is_any');
+    if (op === 'is_not' && rule.values.length > 1) return tf('op.is_none');
+    return tf(`op.${op}`);
+  };
+
   const setRule = (index: number, rule: FilterRule | null) => {
-    const rules = [...filters.rules];
+    const rules = [...latest.current.rules];
     if (rule) rules[index] = rule;
     else rules.splice(index, 1);
     update({ rules });
@@ -295,53 +481,136 @@ export default function IssueFilters({
 
   const addRule = (rule: FilterRule) => {
     // Misma propiedad y operador "es": se suman los valores (Linear hace lo mismo).
-    const i = filters.rules.findIndex((r) => r.field === rule.field && r.op === rule.op && fieldKind(r.field) !== 'date');
+    const cur = latest.current.rules;
+    const i = cur.findIndex((r) => r.field === rule.field && r.op === rule.op && fieldKind(r.field) !== 'date');
     if (i >= 0) {
-      const merged = Array.from(new Set([...filters.rules[i].values, ...rule.values]));
-      setRule(i, { ...filters.rules[i], values: merged });
-    } else update({ rules: [...filters.rules, rule] });
+      const merged = Array.from(new Set([...cur[i].values, ...rule.values]));
+      setRule(i, { ...cur[i], values: merged });
+    } else update({ rules: [...cur, rule] });
+  };
+
+  /** Tilda o destilda un valor de la regla "<campo> is …" (la crea o la saca). */
+  const toggleValue = (field: FilterField, value: string) => {
+    const cur = latest.current.rules;
+    const i = cur.findIndex((r) => r.field === field && r.op === 'is');
+    if (i < 0) {
+      update({ rules: [...cur, { field, op: 'is', values: [value] }] });
+      return;
+    }
+    const has = cur[i].values.includes(value);
+    const values = has ? cur[i].values.filter((v) => v !== value) : [...cur[i].values, value];
+    setRule(i, values.length ? { ...cur[i], values } : null);
+  };
+
+  const openAdd = () => {
+    setAddField(null);
+    setQuick('');
+    setValueQuery('');
+    setAdding(true);
   };
 
   // F abre el menú de filtros y / enfoca la búsqueda (como en Linear).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
-      if (document.querySelector('.cmdk, [role="menu"]')) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || isTextEntry(e.target)) return;
+      if (document.querySelector('.cmdk, [role="menu"], [role="dialog"], dialog[open]')) return;
       if (e.key === '/') {
         e.preventDefault();
         search.current?.focus();
       } else if ((e.key === 'f' || e.key === 'F') && !e.shiftKey) {
         e.preventDefault();
-        setAddField(null);
-        setQuick('');
-        setAdding(true);
+        openAdd();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Filtro rápido: valores de todas las propiedades que coinciden con lo tipeado.
-  const quickHits = useMemo(() => {
-    const q = quick.trim().toLowerCase();
-    if (!q) return [];
-    const hits: Array<{ field: FilterField; option: ValueOption }> = [];
-    for (const f of fields) {
-      if (fieldKind(f) === 'date') continue;
-      for (const o of optionsFor(f)) {
-        if (o.label.toLowerCase().includes(q)) hits.push({ field: f, option: o });
-      }
-    }
-    return hits.slice(0, 12);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quick, fields, statuses, priorities, members, cycles, milestones, issueLabels]);
-
   const closeAdd = (open: boolean) => {
     setAdding(open);
     if (!open) {
       setAddField(null);
       setQuick('');
+      setValueQuery('');
     }
+  };
+
+  const matches = (label: string, q: string) => label.toLowerCase().includes(q.trim().toLowerCase());
+
+  // Raíz: propiedades que coinciden y, al tipear, valores de todas las propiedades.
+  const rootItems: KeyMenuItem[] = useMemo(() => {
+    const q = quick.trim();
+    const items: KeyMenuItem[] = fields
+      .filter((f) => !q || matches(fieldLabel(f), q))
+      .map((f) => ({
+        key: `field:${f}`,
+        label: fieldLabel(f),
+        icon: fieldIcon(f),
+        hasChildren: true,
+        testId: `track-filter-field-${f}`,
+        onPick: () => {
+          setAddField(f);
+          setValueQuery('');
+        },
+      }));
+    if (q) {
+      const hits: KeyMenuItem[] = [];
+      for (const f of fields) {
+        if (fieldKind(f) === 'date') continue;
+        for (const o of optionsFor(f)) {
+          if (!matches(o.label, q)) continue;
+          hits.push({
+            key: `value:${f}:${o.value}`,
+            label: o.label,
+            icon: o.icon,
+            meta: fieldLabel(f),
+            onPick: () => {
+              addRule({ field: f, op: 'is', values: [o.value] });
+              closeAdd(false);
+            },
+          });
+        }
+      }
+      items.push(...hits.slice(0, 12));
+    }
+    return items;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quick, fields, statuses, priorities, members, cycles, milestones, issueLabels, filters]);
+
+  const valueItems = (field: FilterField, q: string): KeyMenuItem[] => {
+    if (fieldKind(field) === 'date') {
+      return [
+        ...DATE_PRESETS.map((p) => ({
+          key: p.key,
+          label: tf(`preset.${p.key}`),
+          icon: <TrackIcon name="calendar" size={13} />,
+          onPick: () => {
+            addRule({ field, op: p.op, values: [p.value] });
+            closeAdd(false);
+          },
+        })),
+        {
+          key: 'none',
+          label: tf('preset.none'),
+          icon: <TrackIcon name="calendar" size={13} />,
+          onPick: () => {
+            addRule({ field, op: 'empty', values: [] });
+            closeAdd(false);
+          },
+        },
+      ].filter((i) => !q.trim() || matches(i.label, q));
+    }
+    const rule = filters.rules.find((r) => r.field === field && r.op === 'is');
+    return optionsFor(field)
+      .filter((o) => !q.trim() || matches(o.label, q))
+      .map((o) => ({
+        key: o.value,
+        label: o.label,
+        icon: o.icon,
+        checked: Boolean(rule?.values.includes(o.value)),
+        testId: `track-filter-value-${o.value}`,
+        onPick: () => toggleValue(field, o.value),
+      }));
   };
 
   const addMenu = (
@@ -362,212 +631,204 @@ export default function IssueFilters({
       }
     >
       {addField === null ? (
-        <div className="track-filter-props" onKeyDown={(e) => {
-          if (e.key === 'Enter' && quickHits[0]) {
-            e.preventDefault();
-            addRule({ field: quickHits[0].field, op: 'is', values: [quickHits[0].option.value] });
-            closeAdd(false);
-          }
-        }}>
-          <input
-            className="input track-filter-search-input"
-            value={quick}
-            onChange={(e) => setQuick(e.target.value)}
-            placeholder={tf('searchPlaceholder')}
-            aria-label={tf('searchPlaceholder')}
-            autoFocus
-            data-testid="track-filter-quick"
-          />
-          {quickHits.length > 0
-            ? quickHits.map((h) => (
-                <button
-                  key={`${h.field}:${h.option.value}`}
-                  type="button"
-                  className="track-filter-prop"
-                  onClick={() => {
-                    addRule({ field: h.field, op: 'is', values: [h.option.value] });
-                    closeAdd(false);
-                  }}
-                >
-                  {h.option.color && <span className="track-filter-swatch" style={{ background: safeHexColor(h.option.color, '#767676') }} aria-hidden />}
-                  <span>{h.option.label}</span>
-                  <span className="track-filter-prop-meta">{fieldLabel(h.field)}</span>
-                </button>
-              ))
-            : fields
-                .filter((f) => !quick.trim() || fieldLabel(f).toLowerCase().includes(quick.trim().toLowerCase()))
-                .map((f) => (
-                  <button key={f} type="button" className="track-filter-prop" onClick={() => setAddField(f)} data-testid={`track-filter-field-${f}`}>
-                    <span>{fieldLabel(f)}</span>
-                    <TrackIcon name="chevronDown" size={10} />
-                  </button>
-                ))}
-        </div>
-      ) : fieldKind(addField) === 'date' ? (
-        <div className="track-filter-values">
-          <p className="track-filter-menu-head">{fieldLabel(addField)}</p>
-          {DATE_PRESETS.map((p) => (
-            <button
-              key={p.key}
-              type="button"
-              className="track-filter-prop"
-              onClick={() => {
-                addRule({ field: addField, op: p.op, values: [p.value] });
-                closeAdd(false);
-              }}
-            >
-              {tf(`preset.${p.key}`)}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="track-filter-prop"
-            onClick={() => {
-              addRule({ field: addField, op: 'empty', values: [] });
-              closeAdd(false);
-            }}
-          >
-            {tf('preset.none')}
-          </button>
-          <label className="ui-field track-filter-date">
-            <span className="label">{tf('before')}</span>
-            <input
-              className="input"
-              type="date"
-              onChange={(e) => {
-                if (!e.target.value) return;
-                addRule({ field: addField, op: 'before', values: [e.target.value] });
-                closeAdd(false);
-              }}
-            />
-          </label>
-        </div>
+        <KeyMenu
+          ariaLabel={labels.filter}
+          items={rootItems}
+          query={quick}
+          onQuery={setQuick}
+          placeholder={tf('searchPlaceholder')}
+          inputTestId="track-filter-quick"
+          hint={tf('hint')}
+        />
       ) : (
-        <div>
-          <p className="track-filter-menu-head">{fieldLabel(addField)}</p>
-          <ValuePicker
-            options={optionsFor(addField)}
-            values={[]}
-            placeholder={tf('searchPlaceholder')}
-            onChange={(values) => {
-              if (values.length) addRule({ field: addField, op: 'is', values });
+        <KeyMenu
+          key={addField}
+          ariaLabel={fieldLabel(addField)}
+          head={
+            <button type="button" className="track-filter-menu-head track-keymenu-back" onClick={() => setAddField(null)}>
+              <span className="track-keymenu-back-icon" aria-hidden>
+                <TrackIcon name="chevronDown" size={10} />
+              </span>
+              {fieldLabel(addField)}
+            </button>
+          }
+          items={valueItems(addField, valueQuery)}
+          query={valueQuery}
+          onQuery={setValueQuery}
+          placeholder={tf('searchPlaceholder')}
+          inputTestId="track-filter-value-search"
+          onBack={() => {
+            setAddField(null);
+            setValueQuery('');
+          }}
+        />
+      )}
+      {addField !== null && fieldKind(addField) === 'date' && (
+        <label className="ui-field track-filter-date">
+          <span className="label">{tf('before')}</span>
+          <input
+            className="input"
+            type="date"
+            onChange={(e) => {
+              if (!e.target.value) return;
+              addRule({ field: addField, op: 'before', values: [e.target.value] });
               closeAdd(false);
             }}
           />
-        </div>
+        </label>
       )}
     </Dropdown>
   );
+
+  const toggleMatch = () => update({ match: filters.match === 'and' ? 'or' : 'and' });
 
   const chips = filters.rules.map((rule, index) => {
     const key = `${index}`;
     const kind = fieldKind(rule.field);
     return (
-      <span key={`${rule.field}-${index}`} className="track-filter-chip" data-testid="track-filter-chip">
-        <span className="track-filter-chip-field">{fieldLabel(rule.field)}</span>
-        <Dropdown
-          open={openChip === `${key}:op`}
-          onOpenChange={(o) => setOpenChip(o ? `${key}:op` : null)}
-          label={tf('operator')}
-          triggerClass="track-filter-chip-part"
-          testId="track-filter-op"
-          trigger={tf(`op.${kind === 'date' ? `date_${rule.op}` : rule.op}`)}
-        >
-          {operatorsFor(rule.field).map((op) => (
-            <button
-              key={op}
-              type="button"
-              className={`track-filter-prop${op === rule.op ? ' is-active' : ''}`}
-              onClick={() => {
-                setOpenChip(null);
-                const values = needsValues(op) ? (rule.values.length ? rule.values : kind === 'date' ? ['today'] : []) : [];
-                if (needsValues(op) && values.length === 0) setOpenChip(`${key}:values`);
-                setRule(index, { ...rule, op, values });
-              }}
-            >
-              {tf(`op.${kind === 'date' ? `date_${op}` : op}`)}
-            </button>
-          ))}
-        </Dropdown>
-        {needsValues(rule.op) && (
-          <Dropdown
-            open={openChip === `${key}:values`}
-            onOpenChange={(o) => setOpenChip(o ? `${key}:values` : null)}
-            label={fieldLabel(rule.field)}
-            triggerClass="track-filter-chip-part is-values"
-            trigger={valueLabel(rule) || '…'}
+      <span key={`${rule.field}-${index}`} className="track-filter-chip-wrap">
+        {index > 0 && (
+          <button
+            type="button"
+            className="track-filter-connector"
+            onClick={toggleMatch}
+            title={tf('matchToggle', { next: filters.match === 'and' ? tf('or') : tf('and') })}
+            data-testid="track-filter-connector"
           >
-            {kind === 'date' ? (
-              <div className="track-filter-values">
-                {['today', '-7d', '-30d', '+7d', '+30d'].map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    className={`track-filter-prop${rule.values[0] === v ? ' is-active' : ''}`}
-                    onClick={() => {
-                      setOpenChip(null);
-                      setRule(index, { ...rule, values: [v] });
-                    }}
-                  >
-                    {tf(`rel.${v}`)}
-                  </button>
-                ))}
-                <label className="ui-field track-filter-date">
-                  <span className="label">{tf('pickDate')}</span>
-                  <input
-                    className="input"
-                    type="date"
-                    defaultValue={/^\d{4}/.test(rule.values[0] ?? '') ? rule.values[0] : ''}
-                    onChange={(e) => e.target.value && setRule(index, { ...rule, values: [e.target.value] })}
-                  />
-                </label>
-              </div>
-            ) : kind === 'number' && (rule.op === 'gte' || rule.op === 'lte') ? (
-              <ValuePicker
-                multiple={false}
-                options={optionsFor(rule.field)}
-                values={rule.values}
-                placeholder={tf('searchPlaceholder')}
-                onChange={(values) => setRule(index, { ...rule, values })}
-              />
-            ) : (
-              <ValuePicker
-                options={optionsFor(rule.field)}
-                values={rule.values}
-                placeholder={tf('searchPlaceholder')}
-                onChange={(values) => setRule(index, values.length ? { ...rule, values } : null)}
-              />
-            )}
-          </Dropdown>
+            {filters.match === 'and' ? tf('and') : tf('or')}
+          </button>
         )}
-        <button
-          type="button"
-          className="track-filter-chip-remove"
-          aria-label={tf('remove', { field: fieldLabel(rule.field) })}
-          onClick={() => setRule(index, null)}
-        >
-          <TrackIcon name="close" size={10} />
-        </button>
+        <span className="track-filter-chip" data-testid="track-filter-chip">
+          <span className="track-filter-chip-field">
+            {fieldIcon(rule.field)}
+            {fieldLabel(rule.field)}
+          </span>
+          <Dropdown
+            open={openChip === `${key}:op`}
+            onOpenChange={(o) => setOpenChip(o ? `${key}:op` : null)}
+            label={tf('operator')}
+            triggerClass="track-filter-chip-part"
+            testId="track-filter-op"
+            trigger={opLabel(rule)}
+          >
+            <KeyMenu
+              ariaLabel={tf('operator')}
+              searchable={false}
+              items={operatorsFor(rule.field).map((op) => ({
+                key: op,
+                label: opLabel(rule, op),
+                checked: op === rule.op,
+                onPick: () => {
+                  setOpenChip(null);
+                  const values = needsValues(op) ? (rule.values.length ? rule.values : kind === 'date' ? ['today'] : []) : [];
+                  if (needsValues(op) && values.length === 0) setOpenChip(`${key}:values`);
+                  setRule(index, { ...rule, op, values });
+                },
+              }))}
+            />
+          </Dropdown>
+          {needsValues(rule.op) && (
+            <Dropdown
+              open={openChip === `${key}:values`}
+              onOpenChange={(o) => {
+                setOpenChip(o ? `${key}:values` : null);
+                setChipQuery('');
+              }}
+              label={fieldLabel(rule.field)}
+              triggerClass="track-filter-chip-part is-values"
+              trigger={
+                <>
+                  {valueIcon(rule)}
+                  {valueLabel(rule) || '…'}
+                </>
+              }
+            >
+              {kind === 'date' ? (
+                <>
+                  <KeyMenu
+                    ariaLabel={fieldLabel(rule.field)}
+                    searchable={false}
+                    items={['today', '-7d', '-30d', '+7d', '+30d'].map((v) => ({
+                      key: v,
+                      label: tf(`rel.${v}`),
+                      checked: rule.values[0] === v,
+                      onPick: () => {
+                        setOpenChip(null);
+                        setRule(index, { ...rule, values: [v] });
+                      },
+                    }))}
+                  />
+                  <label className="ui-field track-filter-date">
+                    <span className="label">{tf('pickDate')}</span>
+                    <input
+                      className="input"
+                      type="date"
+                      defaultValue={/^\d{4}/.test(rule.values[0] ?? '') ? rule.values[0] : ''}
+                      onChange={(e) => e.target.value && setRule(index, { ...rule, values: [e.target.value] })}
+                    />
+                  </label>
+                </>
+              ) : (
+                <KeyMenu
+                  ariaLabel={fieldLabel(rule.field)}
+                  query={chipQuery}
+                  onQuery={setChipQuery}
+                  placeholder={tf('searchPlaceholder')}
+                  items={optionsFor(rule.field)
+                    .filter((o) => !chipQuery.trim() || matches(o.label, chipQuery))
+                    .map((o) => {
+                      const single = kind === 'number' && (rule.op === 'gte' || rule.op === 'lte');
+                      return {
+                        key: o.value,
+                        label: o.label,
+                        icon: o.icon,
+                        checked: rule.values.includes(o.value),
+                        onPick: () => {
+                          const cur = latest.current.rules[index] ?? rule;
+                          if (single) {
+                            setRule(index, { ...cur, values: [o.value] });
+                            setOpenChip(null);
+                            return;
+                          }
+                          const values = cur.values.includes(o.value) ? cur.values.filter((v) => v !== o.value) : [...cur.values, o.value];
+                          setRule(index, values.length ? { ...cur, values } : null);
+                          if (!values.length) setOpenChip(null);
+                        },
+                      };
+                    })}
+                />
+              )}
+            </Dropdown>
+          )}
+          <button
+            type="button"
+            className="track-filter-chip-remove"
+            aria-label={tf('remove', { field: fieldLabel(rule.field) })}
+            onClick={() => setRule(index, null)}
+          >
+            <TrackIcon name="close" size={10} />
+          </button>
+        </span>
       </span>
     );
   });
 
   return (
-    <div className={`track-filters${sheetOpen ? ' is-sheet-open' : ''}`} role="search">
+    <div className="track-filters" role="search">
       <div className="track-filter-group" id="track-filter-sheet">
         {addMenu}
+        {chips}
         {filters.rules.length > 1 && (
           <button
             type="button"
             className="btn btn-ghost btn-sm track-filter-match"
-            onClick={() => update({ match: filters.match === 'and' ? 'or' : 'and' })}
+            onClick={toggleMatch}
             title={tf('matchHelp')}
             data-testid="track-filter-match"
           >
             {filters.match === 'and' ? tf('matchAll') : tf('matchAny')}
           </button>
         )}
-        {chips}
         {(activeCount > 0 || filters.q) && (
           <button type="button" className="btn btn-ghost btn-sm track-filter-clear" onClick={() => onChange({ ...EMPTY_FILTERS })}>
             {labels.clear}
@@ -584,9 +845,10 @@ export default function IssueFilters({
             value={filters.q}
             onChange={(e) => update({ q: e.target.value })}
             onKeyDown={(e) => {
-              if (e.key === 'Escape' && filters.q) {
+              if (e.key === 'Escape') {
                 e.preventDefault();
-                update({ q: '' });
+                if (filters.q) update({ q: '' });
+                else (e.target as HTMLInputElement).blur();
               }
             }}
             placeholder={labels.search}
@@ -598,19 +860,12 @@ export default function IssueFilters({
             /
           </kbd>
         </span>
-        <span className="track-filter-sheet-views">{sheetOpen && savedViews}</span>
-        <button
-          type="button"
-          className={`btn btn-sm track-filter-sheet-btn${sheetOpen ? ' is-active' : ''}`}
-          onClick={() => setSheetOpen((v) => !v)}
-          aria-expanded={sheetOpen}
-          data-testid="track-filter-sheet-open"
-        >
-          {t('savedViews.title')}
-        </button>
-        <button type="button" className="btn btn-ghost btn-sm track-filter-save" onClick={onSaveView} data-testid="track-save-view">
-          {labels.saveView}
-        </button>
+        {activeCount > 0 && (
+          <button type="button" className="btn btn-ghost btn-sm track-filter-save" onClick={onSaveView} data-testid="track-save-view">
+            {labels.saveView}
+          </button>
+        )}
+        {trailing}
       </div>
     </div>
   );

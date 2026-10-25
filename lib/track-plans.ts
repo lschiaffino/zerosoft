@@ -520,7 +520,7 @@ export async function listPlanIssues(planId: string): Promise<PlanIssue[]> {
     .prepare(
       `${ISSUE_SELECT} WHERE i.plan_id = ? AND i.triage = 0 AND ${vis.sql}
        ORDER BY CASE s.category WHEN 'in_progress' THEN 0 WHEN 'todo' THEN 1 WHEN 'backlog' THEN 2 WHEN 'done' THEN 3 ELSE 4 END,
-         CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, i.created_at DESC
+         CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, i.created_at DESC
        LIMIT 1000`,
     )
     .all(planId, ...vis.args)) as PlanIssue[];

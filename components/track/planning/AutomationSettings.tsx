@@ -58,7 +58,7 @@ export default function AutomationSettings({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
-function TeamAutomation({ projectId, isAdmin }: { projectId: string; isAdmin: boolean }) {
+export function TeamAutomation({ projectId, isAdmin }: { projectId: string; isAdmin: boolean }) {
   const t = useTranslations('trackPlanning');
   const locale = useLocale();
   const [data, setData] = useState<Automation | null>(null);

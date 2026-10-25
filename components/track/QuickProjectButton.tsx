@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import QuickModal from '@/components/app/QuickModal';
 import { teamPath } from '@/lib/track-routes';
+import { normalizeTeamKey, teamKeyCandidates } from '@/lib/track-team-key';
 
 const KNOWN_ERRORS = new Set(['invalid_slug', 'slug_taken', 'missing_name', 'invalid_input']);
 
@@ -40,6 +41,9 @@ export default function QuickProjectButton({
   }, [listenParam, searchParams, pathname, router]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  // Identificador (MOB): se propone del nombre y se puede cambiar, como en Linear.
+  const [key, setKey] = useState('');
+  const derivedKey = name.trim() ? teamKeyCandidates(name)[0] : '';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +54,7 @@ export default function QuickProjectButton({
     const res = await fetch('/api/track/projects', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), description: description.trim() }),
+      body: JSON.stringify({ name: name.trim(), description: description.trim(), slug: normalizeTeamKey(key) ?? undefined }),
     }).catch(() => null);
     const data = res ? ((await res.json().catch(() => null)) as { id?: string; slug?: string; error?: string } | null) : null;
     if (res?.ok && data?.id) {
@@ -87,6 +91,21 @@ export default function QuickProjectButton({
           aria-label={t('projects.form.name')}
           maxLength={200}
         />
+        <label className="qm-field">
+          <span>{t('projects.form.identifier')}</span>
+          <input
+            className="data track-key-input"
+            value={key}
+            onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 5))}
+            placeholder={derivedKey.toUpperCase() || 'MOB'}
+            aria-describedby="qp-key-help"
+            maxLength={5}
+            data-testid="track-team-key"
+          />
+          <small id="qp-key-help" className="ui-help">
+            {t('projects.form.identifierHelp', { example: `${(key || derivedKey || 'mob').toUpperCase()}-12` })}
+          </small>
+        </label>
         <label className="qm-field">
           <span>{t('projects.form.description')}</span>
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} maxLength={5000} />

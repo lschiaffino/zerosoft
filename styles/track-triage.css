@@ -290,3 +290,167 @@ a.track-request-customer:hover { text-decoration: underline; text-underline-offs
 /* ---------- Issue desde texto ---------- */
 .track-from-text { display: flex; flex-direction: column; gap: 10px; }
 .track-from-text-draft { display: flex; flex-direction: column; gap: 10px; }
+
+/* ---------- Picker de teclado (KeyPicker): filtro tipeado, flechas, Enter ---------- */
+.track-keypicker { padding: 0; max-height: 340px; overflow: hidden; }
+.track-keypicker-input {
+  width: 100%;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  outline: none;
+}
+.track-keypicker-list { display: flex; flex-direction: column; padding: 4px; overflow-y: auto; max-height: 290px; }
+.track-keypicker-list .track-menu-item.is-sel { background: var(--brand-enamel); }
+.track-keypicker-list .track-menu-item.is-active { font-weight: 400; }
+.track-keypicker-group {
+  margin: 4px 8px 2px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--brand-gray-2);
+}
+.track-keypicker-empty { margin: 0; padding: 8px; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.track-keypicker-plus { width: 14px; text-align: center; color: var(--brand-gray-2); }
+.track-keypicker-box {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--brand-gray-3);
+  border-radius: 2px;
+}
+.track-keypicker-box.is-on { background: var(--ink); border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--bg); }
+
+/* ---------- Triage en dos columnas (como Linear): lista y el issue elegido ---------- */
+.track-triage-split {
+  display: grid;
+  grid-template-columns: minmax(240px, 340px) minmax(0, 1fr);
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  min-height: 420px;
+}
+.track-triage-side { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid var(--line); }
+.track-triage-split .track-triage-list { border-top: 0; overflow-y: auto; max-height: 70vh; }
+.track-triage-split .track-triage-list > .track-triage-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 8px 10px 8px 12px;
+  cursor: default;
+}
+.track-triage-row-top { display: flex; justify-content: space-between; gap: 8px; font-size: 0.75rem; color: var(--brand-gray-2); }
+.track-triage-row-when { font-variant-numeric: tabular-nums; }
+.track-triage-row-title {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.track-triage-row-meta { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--brand-gray-2); }
+.track-triage-side .track-triage-keys { margin: auto 0 0; padding: 8px 12px; border-top: 1px solid var(--line); }
+.track-triage-detail { display: flex; flex-direction: column; min-width: 0; }
+.track-triage-detail > .track-triage-actions {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.track-triage-detail > .track-triage-dup,
+.track-triage-detail > .ui-error { padding: 8px 12px 0; }
+.track-triage-detail-body { display: flex; flex-direction: column; gap: 10px; padding: 16px 20px 20px; min-width: 0; }
+.track-triage-detail-id { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0; font-size: 0.75rem; }
+.track-triage-detail-title { margin: 0; font-size: 1.125rem; font-weight: 600; line-height: 1.3; color: var(--ink); overflow-wrap: anywhere; }
+.track-triage-props { display: flex; flex-wrap: wrap; gap: 6px; }
+.track-triage-prop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 0.75rem;
+  color: var(--brand-gray-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.track-triage-prop .track-avatar { width: 16px; height: 16px; font-size: 0.625rem; }
+.track-label-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+.track-triage-desc { font-size: 0.875rem; color: var(--ink); }
+.track-triage-desc.is-empty { margin: 0; color: var(--brand-gray-2); }
+.track-triage-open { align-self: flex-start; font-size: 0.8125rem; color: var(--brand-gray-1); }
+.track-triage-accept-group { display: inline-flex; align-items: center; gap: 2px; }
+.track-triage-into {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  font-size: 0.8125rem;
+}
+.track-triage-kbd {
+  margin-left: 6px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-family: var(--font-data);
+  line-height: 1.4;
+  color: inherit;
+  opacity: 0.7;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+}
+@media (max-width: 760px) {
+  .track-triage-split { grid-template-columns: minmax(0, 1fr); }
+  .track-triage-side { border-right: 0; border-bottom: 1px solid var(--line); }
+  .track-triage-split .track-triage-list { max-height: 36vh; }
+  .track-triage-detail-body { padding: 12px; }
+  .track-triage-kbd { display: none; }
+}
+
+/* Labels agrupados en ajustes: los hijos van con sangría bajo su grupo. */
+.track-status-item.is-child { padding-left: 24px; }
+.track-label-group-btn { font-size: 0.75rem; }
+
+/* ---------- Ajustes del team (drawer): navegación vertical como Linear ---------- */
+.track-team-settings-body { display: grid; grid-template-columns: 150px minmax(0, 1fr); min-height: 0; flex: 1 1 auto; }
+.track-team-settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px;
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+.track-team-settings-tab {
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  color: var(--brand-gray-1);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.track-team-settings-tab:hover { background: var(--ui-hover); color: var(--ink); }
+.track-team-settings-tab[aria-selected='true'] { background: var(--brand-enamel); color: var(--ink); font-weight: 600; }
+.track-team-settings-tab:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.track-team-settings .ui-drawer-body { overflow-y: auto; }
+.track-team-general { display: flex; flex-direction: column; gap: 12px; max-width: 420px; }
+.track-key-input { max-width: 120px; text-transform: uppercase; letter-spacing: 0.02em; }
+.track-team-members { list-style: none; margin: 8px 0 12px; padding: 0; border-top: 1px solid var(--line); }
+.track-team-member { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 0.8125rem; }
+.track-team-member-name { color: var(--ink); }
+.track-team-member-email { color: var(--brand-gray-2); font-size: 0.75rem; }
+.track-team-autoclose { display: flex; flex-direction: column; gap: 6px; margin: 16px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid var(--line); }
+.track-team-links { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 0.875rem; }
+@media (max-width: 640px) {
+  .track-team-settings-body { grid-template-columns: minmax(0, 1fr); }
+  .track-team-settings-nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  .track-team-settings-tab { white-space: nowrap; }
+}
+dialog.ui-drawer.track-drawer.track-team-settings { width: min(760px, 100vw); }
+dialog.ui-drawer.track-team-settings[open] { display: flex; flex-direction: column; }

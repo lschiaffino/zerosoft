@@ -16,7 +16,7 @@ import {
 } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import { escapeHtml } from '@/lib/track-markdown';
+import { escapeHtml, TRACK_MARKDOWN_MAX } from '@/lib/track-markdown';
 import {
   blockRuleFor,
   inlineRuleFor,
@@ -27,7 +27,7 @@ import {
   type RtNode,
 } from '@/lib/track-richtext';
 import { safeHexColor } from '@/lib/track-color';
-import { refCache, resolveRefs, statusGlyph, type RefInfo } from './issueRefs';
+import { mentionLabel, refCache, rememberMembers, resolveRefs, statusGlyph, type RefInfo } from './issueRefs';
 import TrackIcon, { type TrackIconName } from './TrackIcon';
 
 export interface MentionMember {
@@ -79,7 +79,7 @@ interface Trigger {
   query: string;
 }
 
-type SlashCmd = 'h1' | 'h2' | 'h3' | 'bullet' | 'numbered' | 'todo' | 'code' | 'quote' | 'divider' | 'table' | 'image';
+type SlashCmd = 'h1' | 'h2' | 'h3' | 'bullet' | 'numbered' | 'todo' | 'code' | 'quote' | 'toggle' | 'callout' | 'divider' | 'table' | 'image';
 const SLASH: Array<{ cmd: SlashCmd; icon: TrackIconName; keywords: string; hint?: string }> = [
   { cmd: 'h1', icon: 'heading', keywords: 'heading title titulo título h1', hint: '#' },
   { cmd: 'h2', icon: 'heading', keywords: 'heading subtitle subtitulo h2', hint: '##' },
@@ -89,12 +89,26 @@ const SLASH: Array<{ cmd: SlashCmd; icon: TrackIconName; keywords: string; hint?
   { cmd: 'todo', icon: 'todo', keywords: 'todo checklist task tarea tareas check', hint: '[]' },
   { cmd: 'code', icon: 'code', keywords: 'code codigo código snippet', hint: '```' },
   { cmd: 'quote', icon: 'quote', keywords: 'quote cita citação', hint: '>' },
+  { cmd: 'toggle', icon: 'toggle', keywords: 'toggle collapsible colapsable desplegable details section seccion sección recolhível', hint: '>>>' },
+  { cmd: 'callout', icon: 'callout', keywords: 'callout note nota aviso info alert alerta destacado destaque' },
   { cmd: 'divider', icon: 'divider', keywords: 'divider separador line hr', hint: '---' },
   { cmd: 'table', icon: 'table', keywords: 'table tabla tabela' },
   { cmd: 'image', icon: 'image', keywords: 'image imagen imagem upload file archivo foto' },
 ];
 
 const BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'PRE', 'BLOCKQUOTE']);
+/** Contenedores con párrafos adentro: cita, callout y cuerpo de un colapsable. */
+const BOX_SELECTOR = 'blockquote, [data-callout], [data-toggle-body]';
+
+function emptyBlock(el: Element): boolean {
+  return !(el.textContent ?? '').replace(/[\u200b\u00a0]/g, '').trim() && !el.querySelector('img, [data-md], hr, table');
+}
+
+function emptyParagraph(): HTMLParagraphElement {
+  const p = document.createElement('p');
+  p.appendChild(document.createElement('br'));
+  return p;
+}
 
 interface Option {
   key: string;
@@ -154,6 +168,8 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
   onChangeRef.current = onChange;
   const membersRef = useRef(members);
   membersRef.current = members;
+  // La lectura (MarkdownView) muestra las menciones con el nombre de estas personas.
+  useEffect(() => rememberMembers(members), [members]);
   const [empty, setEmpty] = useState(!value.trim());
   const [trigger, setTrigger] = useState<Trigger | null>(null);
   const [active, setActive] = useState(0);
@@ -192,7 +208,11 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
     for (const chip of Array.from(root.querySelectorAll<HTMLElement>('[data-mention]'))) {
       const email = chip.dataset.mention!.slice(1).toLowerCase();
       const m = membersRef.current.find((x) => x.email.toLowerCase() === email);
-      if (m?.name) chip.textContent = `@${m.name}`;
+      const label = m?.name ? `@${m.name}` : mentionLabel(chip.dataset.mention!);
+      if (label) {
+        chip.textContent = label;
+        chip.title = chip.dataset.mention!.slice(1);
+      }
     }
   }, []);
 
@@ -203,7 +223,7 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
       root.innerHTML = renderEditorHtml(markdown);
       lastMd.current = nodesToMarkdown(root as unknown as RtNode);
       setEmpty(!lastMd.current);
-      setTooLong(lastMd.current.length > 5000);
+      setTooLong(lastMd.current.length > TRACK_MARKDOWN_MAX);
       upgradeChips();
     },
     [upgradeChips],
@@ -240,9 +260,9 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
     const root = rootRef.current;
     if (!root) return;
     const md = nodesToMarkdown(root as unknown as RtNode);
-    const isEmpty = !md && !root.querySelector('img, hr, table, li, pre');
+    const isEmpty = !md && !root.querySelector('img, hr, table, li, pre, [data-toggle], [data-callout]');
     setEmpty(isEmpty);
-    setTooLong(md.length > 5000);
+    setTooLong(md.length > TRACK_MARKDOWN_MAX);
     if (md === lastMd.current) return;
     lastMd.current = md;
     prevValue.current = md;
@@ -315,14 +335,135 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
 
   // ---------- bloques ----------
 
+  function caretAtEnd(el: Node) {
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    r.collapse(false);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(r);
+  }
+
+  /**
+   * Mete en párrafos el contenido suelto de una cita (formatBlock arma
+   * `<blockquote>texto</blockquote>`): así Enter parte párrafos adentro y una
+   * línea vacía sale de la cita, como en Linear. Conserva el cursor.
+   */
+  function wrapLoose(box: HTMLElement) {
+    const r = caretRange();
+    const sc = r?.startContainer ?? null;
+    const so = r?.startOffset ?? 0;
+    const caretChild = sc === box ? box.childNodes[so] ?? null : null;
+    let p: HTMLElement | null = null;
+    let caretP: HTMLElement | null = null;
+    for (const child of Array.from(box.childNodes)) {
+      const isBlockEl = child.nodeType === 1 && (BLOCK_TAGS.has(child.nodeName) || ['UL', 'OL', 'TABLE', 'HR'].includes(child.nodeName));
+      if (isBlockEl) {
+        p = null;
+        continue;
+      }
+      if (!p) {
+        p = document.createElement('p');
+        box.insertBefore(p, child);
+      }
+      if (child === caretChild) caretP = p;
+      p.appendChild(child);
+    }
+    for (const el of Array.from(box.children)) {
+      if (el.tagName === 'P' && !el.childNodes.length) el.appendChild(document.createElement('br'));
+    }
+    if (!box.firstChild) box.appendChild(emptyParagraph());
+    if (sc && sc !== box && box.contains(sc)) placeCaret(sc, so);
+    else if (caretP) placeCaret(caretP, 0);
+    else if (sc === box) {
+      const target = box.children[Math.min(so, box.children.length - 1)] ?? box.firstElementChild;
+      if (target) caretAtEnd(target);
+    }
+  }
+
+  /** Reemplaza el párrafo del cursor por un colapsable o un callout, con su texto adentro. */
+  function wrapBlock(kind: 'toggle' | 'callout') {
+    const block = currentBlock();
+    if (!block || (block.tagName !== 'P' && block.tagName !== 'DIV') || block === rootRef.current) return;
+    const hasText = !emptyBlock(block);
+    const moved = document.createDocumentFragment();
+    while (block.firstChild) moved.appendChild(block.firstChild);
+    const wrap = document.createElement('div');
+    let caretIn: HTMLElement;
+    if (kind === 'toggle') {
+      wrap.className = 'track-toggle';
+      wrap.setAttribute('data-toggle', '1');
+      wrap.setAttribute('data-open', 'true');
+      const title = document.createElement('p');
+      title.className = 'track-toggle-title';
+      title.setAttribute('data-toggle-title', '1');
+      if (hasText) title.appendChild(moved);
+      else title.appendChild(document.createElement('br'));
+      const body = document.createElement('div');
+      body.className = 'track-toggle-body';
+      body.setAttribute('data-toggle-body', '1');
+      body.appendChild(emptyParagraph());
+      wrap.append(title, body);
+      caretIn = title;
+    } else {
+      wrap.className = 'track-callout';
+      wrap.setAttribute('data-callout', 'note');
+      const p = document.createElement('p');
+      if (hasText) p.appendChild(moved);
+      else p.appendChild(document.createElement('br'));
+      wrap.appendChild(p);
+      caretIn = p;
+    }
+    block.replaceWith(wrap);
+    if (!wrap.nextSibling) wrap.after(emptyParagraph());
+    if (hasText) caretAtEnd(caretIn);
+    else placeCaret(caretIn, 0);
+  }
+
+  /** Enter dentro de un párrafo de un contenedor: lo parte en dos en el cursor. */
+  function splitParagraph(para: HTMLElement) {
+    const r = caretRange();
+    if (!r) return;
+    r.deleteContents();
+    const tail = document.createRange();
+    tail.setStart(r.startContainer, r.startOffset);
+    tail.setEnd(para, para.childNodes.length);
+    const p = document.createElement('p');
+    p.appendChild(tail.extractContents());
+    if (emptyBlock(p)) p.replaceChildren(document.createElement('br'));
+    if (emptyBlock(para) && !para.querySelector('br')) para.appendChild(document.createElement('br'));
+    para.after(p);
+    placeCaret(p, 0);
+  }
+
+  /** Línea vacía al final de una cita, un callout o un colapsable: Enter sale del bloque. */
+  function exitBox(box: HTMLElement, para: HTMLElement) {
+    const outer = box.hasAttribute('data-toggle-body') ? ((box.closest('[data-toggle]') as HTMLElement | null) ?? box) : box;
+    para.remove();
+    if (!box.firstElementChild) {
+      if (box.hasAttribute('data-toggle-body')) box.appendChild(emptyParagraph());
+      else if (outer === box && !(box.textContent ?? '').trim()) box.remove();
+    }
+    const p = emptyParagraph();
+    if (outer.isConnected) outer.after(p);
+    else rootRef.current?.appendChild(p);
+    placeCaret(p, 0);
+  }
+
   /** Convierte el bloque del cursor (ya sin el prefijo tipeado). */
-  function applyBlock(rule: BlockRule | { kind: 'divider' } | { kind: 'table' }) {
+  function applyBlock(rule: BlockRule | { kind: 'divider' } | { kind: 'table' } | { kind: 'callout' }) {
     switch (rule.kind) {
       case 'heading':
         exec('formatBlock', `h${rule.level}`);
         break;
-      case 'quote':
+      case 'quote': {
         exec('formatBlock', 'blockquote');
+        const quote = currentBlock()?.closest('blockquote') as HTMLElement | null;
+        if (quote) wrapLoose(quote);
+        break;
+      }
+      case 'toggle':
+      case 'callout':
+        wrapBlock(rule.kind);
         break;
       case 'bullet':
         if (!currentBlock()?.closest('ul')) exec('insertUnorderedList');
@@ -426,6 +567,7 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
           else if (s.cmd === 'h1' || s.cmd === 'h2' || s.cmd === 'h3') applyBlock({ kind: 'heading', level: Number(s.cmd[1]) as 1 | 2 | 3 });
           else if (s.cmd === 'todo') applyBlock({ kind: 'todo', checked: false });
           else if (s.cmd === 'code') applyBlock({ kind: 'code', lang: '' });
+          else if (s.cmd === 'callout') applyBlock({ kind: 'callout' });
           else applyBlock({ kind: s.cmd } as BlockRule);
         }),
       }));
@@ -608,7 +750,10 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
       if (block && !inCode && (native.data === ' ' || native.data === '`')) {
         const prefix = textBefore(block);
         const rule = blockRuleFor(prefix.replace(/ /g, ' '));
-        const blockOk = block.tagName === 'P' || block.tagName === 'DIV' || (rule?.kind === 'todo' && block.tagName === 'LI');
+        // El título de un colapsable es una línea: ahí no se arman bloques.
+        const blockOk =
+          !block.hasAttribute('data-toggle-title') &&
+          (block.tagName === 'P' || block.tagName === 'DIV' || (rule?.kind === 'todo' && block.tagName === 'LI'));
         if (rule && blockOk && (rule.kind !== 'code' || native.data === '`')) {
           selectFromBlockStart(block);
           exec('delete');
@@ -725,21 +870,53 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
         emit();
         return;
       }
-      const quote = block?.closest('blockquote') as HTMLElement | null;
-      if (quote) {
+      // Título de un colapsable: Enter baja al cuerpo (y lo abre).
+      if (block?.hasAttribute('data-toggle-title')) {
         e.preventDefault();
-        const before = textBefore(quote);
-        const atEnd = before.length >= (quote.textContent ?? '').length;
-        if (!(quote.textContent ?? '').trim() || (atEnd && (before.endsWith('\n') || !before.trim()))) {
-          // Línea vacía: sale de la cita.
-          const last = quote.lastChild;
-          if (last && last.nodeName === 'BR') last.remove();
+        const toggle = block.parentElement as HTMLElement;
+        let body = toggle.querySelector<HTMLElement>(':scope > [data-toggle-body]');
+        if (!body) {
+          body = document.createElement('div');
+          body.className = 'track-toggle-body';
+          body.setAttribute('data-toggle-body', '1');
+          toggle.appendChild(body);
+        }
+        toggle.setAttribute('data-open', 'true');
+        const r = caretRange();
+        const tail = document.createRange();
+        if (r) tail.setStart(r.startContainer, r.startOffset);
+        tail.setEnd(block, block.childNodes.length);
+        const rest = tail.extractContents();
+        if (emptyBlock(block)) block.replaceChildren(document.createElement('br'));
+        const first = body.firstElementChild as HTMLElement | null;
+        const restEmpty = !(rest.textContent ?? '').trim() && !(rest as DocumentFragment).querySelector?.('img, [data-md]');
+        if (restEmpty && first && first.tagName === 'P' && emptyBlock(first)) {
+          placeCaret(first, 0);
+        } else {
           const p = document.createElement('p');
-          p.appendChild(document.createElement('br'));
-          quote.after(p);
-          if (!(quote.textContent ?? '').trim()) quote.remove();
+          if (restEmpty) p.appendChild(document.createElement('br'));
+          else p.appendChild(rest);
+          body.prepend(p);
           placeCaret(p, 0);
-        } else exec('insertLineBreak');
+        }
+        emit();
+        return;
+      }
+      // Cita, callout o cuerpo de un colapsable: Enter parte el párrafo y una
+      // línea vacía al final sale del bloque (lo que sigue ya no queda adentro).
+      const box = block?.closest(BOX_SELECTOR) as HTMLElement | null;
+      if (box && block && block.tagName !== 'LI' && rootRef.current?.contains(box)) {
+        e.preventDefault();
+        let para: HTMLElement | null = block === box ? null : block;
+        if (!para) {
+          wrapLoose(box);
+          const now = currentBlock();
+          para = now && now !== box ? now : null;
+        }
+        if (para) {
+          if (emptyBlock(para) && para.parentElement === box && !para.nextElementSibling) exitBox(box, para);
+          else splitParagraph(para);
+        }
         emit();
         return;
       }
@@ -748,6 +925,31 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
       const r = caretRange();
       if (r?.collapsed && textBefore(block) === '') {
         const tag = block.tagName;
+        // Título de un colapsable vacío por dentro: vuelve a ser un párrafo.
+        if (block.hasAttribute('data-toggle-title')) {
+          e.preventDefault();
+          const toggle = block.parentElement as HTMLElement;
+          const body = toggle.querySelector<HTMLElement>(':scope > [data-toggle-body]');
+          if (!body || emptyBlock(body)) {
+            const p = document.createElement('p');
+            while (block.firstChild) p.appendChild(block.firstChild);
+            if (!p.firstChild) p.appendChild(document.createElement('br'));
+            toggle.replaceWith(p);
+            placeCaret(p, 0);
+            emit();
+          }
+          return;
+        }
+        // Primer párrafo de una cita o un callout: sale del bloque.
+        const parent = block.parentElement;
+        if (parent && parent !== rootRef.current && (parent.tagName === 'BLOCKQUOTE' || parent.hasAttribute('data-callout')) && block === parent.firstElementChild) {
+          e.preventDefault();
+          parent.before(block);
+          if (!parent.firstElementChild && !(parent.textContent ?? '').trim()) parent.remove();
+          placeCaret(block, 0);
+          emit();
+          return;
+        }
         if (/^H[1-6]$/.test(tag) || tag === 'BLOCKQUOTE' || tag === 'PRE') {
           e.preventDefault();
           if (tag === 'PRE') block.textContent = (block.textContent ?? '').replace(/\n$/, '');
@@ -852,6 +1054,14 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
   }
 
   function onMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    // Flecha del colapsable (en el margen izquierdo del título): abre o cierra.
+    const title = (e.target as HTMLElement).closest('[data-toggle-title]') as HTMLElement | null;
+    if (title && rootRef.current?.contains(title) && e.clientX - title.getBoundingClientRect().left < 20) {
+      e.preventDefault();
+      const toggle = title.parentElement as HTMLElement;
+      toggle.setAttribute('data-open', toggle.getAttribute('data-open') === 'false' ? 'true' : 'false');
+      return;
+    }
     const li = (e.target as HTMLElement).closest('li[data-task]') as HTMLElement | null;
     if (li && rootRef.current?.contains(li)) {
       const box = li.getBoundingClientRect();

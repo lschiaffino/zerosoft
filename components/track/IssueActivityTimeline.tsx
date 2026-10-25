@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import { titleFromComment } from '@/lib/track-comment-title';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { relDate } from '@/lib/utils';
@@ -63,7 +64,10 @@ interface IssueActivityTimelineProps {
   /** Pegar imágenes en un comentario las sube como adjunto. */
   onUpload?: (file: File) => Promise<UploadResult | null>;
   onChange?: () => void;
+  /** "Crear sub-issue desde el comentario" (como Linear): título con la primera línea. */
+  onCreateSubIssue?: (title: string) => void;
 }
+
 
 export const REACTIONS = ['👍', '👎', '❤️', '🎉', '😄', '😕', '👀', '🚀'];
 
@@ -162,8 +166,10 @@ export default function IssueActivityTimeline({
   attachments = [],
   onUpload,
   onChange,
+  onCreateSubIssue,
 }: IssueActivityTimelineProps) {
   const tt = useTranslations('track.ux.thread');
+  const tp = useTranslations('track.priorities');
   const attachmentUrls = useMemo(() => new Map(attachments.map((a) => [a.id, a.url])), [attachments]);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -322,18 +328,33 @@ export default function IssueActivityTimeline({
     const from = String(meta.from ?? '');
     const to = String(meta.to ?? '');
     const fill = (tpl: string, f = from, t2 = to) => tpl.replace('{user}', name).replace('{from}', f).replace('{to}', t2);
+    // Como Linear: "puso la estimación en 3" o "quitó el vencimiento" cuando
+    // uno de los lados está vacío (nada de "de  a 3").
+    const change = (field: 'status' | 'priority' | 'cycle' | 'dueDate' | 'estimate', tpl: string, f = from, t2 = to) => {
+      if (!f && t2) return tt('fieldSet', { user: name, field: tt(`fields.${field}`), to: t2 });
+      if (f && !t2) return tt('fieldCleared', { user: name, field: tt(`fields.${field}`) });
+      return fill(tpl, f, t2);
+    };
+    const prio = (v: string) => (!v || v === 'none' ? '' : ['urgent', 'high', 'medium', 'low'].includes(v) ? tp(v) : v);
+    const day = (v: string) => {
+      if (!/^\d{4}-\d{2}-\d{2}/.test(v)) return v;
+      const d = new Date(`${v.slice(0, 10)}T00:00:00Z`);
+      return Number.isNaN(d.getTime()) ? v : d.toLocaleDateString(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    };
     switch (activity.type) {
       case 'created':
         return labels.created.replace('{user}', name);
       case 'status_change':
-        return fill(labels.statusChange);
+        return change('status', labels.statusChange);
       case 'assignee_change': {
         const nameOf = (id: string) =>
           id ? (members.find((m) => m.id === id)?.name ?? members.find((m) => m.id === id)?.email ?? id) : labels.unassigned;
+        if (!from && to) return tt('assignedTo', { user: name, to: nameOf(to) });
+        if (from && !to) return tt('unassignedFrom', { user: name, from: nameOf(from) });
         return fill(labels.assigneeChange, nameOf(from), nameOf(to));
       }
       case 'priority_change':
-        return fill(labels.priorityChange);
+        return change('priority', labels.priorityChange, prio(from), prio(to));
       case 'cycle_change':
         // Cambios sin activity type propio (CHECK de la tabla): project y team.
         if (meta.field === 'project') {
@@ -349,11 +370,11 @@ export default function IssueActivityTimeline({
             toId: String(meta.toIdentifier ?? ''),
           });
         }
-        return fill(labels.cycleChange);
+        return change('cycle', labels.cycleChange);
       case 'due_date_change':
-        return fill(labels.dueDateChange);
+        return change('dueDate', labels.dueDateChange, day(from), day(to));
       case 'estimate_change':
-        return fill(labels.estimateChange);
+        return change('estimate', labels.estimateChange);
       case 'title_change':
         return fill(labels.titleChange);
       case 'description_change':
@@ -488,6 +509,20 @@ export default function IssueActivityTimeline({
             >
               <span className="track-menu-label">{tt('copyLink')}</span>
             </button>
+            {onCreateSubIssue && titleFromComment(c.body) && (
+              <button
+                type="button"
+                role="menuitem"
+                className="track-menu-item"
+                data-testid="track-comment-subissue"
+                onClick={() => {
+                  close();
+                  onCreateSubIssue(titleFromComment(c.body));
+                }}
+              >
+                <span className="track-menu-label">{tt('createSubIssue')}</span>
+              </button>
+            )}
             {mine && (
               <>
                 <button
@@ -589,7 +624,7 @@ export default function IssueActivityTimeline({
             </span>
           </div>
         ) : (
-          c.body && <MarkdownView source={c.body} className="track-activity-comment" />
+          c.body && <MarkdownView source={c.body} className="track-activity-comment" members={members} />
         )}
         {reactionBar(c)}
       </div>

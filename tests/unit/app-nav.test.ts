@@ -66,7 +66,8 @@ describe('sidebar de la app', () => {
   });
 
   it.each(PRODUCTS)('los íconos de %s no se repiten', (product) => {
-    const icons = buildNav(product, '/app', labels).flatMap((g) => g.items.map((i) => i.icon));
+    // El hueco del árbol (branchOnly) no se ve como ítem: su ícono no cuenta.
+    const icons = buildNav(product, '/app', labels).flatMap((g) => g.items.filter((i) => !i.branchOnly).map((i) => i.icon));
     expect(new Set(icons).size).toBe(icons.length);
   });
 

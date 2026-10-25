@@ -97,11 +97,16 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       like,
     ),
     all(
+      // El ID viejo de un issue movido de team también lo encuentra (como Linear, que lo redirige).
       `SELECT i.id, i.title AS label, i.identifier AS meta FROM track_issues i JOIN track_projects p ON p.id = i.project_id
-       WHERE ${projectWhere} AND (i.title LIKE ? ESCAPE '\\' OR i.identifier LIKE ? ESCAPE '\\') ORDER BY i.updated_at DESC LIMIT ?`,
+       WHERE ${projectWhere} AND (i.title LIKE ? ESCAPE '\\' OR i.identifier LIKE ? ESCAPE '\\'
+         OR i.id IN (SELECT a.issue_id FROM track_issue_aliases a WHERE UPPER(a.identifier) = UPPER(?)))
+       ORDER BY (UPPER(i.identifier) = UPPER(?)) DESC, i.updated_at DESC LIMIT ?`,
       ...projectArgs,
       like,
       like,
+      needle,
+      needle,
     ),
     all(
       `SELECT id, title AS label, slug AS meta FROM calendar_event_types WHERE user_id = ? AND title LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`,

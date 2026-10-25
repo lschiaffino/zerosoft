@@ -4,83 +4,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import type { TrackStatusRow } from '@/lib/db';
 import type { ProjectMember } from '@/lib/track-data';
-import { glyphColor, safeHexColor } from '@/lib/track-color';
+
 import { addDays, formatDay, isCompletedCategory, toIsoDay, type IssuePriority } from '@/lib/track-tasks';
 import type { TrackUiLabels } from './ui-labels';
 
 // ---------- Visuales chicos ----------
 
-/**
- * Prioridad en tinta: el color de Track queda solo para orientarse. Urgente
- * en rojo, alta y media en tinta, baja en gris (≥3:1 como gráfico).
- */
-export function priorityColor(priority: string): string {
-  return priority === 'urgent'
-    ? 'var(--bad)'
-    : priority === 'high' || priority === 'medium'
-      ? 'var(--ink)'
-      : 'var(--brand-gray-3)';
-}
-
-/**
- * Prioridad como en Linear: barras crecientes (baja 1, media 2, alta 3) y
- * urgente como un cuadrado con "!". El color va solo en urgente.
- */
-export function PriorityIcon({ priority }: { priority: string }) {
-  if (priority === 'urgent') {
-    return (
-      <svg className="track-prio-icon is-urgent" viewBox="0 0 14 14" width="14" height="14" aria-hidden>
-        <rect x="1" y="1" width="12" height="12" rx="2" fill="var(--bad)" />
-        <path d="M7 3.6v4.3" stroke="var(--bg)" strokeWidth="1.8" strokeLinecap="round" />
-        <circle cx="7" cy="10.3" r="1" fill="var(--bg)" />
-      </svg>
-    );
-  }
-  const level = priority === 'high' ? 3 : priority === 'medium' ? 2 : 1;
-  return (
-    <svg className="track-prio-icon" viewBox="0 0 14 14" width="14" height="14" aria-hidden>
-      {[0, 1, 2].map((n) => (
-        <rect
-          key={n}
-          x={1.5 + n * 4}
-          y={9 - n * 3}
-          width="3"
-          height={4 + n * 3}
-          rx="0.6"
-          fill={n < level ? 'var(--ink)' : 'var(--line-strong, var(--brand-gray-3))'}
-          opacity={n < level ? 1 : 0.35}
-        />
-      ))}
-    </svg>
-  );
-}
-
-/**
- * Glifo de status como en Linear: un círculo. Backlog punteado, por hacer
- * vacío, en progreso con la mitad llena, hecho lleno con tilde y cancelado
- * lleno en gris con cruz.
- */
-export function StatusDot({ color, category }: { color: string | null; category: string | null }) {
-  const cancelled = category === 'cancelled';
-  const c = cancelled ? 'var(--brand-gray-3)' : glyphColor(color);
-  const filled = category === 'done' || cancelled;
-  return (
-    <svg className="track-status-glyph" viewBox="0 0 14 14" width="14" height="14" aria-hidden style={{ color: c } as CSSProperties}>
-      <circle
-        cx="7"
-        cy="7"
-        r="5.75"
-        fill={filled ? 'currentColor' : 'none'}
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeDasharray={category === 'backlog' ? '2.2 1.8' : undefined}
-      />
-      {category === 'in_progress' && <path d="M7 3.25a3.75 3.75 0 0 1 0 7.5z" fill="currentColor" />}
-      {category === 'done' && <path d="M4.4 7.2l1.8 1.8 3.5-3.7" fill="none" stroke="var(--bg)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />}
-      {cancelled && <path d="M5 5l4 4M9 5l-4 4" fill="none" stroke="var(--bg)" strokeWidth="1.5" strokeLinecap="round" />}
-    </svg>
-  );
-}
+export { priorityColor, PriorityIcon, StatusDot } from './glyphs';
+import { PriorityIcon, StatusDot } from './glyphs';
 
 function initials(name: string | null | undefined, email?: string | null): string {
   const src = (name || email || '?').trim();
@@ -605,18 +536,25 @@ export function QuickAdd({
       }}
     >
       {projects && projects.length > 1 && (
-        <select
+        // Team del issue nuevo: menú con flechas (sin <select>), como el chip del composer.
+        <Popover
+          ariaLabel={`${labels.project}: ${projects.find((p) => p.id === projectId)?.name ?? ''}`}
           className="track-quick-add-project"
-          aria-label={labels.project}
-          value={projectId}
-          onChange={(e) => setProjectId(e.target.value)}
+          width={220}
+          trigger={<span className="track-inline-text">{projects.find((p) => p.id === projectId)?.name}</span>}
         >
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+          {(close) => (
+            <OptionList
+              value={projectId}
+              options={projects.map((p) => ({ value: p.id, label: p.name }))}
+              onSelect={(v) => {
+                close();
+                setProjectId(v);
+                window.setTimeout(() => inputRef.current?.focus(), 0);
+              }}
+            />
+          )}
+        </Popover>
       )}
       <input
         ref={inputRef}

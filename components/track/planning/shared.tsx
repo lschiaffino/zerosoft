@@ -111,6 +111,7 @@ export function Modal({
     <dialog
       ref={ref}
       className="ui-modal tp-modal"
+      aria-modal="true"
       data-testid={testId}
       aria-label={typeof title === 'string' ? title : undefined}
       onCancel={(e) => {

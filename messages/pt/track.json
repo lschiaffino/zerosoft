@@ -59,7 +59,9 @@
       "icon": "Ícone",
       "slugHelp": "Prefixo dos issues: {example}. Se ficar vazio, vem do nome.",
       "advancedHint": "Identificador e ícone",
-      "iconHelp": "Um emoji ou até 8 caracteres, ao lado do nome."
+      "iconHelp": "Um emoji ou até 8 caracteres, ao lado do nome.",
+      "identifier": "Identificador",
+      "identifierHelp": "Prefixo dos IDs dos issues, como {example}. Até 5 letras ou números."
     },
     "create": "Criar equipe",
     "formTitle": "Dados básicos",
@@ -254,7 +256,8 @@
     "urgent": "Urgente",
     "high": "Alta",
     "medium": "Média",
-    "low": "Baixa"
+    "low": "Baixa",
+    "none": "Sem prioridade"
   },
   "views": {
     "list": "Lista",
@@ -364,7 +367,18 @@
     "shortcutHint": "Pressione C para criar um issue",
     "subModalTitle": "Novo sub-issue",
     "cycle": "Ciclo",
-    "noCycle": "Sem ciclo"
+    "noCycle": "Sem ciclo",
+    "draftRestored": "Rascunho recuperado",
+    "discard": "Descartar",
+    "close": "Fechar (o rascunho fica salvo)",
+    "properties": "Propriedades",
+    "chip": {
+      "labels": "Labels",
+      "labelCount": "{count} labels",
+      "project": "Projeto",
+      "estimate": "Estimativa",
+      "more": "Mais propriedades"
+    }
   },
   "inline": {
     "markDone": "Marcar como concluído",
@@ -384,13 +398,26 @@
   },
   "myTasks": {
     "title": "Meus issues",
-    "subtitle": "Tudo o que está atribuído a você, em todas as equipes.",
+    "subtitle": "O que está atribuído a você, o que você criou e o que segue, em todas as equipes.",
     "overdue": "Atrasados",
     "today": "Hoje",
     "upcoming": "Próximos",
     "noDate": "Sem data",
     "empty": "Nada atribuído a você",
-    "emptyBody": "O que for atribuído a você em qualquer equipe aparece aqui, agrupado por vencimento."
+    "emptyBody": "Os issues atribuídos a você, criados por você ou que você segue em qualquer equipe aparecem aqui, agrupados por status.",
+    "tabs": {
+      "assigned": "Atribuídos",
+      "created": "Criados",
+      "subscribed": "Inscrito",
+      "activity": "Atividade",
+      "label": "Meus issues"
+    },
+    "emptyTab": {
+      "assigned": "Nada atribuído a você",
+      "created": "Você ainda não criou issues",
+      "subscribed": "Você não segue nenhum issue",
+      "activity": "Ainda não há atividade sua"
+    }
   },
   "cmdk": {
     "newIssue": "Novo issue",
@@ -437,7 +464,11 @@
     "empty": "Ainda não há etiquetas.",
     "error": "Não foi possível salvar a etiqueta.",
     "adminOnly": "Só um admin pode editar ou excluir etiquetas.",
-    "loadError": "Não foi possível carregar as etiquetas."
+    "loadError": "Não foi possível carregar as etiquetas.",
+    "group": "Grupo",
+    "groupPlaceholder": "Mover para o grupo…",
+    "noGroup": "Sem grupo",
+    "colorPick": "Sem cor escolhida, uma é sorteada"
   },
   "github": {
     "title": "GitHub",
@@ -585,11 +616,15 @@
     "close": "Fechar ajustes",
     "tabs": {
       "cycles": "Ciclos",
-      "statuses": "Status",
+      "statuses": "Workflow",
       "triage": "Triagem",
       "templates": "Modelos",
       "recurring": "Recorrentes",
-      "milestones": "Marcos"
+      "milestones": "Marcos",
+      "general": "Geral",
+      "members": "Membros",
+      "labels": "Labels",
+      "integrations": "Integrações"
     }
   },
   "markdown": {
@@ -803,7 +838,8 @@
     "projects": "Projetos",
     "views": "Visualizações",
     "expand": "Expandir",
-    "collapse": "Recolher"
+    "collapse": "Recolher",
+    "triage": "Triage"
   },
   "importer": {
     "tab": "Importar e exportar",
@@ -1205,7 +1241,24 @@
       "moveToTeam": "Mover para outra equipe…",
       "searchTeam": "Buscar equipes…",
       "archive": "Arquivar issue",
-      "archiveMany": "Arquivar {count} issues"
+      "archiveMany": "Arquivar {count} issues",
+      "noPriority": "Sem prioridade",
+      "changeStatusTo": "Mudar status para {name}",
+      "setPriorityTo": "Definir prioridade {name}",
+      "assignTo": "Atribuir a {name}",
+      "labelsPlaceholder": "Adicionar labels…",
+      "createLabel": "Criar label novo: “{name}”",
+      "createProject": "Criar projeto novo: “{name}”",
+      "createFailed": "Não foi possível criar. Tente de novo.",
+      "removeLabels": "Remover labels…",
+      "markDuplicate": "Marcar como duplicado de…",
+      "searchDuplicate": "Busque o issue original…",
+      "subscribe": "Seguir o issue",
+      "unsubscribe": "Deixar de seguir o issue",
+      "markedDuplicate": "{id} ficou como duplicado de {of}",
+      "start": "Data de início…",
+      "noStart": "Remover data de início",
+      "startOn": "Começa em {date}"
     },
     "editor": {
       "todo": "Lista de tarefas",
@@ -1224,7 +1277,9 @@
         "quote": "Citação",
         "divider": "Separador",
         "table": "Tabela",
-        "image": "Imagem ou arquivo"
+        "image": "Imagem ou arquivo",
+        "toggle": "Seção recolhível",
+        "callout": "Destaque"
       },
       "menu": {
         "slash": "Inserir",
@@ -1237,7 +1292,7 @@
       "code": "Código",
       "link": "Link",
       "linkPlaceholder": "Cole ou digite um link e aperte Enter",
-      "tooLong": "Muito longo: o limite é de 5.000 caracteres. O que passar não é salvo."
+      "tooLong": "Longo demais: o limite é de 200.000 caracteres. O resto não será salvo."
     },
     "thread": {
       "postError": "Não foi possível publicar o comentário. Tente de novo.",
@@ -1261,7 +1316,19 @@
       "projectAdded": "{user} adicionou o issue a {to}",
       "projectChange": "{user} passou o issue de {from} para {to}",
       "projectRemoved": "{user} tirou o issue de {from}",
-      "teamMoved": "{user} moveu o issue de {from} para {to} ({fromId} → {toId})"
+      "teamMoved": "{user} moveu o issue de {from} para {to} ({fromId} → {toId})",
+      "fieldSet": "{user} definiu {field} como {to}",
+      "fieldCleared": "{user} removeu {field}",
+      "assignedTo": "{user} atribuiu a {to}",
+      "unassignedFrom": "{user} tirou {from} como responsável",
+      "fields": {
+        "status": "o status",
+        "priority": "a prioridade",
+        "cycle": "o cycle",
+        "dueDate": "o prazo",
+        "estimate": "a estimativa"
+      },
+      "createSubIssue": "Criar sub-issue a partir do comentário"
     },
     "sub": {
       "title": "Sub-issues",
@@ -1272,7 +1339,25 @@
       "hint": "Enter cria · Esc fecha",
       "nested": "{done} de {total} sub-issues concluídos",
       "of": "Sub-issue de",
-      "show": "Mostrar sub-issues"
+      "show": "Mostrar sub-issues",
+      "options": "Opções de sub-issues",
+      "showProps": "Mostrar",
+      "prop": {
+        "priority": "Prioridade",
+        "assignee": "Responsável"
+      },
+      "hideCompleted": "Ocultar concluídos",
+      "orderBy": "Ordenar por",
+      "order": {
+        "manual": "Manual",
+        "priority": "Prioridade",
+        "status": "Status",
+        "created": "Criação"
+      },
+      "rowMenu": "Ações de {id}",
+      "removeFromParent": "Tirar de {id}",
+      "hiddenCompleted": "{count, plural, one {# sub-issue concluído oculto} other {# sub-issues concluídos ocultos}}",
+      "createdFromComment": "Sub-issue criado: {title}"
     },
     "side": {
       "project": "Equipe",
@@ -1368,13 +1453,20 @@
         "date_before": "antes de",
         "date_after": "depois de",
         "date_empty": "está vazio",
-        "date_not_empty": "tem valor"
+        "date_not_empty": "tem valor",
+        "is_any": "é algum de",
+        "is_none": "não é nenhum de"
       },
       "pickDate": "Escolher data",
       "remove": "Remover filtro {field}",
       "matchHelp": "Alterna entre cumprir todos os filtros ou algum",
       "matchAll": "Todos os filtros",
-      "matchAny": "Algum filtro"
+      "matchAny": "Algum filtro",
+      "back": "Voltar",
+      "hint": "Digite para filtrar, ↵ para escolher, ← para voltar",
+      "and": "e",
+      "or": "ou",
+      "matchToggle": "Mudar para {next}"
     },
     "peek": {
       "title": "Prévia do issue",
@@ -1382,7 +1474,105 @@
       "close": "Fechar prévia",
       "open": "Abrir issue",
       "noDescription": "Sem descrição.",
-      "subIssues": "{done} de {total} sub-issues concluídos"
+      "subIssues": "{done} de {total} sub-issues concluídos",
+      "activity": "Atividade",
+      "noComments": "Ainda não há comentários.",
+      "olderComments": "{count, plural, one {# comentário anterior} other {# comentários anteriores}} no issue",
+      "moreSubIssues": "{count, plural, one {# sub-issue a mais} other {# sub-issues a mais}}"
+    },
+    "display": {
+      "button": "Exibir",
+      "layout": "Layout",
+      "list": "Lista",
+      "board": "Quadro",
+      "calendar": "Calendário",
+      "gantt": "Cronograma",
+      "grouping": "Agrupar",
+      "ordering": "Ordenar",
+      "properties": "Propriedades visíveis",
+      "showSub": "Sub-issues",
+      "showCompleted": "Issues concluídos",
+      "prop": {
+        "id": "ID",
+        "priority": "Prioridade",
+        "status": "Status",
+        "labels": "Labels",
+        "assignee": "Responsável",
+        "cycle": "Cycle",
+        "due": "Prazo",
+        "project": "Equipe",
+        "created": "Criado"
+      },
+      "reset": "Voltar ao padrão",
+      "collapse": "Recolher {name}",
+      "expand": "Expandir {name}",
+      "addInGroup": "Novo issue em {name}"
+    },
+    "team": {
+      "all": "Todos os issues",
+      "active": "Ativos",
+      "backlog": "Backlog",
+      "teams": "Equipes",
+      "views": "Visualizações",
+      "tabs": "Visualizações de issues",
+      "favorite": "Visualização favorita",
+      "settings": "Ajustes da equipe"
+    },
+    "bulk": {
+      "more": "Mais ações",
+      "parent": "Escolher pai",
+      "move": "Mover para outra equipe",
+      "project": "Projeto",
+      "cycle": "Cycle",
+      "labels": "Labels",
+      "assignee": "Responsável",
+      "priority": "Prioridade",
+      "status": "Status"
+    },
+    "props": {
+      "setPriority": "Definir prioridade",
+      "assign": "Atribuir",
+      "addLabel": "Adicionar label",
+      "addProject": "Adicionar a um projeto",
+      "addCycle": "Adicionar a um cycle",
+      "addMilestone": "Adicionar milestone",
+      "setEstimate": "Estimar",
+      "setStart": "Data de início",
+      "setDue": "Prazo",
+      "properties": "Propriedades"
+    },
+    "rel": {
+      "blocks": "Marcar como bloqueando…",
+      "blockedBy": "Marcar como bloqueado por…",
+      "related": "Relacionar com um issue…"
+    },
+    "nav": {
+      "position": "{n} / {total}",
+      "prev": "Issue anterior",
+      "next": "Próximo issue"
+    },
+    "tools": {
+      "more": "Adicionar ao issue",
+      "request": "Adicionar pedido de cliente",
+      "summarize": "Resumir com IA"
+    },
+    "fav": {
+      "add": "Adicionar aos favoritos",
+      "remove": "Remover dos favoritos",
+      "added": "Adicionado aos favoritos",
+      "removed": "Removido dos favoritos"
     }
+  },
+  "teamSettings": {
+    "adminOnly": "Só um admin pode mudar isto.",
+    "saved": "Salvo.",
+    "identifierHelp": "Prefixo dos IDs dos issues, como {example}. Mudar renomeia os issues da equipe; os IDs antigos continuam funcionando.",
+    "membersHelp": "{count, plural, one {# pessoa trabalha} other {# pessoas trabalham}} nesta equipe.",
+    "manageAccess": "Gerenciar acesso",
+    "subIssues": "Sub-issues",
+    "autoCloseParent": "Fechar o pai quando todos os sub-issues terminarem",
+    "autoCloseChildren": "Fechar os sub-issues abertos quando o pai for concluído ou cancelado",
+    "housekeeping": "Fechamento e arquivamento automáticos",
+    "integrationsHelp": "GitHub, Slack, Sentry e a API são configurados para todo o workspace."
   }
 }

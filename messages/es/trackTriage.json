@@ -21,15 +21,21 @@
     "noSnoozed": "No hay issues pospuestos.",
     "snoozedUntil": "pospuesto hasta el {date}",
     "snoozePresets": {
-      "hour": "Por una hora",
-      "tomorrow": "Hasta mañana",
-      "nextWeek": "Hasta la semana que viene"
+      "hour": "1 hora",
+      "tomorrow": "Mañana",
+      "nextWeek": "La semana que viene"
     },
     "unsnooze": "Mostrarlo de nuevo ahora",
     "snoozeError": "No se pudo posponer el issue.",
     "addComment": "Comentario",
     "comment": "Comentario para quien lo reportó",
-    "commentPlaceholder": "Opcional: por qué lo aceptás o lo rechazás"
+    "commentPlaceholder": "Opcional: por qué lo aceptás o lo rechazás",
+    "suggested": "Sugeridos",
+    "allIssues": "Issues",
+    "duplicateSearch": "Buscá el issue original…",
+    "duplicateEmpty": "Tipeá para buscar un issue",
+    "noDescription": "Sin descripción.",
+    "openIssue": "Abrir issue"
   },
   "ai": {
     "suggestions": "Sugerencias",

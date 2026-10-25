@@ -15,8 +15,11 @@
 import { Marked, type Tokens } from 'marked';
 import { highlightCode, resolveLang } from './track-highlight';
 
-/** Mismo largo máximo que el schema de comentarios / descripción. */
-export const TRACK_MARKDOWN_MAX = 5000;
+/**
+ * Tope de descripciones y comentarios. Linear no tiene un límite práctico:
+ * este solo evita payloads absurdos (unas 50 páginas de texto).
+ */
+export const TRACK_MARKDOWN_MAX = 200_000;
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
@@ -66,6 +69,102 @@ export function isOwnUpload(href: string): boolean {
   return href.startsWith('/uploads/') || /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(href);
 }
 
+// ---------- Bloques colapsables y callouts ----------
+
+/** Tipos de callout (los mismos de las alertas de GitHub: `> [!NOTE]`). */
+export const CALLOUT_KINDS = ['note', 'tip', 'important', 'warning', 'caution'] as const;
+export type CalloutKind = (typeof CALLOUT_KINDS)[number];
+
+export interface ToggleToken {
+  type: 'toggle';
+  raw: string;
+  title: string;
+  body: string;
+  titleTokens: Tokens.Generic[];
+  tokens: Tokens.Generic[];
+}
+
+export interface CalloutToken {
+  type: 'callout';
+  raw: string;
+  kind: CalloutKind;
+  tokens: Tokens.Generic[];
+}
+
+/**
+ * Bloque colapsable como el `>>>` de Linear. En markdown (el mismo que usa
+ * Linear al exportar): `+++ Título`, el cuerpo y `+++` en su propia línea.
+ * Se pueden anidar (un `+++ Otro` abre, un `+++` solo cierra).
+ */
+export function scanToggle(src: string): { raw: string; title: string; body: string } | null {
+  const first = /^\+\+\+[ \t]*([^\n]*?)[ \t]*(?:\n|$)/.exec(src);
+  if (!first) return null;
+  let pos = first[0].length;
+  let depth = 1;
+  while (pos < src.length) {
+    const nl = src.indexOf('\n', pos);
+    const end = nl < 0 ? src.length : nl;
+    const line = src.slice(pos, end);
+    if (/^\+\+\+[ \t]*$/.test(line)) {
+      depth -= 1;
+      if (depth === 0) {
+        const body = src.slice(first[0].length, pos).replace(/\n+$/, '');
+        let rawEnd = nl < 0 ? src.length : nl + 1;
+        while (src[rawEnd] === '\n') rawEnd += 1;
+        return { raw: src.slice(0, rawEnd), title: first[1], body };
+      }
+    } else if (/^\+\+\+[ \t]*\S/.test(line)) depth += 1;
+    if (nl < 0) break;
+    pos = nl + 1;
+  }
+  return null;
+}
+
+const CALLOUT_RE = /^ {0,3}> ?\[!(note|tip|important|warning|caution)\][ \t]*(?:\n|$)((?: {0,3}>[^\n]*(?:\n|$))*)/i;
+
+/** Callout con la sintaxis de alertas de GitHub: `> [!NOTE]` y el cuerpo citado. */
+export function scanCallout(src: string): { raw: string; kind: CalloutKind; body: string } | null {
+  const m = CALLOUT_RE.exec(src);
+  if (!m) return null;
+  const body = m[2].replace(/^ {0,3}> ?/gm, '').replace(/\n+$/, '');
+  return { raw: m[0], kind: m[1].toLowerCase() as CalloutKind, body };
+}
+
+type BlockRender<T> = (this: { parser: { parse: (t: Tokens.Generic[]) => string; parseInline: (t: Tokens.Generic[]) => string } }, token: T) => string;
+
+/** Extensiones de marked para los bloques de arriba; cada render arma su HTML. */
+export function blockExtensions(render: { toggle: BlockRender<ToggleToken>; callout: BlockRender<CalloutToken> }) {
+  return [
+    {
+      name: 'toggle',
+      level: 'block' as const,
+      childTokens: ['titleTokens', 'tokens'],
+      tokenizer(this: { lexer: { blockTokens: (s: string, t: Tokens.Generic[]) => Tokens.Generic[]; inline: (s: string, t: Tokens.Generic[]) => Tokens.Generic[] } }, src: string) {
+        const hit = scanToggle(src);
+        if (!hit) return undefined;
+        const token: ToggleToken = { type: 'toggle', raw: hit.raw, title: hit.title, body: hit.body, titleTokens: [], tokens: [] };
+        this.lexer.inline(hit.title, token.titleTokens);
+        this.lexer.blockTokens(hit.body, token.tokens);
+        return token;
+      },
+      renderer: render.toggle as never,
+    },
+    {
+      name: 'callout',
+      level: 'block' as const,
+      childTokens: ['tokens'],
+      tokenizer(this: { lexer: { blockTokens: (s: string, t: Tokens.Generic[]) => Tokens.Generic[] } }, src: string) {
+        const hit = scanCallout(src);
+        if (!hit) return undefined;
+        const token: CalloutToken = { type: 'callout', raw: hit.raw, kind: hit.kind, tokens: [] };
+        this.lexer.blockTokens(hit.body, token.tokens);
+        return token;
+      },
+      renderer: render.callout as never,
+    },
+  ];
+}
+
 // Contador de checkboxes del render en curso (para tildarlos desde la lectura).
 let taskIndex = 0;
 let interactiveTasks = false;
@@ -75,6 +174,16 @@ const md = new Marked({
   gfm: true,
   breaks: true,
   extensions: [
+    // Colapsable (cerrado al leer, se abre con clic o Enter) y callout.
+    ...blockExtensions({
+      toggle(token) {
+        const title = this.parser.parseInline(token.titleTokens) || '&nbsp;';
+        return `<details class="track-toggle"><summary>${title}</summary><div class="track-toggle-body">${this.parser.parse(token.tokens)}</div></details>\n`;
+      },
+      callout(token) {
+        return `<div class="track-callout" data-kind="${token.kind}" role="note">${this.parser.parse(token.tokens)}</div>\n`;
+      },
+    }),
     {
       // ZER-12 (o @ZER-12) → referencia a issue; el cliente le pone estado y link.
       name: 'issueRef',
@@ -106,7 +215,8 @@ const md = new Marked({
         return m ? { type: 'mention', raw: m[0], text: m[0] } : undefined;
       },
       renderer(token) {
-        return `<span class="track-mention">${escapeHtml(String(token.text))}</span>`;
+        const text = escapeHtml(String(token.text));
+        return `<span class="track-mention" data-mention="${text}">${text}</span>`;
       },
     },
   ],

@@ -20,11 +20,13 @@ import TrackIcon from './TrackIcon';
 import IssueSubscription from './IssueSubscription';
 import IssueReminder from './IssueReminder';
 import IssueSidebar from './IssueSidebar';
-import SubIssues from './SubIssues';
+import SubIssues, { ProgressRing } from './SubIssues';
 import { useWorkspaceLabels } from './LabelPicker';
 import { applyIssuePatch, findDoneStatus, findOpenStatus, formatDay, inversePatch, type IssuePatch } from '@/lib/track-tasks';
 import { useIssueStore, type ProjectContext } from './useIssueStore';
-import { rowTargetId, useTrackCommands } from './trackCommands';
+import { issueHref, isTypingTarget as isTextTarget, rowTargetId, useTrackCommands } from './trackCommands';
+import { readListNav } from './trackNav';
+import { TRACK_VIEWS_CHANGED } from './TrackBranch';
 import { pushNotice, pushUndo, scheduleDelete } from './trackUndo';
 import { useTrackLive } from './useTrackLive';
 import type { TrackUiLabels } from './ui-labels';
@@ -39,6 +41,7 @@ import type {
   TrackIssueWithStatus,
 } from '@/lib/track-data';
 import { teamKeyOf, teamPath } from '@/lib/track-routes';
+import { TRACK_MARKDOWN_MAX } from '@/lib/track-markdown';
 
 interface DetailLabels {
   back: string;
@@ -171,6 +174,8 @@ interface IssueDetailClientProps {
   initialReactions?: CommentReaction[];
   /** Si la persona recibe los avisos del issue. */
   initialSubscribed: boolean;
+  /** Si el issue está en sus favoritos (estrella). */
+  initialFavorite?: boolean;
   labels: DetailLabels;
   /** Labels del quick-create y de la edición en línea. */
   ui: TrackUiLabels;
@@ -237,6 +242,7 @@ export default function IssueDetailClient({
   initialRelations,
   initialReactions = [],
   initialSubscribed,
+  initialFavorite = false,
   labels,
   ui,
   canDelete = false,
@@ -256,15 +262,35 @@ export default function IssueDetailClient({
   const [relations, setRelations] = useState(initialRelations);
   const [parentChain, setParentChain] = useState(initialParentChain);
   const [uploading, setUploading] = useState(false);
-  const [showRelationForm, setShowRelationForm] = useState(false);
-  const [relationInput, setRelationInput] = useState('');
-  const [relationType, setRelationType] = useState<(typeof RELATION_TYPES)[number]>('related');
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
-  const [relationError, setRelationError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [titleDraft, setTitleDraft] = useState(initialIssue.title);
   const [descDraft, setDescDraft] = useState(() => parseDescription(initialIssue.description));
   const [composerSignal, setComposerSignal] = useState(0);
+  // Secciones que no se muestran vacías (como Linear): se abren desde el menú "+".
+  const [linksSignal, setLinksSignal] = useState(0);
+  const [summarizeSignal, setSummarizeSignal] = useState(0);
+  const [requestSignal, setRequestSignal] = useState(0);
+  const subscriptionApi = useRef<{ subscribed: boolean; toggle: () => void } | null>(null);
+  // Estrella (favoritos en el sidebar, como Linear).
+  const [favorite, setFavorite] = useState(initialFavorite);
+  const toggleFavorite = useCallback(async () => {
+    const next = !favorite;
+    setFavorite(next);
+    const res = await fetch(`/api/track/issues/${issueRef.current.id}/favorite`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ favorite: next }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setFavorite(!next);
+      setSaveError(ui.inline.saveError);
+      return;
+    }
+    window.dispatchEvent(new Event(TRACK_VIEWS_CHANGED));
+    pushNotice(next ? tx('fav.added') : tx('fav.removed'));
+  }, [favorite, tx, ui.inline.saveError]);
+  const attachInputRef = useRef<HTMLInputElement>(null);
   // Aviso para lectores de pantalla tras copiar (rama o link).
   const [copied, setCopied] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -275,6 +301,16 @@ export default function IssueDetailClient({
   }, []);
   const titleRef = useAutosize(titleDraft);
   const titleFocused = useRef(false);
+
+  // URL como Linear: /app/track/issue/WEB-12/titulo (también si se entró por el UUID o por un ID viejo).
+  useEffect(() => {
+    const m = /^(.*?\/app\/track\/)(issues\/[^/?#]+|issue\/[^?#]+)$/.exec(window.location.pathname);
+    if (!m) return;
+    const canonical = `${m[1]}${issueHref(issue).replace('/app/track/', '')}`;
+    if (canonical !== window.location.pathname) {
+      window.history.replaceState(window.history.state, '', `${canonical}${window.location.search}${window.location.hash}`);
+    }
+  }, [issue]);
 
   // ?sub=1 (⌘⇧O desde una lista): abre el composer de sub-issues.
   useEffect(() => {
@@ -390,6 +426,7 @@ export default function IssueDetailClient({
           async () => {
             await patchIssueRef.current(patch, { undo: false });
           },
+          { silent: true },
         );
       }
       return true;
@@ -548,7 +585,7 @@ export default function IssueDetailClient({
     if (descTimer.current) window.clearTimeout(descTimer.current);
     descTimer.current = null;
     const next = descLatest.current.trim();
-    if (next === descSaved.current || next.length > 5000) return;
+    if (next === descSaved.current || next.length > TRACK_MARKDOWN_MAX) return;
     await saveDescriptionText(next);
   }
 
@@ -565,7 +602,7 @@ export default function IssueDetailClient({
       if (descTimer.current) {
         window.clearTimeout(descTimer.current);
         const next = descLatest.current.trim();
-        if (next !== descSaved.current && next.length <= 5000) {
+        if (next !== descSaved.current && next.length <= TRACK_MARKDOWN_MAX) {
           void fetch(`/api/track/issues/${issue.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -587,14 +624,14 @@ export default function IssueDetailClient({
       }
       const form = new FormData();
       form.append('file', file);
+      // Inline: la imagen vive en el texto, no se lista otra vez en Adjuntos.
+      form.append('inline', '1');
       const res = await fetch(`/api/track/issues/${issue.id}/attachments`, { method: 'POST', body: form }).catch(() => null);
       if (!res?.ok) return null;
       const row = (await res.json()) as { url: string; filename: string; content_type?: string };
-      void refreshAttachments();
-      void refreshActivities();
       return { url: row.url, filename: row.filename, image: (row.content_type ?? file.type).startsWith('image/') };
     },
-    [issue.id, labels.attachments.tooLarge, refreshAttachments, refreshActivities],
+    [issue.id, labels.attachments.tooLarge],
   );
 
   const branchName = branchNameFor(issue.identifier, titleDraft || issue.title);
@@ -606,7 +643,7 @@ export default function IssueDetailClient({
   }, []);
 
   const copyLink = useCallback(() => {
-    void navigator.clipboard?.writeText(window.location.href.split('#')[0]).catch(() => undefined);
+    void navigator.clipboard?.writeText(new URL(issueHref(issueRef.current), window.location.origin).toString()).catch(() => undefined);
     announceCopied(t('issues.linkCopied'));
   }, [t, announceCopied]);
 
@@ -735,6 +772,68 @@ export default function IssueDetailClient({
   const setArchivedRef = useRef(setArchived);
   setArchivedRef.current = setArchived;
 
+  // ---------- Relaciones y duplicados (desde ⌘K, sin formularios) ----------
+
+  const addRelation = useCallback(
+    async (fromId: string, toId: string, type: (typeof RELATION_TYPES)[number]) => {
+      const res = await fetch(`/api/track/issues/${fromId}/relations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ relatedIssueId: toId, type }),
+      }).catch(() => null);
+      if (!res?.ok) {
+        const code = res ? ((await res.json().catch(() => null)) as { error?: string } | null)?.error : undefined;
+        setSaveError(code === 'duplicate_relation' ? labels.relations.duplicate : code === 'invalid_relation' ? labels.relations.self : labels.relations.error);
+        return false;
+      }
+      await Promise.all([refreshRelations(), refreshActivities()]);
+      return true;
+    },
+    [labels.relations, refreshRelations, refreshActivities],
+  );
+
+  // Como "Mark as duplicate" de Linear: relación con el original y el issue pasa a cancelado.
+  const markDuplicate = useCallback(
+    async (target: TrackIssueWithStatus, canonical: TrackIssueWithStatus) => {
+      if (!(await addRelation(target.id, canonical.id, 'duplicates'))) return;
+      const cancelled = [...initialStatuses].sort((a, b) => a.position - b.position).find((st) => st.category === 'cancelled');
+      if (cancelled && target.id === issueRef.current.id) await patchIssueRef.current({ statusId: cancelled.id }, { undo: false });
+      pushNotice(tc('markedDuplicate', { id: target.identifier, of: canonical.identifier }));
+    },
+    [addRelation, initialStatuses, tc],
+  );
+
+  const relationActions = useCallback((): CommandAction[] => {
+    const search = async (q: string) => {
+      const sp = new URLSearchParams({ pageSize: '12' });
+      if (q.trim()) sp.set('q', q.trim());
+      const res = await fetch(`/api/track/issues?${sp.toString()}`).catch(() => null);
+      if (!res?.ok) return [];
+      return ((await res.json()) as { rows: TrackIssueWithStatus[] }).rows.filter((r) => r.id !== issueRef.current.id);
+    };
+    const make = (id: string, label: string, run: (r: TrackIssueWithStatus) => void): CommandAction => ({
+      id,
+      label,
+      keywords: 'relation relación relação link blocks bloquea related relacionado',
+      placeholder: tc('searchParent'),
+      icon: { kind: 'glyph', name: 'link' },
+      children: () => [],
+      load: async (q) =>
+        (await search(q)).map((r) => ({
+          id: `${id}:${r.id}`,
+          label: `${r.identifier} ${r.title}`,
+          icon: { kind: 'status' as const, color: r.status_color ?? null, category: r.status_category ?? null },
+          run: () => run(r),
+        })),
+    });
+    const me = () => issueRef.current.id;
+    return [
+      make('relate-blocks', tx('rel.blocks'), (r) => void addRelation(me(), r.id, 'blocks')),
+      make('relate-blocked', tx('rel.blockedBy'), (r) => void addRelation(r.id, me(), 'blocks')),
+      make('relate-related', tx('rel.related'), (r) => void addRelation(me(), r.id, 'related')),
+    ];
+  }, [tc, tx, addRelation]);
+
   // ---------- ⌘K y atajos de una tecla ----------
 
   useTrackCommands({
@@ -789,10 +888,20 @@ export default function IssueDetailClient({
       open: (i) => router.push(`/app/track/issues/${i.id}`),
       moveToTeam: (targets, teamId) => void moveToTeam(targets, teamId),
       archive: (targets) => void setArchived(targets.map((x) => x.id), true),
+      markDuplicate: (target, canonical) => void markDuplicate(target, canonical),
+      subscription: {
+        subscribed: () => subscriptionApi.current?.subscribed ?? false,
+        toggle: () => subscriptionApi.current?.toggle(),
+      },
     },
     t: (k, v) => tc(k, v),
     formatDay: (iso) => formatDay(iso, locale, today),
-    extra: (targets) => (targets[0]?.id === issueRef.current.id ? [addExistingAction()] : []),
+    extra: (targets) => (targets[0]?.id === issueRef.current.id ? [addExistingAction(), ...relationActions()] : []),
+    // Sobre el issue abierto, S/P/A/L… abren el menú debajo del chip del panel (como Linear).
+    anchorFor: (page, targets) =>
+      targets.length === 1 && targets[0].id === issueRef.current.id
+        ? document.querySelector(`.track-detail-side [data-cmd-anchor="${page}"]`)
+        : null,
   });
 
   // ---------- Adjuntos y relaciones ----------
@@ -829,33 +938,6 @@ export default function IssueDetailClient({
     if (res.ok) await refreshAttachments();
   }
 
-  async function handleAddRelation(e: React.FormEvent) {
-    e.preventDefault();
-    if (!relationInput.trim()) return;
-    setRelationError(null);
-    const res = await fetch(`/api/track/issues/${issue.id}/relations`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ relatedIssueId: relationInput.trim(), type: relationType }),
-    }).catch(() => null);
-    if (res?.ok) {
-      setRelationInput('');
-      setShowRelationForm(false);
-      await Promise.all([refreshRelations(), refreshActivities()]);
-      return;
-    }
-    const code = res ? ((await res.json().catch(() => null)) as { error?: string } | null)?.error : undefined;
-    setRelationError(
-      res?.status === 404
-        ? labels.relations.notFound
-        : code === 'duplicate_relation'
-          ? labels.relations.duplicate
-          : code === 'invalid_relation'
-            ? labels.relations.self
-            : labels.relations.error,
-    );
-  }
-
   async function handleDeleteRelation(relationId: string) {
     const res = await fetch(`/api/track/issues/${issue.id}/relations?relationId=${relationId}`, { method: 'DELETE' });
     if (res.ok) {
@@ -863,15 +945,89 @@ export default function IssueDetailClient({
     }
   }
 
-  // El padre cambió (⌘⇧P o "Quitar padre"): el breadcrumb se vuelve a pedir.
+  // El padre cambió (⌘⇧P, "Quitar padre" o su ⌘Z): el breadcrumb se arma de
+  // nuevo pidiendo la cadena de padres (nunca queda en "…").
   useEffect(() => {
     if (issue.parent_id === (parentChain[parentChain.length - 1]?.id ?? null)) return;
     if (!issue.parent_id) {
       setParentChain([]);
       return;
     }
-    setParentChain([{ id: issue.parent_id, identifier: issue.parent_identifier ?? '…', title: issue.parent_title ?? '' }]);
-  }, [issue.parent_id, issue.parent_identifier, issue.parent_title, parentChain]);
+    let alive = true;
+    const first = issue.parent_id;
+    if (issue.parent_identifier) setParentChain([{ id: first, identifier: issue.parent_identifier, title: issue.parent_title ?? '' }]);
+    void (async () => {
+      const chain: IssueParentSummary[] = [];
+      let next: string | null = first;
+      const seen = new Set<string>([issue.id]);
+      while (next && !seen.has(next) && chain.length < 8) {
+        seen.add(next);
+        const res = await fetch(`/api/track/issues/${next}`).catch(() => null);
+        if (!res?.ok) break;
+        const p = (await res.json()) as TrackIssueWithStatus;
+        chain.unshift({ id: p.id, identifier: p.identifier, title: p.title });
+        next = p.parent_id;
+      }
+      if (alive && chain.length) setParentChain(chain);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [issue.id, issue.parent_id, issue.parent_identifier, issue.parent_title, parentChain]);
+
+  // Hermanos (sub-issue): progreso del padre arriba y J/K entre hermanos.
+  const [siblings, setSiblings] = useState<TrackIssueWithStatus[]>([]);
+  const parentId = issue.parent_id;
+  useEffect(() => {
+    if (!parentId) {
+      setSiblings([]);
+      return;
+    }
+    let alive = true;
+    void fetch(`/api/track/issues/${parentId}/children`)
+      .then((res) => (res.ok ? (res.json() as Promise<{ rows: TrackIssueWithStatus[] }>) : null))
+      .then((data) => {
+        if (alive && data) setSiblings(data.rows);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [parentId, issue.status_id]);
+
+  // "4 / 12": la lista desde la que se abrió (o los hermanos si es sub-issue).
+  const [listNav, setListNav] = useState<{ ids: string[]; href: string } | null>(null);
+  useEffect(() => {
+    const nav = readListNav();
+    setListNav(nav && nav.ids.includes(issue.id) ? nav : null);
+  }, [issue.id]);
+  const navIds = useMemo(() => listNav?.ids ?? (siblings.length > 1 ? siblings.map((x) => x.id) : []), [listNav, siblings]);
+  const navIndex = navIds.indexOf(issue.id);
+  const goSibling = useCallback(
+    (delta: number) => {
+      if (navIndex < 0) return;
+      const target = navIds[navIndex + delta];
+      if (target) router.push(`/app/track/issues/${target}`);
+    },
+    [navIds, navIndex, router],
+  );
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || isTextTarget(e.target)) return;
+      if (document.querySelector('[role="dialog"], dialog[open], .cmdk, [role="menu"]')) return;
+      // J/K recorren los issues de la lista (como Linear); sobre una fila de sub-issue, la fila manda.
+      if ((e.key === 'j' || e.key === 'k') && navIndex >= 0 && !document.querySelector('[data-issue-key].is-kb-active')) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        goSibling(e.key === 'j' ? 1 : -1);
+      } else if (e.key === 'Escape' && listNav) {
+        e.preventDefault();
+        router.push(listNav.href);
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [goSibling, navIndex, listNav, router]);
 
   const outgoing = relations.filter((r) => r.direction === 'outgoing');
   const incoming = relations.filter((r) => r.direction === 'incoming');
@@ -882,8 +1038,25 @@ export default function IssueDetailClient({
     return labels.relations.related;
   }
 
+  const parentDone = siblings.filter((x) => x.status_category === 'done' || x.status_category === 'cancelled').length;
+  const moreItem = (key: string, label: string, onClick: () => void, meta?: string, extra?: { testId?: string; danger?: boolean; autoFocus?: boolean; shortcut?: string }) => (
+    <button
+      key={key}
+      type="button"
+      role="menuitem"
+      className={`track-menu-item${extra?.danger ? ' is-danger' : ''}`}
+      data-autofocus={extra?.autoFocus ? '' : undefined}
+      data-testid={extra?.testId}
+      aria-keyshortcuts={extra?.shortcut}
+      onClick={onClick}
+    >
+      <span className="track-menu-label">{label}</span>
+      {meta && <kbd className="track-menu-meta">{meta}</kbd>}
+    </button>
+  );
+
   return (
-    <div className="app-page track-detail" data-track-project-id={issue.project_id}>
+    <div className="app-page track-detail track-issue-page" data-track-project-id={issue.project_id} data-track-issue-id={issue.id}>
       <header className="track-detail-head">
         <div className="track-detail-topbar">
           <nav className="track-breadcrumb" aria-label={labels.back}>
@@ -893,7 +1066,7 @@ export default function IssueDetailClient({
                 <span className="track-breadcrumb-sep" aria-hidden>
                   ›
                 </span>
-                <Link href={`/app/track/issues/${p.id}`} title={p.title} className="track-identifier">
+                <Link href={issueHref(p)} title={p.title} className="track-identifier">
                   {p.identifier}
                 </Link>
               </span>
@@ -921,89 +1094,109 @@ export default function IssueDetailClient({
                 <span className="sr-only">{tx('presence.viewing', { names: viewers.map((v) => v.name).join(', ') })}</span>
               </span>
             )}
-            <IssueReminder issueId={issue.id} locale={locale} initial={initialReminder ?? null} />
+            {navIndex >= 0 && navIds.length > 1 && (
+              <span className="track-issue-nav" data-testid="track-issue-nav">
+                <span className="track-issue-nav-count data" aria-live="polite">
+                  {tx('nav.position', { n: navIndex + 1, total: navIds.length })}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon track-head-icon"
+                  onClick={() => goSibling(-1)}
+                  disabled={navIndex <= 0}
+                  aria-label={tx('nav.prev')}
+                  title={`${tx('nav.prev')} · K`}
+                  aria-keyshortcuts="K"
+                >
+                  <TrackIcon name="up" size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon track-head-icon"
+                  onClick={() => goSibling(1)}
+                  disabled={navIndex >= navIds.length - 1}
+                  aria-label={tx('nav.next')}
+                  title={`${tx('nav.next')} · J`}
+                  aria-keyshortcuts="J"
+                >
+                  <TrackIcon name="down" size={14} />
+                </button>
+              </span>
+            )}
+            <button
+              type="button"
+              className={`btn btn-ghost btn-icon track-head-icon${favorite ? ' is-on' : ''}`}
+              onClick={() => void toggleFavorite()}
+              aria-pressed={favorite}
+              aria-label={favorite ? tx('fav.remove') : tx('fav.add')}
+              title={favorite ? tx('fav.remove') : tx('fav.add')}
+              data-testid="track-issue-favorite"
+            >
+              <TrackIcon name="star" size={14} />
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon track-head-icon"
+              onClick={copyLink}
+              aria-label={t('issues.copyLink')}
+              title={`${t('issues.copyLink')} · ${issueKeyHint('copyLink', mac)}`}
+              data-testid="track-copy-link-head"
+            >
+              <TrackIcon name="link" size={14} />
+            </button>
+            <IssueReminder issueId={issue.id} locale={locale} initial={initialReminder ?? null} compact />
             <IssueSubscription
               issueId={issue.id}
               initialSubscribed={initialSubscribed}
               refreshKey={activities.length}
               labels={labels.subscription}
+              compact
+              apiRef={subscriptionApi}
             />
             <Popover
               ariaLabel={labels.edit.more}
-              className="btn btn-icon track-detail-more"
+              className="btn btn-ghost btn-icon track-head-icon track-detail-more"
               width={300}
               trigger={<TrackIcon name="more" size={16} />}
             >
               {(close) => (
                 <>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="track-menu-item"
-                    data-autofocus
-                    onClick={() => {
+                  {(doneStatus || openStatus) &&
+                    moreItem('close', isClosed ? labels.actions.reopen : labels.actions.close, () => {
                       close();
-                      setComposerSignal((n) => n + 1);
-                    }}
-                    data-testid="track-menu-subissue"
-                  >
-                    <span className="track-menu-label">{tc('createSubIssue')}</span>
-                    <kbd className="track-menu-meta">{mac ? '⌘⇧O' : 'Ctrl+Shift+O'}</kbd>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="track-menu-item"
-                    onClick={() => {
+                      handleCloseReopen();
+                    }, undefined, { autoFocus: true, testId: 'track-close-issue' })}
+                  {moreItem('sub', tc('createSubIssue'), () => {
+                    close();
+                    setComposerSignal((n) => n + 1);
+                  }, mac ? '⌘⇧O' : 'Ctrl+Shift+O', { testId: 'track-menu-subissue' })}
+                  {moreItem('parent', tc('setParent'), () => {
+                    close();
+                    window.setTimeout(() => openCommandMenu('parent', { targetId: issue.id }), 0);
+                  }, mac ? '⌘⇧P' : 'Ctrl+Shift+P')}
+                  {issue.parent_id &&
+                    moreItem('remove-parent', tc('removeParent'), () => {
                       close();
-                      window.setTimeout(() => openCommandMenu('parent'), 0);
-                    }}
-                  >
-                    <span className="track-menu-label">{tc('setParent')}</span>
-                    <kbd className="track-menu-meta">{mac ? '⌘⇧P' : 'Ctrl+Shift+P'}</kbd>
-                  </button>
-                  {issue.parent_id && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="track-menu-item"
-                      onClick={() => {
-                        close();
-                        void patchIssue({ parentId: null });
-                      }}
-                      data-testid="track-remove-parent"
-                    >
-                      <span className="track-menu-label">{tc('removeParent')}</span>
-                    </button>
-                  )}
+                      void patchIssue({ parentId: null });
+                    }, undefined, { testId: 'track-remove-parent' })}
+                  {moreItem('dup', tc('markDuplicate'), () => {
+                    close();
+                    window.setTimeout(() => openCommandMenu('duplicate', { targetId: issue.id }), 0);
+                  })}
+                  {moreItem('move', tc('moveToTeam'), () => {
+                    close();
+                    window.setTimeout(() => openCommandMenu('move-team', { targetId: issue.id }), 0);
+                  }, mac ? '⌘⇧M' : 'Ctrl+Shift+M')}
                   <div className="track-menu-sep" role="separator" />
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="track-menu-item"
-                    onClick={() => {
-                      void navigator.clipboard?.writeText(issue.identifier).catch(() => undefined);
-                      announceCopied(tc('copied', { what: issue.identifier }));
-                      close();
-                    }}
-                  >
-                    <span className="track-menu-label">{tc('copyId')}</span>
-                    <kbd className="track-menu-meta">{mac ? '⌘.' : 'Ctrl+.'}</kbd>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="track-menu-item"
-                    data-testid="track-copy-link"
-                    aria-keyshortcuts="Meta+Shift+Comma Control+Shift+Comma"
-                    onClick={() => {
-                      copyLink();
-                      close();
-                    }}
-                  >
-                    <span className="track-menu-label">{t('issues.copyLink')}</span>
-                    <kbd className="track-menu-meta">{issueKeyHint('copyLink', mac)}</kbd>
-                  </button>
+                  {moreItem('copy-id', tc('copyId'), () => {
+                    void navigator.clipboard?.writeText(issue.identifier).catch(() => undefined);
+                    announceCopied(tc('copied', { what: issue.identifier }));
+                    close();
+                  }, mac ? '⌘.' : 'Ctrl+.')}
+                  {moreItem('copy-link', t('issues.copyLink'), () => {
+                    copyLink();
+                    close();
+                  }, issueKeyHint('copyLink', mac), { testId: 'track-copy-link', shortcut: 'Meta+Shift+Comma Control+Shift+Comma' })}
                   <button
                     type="button"
                     role="menuitem"
@@ -1019,33 +1212,23 @@ export default function IssueDetailClient({
                     <span className="track-menu-label is-fixed">{labels.edit.copyBranch}</span>
                     <span className="track-menu-meta track-menu-meta-trunc data">{branchName}</span>
                   </button>
+                  {!issue.archived_at &&
+                    moreItem('archive', tc('archive'), () => {
+                      close();
+                      void setArchived([issue.id], true);
+                    })}
                   {canDelete && (
                     <>
                       <div className="track-menu-sep" role="separator" />
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="track-menu-item is-danger"
-                        data-testid="track-issue-delete"
-                        aria-keyshortcuts="Meta+Backspace Control+Backspace"
-                        onClick={() => {
-                          close();
-                          setConfirmDelete(true);
-                        }}
-                      >
-                        <span className="track-menu-label">{t('issues.deleteIssue')}</span>
-                        <kbd className="track-menu-meta">{issueKeyHint('delete', mac)}</kbd>
-                      </button>
+                      {moreItem('delete', t('issues.deleteIssue'), () => {
+                        close();
+                        setConfirmDelete(true);
+                      }, issueKeyHint('delete', mac), { testId: 'track-issue-delete', danger: true, shortcut: 'Meta+Backspace Control+Backspace' })}
                     </>
                   )}
                 </>
               )}
             </Popover>
-            {(doneStatus || openStatus) && (
-              <button type="button" className="btn btn-sm" onClick={handleCloseReopen}>
-                {isClosed ? labels.actions.reopen : labels.actions.close}
-              </button>
-            )}
           </div>
         </div>
         <span className="sr-only" role="status">
@@ -1068,12 +1251,27 @@ export default function IssueDetailClient({
       <div className="track-detail-grid">
         <div className="track-detail-main">
           {parent && (
-            <Link href={`/app/track/issues/${parent.id}`} className="track-parent-line" data-testid="track-parent-line">
-              <TrackIcon name="parent" size={12} />
-              <span>{tx('sub.of')}</span>
-              <span className="track-identifier">{parent.identifier}</span>
-              <span className="track-parent-title">{parent.title}</span>
-            </Link>
+            <div className="track-parent-row">
+              <Link
+                href={issueHref(parent)}
+                className="track-parent-line"
+                data-testid="track-parent-line"
+                title={`${tx('sub.of')} ${parent.identifier} · ${mac ? '⌘⇧↑' : 'Ctrl+Shift+↑'}`}
+                aria-keyshortcuts="Meta+Shift+ArrowUp Control+Shift+ArrowUp"
+              >
+                <span>{tx('sub.of')}</span>
+                {siblings.length > 0 && (
+                  <span className="track-parent-progress" data-testid="track-parent-progress" title={tx('sub.nested', { done: parentDone, total: siblings.length })}>
+                    <ProgressRing done={parentDone} total={siblings.length} size={12} />
+                    <span className="data">
+                      {parentDone}/{siblings.length}
+                    </span>
+                  </span>
+                )}
+                <span className="track-identifier">{parent.identifier}</span>
+                <span className="track-parent-title">{parent.title}</span>
+              </Link>
+            </div>
           )}
           <h1 className="track-detail-title">
             <textarea
@@ -1104,7 +1302,7 @@ export default function IssueDetailClient({
             />
           </h1>
 
-          <section className="track-detail-section track-detail-description" aria-label={labels.description}>
+          <section className="track-detail-description" aria-label={labels.description}>
             {/* Siempre editable, como en Linear: se guarda solo al dejar de tipear y al salir. */}
             <RichEditor
               key={issue.id}
@@ -1124,6 +1322,82 @@ export default function IssueDetailClient({
             />
           </section>
 
+          {/* Debajo de la descripción, como Linear: + sub-issues, adjuntar y el resto en "…". */}
+          <div className="track-issue-tools" role="toolbar" aria-label={tx('tools.more')}>
+            {childStore.issues.length === 0 && (
+              <button
+                type="button"
+                className="track-tool"
+                onClick={() => setComposerSignal((n) => n + 1)}
+                title={`${tx('sub.add')} · ${mac ? '⌘⇧O' : 'Ctrl+Shift+O'}`}
+                aria-keyshortcuts="Meta+Shift+O Control+Shift+O"
+                data-testid="track-add-subissue"
+              >
+                <TrackIcon name="plus" size={14} />
+                <span>{tx('sub.addFirst')}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className="track-tool is-icon"
+              onClick={() => attachInputRef.current?.click()}
+              disabled={uploading}
+              aria-busy={uploading || undefined}
+              aria-label={labels.edit.addAttachment}
+              title={labels.edit.addAttachment}
+              data-testid="track-attach"
+            >
+              <TrackIcon name="paperclip" size={14} />
+            </button>
+            <input
+              ref={attachInputRef}
+              type="file"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleUpload(file);
+                e.currentTarget.value = '';
+              }}
+            />
+            <Popover ariaLabel={tx('tools.more')} className="track-tool is-icon track-tools-more" width={260} trigger={<TrackIcon name="more" size={14} />}>
+              {(close) => (
+                <>
+                  {moreItem('existing', tx('sub.addExisting'), () => {
+                    close();
+                    window.setTimeout(() => openCommandMenu('add-sub'), 0);
+                  }, undefined, { autoFocus: true, testId: 'track-add-existing-subissue' })}
+                  {moreItem('blocks', tx('rel.blocks'), () => {
+                    close();
+                    window.setTimeout(() => openCommandMenu('relate-blocks', { targetId: issue.id }), 0);
+                  })}
+                  {moreItem('blocked', tx('rel.blockedBy'), () => {
+                    close();
+                    window.setTimeout(() => openCommandMenu('relate-blocked', { targetId: issue.id }), 0);
+                  })}
+                  {moreItem('related', tx('rel.related'), () => {
+                    close();
+                    window.setTimeout(() => openCommandMenu('relate-related', { targetId: issue.id }), 0);
+                  }, undefined, { testId: 'track-add-relation' })}
+                  <div className="track-menu-sep" role="separator" />
+                  {moreItem('link', t('issueLinks.add'), () => {
+                    close();
+                    setLinksSignal((n) => n + 1);
+                  }, undefined, { testId: 'track-tool-link' })}
+                  {moreItem('request', tx('tools.request'), () => {
+                    close();
+                    setRequestSignal((n) => n + 1);
+                  }, undefined, { testId: 'track-tool-request' })}
+                  {moreItem('summary', tx('tools.summarize'), () => {
+                    close();
+                    setSummarizeSignal((n) => n + 1);
+                  }, undefined, { testId: 'track-tool-summarize' })}
+                </>
+              )}
+            </Popover>
+          </div>
+
           <SubIssues
             parent={issue}
             store={childStore}
@@ -1132,32 +1406,9 @@ export default function IssueDetailClient({
             composerSignal={composerSignal}
             onCreate={createSubIssue}
             onAddExisting={() => openCommandMenu('add-sub')}
+            hideEmpty
           />
 
-          <div className="track-detail-add">
-            <label className="track-attachment-upload">
-              <input
-                type="file"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleUpload(file);
-                  e.currentTarget.value = '';
-                }}
-                disabled={uploading}
-              />
-              <span className="btn btn-ghost btn-sm" aria-busy={uploading || undefined}>
-                <TrackIcon name="pin" size={12} /> {labels.edit.addAttachment}
-              </span>
-            </label>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => setShowRelationForm(true)}
-              aria-expanded={showRelationForm}
-            >
-              <TrackIcon name="link" size={12} /> {labels.edit.addRelation}
-            </button>
-          </div>
           {(attachmentError || childStore.error) && (
             <p className="ui-error" role="alert">
               {attachmentError ?? childStore.error}
@@ -1165,10 +1416,10 @@ export default function IssueDetailClient({
           )}
 
           <IssueGithubPanel data={github} />
-          <IssueLinksPanel issueId={issue.id} />
+          <IssueLinksPanel issueId={issue.id} hideEmpty addSignal={linksSignal} />
 
           {attachments.length > 0 && (
-            <section className="track-detail-section">
+            <section className="track-detail-section track-issue-block">
               <h2 className="track-section-title">{labels.attachments.title}</h2>
               <ul className="track-attachment-list">
                 {attachments.map((a) => (
@@ -1194,100 +1445,42 @@ export default function IssueDetailClient({
             </section>
           )}
 
-          {(relations.length > 0 || showRelationForm) && (
-            <section className="track-detail-section">
+          {relations.length > 0 && (
+            <section className="track-detail-section track-issue-block" data-testid="track-relations">
               <h2 className="track-section-title">{labels.relations.title}</h2>
-
-              {outgoing.length > 0 && (
-                <div className="track-relation-group">
-                  <h3 className="track-relation-heading">{labels.relations.outgoing}</h3>
-                  <ul className="track-relation-list">
-                    {outgoing.map((r) => (
-                      <li key={r.id} className="track-relation">
-                        <span className="track-relation-type">{relationLabel(r.type, 'outgoing')}</span>
-                        <Link href={`/app/track/issues/${r.related_issue_id}`}>
-                          <span className="track-identifier">{r.identifier}</span> {r.title}
-                        </Link>
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleDeleteRelation(r.id)}>
-                          {labels.relations.remove}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {incoming.length > 0 && (
-                <div className="track-relation-group">
-                  <h3 className="track-relation-heading">{labels.relations.incoming}</h3>
-                  <ul className="track-relation-list">
-                    {incoming.map((r) => (
-                      <li key={r.id} className="track-relation">
-                        <span className="track-relation-type">{relationLabel(r.type, 'incoming')}</span>
-                        <Link href={`/app/track/issues/${r.issue_id}`}>
-                          <span className="track-identifier">{r.identifier}</span> {r.title}
-                        </Link>
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleDeleteRelation(r.id)}>
-                          {labels.relations.remove}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {showRelationForm && (
-                <form
-                  className="track-relation-form"
-                  onSubmit={handleAddRelation}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      e.preventDefault();
-                      setShowRelationForm(false);
-                    }
-                  }}
-                >
-                  <select
-                    className="select"
-                    aria-label={labels.relations.selectType}
-                    value={relationType}
-                    onChange={(e) => setRelationType(e.target.value as (typeof RELATION_TYPES)[number])}
-                  >
-                    {RELATION_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {relationLabel(type, 'outgoing')}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    className="input data"
-                    type="text"
-                    value={relationInput}
-                    onChange={(e) => setRelationInput(e.target.value)}
-                    placeholder={labels.relations.selectIssue}
-                    aria-label={labels.relations.selectIssue}
-                    autoFocus
-                  />
-                  <span className="track-inline-form-actions">
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowRelationForm(false)}>
-                      {labels.relations.cancel}
-                    </button>
-                    <button type="submit" className="btn btn-primary btn-sm" disabled={!relationInput.trim()}>
-                      {labels.relations.add}
-                    </button>
-                  </span>
-                </form>
-              )}
-              {relationError && (
-                <p className="ui-error" role="alert">
-                  {relationError}
-                </p>
-              )}
+              <ul className="track-relation-list">
+                {[...outgoing.map((r) => ({ r, dir: 'outgoing' as const, target: r.related_issue_id })), ...incoming.map((r) => ({ r, dir: 'incoming' as const, target: r.issue_id }))].map(
+                  ({ r, dir, target }) => (
+                    <li key={r.id} className="track-relation">
+                      <span className="track-relation-type">{relationLabel(r.type, dir)}</span>
+                      <Link href={`/app/track/issues/${target}`} className="track-relation-link">
+                        <span className="track-identifier">{r.identifier}</span> <span className="track-relation-title">{r.title}</span>
+                      </Link>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-icon btn-sm track-relation-remove"
+                        onClick={() => handleDeleteRelation(r.id)}
+                        aria-label={`${labels.relations.remove}: ${r.identifier}`}
+                        title={labels.relations.remove}
+                      >
+                        <TrackIcon name="close" size={12} />
+                      </button>
+                    </li>
+                  ),
+                )}
+              </ul>
             </section>
           )}
 
-          {/* Triage e IA (T3): resumen, pedidos de clientes y sesión del agente. */}
-          <IssueMainExtras issueId={issue.id} locale={locale} onIssueChange={() => void handleIssueChange()} />
+          {/* Triage e IA (T3): resumen, pedidos de clientes y sesión del agente (solo si tienen algo). */}
+          <IssueMainExtras
+            issueId={issue.id}
+            locale={locale}
+            onIssueChange={() => void handleIssueChange()}
+            hideEmpty
+            summarizeSignal={summarizeSignal}
+            requestSignal={requestSignal}
+          />
 
           <section className="track-detail-section track-detail-activity">
             <h2 className="track-section-title">
@@ -1307,11 +1500,14 @@ export default function IssueDetailClient({
               attachments={attachments}
               onUpload={uploadInline}
               onChange={refreshActivities}
+              onCreateSubIssue={(title) => {
+                void createSubIssue(title).then(() => pushNotice(tx('sub.createdFromComment', { title })));
+              }}
             />
           </section>
         </div>
 
-        <aside className="track-detail-side">
+        <aside className="track-detail-side" aria-label={tx('props.properties')}>
           <section className="track-detail-props" aria-label={labels.properties.title}>
             <IssueSidebar
               issue={issue}
@@ -1326,7 +1522,6 @@ export default function IssueDetailClient({
               today={today}
               labels={labels.properties}
               onPatch={(patch) => void patchIssue(patch)}
-              onLabels={(next) => void setLabels(next)}
             />
             <IssueSideExtras issueId={issue.id} watch={`${issue.priority}|${issue.status_id}|${issue.triage}`} />
           </section>

@@ -4902,6 +4902,89 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Track, pulido como Linear: "No priority" (la prioridad por defecto de
+    // Linear) en el CHECK de track_issues (se reconstruye la tabla con
+    // client.migrate, que apaga las foreign keys mientras copia), IDs viejos
+    // de issues movidos de team (Linear los redirige), auto-cierre de padre y
+    // sub-issues por team, y labels con grupo y de team.
+    id: '114_track_linear_polish',
+    async up(client) {
+      const current = await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'track_issues'");
+      const sql = String(current.rows[0]?.sql ?? '');
+      const check = /CHECK\s*\(\s*priority\s+IN\s*\([^)]*\)\s*\)/i;
+      if (sql && check.test(sql) && !/'none'/.test(sql.match(check)?.[0] ?? '')) {
+        const newSql = sql
+          .replace(check, "CHECK (priority IN ('none', 'urgent', 'high', 'medium', 'low'))")
+          .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?track_issues["`]?/i, 'CREATE TABLE track_issues_new');
+        const cols = (await client.execute('PRAGMA table_info(track_issues)')).rows
+          .map((r) => `"${String(r.name)}"`)
+          .join(', ');
+        const indexes = (
+          await client.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'track_issues' AND sql IS NOT NULL",
+          )
+        ).rows.map((r) => String(r.sql));
+        await client.migrate([
+          'DROP TABLE IF EXISTS track_issues_new',
+          newSql,
+          `INSERT INTO track_issues_new (${cols}) SELECT ${cols} FROM track_issues`,
+          'DROP TABLE track_issues',
+          'ALTER TABLE track_issues_new RENAME TO track_issues',
+          ...indexes,
+        ]);
+      }
+      // Clave del team única por workspace (como Linear: MOB en dos workspaces
+      // distintos), no en toda la base: se saca el UNIQUE de la columna.
+      const projSql = String(
+        (await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'track_projects'")).rows[0]?.sql ?? '',
+      );
+      const slugUnique = /\bslug\s+TEXT\s+NOT\s+NULL\s+UNIQUE\b/i;
+      if (projSql && slugUnique.test(projSql)) {
+        const newSql = projSql
+          .replace(slugUnique, 'slug TEXT NOT NULL')
+          .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?track_projects["`]?/i, 'CREATE TABLE track_projects_new');
+        const cols = (await client.execute('PRAGMA table_info(track_projects)')).rows.map((r) => `"${String(r.name)}"`).join(', ');
+        const indexes = (
+          await client.execute("SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'track_projects' AND sql IS NOT NULL")
+        ).rows.map((r) => String(r.sql));
+        await client.migrate([
+          'DROP TABLE IF EXISTS track_projects_new',
+          newSql,
+          `INSERT INTO track_projects_new (${cols}) SELECT ${cols} FROM track_projects`,
+          'DROP TABLE track_projects',
+          'ALTER TABLE track_projects_new RENAME TO track_projects',
+          ...indexes,
+        ]);
+      }
+      await client.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_track_projects_ws_slug ON track_projects(COALESCE(team_id, owner_id), slug)',
+      );
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN auto_close_parent INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN auto_close_children INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE track_labels ADD COLUMN parent_id TEXT');
+      await addColumn(client, 'ALTER TABLE track_labels ADD COLUMN project_id TEXT');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_issue_aliases (
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          identifier TEXT NOT NULL,
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (project_id, identifier)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_issue_aliases_identifier ON track_issue_aliases(identifier);
+        CREATE INDEX IF NOT EXISTS idx_track_issue_aliases_issue ON track_issue_aliases(issue_id);
+
+        CREATE TABLE IF NOT EXISTS track_issue_favorites (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, issue_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_issue_favorites_user ON track_issue_favorites(user_id, created_at);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

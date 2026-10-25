@@ -3,11 +3,13 @@
  */
 import { z } from 'zod';
 import { ISSUE_SORTS } from './track-views';
+import { TRACK_MARKDOWN_MAX } from './track-markdown';
 
 const id = z.string().trim().min(1).max(64);
 const name = z.string().trim().min(1).max(200);
 const shortText = z.string().trim().max(500);
-const longText = z.string().trim().max(5000);
+// Descripciones y comentarios (markdown): el mismo tope que el editor.
+const longText = z.string().trim().max(TRACK_MARKDOWN_MAX);
 const slug = z
   .string()
   .trim()
@@ -29,7 +31,7 @@ const isoDate = z
   .regex(/^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?)?$/, { message: 'invalid_date' });
 
 const statusCategory = z.enum(['backlog', 'todo', 'in_progress', 'done', 'cancelled']);
-const issuePriority = z.enum(['urgent', 'high', 'medium', 'low']);
+const issuePriority = z.enum(['none', 'urgent', 'high', 'medium', 'low']);
 const relationType = z.enum(['blocks', 'related', 'duplicates']);
 
 // ---------- Projects ----------
@@ -54,6 +56,9 @@ export const projectUpdateSchema = z.object({
   cycleAuto: z.boolean().optional(),
   cycleWeeks: z.number().int().min(1).max(8).optional(),
   cycleName: z.string().trim().max(40).optional(),
+  /** Auto-cierre como Linear: el padre al terminar todos sus sub-issues, y los sub-issues al cerrar el padre. */
+  autoCloseParent: z.boolean().optional(),
+  autoCloseChildren: z.boolean().optional(),
 });
 
 // ---------- Statuses ----------
@@ -142,9 +147,13 @@ export const issueUpdateSchema = issueCreateSchema.partial().extend({
 export const labelCreateSchema = z.object({
   name: z.string().trim().min(1).max(50),
   color: hexColor.optional(),
+  /** Grupo (label padre). */
+  parentId: z.string().trim().min(1).max(64).nullable().optional(),
+  /** Label propio de un team. */
+  projectId: z.string().trim().min(1).max(64).nullable().optional(),
 });
 
-export const labelUpdateSchema = labelCreateSchema.partial();
+export const labelUpdateSchema = labelCreateSchema.omit({ projectId: true }).partial();
 
 // ---------- Bulk edit ----------
 

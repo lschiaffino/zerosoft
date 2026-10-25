@@ -1145,6 +1145,9 @@ export interface TrackProjectRow {
   status: 'active' | 'archived';
   /** 1 = los issues creados desde afuera entran a la cola de triage. */
   triage_enabled?: number;
+  /** Auto-cierre (114): el padre al terminar sus sub-issues / los sub-issues al cerrar el padre. */
+  auto_close_parent?: number;
+  auto_close_children?: number;
   /** 1 = Track crea los cycles solo (cada `cycle_weeks` semanas) y arrastra lo sin terminar. */
   cycle_auto?: number;
   cycle_weeks?: number;
@@ -1186,7 +1189,8 @@ export interface TrackIssueRow {
   title: string;
   description: string; // JSON TrackBlock[]
   status_id: string | null;
-  priority: 'urgent' | 'high' | 'medium' | 'low';
+  /** 'none' = sin prioridad (como Linear). */
+  priority: 'none' | 'urgent' | 'high' | 'medium' | 'low';
   assignee_id: string | null;
   creator_id: string;
   cycle_id: string | null;

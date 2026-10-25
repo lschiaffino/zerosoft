@@ -1,15 +1,21 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import { MarkdownView } from '@/components/track/MarkdownView';
+import RichEditor from '@/components/track/RichEditor';
+import KeyPicker from '@/components/track/KeyPicker';
+import { PriorityIcon, StatusDot } from '@/components/track/InlineEditors';
+import TrackIcon from '@/components/track/TrackIcon';
+import { issueHref } from '@/components/track/trackCommands';
+import { DateChip } from './pickers';
 import type { PlanIssue, PlanMilestone, PlanSummary } from '@/lib/track-plans';
 import { PLAN_PRIORITIES, PLAN_STATUSES } from '@/lib/track-planning-schema';
-import { api, CheckList, fmtDay, HealthDot, LoadingRows, PlanStatusIcon, ProgressBar, personName } from './shared';
+import { api, fmtDay, HealthDot, LoadingRows, PlanStatusIcon, ProgressBar, personName } from './shared';
 import type { PlansMeta } from './PlansList';
 import PlanUpdates from './PlanUpdates';
 
@@ -38,6 +44,8 @@ export default function PlanPage({ planId }: { planId: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [name, setName] = useState('');
   const [summary, setSummary] = useState('');
+  // "Write update" lleva a Updates con el foco en el texto.
+  const [focusCompose, setFocusCompose] = useState(false);
 
   const load = useCallback(async () => {
     const [res, m] = await Promise.all([
@@ -155,6 +163,7 @@ export default function PlanPage({ planId }: { planId: string }) {
           onBlur={() => summary !== plan.summary && void patch({ summary })}
           onKeyDown={enter}
         />
+        <PlanChips plan={plan} meta={meta} onPatch={patch} locale={locale} />
         {error && (
           <p className="ui-error" role="alert">
             {error}
@@ -179,14 +188,23 @@ export default function PlanPage({ planId }: { planId: string }) {
         </div>
 
         {tab === 'overview' && (
-          <Overview data={data} locale={locale} onPatch={patch} onReload={load} onWrite={() => selectTab('updates')} />
+          <Overview
+            data={data}
+            locale={locale}
+            onPatch={patch}
+            onReload={load}
+            onWrite={() => {
+              setFocusCompose(true);
+              selectTab('updates');
+            }}
+          />
         )}
         {tab === 'issues' && <PlanIssues plan={plan} milestones={data.milestones} meta={meta} onChanged={load} />}
-        {tab === 'updates' && <PlanUpdates plan={plan} meta={meta} composeOpen={sp.get('new') === '1'} onPosted={load} />}
+        {tab === 'updates' && <PlanUpdates plan={plan} meta={meta} composeOpen={focusCompose || sp.get('new') === '1'} onPosted={load} />}
       </div>
 
       <aside className="tp-plan-side" aria-label={t('plan.properties')}>
-        <Properties plan={plan} meta={meta} onPatch={patch} following={data.following} onFollow={follow} />
+        <Properties plan={plan} onPatch={patch} following={data.following} onFollow={follow} />
         <button type="button" className="btn btn-sm btn-ghost tp-danger-link" onClick={() => setConfirmDelete(true)} data-testid="tp-plan-delete">
           {t('plan.delete')}
         </button>
@@ -206,162 +224,195 @@ export default function PlanPage({ planId }: { planId: string }) {
   );
 }
 
-function Properties({
+/** Una lista que se tilda o destilda (miembros, teams, iniciativas). */
+function toggleId(list: string[], id: string): string[] {
+  return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+}
+
+/**
+ * Propiedades del proyecto como chips bajo el título (como Linear): estado,
+ * prioridad, lead, miembros, inicio → objetivo, teams e iniciativas. Cada
+ * chip abre un picker con filtro tipeado, flechas y Enter.
+ */
+function PlanChips({
   plan,
   meta,
+  onPatch,
+  locale,
+}: {
+  plan: PlanSummary;
+  meta: PlansMeta | null;
+  onPatch: (b: Record<string, unknown>) => Promise<boolean>;
+  locale: string;
+}) {
+  const t = useTranslations('trackPlanning');
+  const tp = useTranslations('trackPlanning.pickers');
+  const members = meta?.members ?? [];
+  const memberNames = plan.member_ids.map((id) => personName(members.find((m) => m.id === id))).filter(Boolean);
+  const initials = (s: string) => (s.trim()[0] ?? '?').toUpperCase();
+  return (
+    <div className="tp-chips" role="group" aria-label={t('plan.properties')} data-testid="tp-chips">
+      <KeyPicker
+        ariaLabel={t('plan.status')}
+        className="tp-chip"
+        testId="tp-prop-status"
+        value={plan.status}
+        options={PLAN_STATUSES.map((s) => ({ value: s, label: t(`status.${s}`), icon: <PlanStatusIcon status={s} /> }))}
+        onSelect={(v) => void onPatch({ status: v })}
+        trigger={
+          <>
+            <PlanStatusIcon status={plan.status} />
+            <span className="track-inline-text">{t(`status.${plan.status}`)}</span>
+          </>
+        }
+      />
+      <KeyPicker
+        ariaLabel={t('plan.priority')}
+        className="tp-chip"
+        testId="tp-prop-priority"
+        value={plan.priority}
+        options={PLAN_PRIORITIES.map((p) => ({ value: p, label: t(`priority.${p}`), icon: <PriorityIcon priority={p} /> }))}
+        onSelect={(v) => void onPatch({ priority: v })}
+        trigger={
+          <>
+            <PriorityIcon priority={plan.priority} />
+            <span className="track-inline-text">{t(`priority.${plan.priority}`)}</span>
+          </>
+        }
+      />
+      <KeyPicker
+        ariaLabel={t('plan.lead')}
+        className={`tp-chip${plan.lead_id ? '' : ' is-empty'}`}
+        testId="tp-prop-lead"
+        value={plan.lead_id ?? ''}
+        options={[
+          { value: '', label: t('common.noLead'), icon: <span className="track-avatar track-avatar-empty" aria-hidden /> },
+          ...members.map((m) => ({ value: m.id, label: personName(m), keywords: m.email, icon: <span className="track-avatar">{initials(personName(m))}</span> })),
+        ]}
+        onSelect={(v) => void onPatch({ leadId: v || null })}
+        trigger={
+          <>
+            {plan.lead_id ? (
+              <span className="track-avatar">{initials(plan.lead_name || plan.lead_email || '?')}</span>
+            ) : (
+              <TrackIcon name="user" size={13} />
+            )}
+            <span className="track-inline-text">{plan.lead_id ? plan.lead_name || plan.lead_email : t('plan.lead')}</span>
+          </>
+        }
+      />
+      <KeyPicker
+        ariaLabel={t('plan.members')}
+        multi
+        className={`tp-chip${memberNames.length ? '' : ' is-empty'}`}
+        testId="tp-prop-members"
+        value={plan.member_ids}
+        options={members.map((m) => ({ value: m.id, label: personName(m), keywords: m.email, icon: <span className="track-avatar">{initials(personName(m))}</span> }))}
+        onSelect={(id) => void onPatch({ memberIds: toggleId(plan.member_ids, id) })}
+        trigger={
+          <>
+            <TrackIcon name="users" size={13} />
+            <span className="track-inline-text">{memberNames.length ? (memberNames.length > 2 ? tp('people', { count: memberNames.length }) : memberNames.join(', ')) : t('plan.members')}</span>
+          </>
+        }
+      />
+      <span className="tp-chip-range">
+        <DateChip
+          value={plan.start_date}
+          onChange={(d) => void onPatch({ startDate: d })}
+          label={t('plan.startDate')}
+          emptyLabel={t('plan.startDate')}
+          locale={locale}
+          icon={<TrackIcon name="calendar" size={13} />}
+          testId="tp-prop-start"
+        />
+        <span className="tp-chip-arrow" aria-hidden="true">
+          →
+        </span>
+        <DateChip
+          value={plan.target_date}
+          onChange={(d) => void onPatch({ targetDate: d })}
+          label={t('plan.targetDate')}
+          emptyLabel={t('plan.targetDate')}
+          locale={locale}
+          icon={<TrackIcon name="flag" size={13} />}
+          testId="tp-prop-target"
+        />
+      </span>
+      <KeyPicker
+        ariaLabel={t('plan.teams')}
+        multi
+        className={`tp-chip${plan.teams.length ? '' : ' is-empty'}`}
+        testId="tp-prop-teams"
+        value={plan.teams.map((x) => x.id)}
+        options={(meta?.teams ?? []).map((x) => ({ value: x.id, label: x.name, icon: <TrackIcon name="team" size={13} /> }))}
+        onSelect={(id) => void onPatch({ teamIds: toggleId(plan.teams.map((x) => x.id), id) })}
+        trigger={
+          <>
+            <TrackIcon name="team" size={13} />
+            <span className="track-inline-text">{plan.teams.length ? plan.teams.map((x) => x.name).join(', ') : t('plan.teams')}</span>
+          </>
+        }
+      />
+      <KeyPicker
+        ariaLabel={t('plan.initiatives')}
+        multi
+        className={`tp-chip${plan.initiatives.length ? '' : ' is-empty'}`}
+        testId="tp-prop-initiatives"
+        value={plan.initiatives.map((x) => x.id)}
+        options={(meta?.initiatives ?? []).map((x) => ({ value: x.id, label: x.name, icon: <TrackIcon name="plans" size={13} /> }))}
+        emptyLabel={tp('noInitiatives')}
+        onSelect={(id) => void onPatch({ initiativeIds: toggleId(plan.initiatives.map((x) => x.id), id) })}
+        trigger={
+          <>
+            <TrackIcon name="plans" size={13} />
+            <span className="track-inline-text">{plan.initiatives.length ? plan.initiatives.map((x) => x.name).join(', ') : t('plan.initiatives')}</span>
+          </>
+        }
+      />
+    </div>
+  );
+}
+
+/** Panel lateral: salud, recordatorios del update y seguir. */
+function Properties({
+  plan,
   onPatch,
   following,
   onFollow,
 }: {
   plan: PlanSummary;
-  meta: PlansMeta | null;
   onPatch: (b: Record<string, unknown>) => Promise<boolean>;
   following: boolean;
   onFollow: (v: boolean) => void;
 }) {
   const t = useTranslations('trackPlanning');
-  const [open, setOpen] = useState<'members' | 'teams' | 'initiatives' | null>(null);
-  const memberNames = plan.member_ids.map((id) => personName(meta?.members.find((m) => m.id === id))).filter(Boolean);
   return (
     <dl className="tp-props">
-      <dt>
-        <label htmlFor="tp-prop-status">{t('plan.status')}</label>
-      </dt>
-      <dd>
-        <select id="tp-prop-status" className="select" value={plan.status} onChange={(e) => void onPatch({ status: e.target.value })} data-testid="tp-prop-status">
-          {PLAN_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {t(`status.${s}`)}
-            </option>
-          ))}
-        </select>
-      </dd>
       <dt>{t('plan.health')}</dt>
       <dd>
         <HealthDot health={plan.health} label={t(`health.${plan.health}`)} />
       </dd>
-      <dt>
-        <label htmlFor="tp-prop-priority">{t('plan.priority')}</label>
-      </dt>
-      <dd>
-        <select id="tp-prop-priority" className="select" value={plan.priority} onChange={(e) => void onPatch({ priority: e.target.value })}>
-          {PLAN_PRIORITIES.map((s) => (
-            <option key={s} value={s}>
-              {t(`priority.${s}`)}
-            </option>
-          ))}
-        </select>
-      </dd>
-      <dt>
-        <label htmlFor="tp-prop-lead">{t('plan.lead')}</label>
-      </dt>
-      <dd>
-        <select id="tp-prop-lead" className="select" value={plan.lead_id ?? ''} onChange={(e) => void onPatch({ leadId: e.target.value || null })} data-testid="tp-prop-lead">
-          <option value="">{t('common.noLead')}</option>
-          {meta?.members.map((m) => (
-            <option key={m.id} value={m.id}>
-              {personName(m)}
-            </option>
-          ))}
-        </select>
-      </dd>
-      <dt>{t('plan.members')}</dt>
-      <dd>
-        <button type="button" className="tp-prop-btn" aria-expanded={open === 'members'} onClick={() => setOpen(open === 'members' ? null : 'members')}>
-          {memberNames.length ? memberNames.join(', ') : t('common.none')}
-        </button>
-        {open === 'members' && meta && (
-          <CheckList
-            name="members"
-            label={t('plan.members')}
-            items={meta.members}
-            selected={plan.member_ids}
-            onChange={(ids) => void onPatch({ memberIds: ids })}
-            render={(m) => personName(m)}
-          />
-        )}
-      </dd>
-      <dt>{t('plan.teams')}</dt>
-      <dd>
-        <button type="button" className="tp-prop-btn" aria-expanded={open === 'teams'} onClick={() => setOpen(open === 'teams' ? null : 'teams')}>
-          {plan.teams.length ? plan.teams.map((x) => x.name).join(', ') : t('common.none')}
-        </button>
-        {open === 'teams' && meta && (
-          <CheckList
-            name="teams"
-            label={t('plan.teams')}
-            items={meta.teams}
-            selected={plan.teams.map((x) => x.id)}
-            onChange={(ids) => void onPatch({ teamIds: ids })}
-            render={(m) => m.name}
-          />
-        )}
-      </dd>
-      <dt>
-        <label htmlFor="tp-prop-start">{t('plan.startDate')}</label>
-      </dt>
-      <dd>
-        <input id="tp-prop-start" type="date" className="input" value={plan.start_date ?? ''} onChange={(e) => void onPatch({ startDate: e.target.value || null })} />
-      </dd>
-      <dt>
-        <label htmlFor="tp-prop-target">{t('plan.targetDate')}</label>
-      </dt>
-      <dd>
-        <input
-          id="tp-prop-target"
-          type="date"
-          className="input"
-          value={plan.target_date ?? ''}
-          onChange={(e) => void onPatch({ targetDate: e.target.value || null })}
-          data-testid="tp-prop-target"
-        />
-      </dd>
-      <dt>{t('plan.initiatives')}</dt>
-      <dd>
-        <button type="button" className="tp-prop-btn" aria-expanded={open === 'initiatives'} onClick={() => setOpen(open === 'initiatives' ? null : 'initiatives')}>
-          {plan.initiatives.length ? plan.initiatives.map((x) => x.name).join(', ') : t('common.none')}
-        </button>
-        {open === 'initiatives' && meta && (
-          meta.initiatives.length ? (
-            <CheckList
-              name="initiatives"
-              label={t('plan.initiatives')}
-              items={meta.initiatives}
-              selected={plan.initiatives.map((x) => x.id)}
-              onChange={(ids) => void onPatch({ initiativeIds: ids })}
-              render={(m) => m.name}
-            />
-          ) : (
-            <p className="ui-help">
-              <Link href="/app/track/initiatives?new=1">{t('initiatives.new')}</Link>
-            </p>
-          )
-        )}
-      </dd>
-      <dt>
-        <label htmlFor="tp-prop-cadence">{t('plan.reminders')}</label>
-      </dt>
+      <dt>{t('plan.reminders')}</dt>
       <dd className="tp-prop-pair">
-        <select id="tp-prop-cadence" className="select" value={plan.update_cadence} onChange={(e) => void onPatch({ updateCadence: e.target.value })}>
-          {(['weekly', 'biweekly', 'off'] as const).map((c) => (
-            <option key={c} value={c}>
-              {t(`plan.cadence.${c}`)}
-            </option>
-          ))}
-        </select>
+        <KeyPicker
+          ariaLabel={t('plan.reminders')}
+          className="tp-chip"
+          testId="tp-prop-cadence"
+          value={plan.update_cadence}
+          options={(['weekly', 'biweekly', 'off'] as const).map((c) => ({ value: c, label: t(`plan.cadence.${c}`) }))}
+          onSelect={(v) => void onPatch({ updateCadence: v })}
+          trigger={<span className="track-inline-text">{t(`plan.cadence.${plan.update_cadence}`)}</span>}
+        />
         {plan.update_cadence !== 'off' && (
-          <select
-            className="select"
-            aria-label={t('plan.reminderDay')}
-            value={plan.update_day}
-            onChange={(e) => void onPatch({ updateDay: Number(e.target.value) })}
-          >
-            {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-              <option key={d} value={d}>
-                {t(`plan.days.${d}`)}
-              </option>
-            ))}
-          </select>
+          <KeyPicker
+            ariaLabel={t('plan.reminderDay')}
+            className="tp-chip"
+            value={String(plan.update_day)}
+            options={[1, 2, 3, 4, 5, 6, 7].map((d) => ({ value: String(d), label: t(`plan.days.${d}`) }))}
+            onSelect={(v) => void onPatch({ updateDay: Number(v) })}
+            trigger={<span className="track-inline-text">{t(`plan.days.${plan.update_day}`)}</span>}
+          />
         )}
       </dd>
       <dd className="tp-prop-note ui-help">
@@ -392,8 +443,27 @@ function Overview({
 }) {
   const t = useTranslations('trackPlanning');
   const { plan, milestones } = data;
-  const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(plan.description);
+  const saved = useRef(plan.description);
+  const draftRef = useRef(plan.description);
+  const timer = useRef<number | null>(null);
+  const flush = useCallback(async () => {
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = null;
+    if (draftRef.current === saved.current) return;
+    const next = draftRef.current;
+    if (await onPatch({ description: next })) saved.current = next;
+  }, [onPatch]);
+  const changeDraft = (md: string) => {
+    draftRef.current = md;
+    setDraft(md);
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => void flush(), 900);
+  };
+  // Al salir del Overview con cambios sin guardar, se guardan.
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+  useEffect(() => () => void flushRef.current(), []);
   const [latest, setLatest] = useState<{ health: string; body: string; user_name: string | null; user_email: string; created_at: string } | null | undefined>(undefined);
 
   useEffect(() => {
@@ -444,61 +514,21 @@ function Overview({
         )}
       </section>
 
-      <section className="tp-card" aria-labelledby="tp-desc-h">
-        <div className="tp-card-head">
-          <h3 id="tp-desc-h" className="tp-card-title">
-            {t('plan.description')}
-          </h3>
-          {!editing && (
-            <button
-              type="button"
-              className="btn btn-sm btn-ghost"
-              onClick={() => {
-                setDraft(plan.description);
-                setEditing(true);
-              }}
-              data-testid="tp-edit-description"
-            >
-              {t('common.edit')}
-            </button>
-          )}
-        </div>
-        {editing ? (
-          <form
-            className="tp-desc-form"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (await onPatch({ description: draft })) setEditing(false);
-            }}
-          >
-            <textarea
-              className="textarea tp-desc-textarea"
-              aria-label={t('plan.description')}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder={t('plan.descriptionPlaceholder')}
-              rows={10}
-              maxLength={20000}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') setEditing(false);
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) (e.currentTarget.form as HTMLFormElement).requestSubmit();
-              }}
-            />
-            <div className="tp-form-actions">
-              <button type="button" className="btn btn-sm" onClick={() => setEditing(false)}>
-                {t('common.cancel')}
-              </button>
-              <button type="submit" className="btn btn-sm btn-primary">
-                {t('common.save')}
-              </button>
-            </div>
-          </form>
-        ) : plan.description ? (
-          <MarkdownView source={plan.description} />
-        ) : (
-          <p className="ui-help">{t('plan.descriptionEmpty')}</p>
-        )}
+      <section className="tp-card tp-desc" aria-labelledby="tp-desc-h">
+        <h3 id="tp-desc-h" className="tp-card-title">
+          {t('plan.description')}
+        </h3>
+        {/* Siempre editable, como en Linear: se guarda al dejar de tipear y al salir. */}
+        <RichEditor
+          key={plan.id}
+          value={draft}
+          onChange={changeDraft}
+          onBlur={() => void flush()}
+          ariaLabel={t('plan.description')}
+          placeholder={t('plan.descriptionPlaceholder')}
+          testId="tp-description"
+          className="tp-desc-editor"
+        />
       </section>
 
       <Milestones planId={plan.id} milestones={milestones} locale={locale} onChanged={onReload} />
@@ -569,15 +599,16 @@ function Milestones({
                 onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== m.name && void update(m.id, { name: e.target.value.trim() })}
                 onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
               />
-              <input
-                type="date"
-                className="input tp-ms-date"
-                aria-label={t('plan.milestoneDate')}
-                value={m.target_date ?? ''}
-                onChange={(e) => void update(m.id, { targetDate: e.target.value || null })}
+              <DateChip
+                value={m.target_date}
+                onChange={(d) => void update(m.id, { targetDate: d })}
+                label={t('plan.milestoneDate')}
+                emptyLabel={t('common.noDate')}
+                locale={locale}
+                className="tp-ms-date"
               />
               <span className={`tp-ms-pct${m.target_date && m.target_date < today && m.percent < 100 ? ' tp-overdue' : ''}`}>
-                {m.total ? `${m.percent}% · ${m.done}/${m.total}` : fmtDay(m.target_date, locale) || '—'}
+                {m.total ? `${m.percent}% · ${m.done}/${m.total}` : '0%'}
               </span>
               <button type="button" className="btn btn-sm btn-ghost btn-icon" aria-label={t('plan.deleteMilestone', { name: m.name })} onClick={() => void remove(m.id)}>
                 ×
@@ -588,7 +619,7 @@ function Milestones({
       )}
       <form className="tp-inline-form" onSubmit={add}>
         <input className="input" aria-label={t('plan.milestoneName')} placeholder={t('plan.addMilestone')} value={name} onChange={(e) => setName(e.target.value)} maxLength={200} data-testid="tp-ms-name" />
-        <input type="date" className="input tp-ms-date" aria-label={t('plan.milestoneDate')} value={date} onChange={(e) => setDate(e.target.value)} />
+        <DateChip value={date || null} onChange={(d) => setDate(d ?? '')} label={t('plan.milestoneDate')} emptyLabel={t('plan.milestoneDate')} locale={locale} className="tp-ms-date" />
         <button type="submit" className="btn btn-sm" disabled={!name.trim()}>
           {t('common.add')}
         </button>
@@ -680,13 +711,20 @@ function PlanIssues({
           maxLength={500}
           data-testid="tp-new-issue-title"
         />
-        <select className="select tp-team-select" aria-label={t('plan.team')} value={team} onChange={(e) => setTeam(e.target.value)}>
-          {teams.map((x) => (
-            <option key={x.id} value={x.id}>
-              {x.name}
-            </option>
-          ))}
-        </select>
+        <KeyPicker
+          ariaLabel={t('plan.team')}
+          className="tp-chip tp-team-select"
+          testId="tp-new-issue-team"
+          value={team}
+          options={teams.map((x) => ({ value: x.id, label: x.name, icon: <TrackIcon name="team" size={13} /> }))}
+          onSelect={setTeam}
+          trigger={
+            <>
+              <TrackIcon name="team" size={13} />
+              <span className="track-inline-text">{teams.find((x) => x.id === team)?.name ?? t('plan.team')}</span>
+            </>
+          }
+        />
         <button type="submit" className="btn btn-sm btn-primary" disabled={!title.trim() || !team}>
           {t('plan.createIssue')}
         </button>
@@ -743,29 +781,32 @@ function PlanIssues({
         <ul className="tp-issue-rows" role="list" data-testid="tp-plan-issues">
           {rows.map((i) => (
             <li key={i.id} className="tp-issue-row">
-              <span className="tp-issue-status" style={{ color: i.status_color ?? undefined }} title={i.status_name ?? ''} aria-hidden="true">
-                ●
+              <span className="tp-issue-status" title={i.status_name ?? ''}>
+                <StatusDot color={i.status_color} category={i.status_category} />
               </span>
-              <Link href={`/app/track/issues/${i.id}`} className="tp-issue-link">
+              <Link href={issueHref(i)} className="tp-issue-link">
                 <span className="track-identifier">{i.identifier}</span>
                 <span className="tp-issue-title">{i.title}</span>
               </Link>
               <span className="tp-issue-meta">{i.status_name}</span>
               <span className="tp-issue-meta">{i.assignee_name ?? ''}</span>
               {milestones.length > 0 && (
-                <select
-                  className="select tp-issue-ms"
-                  aria-label={t('plan.milestoneFor', { id: i.identifier })}
+                <KeyPicker
+                  ariaLabel={t('plan.milestoneFor', { id: i.identifier })}
+                  className="tp-chip tp-issue-ms"
                   value={i.plan_milestone_id ?? ''}
-                  onChange={(e) => void setMilestone(i.id, e.target.value)}
-                >
-                  <option value="">{t('plan.milestoneNone')}</option>
-                  {milestones.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: t('plan.milestoneNone') },
+                    ...milestones.map((m) => ({ value: m.id, label: m.name, icon: <span className="tp-ms-diamond" aria-hidden="true" /> })),
+                  ]}
+                  onSelect={(v) => void setMilestone(i.id, v)}
+                  trigger={
+                    <>
+                      <span className="tp-ms-diamond" aria-hidden="true" />
+                      <span className="track-inline-text">{milestones.find((m) => m.id === i.plan_milestone_id)?.name ?? t('plan.milestoneNone')}</span>
+                    </>
+                  }
+                />
               )}
               <button
                 type="button"

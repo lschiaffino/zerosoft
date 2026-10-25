@@ -49,7 +49,7 @@ interface McpTool {
 }
 
 const str = (description: string, extra: JsonSchema = {}): JsonSchema => ({ type: 'string', description, ...extra });
-const PRIORITY = { type: 'string', enum: ['urgent', 'high', 'medium', 'low'] };
+const PRIORITY = { type: 'string', enum: ['none', 'urgent', 'high', 'medium', 'low'] };
 const CATEGORY = ['backlog', 'todo', 'in_progress', 'done', 'cancelled'];
 
 const ISSUE_FIELDS: Record<string, JsonSchema> = {

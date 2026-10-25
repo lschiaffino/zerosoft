@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { IssueDraft } from '@/lib/track-ai';
 import { aiErrorKey, call } from './api';
+import { PriorityIcon } from '../glyphs';
 
 /**
  * Issue desde texto libre: se pega un mensaje, un mail o notas, la IA arma
@@ -73,6 +74,7 @@ export default function IssueFromTextDialog({
     <dialog
       ref={ref}
       className="ui-modal ui-modal-wide"
+      aria-modal="true"
       aria-labelledby={titleId}
       onCancel={(e) => {
         e.preventDefault();
@@ -133,16 +135,27 @@ export default function IssueFromTextDialog({
                     autoFocus
                   />
                 </label>
-                <label className="ui-field">
-                  <span className="label">{t('ai.draftPriority')}</span>
-                  <select className="select" value={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.value as IssueDraft['priority'] })}>
+                <div className="ui-field">
+                  <span className="label" id={`${titleId}-prio`}>{t('ai.draftPriority')}</span>
+                  {/* Prioridad con los íconos de Linear, sin <select>. */}
+                  <div className="track-prio-segment" role="radiogroup" aria-labelledby={`${titleId}-prio`}>
                     {(['urgent', 'high', 'medium', 'low'] as const).map((p) => (
-                      <option key={p} value={p}>
+                      <button
+                        key={p}
+                        type="button"
+                        role="radio"
+                        aria-checked={draft.priority === p}
+                        className={`track-qc-chip${draft.priority === p ? '' : ' is-empty'}`}
+                        onClick={() => setDraft({ ...draft, priority: p })}
+                      >
+                        <span className="track-qc-chip-icon" aria-hidden>
+                          <PriorityIcon priority={p} />
+                        </span>
                         {t(`priorities.${p}`)}
-                      </option>
+                      </button>
                     ))}
-                  </select>
-                </label>
+                  </div>
+                </div>
                 <label className="ui-field">
                   <span className="label">{t('ai.draftDescription')}</span>
                   <textarea

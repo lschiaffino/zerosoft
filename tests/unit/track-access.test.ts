@@ -32,12 +32,16 @@ describe('Track: aislamiento entre usuarios', () => {
     expect(visibleToA.rows.map((p) => p.id)).toContain(pa.id);
   });
 
-  it('dos usuarios pueden tener un proyecto con el mismo nombre', async () => {
+  it('dos usuarios pueden tener un proyecto con el mismo nombre (y la misma clave, como Linear)', async () => {
     const a = await makeUser('a');
     const b = await makeUser('b');
     const p1 = await createProject(a.id, null, { name: 'Launch' });
     const p2 = await createProject(b.id, null, { name: 'Launch' });
-    expect(p1.slug).not.toBe(p2.slug);
-    expect(p2.slug.startsWith('launch')).toBe(true);
+    // La clave es única por workspace: los dos son LAU en su workspace.
+    expect(p1.slug).toBe('lau');
+    expect(p2.slug).toBe('lau');
+    // En el mismo workspace, el segundo toma otra.
+    const p3 = await createProject(a.id, null, { name: 'Launch' });
+    expect(p3.slug).not.toBe('lau');
   });
 });

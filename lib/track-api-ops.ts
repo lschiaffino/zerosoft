@@ -33,6 +33,7 @@ import {
 import { createLabel, listLabels, projectWorkspaceId } from './track-labels';
 import { issueOrderBy, issueSearchClause, ISSUE_SORTS } from './track-views';
 import { linkSupportUrls } from './track-support';
+import { TRACK_MARKDOWN_MAX } from './track-markdown';
 
 export class TrackApiError extends Error {
   constructor(
@@ -106,7 +107,7 @@ function writable(project: TrackProjectRow): void {
 
 const idStr = z.string().trim().min(1).max(64);
 const dateStr = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD.');
-const priority = z.enum(['urgent', 'high', 'medium', 'low']);
+const priority = z.enum(['none', 'urgent', 'high', 'medium', 'low']);
 
 export const apiIssueCreateSchema = z.object({
   projectId: idStr,
@@ -151,7 +152,7 @@ export const apiIssueListSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).optional(),
 });
 
-export const apiCommentSchema = z.object({ body: z.string().trim().min(1).max(5000) });
+export const apiCommentSchema = z.object({ body: z.string().trim().min(1).max(TRACK_MARKDOWN_MAX) });
 
 export const apiProjectCreateSchema = z.object({
   name: z.string().trim().min(1).max(200),
@@ -162,7 +163,7 @@ export const apiProjectCreateSchema = z.object({
     .max(20)
     .regex(/^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/, 'Letters, digits and dashes.')
     .optional(),
-  description: z.string().trim().max(5000).optional(),
+  description: z.string().trim().max(TRACK_MARKDOWN_MAX).optional(),
   color: z.string().regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i).optional(),
   icon: z.string().trim().max(16).optional(),
   /** Team (id) donde crearlo; sin team va al workspace personal del dueño. */
@@ -171,7 +172,7 @@ export const apiProjectCreateSchema = z.object({
 
 export const apiProjectUpdateSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
-  description: z.string().trim().max(5000).optional(),
+  description: z.string().trim().max(TRACK_MARKDOWN_MAX).optional(),
   color: z.string().regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i).optional(),
   icon: z.string().trim().max(16).nullish(),
   status: z.enum(['active', 'archived']).optional(),

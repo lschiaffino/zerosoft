@@ -64,7 +64,7 @@ test.describe('Track T3: triage', () => {
     // H = posponer: abre el menú y "hasta mañana" la saca de la cola.
     await items.first().focus();
     await page.keyboard.press('h');
-    await page.getByTestId('track-triage-snooze-tomorrow').click();
+    await page.getByTestId('track-triage-snooze-picker-menu').getByRole('option', { name: /Tomorrow/ }).click();
     await expect(page.getByText('No issues waiting for triage.')).toBeVisible();
     await page.getByTestId('track-triage-show-snoozed').click();
     await expect(items).toHaveCount(1);
@@ -106,8 +106,9 @@ test.describe('Track T3: triage', () => {
     await page.getByTestId('track-from-text-submit').click();
     await expect(page.getByTestId('track-from-text-title')).toHaveValue('The payment page is broken on Safari.');
     await page.getByTestId('track-from-text-submit').click();
-    await expect(page).toHaveURL(/\/app\/track\/issues\//);
-    const created = page.url().split('/issues/')[1];
+    await expect(page).toHaveURL(/\/app\/track\/issues?\//);
+    // La URL queda con el identificador (/issue/WEB-12/titulo): el id sale de la página.
+    const created = (await page.locator('.track-detail[data-track-issue-id]').getAttribute('data-track-issue-id'))!;
     const row = await ok<{ title: string; priority: string; triage: number }>(request.get(`/api/track/issues/${created}`));
     expect(row).toMatchObject({ title: 'The payment page is broken on Safari.', priority: 'high', triage: 0 });
   });
@@ -123,8 +124,9 @@ test.describe('Track T3: issue', () => {
     await page.goto(`/en/app/track/issues/${issue.id}`, { waitUntil: 'networkidle' });
     await expect(page.getByTestId('track-issue-sla')).toContainText(/h left/);
 
-    // Pedido de cliente con nombre libre, marcado importante.
-    await page.getByTestId('track-request-add').click();
+    // Pedido de cliente con nombre libre, marcado importante (desde "…" bajo la descripción, como Linear).
+    await page.locator('.track-tools-more').click();
+    await page.getByTestId('track-tool-request').click();
     await page.getByTestId('track-request-customer').fill('Globex');
     await page.getByTestId('track-request-body').fill('We lost sales during the outage');
     await page.getByTestId('track-request-important-input').check();
@@ -133,7 +135,8 @@ test.describe('Track T3: issue', () => {
     await expect(req).toContainText('Globex');
     await expect(req.getByTestId('track-request-important')).toHaveAttribute('aria-pressed', 'true');
 
-    await page.getByTestId('track-ai-summarize').click();
+    await page.locator('.track-tools-more').click();
+    await page.getByTestId('track-tool-summarize').click();
     await expect(page.getByTestId('track-ai-summary-text')).toContainText('Site is down');
     await shot(page, 't3_issue_light');
 

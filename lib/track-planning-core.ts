@@ -361,7 +361,7 @@ type Dim =
   | 'none';
 
 const CATEGORY_ORDER: Record<string, number> = { backlog: 0, todo: 1, in_progress: 2, done: 3, cancelled: 4 };
-const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 };
 
 /** Lunes (UTC) de la semana de la fecha. */
 export function weekKey(iso: string): string {

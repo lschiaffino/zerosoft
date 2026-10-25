@@ -48,10 +48,16 @@ export type TrackIconName =
   | 'numbered'
   | 'divider'
   | 'table'
-  | 'todo';
+  | 'todo'
+  | 'paperclip'
+  | 'toggle'
+  | 'callout'
+  | 'inbox';
 
 // Trazo de 2px, cuadrado (mismo idioma que components/app/icons.tsx).
 const PATHS: Record<TrackIconName, ReactNode> = {
+  paperclip: <path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7" />,
+  inbox: <path d="M4 13l2.5-8h11L20 13v6H4zM4 13h5l1 2h4l1-2h5" />,
   settings: <path d="M4 7h8M16 7h4M12 4v6M4 17h4M12 17h8M8 14v6" />,
   up: <path d="M12 19V5M6 11l6-6 6 6" />,
   down: <path d="M12 5v14M6 13l6 6 6-6" />,
@@ -100,6 +106,8 @@ const PATHS: Record<TrackIconName, ReactNode> = {
   divider: <path d="M3 12h18M7 7h10M7 17h10" />,
   table: <path d="M3 5h18v14H3zM3 10h18M3 15h18M10 5v14" />,
   todo: <path d="M4 5h5v5H4zM5.5 7.5l1 1 1.5-1.8M12 7.5h8M4 14h5v5H4zM12 16.5h8" />,
+  toggle: <path d="M5 5l5 4-5 4M13 9h7M9 17h11" />,
+  callout: <path d="M4 4h16v16H4zM12 8v.01M12 11v5" />,
 };
 
 /** Íconos de trazo de Track. Decorativos: el texto o aria-label va en el control. */

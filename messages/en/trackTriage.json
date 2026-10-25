@@ -21,15 +21,21 @@
     "noSnoozed": "No snoozed issues.",
     "snoozedUntil": "snoozed until {date}",
     "snoozePresets": {
-      "hour": "For an hour",
-      "tomorrow": "Until tomorrow",
-      "nextWeek": "Until next week"
+      "hour": "1 hour",
+      "tomorrow": "Tomorrow",
+      "nextWeek": "Next week"
     },
     "unsnooze": "Show it again now",
     "snoozeError": "Could not snooze the issue.",
     "addComment": "Comment",
     "comment": "Comment for the reporter",
-    "commentPlaceholder": "Optional: why you accept or decline it"
+    "commentPlaceholder": "Optional: why you accept or decline it",
+    "suggested": "Suggested",
+    "allIssues": "Issues",
+    "duplicateSearch": "Search the original issue…",
+    "duplicateEmpty": "Type to search an issue",
+    "noDescription": "No description.",
+    "openIssue": "Open issue"
   },
   "ai": {
     "suggestions": "Suggestions",

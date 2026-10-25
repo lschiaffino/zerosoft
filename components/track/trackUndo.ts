@@ -51,9 +51,16 @@ export function latestUndo(): UndoEntry | null {
 }
 
 /** Registra una acción deshacible (y, si se puede, cómo rehacerla). Devuelve su id. */
-export function pushUndo(label: string, undo: () => void | Promise<void>, redo?: () => void | Promise<void>): string {
+export function pushUndo(
+  label: string,
+  undo: () => void | Promise<void>,
+  redo?: () => void | Promise<void>,
+  opts: { silent?: boolean } = {},
+): string {
   const id = `u${++counter}`;
-  stack = [...stack.slice(-(MAX_STACK - 1)), { id, label, undo, redo, createdAt: Date.now() }];
+  // `silent`: cambios de una propiedad de un issue. Como Linear, sin toast
+  // (⌘Z igual lo deshace); los borrados y las ediciones en lote sí lo muestran.
+  stack = [...stack.slice(-(MAX_STACK - 1)), { id, label, undo, redo, createdAt: opts.silent ? 0 : Date.now() }];
   redoStack = [];
   emit();
   return id;

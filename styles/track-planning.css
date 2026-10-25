@@ -251,3 +251,30 @@
   .tp-ms { flex-wrap: wrap; }
   .tp-ms-date { width: 100%; }
 }
+
+/* ---------- Proyecto: chips de propiedades bajo el título (como Linear) ---------- */
+.tp-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 14px; }
+.track-inline-trigger.tp-chip,
+.tp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  max-width: 260px;
+  padding: 0 8px;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.tp-chip:hover { background: var(--ui-hover); }
+.tp-chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.tp-chip.is-empty { color: var(--brand-gray-2); }
+.tp-chip .track-inline-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-chip .track-avatar { width: 16px; height: 16px; font-size: 0.625rem; }
+.tp-chip-range { display: inline-flex; align-items: center; gap: 4px; }
+.tp-chip-arrow { color: var(--brand-gray-2); font-size: 0.75rem; }
+.tp-desc .track-rte-content { min-height: 80px; }
+.tp-update-editor .track-rte-content { min-height: 90px; }
+.tp-ms-date.tp-chip { min-height: 24px; }

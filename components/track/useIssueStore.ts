@@ -49,6 +49,9 @@ export interface IssueDraft {
   estimate?: number | null;
   /** Labels del workspace (por id). */
   labels?: Array<{ id: string }>;
+  /** Project (track_plans) y fecha de inicio, desde los chips del composer. */
+  planId?: string | null;
+  startDate?: string | null;
 }
 
 export interface IssueStore {
@@ -224,6 +227,7 @@ export function useIssueStore(
         async () => {
           await Promise.all(done.map((d) => patchOne(d.id, d.forward)));
         },
+        { silent: done.length === 1 },
       );
     },
     [patchOne, updated],
@@ -270,6 +274,8 @@ export function useIssueStore(
               milestoneId: draft.milestoneId || undefined,
               estimate: draft.estimate ?? undefined,
               labels: draft.labels?.length ? draft.labels : undefined,
+              planId: draft.planId || undefined,
+              startDate: draft.startDate || undefined,
             }),
           });
           if (!res.ok) throw new Error(`create ${res.status}`);

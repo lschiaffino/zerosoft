@@ -278,7 +278,7 @@ describe('sub-issues, deshacer y comandos', () => {
     one.find((a) => a.id === 'labels')!.children!()[0].run!();
     expect(applied[0]).toEqual({ statusId: 's2' });
     expect(typeof applied[1]).toBe('function');
-    expect((applied[1] as (i: TrackIssueWithStatus) => unknown)(issue({}))).toEqual({ labels: [{ id: 'l1' }] });
+    expect((applied[1] as (i: TrackIssueWithStatus) => unknown)(issue({}))).toEqual({ labels: [{ id: 'l1', name: 'Bug', color: '#f00' }] });
     // Issues de dos proyectos: sin estado (cada proyecto tiene los suyos) ni copiar ID.
     const mixed = buildIssueActions([issue({ project_id: 'p1' }), issue({ project_id: 'p2' })], data, { apply: () => undefined }, t, (d) => d);
     expect(mixed.map((a) => a.id)).not.toContain('status');
