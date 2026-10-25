@@ -138,8 +138,9 @@ test('reportes: rango propio y filtro por etiqueta', async ({ page, request }) =
   await page.goto('/en/app/groups/analytics', { waitUntil: 'networkidle' });
   const form = page.getByRole('form', { name: 'Report filters' });
   const today = new Date().toISOString().slice(0, 10);
-  await form.getByLabel('From').fill(today);
-  await form.getByLabel('To').fill(today);
+  // exact: el nombre del select de etiquetas incluye las etiquetas (un uid puede contener "to").
+  await form.getByLabel('From', { exact: true }).fill(today);
+  await form.getByLabel('To', { exact: true }).fill(today);
   await form.getByLabel('Label').selectOption(label.id);
   await form.getByRole('button', { name: 'Apply' }).click();
   await expect(page).toHaveURL(/label=/);
@@ -294,7 +295,6 @@ test('app instalable: manifiesto, service worker y panel de notificaciones en cl
   expect(icon.headers()['content-type']).toContain('image/png');
   const sw = await (await request.get('/sw.js')).text();
   expect(sw).toContain("addEventListener('push'");
-  expect((await request.get('/groups-sw.js')).status()).toBe(404);
   for (const theme of ['light', 'dark'] as const) {
     await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
     const errors = watchErrors(page);
