@@ -261,15 +261,17 @@ async function insertDelivery(id: string, webhookId: string, event: string, payl
 
 /**
  * Compare-and-set del claim: solo una corrida del cron intenta cada entrega
- * pendiente. true si esta corrida la tomó.
+ * pendiente y todavía vencida (si otra corrida ya la intentó, su próximo
+ * intento quedó en el futuro y acá no se toma). true si esta corrida la tomó.
  */
 export async function claimDelivery(deliveryId: string, now = new Date()): Promise<boolean> {
   const res = await getDb()
     .prepare(
       `UPDATE webhook_deliveries SET claimed_until = ?
-       WHERE id = ? AND status = 'pending' AND (claimed_until IS NULL OR claimed_until < ?)`,
+       WHERE id = ? AND status = 'pending' AND (claimed_until IS NULL OR claimed_until < ?)
+         AND (next_attempt_at IS NULL OR next_attempt_at <= ?)`,
     )
-    .run(new Date(now.getTime() + CLAIM_MS).toISOString(), deliveryId, now.toISOString());
+    .run(new Date(now.getTime() + CLAIM_MS).toISOString(), deliveryId, now.toISOString(), now.toISOString());
   return res.changes > 0;
 }
 
