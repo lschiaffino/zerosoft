@@ -1,5 +1,7 @@
 import type { ModelMessage } from 'ai';
+import { withVisibleContent } from './docs-visible';
 import { getDb } from './db';
+import { aiKnowledgeFilterSql } from './docs-access';
 import type { ChatConversationRow, ChatMessageRow, ChatWidgetRow } from './db';
 import { aiEnabled, aiGenerateText } from './ai';
 import {
@@ -60,10 +62,11 @@ export async function retrieveKnowledge(
   const docs: Array<KnowledgeDoc<'doc' | 'canned'> & { chunk?: boolean; titleExtra?: string }> = [];
   const pages = (await getDb()
     .prepare(
-      'SELECT title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND (is_public = 1 OR published = 1) ORDER BY updated_at DESC LIMIT 200',
+      `SELECT id, title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND (is_public = 1 OR published = 1)${aiKnowledgeFilterSql()} ORDER BY updated_at DESC LIMIT 200`,
     )
-    .all(widget.user_id)) as Array<{ title: string; content: string }>;
-  for (const page of pages) {
+    .all(widget.user_id)) as Array<{ id: string; title: string; content: string }>;
+  // Sincronizados: solo si su origen también es conocimiento de la IA (lib/docs-visible.ts).
+  for (const page of await withVisibleContent(widget.user_id, pages, { knowledge: [] })) {
     docs.push({ kind: 'doc', title: page.title, text: extractDocsText(page.content, 12_000) });
   }
   for (const r of await listCannedResponses(widget.id)) {

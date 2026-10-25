@@ -7,6 +7,12 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
+/** Abre una fila de la tabla con su botón "Open" (click en el título lo edita, como Notion). */
+async function openRowNamed(p: Page, text: string) {
+  const tr = p.locator('.docs-db-tr', { hasText: text }).first();
+  await tr.hover();
+  await tr.locator('.docs-db-open').click();
+}
 const T = '2026-01-01T10:00:00.000Z';
 
 type Row = { id: string; values: Record<string, unknown>; created_at: string; updated_at: string };
@@ -118,7 +124,7 @@ test('QA D2: automatización "cambia → agregar fila en esta base" sin falso co
   expect((await pageOf(request, doc.id)).content.find((b) => b.id === 'p1')?.content).toBe('Notas finales');
 });
 
-test('QA D2: fila creada desde una relación en otra página no da conflicto en la pestaña abierta; el conflicto real fusiona al sobrescribir', async ({ request, browser }) => {
+test('QA D2: fila creada desde una relación en otra página no da conflicto en la pestaña abierta; el mismo párrafo en dos pestañas se fusiona por tramos', async ({ request, browser }) => {
   const target = await pageWith(request, `Projects ${uid()}`, [
     { id: 'p1', type: 'paragraph', content: 'Plan' },
     { id: 'db', type: 'database', content: '', db: { title: 'Projects', properties: [{ id: 'pn', name: 'Name', type: 'title' }], rows: [row('pa', { pn: 'Alpha' })], views: [{ id: 'v', name: '', type: 'table' }] } },
@@ -183,18 +189,19 @@ test('QA D2: fila creada desde una relación en otra página no da conflicto en 
   expect(afterB.content.find((b) => b.id === 'p1')?.content).toBe('Plan 2027');
   expect(afterB.content.find((b) => b.id === 'db')!.db!.rows.map((r) => r.values.pn)).toEqual(['Alpha', 'Gamma']);
 
-  // C editó el mismo párrafo sobre la versión vieja: conflicto real.
+  // C edita el mismo párrafo (con la versión vieja o ya con la de B, según el
+  // pulso en vivo): el servidor fusiona por tramos, sin aviso de conflicto, y
+  // la fila que agregó el otro lado sigue.
   await tabC.bringToFront();
   await para(tabC, 'Plan').click();
   await tabC.keyboard.press('End');
   await tabC.keyboard.type(' Q1');
-  await expect(tabC.locator('.docs-banner-bad')).toBeVisible({ timeout: 15_000 });
-  // Sobrescribir gana el párrafo pero no borra la fila que agregó el otro lado.
-  await tabC.locator('.docs-banner-bad').getByRole('button', { name: 'Overwrite' }).click();
-  await expect(tabC.locator('.docs-banner-bad')).toHaveCount(0, { timeout: 10_000 });
-  await expect.poll(async () => (await pageOf(request, target.id)).content.find((b) => b.id === 'p1')?.content, { timeout: 10_000 }).toBe('Plan Q1');
+  await saved(tabC);
+  await expect(tabC.locator('.docs-banner-bad')).toHaveCount(0);
+  await expect.poll(async () => (await pageOf(request, target.id)).content.find((b) => b.id === 'p1')?.content, { timeout: 10_000 }).toBe('Plan 2027 Q1');
   expect((await dbOf(request, target.id)).rows.map((r) => r.values.pn)).toEqual(['Alpha', 'Gamma']);
   await expect(tabC.locator('.docs-db-tr', { hasText: 'Gamma' })).toHaveCount(1, { timeout: 10_000 });
+  await expect(para(tabC, 'Plan 2027 Q1')).toBeVisible({ timeout: 10_000 });
   await ctx.close();
 });
 
@@ -232,13 +239,13 @@ test('QA D2: teclado en el panel de fila, el selector /linked, propiedad nueva, 
   await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
 
   // Panel de fila: Esc desde el título y desde el cuerpo.
-  await page.locator('.docs-db-title-text', { hasText: 'Kickoff' }).click();
+  await openRowNamed(page, 'Kickoff');
   const panel = page.getByTestId('docs-db-rowpanel');
   await expect(panel).toBeVisible();
   await panel.locator('.docs-title').click();
   await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0);
-  await page.locator('.docs-db-title-text', { hasText: 'Kickoff' }).click();
+  await openRowNamed(page, 'Kickoff');
   await panel.locator('.docs-blocks .docs-editable').first().click();
   await page.keyboard.type('Agenda');
   await page.keyboard.press('Escape');
@@ -300,7 +307,7 @@ test('QA D2: a 390px la fila se abre como página con Cerrar a mano y "atrás" l
   ]);
   await page.setViewportSize({ width: 390, height: 800 });
   await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
-  await page.locator('.docs-db-title-text', { hasText: 'Phone row' }).click();
+  await openRowNamed(page, 'Phone row');
   const panel = page.getByTestId('docs-db-rowpanel');
   await expect(panel).toBeVisible();
   const close = panel.getByRole('button', { name: 'Close' });
@@ -311,7 +318,11 @@ test('QA D2: a 390px la fila se abre como página con Cerrar a mano y "atrás" l
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.goBack();
   await expect(panel).toHaveCount(0);
-  await page.locator('.docs-db-title-text', { hasText: 'Phone row' }).click();
+  await openRowNamed(page, 'Phone row');
   await panel.getByRole('button', { name: 'Close' }).tap().catch(() => panel.getByRole('button', { name: 'Close' }).click());
   await expect(panel).toHaveCount(0);
+  await expect(page).not.toHaveURL(/[?&]row=/);
+  // Cerrar con Close no deja una entrada de más: "atrás" sale de la página (no vuelve a la misma).
+  await page.goBack();
+  await expect(page).not.toHaveURL(new RegExp(doc.id));
 });

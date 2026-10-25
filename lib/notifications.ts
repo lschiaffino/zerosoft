@@ -384,6 +384,32 @@ export async function createDocsShareNotification(args: {
   });
 }
 
+/**
+ * Docs: dos personas cambiaron lo mismo a la vez y ganó el último guardado. A
+ * quien había guardado antes se le avisa que su versión quedó en el historial.
+ */
+export async function createDocsConflictNotification(args: {
+  pageId: string;
+  pageTitle: string;
+  loserId: string;
+  actorId: string;
+}): Promise<void> {
+  const { pageId, loserId, actorId } = args;
+  if (loserId === actorId) return;
+  const actor = (await getDb().prepare('SELECT id, name, email FROM users WHERE id = ?').get(actorId)) as Actor | undefined;
+  const title = args.pageTitle || 'Untitled';
+  const name = actor ? actorName(actor) : 'Someone';
+  await createNotification({
+    userId: loserId,
+    type: 'comment',
+    title: `${name} changed the same part of ${title}: your version is in the page history`,
+    href: `/app/docs/${pageId}`,
+    sourceType: 'docs_page',
+    sourceId: pageId,
+    meta: { pageTitle: title, actorName: name, actorId, conflict: true },
+  });
+}
+
 /** @mención en una nota interna de una conversación de Chat. */
 export async function createChatNoteMentionNotification(args: {
   conversationId: string;

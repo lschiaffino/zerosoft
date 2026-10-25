@@ -99,3 +99,9 @@
   .docs-bookmark-image { display: none; }
   .docs-cover { height: 160px; }
 }
+
+/* Sincronizado sin acceso a su página de origen. */
+.dbv-synced-noaccess {
+  color: var(--brand-gray-2);
+  font-size: 0.875rem;
+}

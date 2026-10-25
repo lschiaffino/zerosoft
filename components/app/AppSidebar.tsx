@@ -112,7 +112,10 @@ export default function AppSidebar({
   teamName = null,
   crumb = null,
   mode = DEFAULT_WORKSPACE_MODE,
+  docsCanCreate = true,
 }: {
+  /** Puede crear páginas de Docs de primer nivel (si no, el "+ Nuevo" no las ofrece). */
+  docsCanCreate?: boolean;
   /** Modo del workspace: ordena el switcher (destacadas y "Más apps"). */
   mode?: WorkspaceMode;
   labels: SidebarLabels;
@@ -278,7 +281,7 @@ export default function AppSidebar({
   }
 
   const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount });
-  const newItems = buildNewItems(product, labels);
+  const newItems = buildNewItems(product, labels, { docsCanCreate });
   const settingsItem = settingsNavItem(pathname, labels);
 
   function openSearch() {
@@ -481,6 +484,7 @@ export default function AppSidebar({
           </button>
           {newOpen && (
             <div className="side-menu" role="menu" onKeyDown={(e) => menuKeys(e, () => closeNew(true))}>
+              {newItems.length === 0 && <p className="side-menu-note">{t('newReadOnly')}</p>}
               {newItems.map((item) => (
                 <Link
                   key={item.href + item.label}

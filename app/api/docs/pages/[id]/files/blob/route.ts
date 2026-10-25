@@ -5,6 +5,7 @@ import { getDocAccess, getDocPageRow } from '@/lib/docs';
 import { isAllowedUpload } from '@/lib/uploads';
 import { DOCS_MAX_BLOB_UPLOAD, isDocsStoragePathname } from '@/lib/docs-files';
 import { docsError, forbidden, notFound, unauthorized } from '@/lib/docs-http';
+import { canWriteAccess } from '@/lib/docs-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,7 +30,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const row = await getDocPageRow(id);
   const access = row ? await getDocAccess(row, user) : null;
   if (!row || !access) return notFound();
-  if (access === 'view') return forbidden();
+  if (!canWriteAccess(access)) return forbidden();
+  if (row.locked === 1) return docsError(423, 'locked');
 
   try {
     const result = await handleUpload({

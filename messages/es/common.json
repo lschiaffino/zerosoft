@@ -40,6 +40,7 @@
     "building": "En construcción"
   },
   "sidebar": {
+    "newReadOnly": "Tu rol acá es ver o comentar: pedile a un admin que cree la página.",
     "search": "Buscar",
     "new": "Nuevo",
     "backToSite": "Volver al sitio",
