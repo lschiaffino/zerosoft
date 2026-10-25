@@ -136,7 +136,7 @@ test('Track: CSV de Linear con vista previa, import y export', async ({ page, re
   await expect(done).toBeVisible({ timeout: 45_000 });
   await expect(done).toContainText('2 issues');
   await done.getByRole('link', { name: `Open ${team}` }).click();
-  await expect(page).toHaveURL(/\/app\/track\/projects\//, { timeout: 45_000 });
+  await expect(page).toHaveURL(/\/app\/track\/team\//, { timeout: 45_000 });
   await expect(page.getByText(title).first()).toBeVisible({ timeout: 45_000 });
 
   const exported = await request.get('/api/track/export');
@@ -169,7 +169,7 @@ async function importAndOpen(page: import('@playwright/test').Page, projectName:
   const done = page.getByTestId('track-import-done');
   await expect(done).toBeVisible({ timeout: 45_000 });
   await done.getByRole('link', { name: `Open ${projectName}` }).first().click();
-  await expect(page).toHaveURL(/\/app\/track\/projects\//, { timeout: 45_000 });
+  await expect(page).toHaveURL(/\/app\/track\/team\//, { timeout: 45_000 });
   await expect(page.getByText(title).first()).toBeVisible({ timeout: 45_000 });
 }
 

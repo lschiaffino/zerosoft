@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
@@ -53,6 +53,18 @@ export default function SettingsTabs({
   // (con <Link> el router todavía no está listo y el clic se perdía).
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
+  // Red de seguridad: si la navegación suave no llega (el router de Next a veces
+  // descarta el clic en páginas dinámicas pesadas), se navega de verdad.
+  const pendingTarget = useRef<string | null>(null);
+  const guard = (e: MouseEvent<HTMLAnchorElement>, target: string) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    pendingTarget.current = target;
+    window.setTimeout(() => {
+      if (pendingTarget.current !== target) return;
+      pendingTarget.current = null;
+      if (`${window.location.pathname}${window.location.search}` !== target) window.location.assign(target);
+    }, 2500);
+  };
 
   const hrefFor = (tab: SettingsTab): string => {
     if (mode === 'route') return tab.href ?? pathname;
@@ -77,7 +89,13 @@ export default function SettingsTabs({
           'aria-current': tab.key === activeKey ? ('page' as const) : undefined,
         };
         return hydrated ? (
-          <Link key={tab.key} href={hrefFor(tab)} scroll={false} {...props}>
+          <Link
+            key={tab.key}
+            href={hrefFor(tab)}
+            scroll={false}
+            onClick={(e) => guard(e, `/${locale}${hrefFor(tab)}`)}
+            {...props}
+          >
             {tab.label}
           </Link>
         ) : (

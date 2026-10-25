@@ -57,6 +57,8 @@ const CyclesPanel = dynamic(() => import('./CyclesPanel'));
 interface ProjectPageClientProps {
   locale: string;
   projectId: string;
+  /** Clave del team (WEB): la URL de la página (/app/track/team/WEB). */
+  teamKey?: string;
   userId: string;
   /** Owner/admin del workspace: puede borrar en masa. */
   isAdmin?: boolean;
@@ -204,7 +206,7 @@ async function api<T>(url: string, options?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-export default function ProjectPageClient({ locale, projectId, userId, isAdmin = false, labels }: ProjectPageClientProps) {
+export default function ProjectPageClient({ locale, projectId, teamKey, userId, isAdmin = false, labels }: ProjectPageClientProps) {
   const t = useTranslations('track');
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -675,7 +677,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     : false;
 
   // La URL del team usa su clave (/app/track/team/WEB) apenas se conoce.
-  const teamHref = teamPath(project ?? projectId);
+  const teamHref = teamPath(teamKey ?? project ?? projectId);
   useEffect(() => {
     const sp = filtersToParams(filters, sort);
     sp.set('view', view);

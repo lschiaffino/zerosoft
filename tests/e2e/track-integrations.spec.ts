@@ -146,7 +146,7 @@ test('Sentry (fake) crea el issue y el issue muestra sus vínculos y el embed de
   await page.goto('/en/app/track/settings?tab=integrations');
   await page.getByTestId('track-sentry-start').click();
   const form = page.getByTestId('track-sentry-form');
-  await form.getByLabel('Track project for new errors').selectOption(project.id);
+  await form.getByLabel('Track team for new errors').selectOption(project.id);
   await form.getByLabel('Sentry organization slug').fill('acme');
   await form.getByLabel('Client secret (webhook signature)').fill('sentry-client-secret');
   await page.locator('form', { has: form }).getByRole('button', { name: 'Connect' }).click();

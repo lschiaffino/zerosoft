@@ -36,12 +36,12 @@ test('plan: crear desde la lista, propiedades, issues y update con salud', async
   await modal.getByLabel('Status').selectOption('in_progress');
   await modal.getByLabel('Team').selectOption(t.id);
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/app\/track\/plans\/[0-9a-f-]{36}/);
+  await expect(page).toHaveURL(/\/app\/track\/projects\/[0-9a-f-]{36}/);
   await expect(page.getByTestId('tp-plan-name')).toHaveValue(name);
 
   // Fecha objetivo desde el panel de propiedades.
   await page.getByTestId('tp-prop-target').fill('2026-12-15');
-  await expect.poll(async () => (await (await request.get(page.url().replace(/.*\/app\/track\/plans\//, '/api/track/plans/'))).json()).plan.target_date).toBe('2026-12-15');
+  await expect.poll(async () => (await (await request.get(page.url().replace(/.*\/app\/track\/projects\//, '/api/track/plans/'))).json()).plan.target_date).toBe('2026-12-15');
 
   // Issues: buscar uno existente y sumarlo.
   await page.getByTestId('tp-tab-issues').click();

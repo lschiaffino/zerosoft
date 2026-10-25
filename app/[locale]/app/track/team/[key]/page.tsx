@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { getProject, getProjectBySlug, canAccessTrackProject } from '@/lib/track-data';
 import ProjectPageClient from '@/components/track/ProjectPageClient';
@@ -11,6 +11,7 @@ export const dynamic = 'force-dynamic';
 export default async function TeamPage(
   props: {
     params: Promise<{ locale: string; key: string }>;
+    searchParams?: Promise<Record<string, string | string[] | undefined>>;
   }
 ) {
   const { locale, key } = await props.params;
@@ -19,6 +20,13 @@ export default async function TeamPage(
   const user = await requireUser(locale);
   const project = (await getProject(param)) ?? (await getProjectBySlug(param.toLowerCase()));
   if (!project || !(await canAccessTrackProject(project, user.team?.id ?? null, user.id))) notFound();
+  // URL canónica con la clave (como Linear): /team/<id> → /team/WEB, con la query.
+  const canonical = project.slug.toUpperCase();
+  if (param !== canonical) {
+    const sp = new URLSearchParams();
+    for (const [k, v] of Object.entries((await props.searchParams) ?? {})) if (typeof v === 'string') sp.set(k, v);
+    redirect(`/${locale}/app/track/team/${encodeURIComponent(canonical)}${sp.size ? `?${sp}` : ''}`);
+  }
 
   const t = await getTranslations({ locale, namespace: 'track' });
 
@@ -26,6 +34,7 @@ export default async function TeamPage(
     <ProjectPageClient
       locale={locale}
       projectId={project.id}
+      teamKey={canonical}
       userId={user.id}
       isAdmin={isWorkspaceAdmin(user)}
       labels={{

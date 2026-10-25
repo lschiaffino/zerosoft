@@ -29,6 +29,8 @@ interface AppCase {
   remove?: (request: APIRequestContext, item: Created) => Promise<void>;
   /** Lista los ítems en el sidebar del shell (#side-branch), como Docs. */
   sidebar?: boolean;
+  /** URL del detalle cuando no lleva el id (los teams de Track usan su clave: /track/team/WEB). */
+  detailUrl?: (item: Created) => RegExp;
 }
 
 async function ok<T = Record<string, unknown>>(res: Promise<import('@playwright/test').APIResponse>): Promise<T> {
@@ -104,6 +106,7 @@ const APPS: AppCase[] = [
     sidebar: true,
     create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/track/projects', { data: { name } }))).id, name }),
     detail: (i) => `/en/app/track/team/${i.id}`,
+    detailUrl: () => /\/app\/track\/team\/SMOKE-/,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/track/projects/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/track/projects/${i.id}`))),
   },
@@ -399,7 +402,7 @@ for (const c of APPS) {
       const option = dialog.getByRole('option', { name: new RegExp(item.name) });
       await expect(option.first()).toBeVisible();
       await option.first().click();
-      await expect(page).toHaveURL(new RegExp(item.id));
+      await expect(page).toHaveURL(c.detailUrl ? c.detailUrl(item) : new RegExp(item.id));
     });
 
     test('detalle: abre sin errores', async ({ page, request }) => {

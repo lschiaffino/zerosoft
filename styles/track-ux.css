@@ -1406,3 +1406,29 @@ a.track-issue-link .track-status-glyph {
     display: none;
   }
 }
+
+/* Grupos de la lista (agrupar por estado, prioridad…): banda fina como Linear. */
+.track-groups {
+  gap: 0;
+}
+
+.track-groups .track-mytasks-group {
+  gap: 0;
+}
+
+.track-groups .track-group-title {
+  gap: 8px;
+  margin: 0;
+  padding: 6px 12px;
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-stretch: 100%;
+  font-weight: 600;
+  letter-spacing: 0;
+  background: var(--ui-hover);
+  border-top: 1px solid var(--line);
+}
+
+.track-groups .track-table-wrap.is-linear {
+  border-top: 0;
+}
