@@ -3,7 +3,7 @@ import { getCurrentUser } from '@/lib/session';
 import { getRunWithSteps } from '@/lib/flow';
 import { rerunFromStep } from '@/lib/flow-engine';
 import { flowRerunSchema } from '@/lib/flow-schema';
-import { canEditFlows, flowError, forbidden, notFound, unauthorized } from '@/lib/flow-http';
+import { canEditFlows, flowError, forbidden, notFound, runViewer, unauthorized } from '@/lib/flow-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,5 +22,5 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     if (res.error === 'not_found') return notFound();
     return flowError(res.error === 'rate_limited' ? 429 : 400, res.error);
   }
-  return NextResponse.json({ run: await getRunWithSteps(user.id, res.runId) });
+  return NextResponse.json({ run: await getRunWithSteps(user.id, res.runId, runViewer(user)) });
 }

@@ -538,6 +538,7 @@
     "is_false": "é falso"
   },
   "runs": {
+    "dataHidden": "Os dados desta execução só são vistos por quem criou o flow e pelos admins que podem abri-los.",
     "loadError": "Não foi possível carregar as execuções.",
     "emptyBody": "Use Testar para rodar com dados de teste, ou ative o flow para ele rodar sozinho.",
     "emptyTitle": "Ainda não há execuções",

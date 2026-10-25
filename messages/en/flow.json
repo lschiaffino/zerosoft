@@ -538,6 +538,7 @@
     "is_false": "is false"
   },
   "runs": {
+    "dataHidden": "The data of this run is only visible to the person who created the flow and to admins who can open it.",
     "loadError": "Couldn’t load the runs.",
     "emptyBody": "Use Test run to try it with sample data, or turn it on so it runs by itself.",
     "emptyTitle": "No runs yet",
