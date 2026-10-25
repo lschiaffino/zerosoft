@@ -12,6 +12,7 @@ import { getPlatformSettings, listLabelAccess } from '@/lib/groups-access';
 import { listIntegrations } from '@/lib/groups-integrations';
 import { WEBHOOK_EVENTS } from '@/lib/webhooks-events';
 import PageHeader from '@/components/ui/PageHeader';
+import PlatformSettingsLink from '@/components/app/PlatformSettingsLink';
 import SettingsTabs from '@/components/ui/SettingsTabs';
 import NumbersSettings from '@/components/groups/NumbersSettings';
 import { LabelsPanel, PropertiesPanel, QuickRepliesPanel, TicketRulesPanel } from '@/components/groups/SettingsPanels';
@@ -136,7 +137,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
           {t('api.docs')} <Link href="/docs#groups">{t('api.docsLink')}</Link>
         </p>
         <p className="ui-help">
-          {t('api.scopes')} <Link href="/app/settings/workspace">{t('api.keys')}</Link>
+          {t('api.scopes')} <Link href="/app/settings/api">{t('api.keys')}</Link>
         </p>
         <p>{t('api.webhooks')}</p>
         <ul className="gr-mini-list gr-mono">
@@ -155,7 +156,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
 
   return (
     <div className="ui-page">
-      <PageHeader title={t('settings.title')} description={t('settings.desc')} />
+      <PageHeader title={t('settings.title')} description={t('settings.desc')} actions={<PlatformSettingsLink locale={locale} />} />
       <SettingsTabs mode="query" param="tab" items={TABS.map((k) => ({ key: k, label: t(`settings.tabs.${k}`) }))}>
         {body}
       </SettingsTabs>

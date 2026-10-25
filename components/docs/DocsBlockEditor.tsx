@@ -3,7 +3,8 @@
 import { forwardRef, useLayoutEffect, useMemo, useRef } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import type { DocsBlock, DocsBlockType } from '@/lib/docs-types';
+import type { DocsBlock, DocsBlockType, DocsButtonConfig } from '@/lib/docs-types';
+import type { TocEntry } from '@/lib/docs-toc';
 import {
   escapeHtml,
   htmlToFlatText,
@@ -12,15 +13,19 @@ import {
   serializeEditable,
 } from '@/lib/docs-richtext';
 import { isPageLinkId, pageLinkHref, type PageLinkSource } from '@/lib/docs-page-links';
-import { formatFileSize, isDocsUploadUrl } from '@/lib/docs-files';
+import { isFileBlockType } from '@/lib/docs-files';
 import { htmlToBlocks, shouldSplitPaste } from '@/lib/docs-paste';
 import { looksLikeMarkdown, markdownToBlocks, plainTextToBlocks } from '@/lib/docs-import';
 import { isToggleBlock } from '@/lib/docs-blocks';
+import { pastedUrl } from '@/lib/docs-embeds';
 import DocsGlyph from './DocsGlyphs';
 import EmojiPicker from './EmojiPicker';
 import DocsDatabaseBlock, { type DbOpenMode } from './DocsDatabaseBlock';
 import { DocsBoardPicker, DocsBoardPreview } from './DocsBoardEmbed';
-import DocsEditorImage from './DocsEditorImage';
+import DocsMediaBlock from './DocsMediaBlock';
+import DocsLinkBlock from './DocsLinkBlocks';
+import { BreadcrumbBlock, ButtonBlock, EquationBlock, TocBlock } from './DocsAdvancedBlocks';
+import { renderInlineTex } from './inlineTex';
 
 interface DocsBlockEditorProps {
   block: DocsBlock;
@@ -43,6 +48,18 @@ interface DocsBlockEditorProps {
     onOpenRow: (blockId: string, rowId: string, mode: DbOpenMode) => void;
     membersUrl: string | null;
   };
+  /** Títulos de la página (bloque índice). */
+  toc?: TocEntry[];
+  /** Ruta de la página (bloque breadcrumb). */
+  trail?: Array<{ id: string; title: string; icon: string | null }>;
+  /** Clic en un bloque botón. */
+  onRunButton?: (index: number, button: DocsButtonConfig) => void;
+  /** Clic en una ecuación en línea: offset plano donde empieza y su LaTeX. */
+  onInlineEquation?: (index: number, start: number, tex: string) => void;
+  /** Se pegó un link solo (queda como link; el editor ofrece bookmark o embed). */
+  onPasteUrl?: (index: number, url: string) => void;
+  /** Se pegó un bloque sincronizado ("Copiar y sincronizar" en otra página). */
+  onPasteSynced?: (index: number, syncedId: string) => void;
 }
 
 /** HTML pegado sin estructura semántica (VS Code, terminales): manda el texto plano. */
@@ -76,7 +93,7 @@ function pastedBlocks(html: string, text: string): DocsBlock[] | null {
 }
 
 const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
-  ({ block, index, listIndex, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles, onPasteBlocks, database }, ref) => {
+  ({ block, index, listIndex, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles, onPasteBlocks, database, toc, trail, onRunButton, onInlineEquation, onPasteUrl, onPasteSynced }, ref) => {
     const t = useTranslations('docs');
     const locale = useLocale();
     const router = useRouter();
@@ -143,6 +160,19 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
         const row = a.getAttribute('data-row');
         a.href = `/${locale}${row && (!pageLinks || pageLinks.rows) ? pageLinkHref(id, row) : linkHref(id)}`;
       });
+      // Menciones de fecha y ecuaciones en línea: atómicas como los links a
+      // página. La ecuación se dibuja en un shadow root (el texto del span
+      // sigue siendo el LaTeX: los offsets del modelo no cambian).
+      el.querySelectorAll<HTMLElement>('span[data-date]').forEach((span) => {
+        span.contentEditable = 'false';
+        span.classList.add('docs-date-mention');
+        span.classList.toggle('has-reminder', span.hasAttribute('data-remind'));
+      });
+      el.querySelectorAll<HTMLElement>('span[data-tex]').forEach((span) => {
+        span.contentEditable = 'false';
+        span.classList.add('docs-inline-eq');
+        renderInlineTex(span, span.getAttribute('data-tex') ?? '');
+      });
     }, [block.id, block.content, locale, linkHref, pageLinks]);
 
     /**
@@ -150,6 +180,16 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
      * un link externo se abre solo con Cmd/Ctrl+click (el click simple edita).
      */
     const onLinkClick = (e: React.MouseEvent<HTMLDivElement>) => {
+      const eq = (e.target as Element).closest?.('span[data-tex]');
+      if (eq && e.currentTarget.contains(eq) && onInlineEquation) {
+        e.preventDefault();
+        // Offset plano del span: el texto que hay antes adentro del bloque.
+        const range = document.createRange();
+        range.setStart(e.currentTarget, 0);
+        range.setEndBefore(eq);
+        onInlineEquation(index, range.toString().length, eq.getAttribute('data-tex') ?? '');
+        return;
+      }
       const a = (e.target as Element).closest?.('a');
       if (!a || !e.currentTarget.contains(a)) return;
       const page = a.getAttribute('data-page');
@@ -176,51 +216,63 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
       return <hr className="docs-divider" data-index={index} />;
     }
 
-    if (block.type === 'image' || block.type === 'file') {
+    const setCardRef = (node: HTMLDivElement | null) => {
+      if (typeof ref === 'function') ref(node);
+      else if (ref) ref.current = node;
+    };
+
+    if (isFileBlockType(block.type)) {
       // Bloque atómico: se enfoca entero (Tab/flechas/click). Enter crea un
-      // párrafo abajo y Backspace/Supr lo borra (lo maneja el editor). La
-      // imagen y la descarga pasan por la ruta con permisos (lo recién subido
-      // se ve desde el archivo local hasta que la página se guarda).
-      const hasFile = isDocsUploadUrl(block.url);
-      const name = block.name || t('editor.upload.untitledFile');
+      // párrafo abajo y Backspace/Supr lo borra (lo maneja el editor). Todo
+      // pasa por la ruta con permisos (lo recién subido se ve desde el
+      // archivo local hasta que la página se guarda).
       return (
-        <div
-          ref={(node) => {
-            if (typeof ref === 'function') ref(node);
-            else if (ref) ref.current = node;
-          }}
-          className={`docs-block docs-file-block docs-file-block-${block.type}${focused ? ' focused' : ''}`}
-          data-index={index}
-          data-testid={`docs-${block.type}-block`}
-          tabIndex={0}
-          role="group"
-          aria-label={block.type === 'image' ? t('editor.upload.imageLabel', { name }) : t('editor.upload.fileLabel', { name })}
-          onKeyDown={(e) => onKeyDown(index, e)}
-          onFocus={(e) => {
-            if (e.target === e.currentTarget) onFocus(index);
-          }}
-        >
-          {!hasFile ? (
-            <span className="docs-file-missing">{t('editor.upload.missing')}</span>
-          ) : block.type === 'image' ? (
-            <DocsEditorImage storageUrl={block.url!} href={fileHref ? fileHref(block.id) : block.url!} alt={name} />
-          ) : (
-            <a
-              className="docs-file-card"
-              href={fileHref ? fileHref(block.id, { download: true }) : block.url}
-              download={name}
-              tabIndex={-1}
-            >
-              <span className="docs-file-icon" aria-hidden="true">
-                <DocsGlyph name="file" size={18} />
-              </span>
-              <span className="docs-file-name">{name}</span>
-              <span className="docs-file-size">{formatFileSize(block.size)}</span>
-            </a>
-          )}
-        </div>
+        <DocsMediaBlock
+          ref={setCardRef}
+          block={block}
+          index={index}
+          focused={focused}
+          fileHref={fileHref}
+          onChange={onChange}
+          onKeyDown={onKeyDown}
+          onFocus={onFocus}
+        />
       );
     }
+
+    if (block.type === 'bookmark' || block.type === 'embed') {
+      return <DocsLinkBlock ref={setCardRef} block={block} index={index} focused={focused} onChange={onChange} onKeyDown={onKeyDown} onFocus={onFocus} />;
+    }
+
+    if (block.type === 'equation') {
+      return <EquationBlock ref={setCardRef} block={block} index={index} focused={focused} onChange={onChange} onKeyDown={onKeyDown} onFocus={onFocus} />;
+    }
+
+    if (block.type === 'toc') {
+      return <TocBlock ref={setCardRef} block={block} index={index} focused={focused} onChange={onChange} onKeyDown={onKeyDown} onFocus={onFocus} toc={toc ?? []} />;
+    }
+
+    if (block.type === 'breadcrumb') {
+      return <BreadcrumbBlock ref={setCardRef} block={block} index={index} focused={focused} onChange={onChange} onKeyDown={onKeyDown} onFocus={onFocus} trail={trail ?? []} />;
+    }
+
+    if (block.type === 'button') {
+      return (
+        <ButtonBlock
+          ref={setCardRef}
+          block={block}
+          index={index}
+          focused={focused}
+          onChange={onChange}
+          onKeyDown={onKeyDown}
+          onFocus={onFocus}
+          onRun={(i, b) => onRunButton?.(i, b)}
+        />
+      );
+    }
+
+    // Columnas y bloques sincronizados son contenedores: los dibuja el editor.
+    if (block.type === 'columns' || block.type === 'column' || block.type === 'synced') return null;
 
     if (block.type === 'board') {
       // Pizarra embebida: bloque atómico como imagen/archivo. Sin pizarra
@@ -385,6 +437,21 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
             const files = Array.from(cd.files ?? []);
             if (onPasteFiles && files.length > 0 && !html && block.type !== 'code') {
               onPasteFiles(index, files);
+              return;
+            }
+            const plain = cd.getData('text/plain');
+            // Bloque sincronizado copiado en otra página.
+            const synced = plain.trim().match(/^zerosoft-synced:([A-Za-z0-9_-]{8,64})$/);
+            if (synced && onPasteSynced && block.type !== 'code') {
+              onPasteSynced(index, synced[1]);
+              return;
+            }
+            // Un link solo: entra como link y el editor ofrece mención, bookmark o embed.
+            const url = block.type !== 'code' ? pastedUrl(plain) : null;
+            if (url && onPasteUrl) {
+              insertHtmlAtSelection(el, `<a href="${url.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}">${escapeHtml(url)}</a>`);
+              onChange(index, { content: serializeEditable(el) });
+              onPasteUrl(index, url);
               return;
             }
             // Varios párrafos, listas, headings o Markdown: bloques reales.

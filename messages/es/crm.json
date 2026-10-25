@@ -3265,7 +3265,8 @@
       "closed_won": "Ganado",
       "lost": "Perdido",
       "auto": "Automática ({category})"
-    }
+    },
+    "quarterName": "{n}.º trimestre {year}"
   },
   "journey": {
     "rangeLabel": "Deals creados en",

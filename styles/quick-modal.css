@@ -98,6 +98,10 @@
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 10px;
 }
+/* Fecha y hora necesita más ancho que un select: a 160px el valor quedaba cortado. */
+.qm-row:has(input[type="datetime-local"]) {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+}
 
 .qm-field {
   display: flex;

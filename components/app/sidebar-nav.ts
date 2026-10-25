@@ -1,6 +1,7 @@
 import type { IconName } from './icons';
 import { isNewLinkPath } from '@/lib/link-detail-tabs';
 import type { NotificationTextLabels } from '@/lib/notification-text';
+import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 
 /**
  * Navegación del sidebar de la app, en datos puros (sin React) para poder
@@ -22,6 +23,13 @@ export interface SidebarLabels {
   workspace: string;
   /** Ajustes globales de la cuenta (pie del sidebar, todos los productos). */
   settings: string;
+  /** Ajustes propios de la app (ítem del sidebar que lleva a /app/<app>/settings). */
+  appSettings: string;
+  /** Shell neutro (Ajustes de la plataforma): inicio y lista de apps. */
+  platformHome: string;
+  apps: string;
+  /** Nombre del shell neutro en el switcher. */
+  platform: string;
   collapse: string;
   expand: string;
   menu: string;
@@ -150,6 +158,8 @@ export interface NavGroup {
 }
 
 export type AppProduct =
+  /** Plataforma (Ajustes globales): sin app activa, el shell va neutro. */
+  | 'home'
   | 'link'
   | 'crm'
   | 'docs'
@@ -177,8 +187,44 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/groups', 'groups'],
 ];
 
-/** Producto de la app según la ruta (Link es el default: /app, /app/links, /app/settings). */
+/** La app del shell para una clave de producto (Cal vive en /app/calendar). */
+export function appProductOf(key: ProductKey): Exclude<AppProduct, 'home'> {
+  return key === 'cal' ? 'calendar' : key;
+}
+
+/** La clave de producto (color, glifo) de una app del shell; 'home' no tiene. */
+export function productKeyOf(product: AppProduct): ProductKey | null {
+  if (product === 'home') return null;
+  return product === 'calendar' ? 'cal' : product;
+}
+
+/** Ruta de entrada de cada app en el switcher (Link sigue entrando por /app). */
+export function switcherHref(key: ProductKey): string {
+  return key === 'link' ? '/app' : PRODUCT_CONFIG[key].launch;
+}
+
+/** Las apps del switcher, en orden, con nombre y ruta desde PRODUCT_CONFIG. */
+export const SWITCHER_PRODUCTS: ReadonlyArray<{ key: Exclude<AppProduct, 'home'>; line: ProductKey; name: string; href: string }> =
+  APP_SWITCHER_ORDER.map((line) => ({ key: appProductOf(line), line, name: PRODUCT_CONFIG[line].name, href: switcherHref(line) }));
+
+const APP_ICONS: Record<ProductKey, IconName> = {
+  link: 'links',
+  crm: 'contacts',
+  docs: 'docs',
+  cal: 'tasks',
+  track: 'lists',
+  chat: 'chat',
+  groups: 'groups',
+  flow: 'flow',
+  notes: 'notes',
+  board: 'board',
+  agents: 'agents',
+  robots: 'robots',
+};
+
+/** Producto de la app según la ruta. /app/settings es la plataforma (neutro); Link es el default (/app, /app/links). */
 export function appProductFromPath(pathname: string): AppProduct {
+  if (pathname === '/app/settings' || pathname.startsWith('/app/settings/')) return 'home';
   for (const [prefix, product] of PRODUCT_PREFIXES) {
     if (pathname.includes(prefix)) return product;
   }
@@ -205,7 +251,21 @@ export function buildNav(
   const tasksDue = counts.tasksDue ?? 0;
   const unread = counts.unread ?? 0;
 
+  // Último grupo de las apps sin "Ajustes" propio en otro lado: lleva a /app/<app>/settings.
+  const appSettingsGroup = (href: string): NavGroup => ({
+    items: [{ href, label: labels.appSettings, active: at(href), icon: 'settings' }],
+  });
+
   switch (product) {
+    case 'home':
+      return [
+        { items: [{ href: '/app', label: labels.platformHome, active: pathname === '/app', icon: 'overview' }] },
+        {
+          section: labels.apps,
+          items: SWITCHER_PRODUCTS.map((p) => ({ href: p.href, label: p.name, active: false, icon: APP_ICONS[p.line] })),
+        },
+      ];
+
     case 'crm':
       return [
         { items: [{ href: '/app/crm', label: labels.crm.overview, active: pathname === '/app/crm', icon: 'overview' }] },
@@ -264,12 +324,13 @@ export function buildNav(
       return [
         {
           items: [
-            { href: '/app/docs', label: labels.docs.pages, active: at('/app/docs'), icon: 'docs', branch: true },
+            { href: '/app/docs', label: labels.docs.pages, active: at('/app/docs') && !at('/app/docs/settings'), icon: 'docs', branch: true },
             // Plantillas y papelera son secciones de la portada de Docs.
             { href: '/app/docs#templates', label: labels.docs.templates, active: false, icon: 'templates' },
             { href: '/app/docs?trash=1#trash', label: labels.docs.trash, active: false, icon: 'trash' },
           ],
         },
+        appSettingsGroup('/app/docs/settings'),
       ];
 
     case 'calendar':
@@ -366,39 +427,62 @@ export function buildNav(
             {
               href: '/app/flow',
               label: labels.flow.flows,
-              active: at('/app/flow') && !at('/app/flow/credentials') && !at('/app/flow/tables'),
+              active: at('/app/flow') && !at('/app/flow/credentials') && !at('/app/flow/tables') && !at('/app/flow/settings'),
               icon: 'flow',
             },
             { href: '/app/flow/tables', label: labels.flow.tables, active: at('/app/flow/tables'), icon: 'lists' },
-            { href: '/app/flow/credentials', label: labels.flow.credentials, active: at('/app/flow/credentials'), icon: 'settings' },
+            { href: '/app/flow/credentials', label: labels.flow.credentials, active: at('/app/flow/credentials'), icon: 'workflows' },
           ],
         },
+        appSettingsGroup('/app/flow/settings'),
       ];
 
     case 'notes':
       return [
         {
           items: [
-            { href: '/app/notes', label: labels.notes.all, active: at('/app/notes') && !at('/app/notes/clip'), icon: 'notes' },
+            {
+              href: '/app/notes',
+              label: labels.notes.all,
+              active: at('/app/notes') && !at('/app/notes/clip') && !at('/app/notes/settings'),
+              icon: 'notes',
+            },
             { href: '/app/notes/clip', label: labels.notes.clip, active: at('/app/notes/clip'), icon: 'clip' },
           ],
         },
+        appSettingsGroup('/app/notes/settings'),
       ];
 
     case 'board':
-      return [{ items: [{ href: '/app/board', label: labels.board.boards, active: at('/app/board'), icon: 'board', branch: true }] }];
+      return [
+        {
+          items: [
+            { href: '/app/board', label: labels.board.boards, active: at('/app/board') && !at('/app/board/settings'), icon: 'board', branch: true },
+          ],
+        },
+        appSettingsGroup('/app/board/settings'),
+      ];
 
     case 'agents':
-      return [{ items: [{ href: '/app/agents', label: labels.agents.agents, active: at('/app/agents'), icon: 'agents' }] }];
+      return [
+        { items: [{ href: '/app/agents', label: labels.agents.agents, active: at('/app/agents') && !at('/app/agents/settings'), icon: 'agents' }] },
+        appSettingsGroup('/app/agents/settings'),
+      ];
 
     case 'robots':
       return [
         {
           items: [
-            { href: '/app/robots', label: labels.robots.robots, active: at('/app/robots') && !at('/app/robots/recorder'), icon: 'robots' },
+            {
+              href: '/app/robots',
+              label: labels.robots.robots,
+              active: at('/app/robots') && !at('/app/robots/recorder') && !at('/app/robots/settings'),
+              icon: 'robots',
+            },
             { href: '/app/robots/recorder', label: labels.robots.recorder, active: at('/app/robots/recorder'), icon: 'recorder' },
           ],
         },
+        appSettingsGroup('/app/robots/settings'),
       ];
 
     case 'groups':
@@ -444,7 +528,8 @@ export function buildNav(
                 !isNewLinkPath(pathname) &&
                 !at('/app/links/bio') &&
                 !at('/app/links/analytics') &&
-                !at('/app/links/domains'),
+                !at('/app/links/domains') &&
+                !at('/app/links/settings'),
               icon: 'links',
             },
             // Una sola entrada para crear: Un link / En lote / Importar son pestañas de /app/links/new.
@@ -455,7 +540,15 @@ export function buildNav(
         },
         {
           section: labels.workspace,
-          items: [{ href: '/app/links/domains', label: labels.link.domains, active: at('/app/links/domains'), icon: 'domains' }],
+          items: [
+            {
+              href: '/app/links/settings',
+              label: labels.appSettings,
+              // Dominios, importar y exportar son pestañas de los ajustes de Link (/app/links/domains redirige).
+              active: at('/app/links/settings') || at('/app/links/domains'),
+              icon: 'settings',
+            },
+          ],
         },
       ];
   }
@@ -465,6 +558,16 @@ export function buildNav(
 export function buildNewItems(product: AppProduct, labels: SidebarLabels): NavItem[] {
   const item = (href: string, label: string, icon: IconName): NavItem => ({ href, label, icon, active: false });
   switch (product) {
+    case 'home':
+      // Sin app activa: crear lo más común de cada una.
+      return [
+        item('/app/links/new', labels.newLink, 'newLink'),
+        item('/app/crm/contacts/new', labels.newContact, 'contacts'),
+        item('/app/docs?new=1', labels.newDocPage, 'docs'),
+        item('/app/track/projects/new', labels.newProject, 'lists'),
+        item('/app/calendar/event-types/new', labels.newEventType, 'tasks'),
+        item('/app/notes?new=1', labels.notes.newNote, 'notes'),
+      ];
     case 'crm':
       return [
         item('/app/crm/contacts/new', labels.newContact, 'contacts'),

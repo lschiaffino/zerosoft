@@ -12,6 +12,7 @@ import { signVisitorIdentity } from '@/lib/chat-identity';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { SIDEBAR_COLLAPSED_SCRIPT } from '@/lib/sidebar-collapsed';
 import ClientMessages from '@/components/i18n/ClientMessages';
+import { settingsSectionHref, settingsSectionKeys } from '@/lib/settings-nav';
 // CSS común a toda la app: link.css trae la base de páginas, tablas y filtros
 // que usan todas las apps, app-shared.css las reglas de otras hojas que se usan
 // fuera de su app (ver su encabezado). Cada app importa su hoja en su layout.
@@ -40,8 +41,9 @@ export default async function AppLayout(
 
   const user = await requireUser(locale);
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tasksDue, serverTz] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tasksDue, serverTz] =
     await Promise.all([
+      getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
       getTranslations({ locale, namespace: 'link' }),
       getTranslations({ locale, namespace: 'crm' }),
@@ -67,7 +69,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk']}>
+    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'settings.sections', 'settings.cmdk']}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
@@ -93,6 +95,15 @@ export default async function AppLayout(
                 { href: '/app/links/analytics', label: tLink('tabs.analytics') },
                 { href: '/app/links/folders', label: tLink('folders.title') },
                 { href: '/app/settings', label: tSide('settings') },
+                ...settingsSectionKeys(true).map((key) => ({ href: settingsSectionHref(key), label: tSettings(`sections.${key}`) })),
+                // Ajustes de las apps que no los tenían (los demás están en su bloque).
+                { href: '/app/links/settings', label: tSide('appSettings') },
+                { href: '/app/docs/settings', label: tSide('appSettings') },
+                { href: '/app/notes/settings', label: tSide('appSettings') },
+                { href: '/app/board/settings', label: tSide('appSettings') },
+                { href: '/app/flow/settings', label: tSide('appSettings') },
+                { href: '/app/agents/settings', label: tSide('appSettings') },
+                { href: '/app/robots/settings', label: tSide('appSettings') },
                 { href: '/app/crm', label: tCrm('tabs.overview') },
                 { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
                 { href: '/app/crm/companies', label: tCrm('tabs.companies') },
@@ -173,6 +184,10 @@ export default async function AppLayout(
             linksSection: tSide('linksSection'),
             workspace: tSide('workspace'),
             settings: tSide('settings'),
+            appSettings: tSide('appSettings'),
+            platformHome: tSide('platformHome'),
+            apps: tSide('apps'),
+            platform: tSide('platform'),
             collapse: tSide('collapse'),
             expand: tSide('expand'),
             menu: tSide('menu'),

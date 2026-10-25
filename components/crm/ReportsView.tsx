@@ -29,6 +29,7 @@ import PipelineSelect from './PipelineSelect';
 import DealJourneyPanel from './DealJourneyPanel';
 import { Link } from '@/i18n/navigation';
 import type { JourneyMode, JourneyRange, JourneyResult } from '@/lib/crm-stage-history';
+import { bucketLabel, monthLabel } from '@/lib/crm-buckets';
 
 interface ReportsViewProps {
   /** Recorrido de deals (pestaña journey); null en las otras pestañas. */
@@ -83,30 +84,6 @@ function formatMoney(n: number, locale: string, currency = 'USD'): string {
   }).format(n);
 }
 
-function monthLabel(month: string, locale: string): string {
-  const [y, m] = month.split('-').map(Number);
-  return new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }).format(
-    new Date(Date.UTC(y, m - 1, 1)),
-  );
-}
-
-function bucketLabel(bucket: string, locale: string): string {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(bucket)) {
-    return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(
-      new Date(`${bucket}T00:00:00Z`),
-    );
-  }
-  if (/^\d{4}-W\d{2}$/.test(bucket)) {
-    return bucket;
-  }
-  if (/^\d{4}-\d{2}$/.test(bucket)) {
-    return monthLabel(bucket, locale);
-  }
-  if (/^\d{4}-Q\d$/.test(bucket)) {
-    return bucket;
-  }
-  return bucket;
-}
 
 interface BarItem {
   name: string;

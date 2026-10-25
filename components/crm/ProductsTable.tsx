@@ -46,10 +46,10 @@ export default function ProductsTable({ rows, locale, defaultCurrency }: Product
           <thead>
             <tr>
               <th>{t('products.table.name')}</th>
-              <th>{t('products.table.sku')}</th>
+              <th className="prod-col-opt">{t('products.table.sku')}</th>
               <th className="num">{t('products.table.price')}</th>
-              <th>{t('products.table.recurring')}</th>
-              <th className="num">{t('products.table.tax')}</th>
+              <th className="prod-col-opt">{t('products.table.recurring')}</th>
+              <th className="num prod-col-opt">{t('products.table.tax')}</th>
               <th>{t('products.table.status')}</th>
               <th aria-label={t('common.actions')} />
             </tr>
@@ -63,10 +63,10 @@ export default function ProductsTable({ rows, locale, defaultCurrency }: Product
                   </button>
                   {p.description && <span className="muted prod-desc">{p.description}</span>}
                 </td>
-                <td className="mono muted">{p.sku || '—'}</td>
+                <td className="mono muted prod-col-opt">{p.sku || '—'}</td>
                 <td className="mono num">{formatMoney(p.price, p.currency, locale, true)}</td>
-                <td className="muted">{t(`enums.recurring.${p.recurring}`)}</td>
-                <td className="mono num muted">{p.tax_pct ? `${p.tax_pct}%` : '—'}</td>
+                <td className="muted prod-col-opt">{t(`enums.recurring.${p.recurring}`)}</td>
+                <td className="mono num muted prod-col-opt">{p.tax_pct ? `${p.tax_pct}%` : '—'}</td>
                 <td>
                   <span className={`crm-dot-status ${p.active ? 'is-ok' : 'is-dim'}`}>
                     {p.active ? t('products.active') : t('products.archived')}

@@ -10,6 +10,8 @@ import {
   activeView,
   addProperty,
   addRow,
+  addRowFromTemplate,
+  removeRowTemplate,
   addView,
   databasePatch,
   defaultStatusOptions,
@@ -54,7 +56,7 @@ interface DocsDatabaseBlockProps {
 }
 
 type Pop =
-  | { kind: 'filter' | 'sort' | 'group' | 'props' | 'addProp' | 'addView' | 'viewMenu'; anchor: HTMLElement }
+  | { kind: 'filter' | 'sort' | 'group' | 'props' | 'addProp' | 'addView' | 'viewMenu' | 'templates'; anchor: HTMLElement }
   | { kind: 'propMenu'; anchor: HTMLElement; propId: string };
 
 const VIEW_GLYPH: Record<DbViewType, DocsGlyphName> = { table: 'table', board: 'boardView', gallery: 'gallery' };
@@ -103,6 +105,17 @@ export default function DocsDatabaseBlock({ block, index, onChange, onFocus, onO
     onFocus(index);
     if (view.type === 'table') setFocusRequest({ rowId: row.id, propId: title.id, edit: true, tick: Date.now() });
     else openRow(row.id, 'peek');
+  };
+
+  /** Fila nueva desde una plantilla de la base: se abre en el panel lateral. */
+  const newRowFromTemplate = (templateId: string) => {
+    if (db.rows.length >= DB_MAX_ROWS) return;
+    const res = addRowFromTemplate(db, templateId, filterDefaults(db, view));
+    if (!res) return;
+    commit(res.db);
+    close();
+    onFocus(index);
+    openRow(res.row.id, 'peek');
   };
 
   const onCell = useCallback(
@@ -282,9 +295,23 @@ export default function DocsDatabaseBlock({ block, index, onChange, onFocus, onO
           {toolButton('sort', 'sort', t('sort'), sorts.length)}
           {view.type !== 'gallery' && toolButton('group', 'group', view.type === 'board' ? t('boardColumns') : t('group'), view.type === 'table' && groupProp ? 1 : 0)}
           {toolButton('props', 'eye', t('properties'), view.hidden?.length ?? 0)}
-          <button type="button" className="docs-db-new" onClick={() => newRow(null)} disabled={db.rows.length >= DB_MAX_ROWS}>
-            {t('new')}
-          </button>
+          <span className="docs-db-new-group">
+            <button type="button" className="docs-db-new" onClick={() => newRow(null)} disabled={db.rows.length >= DB_MAX_ROWS}>
+              {t('new')}
+            </button>
+            <button
+              type="button"
+              className="docs-db-new docs-db-new-more"
+              aria-label={t('templates.open')}
+              title={t('templates.open')}
+              aria-haspopup="menu"
+              aria-expanded={pop?.kind === 'templates'}
+              data-testid="docs-db-templates"
+              onClick={(e) => setPop({ kind: 'templates', anchor: e.currentTarget })}
+            >
+              <DocsGlyph name="down" size={12} />
+            </button>
+          </span>
         </div>
       </div>
 
@@ -370,6 +397,36 @@ export default function DocsDatabaseBlock({ block, index, onChange, onFocus, onO
                 setPop({ kind: 'filter', anchor: pop.anchor });
               }}
             />
+          )}
+          {pop.kind === 'templates' && (
+            <div className="docs-db-menu" role="menu" aria-label={t('templates.title')}>
+              <p className="docs-db-menu-label">{t('templates.title')}</p>
+              {(db.templates ?? []).map((tpl) => (
+                <div key={tpl.id} className="docs-db-template-row">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="docs-db-menu-item"
+                    disabled={db.rows.length >= DB_MAX_ROWS}
+                    onClick={() => newRowFromTemplate(tpl.id)}
+                  >
+                    <DocsGlyph name="template" size={14} />
+                    {tpl.name || t('templates.untitled')}
+                  </button>
+                  <button
+                    type="button"
+                    className="docs-db-icon-btn"
+                    aria-label={t('templates.delete', { name: tpl.name || t('templates.untitled') })}
+                    title={t('templates.delete', { name: tpl.name || t('templates.untitled') })}
+                    onClick={() => commit(removeRowTemplate(db, tpl.id))}
+                  >
+                    <DocsGlyph name="trash" size={13} />
+                  </button>
+                </div>
+              ))}
+              {!(db.templates ?? []).length && <p className="docs-db-menu-empty">{t('templates.empty')}</p>}
+              {!!(db.templates ?? []).length && <p className="docs-db-menu-hint">{t('templates.hint')}</p>}
+            </div>
           )}
           {pop.kind === 'addView' && (
             <div className="docs-db-menu" role="menu" aria-label={t('addView')}>

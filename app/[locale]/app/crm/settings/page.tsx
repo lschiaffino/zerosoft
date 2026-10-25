@@ -18,6 +18,7 @@ import { listScoreRules, listScores } from '@/lib/crm-scoring';
 import { quotaProgress } from '@/lib/crm-quotas';
 import { CRM_SETTINGS_TABS, crmSettingsTab } from '@/lib/crm-settings-tabs';
 import PageHeader from '@/components/ui/PageHeader';
+import PlatformSettingsLink from '@/components/app/PlatformSettingsLink';
 import SettingsTabs from '@/components/ui/SettingsTabs';
 import FormSection from '@/components/ui/FormSection';
 import PipelinesEditor from '@/components/crm/PipelinesEditor';
@@ -356,7 +357,7 @@ export default async function CrmSettingsPage(props: {
   return (
     <div className="app-page ui-page crm-settings-page">
       <LegacySettingsAnchor />
-      <PageHeader title={t('settings.title')} description={t('settings.subtitle')} />
+      <PageHeader title={t('settings.title')} description={t('settings.subtitle')} actions={<PlatformSettingsLink locale={locale} />} />
       <SettingsTabs
         mode="query"
         param="tab"

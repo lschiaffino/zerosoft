@@ -58,9 +58,22 @@ export function blockSearchText(block: DocsBlock): string {
       return databaseSearchText(block);
     case 'image':
     case 'file':
-      return block.name ?? '';
+    case 'video':
+    case 'audio':
+    case 'pdf':
+      return [block.name ?? '', inlineHtmlToText(block.caption ?? '')].join(' ');
+    case 'bookmark':
+    case 'embed':
+      return block.link ? [block.link.title, block.link.description, block.link.url].filter(Boolean).join(' ') : '';
+    case 'button':
+      return block.button?.label ?? '';
     case 'divider':
     case 'board':
+    case 'columns':
+    case 'column':
+    case 'synced':
+    case 'toc':
+    case 'breadcrumb':
       return '';
     default:
       return inlineHtmlToText(block.content ?? '');

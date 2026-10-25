@@ -13,14 +13,13 @@ import {
   buildNav,
   buildNewItems,
   settingsNavItem,
-  type AppProduct,
+  SWITCHER_PRODUCTS,
   type SidebarLabels,
 } from './sidebar-nav';
 import NotificationBell from './NotificationBell';
 import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import ThemeSwitcher from '@/components/theme/ThemeSwitcher';
-import type { ProductKey } from '@/lib/products';
 
 export type { SidebarLabels };
 
@@ -30,21 +29,6 @@ interface SideUser {
   image: string | null;
 }
 
-/** Las once apps en el orden del switcher. `line` es la clave de color (Cal = cal). */
-const PRODUCTS: ReadonlyArray<{ key: AppProduct; line: ProductKey; name: string; href: string }> = [
-  { key: 'link', line: 'link', name: 'Link', href: '/app' },
-  { key: 'crm', line: 'crm', name: 'CRM', href: '/app/crm' },
-  { key: 'docs', line: 'docs', name: 'Docs', href: '/app/docs' },
-  { key: 'calendar', line: 'cal', name: 'Cal', href: '/app/calendar' },
-  { key: 'track', line: 'track', name: 'Track', href: '/app/track' },
-  { key: 'chat', line: 'chat', name: 'Chat', href: '/app/chat' },
-  { key: 'groups', line: 'groups', name: 'Groups', href: '/app/groups' },
-  { key: 'flow', line: 'flow', name: 'Flow', href: '/app/flow' },
-  { key: 'notes', line: 'notes', name: 'Notes', href: '/app/notes' },
-  { key: 'board', line: 'board', name: 'Board', href: '/app/board' },
-  { key: 'agents', line: 'agents', name: 'Agents', href: '/app/agents' },
-  { key: 'robots', line: 'robots', name: 'Robots', href: '/app/robots' },
-];
 
 function readCollapsed(dense: string | null): boolean {
   try {
@@ -106,7 +90,9 @@ export default function AppSidebar({
   const t = useTranslations('common.sidebar');
   const pathname = usePathname();
   const product = appProductFromPath(pathname);
-  const current = PRODUCTS.find((p) => p.key === product) ?? PRODUCTS[0];
+  // En la plataforma (Ajustes) no hay app activa: el shell va en tinta, sin color de producto.
+  const app = SWITCHER_PRODUCTS.find((p) => p.key === product);
+  const current = app ?? { name: labels.platform, line: null };
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
@@ -245,7 +231,11 @@ export default function AppSidebar({
   return (
     <>
       {/* Color de la app activa (SSR, sin parpadeo). */}
-      <style>{`.app-frame{--accent:var(--c-${current.line});--accent-ink:var(--c-${current.line}-ink);--accent-on:var(--c-${current.line}-on)}`}</style>
+      <style>
+        {current.line
+          ? `.app-frame{--accent:var(--c-${current.line});--accent-ink:var(--c-${current.line}-ink);--accent-on:var(--c-${current.line}-on)}`
+          : '.app-frame{--accent:var(--ink);--accent-ink:var(--ink);--accent-on:var(--bg)}'}
+      </style>
 
       {/*
         Primer foco de la página: salta el sidebar. Si la página marca un destino
@@ -304,7 +294,8 @@ export default function AppSidebar({
             aria-expanded={switcherOpen}
             aria-label={`${current.name}. ${t('switchProduct')}`}
           >
-            <ProductGlyph product={current.line} size={14} className="band-product-glyph" />
+            {/* En la plataforma no hay glifo: el logo de la banda ya es el cero. */}
+            {current.line && <ProductGlyph product={current.line} size={14} className="band-product-glyph" />}
             <span className="band-product-name">{current.name}</span>
             <Icon name="chevronDown" size={14} />
           </button>
@@ -315,7 +306,7 @@ export default function AppSidebar({
               aria-label={t('switchProduct')}
               onKeyDown={(e) => menuKeys(e, () => closeSwitcher(true))}
             >
-              {PRODUCTS.map((p) => (
+              {SWITCHER_PRODUCTS.map((p) => (
                 <Link
                   key={p.key}
                   href={p.href}
@@ -410,6 +401,8 @@ export default function AppSidebar({
                 <Fragment key={item.href}>
                   <Link
                     href={item.href}
+                    // En la plataforma el sidebar lista las 12 apps: sin prefetch, que cada una es una página dinámica.
+                    prefetch={product === 'home' ? false : undefined}
                     className={`side-stop${item.active ? ' active' : ''}`}
                     aria-current={item.active ? 'page' : undefined}
                     title={collapsed ? item.label : undefined}

@@ -4388,6 +4388,52 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Docs, editor (tanda D1): favoritos por persona (orden manual),
+    // recordatorios de las menciones de fecha (claim por fila en sent_at),
+    // contenido compartido de los bloques sincronizados y la posición
+    // vertical de la portada.
+    id: '090_docs_editor',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN cover_position REAL');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS docs_favorites (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+          position REAL NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (user_id, page_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_favorites_user ON docs_favorites(user_id, workspace_id, position);
+        CREATE TABLE IF NOT EXISTS docs_reminders (
+          id TEXT PRIMARY KEY,
+          page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+          rid TEXT NOT NULL,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          remind_at TEXT NOT NULL,
+          label TEXT NOT NULL DEFAULT '',
+          timezone TEXT NOT NULL DEFAULT 'UTC',
+          locale TEXT NOT NULL DEFAULT 'en',
+          sent_at TEXT,
+          created_at TEXT NOT NULL,
+          UNIQUE (page_id, rid)
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_reminders_due ON docs_reminders(sent_at, remind_at);
+        CREATE TABLE IF NOT EXISTS docs_synced_blocks (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          source_page_id TEXT REFERENCES docs_pages(id) ON DELETE SET NULL,
+          content TEXT NOT NULL DEFAULT '[]',
+          updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_synced_workspace ON docs_synced_blocks(workspace_id);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

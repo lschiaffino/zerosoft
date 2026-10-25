@@ -7,16 +7,19 @@ import { expect, test } from '@playwright/test';
  * (playwright.config.ts).
  */
 
-test('las pestañas de Ajustes son rutas y marcan la activa', async ({ page }) => {
+test('las secciones de Ajustes son rutas y marcan la activa', async ({ page }) => {
   await page.goto('/es/app/settings', { waitUntil: 'networkidle' });
   const tabs = page.getByRole('navigation', { name: 'Ajustes' });
-  await expect(tabs.getByRole('link', { name: 'Cuenta' })).toHaveAttribute('aria-current', 'page');
+  await expect(tabs.getByRole('link', { name: 'Perfil' })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('heading', { name: 'Perfil' })).toBeVisible();
 
-  await tabs.getByRole('link', { name: 'Workspace' }).click();
-  await expect(page).toHaveURL(/\/es\/app\/settings\/workspace$/);
-  await expect(tabs.getByRole('link', { name: 'Workspace' })).toHaveAttribute('aria-current', 'page');
+  await tabs.getByRole('link', { name: 'API y webhooks' }).click();
+  await expect(page).toHaveURL(/\/es\/app\/settings\/api$/);
+  await expect(tabs.getByRole('link', { name: 'API y webhooks' })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('heading', { name: 'API keys', exact: true })).toBeVisible();
+
+  await tabs.getByRole('link', { name: 'Conexiones' }).click();
+  await expect(page).toHaveURL(/\/es\/app\/settings\/connections$/);
   await expect(page.getByRole('heading', { name: 'Credenciales', exact: true })).toBeVisible();
 
   await page.goto('/es/app/settings/roadmap', { waitUntil: 'networkidle' });
@@ -28,7 +31,7 @@ test('las pestañas de Ajustes son rutas y marcan la activa', async ({ page }) =
 });
 
 test('webhooks: el checkbox del grupo elige sus eventos y queda indeterminado si faltan', async ({ page }) => {
-  await page.goto('/es/app/settings/workspace', { waitUntil: 'networkidle' });
+  await page.goto('/es/app/settings/api', { waitUntil: 'networkidle' });
   const deals = page.getByRole('group', { name: 'Deals' });
   const groupBox = deals.getByRole('checkbox', { name: 'Deals', exact: true });
   await groupBox.check();
@@ -43,7 +46,7 @@ test('webhooks: el checkbox del grupo elige sus eventos y queda indeterminado si
 });
 
 test('API keys: crear con el camino corto muestra la key una vez y la suma a la tabla', async ({ page }) => {
-  await page.goto('/es/app/settings/workspace', { waitUntil: 'networkidle' });
+  await page.goto('/es/app/settings/api', { waitUntil: 'networkidle' });
   await expect(page.getByRole('region', { name: 'Permisos' })).toBeHidden();
   await page.getByLabel('Nombre de la key').fill('e2e ajustes');
   await page.getByRole('button', { name: 'Crear key' }).click();

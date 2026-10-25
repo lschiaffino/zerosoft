@@ -68,6 +68,8 @@ export default defineConfig({
       IMPORT_LINEAR_API_URL: `http://127.0.0.1:${PORT + 1}/linear`,
       IMPORT_GITHUB_API_URL: `http://127.0.0.1:${PORT + 1}/github`,
       IMPORT_CALENDLY_API_URL: `http://127.0.0.1:${PORT + 1}/calendly`,
+      // Bookmarks de Docs sin salir a internet (lib/docs-unfurl.ts arma un HTML fijo por dominio).
+      DOCS_UNFURL_FAKE: '1',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

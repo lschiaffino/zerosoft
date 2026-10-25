@@ -4,6 +4,8 @@
    ============================================================ */
 
 .dv-main, .vw-main { min-height: 100dvh; background: var(--brand-enamel); color: var(--ink); }
+/* La franja "Powered by" sigue con el fondo de la página, sin un corte blanco abajo. */
+.dv-main + .powered-by, .vw-main + .powered-by { margin: 0; padding: 0 0 24px; background: var(--brand-enamel); }
 .dv { max-width: 1000px; margin: 0 auto; padding: 0 16px 48px; }
 .dv-bar {
   position: sticky;

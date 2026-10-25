@@ -7,6 +7,7 @@ import { GOOGLE_CALENDAR_PROVIDER } from '@/lib/google-calendar';
 import { getCalendarUser, getOrCreateCalendarUser } from '@/lib/calendar';
 import { getPaymentSettings } from '@/lib/calendar-payments';
 import PageHeader from '@/components/ui/PageHeader';
+import PlatformSettingsLink from '@/components/app/PlatformSettingsLink';
 import SettingsTabs from '@/components/ui/SettingsTabs';
 import GoogleCalendarPanel from '@/components/calendar/GoogleCalendarPanel';
 import CalendarSettingsForm from '@/components/calendar/CalendarSettingsForm';
@@ -35,7 +36,7 @@ export default async function CalendarSettingsPage(props: {
 
   return (
     <div className="ui-page">
-      <PageHeader title={t('settings.title')} description={t('settings.lead')} />
+      <PageHeader title={t('settings.title')} description={t('settings.lead')} actions={<PlatformSettingsLink locale={locale} />} />
       <SettingsTabs
         mode="query"
         label={t('settings.title')}

@@ -35,6 +35,9 @@ export interface HelpCollection extends HelpArticleSummary {
 
 export interface HelpArticle extends HelpArticleSummary {
   content: DocsBlock[];
+  /** Portada (imagen, color o link) y su posición vertical. */
+  cover_url: string | null;
+  cover_position: number;
   collection: HelpArticleSummary | null;
   /**
    * Hijas publicadas directas (con excerpt) y sus descendientes: una página
@@ -202,8 +205,8 @@ export async function getHelpArticle(ownerId: string, slug: string): Promise<Hel
   const treeRow = rows.find((r) => r.slug === slug);
   if (!treeRow) return null;
   const content = (await getDb()
-    .prepare('SELECT content FROM docs_pages WHERE id = ? AND user_id = ?')
-    .get(treeRow.id, ownerId)) as { content: string } | undefined;
+    .prepare('SELECT content, cover_url, cover_position FROM docs_pages WHERE id = ? AND user_id = ?')
+    .get(treeRow.id, ownerId)) as { content: string; cover_url: string | null; cover_position: number | null } | undefined;
   if (!content) return null;
   const row: PublishedRow = { ...treeRow, content: content.content };
   const collections = buildHelpCollections(rows);
@@ -223,6 +226,8 @@ export async function getHelpArticle(ownerId: string, slug: string): Promise<Hel
   return {
     ...summary(row),
     content: parseBlocks(row.content),
+    cover_url: content.cover_url ?? null,
+    cover_position: content.cover_position ?? 50,
     collection,
     children: await withHelpExcerpts(ownerId, subtree),
     prev: idx > 0 ? order[idx - 1].item : null,

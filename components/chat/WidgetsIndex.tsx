@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { countChatConversations, listChatWidgets } from '@/lib/chat-data';
 import { formatDate, formatNumber } from '@/lib/utils';
 import PageHeader from '@/components/ui/PageHeader';
+import PlatformSettingsLink from '@/components/app/PlatformSettingsLink';
 import EmptyState from '@/components/ui/EmptyState';
 import DataTable from '@/components/ui/DataTable';
 import type { ChatWidgetRow } from '@/lib/db';
@@ -39,7 +40,12 @@ export default async function WidgetsIndex({
       <PageHeader
         title={t('widgets.title')}
         description={t('widgets.subtitle')}
-        actions={widgets.length > 0 ? createButton : undefined}
+        actions={
+          <>
+            <PlatformSettingsLink locale={locale} />
+            {widgets.length > 0 && createButton}
+          </>
+        }
       />
       {widgets.length === 0 ? (
         <EmptyState title={t('overview.emptyTitle')} body={t('overview.emptySub')} action={createButton} product="chat" />

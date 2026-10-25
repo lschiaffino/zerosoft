@@ -6,6 +6,7 @@ import { useRouter } from '@/i18n/navigation';
 import type { DocsPageSummary } from '@/lib/docs-types';
 import { highlightParts, isPageSwitcherHotkey, searchTokens, type DocsSearchHit } from '@/lib/docs-search';
 import DocsGlyph from './DocsGlyphs';
+import DocsPageIcon from './DocsPageIcon';
 
 /** Evento para abrirlo desde un botón (el del sidebar de Docs). */
 export const DOCS_SWITCHER_EVENT = 'zs:docs-switcher';
@@ -192,7 +193,7 @@ export default function DocsPageSwitcher({ pages }: { pages: DocsPageSummary[] }
               onClick={() => go(item)}
             >
               <span className="docs-switcher-icon" aria-hidden="true">
-                {item.icon ? item.icon : <DocsGlyph name="page" size={16} />}
+                <DocsPageIcon icon={item.icon} pageId={item.id} size={16} fallback />
               </span>
               <span className="docs-switcher-text">
                 <span className="docs-switcher-title">
