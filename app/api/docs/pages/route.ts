@@ -1,7 +1,7 @@
 import { after, NextRequest, NextResponse } from 'next/server';
-import { emitEvent } from '@/lib/events';
+import { emitPageCreated } from '@/lib/docs-events';
 import { getCurrentUser } from '@/lib/session';
-import { createDocPage, listDocPageSummaries } from '@/lib/docs';
+import { createDocPage, getDocPageRow, listDocPageSummaries } from '@/lib/docs';
 import { docPageCreateSchema } from '@/lib/docs-schema';
 import { forbidden, unauthorized, invalidBody } from '@/lib/docs-http';
 import { canCreateDocPage, docsHidden } from '@/lib/docs-guard';
@@ -42,7 +42,11 @@ export async function POST(req: NextRequest) {
   // Miembros con rol de lectura o comentario no crean páginas en el workspace.
   if (!(await canCreateDocPage(user, parsed.data))) return forbidden();
   const page = await createDocPage(user.id, parsed.data);
-  after(() => emitEvent(user.id, 'page.created', { page: { id: page.id, title: page.title, parentId: page.parent_id } }));
+  // Flow y webhooks: solo a quien puede abrir la página (teamspaces privados).
+  after(async () => {
+    const row = await getDocPageRow(page.id);
+    if (row) await emitPageCreated(user.id, row, user.actingUser?.id ?? user.id).catch(() => {});
+  });
   await logDocsAudit({
     workspaceId: user.id,
     actor: user.actingUser ?? user,

@@ -190,6 +190,9 @@ const DOCS_STEP_ERRORS = new Set([
   'invalid_option',
   'invalid_person',
   'invalid_value',
+  'no_flow_owner',
+  'locked',
+  'forbidden',
 ]);
 
 export function stepErrorInfo(raw: string): { code: string; key: string; values?: Record<string, string>; inEditor: boolean } | null {

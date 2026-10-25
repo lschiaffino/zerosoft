@@ -550,6 +550,7 @@
     "is_false": "es falso"
   },
   "runs": {
+    "dataHidden": "Los datos de esta corrida solo los ve quien creó el flow y los admins que pueden abrirlos.",
     "loadError": "No se pudieron cargar las ejecuciones.",
     "emptyBody": "Usá Probar para correrlo con datos de prueba, o activalo para que corra solo.",
     "emptyTitle": "Todavía no hay ejecuciones",
@@ -596,6 +597,9 @@
     "waiting": "En espera"
   },
   "stepErrors": {
+    "forbidden": "Quien creó este flow no puede editar esa página.",
+    "locked": "La página está bloqueada. Desbloqueala en Docs para que el flow la pueda cambiar.",
+    "no_flow_owner": "Quien creó este flow ya no está en el workspace. Alguien que pueda editarlo tiene que abrir y guardar el paso de Docs.",
     "missing_page": "Este paso no tiene página. Elegí una o usá una variable como {{trigger.page.id}}.",
     "missing_content": "Este paso no tiene contenido para escribir.",
     "missing_title": "Este paso no tiene título.",

@@ -1386,7 +1386,7 @@
       "jql": "Quais issues trazer, como project = ENG ORDER BY updated DESC.",
       "salesforce": "De uma Connected App com os escopos api e refresh_token: o refresh token mantém a sincronização quando o access token expira.",
       "salesforceToken": "Ou só um access token (para de funcionar quando expira).",
-      "crm": "Mostra os registros que você vê no CRM."
+      "crm": "O banco do CRM mostra os registros que você vê no CRM, também para todos que podem abrir esta página."
     },
     "options": {
       "issues": "Issues",
@@ -1422,7 +1422,9 @@
       "limit_reached": "Este workspace tem o máximo de bancos sincronizados.",
       "timeout": "A origem demorou demais para responder. Tenta de novo sozinha.",
       "unsafe_url": "Esse endereço não é permitido.",
-      "generic": "Não foi possível sincronizar. Confira os dados e tente de novo."
+      "generic": "Não foi possível sincronizar. Confira os dados e tente de novo.",
+      "new_token_required": "Se você mudar a origem, use seu próprio token: o atual é de quem configurou.",
+      "page_locked": "A página está bloqueada: o banco volta a se atualizar quando for desbloqueada."
     },
     "syncedFrom": "Sincronizado do {provider}",
     "updated": "atualizado {when}",
@@ -1432,7 +1434,8 @@
     "syncing": "Sincronizando…",
     "unlink": "Desvincular",
     "unlinkConfirm": "Desvincular e manter as linhas",
-    "unlinkHelp": "Para de sincronizar. As linhas ficam como um banco comum que você pode editar."
+    "unlinkHelp": "Para de sincronizar. As linhas ficam como um banco comum que você pode editar.",
+    "crmVisibility": "Mostra os registros do CRM com a visibilidade de {name}"
   },
   "meeting": {
     "label": "Notas de reunião com IA",

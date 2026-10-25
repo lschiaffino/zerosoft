@@ -271,7 +271,7 @@
     "approvalHttp": "Pedir aprobación para los pedidos que escriben (todo menos GET)",
     "docsPages": "Páginas con las que trabaja el agente",
     "noDocsPages": "Todavía no hay páginas en Docs.",
-    "docsPagesHint": "Incluye las subpáginas. Quedan afuera las páginas de teamspaces que no permiten la IA.",
+    "docsPagesHint": "Incluye las subpáginas. Quedan afuera las páginas de teamspaces que no permiten la IA. Lo que escribe desde Chat o la página pública siempre espera que alguien del equipo lo apruebe. El agente trabaja con el acceso de quien eligió las páginas.",
     "needsDocsPages": "Elegí al menos una página de Docs.",
     "untitledPage": "Sin título"
   },
@@ -372,7 +372,7 @@
     "conversation_not_found": "Esa conversación ya no está disponible. Empezá una nueva.",
     "empty_message": "Escribí un mensaje primero.",
     "handle_taken": "Ese handle público ya está en uso. Probá otro.",
-    "invalid_docs_page": "Una de las páginas de Docs elegidas no es de este workspace.",
+    "invalid_docs_page": "No podés usar alguna de esas páginas, o no la podés editar y el agente escribe.",
     "invalid_widget": "Ese widget de Chat no es de este workspace.",
     "invalid_event_type": "Ese tipo de evento no es de este workspace.",
     "invalid_project": "Ese proyecto de Track no es de este workspace.",

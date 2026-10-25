@@ -4706,6 +4706,7 @@ export const MIGRATIONS: Migration[] = [
           decisions TEXT NOT NULL DEFAULT '[]',
           actions TEXT NOT NULL DEFAULT '[]',
           duration_sec INTEGER NOT NULL DEFAULT 0,
+          tasks_claimed_until TEXT,
           last_error TEXT,
           created_by TEXT,
           created_at TEXT NOT NULL DEFAULT (datetime('now')),

@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   const limited = await limitWrites('docs:ask', realUserId(user), 20);
   if (limited) return limited;
   try {
-    const res = await askWorkspace({ id: user.id, actingUser: user.actingUser, team: user.team }, parsed.data.question);
+    const res = await askWorkspace({ id: user.id, actingUser: user.actingUser, team: user.team, role: user.role }, parsed.data.question);
     if ('error' in res) return NextResponse.json({ error: res.error, answer: null, citations: [] });
     return NextResponse.json(res);
   } catch (err) {

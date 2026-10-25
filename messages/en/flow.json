@@ -550,6 +550,7 @@
     "is_false": "is false"
   },
   "runs": {
+    "dataHidden": "The data of this run is only visible to the person who created the flow and to admins who can open it.",
     "loadError": "Couldn’t load the runs.",
     "emptyBody": "Use Test run to try it with sample data, or turn it on so it runs by itself.",
     "emptyTitle": "No runs yet",
@@ -596,6 +597,9 @@
     "waiting": "Waiting"
   },
   "stepErrors": {
+    "forbidden": "The person who created this flow cannot edit that page.",
+    "locked": "The page is locked. Unlock it in Docs so the flow can change it.",
+    "no_flow_owner": "The person who created this flow is no longer in the workspace. Someone who can edit it has to open and save the Docs step.",
     "missing_page": "This step has no page. Pick one or use a variable like {{trigger.page.id}}.",
     "missing_content": "This step has no content to write.",
     "missing_title": "This step has no title.",

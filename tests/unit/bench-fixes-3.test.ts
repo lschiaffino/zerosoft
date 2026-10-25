@@ -196,7 +196,7 @@ async function readStream(res: Response): Promise<Array<Record<string, unknown>>
     .map((l) => JSON.parse(l) as Record<string, unknown>);
 }
 
-const TOOLS_BASE = { calEventTypeId: null, calDays: 7, trackProjectId: null, flowIds: [], robotIds: [], docsPageIds: [], httpAllowedDomains: [], requireApproval: [] };
+const TOOLS_BASE = { calEventTypeId: null, calDays: 7, trackProjectId: null, flowIds: [], robotIds: [], docsPageIds: [], docsActorId: null, httpAllowedDomains: [], requireApproval: [] };
 
 describe('Agents: el visitante nunca ve el error pensado para el dueño', () => {
   it('publicErrorCode deja pasar solo lo que el visitante puede entender', () => {

@@ -20,7 +20,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }, { status: 400 });
   }
   const batch = Array.isArray(body);
-  const list = (batch ? body : [body]).slice(0, 20) as Array<Record<string, unknown>>;
+  if (batch && body.length > 20) {
+    return NextResponse.json({ jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Batch too large: send at most 20 messages per request.' } }, { status: 400 });
+  }
+  const list = (batch ? body : [body]) as Array<Record<string, unknown>>;
   const out: RpcResponse[] = [];
   for (const msg of list) {
     const res = await handleDocsRpc({ actor: ctx.actor, scopes: ctx.auth.scopes }, (msg && typeof msg === 'object' ? msg : {}) as Parameters<typeof handleDocsRpc>[1]);

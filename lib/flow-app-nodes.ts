@@ -350,7 +350,7 @@ async function docsCall<T>(fn: () => Promise<T>): Promise<T> {
 async function flowDocsActor(ws: string, actorId: string) {
   const { docsActorFor } = await import('./docs-platform-access');
   const actor = await docsActorFor(ws, actorId);
-  if (!actor) throw new StepError('workspace_not_found');
+  if (!actor) throw new StepError('no_flow_owner');
   return actor;
 }
 

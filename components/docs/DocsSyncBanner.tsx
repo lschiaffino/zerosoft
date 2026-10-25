@@ -10,6 +10,7 @@ interface SourceStatus {
   error: string | null;
   lastSyncedAt: string | null;
   itemCount: number;
+  createdByName?: string | null;
 }
 
 /**
@@ -82,9 +83,10 @@ export default function DocsSyncBanner({ db, canEdit, onDb }: { db: DocsDatabase
       </span>
       <span className="docs-sync-when">{when ? t('updated', { when }) : t('neverSynced')}</span>
       <span className="docs-sync-ro">{t('readOnly')}</span>
+      {sync.provider === 'crm' && status?.createdByName && <span className="docs-sync-when">{t('crmVisibility', { name: status.createdByName })}</span>}
       {(sourceError || error) && (
         <span className="ui-error docs-sync-err" role="alert">
-          {t(`errors.${['auth_failed', 'source_not_found', 'rate_limited', 'timeout', 'missing_token'].includes(sourceError ?? error ?? '') ? sourceError ?? error : 'generic'}`)}
+          {t(`errors.${['auth_failed', 'source_not_found', 'rate_limited', 'timeout', 'missing_token', 'new_token_required', 'page_locked'].includes(sourceError ?? error ?? '') ? sourceError ?? error : 'generic'}`)}
         </span>
       )}
       {canEdit && (

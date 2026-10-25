@@ -361,16 +361,18 @@ describe('Docs D4: agentes con páginas', () => {
     const scope = await agentDocsScope(user.id, [allowed.id]);
     expect(scope.has(child.id)).toBe(true);
     expect(scope.has(other.id)).toBe(false);
-    expect(await readDocsForAgent(user.id, [allowed.id], { pageId: other.id })).toEqual({ error: 'page_not_allowed' });
-    const read = (await readDocsForAgent(user.id, [allowed.id], { pageId: allowed.id })) as { subpages: Array<{ id: string }> };
+    expect(await readDocsForAgent(user.id, [allowed.id], { pageId: other.id }, user.id)).toEqual({ error: 'page_not_allowed' });
+    const read = (await readDocsForAgent(user.id, [allowed.id], { pageId: allowed.id }, user.id)) as { subpages: Array<{ id: string }> };
     expect(read.subpages.map((p) => p.id)).toEqual([child.id]);
-    const made = (await writePageForAgent(user.id, [allowed.id], { operation: 'create', title: 'New answer', markdown: 'Text' }, 'Bot')) as { page: { id: string } };
+    const made = (await writePageForAgent(user.id, [allowed.id], { operation: 'create', title: 'New answer', markdown: 'Text' }, 'Bot', user.id)) as { page: { id: string } };
     expect((await getDocPageRow(made.page.id))?.parent_id).toBe(allowed.id);
-    expect(await writePageForAgent(user.id, [allowed.id], { operation: 'append', pageId: other.id, markdown: 'x' }, 'Bot')).toEqual({ error: 'page_not_allowed' });
+    expect(await writePageForAgent(user.id, [allowed.id], { operation: 'append', pageId: other.id, markdown: 'x' }, 'Bot', user.id)).toEqual({ error: 'page_not_allowed' });
     const block = dbBlock();
     const withDb = await createDocPage(user.id, { title: 'Tickets', parent_id: allowed.id, content: [block] });
-    const row = (await writeRowForAgent(user.id, [allowed.id], { pageId: withDb.id, blockId: block.id, title: 'Refund' })) as { created: boolean };
+    const row = (await writeRowForAgent(user.id, [allowed.id], { pageId: withDb.id, blockId: block.id, title: 'Refund' }, user.id)) as { created: boolean };
     expect(row.created).toBe(true);
+    // Sin persona (nunca como el dueño por defecto): no trabaja.
+    expect(await readDocsForAgent(user.id, [allowed.id], { pageId: allowed.id }, null)).toEqual({ error: 'docs_owner_missing' });
   });
 });
 
@@ -418,5 +420,24 @@ describe('Docs D4: notas de reunión', () => {
     const sent = await markActionsSent(m.id, [{ index: 0, ref: { kind: 'crm', id: 't1', label: 'Send notes', url: '/app/crm/tasks' } }]);
     expect(sent?.actions[0].sent?.id).toBe('t1');
     expect(meetingBlockContent({ title: 'A <b>', summary: 'x & y', decisions: [], actions: [] })).toBe('<strong>A &lt;b&gt;</strong><br>x &amp; y');
+  });
+});
+
+describe('Docs D4: agentes con el acceso de quien eligió las páginas', () => {
+  it('valida las páginas al guardar contra esa persona y obliga aprobación desde Chat y la página pública', async () => {
+    const { user: owner, actor } = await workspace('dp-agent-acl');
+    const page = await createPage(actor, { title: 'Team only' });
+    await getDb().prepare('UPDATE docs_pages SET member_role = ? WHERE id = ?').run('view', page.id);
+    const member = await makeUser('dp-agent-m');
+    const team = await createTeam(owner.id, 'T');
+    await addMember(team.id, member.id, 'member');
+    const { createAgent, updateAgent } = await import('@/lib/agents');
+    const agentId = (await createAgent(owner.id, owner.id, { name: 'Bot' })).id;
+    const { parseTools } = await import('@/lib/agents-config');
+    const tools = { ...parseTools('{}'), enabled: ['docs_read_pages', 'docs_write_page'] as never, docsPageIds: [page.id] };
+    // El miembro solo puede ver la página: no puede darle al agente permiso de escribir en ella.
+    expect(await updateAgent(owner.id, agentId, { tools }, member.id)).toEqual({ ok: false, error: 'invalid_docs_page' });
+    const ok = await updateAgent(owner.id, agentId, { tools }, owner.id);
+    expect(ok.ok && ok.agent.tools.docsActorId).toBe(owner.id);
   });
 });

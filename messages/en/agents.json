@@ -271,7 +271,7 @@
     "approvalHttp": "Ask a teammate to approve requests that write (anything but GET)",
     "docsPages": "Pages this agent works with",
     "noDocsPages": "There are no Docs pages yet.",
-    "docsPagesHint": "Subpages are included. Pages in teamspaces that do not allow AI are left out.",
+    "docsPagesHint": "Subpages are included. Pages in teamspaces that do not allow AI are left out. Writes from Chat and the public page always wait for a teammate to approve them. The agent works with the access of the person who picked the pages.",
     "needsDocsPages": "Pick at least one Docs page.",
     "untitledPage": "Untitled"
   },
@@ -372,7 +372,7 @@
     "conversation_not_found": "That conversation is no longer available. Start a new one.",
     "empty_message": "Write a message first.",
     "handle_taken": "That public handle is taken. Try another.",
-    "invalid_docs_page": "One of the selected Docs pages is not in this workspace.",
+    "invalid_docs_page": "You can't use one of those pages, or you can't edit it and the agent writes.",
     "invalid_widget": "That Chat widget is not in this workspace.",
     "invalid_event_type": "That event type is not in this workspace.",
     "invalid_project": "That Track project is not in this workspace.",

@@ -163,6 +163,19 @@ export async function setMeetingError(id: string, code: string): Promise<void> {
   await getDb().prepare(`UPDATE docs_meetings SET last_error = ?, updated_at = ? WHERE id = ?`).run(code.slice(0, 80), new Date().toISOString(), id);
 }
 
+/** Reclama el envío de tareas (compare-and-set): dos clics o dos pestañas no crean issues dos veces. */
+export async function claimTaskSend(id: string, now = new Date()): Promise<boolean> {
+  const iso = now.toISOString();
+  const res = await getDb()
+    .prepare('UPDATE docs_meetings SET tasks_claimed_until = ? WHERE id = ? AND (tasks_claimed_until IS NULL OR tasks_claimed_until < ?)')
+    .run(new Date(now.getTime() + 120_000).toISOString(), id, iso);
+  return res.changes > 0;
+}
+
+export async function releaseTaskSend(id: string): Promise<void> {
+  await getDb().prepare('UPDATE docs_meetings SET tasks_claimed_until = NULL WHERE id = ?').run(id);
+}
+
 /** Marca tareas como mandadas (índice → destino). */
 export async function markActionsSent(id: string, sent: Array<{ index: number; ref: NonNullable<MeetingAction['sent']> }>): Promise<MeetingDto | null> {
   const m = await getMeeting(id);

@@ -45,6 +45,9 @@ export async function docsActorFor(ws: string, personId: string): Promise<DocsAc
   const owner = await getUserById(ws);
   if (!owner) return null;
   if (personId === ws) return { ...owner, role: 'owner' };
+  // Alguien que ya no es del workspace (salió del equipo) no actúa en él.
+  const { isWorkspacePerson } = await import('./crm-refs');
+  if (!(await isWorkspacePerson(ws, personId))) return null;
   const person = await getUserById(personId);
   // Su rol en el workspace: admins tienen acceso total; un miembro, el de cada página.
   return person ? { ...owner, actingUser: person as UserRow, role: await workspaceRole(ws, personId) } : null;

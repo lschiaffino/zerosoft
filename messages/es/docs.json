@@ -1386,7 +1386,7 @@
       "jql": "Qué issues traer, como project = ENG ORDER BY updated DESC.",
       "salesforce": "De una Connected App con los scopes api y refresh_token: el refresh token mantiene la sincronización cuando vence el access token.",
       "salesforceToken": "O solo un access token (deja de andar cuando vence).",
-      "crm": "Muestra los registros que ves en el CRM."
+      "crm": "La base del CRM muestra los registros que ves en el CRM, también a todos los que pueden abrir esta página."
     },
     "options": {
       "issues": "Issues",
@@ -1422,7 +1422,9 @@
       "limit_reached": "Este workspace tiene el máximo de bases sincronizadas.",
       "timeout": "El origen tardó demasiado en responder. Se reintenta solo.",
       "unsafe_url": "Esa dirección no está permitida.",
-      "generic": "No se pudo sincronizar. Revisá los datos y probá de nuevo."
+      "generic": "No se pudo sincronizar. Revisá los datos y probá de nuevo.",
+      "new_token_required": "Si cambiás el origen, usá tu propio token: el actual es de quien lo configuró.",
+      "page_locked": "La página está bloqueada: la base se vuelve a actualizar cuando la desbloqueen."
     },
     "syncedFrom": "Sincronizada desde {provider}",
     "updated": "actualizada {when}",
@@ -1432,7 +1434,8 @@
     "syncing": "Sincronizando…",
     "unlink": "Desvincular",
     "unlinkConfirm": "Desvincular y conservar las filas",
-    "unlinkHelp": "Deja de sincronizar. Las filas quedan como una base común que podés editar."
+    "unlinkHelp": "Deja de sincronizar. Las filas quedan como una base común que podés editar.",
+    "crmVisibility": "Muestra los registros del CRM con la visibilidad de {name}"
   },
   "meeting": {
     "label": "Notas de reunión con IA",

@@ -67,6 +67,41 @@ async function personPayload(id: string | null | undefined) {
   return u ? { id: u.id, name: u.name ?? '', email: u.email } : { id, name: '', email: '' };
 }
 
+// ---------- Quién recibe cada evento ----------
+
+type Personal = { data: Record<string, unknown>; extra?: Record<string, unknown> };
+
+/**
+ * ¿La persona que creó un webhook o un flow puede abrir la página? Sin
+ * creador no hay destinatario (nunca se cae en el dueño del workspace).
+ */
+export async function docsDeliveryAllowed(ws: string, creatorId: string | null, pageId: string): Promise<boolean> {
+  if (!creatorId || !pageId) return false;
+  const { docsActorFor, pageFor } = await import('./docs-platform-access');
+  const actor = await docsActorFor(ws, creatorId);
+  return Boolean(actor && (await pageFor(actor, pageId, { includeArchived: true })));
+}
+
+/**
+ * Datos por destinatario: cada webhook o flow recibe lo que ve quien lo creó
+ * (texto con visibleBlocks de esa persona) o nada si no puede abrir la página.
+ */
+function forReaders(
+  ws: string,
+  pageId: string,
+  build: (actor: import('./docs').DocsActor, row: DocsPageRow) => Promise<Personal>,
+): (creatorId: string | null) => Promise<Personal | null> {
+  return async (creatorId) => {
+    if (!creatorId) return null;
+    const { docsActorFor, pageFor } = await import('./docs-platform-access');
+    const actor = await docsActorFor(ws, creatorId);
+    if (!actor) return null;
+    const res = await pageFor(actor, pageId, { includeArchived: true });
+    if (!res) return null;
+    return build(actor, res.row);
+  };
+}
+
 // ---------- page.updated agrupado ----------
 
 /** Un guardado de título o contenido: corre la marca de la página (el cron emite). */
@@ -106,16 +141,15 @@ export async function flushPageUpdatedEvents(now = new Date(), limit = 50): Prom
       | undefined;
     const row = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(m.page_id)) as DocsPageRow | undefined;
     if (mark && row && row.archived === 0) {
-      // Lo que ve el dueño del workspace (Flow corre en su nombre); nunca el content crudo.
-      const { docsActorFor, visibleBlocksFor } = await import('./docs-platform-access');
-      const owner = await docsActorFor(mark.workspace_id, mark.workspace_id);
-      const text = owner ? blocksToPlainText(await visibleBlocksFor(row, row.content, { actor: owner }), 4000) : '';
-      await emitEventSoon(
-        mark.workspace_id,
-        'page.updated',
-        { page: pagePayload(row), editedBy: await personPayload(mark.actor_id) },
-        { extra: { text } },
-      );
+      const base = { page: pagePayload(row), editedBy: await personPayload(mark.actor_id) };
+      const { visibleBlocksFor } = await import('./docs-platform-access');
+      await emitEventSoon(mark.workspace_id, 'page.updated', base, {
+        // El texto, con lo que ve quien creó cada flow (Flow); el webhook lleva solo la página.
+        personalize: forReaders(mark.workspace_id, row.id, async (actor, r) => ({
+          data: base,
+          extra: { text: blocksToPlainText(await visibleBlocksFor(r, r.content, { actor }), 4000) },
+        })),
+      });
       sent++;
     }
     // Si se volvió a editar durante el envío, la marca tiene otro due_at y queda.
@@ -222,12 +256,14 @@ export async function afterDocsPageSaved(opts: {
         const by = await personPayload(opts.actorId);
         for (const d of drafts) {
           if (d.type === 'database.row_created' ? !rowsOn : !propsOn) continue;
-          await emitEventSoon(opts.ws, d.type, { ...d.data, editedBy: by });
+          const data = { ...d.data, editedBy: by };
+          await emitEventSoon(opts.ws, d.type, data, { personalize: forReaders(opts.ws, opts.after.id, async () => ({ data })) });
         }
       }
     }
     if (opts.before.archived === 0 && opts.after.archived === 1 && (await hasDocsListeners(opts.ws, 'page.archived'))) {
-      await emitEventSoon(opts.ws, 'page.archived', { page: pagePayload(opts.after), editedBy: await personPayload(opts.actorId) });
+      const data = { page: pagePayload(opts.after), editedBy: await personPayload(opts.actorId) };
+      await emitEventSoon(opts.ws, 'page.archived', data, { personalize: forReaders(opts.ws, opts.after.id, async () => ({ data })) });
     }
   } catch (err) {
     // eslint-disable-next-line no-console
@@ -237,7 +273,8 @@ export async function afterDocsPageSaved(opts: {
 
 /** page.created desde la API, el MCP, Flow o un agente (el editor lo emite en su ruta). */
 export async function emitPageCreated(ws: string, row: Pick<DocsPageRow, 'id' | 'title' | 'parent_id' | 'updated_at'>, actorId: string | null): Promise<void> {
-  await emitEventSoon(ws, 'page.created', { page: pagePayload(row), createdBy: await personPayload(actorId) });
+  const data = { page: pagePayload(row), createdBy: await personPayload(actorId) };
+  await emitEventSoon(ws, 'page.created', data, { personalize: forReaders(ws, row.id, async () => ({ data })) });
 }
 
 export async function emitCommentCreated(
@@ -246,7 +283,7 @@ export async function emitCommentCreated(
   comment: { id: string; body: string; block_id: string | null; parent_id?: string | null; user_id: string },
 ): Promise<void> {
   if (!(await hasDocsListeners(ws, 'page.comment_created'))) return;
-  await emitEventSoon(ws, 'page.comment_created', {
+  const data = {
     page: pagePayload(row),
     comment: {
       id: comment.id,
@@ -255,5 +292,7 @@ export async function emitCommentCreated(
       parentId: comment.parent_id ?? null,
     },
     author: await personPayload(comment.user_id),
-  });
+  };
+  // Los comentarios piden acceso interno a la página (no alcanza con que esté publicada): pageFor lo exige.
+  await emitEventSoon(ws, 'page.comment_created', data, { personalize: forReaders(ws, row.id, async () => ({ data })) });
 }

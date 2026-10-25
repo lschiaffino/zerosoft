@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest, props: Ctx) {
     const field = String(parsed.error.issues[0]?.path?.[0] ?? '');
     return agentError(400, 'invalid_input', { field });
   }
-  const res = await updateAgent(user.id, id, parsed.data);
+  const res = await updateAgent(user.id, id, parsed.data, user.actingUser?.id ?? user.id);
   if (!res.ok) return res.error === 'not_found' ? notFound() : agentError(res.error === 'handle_taken' ? 409 : 400, res.error);
   // URLs nuevas: se descargan al guardar (el agente las usa sin esperar al refresh).
   const urls = parsed.data.knowledge ? await refreshKnowledgeUrls(user.id, id, { onlyPending: true }) : await listKnowledgeUrls(id);

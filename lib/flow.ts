@@ -75,6 +75,8 @@ export interface FlowRunDto {
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
+  /** Los datos de la corrida no se muestran a quien mira (ver canSeeRunData). */
+  dataHidden?: boolean;
 }
 
 export interface FlowStepDto {
@@ -397,6 +399,11 @@ export async function createFlow(
 }
 
 /** Nodos Gmail del grafo (id + config) para detectar si alguien los cambió. */
+/** Nodos de Docs (escriben con los permisos de quien creó el flow). */
+function docsNodesKey(graph: FlowGraph): string {
+  return JSON.stringify(graph.nodes.filter((n) => n.type === 'app.docs_page' || n.type === 'app.docs_row').map((n) => [n.id, n.config ?? {}]));
+}
+
 function gmailNodesKey(graph: FlowGraph): string {
   return JSON.stringify(graph.nodes.filter((n) => n.type === 'app.gmail').map((n) => [n.id, n.config ?? {}]));
 }
@@ -433,9 +440,14 @@ export async function updateFlow(
     }
   }
   const graphChanged = patch.graph !== undefined && JSON.stringify(graph) !== row.graph;
-  // Quien edita un nodo Gmail de otro pasa a ser el remitente (su casilla).
+  // Quien edita un nodo Gmail de otro pasa a ser el remitente (su casilla), y
+  // quien edita un nodo de Docs, la persona con cuyos permisos escribe en Docs.
+  const prevGraph = parseGraph(row.graph);
   const createdBy =
-    graphChanged && actorId && actorId !== row.created_by && gmailNodesKey(graph) !== gmailNodesKey(parseGraph(row.graph))
+    graphChanged &&
+    actorId &&
+    actorId !== row.created_by &&
+    (gmailNodesKey(graph) !== gmailNodesKey(prevGraph) || docsNodesKey(graph) !== docsNodesKey(prevGraph))
       ? actorId
       : row.created_by;
   const enabled = patch.enabled ?? row.enabled === 1;
@@ -527,16 +539,63 @@ export async function deleteFlow(workspaceId: string, id: string): Promise<boole
 
 // ---------- Corridas ----------
 
-export async function listRuns(workspaceId: string, flowId: string, limit = 30): Promise<FlowRunDto[]> {
+/** Quién mira las corridas (los datos del disparador y de cada paso no son para todo el workspace). */
+export interface FlowRunViewer {
+  /** Persona real. */
+  personId: string;
+  /** Owner o admin del workspace. */
+  admin: boolean;
+}
+
+/**
+ * ¿Puede ver los datos de la corrida (entrada del disparador, entrada y
+ * salida de cada paso)? Quien creó el flow sí (corre con sus permisos); un
+ * admin también. El resto del workspace ve el estado, los tiempos y los
+ * errores, sin los datos: un evento puede traer registros que esa persona no
+ * puede abrir (visibilidad del CRM, páginas privadas, canales).
+ */
+export async function canSeeRunData(
+  workspaceId: string,
+  viewer: FlowRunViewer | undefined,
+  flowCreator: string | null,
+  run: Pick<FlowRunRow, 'input'>,
+): Promise<boolean> {
+  if (!viewer) return true;
+  if (flowCreator && viewer.personId === flowCreator) return true;
+  if (!viewer.admin) return false;
+  const input = parseJson(run.input, {}) as Record<string, unknown>;
+  const type = (input.event as { type?: unknown } | undefined)?.type;
+  void type;
+  // Eventos de Docs: además, el admin tiene que poder abrir la página (teamspaces privados).
+  if (typeof type === 'string' && (type.startsWith('page.') || type.startsWith('database.'))) {
+    const pageId = String(((input as { page?: { id?: unknown } }).page?.id) ?? '');
+    const { docsDeliveryAllowed } = await import('./docs-events');
+    return docsDeliveryAllowed(workspaceId, viewer.personId, pageId);
+  }
+  return true;
+}
+
+function redactRun<T extends FlowRunDto>(run: T): T {
+  return { ...run, input: {}, dataHidden: true };
+}
+
+export async function listRuns(workspaceId: string, flowId: string, limit = 30, viewer?: FlowRunViewer): Promise<FlowRunDto[]> {
   const rows = (await getDb()
     .prepare('SELECT * FROM flow_runs WHERE flow_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT ?')
     .all(flowId, workspaceId, Math.min(Math.max(limit, 1), 100))) as FlowRunRow[];
-  return rows.map(toRunDto);
+  if (!viewer) return rows.map(toRunDto);
+  const flow = (await getDb().prepare('SELECT created_by FROM flow_flows WHERE id = ? AND user_id = ?').get(flowId, workspaceId)) as
+    | { created_by: string | null }
+    | undefined;
+  const out: FlowRunDto[] = [];
+  for (const r of rows) out.push((await canSeeRunData(workspaceId, viewer, flow?.created_by ?? null, r)) ? toRunDto(r) : redactRun(toRunDto(r)));
+  return out;
 }
 
 export async function getRunWithSteps(
   workspaceId: string,
   runId: string,
+  viewer?: FlowRunViewer,
 ): Promise<(FlowRunDto & { steps: FlowStepDto[] }) | null> {
   const row = (await getDb()
     .prepare('SELECT * FROM flow_runs WHERE id = ? AND user_id = ?')
@@ -545,6 +604,10 @@ export async function getRunWithSteps(
   const steps = (await getDb()
     .prepare('SELECT * FROM flow_steps WHERE run_id = ? ORDER BY started_at ASC, rowid ASC')
     .all(runId)) as FlowStepRow[];
+  const flow = (await getDb().prepare('SELECT created_by FROM flow_flows WHERE id = ?').get(row.flow_id)) as { created_by: string | null } | undefined;
+  if (!(await canSeeRunData(workspaceId, viewer, flow?.created_by ?? null, row))) {
+    return { ...redactRun(toRunDto(row)), steps: steps.map((s) => ({ ...toStepDto(s), input: null, output: null })) };
+  }
   return { ...toRunDto(row), steps: steps.map(toStepDto) };
 }
 
@@ -573,13 +636,17 @@ export async function cancelRun(
 }
 
 /** Última salida de cada nodo del flow (para el selector de variables). */
-export async function lastOutputs(workspaceId: string, flowId: string): Promise<Record<string, unknown>> {
+export async function lastOutputs(workspaceId: string, flowId: string, viewer?: FlowRunViewer): Promise<Record<string, unknown>> {
   const run = (await getDb()
     .prepare(
-      "SELECT id FROM flow_runs WHERE flow_id = ? AND user_id = ? AND status IN ('success', 'failed', 'waiting') ORDER BY created_at DESC LIMIT 1",
+      "SELECT id, input FROM flow_runs WHERE flow_id = ? AND user_id = ? AND status IN ('success', 'failed', 'waiting') ORDER BY created_at DESC LIMIT 1",
     )
-    .get(flowId, workspaceId)) as { id: string } | undefined;
+    .get(flowId, workspaceId)) as { id: string; input: string } | undefined;
   if (!run) return {};
+  if (viewer) {
+    const flow = (await getDb().prepare('SELECT created_by FROM flow_flows WHERE id = ?').get(flowId)) as { created_by: string | null } | undefined;
+    if (!(await canSeeRunData(workspaceId, viewer, flow?.created_by ?? null, run))) return {};
+  }
   // Una fila por nodo (la última): con Loops una corrida tiene cientos de pasos.
   const steps = (await getDb()
     .prepare(
@@ -724,6 +791,8 @@ export async function enqueueEventRuns(
   workspaceId: string,
   type: FlowEventType,
   data: Record<string, unknown>,
+  audience?: (creatorId: string | null) => Promise<boolean>,
+  personalize?: (creatorId: string | null) => Promise<{ data: Record<string, unknown>; extra?: Record<string, unknown> } | null>,
 ): Promise<string[]> {
   const parent = flowChain.getStore();
   const depth = parent ? parent.depth + 1 : 0;
@@ -736,9 +805,18 @@ export async function enqueueEventRuns(
   const ids: string[] = [];
   for (const row of rows) {
     if (parent?.seen.includes(row.id)) continue;
+    // Contenido restringido: solo flows de quien puede verlo.
+    if (audience && !(await audience(row.created_by ?? null))) continue;
+    let own = data;
+    if (personalize) {
+      // Cada flow recibe lo que ve la persona que lo creó (o no corre).
+      const p = await personalize(row.created_by ?? null);
+      if (!p) continue;
+      own = { ...p.data, ...(p.extra ?? {}) };
+    }
     const trigger = triggerNode(parseGraph(row.graph));
-    if (!trigger || !matchesFilter(trigger.config, data)) continue;
-    const input = { ...data, event: { type, at: nowIso() } };
+    if (!trigger || !matchesFilter(trigger.config, own)) continue;
+    const input = { ...own, event: { type, at: nowIso() } };
     const id = await enqueueRun(row, 'trigger.event', input, { chain: { depth, seen: parent?.seen ?? [] } });
     if (id) ids.push(id);
     else await recordRateLimitedRun(row, 'trigger.event', input);

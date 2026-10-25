@@ -937,10 +937,13 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
       return { kind: 'ok', output: await linkNode(ws, cfg, tctx), handles: ['out'] };
     case 'app.chat_message':
       return { kind: 'ok', output: await chatMessageNode(ws, cfg, tctx), handles: ['out'] };
+    // Docs escribe con los permisos de quien creó el flow; sin esa persona no corre (nunca como el dueño).
     case 'app.docs_page':
-      return { kind: 'ok', output: await docsPageFlowNode(ws, state.flow.created_by ?? ws, cfg, tctx), handles: ['out'] };
+      if (!state.flow.created_by) throw new StepError('no_flow_owner');
+      return { kind: 'ok', output: await docsPageFlowNode(ws, state.flow.created_by, cfg, tctx), handles: ['out'] };
     case 'app.docs_row':
-      return { kind: 'ok', output: await docsRowFlowNode(ws, state.flow.created_by ?? ws, cfg, tctx), handles: ['out'] };
+      if (!state.flow.created_by) throw new StepError('no_flow_owner');
+      return { kind: 'ok', output: await docsRowFlowNode(ws, state.flow.created_by, cfg, tctx), handles: ['out'] };
     case 'app.groups_message':
       return { kind: 'ok', output: await groupsMessageNode(ws, cfg, tctx), handles: ['out'] };
     case 'app.robot_run':

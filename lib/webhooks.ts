@@ -296,6 +296,27 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
     return;
   }
 
+  // Docs: al reintentar o reenviar se vuelve a chequear que quien creó el
+  // webhook todavía pueda abrir la página (pudo perder el acceso).
+  if (row.event.startsWith('page.') || row.event.startsWith('database.')) {
+    const meta = (await db.prepare('SELECT user_id, created_by FROM webhooks WHERE id = (SELECT webhook_id FROM webhook_deliveries WHERE id = ?)').get(row.id)) as
+      | { user_id: string; created_by: string | null }
+      | undefined;
+    let pageId = '';
+    try {
+      pageId = String(((JSON.parse(row.payload) as { data?: { page?: { id?: string } } }).data?.page?.id) ?? '');
+    } catch {
+      /* sin datos */
+    }
+    const { docsDeliveryAllowed } = await import('./docs-events');
+    if (!meta || !(await docsDeliveryAllowed(meta.user_id, meta.created_by, pageId))) {
+      await db
+        .prepare("UPDATE webhook_deliveries SET status = 'failed', last_error = 'audience_revoked', next_attempt_at = NULL, claimed_until = NULL WHERE id = ?")
+        .run(row.id);
+      return;
+    }
+  }
+
   const attempts = row.attempts + 1;
   let code: number | null = null;
   let error: string | null = null;
@@ -353,11 +374,23 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
  * eventos link.* respeta el filtro de links de cada webhook. Intenta la
  * entrega en el momento (con timeout); nunca lanza.
  */
-export async function emitWebhook(userId: string, event: WebhookEvent, data: unknown): Promise<void> {
+export async function emitWebhook(
+  userId: string,
+  event: WebhookEvent,
+  data: unknown,
+  audience?: (creatorId: string | null) => Promise<boolean>,
+  personalize?: (creatorId: string | null) => Promise<{ data: Record<string, unknown> } | null>,
+): Promise<void> {
   try {
-    const hooks = (await getDb()
-      .prepare('SELECT id, events, filters, crm_filter FROM webhooks WHERE user_id = ? AND active = 1')
-      .all(userId)) as Array<{ id: string; events: string; filters: string | null; crm_filter: string | null }>;
+    let hooks = (await getDb()
+      .prepare('SELECT id, events, filters, crm_filter, created_by FROM webhooks WHERE user_id = ? AND active = 1')
+      .all(userId)) as Array<{ id: string; events: string; filters: string | null; crm_filter: string | null; created_by: string | null }>;
+    // Contenido restringido: solo los webhooks de quien puede verlo.
+    if (audience) {
+      const allowed: typeof hooks = [];
+      for (const h of hooks) if (parseEvents(h.events).includes(event) && (await audience(h.created_by))) allowed.push(h);
+      hooks = allowed;
+    }
     const scope = event.startsWith('link.') ? linkScopeOf(data) : null;
     const targets = hooks.filter(
       (h) =>
@@ -366,12 +399,21 @@ export async function emitWebhook(userId: string, event: WebhookEvent, data: unk
         matchesCrmFilter(parseCrmFilter(h.crm_filter), event, data),
     );
     if (targets.length === 0) return;
-    const payload = JSON.stringify({ id: crypto.randomUUID(), type: event, createdAt: new Date().toISOString(), data });
+    const eventId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const shared = personalize ? null : JSON.stringify({ id: eventId, type: event, createdAt, data });
     const ids: string[] = [];
     for (const h of targets) {
+      let payload = shared;
+      if (personalize) {
+        // Cada webhook recibe solo lo que ve la persona que lo creó (o nada).
+        const own = await personalize(h.created_by);
+        if (!own) continue;
+        payload = JSON.stringify({ id: eventId, type: event, createdAt, data: own.data });
+      }
       const id = crypto.randomUUID();
       ids.push(id);
-      await insertDelivery(id, h.id, event, payload);
+      await insertDelivery(id, h.id, event, payload!);
     }
     await Promise.all(ids.map((id) => attempt(id).catch(() => {})));
   } catch (err) {

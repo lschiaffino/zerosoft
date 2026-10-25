@@ -131,6 +131,12 @@ export const toolsConfigSchema = z.object({
    * crea subpáginas y filas adentro. Incluye sus subpáginas. Vacío = ninguna.
    */
   docsPageIds: z.array(id).max(50).default([]),
+  /**
+   * Con los permisos de quién trabaja en Docs: la persona que eligió las
+   * páginas por última vez (lo pone el servidor al guardar; nunca el dueño
+   * del workspace por defecto).
+   */
+  docsActorId: id.nullable().default(null),
   httpAllowedDomains: z.array(domain).max(20).default([]),
   /** Acciones que esperan la aprobación de alguien del equipo (lib/agents-approvals.ts). */
   requireApproval: z.array(z.enum(APPROVABLE_AGENT_TOOLS)).max(APPROVABLE_AGENT_TOOLS.length).default([]),

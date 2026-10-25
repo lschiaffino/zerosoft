@@ -684,6 +684,8 @@ async function writeDatabase(source: SyncSourceRow, items: SyncItem[]): Promise<
   for (let attempt = 0; attempt < 4; attempt++) {
     const page = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(source.page_id)) as DocsPageRow | undefined;
     if (!page) return false;
+    // Página bloqueada: no se escribe; se reintenta cuando la desbloqueen.
+    if (page.locked === 1) throw new DocsSyncError('page_locked', 423);
     const blocks = parseBlocks(page.content);
     const index = blocks.findIndex((b) => b.id === source.block_id && b.type === 'database' && !b.linked);
     if (index === -1) return false;
@@ -856,22 +858,40 @@ export async function createSource(input: {
   return { source: toDto(saved), block };
 }
 
+/**
+ * Cambia el origen. Las credenciales son de quien creó la base: si otra
+ * persona cambia la configuración (repo, JQL, sitio, instancia, objeto) o el
+ * token, pasa a ser la dueña del origen y tiene que poner su propio token
+ * (nunca se reenvía el token de otra persona a otro host u objeto). En el CRM
+ * se muestra con la visibilidad de quien lo configuró por última vez.
+ */
 export async function updateSource(
   id: string,
   patch: { config?: Record<string, unknown>; secret?: Record<string, unknown>; intervalMin?: number },
+  personId?: string,
 ): Promise<SyncSourceDto | null> {
   const row = await getSource(id);
   if (!row) return null;
   const sets: string[] = [];
   const args: Array<string | number | null> = [];
-  if (patch.config) {
-    sets.push('config = ?');
-    args.push(JSON.stringify(normalizeConfig(row.provider, { ...parseConfig(row.config), ...patch.config })));
-  }
+  const prevConfig = parseConfig(row.config);
+  const nextConfig = patch.config ? normalizeConfig(row.provider, { ...prevConfig, ...patch.config }) : prevConfig;
+  const configChanged = JSON.stringify(nextConfig) !== JSON.stringify(prevConfig);
   const secret = cleanSecret(patch.secret);
-  if (secret) {
+  const takeover = Boolean(personId && personId !== row.created_by && (configChanged || secret));
+  if (takeover) {
+    // Otra persona: su token (o ninguno en GitHub público), nunca el del creador.
+    if (row.provider === 'jira' && !secret?.token) throw new DocsSyncError('new_token_required');
+    if (row.provider === 'salesforce' && !secret?.token && !secret?.refreshToken) throw new DocsSyncError('new_token_required');
+    sets.push('created_by = ?', 'secret = ?');
+    args.push(personId!, secret ? seal(JSON.stringify(secret)) : null);
+  } else if (secret) {
     sets.push('secret = ?');
     args.push(seal(JSON.stringify({ ...readSecret(row), ...secret })));
+  }
+  if (configChanged) {
+    sets.push('config = ?');
+    args.push(JSON.stringify(nextConfig));
   }
   if (patch.intervalMin !== undefined && (SYNC_INTERVALS as readonly number[]).includes(Number(patch.intervalMin))) {
     sets.push('interval_min = ?');

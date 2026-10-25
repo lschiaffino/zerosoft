@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getRunWithSteps } from '@/lib/flow';
-import { notFound, unauthorized } from '@/lib/flow-http';
+import { notFound, runViewer, unauthorized } from '@/lib/flow-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  const run = await getRunWithSteps(user.id, id);
+  const run = await getRunWithSteps(user.id, id, runViewer(user));
   if (!run) return notFound();
   return NextResponse.json({ run });
 }

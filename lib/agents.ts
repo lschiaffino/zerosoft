@@ -276,6 +276,35 @@ export async function createAgent(
 }
 
 /** Verifica que todo lo referenciado en la config sea del workspace. */
+/**
+ * Docs: el agente trabaja con los permisos de quien eligió las páginas. Si
+ * cambian las páginas o las herramientas de Docs, pasa a ser quien guarda, y
+ * cada página tiene que poder abrirla esa persona (y editarla si el agente
+ * escribe). Si no cambian, se conserva la persona anterior.
+ */
+async function resolveDocsActor(
+  workspaceId: string,
+  existing: { tools: string; created_by?: string | null },
+  payload: AgentUpdatePayload,
+  personId?: string,
+): Promise<string | null> {
+  const tools = payload.tools!;
+  const prev = parseTools(existing.tools);
+  const docsKeys = (t: { enabled: string[]; docsPageIds: string[] }) => JSON.stringify([t.enabled.filter((k) => k.startsWith('docs_')).sort(), [...t.docsPageIds].sort()]);
+  const changed = docsKeys(tools) !== docsKeys(prev);
+  tools.docsActorId = changed ? (personId ?? prev.docsActorId ?? existing.created_by ?? null) : (prev.docsActorId ?? existing.created_by ?? null);
+  if (!changed || !tools.docsPageIds.length) return null;
+  if (!tools.docsActorId) return 'invalid_docs_page';
+  const { docsActorFor, pageFor } = await import('./docs-platform-access');
+  const actor = await docsActorFor(workspaceId, tools.docsActorId);
+  if (!actor) return 'invalid_docs_page';
+  const writes = tools.enabled.some((k) => k === 'docs_write_page' || k === 'docs_write_row');
+  for (const pageId of tools.docsPageIds) {
+    if (!(await pageFor(actor, pageId, { write: writes }))) return 'invalid_docs_page';
+  }
+  return null;
+}
+
 async function assertConfigRefs(workspaceId: string, payload: AgentUpdatePayload): Promise<string | null> {
   const db = getDb();
   const k = payload.knowledge;
@@ -329,9 +358,15 @@ export async function updateAgent(
   workspaceId: string,
   id: string,
   payload: AgentUpdatePayload,
+  /** Persona que guarda (las páginas de Docs se validan con sus permisos y el agente actúa como ella). */
+  personId?: string,
 ): Promise<AgentWriteResult> {
   const existing = await getAgentRow(workspaceId, id);
   if (!existing) return { ok: false, error: 'not_found' };
+  if (payload.tools !== undefined) {
+    const docsError = await resolveDocsActor(workspaceId, existing, payload, personId);
+    if (docsError) return { ok: false, error: docsError };
+  }
   const refError = await assertConfigRefs(workspaceId, payload);
   if (refError) return { ok: false, error: refError };
 

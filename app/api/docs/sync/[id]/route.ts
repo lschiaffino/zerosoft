@@ -1,7 +1,8 @@
 import { canWriteAccess } from '@/lib/docs-access';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
+import { getUserById } from '@/lib/db';
 import { getDocAccess, getDocPageRow, parseBlocks } from '@/lib/docs';
 import { normalizeDatabase } from '@/lib/docs-database';
 import { claimSource, DocsSyncError, getSource, runSync, toDto, unlinkSource, updateSource } from '@/lib/docs-sync';
@@ -23,7 +24,7 @@ async function load(id: string, write: boolean) {
   const access = page ? await getDocAccess(page, user, { includePublished: false, includePublicLink: false }) : null;
   if (!source || !page || !access) return { res: notFound() } as const;
   if (write && !canWriteAccess(access)) return { res: forbidden() } as const;
-  return { source, page } as const;
+  return { source, page, user } as const;
 }
 
 async function currentDb(pageId: string, blockId: string) {
@@ -36,7 +37,9 @@ export async function GET(_req: NextRequest, props: Params) {
   const { id } = await props.params;
   const ctx = await load(id, false);
   if ('res' in ctx) return ctx.res;
-  return NextResponse.json({ source: toDto(ctx.source) });
+  // Quién configuró el origen: el CRM se muestra con su visibilidad.
+  const owner = ctx.source.created_by ? await getUserById(ctx.source.created_by) : undefined;
+  return NextResponse.json({ source: { ...toDto(ctx.source), createdByName: owner ? owner.name || owner.email : null } });
 }
 
 /** "Sincronizar ahora": corre al momento (reclamando el origen) y devuelve la base nueva. */
@@ -65,7 +68,7 @@ export async function PATCH(req: NextRequest, props: Params) {
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
   try {
-    return NextResponse.json({ source: await updateSource(id, parsed.data) });
+    return NextResponse.json({ source: await updateSource(id, parsed.data, realUserId(ctx.user)) });
   } catch (err) {
     if (err instanceof DocsSyncError) return docsError(err.status, err.code);
     throw err;

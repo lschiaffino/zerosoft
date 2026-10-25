@@ -266,6 +266,7 @@ export interface UpdatePageInput {
 export async function updatePage(actor: DocsActor, pageId: string, input: UpdatePageInput): Promise<PageOut> {
   for (let attempt = 0; attempt < 4; attempt++) {
     const touchesContent = input.title !== undefined || input.icon !== undefined || input.markdown !== undefined || Boolean(input.blocks?.length) || Boolean(input.appendMarkdown) || Boolean(input.appendBlocks?.length);
+    if (!touchesContent && input.archived === undefined) throw new DocsPlatformError('missing_fields');
     const res = await pageForWrite(actor, pageId, { includeArchived: input.archived === false, content: touchesContent });
     if (res.access !== 'owner' && input.archived !== undefined) throw new DocsPlatformError('forbidden', 403);
     // La página como la ve el editor de esta persona (sincronizados con su contenido): base del cambio.

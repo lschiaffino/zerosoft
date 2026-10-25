@@ -1386,7 +1386,7 @@
       "jql": "Which issues to bring, like project = ENG ORDER BY updated DESC.",
       "salesforce": "From a Connected App with the api and refresh_token scopes: the refresh token keeps the sync working after the access token expires.",
       "salesforceToken": "Or an access token alone (it stops working when it expires).",
-      "crm": "Shows the records you can see in the CRM."
+      "crm": "The CRM database shows the records you can see in the CRM, also to everyone who can open this page."
     },
     "options": {
       "issues": "Issues",
@@ -1422,7 +1422,9 @@
       "limit_reached": "This workspace has the maximum number of synced databases.",
       "timeout": "The source took too long to answer. It retries on its own.",
       "unsafe_url": "That address is not allowed.",
-      "generic": "Could not sync. Check the details and try again."
+      "generic": "Could not sync. Check the details and try again.",
+      "new_token_required": "If you change the source, use your own token: the current one belongs to whoever set it up.",
+      "page_locked": "The page is locked: the database refreshes again when it is unlocked."
     },
     "syncedFrom": "Synced from {provider}",
     "updated": "updated {when}",
@@ -1432,7 +1434,8 @@
     "syncing": "Syncing…",
     "unlink": "Unlink",
     "unlinkConfirm": "Unlink and keep the rows",
-    "unlinkHelp": "Stops syncing. The rows stay as a regular database you can edit."
+    "unlinkHelp": "Stops syncing. The rows stay as a regular database you can edit.",
+    "crmVisibility": "Shows the CRM records with the visibility of {name}"
   },
   "meeting": {
     "label": "AI meeting notes",
