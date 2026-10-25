@@ -293,3 +293,27 @@ export function docsPatchTooLong(patch: { title?: string | null; content?: Patch
   if ((patch.title ?? '').trim().length > DOCS_TITLE_MAX) return true;
   return (patch.content ?? []).some(blockTooLong);
 }
+
+/**
+ * Idioma y zona horaria que viajan con un guardado de contenido: los
+ * recordatorios de fecha (@recordar) avisan en la campana y por email con
+ * ellos. Solo si el PATCH trae contenido; lo inválido no se manda.
+ */
+export function reminderContext(
+  patch: { content?: unknown },
+  locale: string | null | undefined,
+  timezone: string | null | undefined,
+): { locale?: 'en' | 'es' | 'pt'; timezone?: string } {
+  if (!('content' in patch) || patch.content == null) return {};
+  const out: { locale?: 'en' | 'es' | 'pt'; timezone?: string } = {};
+  if (locale === 'en' || locale === 'es' || locale === 'pt') out.locale = locale;
+  if (timezone && timezone.length <= 64) {
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: timezone });
+      out.timezone = timezone;
+    } catch {
+      /* zona inválida: el servidor usa la cookie o UTC */
+    }
+  }
+  return out;
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import {
   type DocsAccess,
@@ -10,7 +10,7 @@ import {
   type DocsPageShare,
   type DocsShareRole,
 } from '@/lib/docs-types';
-import { docsPatchTooLong } from '@/lib/docs-schema';
+import { docsPatchTooLong, reminderContext } from '@/lib/docs-schema';
 import DocsEditor from './DocsEditor';
 import ShareDialog, { type ShareRequest } from './ShareDialog';
 import CommentsPanel from './CommentsPanel';
@@ -65,6 +65,7 @@ export default function DocsEditorClient({
 }) {
   const router = useRouter();
   const t = useTranslations('docs');
+  const locale = useLocale();
   const isOwner = access === 'owner';
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<'tooLong' | 'failed' | 'conflict' | null>(null);
@@ -127,7 +128,16 @@ export default function DocsEditorClient({
       // va con la base: si no, uno que no toca el contenido adelantaba la base
       // a la versión ajena y el próximo guardado la pisaba sin 409.
       const guarded = !force;
-      const body = JSON.stringify(guarded ? { ...patch, base_updated_at: baseUpdatedAt.current } : patch);
+      // Con el contenido van el idioma y la zona del navegador: los
+      // recordatorios (@recordar) avisan con ellos.
+      let tz: string | undefined;
+      try {
+        tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      } catch {
+        tz = undefined;
+      }
+      const withCtx = { ...patch, ...reminderContext(patch, locale, tz) };
+      const body = JSON.stringify(guarded ? { ...withCtx, base_updated_at: baseUpdatedAt.current } : withCtx);
       try {
         const res = await fetch(`/api/docs/pages/${page.id}`, {
           method: 'PATCH',
@@ -164,7 +174,7 @@ export default function DocsEditorClient({
         setSaving(false);
       }
     },
-    [page.id, router],
+    [page.id, router, locale],
   );
 
   const savePage = useCallback(

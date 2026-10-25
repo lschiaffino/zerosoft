@@ -296,7 +296,12 @@
   },
   "cmdk": {
     "section": "Settings: {section}",
-    "product": "{app} settings"
+    "product": "{app} settings",
+    "domains": "Domains",
+    "keywords": {
+      "billing": "billing, invoices, subscription, payment, plan",
+      "domains": "custom domain, dns, short links"
+    }
   },
   "workspace": {
     "title": "Workspace details",

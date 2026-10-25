@@ -423,6 +423,12 @@ export default function DocsSidebar({
           </ul>
         </div>
       )}
+      {favorites.length > 0 && tree.length > 0 && (
+        // Con Favoritos arriba, la lista general lleva su propio encabezado (como en Notion).
+        <p className="docs-shared-label docs-tree-label" data-testid="docs-tree-label">
+          {t('sidebar.pages')}
+        </p>
+      )}
       {tree.length === 0 ? (
         <div className="docs-sidebar-empty">
           <p>{labels.empty}</p>

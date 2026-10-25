@@ -296,7 +296,12 @@
   },
   "cmdk": {
     "section": "Ajustes: {section}",
-    "product": "Ajustes do {app}"
+    "product": "Ajustes do {app}",
+    "domains": "Domínios",
+    "keywords": {
+      "billing": "faturamento, faturas, assinatura, pagamento, billing, plano",
+      "domains": "domínio próprio, dns, links curtos, domains"
+    }
   },
   "workspace": {
     "title": "Dados do workspace",

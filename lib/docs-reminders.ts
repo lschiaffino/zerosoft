@@ -108,9 +108,19 @@ export async function syncDocReminders(opts: {
     }
     // Movido a otra fecha: vuelve a avisar.
     if (cur.remind_at !== r.remindAt) {
+      // Y avisa en el idioma y la zona de quien lo movió, si vinieron.
       await db
-        .prepare('UPDATE docs_reminders SET remind_at = ?, label = ?, sent_at = NULL WHERE id = ?')
-        .run(r.remindAt, r.label.slice(0, 200), cur.id);
+        .prepare(
+          `UPDATE docs_reminders SET remind_at = ?, label = ?, sent_at = NULL,
+             timezone = COALESCE(?, timezone), locale = COALESCE(?, locale) WHERE id = ?`,
+        )
+        .run(
+          r.remindAt,
+          r.label.slice(0, 200),
+          opts.timezone ? safeTimezone(opts.timezone) : null,
+          opts.locale ? locale(opts.locale) : null,
+          cur.id,
+        );
     }
   }
 }
@@ -170,11 +180,13 @@ export async function fireDocReminders(opts: { limit?: number; now?: Date } = {}
     fired++;
     const s = STRINGS[locale(r.locale)];
     const title = r.title.trim() || s.untitled;
+    // La campana dice cuándo en el idioma y la zona de quien lo puso (como el email).
+    const when = formatWhen(new Date(r.remind_at), safeTimezone(r.timezone), locale(r.locale));
     await createNotification({
       userId: r.user_id,
       type: 'docs_reminder',
       title: fill(s.notification, { title }),
-      body: r.label || undefined,
+      body: when,
       href: `/app/docs/${encodeURIComponent(r.page_id)}`,
       sourceType: 'docs_page',
       sourceId: r.page_id,

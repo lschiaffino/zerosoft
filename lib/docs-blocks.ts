@@ -227,3 +227,18 @@ export function blocksToTree(blocks: DocsBlock[]): DocsBlockNode[] {
   }
   return roots;
 }
+
+/** ¿El comando (label + palabras clave) coincide con lo tipeado después de `/`? Cada palabra tiene que estar. */
+export function commandMatches(label: string, keywords: string[], query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const haystack = [label.toLowerCase(), ...keywords.map((k) => k.toLowerCase())];
+  const hit = (w: string) => {
+    const wn = norm(w);
+    return haystack.some((h) => h.includes(w) || (wn !== '' && norm(h).includes(wn)));
+  };
+  if (hit(q)) return true;
+  const words = q.split(/\s+/).filter(Boolean);
+  return words.length > 1 && words.every(hit);
+}

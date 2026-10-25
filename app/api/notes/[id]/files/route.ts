@@ -3,11 +3,24 @@ import { getCurrentUser } from '@/lib/session';
 import { noteEditable, noteOwner } from '@/lib/notes';
 import { resolveNoteAccess } from '@/lib/notes-shares';
 import { MAX_UPLOAD_SIZE, saveUpload, UploadError } from '@/lib/uploads';
-import { cleanFileName, type DocsUploadResult } from '@/lib/docs-files';
+import { cleanFileName, type DocsUploadConfig, type DocsUploadResult } from '@/lib/docs-files';
 import { jsonError, limitWrites } from '@/lib/write-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+/**
+ * Cómo sube el editor en Notes: siempre por este servidor (que guarda en
+ * Blob o en disco), hasta MAX_UPLOAD_SIZE. Lo pide el editor al abrir la nota.
+ */
+export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
+  const user = await getCurrentUser();
+  if (!user) return jsonError(401, 'unauthorized');
+  const access = await resolveNoteAccess(noteOwner(user), id);
+  if (!access) return jsonError(404, 'not_found');
+  return NextResponse.json<DocsUploadConfig>({ mode: 'server', max: MAX_UPLOAD_SIZE });
+}
 
 /**
  * Sube el archivo de un bloque image/file de una nota (arrastrar, pegar o el
