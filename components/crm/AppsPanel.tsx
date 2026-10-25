@@ -7,6 +7,7 @@ import type { CrmAppView } from '@/lib/crm-apps';
 import { AUTOMATION_DEFAULT_EVENTS, SLACK_EVENTS, type CrmAppKey } from '@/lib/crm-apps-schema';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import CopyButton from '@/components/link/CopyButton';
+import { parseDbUtc } from '@/lib/utils';
 
 const eventKey = (ev: string) => ev.replace(/\./g, '_');
 
@@ -116,7 +117,7 @@ export default function AppsPanel({ initial, canEdit }: { initial: CrmAppView[];
 
   const fmt = (d: string | null) => {
     if (!d) return '';
-    const date = new Date(d.includes('T') ? d : `${d.replace(' ', 'T')}Z`);
+    const date = parseDbUtc(d);
     return Number.isNaN(date.getTime()) ? d : new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
   };
 

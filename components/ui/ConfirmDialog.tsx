@@ -5,7 +5,9 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
 /**
  * Confirmación con el modal de la app (<dialog class="ui-modal">), en lugar
  * del confirm() del navegador: foco atrapado, Esc y clic en el telón cancelan,
- * Enter confirma (el foco arranca en el botón de confirmar).
+ * Enter confirma (el foco arranca en el botón de confirmar). Si la acción es
+ * destructiva (danger) el foco arranca en Cancelar, como en macOS y Linear:
+ * un Enter de más no borra nada.
  */
 export default function ConfirmDialog({
   open,
@@ -30,6 +32,7 @@ export default function ConfirmDialog({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const bodyId = useId();
 
@@ -38,10 +41,10 @@ export default function ConfirmDialog({
     if (!d) return;
     if (open && !d.open) {
       d.showModal();
-      confirmRef.current?.focus();
+      (danger ? cancelRef : confirmRef).current?.focus();
     }
     if (!open && d.open) d.close();
-  }, [open]);
+  }, [open, danger]);
 
   return (
     <dialog
@@ -71,7 +74,7 @@ export default function ConfirmDialog({
             </div>
           )}
           <div className="ui-modal-foot">
-            <button type="button" className="btn btn-sm" onClick={onCancel} disabled={busy}>
+            <button ref={cancelRef} type="button" className="btn btn-sm" data-testid="confirm-dialog-cancel" onClick={onCancel} disabled={busy}>
               {cancelLabel}
             </button>
             <button

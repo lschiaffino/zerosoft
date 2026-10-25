@@ -204,31 +204,59 @@ export async function CalBookingsBlock({ user, locale, timeZone }: { user: HomeU
 export async function UnreadBlock({ user, locale, hideWhenEmpty }: { user: HomeUser; locale: string; hideWhenEmpty?: boolean }) {
   const t = await getTranslations({ locale, namespace: 'common.appHome' });
   const res = await attempt(() => homeUnread(user));
-  if (hideWhenEmpty && res.ok && res.data.chat + res.data.groups === 0) return null;
+  const chat = res.ok ? res.data.chat : null;
+  const groups = res.ok ? res.data.groups : null;
+  const total = (chat ?? 0) + (groups ?? 0);
+  const allLoaded = chat !== null && groups !== null;
+  if (hideWhenEmpty && allLoaded && total === 0) return null;
   return (
     <BlockFrame product="chat" title={t('today.inbox')} href="/app/chat/inbox" viewAll={t('viewAll')} testId="home-unread">
       {!res.ok ? (
         <BlockError text={t('error')} />
-      ) : res.data.chat + res.data.groups === 0 ? (
+      ) : allLoaded && total === 0 ? (
         <BlockEmpty text={t('today.inboxEmpty')} />
       ) : (
         <ul className="home-list">
-          {res.data.chat > 0 && (
+          {chat !== null && chat > 0 && (
             <li>
               <Link href="/app/chat/inbox" className="home-row">
                 <span className="home-row-label">
-                  <ProductGlyph product="chat" size={12} /> {t('today.chatUnread', { n: res.data.chat })}
+                  <ProductGlyph product="chat" size={12} /> {t('today.chatUnread', { n: chat })}
                 </span>
               </Link>
             </li>
           )}
-          {res.data.groups > 0 && (
+          {chat === 0 && groups === null && (
+            <li className="home-row">
+              <span className="home-row-label">
+                <ProductGlyph product="chat" size={12} /> {t('today.chatNone')}
+              </span>
+            </li>
+          )}
+          {chat === null && (
+            <li className="home-block-error" role="alert" data-testid="home-unread-chat-error">
+              {t('today.chatError')}
+            </li>
+          )}
+          {groups !== null && groups > 0 && (
             <li>
               <Link href="/app/groups/inbox" className="home-row">
                 <span className="home-row-label">
-                  <ProductGlyph product="groups" size={12} /> {t('today.groupsUnread', { n: res.data.groups })}
+                  <ProductGlyph product="groups" size={12} /> {t('today.groupsUnread', { n: groups })}
                 </span>
               </Link>
+            </li>
+          )}
+          {groups === 0 && chat === null && (
+            <li className="home-row">
+              <span className="home-row-label">
+                <ProductGlyph product="groups" size={12} /> {t('today.groupsNone')}
+              </span>
+            </li>
+          )}
+          {groups === null && (
+            <li className="home-block-error" role="alert" data-testid="home-unread-groups-error">
+              {t('today.groupsError')}
             </li>
           )}
         </ul>

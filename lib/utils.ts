@@ -19,11 +19,24 @@ export function formatAxis(n: number, locale: string = 'en'): string {
 export const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * Instante guardado en la base: acepta el formato del CRM ('YYYY-MM-DD HH:MM:SS',
- * UTC sin zona) y un ISO completo con zona ('…T…Z'), sin sumar una Z de más.
+ * Instante guardado en la base: acepta el formato de SQLite `datetime('now')`
+ * ('YYYY-MM-DD HH:MM:SS', UTC sin zona), un ISO completo ('…T…Z', sin sumar una
+ * Z de más) y un día suelto ('YYYY-MM-DD', medianoche UTC). Sin esto el navegador
+ * lee el formato de SQLite como hora local y la muestra corrida.
  */
 export function parseDbUtc(raw: string): Date {
-  return new Date(raw.includes('T') ? raw : `${raw.replace(' ', 'T')}Z`);
+  if (raw.includes('T')) return new Date(raw);
+  if (DATE_ONLY.test(raw)) return new Date(`${raw}T00:00:00Z`);
+  return new Date(`${raw.replace(' ', 'T')}Z`);
+}
+
+/** Instante UTC de la base → valor de un input datetime-local en la hora local. */
+export function utcToLocalInput(raw: string): string {
+  if (!raw) return '';
+  const d = parseDbUtc(raw);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /**
@@ -40,7 +53,7 @@ export function formatDate(iso: string, locale: string = 'en'): string {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-  }).format(new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z'));
+  }).format(parseDbUtc(iso));
 }
 
 export function formatDateTime(iso: string, locale: string = 'en'): string {
@@ -50,7 +63,7 @@ export function formatDateTime(iso: string, locale: string = 'en'): string {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z'));
+  }).format(parseDbUtc(iso));
 }
 
 export function shortDomain(): string {
@@ -95,7 +108,7 @@ export function normalizeUrl(url: string): string {
 
 /** Fecha relativa localizada ("in 3 days", "ayer") via Intl.RelativeTimeFormat. */
 export function relDate(iso: string, locale: string = 'en'): string {
-  const ms = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z').getTime();
+  const ms = parseDbUtc(iso).getTime();
   if (Number.isNaN(ms)) return '';
   const diff = ms - Date.now();
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });

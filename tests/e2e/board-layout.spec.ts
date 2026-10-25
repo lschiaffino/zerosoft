@@ -183,12 +183,14 @@ test('Board: la lista muestra primero las pizarras, las plantillas se pliegan y 
   // Después de la animación de entrada del modal.
   await page.waitForTimeout(300);
   await page.screenshot({ path: shot('board-delete-confirm.png') });
-  // Esc cancela; Enter (foco en Borrar) confirma.
+  // Esc cancela; el foco arranca en Cancelar (es destructivo) y Enter sobre Borrar confirma.
   await page.keyboard.press('Escape');
   await expect(confirm).toBeHidden();
   await expect(card).toBeVisible();
   await page.getByRole('button', { name: `Acciones de la pizarra: ${name}` }).click();
   await page.getByRole('menuitem', { name: 'Borrar' }).click();
+  await expect(confirm.getByRole('button', { name: 'Cancelar' })).toBeFocused();
+  await page.keyboard.press('Tab');
   await expect(confirm.getByRole('button', { name: 'Borrar' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(card).toHaveCount(0);

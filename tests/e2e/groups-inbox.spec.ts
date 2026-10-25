@@ -148,7 +148,8 @@ test('notas con @mención, editar y borrar; asignar deja historial', async ({ pa
 
   // Asignar y cerrar quedan en el hilo.
   await page.getByLabel('Assigned to').selectOption({ label: 'Demo User' });
-  await expect(page.locator('.gr-system', { hasText: 'assigned this chat to Demo User' })).toBeVisible();
+  // Asignárselo a uno mismo se lee "se asignó el chat", como en la auditoría.
+  await expect(page.locator('.gr-system', { hasText: 'Demo User assigned the chat to themselves' })).toBeVisible();
   await page.locator('.gr-messages').click();
   await page.keyboard.press('e');
   await expect(page.locator('.gr-system', { hasText: 'closed the chat' })).toBeVisible();

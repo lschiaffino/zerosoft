@@ -44,11 +44,15 @@ describe('inicio: mismo alcance que cada app', () => {
     expect((await homeUnread({ id: owner.id, team: null, actingUser: null, role: 'owner' })).chat).toBe(2);
   });
 
-  it('si no se puede resolver el acceso de Groups, el bloque falla (no cuenta de más)', async () => {
+  it('si no se puede resolver el acceso de Groups, esa parte queda en error (no cuenta de más) y Chat se muestra igual', async () => {
     const owner = await makeUser('home-groups');
+    const widget = await createChatWidget(owner.id, null, { name: 'Solo' });
+    await unreadConversation(widget.id);
     groupsFail.on = true;
     try {
-      await expect(homeUnread({ id: owner.id, team: null, actingUser: null, role: 'owner' })).rejects.toThrow();
+      const res = await homeUnread({ id: owner.id, team: null, actingUser: null, role: 'owner' });
+      expect(res.groups).toBeNull();
+      expect(res.chat).toBe(1);
     } finally {
       groupsFail.on = false;
     }

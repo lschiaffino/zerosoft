@@ -11,6 +11,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import DataTable from '@/components/ui/DataTable';
 import { errorText, RunnerNote, StatusBadge, UsageMeter } from './robots-ui';
+import { parseDbUtc } from '@/lib/utils';
 
 interface Props {
   robots: RobotListItem[];
@@ -146,7 +147,7 @@ export default function RobotsHome({ robots, usage, canEdit }: Props) {
                   <span className="robots-cell-last">
                     <StatusBadge status={r.lastRun.status} warnings={r.lastRun.warnings} />
                     <span className="robots-muted" suppressHydrationWarning>
-                      {format.relativeTime(new Date(r.lastRun.createdAt), now)}
+                      {format.relativeTime(parseDbUtc(r.lastRun.createdAt), now)}
                     </span>
                   </span>
                 ) : (

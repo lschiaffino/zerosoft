@@ -13,6 +13,7 @@ import { BOARD_TEMPLATES, type BoardTemplateKey } from '@/lib/board-templates';
 import TemplatePreview from './TemplatePreview';
 import { notifyBoardsChanged } from './BoardBranch';
 import { preloadCanvas } from './preloadCanvas';
+import { parseDbUtc } from '@/lib/utils';
 
 const TOAST_MS = 6000;
 /** Plantillas plegadas o abiertas: se recuerda por navegador. */
@@ -229,7 +230,7 @@ export default function BoardList({
                   </Link>
                 )}
                 <p className="board-card-meta">
-                  {t('list.updated', { when: format.relativeTime(new Date(b.updated_at), new Date(now)) })}
+                  {t('list.updated', { when: format.relativeTime(parseDbUtc(b.updated_at), new Date(now)) })}
                   {b.updated_by ? ` · ${b.updated_by}` : ''}
                 </p>
                 {b.shared && <span className="badge badge-outline board-card-shared">{t('share.on')}</span>}

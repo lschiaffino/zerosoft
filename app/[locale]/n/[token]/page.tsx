@@ -4,6 +4,7 @@ import { getSharedNote } from '@/lib/notes';
 import NoteBlocksView from '@/components/notes/NoteBlocksView';
 import { noteFileHref } from '@/lib/notes-types';
 import '@/styles/notes.css';
+import { parseDbUtc } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,7 @@ export default async function SharedNotePage(props: Props) {
     <main className="note-public">
       <article>
         <p className="note-public-meta mono">
-          {t('public.updated', { date: format.dateTime(new Date(note.updated_at), { dateStyle: 'medium' }) })}
+          {t('public.updated', { date: format.dateTime(parseDbUtc(note.updated_at), { dateStyle: 'medium' }) })}
         </p>
         <h1 className="note-view-title">{note.title || t('untitled')}</h1>
         {note.source_url && (

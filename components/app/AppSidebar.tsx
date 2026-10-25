@@ -400,7 +400,8 @@ export default function AppSidebar({
                 role="menuitem"
                 className="band-menu-item band-menu-search"
                 onClick={() => {
-                  closeSwitcher();
+                  // El foco pasa al botón del switcher antes de abrir ⌘K: al cerrarlo con Esc vuelve ahí.
+                  closeSwitcher(true);
                   openSearch();
                 }}
               >
@@ -474,14 +475,6 @@ export default function AppSidebar({
           )}
         </div>
 
-        {teamName && (
-          <p className="side-team" title={`${labels.team}: ${teamName}`}>
-            <span className="side-label">
-              {labels.team}: {teamName}
-            </span>
-          </p>
-        )}
-
         <nav className={`side-line${product === 'home' ? ' side-line-compact' : ''}`} aria-label={current.name} ref={lineRef} onScroll={updateOverflow}>
           {nav.map((group, i) => (
             <div key={group.section ?? `top-${i}`} className="side-group">
@@ -521,8 +514,8 @@ export default function AppSidebar({
             <Icon name={settingsItem.icon} size={15} />
             <span className="side-label">{settingsItem.label}</span>
           </Link>
-          <Link href="/docs" className="side-link" title={collapsed ? labels.docsSite : undefined}>
-            <Icon name="docs" size={15} />
+          <Link href="/docs" className="side-link" title={collapsed ? labels.docsSite : undefined} data-testid="side-help">
+            <Icon name="help" size={15} />
             <span className="side-label">{labels.docsSite}</span>
           </Link>
           <Link href="/" className="side-link" title={collapsed ? labels.backToSite : undefined}>
@@ -539,9 +532,17 @@ export default function AppSidebar({
                 {(user.name ?? user.email).slice(0, 1).toUpperCase()}
               </span>
             )}
-            <div className="side-user-meta side-label">
+            {/* Con un equipo activo, el equipo va en lugar del mail (que queda en el title):
+                arriba de la lista empujaba las últimas apps bajo el pliegue. */}
+            <div className="side-user-meta side-label" title={teamName ? `${user.email} · ${labels.team}: ${teamName}` : undefined}>
               <p className="side-user-name">{user.name ?? user.email}</p>
-              <p className="side-user-mail">{user.email}</p>
+              {teamName ? (
+                <p className="side-user-mail side-team" data-testid="side-team">
+                  {labels.team}: {teamName}
+                </p>
+              ) : (
+                <p className="side-user-mail">{user.email}</p>
+              )}
             </div>
             {demo ? (
               <Link href="/" className="side-signout side-label">

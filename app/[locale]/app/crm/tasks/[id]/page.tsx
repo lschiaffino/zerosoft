@@ -101,8 +101,11 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
     {
       key: 'dueAt',
       label: t('tasks.form.dueAt'),
-      type: 'text',
+      type: 'datetime',
       value: task.due_at ?? '',
+      // Misma fecha que el encabezado, en la zona de la persona (no el UTC crudo).
+      display: task.due_at ? formatDateTime(task.due_at, locale, timeZone) : '',
+      nullOption: true,
     },
     {
       key: 'repeat',

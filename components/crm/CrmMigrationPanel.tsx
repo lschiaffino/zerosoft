@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { ImportJobView } from '@/lib/crm-import-jobs';
 import type { ImportGroup, ImportProvider } from '@/lib/crm-import-source';
+import { parseDbUtc } from '@/lib/utils';
 
 /** Permisos de la Private App de HubSpot (lib/crm-import-hubspot.ts). Se repiten acá: el módulo es server-only. */
 const HUBSPOT_SCOPES = [
@@ -175,7 +176,7 @@ export default function CrmMigrationPanel({
 }
 
 function formatDate(raw: string, locale: string): string {
-  const d = new Date(`${raw.replace(' ', 'T')}Z`);
+  const d = parseDbUtc(raw);
   return Number.isNaN(d.getTime()) ? raw : new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(d);
 }
 

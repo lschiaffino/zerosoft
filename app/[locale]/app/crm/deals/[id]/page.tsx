@@ -50,6 +50,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import RecordTabs from '@/components/crm/RecordTabs';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import { parseRecordTab, recordTabHref } from '@/components/crm/recordTab';
+import { parseDbUtc } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,7 +104,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
       (a.status === 'rejected' && (a.decided_at ?? '') >= recentCut),
   );
   const fmtWhen = (iso: string) =>
-    new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(`${iso.replace(' ', 'T')}Z`));
+    new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(iso));
   const approvalItem: ApprovalBannerItem | null = shownApproval
     ? {
         id: shownApproval.id,
@@ -131,7 +132,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
 
   const fmtDate = (iso: string): string =>
     new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(
-      new Date(iso.includes('T') ? iso : `${iso.replace(' ', 'T')}Z`),
+      parseDbUtc(iso),
     );
   const closeDateLabel = deal.close_date
     ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(

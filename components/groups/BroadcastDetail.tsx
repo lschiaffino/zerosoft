@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { BroadcastDto, RecipientDto } from '@/lib/groups-broadcasts';
 import { api, useErrorText, useToast } from './ui';
+import { parseDbUtc } from '@/lib/utils';
 
 /** Un envío: progreso y estado por destinatario (se actualiza solo mientras manda). */
 export default function BroadcastDetail({ initial }: { initial: { broadcast: BroadcastDto; recipients: RecipientDto[] } }) {
@@ -53,7 +54,7 @@ export default function BroadcastDetail({ initial }: { initial: { broadcast: Bro
         </div>
         <div>
           <span className="label">{t('broadcasts.colWhen')}</span>
-          <strong>{new Date(b.scheduledAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</strong>
+          <strong>{parseDbUtc(b.scheduledAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</strong>
         </div>
         <div>
           <span className="label">{t('recipientStatus.sent')}</span>
@@ -100,7 +101,7 @@ export default function BroadcastDetail({ initial }: { initial: { broadcast: Bro
                   <span className={`badge ${r.status === 'sent' ? 'badge-ok' : r.status === 'failed' ? 'badge-bad' : 'badge-outline'}`}>{t(`recipientStatus.${r.status}`)}</span>
                   {r.error && <span className="ui-help"> {errText(r.error)}</span>}
                 </td>
-                <td className="gr-hide-sm ui-help">{r.sentAt ? new Date(r.sentAt).toLocaleTimeString(locale) : ''}</td>
+                <td className="gr-hide-sm ui-help">{r.sentAt ? parseDbUtc(r.sentAt).toLocaleTimeString(locale) : ''}</td>
               </tr>
             ))}
           </tbody>

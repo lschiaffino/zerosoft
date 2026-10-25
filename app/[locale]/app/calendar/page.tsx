@@ -7,6 +7,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import EventTypesView, { NewEventTypeButton } from '@/components/calendar/EventTypesView';
 import { publicOrigin, toListItems } from '@/components/calendar/event-type-items';
+import { parseDbUtc } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,8 +55,8 @@ export default async function CalendarLandingPage(props: { params: Promise<{ loc
             {upcoming.map((b) => (
               <li key={b.id} className="cal-up-row">
                 <span className="cal-up-when">
-                  <span className="cal-up-day">{day.format(new Date(b.starts_at))}</span>
-                  <span className="data">{time.format(new Date(b.starts_at))}</span>
+                  <span className="cal-up-day">{day.format(parseDbUtc(b.starts_at))}</span>
+                  <span className="data">{time.format(parseDbUtc(b.starts_at))}</span>
                 </span>
                 <span className="cal-bk-guest">
                   <strong>{b.invitee_name}</strong>

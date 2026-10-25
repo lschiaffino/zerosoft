@@ -7,6 +7,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import PageHeader from '@/components/ui/PageHeader';
 import type { CredentialDto } from '@/lib/flow-credentials';
 import CredentialDialog from './CredentialDialog';
+import { parseDbUtc } from '@/lib/utils';
 
 interface Props {
   credentials: CredentialDto[];
@@ -89,7 +90,7 @@ export default function CredentialsManager({ credentials: initial, canEdit }: Pr
             header: t('updated'),
             cell: (c) => (
               <span className="flow-muted" suppressHydrationWarning>
-                {format.relativeTime(new Date(c.updatedAt), now)}
+                {format.relativeTime(parseDbUtc(c.updatedAt), now)}
               </span>
             ),
           },

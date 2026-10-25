@@ -6,6 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { uploadMedia } from './mediaUpload';
+import { parseDbUtc } from '@/lib/utils';
 
 export interface DocumentItem {
   id: string;
@@ -96,7 +97,7 @@ export default function DocumentsLibrary({ initial, direct }: { initial: Documen
   }
 
   const fmt = (d: string | null) =>
-    d ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(`${d.replace(' ', 'T')}Z`)) : '';
+    d ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(d)) : '';
 
   const uploadButton = (
     <button type="button" className="btn btn-primary" onClick={() => fileRef.current?.click()} aria-busy={busy || undefined} disabled={busy}>

@@ -19,7 +19,7 @@ import {
   parseCustom,
 } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
-import { formatDate } from '@/lib/utils';
+import { formatDate, parseDbUtc } from '@/lib/utils';
 import DealsBoard from '@/components/crm/DealsBoard';
 import DealsFilters from '@/components/crm/DealsFilters';
 import DealsTable, { type DealRow } from '@/components/crm/DealsTable';
@@ -260,9 +260,9 @@ export default async function DealsPage(props: DealsPageProps) {
     const dayMs = 86_400_000;
     const cellCtx = { locale, yes: t('common.yes'), no: t('common.no'), users: new Map(owners.map((o) => [o.value, o.label])) };
     const tableRows: DealRow[] = rows.map((d) => {
-      const start = new Date(d.created_at.replace(' ', 'T') + 'Z').getTime();
+      const start = parseDbUtc(d.created_at).getTime();
       const stop = d.closed_at
-        ? new Date(d.closed_at.replace(' ', 'T') + 'Z').getTime()
+        ? parseDbUtc(d.closed_at).getTime()
         : Date.now();
       return {
         id: d.id,

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { COMMON_CURRENCIES } from '@/lib/crm-constants';
+import { parseDbUtc } from '@/lib/utils';
 
 interface Rate {
   currency: string;
@@ -107,7 +108,7 @@ export default function CurrencySettings({
   }
 
   const fmtDate = (s: string) =>
-    new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(`${s.replace(' ', 'T')}Z`));
+    new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(s));
 
   return (
     <div className="currency-settings">

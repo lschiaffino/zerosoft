@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@/i18n/navigation';
-import { relDate } from '@/lib/utils';
+import { relDate, parseDbUtc } from '@/lib/utils';
 import type { TrackIssueAttachmentRow } from '@/lib/db';
 import type { TrackIssueActivityWithAuthor, ProjectMember } from '@/lib/track-data';
 import MarkdownEditor, { MarkdownView, type MarkdownLabels } from './MarkdownEditor';
@@ -111,7 +111,7 @@ export default function IssueActivityTimeline({
   const [editBusy, setEditBusy] = useState(false);
 
   const sorted = useMemo(
-    () => [...activities].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+    () => [...activities].sort((a, b) => parseDbUtc(a.created_at).getTime() - parseDbUtc(b.created_at).getTime()),
     [activities],
   );
 

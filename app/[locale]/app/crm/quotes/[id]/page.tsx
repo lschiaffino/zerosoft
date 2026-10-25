@@ -11,6 +11,7 @@ import { QUOTE_TONE, badgeClass } from '@/lib/crm-ui-tones';
 import { isAppConnected } from '@/lib/crm-apps';
 import { getQuoteSignature } from '@/lib/crm-quote-sign';
 import '@/styles/quote.css';
+import { parseDbUtc } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +22,7 @@ interface QuotePageProps {
 function fmtTime(d: string | null, locale: string): string {
   if (!d) return '';
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
-    new Date(`${d.replace(' ', 'T')}Z`),
+    parseDbUtc(d),
   );
 }
 

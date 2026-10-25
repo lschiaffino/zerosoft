@@ -13,6 +13,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import type { FlowListItem, FlowSettingsDto } from '@/lib/flow';
 import { FLOW_TEMPLATES, RETENTION_DAYS, triggerNode } from '@/lib/flow-schema';
 import { i18nKey, RUN_BADGE } from './flow-ui';
+import { parseDbUtc } from '@/lib/utils';
 
 interface Props {
   flows: FlowListItem[];
@@ -233,7 +234,7 @@ export default function FlowsHome({ flows: initial, canEdit, settings: initialSe
                   <span className="flow-last-run">
                     <span className={`badge ${RUN_BADGE[f.lastRun.status] ?? ''}`}>{t(`runs.status.${f.lastRun.status}`)}</span>
                     <span className="flow-muted" suppressHydrationWarning>
-                      {format.relativeTime(new Date(f.lastRun.createdAt), now)}
+                      {format.relativeTime(parseDbUtc(f.lastRun.createdAt), now)}
                     </span>
                   </span>
                 ) : (

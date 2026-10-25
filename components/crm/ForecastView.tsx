@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { ForecastSubmission, ForecastView as ForecastData } from '@/lib/crm-forecast';
+import { parseDbUtc } from '@/lib/utils';
 
 interface Props {
   initial: ForecastData;
@@ -309,7 +310,7 @@ export default function ForecastView({ initial, pipelines, me, isAdmin, locale, 
                     <span className="mono">{money(h.amount)}</span>
                     {' · '}
                     <span className="muted">
-                      {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(`${h.created_at.replace(' ', 'T')}Z`))}
+                      {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(h.created_at))}
                       {h.submitted_by ? ` · ${h.submitted_by}` : ''}
                     </span>
                     {h.note && <div>{h.note}</div>}

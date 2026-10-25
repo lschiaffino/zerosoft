@@ -357,6 +357,8 @@
       "flow": "Flow"
     },
     "resolvedAt": "Resolvido há {time}",
+    "resolvedJustNow": "Resolvido agora",
+    "resolvedOn": "Resolvido em {date}",
     "breached": "Atrasado"
   },
   "priority": {
@@ -768,6 +770,7 @@
     "missing_fields": "Primeiro preencha os campos obrigatórios.",
     "date_in_past": "Escolha um horário no futuro.",
     "missing_columns": "Falta no CSV uma coluna para uma variável do modelo.",
+    "missing_columns_detail": "O CSV precisa de uma coluna para cada variável do modelo. Falta: {detail}.",
     "polls_unsupported": "Enquetes precisam de um número WAHA ou Evolution. A Cloud API da Meta não tem enquetes.",
     "poll_question": "Escreva a pergunta da enquete.",
     "poll_options": "Uma enquete precisa de pelo menos 2 opções diferentes.",
@@ -835,6 +838,7 @@
     "recording": "Gravação",
     "someone": "Alguém",
     "assigned": "{by} atribuiu este chat a {to}",
+    "assignedSelf": "{by} atribuiu o chat a si",
     "unassigned": "{by} tirou a atribuição",
     "autoAssigned": "Atribuído a {to} pela regra {rule}",
     "team": "{by} passou este chat para {team}",

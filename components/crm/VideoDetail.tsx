@@ -8,6 +8,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import ContactPicker, { type PickedContact } from './ContactPicker';
 import { fmtDuration, watchedPct } from '@/lib/crm-media-schema';
+import { parseDbUtc } from '@/lib/utils';
 
 interface ViewRow {
   id: string;
@@ -39,7 +40,7 @@ export default function VideoDetail({
   const [note, setNote] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
   const [confirm, setConfirm] = useState(false);
 
-  const fmt = (d: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(`${d.replace(' ', 'T')}Z`));
+  const fmt = (d: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(d));
 
   async function save() {
     if (!title.trim()) return;

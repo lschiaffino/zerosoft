@@ -9,6 +9,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import ContactPicker, { type PickedContact } from './ContactPicker';
 import { fmtDuration, topPages } from '@/lib/crm-media-schema';
 import type { DocumentLinkView } from '@/lib/crm-media';
+import { parseDbUtc } from '@/lib/utils';
 
 /**
  * Un documento: links de seguimiento por contacto (como "Share" de HubSpot
@@ -39,7 +40,7 @@ export default function DocumentDetail({
 
   const urlOf = (token: string) => `${baseUrl}/${locale}/view/${token}`;
   const fmt = (d: string | null) =>
-    d ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(`${d.replace(' ', 'T')}Z`)) : '';
+    d ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(d)) : '';
 
   async function reload() {
     const res = await fetch(`/api/crm/documents/${doc.id}`).catch(() => null);

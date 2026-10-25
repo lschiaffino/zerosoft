@@ -10,10 +10,11 @@ import AdvancedSection from '@/components/ui/AdvancedSection';
 import DataTable from '@/components/ui/DataTable';
 import EmptyState from '@/components/ui/EmptyState';
 import FormSection from '@/components/ui/FormSection';
+import { parseDbUtc } from '@/lib/utils';
 
 function formatTs(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(
-    new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z'),
+    parseDbUtc(iso),
   );
 }
 

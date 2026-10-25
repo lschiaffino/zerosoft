@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import DocsGlyph from './DocsGlyphs';
+import { parseDbUtc } from '@/lib/utils';
 
 interface EmbedData {
   id: string;
@@ -80,7 +81,7 @@ export function DocsBoardPreview({ boardId, onChange }: { boardId: string; onCha
       <div className="docs-board-meta">
         <span className="docs-board-name">{data?.name ?? t('loading')}</span>
         {data && (
-          <span className="docs-board-updated">{t('updated', { when: format.relativeTime(new Date(data.updated_at)) })}</span>
+          <span className="docs-board-updated">{t('updated', { when: format.relativeTime(parseDbUtc(data.updated_at)) })}</span>
         )}
         <span className="docs-board-actions">
           <Link href={`/app/board/${boardId}`} className="btn btn-sm">

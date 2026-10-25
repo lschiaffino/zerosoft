@@ -6,6 +6,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import Icon from '@/components/app/icons';
 import type { FlowRunDto, FlowStepDto } from '@/lib/flow';
 import { i18nKey, formatDuration, pretty, RUN_BADGE, stepErrorInfo } from './flow-ui';
+import { parseDbUtc } from '@/lib/utils';
 
 export type RunDetail = FlowRunDto & { steps: FlowStepDto[] };
 
@@ -209,7 +210,7 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
                       : t.has(`runs.triggers.${i18nKey(r.triggerType)}`)
                         ? t(`runs.triggers.${i18nKey(r.triggerType)}`)
                         : r.triggerType}{' '}
-                    · {format.relativeTime(new Date(r.createdAt), now)}
+                    · {format.relativeTime(parseDbUtc(r.createdAt), now)}
                   </span>
                 </span>
                 <span className="flow-muted data">{formatDuration(r.startedAt, r.finishedAt)}</span>
@@ -226,7 +227,7 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
             <div className="flow-run-summary">
               <span className={`badge ${RUN_BADGE[detail.status] ?? ''}`}>{t(`runs.status.${detail.status}`)}</span>
               <span className="flow-muted" suppressHydrationWarning>
-                {format.dateTime(new Date(detail.createdAt), { dateStyle: 'medium', timeStyle: 'medium' })}
+                {format.dateTime(parseDbUtc(detail.createdAt), { dateStyle: 'medium', timeStyle: 'medium' })}
               </span>
               <span className="flow-muted data">{detail.id.slice(0, 8)}</span>
               {canEdit && (detail.status === 'queued' || detail.status === 'waiting') && (
@@ -254,7 +255,7 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
             </div>
             {detail.status === 'failed' && detail.replayAt && (
               <p className="ui-help" suppressHydrationWarning>
-                {t('runs.replayScheduled', { time: format.dateTime(new Date(detail.replayAt), { timeStyle: 'short' }) })}
+                {t('runs.replayScheduled', { time: format.dateTime(parseDbUtc(detail.replayAt), { timeStyle: 'short' }) })}
               </p>
             )}
             {/* El error se muestra una sola vez: en el paso que falló, o acá si no hay paso (flow apagado, sin trigger…). */}

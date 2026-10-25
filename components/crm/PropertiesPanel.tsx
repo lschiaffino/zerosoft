@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { normalizeFieldUrl } from '@/lib/crm-custom-fields';
+import { utcToLocalInput } from '@/lib/utils';
 
 export interface PropField {
   /** Clave del payload PATCH (camelCase, ej. firstName, lifecycleStage).
@@ -11,7 +12,9 @@ export interface PropField {
   key: string;
   label: string;
   /** multiselect: `value` es el JSON de la lista elegida. */
-  type: 'text' | 'select' | 'multiselect' | 'number' | 'date' | 'textarea';
+  /** datetime: `value` es el instante en UTC de la base; se edita en la hora local
+   *  del navegador y se guarda como ISO con Z. Mostrarlo con `display`. */
+  type: 'text' | 'select' | 'multiselect' | 'number' | 'date' | 'datetime' | 'textarea';
   /** Valor actual ('' si está vacío). */
   value: string;
   /** Opciones para type=select. */
@@ -107,7 +110,7 @@ export default function PropertiesPanel({
 
   function startEdit(field: PropField) {
     if (field.readOnly) return;
-    setDraft(field.value);
+    setDraft(field.type === 'datetime' ? utcToLocalInput(field.value) : field.value);
     setEditingKey(field.key);
     setError(null);
   }
@@ -118,6 +121,12 @@ export default function PropertiesPanel({
 
   async function save(field: PropField, raw: string) {
     setEditingKey(null);
+    if (field.type === 'datetime') {
+      if (raw === utcToLocalInput(field.value)) return;
+      const d = raw ? new Date(raw) : null;
+      if (d && Number.isNaN(d.getTime())) return;
+      raw = d ? d.toISOString() : '';
+    }
     if (raw === field.value) return;
     // Los números no quedan vacíos: si borran el valor, no se guarda nada.
     if (field.type === 'number' && raw === '') return;
@@ -233,7 +242,15 @@ export default function PropertiesPanel({
               <input
                 ref={inputRef}
                 className="input"
-                type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.inputType ?? 'text'}
+                type={
+                  field.type === 'number'
+                    ? 'number'
+                    : field.type === 'date'
+                      ? 'date'
+                      : field.type === 'datetime'
+                        ? 'datetime-local'
+                        : field.inputType ?? 'text'
+                }
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {

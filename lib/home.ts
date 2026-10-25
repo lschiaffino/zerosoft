@@ -175,32 +175,39 @@ export async function homeCalBookings(user: HomeUser, limit = 5): Promise<{ tota
  * Si no se puede resolver el acceso de Groups, falla: el bloque muestra el
  * error en vez de contar chats que la persona no ve.
  */
-export async function homeUnread(user: HomeUser): Promise<{ chat: number; groups: number }> {
+export async function homeUnread(user: HomeUser): Promise<{ chat: number | null; groups: number | null }> {
   const db = getDb();
   const person = user.actingUser?.id ?? user.id;
-  const [widgets, gViewer] = await Promise.all([
-    listChatWidgets(user.id, user.team?.id ?? null),
-    groupsViewer(user.id, person, user.role),
-  ]);
-  const widgetIds = widgets.map((w) => w.id);
-  const gAccess = chatAccessSql(gViewer, 'c');
-  const [chat, groups] = await Promise.all([
-    widgetIds.length === 0
-      ? Promise.resolve({ n: 0 })
-      : (db
-          .prepare(
-            `SELECT COUNT(*) AS n FROM chat_conversations cv
-             WHERE cv.widget_id IN (${widgetIds.map(() => '?').join(',')}) AND cv.status != 'resolved'
-               AND EXISTS (SELECT 1 FROM chat_messages m WHERE m.conversation_id = cv.id AND m.sender_type = 'visitor' AND m.read_at IS NULL)`,
-          )
-          .get(...widgetIds) as Promise<{ n: number }>),
-    db
+  // Cada parte por su lado: si falla Groups (p. ej. no se resuelve el acceso), el número
+  // de Chat se muestra igual y el error queda solo en la fila de Groups (null).
+  const chat = async () => {
+    const widgetIds = (await listChatWidgets(user.id, user.team?.id ?? null)).map((w) => w.id);
+    if (widgetIds.length === 0) return 0;
+    const row = (await db
       .prepare(
-        `SELECT COUNT(*) AS n FROM groups_chats c WHERE c.user_id = ? AND c.unread_count > 0${gAccess ? ` AND ${gAccess.sql}` : ''}`,
+        `SELECT COUNT(*) AS n FROM chat_conversations cv
+         WHERE cv.widget_id IN (${widgetIds.map(() => '?').join(',')}) AND cv.status != 'resolved'
+           AND EXISTS (SELECT 1 FROM chat_messages m WHERE m.conversation_id = cv.id AND m.sender_type = 'visitor' AND m.read_at IS NULL)`,
       )
-      .get(user.id, ...(gAccess?.args ?? [])) as Promise<{ n: number }>,
-  ]);
-  return { chat: Number(chat?.n ?? 0), groups: Number(groups?.n ?? 0) };
+      .get(...widgetIds)) as { n: number } | undefined;
+    return Number(row?.n ?? 0);
+  };
+  const groups = async () => {
+    // Sin poder resolver el acceso no se cuenta (contaría chats que la persona no ve).
+    const gAccess = chatAccessSql(await groupsViewer(user.id, person, user.role), 'c');
+    const row = (await db
+      .prepare(`SELECT COUNT(*) AS n FROM groups_chats c WHERE c.user_id = ? AND c.unread_count > 0${gAccess ? ` AND ${gAccess.sql}` : ''}`)
+      .get(user.id, ...(gAccess?.args ?? []))) as { n: number } | undefined;
+    return Number(row?.n ?? 0);
+  };
+  const safe = (part: string, load: () => Promise<number>) =>
+    load().catch((err: unknown) => {
+      console.error(`[home] sin leer de ${part}`, err);
+      return null;
+    });
+  const [c, g] = await Promise.all([safe('chat', chat), safe('groups', groups)]);
+  if (c === null && g === null) throw new Error('home_unread_failed');
+  return { chat: c, groups: g };
 }
 
 // ---------- Recientes ----------

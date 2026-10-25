@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { EmailThreadView } from '@/lib/crm-email';
+import { parseDbUtc } from '@/lib/utils';
 
 function when(iso: string, locale: string): string {
-  const d = new Date(iso.includes('T') ? iso : `${iso.replace(' ', 'T')}Z`);
+  const d = parseDbUtc(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(d);
 }

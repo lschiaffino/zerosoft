@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import { parseDbUtc } from '@/lib/utils';
 
 /** Lo que devuelve /move con 409 approval_required (y el dryRun en `approval`). */
 export interface ApprovalInfo {
@@ -49,7 +50,7 @@ export default function ApprovalDialog({ dealId, info, onClose, locale = 'en' }:
 
   const names = info.approvers.map((a) => a.name).filter(Boolean).join(', ');
   const fmt = (iso: string) =>
-    new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(`${iso.replace(' ', 'T')}Z`));
+    new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(iso));
 
   async function request() {
     setBusy(true);

@@ -241,14 +241,6 @@
 .side-new { position: relative; flex-shrink: 0; }
 .side-new-btn { justify-content: flex-start; }
 
-.side-team {
-  padding: 0 12px;
-  font-size: 0.75rem;
-  color: var(--brand-gray-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 /* La lista de ítems del sidebar, cada uno con su ícono. */
 .side-line {
@@ -452,7 +444,6 @@
     white-space: nowrap;
   }
   .sidebar-collapsed .side-section { height: 12px; padding: 0; overflow: hidden; color: transparent; }
-  .sidebar-collapsed .side-team,
   .sidebar-collapsed .side-badge,
   .sidebar-collapsed .side-signout,
   .sidebar-collapsed .side-user-meta { display: none; }

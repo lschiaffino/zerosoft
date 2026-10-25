@@ -1,3 +1,4 @@
+import { createClient } from '@libsql/client';
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
 /**
@@ -147,7 +148,7 @@ test('tarea nueva de tipo Call: queda en Tasks y en la cola, y no cuenta como co
   await page.getByRole('textbox', { name: 'Subject' }).pressSequentially(subject);
   await page.getByLabel('Activity type').selectOption('call');
   // Vencida hace mucho: la cola va de la más vieja a la más nueva, así que es la primera.
-  await page.getByLabel('Due').fill('1999-01-04T09:00');
+  await page.getByLabel('Due date', { exact: true }).fill('1999-01-04T09:00');
   await page.getByLabel('Contact').selectOption(contact.id);
   await page.getByRole('button', { name: 'Create', exact: true }).click();
 
@@ -241,4 +242,35 @@ test('playbooks: renombrar y borrar desde la lista, sin recargar', async ({ page
   await page.getByTestId('playbook-row').filter({ hasText: `${name} v2` }).getByTestId('playbook-row-delete').click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete playbook' }).click();
   await expect(page.getByTestId('playbook-row').filter({ hasText: name })).toHaveCount(0);
+});
+
+test.describe('detalle de tarea: vencimiento en la hora local', () => {
+  test.use({ timezoneId: 'America/Argentina/Buenos_Aires', locale: 'en-US' });
+
+  test('"About this task" muestra el Due date como el encabezado (no el UTC crudo) y se edita en la hora local', async ({ page, request }) => {
+    const task = await ok<{ id: string }>(
+      request.post('/api/crm/activities', { data: { type: 'task', subject: `Due ${uid()}`, dueAt: '2026-11-20T18:30:00Z' } }),
+    );
+    await page.goto(`/en/app/crm/tasks/${task.id}`, { waitUntil: 'networkidle' });
+    const header = (await page.locator('.record-meta').innerText()).match(/Due: (.+)/)![1].trim();
+    const row = page.locator('.prop-row', { has: page.locator('.prop-label', { hasText: /^Due date$/ }) });
+    await expect(row.locator('.prop-value').first()).toHaveText(header);
+    await expect(row).not.toContainText('2026-11-20 18:30');
+    // Al editar, el datetime-local trae la hora del navegador (15:30 en Buenos Aires).
+    await row.locator('button.prop-btn').click();
+    const input = row.locator('input[type="datetime-local"]');
+    await expect(input).toHaveValue('2026-11-20T15:30');
+    await input.fill('2026-11-21T09:00');
+    await input.press('Enter');
+    await expect
+      .poll(async () => {
+        const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+        try {
+          return String((await db.execute({ sql: 'SELECT due_at FROM crm_activities WHERE id = ?', args: [task.id] })).rows[0]?.due_at);
+        } finally {
+          db.close();
+        }
+      })
+      .toBe('2026-11-21 12:00:00');
+  });
 });

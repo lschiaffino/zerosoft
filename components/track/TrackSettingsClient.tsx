@@ -9,6 +9,7 @@ import type { TrackLabel } from '@/lib/track-labels';
 import { invalidateWorkspaceLabels } from './LabelPicker';
 import TrackIcon from './TrackIcon';
 import type { GithubConfig } from '@/lib/track-github';
+import { parseDbUtc } from '@/lib/utils';
 
 const LABEL_COLORS = ['#666666', '#d14343', '#d9822b', '#3f8f4f', '#2f6fd1', '#7a4fd1'];
 
@@ -496,7 +497,7 @@ function GithubSettingsBody({ isAdmin, locale, example }: { isAdmin: boolean; lo
           <p className="ui-help">
             {config.lastDeliveryAt
               ? t('github.lastDelivery', {
-                  date: new Date(`${config.lastDeliveryAt.replace(' ', 'T')}Z`).toLocaleString(locale),
+                  date: parseDbUtc(config.lastDeliveryAt).toLocaleString(locale),
                 })
               : t('github.noDelivery')}
           </p>

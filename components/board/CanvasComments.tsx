@@ -8,6 +8,7 @@ import { sceneToView, viewToScene, type CanvasView } from '@/lib/board-view';
 import type { CanvasApi } from './ExcalidrawCanvas';
 import MentionTextarea from './MentionTextarea';
 import NotesIcon from '@/components/notes/NotesIcon';
+import { parseDbUtc } from '@/lib/utils';
 
 const POP_W = 320;
 /** Movimiento mínimo (px) para que soltar un pin cuente como moverlo y no como abrirlo. */
@@ -351,7 +352,7 @@ export default function CanvasComments({
               <li key={c.id} className="board-comment">
                 <div className="board-comment-meta">
                   <span className="board-comment-author">{c.author_name ?? t('someone')}</span>
-                  <time dateTime={c.created_at}>{format.relativeTime(new Date(c.created_at))}</time>
+                  <time dateTime={c.created_at}>{format.relativeTime(parseDbUtc(c.created_at))}</time>
                   {c.author_id === me && (
                     <button type="button" className="board-comment-delete" onClick={() => void removeComment(active, c.id)} aria-label={t('delete')}>
                       <NotesIcon name="trash" size={13} />

@@ -35,6 +35,7 @@ import NotesIcon from '@/components/notes/NotesIcon';
 import { usePopover } from '@/components/notes/usePopover';
 import RowMenu from '@/components/notes/RowMenu';
 import { notifyBoardsChanged } from './BoardBranch';
+import { parseDbUtc } from '@/lib/utils';
 
 const ExcalidrawCanvas = dynamic(() => import('./ExcalidrawCanvas'), {
   ssr: false,
@@ -653,7 +654,7 @@ export default function BoardEditor({
     setRestoring(snap.id);
     setHistoryError(false);
     try {
-      const when = format.dateTime(new Date(snap.content_at), { dateStyle: 'medium', timeStyle: 'short' });
+      const when = format.dateTime(parseDbUtc(snap.content_at), { dateStyle: 'medium', timeStyle: 'short' });
       const res = await fetch(`/api/boards/${board.id}/history/${snap.id}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -909,7 +910,7 @@ export default function BoardEditor({
                         </div>
                         <div className="board-history-body">
                           <span className="board-history-when">
-                            {format.dateTime(new Date(snap.content_at), { dateStyle: 'medium', timeStyle: 'short' })}
+                            {format.dateTime(parseDbUtc(snap.content_at), { dateStyle: 'medium', timeStyle: 'short' })}
                           </span>
                           <span className="board-history-meta">
                             {t('history.elements', { count: snap.element_count })}

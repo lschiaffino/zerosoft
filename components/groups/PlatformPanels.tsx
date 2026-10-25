@@ -13,6 +13,7 @@ import type { WebhookDeliveryDto as DeliveryDto } from '@/lib/webhooks';
 import { registerAppServiceWorker } from '@/lib/sw-client';
 import { INSTALL_EVENT } from './GroupsPwa';
 import { LabelTag, Modal, api, useErrorText, useToast } from './ui';
+import { parseDbUtc } from '@/lib/utils';
 
 // ======================================================================
 // Acceso por etiqueta y teléfonos ocultos
@@ -281,7 +282,7 @@ export function AuditLog({ chatId, people, compact = false }: { chatId?: string;
                 )}
               </span>
               <time className="ui-help" dateTime={e.createdAt}>
-                {new Date(e.createdAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}
+                {parseDbUtc(e.createdAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}
               </time>
             </li>
           ))}
@@ -490,7 +491,7 @@ function WebhooksSection({ events, canEdit }: { events: string[]; canEdit: boole
                   </span>
                   <br />
                   <time className="ui-help" dateTime={d.createdAt}>
-                    {new Date(d.createdAt).toLocaleString(locale)}
+                    {parseDbUtc(d.createdAt).toLocaleString(locale)}
                   </time>
                   <details>
                     <summary className="ui-help">{t('integrations.payload')}</summary>
