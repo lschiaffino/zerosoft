@@ -9,6 +9,7 @@ import type { GroupsPerson } from '@/lib/groups';
 import type { GroupTaskDto } from '@/lib/groups-tasks';
 import { TASKS_CHANGED, isoToLocal, localToIso } from './TaskModal';
 import { Modal, api, useErrorText, useToast } from './ui';
+import { parseDbUtc } from '@/lib/utils';
 
 const STATUSES = ['open', 'done', 'all'] as const;
 
@@ -160,7 +161,7 @@ export default function TasksBoard({ initial, people, me, openId = null }: { ini
                     <td>
                       {task.dueAt ? (
                         <span className={overdue ? 'badge badge-bad' : 'ui-help'}>
-                          {new Date(task.dueAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}
+                          {parseDbUtc(task.dueAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}
                         </span>
                       ) : (
                         <span className="ui-help">{t('tasks.noDate')}</span>

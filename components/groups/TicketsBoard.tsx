@@ -8,6 +8,7 @@ import type { GroupsPerson, PropertyDef } from '@/lib/groups';
 import type { TicketDto } from '@/lib/groups-tickets';
 import PropertyInput, { PropertyValueText, filterOptions } from './PropertyInput';
 import { Modal, api, useErrorText, useRelativeTime, useToast } from './ui';
+import { parseDbUtc } from '@/lib/utils';
 
 const STATUS_FILTERS = ['active', 'open', 'in_progress', 'resolved', 'closed', 'all'] as const;
 
@@ -37,6 +38,13 @@ export default function TicketsBoard({
   const t = useTranslations('groups');
   const locale = useLocale();
   const rel = useRelativeTime();
+  // "Resolved now ago" no se lee: recién, hace N o la fecha si pasó una semana.
+  const resolvedLabel = (iso: string) => {
+    const diff = Date.now() - parseDbUtc(iso).getTime();
+    if (diff < 60_000) return t('tickets.resolvedJustNow');
+    if (diff >= 7 * 86_400_000) return t('tickets.resolvedOn', { date: parseDbUtc(iso).toLocaleDateString(locale) });
+    return t('tickets.resolvedAt', { time: rel(iso) });
+  };
   const errText = useErrorText();
   const [toast, showToast] = useToast();
   const [tickets, setTickets] = useState<TicketDto[] | null>(initial);
@@ -269,11 +277,11 @@ export default function TicketsBoard({
                   </td>
                   <td className="gr-hide-sm">
                     {tk.status === 'resolved' || tk.status === 'closed' ? (
-                      <span className="ui-help">{tk.resolvedAt ? t('tickets.resolvedAt', { time: rel(tk.resolvedAt) }) : ''}</span>
+                      <span className="ui-help">{tk.resolvedAt ? resolvedLabel(tk.resolvedAt) : ''}</span>
                     ) : tk.breached ? (
                       <span className="badge badge-bad">{t('tickets.breached')}</span>
                     ) : tk.dueAt ? (
-                      <span className="ui-help">{new Date(tk.dueAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}</span>
+                      <span className="ui-help">{parseDbUtc(tk.dueAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}</span>
                     ) : null}
                   </td>
                   {shownFields.map((f) => (

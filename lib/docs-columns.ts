@@ -284,11 +284,38 @@ export function visualIndent(blocks: DocsBlock[], i: number): number {
 }
 
 /**
+ * Las bases no se sincronizan (sus filas, relaciones y automatizaciones son de
+ * la página donde viven): una base dentro de un bloque sincronizado sale y
+ * queda justo debajo de él, al mismo nivel. Si no, al recargar la página el
+ * contenido compartido (sin bases) la reemplazaba y se perdía.
+ */
+export function liftDatabasesOutOfSynced(blocks: DocsBlock[]): DocsBlock[] {
+  if (!blocks.some((b) => b.type === 'synced') || !blocks.some((b) => b.type === 'database')) return blocks;
+  const out: DocsBlock[] = [];
+  let changed = false;
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    out.push(b);
+    if (b.type !== 'synced') continue;
+    const end = subtreeEnd(blocks, i);
+    const lifted: DocsBlock[] = [];
+    for (let j = i + 1; j <= end; j++) {
+      if (blocks[j].type === 'database') lifted.push(setIndent(blocks[j], blockIndent(b)));
+      else out.push(blocks[j]);
+    }
+    if (lifted.length) changed = true;
+    out.push(...lifted);
+    i = end;
+  }
+  return changed ? out : blocks;
+}
+
+/**
  * Columnas válidas (normalizeColumns) y bloques sincronizados con al menos un
  * hijo (un párrafo vacío si quedó sin contenido).
  */
 export function normalizeStructure(blocks: DocsBlock[], newId: () => string): DocsBlock[] {
-  let out = normalizeColumns(blocks, newId);
+  let out = normalizeColumns(liftDatabasesOutOfSynced(blocks), newId);
   if (!out.some((b) => b.type === 'synced')) return out;
   let changed = false;
   const next: DocsBlock[] = [];

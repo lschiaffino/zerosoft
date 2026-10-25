@@ -6,8 +6,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import type { DbProperty, DbRow, DbValue, DocsDatabase, DocsMentionableUser } from '@/lib/docs-types';
 import { cellValue, groupRows, isComputedType, isTextType, type DbGroup } from '@/lib/docs-database';
 import DocsGlyph from '../DocsGlyphs';
-import DbValueView, { StatusGlyph } from './DbValueView';
-import DbCellEditor, { type DbExitMove } from './DbCellEditor';
+import DbValueView, { StatusGlyph, type DbRefs } from './DbValueView';
+import DbCellEditor, { POPOVER_TYPES, type DbCellExtras, type DbExitMove } from './DbCellEditor';
 import { PropertyTypeIcon } from './DbPropertyMenu';
 
 /** Alto fijo de fila (y de encabezado de grupo): permite virtualizar sin medir. */
@@ -52,6 +52,8 @@ interface DbTableProps {
   onHeader: (propId: string, anchor: HTMLElement) => void;
   onAddProperty: (anchor: HTMLElement) => void;
   onFocusBlock: () => void;
+  refs?: DbRefs;
+  extras?: DbCellExtras;
 }
 
 /** Fila de la tabla: memo por objeto de fila (tipear en una celda no repinta las otras 999). */
@@ -74,7 +76,11 @@ const TableRow = memo(function TableRow({
   onOpenRow,
   onDeleteRow,
   labels,
+  refs,
+  extras,
 }: {
+  refs?: DbRefs;
+  extras?: DbCellExtras;
   row: DbRow;
   nav: number;
   props: DbProperty[];
@@ -118,14 +124,21 @@ const TableRow = memo(function TableRow({
               if (e.target === e.currentTarget) onCellFocus(nav, c);
             }}
             onClick={(e) => {
-              if ((e.target as HTMLElement).closest('a, button, input')) return;
+              const target = e.target as HTMLElement;
+              if (target.closest('a, button, input')) return;
+              // Click en el texto del título: abre la fila (como un link de Notion); en el resto de la celda, edita.
+              if (p.type === 'title' && !isEditing && target.closest('.docs-db-title-text')) {
+                onOpenRow(row.id);
+                return;
+              }
               onCellClick(nav, c);
             }}
           >
-            {isEditing && p.type !== 'select' && p.type !== 'status' && p.type !== 'multi_select' && p.type !== 'person' ? (
+            {isEditing && !POPOVER_TYPES.has(p.type) ? (
               <DbCellEditor
                 prop={p}
                 row={row}
+                extras={extras}
                 members={members}
                 anchor={cellRefs.current[c]}
                 initialText={editInitial}
@@ -136,12 +149,19 @@ const TableRow = memo(function TableRow({
             ) : (
               <>
                 <span className="docs-db-cell-value">
-                  <DbValueView prop={p} row={row} people={people} locale={locale} links={false} />
+                  {p.type === 'title' ? (
+                    <span className="docs-db-title-text">
+                      <DbValueView prop={p} row={row} people={people} locale={locale} links={false} refs={refs} />
+                    </span>
+                  ) : (
+                    <DbValueView prop={p} row={row} people={people} locale={locale} links={false} refs={refs} />
+                  )}
                 </span>
                 {isEditing && (
                   <DbCellEditor
                     prop={p}
                     row={row}
+                    extras={extras}
                     members={members}
                     anchor={cellRefs.current[c]}
                     onChange={(v) => onEditChange(row.id, p.id, v)}
@@ -536,6 +556,8 @@ export default function DbTable(p: DbTableProps) {
         onOpenRow={onOpen}
         onDeleteRow={onDelete}
         labels={labels}
+        refs={p.refs}
+        extras={p.extras}
       />
     );
   };

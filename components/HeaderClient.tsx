@@ -10,7 +10,7 @@ import Icon from './site/Icon';
 import { CATEGORY_PRODUCTS, GITHUB_URL, PRODUCT_NAMES } from './site/catalog';
 import Logo from './brand/Logo';
 import ProductGlyph from './brand/ProductGlyph';
-import { PRODUCT_CONFIG, isProductKey } from '@/lib/products';
+import { BUILDING_PRODUCTS, PRODUCT_CONFIG, isBuildingProduct, isProductKey } from '@/lib/products';
 
 interface HeaderClientProps {
   locale: string;
@@ -92,7 +92,9 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
     setMegaOpen(true);
   };
   const toggleMega = () => {
-    if (megaOpen && Date.now() - hoverOpenedAt.current < 600) return;
+    // Sin mirar megaOpen: el hover que lo abrió puede no haber re-renderizado todavía
+    // (mouseenter no es un evento discreto) y el clic lo cerraba al instante.
+    if (Date.now() - hoverOpenedAt.current < 600) return;
     hoverOpenedAt.current = 0;
     setMegaOpen((v) => !v);
   };
@@ -105,21 +107,41 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
   };
 
   // Por categoría (vender, atender…): todas las apps sirven para equipos y para uso personal.
-  const productItems = (variant: 'mega' | 'panel') =>
-    CATEGORY_PRODUCTS.map(({ category, products }) => (
-      <div key={category} className="hd-group">
-        <p className="hd-group-title">{tc(`${category}.title`)}</p>
-        {products.map((key) => (
-          <Link key={key} href={`/products/${key}`} className={`hd-prod card-${key} hd-prod-${variant}`}>
-            <ProductGlyph product={key} size={14} className="hd-prod-icon" />
-            <span className="hd-prod-text">
+  // Las que están en construcción van aparte, en una fila compacta con solo el nombre,
+  // para que el menú entre en una pantalla de 1280×720.
+  const productItems = (variant: 'mega' | 'panel') => [
+    ...CATEGORY_PRODUCTS.map(({ category, products }) => {
+      const ready = products.filter((key) => !isBuildingProduct(key));
+      if (ready.length === 0) return null;
+      return (
+        <div key={category} className="hd-group">
+          <p className="hd-group-title">{tc(`${category}.title`)}</p>
+          {ready.map((key) => (
+            <Link key={key} href={`/products/${key}`} className={`hd-prod card-${key} hd-prod-${variant}`} title={th(`desc.${key}`)}>
+              <ProductGlyph product={key} size={14} className="hd-prod-icon" />
+              <span className="hd-prod-text">
+                <span className="hd-prod-name">{PRODUCT_NAMES[key]}</span>
+                <span className="hd-prod-desc">{th(`desc.${key}`)}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      );
+    }),
+    BUILDING_PRODUCTS.length > 0 && (
+      <div key="building" className="hd-building">
+        <p className="hd-building-title">{th('building')}</p>
+        <div className="hd-building-list">
+          {BUILDING_PRODUCTS.map((key) => (
+            <Link key={key} href={`/products/${key}`} className={`hd-prod hd-prod-soon card-${key} hd-prod-${variant}`} title={th(`desc.${key}`)}>
+              <ProductGlyph product={key} size={14} className="hd-prod-icon" />
               <span className="hd-prod-name">{PRODUCT_NAMES[key]}</span>
-              <span className="hd-prod-desc">{th(`desc.${key}`)}</span>
-            </span>
-          </Link>
-        ))}
+            </Link>
+          ))}
+        </div>
       </div>
-    ));
+    ),
+  ];
 
   return (
     <header className={`site-header${scrolled ? ' is-scrolled' : ''}${menuOpen ? ' menu-open' : ''}`}>

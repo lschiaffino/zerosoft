@@ -66,6 +66,15 @@ export const DB_PROPERTY_TYPES: DbPropertyType[] = [
   'phone',
   'created_time',
   'last_edited_time',
+  'formula',
+  'relation',
+  'rollup',
+  'files',
+  'created_by',
+  'last_edited_by',
+  'unique_id',
+  'button',
+  'place',
 ];
 
 export const DB_STATUS_GROUPS: DbStatusGroup[] = ['todo', 'in_progress', 'done'];
@@ -79,9 +88,16 @@ export const DB_MAX_BODY_BLOCKS = 500;
 export const DB_MAX_TEMPLATES = 30;
 
 /** Tipos cuyo valor es texto libre. */
-const TEXT_TYPES = new Set<DbPropertyType>(['title', 'text', 'url', 'email', 'phone']);
-/** Tipos que no se guardan: salen de la fila. */
-const COMPUTED_TYPES = new Set<DbPropertyType>(['created_time', 'last_edited_time']);
+const TEXT_TYPES = new Set<DbPropertyType>(['title', 'text', 'url', 'email', 'phone', 'place']);
+/**
+ * Tipos que no se editan a mano: salen de la fila (creado/editado), se
+ * calculan (fórmula, rollup) o los asigna la base (ID único). El botón no
+ * tiene valor. El ID único sí se guarda (lo numera addRow y lo repara el
+ * servidor); los demás no.
+ */
+const COMPUTED_TYPES = new Set<DbPropertyType>(['created_time', 'last_edited_time', 'created_by', 'last_edited_by', 'formula', 'rollup', 'unique_id', 'button']);
+/** Tipos calculados que dependen de otras propiedades (se resuelven en lib/docs-db-compute.ts). */
+const DERIVED_TYPES = new Set<DbPropertyType>(['formula', 'rollup']);
 /** Tipos con opciones. */
 const OPTION_TYPES = new Set<DbPropertyType>(['select', 'multi_select', 'status']);
 /** Se puede agrupar (tabla) o armar columnas (board) por estos tipos. */
@@ -90,6 +106,34 @@ export const DB_GROUPABLE_TYPES = new Set<DbPropertyType>(['select', 'status', '
 export const isTextType = (t: DbPropertyType) => TEXT_TYPES.has(t);
 export const isComputedType = (t: DbPropertyType) => COMPUTED_TYPES.has(t);
 export const isOptionType = (t: DbPropertyType) => OPTION_TYPES.has(t);
+export const isDerivedType = (t: DbPropertyType) => DERIVED_TYPES.has(t);
+/** Tipos que guardan una lista de ids de persona (o la calculan). */
+export const isPersonType = (t: DbPropertyType) => t === 'person' || t === 'created_by' || t === 'last_edited_by';
+
+/** Tipo con el que se filtra, ordena y muestra una propiedad (fórmula y rollup según su resultado). */
+export function effectiveType(prop: DbProperty): DbPropertyType {
+  if (prop.type === 'formula' || prop.type === 'rollup') {
+    switch (prop.kind) {
+      case 'number':
+        return 'number';
+      case 'checkbox':
+        return 'checkbox';
+      case 'date':
+        return 'date';
+      default:
+        return 'text';
+    }
+  }
+  if (prop.type === 'created_by' || prop.type === 'last_edited_by') return 'person';
+  if (prop.type === 'unique_id') return 'number';
+  return prop.type;
+}
+
+/** Texto de un ID único: "TASK-12" o "12". */
+export function formatUniqueId(prop: Pick<DbProperty, 'prefix'>, v: unknown): string {
+  if (typeof v !== 'number') return '';
+  return prop.prefix ? `${prop.prefix}-${v}` : String(v);
+}
 
 /** Id corto (filas, opciones, vistas): entra en un link `[[` (data-row) y pesa poco con 1.000 filas. */
 export function newDbId(): string {
@@ -279,6 +323,10 @@ export function findRow(db: DocsDatabase, rowId: string): DbRow | undefined {
 export function cellValue(prop: DbProperty, row: DbRow): DbValue {
   if (prop.type === 'created_time') return row.created_at;
   if (prop.type === 'last_edited_time') return row.updated_at;
+  if (prop.type === 'created_by') return row.created_by ? [row.created_by] : [];
+  if (prop.type === 'last_edited_by') return row.updated_by ? [row.updated_by] : row.created_by ? [row.created_by] : [];
+  if (prop.type === 'files') return (row.files?.[prop.id] ?? []).map((f) => f.name);
+  if (prop.type === 'button') return null;
   return row.values[prop.id] ?? null;
 }
 
@@ -309,6 +357,8 @@ export interface DbFormatContext {
   /** id de persona → nombre a mostrar. */
   people?: Record<string, string>;
   locale?: string;
+  /** id de fila (de esta u otra base) → título, para mostrar relaciones. */
+  rowTitles?: Record<string, string>;
 }
 
 /** 'YYYY-MM-DD' de una fecha local (sin corrimiento por timezone). */
@@ -346,8 +396,17 @@ export function formatNumber(n: number, locale?: string): string {
 /** Texto de una celda (búsqueda, export, conversión a texto, read-only). */
 export function formatValue(prop: DbProperty, row: DbRow, ctx: DbFormatContext = {}): string {
   const v = cellValue(prop, row);
-  if (isEmptyValue(v) && prop.type !== 'checkbox') return '';
-  switch (prop.type) {
+  const type = effectiveType(prop);
+  if (isEmptyValue(v) && type !== 'checkbox') return '';
+  if (prop.type === 'unique_id') return formatUniqueId(prop, v);
+  if (prop.type === 'relation') {
+    return (Array.isArray(v) ? v : []).map((id) => ctx.rowTitles?.[id] ?? '').filter(Boolean).join(', ');
+  }
+  if (prop.type === 'files') return (Array.isArray(v) ? v : []).join(', ');
+  if ((prop.type === 'formula' || prop.type === 'rollup') && type === 'number' && typeof v === 'number') {
+    return prop.kind === 'number' && prop.rollup?.fn?.startsWith('percent') ? `${formatNumber(Math.round(v * 1000) / 10, ctx.locale)}%` : formatNumber(v, ctx.locale);
+  }
+  switch (type) {
     case 'number':
       return typeof v === 'number' ? formatNumber(v, ctx.locale) : '';
     case 'select':
@@ -363,7 +422,7 @@ export function formatValue(prop: DbProperty, row: DbRow, ctx: DbFormatContext =
     case 'checkbox':
       return v === true ? 'Yes' : 'No';
     case 'date':
-      return typeof v === 'string' ? formatDate(v, ctx.locale) : '';
+      return typeof v === 'string' ? (/^\d{4}-\d{2}-\d{2}$/.test(v) ? formatDate(v, ctx.locale) : formatTimestamp(v, ctx.locale)) : '';
     case 'created_time':
     case 'last_edited_time':
       return typeof v === 'string' ? formatTimestamp(v, ctx.locale) : '';
@@ -465,7 +524,8 @@ export function changePropertyType(
     // Texto plano del valor viejo (para destinos que parten de texto).
     const asText = (): string => {
       if (prop.type === 'date' && typeof v === 'string') return v;
-      if (isComputedType(prop.type)) return dayKey(v) ?? '';
+      if (prop.type === 'created_time' || prop.type === 'last_edited_time') return dayKey(v) ?? '';
+      if (prop.type === 'unique_id') return typeof v === 'number' ? String(v) : '';
       if (prop.type === 'number' && typeof v === 'number') return String(v);
       return formatValue(prop, row, ctx);
     };
@@ -479,7 +539,7 @@ export function changePropertyType(
         return parseNumber(asText());
       }
       case 'date':
-        return isComputedType(prop.type) ? dayKey(v) : parseDateText(asText());
+        return prop.type === 'created_time' || prop.type === 'last_edited_time' ? dayKey(v) : parseDateText(asText());
       case 'checkbox': {
         if (prop.type === 'number') return typeof v === 'number' && v !== 0;
         if (prop.type === 'status') return optionById(prop, v)?.group === 'done';
@@ -510,7 +570,7 @@ export function changePropertyType(
         return [...new Set(text.split(',').map((s) => optionFor(s)).filter((id): id is string => Boolean(id)))];
       }
       case 'person': {
-        if (prop.type === 'person') return v;
+        if (isPersonType(prop.type)) return v;
         const parts = asText().split(',');
         return [...new Set(parts.map(memberFor).filter((id): id is string => Boolean(id)))];
       }
@@ -519,14 +579,27 @@ export function changePropertyType(
     }
   };
 
+  let seq = 0;
   const rows = db.rows.map((row) => {
-    const value = convert(row);
+    // ID único: se numeran todas las filas en el orden de la base.
+    const value = type === 'unique_id' ? ++seq : convert(row);
     const values = { ...row.values };
     if (isEmptyValue(value) && type !== 'checkbox') delete values[prop.id];
     else values[prop.id] = value;
-    return { ...row, values };
+    let files = row.files;
+    if (prop.type === 'files' && files?.[prop.id]) {
+      files = { ...files };
+      delete files[prop.id];
+    }
+    const out: DbRow = { ...row, values };
+    if (files && Object.keys(files).length) out.files = files;
+    else delete out.files;
+    return out;
   });
   if (isOptionType(type)) next.options = options;
+  if (type === 'unique_id') next.next_id = seq + 1;
+  if (type === 'formula') next.formula = '';
+  if (type === 'button') next.button = { label: prop.name, actions: [] };
   // Las vistas que filtraban o agrupaban por esta propiedad pierden esas condiciones (otro tipo, otros operadores).
   const views = db.views.map((view) => ({
     ...view,
@@ -543,14 +616,77 @@ export function changePropertyType(
 
 // ---------- Edición ----------
 
+/**
+ * Numera los IDs únicos de una fila nueva (y avanza el contador de la
+ * propiedad). Nunca reusa un número, como en Notion.
+ */
+function stampUniqueIds(db: DocsDatabase, values: Record<string, DbValue>): { properties: DbProperty[]; values: Record<string, DbValue> } {
+  if (!db.properties.some((p) => p.type === 'unique_id')) return { properties: db.properties, values };
+  const out = { ...values };
+  const properties = db.properties.map((p) => {
+    if (p.type !== 'unique_id') return p;
+    const next = nextUniqueId(db, p);
+    out[p.id] = next;
+    return { ...p, next_id: next + 1 };
+  });
+  return { properties, values: out };
+}
+
+/** Próximo número de un ID único: el contador, o uno más que el mayor usado. */
+export function nextUniqueId(db: DocsDatabase, prop: DbProperty): number {
+  let max = 0;
+  for (const r of db.rows) {
+    const v = r.values[prop.id];
+    if (typeof v === 'number' && v > max) max = v;
+  }
+  return Math.max(prop.next_id ?? 1, max + 1);
+}
+
+/** Opción con la que arranca una fila nueva en un status: la primera de "Por hacer" (como "Not started" en Notion). */
+export function defaultStatusId(prop: DbProperty): string | null {
+  if (prop.type !== 'status') return null;
+  const opts = orderedOptions(prop);
+  return (opts.find((o) => (o.group ?? 'todo') === 'todo') ?? opts[0])?.id ?? null;
+}
+
 export function addRow(db: DocsDatabase, values: Record<string, DbValue> = {}, now = new Date().toISOString(), at?: number): { db: DocsDatabase; row: DbRow } {
-  const row: DbRow = { id: newDbId(), values, created_at: now, updated_at: now };
+  let withDefaults = values;
+  for (const p of db.properties) {
+    // Un null explícito (fila nueva en la columna "Sin estado") la deja vacía.
+    if (p.type !== 'status' || p.id in values) continue;
+    const id = defaultStatusId(p);
+    if (id) withDefaults = { ...withDefaults, [p.id]: id };
+  }
+  for (const [k, v] of Object.entries(withDefaults)) {
+    if (v === null) {
+      if (withDefaults === values) withDefaults = { ...values };
+      delete withDefaults[k];
+    }
+  }
+  const stamped = stampUniqueIds(db, withDefaults);
+  const row: DbRow = { id: newDbId(), values: stamped.values, created_at: now, updated_at: now };
+  db = stamped.properties === db.properties ? db : { ...db, properties: stamped.properties };
   const rows = [...db.rows];
   rows.splice(at === undefined ? rows.length : Math.max(0, Math.min(at, rows.length)), 0, row);
   return { db: { ...db, rows }, row };
 }
 
 // ---------- Plantillas de fila ----------
+
+/**
+ * Lo que una plantilla puede llevar: valores editables de propiedades que
+ * existen. Lo calculado (fórmula, rollup, ID único, creado/editado, botón) y
+ * el lado espejo de una relación de dos vías se arman solos en la fila nueva.
+ */
+function templateValues(db: DocsDatabase, values: Record<string, DbValue>): Record<string, DbValue> {
+  const out: Record<string, DbValue> = {};
+  for (const [k, v] of Object.entries(values)) {
+    const p = db.properties.find((x) => x.id === k);
+    if (!p || isComputedType(p.type) || p.relation?.mirror_of) continue;
+    out[k] = v;
+  }
+  return out;
+}
 
 /** Guarda una fila (valores y cuerpo) como plantilla con ese nombre. */
 export function saveRowAsTemplate(db: DocsDatabase, rowId: string, name: string, newId: () => string = newDbId): DocsDatabase {
@@ -559,7 +695,7 @@ export function saveRowAsTemplate(db: DocsDatabase, rowId: string, name: string,
   const tpl: DbRowTemplate = {
     id: newId(),
     name: name.trim().slice(0, 500),
-    values: { ...row.values },
+    values: templateValues(db, row.values),
     ...(row.body?.length ? { body: row.body.map((b) => ({ ...b })) } : {}),
   };
   return { ...db, templates: [...(db.templates ?? []), tpl] };
@@ -575,9 +711,7 @@ export function addRowFromTemplate(
 ): { db: DocsDatabase; row: DbRow } | null {
   const tpl = db.templates?.find((x) => x.id === templateId);
   if (!tpl) return null;
-  const valid = new Set(db.properties.map((p) => p.id));
-  const values: Record<string, DbValue> = { ...extra };
-  for (const [k, v] of Object.entries(tpl.values)) if (valid.has(k)) values[k] = v;
+  const values: Record<string, DbValue> = { ...extra, ...templateValues(db, tpl.values) };
   const res = addRow(db, values, now);
   if (!tpl.body?.length) return res;
   const body = tpl.body.map((b) => ({ ...b, id: newId() }));
@@ -633,10 +767,21 @@ export function addProperty(db: DocsDatabase, type: DbPropertyType, name: string
   const property: DbProperty = { id: newDbId(), name, type };
   if (type === 'status') property.options = defaultStatusOptions();
   else if (isOptionType(type)) property.options = [];
+  else if (type === 'formula') property.formula = '';
+  else if (type === 'button') property.button = { label: name, actions: [] };
+  if (type === 'unique_id') {
+    // Las filas que ya existen se numeran en orden.
+    let n = 0;
+    const rows = db.rows.map((r) => ({ ...r, values: { ...r.values, [property.id]: ++n } }));
+    property.next_id = n + 1;
+    return { db: { ...db, properties: [...db.properties, property], rows }, property };
+  }
   return { db: { ...db, properties: [...db.properties, property] }, property };
 }
 
-export function updateProperty(db: DocsDatabase, propId: string, patch: Partial<Pick<DbProperty, 'name' | 'options'>>): DocsDatabase {
+export type DbPropertyPatch = Partial<Pick<DbProperty, 'name' | 'options' | 'formula' | 'relation' | 'rollup' | 'prefix' | 'button' | 'ai'>>;
+
+export function updateProperty(db: DocsDatabase, propId: string, patch: DbPropertyPatch): DocsDatabase {
   return { ...db, properties: db.properties.map((p) => (p.id === propId ? { ...p, ...patch } : p)) };
 }
 
@@ -648,18 +793,33 @@ export function removeProperty(db: DocsDatabase, propId: string): DocsDatabase {
     ...db,
     properties: db.properties.filter((p) => p.id !== propId),
     rows: db.rows.map((r) => {
-      if (!(propId in r.values)) return r;
+      if (!(propId in r.values) && !r.files?.[propId]) return r;
       const values = { ...r.values };
       delete values[propId];
-      return { ...r, values };
+      const out: DbRow = { ...r, values };
+      if (r.files?.[propId]) {
+        const files = { ...r.files };
+        delete files[propId];
+        if (Object.keys(files).length) out.files = files;
+        else delete out.files;
+      }
+      return out;
     }),
-    views: db.views.map((v) => ({
-      ...v,
-      filters: v.filters?.filter((f) => f.property !== propId),
-      sorts: v.sorts?.filter((s) => s.property !== propId),
-      group_by: v.group_by === propId ? null : v.group_by,
-      hidden: v.hidden?.filter((h) => h !== propId),
-    })),
+    views: db.views.map((v) => removePropFromView(v, propId)),
+  };
+}
+
+/** Una vista sin las condiciones, orden y agrupados de una propiedad que ya no está. */
+export function removePropFromView(v: DbViewConfig, propId: string): DbViewConfig {
+  return {
+    ...v,
+    filters: v.filters?.filter((f) => f.property !== propId),
+    sorts: v.sorts?.filter((s) => s.property !== propId),
+    group_by: v.group_by === propId ? null : v.group_by,
+    hidden: v.hidden?.filter((h) => h !== propId),
+    ...(v.sub_group_by === propId ? { sub_group_by: null } : {}),
+    ...(v.date_by === propId ? { date_by: null } : {}),
+    ...(v.end_by === propId ? { end_by: null } : {}),
   };
 }
 
@@ -689,11 +849,29 @@ export function updateView(db: DocsDatabase, viewId: string, patch: Partial<DbVi
 
 export function addView(db: DocsDatabase, type: DbViewType, name = ''): { db: DocsDatabase; view: DbViewConfig } {
   const view: DbViewConfig = { id: newDbId(), name, type };
-  if (type === 'board') {
-    const group = db.properties.find((p) => p.type === 'status') ?? db.properties.find((p) => DB_GROUPABLE_TYPES.has(p.type));
-    view.group_by = group?.id ?? null;
-  }
+  Object.assign(view, viewDefaults(db, type));
   return { db: { ...db, views: [...db.views, view], active_view: view.id }, view };
+}
+
+/**
+ * Lo que necesita una vista de ese tipo para mostrarse: columnas del board
+ * (status o la primera agrupable), fecha del calendario y de la timeline
+ * (inicio y fin: las dos primeras fechas). El calendario y la timeline
+ * arrancan mostrando solo el título en las tarjetas, como en Notion.
+ */
+export function viewDefaults(db: DocsDatabase, type: DbViewType, cur?: DbViewConfig): Partial<DbViewConfig> {
+  const out: Partial<DbViewConfig> = {};
+  if (type === 'board' && !cur?.group_by) {
+    const group = db.properties.find((p) => p.type === 'status') ?? db.properties.find((p) => DB_GROUPABLE_TYPES.has(p.type));
+    out.group_by = group?.id ?? null;
+  }
+  if ((type === 'calendar' || type === 'timeline') && !cur?.date_by) {
+    const dates = db.properties.filter((p) => p.type === 'date');
+    out.date_by = dates[0]?.id ?? db.properties.find((p) => p.type === 'created_time')?.id ?? null;
+    if (type === 'timeline' && dates[1]) out.end_by = dates[1].id;
+    if (!cur) out.hidden = db.properties.filter((p) => p.type !== 'title').map((p) => p.id);
+  }
+  return out;
 }
 
 export function duplicateView(db: DocsDatabase, viewId: string): DocsDatabase {
@@ -743,9 +921,19 @@ export function filterOps(type: DbPropertyType): DbFilterOp[] {
       return DATE_OPS;
     case 'checkbox':
       return CHECK_OPS;
+    case 'relation':
+    case 'files':
+      return MULTI_OPS;
+    case 'button':
+      return [];
     default:
       return TEXT_OPS;
   }
+}
+
+/** Operadores de filtro de una propiedad (fórmula y rollup según su resultado). */
+export function filterOpsFor(prop: DbProperty): DbFilterOp[] {
+  return filterOps(effectiveType(prop));
 }
 
 /** El operador compara contra un valor (los demás miran solo si hay valor). */
@@ -757,10 +945,11 @@ export function opNeedsValue(op: DbFilterOp): boolean {
  * Una condición sobre una fila. Una condición a medio armar (sin valor, o
  * sobre una propiedad que ya no existe) no filtra nada, como en Notion.
  */
-export function matchesFilter(db: DocsDatabase, row: DbRow, filter: DbFilter): boolean {
+export function matchesFilter(db: DocsDatabase, row: DbRow, filter: DbFilter, ctx: DbFormatContext = {}): boolean {
   const prop = db.properties.find((p) => p.id === filter.property);
-  if (!prop || !filterOps(prop.type).includes(filter.op)) return true;
-  const v = cellValue(prop, row);
+  if (!prop || !filterOpsFor(prop).includes(filter.op)) return true;
+  const type = effectiveType(prop);
+  let v = cellValue(prop, row);
   const { op } = filter;
   if (op === 'empty') return isEmptyValue(v);
   if (op === 'not_empty') return !isEmptyValue(v);
@@ -769,7 +958,14 @@ export function matchesFilter(db: DocsDatabase, row: DbRow, filter: DbFilter): b
   const target = filter.value;
   if (target === undefined || target === null || target === '' || (Array.isArray(target) && target.length === 0)) return true;
 
-  if (isTextType(prop.type)) {
+  // Relación y archivos: "contiene" busca en los títulos / nombres.
+  if (prop.type === 'relation' || prop.type === 'files') {
+    const hay = normalizeSearch(formatValue(prop, row, ctx));
+    const hit = hay.includes(normalizeSearch(String(target)));
+    return op === 'not_contains' ? !hit : hit;
+  }
+  if (prop.type === 'unique_id' && typeof target === 'string') v = v ?? null;
+  if (isTextType(type)) {
     const hay = normalizeSearch(typeof v === 'string' ? v : '');
     const needle = normalizeSearch(String(target));
     switch (op) {
@@ -789,7 +985,7 @@ export function matchesFilter(db: DocsDatabase, row: DbRow, filter: DbFilter): b
         return true;
     }
   }
-  if (prop.type === 'number') {
+  if (type === 'number') {
     const n = typeof target === 'number' ? target : parseNumber(String(target));
     if (n === null) return true;
     if (typeof v !== 'number') return op === 'neq';
@@ -815,13 +1011,13 @@ export function matchesFilter(db: DocsDatabase, row: DbRow, filter: DbFilter): b
     const hit = typeof v === 'string' && ids.includes(v);
     return op === 'is_not' ? !hit : hit;
   }
-  if (prop.type === 'multi_select' || prop.type === 'person') {
+  if (prop.type === 'multi_select' || type === 'person') {
     const ids = Array.isArray(target) ? target : [String(target)];
     const have = Array.isArray(v) ? v : [];
     const hit = ids.some((id) => have.includes(id));
     return op === 'not_contains' ? !hit : hit;
   }
-  if (prop.type === 'date' || isComputedType(prop.type)) {
+  if (type === 'date' || prop.type === 'created_time' || prop.type === 'last_edited_time') {
     const day = dayKey(v);
     const t = dayKey(target);
     if (!t) return true;
@@ -851,9 +1047,15 @@ const collator = typeof Intl !== 'undefined' ? new Intl.Collator(undefined, { nu
 /** Clave comparable de una celda (null = vacía: va siempre al final). */
 function sortKey(prop: DbProperty, row: DbRow, ctx: DbFormatContext): string | number | null {
   const v = cellValue(prop, row);
-  if (prop.type === 'checkbox') return v === true ? 1 : 0;
+  const type = effectiveType(prop);
+  if (type === 'checkbox') return v === true ? 1 : 0;
   if (isEmptyValue(v)) return null;
-  switch (prop.type) {
+  if (prop.type === 'relation' || prop.type === 'files') return formatValue(prop, row, ctx) || null;
+  if (type === 'date') {
+    const t = Date.parse(String(v).length === 10 ? `${v}T00:00:00` : String(v));
+    return Number.isNaN(t) ? null : t;
+  }
+  switch (type) {
     case 'number':
       return typeof v === 'number' ? v : null;
     case 'select':
@@ -910,7 +1112,7 @@ export function sortRows(db: DocsDatabase, rows: DbRow[], sorts: DbSort[], ctx: 
 /** Filas de una vista: filtros en AND y orden multi-clave (estable: empata por el orden manual). */
 export function viewRows(db: DocsDatabase, view: DbViewConfig, ctx: DbFormatContext = {}): DbRow[] {
   const filters = view.filters ?? [];
-  const filtered = filters.length ? db.rows.filter((r) => filters.every((f) => matchesFilter(db, r, f))) : db.rows;
+  const filtered = filters.length ? db.rows.filter((r) => filters.every((f) => matchesFilter(db, r, f, ctx))) : db.rows;
   return sortRows(db, filtered, view.sorts ?? [], ctx);
 }
 
@@ -990,7 +1192,8 @@ export function groupRows(
     groups.sort((a, b) => compareKeys(a.label || '￿', b.label || '￿'));
   }
   const out = keepEmpty ? groups : groups.filter((g) => g.rows.length > 0);
-  if (none.rows.length > 0) out.push(none);
+  // "Sin <propiedad>" va primero, como en Notion.
+  if (none.rows.length > 0) out.unshift(none);
   return out;
 }
 

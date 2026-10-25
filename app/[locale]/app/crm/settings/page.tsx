@@ -50,6 +50,7 @@ import { listObjects, objectEntity } from '@/lib/crm-objects';
 import { listFieldPermissions } from '@/lib/crm-field-perms';
 import AppsPanel from '@/components/crm/AppsPanel';
 import { listApps } from '@/lib/crm-apps';
+import { parseDbUtc } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -281,13 +282,13 @@ export default async function CrmSettingsPage(props: {
     const formatSync = (raw: string | null | undefined) =>
       raw
         ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
-            new Date(`${raw.replace(' ', 'T')}Z`),
+            parseDbUtc(raw),
           )
         : null;
     const lastSyncRaw = mailbox?.last_sync_at ?? gmail?.last_sync_at ?? null;
     const gmailLastSync = lastSyncRaw
       ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
-          new Date(`${lastSyncRaw.replace(' ', 'T')}Z`),
+          parseDbUtc(lastSyncRaw),
         )
       : null;
     body = (

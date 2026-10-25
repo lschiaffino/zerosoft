@@ -111,7 +111,7 @@
 .site-footer .locale-switcher a:hover { color: var(--brand-on-ink); }
 .site-footer .locale-switcher a.active { background: var(--brand-on-ink); color: var(--brand-ink); }
 
-/* Menú de productos: un panel blanco bajo el header, las once apps. */
+/* Menú de productos: un panel blanco bajo el header, todas las apps (las en construcción en una fila aparte). */
 .hd-dropdown { position: relative; }
 .hd-mega {
   position: absolute;
@@ -121,6 +121,10 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 240px;
   width: min(1040px, calc(100vw - 48px));
+  /* Si la ventana es más baja que el menú, scrollea adentro (la rueda no mueve la página). */
+  max-height: calc(100vh - var(--site-band-h) - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--bg);
   color: var(--ink);
   border: 1px solid var(--brand-ink);
@@ -131,7 +135,7 @@
 
 .hd-mega-main { display: flex; flex-direction: column; min-width: 0; }
 /* Cinco categorías en tres columnas: vender, atender, automatizar / construir, trabajo diario. */
-.hd-mega-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 24px; padding: 20px; }
+.hd-mega-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 24px; padding: 20px; }
 .hd-mega-note,
 .mobile-panel-note { font-size: 13px; line-height: 1.45; color: var(--brand-gray-2); }
 .hd-mega-note { padding: 14px 28px 18px; border-top: 1px solid var(--line); }
@@ -162,6 +166,17 @@
 .hd-prod-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .hd-prod-name { font-size: 15px; font-weight: 600; }
 .hd-prod-desc { font-size: 13px; line-height: 1.4; color: var(--brand-gray-2); }
+/* Apps en construcción: una fila compacta debajo de las categorías, solo el nombre. */
+.hd-building { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.hd-building-title { padding: 0 8px; font-family: var(--mono); font-size: 13px; color: var(--brand-gray-2); }
+.hd-building-list { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+.hd-prod.hd-prod-soon { display: inline-flex; align-items: center; gap: 8px; padding: 6px 8px; }
+.hd-prod-soon .hd-prod-icon { margin-top: 0; }
+/* Pantallas bajas (1280×720): la descripción en una línea para que el menú entre sin scroll; completa en el title. */
+@media (max-height: 860px) {
+  .hd-mega .hd-prod-desc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hd-mega .hd-prod { padding: 6px 8px; }
+}
 
 .hd-mega-side { display: flex; flex-direction: column; border-left: 1px solid var(--line); }
 .hd-mega-cta { display: flex; flex-direction: column; gap: 4px; padding: 20px; flex: 1; transition: background var(--ui-dur) var(--ease); }

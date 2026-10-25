@@ -18,7 +18,7 @@ import {
   SWITCHER_PRODUCTS,
   type SidebarLabels,
 } from './sidebar-nav';
-import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, isBuildingProduct, type ProductKey } from '@/lib/products';
 import { DEFAULT_WORKSPACE_MODE, featuredApps, moreAppsByCategory, type WorkspaceMode } from '@/lib/workspace-mode';
 import NotificationBell from './NotificationBell';
 import Logo from '@/components/brand/Logo';
@@ -301,6 +301,7 @@ export default function AppSidebar({
       >
         <ProductGlyph product={line} size={small ? 12 : 14} />
         <span>{PRODUCT_CONFIG[line].name}</span>
+        {isBuildingProduct(line) && <span className="app-soon-tag">{labels.soon}</span>}
       </Link>
     );
   };
@@ -421,7 +422,8 @@ export default function AppSidebar({
                 role="menuitem"
                 className="band-menu-item band-menu-search"
                 onClick={() => {
-                  closeSwitcher();
+                  // El foco pasa al botón del switcher antes de abrir ⌘K: al cerrarlo con Esc vuelve ahí.
+                  closeSwitcher(true);
                   openSearch();
                 }}
               >
@@ -495,14 +497,6 @@ export default function AppSidebar({
           )}
         </div>
 
-        {teamName && (
-          <p className="side-team" title={`${labels.team}: ${teamName}`}>
-            <span className="side-label">
-              {labels.team}: {teamName}
-            </span>
-          </p>
-        )}
-
         <nav className={`side-line${product === 'home' ? ' side-line-compact' : ''}`} aria-label={current.name} ref={lineRef} onScroll={updateOverflow}>
           {nav.map((group, i) => {
             const key = group.section ?? `top-${i}`;
@@ -544,6 +538,7 @@ export default function AppSidebar({
                       <Icon name={item.icon} size={15} />
                     </span>
                     <span className="side-label">{item.label}</span>
+                    {item.soon && <span className="app-soon-tag side-soon">{labels.soon}</span>}
                     {item.badge ? <span className="side-badge data">{item.badge}</span> : null}
                   </Link>
                   {/* Hueco bajo el ítem: la página del producto lo llena con un portal (el árbol de Docs). */}
@@ -567,8 +562,8 @@ export default function AppSidebar({
             <Icon name={settingsItem.icon} size={15} />
             <span className="side-label">{settingsItem.label}</span>
           </Link>
-          <Link href="/docs" className="side-link" title={collapsed ? labels.docsSite : undefined}>
-            <Icon name="docs" size={15} />
+          <Link href="/docs" className="side-link" title={collapsed ? labels.docsSite : undefined} data-testid="side-help">
+            <Icon name="help" size={15} />
             <span className="side-label">{labels.docsSite}</span>
           </Link>
           <Link href="/" className="side-link" title={collapsed ? labels.backToSite : undefined}>
@@ -585,9 +580,17 @@ export default function AppSidebar({
                 {(user.name ?? user.email).slice(0, 1).toUpperCase()}
               </span>
             )}
-            <div className="side-user-meta side-label">
+            {/* Con un equipo activo, el equipo va en lugar del mail (que queda en el title):
+                arriba de la lista empujaba las últimas apps bajo el pliegue. */}
+            <div className="side-user-meta side-label" title={teamName ? `${user.email} · ${labels.team}: ${teamName}` : undefined}>
               <p className="side-user-name">{user.name ?? user.email}</p>
-              <p className="side-user-mail">{user.email}</p>
+              {teamName ? (
+                <p className="side-user-mail side-team" data-testid="side-team">
+                  {labels.team}: {teamName}
+                </p>
+              ) : (
+                <p className="side-user-mail">{user.email}</p>
+              )}
             </div>
             {demo ? (
               <Link href="/" className="side-signout side-label">

@@ -181,10 +181,7 @@ body:has(.fl-root:not(.is-tucked)) .ai-panel-foot { padding-right: 84px; }
    margen de 16px y se esconde mientras se escribe en un campo. */
 body:has(.ai-panel) .fl-root { right: calc(min(420px, 100vw) + 20px); }
 @media (max-width: 760px) {
-  .fl-root .fl-button { width: 16px; }
-  .fl-root .fl-button svg { width: 10px; height: 10px; }
-  body:has(.ai-panel) .fl-root,
-  body:has(main :is(input, textarea, select):focus) .fl-root {
+  body:has(.ai-panel) .fl-root {
     right: 0;
     transform: translateX(100%);
     opacity: 0;

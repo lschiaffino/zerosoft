@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 import { formatMoney } from '@/lib/crm-money';
 import type { PublicQuote } from '@/lib/crm-products';
+import { parseDbUtc } from '@/lib/utils';
 
 interface QuoteDocumentProps {
   quote: PublicQuote;
@@ -17,7 +18,7 @@ function fmtDay(d: string | null, locale: string): string {
 function fmtTime(d: string | null, locale: string): string {
   if (!d) return '—';
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(
-    new Date(`${d.replace(' ', 'T')}Z`),
+    parseDbUtc(d),
   );
 }
 

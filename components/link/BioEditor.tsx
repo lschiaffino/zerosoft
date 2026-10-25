@@ -8,6 +8,7 @@ import FormSection from '@/components/ui/FormSection';
 import StatusBadge from './StatusBadge';
 import EmptyState from '@/components/ui/EmptyState';
 import { NEW_LINK_ROUTES } from '@/lib/link-detail-tabs';
+import { parseDbUtc } from '@/lib/utils';
 
 interface Props {
   initial: BioSettings;
@@ -31,7 +32,7 @@ interface SearchLink {
 /** Mismo criterio que linkStatus() del server, sobre el DTO de /api/links. */
 function searchStatus(l: SearchLink): LinkStatus {
   if (l.archived) return 'archived';
-  if (l.expires_at && new Date(l.expires_at).getTime() <= Date.now()) return 'expired';
+  if (l.expires_at && parseDbUtc(l.expires_at).getTime() <= Date.now()) return 'expired';
   if (l.max_clicks !== null && l.clicks >= l.max_clicks) return 'limit';
   if (l.has_password) return 'protected';
   return 'active';

@@ -12,6 +12,7 @@ import PropertyInput from './PropertyInput';
 import { ChatTasksSection } from './TaskModal';
 import { LabelTag, api, useErrorText, useToast } from './ui';
 import { AuditLog } from './PlatformPanels';
+import { parseDbUtc } from '@/lib/utils';
 
 interface CrmRef {
   id: string;
@@ -450,7 +451,7 @@ export default function ChatDetails({
             {scheduled.map((s) => (
               <li key={s.id}>
                 <span>
-                  {new Date(s.scheduledAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })} · {s.body.slice(0, 60)}
+                  {parseDbUtc(s.scheduledAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })} · {s.body.slice(0, 60)}
                 </span>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => void cancelScheduled(s.id)}>
                   {t('common.cancel')}
@@ -471,7 +472,7 @@ export default function ChatDetails({
       </section>
 
       <section className="gr-detail-section gr-detail-foot">
-        <p className="ui-help">{t('details.since', { time: new Date(chat.createdAt).toLocaleDateString(locale) })}</p>
+        <p className="ui-help">{t('details.since', { time: parseDbUtc(chat.createdAt).toLocaleDateString(locale) })}</p>
         <a className="btn btn-ghost btn-sm" href={`/api/groups/export?type=messages&chat=${chat.id}`}>
           {t('details.exportMessages')}
         </a>

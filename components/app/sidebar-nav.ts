@@ -1,7 +1,7 @@
 import type { IconName } from './icons';
 import { isNewLinkPath } from '@/lib/link-detail-tabs';
 import type { NotificationTextLabels } from '@/lib/notification-text';
-import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, type ProductCategory, type ProductKey } from '@/lib/products';
+import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, isBuildingProduct, type ProductCategory, type ProductKey } from '@/lib/products';
 import { appsByCategory } from '@/lib/workspace-mode';
 
 /** Resumen de Link (antes vivía en /app, que ahora es el inicio de la plataforma). */
@@ -152,6 +152,10 @@ export interface SidebarLabels {
     analytics: string;
     settings: string;
   };
+  /** Apps en construcción (Voice, Rec, Talk): por ahora solo su inicio. */
+  voice: { home: string };
+  rec: { home: string };
+  talk: { home: string };
   notifications: {
     title: string;
     markRead: string;
@@ -175,6 +179,8 @@ export interface NavItem {
   branch?: boolean;
   /** Solo el hueco del árbol, sin el ítem (Track lista los teams directo bajo "Your teams"). */
   branchOnly?: boolean;
+  /** App en construcción (Voice, Rec, Talk): el sidebar le suma la marca "pronto". */
+  soon?: boolean;
 }
 
 export interface NavGroup {
@@ -198,7 +204,10 @@ export type AppProduct =
   | 'board'
   | 'agents'
   | 'robots'
-  | 'groups';
+  | 'groups'
+  | 'voice'
+  | 'rec'
+  | 'talk';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/crm', 'crm'],
@@ -212,6 +221,9 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/agents', 'agents'],
   ['/app/robots', 'robots'],
   ['/app/groups', 'groups'],
+  ['/app/voice', 'voice'],
+  ['/app/rec', 'rec'],
+  ['/app/talk', 'talk'],
 ];
 
 /** La app del shell para una clave de producto (Cal vive en /app/calendar). */
@@ -247,6 +259,9 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   board: 'board',
   agents: 'agents',
   robots: 'robots',
+  voice: 'voice',
+  rec: 'rec',
+  talk: 'talk',
 };
 
 /** Producto de la app según la ruta. /app (inicio) y /app/settings son la plataforma (neutro); /app/links es Link. */
@@ -291,7 +306,13 @@ export function buildNav(
         { items: [{ href: '/app', label: labels.platformHome, active: pathname === '/app', icon: 'overview' }] },
         ...appsByCategory().map(({ category, apps }) => ({
           section: labels.categories[category],
-          items: apps.map((line) => ({ href: switcherHref(line), label: PRODUCT_CONFIG[line].name, active: false, icon: APP_ICONS[line] })),
+          items: apps.map((line) => ({
+            href: switcherHref(line),
+            label: PRODUCT_CONFIG[line].name,
+            active: false,
+            icon: APP_ICONS[line],
+            soon: isBuildingProduct(line) || undefined,
+          })),
         })),
       ];
 
@@ -576,6 +597,17 @@ export function buildNav(
         },
       ];
 
+    // Apps en construcción: su inicio (el estado "Próximamente") y sus ajustes.
+    case 'voice':
+    case 'rec':
+    case 'talk': {
+      const base = `/app/${product}`;
+      return [
+        { items: [{ href: base, label: labels[product].home, active: at(base) && !at(`${base}/settings`), icon: product }] },
+        appSettingsGroup(`${base}/settings`),
+      ];
+    }
+
     case 'link':
     default:
       return [
@@ -623,6 +655,10 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels): NavIt
   const item = (href: string, label: string, icon: IconName): NavItem => ({ href, label, icon, active: false });
   switch (product) {
     case 'home':
+    // Las apps en construcción todavía no crean nada: lo más común de las demás.
+    case 'voice':
+    case 'rec':
+    case 'talk':
       // Sin app activa: crear lo más común de cada una.
       return [
         item('/app/links/new', labels.newLink, 'newLink'),

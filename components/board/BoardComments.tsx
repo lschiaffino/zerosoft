@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import type { CommentView } from '@/lib/board';
+import { parseDbUtc } from '@/lib/utils';
 
 export interface CommentLabels {
   title: string;
@@ -138,7 +139,7 @@ export default function BoardComments({
                 {c.is_official === 1 && c.author_name && <span className="bp-comment-tag">{c.author_name}</span>}
                 {c.pinned === 1 && <span className="bp-comment-pin">{labels.pinned}</span>}
                 <time className="bp-hint" dateTime={c.created_at}>
-                  {new Date(c.created_at).toLocaleDateString(locale, { dateStyle: 'medium', timeZone: 'UTC' })}
+                  {parseDbUtc(c.created_at).toLocaleDateString(locale, { dateStyle: 'medium' })}
                 </time>
               </p>
               <div className="bp-comment-body" dangerouslySetInnerHTML={{ __html: c.body }} />

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import type { EventTypeWithRules } from '@/lib/calendar';
 import PublicBookingPage, { BookingInfo } from './PublicBookingPage';
 import type { PublicBrand } from './cal-utils';
+import { parseDbUtc } from '@/lib/utils';
 
 interface Props {
   token: string;
@@ -39,7 +40,7 @@ export default function ManageBooking({ token, locale, eventType, weekStart, bra
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const past = new Date(booking.startsAt).getTime() < Date.now();
+  const past = parseDbUtc(booking.startsAt).getTime() < Date.now();
 
   if (mode === 'reschedule') {
     return (
@@ -73,10 +74,10 @@ export default function ManageBooking({ token, locale, eventType, weekStart, bra
 
   const tz = booking.timezone;
   const date = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: tz }).format(
-    new Date(booking.startsAt),
+    parseDbUtc(booking.startsAt),
   );
   const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone: tz });
-  const range = `${time.format(new Date(booking.startsAt))} – ${time.format(new Date(booking.endsAt))}`;
+  const range = `${time.format(parseDbUtc(booking.startsAt))} – ${time.format(parseDbUtc(booking.endsAt))}`;
   const cancelled = mode === 'cancelled';
   const awaiting = booking.status === 'pending' && booking.approval === 'pending';
 

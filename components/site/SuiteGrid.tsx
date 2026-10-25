@@ -3,14 +3,14 @@ import { Link } from '@/i18n/navigation';
 import Icon from './Icon';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import { CATEGORY_PRODUCTS, PRODUCT_NAMES, RIVALS } from './catalog';
-import type { ProductKey } from '@/lib/products';
+import { isBuildingProduct, type ProductKey } from '@/lib/products';
 
 /**
  * La suite por categoría (vender, atender, automatizar, construir, trabajo
  * diario), con una nota arriba: todas sirven para equipos y para uso
  * personal. Una lista de filas finas
  * (sin tarjetas). Cada app con su cero de color, el nombre en señalética,
- * qué hace y lo que reemplaza. Home y /products. En /products, `parity` suma
+ * qué hace y lo que reemplaza (o, si está en construcción, a qué se parece). Home y /products. En /products, `parity` suma
  * el porcentaje de paridad contra el competidor (content/feature-parity).
  */
 export default function SuiteGrid({
@@ -42,7 +42,7 @@ export default function SuiteGrid({
                   <span className="suite-name">{PRODUCT_NAMES[k]}</span>
                   <span className="suite-line">{h(`suite.${k}.line`)}</span>
                   <span className="suite-vs">
-                    {h('suite.replaces', { rival: RIVALS[k] })}
+                    {isBuildingProduct(k) ? h('suite.building', { rival: RIVALS[k] }) : h('suite.replaces', { rival: RIVALS[k] })}
                     {parity?.[k] && <span className="suite-parity data">{parity[k]}</span>}
                   </span>
                   <Icon name="arrow" size={16} />

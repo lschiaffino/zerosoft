@@ -9,6 +9,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import type { FlowTableDto } from '@/lib/flow-tables';
 import { MAX_TABLE_ROWS, type FlowTableColumn } from '@/lib/flow-tables-schema';
 import TableColumnsEditor from './TableColumnsEditor';
+import { parseDbUtc } from '@/lib/utils';
 
 interface Props {
   tables: FlowTableDto[];
@@ -124,7 +125,7 @@ export default function TablesManager({ tables: initial, canEdit }: Props) {
             header: t('updated'),
             cell: (x) => (
               <span className="flow-muted" suppressHydrationWarning>
-                {format.relativeTime(new Date(x.updatedAt), now)}
+                {format.relativeTime(parseDbUtc(x.updatedAt), now)}
               </span>
             ),
           },

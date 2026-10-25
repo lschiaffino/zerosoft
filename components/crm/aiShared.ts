@@ -19,6 +19,7 @@ const KNOWN = new Set([
   'site_unreachable',
   'site_empty',
 ]);
+import { parseDbUtc } from '@/lib/utils';
 
 /**
  * Clave de crm.ai.errors.* para un código de error de la API. Sin IA, los
@@ -30,7 +31,7 @@ export function aiErrorKey(code: string | null | undefined, admin = false): `err
 }
 
 export function formatAiWhen(iso: string, locale: string): string {
-  const d = new Date(iso.includes('T') ? iso : `${iso.replace(' ', 'T')}Z`);
+  const d = parseDbUtc(iso);
   if (Number.isNaN(d.getTime())) return '';
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(d);
 }

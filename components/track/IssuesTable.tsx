@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import IssueDemandBadges from "./triage/IssueDemandBadges";
 import { Link } from "@/i18n/navigation";
-import { formatDate } from "@/lib/utils";
+import { formatDate, parseDbUtc } from "@/lib/utils";
 import type { TrackIssueWithStatus } from "@/lib/track-data";
 import type { IssueLabel } from "@/lib/track-schema";
 import type { IssuePatch } from "@/lib/track-tasks";
@@ -135,9 +135,8 @@ export default function IssuesTable({
       else if (sort === "priority") {
         const order = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 };
         cmp = (order[a.priority] ?? 99) - (order[b.priority] ?? 99);
-      } else if (sort === "created") {
-        cmp =
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      } else if (sort === 'created') {
+        cmp = parseDbUtc(a.created_at).getTime() - parseDbUtc(b.created_at).getTime();
       }
       return cmp * dir;
     });

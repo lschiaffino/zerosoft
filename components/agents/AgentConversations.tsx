@@ -8,6 +8,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import { ToolCalls } from './AgentChat';
 import { api, errorText, toolName } from './agents-ui';
 import AgentApprovals from './AgentApprovals';
+import { parseDbUtc } from '@/lib/utils';
 
 interface Detail {
   conversation: AgentConversationDto;
@@ -229,7 +230,7 @@ export default function AgentConversations({
                   <span className="ag-conv-title">{c.title || t('conversations.untitled')}</span>
                   <span className="ag-conv-meta">
                     {t(`channelNames.${c.source ?? c.channel}`)} · {t('conversations.messages', { count: c.messageCount ?? 0 })} ·{' '}
-                    <time dateTime={c.updatedAt}>{mounted ? format.relativeTime(new Date(c.updatedAt), now) : ''}</time>
+                    <time dateTime={c.updatedAt}>{mounted ? format.relativeTime(parseDbUtc(c.updatedAt), now) : ''}</time>
                   </span>
                   {c.handedOff && <span className="badge badge-warn ag-conv-badge">{t('conversations.handedOff')}</span>}
                   {(pendingBy.get(c.id) ?? 0) > 0 && (

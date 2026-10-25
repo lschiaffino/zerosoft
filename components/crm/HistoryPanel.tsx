@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { parseDbUtc } from '@/lib/utils';
 
 interface HistoryEvent {
   id: string;
@@ -59,7 +60,7 @@ export default function HistoryPanel({ entity, entityId, locale, labels }: Histo
       return new Intl.DateTimeFormat(locale, {
         dateStyle: 'medium',
         timeStyle: 'short',
-      }).format(new Date(`${at.replace(' ', 'T')}Z`));
+      }).format(parseDbUtc(at));
     } catch {
       return at;
     }

@@ -3,6 +3,7 @@ import { Link } from '@/i18n/navigation';
 import type { CredentialDto } from '@/lib/flow-credentials';
 import DataTable from '@/components/ui/DataTable';
 import FormSection from '@/components/ui/FormSection';
+import { parseDbUtc } from '@/lib/utils';
 
 /**
  * Credenciales del workspace (Flow y Robots) vistas desde Ajustes. Son las
@@ -64,7 +65,7 @@ export default async function CredentialsSummary({
           {
             key: 'updated',
             header: t('colUpdated'),
-            cell: (c) => <span className="st-muted">{format.relativeTime(new Date(c.updatedAt), now)}</span>,
+            cell: (c) => <span className="st-muted">{format.relativeTime(parseDbUtc(c.updatedAt), now)}</span>,
           },
         ]}
       />

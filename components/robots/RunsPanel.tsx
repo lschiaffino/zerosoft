@@ -6,6 +6,7 @@ import type { RobotRunDto } from '@/lib/robots';
 import { csvFilename, valueToCsv } from '@/lib/robots-csv';
 import EmptyState from '@/components/ui/EmptyState';
 import { StatusBadge } from './robots-ui';
+import { parseDbUtc } from '@/lib/utils';
 
 function duration(ms: number | null): string {
   if (ms === null || ms === undefined) return '–';
@@ -104,7 +105,7 @@ export default function RunsPanel({
             >
               <StatusBadge status={r.status} warnings={r.warnings} />
               <span className="robots-run-when" suppressHydrationWarning>
-                {format.dateTime(new Date(r.createdAt), { dateStyle: 'medium', timeStyle: 'short' })}
+                {format.dateTime(parseDbUtc(r.createdAt), { dateStyle: 'medium', timeStyle: 'short' })}
               </span>
               <span className="robots-run-sub">
                 {t(`trigger.${r.trigger}`)} · <span className="num">{duration(r.durationMs)}</span>

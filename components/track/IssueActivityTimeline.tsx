@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 import { titleFromComment } from '@/lib/track-comment-title';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import { relDate } from '@/lib/utils';
+import { relDate, parseDbUtc } from '@/lib/utils';
 import type { TrackIssueAttachmentRow } from '@/lib/db';
 import type { TrackIssueActivityWithAuthor, ProjectMember } from '@/lib/track-data';
 import type { CommentReaction } from '@/lib/track-ux';
@@ -182,7 +182,7 @@ export default function IssueActivityTimeline({
   const [openResolved, setOpenResolved] = useState<Set<string>>(new Set());
 
   const sorted = useMemo(
-    () => [...activities].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+    () => [...activities].sort((a, b) => parseDbUtc(a.created_at).getTime() - parseDbUtc(b.created_at).getTime()),
     [activities],
   );
   const replies = useMemo(() => {

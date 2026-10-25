@@ -60,7 +60,9 @@ export default function DbPopover({
 
   useEffect(() => {
     if (autoFocus) {
-      const first = ref.current?.querySelector<HTMLElement>('[data-autofocus], input, select, button, [tabindex="0"]');
+      // Primero lo marcado con data-autofocus (el buscador), aunque antes haya botones (× de un chip).
+      const first =
+        ref.current?.querySelector<HTMLElement>('[data-autofocus]') ?? ref.current?.querySelector<HTMLElement>('input, select, textarea, button, [tabindex="0"]');
       first?.focus();
     }
     const onDown = (e: MouseEvent) => {

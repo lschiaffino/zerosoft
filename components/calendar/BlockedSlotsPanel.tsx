@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import type { CalendarBlockedSlotRow } from '@/lib/db';
 import CalIcon from './cal-icons';
+import { parseDbUtc } from '@/lib/utils';
 
 function toIso(local: string): string {
   return local ? new Date(local).toISOString() : '';
@@ -27,7 +28,7 @@ export default function BlockedSlotsPanel({ initialSlots }: { initialSlots: Cale
   const [error, setError] = useState<string | null>(null);
 
   const fmt = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  const range = (s: CalendarBlockedSlotRow) => `${fmt.format(new Date(s.starts_at))} – ${fmt.format(new Date(s.ends_at))}`;
+  const range = (s: CalendarBlockedSlotRow) => `${fmt.format(parseDbUtc(s.starts_at))} – ${fmt.format(parseDbUtc(s.ends_at))}`;
 
   async function addSlot(e: React.FormEvent) {
     e.preventDefault();

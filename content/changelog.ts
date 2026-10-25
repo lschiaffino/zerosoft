@@ -131,6 +131,20 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-25-voice-rec-talk',
+    date: '2026-10-25',
+    title: {
+      en: 'Voice, Rec and Talk join the suite, in the works',
+      es: 'Voice, Rec y Talk se suman a la suite, en construcción',
+      pt: 'Voice, Rec e Talk entram na suíte, em construção',
+    },
+    items: [
+      { product: 'voice', en: 'Voice, the app we are building to take on Wispr Flow and Granola (dictation and meeting notes), has a page with the plan and its parity at 0 %, and /app/voice says it is being built. You can propose ideas for it on the board.', es: 'Voice, la app que estamos construyendo frente a Wispr Flow y Granola (dictado y notas de reunión), tiene su página con el plan y la paridad en 0 %, y /app/voice avisa que está en construcción. Se le pueden proponer ideas en el board.', pt: 'O Voice, o app que estamos construindo frente ao Wispr Flow e ao Granola (ditado e notas de reunião), tem sua página com o plano e a paridade em 0 %, e /app/voice avisa que está em construção. Dá para propor ideias para ele no board.' },
+      { product: 'rec', en: 'Rec, our Loom alternative for screen and camera recording, has its page and /app/rec, both marked as in the works.', es: 'Rec, nuestra alternativa a Loom para grabar pantalla y cámara, tiene su página y /app/rec, las dos marcadas en construcción.', pt: 'O Rec, nossa alternativa ao Loom para gravar tela e câmera, tem sua página e /app/rec, as duas marcadas em construção.' },
+      { product: 'talk', en: 'Talk, our Slack alternative for team messaging, has its page and /app/talk, both marked as in the works.', es: 'Talk, nuestra alternativa a Slack para la mensajería del equipo, tiene su página y /app/talk, las dos marcadas en construcción.', pt: 'O Talk, nossa alternativa ao Slack para as mensagens do time, tem sua página e /app/talk, as duas marcadas em construção.' },
+    ],
+  },
+  {
     id: '2026-10-25-platform-home',
     date: '2026-10-25',
     title: {
@@ -176,6 +190,23 @@ export const CHANGELOG: ChangelogEntry[] = [
       { product: 'docs', en: 'Page icons can be an uploaded image, and covers come from a gallery of colors and photos, an upload or a link, with reposition. They show in the sidebar, search and published pages.', es: 'El ícono de una página puede ser una imagen subida, y la portada sale de una galería de colores y fotos, una subida o un link, y se puede reposicionar. Se ven en el sidebar, la búsqueda y las páginas publicadas.', pt: 'O ícone de uma página pode ser uma imagem enviada, e a capa vem de uma galeria de cores e fotos, de um envio ou de um link, com reposicionamento. Aparecem na barra lateral, na busca e nas páginas publicadas.' },
       { product: 'docs', en: 'Star a page to add it to Favorites at the top of the sidebar, and reorder them by dragging or with Alt and the arrow keys.', es: 'Marcá una página con la estrella para sumarla a Favoritos arriba del sidebar, y ordenalos arrastrando o con Alt y las flechas.', pt: 'Marque uma página com a estrela para adicioná-la aos Favoritos no topo da barra lateral, e reordene arrastando ou com Alt e as setas.' },
       { product: 'docs', en: 'A template gallery with sixteen templates by section and a preview, a template button on empty pages, and database row templates: save a row as a template and create new rows from it.', es: 'Una galería con dieciséis plantillas por sección y vista previa, un botón de plantillas en las páginas vacías, y plantillas de fila en las bases: guardá una fila como plantilla y creá filas nuevas desde ella.', pt: 'Uma galeria com dezesseis modelos por seção e prévia, um botão de modelos nas páginas vazias, e modelos de linha nos bancos: salve uma linha como modelo e crie linhas novas a partir dele.' },
+    ],
+  },
+  {
+    id: '2026-10-25-docs-databases',
+    date: '2026-10-25',
+    title: {
+      en: 'Docs: databases with formulas, relations, new views, automations, AI autofill and CSV',
+      es: 'Docs: bases con fórmulas, relaciones, vistas nuevas, automatizaciones, autocompletado con IA y CSV',
+      pt: 'Docs: bancos com fórmulas, relações, novas visualizações, automações, preenchimento com IA e CSV',
+    },
+    items: [
+      { product: 'docs', en: 'New property types: formula (Notion syntax with prop("Name"), if, text, number and date functions), relation, rollup, files, created by, last edited by, unique ID with prefix, button and place.', es: 'Tipos de propiedad nuevos: fórmula (sintaxis de Notion con prop("Nombre"), if y funciones de texto, número y fecha), relación, rollup, archivos, creado por, editado por, ID único con prefijo, botón y lugar.', pt: 'Novos tipos de propriedade: fórmula (sintaxe do Notion com prop("Nome"), if e funções de texto, número e data), relação, rollup, arquivos, criado por, editado por, ID único com prefixo, botão e local.' },
+      { product: 'docs', en: 'Relations link rows to the same database or one on another page, one-way or two-way. Rollups count, sum, average or show the related values.', es: 'Las relaciones unen filas con la misma base o con una de otra página, en una o dos vías. Los rollups cuentan, suman, promedian o muestran los valores relacionados.', pt: 'Relações ligam linhas ao mesmo banco ou a um de outra página, em uma ou duas vias. Rollups contam, somam, fazem média ou mostram os valores relacionados.' },
+      { product: 'docs', en: 'New views: list, calendar (drag rows to another day) and timeline (drag and resize bars). Boards can be split into sub-groups, and /linked shows a database from another page with its own views.', es: 'Vistas nuevas: lista, calendario (arrastrá filas a otro día) y timeline (mové y estirá barras). Los boards se pueden partir en subgrupos y /linked muestra una base de otra página con sus propias vistas.', pt: 'Novas visualizações: lista, calendário (arraste linhas para outro dia) e linha do tempo (mova e estique barras). Boards podem ser divididos em subgrupos e /linked mostra um banco de outra página com suas próprias visualizações.' },
+      { product: 'docs', en: 'Database automations: when a row is added or a property changes, edit a property, add a row to another database, notify people or send a webhook. Button properties run the same actions with one click.', es: 'Automatizaciones de base: cuando se agrega una fila o cambia una propiedad, editar una propiedad, agregar una fila en otra base, avisar a personas o mandar un webhook. La propiedad botón corre las mismas acciones con un click.', pt: 'Automações de banco: quando uma linha é adicionada ou uma propriedade muda, editar uma propriedade, adicionar uma linha em outro banco, avisar pessoas ou enviar um webhook. A propriedade botão roda as mesmas ações com um clique.' },
+      { product: 'docs', en: 'AI autofill for text, select and multi-select properties: summary, key information, translation, best option or your own instruction, on demand or whenever the row changes.', es: 'Autocompletar con IA en propiedades de texto, select y multi-select: resumen, dato clave, traducción, mejor opción o una instrucción propia, a pedido o cada vez que cambia la fila.', pt: 'Preenchimento com IA em propriedades de texto, select e multisseleção: resumo, informação-chave, tradução, melhor opção ou uma instrução própria, sob demanda ou sempre que a linha muda.' },
+      { product: 'docs', en: 'Import a CSV into any database, choosing where each column goes, and export the current view or every row as CSV. Clicking a row title in a table now opens the row.', es: 'Importá un CSV a cualquier base eligiendo adónde va cada columna, y exportá en CSV la vista o todas las filas. Hacer click en el título de una fila de la tabla ahora abre la fila.', pt: 'Importe um CSV para qualquer banco escolhendo para onde vai cada coluna, e exporte em CSV a visualização ou todas as linhas. Clicar no título de uma linha da tabela agora abre a linha.' },
     ],
   },
   {

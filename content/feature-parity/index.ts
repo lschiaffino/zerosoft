@@ -12,6 +12,9 @@ import notes from './notes';
 import groups from './groups';
 import robots from './robots';
 import track from './track';
+import voice from './voice';
+import rec from './rec';
+import talk from './talk';
 
 /**
  * Paridad de cada app contra su competidor principal. Al sumar o quitar una
@@ -31,6 +34,9 @@ export const PARITY: Record<ProductKey, ProductParity> = {
   notes,
   cal,
   board,
+  voice,
+  rec,
+  talk,
 };
 
 export type { ProductParity, ParityRow, ParityStatus, ParityArea, Localized } from './types';

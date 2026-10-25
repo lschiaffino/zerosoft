@@ -15,6 +15,7 @@ import { hydrateSyncedBlocks } from '@/lib/docs-synced';
 import HelpHeader from '@/components/docs/HelpHeader';
 import HelpFeedback from '@/components/docs/HelpFeedback';
 import '@/styles/help.css';
+import { parseDbUtc } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,7 +89,7 @@ export default async function HelpArticlePage(props: Props) {
               )}
               <h1 className="help-article-title">{article.title || t('untitled')}</h1>
               <p className="help-article-meta">
-                {t('updated', { date: format.dateTime(new Date(article.updated_at), { dateStyle: 'medium' }) })}
+                {t('updated', { date: format.dateTime(parseDbUtc(article.updated_at), { dateStyle: 'medium' }) })}
               </p>
             </header>
             <DocsBlocksView blocks={blocks} pageId={article.id} className="docs-prose help-body" boards={false} />

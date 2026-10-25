@@ -323,10 +323,10 @@ export default function ReportBuilder({ report, customFields, dashboards, people
             (confirmDelete ? (
               <>
                 <span className="rb-status">{tb('confirmDelete')}</span>
-                <button type="button" className="btn btn-small btn-danger" onClick={() => void remove()} autoFocus onKeyDown={(e) => e.key === 'Escape' && setConfirmDelete(false)}>
+                <button type="button" className="btn btn-small btn-danger" onClick={() => void remove()} onKeyDown={(e) => e.key === 'Escape' && setConfirmDelete(false)}>
                   {t('common.delete')}
                 </button>
-                <button type="button" className="btn btn-small btn-ghost" onClick={() => setConfirmDelete(false)}>
+                <button type="button" className="btn btn-small btn-ghost" onClick={() => setConfirmDelete(false)} autoFocus onKeyDown={(e) => e.key === 'Escape' && setConfirmDelete(false)}>
                   {t('common.cancel')}
                 </button>
               </>

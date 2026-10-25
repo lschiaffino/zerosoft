@@ -16,6 +16,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { Link } from '@/i18n/navigation';
+import { mergeBlocks, sameContent } from '@/lib/docs-merge';
 import {
   defaultBlocks,
   type DocsBlock,
@@ -126,8 +127,21 @@ import DocsGlyph, { type DocsGlyphName } from './DocsGlyphs';
 import DbRowPanel, { type DbRowPanelMode } from './database/DbRowPanel';
 import { rememberUploadPreview, uploadPreview } from './DocsEditorImage';
 
+/** Lo que el servidor fusionó (una automatización, una base, otra pestaña): se suma a lo que hay en pantalla. */
+export interface DocsRemoteMerge {
+  seq: number;
+  /** Lo que mandó este editor (o la última versión del servidor que vio). */
+  sent: DocsBlock[];
+  /** Lo que quedó guardado. */
+  merged: DocsBlock[];
+  sentTitle?: string;
+  title?: string;
+}
+
 interface DocsEditorProps {
   page: DocsPage;
+  remoteMerge?: DocsRemoteMerge | null;
+  onRemoteApplied?: (seq: number) => void;
   ancestors: DocsPage[];
   /** Guarda solo lo que edita el editor (no pisa archived/is_public). */
   onSave: (patch: Partial<DocsPage>) => void;
@@ -176,6 +190,8 @@ const BLOCK_COMMANDS: {
   level?: 1 | 2 | 3;
   /** Heading con toggle. */
   toggle?: boolean;
+  /** Base: vista vinculada de otra base. */
+  linked?: boolean;
   shortcut?: string;
   special?: CommandSpecial;
   /** Columnas: cuántas. */
@@ -200,6 +216,7 @@ const BLOCK_COMMANDS: {
   { key: 'divider', type: 'divider' },
   { key: 'table', type: 'table' },
   { key: 'database', type: 'database' },
+  { key: 'linkedDatabase', type: 'database', linked: true },
   { key: 'image', type: 'image', group: 'media' },
   { key: 'video', type: 'video', group: 'media' },
   { key: 'audio', type: 'audio', group: 'media' },
@@ -255,6 +272,7 @@ const COMMAND_KEYWORDS: Record<string, string[]> = {
   divider: ['divider', 'hr', 'line', 'separator', '---'],
   table: ['table', 'grid'],
   database: ['database', 'db', 'table', 'grid', 'view', 'data'],
+  linkedDatabase: ['linked', 'linked view', 'view of database', 'vista vinculada', 'visualização vinculada', 'database view'],
   image: ['image', 'picture', 'photo', 'img', 'upload', 'imagen', 'foto', 'imagem'],
   file: ['file', 'attachment', 'upload', 'pdf', 'document', 'archivo', 'adjunto', 'arquivo', 'anexo'],
   board: ['board', 'whiteboard', 'canvas', 'excalidraw', 'pizarra', 'quadro', 'lousa'],
@@ -434,6 +452,8 @@ function caretMenuStyle(pos: CaretMenuPos, width: number, maxHeight: number): CS
 
 export default function DocsEditor({
   page,
+  remoteMerge = null,
+  onRemoteApplied,
   ancestors,
   onSave,
   saving,
@@ -898,6 +918,34 @@ export default function DocsEditor({
   /** Última versión de triggerSave para callbacks async (subidas): no guardar un título viejo. */
   const triggerSaveRef = useRef(triggerSave);
   triggerSaveRef.current = triggerSave;
+
+  // Fusión del servidor: lo de afuera (fila de una automatización, cambio de
+  // otra pestaña) entra sin pisar lo que se editó acá desde entonces.
+  const appliedMerge = useRef(0);
+  useEffect(() => {
+    if (!remoteMerge || remoteMerge.seq <= appliedMerge.current) return;
+    appliedMerge.current = remoteMerge.seq;
+    const cur = live.current;
+    const merged = mergeBlocks(remoteMerge.sent, remoteMerge.merged, cur.blocks, 'ours');
+    let nextTitle = cur.title;
+    if (remoteMerge.title !== undefined && remoteMerge.sentTitle !== undefined && cur.title === remoteMerge.sentTitle) nextTitle = remoteMerge.title;
+    if (merged && !sameContent(merged, cur.blocks)) {
+      // Los bloques que no cambiaron quedan con el mismo objeto (no se repinta lo que se está escribiendo).
+      const byId = new Map(cur.blocks.map((b) => [b.id, b]));
+      const next = normalizeStructure(
+        merged.map((b) => {
+          const old = byId.get(b.id);
+          return old && sameContent(old, b) ? old : b;
+        }),
+        newId,
+      );
+      setBlocksRaw(next);
+      // Con cambios propios todavía sin guardar, el guardado pendiente lleva lo fusionado.
+      if (pendingSave.current || !sameContent(cur.blocks, remoteMerge.sent)) triggerSaveRef.current(next, nextTitle);
+    }
+    if (nextTitle !== cur.title) setTitle(nextTitle);
+    onRemoteApplied?.(remoteMerge.seq);
+  }, [remoteMerge, onRemoteApplied]);
 
   /**
    * Deshacer (dir -1) o rehacer (+1): vuelve a la foto, la guarda y deja el
@@ -1513,7 +1561,7 @@ export default function DocsEditor({
       level?: 1 | 2 | 3,
       content?: string,
       caretOffset = 0,
-      extra: { toggle?: boolean } = {},
+      extra: { toggle?: boolean; linked?: boolean } = {},
     ) => {
       setBlocks((prev) => {
         const next = prev.map((b, i) => {
@@ -1533,8 +1581,14 @@ export default function DocsEditor({
           if (type === 'todo') converted.checked = converted.checked ?? false;
           // Code es texto plano (pre-wrap): sin marcas en línea dentro.
           if (type === 'code') converted.content = escapeHtml(htmlToFlatText(converted.content));
-          // Database: Name, Status y Due, una fila vacía y una vista tabla.
-          if (type === 'database' && !converted.db && !converted.columns?.length) {
+          // Vista vinculada: el bloque elige su base de origen al mostrarse.
+          if (type === 'database' && extra.linked) {
+            const viewId = crypto.randomUUID().slice(0, 12);
+            converted.linked = { page_id: '_pick', block_id: '_pick', views: [{ id: viewId, name: '', type: 'table' }], active_view: viewId };
+            delete converted.db;
+            converted.content = '';
+          } else if (type === 'database' && !converted.db && !converted.columns?.length) {
+            // Database: Name, Status y Due, una fila vacía y una vista tabla.
             converted.db = defaultDatabase({
               name: t('database.defaults.name'),
               status: t('database.defaults.status'),
@@ -1578,7 +1632,7 @@ export default function DocsEditor({
 
   /** Aplica un comando del menú `/`: borra solo el `/query` tipeado y convierte/inserta. */
   const applyCommand = useCallback(
-    (index: number, cmd: { type: DocsBlockType; level?: 1 | 2 | 3; toggle?: boolean; special?: CommandSpecial; count?: number }) => {
+    (index: number, cmd: { type: DocsBlockType; level?: 1 | 2 | 3; toggle?: boolean; linked?: boolean; special?: CommandSpecial; count?: number }) => {
       const block = blocks[index];
       if (!block) return;
       const s = slash && slash.index === index ? slash : null;
@@ -1718,7 +1772,7 @@ export default function DocsEditor({
         return;
       }
 
-      convertBlock(index, cmd.type, cmd.level, stripped, caret, { toggle: cmd.toggle });
+      convertBlock(index, cmd.type, cmd.level, stripped, caret, { toggle: cmd.toggle, linked: cmd.linked });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [blocks, slash, convertBlock, triggerSave, setBlocks, updateBlock, locale, readCaretMenuPos, dateHtmlFor],
@@ -1730,8 +1784,8 @@ export default function DocsEditor({
       BLOCK_COMMANDS.map((c) => ({ ...c, label: t(`editor.commands.${c.key}`) })).filter((c) => {
         if (!uploadsEnabled && isFileBlockType(c.type)) return false;
         if (!allowDatabase && c.type === 'database') return false;
-        // Pizarras, sincronizados, breadcrumb y fechas con recordatorio: solo en Docs (no en Notes ni en filas).
-        if (embedded && (c.type === 'board' || c.type === 'synced' || c.type === 'breadcrumb' || c.special === 'date' || c.special === 'reminder')) return false;
+        // Pizarras, sincronizados, vistas vinculadas, breadcrumb y fechas con recordatorio: solo en Docs (no en Notes ni en filas).
+        if (embedded && (c.type === 'board' || c.type === 'synced' || c.linked || c.type === 'breadcrumb' || c.special === 'date' || c.special === 'reminder')) return false;
         return commandMatches(c.label, COMMAND_KEYWORDS[c.key] ?? [], query);
       }),
     [t, uploadsEnabled, embedded, allowDatabase],
@@ -2756,11 +2810,14 @@ export default function DocsEditor({
   );
 
   const onOpenRow = useCallback(
-    (blockId: string, rowId: string, mode: DbRowPanelMode) => {
+    (blockId: string, rowId: string, requested: DbRowPanelMode) => {
+      // En un teléfono la fila se abre como página (con su URL: "atrás" la cierra).
+      const narrow = !embedded && typeof window !== 'undefined' && window.matchMedia?.('(max-width: 720px)').matches;
+      const mode: DbRowPanelMode = narrow ? 'full' : requested;
       setOpenRow({ blockId, rowId, mode });
       setRowUrl(mode === 'full' ? rowId : null, mode === 'full');
     },
-    [setRowUrl],
+    [setRowUrl, embedded],
   );
 
   const closeRow = useCallback(() => {
@@ -2803,7 +2860,10 @@ export default function DocsEditor({
     [triggerSave, setBlocks],
   );
 
-  const dbHooks = useMemo(() => ({ onOpenRow, membersUrl }), [onOpenRow, membersUrl]);
+  const dbHooks = useMemo(
+    () => ({ onOpenRow, membersUrl, pageId: embedded ? null : page.id, updateDatabase }),
+    [onOpenRow, membersUrl, embedded, page.id, updateDatabase],
+  );
 
   /** [[ y archivos en el cuerpo de una fila: los de Notes, o los de esta página de Docs. */
   const rowPageLinks = useMemo<PageLinkSource>(
@@ -3142,7 +3202,7 @@ export default function DocsEditor({
                               className="docs-bmenu-item"
                               onClick={() => {
                                 closeBlockMenu();
-                                convertBlock(index, cmd.type, cmd.level, undefined, 0, { toggle: cmd.toggle });
+                                convertBlock(index, cmd.type, cmd.level, undefined, 0, { toggle: cmd.toggle, linked: cmd.linked });
                               }}
                             >
                               <span className="docs-command-icon"><DocsGlyph name={BLOCK_ICONS[cmd.type]} size={14} /></span>
@@ -4193,6 +4253,8 @@ export default function DocsEditor({
         rowId={openRow.rowId}
         mode={openRow.mode}
         membersUrl={membersUrl}
+        pageId={embedded ? null : page.id}
+        updateDatabase={updateDatabase}
         pageTitle={title}
         updateDb={(fn) => updateDatabase(openRow.blockId, fn)}
         onMode={(mode) => onOpenRow(openRow.blockId, openRow.rowId, mode)}

@@ -1,10 +1,10 @@
 /**
  * Ajustes mínimos de las apps que no tenían (Docs, Notes, Board, Flow,
- * Agents, Robots): pestañas y atajos a lo que ya existe. Los textos están en
+ * Agents, Robots) y de las que se están construyendo (Voice, Rec, Talk): pestañas y atajos a lo que ya existe. Los textos están en
  * settings.products.links.<label>. Link tiene su página propia
  * (/app/links/settings: dominios, importar, exportar).
  */
-export const MINIMAL_SETTINGS_APPS = ['docs', 'notes', 'board', 'flow', 'agents', 'robots'] as const;
+export const MINIMAL_SETTINGS_APPS = ['docs', 'notes', 'board', 'flow', 'agents', 'robots', 'voice', 'rec', 'talk'] as const;
 export type MinimalSettingsApp = (typeof MINIMAL_SETTINGS_APPS)[number];
 
 export const PRODUCT_SETTINGS_SHORTCUTS: Record<MinimalSettingsApp, Array<{ href: string; label: string }>> = {
@@ -35,6 +35,15 @@ export const PRODUCT_SETTINGS_SHORTCUTS: Record<MinimalSettingsApp, Array<{ href
     { href: '/app/robots/recorder', label: 'recorder' },
     { href: '/app/settings/billing', label: 'aiUsage' },
   ],
+  voice: [
+    { href: '/app/settings/billing', label: 'aiUsage' },
+    { href: '/app/settings/members', label: 'members' },
+  ],
+  rec: [
+    { href: '/app/settings/members', label: 'members' },
+    { href: '/app/settings/billing', label: 'aiUsage' },
+  ],
+  talk: [{ href: '/app/settings/members', label: 'members' }],
 };
 
 /** Pestañas de los ajustes de Link (?tab=), la primera es la de entrada. */

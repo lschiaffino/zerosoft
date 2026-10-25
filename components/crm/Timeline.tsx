@@ -14,6 +14,7 @@ import type { CallView } from '@/lib/crm-voice';
 import MentionTextarea, { MentionText } from './MentionTextarea';
 import type { Mentionable } from '@/lib/crm-mentions';
 import CallSummaryBlock, { type CallSummaryState } from './CallSummaryBlock';
+import { parseDbUtc } from '@/lib/utils';
 
 /** lead y objectRecord: leads y registros de objetos propios (sin emails). */
 export type TimelineRecordType = 'contact' | 'company' | 'deal' | 'lead' | 'objectRecord';
@@ -98,7 +99,7 @@ function isModEnter(e: { key: string; metaKey: boolean; ctrlKey: boolean; defaul
 }
 
 function formatWhen(iso: string, locale: string): string {
-  const d = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
+  const d = parseDbUtc(iso);
   return new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',
@@ -109,7 +110,7 @@ function formatWhen(iso: string, locale: string): string {
 }
 
 function formatDay(iso: string, locale: string): string {
-  const d = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
+  const d = parseDbUtc(iso);
   return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(
     d,
   );

@@ -543,6 +543,23 @@ button.docs-db-card:focus-visible { outline: 2px solid var(--ink); outline-offse
 .docs-db-prow-value.editing { box-shadow: inset 0 0 0 2px var(--ink); }
 .docs-db-prow-value:focus-visible { outline: 2px solid var(--ink); outline-offset: -1px; }
 
+/* Aviso flotante del panel de fila (plantilla guardada). */
+.docs-db-toast {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  z-index: 2;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 8px 12px;
+  transform: translateX(-50%);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 0.8125rem;
+}
+
 /* ---------- Solo lectura ---------- */
 .dbv-db { margin: 12px 0; }
 .dbv-db-title { margin: 0 0 6px; font-weight: 600; }
@@ -552,6 +569,10 @@ button.docs-db-card:focus-visible { outline: 2px solid var(--ink); outline-offse
 .dbv-db-table th { background: var(--brand-enamel); font-weight: 600; }
 .dbv-db .docs-db-v,
 .dbv-db .docs-db-chips { white-space: normal; }
+/* IDs, números y fechas no se cortan (PRJ-1 en una línea); la tabla ancha se scrollea. */
+.dbv-db .docs-db-v-number,
+.dbv-db .docs-db-v.mono { white-space: nowrap; }
+.dbv-db { max-width: 100%; overflow-x: auto; }
 .dbv-db-group { margin-bottom: 10px; }
 .dbv-db-group-name { display: flex; align-items: center; gap: 6px; margin: 8px 0 4px; font-size: 0.8125rem; font-weight: 600; }
 .dbv-db-board .docs-db-bcard { cursor: default; }
@@ -563,6 +584,11 @@ button.docs-db-card:focus-visible { outline: 2px solid var(--ink); outline-offse
   .docs-db-rowpanel-inner,
   .docs-db-rowpanel.is-peek .docs-db-rowpanel-inner { width: calc(100% - 32px); padding-top: 16px; }
   .docs-db-rowpanel-actions .btn span { display: none; }
+  /* A lo ancho de un teléfono: en página completa (como Notion en el celular), Cerrar a mano. */
+  .docs-db-rowpanel-mode { display: none !important; }
+  .docs-db-rowpanel-bar { padding: 4px 8px; }
+  .docs-db-rowpanel-actions .btn { min-width: 44px; min-height: 44px; justify-content: center; }
+  .docs-db-rowpanel-crumbs { flex: 1; }
   .docs-db-prow { grid-template-columns: minmax(90px, 120px) minmax(0, 1fr); }
   .docs-db-bcol { flex-basis: 230px; }
 }

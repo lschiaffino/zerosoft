@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import SignaturePad from '@/components/crm/SignaturePad';
+import { parseDbUtc } from '@/lib/utils';
 
 interface QuotePublicActionsProps {
   token: string;
@@ -117,7 +118,7 @@ export default function QuotePublicActions({ token, status, recipientEmail = '',
           <p className="qp-state q-accepted" data-testid="quote-paid">
             {t('quotePublic.paid', {
               date: payment.paidAt
-                ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(`${payment.paidAt.replace(' ', 'T')}Z`))
+                ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(payment.paidAt))
                 : '',
             })}
           </p>

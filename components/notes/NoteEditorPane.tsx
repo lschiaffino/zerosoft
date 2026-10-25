@@ -15,6 +15,7 @@ import NoteTrackDrawer from './NoteTrackDrawer';
 import NotesIcon from './NotesIcon';
 import RowMenu from './RowMenu';
 import { usePopover } from './usePopover';
+import { parseDbUtc } from '@/lib/utils';
 
 interface Props {
   note: NoteDetail;
@@ -488,7 +489,7 @@ export default function NoteEditorPane({
         </nav>
       )}
       <p className="note-foot">
-        {t('editor.created', { date: format.dateTime(new Date(note.created_at), { dateStyle: 'medium' }) })}
+        {t('editor.created', { date: format.dateTime(parseDbUtc(note.created_at), { dateStyle: 'medium' }) })}
       </p>
     </div>
   );

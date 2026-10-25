@@ -1,3 +1,4 @@
+import { createClient } from '@libsql/client';
 import { expect, test } from '@playwright/test';
 
 /**
@@ -67,6 +68,8 @@ test('switcher: inicio, destacadas, más apps por categoría, teclado y ⌘K', a
   await expect(page.getByRole('dialog', { name: 'Buscar' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Buscar' })).toHaveCount(0);
+  // El ⌘K abierto desde "Buscar" del switcher devuelve el foco al botón del switcher.
+  await expect(page.locator('.band-product')).toBeFocused();
   // Esc cierra el switcher y devuelve el foco al botón.
   await page.locator('.band-product').click();
   await page.keyboard.press('Escape');
@@ -109,18 +112,30 @@ test('sitio: productos por categoría y la nota de equipos y uso personal', asyn
   await trigger.click();
   const mega = page.locator('#hd-mega');
   await expect(mega.locator('.hd-group-title')).toHaveText(['Vender', 'Atender', 'Automatizar', 'Construir', 'Trabajo diario']);
-  await expect(mega.locator('a.hd-prod')).toHaveCount(12);
+  await expect(mega.locator('a.hd-prod')).toHaveCount(15);
   await expect(mega.locator('.hd-mega-note')).toContainText('Para equipos y para uso personal');
   await page.keyboard.press('Escape');
   const suite = page.locator('#productos .suite');
   await expect(suite.locator('.suite-group')).toHaveCount(5);
-  await expect(suite.locator('.suite-row')).toHaveCount(12);
+  await expect(suite.locator('.suite-row')).toHaveCount(15);
   await expect(suite.locator('.suite-audience')).toContainText('Para equipos y para uso personal');
   // Desde el sitio, Dashboard lleva al inicio (no a Link); desde una landing, a esa app.
   await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app');
   await page.goto('/es/products/notes', { waitUntil: 'networkidle' });
   await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app/notes');
 });
+
+for (const [width, height] of [[1280, 720], [1440, 900]] as const) {
+  test(`sitio: el menú de productos entra entero en ${width}×${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto('/es', { waitUntil: 'networkidle' });
+    await page.locator('.site-header .hd-trigger').click();
+    const mega = page.locator('#hd-mega');
+    // Las apps en construcción van en una fila compacta aparte.
+    await expect(mega.locator('.hd-building a.hd-prod')).toHaveCount(3);
+    for (const link of await mega.locator('a.hd-prod').all()) await expect(link).toBeInViewport({ ratio: 1 });
+  });
+}
 
 test('Tareas del CRM: mías por defecto y todas con un clic', async ({ page }) => {
   await page.goto('/es/app', { waitUntil: 'networkidle' });
@@ -160,4 +175,44 @@ test('Link: sin clics, el top link muestra un estado vacío', async ({ page }) =
   const card = page.locator('.stat-card').nth(3);
   // Con clics muestra el slug; sin clics, el vacío. Nunca un "0" suelto.
   await expect(card.locator('.stat-num')).not.toHaveText('0');
+});
+
+test('Link: copy de clics consistente y en pt el título coincide con el nav', async ({ page }) => {
+  await page.goto('/es/app/links/overview', { waitUntil: 'networkidle' });
+  await expect(page.locator('.stat-card').nth(1)).toContainText('Clics totales');
+  await expect(page.getByText(/[Cc]licks/)).toHaveCount(0);
+  await page.goto('/pt/app/links/overview', { waitUntil: 'networkidle' });
+  const nav = (await page.locator('.side-line [aria-current="page"]').innerText()).trim();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(nav);
+});
+
+test('pie del sidebar: la ayuda se llama Ayuda (no Docs, que es una app)', async ({ page }) => {
+  await page.goto('/es/app', { waitUntil: 'networkidle' });
+  const help = page.getByTestId('side-help');
+  await expect(help).toHaveText('Ayuda');
+  await expect(help).toHaveAttribute('href', '/es/docs');
+});
+
+test('con un equipo activo, el sidebar del inicio a 1280×900 deja ver Notes y el equipo va en el pie', async ({ page }) => {
+  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const demo = String((await db.execute("SELECT id FROM users WHERE email = 'demo@zerosoft.ai'")).rows[0].id);
+  const suffix = Math.random().toString(36).slice(2, 8);
+  const boss = `ph-boss-${suffix}`;
+  const team = `ph-team-${suffix}`;
+  await db.execute({ sql: 'INSERT INTO users (id, email, name) VALUES (?, ?, ?)', args: [boss, `${boss}@test.local`, 'Boss'] });
+  await db.execute({ sql: 'INSERT INTO teams (id, name, owner_id) VALUES (?, ?, ?)', args: [team, 'Ventas Norte', boss] });
+  await db.execute({ sql: 'INSERT INTO team_members (team_id, user_id, role) VALUES (?, ?, ?)', args: [team, boss, 'owner'] });
+  await db.execute({ sql: 'INSERT INTO team_members (team_id, user_id, role) VALUES (?, ?, ?)', args: [team, demo, 'member'] });
+  await db.execute({ sql: 'UPDATE users SET active_team_id = ? WHERE id = ?', args: [team, demo] });
+  try {
+    await page.goto('/es/app', { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('side-team')).toHaveText('Equipo: Ventas Norte');
+    const line = page.locator('.side-line');
+    for (const name of ['Docs', 'Notes', 'Cal']) {
+      await expect(line.getByRole('link', { name, exact: true })).toBeInViewport({ ratio: 1 });
+    }
+  } finally {
+    await db.execute({ sql: 'UPDATE users SET active_team_id = NULL WHERE id = ?', args: [demo] });
+    db.close();
+  }
 });

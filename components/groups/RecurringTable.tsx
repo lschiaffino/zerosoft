@@ -7,6 +7,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { RecurringDto } from '@/lib/groups-recurring';
 import { Modal, api, useErrorText, useToast } from './ui';
 import { useRuleText } from './RecurringParts';
+import { parseDbUtc } from '@/lib/utils';
 
 /** Mensajes recurrentes: regla, próxima corrida, estado; pausar, renombrar y borrar sin recargar. */
 export default function RecurringTable({ initial }: { initial: RecurringDto[] }) {
@@ -76,7 +77,7 @@ export default function RecurringTable({ initial }: { initial: RecurringDto[] })
                 <td className="gr-hide-sm ui-help">{ruleText(r.rule)}</td>
                 <td>
                   {r.status === 'active' && r.nextRunAt ? (
-                    <time dateTime={r.nextRunAt}>{new Date(r.nextRunAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</time>
+                    <time dateTime={r.nextRunAt}>{parseDbUtc(r.nextRunAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</time>
                   ) : (
                     <span className="badge badge-outline">{t(`recurring.status.${r.status}`)}</span>
                   )}

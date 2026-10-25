@@ -10,6 +10,7 @@ import { invalidateWorkspaceLabels } from './LabelPicker';
 import TrackIcon from './TrackIcon';
 import KeyPicker from './KeyPicker';
 import type { GithubConfig } from '@/lib/track-github';
+import { parseDbUtc } from '@/lib/utils';
 
 // Colores de Linear; sin elegir, el servidor asigna uno al azar.
 const LABEL_COLORS = ['#5e6ad2', '#26b5ce', '#4cb782', '#f2c94c', '#f2994a', '#eb5757', '#bb87fc', '#95a2b3'];
@@ -542,7 +543,7 @@ function GithubSettingsBody({ isAdmin, locale, example }: { isAdmin: boolean; lo
           <p className="ui-help">
             {config.lastDeliveryAt
               ? t('github.lastDelivery', {
-                  date: new Date(`${config.lastDeliveryAt.replace(' ', 'T')}Z`).toLocaleString(locale),
+                  date: parseDbUtc(config.lastDeliveryAt).toLocaleString(locale),
                 })
               : t('github.noDelivery')}
           </p>

@@ -1,14 +1,32 @@
 import '@/styles/docs-database.css';
+import '@/styles/docs-database-views.css';
 import type { DbProperty, DbRow, DbStatusGroup } from '@/lib/docs-types';
 import {
   cellValue,
   dbValueHref,
+  effectiveType,
   formatDate,
   formatNumber,
   formatTimestamp,
+  formatUniqueId,
+  formatValue,
   isEmptyValue,
   optionById,
 } from '@/lib/docs-database';
+
+/** Lo que una celda necesita de afuera para relaciones, archivos y botones. */
+export interface DbRefs {
+  /** id de fila → título (de esta base y de las relacionadas). */
+  titles?: Record<string, string>;
+  /** URL de un archivo de una propiedad files (null: sin acceso al archivo). */
+  fileHref?: (fileId: string, opts?: { download?: boolean }) => string | null;
+  /** Click en un botón de la fila. */
+  onButton?: (prop: DbProperty, row: DbRow) => void;
+  /** Botón corriendo (deshabilitado mientras tanto). */
+  busyButton?: string | null;
+  /** Etiquetas sin hooks (sirve en el server). */
+  labels?: { untitled?: string; error?: string; openMap?: string };
+}
 
 /**
  * Valor de una celda para mostrar (tabla, board, galería, panel de la fila y
@@ -41,6 +59,7 @@ export default function DbValueView({
   people,
   locale,
   links = true,
+  refs,
 }: {
   prop: DbProperty;
   row: DbRow;
@@ -48,8 +67,42 @@ export default function DbValueView({
   locale?: string;
   /** URL/email/teléfono como link (en la tabla editable el click edita: va el botón aparte). */
   links?: boolean;
+  refs?: DbRefs;
 }) {
   const v = cellValue(prop, row);
+  if (prop.type === 'button') {
+    const label = prop.button?.label || prop.name;
+    if (!refs?.onButton) return <span className="docs-db-btnprop is-static">{label}</span>;
+    return (
+      <button
+        type="button"
+        className="docs-db-btnprop"
+        disabled={refs.busyButton === `${prop.id}:${row.id}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          refs.onButton?.(prop, row);
+        }}
+      >
+        {label}
+      </button>
+    );
+  }
+  if ((prop.type === 'formula' || prop.type === 'rollup') && prop.error && prop.type === 'formula') {
+    return (
+      <span className="docs-db-v docs-db-v-error" title={prop.error}>
+        {refs?.labels?.error ?? 'Error'}
+      </span>
+    );
+  }
+  const type = effectiveType(prop);
+  if (type === 'checkbox' && (prop.type === 'formula' || prop.type === 'rollup')) {
+    if (v === null || v === undefined) return null;
+    return (
+      <span className="docs-db-v docs-db-v-check" role="img" aria-label={v === true ? '✓' : '–'}>
+        <CheckboxGlyph checked={v === true} />
+      </span>
+    );
+  }
   if (prop.type === 'checkbox') {
     return (
       <span className="docs-db-v docs-db-v-check" role="img" aria-label={v === true ? '✓' : '–'}>
@@ -58,6 +111,77 @@ export default function DbValueView({
     );
   }
   if (isEmptyValue(v)) return null;
+  if (prop.type === 'unique_id') return <span className="docs-db-v docs-db-v-number mono">{formatUniqueId(prop, v)}</span>;
+  if (prop.type === 'formula' || prop.type === 'rollup') {
+    const text = formatValue(prop, row, { people, locale });
+    return <span className={`docs-db-v${type === 'number' ? ' docs-db-v-number mono' : type === 'date' ? ' mono' : ' docs-db-v-text'}`}>{text}</span>;
+  }
+  if (prop.type === 'relation') {
+    return (
+      <span className="docs-db-v docs-db-chips">
+        {(Array.isArray(v) ? v : []).map((id) => (
+          <span key={id} className="docs-db-relchip">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true" focusable="false">
+              <path d="M7 3h7l4 4v14H7zM14 3v4h4" />
+            </svg>
+            {refs?.titles?.[id] || refs?.labels?.untitled || '…'}
+          </span>
+        ))}
+      </span>
+    );
+  }
+  if (prop.type === 'files') {
+    const files = row.files?.[prop.id] ?? [];
+    return (
+      <span className="docs-db-v docs-db-chips">
+        {files.map((f) => {
+          const href = links && f.url ? refs?.fileHref?.(f.id) : null;
+          return href ? (
+            <a key={f.id} className="docs-db-filechip" href={href} target="_blank" rel="noopener noreferrer">
+              {f.name}
+            </a>
+          ) : (
+            <span key={f.id} className="docs-db-filechip">
+              {f.name}
+            </span>
+          );
+        })}
+      </span>
+    );
+  }
+  if (prop.type === 'created_by' || prop.type === 'last_edited_by') {
+    return (
+      <span className="docs-db-v docs-db-chips">
+        {(Array.isArray(v) ? v : []).map((id) => {
+          const name = people?.[id];
+          if (!name) return null;
+          return (
+            <span key={id} className="docs-db-person">
+              <span className="docs-db-avatar" aria-hidden="true">
+                {name.trim().charAt(0).toUpperCase()}
+              </span>
+              {name}
+            </span>
+          );
+        })}
+      </span>
+    );
+  }
+  if (prop.type === 'place') {
+    const text = String(v);
+    if (!links) return <span className="docs-db-v docs-db-v-text">{text}</span>;
+    return (
+      <a
+        className="docs-db-v docs-db-v-link"
+        href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(text)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={refs?.labels?.openMap}
+      >
+        {text}
+      </a>
+    );
+  }
   switch (prop.type) {
     case 'number':
       return <span className="docs-db-v docs-db-v-number mono">{typeof v === 'number' ? formatNumber(v, locale) : ''}</span>;

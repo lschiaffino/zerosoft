@@ -241,14 +241,6 @@
 .side-new { position: relative; flex-shrink: 0; }
 .side-new-btn { justify-content: flex-start; }
 
-.side-team {
-  padding: 0 12px;
-  font-size: 0.75rem;
-  color: var(--brand-gray-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 /* La lista de ítems del sidebar, cada uno con su ícono. */
 .side-line {
@@ -452,7 +444,6 @@
     white-space: nowrap;
   }
   .sidebar-collapsed .side-section { height: 12px; padding: 0; overflow: hidden; color: transparent; }
-  .sidebar-collapsed .side-team,
   .sidebar-collapsed .side-badge,
   .sidebar-collapsed .side-signout,
   .sidebar-collapsed .side-user-meta { display: none; }
@@ -1292,3 +1283,6 @@ td.cell-actions > * + * { margin-left: 4px; }
 .side-section-toggle:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .side-section-chevron { display: inline-flex; transition: transform 120ms var(--ease); }
 .side-section-chevron.open { transform: rotate(90deg); }
+/* Marca "pronto" de las apps en construcción (Voice, Rec, Talk) en el switcher y el sidebar del inicio. */
+.app-soon-tag { margin-left: auto; padding: 0 4px; font-family: var(--mono); font-size: 11px; line-height: 16px; color: var(--brand-gray-2); border: 1px solid var(--line); }
+.sidebar-collapsed .side-soon { display: none; }
