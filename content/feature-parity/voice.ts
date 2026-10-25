@@ -31,12 +31,12 @@ const parity: ProductParity = {
   lastReviewed: '2026-10-25',
   areas: [
     { id: 'dictation', label: loc(['Dictation in any app', 'Dictado en cualquier app', 'Ditado em qualquer app']) },
-    { id: 'cleanup', label: loc(['AI cleanup and formatting', 'Limpieza y formato con AI', 'Limpeza e formatação com IA']) },
+    { id: 'cleanup', label: loc(['AI cleanup and formatting', 'Limpieza y formato con IA', 'Limpeza e formatação com IA']) },
     { id: 'personalization', label: loc(['Dictionary, snippets and styles', 'Diccionario, snippets y estilos', 'Dicionário, snippets e estilos']) },
     { id: 'commands', label: loc(['Voice commands and rewriting', 'Comandos de voz y reescritura', 'Comandos de voz e reescrita']) },
     { id: 'apps', label: loc(['Desktop, mobile and usage', 'Escritorio, móvil y uso', 'Desktop, celular e uso']) },
     { id: 'capture', label: loc(['Meeting capture', 'Captura de reuniones', 'Captura de reuniões']) },
-    { id: 'notes', label: loc(['AI notes and summaries', 'Notas y resúmenes con AI', 'Notas e resumos com IA']) },
+    { id: 'notes', label: loc(['AI notes and summaries', 'Notas y resúmenes con IA', 'Notas e resumos com IA']) },
     { id: 'chat', label: loc(['Chat with meetings', 'Chat con las reuniones', 'Chat com as reuniões']) },
     { id: 'organize', label: loc(['Organize and share', 'Organizar y compartir', 'Organizar e compartilhar']) },
     { id: 'integrations', label: loc(['Integrations and API', 'Integraciones y API', 'Integrações e API']) },
@@ -210,7 +210,7 @@ const parity: ProductParity = {
     }),
 
     // Notas y resúmenes
-    row('enhanced-notes', 'notes', ['AI notes from your notes and the transcript', 'Notas con AI a partir de lo escrito y la transcripción', 'Notas com IA a partir do que você escreveu e da transcrição'], 'missing', {
+    row('enhanced-notes', 'notes', ['AI notes from your notes and the transcript', 'Notas con IA a partir de lo escrito y la transcripción', 'Notas com IA a partir do que você escreveu e da transcrição'], 'missing', {
       weight: 2,
       detail: [
         'Granola merges the transcript, your notes and the calendar event; your own lines stay marked',
@@ -296,7 +296,7 @@ const parity: ProductParity = {
     row('zapier', 'integrations', ['Zapier', 'Zapier', 'Zapier'], 'missing', {
       detail: ['Granola Business', 'Granola Business', 'Granola Business'],
     }),
-    row('mcp-server', 'integrations', ['MCP server for AI assistants', 'Servidor MCP para asistentes de AI', 'Servidor MCP para assistentes de IA'], 'missing', {
+    row('mcp-server', 'integrations', ['MCP server for AI assistants', 'Servidor MCP para asistentes de IA', 'Servidor MCP para assistentes de IA'], 'missing', {
       detail: [
         'Granola and Wispr Flow expose notes to Claude, ChatGPT and other MCP clients',
         'Granola y Wispr Flow exponen las notas a Claude, ChatGPT y otros clientes MCP',

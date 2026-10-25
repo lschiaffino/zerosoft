@@ -36,7 +36,8 @@
       "voice": "En construcción: dictado por voz y notas de reunión",
       "rec": "En construcción: grabación de pantalla y cámara",
       "talk": "En construcción: mensajería de equipo"
-    }
+    },
+    "building": "En construcción"
   },
   "sidebar": {
     "search": "Buscar",

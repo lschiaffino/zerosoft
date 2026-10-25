@@ -1105,8 +1105,8 @@
     "parityShort": "{percent}% parity with {competitor}",
     "voice": {
       "meta": {
-        "title": "Voice: open source voice dictation and meeting notes (in the works)",
-        "description": "Voice will be the open source alternative to Wispr Flow and Granola: dictation in any app and meeting notes with AI transcripts and summaries. It is being built, and its parity is measured live."
+        "title": "Voice: open-source voice dictation and meeting notes (in the works)",
+        "description": "Voice will be the open-source alternative to Wispr Flow and Granola: dictation in any app and meeting notes with AI transcripts and summaries. It is being built, and its parity is measured live."
       },
       "hero": {
         "sub": "We are building an app to dictate into any text field and take meeting notes with AI transcripts and summaries, in the same suite as your CRM, Docs and Track. You can't use it yet."
@@ -1190,8 +1190,8 @@
     },
     "rec": {
       "meta": {
-        "title": "Rec: open source screen and camera recording (in the works)",
-        "description": "Rec will be the open source alternative to Loom: record your screen and camera, share with a link, timestamped comments and view analytics. It is being built, and its parity is measured live."
+        "title": "Rec: open-source screen and camera recording (in the works)",
+        "description": "Rec will be the open-source alternative to Loom: record your screen and camera, share with a link, timestamped comments and view analytics. It is being built, and its parity is measured live."
       },
       "hero": {
         "sub": "We are building an app to record your screen and camera, share the video with a link and see who watched it, in the same suite as your CRM and Track. You can't use it yet."
@@ -1275,8 +1275,8 @@
     },
     "talk": {
       "meta": {
-        "title": "Talk: open source team messaging (in the works)",
-        "description": "Talk will be the open source alternative to Slack: channels, direct messages and threads for your team, in the same suite as your CRM and Track. It is being built, and its parity is measured live."
+        "title": "Talk: open-source team messaging (in the works)",
+        "description": "Talk will be the open-source alternative to Slack: channels, direct messages and threads for your team, in the same suite as your CRM and Track. It is being built, and its parity is measured live."
       },
       "hero": {
         "sub": "We are building your team's messaging: public and private channels, direct messages and threads, with the same people and groups as your workspace. You can't use it yet."
@@ -1425,10 +1425,13 @@
     },
     "building": {
       "badge": "In the works",
-      "tagline": "We are building the open source alternative to {rival}",
+      "tagline": "We are building the open-source alternative to {rival}",
       "propose": "Propose an idea",
       "roadmap": "See the roadmap",
-      "shotFig": "fig. 1 · {name}, design sketch: you can't use it yet"
+      "shotFig": "fig. 1 · {name}, design sketch: you can't use it yet",
+      "faqTitleDim": "What we know so far and what's missing.",
+      "compareZero": "With zerosoft, once it's ready",
+      "zeroApp": "{name} on your server, once it's ready"
     }
   },
   "mockups": {

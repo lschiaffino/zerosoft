@@ -61,6 +61,9 @@
     --c-voice-ink: #d05ede;
     --c-rec-ink: #ea5f7d;
     --c-talk-ink: #b37baa;
+    /* Talk: el ciruela base queda en 2,8:1 sobre el fondo oscuro; el relleno usa el tono claro (≥ 5:1) y tinta encima. */
+    --c-talk: #b37baa;
+    --c-talk-on: #111111;
 
     /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
     --ok-ink: #2bb062;
@@ -144,6 +147,9 @@
   --c-voice-ink: #d05ede;
   --c-rec-ink: #ea5f7d;
   --c-talk-ink: #b37baa;
+  /* Talk: el ciruela base queda en 2,8:1 sobre el fondo oscuro; el relleno usa el tono claro (≥ 5:1) y tinta encima. */
+  --c-talk: #b37baa;
+  --c-talk-on: #111111;
 
   /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
   --ok-ink: #2bb062;
@@ -176,3 +182,9 @@
   --brand-gray-1: #3a3936;
   --brand-gray-2: #6f6e69;
 }/* --- end:explicit --- */
+
+/* Talk en oscuro: su relleno es el tono claro, así que el texto encima va en tinta. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .card-talk { --on-accent: #111111; }
+}
+:root[data-theme='dark'] .card-talk { --on-accent: #111111; }
