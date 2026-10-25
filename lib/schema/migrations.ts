@@ -4162,7 +4162,7 @@ export const MIGRATIONS: Migration[] = [
     // guardado hecho sobre una versión vieja (otra pestaña, una automatización
     // o una operación del servidor en una base) se fusiona contra la versión
     // que vio el editor en vez de volver 409.
-    id: '092_docs_page_revisions',
+    id: '093_docs_page_revisions',
     up: async (client) => {
       await client.executeMultiple(`
         CREATE TABLE IF NOT EXISTS docs_page_revisions (
