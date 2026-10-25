@@ -80,17 +80,45 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
   const isMember = channel.isMember;
   const title = channel.kind === 'public' || channel.kind === 'private' ? channel.name : channelTitle(channel);
 
+  // Read pendiente (con debounce): si se cambia de canal o se cierra la pestaña antes, se manda igual.
+  const pendingRead = useRef<{ channelId: string; at: string | null } | null>(null);
   const markRead = useCallback(
     (at?: string) => {
       if (!isMember) return;
       if (readTimer.current) clearTimeout(readTimer.current);
+      pendingRead.current = { channelId: channel.id, at: at ?? null };
       readTimer.current = setTimeout(() => {
+        readTimer.current = null;
+        pendingRead.current = null;
         // El sidebar se actualiza con el evento "read" del tiempo real (sin pedir todo).
         void api(`/api/talk/channels/${channel.id}/read`, { method: 'POST', json: at ? { at } : {} }).catch(() => undefined);
       }, at ? 0 : READ_DEBOUNCE_MS);
     },
     [api, channel.id, isMember],
   );
+
+  useEffect(() => {
+    const flush = () => {
+      const p = pendingRead.current;
+      if (!p) return;
+      if (readTimer.current) clearTimeout(readTimer.current);
+      readTimer.current = null;
+      pendingRead.current = null;
+      // keepalive: sobrevive a que se cierre la pestaña.
+      void fetch(`/api/talk/channels/${p.channelId}/read`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(p.at ? { at: p.at } : {}),
+        keepalive: true,
+      }).catch(() => undefined);
+    };
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      // Al dejar este canal (otro canal o vista), el read pendiente sale ya.
+      flush();
+    };
+  }, [channel.id]);
 
   const load = useCallback(async () => {
     setState('loading');
