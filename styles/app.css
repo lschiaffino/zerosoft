@@ -1240,3 +1240,7 @@ td.cell-actions > * + * { margin-left: 4px; }
 /* Sidebar del inicio: las 12 apps por categoría entran sin scroll en una pantalla de 900px. */
 .side-line.side-line-compact .side-section { padding: 10px 8px 2px 12px; }
 .side-line.side-line-compact .side-stop { height: 30px; }
+
+/* Marca "pronto" de las apps en construcción (Voice, Rec, Talk) en el switcher y el sidebar del inicio. */
+.app-soon-tag { margin-left: auto; padding: 0 4px; font-family: var(--mono); font-size: 11px; line-height: 16px; color: var(--brand-gray-2); border: 1px solid var(--line); }
+.sidebar-collapsed .side-soon { display: none; }

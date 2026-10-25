@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Productos",
-      "description": "Doce apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal y Board. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
+      "description": "Quince apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal y Board, y Voice, Rec y Talk en construcción. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
     },
     "hero": {
-      "title1": "Doce apps.",
+      "title1": "Quince apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las doce apps.",
+      "title1": "Probá las quince apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -1102,7 +1102,262 @@
         "button": "Abrir Board"
       }
     },
-    "parityShort": "{percent}% de paridad con {competitor}"
+    "parityShort": "{percent}% de paridad con {competitor}",
+    "voice": {
+      "meta": {
+        "title": "Voice: dictado por voz y notas de reunión open source (en construcción)",
+        "description": "Voice va a ser la alternativa open source a Wispr Flow y Granola: dictado en cualquier app y notas de reunión con transcripción y resumen con IA. Está en construcción y la paridad se mide en vivo."
+      },
+      "hero": {
+        "sub": "Estamos construyendo una app para dictar en cualquier campo de texto y tomar notas de reunión con transcripción y resumen con IA, en la misma suite que tu CRM, Docs y Track. Todavía no se puede usar."
+      },
+      "featuresTitle": "Lo que va a hacer Voice.",
+      "featuresTitleDim": "Todavía no existe: esto es el plan.",
+      "f1": {
+        "t": "Dictado en cualquier lado",
+        "d": "Un atajo para hablar y que el texto aparezca donde está el cursor: primero en la web y después en la app de escritorio."
+      },
+      "f2": {
+        "t": "Limpieza con IA",
+        "d": "Sacar muletillas, puntuar y aplicar las correcciones que digas en voz alta, como \"el lunes, no, el martes\"."
+      },
+      "f3": {
+        "t": "Notas de reunión sin bot",
+        "d": "Grabar el micrófono y el audio de la llamada desde tu computadora, sin sumar un participante extra."
+      },
+      "f4": {
+        "t": "Transcripción, resumen y tareas",
+        "d": "Transcripción con hablantes, un resumen con decisiones y tareas, y plantillas por tipo de reunión."
+      },
+      "f5": {
+        "t": "Conectado con la suite",
+        "d": "Mandar la nota a Docs o Notes y las tareas a Track o al CRM."
+      },
+      "f6": {
+        "t": "La IA que elijas",
+        "d": "La transcripción va a pasar por el proveedor que configures, con la misma cuota y el mismo registro de uso que el resto de las apps."
+      },
+      "steps": {
+        "s1": {
+          "t": "Dictá con un atajo",
+          "d": "Vas a mantener una tecla, hablar y ver el texto limpio donde estabas escribiendo."
+        },
+        "s2": {
+          "t": "Grabá la reunión",
+          "d": "Voice va a escuchar el micrófono y el audio de la llamada, y transcribir con hablantes."
+        },
+        "s3": {
+          "t": "Usá la nota",
+          "d": "El resumen, las decisiones y las tareas van a ir a Docs, Notes, Track o el CRM."
+        }
+      },
+      "compare": {
+        "rival": "Wispr Flow + Granola",
+        "price": "$26",
+        "per": "/ usuario / mes",
+        "team": "$3.120",
+        "zero": "$0",
+        "note": "Wispr Flow Pro cuesta $12 por usuario por mes en pago anual ($15 mensual) y Granola Business, $14 por usuario por mes. Juntos son $26: un equipo de diez paga $3.120 al año. Precios de lista verificados el 25 de octubre de 2026. Voice todavía no existe; cuando salga, en tu servidor va a costar $0 más lo que cobre tu proveedor de transcripción."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Ya puedo usar Voice?",
+          "a": "Todavía no. Hoy /app/voice muestra que está en construcción. La paridad de esta página sale del código y sube a medida que salen las funciones; el changelog avisa cada una."
+        },
+        "f2": {
+          "q": "¿Va a tener app de escritorio?",
+          "a": "Ese es el plan: primero el dictado y las notas en la web, y después una app de escritorio para dictar en cualquier programa y grabar el audio de la computadora. No tenemos fecha."
+        },
+        "f3": {
+          "q": "¿Dónde se va a procesar el audio?",
+          "a": "En el proveedor de transcripción que configure tu workspace. Si hosteás zerosoft vos, elegís el proveedor y la clave."
+        },
+        "f4": {
+          "q": "¿Va a sumar un bot a mis reuniones?",
+          "a": "No. La idea es grabar desde tu computadora, como hace Granola, sin un participante extra en la llamada."
+        },
+        "f5": {
+          "q": "¿Qué le falta comparado con Wispr Flow + Granola?",
+          "a": "Todo, por ahora. Voice está en construcción y la tabla de paridad de arriba lista las capacidades de los dos que medimos, todas pendientes."
+        }
+      },
+      "cta": {
+        "title1": "Voice está en construcción.",
+        "title2": "Contanos qué necesitás.",
+        "sub": "Proponé ideas y votá en el board público: lo que votes nos ayuda a ordenar qué hacemos primero.",
+        "button": "Proponer una idea"
+      }
+    },
+    "rec": {
+      "meta": {
+        "title": "Rec: grabación de pantalla y cámara open source (en construcción)",
+        "description": "Rec va a ser la alternativa open source a Loom: grabar pantalla y cámara, compartir con un link, comentarios en el minuto exacto y analítica de vistas. Está en construcción y la paridad se mide en vivo."
+      },
+      "hero": {
+        "sub": "Estamos construyendo una app para grabar la pantalla y la cámara, compartir el video con un link y ver quién lo miró, en la misma suite que tu CRM y Track. Todavía no se puede usar."
+      },
+      "featuresTitle": "Lo que va a hacer Rec.",
+      "featuresTitleDim": "Todavía no existe: esto es el plan.",
+      "f1": {
+        "t": "Pantalla y cámara",
+        "d": "Grabar la pantalla, una ventana o una pestaña con la cámara en una burbuja, desde el navegador."
+      },
+      "f2": {
+        "t": "Un link al terminar",
+        "d": "Al cortar, el video sube por partes y queda un link para compartir, con contraseña y vencimiento si querés."
+      },
+      "f3": {
+        "t": "Comentarios en el minuto",
+        "d": "Comentarios y reacciones anclados al momento exacto del video."
+      },
+      "f4": {
+        "t": "Quién lo vio",
+        "d": "Vistas, personas únicas y cuánto del video miró cada una."
+      },
+      "f5": {
+        "t": "Transcripción y resumen",
+        "d": "Título, resumen y transcripción con IA, con el mismo motor que Voice."
+      },
+      "f6": {
+        "t": "Los videos del CRM",
+        "d": "Los videos que hoy grabás desde la ficha de un contacto del CRM van a vivir en Rec, con la misma analítica."
+      },
+      "steps": {
+        "s1": {
+          "t": "Grabá",
+          "d": "Vas a elegir pantalla, ventana o pestaña, prender la cámara y empezar."
+        },
+        "s2": {
+          "t": "Compartí el link",
+          "d": "El link va a estar listo al cortar, para pegarlo en un mail, un issue o un chat."
+        },
+        "s3": {
+          "t": "Mirá las respuestas",
+          "d": "Comentarios en el minuto exacto y quién vio cuánto."
+        }
+      },
+      "compare": {
+        "rival": "Loom",
+        "price": "$15",
+        "per": "/ usuario / mes",
+        "team": "$1.800",
+        "zero": "$0",
+        "note": "Loom Business cuesta $15 por usuario por mes en pago anual ($18 mensual); Business + AI cuesta $20. Un equipo de diez paga $1.800 al año. Precios de lista verificados el 25 de octubre de 2026. Rec todavía no existe; cuando salga, en tu servidor va a costar $0 más el almacenamiento de los videos."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Ya puedo usar Rec?",
+          "a": "Todavía no. Hoy /app/rec muestra que está en construcción. Mientras tanto, desde la ficha de un contacto del CRM ya podés grabar un video 1:1 y ver sus vistas."
+        },
+        "f2": {
+          "q": "¿Hay que instalar algo?",
+          "a": "El plan es grabar desde el navegador, sin extensión. Grabar el audio de toda la computadora va a necesitar una app de escritorio, que viene después."
+        },
+        "f3": {
+          "q": "¿Dónde se van a guardar los videos?",
+          "a": "En el almacenamiento de archivos de tu servidor o de zerosoft Cloud. Si hosteás vos, los videos quedan en tu infraestructura."
+        },
+        "f4": {
+          "q": "¿Quién va a poder ver un video?",
+          "a": "Cada video va a poder tener un link público, con contraseña y vencimiento opcionales, o quedar solo para tu workspace."
+        },
+        "f5": {
+          "q": "¿Qué le falta comparado con Loom?",
+          "a": "Todo, por ahora. Rec está en construcción y la tabla de paridad de arriba lista las capacidades de Loom que medimos, todas pendientes."
+        }
+      },
+      "cta": {
+        "title1": "Rec está en construcción.",
+        "title2": "Contanos qué necesitás.",
+        "sub": "Proponé ideas y votá en el board público: lo que votes nos ayuda a ordenar qué hacemos primero.",
+        "button": "Proponer una idea"
+      }
+    },
+    "talk": {
+      "meta": {
+        "title": "Talk: mensajería de equipo open source (en construcción)",
+        "description": "Talk va a ser la alternativa open source a Slack: canales, mensajes directos e hilos para tu equipo, en la misma suite que tu CRM y Track. Está en construcción y la paridad se mide en vivo."
+      },
+      "hero": {
+        "sub": "Estamos construyendo la mensajería de tu equipo: canales públicos y privados, mensajes directos e hilos, con las mismas personas y grupos del workspace. Todavía no se puede usar."
+      },
+      "featuresTitle": "Lo que va a hacer Talk.",
+      "featuresTitleDim": "Todavía no existe: esto es el plan.",
+      "f1": {
+        "t": "Canales",
+        "d": "Canales públicos y privados por tema, equipo o cliente, con quién está en cada uno."
+      },
+      "f2": {
+        "t": "Mensajes directos",
+        "d": "Conversaciones de a dos o en grupos chicos."
+      },
+      "f3": {
+        "t": "Hilos",
+        "d": "Respuestas en hilo para que el canal no se llene."
+      },
+      "f4": {
+        "t": "Menciones y reacciones",
+        "d": "@persona, @canal y los grupos del workspace, y reacciones con emoji."
+      },
+      "f5": {
+        "t": "Sin leer y búsqueda",
+        "d": "Lo sin leer marcado por canal y búsqueda en todos los mensajes."
+      },
+      "f6": {
+        "t": "El mismo workspace",
+        "d": "Las mismas personas y grupos que ya usás en CRM, Track y Docs, sin otra cuenta."
+      },
+      "steps": {
+        "s1": {
+          "t": "Armá los canales",
+          "d": "Vas a crear un canal por equipo, proyecto o cliente."
+        },
+        "s2": {
+          "t": "Sumá al equipo",
+          "d": "Van a entrar las personas del workspace, con los grupos que ya tenés."
+        },
+        "s3": {
+          "t": "Conversen en hilos",
+          "d": "Respuestas, menciones y reacciones, con lo sin leer marcado."
+        }
+      },
+      "compare": {
+        "rival": "Slack",
+        "price": "$7,25",
+        "per": "/ usuario / mes",
+        "team": "$870",
+        "zero": "$0",
+        "note": "Slack Pro cuesta $7,25 por usuario por mes en pago anual ($8,75 mensual) y Business+ cuesta $15. Un equipo de diez paga $870 al año. Precios de lista sin promociones, verificados el 25 de octubre de 2026. Talk todavía no existe; cuando salga, en tu servidor va a costar $0."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Ya puedo usar Talk?",
+          "a": "Todavía no. Hoy /app/talk muestra que está en construcción. La paridad de esta página sale del código y sube a medida que salen las funciones."
+        },
+        "f2": {
+          "q": "¿Va a tener llamadas como los huddles de Slack?",
+          "a": "En la primera versión, no: primero van los mensajes en tiempo real. Las llamadas quedan para una etapa posterior."
+        },
+        "f3": {
+          "q": "¿Voy a poder traer mis mensajes de Slack?",
+          "a": "Hoy no hay importador de Slack. Si lo necesitás, votalo en el board público."
+        },
+        "f4": {
+          "q": "¿Sirve con gente de otras empresas?",
+          "a": "Talk está pensado para las personas de tu workspace. Los canales compartidos con otras organizaciones, como Slack Connect, no están en el plan inicial."
+        },
+        "f5": {
+          "q": "¿Qué le falta comparado con Slack?",
+          "a": "Todo, por ahora. Talk está en construcción y la tabla de paridad de arriba lista las capacidades de Slack que medimos, todas pendientes."
+        }
+      },
+      "cta": {
+        "title1": "Talk está en construcción.",
+        "title2": "Contanos qué necesitás.",
+        "sub": "Proponé ideas y votá en el board público: lo que votes nos ayuda a ordenar qué hacemos primero.",
+        "button": "Proponer una idea"
+      }
+    }
   },
   "product": {
     "launch": "Probar {name}",
@@ -1117,7 +1372,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Doce apps, el mismo login.",
+    "suiteTitleDim": "Quince apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -1165,7 +1420,18 @@
       "beyondTitle": "Donde vamos más allá",
       "missingTitle": "Lo que todavía falta ({count})",
       "missingLead": "{competitor} tiene esto y nosotros todavía no. Si te hace falta, votalo en el board público.",
-      "vote": "Votar en el board"
+      "vote": "Votar en el board",
+      "noneYet": "{name} todavía no incluye ninguna capacidad: está en construcción. Abajo están todas las que medimos."
+    },
+    "building": {
+      "badge": "En construcción",
+      "tagline": "Estamos construyendo la alternativa open source a {rival}",
+      "propose": "Proponer una idea",
+      "roadmap": "Ver el roadmap",
+      "shotFig": "fig. 1 · {name}, boceto del diseño: todavía no se puede usar",
+      "faqTitleDim": "Lo que ya sabemos y lo que falta.",
+      "compareZero": "Con zerosoft, cuando esté lista",
+      "zeroApp": "{name} en tu servidor, cuando esté lista"
     }
   },
   "mockups": {
@@ -1411,6 +1677,64 @@
       "b1": "Anuncio en Instagram",
       "b2": "Envíos por Andreani",
       "c1": "Encuesta a los primeros clientes"
+    },
+    "voice": {
+      "listTitle": "Reuniones",
+      "sketch": "Boceto",
+      "r1name": "Revisión semanal de ventas",
+      "r1time": "32 min",
+      "r1meta": "4 hablantes · hoy 10:00",
+      "r2name": "Llamada con Acme",
+      "r2time": "18 min",
+      "r2meta": "2 hablantes · ayer",
+      "r3name": "Dictado: mail a Lucía",
+      "r3time": "1 min",
+      "r3meta": "Dictado",
+      "speakers": "4 hablantes",
+      "summaryTitle": "Resumen",
+      "summary": "Octubre cerró arriba del objetivo; faltan seguimientos en dos cuentas grandes.",
+      "decisionsTitle": "Decisiones",
+      "d1": "Pasar Globex a negociación",
+      "d2": "Revisar el precio del plan anual en noviembre",
+      "tasksTitle": "Tareas",
+      "t1": "Ana: mandar la propuesta a Globex",
+      "t2": "Lucía: actualizar el forecast en el CRM",
+      "askHint": "Preguntale algo a esta reunión"
+    },
+    "rec": {
+      "listTitle": "Videos",
+      "sketch": "Boceto",
+      "r1name": "Demo del nuevo onboarding",
+      "r1time": "3:42",
+      "r1meta": "12 vistas · hoy",
+      "r2name": "Respuesta al bug #418",
+      "r2time": "1:15",
+      "r2meta": "3 vistas · ayer",
+      "r3name": "Propuesta para Acme",
+      "r3time": "4:58",
+      "r3meta": "Sin vistas",
+      "views": "12 vistas · 9 personas",
+      "screen": "pantalla compartida",
+      "c1who": "Ana · 0:42",
+      "c1": "Acá conviene mostrar el paso de importar.",
+      "c2who": "Lucía · 2:10",
+      "c2": "Perfecto, lo sumo al doc."
+    },
+    "talk": {
+      "channelsTitle": "Canales",
+      "sketch": "Boceto",
+      "ch1": "general",
+      "ch2": "ventas",
+      "ch3": "soporte",
+      "dmsTitle": "Mensajes directos",
+      "dm1": "Ana Pérez",
+      "dm2": "Lucía Gómez",
+      "m1who": "Ana Pérez · 10:02",
+      "m1": "¿Alguien vio el reporte de octubre?",
+      "threadTag": "3 respuestas en el hilo",
+      "m2": "Lucía: lo subí a Docs, está en la carpeta de ventas.",
+      "m3": "¡Gracias! Lo reviso ahora.",
+      "replyHint": "Escribí en #general"
     }
   },
   "status": {
@@ -1985,7 +2309,7 @@
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
     "titleDim": "Medida contra cada competidor.",
-    "lead": "Paridad promedio de las 12 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "lead": "Paridad promedio de las 15 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
     "col": {
       "app": "App",
       "competitor": "Comparada con",

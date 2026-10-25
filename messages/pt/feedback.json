@@ -23,6 +23,9 @@
       "agents": "Agents",
       "robots": "Robots",
       "groups": "Groups",
+      "voice": "Voice",
+      "rec": "Rec",
+      "talk": "Talk",
       "site": "Site",
       "other": "Outro"
     },

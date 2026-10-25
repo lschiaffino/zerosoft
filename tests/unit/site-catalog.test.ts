@@ -81,7 +81,7 @@ describe.each(LOCALES)('copy de las páginas de producto (%s)', (locale) => {
   });
 
   it('el copy nuevo no usa rayas largas', () => {
-    for (const key of ['agents', 'flow', 'robots', 'notes', 'board']) {
+    for (const key of ['agents', 'flow', 'robots', 'notes', 'board', 'voice', 'rec', 'talk']) {
       expect(JSON.stringify(get(pages, `products.${key}`))).not.toContain('—');
     }
   });
