@@ -25,6 +25,26 @@
 .st-page .table td.data { white-space: nowrap; }
 .st-stack { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 
+/* Nav lateral de la plataforma: dos grupos con rótulo; bajo 900px, un select arriba. */
+.st-layout { grid-template-columns: 220px minmax(0, 1fr); }
+.st-nav-wrap { position: sticky; top: 72px; min-width: 0; }
+.st-nav { display: flex; flex-direction: column; gap: 20px; }
+.st-nav-group { display: flex; flex-direction: column; gap: 2px; }
+.st-nav-heading { padding: 0 10px 4px; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-2); }
+.st-nav-link { gap: 8px; }
+.st-nav-swatch { flex: 0 0 8px; width: 8px; height: 8px; border-radius: var(--radius-1); }
+.st-nav-select { display: none; }
+@media (max-width: 900px) {
+  .st-layout { grid-template-columns: minmax(0, 1fr); }
+  .st-nav-wrap { position: static; }
+  .st-nav { display: none; }
+  .st-nav-select { display: flex; flex-direction: column; gap: 6px; }
+  .st-nav-select .select { width: 100%; }
+}
+
+/* Sección todavía sin contenido: qué va acá y dónde está hoy. */
+.st-soon { display: flex; flex-direction: column; gap: 16px; }
+
 /* Tablas con acciones por fila: bajo 640px cada fila se apila en pares
    rótulo/valor (data-label de DataTable) y las acciones van en su propia
    línea, así Revocar o Borrar se ven sin scroll horizontal. */

@@ -116,7 +116,12 @@
     "openForms": "Abrir formularios",
     "openQuotes": "Abrir cotizaciones",
     "openScoring": "Abrir lead scoring",
-    "skipToContent": "Ir al contenido"
+    "skipToContent": "Ir al contenido",
+    "appSettings": "Ajustes de la app",
+    "platformHome": "Inicio",
+    "apps": "Apps",
+    "platform": "zerosoft",
+    "groupSettings": "Ajustes"
   },
   "manifesto": {
     "p1": "Un equipo de diez personas paga <strong>$6.000 al año</strong> por un CRM, $1.440 por agendar reuniones y $420 por acortar links. Esos precios se calculan por cabeza o por plan.",

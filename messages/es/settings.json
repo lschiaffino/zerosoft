@@ -1,6 +1,6 @@
 {
   "title": "Ajustes",
-  "desc": "Tu cuenta, lo que comparte el workspace y la administración del sitio.",
+  "desc": "Tu cuenta, el workspace y los ajustes de cada app.",
   "tabs": {
     "label": "Ajustes",
     "account": "Cuenta",
@@ -224,7 +224,8 @@
     "exportTitle": "Exportar links",
     "exportDesc": "El CSV tiene una fila por link. El JSON suma cada clic con referrer, país y dispositivo.",
     "csv": "Descargar CSV",
-    "json": "Descargar JSON"
+    "json": "Descargar JSON",
+    "adminOnly": "Solo los admins del workspace pueden exportar."
   },
   "admin": {
     "nav": "Administración",
@@ -272,5 +273,117 @@
     "colVisibility": "Visibilidad",
     "colCreated": "Creado",
     "kanbanMore": "{count, plural, one {Ver # columna más} other {Ver # columnas más}}"
+  },
+  "groups": {
+    "account": "Cuenta y workspace",
+    "products": "Productos"
+  },
+  "sections": {
+    "profile": "Perfil",
+    "workspace": "Workspace",
+    "members": "Miembros",
+    "teams": "Equipos",
+    "billing": "Plan y uso",
+    "api": "API y webhooks",
+    "connections": "Conexiones",
+    "import": "Importar",
+    "security": "Seguridad",
+    "notifications": "Avisos",
+    "admin": "Admin"
+  },
+  "nav": {
+    "select": "Sección de ajustes"
+  },
+  "cmdk": {
+    "section": "Ajustes: {section}",
+    "product": "Ajustes de {app}"
+  },
+  "workspace": {
+    "title": "Datos del workspace",
+    "desc": "Donde viven los datos que comparte tu equipo.",
+    "name": "Nombre",
+    "owner": "Cuenta dueña"
+  },
+  "soon": {
+    "whereToday": "Hoy está en",
+    "workspace": {
+      "title": "Editar el workspace",
+      "desc": "Nombre, logo y modo del workspace.",
+      "empty": "Por ahora el workspace no se edita desde acá. Los miembros y las invitaciones se manejan en los ajustes del CRM.",
+      "members": "Miembros e invitaciones en CRM › Equipo"
+    },
+    "members": {
+      "title": "Miembros",
+      "desc": "Quién entra a este workspace y con qué rol.",
+      "empty": "Por ahora los miembros y las invitaciones se manejan en los ajustes del CRM.",
+      "crmTeam": "Miembros e invitaciones en CRM › Equipo"
+    },
+    "teams": {
+      "title": "Equipos",
+      "desc": "Grupos de personas dentro del workspace para asignar y repartir trabajo.",
+      "empty": "Por ahora los equipos existen solo en el CRM, como equipos de venta.",
+      "crmSalesTeams": "Equipos de venta en CRM › Equipo"
+    },
+    "billing": {
+      "title": "Plan",
+      "desc": "El plan del workspace.",
+      "empty": "Todavía no hay planes para elegir acá. Arriba está el consumo de IA del mes."
+    },
+    "connections": {
+      "title": "Otras cuentas conectadas",
+      "desc": "Cuentas de otros servicios que usan las apps.",
+      "empty": "Por ahora cada app conecta sus cuentas en sus propios ajustes.",
+      "google": "Google Calendar en Cal › Conexiones",
+      "gmail": "Gmail en CRM › Integraciones",
+      "whatsapp": "Números de WhatsApp en Groups › Números",
+      "github": "GitHub en Track › GitHub"
+    },
+    "import": {
+      "title": "Importar",
+      "desc": "Traé tus datos desde otras herramientas.",
+      "empty": "Por ahora cada app tiene su importador. Elegí de dónde venís.",
+      "crm": "HubSpot o Pipedrive al CRM",
+      "track": "Linear, GitHub, Jira o CSV a Track",
+      "cal": "Calendly a Cal",
+      "docs": "Notion a Docs",
+      "link": "Bitly a Link",
+      "notes": "Evernote (.enex) a Notes"
+    },
+    "security": {
+      "title": "Seguridad",
+      "desc": "Quién y qué accede al workspace.",
+      "empty": "Todavía no hay ajustes de seguridad del workspace. Las API keys se revocan en API y webhooks, y los dominios propios se verifican en Link.",
+      "apiKeys": "API keys",
+      "domains": "Dominios propios de Link"
+    },
+    "notifications": {
+      "title": "Avisos",
+      "desc": "Qué te avisamos y por dónde.",
+      "empty": "Por ahora solo Track tiene avisos configurables. El resto llega a la campana de la barra.",
+      "track": "Avisos de Track"
+    }
+  },
+  "products": {
+    "title": "Ajustes de {app}",
+    "desc": "Lo propio de {app}. Lo que comparte el workspace está en los ajustes de la plataforma.",
+    "platformLink": "Ajustes de la plataforma",
+    "general": "General",
+    "emptyTitle": "{app} todavía no tiene ajustes propios",
+    "emptyBody": "Miembros, API, conexiones y uso de IA son del workspace y están en los ajustes de la plataforma.",
+    "shortcuts": "Atajos",
+    "links": {
+      "notionImport": "Importar desde Notion",
+      "docsTemplates": "Plantillas",
+      "members": "Miembros del workspace",
+      "evernoteImport": "Importar desde Evernote",
+      "clipper": "Recortes web",
+      "importHub": "Importar desde otras herramientas",
+      "newBoard": "Crear una pizarra",
+      "flowCredentials": "Credenciales de Flow",
+      "flowTables": "Tablas",
+      "api": "API y webhooks",
+      "aiUsage": "Uso de IA del workspace",
+      "recorder": "Grabador de robots"
+    }
   }
 }

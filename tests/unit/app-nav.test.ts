@@ -6,6 +6,7 @@ import {
   buildNav,
   buildNewItems,
   settingsNavItem,
+  SWITCHER_PRODUCTS,
   type AppProduct,
   type SidebarLabels,
 } from '@/components/app/sidebar-nav';
@@ -18,7 +19,8 @@ import {
 const root = join(__dirname, '..', '..');
 const appDir = join(root, 'app', '[locale]');
 
-const PRODUCTS: AppProduct[] = ['link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups'];
+const SWITCHER_ORDER: AppProduct[] = ['link', 'crm', 'docs', 'calendar', 'track', 'chat', 'groups', 'flow', 'notes', 'board', 'agents', 'robots'];
+const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups'];
 
 // Labels de prueba: cada hoja es su propia ruta ("crm.contacts"), así los
 // ítems sin label se notan.
@@ -41,7 +43,11 @@ describe('sidebar de la app', () => {
 
   it('detecta el producto por la ruta', () => {
     expect(appProductFromPath('/app')).toBe('link');
-    expect(appProductFromPath('/app/settings')).toBe('link');
+    // Ajustes de la plataforma: shell neutro, sin app activa.
+    expect(appProductFromPath('/app/settings')).toBe('home');
+    expect(appProductFromPath('/app/settings/api')).toBe('home');
+    expect(appProductFromPath('/app/links/settings')).toBe('link');
+    expect(appProductFromPath('/app/calendar/settings')).toBe('calendar');
     expect(appProductFromPath('/app/crm/deals')).toBe('crm');
     expect(appProductFromPath('/app/notes/clip')).toBe('notes');
     expect(appProductFromPath('/app/robots/recorder')).toBe('robots');
@@ -68,9 +74,9 @@ describe('sidebar de la app', () => {
     }
     const linkHrefs = buildNav('link', '/app', labels).flatMap((g) => g.items.map((i) => i.href));
     expect(linkHrefs).toContain('/app/links/new');
-    // Lote e importar son pestañas de "Nuevo"; dominios tiene su pantalla en Link.
+    // Lote e importar son pestañas de "Nuevo"; dominios, importar y exportar viven en los ajustes de Link.
     expect(linkHrefs).not.toContain('/app/links/bulk');
-    expect(linkHrefs).toContain('/app/links/domains');
+    expect(linkHrefs).toContain('/app/links/settings');
   });
 
   it('"+ Nuevo" crea en vez de llevar a la lista', () => {
@@ -96,6 +102,12 @@ describe('sidebar de la app', () => {
     expect(readFileSync(join(appDir, 'app', 'docs', 'page.tsx'), 'utf8')).toMatch(/sp\.new === '1'/);
   });
 
+  it('el switcher sale de PRODUCT_CONFIG: las 12 apps, en el orden de siempre', () => {
+    expect(SWITCHER_PRODUCTS.map((p) => p.key)).toEqual(PRODUCTS.filter((p) => p !== 'home').sort((a, b) => SWITCHER_ORDER.indexOf(a) - SWITCHER_ORDER.indexOf(b)));
+    expect(SWITCHER_PRODUCTS.find((p) => p.key === 'calendar')).toMatchObject({ line: 'cal', name: 'Cal', href: '/app/calendar' });
+    expect(SWITCHER_PRODUCTS[0]).toMatchObject({ key: 'link', href: '/app' });
+  });
+
   it('Ajustes globales están en el pie, no dentro de un producto', () => {
     for (const product of PRODUCTS) {
       const hrefs = buildNav(product, '/app/settings', labels).flatMap((g) => g.items.map((i) => i.href));
@@ -119,7 +131,11 @@ describe('sidebar de la app', () => {
     expect(active('groups', '/app/groups/list/abc')).toEqual(['/app/groups/list']);
     expect(active('link', '/app/links/bulk')).toEqual(['/app/links/new']);
     expect(active('link', '/app/links/import')).toEqual(['/app/links/new']);
-    expect(active('link', '/app/links/domains')).toEqual(['/app/links/domains']);
+    expect(active('link', '/app/links/domains')).toEqual(['/app/links/settings']);
+    expect(active('link', '/app/links/settings')).toEqual(['/app/links/settings']);
+    for (const app of ['docs', 'notes', 'board', 'flow', 'agents', 'robots'] as const) {
+      expect(active(app, `/app/${app}/settings`), app).toEqual([`/app/${app}/settings`]);
+    }
     expect(active('link', '/app/links/abc123')).toEqual(['/app/links']);
     expect(active('track', '/app/track/projects')).toEqual(['/app/track/projects']);
   });

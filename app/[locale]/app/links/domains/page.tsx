@@ -1,30 +1,7 @@
-import { getTranslations } from 'next-intl/server';
-import { isWorkspaceAdmin, requireUser } from '@/lib/session';
-import { dnsInstructions, listDomains } from '@/lib/link-domains';
-import PageHeader from '@/components/ui/PageHeader';
-import DomainsPanel from '@/components/link/DomainsPanel';
+import { redirect } from '@/i18n/navigation';
 
-export const dynamic = 'force-dynamic';
-
-/** Dominios propios de Link (antes en Ajustes globales, /app/settings#domains). */
-export default async function LinkDomainsPage(props: { params: Promise<{ locale: string }> }) {
+/** Ruta vieja de los dominios propios: ahora son una pestaña de los ajustes de Link. */
+export default async function LinkDomainsRedirect(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
-  const user = await requireUser(locale);
-  const t = await getTranslations({ locale, namespace: 'link' });
-  const domains = (await listDomains(user.id)).map((d) => ({
-    id: d.id,
-    hostname: d.hostname,
-    verified: d.verified,
-    root_url: d.root_url,
-    not_found_url: d.not_found_url ?? null,
-    expired_url: d.expired_url ?? null,
-    dns: dnsInstructions(d.hostname, d.verified === 1 ? null : d.verify_token),
-  }));
-
-  return (
-    <div className="ui-page ui-page-narrow link-domains">
-      <PageHeader title={t('domains.title')} description={t('domains.pageDesc')} />
-      <DomainsPanel initial={domains} canManage={isWorkspaceAdmin(user)} />
-    </div>
-  );
+  redirect({ href: '/app/links/settings?tab=domains', locale });
 }

@@ -3,13 +3,13 @@ import { getTranslations } from 'next-intl/server';
 import { DEMO_MODE, requireUser } from '@/lib/session';
 import { formatDate } from '@/lib/utils';
 import FormSection from '@/components/ui/FormSection';
+import { settingsSectionMetadata } from '@/lib/settings-meta';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await props.params;
-  const t = await getTranslations({ locale, namespace: 'settings' });
-  return { title: `${t('tabs.account')} · ${t('title')}` };
+  return settingsSectionMetadata(locale, 'profile');
 }
 
 /** Ajustes › Cuenta: quién sos en este workspace. Solo lectura: los datos vienen del login. */

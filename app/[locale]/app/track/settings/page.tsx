@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import PageHeader from '@/components/ui/PageHeader';
+import PlatformSettingsLink from '@/components/app/PlatformSettingsLink';
 import SettingsTabs from '@/components/ui/SettingsTabs';
 import { GithubSettings, LabelsSettings } from '@/components/track/TrackSettingsClient';
 import NotifySettings from '@/components/track/NotifySettings';
@@ -27,7 +28,7 @@ export default async function TrackSettingsPage(props: {
 
   return (
     <div className="app-page track-page ui-page ui-page-narrow">
-      <PageHeader title={t('settingsPage.title')} description={t('settingsPage.subtitle')} />
+      <PageHeader title={t('settingsPage.title')} description={t('settingsPage.subtitle')} actions={<PlatformSettingsLink locale={locale} />} />
       <SettingsTabs
         mode="query"
         layout="top"

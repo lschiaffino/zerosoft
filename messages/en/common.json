@@ -116,7 +116,12 @@
     "openForms": "Open forms",
     "openQuotes": "Open quotes",
     "openScoring": "Open lead scoring",
-    "skipToContent": "Skip to content"
+    "skipToContent": "Skip to content",
+    "appSettings": "App settings",
+    "platformHome": "Home",
+    "apps": "Apps",
+    "platform": "zerosoft",
+    "groupSettings": "Settings"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
