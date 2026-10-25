@@ -20,10 +20,23 @@ interface SendOptions {
   text: string;
   html?: string;
   attachments?: EmailAttachment[];
+  /** Remitente; por defecto el de EMAIL_FROM (o el de Calendar). Los avisos de apps usan appSender(). */
+  from?: string;
 }
 
 function fromEmail(): string {
   return process.env.EMAIL_FROM ?? 'calendar@zerosoft.ai';
+}
+
+/**
+ * Remitente general de la app para avisos que no son de Calendar (SLA y
+ * recordatorios de Groups, etc.): EMAIL_FROM, salvo que sea la casilla de
+ * Calendar; si no, notifications@ del dominio.
+ */
+export function appSender(): string {
+  const env = process.env.EMAIL_FROM?.trim();
+  if (env && !/(^|<)\s*calendar@/i.test(env)) return env;
+  return 'zerosoft <notifications@zerosoft.ai>';
 }
 
 async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean; error?: string }> {
@@ -38,7 +51,7 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        from: fromEmail(),
+        from: opts.from ?? fromEmail(),
         to: opts.to,
         subject: opts.subject,
         text: opts.text,
@@ -61,7 +74,7 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
 function sendMock(opts: SendOptions): { ok: true; provider: string } {
   const provider = 'console';
   // eslint-disable-next-line no-console
-  console.log(`[email:${provider}] to=${opts.to} from=${fromEmail()} subject="${opts.subject}"`);
+  console.log(`[email:${provider}] to=${opts.to} from=${opts.from ?? fromEmail()} subject="${opts.subject}"`);
   // eslint-disable-next-line no-console
   console.log(opts.text);
   if (opts.attachments?.length) {

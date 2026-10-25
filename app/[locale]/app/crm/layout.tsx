@@ -14,7 +14,7 @@ import '@/styles/crm-reports.css';
 
 /** Instalable en iOS desde "Agregar a inicio" (el manifest sale de app/manifest.ts). */
 export const metadata: Metadata = {
-  appleWebApp: { capable: true, title: 'zerosoft CRM', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'zerosoft', statusBarStyle: 'default' },
 };
 
 /** CRM: sus hojas de estilos, los textos de sus componentes cliente, el modo offline y las llamadas desde el navegador. */

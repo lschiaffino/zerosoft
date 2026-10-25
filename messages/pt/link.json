@@ -39,7 +39,8 @@
     "recent": "Recentes",
     "viewAll": "Ver todos",
     "emptySub": "Crie seu primeiro short link e veja os zeros chegarem.",
-    "emptyCta": "Criar link"
+    "emptyCta": "Criar link",
+    "noTopLink": "Sem cliques ainda"
   },
   "table": {
     "title": "Links",

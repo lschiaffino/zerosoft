@@ -43,12 +43,21 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
   const [adding, setAdding] = useState(openNew && canEdit);
   const [connecting, setConnecting] = useState<NumberDto | null>(null);
   const [removing, setRemoving] = useState<NumberDto | null>(null);
+  const [disconnecting, setDisconnecting] = useState<NumberDto | null>(null);
   const [editing, setEditing] = useState<NumberDto | null>(null);
 
   const reload = useCallback(async () => {
     const res = await api<{ numbers: NumberDto[] }>('/api/groups/numbers');
     if (res.data) setNumbers(res.data.numbers);
   }, []);
+
+  // El estado cambia solo (el teléfono se desvincula, el gateway se cae): la lista se refresca cada 10 s.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible' && !connecting) void reload();
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [reload, connecting]);
 
   async function act(n: NumberDto, action: 'disconnect' | 'sync') {
     const res = await api<{ groups?: number }>(`/api/groups/numbers/${n.id}/connect`, { body: { action } });
@@ -93,7 +102,7 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
               {canEdit && (
                 <div className="gr-number-actions">
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConnecting(n)}>
-                    {n.status === 'connected' ? t('numbers.status') : t('numbers.connect')}
+                    {n.status === 'connected' ? t('numbers.status') : n.status === 'disconnected' || n.status === 'error' ? t('numbers.reconnect') : t('numbers.connect')}
                   </button>
                   {n.caps.groups && n.status === 'connected' && (
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => void act(n, 'sync')}>
@@ -104,7 +113,7 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
                     {t('numbers.edit')}
                   </button>
                   {n.status === 'connected' && (
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => void act(n, 'disconnect')}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDisconnecting(n)}>
                       {t('numbers.disconnect')}
                     </button>
                   )}
@@ -151,6 +160,20 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
         danger
         onConfirm={() => void remove()}
         onCancel={() => setRemoving(null)}
+      />
+      <ConfirmDialog
+        open={!!disconnecting}
+        title={t('numbers.disconnectTitle', { name: disconnecting?.name ?? '' })}
+        body={t('numbers.disconnectBody')}
+        confirmLabel={t('numbers.disconnect')}
+        cancelLabel={t('common.cancel')}
+        danger
+        onConfirm={() => {
+          const n = disconnecting;
+          setDisconnecting(null);
+          if (n) void act(n, 'disconnect');
+        }}
+        onCancel={() => setDisconnecting(null)}
       />
       {toast}
     </div>
@@ -266,6 +289,9 @@ function NumberForm({
   );
 }
 
+/** WhatsApp cambia el QR cada ~20 s; si nadie lo escanea en 2 minutos, se pide uno nuevo a mano. */
+const QR_STALE_MS = 120_000;
+
 function ConnectModal({ number, onClose }: { number: NumberDto | null; onClose: () => void }) {
   const t = useTranslations('groups');
   const errText = useErrorText();
@@ -273,28 +299,48 @@ function ConnectModal({ number, onClose }: { number: NumberDto | null; onClose: 
   const [error, setError] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [qrAt, setQrAt] = useState<number | null>(null);
+  const [startedAt, setStartedAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
 
+  useEffect(() => {
+    if (!number) return;
+    setWebhookUrl('');
+    setCopied(false);
+    void api<{ webhookUrl: string | null }>(`/api/groups/numbers/${number.id}`).then((r) => setWebhookUrl(r.data?.webhookUrl ?? ''));
+  }, [number]);
+
+  // Conectar (o reconectar con "Probar de nuevo" / "QR nuevo"): arranca la sesión y registra el webhook.
   useEffect(() => {
     if (!number) return;
     setState(null);
     setError('');
-    setCopied(false);
-    void api<{ webhookUrl: string | null }>(`/api/groups/numbers/${number.id}`).then((r) => setWebhookUrl(r.data?.webhookUrl ?? ''));
+    setQrAt(null);
+    setStartedAt(Date.now());
     void api<ConnectState>(`/api/groups/numbers/${number.id}/connect`, { body: { action: 'connect' } }).then((r) => {
       if (r.data) setState(r.data);
       else setError(errText(r.error));
     });
-  }, [number, errText]);
+  }, [number, errText, attempt]);
 
-  // Mientras espera el escaneo, consulta el estado cada 2 s.
+  // Mientras espera el escaneo, consulta el estado (y el QR nuevo) cada 2 s.
   useEffect(() => {
     if (!number || !state || state.status === 'connected' || state.status === 'error') return;
     const id = setInterval(async () => {
       const r = await api<ConnectState>(`/api/groups/numbers/${number.id}/connect`);
       if (r.data) setState(r.data);
+      setNow(Date.now());
     }, 2000);
     return () => clearInterval(id);
   }, [number, state]);
+
+  const qr = state?.qr ?? '';
+  useEffect(() => {
+    if (qr) setQrAt(Date.now());
+  }, [qr]);
+  const stale = state?.status === 'qr' && now - startedAt > QR_STALE_MS;
+  const retry = () => setAttempt((n) => n + 1);
 
   return (
     <Modal
@@ -309,9 +355,16 @@ function ConnectModal({ number, onClose }: { number: NumberDto | null; onClose: 
     >
       <div className="ui-fields" aria-live="polite">
         {error ? (
-          <p className="ui-error" role="alert">
-            {error}
-          </p>
+          <div className="ui-fields">
+            <p className="ui-error" role="alert">
+              {error}
+            </p>
+            <div>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={retry}>
+                {t('numbers.tryAgain')}
+              </button>
+            </div>
+          </div>
         ) : !state ? (
           <p className="ui-help">{t('numbers.connecting')}</p>
         ) : state.status === 'connected' ? (
@@ -327,6 +380,25 @@ function ConnectModal({ number, onClose }: { number: NumberDto | null; onClose: 
               <li>{t('numbers.qr2')}</li>
               <li>{t('numbers.qr3')}</li>
             </ol>
+            <p className="ui-help">
+              {t('numbers.qrRefresh')} {qrAt ? t('numbers.qrUpdated', { s: Math.max(0, Math.round((now - qrAt) / 1000)) }) : ''}
+            </p>
+            {stale && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={retry}>
+                {t('numbers.newQr')}
+              </button>
+            )}
+          </div>
+        ) : state.status === 'disconnected' || state.status === 'error' ? (
+          <div className="ui-fields">
+            <p className="gr-banner is-warn" role="status">
+              {t('numbers.disconnectedBanner')}
+            </p>
+            <div>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={retry}>
+                {t('numbers.newQr')}
+              </button>
+            </div>
           </div>
         ) : (
           <p className="ui-help">{t('numbers.waiting')}</p>

@@ -19,6 +19,14 @@ export function formatAxis(n: number, locale: string = 'en'): string {
 export const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
+ * Instante guardado en la base: acepta el formato del CRM ('YYYY-MM-DD HH:MM:SS',
+ * UTC sin zona) y un ISO completo con zona ('…T…Z'), sin sumar una Z de más.
+ */
+export function parseDbUtc(raw: string): Date {
+  return new Date(raw.includes('T') ? raw : `${raw.replace(' ', 'T')}Z`);
+}
+
+/**
  * Fecha legible. Las fechas sin hora (close date, vencimientos) se muestran
  * tal cual: leídas como medianoche UTC y mostradas en otra zona caían un día antes.
  */

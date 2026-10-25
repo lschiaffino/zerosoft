@@ -62,6 +62,16 @@ export async function emitEvent(
       /* una app caída no corta el evento */
     }
   }
+  // Groups: Slack, Freshdesk y Zoho Desk (lib/groups-integrations.ts).
+  if (type.startsWith('groups.')) {
+    try {
+      const { dispatchGroupsEvent } = await import('./groups-integrations');
+      await dispatchGroupsEvent(workspaceId, type, data);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[events] groups integrations failed', err);
+    }
+  }
   try {
     const { enqueueEventRuns } = await import('./flow');
     const payload =

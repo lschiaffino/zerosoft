@@ -7,7 +7,7 @@ import { Link, usePathname } from '@/i18n/navigation';
 import LocaleSwitcher from './LocaleSwitcher';
 import ThemeSwitcher from './theme/ThemeSwitcher';
 import Icon from './site/Icon';
-import { AUDIENCE_PRODUCTS, GITHUB_URL, PRODUCT_NAMES, type Audience } from './site/catalog';
+import { CATEGORY_PRODUCTS, GITHUB_URL, PRODUCT_NAMES } from './site/catalog';
 import Logo from './brand/Logo';
 import ProductGlyph from './brand/ProductGlyph';
 import { PRODUCT_CONFIG, isProductKey } from '@/lib/products';
@@ -40,6 +40,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
   const tp = useTranslations('common.products');
   const th = useTranslations('common.header');
   const ts = useTranslations('common.home.suite');
+  const tc = useTranslations('common.categories');
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -103,11 +104,12 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setMegaOpen(false);
   };
 
+  // Por categoría (vender, atender…): todas las apps sirven para equipos y para uso personal.
   const productItems = (variant: 'mega' | 'panel') =>
-    (['teams', 'personal'] as const satisfies readonly Audience[]).map((a) => (
-      <div key={a} className="hd-group">
-        <p className="hd-group-title">{ts(`${a}Title`)}</p>
-        {AUDIENCE_PRODUCTS[a].map((key) => (
+    CATEGORY_PRODUCTS.map(({ category, products }) => (
+      <div key={category} className="hd-group">
+        <p className="hd-group-title">{tc(`${category}.title`)}</p>
+        {products.map((key) => (
           <Link key={key} href={`/products/${key}`} className={`hd-prod card-${key} hd-prod-${variant}`}>
             <ProductGlyph product={key} size={14} className="hd-prod-icon" />
             <span className="hd-prod-text">
@@ -148,7 +150,12 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
               </svg>
             </button>
             <div id="hd-mega" className="hd-mega" hidden={!megaOpen}>
-              <div className="hd-mega-grid">{productItems('mega')}</div>
+              <div className="hd-mega-main">
+                <div className="hd-mega-grid">{productItems('mega')}</div>
+                <p className="hd-mega-note">
+                  <strong>{ts('audienceTitle')}.</strong> {ts('audienceDesc')}
+                </p>
+              </div>
               <div className="hd-mega-side">
                 <Link href="/products" className="hd-mega-cta">
                   <span className="hd-mega-cta-title">
@@ -226,6 +233,9 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
       <div id="mobile-panel" className="mobile-panel" hidden={!menuOpen}>
         <p className="mobile-panel-label">{labels.products}</p>
         <div className="mobile-panel-products">{productItems('panel')}</div>
+        <p className="mobile-panel-note">
+          <strong>{ts('audienceTitle')}.</strong> {ts('audienceDesc')}
+        </p>
         <div className="mobile-panel-links">
           <Link className="hd-link" href="/products" aria-current={current('/products')}>
             {th('allProducts')}

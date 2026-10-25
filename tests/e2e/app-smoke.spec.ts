@@ -310,6 +310,61 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/crm/videos/${i.id}`))),
   },
   {
+    app: 'Groups templates',
+    list: '/en/app/groups/templates',
+    create: async (request, name) =>
+      ({ id: (await ok<{ id: string }>(request.post('/api/groups/templates', { data: { name, members: ['+15550009002'] } }))).id, name }),
+    // Abrir una plantilla es usarla (el modal con su nombre).
+    detail: (i) => `/en/app/groups/templates?use=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/templates/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/groups/templates/${i.id}`))),
+  },
+  {
+    app: 'Groups saved lists',
+    list: '/en/app/groups/inbox',
+    // Cuelgan de "Bandeja" en el sidebar (GroupsListsBranch).
+    sidebar: true,
+    create: async (request, name) => {
+      // La bandeja necesita un número para mostrarse.
+      await groupsNumber(request);
+      return { id: (await ok<{ id: string }>(request.post('/api/groups/lists', { data: { name, shared: true, filters: { kind: 'group' } } }))).id, name };
+    },
+    detail: (i) => `/en/app/groups/inbox?list=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/lists/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/groups/lists/${i.id}`))),
+  },
+  {
+    app: 'Groups tasks',
+    list: '/en/app/groups/tasks',
+    create: async (request, name) => {
+      const numberId = await groupsNumber(request);
+      const res = await ok<{ results: Array<{ chatId?: string }> }>(request.post('/api/groups/create', { data: { numberId, name: `Task chat ${uid()}`, phones: [] } }));
+      const task = await ok<{ id: string }>(request.post('/api/groups/tasks', { data: { chatId: res.results[0].chatId, title: name } }));
+      return { id: task.id, name };
+    },
+    detail: (i) => `/en/app/groups/tasks?open=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/tasks/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/groups/tasks/${i.id}`))),
+  },
+  {
+    // Groups: mensajes recurrentes (lista en Envíos, detalle con su editor).
+    app: 'Groups recurring',
+    list: '/en/app/groups/broadcasts',
+    create: async (request, name) => {
+      const numberId = await groupsNumber(request);
+      const g = await ok<{ results: Array<{ ok: boolean; chatId?: string }> }>(
+        request.post('/api/groups/create', { data: { numberId, name: `Rec ${uid()}`, phones: ['+15550009002'] } }),
+      );
+      const rec = await ok<{ id: string }>(
+        request.post('/api/groups/recurring', { data: { name, chatIds: [g.results[0].chatId], body: 'Weekly check-in', rule: { freq: 'weekly', time: '09:00', days: [1] }, timezone: 'UTC' } }),
+      );
+      return { id: rec.id, name };
+    },
+    detail: (i) => `/en/app/groups/broadcasts/recurring/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/recurring/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/groups/recurring/${i.id}`))),
+  },
+  {
     app: 'Robots',
     list: '/en/app/robots',
     create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/robots', { data: { name } }))).id, name }),
@@ -455,6 +510,39 @@ for (const c of APPS) {
     });
   });
 }
+
+// El inicio de la plataforma (/app) junta lo último de todas las apps.
+test.describe('smoke inicio', () => {
+  test('lo creado en una app aparece en Recientes y lo abre', async ({ page, request }) => {
+    const errors = watchErrors(page);
+    const name = freshName();
+    const { id } = await ok<{ id: string }>(request.post('/api/docs/pages', { data: { title: name } }));
+    await page.goto('/en/app', { waitUntil: 'networkidle' });
+    const recent = page.getByTestId('home-recent');
+    await expect(recent.getByRole('link', { name: new RegExp(name) })).toBeVisible();
+    await recent.getByRole('link', { name: new RegExp(name) }).click();
+    await expect(page).toHaveURL(new RegExp(`/en/app/docs/${id}`));
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  for (const theme of ['light', 'dark'] as const) {
+    test(`inicio en tema ${theme} sin errores`, async ({ page, context, baseURL }) => {
+      await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
+      const errors = watchErrors(page);
+      await page.goto('/en/app', { waitUntil: 'networkidle' });
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await expect(page.getByTestId('home-featured')).toBeVisible();
+      expect(errors, errors.join('\n')).toEqual([]);
+    });
+  }
+
+  test('390px: el inicio no scrollea en horizontal', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/en/app', { waitUntil: 'networkidle' });
+    const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
+    expect(scroll, `scrollWidth ${scroll} > innerWidth ${inner}`).toBeLessThanOrEqual(inner + 1);
+  });
+});
 
 // En DEMO_MODE toda request es el mismo usuario demo (con datos de seed) y no
 // hay forma barata de entrar como una persona nueva sin ítems.

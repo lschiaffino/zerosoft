@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { requireApiUser } from '@/lib/api-auth';
 import { CHAT_FILTERS, listChats, type ChatFilter } from '@/lib/groups';
+import { v1Viewer } from '@/lib/groups-v1';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** GET /api/v1/groups/chats?filter=&q=&label=&kind=group|dm&limit=&offset= */
+/** GET /api/v1/groups/chats?filter=&q=&label=&kind=group|dm&number=&limit=&offset= */
 export async function GET(req: Request) {
   const auth = await requireApiUser(req, 'groups:read');
   if ('res' in auth) return auth.res;
@@ -16,9 +17,11 @@ export async function GET(req: Request) {
     filter,
     q: p.get('q') ?? '',
     labelId: p.get('label') || undefined,
+    numberId: p.get('number') || undefined,
     kind,
     limit: Math.min(100, Number(p.get('limit')) || 50),
     offset: Number(p.get('offset')) || 0,
+    viewer: await v1Viewer(auth),
   });
   return NextResponse.json({ data: res.rows, total: res.total });
 }

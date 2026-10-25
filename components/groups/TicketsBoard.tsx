@@ -4,14 +4,36 @@ import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
-import type { GroupsPerson } from '@/lib/groups';
+import type { GroupsPerson, PropertyDef } from '@/lib/groups';
 import type { TicketDto } from '@/lib/groups-tickets';
-import { api, useErrorText, useRelativeTime, useToast } from './ui';
+import PropertyInput, { PropertyValueText, filterOptions } from './PropertyInput';
+import { Modal, api, useErrorText, useRelativeTime, useToast } from './ui';
 
 const STATUS_FILTERS = ['active', 'open', 'in_progress', 'resolved', 'closed', 'all'] as const;
 
-/** Tickets de los chats: filtros, y estado, prioridad y asignado editables en la fila. */
-export default function TicketsBoard({ initial, people, me, openId }: { initial: TicketDto[]; people: GroupsPerson[]; me: string; openId: string | null }) {
+/**
+ * Tickets de los chats: filtros (también por campo propio), y estado,
+ * prioridad y asignado editables en la fila. Los campos propios se editan
+ * en el ticket (clic en el título del panel o "Campos"); los obligatorios
+ * se piden al resolver o cerrar. Los vinculados en Freshdesk o Zoho Desk
+ * muestran su enlace.
+ */
+export default function TicketsBoard({
+  initial,
+  people,
+  me,
+  openId,
+  fields = [],
+  remote = {},
+}: {
+  initial: TicketDto[];
+  people: GroupsPerson[];
+  me: string;
+  openId: string | null;
+  fields?: PropertyDef[];
+  /** Tickets vinculados en Freshdesk o Zoho Desk, por id de ticket. */
+  remote?: Record<string, Array<{ kind: string; remoteId: string; remoteUrl: string }>>;
+}) {
   const t = useTranslations('groups');
   const locale = useLocale();
   const rel = useRelativeTime();
@@ -24,18 +46,24 @@ export default function TicketsBoard({ initial, people, me, openId }: { initial:
   const [q, setQ] = useState('');
   const [error, setError] = useState(false);
   const [first, setFirst] = useState(true);
+  const [fieldKey, setFieldKey] = useState('');
+  const [fieldValue, setFieldValue] = useState('');
+  const [editing, setEditing] = useState<{ ticket: TicketDto; status?: string } | null>(null);
+  const fieldDef = fields.find((f) => f.key === fieldKey) ?? null;
+  const shownFields = fields.slice(0, 2);
 
   const load = useCallback(async () => {
     const p = new URLSearchParams({ status });
     if (assignee) p.set('assignee', assignee);
     if (breached) p.set('breached', '1');
     if (q.trim()) p.set('q', q.trim());
+    if (fieldKey) p.set('fields', JSON.stringify([fieldValue ? { key: fieldKey, op: 'is', value: fieldValue } : { key: fieldKey, op: 'set' }]));
     const res = await api<{ tickets: TicketDto[] }>(`/api/groups/tickets?${p}`);
     if (res.data) {
       setTickets(res.data.tickets);
       setError(false);
     } else setError(true);
-  }, [status, assignee, breached, q]);
+  }, [status, assignee, breached, q, fieldKey, fieldValue]);
 
   useEffect(() => {
     if (first) {
@@ -52,10 +80,40 @@ export default function TicketsBoard({ initial, people, me, openId }: { initial:
   }, [openId]);
 
   async function update(id: string, body: Record<string, unknown>) {
+    // Resolver o cerrar con campos obligatorios vacíos: se abre el ticket para completarlos, sin pedirle nada al servidor.
+    const current = (tickets ?? []).find((x) => x.id === id);
+    if (current && !('fields' in body) && (body.status === 'resolved' || body.status === 'closed')) {
+      const empty = fields.some((f) => {
+        const v = current.fields[f.key];
+        return f.required && (v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0));
+      });
+      if (empty) {
+        setEditing({ ticket: current, status: body.status });
+        return false;
+      }
+    }
     const res = await api<TicketDto>(`/api/groups/tickets/${id}`, { method: 'PATCH', body });
-    if (res.data) setTickets((list) => (list ?? []).map((x) => (x.id === id ? (res.data as TicketDto) : x)));
-    else showToast(errText(res.error), true);
+    if (res.data) {
+      setTickets((list) => (list ?? []).map((x) => (x.id === id ? (res.data as TicketDto) : x)));
+      return true;
+    }
+    // Faltan campos obligatorios para resolver o cerrar: se abre el ticket para completarlos.
+    const tk = (tickets ?? []).find((x) => x.id === id);
+    if (res.error.startsWith('missing_fields') && tk) {
+      setEditing({ ticket: tk, status: typeof body.status === 'string' ? body.status : undefined });
+      showToast(errText('missing_fields'), true);
+    } else showToast(errText(res.error), true);
+    return false;
   }
+
+  const exportQuery = (() => {
+    const p = new URLSearchParams({ type: 'tickets', status });
+    if (assignee) p.set('assignee', assignee);
+    if (breached) p.set('breached', '1');
+    if (q.trim()) p.set('q', q.trim());
+    if (fieldKey) p.set('fields', JSON.stringify([fieldValue ? { key: fieldKey, op: 'is', value: fieldValue } : { key: fieldKey, op: 'set' }]));
+    return p.toString();
+  })();
 
   return (
     <>
@@ -77,8 +135,39 @@ export default function TicketsBoard({ initial, people, me, openId }: { initial:
           <input type="checkbox" className="ui-check" checked={breached} onChange={(e) => setBreached(e.target.checked)} />
           {t('tickets.onlyBreached')}
         </label>
+        {fields.length > 0 && (
+          <select
+            className="select"
+            value={fieldKey}
+            onChange={(e) => {
+              setFieldKey(e.target.value);
+              setFieldValue('');
+            }}
+            aria-label={t('ticketFields.filter')}
+          >
+            <option value="">{t('ticketFields.anyField')}</option>
+            {fields.map((f) => (
+              <option key={f.id} value={f.key}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        )}
+        {fieldDef &&
+          (filterOptions(fieldDef).length > 0 ? (
+            <select className="select" value={fieldValue} onChange={(e) => setFieldValue(e.target.value)} aria-label={t('lists.propertyValue')}>
+              <option value="">{t('lists.hasValue')}</option>
+              {filterOptions(fieldDef).map((o) => (
+                <option key={o} value={o}>
+                  {o === 'true' && fieldDef.type === 'checkbox' ? t('props.yes') : o}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input className="input" value={fieldValue} onChange={(e) => setFieldValue(e.target.value)} placeholder={t('lists.hasValue')} aria-label={t('lists.propertyValue')} />
+          ))}
         <span className="gr-toolbar-spacer" />
-        <a className="btn btn-secondary" href={`/api/groups/export?type=tickets`}>
+        <a className="btn btn-secondary" href={`/api/groups/export?${exportQuery}`}>
           {t('common.exportCsv')}
         </a>
       </div>
@@ -105,6 +194,16 @@ export default function TicketsBoard({ initial, people, me, openId }: { initial:
                 <th>{t('tickets.priority')}</th>
                 <th className="gr-hide-sm">{t('tickets.assignee')}</th>
                 <th className="gr-hide-sm">{t('tickets.due')}</th>
+                {shownFields.map((f) => (
+                  <th key={f.id} className="gr-hide-sm">
+                    {f.label}
+                  </th>
+                ))}
+                {fields.length > 0 && (
+                  <th>
+                    <span className="sr-only">{t('ticketFields.title')}</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -120,6 +219,18 @@ export default function TicketsBoard({ initial, people, me, openId }: { initial:
                       )}
                       <span className="ui-help">
                         {tk.chatName} · {t(`tickets.source.${tk.source}`)} · {rel(tk.createdAt)}
+                        {(remote[tk.id] ?? []).map((l) => (
+                          <span key={l.kind}>
+                            {' · '}
+                            {l.remoteUrl ? (
+                              <a href={l.remoteUrl} target="_blank" rel="noreferrer">
+                                {t(`integrations.${l.kind === 'zoho' ? 'zoho' : 'freshdesk'}.name`)} #{l.remoteId}
+                              </a>
+                            ) : (
+                              `${t(`integrations.${l.kind === 'zoho' ? 'zoho' : 'freshdesk'}.name`)} #${l.remoteId}`
+                            )}
+                          </span>
+                        ))}
                       </span>
                     </div>
                   </td>
@@ -165,13 +276,92 @@ export default function TicketsBoard({ initial, people, me, openId }: { initial:
                       <span className="ui-help">{new Date(tk.dueAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}</span>
                     ) : null}
                   </td>
+                  {shownFields.map((f) => (
+                    <td key={f.id} className="gr-hide-sm">
+                      <PropertyValueText def={f} value={tk.fields[f.key]} />
+                    </td>
+                  ))}
+                  {fields.length > 0 && (
+                    <td>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing({ ticket: tk })} aria-label={t('ticketFields.editAria', { n: tk.number })}>
+                        {t('ticketFields.edit')}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+      <TicketFieldsModal
+        state={editing}
+        fields={fields}
+        onClose={() => setEditing(null)}
+        onSave={async (values, nextStatus) => {
+          if (!editing) return;
+          const ok = await update(editing.ticket.id, { fields: values, ...(nextStatus ? { status: nextStatus } : {}) });
+          if (ok) {
+            setEditing(null);
+            showToast(t('common.saved'));
+          }
+        }}
+      />
       {toast}
     </>
+  );
+}
+
+/** Campos propios de un ticket. Si viene `status`, se guarda junto (resolver con los obligatorios completos). */
+function TicketFieldsModal({
+  state,
+  fields,
+  onClose,
+  onSave,
+}: {
+  state: { ticket: TicketDto; status?: string } | null;
+  fields: PropertyDef[];
+  onClose: () => void;
+  onSave: (values: Record<string, unknown>, status?: string) => Promise<void>;
+}) {
+  const t = useTranslations('groups');
+  const [values, setValues] = useState<Record<string, unknown>>({});
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (state) setValues({ ...state.ticket.fields });
+  }, [state]);
+  return (
+    <Modal
+      open={!!state}
+      wide
+      title={state ? t('ticketFields.modalTitle', { n: state.ticket.number, title: state.ticket.title }) : ''}
+      onClose={onClose}
+      busy={busy}
+      onSubmit={async () => {
+        setBusy(true);
+        await onSave(values, state?.status);
+        setBusy(false);
+      }}
+      foot={
+        <>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            {t('common.cancel')}
+          </button>
+          <button type="submit" className="btn btn-primary" aria-busy={busy || undefined}>
+            {state?.status ? t('ticketFields.saveAnd', { status: t(`ticketStatus.${state.status}`) }) : t('common.save')}
+          </button>
+        </>
+      }
+    >
+      <div className="ui-fields">
+        {state?.status && <p className="gr-banner is-warn">{t('ticketFields.requiredBanner')}</p>}
+        <div className="gr-ticket-fields-grid">
+          {fields.map((f) => (
+            <PropertyInput key={f.id} def={f} value={values[f.key]} onChange={(v) => setValues((prev) => ({ ...prev, [f.key]: v }))} />
+          ))}
+        </div>
+        {fields.some((f) => f.required) && <p className="ui-help">{t('ticketFields.requiredHelp')}</p>}
+      </div>
+    </Modal>
   );
 }

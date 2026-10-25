@@ -14,5 +14,5 @@ export async function GET(req: Request) {
     title: pick(e.title, locale),
     products: e.products,
   }));
-  return NextResponse.json({ entries }, { headers: { 'cache-control': 'public, s-maxage=300, stale-while-revalidate=600' } });
+  return NextResponse.json({ entries }, { headers: { 'cache-control': 'public, max-age=60', 'cdn-cache-control': 'public, s-maxage=300, stale-while-revalidate=600' } });
 }

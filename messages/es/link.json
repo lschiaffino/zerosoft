@@ -39,7 +39,8 @@
     "recent": "Recientes",
     "viewAll": "Ver todos",
     "emptySub": "Creá tu primer short link y mirá cómo caen los ceros.",
-    "emptyCta": "Crear link"
+    "emptyCta": "Crear link",
+    "noTopLink": "Sin clics todavía"
   },
   "table": {
     "title": "Links",

@@ -116,13 +116,23 @@
     "openForms": "Abrir formularios",
     "openQuotes": "Abrir cotizaciones",
     "openScoring": "Abrir lead scoring",
-    "openPlaybooks": "Abrir playbooks",
     "skipToContent": "Ir al contenido",
+    "groupGroupsLists": "Listas guardadas de WhatsApp",
+    "groupGroupsTemplates": "Plantillas de grupo",
+    "newGroupTemplate": "Nueva plantilla de grupo",
+    "groupGroupsRecurring": "Mensajes recurrentes de WhatsApp",
+    "openPlaybooks": "Abrir playbooks",
     "appSettings": "Ajustes de la app",
     "platformHome": "Inicio",
     "apps": "Apps",
     "platform": "zerosoft",
-    "groupSettings": "Ajustes"
+    "groupSettings": "Ajustes",
+    "featured": "Destacadas",
+    "moreApps": "Más apps",
+    "groupApps": "Apps",
+    "openApp": "Abrir {name}",
+    "goHome": "Ir al inicio",
+    "linkOverview": "Resumen de Link"
   },
   "manifesto": {
     "p1": "Un equipo de diez personas paga <strong>$6.000 al año</strong> por un CRM, $1.440 por agendar reuniones y $420 por acortar links. Esos precios se calculan por cabeza o por plan.",
@@ -296,10 +306,6 @@
         "title": "Una cuenta para las doce apps.",
         "desc": "Invitás a tu equipo una sola vez. Encontrás contactos, empresas, negocios, links, docs y tareas desde una sola barra de búsqueda, y saltás entre apps sin cambiar de herramienta."
       },
-      "teamsTitle": "Para equipos",
-      "teamsDesc": "Vender, atender y entregar, en equipo.",
-      "personalTitle": "Para vos",
-      "personalDesc": "Escribir, planificar y cuidar tu tiempo.",
       "replaces": "Reemplaza a {rival}",
       "agents": {
         "line": "Agentes de IA que responden con tus documentos."
@@ -318,7 +324,9 @@
       },
       "board": {
         "line": "Una pizarra infinita."
-      }
+      },
+      "audienceTitle": "Para equipos y para uso personal",
+      "audienceDesc": "Todas las apps sirven para una persona sola o para un equipo. Empezás con la que necesitás y sumás a tu equipo cuando quieras. La cuenta y la búsqueda son las mismas en todas."
     },
     "stack": {
       "title": "{total} por año.",
@@ -406,7 +414,64 @@
     "lead": "Las doce apps de tu workspace. Elegí una para empezar.",
     "apps": "Apps",
     "open": "Abrir {name}",
-    "linkSummary": "Resumen de Link"
+    "linkSummary": "Resumen de Link",
+    "greetingMorning": "Buen día, {name}",
+    "greetingAfternoon": "Buenas tardes, {name}",
+    "greetingEvening": "Buenas noches, {name}",
+    "greetingMorningAnon": "Buen día",
+    "greetingAfternoonAnon": "Buenas tardes",
+    "greetingEveningAnon": "Buenas noches",
+    "homeLead": "Lo que tenés para hoy y lo último que tocaste, en todas tus apps.",
+    "featured": "Tus apps",
+    "more": "Más apps",
+    "loading": "Cargando…",
+    "error": "No pudimos cargar este bloque. Recargá la página para reintentar.",
+    "viewAll": "Ver todo",
+    "today": {
+      "title": "Para hoy",
+      "crm": "Tareas del CRM",
+      "crmEmpty": "No tenés tareas vencidas ni para hoy.",
+      "overdue": "Atrasada",
+      "dueToday": "Hoy",
+      "track": "En curso en Track",
+      "trackEmpty": "No tenés issues en curso.",
+      "cal": "Reservas de hoy",
+      "calEmpty": "No hay reservas para hoy.",
+      "inbox": "Sin leer",
+      "inboxEmpty": "Todo leído.",
+      "chatUnread": "{n, plural, one {# conversación sin leer en Chat} other {# conversaciones sin leer en Chat}}",
+      "groupsUnread": "{n, plural, one {# chat sin leer en Groups} other {# chats sin leer en Groups}}",
+      "crmEmptyAll": "No hay tareas vencidas ni para hoy.",
+      "crmScope": "Qué tareas ver",
+      "crmMine": "Mías",
+      "crmAll": "Todas"
+    },
+    "recent": {
+      "title": "Recientes",
+      "empty": "Todavía no hay nada. Lo que crees en cualquier app aparece acá.",
+      "kinds": {
+        "doc": "Página",
+        "note": "Nota",
+        "board": "Pizarra",
+        "issue": "Issue",
+        "link": "Link",
+        "contact": "Contacto",
+        "deal": "Negocio",
+        "flow": "Flow"
+      },
+      "untitled": "Sin título",
+      "partial": "No pudimos cargar algunas apps. Recargá la página para verlas."
+    },
+    "invite": {
+      "title": "Sumá a tu equipo",
+      "body": "Invitá a las personas con las que trabajás. Comparten el workspace en todas las apps.",
+      "cta": "Invitar"
+    },
+    "import": {
+      "title": "Traé tus datos",
+      "body": "Importá desde HubSpot, Pipedrive, Linear, Notion, Calendly, Bitly y otras herramientas.",
+      "cta": "Importar"
+    }
   },
   "publicPage": {
     "poweredBy": "Hecho con zerosoft"
@@ -495,5 +560,27 @@
       "generic": "No se pudo importar. Probá de nuevo."
     },
     "readFailed": "No pudimos leer {source}: {reason}"
+  },
+  "categories": {
+    "sell": {
+      "title": "Vender",
+      "desc": "Pipeline, contactos y links con métricas."
+    },
+    "support": {
+      "title": "Atender",
+      "desc": "Chat web y WhatsApp en una bandeja compartida."
+    },
+    "automate": {
+      "title": "Automatizar",
+      "desc": "Flujos, agentes de IA y robots para el trabajo repetido."
+    },
+    "build": {
+      "title": "Construir",
+      "desc": "Issues, proyectos y pizarras para planificar y entregar."
+    },
+    "daily": {
+      "title": "Trabajo diario",
+      "desc": "Docs, notas y agenda para el día a día."
+    }
   }
 }

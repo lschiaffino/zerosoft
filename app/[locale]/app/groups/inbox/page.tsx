@@ -14,6 +14,10 @@ export default async function GroupsInboxPage(props: { params: Promise<{ locale:
     [['E'], t('inbox.keysClose')],
     [['A'], t('inbox.keysAssign')],
     [['T'], t('inbox.keysTicket')],
+    [['U'], t('inbox.keysUnread')],
+    [['P'], t('inbox.keysPin')],
+    [['L'], t('inbox.keysTranslate')],
+    [['X'], t('inbox.keysSelect')],
     [['⌘', 'K'], t('inbox.keysSearchAll')],
   ];
   return (

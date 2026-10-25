@@ -116,13 +116,23 @@
     "openForms": "Open forms",
     "openQuotes": "Open quotes",
     "openScoring": "Open lead scoring",
-    "openPlaybooks": "Open playbooks",
     "skipToContent": "Skip to content",
+    "groupGroupsLists": "WhatsApp saved lists",
+    "groupGroupsTemplates": "Group templates",
+    "newGroupTemplate": "New group template",
+    "groupGroupsRecurring": "Recurring WhatsApp messages",
+    "openPlaybooks": "Open playbooks",
     "appSettings": "App settings",
     "platformHome": "Home",
     "apps": "Apps",
     "platform": "zerosoft",
-    "groupSettings": "Settings"
+    "groupSettings": "Settings",
+    "featured": "Featured",
+    "moreApps": "More apps",
+    "groupApps": "Apps",
+    "openApp": "Open {name}",
+    "goHome": "Go to home",
+    "linkOverview": "Link overview"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
@@ -296,10 +306,6 @@
         "title": "One account for all twelve apps.",
         "desc": "Invite your team once. Find contacts, companies, deals, links, docs and tasks from a single search bar, and jump between apps without changing tools."
       },
-      "teamsTitle": "For teams",
-      "teamsDesc": "Sell, support and ship as a team.",
-      "personalTitle": "For you",
-      "personalDesc": "Write, plan and keep your time.",
       "replaces": "Replaces {rival}",
       "agents": {
         "line": "AI agents that answer from your documents."
@@ -318,7 +324,9 @@
       },
       "board": {
         "line": "An infinite whiteboard."
-      }
+      },
+      "audienceTitle": "For teams and for personal use",
+      "audienceDesc": "Every app works for one person or for a whole team. Start with the one you need and invite your team whenever you want. The account and the search are the same across all of them."
     },
     "stack": {
       "title": "{total} a year.",
@@ -406,7 +414,64 @@
     "lead": "The twelve apps in your workspace. Pick one to get started.",
     "apps": "Apps",
     "open": "Open {name}",
-    "linkSummary": "Link overview"
+    "linkSummary": "Link overview",
+    "greetingMorning": "Good morning, {name}",
+    "greetingAfternoon": "Good afternoon, {name}",
+    "greetingEvening": "Good evening, {name}",
+    "greetingMorningAnon": "Good morning",
+    "greetingAfternoonAnon": "Good afternoon",
+    "greetingEveningAnon": "Good evening",
+    "homeLead": "What you have for today and what you touched last, across all your apps.",
+    "featured": "Your apps",
+    "more": "More apps",
+    "loading": "Loading…",
+    "error": "We couldn't load this block. Reload the page to try again.",
+    "viewAll": "View all",
+    "today": {
+      "title": "For today",
+      "crm": "CRM tasks",
+      "crmEmpty": "No overdue tasks or tasks due today.",
+      "overdue": "Overdue",
+      "dueToday": "Today",
+      "track": "In progress in Track",
+      "trackEmpty": "No issues in progress.",
+      "cal": "Today's bookings",
+      "calEmpty": "No bookings today.",
+      "inbox": "Unread",
+      "inboxEmpty": "All caught up.",
+      "chatUnread": "{n, plural, one {# unread conversation in Chat} other {# unread conversations in Chat}}",
+      "groupsUnread": "{n, plural, one {# unread chat in Groups} other {# unread chats in Groups}}",
+      "crmEmptyAll": "Nobody has overdue tasks or tasks due today.",
+      "crmScope": "Which tasks to show",
+      "crmMine": "Mine",
+      "crmAll": "All"
+    },
+    "recent": {
+      "title": "Recent",
+      "empty": "Nothing here yet. What you create in any app shows up here.",
+      "kinds": {
+        "doc": "Page",
+        "note": "Note",
+        "board": "Board",
+        "issue": "Issue",
+        "link": "Link",
+        "contact": "Contact",
+        "deal": "Deal",
+        "flow": "Flow"
+      },
+      "untitled": "Untitled",
+      "partial": "Some apps couldn't load. Reload the page to see them."
+    },
+    "invite": {
+      "title": "Bring your team",
+      "body": "Invite the people you work with. They share the workspace in every app.",
+      "cta": "Invite"
+    },
+    "import": {
+      "title": "Bring your data",
+      "body": "Import from HubSpot, Pipedrive, Linear, Notion, Calendly, Bitly and other tools.",
+      "cta": "Import"
+    }
   },
   "publicPage": {
     "poweredBy": "Powered by zerosoft"
@@ -495,5 +560,27 @@
       "generic": "Could not import. Try again."
     },
     "readFailed": "We couldn't read {source}: {reason}"
+  },
+  "categories": {
+    "sell": {
+      "title": "Sell",
+      "desc": "Pipeline, contacts and links with analytics."
+    },
+    "support": {
+      "title": "Support",
+      "desc": "Web chat and WhatsApp in one shared inbox."
+    },
+    "automate": {
+      "title": "Automate",
+      "desc": "Flows, AI agents and robots for the repetitive work."
+    },
+    "build": {
+      "title": "Build",
+      "desc": "Issues, projects and whiteboards to plan and ship."
+    },
+    "daily": {
+      "title": "Daily work",
+      "desc": "Docs, notes and scheduling for every day."
+    }
   }
 }

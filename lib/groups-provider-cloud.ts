@@ -8,6 +8,12 @@
  *   cuerpo crudo con el App Secret.
  * - Grupos: no se gestionan por esta vía (la UI lo dice y ofrece el modo
  *   puente). Las llamadas de grupo tiran ProviderError('unsupported').
+ * - Editar, borrar para todos y fijar no existen en la Cloud API; reenviar
+ *   se resuelve mandando una copia (lib/groups-inbox.ts).
+ * - Llamadas (Calling API): el webhook "calls" avisa connect y terminate
+ *   (con duración) y los estados RINGING / ACCEPTED / REJECTED de las que
+ *   inicia el negocio. Se registran en el chat. Atender o llamar desde la
+ *   app necesita WebRTC (SDP) y Meta no graba el audio.
  */
 import {
   PROVIDER_CAPS,
@@ -17,6 +23,8 @@ import {
   phoneDigits,
   safeEqual,
   unsupported,
+  type CallDirection,
+  type CallStatus,
   type CloudConfig,
   type ConnectState,
   type FetchLike,
@@ -48,7 +56,44 @@ export function verifyMetaSignature(rawBody: string, header: string | null, appS
   return safeEqual(m[1].toLowerCase(), hmacHex('sha256', appSecret, rawBody));
 }
 
-/** Webhook de Meta → eventos normalizados (mensajes, reacciones y estados). */
+function tsIso(raw: unknown): string | undefined {
+  const ts = Number(raw);
+  return Number.isFinite(ts) && ts > 0 ? new Date(ts * 1000).toISOString() : undefined;
+}
+
+/** Un evento de `value.calls` (Calling API) → llamada normalizada. */
+export function parseCloudCall(c: Json, nameOf: (waId: string) => string = () => ''): InboundEvent | null {
+  const id = String(c.id ?? '');
+  if (!id) return null;
+  const direction: CallDirection = String(c.direction ?? '').toUpperCase() === 'BUSINESS_INITIATED' ? 'out' : 'in';
+  const user = phoneDigits(String(direction === 'in' ? c.from ?? '' : c.to ?? ''));
+  if (!user) return null;
+  const event = String(c.event ?? '').toLowerCase();
+  let status: CallStatus;
+  let durationSec: number | undefined;
+  if (event === 'connect') status = direction === 'in' ? 'ringing' : 'answered';
+  else if (event === 'terminate') {
+    const d = Number(c.duration);
+    const started = Number(c.start_time);
+    const st = (Array.isArray(c.status) ? c.status : [c.status]).map((x) => String(x ?? '').toUpperCase());
+    if (Number.isFinite(d) && d > 0) durationSec = Math.round(d);
+    else if (Number.isFinite(started) && started > 0 && Number(c.end_time) > started) durationSec = Math.round(Number(c.end_time) - started);
+    status = durationSec ? 'ended' : st.includes('REJECTED') ? 'rejected' : 'missed';
+  } else return null;
+  return {
+    type: 'call',
+    chatId: user,
+    callId: id,
+    direction,
+    status,
+    senderPhone: user,
+    senderName: nameOf(user),
+    durationSec,
+    timestamp: tsIso(c.timestamp),
+  };
+}
+
+/** Webhook de Meta → eventos normalizados (mensajes, reacciones, estados y llamadas). */
 export function parseCloudWebhook(body: unknown): InboundEvent[] {
   const out: InboundEvent[] = [];
   const entries = (body as Json)?.entry;
@@ -113,8 +158,21 @@ export function parseCloudWebhook(body: unknown): InboundEvent[] {
           timestamp,
         });
       }
+      for (const c of Array.isArray(value.calls) ? (value.calls as Json[]) : []) {
+        const ev = parseCloudCall(c, nameOf);
+        if (ev) out.push(ev);
+      }
       for (const s of Array.isArray(value.statuses) ? (value.statuses as Json[]) : []) {
         const st = String(s.status ?? '');
+        if (String(s.type ?? '') === 'call') {
+          const map: Record<string, CallStatus> = { RINGING: 'ringing', ACCEPTED: 'answered', REJECTED: 'rejected' };
+          const status = map[st.toUpperCase()];
+          const to = phoneDigits(String(s.recipient_id ?? ''));
+          if (status && to && s.id) {
+            out.push({ type: 'call', chatId: to, callId: String(s.id), direction: 'out', status, senderPhone: to, timestamp: tsIso(s.timestamp) });
+          }
+          continue;
+        }
         if (st === 'sent' || st === 'delivered' || st === 'read' || st === 'failed') {
           out.push({ type: 'status', providerMessageId: String(s.id ?? ''), status: st });
         }
@@ -215,6 +273,14 @@ export function cloudProvider(cfg: CloudConfig, fetchImpl: FetchLike = (u, i) =>
     updateParticipants: async () => unsupported(),
     inviteLink: async () => unsupported(),
     updateGroup: async () => unsupported(),
+    editMessage: async () => unsupported(),
+    deleteMessage: async () => unsupported(),
+    pinMessage: async () => unsupported(),
+    forwardMessage: async () => unsupported(),
+    updateGroupSettings: async () => unsupported(),
+    setGroupPicture: async () => unsupported(),
+    joinGroup: async () => unsupported(),
+    leaveGroup: async () => unsupported(),
     verifyWebhook: (req: WebhookRequest) => verifyMetaSignature(req.rawBody, req.headers.get('x-hub-signature-256'), cfg.appSecret),
     parseWebhook: parseCloudWebhook,
   };

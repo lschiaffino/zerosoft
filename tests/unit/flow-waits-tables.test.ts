@@ -524,8 +524,8 @@ describe('Disparadores de Notes, Board, Agents, tareas, Chat y Cal', () => {
   ] as const;
 
   it('están en el catálogo, con ejemplo y nombre en los tres idiomas', () => {
-    // 32 de antes, los nuevos de esta tanda y los 3 de Groups (mensaje recibido, ticket creado y actualizado).
-    expect(FLOW_EVENT_TYPES).toHaveLength(32 + NEW_EVENTS.length + 3);
+    // 32 de antes, los nuevos de esta tanda y los 10 de Groups (mensajes, tickets, chats, miembros y votos).
+    expect(FLOW_EVENT_TYPES).toHaveLength(32 + NEW_EVENTS.length + 10);
     const root = join(__dirname, '..', '..');
     for (const ev of NEW_EVENTS) {
       expect(FLOW_EVENT_TYPES).toContain(ev);

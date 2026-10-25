@@ -16,6 +16,7 @@ import TaskFiles from '@/components/crm/TaskFiles';
 import TaskDonePin from '@/components/crm/TaskDonePin';
 import { ACTIVITY_TYPES } from '@/lib/crm-constants';
 import { TASK_REPEATS } from '@/lib/crm-task-repeat';
+import { parseDbUtc } from '@/lib/utils';
 import {
   associateContactToTask,
   removeContactFromTask,
@@ -36,12 +37,12 @@ function formatDateTime(iso: string, locale: string, timeZone: string): string {
     dateStyle: 'medium',
     timeStyle: 'short',
     timeZone,
-  }).format(new Date(`${iso.replace(' ', 'T')}Z`));
+  }).format(parseDbUtc(iso));
 }
 
 function formatDate(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(
-    new Date(`${iso.replace(' ', 'T')}Z`),
+    parseDbUtc(iso),
   );
 }
 

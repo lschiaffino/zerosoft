@@ -56,7 +56,8 @@ describe('feedback: validación', () => {
   });
 
   it('producto según la ruta de la app', () => {
-    expect(productFromPath('/app')).toBe('link');
+    expect(productFromPath('/app')).toBe('platform');
+    expect(productFromPath('/es/app/settings/api')).toBe('platform');
     expect(productFromPath('/app/links/new')).toBe('link');
     expect(productFromPath('/app/crm/deals')).toBe('crm');
     expect(productFromPath('/en/app/calendar/bookings')).toBe('cal');

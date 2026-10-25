@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { SETTINGS_SECTION_KEYS, settingsSectionHref } from '@/lib/settings-nav';
 import { PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref } from '@/lib/products';
+import { RIVALS } from '@/components/site/catalog';
 
 interface ResultItem {
   group: string;
@@ -29,6 +30,7 @@ interface SearchResponse {
 
 function useGroupOrder() {
   return useMemo(() => [
+        'apps',
         'track',
         'actions',
         'settings',
@@ -62,6 +64,9 @@ function useGroupOrder() {
         'groupsChats',
         'groupsTickets',
         'groupsMessages',
+        'groupsLists',
+        'groupsTemplates',
+        'groupsRecurring',
       ], []);
 }
 
@@ -90,6 +95,7 @@ export default function CommandSearch() {
   const tTrack = useTranslations('track');
   const tSections = useTranslations('settings.sections');
   const tSettingsCmdk = useTranslations('settings.cmdk');
+  const tCategories = useTranslations('common.categories');
   const router = useRouter();
   const pathname = usePathname();
   const inTrack = pathname.startsWith('/app/track');
@@ -155,9 +161,26 @@ export default function CommandSearch() {
       { group, label: t('newAgent'), meta: '', href: '/app/agents' },
       { group, label: t('newRobot'), meta: '', href: '/app/robots?new=1' },
       { group, label: t('newGroup'), meta: '', href: '/app/groups/list?new=1' },
+      { group, label: t('newGroupTemplate'), meta: '', href: '/app/groups/templates?new=1' },
     ];
     return inTrack ? [...track, ...rest] : [...rest, ...track];
   }, [t, tNotes, tBoard, tTrack, inTrack, inCrm]);
+
+  // Las apps (y el inicio): "crm", "hubspot" o "vender" llevan a la app. Solo al buscar.
+  const appItems = useMemo<ResultItem[]>(
+    () => [
+      { group: 'apps', label: t('goHome'), meta: '', href: '/app', keywords: `home,inicio,início,dashboard,${t('platformHome')}` },
+      ...PRODUCT_KEYS.map((key) => ({
+        group: 'apps',
+        label: t('openApp', { name: PRODUCT_CONFIG[key].name }),
+        meta: tCategories(`${PRODUCT_CONFIG[key].category}.title`),
+        href: PRODUCT_CONFIG[key].launch,
+        keywords: `${PRODUCT_CONFIG[key].name},${RIVALS[key]},${tCategories(`${PRODUCT_CONFIG[key].category}.title`)}`,
+      })),
+      { group: 'apps', label: t('linkOverview'), meta: 'Link', href: '/app/links/overview', keywords: 'link,overview,resumen,resumo' },
+    ],
+    [t, tCategories],
+  );
 
   // Secciones de Ajustes (plataforma y cada app): solo aparecen al buscar.
   const settingsItems = useMemo<ResultItem[]>(
@@ -193,6 +216,20 @@ export default function CommandSearch() {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
+        // Un <dialog> modal abierto queda en la capa superior y taparía la
+        // paleta: se le pide cerrar (su Esc) y la paleta abre si cerró.
+        const modals = [...document.querySelectorAll<HTMLDialogElement>('dialog[open]')];
+        if (modals.length) {
+          for (const d of modals) d.dispatchEvent(new Event('cancel', { cancelable: true }));
+          // El modal cierra con su estado de React (un render después): se espera hasta ~300 ms.
+          let tries = 0;
+          const wait = () => {
+            if (!document.querySelector('dialog[open]')) setOpen(true);
+            else if (++tries < 18) requestAnimationFrame(wait);
+          };
+          requestAnimationFrame(wait);
+          return;
+        }
         setOpen((v) => !v);
       }
     }
@@ -212,6 +249,15 @@ export default function CommandSearch() {
       setItems(actionItems);
       setSel(0);
       setTimeout(() => inputRef.current?.focus(), 30);
+      // Esc cierra aunque el foco todavía no llegó al input (p. ej. abierta desde el switcher, cuyo ítem se desmontó).
+      const onEsc = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && !e.defaultPrevented) {
+          e.preventDefault();
+          setOpen(false);
+        }
+      };
+      window.addEventListener('keydown', onEsc);
+      return () => window.removeEventListener('keydown', onEsc);
     } else {
       prevFocusRef.current?.focus();
       prevFocusRef.current = null;
@@ -245,7 +291,7 @@ export default function CommandSearch() {
           return a.keywords.split(',').some((k) => fold(k.trim()).startsWith(needle)) ? 1 : -1;
         };
         const byGroup = (a: ResultItem, b: ResultItem) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group);
-        const matchingActions = [...actionItems, ...settingsItems].filter((a) => rankItem(a) >= 0);
+        const matchingActions = [...appItems, ...actionItems, ...settingsItems].filter((a) => rankItem(a) >= 0);
         const results = [...(data.items ?? [])].sort(byGroup);
         setItems(
           matchingActions.some((a) => rankItem(a) < 2)
@@ -259,7 +305,7 @@ export default function CommandSearch() {
         setSel(0);
       }
     },
-    [actionItems, settingsItems, groupOrder, locale],
+    [appItems, actionItems, settingsItems, groupOrder, locale],
   );
 
   useEffect(() => {

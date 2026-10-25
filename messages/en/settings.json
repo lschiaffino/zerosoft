@@ -158,7 +158,14 @@
       "task_completed": "Task completed",
       "quote_accepted": "Quote signed",
       "quote_paid": "Quote paid",
-      "form_submitted": "Form submitted"
+      "form_submitted": "Form submitted",
+      "groups_message_sent": "Message sent (Groups)",
+      "groups_chat_created": "New chat or group (Groups)",
+      "groups_chat_assigned": "Chat assigned (Groups)",
+      "groups_chat_closed": "Chat closed (Groups)",
+      "groups_member_joined": "Member joined a group (Groups)",
+      "groups_member_left": "Member left a group (Groups)",
+      "groups_poll_voted": "Poll vote (Groups)"
     },
     "errors": {
       "https_required": "The URL must use https.",
