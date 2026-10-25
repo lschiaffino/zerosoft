@@ -615,7 +615,7 @@ export async function deleteStatusWithReassign(id: string, reassignTo: string): 
   const tdb = txDb(tx);
   try {
     const moved = await tdb
-      .prepare("UPDATE track_issues SET status_id = ?, updated_at = datetime('now') WHERE status_id = ? AND project_id = ?")
+      .prepare("UPDATE track_issues SET status_id = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE status_id = ? AND project_id = ?")
       .run(target.id, id, status.project_id);
     await tdb.prepare('DELETE FROM track_statuses WHERE id = ?').run(id);
     await tx.commit();
@@ -762,7 +762,7 @@ export async function completeCycle(
       )
       .all(cycle.id, cycle.project_id, cycle.project_id)) as TrackIssueWithStatus[];
     const res = await tdb
-      .prepare(`UPDATE track_issues SET cycle_id = ?, updated_at = datetime('now') WHERE ${unfinished}`)
+      .prepare(`UPDATE track_issues SET cycle_id = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE ${unfinished}`)
       .run(target, cycle.id, cycle.project_id, cycle.project_id);
     moved = res.changes;
     if (cycle.end_at.slice(0, 10) > today) {

@@ -176,6 +176,22 @@ test.describe('Track T3: issue', () => {
     await expect(page.getByTestId('track-request')).toContainText('Acme');
   });
 
+  test('aceptar desde afuera actualiza el issue abierto sin recargar (banner y panel de propiedades)', async ({ page, request }) => {
+    const { project, intake } = await setup(request);
+    const issue = await intake('Export to CSV fails', `ana-${uid()}@example.com`);
+    const statuses = ((await (await request.get(`/api/track/projects/${project.id}/statuses`)).json()) as { rows: Array<{ id: string; name: string; category: string }> }).rows;
+    const started = statuses.find((s) => s.category === 'in_progress')!;
+    await page.goto(`/en/app/track/issues/${issue.id}`, { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('track-triage-banner')).toBeVisible();
+    // Otra persona lo acepta desde la cola de triage (la API) con un estado.
+    await ok(request.post(`/api/track/issues/${issue.id}/triage`, { data: { action: 'accept', statusId: started.id } }));
+    await expect(page.getByTestId('track-triage-banner')).toBeHidden({ timeout: 15_000 });
+    await expect(page.getByTestId('track-side-status')).toContainText(started.name, { timeout: 15_000 });
+    // Y un cambio de prioridad de otro también llega al panel.
+    await ok(request.patch(`/api/track/issues/${issue.id}`, { data: { priority: 'urgent' } }));
+    await expect(page.getByTestId('track-side-priority')).toContainText('Urgent', { timeout: 15_000 });
+  });
+
   test('delegar a un agente de zerosoft y a uno externo que responde por la API', async ({ page, request }) => {
     const { project } = await setup(request);
     const agent = await ok<{ id: string }>(request.post('/api/agents', { data: { name: `Helper ${uid()}` } }));
@@ -190,6 +206,8 @@ test.describe('Track T3: issue', () => {
     // El issue se actualiza sin recargar: el agente lo pasó a In progress.
     await expect(page.locator('header').filter({ hasText: 'Write the release notes' }).getByText('In progress').first()).toBeVisible();
     await expect(page.getByText(/changed status from Todo to In progress/)).toBeVisible();
+    // El panel de propiedades (S) también toma el estado nuevo del sondeo en vivo.
+    await expect(page.getByTestId('track-side-status')).toContainText('In progress', { timeout: 15_000 });
     await expect(page.getByTestId('track-agent-trigger')).toContainText('Helper');
     await shot(page, 't3_agent_session');
     void agent;
