@@ -277,6 +277,10 @@ export function cloudProvider(cfg: CloudConfig, fetchImpl: FetchLike = (u, i) =>
     deleteMessage: async () => unsupported(),
     pinMessage: async () => unsupported(),
     forwardMessage: async () => unsupported(),
+    updateGroupSettings: async () => unsupported(),
+    setGroupPicture: async () => unsupported(),
+    joinGroup: async () => unsupported(),
+    leaveGroup: async () => unsupported(),
     verifyWebhook: (req: WebhookRequest) => verifyMetaSignature(req.rawBody, req.headers.get('x-hub-signature-256'), cfg.appSecret),
     parseWebhook: parseCloudWebhook,
   };

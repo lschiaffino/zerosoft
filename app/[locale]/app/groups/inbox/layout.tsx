@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
-import { listLabels, listNumbers, listPeople } from '@/lib/groups';
+import { listLabels, listNumbers, listPeople, listPropertyDefs } from '@/lib/groups';
 import { listTeams } from '@/lib/groups-inbox';
+import { listSavedLists } from '@/lib/groups-org';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import InboxShell from '@/components/groups/InboxShell';
@@ -14,11 +15,14 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   const { locale } = await props.params;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
-  const [numbers, labels, people, teams] = await Promise.all([
+  const me = user.actingUser?.id ?? user.id;
+  const [numbers, labels, people, teams, properties, lists] = await Promise.all([
     listNumbers(user.id),
     listLabels(user.id),
     listPeople(user.id, user.team?.id ?? null),
     listTeams(user.id),
+    listPropertyDefs(user.id),
+    listSavedLists(user.id, me),
   ]);
 
   if (numbers.length === 0) {
@@ -36,12 +40,17 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   }
 
   return (
-    <InboxShell
-      labels={labels.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
-      people={people}
-      teams={teams.map((tm) => ({ id: tm.id, name: tm.name }))}
-    >
-      {props.children}
-    </InboxShell>
+    <Suspense fallback={null}>
+      <InboxShell
+        labels={labels.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
+        people={people}
+        teams={teams.map((tm) => ({ id: tm.id, name: tm.name }))}
+        properties={properties}
+        me={me}
+        initialLists={lists}
+      >
+        {props.children}
+      </InboxShell>
+    </Suspense>
   );
 }

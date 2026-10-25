@@ -59,15 +59,17 @@ export interface ProviderCaps {
   forward: boolean;
   /** El proveedor avisa las llamadas de voz (registro en el chat). */
   calls: boolean;
+  /** Mensajes temporales en grupos (Evolution sí, WAHA no lo expone). */
+  ephemeral: boolean;
 }
 
 export const PROVIDER_CAPS: Record<ProviderKind, ProviderCaps> = {
   // Cloud API: los mensajes no se editan ni se borran; las llamadas llegan por el webhook "calls" (Calling API).
-  cloud: { groups: false, qr: false, templates: true, edit: false, deleteForAll: false, pin: false, forward: false, calls: true },
-  waha: { groups: true, qr: true, templates: false, edit: true, deleteForAll: true, pin: true, forward: true, calls: true },
+  cloud: { groups: false, qr: false, templates: true, ephemeral: false, edit: false, deleteForAll: false, pin: false, forward: false, calls: true },
+  waha: { groups: true, qr: true, templates: false, ephemeral: false, edit: true, deleteForAll: true, pin: true, forward: true, calls: true },
   // Evolution API v2 edita y borra; no tiene endpoint para fijar ni reenviar.
-  evolution: { groups: true, qr: true, templates: false, edit: true, deleteForAll: true, pin: false, forward: false, calls: true },
-  fake: { groups: true, qr: true, templates: false, edit: true, deleteForAll: true, pin: true, forward: true, calls: true },
+  evolution: { groups: true, qr: true, templates: false, ephemeral: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true },
+  fake: { groups: true, qr: true, templates: false, ephemeral: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true },
 };
 
 export type ConnectStatus = 'pending' | 'qr' | 'connected' | 'disconnected' | 'error';
@@ -97,7 +99,21 @@ export interface GroupInfo {
   description?: string;
   participants?: Participant[];
   inviteLink?: string;
+  /** Solo los admins mandan mensajes. */
+  announce?: boolean;
+  /** Solo los admins editan nombre, descripción y foto. */
+  locked?: boolean;
 }
+
+/** Ajustes del grupo que se cambian en WhatsApp. `ephemeral` en segundos (0 apaga). */
+export interface GroupSettingsPatch {
+  announce?: boolean;
+  locked?: boolean;
+  ephemeral?: number;
+}
+
+/** Duraciones de mensajes temporales que acepta WhatsApp (segundos). */
+export const EPHEMERAL_OPTIONS = [0, 86_400, 604_800, 7_776_000] as const;
 
 export type ParticipantAction = 'add' | 'remove' | 'promote' | 'demote';
 
@@ -202,6 +218,13 @@ export interface GroupsProvider {
   pinMessage(chatId: string, providerMessageId: string, pin: boolean): Promise<void>;
   /** Reenvío nativo a otro chat (caps.forward). */
   forwardMessage(toChatId: string, fromChatId: string, providerMessageId: string): Promise<SendResult>;
+  /** Solo admins escriben, solo admins editan, mensajes temporales. */
+  updateGroupSettings(groupId: string, patch: GroupSettingsPatch): Promise<void>;
+  /** Foto del grupo desde una URL pública (null la saca). */
+  setGroupPicture(groupId: string, image: { url: string; mimetype: string } | null): Promise<void>;
+  /** Entra al grupo con el código o link de invitación. */
+  joinGroup(inviteCode: string): Promise<{ id: string; name?: string }>;
+  leaveGroup(groupId: string): Promise<void>;
   /** Firma o token del webhook. `secret` es el del número (va en la URL). */
   verifyWebhook(req: WebhookRequest, secret: string): boolean;
   parseWebhook(body: unknown): InboundEvent[];
@@ -296,6 +319,14 @@ export function parsePhoneList(raw: string | string[]): { valid: string[]; inval
     } else invalid.push(p);
   }
   return { valid, invalid };
+}
+
+/** "https://chat.whatsapp.com/AbC123" o "AbC123" → "AbC123" (vacío si no parece un código). */
+export function inviteCodeFrom(raw: string): string {
+  const t = String(raw ?? '').trim();
+  const m = /chat\.whatsapp\.com\/(?:invite\/)?([A-Za-z0-9_-]{6,64})/.exec(t);
+  const code = m ? m[1] : t;
+  return /^[A-Za-z0-9_-]{6,64}$/.test(code) ? code : '';
 }
 
 export function unsupported(): never {

@@ -6,6 +6,8 @@ import { isWorkspaceAdmin } from '@/lib/session';
 import { availableProviders, getSettings, listLabels, listNumbers, listPropertyDefs, listQuickReplies } from '@/lib/groups';
 import { getAvailability, listRules, listTeams, workspacePeople } from '@/lib/groups-inbox';
 import AssignmentSettings from '@/components/groups/AssignmentSettings';
+import { aiEnabled } from '@/lib/ai';
+import { groupsAiFakeActive } from '@/lib/groups-flag';
 import PageHeader from '@/components/ui/PageHeader';
 import SettingsTabs from '@/components/ui/SettingsTabs';
 import NumbersSettings from '@/components/groups/NumbersSettings';
@@ -13,13 +15,14 @@ import { LabelsPanel, PropertiesPanel, QuickRepliesPanel, TicketRulesPanel } fro
 
 export const dynamic = 'force-dynamic';
 
-const TABS = ['numbers', 'labels', 'quick', 'properties', 'assignment', 'tickets', 'api'] as const;
+const TABS = ['numbers', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'api'] as const;
 /** Nombres viejos o cercanos de pestañas que llevan a la que corresponde. */
 const TAB_ALIASES: Record<string, (typeof TABS)[number]> = {
   rules: 'tickets',
   sla: 'tickets',
   webhooks: 'api',
   replies: 'quick',
+  fields: 'ticketFields',
   teams: 'assignment',
   'round-robin': 'assignment',
 };
@@ -39,7 +42,8 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
   else if (tab === 'labels') body = <LabelsPanel initial={await listLabels(user.id)} />;
   else if (tab === 'quick') body = <QuickRepliesPanel initial={await listQuickReplies(user.id)} />;
   else if (tab === 'properties') body = <PropertiesPanel initial={await listPropertyDefs(user.id)} canEdit={admin} />;
-  else if (tab === 'tickets') body = <TicketRulesPanel initial={await getSettings(user.id)} canEdit={admin} />;
+  else if (tab === 'ticketFields') body = <PropertiesPanel initial={await listPropertyDefs(user.id, 'ticket')} canEdit={admin} scope="ticket" />;
+  else if (tab === 'tickets') body = <TicketRulesPanel initial={await getSettings(user.id)} canEdit={admin} aiAvailable={aiEnabled() || groupsAiFakeActive()} />;
   else if (tab === 'assignment') {
     const [teams, rules, people, numbers, labels, availability] = await Promise.all([
       listTeams(user.id),

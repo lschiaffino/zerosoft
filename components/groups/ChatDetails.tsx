@@ -7,6 +7,9 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, GroupsPerson, LabelDto, MemberDto, PropertyDef } from '@/lib/groups';
 import type { ProviderCaps } from '@/lib/groups-provider';
 import { useGroupsInbox } from './InboxShell';
+import GroupSettingsSection from './GroupSettingsSection';
+import PropertyInput from './PropertyInput';
+import { ChatTasksSection } from './TaskModal';
 import { LabelTag, api, useErrorText, useToast } from './ui';
 
 interface CrmRef {
@@ -46,6 +49,7 @@ export default function ChatDetails({
   agents,
   crm,
   caps,
+  me = '',
   compact = false,
 }: {
   chat: ChatDto;
@@ -57,6 +61,8 @@ export default function ChatDetails({
   agents: Array<{ id: string; name: string }>;
   crm: { contact: CrmRef | null; company: CrmRef | null };
   caps: ProviderCaps;
+  /** Persona logueada (tareas: "para mí" por defecto). */
+  me?: string;
   compact?: boolean;
 }) {
   const t = useTranslations('groups');
@@ -300,26 +306,7 @@ export default function ChatDetails({
             }}
           >
             {properties.map((p) => (
-              <label key={p.id} className="ui-field">
-                <span className="label">{p.label}</span>
-                {p.type === 'select' ? (
-                  <select className="select" value={String(props[p.key] ?? '')} onChange={(e) => setProps({ ...props, [p.key]: e.target.value })}>
-                    <option value="">—</option>
-                    {p.options.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    className="input"
-                    type={p.type === 'number' ? 'number' : p.type === 'date' ? 'date' : 'text'}
-                    value={String(props[p.key] ?? '')}
-                    onChange={(e) => setProps({ ...props, [p.key]: e.target.value })}
-                  />
-                )}
-              </label>
+              <PropertyInput key={p.id} def={p} value={props[p.key]} onChange={(v) => setProps({ ...props, [p.key]: v })} />
             ))}
             <div>
               <button type="submit" className="btn btn-secondary btn-sm">
@@ -429,6 +416,10 @@ export default function ChatDetails({
           )}
         </section>
       )}
+
+      {isGroup && caps.groups && <GroupSettingsSection chat={chat} caps={caps} onChange={onChange} showToast={showToast} />}
+
+      <ChatTasksSection chatId={chat.id} people={people} me={me} />
 
       <section className="gr-detail-section">
         <h3 className="gr-detail-title">{t('details.tickets')}</h3>

@@ -29,6 +29,21 @@ describe('migraciones versionadas', () => {
     expect(cols).toContain('owner_id');
   });
 
+  it('081_groups_org_tickets rehace las propiedades de Groups con los tipos nuevos y conserva las filas', async () => {
+    const client = freshClient();
+    const idx = MIGRATIONS.findIndex((m) => m.id === '081_groups_org_tickets');
+    await runMigrations(client, MIGRATIONS.slice(0, idx));
+    await client.execute("INSERT INTO users (id, email, handle) VALUES ('g1', 'g1@test.local', 'g1')");
+    await client.execute("INSERT INTO groups_property_defs (id, user_id, key, label, type, options) VALUES ('p1', 'g1', 'plan', 'Plan', 'select', '[\"Pro\"]')");
+    await expect(client.execute("INSERT INTO groups_property_defs (id, user_id, key, label, type) VALUES ('p2', 'g1', 'tags', 'Tags', 'multiselect')")).rejects.toThrow(/CHECK/);
+    await runMigrations(client);
+    const rows = (await client.execute('SELECT id, scope, key, type, options, required FROM groups_property_defs')).rows;
+    expect(rows.map((r) => ({ ...r }))).toEqual([{ id: 'p1', scope: 'chat', key: 'plan', type: 'select', options: '["Pro"]', required: 0 }]);
+    // Los tipos nuevos y la misma clave en tickets entran.
+    await client.execute("INSERT INTO groups_property_defs (id, user_id, key, label, type) VALUES ('p2', 'g1', 'tags', 'Tags', 'multiselect')");
+    await client.execute("INSERT INTO groups_property_defs (id, user_id, scope, key, label, type) VALUES ('p3', 'g1', 'ticket', 'plan', 'Plan', 'cascade')");
+  });
+
   it('015_ai_chat_bot_source reconstruye chat_widgets conservando filas e índices', async () => {
     const client = freshClient();
     const idx = MIGRATIONS.findIndex((m) => m.id === '015_ai_chat_bot_source');

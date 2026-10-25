@@ -5,7 +5,9 @@
     "tickets": "Tickets",
     "broadcasts": "Broadcasts",
     "analytics": "Analytics",
-    "settings": "Settings"
+    "settings": "Settings",
+    "tasks": "Tasks",
+    "templates": "Templates"
   },
   "common": {
     "retry": "Try again",
@@ -185,7 +187,9 @@
     "draftSources": "Based on {list}",
     "translateReply": "Translate reply",
     "toCustomerLang": "Customer's language ({lang})",
-    "noteHint": "Type @ to mention someone. They get a notification."
+    "noteHint": "Type @ to mention someone. They get a notification.",
+    "task": "Task",
+    "question": "Needs reply"
   },
   "status": {
     "pending": "Sending",
@@ -279,7 +283,8 @@
     "groupNamePlaceholder": "Acme · Support",
     "participants": "Participants",
     "participantsHelp": "Phones with country code. People who block being added get the invite link instead.",
-    "description": "Description"
+    "description": "Description",
+    "columns": "Columns"
   },
   "csv": {
     "title": "Create groups from a CSV",
@@ -307,7 +312,13 @@
     "help": "Phones with country code, separated by commas or lines.",
     "run": "Apply",
     "done": "{ok} of {total} groups updated. {failed} phones failed.",
-    "partial": "Failed: {phones}"
+    "partial": "Failed: {phones}",
+    "settings": "Settings",
+    "settingsTitle": "Settings of {n} groups",
+    "keep": "Leave as is",
+    "on": "On",
+    "off": "Off",
+    "settingsDone": "{ok} of {total} groups updated."
   },
   "detail": {
     "openInbox": "Open in inbox",
@@ -454,7 +465,8 @@
       "properties": "Properties",
       "tickets": "Tickets and SLA",
       "api": "API and webhooks",
-      "assignment": "Assignment"
+      "assignment": "Assignment",
+      "ticketFields": "Ticket fields"
     }
   },
   "numbers": {
@@ -503,7 +515,13 @@
     "qr3": "Scan this code. This screen updates by itself.",
     "webhookUrl": "Webhook URL",
     "webhookCloud": "Paste it in your Meta app (WhatsApp, Configuration) with the same verify token, and subscribe to messages.",
-    "webhookBridge": "We registered it in your gateway when connecting. It carries a secret: do not share it."
+    "webhookBridge": "We registered it in your gateway when connecting. It carries a secret: do not share it.",
+    "reconnect": "Reconnect",
+    "tryAgain": "Try again",
+    "qrRefresh": "The QR refreshes by itself.",
+    "qrUpdated": "Updated {s} s ago.",
+    "newQr": "Get a new QR",
+    "disconnectedBanner": "The session is disconnected. Get a new QR and scan it from the phone to link the number again."
   },
   "providers": {
     "cloud": {
@@ -572,8 +590,22 @@
       "text": "Text",
       "number": "Number",
       "select": "Option",
-      "date": "Date"
-    }
+      "date": "Date",
+      "multiselect": "Multi-select",
+      "checkbox": "Checkbox",
+      "url": "Link",
+      "file": "File",
+      "cascade": "Dependent dropdown"
+    },
+    "none": "None",
+    "level": "{name}, level {n}",
+    "yes": "Yes",
+    "tree": "Options by level",
+    "treePlaceholder": "Argentina\n  Buenos Aires\n    CABA\n  Córdoba\nChile\n  Santiago",
+    "treeHelp": "One option per line. Indent with two spaces to nest it under the line above, up to 3 levels.",
+    "editTitle": "Edit property",
+    "deleteTitle": "Delete {name}?",
+    "deleteBody": "Its values disappear from every chat or ticket. This cannot be undone."
   },
   "rules": {
     "intro": "When a chat counts as unanswered, what creates a ticket and how long each priority has.",
@@ -585,7 +617,23 @@
     "unanswered": "Mark as overdue after (minutes without reply)",
     "firstResponse": "First response SLA (minutes)",
     "resolution": "Resolution SLA by priority (minutes)",
-    "defaultPriority": "Default priority"
+    "defaultPriority": "Default priority",
+    "flagMode": "What counts as unanswered",
+    "flagModes": {
+      "time": "Every customer message, until someone replies",
+      "questions": "Only questions and requests (AI tells them from comments like thanks or ok)"
+    },
+    "flagNoAi": "AI is not configured on this server, so every message counts until someone replies. Set AI_GATEWAY_API_KEY to turn it on.",
+    "flagRules": "Rules for the AI (optional)",
+    "flagRulesPlaceholder": "Messages about invoices always need a reply. Greetings never do.",
+    "flagRulesHelp": "Plain text. They win over the defaults.",
+    "unflagOnTicket": "Creating a ticket from a message clears the chat from unanswered",
+    "slaEmail": "Email when an SLA is breached",
+    "slaEmailOn": "Send an email when a ticket is past its first response or resolution time",
+    "slaEmailAssignee": "To the person assigned to the ticket",
+    "slaEmailAdmins": "To the workspace admins",
+    "slaEmailExtra": "Other emails",
+    "slaEmailHelp": "Comma separated, up to 10. Each breach sends one email per address."
   },
   "api": {
     "intro": "Read chats, send messages and create tickets from your own systems with the public API.",
@@ -687,7 +735,18 @@
     "rule_needs_people": "Pick a team or at least one person to rotate among.",
     "too_many_rules": "Up to 50 rules per workspace.",
     "invalid_language": "Pick a language.",
-    "message_not_deletable": "That message cannot be deleted."
+    "message_not_deletable": "That message cannot be deleted.",
+    "invalid_image": "Use a PNG, JPG or WebP image.",
+    "group_left": "This number already left the group.",
+    "invalid_ephemeral": "That duration is not available.",
+    "invalid_invite": "That does not look like a WhatsApp invite link.",
+    "invite_invalid": "The invite link expired or was reset. Ask for a new one.",
+    "too_many_properties": "There are too many properties. Delete one first.",
+    "too_many_templates": "There are too many templates. Delete one first.",
+    "too_many_lists": "There are too many saved lists. Delete one first.",
+    "missing_fields": "Complete the required fields first.",
+    "date_in_past": "Pick a time in the future.",
+    "missing_columns": "The CSV is missing a column for a template variable."
   },
   "media": {
     "image": "Image",
@@ -798,5 +857,177 @@
     "deleteTeamBody": "Its chats stay assigned to their people. Rules that rotate in this team are turned off.",
     "deleteRuleTitle": "Delete the rule {name}?",
     "deleteRuleBody": "Chats already assigned keep their person."
+  },
+  "groupSettings": {
+    "title": "Group settings",
+    "left": "You left the group.",
+    "leftBanner": "This number left the group. The history stays here, and you can join again with an invite link.",
+    "leftTag": "Left",
+    "photoAlt": "Group photo",
+    "changePhoto": "Change photo",
+    "addPhoto": "Add photo",
+    "announce": "Only admins can send messages",
+    "locked": "Only admins can edit name, description and photo",
+    "ephemeral": "Disappearing messages",
+    "ephemeralOptions": {
+      "0": "Off",
+      "86400": "24 hours",
+      "604800": "7 days",
+      "7776000": "90 days"
+    },
+    "ephemeralUnsupported": "Disappearing messages are not available with this gateway (WAHA). Evolution API supports them.",
+    "help": "Changes apply in WhatsApp. The connected number has to be an admin of the group.",
+    "leave": "Leave group",
+    "leaveTitle": "Leave {name}?",
+    "leaveBody": "The number leaves the group in WhatsApp. The chat stays in Groups as history, closed and without members."
+  },
+  "join": {
+    "button": "Join with link",
+    "title": "Join a group by invite",
+    "submit": "Join group",
+    "link": "Invite link",
+    "help": "Paste the WhatsApp invite link or its code. The group shows up in Groups with its members.",
+    "done": "Joined the group"
+  },
+  "templates": {
+    "title": "Group templates",
+    "desc": "Create groups with the same members, admins, labels, settings and welcome message every time.",
+    "intro": "Use variables like {example} in the name, description and welcome. The date ones ({auto}) fill in by themselves.",
+    "new": "New template",
+    "emptyTitle": "No templates yet",
+    "emptyBody": "A template saves who is always in the group (your team, a bot) so a new client group takes one step.",
+    "colName": "Template",
+    "colGroupName": "Group name",
+    "colMembers": "Fixed members",
+    "use": "Use",
+    "created": "Template created",
+    "deleteTitle": "Delete {name}?",
+    "deleteBody": "Groups created with it stay as they are.",
+    "editTitle": "Edit template",
+    "newTitle": "New group template",
+    "name": "Template name",
+    "namePlaceholder": "Client onboarding",
+    "groupName": "Group name",
+    "groupNameHelp": "It can use variables, like {example}. Empty uses the template name.",
+    "members": "Fixed members",
+    "membersHelp": "One phone per line, with country code.",
+    "admins": "Admins",
+    "adminsHelp": "They are added as members and promoted.",
+    "welcome": "Welcome message",
+    "welcomePlaceholder": "Hi {example} team, this is your support group.",
+    "welcomeHelp": "Sent from the number right after the group is created. Same variables.",
+    "useTitle": "Create groups with {name}",
+    "check": "Preview",
+    "mode": "How many",
+    "modes": {
+      "one": "One group",
+      "csv": "Many from a CSV"
+    },
+    "fixedMembers": "{n} fixed members",
+    "extraPhones": "Extra participants (optional)",
+    "csvHelp": "First row with the columns: {columns}. One group per row, up to 50.",
+    "sameName": "Same as the template"
+  },
+  "lists": {
+    "sidebar": "Saved lists",
+    "pick": "Saved list",
+    "allChats": "All chats",
+    "sharedTag": "Shared with the team",
+    "privateTag": "Only you",
+    "saveChanges": "Save changes",
+    "rename": "Rename",
+    "moreFilters": "More filters",
+    "assignee": "Assigned to",
+    "property": "Property",
+    "anyProperty": "Any property",
+    "propertyValue": "Value",
+    "hasValue": "Has a value",
+    "save": "Save as list",
+    "empty": "No chats match this list right now.",
+    "deleteTitle": "Delete {name}?",
+    "deleteBody": "Only the list is deleted. The chats stay as they are.",
+    "renameTitle": "Rename list",
+    "saveTitle": "Save as list",
+    "name": "List name",
+    "namePlaceholder": "Pro clients waiting",
+    "shared": "Share with the team",
+    "saveHelp": "Saves the current filters: tab, search, label, type, assignee and property. It shows in the sidebar and in ⌘K, and works as a broadcast audience.",
+    "broadcast": "Broadcast"
+  },
+  "tasks": {
+    "fromMessage": "Task from message",
+    "newTitle": "New task",
+    "create": "Create task",
+    "title": "Task",
+    "remindAt": "Remind at",
+    "quick": {
+      "hour": "In 1 hour",
+      "tomorrow": "Tomorrow 9:00",
+      "monday": "Monday 9:00"
+    },
+    "noDate": "No date",
+    "owner": "For",
+    "notes": "Notes",
+    "help": "At that time the person gets a notification and an email. The task also shows in CRM › Tasks.",
+    "section": "Tasks ({n})",
+    "add": "Add task",
+    "chatEmpty": "No tasks for this chat.",
+    "markDone": "Mark {title} as done",
+    "all": "All tasks",
+    "created": "Task created",
+    "pageTitle": "Tasks",
+    "desc": "Tasks and reminders created from chats and messages.",
+    "search": "Search tasks or chats",
+    "status": "Status",
+    "filter": {
+      "open": "Pending",
+      "done": "Done",
+      "all": "All"
+    },
+    "inCrm": "Open in CRM",
+    "loadError": "Could not load the tasks.",
+    "noResults": "No tasks match the filters.",
+    "emptyTitle": "No pending tasks",
+    "emptyBody": "On any message, choose Task to get a reminder at the time you pick.",
+    "goInbox": "Go to the inbox",
+    "done": "Done",
+    "actions": "Actions",
+    "editTitle": "Edit task",
+    "deleteTitle": "Delete {title}?",
+    "deleteBody": "It is also removed from CRM › Tasks."
+  },
+  "ticketFields": {
+    "filter": "Filter by field",
+    "anyField": "Any field",
+    "title": "Fields",
+    "editAria": "Edit fields of ticket {n}",
+    "edit": "Fields",
+    "modalTitle": "#{n} {title}",
+    "saveAnd": "Save and mark {status}",
+    "requiredBanner": "Complete the required fields to change the status.",
+    "requiredHelp": "Fields with * are required to resolve or close.",
+    "intro": "Your own fields for tickets (area, cause, order number). They are edited on the ticket, filter the list and go out in the CSV.",
+    "placeholder": "Area",
+    "required": "Required to close",
+    "empty": "No ticket fields yet.",
+    "requiredTag": "Required"
+  },
+  "slaEmail": {
+    "subject": "SLA breached: #{number} {title}",
+    "heading": "A ticket is past its SLA",
+    "body": "Ticket #{number} \"{title}\" in {chat} is past its {kind} time.",
+    "firstResponse": "first response",
+    "resolution": "resolution",
+    "open": "Open the ticket",
+    "why": "You get this email because SLA alerts are on in Groups settings."
+  },
+  "taskEmail": {
+    "subject": "Reminder: {title}",
+    "heading": "Task reminder",
+    "body": "\"{title}\" is due {when}.",
+    "chat": "From the chat {chat}.",
+    "open": "Open the chat",
+    "why": "You get this email because the task is yours in Groups.",
+    "notification": "Reminder: {title}"
   }
 }

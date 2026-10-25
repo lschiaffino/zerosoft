@@ -115,6 +115,8 @@ export interface SidebarLabels {
     inbox: string;
     groups: string;
     tickets: string;
+    tasks: string;
+    templates: string;
     broadcasts: string;
     analytics: string;
     settings: string;
@@ -408,9 +410,13 @@ export function buildNav(
               label: labels.groups.inbox,
               active: at('/app/groups/inbox') || pathname === '/app/groups',
               icon: 'inbox',
+              // Listas guardadas de chats (GroupsListsBranch en el hueco #side-branch).
+              branch: true,
             },
             { href: '/app/groups/list', label: labels.groups.groups, active: at('/app/groups/list'), icon: 'groups' },
             { href: '/app/groups/tickets', label: labels.groups.tickets, active: at('/app/groups/tickets'), icon: 'tasks' },
+            { href: '/app/groups/tasks', label: labels.groups.tasks, active: at('/app/groups/tasks'), icon: 'myTasks' },
+            { href: '/app/groups/templates', label: labels.groups.templates, active: at('/app/groups/templates'), icon: 'templates' },
             { href: '/app/groups/broadcasts', label: labels.groups.broadcasts, active: at('/app/groups/broadcasts'), icon: 'bulk' },
           ],
         },

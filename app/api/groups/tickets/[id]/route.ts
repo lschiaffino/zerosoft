@@ -24,6 +24,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (typeof b.status === 'string') patch.status = b.status as TicketStatus;
   if (typeof b.priority === 'string') patch.priority = b.priority as TicketPriority;
   if (b.assigneeId === null || typeof b.assigneeId === 'string') patch.assigneeId = str(b.assigneeId, 100) || null;
+  if (b.fields && typeof b.fields === 'object' && !Array.isArray(b.fields)) patch.fields = b.fields as Record<string, unknown>;
   try {
     return NextResponse.json(await updateTicket(s.ws, (await ctx.params).id, patch));
   } catch (err) {

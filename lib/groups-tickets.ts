@@ -7,7 +7,19 @@
 import { randomUUID } from 'crypto';
 import { getDb } from './db';
 import { emitEventSoon } from './events';
-import { GroupsError, chatDisplayName, getChatRow, getMessageRow, getSettings, type ChatRow } from './groups';
+import {
+  GroupsError,
+  chatDisplayName,
+  cleanProperties,
+  getChatRow,
+  getMessageRow,
+  getSettings,
+  listPropertyDefs,
+  missingRequired,
+  type ChatRow,
+  type PropertyFilter,
+  type PropertyValue,
+} from './groups';
 import {
   TICKET_PRIORITIES,
   TICKET_STATUSES,
@@ -39,6 +51,8 @@ export interface TicketRow {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  /** Campos propios del ticket (JSON). */
+  fields?: string;
 }
 
 export interface TicketDto {
@@ -59,6 +73,7 @@ export interface TicketDto {
   resolvedAt: string | null;
   breached: boolean;
   createdAt: string;
+  fields: Record<string, PropertyValue>;
 }
 
 type TicketJoin = TicketRow & { chat_name: string | null; chat_phone: string | null; chat_pid: string | null; message_body: string | null };
@@ -85,7 +100,18 @@ export function toTicketDto(row: TicketJoin, now = new Date()): TicketDto {
     resolvedAt: row.resolved_at,
     breached: Boolean(row.breached_at) || isTicketBreached(row, now),
     createdAt: row.created_at,
+    fields: parseFields(row.fields),
   };
+}
+
+function parseFields(raw: string | undefined): Record<string, PropertyValue> {
+  if (!raw) return {};
+  try {
+    const v = JSON.parse(raw) as unknown;
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, PropertyValue>) : {};
+  } catch {
+    return {};
+  }
 }
 
 export async function getTicket(ws: string, id: string): Promise<TicketDto | null> {
@@ -100,6 +126,7 @@ export interface CreateTicketInput {
   priority?: TicketPriority;
   assigneeId?: string | null;
   source?: TicketRow['source'];
+  fields?: Record<string, unknown>;
 }
 
 /**
@@ -132,6 +159,7 @@ export async function createTicket(
     if (!(await isWorkspacePerson(ws, input.assigneeId))) throw new GroupsError('invalid_assignee');
   }
   const title = (input.title ?? '').trim().slice(0, 200) || ticketTitleFrom(body, chatDisplayName(chat));
+  const fields = input.fields ? await cleanProperties(ws, input.fields, 'ticket') : {};
   const now = new Date();
   const due = ticketDue(priority, settings, now);
   const id = randomUUID();
@@ -142,8 +170,8 @@ export async function createTicket(
       const r = await db
         .prepare(
           `INSERT INTO groups_tickets (id, user_id, number, chat_id, message_id, title, status, priority, assignee_id, source,
-             due_at, first_response_due_at, created_by, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?)`,
+             due_at, first_response_due_at, created_by, created_at, updated_at, fields)
+           VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -160,6 +188,7 @@ export async function createTicket(
           actor,
           now.toISOString(),
           now.toISOString(),
+          JSON.stringify(fields),
         );
       if (r.changes > 0) break;
     } catch (err) {
@@ -172,6 +201,10 @@ export async function createTicket(
     }
   }
   const ticket = (await getTicket(ws, id)) as TicketDto;
+  // Un ticket desde un mensaje es una forma de atenderlo: el chat deja de figurar sin responder (ajustable).
+  if (input.messageId && settings.unflagOnTicket) {
+    await db.prepare('UPDATE groups_chats SET awaiting_since = NULL, flagged_at = NULL WHERE id = ?').run(chat.id);
+  }
   await emitEventSoon(ws, 'groups.ticket.created', { ticket: ticketEventData(ticket), chat: chatEventData(chat) });
   return { ticket, created: true };
 }
@@ -187,6 +220,7 @@ function ticketEventData(t: TicketDto) {
     source: t.source,
     dueAt: t.dueAt,
     messageBody: t.messageBody,
+    fields: t.fields,
   };
 }
 
@@ -200,6 +234,8 @@ export interface TicketQuery {
   chatId?: string;
   breached?: boolean;
   q?: string;
+  /** Filtros por campo propio (mismos operadores que las propiedades de los chats). */
+  fields?: PropertyFilter[];
   limit?: number;
 }
 
@@ -226,6 +262,17 @@ export async function listTickets(ws: string, query: TicketQuery = {}): Promise<
     const like = `%${query.q.trim().slice(0, 100).replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
     args.push(like, like);
   }
+  for (const f of (query.fields ?? []).slice(0, 10)) {
+    if (!/^[a-z0-9_]{1,40}$/.test(f.key)) continue;
+    const path = `$."${f.key}"`;
+    if (f.op === 'set' || f.op === 'unset') {
+      where.push(`json_extract(t.fields, ?) IS ${f.op === 'set' ? 'NOT ' : ''}NULL`);
+      args.push(path);
+    } else if (f.value) {
+      where.push('EXISTS (SELECT 1 FROM json_each(t.fields, ?) je WHERE CAST(je.value AS TEXT) = ?)');
+      args.push(path, f.value.slice(0, 200));
+    }
+  }
   const limit = Math.min(Math.max(1, query.limit ?? 200), 500);
   const rows = (await getDb()
     .prepare(
@@ -243,6 +290,8 @@ export interface TicketPatch {
   status?: TicketStatus;
   priority?: TicketPriority;
   assigneeId?: string | null;
+  /** Reemplaza los campos propios (los que no vienen quedan vacíos). */
+  fields?: Record<string, unknown>;
 }
 
 export async function updateTicket(ws: string, id: string, patch: TicketPatch): Promise<TicketDto> {
@@ -259,6 +308,17 @@ export async function updateTicket(ws: string, id: string, patch: TicketPatch): 
     const t = patch.title.trim().slice(0, 200);
     if (!t) throw new GroupsError('invalid_title');
     set('title', t);
+  }
+  let fields = parseFields(row.fields);
+  if (patch.fields !== undefined) {
+    fields = await cleanProperties(ws, patch.fields, 'ticket');
+    set('fields', JSON.stringify(fields));
+  }
+  const nextStatus = patch.status ?? row.status;
+  if ((nextStatus === 'resolved' || nextStatus === 'closed') && (patch.status !== undefined || patch.fields !== undefined)) {
+    // Campos obligatorios al resolver o cerrar.
+    const missing = missingRequired(await listPropertyDefs(ws, 'ticket'), fields);
+    if (missing.length) throw new GroupsError(`missing_fields:${missing.join(',')}`);
   }
   if (patch.status !== undefined) {
     if (!(TICKET_STATUSES as readonly string[]).includes(patch.status)) throw new GroupsError('invalid_status');
@@ -315,7 +375,11 @@ export async function markBreachedTickets(now = new Date(), limit = 500): Promis
     if (claim.changes === 0) continue;
     n++;
     const t = await getTicket(r.user_id, r.id);
-    if (t) await emitEventSoon(r.user_id, 'groups.ticket.updated', { ticket: ticketEventData(t), breached: true });
+    if (!t) continue;
+    await emitEventSoon(r.user_id, 'groups.ticket.updated', { ticket: ticketEventData(t), breached: true });
+    // El aviso por email sale una vez: lo protege el mismo claim de breached_at.
+    const { notifyBreach } = await import('./groups-sla');
+    await notifyBreach(r.user_id, t, r.first_response_at === null && !!r.first_response_due_at && Date.parse(r.first_response_due_at) <= now.getTime() ? 'first_response' : 'resolution').catch(() => null);
   }
   return n;
 }

@@ -1,13 +1,14 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
-import { listChats, listLabels, listNumbers, listPropertyDefs } from '@/lib/groups';
+import { getChat, listChats, listLabels, listNumbers, listPropertyDefs, type ChatDto } from '@/lib/groups';
+import { savedListChatIds } from '@/lib/groups-org';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import BroadcastComposer from '@/components/groups/BroadcastComposer';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewBroadcastPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ chats?: string }> }) {
+export default async function NewBroadcastPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ chats?: string; list?: string }> }) {
   const { locale } = await props.params;
   const sp = await props.searchParams;
   const user = await requireUser(locale);
@@ -19,6 +20,19 @@ export default async function NewBroadcastPage(props: { params: Promise<{ locale
     listLabels(user.id),
     listPropertyDefs(user.id),
   ]);
+  // ?list=<id>: la audiencia es una lista guardada (sus chats de hoy, hasta 500).
+  let preselected = (sp.chats ?? '').split(',').filter(Boolean).slice(0, 2000);
+  const rows: ChatDto[] = [...chats.rows];
+  if (sp.list) {
+    const fromList = await savedListChatIds(user.id, me, sp.list).catch(() => []);
+    preselected = [...new Set([...preselected, ...fromList.map((c) => c.id)])];
+    const known = new Set(rows.map((c) => c.id));
+    for (const c of fromList) {
+      if (known.has(c.id)) continue;
+      const dto = await getChat(user.id, c.id);
+      if (dto) rows.push(dto);
+    }
+  }
   return (
     <div className="ui-page">
       <PageHeader back={{ href: '/app/groups/broadcasts', label: t('broadcasts.title') }} title={t('broadcasts.newTitle')} description={t('broadcasts.newDesc')} />
@@ -32,10 +46,10 @@ export default async function NewBroadcastPage(props: { params: Promise<{ locale
       ) : (
         <BroadcastComposer
           numbers={numbers}
-          chats={chats.rows}
+          chats={rows}
           labels={labels.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
           properties={properties}
-          preselected={(sp.chats ?? '').split(',').filter(Boolean).slice(0, 2000)}
+          preselected={preselected}
         />
       )}
     </div>

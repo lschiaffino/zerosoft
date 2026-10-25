@@ -33,9 +33,9 @@ import {
 import { cloudProvider } from './groups-provider-cloud';
 import { bridgeProvider } from './groups-provider-bridge';
 import { fakeProvider, fakeProviderAllowed } from './groups-provider-fake';
-import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
+import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyText, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
 
-export { mediaKind };
+export { mediaKind, propertyText };
 
 const nowIso = () => new Date().toISOString();
 const newId = () => randomUUID();
@@ -336,6 +336,11 @@ export interface ChatRow {
   assigned_team_id?: string | null;
   created_at: string;
   updated_at: string;
+  picture_url?: string;
+  announce?: number;
+  locked?: number;
+  ephemeral?: number;
+  left_at?: string | null;
 }
 
 export interface LabelDto {
@@ -369,6 +374,12 @@ export interface ChatDto {
   flagged: boolean;
   labels: LabelDto[];
   createdAt: string;
+  /** Ajustes del grupo (lib/groups-org.ts). */
+  pictureUrl: string;
+  announce: boolean;
+  locked: boolean;
+  ephemeral: number;
+  leftAt: string | null;
   /** Fragmento del mensaje que coincide con la búsqueda. */
   match?: string;
 }
@@ -412,6 +423,11 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     flagged: Boolean(row.flagged_at),
     labels,
     createdAt: row.created_at,
+    pictureUrl: row.picture_url ?? '',
+    announce: Boolean(row.announce),
+    locked: Boolean(row.locked),
+    ephemeral: Number(row.ephemeral ?? 0),
+    leftAt: row.left_at ?? null,
   };
 }
 
@@ -446,11 +462,23 @@ export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
 export const CHAT_FILTERS = ['all', 'unread', 'unanswered', 'flagged', 'mine', 'unassigned', 'closed'] as const;
 export type ChatFilter = (typeof CHAT_FILTERS)[number];
 
+/** Filtro por propiedad propia: `is` (también dentro de multiselección o desplegable dependiente), `set` o `unset`. */
+export interface PropertyFilter {
+  key: string;
+  op: 'is' | 'set' | 'unset';
+  value?: string;
+}
+
 export interface ChatQuery {
   filter?: ChatFilter;
   q?: string;
   labelId?: string;
   teamId?: string;
+  /** Cualquiera de estas etiquetas (listas guardadas). */
+  labelIds?: string[];
+  /** 'me', 'none' o el id de una persona. */
+  assignee?: string;
+  props?: PropertyFilter[];
   kind?: 'dm' | 'group';
   numberId?: string;
   limit?: number;
@@ -490,6 +518,31 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   if (query.labelId) {
     where.push('EXISTS (SELECT 1 FROM groups_chat_labels cl WHERE cl.chat_id = c.id AND cl.label_id = ?)');
     args.push(query.labelId);
+  }
+  const anyLabels = (query.labelIds ?? []).filter(Boolean).slice(0, 20);
+  if (anyLabels.length) {
+    where.push(`EXISTS (SELECT 1 FROM groups_chat_labels cl WHERE cl.chat_id = c.id AND cl.label_id IN (${anyLabels.map(() => '?').join(',')}))`);
+    args.push(...anyLabels);
+  }
+  if (query.assignee === 'none') where.push('c.assigned_to IS NULL');
+  else if (query.assignee) {
+    where.push('c.assigned_to = ?');
+    args.push(query.assignee === 'me' ? me : query.assignee);
+  }
+  for (const pf of (query.props ?? []).slice(0, 10)) {
+    if (!/^[a-z0-9_]{1,40}$/.test(pf.key)) continue;
+    const path = `$."${pf.key}"`;
+    if (pf.op === 'set') {
+      where.push('json_extract(c.properties, ?) IS NOT NULL');
+      args.push(path);
+    } else if (pf.op === 'unset') {
+      where.push('json_extract(c.properties, ?) IS NULL');
+      args.push(path);
+    } else if (pf.value !== undefined && pf.value !== '') {
+      // json_each sobre un valor suelto devuelve ese valor: sirve para texto, número, multiselección y dependiente.
+      where.push('EXISTS (SELECT 1 FROM json_each(c.properties, ?) je WHERE CAST(je.value AS TEXT) = ?)');
+      args.push(path, String(pf.value).slice(0, 200));
+    }
   }
   const q = (query.q ?? '').trim().slice(0, 200);
   let matchSelect = 'NULL AS match';
@@ -691,6 +744,8 @@ export interface MessageRow {
   forwarded?: number;
   translations?: string;
   meta?: string;
+  /** Modo "preguntas": 1 pide respuesta, 0 es un comentario, null sin clasificar. */
+  needs_reply?: number | null;
 }
 
 /** Traducciones cacheadas: idioma → texto ('' = ya estaba en ese idioma). `_lang` = idioma detectado. */
@@ -726,6 +781,7 @@ export interface MessageDto {
   translations: MessageTranslations;
   /** Llamadas (author_kind 'call'), eventos ('event') y menciones de notas. */
   meta: Record<string, unknown>;
+  needsReply?: boolean | null;
 }
 
 /** URL de la media para el navegador: las de proveedor pasan por el proxy autenticado. */
@@ -758,6 +814,7 @@ export function toMessageDto(row: MessageRow & { ticket_id?: string | null }): M
     forwarded: Boolean(row.forwarded),
     translations: parseJson<MessageTranslations>(row.translations, {}),
     meta: parseJson<Record<string, unknown>>(row.meta, {}),
+    needsReply: row.needs_reply == null ? null : Boolean(row.needs_reply),
   };
 }
 
@@ -1038,6 +1095,10 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[]): P
         }
         res.messages++;
         await touchChat(chat.id, at, previewOf(ev.body, ev.media?.type ?? '', ev.media?.name ?? ''), !ev.fromMe);
+        // Modo "preguntas": el chat espera recién cuando la AI dice que el mensaje pide respuesta (lib/groups-flag.ts).
+        if (!ev.fromMe && (await getSettings(ws)).flagMode === 'questions') {
+          await getDb().prepare('UPDATE groups_chats SET awaiting_since = NULL WHERE id = ? AND awaiting_since = ?').run(chat.id, at);
+        }
         // Grupo que no conocíamos: se traen sus miembros una vez (best effort).
         if (chat.kind === 'group' && chat.member_count === 0 && PROVIDER_CAPS[number.provider].groups) {
           await syncMembers(ws, chat.id).catch(() => null);
@@ -1129,6 +1190,18 @@ async function afterInbound(ws: string, chat: ChatRow, msg: MessageRow): Promise
     message: { id: msg.id, body: msg.body, senderPhone: msg.sender_phone, senderName: msg.sender_name, createdAt: msg.created_at },
     chat: { id: chat.id, kind: chat.kind, name: chatDisplayName(chat), crmCompanyId: chat.crm_company_id, crmContactId: chat.crm_contact_id },
   });
+  if (settings.flagMode === 'questions') {
+    const flag = async () => {
+      const { flagInbound } = await import('./groups-flag');
+      await flagInbound(ws, chat.id, msg).catch(() => null);
+    };
+    try {
+      const { after } = await import('next/server');
+      after(flag);
+    } catch {
+      await flag();
+    }
+  }
   if (chat.agent_id && msg.body.trim()) {
     // El agente puede tardar (modelo, herramientas): contesta después de responderle al webhook.
     const job = async () => {
@@ -1164,7 +1237,7 @@ export async function listMembers(ws: string, chatId: string): Promise<MemberDto
   return rows;
 }
 
-async function refreshMemberCount(chatId: string): Promise<void> {
+export async function refreshMemberCount(chatId: string): Promise<void> {
   await getDb()
     .prepare('UPDATE groups_chats SET member_count = (SELECT COUNT(*) FROM groups_members WHERE chat_id = ?) WHERE id = ?')
     .run(chatId, chatId);
@@ -1189,7 +1262,7 @@ async function applyMemberChange(chatId: string, action: ParticipantAction, phon
   await refreshMemberCount(chatId);
 }
 
-async function groupContext(ws: string, chatId: string): Promise<{ chat: ChatRow; provider: GroupsProvider }> {
+export async function groupContext(ws: string, chatId: string): Promise<{ chat: ChatRow; provider: GroupsProvider }> {
   const chat = await getChatRow(ws, chatId);
   if (!chat) throw new GroupsError('not_found', 404);
   if (chat.kind !== 'group') throw new GroupsError('not_a_group');
@@ -1410,6 +1483,11 @@ export async function syncGroups(ws: string, numberId: string): Promise<{ groups
   for (const g of list.slice(0, 1000)) {
     const chat = await upsertChat(number, { providerChatId: g.id, kind: 'group', name: g.name });
     if (g.name && g.name !== chat.name) await getDb().prepare('UPDATE groups_chats SET name = ? WHERE id = ?').run(g.name.slice(0, 200), chat.id);
+    if (g.announce !== undefined || g.locked !== undefined) {
+      await getDb()
+        .prepare('UPDATE groups_chats SET announce = COALESCE(?, announce), locked = COALESCE(?, locked), left_at = NULL WHERE id = ?')
+        .run(g.announce === undefined ? null : Number(g.announce), g.locked === undefined ? null : Number(g.locked), chat.id);
+    }
     if (n < 50) await syncMembers(ws, chat.id).catch(() => null);
     n++;
   }
@@ -1477,71 +1555,271 @@ export async function setChatLabels(ws: string, chatId: string, labelIds: string
 // Propiedades propias
 // ======================================================================
 
+export const PROPERTY_TYPES = ['text', 'number', 'select', 'multiselect', 'date', 'checkbox', 'url', 'file', 'cascade'] as const;
+export type PropertyType = (typeof PROPERTY_TYPES)[number];
+export type PropertyScope = 'chat' | 'ticket';
+
+/** Opción de un desplegable dependiente (hasta 3 niveles). */
+export interface CascadeNode {
+  label: string;
+  children?: CascadeNode[];
+}
+
 export interface PropertyDef {
   id: string;
   key: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'date';
+  type: PropertyType;
+  /** Opciones de select y multiselección. */
   options: string[];
+  /** Árbol del desplegable dependiente. */
+  tree?: CascadeNode[];
+  scope: PropertyScope;
+  /** Tickets: obligatoria para resolver o cerrar. */
+  required: boolean;
 }
 
-export async function listPropertyDefs(ws: string): Promise<PropertyDef[]> {
+/** Valor de una propiedad de tipo archivo. */
+export interface FileValue {
+  url: string;
+  name: string;
+}
+
+type PropertyDefRow = { id: string; key: string; label: string; type: PropertyType; options: string; scope: PropertyScope; required: number };
+
+function toPropertyDef(r: PropertyDefRow): PropertyDef {
+  const raw = parseJson<unknown>(r.options, []);
+  const isTree = r.type === 'cascade';
+  return {
+    id: r.id,
+    key: r.key,
+    label: r.label,
+    type: r.type,
+    options: !isTree && Array.isArray(raw) ? raw.map(String) : [],
+    ...(isTree ? { tree: cleanTree(raw) } : {}),
+    scope: r.scope ?? 'chat',
+    required: Boolean(r.required),
+  };
+}
+
+export async function listPropertyDefs(ws: string, scope: PropertyScope = 'chat'): Promise<PropertyDef[]> {
   const rows = (await getDb()
-    .prepare('SELECT id, key, label, type, options FROM groups_property_defs WHERE user_id = ? ORDER BY position, created_at')
-    .all(ws)) as Array<Omit<PropertyDef, 'options'> & { options: string }>;
-  return rows.map((r) => ({ ...r, options: parseJson<string[]>(r.options, []) }));
+    .prepare('SELECT id, key, label, type, options, scope, required FROM groups_property_defs WHERE user_id = ? AND scope = ? ORDER BY position, created_at')
+    .all(ws, scope)) as PropertyDefRow[];
+  return rows.map(toPropertyDef);
 }
 
-export async function createPropertyDef(
-  ws: string,
-  input: { label?: string; type?: string; options?: string[] },
-): Promise<PropertyDef> {
-  const label = String(input.label ?? '').trim().slice(0, 60);
-  if (!label) throw new GroupsError('invalid_name');
-  const type = (['text', 'number', 'select', 'date'] as const).find((t) => t === input.type) ?? 'text';
-  const key =
+const MAX_TREE_NODES = 300;
+
+/** Árbol de opciones → hasta 3 niveles, etiquetas únicas por nivel, sin vacías. */
+export function cleanTree(raw: unknown, depth = 1, budget = { n: 0 }): CascadeNode[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CascadeNode[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (budget.n >= MAX_TREE_NODES) break;
+    const o = (typeof item === 'string' ? { label: item } : (item ?? {})) as { label?: unknown; children?: unknown };
+    const label = String(o.label ?? '').trim().slice(0, 60);
+    if (!label || seen.has(label)) continue;
+    seen.add(label);
+    budget.n++;
+    const children = depth < 3 ? cleanTree(o.children, depth + 1, budget) : [];
+    out.push(children.length ? { label, children } : { label });
+  }
+  return out;
+}
+
+/**
+ * Árbol escrito con sangría (dos espacios o un tab por nivel), una opción por
+ * línea: "Argentina\n  Buenos Aires\n    CABA".
+ */
+export function parseTreeText(text: string): CascadeNode[] {
+  const root: CascadeNode[] = [];
+  const stack: CascadeNode[] = [];
+  for (const line of String(text ?? '').split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const indent = (/^[\t ]*/.exec(line)?.[0] ?? '').replace(/\t/g, '  ').length;
+    // Un nivel más que el padre como mucho (y nunca más de 3).
+    const depth = Math.min(Math.floor(indent / 2), stack.length, 2);
+    const node: CascadeNode = { label: line.trim().slice(0, 60) };
+    stack.length = depth;
+    const parent = stack[depth - 1];
+    if (parent) (parent.children ??= []).push(node);
+    else root.push(node);
+    stack.push(node);
+  }
+  return cleanTree(root);
+}
+
+/** Árbol → texto con sangría (para editarlo). */
+export function treeText(tree: CascadeNode[], depth = 0): string {
+  return tree
+    .map((n) => [`${'  '.repeat(depth)}${n.label}`, ...(n.children?.length ? [treeText(n.children, depth + 1)] : [])].join('\n'))
+    .join('\n');
+}
+
+/** El camino elegido existe en el árbol (1 a 3 niveles, de la raíz hacia abajo). */
+export function isTreePath(tree: CascadeNode[], path: string[]): boolean {
+  let level: CascadeNode[] | undefined = tree;
+  for (const step of path) {
+    const hit: CascadeNode | undefined = level?.find((n) => n.label === step);
+    if (!hit) return false;
+    level = hit.children;
+  }
+  return path.length > 0;
+}
+
+function propertyKey(label: string): string {
+  return (
     label
       .normalize('NFD')
       .replace(/[̀-ͯ]/g, '')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_|_$/g, '')
-      .slice(0, 40) || `prop_${randomBytes(3).toString('hex')}`;
-  const options = type === 'select' ? [...new Set((input.options ?? []).map((o) => String(o).trim().slice(0, 60)).filter(Boolean))].slice(0, 50) : [];
-  if (type === 'select' && options.length === 0) throw new GroupsError('missing_options');
+      .slice(0, 40) || `prop_${randomBytes(3).toString('hex')}`
+  );
+}
+
+function cleanOptions(type: PropertyType, input: { options?: unknown; tree?: unknown }): { options: string[]; tree: CascadeNode[] } {
+  if (type === 'cascade') {
+    const tree = typeof input.tree === 'string' ? parseTreeText(input.tree) : cleanTree(input.tree);
+    if (tree.length === 0) throw new GroupsError('missing_options');
+    return { options: [], tree };
+  }
+  if (type !== 'select' && type !== 'multiselect') return { options: [], tree: [] };
+  const list = Array.isArray(input.options) ? input.options : [];
+  const options = [...new Set(list.map((o) => String(o).trim().slice(0, 60)).filter(Boolean))].slice(0, 100);
+  if (options.length === 0) throw new GroupsError('missing_options');
+  return { options, tree: [] };
+}
+
+export async function createPropertyDef(
+  ws: string,
+  input: { label?: string; type?: string; options?: unknown; tree?: unknown; scope?: string; required?: boolean },
+): Promise<PropertyDef> {
+  const label = String(input.label ?? '').trim().slice(0, 60);
+  if (!label) throw new GroupsError('invalid_name');
+  const type = PROPERTY_TYPES.find((t) => t === input.type) ?? 'text';
+  const scope: PropertyScope = input.scope === 'ticket' ? 'ticket' : 'chat';
+  const key = propertyKey(label);
+  const { options, tree } = cleanOptions(type, input);
+  const required = Boolean(input.required) && scope === 'ticket';
   const id = newId();
-  const count = (await getDb().prepare('SELECT COUNT(*) AS c FROM groups_property_defs WHERE user_id = ?').get(ws)) as { c: number };
+  const count = (await getDb().prepare('SELECT COUNT(*) AS c FROM groups_property_defs WHERE user_id = ? AND scope = ?').get(ws, scope)) as { c: number };
+  if (Number(count.c) >= 100) throw new GroupsError('too_many_properties');
   const r = await getDb()
-    .prepare('INSERT OR IGNORE INTO groups_property_defs (id, user_id, key, label, type, options, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(id, ws, key, label, type, JSON.stringify(options), Number(count.c), nowIso());
+    .prepare(
+      'INSERT OR IGNORE INTO groups_property_defs (id, user_id, scope, key, label, type, options, required, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(id, ws, scope, key, label, type, JSON.stringify(type === 'cascade' ? tree : options), required ? 1 : 0, Number(count.c), nowIso());
   if (r.changes === 0) throw new GroupsError('duplicate_property', 409);
-  return { id, key, label, type, options };
+  return { id, key, label, type, options, ...(type === 'cascade' ? { tree } : {}), scope, required };
+}
+
+/** Renombrar, cambiar opciones u obligatoria. La clave no cambia (la usan los valores y las variables). */
+export async function updatePropertyDef(
+  ws: string,
+  id: string,
+  input: { label?: string; options?: unknown; tree?: unknown; required?: boolean },
+): Promise<PropertyDef> {
+  const row = (await getDb()
+    .prepare('SELECT id, key, label, type, options, scope, required FROM groups_property_defs WHERE id = ? AND user_id = ?')
+    .get(id, ws)) as PropertyDefRow | undefined;
+  if (!row) throw new GroupsError('not_found', 404);
+  const label = input.label !== undefined ? String(input.label).trim().slice(0, 60) : row.label;
+  if (!label) throw new GroupsError('invalid_name');
+  let options = row.options;
+  if (input.options !== undefined || input.tree !== undefined) {
+    const o = cleanOptions(row.type, input);
+    options = JSON.stringify(row.type === 'cascade' ? o.tree : o.options);
+  }
+  const required = input.required !== undefined ? (input.required && row.scope === 'ticket' ? 1 : 0) : row.required;
+  await getDb().prepare('UPDATE groups_property_defs SET label = ?, options = ?, required = ? WHERE id = ? AND user_id = ?').run(label, options, required, id, ws);
+  return toPropertyDef({ ...row, label, options, required });
 }
 
 export async function deletePropertyDef(ws: string, id: string): Promise<boolean> {
   return (await getDb().prepare('DELETE FROM groups_property_defs WHERE id = ? AND user_id = ?').run(id, ws)).changes > 0;
 }
 
+export type PropertyValue = string | number | string[] | FileValue;
+
+function isSafeFileUrl(url: string): boolean {
+  return /^\/uploads\/[\w./-]+$/.test(url) || /^https:\/\/[^\s]+$/.test(url);
+}
+
 /** Valores de propiedades → solo claves definidas y valores del tipo correcto. */
-export async function cleanProperties(ws: string, input: Record<string, unknown>): Promise<Record<string, string | number>> {
-  const defs = await listPropertyDefs(ws);
-  const out: Record<string, string | number> = {};
+export async function cleanProperties(
+  ws: string,
+  input: Record<string, unknown>,
+  scope: PropertyScope = 'chat',
+): Promise<Record<string, PropertyValue>> {
+  const defs = await listPropertyDefs(ws, scope);
+  const out: Record<string, PropertyValue> = {};
   for (const d of defs) {
     const v = input[d.key];
-    if (v === undefined || v === null || v === '') continue;
-    if (d.type === 'number') {
-      const n = Number(v);
-      if (!Number.isFinite(n)) throw new GroupsError(`invalid_property:${d.key}`);
-      out[d.key] = n;
-    } else if (d.type === 'select') {
-      if (!d.options.includes(String(v))) throw new GroupsError(`invalid_property:${d.key}`);
-      out[d.key] = String(v);
-    } else if (d.type === 'date') {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(v))) throw new GroupsError(`invalid_property:${d.key}`);
-      out[d.key] = String(v);
-    } else out[d.key] = String(v).slice(0, 500);
+    if (v === undefined || v === null || v === '' || v === false || (Array.isArray(v) && v.length === 0)) continue;
+    const bad = () => new GroupsError(`invalid_property:${d.key}`);
+    switch (d.type) {
+      case 'number': {
+        const n = Number(v);
+        if (!Number.isFinite(n)) throw bad();
+        out[d.key] = n;
+        break;
+      }
+      case 'select':
+        if (!d.options.includes(String(v))) throw bad();
+        out[d.key] = String(v);
+        break;
+      case 'multiselect': {
+        const list = (Array.isArray(v) ? v : [v]).map(String);
+        if (list.some((x) => !d.options.includes(x))) throw bad();
+        out[d.key] = [...new Set(list)];
+        break;
+      }
+      case 'cascade': {
+        const path = (Array.isArray(v) ? v : String(v).split(' › ')).map(String).filter(Boolean).slice(0, 3);
+        if (!isTreePath(d.tree ?? [], path)) throw bad();
+        out[d.key] = path;
+        break;
+      }
+      case 'date':
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(v))) throw bad();
+        out[d.key] = String(v);
+        break;
+      case 'checkbox':
+        if (v === true || v === 'true' || v === 1 || v === '1') out[d.key] = 'true';
+        break;
+      case 'url': {
+        const u = String(v).trim().slice(0, 500);
+        if (!/^https?:\/\/[^\s]+$/.test(u)) throw bad();
+        out[d.key] = u;
+        break;
+      }
+      case 'file': {
+        const f = (v ?? {}) as Partial<FileValue>;
+        const url = String(f.url ?? '');
+        if (!isSafeFileUrl(url)) throw bad();
+        out[d.key] = { url: url.slice(0, 1000), name: String(f.name ?? 'file').slice(0, 200) };
+        break;
+      }
+      default:
+        out[d.key] = String(v).slice(0, 500);
+    }
   }
   return out;
+}
+
+
+/** Campos obligatorios sin completar (tickets al resolver o cerrar). */
+export function missingRequired(defs: PropertyDef[], values: Record<string, unknown>): string[] {
+  return defs
+    .filter((d) => {
+      const v = values[d.key];
+      return d.required && (v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0));
+    })
+    .map((d) => d.key);
 }
 
 // ======================================================================

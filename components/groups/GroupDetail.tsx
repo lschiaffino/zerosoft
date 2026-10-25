@@ -26,6 +26,7 @@ export default function GroupDetail({ data }: { data: ThreadProps }) {
         agents={data.agents}
         crm={data.crm}
         caps={data.caps}
+        me={data.me}
       />
       <section className="gr-detail-section gr-recent">
         <h3 className="gr-detail-title">{t('detail.recent')}</h3>

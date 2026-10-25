@@ -11,6 +11,8 @@
  * - Los teléfonos que terminan en 99 rechazan altas a grupos (privacidad).
  * - El webhook acepta eventos ya normalizados: { events: InboundEvent[] }.
  * - Edita, borra para todos, fija y reenvía (lo deja en `sent` para los tests).
+ * - Entrar por invitación: cualquier código de 6+ letras entra a un grupo
+ *   nuevo, salvo los que empiezan con "bad" (link vencido).
  */
 import { randomUUID } from 'crypto';
 import {
@@ -32,6 +34,9 @@ export function fakeProviderAllowed(): boolean {
 interface FakeGroup extends GroupInfo {
   participants: Participant[];
   inviteCode: string;
+  ephemeral?: number;
+  picture?: string;
+  left?: boolean;
 }
 
 export interface FakeSent {
@@ -82,6 +87,11 @@ function stateFor(numberId: string): FakeState {
 /** Lo que mandó el número falso (tests). */
 export function fakeSent(numberId: string): FakeSent[] {
   return stateFor(numberId).sent;
+}
+
+/** Estado de un grupo del número falso (tests). */
+export function fakeGroupState(numberId: string, groupId: string): (GroupInfo & { ephemeral?: number; picture?: string; left?: boolean; participants: Participant[] }) | null {
+  return stateFor(numberId).groups.get(groupId) ?? null;
 }
 
 export function resetFakeProvider(): void {
@@ -137,7 +147,9 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     listTemplates: async () => [],
     async listGroups() {
       requireConnected();
-      return [...s.groups.values()].map((g) => ({ id: g.id, name: g.name, description: g.description }));
+      return [...s.groups.values()]
+        .filter((g) => !g.left)
+        .map((g) => ({ id: g.id, name: g.name, description: g.description, announce: g.announce ?? false, locked: g.locked ?? false }));
     },
     async createGroup(name, phones) {
       requireConnected();
@@ -198,6 +210,46 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       send(chatId, providerMessageId, pin ? 'pin' : 'unpin');
     },
     forwardMessage: async (toChatId, _fromChatId, providerMessageId) => send(toChatId, providerMessageId, 'forward'),
+    async updateGroupSettings(groupId, patch) {
+      requireConnected();
+      const g = group(groupId);
+      if (patch.announce !== undefined) g.announce = patch.announce;
+      if (patch.locked !== undefined) g.locked = patch.locked;
+      if (patch.ephemeral !== undefined) g.ephemeral = patch.ephemeral;
+    },
+    async setGroupPicture(groupId, image) {
+      requireConnected();
+      group(groupId).picture = image?.url ?? '';
+    },
+    async joinGroup(code) {
+      requireConnected();
+      if (code.toLowerCase().startsWith('bad')) throw new ProviderError('not_found', 404);
+      const existing = [...s.groups.values()].find((g) => g.inviteCode === code.replace(/^FAKE/, ''));
+      if (existing) {
+        existing.left = false;
+        if (!existing.participants.some((p) => p.phone === '15550000001')) existing.participants.push({ phone: '15550000001', role: 'member' });
+        return { id: existing.id, name: existing.name };
+      }
+      const id = `1203631${Date.now()}${Math.floor(Math.random() * 1000)}@g.us`;
+      const name = `Invited ${code.slice(0, 6)}`;
+      s.groups.set(id, {
+        id,
+        name,
+        description: '',
+        participants: [
+          { phone: '15550009000', role: 'superadmin' },
+          { phone: '15550000001', role: 'member' },
+        ],
+        inviteCode: code,
+      });
+      return { id, name };
+    },
+    async leaveGroup(groupId) {
+      requireConnected();
+      const g = group(groupId);
+      g.left = true;
+      g.participants = g.participants.filter((p) => p.phone !== '15550000001');
+    },
     verifyWebhook: () => true,
     parseWebhook(body) {
       const events = (body as { events?: unknown })?.events;

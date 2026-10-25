@@ -2131,14 +2131,18 @@
     "description": "Periskope creates groups from templates with the account team already inside. First scope: save a template (name pattern, members, admins, description, labels) and use it in New group and the CSV import.\n\nPriority: medium. Effort: S.",
     "product": "groups",
     "kind": "idea",
-    "parity": "group-templates"
+    "parity": "group-templates",
+    "status": "done",
+    "changelog": "2026-10-24-groups-org"
   },
   {
     "title": "Groups: Full group settings (photo, admin-only messages, approval to join)",
     "description": "Groups changes name and description. Periskope also sets the photo, who can send messages, who can edit info, join approval and disappearing messages. WAHA and Evolution API expose these calls. First scope: the toggles in the group page, in bulk from the list.\n\nPriority: medium. Effort: M.",
     "product": "groups",
     "kind": "idea",
-    "parity": "group-settings"
+    "parity": "group-settings",
+    "status": "done",
+    "changelog": "2026-10-24-groups-org"
   },
   {
     "title": "Groups: @mentions in internal notes",
@@ -2154,7 +2158,9 @@
     "description": "Groups flags a chat by time without reply. Periskope uses AI to tell questions and requests from comments like \"thanks\", so fewer chats are flagged. First scope: a cheap classifier on each inbound message (lib/ai.ts, off when AI is off) that skips awaiting for non-questions.\n\nPriority: medium. Effort: M.",
     "product": "groups",
     "kind": "idea",
-    "parity": "unanswered-flag"
+    "parity": "unanswered-flag",
+    "status": "done",
+    "changelog": "2026-10-24-groups-org"
   },
   {
     "title": "Groups: Edit, delete, forward and pin messages",
@@ -2177,7 +2183,9 @@
     "description": "Periskope saves filtered chat lists and uses them as broadcast audiences. First scope: save the current inbox filters as a named list in the sidebar, and pick a list as recipients in a new broadcast.\n\nPriority: low. Effort: S.",
     "product": "groups",
     "kind": "idea",
-    "parity": "saved-lists"
+    "parity": "saved-lists",
+    "status": "done",
+    "changelog": "2026-10-24-groups-org"
   },
   {
     "title": "Groups: Phone number masking for members",

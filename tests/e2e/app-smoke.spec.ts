@@ -310,6 +310,43 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/crm/videos/${i.id}`))),
   },
   {
+    app: 'Groups templates',
+    list: '/en/app/groups/templates',
+    create: async (request, name) =>
+      ({ id: (await ok<{ id: string }>(request.post('/api/groups/templates', { data: { name, members: ['+15550009002'] } }))).id, name }),
+    // Abrir una plantilla es usarla (el modal con su nombre).
+    detail: (i) => `/en/app/groups/templates?use=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/templates/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/groups/templates/${i.id}`))),
+  },
+  {
+    app: 'Groups saved lists',
+    list: '/en/app/groups/inbox',
+    // Cuelgan de "Bandeja" en el sidebar (GroupsListsBranch).
+    sidebar: true,
+    create: async (request, name) => {
+      // La bandeja necesita un número para mostrarse.
+      await groupsNumber(request);
+      return { id: (await ok<{ id: string }>(request.post('/api/groups/lists', { data: { name, shared: true, filters: { kind: 'group' } } }))).id, name };
+    },
+    detail: (i) => `/en/app/groups/inbox?list=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/lists/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/groups/lists/${i.id}`))),
+  },
+  {
+    app: 'Groups tasks',
+    list: '/en/app/groups/tasks',
+    create: async (request, name) => {
+      const numberId = await groupsNumber(request);
+      const res = await ok<{ results: Array<{ chatId?: string }> }>(request.post('/api/groups/create', { data: { numberId, name: `Task chat ${uid()}`, phones: [] } }));
+      const task = await ok<{ id: string }>(request.post('/api/groups/tasks', { data: { chatId: res.results[0].chatId, title: name } }));
+      return { id: task.id, name };
+    },
+    detail: (i) => `/en/app/groups/tasks?open=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/tasks/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/groups/tasks/${i.id}`))),
+  },
+  {
     app: 'Robots',
     list: '/en/app/robots',
     create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/robots', { data: { name } }))).id, name }),
