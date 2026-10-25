@@ -406,7 +406,8 @@ function formatBucket(date: string, bucket: ReportBucket): string {
     const y = d.getUTCFullYear();
     const jan1 = new Date(Date.UTC(y, 0, 1));
     const days = Math.floor((d.getTime() - jan1.getTime()) / DAY_MS);
-    const w = Math.floor((days + jan1.getUTCDay()) / 7);
+    // Igual que strftime('%W') de SQLite: semanas que arrancan el lunes.
+    const w = Math.floor((days + 7 - ((d.getUTCDay() + 6) % 7)) / 7);
     return `${y}-W${String(w).padStart(2, '0')}`;
   }
   if (bucket === 'month') return date.slice(0, 7);

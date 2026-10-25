@@ -26,6 +26,17 @@ function autoCategory(probability: number): string {
 export default function ForecastView({ initial, pipelines, me, isAdmin, locale, baseCurrency }: Props) {
   const t = useTranslations('crm');
   const tf = (k: string, v?: Record<string, string | number>) => t(`forecast.${k}`, v);
+  /** 2026-10 → "October 2026" / "octubre de 2026"; 2026-Q4 → "Q4 2026". La clave sigue siendo la de la API. */
+  const periodName = (label: string) => {
+    const q = /^(\d{4})-Q([1-4])$/.exec(label);
+    if (q) return tf('quarterName', { n: Number(q[2]), year: q[1] });
+    const m = /^(\d{4})-(\d{2})$/.exec(label);
+    if (!m) return label;
+    const s = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
+      new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1)),
+    );
+    return s.charAt(0).toLocaleUpperCase(locale) + s.slice(1);
+  };
   const [period, setPeriod] = useState<'month' | 'quarter'>(initial.period);
   const [offset, setOffset] = useState(0);
   const [team, setTeam] = useState('');
@@ -136,7 +147,7 @@ export default function ForecastView({ initial, pipelines, me, isAdmin, locale, 
             ←
           </button>
           <span className="fc-period-label" data-testid="fc-period">
-            {data.periodLabel}
+            {periodName(data.periodLabel)}
           </span>
           <button type="button" className="btn btn-small btn-ghost" aria-label={tf('next')} onClick={() => setOffset((o) => o + 1)}>
             →
@@ -282,7 +293,7 @@ export default function ForecastView({ initial, pipelines, me, isAdmin, locale, 
         {history && (
           <div className="panel fc-history" data-testid="fc-history">
             <div className="rb-result-head">
-              <p className="section-label">{tf('historyTitle', { name: history.name, period: data.periodLabel })}</p>
+              <p className="section-label">{tf('historyTitle', { name: history.name, period: periodName(data.periodLabel) })}</p>
               <button type="button" className="rb-icon-btn" aria-label={t('common.close')} onClick={() => setHistory(null)}>
                 ×
               </button>
@@ -382,7 +393,7 @@ export default function ForecastView({ initial, pipelines, me, isAdmin, locale, 
             }}
             onKeyDown={(e) => e.key === 'Escape' && setSubmitFor(null)}
           >
-            <h2 id="fc-submit-title">{tf('submitTitle', { name: submitFor.name, period: data.periodLabel })}</h2>
+            <h2 id="fc-submit-title">{tf('submitTitle', { name: submitFor.name, period: periodName(data.periodLabel) })}</h2>
             <label>
               {tf('cols.amount')}
               <input

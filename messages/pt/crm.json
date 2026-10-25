@@ -3265,7 +3265,8 @@
       "closed_won": "Ganho",
       "lost": "Perdido",
       "auto": "Automática ({category})"
-    }
+    },
+    "quarterName": "{n}.º trimestre {year}"
   },
   "journey": {
     "rangeLabel": "Negócios criados em",

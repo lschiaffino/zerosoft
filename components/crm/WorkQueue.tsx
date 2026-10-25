@@ -7,6 +7,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import type { QueueTask, SnoozeOption } from '@/lib/crm-work-queue';
 import PhoneTouch from './PhoneTouch';
 import RecordPreview, { type PreviewType } from './RecordPreview';
+import { formatPhoneDisplay } from '@/lib/crm-calls';
 
 type ItemStatus = 'open' | 'done' | 'skipped' | 'snoozed' | 'deleted';
 
@@ -297,7 +298,7 @@ export default function WorkQueue({ tasks, locale, timeZone }: WorkQueueProps) {
                   {task.contact.email && <a href={`mailto:${task.contact.email}`}>{task.contact.email}</a>}
                   {task.contact.phone && (
                     <span className="wq-phone">
-                      <span className="num">{task.contact.phone}</span>
+                      <span className="num">{formatPhoneDisplay(task.contact.phone)}</span>
                       <PhoneTouch phone={task.contact.phone} contactId={task.contact.id} dealId={task.deal?.id} />
                     </span>
                   )}

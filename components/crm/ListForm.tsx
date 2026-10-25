@@ -95,7 +95,8 @@ export default function ListForm({ fields, onCancel, edit }: ListFormProps) {
       <div className="ui-fields-2">
         <label className="ui-field">
           <span className="label">{t('lists.nameLabel')}</span>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} />
+          {/* Al abrir con C o con el botón, el foco va directo al nombre. */}
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} autoFocus={!edit} />
         </label>
         {!edit && (
           <label className="ui-field">

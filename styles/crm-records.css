@@ -580,7 +580,22 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .phone-log-outcomes { display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem; }
 .phone-log-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.875rem; }
 .phone-log-field .input { width: 90px; }
-.phone-log .form-actions { margin: 0; }
+.phone-log .form-actions { margin: 0; flex-wrap: wrap; }
+/* En el teléfono el registro queda fijo abajo, de borde a borde con el
+   margen de la página: anclado al ícono se salía por la izquierda. */
+@media (max-width: 640px) {
+  .phone-log {
+    position: fixed;
+    top: auto;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    width: auto;
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    z-index: 80;
+  }
+}
 .stage-req-input { display: contents; }
 
 /* ---------- Leads, objetos propios, permisos por campo y listas (072) ---------- */

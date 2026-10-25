@@ -774,7 +774,9 @@ tr:hover .cell-quick { opacity: 0.8; }
 
 /* --- Overview: filas de tareas/actividad con fecha ancha --- */
 
-.recent-row.crm-row { grid-template-columns: 1fr 1fr auto; }
+.recent-row.crm-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+.recent-row.crm-row .recent-name { min-width: 0; overflow-wrap: anywhere; }
+.recent-row.crm-row .recent-date { white-space: nowrap; }
 
 .act-icon {
   display: inline-block;
@@ -2174,6 +2176,13 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
 .prod-desc { display: block; font-size: 12px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .prod-actions-cell { text-align: right; }
 .prod-actions { display: flex; gap: 12px; justify-content: flex-end; white-space: nowrap; }
+/* En el teléfono: nombre, precio, estado y acciones; SKU, recurrencia e
+   impuesto quedan en el detalle del producto (se abre tocando el nombre). */
+@media (max-width: 640px) {
+  .table.crm-table.prod-table { min-width: 0; width: 100%; }
+  .prod-table .prod-col-opt { display: none; }
+  .prod-actions { flex-direction: column; align-items: flex-end; gap: 6px; }
+}
 
 /* Line items del deal */
 .li-panel { display: flex; flex-direction: column; gap: 14px; }

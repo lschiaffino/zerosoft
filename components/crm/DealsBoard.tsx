@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { BoardDeal, BoardStage } from '@/lib/crm';
@@ -679,7 +680,10 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
                           </option>
                         ))}
                     </select>
-                    {moveMenuFor === deal.id && (
+                    {/* En el body: dentro del board (scroll-snap y columnas al 100% en el
+                        teléfono) el fixed quedaba lejos de la card. */}
+                    {moveMenuFor === deal.id &&
+                      createPortal(
                       <div
                         ref={moveMenuRef}
                         role="menu"
@@ -711,8 +715,9 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
                               {c.stage.name}
                             </button>
                           ))}
-                      </div>
-                    )}
+                      </div>,
+                        document.body,
+                      )}
                   </article>
                 ))}
                 {col.count === 0 && <p className="muted kb-empty">{t('deals.emptyStage')}</p>}

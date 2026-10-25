@@ -260,7 +260,7 @@ export default function LineItemsPanel({
           <option value="">{products.length ? t('lineItems.addProduct') : t('lineItems.noProducts')}</option>
           {products.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name} — {formatMoney(p.price, p.currency, locale, true)}
+              {p.name} · {formatMoney(p.price, p.currency, locale, true)}
               {p.recurring !== 'none' ? ` / ${t(`enums.recurring.${p.recurring}`)}` : ''}
             </option>
           ))}

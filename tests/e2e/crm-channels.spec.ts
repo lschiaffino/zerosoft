@@ -92,6 +92,8 @@ test('llamada desde el navegador: ajustes, llamar desde la ficha, registro, grab
   await page.waitForTimeout(1200);
   await dock.getByRole('button', { name: 'Hang up' }).click();
   await expect(dock.getByText(/Call ended/)).toBeVisible();
+  // Al colgar, la llamada ya aparece en el timeline sin tocar Guardar ni Cerrar.
+  await expect(page.locator('.tl-item').filter({ hasText: 'Browser call' }).first()).toBeVisible({ timeout: 10_000 });
   await dock.getByLabel('Outcome').selectOption('connected');
   await dock.getByLabel('Note').fill('Wants to start in March');
   await dock.getByRole('button', { name: 'Save' }).click();
@@ -109,7 +111,7 @@ test('llamada desde el navegador: ajustes, llamar desde la ficha, registro, grab
   await expect(item.getByRole('button', { name: 'Summarize with AI' })).toHaveCount(0);
   await expect(item.getByText(/^\d+ s$/)).toBeVisible();
   // El número del asunto, formateado.
-  await expect(page.locator('.tl-item').filter({ hasText: 'Browser call' }).getByText('+54 911 5555 0101').first()).toBeVisible();
+  await expect(page.locator('.tl-item').filter({ hasText: 'Browser call' }).getByText('+54 9 11 5555-0101').first()).toBeVisible();
 
   const audioSrc = await item.locator('audio').getAttribute('src');
   const audio = await request.get(audioSrc!);
