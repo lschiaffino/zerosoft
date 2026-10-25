@@ -10,7 +10,7 @@ import {
 } from './db';
 import { sanitizeBlocks } from './docs-sanitize';
 import { normalizeStructure } from './docs-columns';
-import { persistSyncedBlocks, reassignSyncedSources, syncedSnapshot } from './docs-synced';
+import { persistSyncedBlocks, reassignSyncedSources } from './docs-synced';
 import { parseSyncedBase, stripSyncedChildren, syncedChildren, syncedIdsOf } from './docs-synced-refs';
 import { syncDocReminders } from './docs-reminders';
 import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
@@ -532,6 +532,8 @@ export async function updateDocPage(
   // le agrega cleanContent no es un cambio.
   const sent = new Set([...syncedChildren(input.content ?? [])].filter(([, kids]) => kids.length > 0).map(([id]) => id));
   const incomingSynced = new Map([...(incoming ? syncedChildren(incoming) : [])].filter(([id]) => sent.has(id)));
+  // Versión de cada sincronizado que vio el editor (synced_at): un guardado viejo no pisa lo editado en otra página.
+  const syncedSeenAt = new Map((incoming ?? []).filter((b) => b.type === 'synced' && b.synced_id && b.synced_at).map((b) => [b.synced_id!, b.synced_at!]));
   if (incoming) incoming = stripSyncedChildren(incoming);
   const rowBlocks = stripSyncedChildren(parseBlocks(row.content));
   const fields: { title?: string; icon?: string | null; cover_url?: string | null } = {
@@ -541,9 +543,6 @@ export async function updateDocPage(
   };
   /** Choques de la fusión: antes de guardar queda una versión con lo que había. */
   let clashed = false;
-  // Lo que el editor vio de los sincronizados (revisión de su base): un guardado viejo no los pisa.
-  const seenRev = incoming !== undefined && base !== undefined ? await getRevision(pageId, base) : null;
-  const seen = seenRev?.synced_seen ? parseSyncedBase(seenRev.synced_seen) : undefined;
   if (base !== undefined && row.updated_at !== base) {
     // La página cambió desde la versión que vio el editor (otra persona, otra
     // pestaña, una automatización o una operación del servidor sobre una base):
@@ -637,7 +636,7 @@ export async function updateDocPage(
       next: blocksOut,
       children: incomingSynced,
       locked: opts.lockedSynced,
-      seen,
+      seenAt: syncedSeenAt,
     });
     savedContent = synced.blocks;
     const nextContent = stringifyBlocks(savedContent);
@@ -746,10 +745,6 @@ export async function updateDocPage(
     icon: fields.icon !== undefined ? fields.icon : row.icon,
     cover_url: fields.cover_url !== undefined ? fields.cover_url : row.cover_url,
     content: savedContent ? stringifyBlocks(savedContent) : row.content,
-    // Lo que verá el editor al recibir esta versión (base de su próximo guardado).
-    synced_seen: await syncedSnapshot(ownerId, savedContent ?? parseBlocks(row.content))
-      .then((m) => (m ? JSON.stringify(m) : null))
-      .catch(() => null),
   }).catch(() => undefined);
 
   // Mover bajo otra página: el subárbol pasa al teamspace del nuevo padre.

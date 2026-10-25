@@ -135,6 +135,9 @@ describe('Guardado viejo en la página que pega el sincronizado', () => {
     const s = await load(src.id);
     await save(src.id, s.content.map((b) => (b.content === 'NEW1' ? { ...b, content: 'NEW2' } : b)), s.updated_at);
     expect((await getSyncedBlock(owner.id, syncedId))?.[0]?.content).toBe('NEW2');
+    expect((await load(host.id)).content.find((b) => b.id === 'c')?.content).toBe('NEW2');
+    // La versión que vio el editor no queda guardada en la página.
+    expect((await getDocPageRow(host.id))!.content).not.toContain('synced_at');
     // La pestaña vieja (antes de NEW1) agrega un párrafo y guarda sobre su base.
     await save(host.id, [...old.content, para('late', 'tarde')], old.updated_at);
     expect((await getSyncedBlock(owner.id, syncedId))?.[0]?.content).toBe('NEW2');

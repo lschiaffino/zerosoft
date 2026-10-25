@@ -402,6 +402,12 @@ export interface DocsBlock {
    * de origen): llega sin hijos. Lo pone el servidor al leer; nunca se guarda.
    */
   no_access?: boolean;
+  /**
+   * Bloque sincronizado: versión de su contenido que vio el editor (updated_at
+   * de docs_synced_blocks). La pone el servidor al leer y vuelve al guardar;
+   * nunca queda en el content de la página.
+   */
+  synced_at?: string;
   /** Botón: qué hace al hacer clic. */
   button?: DocsButtonConfig;
   /** Bloque sugerido (Enter en modo sugerir): se acepta o se rechaza entero. */

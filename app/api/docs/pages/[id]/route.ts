@@ -112,7 +112,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       const rev = patch.base_updated_at && patch.base_updated_at !== row.updated_at ? await getRevision(row.id, patch.base_updated_at) : null;
       const prev = await editorBlocks(row, user, rev ? parseBlocks(rev.content) : undefined);
       const next = cleanContent(patch.content);
-      const why = checkMarksOnlyChange(prev, next, actorId, !locked);
+      // La versión que vio cada uno de los sincronizados no es un cambio de contenido.
+      const noAt = (list: typeof prev) => list.map((b) => (b.synced_at ? { ...b, synced_at: undefined } : b));
+      const why = checkMarksOnlyChange(noAt(prev), noAt(next), actorId, !locked);
       if (why) return docsError(locked ? 423 : 403, locked ? 'locked' : why);
     }
   }

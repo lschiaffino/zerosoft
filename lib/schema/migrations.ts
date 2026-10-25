@@ -4589,12 +4589,7 @@ export const MIGRATIONS: Migration[] = [
       // Quién guardó el contenido por última vez: autor de la versión que queda
       // cuando una fusión choca y a quién avisarle que perdió ese cambio.
       await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN content_by TEXT');
-      // Teamspaces cerrados o privados borrados: sus páginas quedan en la papelera, solo para sus miembros.
-      await addColumn(client, 'ALTER TABLE docs_teamspaces ADD COLUMN deleted_at TEXT');
-      // Versión de cada bloque sincronizado (sube en cada cambio) y, por
-      // revisión de página, lo que el editor vio de cada uno: un guardado viejo
-      // se fusiona contra eso en vez de pisar.
-      await addColumn(client, 'ALTER TABLE docs_page_revisions ADD COLUMN synced_seen TEXT');
+
       const parse = (raw: unknown): DocsBlock[] | null => {
         try {
           const v = JSON.parse(String(raw ?? '[]')) as unknown;
@@ -4634,6 +4629,25 @@ export const MIGRATIONS: Migration[] = [
       await strip('docs_versions');
       await strip('docs_page_revisions');
       await strip('docs_templates');
+    },
+  },
+  {
+    // Docs (re-QA de D3): teamspaces cerrados o privados borrados (sus páginas
+    // quedan en la papelera, solo para sus miembros y admins) y las últimas
+    // versiones de cada bloque sincronizado: un guardado hecho sobre una
+    // versión vieja se fusiona contra la que vio el editor en vez de pisar.
+    id: '095_docs_synced_history',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE docs_teamspaces ADD COLUMN deleted_at TEXT');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS docs_synced_history (
+          synced_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          updated_at TEXT NOT NULL,
+          content TEXT NOT NULL,
+          PRIMARY KEY (synced_id, updated_at)
+        );
+      `);
     },
   },
 ];

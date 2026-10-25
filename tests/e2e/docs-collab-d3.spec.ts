@@ -273,9 +273,15 @@ test('Docs: teamspaces en ajustes y en el sidebar; auditoría con CSV', async ({
   const csv = await request.get('/api/docs/audit?format=csv&action=teamspace');
   expect(csv.headers()['content-type']).toContain('text/csv');
   expect(await csv.text()).toContain('teamspace.created');
-  // Borrar el teamspace deja sus páginas en el workspace.
-  expect((await request.delete(`/api/docs/teamspaces/${ts.id}`)).status()).toBe(204);
-  expect(((await (await request.get(`/api/docs/pages/${inside.id}`)).json()) as { teamspace_id: string | null }).teamspace_id).toBeNull();
+  // Borrar un teamspace privado manda sus páginas a la papelera, todavía del
+  // teamspace (no quedan a la vista de todo el workspace).
+  const del = await request.delete(`/api/docs/teamspaces/${ts.id}`);
+  expect(del.status()).toBe(200);
+  expect(((await del.json()) as { pages: string }).pages).toBe('trash');
+  const after = (await (await request.get(`/api/docs/pages/${inside.id}`)).json()) as { teamspace_id: string | null; archived: boolean };
+  expect(after.teamspace_id).toBe(ts.id);
+  expect(after.archived).toBe(true);
+  expect(((await (await request.get('/api/docs/teamspaces')).json()) as { rows: Array<{ id: string }> }).rows.some((x) => x.id === ts.id)).toBe(false);
 });
 
 test('Docs: verificar una página muestra el check y la lista la wiki', async ({ page: p, request }) => {

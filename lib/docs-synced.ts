@@ -24,10 +24,6 @@ interface SyncedRow {
   content: string;
 }
 
-function parseList(raw: string): DocsBlock[] {
-  return parse(raw);
-}
-
 function parse(raw: string): DocsBlock[] {
   try {
     const v = JSON.parse(raw) as unknown;
@@ -47,6 +43,44 @@ export async function getSyncedContents(workspaceId: string, ids: string[]): Pro
     .all(workspaceId, ...unique)) as SyncedRow[];
   for (const r of rows) out.set(r.id, parse(r.content));
   return out;
+}
+
+/** Última edición de cada bloque sincronizado del workspace (versión que ve el editor). */
+export async function getSyncedVersions(workspaceId: string, ids: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const unique = [...new Set(ids.filter((id) => SYNCED_ID_RE.test(id)))];
+  if (!unique.length) return out;
+  const rows = (await getDb()
+    .prepare(`SELECT id, updated_at FROM docs_synced_blocks WHERE workspace_id = ? AND id IN (${unique.map(() => '?').join(',')})`)
+    .all(workspaceId, ...unique)) as Array<{ id: string; updated_at: string }>;
+  for (const r of rows) out.set(r.id, r.updated_at);
+  return out;
+}
+
+const HISTORY_KEEP = 20;
+
+/** Guarda una versión del contenido de un sincronizado (base de la fusión de guardados viejos). */
+async function recordSyncedHistory(workspaceId: string, id: string, updatedAt: string, json: string): Promise<void> {
+  const db = getDb();
+  await db
+    .prepare('INSERT OR REPLACE INTO docs_synced_history (synced_id, workspace_id, updated_at, content) VALUES (?, ?, ?, ?)')
+    .run(id, workspaceId, updatedAt, json)
+    .catch(() => undefined);
+  await db
+    .prepare(
+      `DELETE FROM docs_synced_history WHERE synced_id = ? AND updated_at NOT IN (
+         SELECT updated_at FROM docs_synced_history WHERE synced_id = ? ORDER BY updated_at DESC LIMIT ${HISTORY_KEEP})`,
+    )
+    .run(id, id)
+    .catch(() => undefined);
+}
+
+async function syncedAtVersion(workspaceId: string, id: string, updatedAt: string): Promise<DocsBlock[] | null> {
+  const row = (await getDb()
+    .prepare('SELECT content FROM docs_synced_history WHERE synced_id = ? AND workspace_id = ? AND updated_at = ?')
+    .get(id, workspaceId, updatedAt)
+    .catch(() => undefined)) as { content: string } | undefined;
+  return row ? parse(row.content) : null;
 }
 
 /** Página de origen de cada bloque sincronizado del workspace (null = se borró). */
@@ -118,6 +152,7 @@ async function expandSynced(
     for (const [id, src] of sources) if (!(await canRead(src))) denied.add(id);
   }
   const contents = ids.length ? await getSyncedContents(workspaceId, ids).catch(() => new Map<string, DocsBlock[]>()) : new Map<string, DocsBlock[]>();
+  const versions = ids.length ? await getSyncedVersions(workspaceId, ids).catch(() => new Map<string, string>()) : new Map<string, string>();
   const out: DocsBlock[] = [];
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
@@ -127,11 +162,14 @@ async function expandSynced(
     }
     i = subtreeEnd(blocks, i);
     const id = b.synced_id;
+    const { synced_at: _old, ...ref } = b;
+    void _old;
     if (id && denied.has(id)) {
-      out.push({ ...b, no_access: true });
+      out.push({ ...ref, no_access: true });
       continue;
     }
-    out.push(b);
+    const at = id ? versions.get(id) : undefined;
+    out.push(at ? { ...ref, synced_at: at } : ref);
     const content = id ? contents.get(id) : undefined;
     if (!content || !id || path.has(id) || depth >= MAX_SYNCED_DEPTH) continue;
     const inner = await expandSynced(workspaceId, content, canRead, new Set([...path, id]), depth + 1);
@@ -167,12 +205,12 @@ export async function persistSyncedBlocks(opts: {
    */
   locked?: Set<string>;
   /**
-   * Lo que el editor vio de cada sincronizado (revisión de la página sobre la
-   * que guarda, docs_page_revisions.synced_seen). Con eso un guardado viejo
-   * se fusiona contra el contenido actual: lo que no cambió quien guarda no
-   * pisa lo que otra página editó después.
+   * Versión de cada sincronizado que vio el editor (synced_at de lo que
+   * cargó). Si cambió desde entonces en otra página, lo que llega se fusiona
+   * contra esa versión (docs_synced_history): lo que no tocó quien guarda no
+   * pisa lo editado después.
    */
-  seen?: Record<string, string>;
+  seenAt?: Map<string, string>;
 }): Promise<{ blocks: DocsBlock[]; base: Record<string, string> }> {
   const { workspaceId, pageId, actorId, base, previousIds, children } = opts;
   const locked = opts.locked ?? new Set<string>();
@@ -180,6 +218,7 @@ export async function persistSyncedBlocks(opts: {
   const candidates = [...new Set([...syncedIdsOf(opts.next), ...children.keys(), ...[...children.values()].flatMap(syncedIdsOf)])];
   if (!candidates.length) return { blocks: opts.next, base: nextBase };
   const owned = await getSyncedContents(workspaceId, candidates);
+  const ownedAt = await getSyncedVersions(workspaceId, candidates);
   const foreign = new Set<string>();
   const valid = candidates.filter((id) => SYNCED_ID_RE.test(id));
   if (valid.length) {
@@ -191,19 +230,22 @@ export async function persistSyncedBlocks(opts: {
   const now = new Date().toISOString();
   const written = new Set<string>();
   const db = getDb();
-  const insert = (id: string, json: string) =>
-    db
+  const insert = async (id: string, json: string) => {
+    const res = await db
       .prepare(
         `INSERT INTO docs_synced_blocks (id, workspace_id, source_page_id, content, updated_by, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
       )
       .run(id, workspaceId, pageId, json, actorId, now, now);
+    if (res.changes) await recordSyncedHistory(workspaceId, id, now, json);
+  };
 
   const process = async (list: DocsBlock[], depth: number): Promise<DocsBlock[]> => {
     const out = stripSyncedChildren(list).map((b) => {
-      if (!b.no_access) return b;
-      const { no_access: _n, ...clean } = b;
+      if (!b.no_access && !b.synced_at) return b;
+      const { no_access: _n, synced_at: _a, ...clean } = b;
       void _n;
+      void _a;
       return clean;
     });
     for (let i = 0; i < out.length; i++) {
@@ -240,8 +282,10 @@ export async function persistSyncedBlocks(opts: {
         await insert(id, json);
         continue;
       }
-      const seenJson = opts.seen?.[id];
       const ownedJson = JSON.stringify(owned.get(id));
+      const sawAt = opts.seenAt?.get(id);
+      const seenBlocks = sawAt && sawAt !== ownedAt.get(id) ? await syncedAtVersion(workspaceId, id, sawAt) : null;
+      const seenJson = seenBlocks ? JSON.stringify(seenBlocks) : sawAt && sawAt === ownedAt.get(id) ? ownedJson : undefined;
       if (seenJson !== undefined && seenJson !== ownedJson) {
         // Cambió en otra página desde que este editor lo cargó.
         if (seenJson === json) {
@@ -250,7 +294,7 @@ export async function persistSyncedBlocks(opts: {
           continue;
         }
         // Los dos lo cambiaron: fusión de tres vías contra lo que vio.
-        json = JSON.stringify(sanitizeBlocks(mergeBlocksDetailed(parseList(seenJson), owned.get(id)!, clean).blocks).slice(0, MAX_SYNCED_BLOCKS));
+        json = JSON.stringify(sanitizeBlocks(mergeBlocksDetailed(seenBlocks ?? [], owned.get(id)!, clean).blocks).slice(0, MAX_SYNCED_BLOCKS));
       }
       nextBase[id] = json;
       // Solo si cambió en esta página (no si es la copia que ya traía).
@@ -259,6 +303,10 @@ export async function persistSyncedBlocks(opts: {
       await db
         .prepare('UPDATE docs_synced_blocks SET content = ?, updated_by = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
         .run(json, actorId, now, id, workspaceId);
+      // La versión anterior también (por si no estaba: filas de antes del historial).
+      const prevAt = ownedAt.get(id);
+      if (prevAt) await recordSyncedHistory(workspaceId, id, prevAt, ownedJson);
+      await recordSyncedHistory(workspaceId, id, now, json);
     }
     return out;
   };
@@ -304,15 +352,6 @@ export async function reassignSyncedSources(workspaceId: string, deletedIds: str
   }
 }
 
-/** Lo que un editor ve hoy de los sincronizados de una página (id → JSON), para la revisión. */
-export async function syncedSnapshot(workspaceId: string, blocks: DocsBlock[]): Promise<Record<string, string> | null> {
-  const ids = syncedIdsOf(blocks);
-  if (!ids.length) return null;
-  const contents = await getSyncedContents(workspaceId, ids);
-  const out: Record<string, string> = {};
-  for (const [id, c] of contents) out[id] = JSON.stringify(c);
-  return out;
-}
 
 /** Última edición (updated_at más nuevo) de los sincronizados de una página: '' si no tiene. */
 export async function syncedUpdatedAt(workspaceId: string, blocks: DocsBlock[]): Promise<string> {

@@ -260,7 +260,7 @@ const CAPTIONED = new Set(['image', 'video', 'audio', 'pdf', 'file', 'bookmark',
  * http(s), alto del embed, id de bloque sincronizado, botón).
  */
 function sanitizeExtraFields(block: DocsBlock): DocsBlock {
-  const { width, align, caption, ratio, link, height, synced_id, button, suggestion, ...rest } = block;
+  const { width, align, caption, ratio, link, height, synced_id, synced_at, button, suggestion, ...rest } = block;
   const out: DocsBlock = rest;
   // Bloque sugerido (modo sugerir): id y autor con forma de id.
   if (suggestion && typeof suggestion === 'object' && ID_RE.test(String(suggestion.id)) && ID_RE.test(String(suggestion.by))) {
@@ -281,6 +281,7 @@ function sanitizeExtraFields(block: DocsBlock): DocsBlock {
   }
   if (block.type === 'embed' && typeof height === 'number' && Number.isFinite(height)) out.height = Math.max(80, Math.min(2000, Math.round(height)));
   if (block.type === 'synced' && typeof synced_id === 'string' && ID_RE.test(synced_id)) out.synced_id = synced_id;
+  if (block.type === 'synced' && typeof synced_at === 'string' && /^[0-9T:.\-Z]{10,40}$/.test(synced_at)) out.synced_at = synced_at;
   if (block.type === 'button') {
     const btn = sanitizeButton(button);
     if (btn) out.button = btn;

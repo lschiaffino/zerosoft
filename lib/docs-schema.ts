@@ -248,6 +248,7 @@ const docsBaseBlockSchema = z.object({
   link: docsLinkSchema.optional(),
   height: z.number().min(0).max(4000).optional(),
   synced_id: z.string().max(64).optional(),
+  synced_at: z.string().max(40).optional(),
   button: docsButtonSchema.optional(),
   // Bloque sugerido en modo sugerir (sanitizeBlocks valida los ids).
   suggestion: z.object({ id: z.string().max(64), by: z.string().max(64) }).nullish(),
