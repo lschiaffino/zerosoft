@@ -427,6 +427,8 @@ export interface UpdateDocPageOptions {
    * cambio sin contenido sobre una versión vieja (el editor no adelanta su base).
    */
   outcome?: { merged?: boolean; staleBase?: boolean };
+  /** ¿Puede editar el contenido de un sincronizado con este origen? (lib/docs-synced.ts). */
+  canEditSynced?: (sourcePageId: string | null) => Promise<boolean>;
 }
 
 export async function updateDocPage(
@@ -530,6 +532,7 @@ export async function updateDocPage(
       actorId: opts.actorId ?? null,
       previous: parseBlocks(row.content),
       next: blocksOut,
+      canEdit: opts.canEditSynced,
     });
     updates.push('content = ?');
     args.push(stringifyBlocks(savedContent));

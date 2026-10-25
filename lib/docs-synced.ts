@@ -84,6 +84,13 @@ export async function persistSyncedBlocks(opts: {
   actorId: string | null;
   previous: DocsBlock[];
   next: DocsBlock[];
+  /**
+   * ¿Quien guarda puede editar el contenido de un sincronizado que ya existe?
+   * Recibe su página de origen (null = se borró). Sin permiso, lo que llegue
+   * adentro no se escribe (un invitado con edición en una página no cambia el
+   * contenido de un bloque cuyo origen no puede editar).
+   */
+  canEdit?: (sourcePageId: string | null) => Promise<boolean>;
 }): Promise<DocsBlock[]> {
   const { workspaceId, pageId, actorId, previous, next } = opts;
   const indexes = next.map((b, i) => (b.type === 'synced' ? i : -1)).filter((i) => i !== -1);
@@ -127,6 +134,12 @@ export async function persistSyncedBlocks(opts: {
     // Solo si cambió en esta página (no si es la copia que ya traía).
     if (before.get(id) === json) continue;
     if (JSON.stringify(owned.get(id)) === json) continue;
+    if (opts.canEdit) {
+      const src = (await getDb().prepare('SELECT source_page_id FROM docs_synced_blocks WHERE id = ? AND workspace_id = ?').get(id, workspaceId)) as
+        | { source_page_id: string | null }
+        | undefined;
+      if (src && src.source_page_id !== pageId && !(await opts.canEdit(src.source_page_id ?? null))) continue;
+    }
     await getDb()
       .prepare('UPDATE docs_synced_blocks SET content = ?, updated_by = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
       .run(json, actorId, now, id, workspaceId);

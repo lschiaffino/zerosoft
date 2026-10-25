@@ -62,7 +62,15 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const effects: DbEffect[] = [];
   const outcome: { merged?: boolean; staleBase?: boolean } = {};
   try {
-    page = await updateDocPage(row.user_id, params.id, patch, { actorId: realUserId(user), locale, timezone, effects, outcome });
+    // Sincronizados: solo cambia su contenido quien puede editar su página de origen.
+    const canEditSynced = async (sourcePageId: string | null) => {
+      if (!sourcePageId) return user.id === row.user_id;
+      const src = await getDocPageRow(sourcePageId);
+      if (!src || src.user_id !== row.user_id) return user.id === row.user_id;
+      const a = await getDocAccess(src, user, { includePublished: false, includePublicLink: false });
+      return a === 'owner' || a === 'edit';
+    };
+    page = await updateDocPage(row.user_id, params.id, patch, { actorId: realUserId(user), locale, timezone, effects, outcome, canEditSynced });
   } catch (err) {
     // Otra persona guardó (o se restauró una versión) desde que el editor
     // cargó la página: no pisar su contenido en silencio.
