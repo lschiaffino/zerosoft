@@ -210,9 +210,10 @@ test('D2: lista, calendario (mover con teclado, crear en un día), timeline y su
 
   await page.getByRole('tab', { name: 'Board' }).click();
   const subs = page.getByTestId('docs-db-subgroups');
-  // High, Low y la fila nueva sin prioridad.
+  // La fila nueva sin prioridad (primero, como en Notion), High y Low.
   await expect(subs.locator('.docs-db-subgroup')).toHaveCount(3);
-  await expect(subs.locator('.docs-db-subgroup').first()).toContainText('High');
+  await expect(subs.locator('.docs-db-subgroup').first()).toContainText('No Priority');
+  await expect(subs.locator('.docs-db-subgroup').nth(1)).toContainText('High');
 });
 
 test('D2: vista vinculada de una base de otra página, con sus vistas y edición', async ({ request, page }) => {

@@ -464,7 +464,8 @@
       "empty": "Todavía no hay plantillas. Abrí una fila y elegí Guardar como plantilla.",
       "hint": "Para agregar una, abrí una fila y elegí Guardar como plantilla.",
       "saveRow": "Guardar como plantilla",
-      "saved": "Guardada como plantilla"
+      "saved": "Guardada como plantilla",
+      "savedToast": "Se guardó como plantilla “{name}”. Está en el menú al lado de Nuevo."
     },
     "emptyList": "Todavía no hay filas",
     "subGroupBy": "Subgrupo",
@@ -482,7 +483,29 @@
       "functions": "Funciones",
       "hint": "Usá prop(\"Nombre\") para leer una propiedad. Ctrl+Enter guarda.",
       "preview": "Primera fila: {value}",
-      "save": "Guardar fórmula"
+      "save": "Guardar fórmula",
+      "cantSave": "La fórmula tiene un error y no se guardó. Corregila o tocá Esc para dejar la anterior.",
+      "errors": {
+        "cycle": "la fórmula se usa a sí misma (directo o a través de otra fórmula)",
+        "unknown_property": "no hay una propiedad llamada “{arg}”",
+        "too_long": "la fórmula es demasiado larga",
+        "bad_number": "un número no es válido",
+        "unterminated_string": "a un texto le falta la comilla de cierre",
+        "unexpected": "carácter inesperado “{arg}”",
+        "expected": "falta “{arg}”",
+        "unexpected_token": "algo está fuera de lugar, revisá comas y paréntesis",
+        "expected_function": "falta el nombre de una función",
+        "prop_needs_name": "prop() necesita el nombre de una propiedad entre comillas, como prop(\"Precio\")",
+        "unknown_function": "no hay una función llamada “{arg}”",
+        "unknown_name": "“{arg}” no es una función ni un valor; para una propiedad usá prop(\"{arg}\")",
+        "parse_error": "no se pudo leer la fórmula",
+        "bad_unit": "esa unidad de fecha no es válida",
+        "too_complex": "la fórmula es demasiado compleja",
+        "date_math": "las fechas no se suman así; usá dateAdd()",
+        "bad_operator": "ese operador no funciona con estos valores",
+        "if_args": "if() necesita una condición y al menos un valor",
+        "generic": "{arg}"
+      }
     },
     "relation": {
       "database": "Relacionada con",
@@ -595,7 +618,8 @@
       "start": "Fecha de inicio",
       "end": "Fecha de fin",
       "noEnd": "Ninguna (un día)",
-      "clickToSet": "Click para poner fechas"
+      "clickToSet": "Click para poner fechas",
+      "goTo": "Ir a {name}"
     },
     "actions": {
       "title": "Acciones",
@@ -628,7 +652,8 @@
         "notify": "Mandar aviso",
         "webhook": "Mandar webhook",
         "open_url": "Abrir link"
-      }
+      },
+      "incomplete": "Incompleta: esta acción no corre hasta que la completes."
     },
     "automations": {
       "title": "Automatizaciones",
@@ -655,7 +680,15 @@
       "button": "Botón",
       "deleted": "Automatización borrada",
       "ok": "OK",
-      "failed": "Falló ({detail})"
+      "failed": "Falló ({detail})",
+      "details": {
+        "incomplete": "sin completar",
+        "no_recipients": "nadie a quien avisar",
+        "not_found": "no se encontró la base",
+        "forbidden": "sin permiso de edición",
+        "conflict": "la página estaba ocupada, probá de nuevo",
+        "invalid_input": "datos inválidos"
+      }
     },
     "csv": {
       "importTitle": "Importar CSV",

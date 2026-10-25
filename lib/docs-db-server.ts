@@ -11,12 +11,13 @@ import { getDocAccess, listPageMentionables, parseBlocks, type DocsActor } from 
 import type { DbAction, DbProperty, DbRow, DbValue, DocsBlock, DocsDatabase } from './docs-types';
 import { stringifyBlocks } from './docs-types';
 import { cellValue, formatValue, normalizeDatabase, rowTitle } from './docs-database';
-import { applyDbOps, fillTemplate, type DbOp } from './docs-db-ops';
+import { actionIncomplete, applyDbOps, fillTemplate, type DbOp } from './docs-db-ops';
 import { prepareDatabaseSave, type DbEffect } from './docs-db-save';
 import { sanitizeBlocks } from './docs-sanitize';
 import { stripFileUrls } from './docs-files';
 import { safeFetch } from './safe-fetch';
 import { createNotification } from './notifications';
+import { recordRevisions } from './docs-revisions';
 
 export class DbServerError extends Error {
   constructor(
@@ -92,6 +93,7 @@ export async function applyRemoteOps(
       .prepare('UPDATE docs_pages SET content = ?, updated_at = ? WHERE id = ? AND updated_at = ?')
       .run(stringifyBlocks(saved.blocks), now, pageId, loaded.page.updated_at);
     if (res.changes === 0) continue;
+    await recordRevisions(loaded.page, { updated_at: now, title: loaded.page.title, icon: loaded.page.icon, cover_url: loaded.page.cover_url, content: stringifyBlocks(saved.blocks) }).catch(() => undefined);
     const block = saved.blocks.find((b) => b.id === blockId)!;
     return { db: normalizeDatabase(block), effects: saved.effects, updated_at: now };
   }
@@ -188,6 +190,8 @@ export interface RunContext {
   /** Nombre en el registro: id de la automatización o `button:<propiedad>`. */
   source: string;
   sourceName?: string;
+  /** Acciones que ya se hicieron en el guardado (id → detalle): solo se registran. */
+  done?: Record<string, string>;
 }
 
 function rowText(ctx: RunContext): { title: string; values: Record<string, string>; row?: DbRow } {
@@ -202,6 +206,8 @@ function rowText(ctx: RunContext): { title: string; values: Record<string, strin
 
 /** Corre una acción de afuera; tira con un mensaje corto si falla. */
 async function runAction(action: DbAction, ctx: RunContext): Promise<string> {
+  // A medio armar: se saltea y queda en el registro como no hecha.
+  if (actionIncomplete(action)) throw new Error('incomplete');
   const text = rowText(ctx);
   const format = (p: DbProperty, r: DbRow) => formatValue(p, r);
   const href = `/app/docs/${ctx.page.id}?row=${encodeURIComponent(ctx.rowId)}`;
@@ -214,7 +220,7 @@ async function runAction(action: DbAction, ctx: RunContext): Promise<string> {
         const v = prop ? cellValue(prop, text.row) : null;
         for (const id of Array.isArray(v) ? v : []) if (allowed.has(id)) ids.add(id);
       }
-      if (!ids.size) return 'no_recipients';
+      if (!ids.size) throw new Error('no_recipients');
       const actorUser = await getUserById(ctx.actor.realId ?? ctx.actor.actingUser?.id ?? ctx.actor.id);
       const fallback = `${ctx.db.title || ctx.page.title || 'Database'}: ${text.title || 'Untitled'}`;
       const message = action.message ? fillTemplate(action.message, ctx.db, text.row, format) : '';
@@ -265,7 +271,7 @@ export async function runRemoteActions(actions: DbAction[], ctx: RunContext): Pr
     let ok = true;
     let detail = '';
     try {
-      detail = await runAction(a, ctx);
+      detail = ctx.done?.[a.id] ?? (await runAction(a, ctx));
     } catch (err) {
       ok = false;
       detail = err instanceof DbServerError ? err.code : err instanceof Error ? err.message.slice(0, 200) : 'error';
@@ -294,6 +300,7 @@ export async function runDbEffects(effects: DbEffect[], actor: DocsActor & { rea
       rowId: e.rowId,
       source: e.automationId,
       sourceName: e.automationName,
+      done: e.done,
     });
   }
 }

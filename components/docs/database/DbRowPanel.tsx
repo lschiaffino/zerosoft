@@ -156,7 +156,7 @@ export default function DbRowPanel({
   const people = useMemo(() => peopleMap(members), [members]);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [templateSaved, setTemplateSaved] = useState(false);
+  const [templateSaved, setTemplateSaved] = useState<string | null>(null);
   // Base vieja (sin `db` todavía): mismos ids que ve la tabla.
   const db = block.type === 'database' ? normalizeDatabase(block) : null;
   const emptyDb = useMemo<DocsDatabase>(() => ({ properties: [{ id: 'title', name: '', type: 'title' }], rows: [], views: [{ id: 'v', name: '', type: 'table' }] }), []);
@@ -255,11 +255,25 @@ export default function DbRowPanel({
       aria-modal={mode === 'full' || undefined}
       aria-label={rowTitle(db, row) || t('untitledRow')}
       data-testid="docs-db-rowpanel"
-      onKeyDown={(e) => {
+      onKeyDownCapture={(e) => {
         if (e.key !== 'Escape') return;
         const target = e.target as HTMLElement;
-        // Esc mientras se escribe es del editor (seleccionar bloques); afuera cierra.
-        if (target.isContentEditable || target.closest('input, textarea, select, .docs-blocks')) return;
+        // Las propiedades (editores de celda, popovers) manejan su propio Esc.
+        if (target.closest('.docs-db-props, .docs-db-popover')) return;
+        // En el título o el cuerpo: Esc cierra (como el peek de Notion), salvo
+        // que haya un menú del editor abierto (/, @, links, formato): ese se cierra primero.
+        if (target.closest('.docs-title, .docs-blocks, .docs-db-rowpanel-body')) {
+          const menu = document.querySelector('.docs-command-menu, .docs-mention-popover, .docs-link-popover, .docs-block-menu, .docs-format-toolbar');
+          if (menu) return;
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape' || e.defaultPrevented) return;
+        const target = e.target as HTMLElement;
+        if (target.isContentEditable || target.closest('input, textarea, select')) return;
         e.preventDefault();
         onClose();
       }}
@@ -279,25 +293,30 @@ export default function DbRowPanel({
         <div className="docs-db-rowpanel-actions">
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm docs-db-rowpanel-mode"
+            aria-label={mode === 'peek' ? t('openFullPage') : t('openSidePeek')}
+            title={mode === 'peek' ? t('openFullPage') : t('openSidePeek')}
             onClick={() => onMode(mode === 'peek' ? 'full' : 'peek')}
           >
             <DocsGlyph name={mode === 'peek' ? 'expand' : 'peek'} size={14} />
-            {mode === 'peek' ? t('openFullPage') : t('openSidePeek')}
+            <span>{mode === 'peek' ? t('openFullPage') : t('openSidePeek')}</span>
           </button>
           <button
             type="button"
             className="btn btn-ghost btn-sm"
+            aria-label={templateSaved ? t('templates.saved') : t('templates.saveRow')}
+            title={t('templates.saveRow')}
             disabled={(db.templates?.length ?? 0) >= DB_MAX_TEMPLATES}
             data-testid="docs-db-save-template"
             onClick={() => {
+              const name = rowTitle(db, row) || t('templates.untitled');
               updateDb((cur) => saveRowAsTemplate(cur, rowId, rowTitle(cur, row) || t('templates.untitled')));
-              setTemplateSaved(true);
-              window.setTimeout(() => setTemplateSaved(false), 3000);
+              setTemplateSaved(name);
+              window.setTimeout(() => setTemplateSaved(null), 4000);
             }}
           >
             <DocsGlyph name="template" size={14} />
-            {templateSaved ? t('templates.saved') : t('templates.saveRow')}
+            <span>{templateSaved ? t('templates.saved') : t('templates.saveRow')}</span>
           </button>
           {confirmDelete ? (
             <button
@@ -322,6 +341,11 @@ export default function DbRowPanel({
           </button>
         </div>
       </div>
+      {templateSaved && (
+        <p className="docs-db-toast" role="status" data-testid="docs-db-template-toast">
+          {t('templates.savedToast', { name: templateSaved })}
+        </p>
+      )}
       <div className="docs-db-rowpanel-scroll">
         <div className="docs-db-rowpanel-inner">
           <div className="docs-db-rowpanel-body">

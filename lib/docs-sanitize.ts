@@ -390,11 +390,13 @@ export function sanitizeActions(actions: DbAction[]): DbAction[] {
         if (ID_RE.test(a.prop)) out.push({ id: a.id, type: 'set_prop', prop: a.prop, value: a.value ?? null, ...(a.mode ? { mode: a.mode } : {}) });
         break;
       case 'add_row':
-        if (ID_RE.test(a.target?.page_id ?? '') && ID_RE.test(a.target?.block_id ?? '')) {
+        {
+          // Sin base elegida (o inválida): queda como borrador, con destino vacío.
+          const ok = ID_RE.test(a.target?.page_id ?? '') && ID_RE.test(a.target?.block_id ?? '');
           out.push({
             id: a.id,
             type: 'add_row',
-            target: { page_id: a.target.page_id, block_id: a.target.block_id },
+            target: ok ? { page_id: a.target.page_id, block_id: a.target.block_id } : { page_id: '', block_id: '' },
             ...(a.title ? { title: plainCell(a.title).slice(0, 500) } : {}),
             ...(a.values ? { values: a.values } : {}),
           });
@@ -412,7 +414,9 @@ export function sanitizeActions(actions: DbAction[]): DbAction[] {
       case 'webhook':
       case 'open_url':
         // open_url también acepta rutas de la app ("/app/docs/…"); un webhook solo http(s).
+        // Una URL vacía o a medio escribir queda como borrador (vacía): el motor la saltea.
         if (SAFE_URL_RE.test(a.url) || (a.type === 'open_url' && /^\/[^/\\]/.test(a.url))) out.push({ id: a.id, type: a.type, url: a.url.slice(0, 2048) });
+        else out.push({ id: a.id, type: a.type, url: '' });
         break;
     }
   }

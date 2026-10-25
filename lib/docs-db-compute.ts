@@ -197,7 +197,7 @@ export function computeRollup(
 const cache = new WeakMap<DocsDatabase, { key: string; out: DocsDatabase }>();
 
 function needsCompute(db: DocsDatabase): boolean {
-  return db.properties.some((p) => p.type === 'formula' || p.type === 'rollup' || (p.type === 'relation' && p.relation?.mirror_of));
+  return db.properties.some((p) => p.type === 'formula' || p.type === 'rollup' || p.type === 'relation');
 }
 
 /** Títulos de fila (de esta base y de las relacionadas) para mostrar relaciones. */
@@ -256,6 +256,22 @@ export function computeDatabase(db: DocsDatabase, env: DbComputeEnv = {}, depth 
     for (const r of rows) {
       const ids = target ? mirrorIds(target, p.relation.mirror_of, r.id) : [];
       if (ids.length) r.values[p.id] = ids;
+      else delete r.values[p.id];
+    }
+  }
+
+  // 1b) Relación a una fila que ya no existe (borrada allá): no se muestra
+  // (como Notion). Solo con la otra base cargada; si no, quedan como están.
+  for (const p of properties) {
+    if (p.type !== 'relation' || p.relation?.mirror_of) continue;
+    const target = targetOf(p);
+    if (!target) continue;
+    const alive = new Set(target.rows.map((x) => x.id));
+    for (const r of rows) {
+      const ids = r.values[p.id];
+      if (!Array.isArray(ids) || ids.every((id) => alive.has(id))) continue;
+      const kept = ids.filter((id) => alive.has(id));
+      if (kept.length) r.values[p.id] = kept;
       else delete r.values[p.id];
     }
   }

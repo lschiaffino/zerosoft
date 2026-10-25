@@ -65,14 +65,14 @@ beforeEach(() => {
 describe('Docs: concurrencia optimista al guardar', () => {
   it('rechaza un guardado hecho sobre una versión vieja de la página', async () => {
     const owner = await makeUser('dconf');
-    const page = await createDocPage(owner.id, { title: 'P' });
+    const page = await createDocPage(owner.id, { title: 'P', content: [{ id: 'p1', type: 'paragraph', content: '' }] });
     const base = page.updated_at;
     await new Promise((r) => setTimeout(r, 5));
-    // A guarda X.
-    const afterA = await updateDocPage(owner.id, page.id, { content: [para('X')], base_updated_at: base });
+    // A guarda X en el párrafo.
+    const afterA = await updateDocPage(owner.id, page.id, { content: [{ id: 'p1', type: 'paragraph', content: 'X' }], base_updated_at: base });
     expect(afterA?.updated_at).not.toBe(base);
-    // B sigue con la base vieja: no pisa lo de A.
-    await expect(updateDocPage(owner.id, page.id, { content: [para('Y')], base_updated_at: base })).rejects.toBeInstanceOf(
+    // B sigue con la base vieja y cambió el mismo párrafo: no pisa lo de A (lo que no choca se fusiona).
+    await expect(updateDocPage(owner.id, page.id, { content: [{ id: 'p1', type: 'paragraph', content: 'Y' }], base_updated_at: base })).rejects.toBeInstanceOf(
       DocsConflictError,
     );
     const row = await getDocPageRow(page.id);
@@ -83,12 +83,12 @@ describe('Docs: concurrencia optimista al guardar', () => {
   it('PATCH devuelve 409 con base vieja y 200 con la base actual', async () => {
     const owner = await makeUser('dconf2');
     asUser(owner);
-    const page = await createDocPage(owner.id, { title: 'P' });
+    const page = await createDocPage(owner.id, { title: 'P', content: [{ id: 'p1', type: 'paragraph', content: '' }] });
     await new Promise((r) => setTimeout(r, 5));
-    const ok = await pageRoute.PATCH(docReq(page.id, 'PATCH', { content: [para('X')], base_updated_at: page.updated_at }), ctx(page.id));
+    const ok = await pageRoute.PATCH(docReq(page.id, 'PATCH', { content: [{ id: 'p1', type: 'paragraph', content: 'X' }], base_updated_at: page.updated_at }), ctx(page.id));
     expect(ok.status).toBe(200);
     const fresh = (await ok.json()) as { updated_at: string };
-    const stale = await pageRoute.PATCH(docReq(page.id, 'PATCH', { content: [para('Y')], base_updated_at: page.updated_at }), ctx(page.id));
+    const stale = await pageRoute.PATCH(docReq(page.id, 'PATCH', { content: [{ id: 'p1', type: 'paragraph', content: 'Y' }], base_updated_at: page.updated_at }), ctx(page.id));
     expect(stale.status).toBe(409);
     const next = await pageRoute.PATCH(docReq(page.id, 'PATCH', { content: [para('Z')], base_updated_at: fresh.updated_at }), ctx(page.id));
     expect(next.status).toBe(200);

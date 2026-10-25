@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import type { DbAction, DbFile, DbProperty, DbRow, DbValue, DocsDatabase } from '@/lib/docs-types';
 import { findRow, formatValue, newDbId, rowTitle, setCell } from '@/lib/docs-database';
 import { computeDatabase, dbKey, relatedSources, relationTarget, rowTitlesFor, type DbComputeEnv } from '@/lib/docs-db-compute';
-import { applyButtonActions, applyDbOps, remoteActions, runAutomations, type DbOp } from '@/lib/docs-db-ops';
+import { actionIncomplete, applyButtonActions, applyDbOps, fillTemplate, remoteActions, runAutomations, type DbOp } from '@/lib/docs-db-ops';
 import { docsFileHref } from '@/lib/docs-files';
 import type { DbRefs } from './DbValueView';
 import type { DbCellExtras } from './DbCellEditor';
@@ -43,6 +43,16 @@ export interface DbRuntime {
   targetOf: (prop: DbProperty) => { db: DocsDatabase | null; status: RemoteDb['status']; title: string };
   /** Escribe operaciones en otra base (esta, otra de la página o de otra página). */
   writeTo: (target: { page_id: string; block_id: string }, ops: DbOp[]) => Promise<boolean>;
+  /**
+   * Escribe en otra base y, en la misma request, en una segunda (dos vías).
+   * Si la otra base es de esta página, es un writeTo (va en el guardado).
+   */
+  writeLinked?: (
+    target: { page_id: string; block_id: string },
+    ops: DbOp[],
+    also: { page_id: string; block_id: string; ops: DbOp[] },
+    undo: DbOp[],
+  ) => Promise<boolean>;
   /** Mensaje de la última acción (botón, error de escritura). */
   notice: { kind: 'ok' | 'error'; text: string } | null;
   setNotice: (n: { kind: 'ok' | 'error'; text: string } | null) => void;
@@ -95,6 +105,17 @@ export function useDbRuntime(o: DbRuntimeOptions, messages: { buttonDone: string
     [source.pageId, source.blockId, hostPageId, updateDatabase, messages.writeError],
   );
 
+  const writeLinked = useCallback(
+    async (target: { page_id: string; block_id: string }, ops: DbOp[], also: { page_id: string; block_id: string; ops: DbOp[] }, undo: DbOp[]): Promise<boolean> => {
+      const isLocal = (source.pageId && target.page_id === source.pageId && target.block_id === source.blockId) || (hostPageId && target.page_id === hostPageId && updateDatabase);
+      if (isLocal) return writeTo(target, ops);
+      const res = await sendOps(target.page_id, target.block_id, ops, { also, undo });
+      if (!res.ok) setNotice({ kind: 'error', text: messages.writeError });
+      return res.ok;
+    },
+    [source.pageId, source.blockId, hostPageId, updateDatabase, writeTo, messages.writeError],
+  );
+
   const targetOf = useCallback(
     (prop: DbProperty) => {
       const r = prop.relation;
@@ -130,20 +151,38 @@ export function useDbRuntime(o: DbRuntimeOptions, messages: { buttonDone: string
     async (prop: DbProperty, row: DbRow) => {
       const actions: DbAction[] = prop.button?.actions ?? [];
       const cur = latest.current.db;
-      const local = applyButtonActions(cur, row.id, actions);
-      if (local !== cur) latest.current.commit(local);
+      let local = applyButtonActions(cur, row.id, actions);
       for (const a of actions) {
-        if (a.type !== 'open_url') continue;
+        if (a.type !== 'open_url' || !a.url) continue;
         if (a.url.startsWith('/')) window.location.assign(a.url);
         else window.open(a.url, '_blank', 'noopener,noreferrer');
       }
-      const remote = remoteActions(actions);
+      // "Agregar fila" en una base de esta misma página: se hace acá (entra en
+      // el guardado de la página); hacerlo desde el servidor dejaría a este
+      // editor con una versión vieja.
+      const format = (p: DbProperty, r: DbRow) => formatValue(p, r, { people, locale, rowTitles: titles });
+      const shownRow = latest.current.shown.rows.find((r) => r.id === row.id) ?? row;
+      const later: Array<() => void> = [];
+      const remote = remoteActions(actions).filter((a) => {
+        if (a.type !== 'add_row' || actionIncomplete(a)) return true;
+        const sameBase = source.pageId && a.target.page_id === source.pageId && a.target.block_id === source.blockId;
+        const onHost = hostPageId && a.target.page_id === hostPageId && updateDatabase;
+        if (!sameBase && !onHost) return true;
+        const fill = (text: string) => fillTemplate(text, latest.current.shown, shownRow, format);
+        const values: Record<string, DbValue> = {};
+        for (const [k, v] of Object.entries(a.values ?? {})) values[k] = typeof v === 'string' ? fill(v) : v;
+        const ops: DbOp[] = [{ op: 'add_row', id: newDbId(), values, title: a.title ? fill(a.title) : '' }];
+        if (sameBase) local = applyDbOps(local, ops);
+        else later.push(() => void writeTo(a.target, ops));
+        return false;
+      });
+      if (local !== cur) latest.current.commit(local);
+      for (const f of later) f();
       if (!remote.length || !source.pageId) {
         if (actions.length) setNotice({ kind: 'ok', text: messages.buttonDone });
         return;
       }
       setBusyButton(`${prop.id}:${row.id}`);
-      const shownRow = latest.current.shown.rows.find((r) => r.id === row.id) ?? row;
       const values: Record<string, string> = {};
       for (const p of latest.current.shown.properties) {
         if (p.type === 'title' || p.type === 'button') continue;
@@ -164,7 +203,7 @@ export function useDbRuntime(o: DbRuntimeOptions, messages: { buttonDone: string
         setBusyButton(null);
       }
     },
-    [source.pageId, source.blockId, people, locale, titles, messages.buttonDone, messages.buttonError],
+    [source.pageId, source.blockId, hostPageId, updateDatabase, writeTo, people, locale, titles, messages.buttonDone, messages.buttonError],
   );
 
   const fileHref = useCallback(
@@ -233,5 +272,5 @@ export function useDbRuntime(o: DbRuntimeOptions, messages: { buttonDone: string
     [targetOf, writeTo, fileHref, source.pageId],
   );
 
-  return { shown, env, sources, refs, extras, setValue, targetOf, writeTo, notice, setNotice };
+  return { shown, env, sources, refs, extras, setValue, targetOf, writeTo, writeLinked, notice, setNotice };
 }

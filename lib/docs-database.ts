@@ -642,8 +642,28 @@ export function nextUniqueId(db: DocsDatabase, prop: DbProperty): number {
   return Math.max(prop.next_id ?? 1, max + 1);
 }
 
+/** Opción con la que arranca una fila nueva en un status: la primera de "Por hacer" (como "Not started" en Notion). */
+export function defaultStatusId(prop: DbProperty): string | null {
+  if (prop.type !== 'status') return null;
+  const opts = orderedOptions(prop);
+  return (opts.find((o) => (o.group ?? 'todo') === 'todo') ?? opts[0])?.id ?? null;
+}
+
 export function addRow(db: DocsDatabase, values: Record<string, DbValue> = {}, now = new Date().toISOString(), at?: number): { db: DocsDatabase; row: DbRow } {
-  const stamped = stampUniqueIds(db, values);
+  let withDefaults = values;
+  for (const p of db.properties) {
+    // Un null explícito (fila nueva en la columna "Sin estado") la deja vacía.
+    if (p.type !== 'status' || p.id in values) continue;
+    const id = defaultStatusId(p);
+    if (id) withDefaults = { ...withDefaults, [p.id]: id };
+  }
+  for (const [k, v] of Object.entries(withDefaults)) {
+    if (v === null) {
+      if (withDefaults === values) withDefaults = { ...values };
+      delete withDefaults[k];
+    }
+  }
+  const stamped = stampUniqueIds(db, withDefaults);
   const row: DbRow = { id: newDbId(), values: stamped.values, created_at: now, updated_at: now };
   db = stamped.properties === db.properties ? db : { ...db, properties: stamped.properties };
   const rows = [...db.rows];
@@ -1172,7 +1192,8 @@ export function groupRows(
     groups.sort((a, b) => compareKeys(a.label || '￿', b.label || '￿'));
   }
   const out = keepEmpty ? groups : groups.filter((g) => g.rows.length > 0);
-  if (none.rows.length > 0) out.push(none);
+  // "Sin <propiedad>" va primero, como en Notion.
+  if (none.rows.length > 0) out.unshift(none);
   return out;
 }
 

@@ -13,6 +13,35 @@ import { DbActionsEditor } from './DbActions';
 
 type Commit = (next: DocsDatabase) => void;
 
+const FORMULA_ERRORS = new Set([
+  'cycle',
+  'unknown_property',
+  'too_long',
+  'bad_number',
+  'unterminated_string',
+  'unexpected',
+  'expected',
+  'unexpected_token',
+  'expected_function',
+  'prop_needs_name',
+  'unknown_function',
+  'unknown_name',
+  'parse_error',
+  'bad_unit',
+  'too_complex',
+  'date_math',
+  'bad_operator',
+  'if_args',
+]);
+
+/** Error de fórmula legible ("unknown_property:Precio" → "No hay una propiedad «Precio»"). */
+export function formulaErrorText(t: (key: string, values?: Record<string, string>) => string, code: string): string {
+  const at = code.indexOf(':');
+  const key = at === -1 ? code : code.slice(0, at);
+  const arg = at === -1 ? '' : code.slice(at + 1);
+  return FORMULA_ERRORS.has(key) ? t(`formula.errors.${key}`, { arg }) : t('formula.errors.generic', { arg: code });
+}
+
 /** Editor de una fórmula: texto, propiedades y funciones para insertar, vista previa con la primera fila. */
 export function DbFormulaEditor({ db, prop, env, commit }: { db: DocsDatabase; prop: DbProperty; env: DbComputeEnv; commit: Commit }) {
   const t = useTranslations('docs.database');
@@ -31,7 +60,17 @@ export function DbFormulaEditor({ db, prop, env, commit }: { db: DocsDatabase; p
       el?.setSelectionRange(at, at);
     });
   };
-  const save = () => commit(updateProperty(db, prop.id, { formula: text }));
+  const [blocked, setBlocked] = useState(false);
+  const invalid = Boolean(preview.error) && text.trim() !== '';
+  // Una fórmula con error no se guarda (queda la anterior) y se avisa.
+  const save = () => {
+    if (invalid) {
+      setBlocked(true);
+      return;
+    }
+    setBlocked(false);
+    if ((prop.formula ?? '') !== text) commit(updateProperty(db, prop.id, { formula: text }));
+  };
   const props = db.properties.filter((p) => p.id !== prop.id && p.type !== 'button');
   return (
     <div className="docs-db-formula" data-testid="docs-db-formula">
@@ -46,7 +85,11 @@ export function DbFormulaEditor({ db, prop, env, commit }: { db: DocsDatabase; p
         rows={3}
         maxLength={4000}
         spellCheck={false}
-        onChange={(e) => setText(e.target.value)}
+        aria-invalid={invalid || undefined}
+        onChange={(e) => {
+          setText(e.target.value);
+          setBlocked(false);
+        }}
         onBlur={save}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -55,9 +98,14 @@ export function DbFormulaEditor({ db, prop, env, commit }: { db: DocsDatabase; p
           }
         }}
       />
-      <p className={`docs-db-formula-preview${preview.error ? ' is-error' : ''}`} role="status" aria-live="polite">
-        {preview.error ? t('formula.error', { detail: preview.error }) : preview.value ? t('formula.preview', { value: preview.value }) : t('formula.hint')}
+      <p className={`docs-db-formula-preview${invalid ? ' is-error' : ''}`} role="status" aria-live="polite" data-testid="docs-db-formula-status">
+        {invalid ? t('formula.error', { detail: formulaErrorText(t, preview.error!) }) : preview.value ? t('formula.preview', { value: preview.value }) : t('formula.hint')}
       </p>
+      {blocked && invalid && (
+        <p className="docs-db-error" role="alert" data-testid="docs-db-formula-blocked">
+          {t('formula.cantSave')}
+        </p>
+      )}
       <div className="docs-db-formula-help">
         <div>
           <p className="docs-db-menu-label">{t('properties')}</p>
@@ -144,8 +192,22 @@ export function DbRelationConfig({
         const withSync = updateProperty(db, prop.id, { relation: { ...r, synced_prop: mirror.id } });
         commit({ ...withSync, properties: [...withSync.properties, mirror] });
       } else {
-        const ok = await runtime.writeTo(tgt, [{ op: 'add_property', property: mirror }]);
-        if (ok) commit(updateProperty(db, prop.id, { relation: { ...r, synced_prop: mirror.id } }));
+        const linked = { ...r, synced_prop: mirror.id };
+        if (runtime.writeLinked && source.pageId) {
+          // Las dos mitades en una sola request: el servidor crea el espejo allá y
+          // marca la relación acá, aunque la pestaña se cierre enseguida.
+          const self = db.properties.find((p) => p.id === prop.id);
+          const ok = await runtime.writeLinked(
+            tgt,
+            [{ op: 'add_property', property: mirror }],
+            { page_id: source.pageId, block_id: source.blockId, ops: self ? [{ op: 'update_property', property: { ...self, relation: linked } }] : [] },
+            [{ op: 'remove_property', prop: mirror.id }],
+          );
+          if (ok) commit(updateProperty(db, prop.id, { relation: linked }));
+        } else {
+          const ok = await runtime.writeTo(tgt, [{ op: 'add_property', property: mirror }]);
+          if (ok) commit(updateProperty(db, prop.id, { relation: linked }));
+        }
       }
     } else if (r.synced_prop) {
       const ops: DbOp[] = [{ op: 'remove_property', prop: r.synced_prop }];

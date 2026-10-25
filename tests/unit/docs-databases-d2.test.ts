@@ -432,7 +432,8 @@ describe('saneado y schema de lo nuevo', () => {
     const [b] = sanitizeBlocks([{ id: 'b', type: 'database', content: '', db }]);
     const out = b.db!;
     expect(out.rows[0].values).toEqual({ n: 'x', rel: ['r1'] });
-    expect(out.properties.find((p) => p.id === 'btn')!.button).toEqual({ label: 'Go', actions: [{ id: 'b', type: 'open_url', url: '/app/docs/x' }] });
+    // La URL insegura no queda: la acción sigue como borrador vacío (el motor la saltea).
+    expect(out.properties.find((p) => p.id === 'btn')!.button).toEqual({ label: 'Go', actions: [{ id: 'a', type: 'webhook', url: '' }, { id: 'b', type: 'open_url', url: '/app/docs/x' }] });
     expect(out.properties.find((p) => p.id === 'ai')!.ai).toEqual({ mode: 'summary', auto: true });
     expect(out.views[0].date_by).toBeNull();
     expect(out.views[0].sub_group_by).toBe('rel');

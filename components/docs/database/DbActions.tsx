@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { DbAction, DbAutomation, DbProperty, DbTrigger, DbValue, DocsDatabase, DocsMentionableUser } from '@/lib/docs-types';
 import { isComputedType, isOptionType, newDbId, orderedOptions, parseNumber } from '@/lib/docs-database';
-import { DB_MAX_ACTIONS, DB_MAX_AUTOMATIONS } from '@/lib/docs-db-ops';
+import { DB_MAX_ACTIONS, DB_MAX_AUTOMATIONS, actionIncomplete } from '@/lib/docs-db-ops';
 import DocsGlyph from '../DocsGlyphs';
 import { memberName } from './useDbMembers';
 import { useWorkspaceDatabases } from './dbSources';
@@ -253,6 +253,11 @@ export function DbActionsEditor({
               />
             </div>
           )}
+          {actionIncomplete(a) && (
+            <p className="docs-db-hint docs-db-action-incomplete" data-testid="docs-db-action-incomplete">
+              {t('actions.incomplete')}
+            </p>
+          )}
           {(a.type === 'webhook' || a.type === 'open_url') && (
             <div className="docs-db-action-body">
               <input
@@ -297,6 +302,9 @@ export function DbActionsEditor({
     </div>
   );
 }
+
+/** Motivos de una corrida fallida con texto propio (el resto se muestra tal cual: http_500…). */
+const RUN_DETAILS = new Set(['incomplete', 'no_recipients', 'not_found', 'forbidden', 'conflict', 'invalid_input']);
 
 interface Run {
   id: string;
@@ -451,7 +459,11 @@ export function DbAutomationsPanel({
                     <span>
                       {who} · {t(`actions.types.${r.action_type}`)}
                     </span>
-                    <span className="docs-db-muted">{r.status === 'ok' ? t('automations.ok') : t('automations.failed', { detail: r.detail })}</span>
+                    <span className="docs-db-muted">
+                      {r.status === 'ok'
+                        ? t('automations.ok')
+                        : t('automations.failed', { detail: RUN_DETAILS.has(r.detail) ? t(`automations.details.${r.detail}`) : r.detail })}
+                    </span>
                   </li>
                 );
               })}

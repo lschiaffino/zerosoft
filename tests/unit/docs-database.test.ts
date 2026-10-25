@@ -174,15 +174,15 @@ describe('orden', () => {
 
 describe('agrupar y board', () => {
   const db = sample();
-  it('status en orden de grupos; personas repiten fila; sin valor al final', () => {
+  it('status en orden de grupos; personas repiten fila; sin valor primero (como Notion)', () => {
     const st = groupRows(db, db.properties[1], db.rows);
-    expect(st.map((g) => g.key)).toEqual(['todo', 'doing', 'done', '']);
-    expect(st[3].rows.map((r) => r.id)).toEqual(['r4']);
+    expect(st.map((g) => g.key)).toEqual(['', 'todo', 'doing', 'done']);
+    expect(st[0].rows.map((r) => r.id)).toEqual(['r4']);
     const who = groupRows(db, db.properties[4], db.rows, { people });
     expect(who.map((g) => [g.label, g.rows.map((r) => r.id)])).toEqual([
+      ['', ['r3', 'r4']],
       ['Ana', ['r1', 'r2']],
       ['Beto', ['r2']],
-      ['', ['r3', 'r4']],
     ]);
     const ok = groupRows(db, db.properties[6], db.rows);
     expect(ok.map((g) => g.rows.length)).toEqual([1, 3]);

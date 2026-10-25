@@ -16,6 +16,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { Link } from '@/i18n/navigation';
+import { mergeBlocks, sameContent } from '@/lib/docs-merge';
 import {
   defaultBlocks,
   type DocsBlock,
@@ -126,8 +127,21 @@ import DocsGlyph, { type DocsGlyphName } from './DocsGlyphs';
 import DbRowPanel, { type DbRowPanelMode } from './database/DbRowPanel';
 import { rememberUploadPreview, uploadPreview } from './DocsEditorImage';
 
+/** Lo que el servidor fusionó (una automatización, una base, otra pestaña): se suma a lo que hay en pantalla. */
+export interface DocsRemoteMerge {
+  seq: number;
+  /** Lo que mandó este editor (o la última versión del servidor que vio). */
+  sent: DocsBlock[];
+  /** Lo que quedó guardado. */
+  merged: DocsBlock[];
+  sentTitle?: string;
+  title?: string;
+}
+
 interface DocsEditorProps {
   page: DocsPage;
+  remoteMerge?: DocsRemoteMerge | null;
+  onRemoteApplied?: (seq: number) => void;
   ancestors: DocsPage[];
   /** Guarda solo lo que edita el editor (no pisa archived/is_public). */
   onSave: (patch: Partial<DocsPage>) => void;
@@ -438,6 +452,8 @@ function caretMenuStyle(pos: CaretMenuPos, width: number, maxHeight: number): CS
 
 export default function DocsEditor({
   page,
+  remoteMerge = null,
+  onRemoteApplied,
   ancestors,
   onSave,
   saving,
@@ -902,6 +918,34 @@ export default function DocsEditor({
   /** Última versión de triggerSave para callbacks async (subidas): no guardar un título viejo. */
   const triggerSaveRef = useRef(triggerSave);
   triggerSaveRef.current = triggerSave;
+
+  // Fusión del servidor: lo de afuera (fila de una automatización, cambio de
+  // otra pestaña) entra sin pisar lo que se editó acá desde entonces.
+  const appliedMerge = useRef(0);
+  useEffect(() => {
+    if (!remoteMerge || remoteMerge.seq <= appliedMerge.current) return;
+    appliedMerge.current = remoteMerge.seq;
+    const cur = live.current;
+    const merged = mergeBlocks(remoteMerge.sent, remoteMerge.merged, cur.blocks, 'ours');
+    let nextTitle = cur.title;
+    if (remoteMerge.title !== undefined && remoteMerge.sentTitle !== undefined && cur.title === remoteMerge.sentTitle) nextTitle = remoteMerge.title;
+    if (merged && !sameContent(merged, cur.blocks)) {
+      // Los bloques que no cambiaron quedan con el mismo objeto (no se repinta lo que se está escribiendo).
+      const byId = new Map(cur.blocks.map((b) => [b.id, b]));
+      const next = normalizeStructure(
+        merged.map((b) => {
+          const old = byId.get(b.id);
+          return old && sameContent(old, b) ? old : b;
+        }),
+        newId,
+      );
+      setBlocksRaw(next);
+      // Con cambios propios todavía sin guardar, el guardado pendiente lleva lo fusionado.
+      if (pendingSave.current || !sameContent(cur.blocks, remoteMerge.sent)) triggerSaveRef.current(next, nextTitle);
+    }
+    if (nextTitle !== cur.title) setTitle(nextTitle);
+    onRemoteApplied?.(remoteMerge.seq);
+  }, [remoteMerge, onRemoteApplied]);
 
   /**
    * Deshacer (dir -1) o rehacer (+1): vuelve a la foto, la guarda y deja el
@@ -2766,11 +2810,14 @@ export default function DocsEditor({
   );
 
   const onOpenRow = useCallback(
-    (blockId: string, rowId: string, mode: DbRowPanelMode) => {
+    (blockId: string, rowId: string, requested: DbRowPanelMode) => {
+      // En un teléfono la fila se abre como página (con su URL: "atrás" la cierra).
+      const narrow = !embedded && typeof window !== 'undefined' && window.matchMedia?.('(max-width: 720px)').matches;
+      const mode: DbRowPanelMode = narrow ? 'full' : requested;
       setOpenRow({ blockId, rowId, mode });
       setRowUrl(mode === 'full' ? rowId : null, mode === 'full');
     },
-    [setRowUrl],
+    [setRowUrl, embedded],
   );
 
   const closeRow = useCallback(() => {

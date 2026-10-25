@@ -20,7 +20,7 @@ export function DbRelationPicker({
   label,
   choices,
   status,
-  value,
+  value: rawValue,
   single,
   onChange,
   onCreate,
@@ -36,8 +36,11 @@ export function DbRelationPicker({
   onDone: () => void;
 }) {
   const t = useTranslations('docs.database');
+  // Filas que ya no existen en la otra base (borradas allá): no se muestran y se van al editar.
+  const value = useMemo(() => (status === 'ready' ? rawValue.filter((id) => choices.some((c) => c.id === id)) : rawValue), [status, rawValue, choices]);
   const [q, setQ] = useState('');
-  const [active, setActive] = useState(0);
+  // null: la primera fila sin elegir (Enter agrega, nunca quita).
+  const [active, setActive] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
   const needle = normalizeSearch(q.trim());
   const filtered = useMemo(() => {
@@ -47,7 +50,8 @@ export function DbRelationPicker({
   }, [choices, needle, value]);
   const canCreate = Boolean(onCreate) && q.trim() !== '' && !choices.some((c) => c.title.trim().toLowerCase() === q.trim().toLowerCase());
   const total = filtered.length + (canCreate ? 1 : 0);
-  const sel = Math.min(active, Math.max(0, total - 1));
+  const firstFree = filtered.findIndex((c) => !value.includes(c.id));
+  const sel = Math.min(active ?? (firstFree === -1 ? filtered.length : firstFree), Math.max(0, total - 1));
   const titleOf = (id: string) => choices.find((c) => c.id === id)?.title || t('untitledRow');
 
   const toggle = (id: string) => {
@@ -91,18 +95,21 @@ export function DbRelationPicker({
         aria-label={label}
         onChange={(e) => {
           setQ(e.target.value);
-          setActive(0);
+          setActive(null);
         }}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault();
             e.stopPropagation();
-            if (total) setActive((a) => (e.key === 'ArrowDown' ? (a + 1) % total : (a - 1 + total) % total));
+            if (total) setActive(e.key === 'ArrowDown' ? (sel + 1) % total : (sel - 1 + total) % total);
           } else if (e.key === 'Enter') {
             e.preventDefault();
             e.stopPropagation();
-            if (sel < filtered.length && filtered[sel]) toggle(filtered[sel].id);
-            else if (canCreate) void create();
+            // Enter agrega la fila marcada; quitar es con × o con un click (como Notion).
+            if (sel < filtered.length && filtered[sel]) {
+              if (!value.includes(filtered[sel].id)) toggle(filtered[sel].id);
+              else if (single) onDone();
+            } else if (canCreate) void create();
           } else if (e.key === 'Tab') {
             onDone();
           }

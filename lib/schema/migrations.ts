@@ -4157,6 +4157,25 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_docs_db_runs_block ON docs_db_automation_runs(page_id, block_id, created_at DESC);
       `);
     },
+  },  {
+    // Últimas versiones guardadas de cada página (contenido y campos): un
+    // guardado hecho sobre una versión vieja (otra pestaña, una automatización
+    // o una operación del servidor en una base) se fusiona contra la versión
+    // que vio el editor en vez de volver 409.
+    id: '092_docs_page_revisions',
+    up: async (client) => {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS docs_page_revisions (
+          page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+          updated_at TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          icon TEXT,
+          cover_url TEXT,
+          content TEXT NOT NULL,
+          PRIMARY KEY (page_id, updated_at)
+        );
+      `);
+    },
   },
 ];
 

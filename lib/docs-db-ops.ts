@@ -14,6 +14,7 @@ import type { DbAction, DbAutomation, DbFile, DbProperty, DbRow, DbValue, DocsBl
 import {
   DB_MAX_ROWS,
   addRow,
+  defaultStatusId,
   deleteRows,
   findRow,
   isComputedType,
@@ -284,7 +285,10 @@ export function runAutomations(
           // Fila nueva que ya trae la propiedad puesta: cuenta como cambio (así el editor, que la
           // pone en dos pasos, y el servidor, que la ve de una, disparan lo mismo).
           const before = old ? old.values[pid] : undefined;
-          const changed = old ? !same(before, row.values[pid]) : isNew && !isEmptyValue(row.values[pid] ?? null) && row.values[pid] !== false;
+          // El status con el que arranca toda fila nueva ("Not started") no cuenta como cambio.
+          const changed = old
+            ? !same(before, row.values[pid])
+            : isNew && !isEmptyValue(row.values[pid] ?? null) && row.values[pid] !== false && !(p && row.values[pid] === defaultStatusId(p));
           trig = Boolean(p) && changed && matchesTo(p, row.values[pid] ?? null, a.trigger.to);
         }
         if (!trig) continue;
@@ -313,6 +317,25 @@ export function runAutomations(
     if (cur === start) break;
   }
   return { db: cur, fired };
+}
+
+/**
+ * Acción a medio armar (recién agregada: sin base elegida, sin destinatarios,
+ * sin URL): se guarda como borrador y el motor la saltea con un aviso en el
+ * registro, sin trabar el guardado del resto de la página.
+ */
+export function actionIncomplete(a: DbAction): boolean {
+  switch (a.type) {
+    case 'add_row':
+      return !a.target?.page_id || !a.target?.block_id;
+    case 'notify':
+      return !(a.people ?? []).length && !a.person_prop;
+    case 'webhook':
+    case 'open_url':
+      return !a.url;
+    default:
+      return false;
+  }
 }
 
 /** Acciones de un botón (o automatización) que no tocan la propia base. */

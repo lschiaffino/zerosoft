@@ -80,7 +80,8 @@ const dbOption = z.object({
   name: shortText,
   group: z.enum(['todo', 'in_progress', 'done']).optional(),
 });
-const dbTarget = z.object({ page_id: dbId, block_id: dbId });
+// Vacío: acción recién agregada, sin base elegida (borrador: se guarda y el motor la saltea).
+const dbTarget = z.object({ page_id: z.string().max(64), block_id: z.string().max(64) });
 /** Acción de un botón o automatización (lib/docs-db-ops.ts). */
 const dbAction = z.discriminatedUnion('type', [
   z.object({ id: dbId, type: z.literal('set_prop'), prop: dbId, value: dbValue, mode: z.enum(['set', 'add', 'remove']).optional() }),
@@ -340,7 +341,16 @@ export const docsDbOpSchema = z.discriminatedUnion('op', [
   z.object({ op: z.literal('set_automations'), automations: z.array(dbAutomation).max(20) }),
 ]);
 
-export const docsDbOpsSchema = z.object({ ops: z.array(docsDbOpSchema).min(1).max(500) });
+export const docsDbOpsSchema = z.object({
+  ops: z.array(docsDbOpSchema).min(1).max(500),
+  /**
+   * Segunda escritura en la misma request (relación de dos vías: la propiedad
+   * espejo en la otra base y el `synced_prop` en esta). La hace el servidor
+   * aunque la pestaña se cierre; si falla, aplica `undo` a la primera.
+   */
+  also: z.object({ page_id: dbId, block_id: dbId, ops: z.array(docsDbOpSchema).min(1).max(20) }).optional(),
+  undo: z.array(docsDbOpSchema).max(20).optional(),
+});
 
 /** Correr las acciones de afuera de un botón (notificar, webhook, agregar fila en otra base). */
 export const docsDbRunSchema = z.object({
@@ -394,6 +404,8 @@ export const docPageUpdateSchema = z.object({
   timezone: z.string().max(64).optional(),
   /** updated_at sobre el que se editó (concurrencia optimista: 409 si cambió). */
   base_updated_at: z.string().min(1).max(64).optional(),
+  /** "Sobrescribir" tras un conflicto: fusiona y en lo que choca gana lo que llega. */
+  merge: z.literal('ours').optional(),
 });
 
 export const docShareRoleSchema = z.enum(['view', 'edit']);
@@ -411,7 +423,7 @@ export const docShareUpdateSchema = z.object({
 });
 
 /** Campos que puede tocar alguien con un share de edición (no el dueño). */
-export const SHARED_EDITABLE_FIELDS = ['title', 'icon', 'cover_url', 'cover_position', 'content', 'base_updated_at', 'locale', 'timezone'] as const;
+export const SHARED_EDITABLE_FIELDS = ['title', 'icon', 'cover_url', 'cover_position', 'content', 'base_updated_at', 'merge', 'locale', 'timezone'] as const;
 
 export const docCommentCreateSchema = z.object({
   body: z.string().trim().min(1).max(5000),

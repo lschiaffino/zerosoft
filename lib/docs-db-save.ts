@@ -6,9 +6,9 @@
  * nada); las de afuera (notificar, webhook, agregar fila en otra base)
  * vuelven como efectos para correr después de responder.
  */
-import type { DbAction, DbRow, DocsBlock, DocsDatabase } from './docs-types';
-import { normalizeDatabase, rowTitle } from './docs-database';
-import { remoteActions, runAutomations } from './docs-db-ops';
+import type { DbAction, DbProperty, DbRow, DbValue, DocsBlock, DocsDatabase } from './docs-types';
+import { databasePatch, formatValue, normalizeDatabase, rowTitle } from './docs-database';
+import { actionIncomplete, applyDbOps, fillTemplate, remoteActions, runAutomations } from './docs-db-ops';
 
 export interface DbEffect {
   pageId: string;
@@ -17,6 +17,8 @@ export interface DbEffect {
   automationName: string;
   rowId: string;
   actions: DbAction[];
+  /** Acciones que ya se hicieron en el mismo guardado (id → detalle del registro): solo se registran. */
+  done?: Record<string, string>;
 }
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
@@ -93,4 +95,44 @@ export function prepareDatabaseSave(
 export function effectRowTitle(db: DocsDatabase, rowId: string): string {
   const row = db.rows.find((r) => r.id === rowId);
   return row ? rowTitle(db, row) : '';
+}
+
+/**
+ * "Agregar fila" de una automatización hacia una base de esta misma página:
+ * se hace en el mismo guardado (no después, desde afuera), así la respuesta
+ * trae la fila nueva y el editor no ve su propia página "editada por otro".
+ */
+export function applySamePageRows(
+  pageId: string,
+  blocks: DocsBlock[],
+  effects: DbEffect[],
+  now = new Date().toISOString(),
+): { blocks: DocsBlock[]; effects: DbEffect[]; changed: boolean } {
+  let cur = blocks;
+  let changed = false;
+  const out: DbEffect[] = [];
+  const format = (p: DbProperty, r: DbRow) => formatValue(p, r);
+  for (const e of effects) {
+    const done: Record<string, string> = { ...(e.done ?? {}) };
+    for (const a of e.actions) {
+      if (a.type !== 'add_row' || done[a.id] || actionIncomplete(a) || a.target.page_id !== pageId) continue;
+      const ti = cur.findIndex((b) => b.id === a.target.block_id && b.type === 'database' && !b.linked);
+      if (ti === -1) continue;
+      const src = cur.find((b) => b.id === e.blockId && b.type === 'database' && !b.linked);
+      const srcDb = src ? normalizeDatabase(src) : null;
+      const row = srcDb?.rows.find((r) => r.id === e.rowId);
+      const fill = (text: string) => (srcDb ? fillTemplate(text, srcDb, row, format) : text);
+      const values: Record<string, DbValue> = {};
+      for (const [k, v] of Object.entries(a.values ?? {})) values[k] = typeof v === 'string' ? fill(v) : v;
+      const target = normalizeDatabase(cur[ti]);
+      const next = applyDbOps(target, [{ op: 'add_row', values, title: a.title ? fill(a.title) : '' }], now);
+      if (next === target) continue;
+      const added = next.rows.find((r) => !target.rows.some((x) => x.id === r.id));
+      cur = cur.map((b, i) => (i === ti ? { ...b, ...databasePatch(next) } : b));
+      done[a.id] = `row:${added?.id ?? ''}`;
+      changed = true;
+    }
+    out.push(Object.keys(done).length ? { ...e, done } : e);
+  }
+  return { blocks: cur, effects: out, changed };
 }

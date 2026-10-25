@@ -11,6 +11,8 @@ import {
   addProperty,
   addRow,
   addRowFromTemplate,
+  cardHidesValue,
+  cellValue,
   removeRowTemplate,
   addView,
   databasePatch,
@@ -242,11 +244,41 @@ function DbLinkedPicker({ hostPageId, ownBlockId, onPick }: { hostPageId: string
   const t = useTranslations('docs.database');
   const dbs = useWorkspaceDatabases(true);
   const [q, setQ] = useState('');
+  const [active, setActive] = useState(0);
   const rows = dbs.rows.filter((d) => !(d.page_id === hostPageId && d.block_id === ownBlockId)).filter((d) => `${d.title} ${d.page_title}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const sel = Math.min(active, Math.max(0, rows.length - 1));
+  const listId = `docs-linked-${ownBlockId}`;
   return (
     <div className="docs-db-linked-pick" role="group" aria-label={t('linked.pick')}>
       <p className="docs-db-menu-label">{t('linked.pick')}</p>
-      <input className="docs-db-picker-input" autoFocus placeholder={t('linked.search')} aria-label={t('linked.search')} value={q} onChange={(e) => setQ(e.target.value)} />
+      {/* Como el selector de Notion: se escribe, ↑/↓ mueven y Enter elige. */}
+      <input
+        className="docs-db-picker-input"
+        autoFocus
+        role="combobox"
+        aria-expanded={rows.length > 0}
+        aria-controls={listId}
+        aria-activedescendant={rows[sel] ? `${listId}-${sel}` : undefined}
+        placeholder={t('linked.search')}
+        aria-label={t('linked.search')}
+        value={q}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setActive(0);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (rows.length) setActive((sel + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length);
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            const d = rows[sel];
+            if (d) onPick(d.page_id, d.block_id);
+          }
+        }}
+      />
       {dbs.status === 'loading' && <p className="docs-db-option-empty">{t('relation.loading')}</p>}
       {dbs.status === 'error' && (
         <p className="docs-db-error">
@@ -257,9 +289,19 @@ function DbLinkedPicker({ hostPageId, ownBlockId, onPick }: { hostPageId: string
         </p>
       )}
       {dbs.status === 'ready' && rows.length === 0 && <p className="docs-db-option-empty">{t('linked.none')}</p>}
-      <div className="docs-db-options" role="listbox" aria-label={t('linked.pick')}>
-        {rows.map((d) => (
-          <button key={`${d.page_id}:${d.block_id}`} type="button" role="option" aria-selected={false} className="docs-db-option" onClick={() => onPick(d.page_id, d.block_id)}>
+      <div className="docs-db-options" role="listbox" id={listId} aria-label={t('linked.pick')}>
+        {rows.map((d, i) => (
+          <button
+            key={`${d.page_id}:${d.block_id}`}
+            id={`${listId}-${i}`}
+            type="button"
+            role="option"
+            aria-selected={i === sel}
+            tabIndex={-1}
+            className={`docs-db-option${i === sel ? ' sel' : ''}`}
+            onMouseEnter={() => setActive(i)}
+            onClick={() => onPick(d.page_id, d.block_id)}
+          >
             <DocsGlyph name="database" size={14} />
             <span className="docs-db-option-label">{d.title || t('untitledDatabase')}</span>
             <span className="docs-db-option-sub">{d.page_title || t('untitledPage')}</span>
@@ -334,10 +376,13 @@ function DbView({ db, commitData, source, hostPageId, hooks, index, onFocus, mem
     if (groupProp && groupKey !== null) {
       const v = valueForGroup(groupProp, blank, groupKey, null);
       if (v !== null && !(Array.isArray(v) && v.length === 0)) values[groupProp.id] = v;
+      // Columna "Sin estado": la fila nueva queda sin estado (no el de por defecto).
+      else values[groupProp.id] = null;
     }
     if (subGroupProp && subKey !== undefined) {
       const v = valueForGroup(subGroupProp, blank, subKey, null);
       if (v !== null && !(Array.isArray(v) && v.length === 0)) values[subGroupProp.id] = v;
+      else values[subGroupProp.id] = null;
     }
     const { db: next, row } = addRow(db, values);
     commit(next);
@@ -402,6 +447,40 @@ function DbView({ db, commitData, source, hostPageId, hooks, index, onFocus, mem
     close();
   };
 
+  /** Nombre del popover para lectores de pantalla (traducido, no la clave interna). */
+  const popLabel = (p: Pop): string => {
+    switch (p.kind) {
+      case 'propMenu':
+        return shown.properties.find((x) => x.id === p.propId)?.name || t('untitledProperty');
+      case 'filter':
+        return t('filter');
+      case 'sort':
+        return t('sort');
+      case 'group':
+        return t('group');
+      case 'props':
+        return t('properties');
+      case 'addProp':
+        return t('addProperty');
+      case 'addView':
+        return t('addView');
+      case 'viewMenu':
+        return t('layout');
+      case 'more':
+        return t('more.title');
+      case 'automations':
+        return t('automations.title');
+      case 'csv':
+        return t('csv.importTitle');
+      case 'datePick':
+        return t('calendar.pickDate');
+      case 'templates':
+        return t('templates.title');
+      default:
+        return '';
+    }
+  };
+
   const toolButton = (kind: 'filter' | 'sort' | 'group' | 'props' | 'more', glyph: DocsGlyphName, label: string, count = 0) => (
     <button
       type="button"
@@ -437,7 +516,8 @@ function DbView({ db, commitData, source, hostPageId, hooks, index, onFocus, mem
                 }}>
                   {name || t('untitledRow')}
                 </button>
-                {cardProps.map((p) => (
+                {/* Como Notion: la tarjeta muestra solo las propiedades con valor. */}
+                {cardProps.filter((p) => p.type === 'button' || !cardHidesValue(p, cellValue(p, row))).map((p) => (
                   <span key={p.id} className="docs-db-prop">
                     <span className="docs-db-prop-label">{p.name}</span>
                     <span className="docs-db-prop-value">
@@ -687,9 +767,11 @@ function DbView({ db, commitData, source, hostPageId, hooks, index, onFocus, mem
 
       {pop && (
         <DbPopover
+          // Otro popover (p. ej. de "agregar propiedad" al menú de la nueva): se vuelve a montar y toma el foco.
+          key={pop.kind === 'propMenu' ? `propMenu:${pop.propId}` : pop.kind}
           anchor={pop.anchor}
           onClose={close}
-          label={pop.kind}
+          label={popLabel(pop)}
           width={pop.kind === 'filter' || pop.kind === 'sort' ? 460 : pop.kind === 'propMenu' ? 320 : pop.kind === 'automations' || pop.kind === 'csv' ? 440 : 240}
           className={`docs-db-popover-${pop.kind}`}
         >

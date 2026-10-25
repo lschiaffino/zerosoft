@@ -464,7 +464,8 @@
       "empty": "No templates yet. Open a row and choose Save as template.",
       "hint": "To add one, open a row and choose Save as template.",
       "saveRow": "Save as template",
-      "saved": "Saved as template"
+      "saved": "Saved as template",
+      "savedToast": "Saved as template “{name}”. Find it in the menu next to New."
     },
     "emptyList": "No rows yet",
     "subGroupBy": "Sub-group",
@@ -482,7 +483,29 @@
       "functions": "Functions",
       "hint": "Use prop(\"Name\") to read a property. Ctrl+Enter saves.",
       "preview": "First row: {value}",
-      "save": "Save formula"
+      "save": "Save formula",
+      "cantSave": "This formula has an error, so it was not saved. Fix it or press Esc to keep the previous one.",
+      "errors": {
+        "cycle": "the formula uses itself (directly or through another formula)",
+        "unknown_property": "there is no property called “{arg}”",
+        "too_long": "the formula is too long",
+        "bad_number": "a number is not valid",
+        "unterminated_string": "a text is missing its closing quote",
+        "unexpected": "unexpected character “{arg}”",
+        "expected": "“{arg}” is missing",
+        "unexpected_token": "something is out of place, check commas and parentheses",
+        "expected_function": "a function name is missing",
+        "prop_needs_name": "prop() needs a property name in quotes, like prop(\"Price\")",
+        "unknown_function": "there is no function called “{arg}”",
+        "unknown_name": "“{arg}” is not a function or a value; use prop(\"{arg}\") for a property",
+        "parse_error": "the formula could not be read",
+        "bad_unit": "that date unit is not valid",
+        "too_complex": "the formula is too complex",
+        "date_math": "dates cannot be added that way; use dateAdd()",
+        "bad_operator": "that operator does not work with these values",
+        "if_args": "if() needs a condition and at least one value",
+        "generic": "{arg}"
+      }
     },
     "relation": {
       "database": "Related to",
@@ -595,7 +618,8 @@
       "start": "Start date",
       "end": "End date",
       "noEnd": "None (one day)",
-      "clickToSet": "Click to set dates"
+      "clickToSet": "Click to set dates",
+      "goTo": "Go to {name}"
     },
     "actions": {
       "title": "Actions",
@@ -628,7 +652,8 @@
         "notify": "Send notification",
         "webhook": "Send webhook",
         "open_url": "Open link"
-      }
+      },
+      "incomplete": "Incomplete: this action is skipped until it is set up."
     },
     "automations": {
       "title": "Automations",
@@ -655,7 +680,15 @@
       "button": "Button",
       "deleted": "Deleted automation",
       "ok": "OK",
-      "failed": "Failed ({detail})"
+      "failed": "Failed ({detail})",
+      "details": {
+        "incomplete": "not set up",
+        "no_recipients": "nobody to notify",
+        "not_found": "database not found",
+        "forbidden": "no edit access",
+        "conflict": "the page was busy, try again",
+        "invalid_input": "invalid data"
+      }
     },
     "csv": {
       "importTitle": "Import CSV",

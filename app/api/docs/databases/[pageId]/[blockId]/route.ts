@@ -42,8 +42,22 @@ export async function POST(req: NextRequest, props: Params) {
   if (!parsed.success) return invalidBody(parsed.error);
   const actor = { ...user, realId: realUserId(user) };
   try {
-    const res = await applyRemoteOps(actor, pageId, blockId, parsed.data.ops as DbOp[]);
-    if (res.effects.length) after(() => runDbEffects(res.effects, actor).catch(() => {}));
+    let res = await applyRemoteOps(actor, pageId, blockId, parsed.data.ops as DbOp[]);
+    const effects = [...res.effects];
+    const also = parsed.data.also;
+    if (also) {
+      try {
+        const second = await applyRemoteOps(actor, also.page_id, also.block_id, also.ops as DbOp[]);
+        effects.push(...second.effects);
+      } catch (err) {
+        // La segunda no se pudo: la primera se deshace (no queda una mitad suelta).
+        if (parsed.data.undo?.length) res = await applyRemoteOps(actor, pageId, blockId, parsed.data.undo as DbOp[]).catch(() => res);
+        if (effects.length) after(() => runDbEffects(effects, actor).catch(() => {}));
+        if (err instanceof DbServerError) return docsError(err.status, err.code);
+        throw err;
+      }
+    }
+    if (effects.length) after(() => runDbEffects(effects, actor).catch(() => {}));
     return NextResponse.json({ db: res.db, updated_at: res.updated_at });
   } catch (err) {
     if (err instanceof DbServerError) return docsError(err.status, err.code);

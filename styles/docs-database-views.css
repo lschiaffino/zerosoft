@@ -70,6 +70,8 @@ button.docs-db-card-title:focus-visible { outline: 2px solid var(--ink); outline
 
 /* Board con subgrupos. */
 .docs-db-subgroups { display: flex; flex-direction: column; gap: 4px; padding-top: 6px; }
+/* Un subgrupo es un <section>: sin el padding global de section (styles/globals.css). */
+.docs-db-subgroup { padding-top: 0; padding-bottom: 0; }
 .docs-db-subgroup-head { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 4px; border: 0; background: none; font: inherit; font-size: 0.8125rem; font-weight: 600; color: var(--ink); cursor: pointer; }
 .docs-db-subgroup-head:hover { background: var(--ui-hover); }
 .docs-db-subgroup-head:focus-visible { outline: 2px solid var(--ink); outline-offset: -1px; }
@@ -148,6 +150,11 @@ button.docs-db-card-title:focus-visible { outline: 2px solid var(--ink); outline
 .docs-db-tl-handle:hover { background: var(--ink); opacity: 0.3; }
 .docs-db-tl-empty { position: absolute; top: 0; left: 8px; display: none; align-items: center; height: 100%; font-size: 0.75rem; color: var(--brand-gray-3); }
 .docs-db-tl-lane:hover .docs-db-tl-empty { display: flex; }
+.docs-db-tl-jump { position: absolute; top: 7px; z-index: 3; width: 24px; height: 20px; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); font: inherit; font-size: 0.875rem; line-height: 1; color: var(--ink); cursor: pointer; }
+.docs-db-tl-jump:hover { border-color: var(--ink); }
+.docs-db-tl-jump:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.docs-db-tl-bar, .docs-db-tl-side { user-select: none; -webkit-user-select: none; }
+body.docs-db-noselect, body.docs-db-noselect * { user-select: none !important; -webkit-user-select: none !important; }
 
 /* Configuración de propiedades. */
 .docs-db-config { display: flex; flex-direction: column; gap: 4px; padding: 4px 0 8px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }

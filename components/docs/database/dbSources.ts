@@ -91,7 +91,12 @@ export function getSource(currentPageId: string | null | undefined, pageId: stri
  * al instante (optimista) y la reemplaza por lo que guardó el servidor; si
  * falla, vuelve a pedirla.
  */
-export async function sendOps(pageId: string, blockId: string, ops: DbOp[]): Promise<{ ok: boolean; error?: string }> {
+export async function sendOps(
+  pageId: string,
+  blockId: string,
+  ops: DbOp[],
+  extra?: { also: { page_id: string; block_id: string; ops: DbOp[] }; undo?: DbOp[] },
+): Promise<{ ok: boolean; error?: string }> {
   if (!ops.length) return { ok: true };
   const key = dbKey(pageId, blockId);
   const cur = remote.get(key);
@@ -103,7 +108,7 @@ export async function sendOps(pageId: string, blockId: string, ops: DbOp[]): Pro
     const res = await fetch(`/api/docs/databases/${encodeURIComponent(pageId)}/${encodeURIComponent(blockId)}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ops }),
+      body: JSON.stringify(extra ? { ops, ...extra } : { ops }),
     });
     const data = (await res.json().catch(() => ({}))) as { db?: DocsDatabase; error?: string };
     if (!res.ok || !data.db) {

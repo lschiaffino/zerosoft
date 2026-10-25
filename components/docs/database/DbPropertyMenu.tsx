@@ -158,6 +158,7 @@ export default function DbPropertyMenu({
         ) : (
           <select
             className="docs-db-select"
+            aria-label={t('propertyType')}
             value={prop.type}
             onChange={(e) => commit(changePropertyType(db, prop.id, e.target.value as DbPropertyType, { members }))}
           >

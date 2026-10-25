@@ -14,7 +14,9 @@ import { persistSyncedBlocks } from './docs-synced';
 import { syncDocReminders } from './docs-reminders';
 import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
 import { databaseRowEntries } from './docs-database';
-import { prepareDatabaseSave, type DbEffect } from './docs-db-save';
+import { applySamePageRows, prepareDatabaseSave, type DbEffect } from './docs-db-save';
+import { mergeBlocks, mergeField } from './docs-merge';
+import { getRevision, recordRevisions } from './docs-revisions';
 import {
   buildSnippet,
   matchesAll,
@@ -396,6 +398,11 @@ export interface UpdateDocPageInput {
    * restauró una versión), se rechaza con DocsConflictError en vez de pisarla.
    */
   base_updated_at?: string;
+  /**
+   * "Sobrescribir" tras un conflicto: se fusiona igual (las bases por fila,
+   * lo que no choca de los dos lados) y en lo que choca gana lo que llega.
+   */
+  merge?: 'ours';
 }
 
 /** La página cambió desde el `base_updated_at` que mandó el cliente. */
@@ -414,6 +421,12 @@ export interface UpdateDocPageOptions {
   /** Idioma y zona horaria de quien guarda (recordatorios). */
   locale?: string | null;
   timezone?: string | null;
+  /**
+   * Qué pasó con la base del guardado: `merged` = la página había cambiado y
+   * se fusionó (la respuesta trae el contenido fusionado); `staleBase` = un
+   * cambio sin contenido sobre una versión vieja (el editor no adelanta su base).
+   */
+  outcome?: { merged?: boolean; staleBase?: boolean };
 }
 
 export async function updateDocPage(
@@ -426,8 +439,43 @@ export async function updateDocPage(
     .prepare('SELECT * FROM docs_pages WHERE id = ?')
     .get(pageId)) as DocsPageRow | undefined;
   if (!row || row.user_id !== ownerId) return null;
-  const base = input.base_updated_at;
-  if (base !== undefined && row.updated_at !== base) throw new DocsConflictError();
+  let base = input.base_updated_at;
+  let incoming = input.content !== undefined ? cleanContent(input.content) : undefined;
+  const fields: { title?: string; icon?: string | null; cover_url?: string | null } = {
+    title: input.title?.trim(),
+    icon: input.icon,
+    cover_url: input.cover_url,
+  };
+  if (base !== undefined && row.updated_at !== base) {
+    // La página cambió desde la versión que vio el editor (otra pestaña, otra
+    // persona, una automatización o una operación del servidor sobre una base):
+    // se fusiona contra esa versión; solo es conflicto si chocan.
+    const prefer = input.merge === 'ours' ? 'ours' : 'conflict';
+    const rev = await getRevision(pageId, base);
+    const touchesText = incoming !== undefined || fields.title !== undefined || fields.icon !== undefined || fields.cover_url !== undefined;
+    if (touchesText) {
+      if (!rev) {
+        if (prefer !== 'ours') throw new DocsConflictError();
+      } else {
+        if (incoming !== undefined) {
+          const merged = mergeBlocks(parseBlocks(rev.content), parseBlocks(row.content), incoming, prefer);
+          if (!merged) throw new DocsConflictError();
+          incoming = merged;
+        }
+        for (const k of ['title', 'icon', 'cover_url'] as const) {
+          if (fields[k] === undefined) continue;
+          const m = mergeField<string | null>(k === 'title' ? rev.title.trim() : (rev[k] ?? null), k === 'title' ? row.title : (row[k] ?? null), fields[k] ?? null, prefer);
+          if (!m) throw new DocsConflictError();
+          (fields as Record<string, string | null>)[k] = k === 'title' ? (m.value ?? '') : m.value;
+        }
+        if (opts.outcome) opts.outcome.merged = true;
+      }
+    } else if (opts.outcome) {
+      opts.outcome.staleBase = true;
+    }
+    // Lo fusionado se guarda sobre la versión actual (si otro guardado se cuela, 409).
+    base = row.updated_at;
+  }
 
   // Re-parentar: el nuevo padre tiene que ser del mismo workspace y no puede
   // ser la propia página ni una de sus descendientes (armaría un ciclo y el
@@ -444,30 +492,44 @@ export async function updateDocPage(
   const updates: string[] = [];
   const args: (string | number | null)[] = [];
 
-  if (input.title !== undefined) {
+  if (fields.title !== undefined) {
     updates.push('title = ?');
-    args.push(input.title.trim());
+    args.push(fields.title);
   }
-  if (input.icon !== undefined) {
+  if (fields.icon !== undefined) {
     updates.push('icon = ?');
-    args.push(input.icon);
+    args.push(fields.icon);
   }
-  if (input.cover_url !== undefined) {
+  if (fields.cover_url !== undefined) {
     updates.push('cover_url = ?');
-    args.push(input.cover_url);
+    args.push(fields.cover_url);
   }
   let savedContent: DocsBlock[] | null = null;
-  if (input.content !== undefined) {
+  if (incoming !== undefined) {
     // Bases: autor de cada fila y automatizaciones contra lo guardado.
-    const saved = prepareDatabaseSave(pageId, parseBlocks(row.content), cleanContent(input.content), opts.actorId ?? null);
-    opts.effects?.push(...saved.effects);
+    const saved = prepareDatabaseSave(pageId, parseBlocks(row.content), incoming, opts.actorId ?? null);
+    // "Agregar fila" hacia otra base de esta página: en el mismo guardado (y
+    // sus automatizaciones, hasta tres vueltas). La respuesta trae las filas.
+    let blocksOut = saved.blocks;
+    let pending = saved.effects;
+    for (let round = 0; round < 3 && pending.length; round++) {
+      const local = applySamePageRows(pageId, blocksOut, pending);
+      opts.effects?.push(...local.effects);
+      pending = [];
+      if (!local.changed) break;
+      if (opts.outcome) opts.outcome.merged = true;
+      const again = prepareDatabaseSave(pageId, blocksOut, local.blocks, opts.actorId ?? null);
+      blocksOut = again.blocks;
+      pending = again.effects;
+    }
+    opts.effects?.push(...pending);
     // Bloques sincronizados: lo editado adentro se escribe en su tabla.
     savedContent = await persistSyncedBlocks({
       workspaceId: ownerId,
       pageId,
       actorId: opts.actorId ?? null,
       previous: parseBlocks(row.content),
-      next: saved.blocks,
+      next: blocksOut,
     });
     updates.push('content = ?');
     args.push(stringifyBlocks(savedContent));
@@ -529,8 +591,9 @@ export async function updateDocPage(
 
   if (updates.length === 0) return toDocPage(row);
 
+  const updatedAt = new Date().toISOString();
   updates.push('updated_at = ?');
-  args.push(new Date().toISOString());
+  args.push(updatedAt);
   args.push(pageId);
   if (base !== undefined) args.push(base);
 
@@ -539,6 +602,13 @@ export async function updateDocPage(
     .run(...args);
   // Otro guardado se coló entre el SELECT y el UPDATE.
   if (base !== undefined && result.changes === 0) throw new DocsConflictError();
+  await recordRevisions(row, {
+    updated_at: updatedAt,
+    title: fields.title ?? row.title,
+    icon: fields.icon !== undefined ? fields.icon : row.icon,
+    cover_url: fields.cover_url !== undefined ? fields.cover_url : row.cover_url,
+    content: savedContent ? stringifyBlocks(savedContent) : row.content,
+  }).catch(() => undefined);
 
   // Recordatorios de las menciones de fecha: la tabla queda igual al contenido.
   if (savedContent && opts.actorId) {

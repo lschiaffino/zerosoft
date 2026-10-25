@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { DbProperty, DbRow, DocsDatabase } from '@/lib/docs-types';
 import { cardHidesValue, cellValue, dayKey, rowTitle } from '@/lib/docs-database';
@@ -127,6 +127,18 @@ export function DbCalendar({
   const [expanded, setExpanded] = useState<string | null>(null);
   const weekStart = locale.startsWith('en') ? 0 : 1;
   const movable = editable && dateProp?.type === 'date';
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  /** Tarjeta movida con Alt+flechas: el foco la sigue a su día nuevo (se vuelve a montar ahí). */
+  const refocus = useRef<string | null>(null);
+  useEffect(() => {
+    const id = refocus.current;
+    if (!id) return;
+    const el = wrapRef.current?.querySelector<HTMLElement>(`.docs-db-calcard[data-row="${CSS.escape(id)}"] .docs-db-calcard-open`);
+    if (el) {
+      refocus.current = null;
+      el.focus();
+    }
+  });
 
   const byDay = useMemo(() => {
     const m = new Map<string, DbRow[]>();
@@ -190,7 +202,11 @@ export function DbCalendar({
             const delta = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' ? -7 : e.key === 'ArrowDown' ? 7 : 0;
             if (!delta) return;
             e.preventDefault();
-            onMove(row.id, dayFromIndex(dayIndex(day) + delta));
+            const next = dayFromIndex(dayIndex(day) + delta);
+            refocus.current = row.id;
+            // Pasó a otro mes: el calendario lo sigue.
+            if (!next.startsWith(month)) setMonth(next.slice(0, 7));
+            onMove(row.id, next);
           }}
         >
           <span className={`docs-db-calcard-title${title ? '' : ' empty'}`}>{title || t('untitledRow')}</span>
@@ -205,7 +221,7 @@ export function DbCalendar({
   };
 
   return (
-    <div className="docs-db-calendar" data-testid="docs-db-calendar">
+    <div className="docs-db-calendar" data-testid="docs-db-calendar" ref={wrapRef}>
       <div className="docs-db-cal-bar">
         <span className="docs-db-cal-month" aria-live="polite">
           {monthLabel}
@@ -342,6 +358,12 @@ export function DbTimeline({
   const t = useTranslations('docs.database');
   const locale = useLocale();
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  /** Parte visible del lienzo: las barras fuera de vista muestran una flecha para ir a ellas (como Notion). */
+  const [viewport, setViewport] = useState({ left: 0, width: 0 });
+  const syncViewport = () => {
+    const el = scrollRef.current;
+    if (el) setViewport((v) => (v.left === el.scrollLeft && v.width === el.clientWidth ? v : { left: el.scrollLeft, width: el.clientWidth }));
+  };
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef(drag);
   dragRef.current = drag;
@@ -378,7 +400,13 @@ export function DbTimeline({
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollLeft = Math.max(0, (today - from - 7) * dayW);
+    syncViewport();
   }, [zoom, today, from, dayW]);
+
+  useEffect(() => {
+    window.addEventListener('resize', syncViewport);
+    return () => window.removeEventListener('resize', syncViewport);
+  }, []);
 
   if (!startProp) {
     return (
@@ -397,6 +425,9 @@ export function DbTimeline({
     e.stopPropagation();
     const st: DragState = { rowId, mode, x0: e.clientX, start, end, delta: 0 };
     setDrag(st);
+    // Arrastrar no selecciona el texto de la página.
+    document.body.classList.add('docs-db-noselect');
+    window.getSelection()?.removeAllRanges();
     const move = (ev: PointerEvent) => {
       const delta = Math.round((ev.clientX - st.x0) / dayW);
       setDrag((d) => (d && d.delta !== delta ? { ...d, delta } : d));
@@ -404,6 +435,7 @@ export function DbTimeline({
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      document.body.classList.remove('docs-db-noselect');
       const d = dragRef.current;
       setDrag(null);
       if (!d) return;
@@ -475,7 +507,7 @@ export function DbTimeline({
             </div>
           ))}
         </div>
-        <div className="docs-db-tl-scroll" ref={scrollRef}>
+        <div className="docs-db-tl-scroll" ref={scrollRef} onScroll={syncViewport}>
           <div className="docs-db-tl-canvas" style={{ width: days * dayW }}>
             <div className="docs-db-tl-head">
               <div className="docs-db-tl-months">
@@ -514,6 +546,22 @@ export function DbTimeline({
                       onSetRange(row.id, dayFromIndex(day), resizable ? dayFromIndex(day) : null);
                     }}
                   >
+                    {s !== null && e !== null && viewport.width > 0 && ((e - from + 1) * dayW < viewport.left + 4 || (s - from) * dayW > viewport.left + viewport.width - 4) && (
+                      <button
+                        type="button"
+                        className="docs-db-tl-jump"
+                        style={(e - from + 1) * dayW < viewport.left + 4 ? { left: viewport.left + 4 } : { left: viewport.left + viewport.width - 28 }}
+                        aria-label={t('timeline.goTo', { name: title })}
+                        title={t('timeline.goTo', { name: title })}
+                        onPointerDown={(ev) => ev.stopPropagation()}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          scrollRef.current?.scrollTo({ left: Math.max(0, (s - from - 3) * dayW), behavior: 'smooth' });
+                        }}
+                      >
+                        {(e - from + 1) * dayW < viewport.left + 4 ? '‹' : '›'}
+                      </button>
+                    )}
                     {s !== null && e !== null ? (
                       <div
                         className={`docs-db-tl-bar${live ? ' dragging' : ''}`}
@@ -543,7 +591,7 @@ export function DbTimeline({
                       </div>
                     ) : (
                       movable && (
-                        <span className="docs-db-tl-empty" aria-hidden="true">
+                        <span className="docs-db-tl-empty" aria-hidden="true" style={{ left: viewport.left + 8 }}>
                           {t('timeline.clickToSet')}
                         </span>
                       )
