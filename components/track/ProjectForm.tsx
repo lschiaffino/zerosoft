@@ -6,6 +6,7 @@ import { useRouter } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import { projectSlug } from '@/lib/track-tasks';
+import { teamPath } from '@/lib/track-routes';
 
 const KNOWN_ERRORS = new Set(['invalid_slug', 'slug_taken', 'missing_name', 'invalid_input']);
 
@@ -33,9 +34,9 @@ export default function ProjectForm() {
         icon: String(fd.get('icon') ?? '').trim() || undefined,
       }),
     }).catch(() => null);
-    const data = res ? ((await res.json().catch(() => null)) as { id?: string; error?: string } | null) : null;
+    const data = res ? ((await res.json().catch(() => null)) as { id?: string; slug?: string; error?: string } | null) : null;
     if (res?.ok && data?.id) {
-      router.push(`/app/track/projects/${data.id}`);
+      router.push(teamPath({ id: data.id, slug: data.slug }));
       return;
     }
     const code = data?.error ?? 'generic';

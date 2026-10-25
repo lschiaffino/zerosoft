@@ -5,13 +5,14 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import QuickModal from '@/components/app/QuickModal';
+import { teamPath } from '@/lib/track-routes';
 
 const KNOWN_ERRORS = new Set(['invalid_slug', 'slug_taken', 'missing_name', 'invalid_input']);
 
 /**
  * "Nuevo proyecto" en un modal (nombre y descripción) sin salir de la lista;
  * al crear navega al proyecto. El identificador lo deriva el servidor del
- * nombre; el form con opciones avanzadas está en /app/track/projects/new.
+ * nombre; el form con opciones avanzadas está en /app/track/teams/new.
  */
 export default function QuickProjectButton({
   className = 'btn btn-primary',
@@ -51,9 +52,9 @@ export default function QuickProjectButton({
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name: name.trim(), description: description.trim() }),
     }).catch(() => null);
-    const data = res ? ((await res.json().catch(() => null)) as { id?: string; error?: string } | null) : null;
+    const data = res ? ((await res.json().catch(() => null)) as { id?: string; slug?: string; error?: string } | null) : null;
     if (res?.ok && data?.id) {
-      router.push(`/app/track/projects/${data.id}`);
+      router.push(teamPath({ id: data.id, slug: data.slug }));
       return;
     }
     setBusy(false);

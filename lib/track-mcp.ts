@@ -10,6 +10,7 @@
  *
  * Las herramientas llaman a lib/track-api-ops: lo mismo que la API v1.
  */
+import { withTeamAlias } from './track-api-http';
 import { requireApiUser, type ApiKeyAuth } from './api-auth';
 import { hasScope } from './api-scopes';
 import {
@@ -81,7 +82,8 @@ export const MCP_TOOLS: McpTool[] = [
       type: 'object',
       properties: {
         query: str('Free text, or an identifier like ZER-12.'),
-        projectId: str('Project id or key (WEB).'),
+        teamId: str('Team id or key (WEB).'),
+        projectId: str('Same as teamId (older name).'),
         statusCategory: { type: 'string', enum: CATEGORY, description: 'Status category.' },
         assigneeId: str('User id, or "me" for the key owner.'),
         priority: PRIORITY,
@@ -121,11 +123,11 @@ export const MCP_TOOLS: McpTool[] = [
   {
     name: 'create_issue',
     title: 'Create issue',
-    description: 'Create an issue in a project. It goes to triage when the project has triage on.',
+    description: 'Create an issue in a team. It goes to triage when the team has triage on.',
     inputSchema: {
       type: 'object',
-      properties: { projectId: str('Project id or key (WEB). Use list_projects.'), ...ISSUE_FIELDS },
-      required: ['projectId', 'title'],
+      properties: { teamId: str('Team id or key (WEB). Use list_teams.'), projectId: str('Same as teamId (older name).'), ...ISSUE_FIELDS },
+      required: ['title'],
     },
     write: true,
     run: (ctx, a) =>
@@ -159,26 +161,42 @@ export const MCP_TOOLS: McpTool[] = [
     run: (ctx, a) => apiAddComment(ctx, String(a.id ?? ''), parseOrThrow(apiCommentSchema, { body: a.body })),
   },
   {
+    name: 'list_teams',
+    title: 'List teams',
+    description: 'List the teams the key can see, with their key (prefix of identifiers like WEB-12).',
+    inputSchema: { type: 'object', properties: { includeArchived: { type: 'boolean' } } },
+    write: false,
+    run: (ctx, a) => apiListProjects(ctx, { includeArchived: a.includeArchived === true }),
+  },
+  {
+    name: 'get_team',
+    title: 'Get team',
+    description: 'Get a team with its workflow statuses.',
+    inputSchema: { type: 'object', properties: { id: str('Team id or key.') }, required: ['id'] },
+    write: false,
+    run: (ctx, a) => apiGetProject(ctx, String(a.id ?? '')),
+  },
+  {
     name: 'list_projects',
-    title: 'List projects',
-    description: 'List the projects the key can see, with their key (prefix of identifiers).',
+    title: 'List teams (older name)',
+    description: 'Same as list_teams. Kept for clients written before teams were called teams.',
     inputSchema: { type: 'object', properties: { includeArchived: { type: 'boolean' } } },
     write: false,
     run: (ctx, a) => apiListProjects(ctx, { includeArchived: a.includeArchived === true }),
   },
   {
     name: 'get_project',
-    title: 'Get project',
-    description: 'Get a project with its workflow statuses.',
-    inputSchema: { type: 'object', properties: { id: str('Project id or key.') }, required: ['id'] },
+    title: 'Get team (older name)',
+    description: 'Same as get_team.',
+    inputSchema: { type: 'object', properties: { id: str('Team id or key.') }, required: ['id'] },
     write: false,
     run: (ctx, a) => apiGetProject(ctx, String(a.id ?? '')),
   },
   {
     name: 'list_cycles',
     title: 'List cycles',
-    description: 'List the cycles (sprints) of a project.',
-    inputSchema: { type: 'object', properties: { projectId: str('Project id or key.') }, required: ['projectId'] },
+    description: 'List the cycles (sprints) of a team.',
+    inputSchema: { type: 'object', properties: { teamId: str('Team id or key.'), projectId: str('Same as teamId (older name).') } },
     write: false,
     run: (ctx, a) => apiListCycles(ctx, String(a.projectId ?? '')),
   },
@@ -193,8 +211,8 @@ export const MCP_TOOLS: McpTool[] = [
   {
     name: 'list_users',
     title: 'List users',
-    description: 'List people that can be assigned (optionally in one project).',
-    inputSchema: { type: 'object', properties: { projectId: str('Project id or key.') } },
+    description: 'List people that can be assigned (optionally in one team).',
+    inputSchema: { type: 'object', properties: { teamId: str('Team id or key.'), projectId: str('Same as teamId (older name).') } },
     write: false,
     run: (ctx, a) => apiListUsers(ctx, typeof a.projectId === 'string' ? a.projectId : undefined),
   },
@@ -245,7 +263,7 @@ export async function handleMcpMessage(msg: RpcRequest, auth: ApiKeyAuth, readon
       capabilities: { tools: { listChanged: false } },
       serverInfo: MCP_SERVER_INFO,
       instructions:
-        'Tools for zerosoft Track (issue tracking). Issues have identifiers like ZER-12 (project key + number). Use list_projects to find project ids, search_issues to find work, and create_issue / update_issue / add_comment to change it.',
+        'Tools for zerosoft Track (issue tracking). Issues have identifiers like ZER-12 (team key + number). Use list_teams to find team ids, search_issues to find work, and create_issue / update_issue / add_comment to change it.',
     });
   }
   if (method === 'ping') return ok(msg.id, {});
@@ -269,7 +287,7 @@ export async function handleMcpMessage(msg: RpcRequest, auth: ApiKeyAuth, readon
       return ok(msg.id, { content: [{ type: 'text', text: readonly ? 'This endpoint is read-only.' : 'The API key is missing the track:write scope.' }], isError: true });
     }
     try {
-      const result = await tool.run({ auth, via: 'mcp' }, args && typeof args === 'object' ? args : {});
+      const result = await tool.run({ auth, via: 'mcp' }, withTeamAlias(args && typeof args === 'object' ? args : {}));
       return ok(msg.id, {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         structuredContent: result && typeof result === 'object' && !Array.isArray(result) ? result : { result },

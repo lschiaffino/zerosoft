@@ -147,7 +147,7 @@
       },
       "f6": {
         "t": "Statuses and priorities",
-        "d": "Custom statuses per project and priorities from low to urgent."
+        "d": "Custom statuses per team and priorities from low to urgent."
       },
       "f7": {
         "t": "Estimates",
@@ -176,7 +176,7 @@
         },
         "f2": {
           "q": "How is work organized?",
-          "a": "By project. Each project has its own statuses, members, cycles and saved views. Issues have a priority, estimate, assignee, dates, sub-issues and relations."
+          "a": "By team, like in Linear. Each team has its own identifier, statuses, members, cycles and saved views, and projects group issues from one or more teams behind one outcome. Issues have a priority, estimate, assignee, dates, sub-issues and relations."
         },
         "f3": {
           "q": "Where do I see my work?",
@@ -194,13 +194,13 @@
       "cta": {
         "title1": "Plan your first cycle.",
         "title2": "With the whole team.",
-        "sub": "Create a project, invite the team and add this week’s issues.",
+        "sub": "Create a team, invite people and add this week’s issues.",
         "button": "Open Track"
       },
       "steps": {
         "s1": {
-          "t": "Set up a project",
-          "d": "Create a project with your own statuses and invite the team to the shared workspace."
+          "t": "Set up a team",
+          "d": "Create a team with your own statuses and invite people to the shared workspace."
         },
         "s2": {
           "t": "Write the work",
@@ -1944,15 +1944,15 @@
     "paramExtSubject": "Email subject",
     "paramExtBody": "Plain text body",
     "trackTitle": "Track",
-    "trackDesc": "Issues, comments, projects, cycles, statuses, labels and people of Track. Use a key with track:read or track:write. Issues created by API go to triage when the project has it on, and every change leaves activity, notifications, webhooks and an audit entry like the app.",
+    "trackDesc": "Issues, comments, teams, cycles, statuses, labels and people of Track. Use a key with track:read or track:write. Issues created by API go to triage when the team has it on, and every change leaves activity, notifications, webhooks and an audit entry like the app. Teams were called projects before: /api/v1/track/projects and projectId still work.",
     "trackMcpTitle": "Track MCP server",
-    "trackMcpDesc": "Model Context Protocol over Streamable HTTP at /api/mcp/track (read-only at /api/mcp/track/readonly). Authenticate with an API key as Bearer. Tools: search_issues, get_issue, create_issue, update_issue, add_comment, list_projects, get_project, list_cycles, list_labels, list_users.",
+    "trackMcpDesc": "Model Context Protocol over Streamable HTTP at /api/mcp/track (read-only at /api/mcp/track/readonly). Authenticate with an API key as Bearer. Tools: search_issues, get_issue, create_issue, update_issue, add_comment, list_teams, get_team, list_cycles, list_labels, list_users.",
     "trackMcpCallTitle": "Call a tool",
     "trackMcpCallDesc": "JSON-RPC 2.0: initialize, tools/list and tools/call. Write tools need track:write.",
     "trackIssuesListTitle": "List issues",
     "trackIssuesListDesc": "Issues the key can see, most recently updated first, with filters.",
     "trackIssuesCreateTitle": "Create an issue",
-    "trackIssuesCreateDesc": "projectId accepts the id or the key (WEB). status accepts a status name or a category. Links to Sentry, Zendesk, Intercom or Figma stay linked to the issue.",
+    "trackIssuesCreateDesc": "teamId accepts the id or the key (WEB); projectId is the older name. status accepts a status name or a category. Links to Sentry, Zendesk, Intercom or Figma stay linked to the issue.",
     "trackIssuesGetTitle": "Get an issue",
     "trackIssuesGetDesc": "By id or identifier (WEB-12).",
     "trackIssuesUpdateTitle": "Update an issue",
@@ -1963,25 +1963,25 @@
     "trackCommentsListDesc": "Comments of an issue, oldest first.",
     "trackCommentsCreateTitle": "Add a comment",
     "trackCommentsCreateDesc": "Comments as the key owner in markdown and notifies subscribers and mentions.",
-    "trackProjectsListTitle": "List projects",
-    "trackProjectsListDesc": "Active projects the key can see. includeArchived=true adds archived ones.",
-    "trackProjectsCreateTitle": "Create a project",
+    "trackProjectsListTitle": "List teams",
+    "trackProjectsListDesc": "Active teams the key can see. includeArchived=true adds archived ones.",
+    "trackProjectsCreateTitle": "Create a team",
     "trackProjectsCreateDesc": "Admins only. Creates the default statuses. key is the identifier prefix.",
-    "trackProjectsGetTitle": "Get a project",
+    "trackProjectsGetTitle": "Get a team",
     "trackProjectsGetDesc": "By id or key, with its statuses.",
-    "trackProjectsUpdateTitle": "Update a project",
+    "trackProjectsUpdateTitle": "Update a team",
     "trackProjectsUpdateDesc": "Name, description, color and icon. Archiving and triage need an admin key.",
     "trackCyclesListTitle": "List cycles",
-    "trackCyclesListDesc": "Cycles of a project.",
+    "trackCyclesListDesc": "Cycles of a team.",
     "trackCyclesCreateTitle": "Create a cycle",
     "trackCyclesCreateDesc": "Dates in YYYY-MM-DD.",
     "trackStatusesTitle": "List statuses",
-    "trackStatusesDesc": "Workflow statuses of a project in order, with their category.",
+    "trackStatusesDesc": "Workflow statuses of a team in order, with their category.",
     "trackLabelsTitle": "List labels",
-    "trackLabelsDesc": "Workspace labels. POST with name and projectId creates one.",
+    "trackLabelsDesc": "Workspace labels. POST with name and teamId creates one.",
     "trackUsersTitle": "List people",
-    "trackUsersDesc": "People who can be assigned, of one project or all.",
-    "paramTrackProjectId": "Project id or key (WEB).",
+    "trackUsersDesc": "People who can be assigned, of one team or all.",
+    "paramTrackProjectId": "Team id or key (WEB). projectId also works.",
     "paramTrackStatusCategory": "Status category.",
     "paramTrackAssigneeId": "Assignee user id.",
     "paramTrackPriority": "Priority.",
@@ -1989,7 +1989,7 @@
     "paramTrackTitle": "Issue title.",
     "paramTrackDescription": "Description in markdown.",
     "paramTrackStatus": "Status name (\"In Progress\") or category (in_progress).",
-    "paramTrackAssigneeEmail": "Email of a project member.",
+    "paramTrackAssigneeEmail": "Email of a team member.",
     "paramTrackLabels": "Label names; missing ones are created.",
     "paramTrackDueDate": "Due date, YYYY-MM-DD.",
     "paramTrackLinks": "Sentry, Zendesk, Intercom or Figma URLs to link.",
@@ -1999,7 +1999,7 @@
     "paramTrackProjectStatus": "active or archived.",
     "paramTrackDate": "Date, YYYY-MM-DD.",
     "webhooksTrackTitle": "Track event payload",
-    "webhooksTrackDesc": "issue.* events carry the issue and its project; issue.status_changed adds from and to, comment.created the comment and project.* the project."
+    "webhooksTrackDesc": "issue.* events carry the issue and its team (project in the payload); issue.status_changed adds from and to, comment.created the comment and project.* the team."
   },
   "parityOverview": {
     "title": "Feature parity, app by app.",

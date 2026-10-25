@@ -35,7 +35,7 @@ export async function searchPlanning(scope: WorkspaceScope, userId: string, q: s
       .all(s.arg, userId, like, limit) as Promise<Array<{ id: string; name: string; meta: string }>>,
   ]);
   return [
-    ...plans.map((r) => ({ id: r.id, group: 'trackPlans' as const, label: r.name, meta: r.meta ?? '', href: `/app/track/plans/${r.id}` })),
+    ...plans.map((r) => ({ id: r.id, group: 'trackPlans' as const, label: r.name, meta: r.meta ?? '', href: `/app/track/projects/${r.id}` })),
     ...initiatives.map((r) => ({ id: r.id, group: 'trackInitiatives' as const, label: r.name, meta: '', href: `/app/track/initiatives/${r.id}` })),
     ...dashboards.map((r) => ({ id: r.id, group: 'trackDashboards' as const, label: r.name, meta: '', href: `/app/track/dashboards/${r.id}` })),
   ];

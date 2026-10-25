@@ -261,7 +261,7 @@ export default function CrossProjectIssues({
         <EmptyState
           title={empty.noProjectsTitle}
           body={empty.noProjectsBody}
-          action={{ label: empty.noProjectsCta, href: '/app/track/projects?newProject=1' }}
+          action={{ label: empty.noProjectsCta, href: '/app/track/teams?newProject=1' }}
         />
       ) : null}
 

@@ -3,6 +3,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import QuickProjectButton from './QuickProjectButton';
 import PrivateMark from './PrivateMark';
 import type { TrackProjectWithStats } from '@/lib/track-data';
+import { teamPath } from '@/lib/track-routes';
 
 interface ProjectListProps {
   projects: TrackProjectWithStats[];
@@ -37,7 +38,7 @@ export default function ProjectList({ projects, labels }: ProjectListProps) {
       className="track-projects"
       rows={projects}
       rowKey={(p) => p.id}
-      rowHref={(p) => `/app/track/projects/${p.id}`}
+      rowHref={(p) => teamPath(p)}
       columns={[
         {
           key: 'name',

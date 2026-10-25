@@ -63,7 +63,7 @@ export default function PlanPage({ planId }: { planId: string }) {
     if (next === 'overview') q.delete('tab');
     else q.set('tab', next);
     q.delete('new');
-    router.replace(`/app/track/plans/${planId}${q.toString() ? `?${q}` : ''}`);
+    router.replace(`/app/track/projects/${planId}${q.toString() ? `?${q}` : ''}`);
   };
 
   const patch = async (body: Record<string, unknown>) => {
@@ -87,7 +87,7 @@ export default function PlanPage({ planId }: { planId: string }) {
   const remove = async () => {
     const res = await api(`/api/track/plans/${planId}`, 'DELETE');
     setConfirmDelete(false);
-    if (res.ok) router.push('/app/track/plans');
+    if (res.ok) router.push('/app/track/projects');
     else setError(t('common.saveError'));
   };
 
@@ -98,7 +98,7 @@ export default function PlanPage({ planId }: { planId: string }) {
 
   if (state === 'loading') return <LoadingRows rows={6} />;
   if (state === 'missing') {
-    return <EmptyState title={t('plan.notFound')} action={{ label: t('plan.back'), href: '/app/track/plans' }} />;
+    return <EmptyState title={t('plan.notFound')} action={{ label: t('plan.back'), href: '/app/track/projects' }} />;
   }
   if (state === 'error' || !data) {
     return (
@@ -126,7 +126,7 @@ export default function PlanPage({ planId }: { planId: string }) {
     <div className="tp-plan" data-testid="tp-plan-page">
       <div className="tp-plan-main">
         <nav className="tp-crumbs" aria-label={t('plans.title')}>
-          <Link href="/app/track/plans">{t('plans.title')}</Link>
+          <Link href="/app/track/projects">{t('plans.title')}</Link>
           <span aria-hidden="true">›</span>
           <span>{plan.name}</span>
         </nav>

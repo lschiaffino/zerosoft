@@ -47,6 +47,7 @@ import TriagePanel from './TriagePanel';
 import IssueDisplayOptions from './IssueDisplayOptions';
 import GroupedIssuesTable from './GroupedIssuesTable';
 import { parseIssueGroup, parseIssueSort, type BoardGroupBy, type IssueGroupBy, type IssueSort } from '@/lib/track-views';
+import { TEAMS_PATH, teamPath } from '@/lib/track-routes';
 
 interface ProjectPageClientProps {
   locale: string;
@@ -630,7 +631,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     if (activeViewId && !viewDirty) sp.set('savedView', activeViewId);
     if (tab === 'triage') sp.set('tab', 'triage');
     const qs = sp.toString();
-    router.replace(`/app/track/projects/${projectId}?${qs}`, { scroll: false });
+    router.replace(`${teamPath(project ?? projectId)}?${qs}`, { scroll: false });
   }, [filters, sort, group, view, tab, projectId, locale, router, showSub, activeViewId, viewDirty]);
 
   // ⌘B alterna lista y tablero, como en Linear.
@@ -757,7 +758,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     });
 
   const handleCopyViewLink = (id: string) => {
-    const url = new URL(`/app/track/projects/${projectId}?savedView=${id}`, window.location.origin).toString();
+    const url = new URL(`${teamPath(project ?? projectId)}?savedView=${id}`, window.location.origin).toString();
     void navigator.clipboard?.writeText(url).catch(() => undefined);
     pushNotice(tx('views.linkCopied'));
   };
@@ -851,7 +852,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
               {t('common.retry')}
             </button>
           }
-          secondary={<Link href="/app/track/projects">{t('projects.backToList')}</Link>}
+          secondary={<Link href={TEAMS_PATH}>{t('projects.backToList')}</Link>}
         />
       </div>
     );
@@ -890,6 +891,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
       onToggleFavorite={handleToggleFavorite}
       onUpdate={handleUpdateView}
       onCopyLink={handleCopyViewLink}
+      defaultOpen={initialParams.current.get('views') === '1'}
       labels={{
         title: labels.savedViews.title,
         empty: labels.savedViews.empty,
@@ -912,7 +914,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   return (
     <div className="app-page track-page" data-track-project-id={project.id}>
       <PageHeader
-        back={{ href: '/app/track/projects', label: t('projects.title') }}
+        back={{ href: TEAMS_PATH, label: t('projects.title') }}
         title={
           <>
             {project.icon ? <span className="track-project-icon">{project.icon}</span> : null}

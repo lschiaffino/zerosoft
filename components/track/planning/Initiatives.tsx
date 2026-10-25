@@ -12,6 +12,7 @@ import type { PlanSummary } from '@/lib/track-plans';
 import { INITIATIVE_STATUSES, type InitiativeStatus } from '@/lib/track-planning-schema';
 import { api, fmtDay, HealthDot, LoadingRows, Modal, PlanStatusIcon, ProgressBar, personName, type Person } from './shared';
 import { NewPlanModal, type PlansMeta } from './PlansList';
+import { projectPath } from '@/lib/track-routes';
 
 /** Initiatives: lista con salud, plans activos (color por salud), responsable, fecha y progreso. */
 export function InitiativesList() {
@@ -430,7 +431,7 @@ export function InitiativePage({ initiativeId }: { initiativeId: string }) {
             <ul className="tp-rows" role="list" data-testid="tp-initiative-plans">
               {[...own, ...fromChildren].map((p) => (
                 <li key={p.id} className="tp-row">
-                  <Link href={`/app/track/plans/${p.id}`} className="tp-row-link">
+                  <Link href={projectPath(p.id)} className="tp-row-link">
                     <span className="tp-row-icon" aria-hidden="true">
                       {p.icon || <PlanStatusIcon status={p.status} />}
                     </span>

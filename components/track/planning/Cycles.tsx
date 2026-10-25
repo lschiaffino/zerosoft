@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import type { CycleListItem, CycleMetricsResult } from '@/lib/track-cycle-metrics';
 import { api, fmtDay, LoadingRows, ProgressBar } from './shared';
 import { LineChart } from './charts';
 import { encodeFilter } from '@/lib/track-filter';
+import { TEAMS_PATH, teamPath } from '@/lib/track-routes';
 
 const localToday = () => {
   const d = new Date();
@@ -19,7 +21,10 @@ const localToday = () => {
 export function CyclesIndex() {
   const t = useTranslations('trackPlanning');
   const locale = useLocale();
-  const [rows, setRows] = useState<CycleListItem[] | null>(null);
+  // ?team=<id>: los cycles de un team (sidebar › team › Cycles).
+  const team = useSearchParams().get('team');
+  const [allRows, setRows] = useState<CycleListItem[] | null>(null);
+  const rows = allRows && team ? allRows.filter((r) => r.project_id === team) : allRows;
   const [failed, setFailed] = useState(false);
   const load = useCallback(async () => {
     const res = await api<{ rows: CycleListItem[] }>(`/api/track/cycles?today=${localToday()}`);
@@ -43,7 +48,7 @@ export function CyclesIndex() {
         }
       />
     );
-  if (!rows.length) return <EmptyState title={t('cycles.emptyTitle')} body={t('cycles.emptyBody')} action={{ label: t('cycles.goTeams'), href: '/app/track/projects' }} />;
+  if (!rows.length) return <EmptyState title={t('cycles.emptyTitle')} body={t('cycles.emptyBody')} action={{ label: t('cycles.goTeams'), href: TEAMS_PATH }} />;
   const sections = (['active', 'upcoming', 'past'] as const).map((s) => ({
     key: s,
     rows: rows.filter((r) => r.state === s).sort((a, b) => (s === 'upcoming' ? a.start_at.localeCompare(b.start_at) : b.start_at.localeCompare(a.start_at))),
@@ -125,7 +130,7 @@ export function CycleDetail({ cycleId }: { cycleId: string }) {
       <nav className="tp-crumbs" aria-label={t('cycles.title')}>
         <Link href="/app/track/cycles">{t('cycles.title')}</Link>
         <span aria-hidden="true">›</span>
-        <Link href={`/app/track/projects/${data.project.id}`}>{data.project.name}</Link>
+        <Link href={teamPath(data.project)}>{data.project.name}</Link>
         <span aria-hidden="true">›</span>
         <span>{data.cycle.name}</span>
       </nav>
@@ -214,7 +219,7 @@ export function CycleDetail({ cycleId }: { cycleId: string }) {
       )}
       <p className="ui-help">{t('cycles.rolloverHelp')}</p>
       <Link
-        href={`/app/track/projects/${data.project.id}?filter=${encodeURIComponent(encodeFilter({ match: 'and', rules: [{ field: 'cycle', op: 'is', values: [data.cycle.id] }] }))}`}
+        href={`${teamPath(data.project)}?filter=${encodeURIComponent(encodeFilter({ match: 'and', rules: [{ field: 'cycle', op: 'is', values: [data.cycle.id] }] }))}`}
         className="btn btn-sm"
       >
         {t('cycles.viewIssues')}

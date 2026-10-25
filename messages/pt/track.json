@@ -1,13 +1,15 @@
 {
   "sidebar": {
     "overview": "Visão geral",
-    "myTasks": "Minhas tarefas",
-    "projects": "Projetos",
+    "myTasks": "Meus issues",
+    "projects": "Equipes",
     "issues": "Issues",
     "cycles": "Ciclos",
     "settings": "Configurações",
     "inbox": "Caixa de entrada",
-    "customers": "Clientes"
+    "customers": "Clientes",
+    "workspace": "Workspace",
+    "yourTeams": "Suas equipes"
   },
   "common": {
     "viewAll": "Ver tudo",
@@ -28,10 +30,10 @@
   },
   "overview": {
     "title": "Resumo",
-    "subtitle": "O ciclo atual de cada projeto, o que está vencido e o que espera triage.",
-    "emptyTitle": "Ainda não há projetos",
-    "emptySub": "Um projeto agrupa issues, ciclos e visualizações. Crie um por produto ou por equipe.",
-    "projects": "Projetos",
+    "subtitle": "O ciclo atual de cada equipe, o que está vencido e o que espera triage.",
+    "emptyTitle": "Ainda não há equipes",
+    "emptySub": "Uma equipe agrupa issues, ciclos e visualizações, com seu próprio identificador e fluxo. Crie uma para cada grupo que trabalha junto.",
+    "projects": "Equipes",
     "recentIssues": "Issues recentes",
     "emptySecondary": "Também pelo ⌘K.",
     "cycle": "Ciclo atual",
@@ -40,12 +42,12 @@
     "triage": "Triage"
   },
   "projects": {
-    "title": "Projetos",
-    "newCta": "Novo projeto",
-    "newTitle": "Novo projeto",
+    "title": "Equipes",
+    "newCta": "Nova equipe",
+    "newTitle": "Nova equipe",
     "newSub": "O identificador dos issues vem do nome.",
-    "back": "← Todos os projetos",
-    "empty": "Ainda não há projetos.",
+    "back": "← Todas as equipes",
+    "empty": "Ainda não há equipes.",
     "openIssues": "abertos",
     "form": {
       "name": "Nome",
@@ -58,17 +60,17 @@
       "advancedHint": "Identificador e ícone",
       "iconHelp": "Um emoji ou até 8 caracteres, ao lado do nome."
     },
-    "create": "Criar projeto",
+    "create": "Criar equipe",
     "formTitle": "Dados básicos",
-    "backToList": "Voltar aos projetos",
+    "backToList": "Voltar às equipes",
     "column": {
-      "project": "Projeto",
+      "project": "Equipe",
       "open": "Abertos"
     },
-    "subtitle": "Todos os projetos da equipe e seus issues abertos."
+    "subtitle": "Todas as equipes do workspace e seus issues abertos."
   },
   "project": {
-    "title": "Projeto",
+    "title": "Equipe",
     "issues": "Issues",
     "cycles": "Ciclos",
     "statuses": "Status",
@@ -81,7 +83,7 @@
     "loadMore": "Carregar mais",
     "showing": "Mostrando {shown} de {total}",
     "settings": "Ajustes",
-    "loadErrorTitle": "Não foi possível carregar o projeto",
+    "loadErrorTitle": "Não foi possível carregar a equipe",
     "loadErrorBody": "Verifique a conexão e tente de novo.",
     "emptyTitle": "Ainda não há issues",
     "emptyBody": "Um issue é uma tarefa com status, prioridade e responsável. Os que você criar aparecem aqui.",
@@ -92,7 +94,7 @@
   "issues": {
     "pageTitle": "Issues",
     "newCta": "+ Novo issue",
-    "back": "← Voltar ao projeto",
+    "back": "← Voltar à equipe",
     "empty": "Nenhum issue corresponde.",
     "identifier": "ID",
     "title": "Título",
@@ -116,7 +118,7 @@
     "createdOn": "Criado em {date}",
     "breadcrumb": "Local do issue",
     "description": "Descrição",
-    "noProjectsBody": "Crie um projeto para começar a registrar issues.",
+    "noProjectsBody": "Crie uma equipe para começar a registrar issues.",
     "none": "Nenhum",
     "editTitle": "Título do issue",
     "descriptionPlaceholder": "Adicione uma descrição…",
@@ -337,16 +339,16 @@
     "invalid_input": "Alguns campos são inválidos. Revise e tente novamente.",
     "generic": "Algo deu errado. Tente novamente.",
     "invalid_range": "A data de fim não pode ser anterior ao início.",
-    "last_status": "O projeto precisa de pelo menos um status.",
+    "last_status": "A equipe precisa de pelo menos um status.",
     "cycle_overlap": "Sobrepõe outro ciclo. Escolha outras datas.",
-    "invalid_milestone": "Esse marco não é deste projeto.",
+    "invalid_milestone": "Esse marco não é desta equipe.",
     "reminder_in_past": "Escolha um momento no futuro."
   },
   "quick": {
     "newTask": "Novo issue",
     "placeholder": "Título do issue, Enter para salvar, Esc para cancelar",
     "hint": "Escreva !alta ou @amanhã no título para definir prioridade e prazo.",
-    "project": "Projeto",
+    "project": "Equipe",
     "modalTitle": "Novo issue",
     "titlePlaceholder": "Título do issue",
     "descriptionPlaceholder": "Adicione uma descrição…",
@@ -361,7 +363,7 @@
   "inline": {
     "markDone": "Marcar como concluído",
     "markOpen": "Marcar como pendente",
-    "noDoneStatus": "Este projeto não tem um status “Concluído”.",
+    "noDoneStatus": "Esta equipe não tem um status “Concluído”.",
     "saveError": "Não foi possível salvar a alteração. Ela foi revertida.",
     "createError": "Não foi possível criar o issue. Tente de novo.",
     "noDate": "Sem data",
@@ -375,24 +377,24 @@
     "loadError": "Não foi possível carregar mais issues."
   },
   "myTasks": {
-    "title": "Minhas tarefas",
-    "subtitle": "Tudo o que está atribuído a você, em todos os projetos.",
-    "overdue": "Atrasadas",
+    "title": "Meus issues",
+    "subtitle": "Tudo o que está atribuído a você, em todas as equipes.",
+    "overdue": "Atrasados",
     "today": "Hoje",
-    "upcoming": "Próximas",
+    "upcoming": "Próximos",
     "noDate": "Sem data",
     "empty": "Nada atribuído a você",
-    "emptyBody": "O que for atribuído a você em qualquer projeto aparece aqui, agrupado por vencimento."
+    "emptyBody": "O que for atribuído a você em qualquer equipe aparece aqui, agrupado por vencimento."
   },
   "cmdk": {
     "newIssue": "Novo issue",
-    "newProject": "Novo projeto (Track)",
-    "myTasks": "Ir para Minhas tarefas",
+    "newProject": "Nova equipe (Track)",
+    "myTasks": "Ir para Meus issues",
     "allIssues": "Ir para todos os issues",
     "inbox": "Ir para o inbox do Track",
     "integrations": "Track: Slack, Sentry e outras integrações",
     "apiMcp": "Track: API, webhooks e MCP",
-    "access": "Track: projetos privados e convidados",
+    "access": "Track: equipes privadas e convidados",
     "audit": "Track: audit log"
   },
   "statusSettings": {
@@ -416,7 +418,7 @@
   },
   "labelsSettings": {
     "title": "Etiquetas",
-    "help": "As etiquetas são do workspace e valem para todos os projetos.",
+    "help": "As etiquetas são do workspace e valem para todas as equipes.",
     "newPlaceholder": "Nova etiqueta",
     "add": "Adicionar",
     "name": "Nome da etiqueta",
@@ -501,9 +503,9 @@
     "appNotInstalled": "Não instalado",
     "appInstall": "Instalar GitHub App",
     "appReinstall": "Mudar repos",
-    "rulesTitle": "Automações por projeto",
-    "rulesHelp": "Escolha para qual status cada projeto vai quando um pull request está em draft, é aberto, pede review ou é mergeado. Sem regras próprias, o projeto usa as do workspace.",
-    "rulesNoProjects": "Crie um projeto para configurar as automações.",
+    "rulesTitle": "Automações por equipe",
+    "rulesHelp": "Escolha para qual status cada equipe vai quando um pull request está em draft, é aberto, pede review ou é mergeado. Sem regras próprias, a equipe usa as do workspace.",
+    "rulesNoProjects": "Crie uma equipe para configurar as automações.",
     "customRules": "Regras próprias",
     "saved": "Salvo",
     "rule": {
@@ -513,7 +515,7 @@
       "onMerge": "PR mergeado"
     },
     "syncRepo": "Sincronizar GitHub Issues de",
-    "syncRepoHelp": "Os issues novos deste repo (owner/nome) entram neste projeto, e fechar, reabrir, renomear e comentar acompanham. Os anteriores entram com o importador.",
+    "syncRepoHelp": "Os issues novos deste repo (owner/nome) entram nesta equipe, e fechar, reabrir, renomear e comentar acompanham. Os anteriores entram com o importador.",
     "magicWords": "No título ou no corpo de um PR, \"fixes WEB-12\" (ou closes, resolves, completes, implements) vincula e move o issue; \"ref WEB-12\" ou \"part of WEB-12\" só vincula; \"skip WEB-12\" ignora."
   },
   "bulk": {
@@ -532,7 +534,7 @@
     "noCycle": "Sem ciclo",
     "addLabel": "Adicionar {name}",
     "removeLabel": "Remover {name}",
-    "skipped": "{count} issues não mudaram (outro projeto ou opção inválida).",
+    "skipped": "{count} issues não mudaram (outra equipe ou opção inválida).",
     "error": "Não foi possível aplicar a mudança.",
     "hint": "X seleciona a linha ativa. Shift+clique seleciona um intervalo.",
     "choose": "Escolher…"
@@ -573,7 +575,7 @@
     "emptyBody": "Os issues que chegam pela API, Chat, Flow ou GitHub esperam aqui até alguém aceitá-los."
   },
   "projectSettings": {
-    "title": "Ajustes do projeto",
+    "title": "Ajustes da equipe",
     "close": "Fechar ajustes",
     "tabs": {
       "cycles": "Ciclos",
@@ -609,7 +611,7 @@
       "priority": "Prioridade",
       "cycle": "Ciclo",
       "label": "Etiqueta",
-      "project": "Projeto"
+      "project": "Equipe"
     },
     "sorts": {
       "newest": "Mais novos",
@@ -740,9 +742,9 @@
     "error": "Não foi possível salvar. Tente de novo."
   },
   "milestones": {
-    "help": "Etapas dentro do projeto, com data alvo. O progresso conta os issues atribuídos a cada uma.",
+    "help": "Etapas dentro da equipe, com data alvo. O progresso conta os issues atribuídos a cada uma.",
     "emptyTitle": "Ainda não há marcos",
-    "emptyBody": "Adicione um para dividir o projeto em etapas com data.",
+    "emptyBody": "Adicione um para dividir a equipe em etapas com data.",
     "new": "Novo marco",
     "name": "Nome",
     "description": "Descrição",
@@ -752,7 +754,7 @@
     "overdue": "Atrasado",
     "edit": "Editar",
     "delete": "Excluir",
-    "deleteConfirm": "Excluir este marco? Os issues continuam no projeto, sem marco.",
+    "deleteConfirm": "Excluir este marco? Os issues continuam na equipe, sem marco.",
     "save": "Salvar marco",
     "create": "Criar marco",
     "error": "Não foi possível salvar o marco. Tente de novo.",
@@ -787,9 +789,15 @@
     "reminderFor": "Lembrete de {identifier}"
   },
   "branch": {
-    "label": "Projetos",
-    "empty": "Ainda não há projetos.",
-    "private": "Projeto privado"
+    "label": "Equipes",
+    "empty": "Ainda não há equipes.",
+    "private": "Equipe privada",
+    "issues": "Issues",
+    "cycles": "Cycles",
+    "projects": "Projetos",
+    "views": "Visualizações",
+    "expand": "Expandir",
+    "collapse": "Recolher"
   },
   "importer": {
     "tab": "Importar e exportar",
@@ -810,7 +818,7 @@
       "shortcut": "Shortcut"
     },
     "target": "Em",
-    "targetNew": "Um projeto novo para cada {kind}",
+    "targetNew": "Uma equipe nova para cada {kind}",
     "kinds": {
       "linear": "team do Linear",
       "linear_csv": "team do Linear",
@@ -827,7 +835,7 @@
     "githubToken": "Token do GitHub",
     "githubHelp": "Um token fine-grained com leitura de Issues nesse repositório.",
     "tokenNote": "Usado só nesta importação. Fica cifrado enquanto seus dados são lidos e é apagado logo depois.",
-    "linearNote": "Os teams do Linear viram projetos e os projetos do Linear viram milestones.",
+    "linearNote": "Os teams do Linear viram equipes e os projetos do Linear viram milestones.",
     "csvFile": "Arquivo CSV",
     "csvTooLarge": "O CSV passa de 4 MB. Divida e importe cada parte.",
     "csvEmpty": "O arquivo não tem linha de cabeçalho.",
@@ -864,14 +872,14 @@
     "stat": {
       "issues": "Issues",
       "comments": "Comentários",
-      "projects": "Projetos",
+      "projects": "Equipes",
       "labels": "Labels",
       "cycles": "Cycles",
       "milestones": "Milestones"
     },
     "already": "{count, plural, one {# issue já foi importado antes e será pulado.} other {# issues já foram importados antes e serão pulados.}}",
     "truncated": "A origem tem mais issues do que cabem numa importação. O resto ficou de fora.",
-    "projectsTitle": "Projetos",
+    "projectsTitle": "Equipes",
     "projectNew": "novo",
     "projectExisting": "existente",
     "issuesCount": "{count, plural, one {# issue} other {# issues}}",
@@ -910,8 +918,8 @@
     "failedTitle": "A importação parou.",
     "exportTitle": "Exportar CSV",
     "exportLead": "Baixe os issues em um CSV com as mesmas colunas que a importação lê.",
-    "exportProject": "Projeto",
-    "exportAll": "Todos os projetos",
+    "exportProject": "Equipe",
+    "exportAll": "Todas as equipes",
     "exportButton": "Baixar CSV",
     "createdPart": {
       "projects": "{count, plural, one {# projeto} other {# projetos}}",
@@ -934,7 +942,7 @@
     "shortcutQueryHelp": "Uma busca do Shortcut como team:mobile ou epic:\"Onboarding\". Vazia importa todas as stories que não estão arquivadas.",
     "shortcutToken": "API token do Shortcut",
     "shortcutHelp": "No Shortcut: Settings › Your account › API tokens.",
-    "shortcutNote": "Cada workflow vira um projeto e os epics viram milestones. O Shortcut limita quantas stories uma busca retorna: num workspace grande, importe por time ou por epic."
+    "shortcutNote": "Cada workflow vira uma equipe e os epics viram milestones. O Shortcut limita quantas stories uma busca retorna: num workspace grande, importe por time ou por epic."
   },
   "integrations": {
     "tab": "Integrações",
@@ -948,23 +956,23 @@
     "disconnectConfirm": "Desconectar {name}? O que está vinculado fica nos issues.",
     "save": "Salvar",
     "remove": "Remover",
-    "project": "Projeto",
+    "project": "Equipe",
     "apiToken": "Token de API",
     "keepSecret": "Salvo. Deixe vazio para manter.",
     "missingToken": "Cole o token de API para conectar.",
     "log": "Atividade recente",
     "logEmpty": "Nada ainda.",
     "slack": {
-      "help": "Crie issues a partir de mensagens do Slack e com /track, receba avisos de projetos em canais, sincronize threads de comentários e veja a prévia dos links de issues.",
+      "help": "Crie issues a partir de mensagens do Slack e com /track, receba avisos de equipes em canais, sincronize threads de comentários e veja a prévia dos links de issues.",
       "notConfigured": "O Slack ainda não está configurado neste servidor (SLACK_CLIENT_ID, SLACK_CLIENT_SECRET e SLACK_SIGNING_SECRET).",
       "connect": "Conectar Slack",
       "connectedTo": "Conectado a {team}.",
-      "howTo": "No Slack: /track <título> cria um issue no projeto padrão; em qualquer mensagem, Mais ações › Create Track issue abre um formulário e mantém a thread sincronizada com os comentários do issue.",
-      "defaultProject": "Projeto padrão do /track",
-      "firstProject": "O primeiro projeto que vejo",
+      "howTo": "No Slack: /track <título> cria um issue na equipe padrão; em qualquer mensagem, Mais ações › Create Track issue abre um formulário e mantém a thread sincronizada com os comentários do issue.",
+      "defaultProject": "Equipe padrão do /track",
+      "firstProject": "A primeira equipe que vejo",
       "unfurl": "Mostrar prévia dos links de issues",
       "channels": "Avisos em canais",
-      "noChannels": "Ainda não há canais. Escolha um projeto, um canal e o que publicar.",
+      "noChannels": "Ainda não há canais. Escolha uma equipe, um canal e o que publicar.",
       "channel": "Canal",
       "eventsLabel": "Publicar quando",
       "events": {
@@ -984,7 +992,7 @@
     },
     "sentry": {
       "help": "Os issues novos do Sentry criam um issue no Track com o link do erro, e ao concluí-lo ele é resolvido no Sentry.",
-      "project": "Projeto do Track para os erros",
+      "project": "Equipe do Track para os erros",
       "org": "Slug da organização no Sentry",
       "secret": "Client secret (assinatura do webhook)",
       "token": "Token (para resolver no Sentry)",
@@ -1012,7 +1020,7 @@
     },
     "zapier": {
       "title": "Zapier, Make e outros",
-      "help": "Os webhooks de saída enviam eventos de issues, comentários e projetos assinados e com novas tentativas. A API cria e edita issues. Os dois funcionam no Zapier, Make ou n8n com um passo de Webhooks.",
+      "help": "Os webhooks de saída enviam eventos de issues, comentários e equipes assinados e com novas tentativas. A API cria e edita issues. Os dois funcionam no Zapier, Make ou n8n com um passo de Webhooks.",
       "webhooks": "Configurar webhooks",
       "docs": "Docs da API"
     }
@@ -1020,7 +1028,7 @@
   "apiSettings": {
     "tab": "API e MCP",
     "apiTitle": "API REST",
-    "apiHelp": "Issues, comentários, projetos, cycles, status, labels e pessoas. Use uma API key com o scope track:read ou track:write; ela age como a pessoa que a criou, então vê o mesmo que ela.",
+    "apiHelp": "Issues, comentários, equipes, cycles, status, labels e pessoas. Use uma API key com o scope track:read ou track:write; ela age como a pessoa que a criou, então vê o mesmo que ela.",
     "baseUrl": "URL base",
     "keys": "Criar uma API key",
     "docs": "Docs da API",
@@ -1037,35 +1045,35 @@
   "access": {
     "tab": "Acesso",
     "title": "Acesso",
-    "help": "Os projetos privados só são vistos pelos seus membros. Os convidados veem só os projetos que você der.",
+    "help": "As equipes privadas só são vistas pelos seus membros. Os convidados veem só as equipes que você der.",
     "adminOnly": "Só os admins do workspace mudam o acesso.",
-    "personal": "Este é um workspace pessoal: ninguém mais vê seus projetos. Crie um time nas configurações do workspace para compartilhar projetos e convidar.",
+    "personal": "Este é um workspace pessoal: ninguém mais vê suas equipes. Crie um workspace compartilhado nas configurações para compartilhar equipes e convidar.",
     "loadError": "Não foi possível carregar o acesso.",
     "error": "Não foi possível salvar a mudança.",
     "adminGuest": "Um admin não pode ser convidado.",
-    "projectsTitle": "Projetos",
-    "projectsHelp": "Ao tornar um projeto privado você fica como membro e quem não é membro deixa de ser inscrito. Os admins veem aqui todos os projetos e podem entrar num privado.",
-    "noProjects": "Ainda não há projetos.",
+    "projectsTitle": "Equipes",
+    "projectsHelp": "Ao tornar uma equipe privada você fica como membro e quem não é membro deixa de ser inscrito. Os admins veem aqui todas as equipes e podem entrar numa privada.",
+    "noProjects": "Ainda não há equipes.",
     "visibility": "Quem vê {name}",
     "workspace": "Todo o workspace",
     "private": "Privado: só membros",
-    "privateBadge": "Projeto privado",
+    "privateBadge": "Equipe privada",
     "join": "Entrar",
     "members": "{count, plural, one {# membro} other {# membros}}",
     "addMember": "Adicionar membro",
     "removeMember": "Remover {name}",
     "guestsTitle": "Convidados",
-    "guestsHelp": "Um convidado é alguém do seu time que só vê os projetos que você marcar, por exemplo um prestador ou um cliente. Você pode marcar o email antes de ele aceitar o convite.",
+    "guestsHelp": "Um convidado é alguém do seu workspace que só vê as equipes que você marcar, por exemplo um prestador ou um cliente. Você pode marcar o email antes de ele aceitar o convite.",
     "noGuests": "Não há convidados.",
     "pending": "convite pendente",
-    "noAccess": "nenhum projeto",
+    "noAccess": "nenhuma equipe",
     "edit": "Editar",
     "removeGuest": "Remover convidado",
     "guestForm": "Convidado",
     "guestEmail": "Email do convidado",
     "guestEmailHelp": "Também precisa de um convite para o time.",
     "inviteLink": "Convidar para o time",
-    "guestProjects": "Projetos que o convidado vê",
+    "guestProjects": "Equipes que o convidado vê",
     "saveGuest": "Salvar convidado",
     "footnote": "As integrações e as API keys agem como o dono e respeitam o mesmo acesso."
   },
@@ -1077,11 +1085,11 @@
     "action": "Ação",
     "allActions": "Todas as ações",
     "search": "Buscar",
-    "searchPlaceholder": "Issue, projeto ou texto",
+    "searchPlaceholder": "Issue, equipe ou texto",
     "export": "Exportar CSV",
     "loadError": "Não foi possível carregar o audit log.",
     "empty": "Sem eventos",
-    "emptyBody": "Aqui aparecem as mudanças em issues, projetos, acesso e integrações.",
+    "emptyBody": "Aqui aparecem as mudanças em issues, equipes, acesso e integrações.",
     "more": "Ver mais",
     "system": "Sistema",
     "actions": {
@@ -1091,9 +1099,9 @@
       "comment_created": "comentou em",
       "comment_updated": "editou um comentário em",
       "comment_deleted": "excluiu um comentário em",
-      "project_created": "criou o projeto",
-      "project_updated": "alterou o projeto",
-      "project_deleted": "excluiu o projeto",
+      "project_created": "criou a equipe",
+      "project_updated": "alterou a equipe",
+      "project_deleted": "excluiu a equipe",
       "project_visibility": "mudou quem vê",
       "access_member_added": "adicionou um membro a",
       "access_member_removed": "removeu um membro de",
@@ -1242,7 +1250,7 @@
       "show": "Mostrar sub-issues"
     },
     "side": {
-      "project": "Projeto",
+      "project": "Equipe",
       "points": "{count, plural, one {# ponto} other {# pontos}}"
     },
     "presence": {
@@ -1265,7 +1273,7 @@
       "saved": "Visualização salva",
       "linkCopied": "Link da visualização copiado",
       "shareOnSave": "Compartilhar com a equipe",
-      "shareHelp": "Todo o projeto vê as visualizações da equipe. Só você as edita."
+      "shareHelp": "Toda a equipe vê as visualizações da equipe. Só você as edita."
     },
     "filter": {
       "fields": {

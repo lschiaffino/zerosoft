@@ -146,7 +146,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     rows.map((r) => ({ id: r.id, group, label: r.label, meta: r.meta ?? '', href: href(r.id) }));
 
   return [
-    ...map(projects, 'projects', (id) => `/app/track/projects/${id}`),
+    ...map(projects, 'projects', (id) => `/app/track/team/${id}`),
     ...map(issues, 'issues', (id) => `/app/track/issues/${id}`),
     ...map(boards, 'boards', (id) => `/app/board/${id}`),
     ...map(eventTypes, 'eventTypes', (id) => `/app/calendar/event-types/${id}`),

@@ -12,6 +12,7 @@ import { AssigneeMenu, DueDateMenu, OptionList, Popover, PriorityMenu, StatusMen
 import TrackIcon, { type TrackIconName } from './TrackIcon';
 import type { TrackUiLabels } from './ui-labels';
 import { ESTIMATE_OPTIONS } from './trackCommands';
+import { teamPath } from '@/lib/track-routes';
 
 interface IssueSidebarProps {
   issue: TrackIssueWithStatus;
@@ -137,7 +138,7 @@ export default function IssueSidebar({
         <LabelPicker value={issueLabels} onChange={onLabels} />
       </Row>
       <Row label={tx('project')} icon="settings" testId="track-side-project">
-        <Link href={`/app/track/projects/${projectId}`} className="track-side-link">
+        <Link href={teamPath(projectId)} className="track-side-link">
           {projectName}
         </Link>
       </Row>

@@ -1,17 +1,14 @@
-import { Suspense } from 'react';
-import { requireUser } from '@/lib/session';
-import PlanPage from '@/components/track/planning/PlanPage';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Page(props: { params: Promise<{ locale: string; id: string }> }) {
+/** "Plans" pasó a llamarse Projects, como en Linear. */
+export default async function Page(props: {
+  params: Promise<{ locale: string; id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { locale, id } = await props.params;
-  await requireUser(locale);
-  return (
-    <div className="app-page track-page ui-page tp-page">
-      <Suspense fallback={null}>
-        <PlanPage planId={id} />
-      </Suspense>
-    </div>
-  );
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries((await props.searchParams) ?? {})) if (typeof v === 'string') sp.set(k, v);
+  redirect(`/${locale}/app/track/projects/${encodeURIComponent(id)}${sp.size ? `?${sp}` : ''}`);
 }

@@ -1,19 +1,9 @@
-import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
-import PageHeader from '@/components/ui/PageHeader';
-import ProjectForm from '@/components/track/ProjectForm';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewProjectPage(props: { params: Promise<{ locale: string }> }) {
+/** El alta de team (antes "proyecto") vive en /app/track/teams/new. */
+export default async function Page(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
-  await requireUser(locale);
-  const t = await getTranslations({ locale, namespace: 'track' });
-
-  return (
-    <div className="app-page track-page ui-page ui-page-narrow">
-      <PageHeader title={t('projects.newTitle')} back={{ href: '/app/track/projects', label: t('projects.title') }} />
-      <ProjectForm />
-    </div>
-  );
+  redirect(`/${locale}/app/track/teams/new`);
 }

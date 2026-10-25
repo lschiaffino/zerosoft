@@ -15,8 +15,9 @@ export function issueUrl(issueId: string): string {
   return `${appBaseUrl()}/app/track/issues/${issueId}`;
 }
 
-export function projectUrl(projectId: string): string {
-  return `${appBaseUrl()}/app/track/projects/${projectId}`;
+/** Página del team (un proyecto de Track) por su clave: /app/track/team/WEB. */
+export function projectUrl(projectId: string, key?: string): string {
+  return `${appBaseUrl()}/app/track/team/${encodeURIComponent(key ?? projectId)}`;
 }
 
 /** Descripción guardada (bloques JSON o texto heredado) → texto markdown. */
@@ -44,6 +45,10 @@ export interface ApiIssue {
   description: string;
   url: string;
   projectId: string;
+  /** Igual a projectId: un proyecto de Track es un team de Linear. */
+  teamId: string;
+  /** Project de Linear (plan) al que pertenece, si tiene. */
+  planId: string | null;
   status: { id: string; name: string; category: string; color: string | null } | null;
   priority: TrackIssueWithStatus['priority'];
   assignee: { id: string; name: string | null; email: string | null } | null;
@@ -69,6 +74,8 @@ export function toApiIssue(i: TrackIssueWithStatus): ApiIssue {
     description: descriptionToText(i.description),
     url: issueUrl(i.id),
     projectId: i.project_id,
+    teamId: i.project_id,
+    planId: (i as { plan_id?: string | null }).plan_id ?? null,
     status: i.status_id
       ? { id: i.status_id, name: i.status_name ?? '', category: i.status_category ?? 'todo', color: i.status_color }
       : null,
@@ -115,7 +122,7 @@ export function toApiProject(p: TrackProjectRow): ApiProject {
     status: p.status,
     visibility: p.visibility === 'private' ? 'private' : 'workspace',
     triageEnabled: p.triage_enabled === 1,
-    url: projectUrl(p.id),
+    url: projectUrl(p.id, p.slug.toUpperCase()),
     createdAt: p.created_at,
     updatedAt: p.updated_at,
   };

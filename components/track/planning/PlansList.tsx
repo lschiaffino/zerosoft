@@ -8,6 +8,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import type { PlanSummary } from '@/lib/track-plans';
 import { PLAN_STATUSES, type PlanStatus } from '@/lib/track-planning-schema';
 import { api, fmtDay, HealthDot, LoadingRows, Modal, PlanStatusIcon, ProgressBar, personName, type Person } from './shared';
+import { projectPath } from '@/lib/track-routes';
 
 export interface PlansMeta {
   members: Person[];
@@ -67,7 +68,7 @@ export default function PlansList() {
     if (value && value !== 'all') next.set(key, value);
     else next.delete(key);
     next.delete('new');
-    router.replace(`/app/track/plans${next.toString() ? `?${next}` : ''}`);
+    router.replace(`/app/track/projects${next.toString() ? `?${next}` : ''}`);
   };
 
   const filtered = useMemo(() => {
@@ -183,7 +184,7 @@ export default function PlansList() {
               <ul className="tp-rows" role="list">
                 {g.rows.map((p) => (
                   <li key={p.id} className="tp-row">
-                    <Link href={`/app/track/plans/${p.id}`} className="tp-row-link">
+                    <Link href={projectPath(p.id)} className="tp-row-link">
                       <span className="tp-row-icon" aria-hidden="true">
                         {p.icon || <PlanStatusIcon status={p.status} />}
                       </span>
@@ -212,7 +213,7 @@ export default function PlansList() {
         onClose={() => setCreating(false)}
         onCreated={(id) => {
           setCreating(false);
-          router.push(`/app/track/plans/${id}`);
+          router.push(projectPath(id));
         }}
       />
     </>

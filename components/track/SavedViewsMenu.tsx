@@ -20,6 +20,8 @@ interface SavedViewsMenuProps {
   onToggleFavorite: (id: string, favorite: boolean) => void;
   onUpdate: (id: string) => void;
   onCopyLink: (id: string) => void;
+  /** Abre el menú al montar (sidebar › team › Views). */
+  defaultOpen?: boolean;
   labels: {
     title: string;
     empty: string;
@@ -47,10 +49,11 @@ export default function SavedViewsMenu({
   onToggleFavorite,
   onUpdate,
   onCopyLink,
+  defaultOpen = false,
   labels,
 }: SavedViewsMenuProps) {
   const t = useTranslations('track.ux.views');
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [editing, setEditing] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const wrap = useRef<HTMLDivElement>(null);

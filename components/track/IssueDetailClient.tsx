@@ -39,6 +39,7 @@ import type {
   TrackIssueRelationWithTarget,
   TrackIssueWithStatus,
 } from '@/lib/track-data';
+import { teamKeyOf, teamPath } from '@/lib/track-routes';
 
 interface DetailLabels {
   back: string;
@@ -591,7 +592,7 @@ export default function IssueDetailClient({
       },
       restore: () => router.push(`/app/track/issues/${id}`),
     });
-    router.push(`/app/track/projects/${issue.project_id}`);
+    router.push(teamPath(teamKeyOf(issue)));
   }
 
   // ⌘⌫ borra (con confirmación), ⌘⇧, copia el link y ⌘⇧↑ abre el padre, como en Linear.
@@ -769,7 +770,7 @@ export default function IssueDetailClient({
       <header className="track-detail-head">
         <div className="track-detail-topbar">
           <nav className="track-breadcrumb" aria-label={labels.back}>
-            <Link href={`/app/track/projects/${issue.project_id}`}>{initialProjectName}</Link>
+            <Link href={teamPath(teamKeyOf(issue))}>{initialProjectName}</Link>
             {parentChain.map((p) => (
               <span key={p.id} className="track-breadcrumb-step">
                 <span className="track-breadcrumb-sep" aria-hidden>

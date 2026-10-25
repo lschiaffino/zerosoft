@@ -6,6 +6,7 @@ import FormSection from '@/components/ui/FormSection';
 import EmptyState from '@/components/ui/EmptyState';
 import { HOUSEKEEPING_MONTHS } from '@/lib/track-planning-schema';
 import { api, fmtWhen, LoadingRows } from './shared';
+import { TEAMS_PATH } from '@/lib/track-routes';
 
 interface Automation {
   autoCloseMonths: number;
@@ -34,7 +35,7 @@ export default function AutomationSettings({ isAdmin }: { isAdmin: boolean }) {
         {teams === null ? (
           <LoadingRows rows={2} />
         ) : teams.length === 0 ? (
-          <EmptyState quiet title={t('automation.noTeams')} action={{ label: t('cycles.goTeams'), href: '/app/track/projects' }} />
+          <EmptyState quiet title={t('automation.noTeams')} action={{ label: t('cycles.goTeams'), href: TEAMS_PATH }} />
         ) : (
           <>
             <div className="ui-field">

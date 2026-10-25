@@ -121,7 +121,7 @@
       "form": "Forms",
       "issue": "Track issues",
       "comment": "Track comments",
-      "project": "Track projects"
+      "project": "Track teams"
     },
     "eventLabels": {
       "booking_created": "Booking created",

@@ -1,13 +1,15 @@
 {
   "sidebar": {
     "overview": "Overview",
-    "myTasks": "My tasks",
-    "projects": "Projects",
+    "myTasks": "My issues",
+    "projects": "Teams",
     "issues": "Issues",
     "cycles": "Cycles",
     "settings": "Settings",
     "inbox": "Inbox",
-    "customers": "Customers"
+    "customers": "Customers",
+    "workspace": "Workspace",
+    "yourTeams": "Your teams"
   },
   "common": {
     "viewAll": "View all",
@@ -28,10 +30,10 @@
   },
   "overview": {
     "title": "Overview",
-    "subtitle": "Each project's current cycle, overdue issues and the triage queue.",
-    "emptyTitle": "No projects yet",
-    "emptySub": "A project groups issues, cycles and views. Create one per product or team.",
-    "projects": "Projects",
+    "subtitle": "Each team's current cycle, overdue issues and the triage queue.",
+    "emptyTitle": "No teams yet",
+    "emptySub": "A team groups issues, cycles and views, with its own identifier and workflow. Create one for each group that works together.",
+    "projects": "Teams",
     "recentIssues": "Recent issues",
     "emptySecondary": "Also from ⌘K.",
     "cycle": "Current cycle",
@@ -40,12 +42,12 @@
     "triage": "Triage"
   },
   "projects": {
-    "title": "Projects",
-    "newCta": "New project",
-    "newTitle": "New project",
+    "title": "Teams",
+    "newCta": "New team",
+    "newTitle": "New team",
     "newSub": "Issue identifiers come from the name.",
-    "back": "← All projects",
-    "empty": "No projects yet.",
+    "back": "← All teams",
+    "empty": "No teams yet.",
     "openIssues": "open",
     "form": {
       "name": "Name",
@@ -58,17 +60,17 @@
       "advancedHint": "Identifier and icon",
       "iconHelp": "An emoji or up to 8 characters, next to the name."
     },
-    "create": "Create project",
+    "create": "Create team",
     "formTitle": "Basics",
-    "backToList": "Back to projects",
+    "backToList": "Back to teams",
     "column": {
-      "project": "Project",
+      "project": "Team",
       "open": "Open"
     },
-    "subtitle": "All of your team's projects and their open issues."
+    "subtitle": "Every team in this workspace and its open issues."
   },
   "project": {
-    "title": "Project",
+    "title": "Team",
     "issues": "Issues",
     "cycles": "Cycles",
     "statuses": "Statuses",
@@ -81,7 +83,7 @@
     "loadMore": "Load more",
     "showing": "Showing {shown} of {total}",
     "settings": "Settings",
-    "loadErrorTitle": "Couldn't load the project",
+    "loadErrorTitle": "Couldn't load the team",
     "loadErrorBody": "Check your connection and try again.",
     "emptyTitle": "No issues yet",
     "emptyBody": "An issue is a task with a status, a priority and an owner. The ones you create show up here.",
@@ -92,7 +94,7 @@
   "issues": {
     "pageTitle": "Issues",
     "newCta": "+ New issue",
-    "back": "← Back to project",
+    "back": "← Back to team",
     "empty": "No issues match.",
     "identifier": "ID",
     "title": "Title",
@@ -116,7 +118,7 @@
     "createdOn": "Created {date}",
     "breadcrumb": "Issue location",
     "description": "Description",
-    "noProjectsBody": "Create a project to start adding issues.",
+    "noProjectsBody": "Create a team to start adding issues.",
     "none": "None",
     "editTitle": "Issue title",
     "descriptionPlaceholder": "Add a description…",
@@ -337,16 +339,16 @@
     "invalid_input": "Some fields are invalid. Check them and try again.",
     "generic": "Something went wrong. Try again.",
     "invalid_range": "The end date can't be before the start.",
-    "last_status": "The project needs at least one status.",
+    "last_status": "The team needs at least one status.",
     "cycle_overlap": "That overlaps another cycle. Pick other dates.",
-    "invalid_milestone": "That milestone is not in this project.",
+    "invalid_milestone": "That milestone is not in this team.",
     "reminder_in_past": "Pick a time in the future."
   },
   "quick": {
     "newTask": "New issue",
     "placeholder": "Issue title, Enter to save, Esc to cancel",
     "hint": "Type !high or @tomorrow in the title to set priority and due date.",
-    "project": "Project",
+    "project": "Team",
     "modalTitle": "New issue",
     "titlePlaceholder": "Issue title",
     "descriptionPlaceholder": "Add a description…",
@@ -361,7 +363,7 @@
   "inline": {
     "markDone": "Mark as done",
     "markOpen": "Mark as not done",
-    "noDoneStatus": "This project has no “Done” status.",
+    "noDoneStatus": "This team has no “Done” status.",
     "saveError": "Couldn’t save the change. It was reverted.",
     "createError": "Couldn’t create the issue. Try again.",
     "noDate": "No date",
@@ -375,24 +377,24 @@
     "loadError": "Couldn't load more issues."
   },
   "myTasks": {
-    "title": "My tasks",
-    "subtitle": "Everything assigned to you, across projects.",
+    "title": "My issues",
+    "subtitle": "Everything assigned to you, across teams.",
     "overdue": "Overdue",
     "today": "Today",
     "upcoming": "Upcoming",
     "noDate": "No date",
     "empty": "Nothing assigned to you",
-    "emptyBody": "Anything assigned to you in any project shows up here, grouped by due date."
+    "emptyBody": "Anything assigned to you in any team shows up here, grouped by due date."
   },
   "cmdk": {
     "newIssue": "New issue",
-    "newProject": "New project (Track)",
-    "myTasks": "Go to My tasks",
+    "newProject": "New team (Track)",
+    "myTasks": "Go to My issues",
     "allIssues": "Go to all issues",
     "inbox": "Go to Track inbox",
     "integrations": "Track: Slack, Sentry and other integrations",
     "apiMcp": "Track: API, webhooks and MCP",
-    "access": "Track: private projects and guests",
+    "access": "Track: private teams and guests",
     "audit": "Track: audit log"
   },
   "statusSettings": {
@@ -416,7 +418,7 @@
   },
   "labelsSettings": {
     "title": "Labels",
-    "help": "Labels belong to the workspace and are shared by every project.",
+    "help": "Labels belong to the workspace and are shared by every team.",
     "newPlaceholder": "New label",
     "add": "Add",
     "name": "Label name",
@@ -501,9 +503,9 @@
     "appNotInstalled": "Not installed",
     "appInstall": "Install GitHub App",
     "appReinstall": "Change repos",
-    "rulesTitle": "Automations by project",
-    "rulesHelp": "Pick the status each project moves to when a pull request is drafted, opened, sent to review or merged. Without custom rules, a project uses the workspace rules above.",
-    "rulesNoProjects": "Create a project to set its automations.",
+    "rulesTitle": "Automations by team",
+    "rulesHelp": "Pick the status each team moves to when a pull request is drafted, opened, sent to review or merged. Without custom rules, a team uses the workspace rules above.",
+    "rulesNoProjects": "Create a team to set its automations.",
     "customRules": "Custom rules",
     "saved": "Saved",
     "rule": {
@@ -513,7 +515,7 @@
       "onMerge": "PR merged"
     },
     "syncRepo": "Sync GitHub Issues from",
-    "syncRepoHelp": "New issues of this repo (owner/name) land in this project, and closing, reopening, renaming and comments follow along. Older issues come in with the importer.",
+    "syncRepoHelp": "New issues of this repo (owner/name) land in this team, and closing, reopening, renaming and comments follow along. Older issues come in with the importer.",
     "magicWords": "In a PR title or body, \"fixes WEB-12\" (also closes, resolves, completes, implements) links and moves the issue; \"ref WEB-12\" or \"part of WEB-12\" only links it; \"skip WEB-12\" ignores it."
   },
   "bulk": {
@@ -532,7 +534,7 @@
     "noCycle": "No cycle",
     "addLabel": "Add {name}",
     "removeLabel": "Remove {name}",
-    "skipped": "{count} issues were not changed (other project or invalid option).",
+    "skipped": "{count} issues were not changed (other team or invalid option).",
     "error": "Could not apply the change.",
     "hint": "X selects the active row. Shift+click selects a range.",
     "choose": "Choose…"
@@ -573,7 +575,7 @@
     "emptyBody": "Issues from the API, Chat, Flow or GitHub wait here until someone accepts them."
   },
   "projectSettings": {
-    "title": "Project settings",
+    "title": "Team settings",
     "close": "Close settings",
     "tabs": {
       "cycles": "Cycles",
@@ -609,7 +611,7 @@
       "priority": "Priority",
       "cycle": "Cycle",
       "label": "Label",
-      "project": "Project"
+      "project": "Team"
     },
     "sorts": {
       "newest": "Newest",
@@ -740,9 +742,9 @@
     "error": "Could not save. Try again."
   },
   "milestones": {
-    "help": "Checkpoints inside the project, with a target date. Progress counts the issues assigned to each one.",
+    "help": "Checkpoints inside the team, with a target date. Progress counts the issues assigned to each one.",
     "emptyTitle": "No milestones yet",
-    "emptyBody": "Add one to split the project into stages with a date.",
+    "emptyBody": "Add one to split the team into stages with a date.",
     "new": "New milestone",
     "name": "Name",
     "description": "Description",
@@ -752,7 +754,7 @@
     "overdue": "Overdue",
     "edit": "Edit",
     "delete": "Delete",
-    "deleteConfirm": "Delete this milestone? Its issues stay in the project without a milestone.",
+    "deleteConfirm": "Delete this milestone? Its issues stay in the team without a milestone.",
     "save": "Save milestone",
     "create": "Create milestone",
     "error": "Could not save the milestone. Try again.",
@@ -787,9 +789,15 @@
     "reminderFor": "Reminder for {identifier}"
   },
   "branch": {
-    "label": "Projects",
-    "empty": "No projects yet.",
-    "private": "Private project"
+    "label": "Teams",
+    "empty": "No teams yet.",
+    "private": "Private team",
+    "issues": "Issues",
+    "cycles": "Cycles",
+    "projects": "Projects",
+    "views": "Views",
+    "expand": "Expand",
+    "collapse": "Collapse"
   },
   "importer": {
     "tab": "Import and export",
@@ -810,7 +818,7 @@
       "shortcut": "Shortcut"
     },
     "target": "Into",
-    "targetNew": "A new project for each {kind}",
+    "targetNew": "A new team for each {kind}",
     "kinds": {
       "linear": "Linear team",
       "linear_csv": "Linear team",
@@ -827,7 +835,7 @@
     "githubToken": "GitHub token",
     "githubHelp": "A fine-grained token with read access to Issues on that repository.",
     "tokenNote": "Used only for this import. It is kept encrypted while the import reads your data and deleted right after.",
-    "linearNote": "Linear teams become projects and Linear projects become milestones.",
+    "linearNote": "Linear teams become teams and Linear projects become milestones.",
     "csvFile": "CSV file",
     "csvTooLarge": "The CSV is over 4 MB. Split it and import each part.",
     "csvEmpty": "The file has no header row.",
@@ -864,14 +872,14 @@
     "stat": {
       "issues": "Issues",
       "comments": "Comments",
-      "projects": "Projects",
+      "projects": "Teams",
       "labels": "Labels",
       "cycles": "Cycles",
       "milestones": "Milestones"
     },
     "already": "{count, plural, one {# issue was imported before and will be skipped.} other {# issues were imported before and will be skipped.}}",
     "truncated": "The source has more issues than one import accepts. The rest were left out.",
-    "projectsTitle": "Projects",
+    "projectsTitle": "Teams",
     "projectNew": "new",
     "projectExisting": "existing",
     "issuesCount": "{count, plural, one {# issue} other {# issues}}",
@@ -910,8 +918,8 @@
     "failedTitle": "The import stopped.",
     "exportTitle": "Export CSV",
     "exportLead": "Download issues as a CSV with the same columns the import reads.",
-    "exportProject": "Project",
-    "exportAll": "All projects",
+    "exportProject": "Team",
+    "exportAll": "All teams",
     "exportButton": "Download CSV",
     "createdPart": {
       "projects": "{count, plural, one {# project} other {# projects}}",
@@ -934,7 +942,7 @@
     "shortcutQueryHelp": "A Shortcut search such as team:mobile or epic:\"Onboarding\". Empty imports every story that is not archived.",
     "shortcutToken": "Shortcut API token",
     "shortcutHelp": "In Shortcut: Settings › Your account › API tokens.",
-    "shortcutNote": "Each workflow becomes a project and epics become milestones. Shortcut caps how many stories one search returns: in a large workspace, import by team or epic."
+    "shortcutNote": "Each workflow becomes a team and epics become milestones. Shortcut caps how many stories one search returns: in a large workspace, import by team or epic."
   },
   "integrations": {
     "tab": "Integrations",
@@ -948,23 +956,23 @@
     "disconnectConfirm": "Disconnect {name}? Linked items stay on the issues.",
     "save": "Save",
     "remove": "Remove",
-    "project": "Project",
+    "project": "Team",
     "apiToken": "API token",
     "keepSecret": "Saved. Leave empty to keep it.",
     "missingToken": "Paste the API token to connect.",
     "log": "Recent activity",
     "logEmpty": "Nothing yet.",
     "slack": {
-      "help": "Create issues from Slack messages and /track, get project updates in channels, sync comment threads and preview issue links.",
+      "help": "Create issues from Slack messages and /track, get team updates in channels, sync comment threads and preview issue links.",
       "notConfigured": "Slack is not set up on this server yet (SLACK_CLIENT_ID, SLACK_CLIENT_SECRET and SLACK_SIGNING_SECRET).",
       "connect": "Connect Slack",
       "connectedTo": "Connected to {team}.",
-      "howTo": "In Slack: /track <title> creates an issue in the default project; on any message, More actions › Create Track issue opens a form and keeps the thread in sync with the issue comments.",
-      "defaultProject": "Default project for /track",
-      "firstProject": "First project I can see",
+      "howTo": "In Slack: /track <title> creates an issue in the default team; on any message, More actions › Create Track issue opens a form and keeps the thread in sync with the issue comments.",
+      "defaultProject": "Default team for /track",
+      "firstProject": "First team I can see",
       "unfurl": "Show a preview of issue links",
       "channels": "Channel notifications",
-      "noChannels": "No channels yet. Pick a project, a channel and what to post.",
+      "noChannels": "No channels yet. Pick a team, a channel and what to post.",
       "channel": "Channel",
       "eventsLabel": "Post when",
       "events": {
@@ -984,7 +992,7 @@
     },
     "sentry": {
       "help": "New Sentry issues create a Track issue with the error link, and completing it resolves the issue in Sentry.",
-      "project": "Track project for new errors",
+      "project": "Track team for new errors",
       "org": "Sentry organization slug",
       "secret": "Client secret (webhook signature)",
       "token": "Token (to resolve in Sentry)",
@@ -1012,7 +1020,7 @@
     },
     "zapier": {
       "title": "Zapier, Make and others",
-      "help": "Outgoing webhooks send issue, comment and project events signed, with retries. The API creates and updates issues. Both work from Zapier, Make or n8n with a Webhooks step.",
+      "help": "Outgoing webhooks send issue, comment and team events signed, with retries. The API creates and updates issues. Both work from Zapier, Make or n8n with a Webhooks step.",
       "webhooks": "Set up webhooks",
       "docs": "API docs"
     }
@@ -1020,7 +1028,7 @@
   "apiSettings": {
     "tab": "API and MCP",
     "apiTitle": "REST API",
-    "apiHelp": "Issues, comments, projects, cycles, statuses, labels and people. Use an API key with the track:read or track:write scope; it acts as the person who created it, so it sees what that person sees.",
+    "apiHelp": "Issues, comments, teams, cycles, statuses, labels and people. Use an API key with the track:read or track:write scope; it acts as the person who created it, so it sees what that person sees.",
     "baseUrl": "Base URL",
     "keys": "Create an API key",
     "docs": "API docs",
@@ -1037,35 +1045,35 @@
   "access": {
     "tab": "Access",
     "title": "Access",
-    "help": "Private projects are visible only to their members. Guests see only the projects you give them.",
+    "help": "Private teams are visible only to their members. Guests see only the teams you give them.",
     "adminOnly": "Only workspace admins can change access.",
-    "personal": "This is a personal workspace: nobody else sees your projects. Create a team in Workspace settings to share projects and invite guests.",
+    "personal": "This is a personal workspace: nobody else sees your teams. Create a shared workspace in Settings to share teams and invite guests.",
     "loadError": "Could not load access settings.",
     "error": "Could not save the change.",
     "adminGuest": "Admins cannot be guests.",
-    "projectsTitle": "Projects",
-    "projectsHelp": "Making a project private keeps you as a member and unsubscribes people who are not members. Admins see every project here and can join a private one.",
-    "noProjects": "No projects yet.",
+    "projectsTitle": "Teams",
+    "projectsHelp": "Making a team private keeps you as a member and unsubscribes people who are not members. Admins see every team here and can join a private one.",
+    "noProjects": "No teams yet.",
     "visibility": "Who can see {name}",
     "workspace": "Everyone in the workspace",
     "private": "Private: members only",
-    "privateBadge": "Private project",
+    "privateBadge": "Private team",
     "join": "Join",
     "members": "{count, plural, one {# member} other {# members}}",
     "addMember": "Add member",
     "removeMember": "Remove {name}",
     "guestsTitle": "Guests",
-    "guestsHelp": "A guest is someone in your team who only sees the projects you check, for example a contractor or a client. You can mark the email before they accept the invitation.",
+    "guestsHelp": "A guest is someone in your workspace who only sees the teams you check, for example a contractor or a client. You can mark the email before they accept the invitation.",
     "noGuests": "No guests.",
     "pending": "invitation pending",
-    "noAccess": "no projects",
+    "noAccess": "no teams",
     "edit": "Edit",
     "removeGuest": "Remove guest",
     "guestForm": "Guest",
     "guestEmail": "Guest email",
     "guestEmailHelp": "They also need a team invitation.",
     "inviteLink": "Invite to the team",
-    "guestProjects": "Projects the guest can see",
+    "guestProjects": "Teams the guest can see",
     "saveGuest": "Save guest",
     "footnote": "Integrations and API keys act as their owner and follow the same access."
   },
@@ -1077,11 +1085,11 @@
     "action": "Action",
     "allActions": "All actions",
     "search": "Search",
-    "searchPlaceholder": "Issue, project or text",
+    "searchPlaceholder": "Issue, team or text",
     "export": "Export CSV",
     "loadError": "Could not load the audit log.",
     "empty": "No events",
-    "emptyBody": "Changes to issues, projects, access and integrations show up here.",
+    "emptyBody": "Changes to issues, teams, access and integrations show up here.",
     "more": "Show more",
     "system": "System",
     "actions": {
@@ -1091,9 +1099,9 @@
       "comment_created": "commented on",
       "comment_updated": "edited a comment on",
       "comment_deleted": "deleted a comment on",
-      "project_created": "created the project",
-      "project_updated": "changed the project",
-      "project_deleted": "deleted the project",
+      "project_created": "created the team",
+      "project_updated": "changed the team",
+      "project_deleted": "deleted the team",
       "project_visibility": "changed who can see",
       "access_member_added": "added a member to",
       "access_member_removed": "removed a member from",
@@ -1242,7 +1250,7 @@
       "show": "Show sub-issues"
     },
     "side": {
-      "project": "Project",
+      "project": "Team",
       "points": "{count, plural, one {# point} other {# points}}"
     },
     "presence": {
@@ -1265,7 +1273,7 @@
       "saved": "View saved",
       "linkCopied": "View link copied",
       "shareOnSave": "Share with the team",
-      "shareHelp": "Everyone in the project sees team views. Only you can edit them."
+      "shareHelp": "Everyone in the team sees team views. Only you can edit them."
     },
     "filter": {
       "fields": {

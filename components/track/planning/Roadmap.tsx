@@ -8,6 +8,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import type { PlanSummary } from '@/lib/track-plans';
 import type { InitiativeSummary } from '@/lib/track-initiatives';
 import { api, fmtDay, HealthDot, LoadingRows, PlanStatusIcon } from './shared';
+import { projectPath } from '@/lib/track-routes';
 
 type Zoom = 'week' | 'month' | 'quarter';
 type Mode = 'plans' | 'initiatives';
@@ -121,7 +122,7 @@ export default function Roadmap() {
       return {
         id: p.id,
         name: p.name,
-        href: `/app/track/plans/${p.id}`,
+        href: projectPath(p.id),
         icon: p.icon,
         status: p.status,
         health: p.health,
@@ -334,7 +335,7 @@ export default function Roadmap() {
         <EmptyState
           title={t('roadmap.emptyTitle')}
           body={t('roadmap.emptyBody')}
-          action={mode === 'plans' ? { label: t('plans.new'), href: '/app/track/plans?new=1' } : { label: t('initiatives.new'), href: '/app/track/initiatives?new=1' }}
+          action={mode === 'plans' ? { label: t('plans.new'), href: '/app/track/projects?new=1' } : { label: t('initiatives.new'), href: '/app/track/initiatives?new=1' }}
         />
       ) : (
         <>

@@ -23,6 +23,7 @@ import {
   type CsvField,
   type CsvMapping,
 } from '@/lib/track-import-map';
+import { teamPath } from '@/lib/track-routes';
 
 type Source = 'linear' | 'linear_csv' | 'jira' | 'jira_csv' | 'github' | 'asana' | 'shortcut' | 'csv';
 const SOURCES: Source[] = ['linear', 'linear_csv', 'jira', 'jira_csv', 'github', 'asana', 'shortcut', 'csv'];
@@ -597,7 +598,7 @@ function DoneView({ job, onAgain }: { job: ImportJobView; onAgain: () => void })
         <ul className="ximp-links">
           {r.projects.map((p) => (
             <li key={p.id}>
-              <Link href={`/app/track/projects/${p.id}`}>{t('openProject', { name: p.name })}</Link>
+              <Link href={teamPath(p)}>{t('openProject', { name: p.name })}</Link>
             </li>
           ))}
         </ul>

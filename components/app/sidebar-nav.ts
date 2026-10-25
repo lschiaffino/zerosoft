@@ -107,6 +107,9 @@ export interface SidebarLabels {
     dashboards?: string;
     /** Pedidos de clientes (T3). */
     customers?: string;
+    /** Secciones como en Linear: "Workspace" y "Your teams". */
+    workspace?: string;
+    yourTeams?: string;
   };
   chat: {
     overview: string;
@@ -367,45 +370,11 @@ export function buildNav(
       ];
 
     case 'track':
+      // Como el sidebar de Linear: Inbox y My issues arriba, el workspace
+      // (projects, initiatives, vistas de todos los issues) y los teams con
+      // sus Issues / Cycles / Projects / Views (TrackBranch).
       return [
         {
-          items: [
-            { href: '/app/track', label: labels.track.overview, active: pathname === '/app/track', icon: 'overview' },
-            { href: '/app/track/my-tasks', label: labels.track.myTasks, active: at('/app/track/my-tasks'), icon: 'myTasks' },
-          ],
-        },
-        {
-          section: labels.records,
-          items: [
-            { href: '/app/track/projects', label: labels.track.projects, active: at('/app/track/projects'), icon: 'lists', branch: true },
-            { href: '/app/track/issues', label: labels.track.issues, active: at('/app/track/issues'), icon: 'tasks' },
-            ...(labels.track.customers
-              ? [{ href: '/app/track/customers', label: labels.track.customers, active: at('/app/track/customers'), icon: 'contacts' as const }]
-              : []),
-          ],
-        },
-        ...(labels.track.plans
-          ? [
-              {
-                section: labels.track.planning,
-                items: [
-                  { href: '/app/track/plans', label: labels.track.plans, active: at('/app/track/plans'), icon: 'plans' as const },
-                  { href: '/app/track/initiatives', label: labels.track.initiatives ?? '', active: at('/app/track/initiatives'), icon: 'initiatives' as const },
-                  { href: '/app/track/roadmap', label: labels.track.roadmap ?? '', active: at('/app/track/roadmap'), icon: 'roadmap' as const },
-                  { href: '/app/track/cycles', label: labels.track.cycles, active: at('/app/track/cycles'), icon: 'cycles' as const },
-                ],
-              },
-              {
-                section: labels.track.analytics,
-                items: [
-                  { href: '/app/track/insights', label: labels.track.insights ?? '', active: at('/app/track/insights'), icon: 'insights' as const },
-                  { href: '/app/track/dashboards', label: labels.track.dashboards ?? '', active: at('/app/track/dashboards'), icon: 'dashboards' as const },
-                ],
-              },
-            ]
-          : []),
-        {
-          section: labels.activity,
           items: [
             {
               href: '/app/track/inbox',
@@ -414,6 +383,37 @@ export function buildNav(
               icon: 'inbox',
               badge: unread > 0 ? unread : undefined,
             },
+            { href: '/app/track/my-tasks', label: labels.track.myTasks, active: at('/app/track/my-tasks'), icon: 'myTasks' },
+          ],
+        },
+        {
+          section: labels.track.workspace ?? labels.records,
+          items: [
+            ...(labels.track.plans
+              ? [
+                  { href: '/app/track/projects', label: labels.track.plans, active: at('/app/track/projects'), icon: 'plans' as const },
+                  { href: '/app/track/initiatives', label: labels.track.initiatives ?? '', active: at('/app/track/initiatives'), icon: 'initiatives' as const },
+                  { href: '/app/track/roadmap', label: labels.track.roadmap ?? '', active: at('/app/track/roadmap'), icon: 'roadmap' as const },
+                  { href: '/app/track/cycles', label: labels.track.cycles, active: at('/app/track/cycles'), icon: 'cycles' as const },
+                ]
+              : []),
+            { href: '/app/track/issues', label: labels.track.issues, active: at('/app/track/issues'), icon: 'tasks' },
+            ...(labels.track.customers
+              ? [{ href: '/app/track/customers', label: labels.track.customers, active: at('/app/track/customers'), icon: 'contacts' as const }]
+              : []),
+            ...(labels.track.insights
+              ? [
+                  { href: '/app/track/insights', label: labels.track.insights ?? '', active: at('/app/track/insights'), icon: 'insights' as const },
+                  { href: '/app/track/dashboards', label: labels.track.dashboards ?? '', active: at('/app/track/dashboards'), icon: 'dashboards' as const },
+                ]
+              : []),
+            { href: '/app/track', label: labels.track.overview, active: pathname === '/app/track', icon: 'overview' },
+          ],
+        },
+        {
+          section: labels.track.yourTeams,
+          items: [
+            { href: '/app/track/teams', label: labels.track.projects, active: at('/app/track/teams') || at('/app/track/team/'), icon: 'lists', branch: true },
           ],
         },
         {
@@ -591,7 +591,7 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels): NavIt
         item('/app/links/new', labels.newLink, 'newLink'),
         item('/app/crm/contacts/new', labels.newContact, 'contacts'),
         item('/app/docs?new=1', labels.newDocPage, 'docs'),
-        item('/app/track/projects/new', labels.newProject, 'lists'),
+        item('/app/track/teams/new', labels.newProject, 'lists'),
         item('/app/calendar/event-types/new', labels.newEventType, 'tasks'),
         item('/app/notes?new=1', labels.notes.newNote, 'notes'),
       ];
@@ -607,7 +607,7 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels): NavIt
     case 'calendar':
       return [item('/app/calendar/event-types/new', labels.newEventType, 'tasks')];
     case 'track':
-      return [item('/app/track/projects/new', labels.newProject, 'lists')];
+      return [item('/app/track/teams/new', labels.newProject, 'lists')];
     case 'chat':
       return [item('/app/chat/widgets/new', labels.newWidget, 'chat')];
     case 'flow':
