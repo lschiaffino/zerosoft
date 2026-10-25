@@ -271,7 +271,7 @@
     "approvalHttp": "Pedir aprovação para as requisições que escrevem (tudo menos GET)",
     "docsPages": "Páginas com que o agente trabalha",
     "noDocsPages": "Ainda não há páginas no Docs.",
-    "docsPagesHint": "Inclui as subpáginas. Ficam de fora as páginas de teamspaces que não permitem IA. O que escreve pelo Chat ou pela página pública sempre espera a aprovação de alguém da equipe. O agente trabalha com o acesso de quem escolheu as páginas.",
+    "docsPagesHint": "Inclui as subpáginas. Ficam de fora as páginas de teamspaces que não permitem IA. Fora do playground (Chat, página pública, API, Groups, Flow) tudo o que escreve no Docs espera a aprovação de alguém da equipe. O agente trabalha com o acesso de quem o alterou por último; no playground, com o seu.",
     "needsDocsPages": "Escolha pelo menos uma página do Docs.",
     "untitledPage": "Sem título"
   },

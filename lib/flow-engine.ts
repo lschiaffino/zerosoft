@@ -1374,6 +1374,13 @@ export async function executeRun(runId: string): Promise<FlowRunRow['status']> {
     return 'failed';
   }
   if (await cancelIfDisabled(state)) return 'failed';
+  // Sin la persona con cuyo acceso corre, no se ejecuta ningún nodo (nunca como el dueño del workspace).
+  if (!state.flow.created_by) {
+    await getDb()
+      .prepare("UPDATE flow_runs SET status = 'failed', error = 'no_flow_owner', finished_at = ?, locked_until = NULL WHERE id = ?")
+      .run(nowIso(), runId);
+    return 'failed';
+  }
   await inChain(run, async () => {
     const trigger = triggerNode(state.ctx.graph);
     if (!trigger) {

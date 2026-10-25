@@ -122,7 +122,11 @@ export default function WebhookDeliveries({
                       )}
                       {d.durationMs != null && <p className="ui-help">{t('log.duration', { ms: d.durationMs })}</p>}
                       <p className="label">{t('log.request')}</p>
-                      <pre className="data st-pre">{d.payload}</pre>
+                      {(d as { payloadHidden?: boolean }).payloadHidden ? (
+                        <p className="ui-help">{t('payloadHidden')}</p>
+                      ) : (
+                        <pre className="data st-pre">{d.payload}</pre>
+                      )}
                       <p className="label">{t('log.response')}</p>
                       <pre className="data st-pre">{d.responseBody || t('log.noBody')}</pre>
                     </div>

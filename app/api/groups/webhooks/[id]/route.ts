@@ -11,7 +11,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(_req: Request, ctx: Ctx) {
   const s = await groupsSession({ admin: true });
   if (s instanceof NextResponse) return s;
-  const deliveries = await listDeliveries(s.ws, (await ctx.params).id, 50);
+  const deliveries = await listDeliveries(s.ws, (await ctx.params).id, 50, s.user.actingUser?.id ?? s.user.id);
   return deliveries ? NextResponse.json({ deliveries }) : groupsError(404, 'not_found');
 }
 

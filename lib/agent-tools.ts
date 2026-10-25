@@ -259,6 +259,9 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
   }
 
   // Docs: páginas que el dueño le dio al agente (tools.docsPageIds) y sus subpáginas.
+  // En el playground trabaja con el acceso de quien prueba; en los demás canales,
+  // con el de quien lo configuró (tools.docsActorId).
+  const docsActor = ctx.channel === 'playground' ? (ctx.conversation.created_by ?? null) : (cfg.docsActorId ?? null);
   if (cfg.docsPageIds.length && on.has('docs_read_pages')) {
     add(
       'docs_read_pages',
@@ -271,7 +274,7 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
         }),
         execute: logged(ctx, 'docs_read_pages', async (input: { pageId?: string; query?: string }) => {
           const { readDocsForAgent } = await import('./agent-docs-tools');
-          return readDocsForAgent(workspaceId, cfg.docsPageIds, input, cfg.docsActorId ?? null);
+          return readDocsForAgent(workspaceId, cfg.docsPageIds, input, docsActor);
         }),
       }),
     );
@@ -292,10 +295,10 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
         }),
         execute: logged(ctx, 'docs_write_page', async (input: DocsPageWriteInput) => {
           const { checkPageWrite } = await import('./agent-docs-tools');
-          const bad = await checkPageWrite(workspaceId, cfg.docsPageIds, input, cfg.docsActorId ?? null);
+          const bad = await checkPageWrite(workspaceId, cfg.docsPageIds, input, docsActor);
           if (bad) return bad;
           if (ctx.dryRun) return simulated({ action: `docs_${input.operation}`, pageId: input.pageId ?? input.parentId ?? null, title: input.title ?? null });
-          return (await queueIfRequired(ctx, 'docs_write_page', { ...input })) ?? performAgentAction(actionContext(ctx), 'docs_write_page', { ...input });
+          return (await queueIfRequired(ctx, 'docs_write_page', { ...input })) ?? performAgentAction(actionContext(ctx), 'docs_write_page', { ...input }, docsActor);
         }),
       }),
     );
@@ -317,10 +320,10 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
         }),
         execute: logged(ctx, 'docs_write_row', async (input: DocsRowWriteInput) => {
           const { checkRowWrite } = await import('./agent-docs-tools');
-          const bad = await checkRowWrite(workspaceId, cfg.docsPageIds, input, cfg.docsActorId ?? null);
+          const bad = await checkRowWrite(workspaceId, cfg.docsPageIds, input, docsActor);
           if (bad) return bad;
           if (ctx.dryRun) return simulated({ action: input.rowId ? 'docs_update_row' : 'docs_add_row', pageId: input.pageId, title: input.title ?? null, properties: input.properties ?? {} });
-          return (await queueIfRequired(ctx, 'docs_write_row', { ...input })) ?? performAgentAction(actionContext(ctx), 'docs_write_row', { ...input });
+          return (await queueIfRequired(ctx, 'docs_write_row', { ...input })) ?? performAgentAction(actionContext(ctx), 'docs_write_row', { ...input }, docsActor);
         }),
       }),
     );
@@ -756,8 +759,8 @@ function actionContext(ctx: AgentRunContext): AgentActionContext {
 
 /** Si la herramienta pide aprobación, la encola y devuelve lo que el modelo le dice al visitante. */
 async function queueIfRequired(ctx: AgentRunContext, tool: ApprovableAgentTool, input: Record<string, unknown>): Promise<ToolOutput | null> {
-  // Escribir en Docs desde Chat o la página pública (cualquiera puede escribirle al agente) siempre espera aprobación.
-  const forced = (tool === 'docs_write_page' || tool === 'docs_write_row') && (ctx.channel === 'public' || ctx.channel === 'chat');
+    // Escribir en Docs sin una persona identificada (Chat, página pública, API, Groups, Flow) siempre espera aprobación.
+  const forced = (tool === 'docs_write_page' || tool === 'docs_write_row') && ctx.channel !== 'playground';
   if (ctx.dryRun || (!forced && !(ctx.agent.tools.requireApproval ?? []).includes(tool))) return null;
   const { queueAgentAction } = await import('./agents-approvals');
   const id = await queueAgentAction(actionContext(ctx), tool, input);
@@ -777,9 +780,11 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
  * y lib/agents-approvals.ts al aprobar: revalida contra la configuración
  * actual del agente (un evento, proyecto, flow o dominio sacado ya no corre).
  */
-export async function performAgentAction(actx: AgentActionContext, tool: ApprovableAgentTool, input: ActionInput): Promise<ToolOutput> {
+export async function performAgentAction(actx: AgentActionContext, tool: ApprovableAgentTool, input: ActionInput, docsActorOverride?: string | null): Promise<ToolOutput> {
   const { agent, workspaceId } = actx;
   const cfg = agent.tools;
+  // Docs: con el acceso de quien prueba (playground) o de quien configuró el agente; nunca el del dueño.
+  const docsActor = docsActorOverride !== undefined ? docsActorOverride : (cfg.docsActorId ?? null);
   switch (tool) {
     case 'crm_upsert_contact': {
       const { findOrCreateContact } = await import('./crm-integrations');
@@ -882,7 +887,7 @@ export async function performAgentAction(actx: AgentActionContext, tool: Approva
         cfg.docsPageIds,
         { operation: op, pageId: str(input.pageId) || undefined, parentId: str(input.parentId) || undefined, title: str(input.title) || undefined, markdown: str(input.markdown) || undefined },
         agent.name,
-        cfg.docsActorId ?? null,
+        docsActor,
       );
     }
     case 'docs_write_row': {
@@ -895,7 +900,7 @@ export async function performAgentAction(actx: AgentActionContext, tool: Approva
         title: str(input.title) || undefined,
         properties: props,
         markdown: str(input.markdown) || undefined,
-      }, cfg.docsActorId ?? null);
+      }, docsActor);
     }
     case 'http_request': {
       let url: URL;

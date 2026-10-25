@@ -271,7 +271,7 @@
     "approvalHttp": "Ask a teammate to approve requests that write (anything but GET)",
     "docsPages": "Pages this agent works with",
     "noDocsPages": "There are no Docs pages yet.",
-    "docsPagesHint": "Subpages are included. Pages in teamspaces that do not allow AI are left out. Writes from Chat and the public page always wait for a teammate to approve them. The agent works with the access of the person who picked the pages.",
+    "docsPagesHint": "Subpages are included. Pages in teamspaces that do not allow AI are left out. Outside the playground (Chat, public page, API, Groups, Flow) every Docs write waits for a teammate to approve it. The agent works with the access of the person who last changed it; in the playground, with yours.",
     "needsDocsPages": "Pick at least one Docs page.",
     "untitledPage": "Untitled"
   },

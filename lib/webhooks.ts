@@ -150,9 +150,21 @@ export async function updateWebhook(
   userId: string,
   id: string,
   patch: { active?: boolean; url?: string; events?: WebhookEvent[]; crmFilter?: CrmWebhookFilter | null },
+  /** Persona que cambia: si cambia URL o eventos de un webhook de otra, pasa a ser suyo (los filtros usan su acceso). */
+  actorId?: string,
 ): Promise<boolean> {
   const sets: string[] = [];
   const args: Array<string | number | null> = [];
+  if (actorId && (patch.url !== undefined || patch.events !== undefined)) {
+    const cur = (await getDb().prepare('SELECT created_by, url, events FROM webhooks WHERE id = ? AND user_id = ?').get(id, userId)) as
+      | { created_by: string | null; url: string; events: string }
+      | undefined;
+    const changes = cur && ((patch.url !== undefined && patch.url !== cur.url) || (patch.events !== undefined && JSON.stringify(patch.events) !== cur.events));
+    if (cur && changes && cur.created_by !== actorId) {
+      sets.push('created_by = ?');
+      args.push(actorId);
+    }
+  }
   if (patch.url !== undefined) {
     await assertPublicUrl(patch.url);
     sets.push('url = ?');
@@ -194,12 +206,25 @@ export interface WebhookDeliveryDto {
   createdAt: string;
   deliveredAt: string | null;
   payload: string;
+  /** El cuerpo se armó con el acceso de quien creó el webhook: solo lo ve esa persona. */
+  payloadHidden?: boolean;
 }
 
 /** Últimas entregas de un webhook del workspace (más nueva primero). null si el webhook no es suyo. */
-export async function listDeliveries(userId: string, webhookId: string, limit = 50): Promise<WebhookDeliveryDto[] | null> {
-  const owns = await getDb().prepare('SELECT 1 FROM webhooks WHERE id = ? AND user_id = ?').get(webhookId, userId);
+/**
+ * Eventos cuyo contenido se arma con el acceso de quien creó el webhook
+ * (Docs con teamspaces privados, canales privados): su cuerpo solo lo ve esa persona.
+ */
+export function isRestrictedEvent(event: string): boolean {
+  return event.startsWith('page.') || event.startsWith('database.') || event.startsWith('talk.');
+}
+
+export async function listDeliveries(userId: string, webhookId: string, limit = 50, viewerId?: string): Promise<WebhookDeliveryDto[] | null> {
+  const owns = (await getDb().prepare('SELECT created_by FROM webhooks WHERE id = ? AND user_id = ?').get(webhookId, userId)) as
+    | { created_by: string | null }
+    | undefined;
   if (!owns) return null;
+  const hide = (event: string) => viewerId !== undefined && isRestrictedEvent(event) && owns.created_by !== viewerId;
   const rows = (await getDb()
     .prepare(
       `SELECT id, event, status, attempts, response_code, response_body, last_error, duration_ms, next_attempt_at,
@@ -213,13 +238,15 @@ export async function listDeliveries(userId: string, webhookId: string, limit = 
     status: r.status as WebhookDeliveryDto['status'],
     attempts: Number(r.attempts),
     responseCode: r.response_code == null ? null : Number(r.response_code),
-    responseBody: String(r.response_body ?? ''),
+    // El endpoint puede devolver el cuerpo: también se oculta.
+    responseBody: hide(String(r.event)) ? '' : String(r.response_body ?? ''),
     error: (r.last_error as string | null) ?? null,
     durationMs: r.duration_ms == null ? null : Number(r.duration_ms),
     nextAttemptAt: (r.next_attempt_at as string | null) ?? null,
     createdAt: String(r.created_at),
     deliveredAt: (r.delivered_at as string | null) ?? null,
-    payload: String(r.payload),
+    payload: hide(String(r.event)) ? '' : String(r.payload),
+    ...(hide(String(r.event)) ? { payloadHidden: true } : {}),
   }));
 }
 

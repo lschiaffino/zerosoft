@@ -40,6 +40,18 @@ export function runViewer(user: Pick<SessionUser, 'id' | 'actingUser' | 'role'>)
   return { personId: user.actingUser?.id ?? user.id, admin: roleAtLeast(user.role, 'admin') };
 }
 
+/**
+ * ¿La corrida es de un flow creado por esta persona? Re-ejecutar reusa datos
+ * capturados con el acceso de quien creó el flow: solo esa persona.
+ */
+export async function runOwnedBy(workspaceId: string, runId: string, personId: string): Promise<boolean> {
+  const { getDb } = await import('./db');
+  const row = (await getDb()
+    .prepare('SELECT f.created_by FROM flow_runs r JOIN flow_flows f ON f.id = r.flow_id WHERE r.id = ? AND r.user_id = ?')
+    .get(runId, workspaceId)) as { created_by: string | null } | undefined;
+  return Boolean(row?.created_by && row.created_by === personId);
+}
+
 /** Persona real logueada (no el dueño del workspace). */
 export function realUserId(user: Pick<SessionUser, 'id' | 'actingUser'>): string {
   return user.actingUser?.id ?? user.id;
@@ -99,6 +111,8 @@ export async function testStepNow(
   workspaceId: string,
   flowId: string,
   body: z.infer<typeof flowStepTestSchema>,
+  /** Quien prueba: el paso corre con su acceso (no el de quien creó el flow) y ve sus propios datos. */
+  viewer?: { personId: string; admin: boolean },
 ): Promise<{ ok: true; result: StepTestResult } | { ok: false; error: 'not_found' | 'node_not_found' | 'step_not_testable' | 'rate_limited' }> {
   const row = await getFlowRow(workspaceId, flowId);
   if (!row) return { ok: false, error: 'not_found' };
@@ -116,8 +130,8 @@ export async function testStepNow(
     const trigger = triggerNode(graph);
     sample = {
       trigger: (trigger && pins[trigger.id]) ?? testInput(graph, undefined),
-      nodes: { ...(await lastOutputs(workspaceId, flowId)), ...pins },
+      nodes: { ...(await lastOutputs(workspaceId, flowId, viewer)), ...pins },
     };
   }
-  return { ok: true, result: await testFlowStep(row, node, sample) };
+  return { ok: true, result: await testFlowStep(viewer ? { ...row, created_by: viewer.personId } : row, node, sample) };
 }

@@ -238,7 +238,8 @@
       "retryAt": "próximo intento {date}",
       "redeliver": "Reenviar",
       "close": "Cerrar"
-    }
+    },
+    "payloadHidden": "El cuerpo se armó con el acceso de quien creó este webhook: solo esa persona lo ve."
   },
   "credentials": {
     "title": "Credenciales",

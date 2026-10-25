@@ -12,7 +12,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const { id, cid } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  const detail = await getConversationDetail(user.id, id, cid);
+  const detail = await getConversationDetail(user.id, id, cid, user.actingUser?.id ?? user.id);
   if (!detail) return notFound();
   return NextResponse.json(detail);
 }

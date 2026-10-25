@@ -631,6 +631,7 @@
     "table_full": "A tabela de dados está cheia. Apague linhas ou use outra tabela."
   },
   "errors": {
+    "not_flow_owner": "Só quem criou este flow pode executá-lo de novo: a execução usou o acesso dessa pessoa.",
     "generic": "Algo deu errado. Tente de novo.",
     "forbidden": "Só admins e donos do workspace podem fazer isso.",
     "not_found": "Este flow não existe mais.",

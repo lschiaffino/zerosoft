@@ -398,16 +398,6 @@ export async function createFlow(
   return { ok: true, flow: (await getFlow(workspaceId, id))! };
 }
 
-/** Nodos Gmail del grafo (id + config) para detectar si alguien los cambió. */
-/** Nodos de Docs (escriben con los permisos de quien creó el flow). */
-function docsNodesKey(graph: FlowGraph): string {
-  return JSON.stringify(graph.nodes.filter((n) => n.type === 'app.docs_page' || n.type === 'app.docs_row').map((n) => [n.id, n.config ?? {}]));
-}
-
-function gmailNodesKey(graph: FlowGraph): string {
-  return JSON.stringify(graph.nodes.filter((n) => n.type === 'app.gmail').map((n) => [n.id, n.config ?? {}]));
-}
-
 export async function updateFlow(
   workspaceId: string,
   id: string,
@@ -439,17 +429,13 @@ export async function updateFlow(
       return { ok: false, error: 'invalid_error_flow' };
     }
   }
-  const graphChanged = patch.graph !== undefined && JSON.stringify(graph) !== row.graph;
-  // Quien edita un nodo Gmail de otro pasa a ser el remitente (su casilla), y
-  // quien edita un nodo de Docs, la persona con cuyos permisos escribe en Docs.
   const prevGraph = parseGraph(row.graph);
-  const createdBy =
-    graphChanged &&
-    actorId &&
-    actorId !== row.created_by &&
-    (gmailNodesKey(graph) !== gmailNodesKey(prevGraph) || docsNodesKey(graph) !== docsNodesKey(prevGraph))
-      ? actorId
-      : row.created_by;
+  const graphChanged = patch.graph !== undefined && !sameJson(graph, prevGraph);
+  // El flow actúa como quien lo creó (Gmail, Docs, HTTP con credenciales,
+  // agentes, subflows): si otra persona cambia el grafo o lo activa, pasa a
+  // actuar como esa persona.
+  const turnsOn = patch.enabled === true && row.enabled !== 1;
+  const createdBy = (graphChanged || turnsOn) && actorId && actorId !== row.created_by ? actorId : row.created_by;
   const enabled = patch.enabled ?? row.enabled === 1;
   const tf = triggerFields(graph, enabled);
   // Al editar un schedule ya programado, se conserva la próxima corrida si la
@@ -549,10 +535,10 @@ export interface FlowRunViewer {
 
 /**
  * ¿Puede ver los datos de la corrida (entrada del disparador, entrada y
- * salida de cada paso)? Quien creó el flow sí (corre con sus permisos); un
- * admin también. El resto del workspace ve el estado, los tiempos y los
- * errores, sin los datos: un evento puede traer registros que esa persona no
- * puede abrir (visibilidad del CRM, páginas privadas, canales).
+ * salida de cada paso)? Solo quien creó el flow: se capturaron con su acceso.
+ * El resto del workspace, admins incluidos, ve el estado, los tiempos y los
+ * errores, sin los datos (un evento puede traer registros que esa persona no
+ * puede abrir: visibilidad del CRM, páginas privadas, canales).
  */
 export async function canSeeRunData(
   workspaceId: string,
@@ -561,6 +547,7 @@ export async function canSeeRunData(
   run: Pick<FlowRunRow, 'input'>,
 ): Promise<boolean> {
   if (!viewer) return true;
+  void workspaceId;
   if (flowCreator && viewer.personId === flowCreator) return true;
   // Datos capturados con el acceso de quien creó el flow: solo los ve esa persona
   // (un admin puede no tener acceso a lo mismo: páginas privadas, canales).

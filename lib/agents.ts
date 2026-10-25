@@ -277,10 +277,12 @@ export async function createAgent(
 
 /** Verifica que todo lo referenciado en la config sea del workspace. */
 /**
- * Docs: el agente trabaja con los permisos de quien eligió las páginas. Si
- * cambian las páginas o las herramientas de Docs, pasa a ser quien guarda, y
- * cada página tiene que poder abrirla esa persona (y editarla si el agente
- * escribe). Si no cambian, se conserva la persona anterior.
+ * Docs: el agente trabaja con los permisos de una persona (tools.docsActorId).
+ * Si alguien que no es esa persona cambia el agente (instrucciones, canales,
+ * página pública, herramientas o páginas), el agente pasa a trabajar con el
+ * acceso de quien lo cambió, y cada página tiene que poder abrirla (y editarla
+ * si el agente escribe). Devuelve el error, o null; deja en `payload.tools` la
+ * configuración con la persona resuelta.
  */
 async function resolveDocsActor(
   workspaceId: string,
@@ -288,15 +290,21 @@ async function resolveDocsActor(
   payload: AgentUpdatePayload,
   personId?: string,
 ): Promise<string | null> {
-  const tools = payload.tools!;
   const prev = parseTools(existing.tools);
+  const tools = payload.tools ?? prev;
   const docsKeys = (t: { enabled: string[]; docsPageIds: string[] }) => JSON.stringify([t.enabled.filter((k) => k.startsWith('docs_')).sort(), [...t.docsPageIds].sort()]);
+  const docsOn = tools.docsPageIds.length > 0 && tools.enabled.some((k) => k.startsWith('docs_'));
+  const current = prev.docsActorId ?? existing.created_by ?? null;
+  const anyChange = Object.keys(payload).length > 0;
+  const takeover = Boolean(personId && personId !== current && anyChange && docsOn);
   const changed = docsKeys(tools) !== docsKeys(prev);
-  tools.docsActorId = changed ? (personId ?? prev.docsActorId ?? existing.created_by ?? null) : (prev.docsActorId ?? existing.created_by ?? null);
-  if (!changed || !tools.docsPageIds.length) return null;
-  if (!tools.docsActorId) return 'invalid_docs_page';
+  const actorId = takeover || (changed && personId) ? personId! : current;
+  if (!payload.tools && actorId === prev.docsActorId) return null;
+  payload.tools = { ...tools, docsActorId: actorId };
+  if (!docsOn || (!takeover && !changed)) return null;
+  if (!actorId) return 'invalid_docs_page';
   const { docsActorFor, pageFor } = await import('./docs-platform-access');
-  const actor = await docsActorFor(workspaceId, tools.docsActorId);
+  const actor = await docsActorFor(workspaceId, actorId);
   if (!actor) return 'invalid_docs_page';
   const writes = tools.enabled.some((k) => k === 'docs_write_page' || k === 'docs_write_row');
   for (const pageId of tools.docsPageIds) {
@@ -363,10 +371,8 @@ export async function updateAgent(
 ): Promise<AgentWriteResult> {
   const existing = await getAgentRow(workspaceId, id);
   if (!existing) return { ok: false, error: 'not_found' };
-  if (payload.tools !== undefined) {
-    const docsError = await resolveDocsActor(workspaceId, existing, payload, personId);
-    if (docsError) return { ok: false, error: docsError };
-  }
+  const docsError = await resolveDocsActor(workspaceId, existing, payload, personId);
+  if (docsError) return { ok: false, error: docsError };
   const refError = await assertConfigRefs(workspaceId, payload);
   if (refError) return { ok: false, error: refError };
 
@@ -825,10 +831,40 @@ export interface AgentConversationDetail {
   toolCalls: AgentToolCallDto[];
 }
 
+/**
+ * Llamadas a las herramientas de Docs: traen texto de páginas leído con el
+ * acceso de otra persona. Quien mira la conversación las ve solo si puede
+ * abrir esa página (las búsquedas y listados, solo esa misma persona).
+ */
+async function redactDocsCalls(workspaceId: string, calls: AgentToolCallDto[], viewerId: string, docsActorId: string | null): Promise<AgentToolCallDto[]> {
+  if (!calls.some((c) => c.tool.startsWith('docs_'))) return calls;
+  const { docsActorFor, pageFor } = await import('./docs-platform-access');
+  const viewer = await docsActorFor(workspaceId, viewerId);
+  const cache = new Map<string, boolean>();
+  const canRead = async (pageId: string) => {
+    if (!cache.has(pageId)) cache.set(pageId, Boolean(viewer && (await pageFor(viewer, pageId))));
+    return cache.get(pageId)!;
+  };
+  const out: AgentToolCallDto[] = [];
+  for (const c of calls) {
+    if (!c.tool.startsWith('docs_')) {
+      out.push(c);
+      continue;
+    }
+    const input = (c.input ?? {}) as { pageId?: unknown };
+    const output = (c.output ?? {}) as { page?: { id?: unknown } };
+    const pageId = typeof input.pageId === 'string' ? input.pageId : typeof output.page?.id === 'string' ? output.page.id : '';
+    const visible = pageId ? await canRead(pageId) : viewerId === docsActorId;
+    out.push(visible ? c : { ...c, input: { hidden: true }, output: { hidden: true } });
+  }
+  return out;
+}
+
 export async function getConversationDetail(
   workspaceId: string,
   agentId: string,
   conversationId: string,
+  viewerId?: string,
 ): Promise<AgentConversationDetail | null> {
   const db = getDb();
   const conv = await getConversationRow(conversationId);
@@ -872,7 +908,12 @@ export async function getConversationDetail(
   const calls = (await db
     .prepare('SELECT * FROM agent_tool_calls WHERE conversation_id = ? ORDER BY created_at, rowid')
     .all(conv.id)) as AgentToolCallRow[];
-  return { conversation: toConversationDto(conv), messages, toolCalls: calls.map(toToolCallDto) };
+  let toolCalls = calls.map(toToolCallDto);
+  if (viewerId) {
+    const agentRow = await getAgentRow(workspaceId, agentId);
+    toolCalls = await redactDocsCalls(workspaceId, toolCalls, viewerId, agentRow ? parseTools(agentRow.tools).docsActorId ?? null : null);
+  }
+  return { conversation: toConversationDto(conv), messages, toolCalls };
 }
 
 async function addMessage(
