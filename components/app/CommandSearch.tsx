@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
+import { SETTINGS_SECTION_KEYS, settingsSectionHref } from '@/lib/settings-nav';
+import { PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref } from '@/lib/products';
 
 interface ResultItem {
   group: string;
@@ -22,6 +24,7 @@ function useGroupOrder() {
   return useMemo(() => [
         'track',
         'actions',
+        'settings',
         'projects',
         'issues',
         'contacts',
@@ -70,6 +73,8 @@ export default function CommandSearch() {
   const tNotes = useTranslations('notes');
   const tBoard = useTranslations('board');
   const tTrack = useTranslations('track');
+  const tSections = useTranslations('settings.sections');
+  const tSettingsCmdk = useTranslations('settings.cmdk');
   const router = useRouter();
   const pathname = usePathname();
   const inTrack = pathname.startsWith('/app/track');
@@ -130,6 +135,25 @@ export default function CommandSearch() {
     return inTrack ? [...track, ...rest] : [...rest, ...track];
   }, [t, tNotes, tBoard, tTrack, inTrack, inCrm]);
 
+  // Secciones de Ajustes (plataforma y cada app): solo aparecen al buscar.
+  const settingsItems = useMemo<ResultItem[]>(
+    () => [
+      ...SETTINGS_SECTION_KEYS.map((key) => ({
+        group: 'settings',
+        label: tSettingsCmdk('section', { section: tSections(key) }),
+        meta: '',
+        href: settingsSectionHref(key),
+      })),
+      ...PRODUCT_KEYS.map((key) => ({
+        group: 'settings',
+        label: tSettingsCmdk('product', { app: PRODUCT_CONFIG[key].name }),
+        meta: '',
+        href: productSettingsHref(key),
+      })),
+    ],
+    [tSections, tSettingsCmdk],
+  );
+
   useEffect(() => {
     function onOpen() {
       setOpen(true);
@@ -174,7 +198,7 @@ export default function CommandSearch() {
         const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&locale=${locale}`);
         const data = (await res.json()) as SearchResponse;
         const needle = query.trim().toLowerCase();
-        const matchingActions = actionItems.filter((a) => a.label.toLowerCase().includes(needle));
+        const matchingActions = [...actionItems, ...settingsItems].filter((a) => a.label.toLowerCase().includes(needle));
         const sorted = [...matchingActions, ...(data.items ?? [])].sort(
           (a, b) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group),
         );
@@ -186,7 +210,7 @@ export default function CommandSearch() {
         setSel(0);
       }
     },
-    [actionItems, groupOrder, locale],
+    [actionItems, settingsItems, groupOrder, locale],
   );
 
   useEffect(() => {

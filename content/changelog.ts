@@ -29,6 +29,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-25-platform-settings',
+    date: '2026-10-25',
+    title: {
+      en: 'Platform settings in one place, and settings for every app',
+      es: 'Los ajustes de la plataforma en un solo lugar, y ajustes para cada app',
+      pt: 'Os ajustes da plataforma num só lugar, e ajustes para cada app',
+    },
+    items: [
+      { product: 'platform', en: 'Settings has a side menu with two groups: account and workspace (profile, workspace, members, teams, plan and usage, API and webhooks, connections, import, security, notifications) and products, with one entry per app. ⌘K finds every section, and on a phone the menu becomes a selector.', es: 'Ajustes tiene un menú lateral con dos grupos: cuenta y workspace (perfil, workspace, miembros, equipos, plan y uso, API y webhooks, conexiones, importar, seguridad, avisos) y productos, con una entrada por app. ⌘K encuentra cada sección, y en el celular el menú pasa a un selector.', pt: 'Ajustes tem um menu lateral com dois grupos: conta e workspace (perfil, workspace, membros, equipes, plano e uso, API e webhooks, conexões, importar, segurança, avisos) e produtos, com uma entrada por app. O ⌘K encontra cada seção, e no celular o menu vira um seletor.' },
+      { product: 'platform', en: 'API keys and webhooks moved to API and webhooks, AI usage to Plan and usage and Flow credentials to Connections. Old links to the workspace page land on the new section.', es: 'Las API keys y los webhooks pasaron a API y webhooks, el uso de IA a Plan y uso y las credenciales de Flow a Conexiones. Los links viejos a la página del workspace caen en la sección nueva.', pt: 'As API keys e os webhooks foram para API e webhooks, o uso de IA para Plano e uso e as credenciais do Flow para Conexões. Os links antigos para a página do workspace caem na seção nova.' },
+      { product: 'link', en: 'Link has its own settings page with custom domains, Bitly import and link export.', es: 'Link tiene su página de ajustes con dominios propios, importar desde Bitly y exportar links.', pt: 'O Link tem sua página de ajustes com domínios próprios, importação do Bitly e exportação de links.' },
+    ],
+  },
+  {
     id: '2026-10-24-crm-ai',
     date: '2026-10-24',
     title: {

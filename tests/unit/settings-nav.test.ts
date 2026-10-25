@@ -1,19 +1,56 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { activeRouteTab, groupState, quotaPct, settingsTabs, toggleGroup, webhookEventGroups } from '@/lib/settings-nav';
+import {
+  activeRouteTab,
+  groupState,
+  legacySettingsTarget,
+  quotaPct,
+  SETTINGS_ELSEWHERE,
+  settingsSections,
+  toggleGroup,
+  webhookEventGroups,
+} from '@/lib/settings-nav';
+import { PRODUCT_KEYS } from '@/lib/products';
 import { WEBHOOK_EVENTS } from '@/lib/webhooks-events';
 
-describe('settings: pestañas', () => {
-  it('Cuenta y Workspace para todos; Admin solo para ADMIN_EMAILS', () => {
-    expect(settingsTabs(false).map((t) => t.key)).toEqual(['account', 'workspace']);
-    expect(settingsTabs(true).map((t) => t.key)).toEqual(['account', 'workspace', 'admin']);
+const root = join(__dirname, '..', '..');
+const pageExists = (href: string) =>
+  existsSync(join(root, 'app', '[locale]', href.split(/[?#]/)[0].replace(/^\//, ''), 'page.tsx'));
+
+describe('settings: secciones de la plataforma', () => {
+  const account = (admin: boolean) => settingsSections(admin)[0].items;
+
+  it('dos grupos: Cuenta y workspace (Admin solo para ADMIN_EMAILS) y Productos', () => {
+    expect(settingsSections(false).map((g) => g.key)).toEqual(['account', 'products']);
+    expect(account(false).map((t) => t.key)).toEqual([
+      'profile',
+      'workspace',
+      'members',
+      'teams',
+      'billing',
+      'api',
+      'connections',
+      'import',
+      'security',
+      'notifications',
+    ]);
+    expect(account(true).map((t) => t.key).at(-1)).toBe('admin');
   });
 
-  it('activa la pestaña de prefijo más largo, con las rutas extra de Admin', () => {
-    const tabs = settingsTabs(true);
-    expect(activeRouteTab(tabs, '/app/settings')).toBe('account');
+  it('Productos: una entrada por app hacia /app/<app>/settings, y cada ruta existe', () => {
+    const products = settingsSections(false)[1].items;
+    expect(products.map((p) => p.product)).toEqual(PRODUCT_KEYS);
+    expect(products.find((p) => p.product === 'cal')?.href).toBe('/app/calendar/settings');
+    expect(products.find((p) => p.product === 'link')?.href).toBe('/app/links/settings');
+    for (const item of [...account(true), ...products]) expect(pageExists(item.href), item.href).toBe(true);
+  });
+
+  it('activa la sección de prefijo más largo, con las rutas extra de Admin', () => {
+    const tabs = account(true);
+    expect(activeRouteTab(tabs, '/app/settings')).toBe('profile');
     expect(activeRouteTab(tabs, '/app/settings/workspace')).toBe('workspace');
+    expect(activeRouteTab(tabs, '/app/settings/api')).toBe('api');
     expect(activeRouteTab(tabs, '/app/settings/feedback')).toBe('admin');
     expect(activeRouteTab(tabs, '/app/settings/roadmap')).toBe('admin');
     expect(activeRouteTab(tabs, '/app/settings/changelog')).toBe('admin');
@@ -21,8 +58,34 @@ describe('settings: pestañas', () => {
     expect(activeRouteTab(tabs, '/app/crm')).toBeUndefined();
   });
 
-  it('sin Admin, las rutas de admin caen en Cuenta (el 404 lo da la página)', () => {
-    expect(activeRouteTab(settingsTabs(false), '/app/settings/roadmap')).toBe('account');
+  it('sin Admin, las rutas de admin caen en Perfil (el 404 lo da la página)', () => {
+    expect(activeRouteTab(account(false), '/app/settings/roadmap')).toBe('profile');
+  });
+
+  it('los anchors viejos de /app/settings/workspace caen en su sección nueva', () => {
+    expect(legacySettingsTarget('/app/settings/workspace', '#api')).toBe('/app/settings/api#api-keys');
+    expect(legacySettingsTarget('/app/settings/workspace', '#webhooks')).toBe('/app/settings/api#webhooks');
+    expect(legacySettingsTarget('/app/settings/workspace', '#ai')).toBe('/app/settings/billing#ai');
+    expect(legacySettingsTarget('/app/settings/workspace', '#credentials')).toBe('/app/settings/connections#credentials');
+    expect(legacySettingsTarget('/app/settings', '#domains')).toBe('/app/links/settings?tab=domains');
+    expect(legacySettingsTarget('/app/settings/workspace', '')).toBeNull();
+    expect(legacySettingsTarget('/app/settings/api', '#api')).toBeNull();
+  });
+
+  it('los links "hoy está en" de las secciones vacías apuntan a páginas que existen', () => {
+    for (const links of Object.values(SETTINGS_ELSEWHERE)) for (const l of links ?? []) expect(pageExists(l.href), l.href).toBe(true);
+  });
+
+  it('cada sección y grupo tiene texto en en/es/pt', () => {
+    for (const locale of ['en', 'es', 'pt']) {
+      const m = JSON.parse(readFileSync(join(root, 'messages', locale, 'settings.json'), 'utf8'));
+      for (const item of account(true)) expect(m.sections[item.key], `${locale}: ${item.key}`).toBeTruthy();
+      for (const g of settingsSections(true)) expect(m.groups[g.key], `${locale}: ${g.key}`).toBeTruthy();
+      for (const [section, links] of Object.entries(SETTINGS_ELSEWHERE)) {
+        for (const key of ['title', 'desc', 'empty']) expect(m.soon[section][key], `${locale}: soon.${section}.${key}`).toBeTruthy();
+        for (const l of links ?? []) expect(m.soon[section][l.label], `${locale}: soon.${section}.${l.label}`).toBeTruthy();
+      }
+    }
   });
 });
 

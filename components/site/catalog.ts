@@ -1,4 +1,4 @@
-import { PRODUCT_CONFIG, PRODUCT_KEYS, type SiteProductKey as ProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, PRODUCT_KEYS, productsByAudience, type SiteProductKey as ProductKey } from '@/lib/products';
 
 /** Repositorio público (self-host, estrellas, issues). */
 export const GITHUB_URL = 'https://github.com/lschiaffino/zerosoft';
@@ -53,9 +53,10 @@ export function annualCost(key: IncumbentKey, seats = 10): number {
 /** A quién le sirve cada app: equipos (B2B) o uso personal. */
 export type Audience = 'teams' | 'personal';
 
+/** Sale de `audience` en PRODUCT_CONFIG (lib/products.ts), en el orden canónico. */
 export const AUDIENCE_PRODUCTS: Record<Audience, readonly ProductKey[]> = {
-  teams: ['crm', 'chat', 'groups', 'agents', 'flow', 'robots', 'track', 'link'],
-  personal: ['docs', 'notes', 'cal', 'board'],
+  teams: productsByAudience('team'),
+  personal: productsByAudience('personal'),
 };
 
 /** Productos con endpoints en la API v1 pública (ver lib/api-docs.ts). */
