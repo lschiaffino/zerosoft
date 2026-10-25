@@ -1402,7 +1402,8 @@ a.track-issue-link .track-status-glyph {
 
   /* En el teléfono: estado y título (como la app de Linear); el resto en el issue. */
   .track-table-wrap.is-linear .track-table td.hide-sm,
-  .track-table-wrap.is-linear .track-table td.track-col-id {
+  .track-table-wrap.is-linear .track-table td.track-col-id,
+  .track-table-wrap.is-linear .track-title-labels {
     display: none;
   }
 }

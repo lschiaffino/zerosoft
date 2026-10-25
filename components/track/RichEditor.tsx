@@ -210,6 +210,9 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
   );
 
   useLayoutEffect(() => {
+    // Enter crea <p> (no <div>). Es un ajuste del documento: se fija una vez al
+    // montar (en el foco reseteaba la selección del doble clic).
+    exec('defaultParagraphSeparator', 'p');
     load(value);
     if (autoFocus) {
       const root = rootRef.current;
@@ -518,8 +521,9 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
       const rect = r.getBoundingClientRect();
       const w = wrap.getBoundingClientRect();
       const width = 228;
+      // Arriba de la selección (como Linear); si no entra en la pantalla, abajo.
       setToolbar({
-        top: Math.max(0, rect.top - w.top - 38),
+        top: rect.top - 40 < 0 ? rect.bottom - w.top + 6 : rect.top - w.top - 40,
         left: Math.max(0, Math.min(rect.left - w.left + rect.width / 2 - width / 2, w.width - width)),
       });
     };
@@ -917,10 +921,7 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
         }}
         onMouseDown={onMouseDown}
         onClick={onClick}
-        onFocus={() => {
-          exec('defaultParagraphSeparator', 'p');
-          onFocus?.();
-        }}
+        onFocus={() => onFocus?.()}
         onPaste={onPaste}
         onDragOver={(e) => {
           if (onUpload && e.dataTransfer?.types.includes('Files')) {

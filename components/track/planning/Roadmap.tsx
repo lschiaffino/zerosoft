@@ -259,9 +259,15 @@ export default function Roadmap() {
     suppress.current = true;
     const p = d.cur;
     if (!p) return setPreview(null);
-    const res = await api<PlanSummary>(`/api/track/plans/${d.id}`, 'PATCH', { startDate: ymd(p.start), targetDate: ymd(p.end) });
+    // Optimista: la barra queda donde se soltó (y ←/→ siguen desde ahí) mientras guarda.
+    const before = plans;
+    setPlans((prev) => (prev ? prev.map((x) => (x.id === d.id ? { ...x, start_date: ymd(p.start), target_date: ymd(p.end) } : x)) : prev));
     setPreview(null);
-    if (!res.ok) return setError(t('roadmap.updateError'));
+    const res = await api<PlanSummary>(`/api/track/plans/${d.id}`, 'PATCH', { startDate: ymd(p.start), targetDate: ymd(p.end) });
+    if (!res.ok) {
+      setPlans(before);
+      return setError(t('roadmap.updateError'));
+    }
     setPlans((prev) => (prev ? prev.map((x) => (x.id === d.id ? res.data : x)) : prev));
   };
 
@@ -272,8 +278,13 @@ export default function Roadmap() {
     const n = e.key === 'ArrowLeft' ? -1 : 1;
     const start = e.shiftKey ? r.start : addDays(r.start, n);
     const end = addDays(r.end, n) < start ? start : addDays(r.end, n);
+    const before = plans;
+    setPlans((prev) => (prev ? prev.map((x) => (x.id === r.id ? { ...x, start_date: ymd(start), target_date: ymd(end) } : x)) : prev));
     const res = await api<PlanSummary>(`/api/track/plans/${r.id}`, 'PATCH', { startDate: ymd(start), targetDate: ymd(end) });
-    if (!res.ok) return setError(t('roadmap.updateError'));
+    if (!res.ok) {
+      setPlans(before);
+      return setError(t('roadmap.updateError'));
+    }
     setPlans((prev) => (prev ? prev.map((x) => (x.id === r.id ? res.data : x)) : prev));
   };
 
