@@ -689,20 +689,27 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
         const full = pre.textContent ?? '';
         // Línea vacía al final del bloque: Enter sale del código.
         if (before.length >= full.length - 1 && before.endsWith('\n')) {
-          const r = caretRange();
-          if (r && r.startContainer.nodeType === 3 && r.startOffset > 0) {
-            const del = document.createRange();
-            del.setStart(r.startContainer, r.startOffset - 1);
-            del.setEnd(r.startContainer, r.startOffset);
-            window.getSelection()?.removeAllRanges();
-            window.getSelection()?.addRange(del);
-            exec('delete');
-          }
+          const code = (pre.querySelector('code') as HTMLElement | null) ?? pre;
+          code.textContent = `${before.slice(0, -1)}${full.slice(before.length)}`;
+          ensureTrailingNewline(pre);
           const p = document.createElement('p');
           p.appendChild(document.createElement('br'));
           pre.after(p);
           placeCaret(p, 0);
-        } else exec('insertText', '\n');
+        } else {
+          // Salto de línea como texto (no <br>): así el bloque guarda el código tal cual.
+          const r = caretRange();
+          if (r) {
+            r.deleteContents();
+            const nl = document.createTextNode('\n');
+            r.insertNode(nl);
+            const after = document.createRange();
+            after.setStartAfter(nl);
+            after.collapse(true);
+            window.getSelection()?.removeAllRanges();
+            window.getSelection()?.addRange(after);
+          }
+        }
         emit();
         return;
       }

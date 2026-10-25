@@ -98,11 +98,12 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/boards/${i.id}`))),
   },
   {
-    app: 'Track projects',
-    list: '/en/app/track/projects',
+    // Teams de Track (lo que antes se llamaba proyecto): clave, estados y cycles.
+    app: 'Track teams',
+    list: '/en/app/track/teams',
     sidebar: true,
     create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/track/projects', { data: { name } }))).id, name }),
-    detail: (i) => `/en/app/track/projects/${i.id}`,
+    detail: (i) => `/en/app/track/team/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/track/projects/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/track/projects/${i.id}`))),
   },
@@ -118,11 +119,11 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/track/issues/${i.id}`))),
   },
   {
-    // Planes de Track (los projects de Linear).
-    app: 'Track plans',
-    list: '/en/app/track/plans',
+    // Projects de Track (como los de Linear).
+    app: 'Track projects',
+    list: '/en/app/track/projects',
     create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/track/plans', { data: { name } }))).id, name }),
-    detail: (i) => `/en/app/track/plans/${i.id}`,
+    detail: (i) => `/en/app/track/projects/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/track/plans/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/track/plans/${i.id}`))),
   },

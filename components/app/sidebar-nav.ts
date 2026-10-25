@@ -110,6 +110,7 @@ export interface SidebarLabels {
     /** Secciones como en Linear: "Workspace" y "Your teams". */
     workspace?: string;
     yourTeams?: string;
+    more?: string;
   };
   chat: {
     overview: string;
@@ -393,11 +394,27 @@ export function buildNav(
               ? [
                   { href: '/app/track/projects', label: labels.track.plans, active: at('/app/track/projects'), icon: 'plans' as const },
                   { href: '/app/track/initiatives', label: labels.track.initiatives ?? '', active: at('/app/track/initiatives'), icon: 'initiatives' as const },
-                  { href: '/app/track/roadmap', label: labels.track.roadmap ?? '', active: at('/app/track/roadmap'), icon: 'roadmap' as const },
-                  { href: '/app/track/cycles', label: labels.track.cycles, active: at('/app/track/cycles'), icon: 'cycles' as const },
                 ]
               : []),
             { href: '/app/track/issues', label: labels.track.issues, active: at('/app/track/issues'), icon: 'tasks' },
+            ...(labels.track.plans
+              ? [{ href: '/app/track/cycles', label: labels.track.cycles, active: at('/app/track/cycles'), icon: 'cycles' as const }]
+              : []),
+          ],
+        },
+        {
+          section: labels.track.yourTeams,
+          items: [
+            { href: '/app/track/teams', label: labels.track.projects, active: at('/app/track/teams') || at('/app/track/team/'), icon: 'lists', branch: true },
+          ],
+        },
+        {
+          // Lo menos usado va abajo, como el "More" del sidebar de Linear.
+          section: labels.track.more,
+          items: [
+            ...(labels.track.roadmap
+              ? [{ href: '/app/track/roadmap', label: labels.track.roadmap, active: at('/app/track/roadmap'), icon: 'roadmap' as const }]
+              : []),
             ...(labels.track.customers
               ? [{ href: '/app/track/customers', label: labels.track.customers, active: at('/app/track/customers'), icon: 'contacts' as const }]
               : []),
@@ -408,12 +425,6 @@ export function buildNav(
                 ]
               : []),
             { href: '/app/track', label: labels.track.overview, active: pathname === '/app/track', icon: 'overview' },
-          ],
-        },
-        {
-          section: labels.track.yourTeams,
-          items: [
-            { href: '/app/track/teams', label: labels.track.projects, active: at('/app/track/teams') || at('/app/track/team/'), icon: 'lists', branch: true },
           ],
         },
         {

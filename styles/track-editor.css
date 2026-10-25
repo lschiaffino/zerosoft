@@ -51,10 +51,6 @@
   background: var(--brand-enamel);
 }
 
-.track-description-editor .track-rte-content:focus-visible {
-  box-shadow: inset 0 0 0 1px var(--line);
-}
-
 /* Comentarios, respuestas, edición y el alta rápida: caja chica con borde. */
 .track-rte.is-compact .track-rte-content {
   min-height: 64px;

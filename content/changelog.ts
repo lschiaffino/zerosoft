@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-25-track-polish',
+    date: '2026-10-25',
+    title: {
+      en: 'Track speaks Linear: teams, projects and a visual editor',
+      es: 'Track habla como Linear: equipos, proyectos y un editor visual',
+      pt: 'Track fala como o Linear: equipes, projetos e um editor visual',
+    },
+    items: [
+      { product: 'track', en: 'Names like Linear: what was a project is now a team (key, statuses and cycles, at /track/team/WEB) and plans are now projects. Old links keep working, and the API and MCP accept teamId and /teams.', es: 'Nombres como en Linear: lo que era un proyecto ahora es un equipo (clave, estados y cycles, en /track/team/WEB) y los planes ahora son proyectos. Los links viejos siguen andando, y la API y el MCP aceptan teamId y /teams.', pt: 'Nomes como no Linear: o que era um projeto agora é uma equipe (chave, status e cycles, em /track/team/WEB) e os planos agora são projetos. Os links antigos continuam funcionando, e a API e o MCP aceitam teamId e /teams.' },
+      { product: 'track', en: 'Descriptions and comments are edited in place, without a preview tab: headings, lists, checklists, quotes and code turn into blocks as you type, / inserts blocks, @ and # mention people and issues, and pasted images show up right away.', es: 'Las descripciones y los comentarios se editan en el lugar, sin pestaña de vista previa: títulos, listas, tareas, citas y código se arman mientras escribís, / inserta bloques, @ y # mencionan personas e issues, y las imágenes pegadas se ven al instante.', pt: 'As descrições e os comentários são editados no lugar, sem aba de prévia: títulos, listas, tarefas, citações e código se formam enquanto você digita, / insere blocos, @ e # mencionam pessoas e issues, e as imagens coladas aparecem na hora.' },
+      { product: 'track', en: 'Set the project of an issue from its page or the quick view with ⇧P, move it to another team with ⌘⇧M (new identifier, sub-issues included), archive it from ⌘K and restore it from the banner, and redo with ⌘⇧Z.', es: 'Elegí el proyecto de un issue desde su página o la vista rápida con ⇧P, movelo a otro equipo con ⌘⇧M (identificador nuevo, con sus sub-issues), archivalo desde ⌘K y restauralo desde el aviso, y rehacé con ⌘⇧Z.', pt: 'Escolha o projeto de um issue na página dele ou na visualização rápida com ⇧P, mova-o para outra equipe com ⌘⇧M (identificador novo, com os sub-issues), arquive pelo ⌘K e restaure pelo aviso, e refaça com ⌘⇧Z.' },
+      { product: 'track', en: 'Denser lists like Linear (priority, ID, status, title, labels, date and assignee on one line), a sidebar with Inbox, My issues and your teams with their Issues, Cycles, Projects and Views, and new teams archive closed issues after 6 months.', es: 'Listas más densas como en Linear (prioridad, ID, estado, título, labels, fecha y asignado en una línea), un sidebar con Bandeja, Mis issues y tus equipos con sus Issues, Cycles, Proyectos y Vistas, y los equipos nuevos archivan lo cerrado a los 6 meses.', pt: 'Listas mais densas como no Linear (prioridade, ID, status, título, labels, data e responsável numa linha), uma barra lateral com Caixa de entrada, Meus issues e suas equipes com Issues, Cycles, Projetos e Visualizações, e as equipes novas arquivam o que foi fechado após 6 meses.' },
+    ],
+  },
+  {
     id: '2026-10-25-track-linear',
     date: '2026-10-25',
     title: {

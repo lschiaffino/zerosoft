@@ -29,7 +29,7 @@ test('plan: crear desde la lista, propiedades, issues y update con salud', async
   const issue = await ok<{ id: string; identifier: string }>(request.post(`/api/track/projects/${t.id}/issues`, { data: { title: `Plan issue ${uid()}`, statusId: t.status('done') } }));
   const name = `Checkout ${uid()}`;
 
-  await page.goto('/en/app/track/plans', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/track/projects', { waitUntil: 'networkidle' });
   await page.getByTestId('tp-new-plan').click();
   const modal = page.getByTestId('tp-new-plan-modal');
   await modal.getByLabel('Name').fill(name);
@@ -64,7 +64,7 @@ test('plan: crear desde la lista, propiedades, issues y update con salud', async
   await expect(page.getByTestId('tp-progress-detail')).toContainText('1 of 2 done');
 
   // La lista lo muestra con su salud; renombrar se ve en la lista.
-  await page.goto('/en/app/track/plans', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/track/projects', { waitUntil: 'networkidle' });
   const row = page.getByTestId('tp-plans-list').locator('.tp-row', { hasText: name });
   await expect(row).toContainText('At risk');
 });
@@ -173,7 +173,7 @@ test('ajustes: auto-cierre muestra cuántos issues cerraría y el archivo restau
 });
 
 test('⌘K: acciones de planificación', async ({ page }) => {
-  await page.goto('/en/app/track/plans', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/track/projects', { waitUntil: 'networkidle' });
   await page.keyboard.press('ControlOrMeta+k');
   const dialog = page.getByRole('dialog', { name: 'Search' });
   await dialog.getByRole('combobox').fill('Roadmap');

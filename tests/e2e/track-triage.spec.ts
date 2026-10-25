@@ -50,7 +50,7 @@ test.describe('Track T3: triage', () => {
     await intake('Export invoices to CSV', 'bob@initech.com');
     expect((await ok<{ priority: string }>(request.get(`/api/track/issues/${crash.id}`))).priority).toBe('urgent');
 
-    await page.goto(`/en/app/track/projects/${project.id}?tab=triage`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/track/team/${project.id}?tab=triage`, { waitUntil: 'networkidle' });
     await expect(page.getByTestId('track-triage-owner')).toContainText('Triage owner');
     const items = page.getByTestId('track-triage-item');
     await expect(items).toHaveCount(2);
@@ -73,7 +73,7 @@ test.describe('Track T3: triage', () => {
 
   test('reglas desde los ajustes: crear, editar y borrar; ajustes de SLA e IA', async ({ page, request }) => {
     const { project } = await setup(request);
-    await page.goto(`/en/app/track/projects/${project.id}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/track/team/${project.id}`, { waitUntil: 'networkidle' });
     await page.getByTestId('track-project-settings').click();
     await page.getByTestId('track-settings-tab-triage').click();
     await expect(page.getByTestId('track-triage-general')).toBeVisible();
@@ -100,7 +100,7 @@ test.describe('Track T3: triage', () => {
 
   test('crear un issue desde texto con IA', async ({ page, request }) => {
     const { project } = await setup(request);
-    await page.goto(`/en/app/track/projects/${project.id}?tab=triage`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/track/team/${project.id}?tab=triage`, { waitUntil: 'networkidle' });
     await page.getByTestId('track-triage-from-text').click();
     await page.getByTestId('track-from-text-input').fill('The payment page is broken on Safari. Customers cannot pay.');
     await page.getByTestId('track-from-text-submit').click();
@@ -138,7 +138,7 @@ test.describe('Track T3: issue', () => {
     await shot(page, 't3_issue_light');
 
     // Lista: chip de SLA y cantidad de clientes; orden por clientes.
-    await page.goto(`/en/app/track/projects/${project.id}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/track/team/${project.id}`, { waitUntil: 'networkidle' });
     await expect(page.getByTestId('track-sla-chip').first()).toBeVisible();
     await expect(page.getByTestId('track-customer-count').first()).toContainText('1');
 
@@ -243,7 +243,7 @@ test.describe('Track T3: temas y mobile', () => {
       const issue = await intake('Mobile crash when paying', 'ana@acme.io', 'App closes at checkout');
       const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: scheme });
       const page = await ctx.newPage();
-      await page.goto(`/en/app/track/projects/${project.id}?tab=triage`, { waitUntil: 'networkidle' });
+      await page.goto(`/en/app/track/team/${project.id}?tab=triage`, { waitUntil: 'networkidle' });
       await expect(page.getByTestId('track-triage-item')).toHaveCount(1);
       await noHorizontalScroll(page);
       await shot(page, `t3_triage_390_${scheme}`);

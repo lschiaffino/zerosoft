@@ -141,7 +141,8 @@ export default function TrackBranch() {
                   <Link
                     href={href}
                     className="docs-tree-link"
-                    aria-current={here && !open ? 'page' : undefined}
+                    // El team abierto queda marcado (la fila de Issues se resalta abajo).
+                    aria-current={here && !currentView ? 'page' : undefined}
                     onClick={() => toggle(p.id, true)}
                   >
                     <span className="docs-tree-icon" aria-hidden="true">
@@ -156,7 +157,12 @@ export default function TrackBranch() {
                     {children.map((c) => (
                       <li key={c.key} className={`docs-tree-row track-branch-child${c.active ? ' active' : ''}`}>
                         <span className="docs-tree-chevron-spacer" aria-hidden="true" />
-                        <Link href={c.href} className="docs-tree-link" aria-current={c.active ? 'page' : undefined} data-testid={`track-branch-${c.key}`}>
+                        <Link
+                          href={c.href}
+                          className="docs-tree-link"
+                          aria-current={c.active && c.key !== 'issues' ? 'page' : undefined}
+                          data-testid={`track-branch-${c.key}`}
+                        >
                           <span className="docs-tree-icon" aria-hidden="true">
                             <TrackIcon name={c.icon} size={13} />
                           </span>

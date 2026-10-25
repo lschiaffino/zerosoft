@@ -10,7 +10,6 @@ import { pendingDeleteIds } from './trackUndo';
 import { useTrackLive } from './useTrackLive';
 import { useWorkspaceLabels } from './LabelPicker';
 import IssuesTable, { type OptionalColumn } from './IssuesTable';
-import QuickIssueModal from './QuickIssueModal';
 import { TrackToast, useToday } from './InlineEditors';
 import { useCreateShortcut, useIssueStore, type IssueDraft, type ProjectMap } from './useIssueStore';
 import type { TrackUiLabels } from './ui-labels';
@@ -19,6 +18,10 @@ import EmptyState from '@/components/ui/EmptyState';
 import IssueDisplayOptions from './IssueDisplayOptions';
 import GroupedIssuesTable from './GroupedIssuesTable';
 import { ISSUE_GROUPS, parseIssueGroup, type IssueGroupBy, type IssueSort } from '@/lib/track-views';
+import dynamic from 'next/dynamic';
+
+// El alta rápida (con el editor visual) se baja al abrirla.
+const QuickIssueModal = dynamic(() => import('./QuickIssueModal'));
 
 interface TableLabels {
   identifier: string;

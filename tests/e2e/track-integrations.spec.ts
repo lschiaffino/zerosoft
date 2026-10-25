@@ -109,7 +109,7 @@ test('Slack (fake): conectar, aviso a canal, /track firmado y vista en el log', 
   await expect(page.getByTestId('track-slack-settings')).toBeVisible();
 
   const form = page.getByRole('form', { name: 'Add channel' });
-  await form.getByLabel('Project').selectOption(project.id);
+  await form.getByLabel('Team').selectOption(project.id);
   await form.getByLabel('Channel').selectOption('C_ENG');
   await page.getByTestId('track-slack-add-channel').click();
   await expect(page.getByTestId('track-slack-subs')).toContainText('#eng');
@@ -208,11 +208,11 @@ test('Acceso: proyecto privado con candado, invitado y audit log con export', as
     await expect(row).toContainText('1 member');
 
     await page.getByTestId('track-guest-email').fill(`guest-${uid()}@example.com`);
-    await page.getByRole('group', { name: 'Projects the guest can see' }).getByRole('checkbox').first().check();
+    await page.getByRole('group', { name: 'Teams the guest can see' }).getByRole('checkbox').first().check();
     await page.getByTestId('track-guest-save').click();
     await expect(page.getByTestId('track-guests')).toContainText('invitation pending');
 
-    await page.goto('/en/app/track/projects');
+    await page.goto('/en/app/track/teams');
     await expect(page.locator('.track-private-mark').first()).toBeVisible();
 
     await page.goto('/en/app/track/settings?tab=audit');

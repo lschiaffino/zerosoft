@@ -35,7 +35,7 @@ test.describe('Track', () => {
     for (const n of [1, 2]) {
       await ok(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: `Viejo ${n}`, statusId: todo.id } }));
     }
-    await page.goto(`/en/app/track/projects/${p.id}`);
+    await page.goto(`/en/app/track/team/${p.id}`);
     await expect(page.locator('tr[data-issue-row]', { hasText: 'Viejo 1' })).toBeVisible();
     await page.locator('body').click({ position: { x: 5, y: 5 } });
     await page.keyboard.press('c');
@@ -57,7 +57,7 @@ test.describe('Track', () => {
       await page.emulateMedia({ colorScheme: scheme });
       const p = await trackProject(request);
       await ok(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Uno' } }));
-      await page.goto(`/en/app/track/projects/${p.id}`);
+      await page.goto(`/en/app/track/team/${p.id}`);
       for (const view of ['board', 'gantt']) {
         const btn = page.getByTestId(`track-view-${view}`);
         await btn.click();
@@ -96,7 +96,7 @@ test.describe('Track', () => {
     await page.waitForTimeout(300);
     await shot(page, 'track_issue_delete_confirm');
     await dialog.getByTestId('confirm-dialog-confirm').click();
-    await expect(page).toHaveURL(new RegExp(`/app/track/projects/${p.id}`));
+    await expect(page).toHaveURL(new RegExp(`/app/track/team/${p.id}`));
     // Borrar deja "Deshacer" unos segundos (como Linear) y después borra de verdad.
     await expect(page.getByTestId('track-undo-toast')).toContainText(a.identifier);
     await expect.poll(async () => (await request.get(`/api/track/issues/${a.id}`)).status(), { timeout: 15_000 }).toBe(404);
@@ -131,7 +131,7 @@ test.describe('Track', () => {
       request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Por API' } }),
     );
     expect(viaApi.status_category).toBe('todo');
-    await page.goto(`/en/app/track/projects/${p.id}`);
+    await page.goto(`/en/app/track/team/${p.id}`);
     await page.locator('body').click({ position: { x: 5, y: 5 } });
     await page.keyboard.press('c');
     await expect(page.getByRole('textbox', { name: 'Issue title' })).toBeVisible();

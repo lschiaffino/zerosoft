@@ -10,7 +10,7 @@ import type { IssuePatch } from '@/lib/track-tasks';
 import StatusBadge from './StatusBadge';
 import EmptyState from '@/components/ui/EmptyState';
 import TrackIcon from './TrackIcon';
-import { AssigneeMenu, DueDateMenu, PriorityIcon, PriorityMenu, QuickAdd, StatusMenu, StatusToggle } from './InlineEditors';
+import { AssigneeMenu, DueDateMenu, PriorityIcon, PriorityMenu, QuickAdd, StatusMenu } from './InlineEditors';
 import { isPendingIssue, type ProjectMap } from './useIssueStore';
 import { nestIssues } from '@/lib/track-views';
 import { ProgressRing } from './ProgressRing';
@@ -146,7 +146,7 @@ export default function IssuesTable({
   );
 
   return (
-    <div className={`table-wrap track-table-wrap${editing ? ' is-editable' : ''}`}>
+    <div className={`table-wrap track-table-wrap${editing ? ' is-editable is-linear' : ''}`}>
       <table className={`table track-table${fixedLayout ? ' is-fixed' : ''}`}>
         {showHeader && (
           <thead>
@@ -270,16 +270,9 @@ export default function IssuesTable({
                 {show('project') && <td className="hide-sm track-cell-dim track-col-project">{ctx?.name ?? '–'}</td>}
                 <td className="track-col-status">
                   {editing ? (
-                    <span className="track-status-control">
-                      <StatusToggle
-                        color={issue.status_color}
-                        category={issue.status_category}
-                        disabled={pending}
-                        onToggle={() => editing.onToggleDone(issue)}
-                        labels={editing.ui.inline}
-                      />
-                      <StatusMenu
-                      textOnly
+                    // Como en Linear: solo el ícono del estado, que abre el menú.
+                    <StatusMenu
+                      glyphOnly
                       statusId={issue.status_id}
                       statusName={issue.status_name}
                       statusColor={issue.status_color}
@@ -289,7 +282,6 @@ export default function IssuesTable({
                       label={editing.ui.inline.status}
                       onChange={(statusId) => editing.onUpdate(issue.id, { statusId })}
                     />
-                    </span>
                   ) : (
                     <StatusBadge name={issue.status_name} color={issue.status_color} category={issue.status_category} />
                   )}
@@ -297,6 +289,7 @@ export default function IssuesTable({
                 <td className="hide-sm track-col-priority">
                   {editing ? (
                     <PriorityMenu
+                      compact
                       priority={issue.priority}
                       priorities={editing.ui.priorities}
                       disabled={pending}
@@ -314,6 +307,7 @@ export default function IssuesTable({
                   <td className="hide-sm track-col-assignee">
                     {editing ? (
                       <AssigneeMenu
+                        compact
                         assigneeId={issue.assignee_id}
                         assigneeName={issue.assignee_name}
                         assigneeEmail={issue.assignee_email}

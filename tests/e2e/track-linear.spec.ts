@@ -41,7 +41,7 @@ test.describe('Track como Linear', () => {
     const a = await ok<Issue>(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Atajo uno' } }));
     const b = await ok<Issue>(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Atajo dos' } }));
     const done = p.statuses.find((s) => s.category === 'done')!;
-    await page.goto(`/en/app/track/projects/${p.id}`);
+    await page.goto(`/en/app/track/team/${p.id}`);
     const rowA = page.locator(`tr[data-issue-key="${a.id}"]`);
     await expect(rowA).toBeVisible();
 
@@ -114,7 +114,7 @@ test.describe('Track como Linear', () => {
     await ok(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Urgente filtro', priority: 'urgent' } }));
     await ok(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Bajo filtro', priority: 'low' } }));
     await ok(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Medio filtro', priority: 'medium', estimate: 5 } }));
-    await page.goto(`/en/app/track/projects/${p.id}`);
+    await page.goto(`/en/app/track/team/${p.id}`);
     await expect(page.locator('tr[data-issue-row]')).toHaveCount(3);
     await blur(page);
     await page.keyboard.press('f');
@@ -151,7 +151,7 @@ test.describe('Track como Linear', () => {
     const p = await project(request, name);
     await ok(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Alta vista', priority: 'high' } }));
     await ok(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Baja vista', priority: 'low' } }));
-    await page.goto(`/en/app/track/projects/${p.id}`);
+    await page.goto(`/en/app/track/team/${p.id}`);
     await expect(page.locator('tr[data-issue-row]')).toHaveCount(2);
     await blur(page);
     await page.keyboard.press('f');
@@ -174,7 +174,7 @@ test.describe('Track como Linear', () => {
 
     // El link abre la vista con sus filtros en una pestaña nueva.
     const other = await page.context().newPage();
-    await other.goto(`/en/app/track/projects/${p.id}?savedView=${viewId}`);
+    await other.goto(`/en/app/track/team/${p.id}?savedView=${viewId}`);
     await expect(other.locator('tr[data-issue-row]')).toHaveCount(1);
     await expect(other.getByTestId('track-filter-chip')).toHaveCount(1);
     await other.close();
@@ -218,33 +218,46 @@ test.describe('Track como Linear', () => {
     await expect(page.getByTestId('track-subissue-input')).toBeFocused();
     await page.keyboard.press('Escape');
 
-    // Descripción: tareas que siguen con Enter, "/" para un bloque y una referencia a issue.
-    await page.getByTestId('track-issue-description').click();
-    const desc = page.getByRole('textbox', { name: 'Description' });
-    await desc.pressSequentially('[] primera');
+    // Descripción en el editor visual (como Linear): tareas que siguen con
+    // Enter, "/" para un bloque de código y una referencia a otro issue.
+    const description = async () => {
+      const raw = ((await (await request.get(`/api/track/issues/${parent.id}`)).json()) as { description: string }).description;
+      try {
+        return (JSON.parse(raw) as Array<{ text?: string }>).map((b) => b.text ?? '').join('\n');
+      } catch {
+        return raw;
+      }
+    };
+    const desc = page.getByTestId('track-issue-description');
+    await desc.click();
+    await page.keyboard.type('[] primera');
     await page.keyboard.press('Enter');
-    await desc.pressSequentially('segunda');
+    await page.keyboard.type('segunda');
     await page.keyboard.press('Enter');
     await page.keyboard.press('Enter');
-    await desc.pressSequentially('/cod');
+    await page.keyboard.type('/cod');
     await expect(page.getByTestId('track-md-menu')).toContainText('Code block');
     await page.keyboard.press('Enter');
-    await desc.pressSequentially('const a = 1');
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('ArrowDown');
-    await desc.press('End');
-    await desc.pressSequentially(`\nVer ${ref.identifier}`);
+    await page.keyboard.type('const a = 1');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type(`Ver ${ref.identifier} y **listo**`);
+    await expect(desc.locator('li[data-task]')).toHaveCount(2);
+    await expect(desc.locator('pre')).toContainText('const a = 1');
+    await expect(desc.locator('strong')).toHaveText('listo');
     await shot(page, 't1-editor');
-    await page.keyboard.press('ControlOrMeta+Enter');
-    const read = page.getByTestId('track-issue-description');
-    await expect(read.locator('input.track-task')).toHaveCount(2);
-    await expect(read.locator('.tk-k')).toContainText('const');
-    await expect(read.locator(`a.track-issue-ref[href*="${ref.id}"]`)).toBeVisible();
-    // Tildar desde la lectura guarda.
-    await read.locator('input.track-task').first().click();
-    await expect
-      .poll(async () => JSON.stringify(((await (await request.get(`/api/track/issues/${parent.id}`)).json()) as { description: string }).description))
-      .toContain('[x] primera');
+    // Se guarda solo como markdown (al dejar de tipear o al salir).
+    await page.getByTestId('track-issue-title').focus();
+    await expect.poll(description).toContain('- [ ] primera');
+    expect(await description()).toContain('```\nconst a = 1\n```');
+    expect(await description()).toContain(`Ver ${ref.identifier} y **listo**`);
+    // Tildar la casilla guarda.
+    const box = await desc.locator('li[data-task]').first().boundingBox();
+    await page.mouse.click(box!.x + 6, box!.y + 10);
+    await expect.poll(description).toContain('[x] primera');
+    // Al volver, la referencia es un chip con el issue.
+    await page.reload();
+    await expect(desc.locator(`[data-issue-ref="${ref.identifier}"]`)).toContainText('Referenciado');
 
     // Comentario, reacción, respuesta en hilo y resolver.
     const composer = page.getByPlaceholder('Add comment');
@@ -276,7 +289,7 @@ test.describe('Track como Linear', () => {
   test('cambios de otros se ven sin recargar (lista e issue) y borrar se deshace', async ({ page, request }) => {
     const p = await project(request);
     const a = await ok<Issue>(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'En vivo' } }));
-    await page.goto(`/en/app/track/projects/${p.id}`);
+    await page.goto(`/en/app/track/team/${p.id}`);
     await expect(page.locator(`tr[data-issue-key="${a.id}"]`)).toContainText('En vivo');
     // "Otra persona" (la API) renombra y crea: la lista lo muestra sola.
     await ok(request.patch(`/api/track/issues/${a.id}`, { data: { title: 'Renombrado por otro' } }));
@@ -314,7 +327,7 @@ test.describe('Track como Linear', () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
     await shot(page, 't1-issue-390-dark');
-    await page.goto(`/en/app/track/projects/${p.id}`);
+    await page.goto(`/en/app/track/team/${p.id}`);
     await expect(page.locator('tr[data-issue-row]').first()).toBeVisible();
     const overflow2 = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow2).toBeLessThanOrEqual(1);

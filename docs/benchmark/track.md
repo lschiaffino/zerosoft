@@ -1,6 +1,8 @@
 # Benchmark: Track vs Linear (y Jira / GitHub Projects)
 
-Fecha: 2026-10-22.
+Fecha: 2026-10-22. Revisado el 2026-10-25 (tanda de pulido).
+
+> **Vocabulario (2026-10-25):** Track usa los nombres de Linear. Lo que las filas viejas de este documento llaman *proyecto* (clave como WEB, estados, cycles) ahora es un **team** (`/app/track/team/WEB`, lista en `/app/track/teams`), y los *planes* son **projects** (`/app/track/projects`). Las rutas viejas redirigen y la API v1 acepta `teamId` y `/api/v1/track/teams` sin dejar de responder a `projectId` y `/projects`.
 
 Cómo se hizo:
 
@@ -40,13 +42,15 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 |---|---|---|
 | Issues con estado, prioridad, asignado, labels, estimación, fechas | tiene | Prioridad sin "No priority" (urgent/high/medium/low). Fecha de inicio solo se edita arrastrando en Gantt, no está en el panel de propiedades |
 | Sub-issues, relaciones blocks / related / duplicate | tiene | |
-| Descripción y comentarios en Markdown | parcial | Editor con pestañas Write/Preview y toolbar (títulos, listas, checkboxes renderizan bien). Linear es WYSIWYG con pegado de imágenes, callouts y menciones a issues |
+| Descripción y comentarios en Markdown | tiene | (2026-10-25) Editor visual como el de Linear: atajos de markdown al tipear, `/` para bloques, `@` personas e issues, `#` issues con su estado, tareas que se tildan con clic o ⌘↵, imágenes pegadas y barra de formato al seleccionar. La descripción se guarda sola. Se guarda markdown. Sin callouts ni bloques colapsables (`>>>`) |
 | Adjuntos | tiene | Hasta 10 MB |
 | Templates de issue | tiene | Por proyecto |
 | Issues recurrentes | tiene | Diario, semanal, mensual, anual |
 | Workflow de estados editable | tiene | Por proyecto, con categorías |
-| Projects de Linear (entidad con lead, fecha objetivo, estado, health, updates) | tiene | Se llaman **planes** (Track › Planes): lead, miembros, varios equipos, seis estados, fechas, descripción, milestones propios y progreso por issues o estimación. En Track "proyecto" sigue siendo el *team* de Linear (2026-10-25) |
-| Initiatives / sub-initiatives | tiene | Responsable, estado, fecha, planes y sub-iniciativas con progreso sumado; la salud sale de sus planes (sin updates propios) (2026-10-25) |
+| Projects de Linear (entidad con lead, fecha objetivo, estado, health, updates) | tiene | **Projects** (Track › Projects): lead, miembros, varios teams, seis estados, fechas, descripción, milestones propios y progreso por issues o estimación. Propiedad Project en el issue y en la vista rápida con ⇧P (2026-10-25) |
+| Mover un issue de team | tiene | (2026-10-25) ⌘⇧M o ⌘K › Move to team: estado equivalente, identificador nuevo y sub-issues incluidos; el ID viejo sigue resolviendo |
+| Archivar y restaurar | tiene | (2026-10-25) ⌘K › Archive, aviso de archivado con Restaurar y auto-archivo por defecto a 6 meses en los teams nuevos |
+| Initiatives / sub-initiatives | tiene | Responsable, estado, fecha, projects y sub-iniciativas con progreso sumado; la salud sale de sus projects (sin updates propios) (2026-10-25) |
 | Campos propios (GitHub Projects: texto, número, select, iteración; Jira) | falta | |
 | Borrar, duplicar o copiar link de un issue desde su página | falta | El menú "…" solo trae "Copy branch name". Borrar existe solo desde la barra de selección masiva de la lista |
 | Customer requests (issue ↔ cliente con revenue) | tiene | (T3, 2026-10-25) Desde el issue, la ficha del CRM o `POST /api/v1/track/requests`; cita, importante, Track › Clientes y orden por clientes o ingresos de deals ganados. Chat y Groups sin botón propio (API o Flow) |
@@ -151,7 +155,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | `C` nuevo issue con contexto, "Create more", `!high @tomorrow` en el título | tiene | |
 | `J`/`K`, `X`, `Enter`, `Esc`, `/` para buscar | tiene | |
 | Atajos de propiedad (`S`, `P`, `A`, `L`), `G` + tecla para navegar, acciones en Cmd+K | falta | Probado: `P` con una fila activa no abre nada |
-| Undo | falta | |
+| Undo y redo | tiene | (2026-10-25) ⌘Z con aviso Deshacer para propiedades, lote, reordenar, mover de team y borrar; ⌘⇧Z rehace |
 | Estados vacíos, carga y error | tiene | |
 | Claro y oscuro | tiene | |
 

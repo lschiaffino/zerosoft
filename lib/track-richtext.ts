@@ -290,7 +290,7 @@ function block(n: RtNode): string {
       return listItem(n, '- ');
     case 'PRE': {
       const lang = (attr(n, 'data-lang') ?? '').replace(/[^\w+#.-]/g, '');
-      const text = cleanText(n.textContent ?? '').replace(/\n$/, '');
+      const text = cleanText(preText(n)).replace(/\n$/, '');
       if (!text.trim() && !lang) return '';
       const ticks = (text.match(/`{3,}/g) ?? []).reduce((m, s) => Math.max(m, s.length + 1), 3);
       const fence = '`'.repeat(ticks);
@@ -312,6 +312,26 @@ function block(n: RtNode): string {
       // P, DIV, FIGURE…: párrafo, o sus bloques si los tiene adentro.
       return hasBlockChild(n) ? blocks(n).join('\n\n') : paragraph(kids(n));
   }
+}
+
+/** Texto de un bloque de código: los <br> y <div> que mete el navegador cuentan como saltos. */
+function preText(n: RtNode): string {
+  let out = '';
+  const walk = (x: RtNode) => {
+    for (const c of kids(x)) {
+      if (c.nodeType === 3) out += c.textContent ?? '';
+      else if (c.nodeType === 1) {
+        const tag = name(c);
+        if (tag === 'BR') out += '\n';
+        else if (tag === 'DIV' || tag === 'P') {
+          if (out && !out.endsWith('\n')) out += '\n';
+          walk(c);
+        } else walk(c);
+      }
+    }
+  };
+  walk(n);
+  return out;
 }
 
 function indent(text: string, pad: string): string {
