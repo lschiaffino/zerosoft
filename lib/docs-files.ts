@@ -112,15 +112,45 @@ export function sanitizeFileFields(block: DocsBlock): DocsBlock {
 export function findFileBlock(blocks: DocsBlock[], blockId: string): (DocsBlock & { url: string }) | null {
   // También los del cuerpo de las filas de una base.
   const block = withDatabaseBodies(blocks).find((b) => b.id === blockId);
-  if (!block || !isFileBlockType(block.type) || !isDocsUploadUrl(block.url)) return null;
+  if (!block) return findDatabaseFile(blocks, blockId);
+  if (!isFileBlockType(block.type) || !isDocsUploadUrl(block.url)) return null;
   return block as DocsBlock & { url: string };
+}
+
+/** Archivo de una propiedad files de una base (por id de archivo), como bloque file para el proxy. */
+function findDatabaseFile(blocks: DocsBlock[], fileId: string): (DocsBlock & { url: string }) | null {
+  for (const b of blocks) {
+    if (b.type !== 'database' || !b.db?.rows) continue;
+    for (const r of b.db.rows) {
+      for (const list of Object.values(r.files ?? {})) {
+        const f = list.find((x) => x.id === fileId);
+        if (f && isDocsUploadUrl(f.url)) {
+          return { id: f.id, type: fileKindFor(f.mime ?? ''), content: '', url: f.url, name: f.name, size: f.size, mime: f.mime };
+        }
+      }
+    }
+  }
+  return null;
 }
 
 /** Saca la URL del storage (para quien solo puede ver la página). */
 export function stripFileUrls(blocks: DocsBlock[]): DocsBlock[] {
   return blocks.map((b) => {
-    if (b.type === 'database' && b.db?.rows?.some((r) => r.body?.length)) {
-      return { ...b, db: { ...b.db, rows: b.db.rows.map((r) => (r.body?.length ? { ...r, body: stripFileUrls(r.body) } : r)) } };
+    if (b.type === 'database' && b.db?.rows?.some((r) => r.body?.length || r.files)) {
+      return {
+        ...b,
+        db: {
+          ...b.db,
+          rows: b.db.rows.map((r) => {
+            if (!r.body?.length && !r.files) return r;
+            const out = { ...r };
+            if (r.body?.length) out.body = stripFileUrls(r.body);
+            // Propiedades files: el nombre queda, la URL del storage no.
+            if (r.files) out.files = Object.fromEntries(Object.entries(r.files).map(([k, list]) => [k, list.map((f) => ({ ...f, url: '' }))]));
+            return out;
+          }),
+        },
+      };
     }
     if (!isFileBlockType(b.type) || b.url === undefined) return b;
     const { url, ...rest } = b;

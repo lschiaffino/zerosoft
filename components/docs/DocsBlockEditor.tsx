@@ -18,7 +18,7 @@ import { looksLikeMarkdown, markdownToBlocks, plainTextToBlocks } from '@/lib/do
 import { isToggleBlock } from '@/lib/docs-blocks';
 import DocsGlyph from './DocsGlyphs';
 import EmojiPicker from './EmojiPicker';
-import DocsDatabaseBlock, { type DbOpenMode } from './DocsDatabaseBlock';
+import DocsDatabaseBlock, { type DbHooks } from './DocsDatabaseBlock';
 import { DocsBoardPicker, DocsBoardPreview } from './DocsBoardEmbed';
 import DocsEditorImage from './DocsEditorImage';
 
@@ -38,11 +38,8 @@ interface DocsBlockEditorProps {
   onPasteFiles?: (index: number, files: File[]) => void;
   /** Pegado con estructura (varios párrafos, listas, Markdown): el editor lo parte en bloques. */
   onPasteBlocks?: (index: number, blocks: DocsBlock[]) => void;
-  /** Bases de datos: abrir una fila como página y de dónde salen los miembros (persona). */
-  database?: {
-    onOpenRow: (blockId: string, rowId: string, mode: DbOpenMode) => void;
-    membersUrl: string | null;
-  };
+  /** Bases de datos: abrir una fila como página, miembros (persona), página abierta y bases vecinas. */
+  database?: DbHooks;
 }
 
 /** HTML pegado sin estructura semántica (VS Code, terminales): manda el texto plano. */
@@ -258,8 +255,7 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           index={index}
           onChange={onChange}
           onFocus={onFocus}
-          onOpenRow={database?.onOpenRow}
-          membersUrl={database?.membersUrl ?? null}
+          hooks={database}
         />
       );
     }

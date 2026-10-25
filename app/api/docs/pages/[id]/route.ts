@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { DocsConflictError, deleteDocPage, getDocAccess, getDocPageRow, listEffectiveDocShares, toDocPage, updateDocPage } from '@/lib/docs';
 import { stripFileUrls } from '@/lib/docs-files';
 import { SHARED_EDITABLE_FIELDS, docPageUpdateSchema } from '@/lib/docs-schema';
 import { maybeAutoSnapshot } from '@/lib/docs-versions';
+import { runDbEffects } from '@/lib/docs-db-server';
+import type { DbEffect } from '@/lib/docs-db-save';
 import { notFound, unauthorized, invalidBody, forbidden, docsError } from '@/lib/docs-http';
 
 export const runtime = 'nodejs';
@@ -47,8 +49,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   }
 
   let page;
+  // Automatizaciones de las bases que disparó este guardado (corren después de responder).
+  const effects: DbEffect[] = [];
   try {
-    page = await updateDocPage(row.user_id, params.id, patch);
+    page = await updateDocPage(row.user_id, params.id, patch, { actorId: realUserId(user), effects });
   } catch (err) {
     // Otra persona guardó (o se restauró una versión) desde que el editor
     // cargó la página: no pisar su contenido en silencio.
@@ -56,6 +60,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     throw err;
   }
   if (!page) return notFound();
+  if (effects.length) {
+    const actor = { ...user, realId: realUserId(user) };
+    after(() => runDbEffects(effects, actor).catch(() => {}));
+  }
   if (patch.content !== undefined || patch.title !== undefined) {
     await maybeAutoSnapshot(row.user_id, params.id, realUserId(user), row).catch(() => {});
   }

@@ -325,7 +325,7 @@ describe('saneado, schema, búsqueda y export', () => {
   it('schema acepta la base y rechaza un tipo inválido', () => {
     expect(docsBlockSchema.safeParse(block(sample())).success).toBe(true);
     const bad = sample();
-    (bad.properties[0] as { type: string }).type = 'formula';
+    (bad.properties[0] as { type: string }).type = 'hologram';
     expect(docsBlockSchema.safeParse(block(bad)).success).toBe(false);
   });
 

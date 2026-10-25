@@ -11,6 +11,7 @@ import {
 import { sanitizeBlocks } from './docs-sanitize';
 import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
 import { databaseRowEntries } from './docs-database';
+import { prepareDatabaseSave, type DbEffect } from './docs-db-save';
 import {
   buildSnippet,
   matchesAll,
@@ -395,10 +396,17 @@ export class DocsConflictError extends Error {
   }
 }
 
+/** Opciones del guardado: quién edita (autor de filas) y dónde dejar las automatizaciones disparadas. */
+export interface UpdateDocPageOptions {
+  actorId?: string | null;
+  effects?: DbEffect[];
+}
+
 export async function updateDocPage(
   ownerId: string,
   pageId: string,
   input: UpdateDocPageInput,
+  opts: UpdateDocPageOptions = {},
 ): Promise<DocsPage | null> {
   const row = (await getDb()
     .prepare('SELECT * FROM docs_pages WHERE id = ?')
@@ -435,8 +443,11 @@ export async function updateDocPage(
     args.push(input.cover_url);
   }
   if (input.content !== undefined) {
+    // Bases: autor de cada fila y automatizaciones contra lo guardado.
+    const saved = prepareDatabaseSave(pageId, parseBlocks(row.content), sanitizeBlocks(input.content), opts.actorId ?? null);
+    opts.effects?.push(...saved.effects);
     updates.push('content = ?');
-    args.push(stringifyBlocks(sanitizeBlocks(input.content)));
+    args.push(stringifyBlocks(saved.blocks));
   }
   if (input.parent_id !== undefined) {
     updates.push('parent_id = ?');

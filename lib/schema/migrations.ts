@@ -3645,6 +3645,29 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Bases de Docs (tanda D2): registro de corridas de automatizaciones y
+    // botones (qué se disparó, en qué fila y si salió bien), para mostrarlo
+    // en el panel de automatizaciones. Las bases siguen viviendo en el
+    // content de la página.
+    id: '091_docs_databases',
+    up: async (client) => {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS docs_db_automation_runs (
+          id TEXT PRIMARY KEY,
+          page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+          block_id TEXT NOT NULL,
+          automation_id TEXT NOT NULL,
+          row_id TEXT NOT NULL,
+          action_type TEXT NOT NULL,
+          status TEXT NOT NULL CHECK (status IN ('ok', 'error')),
+          detail TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_db_runs_block ON docs_db_automation_runs(page_id, block_id, created_at DESC);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

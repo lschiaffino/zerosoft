@@ -57,7 +57,17 @@ export type DbPropertyType =
   | 'email'
   | 'phone'
   | 'created_time'
-  | 'last_edited_time';
+  | 'last_edited_time'
+  // Tanda D2 (bases como Notion).
+  | 'formula'
+  | 'relation'
+  | 'rollup'
+  | 'files'
+  | 'created_by'
+  | 'last_edited_by'
+  | 'unique_id'
+  | 'button'
+  | 'place';
 
 /** Grupos fijos de una propiedad status (como en Notion). */
 export type DbStatusGroup = 'todo' | 'in_progress' | 'done';
@@ -75,6 +85,121 @@ export interface DbProperty {
   type: DbPropertyType;
   /** select, multi_select y status. */
   options?: DbOption[];
+  /** formula: la expresión (lib/docs-formula.ts). */
+  formula?: string;
+  /** relation: a qué base apunta (y si es la vuelta de otra relación). */
+  relation?: DbRelationConfig;
+  /** rollup: relación, propiedad de la otra base y cálculo. */
+  rollup?: DbRollupConfig;
+  /** unique_id: prefijo ("TASK" → TASK-12) y próximo número a dar. */
+  prefix?: string;
+  next_id?: number;
+  /** button: texto y acciones al hacer clic. */
+  button?: DbButtonConfig;
+  /** Autocompletar con IA (text, select, multi_select). */
+  ai?: DbAiConfig;
+  /**
+   * Solo en memoria (no se guarda): tipo del resultado de una fórmula o un
+   * rollup, para mostrar, filtrar y ordenar. Lo pone computeDatabase.
+   */
+  kind?: 'number' | 'text' | 'checkbox' | 'date';
+  /** Solo en memoria: error de la fórmula (sintaxis o propiedad que no existe). */
+  error?: string;
+}
+
+/** Base destino de una relación: bloque database de una página de Docs. */
+export interface DbRelationConfig {
+  page_id: string;
+  block_id: string;
+  /** 1: una sola fila; ausente: sin límite. */
+  limit?: 1;
+  /**
+   * Relación de dos vías: id de la propiedad espejo en la otra base. Los
+   * valores se guardan solo del lado que la creó; el espejo (`mirror_of`)
+   * se calcula y, al editarlo, escribe en el lado original.
+   */
+  synced_prop?: string;
+  /** Esta propiedad es el espejo de `mirror_of` (propiedad de la base destino). */
+  mirror_of?: string;
+}
+
+export type DbRollupFn =
+  | 'show_original'
+  | 'show_unique'
+  | 'count_all'
+  | 'count_values'
+  | 'count_unique'
+  | 'count_empty'
+  | 'count_not_empty'
+  | 'percent_empty'
+  | 'percent_not_empty'
+  | 'sum'
+  | 'average'
+  | 'median'
+  | 'min'
+  | 'max'
+  | 'range'
+  | 'checked'
+  | 'unchecked'
+  | 'percent_checked'
+  | 'earliest'
+  | 'latest'
+  | 'date_range';
+
+export interface DbRollupConfig {
+  /** Propiedad relation de esta base. */
+  relation: string;
+  /** Propiedad de la base relacionada. */
+  property: string;
+  fn: DbRollupFn;
+}
+
+/** Archivo de una propiedad files (se sirve por /api/docs/files/<página>/<id>). */
+export interface DbFile {
+  id: string;
+  url: string;
+  name: string;
+  size?: number;
+  mime?: string;
+}
+
+export type DbAiMode = 'summary' | 'extract' | 'translate' | 'classify' | 'custom';
+
+export interface DbAiConfig {
+  mode: DbAiMode;
+  /** extract: qué sacar; custom: la instrucción. */
+  prompt?: string;
+  /** translate: idioma destino (en, es, pt, fr, de, it...). */
+  language?: string;
+  /** Rellenar solo al tocar el botón (false) o también al editar la fila (true). */
+  auto?: boolean;
+}
+
+/** Acción de un botón o de una automatización de la base. */
+export type DbAction =
+  | { id: string; type: 'set_prop'; prop: string; value: DbValue; mode?: 'set' | 'add' | 'remove' }
+  | { id: string; type: 'add_row'; target: { page_id: string; block_id: string }; title?: string; values?: Record<string, DbValue> }
+  | { id: string; type: 'notify'; people?: string[]; person_prop?: string; message?: string }
+  | { id: string; type: 'webhook'; url: string }
+  | { id: string; type: 'open_url'; url: string };
+
+export interface DbButtonConfig {
+  label: string;
+  actions: DbAction[];
+}
+
+export type DbTrigger =
+  | { type: 'row_added' }
+  | { type: 'prop_changed'; prop: string; to?: DbValue };
+
+export interface DbAutomation {
+  id: string;
+  name: string;
+  enabled: boolean;
+  trigger: DbTrigger;
+  /** Solo filas que cumplen los filtros de esta vista. */
+  view?: string | null;
+  actions: DbAction[];
 }
 
 /**
@@ -90,11 +215,16 @@ export interface DbRow {
   values: Record<string, DbValue>;
   /** Cuerpo de la fila abierta como página (sin bases adentro). */
   body?: DocsBlock[];
+  /** Propiedades files: archivos por id de propiedad. */
+  files?: Record<string, DbFile[]>;
   created_at: string;
   updated_at: string;
+  /** Quién la creó y quién la editó por última vez (los pone el servidor). */
+  created_by?: string;
+  updated_by?: string;
 }
 
-export type DbViewType = 'table' | 'board' | 'gallery';
+export type DbViewType = 'table' | 'board' | 'gallery' | 'list' | 'calendar' | 'timeline';
 
 export type DbFilterOp =
   | 'contains'
@@ -145,6 +275,14 @@ export interface DbViewConfig {
   hidden?: string[];
   /** Ancho de columna (px) por propiedad, en la tabla. */
   widths?: Record<string, number>;
+  /** Board: subgrupos (filas de columnas) por otra propiedad. */
+  sub_group_by?: string | null;
+  /** Calendario y timeline: propiedad fecha (inicio en timeline). */
+  date_by?: string | null;
+  /** Timeline: propiedad fecha de fin (sin ella, la barra dura un día). */
+  end_by?: string | null;
+  /** Timeline: escala. */
+  zoom?: 'week' | 'month' | 'quarter';
 }
 
 export interface DocsDatabase {
@@ -155,6 +293,20 @@ export interface DocsDatabase {
   active_view?: string;
   /** Nombre de la base (encabezado y breadcrumb de una fila abierta). */
   title?: string;
+  /** Automatizaciones (disparador → acciones). */
+  automations?: DbAutomation[];
+}
+
+/**
+ * Vista vinculada (linked database): un bloque database que muestra otra
+ * base (de esta u otra página) con sus propias vistas. Filas y propiedades
+ * son las de la base de origen; solo las vistas viven en este bloque.
+ */
+export interface DbLinkedSource {
+  page_id: string;
+  block_id: string;
+  views: DbViewConfig[];
+  active_view?: string;
 }
 
 export interface DocsBlock {
@@ -169,6 +321,8 @@ export interface DocsBlock {
   view?: DocsDatabaseView;
   /** Bloque database (formato actual; `columns`/`rows`/`view` son el viejo). */
   db?: DocsDatabase;
+  /** Bloque database que es una vista vinculada de otra base (sin `db` propio). */
+  linked?: DbLinkedSource;
   /**
    * Bloques image/file: URL del archivo en el storage (lib/uploads.ts). Nunca
    * se usa directo en el navegador: se sirve por /api/docs/files (chequea el
