@@ -1233,3 +1233,25 @@
   .suite-row-link > svg:last-child,
   .faq-plus::after { transition: none; }
 }
+
+/* Tabla de paridad de todas las apps (/ y /products). */
+.parity-overview-lead { max-width: 720px; margin-bottom: 24px; font-size: 1.125rem; line-height: 1.5; color: var(--brand-gray-1); }
+.parity-overview-wrap { border-top: var(--stroke-rule) solid var(--brand-ink); overflow-x: auto; }
+.parity-overview-table { width: 100%; font-size: 15px; border-collapse: collapse; }
+.parity-overview-table th,
+.parity-overview-table td { height: auto; padding: 12px 12px 12px 0; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--line); }
+.parity-overview-table thead th { font-size: 12px; font-weight: 600; color: var(--brand-gray-2); white-space: nowrap; }
+.parity-overview-table tbody tr:hover { background: transparent; }
+.parity-overview-table .po-num { width: 1%; text-align: right; white-space: nowrap; }
+.parity-overview-table .po-bar-col { width: 34%; }
+.po-app { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; color: var(--ink); text-decoration: none; }
+.po-app:hover { text-decoration: underline; }
+.po-dot { display: block; width: 10px; height: 10px; flex: none; }
+.po-competitor { color: var(--brand-gray-1); }
+.po-bar-cell { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; gap: 12px; }
+.po-percent { font-size: 14px; text-align: right; font-weight: 600; }
+.parity-overview .parity-method { margin-top: 16px; max-width: 720px; }
+@media (max-width: 760px) {
+  .parity-overview-table .po-sm-hide { display: none; }
+  .parity-overview-table .po-bar-col { width: auto; }
+}

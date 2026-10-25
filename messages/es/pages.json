@@ -1930,5 +1930,20 @@
     "paramObjectSlug": "Slug del objeto (de Listar objetos propios).",
     "paramRecordName": "Valor de la propiedad primaria.",
     "paramRecordCustom": "Valores de las propiedades por nombre."
+  },
+  "parityOverview": {
+    "title": "Paridad de funciones, app por app.",
+    "titleDim": "Medida contra cada competidor.",
+    "lead": "Paridad promedio de las 12 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "col": {
+      "app": "App",
+      "competitor": "Comparada con",
+      "parity": "Paridad",
+      "have": "Incluidas",
+      "partial": "Parciales",
+      "missing": "Faltan",
+      "beyond": "Más allá"
+    },
+    "method": "Cada app suma 1 por capacidad incluida, 0,5 por parcial y 0 por faltante, con peso doble para las centrales. Es nuestra evaluación contra el código y se actualiza con cada versión. Abrí una app para ver la lista completa."
   }
 }
