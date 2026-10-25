@@ -6,6 +6,7 @@ import { docPageCreateSchema } from '@/lib/docs-schema';
 import { forbidden, unauthorized, invalidBody } from '@/lib/docs-http';
 import { canCreateDocPage, docsHidden } from '@/lib/docs-guard';
 import { logDocsAudit, requestIp } from '@/lib/docs-audit';
+import { pageVisibleToWorkspace } from '@/lib/docs-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,7 +43,10 @@ export async function POST(req: NextRequest) {
   // Miembros con rol de lectura o comentario no crean páginas en el workspace.
   if (!(await canCreateDocPage(user, parsed.data))) return forbidden();
   const page = await createDocPage(user.id, parsed.data);
-  after(() => emitEvent(user.id, 'page.created', { page: { id: page.id, title: page.title, parentId: page.parent_id } }));
+  // Las páginas de teamspaces cerrados o privados no disparan flows: el flow corre con el acceso de otra persona.
+  after(async () => {
+    if (await pageVisibleToWorkspace(page.teamspace_id)) await emitEvent(user.id, 'page.created', { page: { id: page.id, title: page.title, parentId: page.parent_id } });
+  });
   await logDocsAudit({
     workspaceId: user.id,
     actor: user.actingUser ?? user,
