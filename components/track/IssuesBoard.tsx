@@ -169,6 +169,9 @@ export default function IssuesBoard({
                       .filter(Boolean)
                       .join(' ')}
                     draggable={draggable}
+                    data-issue-key={pending ? undefined : issue.id}
+                    data-issue-row={pending ? undefined : ''}
+                    data-href={pending ? undefined : `/app/track/issues/${issue.id}`}
                     title={draggable && editing ? editing.ui.inline.dragHint : undefined}
                     onDragStart={
                       draggable

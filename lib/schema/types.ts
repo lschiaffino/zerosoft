@@ -1196,6 +1196,8 @@ export interface TrackIssueRow {
   /** 1 = pendiente en la cola de triage del proyecto. */
   triage?: number;
   milestone_id?: string | null;
+  /** Orden manual dentro de los sub-issues del padre (null = por creación). */
+  sub_order?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -1260,6 +1262,8 @@ export interface TrackIssueViewRow {
   sort: string;
   columns: string | null; // JSON string[]
   is_default: 0 | 1;
+  /** 1 = vista de equipo: la ven todos los que acceden al proyecto. */
+  shared?: 0 | 1;
   created_at: string;
   updated_at: string;
 }
@@ -1272,6 +1276,11 @@ export interface TrackIssueCommentRow {
   created_at: string;
   /** Última edición del autor (null si nunca se editó). */
   updated_at: string | null;
+  /** Respuesta en hilo: id del comentario raíz. */
+  parent_id?: string | null;
+  /** Hilo resuelto (solo en el comentario raíz). */
+  resolved_at?: string | null;
+  resolved_by?: string | null;
 }
 
 export interface TrackIssueRelationRow {

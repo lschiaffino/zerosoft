@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import type { TrackStatusRow } from '@/lib/db';
 import type { ProjectMember } from '@/lib/track-data';
-import { safeHexColor } from '@/lib/track-color';
+import { glyphColor, safeHexColor } from '@/lib/track-color';
 import { addDays, formatDay, isCompletedCategory, toIsoDay, type IssuePriority } from '@/lib/track-tasks';
 import type { TrackUiLabels } from './ui-labels';
 
@@ -22,43 +22,62 @@ export function priorityColor(priority: string): string {
       : 'var(--brand-gray-3)';
 }
 
-/** Barras de prioridad estilo Linear (1–4 barras llenas). */
+/**
+ * Prioridad como en Linear: barras crecientes (baja 1, media 2, alta 3) y
+ * urgente como un cuadrado con "!". El color va solo en urgente.
+ */
 export function PriorityIcon({ priority }: { priority: string }) {
-  const level = priority === 'urgent' ? 4 : priority === 'high' ? 3 : priority === 'medium' ? 2 : 1;
-  const color = priorityColor(priority);
+  if (priority === 'urgent') {
+    return (
+      <svg className="track-prio-icon is-urgent" viewBox="0 0 14 14" width="14" height="14" aria-hidden>
+        <rect x="1" y="1" width="12" height="12" rx="2" fill="var(--bad)" />
+        <path d="M7 3.6v4.3" stroke="var(--bg)" strokeWidth="1.8" strokeLinecap="round" />
+        <circle cx="7" cy="10.3" r="1" fill="var(--bg)" />
+      </svg>
+    );
+  }
+  const level = priority === 'high' ? 3 : priority === 'medium' ? 2 : 1;
   return (
-    <span className="track-prio-icon" aria-hidden>
-      {[1, 2, 3, 4].map((n) => (
-        <span key={n} style={{ height: 3 + n * 2, background: n <= level ? color : 'var(--line)' }} />
+    <svg className="track-prio-icon" viewBox="0 0 14 14" width="14" height="14" aria-hidden>
+      {[0, 1, 2].map((n) => (
+        <rect
+          key={n}
+          x={1.5 + n * 4}
+          y={9 - n * 3}
+          width="3"
+          height={4 + n * 3}
+          rx="0.6"
+          fill={n < level ? 'var(--ink)' : 'var(--line-strong, var(--brand-gray-3))'}
+          opacity={n < level ? 1 : 0.35}
+        />
       ))}
-    </span>
+    </svg>
   );
 }
 
 /**
- * Glifo de status: un cuadrado. Backlog
- * punteado, por hacer vacío, en progreso lleno a la mitad, hecho lleno con
- * tilde y cancelado lleno en gris con cruz.
+ * Glifo de status como en Linear: un círculo. Backlog punteado, por hacer
+ * vacío, en progreso con la mitad llena, hecho lleno con tilde y cancelado
+ * lleno en gris con cruz.
  */
 export function StatusDot({ color, category }: { color: string | null; category: string | null }) {
   const cancelled = category === 'cancelled';
-  const c = cancelled ? 'var(--brand-gray-3)' : safeHexColor(color, '#767676');
+  const c = cancelled ? 'var(--brand-gray-3)' : glyphColor(color);
   const filled = category === 'done' || cancelled;
   return (
-    <svg className="track-status-glyph" viewBox="0 0 12 12" width="12" height="12" aria-hidden style={{ color: c } as CSSProperties}>
-      <rect
-        x="0.75"
-        y="0.75"
-        width="10.5"
-        height="10.5"
+    <svg className="track-status-glyph" viewBox="0 0 14 14" width="14" height="14" aria-hidden style={{ color: c } as CSSProperties}>
+      <circle
+        cx="7"
+        cy="7"
+        r="5.75"
         fill={filled ? 'currentColor' : 'none'}
         stroke="currentColor"
         strokeWidth="1.5"
-        strokeDasharray={category === 'backlog' ? '2 1.5' : undefined}
+        strokeDasharray={category === 'backlog' ? '2.2 1.8' : undefined}
       />
-      {category === 'in_progress' && <rect x="0.75" y="0.75" width="5.25" height="10.5" fill="currentColor" />}
-      {category === 'done' && <path d="M3.2 6.2l1.9 1.9 3.7-4" fill="none" stroke="var(--bg)" strokeWidth="1.6" />}
-      {cancelled && <path d="M3.8 3.8l4.4 4.4M8.2 3.8l-4.4 4.4" fill="none" stroke="var(--bg)" strokeWidth="1.6" />}
+      {category === 'in_progress' && <path d="M7 3.25a3.75 3.75 0 0 1 0 7.5z" fill="currentColor" />}
+      {category === 'done' && <path d="M4.4 7.2l1.8 1.8 3.5-3.7" fill="none" stroke="var(--bg)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />}
+      {cancelled && <path d="M5 5l4 4M9 5l-4 4" fill="none" stroke="var(--bg)" strokeWidth="1.5" strokeLinecap="round" />}
     </svg>
   );
 }
@@ -243,7 +262,7 @@ interface MenuOption {
   icon?: ReactNode;
 }
 
-function OptionList({
+export function OptionList({
   options,
   value,
   onSelect,
@@ -288,6 +307,7 @@ export function StatusMenu({
   disabled,
   label,
   textOnly,
+  glyphOnly,
 }: {
   statusId: string | null;
   statusName: string | null;
@@ -299,15 +319,18 @@ export function StatusMenu({
   label: string;
   /** Solo el nombre: el glifo va aparte como control de terminado. */
   textOnly?: boolean;
+  /** Solo el glifo (filas densas como los sub-issues). */
+  glyphOnly?: boolean;
 }) {
   return (
     <Popover
       ariaLabel={`${label}: ${statusName ?? '–'}`}
       disabled={disabled || statuses.length === 0}
+      className={glyphOnly ? 'is-glyph' : undefined}
       trigger={
         <>
           {!textOnly && <StatusDot color={statusColor} category={statusCategory} />}
-          <span className="track-inline-text">{statusName ?? '–'}</span>
+          {!glyphOnly && <span className="track-inline-text">{statusName ?? '–'}</span>}
         </>
       }
     >

@@ -11,6 +11,8 @@ import EmptyState from '@/components/ui/EmptyState';
 import TrackIcon from './TrackIcon';
 import { AssigneeMenu, DueDateMenu, PriorityIcon, PriorityMenu, QuickAdd, StatusMenu, StatusToggle } from './InlineEditors';
 import { isPendingIssue, type ProjectMap } from './useIssueStore';
+import { nestIssues } from '@/lib/track-views';
+import { ProgressRing } from './SubIssues';
 import type { TrackUiLabels } from './ui-labels';
 import type { IssueSelection } from './BulkEdit';
 
@@ -67,6 +69,8 @@ interface IssuesTableProps {
   showHeader?: boolean;
   /** Selección múltiple para edición masiva (checkbox, shift+clic, X). */
   selection?: IssueSelection & { label: string; allLabel: string };
+  /** Sub-issues debajo de su padre (cuando el padre está en la lista). */
+  nested?: boolean;
 }
 
 function parseLabels(raw: string): IssueLabel[] {
@@ -92,6 +96,7 @@ export default function IssuesTable({
   fixedLayout = false,
   showHeader = true,
   selection,
+  nested = false,
 }: IssuesTableProps) {
   const sorted = useMemo(() => {
     if (!sort) return issues;
@@ -109,6 +114,11 @@ export default function IssuesTable({
       return cmp * dir;
     });
   }, [issues, sort, sortDir]);
+
+  const rows = useMemo(
+    () => (nested ? nestIssues(sorted) : sorted.map((issue) => ({ issue, depth: 0 }))),
+    [nested, sorted],
+  );
 
   if (sorted.length === 0 && !quickAdd) {
     return <EmptyState quiet title={labels.empty} />;
@@ -175,7 +185,7 @@ export default function IssuesTable({
               </td>
             </tr>
           )}
-          {sorted.map((issue) => {
+          {rows.map(({ issue, depth }) => {
             const issueLabels = parseLabels(issue.labels);
             const pending = isPendingIssue(issue);
             const ctx = editing?.projects[issue.project_id];
@@ -185,8 +195,14 @@ export default function IssuesTable({
                 <span className="track-issue-title">{issue.title || '–'}</span>
                 {issue.child_count > 0 && (
                   <span className="track-subtask-indicator" title={labels.hasSubtasks}>
-                    <TrackIcon name="subtasks" size={12} />
-                    <span className="sr-only">{labels.hasSubtasks}:</span> {issue.child_count}
+                    <ProgressRing done={issue.child_done ?? 0} total={issue.child_count} size={12} />
+                    <span className="sr-only">{labels.hasSubtasks}:</span> {issue.child_done ?? 0}/{issue.child_count}
+                  </span>
+                )}
+                {issue.parent_id && depth === 0 && issue.parent_identifier && (
+                  <span className="track-row-parent" title={issue.parent_title ?? undefined}>
+                    <TrackIcon name="parent" size={11} />
+                    {issue.parent_identifier}
                   </span>
                 )}
                 {issueLabels.length > 0 && (
@@ -208,11 +224,13 @@ export default function IssuesTable({
                 data-issue-row={pending ? undefined : ''}
                 data-href={pending ? undefined : `/app/track/issues/${issue.id}`}
                 data-issue-id={pending || !selection ? undefined : issue.id}
+                data-issue-key={pending ? undefined : issue.id}
                 className={
                   [
                     pending ? 'is-pending' : '',
                     editing && completed ? 'is-completed' : '',
                     selection?.selected.has(issue.id) ? 'is-selected' : '',
+                    depth > 0 ? 'is-child' : '',
                   ]
                     .filter(Boolean)
                     .join(' ') || undefined
@@ -244,7 +262,7 @@ export default function IssuesTable({
                     </Link>
                   )}
                 </td>
-                <td className="track-col-title">
+                <td className="track-col-title" style={depth > 0 ? ({ '--depth': depth } as React.CSSProperties) : undefined}>
                   {pending ? titleContent : <Link href={`/app/track/issues/${issue.id}`}>{titleContent}</Link>}
                 </td>
                 {show('project') && <td className="hide-sm track-cell-dim track-col-project">{ctx?.name ?? '–'}</td>}

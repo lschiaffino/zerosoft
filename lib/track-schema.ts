@@ -131,6 +131,8 @@ export const issueCreateSchema = z.object({
 
 export const issueUpdateSchema = issueCreateSchema.partial().extend({
   title: shortText.optional(),
+  /** Orden manual dentro de los sub-issues del padre (arrastrar). */
+  subOrder: z.number().finite().nullish(),
 });
 
 // ---------- Labels del workspace ----------
@@ -199,9 +201,22 @@ export const githubConfigSchema = z.object({
 
 export const commentCreateSchema = z.object({
   body: longText.min(1),
+  /** Respuesta en hilo: comentario raíz (o una respuesta, que se sube a su raíz). */
+  parentId: id.optional(),
 });
 
-export const commentUpdateSchema = commentCreateSchema;
+export const commentUpdateSchema = z.object({
+  body: longText.min(1),
+});
+
+/** Resolver o reabrir un hilo (lo puede hacer cualquier miembro). */
+export const commentResolveSchema = z.object({
+  resolved: z.boolean(),
+});
+
+export const commentReactionSchema = z.object({
+  emoji: z.string().min(1).max(16),
+});
 
 // ---------- Suscripción ----------
 
@@ -227,6 +242,8 @@ export const issueViewCreateSchema = z.object({
   filters: z.record(z.unknown()).default({}),
   sort: z.enum(ISSUE_SORTS).default('newest'),
   columns: z.array(z.string()).max(20).optional(),
+  /** Vista de equipo (la ven todos los del proyecto). */
+  shared: z.boolean().optional(),
 });
 
 export const issueViewUpdateSchema = z.object({
@@ -235,6 +252,7 @@ export const issueViewUpdateSchema = z.object({
   filters: z.record(z.unknown()).optional(),
   sort: z.enum(ISSUE_SORTS).optional(),
   columns: z.array(z.string()).max(20).optional(),
+  shared: z.boolean().optional(),
 });
 
 // ---------- Milestones ----------

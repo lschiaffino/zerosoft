@@ -304,3 +304,38 @@ export function groupPreset(groupBy: IssueGroupBy, key: string, opts: { movable?
       return null;
   }
 }
+
+// ---------- Sub-issues bajo el padre ----------
+
+/**
+ * Ordena para mostrar cada sub-issue debajo de su padre (si el padre está en
+ * la lista), manteniendo el orden de la vista entre hermanos. Devuelve la
+ * profundidad de cada uno (0 = primer nivel en la lista).
+ */
+export function nestIssues<T extends Pick<TrackIssueWithStatus, 'id' | 'parent_id'>>(
+  issues: T[],
+): Array<{ issue: T; depth: number }> {
+  const ids = new Set(issues.map((i) => i.id));
+  const kids = new Map<string, T[]>();
+  for (const i of issues) {
+    if (i.parent_id && ids.has(i.parent_id)) {
+      const list = kids.get(i.parent_id) ?? [];
+      list.push(i);
+      kids.set(i.parent_id, list);
+    }
+  }
+  const out: Array<{ issue: T; depth: number }> = [];
+  const seen = new Set<string>();
+  const walk = (issue: T, depth: number) => {
+    if (seen.has(issue.id)) return;
+    seen.add(issue.id);
+    out.push({ issue, depth });
+    for (const k of kids.get(issue.id) ?? []) walk(k, Math.min(depth + 1, 4));
+  };
+  for (const i of issues) {
+    if (!i.parent_id || !ids.has(i.parent_id)) walk(i, 0);
+  }
+  // Ciclos raros (no debería haber): lo que quedó afuera va al final.
+  for (const i of issues) if (!seen.has(i.id)) out.push({ issue: i, depth: 0 });
+  return out;
+}

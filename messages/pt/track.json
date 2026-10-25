@@ -867,5 +867,210 @@
       "cycles": "{count, plural, one {# cycle} other {# cycles}}",
       "milestones": "{count, plural, one {# milestone} other {# milestones}}"
     }
+  },
+  "ux": {
+    "undo": {
+      "action": "Desfazer",
+      "dismiss": "Fechar",
+      "updatedOne": "{id} atualizado",
+      "updatedMany": "{count} issues atualizados",
+      "deleted": "{id} excluído",
+      "deletedMany": "{count} issues excluídos"
+    },
+    "cmd": {
+      "status": "Mudar status…",
+      "priority": "Mudar prioridade…",
+      "assignee": "Atribuir a…",
+      "noAssignee": "Sem responsável",
+      "assignMe": "Atribuir a mim",
+      "labels": "Mudar labels…",
+      "estimate": "Estimativa…",
+      "estimatePlaceholder": "Digite o número de pontos…",
+      "noEstimate": "Sem estimativa",
+      "points": "{count, plural, one {# ponto} other {# pontos}}",
+      "due": "Prazo…",
+      "duePlaceholder": "Digite uma data: 2026-11-03, 3/11, +5d…",
+      "today": "Hoje",
+      "tomorrow": "Amanhã",
+      "endOfWeek": "Fim desta semana",
+      "nextWeek": "Semana que vem",
+      "inTwoWeeks": "Em duas semanas",
+      "noDue": "Remover prazo",
+      "dueOn": "Prazo {date}",
+      "cycle": "Mover para cycle…",
+      "noCycle": "Sem cycle",
+      "milestone": "Milestone…",
+      "noMilestone": "Sem milestone",
+      "setParent": "Escolher issue pai…",
+      "searchParent": "Buscar issues…",
+      "removeParent": "Remover pai",
+      "createSubIssue": "Criar sub-issue",
+      "copyId": "Copiar ID do issue",
+      "copyLink": "Copiar URL do issue",
+      "copyBranch": "Copiar nome da branch do git",
+      "link": "Link",
+      "copied": "Copiado: {what}",
+      "open": "Abrir issue",
+      "delete": "Excluir issue",
+      "deleteMany": "Excluir {count} issues",
+      "many": "{count} issues"
+    },
+    "editor": {
+      "todo": "Lista de tarefas",
+      "strike": "Riscado",
+      "uploading": "Enviando {name}…",
+      "uploadError": "Não foi possível enviar {name}.",
+      "hint": "Markdown. / insere blocos, @ menciona pessoas e issues, # vincula um issue. Cole ou solte imagens.",
+      "slash": {
+        "h1": "Título 1",
+        "h2": "Título 2",
+        "h3": "Título 3",
+        "bullet": "Lista com marcadores",
+        "numbered": "Lista numerada",
+        "todo": "Lista de tarefas",
+        "code": "Bloco de código",
+        "quote": "Citação",
+        "divider": "Separador",
+        "table": "Tabela"
+      },
+      "menu": {
+        "slash": "Inserir",
+        "mention": "Pessoas e issues",
+        "issue": "Issues"
+      }
+    },
+    "thread": {
+      "postError": "Não foi possível publicar o comentário. Tente de novo.",
+      "reactError": "Não foi possível salvar a reação.",
+      "resolveError": "Não foi possível atualizar a thread.",
+      "you": "Você",
+      "reactions": "Reações",
+      "reactionLabel": "{emoji} {count}: {who}",
+      "addReaction": "Adicionar reação",
+      "more": "Ações do comentário",
+      "reopen": "Reabrir thread",
+      "resolve": "Resolver thread",
+      "copyLink": "Copiar link do comentário",
+      "linkCopied": "Link do comentário copiado",
+      "reply": "Responder",
+      "resolvedBy": "Resolvida por {name} · {count, plural, one {# comentário} other {# comentários}}",
+      "hide": "Ocultar",
+      "show": "Ver",
+      "replyPlaceholder": "Responder…",
+      "replySubmit": "Responder"
+    },
+    "sub": {
+      "title": "Sub-issues",
+      "add": "Adicionar sub-issue",
+      "addFirst": "Adicionar sub-issues",
+      "addExisting": "Adicionar issue existente como sub-issue",
+      "placeholder": "Título do sub-issue",
+      "hint": "Enter cria · Esc fecha",
+      "nested": "{done} de {total} sub-issues concluídos",
+      "of": "Sub-issue de",
+      "show": "Mostrar sub-issues"
+    },
+    "side": {
+      "project": "Projeto",
+      "points": "{count, plural, one {# ponto} other {# pontos}}"
+    },
+    "presence": {
+      "viewing": "Também estão vendo: {names}"
+    },
+    "views": {
+      "team": "Equipe",
+      "favorite": "Adicionar aos favoritos",
+      "unfavorite": "Remover dos favoritos",
+      "copyLink": "Copiar link da visualização",
+      "share": "Compartilhar com a equipe",
+      "unshare": "Voltar a pessoal",
+      "unsaved": "Mudanças não salvas",
+      "update": "Salvar mudanças em “{name}”",
+      "mine": "Minhas visualizações",
+      "teamViews": "Visualizações da equipe",
+      "favorites": "Favoritos",
+      "sharedOn": "A equipe já vê esta visualização",
+      "sharedOff": "A visualização voltou a ser pessoal",
+      "saved": "Visualização salva",
+      "linkCopied": "Link da visualização copiado",
+      "shareOnSave": "Compartilhar com a equipe",
+      "shareHelp": "Todo o projeto vê as visualizações da equipe. Só você as edita."
+    },
+    "filter": {
+      "fields": {
+        "creator": "Criador",
+        "milestone": "Milestone",
+        "estimate": "Estimativa",
+        "start": "Início",
+        "created": "Criado",
+        "updated": "Atualizado",
+        "relation": "Relações",
+        "hierarchy": "Sub-issues"
+      },
+      "noAssignee": "Sem responsável",
+      "noCycle": "Sem cycle",
+      "noMilestone": "Sem milestone",
+      "points": "{count, plural, one {# ponto} other {# pontos}}",
+      "relation": {
+        "blocked": "Bloqueado",
+        "blocking": "Bloqueia outro",
+        "related": "Com relacionados",
+        "duplicate": "Duplicado"
+      },
+      "hierarchy": {
+        "top": "Issues de primeiro nível",
+        "sub": "Sub-issues",
+        "parent": "Com sub-issues"
+      },
+      "rel": {
+        "today": "hoje",
+        "-1d": "ontem",
+        "-7d": "há 1 semana",
+        "-14d": "há 2 semanas",
+        "-30d": "há 1 mês",
+        "+1d": "amanhã",
+        "+7d": "em 1 semana",
+        "+14d": "em 2 semanas",
+        "+30d": "em 1 mês"
+      },
+      "nValues": "{first} +{count}",
+      "searchPlaceholder": "Filtrar…",
+      "preset": {
+        "overdue": "Antes de hoje",
+        "fromToday": "De hoje em diante",
+        "next7": "Nos próximos 7 dias",
+        "last7": "Nos últimos 7 dias",
+        "last30": "Nos últimos 30 dias",
+        "olderThan30": "Há mais de 30 dias",
+        "none": "Sem data"
+      },
+      "before": "Antes de uma data",
+      "operator": "Operador",
+      "op": {
+        "is": "é",
+        "is_not": "não é",
+        "empty": "está vazio",
+        "not_empty": "tem valor",
+        "gte": "pelo menos",
+        "lte": "no máximo",
+        "date_before": "antes de",
+        "date_after": "depois de",
+        "date_empty": "está vazio",
+        "date_not_empty": "tem valor"
+      },
+      "pickDate": "Escolher data",
+      "remove": "Remover filtro {field}",
+      "matchHelp": "Alterna entre cumprir todos os filtros ou algum",
+      "matchAll": "Todos os filtros",
+      "matchAny": "Algum filtro"
+    },
+    "peek": {
+      "title": "Prévia do issue",
+      "hint": "Espaço ou Esc fecha · Enter abre",
+      "close": "Fechar prévia",
+      "open": "Abrir issue",
+      "noDescription": "Sem descrição.",
+      "subIssues": "{done} de {total} sub-issues concluídos"
+    }
   }
 }

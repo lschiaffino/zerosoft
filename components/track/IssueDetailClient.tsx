@@ -1,27 +1,34 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { issueKeyAction, issueKeyHint } from '@/lib/track-keys';
 import { formatDate, relDate } from '@/lib/utils';
-import StatusBadge from './StatusBadge';
-import IssuePropertiesPanel from './IssuePropertiesPanel';
+import type { CommandAction } from '@/lib/cmdk-context';
+import { openCommandMenu } from '@/lib/cmdk-context';
 import IssueActivityTimeline from './IssueActivityTimeline';
-import QuickIssueModal from './QuickIssueModal';
 import { IssueGithubPanel, useIssueGithub } from './IssueGithub';
-import { Popover, PriorityIcon, TrackToast, useToday } from './InlineEditors';
+import { Popover, TrackToast, useToday } from './InlineEditors';
 import { branchNameFor } from '@/lib/track-branch';
 import { TriageBanner } from './TriagePanel';
-import MarkdownEditor, { MarkdownView } from './MarkdownEditor';
+import MarkdownEditor, { MarkdownView, type UploadResult } from './MarkdownEditor';
 import TrackIcon from './TrackIcon';
 import IssueSubscription from './IssueSubscription';
 import IssueReminder from './IssueReminder';
-import { findDoneStatus, findOpenStatus } from '@/lib/track-tasks';
-import type { IssueDraft } from './useIssueStore';
+import IssueSidebar from './IssueSidebar';
+import SubIssues from './SubIssues';
+import { useWorkspaceLabels } from './LabelPicker';
+import { applyIssuePatch, findDoneStatus, findOpenStatus, formatDay, inversePatch, type IssuePatch } from '@/lib/track-tasks';
+import { toggleTaskInSource } from '@/lib/track-markdown';
+import { useIssueStore, type ProjectContext } from './useIssueStore';
+import { rowTargetId, useTrackCommands } from './trackCommands';
+import { pushNotice, pushUndo, scheduleDelete } from './trackUndo';
+import { useTrackLive } from './useTrackLive';
 import type { TrackUiLabels } from './ui-labels';
 import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
+import type { CommentReaction } from '@/lib/track-ux';
 import type {
   IssueParentSummary,
   ProjectMember,
@@ -159,22 +166,14 @@ interface IssueDetailClientProps {
   initialAttachments: TrackIssueAttachmentWithAuthor[];
   initialActivities: TrackIssueActivityWithAuthor[];
   initialRelations: TrackIssueRelationWithTarget[];
+  initialReactions?: CommentReaction[];
   /** Si la persona recibe los avisos del issue. */
   initialSubscribed: boolean;
   labels: DetailLabels;
-  /** Labels del quick-create (modal de sub-issue). */
+  /** Labels del quick-create y de la edición en línea. */
   ui: TrackUiLabels;
   /** Borrar es solo para owner/admin (igual que el borrado masivo). */
   canDelete?: boolean;
-}
-
-function parseLabels(raw: string): Array<{ id: string; name: string; color: string }> {
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
 }
 
 function parseDescription(raw: string): string {
@@ -207,6 +206,18 @@ function useAutosize(value: string) {
 
 const RELATION_TYPES = ['blocks', 'related', 'duplicates'] as const;
 
+function isTypingTarget(el: EventTarget | null): boolean {
+  const node = el as HTMLElement | null;
+  return Boolean(node && (node.isContentEditable || node.closest?.('input, textarea, select, dialog, [role="dialog"]')));
+}
+
+/**
+ * Página del issue al estilo Linear: breadcrumb proyecto › padre › issue,
+ * título grande editable, descripción con el editor, sub-issues con progreso,
+ * línea de tiempo densa con hilos y reacciones, y el panel de propiedades a
+ * la derecha. Todo se maneja con el teclado (S, P, A, L, ⌘K, ⌘⇧O, ⌘Z) y se
+ * actualiza en vivo con los cambios de otros.
+ */
 export default function IssueDetailClient({
   locale,
   userId,
@@ -214,7 +225,7 @@ export default function IssueDetailClient({
   initialProjectName,
   initialStatuses,
   initialCycles,
-  initialMilestones,
+  initialMilestones = [],
   initialReminder,
   initialMembers,
   initialChildren,
@@ -222,71 +233,179 @@ export default function IssueDetailClient({
   initialAttachments,
   initialActivities,
   initialRelations,
+  initialReactions = [],
   initialSubscribed,
   labels,
   ui,
   canDelete = false,
 }: IssueDetailClientProps) {
   const t = useTranslations('track');
+  const tx = useTranslations('track.ux');
+  const tc = useTranslations('track.ux.cmd');
   const router = useRouter();
   const today = useToday();
   const [issue, setIssue] = useState(initialIssue);
+  const issueRef = useRef(issue);
+  issueRef.current = issue;
   const github = useIssueGithub(issue.id);
-  const [children, setChildren] = useState(initialChildren);
   const [attachments, setAttachments] = useState(initialAttachments);
   const [activities, setActivities] = useState(initialActivities);
+  const [reactions, setReactions] = useState(initialReactions);
   const [relations, setRelations] = useState(initialRelations);
+  const [parentChain, setParentChain] = useState(initialParentChain);
   const [uploading, setUploading] = useState(false);
   const [showRelationForm, setShowRelationForm] = useState(false);
   const [relationInput, setRelationInput] = useState('');
   const [relationType, setRelationType] = useState<(typeof RELATION_TYPES)[number]>('related');
-  const [subOpen, setSubOpen] = useState(false);
-  const [subError, setSubError] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [relationError, setRelationError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [titleDraft, setTitleDraft] = useState(initialIssue.title);
   const [descDraft, setDescDraft] = useState(() => parseDescription(initialIssue.description));
   const [editingDesc, setEditingDesc] = useState(false);
+  const [composerSignal, setComposerSignal] = useState(0);
   // Aviso para lectores de pantalla tras copiar (rama o link).
   const [copied, setCopied] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [mac, setMac] = useState(true);
+  const [workspaceLabels] = useWorkspaceLabels();
   useEffect(() => {
     setMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent));
   }, []);
   const titleRef = useAutosize(titleDraft);
   const descRef = useAutosize(editingDesc ? descDraft : '');
+  const titleFocused = useRef(false);
+
+  // ?sub=1 (⌘⇧O desde una lista): abre el composer de sub-issues.
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('sub') !== '1') return;
+    setComposerSignal((n) => n + 1);
+    sp.delete('sub');
+    const qs = sp.toString();
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+  }, []);
+
+  const project = useMemo<ProjectContext>(
+    () => ({
+      id: issue.project_id,
+      name: initialProjectName,
+      statuses: initialStatuses,
+      members: initialMembers,
+      cycles: initialCycles,
+      milestones: initialMilestones,
+      labels: workspaceLabels,
+    }),
+    [issue.project_id, initialProjectName, initialStatuses, initialMembers, initialCycles, initialMilestones, workspaceLabels],
+  );
+  const projectMap = useMemo(() => ({ [project.id]: project }), [project]);
+  const updatedLabel = useCallback(
+    (what: string, count: number) => (count === 1 ? tx('undo.updatedOne', { id: what }) : tx('undo.updatedMany', { count })),
+    [tx],
+  );
+  const childStore = useIssueStore(initialChildren, projectMap, {
+    saveError: ui.inline.saveError,
+    createError: ui.inline.createError,
+    noDoneStatus: ui.inline.noDoneStatus,
+    updated: updatedLabel,
+  });
+  const setChildren = childStore.setIssues;
+
+  // ---------- Recargas (también las dispara el sondeo en vivo) ----------
 
   const refreshIssue = useCallback(async () => {
-    const res = await fetch(`/api/track/issues/${issue.id}`);
-    if (res.ok) setIssue((await res.json()) as TrackIssueWithStatus);
+    const res = await fetch(`/api/track/issues/${issue.id}`).catch(() => null);
+    if (!res?.ok) return;
+    const next = (await res.json()) as TrackIssueWithStatus;
+    setIssue(next);
+    // El título y la descripción solo se pisan si no se están editando.
+    if (!titleFocused.current) setTitleDraft(next.title);
+    if (!descOpen.current) setDescDraft(parseDescription(next.description));
   }, [issue.id]);
 
   const refreshChildren = useCallback(async () => {
-    const res = await fetch(`/api/track/issues/${issue.id}/children`);
-    if (res.ok) setChildren(((await res.json()) as { rows: TrackIssueWithStatus[] }).rows);
-  }, [issue.id]);
+    const res = await fetch(`/api/track/issues/${issue.id}/children`).catch(() => null);
+    if (res?.ok) setChildren(((await res.json()) as { rows: TrackIssueWithStatus[] }).rows);
+  }, [issue.id, setChildren]);
 
   const refreshAttachments = useCallback(async () => {
-    const res = await fetch(`/api/track/issues/${issue.id}/attachments`);
-    if (res.ok) setAttachments(((await res.json()) as { rows: TrackIssueAttachmentWithAuthor[] }).rows);
+    const res = await fetch(`/api/track/issues/${issue.id}/attachments`).catch(() => null);
+    if (res?.ok) setAttachments(((await res.json()) as { rows: TrackIssueAttachmentWithAuthor[] }).rows);
   }, [issue.id]);
 
   const refreshActivities = useCallback(async () => {
-    const res = await fetch(`/api/track/issues/${issue.id}/activities`);
-    if (res.ok) setActivities(((await res.json()) as { rows: TrackIssueActivityWithAuthor[] }).rows);
+    const res = await fetch(`/api/track/issues/${issue.id}/activities`).catch(() => null);
+    if (!res?.ok) return;
+    const data = (await res.json()) as { rows: TrackIssueActivityWithAuthor[]; reactions?: CommentReaction[] };
+    setActivities(data.rows);
+    if (data.reactions) setReactions(data.reactions);
   }, [issue.id]);
 
   const refreshRelations = useCallback(async () => {
-    const res = await fetch(`/api/track/issues/${issue.id}/relations`);
-    if (res.ok) setRelations(((await res.json()) as { rows: TrackIssueRelationWithTarget[] }).rows);
+    const res = await fetch(`/api/track/issues/${issue.id}/relations`).catch(() => null);
+    if (res?.ok) setRelations(((await res.json()) as { rows: TrackIssueRelationWithTarget[] }).rows);
   }, [issue.id]);
 
   const handleIssueChange = useCallback(async () => {
     await Promise.all([refreshIssue(), refreshActivities()]);
   }, [refreshIssue, refreshActivities]);
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all([refreshIssue(), refreshActivities(), refreshChildren(), refreshRelations(), refreshAttachments()]);
+  }, [refreshIssue, refreshActivities, refreshChildren, refreshRelations, refreshAttachments]);
+
+  const { viewers } = useTrackLive({ issueId: issue.id }, () => void refreshAll(), { syncOnStart: true });
+
+  // ---------- Cambios del issue (optimistas, con ⌘Z) ----------
+
+  const patchIssue = useCallback(
+    async (patch: IssuePatch, opts: { undo?: boolean } = {}) => {
+      const prev = issueRef.current;
+      setIssue((cur) => applyIssuePatch(cur, patch, initialStatuses, initialMembers, project));
+      const res = await fetch(`/api/track/issues/${prev.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      }).catch(() => null);
+      if (!res?.ok) {
+        setIssue(prev);
+        setSaveError(ui.inline.saveError);
+        return false;
+      }
+      setIssue((await res.json()) as TrackIssueWithStatus);
+      void refreshActivities();
+      if (patch.parentId !== undefined) router.refresh();
+      if (opts.undo !== false) {
+        const inverse = inversePatch(prev, patch);
+        pushUndo(tx('undo.updatedOne', { id: prev.identifier }), async () => {
+          await patchIssueRef.current(inverse, { undo: false });
+        });
+      }
+      return true;
+    },
+    [initialStatuses, initialMembers, project, ui.inline.saveError, refreshActivities, router, tx],
+  );
+  const patchIssueRef = useRef(patchIssue);
+  patchIssueRef.current = patchIssue;
+
+  async function setLabels(next: Array<{ id: string } | { name: string }>) {
+    const prev = issueRef.current;
+    const res = await fetch(`/api/track/issues/${prev.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ labels: next }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setSaveError(ui.inline.saveError);
+      return;
+    }
+    setIssue((await res.json()) as TrackIssueWithStatus);
+    void refreshActivities();
+    const inverse = inversePatch(prev, { labels: [] });
+    pushUndo(tx('undo.updatedOne', { id: prev.identifier }), async () => {
+      await patchIssueRef.current(inverse, { undo: false });
+    });
+  }
 
   // Igual que el checkbox de las listas (useIssueStore.toggleDone): cerrar va al
   // primer Done (nunca a Cancelled) y reabrir prefiere Todo.
@@ -294,56 +413,79 @@ export default function IssueDetailClient({
   const openStatus = findOpenStatus(initialStatuses);
   const isClosed = issue.status_category === 'done' || issue.status_category === 'cancelled';
 
-  async function handleCreateSubIssue(projectId: string, draft: IssueDraft) {
-    setSubError(null);
-    const res = await fetch(`/api/track/projects/${projectId}/issues`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: draft.title,
-        description: draft.description?.trim() ? [{ type: 'text', text: draft.description.trim() }] : [],
-        statusId: draft.statusId || undefined,
-        priority: draft.priority,
-        assigneeId: draft.assigneeId || undefined,
-        dueDate: draft.dueDate || undefined,
-        parentId: issue.id,
-      }),
-    }).catch(() => null);
-    if (!res?.ok) {
-      setSubError(ui.inline.createError);
-      return;
-    }
-    await Promise.all([refreshChildren(), refreshActivities()]);
-  }
-
-  async function handleCloseReopen() {
+  function handleCloseReopen() {
     const targetId = isClosed ? openStatus?.id : doneStatus?.id;
-    if (!targetId) return;
-    const res = await fetch(`/api/track/issues/${issue.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ statusId: targetId }),
-    });
-    if (res.ok) {
-      await handleIssueChange();
-      await refreshChildren();
-    }
+    if (targetId) void patchIssue({ statusId: targetId });
   }
 
-  // Título y descripción se editan en línea; un PATCH fallido revierte y avisa.
-  async function patchFields(body: Record<string, unknown>): Promise<boolean> {
-    const res = await fetch(`/api/track/issues/${issue.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }).catch(() => null);
-    if (!res?.ok) {
-      setSaveError(ui.inline.saveError);
-      return false;
-    }
-    await handleIssueChange();
-    return true;
-  }
+  // ---------- Sub-issues ----------
+
+  const createSubIssue = useCallback(
+    async (title: string) => {
+      const parent = issueRef.current;
+      // Como en Linear: heredan prioridad, cycle y milestone; el asignado si
+      // quien crea es el asignado del padre.
+      const inheritsAssignee = parent.assignee_id && parent.assignee_id === userId;
+      await childStore.create(parent.project_id, {
+        title,
+        parentId: parent.id,
+        priority: parent.priority,
+        cycleId: parent.cycle_id,
+        milestoneId: parent.milestone_id ?? null,
+        assigneeId: inheritsAssignee ? parent.assignee_id : null,
+      });
+      void refreshActivities();
+    },
+    [childStore, userId, refreshActivities],
+  );
+
+  // "Agregar existente": elegir un issue y hacerlo sub-issue de este.
+  const addExistingAction = useCallback(
+    (): CommandAction => ({
+      id: 'add-sub',
+      label: tx('sub.addExisting'),
+      keywords: 'sub-issue existing existente child hijo',
+      placeholder: tc('searchParent'),
+      children: () => [],
+      load: async (q) => {
+        const sp = new URLSearchParams({ pageSize: '12' });
+        if (q.trim()) sp.set('q', q.trim());
+        const res = await fetch(`/api/track/issues?${sp.toString()}`);
+        if (!res.ok) return [];
+        const me = issueRef.current;
+        const blocked = new Set([me.id, ...parentChain.map((p) => p.id), ...childStore.issues.map((c) => c.id)]);
+        return ((await res.json()) as { rows: TrackIssueWithStatus[] }).rows
+          .filter((r) => !blocked.has(r.id))
+          .map((r) => ({
+            id: `add-sub:${r.id}`,
+            label: `${r.identifier} ${r.title}`,
+            run: async () => {
+              const ok = await fetch(`/api/track/issues/${r.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ parentId: me.id }),
+              }).catch(() => null);
+              if (!ok?.ok) {
+                setSaveError(ui.inline.saveError);
+                return;
+              }
+              await refreshChildren();
+              pushUndo(tx('undo.updatedOne', { id: r.identifier }), async () => {
+                await fetch(`/api/track/issues/${r.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ parentId: r.parent_id }),
+                });
+                await refreshChildren();
+              });
+            },
+          }));
+      },
+    }),
+    [tx, tc, parentChain, childStore.issues, refreshChildren, ui.inline.saveError],
+  );
+
+  // ---------- Título y descripción ----------
 
   async function saveTitle() {
     const next = titleDraft.replace(/\s+/g, ' ').trim();
@@ -353,7 +495,7 @@ export default function IssueDetailClient({
     }
     if (next === issue.title) return;
     setTitleDraft(next);
-    if (!(await patchFields({ title: next }))) setTitleDraft(issue.title);
+    if (!(await patchIssue({ title: next }))) setTitleDraft(issue.title);
   }
 
   // El editor puede avisar dos veces (botón Guardar y foco que sale): el ref
@@ -369,6 +511,20 @@ export default function IssueDetailClient({
     setEditingDesc(false);
   }
 
+  async function saveDescriptionText(next: string): Promise<boolean> {
+    const res = await fetch(`/api/track/issues/${issue.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description: next ? [{ type: 'text', text: next }] : [] }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setSaveError(ui.inline.saveError);
+      return false;
+    }
+    await handleIssueChange();
+    return true;
+  }
+
   async function saveDescription() {
     if (!descOpen.current) return;
     descOpen.current = false;
@@ -376,13 +532,42 @@ export default function IssueDetailClient({
     const next = descDraft.trim();
     const current = parseDescription(issue.description).trim();
     if (next === current) return;
-    if (!(await patchFields({ description: next ? [{ type: 'text', text: next }] : [] }))) setDescDraft(current);
+    if (!(await saveDescriptionText(next))) setDescDraft(current);
   }
+
+  // Tildar una tarea de la descripción desde la lectura (como en Linear).
+  async function toggleTask(index: number) {
+    const before = descDraft;
+    const next = toggleTaskInSource(before, index);
+    if (next === before) return;
+    setDescDraft(next);
+    if (!(await saveDescriptionText(next.trim()))) setDescDraft(before);
+  }
+
+  // Pegar o soltar imágenes en la descripción o un comentario: se suben como adjunto.
+  const uploadInline = useCallback(
+    async (file: File): Promise<UploadResult | null> => {
+      if (file.size > 10 * 1024 * 1024) {
+        setAttachmentError(labels.attachments.tooLarge);
+        return null;
+      }
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`/api/track/issues/${issue.id}/attachments`, { method: 'POST', body: form }).catch(() => null);
+      if (!res?.ok) return null;
+      const row = (await res.json()) as { url: string; filename: string; content_type?: string };
+      void refreshAttachments();
+      void refreshActivities();
+      return { url: row.url, filename: row.filename, image: (row.content_type ?? file.type).startsWith('image/') };
+    },
+    [issue.id, labels.attachments.tooLarge, refreshAttachments, refreshActivities],
+  );
 
   const branchName = branchNameFor(issue.identifier, titleDraft || issue.title);
 
   const announceCopied = useCallback((message: string) => {
     setCopied(message);
+    pushNotice(message);
     window.setTimeout(() => setCopied(null), 1500);
   }, []);
 
@@ -391,27 +576,34 @@ export default function IssueDetailClient({
     announceCopied(t('issues.linkCopied'));
   }, [t, announceCopied]);
 
-  async function handleDelete() {
-    setDeleting(true);
-    const res = await fetch(`/api/track/issues/${issue.id}`, { method: 'DELETE' }).catch(() => null);
-    if (!res?.ok) {
-      setDeleting(false);
-      setConfirmDelete(false);
-      setSaveError(t('issues.deleteError'));
-      return;
-    }
+  // Borrar con ventana para deshacer: el issue sale de las listas al instante
+  // y el DELETE se manda cuando vence el toast.
+  function handleDelete() {
+    setConfirmDelete(false);
+    const id = issue.id;
+    scheduleDelete({
+      ids: [id, ...childStore.issues.map((c) => c.id)],
+      label: tx('undo.deleted', { id: issue.identifier }),
+      commit: async (keepalive) => {
+        await fetch(`/api/track/issues/${id}`, { method: 'DELETE', keepalive }).catch(() => undefined);
+      },
+      restore: () => router.push(`/app/track/issues/${id}`),
+    });
     router.push(`/app/track/projects/${issue.project_id}`);
-    router.refresh();
   }
 
-  // ⌘⌫ borra (con confirmación) y ⌘⇧, copia el link, como en Linear. No
-  // corren mientras se escribe (⌘⌫ en un campo borra la línea).
+  // ⌘⌫ borra (con confirmación), ⌘⇧, copia el link y ⌘⇧↑ abre el padre, como en Linear.
+  const parent = parentChain[parentChain.length - 1] ?? null;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || isTypingTarget(e.target)) return;
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'ArrowUp' && parent) {
+        e.preventDefault();
+        router.push(`/app/track/issues/${parent.id}`);
+        return;
+      }
       const action = issueKeyAction(e);
-      if (!action || e.defaultPrevented) return;
-      const el = e.target as HTMLElement | null;
-      if (el && (el.isContentEditable || el.closest('input, textarea, select, dialog, [role="dialog"]'))) return;
+      if (!action) return;
       if (action === 'delete') {
         if (!canDelete) return;
         e.preventDefault();
@@ -423,7 +615,67 @@ export default function IssueDetailClient({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [canDelete, copyLink]);
+  }, [canDelete, copyLink, parent, router]);
+
+  // ---------- ⌘K y atajos de una tecla ----------
+
+  useTrackCommands({
+    lookup: (id) => (id === issueRef.current.id ? issueRef.current : childStore.issues.find((c) => c.id === id)),
+    getTargets: () => {
+      // Una fila de sub-issue bajo el mouse (o activa con J/K) gana sobre el issue abierto.
+      const rowId = rowTargetId();
+      const child = rowId ? childStore.issues.find((c) => c.id === rowId) : null;
+      return [child ?? issueRef.current];
+    },
+    data: {
+      statuses: initialStatuses,
+      members: initialMembers,
+      labels: workspaceLabels,
+      cycles: initialCycles,
+      milestones: initialMilestones,
+      priorities: labels.priorities,
+      meId: userId,
+      today,
+    },
+    handlers: {
+      apply: (targets, patch) => {
+        for (const target of targets) {
+          const p = typeof patch === 'function' ? patch(target) : patch;
+          if (target.id === issueRef.current.id) void patchIssue(p);
+          else void childStore.update(target.id, p);
+        }
+      },
+      createSubIssue: (p) => {
+        if (p.id === issueRef.current.id) setComposerSignal((n) => n + 1);
+        else router.push(`/app/track/issues/${p.id}`);
+      },
+      remove: canDelete
+        ? (targets) => {
+            if (targets.some((x) => x.id === issueRef.current.id)) {
+              setConfirmDelete(true);
+              return;
+            }
+            const ids = targets.map((x) => x.id);
+            const snapshot = childStore.issues;
+            childStore.setIssues((list) => list.filter((c) => !ids.includes(c.id)));
+            scheduleDelete({
+              ids,
+              label: tx('undo.deleted', { id: targets.length === 1 ? targets[0].identifier : String(targets.length) }),
+              commit: async (keepalive) => {
+                await Promise.all(ids.map((id) => fetch(`/api/track/issues/${id}`, { method: 'DELETE', keepalive }).catch(() => undefined)));
+              },
+              restore: () => childStore.setIssues(snapshot),
+            });
+          }
+        : undefined,
+      open: (i) => router.push(`/app/track/issues/${i.id}`),
+    },
+    t: (k, v) => tc(k, v),
+    formatDay: (iso) => formatDay(iso, locale, today),
+    extra: (targets) => (targets[0]?.id === issueRef.current.id ? [addExistingAction()] : []),
+  });
+
+  // ---------- Adjuntos y relaciones ----------
 
   async function handleUpload(file: File) {
     setAttachmentError(null);
@@ -491,7 +743,15 @@ export default function IssueDetailClient({
     }
   }
 
-  const issueLabels = parseLabels(issue.labels);
+  // El padre cambió (⌘⇧P o "Quitar padre"): el breadcrumb se vuelve a pedir.
+  useEffect(() => {
+    if (issue.parent_id === (parentChain[parentChain.length - 1]?.id ?? null)) return;
+    if (!issue.parent_id) {
+      setParentChain([]);
+      return;
+    }
+    setParentChain([{ id: issue.parent_id, identifier: issue.parent_identifier ?? '…', title: issue.parent_title ?? '' }]);
+  }, [issue.parent_id, issue.parent_identifier, issue.parent_title, parentChain]);
 
   const outgoing = relations.filter((r) => r.direction === 'outgoing');
   const incoming = relations.filter((r) => r.direction === 'incoming');
@@ -502,74 +762,45 @@ export default function IssueDetailClient({
     return labels.relations.related;
   }
 
-  const priorityLabel = (value: string) => labels.priorities.find((p) => p.value === value)?.label ?? value;
-
   return (
     <div className="app-page track-detail" data-track-project-id={issue.project_id}>
       <header className="track-detail-head">
-        <nav className="track-breadcrumb" aria-label={labels.back}>
-          <Link href={`/app/track/projects/${issue.project_id}`}>{initialProjectName}</Link>
-          {initialParentChain.map((p) => (
-            <span key={p.id} className="track-breadcrumb-step">
-              <span className="track-breadcrumb-sep" aria-hidden>
-                /
+        <div className="track-detail-topbar">
+          <nav className="track-breadcrumb" aria-label={labels.back}>
+            <Link href={`/app/track/projects/${issue.project_id}`}>{initialProjectName}</Link>
+            {parentChain.map((p) => (
+              <span key={p.id} className="track-breadcrumb-step">
+                <span className="track-breadcrumb-sep" aria-hidden>
+                  ›
+                </span>
+                <Link href={`/app/track/issues/${p.id}`} title={p.title} className="track-identifier">
+                  {p.identifier}
+                </Link>
               </span>
-              <Link href={`/app/track/issues/${p.id}`} title={p.title} className="track-identifier">
-                {p.identifier}
-              </Link>
+            ))}
+            <span className="track-breadcrumb-sep" aria-hidden>
+              ›
             </span>
-          ))}
-          <span className="track-breadcrumb-sep" aria-hidden>
-            /
-          </span>
-          <span className="track-breadcrumb-current track-identifier" aria-current="page">
-            {issue.identifier}
-          </span>
-        </nav>
-        <h1 className="track-detail-title">
-          <textarea
-            ref={titleRef}
-            className="track-detail-title-input"
-            value={titleDraft}
-            rows={1}
-            maxLength={500}
-            placeholder={labels.untitled}
-            aria-label={labels.edit.title}
-            onChange={(e) => setTitleDraft(e.target.value.replace(/\n/g, ' '))}
-            onBlur={() => void saveTitle()}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                e.currentTarget.blur();
-              } else if (e.key === 'Escape') {
-                e.preventDefault();
-                setTitleDraft(issue.title);
-                window.setTimeout(() => (e.target as HTMLTextAreaElement).blur(), 0);
-              }
-            }}
-            data-testid="track-issue-title"
-          />
-        </h1>
-        <div className="track-detail-bar">
-          <div className="track-detail-meta">
-            <StatusBadge name={issue.status_name} color={issue.status_color} category={issue.status_category} />
-            <span className="track-priority">
-              <PriorityIcon priority={issue.priority} />
-              {priorityLabel(issue.priority)}
+            <span className="track-breadcrumb-current track-identifier" aria-current="page">
+              {issue.identifier}
             </span>
-            <span>{labels.createdOn.replace('{date}', formatDate(issue.created_at, locale))}</span>
-            {issueLabels.length > 0 && (
-              <span className="track-label-chips">
-                {issueLabels.map((l) => (
-                  <span key={l.id} className="track-label-tag">
-                    <span className="track-label-tag-dot" style={{ background: l.color }} aria-hidden />
-                    {l.name}
+          </nav>
+          <div className="track-detail-actions">
+            {viewers.length > 0 && (
+              <span
+                className="track-presence"
+                data-testid="track-presence"
+                title={tx('presence.viewing', { names: viewers.map((v) => v.name).join(', ') })}
+              >
+                <TrackIcon name="eye" size={12} />
+                {viewers.slice(0, 3).map((v) => (
+                  <span key={v.id} className="track-avatar is-small">
+                    {v.name[0]?.toUpperCase() ?? '?'}
                   </span>
                 ))}
+                <span className="sr-only">{tx('presence.viewing', { names: viewers.map((v) => v.name).join(', ') })}</span>
               </span>
             )}
-          </div>
-          <div className="track-detail-actions">
             <IssueReminder issueId={issue.id} locale={locale} initial={initialReminder ?? null} />
             <IssueSubscription
               issueId={issue.id}
@@ -581,13 +812,7 @@ export default function IssueDetailClient({
               ariaLabel={labels.edit.more}
               className="btn btn-icon track-detail-more"
               width={300}
-              trigger={
-                <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden>
-                  <rect x="2" y="7" width="2.5" height="2.5" fill="currentColor" />
-                  <rect x="6.75" y="7" width="2.5" height="2.5" fill="currentColor" />
-                  <rect x="11.5" y="7" width="2.5" height="2.5" fill="currentColor" />
-                </svg>
-              }
+              trigger={<TrackIcon name="more" size={16} />}
             >
               {(close) => (
                 <>
@@ -595,8 +820,61 @@ export default function IssueDetailClient({
                     type="button"
                     role="menuitem"
                     className="track-menu-item"
-                    data-testid="track-copy-link"
                     data-autofocus
+                    onClick={() => {
+                      close();
+                      setComposerSignal((n) => n + 1);
+                    }}
+                    data-testid="track-menu-subissue"
+                  >
+                    <span className="track-menu-label">{tc('createSubIssue')}</span>
+                    <kbd className="track-menu-meta">{mac ? '⌘⇧O' : 'Ctrl+Shift+O'}</kbd>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="track-menu-item"
+                    onClick={() => {
+                      close();
+                      window.setTimeout(() => openCommandMenu('parent'), 0);
+                    }}
+                  >
+                    <span className="track-menu-label">{tc('setParent')}</span>
+                    <kbd className="track-menu-meta">{mac ? '⌘⇧P' : 'Ctrl+Shift+P'}</kbd>
+                  </button>
+                  {issue.parent_id && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="track-menu-item"
+                      onClick={() => {
+                        close();
+                        void patchIssue({ parentId: null });
+                      }}
+                      data-testid="track-remove-parent"
+                    >
+                      <span className="track-menu-label">{tc('removeParent')}</span>
+                    </button>
+                  )}
+                  <div className="track-menu-sep" role="separator" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="track-menu-item"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(issue.identifier).catch(() => undefined);
+                      announceCopied(tc('copied', { what: issue.identifier }));
+                      close();
+                    }}
+                  >
+                    <span className="track-menu-label">{tc('copyId')}</span>
+                    <kbd className="track-menu-meta">{mac ? '⌘.' : 'Ctrl+.'}</kbd>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="track-menu-item"
+                    data-testid="track-copy-link"
                     aria-keyshortcuts="Meta+Shift+Comma Control+Shift+Comma"
                     onClick={() => {
                       copyLink();
@@ -644,7 +922,7 @@ export default function IssueDetailClient({
               )}
             </Popover>
             {(doneStatus || openStatus) && (
-              <button type="button" className="btn btn-primary" onClick={handleCloseReopen}>
+              <button type="button" className="btn btn-sm" onClick={handleCloseReopen}>
                 {isClosed ? labels.actions.reopen : labels.actions.close}
               </button>
             )}
@@ -660,6 +938,43 @@ export default function IssueDetailClient({
 
       <div className="track-detail-grid">
         <div className="track-detail-main">
+          {parent && (
+            <Link href={`/app/track/issues/${parent.id}`} className="track-parent-line" data-testid="track-parent-line">
+              <TrackIcon name="parent" size={12} />
+              <span>{tx('sub.of')}</span>
+              <span className="track-identifier">{parent.identifier}</span>
+              <span className="track-parent-title">{parent.title}</span>
+            </Link>
+          )}
+          <h1 className="track-detail-title">
+            <textarea
+              ref={titleRef}
+              className="track-detail-title-input"
+              value={titleDraft}
+              rows={1}
+              maxLength={500}
+              placeholder={labels.untitled}
+              aria-label={labels.edit.title}
+              onFocus={() => (titleFocused.current = true)}
+              onChange={(e) => setTitleDraft(e.target.value.replace(/\n/g, ' '))}
+              onBlur={() => {
+                titleFocused.current = false;
+                void saveTitle();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setTitleDraft(issue.title);
+                  window.setTimeout(() => (e.target as HTMLTextAreaElement).blur(), 0);
+                }
+              }}
+              data-testid="track-issue-title"
+            />
+          </h1>
+
           <section className="track-detail-section track-detail-description" aria-label={labels.description}>
             {editingDesc ? (
               <div className="track-description-editor">
@@ -668,6 +983,8 @@ export default function IssueDetailClient({
                   onValueChange={setDescDraft}
                   labels={ui.markdown}
                   textareaRef={descRef}
+                  members={initialMembers}
+                  onUpload={uploadInline}
                   // Salir del editor (clic afuera) guarda, como antes con el blur del textarea.
                   onBlurOutside={() => void saveDescription()}
                   textareaProps={{
@@ -710,17 +1027,18 @@ export default function IssueDetailClient({
                 </div>
               </div>
             ) : descDraft.trim() ? (
-              // Con contenido: se lee renderizado (los links funcionan); clic fuera de un link o el lápiz edita.
+              // Con contenido: se lee renderizado (links y tareas funcionan); clic en el texto edita.
               <div className="track-description-read">
                 <div
                   className="track-description"
                   onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('a')) return;
+                    if ((e.target as HTMLElement).closest('a, input, button')) return;
+                    if (window.getSelection()?.toString()) return;
                     setEditingDesc(true);
                   }}
                   data-testid="track-issue-description"
                 >
-                  <MarkdownView source={descDraft} />
+                  <MarkdownView source={descDraft} onToggleTask={(i) => void toggleTask(i)} />
                 </div>
                 <button
                   type="button"
@@ -745,15 +1063,17 @@ export default function IssueDetailClient({
             )}
           </section>
 
+          <SubIssues
+            parent={issue}
+            store={childStore}
+            project={project}
+            ui={ui}
+            composerSignal={composerSignal}
+            onCreate={createSubIssue}
+            onAddExisting={() => openCommandMenu('add-sub')}
+          />
+
           <div className="track-detail-add">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => setSubOpen(true)}
-              data-testid="track-add-subissue"
-            >
-              <span aria-hidden>+</span> {labels.edit.addSubtask}
-            </button>
             <label className="track-attachment-upload">
               <input
                 type="file"
@@ -765,7 +1085,7 @@ export default function IssueDetailClient({
                 disabled={uploading}
               />
               <span className="btn btn-ghost btn-sm" aria-busy={uploading || undefined}>
-                <span aria-hidden>+</span> {labels.edit.addAttachment}
+                <TrackIcon name="pin" size={12} /> {labels.edit.addAttachment}
               </span>
             </label>
             <button
@@ -774,37 +1094,13 @@ export default function IssueDetailClient({
               onClick={() => setShowRelationForm(true)}
               aria-expanded={showRelationForm}
             >
-              <span aria-hidden>+</span> {labels.edit.addRelation}
+              <TrackIcon name="link" size={12} /> {labels.edit.addRelation}
             </button>
           </div>
-          {(subError || attachmentError) && (
+          {(attachmentError || childStore.error) && (
             <p className="ui-error" role="alert">
-              {subError ?? attachmentError}
+              {attachmentError ?? childStore.error}
             </p>
-          )}
-
-          {children.length > 0 && (
-            <section className="track-detail-section">
-              <h2 className="track-section-title">{labels.subtasks.title}</h2>
-              <ul className="track-subtask-list">
-                {children.map((child) => (
-                  <li key={child.id} className="track-subtask">
-                    <Link href={`/app/track/issues/${child.id}`}>
-                      <span className="track-identifier">{child.identifier}</span>
-                      <span className="track-subtask-title">{child.title || labels.untitled}</span>
-                    </Link>
-                    <div className="track-subtask-meta">
-                      <StatusBadge name={child.status_name} color={child.status_color} category={child.status_category} />
-                      <span className="track-priority">
-                        <PriorityIcon priority={child.priority} />
-                        {priorityLabel(child.priority)}
-                      </span>
-                      <span>{child.assignee_name ?? child.assignee_email ?? labels.properties.noAssignee}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
           )}
 
           <IssueGithubPanel data={github} />
@@ -928,17 +1224,23 @@ export default function IssueDetailClient({
             </section>
           )}
 
-          <section className="track-detail-section">
-            <h2 className="track-section-title">{labels.activity.title}</h2>
+          <section className="track-detail-section track-detail-activity">
+            <h2 className="track-section-title">
+              {labels.activity.title}
+              <span className="track-section-meta">{labels.createdOn.replace('{date}', formatDate(issue.created_at, locale))}</span>
+            </h2>
             <IssueActivityTimeline
               issueId={issue.id}
               locale={locale}
               userId={userId}
               activities={activities}
+              reactions={reactions}
+              onReactions={setReactions}
               members={initialMembers}
               labels={labels.activity}
               markdownLabels={ui.markdown}
               attachments={attachments}
+              onUpload={uploadInline}
               onChange={refreshActivities}
             />
           </section>
@@ -946,34 +1248,24 @@ export default function IssueDetailClient({
 
         <aside className="track-detail-side">
           <section className="track-detail-props" aria-label={labels.properties.title}>
-            <IssuePropertiesPanel
+            <IssueSidebar
               issue={issue}
+              projectId={issue.project_id}
+              projectName={initialProjectName}
               statuses={initialStatuses}
               cycles={initialCycles}
               milestones={initialMilestones}
               members={initialMembers}
               locale={locale}
-              labels={labels.properties}
-              priorities={labels.priorities}
-              dateLabels={ui.inline}
+              ui={ui}
               today={today}
-              onChange={handleIssueChange}
-              onError={() => setSaveError(ui.inline.saveError)}
+              labels={labels.properties}
+              onPatch={(patch) => void patchIssue(patch)}
+              onLabels={(next) => void setLabels(next)}
             />
           </section>
         </aside>
       </div>
-      <QuickIssueModal
-        open={subOpen}
-        onClose={() => setSubOpen(false)}
-        projects={[
-          { id: issue.project_id, name: initialProjectName, statuses: initialStatuses, members: initialMembers },
-        ]}
-        defaults={{ projectId: issue.project_id, parentId: issue.id, parentLabel: issue.identifier }}
-        onCreate={(projectId, draft) => void handleCreateSubIssue(projectId, draft)}
-        labels={ui}
-        today={today}
-      />
       <TrackToast message={saveError} onDismiss={() => setSaveError(null)} dismissLabel={ui.inline.dismiss} />
       <ConfirmDialog
         open={confirmDelete}
@@ -982,8 +1274,7 @@ export default function IssueDetailClient({
         confirmLabel={t('bulk.delete')}
         cancelLabel={t('common.cancel')}
         danger
-        busy={deleting}
-        onConfirm={() => void handleDelete()}
+        onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(false)}
       />
     </div>

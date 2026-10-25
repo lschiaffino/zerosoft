@@ -33,6 +33,8 @@ interface GroupedIssuesTableProps {
   quickAddGroups?: readonly IssueGroupBy[];
   hideColumns?: OptionalColumn[];
   selection?: IssueSelection & { label: string; allLabel: string };
+  /** Sub-issues debajo de su padre dentro de cada grupo. */
+  nested?: boolean;
 }
 
 /**
@@ -56,6 +58,7 @@ export default function GroupedIssuesTable({
   quickAddGroups,
   hideColumns = [],
   selection,
+  nested = false,
 }: GroupedIssuesTableProps) {
   const groups = useMemo(
     () => groupIssues(issues, groupBy, { statuses, projectNames, statusByName }),
@@ -109,6 +112,7 @@ export default function GroupedIssuesTable({
               showHeader={false}
               fixedLayout
               selection={selection}
+              nested={nested}
               quickAdd={
                 canQuickAdd
                   ? {

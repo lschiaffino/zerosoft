@@ -1044,7 +1044,9 @@
     "description": "Linear is driven by a command menu and single-key actions: S status, A assign, P priority, L labels, G then I for inbox, H snooze, and ? opens a searchable shortcut help (https://linear.app/docs/inbox, https://linear.app/changelog/2021-03-25-keyboard-shortcuts-help). Track only handles C, J/K and Enter (components/track/TrackShortcuts.tsx). Without property shortcuts, triaging a list means opening every popover with the mouse. First scope: on the focused row or open issue, S/A/P/L open the existing inline editors from components/track/InlineEditors.tsx, plus Cmd+K with go-to and change-property commands and a ? help dialog.\n\nPriority: medium. Effort: M. Compared with Linear.",
     "product": "track",
     "kind": "idea",
-    "parity": "property-shortcuts"
+    "parity": "property-shortcuts",
+    "status": "done",
+    "changelog": "2026-10-25-track-linear"
   },
   {
     "title": "Track: Add issue templates per project with preset properties and description",
@@ -1956,7 +1958,9 @@
     "description": "Linear syncs every change to every open client instantly. In Track the project list, board and issue page only change on reload: in a browser test, renaming an issue from a second session left the open list showing the old title after 15 seconds and a focus event (components/track/ProjectPageClient.tsx has no polling or subscription). Two people triaging the same board see different states and overwrite each other. First scope: a per-workspace change feed (SSE, or polling every few seconds while the tab is visible) carrying issue id + updated_at, merged into useIssueStore; refetch on window focus; on the issue page, show new comments and a notice when the description changed underneath an open editor.\n\nPriority: high. Effort: M. Compared with Linear.",
     "product": "track",
     "kind": "idea",
-    "parity": "realtime-updates"
+    "parity": "realtime-updates",
+    "status": "done",
+    "changelog": "2026-10-25-track-linear"
   },
   {
     "title": "Track: Create issues from Slack messages and post issue activity to a Slack channel",

@@ -4089,6 +4089,45 @@ export const MIGRATIONS: Migration[] = [
       for (const { table } of ACTIVITY_DATE_TABLES) await client.execute(activityDatesUpdateSql(table));
     },
   },
+  {
+    // Track T1 (UX de Linear): hilos y reacciones en comentarios, vistas de
+    // equipo y favoritas, presencia en el issue y orden manual de sub-issues.
+    id: '110_track_ux',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE track_issue_comments ADD COLUMN parent_id TEXT');
+      await addColumn(client, 'ALTER TABLE track_issue_comments ADD COLUMN resolved_at TEXT');
+      await addColumn(client, 'ALTER TABLE track_issue_comments ADD COLUMN resolved_by TEXT');
+      await addColumn(client, 'ALTER TABLE track_issue_views ADD COLUMN shared INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE track_issues ADD COLUMN sub_order REAL');
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_track_issue_comments_parent ON track_issue_comments(parent_id) WHERE parent_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_track_issues_parent ON track_issues(parent_id) WHERE parent_id IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS track_comment_reactions (
+          comment_id TEXT NOT NULL REFERENCES track_issue_comments(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          emoji TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (comment_id, user_id, emoji)
+        );
+
+        CREATE TABLE IF NOT EXISTS track_view_favorites (
+          view_id TEXT NOT NULL REFERENCES track_issue_views(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (view_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_view_favorites_user ON track_view_favorites(user_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS track_issue_presence (
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          seen_at TEXT NOT NULL,
+          PRIMARY KEY (issue_id, user_id)
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

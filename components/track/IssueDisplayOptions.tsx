@@ -17,6 +17,8 @@ interface IssueDisplayOptionsProps {
   onGroupChange: (group: IssueGroupBy) => void;
   onSortChange: (sort: IssueSort) => void;
   labels: DisplayLabels;
+  /** "Mostrar sub-issues" (como Display options de Linear). */
+  subIssues?: { show: boolean; onChange: (show: boolean) => void; label: string };
 }
 
 /** Agrupar y ordenar la lista o el tablero: dos selects chicos en la barra de la vista. */
@@ -27,6 +29,7 @@ export default function IssueDisplayOptions({
   onGroupChange,
   onSortChange,
   labels,
+  subIssues,
 }: IssueDisplayOptionsProps) {
   return (
     <div className="track-display-options">
@@ -60,6 +63,17 @@ export default function IssueDisplayOptions({
           ))}
         </select>
       </label>
+      {subIssues && (
+        <label className="ui-check track-display-option track-display-check">
+          <input
+            type="checkbox"
+            checked={subIssues.show}
+            onChange={(e) => subIssues.onChange(e.target.checked)}
+            data-testid="track-show-subissues"
+          />
+          <span>{subIssues.label}</span>
+        </label>
+      )}
     </div>
   );
 }

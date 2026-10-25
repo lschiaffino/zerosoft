@@ -21,6 +21,7 @@ export default async function MyTasksPage(props: { params: Promise<{ locale: str
   return (
     <div className="app-page track-page ui-page">
       <CrossProjectIssues
+        userId={me}
         initialIssues={issues}
         projects={projects}
         locale={locale}

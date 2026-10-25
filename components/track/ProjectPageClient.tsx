@@ -8,9 +8,14 @@ import type { TrackIssueTemplateRow, TrackProjectRow, TrackRecurringIssueRow, Tr
 import type { TrackMilestoneWithProgress } from '@/lib/track-milestones';
 import { upcomingMilestone } from '@/lib/track-milestone-utils';
 import type { IssueLabel } from '@/lib/track-schema';
-import type { FilterState } from './IssueFilters';
 import type { ViewType } from './ViewSwitcher';
-import type { TrackIssueView, ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
+import type { ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
+import type { TrackSavedView } from '@/lib/track-ux';
+import { encodeFilter, normalizeFilter, type FilterState } from '@/lib/track-filter';
+import { formatDay as formatDayLabel, inversePatch, type IssuePatch } from '@/lib/track-tasks';
+import { rowTargetId, useTrackCommands } from './trackCommands';
+import { pendingDeleteIds, pushNotice, pushUndo, scheduleDelete } from './trackUndo';
+import { useTrackLive } from './useTrackLive';
 import ViewSwitcher from './ViewSwitcher';
 import IssueFilters, { activeFilterCount } from './IssueFilters';
 import SavedViewsMenu from './SavedViewsMenu';
@@ -141,45 +146,48 @@ function parseLabels(raw: string): IssueLabel[] {
   }
 }
 
+/** Filtros → URL (y API): `filter` con las reglas, `q` y el orden. */
 function filtersToParams(filters: FilterState, sort: SortValue): URLSearchParams {
   const sp = new URLSearchParams();
-  filters.statusId.forEach((v) => sp.append('statusId', v));
-  filters.priority.forEach((v) => sp.append('priority', v));
-  filters.assigneeId.forEach((v) => sp.append('assigneeId', v));
-  filters.cycleId.forEach((v) => sp.append('cycleId', v));
-  filters.labelIds.forEach((v) => sp.append('labelIds', v));
+  const encoded = encodeFilter(filters);
+  if (encoded) sp.set('filter', encoded);
   if (filters.q) sp.set('q', filters.q);
-  if (filters.dueAfter) sp.set('dueAfter', filters.dueAfter);
-  if (filters.dueBefore) sp.set('dueBefore', filters.dueBefore);
   if (sort !== 'newest') sp.set('sort', sort);
   return sp;
 }
 
-function readStringArray(sp: URLSearchParams, key: string): string[] {
-  const raw = sp.getAll(key);
-  return raw
-    .flatMap((v) => v.split(','))
-    .map((v) => v.trim())
-    .filter(Boolean);
+/** URL → filtros. Entiende los params viejos (statusId=…&priority=…) de links guardados. */
+function paramsToFilters(sp: URLSearchParams): FilterState {
+  const legacy: Record<string, unknown> = {};
+  for (const key of ['statusId', 'priority', 'assigneeId', 'cycleId', 'labelIds']) {
+    const values = sp.getAll(key).flatMap((v) => v.split(',')).map((v) => v.trim()).filter(Boolean);
+    if (values.length) legacy[key] = values;
+  }
+  legacy.dueAfter = sp.get('dueAfter') ?? '';
+  legacy.dueBefore = sp.get('dueBefore') ?? '';
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = JSON.parse(sp.get('filter') ?? '{}') as Record<string, unknown>;
+  } catch {
+    parsed = {};
+  }
+  const n = normalizeFilter({ ...legacy, ...parsed });
+  return { ...n, q: sp.get('q') ?? '' };
 }
 
-function paramsToFilters(sp: URLSearchParams): FilterState {
+/** Filtros de una vista guardada, separando el agrupado y "sub-issues" que viajan adentro. */
+function splitViewFilters(raw: Record<string, unknown>): { filters: FilterState; group: string; showSub: boolean } {
+  const { groupBy, subIssues, ...rest } = raw ?? {};
   return {
-    statusId: readStringArray(sp, 'statusId'),
-    priority: readStringArray(sp, 'priority'),
-    assigneeId: readStringArray(sp, 'assigneeId'),
-    cycleId: readStringArray(sp, 'cycleId'),
-    labelIds: readStringArray(sp, 'labelIds'),
-    q: sp.get('q') ?? '',
-    dueAfter: sp.get('dueAfter') ?? '',
-    dueBefore: sp.get('dueBefore') ?? '',
+    filters: normalizeFilter(rest),
+    group: typeof groupBy === 'string' ? groupBy : '',
+    showSub: subIssues !== 'hide',
   };
 }
 
-/** Filtros de una vista guardada, separando el agrupado que viaja adentro. */
-function splitViewFilters(raw: Record<string, unknown>): { filters: FilterState; group: string } {
-  const { groupBy, ...rest } = raw ?? {};
-  return { filters: rest as unknown as FilterState, group: typeof groupBy === 'string' ? groupBy : '' };
+/** Estado comparable de la vista (para marcar cambios sin guardar). */
+function viewKey(v: { view: string; filters: FilterState; group: string; sort: string; showSub: boolean }): string {
+  return JSON.stringify([v.view, v.filters.match, v.filters.rules, v.filters.q, v.group, v.sort, v.showSub]);
 }
 
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
@@ -205,7 +213,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   const [recurring, setRecurring] = useState<TrackRecurringIssueRow[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [members, setMembers] = useState<ProjectMember[]>([]);
-  const [views, setViews] = useState<TrackIssueView[]>([]);
+  const [views, setViews] = useState<TrackSavedView[]>([]);
   const [issuesTotal, setIssuesTotal] = useState(0);
   const [issuesPage, setIssuesPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -219,6 +227,8 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   // Un solo param `group` en la URL; cada vista lo interpreta con sus opciones
   // (la lista arranca sin agrupar, el tablero por status).
   const [group, setGroup] = useState<string>(() => searchParams.get('group') ?? '');
+  // "Mostrar sub-issues" (Display options): por defecto sí, debajo de su padre.
+  const [showSub, setShowSub] = useState(() => searchParams.get('sub') !== 'hide');
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [activeViewId, setActiveViewId] = useState<string | undefined>();
   const [modalOpen, setModalOpen] = useState(false);
@@ -246,10 +256,17 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
         : {},
     [project, statuses, members, cycles, milestones, templates],
   );
+  const tx = useTranslations('track.ux');
+  const tc = useTranslations('track.ux.cmd');
+  const updatedLabel = useCallback(
+    (what: string, count: number) => (count === 1 ? tx('undo.updatedOne', { id: what }) : tx('undo.updatedMany', { count })),
+    [tx],
+  );
   const store = useIssueStore([], projectMap, {
     saveError: labels.ui.inline.saveError,
     createError: labels.ui.inline.createError,
     noDoneStatus: labels.ui.inline.noDoneStatus,
+    updated: updatedLabel,
   });
   const { issues, setIssues } = store;
 
@@ -274,15 +291,20 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
       const sp = filtersToParams(filters, sort);
       sp.set('pageSize', String(ISSUES_PAGE_SIZE));
       sp.set('page', String(page));
+      sp.set('today', today);
+      if (!showSub) sp.set('topLevel', '1');
       const data = await api<{ rows: TrackIssueWithStatus[]; total: number }>(
         `/api/track/projects/${projectId}/issues?${sp.toString()}`,
       );
       if (seq !== issuesRequest.current) return;
-      setIssues((prev) => (append ? [...prev, ...data.rows] : data.rows));
-      setIssuesTotal(data.total);
+      // Los que tienen un borrado pendiente (con "Deshacer" en pantalla) no se muestran.
+      const hidden = pendingDeleteIds();
+      const rows = data.rows.filter((r) => !hidden.has(r.id));
+      setIssues((prev) => (append ? [...prev, ...rows] : rows));
+      setIssuesTotal(Math.max(0, data.total - (data.rows.length - rows.length)));
       setIssuesPage(page);
     },
-    [projectId, filters, sort, setIssues],
+    [projectId, filters, sort, setIssues, today, showSub],
   );
 
   // Vuelve a pedir las páginas ya cargadas (1..issuesPage) sin volver a la
@@ -292,6 +314,9 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     const seq = ++issuesRequest.current;
     const sp = filtersToParams(filters, sort);
     sp.set('pageSize', String(ISSUES_PAGE_SIZE));
+    sp.set('today', today);
+    if (!showSub) sp.set('topLevel', '1');
+    const hidden = pendingDeleteIds();
     const pages = await Promise.all(
       Array.from({ length: Math.max(1, issuesPage) }, (_, i) => {
         const q = new URLSearchParams(sp);
@@ -306,14 +331,14 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     const rows: TrackIssueWithStatus[] = [];
     for (const page of pages) {
       for (const row of page.rows) {
-        if (seen.has(row.id)) continue;
+        if (seen.has(row.id) || hidden.has(row.id)) continue;
         seen.add(row.id);
         rows.push(row);
       }
     }
     setIssues(rows);
-    setIssuesTotal(pages[pages.length - 1].total);
-  }, [projectId, filters, sort, issuesPage, setIssues]);
+    setIssuesTotal(Math.max(0, pages[pages.length - 1].total - hidden.size));
+  }, [projectId, filters, sort, issuesPage, setIssues, today, showSub]);
 
   const handleLoadMore = async () => {
     setLoadingMore(true);
@@ -337,7 +362,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
           api<{ rows: TrackStatusRow[] }>(`/api/track/projects/${projectId}/statuses`).then((r) => r.rows),
           api<{ rows: CycleWithProgress[] }>(`/api/track/projects/${projectId}/cycles`).then((r) => r.rows),
           api<{ rows: ProjectMember[] }>(`/api/track/projects/${projectId}/members`).then((r) => r.rows),
-          api<{ rows: TrackIssueView[] }>(`/api/track/projects/${projectId}/views`).then((r) => r.rows),
+          api<{ rows: TrackSavedView[] }>(`/api/track/projects/${projectId}/views`).then((r) => r.rows),
           api<{ rows: TrackIssueWithStatus[]; total: number }>(
             `/api/track/projects/${projectId}/issues?pageSize=${ISSUES_PAGE_SIZE}&page=1`,
           ),
@@ -348,29 +373,32 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
         setCycles(c);
         setMembers(m);
         setViews(v);
-        setIssues(i.rows);
+        const hidden = pendingDeleteIds();
+        setIssues(i.rows.filter((r) => !hidden.has(r.id)));
         setIssuesTotal(i.total);
         setIssuesPage(1);
 
-        // Apply default view if present and no URL state
+        // ?savedView=<id> (link compartido) abre esa vista; si no hay estado
+        // en la URL, la vista por defecto de la persona.
+        const linked = initialParams.current.get('savedView');
         const hasUrlState =
           initialParams.current.toString().length > 0 &&
           (initialParams.current.get('view') ||
             initialParams.current.get('sort') ||
             initialParams.current.get('group') ||
+            initialParams.current.get('filter') ||
             initialParams.current.get('statusId') ||
             initialParams.current.get('priority') ||
             initialParams.current.get('q'));
-        if (!hasUrlState) {
-          const def = v.find((x) => x.is_default);
-          if (def) {
-            const saved = splitViewFilters(def.filters);
-            setView(def.view_type);
-            setFilters(saved.filters);
-            setGroup(saved.group);
-            setSort(parseIssueSort(def.sort));
-            setActiveViewId(def.id);
-          }
+        const pick = (linked ? v.find((x) => x.id === linked) : undefined) ?? (!hasUrlState ? v.find((x) => x.is_default) : undefined);
+        if (pick) {
+          const saved = splitViewFilters(pick.filters);
+          setView(pick.view_type);
+          setFilters(saved.filters);
+          setGroup(saved.group);
+          setShowSub(saved.showSub);
+          setSort(parseIssueSort(pick.sort));
+          setActiveViewId(pick.id);
         }
       } catch {
         if (mounted) setLoadError(true);
@@ -420,11 +448,47 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     setNotice(t('triage.toggleError'));
   };
 
+  // Borrar con ventana para deshacer (selección, ⌘K o ⌘⌫): salen de la lista
+  // al instante y el DELETE se manda cuando vence el toast.
+  const deleteIssues = (ids: string[]) => {
+    if (ids.length === 0) return;
+    const snapshot = store.issues;
+    const gone = new Set(ids);
+    setIssues((list) => list.filter((i) => !gone.has(i.id)));
+    setIssuesTotal((n) => Math.max(0, n - ids.length));
+    selection.clear();
+    const first = snapshot.find((i) => i.id === ids[0]);
+    scheduleDelete({
+      ids,
+      label: ids.length === 1 ? tx('undo.deleted', { id: first?.identifier ?? '' }) : tx('undo.deletedMany', { count: ids.length }),
+      commit: async (keepalive) => {
+        const res = await fetch('/api/track/issues/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'delete', issueIds: ids }),
+          keepalive,
+        }).catch(() => null);
+        if (!res?.ok) setNotice(t('bulk.error'));
+      },
+      restore: () => {
+        setIssues(snapshot);
+        setIssuesTotal((n) => n + ids.length);
+      },
+    });
+  };
+
   const runBulk = async (body: Record<string, unknown>) => {
+    const ids = Array.from(selection.selected);
+    if (body.action === 'delete') {
+      deleteIssues(ids);
+      return;
+    }
+    // Para ⌘Z: cómo estaban los issues antes del cambio masivo.
+    const before = store.issues.filter((i) => selection.selected.has(i.id));
     const res = await fetch('/api/track/issues/bulk', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, issueIds: Array.from(selection.selected) }),
+      body: JSON.stringify({ ...body, issueIds: ids }),
     }).catch(() => null);
     if (!res?.ok) {
       setNotice(t('bulk.error'));
@@ -432,14 +496,70 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     }
     const data = (await res.json()) as { updated: string[]; skipped: unknown[] };
     setNotice(data.skipped.length ? t('bulk.skipped', { count: data.skipped.length }) : null);
-    if (body.action === 'delete') {
-      selection.clear();
-      setIssuesTotal((n) => Math.max(0, n - data.updated.length));
-      await fetchIssues(1, false);
-      return;
+    const bulk = (body.patch ?? {}) as BulkPatch;
+    const asPatch: IssuePatch = {
+      ...(bulk.statusId !== undefined ? { statusId: bulk.statusId } : {}),
+      ...(bulk.priority !== undefined ? { priority: bulk.priority as IssuePatch['priority'] } : {}),
+      ...(bulk.assigneeId !== undefined ? { assigneeId: bulk.assigneeId } : {}),
+      ...(bulk.cycleId !== undefined ? { cycleId: bulk.cycleId } : {}),
+      ...(bulk.addLabelIds || bulk.removeLabelIds ? { labels: [] } : {}),
+    };
+    const updatedIds = new Set(data.updated);
+    const undo = before.filter((i) => updatedIds.has(i.id)).map((i) => ({ id: i.id, inverse: inversePatch(i, asPatch) }));
+    if (undo.length) {
+      pushUndo(tx('undo.updatedMany', { count: undo.length }), async () => {
+        await Promise.all(
+          undo.map((u) =>
+            fetch(`/api/track/issues/${u.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(u.inverse),
+            }).catch(() => null),
+          ),
+        );
+        await reloadLoadedPagesRef.current().catch(() => undefined);
+      });
     }
     await reloadLoadedPages().catch(() => setNotice(t('errors.generic')));
   };
+  const reloadLoadedPagesRef = useRef(reloadLoadedPages);
+  reloadLoadedPagesRef.current = reloadLoadedPages;
+
+  // Cambios de otros (issues, board, triage) sin recargar la página.
+  useTrackLive({ projectId }, () => {
+    void reloadLoadedPagesRef.current().catch(() => undefined);
+    void loadTriage();
+  }, { enabled: !loading && !loadError });
+
+  // ⌘K y atajos de una tecla sobre la selección, la fila activa o la del mouse.
+  useTrackCommands({
+    enabled: !loading && !loadError,
+    lookup: (id) => store.issues.find((i) => i.id === id),
+    getTargets: () => {
+      if (selection.selected.size > 0) return store.issues.filter((i) => selection.selected.has(i.id));
+      const id = rowTargetId();
+      const row = id ? store.issues.find((i) => i.id === id) : null;
+      return row ? [row] : [];
+    },
+    data: {
+      statuses,
+      members,
+      labels: workspaceLabels,
+      cycles,
+      milestones: milestones.map((m) => ({ id: m.id, name: m.name })),
+      priorities: labels.priorities,
+      meId: userId,
+      today,
+    },
+    handlers: {
+      apply: (targets, patch) => void store.updateMany(targets.map((i) => i.id), patch),
+      createSubIssue: (parent) => router.push(`/app/track/issues/${parent.id}?sub=1`),
+      remove: isAdmin ? (targets) => deleteIssues(targets.map((i) => i.id)) : undefined,
+      open: (issue) => router.push(`/app/track/issues/${issue.id}`),
+    },
+    t: (k, v) => tc(k, v),
+    formatDay: (iso) => formatDayLabel(iso, locale, today),
+  });
 
   const reloadMilestones = useCallback(async () => {
     const rows = await api<{ rows: TrackMilestoneWithProgress[] }>(`/api/track/projects/${projectId}/milestones`)
@@ -493,46 +613,87 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     return () => window.clearTimeout(timer);
   }, [progressSignature, loading, reloadCycles, reloadMilestones]);
 
+  const activeView = views.find((v) => v.id === activeViewId);
+  const viewDirty = activeView
+    ? viewKey({ view, filters, group, sort, showSub }) !==
+      viewKey({ view: activeView.view_type, sort: activeView.sort, ...splitViewFilters(activeView.filters) })
+    : false;
+
   useEffect(() => {
     const sp = filtersToParams(filters, sort);
     sp.set('view', view);
     if (group) sp.set('group', group);
+    if (!showSub) sp.set('sub', 'hide');
+    // El link de la vista solo mientras no se cambió nada (si no, mandan los filtros).
+    if (activeViewId && !viewDirty) sp.set('savedView', activeViewId);
     if (tab === 'triage') sp.set('tab', 'triage');
     const qs = sp.toString();
     router.replace(`/app/track/projects/${projectId}?${qs}`, { scroll: false });
-  }, [filters, sort, group, view, tab, projectId, locale, router]);
+  }, [filters, sort, group, view, tab, projectId, locale, router, showSub, activeViewId, viewDirty]);
+
+  // ⌘B alterna lista y tablero, como en Linear.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'b') return;
+      const el = e.target as HTMLElement | null;
+      if (el?.closest?.('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return;
+      e.preventDefault();
+      setView((v) => (v === 'board' ? 'list' : 'board'));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const handleViewChange = (v: ViewType) => {
     setView(v);
-    setActiveViewId(undefined);
   };
 
-  const handleSaveView = async (name: string) => {
-    const payload = {
-      name,
-      viewType: view,
-      // El agrupado viaja dentro de filters (la tabla de vistas no tiene columna propia).
-      filters: { ...filters, ...(group ? { groupBy: group } : {}) } as unknown as Record<string, unknown>,
-      sort,
-    };
-    const created = await api<TrackIssueView>(`/api/track/projects/${projectId}/views`, {
+  /** Lo que se guarda de la vista: filtros, agrupado, sub-issues, orden y tipo. */
+  const viewPayload = () => ({
+    viewType: view,
+    // El agrupado y "sub-issues" viajan dentro de filters (la tabla no tiene columnas propias).
+    filters: {
+      match: filters.match,
+      rules: filters.rules,
+      q: filters.q,
+      ...(group ? { groupBy: group } : {}),
+      ...(!showSub ? { subIssues: 'hide' } : {}),
+    } as Record<string, unknown>,
+    sort,
+  });
+
+  const handleSaveView = async (name: string, shared: boolean) => {
+    const created = await api<TrackSavedView>(`/api/track/projects/${projectId}/views`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ name, shared, ...viewPayload() }),
     });
-    setViews((prev) => [...prev, created].sort((a, b) => (a.is_default === b.is_default ? 0 : a.is_default ? -1 : 1)));
+    setViews((prev) => [...prev, created]);
     setSaveDialogOpen(false);
     setActiveViewId(created.id);
   };
 
-  const handleSelectView = (selected: TrackIssueView) => {
+  const handleSelectView = (selected: TrackSavedView) => {
     const saved = splitViewFilters(selected.filters);
     setView(selected.view_type);
     setFilters(saved.filters);
     setGroup(saved.group);
+    setShowSub(saved.showSub);
     setSort(parseIssueSort(selected.sort));
     setActiveViewId(selected.id);
   };
+
+
+  // Abrir una vista desde el sidebar (favoritas) con la página ya cargada.
+  const linkedView = searchParams.get('savedView');
+  useEffect(() => {
+    if (!linkedView || linkedView === activeViewId) return;
+    const found = views.find((v) => v.id === linkedView);
+    if (found) handleSelectView(found);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedView, views]);
+
+  const replaceView = (updated: TrackSavedView) => setViews((prev) => prev.map((v) => (v.id === updated.id ? updated : v)));
 
   const viewAction = (fn: () => Promise<unknown>) => {
     fn().catch(() => setNotice(t('errors.generic')));
@@ -540,30 +701,71 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
 
   const handleSetDefault = (id: string) =>
     viewAction(async () => {
-      const updated = await api<TrackIssueView>(`/api/track/views/${id}/default`, { method: 'POST' });
-      setViews((prev) =>
-        prev
-          .map((v) => ({ ...v, is_default: v.id === id }))
-          .sort((a, b) => (a.is_default === b.is_default ? 0 : a.is_default ? -1 : 1)),
-      );
+      const updated = await api<TrackSavedView>(`/api/track/views/${id}/default`, { method: 'POST' });
+      setViews((prev) => prev.map((v) => ({ ...v, is_default: v.user_id === userId && v.id === id })));
       setActiveViewId(updated.id);
     });
 
   const handleRename = (id: string, name: string) =>
     viewAction(async () => {
-      const updated = await api<TrackIssueView>(`/api/track/views/${id}`, {
+      const updated = await api<TrackSavedView>(`/api/track/views/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
       });
-      setViews((prev) => prev.map((v) => (v.id === id ? updated : v)));
+      replaceView(updated);
+      window.dispatchEvent(new Event('zs:track-views-changed'));
     });
+
+  const handleToggleShared = (id: string, shared: boolean) =>
+    viewAction(async () => {
+      replaceView(
+        await api<TrackSavedView>(`/api/track/views/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shared }),
+        }),
+      );
+      pushNotice(shared ? tx('views.sharedOn') : tx('views.sharedOff'));
+    });
+
+  const handleToggleFavorite = (id: string, favorite: boolean) =>
+    viewAction(async () => {
+      replaceView(
+        await api<TrackSavedView>(`/api/track/views/${id}/favorite`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ favorite }),
+        }),
+      );
+      // El sidebar muestra las favoritas: que se entere sin recargar.
+      window.dispatchEvent(new Event('zs:track-views-changed'));
+    });
+
+  const handleUpdateView = (id: string) =>
+    viewAction(async () => {
+      replaceView(
+        await api<TrackSavedView>(`/api/track/views/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(viewPayload()),
+        }),
+      );
+      pushNotice(tx('views.saved'));
+    });
+
+  const handleCopyViewLink = (id: string) => {
+    const url = new URL(`/app/track/projects/${projectId}?savedView=${id}`, window.location.origin).toString();
+    void navigator.clipboard?.writeText(url).catch(() => undefined);
+    pushNotice(tx('views.linkCopied'));
+  };
 
   const handleDelete = (id: string) =>
     viewAction(async () => {
       await api(`/api/track/views/${id}`, { method: 'DELETE' });
       setViews((prev) => prev.filter((v) => v.id !== id));
       if (activeViewId === id) setActiveViewId(undefined);
+      window.dispatchEvent(new Event('zs:track-views-changed'));
     });
 
   const handleMove = (issueId: string, patch: Parameters<typeof store.update>[1]) => {
@@ -676,10 +878,16 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     <SavedViewsMenu
       views={views}
       activeViewId={activeViewId}
+      userId={userId}
+      dirty={viewDirty}
       onSelect={handleSelectView}
       onSetDefault={handleSetDefault}
       onRename={handleRename}
       onDelete={handleDelete}
+      onToggleShared={handleToggleShared}
+      onToggleFavorite={handleToggleFavorite}
+      onUpdate={handleUpdateView}
+      onCopyLink={handleCopyViewLink}
       labels={{
         title: labels.savedViews.title,
         empty: labels.savedViews.empty,
@@ -832,15 +1040,10 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
                   group={view === 'board' ? boardGroup : listGroup}
                   groups={view === 'board' ? PROJECT_BOARD_GROUPS : LIST_GROUPS}
                   sort={sort}
-                  onGroupChange={(g) => {
-                    setGroup(g === 'none' ? '' : g);
-                    setActiveViewId(undefined);
-                  }}
-                  onSortChange={(s) => {
-                    setSort(s);
-                    setActiveViewId(undefined);
-                  }}
+                  onGroupChange={(g) => setGroup(g === 'none' ? '' : g)}
+                  onSortChange={(s) => setSort(s)}
                   labels={labels.ui.display}
+                  subIssues={{ show: showSub, onChange: setShowSub, label: tx('sub.show') }}
                 />
               )}
               {savedViewsMenu}
@@ -849,15 +1052,13 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
 
           <IssueFilters
             filters={filters}
-            onChange={(f) => {
-              setFilters(f);
-              setActiveViewId(undefined);
-            }}
+            onChange={(f) => setFilters(f)}
             onSaveView={() => setSaveDialogOpen(true)}
             statuses={statuses}
             priorities={labels.priorities}
             members={members}
             cycles={cycles}
+            milestones={milestones.map((m) => ({ id: m.id, name: m.name }))}
             issueLabels={issueLabels}
             labels={{ ...labels.filters, filter: t('filters.button'), done: t('filters.done') }}
             savedViews={savedViewsMenu}
@@ -879,8 +1080,9 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
                 priorities={labels.priorities}
                 editing={{ ...editing, projects: projectMap }}
                 onQuickCreate={(title, preset) => quickCreate(title, preset)}
-                hideColumns={cycles.length > 0 && filters.cycleId.length === 0 ? [] : ['cycle']}
+                hideColumns={cycles.length > 0 && !filters.rules.some((r) => r.field === 'cycle') ? [] : ['cycle']}
                 selection={{ ...selection, label: t('bulk.select'), allLabel: t('bulk.selectAll') }}
+                nested={showSub}
               />
             )}
             {view === 'list' && listGroup === 'none' && (
@@ -894,8 +1096,9 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
                 }}
                 editing={{ ...editing, projects: projectMap }}
                 quickAdd={{ onCreate: (title) => quickCreate(title) }}
-                hideColumns={cycles.length > 0 && filters.cycleId.length === 0 ? [] : ['cycle']}
+                hideColumns={cycles.length > 0 && !filters.rules.some((r) => r.field === 'cycle') ? [] : ['cycle']}
                 selection={{ ...selection, label: t('bulk.select'), allLabel: t('bulk.selectAll') }}
+                nested={showSub}
               />
             )}
             {view === 'board' && (
@@ -1091,6 +1294,8 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
           save: labels.savedViews.save,
           cancel: labels.savedViews.cancel,
           error: t('errors.generic'),
+          shared: tx('views.shareOnSave'),
+          sharedHelp: tx('views.shareHelp'),
         }}
       />
     </div>

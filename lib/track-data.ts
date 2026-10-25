@@ -8,6 +8,7 @@ import { after } from 'next/server';
 import { getDb, getClient, txDb, getUserById } from './db';
 import { emitEvent } from './events';
 import { deleteUploads } from './uploads';
+import { filterToSql, type IssueFilter } from './track-filter';
 import type {
   TrackCycleRow,
   TrackIssueActivityRow,
@@ -58,6 +59,11 @@ export interface TrackIssueWithStatus extends TrackIssueRow {
   cycle_name: string | null;
   child_count: number;
   milestone_name?: string | null;
+  /** Sub-issues terminados (done o cancelled), para el progreso x/y. */
+  child_done?: number;
+  /** Padre del sub-issue (para mostrarlo en la fila sin cargarlo). */
+  parent_identifier?: string | null;
+  parent_title?: string | null;
 }
 
 export interface TrackProjectWithStats extends TrackProjectRow {
@@ -112,6 +118,12 @@ export interface ListIssuesOptions {
   q?: string;
   dueAfter?: string;
   dueBefore?: string;
+  /** Filtro avanzado (reglas con AND/OR, lib/track-filter). */
+  filter?: IssueFilter;
+  /** Día local de quien filtra, para fechas relativas ("hace 7 días"). */
+  today?: string;
+  /** Solo issues de primer nivel (opción "Ocultar sub-issues" de la vista). */
+  topLevel?: boolean;
   sort?: IssueSort;
   page?: number;
   pageSize?: number;
@@ -794,7 +806,11 @@ function issueSelect(extraWhere = ''): string {
       u.email AS assignee_email,
       c.name AS cycle_name,
       ms.name AS milestone_name,
-      (SELECT COUNT(*) FROM track_issues child WHERE child.parent_id = i.id) AS child_count
+      (SELECT COUNT(*) FROM track_issues child WHERE child.parent_id = i.id) AS child_count,
+      (SELECT COUNT(*) FROM track_issues child JOIN track_statuses cs ON cs.id = child.status_id
+        WHERE child.parent_id = i.id AND cs.category IN ('done', 'cancelled')) AS child_done,
+      (SELECT pi.identifier FROM track_issues pi WHERE pi.id = i.parent_id) AS parent_identifier,
+      (SELECT pi.title FROM track_issues pi WHERE pi.id = i.parent_id) AS parent_title
     FROM track_issues i
     LEFT JOIN track_statuses s ON s.id = i.status_id
     LEFT JOIN users u ON u.id = i.assignee_id
@@ -863,6 +879,12 @@ export async function listIssues(
     where.push(`(${placeholders})`);
     args.push(...labelIds.map(labelIdLike));
   }
+  const advanced = filterToSql(options.filter, options.today ?? new Date().toISOString().slice(0, 10));
+  if (advanced) {
+    where.push(advanced.sql);
+    args.push(...advanced.args);
+  }
+  if (options.topLevel) where.push('i.parent_id IS NULL');
 
   const whereSql = where.join(' AND ');
   const orderBy = issueOrderBy(options.sort);
@@ -949,6 +971,12 @@ export async function listAllIssues(
     where.push(`(${placeholders})`);
     args.push(...labelIds.map(labelIdLike));
   }
+  const advanced = filterToSql(options.filter, options.today ?? new Date().toISOString().slice(0, 10));
+  if (advanced) {
+    where.push(advanced.sql);
+    args.push(...advanced.args);
+  }
+  if (options.topLevel) where.push('i.parent_id IS NULL');
 
   const whereSql = where.join(' AND ');
   const orderBy = issueOrderBy(options.sort);
@@ -1225,6 +1253,10 @@ export async function updateIssue(
     args.push(payload.estimate ?? null);
     activities.push({ type: 'estimate_change', meta: { from: existing.estimate ?? '', to: payload.estimate ?? '' } });
   }
+  if (payload.subOrder !== undefined && payload.subOrder !== (existing.sub_order ?? null)) {
+    fields.push('sub_order = ?');
+    args.push(payload.subOrder ?? null);
+  }
   if (payload.parentId !== undefined && payload.parentId !== existing.parent_id) {
     fields.push('parent_id = ?');
     args.push(payload.parentId ?? null);
@@ -1396,7 +1428,10 @@ export async function deleteIssue(id: string): Promise<boolean> {
 }
 
 export async function listIssueChildren(issueId: string): Promise<TrackIssueWithStatus[]> {
-  return (await getDb().prepare(`${issueSelect('WHERE i.parent_id = ?')} ORDER BY i.created_at ASC`).all(issueId)) as TrackIssueWithStatus[];
+  // Orden manual (arrastrar) y, sin orden, por creación.
+  return (await getDb()
+    .prepare(`${issueSelect('WHERE i.parent_id = ?')} ORDER BY i.sub_order IS NULL, i.sub_order ASC, i.created_at ASC`)
+    .all(issueId)) as TrackIssueWithStatus[];
 }
 
 export async function getIssueParentChain(issueId: string): Promise<IssueParentSummary[]> {
@@ -1670,11 +1705,24 @@ export async function createIssueComment(
 ): Promise<TrackCommentWithAuthor> {
   const db = getDb();
   const id = crypto.randomUUID();
+  // Los hilos tienen un solo nivel, como en Linear: responder a una respuesta
+  // cuelga del mismo comentario raíz. Un padre de otro issue se ignora.
+  let parentId: string | null = null;
+  if (payload.parentId) {
+    const parent = (await db
+      .prepare('SELECT id, parent_id FROM track_issue_comments WHERE id = ? AND issue_id = ?')
+      .get(payload.parentId, issueId)) as { id: string; parent_id: string | null } | undefined;
+    parentId = parent ? (parent.parent_id ?? parent.id) : null;
+  }
   await db
     .prepare(
-      'INSERT INTO track_issue_comments (id, issue_id, user_id, body, created_at) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO track_issue_comments (id, issue_id, user_id, body, created_at, parent_id) VALUES (?, ?, ?, ?, ?, ?)',
     )
-    .run(id, issueId, userId, payload.body.trim(), nowIso());
+    .run(id, issueId, userId, payload.body.trim(), nowIso(), parentId);
+  // Responder reabre el hilo si estaba resuelto.
+  if (parentId) {
+    await db.prepare('UPDATE track_issue_comments SET resolved_at = NULL, resolved_by = NULL WHERE id = ?').run(parentId);
+  }
 
   // El cuerpo vive solo en track_issue_comments: el timeline lo lee de ahí,
   // así una edición o un borrado del autor no deja copias viejas en el log.
@@ -1773,6 +1821,15 @@ export async function deleteIssueComment(
        WHERE issue_id = ? AND type = 'comment' AND json_extract(meta, '$.commentId') = ?`,
     )
     .run(issueId, commentId);
+  // Borrar la raíz de un hilo borra sus respuestas (y sus entradas del timeline).
+  await db
+    .prepare(
+      `DELETE FROM track_issue_activities
+       WHERE issue_id = ? AND type = 'comment' AND json_extract(meta, '$.commentId') IN
+         (SELECT id FROM track_issue_comments WHERE parent_id = ? AND issue_id = ?)`,
+    )
+    .run(issueId, commentId, issueId);
+  await db.prepare('DELETE FROM track_issue_comments WHERE parent_id = ? AND issue_id = ?').run(commentId, issueId);
   await db.prepare('DELETE FROM track_issue_comments WHERE id = ? AND issue_id = ?').run(commentId, issueId);
   return { ok: true, value: null };
 }
@@ -1928,7 +1985,9 @@ export async function listIssueActivities(issueId: string): Promise<TrackIssueAc
        UNION ALL
        -- Los comentarios se leen siempre de su tabla (texto vigente, editado o no).
        SELECT c.id, c.issue_id, c.user_id, 'comment' AS type,
-         json_object('commentId', c.id, 'body', c.body, 'editedAt', c.updated_at) AS meta,
+         json_object('commentId', c.id, 'body', c.body, 'editedAt', c.updated_at,
+           'parentId', c.parent_id, 'resolvedAt', c.resolved_at,
+           'resolvedBy', (SELECT COALESCE(rb.name, rb.email) FROM users rb WHERE rb.id = c.resolved_by)) AS meta,
          c.created_at, u.name AS user_name, u.email AS user_email
        FROM track_issue_comments c
        JOIN users u ON u.id = c.user_id
