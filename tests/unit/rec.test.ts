@@ -131,10 +131,21 @@ describe('tiempo visto y recorte para los demás', () => {
     expect(coveredPct([[0, 10], [90, 100]], 100)).toBe(20);
     expect(coveredPct([[0, 50], [0, 50]], 100)).toBe(50);
     expect(retentionCurve([[[0, 100]], [[0, 50]]], 100, 4)).toEqual([100, 100, 50, 50]);
-    // Los que cruzan un borde (b empieza antes del inicio, d termina después del fin) quedan afuera.
+    // b empieza 1 s antes del inicio: queda, ajustado al borde. a cruza con más de 1 s afuera: no.
+    // d termina 2 s después del fin: no; e termina 0,5 s después: queda ajustado.
     expect(
-      segmentsInTrim([{ start: 0, end: 4, text: 'a' }, { start: 4, end: 8, text: 'b' }, { start: 6, end: 9, text: 'c' }, { start: 9, end: 12, text: 'd' }], 5, 10).map((x) => x.text),
-    ).toEqual(['c']);
+      segmentsInTrim(
+        [
+          { start: 0, end: 6, text: 'a' },
+          { start: 4, end: 8, text: 'b' },
+          { start: 6, end: 9, text: 'c' },
+          { start: 9, end: 12, text: 'd' },
+          { start: 9.2, end: 10.5, text: 'e' },
+        ],
+        5,
+        10,
+      ).map((x) => [x.start, x.end, x.text]),
+    ).toEqual([[5, 8, 'b'], [6, 9, 'c'], [9.2, 10, 'e']]);
     expect(chaptersInTrim([{ start: 0, title: 'A' }, { start: 30, title: 'B' }, { start: 70, title: 'C' }], 40, 60)).toEqual([{ start: 40, title: 'B' }]);
   });
 });
@@ -457,10 +468,10 @@ describe('vistas, comentarios y avisos', () => {
     expect(types.length).toBe(1);
     expect(JSON.parse(types[0].meta).count).toBe(2);
     // Un invitado no puede usar el nombre de alguien del workspace.
-    // Sin revelar membresía: el nombre de un miembro (o una variante) sale como invitado a secas.
+    // Sin revelar membresía: miembro o no, un invitado sale igual (su nombre, marcado como invitado).
     for (const fake of ['Owner', 'rec-owner', 'О.w\u200bn е r', 'ＯＷＮＥＲ']) {
       const x = await addComment(v, { ...ana, name: fake }, { kind: 'comment', body: 'x' });
-      expect([x.authorName, x.guest]).toEqual(['', true]);
+      expect([x.authorName, x.guest]).toEqual([fake, true]);
     }
     expect((await addComment(v, { ...ana, name: 'Ana María' }, { kind: 'comment', body: 'y' })).authorName).toBe('Ana María');
     // Paginación: de a 50, los más nuevos primero.

@@ -26,7 +26,6 @@ import {
   retentionCurve,
   segmentsInTrim,
   trimKey,
-  nameKey,
   type Range,
   clampTrim,
   cleanCtaUrl,
@@ -1182,27 +1181,6 @@ export async function listComments(
   };
 }
 
-/** Nombres de las personas del workspace (dueño y miembros), en minúscula, para que un invitado no se haga pasar por una. */
-async function memberNames(ws: string): Promise<Set<string>> {
-  const rows = (await getDb()
-    .prepare(
-      `SELECT name, email FROM users WHERE id = ?
-       UNION SELECT u.name, u.email FROM team_members tm JOIN teams t ON t.id = tm.team_id JOIN users u ON u.id = tm.user_id WHERE t.owner_id = ?`,
-    )
-    .all(ws, ws)
-    .catch(() => [])) as Array<{ name: string | null; email: string | null }>;
-  const out = new Set<string>();
-  for (const r of rows) {
-    if (r.name) out.add(nameKey(r.name));
-    if (r.email) {
-      out.add(nameKey(r.email));
-      out.add(nameKey(r.email.split('@')[0]));
-    }
-  }
-  out.delete('');
-  return out;
-}
-
 export async function addComment(
   v: RecVideoRow,
   viewer: RecViewer,
@@ -1216,12 +1194,11 @@ export async function addComment(
   const emoji = kind === 'reaction' ? String(input.emoji ?? '') : null;
   if (kind === 'comment' && !body) throw new RecError('empty_comment');
   if (kind === 'reaction' && !(REC_REACTIONS as readonly string[]).includes(emoji ?? '')) throw new RecError('invalid_reaction');
-  let name = viewer.name.trim().slice(0, 80);
+  // Todos los invitados se publican igual: el nombre que escribieron, marcado
+  // como invitado (badge "Invitado" en la UI). No se compara con los miembros:
+  // la respuesta no puede decir si un nombre es de alguien del workspace.
+  const name = viewer.name.trim().slice(0, 80);
   if (!name) throw new RecError('name_required');
-  // Un invitado no puede firmar con el nombre de alguien del workspace (ni con
-  // variantes: mayúsculas, puntos, letras cirílicas). No se avisa (eso diría
-  // quién es miembro): sale como "Invitado" a secas.
-  if (!viewer.userId && (await memberNames(v.workspace_id)).has(nameKey(name))) name = '';
   if (process.env.RATE_LIMIT_DISABLED !== 'true') {
     const { rateLimit } = await import('./rate-limit');
     const r = await rateLimit(`rec:comment:video:${v.id}`, 120, 600);
@@ -1241,7 +1218,7 @@ export async function addComment(
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(id, v.id, v.workspace_id, parentId, kind, body, emoji, at === null ? null : Math.round(at * 10) / 10, viewer.userId, name, viewer.key);
-  if (!viewer.isAuthor) await notifyCommentGrouped(v, name || 'Guest', kind, body, emoji);
+  if (!viewer.isAuthor) await notifyCommentGrouped(v, viewer.userId ? name : `${name} (guest)`, kind, body, emoji);
   const row = (await getDb().prepare('SELECT * FROM rec_comments WHERE id = ?').get(id)) as CommentRow;
   return commentDto(row, viewer.key, v.created_by);
 }

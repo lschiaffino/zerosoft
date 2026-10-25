@@ -13,6 +13,8 @@ const WINDOW = 600;
 const IP_FAILS = 20;
 /** Fallos por video en 10 min (de cualquier IP): pasado eso, solo prueban IPs sin fallos recientes. */
 const SHARE_FAILS = 50;
+/** Desde estos fallos por video, todas las IPs esperan antes de probar (de 1 s a 10 s), sin bloquear. */
+const SHARE_SLOW = 20;
 
 const tooMany = (resetSec: number) =>
   NextResponse.json({ error: 'rate_limited' }, { status: 429, headers: { 'retry-after': String(Math.max(1, resetSec)) } });
@@ -38,9 +40,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ share: str
   if (limits) {
     const ipFails = await peekCount(ipKey, WINDOW);
     if (ipFails >= IP_FAILS) return tooMany(WINDOW);
-    if (ipFails > 0 && (await peekCount(shareKey, WINDOW)) >= SHARE_FAILS) return tooMany(WINDOW);
-    // Espera progresiva: 0, 0, 0,5 s, 1 s, 2 s… hasta 5 s según los fallos recientes de esta IP.
-    if (ipFails >= 2) await new Promise((r) => setTimeout(r, Math.min(5000, 250 * 2 ** (ipFails - 1))));
+    const shareFails = await peekCount(shareKey, WINDOW);
+    if (ipFails > 0 && shareFails >= SHARE_FAILS) return tooMany(WINDOW);
+    // Espera progresiva por IP: 0, 0, 0,5 s, 1 s, 2 s… hasta 5 s según sus fallos recientes.
+    const ipWait = ipFails >= 2 ? Math.min(5000, 250 * 2 ** (ipFails - 1)) : 0;
+    // Y por video: con muchos fallos de muchas IPs, todas esperan (1 s, 2 s… hasta 10 s), aun las limpias.
+    const shareWait = shareFails >= SHARE_SLOW ? Math.min(10_000, 1000 * (1 + Math.floor((shareFails - SHARE_SLOW) / 3))) : 0;
+    const wait = Math.max(ipWait, shareWait);
+    if (wait) await new Promise((r) => setTimeout(r, wait));
   }
 
   if (!(await verifyPassword(parsed.data.password, v.password_hash))) {

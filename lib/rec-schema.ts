@@ -227,12 +227,16 @@ export function isTrimmed(start: number, end: number | null): boolean {
 }
 
 /**
- * Segmentos de la transcripción enteramente dentro del recorte. Los que cruzan
- * un borde quedan afuera: su texto incluye palabras de la parte recortada.
+ * Segmentos de la transcripción dentro del recorte, con los tiempos ajustados
+ * al borde. Sin tiempos por palabra no se puede cortar el texto: los que
+ * empiezan más de 1 s antes del inicio (o terminan más de 1 s después del
+ * fin) quedan afuera, porque traen palabras de la parte recortada.
  */
 export function segmentsInTrim(segments: RecSegment[], start: number, end: number | null): RecSegment[] {
   const e = end ?? Infinity;
-  return segments.filter((s) => s.start >= start - 0.05 && s.end <= e + 0.05);
+  return segments
+    .filter((s) => s.end > start && s.start < e && s.start >= start - 1 && s.end <= e + 1)
+    .map((s) => ({ ...s, start: Math.max(s.start, start), end: Math.min(s.end, e) }));
 }
 
 /** Capítulos dentro del recorte; el primero pasa a empezar donde empieza el recorte. */
