@@ -420,6 +420,25 @@ async function groupsMessageNode(ws: string, cfg: Record<string, unknown>, tctx:
   }
 }
 
+/** Talk: publica en un canal del workspace como bot (con el nombre elegido). */
+async function talkMessageNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
+  const channel = renderString(cfg.channel ?? '', tctx).trim();
+  const body = renderString(cfg.body ?? '', tctx).trim();
+  const threadId = renderString(cfg.threadId ?? '', tctx).trim() || null;
+  const botName = renderString(cfg.botName ?? '', tctx).trim().slice(0, 60) || 'Flow';
+  if (!channel) throw new StepError('missing_channel');
+  if (!body) throw new StepError('missing_body');
+  const { postAsBot } = await import('./talk-bot');
+  const { TalkError } = await import('./talk');
+  try {
+    const msg = await postAsBot(ws, { channel, body: body.slice(0, 12_000), threadId, botName });
+    return { message: { id: msg.id, channelId: msg.channelId, threadId: msg.parentId } };
+  } catch (err) {
+    if (err instanceof TalkError) throw new StepError(err.code === 'not_found' ? 'channel_not_found' : err.code);
+    throw err;
+  }
+}
+
 async function docsPageNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
   const title = renderString(cfg.title ?? '', tctx).trim().slice(0, 300);
   const content = renderString(cfg.content ?? '', tctx);
@@ -955,6 +974,8 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
       return { kind: 'ok', output: await docsPageNode(ws, cfg, tctx), handles: ['out'] };
     case 'app.groups_message':
       return { kind: 'ok', output: await groupsMessageNode(ws, cfg, tctx), handles: ['out'] };
+    case 'app.talk_message':
+      return { kind: 'ok', output: await talkMessageNode(ws, cfg, tctx), handles: ['out'] };
     case 'app.robot_run':
       return { kind: 'ok', output: await robotNode(state, cfg, tctx), handles: ['out'] };
     case 'ai.text':

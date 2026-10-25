@@ -115,6 +115,7 @@
       "robot": "Robôs",
       "chat": "Chat",
       "groups": "Groups (WhatsApp)",
+      "talk": "Talk",
       "company": "Empresas",
       "task": "Tarefas",
       "quote": "Cotações",
@@ -165,7 +166,8 @@
       "groups_chat_closed": "Chat fechado (Groups)",
       "groups_member_joined": "Membro entrou em um grupo (Groups)",
       "groups_member_left": "Membro saiu de um grupo (Groups)",
-      "groups_poll_voted": "Voto em uma enquete (Groups)"
+      "groups_poll_voted": "Voto em uma enquete (Groups)",
+      "talk_message_posted": "Mensagem em um canal (Talk)"
     },
     "errors": {
       "https_required": "A URL precisa usar https.",

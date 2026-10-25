@@ -35,7 +35,9 @@ export interface AppSearchItem {
     | 'groupsMessages'
     | 'groupsLists'
     | 'groupsTemplates'
-    | 'groupsRecurring';
+    | 'groupsRecurring'
+    | 'talkChannels'
+    | 'talkDms';
   label: string;
   meta: string;
   href: string;
@@ -56,6 +58,8 @@ type Row = { id: string; label: string; meta?: string | null; email?: string | n
 
 /** "Grupo de WhatsApp" en el idioma de la paleta (el resto de las metas son datos). */
 const WA_GROUP: Record<string, string> = { en: 'WhatsApp group', es: 'Grupo de WhatsApp', pt: 'Grupo de WhatsApp' };
+/** "Mensaje directo" (Talk) en el idioma de la paleta. */
+const TALK_DM: Record<string, string> = { en: 'Direct message', es: 'Mensaje directo', pt: 'Mensagem direta' };
 
 export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT, locale = 'en'): Promise<AppSearchItem[]> {
   const needle = q.trim();
@@ -81,7 +85,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   const gMask = (r: Row): Row => (gViewer?.mask ? { ...r, label: maskPhoneText(r.label), meta: r.meta ? maskPhoneText(r.meta) : r.meta } : r);
   const ticketNumber = /^#?\d{1,7}$/.test(needle) ? Number(needle.replace('#', '')) : -1;
   const person = user.actingUser?.id ?? user.id;
-  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates] = await Promise.all([
+  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates, talkChannels, talkDms] = await Promise.all([
     all(
       `SELECT b.id, b.name AS label FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND b.name LIKE ? ESCAPE '\\' ORDER BY b.updated_at DESC LIMIT ?`,
       user.id,
@@ -186,6 +190,29 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       like,
     ),
     all(`SELECT id, name AS label, group_name AS meta FROM groups_templates WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, like),
+    // Talk: canales que la persona ve (públicos y los privados donde está) y sus DMs por el nombre de la otra persona.
+    all(
+      `SELECT c.id, '#' || c.name AS label, c.topic AS meta FROM talk_channels c
+       WHERE c.workspace_id = ? AND c.kind IN ('public', 'private') AND c.archived_at IS NULL
+         AND (c.kind = 'public' OR EXISTS (SELECT 1 FROM talk_members m WHERE m.channel_id = c.id AND m.user_id = ?))
+         AND c.name LIKE ? ESCAPE '\\' ORDER BY c.name LIMIT ?`,
+      user.id,
+      person,
+      like,
+    ),
+    all(
+      `SELECT c.id, COALESCE(u.name, u.email) AS label, ? AS meta FROM talk_channels c
+       JOIN talk_members me ON me.channel_id = c.id AND me.user_id = ?
+       JOIN talk_members o ON o.channel_id = c.id AND o.user_id != ?
+       JOIN users u ON u.id = o.user_id
+       WHERE c.workspace_id = ? AND c.kind = 'dm' AND (u.name LIKE ? ESCAPE '\\' OR u.email LIKE ? ESCAPE '\\') ORDER BY c.last_message_at DESC LIMIT ?`,
+      TALK_DM[locale] ?? TALK_DM.en,
+      person,
+      person,
+      user.id,
+      like,
+      like,
+    ),
   ]);
 
   const map = (rows: Row[], group: AppSearchItem['group'], href: (id: string) => string): AppSearchItem[] =>
@@ -222,5 +249,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     }),
     ...map(groupLists, 'groupsLists', (id) => `/app/groups/inbox?list=${id}`),
     ...map(groupTemplates, 'groupsTemplates', (id) => `/app/groups/templates?use=${id}`),
+    ...map(talkChannels, 'talkChannels', (id) => `/app/talk/${id}`),
+    ...map(talkDms, 'talkDms', (id) => `/app/talk/${id}`),
   ];
 }

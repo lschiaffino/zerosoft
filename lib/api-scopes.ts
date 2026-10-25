@@ -16,6 +16,8 @@ export const API_SCOPES = [
   'chat:write',
   'groups:read',
   'groups:write',
+  'talk:read',
+  'talk:write',
 ] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 

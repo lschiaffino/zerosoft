@@ -71,6 +71,17 @@ async function groupsNumber(request: APIRequestContext): Promise<string> {
 
 const APPS: AppCase[] = [
   {
+    app: 'Talk',
+    list: '/en/app/talk',
+    // El nombre se guarda como Slack (minúsculas, guiones): la UI muestra ese. Renombrar se prueba en talk.spec.
+    create: async (request, name) => {
+      const c = await ok<{ id: string; name: string }>(request.post('/api/talk/channels', { data: { name, kind: 'public' } }));
+      return { id: c.id, name: c.name };
+    },
+    detail: (i) => `/en/app/talk/${i.id}`,
+    remove: async (request, i) => void (await ok(request.delete(`/api/talk/channels/${i.id}`))),
+  },
+  {
     app: 'Docs',
     list: '/en/app/docs',
     sidebar: true,

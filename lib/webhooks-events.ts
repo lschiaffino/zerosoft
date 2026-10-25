@@ -45,6 +45,7 @@ export const WEBHOOK_EVENTS = [
   'groups.member.joined',
   'groups.member.left',
   'groups.poll.voted',
+  'talk.message.posted',
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
