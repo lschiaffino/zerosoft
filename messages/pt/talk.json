@@ -406,5 +406,8 @@
     "reminderSubject": "Lembrete: {text}",
     "open": "Abrir no Talk",
     "footer": "Você recebe este e-mail porque não leu no Talk. Mude nas preferências do Talk."
+  },
+  "sidebar": {
+    "home": "Início"
   }
 }

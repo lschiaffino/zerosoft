@@ -406,5 +406,8 @@
     "reminderSubject": "Recordatorio: {text}",
     "open": "Abrir en Talk",
     "footer": "Te llega este email porque no lo leíste en Talk. Cambialo en las preferencias de Talk."
+  },
+  "sidebar": {
+    "home": "Inicio"
   }
 }

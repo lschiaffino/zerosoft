@@ -78,6 +78,15 @@ const SCREENS = [
   '/en/app/notes/clip',
   '/en/app/robots',
   '/en/app/robots/recorder',
+  '/en/app/voice',
+  '/en/app/voice/settings',
+  '/en/app/rec',
+  '/en/app/rec/settings',
+  '/en/app/talk',
+  '/en/app/talk/settings',
+  '/en/products/voice',
+  '/en/products/rec',
+  '/en/products/talk',
 ];
 
 for (const path of SCREENS) {
@@ -108,8 +117,8 @@ test('el shell: banda con switcher de apps y el ítem activo marcado', async ({ 
   await expect(active).toHaveCount(1);
   await expect(active).toHaveAttribute('href', /\/es\/app\/crm\/contacts$/);
   await page.locator('.band-product').click();
-  // Inicio, las 12 apps (destacadas y por categoría) y Buscar (⌘K).
-  await expect(page.getByRole('menuitem')).toHaveCount(14);
+  // Inicio, las 15 apps (destacadas y por categoría) y Buscar (⌘K).
+  await expect(page.getByRole('menuitem')).toHaveCount(17);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menuitem')).toHaveCount(0);
   await expect(page.locator('.band-product')).toBeFocused();

@@ -5,7 +5,7 @@ import { PARITY } from '@/content/feature-parity';
 import type { ParityRow } from '@/content/feature-parity/types';
 import { computeAreas, computeParity, loc, validateParity } from '@/lib/feature-parity';
 import { ideaForCapability } from '@/lib/feature-parity-ideas';
-import { PRODUCT_KEYS } from '@/lib/products';
+import { PRODUCT_KEYS, isBuildingProduct } from '@/lib/products';
 
 const row = (status: ParityRow['status'], competitorHas = true, weight?: 1 | 2, area = 'a'): ParityRow => ({
   id: `r-${Math.random().toString(36).slice(2, 8)}`,
@@ -81,7 +81,12 @@ describe('archivos de paridad', () => {
     expect(p.competitor.trim()).not.toBe('');
     const s = computeParity(p.rows);
     expect(s.counted).toBeGreaterThan(10);
-    expect(s.percent).toBeGreaterThan(0);
+    if (isBuildingProduct(key)) {
+      // En construcción: todavía no hay nada, la paridad es 0 % hasta que salga la primera versión.
+      expect(s.percent).toBe(0);
+    } else {
+      expect(s.percent).toBeGreaterThan(0);
+    }
     expect(s.percent).toBeLessThan(100);
     // Las parciales dicen qué hay y qué no.
     for (const r of p.rows.filter((x) => x.status === 'partial')) expect(r.detail, `${key}:${r.id}`).toBeTruthy();

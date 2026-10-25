@@ -40,6 +40,9 @@ export const PRODUCT_CONFIG = {
   notes: { name: 'Notes', launch: '/app/notes', path: 'notes', color: '#e6b400', category: 'daily', audience: 'personal' },
   cal: { name: 'Cal', launch: '/app/calendar', path: 'calendar', color: '#0e9f6e', category: 'daily', audience: 'personal' },
   board: { name: 'Board', launch: '/app/board', path: 'board', color: '#00b8a9', category: 'build', audience: 'personal' },
+  voice: { name: 'Voice', launch: '/app/voice', path: 'voice', color: '#c026d3', category: 'daily', audience: 'personal' },
+  rec: { name: 'Rec', launch: '/app/rec', path: 'rec', color: '#e11d48', category: 'daily', audience: 'team' },
+  talk: { name: 'Talk', launch: '/app/talk', path: 'talk', color: '#8e3a80', category: 'daily', audience: 'team' },
 } as const satisfies Record<string, ProductEntry>;
 
 /**
@@ -57,6 +60,9 @@ export const APP_SWITCHER_ORDER = [
   'flow',
   'notes',
   'board',
+  'talk',
+  'voice',
+  'rec',
   'agents',
   'robots',
 ] as const satisfies readonly (keyof typeof PRODUCT_CONFIG)[];
@@ -80,7 +86,18 @@ export function productRgb(key: ProductKey): string {
   return [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',');
 }
 
-/** Número de la app en la suite, con dos dígitos ("01" … "12"). */
+/**
+ * Apps registradas que todavía se están construyendo: tienen shell en /app,
+ * landing que lo dice y paridad en 0 %. Al salir la primera versión, se
+ * sacan de acá.
+ */
+export const BUILDING_PRODUCTS: readonly ProductKey[] = ['voice', 'rec', 'talk'];
+
+export function isBuildingProduct(key: string): boolean {
+  return (BUILDING_PRODUCTS as readonly string[]).includes(key);
+}
+
+/** Número de la app en la suite, con dos dígitos ("01" … "15"). */
 export function productNumber(key: ProductKey): string {
   return String(PRODUCT_KEYS.indexOf(key) + 1).padStart(2, '0');
 }

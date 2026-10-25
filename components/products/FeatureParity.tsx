@@ -31,6 +31,8 @@ export default async function FeatureParity({ locale, product, headingId }: { lo
   const included = (r: ParityRow) => r.status !== 'missing';
   const beyond = parity.rows.filter((r) => r.status === 'better');
   const missing = parity.rows.filter((r) => r.status === 'missing');
+  // Una app en construcción todavía no incluye nada: sin tabla vacía, la lista de lo que falta abierta.
+  const hasIncluded = parity.rows.some(included);
   // La idea del board que cubre cada faltante (research/ideas.json con `parity`):
   // el link va a esa idea; sin ítem cargado todavía, a la búsqueda por su título.
   const ideas = new Map(missing.map((r) => [r.id, ideaForCapability(product, r.id)]));
@@ -83,59 +85,64 @@ export default async function FeatureParity({ locale, product, headingId }: { lo
         </ul>
       </div>
 
-      <h3 className="parity-h3">{t('tableTitle', { name })}</h3>
-      <p className="parity-legend data">
-        {(['have', 'better', 'partial'] as const).map((s) => (
-          <span key={s}>
-            {MARK[s]} {statusLabel(s)}
-          </span>
-        ))}
-      </p>
-      <div className="table-wrap parity-table-wrap">
-        <table className="table parity-table">
-          <caption className="sr-only">{t('tableCaption', { name, competitor })}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{t('col.capability')}</th>
-              <th scope="col">{name}</th>
-              <th scope="col">{competitor}</th>
-            </tr>
-          </thead>
-          {parity.areas.map((a) => {
-            const rows = parity.rows.filter((r) => r.area === a.id && included(r));
-            if (rows.length === 0) return null;
-            return (
-              <tbody key={a.id}>
-                <tr className="parity-group">
-                  <th scope="colgroup" colSpan={3}>
-                    {loc(a.label, locale)}
-                  </th>
+      {!hasIncluded && <p className="parity-none">{t('noneYet', { name })}</p>}
+      {hasIncluded && (
+        <>
+          <h3 className="parity-h3">{t('tableTitle', { name })}</h3>
+          <p className="parity-legend data">
+            {(['have', 'better', 'partial'] as const).map((s) => (
+              <span key={s}>
+                {MARK[s]} {statusLabel(s)}
+              </span>
+            ))}
+          </p>
+          <div className="table-wrap parity-table-wrap">
+            <table className="table parity-table">
+              <caption className="sr-only">{t('tableCaption', { name, competitor })}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t('col.capability')}</th>
+                  <th scope="col">{name}</th>
+                  <th scope="col">{competitor}</th>
                 </tr>
-                {rows.map((r) => (
-                  <tr key={r.id} data-status={r.status}>
-                    <th scope="row" className="parity-cap">
-                      {loc(r.label, locale)}
-                    </th>
-                    <td className="parity-ours">
-                      <span className={`parity-status parity-status--${r.status}`}>
-                        <span className="data" aria-hidden="true">
-                          {MARK[r.status]}
-                        </span>{' '}
-                        {statusLabel(r.status)}
-                      </span>
-                      {r.detail && <span className="parity-detail">{loc(r.detail, locale)}</span>}
-                    </td>
-                    <td className="parity-theirs">
-                      <span className="parity-theirs-label">{competitor}: </span>
-                      {r.competitorHas ? t('yes') : t('no')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            );
-          })}
-        </table>
-      </div>
+              </thead>
+              {parity.areas.map((a) => {
+                const rows = parity.rows.filter((r) => r.area === a.id && included(r));
+                if (rows.length === 0) return null;
+                return (
+                  <tbody key={a.id}>
+                    <tr className="parity-group">
+                      <th scope="colgroup" colSpan={3}>
+                        {loc(a.label, locale)}
+                      </th>
+                    </tr>
+                    {rows.map((r) => (
+                      <tr key={r.id} data-status={r.status}>
+                        <th scope="row" className="parity-cap">
+                          {loc(r.label, locale)}
+                        </th>
+                        <td className="parity-ours">
+                          <span className={`parity-status parity-status--${r.status}`}>
+                            <span className="data" aria-hidden="true">
+                              {MARK[r.status]}
+                            </span>{' '}
+                            {statusLabel(r.status)}
+                          </span>
+                          {r.detail && <span className="parity-detail">{loc(r.detail, locale)}</span>}
+                        </td>
+                        <td className="parity-theirs">
+                          <span className="parity-theirs-label">{competitor}: </span>
+                          {r.competitorHas ? t('yes') : t('no')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                );
+              })}
+            </table>
+          </div>
+        </>
+      )}
 
       {beyond.length > 0 && (
         <section className="parity-beyond" aria-labelledby={`${headingId}-beyond`}>
@@ -154,7 +161,7 @@ export default async function FeatureParity({ locale, product, headingId }: { lo
       )}
 
       {missing.length > 0 && (
-        <details className="parity-missing">
+        <details className="parity-missing" open={!hasIncluded}>
           <summary>
             {t('missingTitle', { count: missing.length })}
             <span className="faq-plus" aria-hidden="true" />
