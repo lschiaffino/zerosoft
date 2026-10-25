@@ -296,7 +296,7 @@ export default function DealsTable({
                 {visible.has('contacts') && <td className="num">{row.contacts}</td>}
                 {visible.has('company') && (
                   <td className="muted cell-sub" data-card="line">
-                    {row.companyName || '—'}
+                    {row.companyName || <span className="cell-empty">—</span>}
                   </td>
                 )}
                 {visible.has('tags') && (

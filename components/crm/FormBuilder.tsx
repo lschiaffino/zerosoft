@@ -959,7 +959,7 @@ export default function FormBuilder(props: Props) {
                 setEmailsText(e.target.value);
                 dirty();
               }}
-              placeholder="ventas@empresa.com"
+              placeholder={t('forms.builder.notifyEmailsPlaceholder')}
               disabled={!canEdit}
             />
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { formatMoney } from '@/lib/crm-money';
@@ -62,6 +62,15 @@ export default function LineItemsPanel({
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [custom, setCustom] = useState({ name: '', quantity: '1', price: '' });
+  const [pendingAdd, setPendingAdd] = useState<(() => Promise<boolean>) | null>(null);
+  const confirmRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const d = confirmRef.current;
+    if (!d) return;
+    if (pendingAdd && !d.open) d.showModal();
+    if (!pendingAdd && d.open) d.close();
+  }, [pendingAdd]);
 
   const money = (n: number) => formatMoney(n, currency, locale, true);
   const base = `/api/crm/deals/${dealId}/line-items`;
@@ -85,17 +94,41 @@ export default function LineItemsPanel({
     return false;
   }
 
+  /**
+   * La primera línea pasa el amount a "desde los line items": si el deal tenía
+   * un monto cargado a mano, se pregunta antes de pisarlo (o se lo deja manual).
+   */
+  function guarded(add: () => Promise<boolean>): Promise<boolean> {
+    if (items.length === 0 && !amountOverride && dealAmount > 0) {
+      setPendingAdd(() => add);
+      return Promise.resolve(false);
+    }
+    return add();
+  }
+
+  async function resolvePending(choice: 'replace' | 'keep' | 'cancel') {
+    const add = pendingAdd;
+    setPendingAdd(null);
+    if (!add || choice === 'cancel') return;
+    if (choice === 'keep' && !(await call(`/api/crm/deals/${dealId}`, 'PATCH', { amountOverride: true }))) return;
+    if ((await add()) && adding) {
+      setCustom({ name: '', quantity: '1', price: '' });
+      setAdding(false);
+    }
+  }
+
   async function addProduct(productId: string) {
-    if (productId) await call(base, 'POST', { productId });
+    if (productId) await guarded(() => call(base, 'POST', { productId }));
   }
 
   async function addCustom() {
     if (!custom.name.trim()) return;
-    const ok = await call(base, 'POST', {
+    const body = {
       name: custom.name.trim(),
       quantity: Number(custom.quantity) > 0 ? Number(custom.quantity) : 1,
       unitPrice: Number(custom.price) || 0,
-    });
+    };
+    const ok = await guarded(() => call(base, 'POST', body));
     if (ok) {
       setCustom({ name: '', quantity: '1', price: '' });
       setAdding(false);
@@ -310,6 +343,43 @@ export default function LineItemsPanel({
       )}
 
       {error && <p className="form-error">{error}</p>}
+
+      <dialog
+        ref={confirmRef}
+        className="ui-modal ui-confirm"
+        role="alertdialog"
+        aria-labelledby={`li-confirm-${dealId}`}
+        data-testid="li-amount-confirm"
+        onCancel={(e) => {
+          e.preventDefault();
+          void resolvePending('cancel');
+        }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) void resolvePending('cancel');
+        }}
+      >
+        {pendingAdd && (
+          <>
+            <div className="ui-modal-head">
+              <h2 className="ui-modal-title" id={`li-confirm-${dealId}`}>
+                {t('lineItems.replaceTitle')}
+              </h2>
+            </div>
+            <div className="ui-modal-body">{t('lineItems.replaceBody', { amount: money(dealAmount) })}</div>
+            <div className="ui-modal-foot">
+              <button type="button" className="btn btn-sm" onClick={() => void resolvePending('cancel')}>
+                {t('common.cancel')}
+              </button>
+              <button type="button" className="btn btn-sm" onClick={() => void resolvePending('keep')} data-testid="li-keep-amount">
+                {t('lineItems.keepAmount', { amount: money(dealAmount) })}
+              </button>
+              <button type="button" className="btn btn-sm btn-primary" autoFocus onClick={() => void resolvePending('replace')} data-testid="li-replace-amount">
+                {t('lineItems.useItems')}
+              </button>
+            </div>
+          </>
+        )}
+      </dialog>
     </div>
   );
 }

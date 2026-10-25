@@ -1,7 +1,7 @@
 import type { Client } from '@libsql/client';
 import { baseline } from './baseline';
 import { pickHandle } from './handles';
-import { ACTIVITY_DATE_TABLES, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
+import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
  * Migraciones versionadas. Cada una corre una sola vez por base y queda
@@ -2472,8 +2472,9 @@ export const MIGRATIONS: Migration[] = [
       }
       await addColumn(client, "ALTER TABLE crm_activities ADD COLUMN repeat TEXT NOT NULL DEFAULT 'none'");
       await addColumn(client, 'ALTER TABLE crm_activities ADD COLUMN repeat_next_id TEXT');
-      await client.executeMultiple(activityDateTriggersSql());
-      for (const { table } of ACTIVITY_DATE_TABLES) await client.execute(activityDatesUpdateSql(table));
+      // Versión 1: esta base todavía no tiene task_kind (077 recrea los triggers).
+      await client.executeMultiple(activityDateTriggersSql(1));
+      for (const { table } of ACTIVITY_DATE_TABLES) await client.execute(activityDatesUpdateSql(table, undefined, 1));
     },
   },  {
     // Chat: atributos de conversación definidos por widget (JSON
@@ -4073,6 +4074,19 @@ export const MIGRATIONS: Migration[] = [
         );
         CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_voice_caller ON crm_voice_settings(caller_id) WHERE caller_id <> '';
       `);
+    },
+  },
+  {
+    // CRM: tipo de una tarea (HubSpot: To-do, Call, Email). Una tarea de
+    // llamada o email sigue siendo tarea pendiente (Tasks, cola, vencimientos)
+    // y recién al completarla cuenta como contacto: los triggers de fechas de
+    // actividad se recrean para mirar task_kind.
+    id: '077_crm_task_kind',
+    up: async (client) => {
+      await addColumn(client, "ALTER TABLE crm_activities ADD COLUMN task_kind TEXT NOT NULL DEFAULT ''");
+      for (const name of ACTIVITY_DATE_TRIGGERS) await client.execute(`DROP TRIGGER IF EXISTS ${name}`);
+      await client.executeMultiple(activityDateTriggersSql());
+      for (const { table } of ACTIVITY_DATE_TABLES) await client.execute(activityDatesUpdateSql(table));
     },
   },
 ];

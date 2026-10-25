@@ -22,7 +22,8 @@
     "playbooks": "Playbooks",
     "forecast": "Previsão",
     "documents": "Documentos",
-    "videos": "Vídeos"
+    "videos": "Vídeos",
+    "crmSettings": "Configurações do CRM"
   },
   "switcher": {
     "product": "Produto",
@@ -496,7 +497,8 @@
       "cardLabel": "{deal}, em {stage}",
       "moving": "Movendo {deal} para {stage}",
       "moved": "{deal} foi para {stage}",
-      "edge": "Não há outra etapa desse lado"
+      "edge": "Não há outra etapa desse lado",
+      "skipToBoard": "Ir para o board"
     }
   },
   "tasks": {
@@ -1465,7 +1467,11 @@
     "catalog": "Catálogo de produtos",
     "amountSource": "Valor do deal",
     "fromItems": "Pelos itens (líquido, sem impostos): {amount}",
-    "manual": "Valor manual: {amount}"
+    "manual": "Valor manual: {amount}",
+    "replaceTitle": "Substituir o valor do deal?",
+    "replaceBody": "Este deal tem um valor de {amount} digitado à mão. Com line items, o valor passa a ser o total deles. Você também pode manter {amount} como valor manual.",
+    "keepAmount": "Manter {amount}",
+    "useItems": "Usar o total dos line items"
   },
   "quotes": {
     "title": "Orçamentos",
@@ -1771,7 +1777,8 @@
       "dealNameHint": "'{name}', '{email}', '{company}' e '{form}' são substituídos.",
       "captcha": "Pedir CAPTCHA (Cloudflare Turnstile)",
       "captchaHint": "Bots que passam pelo honeypot ainda precisam resolver.",
-      "captchaMissing": "Configure TURNSTILE_SITE_KEY e TURNSTILE_SECRET_KEY no servidor para ativar."
+      "captchaMissing": "Configure TURNSTILE_SITE_KEY e TURNSTILE_SECRET_KEY no servidor para ativar.",
+      "notifyEmailsPlaceholder": "vendas@empresa.com"
     },
     "types": {
       "text": "Texto",
@@ -2937,7 +2944,10 @@
         "priority": "Prioridade",
         "description": "Descrição"
       }
-    }
+    },
+    "noOutcome": "Sem resultado",
+    "rename": "Renomear",
+    "deleteShort": "Excluir"
   },
   "approvals": {
     "title": "Aprovações",
@@ -3035,7 +3045,8 @@
       "invalid_percent": "Cada porcentagem tem que ser maior que 0 e até 100.",
       "invalid_owner": "Os donos têm que ser pessoas deste workspace.",
       "too_many": "Até 10 donos por negócio."
-    }
+    },
+    "noMorePeople": "Todas as pessoas do workspace já têm sua parte"
   },
   "reportBuilder": {
     "nav": {
@@ -3516,7 +3527,9 @@
     "pageLabel": "Página {page} de {total}",
     "greeting": "Um vídeo para {name}",
     "greetingAnon": "Um vídeo para você",
-    "from": "De {name}"
+    "from": "De {name}",
+    "goneTitle": "Este link não está mais disponível",
+    "goneSub": "Quem compartilhou apagou o arquivo ou desativou o link. Peça um novo."
   },
   "outlook": {
     "title": "Outlook e Microsoft 365",

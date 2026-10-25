@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { renderPlaybookMarkdown } from '@/lib/crm-playbook-markdown';
@@ -79,6 +80,9 @@ export default function PlaybookRunner({ playbook, entity, entityId, values = {}
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    // El drawer va por portal, pero los eventos de React igual suben por el árbol:
+    // sin esto el submit llegaría al form de PhoneTouch y registraría la llamada dos veces.
+    e.stopPropagation();
     if (busy) return;
     setBusy(true);
     setError(null);
@@ -145,7 +149,10 @@ export default function PlaybookRunner({ playbook, entity, entityId, values = {}
     );
   }
 
-  return (
+  // Portal a body: el runner se abre desde formularios (registrar llamada en
+  // PhoneTouch) y un <form> anidado hace submit nativo del de afuera.
+  if (typeof document === 'undefined') return null;
+  return createPortal(
     <dialog
       ref={dialogRef}
       className="ui-drawer pb-drawer"
@@ -200,7 +207,7 @@ export default function PlaybookRunner({ playbook, entity, entityId, values = {}
             <label className="field">
               <span className="prop-label">{t('calls.outcome')}</span>
               <select className="select" value={outcome} onChange={(e) => setOutcome(e.target.value)}>
-                <option value="">{t('playbooks.noAnswer')}</option>
+                <option value="">{t('playbooks.noOutcome')}</option>
                 {outcomes.map((o) => (
                   <option key={o} value={o}>
                     {isDefaultOutcome(o) ? t(`calls.outcomes.${o}`) : o}
@@ -224,6 +231,7 @@ export default function PlaybookRunner({ playbook, entity, entityId, values = {}
           </button>
         </div>
       </form>
-    </dialog>
+    </dialog>,
+    document.body,
   );
 }

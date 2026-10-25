@@ -28,7 +28,7 @@ export default async function PublicVideoPage(props: Props) {
           {video.contactFirstName ? t('greeting', { name: video.contactFirstName }) : t('greetingAnon')}
         </p>
         <h1 className="vw-title">{video.title}</h1>
-        <VideoWatch token={token} src={video.url} type={video.contentType} title={video.title} />
+        <VideoWatch token={token} src={`/api/crm/v/${encodeURIComponent(token)}/file`} type={video.contentType} title={video.title} />
         {video.message && <p className="vw-message">{video.message}</p>}
         {video.senderName && <p className="vw-from">{t('from', { name: video.senderName })}</p>}
       </article>

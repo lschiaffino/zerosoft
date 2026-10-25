@@ -19,7 +19,7 @@ export default async function DocumentPage(props: { params: Promise<{ locale: st
   return (
     <div className="app-page ui-page">
       <PageHeader back={{ href: '/app/crm/documents', label: t('docsTitle') }} title={doc.name} description={doc.filename} />
-      <DocumentDetail doc={{ id: doc.id, name: doc.name, fileUrl: doc.url }} links={links} baseUrl={baseUrl} canManage={canManage} />
+      <DocumentDetail doc={{ id: doc.id, name: doc.name, fileUrl: `/api/crm/documents/${doc.id}/file` }} links={links} baseUrl={baseUrl} canManage={canManage} />
     </div>
   );
 }

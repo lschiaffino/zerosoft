@@ -69,6 +69,9 @@ export default function ChromeGate({
     pathname.startsWith('/q/') ||
     // Formularios del CRM (/f/<slug|token>): página del cliente, también embebida en un iframe.
     pathname.startsWith('/f/') ||
+    // Documentos y videos compartidos desde el CRM (/view/<token>, /watch/<token>).
+    pathname.startsWith('/view/') ||
+    pathname.startsWith('/watch/') ||
     // Centro de ayuda público de un workspace (/h/<handle>): página del cliente.
     pathname.startsWith('/h/') ||
     // /@handle se reescribe a /bio/<handle>, pero el navegador ve /@handle.

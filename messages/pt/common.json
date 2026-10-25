@@ -106,7 +106,17 @@
     "groupPlaybooks": "Playbooks",
     "startQueue": "Começar a fila de tarefas",
     "groupCrmDocuments": "Documentos",
-    "groupCrmVideos": "Vídeos"
+    "groupCrmVideos": "Vídeos",
+    "groupCrmForms": "Formulários",
+    "groupCrmQuotes": "Orçamentos",
+    "groupCrmApprovals": "Aprovações pendentes",
+    "groupCrmScores": "Scores de leads",
+    "openForecast": "Abrir o forecast",
+    "openApprovals": "Abrir aprovações",
+    "openForms": "Abrir formulários",
+    "openQuotes": "Abrir orçamentos",
+    "openScoring": "Abrir lead scoring",
+    "skipToContent": "Ir para o conteúdo"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",

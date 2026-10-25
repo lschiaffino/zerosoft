@@ -24,7 +24,7 @@ import {
   type SourcePerformance,
   type TimeseriesPoint,
 } from '@/lib/crm-reports';
-import { formatNumber } from '@/lib/utils';
+import { formatAxis, formatNumber } from '@/lib/utils';
 import PipelineSelect from './PipelineSelect';
 import DealJourneyPanel from './DealJourneyPanel';
 import { Link } from '@/i18n/navigation';
@@ -164,7 +164,8 @@ function WonLostChart({
   const ih = H - pad.t - pad.b;
   const baseline = pad.t + ih;
 
-  const max = niceCeil(Math.max(...data.map((d) => Math.max(d.won, d.lost)), 0));
+  // Conteos: múltiplo de 4 (cuatro tramos) para que el eje marque enteros.
+  const max = Math.max(4, Math.ceil(niceCeil(Math.max(...data.map((d) => Math.max(d.won, d.lost)), 0)) / 4) * 4);
   const hasData = data.some((d) => d.won > 0 || d.lost > 0);
   const stepX = data.length > 0 ? iw / data.length : iw;
   const bw = Math.min(16, stepX / 4);
@@ -188,7 +189,7 @@ function WonLostChart({
           <g key={g.value}>
             <line className="chart-grid" x1={pad.l} x2={pad.l + iw} y1={g.y} y2={g.y} />
             <text className="chart-ylabel" x={pad.l - 8} y={g.y + 4} textAnchor="end">
-              {g.value}
+              {formatAxis(g.value, locale)}
             </text>
           </g>
         ))}
@@ -275,7 +276,7 @@ function TimeseriesChart({
             <g key={k}>
               <line className="chart-grid" x1={pad.l} x2={pad.l + iw} y1={y} y2={y} />
               <text className="chart-ylabel" x={pad.l - 8} y={y + 4} textAnchor="end">
-                {formatNumber(value, locale)}
+                {formatAxis(value, locale)}
               </text>
             </g>
           );

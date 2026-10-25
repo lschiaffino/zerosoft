@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import { isDefaultOutcome } from '@/lib/crm-calls';
+import { formatPhoneDisplay, isDefaultOutcome } from '@/lib/crm-calls';
 import CrmIcon from './CrmIcon';
 import { CALL_EVENT, setVoiceAvailable, type BrowserCallRequest } from './voiceStore';
 
@@ -384,7 +384,7 @@ export default function CallDock() {
 
   if (phase === 'idle') return null;
 
-  const who = req?.name || req?.phone || incomingFrom;
+  const who = req?.name || formatPhoneDisplay(req?.phone) || formatPhoneDisplay(incomingFrom);
   const outcomeLabel = (o: string) => (isDefaultOutcome(o) ? t(`calls.outcomes.${o}`) : o);
   const statusText =
     phase === 'preparing'
@@ -405,7 +405,7 @@ export default function CallDock() {
         <CrmIcon name="headset" size={16} />
         <div className="call-dock-who">
           <strong>{who}</strong>
-          {req?.name && req.phone ? <span className="muted">{req.phone}</span> : null}
+          {req?.name && req.phone ? <span className="muted">{formatPhoneDisplay(req.phone)}</span> : null}
         </div>
         <span className="call-dock-status" aria-live="polite">
           {statusText}

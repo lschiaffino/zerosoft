@@ -17,6 +17,7 @@ import {
   SOURCES,
   TAG_COLORS,
   TAG_ENTITIES,
+  TASK_KINDS,
 } from './crm-constants';
 import { TASK_REPEATS } from './crm-task-repeat';
 
@@ -237,6 +238,8 @@ export const activityCreateSchema = z.object({
   ownerId: id.nullish(),
   /** Solo tareas: diaria, semanal o mensual. */
   repeat: z.enum(TASK_REPEATS).optional(),
+  /** Solo tareas: to-do (''), llamada o email por hacer. */
+  taskKind: z.enum(TASK_KINDS).optional(),
 });
 
 export const activityUpdateSchema = activityCreateSchema.partial().extend({

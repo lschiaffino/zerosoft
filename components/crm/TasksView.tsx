@@ -84,7 +84,8 @@ export default function TasksView({
 
   const [subject, setSubject] = useState('');
   const [due, setDue] = useState('');
-  const [type, setType] = useState<'task' | 'call' | 'meeting' | 'email' | 'note'>('task');
+  // Tipo de tarea (HubSpot: To-do, Call, Email): siempre es una tarea pendiente.
+  const [type, setType] = useState<'task' | 'call' | 'email'>('task');
   const [contactId, setContactId] = useState('');
   const [contacts, setContacts] = useState<ContactOption[]>([]);
   const [projectIdDraft, setProjectIdDraft] = useState(projectId ?? '');
@@ -163,13 +164,14 @@ export default function TasksView({
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        type,
+        type: 'task',
+        ...(type !== 'task' ? { taskKind: type } : {}),
         subject: subject.trim(),
         dueAt: localToUtc(due),
         ...(contactId ? { contactId } : {}),
         ...(projectIdDraft ? { projectId: projectIdDraft } : {}),
         ...(ownerIdDraft ? { ownerId: ownerIdDraft } : {}),
-        ...(type === 'task' && repeat !== 'none' ? { repeat } : {}),
+        ...(repeat !== 'none' ? { repeat } : {}),
       }),
     }).catch(() => null);
     setComposerBusy(false);
@@ -291,7 +293,7 @@ export default function TasksView({
           <label className="qm-field">
             <span>{t('common.activityType')}</span>
             <select value={type} onChange={(e) => setType(e.target.value as typeof type)}>
-              {(['task', 'call', 'meeting', 'email', 'note'] as const).map((v) => (
+              {(['task', 'call', 'email'] as const).map((v) => (
                 <option key={v} value={v}>
                   {taskTypeLabel(v)}
                 </option>
@@ -302,18 +304,16 @@ export default function TasksView({
             <span>{t('tasks.form.dueAt')}</span>
             <input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />
           </label>
-          {type === 'task' && (
-            <label className="qm-field">
-              <span>{t('tasks.form.repeat')}</span>
-              <select value={repeat} onChange={(e) => setRepeat(e.target.value as TaskRepeat)} title={t('tasks.repeatHint')}>
-                {TASK_REPEATS.map((v) => (
-                  <option key={v} value={v}>
-                    {t(`tasks.repeat.${v}`)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+          <label className="qm-field">
+            <span>{t('tasks.form.repeat')}</span>
+            <select value={repeat} onChange={(e) => setRepeat(e.target.value as TaskRepeat)} title={t('tasks.repeatHint')}>
+              {TASK_REPEATS.map((v) => (
+                <option key={v} value={v}>
+                  {t(`tasks.repeat.${v}`)}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <div className="qm-row">
           <label className="qm-field">

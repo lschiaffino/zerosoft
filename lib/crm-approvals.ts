@@ -377,6 +377,15 @@ export async function decideApproval(
     const r = await moveDeal(workspaceId, approval.deal_id, approval.stage_id, null, undefined, actor.email, { actorId: approval.requested_by });
     moved = r.ok;
     if (!r.ok && r.reason === 'missing_required') missing = r.missing;
+    // Igual que "Close as won": ganar fija la fecha de cierre en hoy (zona de quien aprueba).
+    if (r.ok) {
+      const stage = (await db.prepare('SELECT is_won FROM crm_stages WHERE id = ?').get(approval.stage_id)) as { is_won: number } | undefined;
+      if (stage?.is_won) {
+        const [{ updateDeal }, { getUserTimeZone }] = await Promise.all([import('./crm'), import('./user-tz')]);
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: await getUserTimeZone(), year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+        await updateDeal(workspaceId, approval.deal_id, { closeDate: today }, actor.email);
+      }
+    }
   }
   if (approval.requested_by) {
     const { createNotification } = await import('./notifications');

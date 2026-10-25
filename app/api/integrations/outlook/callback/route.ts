@@ -1,11 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { upsertIntegration } from '@/lib/integrations';
 import { exchangeOutlookCode, graphMe, OUTLOOK_PROVIDER } from '@/lib/microsoft';
-import { registerOutlookMailbox } from '@/lib/crm-outlook-sync';
+import { registerOutlookMailbox, syncOutlookMailbox } from '@/lib/crm-outlook-sync';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 const STATE_COOKIE = 'zs-outlook-state';
 
@@ -47,5 +48,8 @@ export async function GET(req: NextRequest) {
     scope: tokens.scope ?? '',
   });
   await registerOutlookMailbox(user.id, personId);
+  // Primera pasada (últimos 30 días) apenas se conecta, sin esperar al cron ni a "Sincronizar ahora".
+  // Corre después de responder; si el cron la toma antes, el claim la descarta (locked).
+  after(() => syncOutlookMailbox(user.id, personId, { maxMessages: 150 }).catch(() => null));
   return out('connected');
 }

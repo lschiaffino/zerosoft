@@ -14,7 +14,7 @@ import {
   type KpiMetric,
   type WidgetDataMap,
 } from '@/lib/crm-dashboards-schema';
-import { formatDate, formatNumber } from '@/lib/utils';
+import { formatAxis, formatDate, formatNumber } from '@/lib/utils';
 import { Link } from '@/i18n/navigation';
 import ReportChart from './ReportChart';
 
@@ -169,7 +169,8 @@ function TimeseriesChart({
   const ih = H - pad.t - pad.b;
   const baseline = pad.t + ih;
 
-  const max = niceCeil(Math.max(...data.map((d) => Math.max(d.contacts, d.deals)), 1));
+  // Conteos: máximo múltiplo de 3 (tres tramos) para que el eje marque enteros (0, 1, 2, 3), no 3.3.
+  const max = Math.max(3, Math.ceil(niceCeil(Math.max(...data.map((d) => Math.max(d.contacts, d.deals)), 1)) / 3) * 3);
   const stepX = data.length > 0 ? iw / data.length : iw;
   const bw = Math.min(9, stepX / 4);
   const labelEvery = Math.max(1, Math.ceil(36 / Math.max(stepX, 1)));
@@ -190,7 +191,7 @@ function TimeseriesChart({
             <g key={k}>
               <line className="chart-grid" x1={pad.l} x2={pad.l + iw} y1={y} y2={y} />
               <text className="chart-ylabel" x={pad.l - 6} y={y + 4} textAnchor="end">
-                {value}
+                {formatAxis(value, locale)}
               </text>
             </g>
           );
@@ -260,7 +261,7 @@ function WonLostChart({
   const ih = H - pad.t - pad.b;
   const baseline = pad.t + ih;
 
-  const max = niceCeil(Math.max(...data.map((d) => Math.max(d.won, d.lost)), 0));
+  const max = Math.max(3, Math.ceil(niceCeil(Math.max(...data.map((d) => Math.max(d.won, d.lost)), 0)) / 3) * 3);
   const stepX = data.length > 0 ? iw / data.length : iw;
   const bw = Math.min(14, stepX / 4);
 
@@ -280,7 +281,7 @@ function WonLostChart({
             <g key={k}>
               <line className="chart-grid" x1={pad.l} x2={pad.l + iw} y1={y} y2={y} />
               <text className="chart-ylabel" x={pad.l - 6} y={y + 4} textAnchor="end">
-                {value}
+                {formatAxis(value, locale)}
               </text>
             </g>
           );

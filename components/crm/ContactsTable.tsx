@@ -309,7 +309,7 @@ export default function ContactsTable({
                         {row.companyName}
                       </Link>
                     ) : (
-                      <span className="muted">—</span>
+                      <span className="muted cell-empty">—</span>
                     )}
                   </td>
                 )}

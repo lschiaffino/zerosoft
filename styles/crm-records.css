@@ -546,6 +546,10 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  /* "Web call" es un <button>: sin esto usa la tipografía del navegador y no la de los links vecinos. */
+  font: inherit;
+  background: none;
+  cursor: pointer;
   min-height: 32px;
   padding: 0 10px;
   border: 1px solid var(--line);
@@ -775,17 +779,18 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   font-size: 0.8125rem;
 }
 /* Llamar desde el navegador (botón de PhoneTouch). */
-button.phone-touch-btn,
+/* El tamaño lo fija .phone-touch-btn (13px, como Call y WhatsApp): acá solo la familia, no el `font` entero. */
+button.phone-touch-btn { background: transparent; font-family: inherit; cursor: pointer; }
 button.cell-quick { background: transparent; font: inherit; cursor: pointer; }
 .phone-touch-btn { white-space: nowrap; }
 button.phone-touch-btn:focus-visible,
 button.cell-quick:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
-/* Panel de llamada (CallDock): abajo a la derecha, a lo ancho en el teléfono. */
+/* Panel de llamada (CallDock): abajo a la derecha, arriba del botón de feedback (.fl-root, 20px + 44px). */
 .call-dock {
   position: fixed;
   right: 16px;
-  bottom: 16px;
+  bottom: 76px;
   z-index: 80;
   width: min(340px, calc(100vw - 32px));
   display: flex;
@@ -814,7 +819,8 @@ button.cell-quick:focus-visible { outline: 2px solid var(--ink); outline-offset:
 .call-dock-form { display: flex; flex-direction: column; gap: 10px; }
 .call-dock-form .field { display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem; }
 @media (max-width: 640px) {
-  .call-dock { left: 16px; right: 16px; bottom: 16px; width: auto; }
+  /* En el teléfono el feedback es una pestaña de 26px pegada al borde derecho: el dock la deja libre. */
+  .call-dock { left: 8px; right: 34px; bottom: 16px; width: auto; }
   .call-dock-actions .btn { min-height: 44px; }
 }
 

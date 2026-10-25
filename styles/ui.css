@@ -834,6 +834,21 @@ section.ui-section { padding: 0; }
   .btn[aria-busy='true']::after { animation: none; transform: none; opacity: 0.6; }
 }
 
+/* Saltar al contenido: invisible hasta que tiene foco (primer Tab de la app). */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  color: var(--bg);
+  background: var(--ink);
+  border-radius: var(--radius-1);
+  transform: translateY(-200%);
+}
+.skip-link:focus { transform: none; outline: 2px solid var(--accent, var(--ink)); outline-offset: 2px; }
+
 /* Solo para lectores de pantalla. */
 .sr-only {
   position: absolute;

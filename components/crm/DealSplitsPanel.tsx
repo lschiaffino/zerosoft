@@ -142,9 +142,13 @@ export default function DealSplitsPanel({ dealId, ownerId, amount, currency, loc
             <button
               type="button"
               className="btn btn-ghost btn-small"
+              // Sin más personas del workspace que sumar, el botón no hace nada: deshabilitado y con el motivo.
+              disabled={!people.some((p) => !rows.some((r) => r.ownerId === p.value))}
+              title={people.some((p) => !rows.some((r) => r.ownerId === p.value)) ? undefined : t('splits.noMorePeople')}
+              data-testid="deal-split-add"
               onClick={() => {
                 const used = new Set(rows.map((r) => r.ownerId));
-                const next = people.find((p) => !used.has(p.value)) ?? people[0];
+                const next = people.find((p) => !used.has(p.value));
                 if (next) setRows((prev) => [...prev, { ownerId: next.value, percent: '0' }]);
               }}
             >

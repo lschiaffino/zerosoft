@@ -11,6 +11,18 @@ import PlaybookEditor from '@/components/crm/PlaybookEditor';
 
 export const dynamic = 'force-dynamic';
 
+/** Lo que el editor necesita de cada propiedad propia (tipo y opciones, para filtrar). */
+function fieldView(f: { name: string; label: string; type: string; options: string }) {
+  let options: string[] = [];
+  try {
+    const raw: unknown = JSON.parse(f.options || '[]');
+    if (Array.isArray(raw)) options = raw.filter((o): o is string => typeof o === 'string');
+  } catch {
+    options = [];
+  }
+  return { name: f.name, label: f.label, type: f.type, options };
+}
+
 const HREF: Record<string, string> = { contact: 'contacts', company: 'companies', deal: 'deals' };
 
 export default async function PlaybookPage(props: { params: Promise<{ locale: string; id: string }> }) {
@@ -51,9 +63,9 @@ export default async function PlaybookPage(props: { params: Promise<{ locale: st
         playbook={playbook}
         canEdit={isWorkspaceAdmin(user)}
         customFields={{
-          contact: contactFields.map((f) => ({ name: f.name, label: f.label })),
-          company: companyFields.map((f) => ({ name: f.name, label: f.label })),
-          deal: dealFields.map((f) => ({ name: f.name, label: f.label })),
+          contact: contactFields.map(fieldView),
+          company: companyFields.map(fieldView),
+          deal: dealFields.map(fieldView),
         }}
         runs={runs.map((r) => {
           const name = names.get(`${r.entity}:${r.entity_id}`) ?? '';

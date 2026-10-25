@@ -65,7 +65,8 @@ export default async function TasksPage(props: TasksPageProps) {
     return {
       id: a.id,
       subject: a.subject,
-      type: a.type,
+      // Tarea de llamada o email: se muestra con su tipo (sigue siendo tarea).
+      type: a.type === 'task' && a.task_kind ? a.task_kind : a.type,
       due: a.due_at ? fmtDue(a.due_at) : null,
       dueRel: a.due_at ? relDate(a.due_at, locale) : null,
       overdue: bucket === 'overdue',

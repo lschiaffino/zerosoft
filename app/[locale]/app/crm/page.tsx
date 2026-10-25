@@ -249,7 +249,7 @@ export default async function CrmOverviewPage(
                   <span className="mono recent-date">
                     {money(d.amount, locale, d.currency)}
                     {d.close_date
-                      ? ` · ${formatDate(`${d.close_date.slice(0, 10)}T00:00:00Z`, locale)}`
+                      ? ` · ${formatDate(d.close_date.slice(0, 10), locale)}`
                       : ''}
                   </span>
                 </Link>

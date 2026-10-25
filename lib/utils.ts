@@ -6,7 +6,28 @@ export function formatNumber(n: number, locale: string = 'en'): string {
   return new Intl.NumberFormat(locale).format(n);
 }
 
+/** Etiqueta de eje de un gráfico: sin decimales largos (33.333…) y compacta desde 10 mil (12K). */
+export function formatAxis(n: number, locale: string = 'en'): string {
+  const abs = Math.abs(n);
+  return new Intl.NumberFormat(locale, {
+    notation: abs >= 10_000 ? 'compact' : 'standard',
+    maximumFractionDigits: abs >= 10 || Number.isInteger(n) ? 0 : 1,
+  }).format(n);
+}
+
+/** Fecha sin hora ('2026-03-15'): es un día del calendario, no un instante. */
+export const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Fecha legible. Las fechas sin hora (close date, vencimientos) se muestran
+ * tal cual: leídas como medianoche UTC y mostradas en otra zona caían un día antes.
+ */
 export function formatDate(iso: string, locale: string = 'en'): string {
+  if (DATE_ONLY.test(iso)) {
+    return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(
+      new Date(`${iso}T00:00:00Z`),
+    );
+  }
   return new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'short',

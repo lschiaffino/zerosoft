@@ -37,12 +37,17 @@ test('Outlook: conectar, sincronizar emails y reuniones, enviar y desconectar', 
   await expect(page.getByText('Outlook connected. The first sync brings the last 30 days.')).toBeVisible();
   await expect(page.getByText('Connected as demo.outlook@fake-outlook.test')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Sync now' }).first().click();
-  await expect(page.getByText('2 new emails · 1 meeting')).toBeVisible();
-
-  await page.goto(`/en/app/crm/contacts/${contact.id}`);
-  await expect(page.getByText('Question about the proposal').first()).toBeVisible();
+  // La primera sync (30 días) corre sola al conectar: sin tocar "Sync now" el timeline ya tiene el email y la reunión.
+  await expect(async () => {
+    await page.goto(`/en/app/crm/contacts/${contact.id}`);
+    await expect(page.getByText('Question about the proposal').first()).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
   await expect(page.getByText('Pricing review with Ana')).toBeVisible();
+
+  // "Sync now" después: lo ya traído no se duplica.
+  await page.goto('/en/app/crm/settings?tab=integrations');
+  await page.getByRole('button', { name: 'Sync now' }).first().click();
+  await expect(page.getByText('No new emails · no meetings')).toBeVisible();
 
   // Enviar desde el CRM sale por Outlook (sin Gmail conectado).
   const sent = await request.post('/api/crm/emails', {
@@ -97,7 +102,14 @@ test('llamada desde el navegador: ajustes, llamar desde la ficha, registro, grab
   await expect(item.locator('audio')).toHaveAttribute('src', /\/api\/crm\/voice\/calls\/.+\/recording/);
   await item.getByText('Transcript (3 lines)').click();
   await expect(item.getByText('The price works, but we need to start in March.')).toBeVisible();
-  await expect(item.getByText('AI is turned off on this server', { exact: false })).toBeVisible();
+  // Con CRM_AI_FAKE el resumen usa el modelo falso (como el resto de la IA del CRM) y va al cuerpo de la actividad.
+  await expect(item.getByText('Call summary:', { exact: false })).toBeVisible();
+  await expect(item.getByText('AI is turned off on this server', { exact: false })).toHaveCount(0);
+  // Un solo "Summarize with AI" por llamada (acá ninguno: ya está resumida) y la duración en segundos.
+  await expect(item.getByRole('button', { name: 'Summarize with AI' })).toHaveCount(0);
+  await expect(item.getByText(/^\d+ s$/)).toBeVisible();
+  // El número del asunto, formateado.
+  await expect(page.locator('.tl-item').filter({ hasText: 'Browser call' }).getByText('+54 911 5555 0101').first()).toBeVisible();
 
   const audioSrc = await item.locator('audio').getAttribute('src');
   const audio = await request.get(audioSrc!);

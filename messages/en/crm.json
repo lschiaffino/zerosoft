@@ -22,7 +22,8 @@
     "playbooks": "Playbooks",
     "forecast": "Forecast",
     "documents": "Documents",
-    "videos": "Videos"
+    "videos": "Videos",
+    "crmSettings": "CRM settings"
   },
   "switcher": {
     "product": "Product",
@@ -496,7 +497,8 @@
       "cardLabel": "{deal}, in {stage}",
       "moving": "Moving {deal} to {stage}",
       "moved": "{deal} moved to {stage}",
-      "edge": "There is no stage on that side"
+      "edge": "There is no stage on that side",
+      "skipToBoard": "Skip to the board"
     }
   },
   "tasks": {
@@ -1465,7 +1467,11 @@
     "catalog": "Product catalog",
     "amountSource": "Deal amount",
     "fromItems": "From line items (net, before tax): {amount}",
-    "manual": "Manual amount: {amount}"
+    "manual": "Manual amount: {amount}",
+    "replaceTitle": "Replace the deal amount?",
+    "replaceBody": "This deal has an amount of {amount} entered by hand. With line items, the amount becomes their total. You can keep {amount} as a manual amount instead.",
+    "keepAmount": "Keep {amount}",
+    "useItems": "Use the line items total"
   },
   "quotes": {
     "title": "Quotes",
@@ -1771,7 +1777,8 @@
       "dealNameHint": "'{name}', '{email}', '{company}' and '{form}' are replaced.",
       "captcha": "Ask for a CAPTCHA (Cloudflare Turnstile)",
       "captchaHint": "Bots that pass the honeypot still have to solve it.",
-      "captchaMissing": "Set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY on the server to turn it on."
+      "captchaMissing": "Set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY on the server to turn it on.",
+      "notifyEmailsPlaceholder": "sales@company.com"
     },
     "types": {
       "text": "Text",
@@ -2937,7 +2944,10 @@
         "priority": "Priority",
         "description": "Description"
       }
-    }
+    },
+    "noOutcome": "No outcome",
+    "rename": "Rename",
+    "deleteShort": "Delete"
   },
   "approvals": {
     "title": "Approvals",
@@ -3035,7 +3045,8 @@
       "invalid_percent": "Each percentage has to be more than 0 and up to 100.",
       "invalid_owner": "Owners have to be people in this workspace.",
       "too_many": "Up to 10 owners per deal."
-    }
+    },
+    "noMorePeople": "Everyone in the workspace already has a share"
   },
   "reportBuilder": {
     "nav": {
@@ -3516,7 +3527,9 @@
     "pageLabel": "Page {page} of {total}",
     "greeting": "A video for {name}",
     "greetingAnon": "A video for you",
-    "from": "From {name}"
+    "from": "From {name}",
+    "goneTitle": "This link is no longer available",
+    "goneSub": "Whoever shared it deleted the file or turned the link off. Ask them for a new one."
   },
   "outlook": {
     "title": "Outlook and Microsoft 365",

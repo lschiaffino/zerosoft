@@ -39,6 +39,41 @@ export const PROPERTY_TYPES: Record<string, QuestionType> = {
   'deal:description': 'longtext',
 };
 
+/** Qué clase de valor guarda una propiedad, para ofrecerla solo a preguntas compatibles. */
+export type PropertyKind = 'text' | 'longtext' | 'number' | 'date' | 'enum';
+
+/** Clase de una propiedad estándar ('contact:jobTitle'…). */
+export function standardKind(target: string): PropertyKind {
+  if (ENUM_PROPERTIES[target]) return 'enum';
+  const t = PROPERTY_TYPES[target];
+  return t === 'number' || t === 'date' || t === 'longtext' ? t : 'text';
+}
+
+/** Clase de una propiedad propia según su tipo (null: ninguna pregunta la llena). */
+export function customKind(type: string): PropertyKind | null {
+  if (type === 'text' || type === 'url' || type === 'phone') return 'text';
+  if (type === 'number' || type === 'currency') return 'number';
+  if (type === 'date') return 'date';
+  if (type === 'select') return 'enum';
+  return null;
+}
+
+/** ¿Una pregunta de tipo `q` puede guardar su respuesta en una propiedad de esa clase? */
+export function kindFits(kind: PropertyKind, q: QuestionType): boolean {
+  switch (kind) {
+    case 'text':
+      return q === 'text' || q === 'longtext' || q === 'select';
+    case 'longtext':
+      return q === 'text' || q === 'longtext';
+    case 'number':
+      return q === 'number';
+    case 'date':
+      return q === 'date';
+    case 'enum':
+      return q === 'select';
+  }
+}
+
 const CUSTOM_NAME = /^[A-Za-z0-9_-]{1,100}$/;
 
 /** ¿`target` es una propiedad válida ('' = la respuesta solo queda en el timeline)? */

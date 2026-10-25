@@ -229,7 +229,9 @@ function countSql(activity: ScoreActivity): string {
               WHERE a.user_id = ? AND a.contact_id = ? AND a.type = 'meeting' AND a.created_at >= ?`;
     case 'call_logged':
       return `SELECT COUNT(*) AS c FROM crm_activities a
-              WHERE a.user_id = ? AND a.contact_id = ? AND a.type = 'call' AND a.created_at >= ?`;
+              WHERE a.user_id = ? AND a.contact_id = ?
+                AND (a.type = 'call' OR (a.type = 'task' AND a.task_kind = 'call' AND a.done = 1))
+                AND (CASE WHEN a.type = 'task' THEN a.done_at ELSE a.created_at END) >= ?`;
     case 'note_logged':
       return `SELECT COUNT(*) AS c FROM crm_activities a
               WHERE a.user_id = ? AND a.contact_id = ? AND a.type = 'note' AND a.created_at >= ?`;

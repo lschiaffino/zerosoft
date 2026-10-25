@@ -132,6 +132,32 @@ export default function AppSidebar({
   const dueCount = dueFresh && dueFresh.from === tasksDue ? dueFresh.count : tasksDue;
 
   const asideRef = useRef<HTMLElement>(null);
+  // Lista del sidebar con scroll propio: data-more-* encienden el fade de arriba/abajo (hay más ítems).
+  const lineRef = useRef<HTMLElement>(null);
+  const updateOverflow = useCallback(() => {
+    const el = lineRef.current;
+    if (!el) return;
+    const above = el.scrollTop > 2;
+    const below = el.scrollHeight - el.clientHeight - el.scrollTop > 2;
+    if (above) el.setAttribute('data-more-above', '');
+    else el.removeAttribute('data-more-above');
+    if (below) el.setAttribute('data-more-below', '');
+    else el.removeAttribute('data-more-below');
+  }, []);
+  useEffect(() => {
+    const el = lineRef.current;
+    if (!el) return;
+    updateOverflow();
+    const ro = new ResizeObserver(updateOverflow);
+    ro.observe(el);
+    // El árbol que cuelga en #side-branch (Docs, objetos) cambia el alto sin cambiar el de la lista.
+    const mo = new MutationObserver(updateOverflow);
+    mo.observe(el, { childList: true, subtree: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
+  }, [updateOverflow]);
   const switcherRef = useRef<HTMLDivElement>(null);
   const switcherBtn = useRef<HTMLButtonElement>(null);
   const newRef = useRef<HTMLDivElement>(null);
@@ -221,6 +247,33 @@ export default function AppSidebar({
       {/* Color de la app activa (SSR, sin parpadeo). */}
       <style>{`.app-frame{--accent:var(--c-${current.line});--accent-ink:var(--c-${current.line}-ink);--accent-on:var(--c-${current.line}-on)}`}</style>
 
+      {/*
+        Primer foco de la página: salta el sidebar. Si la página marca un destino
+        (data-skip-target, p. ej. el board de deals) va ahí y usa su etiqueta.
+      */}
+      <a
+        href="#main"
+        className="skip-link"
+        onFocus={(e) => {
+          const target = document.querySelector<HTMLElement>('[data-skip-target]');
+          e.currentTarget.textContent = target?.dataset.skipLabel || t('skipToContent');
+        }}
+        onClick={(e) => {
+          e.preventDefault();
+          const target = document.querySelector<HTMLElement>('[data-skip-target]') ?? document.querySelector<HTMLElement>('.app-content');
+          if (!target) return;
+          const focusable = target.matches('[tabindex], a[href], button, input, select, textarea')
+            ? target
+            : target.querySelector<HTMLElement>('[tabindex="0"], a[href], button:not([disabled]), input, select, textarea');
+          if (focusable) focusable.focus();
+          else {
+            target.tabIndex = -1;
+            target.focus();
+          }
+        }}
+      >
+        {t('skipToContent')}
+      </a>
       <header className="app-band">
         <button
           ref={menuBtn}
@@ -349,7 +402,7 @@ export default function AppSidebar({
           </p>
         )}
 
-        <nav className="side-line" aria-label={current.name}>
+        <nav className="side-line" aria-label={current.name} ref={lineRef} onScroll={updateOverflow}>
           {nav.map((group, i) => (
             <div key={group.section ?? `top-${i}`} className="side-group">
               {group.section && <p className="side-section">{group.section}</p>}

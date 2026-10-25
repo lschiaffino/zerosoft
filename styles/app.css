@@ -306,6 +306,19 @@
     scrollbar-width: thin;
     scrollbar-color: var(--brand-rule) transparent;
   }
+  /* Indicio de scroll: los ítems se desvanecen en el borde donde hay más (AppSidebar pone data-more-*). */
+  .side-line[data-more-below] {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
+  }
+  .side-line[data-more-above] {
+    -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to top, #000 calc(100% - 28px), transparent);
+  }
+  .side-line[data-more-above][data-more-below] {
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 40px), transparent);
+  }
 }
 
 /* Pie: ajustes globales, docs, sitio, usuario. */

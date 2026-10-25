@@ -40,6 +40,12 @@ export default function ForecastView({ initial, pipelines, me, isAdmin, locale, 
   const first = useRef(true);
 
   const money = (n: number) => new Intl.NumberFormat(locale, { style: 'currency', currency: baseCurrency, maximumFractionDigits: 0 }).format(n);
+  // Tarjetas: compacto ($120K) para que entre en el ancho de la tarjeta; el monto exacto va en el title.
+  const moneyShort = (n: number) =>
+    new Intl.NumberFormat(locale, { style: 'currency', currency: baseCurrency, notation: 'compact', maximumFractionDigits: 1 }).format(n);
+  // Close date: día del calendario en el formato del idioma.
+  const day = (iso: string | null | undefined) =>
+    iso ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${iso.slice(0, 10)}T00:00:00Z`)) : '';
 
   useEffect(() => {
     if (first.current) {
@@ -186,7 +192,9 @@ export default function ForecastView({ initial, pipelines, me, isAdmin, locale, 
           ['submitted', total.submitted],
         ].map(([k, v]) => (
           <div key={k as string} className="panel stat-card">
-            <span className={v === null ? 'stat-num stat-num-small' : 'stat-num'}>{v === null ? tf('noGoal') : money(v as number)}</span>
+            <span className={v === null ? 'stat-num stat-num-small' : 'stat-num'} title={v === null ? undefined : money(v as number)}>
+              {v === null ? tf('noGoal') : moneyShort(v as number)}
+            </span>
             <span className="stat-label">{tf(`cols.${k}`)}</span>
           </div>
         ))}
@@ -332,7 +340,7 @@ export default function ForecastView({ initial, pipelines, me, isAdmin, locale, 
                     <td>
                       {d.stage_name} <span className="muted mono">{d.probability}%</span>
                     </td>
-                    <td className="mono">{(d.is_won ? d.closed_at : d.close_date)?.slice(0, 10) ?? ''}</td>
+                    <td>{day(d.is_won ? d.closed_at : d.close_date)}</td>
                     <td className="num">{money(d.amount)}</td>
                     <td>
                       {d.is_won ? (

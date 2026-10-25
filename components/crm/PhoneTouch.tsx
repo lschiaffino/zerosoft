@@ -66,11 +66,15 @@ export default function PhoneTouch({ phone, contactId, companyId, dealId, compac
   useEffect(() => {
     if (channel === null) return;
     void loadOutcomes().then((all) => setOutcomes(channel === 'whatsapp' ? all.whatsapp : all.call));
+    // El playbook abierto desde acá vive en un <dialog> por portal: mientras
+    // esté abierto, sus clics y su Esc son del drawer, no cierran el registro.
+    const inDialog = () => document.querySelector('dialog[open]') !== null;
     function onDoc(e: MouseEvent) {
+      if (inDialog()) return;
       if (ref.current && !ref.current.contains(e.target as Node)) setChannel(null);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setChannel(null);
+      if (e.key === 'Escape' && !inDialog()) setChannel(null);
     }
     document.addEventListener('mousedown', onDoc);
     document.addEventListener('keydown', onKey);

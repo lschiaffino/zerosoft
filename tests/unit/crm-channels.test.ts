@@ -282,7 +282,7 @@ describe('Llamadas desde el navegador', () => {
     const u = await makeUser(label);
     const contact = await createContact(u.id, { firstName: 'Bruno', phone: '+54 9 11 5555 0100' });
     await saveVoiceSettings(u.id, {
-      callerId: `+1415555${String(Math.floor(Math.random() * 9000) + 1000)}`,
+      callerId: `+1415${String(Math.floor(Math.random() * 9_000_000) + 1_000_000)}`,
       recordCalls: true,
       consentEnabled: true,
       consentText: '',

@@ -205,6 +205,10 @@ a.report-type-tab { text-decoration: none; display: inline-block; }
 .fc-period-label { font-family: var(--mono); font-size: 0.9rem; min-width: 80px; text-align: center; color: var(--ink); }
 .fc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .fc-kpis .stat-card .stat-num { font-size: clamp(1.4rem, 2.6vw, 2rem); }
+.fc-kpis .stat-card { padding: 18px 18px; min-width: 0; }
+.fc-kpis .stat-card .stat-num { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* "No goal" baja de línea antes que cortarse. */
+.fc-kpis .stat-card .stat-num-small { white-space: normal; overflow: visible; font-size: clamp(1.1rem, 1.6vw, 1.4rem); }
 .fc-table { width: 100%; }
 .fc-table th, .fc-table td { padding: 8px 10px; white-space: nowrap; }
 .fc-table td.num, .fc-table th.num { text-align: right; font-family: var(--mono); }

@@ -95,6 +95,39 @@ export function phoneDigits(phone: string | null | undefined): string {
   return raw.startsWith('+') ? `+${digits}` : digits;
 }
 
+/** Códigos de país de 2 dígitos (el resto, salvo +1 y +7, tiene 3). */
+const TWO_DIGIT_CC = new Set(
+  '20 27 30 31 32 33 34 36 39 40 41 43 44 45 46 47 48 49 51 52 53 54 55 56 57 58 60 61 62 63 64 65 66 81 82 84 86 90 91 92 93 94 95 98'.split(' '),
+);
+
+/**
+ * Número E.164 para leer (+14155550132 → +1 415 555 0132). Norteamérica en
+ * 3-3-4; el resto, código de país y grupos de a 4 desde el final. Lo que ya
+ * viene con espacios o no es E.164 queda como está.
+ */
+export function formatPhoneDisplay(phone: string | null | undefined): string {
+  const raw = (phone ?? '').trim();
+  if (!/^\+\d{8,15}$/.test(raw)) return raw;
+  const d = raw.slice(1);
+  if (d.length === 11 && d.startsWith('1')) return `+1 ${d.slice(1, 4)} ${d.slice(4, 7)} ${d.slice(7)}`;
+  const cc = d.startsWith('7') ? '7' : TWO_DIGIT_CC.has(d.slice(0, 2)) ? d.slice(0, 2) : d.slice(0, 3);
+  let rest = d.slice(cc.length);
+  const groups: string[] = [];
+  while (rest.length > 4) {
+    groups.unshift(rest.slice(-4));
+    rest = rest.slice(0, -4);
+  }
+  if (rest) groups.unshift(rest);
+  return `+${cc} ${groups.join(' ')}`;
+}
+
+/** Duración de una llamada para leer: segundos si dura menos de un minuto (45 s, 3 min). */
+export function formatCallDuration(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s} s`;
+  return `${Math.round(s / 60)} min`;
+}
+
 /** href tel: del teléfono; null si no tiene dígitos suficientes. */
 export function telHref(phone: string | null | undefined): string | null {
   const d = phoneDigits(phone);

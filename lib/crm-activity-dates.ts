@@ -24,8 +24,18 @@ export type ActivityDateTable = (typeof ACTIVITY_DATE_TABLES)[number]['table'];
 
 /** Expresiones agregadas sobre las actividades `a` del registro. */
 const LAST_ACTIVITY = "MAX(CASE WHEN a.type = 'task' THEN a.done_at ELSE a.created_at END)";
-const LAST_CONTACTED =
+const LAST_CONTACTED_V1 =
   "MAX(CASE WHEN a.type IN ('call', 'meeting') OR (a.type = 'email' AND a.direction <> 'inbound') THEN a.created_at END)";
+/**
+ * Desde 077: una tarea de llamada o email (task_kind) cuenta como contacto
+ * recién cuando se completa, con la fecha en que se completó.
+ */
+const LAST_CONTACTED =
+  "MAX(CASE WHEN a.type IN ('call', 'meeting') OR (a.type = 'email' AND a.direction <> 'inbound') THEN a.created_at" +
+  " WHEN a.type = 'task' AND a.done = 1 AND a.task_kind IN ('call', 'email') THEN a.done_at END)";
+
+/** Versión del SQL: 1 = antes de task_kind (la usa la migración vieja, sobre una base sin esa columna). */
+export type ActivityDatesVersion = 1 | 2;
 const NEXT_ACTIVITY =
   "MIN(CASE WHEN a.done = 0 AND a.due_at IS NOT NULL AND a.type IN ('task', 'call', 'meeting') THEN a.due_at END)";
 
@@ -33,10 +43,10 @@ const NEXT_ACTIVITY =
  * UPDATE que recalcula las tres fechas de `table`. `where` restringe las filas
  * (p. ej. 'id = NEW.contact_id'); sin `where` recalcula todo (backfill).
  */
-export function activityDatesUpdateSql(table: ActivityDateTable, where?: string): string {
+export function activityDatesUpdateSql(table: ActivityDateTable, where?: string, version: ActivityDatesVersion = 2): string {
   const fk = ACTIVITY_DATE_TABLES.find((x) => x.table === table)!.fk;
   return `UPDATE ${table} SET (last_activity_at, last_contacted_at, next_activity_at) = (
-    SELECT ${LAST_ACTIVITY}, ${LAST_CONTACTED}, ${NEXT_ACTIVITY}
+    SELECT ${LAST_ACTIVITY}, ${version === 1 ? LAST_CONTACTED_V1 : LAST_CONTACTED}, ${NEXT_ACTIVITY}
     FROM crm_activities a WHERE a.${fk} = ${table}.id
   )${where ? ` WHERE ${where}` : ''}`;
 }
@@ -44,23 +54,27 @@ export function activityDatesUpdateSql(table: ActivityDateTable, where?: string)
 /** Columnas de crm_activities que cambian alguna de las fechas. */
 const WATCHED = ['type', 'due_at', 'done', 'done_at', 'created_at', 'direction', 'contact_id', 'company_id', 'deal_id'];
 
-function body(refs: Array<'NEW' | 'OLD'>): string {
+function body(refs: Array<'NEW' | 'OLD'>, version: ActivityDatesVersion): string {
   return ACTIVITY_DATE_TABLES.flatMap(({ table, fk }) =>
-    refs.map((ref) => `  ${activityDatesUpdateSql(table, `${ref}.${fk} IS NOT NULL AND id = ${ref}.${fk}`)};`),
+    refs.map((ref) => `  ${activityDatesUpdateSql(table, `${ref}.${fk} IS NOT NULL AND id = ${ref}.${fk}`, version)};`),
   ).join('\n');
 }
 
+/** Nombres de los triggers (la migración 077 los recrea con el SQL nuevo). */
+export const ACTIVITY_DATE_TRIGGERS = ['trg_crm_activity_dates_ai', 'trg_crm_activity_dates_au', 'trg_crm_activity_dates_ad'] as const;
+
 /** DDL de los triggers (idempotente). */
-export function activityDateTriggersSql(): string {
+export function activityDateTriggersSql(version: ActivityDatesVersion = 2): string {
+  const watched = version === 1 ? WATCHED : [...WATCHED, 'task_kind'];
   return `
 CREATE TRIGGER IF NOT EXISTS trg_crm_activity_dates_ai AFTER INSERT ON crm_activities BEGIN
-${body(['NEW'])}
+${body(['NEW'], version)}
 END;
-CREATE TRIGGER IF NOT EXISTS trg_crm_activity_dates_au AFTER UPDATE OF ${WATCHED.join(', ')} ON crm_activities BEGIN
-${body(['OLD', 'NEW'])}
+CREATE TRIGGER IF NOT EXISTS trg_crm_activity_dates_au AFTER UPDATE OF ${watched.join(', ')} ON crm_activities BEGIN
+${body(['OLD', 'NEW'], version)}
 END;
 CREATE TRIGGER IF NOT EXISTS trg_crm_activity_dates_ad AFTER DELETE ON crm_activities BEGIN
-${body(['OLD'])}
+${body(['OLD'], version)}
 END;`;
 }
 

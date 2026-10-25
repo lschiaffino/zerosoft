@@ -1,6 +1,6 @@
 'use client';
 
-import { isDefaultOutcome } from '@/lib/crm-calls';
+import { formatCallDuration, isDefaultOutcome } from '@/lib/crm-calls';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { announceQueued, isQueuedResponse } from '@/lib/offline-queue';
@@ -21,6 +21,8 @@ export type TimelineRecordType = 'contact' | 'company' | 'deal' | 'lead' | 'obje
 export interface TimelineItem {
   id: string;
   type: 'note' | 'task' | 'call' | 'meeting' | 'email';
+  /** Tarea de llamada o email (077). */
+  task_kind?: '' | 'call' | 'email';
   subject: string;
   body: string;
   due_at: string | null;
@@ -682,7 +684,9 @@ export default function Timeline({
                         ? t('calls.whatsapp')
                         : item.type === 'call' && item.channel === 'browser'
                           ? t('voice.timelineType')
-                          : t(`enums.activityType.${item.type}`)}
+                          : item.type === 'task' && item.task_kind
+                            ? `${t('enums.activityType.task')} · ${t(`enums.activityType.${item.task_kind}`)}`
+                            : t(`enums.activityType.${item.type}`)}
                     </span>
                     {item.external ? <span className="badge">Gmail</span> : null}
                     {!item.external && item.type === 'email' && item.direction === 'outbound' ? (
@@ -707,7 +711,12 @@ export default function Timeline({
                       </span>
                     )}
                     {item.direction && <span>{t(`enums.direction.${item.direction}`)}</span>}
-                    {item.duration_min != null && <span>{item.duration_min} min</span>}
+                    {/* Llamada desde el navegador: la duración exacta (45 s); el resto, en minutos. */}
+                    {item.voice?.durationSec != null ? (
+                      <span>{formatCallDuration(item.voice.durationSec)}</span>
+                    ) : (
+                      item.duration_min != null && <span>{item.duration_min} min</span>
+                    )}
                     {item.outcome && <span>{isDefaultOutcome(item.outcome) ? t(`calls.outcomes.${item.outcome}`) : item.outcome}</span>}
                     {item.external && item.from_email && (
                       <span className="tl-from">{item.from_email}</span>
@@ -776,7 +785,11 @@ export default function Timeline({
                       </>
                     )}
                   </div>
-                  {!item.external && (item.type === 'call' || item.type === 'meeting') && (
+                  {/* Llamada desde el navegador con transcripción: su resumen lo maneja CallDetails
+                      (un solo "Resumir con IA" por llamada); el bloque queda si ya había uno guardado. */}
+                  {!item.external &&
+                    (item.type === 'call' || item.type === 'meeting') &&
+                    (!item.voice?.transcript.length || item.ai_summary) && (
                     <CallSummaryBlock
                       activityId={item.id}
                       locale={locale}

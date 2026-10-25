@@ -17,7 +17,7 @@
  */
 import { getDb, type CrmCallRow, type CrmVoiceSettingsRow } from './db';
 import { dbNow } from './crm-email';
-import { phoneDigits } from './crm-calls';
+import { formatPhoneDisplay, phoneDigits } from './crm-calls';
 import { voiceIdentity } from './twilio-voice';
 
 export const TRANSCRIPT_MAX = 60_000;
@@ -250,7 +250,7 @@ export async function finishCall(
     type: 'call',
     channel: 'browser',
     direction: call.direction,
-    subject: call.direction === 'inbound' ? `${call.from_number}` : `${call.to_number}`,
+    subject: formatPhoneDisplay(call.direction === 'inbound' ? call.from_number : call.to_number),
     outcome: outcomeForStatus(result.status),
     durationMin,
     contactId: call.contact_id,
@@ -351,6 +351,12 @@ export async function summarizeIfReady(callId: string): Promise<void> {
   await summarizeCall(call.user_id, call.id).catch(() => null);
 }
 
+/** Resumen del modelo falso (e2e): cuántas líneas tuvo la charla (sin repetir la transcripción). */
+function fakeVoiceSummary(lines: string): string {
+  const n = lines.split('\n').filter(Boolean).length;
+  return `Call summary: ${n} lines between the rep and the contact.`;
+}
+
 /**
  * Resumen con IA de la transcripción → crm_calls.summary y el cuerpo de la
  * actividad. Errores de IA quedan en summary_status (ai_disabled,
@@ -370,17 +376,18 @@ export async function summarizeCall(userId: string, callId: string): Promise<Crm
   let summary = '';
   let status = 'done';
   try {
-    const { aiGenerateText } = await import('./ai');
-    const res = await aiGenerateText({
+    // crmGenerateText: mismo modelo que el resto de la IA del CRM (con CRM_AI_FAKE, el falso de e2e).
+    const { crmGenerateText } = await import('./crm-ai');
+    const res = await crmGenerateText({
       workspaceId: userId,
       feature: 'crm_call_summary',
+      fake: () => fakeVoiceSummary(lines),
       instructions:
         'You summarize sales calls for a CRM timeline. Write in the language of the transcript. Plain text, no markdown headings. ' +
         'First one or two sentences with what the call was about, then short lines for: decisions, objections, next steps (with owner and date if said). ' +
         'Only use what is in the transcript.',
       prompt: lines.slice(0, 40_000),
       maxOutputTokens: 500,
-      temperature: 0.2,
     });
     summary = res.text.trim().slice(0, 4000);
   } catch (e) {

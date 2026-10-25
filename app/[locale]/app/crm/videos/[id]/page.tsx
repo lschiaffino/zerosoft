@@ -29,7 +29,7 @@ export default async function VideoPage(props: { params: Promise<{ locale: strin
         video={{
           id: video.id,
           title: video.title,
-          url: video.url,
+          url: `/api/crm/videos/${video.id}/file`,
           contentType: video.content_type,
           message: video.message,
           durationSec: video.duration_sec,

@@ -18,6 +18,8 @@ export interface QueueTask {
   due_at: string | null;
   overdue: boolean;
   owner_id: string | null;
+  /** Tipo de tarea: '' = to-do, 'call' o 'email'. */
+  kind: '' | 'call' | 'email';
   sequence: { id: string; name: string } | null;
   contact: {
     id: string;
@@ -37,6 +39,7 @@ interface QueueRow {
   body: string;
   due_at: string | null;
   owner_id: string | null;
+  task_kind: string | null;
   sequence_id: string | null;
   sequence_name: string | null;
   contact_id: string | null;
@@ -95,7 +98,7 @@ export async function listQueueTasks(
   args.push(Math.min(opts.limit ?? 200, 500));
   const rows = (await getDb()
     .prepare(
-      `SELECT a.id, a.subject, a.body, a.due_at, a.owner_id, a.sequence_id, sq.name AS sequence_name,
+      `SELECT a.id, a.subject, a.body, a.due_at, a.owner_id, a.task_kind, a.sequence_id, sq.name AS sequence_name,
          a.contact_id, c.first_name AS c_first, c.last_name AS c_last, c.email AS c_email, c.phone AS c_phone,
          c.job_title AS c_title, cco.name AS c_company,
          a.company_id, co.name AS co_name, co.domain AS co_domain, co.phone AS co_phone,
@@ -123,6 +126,7 @@ function toQueueTask(r: QueueRow, todayStart: string): QueueTask {
     due_at: r.due_at,
     overdue: !!r.due_at && r.due_at < todayStart,
     owner_id: r.owner_id,
+    kind: r.task_kind === 'call' || r.task_kind === 'email' ? r.task_kind : '',
     sequence: r.sequence_id ? { id: r.sequence_id, name: r.sequence_name ?? '' } : null,
     contact: r.contact_id
       ? {

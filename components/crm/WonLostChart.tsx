@@ -1,4 +1,5 @@
 import type { WonLostMonth } from '@/lib/crm';
+import { formatAxis } from '@/lib/utils';
 
 interface WonLostChartProps {
   data: WonLostMonth[];
@@ -55,7 +56,7 @@ export default function WonLostChart({ data, wonLabel, lostLabel, height = 240, 
           <g key={g.value}>
             <line className="chart-grid" x1={pad.l} x2={pad.l + iw} y1={g.y} y2={g.y} />
             <text className="chart-ylabel" x={pad.l - 8} y={g.y + 4} textAnchor="end">
-              {g.value}
+              {formatAxis(g.value, locale)}
             </text>
           </g>
         ))}

@@ -253,6 +253,8 @@ export interface CrmActivityRow {
   object_record_id?: string | null;
   /** Repetición de tareas (lib/crm-task-repeat.ts). */
   repeat?: 'none' | 'daily' | 'weekly' | 'monthly';
+  /** Tipo de tarea (077): '' = to-do, 'call' o 'email'. Cuenta como contacto al completarse. */
+  task_kind?: '' | 'call' | 'email';
   /** Tarea siguiente de la serie, una vez creada al completar esta. */
   repeat_next_id?: string | null;
   /** Tareas creadas por un paso de secuencia (la cola de trabajo las marca). */

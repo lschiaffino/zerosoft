@@ -9,8 +9,10 @@ import {
   ENUM_PROPERTIES,
   PLAYBOOK_ENTITIES,
   PLAYBOOK_PROPERTIES,
-  PROPERTY_TYPES,
   QUESTION_TYPES,
+  customKind,
+  kindFits,
+  standardKind,
   type Playbook,
   type PlaybookEntity,
   type PlaybookQuestion,
@@ -27,7 +29,7 @@ export interface PlaybookRunView {
 
 interface PlaybookEditorProps {
   playbook: Playbook;
-  customFields: Record<PlaybookEntity, Array<{ name: string; label: string }>>;
+  customFields: Record<PlaybookEntity, Array<{ name: string; label: string; type: string; options: string[] }>>;
   canEdit: boolean;
   runs: PlaybookRunView[];
 }
@@ -67,15 +69,32 @@ export default function PlaybookEditor({ playbook, customFields, canEdit, runs }
 
   const propLabel = (entity: PlaybookEntity, key: string): string => t(`playbooks.props.${entity}.${key}`);
 
+  function customField(target: string) {
+    const m = /^(contact|company|deal):custom\.(.+)$/.exec(target);
+    return m ? customFields[m[1] as PlaybookEntity].find((f) => f.name === m[2]) : undefined;
+  }
+
+  /** ¿La respuesta de una pregunta de tipo `type` entra en la propiedad `target`? */
+  function targetFits(target: string, type: QuestionType): boolean {
+    if (target.includes(':custom.')) {
+      const field = customField(target);
+      const kind = field ? customKind(field.type) : 'text';
+      return kind !== null && kindFits(kind, type);
+    }
+    return kindFits(standardKind(target), type);
+  }
+
   function updateQuestion(i: number, patch: Partial<PlaybookQuestion>) {
     setQuestions((qs) =>
       qs.map((q, k) => {
         if (k !== i) return q;
         const next = { ...q, ...patch };
-        // Una propiedad con tipo propio fija el tipo de la pregunta.
-        if (patch.property !== undefined) {
-          if (ENUM_PROPERTIES[next.property]) next.type = 'select';
-          else if (PROPERTY_TYPES[next.property]) next.type = PROPERTY_TYPES[next.property];
+        // Cambiar el tipo a uno que la propiedad no acepta la suelta.
+        if (patch.type !== undefined && next.property && !targetFits(next.property, next.type)) next.property = '';
+        // Una propiedad propia de tipo lista trae sus opciones si la pregunta no tenía.
+        if (patch.property !== undefined && next.type === 'select' && next.options.length === 0) {
+          const field = customField(next.property);
+          if (field?.type === 'select') next.options = [...field.options];
         }
         return next;
       }),
@@ -229,8 +248,6 @@ export default function PlaybookEditor({ playbook, customFields, canEdit, runs }
         {questions.length === 0 && <p className="muted">{t('playbooks.noQuestions')}</p>}
         <ol className="pb-q-list">
           {questions.map((q, i) => {
-            const enumProp = !!ENUM_PROPERTIES[q.property];
-            const fixedType = enumProp || !!PROPERTY_TYPES[q.property];
             return (
               <li key={q.id} className="pb-q" data-testid="playbook-question">
                 <div className="pb-q-row">
@@ -246,7 +263,7 @@ export default function PlaybookEditor({ playbook, customFields, canEdit, runs }
                   <select
                     className="filter-select"
                     value={q.type}
-                    disabled={disabled || fixedType}
+                    disabled={disabled}
                     aria-label={t('playbooks.questionType')}
                     onChange={(e) => updateQuestion(i, { type: e.target.value as QuestionType })}
                   >
@@ -268,16 +285,20 @@ export default function PlaybookEditor({ playbook, customFields, canEdit, runs }
                     <option value="">{t('playbooks.timelineOnly')}</option>
                     {entities.map((en) => (
                       <optgroup key={en} label={t(`playbooks.entity.${en}`)}>
-                        {PLAYBOOK_PROPERTIES[en].map((k) => (
-                          <option key={k} value={`${en}:${k}`}>
-                            {propLabel(en, k)}
-                          </option>
-                        ))}
-                        {customFields[en].map((f) => (
-                          <option key={f.name} value={`${en}:custom.${f.name}`}>
-                            {f.label}
-                          </option>
-                        ))}
+                        {PLAYBOOK_PROPERTIES[en]
+                          .filter((k) => targetFits(`${en}:${k}`, q.type) || q.property === `${en}:${k}`)
+                          .map((k) => (
+                            <option key={k} value={`${en}:${k}`}>
+                              {propLabel(en, k)}
+                            </option>
+                          ))}
+                        {customFields[en]
+                          .filter((f) => targetFits(`${en}:custom.${f.name}`, q.type) || q.property === `${en}:custom.${f.name}`)
+                          .map((f) => (
+                            <option key={f.name} value={`${en}:custom.${f.name}`}>
+                              {f.label}
+                            </option>
+                          ))}
                       </optgroup>
                     ))}
                   </select>
@@ -308,7 +329,7 @@ export default function PlaybookEditor({ playbook, customFields, canEdit, runs }
                     </button>
                   </span>
                 </div>
-                {q.type === 'select' && !enumProp && (
+                {q.type === 'select' && !ENUM_PROPERTIES[q.property] && (
                   <input
                     className="input"
                     value={q.options.join(', ')}

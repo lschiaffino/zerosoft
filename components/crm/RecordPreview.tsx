@@ -135,6 +135,10 @@ function parseCustom(json: string): Record<string, unknown> {
 function formatDate(iso: string, locale: string): string {
   if (!iso) return '';
   try {
+    // Fecha sin hora (close date): un día del calendario, no medianoche UTC.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+      return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
+    }
     return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(
       new Date(iso.includes('T') ? iso : `${iso.replace(' ', 'T')}Z`),
     );

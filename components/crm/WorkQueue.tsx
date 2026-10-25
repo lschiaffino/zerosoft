@@ -273,6 +273,7 @@ export default function WorkQueue({ tasks, locale, timeZone }: WorkQueueProps) {
         <header className="wq-card-head">
           <div className="wq-tags">
             {task.overdue && <span className="badge prio-high">{t('queue.overdue')}</span>}
+            {task.kind && <span className="badge" data-testid="queue-kind">{t(`enums.activityType.${task.kind}`)}</span>}
             {task.sequence && <span className="badge" data-testid="queue-sequence">{t('queue.fromSequence', { name: task.sequence.name })}</span>}
             {st && st !== 'open' && <span className="badge">{t(`queue.status.${st}`)}</span>}
           </div>

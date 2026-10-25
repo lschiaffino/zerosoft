@@ -128,6 +128,73 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
   const [announce, setAnnounce] = useState('');
   /** Card a enfocar después de moverla con el teclado (cambia de columna y se re-monta). */
   const focusAfterRef = useRef<string | null>(null);
+  // Menú de etapas de una card (tecla M): flechas lo recorren, Enter mueve, Esc vuelve a la card.
+  const [moveMenuFor, setMoveMenuFor] = useState<string | null>(null);
+  // Posición fija (viewport): el board scrollea en x y recortaría un menú absoluto.
+  const [moveMenuPos, setMoveMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const moveMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!moveMenuFor) return;
+    // Sin scroll al enfocar: el menú es fijo y un scroll lo cerraría.
+    moveMenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true });
+    function onDown(e: MouseEvent) {
+      if (!moveMenuRef.current?.contains(e.target as Node)) setMoveMenuFor(null);
+    }
+    // Si la página o el board se mueven, el menú quedaría lejos de la card: se cierra.
+    function onScroll(e: Event) {
+      if (!moveMenuRef.current?.contains(e.target as Node)) setMoveMenuFor(null);
+    }
+    const onResize = () => setMoveMenuFor(null);
+    document.addEventListener('mousedown', onDown);
+    // Un frame después: el foco recién movido no cuenta como scroll del usuario.
+    const raf = window.requestAnimationFrame(() => {
+      window.addEventListener('scroll', onScroll, true);
+      window.addEventListener('resize', onResize);
+    });
+    return () => {
+      window.cancelAnimationFrame(raf);
+      document.removeEventListener('mousedown', onDown);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [moveMenuFor]);
+
+  function openMoveMenu(card: HTMLElement, dealId: string) {
+    const r = card.getBoundingClientRect();
+    const menuH = 270;
+    const below = r.bottom - 6;
+    setMoveMenuPos({
+      top: below + menuH > window.innerHeight ? Math.max(8, r.top - menuH + 6) : below,
+      left: Math.max(8, Math.min(r.left + 8, window.innerWidth - 200)),
+    });
+    setMoveMenuFor(dealId);
+  }
+
+  function closeMoveMenu(refocus: boolean) {
+    const id = moveMenuFor;
+    setMoveMenuFor(null);
+    if (refocus && id) boardRef.current?.querySelector<HTMLElement>(`.kb-card[data-deal-id="${CSS.escape(id)}"]`)?.focus();
+  }
+
+  function onMoveMenuKey(e: ReactKeyboardEvent<HTMLDivElement>) {
+    const items = Array.from(moveMenuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+    const idx = items.indexOf(document.activeElement as HTMLElement);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const next = e.key === 'ArrowDown' ? (idx + 1) % items.length : (idx - 1 + items.length) % items.length;
+      items[next]?.focus();
+    } else if (e.key === 'Home' || e.key === 'End') {
+      e.preventDefault();
+      items[e.key === 'Home' ? 0 : items.length - 1]?.focus();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMoveMenu(true);
+    } else if (e.key === 'Tab') {
+      closeMoveMenu(false);
+    }
+  }
 
   // Sync tras router.refresh() (el board se remonta al cambiar de pipeline vía key).
   useEffect(() => {
@@ -483,7 +550,7 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
     }
     if (key === 'm' || key === 'M') {
       e.preventDefault();
-      e.currentTarget.querySelector<HTMLSelectElement>('.kb-move')?.focus();
+      openMoveMenu(e.currentTarget, deal.id);
     }
   }
 
@@ -514,7 +581,7 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
           </button>
         ))}
       </nav>
-      <div className="kb-board" ref={boardRef}>
+      <div className="kb-board" ref={boardRef} data-skip-target data-skip-label={t('deals.keyboard.skipToBoard')}>
         {cols.map((col, colIdx) => {
           const closed = !!(col.stage.is_won || col.stage.is_lost);
           return (
@@ -612,6 +679,40 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
                           </option>
                         ))}
                     </select>
+                    {moveMenuFor === deal.id && (
+                      <div
+                        ref={moveMenuRef}
+                        role="menu"
+                        className="record-more-menu kb-move-menu"
+                        style={{ top: moveMenuPos.top, left: moveMenuPos.left }}
+                        aria-label={t('deals.moveTo')}
+                        data-no-drag
+                        data-testid="kb-move-menu"
+                        onKeyDown={onMoveMenuKey}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {cols
+                          .filter((c) => c.stage.id !== col.stage.id)
+                          .map((c) => (
+                            <button
+                              key={c.stage.id}
+                              type="button"
+                              role="menuitem"
+                              tabIndex={-1}
+                              className="record-more-item"
+                              onClick={() => {
+                                setMoveMenuFor(null);
+                                focusAfterRef.current = deal.id;
+                                setAnnounce(t('deals.keyboard.moving', { deal: deal.name, stage: c.stage.name }));
+                                requestMove(deal.id, c.stage.id, null);
+                              }}
+                            >
+                              {c.stage.name}
+                            </button>
+                          ))}
+                      </div>
+                    )}
                   </article>
                 ))}
                 {col.count === 0 && <p className="muted kb-empty">{t('deals.emptyStage')}</p>}
