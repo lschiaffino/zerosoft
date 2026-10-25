@@ -114,7 +114,10 @@
       "deal": "Deals",
       "robot": "Robots",
       "chat": "Chat",
-      "groups": "Groups (WhatsApp)"
+      "groups": "Groups (WhatsApp)",
+      "issue": "Track issues",
+      "comment": "Track comments",
+      "project": "Track projects"
     },
     "eventLabels": {
       "booking_created": "Booking created",
@@ -141,7 +144,15 @@
       "chat_conversation_resolved": "Conversation resolved",
       "groups_message_received": "WhatsApp message received (Groups)",
       "groups_ticket_created": "Ticket created (Groups)",
-      "groups_ticket_updated": "Ticket updated (Groups)"
+      "groups_ticket_updated": "Ticket updated (Groups)",
+      "issue_created": "Issue created",
+      "issue_updated": "Issue updated",
+      "issue_status_changed": "Issue status changed",
+      "issue_deleted": "Issue deleted",
+      "comment_created": "Comment added",
+      "project_created": "Project created",
+      "project_updated": "Project updated",
+      "project_deleted": "Project deleted"
     },
     "errors": {
       "https_required": "The URL must use https.",
@@ -163,6 +174,15 @@
       "domains": "Domains",
       "defaultDomain": "Default domain",
       "scoped": "(some links)"
+    },
+    "deliveries": {
+      "show": "Deliveries",
+      "title": "Recent deliveries",
+      "empty": "No deliveries yet.",
+      "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+      "retryAt": "next retry {date}",
+      "redeliver": "Resend",
+      "close": "Close"
     }
   },
   "credentials": {

@@ -114,7 +114,10 @@
       "deal": "Deals",
       "robot": "Robôs",
       "chat": "Chat",
-      "groups": "Groups (WhatsApp)"
+      "groups": "Groups (WhatsApp)",
+      "issue": "Issues do Track",
+      "comment": "Comentários do Track",
+      "project": "Projetos do Track"
     },
     "eventLabels": {
       "booking_created": "Reserva criada",
@@ -141,7 +144,15 @@
       "chat_conversation_resolved": "Conversa resolvida",
       "groups_message_received": "Mensagem de WhatsApp recebida (Groups)",
       "groups_ticket_created": "Ticket criado (Groups)",
-      "groups_ticket_updated": "Ticket atualizado (Groups)"
+      "groups_ticket_updated": "Ticket atualizado (Groups)",
+      "issue_created": "Issue criado",
+      "issue_updated": "Issue editado",
+      "issue_status_changed": "Mudança de status",
+      "issue_deleted": "Issue excluído",
+      "comment_created": "Comentário novo",
+      "project_created": "Projeto criado",
+      "project_updated": "Projeto editado",
+      "project_deleted": "Projeto excluído"
     },
     "errors": {
       "https_required": "A URL precisa usar https.",
@@ -163,6 +174,15 @@
       "domains": "Domínios",
       "defaultDomain": "Domínio padrão",
       "scoped": "(alguns links)"
+    },
+    "deliveries": {
+      "show": "Entregas",
+      "title": "Entregas recentes",
+      "empty": "Ainda não há entregas.",
+      "attempts": "{count, plural, one {# tentativa} other {# tentativas}}",
+      "retryAt": "próxima tentativa {date}",
+      "redeliver": "Reenviar",
+      "close": "Fechar"
     }
   },
   "credentials": {

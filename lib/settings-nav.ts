@@ -39,7 +39,7 @@ export function settingsTabs(isAdmin: boolean): RouteTab[] {
   return tabs;
 }
 
-export type WebhookGroupKey = 'booking' | 'link' | 'contact' | 'deal' | 'robot' | 'chat' | 'groups';
+export type WebhookGroupKey = 'booking' | 'link' | 'contact' | 'deal' | 'robot' | 'chat' | 'groups' | 'issue' | 'comment' | 'project';
 
 /** Los eventos agrupados por recurso (el prefijo antes del primer punto), en el orden de WEBHOOK_EVENTS. */
 export function webhookEventGroups(

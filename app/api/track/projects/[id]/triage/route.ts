@@ -13,6 +13,6 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const project = await getProject(id);
-  if (!project || !canAccessTrackProject(project, user.team?.id ?? null, user.id)) return notFound();
+  if (!project || !(await canAccessTrackProject(project, user.team?.id ?? null, user.id))) return notFound();
   return NextResponse.json({ rows: await listTriageIssues(id), enabled: Boolean(project.triage_enabled) });
 }

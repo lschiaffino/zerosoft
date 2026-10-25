@@ -13,7 +13,7 @@ async function accessible(id: string, teamId: string | null, ownerId: string) {
   const rule = await getRecurring(id);
   if (!rule) return null;
   const project = await getProject(rule.project_id);
-  if (!project || !canAccessTrackProject(project, teamId, ownerId)) return null;
+  if (!project || !(await canAccessTrackProject(project, teamId, ownerId))) return null;
   return { rule, project };
 }
 

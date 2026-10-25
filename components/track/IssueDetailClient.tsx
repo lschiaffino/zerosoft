@@ -11,6 +11,7 @@ import IssuePropertiesPanel from './IssuePropertiesPanel';
 import IssueActivityTimeline from './IssueActivityTimeline';
 import QuickIssueModal from './QuickIssueModal';
 import { IssueGithubPanel, useIssueGithub } from './IssueGithub';
+import { IssueLinksPanel } from './IssueLinks';
 import { Popover, PriorityIcon, TrackToast, useToday } from './InlineEditors';
 import { branchNameFor } from '@/lib/track-branch';
 import { TriageBanner } from './TriagePanel';
@@ -808,6 +809,7 @@ export default function IssueDetailClient({
           )}
 
           <IssueGithubPanel data={github} />
+          <IssueLinksPanel issueId={issue.id} />
 
           {attachments.length > 0 && (
             <section className="track-detail-section">

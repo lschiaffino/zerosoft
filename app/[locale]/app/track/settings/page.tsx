@@ -5,6 +5,7 @@ import SettingsTabs from '@/components/ui/SettingsTabs';
 import { GithubSettings, LabelsSettings } from '@/components/track/TrackSettingsClient';
 import NotifySettings from '@/components/track/NotifySettings';
 import TrackImportPanel from '@/components/track/TrackImportPanel';
+import { AccessSettings, ApiSettings, AuditLogSettings, GithubExtras, IntegrationsSettings } from '@/components/track/TrackIntegrationsSettings';
 import { listProjects } from '@/lib/track-data';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,8 @@ export default async function TrackSettingsPage(props: {
 }) {
   const { locale } = await props.params;
   const rawTab = (await props.searchParams)?.tab;
-  const tab = rawTab === 'github' || rawTab === 'notifications' || rawTab === 'import' ? rawTab : 'labels';
+  const TABS = ['github', 'integrations', 'api', 'access', 'audit', 'notifications', 'import'] as const;
+  const tab = (TABS as readonly string[]).includes(rawTab ?? '') ? (rawTab as (typeof TABS)[number]) : 'labels';
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'track' });
   const admin = isWorkspaceAdmin(user);
@@ -35,6 +37,10 @@ export default async function TrackSettingsPage(props: {
         items={[
           { key: 'labels', label: t('labelsSettings.title') },
           { key: 'github', label: t('github.title') },
+          { key: 'integrations', label: t('integrations.tab') },
+          { key: 'api', label: t('apiSettings.tab') },
+          { key: 'access', label: t('access.tab') },
+          { key: 'audit', label: t('audit.tab') },
           { key: 'notifications', label: t('notifySettings.title') },
           { key: 'import', label: t('importer.tab') },
         ]}
@@ -45,8 +51,19 @@ export default async function TrackSettingsPage(props: {
           <NotifySettings locale={locale} />
         ) : tab === 'import' ? (
           <TrackImportPanel isAdmin={admin} />
+        ) : tab === 'integrations' ? (
+          <IntegrationsSettings locale={locale} />
+        ) : tab === 'api' ? (
+          <ApiSettings />
+        ) : tab === 'access' ? (
+          <AccessSettings isAdmin={admin} />
+        ) : tab === 'audit' ? (
+          <AuditLogSettings isAdmin={admin} locale={locale} />
         ) : (
-          <GithubSettings isAdmin={admin} locale={locale} example={example} />
+          <>
+            <GithubSettings isAdmin={admin} locale={locale} example={example} />
+            <GithubExtras isAdmin={admin} />
+          </>
         )}
       </SettingsTabs>
     </div>

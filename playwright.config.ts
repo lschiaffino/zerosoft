@@ -47,11 +47,19 @@ export default defineConfig({
       // IA del CRM contra el modelo falso (lib/crm-ai-fake.ts): cuota y ai_usage
       // corren igual; con la cookie crm_ai_fake=off se ve el error ai_disabled.
       CRM_AI_FAKE: '1',
-      // Importadores: Linear, GitHub y Calendly apuntan a un mock local
+      // Importadores: Linear, GitHub, Jira, Asana, Shortcut y Calendly apuntan a un mock local
       // (tests/e2e/importers.spec.ts lo levanta en PORT + 1). Nada sale a internet.
       IMPORT_LINEAR_API_URL: `http://127.0.0.1:${PORT + 1}/linear`,
       IMPORT_GITHUB_API_URL: `http://127.0.0.1:${PORT + 1}/github`,
       IMPORT_CALENDLY_API_URL: `http://127.0.0.1:${PORT + 1}/calendly`,
+      IMPORT_JIRA_API_URL: `http://127.0.0.1:${PORT + 1}/jira`,
+      IMPORT_ASANA_API_URL: `http://127.0.0.1:${PORT + 1}/asana`,
+      IMPORT_SHORTCUT_API_URL: `http://127.0.0.1:${PORT + 1}/shortcut`,
+      // Track: Slack, GitHub App y Sentry/Zendesk/Intercom sin salir a internet
+      // (lib/track-slack.ts, lib/track-github-app.ts, lib/track-support.ts).
+      SLACK_FAKE: '1',
+      GITHUB_APP_FAKE: '1',
+      TRACK_SUPPORT_FAKE: '1',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

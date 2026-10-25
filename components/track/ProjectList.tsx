@@ -1,6 +1,7 @@
 import DataTable from '@/components/ui/DataTable';
 import EmptyState from '@/components/ui/EmptyState';
 import QuickProjectButton from './QuickProjectButton';
+import PrivateMark from './PrivateMark';
 import type { TrackProjectWithStats } from '@/lib/track-data';
 
 interface ProjectListProps {
@@ -13,6 +14,7 @@ interface ProjectListProps {
     emptyTitle: string;
     emptyBody: string;
     emptySecondary: string;
+    private?: string;
   };
 }
 
@@ -45,6 +47,7 @@ export default function ProjectList({ projects, labels }: ProjectListProps) {
             <>
               {p.icon ? <span className="track-project-icon">{p.icon}</span> : null}
               {p.name}
+              {p.visibility === 'private' ? <PrivateMark label={labels.private ?? 'Private'} /> : null}
             </>
           ),
         },
@@ -58,3 +61,4 @@ export default function ProjectList({ projects, labels }: ProjectListProps) {
     />
   );
 }
+

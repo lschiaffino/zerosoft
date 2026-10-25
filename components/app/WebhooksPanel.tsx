@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import type { WebhookDto } from '@/lib/webhooks';
+import type { WebhookDeliveryDto, WebhookDto } from '@/lib/webhooks';
 import { WEBHOOK_EVENTS, type WebhookEvent } from '@/lib/webhooks-events';
 import { groupState, toggleGroup, webhookEventGroups } from '@/lib/settings-nav';
 import CopyButton from '@/components/link/CopyButton';
@@ -33,6 +33,70 @@ function splitList(raw: string): string[] {
   return [...new Set(raw.split(',').map((v) => v.trim()).filter(Boolean))];
 }
 
+/** Log de entregas de un webhook: evento, estado, intentos, código y reenviar. */
+function DeliveriesLog({ hookId, onClose }: { hookId: string; onClose: () => void }) {
+  const t = useTranslations('settings.webhooks');
+  const [rows, setRows] = useState<WebhookDeliveryDto[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const load = async (init?: RequestInit) => {
+    setFailed(false);
+    const res = await fetch(`/api/webhooks/${hookId}/deliveries`, init).catch(() => null);
+    if (!res?.ok) {
+      setFailed(true);
+      setRows((prev) => prev ?? []);
+      return;
+    }
+    setRows(((await res.json()) as { rows: WebhookDeliveryDto[] }).rows);
+  };
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hookId]);
+  return (
+    <div className="st-deliveries" data-testid="webhook-deliveries" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <div className="st-deliveries-head">
+        <p className="label">{t('deliveries.title')}</p>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
+          {t('deliveries.close')}
+        </button>
+      </div>
+      {failed ? <p className="ui-error">{t('errors.action')}</p> : null}
+      {rows === null ? (
+        <span className="ui-skeleton ui-skeleton-row" aria-busy="true" />
+      ) : rows.length === 0 ? (
+        <p className="ui-help">{t('deliveries.empty')}</p>
+      ) : (
+        <ul className="st-deliveries-list">
+          {rows.map((d) => (
+            <li key={d.id}>
+              <span className="data">{d.event}</span>
+              <span className={`badge ${d.status === 'delivered' ? 'badge-ok' : d.status === 'failed' ? 'badge-bad' : 'badge-warn'}`}>
+                {t.has(`delivery.${d.status}`) ? t(`delivery.${d.status}`) : d.status}
+                {d.responseCode ? ` · ${d.responseCode}` : ''}
+              </span>
+              <span className="st-muted">
+                {new Date(d.createdAt.includes('T') ? d.createdAt : `${d.createdAt.replace(' ', 'T')}Z`).toLocaleString()} ·{' '}
+                {t('deliveries.attempts', { count: d.attempts })}
+                {d.status === 'pending' && d.nextAttemptAt ? ` · ${t('deliveries.retryAt', { date: new Date(d.nextAttemptAt).toLocaleTimeString() })}` : ''}
+                {d.error ? ` · ${d.error}` : ''}
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() =>
+                  void load({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deliveryId: d.id }) })
+                }
+              >
+                {t('deliveries.redeliver')}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 interface WebhooksPanelProps {
   initial: WebhookDto[];
   /** Hostname del dominio por defecto de Link (zerosoft.ai). */
@@ -57,6 +121,7 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
   const linkEvents = selected.some((ev) => ev.startsWith('link.'));
   const [secret, setSecret] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [logFor, setLogFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
@@ -308,6 +373,15 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
+                  onClick={() => setLogFor(logFor === r.id ? null : r.id)}
+                  aria-expanded={logFor === r.id}
+                  data-testid="webhook-deliveries-toggle"
+                >
+                  {t('deliveries.show')}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
                   onClick={() => test(r.id)}
                   disabled={busy !== null && busy !== r.id}
                   aria-busy={busy === r.id || undefined}
@@ -328,6 +402,8 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
           },
         ]}
       />
+
+      {logFor && rows.some((r) => r.id === logFor) ? <DeliveriesLog key={logFor} hookId={logFor} onClose={() => setLogFor(null)} /> : null}
 
       <AdvancedSection storageKey="settings.webhooks.signature" label={t('signature')} hint={t('signatureHint')}>
         <p className="ui-help st-prose">{t('signatureHelp')}</p>

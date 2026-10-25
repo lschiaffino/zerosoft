@@ -46,7 +46,7 @@ async function accessible(
   if (!issue) return null;
   if (!cache.has(issue.project_id)) {
     const p = await getProject(issue.project_id);
-    cache.set(issue.project_id, p && canAccessTrackProject(p, scope.teamId, scope.ownerId) ? p : null);
+    cache.set(issue.project_id, p && (await canAccessTrackProject(p, scope.teamId, scope.ownerId)) ? p : null);
   }
   const project = cache.get(issue.project_id);
   return project ? { issue, project } : null;

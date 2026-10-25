@@ -3645,6 +3645,148 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Track T4: proyectos privados e invitados, audit log, GitHub App y reglas
+    // por proyecto, Slack, Sentry, referencias externas (hilos de Slack, issues
+    // de GitHub y Sentry) y el claim de los reintentos de webhooks.
+    id: '113_track_integrations',
+    async up(client) {
+      await addColumn(client, "ALTER TABLE track_projects ADD COLUMN visibility TEXT NOT NULL DEFAULT 'workspace'");
+      await addColumn(client, 'ALTER TABLE track_github ADD COLUMN installation_id INTEGER');
+      await addColumn(client, 'ALTER TABLE track_github ADD COLUMN account_login TEXT');
+      await addColumn(client, 'ALTER TABLE track_issue_links ADD COLUMN checks TEXT');
+      await addColumn(client, 'ALTER TABLE track_issue_links ADD COLUMN reviews TEXT');
+      await addColumn(client, 'ALTER TABLE track_issue_links ADD COLUMN head_sha TEXT');
+      await addColumn(client, 'ALTER TABLE track_issue_links ADD COLUMN closes INTEGER NOT NULL DEFAULT 1');
+      await addColumn(client, 'ALTER TABLE webhook_deliveries ADD COLUMN locked_until TEXT');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_project_access (
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          added_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (project_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_project_access_user ON track_project_access(user_id);
+
+        CREATE TABLE IF NOT EXISTS track_guests (
+          workspace_id TEXT NOT NULL,
+          email TEXT NOT NULL,
+          project_ids TEXT NOT NULL DEFAULT '[]',
+          added_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (workspace_id, email)
+        );
+
+        CREATE TABLE IF NOT EXISTS track_audit_log (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          actor_id TEXT,
+          actor_label TEXT,
+          via TEXT NOT NULL DEFAULT 'app',
+          action TEXT NOT NULL,
+          entity_type TEXT NOT NULL,
+          entity_id TEXT,
+          entity_label TEXT,
+          project_id TEXT,
+          data TEXT NOT NULL DEFAULT '{}',
+          ip TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_audit_ws ON track_audit_log(workspace_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS track_github_rules (
+          project_id TEXT PRIMARY KEY REFERENCES track_projects(id) ON DELETE CASCADE,
+          on_draft TEXT,
+          on_open TEXT,
+          on_review TEXT,
+          on_merge TEXT,
+          sync_repo TEXT,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS track_external_refs (
+          id TEXT PRIMARY KEY,
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          external_id TEXT NOT NULL,
+          url TEXT,
+          title TEXT NOT NULL DEFAULT '',
+          state TEXT,
+          meta TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (workspace_id, provider, external_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_external_refs_issue ON track_external_refs(issue_id);
+
+        CREATE TABLE IF NOT EXISTS track_slack (
+          workspace_id TEXT PRIMARY KEY,
+          slack_team_id TEXT NOT NULL,
+          slack_team_name TEXT NOT NULL DEFAULT '',
+          bot_token TEXT NOT NULL,
+          bot_user_id TEXT,
+          default_project_id TEXT,
+          unfurl INTEGER NOT NULL DEFAULT 1,
+          installed_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_slack_team ON track_slack(slack_team_id);
+
+        CREATE TABLE IF NOT EXISTS track_slack_channels (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          channel_id TEXT NOT NULL,
+          channel_name TEXT NOT NULL DEFAULT '',
+          events TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (project_id, channel_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS track_integrations (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          secret TEXT,
+          token TEXT,
+          config TEXT NOT NULL DEFAULT '{}',
+          last_event_at TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (workspace_id, provider)
+        );
+
+        CREATE TABLE IF NOT EXISTS track_integration_events (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          direction TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          summary TEXT NOT NULL DEFAULT '',
+          ok INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_integration_events_ws ON track_integration_events(workspace_id, provider, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS track_integration_outbox (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          payload TEXT NOT NULL DEFAULT '{}',
+          status TEXT NOT NULL DEFAULT 'pending',
+          attempts INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT,
+          next_attempt_at TEXT,
+          locked_until TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_integration_outbox_due ON track_integration_outbox(status, next_attempt_at);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -6,9 +6,10 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import type { TrackProjectRow } from '@/lib/schema/types';
 import Icon from '@/components/app/icons';
+import PrivateMark from './PrivateMark';
 import { useShellBranch } from '@/components/app/useShellBranch';
 
-type ProjectItem = Pick<TrackProjectRow, 'id' | 'name' | 'icon' | 'status'>;
+type ProjectItem = Pick<TrackProjectRow, 'id' | 'name' | 'icon' | 'status' | 'visibility'>;
 
 /**
  * Proyectos activos de Track en el sidebar, bajo "Proyectos", como los de
@@ -52,6 +53,7 @@ export default function TrackBranch() {
                     {p.icon ? p.icon : <Icon name="lists" size={14} />}
                   </span>
                   <span className="docs-tree-title">{p.name}</span>
+                  {p.visibility === 'private' ? <PrivateMark label={t('private')} /> : null}
                 </Link>
               </li>
             );

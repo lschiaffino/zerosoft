@@ -21,7 +21,7 @@ export default async function ProjectPage(
 
   const user = await requireUser(locale);
   const project = await getProject(id);
-  if (!project || !canAccessTrackProject(project, user.team?.id ?? null, user.id)) notFound();
+  if (!project || !(await canAccessTrackProject(project, user.team?.id ?? null, user.id))) notFound();
 
   const t = await getTranslations({ locale, namespace: 'track' });
 

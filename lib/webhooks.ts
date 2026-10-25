@@ -135,8 +135,24 @@ export async function deleteWebhook(userId: string, id: string): Promise<boolean
 
 // ---------- Delivery ----------
 
+/**
+ * Reclama la entrega (compare-and-set de locked_until) para que el cron de
+ * cada minuto y un emit en curso no la manden dos veces a la vez.
+ */
+async function claimDelivery(deliveryId: string): Promise<boolean> {
+  const now = new Date();
+  const res = await getDb()
+    .prepare(
+      `UPDATE webhook_deliveries SET locked_until = ?
+       WHERE id = ? AND status = 'pending' AND (locked_until IS NULL OR locked_until < ?)`,
+    )
+    .run(new Date(now.getTime() + 60_000).toISOString(), deliveryId, now.toISOString());
+  return res.changes > 0;
+}
+
 async function attempt(deliveryId: string): Promise<void> {
   const db = getDb();
+  if (!(await claimDelivery(deliveryId))) return;
   const row = (await db
     .prepare(
       `SELECT d.*, w.url, w.secret, w.active FROM webhook_deliveries d
@@ -171,7 +187,7 @@ async function attempt(deliveryId: string): Promise<void> {
   if (!error) {
     await db
       .prepare(
-        "UPDATE webhook_deliveries SET status = 'delivered', attempts = ?, response_code = ?, last_error = NULL, delivered_at = ?, next_attempt_at = NULL WHERE id = ?",
+        "UPDATE webhook_deliveries SET status = 'delivered', attempts = ?, response_code = ?, last_error = NULL, delivered_at = ?, next_attempt_at = NULL, locked_until = NULL WHERE id = ?",
       )
       .run(attempts, code, new Date().toISOString(), row.id);
     return;
@@ -179,7 +195,7 @@ async function attempt(deliveryId: string): Promise<void> {
   const delay = BACKOFF_MS[attempts - 1];
   await db
     .prepare(
-      'UPDATE webhook_deliveries SET status = ?, attempts = ?, response_code = ?, last_error = ?, next_attempt_at = ? WHERE id = ?',
+      'UPDATE webhook_deliveries SET status = ?, attempts = ?, response_code = ?, last_error = ?, next_attempt_at = ?, locked_until = NULL WHERE id = ?',
     )
     .run(
       delay === undefined ? 'failed' : 'pending',
@@ -249,5 +265,69 @@ export async function sendTestWebhook(userId: string, id: string): Promise<boole
     .prepare('INSERT INTO webhook_deliveries (id, webhook_id, event, payload) VALUES (?, ?, ?, ?)')
     .run(deliveryId, hook.id, 'ping', payload);
   await attempt(deliveryId);
+  return true;
+}
+
+// ---------- Log de entregas ----------
+
+export interface WebhookDeliveryDto {
+  id: string;
+  event: string;
+  status: string;
+  attempts: number;
+  responseCode: number | null;
+  error: string | null;
+  createdAt: string;
+  deliveredAt: string | null;
+  nextAttemptAt: string | null;
+}
+
+/** Últimas entregas de un webhook del workspace (null si el webhook no es suyo). */
+export async function listWebhookDeliveries(userId: string, webhookId: string, limit = 25): Promise<WebhookDeliveryDto[] | null> {
+  const hook = await getDb().prepare('SELECT id FROM webhooks WHERE id = ? AND user_id = ?').get(webhookId, userId);
+  if (!hook) return null;
+  const rows = (await getDb()
+    .prepare(
+      `SELECT id, event, status, attempts, response_code, last_error, created_at, delivered_at, next_attempt_at
+       FROM webhook_deliveries WHERE webhook_id = ? ORDER BY created_at DESC LIMIT ?`,
+    )
+    .all(webhookId, Math.min(Math.max(limit, 1), 100))) as Array<{
+    id: string;
+    event: string;
+    status: string;
+    attempts: number;
+    response_code: number | null;
+    last_error: string | null;
+    created_at: string;
+    delivered_at: string | null;
+    next_attempt_at: string | null;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    event: r.event,
+    status: r.status,
+    attempts: r.attempts,
+    responseCode: r.response_code,
+    error: r.last_error,
+    createdAt: r.created_at,
+    deliveredAt: r.delivered_at,
+    nextAttemptAt: r.next_attempt_at,
+  }));
+}
+
+/** Reenvía una entrega (fallida o entregada) como una nueva, con el mismo payload. */
+export async function redeliverWebhook(userId: string, webhookId: string, deliveryId: string): Promise<boolean> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT d.event, d.payload FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhook_id
+       WHERE d.id = ? AND d.webhook_id = ? AND w.user_id = ?`,
+    )
+    .get(deliveryId, webhookId, userId)) as { event: string; payload: string } | undefined;
+  if (!row) return false;
+  const id = crypto.randomUUID();
+  await getDb()
+    .prepare('INSERT INTO webhook_deliveries (id, webhook_id, event, payload) VALUES (?, ?, ?, ?)')
+    .run(id, webhookId, row.event, row.payload);
+  await attempt(id);
   return true;
 }

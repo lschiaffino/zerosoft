@@ -388,7 +388,11 @@
     "newProject": "Novo projeto (Track)",
     "myTasks": "Ir para Minhas tarefas",
     "allIssues": "Ir para todos os issues",
-    "inbox": "Ir para o inbox do Track"
+    "inbox": "Ir para o inbox do Track",
+    "integrations": "Track: Slack, Sentry e outras integrações",
+    "apiMcp": "Track: API, webhooks e MCP",
+    "access": "Track: projetos privados e convidados",
+    "audit": "Track: audit log"
   },
   "statusSettings": {
     "title": "Status do workflow",
@@ -407,7 +411,7 @@
   },
   "settingsPage": {
     "title": "Ajustes do Track",
-    "subtitle": "Etiquetas do workspace, a integração com o GitHub e seus avisos por email."
+    "subtitle": "Labels, integrações, API e MCP, acesso, audit log, avisos e importações."
   },
   "labelsSettings": {
     "title": "Etiquetas",
@@ -477,7 +481,39 @@
     "dangerTitle": "Secret e conexão",
     "dangerHelp": "Um secret novo invalida o atual. Ao desconectar, PRs e commits deixam de ser vinculados.",
     "statusRules": "Regras de status",
-    "statusRulesHint": "O que acontece ao abrir e mergear um PR"
+    "statusRulesHint": "O que acontece ao abrir e mergear um PR",
+    "checks": {
+      "pending": "checks rodando",
+      "success": "checks ok",
+      "failure": "checks falharam"
+    },
+    "reviews": {
+      "approved": "aprovou",
+      "changes_requested": "pediu mudanças",
+      "commented": "comentou",
+      "requested": "review pedida"
+    },
+    "refOnly": "Vinculado com ref: o merge não move o issue",
+    "appTitle": "GitHub App",
+    "appHelp": "Instale o app na sua organização ou conta do GitHub e escolha os repos. Os eventos desses repos chegam sem configurar um webhook à mão.",
+    "appInstalled": "Instalado em {account}",
+    "appNotInstalled": "Não instalado",
+    "appInstall": "Instalar GitHub App",
+    "appReinstall": "Mudar repos",
+    "rulesTitle": "Automações por projeto",
+    "rulesHelp": "Escolha para qual status cada projeto vai quando um pull request está em draft, é aberto, pede review ou é mergeado. Sem regras próprias, o projeto usa as do workspace.",
+    "rulesNoProjects": "Crie um projeto para configurar as automações.",
+    "customRules": "Regras próprias",
+    "saved": "Salvo",
+    "rule": {
+      "onDraft": "PR em draft",
+      "onOpen": "PR aberto",
+      "onReview": "Review pedida",
+      "onMerge": "PR mergeado"
+    },
+    "syncRepo": "Sincronizar GitHub Issues de",
+    "syncRepoHelp": "Os issues novos deste repo (owner/nome) entram neste projeto, e fechar, reabrir, renomear e comentar acompanham. Os anteriores entram com o importador.",
+    "magicWords": "No título ou no corpo de um PR, \"fixes WEB-12\" (ou closes, resolves, completes, implements) vincula e move o issue; \"ref WEB-12\" ou \"part of WEB-12\" só vincula; \"skip WEB-12\" ignora."
   },
   "bulk": {
     "selected": "{count} selecionados",
@@ -525,7 +561,13 @@
       "flow": "Flow",
       "github": "GitHub",
       "agent": "Agents",
-      "app": "o app"
+      "app": "o app",
+      "mcp": "MCP",
+      "slack": "Slack",
+      "sentry": "Sentry",
+      "support": "suporte",
+      "import": "importação",
+      "recurring": "issue recorrente"
     },
     "emptyBody": "Os issues que chegam pela API, Chat, Flow ou GitHub esperam aqui até alguém aceitá-los."
   },
@@ -743,7 +785,8 @@
   },
   "branch": {
     "label": "Projetos",
-    "empty": "Ainda não há projetos."
+    "empty": "Ainda não há projetos.",
+    "private": "Projeto privado"
   },
   "importer": {
     "tab": "Importar e exportar",
@@ -758,7 +801,10 @@
       "linear_csv": "Linear (export CSV)",
       "jira_csv": "Jira (export CSV)",
       "github": "GitHub Issues",
-      "csv": "Outro CSV"
+      "csv": "Outro CSV",
+      "jira": "Jira Cloud (API token)",
+      "asana": "Asana",
+      "shortcut": "Shortcut"
     },
     "target": "Em",
     "targetNew": "Um projeto novo para cada {kind}",
@@ -767,7 +813,10 @@
       "linear_csv": "team do Linear",
       "jira_csv": "projeto do Jira",
       "github": "repositório",
-      "csv": "valor da coluna Projeto"
+      "csv": "valor da coluna Projeto",
+      "jira": "projeto do Jira",
+      "asana": "projeto do Asana",
+      "shortcut": "workflow do Shortcut"
     },
     "linearToken": "API key do Linear",
     "linearHelp": "No Linear: Settings › Security & access › Personal API keys. Leitura é suficiente.",
@@ -866,6 +915,223 @@
       "statuses": "{count, plural, one {# status} other {# status}}",
       "cycles": "{count, plural, one {# cycle} other {# cycles}}",
       "milestones": "{count, plural, one {# milestone} other {# milestones}}"
+    },
+    "jiraSite": "Site do Jira",
+    "jiraEmail": "Email da conta Atlassian",
+    "jiraQuery": "Chave do projeto ou JQL",
+    "jiraQueryHelp": "Uma chave como ENG importa esse projeto. Você também pode colar uma JQL, por exemplo project = ENG AND created >= 2024-01-01.",
+    "jiraToken": "API token do Jira",
+    "jiraHelp": "Crie em id.atlassian.com › Segurança › API tokens. Ele lê com as permissões dessa conta.",
+    "asanaProject": "Projeto do Asana",
+    "asanaProjectHelp": "Cole a URL do projeto do navegador ou o id numérico.",
+    "asanaToken": "Token de acesso pessoal do Asana",
+    "asanaHelp": "No Asana: foto do perfil › Configurações › Apps › Apps de desenvolvedor › Criar token.",
+    "asanaNote": "As seções viram status e as tags viram labels. Subtarefas que existem só dentro de uma tarefa não são importadas.",
+    "shortcutQuery": "Busca (opcional)",
+    "shortcutQueryHelp": "Uma busca do Shortcut como team:mobile ou epic:\"Onboarding\". Vazia importa todas as stories que não estão arquivadas.",
+    "shortcutToken": "API token do Shortcut",
+    "shortcutHelp": "No Shortcut: Settings › Your account › API tokens.",
+    "shortcutNote": "Cada workflow vira um projeto e os epics viram milestones. O Shortcut limita quantas stories uma busca retorna: num workspace grande, importe por time ou por epic."
+  },
+  "integrations": {
+    "tab": "Integrações",
+    "title": "Integrações",
+    "loadError": "Não foi possível carregar as integrações.",
+    "error": "Não foi possível salvar. Tente de novo.",
+    "adminOnly": "Só os admins do workspace mudam integrações.",
+    "notConnected": "Não conectado",
+    "connect": "Conectar",
+    "disconnect": "Desconectar",
+    "disconnectConfirm": "Desconectar {name}? O que está vinculado fica nos issues.",
+    "save": "Salvar",
+    "remove": "Remover",
+    "project": "Projeto",
+    "apiToken": "Token de API",
+    "keepSecret": "Salvo. Deixe vazio para manter.",
+    "missingToken": "Cole o token de API para conectar.",
+    "log": "Atividade recente",
+    "logEmpty": "Nada ainda.",
+    "slack": {
+      "help": "Crie issues a partir de mensagens do Slack e com /track, receba avisos de projetos em canais, sincronize threads de comentários e veja a prévia dos links de issues.",
+      "notConfigured": "O Slack ainda não está configurado neste servidor (SLACK_CLIENT_ID, SLACK_CLIENT_SECRET e SLACK_SIGNING_SECRET).",
+      "connect": "Conectar Slack",
+      "connectedTo": "Conectado a {team}.",
+      "howTo": "No Slack: /track <título> cria um issue no projeto padrão; em qualquer mensagem, Mais ações › Create Track issue abre um formulário e mantém a thread sincronizada com os comentários do issue.",
+      "defaultProject": "Projeto padrão do /track",
+      "firstProject": "O primeiro projeto que vejo",
+      "unfurl": "Mostrar prévia dos links de issues",
+      "channels": "Avisos em canais",
+      "noChannels": "Ainda não há canais. Escolha um projeto, um canal e o que publicar.",
+      "channel": "Canal",
+      "eventsLabel": "Publicar quando",
+      "events": {
+        "issue_created": "um issue é criado",
+        "status_changed": "o status muda",
+        "issue_done": "um issue é concluído",
+        "comment_created": "alguém comenta"
+      },
+      "addChannel": "Adicionar canal",
+      "removeChannel": "Remover #{channel}",
+      "disconnectConfirm": "Desconectar o Slack? Os avisos em canais e a sincronização de threads param.",
+      "setupTitle": "URLs do app do Slack",
+      "setupHint": "Para o seu próprio app do Slack",
+      "commandsUrl": "Request URL do slash command (/track)",
+      "interactionsUrl": "Request URL de Interactivity",
+      "eventsUrl": "Request URL de Event subscriptions"
+    },
+    "sentry": {
+      "help": "Os issues novos do Sentry criam um issue no Track com o link do erro, e ao concluí-lo ele é resolvido no Sentry.",
+      "project": "Projeto do Track para os erros",
+      "org": "Slug da organização no Sentry",
+      "secret": "Client secret (assinatura do webhook)",
+      "token": "Token (para resolver no Sentry)",
+      "autoResolve": "Resolver o issue do Sentry quando o do Track for concluído",
+      "selfHosted": "Sentry próprio",
+      "baseUrl": "URL do Sentry",
+      "steps": "No Sentry: Settings › Developer Settings › New Internal Integration. Dê Issue & Event leitura e escrita, ative o webhook de issues, cole a URL do webhook que aparece aqui ao conectar e copie o client secret e o token. Para criar issues só a partir de alertas, adicione a integração como ação de uma regra de alerta.",
+      "missingSecret": "Cole o client secret para conectar.",
+      "webhookTitle": "Webhook do Sentry",
+      "webhookUrl": "URL do webhook"
+    },
+    "zendesk": {
+      "help": "Vincule tickets do Zendesk a issues (cole a URL do ticket no issue, ou envie links ao criar pela API). Quando o issue é concluído ou cancelado, o ticket recebe uma nota interna com o link.",
+      "subdomain": "Subdomínio do Zendesk",
+      "email": "Email do agente",
+      "steps": "No Zendesk: Admin Center › Apps and integrations › Zendesk API › Add API token. Para criar issues a partir do Zendesk, adicione um trigger com um webhook para POST /api/v1/track/issues e a URL do ticket em links."
+    },
+    "intercom": {
+      "help": "Vincule conversas do Intercom a issues. Quando o issue é concluído ou cancelado, a conversa recebe uma nota interna com o link. As conversas do Chat do zerosoft já criam issues sozinhas.",
+      "adminId": "Id do admin que assina as notas",
+      "steps": "No Intercom: Settings › Integrations › Developer Hub › seu app › Authentication, copie o access token. O id do admin está na URL do seu perfil de teammate."
+    },
+    "figma": {
+      "help": "Cole um link de um arquivo ou design do Figma na descrição ou num comentário e o issue mostra com prévia ao vivo. Os arquivos privados aparecem para quem estiver logado no Figma."
+    },
+    "zapier": {
+      "title": "Zapier, Make e outros",
+      "help": "Os webhooks de saída enviam eventos de issues, comentários e projetos assinados e com novas tentativas. A API cria e edita issues. Os dois funcionam no Zapier, Make ou n8n com um passo de Webhooks.",
+      "webhooks": "Configurar webhooks",
+      "docs": "Docs da API"
+    }
+  },
+  "apiSettings": {
+    "tab": "API e MCP",
+    "apiTitle": "API REST",
+    "apiHelp": "Issues, comentários, projetos, cycles, status, labels e pessoas. Use uma API key com o scope track:read ou track:write; ela age como a pessoa que a criou, então vê o mesmo que ela.",
+    "baseUrl": "URL base",
+    "keys": "Criar uma API key",
+    "docs": "Docs da API",
+    "webhooksTitle": "Webhooks",
+    "webhooksHelp": "issue.created, issue.updated, issue.status_changed, issue.deleted, comment.created e project.*, assinados com Zerosoft-Signature, com novas tentativas e um log de cada entrega.",
+    "webhooksLink": "Configurar webhooks nas configurações do workspace",
+    "mcpTitle": "Servidor MCP",
+    "mcpHelp": "Conecte Claude, Cursor ou qualquer cliente MCP via Streamable HTTP com uma API key como Bearer token. Keys só de leitura ou a URL readonly expõem só as ferramentas de leitura.",
+    "mcpUrl": "URL do servidor",
+    "mcpReadonly": "URL só de leitura",
+    "mcpConfig": "Config do cliente",
+    "mcpTools": "Ferramentas: search_issues, get_issue, create_issue, update_issue, add_comment, list_projects, get_project, list_cycles, list_labels, list_users."
+  },
+  "access": {
+    "tab": "Acesso",
+    "title": "Acesso",
+    "help": "Os projetos privados só são vistos pelos seus membros. Os convidados veem só os projetos que você der.",
+    "adminOnly": "Só os admins do workspace mudam o acesso.",
+    "personal": "Este é um workspace pessoal: ninguém mais vê seus projetos. Crie um time nas configurações do workspace para compartilhar projetos e convidar.",
+    "loadError": "Não foi possível carregar o acesso.",
+    "error": "Não foi possível salvar a mudança.",
+    "adminGuest": "Um admin não pode ser convidado.",
+    "projectsTitle": "Projetos",
+    "projectsHelp": "Ao tornar um projeto privado você fica como membro e quem não é membro deixa de ser inscrito. Os admins veem aqui todos os projetos e podem entrar num privado.",
+    "noProjects": "Ainda não há projetos.",
+    "visibility": "Quem vê {name}",
+    "workspace": "Todo o workspace",
+    "private": "Privado: só membros",
+    "privateBadge": "Projeto privado",
+    "join": "Entrar",
+    "members": "{count, plural, one {# membro} other {# membros}}",
+    "addMember": "Adicionar membro",
+    "removeMember": "Remover {name}",
+    "guestsTitle": "Convidados",
+    "guestsHelp": "Um convidado é alguém do seu time que só vê os projetos que você marcar, por exemplo um prestador ou um cliente. Você pode marcar o email antes de ele aceitar o convite.",
+    "noGuests": "Não há convidados.",
+    "pending": "convite pendente",
+    "noAccess": "nenhum projeto",
+    "edit": "Editar",
+    "removeGuest": "Remover convidado",
+    "guestForm": "Convidado",
+    "guestEmail": "Email do convidado",
+    "guestEmailHelp": "Também precisa de um convite para o time.",
+    "inviteLink": "Convidar para o time",
+    "guestProjects": "Projetos que o convidado vê",
+    "saveGuest": "Salvar convidado",
+    "footnote": "As integrações e as API keys agem como o dono e respeitam o mesmo acesso."
+  },
+  "audit": {
+    "tab": "Audit log",
+    "title": "Audit log",
+    "help": "Quem mudou o quê no Track e de onde: o app, a API, MCP, GitHub, Slack ou Sentry.",
+    "adminOnly": "Só os admins do workspace veem o audit log.",
+    "action": "Ação",
+    "allActions": "Todas as ações",
+    "search": "Buscar",
+    "searchPlaceholder": "Issue, projeto ou texto",
+    "export": "Exportar CSV",
+    "loadError": "Não foi possível carregar o audit log.",
+    "empty": "Sem eventos",
+    "emptyBody": "Aqui aparecem as mudanças em issues, projetos, acesso e integrações.",
+    "more": "Ver mais",
+    "system": "Sistema",
+    "actions": {
+      "issue_created": "criou",
+      "issue_updated": "alterou",
+      "issue_deleted": "excluiu",
+      "comment_created": "comentou em",
+      "comment_updated": "editou um comentário em",
+      "comment_deleted": "excluiu um comentário em",
+      "project_created": "criou o projeto",
+      "project_updated": "alterou o projeto",
+      "project_deleted": "excluiu o projeto",
+      "project_visibility": "mudou quem vê",
+      "access_member_added": "adicionou um membro a",
+      "access_member_removed": "removeu um membro de",
+      "access_guest_set": "configurou o acesso de convidado de",
+      "access_guest_removed": "removeu o convidado",
+      "integration_connected": "conectou",
+      "integration_updated": "alterou a integração",
+      "integration_disconnected": "desconectou",
+      "import_started": "iniciou uma importação"
+    },
+    "via": {
+      "app": "app",
+      "api": "API",
+      "mcp": "MCP",
+      "github": "GitHub",
+      "slack": "Slack",
+      "sentry": "Sentry",
+      "import": "importação",
+      "system": "sistema"
+    }
+  },
+  "issueLinks": {
+    "title": "Vínculos",
+    "add": "Vincular",
+    "urlLabel": "Link do Sentry, Zendesk, Intercom ou Figma",
+    "placeholder": "https://… Sentry, Zendesk, Intercom ou Figma",
+    "save": "Adicionar",
+    "cancel": "Cancelar",
+    "empty": "Não há threads do Slack, erros do Sentry, tickets nem designs vinculados.",
+    "unsupported": "Cole um link para um issue do Sentry, um ticket do Zendesk, uma conversa do Intercom ou um arquivo do Figma.",
+    "remove": "Desvincular {name}",
+    "showPreview": "Prévia",
+    "hidePreview": "Ocultar prévia",
+    "figmaTitle": "Prévia do Figma",
+    "states": {
+      "open": "aberto",
+      "closed": "fechado",
+      "unresolved": "não resolvido",
+      "resolved": "resolvido",
+      "ignored": "ignorado",
+      "assigned": "atribuído"
     }
   }
 }

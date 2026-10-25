@@ -101,6 +101,10 @@ export default function CommandSearch() {
       { group: 'track', label: tTrack('cmdk.myTasks'), meta: '', href: '/app/track/my-tasks' },
       { group: 'track', label: tTrack('cmdk.allIssues'), meta: '', href: '/app/track/issues' },
       { group: 'track', label: tTrack('cmdk.inbox'), meta: '', href: '/app/track/inbox' },
+      { group: 'track', label: tTrack('cmdk.integrations'), meta: '', href: '/app/track/settings?tab=integrations' },
+      { group: 'track', label: tTrack('cmdk.apiMcp'), meta: '', href: '/app/track/settings?tab=api' },
+      { group: 'track', label: tTrack('cmdk.access'), meta: '', href: '/app/track/settings?tab=access' },
+      { group: 'track', label: tTrack('cmdk.audit'), meta: '', href: '/app/track/settings?tab=audit' },
     ];
     const rest: ResultItem[] = [
       { group, label: t('newContact'), meta: '', href: '/app/crm/contacts/new' },

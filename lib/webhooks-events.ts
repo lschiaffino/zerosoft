@@ -25,6 +25,14 @@ export const WEBHOOK_EVENTS = [
   'groups.message.received',
   'groups.ticket.created',
   'groups.ticket.updated',
+  'issue.created',
+  'issue.updated',
+  'issue.status_changed',
+  'issue.deleted',
+  'comment.created',
+  'project.created',
+  'project.updated',
+  'project.deleted',
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 

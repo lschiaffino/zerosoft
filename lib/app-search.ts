@@ -1,5 +1,6 @@
 import { getDb } from '@/lib/db';
 import { likeContains } from '@/lib/track-views';
+import { trackVisibleSql } from '@/lib/track-access';
 import { boardViewer, boardVisibleSql } from '@/lib/board-access';
 import type { TeamRole } from '@/lib/teams';
 
@@ -44,8 +45,10 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   const all = (sql: string, ...args: Array<string | number>) =>
     (db.prepare(sql).all(...args, limit) as Promise<Row[]>).catch(() => [] as Row[]);
   // Mismo alcance que la lista de proyectos de Track (lib/track-data projectScope).
-  const projectWhere = teamId ? 'p.team_id = ?' : '(p.team_id IS NULL AND p.owner_id = ?)';
-  const projectArg = teamId ?? user.id;
+  // En un team, solo los proyectos que ve la persona (privados e invitados).
+  const visible = teamId ? trackVisibleSql('p', user.actingUser?.id ?? user.id) : null;
+  const projectWhere = visible ? `p.team_id = ? AND ${visible.sql}` : '(p.team_id IS NULL AND p.owner_id = ?)';
+  const projectArgs = [teamId ?? user.id, ...(visible?.args ?? [])];
   const widgetWhere = teamId ? 'team_id = ?' : 'user_id = ?';
   // Pizarras: las restringidas solo para quien tiene acceso, como la lista.
   const boardsVisible = boardVisibleSql(boardViewer(user));
@@ -61,13 +64,13 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ),
     all(
       `SELECT p.id, p.name AS label FROM track_projects p WHERE ${projectWhere} AND p.name LIKE ? ESCAPE '\\' ORDER BY p.status ASC, p.name ASC LIMIT ?`,
-      projectArg,
+      ...projectArgs,
       like,
     ),
     all(
       `SELECT i.id, i.title AS label, i.identifier AS meta FROM track_issues i JOIN track_projects p ON p.id = i.project_id
        WHERE ${projectWhere} AND (i.title LIKE ? ESCAPE '\\' OR i.identifier LIKE ? ESCAPE '\\') ORDER BY i.updated_at DESC LIMIT ?`,
-      projectArg,
+      ...projectArgs,
       like,
       like,
     ),

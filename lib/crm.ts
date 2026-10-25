@@ -345,7 +345,7 @@ async function fireEvent(
 export const fireCrmEvent = fireEvent;
 
 /** Eventos del CRM que también salen como webhooks (lib/webhooks.ts). */
-const CRM_WEBHOOK_EVENTS: Partial<Record<import('./crm-workflows').TriggerType, Exclude<WebhookEvent, `chat.${string}`>>> = {
+const CRM_WEBHOOK_EVENTS: Partial<Record<import('./crm-workflows').TriggerType, Extract<WebhookEvent, `contact.${string}` | `deal.${string}`>>> = {
   contact_created: 'contact.created',
   contact_updated: 'contact.updated',
   deal_created: 'deal.created',

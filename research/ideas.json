@@ -501,7 +501,9 @@
     "description": "Linear's public GraphQL API covers issues, projects, cycles, labels, comments and relations, plus webhooks for every entity (https://linear.app/developers, https://linear.app/developers/webhooks). Our public API (app/api/v1) covers agents, calendar, crm and links but has no track resource; app/api/track/* only accepts session auth. Teams cannot script imports, sync with other tools, or let CI open issues. First scope: /api/v1/track/issues (list, get, create, update), projects and comments, with API key scopes from lib/api-auth.ts and entries in openapi.json; reuse the generic webhooks table for issue.created and issue.updated.\n\nPriority: high. Effort: M. Compared with Linear.",
     "product": "track",
     "kind": "idea",
-    "parity": "public-api-webhooks"
+    "parity": "public-api-webhooks",
+    "status": "done",
+    "changelog": "2026-10-25-track-integrations"
   },
   {
     "title": "Track: Create cycles automatically on a cadence and roll over unfinished issues",
@@ -1945,7 +1947,9 @@
     "description": "Linear's Slack integration creates an issue from any message (with a synced comment thread), posts team and project activity to a channel, sends personal notifications as DMs and unfurls issue links (https://linear.app/docs/slack). Track only reaches Slack if someone builds a Flow with the generic Slack node. First scope: one-click Slack connect in Track › Settings, a message shortcut \"Create Track issue\" that opens a modal with project, priority and assignee and links back to the message, per-project channel notifications for created / completed / commented, and unfurls for issue URLs.\n\nPriority: high. Effort: M. Compared with Linear.",
     "product": "track",
     "kind": "idea",
-    "parity": "slack"
+    "parity": "slack",
+    "status": "done",
+    "changelog": "2026-10-25-track-integrations"
   },
   {
     "title": "Track: Add projects with lead, target date, health and written updates, plus a roadmap across them",
@@ -1966,7 +1970,9 @@
     "description": "Linear Business has private teams and guest accounts (https://linear.app/pricing); GitHub Projects and Jira have per-project permissions. In Track every workspace member sees and edits every project (canAccessTrackProject checks only the workspace), so teams that work with contractors or clients cannot use it. First scope: a project visibility setting (workspace / private with a member list), guest role that only sees projects they are added to and cannot see Cmd+K results or Inbox items from others, and enforcement in every /api/track route plus search and notifications.\n\nPriority: medium. Effort: M. Compared with Linear, Jira.",
     "product": "track",
     "kind": "idea",
-    "parity": "private-projects-guests"
+    "parity": "private-projects-guests",
+    "status": "done",
+    "changelog": "2026-10-25-track-integrations"
   },
   {
     "title": "Track: Suggest labels, assignee and possible duplicates for issues in triage",
