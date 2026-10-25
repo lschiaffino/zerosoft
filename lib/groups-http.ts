@@ -9,6 +9,7 @@ import { roleAtLeast } from './teams';
 import { limitWrites } from './write-limit';
 import { GroupsError } from './groups';
 import { ProviderError } from './groups-provider';
+import { canSeeChat, groupsViewer, type GroupsViewer } from './groups-access';
 
 export function groupsError(status: number, error: string): NextResponse {
   return NextResponse.json({ error }, { status });
@@ -21,6 +22,18 @@ export interface GroupsSession {
   /** Persona real logueada. */
   me: string;
   isAdmin: boolean;
+}
+
+/** Quién mira en este request (acceso por etiqueta y teléfonos ocultos). */
+export async function sessionViewer(s: GroupsSession): Promise<GroupsViewer> {
+  return groupsViewer(s.ws, s.me, s.user.role);
+}
+
+/** 404 si el chat no existe o la persona no lo puede ver (acceso por etiqueta). */
+export async function chatGuard(s: GroupsSession, chatId: string): Promise<{ viewer: GroupsViewer } | NextResponse> {
+  const viewer = await sessionViewer(s);
+  if (!(await canSeeChat(viewer, chatId))) return groupsError(404, 'not_found');
+  return { viewer };
 }
 
 /** Sesión o respuesta 401. `write` aplica el rate limit de escrituras. */

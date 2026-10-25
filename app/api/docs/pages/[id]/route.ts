@@ -6,6 +6,7 @@ import { SHARED_EDITABLE_FIELDS, docPageUpdateSchema } from '@/lib/docs-schema';
 import { maybeAutoSnapshot } from '@/lib/docs-versions';
 import { hydrateSyncedBlocks } from '@/lib/docs-synced';
 import { notFound, unauthorized, invalidBody, forbidden, docsError } from '@/lib/docs-http';
+import { getUserTimeZone } from '@/lib/user-tz';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,7 +42,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (!row || !access) return notFound();
   if (access === 'view') return forbidden();
 
-  const { locale, timezone, ...patch } = parsed.data;
+  const { locale: bodyLocale, timezone: bodyTimezone, ...patch } = parsed.data;
+  // Sin idioma/zona en el body (cliente viejo, API): la cookie de idioma y la
+  // de zona horaria del navegador, antes que caer en inglés y UTC.
+  const cookieLocale = req.cookies.get('NEXT_LOCALE')?.value;
+  const locale = bodyLocale ?? (cookieLocale === 'es' || cookieLocale === 'pt' || cookieLocale === 'en' ? cookieLocale : undefined);
+  const timezone = bodyTimezone ?? (patch.content ? await getUserTimeZone() : undefined);
   if (access === 'edit') {
     // Un invitado con edición cambia el contenido, nunca la publicación, la
     // IA, el árbol ni la papelera del workspace ajeno.

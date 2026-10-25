@@ -329,7 +329,10 @@
     "docCommentReply": "{actor} replied to a comment on {title}",
     "docShared": "{actor} shared {title} with you",
     "boardMention": "{actor} mentioned you in {title}",
-    "boardReply": "{actor} replied on {title}"
+    "boardReply": "{actor} replied on {title}",
+    "groupsMention": "{actor} mentioned you in {title}",
+    "groupsAssigned": "{actor} assigned you {title}",
+    "groupsAutoAssigned": "New WhatsApp chat for you: {title}"
   },
   "errors": {
     "invalid_slug": "Invalid slug. Use lowercase letters, numbers and dashes only.",

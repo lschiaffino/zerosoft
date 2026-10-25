@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { DEMO_MODE, requireUser } from '@/lib/session';
 import { countDueTasks } from '@/lib/crm';
+import { getWorkspaceMode } from '@/lib/home';
 import AppSidebar from '@/components/app/AppSidebar';
 import AppTopbar from '@/components/app/AppTopbar';
 import CommandSearch from '@/components/app/CommandSearch';
@@ -42,7 +43,7 @@ export default async function AppLayout(
   const user = await requireUser(locale);
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tasksDue, serverTz, tPlanning] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -58,9 +59,15 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'agents' }),
       getTranslations({ locale, namespace: 'robots' }),
       getTranslations({ locale, namespace: 'groups' }),
-      countDueTasks(user.id),
+      // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
+      countDueTasks(user.id).catch((err) => {
+        console.error('[app layout] countDueTasks', err);
+        return 0;
+      }),
       getUserTimeZone(),
       getTranslations({ locale, namespace: 'trackPlanning' }),
+      getWorkspaceMode(user),
+      getTranslations({ locale, namespace: 'common.categories' }),
     ]);
   // Widget de soporte: el email de la persona logueada va firmado (HMAC con el
   // secreto del widget, calculado acá) para que el inbox lo marque verificado.
@@ -77,6 +84,7 @@ export default async function AppLayout(
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
         <AppSidebar
           demo={DEMO_MODE}
+          mode={mode}
           tasksDue={tasksDue}
           user={{
             name: user.actingUser?.name ?? user.name,
@@ -87,8 +95,8 @@ export default async function AppLayout(
           crumb={
             <AppTopbar
               sections={[
-                { href: '/app', label: tLink('tabs.overview') },
                 { href: '/app/links', label: tLink('tabs.links') },
+                { href: '/app/links/overview', label: tLink('tabs.overview') },
                 { href: '/app/links/new', label: tLink('tabs.new') },
                 { href: '/app/links/bulk', label: tLink('new.title') },
                 { href: '/app/links/import', label: tLink('new.title') },
@@ -174,6 +182,8 @@ export default async function AppLayout(
                 { href: '/app/groups/inbox', label: tGroups('sidebar.inbox') },
                 { href: '/app/groups/list', label: tGroups('sidebar.groups') },
                 { href: '/app/groups/tickets', label: tGroups('sidebar.tickets') },
+                { href: '/app/groups/tasks', label: tGroups('sidebar.tasks') },
+                { href: '/app/groups/templates', label: tGroups('sidebar.templates') },
                 { href: '/app/groups/broadcasts', label: tGroups('sidebar.broadcasts') },
                 { href: '/app/groups/analytics', label: tGroups('sidebar.analytics') },
                 { href: '/app/groups/settings', label: tGroups('sidebar.settings') },
@@ -196,6 +206,15 @@ export default async function AppLayout(
             appSettings: tSide('appSettings'),
             platformHome: tSide('platformHome'),
             apps: tSide('apps'),
+            featured: tSide('featured'),
+            moreApps: tSide('moreApps'),
+            categories: {
+              sell: tCat('sell.title'),
+              support: tCat('support.title'),
+              automate: tCat('automate.title'),
+              build: tCat('build.title'),
+              daily: tCat('daily.title'),
+            },
             platform: tSide('platform'),
             collapse: tSide('collapse'),
             expand: tSide('expand'),
@@ -308,6 +327,8 @@ export default async function AppLayout(
               inbox: tGroups('sidebar.inbox'),
               groups: tGroups('sidebar.groups'),
               tickets: tGroups('sidebar.tickets'),
+              tasks: tGroups('sidebar.tasks'),
+              templates: tGroups('sidebar.templates'),
               broadcasts: tGroups('sidebar.broadcasts'),
               analytics: tGroups('sidebar.analytics'),
               settings: tGroups('sidebar.settings'),
@@ -341,6 +362,9 @@ export default async function AppLayout(
                   sla_breach: tTriage.raw('notifications.sla_breach') as string,
                   agent_update: tTriage.raw('notifications.agent_update') as string,
                 },
+                groupsMention: tTrack.raw('notifications.groupsMention') as string,
+                groupsAssigned: tTrack.raw('notifications.groupsAssigned') as string,
+                groupsAutoAssigned: tTrack.raw('notifications.groupsAutoAssigned') as string,
               },
             },
           }}

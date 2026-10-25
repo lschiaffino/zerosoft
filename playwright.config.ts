@@ -44,6 +44,15 @@ export default defineConfig({
       CRM_ENRICH_FAKE: '1',
       // Groups contra el proveedor de WhatsApp falso (lib/groups-provider-fake.ts): nada sale a WhatsApp.
       GROUPS_FAKE: '1',
+      // IA de Groups contra el modelo falso: marcado de preguntas sin responder
+      // (lib/groups-flag.ts), traducción y borradores (lib/groups-ai.ts); con la
+      // cookie groups_ai_fake=off se ve el error ai_disabled.
+      GROUPS_AI_FAKE: '1',
+      // Integraciones de Groups (Slack, Freshdesk, Zoho Desk) contra el servidor falso y push web en memoria.
+      GROUPS_INTEGRATIONS_FAKE: '1',
+      GROUPS_PUSH_FAKE: '1',
+      // Los e2e del cron (/api/cron/minute) mandan este Bearer: sin él, next start se niega a correrlo.
+      CRON_SECRET: 'e2e-cron',
       // IA del CRM contra el modelo falso (lib/crm-ai-fake.ts): cuota y ai_usage
       // corren igual; con la cookie crm_ai_fake=off se ve el error ai_disabled.
       CRM_AI_FAKE: '1',
@@ -72,8 +81,6 @@ export default defineConfig({
       TRACK_SUPPORT_FAKE: '1',
       // Bookmarks de Docs sin salir a internet (lib/docs-unfurl.ts arma un HTML fijo por dominio).
       DOCS_UNFURL_FAKE: '1',
-      // Los crons exigen el secreto en producción (next start): las suites que los llaman lo mandan.
-      CRON_SECRET: 'e2e-cron',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

@@ -3,6 +3,10 @@ import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { listNumbers } from '@/lib/groups';
 import { listBroadcasts } from '@/lib/groups-broadcasts';
+import { listRecurring } from '@/lib/groups-recurring';
+import { visibleChatIds } from '@/lib/groups-access';
+import { pageViewer } from '@/lib/groups-page';
+import RecurringTable from '@/components/groups/RecurringTable';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 
@@ -13,7 +17,13 @@ export default async function GroupsBroadcastsPage(props: { params: Promise<{ lo
   const { locale } = await props.params;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
-  const [broadcasts, numbers] = await Promise.all([listBroadcasts(user.id), listNumbers(user.id)]);
+  const [broadcasts, numbers, recurringAll, visible] = await Promise.all([
+    listBroadcasts(user.id),
+    listNumbers(user.id),
+    listRecurring(user.id),
+    pageViewer(user).then(visibleChatIds),
+  ]);
+  const recurring = visible ? recurringAll.filter((r) => r.chatIds.some((id) => visible.has(id))) : recurringAll;
   const fmt = (iso: string) => new Date(iso).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
   return (
     <div className="ui-page">
@@ -22,12 +32,25 @@ export default async function GroupsBroadcastsPage(props: { params: Promise<{ lo
         description={t('broadcasts.desc')}
         actions={
           numbers.length > 0 ? (
-            <Link href="/app/groups/broadcasts/new" className="btn btn-primary">
-              {t('broadcasts.new')}
-            </Link>
+            <span className="gr-inline-form">
+              <Link href="/app/groups/broadcasts/new?repeat=1" className="btn btn-secondary">
+                {t('recurring.new')}
+              </Link>
+              <Link href="/app/groups/broadcasts/new" className="btn btn-primary">
+                {t('broadcasts.new')}
+              </Link>
+            </span>
           ) : undefined
         }
       />
+      {numbers.length > 0 && (
+        <section className="gr-detail-section" aria-labelledby="gr-recurring-title">
+          <h2 className="gr-detail-title" id="gr-recurring-title">
+            {t('recurring.title')}
+          </h2>
+          <RecurringTable initial={recurring} />
+        </section>
+      )}
       {broadcasts.length === 0 ? (
         <EmptyState
           title={t('broadcasts.emptyTitle')}
@@ -56,6 +79,8 @@ export default async function GroupsBroadcastsPage(props: { params: Promise<{ lo
                   <td>
                     <Link href={`/app/groups/broadcasts/${b.id}`}>{b.name || b.body.slice(0, 60) || t('broadcasts.untitled')}</Link>
                     {b.kind === 'scheduled' && <span className="ui-help"> · {t('broadcasts.kindScheduled')}</span>}
+                    {b.recurringId && <span className="ui-help"> · {t('recurring.run')}</span>}
+                    {b.poll && <span className="ui-help"> · {t('polls.badge')}</span>}
                   </td>
                   <td>
                     <span className={`badge ${b.status === 'done' ? 'badge-ok' : b.status === 'cancelled' ? 'badge-outline' : 'badge-info'}`}>

@@ -578,6 +578,8 @@ section.lk-block { padding-bottom: 0; }
 
 /* Dominios */
 .lk-domains { display: flex; flex-direction: column; gap: 12px; }
+/* Sin dominios el alta va arriba: aire entre la tarjeta y "Tus dominios". */
+.lk-form + .lk-domains { margin-top: 24px; }
 .lk-domain-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .lk-domain { display: flex; flex-direction: column; gap: 14px; padding: 16px 20px; }
 .lk-domain-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }

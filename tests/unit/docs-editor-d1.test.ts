@@ -19,6 +19,7 @@ import { blocksToMarkdown } from '@/lib/docs-markdown';
 import { createDocPage, getDocPage, updateDocPage } from '@/lib/docs';
 import { getSyncedBlock, hydrateSyncedBlocks } from '@/lib/docs-synced';
 import { fireDocReminders, pageReminders } from '@/lib/docs-reminders';
+import { reminderContext } from '@/lib/docs-schema';
 import { addDocFavorite, listDocFavorites, moveInOrder, removeDocFavorite, reorderDocFavorites } from '@/lib/docs-favorites';
 import { addRowFromTemplate, defaultDatabase, removeRowTemplate, saveRowAsTemplate } from '@/lib/docs-database';
 import { fileKindFor, fileKindForRequest, iconImageUrl, isDocsStoragePathname, pageImageBlock } from '@/lib/docs-files';
@@ -216,6 +217,10 @@ describe('Docs D1: fechas y recordatorios', () => {
     expect(a + b).toBe(1);
     const notes = (await getDb().prepare("SELECT title FROM notifications WHERE user_id = ? AND type = 'docs_reminder'").all(owner.id)) as Array<{ title: string }>;
     expect(notes).toEqual([{ title: 'Recordatorio: Con recordatorio' }]);
+    // La campana dice cuándo, en el idioma y la zona de quien lo puso (12:00 UTC = 09:00 en Buenos Aires).
+    const bodies = (await getDb().prepare("SELECT body FROM notifications WHERE user_id = ? AND type = 'docs_reminder'").all(owner.id)) as Array<{ body: string }>;
+    expect(bodies[0].body).toMatch(/domingo/);
+    expect(bodies[0].body).toMatch(/09:00/);
     expect(await fireDocReminders({ now: due })).toBe(0);
 
     // Movido: vuelve a quedar pendiente. Borrado de la página: se va.
@@ -224,6 +229,27 @@ describe('Docs D1: fechas y recordatorios', () => {
     await updateDocPage(owner.id, page.id, { content: [p('Sin fecha')] }, { actorId: owner.id });
     expect(await rows()).toEqual([]);
     expect(pageReminders([p(mention('2026-10-26T12:00:00.000Z'))])).toHaveLength(1);
+  });
+
+  it('el editor manda idioma y zona con el contenido (y nada inválido)', () => {
+    expect(reminderContext({ content: [] }, 'es', 'America/Argentina/Buenos_Aires')).toEqual({
+      locale: 'es',
+      timezone: 'America/Argentina/Buenos_Aires',
+    });
+    expect(reminderContext({ title: 'x' } as { content?: unknown }, 'es', 'UTC')).toEqual({});
+    expect(reminderContext({ content: [] }, 'fr', 'Marte/Olympus')).toEqual({});
+  });
+
+  it('un recordatorio movido toma el idioma y la zona del guardado nuevo', async () => {
+    const owner = await makeUser('rem2');
+    const page = await createDocPage(owner.id, { title: 'Mover' });
+    const mention = (at: string) => dateMentionHtml({ date: '2026-10-25', remindAt: at, rid: 'rid-moved123', label: 'Oct 25' });
+    await updateDocPage(owner.id, page.id, { content: [p(mention('2026-10-25T12:00:00.000Z'))] }, { actorId: owner.id });
+    const row = async () =>
+      (await getDb().prepare('SELECT locale, timezone FROM docs_reminders WHERE page_id = ?').get(page.id)) as { locale: string; timezone: string };
+    expect(await row()).toEqual({ locale: 'en', timezone: 'UTC' });
+    await updateDocPage(owner.id, page.id, { content: [p(mention('2026-10-26T12:00:00.000Z'))] }, { actorId: owner.id, locale: 'pt', timezone: 'America/Sao_Paulo' });
+    expect(await row()).toEqual({ locale: 'pt', timezone: 'America/Sao_Paulo' });
   });
 });
 
@@ -361,5 +387,17 @@ describe('Docs D1: ecuaciones', () => {
     const [eq] = sanitizeBlocks([{ id: 'e', type: 'equation', content: 'a &lt; b<script>x</script>' }]);
     expect(eq.content).toBe('a &lt; bx');
     expect(blocksToMarkdown([{ id: 'e', type: 'equation', content: 'a &lt; b' }])).toBe('$$\na < b\n$$\n');
+  });
+});
+
+describe('Docs: búsqueda del menú /', () => {
+  it('tolera espacios y el orden de las palabras', async () => {
+    const { commandMatches } = await import('@/lib/docs-blocks');
+    const kw = ['columns', 'column', '3', 'layout', 'columnas', 'colunas'];
+    expect(commandMatches('3 columns', kw, '3 col')).toBe(true);
+    expect(commandMatches('3 columns', kw, 'col 3')).toBe(true);
+    expect(commandMatches('3 columns', kw, '3 ')).toBe(true);
+    expect(commandMatches('To-do list', [], 'todo')).toBe(true);
+    expect(commandMatches('3 columns', kw, '3 col zzz')).toBe(false);
   });
 });

@@ -29,6 +29,10 @@ export interface NotificationTextLabels {
   planReminder?: string;
   /** Track triage, SLAs y agentes (meta.kind): "{identifier} espera triage" y similares. */
   trackKinds?: Partial<Record<'triage_owner' | 'sla_risk' | 'sla_breach' | 'agent_update', string>>;
+  /** Groups: "{actor} te mencionó en {title}", "{actor} te asignó {title}", "Chat nuevo para vos: {title}". */
+  groupsMention?: string;
+  groupsAssigned?: string;
+  groupsAutoAssigned?: string;
 }
 
 export interface NotificationLike {
@@ -99,6 +103,13 @@ export function notificationTitle(n: NotificationLike, L: NotificationTextLabels
     if (source === 'docs_page' && n.type === 'mention') return fill(L.docMention, vars);
     if (source === 'docs_comment') return fill(meta.reply ? L.docCommentReply : L.docCommentMention, vars);
     return n.title;
+  }
+
+  if (source === 'groups_chat' && meta.chatName) {
+    const vars = { actor, title: String(meta.chatName) };
+    if (n.type === 'mention' && L.groupsMention) return fill(L.groupsMention, vars);
+    if (n.type === 'assigned' && meta.rule && L.groupsAutoAssigned) return fill(L.groupsAutoAssigned, vars);
+    if (n.type === 'assigned' && L.groupsAssigned) return fill(L.groupsAssigned, vars);
   }
 
   if (source === 'board_comment' && meta.boardName) {

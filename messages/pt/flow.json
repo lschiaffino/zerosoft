@@ -511,7 +511,14 @@
     "task_due": "CRM: tarefa vencida",
     "groups_message_received": "Groups: mensagem de WhatsApp recebida",
     "groups_ticket_created": "Groups: ticket criado",
-    "groups_ticket_updated": "Groups: ticket atualizado"
+    "groups_ticket_updated": "Groups: ticket atualizado",
+    "groups_message_sent": "Groups: mensagem enviada",
+    "groups_chat_created": "Groups: chat ou grupo novo",
+    "groups_chat_assigned": "Groups: chat atribuído",
+    "groups_chat_closed": "Groups: chat fechado",
+    "groups_member_joined": "Groups: membro entrou em um grupo",
+    "groups_member_left": "Groups: membro saiu de um grupo",
+    "groups_poll_voted": "Groups: voto em uma enquete"
   },
   "ops": {
     "equals": "é igual a",

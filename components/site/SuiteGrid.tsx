@@ -2,13 +2,13 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import Icon from './Icon';
 import ProductGlyph from '@/components/brand/ProductGlyph';
-import { AUDIENCE_PRODUCTS, PRODUCT_NAMES, RIVALS, type Audience } from './catalog';
+import { CATEGORY_PRODUCTS, PRODUCT_NAMES, RIVALS } from './catalog';
 import type { ProductKey } from '@/lib/products';
 
-const AUDIENCES: readonly Audience[] = ['teams', 'personal'];
-
 /**
- * La suite dividida en "Para equipos" y "Para vos": una lista de filas finas
+ * La suite por categoría (vender, atender, automatizar, construir, trabajo
+ * diario), con una nota arriba: todas sirven para equipos y para uso
+ * personal. Una lista de filas finas
  * (sin tarjetas). Cada app con su cero de color, el nombre en señalética,
  * qué hace y lo que reemplaza. Home y /products. En /products, `parity` suma
  * el porcentaje de paridad contra el competidor (content/feature-parity).
@@ -21,16 +21,21 @@ export default function SuiteGrid({
   parity?: Partial<Record<ProductKey, string>>;
 }) {
   const h = useTranslations('common.home');
+  const c = useTranslations('common.categories');
   return (
     <div className="suite">
-      {AUDIENCES.map((a) => (
-        <section key={a} className="suite-group" aria-labelledby={`suite-${a}`}>
+      <div className="suite-audience">
+        <p className="suite-audience-title">{h('suite.audienceTitle')}</p>
+        <p className="suite-audience-desc">{h('suite.audienceDesc')}</p>
+      </div>
+      {CATEGORY_PRODUCTS.map(({ category, products }) => (
+        <section key={category} className="suite-group" aria-labelledby={`suite-${category}`}>
           <header className="suite-group-head">
-            <h3 id={`suite-${a}`}>{h(`suite.${a}Title`)}</h3>
-            <p>{h(`suite.${a}Desc`)}</p>
+            <h3 id={`suite-${category}`}>{c(`${category}.title`)}</h3>
+            <p>{c(`${category}.desc`)}</p>
           </header>
           <ul className="suite-rows">
-            {AUDIENCE_PRODUCTS[a].map((k) => (
+            {products.map((k) => (
               <li key={k} className={`suite-row card-${k}`}>
                 <Link href={`/products/${k}`} className="suite-row-link">
                   <ProductGlyph product={k} size={18} className="suite-glyph" />

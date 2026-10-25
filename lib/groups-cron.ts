@@ -1,12 +1,16 @@
 /**
  * Groups: trabajo del cron de cada minuto. Envíos masivos y programados,
- * chats sin responder (flagged_at) y tickets vencidos. Cada paso reclama sus
+ * chats sin responder (flagged_at), tickets vencidos (con su email de SLA),
+ * recordatorios de tareas y asignación automática. Cada paso reclama sus
  * filas con compare-and-set, así dos corridas no hacen lo mismo dos veces.
  * Server-only.
  */
 import { getDb } from './db';
 import { processBroadcasts } from './groups-broadcasts';
+import { runDueRecurring } from './groups-recurring';
+import { syncRemoteTickets } from './groups-integrations';
 import { markBreachedTickets } from './groups-tickets';
+import { fireTaskReminders } from './groups-tasks';
 import { normalizeSettings } from './groups-rules';
 
 /** Marca los chats que esperan respuesta hace más que el umbral del workspace. */
@@ -35,6 +39,15 @@ export async function flagUnansweredChats(now = new Date(), limit = 1000): Promi
 export async function runGroupsCron(opts: { budgetMs?: number } = {}) {
   const flagged = await flagUnansweredChats().catch(() => null);
   const breached = await markBreachedTickets().catch(() => null);
+  // Tareas y recordatorios de los chats (claim por fila en reminded_for).
+  const reminders = await fireTaskReminders().catch(() => null);
+  // Las corridas recurrentes vencidas pasan a envíos; processBroadcasts los manda con el ritmo de siempre.
+  const recurring = await runDueRecurring().catch(() => null);
   const broadcasts = await processBroadcasts({ budgetMs: opts.budgetMs ?? 30_000 }).catch(() => null);
-  return { flagged, breached, broadcasts };
+  const remoteTickets = await syncRemoteTickets().catch(() => null);
+  // Los reintentos de webhooks (también los de Groups) los corre /api/cron/minute con retryDueWebhooks.
+  // Round-robin de lo que quedó sin asignar (nadie disponible cuando llegó, o recién se armó la regla).
+  const { sweepAutoAssign } = await import('./groups-inbox');
+  const assigned = await sweepAutoAssign().catch(() => null);
+  return { flagged, breached, reminders, recurring, broadcasts, remoteTickets, assigned };
 }

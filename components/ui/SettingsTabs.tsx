@@ -81,8 +81,35 @@ export default function SettingsTabs({
     activeKey = activeRouteTab(items, pathname);
   }
 
+  // Con tabs en una fila con scroll (mobile), la activa queda a la vista y los
+  // bordes se desvanecen del lado donde hay más pestañas.
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const mark = () => {
+      const scrollable = nav.scrollWidth > nav.clientWidth + 1;
+      nav.toggleAttribute('data-more-left', scrollable && nav.scrollLeft > 1);
+      nav.toggleAttribute('data-more-right', scrollable && nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 1);
+    };
+    const active = nav.querySelector<HTMLElement>('[aria-current="page"]');
+    if (active && nav.scrollWidth > nav.clientWidth + 1) {
+      const a = active.getBoundingClientRect();
+      const n = nav.getBoundingClientRect();
+      const target = nav.scrollLeft + (a.left - n.left) - (nav.clientWidth - a.width) / 2;
+      nav.scrollLeft = Math.max(0, target);
+    }
+    mark();
+    nav.addEventListener('scroll', mark, { passive: true });
+    window.addEventListener('resize', mark);
+    return () => {
+      nav.removeEventListener('scroll', mark);
+      window.removeEventListener('resize', mark);
+    };
+  }, [activeKey]);
+
   const nav = (
-    <nav className={layout === 'side' ? 'ui-settings-nav' : 'ui-tabs'} aria-label={label ?? t('sections')}>
+    <nav ref={navRef} className={layout === 'side' ? 'ui-settings-nav' : 'ui-tabs'} aria-label={label ?? t('sections')}>
       {items.map((tab) => {
         const props = {
           className: layout === 'side' ? 'ui-settings-link' : 'ui-tab',

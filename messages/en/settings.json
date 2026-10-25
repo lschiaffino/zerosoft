@@ -169,7 +169,14 @@
       "comment_created": "Comment added",
       "project_created": "Project created",
       "project_updated": "Project updated",
-      "project_deleted": "Project deleted"
+      "project_deleted": "Project deleted",
+      "groups_message_sent": "Message sent (Groups)",
+      "groups_chat_created": "New chat or group (Groups)",
+      "groups_chat_assigned": "Chat assigned (Groups)",
+      "groups_chat_closed": "Chat closed (Groups)",
+      "groups_member_joined": "Member joined a group (Groups)",
+      "groups_member_left": "Member left a group (Groups)",
+      "groups_poll_voted": "Poll vote (Groups)"
     },
     "errors": {
       "https_required": "The URL must use https.",
@@ -316,7 +323,12 @@
   },
   "cmdk": {
     "section": "Settings: {section}",
-    "product": "{app} settings"
+    "product": "{app} settings",
+    "domains": "Domains",
+    "keywords": {
+      "billing": "billing, invoices, subscription, payment, plan",
+      "domains": "custom domain, dns, short links"
+    }
   },
   "workspace": {
     "title": "Workspace details",

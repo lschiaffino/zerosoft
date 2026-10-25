@@ -13,7 +13,8 @@ next-env.d.ts
 .vercel
 .env*
 
-# Uploads locales (dev / self-host sin Blob)
+# Uploads locales (dev / self-host sin Blob; public/uploads es de versiones anteriores)
+/data/uploads/
 public/uploads/
 
 # Tests

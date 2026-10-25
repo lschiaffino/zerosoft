@@ -4090,6 +4090,305 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Groups, bandeja (lib/groups-inbox.ts): mensajes editados, borrados para
+    // todos, fijados, reenviados, traducciones cacheadas por idioma y `meta`
+    // (llamadas, eventos de asignación, menciones). En los chats: fijado y
+    // equipo asignado. Equipos de la bandeja, disponibilidad por persona y
+    // reglas de asignación round-robin (claim con compare-and-set sobre
+    // last_person_id y sobre assigned_to IS NULL).
+    id: '080_groups_inbox',
+    async up(client) {
+      for (const sql of [
+        'ALTER TABLE groups_messages ADD COLUMN edited_at TEXT',
+        'ALTER TABLE groups_messages ADD COLUMN deleted_at TEXT',
+        'ALTER TABLE groups_messages ADD COLUMN pinned_at TEXT',
+        'ALTER TABLE groups_messages ADD COLUMN pinned_by TEXT',
+        'ALTER TABLE groups_messages ADD COLUMN forwarded INTEGER NOT NULL DEFAULT 0',
+        "ALTER TABLE groups_messages ADD COLUMN translations TEXT NOT NULL DEFAULT '{}'",
+        "ALTER TABLE groups_messages ADD COLUMN meta TEXT NOT NULL DEFAULT '{}'",
+        'ALTER TABLE groups_chats ADD COLUMN pinned_at TEXT',
+        'ALTER TABLE groups_chats ADD COLUMN assigned_team_id TEXT',
+      ]) {
+        await addColumn(client, sql);
+      }
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_groups_messages_pinned ON groups_messages(chat_id) WHERE pinned_at IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_groups_chats_unassigned ON groups_chats(user_id, status) WHERE assigned_to IS NULL;
+
+        CREATE TABLE IF NOT EXISTS groups_teams (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, name)
+        );
+        CREATE TABLE IF NOT EXISTS groups_team_members (
+          team_id TEXT NOT NULL REFERENCES groups_teams(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          PRIMARY KEY (team_id, person_id)
+        );
+        CREATE TABLE IF NOT EXISTS groups_availability (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          available INTEGER NOT NULL DEFAULT 1,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, person_id)
+        );
+        CREATE TABLE IF NOT EXISTS groups_assign_rules (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          position INTEGER NOT NULL DEFAULT 0,
+          number_id TEXT,
+          label_id TEXT,
+          kind TEXT CHECK (kind IS NULL OR kind IN ('dm', 'group')),
+          team_id TEXT,
+          person_ids TEXT NOT NULL DEFAULT '[]',
+          last_person_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_assign_rules_user ON groups_assign_rules(user_id, position);
+      `);
+    },
+  },
+  {
+    // Groups, organización y tickets (lib/groups-org.ts, lib/groups-tasks.ts):
+    // propiedades propias con más tipos (multiselección, archivo, casilla,
+    // URL y desplegable dependiente) y también para tickets (scope, required
+    // al cerrar), ajustes del grupo (foto, solo admins escriben o editan,
+    // mensajes temporales, salida), marca de pregunta por mensaje (needs_reply),
+    // campos propios del ticket, plantillas de grupo, listas guardadas y
+    // tareas desde el chat (la tarea vive en crm_activities; reminded_for es
+    // el claim del cron por vencimiento).
+    id: '081_groups_org_tickets',
+    async up(client) {
+      // La tabla de propiedades tenía un CHECK con 4 tipos: se rehace con los
+      // nuevos, en una transacción (client.migrate) y solo si todavía no tiene
+      // scope, así dos instancias migrando a la vez no se pisan.
+      const defsTable = `(
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          scope TEXT NOT NULL DEFAULT 'chat' CHECK (scope IN ('chat', 'ticket')),
+          key TEXT NOT NULL,
+          label TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'text'
+            CHECK (type IN ('text', 'number', 'select', 'multiselect', 'date', 'checkbox', 'url', 'file', 'cascade')),
+          options TEXT NOT NULL DEFAULT '[]',
+          required INTEGER NOT NULL DEFAULT 0,
+          position INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, scope, key)
+        )`;
+      const current = await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'groups_property_defs'");
+      const currentSql = String(current.rows[0]?.sql ?? '');
+      if (!currentSql) {
+        await client.execute(`CREATE TABLE IF NOT EXISTS groups_property_defs ${defsTable}`);
+      } else if (!/\bscope\b/.test(currentSql)) {
+        const cols = 'id, user_id, key, label, type, options, position, created_at';
+        await client.migrate([
+          'DROP TABLE IF EXISTS groups_property_defs_v2',
+          `CREATE TABLE groups_property_defs_v2 ${defsTable}`,
+          `INSERT INTO groups_property_defs_v2 (${cols}) SELECT ${cols} FROM groups_property_defs`,
+          'DROP TABLE groups_property_defs',
+          'ALTER TABLE groups_property_defs_v2 RENAME TO groups_property_defs',
+        ]);
+      }
+      await addColumn(client, "ALTER TABLE groups_chats ADD COLUMN picture_url TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, 'ALTER TABLE groups_chats ADD COLUMN announce INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE groups_chats ADD COLUMN locked INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE groups_chats ADD COLUMN ephemeral INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE groups_chats ADD COLUMN left_at TEXT');
+      await addColumn(client, 'ALTER TABLE groups_messages ADD COLUMN needs_reply INTEGER');
+      await addColumn(client, "ALTER TABLE groups_tickets ADD COLUMN fields TEXT NOT NULL DEFAULT '{}'");
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS groups_templates (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          group_name TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          members TEXT NOT NULL DEFAULT '[]',
+          admins TEXT NOT NULL DEFAULT '[]',
+          label_ids TEXT NOT NULL DEFAULT '[]',
+          welcome TEXT NOT NULL DEFAULT '',
+          settings TEXT NOT NULL DEFAULT '{}',
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_templates_user ON groups_templates(user_id, name);
+
+        CREATE TABLE IF NOT EXISTS groups_saved_lists (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          owner_id TEXT NOT NULL,
+          shared INTEGER NOT NULL DEFAULT 0,
+          name TEXT NOT NULL,
+          filters TEXT NOT NULL DEFAULT '{}',
+          position INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_saved_lists_user ON groups_saved_lists(user_id, position);
+
+        CREATE TABLE IF NOT EXISTS groups_tasks (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          chat_id TEXT NOT NULL REFERENCES groups_chats(id) ON DELETE CASCADE,
+          message_id TEXT,
+          activity_id TEXT NOT NULL UNIQUE,
+          created_by TEXT,
+          locale TEXT NOT NULL DEFAULT 'en',
+          timezone TEXT NOT NULL DEFAULT 'UTC',
+          reminded_for TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_tasks_chat ON groups_tasks(chat_id);
+        CREATE INDEX IF NOT EXISTS idx_groups_tasks_user ON groups_tasks(user_id, created_at DESC);
+      `);
+    },
+  },
+  {
+    // Groups, plataforma: mensajes recurrentes (regla + próxima corrida, cada
+    // corrida es un envío con recurring_id), encuestas (poll en el mensaje y
+    // votos por persona), log de auditoría por chat, acceso por etiqueta y
+    // ocultar teléfonos (groups_platform), integraciones (Slack, Freshdesk,
+    // Zoho Desk) con el ticket remoto vinculado, push web (suscripciones y
+    // avisos pendientes). Los reintentos de webhooks usan el claim de 075
+    // (webhook_deliveries.claimed_until).
+    id: '082_groups_platform',
+    up: async (client) => {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS groups_recurring (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          number_id TEXT NOT NULL REFERENCES groups_numbers(id) ON DELETE CASCADE,
+          name TEXT NOT NULL DEFAULT '',
+          body TEXT NOT NULL DEFAULT '',
+          media_url TEXT NOT NULL DEFAULT '',
+          media_type TEXT NOT NULL DEFAULT '',
+          media_name TEXT NOT NULL DEFAULT '',
+          poll TEXT NOT NULL DEFAULT '',
+          chat_ids TEXT NOT NULL DEFAULT '[]',
+          rule TEXT NOT NULL DEFAULT '{}',
+          timezone TEXT NOT NULL DEFAULT 'UTC',
+          per_minute INTEGER NOT NULL DEFAULT 20,
+          status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'ended')),
+          next_run_at TEXT,
+          last_run_at TEXT,
+          runs INTEGER NOT NULL DEFAULT 0,
+          ends_at TEXT,
+          locked_until TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_recurring_user ON groups_recurring(user_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_groups_recurring_due ON groups_recurring(status, next_run_at);
+
+        CREATE TABLE IF NOT EXISTS groups_poll_votes (
+          message_id TEXT NOT NULL REFERENCES groups_messages(id) ON DELETE CASCADE,
+          voter TEXT NOT NULL,
+          voter_name TEXT NOT NULL DEFAULT '',
+          options TEXT NOT NULL DEFAULT '[]',
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (message_id, voter)
+        );
+
+        CREATE TABLE IF NOT EXISTS groups_audit (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          chat_id TEXT,
+          chat_name TEXT NOT NULL DEFAULT '',
+          actor_id TEXT,
+          actor_kind TEXT NOT NULL DEFAULT 'person',
+          action TEXT NOT NULL,
+          detail TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_audit_chat ON groups_audit(chat_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_groups_audit_user ON groups_audit(user_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS groups_platform (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          data TEXT NOT NULL DEFAULT '{}',
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS groups_label_access (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          label_id TEXT NOT NULL REFERENCES groups_labels(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          PRIMARY KEY (label_id, person_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_label_access_person ON groups_label_access(user_id, person_id);
+
+        CREATE TABLE IF NOT EXISTS groups_integrations (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL CHECK (kind IN ('slack', 'freshdesk', 'zoho')),
+          config TEXT NOT NULL DEFAULT '',
+          events TEXT NOT NULL DEFAULT '[]',
+          active INTEGER NOT NULL DEFAULT 1,
+          last_error TEXT NOT NULL DEFAULT '',
+          last_used_at TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, kind)
+        );
+
+        CREATE TABLE IF NOT EXISTS groups_ticket_links (
+          ticket_id TEXT NOT NULL REFERENCES groups_tickets(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL,
+          remote_id TEXT NOT NULL,
+          remote_url TEXT NOT NULL DEFAULT '',
+          remote_status TEXT NOT NULL DEFAULT '',
+          synced_at TEXT,
+          locked_until TEXT,
+          last_error TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (ticket_id, kind)
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_ticket_links_sync ON groups_ticket_links(synced_at);
+
+        CREATE TABLE IF NOT EXISTS groups_push_subscriptions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          endpoint TEXT NOT NULL UNIQUE,
+          p256dh TEXT NOT NULL DEFAULT '',
+          auth TEXT NOT NULL DEFAULT '',
+          user_agent TEXT NOT NULL DEFAULT '',
+          last_error TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_push_person ON groups_push_subscriptions(user_id, person_id);
+
+        CREATE TABLE IF NOT EXISTS groups_notifications (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          chat_id TEXT,
+          title TEXT NOT NULL DEFAULT '',
+          body TEXT NOT NULL DEFAULT '',
+          url TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          delivered_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_notifications_person ON groups_notifications(user_id, person_id, delivered_at);
+      `);
+      await addColumn(client, 'ALTER TABLE groups_broadcasts ADD COLUMN recurring_id TEXT');
+      await addColumn(client, "ALTER TABLE groups_messages ADD COLUMN poll TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, "ALTER TABLE groups_broadcasts ADD COLUMN poll TEXT NOT NULL DEFAULT ''");
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_groups_broadcasts_recurring ON groups_broadcasts(recurring_id) WHERE recurring_id IS NOT NULL;
+      `);
+    },
+  },
+  {
     // Track T1 (UX de Linear): hilos y reacciones en comentarios, vistas de
     // equipo y favoritas, presencia en el issue y orden manual de sub-issues.
     id: '110_track_ux',

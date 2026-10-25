@@ -1,7 +1,11 @@
 import type { IconName } from './icons';
 import { isNewLinkPath } from '@/lib/link-detail-tabs';
 import type { NotificationTextLabels } from '@/lib/notification-text';
-import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, type ProductCategory, type ProductKey } from '@/lib/products';
+import { appsByCategory } from '@/lib/workspace-mode';
+
+/** Resumen de Link (antes vivía en /app, que ahora es el inicio de la plataforma). */
+export const LINK_OVERVIEW_HREF = '/app/links/overview';
 
 /**
  * Navegación del sidebar de la app, en datos puros (sin React) para poder
@@ -28,6 +32,11 @@ export interface SidebarLabels {
   /** Shell neutro (Ajustes de la plataforma): inicio y lista de apps. */
   platformHome: string;
   apps: string;
+  /** Títulos de las categorías de apps (switcher y sidebar del inicio). */
+  categories: Record<ProductCategory, string>;
+  /** Encabezados del switcher: destacadas y el resto. */
+  featured: string;
+  moreApps: string;
   /** Nombre del shell neutro en el switcher. */
   platform: string;
   collapse: string;
@@ -137,6 +146,8 @@ export interface SidebarLabels {
     inbox: string;
     groups: string;
     tickets: string;
+    tasks: string;
+    templates: string;
     broadcasts: string;
     analytics: string;
     settings: string;
@@ -210,9 +221,9 @@ export function productKeyOf(product: AppProduct): ProductKey | null {
   return product === 'calendar' ? 'cal' : product;
 }
 
-/** Ruta de entrada de cada app en el switcher (Link sigue entrando por /app). */
+/** Ruta de entrada de cada app en el switcher (/app es el inicio de la plataforma). */
 export function switcherHref(key: ProductKey): string {
-  return key === 'link' ? '/app' : PRODUCT_CONFIG[key].launch;
+  return PRODUCT_CONFIG[key].launch;
 }
 
 /** Las apps del switcher, en orden, con nombre y ruta desde PRODUCT_CONFIG. */
@@ -234,8 +245,9 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   robots: 'robots',
 };
 
-/** Producto de la app según la ruta. /app/settings es la plataforma (neutro); Link es el default (/app, /app/links). */
+/** Producto de la app según la ruta. /app (inicio) y /app/settings son la plataforma (neutro); /app/links es Link. */
 export function appProductFromPath(pathname: string): AppProduct {
+  if (pathname === '/app' || pathname === '/app/') return 'home';
   if (pathname === '/app/settings' || pathname.startsWith('/app/settings/')) return 'home';
   for (const [prefix, product] of PRODUCT_PREFIXES) {
     if (pathname.includes(prefix)) return product;
@@ -270,12 +282,13 @@ export function buildNav(
 
   switch (product) {
     case 'home':
+      // Inicio y, debajo, las apps agrupadas por categoría (vender, atender…).
       return [
         { items: [{ href: '/app', label: labels.platformHome, active: pathname === '/app', icon: 'overview' }] },
-        {
-          section: labels.apps,
-          items: SWITCHER_PRODUCTS.map((p) => ({ href: p.href, label: p.name, active: false, icon: APP_ICONS[p.line] })),
-        },
+        ...appsByCategory().map(({ category, apps }) => ({
+          section: labels.categories[category],
+          items: apps.map((line) => ({ href: switcherHref(line), label: PRODUCT_CONFIG[line].name, active: false, icon: APP_ICONS[line] })),
+        })),
       ];
 
     case 'crm':
@@ -536,9 +549,13 @@ export function buildNav(
               label: labels.groups.inbox,
               active: at('/app/groups/inbox') || pathname === '/app/groups',
               icon: 'inbox',
+              // Listas guardadas de chats (GroupsListsBranch en el hueco #side-branch).
+              branch: true,
             },
             { href: '/app/groups/list', label: labels.groups.groups, active: at('/app/groups/list'), icon: 'groups' },
             { href: '/app/groups/tickets', label: labels.groups.tickets, active: at('/app/groups/tickets'), icon: 'tasks' },
+            { href: '/app/groups/tasks', label: labels.groups.tasks, active: at('/app/groups/tasks'), icon: 'myTasks' },
+            { href: '/app/groups/templates', label: labels.groups.templates, active: at('/app/groups/templates'), icon: 'templates' },
             { href: '/app/groups/broadcasts', label: labels.groups.broadcasts, active: at('/app/groups/broadcasts'), icon: 'bulk' },
           ],
         },
@@ -554,7 +571,7 @@ export function buildNav(
     case 'link':
     default:
       return [
-        { items: [{ href: '/app', label: labels.link.overview, active: pathname === '/app', icon: 'overview' }] },
+        { items: [{ href: LINK_OVERVIEW_HREF, label: labels.link.overview, active: pathname === LINK_OVERVIEW_HREF, icon: 'overview' }] },
         {
           section: labels.linksSection,
           items: [
@@ -563,6 +580,7 @@ export function buildNav(
               label: labels.link.links,
               active:
                 at('/app/links') &&
+                pathname !== LINK_OVERVIEW_HREF &&
                 !isNewLinkPath(pathname) &&
                 !at('/app/links/bio') &&
                 !at('/app/links/analytics') &&

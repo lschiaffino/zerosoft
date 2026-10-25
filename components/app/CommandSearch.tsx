@@ -13,6 +13,7 @@ import {
 } from '@/lib/cmdk-context';
 import { SETTINGS_SECTION_KEYS, settingsSectionHref } from '@/lib/settings-nav';
 import { PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref } from '@/lib/products';
+import { RIVALS } from '@/components/site/catalog';
 
 interface ResultItem {
   group: string;
@@ -23,6 +24,13 @@ interface ResultItem {
   event?: string;
   /** Acción en contexto (issue abierto, selección): corre en la página. */
   action?: CommandAction;
+  /** Otras palabras con las que se encuentra (sinónimos, otros idiomas). */
+  keywords?: string;
+}
+
+/** Minúsculas y sin tildes: "Facturación" encuentra "facturacion". */
+function fold(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
 
 interface SearchResponse {
@@ -33,6 +41,7 @@ interface SearchResponse {
 function useGroupOrder() {
   return useMemo(() => [
         'context',
+        'apps',
         'track',
         'actions',
         'settings',
@@ -69,6 +78,9 @@ function useGroupOrder() {
         'groupsChats',
         'groupsTickets',
         'groupsMessages',
+        'groupsLists',
+        'groupsTemplates',
+        'groupsRecurring',
       ], []);
 }
 
@@ -98,6 +110,7 @@ export default function CommandSearch() {
   const tPlanning = useTranslations('trackPlanning.cmdk');
   const tSections = useTranslations('settings.sections');
   const tSettingsCmdk = useTranslations('settings.cmdk');
+  const tCategories = useTranslations('common.categories');
   const router = useRouter();
   const pathname = usePathname();
   const inTrack = pathname.startsWith('/app/track');
@@ -186,9 +199,26 @@ export default function CommandSearch() {
       { group, label: t('newAgent'), meta: '', href: '/app/agents' },
       { group, label: t('newRobot'), meta: '', href: '/app/robots?new=1' },
       { group, label: t('newGroup'), meta: '', href: '/app/groups/list?new=1' },
+      { group, label: t('newGroupTemplate'), meta: '', href: '/app/groups/templates?new=1' },
     ];
     return inTrack ? [...track, ...rest] : [...rest, ...track];
   }, [t, tNotes, tBoard, tTrack, tPlanning, inTrack, inCrm]);
+
+  // Las apps (y el inicio): "crm", "hubspot" o "vender" llevan a la app. Solo al buscar.
+  const appItems = useMemo<ResultItem[]>(
+    () => [
+      { group: 'apps', label: t('goHome'), meta: '', href: '/app', keywords: `home,inicio,início,dashboard,${t('platformHome')}` },
+      ...PRODUCT_KEYS.map((key) => ({
+        group: 'apps',
+        label: t('openApp', { name: PRODUCT_CONFIG[key].name }),
+        meta: tCategories(`${PRODUCT_CONFIG[key].category}.title`),
+        href: PRODUCT_CONFIG[key].launch,
+        keywords: `${PRODUCT_CONFIG[key].name},${RIVALS[key]},${tCategories(`${PRODUCT_CONFIG[key].category}.title`)}`,
+      })),
+      { group: 'apps', label: t('linkOverview'), meta: 'Link', href: '/app/links/overview', keywords: 'link,overview,resumen,resumo' },
+    ],
+    [t, tCategories],
+  );
 
   // Secciones de Ajustes (plataforma y cada app): solo aparecen al buscar.
   const settingsItems = useMemo<ResultItem[]>(
@@ -198,7 +228,15 @@ export default function CommandSearch() {
         label: tSettingsCmdk('section', { section: tSections(key) }),
         meta: '',
         href: settingsSectionHref(key),
+        keywords: key === 'billing' ? tSettingsCmdk('keywords.billing') : undefined,
       })),
+      {
+        group: 'settings',
+        label: tSettingsCmdk('section', { section: tSettingsCmdk('domains') }),
+        meta: '',
+        href: '/app/links/settings?tab=domains',
+        keywords: tSettingsCmdk('keywords.domains'),
+      },
       ...PRODUCT_KEYS.map((key) => ({
         group: 'settings',
         label: tSettingsCmdk('product', { app: PRODUCT_CONFIG[key].name }),
@@ -219,6 +257,20 @@ export default function CommandSearch() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setPages([]);
+        // Un <dialog> modal abierto queda en la capa superior y taparía la
+        // paleta: se le pide cerrar (su Esc) y la paleta abre si cerró.
+        const modals = [...document.querySelectorAll<HTMLDialogElement>('dialog[open]')];
+        if (modals.length) {
+          for (const d of modals) d.dispatchEvent(new Event('cancel', { cancelable: true }));
+          // El modal cierra con su estado de React (un render después): se espera hasta ~300 ms.
+          let tries = 0;
+          const wait = () => {
+            if (!document.querySelector('dialog[open]')) setOpen(true);
+            else if (++tries < 18) requestAnimationFrame(wait);
+          };
+          requestAnimationFrame(wait);
+          return;
+        }
         setOpen((v) => !v);
       }
     }
@@ -238,6 +290,15 @@ export default function CommandSearch() {
       setItems(actionItems);
       setSel(0);
       setTimeout(() => inputRef.current?.focus(), 30);
+      // Esc cierra aunque el foco todavía no llegó al input (p. ej. abierta desde el switcher, cuyo ítem se desmontó).
+      const onEsc = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && !e.defaultPrevented) {
+          e.preventDefault();
+          setOpen(false);
+        }
+      };
+      window.addEventListener('keydown', onEsc);
+      return () => window.removeEventListener('keydown', onEsc);
     } else {
       prevFocusRef.current?.focus();
       prevFocusRef.current = null;
@@ -288,21 +349,27 @@ export default function CommandSearch() {
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&locale=${locale}`);
         const data = (await res.json()) as SearchResponse;
-        const needle = query.trim().toLowerCase();
+        const needle = fold(query.trim());
         // Las acciones cuyo texto empieza (o una palabra empieza) con lo buscado van
         // primero: "Ask" pone "Ask the CRM assistant" arriba de "New task".
-        const rank = (label: string) => {
-          const l = label.toLowerCase();
+        // Las palabras clave ("Facturación", "Billing") cuentan como una palabra más.
+        const rankText = (label: string) => {
+          const l = fold(label);
           if (l.startsWith(needle)) return 0;
-          if (l.split(/[\s(]+/).some((w) => w.startsWith(needle))) return 1;
+          if (l.split(/[\s(,]+/).some((w) => w.startsWith(needle))) return 1;
           return l.includes(needle) ? 2 : -1;
         };
+        const rankItem = (a: ResultItem) => {
+          const own = rankText(a.label);
+          if (own >= 0 || !a.keywords) return own;
+          return a.keywords.split(',').some((k) => fold(k.trim()).startsWith(needle)) ? 1 : -1;
+        };
         const byGroup = (a: ResultItem, b: ResultItem) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group);
-        const matchingActions = [...actionItems, ...settingsItems].filter((a) => rank(a.label) >= 0);
+        const matchingActions = [...appItems, ...actionItems, ...settingsItems].filter((a) => rankItem(a) >= 0);
         const results = [...(data.items ?? [])].sort(byGroup);
         setItems(
-          matchingActions.some((a) => rank(a.label) < 2)
-            ? [...matchingActions.sort((a, b) => rank(a.label) - rank(b.label) || byGroup(a, b)), ...results]
+          matchingActions.some((a) => rankItem(a) < 2)
+            ? [...matchingActions.sort((a, b) => rankItem(a) - rankItem(b) || byGroup(a, b)), ...results]
             : [...matchingActions, ...results].sort(byGroup),
         );
       } catch {
@@ -312,7 +379,7 @@ export default function CommandSearch() {
         setSel(0);
       }
     },
-    [actionItems, settingsItems, groupOrder, locale],
+    [appItems, actionItems, settingsItems, groupOrder, locale],
   );
 
   useEffect(() => {

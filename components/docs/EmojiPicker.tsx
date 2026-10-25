@@ -109,6 +109,17 @@ export default function EmojiPicker({ value, onChange, onRemove, triggerClassNam
               aria-label={t('emoji.search')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter elige el primer resultado (como en Notion).
+                if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
+                e.preventDefault();
+                const first = query.trim() ? filtered[0]?.emojis[0] : undefined;
+                if (!first) return;
+                onChange(first);
+                setOpen(false);
+                setQuery('');
+                triggerRef.current?.focus();
+              }}
               autoFocus
             />
             {onUpload && (

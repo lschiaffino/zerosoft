@@ -7,7 +7,11 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, GroupsPerson, LabelDto, MemberDto, PropertyDef } from '@/lib/groups';
 import type { ProviderCaps } from '@/lib/groups-provider';
 import { useGroupsInbox } from './InboxShell';
+import GroupSettingsSection from './GroupSettingsSection';
+import PropertyInput from './PropertyInput';
+import { ChatTasksSection } from './TaskModal';
 import { LabelTag, api, useErrorText, useToast } from './ui';
+import { AuditLog } from './PlatformPanels';
 
 interface CrmRef {
   id: string;
@@ -46,6 +50,7 @@ export default function ChatDetails({
   agents,
   crm,
   caps,
+  me = '',
   compact = false,
 }: {
   chat: ChatDto;
@@ -57,6 +62,8 @@ export default function ChatDetails({
   agents: Array<{ id: string; name: string }>;
   crm: { contact: CrmRef | null; company: CrmRef | null };
   caps: ProviderCaps;
+  /** Persona logueada (tareas: "para mí" por defecto). */
+  me?: string;
   compact?: boolean;
 }) {
   const t = useTranslations('groups');
@@ -66,6 +73,7 @@ export default function ChatDetails({
   const inbox = useGroupsInbox();
   const [toast, showToast] = useToast();
   const [members, setMembers] = useState(initialMembers);
+  const [activityOpen, setActivityOpen] = useState(false);
   const [props, setProps] = useState<Record<string, unknown>>(chat.properties);
   const [phones, setPhones] = useState('');
   const [memberBusy, setMemberBusy] = useState(false);
@@ -300,26 +308,7 @@ export default function ChatDetails({
             }}
           >
             {properties.map((p) => (
-              <label key={p.id} className="ui-field">
-                <span className="label">{p.label}</span>
-                {p.type === 'select' ? (
-                  <select className="select" value={String(props[p.key] ?? '')} onChange={(e) => setProps({ ...props, [p.key]: e.target.value })}>
-                    <option value="">—</option>
-                    {p.options.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    className="input"
-                    type={p.type === 'number' ? 'number' : p.type === 'date' ? 'date' : 'text'}
-                    value={String(props[p.key] ?? '')}
-                    onChange={(e) => setProps({ ...props, [p.key]: e.target.value })}
-                  />
-                )}
-              </label>
+              <PropertyInput key={p.id} def={p} value={props[p.key]} onChange={(v) => setProps({ ...props, [p.key]: v })} />
             ))}
             <div>
               <button type="submit" className="btn btn-secondary btn-sm">
@@ -381,7 +370,7 @@ export default function ChatDetails({
                     {m.name && <span className="gr-member-name">{m.name}</span>}
                     <span className={m.name ? 'gr-member-phone ui-help' : 'gr-member-phone'}>+{m.phone}</span>
                     {m.role !== 'member' && <span className="badge badge-outline">{t(`roles.${m.role}`)}</span>}
-                    {m.role !== 'superadmin' && (
+                    {m.role !== 'superadmin' && !(m as MemberDto & { masked?: boolean }).masked && (
                       <span className="gr-member-actions">
                         <button type="button" className="btn btn-ghost btn-sm" onClick={() => void memberAction(m.role === 'admin' ? 'demote' : 'promote', [m.phone])} disabled={memberBusy}>
                           {m.role === 'admin' ? t('details.demote') : t('details.promote')}
@@ -430,6 +419,10 @@ export default function ChatDetails({
         </section>
       )}
 
+      {isGroup && caps.groups && <GroupSettingsSection chat={chat} caps={caps} onChange={onChange} showToast={showToast} />}
+
+      <ChatTasksSection chatId={chat.id} people={people} me={me} />
+
       <section className="gr-detail-section">
         <h3 className="gr-detail-title">{t('details.tickets')}</h3>
         {tickets === null ? (
@@ -467,6 +460,15 @@ export default function ChatDetails({
           </ul>
         </section>
       )}
+
+      <section className="gr-detail-section" aria-labelledby={`gr-activity-${chat.id}`}>
+        <details className="gr-activity" onToggle={(e) => setActivityOpen((e.currentTarget as HTMLDetailsElement).open)}>
+          <summary className="gr-detail-title" id={`gr-activity-${chat.id}`}>
+            {t('audit.title')}
+          </summary>
+          {activityOpen && <AuditLog key={`${chat.assignedTo}-${chat.status}-${chat.labels.length}`} chatId={chat.id} people={people} compact />}
+        </details>
+      </section>
 
       <section className="gr-detail-section gr-detail-foot">
         <p className="ui-help">{t('details.since', { time: new Date(chat.createdAt).toLocaleDateString(locale) })}</p>

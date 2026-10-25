@@ -6,6 +6,8 @@ import { useRouter } from '@/i18n/navigation';
 import type { ChatDto, LabelDto, NumberDto, PropertyDef } from '@/lib/groups';
 import { chatVariables, renderVariables } from '@/lib/groups-rules';
 import { ChatPlate, LabelTag, NumberOptions, api, defaultNumberId, useErrorText } from './ui';
+import { DEFAULT_RULE, PollFields, RecurrenceFields, browserTimezone, checkRule, endsIso } from './RecurringParts';
+import type { RecurrenceRule } from '@/lib/groups-recurrence';
 
 /**
  * Nuevo envío masivo: número de salida, destinatarios (grupos y chats, con
@@ -18,12 +20,14 @@ export default function BroadcastComposer({
   labels,
   properties,
   preselected,
+  initialWhen = 'now',
 }: {
   numbers: NumberDto[];
   chats: ChatDto[];
   labels: LabelDto[];
   properties: PropertyDef[];
   preselected: string[];
+  initialWhen?: 'now' | 'later' | 'repeat';
 }) {
   const t = useTranslations('groups');
   const errText = useErrorText();
@@ -36,7 +40,12 @@ export default function BroadcastComposer({
   const [label, setLabel] = useState('');
   const [kind, setKind] = useState('');
   const [q, setQ] = useState('');
-  const [when, setWhen] = useState<'now' | 'later'>('now');
+  const [when, setWhen] = useState<'now' | 'later' | 'repeat'>(initialWhen);
+  const [content, setContent] = useState<'text' | 'poll'>('text');
+  const [poll, setPoll] = useState({ question: '', options: ['', ''], multi: false });
+  const [rule, setRule] = useState<RecurrenceRule>(DEFAULT_RULE);
+  const [timezone, setTimezone] = useState(browserTimezone);
+  const [endsAt, setEndsAt] = useState('');
   const [at, setAt] = useState('');
   const [perMinute, setPerMinute] = useState(20);
   const [media, setMedia] = useState<{ url: string; mimetype: string; filename: string } | null>(null);
@@ -83,10 +92,30 @@ export default function BroadcastComposer({
     else setMedia({ url: data.url, mimetype: data.mimetype ?? file.type, filename: data.filename ?? file.name });
   }
 
+  const number = numbers.find((n) => n.id === numberId);
+  const pollsOk = number?.caps.polls ?? false;
+  const pollPayload = content === 'poll' ? { question: poll.question, options: poll.options.map((o) => o.trim()).filter(Boolean), multi: poll.multi } : null;
+
   async function submit() {
     setError('');
     if (chosen.length === 0) return setError(errText('no_recipients'));
-    if (!body.trim() && !media) return setError(errText('empty_message'));
+    if (pollPayload) {
+      if (!pollsOk) return setError(errText('polls_unsupported'));
+      if (!pollPayload.question.trim()) return setError(errText('poll_question'));
+      if (pollPayload.options.length < 2) return setError(errText('poll_options'));
+    } else if (!body.trim() && !media) return setError(errText('empty_message'));
+    if (when === 'repeat') {
+      const bad = checkRule(rule);
+      if (bad) return setError(errText(bad));
+      setBusy(true);
+      const res = await api<{ id: string }>('/api/groups/recurring', {
+        body: { numberId, name, body, media: pollPayload ? null : media, poll: pollPayload, chatIds: chosen.map((c) => c.id), rule, timezone, endsAt: endsIso(endsAt), perMinute },
+      });
+      setBusy(false);
+      if (!res.data) return setError(errText(res.error));
+      router.push(`/app/groups/broadcasts/recurring/${res.data.id}`);
+      return;
+    }
     let scheduledAt: string | null = null;
     if (when === 'later') {
       const ts = Date.parse(at);
@@ -95,7 +124,7 @@ export default function BroadcastComposer({
     }
     setBusy(true);
     const res = await api<{ id: string }>('/api/groups/broadcasts', {
-      body: { numberId, name, body, media, chatIds: chosen.map((c) => c.id), scheduledAt, perMinute },
+      body: { numberId, name, body, media: pollPayload ? null : media, poll: pollPayload, chatIds: chosen.map((c) => c.id), scheduledAt, perMinute },
     });
     setBusy(false);
     if (!res.data) return setError(errText(res.error));
@@ -131,9 +160,28 @@ export default function BroadcastComposer({
               </select>
             </label>
           </div>
+          <div className="gr-composer-tabs ui-tabs" role="tablist" aria-label={t('polls.contentLabel')}>
+            <button type="button" role="tab" className="ui-tab" aria-selected={content === 'text'} onClick={() => setContent('text')}>
+              {t('polls.modeText')}
+            </button>
+            <button type="button" role="tab" className="ui-tab" aria-selected={content === 'poll'} onClick={() => setContent('poll')}>
+              {t('polls.modePoll')}
+            </button>
+          </div>
+          {content === 'poll' ? (
+            <>
+              {!pollsOk && (
+                <p className="gr-banner is-bad" role="alert">
+                  {t('polls.unsupported')}
+                </p>
+              )}
+              <PollFields question={poll.question} options={poll.options} multi={poll.multi} onChange={setPoll} idPrefix="bc" />
+            </>
+          ) : (
+          <>
           <label className="ui-field">
             <span className="label">{t('broadcasts.message')}</span>
-            <textarea ref={bodyRef} className="textarea" rows={6} value={body} onChange={(e) => setBody(e.target.value)} maxLength={4096} required={!media} />
+            <textarea ref={bodyRef} className="textarea" rows={6} value={body} onChange={(e) => setBody(e.target.value)} maxLength={4096} required={!media && content === 'text'} />
           </label>
           <div className="gr-vars" aria-label={t('broadcasts.variables')}>
             <span className="ui-help">{t('broadcasts.variables')}</span>
@@ -165,6 +213,8 @@ export default function BroadcastComposer({
               </span>
             )}
           </div>
+          </>
+          )}
           <fieldset className="ui-field">
             <legend className="label">{t('broadcasts.when')}</legend>
             <div className="gr-inline-form">
@@ -176,11 +226,18 @@ export default function BroadcastComposer({
                 <input type="radio" name="when" checked={when === 'later'} onChange={() => setWhen('later')} />
                 {t('broadcasts.later')}
               </label>
+              <label className="gr-check-label">
+                <input type="radio" name="when" checked={when === 'repeat'} onChange={() => setWhen('repeat')} />
+                {t('recurring.option')}
+              </label>
               {when === 'later' && (
                 <input className="input" type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} aria-label={t('thread.scheduleAt')} required />
               )}
             </div>
           </fieldset>
+          {when === 'repeat' && (
+            <RecurrenceFields rule={rule} onChange={setRule} timezone={timezone} onTimezone={setTimezone} endsAt={endsAt} onEndsAt={setEndsAt} />
+          )}
           <label className="ui-field">
             <span className="label">{t('broadcasts.perMinute')}</span>
             <input className="input gr-narrow" type="number" min={1} max={60} value={perMinute} onChange={(e) => setPerMinute(Math.min(60, Math.max(1, Number(e.target.value) || 1)))} />
@@ -188,7 +245,7 @@ export default function BroadcastComposer({
           </label>
           <div className="gr-preview">
             <p className="label">{t('broadcasts.preview', { name: sample?.name ?? '' })}</p>
-            <p className="gr-bubble gr-pre">{preview || t('broadcasts.previewEmpty')}</p>
+            <p className="gr-bubble gr-pre">{pollPayload ? `📊 ${pollPayload.question}\n${pollPayload.options.map((o) => `○ ${o}`).join('\n')}` : preview || t('broadcasts.previewEmpty')}</p>
           </div>
           {error && (
             <p className="ui-error" role="alert">
@@ -197,7 +254,11 @@ export default function BroadcastComposer({
           )}
           <div>
             <button type="submit" className="btn btn-primary" aria-busy={busy || undefined} disabled={busy}>
-              {when === 'later' ? t('broadcasts.schedule', { n: chosen.length }) : t('broadcasts.sendNow', { n: chosen.length })}
+              {when === 'repeat'
+                ? t('recurring.create', { n: chosen.length })
+                : when === 'later'
+                  ? t('broadcasts.schedule', { n: chosen.length })
+                  : t('broadcasts.sendNow', { n: chosen.length })}
             </button>
           </div>
           <p className="ui-help">{t('broadcasts.risk')}</p>

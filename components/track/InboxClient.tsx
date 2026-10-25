@@ -208,6 +208,9 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
       sla_breach: tTriage.raw('notifications.sla_breach') as string,
       agent_update: tTriage.raw('notifications.agent_update') as string,
     },
+    groupsMention: tr.raw('notifications.groupsMention') as string,
+    groupsAssigned: tr.raw('notifications.groupsAssigned') as string,
+    groupsAutoAssigned: tr.raw('notifications.groupsAutoAssigned') as string,
   };
 
   const firstLoad = loading && rows.length === 0;

@@ -169,7 +169,14 @@
       "comment_created": "Comentario nuevo",
       "project_created": "Proyecto creado",
       "project_updated": "Proyecto editado",
-      "project_deleted": "Proyecto borrado"
+      "project_deleted": "Proyecto borrado",
+      "groups_message_sent": "Mensaje enviado (Groups)",
+      "groups_chat_created": "Chat o grupo nuevo (Groups)",
+      "groups_chat_assigned": "Chat asignado (Groups)",
+      "groups_chat_closed": "Chat cerrado (Groups)",
+      "groups_member_joined": "Miembro entró a un grupo (Groups)",
+      "groups_member_left": "Miembro salió de un grupo (Groups)",
+      "groups_poll_voted": "Voto en una encuesta (Groups)"
     },
     "errors": {
       "https_required": "La URL tiene que usar https.",
@@ -316,7 +323,12 @@
   },
   "cmdk": {
     "section": "Ajustes: {section}",
-    "product": "Ajustes de {app}"
+    "product": "Ajustes de {app}",
+    "domains": "Dominios",
+    "keywords": {
+      "billing": "facturación, facturas, suscripción, pago, billing, plan",
+      "domains": "dominio propio, dns, links cortos, domains"
+    }
   },
   "workspace": {
     "title": "Datos del workspace",

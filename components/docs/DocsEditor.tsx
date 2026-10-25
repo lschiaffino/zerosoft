@@ -63,6 +63,7 @@ import {
   MAX_COLUMNS,
 } from '@/lib/docs-columns';
 import { embedFor, pastedUrl } from '@/lib/docs-embeds';
+import { commandMatches } from '@/lib/docs-blocks';
 import { dateLabel, dateMentionHtml, dateSuggestions, localInstant } from '@/lib/docs-dates';
 import { buildToc } from '@/lib/docs-toc';
 import { markdownToBlocks } from '@/lib/docs-import';
@@ -509,6 +510,8 @@ export default function DocsEditor({
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   /** Caret pendiente de aplicar después del próximo render (split/merge/conversión). */
   const pendingCaret = useRef<{ index: number; offset: number } | null>(null);
+  /** Párrafo que recibe el foco cuando termina una subida (ver uploadFiles). */
+  const pendingFocusId = useRef<string | null>(null);
   /** Último índice enfocado conocido, para no re-mover el caret en cada render. */
   // En el teléfono no se enfoca el primer bloque al abrir: el asa y el "+"
   // aparecen recién cuando la persona toca un bloque.
@@ -708,6 +711,25 @@ export default function DocsEditor({
       }
     }
   }, [focusIndex, blocks, focusTick]);
+
+  // Al terminar una subida: el cursor a la línea de abajo del bloque (como
+  // Notion), si la persona no se fue a otro lado mientras subía.
+  useLayoutEffect(() => {
+    const id = pendingFocusId.current;
+    if (!id) return;
+    const i = blocks.findIndex((b) => b.id === id);
+    if (i === -1) return;
+    pendingFocusId.current = null;
+    const active = document.activeElement;
+    const root = rootRef.current;
+    if (active && active !== document.body && !(root && root.contains(active)) && active.tagName !== 'INPUT') return;
+    const el = blockRefs.current[i];
+    if (!el) return;
+    el.focus();
+    setCaretOffset(el, 0);
+    prevFocus.current = i;
+    setFocusIndex(i);
+  }, [blocks]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -984,6 +1006,7 @@ export default function DocsEditor({
       setUploadError(null);
       let anchor = anchorId;
       let replaceId = opts.replaceId ?? null;
+      let placedAny = false;
       const max = await uploadLimit(uploadUrl);
       for (const file of files) {
         if (file.size > max) {
@@ -1020,6 +1043,7 @@ export default function DocsEditor({
           });
           anchor = newBlock.id;
           replaceId = null;
+          placedAny = true;
         } catch (err) {
           const code = err instanceof DocsUploadError ? err.code : 'failed';
           const key =
@@ -1034,6 +1058,28 @@ export default function DocsEditor({
         } finally {
           setUploading((n) => n - 1);
         }
+      }
+      // Una línea para seguir escribiendo debajo del último bloque subido: la
+      // vacía que ya estaba ahí o una nueva, con el foco adentro.
+      const last = anchor;
+      if (placedAny && last) {
+        setBlocks((prev) => {
+          const i = prev.findIndex((b) => b.id === last);
+          if (i === -1) return prev;
+          const after = prev[i + 1];
+          const level = blockIndent(prev[i]);
+          if (after && after.type === 'paragraph' && after.content === '' && blockIndent(after) === level) {
+            pendingFocusId.current = after.id;
+            return prev;
+          }
+          const para = setIndent({ id: newId(), type: 'paragraph', content: '' }, level);
+          pendingFocusId.current = para.id;
+          const next = [...prev];
+          next.splice(i + 1, 0, para);
+          triggerSaveRef.current(next);
+          return next;
+        });
+        setFocusTick((v) => v + 1);
       }
     },
     [uploadUrl, t, uploadsEnabled, setBlocks],
@@ -1678,27 +1724,21 @@ export default function DocsEditor({
     [blocks, slash, convertBlock, triggerSave, setBlocks, updateBlock, locale, readCaretMenuPos, dateHtmlFor],
   );
 
-  const filteredCommands = useMemo(() => {
-    const q = cmdQuery.trim().toLowerCase();
-    const qn = q.replace(/[^a-z0-9]/g, '');
-    return BLOCK_COMMANDS.map((c) => ({ ...c, label: t(`editor.commands.${c.key}`) })).filter(
-      (c) => {
+  /** Comandos del menú `/` que coinciden con `query` (tolerante: "3 col", "col 3", "todo"). */
+  const commandsFor = useCallback(
+    (query: string) =>
+      BLOCK_COMMANDS.map((c) => ({ ...c, label: t(`editor.commands.${c.key}`) })).filter((c) => {
         if (!uploadsEnabled && isFileBlockType(c.type)) return false;
         if (!allowDatabase && c.type === 'database') return false;
         // Pizarras, sincronizados, breadcrumb y fechas con recordatorio: solo en Docs (no en Notes ni en filas).
         if (embedded && (c.type === 'board' || c.type === 'synced' || c.type === 'breadcrumb' || c.special === 'date' || c.special === 'reminder')) return false;
-        if (!q) return true;
-        const label = c.label.toLowerCase();
-        if (label.includes(q)) return true;
-        // Label normalizado ("to-do" → "todo") para que "/todo" matchee "To-do".
-        if (qn && label.replace(/[^a-z0-9]/g, '').includes(qn)) return true;
-        return (COMMAND_KEYWORDS[c.key] ?? []).some((k) => {
-          const kl = k.toLowerCase();
-          return kl.includes(q) || (qn !== '' && kl.replace(/[^a-z0-9]/g, '').includes(qn));
-        });
-      },
-    );
-  }, [t, cmdQuery, uploadsEnabled, embedded, allowDatabase]);
+        return commandMatches(c.label, COMMAND_KEYWORDS[c.key] ?? [], query);
+      }),
+    [t, uploadsEnabled, embedded, allowDatabase],
+  );
+  const commandsForRef = useRef(commandsFor);
+  commandsForRef.current = commandsFor;
+  const filteredCommands = useMemo(() => commandsFor(cmdQuery), [commandsFor, cmdQuery]);
 
   /** Enter en párrafo/heading/listas/todo: split en el caret o continuación de lista. */
   const splitBlock = useCallback(
@@ -2273,9 +2313,12 @@ export default function DocsEditor({
       }
       setUserMention(null);
 
-      // Menú `/`: '/' al inicio o tras un espacio, query sin espacios ni '/'.
-      const slashMatch = !isCode ? beforeCaret.match(/(?:^|\s)\/([^\s/]*)$/) : null;
-      if (slashMatch) {
+      // Menú `/`: '/' al inicio o tras un espacio, query sin '/'. Puede tener
+      // espacios ("/3 col") mientras algún comando coincida, como en Notion.
+      const slashMatch = !isCode ? beforeCaret.match(/(?:^|\s)\/((?:[^\s/][^/\n]{0,30})?)$/) : null;
+      if (slashMatch && /\s/.test(slashMatch[1]) && commandsForRef.current(slashMatch[1]).length === 0) {
+        closeSlash();
+      } else if (slashMatch) {
         const query = slashMatch[1] ?? '';
         setSlash({ index, start: caret - query.length - 1, end: caret });
         setCmdOpen(true);

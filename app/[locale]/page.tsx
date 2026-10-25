@@ -291,7 +291,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                   {'    '}
                   <span className="tk-k">volumes</span>:{'\n'}
                   {'      '}- zerosoft-data:/app/data{'\n'}
-                  {'      '}- zerosoft-uploads:/app/public/uploads
+                  {'      '}- zerosoft-uploads:/app/uploads
                 </code>
               </pre>
             </div>

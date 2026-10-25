@@ -1,16 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, GroupsPerson, LabelDto, MemberDto, MessageDto, PropertyDef, QuickReply } from '@/lib/groups';
 import type { ProviderCaps } from '@/lib/groups-provider';
+import { mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
+import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import ChatDetails from './ChatDetails';
+import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
+import TaskModal from './TaskModal';
 import { ChatPlate, Modal, api, useErrorText, useMediaText, useToast } from './ui';
+import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezone, checkRule, endsIso } from './RecurringParts';
+import type { RecurrenceRule } from '@/lib/groups-recurrence';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🙏', '✅'];
+const TRANSLATE_STORE = 'zs-groups-translate';
 
 export interface ThreadProps {
   chat: ChatDto;
@@ -23,19 +31,44 @@ export interface ThreadProps {
   agents: Array<{ id: string; name: string }>;
   crm: { contact: { id: string; name: string } | null; company: { id: string; name: string } | null };
   me: string;
+  isAdmin: boolean;
   numberName: string;
   caps: ProviderCaps;
   ticketEmoji: string;
+  pinned: MessageDto[];
+  teams: Array<{ id: string; name: string }>;
 }
 
 function dayKey(iso: string) {
   return iso.slice(0, 10);
 }
 
+function readTranslatePref(chatId: string): boolean {
+  try {
+    const raw = window.localStorage.getItem(TRANSLATE_STORE);
+    return raw ? (JSON.parse(raw) as string[]).includes(chatId) : false;
+  } catch {
+    return false;
+  }
+}
+
+function saveTranslatePref(chatId: string, on: boolean) {
+  try {
+    const raw = window.localStorage.getItem(TRANSLATE_STORE);
+    const list = new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    if (on) list.add(chatId);
+    else list.delete(chatId);
+    window.localStorage.setItem(TRANSLATE_STORE, JSON.stringify([...list].slice(-200)));
+  } catch {
+    // Sin storage: la traducción dura lo que dura la página.
+  }
+}
+
 /**
  * Un chat o grupo: mensajes, composer (respuesta o nota interna) y el panel
  * de detalles. Trae lo nuevo cada 4 s. Teclado: R responder, N nota,
- * E cerrar o reabrir, A asignarme, T ticket del último mensaje del cliente.
+ * E cerrar o reabrir, A asignarme, T ticket del último mensaje del cliente,
+ * U leído o no leído, P fijar el chat, L traducir.
  */
 export default function ChatThread(props: ThreadProps) {
   const t = useTranslations('groups');
@@ -46,7 +79,9 @@ export default function ChatThread(props: ThreadProps) {
   const [toast, showToast] = useToast();
   const [chat, setChat] = useState(props.chat);
   const [messages, setMessages] = useState(props.messages);
+  const [pinned, setPinned] = useState(props.pinned);
   const [text, setText] = useState('');
+  const [caret, setCaret] = useState(0);
   const [mode, setMode] = useState<'reply' | 'note'>('reply');
   const [replyTo, setReplyTo] = useState<MessageDto | null>(null);
   const [attachment, setAttachment] = useState<{ url: string; mimetype: string; filename: string } | null>(null);
@@ -57,23 +92,59 @@ export default function ChatThread(props: ThreadProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [summary, setSummary] = useState<{ text: string; error: string; busy: boolean } | null>(null);
   const [schedule, setSchedule] = useState<{ open: boolean; at: string; busy: boolean; error: string }>({ open: false, at: '', busy: false, error: '' });
+  const [pollOpen, setPollOpen] = useState(false);
+  const [poll, setPoll] = useState({ question: '', options: ['', ''], multi: false });
+  const [pollBusy, setPollBusy] = useState(false);
+  const [pollError, setPollError] = useState('');
+  const [repeat, setRepeat] = useState(false);
+  const [rule, setRule] = useState<RecurrenceRule>(DEFAULT_RULE);
+  const [timezone, setTimezone] = useState(browserTimezone);
+  const [endsAt, setEndsAt] = useState('');
   const [ticketFor, setTicketFor] = useState<MessageDto | null>(null);
   const [ticketTitle, setTicketTitle] = useState('');
   const [ticketPriority, setTicketPriority] = useState('medium');
   const [ticketBusy, setTicketBusy] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; text: string; busy: boolean } | null>(null);
+  const [deleting, setDeleting] = useState<MessageDto | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [forwarding, setForwarding] = useState<MessageDto | null>(null);
+  const [translateOn, setTranslateOn] = useState(false);
+  const [translations, setTranslations] = useState<Record<string, { lang: string; text: string }>>({});
+  const [translateError, setTranslateError] = useState('');
+  const [showOriginal, setShowOriginal] = useState<Set<string>>(new Set());
+  const [aiBusy, setAiBusy] = useState<'' | 'draft' | 'polish' | 'translate'>('');
+  const [undoText, setUndoText] = useState<string | null>(null);
+  const [draftSources, setDraftSources] = useState<string[]>([]);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [taskFor, setTaskFor] = useState<MessageDto | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const requested = useRef<Set<string>>(new Set());
+  const pendingCaret = useRef<number | null>(null);
+
+  // Después de insertar una mención, el cursor queda justo después (antes de la próxima tecla).
+  useLayoutEffect(() => {
+    if (pendingCaret.current === null) return;
+    inputRef.current?.focus();
+    inputRef.current?.setSelectionRange(pendingCaret.current, pendingCaret.current);
+    pendingCaret.current = null;
+  }, [text]);
 
   const peopleById = useMemo(() => new Map(props.people.map((p) => [p.id, p.name || p.email])), [props.people]);
+  const nameOf = useCallback((id: string | null | undefined) => (id ? peopleById.get(id) ?? '' : ''), [peopleById]);
   const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
+  const viewer = useMemo(() => ({ me: props.me, isAdmin: props.isAdmin }), [props.me, props.isAdmin]);
+  const mentionPeople = useMemo(() => props.people.map((p) => ({ id: p.id, name: p.name || null, email: p.email })), [props.people]);
 
   // Abrir el chat lo marca leído.
   useEffect(() => {
     if (props.chat.unread > 0) void api(`/api/groups/chats/${props.chat.id}`, { method: 'PATCH', body: { read: true } }).then(() => refresh());
   }, [props.chat.id, props.chat.unread, refresh]);
 
-  // Con #m-<id> (Cmd+K, tickets) va a ese mensaje y lo marca; si no, al final.
+  useEffect(() => setTranslateOn(readTranslatePref(props.chat.id)), [props.chat.id]);
+
+  // Con #m-<id> (Cmd+K, tickets, avisos) va a ese mensaje y lo marca; si no, al final.
   const jumped = useRef(false);
   useEffect(() => {
     const hash = typeof window !== 'undefined' ? window.location.hash.slice(1) : '';
@@ -97,7 +168,7 @@ export default function ChatThread(props: ThreadProps) {
     });
   }, []);
 
-  // Cada 4 s, los últimos 60: lo nuevo y los cambios en lo reciente (estado, reacciones, ticket por emoji).
+  // Cada 4 s, los últimos 60: lo nuevo y los cambios en lo reciente (estado, reacciones, ediciones, llamadas).
   useEffect(() => {
     const id = setInterval(async () => {
       if (document.visibilityState !== 'visible') return;
@@ -107,21 +178,83 @@ export default function ChatThread(props: ThreadProps) {
     return () => clearInterval(id);
   }, [chat.id, merge]);
 
+  // Traducción: lo que ya está en caché viene con el mensaje; lo demás se pide (una vez por mensaje).
+  useEffect(() => {
+    if (!translateOn) return;
+    const cached: Record<string, { lang: string; text: string }> = {};
+    const missing: string[] = [];
+    for (const m of messages) {
+      if (m.direction !== 'in' || !m.body.trim() || m.deletedAt) continue;
+      if (m.translations[locale] !== undefined) cached[m.id] = { lang: m.translations._lang ?? '', text: m.translations[locale] };
+      else if (!requested.current.has(m.id)) missing.push(m.id);
+    }
+    if (Object.keys(cached).length) setTranslations((prev) => ({ ...prev, ...cached }));
+    if (missing.length === 0) return;
+    const batch = missing.slice(-40);
+    batch.forEach((id) => requested.current.add(id));
+    void api<{ translations: Array<{ id: string; lang: string; text: string }> }>(`/api/groups/chats/${chat.id}/translate`, {
+      body: { messageIds: batch, to: locale },
+    }).then((res) => {
+      if (!res.data) {
+        batch.forEach((id) => requested.current.delete(id));
+        setTranslateError(errText(res.error));
+        return;
+      }
+      setTranslateError('');
+      setTranslations((prev) => ({ ...prev, ...Object.fromEntries(res.data.translations.map((x) => [x.id, { lang: x.lang, text: x.text }])) }));
+    });
+  }, [translateOn, messages, chat.id, locale, errText]);
+
+  function toggleTranslate() {
+    const next = !translateOn;
+    setTranslateOn(next);
+    setTranslateError('');
+    saveTranslatePref(chat.id, next);
+  }
+
   const patchChat = useCallback(
     async (body: Record<string, unknown>) => {
       const res = await api<ChatDto>(`/api/groups/chats/${chat.id}`, { method: 'PATCH', body });
       if (res.data) {
         setChat(res.data);
         refresh();
+        // El historial (asignado, cerrado) aparece en el hilo.
+        const fresh = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=20`);
+        if (fresh.data) merge(fresh.data.messages);
       } else showToast(errText(res.error), true);
       return res.data;
     },
-    [chat.id, refresh, showToast, errText],
+    [chat.id, refresh, showToast, errText, merge],
   );
 
-  // "/" al principio abre las respuestas rápidas.
-  const slash = /^\/([a-z0-9_-]*)$/i.exec(text.trim());
+  // "/" al principio abre las respuestas rápidas; "@" en una nota, las personas.
+  const slash = mode === 'reply' ? /^\/([a-z0-9_-]*)$/i.exec(text.trim()) : null;
   const quickMatches = slash ? props.quickReplies.filter((q) => q.shortcut.startsWith(slash[1].toLowerCase())).slice(0, 6) : [];
+  const mentionQuery = mode === 'note' ? mentionQueryAt(text, caret) : null;
+  const mentionMatches = mentionQuery ? mentionSuggestions(mentionQuery.query, mentionPeople) : [];
+
+  // Idioma del cliente: el detectado en su último mensaje traducido.
+  const customerLang = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.direction !== 'in') continue;
+      const lang = translations[m.id]?.lang || m.translations._lang;
+      if (lang && lang in TRANSLATE_LANGS) return lang;
+    }
+    return '';
+  }, [messages, translations]);
+
+  function pickMention(i: number) {
+    const p = mentionMatches[i];
+    if (!p || !mentionQuery) return;
+    const insert = `${mentionText(p)} `;
+    const next = text.slice(0, mentionQuery.start) + insert + text.slice(caret);
+    setText(next);
+    const pos = mentionQuery.start + insert.length;
+    setCaret(pos);
+    setMentionIndex(0);
+    pendingCaret.current = pos;
+  }
 
   async function send() {
     if (sending || (!text.trim() && !attachment)) return;
@@ -142,11 +275,25 @@ export default function ChatThread(props: ThreadProps) {
     setText('');
     setReplyTo(null);
     setAttachment(null);
+    setUndoText(null);
+    setDraftSources([]);
     refresh();
     inputRef.current?.focus();
   }
 
   function onComposerKey(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (mentionMatches.length > 0) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex((i) => (i + (e.key === 'ArrowDown' ? 1 : -1) + mentionMatches.length) % mentionMatches.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        pickMention(Math.min(mentionIndex, mentionMatches.length - 1));
+        return;
+      }
+    }
     if (quickMatches.length > 0 && (e.key === 'Enter' || e.key === 'Tab')) {
       e.preventDefault();
       setText(quickMatches[0].body);
@@ -205,7 +352,76 @@ export default function ChatThread(props: ThreadProps) {
     }
     merge([{ ...ticketFor, ticketId: res.data.ticket.id }]);
     setTicketFor(null);
+    // El ticket desmarca el chat (deja de estar sin responder o vencido): la fila de la lista también.
+    refresh();
     showToast(res.data.created ? t('thread.ticketCreated', { n: res.data.ticket.number }) : t('thread.ticketExists', { n: res.data.ticket.number }));
+  }
+
+  async function saveEdit() {
+    if (!editing || editing.busy) return;
+    if (!editing.text.trim()) return;
+    setEditing({ ...editing, busy: true });
+    const res = await api<MessageDto>(`/api/groups/messages/${editing.id}`, { body: { action: 'edit', body: editing.text } });
+    if (!res.data) {
+      setEditing({ ...editing, busy: false });
+      showToast(errText(res.error), true);
+      return;
+    }
+    merge([res.data]);
+    setPinned((list) => list.map((p) => (p.id === res.data!.id ? res.data! : p)));
+    setEditing(null);
+    refresh();
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    const res = await api<{ removed: boolean; message: MessageDto | null }>(`/api/groups/messages/${deleting.id}`, { method: 'DELETE' });
+    setDeleteBusy(false);
+    const target = deleting;
+    setDeleting(null);
+    if (!res.data) {
+      showToast(errText(res.error), true);
+      return;
+    }
+    if (res.data.removed) setMessages((list) => list.filter((m) => m.id !== target.id));
+    else if (res.data.message) merge([res.data.message]);
+    setPinned((list) => list.filter((p) => p.id !== target.id));
+    refresh();
+    showToast(res.data.removed ? t('thread.noteDeleted') : t('thread.deletedForAll'));
+  }
+
+  async function togglePin(m: MessageDto) {
+    const pin = !m.pinnedAt;
+    const res = await api<{ message: MessageDto; inWhatsApp: boolean }>(`/api/groups/messages/${m.id}`, { body: { action: pin ? 'pin' : 'unpin' } });
+    if (!res.data) {
+      showToast(errText(res.error), true);
+      return;
+    }
+    const updated = res.data.message;
+    merge([updated]);
+    setPinned((list) => (pin ? [updated, ...list.filter((p) => p.id !== updated.id)] : list.filter((p) => p.id !== updated.id)));
+    showToast(pin ? (res.data.inWhatsApp ? t('thread.pinnedWhatsApp') : t('thread.pinnedHere')) : t('thread.unpinned'));
+  }
+
+  function jumpTo(m: MessageDto) {
+    const el = document.getElementById(`m-${m.id}`);
+    if (!el) {
+      showToast(t('thread.pinnedOld'));
+      return;
+    }
+    el.scrollIntoView({ block: 'center' });
+    document.querySelectorAll('.gr-msg.is-target').forEach((x) => x.classList.remove('is-target'));
+    el.classList.add('is-target');
+  }
+
+  async function copyText(m: MessageDto) {
+    try {
+      await navigator.clipboard.writeText(m.body);
+      showToast(t('common.copied'));
+    } catch {
+      showToast(errText('generic'), true);
+    }
   }
 
   async function summarize() {
@@ -214,9 +430,79 @@ export default function ChatThread(props: ThreadProps) {
     setSummary({ text: res.data?.summary ?? '', error: res.error ? errText(res.error) : '', busy: false });
   }
 
+  async function aiDraft() {
+    if (aiBusy) return;
+    const polish = text.trim().length > 0;
+    setAiBusy(polish ? 'polish' : 'draft');
+    setSendError('');
+    const res = await api<{ text: string; sources: Array<{ title: string }> }>(`/api/groups/chats/${chat.id}/draft`, {
+      body: { mode: polish ? 'polish' : 'draft', text },
+    });
+    setAiBusy('');
+    if (!res.data) {
+      setSendError(errText(res.error));
+      return;
+    }
+    setUndoText(text);
+    setText(res.data.text);
+    setDraftSources(res.data.sources.map((s) => s.title));
+    inputRef.current?.focus();
+  }
+
+  async function translateReply(to: string) {
+    if (!to || aiBusy) return;
+    if (!text.trim()) {
+      setSendError(errText('empty_message'));
+      return;
+    }
+    setAiBusy('translate');
+    setSendError('');
+    const res = await api<{ text: string }>('/api/groups/translate', { body: { text, to } });
+    setAiBusy('');
+    if (!res.data) {
+      setSendError(errText(res.error));
+      return;
+    }
+    setUndoText(text);
+    setText(res.data.text);
+    setDraftSources([]);
+    inputRef.current?.focus();
+  }
+
+  async function sendPoll() {
+    const options = poll.options.map((o) => o.trim()).filter(Boolean);
+    if (!poll.question.trim()) return setPollError(errText('poll_question'));
+    if (options.length < 2) return setPollError(errText('poll_options'));
+    setPollBusy(true);
+    setPollError('');
+    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: { poll: { ...poll, options } } });
+    setPollBusy(false);
+    if (!res.data) return setPollError(errText(res.error));
+    merge([res.data]);
+    if (res.data.status === 'failed') return setPollError(errText(res.data.error || 'send_failed'));
+    setPollOpen(false);
+    setPoll({ question: '', options: ['', ''], multi: false });
+    refresh();
+  }
+
   async function scheduleSend() {
     if (!text.trim()) {
       setSchedule((s) => ({ ...s, error: errText('empty_message') }));
+      return;
+    }
+    if (repeat) {
+      const bad = checkRule(rule);
+      if (bad) return setSchedule((s) => ({ ...s, error: errText(bad) }));
+      setSchedule((s) => ({ ...s, busy: true, error: '' }));
+      const res = await api<{ nextRunAt: string | null }>('/api/groups/recurring', {
+        body: { chatIds: [chat.id], body: text, media: attachment, rule, timezone, endsAt: endsIso(endsAt) },
+      });
+      if (!res.data) return setSchedule((s) => ({ ...s, busy: false, error: errText(res.error) }));
+      setSchedule({ open: false, at: '', busy: false, error: '' });
+      setText('');
+      setAttachment(null);
+      setRepeat(false);
+      showToast(t('recurring.created', { when: res.data.nextRunAt ? new Date(res.data.nextRunAt).toLocaleString(locale) : '' }));
       return;
     }
     const when = Date.parse(schedule.at);
@@ -238,6 +524,12 @@ export default function ChatThread(props: ThreadProps) {
     showToast(t('thread.scheduled', { when: new Date(when).toLocaleString(locale) }));
   }
 
+  async function toggleUnread() {
+    const unread = chat.unread > 0;
+    const res = await patchChat({ read: unread });
+    if (res) showToast(unread ? t('thread.markedRead') : t('thread.markedUnread'));
+  }
+
   useKeyShortcut('r', () => {
     setMode('reply');
     inputRef.current?.focus();
@@ -252,6 +544,26 @@ export default function ChatThread(props: ThreadProps) {
     const last = [...messages].reverse().find((m) => m.direction === 'in');
     if (last) openTicket(last);
   });
+  useKeyShortcut('u', () => void toggleUnread());
+  useKeyShortcut('p', () => void patchChat({ pinned: !chat.pinned }));
+  useKeyShortcut('l', () => toggleTranslate());
+
+  function menuItems(m: MessageDto): MenuItem[] {
+    const can = messageActions(m, props.caps, viewer);
+    const items: MenuItem[] = [];
+    if (can.edit) items.push({ key: 'edit', label: t('thread.edit'), onSelect: () => setEditing({ id: m.id, text: m.body, busy: false }) });
+    if (can.forward) items.push({ key: 'forward', label: t('thread.forward'), onSelect: () => setForwarding(m) });
+    if (can.pin) items.push({ key: 'pin', label: m.pinnedAt ? t('thread.unpin') : t('thread.pin'), onSelect: () => void togglePin(m) });
+    if (m.body.trim()) items.push({ key: 'copy', label: t('thread.copy'), onSelect: () => void copyText(m) });
+    if (can.delete)
+      items.push({
+        key: 'delete',
+        label: m.direction === 'note' ? t('thread.deleteNote') : t('thread.deleteForAll'),
+        onSelect: () => setDeleting(m),
+        danger: true,
+      });
+    return items;
+  }
 
   let prevDay = '';
 
@@ -283,12 +595,37 @@ export default function ChatThread(props: ThreadProps) {
                 </option>
               ))}
             </select>
+            {props.teams.length > 0 && (
+              <select
+                className="select"
+                value={chat.assignedTeamId ?? ''}
+                onChange={(e) => void patchChat({ assignedTeamId: e.target.value || null })}
+                aria-label={t('thread.team')}
+              >
+                <option value="">{t('thread.noTeam')}</option>
+                {props.teams.map((tm) => (
+                  <option key={tm.id} value={tm.id}>
+                    {tm.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => void summarize()} aria-busy={summary?.busy || undefined}>
               {t('thread.summary')}
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={toggleTranslate} aria-pressed={translateOn}>
+              {t('thread.translate')} <kbd className="kbd">L</kbd>
             </button>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => void patchChat({ status: chat.status === 'open' ? 'closed' : 'open' })}>
               {chat.status === 'open' ? t('thread.close') : t('thread.reopen')} <kbd className="kbd">E</kbd>
             </button>
+            <MessageMenu
+              label={t('thread.chatMenu')}
+              items={[
+                { key: 'unread', label: chat.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void toggleUnread() },
+                { key: 'pin', label: chat.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void patchChat({ pinned: !chat.pinned }) },
+              ]}
+            />
             <button type="button" className="btn btn-ghost btn-sm gr-details-toggle" onClick={() => setDetailsOpen((v) => !v)} aria-expanded={detailsOpen}>
               {t('thread.details')}
             </button>
@@ -316,12 +653,31 @@ export default function ChatThread(props: ThreadProps) {
           </div>
         )}
 
+        {translateOn && translateError && (
+          <div className="gr-banner is-bad" role="alert">
+            {translateError}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={toggleTranslate}>
+              {t('thread.translateOff')}
+            </button>
+          </div>
+        )}
+
+        <PinnedBar pinned={pinned} onJump={jumpTo} onUnpin={(m) => void togglePin(m)} />
+
         <div className="gr-messages" role="log" aria-live="polite">
           {messages.length === 0 && <p className="gr-list-empty">{t('thread.noMessages')}</p>}
           {messages.map((m) => {
             const day = dayKey(m.createdAt);
             const showDay = day !== prevDay;
             prevDay = day;
+            if (m.direction === 'system') {
+              return (
+                <div key={m.id}>
+                  {showDay && <p className="gr-day">{new Date(m.createdAt).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })}</p>}
+                  <SystemLine m={m} nameOf={nameOf} />
+                </div>
+              );
+            }
             const quoted = m.replyToId ? byId.get(m.replyToId) : null;
             const author =
               m.direction === 'in'
@@ -336,23 +692,35 @@ export default function ChatThread(props: ThreadProps) {
                       ? t('thread.byBroadcast')
                       : m.authorKind === 'scheduled'
                         ? t('thread.byScheduled')
-                      : m.authorKind === 'flow'
-                        ? 'Flow'
-                        : m.authorKind === 'api'
-                          ? 'API'
-                          : m.authorId
-                            ? peopleById.get(m.authorId) ?? ''
-                            : '';
+                        : m.authorKind === 'flow'
+                          ? 'Flow'
+                          : m.authorKind === 'api'
+                            ? 'API'
+                            : nameOf(m.authorId);
+            const tr = translateOn && m.direction === 'in' ? translations[m.id] : undefined;
+            const showTr = tr && tr.text && !showOriginal.has(m.id);
+            const isEditing = editing?.id === m.id;
             return (
               <div key={m.id}>
                 {showDay && <p className="gr-day">{new Date(m.createdAt).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })}</p>}
-                <article className={`gr-msg gr-msg-${m.direction}`} id={`m-${m.id}`}>
+                <article className={`gr-msg gr-msg-${m.direction}${m.deletedAt ? ' is-deleted' : ''}`} id={`m-${m.id}`}>
                   <div className="gr-bubble">
                     {(author || m.direction === 'note') && (
                       <p className="gr-msg-author">
-                        {m.direction === 'note' ? t('thread.noteBy', { name: author || '' }) : author}
+                        {m.direction === 'note' ? (
+                          <>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                              <rect x="5" y="11" width="14" height="10" rx="1" />
+                              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                            </svg>{' '}
+                            {t('thread.noteBy', { name: author || '' })}
+                          </>
+                        ) : (
+                          author
+                        )}
                       </p>
                     )}
+                    {m.forwarded && <p className="gr-forwarded">{t('thread.forwarded')}</p>}
                     {quoted && <p className="gr-quote">{quoted.body.slice(0, 140) || mediaText({ media: quoted.media })}</p>}
                     {m.media && (
                       <p className="gr-media">
@@ -368,15 +736,100 @@ export default function ChatThread(props: ThreadProps) {
                         )}
                       </p>
                     )}
-                    {m.body && <p className="gr-pre">{m.body}</p>}
+                    {m.poll ? (
+                      <PollResults poll={m.poll} />
+                    ) : isEditing ? (
+                      <form
+                        className="gr-edit"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void saveEdit();
+                        }}
+                      >
+                        <textarea
+                          className="textarea"
+                          rows={3}
+                          value={editing.text}
+                          autoFocus
+                          aria-label={t('thread.editLabel')}
+                          onChange={(e) => setEditing({ ...editing, text: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                              e.preventDefault();
+                              void saveEdit();
+                            }
+                            if (e.key === 'Escape') {
+                              e.preventDefault();
+                              setEditing(null);
+                            }
+                          }}
+                        />
+                        <span className="gr-edit-foot">
+                          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(null)}>
+                            {t('common.cancel')}
+                          </button>
+                          <button type="submit" className="btn btn-primary btn-sm" disabled={!editing.text.trim()} aria-busy={editing.busy || undefined}>
+                            {t('common.save')}
+                          </button>
+                        </span>
+                      </form>
+                    ) : (
+                      m.body && (
+                        <p className="gr-pre">
+                          {showTr
+                            ? tr.text
+                            : m.direction === 'note'
+                              ? mentionSegments(m.body, mentionPeople).map((seg, i) =>
+                                  seg.mention ? (
+                                    <span key={i} className="gr-mention">
+                                      {seg.text}
+                                    </span>
+                                  ) : (
+                                    <span key={i}>{seg.text}</span>
+                                  ),
+                                )
+                              : m.body}
+                        </p>
+                      )
+                    )}
+                    {tr && tr.text && (
+                      <p className="gr-translation">
+                        <span>
+                          {showOriginal.has(m.id)
+                            ? t('thread.showingOriginal')
+                            : t('thread.translatedFrom', { lang: TRANSLATE_LANGS[tr.lang] ? t(`langs.${tr.lang}`) : tr.lang })}
+                        </span>{' '}
+                        <button
+                          type="button"
+                          className="gr-link-btn"
+                          onClick={() =>
+                            setShowOriginal((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(m.id)) next.delete(m.id);
+                              else next.add(m.id);
+                              return next;
+                            })
+                          }
+                        >
+                          {showOriginal.has(m.id) ? t('thread.showTranslation') : t('thread.showOriginal')}
+                        </button>
+                      </p>
+                    )}
                     <p className="gr-msg-foot">
                       <time dateTime={m.createdAt}>{new Date(m.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</time>
-                      {m.direction === 'out' && <span className={m.status === 'failed' ? 'gr-failed' : ''}>{t(`status.${m.status}`)}</span>}
+                      {m.deletedAt ? (
+                        <span className="gr-deleted-tag">{t('thread.deletedTag')}</span>
+                      ) : (
+                        m.direction === 'out' && <span className={m.status === 'failed' ? 'gr-failed' : ''}>{t(`status.${m.status}`)}</span>
+                      )}
+                      {m.editedAt && !m.deletedAt && <span>{t('thread.edited')}</span>}
+                      {m.pinnedAt && <span>{t('thread.pinned')}</span>}
                       {m.ticketId && (
                         <Link href={`/app/groups/tickets?open=${m.ticketId}`} className="gr-ticket-tag">
                           {t('thread.hasTicket')}
                         </Link>
                       )}
+                      {m.direction === 'in' && m.needsReply === true && <span className="gr-question-tag">{t('thread.question')}</span>}
                     </p>
                     {m.reactions.length > 0 && (
                       <p className="gr-reactions" aria-label={t('thread.reactions')}>
@@ -386,19 +839,35 @@ export default function ChatThread(props: ThreadProps) {
                       </p>
                     )}
                   </div>
-                  {m.direction !== 'note' && m.direction !== 'system' && (
+                  {!isEditing && (
                     <div className="gr-msg-actions">
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setReplyTo(m); setMode('reply'); inputRef.current?.focus(); }}>
-                        {t('thread.reply')}
-                      </button>
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPickerFor(pickerFor === m.id ? null : m.id)} aria-expanded={pickerFor === m.id}>
-                        {t('thread.react')}
-                      </button>
-                      {!m.ticketId && (
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => openTicket(m)}>
-                          {t('thread.ticket')}
-                        </button>
+                      {m.direction !== 'note' && !m.deletedAt && (
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => {
+                              setReplyTo(m);
+                              setMode('reply');
+                              inputRef.current?.focus();
+                            }}
+                          >
+                            {t('thread.reply')}
+                          </button>
+                          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPickerFor(pickerFor === m.id ? null : m.id)} aria-expanded={pickerFor === m.id}>
+                            {t('thread.react')}
+                          </button>
+                          {!m.ticketId && (
+                            <button type="button" className="btn btn-ghost btn-sm" onClick={() => openTicket(m)}>
+                              {t('thread.ticket')}
+                            </button>
+                          )}
+                        </>
                       )}
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTaskFor(m)}>
+                        {t('thread.task')}
+                      </button>
+                      <MessageMenu label={t('thread.moreActions')} items={menuItems(m)} />
                       {pickerFor === m.id && (
                         <span className="gr-emoji-picker" role="group" aria-label={t('thread.react')}>
                           {[...new Set([...QUICK_EMOJIS, props.ticketEmoji].filter(Boolean))].map((e) => (
@@ -438,8 +907,25 @@ export default function ChatThread(props: ThreadProps) {
             <ul className="gr-quick" role="listbox" aria-label={t('thread.quickReplies')}>
               {quickMatches.map((q, i) => (
                 <li key={q.id} role="option" aria-selected={i === 0}>
-                  <button type="button" onClick={() => { setText(q.body); inputRef.current?.focus(); }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setText(q.body);
+                      inputRef.current?.focus();
+                    }}
+                  >
                     <strong>/{q.shortcut}</strong> {q.body.slice(0, 80)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {mentionMatches.length > 0 && (
+            <ul className="gr-quick" role="listbox" aria-label={t('thread.mentionPeople')}>
+              {mentionMatches.map((p, i) => (
+                <li key={p.id} role="option" aria-selected={i === mentionIndex}>
+                  <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pickMention(i)}>
+                    <strong>{p.name || p.email}</strong> {p.name ? p.email : ''}
                   </button>
                 </li>
               ))}
@@ -450,7 +936,12 @@ export default function ChatThread(props: ThreadProps) {
             className="textarea gr-input"
             rows={3}
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              setCaret(e.target.selectionStart ?? e.target.value.length);
+              setMentionIndex(0);
+            }}
+            onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
             onKeyDown={onComposerKey}
             placeholder={mode === 'note' ? t('thread.notePlaceholder') : t('thread.replyPlaceholder')}
             aria-label={mode === 'note' ? t('thread.modeNote') : t('thread.modeReply')}
@@ -461,6 +952,24 @@ export default function ChatThread(props: ThreadProps) {
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAttachment(null)}>
                 {t('common.remove')}
               </button>
+            </p>
+          )}
+          {(undoText !== null || draftSources.length > 0) && (
+            <p className="gr-ai-note">
+              {draftSources.length > 0 && <span className="ui-help">{t('thread.draftSources', { list: draftSources.join(', ') })}</span>}
+              {undoText !== null && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    setText(undoText);
+                    setUndoText(null);
+                    setDraftSources([]);
+                  }}
+                >
+                  {t('thread.undoAi')}
+                </button>
+              )}
             </p>
           )}
           {sendError && (
@@ -487,9 +996,37 @@ export default function ChatThread(props: ThreadProps) {
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSchedule({ open: true, at: '', busy: false, error: '' })}>
                   {t('thread.schedule')}
                 </button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => void aiDraft()} aria-busy={aiBusy === 'draft' || aiBusy === 'polish' || undefined}>
+                  {text.trim() ? t('thread.aiPolish') : t('thread.aiDraft')}
+                </button>
+                <select
+                  className="select gr-translate-select"
+                  value=""
+                  onChange={(e) => void translateReply(e.target.value)}
+                  aria-label={t('thread.translateReply')}
+                  aria-busy={aiBusy === 'translate' || undefined}
+                >
+                  <option value="">{t('thread.translateReply')}</option>
+                  {customerLang && <option value={customerLang}>{t('thread.toCustomerLang', { lang: t(`langs.${customerLang}`) })}</option>}
+                  {Object.keys(TRANSLATE_LANGS).map((code) => (
+                    <option key={code} value={code}>
+                      {t(`langs.${code}`)}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    setPollError('');
+                    setPollOpen(true);
+                  }}
+                >
+                  {t('polls.button')}
+                </button>
               </>
             )}
-            <span className="ui-help gr-composer-hint">{t('thread.hint')}</span>
+            <span className="ui-help gr-composer-hint">{mode === 'note' ? t('thread.noteHint') : t('thread.hint')}</span>
             <button type="button" className="btn btn-primary btn-sm" onClick={() => void send()} disabled={sending || (!text.trim() && !attachment)} aria-busy={sending || undefined}>
               {mode === 'note' ? t('thread.saveNote') : t('thread.send')}
             </button>
@@ -508,9 +1045,23 @@ export default function ChatThread(props: ThreadProps) {
           agents={props.agents}
           crm={props.crm}
           caps={props.caps}
+          me={props.me}
           compact
         />
       </aside>
+
+      <TaskModal
+        open={!!taskFor}
+        chatId={chat.id}
+        message={taskFor}
+        people={props.people}
+        me={props.me}
+        onClose={() => setTaskFor(null)}
+        onCreated={() => {
+          setTaskFor(null);
+          showToast(t('tasks.created'));
+        }}
+      />
 
       <Modal
         open={!!ticketFor}
@@ -560,20 +1111,85 @@ export default function ChatThread(props: ThreadProps) {
               {t('common.cancel')}
             </button>
             <button type="submit" className="btn btn-primary" aria-busy={schedule.busy || undefined}>
-              {t('thread.scheduleConfirm')}
+              {repeat ? t('recurring.confirm') : t('thread.scheduleConfirm')}
             </button>
           </>
         }
       >
         <div className="ui-fields">
           <p className="ui-help">{text.trim() ? text.slice(0, 200) : t('thread.scheduleNeedsText')}</p>
-          <label className="ui-field">
-            <span className="label">{t('thread.scheduleAt')}</span>
-            <input className="input" type="datetime-local" value={schedule.at} onChange={(e) => setSchedule((s) => ({ ...s, at: e.target.value }))} autoFocus required />
+          <label className="gr-check-label">
+            <input type="checkbox" className="ui-check" checked={repeat} onChange={(e) => setRepeat(e.target.checked)} />
+            {t('recurring.repeatCheck')}
           </label>
+          {repeat ? (
+            <RecurrenceFields rule={rule} onChange={setRule} timezone={timezone} onTimezone={setTimezone} endsAt={endsAt} onEndsAt={setEndsAt} />
+          ) : (
+            <label className="ui-field">
+              <span className="label">{t('thread.scheduleAt')}</span>
+              <input className="input" type="datetime-local" value={schedule.at} onChange={(e) => setSchedule((s) => ({ ...s, at: e.target.value }))} autoFocus required />
+            </label>
+          )}
           {schedule.error && (
             <p className="ui-error" role="alert">
               {schedule.error}
+            </p>
+          )}
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!deleting}
+        title={deleting?.direction === 'note' ? t('thread.deleteNoteTitle') : t('thread.deleteTitle')}
+        body={deleting?.direction === 'note' ? t('thread.deleteNoteBody') : t('thread.deleteBody')}
+        confirmLabel={deleting?.direction === 'note' ? t('thread.deleteNote') : t('thread.deleteForAll')}
+        cancelLabel={t('common.cancel')}
+        danger
+        busy={deleteBusy}
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setDeleting(null)}
+      />
+
+      <ForwardModal
+        message={forwarding}
+        fromChatId={chat.id}
+        onClose={() => setForwarding(null)}
+        onDone={(results) => {
+          setForwarding(null);
+          const ok = results.filter((r) => r.ok).length;
+          const bad = results.filter((r) => !r.ok);
+          showToast(bad.length ? t('forward.partial', { ok, total: results.length, error: errText(bad[0].error) }) : t('forward.done', { n: ok }), bad.length > 0);
+          refresh();
+        }}
+      />
+
+      <Modal
+        open={pollOpen}
+        title={t('polls.title')}
+        onClose={() => setPollOpen(false)}
+        onSubmit={() => void sendPoll()}
+        busy={pollBusy}
+        foot={
+          <>
+            <button type="button" className="btn btn-ghost" onClick={() => setPollOpen(false)}>
+              {t('common.cancel')}
+            </button>
+            <button type="submit" className="btn btn-primary" aria-busy={pollBusy || undefined} disabled={!props.caps.polls}>
+              {t('polls.send')}
+            </button>
+          </>
+        }
+      >
+        <div className="ui-fields">
+          {!props.caps.polls && (
+            <p className="gr-banner is-bad" role="alert">
+              {t('polls.unsupported')}
+            </p>
+          )}
+          <PollFields question={poll.question} options={poll.options} multi={poll.multi} onChange={setPoll} idPrefix="chat" />
+          {pollError && (
+            <p className="ui-error" role="alert">
+              {pollError}
             </p>
           )}
         </div>

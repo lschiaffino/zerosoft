@@ -17,6 +17,7 @@ import { safeFetch, UnsafeUrlError } from './safe-fetch';
 import {
   PROVIDER_CAPS,
   ProviderError,
+  type CallStatus,
   errorFromStatus,
   hmacHex,
   isGroupJid,
@@ -88,6 +89,14 @@ function roleOf(raw: unknown): MemberRole {
   return 'member';
 }
 
+/** announce / restrict de la metadata del grupo (WAHA y Evolution usan los nombres de WhatsApp). */
+function flagsOf(g: Json): { announce?: boolean; locked?: boolean } {
+  const out: { announce?: boolean; locked?: boolean } = {};
+  if (typeof g.announce === 'boolean') out.announce = g.announce;
+  if (typeof g.restrict === 'boolean') out.locked = g.restrict;
+  return out;
+}
+
 /** Tipo de media corto a partir del mimetype o del tipo de mensaje. */
 function shortType(mime: string): string {
   return mime || 'file';
@@ -97,7 +106,19 @@ function shortType(mime: string): string {
 // WAHA
 // ======================================================================
 
-const WAHA_EVENTS = ['message.any', 'message.reaction', 'message.ack', 'session.status', 'group.v2.participants'];
+const WAHA_EVENTS = [
+  'message.any',
+  'message.reaction',
+  'message.ack',
+  'message.edited',
+  'message.revoked',
+  'session.status',
+  'group.v2.participants',
+  'call.received',
+  'call.accepted',
+  'call.rejected',
+  'poll.vote',
+];
 
 function wahaStatus(raw: unknown): ConnectStatus {
   switch (String(raw ?? '').toUpperCase()) {
@@ -174,6 +195,39 @@ export function parseWahaWebhook(body: unknown): InboundEvent[] {
         },
       ];
     }
+    case 'message.edited': {
+      const target = String(p.editedMessageId ?? '');
+      const chatId = String(p.fromMe === true ? p.to ?? '' : p.from ?? '');
+      if (!target || !chatId) return [];
+      return [{ type: 'edit', chatId, providerMessageId: target, body: String(p.body ?? '') }];
+    }
+    case 'message.revoked': {
+      const ref = ((p.after ?? p.before ?? {}) as Json) ?? {};
+      const target = String(p.revokedMessageId ?? ((p.before ?? {}) as Json).id ?? '');
+      const chatId = String(ref.fromMe === true ? ref.to ?? '' : ref.from ?? '');
+      if (!target || !chatId) return [];
+      return [{ type: 'revoke', chatId, providerMessageId: target }];
+    }
+    case 'call.received':
+    case 'call.accepted':
+    case 'call.rejected': {
+      const chatId = String(p.from ?? '');
+      if (!p.id || !chatId || isGroupJid(chatId)) return [];
+      const status = event === 'call.received' ? 'ringing' : event === 'call.accepted' ? 'answered' : 'rejected';
+      const ts = Number(p.timestamp);
+      return [
+        {
+          type: 'call',
+          chatId,
+          callId: String(p.id),
+          direction: 'in',
+          status,
+          senderPhone: phoneDigits(chatId),
+          isVideo: p.isVideo === true,
+          timestamp: Number.isFinite(ts) && ts > 0 ? new Date(ts * 1000).toISOString() : undefined,
+        },
+      ];
+    }
     case 'message.ack': {
       const st = WAHA_ACK[String(p.ackName ?? '').toUpperCase()];
       if (!st || !p.id) return [];
@@ -182,6 +236,25 @@ export function parseWahaWebhook(body: unknown): InboundEvent[] {
     case 'session.status': {
       const me = (p.me ?? (b.me as Json) ?? {}) as Json;
       return [{ type: 'session', status: wahaStatus(p.status), phone: me.id ? phoneDigits(String(me.id)) : undefined }];
+    }
+    case 'poll.vote': {
+      // { vote: { from, to, participant?, fromMe, selectedOptions }, poll: { id, to, from } }
+      const vote = (p.vote ?? {}) as Json;
+      const poll = (p.poll ?? {}) as Json;
+      const pollId = idString(poll.id);
+      const chatId = String(poll.fromMe === false ? poll.from ?? '' : poll.to ?? vote.to ?? '');
+      if (!pollId || vote.fromMe === true) return [];
+      const voter = String(vote.participant ?? (isGroupJid(String(vote.from ?? '')) ? '' : vote.from) ?? '');
+      return [
+        {
+          type: 'poll_vote',
+          chatId: chatId || String(vote.to ?? ''),
+          pollProviderMessageId: pollId,
+          voterPhone: phoneDigits(voter),
+          voterName: String(((vote._data ?? {}) as Json).notifyName ?? ''),
+          options: Array.isArray(vote.selectedOptions) ? (vote.selectedOptions as Array<string | number>) : [],
+        },
+      ];
     }
     case 'group.v2.participants': {
       const group = (p.group ?? {}) as Json;
@@ -281,6 +354,14 @@ export function wahaProvider(
     async react(_chatId, messageId, emoji) {
       await api('/api/reaction', 'PUT', { session: cfg.session || 'default', messageId, reaction: emoji });
     },
+    async sendPoll(chatId, poll) {
+      const r = (await api('/api/sendPoll', 'POST', {
+        session: cfg.session || 'default',
+        chatId,
+        poll: { name: poll.question, options: poll.options, multipleAnswers: poll.multi },
+      })) as Json;
+      return { id: idString(r.id) || String((r.key as Json | undefined)?.id ?? '') };
+    },
     sendTemplate: async () => {
       throw new ProviderError('unsupported');
     },
@@ -293,6 +374,7 @@ export function wahaProvider(
           id: idString(g.id ?? g.JID),
           name: String(g.subject ?? g.name ?? g.Name ?? ''),
           description: String(g.description ?? g.desc ?? ''),
+          ...flagsOf(g),
         }))
         .filter((g) => isGroupJid(g.id));
     },
@@ -323,6 +405,41 @@ export function wahaProvider(
       if (patch.description !== undefined)
         await api(`/api/${session}/groups/${gid(groupId)}/description`, 'PUT', { description: patch.description });
     },
+    async editMessage(chatId, messageId, text) {
+      await api(`/api/${session}/chats/${gid(chatId)}/messages/${gid(messageId)}`, 'PUT', { text });
+    },
+    async deleteMessage(chatId, messageId) {
+      await api(`/api/${session}/chats/${gid(chatId)}/messages/${gid(messageId)}`, 'DELETE');
+    },
+    async pinMessage(chatId, messageId, pin) {
+      // WhatsApp pide una duración: 30 días (lo máximo). Desfijar no lleva cuerpo.
+      await api(`/api/${session}/chats/${gid(chatId)}/messages/${gid(messageId)}/${pin ? 'pin' : 'unpin'}`, 'POST', pin ? { duration: 2592000 } : undefined);
+    },
+    async forwardMessage(toChatId, _fromChatId, messageId) {
+      const r = (await api('/api/forwardMessage', 'POST', { session: cfg.session || 'default', chatId: toChatId, messageId })) as Json;
+      return { id: idString(r.id) || String((r.key as Json | undefined)?.id ?? '') };
+    },
+    async updateGroupSettings(groupId, patch) {
+      const base = `/api/${session}/groups/${gid(groupId)}/settings/security`;
+      if (patch.locked !== undefined) await api(`${base}/info-admin-only`, 'PUT', { adminsOnly: patch.locked });
+      if (patch.announce !== undefined) await api(`${base}/messages-admin-only`, 'PUT', { adminsOnly: patch.announce });
+      // WAHA no expone los mensajes temporales de un grupo.
+      if (patch.ephemeral !== undefined) throw new ProviderError('unsupported');
+    },
+    async setGroupPicture(groupId, image) {
+      const path = `/api/${session}/groups/${gid(groupId)}/picture`;
+      if (!image) await api(path, 'DELETE');
+      else await api(path, 'PUT', { file: { url: image.url, mimetype: image.mimetype } });
+    },
+    async joinGroup(code) {
+      const r = (await api(`/api/${session}/groups/join`, 'POST', { code })) as Json;
+      const id = idString(r.id ?? r.gid ?? r.groupId);
+      if (!id) throw new ProviderError('provider_error');
+      return { id };
+    },
+    async leaveGroup(groupId) {
+      await api(`/api/${session}/groups/${gid(groupId)}/leave`, 'POST');
+    },
     verifyWebhook: verifyWahaHmac,
     parseWebhook: parseWahaWebhook,
   };
@@ -332,7 +449,25 @@ export function wahaProvider(
 // Evolution API v2
 // ======================================================================
 
-const EVOLUTION_EVENTS = ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'CONNECTION_UPDATE', 'QRCODE_UPDATED', 'GROUP_PARTICIPANTS_UPDATE'];
+const EVOLUTION_EVENTS = [
+  'MESSAGES_UPSERT',
+  'MESSAGES_UPDATE',
+  'MESSAGES_DELETE',
+  'CONNECTION_UPDATE',
+  'QRCODE_UPDATED',
+  'GROUP_PARTICIPANTS_UPDATE',
+  'CALL',
+];
+
+/** Estado de una llamada de Baileys (evento CALL de Evolution) → el nuestro. */
+const EVOLUTION_CALL: Record<string, CallStatus> = {
+  offer: 'ringing',
+  ringing: 'ringing',
+  accept: 'answered',
+  timeout: 'missed',
+  reject: 'rejected',
+  terminate: 'ended',
+};
 
 function evolutionStatus(raw: unknown): ConnectStatus {
   switch (String(raw ?? '').toLowerCase()) {
@@ -356,7 +491,26 @@ const EVOLUTION_ACK: Record<string, 'sent' | 'delivered' | 'read' | 'failed'> = 
 };
 
 /** Texto y media de un `message` de Baileys (lo que manda Evolution). */
-function baileysContent(message: Json): { body: string; media?: { url: string; type: string; name: string }; replyTo?: string; reaction?: Json } {
+function baileysContent(message: Json): {
+  body: string;
+  media?: { url: string; type: string; name: string };
+  replyTo?: string;
+  reaction?: Json;
+  /** protocolMessage: edición (texto nuevo) o borrado para todos del mensaje `target`. */
+  protocol?: { kind: 'edit' | 'revoke'; target: string; body: string };
+} {
+  const proto = (message.protocolMessage ?? ((((message.editedMessage ?? {}) as Json).message ?? {}) as Json).protocolMessage) as Json | undefined;
+  if (proto) {
+    const target = String(((proto.key ?? {}) as Json).id ?? '');
+    const type = String(proto.type ?? '').toUpperCase();
+    if (target && (type === 'REVOKE' || type === '0')) return { body: '', protocol: { kind: 'revoke', target, body: '' } };
+    if (target && (type === 'MESSAGE_EDIT' || type === '14')) {
+      const edited = (proto.editedMessage ?? {}) as Json;
+      const text = typeof edited.conversation === 'string' ? edited.conversation : String(((edited.extendedTextMessage ?? {}) as Json).text ?? '');
+      return { body: text, protocol: { kind: 'edit', target, body: text } };
+    }
+    return { body: '' };
+  }
   if (message.reactionMessage) return { body: '', reaction: message.reactionMessage as Json };
   if (typeof message.conversation === 'string') return { body: message.conversation };
   const ext = message.extendedTextMessage as Json | undefined;
@@ -395,8 +549,34 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
         if (!chatId || !id || chatId === 'status@broadcast') continue;
         const isGroup = isGroupJid(chatId);
         const fromMe = key.fromMe === true;
+        const pollUpdate = ((m.message ?? {}) as Json).pollUpdateMessage as Json | undefined;
+        if (pollUpdate) {
+          // Evolution manda el voto descifrado en vote.selectedOptions (si el gateway lo descifra).
+          const target = String(((pollUpdate.pollCreationMessageKey ?? {}) as Json).id ?? '');
+          const vote = (pollUpdate.vote ?? m.pollVote ?? {}) as Json;
+          const selected = Array.isArray(vote.selectedOptions) ? (vote.selectedOptions as Array<string | number>) : null;
+          if (target && selected && !fromMe) {
+            out.push({
+              type: 'poll_vote',
+              chatId,
+              pollProviderMessageId: target,
+              voterPhone: phoneDigits(isGroup ? String(key.participant ?? m.participant ?? '') : chatId),
+              voterName: String(m.pushName ?? ''),
+              options: selected,
+            });
+          }
+          continue;
+        }
         const content = baileysContent((m.message ?? {}) as Json);
         const sender = isGroup ? String(key.participant ?? m.participant ?? '') : fromMe ? '' : chatId;
+        if (content.protocol) {
+          out.push(
+            content.protocol.kind === 'edit'
+              ? { type: 'edit', chatId, providerMessageId: content.protocol.target, body: content.protocol.body }
+              : { type: 'revoke', chatId, providerMessageId: content.protocol.target },
+          );
+          continue;
+        }
         if (content.reaction) {
           const target = ((content.reaction.key ?? {}) as Json).id;
           if (!target) continue;
@@ -435,6 +615,49 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
         const st = EVOLUTION_ACK[String(u.status ?? '').toUpperCase()];
         const id = String(u.keyId ?? ((u.key ?? {}) as Json).id ?? '');
         if (st && id) out.push({ type: 'status', providerMessageId: id, status: st });
+        // Resultado agregado de una encuesta: [{ name, voters: [jid] }] → un voto por persona.
+        const agg = Array.isArray(u.pollUpdates) ? (u.pollUpdates as Json[]) : null;
+        if (agg && id) {
+          const byVoter = new Map<string, string[]>();
+          for (const opt of agg) {
+            for (const v of Array.isArray(opt.voters) ? (opt.voters as unknown[]) : []) {
+              const phone = phoneDigits(idString(v));
+              if (!phone) continue;
+              byVoter.set(phone, [...(byVoter.get(phone) ?? []), String(opt.name ?? '')]);
+            }
+          }
+          const chatId = String(u.remoteJid ?? ((u.key ?? {}) as Json).remoteJid ?? '');
+          for (const [phone, options] of byVoter) {
+            out.push({ type: 'poll_vote', chatId, pollProviderMessageId: id, voterPhone: phone, voterName: '', options });
+          }
+        }
+      }
+      return out;
+    }
+    case 'messages.delete': {
+      const key = ((d.key ?? d) as Json) ?? {};
+      const id = String(key.id ?? '');
+      const chatId = String(key.remoteJid ?? '');
+      return id && chatId ? [{ type: 'revoke', chatId, providerMessageId: id }] : [];
+    }
+    case 'call': {
+      const rows = Array.isArray(d) ? (d as Json[]) : [d];
+      const out: InboundEvent[] = [];
+      for (const c of rows) {
+        const status = EVOLUTION_CALL[String(c.status ?? '').toLowerCase()];
+        const chatId = String(c.chatId ?? c.from ?? '');
+        if (!status || !c.id || !chatId || c.isGroup === true || isGroupJid(chatId)) continue;
+        const at = c.date ? Date.parse(String(c.date)) : NaN;
+        out.push({
+          type: 'call',
+          chatId,
+          callId: String(c.id),
+          direction: 'in',
+          status,
+          senderPhone: phoneDigits(String(c.from ?? chatId)),
+          isVideo: c.isVideo === true,
+          timestamp: Number.isFinite(at) ? new Date(at).toISOString() : undefined,
+        });
       }
       return out;
     }
@@ -548,6 +771,15 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     async react(chatId, messageId, emoji, fromMe) {
       await api(`/message/sendReaction/${instance}`, 'POST', { key: { remoteJid: chatId, fromMe, id: messageId }, reaction: emoji });
     },
+    async sendPoll(chatId, poll) {
+      const r = (await api(`/message/sendPoll/${instance}`, 'POST', {
+        number: chatId,
+        name: poll.question,
+        selectableCount: poll.multi ? poll.options.length : 1,
+        values: poll.options,
+      })) as Json;
+      return { id: String(((r.key ?? {}) as Json).id ?? '') };
+    },
     sendTemplate: async () => {
       throw new ProviderError('unsupported');
     },
@@ -555,7 +787,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     async listGroups(): Promise<GroupInfo[]> {
       const rows = (await api(`/group/fetchAllGroups/${instance}?getParticipants=false`)) as Json[];
       return (Array.isArray(rows) ? rows : [])
-        .map((g) => ({ id: String(g.id ?? ''), name: String(g.subject ?? ''), description: String(g.desc ?? '') }))
+        .map((g) => ({ id: String(g.id ?? ''), name: String(g.subject ?? ''), description: String(g.desc ?? ''), ...flagsOf(g) }))
         .filter((g) => isGroupJid(g.id));
     },
     async createGroup(name, phones) {
@@ -581,6 +813,38 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       if (patch.name !== undefined) await api(`/group/updateGroupSubject/${instance}${q(groupId)}`, 'POST', { subject: patch.name });
       if (patch.description !== undefined)
         await api(`/group/updateGroupDescription/${instance}${q(groupId)}`, 'POST', { description: patch.description });
+    },
+    async editMessage(chatId, messageId, text) {
+      await api(`/chat/updateMessage/${instance}`, 'POST', { number: chatId, key: { remoteJid: chatId, fromMe: true, id: messageId }, text });
+    },
+    async deleteMessage(chatId, messageId) {
+      await api(`/chat/deleteMessageForEveryone/${instance}`, 'DELETE', { id: messageId, remoteJid: chatId, fromMe: true });
+    },
+    pinMessage: async () => {
+      throw new ProviderError('unsupported');
+    },
+    forwardMessage: async () => {
+      throw new ProviderError('unsupported');
+    },
+    async updateGroupSettings(groupId, patch) {
+      const path = `/group/updateSetting/${instance}${q(groupId)}`;
+      if (patch.announce !== undefined) await api(path, 'POST', { action: patch.announce ? 'announcement' : 'not_announcement' });
+      if (patch.locked !== undefined) await api(path, 'POST', { action: patch.locked ? 'locked' : 'unlocked' });
+      if (patch.ephemeral !== undefined) await api(`/group/toggleEphemeral/${instance}${q(groupId)}`, 'POST', { expiration: patch.ephemeral });
+    },
+    async setGroupPicture(groupId, image) {
+      // Evolution cambia la foto pero no tiene cómo sacarla.
+      if (!image) throw new ProviderError('unsupported');
+      await api(`/group/updateGroupPicture/${instance}${q(groupId)}`, 'POST', { image: image.url });
+    },
+    async joinGroup(code) {
+      const r = (await api(`/group/acceptInviteCode/${instance}?inviteCode=${encodeURIComponent(code)}`)) as Json;
+      const id = String(r.groupJid ?? r.id ?? (typeof r.accepted === 'string' ? r.accepted : ''));
+      if (!id || !isGroupJid(id)) throw new ProviderError(r.accepted === false ? 'not_found' : 'provider_error');
+      return { id };
+    },
+    async leaveGroup(groupId) {
+      await api(`/group/leaveGroup/${instance}${q(groupId)}`, 'DELETE');
     },
     // Evolution no firma los webhooks: alcanza con el secreto de la URL.
     verifyWebhook: () => true,

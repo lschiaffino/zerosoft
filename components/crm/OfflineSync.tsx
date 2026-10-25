@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { QUEUED_EVENT } from '@/lib/offline-queue';
+import { registerAppServiceWorker, serviceWorkerEnabled } from '@/lib/sw-client';
 import { listenInstallPrompt } from './installPrompt';
 
 type SyncState = 'idle' | 'syncing' | 'synced' | 'failed';
@@ -29,8 +30,7 @@ export default function OfflineSync() {
   useEffect(() => {
     setOnline(navigator.onLine);
     if (!('serviceWorker' in navigator)) return;
-    const enabled = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_SW_DEV === '1';
-    if (!enabled) return;
+    if (!serviceWorkerEnabled()) return;
 
     const sw = navigator.serviceWorker;
 
@@ -47,7 +47,7 @@ export default function OfflineSync() {
     sw.addEventListener('message', onMessage);
 
     let cancelled = false;
-    sw.register('/sw.js', { scope: '/' })
+    registerAppServiceWorker()
       .then(() => sw.ready)
       .then((reg) => {
         if (cancelled) return;

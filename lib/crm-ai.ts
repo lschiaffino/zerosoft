@@ -13,7 +13,7 @@
  */
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
+import { localUploadPath } from './uploads';
 import { generateText, Output, type LanguageModel } from 'ai';
 import { z } from 'zod';
 import { AiError, aiEnabled, assertAiAvailable, assertAiQuota, recordAiUsage, resolveAiModel } from './ai';
@@ -785,9 +785,8 @@ export function transcriptText(raw: string): string {
 
 async function readTranscriptFile(url: string): Promise<string> {
   if (url.startsWith('/uploads/')) {
-    const root = path.join(process.cwd(), 'public', 'uploads');
-    const file = path.join(process.cwd(), 'public', url);
-    if (!file.startsWith(root + path.sep)) return '';
+    const file = localUploadPath(url);
+    if (!file) return '';
     return (await readFile(file, 'utf8').catch(() => '')).slice(0, MAX_TRANSCRIPT_BYTES);
   }
   // Solo el storage propio (Vercel Blob): nunca URLs arbitrarias.

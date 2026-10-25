@@ -14,8 +14,8 @@ RUN NEXTAUTH_SECRET=build-only TURSO_DATABASE_URL=file:/tmp/build.db npm run bui
 
 FROM node:24-bookworm-slim AS run
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000
-RUN useradd --system --uid 1001 zerosoft && mkdir -p /app/data /app/public/uploads && chown -R zerosoft /app/data /app/public/uploads
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 UPLOADS_DIR=/app/uploads
+RUN useradd --system --uid 1001 zerosoft && mkdir -p /app/data /app/uploads && chown -R zerosoft /app/data /app/uploads
 COPY --from=build --chown=zerosoft /app/.next ./.next
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/public ./public
@@ -24,5 +24,5 @@ COPY --from=build /app/content ./content
 COPY --from=build /app/messages ./messages
 USER zerosoft
 EXPOSE 3000
-VOLUME ["/app/data", "/app/public/uploads"]
+VOLUME ["/app/data", "/app/uploads"]
 CMD ["npx", "next", "start", "-p", "3000"]

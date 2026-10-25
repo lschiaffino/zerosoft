@@ -6,6 +6,9 @@ import { DOC_TEMPLATE_CATEGORIES, getDocTemplates, type DocTemplate, type DocTem
 import type { DocsWorkspaceTemplate } from '@/lib/docs-types';
 import DocsBlocksView from './DocsBlocksView';
 import DocsGlyph from './DocsGlyphs';
+// Estilos de la vista de solo lectura (.dbv: listas con sangría y viñeta): la
+// galería también se abre desde /app/docs, que no los cargaba.
+import '@/styles/help.css';
 
 type Section = DocTemplateCategory | 'workspace';
 

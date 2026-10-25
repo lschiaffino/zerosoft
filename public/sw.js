@@ -1,5 +1,7 @@
-/* zerosoft service worker: CRM offline.
+/* zerosoft service worker: el único de la suite (scope /, lo registra
+ * lib/sw-client.ts desde el CRM y desde Groups).
  *
+ * CRM offline:
  * - /_next/static/**: cache-first (los archivos tienen hash).
  * - Navegaciones a /<locale>/app/crm/** y GET /api/crm/**: network-first con
  *   fallback a la caché, así lo ya visitado abre sin red.
@@ -10,8 +12,17 @@
  * Las reglas de qué se encola son las de lib/offline-queue.ts (shouldQueue,
  * replayQueue); tests/unit/offline-queue.test.ts carga este archivo y
  * compara. Sin dependencias ni build.
+ * - El inicio de la app instalada (/app, start_url de app/manifest.ts) también
+ *   es network-first con la última versión guardada.
+ *
+ * Push de Groups (lib/groups-push.ts):
+ * - push: el servidor manda un push vacío (firma VAPID). Acá se piden los
+ *   avisos pendientes con la sesión (/api/groups/push/pending) y se muestran.
+ *   El texto nunca pasa por el servicio de push.
+ * - notificationclick: abre (o enfoca) el chat del aviso.
+ * - La bandeja de Groups no se cachea: siempre se ve al día.
  */
-const VERSION = 'zs-crm-v1';
+const VERSION = 'zs-app-v2';
 const PAGES = `${VERSION}-pages`;
 const STATIC = `${VERSION}-static`;
 const DB_NAME = 'zs-offline';
@@ -58,8 +69,9 @@ async function replayQueue(store, doFetch) {
   return { done, failed, remaining: 0 };
 }
 
-const CRM_PAGE = /^\/(en|es|pt)\/app\/crm(\/|$)/;
-const CRM_ROOT = /^\/app\/crm(\/|$)/;
+// El CRM entero y el inicio de la app (/app, sin subruta).
+const CRM_PAGE = /^\/(en|es|pt)\/app(\/crm(\/|$)|\/?$)/;
+const CRM_ROOT = /^\/app(\/crm(\/|$)|\/?$)/;
 
 function isCrmNavigation(url) {
   return CRM_PAGE.test(url.pathname) || CRM_ROOT.test(url.pathname);
@@ -179,7 +191,7 @@ async function crmNavigation(request) {
     return await networkFirst(request, PAGES);
   } catch {
     const cache = await caches.open(PAGES);
-    // /app/crm sin locale (start_url del manifest): la versión cacheada en cualquier idioma.
+    // /app o /app/crm sin locale (como abre la app instalada): la versión cacheada en cualquier idioma.
     if (CRM_ROOT.test(url.pathname)) {
       for (const l of ['en', 'es', 'pt']) {
         const hit = await cache.match(`${url.origin}/${l}${url.pathname}`, { ignoreSearch: true });
@@ -285,6 +297,58 @@ self.addEventListener('message', (event) => {
       })(),
     );
   }
+});
+
+// ---------- Push de Groups ----------
+
+const GROUPS_ICON = '/api/pwa-icon/192';
+const GROUPS_INBOX = '/app/groups/inbox';
+
+self.addEventListener('push', (event) => {
+  event.waitUntil(
+    (async () => {
+      let list = [];
+      try {
+        const res = await fetch('/api/groups/push/pending', { credentials: 'include', cache: 'no-store' });
+        if (res.ok) list = (await res.json()).notifications || [];
+      } catch {
+        list = [];
+      }
+      if (list.length === 0) {
+        // El navegador exige mostrar algo por cada push.
+        await self.registration.showNotification('Groups', { body: '', tag: 'groups', data: { url: GROUPS_INBOX }, icon: GROUPS_ICON });
+        return;
+      }
+      for (const n of list) {
+        await self.registration.showNotification(n.title || 'Groups', {
+          body: n.body || '',
+          tag: n.url || n.id,
+          renotify: true,
+          data: { url: n.url || GROUPS_INBOX },
+          icon: GROUPS_ICON,
+          badge: GROUPS_ICON,
+        });
+      }
+    })(),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || GROUPS_INBOX;
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const c of all) {
+        if ('focus' in c && new URL(c.url).pathname.includes('/app/groups')) {
+          await c.focus();
+          if ('navigate' in c) await c.navigate(url).catch(() => null);
+          return;
+        }
+      }
+      await self.clients.openWindow(url);
+    })(),
+  );
 });
 
 // Para tests/unit/offline-queue.test.ts (en el navegador no molesta).
