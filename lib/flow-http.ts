@@ -35,6 +35,11 @@ export function canEditFlows(user: Pick<SessionUser, 'role'>): boolean {
   return roleAtLeast(user.role, 'admin');
 }
 
+/** Quién mira las corridas (datos solo para quien creó el flow y admins). */
+export function runViewer(user: Pick<SessionUser, 'id' | 'actingUser' | 'role'>): { personId: string; admin: boolean } {
+  return { personId: user.actingUser?.id ?? user.id, admin: roleAtLeast(user.role, 'admin') };
+}
+
 /** Persona real logueada (no el dueño del workspace). */
 export function realUserId(user: Pick<SessionUser, 'id' | 'actingUser'>): string {
   return user.actingUser?.id ?? user.id;

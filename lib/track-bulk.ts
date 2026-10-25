@@ -46,13 +46,13 @@ async function accessible(
   if (!issue) return null;
   if (!cache.has(issue.project_id)) {
     const p = await getProject(issue.project_id);
-    cache.set(issue.project_id, p && canAccessTrackProject(p, scope.teamId, scope.ownerId) ? p : null);
+    cache.set(issue.project_id, p && (await canAccessTrackProject(p, scope.teamId, scope.ownerId)) ? p : null);
   }
   const project = cache.get(issue.project_id);
   return project ? { issue, project } : null;
 }
 
-export type IssueRefError = 'invalid_status' | 'invalid_cycle' | 'invalid_assignee' | 'invalid_parent' | 'invalid_milestone';
+export type IssueRefError = 'invalid_status' | 'invalid_cycle' | 'invalid_assignee' | 'invalid_parent' | 'invalid_milestone' | 'invalid_plan';
 
 /**
  * Valida las referencias de un payload de issue contra su proyecto: el status
@@ -70,10 +70,18 @@ export async function validateIssueRefs(
     assigneeId?: string | null;
     parentId?: string | null;
     milestoneId?: string | null;
+    planId?: string | null;
   },
   opts: { ownerId: string; issueId?: string; members?: Map<string, Set<string>> },
 ): Promise<IssueRefError | null> {
   const db = getDb();
+  if (refs.planId) {
+    // El project tiene que ser del mismo workspace que el team del issue.
+    const ok = project.team_id
+      ? await db.prepare('SELECT id FROM track_plans WHERE id = ? AND team_id = ?').get(refs.planId, project.team_id)
+      : await db.prepare('SELECT id FROM track_plans WHERE id = ? AND team_id IS NULL AND owner_id = ?').get(refs.planId, project.owner_id);
+    if (!ok) return 'invalid_plan';
+  }
   if (refs.statusId) {
     const ok = await db
       .prepare('SELECT id FROM track_statuses WHERE id = ? AND project_id = ?')
@@ -193,8 +201,12 @@ export async function bulkEditIssues(payload: BulkIssuesPayload, scope: Scope): 
 
 // ---------- Triage ----------
 
-export async function listTriageIssues(projectId: string): Promise<TrackIssueWithStatus[]> {
-  return listProjectTriageIssues(projectId, 200);
+/** Cola de triage sin los pospuestos (snooze, lib/track-triage.ts); con `snoozed` solo los pospuestos. */
+export async function listTriageIssues(projectId: string, opts: { snoozed?: boolean } = {}): Promise<TrackIssueWithStatus[]> {
+  const all = await listProjectTriageIssues(projectId, 200);
+  const { listTriageSnoozes } = await import('./track-triage');
+  const snoozes = await listTriageSnoozes(projectId);
+  return all.filter((i) => (opts.snoozed ? snoozes.has(i.id) : !snoozes.has(i.id)));
 }
 
 export async function countTriage(projectId: string): Promise<number> {
@@ -246,7 +258,7 @@ export async function findWorkspaceIssueByIdentifier(
  */
 export async function claimTriage(issueId: string): Promise<boolean> {
   const res = await getDb()
-    .prepare("UPDATE track_issues SET triage = 0, updated_at = datetime('now') WHERE id = ? AND triage = 1")
+    .prepare("UPDATE track_issues SET triage = 0, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND triage = 1")
     .run(issueId);
   return res.changes > 0;
 }

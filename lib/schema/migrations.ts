@@ -4391,6 +4391,474 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Track T1 (UX de Linear): hilos y reacciones en comentarios, vistas de
+    // equipo y favoritas, presencia en el issue y orden manual de sub-issues.
+    id: '110_track_ux',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE track_issue_comments ADD COLUMN parent_id TEXT');
+      await addColumn(client, 'ALTER TABLE track_issue_comments ADD COLUMN resolved_at TEXT');
+      await addColumn(client, 'ALTER TABLE track_issue_comments ADD COLUMN resolved_by TEXT');
+      await addColumn(client, 'ALTER TABLE track_issue_views ADD COLUMN shared INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE track_issues ADD COLUMN sub_order REAL');
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_track_issue_comments_parent ON track_issue_comments(parent_id) WHERE parent_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_track_issues_parent ON track_issues(parent_id) WHERE parent_id IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS track_comment_reactions (
+          comment_id TEXT NOT NULL REFERENCES track_issue_comments(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          emoji TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (comment_id, user_id, emoji)
+        );
+
+        CREATE TABLE IF NOT EXISTS track_view_favorites (
+          view_id TEXT NOT NULL REFERENCES track_issue_views(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (view_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_view_favorites_user ON track_view_favorites(user_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS track_issue_presence (
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          seen_at TEXT NOT NULL,
+          PRIMARY KEY (issue_id, user_id)
+        );
+      `);
+    },
+  },
+  {
+    // Track, planificación (como Linear): projects de Linear (acá "plans", un
+    // proyecto de Track es un team), con lead, miembros, equipos, milestones,
+    // updates con salud y recordatorio al lead; initiatives que agrupan plans;
+    // dashboards de insights; auto-cierre y auto-archivo por proyecto.
+    id: '111_track_planning',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_plans (
+          id TEXT PRIMARY KEY,
+          team_id TEXT REFERENCES teams(id) ON DELETE CASCADE,
+          owner_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          icon TEXT,
+          color TEXT NOT NULL DEFAULT '#5e6ad2',
+          summary TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('backlog', 'planned', 'in_progress', 'paused', 'completed', 'canceled')),
+          priority TEXT NOT NULL DEFAULT 'none' CHECK (priority IN ('none', 'urgent', 'high', 'medium', 'low')),
+          lead_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          start_date TEXT,
+          target_date TEXT,
+          update_cadence TEXT NOT NULL DEFAULT 'weekly' CHECK (update_cadence IN ('weekly', 'biweekly', 'off')),
+          update_day INTEGER NOT NULL DEFAULT 5 CHECK (update_day BETWEEN 1 AND 7),
+          next_reminder_at TEXT,
+          reminder_claimed_at TEXT,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          completed_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_plans_team ON track_plans(team_id, status);
+        CREATE INDEX IF NOT EXISTS idx_track_plans_owner ON track_plans(owner_id, status);
+        CREATE INDEX IF NOT EXISTS idx_track_plans_reminder ON track_plans(next_reminder_at) WHERE next_reminder_at IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS track_plan_teams (
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          PRIMARY KEY (plan_id, project_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_plan_teams_project ON track_plan_teams(project_id);
+
+        CREATE TABLE IF NOT EXISTS track_plan_members (
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          PRIMARY KEY (plan_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS track_plan_followers (
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          following INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (plan_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS track_plan_milestones (
+          id TEXT PRIMARY KEY,
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          target_date TEXT,
+          position INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_plan_milestones_plan ON track_plan_milestones(plan_id, position);
+
+        CREATE TABLE IF NOT EXISTS track_plan_updates (
+          id TEXT PRIMARY KEY,
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          health TEXT NOT NULL CHECK (health IN ('on_track', 'at_risk', 'off_track')),
+          body TEXT NOT NULL DEFAULT '',
+          progress INTEGER,
+          meta TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_plan_updates_plan ON track_plan_updates(plan_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS track_plan_update_comments (
+          id TEXT PRIMARY KEY,
+          update_id TEXT NOT NULL REFERENCES track_plan_updates(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          body TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_plan_update_comments ON track_plan_update_comments(update_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS track_plan_events (
+          id TEXT PRIMARY KEY,
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          type TEXT NOT NULL,
+          meta TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_plan_events_plan ON track_plan_events(plan_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS track_initiatives (
+          id TEXT PRIMARY KEY,
+          team_id TEXT REFERENCES teams(id) ON DELETE CASCADE,
+          owner_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          parent_id TEXT REFERENCES track_initiatives(id) ON DELETE SET NULL,
+          name TEXT NOT NULL,
+          icon TEXT,
+          description TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('proposed', 'planned', 'active', 'completed', 'canceled')),
+          lead_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          target_date TEXT,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_initiatives_team ON track_initiatives(team_id, status);
+        CREATE INDEX IF NOT EXISTS idx_track_initiatives_owner ON track_initiatives(owner_id, status);
+
+        CREATE TABLE IF NOT EXISTS track_initiative_plans (
+          initiative_id TEXT NOT NULL REFERENCES track_initiatives(id) ON DELETE CASCADE,
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          PRIMARY KEY (initiative_id, plan_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_initiative_plans_plan ON track_initiative_plans(plan_id);
+
+        CREATE TABLE IF NOT EXISTS track_dashboards (
+          id TEXT PRIMARY KEY,
+          team_id TEXT REFERENCES teams(id) ON DELETE CASCADE,
+          owner_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          visibility TEXT NOT NULL DEFAULT 'workspace' CHECK (visibility IN ('personal', 'workspace')),
+          filters TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_dashboards_team ON track_dashboards(team_id, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_track_dashboards_owner ON track_dashboards(owner_id, updated_at DESC);
+
+        CREATE TABLE IF NOT EXISTS track_dashboard_widgets (
+          id TEXT PRIMARY KEY,
+          dashboard_id TEXT NOT NULL REFERENCES track_dashboards(id) ON DELETE CASCADE,
+          title TEXT NOT NULL DEFAULT '',
+          kind TEXT NOT NULL DEFAULT 'chart' CHECK (kind IN ('chart', 'table', 'metric')),
+          config TEXT NOT NULL DEFAULT '{}',
+          width INTEGER NOT NULL DEFAULT 1 CHECK (width IN (1, 2)),
+          position INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_dashboard_widgets ON track_dashboard_widgets(dashboard_id, position);
+      `);
+      await addColumn(client, 'ALTER TABLE track_issues ADD COLUMN plan_id TEXT REFERENCES track_plans(id) ON DELETE SET NULL');
+      await addColumn(
+        client,
+        'ALTER TABLE track_issues ADD COLUMN plan_milestone_id TEXT REFERENCES track_plan_milestones(id) ON DELETE SET NULL',
+      );
+      await addColumn(client, 'ALTER TABLE track_issues ADD COLUMN archived_at TEXT');
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN auto_close_months INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN auto_close_status_id TEXT');
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN auto_archive_months INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN housekeeping_day TEXT');
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_track_issues_plan ON track_issues(plan_id) WHERE plan_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_track_issues_archived ON track_issues(project_id, archived_at) WHERE archived_at IS NOT NULL;
+      `);
+    },
+  },
+  {
+    // Track (T3, triage e IA): pedidos de clientes enlazados a issues, ajustes
+    // de triage por proyecto (responsable rotativo, SLAs por prioridad, modo
+    // de las sugerencias de IA), reglas de triage, snooze de la cola, SLA de
+    // cada issue, caché de IA (sugerencias y resumen) y agentes que trabajan
+    // issues (apps externas con webhook y sesiones con actividades).
+    id: '112_track_triage',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_triage_settings (
+          project_id TEXT PRIMARY KEY REFERENCES track_projects(id) ON DELETE CASCADE,
+          owner_ids TEXT NOT NULL DEFAULT '[]',
+          owner_rotation TEXT NOT NULL DEFAULT 'weekly' CHECK (owner_rotation IN ('daily', 'weekly')),
+          owner_action TEXT NOT NULL DEFAULT 'off' CHECK (owner_action IN ('off', 'notify', 'assign')),
+          owner_anchor TEXT NOT NULL DEFAULT (date('now')),
+          sla_enabled INTEGER NOT NULL DEFAULT 0,
+          sla_hours TEXT NOT NULL DEFAULT '{}',
+          ai_modes TEXT NOT NULL DEFAULT '{}',
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS track_triage_rules (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          position INTEGER NOT NULL DEFAULT 0,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          conditions TEXT NOT NULL DEFAULT '[]',
+          actions TEXT NOT NULL DEFAULT '{}',
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_triage_rules_project ON track_triage_rules(project_id, position);
+        CREATE TABLE IF NOT EXISTS track_triage_snoozes (
+          issue_id TEXT PRIMARY KEY REFERENCES track_issues(id) ON DELETE CASCADE,
+          until TEXT NOT NULL,
+          user_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS track_issue_slas (
+          issue_id TEXT PRIMARY KEY REFERENCES track_issues(id) ON DELETE CASCADE,
+          priority TEXT NOT NULL,
+          started_at TEXT NOT NULL,
+          risk_at TEXT NOT NULL,
+          due_at TEXT NOT NULL,
+          completed_at TEXT,
+          risk_notified_at TEXT,
+          breach_notified_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_issue_slas_open ON track_issue_slas(completed_at, risk_at);
+        CREATE TABLE IF NOT EXISTS track_customer_requests (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          company_id TEXT REFERENCES crm_companies(id) ON DELETE SET NULL,
+          contact_id TEXT REFERENCES crm_contacts(id) ON DELETE SET NULL,
+          customer_name TEXT NOT NULL DEFAULT '',
+          customer_email TEXT NOT NULL DEFAULT '',
+          important INTEGER NOT NULL DEFAULT 0,
+          body TEXT NOT NULL DEFAULT '',
+          source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'crm', 'chat', 'groups', 'email', 'form', 'api')),
+          source_url TEXT NOT NULL DEFAULT '',
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_customer_requests_issue ON track_customer_requests(issue_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_track_customer_requests_company ON track_customer_requests(workspace_id, company_id);
+        CREATE INDEX IF NOT EXISTS idx_track_customer_requests_contact ON track_customer_requests(workspace_id, contact_id);
+        CREATE TABLE IF NOT EXISTS track_issue_ai (
+          issue_id TEXT PRIMARY KEY REFERENCES track_issues(id) ON DELETE CASCADE,
+          suggestions TEXT NOT NULL DEFAULT '[]',
+          suggestions_at TEXT,
+          summary TEXT NOT NULL DEFAULT '',
+          summary_at TEXT,
+          claimed_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS track_agent_apps (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          webhook_url TEXT NOT NULL DEFAULT '',
+          secret TEXT NOT NULL,
+          token_hash TEXT NOT NULL UNIQUE,
+          token_hint TEXT NOT NULL DEFAULT '',
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_agent_apps_ws ON track_agent_apps(workspace_id, name);
+        CREATE TABLE IF NOT EXISTS track_agent_sessions (
+          id TEXT PRIMARY KEY,
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          agent_kind TEXT NOT NULL CHECK (agent_kind IN ('zerosoft', 'external')),
+          agent_id TEXT NOT NULL,
+          agent_name TEXT NOT NULL DEFAULT '',
+          state TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'active', 'awaiting_input', 'complete', 'error', 'stopped')),
+          created_by TEXT,
+          external_url TEXT NOT NULL DEFAULT '',
+          pending_event TEXT,
+          pending_since TEXT,
+          claimed_at TEXT,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_agent_sessions_issue ON track_agent_sessions(issue_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_track_agent_sessions_pending ON track_agent_sessions(pending_since) WHERE pending_since IS NOT NULL;
+        CREATE TABLE IF NOT EXISTS track_agent_activities (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL REFERENCES track_agent_sessions(id) ON DELETE CASCADE,
+          type TEXT NOT NULL CHECK (type IN ('prompt', 'thought', 'action', 'elicitation', 'response', 'error')),
+          body TEXT NOT NULL DEFAULT '',
+          meta TEXT NOT NULL DEFAULT '{}',
+          user_id TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_agent_activities_session ON track_agent_activities(session_id, created_at);
+      `);
+    },
+  },
+  {
+    // Track T4: proyectos privados e invitados, audit log, GitHub App y reglas
+    // por proyecto, Slack, Sentry, referencias externas (hilos de Slack, issues
+    // de GitHub y Sentry) y el claim de los reintentos de webhooks.
+    id: '113_track_integrations',
+    async up(client) {
+      await addColumn(client, "ALTER TABLE track_projects ADD COLUMN visibility TEXT NOT NULL DEFAULT 'workspace'");
+      await addColumn(client, 'ALTER TABLE track_github ADD COLUMN installation_id INTEGER');
+      await addColumn(client, 'ALTER TABLE track_github ADD COLUMN account_login TEXT');
+      await addColumn(client, 'ALTER TABLE track_issue_links ADD COLUMN checks TEXT');
+      await addColumn(client, 'ALTER TABLE track_issue_links ADD COLUMN reviews TEXT');
+      await addColumn(client, 'ALTER TABLE track_issue_links ADD COLUMN head_sha TEXT');
+      await addColumn(client, 'ALTER TABLE track_issue_links ADD COLUMN closes INTEGER NOT NULL DEFAULT 1');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_project_access (
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          added_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (project_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_project_access_user ON track_project_access(user_id);
+
+        CREATE TABLE IF NOT EXISTS track_guests (
+          workspace_id TEXT NOT NULL,
+          email TEXT NOT NULL,
+          project_ids TEXT NOT NULL DEFAULT '[]',
+          added_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (workspace_id, email)
+        );
+
+        CREATE TABLE IF NOT EXISTS track_audit_log (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          actor_id TEXT,
+          actor_label TEXT,
+          via TEXT NOT NULL DEFAULT 'app',
+          action TEXT NOT NULL,
+          entity_type TEXT NOT NULL,
+          entity_id TEXT,
+          entity_label TEXT,
+          project_id TEXT,
+          data TEXT NOT NULL DEFAULT '{}',
+          ip TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_audit_ws ON track_audit_log(workspace_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS track_github_rules (
+          project_id TEXT PRIMARY KEY REFERENCES track_projects(id) ON DELETE CASCADE,
+          on_draft TEXT,
+          on_open TEXT,
+          on_review TEXT,
+          on_merge TEXT,
+          sync_repo TEXT,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS track_external_refs (
+          id TEXT PRIMARY KEY,
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          external_id TEXT NOT NULL,
+          url TEXT,
+          title TEXT NOT NULL DEFAULT '',
+          state TEXT,
+          meta TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (workspace_id, provider, external_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_external_refs_issue ON track_external_refs(issue_id);
+
+        CREATE TABLE IF NOT EXISTS track_slack (
+          workspace_id TEXT PRIMARY KEY,
+          slack_team_id TEXT NOT NULL,
+          slack_team_name TEXT NOT NULL DEFAULT '',
+          bot_token TEXT NOT NULL,
+          bot_user_id TEXT,
+          default_project_id TEXT,
+          unfurl INTEGER NOT NULL DEFAULT 1,
+          installed_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_slack_team ON track_slack(slack_team_id);
+
+        CREATE TABLE IF NOT EXISTS track_slack_channels (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          channel_id TEXT NOT NULL,
+          channel_name TEXT NOT NULL DEFAULT '',
+          events TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (project_id, channel_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS track_integrations (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          secret TEXT,
+          token TEXT,
+          config TEXT NOT NULL DEFAULT '{}',
+          last_event_at TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (workspace_id, provider)
+        );
+
+        CREATE TABLE IF NOT EXISTS track_integration_events (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          direction TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          summary TEXT NOT NULL DEFAULT '',
+          ok INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_integration_events_ws ON track_integration_events(workspace_id, provider, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS track_integration_outbox (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          payload TEXT NOT NULL DEFAULT '{}',
+          status TEXT NOT NULL DEFAULT 'pending',
+          attempts INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT,
+          next_attempt_at TEXT,
+          locked_until TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_integration_outbox_due ON track_integration_outbox(status, next_attempt_at);
+      `);
+    },
+  },
+  {
     // Docs, editor (tanda D1): favoritos por persona (orden manual),
     // recordatorios de las menciones de fecha (claim por fila en sent_at),
     // contenido compartido de los bloques sincronizados y la posición
@@ -4655,6 +5123,131 @@ export const MIGRATIONS: Migration[] = [
           content TEXT NOT NULL,
           PRIMARY KEY (synced_id, updated_at)
         );
+      `);
+    },
+  },
+  {
+    // Track, pulido como Linear: "No priority" (la prioridad por defecto de
+    // Linear) en el CHECK de track_issues (se reconstruye la tabla con
+    // client.migrate, que apaga las foreign keys mientras copia), IDs viejos
+    // de issues movidos de team (Linear los redirige), auto-cierre de padre y
+    // sub-issues por team, y labels con grupo y de team.
+    id: '114_track_linear_polish',
+    async up(client) {
+      const current = await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'track_issues'");
+      const sql = String(current.rows[0]?.sql ?? '');
+      const check = /CHECK\s*\(\s*priority\s+IN\s*\([^)]*\)\s*\)/i;
+      if (sql && check.test(sql) && !/'none'/.test(sql.match(check)?.[0] ?? '')) {
+        const newSql = sql
+          .replace(check, "CHECK (priority IN ('none', 'urgent', 'high', 'medium', 'low'))")
+          // Como Linear, un issue nace sin prioridad.
+          .replace(/priority\s+TEXT\s+NOT\s+NULL\s+DEFAULT\s+'medium'/i, "priority TEXT NOT NULL DEFAULT 'none'")
+          .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?track_issues["`]?/i, 'CREATE TABLE track_issues_new');
+        const cols = (await client.execute('PRAGMA table_info(track_issues)')).rows
+          .map((r) => `"${String(r.name)}"`)
+          .join(', ');
+        const indexes = (
+          await client.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'track_issues' AND sql IS NOT NULL",
+          )
+        ).rows.map((r) => String(r.sql));
+        await client.migrate([
+          'DROP TABLE IF EXISTS track_issues_new',
+          newSql,
+          `INSERT INTO track_issues_new (${cols}) SELECT ${cols} FROM track_issues`,
+          'DROP TABLE track_issues',
+          'ALTER TABLE track_issues_new RENAME TO track_issues',
+          ...indexes,
+        ]);
+      }
+      // Clave del team única por workspace (como Linear: MOB en dos workspaces
+      // distintos), no en toda la base: se saca el UNIQUE de la columna.
+      const projSql = String(
+        (await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'track_projects'")).rows[0]?.sql ?? '',
+      );
+      const slugUnique = /\bslug\s+TEXT\s+NOT\s+NULL\s+UNIQUE\b/i;
+      if (projSql && slugUnique.test(projSql)) {
+        const newSql = projSql
+          .replace(slugUnique, 'slug TEXT NOT NULL')
+          .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?track_projects["`]?/i, 'CREATE TABLE track_projects_new');
+        const cols = (await client.execute('PRAGMA table_info(track_projects)')).rows.map((r) => `"${String(r.name)}"`).join(', ');
+        const indexes = (
+          await client.execute("SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'track_projects' AND sql IS NOT NULL")
+        ).rows.map((r) => String(r.sql));
+        await client.migrate([
+          'DROP TABLE IF EXISTS track_projects_new',
+          newSql,
+          `INSERT INTO track_projects_new (${cols}) SELECT ${cols} FROM track_projects`,
+          'DROP TABLE track_projects',
+          'ALTER TABLE track_projects_new RENAME TO track_projects',
+          ...indexes,
+        ]);
+      }
+      await client.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_track_projects_ws_slug ON track_projects(COALESCE(team_id, owner_id), slug)',
+      );
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN auto_close_parent INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN auto_close_children INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE track_labels ADD COLUMN parent_id TEXT');
+      await addColumn(client, 'ALTER TABLE track_labels ADD COLUMN project_id TEXT');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_issue_aliases (
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          identifier TEXT NOT NULL,
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (project_id, identifier)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_issue_aliases_identifier ON track_issue_aliases(identifier);
+        CREATE INDEX IF NOT EXISTS idx_track_issue_aliases_issue ON track_issue_aliases(issue_id);
+
+        CREATE TABLE IF NOT EXISTS track_issue_favorites (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, issue_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_issue_favorites_user ON track_issue_favorites(user_id, created_at);
+      `);
+    },
+  },
+  {
+    // Track: prioridad por defecto 'none' en bases que ya corrieron la 114
+    // antes de que la 114 cambiara el DEFAULT (solo reconstruye si hace falta;
+    // en una base nueva es un no-op), escala de estimación por team y labels
+    // de los projects (track_plans).
+    id: '115_track_priority_default',
+    async up(client) {
+      const sql = String(
+        (await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'track_issues'")).rows[0]?.sql ?? '',
+      );
+      const oldDefault = /priority\s+TEXT\s+NOT\s+NULL\s+DEFAULT\s+'medium'/i;
+      if (sql && oldDefault.test(sql)) {
+        const newSql = sql
+          .replace(oldDefault, "priority TEXT NOT NULL DEFAULT 'none'")
+          .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?track_issues["`]?/i, 'CREATE TABLE track_issues_new');
+        const cols = (await client.execute('PRAGMA table_info(track_issues)')).rows.map((r) => `"${String(r.name)}"`).join(', ');
+        const indexes = (
+          await client.execute("SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'track_issues' AND sql IS NOT NULL")
+        ).rows.map((r) => String(r.sql));
+        await client.migrate([
+          'DROP TABLE IF EXISTS track_issues_new',
+          newSql,
+          `INSERT INTO track_issues_new (${cols}) SELECT ${cols} FROM track_issues`,
+          'DROP TABLE track_issues',
+          'ALTER TABLE track_issues_new RENAME TO track_issues',
+          ...indexes,
+        ]);
+      }
+      // Escala de estimación del team (como Linear): fibonacci, linear, exponential, tshirt o none.
+      await addColumn(client, "ALTER TABLE track_projects ADD COLUMN estimate_scale TEXT NOT NULL DEFAULT 'fibonacci'");
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_plan_labels (
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          label_id TEXT NOT NULL REFERENCES track_labels(id) ON DELETE CASCADE,
+          PRIMARY KEY (plan_id, label_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_plan_labels_label ON track_plan_labels(label_id);
       `);
     },
   },

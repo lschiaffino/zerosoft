@@ -7,6 +7,7 @@ import CallDock from '@/components/crm/CallDock';
 import '@/styles/crm.css';
 import '@/styles/crm-records.css';
 import '@/styles/crm-ai.css';
+import '@/styles/track-triage.css';
 import CrmAssistant from '@/components/crm/CrmAssistant';
 import { CrmViewerProvider } from '@/components/crm/CrmViewer';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
@@ -22,7 +23,7 @@ export default async function CrmLayout(props: { children: ReactNode; params: Pr
   const { locale } = await props.params;
   const user = await getCurrentUser();
   return (
-    <ClientMessages locale={locale} namespaces={['crm']}>
+    <ClientMessages locale={locale} namespaces={['crm', 'trackTriage.customers']}>
       <Suspense fallback={null}>
         <OfflineSync />
       </Suspense>

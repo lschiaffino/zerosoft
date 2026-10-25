@@ -4,7 +4,7 @@
  * y se pasan a los componentes cliente.
  */
 import type { IssuePriority } from '@/lib/track-tasks';
-import type { MarkdownLabels } from './MarkdownEditor';
+import type { MarkdownLabels } from './MarkdownView';
 import type { DisplayLabels } from './IssueDisplayOptions';
 
 export interface TrackUiLabels {
@@ -67,6 +67,7 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
       { value: 'high', label: t('priorities.high') },
       { value: 'medium', label: t('priorities.medium') },
       { value: 'low', label: t('priorities.low') },
+      { value: 'none', label: t('priorities.none') },
     ],
     noAssignee: t('issues.noAssignee'),
     quick: {
@@ -147,6 +148,8 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
         priority: t('display.sorts.priority'),
         due: t('display.sorts.due'),
         identifier: t('display.sorts.identifier'),
+        customers: t('display.sorts.customers'),
+        revenue: t('display.sorts.revenue'),
       },
     },
   };

@@ -147,7 +147,7 @@
       },
       "f6": {
         "t": "Status e prioridades",
-        "d": "Status próprios por projeto e prioridades de baixa a urgente."
+        "d": "Status próprios por equipe e prioridades de baixa a urgente."
       },
       "f7": {
         "t": "Estimativas",
@@ -176,7 +176,7 @@
         },
         "f2": {
           "q": "Como o trabalho é organizado?",
-          "a": "Por projeto. Cada projeto tem os seus status, membros, ciclos e visões salvas. As issues têm prioridade, estimativa, responsável, datas, sub-issues e relações."
+          "a": "Por equipe, como no Linear. Cada equipe tem seu identificador, status, membros, ciclos e visões salvas, e os projetos agrupam issues de uma ou mais equipes por trás de um resultado. As issues têm prioridade, estimativa, responsável, datas, sub-issues e relações."
         },
         "f3": {
           "q": "Onde vejo o que é meu?",
@@ -194,13 +194,13 @@
       "cta": {
         "title1": "Monte o seu primeiro ciclo.",
         "title2": "Com o time inteiro.",
-        "sub": "Crie um projeto, convide o time e cadastre as issues da semana.",
+        "sub": "Crie uma equipe, convide as pessoas e cadastre as issues da semana.",
         "button": "Abrir o Track"
       },
       "steps": {
         "s1": {
-          "t": "Monte um projeto",
-          "d": "Crie um projeto com seus próprios status e convide o time para o workspace compartilhado."
+          "t": "Monte uma equipe",
+          "d": "Crie uma equipe com seus próprios status e convide as pessoas para o workspace compartilhado."
         },
         "s2": {
           "t": "Escreva o trabalho",
@@ -2256,6 +2256,8 @@
     "paramGroupsEndsAt": "Data ISO de fim, opcional",
     "scope_groups_read": "Ler chats, mensagens e tickets de WhatsApp no Groups.",
     "scope_groups_write": "Enviar mensagens de WhatsApp e criar tickets no Groups.",
+    "scope_track_read": "Ler issues e pedidos de clientes do Track.",
+    "scope_track_write": "Criar issues do Track a partir de pedidos de clientes (e-mail, formulários, Flow).",
     "crmLeadsTitle": "CRM · Leads",
     "crmLeadsDesc": "Leads são prospects antes de virarem negócio: responsável, etapa do pipeline de leads, contato e empresa. Converter um lead cria um negócio pelo app. Campos personalizados de leads vão em custom; os que a key não pode editar retornam 403 field_readonly e os ocultos ficam fora das respostas.",
     "crmObjectsTitle": "CRM · Objetos personalizados",
@@ -2323,7 +2325,64 @@
     "voiceDictionaryDesc": "Palavras, substituições, snippets e ajustes de ditado da pessoa, para sincronizar o app desktop.",
     "paramVoiceKind": "meeting ou dictation.",
     "scope_voice_read": "Ler ditados, reuniões e transcrições do Voice.",
-    "scope_voice_write": "Ditar e enviar áudio de reuniões para o Voice."
+    "scope_voice_write": "Ditar e enviar áudio de reuniões para o Voice.",
+    "trackTitle": "Track",
+    "trackDesc": "Issues, comentários, equipes, cycles, status, labels e pessoas do Track. Use uma key com track:read ou track:write. Os issues criados pela API vão para triage se a equipe tiver ativo, e cada mudança deixa atividade, avisos, webhooks e uma entrada de audit como o app. As equipes antes se chamavam projetos: /api/v1/track/projects e projectId continuam funcionando.",
+    "trackMcpTitle": "Servidor MCP do Track",
+    "trackMcpDesc": "Model Context Protocol via Streamable HTTP em /api/mcp/track (só leitura em /api/mcp/track/readonly). Autenticação com uma API key como Bearer. Ferramentas: search_issues, get_issue, create_issue, update_issue, add_comment, list_teams, get_team, list_cycles, list_labels, list_users.",
+    "trackMcpCallTitle": "Chamar uma ferramenta",
+    "trackMcpCallDesc": "JSON-RPC 2.0: initialize, tools/list e tools/call. As ferramentas que escrevem pedem track:write.",
+    "trackIssuesListTitle": "Listar issues",
+    "trackIssuesListDesc": "Issues que a key vê, os editados mais recentes primeiro, com filtros.",
+    "trackIssuesCreateTitle": "Criar um issue",
+    "trackIssuesCreateDesc": "teamId aceita o id ou a chave (WEB); projectId é o nome anterior. status aceita o nome do status ou uma categoria. Os links do Sentry, Zendesk, Intercom ou Figma ficam vinculados ao issue.",
+    "trackIssuesGetTitle": "Ver um issue",
+    "trackIssuesGetDesc": "Por id ou identificador (WEB-12).",
+    "trackIssuesUpdateTitle": "Editar um issue",
+    "trackIssuesUpdateDesc": "Envie só o que muda. Mudar status ou responsável aceita um issue que está em triage.",
+    "trackIssuesDeleteTitle": "Excluir um issue",
+    "trackIssuesDeleteDesc": "Exclui o issue e os sub-issues.",
+    "trackCommentsListTitle": "Listar comentários",
+    "trackCommentsListDesc": "Comentários de um issue, os mais antigos primeiro.",
+    "trackCommentsCreateTitle": "Comentar",
+    "trackCommentsCreateDesc": "Comenta como o dono da key em markdown e avisa inscritos e menções.",
+    "trackProjectsListTitle": "Listar equipes",
+    "trackProjectsListDesc": "Equipes ativas que a key vê. includeArchived=true inclui as arquivadas.",
+    "trackProjectsCreateTitle": "Criar uma equipe",
+    "trackProjectsCreateDesc": "Só admins. Cria os status padrão. key é o prefixo dos identificadores.",
+    "trackProjectsGetTitle": "Ver uma equipe",
+    "trackProjectsGetDesc": "Por id ou chave, com os status.",
+    "trackProjectsUpdateTitle": "Editar uma equipe",
+    "trackProjectsUpdateDesc": "Nome, descrição, cor e ícone. Arquivar e triage pedem uma key de admin.",
+    "trackCyclesListTitle": "Listar cycles",
+    "trackCyclesListDesc": "Cycles de uma equipe.",
+    "trackCyclesCreateTitle": "Criar um cycle",
+    "trackCyclesCreateDesc": "Datas em YYYY-MM-DD.",
+    "trackStatusesTitle": "Listar status",
+    "trackStatusesDesc": "Status do workflow de uma equipe em ordem, com a categoria.",
+    "trackLabelsTitle": "Listar labels",
+    "trackLabelsDesc": "Labels do workspace. POST com name e teamId cria um.",
+    "trackUsersTitle": "Listar pessoas",
+    "trackUsersDesc": "Pessoas que podem ser atribuídas, de uma equipe ou de todas.",
+    "paramTrackProjectId": "Id ou chave da equipe (WEB). projectId também funciona.",
+    "paramTrackStatusCategory": "Categoria do status.",
+    "paramTrackAssigneeId": "Id da pessoa atribuída.",
+    "paramTrackPriority": "Prioridade.",
+    "paramTrackUpdatedSince": "Só issues editados desde esta data ISO.",
+    "paramTrackTitle": "Título do issue.",
+    "paramTrackDescription": "Descrição em markdown.",
+    "paramTrackStatus": "Nome do status (\"In Progress\") ou categoria (in_progress).",
+    "paramTrackAssigneeEmail": "Email de um membro da equipe.",
+    "paramTrackLabels": "Nomes de labels; os que não existem são criados.",
+    "paramTrackDueDate": "Prazo, YYYY-MM-DD.",
+    "paramTrackLinks": "URLs do Sentry, Zendesk, Intercom ou Figma para vincular.",
+    "paramTrackIssueId": "Id ou identificador do issue (WEB-12).",
+    "paramTrackCommentBody": "Comentário em markdown.",
+    "paramTrackKey": "Prefixo dos identificadores, letras e números (WEB).",
+    "paramTrackProjectStatus": "active ou archived.",
+    "paramTrackDate": "Data, YYYY-MM-DD.",
+    "webhooksTrackTitle": "Payload de eventos do Track",
+    "webhooksTrackDesc": "Os eventos issue.* trazem o issue e a equipe (project no payload); issue.status_changed inclui from e to, comment.created o comentário e project.* a equipe."
   },
   "parityOverview": {
     "title": "Paridade de funções, app por app.",

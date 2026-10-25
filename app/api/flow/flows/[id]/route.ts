@@ -3,7 +3,7 @@ import { getCurrentUser } from '@/lib/session';
 import { deleteFlow, getFlow, lastOutputs, listFlowWebhooks, rememberFlowLocale, updateFlow } from '@/lib/flow';
 import { requestLocale } from '@/lib/request-locale';
 import { flowUpdateSchema } from '@/lib/flow-schema';
-import { canEditFlows, flowError, forbidden, notFound, realUserId, unauthorized } from '@/lib/flow-http';
+import { canEditFlows, flowError, forbidden, notFound, realUserId, runViewer, unauthorized } from '@/lib/flow-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, props: Ctx) {
     canEdit,
     // Los tokens de webhook son secretos: solo para quien puede editar.
     webhooks: canEdit ? await listFlowWebhooks(user.id, id) : [],
-    lastOutputs: await lastOutputs(user.id, id),
+    lastOutputs: await lastOutputs(user.id, id, runViewer(user)),
   });
 }
 

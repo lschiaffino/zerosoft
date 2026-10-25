@@ -12,7 +12,7 @@ async function accessibleMilestone(id: string, teamId: string | null, ownerId: s
   const milestone = await getMilestone(id);
   if (!milestone) return null;
   const project = await getProject(milestone.project_id);
-  if (!project || !canAccessTrackProject(project, teamId, ownerId)) return null;
+  if (!project || !(await canAccessTrackProject(project, teamId, ownerId))) return null;
   return milestone;
 }
 

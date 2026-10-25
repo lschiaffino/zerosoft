@@ -6,6 +6,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import DataTable from '@/components/ui/DataTable';
 import EmptyState from '@/components/ui/EmptyState';
 import QuickProjectButton from './QuickProjectButton';
+import { teamPath } from '@/lib/track-routes';
 
 /**
  * Resumen de Track: una fila por proyecto con el ciclo en curso y su avance,
@@ -68,7 +69,7 @@ export default async function TrackOverview({ locale }: { locale: string }) {
           className="track-overview"
           rows={rows}
           rowKey={(p) => p.id}
-          rowHref={(p) => `/app/track/projects/${p.id}`}
+          rowHref={(p) => teamPath(p)}
           columns={[
             {
               key: 'name',

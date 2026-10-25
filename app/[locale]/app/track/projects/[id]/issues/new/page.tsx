@@ -14,5 +14,5 @@ export default async function NewIssuePage(props: {
   const { locale, id } = await props.params;
   const parentId = (await props.searchParams)?.parentId;
   if (parentId) redirect(`/${locale}/app/track/issues/${encodeURIComponent(parentId)}`);
-  redirect(`/${locale}/app/track/projects/${encodeURIComponent(id)}?newIssue=1`);
+  redirect(`/${locale}/app/track/team/${encodeURIComponent(id)}?newIssue=1`);
 }

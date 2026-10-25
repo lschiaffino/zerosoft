@@ -22,8 +22,8 @@
 .track-status-glyph {
   display: block;
   flex-shrink: 0;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 .track-status-control {
@@ -74,15 +74,10 @@
 /* ---------- Prioridad ---------- */
 
 .track-prio-icon {
-  display: inline-flex;
+  display: inline-block;
   flex-shrink: 0;
-  align-items: flex-end;
-  gap: 1.5px;
-  height: 12px;
-}
-
-.track-prio-icon span {
-  width: 3px;
+  width: 14px;
+  height: 14px;
 }
 
 .track-avatar-empty {

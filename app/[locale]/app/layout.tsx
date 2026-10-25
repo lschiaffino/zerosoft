@@ -45,8 +45,9 @@ export default async function AppLayout(
   } = props;
 
   const user = await requireUser(locale);
+  const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tasksDue, serverTz, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -71,6 +72,7 @@ export default async function AppLayout(
         return 0;
       }),
       getUserTimeZone(),
+      getTranslations({ locale, namespace: 'trackPlanning' }),
       getWorkspaceMode(user),
       getTranslations({ locale, namespace: 'common.categories' }),
     ]);
@@ -83,7 +85,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder']}>
+    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder']}>
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
@@ -162,9 +164,18 @@ export default async function AppLayout(
                 { href: '/app/calendar/analytics', label: tCalendar('sidebar.analytics') },
                 { href: '/app/track', label: tTrack('sidebar.overview') },
                 { href: '/app/track/my-tasks', label: tTrack('sidebar.myTasks') },
-                { href: '/app/track/projects', label: tTrack('sidebar.projects') },
+                { href: '/app/track/teams', label: tTrack('sidebar.projects') },
+                { href: '/app/track/team', label: tTrack('sidebar.projects') },
                 { href: '/app/track/issues', label: tTrack('sidebar.issues') },
+                { href: '/app/track/customers', label: tTrack('sidebar.customers') },
                 { href: '/app/track/inbox', label: tTrack('sidebar.inbox') },
+                { href: '/app/track/projects', label: tPlanning('sidebar.plans') },
+                { href: '/app/track/plans', label: tPlanning('sidebar.plans') },
+                { href: '/app/track/initiatives', label: tPlanning('sidebar.initiatives') },
+                { href: '/app/track/roadmap', label: tPlanning('sidebar.roadmap') },
+                { href: '/app/track/cycles', label: tPlanning('sidebar.cycles') },
+                { href: '/app/track/insights', label: tPlanning('sidebar.insights') },
+                { href: '/app/track/dashboards', label: tPlanning('sidebar.dashboards') },
                 { href: '/app/track/settings', label: tTrack('sidebar.settings') },
                 { href: '/app/chat', label: tChat('sidebar.overview') },
                 { href: '/app/chat/inbox', label: tChat('sidebar.inbox') },
@@ -295,6 +306,17 @@ export default async function AppLayout(
               cycles: tTrack('sidebar.cycles'),
               settings: tTrack('sidebar.settings'),
               inbox: tTrack('sidebar.inbox'),
+              planning: tPlanning('sidebar.planning'),
+              plans: tPlanning('sidebar.plans'),
+              initiatives: tPlanning('sidebar.initiatives'),
+              roadmap: tPlanning('sidebar.roadmap'),
+              analytics: tPlanning('sidebar.analytics'),
+              insights: tPlanning('sidebar.insights'),
+              dashboards: tPlanning('sidebar.dashboards'),
+              customers: tTrack('sidebar.customers'),
+              workspace: tTrack('sidebar.workspace'),
+              yourTeams: tTrack('sidebar.yourTeams'),
+              more: tTrack('sidebar.more'),
             },
             chat: {
               overview: tChat('sidebar.overview'),
@@ -344,6 +366,9 @@ export default async function AppLayout(
                 changedStatus: tTrack.raw('activity.changedStatus') as string,
                 updatedIssue: tTrack.raw('activity.updatedIssue') as string,
                 reminderFor: tTrack.raw('inboxSnooze.reminderFor') as string,
+                planUpdate: tPlanning.raw('notify.planUpdate') as string,
+                planComment: tPlanning.raw('notify.planComment') as string,
+                planReminder: tPlanning.raw('notify.planReminder') as string,
                 docMention: tTrack.raw('notifications.docMention') as string,
                 docCommentMention: tTrack.raw('notifications.docCommentMention') as string,
                 docCommentReply: tTrack.raw('notifications.docCommentReply') as string,
@@ -351,6 +376,12 @@ export default async function AppLayout(
                 docConflict: tTrack.raw('notifications.docConflict') as string,
                 boardMention: tTrack.raw('notifications.boardMention') as string,
                 boardReply: tTrack.raw('notifications.boardReply') as string,
+                trackKinds: {
+                  triage_owner: tTriage.raw('notifications.triage_owner') as string,
+                  sla_risk: tTriage.raw('notifications.sla_risk') as string,
+                  sla_breach: tTriage.raw('notifications.sla_breach') as string,
+                  agent_update: tTriage.raw('notifications.agent_update') as string,
+                },
                 groupsMention: tTrack.raw('notifications.groupsMention') as string,
                 groupsAssigned: tTrack.raw('notifications.groupsAssigned') as string,
                 groupsAutoAssigned: tTrack.raw('notifications.groupsAutoAssigned') as string,

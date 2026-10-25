@@ -13,7 +13,7 @@ async function accessibleCycle(id: string, teamId: string | null, ownerId: strin
   if (!cycle) return null;
   const project = await getProject(cycle.project_id);
   if (!project) return null;
-  if (!canAccessTrackProject(project, teamId, ownerId)) return null;
+  if (!(await canAccessTrackProject(project, teamId, ownerId))) return null;
   return cycle;
 }
 

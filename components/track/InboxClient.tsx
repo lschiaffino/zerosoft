@@ -19,7 +19,8 @@ type NotificationType =
   | 'comment'
   | 'subtask'
   | 'relation'
-  | 'track_reminder';
+  | 'track_reminder'
+  | 'project_update';
 
 interface Notification {
   id: string;
@@ -68,7 +69,7 @@ const TABS = [
   { key: 'assigned', types: ['assigned'] as NotificationType[] },
   {
     key: 'updates',
-    types: ['status_change', 'issue_update', 'comment', 'subtask', 'relation', 'track_reminder'] as NotificationType[],
+    types: ['status_change', 'issue_update', 'comment', 'subtask', 'relation', 'track_reminder', 'project_update'] as NotificationType[],
   },
   // Pospuestos: vuelven a la bandeja como no leídos al vencer el plazo.
   { key: 'snoozed', types: undefined as NotificationType[] | undefined },
@@ -99,6 +100,8 @@ function notifyChanged() {
 /** Bandeja de Track: menciones, asignaciones y cambios, con filtro por tipo. */
 export default function InboxClient({ locale, labels }: InboxClientProps) {
   const tr = useTranslations('track');
+  const tp = useTranslations('trackPlanning');
+  const tTriage = useTranslations('trackTriage');
   const [tab, setTab] = useState<TabKey>('all');
   const [snoozeError, setSnoozeError] = useState(false);
   const [rows, setRows] = useState<Notification[]>([]);
@@ -190,6 +193,9 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     changedStatus: labels.changedStatus,
     updatedIssue: labels.updatedIssue,
     reminderFor: tr.raw('inboxSnooze.reminderFor') as string,
+    planUpdate: tp.raw('notify.planUpdate') as string,
+    planComment: tp.raw('notify.planComment') as string,
+    planReminder: tp.raw('notify.planReminder') as string,
     docMention: tr.raw('notifications.docMention') as string,
     docCommentMention: tr.raw('notifications.docCommentMention') as string,
     docCommentReply: tr.raw('notifications.docCommentReply') as string,
@@ -197,6 +203,12 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     docConflict: tr.raw('notifications.docConflict') as string,
     boardMention: tr.raw('notifications.boardMention') as string,
     boardReply: tr.raw('notifications.boardReply') as string,
+    trackKinds: {
+      triage_owner: tTriage.raw('notifications.triage_owner') as string,
+      sla_risk: tTriage.raw('notifications.sla_risk') as string,
+      sla_breach: tTriage.raw('notifications.sla_breach') as string,
+      agent_update: tTriage.raw('notifications.agent_update') as string,
+    },
     groupsMention: tr.raw('notifications.groupsMention') as string,
     groupsAssigned: tr.raw('notifications.groupsAssigned') as string,
     groupsAutoAssigned: tr.raw('notifications.groupsAutoAssigned') as string,

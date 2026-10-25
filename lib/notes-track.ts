@@ -38,7 +38,7 @@ export async function sendNoteToTrack(args: {
   if (note.trashed) return { ok: false, code: 'trashed' };
   if (args.baseUpdatedAt && note.updated_at !== args.baseUpdatedAt) return { ok: false, code: 'conflict' };
   const project = await getProject(args.projectId);
-  if (!project || !canAccessTrackProject(project, args.teamId, args.owner.workspaceId)) return { ok: false, code: 'project_not_found' };
+  if (!project || !(await canAccessTrackProject(project, args.teamId, args.owner.workspaceId))) return { ok: false, code: 'project_not_found' };
 
   const created: Array<{ id: string; identifier: string; title: string }> = [];
   let skipped = 0;

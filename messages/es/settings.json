@@ -118,7 +118,10 @@
       "company": "Empresas",
       "task": "Tareas",
       "quote": "Cotizaciones",
-      "form": "Formularios"
+      "form": "Formularios",
+      "issue": "Issues de Track",
+      "comment": "Comentarios de Track",
+      "project": "Equipos de Track"
     },
     "eventLabels": {
       "booking_created": "Reserva creada",
@@ -159,6 +162,14 @@
       "quote_accepted": "Cotización firmada",
       "quote_paid": "Cotización pagada",
       "form_submitted": "Formulario enviado",
+      "issue_created": "Issue creado",
+      "issue_updated": "Issue editado",
+      "issue_status_changed": "Cambio de status",
+      "issue_deleted": "Issue borrado",
+      "comment_created": "Comentario nuevo",
+      "project_created": "Proyecto creado",
+      "project_updated": "Proyecto editado",
+      "project_deleted": "Proyecto borrado",
       "groups_message_sent": "Mensaje enviado (Groups)",
       "groups_chat_created": "Chat o grupo nuevo (Groups)",
       "groups_chat_assigned": "Chat asignado (Groups)",
@@ -210,6 +221,15 @@
       "request": "Cuerpo enviado",
       "response": "Respuesta",
       "noBody": "Respuesta vacía"
+    },
+    "deliveries": {
+      "show": "Entregas",
+      "title": "Entregas recientes",
+      "empty": "Todavía no hay entregas.",
+      "attempts": "{count, plural, one {# intento} other {# intentos}}",
+      "retryAt": "próximo intento {date}",
+      "redeliver": "Reenviar",
+      "close": "Cerrar"
     }
   },
   "credentials": {

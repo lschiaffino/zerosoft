@@ -1,0 +1,719 @@
+/* ============================================================
+   Track — página del issue y composer como Linear (tanda TL2)
+   Cuerpo limpio a la izquierda, columna angosta de propiedades a
+   la derecha con borde (sin caja gris), chips que abren los menús
+   de ⌘K, header con prev/next e íconos, sub-issues densos y el
+   composer con chips compactos. Solo tokens; radios chicos.
+   ============================================================ */
+
+/* ---------- Header ---------- */
+
+.track-issue-page .track-detail-head {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.track-issue-page .track-detail-actions {
+  gap: 2px;
+}
+
+.track-head-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  color: var(--brand-gray-1);
+}
+
+.track-head-icon:hover {
+  color: var(--ink);
+}
+
+.track-head-icon.is-on {
+  color: var(--ink);
+}
+
+.track-head-icon:disabled {
+  opacity: 0.35;
+}
+
+.track-issue-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin-right: 6px;
+}
+
+.track-issue-nav-count {
+  min-width: 44px;
+  padding-right: 4px;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--brand-gray-2);
+}
+
+/* ---------- Cuerpo y columna derecha ---------- */
+
+.track-issue-page .track-detail-grid {
+  grid-template-columns: minmax(0, 1fr) 248px;
+  gap: 0;
+  align-items: stretch;
+}
+
+.track-issue-page .track-detail-main {
+  padding: 12px 40px 48px 0;
+  max-width: 820px;
+}
+
+.track-issue-page .track-detail-side {
+  position: sticky;
+  top: calc(var(--band-h, 0px) + 8px);
+  align-self: start;
+  min-height: calc(100vh - var(--band-h, 0px) - 80px);
+  padding: 12px 0 24px 16px;
+  border-left: 1px solid var(--line);
+}
+
+.track-issue-page .track-detail-props {
+  padding: 0;
+  background: none;
+  border-radius: 0;
+}
+
+.track-issue-page .track-detail-title {
+  margin: 4px 0 4px;
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+.track-issue-page .track-detail-description {
+  padding: 0;
+  border: 0;
+}
+
+.track-issue-page .track-detail .track-detail-section,
+.track-issue-page .track-issue-block {
+  padding: 16px 0;
+}
+
+/* Sub-issue de: con el progreso del padre. */
+.track-parent-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.track-parent-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+/* ---------- Propiedades (chips) ---------- */
+
+.track-issue-page .track-side {
+  gap: 1px;
+}
+
+.track-prop {
+  display: flex;
+  min-width: 0;
+}
+
+.track-prop-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 0 8px;
+  margin-left: -8px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+
+.track-prop-chip:hover {
+  background: var(--ui-hover);
+}
+
+.track-prop-chip:focus-visible,
+.track-label-chip:focus-visible,
+.track-qc-chip:focus-visible,
+.track-qc-team:focus-visible,
+.track-tool:focus-visible,
+.track-subtask-status:focus-visible,
+.track-subtask-prop:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.track-prop-chip.is-empty {
+  color: var(--brand-gray-2);
+}
+
+.track-prop-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--brand-gray-2);
+}
+
+.track-prop-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-prop-value .is-overdue {
+  color: var(--bad);
+}
+
+.track-prop-group {
+  padding: 2px 0;
+}
+
+.track-prop-labels {
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px 0;
+}
+
+.track-label-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  height: 24px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+
+.track-label-chip:hover {
+  background: var(--ui-hover);
+}
+
+.track-label-chip.is-add {
+  width: 24px;
+  padding: 0;
+  justify-content: center;
+  color: var(--brand-gray-2);
+  border-style: dashed;
+}
+
+.track-label-dot {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* ---------- Barra bajo la descripción ---------- */
+
+.track-issue-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 8px 0 4px -8px;
+}
+
+.track-tool,
+.track-issue-tools .track-tool.track-inline-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-1);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+
+.track-tool.is-icon,
+.track-issue-tools .track-tool.is-icon {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+}
+
+.track-tool:hover {
+  color: var(--ink);
+  background: var(--ui-hover);
+}
+
+/* ---------- Relaciones ---------- */
+
+.track-issue-page .track-relation-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.track-issue-page .track-relation {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  font-size: 0.8125rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.track-issue-page .track-relation-type {
+  flex: none;
+  min-width: 96px;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+.track-relation-link {
+  display: inline-flex;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.track-relation-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-relation-remove {
+  opacity: 0;
+}
+
+.track-relation:hover .track-relation-remove,
+.track-relation-remove:focus-visible {
+  opacity: 1;
+}
+
+/* ---------- Sub-issues ---------- */
+
+.track-subtask-row .track-subtask-id {
+  flex: none;
+  width: calc(var(--sub-id-ch, 8) * 1ch + 4px);
+  min-width: calc(var(--sub-id-ch, 8) * 1ch + 4px);
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-subtask-status,
+.track-subtask-prop {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--brand-gray-2);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+
+.track-subtask-status:hover,
+.track-subtask-prop:hover {
+  background: var(--ui-press, var(--ui-hover));
+}
+
+.track-subtask-prop.is-unassigned {
+  opacity: 0;
+}
+
+.track-subtask-row:hover .track-subtask-prop.is-unassigned,
+.track-subtask-row.is-kb-active .track-subtask-prop.is-unassigned,
+.track-subtask-prop.is-unassigned:focus-visible {
+  opacity: 1;
+}
+
+.track-subtask-more.track-inline-trigger {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  justify-content: center;
+  opacity: 0;
+}
+
+.track-subtask-row:hover .track-subtask-more,
+.track-subtask-row.is-kb-active .track-subtask-more,
+.track-subtask-more[aria-expanded='true'],
+.track-subtask-more:focus-visible {
+  opacity: 1;
+}
+
+.track-menu-heading {
+  margin: 4px 8px 2px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--brand-gray-2);
+}
+
+.track-sub-options {
+  display: flex;
+  flex-direction: column;
+}
+
+.track-sub-hidden {
+  margin: 4px 0 0;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.track-sub-hidden:hover {
+  color: var(--ink);
+}
+
+/* ---------- Composer ---------- */
+
+.track-qc-head {
+  padding: 12px 16px 0;
+}
+
+.track-qc-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+
+.track-qc-team:hover {
+  background: var(--ui-hover);
+}
+
+.track-qc-draft {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+.track-qc-discard {
+  padding: 0;
+  font: inherit;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.track-qc-close {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  margin-left: auto;
+  padding: 0;
+}
+
+/* Título y descripción alineados (sin la sangría de antes). */
+.track-qc .track-qc-title {
+  padding: 10px 16px 2px;
+}
+
+.track-qc .track-qc-desc {
+  padding: 0;
+}
+
+.track-qc .track-qc-desc.track-rte .track-rte-content {
+  padding: 2px 16px 12px;
+}
+
+.track-qc .track-qc-desc.track-rte .track-rte-content.is-empty::before {
+  top: 2px;
+  left: 16px;
+}
+
+.track-qc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px 14px;
+}
+
+.track-qc-extra {
+  display: contents;
+}
+
+.track-qc-chip,
+.track-qc-chips .track-qc-chip.track-inline-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+
+.track-qc-chip:hover {
+  background: var(--ui-hover);
+}
+
+.track-qc-chip.is-empty {
+  color: var(--brand-gray-2);
+}
+
+.track-qc-chip.is-icon,
+.track-qc-chips .track-qc-chip.is-icon {
+  width: 26px;
+  padding: 0;
+  justify-content: center;
+}
+
+.track-qc-chip-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.track-qc-chip-icon .track-avatar {
+  width: 14px;
+  height: 14px;
+  font-size: 0.5625rem;
+}
+
+.track-qc-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-qc-dots {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.track-qc-kbd {
+  margin-left: 6px;
+  font-family: var(--font-data);
+  font-size: 0.6875rem;
+  opacity: 0.7;
+}
+
+/* ---------- Pantallas chicas: título primero, propiedades como chips ---------- */
+
+@media (max-width: 767px) {
+  .track-issue-page .track-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .track-issue-page .track-detail-main {
+    padding: 8px 0 24px;
+  }
+
+  .track-issue-page .track-detail-side {
+    position: static;
+    order: 0;
+    min-height: 0;
+    padding: 12px 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .track-issue-page .track-side {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .track-issue-page .track-prop-chip {
+    margin-left: 0;
+    border: 1px solid var(--line);
+  }
+
+  .track-issue-page .track-prop-group {
+    padding: 0;
+  }
+
+  .track-issue-nav-count {
+    display: none;
+  }
+
+  .track-issue-page .track-detail-title {
+    font-size: 1.25rem;
+  }
+
+  .track-subtask-row .track-subtask-id {
+    max-width: 30vw;
+  }
+
+  .track-qc-chip {
+    max-width: 150px;
+  }
+}
+
+/* En Track, en el teléfono, sin el botón flotante de feedback sobre las filas. */
+@media (max-width: 760px) {
+  body[data-in-track] .fl-root {
+    display: none;
+  }
+}
+
+/* Board: cambiar de estado sin arrastrar (abre el menú de S). */
+.track-board-status-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--brand-gray-1);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+
+.track-board-status-btn:hover {
+  color: var(--ink);
+  background: var(--ui-hover);
+}
+
+.track-prio-segment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* "…" del header: ícono como los demás (sin el borde del botón viejo). */
+.app-frame .track-issue-page .track-inline-trigger.track-detail-more {
+  width: 28px;
+  min-height: 28px;
+  height: 28px;
+  border-color: transparent;
+}
+
+.app-frame .track-issue-page .track-inline-trigger.track-detail-more[aria-expanded='true'],
+.app-frame .track-issue-page .track-inline-trigger.track-detail-more:hover {
+  background: var(--ui-hover);
+}
+
+/* Con el composer de sub-issues abierto no se repite "+ Add sub-issues" (como Linear). */
+.track-detail-main:has(.track-subtask-row.is-composer) .track-tool[data-testid='track-add-subissue'] {
+  display: none;
+}
+
+/* 390 px: las propiedades van como chips debajo del título (no al final de la página). */
+@media (max-width: 767px) {
+  .track-issue-page .track-detail-grid {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .track-issue-page .track-detail-main {
+    display: contents;
+  }
+
+  .track-issue-page .track-detail-main > * {
+    order: 4;
+  }
+
+  .track-issue-page .track-detail-main > .track-parent-row {
+    order: 1;
+  }
+
+  .track-issue-page .track-detail-main > .track-detail-title {
+    order: 2;
+  }
+
+  .track-issue-page .track-detail-side {
+    order: 3;
+    margin: 4px 0 8px;
+    padding: 8px 0;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+.track-qc-file {
+  gap: 4px;
+  cursor: default;
+}
+
+.track-qc-file-remove {
+  display: inline-flex;
+  padding: 2px;
+  color: var(--brand-gray-2);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.track-qc-file-remove:hover {
+  color: var(--ink);
+}
+
+/* Settings › Labels: secciones Team / Workspace. */
+.track-labels-section + .track-labels-section {
+  margin-top: 16px;
+}
+
+.track-labels-section-title {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--brand-gray-2);
+}

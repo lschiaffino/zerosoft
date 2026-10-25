@@ -1,5 +1,6 @@
 import { getDb } from '@/lib/db';
 import { likeContains } from '@/lib/track-views';
+import { trackVisibleSql } from '@/lib/track-access';
 import { boardViewer, boardVisibleSql } from '@/lib/board-access';
 import type { TeamRole } from '@/lib/teams';
 import { chatAccessSql, groupsViewer } from '@/lib/groups-access';
@@ -23,7 +24,12 @@ export interface AppSearchItem {
     | 'crmScores'
     | 'boards'
     | 'projects'
+    | 'teams'
     | 'issues'
+    | 'trackViews'
+    | 'trackCycles'
+    | 'trackMilestones'
+    | 'trackLabels'
     | 'eventTypes'
     | 'bookings'
     | 'widgets'
@@ -67,8 +73,10 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   const all = (sql: string, ...args: Array<string | number>) =>
     (db.prepare(sql).all(...args, limit) as Promise<Row[]>).catch(() => [] as Row[]);
   // Mismo alcance que la lista de proyectos de Track (lib/track-data projectScope).
-  const projectWhere = teamId ? 'p.team_id = ?' : '(p.team_id IS NULL AND p.owner_id = ?)';
-  const projectArg = teamId ?? user.id;
+  // En un team, solo los proyectos que ve la persona (privados e invitados).
+  const visible = teamId ? trackVisibleSql('p', user.actingUser?.id ?? user.id) : null;
+  const projectWhere = visible ? `p.team_id = ? AND ${visible.sql}` : '(p.team_id IS NULL AND p.owner_id = ?)';
+  const projectArgs = [teamId ?? user.id, ...(visible?.args ?? [])];
   const widgetWhere = teamId ? 'team_id = ?' : 'user_id = ?';
   // Pizarras: las restringidas solo para quien tiene acceso, como la lista.
   const boardsVisible = boardVisibleSql(boardViewer(user));
@@ -82,6 +90,37 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   const gMask = (r: Row): Row => (gViewer?.mask ? { ...r, label: maskPhoneText(r.label), meta: r.meta ? maskPhoneText(r.meta) : r.meta } : r);
   const ticketNumber = /^#?\d{1,7}$/.test(needle) ? Number(needle.replace('#', '')) : -1;
   const person = user.actingUser?.id ?? user.id;
+  // Track como Linear: también vistas guardadas, cycles, milestones (del team y del project) y labels.
+  const ws = teamId ?? user.id;
+  const planWhere = teamId ? 'pl.team_id = ?' : '(pl.team_id IS NULL AND pl.owner_id = ?)';
+  const [views, cycles, milestones, planMilestones, labels] = await Promise.all([
+    all(
+      `SELECT v.id, v.name AS label, v.project_id AS meta FROM track_issue_views v JOIN track_projects p ON p.id = v.project_id
+       WHERE ${projectWhere} AND (v.user_id = ? OR v.shared = 1) AND v.name LIKE ? ESCAPE '\\' ORDER BY v.name LIMIT ?`,
+      ...projectArgs,
+      person,
+      like,
+    ),
+    all(
+      `SELECT c.id, c.name AS label, c.project_id AS meta FROM track_cycles c JOIN track_projects p ON p.id = c.project_id
+       WHERE ${projectWhere} AND c.name LIKE ? ESCAPE '\\' ORDER BY c.start_at DESC LIMIT ?`,
+      ...projectArgs,
+      like,
+    ),
+    all(
+      `SELECT m.id, m.name AS label, m.project_id AS meta FROM track_milestones m JOIN track_projects p ON p.id = m.project_id
+       WHERE ${projectWhere} AND m.name LIKE ? ESCAPE '\\' ORDER BY m.name LIMIT ?`,
+      ...projectArgs,
+      like,
+    ),
+    all(
+      `SELECT m.id, m.name AS label, m.plan_id AS meta FROM track_plan_milestones m JOIN track_plans pl ON pl.id = m.plan_id
+       WHERE ${planWhere} AND m.name LIKE ? ESCAPE '\\' ORDER BY m.name LIMIT ?`,
+      teamId ?? user.id,
+      like,
+    ),
+    all(`SELECT id, name AS label FROM track_labels WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, ws, like),
+  ]);
   const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates, voiceSessions] = await Promise.all([
     all(
       `SELECT b.id, b.name AS label FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND b.name LIKE ? ESCAPE '\\' ORDER BY b.updated_at DESC LIMIT ?`,
@@ -91,15 +130,20 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ),
     all(
       `SELECT p.id, p.name AS label FROM track_projects p WHERE ${projectWhere} AND p.name LIKE ? ESCAPE '\\' ORDER BY p.status ASC, p.name ASC LIMIT ?`,
-      projectArg,
+      ...projectArgs,
       like,
     ),
     all(
+      // El ID viejo de un issue movido de team también lo encuentra (como Linear, que lo redirige).
       `SELECT i.id, i.title AS label, i.identifier AS meta FROM track_issues i JOIN track_projects p ON p.id = i.project_id
-       WHERE ${projectWhere} AND (i.title LIKE ? ESCAPE '\\' OR i.identifier LIKE ? ESCAPE '\\') ORDER BY i.updated_at DESC LIMIT ?`,
-      projectArg,
+       WHERE ${projectWhere} AND (i.title LIKE ? ESCAPE '\\' OR i.identifier LIKE ? ESCAPE '\\'
+         OR i.id IN (SELECT a.issue_id FROM track_issue_aliases a WHERE UPPER(a.identifier) = UPPER(?)))
+       ORDER BY (UPPER(i.identifier) = UPPER(?)) DESC, i.updated_at DESC LIMIT ?`,
+      ...projectArgs,
       like,
       like,
+      needle,
+      needle,
     ),
     all(
       `SELECT id, title AS label, slug AS meta FROM calendar_event_types WHERE user_id = ? AND title LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`,
@@ -204,7 +248,25 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     rows.map((r) => ({ id: r.id, group, label: r.label, meta: r.meta ?? '', href: href(r.id) }));
 
   return [
-    ...map(projects, 'projects', (id) => `/app/track/projects/${id}`),
+    // Los teams de Track van bajo "Teams" (los "Projects" son los de planificación).
+    ...map(projects, 'teams', (id) => `/app/track/team/${id}`),
+    ...views.map((r) => ({ id: r.id, group: 'trackViews' as const, label: r.label, meta: '', href: `/app/track/team/${r.meta}?savedView=${r.id}` })),
+    ...cycles.map((r) => ({ id: r.id, group: 'trackCycles' as const, label: r.label, meta: '', href: `/app/track/cycles?team=${encodeURIComponent(String(r.meta))}&cycle=${r.id}` })),
+    ...milestones.map((r) => ({
+      id: r.id,
+      group: 'trackMilestones' as const,
+      label: r.label,
+      meta: '',
+      href: `/app/track/team/${r.meta}?filter=${encodeURIComponent(JSON.stringify({ match: 'and', rules: [{ field: 'milestone', op: 'is', values: [r.id] }] }))}`,
+    })),
+    ...planMilestones.map((r) => ({ id: r.id, group: 'trackMilestones' as const, label: r.label, meta: '', href: `/app/track/projects/${r.meta}` })),
+    ...labels.map((r) => ({
+      id: r.id,
+      group: 'trackLabels' as const,
+      label: r.label,
+      meta: '',
+      href: `/app/track/issues?filter=${encodeURIComponent(JSON.stringify({ match: 'and', rules: [{ field: 'label', op: 'is', values: [r.id] }] }))}`,
+    })),
     ...map(issues, 'issues', (id) => `/app/track/issues/${id}`),
     ...map(boards, 'boards', (id) => `/app/board/${id}`),
     ...map(eventTypes, 'eventTypes', (id) => `/app/calendar/event-types/${id}`),

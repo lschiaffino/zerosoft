@@ -190,7 +190,7 @@
     "days": "Days ahead",
     "noEventTypes": "No active event types.",
     "bookingSafety": "Bookings need a slot the agent offered in an earlier message, the visitor's explicit confirmation, name and email. The slot is re-checked right before booking; confirmations and CRM sync work like the public booking page.",
-    "project": "Track project",
+    "project": "Track team",
     "flows": "Flows the agent can start",
     "noFlows": "No flows yet.",
     "needsRobots": "Pick at least one robot for this tool to work.",
@@ -226,7 +226,7 @@
       },
       "track_create_issue": {
         "name": "Create Track issue",
-        "desc": "Files bug reports and requests in a Track project."
+        "desc": "Files bug reports and requests in a Track team."
       },
       "run_flow": {
         "name": "Run flow",
@@ -358,7 +358,7 @@
     "invalid_docs_page": "One of the selected Docs pages is not in this workspace.",
     "invalid_widget": "That Chat widget is not in this workspace.",
     "invalid_event_type": "That event type is not in this workspace.",
-    "invalid_project": "That Track project is not in this workspace.",
+    "invalid_project": "That Track team is not in this workspace.",
     "invalid_flow": "One of the selected flows is not in this workspace.",
     "invalid_robot": "One of the selected robots is not in this workspace.",
     "invalid_url": "Enter a full http(s) URL.",

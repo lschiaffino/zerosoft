@@ -23,7 +23,7 @@ const PRESET_LABEL: Record<SnoozePreset, 'reminder.inHour' | 'reminder.tomorrow'
  * Track (y el email según los ajustes de la persona). Es personal: cada uno
  * tiene el suyo por issue.
  */
-export default function IssueReminder({ issueId, locale, initial }: IssueReminderProps) {
+export default function IssueReminder({ issueId, locale, initial, compact = false }: IssueReminderProps & { compact?: boolean }) {
   const t = useTranslations('track');
   const [reminder, setReminder] = useState(initial && !initial.sentAt ? initial : null);
   const [custom, setCustom] = useState(() => toDatetimeLocal(snoozeAt('tomorrow', new Date())));
@@ -51,12 +51,14 @@ export default function IssueReminder({ issueId, locale, initial }: IssueReminde
     <>
       <Popover
         ariaLabel={label}
-        className="btn"
+        className={compact ? `btn btn-ghost btn-icon track-head-icon${reminder ? ' is-on' : ''}` : 'btn'}
         width={260}
         trigger={
           <>
             <TrackIcon name="clock" />
-            <span data-testid="track-issue-reminder">{label}</span>
+            <span data-testid="track-issue-reminder" className={compact ? 'sr-only' : undefined}>
+              {label}
+            </span>
           </>
         }
       >

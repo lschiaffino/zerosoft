@@ -261,7 +261,7 @@ function RecurringForm({
           className="textarea"
           rows={3}
           value={description}
-          maxLength={5000}
+          maxLength={200000}
           onChange={(e) => setDescription(e.target.value)}
         />
       </div>
