@@ -23,9 +23,8 @@ function row(
 
 /**
  * Talk contra Slack. Fuente: docs/benchmark/talk.md (2026-10-25).
- * Talk todavía no existe (solo un shell "Próximamente"), así que todas las
- * filas están en missing. Los ids son estables: las tandas siguientes los
- * pasan a have a medida que se construyen.
+ * Las filas describen a Slack; lo que Talk ya hace (tanda 4d) se marca en
+ * BUILT, al final, con su detalle cuando es parcial. Los ids son estables.
  */
 const parity: ProductParity = {
   competitor: 'Slack',
@@ -277,5 +276,70 @@ const parity: ProductParity = {
     }),
   ],
 };
+
+type Built = { status: ParityStatus; detail?: L };
+
+/** Lo que Talk ya hace (tanda 4d, 2026-10-25). Lo que no está acá sigue en missing. */
+const BUILT: Record<string, Built> = {
+  'public-channels': { status: 'have' },
+  'private-channels': { status: 'have' },
+  'channel-manage': { status: 'have', detail: ['Rename, topic, description, archive and restore, change to private and delete', 'Renombrar, tema, descripción, archivar y restaurar, pasar a privado y borrar', 'Renomear, tema, descrição, arquivar e restaurar, tornar privado e apagar'] },
+  'channel-header': {
+    status: 'partial',
+    detail: ['Header with topic, members and pinned messages. No bookmarks or tabs yet', 'Encabezado con tema, miembros y mensajes fijados. Todavía sin marcadores ni pestañas', 'Cabeçalho com tema, membros e mensagens fixadas. Ainda sem marcadores nem abas'],
+  },
+  'sidebar-sections': {
+    status: 'partial',
+    detail: ['Fixed Starred, Channels and Direct messages sections that collapse. You cannot create your own sections yet', 'Secciones fijas de Destacados, Canales y Mensajes directos, que se colapsan. Todavía no se crean secciones propias', 'Seções fixas de Favoritos, Canais e Mensagens diretas, que recolhem. Ainda não dá para criar seções próprias'],
+  },
+  'direct-messages': { status: 'have', detail: ['Including a DM with yourself', 'También el DM con vos mismo', 'Também a DM com você mesmo'] },
+  'group-dms': { status: 'have', detail: ['Up to 9 people. Converting a group into a private channel is not there yet', 'Hasta 9 personas. Todavía no se convierte un grupo en canal privado', 'Até 9 pessoas. Ainda não dá para converter um grupo em canal privado'] },
+  'realtime-messages': { status: 'have', detail: ['Real time with SSE and short polling as fallback, typing indicator', 'Tiempo real con SSE y polling corto de respaldo, con quién está escribiendo', 'Tempo real com SSE e polling curto de reserva, com quem está digitando'] },
+  'rich-composer': { status: 'have', detail: ['Toolbar and markup (bold, italic, strikethrough, code, lists, quotes, links), :emoji:, link previews', 'Barra y marcado (negrita, itálica, tachado, código, listas, citas, links), :emoji:, vista previa de links', 'Barra e marcação (negrito, itálico, tachado, código, listas, citações, links), :emoji:, prévia de links'] },
+  threads: { status: 'have', detail: ['Side panel with "also send to the channel" and a Threads view', 'Panel lateral con "también enviar al canal" y vista de Hilos', 'Painel lateral com "também enviar ao canal" e visão de Fios'] },
+  mentions: { status: 'have', detail: ['People, @channel, @here and workspace teams (the CRM sales teams for now)', 'Personas, @canal, @aquí y equipos del workspace (por ahora los equipos de ventas del CRM)', 'Pessoas, @canal, @aqui e equipes do workspace (por enquanto as equipes de vendas do CRM)'] },
+  reactions: { status: 'have', detail: ['No custom workspace emoji yet', 'Todavía sin emoji propios del workspace', 'Ainda sem emoji próprios do workspace'] },
+  'edit-delete': { status: 'have', detail: ['Authors edit and delete; workspace admins delete. No admin time limit for edits yet', 'El autor edita y borra; los admins del workspace borran. Todavía sin límite de tiempo para editar', 'O autor edita e apaga; os admins do workspace apagam. Ainda sem limite de tempo para editar'] },
+  'scheduled-messages': { status: 'have' },
+  'pinned-messages': { status: 'have' },
+  'file-sharing': { status: 'have', detail: ['Images shown inline and files up to 10 MB, served only to people who can read the channel', 'Imágenes en línea y archivos de hasta 10 MB, que solo ve quien puede leer el canal', 'Imagens em linha e arquivos de até 10 MB, que só vê quem pode ler o canal'] },
+  'file-browser': { status: 'have' },
+  'message-search': { status: 'have', detail: ['in:, from:, has:, is:, before:, after:, on:, during:, exact phrases and exclusions. Text match, no ranking', 'in:, from:, has:, is:, before:, after:, on:, during:, frases exactas y exclusiones. Coincidencia de texto, sin ranking', 'in:, from:, has:, is:, before:, after:, on:, during:, frases exatas e exclusões. Correspondência de texto, sem ranking'] },
+  unreads: { status: 'have', detail: ['Unread and mention counts per channel, a New line and a Mentions view', 'Sin leer y menciones por canal, línea de Nuevos y vista de Menciones', 'Não lidas e menções por canal, linha de Novas e visão de Menções'] },
+  'save-later': { status: 'have', detail: ['Later with saved messages, reminders on a message and /remind', 'Más tarde con guardados, recordatorios en un mensaje y /recordar', 'Mais tarde com salvas, lembretes em uma mensagem e /lembrar'] },
+  notifications: {
+    status: 'partial',
+    detail: ['Bell and email for unread mentions and DMs, per channel and general levels, keywords and pausing for an hour. No browser push or do not disturb schedule yet', 'Campana y email de menciones y DMs sin leer, niveles por canal y generales, palabras clave y pausa de una hora. Todavía sin push del navegador ni horario de no molestar', 'Sino e e-mail de menções e DMs não lidas, níveis por canal e gerais, palavras-chave e pausa de uma hora. Ainda sem push do navegador nem horário de não perturbe'],
+  },
+  status: { status: 'have' },
+  presence: { status: 'have', detail: ['Active or away by activity, and manual away', 'Activo o ausente por actividad, y ausente a mano', 'Ativo ou ausente pela atividade, e ausente manual'] },
+  profiles: {
+    status: 'partial',
+    detail: ['Name, photo, status and presence. No title, time zone or custom fields yet', 'Nombre, foto, estado y presencia. Todavía sin cargo, zona horaria ni campos propios', 'Nome, foto, status e presença. Ainda sem cargo, fuso horário nem campos próprios'],
+  },
+  'workflow-builder': {
+    status: 'partial',
+    detail: ['Through Flow: a "message in a channel" trigger and a "send message" action. No builder inside Talk', 'A través de Flow: disparador "mensaje en un canal" y acción "enviar mensaje". Sin editor dentro de Talk', 'Pelo Flow: gatilho "mensagem em um canal" e ação "enviar mensagem". Sem editor dentro do Talk'],
+  },
+  'workflow-connectors': {
+    status: 'partial',
+    detail: ['The Flow connectors work with Talk events and messages; there are no Talk-specific connector steps', 'Los conectores de Flow funcionan con los eventos y mensajes de Talk; no hay pasos propios de Talk', 'Os conectores do Flow funcionam com os eventos e mensagens do Talk; não há passos próprios do Talk'],
+  },
+  'api-bots': {
+    status: 'partial',
+    detail: ['API v1 (talk:read, talk:write), incoming webhooks per channel and outgoing workspace webhooks. No slash commands or interactive bots yet', 'API v1 (talk:read, talk:write), webhooks entrantes por canal y webhooks salientes del workspace. Todavía sin slash commands ni bots interactivos', 'API v1 (talk:read, talk:write), webhooks de entrada por canal e webhooks de saída do workspace. Ainda sem slash commands nem bots interativos'],
+  },
+  roles: {
+    status: 'partial',
+    detail: ['Workspace owner, admin and member, plus channel admins. No finer roles', 'Owner, admin y miembro del workspace, más admins de canal. Sin roles más finos', 'Owner, admin e membro do workspace, mais admins de canal. Sem papéis mais finos'],
+  },
+};
+
+for (const r of parity.rows) {
+  const b = BUILT[r.id];
+  if (!b) continue;
+  r.status = b.status;
+  if (b.detail) r.detail = loc(b.detail);
+}
 
 export default parity;

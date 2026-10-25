@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   return sseResponse({
     cursor: requestCursor(req),
     poll: (cursor) => listEventsSince(actor, cursor),
-    intervalMs: 1500,
+    intervalMs: 3000,
     maxMs: 240_000,
     tick: () => heartbeat(actor),
     tickMs: 60_000,

@@ -59,7 +59,7 @@ export function sseFrame(event: string, data: unknown, id?: number): string {
  * frame lleva `retry:` para que la reconexión sea rápida.
  */
 export function sseResponse<E>(opts: SseOptions<E>): Response {
-  const interval = Math.max(250, opts.intervalMs ?? 1500);
+  const interval = Math.max(250, opts.intervalMs ?? 3000);
   const maxMs = Math.max(5_000, opts.maxMs ?? 240_000);
   const heartbeat = Math.max(5_000, opts.heartbeatMs ?? 20_000);
   const tickMs = opts.tickMs ?? 60_000;

@@ -555,13 +555,12 @@ test.describe('smoke inicio', () => {
   });
 });
 
-// Apps en construcción (Voice, Rec, Talk): todavía no crean nada, pero el shell
+// Apps en construcción (Voice, Rec): todavía no crean nada, pero el shell
 // cumple lo común: estado vacío claro, ítem activo en el sidebar, ⌘K las abre,
 // claro y oscuro sin errores y 390px sin scroll horizontal.
 for (const app of [
   { key: 'voice', name: 'Voice' },
   { key: 'rec', name: 'Rec' },
-  { key: 'talk', name: 'Talk' },
 ]) {
   test.describe(`smoke ${app.name} (en construcción)`, () => {
     const list = `/en/app/${app.key}`;
