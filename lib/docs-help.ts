@@ -1,5 +1,6 @@
 import { getDb, type DocsPageRow } from './db';
 import { parseBlocks } from './docs';
+import { cleanForReaders } from './docs-marks';
 import { inlineHtmlToText } from './docs-markdown';
 import { rankKnowledge, searchTokens } from './knowledge-search';
 import type { DocsBlock } from './docs-types';
@@ -104,7 +105,7 @@ async function publishedTreeRows(ownerId: string): Promise<PublishedTreeRow[]> {
 export function pagePlainText(content: string, maxChars = 12_000): string {
   const out: string[] = [];
   let len = 0;
-  for (const b of parseBlocks(content)) {
+  for (const b of cleanForReaders(parseBlocks(content))) {
     if (len > maxChars) break;
     const text = b.type === 'table'
       ? (b.rows ?? []).map((r) => r.join(' ')).join(' ')
@@ -121,7 +122,7 @@ export function pagePlainText(content: string, maxChars = 12_000): string {
 /** Resumen corto: el texto corrido del principio (sin headings ni código), cortado en una palabra. */
 export function pageExcerpt(content: string, max = 160): string {
   let text = '';
-  for (const b of parseBlocks(content)) {
+  for (const b of cleanForReaders(parseBlocks(content))) {
     if (!['paragraph', 'quote', 'callout', 'toggle', 'bulleted_list_item', 'numbered_list_item', 'todo'].includes(b.type)) {
       if (text && b.type === 'heading') break;
       continue;

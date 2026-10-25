@@ -764,7 +764,9 @@
     "description": "Notion lets any number of people edit the same page at once with edits appearing instantly and collaborator avatars showing where they are (https://www.notion.com/help/collaborate-with-people); Outline offers the same real-time co-editing in open source (https://www.getoutline.com/). We use optimistic concurrency: when two people save the same page, DocsEditorClient.tsx shows a conflict banner and one person must reload (losing work) or overwrite the other. In a team of 5-20 editing meeting notes together during a call, this happens every week. First scope: presence avatars and a 'someone else is editing' hint via polling or SSE, plus block-level merge on 409 (apply the other person's changed blocks when the local user did not touch them); full CRDT (Yjs) can come later.\n\nPriority: medium. Effort: L. Compared with Notion.",
     "product": "docs",
     "kind": "idea",
-    "parity": "realtime-editing"
+    "parity": "realtime-editing",
+    "status": "done",
+    "changelog": "2026-10-25-docs-collab"
   },
   {
     "title": "Docs: Add filter, sort, group and board view to database blocks",
@@ -795,7 +797,9 @@
     "description": "Notion keeps page history for 7 days on Free and 30 days on Plus, and highlights added content in blue and removed content in strikethrough (https://www.notion.com/pricing, https://www.notion.com/help/collaborate-with-people). Our lib/docs-versions.ts prunes to the last 50 snapshots per page regardless of age, with auto snapshots every 5 minutes, so one busy afternoon of edits can erase last week's versions, and VersionsPanel.tsx only previews a snapshot without a diff. When someone accidentally deletes a section, the team needs to find which version still had it. First scope: prune by age (keep all for 7 days, then one per day up to 30 days) instead of a flat count, and a block-level diff view against the current page with added/removed styling.\n\nPriority: medium. Effort: S. Compared with Notion.",
     "product": "docs",
     "kind": "idea",
-    "parity": "version-diff"
+    "parity": "version-diff",
+    "status": "done",
+    "changelog": "2026-10-25-docs-collab"
   },
   {
     "title": "Docs: Add AI actions in the editor: summarize, improve, translate and draft",
@@ -1654,7 +1658,9 @@
     "description": "Notion lets you comment on a highlighted phrase and, with 'Can comment' access, suggest edits that are accepted or rejected from the side panel (https://www.notion.com/help/suggested-edits). Confluence also anchors inline comments to highlighted text (https://support.atlassian.com/confluence-cloud/docs/comment-on-pages-and-blog-posts/). Docs threads attach to a whole block (components/docs/CommentsPanel.tsx), and there is no 'can comment' role (DocsShareRole is view | edit). First scope: anchor a comment to a text range inside a block (store the range with the comment, highlight it, fall back to the block if the text changes), add a 'Can comment' share role, and a suggestion mode for text, heading and list blocks with accept/reject per change.\n\nPriority: high. Effort: M. Compared with Notion.",
     "product": "docs",
     "kind": "idea",
-    "parity": "suggested-edits"
+    "parity": "suggested-edits",
+    "status": "done",
+    "changelog": "2026-10-25-docs-collab"
   },
   {
     "title": "Docs: Export a page with its subpages, or the whole workspace, as a Markdown or HTML zip",

@@ -28,6 +28,8 @@ import { BreadcrumbBlock, ButtonBlock, EquationBlock, TocBlock } from './DocsAdv
 import { renderInlineTex } from './inlineTex';
 
 interface DocsBlockEditorProps {
+  /** Solo lectura (página bloqueada o permiso de comentar): se selecciona para comentar, no se escribe. */
+  readOnly?: boolean;
   block: DocsBlock;
   index: number;
   listIndex?: number;
@@ -93,7 +95,7 @@ function pastedBlocks(html: string, text: string): DocsBlock[] | null {
 }
 
 const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
-  ({ block, index, listIndex, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles, onPasteBlocks, database, toc, trail, onRunButton, onInlineEquation, onPasteUrl, onPasteSynced }, ref) => {
+  ({ readOnly = false, block, index, listIndex, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles, onPasteBlocks, database, toc, trail, onRunButton, onInlineEquation, onPasteUrl, onPasteSynced }, ref) => {
     const t = useTranslations('docs');
     const locale = useLocale();
     const router = useRouter();
@@ -418,7 +420,7 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           data-index={listIndex}
           // .docs-toggle ya es el interruptor del menú de página: el texto del toggle usa otro nombre.
           className={`docs-editable docs-${block.type === 'toggle' ? 'toggle-text' : block.type}${block.level ? ` docs-h${block.level}` : ''}`}
-          contentEditable
+          contentEditable={!readOnly}
           suppressContentEditableWarning
           dangerouslySetInnerHTML={initialHtml}
           data-placeholder={renderPlaceholder(block.type)}

@@ -4,22 +4,29 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import {
-  type DocsAccess,
+  type DocsBlock,
   type DocsComment,
   type DocsPage,
   type DocsPageShare,
   type DocsShareRole,
 } from '@/lib/docs-types';
 import { docsPatchTooLong, reminderContext } from '@/lib/docs-schema';
+import { listSuggestions, MARK_ID_RE, type DocsSuggestion } from '@/lib/docs-marks';
+import type { DocsSnapshot } from '@/lib/docs-history';
+import type { DocsGuestInvite } from '@/lib/docs-guests';
 import DocsEditor from './DocsEditor';
 import ShareDialog, { type ShareRequest } from './ShareDialog';
 import CommentsPanel from './CommentsPanel';
 import VersionsPanel from './VersionsPanel';
 import SaveTemplateDialog from './SaveTemplateDialog';
+import VerifyDialog from './VerifyDialog';
 import Icon from '@/components/app/icons';
 import DocsGlyph from './DocsGlyphs';
 import DocsPageIcon from './DocsPageIcon';
 import DocsFavoriteButton from './DocsFavoriteButton';
+import { DocsPeerCursors, DocsPresenceAvatars } from './DocsPresence';
+import { useDocsLive, type LivePulse } from './useDocsLive';
+import type { DocsEditorApi, DocsEditorMode } from './useDocsCollab';
 
 interface CommentsLabels {
   title: string;
@@ -35,10 +42,17 @@ interface CommentsLabels {
   blockTag: string;
 }
 
+/** Acceso de quien edita: miembro con acceso total, invitado con total o edición, o "puede comentar". */
+export type DocsEditorAccess = 'owner' | 'full' | 'edit' | 'comment';
+
+const snap = (p: { title: string; content: DocsBlock[] }): DocsSnapshot => ({ title: p.title, blocks: p.content });
+const sameSnap = (a: DocsSnapshot, b: DocsSnapshot) => a.title === b.title && JSON.stringify(a.blocks) === JSON.stringify(b.blocks);
+
 export default function DocsEditorClient({
   page,
   ancestors,
   shares,
+  invites = [],
   comments,
   currentUserId,
   commentsLabels,
@@ -47,51 +61,80 @@ export default function DocsEditorClient({
   feedback = null,
   backlinks = [],
   favorite = null,
+  people = {},
+  canVerify = false,
+  allowExport = true,
+  memberRoleDefault = 'full',
 }: {
   page: DocsPage;
   ancestors: DocsPage[];
   shares: DocsPageShare[];
+  /** Invitaciones pendientes a personas sin cuenta (quien puede compartir). */
+  invites?: DocsGuestInvite[];
   comments: DocsComment[];
   currentUserId: string;
   commentsLabels: CommentsLabels;
-  /** 'owner' = workspace dueño; 'edit' = invitado con edición (sin compartir/publicar/papelera). */
-  access?: Exclude<DocsAccess, 'view'>;
+  access?: DocsEditorAccess;
   helpBase?: string | null;
   feedback?: { yes: number; no: number } | null;
   /** Páginas con un link `[[` a esta (solo el dueño). */
   backlinks?: Array<{ id: string; title: string; icon: string | null }>;
   /** Está en los favoritos de la persona (null = no se puede marcar: página de otro workspace). */
   favorite?: boolean | null;
+  /** Personas del workspace (id → nombre): autores de sugerencias y dueño de la wiki. */
+  people?: Record<string, string>;
+  /** Puede verificar la página (acceso total o dueño de la página). */
+  canVerify?: boolean;
+  /** Exportar habilitado (Ajustes › Seguridad) para esta persona. */
+  allowExport?: boolean;
+  /** Rol que heredan los miembros si la página no fija uno (para el selector de Compartir). */
+  memberRoleDefault?: DocsShareRole;
 }) {
   const router = useRouter();
   const t = useTranslations('docs');
   const locale = useLocale();
   const isOwner = access === 'owner';
+  const canShare = access === 'owner' || access === 'full';
+  const canWrite = access !== 'comment';
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<'tooLong' | 'failed' | 'conflict' | null>(null);
-  // Concurrencia optimista: updated_at de la última versión que este editor
-  // vio del server (la carga inicial o su propio último guardado). Si otra
-  // persona guarda en el medio, el PATCH vuelve 409 en vez de pisarla.
-  const baseUpdatedAt = useRef(page.updated_at);
-  /** Guardados en serie: uno en vuelo con la base vieja daría un falso 409. */
+  /**
+   * Base de la fusión en vivo: la última versión del servidor que este editor
+   * incorporó (la carga, su propio guardado o una fusión sin cambios propios).
+   * Un guardado viaja con su updated_at; si otra persona guardó en el medio,
+   * el servidor devuelve 409 con la versión actual, se fusiona acá
+   * (lib/docs-merge.ts) y se reintenta. Ya no hay "cargar o sobrescribir".
+   */
+  const base = useRef<{ updated_at: string; snap: DocsSnapshot }>({ updated_at: page.updated_at, snap: snap(page) });
+  /** Guardados en serie: uno en vuelo con la base vieja daría un 409 de más. */
   const saveChain = useRef<Promise<void>>(Promise.resolve());
-  /** Último cambio de contenido rechazado por conflicto (para "Sobrescribir"). */
+  const inFlight = useRef(0);
+  /** Último cambio rechazado tras varios reintentos (para "Sobrescribir"). */
   const conflictPatch = useRef<Partial<DocsPage> | null>(null);
+  const editorApi = useRef<DocsEditorApi | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
   const [current, setCurrent] = useState<DocsPage>(page);
   const [editorKey, setEditorKey] = useState(0);
   const [localShares, setLocalShares] = useState(shares);
+  const [localInvites, setLocalInvites] = useState(invites);
   const [shareOpen, setShareOpen] = useState(false);
+  const [verifyOpen, setVerifyOpen] = useState(false);
   const [commentFocus, setCommentFocus] = useState(0);
-  // Espejo local de los comentarios (el panel notifica cambios) para los
-  // badges por bloque; blockFilter ancla el panel al hilo de un bloque.
   const [allComments, setAllComments] = useState<DocsComment[]>(comments);
   const [blockFilter, setBlockFilter] = useState<string | null>(null);
-  // Comments y Versiones viven en un panel lateral que se abre a demanda
-  // (como Notion); Compartir es un diálogo.
   const [side, setSide] = useState<'comments' | 'versions' | null>(null);
-  // Hilos abiertos (las respuestas no suman aparte).
   const openComments = allComments.filter((c) => !c.resolved && !c.parent_id).length;
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestions, setSuggestions] = useState<DocsSuggestion[]>(() => listSuggestions(page.content));
+  const [pendingAnchor, setPendingAnchor] = useState<{ id: string; quote: string; blockId: string } | null>(null);
+  const [focusAnchor, setFocusAnchor] = useState<string | null>(null);
+  const [commentsSig, setCommentsSig] = useState<string | undefined>(undefined);
+  const [lockNote, setLockNote] = useState<string | null>(null);
+
+  const locked = !!current.locked;
+  // Bloqueada: solo leer y comentar. "Puede comentar": leer y, si lo elige, sugerir.
+  const mode: DocsEditorMode = locked ? 'readonly' : suggesting ? 'suggest' : canWrite ? 'edit' : 'readonly';
 
   useEffect(() => {
     setAllComments(comments);
@@ -104,7 +147,8 @@ export default function DocsEditorClient({
   const commentCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const c of allComments) {
-      if (c.block_id) counts[c.block_id] = (counts[c.block_id] ?? 0) + 1;
+      // Los comentarios sobre texto se ven en el resaltado, no en el badge del bloque.
+      if (c.block_id && !c.anchor_id) counts[c.block_id] = (counts[c.block_id] ?? 0) + 1;
     }
     return counts;
   }, [allComments]);
@@ -121,15 +165,23 @@ export default function DocsEditorClient({
     setCommentFocus((n) => n + 1);
   }, []);
 
+  /** Trae la versión de otra persona al editor y, si no había nada propio sin guardar, la toma como base. */
+  const absorbRemote = useCallback(async (remote: DocsPage): Promise<DocsSnapshot | null> => {
+    const api = editorApi.current;
+    if (!api) return null;
+    const theirs = snap(remote);
+    const { merged } = await api.mergeRemote(base.current.snap, theirs);
+    if (sameSnap(merged, theirs)) base.current = { updated_at: remote.updated_at, snap: theirs };
+    setSuggestions(listSuggestions(merged.blocks));
+    setCurrent((prev) => ({ ...prev, title: merged.title, locked: remote.locked, verified_at: remote.verified_at, verified_until: remote.verified_until }));
+    return merged;
+  }, []);
+
   const runSave = useCallback(
-    async (patch: Partial<DocsPage>, force: boolean) => {
+    async (patch: Partial<DocsPage>, force: boolean, attempt = 0): Promise<void> => {
       setSaving(true);
-      // Todo PATCH (contenido, publicar, ancho, tamaño del texto, restaurar)
-      // va con la base: si no, uno que no toca el contenido adelantaba la base
-      // a la versión ajena y el próximo guardado la pisaba sin 409.
+      inFlight.current++;
       const guarded = !force;
-      // Con el contenido van el idioma y la zona del navegador: los
-      // recordatorios (@recordar) avisan con ellos.
       let tz: string | undefined;
       try {
         tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -137,54 +189,81 @@ export default function DocsEditorClient({
         tz = undefined;
       }
       const withCtx = { ...patch, ...reminderContext(patch, locale, tz) };
-      const body = JSON.stringify(guarded ? { ...withCtx, base_updated_at: baseUpdatedAt.current } : withCtx);
+      const body = JSON.stringify(guarded ? { ...withCtx, base_updated_at: base.current.updated_at } : withCtx);
+      const prevTitle = base.current.snap.title;
+      let retry: Partial<DocsPage> | null = null;
       try {
         const res = await fetch(`/api/docs/pages/${page.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body,
-          // El guardado pendiente también se manda al cerrar/navegar
-          // (keepalive tiene tope de 64KB por request).
           keepalive: body.length < 60_000,
         });
         if (res.status === 409) {
+          const data = (await res.json().catch(() => null)) as { current?: DocsPage | null } | null;
+          const remote = data?.current;
+          // Otra persona guardó: se fusiona lo suyo con lo propio y se reintenta.
+          if (remote && editorApi.current && attempt < 3) {
+            const hasContent = 'content' in patch || 'title' in patch;
+            if (hasContent) editorApi.current.cancelPendingSave();
+            const merged = await absorbRemote(remote);
+            base.current = { updated_at: remote.updated_at, snap: snap(remote) };
+            retry = hasContent && merged ? { ...patch, title: merged.title, content: merged.blocks } : patch;
+            return;
+          }
           conflictPatch.current = patch;
           setSaveError('conflict');
           return;
         }
+        if (res.status === 423) {
+          // Alguien la bloqueó mientras tanto.
+          setCurrent((prev) => ({ ...prev, locked: true }));
+          setLockNote(t('lock.lockedMeanwhile'));
+          setSaveError(null);
+          return;
+        }
         if (!res.ok) {
           setSaveError('failed');
-          // Un interruptor optimista que no se guardó vuelve al valor del server.
-          if ('published' in patch || 'is_public' in patch) router.refresh();
+          if ('published' in patch || 'is_public' in patch || 'locked' in patch) router.refresh();
           return;
         }
         conflictPatch.current = null;
         setSaveError(null);
         const updated = (await res.json().catch(() => null)) as DocsPage | null;
-        // Un "Sobrescribir" sin contenido no trae la versión ajena al editor:
-        // la base queda vieja y el próximo guardado de contenido vuelve a avisar.
-        if (updated?.updated_at && (guarded || 'content' in patch)) baseUpdatedAt.current = updated.updated_at;
-        if (updated && ('published' in patch || 'is_public' in patch)) {
-          setCurrent((prev) => ({ ...prev, published: updated.published, slug: updated.slug, is_public: updated.is_public }));
+        if (updated?.updated_at) {
+          // Lo guardado es la nueva base (el contenido como lo devuelve el servidor).
+          base.current = { updated_at: updated.updated_at, snap: updated.content ? snap(updated) : base.current.snap };
         }
-        router.refresh();
+        if (updated && ('published' in patch || 'is_public' in patch || 'locked' in patch || 'member_role' in patch)) {
+          setCurrent((prev) => ({
+            ...prev,
+            published: updated.published,
+            slug: updated.slug,
+            is_public: updated.is_public,
+            locked: updated.locked,
+            member_role: updated.member_role,
+          }));
+        }
+        // Renombrar (o cualquier cambio que no es solo contenido): el sidebar y las listas se refrescan.
+        if (!('content' in patch) || ('title' in patch && patch.title !== prevTitle)) router.refresh();
       } catch {
         setSaveError('failed');
       } finally {
+        inFlight.current--;
         setSaving(false);
+        if (retry) await runSave(retry, false, attempt + 1);
       }
     },
-    [page.id, router, locale],
+    [page.id, router, locale, absorbRemote, t],
   );
 
   const savePage = useCallback(
     async (patch: Partial<DocsPage>) => {
-      // El servidor rechaza el PATCH entero si un bloque pasa el tope: avisar en
-      // vez de mostrar "Guardado" y perder lo escrito.
       if (docsPatchTooLong(patch)) {
         setSaveError('tooLong');
         return;
       }
+      if (patch.content) setSuggestions(listSuggestions(patch.content));
       const next = saveChain.current.then(() => runSave(patch, false));
       saveChain.current = next;
       await next;
@@ -192,13 +271,12 @@ export default function DocsEditorClient({
     [runSave],
   );
 
-  // Conflicto: o se trae la versión del server (descartando lo propio sin
-  // guardar) o se sobrescribe a sabiendas con lo que hay en este editor.
+  // Último recurso (3 fusiones seguidas fallaron): traer lo del server o pisar a sabiendas.
   const reloadAfterConflict = useCallback(async () => {
     const res = await fetch(`/api/docs/pages/${page.id}`);
     if (!res.ok) return;
     const fresh = (await res.json()) as DocsPage;
-    baseUpdatedAt.current = fresh.updated_at;
+    base.current = { updated_at: fresh.updated_at, snap: snap(fresh) };
     conflictPatch.current = null;
     setSaveError(null);
     setCurrent(fresh);
@@ -214,25 +292,121 @@ export default function DocsEditorClient({
     await next;
   }, [runSave]);
 
-  // Interruptores de Compartir (publicar, IA): responden al toque; el slug y
-  // el estado definitivo llegan con la respuesta del PATCH.
-  /**
-   * Relee los shares efectivos (propios y heredados): crear un share propio
-   * para alguien que ya tenía acceso heredado lo reemplaza, y borrarlo puede
-   * devolver el heredado. Más simple que replicar la regla en el cliente.
-   */
+  // ---------- En vivo ----------
+  const lastRemote = useRef<string | null>(null);
+  const onPulse = useCallback(
+    (pulse: LivePulse) => {
+      setCommentsSig(pulse.comments);
+      if (pulse.locked !== !!current.locked && inFlight.current === 0) {
+        setCurrent((prev) => ({ ...prev, locked: pulse.locked }));
+        if (pulse.locked) setLockNote(t('lock.lockedMeanwhile'));
+      }
+      const remote = pulse.page;
+      if (!remote || inFlight.current > 0) return;
+      if (remote.updated_at <= base.current.updated_at || remote.updated_at === lastRemote.current) return;
+      lastRemote.current = remote.updated_at;
+      void absorbRemote(remote);
+    },
+    [absorbRemote, current.locked, t],
+  );
+  const { peers } = useDocsLive({
+    pageId: page.id,
+    since: () => base.current.updated_at,
+    mode: mode === 'edit' ? 'edit' : mode === 'suggest' ? 'suggest' : canWrite ? 'view' : 'comment',
+    rootRef: wrapRef,
+    onPulse,
+  });
+
+  const jumpToPeer = useCallback((p: { block_id: string | null }) => {
+    if (!p.block_id) return;
+    wrapRef.current
+      ?.querySelector(`[data-block-anchor="${CSS.escape(p.block_id)}"]`)
+      ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, []);
+
+  // ---------- Comentarios sobre texto ----------
+  const onInlineComment = useCallback(
+    (sel: { blockId: string; start: number; end: number; quote: string }) => {
+      const api = editorApi.current;
+      if (!api || !sel.quote.trim()) return;
+      if (pendingAnchor) api.unwrapComment(pendingAnchor.id);
+      const id = crypto.randomUUID();
+      if (!api.wrapComment(sel.blockId, sel.start, sel.end, id)) return;
+      setPendingAnchor({ id, quote: sel.quote.slice(0, 500), blockId: sel.blockId });
+      setBlockFilter(null);
+      setSide('comments');
+    },
+    [pendingAnchor],
+  );
+
+  // ⌘⇧M: comentar la selección (como Notion).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || !e.shiftKey || e.key.toLowerCase() !== 'm') return;
+      const sel = editorApi.current?.selection();
+      if (!sel) return;
+      e.preventDefault();
+      onInlineComment(sel);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onInlineComment]);
+
+  // Click en un resaltado: abre su hilo. Click en una sugerencia: el panel.
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      const mark = target?.closest?.('span[data-comment]');
+      const id = mark?.getAttribute('data-comment');
+      if (id && MARK_ID_RE.test(id) && allComments.some((c) => c.anchor_id === id)) {
+        setFocusAnchor(id);
+        setBlockFilter(null);
+        setSide('comments');
+        return;
+      }
+      if (target?.closest?.('span[data-sug], [data-sug-block]')) setSide('comments');
+    };
+    wrap.addEventListener('click', onClick);
+    return () => wrap.removeEventListener('click', onClick);
+  }, [allComments]);
+
+  const focusThreadText = useCallback((anchorId: string) => {
+    setFocusAnchor(anchorId);
+    const el = wrapRef.current?.querySelector(`span[data-comment="${CSS.escape(anchorId)}"]`);
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, []);
+
+  /** Resaltado de los hilos abiertos (los resueltos no se marcan, como en Notion). */
+  const highlightCss = useMemo(() => {
+    const open = new Set(allComments.filter((c) => !c.parent_id && !c.resolved && c.anchor_id).map((c) => c.anchor_id!));
+    if (pendingAnchor) open.add(pendingAnchor.id);
+    const ids = [...open].filter((id) => MARK_ID_RE.test(id));
+    if (!ids.length) return '';
+    const sel = ids.map((id) => `.docs-editor span[data-comment="${id}"]`).join(',');
+    const focus = focusAnchor && MARK_ID_RE.test(focusAnchor) ? `.docs-editor span[data-comment="${focusAnchor}"]{background:var(--docs-comment-hl-strong)}` : '';
+    return `${sel}{background:var(--docs-comment-hl);border-bottom:2px solid var(--docs-comment-line);cursor:pointer}${focus}`;
+  }, [allComments, pendingAnchor, focusAnchor]);
+
+  const focusSuggestion = useCallback((s: DocsSuggestion) => {
+    const el = wrapRef.current?.querySelector(`[data-sug="${CSS.escape(s.id)}"], [data-sug-block="${CSS.escape(s.id)}"]`);
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, []);
+
+  // ---------- Compartir ----------
   const refreshShares = useCallback(async () => {
     const res = await fetch(`/api/docs/pages/${page.id}`).catch(() => null);
     if (!res?.ok) return;
-    const data = (await res.json()) as { shares?: DocsPageShare[] };
+    const data = (await res.json()) as { shares?: DocsPageShare[]; invites?: DocsGuestInvite[] };
     if (data.shares) setLocalShares(data.shares);
+    if (data.invites) setLocalInvites(data.invites);
   }, [page.id]);
 
   const updateSharing = useCallback(
     async (patch: Partial<DocsPage>) => {
       setCurrent((prev) => ({ ...prev, ...patch }));
       await savePage(patch);
-      // Cortar o volver a activar la herencia cambia la lista de accesos.
       if (patch.inherit_shares !== undefined) await refreshShares();
     },
     [savePage, refreshShares],
@@ -249,12 +423,12 @@ export default function DocsEditorClient({
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         return data.error ?? 'error';
       }
-      const share = (await res.json()) as DocsPageShare;
-      // El share propio pisa al heredado del mismo destino.
-      setLocalShares((prev) => [
-        share,
-        ...prev.filter((s) => s.id !== share.id && !(s.kind === share.kind && s.target_id === share.target_id)),
-      ]);
+      const data = (await res.json()) as DocsPageShare | { invite: DocsGuestInvite };
+      if ('invite' in data) {
+        setLocalInvites((prev) => [data.invite, ...prev.filter((i) => i.id !== data.invite.id && i.email !== data.invite.email)]);
+        return null;
+      }
+      setLocalShares((prev) => [data, ...prev.filter((s) => s.id !== data.id && !(s.kind === data.kind && s.target_id === data.target_id))]);
       await refreshShares();
       router.refresh();
       return null;
@@ -285,6 +459,14 @@ export default function DocsEditorClient({
     [page.id, router, refreshShares],
   );
 
+  const handleRevokeInvite = useCallback(
+    async (inviteId: string) => {
+      const res = await fetch(`/api/docs/pages/${page.id}/share/${inviteId}?invite=1`, { method: 'DELETE' });
+      if (res.ok) setLocalInvites((prev) => prev.filter((i) => i.id !== inviteId));
+    },
+    [page.id],
+  );
+
   const duplicatePage = useCallback(async () => {
     const res = await fetch(`/api/docs/pages/${page.id}/duplicate`, { method: 'POST' });
     if (!res.ok) return;
@@ -292,8 +474,6 @@ export default function DocsEditorClient({
     router.push(`/app/docs/${duplicated.id}`);
   }, [page.id, router]);
 
-  // "Mover a la papelera" archiva (recuperable desde la papelera); el borrado
-  // definitivo vive en la papelera. Antes borraba para siempre sin pasar por ahí.
   const trashPage = useCallback(async () => {
     const res = await fetch(`/api/docs/pages/${page.id}`, {
       method: 'PATCH',
@@ -309,24 +489,56 @@ export default function DocsEditorClient({
     await savePage({ archived: false });
   }, [savePage]);
 
-  // Tras restaurar una versión el editor se vuelve a montar con el contenido nuevo.
+  const toggleLock = useCallback(async () => {
+    const next = !locked;
+    setCurrent((prev) => ({ ...prev, locked: next }));
+    setLockNote(null);
+    if (next) setSuggesting(false);
+    await savePage({ locked: next });
+  }, [locked, savePage]);
+
   const onVersionRestored = useCallback(async () => {
     const res = await fetch(`/api/docs/pages/${page.id}`);
     if (res.ok) {
       const fresh = (await res.json()) as DocsPage;
-      baseUpdatedAt.current = fresh.updated_at;
+      base.current = { updated_at: fresh.updated_at, snap: snap(fresh) };
       setCurrent(fresh);
+      setSuggestions(listSuggestions(fresh.content));
       setEditorKey((k) => k + 1);
     }
     router.refresh();
   }, [page.id, router]);
 
   const toggle = (panel: 'comments' | 'versions') => setSide((cur) => (cur === panel ? null : panel));
+  const verified = current.verified_at
+    ? current.verified_until && Date.parse(current.verified_until) <= Date.now()
+      ? 'expired'
+      : 'verified'
+    : null;
+  const peopleList = useMemo(() => Object.entries(people).map(([id, name]) => ({ id, name })), [people]);
 
   const topActions = (
     <>
+      <DocsPresenceAvatars peers={peers} onJump={jumpToPeer} />
+      {verified && (
+        <button
+          type="button"
+          className={`docs-verified-badge${verified === 'expired' ? ' is-expired' : ''}`}
+          onClick={() => canVerify && setVerifyOpen(true)}
+          disabled={!canVerify}
+          data-testid="docs-verified-badge"
+        >
+          <DocsGlyph name={verified === 'expired' ? 'alert' : 'check'} size={13} />
+          {verified === 'expired' ? t('verify.expiredBadge') : t('verify.badge')}
+        </button>
+      )}
+      {locked && (
+        <span className="docs-locked-badge" data-testid="docs-locked-badge">
+          <DocsGlyph name="lock" size={13} />
+          {t('lock.badge')}
+        </span>
+      )}
       {current.published && (
-        // Estado: un punto en el color de Docs y el texto plano.
         <span className="docs-published">
           <span className="docs-published-dot" aria-hidden="true" />
           {t('editor.published')}
@@ -339,10 +551,10 @@ export default function DocsEditorClient({
         aria-pressed={side === 'comments'}
       >
         {t('comments.title')}
-        {openComments > 0 && <span className="docs-top-count">{openComments}</span>}
+        {openComments + suggestions.length > 0 && <span className="docs-top-count">{openComments + suggestions.length}</span>}
       </button>
       {favorite !== null && <DocsFavoriteButton pageId={page.id} initial={favorite} />}
-      {isOwner && (
+      {canShare && (
         <button
           type="button"
           className="btn btn-secondary btn-sm docs-top-btn"
@@ -358,6 +570,37 @@ export default function DocsEditorClient({
 
   const menuExtra = (close: () => void) => (
     <>
+      {!locked && (
+        <button
+          type="button"
+          role="menuitemcheckbox"
+          aria-checked={suggesting}
+          className="docs-menu-item"
+          data-testid="docs-suggest-toggle"
+          onClick={() => {
+            close();
+            setSuggesting((v) => !v);
+          }}
+        >
+          {suggesting ? t('suggest.stop') : t('suggest.start')}
+        </button>
+      )}
+      {canWrite && (
+        <button type="button" role="menuitemcheckbox" aria-checked={locked} className="docs-menu-item" data-testid="docs-lock-toggle" onClick={() => {
+          close();
+          void toggleLock();
+        }}>
+          {locked ? t('lock.unlock') : t('lock.lock')}
+        </button>
+      )}
+      {canVerify && (
+        <button type="button" role="menuitem" className="docs-menu-item" data-testid="docs-verify-open" onClick={() => {
+          close();
+          setVerifyOpen(true);
+        }}>
+          {current.verified_at ? t('verify.manage') : t('verify.open')}
+        </button>
+      )}
       <button
         type="button"
         role="menuitem"
@@ -369,15 +612,11 @@ export default function DocsEditorClient({
       >
         {t('versions.title')}
       </button>
-      <a
-        role="menuitem"
-        className="docs-menu-item"
-        href={`/api/docs/pages/${page.id}/export?format=md`}
-        download
-        onClick={close}
-      >
-        {t('export.markdown')}
-      </a>
+      {allowExport && (
+        <a role="menuitem" className="docs-menu-item" href={`/api/docs/pages/${page.id}/export?format=md`} download onClick={close}>
+          {t('export.markdown')}
+        </a>
+      )}
       {isOwner && (
         <button
           type="button"
@@ -391,24 +630,26 @@ export default function DocsEditorClient({
           {t('templates.saveAs')}
         </button>
       )}
-      <button
-        type="button"
-        role="menuitem"
-        className="docs-menu-item"
-        onClick={() => {
-          close();
-          setSide(null);
-          // El PDF sale del diálogo de impresión (styles/docs.css → @media print).
-          setTimeout(() => window.print(), 50);
-        }}
-      >
-        {t('export.pdf')}
-      </button>
+      {allowExport && (
+        <button
+          type="button"
+          role="menuitem"
+          className="docs-menu-item"
+          onClick={() => {
+            close();
+            setSide(null);
+            setTimeout(() => window.print(), 50);
+          }}
+        >
+          {t('export.pdf')}
+        </button>
+      )}
     </>
   );
 
   return (
-    <div className={`docs-editor-wrap${side ? ' has-side' : ''}`}>
+    <div ref={wrapRef} className={`docs-editor-wrap${side ? ' has-side' : ''}`}>
+      {highlightCss && <style>{highlightCss}</style>}
       {current.archived && (
         <div className="docs-banner" role="status">
           <span>{t('editor.inTrash')}</span>
@@ -417,6 +658,33 @@ export default function DocsEditorClient({
               {t('trash.restore')}
             </button>
           )}
+        </div>
+      )}
+      {locked && (
+        <div className="docs-banner docs-banner-quiet" role="status" data-testid="docs-locked-banner">
+          <DocsGlyph name="lock" size={14} />
+          <span>{lockNote ?? t('lock.banner')}</span>
+          {canWrite && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void toggleLock()}>
+              {t('lock.unlock')}
+            </button>
+          )}
+        </div>
+      )}
+      {!locked && mode === 'suggest' && (
+        <div className="docs-banner docs-banner-quiet docs-banner-suggest" role="status" data-testid="docs-suggest-banner">
+          <span>{t('suggest.banner')}</span>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSuggesting(false)}>
+            {t('suggest.stop')}
+          </button>
+        </div>
+      )}
+      {!locked && access === 'comment' && !suggesting && (
+        <div className="docs-banner docs-banner-quiet" role="status">
+          <span>{t('suggest.commentOnly')}</span>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSuggesting(true)}>
+            {t('suggest.start')}
+          </button>
         </div>
       )}
       {saveError === 'conflict' && (
@@ -441,11 +709,15 @@ export default function DocsEditorClient({
         onDelete={isOwner ? trashPage : undefined}
         topActions={topActions}
         menuExtra={menuExtra}
-        layoutToggles={isOwner}
+        layoutToggles={isOwner && !locked}
         onAddComment={handlePageComment}
         commentCounts={commentCounts}
         onBlockComment={handleBlockComment}
-        importUrl={`/api/docs/pages/${page.id}/import`}
+        importUrl={canWrite && !locked ? `/api/docs/pages/${page.id}/import` : undefined}
+        mode={mode}
+        apiRef={editorApi}
+        currentUserId={currentUserId}
+        onInlineComment={onInlineComment}
         belowTitle={
           backlinks.length > 0 ? (
             <nav className="docs-backlinks" aria-label={t('mentions.linkedFrom')}>
@@ -464,6 +736,7 @@ export default function DocsEditorClient({
           ) : null
         }
       />
+      <DocsPeerCursors peers={peers} containerRef={wrapRef} />
       <aside
         className="docs-side"
         hidden={!side}
@@ -478,7 +751,14 @@ export default function DocsEditorClient({
         >
           <Icon name="close" size={16} />
         </button>
-        {side === 'versions' && <VersionsPanel pageId={page.id} canEdit onRestored={onVersionRestored} />}
+        {side === 'versions' && (
+          <VersionsPanel
+            pageId={page.id}
+            canEdit={canWrite && !locked}
+            onRestored={onVersionRestored}
+            getCurrent={() => editorApi.current?.snapshot().blocks ?? null}
+          />
+        )}
         <div hidden={side !== 'comments'}>
           <CommentsPanel
             pageId={page.id}
@@ -490,26 +770,59 @@ export default function DocsEditorClient({
             onClearBlockFilter={() => setBlockFilter(null)}
             onCommentsChange={setAllComments}
             labels={commentsLabels}
+            pendingAnchor={pendingAnchor}
+            onAnchorCancel={() => {
+              if (pendingAnchor) editorApi.current?.unwrapComment(pendingAnchor.id);
+              setPendingAnchor(null);
+            }}
+            onAnchorPosted={() => setPendingAnchor(null)}
+            onThreadFocus={focusThreadText}
+            focusAnchor={focusAnchor}
+            refreshSignal={commentsSig}
+            onThreadDeleted={(anchor) => editorApi.current?.unwrapComment(anchor)}
+            canModerate={canShare}
+            suggestions={suggestions}
+            canResolveSuggestions={canWrite && !locked}
+            onResolveSuggestion={(id, accept) => editorApi.current?.resolveSuggestion(id, accept)}
+            onSuggestionFocus={focusSuggestion}
+            peopleNames={people}
           />
         </div>
       </aside>
       {templateOpen && isOwner && (
-        <SaveTemplateDialog
-          pageId={page.id}
-          defaultTitle={current.title}
-          onClose={() => setTemplateOpen(false)}
+        <SaveTemplateDialog pageId={page.id} defaultTitle={current.title} onClose={() => setTemplateOpen(false)} />
+      )}
+      {verifyOpen && canVerify && (
+        <VerifyDialog
+          page={current}
+          people={peopleList}
+          onClose={() => setVerifyOpen(false)}
+          onChanged={(fresh) => {
+            setCurrent((prev) => ({
+              ...prev,
+              verified_at: fresh.verified_at,
+              verified_until: fresh.verified_until,
+              verified_by: fresh.verified_by,
+              page_owner_id: fresh.page_owner_id,
+            }));
+            router.refresh();
+          }}
         />
       )}
-      {shareOpen && isOwner && (
+      {shareOpen && canShare && (
         <ShareDialog
           page={current}
           shares={localShares}
-          helpBase={helpBase}
+          invites={localInvites}
+          helpBase={isOwner ? helpBase : null}
           feedback={feedback}
+          canManageWorkspace={isOwner}
+          memberRoleDefault={memberRoleDefault}
           onUpdate={updateSharing}
           onShare={handleShare}
           onRoleChange={handleRoleChange}
           onUnshare={handleUnshare}
+          onRevokeInvite={handleRevokeInvite}
           onClose={() => setShareOpen(false)}
         />
       )}

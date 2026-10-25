@@ -851,6 +851,20 @@ export interface DocsPageRow {
   inherit_shares?: 0 | 1;
   /** Posición vertical de la portada (0-100, NULL = centro). */
   cover_position?: number | null;
+  /** 1 = bloqueada: nadie edita el contenido hasta desbloquearla (los comentarios siguen). */
+  locked?: 0 | 1;
+  locked_by?: string | null;
+  /** Rol de los miembros del workspace en esta página y sus subpáginas (NULL = el de arriba). */
+  member_role?: string | null;
+  /** Teamspace de la página (todo el subárbol tiene el mismo). */
+  teamspace_id?: string | null;
+  /** Dueño de la página en la wiki (recibe el aviso de vencimiento). */
+  page_owner_id?: string | null;
+  verified_by?: string | null;
+  verified_at?: string | null;
+  /** NULL con verified_at = verificada sin vencimiento. */
+  verified_until?: string | null;
+  verify_notified_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -860,8 +874,8 @@ export interface DocsShareRow {
   page_id: string;
   kind: 'public' | 'team' | 'user';
   target_id: string | null;
-  /** 'view' | 'edit' (default 'view'). */
-  role?: 'view' | 'edit';
+  /** 'view' | 'comment' | 'edit' | 'full' (default 'view'). */
+  role?: string;
   created_at: string;
 }
 
@@ -874,6 +888,9 @@ export interface DocsCommentRow {
   body: string;
   resolved: 0 | 1;
   created_at: string;
+  /** Comentario sobre texto: id del resaltado `<span data-comment>` en el bloque. */
+  anchor_id?: string | null;
+  quote?: string;
 }
 
 export interface DocsTemplateRow {

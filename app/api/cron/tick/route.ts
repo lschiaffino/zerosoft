@@ -14,6 +14,8 @@ import { runNightlyScoring } from '@/lib/crm-scoring';
 import { sendOfflineReplyEmails } from '@/lib/chat-offline-email';
 import { fireNoteReminders } from '@/lib/notes-reminders';
 import { fireDocReminders } from '@/lib/docs-reminders';
+import { fireVerificationExpiry } from '@/lib/docs-verify';
+import { pruneDocsAudit } from '@/lib/docs-audit';
 import { runAutoCycles } from '@/lib/track-auto-cycles';
 import { runRecurringIssues } from '@/lib/track-recurring';
 import { fireIssueReminders, sendImmediateTrackEmails, sendTrackDigests } from '@/lib/track-notify';
@@ -62,6 +64,10 @@ export async function GET(req: NextRequest) {
   const noteReminders = await fireNoteReminders({ limit: 500 }).catch(() => null);
   // Recordatorios de las menciones de fecha de Docs (también cada minuto; claim por fila).
   const docReminders = await fireDocReminders({ limit: 500 }).catch(() => null);
+  // Wiki de Docs: avisa a los dueños de las páginas cuya verificación venció
+  // (claim por fila en verify_notified_at) y poda la auditoría de más de un año.
+  const docVerify = await fireVerificationExpiry({ limit: 500 }).catch(() => null);
+  const docAuditPruned = await pruneDocsAudit().catch(() => null);
   // Track: lo que corre solo. Los recordatorios van antes que los emails.
   const trackCycles = await runAutoCycles().catch(() => null);
   const trackRecurring = await runRecurringIssues({ limit: 200 }).catch(() => null);
@@ -98,5 +104,5 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, docReminders, trackCycles, trackRecurring, trackReminders, trackEmails, trackDigests, trashPurged, flowPruned, flow, emailSync, outlookSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackEmails, trackDigests, trashPurged, flowPruned, flow, emailSync, outlookSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
 }

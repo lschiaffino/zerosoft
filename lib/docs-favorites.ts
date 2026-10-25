@@ -17,9 +17,12 @@ export async function listDocFavorites(userId: string, workspaceId: string): Pro
       `SELECT p.id, p.title, p.icon FROM docs_favorites f
        JOIN docs_pages p ON p.id = f.page_id
        WHERE f.user_id = ? AND f.workspace_id = ? AND p.user_id = f.workspace_id AND p.archived = 0
+         AND (p.teamspace_id IS NULL OR p.teamspace_id NOT IN (
+           SELECT t.id FROM docs_teamspaces t WHERE t.access IN ('closed', 'private')
+             AND NOT EXISTS (SELECT 1 FROM docs_teamspace_members m WHERE m.teamspace_id = t.id AND m.user_id = ?)))
        ORDER BY f.position ASC, f.created_at ASC`,
     )
-    .all(userId, workspaceId)) as DocsFavorite[];
+    .all(userId, workspaceId, userId)) as DocsFavorite[];
   return rows.map((r) => ({ id: r.id, title: r.title, icon: r.icon ?? null }));
 }
 

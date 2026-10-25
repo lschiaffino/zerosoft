@@ -16,7 +16,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   const page = await getDocPageRow(params.id);
   if (!page) return notFound();
-  if (!(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }, DOC_INTERNAL_WRITE))) {
+  if (!(await canReadPage(page, user, DOC_INTERNAL_WRITE))) {
     return notFound();
   }
 

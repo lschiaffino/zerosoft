@@ -15,7 +15,10 @@ export default function DocsReadOnlyView({
   sharedBy,
   showVersions = true,
   people,
+  allowExport = true,
 }: {
+  /** Exportar habilitado (Ajustes › Seguridad). */
+  allowExport?: boolean;
   page: DocsPage;
   sharedBy: string | null;
   /** Miembros del workspace dueño (propiedades persona de las bases). */
@@ -46,12 +49,16 @@ export default function DocsReadOnlyView({
                 {t('versions.title')}
               </button>
             )}
-            <a className="btn btn-ghost btn-sm" href={`/api/docs/pages/${page.id}/export?format=md`} download>
-              {t('export.markdownShort')}
-            </a>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => window.print()}>
-              {t('export.pdfShort')}
-            </button>
+            {allowExport && (
+              <>
+                <a className="btn btn-ghost btn-sm" href={`/api/docs/pages/${page.id}/export?format=md`} download>
+                  {t('export.markdownShort')}
+                </a>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => window.print()}>
+                  {t('export.pdfShort')}
+                </button>
+              </>
+            )}
           </div>
         </div>
         {page.cover_url && <DocsStaticCover pageId={page.id} value={page.cover_url} position={page.cover_position} />}

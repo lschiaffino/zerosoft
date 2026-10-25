@@ -4135,6 +4135,100 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Docs, colaboración y permisos (tanda D3): presencia en vivo, bloqueo de
+    // página, rol de los miembros por página, teamspaces, invitados por email
+    // sin cuenta, auditoría, ajustes de seguridad del workspace, páginas
+    // verificadas con vencimiento (claim por fila en verify_notified_at) y el
+    // ancla de los comentarios sobre texto.
+    id: '092_docs_collab',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN locked INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN locked_by TEXT');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN member_role TEXT');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN teamspace_id TEXT');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN page_owner_id TEXT');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN verified_by TEXT');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN verified_at TEXT');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN verified_until TEXT');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN verify_notified_at TEXT');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN verify_locale TEXT');
+      await addColumn(client, 'ALTER TABLE docs_comments ADD COLUMN anchor_id TEXT');
+      await addColumn(client, "ALTER TABLE docs_comments ADD COLUMN quote TEXT NOT NULL DEFAULT ''");
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_docs_pages_teamspace ON docs_pages(user_id, teamspace_id);
+        CREATE INDEX IF NOT EXISTS idx_docs_pages_verify ON docs_pages(verified_until, verify_notified_at);
+        CREATE TABLE IF NOT EXISTS docs_presence (
+          page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+          session_id TEXT NOT NULL,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          block_id TEXT,
+          sel_start INTEGER,
+          sel_end INTEGER,
+          mode TEXT NOT NULL DEFAULT 'view',
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (page_id, session_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_presence_page ON docs_presence(page_id, updated_at);
+        CREATE TABLE IF NOT EXISTS docs_teamspaces (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          icon TEXT,
+          description TEXT NOT NULL DEFAULT '',
+          access TEXT NOT NULL DEFAULT 'open',
+          member_role TEXT NOT NULL DEFAULT 'edit',
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_teamspaces_ws ON docs_teamspaces(workspace_id, name);
+        CREATE TABLE IF NOT EXISTS docs_teamspace_members (
+          teamspace_id TEXT NOT NULL REFERENCES docs_teamspaces(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'member',
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (teamspace_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_teamspace_members_user ON docs_teamspace_members(user_id);
+        CREATE TABLE IF NOT EXISTS docs_guest_invites (
+          id TEXT PRIMARY KEY,
+          page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          email TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'view',
+          token_hash TEXT NOT NULL UNIQUE,
+          invited_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL,
+          accepted_at TEXT,
+          accepted_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          UNIQUE (page_id, email)
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_guest_invites_ws ON docs_guest_invites(workspace_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS docs_audit (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          actor_id TEXT,
+          actor_label TEXT NOT NULL DEFAULT '',
+          action TEXT NOT NULL,
+          page_id TEXT,
+          page_title TEXT NOT NULL DEFAULT '',
+          detail TEXT NOT NULL DEFAULT '',
+          ip TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_audit_ws ON docs_audit(workspace_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS docs_settings (
+          workspace_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          member_role TEXT NOT NULL DEFAULT 'full',
+          allow_export INTEGER NOT NULL DEFAULT 1,
+          allow_publish INTEGER NOT NULL DEFAULT 1,
+          allow_guests INTEGER NOT NULL DEFAULT 1,
+          updated_at TEXT NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

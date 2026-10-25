@@ -20,7 +20,7 @@ const OPTIONS: sanitizeHtml.IOptions = {
   allowedAttributes: {
     a: ['href', 'target', 'rel', 'data-page', 'data-row'],
     // Menciones de fecha (lib/docs-dates.ts) y ecuaciones en línea.
-    span: ['data-date', 'data-time', 'data-remind', 'data-rid', 'data-tex'],
+    span: ['data-date', 'data-time', 'data-remind', 'data-rid', 'data-tex', 'data-comment', 'data-sug', 'data-sug-kind', 'data-sug-by'],
   },
   allowedSchemes: ['http', 'https', 'mailto', 'tel'],
   allowProtocolRelative: false,
@@ -40,6 +40,15 @@ const OPTIONS: sanitizeHtml.IOptions = {
     span: (tagName, attribs): sanitizeHtml.Tag => {
       const tex = attribs['data-tex'];
       if (typeof tex === 'string' && tex.length > 0 && tex.length <= 2000) return { tagName, attribs: { 'data-tex': tex } };
+      // Resaltado de un comentario sobre texto y sugerencias (lib/docs-marks.ts).
+      const comment = attribs['data-comment'];
+      if (typeof comment === 'string' && ID_RE.test(comment)) return { tagName, attribs: { 'data-comment': comment } };
+      const sug = attribs['data-sug'];
+      const kind = attribs['data-sug-kind'];
+      const by = attribs['data-sug-by'];
+      if (typeof sug === 'string' && ID_RE.test(sug) && (kind === 'ins' || kind === 'del') && typeof by === 'string' && ID_RE.test(by)) {
+        return { tagName, attribs: { 'data-sug': sug, 'data-sug-kind': kind, 'data-sug-by': by } };
+      }
       const date = attribs['data-date'];
       if (typeof date === 'string' && DATE_DAY_RE.test(date)) {
         const out: Record<string, string> = { 'data-date': date };
@@ -244,8 +253,12 @@ const CAPTIONED = new Set(['image', 'video', 'audio', 'pdf', 'file', 'bookmark',
  * http(s), alto del embed, id de bloque sincronizado, botón).
  */
 function sanitizeExtraFields(block: DocsBlock): DocsBlock {
-  const { width, align, caption, ratio, link, height, synced_id, button, ...rest } = block;
+  const { width, align, caption, ratio, link, height, synced_id, button, suggestion, ...rest } = block;
   const out: DocsBlock = rest;
+  // Bloque sugerido (modo sugerir): id y autor con forma de id.
+  if (suggestion && typeof suggestion === 'object' && ID_RE.test(String(suggestion.id)) && ID_RE.test(String(suggestion.by))) {
+    out.suggestion = { id: String(suggestion.id), by: String(suggestion.by) };
+  }
   if (MEDIA_SIZED.has(block.type)) {
     if (typeof width === 'number' && Number.isFinite(width)) out.width = Math.max(10, Math.min(100, Math.round(width)));
     if (align === 'left' || align === 'center' || align === 'right') out.align = align;

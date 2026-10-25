@@ -250,7 +250,8 @@ describe('Docs: sidebar liviano', () => {
     await getDb().prepare('UPDATE docs_pages SET archived = 1 WHERE id = ?').run(trashed.id);
     const summaries = await listDocPageSummaries(owner.id);
     expect(summaries.map((p) => p.id)).toEqual([page.id]);
-    expect(Object.keys(summaries[0]).sort()).toEqual(['icon', 'id', 'parent_id', 'position', 'title', 'updated_at']);
+    // Sin content: el teamspace y la verificación de la wiki son livianos (sidebar y búsqueda).
+    expect(Object.keys(summaries[0]).sort()).toEqual(['icon', 'id', 'parent_id', 'position', 'teamspace_id', 'title', 'updated_at', 'verified']);
     expect(await countArchivedDocPages(owner.id)).toBe(1);
     expect((await listDocPageSummaries(owner.id, { archived: true })).map((p) => p.id)).toEqual([trashed.id]);
   });
