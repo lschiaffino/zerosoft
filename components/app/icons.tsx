@@ -45,7 +45,12 @@ export type IconName =
   | 'chevronRight'
   | 'themeSystem'
   | 'themeLight'
-  | 'themeDark';
+  | 'themeDark'
+  | 'plans'
+  | 'initiatives'
+  | 'roadmap'
+  | 'cycles'
+  | 'insights';
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
@@ -109,6 +114,35 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   reports: <path d="M6 20v-7M12 20V5M18 20v-4" />,
   forecast: <path d="M4 18l5-6 4 3 7-9M15 6h5v5" />,
+  // Planificación de Track: plan (cuadro con progreso), iniciativa (bandera),
+  // roadmap (barras escalonadas), cycles (flecha circular), insights (puntos).
+  plans: (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="1" />
+      <path d="M8 12h8M8 16h5M8 8h3" />
+    </>
+  ),
+  initiatives: (
+    <>
+      <path d="M5 21V4" />
+      <path d="M5 4h12l-2.5 4L17 12H5" />
+    </>
+  ),
+  roadmap: <path d="M3 6h9M7 12h10M12 18h9" />,
+  cycles: (
+    <>
+      <path d="M20 12a8 8 0 1 1-2.3-5.6" />
+      <path d="M20 4v4h-4" />
+    </>
+  ),
+  insights: (
+    <>
+      <path d="M4 20h16" />
+      <circle cx="7" cy="14" r="1.5" />
+      <circle cx="12" cy="9" r="1.5" />
+      <circle cx="17" cy="12" r="1.5" />
+    </>
+  ),
   workflows: (
     <>
       <path d="M4 7h4v10H4zM10 4h4v13h-4zM16 9h4v8h-4z" />

@@ -4128,6 +4128,172 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Track, planificación (como Linear): projects de Linear (acá "plans", un
+    // proyecto de Track es un team), con lead, miembros, equipos, milestones,
+    // updates con salud y recordatorio al lead; initiatives que agrupan plans;
+    // dashboards de insights; auto-cierre y auto-archivo por proyecto.
+    id: '111_track_planning',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_plans (
+          id TEXT PRIMARY KEY,
+          team_id TEXT REFERENCES teams(id) ON DELETE CASCADE,
+          owner_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          icon TEXT,
+          color TEXT NOT NULL DEFAULT '#5e6ad2',
+          summary TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('backlog', 'planned', 'in_progress', 'paused', 'completed', 'canceled')),
+          priority TEXT NOT NULL DEFAULT 'none' CHECK (priority IN ('none', 'urgent', 'high', 'medium', 'low')),
+          lead_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          start_date TEXT,
+          target_date TEXT,
+          update_cadence TEXT NOT NULL DEFAULT 'weekly' CHECK (update_cadence IN ('weekly', 'biweekly', 'off')),
+          update_day INTEGER NOT NULL DEFAULT 5 CHECK (update_day BETWEEN 1 AND 7),
+          next_reminder_at TEXT,
+          reminder_claimed_at TEXT,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          completed_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_plans_team ON track_plans(team_id, status);
+        CREATE INDEX IF NOT EXISTS idx_track_plans_owner ON track_plans(owner_id, status);
+        CREATE INDEX IF NOT EXISTS idx_track_plans_reminder ON track_plans(next_reminder_at) WHERE next_reminder_at IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS track_plan_teams (
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+          PRIMARY KEY (plan_id, project_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_plan_teams_project ON track_plan_teams(project_id);
+
+        CREATE TABLE IF NOT EXISTS track_plan_members (
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          PRIMARY KEY (plan_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS track_plan_followers (
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          following INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (plan_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS track_plan_milestones (
+          id TEXT PRIMARY KEY,
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          target_date TEXT,
+          position INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_plan_milestones_plan ON track_plan_milestones(plan_id, position);
+
+        CREATE TABLE IF NOT EXISTS track_plan_updates (
+          id TEXT PRIMARY KEY,
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          health TEXT NOT NULL CHECK (health IN ('on_track', 'at_risk', 'off_track')),
+          body TEXT NOT NULL DEFAULT '',
+          progress INTEGER,
+          meta TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_plan_updates_plan ON track_plan_updates(plan_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS track_plan_update_comments (
+          id TEXT PRIMARY KEY,
+          update_id TEXT NOT NULL REFERENCES track_plan_updates(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          body TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_plan_update_comments ON track_plan_update_comments(update_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS track_plan_events (
+          id TEXT PRIMARY KEY,
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          type TEXT NOT NULL,
+          meta TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_plan_events_plan ON track_plan_events(plan_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS track_initiatives (
+          id TEXT PRIMARY KEY,
+          team_id TEXT REFERENCES teams(id) ON DELETE CASCADE,
+          owner_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          parent_id TEXT REFERENCES track_initiatives(id) ON DELETE SET NULL,
+          name TEXT NOT NULL,
+          icon TEXT,
+          description TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('proposed', 'planned', 'active', 'completed', 'canceled')),
+          lead_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          target_date TEXT,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_initiatives_team ON track_initiatives(team_id, status);
+        CREATE INDEX IF NOT EXISTS idx_track_initiatives_owner ON track_initiatives(owner_id, status);
+
+        CREATE TABLE IF NOT EXISTS track_initiative_plans (
+          initiative_id TEXT NOT NULL REFERENCES track_initiatives(id) ON DELETE CASCADE,
+          plan_id TEXT NOT NULL REFERENCES track_plans(id) ON DELETE CASCADE,
+          PRIMARY KEY (initiative_id, plan_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_initiative_plans_plan ON track_initiative_plans(plan_id);
+
+        CREATE TABLE IF NOT EXISTS track_dashboards (
+          id TEXT PRIMARY KEY,
+          team_id TEXT REFERENCES teams(id) ON DELETE CASCADE,
+          owner_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          visibility TEXT NOT NULL DEFAULT 'workspace' CHECK (visibility IN ('personal', 'workspace')),
+          filters TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_dashboards_team ON track_dashboards(team_id, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_track_dashboards_owner ON track_dashboards(owner_id, updated_at DESC);
+
+        CREATE TABLE IF NOT EXISTS track_dashboard_widgets (
+          id TEXT PRIMARY KEY,
+          dashboard_id TEXT NOT NULL REFERENCES track_dashboards(id) ON DELETE CASCADE,
+          title TEXT NOT NULL DEFAULT '',
+          kind TEXT NOT NULL DEFAULT 'chart' CHECK (kind IN ('chart', 'table', 'metric')),
+          config TEXT NOT NULL DEFAULT '{}',
+          width INTEGER NOT NULL DEFAULT 1 CHECK (width IN (1, 2)),
+          position INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_dashboard_widgets ON track_dashboard_widgets(dashboard_id, position);
+      `);
+      await addColumn(client, 'ALTER TABLE track_issues ADD COLUMN plan_id TEXT REFERENCES track_plans(id) ON DELETE SET NULL');
+      await addColumn(
+        client,
+        'ALTER TABLE track_issues ADD COLUMN plan_milestone_id TEXT REFERENCES track_plan_milestones(id) ON DELETE SET NULL',
+      );
+      await addColumn(client, 'ALTER TABLE track_issues ADD COLUMN archived_at TEXT');
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN auto_close_months INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN auto_close_status_id TEXT');
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN auto_archive_months INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN housekeeping_day TEXT');
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_track_issues_plan ON track_issues(plan_id) WHERE plan_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_track_issues_archived ON track_issues(project_id, archived_at) WHERE archived_at IS NOT NULL;
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

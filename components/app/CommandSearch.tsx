@@ -35,6 +35,9 @@ function useGroupOrder() {
         'actions',
         'projects',
         'issues',
+        'trackPlans',
+        'trackInitiatives',
+        'trackDashboards',
         'contacts',
         'companies',
         'leads',
@@ -89,6 +92,7 @@ export default function CommandSearch() {
   const tNotes = useTranslations('notes');
   const tBoard = useTranslations('board');
   const tTrack = useTranslations('track');
+  const tPlanning = useTranslations('trackPlanning.cmdk');
   const router = useRouter();
   const pathname = usePathname();
   const inTrack = pathname.startsWith('/app/track');
@@ -131,6 +135,14 @@ export default function CommandSearch() {
       { group: 'track', label: tTrack('cmdk.myTasks'), meta: '', href: '/app/track/my-tasks' },
       { group: 'track', label: tTrack('cmdk.allIssues'), meta: '', href: '/app/track/issues' },
       { group: 'track', label: tTrack('cmdk.inbox'), meta: '', href: '/app/track/inbox' },
+      // Planificación (como Linear): plans, initiatives, roadmap, cycles, insights y dashboards.
+      { group: 'track', label: tPlanning('newPlan'), meta: '', href: '/app/track/plans?new=1' },
+      { group: 'track', label: tPlanning('newInitiative'), meta: '', href: '/app/track/initiatives?new=1' },
+      { group: 'track', label: tPlanning('plans'), meta: '', href: '/app/track/plans' },
+      { group: 'track', label: tPlanning('roadmap'), meta: '', href: '/app/track/roadmap' },
+      { group: 'track', label: tPlanning('cycles'), meta: '', href: '/app/track/cycles' },
+      { group: 'track', label: tPlanning('insights'), meta: '', href: '/app/track/insights' },
+      { group: 'track', label: tPlanning('dashboards'), meta: '', href: '/app/track/dashboards' },
     ];
     const rest: ResultItem[] = [
       { group, label: t('newContact'), meta: '', href: '/app/crm/contacts/new' },
@@ -166,7 +178,7 @@ export default function CommandSearch() {
       { group, label: t('newGroup'), meta: '', href: '/app/groups/list?new=1' },
     ];
     return inTrack ? [...track, ...rest] : [...rest, ...track];
-  }, [t, tNotes, tBoard, tTrack, inTrack, inCrm]);
+  }, [t, tNotes, tBoard, tTrack, tPlanning, inTrack, inCrm]);
 
   useEffect(() => {
     function onOpen(e: Event) {

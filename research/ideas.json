@@ -1974,14 +1974,18 @@
     "description": "In Linear a project has a lead, members, start and target dates, status, and periodic updates marked On track / At risk / Off track with reminders to the lead (https://linear.app/docs/initiative-and-project-updates); initiatives group projects into a roadmap. A Track project is closer to a Linear team: it has milestones but no lead, target date, health or updates, and there is no view across projects. First scope: lead, target date and status on track_projects; a project update composer with health and auto-included progress since the last update; a weekly reminder to the lead; a roadmap page with one bar per project (start to target) and its latest health.\n\nPriority: high. Effort: L. Compared with Linear.",
     "product": "track",
     "kind": "idea",
-    "parity": "projects-entity"
+    "parity": "projects-entity",
+    "status": "done",
+    "changelog": "2026-10-25-track-planning"
   },
   {
     "title": "Track: Show cycle velocity, burn-up and cycle time so teams can plan the next cycle",
     "description": "Linear Insights charts issue count and effort, cycle time, lead time, triage time and issue age, with slicing, segments and a burn-up, and exports to CSV (https://linear.app/docs/insights); cycles show scope and completion over time. Track's overview only shows done/total for the current cycle. First scope: on each cycle, a burn-up of scope vs completed points or issues (from the activity log), velocity of the last 3 completed cycles shown when creating the next one, and a cycle-time / lead-time panel per project with median and p75, using status category changes already logged in track activities.\n\nPriority: high. Effort: M. Compared with Linear, Jira.",
     "product": "track",
     "kind": "idea",
-    "parity": "cycle-metrics"
+    "parity": "cycle-metrics",
+    "status": "done",
+    "changelog": "2026-10-25-track-planning"
   },
   {
     "title": "Track: Add private projects and guest members limited to the projects they are invited to",
@@ -2016,7 +2020,9 @@
     "description": "Linear lets each team auto-close issues untouched for N months and auto-archive completed issues after a period, which keeps lists short without manual cleanup (https://linear.app/docs). Track keeps every issue in its list forever unless deleted. First scope: per-project settings for auto-close (move to a cancelled status after 1, 3 or 6 months without activity, with a comment explaining why) and auto-archive (hide done/cancelled issues older than N months from default views, still searchable and restorable), run from the hourly cron with compare-and-set claims.\n\nPriority: low. Effort: S. Compared with Linear.",
     "product": "track",
     "kind": "idea",
-    "parity": "auto-close-archive"
+    "parity": "auto-close-archive",
+    "status": "done",
+    "changelog": "2026-10-25-track-planning"
   },
   {
     "title": "Other: Send only the route's i18n namespaces to the client",

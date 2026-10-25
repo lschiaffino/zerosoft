@@ -23,6 +23,10 @@ export interface NotificationTextLabels {
   docShared: string;
   boardMention: string;
   boardReply: string;
+  /** Track, plans: "{actor} publicó un update en {plan}" y similares (opcionales). */
+  planUpdate?: string;
+  planComment?: string;
+  planReminder?: string;
 }
 
 export interface NotificationLike {
@@ -51,6 +55,12 @@ export function notificationTitle(n: NotificationLike, L: NotificationTextLabels
   const meta = parseNotificationMeta(n.meta);
   const actor = String(meta.actorName || L.someone);
   const source = n.source_type ?? '';
+
+  if (source === 'track_plan') {
+    const vars = { actor, plan: String(meta.planName ?? '') };
+    const tpl = meta.kind === 'reminder' ? L.planReminder : meta.kind === 'comment' ? L.planComment : L.planUpdate;
+    return tpl && vars.plan ? fill(tpl, vars) : n.title;
+  }
 
   if (source === 'track_issue' || n.type === 'track_reminder') {
     const identifier = String(meta.issueIdentifier ?? '');
