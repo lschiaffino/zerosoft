@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getPublicVideoRow, unlockCookieName, unlockToken, verifyPassword } from '@/lib/rec';
-import { limitByIp } from '@/lib/rate-limit';
+import { limitByIp, rateLimit } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,6 +13,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ share: str
   const limited = await limitByIp(req, 'rec:unlock', 20, 600);
   if (limited) return limited;
   const { share } = await ctx.params;
+  // Además del límite por IP, uno por video: probar claves contra un link no escala aunque cambie la IP.
+  if (process.env.RATE_LIMIT_DISABLED !== 'true') {
+    const r = await rateLimit(`rec:unlock:share:${share}`, 10, 600);
+    if (!r.ok) {
+      return NextResponse.json({ error: 'rate_limited' }, { status: 429, headers: { 'retry-after': String(Math.max(1, Math.ceil((r.resetAt - Date.now()) / 1000))) } });
+    }
+  }
   const v = await getPublicVideoRow(share);
   if (!v) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   const parsed = schema.safeParse(await req.json().catch(() => null));

@@ -30,6 +30,8 @@ export interface NotificationTextLabels {
   /** Rec: "{actor} vio {title}", "{actor} comentó en {title}", "{actor} reaccionó {emoji} a {title}". */
   recView?: string;
   recComment?: string;
+  /** Avisos agrupados: "{count} comentarios nuevos en {title}". */
+  recComments?: string;
   recReaction?: string;
 }
 
@@ -105,7 +107,8 @@ export function notificationTitle(n: NotificationLike, L: NotificationTextLabels
   }
 
   if (source === 'rec_video') {
-    const vars = { actor, title: String(meta.title || L.untitled), emoji: String(meta.emoji || '') };
+    const vars = { actor, title: String(meta.title || L.untitled), emoji: String(meta.emoji || ''), count: String(meta.count || '1') };
+    if (n.type === 'rec_comment' && Number(meta.count) > 1 && L.recComments) return fill(L.recComments, vars);
     if (n.type === 'rec_view' && L.recView) return fill(L.recView, vars);
     if (n.type === 'rec_comment' && meta.emoji && L.recReaction) return fill(L.recReaction, vars);
     if (n.type === 'rec_comment' && L.recComment) return fill(L.recComment, vars);

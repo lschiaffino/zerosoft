@@ -18,12 +18,13 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   if ('res' in s) return s.res;
   if (blobUploadEnabled()) return recJson({ error: 'use_blob' }, 409);
   const { id } = await ctx.params;
-  const kind = req.nextUrl.searchParams.get('kind') === 'audio' ? 'audio' : 'video';
+  const raw = req.nextUrl.searchParams.get('kind');
+  const kind = raw === 'audio' ? 'audio' : raw === 'trimmed' ? 'trimmed' : 'video';
   const n = Number(req.nextUrl.searchParams.get('n'));
   if (Number(req.headers.get('content-length') ?? 0) > LOCAL_PART_BYTES + SLACK) return recJson({ error: 'part_too_large' }, 413);
   try {
     const v = await getManageableVideo(s.actor, id);
-    if (v.status !== 'recording') return recJson({ error: 'already_uploaded' }, 409);
+    if (kind === 'trimmed' ? v.status !== 'ready' : v.status !== 'recording') return recJson({ error: 'already_uploaded' }, 409);
     const body = Buffer.from(await req.arrayBuffer());
     if (body.length > LOCAL_PART_BYTES + SLACK) return recJson({ error: 'part_too_large' }, 413);
     await saveLocalPart(v.id, kind, n, body);

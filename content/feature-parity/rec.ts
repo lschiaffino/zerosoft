@@ -104,9 +104,9 @@ const parity: ProductParity = {
     row('trim-stitch', 'editing', ['Trim and stitch videos', 'Recortar y unir videos', 'Cortar e unir vídeos'], 'partial', {
       weight: 2,
       detail: [
-        'Trim the start and the end, without re-encoding and undoable: the player and the shared page respect it, the download is the original file. No joining clips',
-        'Recortar el principio y el final, sin recodificar y se puede deshacer: el reproductor y la página compartida lo respetan, la descarga es el archivo original. Sin unir clips',
-        'Cortar o começo e o fim, sem recodificar e dá para desfazer: o player e a página compartilhada respeitam, o download é o arquivo original. Sem juntar clipes',
+        'Trim the start and the end. In WebM recordings everyone else gets a copy cut without re-encoding (from the keyframe before the start, up to 2 s earlier); MP4 and MOV uploads are only trimmed in the player. No joining clips',
+        'Recortar el principio y el final. En las grabaciones WebM los demás reciben una copia cortada sin recodificar (desde el keyframe anterior al inicio, hasta 2 s antes); en MP4 y MOV subidos solo se recorta en el reproductor. Sin unir clips',
+        'Cortar o começo e o fim. Nas gravações WebM os outros recebem uma cópia cortada sem recodificar (desde o keyframe anterior ao começo, até 2 s antes); em MP4 e MOV enviados só corta no player. Sem juntar clipes',
       ],
     }),
     row('edit-by-transcript', 'editing', ['Edit from the transcript', 'Editar desde la transcripción', 'Editar pela transcrição'], 'missing', {
@@ -133,9 +133,9 @@ const parity: ProductParity = {
     row('instant-link', 'sharing', ['Share link ready when you stop', 'Link listo al terminar de grabar', 'Link pronto ao parar a gravação'], 'have', {
       weight: 2,
       detail: [
-        'It uploads in parts while you record (Vercel Blob multipart, or the server disk when self-hosted), so the link is copied as soon as you stop',
-        'Se sube por partes mientras grabás (multipart de Vercel Blob, o el disco del servidor si lo instalás vos), así el link se copia apenas cortás',
-        'É enviado em partes enquanto você grava (multipart do Vercel Blob, ou o disco do servidor se você hospeda), então o link é copiado assim que você para',
+        'It uploads in parts while you record and the link is copied when you stop. Each part is kept in the browser until the server has it: if the connection drops it keeps recording, retries by itself and the upload can be resumed or downloaded after a reload',
+        'Se sube por partes mientras grabás y el link se copia al cortar. Cada parte queda en el navegador hasta que el servidor la tiene: si se corta la red sigue grabando, reintenta solo y después de recargar se puede retomar o descargar',
+        'É enviado em partes enquanto você grava e o link é copiado ao parar. Cada parte fica no navegador até o servidor recebê-la: se a rede cair continua gravando, tenta de novo sozinho e depois de recarregar dá para retomar ou baixar',
       ],
     }),
     row('watch-page', 'sharing', ['Video page with player and transcript', 'Página del video con reproductor y transcripción', 'Página do vídeo com player e transcrição'], 'have', {
@@ -179,11 +179,11 @@ const parity: ProductParity = {
       ],
     }),
     row('request-access', 'privacy', ['Request access or ask for an email to watch', 'Pedir acceso o pedir email para ver', 'Pedir acesso ou pedir email para assistir'], 'missing'),
-    row('download-restriction', 'privacy', ['Block downloads', 'Bloquear la descarga', 'Bloquear o download'], 'have', {
+    row('download-restriction', 'privacy', ['Block downloads', 'Bloquear la descarga', 'Bloquear o download'], 'partial', {
       detail: [
-        'Per video: viewers can or cannot download; members of the workspace always can',
-        'Por video: quien lo ve puede o no descargarlo; los miembros del workspace siempre pueden',
-        'Por vídeo: quem assiste pode ou não baixar; os membros do workspace sempre podem',
+        'Per video, off by default with a password: the download button and the download link stop working. The video still streams, so it can be captured',
+        'Por video, apagada por defecto con contraseña: el botón y el link de descarga dejan de andar. El video se sigue transmitiendo, así que se puede capturar',
+        'Por vídeo, desligado por padrão com senha: o botão e o link de download param de funcionar. O vídeo continua sendo transmitido, então dá para capturar',
       ],
     }),
 
@@ -213,9 +213,9 @@ const parity: ProductParity = {
     }),
     row('notifications', 'engagement', ['Notifications for views, comments and reactions', 'Avisos de vistas, comentarios y reacciones', 'Avisos de visualizações, comentários e reações'], 'have', {
       detail: [
-        'The first view of each viewer, each comment and reaction, in the app notifications; can be turned off per video',
-        'La primera vista de cada espectador, cada comentario y reacción, en los avisos de la app; se apaga por video',
-        'A primeira visualização de cada espectador, cada comentário e reação, nos avisos do app; dá para desligar por vídeo',
+        'The first view of each viewer, and comments and reactions grouped in one notice ("3 new comments") until you read it; can be turned off per video',
+        'La primera vista de cada espectador, y los comentarios y reacciones agrupados en un aviso ("3 comentarios nuevos") hasta que lo leés; se apaga por video',
+        'A primeira visualização de cada espectador, e os comentários e reações agrupados num aviso ("3 comentários novos") até você ler; dá para desligar por vídeo',
       ],
     }),
 
@@ -230,9 +230,9 @@ const parity: ProductParity = {
     }),
     row('engagement-insights', 'analytics', ['Watch time, CTA clicks and export', 'Cuánto vio cada uno, clics y export', 'Quanto cada um assistiu, cliques e exportação'], 'have', {
       detail: [
-        'Percent watched per viewer, average, watched to the end and CTA clicks, with CSV export',
-        'Porcentaje visto por espectador, promedio, quienes lo vieron hasta el final y clics en la CTA, con export a CSV',
-        'Porcentagem assistida por espectador, média, quem assistiu até o fim e cliques na CTA, com exportação CSV',
+        'Time really watched per viewer (the union of the parts played: skipping ahead does not count), average, watched to the end, a retention curve and CTA clicks, with CSV export. Only whoever manages the video sees it',
+        'Tiempo realmente visto por espectador (la unión de lo reproducido: adelantar no cuenta), promedio, quienes lo vieron hasta el final, curva de retención y clics en la CTA, con export a CSV. Solo la ve quien administra el video',
+        'Tempo realmente assistido por espectador (a união do que foi reproduzido: avançar não conta), média, quem assistiu até o fim, curva de retenção e cliques na CTA, com exportação CSV. Só quem administra o vídeo vê',
       ],
     }),
 
@@ -279,9 +279,9 @@ const parity: ProductParity = {
     }),
     row('video-search', 'library', ['Search videos', 'Buscar videos', 'Buscar vídeos'], 'have', {
       detail: [
-        'By title, description and transcript, and from Cmd+K',
-        'Por título, descripción y transcripción, y desde Cmd+K',
-        'Por título, descrição e transcrição, e pelo Cmd+K',
+        'By title, description and transcript, with matching folders, in the library and in Cmd+K. People who do not manage a video only find text inside its trim',
+        'Por título, descripción y transcripción, con las carpetas que coinciden, en la biblioteca y en Cmd+K. Quien no administra un video solo encuentra texto dentro de su recorte',
+        'Por título, descrição e transcrição, com as pastas que coincidem, na biblioteca e no Cmd+K. Quem não administra um vídeo só encontra texto dentro do corte',
       ],
     }),
 
@@ -293,9 +293,9 @@ const parity: ProductParity = {
     // Administración
     row('members-roles', 'admin', ['Members and roles', 'Miembros y roles', 'Membros e funções'], 'have', {
       detail: [
-        'The workspace members and roles: whoever recorded a video or an admin edits it, everyone sees the shared space',
-        'Los miembros y roles del workspace: edita quien grabó el video o un admin, todos ven el espacio compartido',
-        'Os membros e funções do workspace: edita quem gravou o vídeo ou um admin, todos veem o espaço compartilhado',
+        'Workspace members and roles: My videos are only for whoever recorded them (admins included, as in Loom); in the workspace space the author or an admin edits',
+        'Miembros y roles del workspace: Mis videos son solo de quien los grabó (los admins tampoco los ven, como en Loom); en el espacio del workspace edita el autor o un admin',
+        'Membros e funções do workspace: Meus vídeos são só de quem gravou (os admins também não veem, como no Loom); no espaço do workspace edita o autor ou um admin',
       ],
     }),
     row('sso-scim', 'admin', ['SSO and SCIM', 'SSO y SCIM', 'SSO e SCIM'], 'missing'),

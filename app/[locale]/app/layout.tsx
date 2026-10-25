@@ -351,6 +351,7 @@ export default async function AppLayout(
                 recView: tRec.raw('notifications.view') as string,
                 recComment: tRec.raw('notifications.comment') as string,
                 recReaction: tRec.raw('notifications.reaction') as string,
+                recComments: tRec.raw('notifications.comments') as string,
               },
             },
           }}

@@ -7,7 +7,9 @@ import { Link } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { RecAnalytics, RecVideoDto } from '@/lib/rec';
-import { fmtClock, parseClock, trimmedDuration } from '@/lib/rec-schema';
+import { clampTrim, fmtClock, isTrimmed, parseClock, trimKey, trimmedDuration } from '@/lib/rec-schema';
+import { cutWebm } from '@/lib/rec-webm';
+import { fetchInParts } from './download';
 import { parseDbUtc } from '@/lib/utils';
 import RecPlayer, { type RecMarker, type RecPlayerHandle } from './RecPlayer';
 import RecComments from './RecComments';
@@ -17,7 +19,7 @@ import RecShareDialog from './RecShareDialog';
 import { RecTranscript } from './RecWatch';
 import { RecMoveDialog, RecNameDialog, notifyRecChanged, type RecFolder } from './RecDialogs';
 import { canvasToBlob, snapshot } from './recorder-media';
-import { uploadAsset } from './liveUpload';
+import { uploadAsset, uploadWhole } from './liveUpload';
 
 type Tab = 'details' | 'transcript' | 'insights' | 'edit';
 
@@ -26,7 +28,19 @@ type Tab = 'details' | 'transcript' | 'insights' | 'edit';
  * transcripción, resumen y capítulos (IA, editables), analítica y edición
  * (recorte, llamada a la acción y miniatura).
  */
-export default function RecDetail({ initial, folders, baseUrl }: { initial: RecVideoDto; folders: RecFolder[]; baseUrl: string }) {
+export default function RecDetail({
+  initial,
+  folders,
+  baseUrl,
+  uploadMode,
+  partBytes,
+}: {
+  initial: RecVideoDto;
+  folders: RecFolder[];
+  baseUrl: string;
+  uploadMode: 'blob' | 'local';
+  partBytes: number;
+}) {
   const t = useTranslations('rec.detail');
   const tc = useTranslations('rec.common');
   const locale = useLocale();
@@ -53,6 +67,7 @@ export default function RecDetail({ initial, folders, baseUrl }: { initial: RecV
   const [ctaUrl, setCtaUrl] = useState(initial.ctaUrl);
   const [ctaMode, setCtaMode] = useState(initial.ctaMode);
   const [thumbVer, setThumbVer] = useState(0);
+  const [cutting, setCutting] = useState<number | null>(null);
   const player = useRef<RecPlayerHandle>(null);
   // Avisa al sidebar y vacía la caché del router: volver atrás no muestra la lista vieja.
   const changed = () => {
@@ -145,6 +160,11 @@ export default function RecDetail({ initial, folders, baseUrl }: { initial: RecV
     router.push(`/${locale}${back}`);
   }
 
+  /**
+   * Guardar el recorte. En WebM primero se arma y se sube la copia cortada
+   * (header + los clusters del rango, sin recodificar): es la que reciben
+   * todos menos quien administra el video, así lo recortado no se puede bajar.
+   */
   async function saveTrim() {
     const s = parseClock(trimStart || '0');
     const e = trimEnd.trim() ? parseClock(trimEnd) : null;
@@ -152,8 +172,38 @@ export default function RecDetail({ initial, folders, baseUrl }: { initial: RecV
       setError(t('invalidTime'));
       return;
     }
-    if (await patch({ trimStart: s, trimEnd: e }, t('saved'))) {
-      setTrimStart(fmtClock(s));
+    if (e !== null && e <= s) {
+      setError(t('trimInverted'));
+      return;
+    }
+    const clamped = clampTrim(s, e, video.durationSec);
+    setError(null);
+    if (isTrimmed(clamped.start, clamped.end) && video.contentType.startsWith('video/webm')) {
+      setCutting(0);
+      try {
+        const { blob } = await fetchInParts(`${file}?kind=video`, (p) => setCutting(Math.round(p / 2)));
+        const cut = cutWebm(new Uint8Array(await blob.arrayBuffer()), clamped.start * 1000, clamped.end === null ? null : clamped.end * 1000, video.durationSec * 1000);
+        if (!cut) throw new Error('cut_failed');
+        await uploadWhole(
+          video.id,
+          'trimmed',
+          new Blob([cut.bytes as Uint8Array<ArrayBuffer>], { type: 'video/webm' }),
+          uploadMode,
+          partBytes,
+          { trimFor: trimKey(clamped.start, clamped.end) },
+          (p) => setCutting(50 + Math.round(p / 2)),
+        );
+      } catch (err) {
+        setCutting(null);
+        const code = err instanceof Error ? err.message : 'cut_failed';
+        setError(tc.has(`errors.${code}`) ? tc(`errors.${code}`) : t('cutFailed'));
+        return;
+      }
+      setCutting(null);
+    }
+    if (await patch({ trimStart: clamped.start, trimEnd: clamped.end }, t('saved'))) {
+      setTrimStart(fmtClock(clamped.start));
+      setTrimEnd(clamped.end === null ? '' : fmtClock(clamped.end));
     }
   }
 
@@ -258,7 +308,7 @@ export default function RecDetail({ initial, folders, baseUrl }: { initial: RecV
             onTime={setNow}
           />
           <div className="ui-tabs" role="tablist" aria-label={t('tabs')}>
-            {(['details', 'transcript', 'insights', ...(video.canManage ? (['edit'] as const) : [])] as Tab[]).map((k) => (
+            {(['details', 'transcript', ...(video.canManage ? (['insights', 'edit'] as const) : [])] as Tab[]).map((k) => (
               <button key={k} type="button" role="tab" className="ui-tab" aria-selected={tab === k} onClick={() => setTab(k)} data-testid={`rec-tab-${k}`}>
                 {t(`tab.${k}`)}
               </button>
@@ -356,7 +406,7 @@ export default function RecDetail({ initial, folders, baseUrl }: { initial: RecV
             </div>
           )}
 
-          {tab === 'insights' && (
+          {tab === 'insights' && video.canManage && (
             <div className="rec-pane" role="tabpanel" data-testid="rec-insights">
               {!stats ? (
                 <div className="ui-skeleton-text" aria-busy="true" />
@@ -384,6 +434,20 @@ export default function RecDetail({ initial, folders, baseUrl }: { initial: RecV
                       <dd className="data">{stats.ctaClicks}</dd>
                     </div>
                   </dl>
+                  {stats.viewers.length > 0 && (
+                    <figure className="rec-retention" data-testid="rec-retention">
+                      <figcaption className="label">{t('retention')}</figcaption>
+                      <div className="rec-retention-bars" role="img" aria-label={t('retentionLabel', { start: stats.retention[0] ?? 0, end: stats.retention[stats.retention.length - 1] ?? 0 })}>
+                        {stats.retention.map((v, i) => (
+                          <span key={i} className="rec-retention-bar" style={{ height: `${Math.max(2, v)}%` }} title={`${fmtClock((visible * i) / stats.retention.length)} · ${v}%`} />
+                        ))}
+                      </div>
+                      <div className="rec-retention-axis data muted">
+                        <span>0:00</span>
+                        <span>{fmtClock(visible)}</span>
+                      </div>
+                    </figure>
+                  )}
                   {stats.viewers.length === 0 ? (
                     <p className="ui-help">{t('noViews')}</p>
                   ) : (
@@ -456,6 +520,14 @@ export default function RecDetail({ initial, folders, baseUrl }: { initial: RecV
                   </div>
                 </div>
                 <p className="ui-help">{t('trimResult', { length: fmtClock(visible) })}</p>
+                <p className="ui-help" data-testid="rec-trim-note">
+                  {video.contentType.startsWith('video/webm') ? t('trimNoteWebm') : t('trimNoteOther')}
+                </p>
+                {cutting !== null && (
+                  <p role="status" className="ui-help" data-testid="rec-trim-cutting">
+                    {t('cutting', { pct: cutting })}
+                  </p>
+                )}
                 <div className="rec-pane-foot">
                   <button
                     type="button"
@@ -469,7 +541,7 @@ export default function RecDetail({ initial, folders, baseUrl }: { initial: RecV
                   >
                     {t('trimReset')}
                   </button>
-                  <button type="button" className="btn btn-primary btn-sm" onClick={() => void saveTrim()} disabled={busy} data-testid="rec-trim-save">
+                  <button type="button" className="btn btn-primary btn-sm" onClick={() => void saveTrim()} disabled={busy || cutting !== null} data-testid="rec-trim-save">
                     {t('trimSave')}
                   </button>
                 </div>

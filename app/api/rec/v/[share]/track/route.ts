@@ -14,6 +14,8 @@ const schema = z.object({
   duration: z.number().min(0).max(86_400).optional(),
   cta: z.boolean().optional(),
   name: z.string().max(80).optional(),
+  /** Intervalos reproducidos [desde, hasta] en segundos del video recortado. */
+  ranges: z.array(z.tuple([z.number().min(0).max(86_400), z.number().min(0).max(86_400)])).max(500).optional(),
 });
 
 /** Pings del reproductor (también por sendBeacon al cerrar): abre la vista y suma lo visto. */

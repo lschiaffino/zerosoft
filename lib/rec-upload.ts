@@ -21,7 +21,7 @@ import { parseRange } from './crm-media-file';
 import { RecError } from './rec';
 import { MAX_REC_BYTES, MAX_REC_BYTES_LOCAL, MAX_REC_PARTS } from './rec-schema';
 
-export type RecFileKind = 'video' | 'audio';
+export type RecFileKind = 'video' | 'audio' | 'trimmed';
 
 /**
  * Acceso de los archivos de Rec en Blob. Con REC_BLOB_ACCESS=private (un store
@@ -58,6 +58,11 @@ function extFor(kind: RecFileKind, contentType: string): string {
   return kind === 'audio' ? 'weba' : 'webm';
 }
 
+/** Path de Blob de este video (para reanudar una subida con un token nuevo). */
+export function isRecBlobPathname(pathname: string, ws: string, videoId: string): boolean {
+  return pathname.startsWith(`rec/${ws}/${videoId}/`) && /^[\w/.-]+$/.test(pathname) && !pathname.includes('..');
+}
+
 export function recBlobPathname(ws: string, videoId: string, kind: RecFileKind, contentType: string): string {
   return `rec/${ws}/${videoId}/${randomBytes(9).toString('base64url')}-${kind}.${extFor(kind, contentType)}`;
 }
@@ -68,9 +73,11 @@ export async function issueBlobToken(
   videoId: string,
   kind: RecFileKind,
   contentType: string,
+  existing?: string,
 ): Promise<{ pathname: string; token: string; access: 'public' | 'private' }> {
   const { generateClientTokenFromReadWriteToken } = await import('@vercel/blob/client');
-  const pathname = recBlobPathname(ws, videoId, kind, contentType);
+  if (existing && !isRecBlobPathname(existing, ws, videoId)) throw new RecError('invalid_path');
+  const pathname = existing ?? recBlobPathname(ws, videoId, kind, contentType);
   const token = await generateClientTokenFromReadWriteToken({
     pathname,
     allowedContentTypes: [contentType.split(';')[0].trim().toLowerCase()],
@@ -156,6 +163,9 @@ export async function assembleLocal(videoId: string, kind: RecFileKind, contentT
     await appendFile(out, buf);
   }
   for (const n of nums) await unlink(path.join(dir, `${kind}-${n}`)).catch(() => undefined);
+  // Carpeta de partes vacía: fuera.
+  const left = await readdir(dir).catch(() => [] as string[]);
+  if (!left.length) await rm(dir, { recursive: true, force: true }).catch(() => undefined);
   return { url: `/uploads/rec/${name}`, size };
 }
 
@@ -244,4 +254,15 @@ async function proxyBlob(req: NextRequest, url: string, type: string, opts: { do
       ...(opts.download ? { 'content-disposition': attachment(opts.download) } : {}),
     },
   });
+}
+
+/** Carpetas de partes vacías que quedaron (subidas cerradas o descartadas). */
+export async function cleanEmptyPartDirs(): Promise<void> {
+  const root = path.join(uploadsRoot(), 'rec-parts');
+  const dirs = await readdir(root).catch(() => [] as string[]);
+  for (const d of dirs) {
+    const full = path.join(root, d);
+    const inside = await readdir(full).catch(() => null);
+    if (inside && inside.length === 0) await rm(full, { recursive: true, force: true }).catch(() => undefined);
+  }
 }

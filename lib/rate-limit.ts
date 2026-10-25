@@ -48,8 +48,16 @@ export async function isRateLimited(key: string, limit: number, windowSec: numbe
   return Number(row?.count ?? 0) >= limit;
 }
 
-/** IP del cliente. En Vercel x-forwarded-for la pone el edge (no la controla el cliente). */
+/**
+ * IP del cliente para limitar pedidos. Los headers de proxy solo valen si los
+ * pone algo de confianza: en Vercel (el edge los escribe y pisa lo que mande
+ * el cliente) o detrás de un proxy propio con TRUST_PROXY=1. Si no, un cliente
+ * podría inventarse una IP nueva por pedido y saltear el límite: se usa un
+ * bucket común ("untrusted"), más estricto pero imposible de esquivar.
+ */
 export function clientIp(req: Request): string {
+  const trusted = !!process.env.VERCEL || process.env.TRUST_PROXY === '1';
+  if (!trusted) return 'untrusted';
   const fwd = req.headers.get('x-vercel-forwarded-for') ?? req.headers.get('x-forwarded-for') ?? '';
   return fwd.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown';
 }

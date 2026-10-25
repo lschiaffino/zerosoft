@@ -2,7 +2,7 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { chapterAt, fmtClock, trimmedDuration, type RecChapter } from '@/lib/rec-schema';
+import { chapterAt, fmtClock, mergeRanges, trimmedDuration, type Range, type RecChapter } from '@/lib/rec-schema';
 
 export interface RecMarker {
   id: string;
@@ -62,7 +62,8 @@ const RecPlayer = forwardRef<
   const [captions, setCaptions] = useState(false);
   const [ended, setEnded] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
-  const track = useRef({ viewId: '', opening: false, watched: 0, position: 0, last: 0 });
+  // ranges: intervalos realmente reproducidos (segundos del video recortado), para el % visto.
+  const track = useRef({ viewId: '', opening: false, watched: 0, position: 0, last: 0, ranges: [] as Range[] });
 
   const fullDuration = mediaDuration > 0 ? mediaDuration : durationSec;
   const end = trimEnd ?? fullDuration;
@@ -90,6 +91,7 @@ const RecPlayer = forwardRef<
       const body = JSON.stringify({
         viewId: s.viewId || undefined,
         watched: Math.round(s.watched),
+        ranges: mergeRanges(s.ranges, visible),
         position: Math.round(s.position * 10) / 10,
         duration: Math.round(visible * 10) / 10,
         name: viewerName?.() || undefined,
@@ -154,7 +156,13 @@ const RecPlayer = forwardRef<
       }
       const rel = Math.max(0, Math.min(abs - trimStart, visible));
       const delta = rel - s.last;
-      if (!v.paused && delta > 0 && delta < 2) s.watched += delta;
+      if (!v.paused && delta > 0 && delta < 2) {
+        s.watched += delta;
+        const lastRange = s.ranges[s.ranges.length - 1];
+        if (lastRange && Math.abs(lastRange[1] - s.last) < 0.01) lastRange[1] = rel;
+        else s.ranges.push([s.last, rel]);
+        if (s.ranges.length > 200) s.ranges = mergeRanges(s.ranges, visible);
+      }
       s.last = rel;
       s.position = Math.max(s.position, rel);
       setTime(rel);
@@ -314,9 +322,16 @@ const RecPlayer = forwardRef<
             className="rec-timeline-range"
             min={0}
             max={Math.max(0.1, visible)}
-            step={0.1}
+            step={1}
             value={Math.min(time, visible)}
             onChange={(e) => seek(Number(e.target.value))}
+            onKeyDown={(e) => {
+              // Flechas: 1 s; con Shift, 5 s.
+              if (!e.shiftKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+              e.preventDefault();
+              e.stopPropagation();
+              seek(time + (e.key === 'ArrowRight' ? 5 : -5));
+            }}
             aria-label={t('seek')}
             aria-valuetext={`${fmtClock(time)} / ${fmtClock(visible)}`}
             style={{ ['--pct' as string]: `${(Math.min(time, visible) / visible) * 100}%` }}

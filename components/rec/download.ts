@@ -1,15 +1,17 @@
 'use client';
 
+import { saveFile } from './recStore';
+
 /**
- * Descargar un video servido por partes: la ruta responde hasta 4 MB por
- * pedido (las Vercel Functions cortan en 4,5 MB), así que se piden los rangos
- * en orden, se arma el archivo en el navegador y se guarda.
+ * Leer un video servido por partes: la ruta responde hasta 4 MB por pedido
+ * (las Vercel Functions cortan en 4,5 MB), así que se piden los rangos en
+ * orden y se arma el archivo en el navegador.
  */
-export async function downloadInParts(url: string, fallbackName = 'video.webm', onProgress?: (pct: number) => void): Promise<void> {
+export async function fetchInParts(url: string, onProgress?: (pct: number) => void): Promise<{ blob: Blob; name: string | null }> {
   const parts: Blob[] = [];
   let start = 0;
   let total = Infinity;
-  let name = fallbackName;
+  let name: string | null = null;
   let type = '';
   while (start < total) {
     const res = await fetch(url, { headers: { range: `bytes=${start}-` } });
@@ -30,13 +32,11 @@ export async function downloadInParts(url: string, fallbackName = 'video.webm', 
     start = Number(cr[2]) + 1;
     onProgress?.(Math.round((start / total) * 100));
   }
-  const file = new Blob(parts, { type: type || 'video/webm' });
-  const href = URL.createObjectURL(file);
-  const a = document.createElement('a');
-  a.href = href;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.setTimeout(() => URL.revokeObjectURL(href), 30_000);
+  return { blob: new Blob(parts, { type: type || 'video/webm' }), name };
+}
+
+/** Descargar: arma el archivo de a partes y lo guarda. */
+export async function downloadInParts(url: string, fallbackName = 'video.webm', onProgress?: (pct: number) => void): Promise<void> {
+  const { blob, name } = await fetchInParts(url, onProgress);
+  saveFile(blob, name ?? fallbackName);
 }

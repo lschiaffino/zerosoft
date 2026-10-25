@@ -12,6 +12,7 @@ export default defineConfig({
     include: ['tests/unit/**/*.test.ts'],
     environment: 'node',
     fileParallelism: false,
-    env: { TURSO_DATABASE_URL: `file:${dbFile}`, NEXTAUTH_SECRET: 'test-secret' },
+    // TRUST_PROXY: los tests simulan IPs distintas con x-forwarded-for (como detrás de un proxy).
+    env: { TURSO_DATABASE_URL: `file:${dbFile}`, NEXTAUTH_SECRET: 'test-secret', TRUST_PROXY: '1' },
   },
 });

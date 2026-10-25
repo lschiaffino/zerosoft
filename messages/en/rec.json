@@ -10,7 +10,8 @@
   "notifications": {
     "view": "{actor} watched {title}",
     "comment": "{actor} commented on {title}",
-    "reaction": "{actor} reacted {emoji} to {title}"
+    "reaction": "{actor} reacted {emoji} to {title}",
+    "comments": "{count} new comments on {title}"
   },
   "recorder": {
     "modeLabel": "What to record",
@@ -51,7 +52,11 @@
       "screen_denied": "Screen sharing was cancelled or blocked.",
       "upload": "The recording could not start. Try again.",
       "unsupported": "This browser cannot record video. Try Chrome, Edge or Firefox."
-    }
+    },
+    "discardConfirm": "Discard this recording?",
+    "keepRecording": "Keep recording",
+    "stopHint": "Finish (Alt+Shift+S)",
+    "pauseHint": "Pause or resume (Alt+Shift+P)"
   },
   "player": {
     "label": "Video player: {title}",
@@ -86,8 +91,15 @@
       "generic": "Something went wrong. Try again.",
       "comments_off": "Comments are turned off for this video.",
       "empty_comment": "Write something first.",
-      "invalid_reaction": "That reaction is not available."
-    }
+      "invalid_reaction": "That reaction is not available.",
+      "name_taken": "That name belongs to someone in the workspace. Use another one or sign in.",
+      "signin_required": "Sign in to comment on this video.",
+      "rate_limited": "Too many comments on this video right now. Try again in a few minutes."
+    },
+    "guest": "Guest",
+    "authorBadge": "Author",
+    "more": "Show older comments ({shown} of {total})",
+    "signinToComment": "Sign in to comment on this video."
   },
   "common": {
     "copied": "Copied",
@@ -103,7 +115,7 @@
       "invalid_name": "Write a name.",
       "invalid_title": "Write a title.",
       "invalid_folder": "That folder no longer exists.",
-      "invalid_password": "The password needs at least 4 characters.",
+      "invalid_password": "The password needs at least 8 characters.",
       "invalid_expiry": "That date is not valid.",
       "invalid_cta_url": "Use a web address that starts with https:// (no email, phone or IP addresses).",
       "invalid_cta_label": "Write the button text.",
@@ -124,7 +136,14 @@
       "part_too_large": "An upload part is too large.",
       "invalid_file": "That file is not valid.",
       "invalid_type": "That file type is not allowed.",
-      "download_failed": "The download failed. Try again."
+      "download_failed": "The download failed. Try again.",
+      "invalid_trim": "The end has to be after the start.",
+      "trim_needs_cut": "The trimmed copy is still missing. Save the trim again.",
+      "cut_failed": "The trimmed copy could not be made.",
+      "processing": "The video is being prepared. Try again in a moment.",
+      "offline_start": "No connection: the recording needs a connection to start.",
+      "invalid_path": "That upload is not valid.",
+      "part_missing": "Part of the recording is missing in this browser."
     },
     "downloading": "Downloading {pct}%"
   },
@@ -172,7 +191,7 @@
   "library": {
     "mine": "My videos",
     "workspace": "Workspace",
-    "mineDesc": "Videos you recorded. Only you see them until you share the link or move them to the workspace.",
+    "mineDesc": "Videos you recorded. Only you see them in this list; anyone you send the link to can watch, unless you add a password or limit it to the workspace.",
     "workspaceDesc": "Videos everyone in the workspace can find.",
     "folderPersonalDesc": "Personal folder.",
     "folderWorkspaceDesc": "Folder shared with the workspace.",
@@ -220,7 +239,14 @@
     "defaultTitle": "Video",
     "noTranscription": "Transcription and AI summary are off on this server: the video is recorded and shared all the same.",
     "saving": "Finishing the upload…",
-    "tryAgain": "Record again"
+    "tryAgain": "Record again",
+    "statusOffline": "Offline: saving in this browser ({mb} MB pending)",
+    "statusRetry": "Upload interrupted, retrying ({mb} MB pending)",
+    "statusUploading": "Uploading… ({mb} MB pending)",
+    "statusSynced": "Uploaded",
+    "savingOffline": "No connection. The recording is safe in this browser and uploads by itself when you are back online.",
+    "downloadLocal": "Download recording",
+    "later": "Finish later"
   },
   "share": {
     "title": "Share",
@@ -240,7 +266,10 @@
     "options": "Options",
     "allowDownload": "Viewers can download it",
     "allowComments": "Allow comments and reactions",
-    "notify": "Notify me when someone watches or comments"
+    "notify": "Notify me when someone watches or comments",
+    "passwordHelp": "At least 8 characters. With a password, downloads start turned off.",
+    "downloadNote": "Turning it off removes the download button. The video still streams, so a determined viewer could capture it.",
+    "requireAccount": "Only signed-in people can comment"
   },
   "detail": {
     "library": "Videos",
@@ -317,6 +346,22 @@
     "name": "Name",
     "moved": "Video moved",
     "deleteTitle": "Delete \"{title}\"?",
-    "deleteBody": "The video, its comments and views are deleted, and the link stops working."
+    "deleteBody": "The video, its comments and views are deleted, and the link stops working.",
+    "trimInverted": "The end has to be after the start.",
+    "cutFailed": "The trimmed copy could not be made. Try again.",
+    "trimNoteWebm": "When you save, a trimmed copy is made without re-encoding and that is what everyone else gets: the player, the shared page, the embed and the captions. The cut snaps to the nearest keyframe before the start (up to 2 seconds earlier).",
+    "trimNoteOther": "This file type cannot be cut in the browser: viewers see the trimmed video, but the file they stream still has the trimmed parts.",
+    "cutting": "Making the trimmed copy… {pct}%",
+    "retention": "Retention",
+    "retentionLabel": "{start}% of viewers saw the start and {end}% the end"
+  },
+  "pending": {
+    "title": "Recordings waiting to upload",
+    "body": "These recordings stayed in this browser because the upload did not finish. Resume the upload, download them or discard them.",
+    "resume": "Resume upload",
+    "resuming": "Uploading {pct}%",
+    "download": "Download",
+    "discard": "Discard",
+    "error": "The upload could not finish. Try again when you have a connection."
   }
 }

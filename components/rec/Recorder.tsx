@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { REC_MODES, fmtClock, type RecMode } from '@/lib/rec-schema';
 import { patchWebmDuration } from '@/lib/rec-webm';
@@ -86,6 +86,7 @@ export default function Recorder({
   onCancel,
   captureAudioTrack = false,
   onPhase,
+  status,
 }: {
   modes?: readonly RecMode[];
   initialMode?: RecMode;
@@ -94,6 +95,8 @@ export default function Recorder({
   onCancel?: () => void;
   captureAudioTrack?: boolean;
   onPhase?: (phase: Phase) => void;
+  /** Estado de la subida y de la red, en la barra mientras se graba. */
+  status?: ReactNode;
 }) {
   const t = useTranslations('rec.recorder');
   const [mode, setMode] = useState<RecMode>(initialMode && modes.includes(initialMode) ? initialMode : modes[0]);
@@ -400,7 +403,14 @@ export default function Recorder({
     lastGifAt.current = -Infinity;
     thumb.current = null;
     activeMs.current = 0;
-    const rec = new MediaRecorder(new MediaStream(tracks), { mimeType: mime, videoBitsPerSecond: q.bitrate, audioBitsPerSecond: 128_000 });
+    // Un keyframe cada 2 s (Chrome 125+): cada cluster WebM arranca decodificable y el recorte
+    // puede cortar por clusters sin recodificar (lib/rec-webm.ts cutWebm).
+    const rec = new MediaRecorder(new MediaStream(tracks), {
+      mimeType: mime,
+      videoBitsPerSecond: q.bitrate,
+      audioBitsPerSecond: 128_000,
+      ...({ videoKeyFrameIntervalDuration: 2000 } as Record<string, number>),
+    });
     rec.ondataavailable = (e) => {
       if (!e.data.size || cancelled.current) return;
       if (sink) sink.chunk(e.data);
@@ -520,6 +530,31 @@ export default function Recorder({
     releaseScreen();
     setPhase('setup');
   }
+
+  // Mientras se graba: Alt+Shift+P pausa o sigue, Alt+Shift+S termina, Esc pide confirmar descartar.
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  useEffect(() => {
+    if (phase !== 'recording' && phase !== 'paused') setConfirmDiscard(false);
+  }, [phase]);
+  useEffect(() => {
+    if (phase !== 'recording' && phase !== 'paused') return;
+    const onKey = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      if (e.altKey && e.shiftKey && (k === 'p' || e.code === 'KeyP')) {
+        e.preventDefault();
+        if (phase === 'recording') pause();
+        else resume();
+      } else if (e.altKey && e.shiftKey && (k === 's' || e.code === 'KeyS')) {
+        e.preventDefault();
+        void stop();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setConfirmDiscard((c) => !c);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   // Esc cancela la cuenta regresiva.
   useEffect(() => {
@@ -761,9 +796,21 @@ export default function Recorder({
               <span ref={meterRef} className="rec-meter-fill" />
             </span>
           )}
+          {status && <span className="rec-upload-status">{status}</span>}
           <span className="rec-bar-spacer" />
+          {confirmDiscard && phase !== 'finishing' && (
+            <span className="rec-confirm" role="alertdialog" aria-label={t('discardConfirm')} data-testid="rec-discard-confirm">
+              <span>{t('discardConfirm')}</span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDiscard(false)} autoFocus>
+                {t('keepRecording')}
+              </button>
+              <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => void discard()}>
+                {t('discard')}
+              </button>
+            </span>
+          )}
           {phase === 'recording' && (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={pause} data-testid="rec-pause">
+            <button type="button" className="btn btn-secondary btn-sm" onClick={pause} data-testid="rec-pause" aria-keyshortcuts="Alt+Shift+P" title={t('pauseHint')}>
               {t('pause')}
             </button>
           )}
@@ -772,10 +819,20 @@ export default function Recorder({
               {t('resume')}
             </button>
           )}
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => void discard()} disabled={phase === 'finishing'}>
-            {t('discard')}
-          </button>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => void stop()} disabled={phase === 'finishing'} data-testid="rec-stop">
+          {!confirmDiscard && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDiscard(true)} disabled={phase === 'finishing'} data-testid="rec-discard">
+              {t('discard')}
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => void stop()}
+            disabled={phase === 'finishing'}
+            data-testid="rec-stop"
+            aria-keyshortcuts="Alt+Shift+S"
+            title={t('stopHint')}
+          >
             {t('stop')}
           </button>
         </div>

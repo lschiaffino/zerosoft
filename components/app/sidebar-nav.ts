@@ -558,7 +558,7 @@ export function buildNav(
               // Carpetas (RecBranch en el hueco #side-branch).
               branch: true,
             },
-            { href: '/app/rec/workspace', label: labels.rec.workspace, active: at('/app/rec/workspace'), icon: 'groups' },
+            { href: '/app/rec/workspace', label: labels.rec.workspace, active: at('/app/rec/workspace'), icon: 'companies' },
             { href: '/app/rec/new', label: labels.rec.newVideo, active: at('/app/rec/new'), icon: 'recorder' },
           ],
         },

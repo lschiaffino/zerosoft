@@ -21,7 +21,7 @@ import { AiError, aiEnabled, aiGenerateObject, assertAiAvailable, assertAiQuota,
 import { fakeModel } from './crm-ai-fake';
 import { getDb } from './db';
 import { localUploadPath } from './uploads';
-import { cleanSegments, fmtClock, normalizeChapters, type RecChapter, type RecSegment } from './rec-schema';
+import { cleanSegments, fmtClock, normalizeChapters, segmentsInTrim, trimKey, trimmedDuration, type RecChapter, type RecSegment } from './rec-schema';
 import type { RecVideoRow } from './rec';
 
 export type TranscribeProvider = 'gateway' | 'openai' | 'deepgram' | 'fake';
@@ -243,17 +243,7 @@ export async function processRecVideo(id: string, opts: { forceOff?: boolean } =
     await db.prepare('UPDATE rec_videos SET transcript = ?, transcript_lang = ? WHERE id = ?').run(JSON.stringify(segments), language, id);
     if (segments.length) {
       try {
-        const s = await summarizeTranscript(v.workspace_id, segments, v.duration_sec, opts);
-        const fresh = (await db.prepare('SELECT title_source, chapters_source FROM rec_videos WHERE id = ?').get(id)) as Pick<RecVideoRow, 'title_source' | 'chapters_source'>;
-        const chapters: RecChapter[] = v.duration_sec >= 60 ? normalizeChapters(s.chapters, v.duration_sec) : [];
-        await db
-          .prepare(
-            `UPDATE rec_videos SET summary = ?,
-               title = CASE WHEN ? = 'auto' THEN ? ELSE title END,
-               chapters = CASE WHEN ? = 'auto' AND ? > 0 THEN ? ELSE chapters END,
-               updated_at = datetime('now') WHERE id = ?`,
-          )
-          .run(s.summary.trim(), fresh.title_source, s.title.trim().slice(0, 200), fresh.chapters_source, chapters.length, JSON.stringify(chapters), id);
+        await summarizeVideo(id, segments, opts);
       } catch (err) {
         // Sin resumen la transcripción igual sirve; se anota el motivo.
         const code = err instanceof AiError ? err.code : 'summary_failed';
@@ -267,6 +257,44 @@ export async function processRecVideo(id: string, opts: { forceOff?: boolean } =
     console.error('[rec] transcribe', id, err instanceof Error ? err.message : err);
     return finish('failed', msg);
   }
+}
+
+/**
+ * Título, resumen y capítulos desde la parte de la transcripción que queda
+ * dentro del recorte (lo recortado no entra al resumen que ven los demás).
+ * El resumen guarda para qué recorte se armó (summary_trim).
+ */
+export async function summarizeVideo(id: string, allSegments?: RecSegment[], opts: { forceOff?: boolean } = {}): Promise<void> {
+  const db = getDb();
+  const v = (await db.prepare('SELECT * FROM rec_videos WHERE id = ?').get(id)) as RecVideoRow | undefined;
+  if (!v) return;
+  const segs = segmentsInTrim(allSegments ?? (JSON.parse(v.transcript || '[]') as RecSegment[]), v.trim_start, v.trim_end);
+  if (!segs.length) return;
+  const visible = trimmedDuration(v.duration_sec, v.trim_start, v.trim_end);
+  // El modelo ve el video recortado desde 0; los capítulos se guardan en segundos del original.
+  const offset = v.trim_start;
+  const rel = segs.map((x) => ({ ...x, start: x.start - offset, end: x.end - offset }));
+  const s = await summarizeTranscript(v.workspace_id, rel, visible, opts);
+  const chapters: RecChapter[] = visible >= 60 ? normalizeChapters(s.chapters, visible).map((c) => ({ ...c, start: c.start + offset })) : [];
+  await db
+    .prepare(
+      `UPDATE rec_videos SET
+         summary = CASE WHEN summary_source = 'auto' THEN ? ELSE summary END,
+         summary_trim = CASE WHEN summary_source = 'auto' THEN ? ELSE summary_trim END,
+         title = CASE WHEN title_source = 'auto' THEN ? ELSE title END,
+         chapters = CASE WHEN chapters_source = 'auto' AND ? > 0 THEN ? ELSE chapters END,
+         updated_at = datetime('now') WHERE id = ?`,
+    )
+    .run(s.summary.trim(), trimKey(v.trim_start, v.trim_end), s.title.trim().slice(0, 200), chapters.length, JSON.stringify(chapters), id);
+}
+
+/** Después de cambiar el recorte: el resumen se vuelve a armar con lo que queda (si hay transcripción e IA). */
+export async function resummarizeForTrim(id: string, opts: { forceOff?: boolean } = {}): Promise<void> {
+  const v = (await getDb().prepare("SELECT transcript_status, summary_source FROM rec_videos WHERE id = ?").get(id)) as
+    | { transcript_status: string; summary_source: string }
+    | undefined;
+  if (!v || v.transcript_status !== 'done' || v.summary_source !== 'auto') return;
+  await summarizeVideo(id, undefined, opts).catch(() => undefined);
 }
 
 /** Cron: lo que quedó en cola (o colgado más de 15 min). */

@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
 import { publicVideoFor } from '@/lib/rec-http';
 import { serveRecFile } from '@/lib/rec-upload';
 import { serveRecKind } from '@/lib/rec-serve';
@@ -16,7 +15,5 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ share: stri
   const { share } = await ctx.params;
   const r = await publicVideoFor(req, share);
   if ('res' in r) return r.res;
-  const user = await getCurrentUser();
-  const member = user?.id === r.v.workspace_id;
-  return serveRecKind(req, r.v, { serveRecFile, allowDownload: member || !!r.v.allow_download });
+  return serveRecKind(req, r.v, { serveRecFile, allowDownload: r.isAuthor || !!r.v.allow_download, privileged: r.isAuthor });
 }

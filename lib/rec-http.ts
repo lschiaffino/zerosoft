@@ -55,12 +55,20 @@ export function withViewerCookie(res: NextResponse, newKey: string | null): Next
   return res;
 }
 
-/** Video público ya autorizado para este request (contraseña, vencimiento, workspace). */
-export async function publicVideoFor(req: NextRequest, shareId: string): Promise<{ v: RecVideoRow & { author_name: string | null } } | { res: NextResponse }> {
+/**
+ * Video público ya autorizado para este request (contraseña, vencimiento,
+ * workspace). `isAuthor`: quien lo grabó, el único que saltea las reglas y ve
+ * el original sin recorte.
+ */
+export async function publicVideoFor(
+  req: NextRequest,
+  shareId: string,
+): Promise<{ v: RecVideoRow & { author_name: string | null }; isAuthor: boolean; user: SessionUser | null } | { res: NextResponse }> {
   const v = await getPublicVideoRow(shareId);
   if (!v) return { res: recJson({ error: 'not_found' }, 404) };
   const user = await getCurrentUser();
-  const access = publicAccess(v, user?.id ?? null, req.cookies.get(unlockCookieName(v.share_id))?.value ?? null);
+  const viewer = { ws: user?.id ?? null, userId: user ? realUserId(user) : null };
+  const access = publicAccess(v, viewer, req.cookies.get(unlockCookieName(v.share_id))?.value ?? null);
   if (access !== 'ok') return { res: recJson({ error: access }, access === 'expired' ? 410 : 403) };
-  return { v };
+  return { v, isAuthor: !!viewer.userId && viewer.userId === v.created_by && viewer.ws === v.workspace_id, user };
 }

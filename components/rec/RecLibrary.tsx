@@ -10,7 +10,8 @@ import { fmtClock, trimmedDuration } from '@/lib/rec-schema';
 import { parseDbUtc } from '@/lib/utils';
 import type { RecListItem } from '@/lib/rec';
 import { copyToClipboard } from './RecCopy';
-import { LiveUpload, uploadAsset } from './liveUpload';
+import { uploadAsset, uploadWhole } from './liveUpload';
+import RecPending from './RecPending';
 import { canvasToBlob, snapshot } from './recorder-media';
 import { isRecVideoType } from '@/lib/rec-schema';
 import { RecMoveDialog, RecNameDialog, notifyRecChanged, type MoveTarget, type RecFolder } from './RecDialogs';
@@ -164,19 +165,13 @@ export default function RecLibrary({
           contentType: type,
           folderId: scope.kind === 'folder' ? scope.folder.id : null,
           space: scope.kind === 'workspace' ? 'workspace' : 'personal',
+          // El nombre del archivo es un título elegido: la IA no lo reemplaza.
+          titleSource: 'user',
         }),
       });
       if (!res.ok) throw new Error(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? 'upload_failed');
       const data = (await res.json()) as { video: { id: string }; upload: { mode: 'blob' | 'local'; partBytes: number } };
-      const up = new LiveUpload(data.video.id, data.upload.mode, data.upload.partBytes, type);
-      await up.start();
-      up.push(file);
-      const timer = window.setInterval(() => setUploading(up.pushedBytes ? Math.round((up.uploadedBytes / up.pushedBytes) * 100) : 0), 400);
-      try {
-        await up.finish(meta.duration * 1000);
-      } finally {
-        window.clearInterval(timer);
-      }
+      await uploadWhole(data.video.id, 'video', file, data.upload.mode, data.upload.partBytes, {}, setUploading);
       if (meta.thumb) await uploadAsset(data.video.id, 'thumb', meta.thumb).catch(() => undefined);
       const fin = await fetch(`/api/rec/videos/${data.video.id}/finalize`, {
         method: 'POST',
@@ -281,6 +276,9 @@ export default function RecLibrary({
   const recordHref =
     scope.kind === 'folder' ? `/app/rec/new?folder=${scope.folder.id}` : scope.kind === 'workspace' ? '/app/rec/new?space=workspace' : '/app/rec/new';
   const subFolders = scope.kind === 'folder' ? [] : folders.filter((f) => f.space === (scope.kind === 'workspace' ? 'workspace' : 'personal'));
+  // Buscando: también las carpetas (de los dos espacios) cuyo nombre coincide.
+  const needle = q.trim().toLowerCase();
+  const shownFolders = needle ? folders.filter((f) => f.name.toLowerCase().includes(needle)) : subFolders;
 
   return (
     <div className="app-page ui-page rec-library" data-testid="rec-library">
@@ -330,6 +328,7 @@ export default function RecLibrary({
           </>
         }
       />
+      {scope.kind !== 'folder' && <RecPending />}
       <div className="rec-toolbar">
         <input
           type="search"
@@ -346,9 +345,9 @@ export default function RecLibrary({
           {error}
         </p>
       )}
-      {subFolders.length > 0 && !q && (
+      {shownFolders.length > 0 && (
         <ul className="rec-folders" aria-label={t('folders')}>
-          {subFolders.map((f) => (
+          {shownFolders.map((f) => (
             <li key={f.id}>
               <Link href={`/app/rec/f/${f.id}`} className="rec-folder">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -362,6 +361,7 @@ export default function RecLibrary({
       )}
       {videos.length === 0 ? (
         q ? (
+          shownFolders.length ? null : 
           <p className="ui-help">{t('noMatches')}</p>
         ) : (
           <EmptyState

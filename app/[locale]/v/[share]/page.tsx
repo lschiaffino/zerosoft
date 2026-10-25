@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { recShareUrl, resolvePublicPage } from '@/lib/rec-page';
+import { publicPreview, recShareUrl, resolvePublicPage } from '@/lib/rec-page';
 import RecWatch from '@/components/rec/RecWatch';
 import RecGate from '@/components/rec/RecGate';
 
@@ -14,7 +14,20 @@ export async function generateMetadata(props: Props) {
   const page = await resolvePublicPage(share);
   const t = await getTranslations({ locale, namespace: 'rec.watch' });
   const title = page.state === 'ok' ? page.video.title : t('metaLocked');
-  return { title, robots: { index: false, follow: false }, referrer: 'no-referrer' as const };
+  // Tarjeta del link (Slack, WhatsApp, mail) solo para videos abiertos a cualquiera.
+  const og = await publicPreview(locale, share);
+  return {
+    title,
+    robots: { index: false, follow: false },
+    referrer: 'no-referrer' as const,
+    ...(og
+      ? {
+          description: og.description || undefined,
+          openGraph: { title: og.title, description: og.description || undefined, url: og.url, type: 'video.other' as const, images: og.image ? [{ url: og.image }] : undefined },
+          twitter: { card: og.image ? ('summary_large_image' as const) : ('summary' as const), title: og.title, images: og.image ? [og.image] : undefined },
+        }
+      : {}),
+  };
 }
 
 /** Video compartido por link (como la página de un Loom). */

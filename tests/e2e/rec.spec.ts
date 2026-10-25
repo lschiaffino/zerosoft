@@ -233,7 +233,7 @@ test('compartir: contraseña, vencimiento, solo workspace, comentarios, reaccion
   const share = page.getByRole('dialog', { name: 'Share' });
   await expect(share.getByRole('textbox', { name: 'Link', exact: true })).toHaveValue(new RegExp(`/en/v/${v.shareId}$`));
   await expect(share.getByRole('textbox', { name: 'Embed', exact: true })).toHaveValue(new RegExp(`/en/v/${v.shareId}/embed`));
-  await share.getByLabel('Password (optional)').fill('secret1');
+  await share.getByLabel('Password (optional)').fill('secret12');
   await share.getByTestId('rec-share-save').click();
   await expect(share).toBeHidden();
   await expect(page.getByText(/Anyone with the link · Password/)).toBeVisible();
@@ -249,7 +249,7 @@ test('compartir: contraseña, vencimiento, solo workspace, comentarios, reaccion
   await page.getByLabel('Password').fill('nope');
   await page.getByRole('button', { name: 'Watch' }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'Wrong password' })).toBeVisible();
-  await page.getByLabel('Password').fill('secret1');
+  await page.getByLabel('Password').fill('secret12');
   await page.getByRole('button', { name: 'Watch' }).click();
   await expect(page.getByTestId('rec-watch')).toBeVisible();
   // La URL del archivo guardado nunca llega al HTML de una página protegida.
@@ -269,7 +269,10 @@ test('compartir: contraseña, vencimiento, solo workspace, comentarios, reaccion
   const c2 = db();
   await expect
     .poll(async () => Number((await c2.execute({ sql: "SELECT COUNT(*) AS n FROM notifications WHERE user_id = 'rec-other' AND source_id = ?", args: [other.id] })).rows[0].n))
-    .toBe(3);
+    .toBe(2);
+  // Comentario y reacción van en un solo aviso agrupado.
+  const grouped = (await c2.execute({ sql: "SELECT meta FROM notifications WHERE user_id = 'rec-other' AND source_id = ? AND type = 'rec_comment'", args: [other.id] })).rows;
+  expect(JSON.parse(String(grouped[0].meta)).count).toBe(2);
   expect(Number((await c2.execute({ sql: 'SELECT COUNT(*) AS n FROM rec_views WHERE video_id = ?', args: [other.id] })).rows[0].n)).toBe(1);
 
   // Vencido y solo workspace.
@@ -375,6 +378,15 @@ test('CRM: el video 1:1 se graba con el grabador de Rec', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Save video' }).click();
   await expect(page).toHaveURL(/\/en\/app\/crm\/videos\/[0-9a-f-]{36}/, { timeout: 30_000 });
   await expect(page.getByText(title).first()).toBeVisible();
+  const duration = await page.locator('video').first().evaluate(
+    (v: HTMLVideoElement) =>
+      new Promise<number>((resolve) => {
+        if (v.readyState >= 1) return resolve(v.duration);
+        v.addEventListener('loadedmetadata', () => resolve(v.duration), { once: true });
+        v.load();
+      }),
+  );
+  expect(Number.isFinite(duration) && duration > 1).toBe(true);
 });
 
 test('subir un video que ya tenés: mismo camino por partes, con miniatura y descarga', async ({ page }) => {
@@ -393,4 +405,106 @@ test('subir un video que ya tenés: mismo camino por partes, con miniatura y des
   expect(dl.headers()['content-disposition']).toContain('attachment');
   expect(dl.headers()['location']).toBeUndefined();
   expect((await dl.body()).length).toBeGreaterThan(body.length - 64);
+});
+
+test('red cortada 60 s mientras se graba: guarda en el navegador, lo dice y sube todo al volver', async ({ page, context }) => {
+  test.setTimeout(240_000);
+  await page.goto('/en/app/rec/new', { waitUntil: 'networkidle' });
+  await page.getByText('Camera only', { exact: true }).click();
+  await page.getByTestId('rec-start').click();
+  await expect(page.getByTestId('rec-time')).toBeVisible({ timeout: 8_000 });
+  await page.waitForTimeout(4000);
+  await context.setOffline(true);
+  const status = page.getByTestId('rec-upload-status');
+  await expect(status).toContainText('Offline', { timeout: 15_000 });
+  await page.waitForTimeout(60_000);
+  await expect(status).toContainText(/Offline.*MB pending/);
+  await context.setOffline(false);
+  await expect(status).toContainText(/Uploading|Uploaded/, { timeout: 30_000 });
+  await page.waitForTimeout(2000);
+  // Alt+Shift+S termina.
+  await page.keyboard.press('Alt+Shift+KeyS');
+  await expect(page).toHaveURL(/\/en\/app\/rec\/[0-9a-f-]{36}\?created=/, { timeout: 90_000 });
+  const duration = await page.getByTestId('rec-video').evaluate(
+    (v: HTMLVideoElement) =>
+      new Promise<number>((resolve) => {
+        if (Number.isFinite(v.duration) && v.duration > 0) return resolve(v.duration);
+        v.addEventListener('loadedmetadata', () => resolve(v.duration), { once: true });
+        v.load();
+      }),
+  );
+  // Nada se perdió: están los ~66 s, también los del corte.
+  expect(duration).toBeGreaterThan(60);
+});
+
+test('se cortó la subida al terminar: descargar local y retomar después de recargar', async ({ page, context }) => {
+  test.setTimeout(180_000);
+  await page.goto('/en/app/rec/new', { waitUntil: 'networkidle' });
+  await page.getByText('Camera only', { exact: true }).click();
+  await page.getByTestId('rec-start').click();
+  await expect(page.getByTestId('rec-time')).toBeVisible({ timeout: 8_000 });
+  await page.waitForTimeout(3000);
+  // Esc pide confirmar antes de descartar; seguir grabando.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('rec-discard-confirm')).toBeVisible();
+  await page.getByRole('button', { name: 'Keep recording' }).click();
+  await context.setOffline(true);
+  await page.waitForTimeout(3000);
+  await page.getByTestId('rec-stop').click();
+  await expect(page.getByTestId('rec-saving')).toContainText('No connection', { timeout: 20_000 });
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('rec-download-local').click()]);
+  expect(download.suggestedFilename()).toMatch(/\.webm$/);
+  // Se cierra la pestaña sin red; al volver, Rec ofrece retomar.
+  page.removeAllListeners('dialog');
+  page.on('dialog', (d) => void d.accept());
+  await page.close({ runBeforeUnload: false });
+  await context.setOffline(false);
+  const again = await context.newPage();
+  await again.goto('/en/app/rec', { waitUntil: 'networkidle' });
+  const pending = again.getByTestId('rec-pending');
+  await expect(pending).toBeVisible();
+  await pending.getByTestId('rec-pending-resume').first().click();
+  await expect(again).toHaveURL(/\/en\/app\/rec\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+  await expect(again.getByTestId('rec-player')).toBeVisible();
+  await again.goto('/en/app/rec', { waitUntil: 'networkidle' });
+  await expect(again.getByTestId('rec-pending')).toHaveCount(0);
+});
+
+test('recorte: quien no es el autor recibe la copia cortada y la transcripción de adentro', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/en/app/rec', { waitUntil: 'networkidle' });
+  const v = await uploadVideo(page.request, await makeWebm(page, 3000), `Trim ${uid()}`, 90);
+  const c = db();
+  await c.execute({
+    sql: "UPDATE rec_videos SET transcript = ?, transcript_status = 'done' WHERE id = ?",
+    args: [JSON.stringify([{ start: 0, end: 4, text: 'secreto del inicio' }, { start: 20, end: 24, text: 'lo que queda' }]), v.id],
+  });
+  c.close();
+  await page.goto(`/en/app/rec/${v.id}`, { waitUntil: 'networkidle' });
+  await page.getByTestId('rec-tab-edit').click();
+  await expect(page.getByTestId('rec-trim-note')).toContainText('trimmed copy');
+  await page.getByTestId('rec-trim-start').fill('0:10');
+  await page.getByTestId('rec-trim-end').fill('0:05');
+  await page.getByTestId('rec-trim-save').click();
+  await expect(page.getByRole('alert').filter({ hasText: 'after the start' })).toBeVisible();
+  await page.getByTestId('rec-trim-end').fill('1:00');
+  await page.getByTestId('rec-trim-save').click();
+  await expect(page.getByText('Viewers see 0:50.')).toBeVisible({ timeout: 30_000 });
+  const c2 = db();
+  const row = (await c2.execute({ sql: 'SELECT trimmed_url, trimmed_for FROM rec_videos WHERE id = ?', args: [v.id] })).rows[0];
+  expect(row.trimmed_for).toBe('10:60');
+  expect(String(row.trimmed_url)).toMatch(/^\/uploads\/rec\//);
+  c2.close();
+  // Alguien de otro workspace con el link: transcripción y subtítulos sin lo recortado.
+  const other = await foreignCopy(v.id, { trim_start: 10, trim_end: 60 });
+  const c3 = db();
+  await c3.execute({ sql: 'UPDATE rec_videos SET trimmed_url = ?, trimmed_for = ? WHERE id = ?', args: [row.trimmed_url, row.trimmed_for, other.id] });
+  c3.close();
+  await page.goto(`/en/v/${other.shareId}`, { waitUntil: 'networkidle' });
+  await page.getByRole('tab', { name: 'Transcript' }).click();
+  await expect(page.getByTestId('rec-transcript')).toContainText('lo que queda');
+  await expect(page.getByTestId('rec-transcript')).not.toContainText('secreto');
+  const vtt = await (await page.request.get(`/api/rec/v/${other.shareId}/file?kind=captions`)).text();
+  expect(vtt).not.toContain('secreto');
+  expect(await page.content()).not.toContain('secreto');
 });

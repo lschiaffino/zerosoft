@@ -10,7 +10,8 @@
   "notifications": {
     "view": "{actor} assistiu {title}",
     "comment": "{actor} comentou em {title}",
-    "reaction": "{actor} reagiu {emoji} a {title}"
+    "reaction": "{actor} reagiu {emoji} a {title}",
+    "comments": "{count} comentários novos em {title}"
   },
   "recorder": {
     "modeLabel": "O que gravar",
@@ -51,7 +52,11 @@
       "screen_denied": "O compartilhamento de tela foi cancelado ou bloqueado.",
       "upload": "A gravação não pôde começar. Tente de novo.",
       "unsupported": "Este navegador não grava vídeo. Tente o Chrome, o Edge ou o Firefox."
-    }
+    },
+    "discardConfirm": "Descartar esta gravação?",
+    "keepRecording": "Continuar gravando",
+    "stopHint": "Terminar (Alt+Shift+S)",
+    "pauseHint": "Pausar ou continuar (Alt+Shift+P)"
   },
   "player": {
     "label": "Player: {title}",
@@ -86,8 +91,15 @@
       "generic": "Algo deu errado. Tente de novo.",
       "comments_off": "Os comentários estão desligados neste vídeo.",
       "empty_comment": "Escreva algo primeiro.",
-      "invalid_reaction": "Essa reação não está disponível."
-    }
+      "invalid_reaction": "Essa reação não está disponível.",
+      "name_taken": "Esse nome é de alguém do workspace. Use outro ou entre com sua conta.",
+      "signin_required": "Entre com sua conta para comentar este vídeo.",
+      "rate_limited": "Comentários demais neste vídeo agora. Tente em alguns minutos."
+    },
+    "guest": "Convidado",
+    "authorBadge": "Autor",
+    "more": "Ver comentários anteriores ({shown} de {total})",
+    "signinToComment": "Entre com sua conta para comentar este vídeo."
   },
   "common": {
     "copied": "Copiado",
@@ -103,7 +115,7 @@
       "invalid_name": "Escreva um nome.",
       "invalid_title": "Escreva um título.",
       "invalid_folder": "Essa pasta não existe mais.",
-      "invalid_password": "A senha precisa de pelo menos 4 caracteres.",
+      "invalid_password": "A senha precisa de pelo menos 8 caracteres.",
       "invalid_expiry": "Essa data não é válida.",
       "invalid_cta_url": "Use um endereço web que comece com https:// (sem e-mails, telefones ou IPs).",
       "invalid_cta_label": "Escreva o texto do botão.",
@@ -124,7 +136,14 @@
       "part_too_large": "Uma parte do envio é grande demais.",
       "invalid_file": "Esse arquivo não é válido.",
       "invalid_type": "Esse tipo de arquivo não é permitido.",
-      "download_failed": "O download falhou. Tente de novo."
+      "download_failed": "O download falhou. Tente de novo.",
+      "invalid_trim": "O fim tem que ser depois do começo.",
+      "trim_needs_cut": "Falta a cópia cortada. Salve o corte de novo.",
+      "cut_failed": "Não foi possível fazer a cópia cortada.",
+      "processing": "O vídeo está sendo preparado. Tente em um momento.",
+      "offline_start": "Sem conexão: para começar a gravar é preciso conexão.",
+      "invalid_path": "Esse envio não é válido.",
+      "part_missing": "Falta uma parte da gravação neste navegador."
     },
     "downloading": "Baixando {pct}%"
   },
@@ -172,7 +191,7 @@
   "library": {
     "mine": "Meus vídeos",
     "workspace": "Workspace",
-    "mineDesc": "Os vídeos que você gravou. Só você os vê até compartilhar o link ou movê-los para o workspace.",
+    "mineDesc": "Os vídeos que você gravou. Nesta lista só você os vê; qualquer pessoa a quem você mandar o link pode assistir, a menos que você coloque senha ou limite ao workspace.",
     "workspaceDesc": "Vídeos que todo o workspace pode encontrar.",
     "folderPersonalDesc": "Pasta pessoal.",
     "folderWorkspaceDesc": "Pasta compartilhada com o workspace.",
@@ -220,7 +239,14 @@
     "defaultTitle": "Vídeo",
     "noTranscription": "A transcrição e o resumo com IA estão desligados neste servidor: o vídeo é gravado e compartilhado do mesmo jeito.",
     "saving": "Terminando o envio…",
-    "tryAgain": "Gravar de novo"
+    "tryAgain": "Gravar de novo",
+    "statusOffline": "Sem conexão: salvando neste navegador ({mb} MB pendentes)",
+    "statusRetry": "Envio interrompido, tentando de novo ({mb} MB pendentes)",
+    "statusUploading": "Enviando… ({mb} MB pendentes)",
+    "statusSynced": "Enviado",
+    "savingOffline": "Sem conexão. A gravação está segura neste navegador e é enviada sozinha quando a rede voltar.",
+    "downloadLocal": "Baixar a gravação",
+    "later": "Terminar depois"
   },
   "share": {
     "title": "Compartilhar",
@@ -240,7 +266,10 @@
     "options": "Opções",
     "allowDownload": "Quem assiste pode baixar",
     "allowComments": "Permitir comentários e reações",
-    "notify": "Me avisar quando alguém assistir ou comentar"
+    "notify": "Me avisar quando alguém assistir ou comentar",
+    "passwordHelp": "Pelo menos 8 caracteres. Com senha, o download começa desligado.",
+    "downloadNote": "Desligar tira o botão de download. O vídeo continua sendo transmitido, então alguém decidido poderia capturá-lo.",
+    "requireAccount": "Só pessoas com sessão iniciada podem comentar"
   },
   "detail": {
     "library": "Vídeos",
@@ -317,6 +346,22 @@
     "name": "Nome",
     "moved": "Vídeo movido",
     "deleteTitle": "Apagar \"{title}\"?",
-    "deleteBody": "O vídeo, seus comentários e visualizações são apagados, e o link para de funcionar."
+    "deleteBody": "O vídeo, seus comentários e visualizações são apagados, e o link para de funcionar.",
+    "trimInverted": "O fim tem que ser depois do começo.",
+    "cutFailed": "Não foi possível fazer a cópia cortada. Tente de novo.",
+    "trimNoteWebm": "Ao salvar, uma cópia cortada é feita sem recodificar e é ela que todos os outros recebem: o player, a página compartilhada, o embed e as legendas. O corte cai no keyframe anterior ao começo (até 2 segundos antes).",
+    "trimNoteOther": "Este tipo de arquivo não pode ser cortado no navegador: quem assiste vê o vídeo cortado, mas o arquivo que recebe ainda tem as partes cortadas.",
+    "cutting": "Fazendo a cópia cortada… {pct}%",
+    "retention": "Retenção",
+    "retentionLabel": "{start}% dos espectadores viram o começo e {end}% o final"
+  },
+  "pending": {
+    "title": "Gravações esperando envio",
+    "body": "Estas gravações ficaram neste navegador porque o envio não terminou. Retome o envio, baixe ou descarte.",
+    "resume": "Retomar o envio",
+    "resuming": "Enviando {pct}%",
+    "download": "Baixar",
+    "discard": "Descartar",
+    "error": "O envio não pôde terminar. Tente de novo quando tiver conexão."
   }
 }

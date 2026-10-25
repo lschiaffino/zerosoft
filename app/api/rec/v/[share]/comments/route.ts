@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { addComment, listComments } from '@/lib/rec';
-import { publicVideoFor, recFail, resolveViewer, withViewerCookie } from '@/lib/rec-http';
+import { addComment, canManage, listComments } from '@/lib/rec';
+import { actorOf, publicVideoFor, recFail, resolveViewer, withViewerCookie } from '@/lib/rec-http';
 import { limitByIp } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
@@ -13,8 +13,15 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   const { share } = await ctx.params;
   const r = await publicVideoFor(req, share);
   if ('res' in r) return r.res;
-  const { viewer, newKey } = await resolveViewer(req, r.v);
-  return withViewerCookie(NextResponse.json({ comments: await listComments(r.v.id, viewer.key), me: { name: viewer.name, signedIn: !!viewer.userId } }), newKey);
+  const { viewer, newKey, user } = await resolveViewer(req, r.v);
+  const before = req.nextUrl.searchParams.get('before');
+  const page = await listComments(r.v, viewer.key, { before: before && /^[\d :-]{10,25}\|[0-9a-f-]{36}$/.test(before) ? before : null });
+  // Moderar (borrar comentarios ajenos): quien administra el video.
+  const canModerate = !!user && canManage(actorOf(user), r.v);
+  return withViewerCookie(
+    NextResponse.json({ ...page, me: { name: viewer.name, signedIn: !!viewer.userId, canModerate, requireAccount: !!r.v.comments_require_account } }),
+    newKey,
+  );
 }
 
 const schema = z.object({

@@ -18,7 +18,15 @@ import { promisify } from 'util';
 import { getDb } from './db';
 import { deleteUploads } from './uploads';
 import {
+  chaptersInTrim,
   chaptersToText,
+  coveredPct,
+  isTrimmed,
+  mergeRanges,
+  retentionCurve,
+  segmentsInTrim,
+  trimKey,
+  type Range,
   clampTrim,
   cleanCtaUrl,
   normalizeChapters,
@@ -123,6 +131,11 @@ export interface RecVideoRow {
   transcript_error: string | null;
   transcript_lang: string | null;
   summary: string;
+  summary_source: 'auto' | 'user';
+  summary_trim: string | null;
+  trimmed_url: string | null;
+  trimmed_for: string | null;
+  comments_require_account: number;
   processing_at: string | null;
   views: number;
   last_viewed_at: string | null;
@@ -162,6 +175,11 @@ export interface RecVideoDto {
   transcriptStatus: RecTranscriptStatus;
   transcriptError: string | null;
   summary: string;
+  /** El resumen corresponde al recorte vigente (o lo escribió la persona). */
+  summaryFitsTrim: boolean;
+  commentsRequireAccount: boolean;
+  /** Si hay recorte, ya existe la copia recortada que ven los demás. */
+  trimCut: boolean;
   hasThumb: boolean;
   hasGif: boolean;
   views: number;
@@ -183,7 +201,12 @@ function parseJson<T>(text: string | null | undefined, fallback: T): T {
 }
 
 export function toDto(row: RecVideoRow & { author_name?: string | null }, actor: RecActor | null): RecVideoDto {
-  const chapters = parseJson<RecChapter[]>(row.chapters, []);
+  const manager = actor ? canManage(actor, row) : false;
+  const allChapters = parseJson<RecChapter[]>(row.chapters, []);
+  const allSegments = parseJson<RecSegment[]>(row.transcript, []);
+  // Quien no puede editar el video ve solo lo que queda dentro del recorte.
+  const chapters = manager ? allChapters : chaptersInTrim(allChapters, row.trim_start, row.trim_end);
+  const transcript = manager ? allSegments : segmentsInTrim(allSegments, row.trim_start, row.trim_end);
   return {
     id: row.id,
     shareId: row.share_id,
@@ -211,17 +234,20 @@ export function toDto(row: RecVideoRow & { author_name?: string | null }, actor:
     ctaLabel: row.cta_label ?? '',
     ctaUrl: row.cta_url ?? '',
     ctaMode: row.cta_mode,
-    transcript: parseJson<RecSegment[]>(row.transcript, []),
+    transcript,
     transcriptStatus: row.transcript_status,
     transcriptError: row.transcript_error,
-    summary: row.summary,
+    summary: manager || summaryFitsTrim(row) ? row.summary : '',
+    summaryFitsTrim: summaryFitsTrim(row),
+    commentsRequireAccount: !!row.comments_require_account,
+    trimCut: !isTrimmed(row.trim_start, row.trim_end) || row.trimmed_for === trimKey(row.trim_start, row.trim_end),
     hasThumb: !!row.thumb_url,
     hasGif: !!row.gif_url,
     views: row.views,
     lastViewedAt: row.last_viewed_at,
     createdBy: row.created_by,
     authorName: row.author_name ?? '',
-    canManage: actor ? canManage(actor, row) : false,
+    canManage: manager,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -231,15 +257,26 @@ export function toDto(row: RecVideoRow & { author_name?: string | null }, actor:
 // Acceso
 // ============================================================
 
-/** Ve el video en la app: quien lo grabó, todo el workspace si está en el espacio compartido, y los admins. */
+/**
+ * Ve el video en la app: quien lo grabó, y todo el workspace si está en el
+ * espacio compartido. Lo personal (Mis videos) es solo del autor, como en
+ * Loom: ni los admins lo ven ni lo editan.
+ */
 export function canSee(a: RecActor, v: Pick<RecVideoRow, 'workspace_id' | 'created_by' | 'space'>): boolean {
   if (v.workspace_id !== a.ws) return false;
-  return v.created_by === a.actor || v.space === 'workspace' || a.admin;
+  return v.created_by === a.actor || v.space === 'workspace';
 }
 
-/** Edita, mueve y borra: quien lo grabó o un admin. */
-export function canManage(a: RecActor, v: Pick<RecVideoRow, 'workspace_id' | 'created_by'>): boolean {
-  return v.workspace_id === a.ws && (v.created_by === a.actor || a.admin);
+/** Edita, mueve y borra: quien lo grabó; en el espacio del workspace, también un admin. */
+export function canManage(a: RecActor, v: Pick<RecVideoRow, 'workspace_id' | 'created_by' | 'space'>): boolean {
+  if (v.workspace_id !== a.ws) return false;
+  return v.created_by === a.actor || (v.space === 'workspace' && a.admin);
+}
+
+/** El resumen se puede mostrar a otros: lo escribió la persona o se armó para el recorte vigente. */
+export function summaryFitsTrim(v: Pick<RecVideoRow, 'summary_source' | 'summary_trim' | 'trim_start' | 'trim_end'>): boolean {
+  if (v.summary_source === 'user' || !isTrimmed(v.trim_start, v.trim_end)) return true;
+  return v.summary_trim === trimKey(v.trim_start, v.trim_end);
 }
 
 function canSeeFolder(a: RecActor, f: RecFolderRow): boolean {
@@ -298,7 +335,7 @@ export async function createFolder(a: RecActor, input: { name: string; space: Re
 }
 
 function canManageFolder(a: RecActor, f: RecFolderRow): boolean {
-  return f.created_by === a.actor || a.admin || (f.space === 'workspace' && a.admin);
+  return f.created_by === a.actor || (f.space === 'workspace' && a.admin);
 }
 
 export async function renameFolder(a: RecActor, id: string, name: string): Promise<RecFolderRow> {
@@ -360,11 +397,11 @@ export async function listVideos(a: RecActor, scope: RecScope, q = ''): Promise<
     where.push("(v.space = 'workspace' OR v.created_by = ?)");
     args.push(a.actor);
   } else {
-    where.push(a.admin ? '1 = 1' : "(v.space = 'workspace' OR v.created_by = ?)");
-    if (!a.admin) args.push(a.actor);
+    where.push("(v.space = 'workspace' OR v.created_by = ?)");
+    args.push(a.actor);
   }
-  if (scope.kind === 'mine' || scope.kind === 'workspace') {
-    // En la raíz del espacio solo los que no están en una carpeta.
+  if ((scope.kind === 'mine' || scope.kind === 'workspace') && !q.trim()) {
+    // En la raíz del espacio solo los que no están en una carpeta (buscando, todo el espacio).
     where.push('v.folder_id IS NULL');
   }
   const needle = q.trim();
@@ -376,7 +413,7 @@ export async function listVideos(a: RecActor, scope: RecScope, q = ''): Promise<
   const rows = (await getDb()
     .prepare(
       `SELECT v.id, v.share_id, v.title, v.status, v.space, v.folder_id, v.duration_sec, v.trim_start, v.trim_end, v.views,
-              v.thumb_url, v.gif_url, v.created_by, v.workspace_id, v.created_at, v.updated_at,
+              v.thumb_url, v.gif_url, v.created_by, v.workspace_id, v.created_at, v.updated_at, v.description${needle ? ', v.transcript' : ''},
               COALESCE(u.name, u.email, '') AS author_name,
               (SELECT COUNT(DISTINCT viewer_key) FROM rec_views w WHERE w.video_id = v.id) AS unique_viewers,
               (SELECT COUNT(*) FROM rec_comments c WHERE c.video_id = v.id AND c.kind = 'comment') AS comments
@@ -389,9 +426,11 @@ export async function listVideos(a: RecActor, scope: RecScope, q = ''): Promise<
       author_name: string;
       unique_viewers: number;
       comments: number;
+      description: string;
+      transcript?: string;
     }
   >;
-  return rows.map((r) => ({
+  return rows.filter((r) => !needle || matchesVisibleText(a, r, needle)).map((r) => ({
     id: r.id,
     shareId: r.share_id,
     title: r.title,
@@ -414,19 +453,42 @@ export async function listVideos(a: RecActor, scope: RecScope, q = ''): Promise<
   }));
 }
 
-/** Videos y carpetas para ⌘K, con el mismo alcance que la biblioteca. */
+/**
+ * ¿Lo buscado aparece en lo que esta persona puede ver? Quien no administra
+ * el video no encuentra texto de la parte recortada de la transcripción.
+ */
+function matchesVisibleText(
+  a: RecActor,
+  r: Pick<RecVideoRow, 'workspace_id' | 'created_by' | 'space' | 'title' | 'trim_start' | 'trim_end'> & { description?: string; transcript?: string },
+  needle: string,
+): boolean {
+  const n = needle.toLowerCase();
+  if (r.title.toLowerCase().includes(n) || (r.description ?? '').toLowerCase().includes(n)) return true;
+  const segs = parseJson<RecSegment[]>(r.transcript ?? '[]', []);
+  const visible = canManage(a, r) ? segs : segmentsInTrim(segs, r.trim_start, r.trim_end);
+  return visible.some((x) => x.text.toLowerCase().includes(n));
+}
+
+/** Videos y carpetas para ⌘K, con el mismo alcance que la biblioteca (también en la transcripción). */
 export async function searchRec(a: RecActor, q: string, limit = 6): Promise<Array<{ id: string; kind: 'video' | 'folder'; label: string; meta: string }>> {
   const needle = q.trim();
   if (!needle) return [];
   const like = `%${needle.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
   const vids = (await getDb()
     .prepare(
-      `SELECT id, title AS label, duration_sec FROM rec_videos
-       WHERE workspace_id = ? AND status = 'ready' AND (space = 'workspace' OR created_by = ?) AND title LIKE ? ESCAPE '\\'
-       ORDER BY updated_at DESC LIMIT ?`,
+      `SELECT id, title AS label, title, description, transcript, duration_sec, workspace_id, created_by, space, trim_start, trim_end FROM rec_videos
+       WHERE workspace_id = ? AND status = 'ready' AND (space = 'workspace' OR created_by = ?)
+         AND (title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR transcript LIKE ? ESCAPE '\\')
+       ORDER BY updated_at DESC LIMIT 40`,
     )
-    .all(a.ws, a.actor, like, limit)
-    .catch(() => [])) as Array<{ id: string; label: string; duration_sec: number }>;
+    .all(a.ws, a.actor, like, like, like)
+    .catch(() => [])) as Array<
+    { id: string; label: string; duration_sec: number; description: string; transcript: string } & Pick<
+      RecVideoRow,
+      'workspace_id' | 'created_by' | 'space' | 'title' | 'trim_start' | 'trim_end'
+    >
+  >;
+  const visible = vids.filter((v) => matchesVisibleText(a, v, needle)).slice(0, limit);
   const folders = (await getDb()
     .prepare(
       `SELECT id, name AS label FROM rec_folders WHERE workspace_id = ? AND (space = 'workspace' OR created_by = ?) AND name LIKE ? ESCAPE '\\'
@@ -436,7 +498,7 @@ export async function searchRec(a: RecActor, q: string, limit = 6): Promise<Arra
     .catch(() => [])) as Array<{ id: string; label: string }>;
   const { fmtClock } = await import('./rec-schema');
   return [
-    ...vids.map((v) => ({ id: v.id, kind: 'video' as const, label: v.label, meta: v.duration_sec ? fmtClock(v.duration_sec) : '' })),
+    ...visible.map((v) => ({ id: v.id, kind: 'video' as const, label: v.label, meta: v.duration_sec ? fmtClock(v.duration_sec) : '' })),
     ...folders.map((f) => ({ id: f.id, kind: 'folder' as const, label: f.label, meta: '' })),
   ];
 }
@@ -447,7 +509,7 @@ export async function searchRec(a: RecActor, q: string, limit = 6): Promise<Arra
 
 export async function createVideo(
   a: RecActor,
-  input: { title: string; mode: RecMode; contentType: string; folderId?: string | null; space?: RecSpace },
+  input: { title: string; mode: RecMode; contentType: string; folderId?: string | null; space?: RecSpace; titleSource?: 'auto' | 'user' },
 ): Promise<RecVideoRow> {
   let folderId: string | null = null;
   let space: RecSpace = input.space === 'workspace' ? 'workspace' : 'personal';
@@ -461,10 +523,21 @@ export async function createVideo(
   const mode: RecMode = (['screen_camera', 'screen', 'camera'] as const).includes(input.mode) ? input.mode : 'screen_camera';
   await getDb()
     .prepare(
-      `INSERT INTO rec_videos (id, workspace_id, created_by, share_id, title, mode, content_type, folder_id, space)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO rec_videos (id, workspace_id, created_by, share_id, title, title_source, mode, content_type, folder_id, space)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, a.ws, a.actor, newShareId(), (input.title.trim() || 'Video').slice(0, 200), mode, input.contentType.split(';')[0].slice(0, 40) || 'video/webm', folderId, space);
+    .run(
+      id,
+      a.ws,
+      a.actor,
+      newShareId(),
+      (input.title.trim() || 'Video').slice(0, 200),
+      input.titleSource === 'user' && input.title.trim() ? 'user' : 'auto',
+      mode,
+      input.contentType.split(';')[0].slice(0, 40) || 'video/webm',
+      folderId,
+      space,
+    );
   return (await rawVideo(id))!;
 }
 
@@ -486,7 +559,11 @@ export interface RecVideoPatch {
   ctaMode?: RecCtaMode;
   trimStart?: number;
   trimEnd?: number | null;
+  commentsRequireAccount?: boolean;
 }
+
+/** Mínimo de caracteres de una contraseña nueva (las que ya estaban siguen valiendo). */
+export const MIN_PASSWORD = 8;
 
 export async function hashPassword(pw: string): Promise<string> {
   const salt = randomBytes(16).toString('hex');
@@ -518,7 +595,10 @@ export async function updateVideo(a: RecActor, id: string, patch: RecVideoPatch)
     set('title_source', 'user');
   }
   if (patch.description !== undefined) set('description', patch.description.trim().slice(0, 5000));
-  if (patch.summary !== undefined) set('summary', patch.summary.trim().slice(0, 5000));
+  if (patch.summary !== undefined && patch.summary.trim() !== v.summary.trim()) {
+    set('summary', patch.summary.trim().slice(0, 5000));
+    set('summary_source', 'user');
+  }
   if (patch.chaptersText !== undefined) {
     const ch = parseChapters(patch.chaptersText, v.duration_sec > 0 ? v.duration_sec : Infinity);
     set('chapters', JSON.stringify(ch));
@@ -539,8 +619,10 @@ export async function updateVideo(a: RecActor, id: string, patch: RecVideoPatch)
   if (patch.password !== undefined) {
     if (patch.password === null || patch.password === '') set('password_hash', null);
     else {
-      if (patch.password.length < 4 || patch.password.length > 200) throw new RecError('invalid_password');
+      if (patch.password.length < MIN_PASSWORD || patch.password.length > 200) throw new RecError('invalid_password');
       set('password_hash', await hashPassword(patch.password));
+      // Con contraseña, la descarga queda apagada salvo que la persona la prenda en el mismo cambio.
+      if (!v.password_hash && patch.allowDownload === undefined) set('allow_download', 0);
     }
   }
   if (patch.expiresAt !== undefined) {
@@ -554,6 +636,7 @@ export async function updateVideo(a: RecActor, id: string, patch: RecVideoPatch)
   if (patch.allowDownload !== undefined) set('allow_download', patch.allowDownload ? 1 : 0);
   if (patch.allowComments !== undefined) set('allow_comments', patch.allowComments ? 1 : 0);
   if (patch.notify !== undefined) set('notify', patch.notify ? 1 : 0);
+  if (patch.commentsRequireAccount !== undefined) set('comments_require_account', patch.commentsRequireAccount ? 1 : 0);
   if (patch.ctaLabel !== undefined || patch.ctaUrl !== undefined) {
     const label = (patch.ctaLabel ?? v.cta_label ?? '').trim().slice(0, 60);
     const rawUrl = (patch.ctaUrl ?? v.cta_url ?? '').trim();
@@ -569,8 +652,21 @@ export async function updateVideo(a: RecActor, id: string, patch: RecVideoPatch)
     }
   }
   if (patch.ctaMode !== undefined) set('cta_mode', patch.ctaMode === 'end' ? 'end' : 'always');
+  let dropCut: string | null = null;
   if (patch.trimStart !== undefined || patch.trimEnd !== undefined) {
-    const t = clampTrim(patch.trimStart ?? v.trim_start, patch.trimEnd === undefined ? v.trim_end : patch.trimEnd, v.duration_sec);
+    const rawStart = patch.trimStart ?? v.trim_start;
+    const rawEnd = patch.trimEnd === undefined ? v.trim_end : patch.trimEnd;
+    if (rawEnd !== null && rawEnd <= rawStart) throw new RecError('invalid_trim');
+    const t = clampTrim(rawStart, rawEnd, v.duration_sec);
+    // WebM: lo recortado no se sirve a nadie más; antes de guardar el recorte tiene que estar subida la copia cortada.
+    if (isTrimmed(t.start, t.end) && v.content_type.startsWith('video/webm') && v.trimmed_for !== trimKey(t.start, t.end)) {
+      throw new RecError('trim_needs_cut', 409);
+    }
+    if (!isTrimmed(t.start, t.end) && v.trimmed_url) {
+      dropCut = v.trimmed_url;
+      set('trimmed_url', null);
+      set('trimmed_for', null);
+    }
     set('trim_start', t.start);
     set('trim_end', t.end);
   }
@@ -579,7 +675,26 @@ export async function updateVideo(a: RecActor, id: string, patch: RecVideoPatch)
       .prepare(`UPDATE rec_videos SET ${sets.join(', ')}, updated_at = datetime('now') WHERE id = ?`)
       .run(...args, id);
   }
+  if (dropCut) await deleteUploads([dropCut]).catch(() => undefined);
   return (await rawVideo(id))!;
+}
+
+/** Copia recortada (sin recodificar) que ven todos menos quien administra el video. */
+export async function setTrimmedFile(id: string, url: string, trimFor: string): Promise<void> {
+  const prev = (await getDb().prepare('SELECT trimmed_url FROM rec_videos WHERE id = ?').get(id)) as { trimmed_url: string | null } | undefined;
+  await getDb().prepare('UPDATE rec_videos SET trimmed_url = ?, trimmed_for = ? WHERE id = ?').run(url, trimFor, id);
+  if (prev?.trimmed_url && prev.trimmed_url !== url) await deleteUploads([prev.trimmed_url]).catch(() => undefined);
+}
+
+/**
+ * Qué archivo de video recibe esta persona: quien administra, el original;
+ * los demás, con recorte, la copia cortada (WebM) o el original si el tipo
+ * no se puede cortar (MP4/MOV: el reproductor respeta el recorte, los bytes no).
+ */
+export function videoFileFor(v: RecVideoRow, manager: boolean): string | null {
+  if (manager || !isTrimmed(v.trim_start, v.trim_end)) return v.url;
+  if (v.trimmed_url && v.trimmed_for === trimKey(v.trim_start, v.trim_end)) return v.trimmed_url;
+  return v.content_type.startsWith('video/webm') ? null : v.url;
 }
 
 export async function deleteVideo(a: RecActor, id: string): Promise<void> {
@@ -587,7 +702,7 @@ export async function deleteVideo(a: RecActor, id: string): Promise<void> {
   await getDb().prepare('DELETE FROM rec_videos WHERE id = ?').run(id);
   const { deleteRecParts } = await import('./rec-upload');
   await deleteRecParts(id).catch(() => undefined);
-  await deleteUploads([v.url, v.audio_url, v.thumb_url, v.gif_url].filter((u): u is string => !!u));
+  await deleteUploads([v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url].filter((u): u is string => !!u));
 }
 
 /** Grabación cerrada: duración y tamaño; pasa a lista y queda en cola para transcribir. */
@@ -655,21 +770,28 @@ export function unlockToken(v: Pick<RecVideoRow, 'share_id' | 'password_hash'>):
 
 export type PublicAccess = 'ok' | 'expired' | 'password' | 'signin' | 'forbidden';
 
+export interface PublicViewer {
+  /** Workspace de la sesión (null sin login). */
+  ws: string | null;
+  /** Persona real logueada (null sin login). */
+  userId: string | null;
+}
+
 /**
- * ¿Puede ver este video quien abrió el link? `viewerWs` es el workspace de la
- * sesión (null sin login) y `unlock` el valor de la cookie de la contraseña.
- * El autor y su workspace siempre pueden (vencido incluido, para revisarlo).
+ * ¿Puede ver este video quien abrió el link? Solo el autor saltea las
+ * reglas (para revisarlo aun vencido o con contraseña). Un miembro del
+ * workspace pasa "solo workspace" pero respeta contraseña y vencimiento
+ * como cualquiera. `unlock` es el valor de la cookie de la contraseña.
  */
 export function publicAccess(
-  v: Pick<RecVideoRow, 'workspace_id' | 'share_id' | 'password_hash' | 'expires_at' | 'privacy'>,
-  viewerWs: string | null,
+  v: Pick<RecVideoRow, 'workspace_id' | 'created_by' | 'share_id' | 'password_hash' | 'expires_at' | 'privacy'>,
+  viewer: PublicViewer,
   unlock: string | null,
   now = Date.now(),
 ): PublicAccess {
-  const member = viewerWs === v.workspace_id;
-  if (member) return 'ok';
+  if (viewer.userId && viewer.userId === v.created_by && viewer.ws === v.workspace_id) return 'ok';
   if (v.expires_at && dbTime(v.expires_at) <= now) return 'expired';
-  if (v.privacy === 'workspace') return viewerWs ? 'forbidden' : 'signin';
+  if (v.privacy === 'workspace' && viewer.ws !== v.workspace_id) return viewer.ws ? 'forbidden' : 'signin';
   if (v.password_hash) {
     const want = unlockToken(v);
     if (!unlock || unlock.length !== want.length || !timingSafeEqual(Buffer.from(unlock), Buffer.from(want))) return 'password';
@@ -692,28 +814,33 @@ export interface PublicVideoDto {
   summary: string;
   allowDownload: boolean;
   allowComments: boolean;
+  commentsRequireAccount: boolean;
   ctaLabel: string;
   ctaUrl: string;
   ctaMode: RecCtaMode;
   hasThumb: boolean;
 }
 
-export function toPublicDto(v: RecVideoRow & { author_name: string | null }): PublicVideoDto {
+/** Lo que ve quien abre el link. Si no es el autor, solo lo que queda dentro del recorte. */
+export function toPublicDto(v: RecVideoRow & { author_name: string | null }, isAuthor = false): PublicVideoDto {
+  const chapters = normalizeChapters(parseJson<RecChapter[]>(v.chapters, []));
+  const segments = parseJson<RecSegment[]>(v.transcript, []);
   return {
     shareId: v.share_id,
     title: v.title,
     description: v.description,
-    chapters: normalizeChapters(parseJson<RecChapter[]>(v.chapters, [])),
+    chapters: isAuthor ? chapters : chaptersInTrim(chapters, v.trim_start, v.trim_end),
     authorName: v.author_name ?? '',
     createdAt: v.created_at,
     durationSec: v.duration_sec,
     trimStart: v.trim_start,
     trimEnd: v.trim_end,
     contentType: v.content_type,
-    transcript: parseJson<RecSegment[]>(v.transcript, []),
-    summary: v.summary,
+    transcript: isAuthor ? segments : segmentsInTrim(segments, v.trim_start, v.trim_end),
+    summary: isAuthor || summaryFitsTrim(v) ? v.summary : '',
     allowDownload: !!v.allow_download,
     allowComments: !!v.allow_comments,
+    commentsRequireAccount: !!v.comments_require_account,
     ctaLabel: v.cta_label ?? '',
     ctaUrl: v.cta_url ?? '',
     ctaMode: v.cta_mode,
@@ -744,10 +871,41 @@ async function notifyAuthor(v: RecVideoRow, type: 'rec_view' | 'rec_comment', ti
   }
 }
 
+/**
+ * Comentarios y reacciones avisan agrupados: si el autor tiene un aviso sin
+ * leer de este video, se suma ahí ("N comentarios nuevos") en vez de mandar
+ * uno por comentario.
+ */
+async function notifyCommentGrouped(v: RecVideoRow, name: string, kind: 'comment' | 'reaction', text: string, emoji: string | null): Promise<void> {
+  if (!v.notify) return;
+  try {
+    const db = getDb();
+    const open = (await db
+      .prepare("SELECT id, meta FROM notifications WHERE user_id = ? AND type = 'rec_comment' AND source_id = ? AND read_at IS NULL ORDER BY created_at DESC LIMIT 1")
+      .get(v.created_by, v.id)) as { id: string; meta: string } | undefined;
+    if (open) {
+      const meta = parseJson<Record<string, unknown>>(open.meta, {});
+      const count = (Number(meta.count) || 1) + 1;
+      await db
+        .prepare("UPDATE notifications SET title = ?, meta = ?, created_at = datetime('now') WHERE id = ?")
+        .run(`${count} new comments on "${v.title}"`, JSON.stringify({ ...meta, count, actorName: name, title: v.title }), open.id);
+      return;
+    }
+    await notifyAuthor(
+      v,
+      'rec_comment',
+      kind === 'comment' ? `${name} commented on "${v.title}": ${text.slice(0, 80)}` : `${name} reacted ${emoji} to "${v.title}"`,
+      kind === 'comment' ? { actorName: name, count: '1' } : { actorName: name, emoji: emoji ?? '', count: '1' },
+    );
+  } catch {
+    /* idem */
+  }
+}
+
 export async function trackRecView(
   v: RecVideoRow,
   viewer: RecViewer,
-  input: { viewId?: string; watched?: number; position?: number; duration?: number; cta?: boolean; ip?: string; userAgent?: string },
+  input: { viewId?: string; watched?: number; position?: number; duration?: number; cta?: boolean; ranges?: Range[]; ip?: string; userAgent?: string },
 ): Promise<{ viewId: string | null }> {
   if (viewer.isAuthor) return { viewId: null };
   const db = getDb();
@@ -755,16 +913,18 @@ export async function trackRecView(
   const duration = Math.max(0, Math.min(Number(input.duration) || visible, 12 * 3600));
   if (input.viewId) {
     const view = (await db.prepare('SELECT * FROM rec_views WHERE id = ? AND video_id = ? AND viewer_key = ?').get(input.viewId, v.id, viewer.key)) as
-      | { id: string; watched_sec: number; max_position: number; last_ping_at: string; cta_clicks: number }
+      | { id: string; watched_sec: number; max_position: number; last_ping_at: string; cta_clicks: number; ranges: string }
       | undefined;
     if (!view) return { viewId: null };
     const elapsed = (Date.now() - dbTime(view.last_ping_at)) / 1000;
     const target = Math.max(view.watched_sec, Number(input.watched) || 0);
     const watched = Math.min(target, view.watched_sec + Math.max(60, Math.ceil(elapsed) + 5));
     const maxPos = Math.max(view.max_position, Math.min(Number(input.position) || 0, duration || Number.MAX_SAFE_INTEGER));
+    // Intervalos realmente reproducidos: se unen con lo que ya había (los pings mandan todo lo visto).
+    const ranges = mergeRanges([...parseJson<Range[]>(view.ranges, []), ...(input.ranges ?? [])], duration || Infinity);
     await db
-      .prepare('UPDATE rec_views SET watched_sec = ?, max_position = ?, duration_sec = ?, cta_clicks = cta_clicks + ?, last_ping_at = ? WHERE id = ?')
-      .run(watched, maxPos, duration, input.cta ? 1 : 0, nowDb(), view.id);
+      .prepare('UPDATE rec_views SET watched_sec = ?, max_position = ?, duration_sec = ?, cta_clicks = cta_clicks + ?, ranges = ?, last_ping_at = ? WHERE id = ?')
+      .run(watched, maxPos, duration, input.cta ? 1 : 0, JSON.stringify(ranges), nowDb(), view.id);
     return { viewId: view.id };
   }
   const first = !(await db.prepare('SELECT 1 FROM rec_views WHERE video_id = ? AND viewer_key = ? LIMIT 1').get(v.id, viewer.key));
@@ -772,10 +932,24 @@ export async function trackRecView(
   const ts = nowDb();
   await db
     .prepare(
-      `INSERT INTO rec_views (id, video_id, workspace_id, viewer_key, user_id, viewer_name, duration_sec, cta_clicks, ip_hash, user_agent, started_at, last_ping_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO rec_views (id, video_id, workspace_id, viewer_key, user_id, viewer_name, duration_sec, cta_clicks, ranges, ip_hash, user_agent, started_at, last_ping_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, v.id, v.workspace_id, viewer.key, viewer.userId, viewer.name.slice(0, 120), duration, input.cta ? 1 : 0, hashIp(input.ip ?? ''), (input.userAgent ?? '').slice(0, 300), ts, ts);
+    .run(
+      id,
+      v.id,
+      v.workspace_id,
+      viewer.key,
+      viewer.userId,
+      viewer.name.slice(0, 120),
+      duration,
+      input.cta ? 1 : 0,
+      JSON.stringify(mergeRanges(input.ranges ?? [], duration || Infinity)),
+      hashIp(input.ip ?? ''),
+      (input.userAgent ?? '').slice(0, 300),
+      ts,
+      ts,
+    );
   await db.prepare('UPDATE rec_videos SET views = views + 1, last_viewed_at = ? WHERE id = ?').run(ts, v.id);
   if (first) await notifyAuthor(v, 'rec_view', `${viewer.name || 'Someone'} watched "${v.title}"`, viewer.name ? { actorName: viewer.name } : {});
   return { viewId: id };
@@ -798,25 +972,45 @@ export interface RecAnalytics {
   avgPct: number;
   completed: number;
   ctaClicks: number;
+  /** Qué parte de los espectadores vio cada 5 % del video. */
+  retention: number[];
   viewers: RecViewerRow[];
 }
 
+/**
+ * Analítica (solo para quien administra el video). El % visto es tiempo
+ * distinto realmente reproducido (unión de intervalos, adelantar no cuenta);
+ * para vistas viejas sin intervalos, la posición máxima.
+ */
 export async function getAnalytics(a: RecActor, id: string): Promise<RecAnalytics> {
   const v = await getVideoRow(a, id);
   if (!v) throw new RecError('not_found', 404);
+  if (!canManage(a, v)) throw new RecError('forbidden', 403);
   const rows = (await getDb()
     .prepare(
-      `SELECT viewer_key, user_id, viewer_name, watched_sec, max_position, duration_sec, cta_clicks, started_at
+      `SELECT viewer_key, user_id, viewer_name, watched_sec, max_position, duration_sec, cta_clicks, ranges, started_at
        FROM rec_views WHERE video_id = ? ORDER BY started_at DESC LIMIT 5000`,
     )
-    .all(id)) as Array<{ viewer_key: string; user_id: string | null; viewer_name: string; watched_sec: number; max_position: number; duration_sec: number; cta_clicks: number; started_at: string }>;
+    .all(id)) as Array<{
+    viewer_key: string;
+    user_id: string | null;
+    viewer_name: string;
+    watched_sec: number;
+    max_position: number;
+    duration_sec: number;
+    cta_clicks: number;
+    ranges: string;
+    started_at: string;
+  }>;
   const visible = trimmedDuration(v.duration_sec, v.trim_start, v.trim_end);
-  const stats = viewStats(rows, visible);
-  const by = new Map<string, RecViewerRow>();
+  const by = new Map<string, RecViewerRow & { ranges: Range[] }>();
+  let ctaClicks = 0;
   for (const r of rows) {
     const d = r.duration_sec > 0 ? r.duration_sec : visible;
+    const own = parseJson<Range[]>(r.ranges, []);
+    const ranges = own.length ? own : r.max_position > 0 ? ([[0, Math.min(r.max_position, r.watched_sec || r.max_position)]] as Range[]) : [];
+    ctaClicks += r.cta_clicks;
     const cur = by.get(r.viewer_key);
-    const pct = viewPct(r.max_position, d);
     if (!cur) {
       by.set(r.viewer_key, {
         viewerKey: r.viewer_key,
@@ -824,19 +1018,33 @@ export async function getAnalytics(a: RecActor, id: string): Promise<RecAnalytic
         signedIn: !!r.user_id,
         views: 1,
         watchedSec: r.watched_sec,
-        pct,
+        pct: 0,
         ctaClicks: r.cta_clicks,
         lastAt: r.started_at,
+        ranges: mergeRanges(ranges, d),
       });
     } else {
       cur.views++;
       cur.watchedSec += r.watched_sec;
-      cur.pct = Math.max(cur.pct, pct);
       cur.ctaClicks += r.cta_clicks;
+      cur.ranges = mergeRanges([...cur.ranges, ...ranges], d);
       if (!cur.name && r.viewer_name) cur.name = r.viewer_name;
     }
   }
-  return { ...stats, viewers: [...by.values()] };
+  const viewers = [...by.values()].map((x) => ({ ...x, pct: coveredPct(x.ranges, visible) }));
+  const pcts = viewers.map((x) => x.pct);
+  return {
+    views: rows.length,
+    unique: viewers.length,
+    avgPct: pcts.length ? Math.round(pcts.reduce((s, p) => s + p, 0) / pcts.length) : 0,
+    completed: pcts.filter((p) => p >= 95).length,
+    ctaClicks,
+    retention: retentionCurve(
+      viewers.map((x) => x.ranges),
+      visible,
+    ),
+    viewers: viewers.map(({ ranges: _r, ...rest }) => rest),
+  };
 }
 
 // ============================================================
@@ -851,15 +1059,40 @@ export interface RecCommentDto {
   emoji: string | null;
   atSec: number | null;
   authorName: string;
+  /** Sin cuenta: se muestra como invitado. */
+  guest: boolean;
+  /** Lo escribió quien grabó el video. */
+  byAuthor: boolean;
   mine: boolean;
   createdAt: string;
 }
 
-export async function listComments(videoId: string, viewerKey: string | null): Promise<RecCommentDto[]> {
-  const rows = (await getDb()
-    .prepare('SELECT * FROM rec_comments WHERE video_id = ? ORDER BY created_at ASC LIMIT 2000')
-    .all(videoId)) as Array<{ id: string; parent_id: string | null; kind: 'comment' | 'reaction'; body: string; emoji: string | null; at_sec: number | null; author_name: string; viewer_key: string; created_at: string }>;
-  return rows.map((r) => ({
+export interface RecCommentPage {
+  comments: RecCommentDto[];
+  /** Reacciones por emoji (todas). */
+  reactions: Record<string, number>;
+  /** Las últimas 50 reacciones con su segundo (para la línea de tiempo). */
+  reactionMarks: RecCommentDto[];
+  /** Cursor para la página siguiente (comentarios más viejos), o null. */
+  nextBefore: string | null;
+  total: number;
+}
+
+type CommentRow = {
+  id: string;
+  parent_id: string | null;
+  kind: 'comment' | 'reaction';
+  body: string;
+  emoji: string | null;
+  at_sec: number | null;
+  user_id: string | null;
+  author_name: string;
+  viewer_key: string;
+  created_at: string;
+};
+
+function commentDto(r: CommentRow, viewerKey: string | null, authorId: string): RecCommentDto {
+  return {
     id: r.id,
     parentId: r.parent_id,
     kind: r.kind,
@@ -867,9 +1100,75 @@ export async function listComments(videoId: string, viewerKey: string | null): P
     emoji: r.emoji,
     atSec: r.at_sec,
     authorName: r.author_name,
+    guest: !r.user_id,
+    byAuthor: !!r.user_id && r.user_id === authorId,
     mine: !!viewerKey && r.viewer_key === viewerKey,
     createdAt: r.created_at,
-  }));
+  };
+}
+
+export const COMMENTS_PAGE = 50;
+
+/** Comentarios de a 50 (los más nuevos primero, con sus respuestas) y el resumen de reacciones. */
+export async function listComments(
+  v: Pick<RecVideoRow, 'id' | 'created_by'>,
+  viewerKey: string | null,
+  opts: { before?: string | null; limit?: number } = {},
+): Promise<RecCommentPage> {
+  const db = getDb();
+  const limit = Math.max(1, Math.min(opts.limit ?? COMMENTS_PAGE, 200));
+  // Cursor "fecha|id": varios comentarios pueden caer en el mismo segundo.
+  const [bAt, bId] = (opts.before ?? '').split('|');
+  const cursor = bAt && bId ? 'AND (created_at < ? OR (created_at = ? AND id < ?))' : '';
+  const top = (await db
+    .prepare(
+      `SELECT * FROM rec_comments WHERE video_id = ? AND kind = 'comment' AND parent_id IS NULL ${cursor}
+       ORDER BY created_at DESC, id DESC LIMIT ?`,
+    )
+    .all(...(cursor ? [v.id, bAt, bAt, bId, limit + 1] : [v.id, limit + 1]))) as CommentRow[];
+  const page = top.slice(0, limit);
+  const ids = page.map((c) => c.id);
+  const replies = ids.length
+    ? ((await db
+        .prepare(`SELECT * FROM rec_comments WHERE video_id = ? AND parent_id IN (${ids.map(() => '?').join(',')}) ORDER BY created_at ASC`)
+        .all(v.id, ...ids)) as CommentRow[])
+    : [];
+  const counts = (await db
+    .prepare("SELECT emoji, COUNT(*) AS n FROM rec_comments WHERE video_id = ? AND kind = 'reaction' GROUP BY emoji")
+    .all(v.id)) as Array<{ emoji: string; n: number }>;
+  const marks = (await db
+    .prepare("SELECT * FROM rec_comments WHERE video_id = ? AND kind = 'reaction' AND at_sec IS NOT NULL ORDER BY created_at DESC LIMIT 50")
+    .all(v.id)) as CommentRow[];
+  const total = Number(
+    ((await db.prepare("SELECT COUNT(*) AS n FROM rec_comments WHERE video_id = ? AND kind = 'comment' AND parent_id IS NULL").get(v.id)) as { n: number }).n,
+  );
+  return {
+    comments: [...page, ...replies].map((r) => commentDto(r, viewerKey, v.created_by)),
+    reactions: Object.fromEntries(counts.map((c) => [c.emoji, Number(c.n)])),
+    reactionMarks: marks.map((r) => commentDto(r, viewerKey, v.created_by)),
+    nextBefore: top.length > limit ? `${page[page.length - 1].created_at}|${page[page.length - 1].id}` : null,
+    total,
+  };
+}
+
+/** Nombres de las personas del workspace (dueño y miembros), en minúscula, para que un invitado no se haga pasar por una. */
+async function memberNames(ws: string): Promise<Set<string>> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT name, email FROM users WHERE id = ?
+       UNION SELECT u.name, u.email FROM team_members tm JOIN teams t ON t.id = tm.team_id JOIN users u ON u.id = tm.user_id WHERE t.owner_id = ?`,
+    )
+    .all(ws, ws)
+    .catch(() => [])) as Array<{ name: string | null; email: string | null }>;
+  const out = new Set<string>();
+  for (const r of rows) {
+    if (r.name) out.add(r.name.trim().toLowerCase());
+    if (r.email) {
+      out.add(r.email.trim().toLowerCase());
+      out.add(r.email.split('@')[0].trim().toLowerCase());
+    }
+  }
+  return out;
 }
 
 export async function addComment(
@@ -878,6 +1177,7 @@ export async function addComment(
   input: { kind: 'comment' | 'reaction'; body?: string; emoji?: string; atSec?: number | null; parentId?: string | null },
 ): Promise<RecCommentDto> {
   if (!v.allow_comments) throw new RecError('comments_off', 403);
+  if (v.comments_require_account && !viewer.userId) throw new RecError('signin_required', 403);
   const { REC_REACTIONS } = await import('./rec-schema');
   const kind = input.kind === 'reaction' ? 'reaction' : 'comment';
   const body = kind === 'comment' ? String(input.body ?? '').trim().slice(0, 4000) : '';
@@ -886,6 +1186,13 @@ export async function addComment(
   if (kind === 'reaction' && !(REC_REACTIONS as readonly string[]).includes(emoji ?? '')) throw new RecError('invalid_reaction');
   const name = viewer.name.trim().slice(0, 80);
   if (!name) throw new RecError('name_required');
+  // Un invitado no puede usar el nombre de alguien del workspace.
+  if (!viewer.userId && (await memberNames(v.workspace_id)).has(name.toLowerCase())) throw new RecError('name_taken');
+  if (process.env.RATE_LIMIT_DISABLED !== 'true') {
+    const { rateLimit } = await import('./rate-limit');
+    const r = await rateLimit(`rec:comment:video:${v.id}`, 120, 600);
+    if (!r.ok) throw new RecError('rate_limited', 429);
+  }
   let parentId: string | null = null;
   if (input.parentId) {
     const p = (await getDb().prepare("SELECT id FROM rec_comments WHERE id = ? AND video_id = ? AND kind = 'comment' AND parent_id IS NULL").get(input.parentId, v.id)) as { id: string } | undefined;
@@ -900,15 +1207,9 @@ export async function addComment(
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(id, v.id, v.workspace_id, parentId, kind, body, emoji, at === null ? null : Math.round(at * 10) / 10, viewer.userId, name, viewer.key);
-  if (!viewer.isAuthor) {
-    await notifyAuthor(
-      v,
-      'rec_comment',
-      kind === 'comment' ? `${name} commented on "${v.title}": ${body.slice(0, 80)}` : `${name} reacted ${emoji} to "${v.title}"`,
-      kind === 'comment' ? { actorName: name } : { actorName: name, emoji: emoji ?? '' },
-    );
-  }
-  return (await listComments(v.id, viewer.key)).find((c) => c.id === id)!;
+  if (!viewer.isAuthor) await notifyCommentGrouped(v, name, kind, body, emoji);
+  const row = (await getDb().prepare('SELECT * FROM rec_comments WHERE id = ?').get(id)) as CommentRow;
+  return commentDto(row, viewer.key, v.created_by);
 }
 
 /** Borrar un comentario: quien lo escribió (misma clave de espectador) o quien administra el video. */
@@ -924,10 +1225,13 @@ export { normalizeChapters };
 
 /**
  * Grabaciones que nunca se cerraron (pestaña cerrada a mitad, subida caída):
- * a las 24 h se borran con sus partes. Lo corre el cron de cada minuto.
+ * a los 7 días se borran con sus partes (hasta entonces se pueden reanudar
+ * desde el navegador que las grabó). Lo corre el cron de cada minuto.
  */
+export const STALE_RECORDING_DAYS = 7;
+
 export async function cleanupStaleRecordings(limit = 20): Promise<number> {
-  const cutoff = new Date(Date.now() - 24 * 3600_000).toISOString().slice(0, 19).replace('T', ' ');
+  const cutoff = new Date(Date.now() - STALE_RECORDING_DAYS * 24 * 3600_000).toISOString().slice(0, 19).replace('T', ' ');
   const rows = (await getDb()
     .prepare("SELECT id, url, audio_url, thumb_url, gif_url FROM rec_videos WHERE status = 'recording' AND created_at < ? LIMIT ?")
     .all(cutoff, limit)) as Array<Pick<RecVideoRow, 'id' | 'url' | 'audio_url' | 'thumb_url' | 'gif_url'>>;
@@ -938,5 +1242,7 @@ export async function cleanupStaleRecordings(limit = 20): Promise<number> {
     await deleteRecParts(r.id).catch(() => undefined);
     await deleteUploads([r.url, r.audio_url, r.thumb_url, r.gif_url].filter((u): u is string => !!u));
   }
+  const { cleanEmptyPartDirs } = await import('./rec-upload');
+  await cleanEmptyPartDirs().catch(() => undefined);
   return rows.length;
 }

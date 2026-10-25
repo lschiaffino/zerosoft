@@ -402,3 +402,25 @@ dialog.rec-share { width: min(620px, calc(100vw - 32px)); }
   .rec-grid { grid-template-columns: minmax(0, 1fr); }
   .rec-detail-badges { margin-left: 0; width: 100%; }
 }
+
+/* ---------- Subida a prueba de cortes, recuperación, confirmaciones ---------- */
+
+.rec-upload-status { font-size: 0.8125rem; }
+.rec-net { color: var(--dim); }
+.rec-net.offline, .rec-net.waiting { color: var(--warn-ink); font-weight: 600; }
+.rec-confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.875rem; }
+.rec-pending { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; padding: 14px 16px; border: 1px solid var(--line); border-left: 4px solid var(--warn); border-radius: var(--radius-1); }
+section.rec-pending { padding-top: 14px; padding-bottom: 14px; }
+.rec-pending .ui-help { margin: 0; }
+.rec-pending-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rec-pending-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.rec-pending-name { min-width: 0; overflow-wrap: anywhere; }
+.rec-pending-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.rec-badge { display: inline-block; padding: 0 6px; font-size: 0.6875rem; line-height: 18px; border: 1px solid var(--line); border-radius: var(--radius-1); color: var(--dim); }
+.rec-badge.author { border-color: var(--c-rec); color: var(--ink); }
+
+/* Curva de retención: barras por tramo, alto = % de espectadores que lo vio. */
+.rec-retention { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.rec-retention-bars { display: flex; align-items: flex-end; gap: 2px; height: 80px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.rec-retention-bar { flex: 1; min-width: 2px; background: var(--c-rec); opacity: 0.85; }
+.rec-retention-axis { display: flex; justify-content: space-between; font-size: 0.75rem; }

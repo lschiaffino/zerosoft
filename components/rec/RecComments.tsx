@@ -14,8 +14,17 @@ export interface RecComment {
   emoji: string | null;
   atSec: number | null;
   authorName: string;
+  guest: boolean;
+  byAuthor: boolean;
   mine: boolean;
   createdAt: string;
+}
+
+interface Me {
+  name: string;
+  signedIn: boolean;
+  canModerate: boolean;
+  requireAccount: boolean;
 }
 
 const NAME_KEY = 'rec_viewer_name';
@@ -63,7 +72,10 @@ export default function RecComments({
   const locale = useLocale();
   const base = `/api/rec/v/${encodeURIComponent(shareId)}/comments`;
   const [items, setItems] = useState<RecComment[] | null>(null);
-  const [me, setMe] = useState<{ name: string; signedIn: boolean }>({ name: '', signedIn: false });
+  const [me, setMe] = useState<Me>({ name: '', signedIn: false, canModerate: false, requireAccount: false });
+  const [reactionCounts, setReactionCounts] = useState<Record<string, number>>({});
+  const [nextBefore, setNextBefore] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
   const [name, setName] = useState('');
   const [body, setBody] = useState('');
   const [atNow, setAtNow] = useState(true);
@@ -73,17 +85,24 @@ export default function RecComments({
   const [busy, setBusy] = useState(false);
   const [, force] = useState(0);
 
-  const load = useCallback(async () => {
-    const res = await fetch(base).catch(() => null);
-    if (!res?.ok) {
-      setError(t('errors.load'));
-      setItems([]);
-      return;
-    }
-    const data = (await res.json()) as { comments: RecComment[]; me: { name: string; signedIn: boolean } };
-    setItems(data.comments);
-    setMe(data.me);
-  }, [base, t]);
+  type Page = { comments: RecComment[]; reactions: Record<string, number>; reactionMarks: RecComment[]; nextBefore: string | null; total: number; me: Me };
+  const load = useCallback(
+    async (before?: string) => {
+      const res = await fetch(before ? `${base}?before=${encodeURIComponent(before)}` : base).catch(() => null);
+      if (!res?.ok) {
+        setError(t('errors.load'));
+        setItems((prev) => prev ?? []);
+        return;
+      }
+      const data = (await res.json()) as Page;
+      setItems((prev) => (before ? [...(prev ?? []), ...data.comments] : [...data.comments, ...data.reactionMarks]));
+      setReactionCounts(data.reactions);
+      setNextBefore(data.nextBefore);
+      setTotal(data.total);
+      setMe(data.me);
+    },
+    [base, t],
+  );
 
   useEffect(() => {
     setName(storedViewerName());
@@ -122,6 +141,8 @@ export default function RecComments({
     }
     const { comment } = (await res.json()) as { comment: RecComment };
     setItems((prev) => [...(prev ?? []), comment]);
+    if (comment.kind === 'reaction' && comment.emoji) setReactionCounts((c) => ({ ...c, [comment.emoji!]: (c[comment.emoji!] ?? 0) + 1 }));
+    else if (!comment.parentId) setTotal((n) => n + 1);
     return true;
   }
 
@@ -156,18 +177,16 @@ export default function RecComments({
     for (const c of items ?? []) if (c.parentId) m.set(c.parentId, [...(m.get(c.parentId) ?? []), c]);
     return m;
   }, [items]);
-  const counts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const c of items ?? []) if (c.kind === 'reaction' && c.emoji) m.set(c.emoji, (m.get(c.emoji) ?? 0) + 1);
-    return m;
-  }, [items]);
+  const counts = useMemo(() => new Map(Object.entries(reactionCounts)), [reactionCounts]);
+  const moderator = canModerate || me.canModerate;
+  const formOpen = allowComments && (me.signedIn || !me.requireAccount);
 
   const rel = (abs: number) => Math.max(0, abs - trimStart);
   const when = (d: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(d));
 
   return (
     <section className="rec-comments" aria-label={t('title')} data-testid="rec-comments">
-      {allowComments && (
+      {formOpen && (
         <div className="rec-reactions" role="group" aria-label={t('react')}>
           {REC_REACTIONS.map((e) => (
             <button key={e} type="button" className="rec-reaction" onClick={() => void react(e)} disabled={busy} aria-label={t('reactWith', { emoji: e })}>
@@ -187,6 +206,8 @@ export default function RecComments({
             <li key={c.id} className="rec-comment" data-testid="rec-comment">
               <div className="rec-comment-head">
                 <strong>{c.authorName}</strong>
+                {c.guest && <span className="rec-badge">{t('guest')}</span>}
+                {c.byAuthor && <span className="rec-badge author">{t('authorBadge')}</span>}
                 {c.atSec !== null && (
                   <button type="button" className="rec-time-link data" onClick={() => onSeek(rel(c.atSec as number))} aria-label={t('jumpTo', { time: fmtClock(rel(c.atSec as number)) })}>
                     {fmtClock(rel(c.atSec as number))}
@@ -196,12 +217,12 @@ export default function RecComments({
               </div>
               <p className="rec-comment-body">{c.body}</p>
               <div className="rec-comment-actions">
-                {allowComments && (
+                {formOpen && (
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setReplyTo(replyTo === c.id ? null : c.id)}>
                     {t('reply')}
                   </button>
                 )}
-                {(c.mine || canModerate) && (
+                {(c.mine || moderator) && (
                   <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => void remove(c.id)}>
                     {t('delete')}
                   </button>
@@ -213,10 +234,12 @@ export default function RecComments({
                     <li key={r.id} className="rec-comment rec-reply">
                       <div className="rec-comment-head">
                         <strong>{r.authorName}</strong>
+                        {r.guest && <span className="rec-badge">{t('guest')}</span>}
+                        {r.byAuthor && <span className="rec-badge author">{t('authorBadge')}</span>}
                         <span className="muted rec-comment-date">{when(r.createdAt)}</span>
                       </div>
                       <p className="rec-comment-body">{r.body}</p>
-                      {(r.mine || canModerate) && (
+                      {(r.mine || moderator) && (
                         <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => void remove(r.id)}>
                           {t('delete')}
                         </button>
@@ -258,7 +281,17 @@ export default function RecComments({
           ))}
         </ol>
       )}
-      {allowComments && (
+      {nextBefore && (
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => void load(nextBefore)} data-testid="rec-comments-more">
+          {t('more', { shown: comments.length, total })}
+        </button>
+      )}
+      {allowComments && !formOpen && (
+        <p className="ui-help" data-testid="rec-comments-signin">
+          {t('signinToComment')}
+        </p>
+      )}
+      {formOpen && (
         <form
           className="rec-comment-form"
           onSubmit={(e) => {

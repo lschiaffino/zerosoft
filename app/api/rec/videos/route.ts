@@ -32,6 +32,7 @@ const createSchema = z.object({
   contentType: z.string().max(80),
   folderId: z.string().max(60).nullable().optional(),
   space: z.enum(['personal', 'workspace']).optional(),
+  titleSource: z.enum(['auto', 'user']).optional(),
 });
 
 /** Arranca una grabación: crea la fila y dice cómo subir (Blob multipart o partes al servidor). */

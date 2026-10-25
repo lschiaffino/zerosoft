@@ -214,3 +214,77 @@ export function defaultTitle(prefix: string, date: Date, locale: string, timeZon
     return prefix;
   }
 }
+
+// ---------- Recorte para quien no es el autor ----------
+
+/** Clave del recorte vigente ("5:60", "0:" sin fin). La copia recortada y el resumen guardan para qué recorte se hicieron. */
+export function trimKey(start: number, end: number | null): string {
+  return `${Math.round((Number(start) || 0) * 10) / 10}:${end === null || end === undefined ? '' : Math.round(Number(end) * 10) / 10}`;
+}
+
+export function isTrimmed(start: number, end: number | null): boolean {
+  return (Number(start) || 0) > 0 || (end !== null && end !== undefined);
+}
+
+/** Segmentos de la transcripción dentro del recorte (los que se cruzan, recortados al borde). */
+export function segmentsInTrim(segments: RecSegment[], start: number, end: number | null): RecSegment[] {
+  const e = end ?? Infinity;
+  return segments
+    .filter((s) => s.end > start && s.start < e)
+    .map((s) => ({ ...s, start: Math.max(s.start, start), end: Math.min(s.end, e) }));
+}
+
+/** Capítulos dentro del recorte; el primero pasa a empezar donde empieza el recorte. */
+export function chaptersInTrim(chapters: RecChapter[], start: number, end: number | null): RecChapter[] {
+  const e = end ?? Infinity;
+  const inside = chapters.filter((c) => c.start < e);
+  const out: RecChapter[] = [];
+  for (let i = 0; i < inside.length; i++) {
+    const next = inside[i + 1]?.start ?? Infinity;
+    if (next <= start) continue;
+    out.push({ start: Math.max(inside[i].start, start), title: inside[i].title });
+  }
+  return out;
+}
+
+// ---------- Tiempo realmente visto ----------
+
+export type Range = [number, number];
+
+/** Unión de intervalos reproducidos (ordenados, sin solaparse). */
+export function mergeRanges(ranges: Range[], max = Infinity): Range[] {
+  const clean = ranges
+    .map(([a, b]) => [Math.max(0, Number(a) || 0), Math.min(max, Number(b) || 0)] as Range)
+    .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b) && b > a)
+    .sort((x, y) => x[0] - y[0]);
+  const out: Range[] = [];
+  for (const r of clean) {
+    const last = out[out.length - 1];
+    if (last && r[0] <= last[1] + 0.5) last[1] = Math.max(last[1], r[1]);
+    else out.push([r[0], r[1]]);
+  }
+  return out.slice(0, 500).map(([a, b]) => [Math.round(a * 10) / 10, Math.round(b * 10) / 10]);
+}
+
+export function coveredSeconds(ranges: Range[]): number {
+  return ranges.reduce((s, [a, b]) => s + (b - a), 0);
+}
+
+/** Porcentaje de un video realmente visto: segundos distintos reproducidos sobre la duración. */
+export function coveredPct(ranges: Range[], duration: number): number {
+  if (!(duration > 0)) return 0;
+  return Math.max(0, Math.min(100, Math.round((coveredSeconds(mergeRanges(ranges, duration)) / duration) * 100)));
+}
+
+/** Retención: para cada tramo (de `buckets`), qué parte de los espectadores lo vio. */
+export function retentionCurve(viewers: Range[][], duration: number, buckets = 20): number[] {
+  if (!(duration > 0) || viewers.length === 0) return Array.from({ length: buckets }, () => 0);
+  const size = duration / buckets;
+  return Array.from({ length: buckets }, (_, i) => {
+    const a = i * size;
+    const b = a + size;
+    const mid = (a + b) / 2;
+    const seen = viewers.filter((rs) => rs.some(([x, y]) => x <= mid && y >= mid)).length;
+    return Math.round((seen / viewers.length) * 100);
+  });
+}

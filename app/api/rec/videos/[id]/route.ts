@@ -1,4 +1,6 @@
-import { NextRequest } from 'next/server';
+import { after, NextRequest } from 'next/server';
+import { resummarizeForTrim } from '@/lib/rec-ai';
+import { recAiForcedOff } from '@/lib/rec-ai-flags';
 import { z } from 'zod';
 import { deleteVideo, getVideoRow, toDto, updateVideo } from '@/lib/rec';
 import { recActor, recFail, recJson } from '@/lib/rec-http';
@@ -36,6 +38,7 @@ const patchSchema = z
     ctaMode: z.enum(['always', 'end']),
     trimStart: z.number().min(0).max(86_400),
     trimEnd: z.number().min(0).max(86_400).nullable(),
+    commentsRequireAccount: z.boolean(),
   })
   .partial();
 
@@ -47,6 +50,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (!parsed.success) return recJson({ error: 'invalid_input' }, 400);
   try {
     await updateVideo(s.actor, id, parsed.data);
+    if (parsed.data.trimStart !== undefined || parsed.data.trimEnd !== undefined) {
+      const forceOff = await recAiForcedOff();
+      after(() => resummarizeForTrim(id, { forceOff }));
+    }
     const v = await getVideoRow(s.actor, id);
     return recJson({ video: toDto(v!, s.actor) });
   } catch (err) {

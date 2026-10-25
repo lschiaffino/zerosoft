@@ -197,3 +197,183 @@ export function readWebmDuration(bytes: Uint8Array): number | null {
   }
   return null;
 }
+
+// ============================================================
+// Recorte sin recodificar: header + los clusters del rango
+// ============================================================
+
+const ID_TRACKS = 0x1654ae6b;
+const ID_TRACK_ENTRY = 0xae;
+const ID_TRACK_NUMBER = 0xd7;
+const ID_TRACK_TYPE = 0x83;
+const ID_TIMECODE = 0xe7;
+const ID_SIMPLE_BLOCK = 0xa3;
+const ID_BLOCK_GROUP = 0xa0;
+const ID_BLOCK = 0xa1;
+const ID_REFERENCE_BLOCK = 0xfb;
+const CLUSTER_CHILDREN = new Set([ID_TIMECODE, ID_SIMPLE_BLOCK, ID_BLOCK_GROUP, 0xa7, 0xab, 0xec]);
+
+interface ClusterInfo {
+  start: number;
+  end: number;
+  timecode: number;
+  /** El primer bloque de video del cluster es keyframe (se puede empezar a decodificar acá). */
+  keyStart: boolean;
+}
+
+function readUInt(b: Uint8Array, pos: number, len: number): number {
+  let v = 0;
+  for (let i = 0; i < len; i++) v = v * 256 + b[pos + i];
+  return v;
+}
+
+/** Número de pista de un Block/SimpleBlock (vint con la marca sacada). */
+function blockTrack(b: Uint8Array, pos: number): number | null {
+  const s = readSize(b, pos);
+  return s ? s.value : null;
+}
+
+function videoTrackNumber(b: Uint8Array, start: number, end: number): number | null {
+  let p = start;
+  while (p < end) {
+    const id = readId(b, p);
+    const size = id && readSize(b, p + id.length);
+    if (!id || !size || size.unknown) return null;
+    const data = p + id.length + size.length;
+    if (id.value === ID_TRACK_ENTRY) {
+      let q = data;
+      let num: number | null = null;
+      let type: number | null = null;
+      while (q < data + size.value) {
+        const cid = readId(b, q);
+        const cs = cid && readSize(b, q + cid.length);
+        if (!cid || !cs || cs.unknown) break;
+        const cd = q + cid.length + cs.length;
+        if (cid.value === ID_TRACK_NUMBER) num = readUInt(b, cd, cs.value);
+        if (cid.value === ID_TRACK_TYPE) type = readUInt(b, cd, cs.value);
+        q = cd + cs.value;
+      }
+      if (type === 1 && num !== null) return num;
+    }
+    p = data + size.value;
+  }
+  return null;
+}
+
+/** Recorre un cluster (también de tamaño desconocido, como los de MediaRecorder) y devuelve dónde termina. */
+function scanCluster(b: Uint8Array, start: number, dataStart: number, size: Vint, videoTrack: number | null): ClusterInfo | null {
+  const limit = size.unknown ? b.length : Math.min(b.length, dataStart + size.value);
+  let p = dataStart;
+  let timecode = 0;
+  let keyStart: boolean | null = null;
+  while (p < limit) {
+    const id = readId(b, p);
+    const s = id && readSize(b, p + id.length);
+    if (!id || !s) break;
+    if (size.unknown && !CLUSTER_CHILDREN.has(id.value)) break;
+    if (s.unknown) return null;
+    const data = p + id.length + s.length;
+    if (data + s.value > b.length) break;
+    if (id.value === ID_TIMECODE) timecode = readUInt(b, data, s.value);
+    if (keyStart === null && id.value === ID_SIMPLE_BLOCK) {
+      const tr = blockTrack(b, data);
+      if (videoTrack === null || tr === videoTrack) {
+        const tl = readSize(b, data)!.length;
+        keyStart = (b[data + tl + 2] & 0x80) !== 0;
+      }
+    }
+    if (keyStart === null && id.value === ID_BLOCK_GROUP) {
+      let q = data;
+      let isVideo = false;
+      let ref = false;
+      while (q < data + s.value) {
+        const cid = readId(b, q);
+        const cs = cid && readSize(b, q + cid.length);
+        if (!cid || !cs || cs.unknown) break;
+        const cd = q + cid.length + cs.length;
+        if (cid.value === ID_BLOCK) isVideo = videoTrack === null || blockTrack(b, cd) === videoTrack;
+        if (cid.value === ID_REFERENCE_BLOCK) ref = true;
+        q = cd + cs.value;
+      }
+      if (isVideo) keyStart = !ref;
+    }
+    p = data + s.value;
+  }
+  return { start, end: size.unknown ? p : limit, timecode, keyStart: keyStart ?? videoTrack === null };
+}
+
+export interface WebmCut {
+  bytes: Uint8Array;
+  /** Desde qué milisegundo hay imagen (keyframe en o antes del inicio pedido). */
+  fromMs: number;
+  /** El inicio quedó cortado (false = no había keyframe antes del inicio y se mantuvo desde 0). */
+  startCut: boolean;
+}
+
+/**
+ * Copia del WebM solo con los clusters del rango [startMs, endMs): el header
+ * (EBML, Info con la duración nueva y Tracks) y desde el último cluster que
+ * empieza con keyframe en o antes del inicio hasta el último que empieza
+ * antes del fin. Sin recodificar. null si no se entiende la estructura.
+ */
+export function cutWebm(bytes: Uint8Array, startMs: number, endMs: number | null, durationMs: number): WebmCut | null {
+  const ebml = readId(bytes, 0);
+  if (!ebml || ebml.value !== ID_EBML) return null;
+  const ebmlSize = readSize(bytes, ebml.length);
+  if (!ebmlSize || ebmlSize.unknown) return null;
+  const headerEnd = ebml.length + ebmlSize.length + ebmlSize.value;
+  const seg = readId(bytes, headerEnd);
+  if (!seg || seg.value !== ID_SEGMENT) return null;
+  const segSize = readSize(bytes, headerEnd + seg.length);
+  if (!segSize) return null;
+  let pos = headerEnd + seg.length + segSize.length;
+  let info: [number, number] | null = null;
+  let tracks: [number, number] | null = null;
+  let videoTrack: number | null = null;
+  const clusters: ClusterInfo[] = [];
+  while (pos < bytes.length) {
+    const id = readId(bytes, pos);
+    const size = id && readSize(bytes, pos + id.length);
+    if (!id || !size) break;
+    const data = pos + id.length + size.length;
+    if (id.value === ID_CLUSTER) {
+      const c = scanCluster(bytes, pos, data, size, videoTrack);
+      if (!c || c.end <= pos) break;
+      clusters.push(c);
+      pos = c.end;
+      continue;
+    }
+    if (size.unknown) return null;
+    if (id.value === ID_INFO) info = [pos, data + size.value];
+    if (id.value === ID_TRACKS) {
+      tracks = [pos, data + size.value];
+      videoTrack = videoTrackNumber(bytes, data, data + size.value);
+    }
+    pos = data + size.value;
+  }
+  if (!info || !tracks || clusters.length === 0) return null;
+  const end = endMs ?? Infinity;
+  let first = 0;
+  for (let i = 0; i < clusters.length; i++) {
+    if (clusters[i].timecode > startMs) break;
+    if (clusters[i].keyStart) first = i;
+  }
+  const chosen = clusters.slice(first).filter((c, i) => i === 0 || c.timecode < end);
+  const parts: Uint8Array[] = [
+    bytes.subarray(0, headerEnd),
+    bytes.subarray(headerEnd, headerEnd + seg.length),
+    Uint8Array.from([0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]),
+    bytes.subarray(info[0], info[1]),
+    bytes.subarray(tracks[0], tracks[1]),
+    ...chosen.map((c) => bytes.subarray(c.start, c.end)),
+  ];
+  const total = parts.reduce((s, p) => s + p.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const p of parts) {
+    out.set(p, off);
+    off += p.length;
+  }
+  const dur = Number.isFinite(end) ? Math.min(end, durationMs || end) : durationMs;
+  return { bytes: patchWebmDuration(out, dur), fromMs: clusters[first].timecode, startCut: first > 0 || startMs === 0 };
+}

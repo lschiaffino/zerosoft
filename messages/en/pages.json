@@ -1212,7 +1212,7 @@
       },
       "f4": {
         "t": "Who watched it",
-        "d": "Views, unique viewers, how much each one watched, button clicks and the names of signed-in viewers. Export to CSV."
+        "d": "Views, unique viewers, how much each one really watched (skipping ahead does not count), a retention curve, button clicks and the names of signed-in viewers. Export to CSV."
       },
       "f5": {
         "t": "Transcript and summary",
@@ -1220,7 +1220,7 @@
       },
       "f6": {
         "t": "Edit and share",
-        "d": "Trim the start and the end, add a call to action, pick a thumbnail, embed the player anywhere and organize videos in folders."
+        "d": "Trim the start and the end (viewers of a WebM recording get the trimmed copy), add a call to action, pick a thumbnail, embed the player anywhere and organize videos in folders."
       },
       "steps": {
         "s1": {
@@ -1259,7 +1259,7 @@
         },
         "f4": {
           "q": "Who can watch a video?",
-          "a": "Anyone with the link, or only signed-in members of your workspace. You can add a password and an expiry date and turn downloads and comments on or off."
+          "a": "Anyone with the link, or only signed-in members of your workspace. You can add a password and an expiry date and turn comments on or off. Turning downloads off removes the download button, but a video that streams can still be captured."
         },
         "f5": {
           "q": "What is missing compared to Loom?",

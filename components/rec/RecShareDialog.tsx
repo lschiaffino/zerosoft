@@ -42,6 +42,7 @@ export default function RecShareDialog({
   const [allowDownload, setAllowDownload] = useState(video.allowDownload);
   const [allowComments, setAllowComments] = useState(video.allowComments);
   const [notify, setNotify] = useState(video.notify);
+  const [requireAccount, setRequireAccount] = useState(video.commentsRequireAccount);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export default function RecShareDialog({
       setAllowDownload(video.allowDownload);
       setAllowComments(video.allowComments);
       setNotify(video.notify);
+      setRequireAccount(video.commentsRequireAccount);
       d.showModal();
     }
     if (!open && d.open) d.close();
@@ -70,6 +72,7 @@ export default function RecShareDialog({
       allowDownload,
       allowComments,
       notify,
+      commentsRequireAccount: requireAccount,
     };
     if (password) patch.password = password;
     else if (removePw) patch.password = null;
@@ -146,11 +149,12 @@ export default function RecShareDialog({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
-                  minLength={4}
+                  minLength={8}
                   maxLength={200}
                   placeholder={video.hasPassword ? t('passwordSet') : ''}
                   disabled={privacy === 'workspace'}
                 />
+                <p className="ui-help">{t('passwordHelp')}</p>
                 {video.hasPassword && (
                   <label className="ui-check">
                     <input type="checkbox" checked={removePw} onChange={(e) => setRemovePw(e.target.checked)} />
@@ -172,9 +176,14 @@ export default function RecShareDialog({
                 <input type="checkbox" checked={allowDownload} onChange={(e) => setAllowDownload(e.target.checked)} />
                 <span>{t('allowDownload')}</span>
               </label>
+              <p className="ui-help">{t('downloadNote')}</p>
               <label className="ui-check">
                 <input type="checkbox" checked={allowComments} onChange={(e) => setAllowComments(e.target.checked)} />
                 <span>{t('allowComments')}</span>
+              </label>
+              <label className="ui-check">
+                <input type="checkbox" checked={requireAccount} onChange={(e) => setRequireAccount(e.target.checked)} disabled={!allowComments} />
+                <span>{t('requireAccount')}</span>
               </label>
               <label className="ui-check">
                 <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { vi } from 'vitest';
 import { clientIp, limitByIp, rateLimit } from '@/lib/rate-limit';
 
 describe('rate limit compartido (DB)', () => {
@@ -26,7 +27,16 @@ describe('rate limit compartido (DB)', () => {
     expect(Number(res?.headers.get('retry-after'))).toBeGreaterThan(0);
   });
 
-  it('toma la primera IP de x-forwarded-for', () => {
-    expect(clientIp(new Request('http://x', { headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8' } }))).toBe('1.2.3.4');
+  it('toma la primera IP de x-forwarded-for solo detrás de un proxy de confianza', () => {
+    const req = new Request('http://x', { headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8' } });
+    vi.stubEnv('VERCEL', '');
+    vi.stubEnv('TRUST_PROXY', '');
+    expect(clientIp(req)).toBe('untrusted');
+    vi.stubEnv('TRUST_PROXY', '1');
+    expect(clientIp(req)).toBe('1.2.3.4');
+    vi.stubEnv('TRUST_PROXY', '');
+    vi.stubEnv('VERCEL', '1');
+    expect(clientIp(req)).toBe('1.2.3.4');
+    vi.unstubAllEnvs();
   });
 });

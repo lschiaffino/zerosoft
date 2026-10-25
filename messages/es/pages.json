@@ -1212,7 +1212,7 @@
       },
       "f4": {
         "t": "Quién lo vio",
-        "d": "Vistas, espectadores únicos, cuánto vio cada uno, clics en el botón y el nombre de quien entró con sesión. Exportás a CSV."
+        "d": "Vistas, espectadores únicos, cuánto vio realmente cada uno (adelantar no cuenta), curva de retención, clics en el botón y el nombre de quien entró con sesión. Exportás a CSV."
       },
       "f5": {
         "t": "Transcripción y resumen",
@@ -1220,7 +1220,7 @@
       },
       "f6": {
         "t": "Editar y compartir",
-        "d": "Recortá el principio y el final, sumá una llamada a la acción, elegí la miniatura, insertá el reproductor donde quieras y ordená los videos en carpetas."
+        "d": "Recortá el principio y el final (en una grabación WebM los demás reciben la copia recortada), sumá una llamada a la acción, elegí la miniatura, insertá el reproductor donde quieras y ordená los videos en carpetas."
       },
       "steps": {
         "s1": {
@@ -1259,7 +1259,7 @@
         },
         "f4": {
           "q": "¿Quién puede ver un video?",
-          "a": "Cualquiera con el link, o solo los miembros de tu workspace con sesión iniciada. Le podés poner contraseña y fecha de vencimiento, y prender o apagar las descargas y los comentarios."
+          "a": "Cualquiera con el link, o solo los miembros de tu workspace con sesión iniciada. Le podés poner contraseña y fecha de vencimiento, y prender o apagar los comentarios. Apagar la descarga saca el botón, pero un video que se transmite se puede capturar igual."
         },
         "f5": {
           "q": "¿Qué falta frente a Loom?",

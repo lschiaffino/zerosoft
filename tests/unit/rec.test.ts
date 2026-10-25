@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { getDb, upsertUser } from '@/lib/db';
-import { patchWebmDuration, readWebmDuration } from '@/lib/rec-webm';
+import { cutWebm, patchWebmDuration, readWebmDuration } from '@/lib/rec-webm';
 import { encodeGif, fixedPalette, lzwEncode, paletteIndex } from '@/lib/rec-gif';
 import {
   chapterAt,
@@ -18,6 +18,11 @@ import {
   segmentsToVtt,
   trimmedDuration,
   viewStats,
+  chaptersInTrim,
+  coveredPct,
+  mergeRanges,
+  retentionCurve,
+  segmentsInTrim,
 } from '@/lib/rec-schema';
 import {
   addComment,
@@ -32,6 +37,10 @@ import {
   listComments,
   listVideos,
   publicAccess,
+  setTrimmedFile,
+  toDto,
+  toPublicDto,
+  videoFileFor,
   RecError,
   searchRec,
   setVideoFile,
@@ -75,6 +84,53 @@ describe('duración en el header WebM', () => {
     const junk = Uint8Array.from([1, 2, 3, 4]);
     expect(patchWebmDuration(junk, 1000)).toBe(junk);
     expect(patchWebmDuration(liveWebm(), 0)).toEqual(liveWebm());
+  });
+});
+
+/** WebM con pista de video y clusters de tamaño desconocido en 0, 2000 (sin keyframe) y 4000 ms. */
+function clusteredWebm(): Uint8Array {
+  const ebml = [0x1a, 0x45, 0xdf, 0xa3, 0x84, 0x42, 0x86, 0x81, 0x01];
+  const segment = [0x18, 0x53, 0x80, 0x67, 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff];
+  const infoBody = [0x2a, 0xd7, 0xb1, 0x83, 0x0f, 0x42, 0x40];
+  const info = [0x15, 0x49, 0xa9, 0x66, 0x80 | infoBody.length, ...infoBody];
+  const entry = [0xd7, 0x81, 0x01, 0x83, 0x81, 0x01];
+  const trackEntry = [0xae, 0x80 | entry.length, ...entry];
+  const tracks = [0x16, 0x54, 0xae, 0x6b, 0x80 | trackEntry.length, ...trackEntry];
+  const cluster = (tc: number[], key: boolean, payload: number) => [
+    0x1f, 0x43, 0xb6, 0x75, 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xe7, 0x80 | tc.length, ...tc,
+    0xa3, 0x85, 0x81, 0x00, 0x00, key ? 0x80 : 0x00, payload,
+  ];
+  return Uint8Array.from([...ebml, ...segment, ...info, ...tracks, ...cluster([0x00], true, 0x71), ...cluster([0x07, 0xd0], false, 0x72), ...cluster([0x0f, 0xa0], true, 0x73)]);
+}
+
+describe('recorte WebM sin recodificar', () => {
+  it('se queda con el header y los clusters del rango, desde el keyframe anterior al inicio', () => {
+    const src = clusteredWebm();
+    const has = (b: Uint8Array, x: number) => Array.from(b).includes(x);
+    // Inicio 4500: el cluster de 4000 tiene keyframe; fin abierto.
+    const a = cutWebm(src, 4500, null, 6000)!;
+    expect(a.fromMs).toBe(4000);
+    expect(a.startCut).toBe(true);
+    expect([has(a.bytes, 0x71), has(a.bytes, 0x72), has(a.bytes, 0x73)]).toEqual([false, false, true]);
+    expect(readWebmDuration(a.bytes)).toBeCloseTo(6000, 3);
+    // Inicio 2500: el cluster de 2000 no empieza con keyframe, se arranca en 0; fin 3000 deja afuera el de 4000.
+    const b = cutWebm(src, 2500, 3000, 6000)!;
+    expect(b.fromMs).toBe(0);
+    expect([has(b.bytes, 0x71), has(b.bytes, 0x72), has(b.bytes, 0x73)]).toEqual([true, true, false]);
+    expect(readWebmDuration(b.bytes)).toBeCloseTo(3000, 3);
+    expect(cutWebm(Uint8Array.from([1, 2, 3]), 0, null, 1)).toBeNull();
+  });
+});
+
+describe('tiempo visto y recorte para los demás', () => {
+  it('unión de intervalos, % visto, retención, transcripción y capítulos dentro del recorte', () => {
+    expect(mergeRanges([[5, 10], [0, 6], [20, 30], [29.8, 40]])).toEqual([[0, 10], [20, 40]]);
+    expect(coveredPct([[0, 10], [90, 100]], 100)).toBe(20);
+    expect(coveredPct([[0, 50], [0, 50]], 100)).toBe(50);
+    expect(retentionCurve([[[0, 100]], [[0, 50]]], 100, 4)).toEqual([100, 100, 50, 50]);
+    expect(segmentsInTrim([{ start: 0, end: 4, text: 'a' }, { start: 4, end: 8, text: 'b' }, { start: 9, end: 12, text: 'c' }], 5, 10).map((x) => [x.start, x.end, x.text])).toEqual([[5, 8, 'b'], [9, 10, 'c']]);
+    expect(chaptersInTrim([{ start: 0, title: 'A' }, { start: 30, title: 'B' }, { start: 70, title: 'C' }], 40, 60)).toEqual([{ start: 40, title: 'B' }]);
   });
 });
 
@@ -199,6 +255,7 @@ describe('rec-schema', () => {
 let uploads = '';
 const owner: RecActor = { ws: 'rec-owner', actor: 'rec-owner', admin: true, name: 'Owner' };
 const member: RecActor = { ws: 'rec-owner', actor: 'rec-member', admin: false, name: 'Member' };
+const mateActor = (): RecActor => ({ ws: 'rec-owner', actor: 'rec-mate', admin: false, name: 'Mate' });
 
 beforeAll(async () => {
   uploads = await mkdtemp(path.join(os.tmpdir(), 'rec-up-'));
@@ -247,42 +304,81 @@ describe('videos, carpetas y acceso', () => {
     expect((await listVideos(member, { kind: 'mine' })).map((x) => x.id)).toContain(mine.id);
     expect((await listVideos({ ...member, actor: 'otra-persona' }, { kind: 'mine' })).map((x) => x.id)).not.toContain(mine.id);
     expect(await getVideoRow({ ...member, actor: 'otra-persona' }, mine.id)).toBeNull();
+    // Lo personal es solo del autor: ni un admin del workspace lo ve ni lo edita (como en Loom).
+    expect(await getVideoRow(owner, mine.id)).toBeNull();
+    await expect(updateVideo(owner, mine.id, { title: 'x' })).rejects.toMatchObject({ code: 'not_found' });
+    expect((await listVideos(owner, { kind: 'all' })).map((x) => x.id)).not.toContain(mine.id);
     const folder = await createFolder(member, { name: 'Ventas', space: 'workspace' });
     await updateVideo(member, mine.id, { folderId: folder.id });
     const moved = (await getVideoRow(member, mine.id))!;
     expect(moved.space).toBe('workspace');
     expect((await listVideos({ ...member, actor: 'otra-persona' }, { kind: 'folder', folderId: folder.id })).map((x) => x.id)).toEqual([mine.id]);
     expect((await searchRec({ ...member, actor: 'otra-persona' }, 'Ventas')).map((x) => x.kind)).toEqual(['folder']);
-    // Otro miembro lo ve pero no lo puede editar.
+    // Otro miembro lo ve pero no lo puede editar; un admin sí (espacio del workspace).
     await expect(updateVideo({ ...member, actor: 'otra-persona' }, mine.id, { title: 'x' })).rejects.toMatchObject({ code: 'forbidden' });
+    await updateVideo(owner, mine.id, { description: 'admin' });
     await deleteFolder(member, folder.id);
     expect((await getVideoRow(member, mine.id))!.folder_id).toBeNull();
   });
 
   it('privacidad: contraseña, vencimiento y solo workspace', async () => {
     const v = await readyVideo(owner, 'Privado');
-    await updateVideo(owner, v.id, { password: 'clave1' });
+    const anon = { ws: null, userId: null };
+    const author = { ws: owner.ws, userId: owner.actor };
+    const mate = { ws: owner.ws, userId: 'rec-member' };
+    await expect(updateVideo(owner, v.id, { password: 'corta' })).rejects.toMatchObject({ code: 'invalid_password' });
+    await updateVideo(owner, v.id, { password: 'clave-uno' });
     let row = (await getPublicVideoRow(v.share_id))!;
-    expect(await verifyPassword('clave1', row.password_hash)).toBe(true);
+    // Con contraseña la descarga arranca apagada.
+    expect(row.allow_download).toBe(0);
+    expect(await verifyPassword('clave-uno', row.password_hash)).toBe(true);
     expect(await verifyPassword('otra', row.password_hash)).toBe(false);
-    expect(publicAccess(row, null, null)).toBe('password');
-    expect(publicAccess(row, null, unlockToken(row))).toBe('ok');
-    expect(publicAccess(row, owner.ws, null)).toBe('ok');
-    await updateVideo(owner, v.id, { password: 'clave2' });
+    expect(publicAccess(row, anon, null)).toBe('password');
+    expect(publicAccess(row, anon, unlockToken(row))).toBe('ok');
+    expect(publicAccess(row, author, null)).toBe('ok');
+    // Un miembro del workspace respeta la contraseña como cualquiera: solo el autor saltea.
+    expect(publicAccess(row, mate, null)).toBe('password');
+    await updateVideo(owner, v.id, { password: 'clave-dos' });
     const before = unlockToken(row);
     row = (await getPublicVideoRow(v.share_id))!;
-    expect(publicAccess(row, null, before)).toBe('password');
+    expect(publicAccess(row, anon, before)).toBe('password');
     await updateVideo(owner, v.id, { expiresAt: new Date(Date.now() - 1000).toISOString() });
     row = (await getPublicVideoRow(v.share_id))!;
-    expect(publicAccess(row, null, unlockToken(row))).toBe('expired');
+    expect(publicAccess(row, anon, unlockToken(row))).toBe('expired');
+    expect(publicAccess(row, mate, unlockToken(row))).toBe('expired');
+    expect(publicAccess(row, author, null)).toBe('ok');
     await updateVideo(owner, v.id, { expiresAt: null, password: null, privacy: 'workspace' });
     row = (await getPublicVideoRow(v.share_id))!;
-    expect(publicAccess(row, null, null)).toBe('signin');
-    expect(publicAccess(row, 'otro-ws', null)).toBe('forbidden');
+    expect(publicAccess(row, anon, null)).toBe('signin');
+    expect(publicAccess(row, { ws: 'otro-ws', userId: 'x' }, null)).toBe('forbidden');
+    expect(publicAccess(row, mate, null)).toBe('ok');
     await expect(updateVideo(owner, v.id, { ctaLabel: 'Agendá', ctaUrl: 'ftp://x' })).rejects.toMatchObject({ code: 'invalid_cta_url' });
-    await updateVideo(owner, v.id, { ctaLabel: 'Agendá', ctaUrl: 'cal.com/demo', trimStart: 3, trimEnd: 60, chaptersText: '0:00 Intro\n0:40 Demo' });
+    // WebM: el recorte necesita antes la copia cortada (si no, lo recortado se podría bajar).
+    await expect(updateVideo(owner, v.id, { trimStart: 3, trimEnd: 60 })).rejects.toMatchObject({ code: 'trim_needs_cut' });
+    await expect(updateVideo(owner, v.id, { trimStart: 30, trimEnd: 10 })).rejects.toMatchObject({ code: 'invalid_trim' });
+    await setTrimmedFile(v.id, '/uploads/rec/cut.webm', '3:60');
+    await updateVideo(owner, v.id, { ctaLabel: 'Agendá', ctaUrl: 'cal.com/demo', trimStart: 3, trimEnd: 60, chaptersText: '0:00 Intro\n0:40 Demo\n1:10 Fuera' });
     row = (await getPublicVideoRow(v.share_id))!;
     expect([row.cta_url, row.trim_start, row.trim_end, row.chapters_source]).toEqual(['https://cal.com/demo', 3, 60, 'user']);
+    expect(videoFileFor(row, false)).toBe('/uploads/rec/cut.webm');
+    expect(videoFileFor(row, true)).toBe(row.url);
+    // Los demás no ven capítulos, transcripción ni resumen de lo recortado.
+    await getDb().prepare('UPDATE rec_videos SET transcript = ?, summary = ? WHERE id = ?').run(
+      JSON.stringify([{ start: 0, end: 2, text: 'secreto al inicio' }, { start: 10, end: 12, text: 'parte visible' }, { start: 65, end: 70, text: 'secreto al final' }]),
+      'Resumen viejo',
+      v.id,
+    );
+    row = (await getPublicVideoRow(v.share_id))!;
+    const pub = toPublicDto(row);
+    expect(pub.transcript.map((x) => x.text)).toEqual(['parte visible']);
+    expect(pub.chapters).toEqual([{ start: 3, title: 'Intro' }, { start: 40, title: 'Demo' }]);
+    expect(pub.summary).toBe('');
+    expect(toPublicDto(row, true).transcript.length).toBe(3);
+    expect(toDto(row, owner).transcript.length).toBe(3);
+    await updateVideo(owner, v.id, { privacy: 'link', space: 'workspace' });
+    expect((await searchRec(mateActor(), 'secreto')).length).toBe(0);
+    expect((await searchRec(mateActor(), 'visible')).length).toBe(1);
+    expect((await searchRec(owner, 'secreto')).length).toBe(1);
   });
 });
 
@@ -293,18 +389,27 @@ describe('vistas, comentarios y avisos', () => {
     expect(await trackRecView(v, author, {})).toEqual({ viewId: null });
     const ana = { key: 'a:ana', userId: null, name: 'Ana', isAuthor: false };
     const first = await trackRecView(v, ana, { duration: 100 });
-    await trackRecView(v, ana, { viewId: first.viewId!, watched: 50, position: 50, duration: 100, cta: true });
+    await trackRecView(v, ana, { viewId: first.viewId!, watched: 50, position: 50, duration: 100, cta: true, ranges: [[0, 50]] });
     // Otra vista de Ana y una de Beto.
     await trackRecView(v, ana, { duration: 100 });
     const beto = await trackRecView(v, { key: 'u:beto', userId: 'beto', name: 'Beto', isAuthor: false }, { duration: 100 });
-    await trackRecView(v, { key: 'u:beto', userId: 'beto', name: 'Beto', isAuthor: false }, { viewId: beto.viewId!, watched: 60, position: 100 });
+    await trackRecView(v, { key: 'u:beto', userId: 'beto', name: 'Beto', isAuthor: false }, { viewId: beto.viewId!, watched: 60, position: 100, ranges: [[0, 60]] });
+    await trackRecView(v, { key: 'u:beto', userId: 'beto', name: 'Beto', isAuthor: false }, { viewId: beto.viewId!, watched: 100, position: 100, ranges: [[0, 60], [55, 100]] });
+    // Adelantar no cuenta: Caro vio 0–10 y 90–100, es el 20 %.
+    const caro = await trackRecView(v, { key: 'a:caro', userId: null, name: '', isAuthor: false }, { duration: 100, ranges: [[0, 10]] });
+    await trackRecView(v, { key: 'a:caro', userId: null, name: '', isAuthor: false }, { viewId: caro.viewId!, position: 100, ranges: [[90, 100]] });
     // Un viewId ajeno no suma.
     expect(await trackRecView(v, ana, { viewId: beto.viewId!, watched: 99, position: 99 })).toEqual({ viewId: null });
     const a = await getAnalytics(owner, v.id);
-    expect([a.views, a.unique, a.avgPct, a.completed, a.ctaClicks]).toEqual([3, 2, 75, 1, 1]);
+    expect([a.views, a.unique, a.avgPct, a.completed, a.ctaClicks]).toEqual([4, 3, 57, 1, 1]);
+    expect(a.viewers.find((x) => x.viewerKey === 'a:caro')?.pct).toBe(20);
+    expect(a.retention.length).toBe(20);
+    expect(a.retention[0]).toBe(100);
+    // La analítica es de quien administra.
+    await expect(getAnalytics(mateActor(), v.id)).rejects.toBeTruthy();
     expect(a.viewers.find((x) => x.name === 'Beto')?.signedIn).toBe(true);
     const notes = (await getDb().prepare("SELECT title FROM notifications WHERE user_id = ? AND type = 'rec_view' AND source_id = ?").all('rec-owner', v.id)) as Array<{ title: string }>;
-    expect(notes.length).toBe(2);
+    expect(notes.length).toBe(3);
   });
 
   it('comentarios y reacciones con el segundo, respuestas, borrar y aviso al autor', async () => {
@@ -316,14 +421,32 @@ describe('vistas, comentarios y avisos', () => {
     await expect(addComment(v, { ...ana, name: '' }, { kind: 'comment', body: 'x' })).rejects.toMatchObject({ code: 'name_required' });
     const r = await addComment(v, { key: 'u:rec-owner', userId: 'rec-owner', name: 'Owner', isAuthor: true }, { kind: 'comment', body: 'Lo agrego', parentId: c.id, atSec: 50 });
     expect(r.atSec).toBeNull();
-    const list = await listComments(v.id, ana.key);
-    expect(list.filter((x) => x.mine).length).toBe(2);
-    const types = (await getDb().prepare("SELECT meta FROM notifications WHERE source_id = ? AND type = 'rec_comment'").all(v.id)) as Array<{ meta: string }>;
-    expect(types.length).toBe(2);
-    expect(JSON.parse(types.find((x) => x.meta.includes('emoji'))!.meta).emoji).toBe('🎉');
+    const page = await listComments(v, ana.key);
+    expect(page.comments.filter((x) => x.mine).length).toBe(1);
+    expect(page.reactions).toEqual({ '🎉': 1 });
+    expect(page.reactionMarks[0].mine).toBe(true);
+    expect(page.comments.find((x) => x.id === r.id)?.byAuthor).toBe(true);
+    expect(page.comments.find((x) => x.id === c.id)?.guest).toBe(true);
+    // Avisos agrupados: un solo aviso sin leer con la cuenta.
+    const types = (await getDb().prepare("SELECT meta, title FROM notifications WHERE source_id = ? AND type = 'rec_comment'").all(v.id)) as Array<{ meta: string; title: string }>;
+    expect(types.length).toBe(1);
+    expect(JSON.parse(types[0].meta).count).toBe(2);
+    // Un invitado no puede usar el nombre de alguien del workspace.
+    await expect(addComment(v, { ...ana, name: 'Owner' }, { kind: 'comment', body: 'x' })).rejects.toMatchObject({ code: 'name_taken' });
+    await expect(addComment(v, { ...ana, name: 'rec-owner' }, { kind: 'comment', body: 'x' })).rejects.toMatchObject({ code: 'name_taken' });
+    // Paginación: de a 50, los más nuevos primero.
+    for (let i = 0; i < 55; i++) await addComment(v, { ...ana, name: 'Lote' }, { kind: 'comment', body: `n${i}`, atSec: i });
+    const p1 = await listComments(v, null);
+    expect(p1.comments.filter((x) => !x.parentId).length).toBe(50);
+    expect(p1.total).toBe(56);
+    const p2 = await listComments(v, null, { before: p1.nextBefore });
+    expect(p2.comments.filter((x) => !x.parentId).length).toBeGreaterThan(0);
     await expect(deleteComment(v, c.id, { ...ana, key: 'a:otro' }, null)).rejects.toMatchObject({ code: 'forbidden' });
     await deleteComment(v, c.id, ana, null);
-    expect((await listComments(v.id, null)).length).toBe(1);
+    expect((await listComments(v, null)).total).toBe(55);
+    await updateVideo(owner, v.id, { commentsRequireAccount: true });
+    const acc = (await getVideoRow(owner, v.id))!;
+    await expect(addComment(acc, ana, { kind: 'comment', body: 'x' })).rejects.toMatchObject({ code: 'signin_required' });
     await updateVideo(owner, v.id, { allowComments: false });
     const off = (await getVideoRow(owner, v.id))!;
     await expect(addComment(off, ana, { kind: 'comment', body: 'x' })).rejects.toMatchObject({ code: 'comments_off' });
