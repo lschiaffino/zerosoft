@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { mediaKind, previewToken } from '@/lib/groups-rules';
+import { parseDbUtc } from '@/lib/utils';
 
 /** fetch con JSON: devuelve { data } o { error: código }. Nunca tira. */
 export async function api<T = Record<string, unknown>>(
@@ -32,7 +33,10 @@ export function useErrorText() {
   return useCallback(
     (code: string | null | undefined) => {
       if (!code) return '';
-      const base = code.split(':')[0];
+      const [base, ...rest] = code.split(':');
+      // Con detalle (ej. missing_columns:empresa plan) se dice qué falta, si hay texto para eso.
+      const detail = rest.join(':').trim();
+      if (detail && t.has(`${base}_detail`)) return t(`${base}_detail`, { detail: detail.split(/\s+/).join(', ') });
       return t.has(base) ? t(base) : t('generic');
     },
     [t],
@@ -81,7 +85,7 @@ export function useRelativeTime() {
   const locale = useLocale();
   return (iso: string | null | undefined, now = Date.now()) => {
     if (!iso) return '';
-    const diff = Math.max(0, now - Date.parse(iso));
+    const diff = Math.max(0, now - parseDbUtc(iso).getTime());
     const min = Math.floor(diff / 60_000);
     if (min < 1) return t('now');
     if (min < 60) return t('min', { n: min });
@@ -89,7 +93,7 @@ export function useRelativeTime() {
     if (h < 24) return t('hours', { n: h });
     const d = Math.floor(h / 24);
     if (d < 7) return t('days', { n: d });
-    return new Date(iso).toLocaleDateString(locale);
+    return parseDbUtc(iso).toLocaleDateString(locale);
   };
 }
 

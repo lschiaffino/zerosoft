@@ -7,6 +7,7 @@ import type { CalendarBookingRowWithEvent } from '@/lib/calendar';
 import { parseUtm } from '@/lib/calendar-redirect';
 import { answerText } from '@/lib/calendar-questions';
 import { isLocationKind } from '@/lib/calendar-locations';
+import { parseDbUtc } from '@/lib/utils';
 
 type Status = '' | 'confirmed' | 'pending' | 'cancelled' | 'no_show';
 
@@ -222,7 +223,7 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
     const last = groups[groups.length - 1];
     if (last && last.key === key) last.rows.push(b);
     else {
-      const label = dayHeading.format(new Date(b.starts_at));
+      const label = dayHeading.format(parseDbUtc(b.starts_at));
       groups.push({ key, label: label.charAt(0).toUpperCase() + label.slice(1), rows: [b] });
     }
   }
@@ -574,7 +575,7 @@ function ReschedulePanel({
 }) {
   const t = useTranslations('calendar');
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  const [date, setDate] = useState(localDay(new Date(Math.max(Date.now(), new Date(booking.starts_at).getTime()))));
+  const [date, setDate] = useState(localDay(new Date(Math.max(Date.now(), parseDbUtc(booking.starts_at).getTime()))));
   const [slots, setSlots] = useState<Array<{ start: string }> | null>(null);
   const [busy, setBusy] = useState(false);
 

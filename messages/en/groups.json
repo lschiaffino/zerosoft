@@ -357,6 +357,8 @@
       "flow": "Flow"
     },
     "resolvedAt": "Resolved {time} ago",
+    "resolvedJustNow": "Resolved just now",
+    "resolvedOn": "Resolved on {date}",
     "breached": "Overdue"
   },
   "priority": {
@@ -768,6 +770,7 @@
     "missing_fields": "Complete the required fields first.",
     "date_in_past": "Pick a time in the future.",
     "missing_columns": "The CSV is missing a column for a template variable.",
+    "missing_columns_detail": "The CSV needs a column for each template variable. Missing: {detail}.",
     "polls_unsupported": "Polls need a WAHA or Evolution number. The Meta Cloud API has no polls.",
     "poll_question": "Write the poll question.",
     "poll_options": "A poll needs at least 2 different options.",
@@ -835,6 +838,7 @@
     "recording": "Recording",
     "someone": "Someone",
     "assigned": "{by} assigned this chat to {to}",
+    "assignedSelf": "{by} assigned the chat to themselves",
     "unassigned": "{by} removed the assignee",
     "autoAssigned": "Assigned to {to} by the rule {rule}",
     "team": "{by} moved this chat to {team}",

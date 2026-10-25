@@ -7,6 +7,7 @@ import BookMeetingMenu from '@/components/crm/BookMeetingMenu';
 import CrmIcon from './CrmIcon';
 import PhoneTouch from './PhoneTouch';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
+import { parseDbUtc } from '@/lib/utils';
 
 export type PreviewType = 'contact' | 'company' | 'deal';
 
@@ -141,7 +142,7 @@ function formatDate(iso: string, locale: string): string {
       return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
     }
     return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(
-      new Date(iso.includes('T') ? iso : `${iso.replace(' ', 'T')}Z`),
+      parseDbUtc(iso),
     );
   } catch {
     return iso;

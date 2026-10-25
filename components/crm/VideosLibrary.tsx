@@ -9,6 +9,7 @@ import CopyButton from '@/components/link/CopyButton';
 import VideoRecorder from './VideoRecorder';
 import { uploadMedia } from './mediaUpload';
 import { fmtDuration } from '@/lib/crm-media-schema';
+import { parseDbUtc } from '@/lib/utils';
 
 export interface VideoItem {
   id: string;
@@ -95,7 +96,7 @@ export default function VideosLibrary({ initial, direct, baseUrl }: { initial: V
   }
 
   const fmt = (d: string | null) =>
-    d ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(`${d.replace(' ', 'T')}Z`)) : '';
+    d ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(d)) : '';
 
   const actions = (
     <div className="media-toolbar-actions">

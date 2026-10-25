@@ -40,6 +40,7 @@ import RunsPanel, { type RunDetail } from './RunsPanel';
 import StepTest from './StepTest';
 import VersionsPanel from './VersionsPanel';
 import { autoConnectHandle, CATEGORY_ORDER, flattenPaths, i18nKey, nodeApp } from './flow-ui';
+import { parseDbUtc } from '@/lib/utils';
 
 interface Props {
   flow: FlowDto;
@@ -716,7 +717,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
     if (selected.data.type === 'trigger.schedule' && flow.enabled && flow.nextRunAt) {
       return (
         <p className="ui-help" suppressHydrationWarning>
-          {t('editor.nextRun')}: {new Date(flow.nextRunAt).toLocaleString()}
+          {t('editor.nextRun')}: {parseDbUtc(flow.nextRunAt).toLocaleString()}
         </p>
       );
     }

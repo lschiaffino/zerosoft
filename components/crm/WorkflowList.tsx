@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { Workflow } from '@/lib/crm-workflows';
+import { parseDbUtc } from '@/lib/utils';
 
 /**
  * Lista de workflows en una tabla densa: nombre, cuándo corre, cuántas
@@ -61,7 +62,7 @@ export default function WorkflowList({ workflows, canEdit }: { workflows: Workfl
                   {wf.actions.length}
                 </td>
                 <td className="data" data-label={t('updated')}>
-                  {fmt.format(new Date(`${wf.updated_at.replace(' ', 'T')}Z`))}
+                  {fmt.format(parseDbUtc(wf.updated_at))}
                 </td>
                 <td className="crm-stack-state">
                   <label className="ui-switch">

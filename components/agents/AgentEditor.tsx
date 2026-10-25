@@ -29,6 +29,7 @@ import AgentAnalytics from './AgentAnalytics';
 import AgentTests, { testSummary } from './AgentTests';
 import AgentSecretHeaders from './AgentSecretHeaders';
 import { api, chatLabels, errorText } from './agents-ui';
+import { parseDbUtc } from '@/lib/utils';
 
 export interface EditorRefs {
   docsPages: Array<{ id: string; title: string; isPublic: boolean }>;
@@ -919,7 +920,7 @@ export default function AgentEditor(props: Props) {
                               <>
                                 {' · '}
                                 <time dateTime={row.fetchedAt} suppressHydrationWarning>
-                                  {t('knowledge.syncedAt', { when: format.relativeTime(new Date(row.fetchedAt)) })}
+                                  {t('knowledge.syncedAt', { when: format.relativeTime(parseDbUtc(row.fetchedAt)) })}
                                 </time>
                               </>
                             )}

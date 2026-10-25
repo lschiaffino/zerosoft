@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import RowTools from './RowTools';
+import { parseDbUtc } from '@/lib/utils';
 
 interface Person {
   id: string;
@@ -86,7 +87,7 @@ export default function AssignmentPanel({ rule, unavailable, history, people, se
   }
 
   const fmt = (ts: string) =>
-    new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(`${ts.replace(' ', 'T')}Z`));
+    new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(ts));
 
   return (
     <div className="assign-panel">

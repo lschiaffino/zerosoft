@@ -9,6 +9,7 @@ import { formatMoney } from '@/lib/crm-money';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import ApprovalRowActions from '@/components/crm/ApprovalRowActions';
+import { parseDbUtc } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +51,7 @@ export default async function ApprovalsPage(props: {
     visible = rows.filter((r) => ok.has(r.deal_id));
   }
   const name = new Map(members.map((m) => [m.user_id, m.name || m.email]));
-  const fmt = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(`${iso.replace(' ', 'T')}Z`));
+  const fmt = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(iso));
 
   return (
     <div className="app-page ui-page">

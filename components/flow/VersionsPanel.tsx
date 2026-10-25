@@ -5,6 +5,7 @@ import { useFormatter, useNow, useTranslations } from 'next-intl';
 import EmptyState from '@/components/ui/EmptyState';
 import type { FlowDto, FlowVersionDto } from '@/lib/flow';
 import { i18nKey } from './flow-ui';
+import { parseDbUtc } from '@/lib/utils';
 
 interface Props {
   flowId: string;
@@ -108,7 +109,7 @@ export default function VersionsPanel({ flowId, currentVersion, canEdit, dirty, 
               <li key={v.id} className="flow-version" aria-current={current ? 'true' : undefined}>
                 <div className="flow-version-main">
                   <span className="flow-version-n data">v{v.version}</span>
-                  <span suppressHydrationWarning>{format.relativeTime(new Date(v.createdAt), now)}</span>
+                  <span suppressHydrationWarning>{format.relativeTime(parseDbUtc(v.createdAt), now)}</span>
                   <span className="flow-muted">{t('nodes', { n: v.nodeCount })}</span>
                   {current && <span className="badge badge-ink">{t('current')}</span>}
                 </div>

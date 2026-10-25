@@ -30,6 +30,7 @@ import {
   stepIndex,
   type NotesFilter,
 } from './notes-ui';
+import { parseDbUtc } from '@/lib/utils';
 
 export type { NotesFilter } from './notes-ui';
 
@@ -625,7 +626,7 @@ export default function NotesApp({
   }, [filter, notebooks, t]);
 
   const relTime = (iso: string) => {
-    const d = new Date(iso);
+    const d = parseDbUtc(iso);
     const diff = now - d.getTime();
     if (diff < 60_000) return t('list.justNow');
     if (diff < 7 * 86_400_000) return format.relativeTime(d, new Date(now));

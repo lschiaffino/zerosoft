@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { ReportSource, ReportViz } from '@/lib/crm-report-builder';
+import { parseDbUtc } from '@/lib/utils';
 
 export interface CustomReportItem {
   id: string;
@@ -53,7 +54,7 @@ export default function CustomReportsList({ reports, locale }: { reports: Custom
   }
 
   const date = (s: string) =>
-    new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${s.replace(' ', 'T')}Z`));
+    new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(parseDbUtc(s));
 
   return (
     <div className="rb-list">
@@ -117,10 +118,10 @@ export default function CustomReportsList({ reports, locale }: { reports: Custom
                     <div className="rb-list-actions">
                       {deleting === r.id ? (
                         <>
-                          <button type="button" className="btn btn-small btn-danger" autoFocus onClick={() => void remove(r.id)} onKeyDown={(e) => e.key === 'Escape' && setDeleting(null)}>
+                          <button type="button" className="btn btn-small btn-danger" onClick={() => void remove(r.id)} onKeyDown={(e) => e.key === 'Escape' && setDeleting(null)}>
                             {t('common.delete')}
                           </button>
-                          <button type="button" className="btn btn-small btn-ghost" onClick={() => setDeleting(null)}>
+                          <button type="button" className="btn btn-small btn-ghost" onClick={() => setDeleting(null)} autoFocus onKeyDown={(e) => e.key === 'Escape' && setDeleting(null)}>
                             {t('common.cancel')}
                           </button>
                         </>

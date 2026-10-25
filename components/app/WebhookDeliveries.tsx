@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { WebhookDeliveryDto } from '@/lib/webhooks';
+import { parseDbUtc } from '@/lib/utils';
 
 /**
  * Log de entregas de un webhook (modal): evento, estado, código, intentos y
@@ -53,7 +54,7 @@ export default function WebhookDeliveries({
 
   const fmt = (iso: string | null) => {
     if (!iso) return '';
-    const d = new Date(iso.includes('T') ? iso : `${iso.replace(' ', 'T')}Z`);
+    const d = parseDbUtc(iso);
     return Number.isNaN(d.getTime()) ? iso : new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'medium' }).format(d);
   };
 

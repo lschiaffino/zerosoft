@@ -193,7 +193,7 @@ test('webhooks: filtro de propiedades, log de entregas y reenviar', async ({ pag
     .poll(async () => (await ok<{ rows: unknown[] }>(request.get(`/api/webhooks/${hook.id}/deliveries`))).rows.length)
     .toBe(1);
 
-  await page.goto('/en/app/settings/workspace', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/settings/api', { waitUntil: 'networkidle' });
   await page.getByRole('group', { name: 'Contacts' }).getByRole('checkbox', { name: 'Contact property changed' }).check();
   await expect(page.getByTestId('webhook-property-filter')).toBeVisible();
   const row = page.getByRole('row').filter({ hasText: 'http://127.0.0.1:9/e2e' }).first();

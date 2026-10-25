@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation';
 import type { GroupsPerson } from '@/lib/groups';
 import type { GroupTaskDto } from '@/lib/groups-tasks';
 import { Modal, api, useErrorText } from './ui';
+import { parseDbUtc } from '@/lib/utils';
 
 /** Evento que avisa que cambió una tarea (la lista del chat y la de Tareas se recargan). */
 export const TASKS_CHANGED = 'zs:groups-tasks-changed';
@@ -20,7 +21,7 @@ export function localToIso(v: string): string | null {
 /** ISO → valor de un input datetime-local en la hora del navegador. */
 export function isoToLocal(iso: string | null): string {
   if (!iso) return '';
-  const d = new Date(iso);
+  const d = parseDbUtc(iso);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
@@ -220,7 +221,7 @@ export function ChatTasksSection({ chatId, people, me }: { chatId: string; peopl
               <span className="gr-task-main">
                 <span className="gr-task-title">{task.title}</span>
                 <span className="ui-help">
-                  {task.dueAt ? new Date(task.dueAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' }) : t('tasks.noDate')}
+                  {task.dueAt ? parseDbUtc(task.dueAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' }) : t('tasks.noDate')}
                   {task.ownerName ? ` · ${task.ownerName}` : ''}
                 </span>
               </span>

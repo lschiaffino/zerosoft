@@ -10,6 +10,7 @@ import {
   insertMention,
   type DocsCommentThread,
 } from '@/lib/docs-comments';
+import { parseDbUtc } from '@/lib/utils';
 
 interface CommentsPanelLabels {
   title: string;
@@ -356,10 +357,10 @@ export default function CommentsPanel({
           <time
             className="docs-comment-date num"
             dateTime={comment.created_at}
-            title={format.dateTime(new Date(comment.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
+            title={format.dateTime(parseDbUtc(comment.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
             suppressHydrationWarning
           >
-            {format.relativeTime(new Date(comment.created_at), now)}
+            {format.relativeTime(parseDbUtc(comment.created_at), now)}
           </time>
         </div>
         {renderBody(comment.body)}

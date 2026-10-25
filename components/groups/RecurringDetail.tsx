@@ -8,6 +8,7 @@ import type { RecurringDto } from '@/lib/groups-recurring';
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { ChatPlate, api, useErrorText, useToast } from './ui';
 import { PollFields, RecurrenceFields, checkRule, endsIso, useRuleText } from './RecurringParts';
+import { parseDbUtc } from '@/lib/utils';
 
 interface Run {
   id: string;
@@ -44,7 +45,7 @@ export default function RecurringDetail({
   const [poll, setPoll] = useState(initial.poll ?? { question: '', options: ['', ''], multi: false });
   const [rule, setRule] = useState<RecurrenceRule>(initial.rule);
   const [timezone, setTimezone] = useState(initial.timezone);
-  const [endsAt, setEndsAt] = useState(initial.endsAt ? new Date(initial.endsAt).toLocaleDateString('en-CA') : '');
+  const [endsAt, setEndsAt] = useState(initial.endsAt ? parseDbUtc(initial.endsAt).toLocaleDateString('en-CA') : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [removing, setRemoving] = useState(false);
@@ -95,7 +96,7 @@ export default function RecurringDetail({
         <div className={`gr-banner${rec.status === 'active' ? '' : ' is-bad'}`} role="status">
           <span>
             {rec.status === 'active' && rec.nextRunAt
-              ? t('recurring.nextRun', { when: new Date(rec.nextRunAt).toLocaleString(locale, { dateStyle: 'full', timeStyle: 'short' }) })
+              ? t('recurring.nextRun', { when: parseDbUtc(rec.nextRunAt).toLocaleString(locale, { dateStyle: 'full', timeStyle: 'short' }) })
               : t(`recurring.status.${rec.status}`)}{' '}
             · {ruleText(rec.rule)}
           </span>
@@ -147,7 +148,7 @@ export default function RecurringDetail({
               {runs.map((r) => (
                 <li key={r.id}>
                   <span>
-                    <Link href={`/app/groups/broadcasts/${r.id}`}>{new Date(r.scheduledAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</Link>
+                    <Link href={`/app/groups/broadcasts/${r.id}`}>{parseDbUtc(r.scheduledAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</Link>
                   </span>
                   <span className="ui-help">
                     {t(`broadcastStatus.${r.status}`)} · {r.sent + r.failed}/{r.total}

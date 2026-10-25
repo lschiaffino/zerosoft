@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation';
 import type { ThreadProps } from './ChatThread';
 import ChatDetails from './ChatDetails';
 import { useMediaText } from './ui';
+import { parseDbUtc } from '@/lib/utils';
 
 /** Página del grupo: los detalles a lo ancho y los últimos mensajes. */
 export default function GroupDetail({ data }: { data: ThreadProps }) {
@@ -41,7 +42,7 @@ export default function GroupDetail({ data }: { data: ThreadProps }) {
                   {m.body.slice(0, 160) || mediaText({ media: m.media })}
                 </span>
                 <time className="ui-help" dateTime={m.createdAt}>
-                  {new Date(m.createdAt).toLocaleString(locale)}
+                  {parseDbUtc(m.createdAt).toLocaleString(locale)}
                 </time>
               </li>
             ))}

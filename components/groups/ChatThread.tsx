@@ -16,6 +16,7 @@ import TaskModal from './TaskModal';
 import { ChatPlate, Modal, api, useErrorText, useMediaText, useToast } from './ui';
 import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezone, checkRule, endsIso } from './RecurringParts';
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
+import { parseDbUtc } from '@/lib/utils';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🙏', '✅'];
 const TRANSLATE_STORE = 'zs-groups-translate';
@@ -502,7 +503,7 @@ export default function ChatThread(props: ThreadProps) {
       setText('');
       setAttachment(null);
       setRepeat(false);
-      showToast(t('recurring.created', { when: res.data.nextRunAt ? new Date(res.data.nextRunAt).toLocaleString(locale) : '' }));
+      showToast(t('recurring.created', { when: res.data.nextRunAt ? parseDbUtc(res.data.nextRunAt).toLocaleString(locale) : '' }));
       return;
     }
     const when = Date.parse(schedule.at);
@@ -673,7 +674,7 @@ export default function ChatThread(props: ThreadProps) {
             if (m.direction === 'system') {
               return (
                 <div key={m.id}>
-                  {showDay && <p className="gr-day">{new Date(m.createdAt).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })}</p>}
+                  {showDay && <p className="gr-day">{parseDbUtc(m.createdAt).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })}</p>}
                   <SystemLine m={m} nameOf={nameOf} />
                 </div>
               );
@@ -702,7 +703,7 @@ export default function ChatThread(props: ThreadProps) {
             const isEditing = editing?.id === m.id;
             return (
               <div key={m.id}>
-                {showDay && <p className="gr-day">{new Date(m.createdAt).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })}</p>}
+                {showDay && <p className="gr-day">{parseDbUtc(m.createdAt).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })}</p>}
                 <article className={`gr-msg gr-msg-${m.direction}${m.deletedAt ? ' is-deleted' : ''}`} id={`m-${m.id}`}>
                   <div className="gr-bubble">
                     {(author || m.direction === 'note') && (
@@ -816,7 +817,7 @@ export default function ChatThread(props: ThreadProps) {
                       </p>
                     )}
                     <p className="gr-msg-foot">
-                      <time dateTime={m.createdAt}>{new Date(m.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</time>
+                      <time dateTime={m.createdAt}>{parseDbUtc(m.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</time>
                       {m.deletedAt ? (
                         <span className="gr-deleted-tag">{t('thread.deletedTag')}</span>
                       ) : (

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 export type IconName =
   | 'overview'
+  | 'help'
   | 'contacts'
   | 'companies'
   | 'deals'
@@ -146,6 +147,12 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
       <path d="M14 3v5h5" />
       <path d="M9 13h6M9 17h4" />
+    </>
+  ),
+  help: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.7c0 1.6-2.4 2-2.4 3.6M12 17h.01" />
     </>
   ),
   back: <path d="M19 12H5M11 6l-6 6 6 6" />,

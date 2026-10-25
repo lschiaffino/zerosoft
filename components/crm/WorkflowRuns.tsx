@@ -4,11 +4,12 @@ import { useLocale, useTranslations } from 'next-intl';
 import type { CrmWorkflowRunRow } from '@/lib/db';
 import EmptyState from '@/components/ui/EmptyState';
 import { runSummary } from '@/lib/crm-admin-format';
+import { parseDbUtc } from '@/lib/utils';
 
 const TONE: Record<string, string> = { done: 'badge-ok', failed: 'badge-bad', running: 'badge-info', pending: '' };
 
 function parseWhen(iso: string): Date {
-  return new Date(iso.includes('T') ? iso : `${iso.replace(' ', 'T')}Z`);
+  return parseDbUtc(iso);
 }
 
 /** Historial de ejecuciones de un workflow: tabla densa con estado y resultado. */

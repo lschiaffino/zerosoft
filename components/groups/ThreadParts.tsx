@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import type { ChatDto, MessageDto } from '@/lib/groups';
 import { MAX_FORWARD_TARGETS, formatDuration } from '@/lib/groups-inbox-rules';
 import { ChatPlate, Modal, api, useErrorText, useMediaText } from './ui';
+import { parseDbUtc } from '@/lib/utils';
 
 export interface MenuItem {
   key: string;
@@ -88,7 +89,7 @@ export function MessageMenu({ label, items }: { label: string; items: MenuItem[]
 export function SystemLine({ m, nameOf }: { m: MessageDto; nameOf: (id: string | null | undefined) => string }) {
   const t = useTranslations('groups.history');
   const locale = useLocale();
-  const time = new Date(m.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  const time = parseDbUtc(m.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
   const meta = m.meta as Record<string, string | number | boolean | undefined>;
   let text: ReactNode = '';
   let extra: ReactNode = null;
@@ -115,7 +116,8 @@ export function SystemLine({ m, nameOf }: { m: MessageDto; nameOf: (id: string |
     const to = nameOf(meta.to as string | undefined);
     switch (meta.event) {
       case 'assigned':
-        text = t('assigned', { by, to });
+        // Quien se lo toma a sí mismo: "se asignó el chat", como en la auditoría.
+        text = meta.by && meta.by === meta.to ? t('assignedSelf', { by }) : t('assigned', { by, to });
         break;
       case 'unassigned':
         text = t('unassigned', { by });
