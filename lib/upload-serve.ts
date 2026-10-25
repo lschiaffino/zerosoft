@@ -1,8 +1,8 @@
 import { readFile } from 'fs/promises';
-import path from 'path';
 import { NextResponse } from 'next/server';
 import type { DocsBlock } from './docs-types';
 import { contentDisposition, isInlineImageMime, isInlineMediaMime, isPdfMime } from './docs-files';
+import { localUploadPath, migrateLegacyUploads } from './uploads';
 
 /** "bytes=0-1023" → [inicio, fin] dentro de `size`; null si no hay rango válido. */
 export function parseRange(header: string | null, size: number): [number, number] | null {
@@ -52,9 +52,9 @@ export async function fileBlockResponse(
   };
 
   if (block.url.startsWith('/uploads/')) {
-    const root = path.join(process.cwd(), 'public', 'uploads');
-    const file = path.join(process.cwd(), 'public', block.url);
-    if (!file.startsWith(root + path.sep)) return null;
+    // Disco local (UPLOADS_DIR, o public/uploads de versiones anteriores).
+    const file = localUploadPath(block.url);
+    if (!file) return null;
     let body: Uint8Array;
     try {
       body = new Uint8Array(await readFile(file));
@@ -82,9 +82,9 @@ export async function fileBlockResponse(
   return new NextResponse(res.body as BodyInit, { status: res.status === 206 ? 206 : 200, headers: out });
 }
 
-/** Carpetas de public/uploads que se sirven sin chequeo (sus URLs ya son públicas). */
+/** Carpetas cuyas URLs son públicas por diseño (como las de Blob): se sirven con la URL. */
 const PUBLIC_UPLOAD_FOLDERS = new Set(['chat', 'track', 'tasks', 'robots']);
-const LOCAL_NAME = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,199}$/;
+/** Lo único que se muestra en línea: imágenes raster, audio y video. El resto se descarga. */
 const INLINE_BY_EXT: Record<string, string> = {
   png: 'image/png',
   jpg: 'image/jpeg',
@@ -97,40 +97,47 @@ const INLINE_BY_EXT: Record<string, string> = {
   ogg: 'audio/ogg',
   oga: 'audio/ogg',
   wav: 'audio/wav',
+  weba: 'audio/webm',
   webm: 'audio/webm',
   m4a: 'audio/mp4',
   mp4: 'video/mp4',
 };
 
+/** Headers de un archivo subido servido desde el disco: tipo solo de la lista, nosniff y sandbox siempre. */
+export function localUploadHeaders(name: string): Record<string, string> {
+  const mime = INLINE_BY_EXT[name.toLowerCase().split('.').pop() ?? ''];
+  // El nombre guardado es "<uuid>-<original>": se descarga con el original.
+  const original = name.replace(/^[0-9a-f-]{36}-/, '');
+  return {
+    'Content-Type': mime ?? 'application/octet-stream',
+    'Content-Disposition': contentDisposition(original || 'file', Boolean(mime)),
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Security-Policy': "default-src 'none'; sandbox",
+    // El nombre lleva un uuid: el archivo no cambia nunca.
+    'Cache-Control': 'public, max-age=31536000, immutable',
+  };
+}
+
 /**
- * Archivo de public/uploads/<carpeta>/<nombre> guardado por saveUpload sin
- * Blob. Imágenes, audio y video se muestran; el resto se descarga.
+ * /uploads/<carpeta>/<nombre> (next.config lo reescribe acá antes de mirar
+ * public/). Solo las carpetas de URLs públicas por diseño (Chat, Track,
+ * tareas del CRM, Robots); Docs, Notes, Board y media del CRM pasan siempre
+ * por sus rutas con chequeo de permisos y acá dan 404.
  */
 export async function localUploadResponse(segments: string[]): Promise<NextResponse> {
-  const notFound = () => new NextResponse('Not found', { status: 404 });
+  const notFound = () =>
+    new NextResponse('Not found', { status: 404, headers: { 'X-Content-Type-Options': 'nosniff', 'Content-Type': 'text/plain' } });
   if (segments.length !== 2) return notFound();
   const [folder, name] = segments;
-  if (!PUBLIC_UPLOAD_FOLDERS.has(folder) || !LOCAL_NAME.test(name)) return notFound();
-  const root = path.join(process.cwd(), 'public', 'uploads');
-  const file = path.join(root, folder, name);
-  if (!file.startsWith(root + path.sep)) return notFound();
+  if (!PUBLIC_UPLOAD_FOLDERS.has(folder)) return notFound();
+  await migrateLegacyUploads();
+  const file = localUploadPath(`/uploads/${folder}/${name}`);
+  if (!file) return notFound();
   let body: Uint8Array;
   try {
     body = new Uint8Array(await readFile(file));
   } catch {
     return notFound();
   }
-  const mime = INLINE_BY_EXT[name.toLowerCase().split('.').pop() ?? ''];
-  // El nombre guardado es "<uuid>-<original>": se descarga con el original.
-  const original = name.replace(/^[0-9a-f-]{36}-/, '');
-  return new NextResponse(body as BodyInit, {
-    headers: {
-      'Content-Type': mime ?? 'application/octet-stream',
-      'Content-Disposition': contentDisposition(original || 'file', Boolean(mime)),
-      'X-Content-Type-Options': 'nosniff',
-      'Content-Security-Policy': "default-src 'none'; sandbox",
-      // El nombre lleva un uuid: el archivo no cambia nunca.
-      'Cache-Control': 'public, max-age=31536000, immutable',
-    },
-  });
+  return new NextResponse(body as BodyInit, { headers: localUploadHeaders(name) });
 }

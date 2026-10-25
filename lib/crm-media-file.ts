@@ -1,21 +1,17 @@
 /**
  * Servir documentos y videos del CRM desde una ruta API. Las subidas locales
- * (public/uploads, dev y self-host) no se sirven solas con `next start`:
- * Next solo sirve lo que había en public/ al construir. Las de Blob se
+ * (UPLOADS_DIR, dev y self-host) no se sirven nunca como estáticos. Las de Blob se
  * redirigen (videos) o se leen desde acá (PDF, para que pdf.js lo lea del mismo origen).
  */
 import { open, stat } from 'fs/promises';
-import path from 'path';
+import { localUploadPath as localUpload } from './uploads';
 import { NextRequest, NextResponse } from 'next/server';
 
 const NOT_FOUND = () => NextResponse.json({ error: 'not_found' }, { status: 404 });
 
 /** Ruta en disco de una subida local del CRM (null si no es local o se sale de la carpeta). */
 export function localUploadPath(url: string): string | null {
-  if (!url.startsWith('/uploads/crm/')) return null;
-  const root = path.join(process.cwd(), 'public', 'uploads', 'crm');
-  const full = path.join(process.cwd(), 'public', url);
-  return full.startsWith(root + path.sep) ? full : null;
+  return localUpload(url, 'crm');
 }
 
 /** Rango pedido por el navegador ("bytes=a-b"); null si no hay o no se entiende. */

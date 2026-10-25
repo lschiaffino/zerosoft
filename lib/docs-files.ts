@@ -4,7 +4,7 @@ import { withDatabaseBodies, type DocsBlock } from './docs-types';
  * Bloques de imagen y archivo de Docs. Puro (sin DB ni fs): lo usan el editor,
  * el render de solo lectura, la sanitización y la ruta que sirve los archivos.
  *
- * El archivo se guarda con lib/uploads.ts (Vercel Blob o public/uploads, 10 MB
+ * El archivo se guarda con lib/uploads.ts (Vercel Blob o UPLOADS_DIR, 10 MB
  * por archivo, sin HTML/SVG/JS). El navegador nunca usa la URL del storage: lo
  * pide a /api/docs/files/<página>/<bloque>, que chequea el acceso a la página
  * en cada request (un link copiado deja de andar si se pierde el acceso).
