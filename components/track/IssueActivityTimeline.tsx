@@ -87,6 +87,10 @@ function userName(activity: TrackIssueActivityWithAuthor, meta: Record<string, u
     const author = typeof meta.viaAuthor === 'string' && meta.viaAuthor ? ` (@${meta.viaAuthor})` : '';
     return `GitHub${author}`;
   }
+  // Reglas de triage y agentes: se firman con su nombre.
+  if ((meta.via === 'triage' || meta.via === 'agent') && typeof meta.viaAuthor === 'string' && meta.viaAuthor) {
+    return meta.viaAuthor;
+  }
   return activity.user_name ?? activity.user_email ?? '?';
 }
 

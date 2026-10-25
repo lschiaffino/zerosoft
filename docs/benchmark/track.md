@@ -49,7 +49,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Initiatives / sub-initiatives | tiene | Responsable, estado, fecha, planes y sub-iniciativas con progreso sumado; la salud sale de sus planes (sin updates propios) (2026-10-25) |
 | Campos propios (GitHub Projects: texto, número, select, iteración; Jira) | falta | |
 | Borrar, duplicar o copiar link de un issue desde su página | falta | El menú "…" solo trae "Copy branch name". Borrar existe solo desde la barra de selección masiva de la lista |
-| Customer requests (issue ↔ cliente con revenue) | falta | Tenemos CRM propio, así que es un diferencial posible |
+| Customer requests (issue ↔ cliente con revenue) | tiene | (T3, 2026-10-25) Desde el issue, la ficha del CRM o `POST /api/v1/track/requests`; cita, importante, Track › Clientes y orden por clientes o ingresos de deals ganados. Chat y Groups sin botón propio (API o Flow) |
 
 ### Vistas, filtros y navegación
 
@@ -82,10 +82,10 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 |---|---|---|
 | Cycles con cadencia automática y rollover | tiene | |
 | Milestones con fecha y progreso | tiene | |
-| Triage (aceptar, rechazar, duplicado) | tiene | Entra lo creado por API, Chat, Flow, GitHub y Agents |
-| Reglas de triage, responsable de triage rotativo | falta | |
-| SLAs por prioridad | falta | |
 | Velocidad, burn-up, scope creep del cycle | tiene | Track › Cycles: burn-up, agregado y sacado, rollover, velocidad de 3 cycles y capacidad; los cycles vencidos se cierran solos (2026-10-25) |
+| Triage (aceptar, rechazar, duplicado) | tiene | Entra lo creado por API, Chat, Flow, GitHub y Agents. (T3) Atajos 1/2/3/H como Linear, snooze y comentario al resolver |
+| Reglas de triage, responsable de triage rotativo | tiene | (T3) Reglas en orden con condiciones (texto, origen, prioridad, label, cliente) y acciones (prioridad, asignado, labels, cycle, aceptar); rotación diaria o semanal que avisa o asigna. Sin mover de equipo ni PagerDuty |
+| SLAs por prioridad | tiene | (T3) Por proyecto, urgente 24 h y alta 1 semana por defecto, contador en issue, listas y triage, avisos de en riesgo y vencido (cron con claim). Horas corridas |
 
 ### Automatización
 
@@ -94,7 +94,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Disparadores sobre issues | tiene | Flow recibe `issue.created`, `issue.updated`, `issue.status_changed` y puede crear o actualizar issues. Comparable a Jira Automation y más abierto que Linear |
 | Automatización por PR (GitHub) | tiene | PR abierto → in progress, merge → done |
 | Auto-close y auto-archive de issues viejos | tiene | Ajustes › Automatizaciones, por proyecto, con archivo para restaurar (2026-10-25) |
-| Agentes que trabajan issues (Linear Agent, Loops, coding sessions) | falta | Nuestros Agents pueden crear issues, nada más |
+| Agentes que trabajan issues (Linear Agent, Loops, coding sessions) | tiene | (T3) Delegar a un agente de Agents o externo; sesión con thought/action/elicitation/response en el issue; webhook firmado y `/api/v1/track/agent-sessions` |
 
 ### Integraciones y API
 
@@ -133,8 +133,8 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 
 | Capacidad | Track | Nota |
 |---|---|---|
-| Sugerencias de triage (labels, asignado, duplicados) | falta | |
-| Resumen de hilos, issue desde texto libre | falta | |
+| Sugerencias de triage (labels, asignado, duplicados) | tiene | (T3) Asignado, labels, prioridad y duplicados con su porqué; aceptar o descartar; modo sugerir, aplicar solo o apagado por proyecto |
+| Resumen de hilos, issue desde texto libre | tiene | (T3) Resumen del issue y su discusión, borrador de update del proyecto, issue desde texto pegado |
 | MCP para agentes externos | falta | |
 
 ### Importar y exportar

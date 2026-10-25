@@ -97,6 +97,8 @@ export interface SidebarLabels {
     analytics?: string;
     insights?: string;
     dashboards?: string;
+    /** Pedidos de clientes (T3). */
+    customers?: string;
   };
   chat: {
     overview: string;
@@ -316,6 +318,9 @@ export function buildNav(
           items: [
             { href: '/app/track/projects', label: labels.track.projects, active: at('/app/track/projects'), icon: 'lists', branch: true },
             { href: '/app/track/issues', label: labels.track.issues, active: at('/app/track/issues'), icon: 'tasks' },
+            ...(labels.track.customers
+              ? [{ href: '/app/track/customers', label: labels.track.customers, active: at('/app/track/customers'), icon: 'contacts' as const }]
+              : []),
           ],
         },
         ...(labels.track.plans

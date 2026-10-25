@@ -6,6 +6,7 @@ import { GithubSettings, LabelsSettings } from '@/components/track/TrackSettings
 import NotifySettings from '@/components/track/NotifySettings';
 import TrackImportPanel from '@/components/track/TrackImportPanel';
 import AutomationSettings from '@/components/track/planning/AutomationSettings';
+import AgentAppsSettings from '@/components/track/triage/AgentAppsSettings';
 import { listProjects } from '@/lib/track-data';
 
 export const dynamic = 'force-dynamic';
@@ -16,10 +17,11 @@ export default async function TrackSettingsPage(props: {
 }) {
   const { locale } = await props.params;
   const rawTab = (await props.searchParams)?.tab;
-  const tab = rawTab === 'github' || rawTab === 'notifications' || rawTab === 'import' || rawTab === 'automations' ? rawTab : 'labels';
+  const tab = rawTab === 'github' || rawTab === 'notifications' || rawTab === 'import' || rawTab === 'automations' || rawTab === 'agents' ? rawTab : 'labels';
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'track' });
   const tp = await getTranslations({ locale, namespace: 'trackPlanning' });
+  const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   const admin = isWorkspaceAdmin(user);
   // Ejemplo de identificador con el prefijo de un proyecto real (WEB-123).
   const example =
@@ -40,6 +42,7 @@ export default async function TrackSettingsPage(props: {
           { key: 'notifications', label: t('notifySettings.title') },
           { key: 'import', label: t('importer.tab') },
           { key: 'automations', label: tp('automation.tab') },
+          { key: 'agents', label: tTriage('agents.tab') },
         ]}
       >
         {tab === 'labels' ? (
@@ -50,6 +53,8 @@ export default async function TrackSettingsPage(props: {
           <TrackImportPanel isAdmin={admin} />
         ) : tab === 'automations' ? (
           <AutomationSettings isAdmin={admin} />
+        ) : tab === 'agents' ? (
+          <AgentAppsSettings isAdmin={admin} />
         ) : (
           <GithubSettings isAdmin={admin} locale={locale} example={example} />
         )}

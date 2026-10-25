@@ -27,6 +27,8 @@ export interface NotificationTextLabels {
   planUpdate?: string;
   planComment?: string;
   planReminder?: string;
+  /** Track triage, SLAs y agentes (meta.kind): "{identifier} espera triage" y similares. */
+  trackKinds?: Partial<Record<'triage_owner' | 'sla_risk' | 'sla_breach' | 'agent_update', string>>;
 }
 
 export interface NotificationLike {
@@ -60,6 +62,12 @@ export function notificationTitle(n: NotificationLike, L: NotificationTextLabels
     const vars = { actor, plan: String(meta.planName ?? '') };
     const tpl = meta.kind === 'reminder' ? L.planReminder : meta.kind === 'comment' ? L.planComment : L.planUpdate;
     return tpl && vars.plan ? fill(tpl, vars) : n.title;
+  }
+
+  if (source === 'track_triage' || source === 'track_sla' || source === 'track_agent') {
+    const identifier = String(meta.issueIdentifier ?? '');
+    const tpl = L.trackKinds?.[String(meta.kind) as keyof NonNullable<NotificationTextLabels['trackKinds']>];
+    return identifier && tpl ? fill(tpl, { actor, identifier, agent: String(meta.agentName ?? '') }) : n.title;
   }
 
   if (source === 'track_issue' || n.type === 'track_reminder') {

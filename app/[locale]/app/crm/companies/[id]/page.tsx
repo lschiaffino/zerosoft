@@ -33,6 +33,7 @@ import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
 import { withCallDetails } from '@/lib/crm-voice';
+import CrmTrackRequests from '@/components/track/triage/CrmTrackRequests';
 import FilesPanel from '@/components/crm/FilesPanel';
 import { listRecordFiles, toView, withActivityFiles } from '@/lib/crm-files';
 import AiSummaryCard from '@/components/crm/AiSummaryCard';
@@ -627,6 +628,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
             defaultOwner={realUserId(user)}
           />
           <RelatedObjectRecords workspaceId={user.id} entity="company" entityId={company.id} scope={scope} locale={locale} />
+          <CrmTrackRequests companyId={company.id} locale={locale} />
         </div>
       </RecordTabs>
     </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import IssueDemandBadges from './triage/IssueDemandBadges';
 import { Link } from '@/i18n/navigation';
 import { formatDate } from '@/lib/utils';
 import type { TrackIssueWithStatus } from '@/lib/track-data';
@@ -193,6 +194,7 @@ export default function IssuesTable({
             const titleContent = (
               <>
                 <span className="track-issue-title">{issue.title || '–'}</span>
+                <IssueDemandBadges issue={issue} />
                 {issue.child_count > 0 && (
                   <span className="track-subtask-indicator" title={labels.hasSubtasks}>
                     <ProgressRing done={issue.child_done ?? 0} total={issue.child_count} size={12} />

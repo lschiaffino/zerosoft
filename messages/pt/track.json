@@ -6,7 +6,8 @@
     "issues": "Issues",
     "cycles": "Ciclos",
     "settings": "Configurações",
-    "inbox": "Caixa de entrada"
+    "inbox": "Caixa de entrada",
+    "customers": "Clientes"
   },
   "common": {
     "viewAll": "Ver tudo",
@@ -574,7 +575,9 @@
       "updated": "Atualizados recentemente",
       "priority": "Prioridade",
       "due": "Vencimento",
-      "identifier": "Identificador"
+      "identifier": "Identificador",
+      "customers": "Quantidade de clientes",
+      "revenue": "Receita de clientes"
     }
   },
   "subscription": {

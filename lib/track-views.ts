@@ -10,7 +10,7 @@ import type { TrackIssueWithStatus } from './track-data';
 
 // ---------- Orden ----------
 
-export const ISSUE_SORTS = ['newest', 'oldest', 'updated', 'priority', 'due', 'identifier'] as const;
+export const ISSUE_SORTS = ['newest', 'oldest', 'updated', 'priority', 'due', 'identifier', 'customers', 'revenue'] as const;
 export type IssueSort = (typeof ISSUE_SORTS)[number];
 
 export function parseIssueSort(value: unknown): IssueSort {
@@ -18,6 +18,15 @@ export function parseIssueSort(value: unknown): IssueSort {
 }
 
 const PRIORITY_ORDER = "CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END";
+
+/** Clientes distintos que pidieron el issue (pedidos de clientes). */
+export const ISSUE_CUSTOMERS_SQL =
+  '(SELECT COUNT(DISTINCT COALESCE(cr.company_id, cr.contact_id, cr.customer_email, cr.customer_name)) FROM track_customer_requests cr WHERE cr.issue_id = i.id)';
+/** Ingresos de esos clientes: suma de deals ganados de sus empresas en el CRM. */
+export const ISSUE_REVENUE_SQL = `(SELECT COALESCE(SUM(d.amount), 0) FROM crm_deals d
+  JOIN crm_stages st ON st.id = d.stage_id AND st.is_won = 1
+  JOIN crm_deal_companies dc ON dc.deal_id = d.id
+  WHERE dc.company_id IN (SELECT cr.company_id FROM track_customer_requests cr WHERE cr.issue_id = i.id AND cr.company_id IS NOT NULL))`;
 
 /**
  * ORDER BY para cada orden. Todos desempatan por fecha de creación (y luego
@@ -36,6 +45,10 @@ export function issueOrderBy(sort: IssueSort | undefined): string {
       return 'i.due_date IS NULL, i.due_date ASC, ' + `${PRIORITY_ORDER}, i.created_at DESC, i.id DESC`;
     case 'identifier':
       return 'i.identifier ASC, i.id ASC';
+    case 'customers':
+      return `${ISSUE_CUSTOMERS_SQL} DESC, ${PRIORITY_ORDER}, i.created_at DESC, i.id DESC`;
+    case 'revenue':
+      return `${ISSUE_REVENUE_SQL} DESC, ${ISSUE_CUSTOMERS_SQL} DESC, i.created_at DESC, i.id DESC`;
     default:
       return 'i.created_at DESC, i.id DESC';
   }
@@ -43,7 +56,8 @@ export function issueOrderBy(sort: IssueSort | undefined): string {
 
 const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, medium: 2 };
 
-type SortableIssue = Pick<TrackIssueWithStatus, 'id' | 'created_at' | 'updated_at' | 'priority' | 'due_date' | 'identifier'>;
+type SortableIssue = Pick<TrackIssueWithStatus, 'id' | 'created_at' | 'updated_at' | 'priority' | 'due_date' | 'identifier'> &
+  Partial<Pick<TrackIssueWithStatus, 'customer_count' | 'customer_revenue'>>;
 
 function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
@@ -69,6 +83,10 @@ export function compareIssues(sort: IssueSort | undefined, a: SortableIssue, b: 
     }
     case 'identifier':
       return cmp(a.identifier, b.identifier) || cmp(a.id, b.id);
+    case 'customers':
+      return (b.customer_count ?? 0) - (a.customer_count ?? 0) || prio() || newest();
+    case 'revenue':
+      return (b.customer_revenue ?? 0) - (a.customer_revenue ?? 0) || (b.customer_count ?? 0) - (a.customer_count ?? 0) || newest();
     default:
       return newest();
   }

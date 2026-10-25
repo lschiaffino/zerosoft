@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import CrmTrackRequests from '@/components/track/triage/CrmTrackRequests';
 import RelatedObjectRecords from '@/components/crm/RelatedObjectRecords';
 import RelatedLeads from '@/components/crm/RelatedLeads';
 import { fieldAccessFor, redactCustomJson, sessionFieldViewer } from '@/lib/crm-field-perms';
@@ -638,6 +639,7 @@ export default async function ContactDetailPage(props: {
             defaultOwner={realUserId(user)}
           />
           <RelatedObjectRecords workspaceId={user.id} entity="contact" entityId={contact.id} scope={scope} locale={locale} />
+          <CrmTrackRequests contactId={contact.id} locale={locale} />
         </div>
       </RecordTabs>
     </div>

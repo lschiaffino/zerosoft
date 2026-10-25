@@ -1999,21 +1999,27 @@
     "description": "Linear Triage Intelligence proposes labels, assignee, project and duplicates for incoming issues (https://linear.app/pricing). Track's triage queue (issues from Chat, Flow, API, GitHub, Agents) is fully manual. First scope, only when AI is enabled for the workspace: on each triage issue, show suggested labels and assignee based on the last 200 accepted issues of the project, and the top 3 similar open issues by title and description with a one-click \"Mark duplicate\"; accept applies the suggestions in one click. Log which suggestions were accepted.\n\nPriority: medium. Effort: M. Compared with Linear.",
     "product": "track",
     "kind": "idea",
-    "parity": "ai-triage"
+    "parity": "ai-triage",
+    "status": "done",
+    "changelog": "2026-10-25-track-triage"
   },
   {
     "title": "Track: Link CRM companies and contacts to issues as customer requests",
     "description": "Linear Customer Requests link feedback to issues and projects, show a customer page with every request, and let views sort issues by customer count, tier or revenue (https://linear.app/docs/customer-requests). zerosoft already has the CRM and Chat, so this can work without any third-party sync. First scope: a \"Requested by\" field on issues that links CRM companies or contacts (and the Chat conversation when created from Chat), a request count and summed deal value column in lists with sort, and a Track section on the CRM company page listing its requested issues and their status.\n\nPriority: medium. Effort: M. Compared with Linear.",
     "product": "track",
     "kind": "idea",
-    "parity": "customer-requests"
+    "parity": "customer-requests",
+    "status": "done",
+    "changelog": "2026-10-25-track-triage"
   },
   {
     "title": "Track: Set SLAs by priority and flag issues about to breach",
     "description": "Linear supports issue SLAs and triage responsibility so urgent bugs get a response time (https://linear.app/pricing, Triage section); Jira Service Management triggers automations on SLA breach. Track has no response or resolution target. First scope: per-project SLA per priority (e.g. urgent 24 h, high 3 days) counted from creation or triage acceptance, a countdown chip on rows and the issue page, an \"SLA\" filter and sort, a notification to the assignee and project owner at 80 % and at breach, and an issue.sla_breached event for Flow.\n\nPriority: medium. Effort: S. Compared with Linear, Jira.",
     "product": "track",
     "kind": "idea",
-    "parity": "priority-slas"
+    "parity": "priority-slas",
+    "status": "done",
+    "changelog": "2026-10-25-track-triage"
   },
   {
     "title": "Track: Auto-close stale issues and auto-archive completed ones",

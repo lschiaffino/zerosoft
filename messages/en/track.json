@@ -6,7 +6,8 @@
     "issues": "Issues",
     "cycles": "Cycles",
     "settings": "Settings",
-    "inbox": "Inbox"
+    "inbox": "Inbox",
+    "customers": "Customers"
   },
   "common": {
     "viewAll": "View all",
@@ -574,7 +575,9 @@
       "updated": "Recently updated",
       "priority": "Priority",
       "due": "Due date",
-      "identifier": "Identifier"
+      "identifier": "Identifier",
+      "customers": "Customer count",
+      "revenue": "Customer revenue"
     }
   },
   "subscription": {

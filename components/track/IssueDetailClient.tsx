@@ -13,6 +13,7 @@ import { IssueGithubPanel, useIssueGithub } from './IssueGithub';
 import { Popover, TrackToast, useToday } from './InlineEditors';
 import { branchNameFor } from '@/lib/track-branch';
 import { TriageBanner } from './TriagePanel';
+import { IssueMainExtras, IssueSideExtras } from './triage/IssueExtras';
 import MarkdownEditor, { MarkdownView, type UploadResult } from './MarkdownEditor';
 import TrackIcon from './TrackIcon';
 import IssueSubscription from './IssueSubscription';
@@ -1224,6 +1225,9 @@ export default function IssueDetailClient({
             </section>
           )}
 
+          {/* Triage e IA (T3): resumen, pedidos de clientes y sesión del agente. */}
+          <IssueMainExtras issueId={issue.id} locale={locale} onIssueChange={() => void handleIssueChange()} />
+
           <section className="track-detail-section track-detail-activity">
             <h2 className="track-section-title">
               {labels.activity.title}
@@ -1263,6 +1267,7 @@ export default function IssueDetailClient({
               onPatch={(patch) => void patchIssue(patch)}
               onLabels={(next) => void setLabels(next)}
             />
+            <IssueSideExtras issueId={issue.id} watch={`${issue.priority}|${issue.status_id}|${issue.triage}`} />
           </section>
         </aside>
       </div>

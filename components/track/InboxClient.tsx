@@ -101,6 +101,7 @@ function notifyChanged() {
 export default function InboxClient({ locale, labels }: InboxClientProps) {
   const tr = useTranslations('track');
   const tp = useTranslations('trackPlanning');
+  const tTriage = useTranslations('trackTriage');
   const [tab, setTab] = useState<TabKey>('all');
   const [snoozeError, setSnoozeError] = useState(false);
   const [rows, setRows] = useState<Notification[]>([]);
@@ -201,6 +202,12 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     docShared: tr.raw('notifications.docShared') as string,
     boardMention: tr.raw('notifications.boardMention') as string,
     boardReply: tr.raw('notifications.boardReply') as string,
+    trackKinds: {
+      triage_owner: tTriage.raw('notifications.triage_owner') as string,
+      sla_risk: tTriage.raw('notifications.sla_risk') as string,
+      sla_breach: tTriage.raw('notifications.sla_breach') as string,
+      agent_update: tTriage.raw('notifications.agent_update') as string,
+    },
   };
 
   const firstLoad = loading && rows.length === 0;

@@ -1999,7 +1999,7 @@ export const API_SCOPE_DOCS: Array<{ scope: ApiScope; descKey: string }> = API_S
  */
 export function endpointScope(e: Pick<ApiEndpoint, 'path' | 'method' | 'scope'>): ApiScope | null {
   if (e.scope) return e.scope;
-  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat|groups)\b/.exec(e.path);
+  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat|groups|track)\b/.exec(e.path);
   if (!m) return null;
   if (m[1] === 'agents') return 'agents:run';
   if (m[1] === 'robots') return 'robots:run';

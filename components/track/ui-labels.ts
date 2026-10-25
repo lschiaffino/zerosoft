@@ -147,6 +147,8 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
         priority: t('display.sorts.priority'),
         due: t('display.sorts.due'),
         identifier: t('display.sorts.identifier'),
+        customers: t('display.sorts.customers'),
+        revenue: t('display.sorts.revenue'),
       },
     },
   };
