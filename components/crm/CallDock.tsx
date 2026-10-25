@@ -121,7 +121,8 @@ export default function CallDock() {
   const fetchToken = useCallback(async (): Promise<TokenInfo | null> => {
     const res = await fetch('/api/crm/voice/token', { cache: 'no-store' }).catch(() => null);
     if (!res?.ok) return null;
-    return (await res.json().catch(() => null)) as TokenInfo | null;
+    const data = (await res.json().catch(() => null)) as (TokenInfo & { available?: boolean }) | null;
+    return data && data.available !== false ? data : null;
   }, []);
 
   const getDevice = useCallback(async (): Promise<TwilioDevice> => {

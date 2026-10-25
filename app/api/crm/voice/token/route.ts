@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { crmError, limitAction, unauthorized } from '@/lib/crm-http';
+import { limitAction, unauthorized } from '@/lib/crm-http';
 import { fakeVoiceAllowed, voiceAccessToken, voiceConfigured, voiceIdentity } from '@/lib/twilio-voice';
 import { getVoiceSettings } from '@/lib/crm-voice';
 
@@ -14,15 +14,19 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!voiceConfigured()) return crmError(400, 'voice_not_configured');
-  const personId = realUserId(user);
-  const limited = await limitAction(personId, 'voice-token', 120, 3600);
-  if (limited) return limited;
+  // Sin Twilio o sin número todavía no es un error: el dock lo consulta en cada
+  // página del CRM y responde "no disponible" sin ensuciar la consola.
+  if (!voiceConfigured()) return unavailable('voice_not_configured');
   const settings = await getVoiceSettings(user.id);
-  if (!settings.callerId) return crmError(400, 'no_caller_id');
+  if (!settings.callerId) return unavailable('no_caller_id');
+  // El límite cuenta solo los tokens que se emiten (el dock pide uno por carga de página).
+  const personId = realUserId(user);
+  const limited = await limitAction(personId, 'voice-token', 600, 3600);
+  if (limited) return limited;
   const identity = voiceIdentity(user.id, personId);
   return NextResponse.json(
     {
+      available: true,
       identity,
       fake: fakeVoiceAllowed(),
       token: fakeVoiceAllowed() ? null : voiceAccessToken(identity, { ttlSec: 3600 }),
@@ -31,4 +35,8 @@ export async function GET() {
     },
     { headers: { 'cache-control': 'no-store' } },
   );
+}
+
+function unavailable(reason: 'voice_not_configured' | 'no_caller_id') {
+  return NextResponse.json({ available: false, reason }, { headers: { 'cache-control': 'no-store' } });
 }
