@@ -78,3 +78,12 @@ test('el header marca la sección actual', async ({ page }) => {
     'page',
   );
 });
+
+test('desde la landing de un producto, el botón del header abre esa app', async ({ page }) => {
+  await page.goto('/es/products/crm');
+  await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app/crm');
+  await page.goto('/es/products/docs');
+  await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app/docs');
+  await page.goto('/es/blog');
+  await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app');
+});
