@@ -7,6 +7,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import type { CycleListItem, CycleMetricsResult } from '@/lib/track-cycle-metrics';
 import { api, fmtDay, LoadingRows, ProgressBar } from './shared';
 import { LineChart } from './charts';
+import { encodeFilter } from '@/lib/track-filter';
 
 const localToday = () => {
   const d = new Date();
@@ -212,7 +213,10 @@ export function CycleDetail({ cycleId }: { cycleId: string }) {
         </section>
       )}
       <p className="ui-help">{t('cycles.rolloverHelp')}</p>
-      <Link href={`/app/track/projects/${data.project.id}?cycleId=${data.cycle.id}`} className="btn btn-sm">
+      <Link
+        href={`/app/track/projects/${data.project.id}?filter=${encodeURIComponent(encodeFilter({ match: 'and', rules: [{ field: 'cycle', op: 'is', values: [data.cycle.id] }] }))}`}
+        className="btn btn-sm"
+      >
         {t('cycles.viewIssues')}
       </Link>
     </div>

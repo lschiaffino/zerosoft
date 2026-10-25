@@ -43,7 +43,7 @@ const parity: ProductParity = {
       area: 'issues',
       label: { en: 'Rich descriptions and comments', es: 'Descripciones y comentarios con formato', pt: 'Descrições e comentários com formatação' },
       detail: { en: 'Markdown with live shortcuts (lists and checklists continue, Tab nests), / commands, @ people and issues, # issue links that show status, pasted images, highlighted code and checklists you tick while reading. Write/Preview tabs instead of a WYSIWYG canvas', es: 'Markdown con atajos en vivo (listas y tareas siguen, Tab anida), comandos con /, @ personas e issues, # links a issues con su estado, imágenes pegadas, código resaltado y tareas que se tildan leyendo. Pestañas Escribir/Vista previa en vez de un lienzo WYSIWYG', pt: 'Markdown com atalhos ao vivo (listas e tarefas continuam, Tab aninha), comandos com /, @ pessoas e issues, # links para issues com status, imagens coladas, código destacado e tarefas marcadas durante a leitura. Abas Escrever/Visualizar em vez de uma tela WYSIWYG' },
-      status: 'have',
+      status: 'partial',
       competitorHas: true,
     },
     {
