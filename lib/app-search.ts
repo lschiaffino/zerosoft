@@ -35,7 +35,8 @@ export interface AppSearchItem {
     | 'groupsMessages'
     | 'groupsLists'
     | 'groupsTemplates'
-    | 'groupsRecurring';
+    | 'groupsRecurring'
+    | 'voiceSessions';
   label: string;
   meta: string;
   href: string;
@@ -81,7 +82,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   const gMask = (r: Row): Row => (gViewer?.mask ? { ...r, label: maskPhoneText(r.label), meta: r.meta ? maskPhoneText(r.meta) : r.meta } : r);
   const ticketNumber = /^#?\d{1,7}$/.test(needle) ? Number(needle.replace('#', '')) : -1;
   const person = user.actingUser?.id ?? user.id;
-  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates] = await Promise.all([
+  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates, voiceSessions] = await Promise.all([
     all(
       `SELECT b.id, b.name AS label FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND b.name LIKE ? ESCAPE '\\' ORDER BY b.updated_at DESC LIMIT ?`,
       user.id,
@@ -186,6 +187,17 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       like,
     ),
     all(`SELECT id, name AS label, group_name AS meta FROM groups_templates WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, like),
+    // Voice: reuniones propias (son privadas de quien las grabó) por título o por lo que se dijo.
+    all(
+      `SELECT s.id, CASE WHEN s.title != '' THEN s.title ELSE substr(s.started_at, 1, 10) END AS label, substr(s.started_at, 1, 10) AS meta
+       FROM voice_sessions s WHERE s.workspace_id = ? AND s.person_id = ? AND s.kind = 'meeting'
+         AND (s.title LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM voice_segments g WHERE g.session_id = s.id AND g.text LIKE ? ESCAPE '\\'))
+       ORDER BY s.started_at DESC LIMIT ?`,
+      user.id,
+      person,
+      like,
+      like,
+    ),
   ]);
 
   const map = (rows: Row[], group: AppSearchItem['group'], href: (id: string) => string): AppSearchItem[] =>
@@ -222,5 +234,6 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     }),
     ...map(groupLists, 'groupsLists', (id) => `/app/groups/inbox?list=${id}`),
     ...map(groupTemplates, 'groupsTemplates', (id) => `/app/groups/templates?use=${id}`),
+    ...map(voiceSessions, 'voiceSessions', (id) => `/app/voice/meetings/${id}`),
   ];
 }

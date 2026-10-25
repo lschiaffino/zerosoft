@@ -73,6 +73,10 @@ export default defineConfig({
       IMPORT_CALENDLY_API_URL: `http://127.0.0.1:${PORT + 1}/calendly`,
       // Bookmarks de Docs sin salir a internet (lib/docs-unfurl.ts arma un HTML fijo por dominio).
       DOCS_UNFURL_FAKE: '1',
+      // Voice: transcripción falsa (lib/voice-transcribe.ts, la cookie voice_fake_text elige qué "se dijo")
+      // e IA falsa (lib/voice-ai.ts; con la cookie voice_ai_fake=off se ve ai_disabled).
+      VOICE_TRANSCRIBE_PROVIDER: 'fake',
+      VOICE_AI_FAKE: '1',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

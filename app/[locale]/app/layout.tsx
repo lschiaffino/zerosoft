@@ -6,6 +6,7 @@ import { getWorkspaceMode } from '@/lib/home';
 import AppSidebar from '@/components/app/AppSidebar';
 import AppTopbar from '@/components/app/AppTopbar';
 import CommandSearch from '@/components/app/CommandSearch';
+import DictationHost from '@/components/voice/DictationHost';
 import TimezoneCookie from '@/components/app/TimezoneCookie';
 import { SupportIdentify } from '@/components/SupportWidget';
 import { supportWidgetId } from '@/lib/support';
@@ -21,6 +22,7 @@ import '@/styles/link.css';
 import '@/styles/app-shared.css';
 import '@/styles/app.css';
 import '@/styles/color.css';
+import '@/styles/voice-host.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,7 +78,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'settings.sections', 'settings.cmdk']}>
+    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk']}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
@@ -342,6 +344,7 @@ export default async function AppLayout(
           <main className="app-content">{children}</main>
         </div>
         <CommandSearch />
+        <DictationHost />
         <TimezoneCookie serverTz={serverTz} />
         {supportId && (
           <SupportIdentify

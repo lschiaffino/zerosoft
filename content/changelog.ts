@@ -29,6 +29,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-25-voice',
+    date: '2026-10-25',
+    title: {
+      en: 'Voice: dictation in every app and meeting notes without a bot',
+      es: 'Voice: dictado en todas las apps y notas de reunión sin bot',
+      pt: 'Voice: ditado em todos os apps e notas de reunião sem bot',
+    },
+    items: [
+      { product: 'platform', en: 'Hold Alt+Space in any zerosoft text field, speak and let go: the text lands where your cursor is, with punctuation, no filler words, your spoken corrections applied and lists formatted. A personal dictionary, snippets and a style per context (email, chat, note), plus a history to copy past dictations.', es: 'Mantené Alt+Space en cualquier campo de zerosoft, hablá y soltá: el texto queda donde está el cursor, con puntuación, sin muletillas, con tus correcciones aplicadas y las listas armadas. Diccionario personal, snippets, estilo según el contexto (email, chat, nota) e historial para copiar dictados anteriores.', pt: 'Segure Alt+Space em qualquer campo do zerosoft, fale e solte: o texto fica onde está o cursor, com pontuação, sem vícios de linguagem, com suas correções aplicadas e as listas montadas. Dicionário pessoal, snippets, estilo conforme o contexto (email, chat, nota) e histórico para copiar ditados anteriores.' },
+      { product: 'platform', en: 'Meeting notes: record your microphone, or your microphone and a browser tab, with a live transcript split into Me and Them. Jot notes as you go and AI writes them up with a template (sales, 1:1, stand-up, interview, customer or your own), with a summary, decisions and next steps that become Track issues or CRM tasks.', es: 'Notas de reunión: grabá tu micrófono, o tu micrófono y una pestaña, con transcripción en vivo separada en Yo y Ellos. Anotá mientras tanto y la IA arma la nota con una plantilla (ventas, 1:1, daily, entrevista, cliente o una propia), con resumen, decisiones y próximos pasos que pasan a issues de Track o tareas del CRM.', pt: 'Notas de reunião: grave seu microfone, ou o microfone e uma aba, com transcrição ao vivo separada em Eu e Eles. Anote enquanto isso e a IA monta a nota com um modelo (vendas, 1:1, daily, entrevista, cliente ou um próprio), com resumo, decisões e próximos passos que viram issues do Track ou tarefas do CRM.' },
+      { product: 'platform', en: 'Ask a meeting or all of them ("what did Ana say about pricing?"), search across transcripts, link a Cal booking so the notes land on the CRM contact timeline, and send the notes to Docs or Notes. API v1 endpoints with the voice:read and voice:write scopes, and the source of a desktop app for Mac and Windows.', es: 'Preguntale a una reunión o a todas ("¿qué dijo Ana del precio?"), buscá en las transcripciones, vinculá una reserva de Cal para que la nota quede en el timeline del contacto del CRM y mandá la nota a Docs o Notes. Endpoints de la API v1 con los scopes voice:read y voice:write, y el código de una app de escritorio para Mac y Windows.', pt: 'Pergunte a uma reunião ou a todas ("o que a Ana disse sobre o preço?"), busque nas transcrições, vincule uma reserva do Cal para a nota ficar na linha do tempo do contato do CRM e envie a nota para Docs ou Notes. Endpoints da API v1 com os escopos voice:read e voice:write, e o código de um app desktop para Mac e Windows.' },
+    ],
+  },
+  {
     id: '2026-10-25-platform-home',
     date: '2026-10-25',
     title: {
