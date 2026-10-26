@@ -45,9 +45,9 @@ vi.mock('@/lib/email', async (orig) => ({
   },
 }));
 
-const templatesRoute = await import('@/app/api/track/projects/[id]/templates/route');
-const projectRoute = await import('@/app/api/track/projects/[id]/route');
-const reminderRoute = await import('@/app/api/track/issues/[id]/reminder/route');
+const templatesRoute = await import('@/lib/routes/track/projects/[id]/templates/route');
+const projectRoute = await import('@/lib/routes/track/projects/[id]/route');
+const reminderRoute = await import('@/lib/routes/track/issues/[id]/reminder/route');
 const notificationRoute = await import('@/app/api/notifications/[id]/route');
 
 const req = (method: string, body?: unknown) =>

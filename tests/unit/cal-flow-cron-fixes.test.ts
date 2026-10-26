@@ -28,8 +28,8 @@ vi.mock('@/lib/events', async (orig) => ({
   emitEvent: async (_ws: string, type: string, data: { id?: string; status?: string }) => void emitted.push({ type, data }),
 }));
 
-const bookingRoute = await import('@/app/api/calendar/bookings/[id]/route');
-const v1NoShow = await import('@/app/api/v1/calendar/bookings/[id]/no-show/route');
+const bookingRoute = await import('@/lib/routes/calendar/bookings/[id]/route');
+const v1NoShow = await import('@/lib/routes/v1/calendar/bookings/[id]/no-show/route');
 const minuteCron = await import('@/app/api/cron/minute/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });

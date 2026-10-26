@@ -51,12 +51,12 @@ vi.mock('@/lib/session', () => ({
   isWorkspaceAdmin: (u: { role: string }) => u.role === 'owner' || u.role === 'admin',
 }));
 
-const contactRoute = await import('@/app/api/crm/contacts/[id]/route');
-const recordsRoute = await import('@/app/api/crm/objects/[id]/records/route');
+const contactRoute = await import('@/lib/routes/crm/contacts/[id]/route');
+const recordsRoute = await import('@/lib/routes/crm/objects/[id]/records/route');
 const objectsRoute = await import('@/app/api/crm/objects/route');
 const leadsRoute = await import('@/app/api/crm/leads/route');
-const v1Contact = await import('@/app/api/v1/crm/contacts/[id]/route');
-const v1Records = await import('@/app/api/v1/crm/objects/[slug]/records/route');
+const v1Contact = await import('@/lib/routes/v1/crm/contacts/[id]/route');
+const v1Records = await import('@/lib/routes/v1/crm/objects/[slug]/records/route');
 const searchRoute = await import('@/app/api/search/route');
 
 beforeEach(() => {

@@ -27,8 +27,8 @@ vi.mock('next/server', async (orig) => ({
   },
 }));
 
-const pageRoute = await import('@/app/api/docs/pages/[id]/route');
-const agentMessagesRoute = await import('@/app/api/chat/conversations/[id]/messages/route');
+const pageRoute = await import('@/lib/routes/docs/pages/[id]/route');
+const agentMessagesRoute = await import('@/lib/routes/chat/conversations/[id]/messages/route');
 const widgetScript = await import('@/app/api/chat/widget.js/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });

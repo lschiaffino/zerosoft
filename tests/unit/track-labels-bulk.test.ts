@@ -22,10 +22,10 @@ vi.mock('@/lib/session', () => ({
 }));
 
 const labelsRoute = await import('@/app/api/track/labels/route');
-const labelRoute = await import('@/app/api/track/labels/[id]/route');
+const labelRoute = await import('@/lib/routes/track/labels/[id]/route');
 const bulkRoute = await import('@/app/api/track/issues/bulk/route');
-const triageRoute = await import('@/app/api/track/issues/[id]/triage/route');
-const triageListRoute = await import('@/app/api/track/projects/[id]/triage/route');
+const triageRoute = await import('@/lib/routes/track/issues/[id]/triage/route');
+const triageListRoute = await import('@/lib/routes/track/projects/[id]/triage/route');
 
 const json = (url: string, method: string, body?: unknown) =>
   new NextRequest(`http://x${url}`, {

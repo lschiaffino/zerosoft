@@ -24,7 +24,7 @@ vi.mock('@/lib/session', () => ({
 const analyticsRoute = await import('@/app/api/links/analytics/route');
 const exportRoute = await import('@/app/api/links/analytics/export.csv/route');
 const v1Analytics = await import('@/app/api/v1/links/analytics/route');
-const qrRoute = await import('@/app/api/links/[id]/qr/route');
+const qrRoute = await import('@/lib/routes/links/[id]/qr/route');
 
 const slug = (p: string) => `${p}${crypto.randomUUID().slice(0, 6)}`;
 

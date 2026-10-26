@@ -21,10 +21,10 @@ const session = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 
-const sceneRoute = await import('@/app/api/boards/[id]/scene/route');
-const boardRoute = await import('@/app/api/boards/[id]/route');
+const sceneRoute = await import('@/lib/routes/boards/[id]/scene/route');
+const boardRoute = await import('@/lib/routes/boards/[id]/route');
 const boardsRoute = await import('@/app/api/boards/route');
-const versionRoute = await import('@/app/api/boards/[id]/version/route');
+const versionRoute = await import('@/lib/routes/boards/[id]/version/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 function jsonReq(url: string, method: string, body?: unknown) {

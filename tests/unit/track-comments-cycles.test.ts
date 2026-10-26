@@ -34,8 +34,8 @@ vi.mock('@/lib/events', () => ({
   },
 }));
 
-const commentRoute = await import('@/app/api/track/issues/[id]/comments/[commentId]/route');
-const commentsRoute = await import('@/app/api/track/issues/[id]/comments/route');
+const commentRoute = await import('@/lib/routes/track/issues/[id]/comments/[commentId]/route');
+const commentsRoute = await import('@/lib/routes/track/issues/[id]/comments/route');
 
 const req = (method: string, body?: unknown) =>
   new NextRequest('http://x/c', {

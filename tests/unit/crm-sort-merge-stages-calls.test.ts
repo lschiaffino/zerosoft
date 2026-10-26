@@ -53,7 +53,7 @@ vi.mock('@/lib/session', () => ({
   realUserId: (u: { id: string; actingUser?: { id: string } }) => u.actingUser?.id ?? u.id,
   isWorkspaceAdmin: (u: { role: string }) => u.role === 'owner' || u.role === 'admin',
 }));
-const moveRoute = await import('@/app/api/crm/deals/[id]/move/route');
+const moveRoute = await import('@/lib/routes/crm/deals/[id]/move/route');
 const mergeRoute = await import('@/app/api/crm/companies/merge/route');
 
 beforeEach(() => {

@@ -20,10 +20,10 @@ vi.mock('@/lib/session', () => ({
   isWorkspaceAdmin: (u: { role?: string }) => u.role === 'owner' || u.role === 'admin',
 }));
 
-const cycleRoute = await import('@/app/api/track/cycles/[id]/route');
-const completeRoute = await import('@/app/api/track/cycles/[id]/complete/route');
-const statusRoute = await import('@/app/api/track/statuses/[id]/route');
-const cyclesRoute = await import('@/app/api/track/projects/[id]/cycles/route');
+const cycleRoute = await import('@/lib/routes/track/cycles/[id]/route');
+const completeRoute = await import('@/lib/routes/track/cycles/[id]/complete/route');
+const statusRoute = await import('@/lib/routes/track/statuses/[id]/route');
+const cyclesRoute = await import('@/lib/routes/track/projects/[id]/cycles/route');
 
 const json = (url: string, method: string, body?: unknown) =>
   new NextRequest(url, {

@@ -32,13 +32,13 @@ const session = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 
-const boardRoute = await import('@/app/api/boards/[id]/route');
-const sceneRoute = await import('@/app/api/boards/[id]/scene/route');
-const accessRoute = await import('@/app/api/boards/[id]/access/route');
-const workshopRoute = await import('@/app/api/boards/[id]/workshop/route');
-const embedRoute = await import('@/app/api/boards/[id]/embed/route');
-const guestSceneRoute = await import('@/app/api/boards/guest/[token]/scene/route');
-const guestRoute = await import('@/app/api/boards/guest/[token]/route');
+const boardRoute = await import('@/lib/routes/boards/[id]/route');
+const sceneRoute = await import('@/lib/routes/boards/[id]/scene/route');
+const accessRoute = await import('@/lib/routes/boards/[id]/access/route');
+const workshopRoute = await import('@/lib/routes/boards/[id]/workshop/route');
+const embedRoute = await import('@/lib/routes/boards/[id]/embed/route');
+const guestSceneRoute = await import('@/lib/routes/boards/guest/[token]/scene/route');
+const guestRoute = await import('@/lib/routes/boards/guest/[token]/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const tctx = (token: string) => ({ params: Promise.resolve({ token }) });

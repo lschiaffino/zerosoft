@@ -21,7 +21,7 @@ vi.mock('next/server', async (orig) => ({
 }));
 vi.mock('@/lib/events', () => ({ emitEvent: async () => {} }));
 
-const projectRoute = await import('@/app/api/track/projects/[id]/route');
+const projectRoute = await import('@/lib/routes/track/projects/[id]/route');
 const req = (method: string, body?: unknown) =>
   new NextRequest('http://x/t', {
     method,
@@ -153,7 +153,7 @@ import { STATUS_CATEGORY_COLORS, statusGlyphColor } from '@/lib/track-color';
 import { createPlan, getPlanSummary } from '@/lib/track-plans';
 
 const labelsRoute = await import('@/app/api/track/labels/route');
-const planRoute = await import('@/app/api/track/plans/[id]/route');
+const planRoute = await import('@/lib/routes/track/plans/[id]/route');
 
 describe('Track: escala de estimación por team', () => {
   it('opciones por escala y talles con su número', () => {

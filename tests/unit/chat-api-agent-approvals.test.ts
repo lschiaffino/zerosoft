@@ -20,11 +20,11 @@ import { makeUser } from './helpers';
 import { scriptedModel } from './ai-mock';
 
 const listRoute = await import('@/app/api/v1/chat/conversations/route');
-const getRoute = await import('@/app/api/v1/chat/conversations/[id]/route');
-const replyRoute = await import('@/app/api/v1/chat/conversations/[id]/messages/route');
-const assignRoute = await import('@/app/api/v1/chat/conversations/[id]/assign/route');
-const resolveRoute = await import('@/app/api/v1/chat/conversations/[id]/resolve/route');
-const reopenRoute = await import('@/app/api/v1/chat/conversations/[id]/reopen/route');
+const getRoute = await import('@/lib/routes/v1/chat/conversations/[id]/route');
+const replyRoute = await import('@/lib/routes/v1/chat/conversations/[id]/messages/route');
+const assignRoute = await import('@/lib/routes/v1/chat/conversations/[id]/assign/route');
+const resolveRoute = await import('@/lib/routes/v1/chat/conversations/[id]/resolve/route');
+const reopenRoute = await import('@/lib/routes/v1/chat/conversations/[id]/reopen/route');
 
 const ENV_KEYS = ['AI_GATEWAY_API_KEY', 'VERCEL_OIDC_TOKEN', 'VERCEL', 'AI_ENABLED', 'AI_FREE_TOKENS_PER_MONTH'];
 const saved: Record<string, string | undefined> = {};

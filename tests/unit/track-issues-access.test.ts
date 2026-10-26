@@ -29,13 +29,13 @@ vi.mock('next/server', async (orig) => ({
   after: () => undefined,
 }));
 
-const issueRoute = await import('@/app/api/track/issues/[id]/route');
-const commentsRoute = await import('@/app/api/track/issues/[id]/comments/route');
-const projectIssuesRoute = await import('@/app/api/track/projects/[id]/issues/route');
-const viewsRoute = await import('@/app/api/track/projects/[id]/views/route');
-const viewRoute = await import('@/app/api/track/views/[id]/route');
+const issueRoute = await import('@/lib/routes/track/issues/[id]/route');
+const commentsRoute = await import('@/lib/routes/track/issues/[id]/comments/route');
+const projectIssuesRoute = await import('@/lib/routes/track/projects/[id]/issues/route');
+const viewsRoute = await import('@/lib/routes/track/projects/[id]/views/route');
+const viewRoute = await import('@/lib/routes/track/views/[id]/route');
 const labelsRoute = await import('@/app/api/track/labels/route');
-const triageRoute = await import('@/app/api/track/issues/[id]/triage/route');
+const triageRoute = await import('@/lib/routes/track/issues/[id]/triage/route');
 
 const json = (url: string, method: string, body?: unknown) =>
   new NextRequest(`http://x${url}`, {

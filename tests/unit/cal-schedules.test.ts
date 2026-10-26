@@ -33,7 +33,7 @@ const session = vi.hoisted(() => ({ user: null as null | { id: string; email: st
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 
 const schedulesRoute = await import('@/app/api/calendar/schedules/route');
-const scheduleRoute = await import('@/app/api/calendar/schedules/[id]/route');
+const scheduleRoute = await import('@/lib/routes/calendar/schedules/[id]/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const json = (url: string, method: string, body?: unknown) =>

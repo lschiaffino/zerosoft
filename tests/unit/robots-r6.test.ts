@@ -22,9 +22,9 @@ import { scriptedModel } from './ai-mock';
 
 const listRoute = await import('@/app/api/v1/robots/route');
 const runsRoute = await import('@/app/api/v1/robots/[id]/runs/route');
-const bulkRoute = await import('@/app/api/v1/robots/[id]/bulk/route');
-const runRoute = await import('@/app/api/v1/robots/runs/[id]/route');
-const batchRoute = await import('@/app/api/v1/robots/batches/[id]/route');
+const bulkRoute = await import('@/lib/routes/v1/robots/[id]/bulk/route');
+const runRoute = await import('@/lib/routes/v1/robots/runs/[id]/route');
+const batchRoute = await import('@/lib/routes/v1/robots/batches/[id]/route');
 
 beforeEach(() => {
   vi.stubEnv('RATE_LIMIT_DISABLED', 'true');

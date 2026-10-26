@@ -9,11 +9,11 @@ const session = vi.hoisted(() => ({ user: null as null | { id: string; email: st
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 
 const listRoute = await import('@/app/api/calendar/bookings/route');
-const bookingRoute = await import('@/app/api/calendar/bookings/[id]/route');
-const rescheduleRoute = await import('@/app/api/calendar/bookings/[id]/reschedule/route');
-const slotsRoute = await import('@/app/api/calendar/bookings/[id]/slots/route');
-const v1NoShow = await import('@/app/api/v1/calendar/bookings/[id]/no-show/route');
-const v1Reschedule = await import('@/app/api/v1/calendar/bookings/[id]/reschedule/route');
+const bookingRoute = await import('@/lib/routes/calendar/bookings/[id]/route');
+const rescheduleRoute = await import('@/lib/routes/calendar/bookings/[id]/reschedule/route');
+const slotsRoute = await import('@/lib/routes/calendar/bookings/[id]/slots/route');
+const v1NoShow = await import('@/lib/routes/v1/calendar/bookings/[id]/no-show/route');
+const v1Reschedule = await import('@/lib/routes/v1/calendar/bookings/[id]/reschedule/route');
 const v1List = await import('@/app/api/v1/calendar/bookings/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });

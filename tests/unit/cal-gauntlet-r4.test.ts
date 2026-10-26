@@ -20,7 +20,7 @@ import { makeUser } from './helpers';
 
 const session = vi.hoisted(() => ({ user: null as null | { id: string; email: string } }));
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
-const bookingRoute = await import('@/app/api/calendar/bookings/[id]/route');
+const bookingRoute = await import('@/lib/routes/calendar/bookings/[id]/route');
 
 /** Una fecha (YYYY-MM-DD, UTC) N días en el futuro que cae en lunes. */
 function nextMonday(minDaysAhead = 2): string {

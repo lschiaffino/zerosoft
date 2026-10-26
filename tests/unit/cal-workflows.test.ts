@@ -13,7 +13,7 @@ import { makeUser } from './helpers';
 
 const session = vi.hoisted(() => ({ user: null as null | { id: string; email: string } }));
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
-const workflowsRoute = await import('@/app/api/calendar/event-types/[id]/workflows/route');
+const workflowsRoute = await import('@/lib/routes/calendar/event-types/[id]/workflows/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const json = (method: string, body?: unknown) =>

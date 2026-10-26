@@ -30,8 +30,8 @@ const session = vi.hoisted(() => ({
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 
 const notesRoute = await import('@/app/api/notes/route');
-const noteRoute = await import('@/app/api/notes/[id]/route');
-const shareRoute = await import('@/app/api/notes/[id]/share/route');
+const noteRoute = await import('@/lib/routes/notes/[id]/route');
+const shareRoute = await import('@/lib/routes/notes/[id]/share/route');
 const askRoute = await import('@/app/api/notes/ask/route');
 const clipRoute = await import('@/app/api/notes/clip/route');
 

@@ -73,13 +73,13 @@ vi.mock('@/lib/email', async (orig) => ({
   },
 }));
 
-const filesRoute = await import('@/app/api/notes/[id]/files/route');
-const fileRoute = await import('@/app/api/notes/[id]/files/[blockId]/route');
-const versionsRoute = await import('@/app/api/notes/[id]/versions/route');
-const versionRoute = await import('@/app/api/notes/[id]/versions/[versionId]/route');
-const restoreRoute = await import('@/app/api/notes/[id]/versions/[versionId]/restore/route');
-const reminderRoute = await import('@/app/api/notes/[id]/reminder/route');
-const exportRoute = await import('@/app/api/notes/[id]/export/route');
+const filesRoute = await import('@/lib/routes/notes/[id]/files/route');
+const fileRoute = await import('@/lib/routes/notes/[id]/files/[blockId]/route');
+const versionsRoute = await import('@/lib/routes/notes/[id]/versions/route');
+const versionRoute = await import('@/lib/routes/notes/[id]/versions/[versionId]/route');
+const restoreRoute = await import('@/lib/routes/notes/[id]/versions/[versionId]/restore/route');
+const reminderRoute = await import('@/lib/routes/notes/[id]/reminder/route');
+const exportRoute = await import('@/lib/routes/notes/[id]/export/route');
 const importRoute = await import('@/app/api/notes/import/route');
 
 function para(text: string): DocsBlock {

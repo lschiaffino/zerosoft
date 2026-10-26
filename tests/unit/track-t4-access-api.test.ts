@@ -19,8 +19,8 @@ vi.mock('@/lib/session', () => ({
 }));
 
 const issuesRoute = await import('@/app/api/v1/track/issues/route');
-const issueRoute = await import('@/app/api/v1/track/issues/[id]/route');
-const commentsRoute = await import('@/app/api/v1/track/issues/[id]/comments/route');
+const issueRoute = await import('@/lib/routes/v1/track/issues/[id]/route');
+const commentsRoute = await import('@/lib/routes/v1/track/issues/[id]/comments/route');
 const projectsRoute = await import('@/app/api/v1/track/projects/route');
 const accessRoute = await import('@/app/api/track/access/route');
 

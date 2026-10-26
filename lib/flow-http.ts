@@ -99,6 +99,8 @@ export async function testStepNow(
   workspaceId: string,
   flowId: string,
   body: z.infer<typeof flowStepTestSchema>,
+  /** Quien prueba: los datos fijados solo se usan si es quien creó el flow. */
+  personId?: string,
 ): Promise<{ ok: true; result: StepTestResult } | { ok: false; error: 'not_found' | 'node_not_found' | 'step_not_testable' | 'rate_limited' }> {
   const row = await getFlowRow(workspaceId, flowId);
   if (!row) return { ok: false, error: 'not_found' };
@@ -112,7 +114,7 @@ export async function testStepNow(
   if (!(await allowRun(workspaceId))) return { ok: false, error: 'rate_limited' };
   let sample = body.context;
   if (!sample) {
-    const { pins } = toFlowDto(row);
+    const { pins } = toFlowDto(row, personId);
     const trigger = triggerNode(graph);
     sample = {
       trigger: (trigger && pins[trigger.id]) ?? testInput(graph, undefined),

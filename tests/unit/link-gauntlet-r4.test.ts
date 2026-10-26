@@ -26,7 +26,7 @@ const batchRoute = await import('@/app/api/links/batch/route');
 const exportRoute = await import('@/app/api/links/export/route');
 const importRoute = await import('@/app/api/links/import/route');
 const bioRoute = await import('@/app/api/links/bio/route');
-const domainRoute = await import('@/app/api/links/domains/[id]/route');
+const domainRoute = await import('@/lib/routes/links/domains/[id]/route');
 
 const slug = (p: string) => `${p}${crypto.randomUUID().slice(0, 6)}`;
 const DESKTOP = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';

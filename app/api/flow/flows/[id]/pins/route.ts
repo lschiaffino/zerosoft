@@ -15,7 +15,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   if (!canEditFlows(user)) return forbidden();
   const parsed = flowPinSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return flowError(400, 'invalid_input');
-  const res = await setFlowPin(user.id, id, parsed.data.nodeId, parsed.data.output);
-  if (!res.ok) return res.error === 'not_found' ? notFound() : flowError(400, res.error);
+  const res = await setFlowPin(user.id, id, parsed.data.nodeId, parsed.data.output, user.actingUser?.id ?? user.id);
+  if (!res.ok) return res.error === 'not_found' ? notFound() : flowError(res.error === 'not_flow_owner' ? 403 : 400, res.error);
   return NextResponse.json({ pins: res.pins });
 }

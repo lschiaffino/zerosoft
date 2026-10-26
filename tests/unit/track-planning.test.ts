@@ -47,10 +47,10 @@ vi.mock('next/server', async (orig) => ({
 }));
 
 const plansRoute = await import('@/app/api/track/plans/route');
-const planRoute = await import('@/app/api/track/plans/[id]/route');
-const planUpdatesRoute = await import('@/app/api/track/plans/[id]/updates/route');
-const updateRoute = await import('@/app/api/track/plan-updates/[id]/route');
-const dashboardRoute = await import('@/app/api/track/dashboards/[id]/route');
+const planRoute = await import('@/lib/routes/track/plans/[id]/route');
+const planUpdatesRoute = await import('@/lib/routes/track/plans/[id]/updates/route');
+const updateRoute = await import('@/lib/routes/track/plan-updates/[id]/route');
+const dashboardRoute = await import('@/lib/routes/track/dashboards/[id]/route');
 
 const json = (url: string, method: string, body?: unknown) =>
   new NextRequest(url, {

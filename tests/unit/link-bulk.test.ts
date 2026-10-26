@@ -14,8 +14,8 @@ vi.mock('@/lib/session', () => ({
 }));
 
 const batchRoute = await import('@/app/api/links/batch/route');
-const linkRoute = await import('@/app/api/links/[id]/route');
-const v1LinkRoute = await import('@/app/api/v1/links/[id]/route');
+const linkRoute = await import('@/lib/routes/links/[id]/route');
+const v1LinkRoute = await import('@/lib/routes/v1/links/[id]/route');
 
 const post = (body: unknown) =>
   new NextRequest('http://x/api/links/batch', {
