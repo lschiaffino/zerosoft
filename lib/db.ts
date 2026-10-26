@@ -104,7 +104,26 @@ function plainRows(res: ResultSet): Record<string, unknown>[] {
   });
 }
 
+/**
+ * DB_QUERY_STATS=1: cuenta las consultas y lo escribe en el log cada 5 s
+ * (para medir carga, p. ej. el tiempo real de Talk). Apagado no hace nada.
+ */
+const QUERY_STATS = process.env.DB_QUERY_STATS === '1';
+let queryCount = 0;
+if (QUERY_STATS) {
+  setInterval(() => console.log(`[dbstats] t=${Date.now()} total=${queryCount}`), 5000).unref?.();
+}
+
 function makeStatement(executor: Executor, sql: string, ready: () => Promise<void>): Statement {
+  const exec = executor;
+  if (QUERY_STATS) {
+    executor = {
+      execute: (stmt) => {
+        queryCount++;
+        return exec.execute(stmt);
+      },
+    };
+  }
   return {
     async get(...args: InValue[]) {
       await ready();

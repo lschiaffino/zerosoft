@@ -284,16 +284,34 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
   const db = getDb();
   const row = (await db
     .prepare(
-      `SELECT d.*, w.url, w.secret, w.active FROM webhook_deliveries d
+      `SELECT d.*, w.url, w.secret, w.active, w.user_id AS w_user, w.created_by AS w_creator FROM webhook_deliveries d
        JOIN webhooks w ON w.id = d.webhook_id WHERE d.id = ?`,
     )
     .get(deliveryId)) as
-    | { id: string; payload: string; attempts: number; url: string; secret: string; active: number; event: string }
+    | { id: string; payload: string; attempts: number; url: string; secret: string; active: number; event: string; w_user: string; w_creator: string | null }
     | undefined;
   // Un webhook pausado no envía (salvo prueba o reenvío manual): la entrega queda pendiente.
   if (!row || (row.active !== 1 && !opts.force)) {
     await db.prepare('UPDATE webhook_deliveries SET claimed_until = NULL WHERE id = ?').run(deliveryId);
     return;
+  }
+
+  // Contenido restringido (Talk): al reintentar o reenviar se vuelve a chequear que
+  // quien creó el webhook todavía pueda verlo (pudo salir del canal o el canal pasar a privado).
+  if (row.event.startsWith('talk.')) {
+    const { talkDeliveryAllowed } = await import('./talk');
+    let data: unknown = null;
+    try {
+      data = (JSON.parse(row.payload) as { data?: unknown }).data;
+    } catch {
+      /* sin datos */
+    }
+    if (!(await talkDeliveryAllowed(row.w_user, row.w_creator, data))) {
+      await db
+        .prepare("UPDATE webhook_deliveries SET status = 'failed', last_error = 'audience_revoked', next_attempt_at = NULL, claimed_until = NULL WHERE id = ?")
+        .run(row.id);
+      return;
+    }
   }
 
   const attempts = row.attempts + 1;
@@ -353,11 +371,22 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
  * eventos link.* respeta el filtro de links de cada webhook. Intenta la
  * entrega en el momento (con timeout); nunca lanza.
  */
-export async function emitWebhook(userId: string, event: WebhookEvent, data: unknown): Promise<void> {
+export async function emitWebhook(
+  userId: string,
+  event: WebhookEvent,
+  data: unknown,
+  audience?: (creatorId: string | null) => Promise<boolean>,
+): Promise<void> {
   try {
-    const hooks = (await getDb()
-      .prepare('SELECT id, events, filters, crm_filter FROM webhooks WHERE user_id = ? AND active = 1')
-      .all(userId)) as Array<{ id: string; events: string; filters: string | null; crm_filter: string | null }>;
+    let hooks = (await getDb()
+      .prepare('SELECT id, events, filters, crm_filter, created_by FROM webhooks WHERE user_id = ? AND active = 1')
+      .all(userId)) as Array<{ id: string; events: string; filters: string | null; crm_filter: string | null; created_by: string | null }>;
+    // Contenido restringido: solo los webhooks de quien puede verlo.
+    if (audience) {
+      const allowed: typeof hooks = [];
+      for (const h of hooks) if (parseEvents(h.events).includes(event) && (await audience(h.created_by))) allowed.push(h);
+      hooks = allowed;
+    }
     const scope = event.startsWith('link.') ? linkScopeOf(data) : null;
     const targets = hooks.filter(
       (h) =>

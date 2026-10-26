@@ -53,6 +53,7 @@ export const WEBHOOK_EVENTS = [
   'project.created',
   'project.updated',
   'project.deleted',
+  'talk.message.posted',
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 

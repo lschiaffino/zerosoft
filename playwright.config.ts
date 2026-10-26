@@ -88,6 +88,8 @@ export default defineConfig({
       // e IA falsa (lib/voice-ai.ts; con la cookie voice_ai_fake=off se ve ai_disabled).
       VOICE_TRANSCRIBE_PROVIDER: 'fake',
       VOICE_AI_FAKE: '1',
+      // Talk con polling corto en vez de SSE: con el stream abierto la página nunca llega a networkidle.
+      TALK_REALTIME: 'poll',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

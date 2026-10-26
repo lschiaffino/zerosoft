@@ -1,23 +1,18 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import EmptyState from '@/components/ui/EmptyState';
 
-/** Error al cargar /app/talk: qué pasó y cómo reintentar. */
-export default function TalkError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  const t = useTranslations('common.appSoon');
+export default function TalkError({ reset }: { error: Error; reset: () => void }) {
+  const t = useTranslations('talk');
   return (
-    <div className="app-page ui-page" role="alert">
-      <EmptyState
-        product="talk"
-        title={t('errorTitle', { app: 'Talk' })}
-        body={t('errorBody')}
-        action={
-          <button type="button" className="btn btn-primary" onClick={reset}>
-            {t('retry')}
-          </button>
-        }
-      />
+    <div className="ui-empty" role="alert">
+      <p className="ui-empty-title">{t('errors.page')}</p>
+      <p className="ui-empty-body">{t('errors.pageBody')}</p>
+      <div className="ui-empty-actions">
+        <button type="button" className="btn btn-sm" onClick={reset}>
+          {t('common.retry')}
+        </button>
+      </div>
     </div>
   );
 }

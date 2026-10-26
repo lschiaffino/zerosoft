@@ -30,6 +30,12 @@ export const flowChain = new AsyncLocalStorage<FlowChain>();
 export interface EmitOptions {
   /** Datos extra solo para Flow (no cambian el payload del webhook). */
   extra?: Record<string, unknown>;
+  /**
+   * Contenido restringido (p. ej. un canal privado de Talk): solo lo reciben
+   * los webhooks y flows cuya persona creadora pasa este chequeo. Las apps
+   * del CRM (Slack) no lo reciben.
+   */
+  audience?: (creatorId: string | null) => Promise<boolean>;
 }
 
 /**
@@ -53,13 +59,15 @@ export async function emitEvent(
   opts: EmitOptions = {},
 ): Promise<void> {
   if ((WEBHOOK_EVENTS as readonly string[]).includes(type)) {
-    await emitWebhook(workspaceId, type as WebhookEvent, data);
-    // Apps del CRM (Slack): mismos eventos que los webhooks.
-    try {
-      const { notifyApps } = await import('./crm-apps');
-      await notifyApps(workspaceId, type as WebhookEvent, data);
-    } catch {
-      /* una app caída no corta el evento */
+    await emitWebhook(workspaceId, type as WebhookEvent, data, opts.audience);
+    // Apps del CRM (Slack): mismos eventos que los webhooks (nunca lo restringido).
+    if (!opts.audience) {
+      try {
+        const { notifyApps } = await import('./crm-apps');
+        await notifyApps(workspaceId, type as WebhookEvent, data);
+      } catch {
+        /* una app caída no corta el evento */
+      }
     }
   }
   // Groups: Slack, Freshdesk y Zoho Desk (lib/groups-integrations.ts).
@@ -78,7 +86,7 @@ export async function emitEvent(
       data && typeof data === 'object' && !Array.isArray(data)
         ? { ...(data as Record<string, unknown>), ...(opts.extra ?? {}) }
         : { data, ...(opts.extra ?? {}) };
-    await enqueueEventRuns(workspaceId, type, payload);
+    await enqueueEventRuns(workspaceId, type, payload, opts.audience);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[events] flow enqueue failed', err);

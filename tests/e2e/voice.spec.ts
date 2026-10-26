@@ -431,6 +431,15 @@ test('390px grabando: el indicador es compacto y no ensancha la barra', async ({
   const crm = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
   expect(crm.scroll, `CRM scrollWidth ${crm.scroll} > ${crm.inner}`).toBeLessThanOrEqual(crm.inner);
   await expect(page.locator('.band-right button').last()).toBeInViewport({ ratio: 1 });
+  // En Talk (que pone su propia etiqueta en la barra) conviven los dos.
+  await page.keyboard.press('ControlOrMeta+k');
+  await dialog.getByRole('combobox').fill('Talk');
+  await dialog.getByRole('option', { name: /Open Talk/ }).first().click();
+  await expect(page).toHaveURL(/\/app\/talk/);
+  await expect(compact).toBeVisible();
+  const talk = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
+  expect(talk.scroll, `Talk scrollWidth ${talk.scroll} > ${talk.inner}`).toBeLessThanOrEqual(talk.inner);
+  await expect(page.locator('.band-right button').last()).toBeInViewport({ ratio: 1 });
   await compact.click();
   await page.getByRole('menuitem', { name: 'Stop' }).click();
   await expect(page.locator('.vc-rec-indicator')).toHaveCount(0, { timeout: 25_000 });
