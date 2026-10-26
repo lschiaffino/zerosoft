@@ -2,7 +2,7 @@
   "products": {
     "meta": {
       "title": "Products",
-      "description": "Fifteen apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal and Board, with Voice, Rec and Talk in the works. Open source for your server, or on zerosoft Cloud with a free plan and usage-based pricing."
+      "description": "Fifteen apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board and Talk, with Voice and Rec in the works. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
     },
     "hero": {
       "title1": "Fifteen apps.",
@@ -1275,50 +1275,50 @@
     },
     "talk": {
       "meta": {
-        "title": "Talk: open-source team messaging (in the works)",
-        "description": "Talk will be the open-source alternative to Slack: channels, direct messages and threads for your team, in the same suite as your CRM and Track. It is being built, and its parity is measured live."
+        "title": "Talk: open source team messaging, a Slack alternative",
+        "description": "Public and private channels, direct messages, threads, mentions, search and notifications for your team, in the same suite as your CRM, Track and Docs. Open source alternative to Slack."
       },
       "hero": {
-        "sub": "We are building your team's messaging: public and private channels, direct messages and threads, with the same people and groups as your workspace. You can't use it yet."
+        "sub": "Your team's messaging: public and private channels, direct messages and threads, with the same people as your workspace and links to issues, deals and pages that show their status."
       },
-      "featuresTitle": "What Talk will do.",
-      "featuresTitleDim": "It doesn't exist yet: this is the plan.",
+      "featuresTitle": "The team's conversations in one place.",
+      "featuresTitleDim": "Next to your CRM, Track and Docs.",
       "f1": {
         "t": "Channels",
-        "d": "Public and private channels per topic, team or customer, showing who is in each one."
+        "d": "Public and private channels by topic, team or customer, with topic, description, members, pins and archiving."
       },
       "f2": {
         "t": "Direct messages",
-        "d": "One-to-one and small group conversations."
+        "d": "One-to-one conversations or groups of up to nine people plus you."
       },
       "f3": {
         "t": "Threads",
-        "d": "Threaded replies so the channel doesn't fill up."
+        "d": "Replies in a side panel, with the option to also send them to the channel."
       },
       "f4": {
         "t": "Mentions and reactions",
-        "d": "@person, @channel and workspace groups, plus emoji reactions."
+        "d": "@person, @channel, @here and workspace teams, notified in the bell and by email, plus emoji reactions."
       },
       "f5": {
-        "t": "Unread and search",
-        "d": "Unread marked per channel and search across every message."
+        "t": "Unreads and search",
+        "d": "Unreads and mentions per channel, and search with in:, from:, has: and dates."
       },
       "f6": {
         "t": "The same workspace",
-        "d": "The same people and groups you already use in CRM, Track and Docs, with no extra account."
+        "d": "The same people you already work with in CRM, Track and Docs. A message becomes a Track issue in three clicks."
       },
       "steps": {
         "s1": {
           "t": "Set up channels",
-          "d": "You'll create a channel per team, project or customer."
+          "d": "Create a channel per team, project or customer. #general is already there."
         },
         "s2": {
           "t": "Bring the team",
-          "d": "The people in your workspace will join, with the groups you already have."
+          "d": "Workspace people join public channels, or you add them to private ones."
         },
         "s3": {
           "t": "Talk in threads",
-          "d": "Replies, mentions and reactions, with unread marked."
+          "d": "Replies, mentions and reactions, with unreads marked and in real time."
         }
       },
       "compare": {
@@ -1327,16 +1327,16 @@
         "per": "/ user / month",
         "team": "$870",
         "zero": "$0",
-        "note": "Slack Pro costs $7.25 per user per month billed yearly ($8.75 monthly) and Business+ costs $15. A team of ten pays $870 a year. List prices without promotions, checked on October 25, 2026. Talk doesn't exist yet; once it ships, it will cost $0 on your server."
+        "note": "Slack Pro costs $7.25 per user per month billed annually ($8.75 monthly) and Business+ costs $15. A team of ten pays $870 a year. List prices without promotions, checked on October 25, 2026. Talk on your server costs $0."
       },
       "faq": {
         "f1": {
-          "q": "Can I use Talk yet?",
-          "a": "Not yet. Today /app/talk shows that it is being built. The parity on this page comes from the code and goes up as features ship."
+          "q": "Can I use Talk already?",
+          "a": "Yes. Open /app/talk: it starts with #general and you can create channels, open direct messages and reply in threads. The parity table shows what is there and what is missing."
         },
         "f2": {
-          "q": "Will it have calls like Slack huddles?",
-          "a": "Not in the first version: real-time messages come first. Calls are left for a later stage."
+          "q": "Does it have calls like Slack huddles?",
+          "a": "Not yet. Audio and video calls come in a later stage."
         },
         "f3": {
           "q": "Will I be able to bring my Slack messages?",
@@ -1347,14 +1347,14 @@
           "a": "Talk is meant for the people in your workspace. Channels shared with other organizations, like Slack Connect, are not in the initial plan."
         },
         "f5": {
-          "q": "What is missing compared to Slack?",
-          "a": "Everything, for now. Talk is being built and the parity table above lists the Slack capabilities we measure, all of them pending."
+          "q": "What is missing compared with Slack?",
+          "a": "Calls, canvases and lists, marketplace apps, channels shared with other organizations, guests, AI summaries and desktop and mobile apps. The parity table lists it row by row."
         }
       },
       "cta": {
-        "title1": "Talk is being built.",
-        "title2": "Tell us what you need.",
-        "sub": "Propose ideas and vote on the public board: your votes help us decide what to build first.",
+        "title1": "Talk works today.",
+        "title2": "Tell us what you are missing.",
+        "sub": "Try it with your team and vote on the public board for what we should do next.",
         "button": "Propose an idea"
       }
     }
@@ -2364,6 +2364,28 @@
     "paramTrackDate": "Date, YYYY-MM-DD.",
     "webhooksTrackTitle": "Track event payload",
     "webhooksTrackDesc": "issue.* events carry the issue and its team (project in the payload); issue.status_changed adds from and to, comment.created the comment and project.* the team.",
+    "talkTitle": "Talk",
+    "talkDesc": "Team messaging. The key acts as the person who created it: it sees the channels that person sees and posts where that person is a member (joining public channels on the first post). Direct messages are not available through the API. Scopes talk:read and talk:write.",
+    "talkChannelsListTitle": "List channels",
+    "talkChannelsListDesc": "Channels the key person is in, or with scope=all the public channels and the private ones they are in.",
+    "talkChannelsCreateTitle": "Create a channel",
+    "talkChannelsCreateDesc": "Creates a public or private channel. The name is stored like Slack: lowercase, with hyphens instead of spaces.",
+    "talkMessagesListTitle": "List messages",
+    "talkMessagesListDesc": "Channel level messages, newest last. Mentions come as tokens with the user id, plus channel and here tokens.",
+    "talkMessagesSendTitle": "Send a message",
+    "talkMessagesSendDesc": "Posts in a channel or replies in a thread. Mentions, notifications, link previews, Flow and webhooks run as if it were sent from the app.",
+    "talkHookTitle": "Incoming webhook",
+    "talkHookDesc": "Without an API key: create the URL in a channel (Details, Integrations) and POST JSON with text. It posts as a bot with the webhook name. 60 requests per minute per webhook.",
+    "paramTalkScope": "member (default) or all",
+    "paramTalkName": "Channel name",
+    "paramTalkKind": "public (default) or private",
+    "paramTalkTopic": "Channel topic",
+    "paramTalkChannel": "Channel id or name (general or #general)",
+    "paramTalkBefore": "ISO date: messages before it (for paging)",
+    "paramTalkText": "Message text, with the same formatting as the app (*bold*, _italic_, `code`, links, :emoji:)",
+    "paramTalkThread": "Id of the root message to reply in its thread",
+    "paramTalkAlso": "With thread_id, also show the reply in the channel",
+    "paramTalkUsername": "Bot name shown on the message (by default, the webhook name)",
     "docsApiTitle": "Docs",
     "docsApiDesc": "Read and write Docs pages, blocks, databases, rows and comments. Content goes in and out as Markdown (or Docs blocks). A key acts as the person who created it: it only sees and edits the pages that person can open. Synced databases are read-only.",
     "docsPagesListTitle": "List pages",

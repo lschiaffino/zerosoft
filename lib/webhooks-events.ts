@@ -59,6 +59,7 @@ export const WEBHOOK_EVENTS = [
   'page.comment_created',
   'database.row_created',
   'database.property_changed',
+  'talk.message.posted',
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 

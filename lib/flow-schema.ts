@@ -73,6 +73,7 @@ export const FLOW_EVENT_TYPES = [
   'groups.member.joined',
   'groups.member.left',
   'groups.poll.voted',
+  'talk.message.posted',
 ] as const;
 export type FlowEventType = (typeof FLOW_EVENT_TYPES)[number];
 
@@ -335,6 +336,16 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
     vote: { voter: '5491155550000', voterName: 'Ada', options: ['Tuesday'] },
     results: [{ option: 'Monday', votes: 0 }, { option: 'Tuesday', votes: 1 }],
     chat: { id: 'gc_1', kind: 'group', name: 'Acme support', crmCompanyId: null, crmContactId: null },
+  },
+  'talk.message.posted': {
+    id: 'tm_1',
+    channel: { id: 'tc_1', name: 'general', kind: 'public' },
+    text: 'Deploy done, please check staging',
+    body: 'Deploy done, please check staging',
+    userId: 'u_1',
+    botName: null,
+    threadId: null,
+    createdAt: '2026-01-01T15:00:00Z',
   },
 };
 
@@ -714,6 +725,19 @@ export const NODE_DEFS = {
     fields: [
       { key: 'chatId', kind: 'groupsChatRef', template: true, placeholder: '{{trigger.chat.id}}' },
       { key: 'body', kind: 'textarea', template: true },
+    ],
+  },
+  'app.talk_message': {
+    type: 'app.talk_message',
+    category: 'app',
+    outputs: ['out'],
+    fields: [
+      /** Nombre del canal (general o #general) o su id. */
+      { key: 'channel', kind: 'text', template: true, placeholder: 'general' },
+      { key: 'body', kind: 'textarea', template: true },
+      /** Responde en el hilo de este mensaje (id), opcional. */
+      { key: 'threadId', kind: 'text', template: true, placeholder: '{{trigger.id}}', advanced: true },
+      { key: 'botName', kind: 'text', template: true, placeholder: 'Flow', advanced: true },
     ],
   },
   'app.docs_page': {

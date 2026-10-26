@@ -31,7 +31,7 @@ export interface EmitOptions {
   /** Datos extra solo para Flow (no cambian el payload del webhook). */
   extra?: Record<string, unknown>;
   /**
-   * Contenido restringido: solo lo reciben los webhooks y flows cuya persona
+   * Contenido restringido (Docs, un canal privado de Talk): solo lo reciben los webhooks y flows cuya persona
    * creadora pasa este chequeo. Las apps del CRM (Slack) no lo reciben.
    */
   audience?: (creatorId: string | null) => Promise<boolean>;

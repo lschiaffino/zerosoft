@@ -5,7 +5,7 @@
 import { getDb } from './db';
 import type { NotificationRow } from './db';
 
-export type NotificationType = 'mention' | 'assigned' | 'status_change' | 'issue_update' | 'comment' | 'subtask' | 'relation' | 'chat_message' | 'email_activity' | 'crm_quote' | 'crm_form' | 'crm_lead' | 'crm_approval' | 'crm_document' | 'crm_video' | 'roadmap_status' | 'note_reminder' | 'track_reminder' | 'groups_sla' | 'groups_reminder' | 'project_update' | 'docs_reminder' | 'db_automation';
+export type NotificationType = 'mention' | 'assigned' | 'status_change' | 'issue_update' | 'comment' | 'subtask' | 'relation' | 'chat_message' | 'email_activity' | 'crm_quote' | 'crm_form' | 'crm_lead' | 'crm_approval' | 'crm_document' | 'crm_video' | 'roadmap_status' | 'note_reminder' | 'track_reminder' | 'groups_sla' | 'groups_reminder' | 'project_update' | 'docs_reminder' | 'db_automation' | 'talk_mention' | 'talk_dm' | 'talk_thread' | 'talk_keyword' | 'talk_message' | 'talk_reminder';
 
 export interface NotificationCreatePayload {
   userId: string;

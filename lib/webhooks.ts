@@ -311,11 +311,11 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
   const db = getDb();
   const row = (await db
     .prepare(
-      `SELECT d.*, w.url, w.secret, w.active FROM webhook_deliveries d
+      `SELECT d.*, w.url, w.secret, w.active, w.user_id AS w_user, w.created_by AS w_creator FROM webhook_deliveries d
        JOIN webhooks w ON w.id = d.webhook_id WHERE d.id = ?`,
     )
     .get(deliveryId)) as
-    | { id: string; payload: string; attempts: number; url: string; secret: string; active: number; event: string }
+    | { id: string; payload: string; attempts: number; url: string; secret: string; active: number; event: string; w_user: string; w_creator: string | null }
     | undefined;
   // Un webhook pausado no envía (salvo prueba o reenvío manual): la entrega queda pendiente.
   if (!row || (row.active !== 1 && !opts.force)) {
@@ -323,20 +323,28 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
     return;
   }
 
-  // Docs: al reintentar o reenviar se vuelve a chequear que quien creó el
-  // webhook todavía pueda abrir la página (pudo perder el acceso).
-  if (row.event.startsWith('page.') || row.event.startsWith('database.')) {
-    const meta = (await db.prepare('SELECT user_id, created_by FROM webhooks WHERE id = (SELECT webhook_id FROM webhook_deliveries WHERE id = ?)').get(row.id)) as
-      | { user_id: string; created_by: string | null }
-      | undefined;
-    let pageId = '';
+  // Contenido restringido (Docs, Talk): se capturó con el acceso de una
+  // persona. Al reintentar o reenviar se vuelve a chequear que quien creó el
+  // webhook todavía pueda verlo, y que sea la misma persona con cuyo acceso
+  // se capturó (si el webhook pasó a otra, no se le manda lo de antes).
+  if (isRestrictedEvent(row.event)) {
+    let data: unknown = null;
     try {
-      pageId = String(((JSON.parse(row.payload) as { data?: { page?: { id?: string } } }).data?.page?.id) ?? '');
+      data = (JSON.parse(row.payload) as { data?: unknown }).data;
     } catch {
       /* sin datos */
     }
-    const { docsDeliveryAllowed } = await import('./docs-events');
-    if (!meta || !(await docsDeliveryAllowed(meta.user_id, meta.created_by, pageId))) {
+    const capturedBy = (row as { captured_by?: string | null }).captured_by;
+    let allowed = !capturedBy || capturedBy === row.w_creator;
+    if (allowed && row.event.startsWith('talk.')) {
+      const { talkDeliveryAllowed } = await import('./talk');
+      allowed = await talkDeliveryAllowed(row.w_user, row.w_creator, data);
+    } else if (allowed) {
+      const pageId = String((data as { page?: { id?: string } } | null)?.page?.id ?? '');
+      const { docsDeliveryAllowed } = await import('./docs-events');
+      allowed = await docsDeliveryAllowed(row.w_user, row.w_creator, pageId);
+    }
+    if (!allowed) {
       await db
         .prepare("UPDATE webhook_deliveries SET status = 'failed', last_error = 'audience_revoked', next_attempt_at = NULL, claimed_until = NULL WHERE id = ?")
         .run(row.id);

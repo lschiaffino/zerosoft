@@ -63,6 +63,7 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'track', titleKey: 'trackTitle', descKey: 'trackDesc' },
   { id: 'track-mcp', titleKey: 'trackMcpTitle', descKey: 'trackMcpDesc' },
   { id: 'docs', titleKey: 'docsApiTitle', descKey: 'docsApiDesc' },
+  { id: 'talk', titleKey: 'talkTitle', descKey: 'talkDesc' },
   { id: 'webhooks', titleKey: 'webhooksTitle', descKey: 'webhooksDesc' },
 ];
 
@@ -2723,6 +2724,91 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     response: { jsonrpc: '2.0', id: 1, result: { content: [{ type: 'text', text: '{"results":[...]}' }], isError: false } },
     responseStatus: 200,
   },
+
+  // Talk (mensajería de equipo)
+  {
+    id: 'talk-channels-list',
+    sectionId: 'talk',
+    method: 'GET',
+    path: '/api/v1/talk/channels',
+    titleKey: 'talkChannelsListTitle',
+    descKey: 'talkChannelsListDesc',
+    params: [
+      { name: 'scope', type: 'string', descriptionKey: 'paramTalkScope' },
+      { name: 'q', type: 'string', descriptionKey: 'paramSearch' },
+    ],
+    response: {
+      data: [{ id: 'tc_1', name: 'general', kind: 'public', topic: 'Company news', description: '', archived: false, member_count: 8, is_member: true, created_at: '2026-10-25T12:00:00.000Z' }],
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'talk-channels-create',
+    sectionId: 'talk',
+    method: 'POST',
+    path: '/api/v1/talk/channels',
+    titleKey: 'talkChannelsCreateTitle',
+    descKey: 'talkChannelsCreateDesc',
+    params: [
+      { name: 'name', type: 'string', required: true, descriptionKey: 'paramTalkName' },
+      { name: 'kind', type: 'string', descriptionKey: 'paramTalkKind' },
+      { name: 'topic', type: 'string', descriptionKey: 'paramTalkTopic' },
+    ],
+    request: { name: 'launch-q4', kind: 'public', topic: 'Q4 launch' },
+    response: { data: { id: 'tc_2', name: 'launch-q4', kind: 'public', topic: 'Q4 launch', description: '', archived: false, member_count: 1, is_member: true, created_at: '2026-10-25T12:00:00.000Z' } },
+    responseStatus: 201,
+  },
+  {
+    id: 'talk-messages-list',
+    sectionId: 'talk',
+    method: 'GET',
+    path: '/api/v1/talk/messages',
+    titleKey: 'talkMessagesListTitle',
+    descKey: 'talkMessagesListDesc',
+    params: [
+      { name: 'channel', type: 'string', required: true, descriptionKey: 'paramTalkChannel' },
+      { name: 'before', type: 'string', descriptionKey: 'paramTalkBefore' },
+      { name: 'limit', type: 'number', descriptionKey: 'paramLimit' },
+    ],
+    response: {
+      data: [{ id: 'tm_1', channel_id: 'tc_1', thread_id: null, user_id: 'u_1', bot_name: null, text: 'Deploy done <@u_2>', files: [], reactions: [{ emoji: '🎉', count: 2, users: ['u_2', 'u_3'] }], reply_count: 1, edited_at: null, pinned: false, created_at: '2026-10-25T12:05:00.000Z' }],
+      has_more: false,
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'talk-messages-send',
+    sectionId: 'talk',
+    method: 'POST',
+    path: '/api/v1/talk/messages',
+    titleKey: 'talkMessagesSendTitle',
+    descKey: 'talkMessagesSendDesc',
+    params: [
+      { name: 'channel', type: 'string', required: true, descriptionKey: 'paramTalkChannel' },
+      { name: 'text', type: 'string', required: true, descriptionKey: 'paramTalkText' },
+      { name: 'thread_id', type: 'string', descriptionKey: 'paramTalkThread' },
+      { name: 'also_in_channel', type: 'boolean', descriptionKey: 'paramTalkAlso' },
+    ],
+    request: { channel: 'general', text: 'Release *2.4* is live :tada:' },
+    response: { data: { id: 'tm_2', channel_id: 'tc_1', thread_id: null, user_id: 'u_1', bot_name: null, text: 'Release *2.4* is live :tada:', files: [], reactions: [], reply_count: 0, edited_at: null, pinned: false, created_at: '2026-10-25T12:06:00.000Z' } },
+    responseStatus: 201,
+  },
+  {
+    id: 'talk-incoming-webhook',
+    sectionId: 'talk',
+    method: 'POST',
+    path: '/api/talk/hooks/:token',
+    titleKey: 'talkHookTitle',
+    descKey: 'talkHookDesc',
+    params: [
+      { name: 'text', type: 'string', required: true, descriptionKey: 'paramTalkText' },
+      { name: 'username', type: 'string', descriptionKey: 'paramTalkUsername' },
+      { name: 'thread_id', type: 'string', descriptionKey: 'paramTalkThread' },
+    ],
+    request: { text: 'Build *green* on main', username: 'CI' },
+    response: { ok: true, id: 'tm_3' },
+    responseStatus: 200,
+  },
 ];
 
 /** Qué permite cada scope de API key (se muestra en la doc y en la UI de keys). */
@@ -2738,7 +2824,7 @@ export const API_SCOPE_DOCS: Array<{ scope: ApiScope; descKey: string }> = API_S
  */
 export function endpointScope(e: Pick<ApiEndpoint, 'path' | 'method' | 'scope'>): ApiScope | null {
   if (e.scope) return e.scope;
-  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat|groups|track|docs)\b/.exec(e.path);
+  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat|groups|track|docs|talk)\b/.exec(e.path);
   if (!m) return null;
   if (m[1] === 'agents') return 'agents:run';
   if (m[1] === 'robots') return 'robots:run';

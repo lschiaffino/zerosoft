@@ -91,7 +91,7 @@ export function productRgb(key: ProductKey): string {
  * landing que lo dice y paridad en 0 %. Al salir la primera versión, se
  * sacan de acá.
  */
-export const BUILDING_PRODUCTS: readonly ProductKey[] = ['voice', 'rec', 'talk'];
+export const BUILDING_PRODUCTS: readonly ProductKey[] = ['voice', 'rec'];
 
 export function isBuildingProduct(key: string): boolean {
   return (BUILDING_PRODUCTS as readonly string[]).includes(key);

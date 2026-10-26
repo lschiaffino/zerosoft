@@ -785,7 +785,7 @@ export async function enqueueEventRuns(
   const ids: string[] = [];
   for (const row of rows) {
     if (parent?.seen.includes(row.id)) continue;
-    // Contenido restringido: solo flows de quien puede verlo.
+    // Contenido restringido (Docs, canal privado de Talk): solo flows de quien puede verlo.
     if (audience && !(await audience(row.created_by ?? null))) continue;
     let own = data;
     if (personalize) {

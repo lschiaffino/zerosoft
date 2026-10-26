@@ -420,6 +420,25 @@ async function groupsMessageNode(ws: string, cfg: Record<string, unknown>, tctx:
   }
 }
 
+/** Talk: publica como bot (con el nombre elegido) en un canal donde la persona que creó el flow es miembro. */
+async function talkMessageNode(ws: string, creatorId: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
+  const channel = renderString(cfg.channel ?? '', tctx).trim();
+  const body = renderString(cfg.body ?? '', tctx).trim();
+  const threadId = renderString(cfg.threadId ?? '', tctx).trim() || null;
+  const botName = renderString(cfg.botName ?? '', tctx).trim().slice(0, 60) || 'Flow';
+  if (!channel) throw new StepError('missing_channel');
+  if (!body) throw new StepError('missing_body');
+  const { postAsBot } = await import('./talk-bot');
+  const { TalkError } = await import('./talk');
+  try {
+    const msg = await postAsBot(ws, { channel, body: body.slice(0, 12_000), threadId, botName, memberId: creatorId });
+    return { message: { id: msg.id, channelId: msg.channelId, threadId: msg.parentId } };
+  } catch (err) {
+    if (err instanceof TalkError) throw new StepError(err.code === 'not_found' ? 'channel_not_found' : err.code === 'not_member' ? 'not_channel_member' : err.code);
+    throw err;
+  }
+}
+
 async function aiNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
   if (!aiEnabled()) throw new StepError('ai_disabled');
   const prompt = renderString(cfg.prompt ?? '', tctx).trim();
@@ -946,6 +965,8 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
       return { kind: 'ok', output: await docsRowFlowNode(ws, state.flow.created_by, cfg, tctx), handles: ['out'] };
     case 'app.groups_message':
       return { kind: 'ok', output: await groupsMessageNode(ws, cfg, tctx), handles: ['out'] };
+    case 'app.talk_message':
+      return { kind: 'ok', output: await talkMessageNode(ws, state.flow.created_by ?? ws, cfg, tctx), handles: ['out'] };
     case 'app.robot_run':
       return { kind: 'ok', output: await robotNode(state, cfg, tctx), handles: ['out'] };
     case 'ai.text':

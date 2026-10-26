@@ -174,6 +174,8 @@ function summaryOf(type: FlowNodeType, cfg: Record<string, unknown>, t: ReturnTy
       return s(cfg.email);
     case 'app.link':
       return s(cfg.url);
+    case 'app.talk_message':
+      return s(cfg.channel) ? `#${s(cfg.channel).replace(/^#/, '')}` : '';
     default:
       return '';
   }

@@ -13,7 +13,6 @@ export default function TalkMockup() {
       <aside className="mk-chat-list">
         <div className="mk-chat-list-head">
           <h4>{t('channelsTitle')}</h4>
-          <span className="mk-sketch">{t('sketch')}</span>
         </div>
         {CHANNELS.map((c, i) => (
           <div className={`mk-chat-row${i === 0 ? ' active' : ''}`} key={c}>

@@ -1,9 +1,18 @@
 {
-  "groupsPicker": {"search": "Search a chat or group by name", "current": "Sends to {name}", "group": "group", "dm": "1:1 chat", "help": "Or use a variable, like the chat of the event that started the flow."},
-  "docsPicker": {"searchPages": "Search a page by title", "current": "Page: {name}", "untitled": "Untitled", "missing": "Page not found or no access", "loading": "Loading databases…", "pickDatabase": "Pick a database", "properties": "Properties: {list}", "noDatabases": "There are no databases in Docs yet. Add one with /database in a page.", "databaseHelp": "The flow writes with the permissions of the person who created it.", "loadError": "Could not load the databases. Try again.", "noTemplate": "No template", "workspaceTemplates": "Workspace templates", "builtinTemplates": "Built-in templates", "templateHelp": "Variables like {{page.title}} in the template are filled with the trigger data."},
+  "groupsPicker": {
+    "search": "Search a chat or group by name",
+    "current": "Sends to {name}",
+    "group": "group",
+    "dm": "1:1 chat",
+    "help": "Or use a variable, like the chat of the event that started the flow."
+  },
   "title": "Flow",
   "subtitle": "Automations across every zerosoft app and any service with an API.",
-  "sidebar": { "flows": "Flows", "credentials": "Credentials", "tables": "Tables" },
+  "sidebar": {
+    "flows": "Flows",
+    "credentials": "Credentials",
+    "tables": "Tables"
+  },
   "list": {
     "emptyTemplates": "See templates",
     "emptyTitle": "No flows yet",
@@ -30,22 +39,70 @@
     "subtitle": "Ready-made flows. Use one and adjust the details.",
     "use": "Use template",
     "items": {
-      "bookingToTrack": { "name": "New Cal booking → Track task", "desc": "Every new booking creates an issue to prepare the meeting." },
-      "linkMilestone": { "name": "Link clicked 100 times → email me", "desc": "Get an email the moment a short link hits 100 clicks." },
-      "webhookToContact": { "name": "Webhook → CRM contact", "desc": "Any form or service that can POST JSON creates a contact." },
-      "dealsDigest": { "name": "Daily digest of new deals", "desc": "Every morning, an email with the deals created in the last 24 hours." },
-      "chatSummaryToSlack": { "name": "Chat message → AI summary to Slack", "desc": "Summarizes each incoming message with AI and posts it to a Slack webhook." },
-      "leadToCrmSlack": { "name": "Form lead → CRM + Slack", "desc": "Each form submission becomes a contact and a message in your sales channel." },
-      "bookingToSheets": { "name": "New booking → Google Sheets row", "desc": "Logs every Cal booking as a row: date, name, email and event." },
-      "dealWonToStripe": { "name": "Deal won → Stripe customer", "desc": "Creates the customer in Stripe as soon as a deal is marked won." },
-      "chatToTrack": { "name": "Chat bug report → Track issue", "desc": "AI flags chat messages that report a bug and opens a high-priority issue." },
-      "dailyDigestEmail": { "name": "Weekday digest email", "desc": "Every weekday at 8:00, an AI summary of new deals sent from your Gmail." },
-      "robotToSheets": { "name": "Robot data → Google Sheets", "desc": "Appends what a robot extracts (like a daily price) to a sheet." },
-      "stripePaymentToSlack": { "name": "Stripe payment → Slack", "desc": "Posts each successful payment to Slack. Verified with the Stripe signature." },
-      "issueToDiscord": { "name": "Urgent issue → Discord", "desc": "Sends urgent Track issues to a Discord channel." },
-      "formToTelegram": { "name": "Form submission → Telegram", "desc": "Get every form submission on Telegram." },
-      "bookingToNotion": { "name": "Booking → Notion meeting notes", "desc": "Creates a page in a Notion database for each new booking." },
-      "webhookAgentReply": { "name": "Webhook question → agent → Slack", "desc": "An agent answers questions sent to a webhook and posts the answer to Slack." }
+      "bookingToTrack": {
+        "name": "New Cal booking → Track task",
+        "desc": "Every new booking creates an issue to prepare the meeting."
+      },
+      "linkMilestone": {
+        "name": "Link clicked 100 times → email me",
+        "desc": "Get an email the moment a short link hits 100 clicks."
+      },
+      "webhookToContact": {
+        "name": "Webhook → CRM contact",
+        "desc": "Any form or service that can POST JSON creates a contact."
+      },
+      "dealsDigest": {
+        "name": "Daily digest of new deals",
+        "desc": "Every morning, an email with the deals created in the last 24 hours."
+      },
+      "chatSummaryToSlack": {
+        "name": "Chat message → AI summary to Slack",
+        "desc": "Summarizes each incoming message with AI and posts it to a Slack webhook."
+      },
+      "leadToCrmSlack": {
+        "name": "Form lead → CRM + Slack",
+        "desc": "Each form submission becomes a contact and a message in your sales channel."
+      },
+      "bookingToSheets": {
+        "name": "New booking → Google Sheets row",
+        "desc": "Logs every Cal booking as a row: date, name, email and event."
+      },
+      "dealWonToStripe": {
+        "name": "Deal won → Stripe customer",
+        "desc": "Creates the customer in Stripe as soon as a deal is marked won."
+      },
+      "chatToTrack": {
+        "name": "Chat bug report → Track issue",
+        "desc": "AI flags chat messages that report a bug and opens a high-priority issue."
+      },
+      "dailyDigestEmail": {
+        "name": "Weekday digest email",
+        "desc": "Every weekday at 8:00, an AI summary of new deals sent from your Gmail."
+      },
+      "robotToSheets": {
+        "name": "Robot data → Google Sheets",
+        "desc": "Appends what a robot extracts (like a daily price) to a sheet."
+      },
+      "stripePaymentToSlack": {
+        "name": "Stripe payment → Slack",
+        "desc": "Posts each successful payment to Slack. Verified with the Stripe signature."
+      },
+      "issueToDiscord": {
+        "name": "Urgent issue → Discord",
+        "desc": "Sends urgent Track issues to a Discord channel."
+      },
+      "formToTelegram": {
+        "name": "Form submission → Telegram",
+        "desc": "Get every form submission on Telegram."
+      },
+      "bookingToNotion": {
+        "name": "Booking → Notion meeting notes",
+        "desc": "Creates a page in a Notion database for each new booking."
+      },
+      "webhookAgentReply": {
+        "name": "Webhook question → agent → Slack",
+        "desc": "An agent answers questions sent to a webhook and posts the answer to Slack."
+      }
     }
   },
   "editor": {
@@ -192,17 +249,39 @@
     "integration": "Integrations"
   },
   "nodes": {
-    "trigger_event": { "title": "App event", "desc": "Runs when something happens in zerosoft: a booking, a click, a new contact, an issue, a chat message…" },
+    "trigger_event": {
+      "title": "App event",
+      "desc": "Runs when something happens in zerosoft: a booking, a click, a new contact, an issue, a chat message…"
+    },
     "trigger_webhook": {
       "title": "Incoming webhook",
       "desc": "Runs when a service calls this flow's secret URL (POST, GET or both).",
-      "fields": { "accept": "Accept", "authCredentialId": "Require authentication (optional)", "respond": "Respond" }
+      "fields": {
+        "accept": "Accept",
+        "authCredentialId": "Require authentication (optional)",
+        "respond": "Respond"
+      }
     },
-    "trigger_schedule": { "title": "Schedule", "desc": "Runs every N minutes or hours, daily at a time, or on a cron expression, in your time zone." },
-    "trigger_manual": { "title": "Manual", "desc": "Runs only from the Test run button, with the JSON you provide." },
-    "logic_if": { "title": "If", "desc": "Splits the flow in two: true and false." },
-    "logic_switch": { "title": "Switch", "desc": "Picks a branch by comparing a value to a list of cases." },
-    "logic_filter": { "title": "Filter", "desc": "Continues only if the conditions match. Otherwise the branch stops." },
+    "trigger_schedule": {
+      "title": "Schedule",
+      "desc": "Runs every N minutes or hours, daily at a time, or on a cron expression, in your time zone."
+    },
+    "trigger_manual": {
+      "title": "Manual",
+      "desc": "Runs only from the Test run button, with the JSON you provide."
+    },
+    "logic_if": {
+      "title": "If",
+      "desc": "Splits the flow in two: true and false."
+    },
+    "logic_switch": {
+      "title": "Switch",
+      "desc": "Picks a branch by comparing a value to a list of cases."
+    },
+    "logic_filter": {
+      "title": "Filter",
+      "desc": "Continues only if the conditions match. Otherwise the branch stops."
+    },
     "logic_delay": {
       "title": "Delay",
       "desc": "Waits a set time, until a date, or until someone calls the run's resume URL.",
@@ -215,31 +294,96 @@
         "onTimeout": "When it times out"
       }
     },
-    "logic_loop": { "title": "Loop", "desc": "Runs the item branch once per element of a list, in order. Then continues through done." },
-    "data_set": { "title": "Set fields", "desc": "Builds an object with new fields from templates." },
+    "logic_loop": {
+      "title": "Loop",
+      "desc": "Runs the item branch once per element of a list, in order. Then continues through done."
+    },
+    "data_set": {
+      "title": "Set fields",
+      "desc": "Builds an object with new fields from templates."
+    },
     "data_json_parse": {
       "title": "Parse JSON",
       "desc": "Turns JSON text into data you can use in later nodes.",
-      "fields": { "text": "JSON text" }
+      "fields": {
+        "text": "JSON text"
+      }
     },
-    "action_http": { "title": "HTTP request", "desc": "Calls any API. Public HTTPS hosts only." },
-    "action_email": { "title": "Send email", "desc": "Sends a plain-text email." },
-    "app_crm_contact": { "title": "CRM: create contact", "desc": "Creates a contact (or returns the existing one with the same email)." },
-    "app_crm_sequence": { "title": "CRM: enroll in sequence", "desc": "Enrolls the contact with this email in a sales sequence. Emails go out from the contact owner's Gmail." },
-    "app_crm_deals": { "title": "CRM: recent deals", "desc": "Lists deals created in the last N hours." },
-    "app_track_issue": { "title": "Track: create issue", "desc": "Creates an issue in a Track team of this workspace." },
-    "app_link": { "title": "Link: create short link", "desc": "Creates a short link." },
-    "app_chat_message": { "title": "Chat: send message", "desc": "Replies in a Chat conversation as the bot." },
-    "app_groups_message": { "title": "Groups: send WhatsApp message", "desc": "Sends a message to a WhatsApp chat or group from its connected number." },
-    "app_docs_page": {"title": "Docs: create or edit page", "desc": "Creates a page (from a template or as a subpage) or adds to, replaces, renames or trashes one. Content is Markdown.", "fields": {"pageId": "Page", "content": "Content (Markdown)", "templateId": "Template", "parentId": "Inside page (optional)"}},
-    "app_docs_row": {"title": "Docs: add or update database row", "desc": "Adds a row to a Docs database or changes one, by id or by title. Select options are created if they do not exist.", "fields": {"database": "Database", "rowId": "Row ID (empty: find it by title)", "title": "Title", "values": "Properties (name → value)", "content": "Row content (Markdown)", "template": "Row template (name)", "newTitle": "New title"}},
-    "app_robot_run": { "title": "Robots: run robot", "desc": "Runs a browser robot with these inputs and waits for its extracted data (up to the robot's timeout)." },
-    "ai_text": { "title": "AI: generate text", "desc": "Writes, summarizes or classifies text with AI. Counts toward your AI quota." },
-    "trigger_stripe": { "title": "Stripe event", "desc": "Runs when Stripe sends an event to this flow's URL. The signature is verified with the credential's webhook secret." },
+    "action_http": {
+      "title": "HTTP request",
+      "desc": "Calls any API. Public HTTPS hosts only."
+    },
+    "action_email": {
+      "title": "Send email",
+      "desc": "Sends a plain-text email."
+    },
+    "app_crm_contact": {
+      "title": "CRM: create contact",
+      "desc": "Creates a contact (or returns the existing one with the same email)."
+    },
+    "app_crm_sequence": {
+      "title": "CRM: enroll in sequence",
+      "desc": "Enrolls the contact with this email in a sales sequence. Emails go out from the contact owner's Gmail."
+    },
+    "app_crm_deals": {
+      "title": "CRM: recent deals",
+      "desc": "Lists deals created in the last N hours."
+    },
+    "app_track_issue": {
+      "title": "Track: create issue",
+      "desc": "Creates an issue in a Track team of this workspace."
+    },
+    "app_link": {
+      "title": "Link: create short link",
+      "desc": "Creates a short link."
+    },
+    "app_chat_message": {
+      "title": "Chat: send message",
+      "desc": "Replies in a Chat conversation as the bot."
+    },
+    "app_groups_message": {
+      "title": "Groups: send WhatsApp message",
+      "desc": "Sends a message to a WhatsApp chat or group from its connected number."
+    },
+    "app_talk_message": {
+      "title": "Talk: send message",
+      "desc": "Posts a message in a Talk channel of this workspace, with the bot name you choose. It can reply in a thread.",
+      "fields": {
+        "channel": "Channel (name or ID)",
+        "body": "Message",
+        "threadId": "Reply in thread (message ID)",
+        "botName": "Bot name"
+      }
+    },
+    "app_docs_page": {
+      "title": "Docs: create or edit page",
+      "desc": "Creates a page (from a template or as a subpage) or adds to, replaces, renames or trashes one. Content is Markdown.",
+      "fields": {
+        "pageId": "Page",
+        "content": "Content (Markdown)",
+        "templateId": "Template",
+        "parentId": "Inside page (optional)"
+      }
+    },
+    "app_robot_run": {
+      "title": "Robots: run robot",
+      "desc": "Runs a browser robot with these inputs and waits for its extracted data (up to the robot's timeout)."
+    },
+    "ai_text": {
+      "title": "AI: generate text",
+      "desc": "Writes, summarizes or classifies text with AI. Counts toward your AI quota."
+    },
+    "trigger_stripe": {
+      "title": "Stripe event",
+      "desc": "Runs when Stripe sends an event to this flow's URL. The signature is verified with the credential's webhook secret."
+    },
     "logic_run_flow": {
       "title": "Run flow",
       "desc": "Runs another flow with these inputs and waits for it. That flow can't use Delay or retries: if it ends up waiting, the step fails with subflow_waiting. Its node outputs are in '{{nodes.<id>.output.outputs}}'.",
-      "fields": { "inputs": "Inputs ('{{trigger.x}}' in the other flow)", "failOnErrorHint": "Fail if the other flow fails" }
+      "fields": {
+        "inputs": "Inputs ('{{trigger.x}}' in the other flow)",
+        "failOnErrorHint": "Fail if the other flow fails"
+      }
     },
     "data_merge": {
       "title": "Merge / Aggregate",
@@ -253,43 +397,92 @@
     "data_code": {
       "title": "Code",
       "desc": "Runs JavaScript in an isolated sandbox. 'input.trigger' and 'input.nodes' hold the data. Return a JSON value.",
-      "fields": { "code": "JavaScript (async function body)" }
+      "fields": {
+        "code": "JavaScript (async function body)"
+      }
     },
-    "app_slack": { "title": "Slack: send message", "desc": "Posts with a bot token (any channel) or an incoming webhook." },
+    "app_slack": {
+      "title": "Slack: send message",
+      "desc": "Posts with a bot token (any channel) or an incoming webhook."
+    },
     "app_google_sheets": {
       "title": "Google Sheets",
       "desc": "Appends a row or reads a range. Works with an OAuth token or a service account.",
-      "fields": { "row": "Row values (in column order)" }
+      "fields": {
+        "row": "Row values (in column order)"
+      }
     },
-    "app_gmail": { "title": "Gmail: send email", "desc": "Sends from the Gmail account connected in CRM by whoever created the flow (or the workspace owner)." },
-    "app_stripe": { "title": "Stripe", "desc": "Creates a customer or lists recent payments." },
-    "app_notion": { "title": "Notion", "desc": "Creates a page in a database or appends text to a page. Share the page or database with your integration first." },
-    "app_discord": { "title": "Discord: send message", "desc": "Posts to a channel through a webhook." },
-    "app_telegram": { "title": "Telegram: send message", "desc": "Sends a message with your bot to a chat, group or channel." },
+    "app_gmail": {
+      "title": "Gmail: send email",
+      "desc": "Sends from the Gmail account connected in CRM by whoever created the flow (or the workspace owner)."
+    },
+    "app_stripe": {
+      "title": "Stripe",
+      "desc": "Creates a customer or lists recent payments."
+    },
+    "app_notion": {
+      "title": "Notion",
+      "desc": "Creates a page in a database or appends text to a page. Share the page or database with your integration first."
+    },
+    "app_discord": {
+      "title": "Discord: send message",
+      "desc": "Posts to a channel through a webhook."
+    },
+    "app_telegram": {
+      "title": "Telegram: send message",
+      "desc": "Sends a message with your bot to a chat, group or channel."
+    },
     "ai_agent": {
       "title": "Run agent",
       "desc": "Sends a message to one of your agents and returns its reply. Uses the agent's tools and knowledge.",
-      "fields": { "message": "Message", "conversationId": "Continue conversation (optional)" }
+      "fields": {
+        "message": "Message",
+        "conversationId": "Continue conversation (optional)"
+      }
     },
     "action_webhook_reply": {
       "title": "Reply to webhook",
       "desc": "Sets the response the webhook caller gets: status code, content and headers.",
-      "fields": { "statusCode": "Status code", "contentType": "Content type" }
+      "fields": {
+        "statusCode": "Status code",
+        "contentType": "Content type"
+      }
     },
     "app_crm_update": {
       "title": "CRM: update record",
       "desc": "Updates properties of a contact, company or deal of this workspace. Deals can also move to another stage.",
-      "fields": { "entity": "Record type", "recordId": "Record ID", "email": "Or find the contact by email", "fields": "Properties", "stage": "Move to stage (name or ID)" }
+      "fields": {
+        "entity": "Record type",
+        "recordId": "Record ID",
+        "email": "Or find the contact by email",
+        "fields": "Properties",
+        "stage": "Move to stage (name or ID)"
+      }
     },
     "app_crm_task": {
       "title": "CRM: create task",
       "desc": "Creates a CRM task with a due date, linked to a contact, deal or company.",
-      "fields": { "body": "Notes", "dueIn": "Due in", "dueUnit": "Unit", "contactId": "Contact (ID or email)", "dealId": "Deal ID", "companyId": "Company ID", "owner": "Owner (email or ID)" }
+      "fields": {
+        "body": "Notes",
+        "dueIn": "Due in",
+        "dueUnit": "Unit",
+        "contactId": "Contact (ID or email)",
+        "dealId": "Deal ID",
+        "companyId": "Company ID",
+        "owner": "Owner (email or ID)"
+      }
     },
     "app_track_update": {
       "title": "Track: update issue",
       "desc": "Changes the status, priority, assignee or due date of an issue in this workspace and can add a comment.",
-      "fields": { "issue": "Issue (ID or identifier, e.g. ENG-12)", "status": "Status (name)", "assignee": "Assignee (email, or none)", "comment": "Comment", "title": "New title", "dueDate": "Due date" }
+      "fields": {
+        "issue": "Issue (ID or identifier, e.g. ENG-12)",
+        "status": "Status (name)",
+        "assignee": "Assignee (email, or none)",
+        "comment": "Comment",
+        "title": "New title",
+        "dueDate": "Due date"
+      }
     },
     "logic_approval": {
       "title": "Approval",
@@ -315,6 +508,19 @@
         "value": "Match value",
         "values": "Values (column → value)",
         "limit": "Max rows"
+      }
+    },
+    "app_docs_row": {
+      "title": "Docs: add or update database row",
+      "desc": "Adds a row to a Docs database or changes one, by id or by title. Select options are created if they do not exist.",
+      "fields": {
+        "database": "Database",
+        "rowId": "Row ID (empty: find it by title)",
+        "title": "Title",
+        "values": "Properties (name → value)",
+        "content": "Row content (Markdown)",
+        "template": "Row template (name)",
+        "newTitle": "New title"
       }
     }
   },
@@ -395,13 +601,6 @@
     "onError": "If this step fails"
   },
   "options": {
-    "page_create": "Create page",
-    "page_append": "Add to page",
-    "page_replace": "Replace page content",
-    "page_rename": "Rename page",
-    "page_archive": "Move page to trash",
-    "row_create": "Add row",
-    "row_update": "Update row",
     "all": "All conditions",
     "any": "Any condition",
     "interval": "Every N minutes / hours",
@@ -454,7 +653,14 @@
     "find": "Find rows",
     "insert": "Add a row",
     "upsert": "Add or update",
-    "delete": "Delete rows"
+    "delete": "Delete rows",
+    "page_create": "Create page",
+    "page_append": "Add to page",
+    "page_replace": "Replace page content",
+    "page_rename": "Rename page",
+    "page_archive": "Move page to trash",
+    "row_create": "Add row",
+    "row_update": "Update row"
   },
   "handles": {
     "out": "Next",
@@ -498,11 +704,6 @@
     "conversation_created": "Chat: conversation started",
     "message_received": "Chat: message received",
     "page_created": "Docs: page created",
-    "page_updated": "Docs: page edited",
-    "page_archived": "Docs: page moved to trash",
-    "page_comment_created": "Docs: new comment",
-    "database_row_created": "Docs: database row added",
-    "database_property_changed": "Docs: database property changed",
     "robot_run_finished": "Robots: run finished",
     "robot_run_failed": "Robots: run failed",
     "robot_output_changed": "Robots: data changed",
@@ -532,7 +733,13 @@
     "groups_chat_closed": "Groups: chat closed",
     "groups_member_joined": "Groups: member joined a group",
     "groups_member_left": "Groups: member left a group",
-    "groups_poll_voted": "Groups: poll vote"
+    "groups_poll_voted": "Groups: poll vote",
+    "talk_message_posted": "Talk: message in a channel",
+    "page_updated": "Docs: page edited",
+    "page_archived": "Docs: page moved to trash",
+    "page_comment_created": "Docs: new comment",
+    "database_row_created": "Docs: database row added",
+    "database_property_changed": "Docs: database property changed"
   },
   "ops": {
     "equals": "equals",
@@ -597,6 +804,20 @@
     "waiting": "Waiting"
   },
   "stepErrors": {
+    "missing_credential": "This step has no credential. Pick one in the editor.",
+    "credential_not_found": "The credential for this step no longer exists. Pick another one in the editor.",
+    "credential_wrong_type": "The credential for this step is the wrong type. Pick a matching one in the editor.",
+    "invalid_credential": "The service rejected the credential. Check it in Credentials or pick another one in the editor.",
+    "missing_field": "This step is missing a required value. Fill it in the editor.",
+    "missing_url": "This step has no URL. Add it in the editor.",
+    "invalid_email": "The recipient is not a valid email. Check it in the editor.",
+    "invalid_json": "The body is not valid JSON. Check it in the editor.",
+    "http": "The service responded with status {status}. Check the URL and the data this step sends.",
+    "rate_limited": "The service asked to wait. Try again in a few minutes.",
+    "invalid_date": "The date could not be read or is more than a year away. Use a date like 2026-03-01 09:00.",
+    "table_not_found": "The data table of this step no longer exists. Pick another one in the editor.",
+    "table_value": "A value does not match its column type or the column does not exist. Check the values in the editor.",
+    "table_full": "The data table is full. Delete rows or use another table.",
     "forbidden": "The person who created this flow cannot edit that page.",
     "locked": "The page is locked. Unlock it in Docs so the flow can change it.",
     "no_flow_owner": "The person who created this flow is no longer in the workspace. Someone who can edit it has to open and save the Docs step.",
@@ -614,24 +835,9 @@
     "unknown_property": "The database has no property with that name. Check the names in Properties.",
     "invalid_option": "That status does not exist in the database.",
     "invalid_person": "That person is not in the workspace. Use their email.",
-    "invalid_value": "A value does not match its property type (number or date).",
-    "missing_credential": "This step has no credential. Pick one in the editor.",
-    "credential_not_found": "The credential for this step no longer exists. Pick another one in the editor.",
-    "credential_wrong_type": "The credential for this step is the wrong type. Pick a matching one in the editor.",
-    "invalid_credential": "The service rejected the credential. Check it in Credentials or pick another one in the editor.",
-    "missing_field": "This step is missing a required value. Fill it in the editor.",
-    "missing_url": "This step has no URL. Add it in the editor.",
-    "invalid_email": "The recipient is not a valid email. Check it in the editor.",
-    "invalid_json": "The body is not valid JSON. Check it in the editor.",
-    "http": "The service responded with status {status}. Check the URL and the data this step sends.",
-    "rate_limited": "The service asked to wait. Try again in a few minutes.",
-    "invalid_date": "The date could not be read or is more than a year away. Use a date like 2026-03-01 09:00.",
-    "table_not_found": "The data table of this step no longer exists. Pick another one in the editor.",
-    "table_value": "A value does not match its column type or the column does not exist. Check the values in the editor.",
-    "table_full": "The data table is full. Delete rows or use another table."
+    "invalid_value": "A value does not match its property type (number or date)."
   },
   "errors": {
-    "not_flow_owner": "Only the person who created this flow can run it again: the run used their access.",
     "generic": "Something went wrong. Try again.",
     "forbidden": "Only workspace admins and owners can do this.",
     "not_found": "This flow no longer exists.",
@@ -663,7 +869,8 @@
     "approval_in_loop": "Approval can't be used inside a Loop.",
     "step_not_testable": "This step can't be tested on its own.",
     "pin_too_large": "That data is too large to pin (max 64 KB per step).",
-    "input_too_large": "The sample data is too large."
+    "input_too_large": "The sample data is too large.",
+    "not_flow_owner": "Only the person who created this flow can run it again: the run used their access."
   },
   "onError": {
     "stop": "Stop the flow",
@@ -765,7 +972,10 @@
       "invalid_totp": "The 2FA secret isn't valid. Paste the setup key (base32) or the otpauth:// link from the QR code.",
       "invalid_input": "Invalid data."
     },
-    "oneOf": {"slack": "Fill in the bot token or the webhook URL.", "google": "Fill in the access token or the service account JSON."}
+    "oneOf": {
+      "slack": "Fill in the bot token or the webhook URL.",
+      "google": "Fill in the access token or the service account JSON."
+    }
   },
   "failureEmail": {
     "subject": "Flow failed: {flow}",
@@ -875,5 +1085,21 @@
       "reserved_column": "id, createdAt and updatedAt are reserved. Use another column name.",
       "not_found": "This table no longer exists."
     }
+  },
+  "docsPicker": {
+    "searchPages": "Search a page by title",
+    "current": "Page: {name}",
+    "untitled": "Untitled",
+    "missing": "Page not found or no access",
+    "loading": "Loading databases…",
+    "pickDatabase": "Pick a database",
+    "properties": "Properties: {list}",
+    "noDatabases": "There are no databases in Docs yet. Add one with /database in a page.",
+    "databaseHelp": "The flow writes with the permissions of the person who created it.",
+    "loadError": "Could not load the databases. Try again.",
+    "noTemplate": "No template",
+    "workspaceTemplates": "Workspace templates",
+    "builtinTemplates": "Built-in templates",
+    "templateHelp": "Variables like {{page.title}} in the template are filled with the trigger data."
   }
 }

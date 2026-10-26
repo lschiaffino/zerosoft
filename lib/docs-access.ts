@@ -224,6 +224,16 @@ export async function hiddenTeamspaceIds(workspaceId: string, userId: string): P
  * cerrados o privados no entran salvo que el teamspace lo habilite
  * (ai_knowledge). Fragmento SQL sobre la columna teamspace_id de docs_pages.
  */
+/**
+ * ¿La ve todo el workspace? Las páginas de teamspaces cerrados o privados no
+ * salen en eventos (Flow), que corren con el acceso de otra persona.
+ */
+export async function pageVisibleToWorkspace(teamspaceId: string | null | undefined): Promise<boolean> {
+  if (!teamspaceId) return true;
+  const ts = await getTeamspace(teamspaceId);
+  return !ts || ts.is_default || ts.access === 'open';
+}
+
 export function aiKnowledgeFilterSql(column = 'teamspace_id'): string {
   return ` AND (${column} IS NULL OR ${column} IN (SELECT id FROM docs_teamspaces WHERE access = 'open' OR ai_knowledge = 1))`;
 }

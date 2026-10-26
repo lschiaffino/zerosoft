@@ -88,6 +88,8 @@ export default defineConfig({
       // page.updated sin espera (el cron de cada minuto lo emite en la próxima corrida).
       DOCS_SYNC_FAKE: '1',
       DOCS_EVENT_WINDOW_SEC: '0',
+      // Talk con polling corto en vez de SSE: con el stream abierto la página nunca llega a networkidle.
+      TALK_REALTIME: 'poll',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

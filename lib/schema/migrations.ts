@@ -5252,6 +5252,215 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Talk (mensajería de equipo como Slack): canales públicos y privados, DMs
+    // y grupos de DM, mensajes con hilos, reacciones, archivos, guardados,
+    // recordatorios, borradores, programados, presencia, preferencias de
+    // aviso, webhooks entrantes y el feed de eventos del tiempo real.
+    id: '108_talk',
+    up: async (client) => {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS talk_channels (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL CHECK (kind IN ('public', 'private', 'dm', 'group')),
+          name TEXT NOT NULL DEFAULT '',
+          topic TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          dm_key TEXT,
+          created_by TEXT,
+          archived_at TEXT,
+          last_message_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_talk_channels_name ON talk_channels(workspace_id, name) WHERE kind IN ('public', 'private');
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_talk_channels_dm ON talk_channels(workspace_id, dm_key) WHERE dm_key IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS talk_members (
+          channel_id TEXT NOT NULL REFERENCES talk_channels(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+          last_read_at TEXT,
+          notify TEXT NOT NULL DEFAULT 'default' CHECK (notify IN ('default', 'all', 'mentions', 'none')),
+          starred INTEGER NOT NULL DEFAULT 0,
+          hidden INTEGER NOT NULL DEFAULT 0,
+          joined_at TEXT NOT NULL,
+          PRIMARY KEY (channel_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_members_user ON talk_members(user_id);
+
+        CREATE TABLE IF NOT EXISTS talk_messages (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          channel_id TEXT NOT NULL REFERENCES talk_channels(id) ON DELETE CASCADE,
+          user_id TEXT,
+          bot_name TEXT,
+          parent_id TEXT,
+          body TEXT NOT NULL DEFAULT '',
+          files TEXT NOT NULL DEFAULT '[]',
+          unfurls TEXT NOT NULL DEFAULT '[]',
+          mentions TEXT NOT NULL DEFAULT '[]',
+          broadcast TEXT,
+          also_in_channel INTEGER NOT NULL DEFAULT 0,
+          reply_count INTEGER NOT NULL DEFAULT 0,
+          reply_users TEXT NOT NULL DEFAULT '[]',
+          last_reply_at TEXT,
+          edited_at TEXT,
+          deleted_at TEXT,
+          pinned_at TEXT,
+          pinned_by TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_messages_channel ON talk_messages(channel_id, parent_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_talk_messages_parent ON talk_messages(parent_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_talk_messages_ws ON talk_messages(workspace_id, created_at);
+
+        -- Búsqueda: índice de texto completo (FTS5, lo soportan libsql y Turso) sobre el texto de los mensajes.
+        CREATE VIRTUAL TABLE IF NOT EXISTS talk_messages_fts USING fts5(body, content='talk_messages', content_rowid='rowid', tokenize='unicode61 remove_diacritics 2');
+        CREATE TRIGGER IF NOT EXISTS talk_messages_fts_ai AFTER INSERT ON talk_messages BEGIN
+          INSERT INTO talk_messages_fts(rowid, body) VALUES (new.rowid, new.body);
+        END;
+        CREATE TRIGGER IF NOT EXISTS talk_messages_fts_ad AFTER DELETE ON talk_messages BEGIN
+          INSERT INTO talk_messages_fts(talk_messages_fts, rowid, body) VALUES ('delete', old.rowid, old.body);
+        END;
+        CREATE TRIGGER IF NOT EXISTS talk_messages_fts_au AFTER UPDATE OF body ON talk_messages BEGIN
+          INSERT INTO talk_messages_fts(talk_messages_fts, rowid, body) VALUES ('delete', old.rowid, old.body);
+          INSERT INTO talk_messages_fts(rowid, body) VALUES (new.rowid, new.body);
+        END;
+
+        CREATE TABLE IF NOT EXISTS talk_reactions (
+          message_id TEXT NOT NULL REFERENCES talk_messages(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          emoji TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (message_id, user_id, emoji)
+        );
+
+        CREATE TABLE IF NOT EXISTS talk_files (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          channel_id TEXT NOT NULL REFERENCES talk_channels(id) ON DELETE CASCADE,
+          message_id TEXT,
+          user_id TEXT NOT NULL,
+          url TEXT NOT NULL,
+          name TEXT NOT NULL,
+          mime TEXT NOT NULL,
+          size INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_files_channel ON talk_files(channel_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_talk_files_message ON talk_files(message_id);
+
+        CREATE TABLE IF NOT EXISTS talk_thread_follows (
+          message_id TEXT NOT NULL REFERENCES talk_messages(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          last_read_at TEXT,
+          PRIMARY KEY (message_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_follows_user ON talk_thread_follows(user_id);
+
+        CREATE TABLE IF NOT EXISTS talk_saved (
+          user_id TEXT NOT NULL,
+          message_id TEXT NOT NULL REFERENCES talk_messages(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          done_at TEXT,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (user_id, message_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS talk_reminders (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          message_id TEXT REFERENCES talk_messages(id) ON DELETE CASCADE,
+          text TEXT NOT NULL DEFAULT '',
+          remind_at TEXT NOT NULL,
+          sent_at TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_reminders_due ON talk_reminders(sent_at, remind_at);
+
+        CREATE TABLE IF NOT EXISTS talk_drafts (
+          user_id TEXT NOT NULL,
+          channel_id TEXT NOT NULL REFERENCES talk_channels(id) ON DELETE CASCADE,
+          parent_id TEXT NOT NULL DEFAULT '',
+          body TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (user_id, channel_id, parent_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS talk_scheduled (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          channel_id TEXT NOT NULL REFERENCES talk_channels(id) ON DELETE CASCADE,
+          parent_id TEXT,
+          body TEXT NOT NULL,
+          files TEXT NOT NULL DEFAULT '[]',
+          send_at TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sending', 'sent', 'failed', 'cancelled')),
+          claimed_at TEXT,
+          message_id TEXT,
+          error TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_scheduled_due ON talk_scheduled(status, send_at);
+
+        CREATE TABLE IF NOT EXISTS talk_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          workspace_id TEXT NOT NULL,
+          channel_id TEXT,
+          user_id TEXT,
+          actor_id TEXT,
+          kind TEXT NOT NULL,
+          payload TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_events_ws ON talk_events(workspace_id, id);
+
+        CREATE TABLE IF NOT EXISTS talk_presence (
+          workspace_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          last_seen_at TEXT,
+          away INTEGER NOT NULL DEFAULT 0,
+          status_emoji TEXT NOT NULL DEFAULT '',
+          status_text TEXT NOT NULL DEFAULT '',
+          status_expires_at TEXT,
+          dnd_until TEXT,
+          PRIMARY KEY (workspace_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS talk_prefs (
+          workspace_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          notify TEXT NOT NULL DEFAULT 'mentions' CHECK (notify IN ('all', 'mentions', 'none')),
+          email TEXT NOT NULL DEFAULT 'mentions' CHECK (email IN ('mentions', 'off')),
+          keywords TEXT NOT NULL DEFAULT '',
+          locale TEXT,
+          PRIMARY KEY (workspace_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS talk_email_queue (
+          notification_id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          due_at TEXT NOT NULL,
+          sent_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_email_due ON talk_email_queue(sent_at, due_at);
+
+        CREATE TABLE IF NOT EXISTS talk_hooks (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          channel_id TEXT NOT NULL REFERENCES talk_channels(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          token_hash TEXT NOT NULL UNIQUE,
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+      `);
+    },
+  },
+  {
     // Docs como plataforma (tanda D4): eventos de página hacia Flow y
     // webhooks (con un tope por página para las ediciones), bases
     // sincronizadas con GitHub, Jira, Salesforce o el CRM (se refrescan por
