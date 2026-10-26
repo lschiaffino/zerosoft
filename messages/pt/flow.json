@@ -840,8 +840,7 @@
     "subflow_other_owner": "Executar flow só chama flows criados pela mesma pessoa que este."
   },
   "errors": {
-    "subflow_other_owner": "Executar flow só chama flows criados pela mesma pessoa que este.",
-    "owner_changed": "Esta execução usou o acesso de quem era dono do flow naquele momento. Só pode ser executada de novo enquanto essa pessoa for a dona.",
+    "not_flow_owner": "Só quem criou este flow pode fazer isso: usa os dados capturados com o acesso dessa pessoa.",
     "generic": "Algo deu errado. Tente de novo.",
     "forbidden": "Só admins e donos do workspace podem fazer isso.",
     "not_found": "Este flow não existe mais.",
@@ -874,7 +873,8 @@
     "step_not_testable": "Este passo não pode ser testado sozinho.",
     "pin_too_large": "Esses dados são grandes demais para fixar (máximo 64 KB por passo).",
     "input_too_large": "Os dados de teste são grandes demais.",
-    "not_flow_owner": "Só quem criou este flow pode executá-lo de novo: a execução usou o acesso dessa pessoa."
+    "subflow_other_owner": "Executar flow só chama flows criados pela mesma pessoa que este.",
+    "owner_changed": "Esta execução usou o acesso de quem era dono do flow naquele momento. Só pode ser executada de novo enquanto essa pessoa for a dona."
   },
   "onError": {
     "stop": "Parar o flow",

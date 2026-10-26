@@ -840,8 +840,7 @@
     "subflow_other_owner": "Run flow only calls flows created by the same person as this one."
   },
   "errors": {
-    "subflow_other_owner": "Run flow only calls flows created by the same person as this one.",
-    "owner_changed": "This run used the access of the person who owned the flow back then. It can only run again while that person owns the flow.",
+    "not_flow_owner": "Only the person who created this flow can do this: it uses the data captured with their access.",
     "generic": "Something went wrong. Try again.",
     "forbidden": "Only workspace admins and owners can do this.",
     "not_found": "This flow no longer exists.",
@@ -874,7 +873,8 @@
     "step_not_testable": "This step can't be tested on its own.",
     "pin_too_large": "That data is too large to pin (max 64 KB per step).",
     "input_too_large": "The sample data is too large.",
-    "not_flow_owner": "Only the person who created this flow can run it again: the run used their access."
+    "subflow_other_owner": "Run flow only calls flows created by the same person as this one.",
+    "owner_changed": "This run used the access of the person who owned the flow back then. It can only run again while that person owns the flow."
   },
   "onError": {
     "stop": "Stop the flow",

@@ -840,8 +840,7 @@
     "subflow_other_owner": "Correr flow solo llama a flows creados por la misma persona que este."
   },
   "errors": {
-    "subflow_other_owner": "Correr flow solo llama a flows creados por la misma persona que este.",
-    "owner_changed": "Esta corrida usó el acceso de quien era dueño del flow en ese momento. Solo se puede volver a correr mientras esa persona sea la dueña.",
+    "not_flow_owner": "Solo quien creó este flow puede hacer esto: usa los datos capturados con su acceso.",
     "generic": "Algo salió mal. Probá de nuevo.",
     "forbidden": "Solo los admins y dueños del workspace pueden hacer esto.",
     "not_found": "Este flow ya no existe.",
@@ -874,7 +873,8 @@
     "step_not_testable": "Este paso no se puede probar solo.",
     "pin_too_large": "Esos datos son demasiado grandes para fijarlos (máximo 64 KB por paso).",
     "input_too_large": "Los datos de prueba son demasiado grandes.",
-    "not_flow_owner": "Solo quien creó este flow lo puede volver a correr: la corrida usó su acceso."
+    "subflow_other_owner": "Correr flow solo llama a flows creados por la misma persona que este.",
+    "owner_changed": "Esta corrida usó el acceso de quien era dueño del flow en ese momento. Solo se puede volver a correr mientras esa persona sea la dueña."
   },
   "onError": {
     "stop": "Detener el flow",
