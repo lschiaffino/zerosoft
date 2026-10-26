@@ -32,8 +32,8 @@ vi.mock('@vercel/blob', () => ({
 }));
 
 const configRoute = await import('@/app/api/track/github/route');
-const webhookRoute = await import('@/app/api/track/github/webhook/[hookId]/route');
-const issueRoute = await import('@/app/api/track/issues/[id]/route');
+const webhookRoute = await import('@/lib/routes/track/github/webhook/[hookId]/route');
+const issueRoute = await import('@/lib/routes/track/issues/[id]/route');
 const allIssuesRoute = await import('@/app/api/track/issues/route');
 
 const json = (method: string, body?: unknown, url = 'http://x/api') =>

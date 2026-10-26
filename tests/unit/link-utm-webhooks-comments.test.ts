@@ -32,11 +32,11 @@ vi.mock('@/lib/session', () => ({
 }));
 
 const v1Links = await import('@/app/api/v1/links/route');
-const v1Link = await import('@/app/api/v1/links/[id]/route');
+const v1Link = await import('@/lib/routes/v1/links/[id]/route');
 const appLinks = await import('@/app/api/links/route');
-const duplicateRoute = await import('@/app/api/links/[id]/duplicate/route');
-const commentsRoute = await import('@/app/api/links/[id]/comments/route');
-const commentRoute = await import('@/app/api/links/[id]/comments/[commentId]/route');
+const duplicateRoute = await import('@/lib/routes/links/[id]/duplicate/route');
+const commentsRoute = await import('@/lib/routes/links/[id]/comments/route');
+const commentRoute = await import('@/lib/routes/links/[id]/comments/[commentId]/route');
 const templatesRoute = await import('@/app/api/links/utm-templates/route');
 const webhooksRoute = await import('@/app/api/webhooks/route');
 

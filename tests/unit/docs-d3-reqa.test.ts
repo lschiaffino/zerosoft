@@ -21,10 +21,10 @@ vi.mock('@/lib/session', () => ({
 }));
 vi.mock('@/lib/user-tz', () => ({ getUserTimeZone: async () => 'UTC' }));
 
-const pageRoute = await import('@/app/api/docs/pages/[id]/route');
-const liveRoute = await import('@/app/api/docs/pages/[id]/live/route');
+const pageRoute = await import('@/lib/routes/docs/pages/[id]/route');
+const liveRoute = await import('@/lib/routes/docs/pages/[id]/live/route');
 const templatesRoute = await import('@/app/api/docs/templates/route');
-const syncedRoute = await import('@/app/api/docs/synced/[id]/route');
+const syncedRoute = await import('@/lib/routes/docs/synced/[id]/route');
 
 function req(url: string, method = 'GET', body?: unknown) {
   const r = new Request(url, { method, headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });

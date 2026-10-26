@@ -34,16 +34,16 @@ vi.mock('@/lib/session', () => ({
   isWorkspaceAdmin: (u: { role?: string }) => u.role === 'owner' || u.role === 'admin',
 }));
 
-const reactionsRoute = await import('@/app/api/track/issues/[id]/comments/[commentId]/reactions/route');
-const resolveRoute = await import('@/app/api/track/issues/[id]/comments/[commentId]/resolve/route');
-const commentsRoute = await import('@/app/api/track/issues/[id]/comments/route');
-const viewsRoute = await import('@/app/api/track/projects/[id]/views/route');
-const viewRoute = await import('@/app/api/track/views/[id]/route');
-const favoriteRoute = await import('@/app/api/track/views/[id]/favorite/route');
+const reactionsRoute = await import('@/lib/routes/track/issues/[id]/comments/[commentId]/reactions/route');
+const resolveRoute = await import('@/lib/routes/track/issues/[id]/comments/[commentId]/resolve/route');
+const commentsRoute = await import('@/lib/routes/track/issues/[id]/comments/route');
+const viewsRoute = await import('@/lib/routes/track/projects/[id]/views/route');
+const viewRoute = await import('@/lib/routes/track/views/[id]/route');
+const favoriteRoute = await import('@/lib/routes/track/views/[id]/favorite/route');
 const favoritesRoute = await import('@/app/api/track/views/favorites/route');
 const liveRoute = await import('@/app/api/track/live/route');
 const refsRoute = await import('@/app/api/track/refs/route');
-const projectIssuesRoute = await import('@/app/api/track/projects/[id]/issues/route');
+const projectIssuesRoute = await import('@/lib/routes/track/projects/[id]/issues/route');
 
 const json = (url: string, method: string, body?: unknown) =>
   new NextRequest(`http://x${url}`, {

@@ -24,7 +24,7 @@ vi.mock('@/lib/session', () => ({
   realUserId: (u: { id: string; actingUser?: { id: string } }) => u.actingUser?.id ?? u.id,
 }));
 
-const visitorRoute = await import('@/app/api/chat/visitors/[id]/route');
+const visitorRoute = await import('@/lib/routes/chat/visitors/[id]/route');
 const identifyRoute = await import('@/app/api/chat/identify/route');
 const readRoute = await import('@/app/api/chat/read/route');
 

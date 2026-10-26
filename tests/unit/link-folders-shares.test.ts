@@ -22,9 +22,9 @@ vi.mock('@/lib/session', () => ({
   isWorkspaceAdmin: (u: { role?: string }) => u.role === 'owner' || u.role === 'admin',
 }));
 
-const linkRoute = await import('@/app/api/links/[id]/route');
+const linkRoute = await import('@/lib/routes/links/[id]/route');
 const sharesRoute = await import('@/app/api/links/shares/route');
-const shareRoute = await import('@/app/api/links/shares/[id]/route');
+const shareRoute = await import('@/lib/routes/links/shares/[id]/route');
 const foldersRoute = await import('@/app/api/links/folders/route');
 
 const slug = (p: string) => `${p}${crypto.randomUUID().slice(0, 6)}`;

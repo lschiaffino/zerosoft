@@ -20,8 +20,8 @@ vi.mock('@/lib/session', () => ({
 }));
 
 const configRoute = await import('@/app/api/track/github/route');
-const webhookRoute = await import('@/app/api/track/github/webhook/[hookId]/route');
-const issueGithubRoute = await import('@/app/api/track/issues/[id]/github/route');
+const webhookRoute = await import('@/lib/routes/track/github/webhook/[hookId]/route');
+const issueGithubRoute = await import('@/lib/routes/track/issues/[id]/github/route');
 
 const put = (body: unknown) =>
   new NextRequest('http://x/api/track/github', {

@@ -39,9 +39,9 @@ vi.mock('@/lib/events', () => ({
   },
 }));
 
-const relationsRoute = await import('@/app/api/track/issues/[id]/relations/route');
+const relationsRoute = await import('@/lib/routes/track/issues/[id]/relations/route');
 const githubConfigRoute = await import('@/app/api/track/github/route');
-const webhookRoute = await import('@/app/api/track/github/webhook/[hookId]/route');
+const webhookRoute = await import('@/lib/routes/track/github/webhook/[hookId]/route');
 
 const json = (url: string, method: string, body?: unknown) =>
   new NextRequest(`http://x${url}`, {

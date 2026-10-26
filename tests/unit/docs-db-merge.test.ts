@@ -25,8 +25,8 @@ vi.mock('next/server', async (orig) => ({
   },
 }));
 
-const pageRoute = await import('@/app/api/docs/pages/[id]/route');
-const dbRoute = await import('@/app/api/docs/databases/[pageId]/[blockId]/route');
+const pageRoute = await import('@/lib/routes/docs/pages/[id]/route');
+const dbRoute = await import('@/lib/routes/docs/databases/[pageId]/[blockId]/route');
 
 const T = '2026-01-01T10:00:00.000Z';
 const row = (id: string, values: DbRow['values']): DbRow => ({ id, values, created_at: T, updated_at: T });

@@ -36,10 +36,10 @@ vi.mock('@/lib/uploads', async (orig) => ({
   saveUpload: async (_folder: string, filename: string) => `/uploads/chat/${filename}`,
 }));
 
-const agentMessages = await import('@/app/api/chat/conversations/[id]/messages/route');
-const agentAttachments = await import('@/app/api/chat/conversations/[id]/attachments/route');
-const conversationRoute = await import('@/app/api/chat/conversations/[id]/route');
-const rulesRoute = await import('@/app/api/chat/widgets/[id]/rules/route');
+const agentMessages = await import('@/lib/routes/chat/conversations/[id]/messages/route');
+const agentAttachments = await import('@/lib/routes/chat/conversations/[id]/attachments/route');
+const conversationRoute = await import('@/lib/routes/chat/conversations/[id]/route');
+const rulesRoute = await import('@/lib/routes/chat/widgets/[id]/rules/route');
 const visitorMessages = await import('@/app/api/chat/messages/route');
 const visitorUpload = await import('@/app/api/chat/messages/upload/route');
 

@@ -27,10 +27,10 @@ vi.mock('@/lib/session', () => ({
 }));
 
 const bookingsRoute = await import('@/app/api/calendar/bookings/route');
-const webhookRoute = await import('@/app/api/calendar/payments/webhook/[token]/route');
+const webhookRoute = await import('@/lib/routes/calendar/payments/webhook/[token]/route');
 const paymentsRoute = await import('@/app/api/calendar/payments/route');
-const bookingAdminRoute = await import('@/app/api/calendar/bookings/[id]/route');
-const manageRoute = await import('@/app/api/calendar/bookings/manage/[token]/route');
+const bookingAdminRoute = await import('@/lib/routes/calendar/bookings/[id]/route');
+const manageRoute = await import('@/lib/routes/calendar/bookings/manage/[token]/route');
 
 const KEY = 'sk_test_51abcDEF123456';
 const WHSEC = 'whsec_testsecret123';

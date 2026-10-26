@@ -26,10 +26,10 @@ vi.mock('@/lib/session', () => ({
 }));
 vi.mock('@/lib/user-tz', () => ({ getUserTimeZone: async () => 'UTC' }));
 
-const pageRoute = await import('@/app/api/docs/pages/[id]/route');
-const shareRoute = await import('@/app/api/docs/pages/[id]/share/route');
-const liveRoute = await import('@/app/api/docs/pages/[id]/live/route');
-const exportRoute = await import('@/app/api/docs/pages/[id]/export/route');
+const pageRoute = await import('@/lib/routes/docs/pages/[id]/route');
+const shareRoute = await import('@/lib/routes/docs/pages/[id]/share/route');
+const liveRoute = await import('@/lib/routes/docs/pages/[id]/live/route');
+const exportRoute = await import('@/lib/routes/docs/pages/[id]/export/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 function req(url: string, method: string, body?: unknown) {
@@ -427,7 +427,7 @@ describe('Docs D3: bloques sincronizados', () => {
       next: [{ id: 's', type: 'synced', content: '', synced_id: 'sync-secreto' }],
       children: new Map([['sync-secreto', [{ id: 'c', type: 'paragraph', content: 'Sueldos' }]]]),
     });
-    const route = await import('@/app/api/docs/synced/[id]/route');
+    const route = await import('@/lib/routes/docs/synced/[id]/route');
     const get = () => route.GET(req('http://x/api/docs/synced/sync-secreto', 'GET'), ctx('sync-secreto'));
     session.user = { id: owner.id, email: owner.email };
     expect((await get()).status).toBe(200);

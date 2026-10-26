@@ -20,7 +20,7 @@ vi.mock('next/server', async (orig) => ({
 }));
 vi.mock('@/lib/events', () => ({ emitEvent: async () => {} }));
 
-const subscriptionRoute = await import('@/app/api/track/issues/[id]/subscription/route');
+const subscriptionRoute = await import('@/lib/routes/track/issues/[id]/subscription/route');
 
 const req = (method: string, body?: unknown) =>
   new NextRequest('http://x/s', {
