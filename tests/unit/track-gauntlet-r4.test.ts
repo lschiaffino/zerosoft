@@ -14,7 +14,7 @@ vi.mock('@/lib/session', () => ({
   isWorkspaceAdmin: (u: { role?: string }) => u.role === 'owner' || u.role === 'admin',
 }));
 
-const relationsRoute = await import('@/app/api/track/issues/[id]/relations/route');
+const relationsRoute = await import('@/lib/routes/track/issues/[id]/relations/route');
 
 const json = (method: string, body?: unknown) =>
   new NextRequest('http://x/api', {

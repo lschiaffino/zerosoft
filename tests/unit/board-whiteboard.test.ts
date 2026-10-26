@@ -44,14 +44,14 @@ const session = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 
-const fileRoute = await import('@/app/api/boards/[id]/files/[fileId]/route');
-const uploadRoute = await import('@/app/api/boards/[id]/files/route');
+const fileRoute = await import('@/lib/routes/boards/[id]/files/[fileId]/route');
+const uploadRoute = await import('@/lib/routes/boards/[id]/files/route');
 const boardsRoute = await import('@/app/api/boards/route');
-const historyRoute = await import('@/app/api/boards/[id]/history/route');
-const restoreRoute = await import('@/app/api/boards/[id]/history/[snapshotId]/route');
-const commentsRoute = await import('@/app/api/boards/[id]/comments/route');
-const threadRoute = await import('@/app/api/boards/[id]/comments/[threadId]/route');
-const commentRoute = await import('@/app/api/boards/[id]/comments/[threadId]/[commentId]/route');
+const historyRoute = await import('@/lib/routes/boards/[id]/history/route');
+const restoreRoute = await import('@/lib/routes/boards/[id]/history/[snapshotId]/route');
+const commentsRoute = await import('@/lib/routes/boards/[id]/comments/route');
+const threadRoute = await import('@/lib/routes/boards/[id]/comments/[threadId]/route');
+const commentRoute = await import('@/lib/routes/boards/[id]/comments/[threadId]/[commentId]/route');
 const libraryRoute = await import('@/app/api/boards/library/route');
 const { resolveMentions } = await import('@/lib/board-comments');
 const { filterMembers, insertMention, mentionQuery } = await import('@/lib/board-mentions');

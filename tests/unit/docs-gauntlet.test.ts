@@ -30,10 +30,10 @@ vi.mock('next/navigation', () => ({
 }));
 
 const actions = await import('@/lib/docs-actions');
-const versionsRoute = await import('@/app/api/docs/pages/[id]/versions/route');
-const commentsRoute = await import('@/app/api/docs/pages/[id]/comments/route');
-const commentRoute = await import('@/app/api/docs/pages/[id]/comments/[commentId]/route');
-const pageRoute = await import('@/app/api/docs/pages/[id]/route');
+const versionsRoute = await import('@/lib/routes/docs/pages/[id]/versions/route');
+const commentsRoute = await import('@/lib/routes/docs/pages/[id]/comments/route');
+const commentRoute = await import('@/lib/routes/docs/pages/[id]/comments/[commentId]/route');
+const pageRoute = await import('@/lib/routes/docs/pages/[id]/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 function jsonReq(url: string, method: string, body?: unknown) {

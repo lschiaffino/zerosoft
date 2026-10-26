@@ -50,11 +50,11 @@ vi.mock('next/server', async (orig) => ({
 }));
 vi.mock('@/lib/events', () => ({ emitEvent: async () => {}, emitEventSoon: async () => {} }));
 
-const insightsRoute = await import('@/app/api/track/issues/[id]/insights/route');
-const requestsRoute = await import('@/app/api/track/issues/[id]/customer-requests/route');
+const insightsRoute = await import('@/lib/routes/track/issues/[id]/insights/route');
+const requestsRoute = await import('@/lib/routes/track/issues/[id]/customer-requests/route');
 const v1Requests = await import('@/app/api/v1/track/requests/route');
-const v1Activities = await import('@/app/api/v1/track/agent-sessions/[id]/activities/route');
-const rulesRoute = await import('@/app/api/track/projects/[id]/triage-rules/route');
+const v1Activities = await import('@/lib/routes/v1/track/agent-sessions/[id]/activities/route');
+const rulesRoute = await import('@/lib/routes/track/projects/[id]/triage-rules/route');
 
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
 const req = (method: string, body?: unknown, headers: Record<string, string> = {}) =>

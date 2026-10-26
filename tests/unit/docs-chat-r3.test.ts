@@ -34,7 +34,7 @@ const widgetScript = await import('@/app/api/chat/widget.js/route');
 const messagesRoute = await import('@/app/api/chat/messages/route');
 const csatRoute = await import('@/app/api/chat/csat/route');
 const typingRoute = await import('@/app/api/chat/typing/route');
-const agentTypingRoute = await import('@/app/api/chat/conversations/[id]/typing/route');
+const agentTypingRoute = await import('@/lib/routes/chat/conversations/[id]/typing/route');
 const conversationsRoute = await import('@/app/api/chat/conversations/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });

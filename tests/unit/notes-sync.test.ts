@@ -19,7 +19,7 @@ const session = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 
-const noteRoute = await import('@/app/api/notes/[id]/route');
+const noteRoute = await import('@/lib/routes/notes/[id]/route');
 const searchRoute = await import('@/app/api/search/route');
 
 function jsonReq(url: string, method: string, body?: unknown) {

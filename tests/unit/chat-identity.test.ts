@@ -31,8 +31,8 @@ vi.mock('next/server', async (orig) => ({
 }));
 
 const visitorMessages = await import('@/app/api/chat/messages/route');
-const crmRoute = await import('@/app/api/chat/conversations/[id]/crm/route');
-const identityRoute = await import('@/app/api/chat/widgets/[id]/identity/route');
+const crmRoute = await import('@/lib/routes/chat/conversations/[id]/crm/route');
+const identityRoute = await import('@/lib/routes/chat/widgets/[id]/identity/route');
 
 let ipN = 0;
 function jsonReq(url: string, method: string, body?: unknown) {

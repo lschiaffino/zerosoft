@@ -46,8 +46,8 @@ import { makeUser } from './helpers';
 const session: { user: unknown } = { user: null };
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 
-const { POST: uploadRoute } = await import('@/app/api/docs/pages/[id]/files/route');
-const { GET: fileRoute } = await import('@/app/api/docs/files/[pageId]/[blockId]/route');
+const { POST: uploadRoute } = await import('@/lib/routes/docs/pages/[id]/files/route');
+const { GET: fileRoute } = await import('@/lib/routes/docs/files/[pageId]/[blockId]/route');
 
 const para = (text: string): DocsBlock => ({ id: crypto.randomUUID(), type: 'paragraph', content: text });
 const savedUrls: string[] = [];

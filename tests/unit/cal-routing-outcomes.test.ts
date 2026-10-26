@@ -16,7 +16,7 @@ import { routingRuleCreateSchema } from '@/lib/calendar-schema';
 import { setUserHandle } from '@/lib/db';
 import { makeUser } from './helpers';
 
-const routeApi = await import('@/app/api/calendar/routing/[id]/route/route');
+const routeApi = await import('@/lib/routes/calendar/routing/[id]/route/route');
 
 async function setup() {
   const user = await makeUser('rt');

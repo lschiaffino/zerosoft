@@ -18,7 +18,7 @@ vi.mock('@/lib/session', () => ({
 }));
 
 const redirectRoute = await import('@/app/r/[slug]/route');
-const domainRoute = await import('@/app/api/links/domains/[id]/route');
+const domainRoute = await import('@/lib/routes/links/domains/[id]/route');
 
 const DESKTOP =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';

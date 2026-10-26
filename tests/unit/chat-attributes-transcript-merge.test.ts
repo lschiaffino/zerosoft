@@ -40,10 +40,10 @@ import { isSameVisitor, listMergeCandidates, mergeChatConversations, mergedStatu
 import { parseMergeNote } from '@/lib/chat-merge-note';
 import { buildAttributeDefs, buildWidgetPayload, hasSelectWithoutOptions, initialValues, parseAttributeFields } from '@/components/chat/widget-form-model';
 import { widgetUpdateSchema } from '@/lib/chat-schema';
-import { PATCH as conversationPatch } from '@/app/api/chat/conversations/[id]/route';
+import { PATCH as conversationPatch } from '@/lib/routes/chat/conversations/[id]/route';
 import { POST as bulkPost } from '@/app/api/chat/conversations/bulk/route';
-import { GET as transcriptGet, POST as transcriptPost } from '@/app/api/chat/conversations/[id]/transcript/route';
-import { GET as mergeGet, POST as mergePost } from '@/app/api/chat/conversations/[id]/merge/route';
+import { GET as transcriptGet, POST as transcriptPost } from '@/lib/routes/chat/conversations/[id]/transcript/route';
+import { GET as mergeGet, POST as mergePost } from '@/lib/routes/chat/conversations/[id]/merge/route';
 import { GET as visitorGet } from '@/app/api/chat/messages/route';
 import { makeUser } from './helpers';
 

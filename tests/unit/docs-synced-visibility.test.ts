@@ -29,10 +29,10 @@ vi.mock('@/lib/session', () => ({
 }));
 vi.mock('@/lib/user-tz', () => ({ getUserTimeZone: async () => 'UTC' }));
 
-const pageRoute = await import('@/app/api/docs/pages/[id]/route');
-const liveRoute = await import('@/app/api/docs/pages/[id]/live/route');
-const exportRoute = await import('@/app/api/docs/pages/[id]/export/route');
-const versionRoute = await import('@/app/api/docs/pages/[id]/versions/[versionId]/route');
+const pageRoute = await import('@/lib/routes/docs/pages/[id]/route');
+const liveRoute = await import('@/lib/routes/docs/pages/[id]/live/route');
+const exportRoute = await import('@/lib/routes/docs/pages/[id]/export/route');
+const versionRoute = await import('@/lib/routes/docs/pages/[id]/versions/[versionId]/route');
 const searchRoute = await import('@/app/api/docs/search/route');
 const helpRoute = await import('@/app/api/chat/help/route');
 

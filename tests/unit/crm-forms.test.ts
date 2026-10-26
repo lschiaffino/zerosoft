@@ -21,7 +21,7 @@ import { RESERVED_SLUGS } from '@/lib/reserved';
 import { MIGRATIONS } from '@/lib/schema/migrations';
 import { makeUser } from './helpers';
 
-const submitRoute = await import('@/app/api/crm/forms/submit/[key]/route');
+const submitRoute = await import('@/lib/routes/crm/forms/submit/[key]/route');
 
 function post(key: string, body: unknown, ip = '10.0.0.1') {
   return submitRoute.POST(

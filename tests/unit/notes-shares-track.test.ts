@@ -25,10 +25,10 @@ const session = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 
-const noteRoute = await import('@/app/api/notes/[id]/route');
+const noteRoute = await import('@/lib/routes/notes/[id]/route');
 const notesRoute = await import('@/app/api/notes/route');
-const sharesRoute = await import('@/app/api/notes/[id]/shares/route');
-const trackRoute = await import('@/app/api/notes/[id]/track/route');
+const sharesRoute = await import('@/lib/routes/notes/[id]/shares/route');
+const trackRoute = await import('@/lib/routes/notes/[id]/track/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 function jsonReq(url: string, method: string, body?: unknown) {

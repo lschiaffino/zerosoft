@@ -46,8 +46,8 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 
-const commentsRoute = await import('@/app/api/docs/pages/[id]/comments/route');
-const importRoute = await import('@/app/api/docs/pages/[id]/import/route');
+const commentsRoute = await import('@/lib/routes/docs/pages/[id]/comments/route');
+const importRoute = await import('@/lib/routes/docs/pages/[id]/import/route');
 const templatesRoute = await import('@/app/api/docs/templates/route');
 const actions = await import('@/lib/docs-actions');
 

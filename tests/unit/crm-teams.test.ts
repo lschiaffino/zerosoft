@@ -47,13 +47,13 @@ vi.mock('@/lib/session', () => ({
 }));
 
 const contactsRoute = await import('@/app/api/crm/contacts/route');
-const contactRoute = await import('@/app/api/crm/contacts/[id]/route');
+const contactRoute = await import('@/lib/routes/crm/contacts/[id]/route');
 const searchRoute = await import('@/app/api/search/route');
 const crmSearchRoute = await import('@/app/api/crm/search/route');
 const exportRoute = await import('@/app/api/crm/export/route');
 const activitiesRoute = await import('@/app/api/crm/activities/route');
 const v1Contacts = await import('@/app/api/v1/crm/contacts/route');
-const v1Contact = await import('@/app/api/v1/crm/contacts/[id]/route');
+const v1Contact = await import('@/lib/routes/v1/crm/contacts/[id]/route');
 const v1Deals = await import('@/app/api/v1/crm/deals/route');
 const v1Activities = await import('@/app/api/v1/crm/activities/route');
 const v1Links = await import('@/app/api/v1/links/route');
@@ -63,7 +63,7 @@ const v1Assoc = await import('@/app/api/v1/crm/associations/route');
 const tagApplyRoute = await import('@/app/api/crm/tags/apply/route');
 const tagRecordRoute = await import('@/app/api/crm/tags/record/route');
 const tagsRoute = await import('@/app/api/crm/tags/route');
-const v1TagRecords = await import('@/app/api/v1/crm/tags/[id]/records/route');
+const v1TagRecords = await import('@/lib/routes/v1/crm/tags/[id]/records/route');
 const assocActions = await import('@/components/crm/associationActions');
 
 beforeEach(() => {

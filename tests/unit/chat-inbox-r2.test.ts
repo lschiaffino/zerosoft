@@ -62,7 +62,7 @@ import {
 import { POST as visitorPost } from '@/app/api/chat/messages/route';
 import { GET as widgetScript } from '@/app/api/chat/widget.js/route';
 import { POST as bulkPost } from '@/app/api/chat/conversations/bulk/route';
-import { DELETE as messageDelete, PATCH as messagePatch } from '@/app/api/chat/conversations/[id]/messages/[messageId]/route';
+import { DELETE as messageDelete, PATCH as messagePatch } from '@/lib/routes/chat/conversations/[id]/messages/[messageId]/route';
 import { addMember, createTeam } from '@/lib/teams';
 import { makeUser } from './helpers';
 

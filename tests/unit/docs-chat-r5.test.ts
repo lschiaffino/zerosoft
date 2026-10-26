@@ -36,8 +36,8 @@ vi.mock('next/server', async (orig) => ({
 }));
 
 const visitorMessages = await import('@/app/api/chat/messages/route');
-const pageRoute = await import('@/app/api/docs/pages/[id]/route');
-const mentionsRoute = await import('@/app/api/docs/pages/[id]/mentions/route');
+const pageRoute = await import('@/lib/routes/docs/pages/[id]/route');
+const mentionsRoute = await import('@/lib/routes/docs/pages/[id]/mentions/route');
 const membersRoute = await import('@/app/api/docs/members/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
