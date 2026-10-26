@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
-import ComingSoonApp from '@/components/app/ComingSoonApp';
+import { redirect } from 'next/navigation';
+import { libraryData } from '@/lib/rec-app';
+import RecLibrary from '@/components/rec/RecLibrary';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,10 +12,12 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   return { title: t('meta.title') };
 }
 
-/** Rec: todavía en construcción. Las tandas siguientes reemplazan este inicio. */
-export default async function RecPage(props: { params: Promise<{ locale: string }> }) {
+/** Rec: Mis videos (lo que grabé, fuera de carpetas). ?new=1 (menú "+ Nuevo") abre el grabador. */
+export default async function RecPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ new?: string }> }) {
   const { locale } = await props.params;
+  const sp = await props.searchParams;
   setRequestLocale(locale);
-  await requireUser(locale);
-  return <ComingSoonApp locale={locale} product="rec" />;
+  if (sp.new === '1') redirect(`/${locale}/app/rec/new`);
+  const data = await libraryData(locale, { kind: 'mine' });
+  return <RecLibrary scope={{ kind: 'mine' }} initialVideos={data!.videos} initialFolders={data!.folders} baseUrl={data!.baseUrl} />;
 }

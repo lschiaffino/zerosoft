@@ -34,7 +34,7 @@
       "notes": "Notas, cadernos, checklists e clipper web",
       "board": "Quadro branco infinito compartilhado",
       "voice": "Em construção: ditado por voz e notas de reunião",
-      "rec": "Em construção: gravação de tela e câmera",
+      "rec": "Vídeos de tela e câmera compartilhados com um link",
       "talk": "Em construção: mensagens de equipe"
     },
     "building": "Em construção"
@@ -115,6 +115,8 @@
     "startQueue": "Começar a fila de tarefas",
     "groupCrmDocuments": "Documentos",
     "groupCrmVideos": "Vídeos",
+    "groupRecVideos": "Vídeos do Rec",
+    "groupRecFolders": "Pastas do Rec",
     "groupCrmForms": "Formulários",
     "groupCrmQuotes": "Orçamentos",
     "groupCrmApprovals": "Aprovações pendentes",
@@ -200,7 +202,7 @@
       "desc": "Ditado e notas de reunião com IA. Em construção."
     },
     "rec": {
-      "desc": "Vídeos de tela e câmera para compartilhar. Em construção."
+      "desc": "Vídeos de tela e câmera para compartilhar com um link."
     },
     "talk": {
       "desc": "Canais, mensagens diretas e threads. Em construção."

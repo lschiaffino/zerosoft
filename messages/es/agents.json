@@ -274,7 +274,8 @@
     "docsPagesHint": "Incluye las subpáginas. Quedan afuera las páginas de teamspaces que no permiten la IA. Fuera del playground (Chat, página pública, API, Groups, Flow) todo lo que escribe en Docs espera que alguien del equipo lo apruebe. El agente trabaja con el acceso de quien lo cambió por última vez; en el playground, con el tuyo.",
     "needsDocsPages": "Elegí al menos una página de Docs.",
     "untitledPage": "Sin título",
-    "docsPrivatePublic": "Algunas de estas páginas están en un teamspace cerrado o privado, y este agente tiene página pública: cualquiera que le hable puede recibir respuestas con su contenido."
+    "docsPrivatePublic": "Algunas de estas páginas están en un teamspace cerrado o privado, y este agente tiene página pública: cualquiera que le hable puede recibir respuestas con su contenido.",
+    "docsHiddenPublic": "Este agente público tiene páginas de teamspaces privados que no podés ver. Cualquiera que le hable puede recibir respuestas con su contenido."
   },
   "channels": {
     "chatTitle": "Widgets de Chat",

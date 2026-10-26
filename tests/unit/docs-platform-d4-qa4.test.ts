@@ -64,6 +64,24 @@ describe('re-QA 3 (ALTA): aprobaciones de Docs', () => {
   });
 });
 
+describe('re-QA 4 (baja 1): crear una página sin página madre', () => {
+  it('la decide la persona con cuyo acceso trabaja el agente o quien puede crear en la raíz', async () => {
+    const { owner, carol, page } = await setup('apr');
+    const member = await makeUser('apr-member');
+    const team = (await getDb().prepare('SELECT id FROM teams WHERE owner_id = ?').get(owner.id)) as { id: string };
+    await addMember(team.id, member.id, 'member');
+    await getDb().prepare("INSERT OR REPLACE INTO docs_settings (workspace_id, member_role, allow_export, allow_publish, allow_guests, updated_at) VALUES (?, 'view', 1, 1, 1, ?)").run(owner.id, new Date().toISOString());
+    const agentId = (await createAgent(owner.id, carol.id, { name: 'Bot' })).id;
+    await updateAgent(owner.id, agentId, { tools: { ...parseTools('{}'), enabled: ['docs_read_pages', 'docs_write_page'] as never, docsPageIds: [page.id] } }, carol.id);
+    const agentRow = (await getAgentRow(owner.id, agentId))!;
+    const conv = await createConversation(agentRow, 'chat', {});
+    await queueAgentAction({ agent: toAgentDto(agentRow), workspaceId: owner.id, conversationId: conv.id }, 'docs_write_page', { operation: 'create', title: 'Notes' });
+    expect((await listAgentActions(owner.id, agentId, { viewerId: carol.id }))[0].locked).toBeUndefined();
+    expect((await listAgentActions(owner.id, agentId, { viewerId: owner.id }))[0].locked).toBeUndefined();
+    expect((await listAgentActions(owner.id, agentId, { viewerId: member.id }))[0].locked).toBe(true);
+  });
+});
+
 describe('re-QA 3 (baja 2): reanudar una espera tras un cambio de dueño', () => {
   it('falla con owner_changed y no corre más nodos', async () => {
     const { owner, carol, bob } = await setup('res');

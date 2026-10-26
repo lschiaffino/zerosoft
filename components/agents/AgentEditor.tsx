@@ -33,6 +33,8 @@ import { parseDbUtc } from '@/lib/utils';
 
 export interface EditorRefs {
   docsPages: Array<{ id: string; title: string; isPublic: boolean; restricted?: boolean }>;
+  /** El agente tiene páginas de teamspaces que quien edita no ve. */
+  hiddenDocsPages?: boolean;
   widgets: AgentWidgetOption[];
   eventTypes: Array<{ id: string; title: string; durationMin: number }>;
   projects: Array<{ id: string; name: string }>;
@@ -411,6 +413,11 @@ export default function AgentEditor(props: Props) {
             {draft.publicHandle !== null && props.docsPages.some((p) => p.restricted && draft.tools.docsPageIds.includes(p.id)) && (
               <p className="ui-help ag-warn-inline" role="status" data-testid="ag-docs-private-public">
                 {t('tools.docsPrivatePublic')}
+              </p>
+            )}
+            {draft.publicHandle !== null && props.hiddenDocsPages && (
+              <p className="ui-help ag-warn-inline" role="status" data-testid="ag-docs-hidden-public">
+                {t('tools.docsHiddenPublic')}
               </p>
             )}
           </fieldset>

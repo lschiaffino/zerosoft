@@ -2,7 +2,7 @@
   "products": {
     "meta": {
       "title": "Produtos",
-      "description": "Quinze apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board e Talk, e Voice e Rec em construção. Open source para o seu servidor, ou no zerosoft Cloud com plano grátis e pagamento por uso."
+      "description": "Quinze apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Rec e Talk, e Voice em construção. Open source para o seu servidor, ou no zerosoft Cloud com plano grátis e pagamento por uso."
     },
     "hero": {
       "title1": "Quinze apps.",
@@ -1190,50 +1190,50 @@
     },
     "rec": {
       "meta": {
-        "title": "Rec: gravação de tela e câmera open source (em construção)",
-        "description": "O Rec vai ser a alternativa open source ao Loom: gravar tela e câmera, compartilhar com um link, comentários no minuto exato e métricas de visualização. Está em construção e a paridade é medida ao vivo."
+        "title": "Rec: gravação de tela e câmera open source",
+        "description": "Grave sua tela, sua câmera ou as duas pelo navegador, compartilhe com um link, receba comentários no segundo exato e veja quem assistiu. Uma alternativa open source ao Loom."
       },
       "hero": {
-        "sub": "Estamos construindo um app para gravar a tela e a câmera, compartilhar o vídeo com um link e ver quem assistiu, na mesma suíte do seu CRM e Track. Ainda não dá para usar."
+        "sub": "Grave sua tela, uma janela ou uma aba com sua câmera numa bolha, direto do navegador. Quando você para, o link já fica copiado: os comentários caem no segundo exato e você vê quem assistiu e quanto."
       },
-      "featuresTitle": "O que o Rec vai fazer.",
-      "featuresTitleDim": "Ainda não existe: este é o plano.",
+      "featuresTitle": "Grave uma vez.",
+      "featuresTitleDim": "E pule a reunião.",
       "f1": {
         "t": "Tela e câmera",
-        "d": "Gravar a tela, uma janela ou uma aba com a câmera numa bolha, pelo navegador."
+        "d": "Tela e câmera, só a tela ou só a câmera. Arraste e aumente a bolha, escolha o microfone, pause e continue."
       },
       "f2": {
-        "t": "Um link ao terminar",
-        "d": "Ao parar, o vídeo sobe em partes e fica um link para compartilhar, com senha e validade se você quiser."
+        "t": "Um link ao parar",
+        "d": "O vídeo é enviado em partes enquanto você grava, então o link está pronto e copiado quando você termina. Com senha, expiração e acesso só do workspace se quiser."
       },
       "f3": {
-        "t": "Comentários no minuto",
-        "d": "Comentários e reações presos ao momento exato do vídeo."
+        "t": "Comentários no segundo",
+        "d": "Comentários e reações com emoji presos ao segundo, marcados na linha do tempo. Um clique leva àquele momento."
       },
       "f4": {
         "t": "Quem assistiu",
-        "d": "Visualizações, pessoas únicas e quanto do vídeo cada uma assistiu."
+        "d": "Visualizações, espectadores únicos, quanto cada um realmente assistiu (avançar não conta), curva de retenção, cliques no botão e o nome de quem entrou com sessão. Exporte para CSV."
       },
       "f5": {
         "t": "Transcrição e resumo",
-        "d": "Título, resumo e transcrição por IA, com o mesmo motor do Voice."
+        "d": "Transcrição com legendas, e título, resumo e capítulos com IA que você pode editar. Precisa de um provedor de transcrição configurado."
       },
       "f6": {
-        "t": "Os vídeos do CRM",
-        "d": "Os vídeos que hoje você grava pela ficha de um contato do CRM vão morar no Rec, com as mesmas métricas."
+        "t": "Editar e compartilhar",
+        "d": "Corte o começo e o fim (numa gravação WebM os outros recebem a cópia cortada), adicione uma chamada para ação, escolha a miniatura, incorpore o player onde quiser e organize os vídeos em pastas."
       },
       "steps": {
         "s1": {
           "t": "Grave",
-          "d": "Você vai escolher tela, janela ou aba, ligar a câmera e começar."
+          "d": "Escolha tela, câmera ou as duas, o microfone e clique em começar. Uma contagem de 3 segundos e pronto."
         },
         "s2": {
           "t": "Compartilhe o link",
-          "d": "O link vai estar pronto ao parar, para colar num e-mail, num issue ou num chat."
+          "d": "Quando você para, o link fica copiado. Cole num e-mail, numa issue ou num chat."
         },
         "s3": {
           "t": "Veja as respostas",
-          "d": "Comentários no minuto exato e quem assistiu quanto."
+          "d": "Comentários no segundo exato, reações e quem assistiu quanto."
         }
       },
       "compare": {
@@ -1241,36 +1241,36 @@
         "price": "US$ 15",
         "per": "/ usuário / mês",
         "team": "US$ 1.800",
-        "zero": "$0",
-        "note": "O Loom Business custa US$ 15 por usuário por mês no plano anual (US$ 18 no mensal); o Business + AI custa US$ 20. Um time de dez paga US$ 1.800 por ano. Preços de tabela conferidos em 25 de outubro de 2026. O Rec ainda não existe; quando sair, no seu servidor vai custar $0 mais o armazenamento dos vídeos."
+        "zero": "US$ 0",
+        "note": "O Loom Business custa US$ 15 por usuário por mês no plano anual (US$ 18 no mensal); o Business + AI custa US$ 20. Uma equipe de dez paga US$ 1.800 por ano. Preços de tabela conferidos em 25 de outubro de 2026. O Rec custa US$ 0 no seu servidor mais o armazenamento de vídeos e, se quiser transcrições, o provedor de transcrição."
       },
       "faq": {
         "f1": {
-          "q": "Já posso usar o Rec?",
-          "a": "Ainda não. Hoje /app/rec mostra que ele está em construção. Enquanto isso, pela ficha de um contato do CRM você já grava um vídeo 1:1 e vê as visualizações."
+          "q": "Preciso instalar algo?",
+          "a": "Não. O Rec grava pelo Chrome, Edge ou Firefox num computador, sem extensão. Ainda não há app desktop nem mobile."
         },
         "f2": {
-          "q": "Preciso instalar alguma coisa?",
-          "a": "O plano é gravar pelo navegador, sem extensão. Gravar o áudio do computador inteiro vai precisar de um app de desktop, que vem depois."
+          "q": "Ele grava o áudio do computador?",
+          "a": "Grava seu microfone e, quando o navegador compartilha, o áudio da aba ou da tela que você escolher. O Chrome compartilha o áudio de abas em todo lugar e o do sistema no Windows e no ChromeOS."
         },
         "f3": {
-          "q": "Onde os vídeos vão ficar?",
-          "a": "No armazenamento de arquivos do seu servidor ou da zerosoft Cloud. Se você hospeda, os vídeos ficam na sua infraestrutura."
+          "q": "Onde os vídeos ficam guardados?",
+          "a": "No armazenamento de arquivos do seu servidor (Vercel Blob ou uma pasta local) ou no da zerosoft Cloud. Se você hospeda, os vídeos ficam na sua infraestrutura."
         },
         "f4": {
-          "q": "Quem vai poder ver um vídeo?",
-          "a": "Cada vídeo vai poder ter um link público, com senha e validade opcionais, ou ficar só para o seu workspace."
+          "q": "Quem pode assistir um vídeo?",
+          "a": "Qualquer pessoa com o link, ou só os membros do seu workspace com sessão iniciada. Dá para colocar senha e data de expiração, e ligar ou desligar os comentários. Desligar o download tira o botão, mas um vídeo transmitido ainda pode ser capturado."
         },
         "f5": {
-          "q": "O que falta comparado com Loom?",
-          "a": "Tudo, por enquanto. O Rec está em construção e a tabela de paridade acima lista as capacidades do Loom que medimos, todas pendentes."
+          "q": "O que falta em relação ao Loom?",
+          "a": "O app desktop, a extensão do Chrome e os apps mobile, desenhar na tela, desfoque de fundo, juntar clipes, editar pela transcrição, marca própria e as integrações com Slack, Jira e Gmail. A tabela de paridade acima tem a lista completa."
         }
       },
       "cta": {
-        "title1": "O Rec está em construção.",
-        "title2": "Conte o que você precisa.",
-        "sub": "Proponha ideias e vote no board público: os seus votos ajudam a decidir o que fazemos primeiro.",
-        "button": "Propor uma ideia"
+        "title1": "Grave.",
+        "title2": "Mande o link.",
+        "sub": "Abra o Rec, escolha tela, câmera ou as duas e grave seu primeiro vídeo.",
+        "button": "Abrir o Rec"
       }
     },
     "talk": {
@@ -2386,6 +2386,9 @@
     "paramTalkThread": "Id da mensagem raiz para responder no fio",
     "paramTalkAlso": "Com thread_id, mostrar a resposta também no canal",
     "paramTalkUsername": "Nome do bot na mensagem (por padrão, o do webhook)",
+    "paramLimit": "Quantidade máxima de resultados.",
+    "scope_talk_read": "Ler canais e mensagens do Talk dos quais você é membro.",
+    "scope_talk_write": "Publicar mensagens e criar canais no Talk.",
     "docsApiTitle": "Docs",
     "docsApiDesc": "Leia e escreva páginas, blocos, bancos, linhas e comentários do Docs. O conteúdo entra e sai em Markdown (ou em blocos do Docs). Uma key age como a pessoa que a criou: só vê e edita as páginas que essa pessoa pode abrir. Bancos sincronizados são somente leitura.",
     "docsPagesListTitle": "Listar páginas",

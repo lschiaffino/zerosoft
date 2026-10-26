@@ -66,6 +66,9 @@ export default defineConfig({
       // Autocompletar de las bases de Docs contra el modelo falso (lib/docs-db-ai.ts);
       // con la cookie docs_ai_fake=off se ve el error ai_disabled.
       DOCS_AI_FAKE: '1',
+      // Transcripción, título y resumen de Rec contra el modelo falso (lib/rec-ai.ts);
+      // con la cookie rec_ai_fake=off se ve el error ai_disabled.
+      REC_AI_FAKE: '1',
       // IA de Track (triage, resúmenes, agentes) contra el mismo modelo falso
       // (lib/track-ai.ts); con la cookie track_ai_fake=off se ve ai_disabled.
       TRACK_AI_FAKE: '1',

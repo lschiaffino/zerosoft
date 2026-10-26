@@ -63,9 +63,13 @@ export default async function AgentEditorPage(props: {
     >,
     listTestCases(user.id, id),
   ]);
+  // Páginas del agente que quien edita no ve (teamspaces cerrados o privados): no se listan, pero se avisa.
+  const visibleIds = new Set(docsPages.map((p) => p.id));
+  const hiddenDocsPages = agent.tools.docsPageIds.some((pid) => !visibleIds.has(pid));
   return (
     <AgentEditor
       key={agent.id}
+      hiddenDocsPages={hiddenDocsPages}
       agent={agent}
       urls={urls}
       widgets={widgets}

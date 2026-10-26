@@ -34,7 +34,7 @@ export function parseRange(header: string | null, size: number): { start: number
   return { start, end };
 }
 
-async function localResponse(req: NextRequest, full: string, headers: Record<string, string>): Promise<NextResponse> {
+export async function localResponse(req: NextRequest, full: string, headers: Record<string, string>): Promise<NextResponse> {
   const info = await stat(full).catch(() => null);
   if (!info?.isFile() || info.size === 0) return NOT_FOUND();
   const range = parseRange(req.headers.get('range'), info.size);

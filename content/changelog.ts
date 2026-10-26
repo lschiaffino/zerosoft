@@ -47,6 +47,21 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-25-rec',
+    date: '2026-10-25',
+    title: {
+      en: 'Rec: record your screen and camera, share with a link',
+      es: 'Rec: grabá tu pantalla y tu cámara, compartí con un link',
+      pt: 'Rec: grave sua tela e sua câmera, compartilhe com um link',
+    },
+    items: [
+      { product: 'rec', en: 'Record screen and camera, screen only or camera only from the browser, with a camera bubble you drag and resize, microphone picker, countdown and pause. The video uploads in parts while you record and the link is copied when you stop.', es: 'Grabás pantalla y cámara, solo pantalla o solo cámara desde el navegador, con una burbuja de cámara que se arrastra y se agranda, selector de micrófono, cuenta regresiva y pausa. El video se sube por partes mientras grabás y el link queda copiado al cortar.', pt: 'Grave tela e câmera, só a tela ou só a câmera pelo navegador, com uma bolha de câmera que se arrasta e aumenta, seletor de microfone, contagem regressiva e pausa. O vídeo é enviado em partes enquanto você grava e o link fica copiado ao parar.' },
+      { product: 'rec', en: 'Each video has its page at /v/<id>: player with speed, captions and chapters, timestamped comments and reactions, a call to action, password, expiry, workspace-only access and an embed code.', es: 'Cada video tiene su página en /v/<id>: reproductor con velocidad, subtítulos y capítulos, comentarios y reacciones con el segundo, llamada a la acción, contraseña, vencimiento, acceso solo del workspace y código para insertar.', pt: 'Cada vídeo tem sua página em /v/<id>: player com velocidade, legendas e capítulos, comentários e reações no segundo, chamada para ação, senha, expiração, acesso só do workspace e código para incorporar.' },
+      { product: 'rec', en: 'Views, unique viewers, percent watched and who watched (signed in), with CSV export and a notification on the first view and each comment. Transcript, title, summary and chapters with AI when a transcription provider is configured. Trim, thumbnail, folders and a space shared with the workspace.', es: 'Vistas, espectadores únicos, porcentaje visto y quién lo vio (con sesión), con export a CSV y aviso en la primera vista y en cada comentario. Transcripción, título, resumen y capítulos con IA cuando hay un proveedor de transcripción configurado. Recorte, miniatura, carpetas y un espacio compartido con el workspace.', pt: 'Visualizações, espectadores únicos, porcentagem assistida e quem assistiu (com sessão), com exportação CSV e aviso na primeira visualização e em cada comentário. Transcrição, título, resumo e capítulos com IA quando há um provedor de transcrição configurado. Corte, miniatura, pastas e um espaço compartilhado com o workspace.' },
+      { product: 'crm', en: 'The 1:1 videos of the CRM use the Rec recorder: screen with the camera bubble, microphone picker, countdown and pause, and the duration written into the file so viewers can skip ahead.', es: 'Los videos 1:1 del CRM usan el grabador de Rec: pantalla con la burbuja de cámara, selector de micrófono, cuenta regresiva y pausa, y la duración escrita en el archivo para que se pueda adelantar.', pt: 'Os vídeos 1:1 do CRM usam o gravador do Rec: tela com a bolha da câmera, seletor de microfone, contagem regressiva e pausa, e a duração escrita no arquivo para dar para avançar.' },
+    ],
+  },
+  {
     id: '2026-10-25-talk',
     date: '2026-10-25',
     title: {

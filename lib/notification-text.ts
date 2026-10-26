@@ -35,6 +35,12 @@ export interface NotificationTextLabels {
   groupsMention?: string;
   groupsAssigned?: string;
   groupsAutoAssigned?: string;
+  /** Rec: "{actor} vio {title}", "{actor} comentó en {title}", "{actor} reaccionó {emoji} a {title}". */
+  recView?: string;
+  recComment?: string;
+  /** Avisos agrupados: "{count} comentarios nuevos en {title}". */
+  recComments?: string;
+  recReaction?: string;
 }
 
 export interface NotificationLike {
@@ -119,6 +125,14 @@ export function notificationTitle(n: NotificationLike, L: NotificationTextLabels
     const vars = { actor, title: String(meta.boardName) };
     if (n.type === 'mention') return fill(L.boardMention, vars);
     if (n.type === 'comment') return fill(L.boardReply, vars);
+  }
+
+  if (source === 'rec_video') {
+    const vars = { actor, title: String(meta.title || L.untitled), emoji: String(meta.emoji || ''), count: String(meta.count || '1') };
+    if (n.type === 'rec_comment' && Number(meta.count) > 1 && L.recComments) return fill(L.recComments, vars);
+    if (n.type === 'rec_view' && L.recView) return fill(L.recView, vars);
+    if (n.type === 'rec_comment' && meta.emoji && L.recReaction) return fill(L.recReaction, vars);
+    if (n.type === 'rec_comment' && L.recComment) return fill(L.recComment, vars);
   }
 
   return n.title;

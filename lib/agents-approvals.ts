@@ -113,12 +113,24 @@ function docsTarget(input: unknown): string | null {
  * Acciones de Docs: solo las ve en detalle y las decide quien puede editar la
  * página destino; al aprobarlas la escritura corre con su acceso.
  */
-async function canDecideDocs(workspaceId: string, personId: string, input: unknown): Promise<boolean> {
+async function canDecideDocs(workspaceId: string, personId: string, input: unknown, agentDocsActorId?: string | null): Promise<boolean> {
   const target = docsTarget(input);
-  if (!target) return false;
   const { docsActorFor, pageFor } = await import('./docs-platform-access');
   const actor = await docsActorFor(workspaceId, personId);
-  return Boolean(actor && (await pageFor(actor, target, { write: true })));
+  if (!actor) return false;
+  if (target) return Boolean(await pageFor(actor, target, { write: true }));
+  // Crear sin página madre: la persona con cuyo acceso trabaja el agente, o quien puede crear páginas en la raíz.
+  if ((input as { operation?: unknown } | null)?.operation !== 'create') return false;
+  if (agentDocsActorId && agentDocsActorId === personId) return true;
+  if (actor.role === 'owner' || actor.role === 'admin') return true;
+  const { getDocsSettings, roleRank } = await import('./docs-access');
+  return roleRank((await getDocsSettings(workspaceId)).member_role) >= roleRank('edit');
+}
+
+async function agentDocsActor(workspaceId: string, agentId: string): Promise<string | null> {
+  const { getAgentRow, toAgentDto } = await import('./agents');
+  const row = await getAgentRow(workspaceId, agentId);
+  return row ? (toAgentDto(row).tools.docsActorId ?? null) : null;
 }
 
 export async function listAgentActions(
@@ -141,9 +153,10 @@ export async function listAgentActions(
       opts.status ?? null,
     )) as PendingRow[];
   const out: AgentPendingActionDto[] = [];
+  const docsActorId = rows.some((r) => r.tool.startsWith('docs_')) ? await agentDocsActor(workspaceId, agentId) : null;
   for (const r of rows) {
     const dto = toDto(r);
-    if (opts.viewerId !== undefined && r.tool.startsWith('docs_') && !(await canDecideDocs(workspaceId, opts.viewerId, dto.input))) {
+    if (opts.viewerId !== undefined && r.tool.startsWith('docs_') && !(await canDecideDocs(workspaceId, opts.viewerId, dto.input, docsActorId))) {
       out.push({ ...dto, input: { hidden: true }, result: null, locked: true });
     } else out.push(dto);
   }
@@ -184,7 +197,7 @@ export async function decideAgentAction(
     .get(actionId, workspaceId, agentId)) as PendingRow | undefined;
   if (!row || !isApprovableTool(row.tool)) return { ok: false, error: 'not_found' };
   const isDocs = row.tool.startsWith('docs_');
-  if (isDocs && approverId !== undefined && !(await canDecideDocs(workspaceId, approverId, parse(row.input)))) {
+  if (isDocs && approverId !== undefined && !(await canDecideDocs(workspaceId, approverId, parse(row.input), await agentDocsActor(workspaceId, agentId)))) {
     return { ok: false, error: 'not_allowed' };
   }
   const ts = new Date().toISOString();

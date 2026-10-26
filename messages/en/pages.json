@@ -2,7 +2,7 @@
   "products": {
     "meta": {
       "title": "Products",
-      "description": "Fifteen apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board and Talk, with Voice and Rec in the works. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
+      "description": "Fifteen apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Rec and Talk, with Voice in the works. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
     },
     "hero": {
       "title1": "Fifteen apps.",
@@ -1190,50 +1190,50 @@
     },
     "rec": {
       "meta": {
-        "title": "Rec: open-source screen and camera recording (in the works)",
-        "description": "Rec will be the open-source alternative to Loom: record your screen and camera, share with a link, timestamped comments and view analytics. It is being built, and its parity is measured live."
+        "title": "Rec: open-source screen and camera recording",
+        "description": "Record your screen, your camera or both from the browser, share with a link, get timestamped comments and see who watched. An open-source alternative to Loom."
       },
       "hero": {
-        "sub": "We are building an app to record your screen and camera, share the video with a link and see who watched it, in the same suite as your CRM and Track. You can't use it yet."
+        "sub": "Record your screen, a window or a tab with your camera in a bubble, right from the browser. When you stop, the link is copied: comments land on the exact second and you see who watched and how much."
       },
-      "featuresTitle": "What Rec will do.",
-      "featuresTitleDim": "It doesn't exist yet: this is the plan.",
+      "featuresTitle": "Record it once.",
+      "featuresTitleDim": "Skip the meeting.",
       "f1": {
         "t": "Screen and camera",
-        "d": "Record your screen, a window or a tab with your camera in a bubble, from the browser."
+        "d": "Screen and camera, screen only or camera only. Drag and resize the camera bubble, pick the microphone, pause and resume."
       },
       "f2": {
         "t": "A link when you stop",
-        "d": "When you stop, the video uploads in parts and you get a link to share, with a password and expiry if you want."
+        "d": "The video uploads in parts while you record, so the link is ready and copied when you finish. Password, expiry and workspace-only access if you want."
       },
       "f3": {
         "t": "Timestamped comments",
-        "d": "Comments and reactions pinned to the exact moment in the video."
+        "d": "Comments and emoji reactions pinned to the second, shown on the timeline. One click jumps to that moment."
       },
       "f4": {
         "t": "Who watched it",
-        "d": "Views, unique viewers and how much of the video each one watched."
+        "d": "Views, unique viewers, how much each one really watched (skipping ahead does not count), a retention curve, button clicks and the names of signed-in viewers. Export to CSV."
       },
       "f5": {
         "t": "Transcript and summary",
-        "d": "AI title, summary and transcript, with the same engine as Voice."
+        "d": "Transcript with captions, plus an AI title, summary and chapters you can edit. It needs a transcription provider configured."
       },
       "f6": {
-        "t": "CRM videos",
-        "d": "The videos you record today from a CRM contact's record will live in Rec, with the same analytics."
+        "t": "Edit and share",
+        "d": "Trim the start and the end (viewers of a WebM recording get the trimmed copy), add a call to action, pick a thumbnail, embed the player anywhere and organize videos in folders."
       },
       "steps": {
         "s1": {
           "t": "Record",
-          "d": "You'll pick a screen, window or tab, turn on your camera and start."
+          "d": "Pick screen, camera or both, choose the microphone and press start. A 3 second countdown and you are on."
         },
         "s2": {
           "t": "Share the link",
-          "d": "The link will be ready when you stop, to paste into an email, an issue or a chat."
+          "d": "When you stop, the link is copied. Paste it in an email, an issue or a chat."
         },
         "s3": {
           "t": "See the replies",
-          "d": "Comments at the exact minute and who watched how much."
+          "d": "Comments on the exact second, reactions and who watched how much."
         }
       },
       "compare": {
@@ -1242,35 +1242,35 @@
         "per": "/ user / month",
         "team": "$1,800",
         "zero": "$0",
-        "note": "Loom Business costs $15 per user per month billed yearly ($18 monthly); Business + AI costs $20. A team of ten pays $1,800 a year. List prices checked on October 25, 2026. Rec doesn't exist yet; once it ships, it will cost $0 on your server plus video storage."
+        "note": "Loom Business costs $15 per user per month billed yearly ($18 monthly); Business + AI costs $20. A team of ten pays $1,800 a year. List prices checked on October 25, 2026. Rec costs $0 on your server plus video storage and, if you want transcripts, the transcription provider."
       },
       "faq": {
         "f1": {
-          "q": "Can I use Rec yet?",
-          "a": "Not yet. Today /app/rec shows that it is being built. Meanwhile, you can already record a 1:1 video from a CRM contact's record and see its views."
+          "q": "Do I need to install anything?",
+          "a": "No. Rec records from Chrome, Edge or Firefox on a computer, with no extension. There is no desktop or mobile app yet."
         },
         "f2": {
-          "q": "Do I need to install anything?",
-          "a": "The plan is to record from the browser, with no extension. Recording your whole computer's audio will need a desktop app, which comes later."
+          "q": "Can it record my computer's audio?",
+          "a": "It records your microphone and, when the browser shares it, the audio of the tab or the screen you pick. Chrome shares tab audio everywhere and system audio on Windows and ChromeOS."
         },
         "f3": {
-          "q": "Where will videos be stored?",
-          "a": "In the file storage of your server or of zerosoft Cloud. If you self-host, videos stay on your infrastructure."
+          "q": "Where are videos stored?",
+          "a": "In your server's file storage (Vercel Blob or a local folder) or in zerosoft Cloud's. If you self-host, videos stay on your infrastructure."
         },
         "f4": {
-          "q": "Who will be able to watch a video?",
-          "a": "Each video will be able to have a public link, with an optional password and expiry, or stay inside your workspace."
+          "q": "Who can watch a video?",
+          "a": "Anyone with the link, or only signed-in members of your workspace. You can add a password and an expiry date and turn comments on or off. Turning downloads off removes the download button, but a video that streams can still be captured."
         },
         "f5": {
           "q": "What is missing compared to Loom?",
-          "a": "Everything, for now. Rec is being built and the parity table above lists the Loom capabilities we measure, all of them pending."
+          "a": "The desktop app, the Chrome extension and mobile apps, drawing on screen, background blur, joining clips, editing by transcript, custom branding and the Slack, Jira and Gmail integrations. The parity table above has the full list."
         }
       },
       "cta": {
-        "title1": "Rec is being built.",
-        "title2": "Tell us what you need.",
-        "sub": "Propose ideas and vote on the public board: your votes help us decide what to build first.",
-        "button": "Propose an idea"
+        "title1": "Record it.",
+        "title2": "Send the link.",
+        "sub": "Open Rec, pick screen, camera or both and record your first video.",
+        "button": "Open Rec"
       }
     },
     "talk": {
@@ -2386,6 +2386,9 @@
     "paramTalkThread": "Id of the root message to reply in its thread",
     "paramTalkAlso": "With thread_id, also show the reply in the channel",
     "paramTalkUsername": "Bot name shown on the message (by default, the webhook name)",
+    "paramLimit": "Maximum number of results.",
+    "scope_talk_read": "Read Talk channels and messages you are a member of.",
+    "scope_talk_write": "Post Talk messages and create channels.",
     "docsApiTitle": "Docs",
     "docsApiDesc": "Read and write Docs pages, blocks, databases, rows and comments. Content goes in and out as Markdown (or Docs blocks). A key acts as the person who created it: it only sees and edits the pages that person can open. Synced databases are read-only.",
     "docsPagesListTitle": "List pages",
