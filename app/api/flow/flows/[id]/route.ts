@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  const flow = await getFlow(user.id, id);
+  const flow = await getFlow(user.id, id, realUserId(user));
   if (!flow) return notFound();
   const canEdit = canEditFlows(user);
   return NextResponse.json({

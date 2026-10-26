@@ -109,7 +109,11 @@ function parseGraph(raw: string): FlowGraph {
   return { nodes: Array.isArray(g.nodes) ? g.nodes : [], edges: Array.isArray(g.edges) ? g.edges : [] };
 }
 
-export function toFlowDto(row: FlowFlowRow): FlowDto {
+/**
+ * `viewerId`: los datos fijados son de quien creó el flow (los copió de sus
+ * corridas o los escribió con su acceso): a otra persona le llegan vacíos.
+ */
+export function toFlowDto(row: FlowFlowRow, viewerId?: string | null): FlowDto {
   return {
     id: row.id,
     name: row.name,
@@ -123,7 +127,7 @@ export function toFlowDto(row: FlowFlowRow): FlowDto {
     errorFlowId: row.error_flow_id ?? null,
     failureAlerts: row.failure_alerts !== 0,
     autoReplay: row.auto_replay === 1,
-    pins: parsePins(row.pinned_data),
+    pins: viewerId === undefined || (viewerId !== null && viewerId === row.created_by) ? parsePins(row.pinned_data) : {},
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -268,7 +272,7 @@ export async function listFlows(workspaceId: string): Promise<FlowListItem[]> {
   return rows.map((row) => {
     const last = lastBy.get(row.id);
     return {
-      ...toFlowDto(row),
+      ...toFlowDto(row, null),
       lastRun: last ? { id: last.id, status: last.status, createdAt: last.created_at } : null,
     };
   });
@@ -280,9 +284,9 @@ export async function getFlowRow(workspaceId: string, id: string): Promise<FlowF
     .get(id, workspaceId)) as FlowFlowRow | undefined) ?? null;
 }
 
-export async function getFlow(workspaceId: string, id: string): Promise<FlowDto | null> {
+export async function getFlow(workspaceId: string, id: string, viewerId?: string | null): Promise<FlowDto | null> {
   const row = await getFlowRow(workspaceId, id);
-  return row ? toFlowDto(row) : null;
+  return row ? toFlowDto(row, viewerId) : null;
 }
 
 export type FlowWriteResult =
@@ -395,7 +399,7 @@ export async function createFlow(
     .run(id, workspaceId, input.name.trim(), input.description ?? '', JSON.stringify(v.graph), tf.type, tf.event, actorId, ts, ts);
   await syncWebhooks(workspaceId, id, v.graph);
   await snapshotVersion(workspaceId, id, 1, input.name.trim(), v.graph, actorId);
-  return { ok: true, flow: (await getFlow(workspaceId, id))! };
+  return { ok: true, flow: (await getFlow(workspaceId, id, actorId))! };
 }
 
 /** Nodos Gmail del grafo (id + config) para detectar si alguien los cambió. */
@@ -440,6 +444,8 @@ export async function updateFlow(
     graphChanged && actorId && actorId !== row.created_by && gmailNodesKey(graph) !== gmailNodesKey(parseGraph(row.graph))
       ? actorId
       : row.created_by;
+  // Los datos fijados son de quien creó el flow: si pasa a otra persona, se descartan.
+  const pinnedData = createdBy !== row.created_by ? '{}' : (row.pinned_data ?? '{}');
   const enabled = patch.enabled ?? row.enabled === 1;
   const tf = triggerFields(graph, enabled);
   // Al editar un schedule ya programado, se conserva la próxima corrida si la
@@ -458,7 +464,7 @@ export async function updateFlow(
     .prepare(
       `UPDATE flow_flows SET name = ?, description = ?, enabled = ?, graph = ?, version = version + 1,
          trigger_type = ?, trigger_event = ?, next_run_at = ?, error_flow_id = ?, failure_alerts = ?, auto_replay = ?,
-         created_by = ?, updated_at = ?
+         created_by = ?, pinned_data = ?, updated_at = ?
        WHERE id = ? AND user_id = ? AND version = ?`,
     )
     .run(
@@ -473,6 +479,7 @@ export async function updateFlow(
       patch.failureAlerts === undefined ? (row.failure_alerts === 0 ? 0 : 1) : patch.failureAlerts ? 1 : 0,
       patch.autoReplay === undefined ? (row.auto_replay === 1 ? 1 : 0) : patch.autoReplay ? 1 : 0,
       createdBy,
+      pinnedData,
       nowIso(),
       id,
       workspaceId,
@@ -483,7 +490,7 @@ export async function updateFlow(
   if (graphChanged) {
     await snapshotVersion(workspaceId, id, row.version + 1, patch.name?.trim() || row.name, graph, actorId);
   }
-  return { ok: true, flow: (await getFlow(workspaceId, id))! };
+  return { ok: true, flow: (await getFlow(workspaceId, id, actorId ?? undefined))! };
 }
 
 // ---------- Datos de prueba fijados ----------
@@ -493,16 +500,20 @@ function parsePins(raw: string | undefined): Record<string, unknown> {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 }
 
-export type PinResult = { ok: true; pins: Record<string, unknown> } | { ok: false; error: 'not_found' | 'node_not_found' | 'pin_too_large' };
+export type PinResult =
+  | { ok: true; pins: Record<string, unknown> }
+  | { ok: false; error: 'not_found' | 'node_not_found' | 'pin_too_large' | 'not_flow_owner' };
 
 /**
  * Fija (o suelta con null/undefined) la salida de prueba de un nodo. Solo la
  * usan "Probar paso" y el selector de variables, nunca una corrida real. Se
  * descartan las de nodos que ya no están en el grafo.
  */
-export async function setFlowPin(workspaceId: string, flowId: string, nodeId: string, output: unknown): Promise<PinResult> {
+export async function setFlowPin(workspaceId: string, flowId: string, nodeId: string, output: unknown, personId?: string): Promise<PinResult> {
   const row = await getFlowRow(workspaceId, flowId);
   if (!row) return { ok: false, error: 'not_found' };
+  // Los datos fijados son de quien creó el flow (los usa "Probar paso" con su acceso).
+  if (personId !== undefined && personId !== row.created_by) return { ok: false, error: 'not_flow_owner' };
   const graph = parseGraph(row.graph);
   const ids = new Set(graph.nodes.map((n) => n.id));
   const pins: Record<string, unknown> = {};
