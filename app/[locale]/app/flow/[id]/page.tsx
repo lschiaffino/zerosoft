@@ -21,7 +21,7 @@ export default async function FlowEditorPage(props: {
   const { locale, id } = await props.params;
   const { run } = await props.searchParams;
   const user = await requireUser(locale);
-  const flow = await getFlow(user.id, id);
+  const flow = await getFlow(user.id, id, user.actingUser?.id ?? user.id);
   if (!flow) notFound();
   const canEdit = canEditFlows(user);
   const [credentials, flows, agents, robots, tables] = await Promise.all([

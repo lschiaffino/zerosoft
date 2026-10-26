@@ -601,6 +601,7 @@
     "table_full": "La tabla de datos está llena. Borrá filas o usá otra tabla."
   },
   "errors": {
+    "not_flow_owner": "Solo quien creó este flow puede fijar datos de prueba: usan su acceso.",
     "generic": "Algo salió mal. Probá de nuevo.",
     "forbidden": "Solo los admins y dueños del workspace pueden hacer esto.",
     "not_found": "Este flow ya no existe.",

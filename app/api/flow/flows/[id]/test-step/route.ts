@@ -16,7 +16,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const parsed = flowStepTestSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return flowError(400, 'invalid_input');
   if (JSON.stringify(parsed.data.context ?? {}).length > 2_000_000) return flowError(413, 'input_too_large');
-  const res = await testStepNow(user.id, id, parsed.data);
+  const res = await testStepNow(user.id, id, parsed.data, user.actingUser?.id ?? user.id);
   if (!res.ok) {
     if (res.error === 'not_found') return notFound();
     if (res.error === 'rate_limited') return flowError(429, res.error);

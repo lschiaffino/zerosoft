@@ -601,6 +601,7 @@
     "table_full": "The data table is full. Delete rows or use another table."
   },
   "errors": {
+    "not_flow_owner": "Only the person who created this flow can pin test data: it uses their access.",
     "generic": "Something went wrong. Try again.",
     "forbidden": "Only workspace admins and owners can do this.",
     "not_found": "This flow no longer exists.",
