@@ -220,6 +220,9 @@ test('D4: avisa al darle a un agente público páginas de un teamspace privado',
   await expect(page.getByTestId('ag-docs-private-public')).toHaveCount(0);
   await pages.getByLabel(title).check();
   await expect(page.getByTestId('ag-docs-private-public')).toBeVisible();
+  // Sin dejar el teamspace: otras pruebas cuentan los árboles del sidebar de Docs.
+  const del = await request.delete(`/api/docs/teamspaces/${tsId}`);
+  expect(del.ok(), await del.text()).toBeTruthy();
 });
 
 test('D4: el menú de IA y el panel de preguntas entran a 390px, en claro y oscuro', async ({ request, page }) => {
