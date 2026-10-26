@@ -88,6 +88,8 @@ export interface SidebarLabels {
     pages: string;
     templates: string;
     trash: string;
+    /** "Ask AI": preguntas sobre todas las páginas. */
+    askAi: string;
   };
   calendar: {
     overview: string;
@@ -379,6 +381,7 @@ export function buildNav(
             // Plantillas y papelera son secciones de la portada de Docs.
             { href: '/app/docs#templates', label: labels.docs.templates, active: false, icon: 'templates' },
             { href: '/app/docs?trash=1#trash', label: labels.docs.trash, active: false, icon: 'trash' },
+            { href: '/app/docs?ask=1', label: labels.docs.askAi, active: false, icon: 'agents' },
           ],
         },
         appSettingsGroup('/app/docs/settings'),

@@ -243,6 +243,18 @@
       "http_request": {
         "name": "HTTP request",
         "desc": "Calls your own APIs, only on allowlisted domains. Off by default."
+      },
+      "docs_read_pages": {
+        "name": "Read Docs pages",
+        "desc": "Reads, searches and lists the pages you pick below and their subpages, including their databases."
+      },
+      "docs_write_page": {
+        "name": "Write Docs pages",
+        "desc": "Adds to, replaces or renames those pages and creates subpages inside them. Each change stays in the page history."
+      },
+      "docs_write_row": {
+        "name": "Add and update database rows",
+        "desc": "Adds rows to the databases on those pages or changes them. Synced databases stay read-only."
       }
     },
     "groups": {
@@ -256,7 +268,14 @@
     },
     "advancedHint": "HTTP requests to your own APIs",
     "approval": "Ask a teammate to approve before it runs",
-    "approvalHttp": "Ask a teammate to approve requests that write (anything but GET)"
+    "approvalHttp": "Ask a teammate to approve requests that write (anything but GET)",
+    "docsPages": "Pages this agent works with",
+    "noDocsPages": "There are no Docs pages yet.",
+    "docsPagesHint": "Subpages are included. Pages in teamspaces that do not allow AI are left out. Outside the playground (Chat, public page, API, Groups, Flow) every Docs write waits for a teammate to approve it. The agent works with the access of the person who last changed it; in the playground, with yours.",
+    "needsDocsPages": "Pick at least one Docs page.",
+    "untitledPage": "Untitled",
+    "docsPrivatePublic": "Some of these pages are in a closed or private teamspace, and this agent has a public page: anyone who talks to it can get answers from them.",
+    "docsHiddenPublic": "This public agent has pages in private teamspaces you cannot see. Anyone who talks to it can get answers from them."
   },
   "channels": {
     "chatTitle": "Chat widgets",
@@ -355,7 +374,7 @@
     "conversation_not_found": "That conversation is no longer available. Start a new one.",
     "empty_message": "Write a message first.",
     "handle_taken": "That public handle is taken. Try another.",
-    "invalid_docs_page": "One of the selected Docs pages is not in this workspace.",
+    "invalid_docs_page": "You can't use one of those pages, or you can't edit it and the agent writes.",
     "invalid_widget": "That Chat widget is not in this workspace.",
     "invalid_event_type": "That event type is not in this workspace.",
     "invalid_project": "That Track team is not in this workspace.",
@@ -370,7 +389,8 @@
     "already_decided": "Someone already approved or rejected this action.",
     "ai_no_credits": "The AI provider refused the request: the account has no credits or no access to this model. Add credits in the Vercel AI Gateway, or set a model your plan includes under Instructions > Model.",
     "ai_auth": "The AI provider rejected the server credentials. Check AI_GATEWAY_API_KEY in the server settings.",
-    "unavailable": "The assistant can't reply right now. Please try again in a few minutes."
+    "unavailable": "The assistant can't reply right now. Please try again in a few minutes.",
+    "not_allowed": "You need edit access to that Docs page to decide this action."
   },
   "public": {
     "subtitle": "AI assistant",
@@ -493,6 +513,7 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "failed": "Failed"
-    }
+    },
+    "locked": "Only someone who can edit that Docs page can see and decide this action."
   }
 }

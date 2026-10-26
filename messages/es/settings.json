@@ -122,7 +122,9 @@
       "form": "Formularios",
       "issue": "Issues de Track",
       "comment": "Comentarios de Track",
-      "project": "Equipos de Track"
+      "project": "Equipos de Track",
+      "page": "Páginas de Docs",
+      "database": "Bases de Docs"
     },
     "eventLabels": {
       "booking_created": "Reserva creada",
@@ -178,7 +180,13 @@
       "groups_member_joined": "Miembro entró a un grupo (Groups)",
       "groups_member_left": "Miembro salió de un grupo (Groups)",
       "groups_poll_voted": "Voto en una encuesta (Groups)",
-      "talk_message_posted": "Mensaje en un canal (Talk)"
+      "talk_message_posted": "Mensaje en un canal (Talk)",
+      "page_created": "Página creada (Docs)",
+      "page_updated": "Página editada (Docs)",
+      "page_archived": "Página a la papelera (Docs)",
+      "page_comment_created": "Comentario nuevo (Docs)",
+      "database_row_created": "Fila nueva en una base (Docs)",
+      "database_property_changed": "Cambió una propiedad de una base (Docs)"
     },
     "errors": {
       "https_required": "La URL tiene que usar https.",
@@ -232,7 +240,9 @@
       "retryAt": "próximo intento {date}",
       "redeliver": "Reenviar",
       "close": "Cerrar"
-    }
+    },
+    "payloadHidden": "El cuerpo se armó con el acceso de quien era dueño del webhook en ese momento: solo esa persona lo ve.",
+    "resendNotOwner": "Solo la persona con cuyo acceso se armó esta entrega la puede reenviar."
   },
   "credentials": {
     "title": "Credenciales",

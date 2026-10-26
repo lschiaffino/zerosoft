@@ -29,7 +29,7 @@ import {
   WEBHOOK_REPLY_LIMIT,
   type WebhookReply,
 } from './flow';
-import { crmTaskNode, crmUpdateNode, trackUpdateNode } from './flow-app-nodes';
+import { crmTaskNode, crmUpdateNode, docsPageFlowNode, docsRowFlowNode, trackUpdateNode } from './flow-app-nodes';
 import { CODE_MAX_TIMEOUT_SEC, runFlowCode } from './flow-code';
 import { resolveCredential, secretValues, type ResolvedCredential } from './flow-credentials';
 import { redact, type CredentialType } from './flow-credentials-schema';
@@ -439,20 +439,6 @@ async function talkMessageNode(ws: string, creatorId: string, cfg: Record<string
   }
 }
 
-async function docsPageNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
-  const title = renderString(cfg.title ?? '', tctx).trim().slice(0, 300);
-  const content = renderString(cfg.content ?? '', tctx);
-  const { createDocPage } = await import('./docs');
-  const blocks = content
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .slice(0, 200)
-    .map((p) => ({ id: crypto.randomUUID(), type: 'paragraph' as const, content: p }));
-  const page = await createDocPage(ws, { title, content: blocks.length ? blocks : undefined });
-  return { page: { id: page.id, title: page.title } };
-}
-
 async function aiNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
   if (!aiEnabled()) throw new StepError('ai_disabled');
   const prompt = renderString(cfg.prompt ?? '', tctx).trim();
@@ -562,7 +548,8 @@ export function webhookReplyOutput(cfg: Record<string, unknown>, tctx: Record<st
 
 // ---------- Agente, código, merge, sub-flow ----------
 
-async function agentNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
+/** El agente trabaja en Docs con el acceso de quien creó el flow (nunca con el de quien configuró el agente). */
+async function agentNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>, createdBy: string | null) {
   const agentId = renderString(cfg.agentId ?? '', tctx).trim();
   if (!agentId) throw new StepError('missing_agent');
   const message = renderString(cfg.message ?? '', tctx).trim();
@@ -572,7 +559,7 @@ async function agentNode(ws: string, cfg: Record<string, unknown>, tctx: Record<
   if (!agent) throw new StepError('agent_not_found');
   const conversationId = renderString(cfg.conversationId ?? '', tctx).trim() || null;
   try {
-    const res = await sendAgentMessage({ agent, channel: 'api', source: 'flow', text: message.slice(0, 4000), conversationId });
+    const res = await sendAgentMessage({ agent, channel: 'api', source: 'flow', text: message.slice(0, 4000), conversationId, createdBy });
     return {
       reply: res.result.text,
       status: res.result.status,
@@ -688,9 +675,11 @@ async function subflowNode(state: RunState, cfg: Record<string, unknown>, tctx: 
   const depth = (parent?.depth ?? state.run.chain_depth) + 1;
   if (depth > MAX_FLOW_CHAIN_DEPTH) throw new StepError('subflow_depth');
   const row = (await getDb()
-    .prepare('SELECT id, user_id FROM flow_flows WHERE id = ? AND user_id = ?')
-    .get(flowId, state.flow.user_id)) as Pick<FlowFlowRow, 'id' | 'user_id'> | undefined;
+    .prepare('SELECT id, user_id, created_by FROM flow_flows WHERE id = ? AND user_id = ?')
+    .get(flowId, state.flow.user_id)) as Pick<FlowFlowRow, 'id' | 'user_id' | 'created_by'> | undefined;
   if (!row) throw new StepError('flow_not_found');
+  // El subflow corre con el acceso de quien lo creó y devuelve sus salidas: solo flows de la misma persona.
+  if (!row.created_by || row.created_by !== state.flow.created_by) throw new StepError('subflow_other_owner');
   const input: Record<string, unknown> = {};
   for (const f of Array.isArray(cfg.inputs) ? (cfg.inputs as Array<{ key?: string; value?: unknown }>) : []) {
     const k = String(f?.key ?? '').trim();
@@ -970,8 +959,13 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
       return { kind: 'ok', output: await linkNode(ws, cfg, tctx), handles: ['out'] };
     case 'app.chat_message':
       return { kind: 'ok', output: await chatMessageNode(ws, cfg, tctx), handles: ['out'] };
+    // Docs escribe con los permisos de quien creó el flow; sin esa persona no corre (nunca como el dueño).
     case 'app.docs_page':
-      return { kind: 'ok', output: await docsPageNode(ws, cfg, tctx), handles: ['out'] };
+      if (!state.flow.created_by) throw new StepError('no_flow_owner');
+      return { kind: 'ok', output: await docsPageFlowNode(ws, state.flow.created_by, cfg, tctx), handles: ['out'] };
+    case 'app.docs_row':
+      if (!state.flow.created_by) throw new StepError('no_flow_owner');
+      return { kind: 'ok', output: await docsRowFlowNode(ws, state.flow.created_by, cfg, tctx), handles: ['out'] };
     case 'app.groups_message':
       return { kind: 'ok', output: await groupsMessageNode(ws, cfg, tctx), handles: ['out'] };
     case 'app.talk_message':
@@ -981,7 +975,7 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
     case 'ai.text':
       return { kind: 'ok', output: await aiNode(ws, cfg, tctx), handles: ['out'] };
     case 'ai.agent':
-      return { kind: 'ok', output: await agentNode(ws, cfg, tctx), handles: ['out'] };
+      return { kind: 'ok', output: await agentNode(ws, cfg, tctx, state.flow.created_by ?? null), handles: ['out'] };
     case 'data.code':
       return { kind: 'ok', output: await codeNode(state, cfg), handles: ['out'] };
     case 'data.merge':
@@ -1267,9 +1261,10 @@ async function enqueueErrorFlow(state: RunState): Promise<void> {
   const depth = state.run.chain_depth + 1;
   if (depth > MAX_FLOW_CHAIN_DEPTH || seen.includes(target)) return;
   const row = (await getDb()
-    .prepare('SELECT id, user_id FROM flow_flows WHERE id = ? AND user_id = ?')
-    .get(target, state.flow.user_id)) as Pick<FlowFlowRow, 'id' | 'user_id'> | undefined;
-  if (!row) return;
+    .prepare('SELECT id, user_id, created_by FROM flow_flows WHERE id = ? AND user_id = ?')
+    .get(target, state.flow.user_id)) as Pick<FlowFlowRow, 'id' | 'user_id' | 'created_by'> | undefined;
+  // Los detalles traen datos de esta corrida: solo a un flow de la misma persona.
+  if (!row || !row.created_by || row.created_by !== state.flow.created_by) return;
   const failed = state.failedNode ? state.ctx.graph.nodes.find((n) => n.id === state.failedNode) : null;
   // flow, run y failedNode van completos (son chicos; la salida del nodo ya
   // viene acotada): solo el trigger se acota aparte. Truncar el objeto entero
@@ -1404,6 +1399,15 @@ export async function executeRun(runId: string): Promise<FlowRunRow['status']> {
     return 'failed';
   }
   if (await cancelIfDisabled(state)) return 'failed';
+  // Sin la persona con cuyo acceso corre, no se ejecuta ningún nodo (nunca como el dueño del workspace).
+  // Y si el flow pasó a otra persona después de encolarse, no corre con lo que se capturó para la anterior.
+  const ownerError = !state.flow.created_by ? 'no_flow_owner' : run.captured_by && run.captured_by !== state.flow.created_by ? 'owner_changed' : null;
+  if (ownerError) {
+    await getDb()
+      .prepare("UPDATE flow_runs SET status = 'failed', error = ?, finished_at = ?, locked_until = NULL WHERE id = ?")
+      .run(ownerError, nowIso(), runId);
+    return 'failed';
+  }
   await inChain(run, async () => {
     const trigger = triggerNode(state.ctx.graph);
     if (!trigger) {
@@ -1438,6 +1442,14 @@ export async function resumeRun(
   const state = await loadState(run);
   if (!state) return 'failed';
   if (await cancelIfDisabled(state)) return 'failed';
+  // Si el flow pasó a otra persona mientras esperaba, no sigue con lo capturado para la anterior.
+  if (!state.flow.created_by || (run.captured_by ?? null) !== state.flow.created_by) {
+    const res = await getDb()
+      .prepare("UPDATE flow_runs SET status = 'failed', error = 'owner_changed', finished_at = ?, locked_until = NULL WHERE id = ? AND status = 'waiting'")
+      .run(nowIso(), runId);
+    if (res.changes === 1) await getDb().prepare('DELETE FROM flow_jobs WHERE run_id = ?').run(runId);
+    return 'failed';
+  }
   // Solo si sigue en espera: una cancelación entre la lectura y acá gana.
   const claimed = await getDb()
     .prepare("UPDATE flow_runs SET status = 'running' WHERE id = ? AND status = 'waiting'")
@@ -1621,7 +1633,7 @@ export async function testFlowStep(
 
 // ---------- Re-ejecución desde un paso ----------
 
-export type RerunError = 'not_found' | 'run_active' | 'node_not_found' | 'node_is_trigger' | 'node_in_loop' | 'rate_limited';
+export type RerunError = 'not_found' | 'run_active' | 'node_not_found' | 'node_is_trigger' | 'node_in_loop' | 'rate_limited' | 'owner_changed';
 
 /**
  * Nueva corrida que reusa las salidas de la corrida `runId` para todo lo que
@@ -1644,6 +1656,8 @@ export async function rerunFromStep(
     | FlowFlowRow
     | undefined;
   if (!flow) return { ok: false, error: 'not_found' };
+  // Reusa lo capturado con el acceso de captured_by y corre como quien creó el flow hoy: tienen que coincidir.
+  if (!flow.created_by || old.captured_by !== flow.created_by) return { ok: false, error: 'owner_changed' };
   const graph = parseJson<FlowGraph>(flow.graph, { nodes: [], edges: [] });
   const node = graph.nodes.find((n) => n.id === fromNodeId);
   if (!node) return { ok: false, error: 'node_not_found' };

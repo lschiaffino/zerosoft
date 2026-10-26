@@ -23,12 +23,12 @@ lo hace peor.
 |---|---|---|
 | Edición y modelo de datos | 6 | Bloques completos para escribir. Las bases de datos son una tabla con 4 tipos de columna. |
 | Colaboración | 4 | Comentarios con hilos, menciones y notificaciones. Sin edición en tiempo real ni presencia. |
-| Automatización | 1 | Solo el evento `page.created` hacia Flow. Sin botones ni automatizaciones de base de datos. |
-| Integraciones y API | 2 | Board embebido y Chat usa las páginas como fuente. Sin API pública de Docs, sin embeds ni webhooks. |
+| Automatización | 6 | Eventos de página y de bases hacia Flow y webhooks, y pasos de Flow que crean y editan páginas y filas (tanda D4). |
+| Integraciones y API | 7 | Board embebido, Chat usa las páginas como fuente, API pública, webhooks y servidor MCP de Docs, bases sincronizadas (tanda D4). |
 | Admin y permisos | 4 | Compartir por equipo o persona con ver/editar y herencia. Sin bloqueo de página, sin auditoría. |
 | Analítica | 1 | Solo votos "¿Te sirvió?" en el centro de ayuda. Sin vistas por página. |
 | Móvil y offline | 3 | La web se adapta a 390px. Sin app, sin offline. |
-| IA | 2 | El bot de Chat responde con páginas publicadas. Sin IA dentro del editor. |
+| IA | 7 | IA en el editor, preguntas sobre el workspace, notas de reunión y agentes que editan páginas (tanda D4). |
 | Importar y exportar | 4 | Importa .md y .docx a una página y pega Markdown/HTML. Exporta una página a Markdown o PDF. |
 | Rendimiento y confiabilidad | 6 | Autoguardado, historial de 50 versiones, aviso de conflicto 409. Ver nota de velocidad abajo. |
 | Pulido de UX | 7 | `/`, atajos Markdown, ⌘P, ⌘K, `C`, arrastre en el árbol, plantillas, papelera. |
@@ -110,17 +110,17 @@ Dónde estamos **mejor** que Notion:
 |---|---|---|---|
 | Automatizaciones de base de datos (al agregar, al editar, programadas) | Sí ([ayuda](https://www.notion.com/help/database-automations)) | No | falta |
 | Botones (insertar bloques, crear páginas, webhook) | Sí ([ayuda](https://www.notion.com/help/buttons)) | No | falta |
-| Eventos hacia un motor de flujos | Webhooks de la API | `page.created` en Flow | parcial |
-| Acción "crear/editar página" desde un flujo | Sí (API y automatizaciones) | No hay acción de Docs en Flow | falta |
+| Eventos hacia un motor de flujos | Webhooks de la API | Flow y webhooks: página creada, editada (agrupada por página), a la papelera y comentada; fila nueva y propiedad cambiada (tanda D4) | tiene |
+| Acción "crear/editar página" desde un flujo | Sí (API y automatizaciones) | Pasos "Docs: crear o editar página" (plantilla con variables, subpágina, agregar, reemplazar, renombrar, papelera) y "Docs: agregar o actualizar fila" | tiene |
 
 ### Integraciones y API
 
 | Capacidad | Notion | Docs | Estado |
 |---|---|---|---|
-| API pública REST con tokens | Sí | No (`/api/v1` no tiene Docs) | falta (en ideas.json) |
-| Webhooks de la API | Sí ([referencia](https://developers.notion.com/reference/webhooks)) | No | falta |
-| Servidor MCP para agentes externos | Sí ([v3.8](https://www.notion.com/releases/2026-10-13)) | No | falta |
-| Bases sincronizadas con GitHub/Jira/Salesforce | Sí (v3.8) | No | falta |
+| API pública REST con tokens | Sí | `/api/v1/docs`: páginas, bloques, bases, filas, búsqueda y comentarios con scopes docs:read y docs:write | tiene |
+| Webhooks de la API | Sí ([referencia](https://developers.notion.com/reference/webhooks)) | Webhooks salientes firmados (HMAC) con reintentos para los seis eventos de Docs | tiene |
+| Servidor MCP para agentes externos | Sí ([v3.8](https://www.notion.com/releases/2026-10-13)) | `/api/v1/docs/mcp` con 12 herramientas (buscar, leer, crear y editar páginas y filas, comentarios) | tiene |
+| Bases sincronizadas con GitHub/Jira/Salesforce | Sí (v3.8) | GitHub (issues o PRs), Jira (JQL), Salesforce (5 objetos) y CRM de zerosoft, solo lectura, refresco por cron con claim; Jira y Salesforce sin probar contra las APIs reales, tokens pegados a mano | parcial |
 | Integración con otras apps de la suite | Notion Mail y Calendar | Board embebido; Chat y Agents leen páginas | mejor (en la suite) |
 
 ### Admin y permisos
@@ -155,10 +155,10 @@ Dónde estamos **mejor** que Notion:
 
 | Capacidad | Notion | Docs | Estado |
 |---|---|---|---|
-| IA en el editor (resumir, mejorar, traducir, continuar) | Sí | No | falta (en ideas.json) |
-| Preguntas sobre todo el workspace (Q&A) | Sí | No en Docs (Notes sí tiene "Ask your notes") | falta |
-| Notas de reunión con IA (`/meet`) | Sí ([v2.51](https://www.notion.com/releases/2025-05-13)) | No | falta |
-| Agentes que editan páginas | Sí (Notion 3.0 y Custom Agents) | Agents puede leer páginas; no las escribe | parcial |
+| IA en el editor (resumir, mejorar, traducir, continuar) | Sí | Espacio en línea vacía, "Preguntarle a la IA" en la selección y /ai, con vista previa y aceptar o descartar | tiene |
+| Preguntas sobre todo el workspace (Q&A) | Sí | Panel "Preguntarle a la IA" (banda, sidebar y ⌘K) con citas a las páginas que la persona puede abrir | tiene |
+| Notas de reunión con IA (`/meet`) | Sí ([v2.51](https://www.notion.com/releases/2025-05-13)) | Bloque /reunión: micrófono y audio de la pestaña (o transcripción pegada), resumen, decisiones y tareas a Track o al CRM | tiene |
+| Agentes que editan páginas | Sí (Notion 3.0 y Custom Agents) | Agents lee, edita y crea páginas y filas en las páginas que elige su dueño, con aprobación opcional | tiene |
 | Autocompletar propiedades con IA | Sí ([ayuda](https://www.notion.com/help/autofill)) | No | falta |
 | Bot para clientes que responde con las páginas | No incluido | Sí (Chat con "AI can use it") | mejor |
 

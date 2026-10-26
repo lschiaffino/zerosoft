@@ -11,7 +11,7 @@ export async function GET(_req: Request, props: { params: Promise<{ id: string }
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  const rows = await listDeliveries(user.id, id);
+  const rows = await listDeliveries(user.id, id, 50, user.actingUser?.id ?? user.id);
   if (!rows) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   return NextResponse.json({ rows });
 }

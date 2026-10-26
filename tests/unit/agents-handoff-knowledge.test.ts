@@ -50,7 +50,7 @@ async function setupAgent(label: string, patch: AgentUpdatePayload = {}) {
 }
 
 const HANDOFF_TOOLS: AgentUpdatePayload = {
-  tools: { enabled: ['handoff_to_human'], calEventTypeId: null, calDays: 7, trackProjectId: null, flowIds: [], robotIds: [], httpAllowedDomains: [], requireApproval: [] },
+  tools: { enabled: ['handoff_to_human'], calEventTypeId: null, calDays: 7, trackProjectId: null, flowIds: [], robotIds: [], docsPageIds: [], docsActorId: null, httpAllowedDomains: [], requireApproval: [] },
 };
 
 describe('Agents: después de derivar, el agente no responde y el equipo sí', () => {
@@ -138,7 +138,7 @@ describe('Agents: URLs de conocimiento', () => {
   it('al guardar se descargan solo las URLs nuevas (pending)', async () => {
     process.env.ALLOW_PRIVATE_WEBHOOKS = 'true';
     const { owner, agent } = await setupAgent('kn-save');
-    const knowledge = { allPublicDocs: true, docsPageIds: [], cannedFromWidgetId: null, urls: ['https://a.example.com/'] };
+    const knowledge = { allPublicDocs: true, docsPageIds: [], docsActorId: null, cannedFromWidgetId: null, urls: ['https://a.example.com/'] };
     expect((await updateAgent(owner.id, agent.id, { knowledge })).ok).toBe(true);
     const fetchMock = stubFetch(() => '<html><title>A</title><body>Prices: $10</body></html>');
     let urls = await refreshKnowledgeUrls(owner.id, agent.id, { onlyPending: true });
@@ -155,7 +155,7 @@ describe('Agents: URLs de conocimiento', () => {
   it('el cron re-descarga las URLs de más de 24 h y deja las recientes', async () => {
     process.env.ALLOW_PRIVATE_WEBHOOKS = 'true';
     const { owner, agent } = await setupAgent('kn-cron');
-    const knowledge = { allPublicDocs: true, docsPageIds: [], cannedFromWidgetId: null, urls: ['https://old.example.com/', 'https://new.example.com/'] };
+    const knowledge = { allPublicDocs: true, docsPageIds: [], docsActorId: null, cannedFromWidgetId: null, urls: ['https://old.example.com/', 'https://new.example.com/'] };
     await updateAgent(owner.id, agent.id, { knowledge });
     stubFetch(() => 'v1');
     await refreshKnowledgeUrls(owner.id, agent.id);

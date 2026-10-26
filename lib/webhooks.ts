@@ -150,9 +150,21 @@ export async function updateWebhook(
   userId: string,
   id: string,
   patch: { active?: boolean; url?: string; events?: WebhookEvent[]; crmFilter?: CrmWebhookFilter | null },
+  /** Persona que cambia: si cambia URL o eventos de un webhook de otra, pasa a ser suyo (los filtros usan su acceso). */
+  actorId?: string,
 ): Promise<boolean> {
   const sets: string[] = [];
   const args: Array<string | number | null> = [];
+  if (actorId && (patch.url !== undefined || patch.events !== undefined)) {
+    const cur = (await getDb().prepare('SELECT created_by, url, events FROM webhooks WHERE id = ? AND user_id = ?').get(id, userId)) as
+      | { created_by: string | null; url: string; events: string }
+      | undefined;
+    const changes = cur && ((patch.url !== undefined && patch.url !== cur.url) || (patch.events !== undefined && JSON.stringify(patch.events) !== cur.events));
+    if (cur && changes && cur.created_by !== actorId) {
+      sets.push('created_by = ?');
+      args.push(actorId);
+    }
+  }
   if (patch.url !== undefined) {
     await assertPublicUrl(patch.url);
     sets.push('url = ?');
@@ -194,32 +206,47 @@ export interface WebhookDeliveryDto {
   createdAt: string;
   deliveredAt: string | null;
   payload: string;
+  /** El cuerpo se armó con el acceso de quien creó el webhook: solo lo ve esa persona. */
+  payloadHidden?: boolean;
 }
 
 /** Últimas entregas de un webhook del workspace (más nueva primero). null si el webhook no es suyo. */
-export async function listDeliveries(userId: string, webhookId: string, limit = 50): Promise<WebhookDeliveryDto[] | null> {
+/**
+ * Eventos cuyo contenido se arma con el acceso de quien creó el webhook
+ * (Docs con teamspaces privados, canales privados): su cuerpo solo lo ve esa persona.
+ */
+export function isRestrictedEvent(event: string): boolean {
+  return event.startsWith('page.') || event.startsWith('database.') || event.startsWith('talk.');
+}
+
+export async function listDeliveries(userId: string, webhookId: string, limit = 50, viewerId?: string): Promise<WebhookDeliveryDto[] | null> {
   const owns = await getDb().prepare('SELECT 1 FROM webhooks WHERE id = ? AND user_id = ?').get(webhookId, userId);
   if (!owns) return null;
   const rows = (await getDb()
     .prepare(
       `SELECT id, event, status, attempts, response_code, response_body, last_error, duration_ms, next_attempt_at,
-              created_at, delivered_at, payload
+              created_at, delivered_at, payload, captured_by
        FROM webhook_deliveries WHERE webhook_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?`,
     )
     .all(webhookId, Math.min(Math.max(limit, 1), 200))) as Array<Record<string, unknown>>;
+  // Cuerpo restringido: solo para la persona con cuyo acceso se armó esa entrega
+  // (aunque el webhook haya pasado después a otra).
+  const hidden = (r: Record<string, unknown>) => viewerId !== undefined && isRestrictedEvent(String(r.event)) && (r.captured_by ?? null) !== viewerId;
   return rows.map((r) => ({
     id: String(r.id),
     event: String(r.event),
     status: r.status as WebhookDeliveryDto['status'],
     attempts: Number(r.attempts),
     responseCode: r.response_code == null ? null : Number(r.response_code),
-    responseBody: String(r.response_body ?? ''),
+    // El endpoint puede devolver el cuerpo: también se oculta.
+    responseBody: hidden(r) ? '' : String(r.response_body ?? ''),
     error: (r.last_error as string | null) ?? null,
     durationMs: r.duration_ms == null ? null : Number(r.duration_ms),
     nextAttemptAt: (r.next_attempt_at as string | null) ?? null,
     createdAt: String(r.created_at),
     deliveredAt: (r.delivered_at as string | null) ?? null,
-    payload: String(r.payload),
+    payload: hidden(r) ? '' : String(r.payload),
+    ...(hidden(r) ? { payloadHidden: true } : {}),
   }));
 }
 
@@ -228,16 +255,18 @@ export async function listDeliveries(userId: string, webhookId: string, limit = 
  * con el mismo cuerpo, que se intenta en el momento. Devuelve su id, o null si
  * la entrega no es de un webhook del workspace.
  */
-export async function resendDelivery(userId: string, deliveryId: string): Promise<string | null> {
+export async function resendDelivery(userId: string, deliveryId: string, personId?: string): Promise<string | null | 'not_owner'> {
   const row = (await getDb()
     .prepare(
-      `SELECT d.webhook_id, d.event, d.payload FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhook_id
+      `SELECT d.webhook_id, d.event, d.payload, d.captured_by FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhook_id
        WHERE d.id = ? AND w.user_id = ?`,
     )
-    .get(deliveryId, userId)) as { webhook_id: string; event: string; payload: string } | undefined;
+    .get(deliveryId, userId)) as { webhook_id: string; event: string; payload: string; captured_by: string | null } | undefined;
   if (!row) return null;
+  // Contenido restringido: lo reenvía solo la persona con cuyo acceso se armó.
+  if (isRestrictedEvent(row.event) && personId !== undefined && row.captured_by !== personId) return 'not_owner';
   const id = crypto.randomUUID();
-  await insertDelivery(id, row.webhook_id, row.event, row.payload);
+  await insertDelivery(id, row.webhook_id, row.event, row.payload, row.captured_by);
   await attempt(id, { force: true });
   return id;
 }
@@ -252,11 +281,15 @@ export async function deleteWebhook(userId: string, id: string): Promise<boolean
 /** Mientras una entrega se intenta, el cron no la toma (claim por fila). */
 const CLAIM_MS = 2 * 60_000;
 
-async function insertDelivery(id: string, webhookId: string, event: string, payload: string): Promise<void> {
+/** `capturedBy`: con el acceso de quién se armó el cuerpo (por defecto, quien creó el webhook ahora). */
+async function insertDelivery(id: string, webhookId: string, event: string, payload: string, capturedBy?: string | null): Promise<void> {
   // Nace reclamada: la tiene el intento inmediato; si el proceso muere, el claim vence y la toma el cron.
   await getDb()
-    .prepare('INSERT INTO webhook_deliveries (id, webhook_id, event, payload, claimed_until) VALUES (?, ?, ?, ?, ?)')
-    .run(id, webhookId, event, payload, new Date(Date.now() + CLAIM_MS).toISOString());
+    .prepare(
+      `INSERT INTO webhook_deliveries (id, webhook_id, event, payload, claimed_until, captured_by)
+       VALUES (?, ?, ?, ?, ?, COALESCE(?, (SELECT created_by FROM webhooks WHERE id = ?)))`,
+    )
+    .run(id, webhookId, event, payload, new Date(Date.now() + CLAIM_MS).toISOString(), capturedBy ?? null, webhookId);
 }
 
 /**
@@ -288,7 +321,7 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
        JOIN webhooks w ON w.id = d.webhook_id WHERE d.id = ?`,
     )
     .get(deliveryId)) as
-    | { id: string; payload: string; attempts: number; url: string; secret: string; active: number; event: string; w_user: string; w_creator: string | null }
+    | { id: string; payload: string; attempts: number; url: string; secret: string; active: number; event: string; w_user: string; w_creator: string | null; captured_by: string | null }
     | undefined;
   // Un webhook pausado no envía (salvo prueba o reenvío manual): la entrega queda pendiente.
   if (!row || (row.active !== 1 && !opts.force)) {
@@ -296,17 +329,28 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
     return;
   }
 
-  // Contenido restringido (Talk): al reintentar o reenviar se vuelve a chequear que
-  // quien creó el webhook todavía pueda verlo (pudo salir del canal o el canal pasar a privado).
-  if (row.event.startsWith('talk.')) {
-    const { talkDeliveryAllowed } = await import('./talk');
+  // Contenido restringido (Docs, Talk): se capturó con el acceso de una
+  // persona. Al reintentar o reenviar se vuelve a chequear que quien creó el
+  // webhook todavía pueda verlo, y que sea la misma persona con cuyo acceso
+  // se capturó (si el webhook pasó a otra, no se le manda lo de antes).
+  if (isRestrictedEvent(row.event)) {
     let data: unknown = null;
     try {
       data = (JSON.parse(row.payload) as { data?: unknown }).data;
     } catch {
       /* sin datos */
     }
-    if (!(await talkDeliveryAllowed(row.w_user, row.w_creator, data))) {
+    const capturedBy = row.captured_by ?? null;
+    let allowed = !capturedBy || capturedBy === row.w_creator;
+    if (allowed && row.event.startsWith('talk.')) {
+      const { talkDeliveryAllowed } = await import('./talk');
+      allowed = await talkDeliveryAllowed(row.w_user, row.w_creator, data);
+    } else if (allowed) {
+      const pageId = String((data as { page?: { id?: string } } | null)?.page?.id ?? '');
+      const { docsDeliveryAllowed } = await import('./docs-events');
+      allowed = await docsDeliveryAllowed(row.w_user, row.w_creator, pageId);
+    }
+    if (!allowed) {
       await db
         .prepare("UPDATE webhook_deliveries SET status = 'failed', last_error = 'audience_revoked', next_attempt_at = NULL, claimed_until = NULL WHERE id = ?")
         .run(row.id);
@@ -376,6 +420,7 @@ export async function emitWebhook(
   event: WebhookEvent,
   data: unknown,
   audience?: (creatorId: string | null) => Promise<boolean>,
+  personalize?: (creatorId: string | null) => Promise<{ data: Record<string, unknown> } | null>,
 ): Promise<void> {
   try {
     let hooks = (await getDb()
@@ -395,12 +440,21 @@ export async function emitWebhook(
         matchesCrmFilter(parseCrmFilter(h.crm_filter), event, data),
     );
     if (targets.length === 0) return;
-    const payload = JSON.stringify({ id: crypto.randomUUID(), type: event, createdAt: new Date().toISOString(), data });
+    const eventId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const shared = personalize ? null : JSON.stringify({ id: eventId, type: event, createdAt, data });
     const ids: string[] = [];
     for (const h of targets) {
+      let payload = shared;
+      if (personalize) {
+        // Cada webhook recibe solo lo que ve la persona que lo creó (o nada).
+        const own = await personalize(h.created_by);
+        if (!own) continue;
+        payload = JSON.stringify({ id: eventId, type: event, createdAt, data: own.data });
+      }
       const id = crypto.randomUUID();
       ids.push(id);
-      await insertDelivery(id, h.id, event, payload);
+      await insertDelivery(id, h.id, event, payload!);
     }
     await Promise.all(ids.map((id) => attempt(id).catch(() => {})));
   } catch (err) {

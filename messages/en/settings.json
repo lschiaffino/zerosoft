@@ -122,7 +122,9 @@
       "form": "Forms",
       "issue": "Track issues",
       "comment": "Track comments",
-      "project": "Track teams"
+      "project": "Track teams",
+      "page": "Docs pages",
+      "database": "Docs databases"
     },
     "eventLabels": {
       "booking_created": "Booking created",
@@ -178,7 +180,13 @@
       "groups_member_joined": "Member joined a group (Groups)",
       "groups_member_left": "Member left a group (Groups)",
       "groups_poll_voted": "Poll vote (Groups)",
-      "talk_message_posted": "Message in a channel (Talk)"
+      "talk_message_posted": "Message in a channel (Talk)",
+      "page_created": "Page created (Docs)",
+      "page_updated": "Page edited (Docs)",
+      "page_archived": "Page moved to trash (Docs)",
+      "page_comment_created": "Comment added (Docs)",
+      "database_row_created": "Database row added (Docs)",
+      "database_property_changed": "Database property changed (Docs)"
     },
     "errors": {
       "https_required": "The URL must use https.",
@@ -232,7 +240,9 @@
       "retryAt": "next retry {date}",
       "redeliver": "Resend",
       "close": "Close"
-    }
+    },
+    "payloadHidden": "The body was built with the access of the person who owned this webhook then: only they can see it.",
+    "resendNotOwner": "Only the person whose access built this delivery can resend it."
   },
   "credentials": {
     "title": "Credentials",

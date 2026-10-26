@@ -13,6 +13,7 @@ import { peopleMap, useDbMembers } from './useDbMembers';
 import { useDbRuntime, withAutomations } from './useDbRuntime';
 import { useAutofill } from './useAutofill';
 import DbGlyph from './DbGlyph';
+import DocsBlocksView from '../DocsBlocksView';
 
 export type DbRowPanelMode = 'peek' | 'full';
 
@@ -135,7 +136,7 @@ export default function DbRowPanel({
   onMode,
   onClose,
   renderBody,
-  readOnly = false,
+  readOnly: readOnlyProp = false,
 }: {
   /** Quien mira no edita (puede comentar, bloqueada): sin plantilla, papelera ni edición de propiedades. */
   readOnly?: boolean;
@@ -164,6 +165,9 @@ export default function DbRowPanel({
   const [templateSaved, setTemplateSaved] = useState<string | null>(null);
   // Base vieja (sin `db` todavía): mismos ids que ve la tabla.
   const db = block.type === 'database' ? normalizeDatabase(block) : null;
+  // Base sincronizada (GitHub, Jira, Salesforce, CRM): la fila se lee, no se edita.
+  const synced = Boolean(db?.sync);
+  const readOnly = readOnlyProp || synced;
   const emptyDb = useMemo<DocsDatabase>(() => ({ properties: [{ id: 'title', name: '', type: 'title' }], rows: [], views: [{ id: 'v', name: '', type: 'table' }] }), []);
   const source = useMemo(() => ({ pageId, blockId: block.id }), [pageId, block.id]);
   const commit = (next: DocsDatabase) => updateDb((cur) => withAutomations(cur, next));
@@ -373,7 +377,15 @@ export default function DbRowPanel({
       <div className="docs-db-rowpanel-scroll">
         <div className="docs-db-rowpanel-inner">
           <div className="docs-db-rowpanel-body">
-            {renderBody(
+            {(synced
+              ? (bp: DocsPage, _s: unknown, properties: ReactNode) => (
+                  <div className="docs-db-rowpanel-readonly" data-testid="docs-db-row-readonly">
+                    <h1 className="docs-title">{bp.title || t('untitledRow')}</h1>
+                    {properties}
+                    {bp.content.length > 0 && <DocsBlocksView blocks={bp.content} boards={false} />}
+                  </div>
+                )
+              : renderBody)(
               bodyPage,
               onSave,
               props.length > 0 ? (

@@ -12,6 +12,7 @@ import { sanitizeBlocks } from './docs-sanitize';
 import { normalizeStructure } from './docs-columns';
 import { persistSyncedBlocks } from './docs-synced';
 import { parseSyncedBase, stripSyncedChildren, syncedChildren, syncedIdsOf } from './docs-synced-refs';
+import { keepSyncedDatabases } from './docs-sync-guard';
 import { syncDocReminders } from './docs-reminders';
 import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
 import { databaseRowEntries } from './docs-database';
@@ -611,6 +612,12 @@ export async function updateDocPage(
   }
   let savedContent: DocsBlock[] | null = null;
   if (incoming !== undefined) {
+    // Bases sincronizadas (GitHub, Jira, Salesforce, CRM): filas y propiedades
+    // las escribe solo la sincronización; del editor se guardan las vistas.
+    const previousBlocks = parseBlocks(row.content);
+    const newSynced = incoming.some((b) => b.type === 'database' && b.db?.sync && !previousBlocks.some((p) => p.id === b.id && p.db?.sync));
+    const registered = newSynced ? await (await import('./docs-sync')).registeredSyncKeys(pageId) : undefined;
+    incoming = keepSyncedDatabases(previousBlocks, incoming, registered);
     // Bases: autor de cada fila y automatizaciones contra lo guardado.
     const saved = prepareDatabaseSave(pageId, rowBlocks, incoming, opts.actorId ?? null);
     // "Agregar fila" hacia otra base de esta página: en el mismo guardado (y
@@ -807,6 +814,15 @@ export async function updateDocPage(
   }
 
   const updated = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(pageId)) as DocsPageRow;
+  // Flow y webhooks: page.updated (agrupado), filas nuevas, propiedades cambiadas y papelera.
+  const { afterDocsPageSaved } = await import('./docs-events');
+  await afterDocsPageSaved({
+    ws: ownerId,
+    before: row,
+    after: updated,
+    actorId: opts.actorId ?? null,
+    titleOrContent: (fields.title !== undefined && fields.title !== row.title) || (savedContent !== null && updated.content !== row.content),
+  });
   return toDocPage(updated);
 }
 

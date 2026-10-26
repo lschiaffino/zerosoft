@@ -109,7 +109,8 @@ export default function WebhookDeliveries({
                       type="button"
                       className="btn btn-secondary btn-sm"
                       onClick={() => resend(d.id)}
-                      disabled={busy !== null}
+                      disabled={busy !== null || (d as { payloadHidden?: boolean }).payloadHidden === true}
+                      title={(d as { payloadHidden?: boolean }).payloadHidden ? t('resendNotOwner') : undefined}
                       aria-busy={busy === d.id || undefined}
                     >
                       {t('log.resend')}
@@ -122,7 +123,11 @@ export default function WebhookDeliveries({
                       )}
                       {d.durationMs != null && <p className="ui-help">{t('log.duration', { ms: d.durationMs })}</p>}
                       <p className="label">{t('log.request')}</p>
-                      <pre className="data st-pre">{d.payload}</pre>
+                      {(d as { payloadHidden?: boolean }).payloadHidden ? (
+                        <p className="ui-help">{t('payloadHidden')}</p>
+                      ) : (
+                        <pre className="data st-pre">{d.payload}</pre>
+                      )}
                       <p className="label">{t('log.response')}</p>
                       <pre className="data st-pre">{d.responseBody || t('log.noBody')}</pre>
                     </div>

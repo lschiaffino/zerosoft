@@ -1,8 +1,18 @@
 {
-  "groupsPicker": {"search": "Busque um chat ou grupo pelo nome", "current": "Envia para {name}", "group": "grupo", "dm": "chat 1:1", "help": "Ou use uma variável, como o chat do evento que disparou o flow."},
+  "groupsPicker": {
+    "search": "Busque um chat ou grupo pelo nome",
+    "current": "Envia para {name}",
+    "group": "grupo",
+    "dm": "chat 1:1",
+    "help": "Ou use uma variável, como o chat do evento que disparou o flow."
+  },
   "title": "Flow",
   "subtitle": "Automações entre todos os apps da zerosoft e qualquer serviço com API.",
-  "sidebar": { "flows": "Flows", "credentials": "Credenciais", "tables": "Tabelas" },
+  "sidebar": {
+    "flows": "Flows",
+    "credentials": "Credenciais",
+    "tables": "Tabelas"
+  },
   "list": {
     "emptyTemplates": "Ver modelos",
     "emptyTitle": "Ainda não há flows",
@@ -29,22 +39,70 @@
     "subtitle": "Flows prontos. Use um e ajuste os detalhes.",
     "use": "Usar modelo",
     "items": {
-      "bookingToTrack": { "name": "Nova reserva no Cal → tarefa no Track", "desc": "Cada reserva nova cria um issue para preparar a reunião." },
-      "linkMilestone": { "name": "Link com 100 cliques → me mande um email", "desc": "Receba um email assim que um link curto chegar a 100 cliques." },
-      "webhookToContact": { "name": "Webhook → contato no CRM", "desc": "Qualquer formulário ou serviço que faça POST com JSON cria um contato." },
-      "dealsDigest": { "name": "Resumo diário de deals novos", "desc": "Toda manhã, um email com os deals criados nas últimas 24 horas." },
-      "chatSummaryToSlack": { "name": "Mensagem no Chat → resumo com AI no Slack", "desc": "Resume com AI cada mensagem recebida e publica num webhook do Slack." },
-      "leadToCrmSlack": { "name": "Lead de formulário → CRM + Slack", "desc": "Cada envio do formulário vira um contato e uma mensagem no canal de vendas." },
-      "bookingToSheets": { "name": "Nova reserva → linha no Google Sheets", "desc": "Registra cada reserva do Cal como uma linha: data, nome, email e evento." },
-      "dealWonToStripe": { "name": "Deal ganho → cliente no Stripe", "desc": "Cria o cliente no Stripe assim que um deal é marcado como ganho." },
-      "chatToTrack": { "name": "Bug relatado no chat → issue no Track", "desc": "A AI detecta mensagens que relatam um bug e abre um issue de prioridade alta." },
-      "dailyDigestEmail": { "name": "Resumo diário por email", "desc": "De segunda a sexta às 8:00, um resumo com AI dos novos deals, enviado do seu Gmail." },
-      "robotToSheets": { "name": "Dados de um robô → Google Sheets", "desc": "Adiciona a uma planilha o que um robô extrai (por exemplo, um preço diário)." },
-      "stripePaymentToSlack": { "name": "Pagamento no Stripe → Slack", "desc": "Avisa no Slack cada pagamento aprovado. Verificado com a assinatura do Stripe." },
-      "issueToDiscord": { "name": "Issue urgente → Discord", "desc": "Envia os issues urgentes do Track para um canal do Discord." },
-      "formToTelegram": { "name": "Envio de formulário → Telegram", "desc": "Receba cada envio de formulário no Telegram." },
-      "bookingToNotion": { "name": "Reserva → notas de reunião no Notion", "desc": "Cria uma página em um banco do Notion para cada nova reserva." },
-      "webhookAgentReply": { "name": "Pergunta por webhook → agente → Slack", "desc": "Um agente responde perguntas enviadas a um webhook e publica a resposta no Slack." }
+      "bookingToTrack": {
+        "name": "Nova reserva no Cal → tarefa no Track",
+        "desc": "Cada reserva nova cria um issue para preparar a reunião."
+      },
+      "linkMilestone": {
+        "name": "Link com 100 cliques → me mande um email",
+        "desc": "Receba um email assim que um link curto chegar a 100 cliques."
+      },
+      "webhookToContact": {
+        "name": "Webhook → contato no CRM",
+        "desc": "Qualquer formulário ou serviço que faça POST com JSON cria um contato."
+      },
+      "dealsDigest": {
+        "name": "Resumo diário de deals novos",
+        "desc": "Toda manhã, um email com os deals criados nas últimas 24 horas."
+      },
+      "chatSummaryToSlack": {
+        "name": "Mensagem no Chat → resumo com AI no Slack",
+        "desc": "Resume com AI cada mensagem recebida e publica num webhook do Slack."
+      },
+      "leadToCrmSlack": {
+        "name": "Lead de formulário → CRM + Slack",
+        "desc": "Cada envio do formulário vira um contato e uma mensagem no canal de vendas."
+      },
+      "bookingToSheets": {
+        "name": "Nova reserva → linha no Google Sheets",
+        "desc": "Registra cada reserva do Cal como uma linha: data, nome, email e evento."
+      },
+      "dealWonToStripe": {
+        "name": "Deal ganho → cliente no Stripe",
+        "desc": "Cria o cliente no Stripe assim que um deal é marcado como ganho."
+      },
+      "chatToTrack": {
+        "name": "Bug relatado no chat → issue no Track",
+        "desc": "A AI detecta mensagens que relatam um bug e abre um issue de prioridade alta."
+      },
+      "dailyDigestEmail": {
+        "name": "Resumo diário por email",
+        "desc": "De segunda a sexta às 8:00, um resumo com AI dos novos deals, enviado do seu Gmail."
+      },
+      "robotToSheets": {
+        "name": "Dados de um robô → Google Sheets",
+        "desc": "Adiciona a uma planilha o que um robô extrai (por exemplo, um preço diário)."
+      },
+      "stripePaymentToSlack": {
+        "name": "Pagamento no Stripe → Slack",
+        "desc": "Avisa no Slack cada pagamento aprovado. Verificado com a assinatura do Stripe."
+      },
+      "issueToDiscord": {
+        "name": "Issue urgente → Discord",
+        "desc": "Envia os issues urgentes do Track para um canal do Discord."
+      },
+      "formToTelegram": {
+        "name": "Envio de formulário → Telegram",
+        "desc": "Receba cada envio de formulário no Telegram."
+      },
+      "bookingToNotion": {
+        "name": "Reserva → notas de reunião no Notion",
+        "desc": "Cria uma página em um banco do Notion para cada nova reserva."
+      },
+      "webhookAgentReply": {
+        "name": "Pergunta por webhook → agente → Slack",
+        "desc": "Um agente responde perguntas enviadas a um webhook e publica a resposta no Slack."
+      }
     }
   },
   "editor": {
@@ -191,17 +249,39 @@
     "integration": "Integrações"
   },
   "nodes": {
-    "trigger_event": { "title": "Evento de um app", "desc": "Roda quando algo acontece na zerosoft: uma reserva, um clique, um contato novo, um issue, uma mensagem no chat…" },
+    "trigger_event": {
+      "title": "Evento de um app",
+      "desc": "Roda quando algo acontece na zerosoft: uma reserva, um clique, um contato novo, um issue, uma mensagem no chat…"
+    },
     "trigger_webhook": {
       "title": "Webhook de entrada",
       "desc": "Roda quando um serviço chama a URL secreta deste flow (POST, GET ou os dois).",
-      "fields": { "accept": "Aceita", "authCredentialId": "Exigir autenticação (opcional)", "respond": "Responde" }
+      "fields": {
+        "accept": "Aceita",
+        "authCredentialId": "Exigir autenticação (opcional)",
+        "respond": "Responde"
+      }
     },
-    "trigger_schedule": { "title": "Agendado", "desc": "Roda a cada N minutos ou horas, todo dia em um horário ou com uma expressão cron, no seu fuso horário." },
-    "trigger_manual": { "title": "Manual", "desc": "Roda só pelo botão Testar, com o JSON que você informar." },
-    "logic_if": { "title": "Se", "desc": "Divide o flow em dois: verdadeiro e falso." },
-    "logic_switch": { "title": "Switch", "desc": "Escolhe um ramo comparando um valor com uma lista de casos." },
-    "logic_filter": { "title": "Filtro", "desc": "Continua só se as condições forem atendidas. Senão, o ramo para." },
+    "trigger_schedule": {
+      "title": "Agendado",
+      "desc": "Roda a cada N minutos ou horas, todo dia em um horário ou com uma expressão cron, no seu fuso horário."
+    },
+    "trigger_manual": {
+      "title": "Manual",
+      "desc": "Roda só pelo botão Testar, com o JSON que você informar."
+    },
+    "logic_if": {
+      "title": "Se",
+      "desc": "Divide o flow em dois: verdadeiro e falso."
+    },
+    "logic_switch": {
+      "title": "Switch",
+      "desc": "Escolhe um ramo comparando um valor com uma lista de casos."
+    },
+    "logic_filter": {
+      "title": "Filtro",
+      "desc": "Continua só se as condições forem atendidas. Senão, o ramo para."
+    },
     "logic_delay": {
       "title": "Aguardar",
       "desc": "Espera um tempo, até uma data ou até alguém chamar a URL de resume da execução.",
@@ -214,31 +294,96 @@
         "onTimeout": "Se vencer"
       }
     },
-    "logic_loop": { "title": "Loop", "desc": "Roda o ramo \"cada item\" uma vez por item de uma lista, em ordem. Depois segue por \"concluído\"." },
-    "data_set": { "title": "Definir campos", "desc": "Monta um objeto com campos novos a partir de modelos." },
+    "logic_loop": {
+      "title": "Loop",
+      "desc": "Roda o ramo \"cada item\" uma vez por item de uma lista, em ordem. Depois segue por \"concluído\"."
+    },
+    "data_set": {
+      "title": "Definir campos",
+      "desc": "Monta um objeto com campos novos a partir de modelos."
+    },
     "data_json_parse": {
       "title": "Ler JSON",
       "desc": "Converte texto JSON em dados para usar nos próximos nós.",
-      "fields": { "text": "Texto JSON" }
+      "fields": {
+        "text": "Texto JSON"
+      }
     },
-    "action_http": { "title": "Requisição HTTP", "desc": "Chama qualquer API. Só hosts públicos via HTTPS." },
-    "action_email": { "title": "Enviar email", "desc": "Envia um email em texto." },
-    "app_crm_contact": { "title": "CRM: criar contato", "desc": "Cria um contato (ou devolve o existente com o mesmo email)." },
-    "app_crm_sequence": { "title": "CRM: inscrever em sequência", "desc": "Inscreve o contato com este email em uma sequência de vendas. Os emails saem do Gmail do owner do contato." },
-    "app_crm_deals": { "title": "CRM: deals recentes", "desc": "Lista os deals criados nas últimas N horas." },
-    "app_track_issue": { "title": "Track: criar issue", "desc": "Cria um issue numa equipe do Track deste workspace." },
-    "app_link": { "title": "Link: criar link curto", "desc": "Cria um link curto." },
-    "app_chat_message": { "title": "Chat: enviar mensagem", "desc": "Responde numa conversa do Chat como o bot." },
-    "app_groups_message": { "title": "Groups: enviar mensagem de WhatsApp", "desc": "Envia uma mensagem para um chat ou grupo de WhatsApp pelo número conectado." },
-    "app_talk_message": {"title": "Talk: enviar mensagem", "desc": "Publica uma mensagem em um canal do Talk deste workspace, com o nome de bot que você escolher. Pode responder em um fio.", "fields": {"channel": "Canal (nome ou ID)", "body": "Mensagem", "threadId": "Responder no fio (ID da mensagem)", "botName": "Nome do bot"}},
-    "app_docs_page": { "title": "Docs: criar página", "desc": "Cria uma página no Docs. Linhas em branco separam parágrafos." },
-    "app_robot_run": { "title": "Robots: executar robô", "desc": "Executa um robô de navegador com estas entradas e espera os dados extraídos (até o timeout do robô)." },
-    "ai_text": { "title": "AI: gerar texto", "desc": "Escreve, resume ou classifica texto com AI. Conta para a sua cota de AI." },
-    "trigger_stripe": { "title": "Evento do Stripe", "desc": "Roda quando o Stripe envia um evento para a URL deste flow. A assinatura é verificada com o webhook secret da credencial." },
+    "action_http": {
+      "title": "Requisição HTTP",
+      "desc": "Chama qualquer API. Só hosts públicos via HTTPS."
+    },
+    "action_email": {
+      "title": "Enviar email",
+      "desc": "Envia um email em texto."
+    },
+    "app_crm_contact": {
+      "title": "CRM: criar contato",
+      "desc": "Cria um contato (ou devolve o existente com o mesmo email)."
+    },
+    "app_crm_sequence": {
+      "title": "CRM: inscrever em sequência",
+      "desc": "Inscreve o contato com este email em uma sequência de vendas. Os emails saem do Gmail do owner do contato."
+    },
+    "app_crm_deals": {
+      "title": "CRM: deals recentes",
+      "desc": "Lista os deals criados nas últimas N horas."
+    },
+    "app_track_issue": {
+      "title": "Track: criar issue",
+      "desc": "Cria um issue numa equipe do Track deste workspace."
+    },
+    "app_link": {
+      "title": "Link: criar link curto",
+      "desc": "Cria um link curto."
+    },
+    "app_chat_message": {
+      "title": "Chat: enviar mensagem",
+      "desc": "Responde numa conversa do Chat como o bot."
+    },
+    "app_groups_message": {
+      "title": "Groups: enviar mensagem de WhatsApp",
+      "desc": "Envia uma mensagem para um chat ou grupo de WhatsApp pelo número conectado."
+    },
+    "app_talk_message": {
+      "title": "Talk: enviar mensagem",
+      "desc": "Publica uma mensagem em um canal do Talk deste workspace, com o nome de bot que você escolher. Pode responder em um fio.",
+      "fields": {
+        "channel": "Canal (nome ou ID)",
+        "body": "Mensagem",
+        "threadId": "Responder no fio (ID da mensagem)",
+        "botName": "Nome do bot"
+      }
+    },
+    "app_docs_page": {
+      "title": "Docs: criar ou editar página",
+      "desc": "Cria uma página (a partir de um modelo ou como subpágina) ou adiciona, substitui, renomeia ou manda para a lixeira uma. O conteúdo é Markdown.",
+      "fields": {
+        "pageId": "Página",
+        "content": "Conteúdo (Markdown)",
+        "templateId": "Modelo",
+        "parentId": "Dentro da página (opcional)"
+      }
+    },
+    "app_robot_run": {
+      "title": "Robots: executar robô",
+      "desc": "Executa um robô de navegador com estas entradas e espera os dados extraídos (até o timeout do robô)."
+    },
+    "ai_text": {
+      "title": "AI: gerar texto",
+      "desc": "Escreve, resume ou classifica texto com AI. Conta para a sua cota de AI."
+    },
+    "trigger_stripe": {
+      "title": "Evento do Stripe",
+      "desc": "Roda quando o Stripe envia um evento para a URL deste flow. A assinatura é verificada com o webhook secret da credencial."
+    },
     "logic_run_flow": {
       "title": "Executar flow",
       "desc": "Roda outro flow com estas entradas e espera. Esse flow não pode usar Aguardar nem novas tentativas: se ficar em espera, o passo falha com subflow_waiting. As saídas dos nós dele ficam em '{{nodes.<id>.output.outputs}}'.",
-      "fields": { "inputs": "Entradas ('{{trigger.x}}' no outro flow)", "failOnErrorHint": "Falhar se o outro flow falhar" }
+      "fields": {
+        "inputs": "Entradas ('{{trigger.x}}' no outro flow)",
+        "failOnErrorHint": "Falhar se o outro flow falhar"
+      }
     },
     "data_merge": {
       "title": "Merge / Aggregate",
@@ -252,43 +397,92 @@
     "data_code": {
       "title": "Código",
       "desc": "Roda JavaScript em um sandbox isolado. Os dados estão em input.trigger e input.nodes. Retorne um valor JSON.",
-      "fields": { "code": "JavaScript (corpo de uma função async)" }
+      "fields": {
+        "code": "JavaScript (corpo de uma função async)"
+      }
     },
-    "app_slack": { "title": "Slack: enviar mensagem", "desc": "Publica com um bot token (qualquer canal) ou um incoming webhook." },
+    "app_slack": {
+      "title": "Slack: enviar mensagem",
+      "desc": "Publica com um bot token (qualquer canal) ou um incoming webhook."
+    },
     "app_google_sheets": {
       "title": "Google Sheets",
       "desc": "Adiciona uma linha ou lê um intervalo. Funciona com um token OAuth ou uma conta de serviço.",
-      "fields": { "row": "Valores da linha (na ordem das colunas)" }
+      "fields": {
+        "row": "Valores da linha (na ordem das colunas)"
+      }
     },
-    "app_gmail": { "title": "Gmail: enviar email", "desc": "Envia do Gmail conectado no CRM por quem criou o flow (ou o dono do workspace)." },
-    "app_stripe": { "title": "Stripe", "desc": "Cria um cliente ou lista os pagamentos recentes." },
-    "app_notion": { "title": "Notion", "desc": "Cria uma página em um banco ou adiciona texto a uma página. Antes compartilhe a página ou banco com a sua integração." },
-    "app_discord": { "title": "Discord: enviar mensagem", "desc": "Publica em um canal por meio de um webhook." },
-    "app_telegram": { "title": "Telegram: enviar mensagem", "desc": "Envia uma mensagem com o seu bot para um chat, grupo ou canal." },
+    "app_gmail": {
+      "title": "Gmail: enviar email",
+      "desc": "Envia do Gmail conectado no CRM por quem criou o flow (ou o dono do workspace)."
+    },
+    "app_stripe": {
+      "title": "Stripe",
+      "desc": "Cria um cliente ou lista os pagamentos recentes."
+    },
+    "app_notion": {
+      "title": "Notion",
+      "desc": "Cria uma página em um banco ou adiciona texto a uma página. Antes compartilhe a página ou banco com a sua integração."
+    },
+    "app_discord": {
+      "title": "Discord: enviar mensagem",
+      "desc": "Publica em um canal por meio de um webhook."
+    },
+    "app_telegram": {
+      "title": "Telegram: enviar mensagem",
+      "desc": "Envia uma mensagem com o seu bot para um chat, grupo ou canal."
+    },
     "ai_agent": {
       "title": "Executar agente",
       "desc": "Envia uma mensagem para um dos seus agentes e retorna a resposta. Usa as ferramentas e o conhecimento do agente.",
-      "fields": { "message": "Mensagem", "conversationId": "Continuar conversa (opcional)" }
+      "fields": {
+        "message": "Mensagem",
+        "conversationId": "Continuar conversa (opcional)"
+      }
     },
     "action_webhook_reply": {
       "title": "Responder ao webhook",
       "desc": "Define a resposta que quem chamou o webhook recebe: código, conteúdo e headers.",
-      "fields": { "statusCode": "Código de status", "contentType": "Tipo de conteúdo" }
+      "fields": {
+        "statusCode": "Código de status",
+        "contentType": "Tipo de conteúdo"
+      }
     },
     "app_crm_update": {
       "title": "CRM: atualizar registro",
       "desc": "Muda propriedades de um contato, empresa ou deal deste workspace. Deals também podem passar para outra etapa.",
-      "fields": { "entity": "Tipo de registro", "recordId": "ID do registro", "email": "Ou buscar o contato por email", "fields": "Propriedades", "stage": "Mover para a etapa (nome ou ID)" }
+      "fields": {
+        "entity": "Tipo de registro",
+        "recordId": "ID do registro",
+        "email": "Ou buscar o contato por email",
+        "fields": "Propriedades",
+        "stage": "Mover para a etapa (nome ou ID)"
+      }
     },
     "app_crm_task": {
       "title": "CRM: criar tarefa",
       "desc": "Cria uma tarefa do CRM com vencimento, ligada a um contato, deal ou empresa.",
-      "fields": { "body": "Notas", "dueIn": "Vence em", "dueUnit": "Unidade", "contactId": "Contato (ID ou email)", "dealId": "ID do deal", "companyId": "ID da empresa", "owner": "Owner (email ou ID)" }
+      "fields": {
+        "body": "Notas",
+        "dueIn": "Vence em",
+        "dueUnit": "Unidade",
+        "contactId": "Contato (ID ou email)",
+        "dealId": "ID do deal",
+        "companyId": "ID da empresa",
+        "owner": "Owner (email ou ID)"
+      }
     },
     "app_track_update": {
       "title": "Track: atualizar issue",
       "desc": "Muda o status, a prioridade, o responsável ou o vencimento de um issue deste workspace e pode adicionar um comentário.",
-      "fields": { "issue": "Issue (ID ou identificador, ex. ENG-12)", "status": "Status (nome)", "assignee": "Responsável (email, ou none)", "comment": "Comentário", "title": "Novo título", "dueDate": "Vencimento" }
+      "fields": {
+        "issue": "Issue (ID ou identificador, ex. ENG-12)",
+        "status": "Status (nome)",
+        "assignee": "Responsável (email, ou none)",
+        "comment": "Comentário",
+        "title": "Novo título",
+        "dueDate": "Vencimento"
+      }
     },
     "logic_approval": {
       "title": "Aprovação",
@@ -314,6 +508,19 @@
         "value": "Valor a comparar",
         "values": "Valores (coluna → valor)",
         "limit": "Máximo de linhas"
+      }
+    },
+    "app_docs_row": {
+      "title": "Docs: adicionar ou atualizar linha",
+      "desc": "Adiciona uma linha a um banco do Docs ou altera uma, por id ou por título. As opções de select são criadas se não existirem.",
+      "fields": {
+        "database": "Banco",
+        "rowId": "ID da linha (vazio: procura pelo título)",
+        "title": "Título",
+        "values": "Propriedades (nome → valor)",
+        "content": "Conteúdo da linha (Markdown)",
+        "template": "Modelo de linha (nome)",
+        "newTitle": "Novo título"
       }
     }
   },
@@ -446,7 +653,14 @@
     "find": "Buscar linhas",
     "insert": "Adicionar uma linha",
     "upsert": "Adicionar ou atualizar",
-    "delete": "Apagar linhas"
+    "delete": "Apagar linhas",
+    "page_create": "Criar página",
+    "page_append": "Adicionar à página",
+    "page_replace": "Substituir o conteúdo",
+    "page_rename": "Renomear página",
+    "page_archive": "Mandar para a lixeira",
+    "row_create": "Adicionar linha",
+    "row_update": "Atualizar linha"
   },
   "handles": {
     "out": "Próximo",
@@ -520,7 +734,12 @@
     "groups_member_joined": "Groups: membro entrou em um grupo",
     "groups_member_left": "Groups: membro saiu de um grupo",
     "groups_poll_voted": "Groups: voto em uma enquete",
-    "talk_message_posted": "Talk: mensagem em um canal"
+    "talk_message_posted": "Talk: mensagem em um canal",
+    "page_updated": "Docs: página editada",
+    "page_archived": "Docs: página na lixeira",
+    "page_comment_created": "Docs: novo comentário",
+    "database_row_created": "Docs: nova linha em um banco",
+    "database_property_changed": "Docs: propriedade de um banco mudou"
   },
   "ops": {
     "equals": "é igual a",
@@ -598,10 +817,30 @@
     "invalid_date": "Não foi possível ler a data ou falta mais de um ano. Use uma data como 2026-03-01 09:00.",
     "table_not_found": "A tabela de dados deste passo não existe mais. Escolha outra no editor.",
     "table_value": "Um valor não corresponde ao tipo da coluna ou a coluna não existe. Confira os valores no editor.",
-    "table_full": "A tabela de dados está cheia. Apague linhas ou use outra tabela."
+    "table_full": "A tabela de dados está cheia. Apague linhas ou use outra tabela.",
+    "forbidden": "Quem criou este flow não pode editar essa página.",
+    "locked": "A página está bloqueada. Desbloqueie no Docs para o flow poder alterá-la.",
+    "no_flow_owner": "Quem criou este flow não está mais no workspace. Alguém que possa editá-lo precisa mudar um passo e salvá-lo, para que rode com o seu acesso.",
+    "missing_page": "Este passo não tem página. Escolha uma ou use uma variável como {{trigger.page.id}}.",
+    "missing_content": "Este passo não tem conteúdo para escrever.",
+    "missing_title": "Este passo não tem título.",
+    "missing_database": "Este passo não tem banco. Escolha um no editor.",
+    "missing_row": "Este passo precisa do ID da linha ou de um título para encontrá-la.",
+    "not_found": "A página não existe ou quem criou o flow não consegue abri-la.",
+    "parent_not_found": "A página pai não existe ou quem criou o flow não pode editá-la.",
+    "template_not_found": "O modelo não existe mais. Escolha outro no editor.",
+    "database_not_found": "O banco não existe mais. Escolha outro no editor.",
+    "row_not_found": "Nenhuma linha corresponde. Confira o ID ou o título.",
+    "read_only": "Esse banco é sincronizado de outro app e é somente leitura.",
+    "unknown_property": "O banco não tem uma propriedade com esse nome. Confira os nomes em Propriedades.",
+    "invalid_option": "Esse status não existe no banco.",
+    "invalid_person": "Essa pessoa não está no workspace. Use o email dela.",
+    "invalid_value": "Um valor não corresponde ao tipo da propriedade (número ou data).",
+    "owner_changed": "Esta execução usou o acesso de quem era dono do flow naquele momento. Só pode ser executada de novo enquanto essa pessoa for a dona.",
+    "subflow_other_owner": "Executar flow só chama flows criados pela mesma pessoa que este."
   },
   "errors": {
-    "not_flow_owner": "Só quem criou este flow pode fixar dados de teste: eles usam o acesso dessa pessoa.",
+    "not_flow_owner": "Só quem criou este flow pode fazer isso: usa os dados capturados com o acesso dessa pessoa.",
     "generic": "Algo deu errado. Tente de novo.",
     "forbidden": "Só admins e donos do workspace podem fazer isso.",
     "not_found": "Este flow não existe mais.",
@@ -633,7 +872,9 @@
     "approval_in_loop": "Não é possível usar Aprovação dentro de um Loop.",
     "step_not_testable": "Este passo não pode ser testado sozinho.",
     "pin_too_large": "Esses dados são grandes demais para fixar (máximo 64 KB por passo).",
-    "input_too_large": "Os dados de teste são grandes demais."
+    "input_too_large": "Os dados de teste são grandes demais.",
+    "subflow_other_owner": "Executar flow só chama flows criados pela mesma pessoa que este.",
+    "owner_changed": "Esta execução usou o acesso de quem era dono do flow naquele momento. Só pode ser executada de novo enquanto essa pessoa for a dona."
   },
   "onError": {
     "stop": "Parar o flow",
@@ -735,7 +976,10 @@
       "invalid_totp": "O segredo 2FA não é válido. Cole a chave de configuração (base32) ou o link otpauth:// do QR code.",
       "invalid_input": "Dados inválidos."
     },
-    "oneOf": {"slack": "Preencha o bot token ou a URL do webhook.", "google": "Preencha o access token ou o JSON da conta de serviço."}
+    "oneOf": {
+      "slack": "Preencha o bot token ou a URL do webhook.",
+      "google": "Preencha o access token ou o JSON da conta de serviço."
+    }
   },
   "failureEmail": {
     "subject": "Um flow falhou: {flow}",
@@ -845,5 +1089,21 @@
       "reserved_column": "id, createdAt e updatedAt são reservados. Use outro nome de coluna.",
       "not_found": "Esta tabela não existe mais."
     }
+  },
+  "docsPicker": {
+    "searchPages": "Procure uma página pelo título",
+    "current": "Página: {name}",
+    "untitled": "Sem título",
+    "missing": "A página não existe ou você não tem acesso",
+    "loading": "Carregando bancos…",
+    "pickDatabase": "Escolha um banco",
+    "properties": "Propriedades: {list}",
+    "noDatabases": "Ainda não há bancos no Docs. Adicione um com /banco de dados em uma página.",
+    "databaseHelp": "O flow escreve com as permissões de quem o criou.",
+    "loadError": "Não foi possível carregar os bancos. Tente de novo.",
+    "noTemplate": "Sem modelo",
+    "workspaceTemplates": "Modelos do workspace",
+    "builtinTemplates": "Modelos integrados",
+    "templateHelp": "Variáveis como {{page.title}} no modelo são preenchidas com os dados do gatilho."
   }
 }

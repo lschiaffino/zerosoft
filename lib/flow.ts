@@ -402,11 +402,6 @@ export async function createFlow(
   return { ok: true, flow: (await getFlow(workspaceId, id, actorId))! };
 }
 
-/** Nodos Gmail del grafo (id + config) para detectar si alguien los cambió. */
-function gmailNodesKey(graph: FlowGraph): string {
-  return JSON.stringify(graph.nodes.filter((n) => n.type === 'app.gmail').map((n) => [n.id, n.config ?? {}]));
-}
-
 export async function updateFlow(
   workspaceId: string,
   id: string,
@@ -438,13 +433,14 @@ export async function updateFlow(
       return { ok: false, error: 'invalid_error_flow' };
     }
   }
-  const graphChanged = patch.graph !== undefined && JSON.stringify(graph) !== row.graph;
-  // Quien edita un nodo Gmail de otro pasa a ser el remitente (su casilla).
-  const createdBy =
-    graphChanged && actorId && actorId !== row.created_by && gmailNodesKey(graph) !== gmailNodesKey(parseGraph(row.graph))
-      ? actorId
-      : row.created_by;
-  // Los datos fijados son de quien creó el flow: si pasa a otra persona, se descartan.
+  const prevGraph = parseGraph(row.graph);
+  const graphChanged = patch.graph !== undefined && !sameJson(graph, prevGraph);
+  // El flow actúa como quien lo creó (Gmail, Docs, HTTP con credenciales,
+  // agentes, subflows): si otra persona cambia el grafo, pasa a actuar como
+  // esa persona. Activarlo o pausarlo no cambia de quién es. Lo capturado
+  // antes (corridas, datos fijados) sigue siendo de quien lo capturó: los
+  // datos fijados se descartan.
+  const createdBy = graphChanged && actorId && actorId !== row.created_by ? actorId : row.created_by;
   const pinnedData = createdBy !== row.created_by ? '{}' : (row.pinned_data ?? '{}');
   const enabled = patch.enabled ?? row.enabled === 1;
   const tf = triggerFields(graph, enabled);
@@ -550,21 +546,15 @@ export interface FlowRunViewer {
 
 /**
  * ¿Puede ver los datos de la corrida (entrada del disparador, entrada y
- * salida de cada paso)? Quien creó el flow sí (corre con sus permisos); un
- * admin también. El resto del workspace ve el estado, los tiempos y los
- * errores, sin los datos: un evento puede traer registros que esa persona no
- * puede abrir (visibilidad del CRM, páginas privadas, canales).
+ * salida de cada paso)? Solo la persona con cuyo acceso corrió (quien creó el
+ * flow en ese momento, `captured_by`), aunque el flow haya pasado después a
+ * otra. El resto del workspace, admins incluidos, ve el estado, los tiempos y
+ * los errores, sin los datos (un evento puede traer registros que esa persona
+ * no puede abrir: visibilidad del CRM, páginas privadas, canales).
  */
-export async function canSeeRunData(
-  workspaceId: string,
-  viewer: FlowRunViewer | undefined,
-  flowCreator: string | null,
-  run: Pick<FlowRunRow, 'input'>,
-): Promise<boolean> {
+export function canSeeRunData(viewer: FlowRunViewer | undefined, run: Pick<FlowRunRow, 'captured_by'>): boolean {
   if (!viewer) return true;
-  if (flowCreator && viewer.personId === flowCreator) return true;
-  void run;
-  return viewer.admin;
+  return Boolean(run.captured_by && run.captured_by === viewer.personId);
 }
 
 function redactRun<T extends FlowRunDto>(run: T): T {
@@ -575,13 +565,7 @@ export async function listRuns(workspaceId: string, flowId: string, limit = 30, 
   const rows = (await getDb()
     .prepare('SELECT * FROM flow_runs WHERE flow_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT ?')
     .all(flowId, workspaceId, Math.min(Math.max(limit, 1), 100))) as FlowRunRow[];
-  if (!viewer) return rows.map(toRunDto);
-  const flow = (await getDb().prepare('SELECT created_by FROM flow_flows WHERE id = ? AND user_id = ?').get(flowId, workspaceId)) as
-    | { created_by: string | null }
-    | undefined;
-  const out: FlowRunDto[] = [];
-  for (const r of rows) out.push((await canSeeRunData(workspaceId, viewer, flow?.created_by ?? null, r)) ? toRunDto(r) : redactRun(toRunDto(r)));
-  return out;
+  return rows.map((r) => (canSeeRunData(viewer, r) ? toRunDto(r) : redactRun(toRunDto(r))));
 }
 
 export async function getRunWithSteps(
@@ -596,8 +580,7 @@ export async function getRunWithSteps(
   const steps = (await getDb()
     .prepare('SELECT * FROM flow_steps WHERE run_id = ? ORDER BY started_at ASC, rowid ASC')
     .all(runId)) as FlowStepRow[];
-  const flow = (await getDb().prepare('SELECT created_by FROM flow_flows WHERE id = ?').get(row.flow_id)) as { created_by: string | null } | undefined;
-  if (!(await canSeeRunData(workspaceId, viewer, flow?.created_by ?? null, row))) {
+  if (!canSeeRunData(viewer, row)) {
     return { ...redactRun(toRunDto(row)), steps: steps.map((s) => ({ ...toStepDto(s), input: null, output: null })) };
   }
   return { ...toRunDto(row), steps: steps.map(toStepDto) };
@@ -629,16 +612,14 @@ export async function cancelRun(
 
 /** Última salida de cada nodo del flow (para el selector de variables). */
 export async function lastOutputs(workspaceId: string, flowId: string, viewer?: FlowRunViewer): Promise<Record<string, unknown>> {
+  // Con quien mira: su última corrida (las capturadas con su acceso), nunca la de otra persona.
   const run = (await getDb()
     .prepare(
-      "SELECT id, input FROM flow_runs WHERE flow_id = ? AND user_id = ? AND status IN ('success', 'failed', 'waiting') ORDER BY created_at DESC LIMIT 1",
+      `SELECT id FROM flow_runs WHERE flow_id = ? AND user_id = ? AND status IN ('success', 'failed', 'waiting')${viewer ? ' AND captured_by = ?' : ''}
+       ORDER BY created_at DESC LIMIT 1`,
     )
-    .get(flowId, workspaceId)) as { id: string; input: string } | undefined;
+    .get(flowId, workspaceId, ...(viewer ? [viewer.personId] : []))) as { id: string } | undefined;
   if (!run) return {};
-  if (viewer) {
-    const flow = (await getDb().prepare('SELECT created_by FROM flow_flows WHERE id = ?').get(flowId)) as { created_by: string | null } | undefined;
-    if (!(await canSeeRunData(workspaceId, viewer, flow?.created_by ?? null, run))) return {};
-  }
   // Una fila por nodo (la última): con Loops una corrida tiene cientos de pasos.
   const steps = (await getDb()
     .prepare(
@@ -705,8 +686,8 @@ export async function enqueueRun(
   await getDb()
     .prepare(
       `INSERT INTO flow_runs (id, flow_id, user_id, trigger_type, status, input, chain_depth, chain_seen, locked_until,
-         parent_run_id, rerun_of, created_at, started_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         parent_run_id, rerun_of, created_at, started_at, captured_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT created_by FROM flow_flows WHERE id = ?))`,
     )
     .run(
       id,
@@ -722,6 +703,7 @@ export async function enqueueRun(
       opts.rerunOf ?? null,
       ts,
       status === 'running' ? ts : null,
+      flow.id,
     );
   return id;
 }
@@ -738,10 +720,10 @@ async function recordRateLimitedRun(flow: Pick<FlowFlowRow, 'id' | 'user_id'>, t
   await getDb()
     .prepare(
       `INSERT INTO flow_runs (id, flow_id, user_id, trigger_type, status, input, error, chain_depth, chain_seen,
-         created_at, started_at, finished_at)
-       VALUES (?, ?, ?, ?, 'failed', ?, 'rate_limited', 0, ?, ?, ?, ?)`,
+         created_at, started_at, finished_at, captured_by)
+       VALUES (?, ?, ?, ?, 'failed', ?, 'rate_limited', 0, ?, ?, ?, ?, (SELECT created_by FROM flow_flows WHERE id = ?))`,
     )
-    .run(crypto.randomUUID(), flow.id, flow.user_id, triggerType, serializeRunInput(input), JSON.stringify([flow.id]), ts, ts, ts);
+    .run(crypto.randomUUID(), flow.id, flow.user_id, triggerType, serializeRunInput(input), JSON.stringify([flow.id]), ts, ts, ts, flow.id);
 }
 
 const KICK_LIMIT = 5;
@@ -784,6 +766,7 @@ export async function enqueueEventRuns(
   type: FlowEventType,
   data: Record<string, unknown>,
   audience?: (creatorId: string | null) => Promise<boolean>,
+  personalize?: (creatorId: string | null) => Promise<{ data: Record<string, unknown>; extra?: Record<string, unknown> } | null>,
 ): Promise<string[]> {
   const parent = flowChain.getStore();
   const depth = parent ? parent.depth + 1 : 0;
@@ -796,11 +779,18 @@ export async function enqueueEventRuns(
   const ids: string[] = [];
   for (const row of rows) {
     if (parent?.seen.includes(row.id)) continue;
-    // Contenido restringido (canal privado de Talk): solo flows de quien lo puede ver.
+    // Contenido restringido (Docs, canal privado de Talk): solo flows de quien puede verlo.
     if (audience && !(await audience(row.created_by ?? null))) continue;
+    let own = data;
+    if (personalize) {
+      // Cada flow recibe lo que ve la persona que lo creó (o no corre).
+      const p = await personalize(row.created_by ?? null);
+      if (!p) continue;
+      own = { ...p.data, ...(p.extra ?? {}) };
+    }
     const trigger = triggerNode(parseGraph(row.graph));
-    if (!trigger || !matchesFilter(trigger.config, data)) continue;
-    const input = { ...data, event: { type, at: nowIso() } };
+    if (!trigger || !matchesFilter(trigger.config, own)) continue;
+    const input = { ...own, event: { type, at: nowIso() } };
     const id = await enqueueRun(row, 'trigger.event', input, { chain: { depth, seen: parent?.seen ?? [] } });
     if (id) ids.push(id);
     else await recordRateLimitedRun(row, 'trigger.event', input);

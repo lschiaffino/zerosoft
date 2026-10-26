@@ -1,3 +1,4 @@
+import { emitCommentCreated } from '@/lib/docs-events';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import {
@@ -83,6 +84,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     mentioned,
     threadParticipants: participants,
   });
+  // Flow y webhooks: page.comment_created.
+  await emitCommentCreated(page.user_id, page, comment).catch(() => {});
 
   return NextResponse.json(comment, { status: 201 });
 }

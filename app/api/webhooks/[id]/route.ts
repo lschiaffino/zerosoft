@@ -26,10 +26,15 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (!parsed.success) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   const { properties, ...rest } = parsed.data;
   try {
-    const ok = await updateWebhook(user.id, id, {
-      ...rest,
-      ...(properties !== undefined ? { crmFilter: normalizeCrmFilter({ properties }) } : {}),
-    });
+    const ok = await updateWebhook(
+      user.id,
+      id,
+      {
+        ...rest,
+        ...(properties !== undefined ? { crmFilter: normalizeCrmFilter({ properties }) } : {}),
+      },
+      user.actingUser?.id ?? user.id,
+    );
     if (!ok) return NextResponse.json({ error: 'not_found' }, { status: 404 });
     return NextResponse.json({ ok: true });
   } catch (err) {

@@ -480,6 +480,19 @@ export default function AppSidebar({
               <span className="band-search-label">{labels.crm.askAi}</span>
             </button>
           )}
+          {product === 'docs' && (
+            <button
+              type="button"
+              className="band-search band-ai"
+              onClick={() => window.dispatchEvent(new CustomEvent('zs:docs-ask'))}
+              aria-label={labels.docs.askAi}
+              aria-haspopup="dialog"
+              data-docs-ask-trigger
+            >
+              <Icon name="agents" size={15} />
+              <span className="band-search-label">{labels.docs.askAi}</span>
+            </button>
+          )}
           <NotificationBell labels={bellLabels} onCountChange={setUnreadCount} />
         </div>
       </header>

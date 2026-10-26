@@ -5685,6 +5685,89 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Docs como plataforma (tanda D4): eventos de página hacia Flow y
+    // webhooks (con un tope por página para las ediciones), bases
+    // sincronizadas con GitHub, Jira, Salesforce o el CRM (se refrescan por
+    // cron con claim) y notas de reunión con IA.
+    id: '096_docs_platform',
+    up: async (client) => {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS docs_event_marks (
+          page_id TEXT PRIMARY KEY REFERENCES docs_pages(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          actor_id TEXT,
+          due_at TEXT NOT NULL,
+          claimed_until TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_event_marks_due ON docs_event_marks(due_at);
+        CREATE TABLE IF NOT EXISTS docs_synced_sources (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+          block_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          config TEXT NOT NULL DEFAULT '{}',
+          secret TEXT,
+          created_by TEXT,
+          status TEXT NOT NULL DEFAULT 'pending',
+          last_error TEXT,
+          item_count INTEGER NOT NULL DEFAULT 0,
+          interval_min INTEGER NOT NULL DEFAULT 15,
+          last_synced_at TEXT,
+          next_sync_at TEXT,
+          claimed_until TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (page_id, block_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_synced_due ON docs_synced_sources(next_sync_at);
+        CREATE TABLE IF NOT EXISTS docs_meetings (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+          title TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'idle',
+          transcript TEXT NOT NULL DEFAULT '',
+          summary TEXT NOT NULL DEFAULT '',
+          decisions TEXT NOT NULL DEFAULT '[]',
+          actions TEXT NOT NULL DEFAULT '[]',
+          duration_sec INTEGER NOT NULL DEFAULT 0,
+          tasks_claimed_until TEXT,
+          last_error TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_meetings_page ON docs_meetings(page_id);
+      `);
+    },
+  },
+  {
+    // Datos capturados con el acceso de una persona (re-QA D4): cada corrida de
+    // Flow, entrega de webhook y llamada a herramienta de un agente guarda con
+    // el acceso de quién se armó. Solo esa persona ve sus datos, aunque el
+    // flow, el webhook o el agente pasen después a otra.
+    // Lo anterior: una corrida queda del dueño actual solo si el historial de
+    // versiones muestra que nadie más editó el flow (si no, NULL: nadie ve sus
+    // datos). Los webhooks no guardan historial de quién los cambió: sus
+    // entregas quedan del dueño actual. Las llamadas de agentes quedan en NULL
+    // (las ve quien puede abrir la página que nombran).
+    id: '116_captured_by',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE flow_runs ADD COLUMN captured_by TEXT');
+      await addColumn(client, 'ALTER TABLE webhook_deliveries ADD COLUMN captured_by TEXT');
+      await addColumn(client, 'ALTER TABLE agent_tool_calls ADD COLUMN captured_by TEXT');
+      await client.executeMultiple(`
+        UPDATE flow_runs SET captured_by = (SELECT f.created_by FROM flow_flows f WHERE f.id = flow_runs.flow_id)
+        WHERE captured_by IS NULL AND NOT EXISTS (
+          SELECT 1 FROM flow_versions v JOIN flow_flows f ON f.id = v.flow_id
+          WHERE v.flow_id = flow_runs.flow_id AND v.created_by IS NOT NULL AND (f.created_by IS NULL OR v.created_by != f.created_by)
+        );
+        UPDATE webhook_deliveries SET captured_by = (SELECT created_by FROM webhooks w WHERE w.id = webhook_deliveries.webhook_id) WHERE captured_by IS NULL;
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

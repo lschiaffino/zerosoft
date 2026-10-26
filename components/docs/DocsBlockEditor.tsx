@@ -26,6 +26,7 @@ import DocsMediaBlock from './DocsMediaBlock';
 import DocsLinkBlock from './DocsLinkBlocks';
 import { BreadcrumbBlock, ButtonBlock, EquationBlock, TocBlock } from './DocsAdvancedBlocks';
 import { renderInlineTex } from './inlineTex';
+import DocsMeetingBlock from './DocsMeetingBlock';
 
 interface DocsBlockEditorProps {
   /** Solo lectura (página bloqueada o permiso de comentar): se selecciona para comentar, no se escribe. */
@@ -249,6 +250,21 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
 
     if (block.type === 'toc') {
       return <TocBlock ref={setCardRef} block={block} index={index} focused={focused} onChange={onChange} onKeyDown={onKeyDown} onFocus={onFocus} toc={toc ?? []} />;
+    }
+
+    if (block.type === 'meeting') {
+      return (
+        <DocsMeetingBlock
+          ref={setCardRef}
+          block={block}
+          index={index}
+          focused={focused}
+          pageId={database?.pageId ?? null}
+          onChange={onChange}
+          onKeyDown={onKeyDown}
+          onFocus={onFocus}
+        />
+      );
     }
 
     if (block.type === 'breadcrumb') {

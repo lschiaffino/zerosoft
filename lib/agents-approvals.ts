@@ -94,13 +94,49 @@ export function approvalSummary(tool: ApprovableAgentTool, input: Record<string,
       return `Run a flow`;
     case 'http_request':
       return `${s('method')} ${s('url')}`;
+    case 'docs_write_page':
+      return s('operation') === 'create' ? `Create the page "${s('title')}"` : `Edit a Docs page (${s('operation') || 'append'})`;
+    case 'docs_write_row':
+      return s('rowId') ? `Update a row in a Docs database` : `Add the row "${s('title')}" to a Docs database`;
   }
+}
+
+/** Página que una acción de Docs edita (la página, la base o la página madre al crear). */
+function docsTarget(input: unknown): string | null {
+  const i = (input ?? {}) as { pageId?: unknown; parentId?: unknown };
+  if (typeof i.pageId === 'string' && i.pageId) return i.pageId;
+  if (typeof i.parentId === 'string' && i.parentId) return i.parentId;
+  return null;
+}
+
+/**
+ * Acciones de Docs: solo las ve en detalle y las decide quien puede editar la
+ * página destino; al aprobarlas la escritura corre con su acceso.
+ */
+async function canDecideDocs(workspaceId: string, personId: string, input: unknown, agentDocsActorId?: string | null): Promise<boolean> {
+  const target = docsTarget(input);
+  const { docsActorFor, pageFor } = await import('./docs-platform-access');
+  const actor = await docsActorFor(workspaceId, personId);
+  if (!actor) return false;
+  if (target) return Boolean(await pageFor(actor, target, { write: true }));
+  // Crear sin página madre: la persona con cuyo acceso trabaja el agente, o quien puede crear páginas en la raíz.
+  if ((input as { operation?: unknown } | null)?.operation !== 'create') return false;
+  if (agentDocsActorId && agentDocsActorId === personId) return true;
+  if (actor.role === 'owner' || actor.role === 'admin') return true;
+  const { getDocsSettings, roleRank } = await import('./docs-access');
+  return roleRank((await getDocsSettings(workspaceId)).member_role) >= roleRank('edit');
+}
+
+async function agentDocsActor(workspaceId: string, agentId: string): Promise<string | null> {
+  const { getAgentRow, toAgentDto } = await import('./agents');
+  const row = await getAgentRow(workspaceId, agentId);
+  return row ? (toAgentDto(row).tools.docsActorId ?? null) : null;
 }
 
 export async function listAgentActions(
   workspaceId: string,
   agentId: string,
-  opts: { conversationId?: string; status?: AgentPendingActionDto['status'] } = {},
+  opts: { conversationId?: string; status?: AgentPendingActionDto['status']; viewerId?: string } = {},
 ): Promise<AgentPendingActionDto[]> {
   const rows = (await getDb()
     .prepare(
@@ -116,7 +152,15 @@ export async function listAgentActions(
       opts.status ?? null,
       opts.status ?? null,
     )) as PendingRow[];
-  return rows.map(toDto);
+  const out: AgentPendingActionDto[] = [];
+  const docsActorId = rows.some((r) => r.tool.startsWith('docs_')) ? await agentDocsActor(workspaceId, agentId) : null;
+  for (const r of rows) {
+    const dto = toDto(r);
+    if (opts.viewerId !== undefined && r.tool.startsWith('docs_') && !(await canDecideDocs(workspaceId, opts.viewerId, dto.input, docsActorId))) {
+      out.push({ ...dto, input: { hidden: true }, result: null, locked: true });
+    } else out.push(dto);
+  }
+  return out;
 }
 
 /** Pendientes por conversación (para marcar la lista). */
@@ -132,7 +176,7 @@ export async function pendingCountsByConversation(workspaceId: string, agentId: 
 
 export type DecideResult =
   | { ok: true; action: AgentPendingActionDto }
-  | { ok: false; error: 'not_found' | 'already_decided' | 'agent_not_found' };
+  | { ok: false; error: 'not_found' | 'already_decided' | 'agent_not_found' | 'not_allowed' };
 
 /**
  * Aprueba (y ejecuta) o rechaza una acción pendiente. El claim es atómico:
@@ -144,12 +188,18 @@ export async function decideAgentAction(
   actionId: string,
   decision: 'approve' | 'reject',
   actorEmail: string,
+  /** Persona que decide: en Docs tiene que poder editar la página, y la escritura corre con su acceso. */
+  approverId?: string,
 ): Promise<DecideResult> {
   const db = getDb();
   const row = (await db
     .prepare('SELECT * FROM agent_pending_actions WHERE id = ? AND user_id = ? AND agent_id = ?')
     .get(actionId, workspaceId, agentId)) as PendingRow | undefined;
   if (!row || !isApprovableTool(row.tool)) return { ok: false, error: 'not_found' };
+  const isDocs = row.tool.startsWith('docs_');
+  if (isDocs && approverId !== undefined && !(await canDecideDocs(workspaceId, approverId, parse(row.input), await agentDocsActor(workspaceId, agentId)))) {
+    return { ok: false, error: 'not_allowed' };
+  }
   const ts = new Date().toISOString();
   const claimed = await db
     .prepare(
@@ -179,9 +229,12 @@ export async function decideAgentAction(
           conversationId: conv.id,
           channel: conv.channel,
           secretHeaders: loadSecretHeaders(agentRow),
+          conversationCreatedBy: conv.created_by ?? null,
         },
         row.tool,
         input,
+        // Docs: con el acceso de quien aprueba (se revalida la página al escribir).
+        isDocs && approverId !== undefined ? approverId : undefined,
       );
     } catch (err) {
       output = { error: err instanceof Error && /^[a-z_]+$/.test(err.message) ? err.message : 'tool_failed' };
@@ -194,10 +247,22 @@ export async function decideAgentAction(
 
   // La decisión entra al historial de herramientas que el agente ve en su próximo turno.
   const error = typeof output.error === 'string' ? output.error : null;
+  // Docs: se registra con el acceso de quién corrió (solo esa persona ve el detalle).
+  let capturedBy: string | null = null;
+  if (isDocs && approverId !== undefined) capturedBy = approverId;
+  else if (isDocs) {
+    const { getAgentRow, toAgentDto } = await import('./agents');
+    const { docsActorOf } = await import('./agent-tools');
+    const agentRow = await getAgentRow(workspaceId, agentId);
+    const conv = (await db.prepare('SELECT channel, created_by FROM agent_conversations WHERE id = ?').get(row.conversation_id)) as
+      | Pick<AgentConversationRow, 'channel' | 'created_by'>
+      | undefined;
+    if (agentRow && conv) capturedBy = docsActorOf(conv.channel, conv.created_by, toAgentDto(agentRow).tools);
+  }
   await db
     .prepare(
-      `INSERT INTO agent_tool_calls (id, agent_id, user_id, conversation_id, run_id, tool, input, output, error, duration_ms, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+      `INSERT INTO agent_tool_calls (id, agent_id, user_id, conversation_id, run_id, tool, input, output, error, duration_ms, created_at, captured_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
     )
     .run(
       crypto.randomUUID(),
@@ -211,6 +276,7 @@ export async function decideAgentAction(
       // Un rechazo no es un error de la herramienta: el agente tiene que verlo.
       status === 'failed' ? error : null,
       ts,
+      capturedBy,
     )
     .catch(() => {});
   const updated = (await db.prepare('SELECT * FROM agent_pending_actions WHERE id = ?').get(actionId)) as PendingRow;

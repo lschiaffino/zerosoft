@@ -42,6 +42,7 @@ const docsBlockType = z.enum([
   'toc',
   'button',
   'breadcrumb',
+  'meeting',
 ]);
 
 const docsLinkSchema = z.object({
@@ -252,6 +253,8 @@ const docsBaseBlockSchema = z.object({
   button: docsButtonSchema.optional(),
   // Bloque sugerido en modo sugerir (sanitizeBlocks valida los ids).
   suggestion: z.object({ id: z.string().max(64), by: z.string().max(64) }).nullish(),
+  // Notas de reunión (sanitizeBlocks lo descarta si el bloque no es meeting).
+  meeting_id: z.string().max(64).optional(),
 });
 
 const dbFile = z.object({
@@ -304,6 +307,14 @@ export const docsDatabaseSchema = z.object({
     .max(30)
     .optional(),
   automations: z.array(dbAutomation).max(20).optional(),
+  sync: z
+    .object({
+      source_id: dbId,
+      provider: z.enum(['github', 'jira', 'salesforce', 'crm']),
+      label: shortText,
+      synced_at: z.string().max(40).optional(),
+    })
+    .optional(),
 });
 
 /** Vista vinculada: el bloque guarda solo sus vistas; filas y propiedades son de la base de origen. */

@@ -1,5 +1,6 @@
 'use client';
 
+import DocsSyncBanner from './DocsSyncBanner';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { DbLinkedSource, DbPropertyType, DbValue, DbViewConfig, DbViewType, DocsBlock, DocsDatabase } from '@/lib/docs-types';
@@ -147,8 +148,10 @@ function DbOwnBlock({ block, index, onChange, onFocus, hooks }: DocsDatabaseBloc
       index={index}
       onFocus={onFocus}
       membersUrl={hooks.membersUrl}
-      editable={!hooks.readOnly}
+      // Base sincronizada (GitHub, Jira, Salesforce, CRM): filas de solo lectura.
+      editable={!hooks.readOnly && !db.sync}
       configurable={!hooks.readOnly}
+      linkedHeader={db.sync ? <DocsSyncBanner db={db} canEdit={!hooks.readOnly} onDb={commit} /> : undefined}
       openRow={(rowId, mode) => hooks.onOpenRow(block.id, rowId, mode)}
     />
   );
@@ -226,7 +229,7 @@ function DbLinkedBlock({ block, index, onChange, onFocus, hooks }: DocsDatabaseB
       index={index}
       onFocus={onFocus}
       membersUrl={`/api/docs/members?page=${encodeURIComponent(linked.page_id)}`}
-      editable={!hooks.readOnly && (src?.access === 'owner' || src?.access === 'full' || src?.access === 'edit')}
+      editable={!hooks.readOnly && !sourceDb?.sync && (src?.access === 'owner' || src?.access === 'full' || src?.access === 'edit')}
       configurable={!hooks.readOnly}
       linkedHeader={
         <a className="docs-db-linked-src" href={href} title={t('linked.openSource')}>

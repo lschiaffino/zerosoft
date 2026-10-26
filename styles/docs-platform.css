@@ -1,0 +1,205 @@
+/* Docs: IA del editor, preguntas sobre el workspace, notas de reunión y bases
+   sincronizadas (tanda D4). Mismos tokens y piezas que styles/docs.css: borde
+   de 1px, radio chico, sin pills. */
+
+/* ---------- IA del editor ---------- */
+
+.docs-format-ai { width: auto; gap: 4px; padding: 0 8px; font-size: 0.8125rem; }
+
+.docs-ai-menu {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(520px, calc(100vh - 80px));
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  color: var(--ink);
+}
+.docs-ai-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+}
+.docs-ai-input-row svg { flex-shrink: 0; color: var(--brand-gray-2); }
+.docs-ai-input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9375rem;
+  color: var(--ink);
+}
+.docs-ai-input:focus { outline: none; }
+.docs-ai-input-row:focus-within { border-color: var(--ink); }
+.docs-ai-result { padding: 4px 6px; }
+.docs-ai-status { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--brand-gray-2); font-size: 0.875rem; }
+.docs-ai-preview {
+  max-height: 300px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-left: 2px solid var(--ink);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+.docs-ai-preview p { margin: 0 0 6px; }
+.docs-ai-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 2px; }
+.docs-ai-list { display: flex; flex-direction: column; }
+.docs-ai-group { margin: 4px 10px 2px; color: var(--brand-gray-2); font-size: 0.75rem; }
+.docs-ai-more { margin-left: auto; color: var(--brand-gray-2); }
+.docs-ai-back { color: var(--brand-gray-2); }
+.docs-ai-empty { margin: 4px 10px; color: var(--brand-gray-2); font-size: 0.8125rem; }
+.docs-ai-note { margin: 0 6px 2px; color: var(--brand-gray-2); font-size: 0.75rem; }
+
+/* ---------- Preguntas sobre el workspace ---------- */
+
+.docs-ask-panel {
+  position: fixed;
+  top: calc(var(--band-h, 48px) + 8px);
+  right: 16px;
+  bottom: 16px;
+  z-index: 85;
+  display: flex;
+  flex-direction: column;
+  width: min(420px, calc(100vw - 32px));
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  color: var(--ink);
+}
+.docs-ask-head { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.docs-ask-title { display: flex; align-items: center; gap: 6px; flex: 1; margin: 0; font-size: 0.9375rem; font-weight: 600; }
+.docs-ask-body { flex: 1; overflow: auto; padding: 12px; }
+.docs-ask-empty p { margin: 0 0 6px; }
+.docs-ask-q { margin: 12px 0 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--brand-enamel); }
+.docs-ask-q:first-child { margin-top: 0; }
+.docs-ask-a { font-size: 0.9375rem; line-height: 1.55; }
+.docs-ask-a p { margin: 0 0 6px; }
+.docs-ask-a a[href^='/app/docs/'] { font-size: 0.75rem; vertical-align: super; text-decoration: none; }
+.docs-ask-sources { display: flex; flex-direction: column; gap: 4px; margin: 8px 0 0; padding-left: 20px; font-size: 0.8125rem; }
+.docs-ask-source { display: flex; flex-direction: column; gap: 2px; color: var(--ink); text-decoration: none; }
+.docs-ask-source:hover .docs-ask-source-title { text-decoration: underline; }
+.docs-ask-source-title { font-weight: 600; }
+.docs-ask-source-snippet { overflow: hidden; color: var(--brand-gray-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.docs-ask-loading { margin: 0; }
+.docs-ask-form { display: flex; align-items: flex-end; gap: 8px; padding: 10px 12px 4px; border-top: 1px solid var(--line); }
+.docs-ask-input { flex: 1; min-width: 0; resize: none; }
+
+/* ---------- Notas de reunión ---------- */
+
+.docs-meeting-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.docs-meeting-block.focused,
+.docs-meeting-block:focus-visible { outline: none; border-color: var(--ink); }
+.docs-meeting-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.docs-meeting-head svg { flex-shrink: 0; color: var(--brand-gray-2); }
+.docs-meeting-title {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--ink);
+}
+.docs-meeting-title:focus { outline: none; box-shadow: 0 1px 0 var(--ink); }
+.docs-meeting-rec { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; font-family: var(--font-data); white-space: nowrap; }
+.docs-meeting-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad-ink); }
+.docs-meeting-meta { color: var(--brand-gray-2); font-size: 0.8125rem; white-space: nowrap; }
+.docs-meeting-controls,
+.docs-meeting-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.docs-meeting-opt { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; }
+.docs-meeting-consent { margin: 0; }
+.docs-meeting-paste { display: flex; flex-direction: column; gap: 6px; }
+.docs-meeting-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); }
+.docs-meeting-tab {
+  padding: 6px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--brand-gray-2);
+  cursor: pointer;
+}
+.docs-meeting-tab.active { border-bottom-color: var(--ink); color: var(--ink); }
+.docs-meeting-tab:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.docs-meeting-notes section { margin: 0; padding: 0; min-height: 0; }
+.docs-meeting-notes section + section { margin-top: 10px; }
+.docs-meeting-notes h3 { margin: 0 0 4px; font-size: 0.875rem; font-weight: 600; }
+.docs-meeting-notes p,
+.docs-meeting-notes ul { margin: 0; }
+.docs-meeting-notes ul { padding-left: 20px; }
+.docs-meeting-actions li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+.docs-meeting-owner { color: var(--brand-gray-2); }
+.docs-meeting-sent { font-size: 0.8125rem; font-family: var(--font-data); white-space: nowrap; }
+.docs-meeting-send { margin-top: 8px; }
+.docs-meeting-transcript { max-height: 280px; overflow: auto; font-size: 0.875rem; line-height: 1.5; }
+.docs-meeting-transcript p { margin: 0 0 4px; }
+
+/* ---------- Bases sincronizadas ---------- */
+
+.docs-sync-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  flex-basis: 100%;
+  padding: 4px 0;
+  color: var(--brand-gray-2);
+  font-size: 0.8125rem;
+}
+.docs-sync-banner svg { flex-shrink: 0; }
+.docs-sync-label { color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
+.docs-sync-source { font-family: var(--font-data); }
+.docs-sync-ro { padding: 0 6px; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.docs-sync-actions { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+.docs-sync-err { flex-basis: 100%; }
+.docs-db-titlebar:has(.docs-sync-banner) { flex-wrap: wrap; }
+
+.docs-sync-dialog { width: min(520px, calc(100vw - 32px)); }
+.docs-sync-providers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.docs-sync-provider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  font-size: 0.875rem;
+  text-align: center;
+  cursor: pointer;
+}
+.docs-sync-provider input { position: absolute; opacity: 0; pointer-events: none; }
+.docs-sync-provider.active { border-color: var(--ink); background: var(--brand-enamel); font-weight: 600; }
+.docs-sync-provider:focus-within { outline: 2px solid var(--ink); outline-offset: 1px; }
+.docs-sync-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.docs-db-rowpanel-readonly .docs-title { margin: 0 0 12px; }
+
+@media (max-width: 640px) {
+  .docs-sync-providers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .docs-sync-row { grid-template-columns: 1fr; }
+  .docs-ask-panel { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; height: min(78vh, 640px); }
+  .docs-ai-menu { left: 16px !important; }
+}

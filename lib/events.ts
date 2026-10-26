@@ -31,11 +31,16 @@ export interface EmitOptions {
   /** Datos extra solo para Flow (no cambian el payload del webhook). */
   extra?: Record<string, unknown>;
   /**
-   * Contenido restringido (p. ej. un canal privado de Talk): solo lo reciben
-   * los webhooks y flows cuya persona creadora pasa este chequeo. Las apps
-   * del CRM (Slack) no lo reciben.
+   * Contenido restringido (Docs, un canal privado de Talk): solo lo reciben los webhooks y flows cuya persona
+   * creadora pasa este chequeo. Las apps del CRM (Slack) no lo reciben.
    */
   audience?: (creatorId: string | null) => Promise<boolean>;
+  /**
+   * Datos por destinatario (Docs): para cada webhook o flow, lo que puede ver
+   * la persona que lo creó, o null si no puede ver nada (no se le emite). En
+   * Flow lo devuelto reemplaza a `data` y a `extra`.
+   */
+  personalize?: (creatorId: string | null) => Promise<{ data: Record<string, unknown>; extra?: Record<string, unknown> } | null>;
 }
 
 /**
@@ -59,9 +64,9 @@ export async function emitEvent(
   opts: EmitOptions = {},
 ): Promise<void> {
   if ((WEBHOOK_EVENTS as readonly string[]).includes(type)) {
-    await emitWebhook(workspaceId, type as WebhookEvent, data, opts.audience);
+    await emitWebhook(workspaceId, type as WebhookEvent, data, opts.audience, opts.personalize);
     // Apps del CRM (Slack): mismos eventos que los webhooks (nunca lo restringido).
-    if (!opts.audience) {
+    if (!opts.audience && !opts.personalize) {
       try {
         const { notifyApps } = await import('./crm-apps');
         await notifyApps(workspaceId, type as WebhookEvent, data);
@@ -86,7 +91,7 @@ export async function emitEvent(
       data && typeof data === 'object' && !Array.isArray(data)
         ? { ...(data as Record<string, unknown>), ...(opts.extra ?? {}) }
         : { data, ...(opts.extra ?? {}) };
-    await enqueueEventRuns(workspaceId, type, payload, opts.audience);
+    await enqueueEventRuns(workspaceId, type, payload, opts.audience, opts.personalize);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[events] flow enqueue failed', err);

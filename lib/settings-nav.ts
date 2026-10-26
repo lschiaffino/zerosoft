@@ -151,6 +151,8 @@ export type WebhookGroupKey =
   | 'issue'
   | 'comment'
   | 'project'
+  | 'page'
+  | 'database'
   | 'talk';
 
 /** Los eventos agrupados por recurso (el prefijo antes del primer punto), en el orden de WEBHOOK_EVENTS. */

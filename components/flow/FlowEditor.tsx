@@ -157,8 +157,11 @@ function summaryOf(type: FlowNodeType, cfg: Record<string, unknown>, t: ReturnTy
     case 'ai.text':
       return s(cfg.prompt).slice(0, 60);
     case 'app.track_issue':
-    case 'app.docs_page':
       return s(cfg.title).slice(0, 60);
+    case 'app.docs_page':
+      return [t(`options.${s(cfg.operation) || 'page_create'}`), s(cfg.title)].filter(Boolean).join(': ').slice(0, 60);
+    case 'app.docs_row':
+      return [t(`options.${s(cfg.operation) || 'row_create'}`), s(cfg.title)].filter(Boolean).join(': ').slice(0, 60);
     case 'app.track_update':
       return [s(cfg.issue), s(cfg.status)].filter(Boolean).join(' → ');
     case 'app.crm_update':

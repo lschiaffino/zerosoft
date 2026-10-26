@@ -29,26 +29,32 @@ import * as m23 from '@/lib/routes/v1/crm/sequences/[id]/unenroll/route';
 import * as m24 from '@/lib/routes/v1/crm/tags/[id]/route';
 import * as m25 from '@/lib/routes/v1/crm/tags/[id]/records/route';
 import * as m26 from '@/lib/routes/v1/crm/tasks/[id]/route';
-import * as m27 from '@/lib/routes/v1/groups/chats/[id]/route';
-import * as m28 from '@/lib/routes/v1/groups/chats/[id]/members/route';
-import * as m29 from '@/lib/routes/v1/groups/chats/[id]/messages/route';
-import * as m30 from '@/lib/routes/v1/groups/tickets/[id]/route';
-import * as m31 from '@/lib/routes/v1/links/[id]/route';
-import * as m32 from '@/lib/routes/v1/links/[id]/stats/route';
-import * as m33 from '@/lib/routes/v1/robots/[id]/bulk/route';
-import * as m34 from '@/lib/routes/v1/robots/batches/[id]/route';
-import * as m35 from '@/lib/routes/v1/robots/runs/[id]/route';
-import * as m36 from '@/lib/routes/v1/track/agent-sessions/[id]/route';
-import * as m37 from '@/lib/routes/v1/track/agent-sessions/[id]/activities/route';
-import * as m38 from '@/lib/routes/v1/track/issues/[id]/route';
-import * as m39 from '@/lib/routes/v1/track/issues/[id]/comments/route';
-import * as m40 from '@/lib/routes/v1/track/projects/[id]/route';
-import * as m41 from '@/lib/routes/v1/track/projects/[id]/cycles/route';
-import * as m42 from '@/lib/routes/v1/track/projects/[id]/statuses/route';
-import * as m43 from '@/lib/routes/v1/track/teams/[id]/route';
-import * as m44 from '@/lib/routes/v1/track/teams/[id]/cycles/route';
-import * as m45 from '@/lib/routes/v1/track/teams/[id]/statuses/route';
-import * as m46 from '@/lib/routes/v1/voice/sessions/[id]/route';
+import * as m27 from '@/lib/routes/v1/docs/databases/[pageId]/[blockId]/route';
+import * as m28 from '@/lib/routes/v1/docs/databases/[pageId]/[blockId]/rows/route';
+import * as m29 from '@/lib/routes/v1/docs/databases/[pageId]/[blockId]/rows/[rowId]/route';
+import * as m30 from '@/lib/routes/v1/docs/pages/[id]/route';
+import * as m31 from '@/lib/routes/v1/docs/pages/[id]/blocks/route';
+import * as m32 from '@/lib/routes/v1/docs/pages/[id]/comments/route';
+import * as m33 from '@/lib/routes/v1/groups/chats/[id]/route';
+import * as m34 from '@/lib/routes/v1/groups/chats/[id]/members/route';
+import * as m35 from '@/lib/routes/v1/groups/chats/[id]/messages/route';
+import * as m36 from '@/lib/routes/v1/groups/tickets/[id]/route';
+import * as m37 from '@/lib/routes/v1/links/[id]/route';
+import * as m38 from '@/lib/routes/v1/links/[id]/stats/route';
+import * as m39 from '@/lib/routes/v1/robots/[id]/bulk/route';
+import * as m40 from '@/lib/routes/v1/robots/batches/[id]/route';
+import * as m41 from '@/lib/routes/v1/robots/runs/[id]/route';
+import * as m42 from '@/lib/routes/v1/track/agent-sessions/[id]/route';
+import * as m43 from '@/lib/routes/v1/track/agent-sessions/[id]/activities/route';
+import * as m44 from '@/lib/routes/v1/track/issues/[id]/route';
+import * as m45 from '@/lib/routes/v1/track/issues/[id]/comments/route';
+import * as m46 from '@/lib/routes/v1/track/projects/[id]/route';
+import * as m47 from '@/lib/routes/v1/track/projects/[id]/cycles/route';
+import * as m48 from '@/lib/routes/v1/track/projects/[id]/statuses/route';
+import * as m49 from '@/lib/routes/v1/track/teams/[id]/route';
+import * as m50 from '@/lib/routes/v1/track/teams/[id]/cycles/route';
+import * as m51 from '@/lib/routes/v1/track/teams/[id]/statuses/route';
+import * as m52 from '@/lib/routes/v1/voice/sessions/[id]/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -81,26 +87,32 @@ const d = createDispatcher('zsPath', [
   { pattern: 'crm/tags/[id]', mod: m24 }, // lib/routes/v1/crm/tags/[id]
   { pattern: 'crm/tags/[id]/records', mod: m25 }, // lib/routes/v1/crm/tags/[id]/records
   { pattern: 'crm/tasks/[id]', mod: m26 }, // lib/routes/v1/crm/tasks/[id]
-  { pattern: 'groups/chats/[id]', mod: m27 }, // lib/routes/v1/groups/chats/[id]
-  { pattern: 'groups/chats/[id]/members', mod: m28 }, // lib/routes/v1/groups/chats/[id]/members
-  { pattern: 'groups/chats/[id]/messages', mod: m29 }, // lib/routes/v1/groups/chats/[id]/messages
-  { pattern: 'groups/tickets/[id]', mod: m30 }, // lib/routes/v1/groups/tickets/[id]
-  { pattern: 'links/[id]', mod: m31 }, // lib/routes/v1/links/[id]
-  { pattern: 'links/[id]/stats', mod: m32 }, // lib/routes/v1/links/[id]/stats
-  { pattern: 'robots/[id]/bulk', mod: m33 }, // lib/routes/v1/robots/[id]/bulk
-  { pattern: 'robots/batches/[id]', mod: m34 }, // lib/routes/v1/robots/batches/[id]
-  { pattern: 'robots/runs/[id]', mod: m35 }, // lib/routes/v1/robots/runs/[id]
-  { pattern: 'track/agent-sessions/[id]', mod: m36 }, // lib/routes/v1/track/agent-sessions/[id]
-  { pattern: 'track/agent-sessions/[id]/activities', mod: m37 }, // lib/routes/v1/track/agent-sessions/[id]/activities
-  { pattern: 'track/issues/[id]', mod: m38 }, // lib/routes/v1/track/issues/[id]
-  { pattern: 'track/issues/[id]/comments', mod: m39 }, // lib/routes/v1/track/issues/[id]/comments
-  { pattern: 'track/projects/[id]', mod: m40 }, // lib/routes/v1/track/projects/[id]
-  { pattern: 'track/projects/[id]/cycles', mod: m41 }, // lib/routes/v1/track/projects/[id]/cycles
-  { pattern: 'track/projects/[id]/statuses', mod: m42 }, // lib/routes/v1/track/projects/[id]/statuses
-  { pattern: 'track/teams/[id]', mod: m43 }, // lib/routes/v1/track/teams/[id]
-  { pattern: 'track/teams/[id]/cycles', mod: m44 }, // lib/routes/v1/track/teams/[id]/cycles
-  { pattern: 'track/teams/[id]/statuses', mod: m45 }, // lib/routes/v1/track/teams/[id]/statuses
-  { pattern: 'voice/sessions/[id]', mod: m46 }, // lib/routes/v1/voice/sessions/[id]
+  { pattern: 'docs/databases/[pageId]/[blockId]', mod: m27 }, // lib/routes/v1/docs/databases/[pageId]/[blockId]
+  { pattern: 'docs/databases/[pageId]/[blockId]/rows', mod: m28 }, // lib/routes/v1/docs/databases/[pageId]/[blockId]/rows
+  { pattern: 'docs/databases/[pageId]/[blockId]/rows/[rowId]', mod: m29 }, // lib/routes/v1/docs/databases/[pageId]/[blockId]/rows/[rowId]
+  { pattern: 'docs/pages/[id]', mod: m30 }, // lib/routes/v1/docs/pages/[id]
+  { pattern: 'docs/pages/[id]/blocks', mod: m31 }, // lib/routes/v1/docs/pages/[id]/blocks
+  { pattern: 'docs/pages/[id]/comments', mod: m32 }, // lib/routes/v1/docs/pages/[id]/comments
+  { pattern: 'groups/chats/[id]', mod: m33 }, // lib/routes/v1/groups/chats/[id]
+  { pattern: 'groups/chats/[id]/members', mod: m34 }, // lib/routes/v1/groups/chats/[id]/members
+  { pattern: 'groups/chats/[id]/messages', mod: m35 }, // lib/routes/v1/groups/chats/[id]/messages
+  { pattern: 'groups/tickets/[id]', mod: m36 }, // lib/routes/v1/groups/tickets/[id]
+  { pattern: 'links/[id]', mod: m37 }, // lib/routes/v1/links/[id]
+  { pattern: 'links/[id]/stats', mod: m38 }, // lib/routes/v1/links/[id]/stats
+  { pattern: 'robots/[id]/bulk', mod: m39 }, // lib/routes/v1/robots/[id]/bulk
+  { pattern: 'robots/batches/[id]', mod: m40 }, // lib/routes/v1/robots/batches/[id]
+  { pattern: 'robots/runs/[id]', mod: m41 }, // lib/routes/v1/robots/runs/[id]
+  { pattern: 'track/agent-sessions/[id]', mod: m42 }, // lib/routes/v1/track/agent-sessions/[id]
+  { pattern: 'track/agent-sessions/[id]/activities', mod: m43 }, // lib/routes/v1/track/agent-sessions/[id]/activities
+  { pattern: 'track/issues/[id]', mod: m44 }, // lib/routes/v1/track/issues/[id]
+  { pattern: 'track/issues/[id]/comments', mod: m45 }, // lib/routes/v1/track/issues/[id]/comments
+  { pattern: 'track/projects/[id]', mod: m46 }, // lib/routes/v1/track/projects/[id]
+  { pattern: 'track/projects/[id]/cycles', mod: m47 }, // lib/routes/v1/track/projects/[id]/cycles
+  { pattern: 'track/projects/[id]/statuses', mod: m48 }, // lib/routes/v1/track/projects/[id]/statuses
+  { pattern: 'track/teams/[id]', mod: m49 }, // lib/routes/v1/track/teams/[id]
+  { pattern: 'track/teams/[id]/cycles', mod: m50 }, // lib/routes/v1/track/teams/[id]/cycles
+  { pattern: 'track/teams/[id]/statuses', mod: m51 }, // lib/routes/v1/track/teams/[id]/statuses
+  { pattern: 'voice/sessions/[id]', mod: m52 }, // lib/routes/v1/voice/sessions/[id]
 ]);
 
 export const GET = d.GET;

@@ -31,6 +31,7 @@ import {
 import { rankKnowledge, type KnowledgeDoc } from './knowledge-search';
 import { extractDocsText, listCannedResponses } from './chat-data';
 import { safeFetch, UnsafeUrlError } from './safe-fetch';
+import type { DocsPageWriteInput, DocsRowWriteInput } from './agent-docs-tools';
 
 export interface AgentRunContext {
   agent: AgentDto;
@@ -54,6 +55,17 @@ export interface AgentRunContext {
 }
 
 type ToolOutput = Record<string, unknown>;
+
+/**
+ * Persona con cuyo acceso trabaja el agente en Docs. Si quien le habla está
+ * identificado (playground, Flow con su dueño, API key), esa persona; si no
+ * (Chat, página pública, Groups), quien lo configuró (tools.docsActorId).
+ */
+export function docsActorOf(channel: AgentChannel, conversationCreatedBy: string | null | undefined, cfg: { docsActorId?: string | null }): string | null {
+  if (conversationCreatedBy && (channel === 'playground' || channel === 'api')) return conversationCreatedBy;
+  if (channel === 'playground') return null;
+  return cfg.docsActorId ?? null;
+}
 
 /** run_robot: cuánto espera su turno en la cola del workspace y tope de la corrida. */
 const AGENT_ROBOT_WAIT_MS = 10_000;
@@ -128,8 +140,8 @@ function logged<I>(ctx: AgentRunContext, name: AgentToolKey, fn: (input: I) => P
     try {
       await getDb()
         .prepare(
-          `INSERT INTO agent_tool_calls (id, agent_id, user_id, conversation_id, run_id, tool, input, output, error, duration_ms, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO agent_tool_calls (id, agent_id, user_id, conversation_id, run_id, tool, input, output, error, duration_ms, created_at, captured_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -143,6 +155,7 @@ function logged<I>(ctx: AgentRunContext, name: AgentToolKey, fn: (input: I) => P
           error,
           durationMs,
           createdAt,
+          name.startsWith('docs_') ? docsActorOf(ctx.channel, ctx.conversation.created_by, ctx.agent.tools) : null,
         );
     } catch (err) {
       console.error('[agents] tool log failed', err);
@@ -252,6 +265,76 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
             results: results.map((r) => ({ title: r.title, kind: r.kind, source: r.source ?? null, text: r.text })),
             ...(results.length === 0 ? { note: 'no relevant knowledge found' } : {}),
           };
+        }),
+      }),
+    );
+  }
+
+  // Docs: páginas que el dueño le dio al agente (tools.docsPageIds) y sus subpáginas,
+  // con el acceso de quien le habla si está identificado (ver docsActorOf).
+  const docsActor = docsActorOf(ctx.channel, ctx.conversation.created_by, cfg);
+  if (cfg.docsPageIds.length && on.has('docs_read_pages')) {
+    add(
+      'docs_read_pages',
+      tool({
+        description:
+          'Work with the Docs pages this agent was given. With pageId: read that page (Markdown, its databases with rows, and subpages). With query: search those pages. With neither: list them.',
+        inputSchema: z.object({
+          pageId: z.string().trim().max(100).optional(),
+          query: z.string().trim().max(300).optional(),
+        }),
+        execute: logged(ctx, 'docs_read_pages', async (input: { pageId?: string; query?: string }) => {
+          const { readDocsForAgent } = await import('./agent-docs-tools');
+          return readDocsForAgent(workspaceId, cfg.docsPageIds, input, docsActor);
+        }),
+      }),
+    );
+  }
+
+  if (cfg.docsPageIds.length && on.has('docs_write_page')) {
+    add(
+      'docs_write_page',
+      tool({
+        description:
+          'Write in the Docs pages this agent was given: create a subpage (operation create, parentId optional), add Markdown at the end of a page (append), replace its content (replace) or rename it (rename). Read the page first.',
+        inputSchema: z.object({
+          operation: z.enum(['create', 'append', 'replace', 'rename']),
+          pageId: z.string().trim().max(100).optional(),
+          parentId: z.string().trim().max(100).optional(),
+          title: z.string().trim().max(300).optional(),
+          markdown: z.string().max(40_000).optional(),
+        }),
+        execute: logged(ctx, 'docs_write_page', async (input: DocsPageWriteInput) => {
+          const { checkPageWrite } = await import('./agent-docs-tools');
+          const bad = await checkPageWrite(workspaceId, cfg.docsPageIds, input, docsActor);
+          if (bad) return bad;
+          if (ctx.dryRun) return simulated({ action: `docs_${input.operation}`, pageId: input.pageId ?? input.parentId ?? null, title: input.title ?? null });
+          return (await queueIfRequired(ctx, 'docs_write_page', { ...input })) ?? performAgentAction(actionContext(ctx), 'docs_write_page', { ...input }, docsActor);
+        }),
+      }),
+    );
+  }
+
+  if (cfg.docsPageIds.length && on.has('docs_write_row')) {
+    add(
+      'docs_write_row',
+      tool({
+        description:
+          'Add a row to a database on one of the Docs pages this agent was given, or update a row (rowId). properties maps property names to values (select options by name, people by email, dates as YYYY-MM-DD). Read the page first to see the databases and their properties.',
+        inputSchema: z.object({
+          pageId: z.string().trim().max(100),
+          blockId: z.string().trim().max(100).describe('Database block id from docs_read_pages'),
+          rowId: z.string().trim().max(100).optional(),
+          title: z.string().trim().max(2000).optional(),
+          properties: z.record(z.string().max(5000)).optional(),
+          markdown: z.string().max(20_000).optional(),
+        }),
+        execute: logged(ctx, 'docs_write_row', async (input: DocsRowWriteInput) => {
+          const { checkRowWrite } = await import('./agent-docs-tools');
+          const bad = await checkRowWrite(workspaceId, cfg.docsPageIds, input, docsActor);
+          if (bad) return bad;
+          if (ctx.dryRun) return simulated({ action: input.rowId ? 'docs_update_row' : 'docs_add_row', pageId: input.pageId, title: input.title ?? null, properties: input.properties ?? {} });
+          return (await queueIfRequired(ctx, 'docs_write_row', { ...input })) ?? performAgentAction(actionContext(ctx), 'docs_write_row', { ...input }, docsActor);
         }),
       }),
     );
@@ -673,6 +756,8 @@ export interface AgentActionContext {
   conversationId: string;
   channel: AgentChannel;
   secretHeaders: Array<{ name: string; domain: string; value: string }>;
+  /** Persona que inició la conversación (si está identificada): con su acceso trabaja en Docs. */
+  conversationCreatedBy?: string | null;
 }
 
 function actionContext(ctx: AgentRunContext): AgentActionContext {
@@ -682,12 +767,15 @@ function actionContext(ctx: AgentRunContext): AgentActionContext {
     conversationId: ctx.conversation.id,
     channel: ctx.channel,
     secretHeaders: ctx.secretHeaders ?? [],
+    conversationCreatedBy: ctx.conversation.created_by ?? null,
   };
 }
 
 /** Si la herramienta pide aprobación, la encola y devuelve lo que el modelo le dice al visitante. */
 async function queueIfRequired(ctx: AgentRunContext, tool: ApprovableAgentTool, input: Record<string, unknown>): Promise<ToolOutput | null> {
-  if (ctx.dryRun || !(ctx.agent.tools.requireApproval ?? []).includes(tool)) return null;
+    // Escribir en Docs sin una persona identificada (Chat, página pública, API, Groups, Flow) siempre espera aprobación.
+  const forced = (tool === 'docs_write_page' || tool === 'docs_write_row') && ctx.channel !== 'playground';
+  if (ctx.dryRun || (!forced && !(ctx.agent.tools.requireApproval ?? []).includes(tool))) return null;
   const { queueAgentAction } = await import('./agents-approvals');
   const id = await queueAgentAction(actionContext(ctx), tool, input);
   return {
@@ -706,9 +794,11 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
  * y lib/agents-approvals.ts al aprobar: revalida contra la configuración
  * actual del agente (un evento, proyecto, flow o dominio sacado ya no corre).
  */
-export async function performAgentAction(actx: AgentActionContext, tool: ApprovableAgentTool, input: ActionInput): Promise<ToolOutput> {
+export async function performAgentAction(actx: AgentActionContext, tool: ApprovableAgentTool, input: ActionInput, docsActorOverride?: string | null): Promise<ToolOutput> {
   const { agent, workspaceId } = actx;
   const cfg = agent.tools;
+  // Docs: con el acceso de quien le habla (si está identificado) o de quien configuró el agente; nunca el del dueño.
+  const docsActor = docsActorOverride !== undefined ? docsActorOverride : docsActorOf(actx.channel, actx.conversationCreatedBy, cfg);
   switch (tool) {
     case 'crm_upsert_contact': {
       const { findOrCreateContact } = await import('./crm-integrations');
@@ -802,6 +892,29 @@ export async function performAgentAction(actx: AgentActionContext, tool: Approva
       if (!runId) return { error: 'rate_limited' };
       kickFlowWorker();
       return { runId, status: 'queued', flow: row.name };
+    }
+    case 'docs_write_page': {
+      const { writePageForAgent } = await import('./agent-docs-tools');
+      const op = (['create', 'append', 'replace', 'rename'] as const).find((o) => o === input.operation) ?? 'append';
+      return writePageForAgent(
+        workspaceId,
+        cfg.docsPageIds,
+        { operation: op, pageId: str(input.pageId) || undefined, parentId: str(input.parentId) || undefined, title: str(input.title) || undefined, markdown: str(input.markdown) || undefined },
+        agent.name,
+        docsActor,
+      );
+    }
+    case 'docs_write_row': {
+      const { writeRowForAgent } = await import('./agent-docs-tools');
+      const props = input.properties && typeof input.properties === 'object' ? (input.properties as Record<string, string>) : undefined;
+      return writeRowForAgent(workspaceId, cfg.docsPageIds, {
+        pageId: str(input.pageId),
+        blockId: str(input.blockId),
+        rowId: str(input.rowId) || undefined,
+        title: str(input.title) || undefined,
+        properties: props,
+        markdown: str(input.markdown) || undefined,
+      }, docsActor);
     }
     case 'http_request': {
       let url: URL;

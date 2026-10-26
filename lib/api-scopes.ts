@@ -20,6 +20,8 @@ export const API_SCOPES = [
   'voice:write',
   'track:read',
   'track:write',
+  'docs:read',
+  'docs:write',
   'talk:read',
   'talk:write',
 ] as const;
