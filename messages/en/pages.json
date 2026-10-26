@@ -2385,7 +2385,10 @@
     "paramTalkText": "Message text, with the same formatting as the app (*bold*, _italic_, `code`, links, :emoji:)",
     "paramTalkThread": "Id of the root message to reply in its thread",
     "paramTalkAlso": "With thread_id, also show the reply in the channel",
-    "paramTalkUsername": "Bot name shown on the message (by default, the webhook name)"
+    "paramTalkUsername": "Bot name shown on the message (by default, the webhook name)",
+    "paramLimit": "Maximum number of results.",
+    "scope_talk_read": "Read Talk channels and messages you are a member of.",
+    "scope_talk_write": "Post Talk messages and create channels."
   },
   "parityOverview": {
     "title": "Feature parity, app by app.",
