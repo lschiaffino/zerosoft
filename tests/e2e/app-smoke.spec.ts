@@ -415,14 +415,6 @@ const APPS: AppCase[] = [
     rename: async (request, i, name) => void (await ok(request.patch(`/api/robots/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/robots/${i.id}`))),
   },
-  {
-    app: 'Voice meetings',
-    list: '/en/app/voice',
-    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/voice/sessions', { data: { title: name } }))).id, name }),
-    detail: (i) => `/en/app/voice/meetings/${i.id}`,
-    rename: async (request, i, name) => void (await ok(request.patch(`/api/voice/sessions/${i.id}`, { data: { title: name } }))),
-    remove: async (request, i) => void (await ok(request.delete(`/api/voice/sessions/${i.id}`))),
-  },
 ];
 
 /** Errores de JS, de consola y respuestas 5xx mientras corre el test. */
@@ -595,10 +587,11 @@ test.describe('smoke inicio', () => {
   });
 });
 
-// Apps en construcción (Rec): todavía no crean nada, pero el shell
+// Apps en construcción (Voice, Rec): todavía no crean nada, pero el shell
 // cumple lo común: estado vacío claro, ítem activo en el sidebar, ⌘K las abre,
 // claro y oscuro sin errores y 390px sin scroll horizontal.
 for (const app of [
+  { key: 'voice', name: 'Voice' },
   { key: 'rec', name: 'Rec' },
 ]) {
   test.describe(`smoke ${app.name} (en construcción)`, () => {

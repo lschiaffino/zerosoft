@@ -132,7 +132,7 @@ for (const [width, height] of [[1280, 720], [1440, 900]] as const) {
     await page.locator('.site-header .hd-trigger').click();
     const mega = page.locator('#hd-mega');
     // Las apps en construcción van en una fila compacta aparte.
-    await expect(mega.locator('.hd-building a.hd-prod')).toHaveCount(1);
+    await expect(mega.locator('.hd-building a.hd-prod')).toHaveCount(2);
     for (const link of await mega.locator('a.hd-prod').all()) await expect(link).toBeInViewport({ ratio: 1 });
   });
 }

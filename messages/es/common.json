@@ -33,7 +33,7 @@
       "groups": "Bandeja compartida de WhatsApp y gestión de grupos",
       "notes": "Notas, libretas, checklists y clipper web",
       "board": "Pizarra infinita compartida",
-      "voice": "Dictado por voz y notas de reunión",
+      "voice": "En construcción: dictado por voz y notas de reunión",
       "rec": "En construcción: grabación de pantalla y cámara",
       "talk": "En construcción: mensajería de equipo"
     },
@@ -144,7 +144,6 @@
     "openApp": "Abrir {name}",
     "goHome": "Ir al inicio",
     "linkOverview": "Resumen de Link",
-    "groupVoiceSessions": "Reuniones de Voice",
     "groupTeams": "Equipos",
     "groupTrackViews": "Vistas",
     "groupTrackCycles": "Cycles",
@@ -197,7 +196,7 @@
       "desc": "Una pizarra infinita para tu equipo."
     },
     "voice": {
-      "desc": "Dictado en cualquier campo y notas de reunión con IA."
+      "desc": "Dictado y notas de reunión con IA. En construcción."
     },
     "rec": {
       "desc": "Videos de pantalla y cámara para compartir. En construcción."

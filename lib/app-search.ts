@@ -42,7 +42,6 @@ export interface AppSearchItem {
     | 'groupsLists'
     | 'groupsTemplates'
     | 'groupsRecurring'
-    | 'voiceSessions'
     | 'talkChannels'
     | 'talkDms'
     | 'talkPeople';
@@ -126,7 +125,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ),
     all(`SELECT id, name AS label FROM track_labels WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, ws, like),
   ]);
-  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates, talkChannels, talkDms, talkPeople, voiceSessions] = await Promise.all([
+  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates, talkChannels, talkDms, talkPeople] = await Promise.all([
     all(
       `SELECT b.id, b.name AS label FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND b.name LIKE ? ESCAPE '\\' ORDER BY b.updated_at DESC LIMIT ?`,
       user.id,
@@ -277,17 +276,6 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       like,
       like,
     ),
-    // Voice: reuniones propias (son privadas de quien las grabó) por título o por lo que se dijo.
-    all(
-      `SELECT s.id, CASE WHEN s.title != '' THEN s.title ELSE substr(s.started_at, 1, 10) END AS label, substr(s.started_at, 1, 10) AS meta
-       FROM voice_sessions s WHERE s.workspace_id = ? AND s.person_id = ? AND s.kind = 'meeting'
-         AND (s.title LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM voice_segments g WHERE g.session_id = s.id AND g.text LIKE ? ESCAPE '\\'))
-       ORDER BY s.started_at DESC LIMIT ?`,
-      user.id,
-      person,
-      like,
-      like,
-    ),
   ]);
 
   const map = (rows: Row[], group: AppSearchItem['group'], href: (id: string) => string): AppSearchItem[] =>
@@ -342,7 +330,6 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     }),
     ...map(groupLists, 'groupsLists', (id) => `/app/groups/inbox?list=${id}`),
     ...map(groupTemplates, 'groupsTemplates', (id) => `/app/groups/templates?use=${id}`),
-    ...map(voiceSessions, 'voiceSessions', (id) => `/app/voice/meetings/${id}`),
     ...map(talkChannels, 'talkChannels', (id) => `/app/talk/${id}`),
     ...map(talkDms, 'talkDms', (id) => `/app/talk/${id}`),
     ...map(talkPeople, 'talkPeople', (id) => `/app/talk?dm=${encodeURIComponent(id)}`),

@@ -1,34 +1,19 @@
-import { getTranslations, setRequestLocale } from 'next-intl/server';
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
-import { getVoiceSettings, listCustomTemplates, listDictionary, voiceOwner } from '@/lib/voice';
-import { transcribeModel, transcribeProvider } from '@/lib/voice-transcribe';
-import { BUILTIN_TEMPLATE_SECTIONS } from '@/lib/voice-templates';
-import { API_BASE_URL } from '@/lib/api-docs';
-import VoiceSettingsView from '@/components/voice/VoiceSettingsView';
+import MinimalProductSettings from '@/components/app/ProductSettingsShell';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await props.params;
-  const t = await getTranslations({ locale, namespace: 'voice' });
-  return { title: t('meta.settings') };
+  const t = await getTranslations({ locale, namespace: 'settings.products' });
+  return { title: t('title', { app: 'Voice' }) };
 }
 
+/** Ajustes de Voice: por ahora atajos a lo del workspace. */
 export default async function VoiceSettingsPage(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
-  setRequestLocale(locale);
-  const user = await requireUser(locale, `/${locale}/app/voice/settings`);
-  const owner = voiceOwner(user);
-  const [settings, dictionary, templates] = await Promise.all([getVoiceSettings(owner), listDictionary(owner), listCustomTemplates(owner)]);
-  const provider = transcribeProvider();
-  return (
-    <VoiceSettingsView
-      settings={settings}
-      dictionary={dictionary}
-      templates={templates}
-      builtinSections={BUILTIN_TEMPLATE_SECTIONS}
-      provider={`${provider} (${transcribeModel(provider)})`}
-      apiBase={process.env.NEXTAUTH_URL ? `${process.env.NEXTAUTH_URL.replace(/\/$/, '')}/api/v1` : API_BASE_URL}
-    />
-  );
+  await requireUser(locale);
+  return <MinimalProductSettings locale={locale} product="voice" />;
 }

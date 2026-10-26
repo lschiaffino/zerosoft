@@ -1,4 +1,3 @@
-import { runVoiceCron } from '@/lib/voice-jobs';
 import { NextRequest, NextResponse } from 'next/server';
 import { fireDueTasks } from '@/lib/crm';
 import { processFlowQueue } from '@/lib/flow-worker';
@@ -64,8 +63,6 @@ export async function GET(req: NextRequest) {
   const trackIntegrations = await processTrackIntegrationQueue({ limit: 100 }).catch(() => null);
   // Groups: envíos masivos y programados, chats sin responder y tickets vencidos (claims por fila).
   const groups = await runGroupsCron({ budgetMs: 30_000 }).catch(() => null);
-  // Voice: grabaciones colgadas y notas con IA en cola (claim por fila en notes_status).
-  const voice = await runVoiceCron({ budgetMs: 20_000, cleanup: false }).catch(() => null);
   // Agentes de datos y prospección del CRM (claim por ítem en claimed_at).
   const crmAiRuns = await processAiRuns({ budgetMs: 20_000 }).catch(() => null);
   // Talk: mensajes programados (claim pending → sending), recordatorios (sent_at) y emails de menciones (talk_email_queue.sent_at).
@@ -75,5 +72,6 @@ export async function GET(req: NextRequest) {
   const imports = await processImportJobs({ budgetMs: Math.max(5_000, IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
   // Imports del CRM con lo que queda de los 300 s (dejando margen).
   const crmImports = await processCrmImportJobs({ budgetMs: Math.max(0, CRM_IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, groups, voice, crmAiRuns, talk, flow, imports, crmImports });
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, groups, crmAiRuns, flow, imports, crmImports });
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, docReminders, trackReminders, trackEmails, groups, crmAiRuns, talk, flow, imports, crmImports });
 }

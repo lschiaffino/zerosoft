@@ -152,8 +152,8 @@ export interface SidebarLabels {
     analytics: string;
     settings: string;
   };
-  voice: { meetings: string; dictation: string; newMeeting: string };
-  /** Apps en construcción (Rec, Talk): por ahora solo su inicio. */
+  /** Apps en construcción (Voice, Rec, Talk): por ahora solo su inicio. */
+  voice: { home: string };
   rec: { home: string };
   talk: { home: string };
   notifications: {
@@ -179,7 +179,7 @@ export interface NavItem {
   branch?: boolean;
   /** Solo el hueco del árbol, sin el ítem (Track lista los teams directo bajo "Your teams"). */
   branchOnly?: boolean;
-  /** App en construcción (Rec, Talk): el sidebar le suma la marca "pronto". */
+  /** App en construcción (Voice, Rec, Talk): el sidebar le suma la marca "pronto". */
   soon?: boolean;
 }
 
@@ -594,23 +594,8 @@ export function buildNav(
         },
       ];
 
-    case 'voice':
-      return [
-        {
-          items: [
-            {
-              href: '/app/voice',
-              label: labels.voice.meetings,
-              active: at('/app/voice') && !at('/app/voice/dictation') && !at('/app/voice/settings'),
-              icon: 'notes',
-            },
-            { href: '/app/voice/dictation', label: labels.voice.dictation, active: at('/app/voice/dictation'), icon: 'voice' },
-          ],
-        },
-        appSettingsGroup('/app/voice/settings'),
-      ];
-
     // Apps en construcción: su inicio (el estado "Próximamente") y sus ajustes.
+    case 'voice':
     case 'rec':
     case 'talk': {
       const base = `/app/${product}`;
@@ -669,9 +654,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
   const item = (href: string, label: string, icon: IconName): NavItem => ({ href, label, icon, active: false });
   switch (product) {
     case 'home':
-    case 'voice':
-      return [item('/app/voice?new=1', labels.voice.newMeeting, 'voice')];
     // Las apps en construcción todavía no crean nada: lo más común de las demás.
+    case 'voice':
     case 'rec':
     case 'talk':
       // Sin app activa: crear lo más común de cada una.

@@ -33,7 +33,7 @@
       "groups": "Caixa compartilhada de WhatsApp e gestão de grupos",
       "notes": "Notas, cadernos, checklists e clipper web",
       "board": "Quadro branco infinito compartilhado",
-      "voice": "Ditado por voz e notas de reunião",
+      "voice": "Em construção: ditado por voz e notas de reunião",
       "rec": "Em construção: gravação de tela e câmera",
       "talk": "Em construção: mensagens de equipe"
     },
@@ -144,7 +144,6 @@
     "openApp": "Abrir {name}",
     "goHome": "Ir para o início",
     "linkOverview": "Resumo do Link",
-    "groupVoiceSessions": "Reuniões do Voice",
     "groupTeams": "Equipes",
     "groupTrackViews": "Visualizações",
     "groupTrackCycles": "Cycles",
@@ -197,7 +196,7 @@
       "desc": "Um quadro branco infinito para o seu time."
     },
     "voice": {
-      "desc": "Ditado em qualquer campo e notas de reunião com IA."
+      "desc": "Ditado e notas de reunião com IA. Em construção."
     },
     "rec": {
       "desc": "Vídeos de tela e câmera para compartilhar. Em construção."

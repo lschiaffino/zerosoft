@@ -102,11 +102,7 @@ export async function clearOfflineData(): Promise<void> {
       const keys = await caches.keys();
       await Promise.all(keys.filter((k) => k.startsWith('zs-crm')).map((k) => caches.delete(k)));
     }
-    if ('indexedDB' in window) {
-      indexedDB.deleteDatabase('zs-offline');
-      // Trozos de reuniones de Voice que esperaban reintento (components/voice/failedStore.ts).
-      indexedDB.deleteDatabase('zs-voice');
-    }
+    if ('indexedDB' in window) indexedDB.deleteDatabase('zs-offline');
   } catch {
     /* almacenamiento bloqueado: no hay nada que borrar */
   }

@@ -33,7 +33,7 @@
       "groups": "Shared WhatsApp inbox and group management",
       "notes": "Notes, notebooks, checklists and a web clipper",
       "board": "Shared infinite whiteboard",
-      "voice": "Voice dictation and meeting notes",
+      "voice": "In the works: voice dictation and meeting notes",
       "rec": "In the works: screen and camera recording",
       "talk": "In the works: team messaging"
     },
@@ -144,7 +144,6 @@
     "openApp": "Open {name}",
     "goHome": "Go to home",
     "linkOverview": "Link overview",
-    "groupVoiceSessions": "Voice meetings",
     "groupTeams": "Teams",
     "groupTrackViews": "Views",
     "groupTrackCycles": "Cycles",
@@ -197,7 +196,7 @@
       "desc": "An infinite whiteboard for your team."
     },
     "voice": {
-      "desc": "Dictation in any field and AI meeting notes."
+      "desc": "Dictation and AI meeting notes. In the works."
     },
     "rec": {
       "desc": "Screen and camera videos to share. In the works."
