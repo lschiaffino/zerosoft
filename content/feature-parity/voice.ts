@@ -23,8 +23,9 @@ function row(
 
 /**
  * Voice contra Wispr Flow (dictado) y Granola (notas de reunión). Fuente:
- * docs/benchmark/voice.md. Voice todavía no existe (solo el shell
- * "Próximamente"), así que todas las filas están en missing.
+ * docs/benchmark/voice.md. Primera versión web (tanda 4b): dictado en toda la
+ * suite y notas de reunión; la app de escritorio está en camino (código en
+ * desktop/voice, sin compilar ni firmar).
  */
 const parity: ProductParity = {
   competitor: 'Wispr Flow + Granola',
@@ -44,85 +45,85 @@ const parity: ProductParity = {
   ],
   rows: [
     // Dictado en cualquier app
-    row('dictate-any-app', 'dictation', ['Dictate into any text field with a shortcut', 'Dictar en cualquier campo de texto con un atajo', 'Ditar em qualquer campo de texto com um atalho'], 'missing', {
+    row('dictate-any-app', 'dictation', ['Dictate into any text field with a shortcut', 'Dictar en cualquier campo de texto con un atajo', 'Ditar em qualquer campo de texto com um atalho'], 'partial', {
       weight: 2,
       detail: [
-        'Wispr Flow: hold Fn (Mac) or Ctrl+Win (Windows), speak, and the text is pasted at the cursor',
-        'Wispr Flow: mantener Fn (Mac) o Ctrl+Win (Windows), hablar, y el texto se pega donde está el cursor',
-        'Wispr Flow: segurar Fn (Mac) ou Ctrl+Win (Windows), falar, e o texto é colado onde está o cursor',
+        "Hold Alt+Space (or the field button) in any zerosoft field and the clean text is inserted at the cursor. Other apps on the computer need the desktop app, which is on the way",
+        "Mantener Alt+Space (o el botón del campo) en cualquier campo de zerosoft inserta el texto limpio donde está el cursor. Las otras apps de la compu necesitan la app de escritorio, que está en camino",
+        "Segurar Alt+Space (ou o botão do campo) em qualquer campo do zerosoft insere o texto limpo no cursor. Os outros apps do computador precisam do app desktop, que está a caminho",
       ],
     }),
-    row('hands-free', 'dictation', ['Hands-free mode', 'Modo manos libres', 'Modo mãos livres'], 'missing', {
+    row('hands-free', 'dictation', ['Hands-free mode', 'Modo manos libres', 'Modo mãos livres'], 'have', {
       detail: [
-        'Wispr Flow: Fn+Space starts and stops dictation without holding a key',
-        'Wispr Flow: Fn+Space empieza y termina el dictado sin mantener la tecla',
-        'Wispr Flow: Fn+Space inicia e encerra o ditado sem segurar a tecla',
+        "Double tap the shortcut, or click the field button, and Voice listens until you tap again",
+        "Doble toque al atajo, o clic en el botón del campo, y Voice escucha hasta el próximo toque",
+        "Toque duplo no atalho, ou clique no botão do campo, e o Voice ouve até o próximo toque",
       ],
     }),
-    row('languages', 'dictation', ['More than 100 languages', 'Más de 100 idiomas', 'Mais de 100 idiomas'], 'missing', {
+    row('languages', 'dictation', ['More than 100 languages', 'Más de 100 idiomas', 'Mais de 100 idiomas'], 'partial', {
       weight: 2,
       detail: [
-        'Wispr Flow dictation and Granola transcription in several languages per account',
-        'Dictado de Wispr Flow y transcripción de Granola en varios idiomas por cuenta',
-        'Ditado do Wispr Flow e transcrição do Granola em vários idiomas por conta',
+        "16 languages to pick in settings, plus automatic detection with whatever the configured provider supports (Whisper, Deepgram or AssemblyAI)",
+        "16 idiomas para elegir en ajustes, más la detección automática con lo que soporte el proveedor configurado (Whisper, Deepgram o AssemblyAI)",
+        "16 idiomas para escolher nos ajustes, mais a detecção automática com o que o provedor configurado suportar (Whisper, Deepgram ou AssemblyAI)",
       ],
     }),
     row('whisper-mode', 'dictation', ['Whisper mode', 'Modo susurro', 'Modo sussurro'], 'missing', {
       detail: ['Wispr Flow: dictate at low volume in shared spaces', 'Wispr Flow: dictar en voz baja en lugares compartidos', 'Wispr Flow: ditar em voz baixa em lugares compartilhados'],
     }),
-    row('paste-last', 'dictation', ['Paste or copy the last dictation', 'Pegar o copiar el último dictado', 'Colar ou copiar o último ditado'], 'missing', {
+    row('paste-last', 'dictation', ['Paste or copy the last dictation', 'Pegar o copiar el último dictado', 'Colar ou copiar o último ditado'], 'have', {
       detail: [
-        'Wispr Flow: a shortcut pastes or copies the last transcript if it did not land',
-        'Wispr Flow: un atajo pega o copia el último dictado si no se pegó',
-        'Wispr Flow: um atalho cola ou copia o último ditado se ele não foi colado',
+        "Ctrl+Cmd+V (Mac) or Ctrl+Alt+Shift+V pastes the last dictation from the server history, also the ones made in the desktop app; every dictation can be copied again from the history",
+        "Ctrl+Cmd+V (Mac) o Ctrl+Alt+Shift+V pega el último dictado del historial del servidor, también los de la app de escritorio; cada dictado se puede volver a copiar desde el historial",
+        "Ctrl+Cmd+V (Mac) ou Ctrl+Alt+Shift+V cola o último ditado do histórico do servidor, também os do app desktop; cada ditado pode ser copiado de novo pelo histórico",
       ],
     }),
 
     // Limpieza y formato
-    row('filler-cleanup', 'cleanup', ['Remove filler words and fix grammar and punctuation', 'Sacar muletillas y arreglar gramática y puntuación', 'Tirar vícios de linguagem e corrigir gramática e pontuação'], 'missing', {
+    row('filler-cleanup', 'cleanup', ['Remove filler words and fix grammar and punctuation', 'Sacar muletillas y arreglar gramática y puntuación', 'Tirar vícios de linguagem e corrigir gramática e pontuação'], 'have', {
       weight: 2,
       detail: [
-        'Wispr Flow Smart Formatting, on by default: "um", pauses, capitals and punctuation',
-        'Smart Formatting de Wispr Flow, prendido por defecto: muletillas, pausas, mayúsculas y puntuación',
-        'Smart Formatting do Wispr Flow, ligado por padrão: vícios, pausas, maiúsculas e pontuação',
+        "AI cleanup of fillers, punctuation and capitals, with a rules fallback when AI is off",
+        "Limpieza con IA de muletillas, puntuación y mayúsculas, con limpieza por reglas si la IA está apagada",
+        "Limpeza com IA de vícios, pontuação e maiúsculas, com limpeza por regras se a IA estiver desligada",
       ],
     }),
-    row('backtrack', 'cleanup', ['Apply spoken self-corrections', 'Aplicar las autocorrecciones dichas', 'Aplicar as autocorreções faladas'], 'missing', {
+    row('backtrack', 'cleanup', ['Apply spoken self-corrections', 'Aplicar las autocorrecciones dichas', 'Aplicar as autocorreções faladas'], 'partial', {
       detail: [
-        'Wispr Flow Backtrack: "Monday, scratch that, Tuesday" becomes "Tuesday"',
-        'Backtrack de Wispr Flow: "el lunes, no, mejor el martes" queda "el martes"',
-        'Backtrack do Wispr Flow: "segunda, não, melhor terça" vira "terça"',
+        "Spoken corrections (\"Monday, no, I mean Tuesday\", \"scratch that\") are applied by the AI prompt and by a rules fallback; the rules cover clear cases only and the AI behaviour has not been measured against real recordings yet",
+        "Las correcciones dichas (\"el lunes, no, quise decir el martes\", \"borrá eso\") las aplica la IA y una limpieza por reglas de respaldo; las reglas cubren solo los casos claros y todavía no medimos la IA con grabaciones reales",
+        "As correções faladas (\"segunda, não, quis dizer terça\", \"apaga isso\") são aplicadas pela IA e por uma limpeza por regras de reserva; as regras cobrem só os casos claros e ainda não medimos a IA com gravações reais",
       ],
     }),
-    row('lists-punctuation', 'cleanup', ['Spoken lists and punctuation', 'Listas y puntuación dictadas', 'Listas e pontuação ditadas'], 'missing', {
+    row('lists-punctuation', 'cleanup', ['Spoken lists and punctuation', 'Listas y puntuación dictadas', 'Listas e pontuação ditadas'], 'have', {
       detail: [
-        'Wispr Flow: "first... second..." makes a list; "comma" or "new line" insert the mark',
-        'Wispr Flow: "primero... segundo..." arma una lista; "coma" o "nueva línea" insertan el signo',
-        'Wispr Flow: "primeiro... segundo..." cria uma lista; "vírgula" ou "nova linha" inserem o sinal',
+        "\"First… second…\" becomes a numbered list and \"new line\" or \"new paragraph\" break lines",
+        "\"Primero… segundo…\" arma una lista numerada y \"nueva línea\" o \"nuevo párrafo\" cortan la línea",
+        "\"Primeiro… segundo…\" vira uma lista numerada e \"nova linha\" ou \"novo parágrafo\" quebram a linha",
       ],
     }),
 
     // Diccionario, snippets y estilos
-    row('dictionary', 'personalization', ['Personal dictionary', 'Diccionario personal', 'Dicionário pessoal'], 'missing', {
+    row('dictionary', 'personalization', ['Personal dictionary', 'Diccionario personal', 'Dicionário pessoal'], 'partial', {
       weight: 2,
       detail: [
-        'Wispr Flow learns from corrections and takes manual words; Granola takes custom transcription terms',
-        'Wispr Flow aprende de las correcciones y acepta palabras a mano; Granola acepta términos propios para la transcripción',
-        'O Wispr Flow aprende com as correções e aceita palavras manuais; o Granola aceita termos próprios na transcrição',
+        "Words to spell right (they also bias the transcription) and replacements, added by hand. It does not learn from your corrections yet",
+        "Palabras para escribir bien (también orientan la transcripción) y reemplazos, cargados a mano. Todavía no aprende de tus correcciones",
+        "Palavras para escrever certo (também orientam a transcrição) e substituições, cadastradas à mão. Ainda não aprende com suas correções",
       ],
     }),
-    row('snippets', 'personalization', ['Voice snippets', 'Snippets por voz', 'Snippets por voz'], 'missing', {
+    row('snippets', 'personalization', ['Voice snippets', 'Snippets por voz', 'Snippets por voz'], 'have', {
       detail: [
         'Wispr Flow: a spoken cue inserts saved text, like a booking link or a frequent answer',
         'Wispr Flow: una frase dicha inserta un texto guardado, como un link de agenda o una respuesta frecuente',
         'Wispr Flow: uma frase falada insere um texto salvo, como um link de agenda ou uma resposta frequente',
       ],
     }),
-    row('styles-by-app', 'personalization', ['Tone by app', 'Tono según la app', 'Tom conforme o app'], 'missing', {
+    row('styles-by-app', 'personalization', ['Tone by app', 'Tono según la app', 'Tom conforme o app'], 'have', {
       detail: [
-        'Wispr Flow Styles: formal, casual, very casual or excited per category (personal, work, email, other); English only',
-        'Styles de Wispr Flow: formal, casual, muy casual o entusiasta por categoría (personal, trabajo, email, otros); solo en inglés',
-        'Styles do Wispr Flow: formal, casual, bem casual ou animado por categoria (pessoal, trabalho, email, outros); só em inglês',
+        "Formal, neutral or casual tone per context (email, chat, note, other), picked from the app and the field",
+        "Tono formal, neutro o informal por contexto (email, chat, nota, otros), según la app y el campo",
+        "Tom formal, neutro ou informal por contexto (email, chat, nota, outros), conforme o app e o campo",
       ],
     }),
     row('context-names', 'personalization', ['Spell names from screen context', 'Escribir nombres según el contexto de la pantalla', 'Escrever nomes pelo contexto da tela'], 'missing'),
@@ -147,12 +148,12 @@ const parity: ProductParity = {
     }),
 
     // Escritorio, móvil y uso
-    row('desktop-apps', 'apps', ['Mac and Windows desktop apps', 'Apps de escritorio para Mac y Windows', 'Apps desktop para Mac e Windows'], 'missing', {
+    row('desktop-apps', 'apps', ['Mac and Windows desktop apps', 'Apps de escritorio para Mac y Windows', 'Apps desktop para Mac e Windows'], 'partial', {
       weight: 2,
       detail: [
-        'Both products ship native apps; Granola on the web only views and edits',
-        'Los dos tienen app nativa; Granola en la web solo ve y edita',
-        'Os dois têm app nativo; o Granola na web só vê e edita',
+        "Tauri v2 source for Mac and Windows in desktop/voice (global shortcut, paste, system audio). It is on the way: not built or signed yet, so there is no download",
+        "Código Tauri v2 para Mac y Windows en desktop/voice (atajo global, pegado, audio del sistema). Está en camino: todavía no está compilado ni firmado, así que no hay descarga",
+        "Código Tauri v2 para Mac e Windows em desktop/voice (atalho global, colar, áudio do sistema). Está a caminho: ainda não está compilado nem assinado, então não há download",
       ],
     }),
     row('mobile-apps', 'apps', ['iOS and Android', 'iOS y Android', 'iOS e Android'], 'missing', {
@@ -162,72 +163,84 @@ const parity: ProductParity = {
         'Teclado do Wispr Flow no iPhone e Android; apps do Granola para iOS, Android e Apple Watch',
       ],
     }),
-    row('device-sync', 'apps', ['Sync across devices', 'Sincronizar entre dispositivos', 'Sincronizar entre dispositivos'], 'missing', {
+    row('device-sync', 'apps', ['Sync across devices', 'Sincronizar entre dispositivos', 'Sincronizar entre dispositivos'], 'partial', {
       detail: [
-        'Wispr Flow syncs dictionary, snippets and settings; Granola syncs notes',
-        'Wispr Flow sincroniza diccionario, snippets y ajustes; Granola sincroniza notas',
-        'O Wispr Flow sincroniza dicionário, snippets e ajustes; o Granola sincroniza notas',
+        "Dictionary, styles and history live on the server, so every browser uses the same ones; the desktop app would use them too through the API, but it is not built yet",
+        "El diccionario, los estilos y el historial viven en el servidor y cualquier navegador usa los mismos; la app de escritorio los usaría por la API, pero todavía no está compilada",
+        "O dicionário, os estilos e o histórico ficam no servidor e qualquer navegador usa os mesmos; o app desktop usaria pela API, mas ainda não está compilado",
       ],
     }),
-    row('usage-stats', 'apps', ['Usage stats', 'Estadísticas de uso', 'Estatísticas de uso'], 'missing', {
+    row('usage-stats', 'apps', ['Usage stats', 'Estadísticas de uso', 'Estatísticas de uso'], 'partial', {
       detail: [
-        'Wispr Flow Usage tab, with team dashboards on paid plans',
-        'Pestaña Usage de Wispr Flow, con paneles de equipo en planes pagos',
-        'Aba Usage do Wispr Flow, com painéis de equipe nos planos pagos',
+        "Words this week, dictations and minutes for each person; no team dashboard",
+        "Palabras de la semana, dictados y minutos por persona; sin panel de equipo",
+        "Palavras da semana, ditados e minutos por pessoa; sem painel de equipe",
       ],
     }),
 
     // Captura de reuniones
-    row('botless-capture', 'capture', ['Record meetings without a bot', 'Grabar reuniones sin bot', 'Gravar reuniões sem bot'], 'missing', {
+    row('botless-capture', 'capture', ['Record meetings without a bot', 'Grabar reuniones sin bot', 'Gravar reuniões sem bot'], 'partial', {
       weight: 2,
       detail: [
-        'Granola captures system audio and the mic for any call (Zoom, Meet, Teams, Slack) and does not keep the audio',
-        'Granola captura el audio del sistema y el micrófono en cualquier llamada (Zoom, Meet, Teams, Slack) y no guarda el audio',
-        'O Granola captura o áudio do sistema e o microfone em qualquer chamada (Zoom, Meet, Teams, Slack) e não guarda o áudio',
+        "No bot: the browser records your mic, or your mic plus a tab with Meet, Zoom or Teams on the web. The audio of native call apps needs the desktop app, which is on the way",
+        "Sin bot: el navegador graba tu micrófono, o el micrófono y una pestaña con Meet, Zoom o Teams web. El audio de las apps de llamadas nativas necesita la app de escritorio, que está en camino",
+        "Sem bot: o navegador grava seu microfone, ou o microfone e uma aba com Meet, Zoom ou Teams web. O áudio dos apps de chamada nativos precisa do app desktop, que está a caminho",
       ],
     }),
-    row('live-transcript', 'capture', ['Live transcript', 'Transcripción en vivo', 'Transcrição ao vivo'], 'missing', {
+    row('live-transcript', 'capture', ['Live transcript', 'Transcripción en vivo', 'Transcrição ao vivo'], 'have', {
       weight: 2,
       detail: [
-        'Granola: a searchable panel split into "Me" and "Them"; stops on its own when the call ends',
-        'Granola: panel con búsqueda separado en "Yo" y "Ellos"; para solo cuando termina la llamada',
-        'Granola: painel com busca separado em "Eu" e "Eles"; para sozinho quando a chamada termina',
+        "Searchable transcript split into Me (mic) and Them (tab), arriving in parts of about 20 seconds",
+        "Transcripción con búsqueda separada en Yo (micrófono) y Ellos (pestaña), que llega en partes de unos 20 segundos",
+        "Transcrição com busca separada em Eu (microfone) e Eles (aba), que chega em partes de uns 20 segundos",
       ],
     }),
-    row('calendar-sync', 'capture', ['Calendar sync and meeting reminders', 'Calendario y aviso al empezar la reunión', 'Calendário e aviso no início da reunião'], 'missing', {
+    row('calendar-sync', 'capture', ['Calendar sync and meeting reminders', 'Calendario y aviso al empezar la reunión', 'Calendário e aviso no início da reunião'], 'partial', {
       weight: 2,
-      detail: ['Granola and Wispr Notetaker: Google Calendar and Outlook', 'Granola y Wispr Notetaker: Google Calendar y Outlook', 'Granola e Wispr Notetaker: Google Calendar e Outlook'],
-    }),
-    row('speaker-names', 'capture', ['Speaker names', 'Nombres de quién habla', 'Nomes de quem fala'], 'missing', {
       detail: [
-        'Granola: real names in Meet, Zoom and Teams; "Me" and "Them" elsewhere',
-        'Granola: nombres reales en Meet, Zoom y Teams; "Yo" y "Ellos" en el resto',
-        'Granola: nomes reais no Meet, Zoom e Teams; "Eu" e "Eles" no resto',
+        "Upcoming Cal bookings show up to take notes and a meeting can be linked to one; no Google Calendar or Outlook and no reminder when it starts",
+        "Las próximas reservas de Cal aparecen para tomar notas y se puede vincular una reunión; sin Google Calendar ni Outlook y sin aviso al empezar",
+        "As próximas reservas do Cal aparecem para fazer notas e dá para vincular uma reunião; sem Google Calendar nem Outlook e sem aviso no início",
       ],
     }),
-    row('in-person-calls', 'capture', ['In-person meetings and phone calls', 'Reuniones en persona y llamadas de teléfono', 'Reuniões presenciais e ligações'], 'missing', {
-      detail: ['Granola mobile', 'Granola en el celular', 'Granola no celular'],
+    row('speaker-names', 'capture', ['Speaker names', 'Nombres de quién habla', 'Nomes de quem fala'], 'partial', {
+      detail: [
+        "Me and Them by audio source, separate speakers with Deepgram or AssemblyAI, and names set by hand; no names from the call",
+        "Yo y Ellos según la fuente de audio, hablantes separados con Deepgram o AssemblyAI y nombres puestos a mano; sin los nombres de la llamada",
+        "Eu e Eles pela fonte de áudio, falantes separados com Deepgram ou AssemblyAI e nomes definidos à mão; sem os nomes da chamada",
+      ],
+    }),
+    row('in-person-calls', 'capture', ['In-person meetings and phone calls', 'Reuniones en persona y llamadas de teléfono', 'Reuniões presenciais e ligações'], 'partial', {
+      detail: [
+        "Microphone mode records in-person meetings from the browser; no phone calls and no mobile app",
+        "El modo micrófono graba reuniones en persona desde el navegador; sin llamadas de teléfono ni app móvil",
+        "O modo microfone grava reuniões presenciais pelo navegador; sem ligações e sem app móvel",
+      ],
     }),
 
     // Notas y resúmenes
-    row('enhanced-notes', 'notes', ['AI notes from your notes and the transcript', 'Notas con IA a partir de lo escrito y la transcripción', 'Notas com IA a partir do que você escreveu e da transcrição'], 'missing', {
+    row('enhanced-notes', 'notes', ['AI notes from your notes and the transcript', 'Notas con IA a partir de lo escrito y la transcripción', 'Notas com IA a partir do que você escreveu e da transcrição'], 'have', {
       weight: 2,
       detail: [
-        'Granola merges the transcript, your notes and the calendar event; your own lines stay marked',
-        'Granola mezcla la transcripción, tus notas y el evento del calendario; lo que escribiste queda marcado',
-        'O Granola junta a transcrição, suas notas e o evento do calendário; o que você escreveu fica marcado',
+        "AI combines your notes with the transcript and the template; your own lines stay marked",
+        "La IA combina tus notas con la transcripción y la plantilla; tus líneas quedan marcadas",
+        "A IA junta suas notas com a transcrição e o modelo; suas linhas ficam marcadas",
       ],
     }),
-    row('note-templates', 'notes', ['Note templates', 'Plantillas de notas', 'Modelos de notas'], 'missing', {
+    row('note-templates', 'notes', ['Note templates', 'Plantillas de notas', 'Modelos de notas'], 'have', {
       weight: 2,
       detail: [
-        'Granola: built-in templates per meeting type (sales, 1:1, stand-up, interview) and custom ones shared with the company',
-        'Granola: plantillas de fábrica por tipo de reunión (ventas, 1:1, daily, entrevista) y propias compartidas con la empresa',
-        'Granola: modelos prontos por tipo de reunião (vendas, 1:1, daily, entrevista) e próprios compartilhados com a empresa',
+        "Sales, 1:1, stand-up, interview, customer and general, plus your own",
+        "Ventas, 1:1, daily, entrevista, cliente y general, más las propias",
+        "Vendas, 1:1, daily, entrevista, cliente e geral, mais os próprios",
       ],
     }),
-    row('note-sources', 'notes', ['See where each point came from', 'Ver de dónde sale cada punto', 'Ver de onde vem cada ponto'], 'missing', {
-      detail: ['Granola: transcript or your own notes', 'Granola: la transcripción o tus notas', 'Granola: a transcrição ou suas notas'],
+    row('note-sources', 'notes', ['See where each point came from', 'Ver de dónde sale cada punto', 'Ver de onde vem cada ponto'], 'have', {
+      detail: [
+        "Each point says whether it came from your notes or from the transcript",
+        "Cada punto dice si salió de tus notas o de la transcripción",
+        "Cada ponto diz se veio das suas notas ou da transcrição",
+      ],
     }),
     row('pre-meeting-brief', 'notes', ['Pre-meeting brief', 'Brief antes de la reunión', 'Brief antes da reunião'], 'missing', {
       detail: ['Granola Business', 'Granola Business', 'Granola Business'],
@@ -237,16 +250,16 @@ const parity: ProductParity = {
     }),
 
     // Chat
-    row('chat-meeting', 'chat', ['Chat with one meeting', 'Chat sobre una reunión', 'Chat sobre uma reunião'], 'missing', {
+    row('chat-meeting', 'chat', ['Chat with one meeting', 'Chat sobre una reunión', 'Chat sobre uma reunião'], 'have', {
       weight: 2,
       detail: ['Granola Chat before, during and after the meeting', 'Granola Chat antes, durante y después de la reunión', 'Granola Chat antes, durante e depois da reunião'],
     }),
-    row('chat-across', 'chat', ['Chat across meetings', 'Chat sobre muchas reuniones', 'Chat sobre várias reuniões'], 'missing', {
+    row('chat-across', 'chat', ['Chat across meetings', 'Chat sobre muchas reuniones', 'Chat sobre várias reuniões'], 'have', {
       weight: 2,
       detail: [
-        'Granola: all notes, a folder, a selection or a person (30 days on the free plan); Wispr Flow has Ask Wispr',
-        'Granola: todas las notas, una carpeta, una selección o una persona (30 días en el plan gratis); Wispr Flow tiene Ask Wispr',
-        'Granola: todas as notas, uma pasta, uma seleção ou uma pessoa (30 dias no plano grátis); o Wispr Flow tem o Ask Wispr',
+        "Questions across your meetings, answered from the ones that mention the topic, with links to each",
+        "Preguntas sobre tus reuniones, respondidas con las que mencionan el tema y links a cada una",
+        "Perguntas sobre suas reuniões, respondidas com as que citam o assunto e links para cada uma",
       ],
     }),
     row('recipes', 'chat', ['Saved prompts (recipes)', 'Prompts guardados (recipes)', 'Prompts salvos (recipes)'], 'missing', {
@@ -256,21 +269,21 @@ const parity: ProductParity = {
         'Granola: rodam com /, para uma ou várias reuniões, compartilháveis por link',
       ],
     }),
-    row('people-companies', 'chat', ['People and companies from meetings', 'Personas y empresas de las reuniones', 'Pessoas e empresas das reuniões'], 'missing', {
+    row('people-companies', 'chat', ['People and companies from meetings', 'Personas y empresas de las reuniones', 'Pessoas e empresas das reuniões'], 'partial', {
       detail: [
-        'Granola builds a directory from calendar attendees and lists every meeting with them',
-        'Granola arma un directorio con los asistentes del calendario y lista todas sus reuniones',
-        'O Granola monta um diretório com os participantes do calendário e lista todas as reuniões com eles',
+        "A meeting links to a CRM contact (by hand or from the Cal guest email); no automatic directory of people and companies",
+        "Una reunión se vincula a un contacto del CRM (a mano o por el email del invitado de Cal); sin directorio automático de personas y empresas",
+        "Uma reunião se vincula a um contato do CRM (à mão ou pelo email do convidado do Cal); sem diretório automático de pessoas e empresas",
       ],
     }),
 
     // Organizar y compartir
-    row('share-link', 'organize', ['Share notes by link', 'Compartir notas por link', 'Compartilhar notas por link'], 'missing', {
+    row('share-link', 'organize', ['Share notes by link', 'Compartir notas por link', 'Compartilhar notas por link'], 'partial', {
       weight: 2,
       detail: [
-        'Granola: invited people, workspace or anyone with the link; viewer and collaborator roles',
-        'Granola: invitados, workspace o cualquiera con el link; roles lector y colaborador',
-        'Granola: convidados, workspace ou qualquer pessoa com o link; papéis leitor e colaborador',
+        "Meetings are private; you share them by sending the notes to Docs or Notes, which have their own sharing",
+        "Las reuniones son privadas; se comparten mandando la nota a Docs o Notes, que tienen sus propios permisos",
+        "As reuniões são privadas; são compartilhadas enviando a nota para Docs ou Notes, que têm suas próprias permissões",
       ],
     }),
     row('folders-spaces', 'organize', ['Spaces and folders', 'Espacios y carpetas', 'Espaços e pastas'], 'missing', {
@@ -280,17 +293,23 @@ const parity: ProductParity = {
         'Granola: notas privadas, espaço da equipe, espaços próprios e pastas com um nível de subpastas',
       ],
     }),
-    row('copy-export', 'organize', ['Copy as Markdown and send by email', 'Copiar en Markdown y mandar por email', 'Copiar em Markdown e enviar por email'], 'missing'),
+    row('copy-export', 'organize', ['Copy as Markdown and send by email', 'Copiar en Markdown y mandar por email', 'Copiar em Markdown e enviar por email'], 'partial', {
+      detail: [
+        "Copy as Markdown and send to Docs or Notes; no email sending",
+        "Copiar en Markdown y mandar a Docs o Notes; sin envío por email",
+        "Copiar em Markdown e enviar para Docs ou Notes; sem envio por email",
+      ],
+    }),
 
     // Integraciones y API
     row('slack-notion', 'integrations', ['Send notes to Slack and Notion', 'Mandar notas a Slack y Notion', 'Enviar notas para Slack e Notion'], 'missing', {
       detail: ['Granola: Slack on the free plan, Notion on Business', 'Granola: Slack en el plan gratis, Notion en Business', 'Granola: Slack no plano grátis, Notion no Business'],
     }),
-    row('crm-sync', 'integrations', ['Send notes to the CRM', 'Mandar notas al CRM', 'Enviar notas para o CRM'], 'missing', {
+    row('crm-sync', 'integrations', ['Send notes to the CRM', 'Mandar notas al CRM', 'Enviar notas para o CRM'], 'have', {
       detail: [
-        'Granola Business: HubSpot, Attio and Affinity; Salesforce on Enterprise',
-        'Granola Business: HubSpot, Attio y Affinity; Salesforce en Enterprise',
-        'Granola Business: HubSpot, Attio e Affinity; Salesforce no Enterprise',
+        "The notes land on the zerosoft CRM contact timeline and next steps become CRM tasks",
+        "La nota queda en el timeline del contacto del CRM de zerosoft y los próximos pasos pasan a tareas del CRM",
+        "A nota fica na linha do tempo do contato do CRM do zerosoft e os próximos passos viram tarefas do CRM",
       ],
     }),
     row('zapier', 'integrations', ['Zapier', 'Zapier', 'Zapier'], 'missing', {
@@ -303,11 +322,11 @@ const parity: ProductParity = {
         'Granola e Wispr Flow expõem as notas para Claude, ChatGPT e outros clientes MCP',
       ],
     }),
-    row('api-webhooks', 'integrations', ['API and webhooks', 'API y webhooks', 'API e webhooks'], 'missing', {
+    row('api-webhooks', 'integrations', ['API and webhooks', 'API y webhooks', 'API e webhooks'], 'partial', {
       detail: [
-        'Granola: notes, transcripts, folders and spaces, with webhooks',
-        'Granola: notas, transcripciones, carpetas y espacios, con webhooks',
-        'Granola: notas, transcrições, pastas e espaços, com webhooks',
+        "API v1 with voice:read and voice:write (dictate, sessions, audio chunks, dictionary); no webhooks yet",
+        "API v1 con voice:read y voice:write (dictado, sesiones, trozos de audio, diccionario); sin webhooks todavía",
+        "API v1 com voice:read e voice:write (ditado, sessões, trechos de áudio, dicionário); sem webhooks por enquanto",
       ],
     }),
 
@@ -315,18 +334,18 @@ const parity: ProductParity = {
     row('team-dictionary', 'admin', ['Team dictionary and snippets', 'Diccionario y snippets del equipo', 'Dicionário e snippets da equipe'], 'missing', {
       detail: ['Wispr Flow Pro and Granola Business', 'Wispr Flow Pro y Granola Business', 'Wispr Flow Pro e Granola Business'],
     }),
-    row('recording-notice', 'admin', ['Recording notice for attendees', 'Aviso de grabación a los asistentes', 'Aviso de gravação aos participantes'], 'missing', {
+    row('recording-notice', 'admin', ['Recording notice for attendees', 'Aviso de grabación a los asistentes', 'Aviso de gravação aos participantes'], 'partial', {
       detail: [
-        'Granola: automatic chat message in Meet, Zoom, Teams and Slack, calendar notice and watermark; Wispr Notetaker posts a notice too',
-        'Granola: mensaje automático en el chat de Meet, Zoom, Teams y Slack, aviso en el calendario y marca de agua; Wispr Notetaker también avisa',
-        'Granola: mensagem automática no chat do Meet, Zoom, Teams e Slack, aviso no calendário e marca d\'água; o Wispr Notetaker também avisa',
+        "The recorder reminds you to tell attendees; nothing is posted in the call",
+        "El grabador te recuerda avisar a los asistentes; no se publica nada en la llamada",
+        "O gravador lembra você de avisar os participantes; nada é publicado na chamada",
       ],
     }),
-    row('retention', 'admin', ['Retention and auto-deletion', 'Retención y borrado automático', 'Retenção e exclusão automática'], 'missing', {
+    row('retention', 'admin', ['Retention and auto-deletion', 'Retención y borrado automático', 'Retenção e exclusão automática'], 'partial', {
       detail: [
-        'Granola deletes audio after transcribing and can auto-delete transcripts; Wispr Notetaker sets how long meetings are kept',
-        'Granola borra el audio después de transcribir y puede borrar transcripciones solas; Wispr Notetaker define cuánto se guardan las reuniones',
-        'O Granola apaga o áudio depois de transcrever e pode apagar transcrições sozinho; o Wispr Notetaker define por quanto tempo as reuniões ficam guardadas',
+        "The audio is never stored: it is transcribed in parts and discarded. Transcripts are kept until you delete them; no automatic deletion",
+        "El audio nunca se guarda: se transcribe por partes y se descarta. Las transcripciones quedan hasta que las borrás; sin borrado automático",
+        "O áudio nunca é guardado: é transcrito em partes e descartado. As transcrições ficam até você apagar; sem exclusão automática",
       ],
     }),
     row('sso-scim', 'admin', ['SSO and SCIM', 'SSO y SCIM', 'SSO e SCIM'], 'missing', {

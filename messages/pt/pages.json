@@ -2,7 +2,7 @@
   "products": {
     "meta": {
       "title": "Produtos",
-      "description": "Quinze apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board e Talk, e Voice e Rec em construção. Open source para o seu servidor, ou no zerosoft Cloud com plano grátis e pagamento por uso."
+      "description": "Quinze apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice e Talk, e Rec em construção. Open source para o seu servidor, ou no zerosoft Cloud com plano grátis e pagamento por uso."
     },
     "hero": {
       "title1": "Quinze apps.",
@@ -1105,50 +1105,50 @@
     "parityShort": "{percent}% de paridade com {competitor}",
     "voice": {
       "meta": {
-        "title": "Voice: ditado por voz e notas de reunião open source (em construção)",
-        "description": "O Voice vai ser a alternativa open source ao Wispr Flow e ao Granola: ditado em qualquer app e notas de reunião com transcrição e resumo por IA. Está em construção e a paridade é medida ao vivo."
+        "title": "Voice: ditado por voz e notas de reunião open source",
+        "description": "Dite em qualquer campo do zerosoft e faça notas de reunião com transcrição ao vivo, resumo com IA, decisões e tarefas. A alternativa open source ao Wispr Flow e ao Granola."
       },
       "hero": {
-        "sub": "Estamos construindo um app para ditar em qualquer campo de texto e tomar notas de reunião com transcrição e resumo por IA, na mesma suíte do seu CRM, Docs e Track. Ainda não dá para usar."
+        "sub": "Segure uma tecla, fale e o texto limpo fica onde você estava escrevendo. Grave uma chamada pelo navegador, anote algumas linhas e a IA monta a nota com a transcrição, na mesma suíte do seu CRM, Docs e Track."
       },
-      "featuresTitle": "O que o Voice vai fazer.",
-      "featuresTitleDim": "Ainda não existe: este é o plano.",
+      "featuresTitle": "O que o Voice faz.",
+      "featuresTitleDim": "Ditado e reuniões em um só app.",
       "f1": {
         "t": "Ditado em qualquer lugar",
-        "d": "Um atalho para falar e o texto aparecer onde está o cursor: primeiro na web e depois no app de desktop."
+        "d": "Segure Alt+Space em qualquer campo de texto do zerosoft, ou toque duas vezes para mãos livres. O app desktop para ditar em qualquer programa está a caminho."
       },
       "f2": {
         "t": "Limpeza com IA",
-        "d": "Tirar vícios de linguagem, pontuar e aplicar as correções que você diz em voz alta, como \"segunda, não, terça\"."
+        "d": "Somem os vícios de linguagem, aparecem a pontuação e as listas e as correções faladas, como \"segunda, não, terça\", são aplicadas, com seu dicionário, seus snippets e um tom por contexto."
       },
       "f3": {
         "t": "Notas de reunião sem bot",
-        "d": "Gravar o microfone e o áudio da chamada pelo seu computador, sem um participante a mais."
+        "d": "Grave seu microfone, ou o microfone e a aba com Meet, Zoom ou Teams. Nenhum participante extra entra na chamada e o áudio é descartado depois de transcrito."
       },
       "f4": {
         "t": "Transcrição, resumo e tarefas",
-        "d": "Transcrição com falantes, um resumo com decisões e tarefas, e modelos por tipo de reunião."
+        "d": "Transcrição ao vivo separada em Eu e Eles, nota com IA montada com o que você anotou e um modelo por tipo de reunião, mais decisões e próximos passos."
       },
       "f5": {
         "t": "Ligado à suíte",
-        "d": "Mandar a nota para o Docs ou o Notes e as tarefas para o Track ou o CRM."
+        "d": "Os próximos passos viram issues do Track ou tarefas do CRM, a nota vai para Docs ou Notes e, vinculada a uma reserva do Cal, fica na linha do tempo do contato. Pergunte a qualquer reunião o que foi dito."
       },
       "f6": {
         "t": "A IA que você escolher",
-        "d": "A transcrição vai passar pelo provedor que você configurar, com a mesma cota e o mesmo registro de uso dos outros apps."
+        "d": "A transcrição passa pelo provedor que você configurar (Whisper pelo AI Gateway, OpenAI, Deepgram ou AssemblyAI), com a mesma cota e o mesmo registro de uso dos outros apps."
       },
       "steps": {
         "s1": {
           "t": "Dite com um atalho",
-          "d": "Você vai segurar uma tecla, falar e ver o texto limpo onde estava escrevendo."
+          "d": "Segure uma tecla, fale e veja o texto limpo onde você estava escrevendo."
         },
         "s2": {
           "t": "Grave a reunião",
-          "d": "O Voice vai ouvir o microfone e o áudio da chamada, e transcrever com falantes."
+          "d": "O Voice ouve seu microfone e a aba da chamada e transcreve enquanto vocês falam, separado em Eu e Eles. Com Deepgram ou AssemblyAI também distingue cada participante."
         },
         "s3": {
           "t": "Use a nota",
-          "d": "O resumo, as decisões e as tarefas vão para o Docs, o Notes, o Track ou o CRM."
+          "d": "O resumo, as decisões e os próximos passos vão para Docs, Notes, Track ou o CRM."
         }
       },
       "compare": {
@@ -1157,35 +1157,35 @@
         "per": "/ usuário / mês",
         "team": "US$ 3.120",
         "zero": "$0",
-        "note": "O Wispr Flow Pro custa US$ 12 por usuário por mês no plano anual (US$ 15 no mensal) e o Granola Business, US$ 14 por usuário por mês. Juntos são US$ 26: um time de dez paga US$ 3.120 por ano. Preços de tabela conferidos em 25 de outubro de 2026. O Voice ainda não existe; quando sair, no seu servidor vai custar $0 mais o que o seu provedor de transcrição cobrar."
+        "note": "O Wispr Flow Pro custa US$ 12 por usuário por mês no plano anual (US$ 15 no mensal) e o Granola Business, US$ 14 por usuário por mês. Juntos são US$ 26: um time de dez paga US$ 3.120 por ano. Preços de tabela conferidos em 25 de outubro de 2026. O Voice no seu servidor custa $0 mais o que o seu provedor de transcrição cobrar."
       },
       "faq": {
         "f1": {
           "q": "Já posso usar o Voice?",
-          "a": "Ainda não. Hoje /app/voice mostra que ele está em construção. A paridade desta página sai do código e sobe conforme as funções saem; o changelog avisa cada uma."
+          "a": "Sim, na web: ditado em todos os campos do zerosoft e notas de reunião em /app/voice. O workspace precisa de um provedor de transcrição configurado (o AI Gateway, OpenAI, Deepgram ou AssemblyAI)."
         },
         "f2": {
-          "q": "Vai ter app de desktop?",
-          "a": "Esse é o plano: primeiro o ditado e as notas na web, e depois um app de desktop para ditar em qualquer programa e gravar o áudio do computador. Não temos data."
+          "q": "Tem app desktop?",
+          "a": "Está a caminho. O código já está no repositório (ditado em qualquer programa e áudio do sistema para reuniões, no Mac e no Windows), mas ainda não há downloads assinados."
         },
         "f3": {
-          "q": "Onde o áudio vai ser processado?",
-          "a": "No provedor de transcrição que o seu workspace configurar. Se você hospeda o zerosoft, escolhe o provedor e a chave."
+          "q": "Onde o áudio é processado?",
+          "a": "No provedor de transcrição do seu workspace. Uma gravação ao vivo vai em partes de 20 segundos que são transcritas e descartadas; um arquivo importado é apagado do armazenamento ao ser transcrito, ou depois de 24 horas se nunca foi processado. Se você hospeda o zerosoft, escolhe o provedor e a chave."
         },
         "f4": {
-          "q": "Vai colocar um bot nas minhas reuniões?",
-          "a": "Não. A ideia é gravar pelo seu computador, como faz o Granola, sem um participante a mais na chamada."
+          "q": "Coloca um bot nas minhas reuniões?",
+          "a": "Não. Grava pelo seu navegador, como o Granola grava pelo computador, sem um participante extra na chamada. Avise as pessoas que você está transcrevendo."
         },
         "f5": {
-          "q": "O que falta comparado com Wispr Flow + Granola?",
-          "a": "Tudo, por enquanto. O Voice está em construção e a tabela de paridade acima lista as capacidades dos dois que medimos, todas pendentes."
+          "q": "O que falta comparado ao Wispr Flow + Granola?",
+          "a": "Os apps desktop assinados e os móveis, os comandos de voz para reescrever texto, os avisos do calendário do Google ou Outlook, as pastas e os links para compartilhar. A tabela de paridade acima lista cada capacidade que medimos."
         }
       },
       "cta": {
-        "title1": "O Voice está em construção.",
-        "title2": "Conte o que você precisa.",
-        "sub": "Proponha ideias e vote no board público: os seus votos ajudam a decidir o que fazemos primeiro.",
-        "button": "Propor uma ideia"
+        "title1": "Pare de digitar.",
+        "title2": "Fale e fique com a nota.",
+        "sub": "Segure Alt+Space em qualquer campo, ou comece uma reunião e deixe o Voice montar a nota.",
+        "button": "Abrir o Voice"
       }
     },
     "rec": {
@@ -2307,6 +2307,25 @@
     "paramExtTo": "Destinatários, separados por vírgulas",
     "paramExtSubject": "Assunto do email",
     "paramExtBody": "Corpo em texto simples",
+    "voiceTitle": "Voice",
+    "voiceDesc": "Ditado e transcrições de reuniões. O app desktop usa estes endpoints com uma chave com voice:read e voice:write. O áudio é transcrito e descartado.",
+    "voiceDictateTitle": "Ditar",
+    "voiceDictateDesc": "Envia um áudio em multipart. Devolve a transcrição limpa com o dicionário e o estilo da pessoa e salva no histórico de ditados.",
+    "voiceSessionsListTitle": "Listar sessões",
+    "voiceSessionsListDesc": "Ditados e reuniões de quem criou a chave, da mais nova para a mais antiga.",
+    "voiceSessionsCreateTitle": "Criar uma reunião",
+    "voiceSessionsCreateDesc": "Inicia uma reunião para enviar trechos de áudio.",
+    "voiceChunksTitle": "Enviar um trecho de áudio",
+    "voiceChunksDesc": "Transcreve um trecho da reunião. source é me (microfone), them (áudio do sistema) ou mixed. Idempotente por source e seq.",
+    "voiceSessionGetTitle": "Ver uma sessão",
+    "voiceSessionGetDesc": "A sessão com a transcrição, as notas e a nota com IA.",
+    "voiceSessionPatchTitle": "Atualizar uma sessão",
+    "voiceSessionPatchDesc": "Mudar o título, ou definir status como done ao terminar a gravação.",
+    "voiceDictionaryTitle": "Dicionário e ajustes",
+    "voiceDictionaryDesc": "Palavras, substituições, snippets e ajustes de ditado da pessoa, para sincronizar o app desktop.",
+    "paramVoiceKind": "meeting ou dictation.",
+    "scope_voice_read": "Ler ditados, reuniões e transcrições do Voice.",
+    "scope_voice_write": "Ditar e enviar áudio de reuniões para o Voice.",
     "trackTitle": "Track",
     "trackDesc": "Issues, comentários, equipes, cycles, status, labels e pessoas do Track. Use uma key com track:read ou track:write. Os issues criados pela API vão para triage se a equipe tiver ativo, e cada mudança deixa atividade, avisos, webhooks e uma entrada de audit como o app. As equipes antes se chamavam projetos: /api/v1/track/projects e projectId continuam funcionando.",
     "trackMcpTitle": "Servidor MCP do Track",

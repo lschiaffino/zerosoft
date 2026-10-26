@@ -1,0 +1,45 @@
+[package]
+name = "zerosoft-voice"
+version = "0.1.0"
+description = "zerosoft Voice: dictate into any app and record meetings with system audio"
+authors = ["zerosoft"]
+license = "AGPL-3.0-only"
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "zerosoft_voice_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-notification = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+# Captura del micrófono (y del audio del sistema en Windows con WASAPI loopback).
+cpal = "0.15"
+# WAV de 16 kHz mono para subir (la API acepta webm, ogg, wav, m4a, mp3).
+hound = "3.5"
+# Subidas a /api/v1/voice/* con la key del workspace.
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "multipart", "json", "rustls-tls"] }
+# Pegar en la app activa: portapapeles + Cmd/Ctrl+V simulado.
+arboard = "3"
+enigo = "0.2"
+parking_lot = "0.12"
+# La API key va al llavero del sistema (Keychain, Credential Manager, Secret Service), no a un archivo.
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Audio del sistema en macOS 13+ sin drivers virtuales.
+screencapturekit = "0.3"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>zerosoft Voice uses the microphone to transcribe what you dictate and your meetings.</string>
+  <key>NSScreenCaptureUsageDescription</key>
+  <string>zerosoft Voice records the system audio of your meetings (it does not keep the screen image).</string>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>zerosoft Voice pastes your dictation into the app you are using.</string>
+  <key>LSUIElement</key>
+  <false/>
+</dict>
+</plist>

@@ -1,0 +1,183 @@
+/* Voice: dictado en toda la app (components/voice/DictationHost.tsx). Se carga
+   en el layout de /app porque el atajo y el botón andan en todas las apps. */
+
+.vc-host,
+.vc-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 110;
+  max-width: calc(100vw - 32px);
+}
+
+.vc-host {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 8px 14px;
+  color: var(--bg);
+  background: var(--ink);
+  border-radius: var(--radius-1);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18);
+  font-size: 0.875rem;
+}
+.vc-host .btn-primary { background: var(--bg); color: var(--ink); border-color: var(--bg); }
+.vc-host .btn-ghost { color: var(--bg); }
+.vc-host .btn-ghost:hover:not(:disabled) { background: color-mix(in srgb, var(--bg) 14%, transparent); }
+.vc-host-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+.vc-bar {
+  position: fixed;
+  z-index: 105;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--ink-3);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  opacity: 0.85;
+  cursor: pointer;
+}
+.vc-bar:hover { color: var(--ink); opacity: 1; background: var(--ui-hover); }
+.vc-bar:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; opacity: 1; }
+
+.vc-toast {
+  bottom: 60px;
+  padding: 8px 12px;
+  color: var(--bg);
+  background: var(--ink);
+  border-radius: var(--radius-1);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.vc-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+}
+.vc-level > span {
+  display: block;
+  width: 3px;
+  height: 18px;
+  background: currentColor;
+  border-radius: 1px;
+  transform-origin: center;
+  transition: transform 100ms linear;
+}
+
+.vc-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: vc-spin 0.8s linear infinite;
+}
+@keyframes vc-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .vc-level > span { transition: none; }
+  .vc-spinner { animation-duration: 2s; }
+}
+
+@media (max-width: 520px) {
+  .vc-host { gap: 8px; padding: 6px 8px 6px 10px; }
+}
+
+/* Reunión grabando: punto rojo, tiempo y Terminar en la barra de arriba. */
+.band-voice-slot { display: contents; }
+.vc-rec-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  font-size: 0.8125rem;
+}
+.vc-rec-indicator-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 8px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.vc-rec-indicator-link:hover { background: var(--ui-hover); }
+.vc-rec-indicator-link:focus-visible,
+.vc-rec-indicator-stop:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.vc-rec-indicator-stop {
+  height: 100%;
+  padding: 0 8px;
+  font: 500 0.8125rem var(--font-ui);
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-left: 1px solid var(--line);
+  cursor: pointer;
+}
+.vc-rec-indicator-stop:hover:not(:disabled) { background: var(--ui-hover); }
+.vc-rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); flex: none; animation: vc-pulse 1.2s ease-in-out infinite; }
+@keyframes vc-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .vc-rec-dot { animation: none; } }
+/* Angosto: solo punto y tiempo; el toque abre Abrir / Terminar sin ensanchar la barra. */
+.vc-rec-indicator { position: relative; flex: none; }
+.vc-rec-indicator-compact {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  padding: 0 6px;
+  font: 500 0.75rem var(--font-ui);
+  color: var(--ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.vc-rec-indicator-compact:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.vc-rec-indicator-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.12);
+}
+.vc-rec-indicator-menu > a,
+.vc-rec-indicator-menu > button {
+  display: block;
+  padding: 8px 10px;
+  font: 500 0.8125rem var(--font-ui);
+  color: var(--ink);
+  text-align: left;
+  text-decoration: none;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.vc-rec-indicator-menu > a:hover,
+.vc-rec-indicator-menu > button:hover { background: var(--ui-hover); }
+@media (max-width: 520px) {
+  /* Sin borde ni relleno de más: entra al lado de la campana sin correr la barra. */
+  .vc-rec-indicator { height: 28px; border: 0; }
+  .vc-rec-indicator-compact { padding: 0 2px; gap: 3px; font-size: 0.6875rem; }
+  .vc-rec-indicator .vc-rec-dot { width: 6px; height: 6px; }
+  .vc-rec-indicator-link,
+  .vc-rec-indicator-stop { display: none; }
+  .vc-rec-indicator-compact { display: inline-flex; }
+}

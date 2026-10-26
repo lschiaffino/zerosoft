@@ -84,6 +84,10 @@ export default defineConfig({
       TRACK_SUPPORT_FAKE: '1',
       // Bookmarks de Docs sin salir a internet (lib/docs-unfurl.ts arma un HTML fijo por dominio).
       DOCS_UNFURL_FAKE: '1',
+      // Voice: transcripción falsa (lib/voice-transcribe.ts, la cookie voice_fake_text elige qué "se dijo")
+      // e IA falsa (lib/voice-ai.ts; con la cookie voice_ai_fake=off se ve ai_disabled).
+      VOICE_TRANSCRIBE_PROVIDER: 'fake',
+      VOICE_AI_FAKE: '1',
       // Talk con polling corto en vez de SSE: con el stream abierto la página nunca llega a networkidle.
       TALK_REALTIME: 'poll',
       AI_GATEWAY_API_KEY: '',

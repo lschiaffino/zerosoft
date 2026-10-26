@@ -1,23 +1,22 @@
 import { getTranslations } from 'next-intl/server';
 
-/** Carga de /app/voice: la cabecera y el bloque como placas de esmalte. */
+/** Carga de Voice: la forma de la página en placas. */
 export default async function VoiceLoading() {
-  const t = await getTranslations('common.appSoon');
+  const t = await getTranslations('voice');
   return (
     <div className="app-page ui-page" aria-busy="true">
       <span className="sr-only" role="status">
-        {t('loading', { app: 'Voice' })}
+        {t('loading')}
       </span>
-      <div className="ui-page-header">
-        <div className="ui-page-header-text">
-          <span className="ui-skeleton ui-skeleton-title" />
-          <span className="ui-skeleton ui-skeleton-text" />
-        </div>
-      </div>
       <div className="ui-loading-stack">
-        {[0, 1, 2].map((i) => (
-          <span key={i} className="ui-skeleton ui-skeleton-row" />
-        ))}
+        <span className="ui-skeleton ui-skeleton-title" />
+        <span className="ui-skeleton ui-skeleton-text" />
+      </div>
+      <span className="ui-skeleton ui-skeleton-block" />
+      <div className="ui-loading-stack">
+        <span className="ui-skeleton ui-skeleton-row" />
+        <span className="ui-skeleton ui-skeleton-row" />
+        <span className="ui-skeleton ui-skeleton-row" />
       </div>
     </div>
   );

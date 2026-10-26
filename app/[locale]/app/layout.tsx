@@ -7,6 +7,8 @@ import { getWorkspaceMode } from '@/lib/home';
 import AppSidebar from '@/components/app/AppSidebar';
 import AppTopbar from '@/components/app/AppTopbar';
 import CommandSearch from '@/components/app/CommandSearch';
+import DictationHost from '@/components/voice/DictationHost';
+import RecorderProvider from '@/components/voice/RecorderProvider';
 import TimezoneCookie from '@/components/app/TimezoneCookie';
 import { SupportIdentify } from '@/components/SupportWidget';
 import { supportWidgetId } from '@/lib/support';
@@ -22,6 +24,7 @@ import '@/styles/link.css';
 import '@/styles/app-shared.css';
 import '@/styles/app.css';
 import '@/styles/color.css';
+import '@/styles/voice-host.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,7 +85,8 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk']}>
+    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder']}>
+      <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
@@ -195,7 +199,8 @@ export default async function AppLayout(
                 { href: '/app/groups/broadcasts', label: tGroups('sidebar.broadcasts') },
                 { href: '/app/groups/analytics', label: tGroups('sidebar.analytics') },
                 { href: '/app/groups/settings', label: tGroups('sidebar.settings') },
-                { href: '/app/voice', label: tVoice('sidebar.home') },
+                { href: '/app/voice', label: tVoice('nav.meetings') },
+                { href: '/app/voice/dictation', label: tVoice('nav.dictation') },
                 { href: '/app/rec', label: tRec('sidebar.home') },
                 { href: '/app/talk', label: tTalk('sidebar.home') },
               ]}
@@ -344,7 +349,7 @@ export default async function AppLayout(
               analytics: tGroups('sidebar.analytics'),
               settings: tGroups('sidebar.settings'),
             },
-            voice: { home: tVoice('sidebar.home') },
+            voice: { meetings: tVoice('nav.meetings'), dictation: tVoice('nav.dictation'), newMeeting: tVoice('meetings.new') },
             rec: { home: tRec('sidebar.home') },
             talk: { home: tTalk('sidebar.home') },
             notifications: {
@@ -388,6 +393,7 @@ export default async function AppLayout(
           <main className="app-content">{children}</main>
         </div>
         <CommandSearch />
+        <DictationHost />
         <TimezoneCookie serverTz={serverTz} />
         {supportId && (
           <SupportIdentify
@@ -397,6 +403,7 @@ export default async function AppLayout(
           />
         )}
       </div>
+      </RecorderProvider>
     </ClientMessages>
   );
 }

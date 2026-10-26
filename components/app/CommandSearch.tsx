@@ -152,6 +152,7 @@ function useGroupOrder() {
         'groupsLists',
         'groupsTemplates',
         'groupsRecurring',
+        'voiceSessions',
         'talkChannels',
         'talkDms',
         'talkPeople',
@@ -181,6 +182,7 @@ export default function CommandSearch() {
   const tNotes = useTranslations('notes');
   const tBoard = useTranslations('board');
   const tTrack = useTranslations('track');
+  const tVoice = useTranslations('voice.cmdk');
   const tPlanning = useTranslations('trackPlanning.cmdk');
   const tSections = useTranslations('settings.sections');
   const tSettingsCmdk = useTranslations('settings.cmdk');
@@ -276,9 +278,12 @@ export default function CommandSearch() {
       { group, label: t('newRobot'), meta: '', href: '/app/robots?new=1' },
       { group, label: t('newGroup'), meta: '', href: '/app/groups/list?new=1' },
       { group, label: t('newGroupTemplate'), meta: '', href: '/app/groups/templates?new=1' },
+      { group, label: tVoice('newMeeting'), meta: '', href: '/app/voice?new=1' },
+      { group, label: tVoice('dictate'), meta: '', href: '/app/voice/dictation', event: 'zs:voice-dictate' },
+      { group, label: tVoice('dictation'), meta: '', href: '/app/voice/dictation' },
     ];
     return inTrack ? [...track, ...rest] : [...rest, ...track];
-  }, [t, tNotes, tBoard, tTrack, tPlanning, inTrack, inCrm]);
+  }, [t, tNotes, tBoard, tTrack, tPlanning, tVoice, inTrack, inCrm]);
 
   // Las apps (y el inicio): "crm", "hubspot" o "vender" llevan a la app. Solo al buscar.
   const appItems = useMemo<ResultItem[]>(

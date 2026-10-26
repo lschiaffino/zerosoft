@@ -16,6 +16,8 @@ export const API_SCOPES = [
   'chat:write',
   'groups:read',
   'groups:write',
+  'voice:read',
+  'voice:write',
   'track:read',
   'track:write',
   'talk:read',

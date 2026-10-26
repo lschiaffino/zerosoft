@@ -60,6 +60,7 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'chat', titleKey: 'chatTitle', descKey: 'chatDesc' },
   { id: 'robots', titleKey: 'robotsTitle', descKey: 'robotsDesc' },
   { id: 'groups', titleKey: 'groupsTitle', descKey: 'groupsDesc' },
+  { id: 'voice', titleKey: 'voiceTitle', descKey: 'voiceDesc' },
   { id: 'track', titleKey: 'trackTitle', descKey: 'trackDesc' },
   { id: 'track-mcp', titleKey: 'trackMcpTitle', descKey: 'trackMcpDesc' },
   { id: 'talk', titleKey: 'talkTitle', descKey: 'talkDesc' },
@@ -2485,6 +2486,85 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     response: { jsonrpc: '2.0', id: 1, result: { content: [{ type: 'text', text: '{"total":1,"chats":[...]}' }], isError: false } },
     responseStatus: 200,
   },
+  // Voice (dictado y reuniones; lo usa la app de escritorio)
+  {
+    id: 'voice-dictate',
+    sectionId: 'voice',
+    method: 'POST',
+    path: '/api/v1/voice/dictate',
+    titleKey: 'voiceDictateTitle',
+    descKey: 'voiceDictateDesc',
+    request: { audio: '(multipart file, webm/ogg/wav/m4a/mp3, up to 4 MB)', context: 'email', sourceApp: 'Mail', durationMs: 5200 },
+    response: { data: { id: 'vs_1', text: 'The launch is on Tuesday.', raw: 'um the launch is on monday, no, I mean tuesday', ai: true } },
+    responseStatus: 201,
+  },
+  {
+    id: 'voice-sessions-list',
+    sectionId: 'voice',
+    method: 'GET',
+    path: '/api/v1/voice/sessions',
+    titleKey: 'voiceSessionsListTitle',
+    descKey: 'voiceSessionsListDesc',
+    params: [
+      { name: 'kind', type: 'string', descriptionKey: 'paramVoiceKind' },
+      { name: 'q', type: 'string', descriptionKey: 'paramSearch' },
+    ],
+    response: { data: [{ id: 'vs_2', kind: 'meeting', title: 'Acme pricing call', status: 'done', durationMs: 1820000, startedAt: '2026-11-02T15:00:00.000Z' }] },
+    responseStatus: 200,
+  },
+  {
+    id: 'voice-sessions-create',
+    sectionId: 'voice',
+    method: 'POST',
+    path: '/api/v1/voice/sessions',
+    titleKey: 'voiceSessionsCreateTitle',
+    descKey: 'voiceSessionsCreateDesc',
+    request: { title: 'Acme pricing call' },
+    response: { data: { id: 'vs_2', title: 'Acme pricing call', status: 'recording', startedAt: '2026-11-02T15:00:00.000Z' } },
+    responseStatus: 201,
+  },
+  {
+    id: 'voice-chunks',
+    sectionId: 'voice',
+    method: 'POST',
+    path: '/api/v1/voice/sessions/:id/chunks',
+    titleKey: 'voiceChunksTitle',
+    descKey: 'voiceChunksDesc',
+    request: { audio: '(multipart file, up to 4 MB)', source: 'them', seq: 200, offsetMs: 20000, durationMs: 20000 },
+    response: { data: { duplicate: false, segments: [{ id: 'sg_1', source: 'them', speaker: '0', startMs: 20400, endMs: 24100, text: 'Twenty dollars works for us.' }] } },
+    responseStatus: 201,
+  },
+  {
+    id: 'voice-session-get',
+    sectionId: 'voice',
+    method: 'GET',
+    path: '/api/v1/voice/sessions/:id',
+    titleKey: 'voiceSessionGetTitle',
+    descKey: 'voiceSessionGetDesc',
+    response: { data: { id: 'vs_2', title: 'Acme pricing call', segments: [], myNotes: '', enhanced: null } },
+    responseStatus: 200,
+  },
+  {
+    id: 'voice-session-patch',
+    sectionId: 'voice',
+    method: 'PATCH',
+    path: '/api/v1/voice/sessions/:id',
+    titleKey: 'voiceSessionPatchTitle',
+    descKey: 'voiceSessionPatchDesc',
+    request: { status: 'done' },
+    response: { data: { id: 'vs_2', title: 'Acme pricing call', status: 'done', durationMs: 1820000 } },
+    responseStatus: 200,
+  },
+  {
+    id: 'voice-dictionary',
+    sectionId: 'voice',
+    method: 'GET',
+    path: '/api/v1/voice/dictionary',
+    titleKey: 'voiceDictionaryTitle',
+    descKey: 'voiceDictionaryDesc',
+    response: { data: { entries: [{ id: 'vd_1', kind: 'replace', phrase: 'zero soft', replacement: 'zerosoft' }], settings: { language: 'auto', shortcut: 'Alt+Space' } } },
+    responseStatus: 200,
+  },
   // Talk (mensajería de equipo)
   {
     id: 'talk-channels-list',
@@ -2584,7 +2664,7 @@ export const API_SCOPE_DOCS: Array<{ scope: ApiScope; descKey: string }> = API_S
  */
 export function endpointScope(e: Pick<ApiEndpoint, 'path' | 'method' | 'scope'>): ApiScope | null {
   if (e.scope) return e.scope;
-  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat|groups|track|talk)\b/.exec(e.path);
+  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat|groups|track|talk|voice)\b/.exec(e.path);
   if (!m) return null;
   if (m[1] === 'agents') return 'agents:run';
   if (m[1] === 'robots') return 'robots:run';

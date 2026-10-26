@@ -1,3 +1,4 @@
+import { runVoiceCron } from '@/lib/voice-jobs';
 import { NextRequest, NextResponse } from 'next/server';
 import { retryDueWebhooks } from '@/lib/webhooks';
 import { fireDueTasks } from '@/lib/crm';
@@ -94,6 +95,8 @@ export async function GET(req: NextRequest) {
   const emailSync = await syncDueMailboxes({ limit: 25, maxMessages: 50 }).catch(() => null);
   const outlookSync = await syncDueOutlookMailboxes({ limit: 25, maxMessages: 50 }).catch(() => null);
   const sequences = await processSequences({ limit: 100 }).catch(() => null);
+  // Voice: lo mismo que cada minuto, más la limpieza de reuniones vacías y subidas huérfanas.
+  const voice = await runVoiceCron({ budgetMs: 20_000 }).catch(() => null);
   // Lead scoring: recálculo completo una vez por día por workspace (ventanas de N días).
   const scoring = await runNightlyScoring(new Date(), 10).catch(() => null);
   // Flow con presupuesto: no empieza corridas nuevas pasados ~150 s del tick
@@ -115,5 +118,5 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, trashPurged, flowPruned, flow, emailSync, outlookSync, sequences, scoring, agentKnowledge, agentAlerts, robots, ideas });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, trashPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, robots, ideas });
 }
