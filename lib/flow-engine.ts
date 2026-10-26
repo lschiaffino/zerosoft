@@ -1442,6 +1442,14 @@ export async function resumeRun(
   const state = await loadState(run);
   if (!state) return 'failed';
   if (await cancelIfDisabled(state)) return 'failed';
+  // Si el flow pasó a otra persona mientras esperaba, no sigue con lo capturado para la anterior.
+  if (!state.flow.created_by || (run.captured_by ?? null) !== state.flow.created_by) {
+    const res = await getDb()
+      .prepare("UPDATE flow_runs SET status = 'failed', error = 'owner_changed', finished_at = ?, locked_until = NULL WHERE id = ? AND status = 'waiting'")
+      .run(nowIso(), runId);
+    if (res.changes === 1) await getDb().prepare('DELETE FROM flow_jobs WHERE run_id = ?').run(runId);
+    return 'failed';
+  }
   // Solo si sigue en espera: una cancelación entre la lectura y acá gana.
   const claimed = await getDb()
     .prepare("UPDATE flow_runs SET status = 'running' WHERE id = ? AND status = 'waiting'")

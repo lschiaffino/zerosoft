@@ -101,10 +101,30 @@ export function approvalSummary(tool: ApprovableAgentTool, input: Record<string,
   }
 }
 
+/** Página que una acción de Docs edita (la página, la base o la página madre al crear). */
+function docsTarget(input: unknown): string | null {
+  const i = (input ?? {}) as { pageId?: unknown; parentId?: unknown };
+  if (typeof i.pageId === 'string' && i.pageId) return i.pageId;
+  if (typeof i.parentId === 'string' && i.parentId) return i.parentId;
+  return null;
+}
+
+/**
+ * Acciones de Docs: solo las ve en detalle y las decide quien puede editar la
+ * página destino; al aprobarlas la escritura corre con su acceso.
+ */
+async function canDecideDocs(workspaceId: string, personId: string, input: unknown): Promise<boolean> {
+  const target = docsTarget(input);
+  if (!target) return false;
+  const { docsActorFor, pageFor } = await import('./docs-platform-access');
+  const actor = await docsActorFor(workspaceId, personId);
+  return Boolean(actor && (await pageFor(actor, target, { write: true })));
+}
+
 export async function listAgentActions(
   workspaceId: string,
   agentId: string,
-  opts: { conversationId?: string; status?: AgentPendingActionDto['status'] } = {},
+  opts: { conversationId?: string; status?: AgentPendingActionDto['status']; viewerId?: string } = {},
 ): Promise<AgentPendingActionDto[]> {
   const rows = (await getDb()
     .prepare(
@@ -120,7 +140,14 @@ export async function listAgentActions(
       opts.status ?? null,
       opts.status ?? null,
     )) as PendingRow[];
-  return rows.map(toDto);
+  const out: AgentPendingActionDto[] = [];
+  for (const r of rows) {
+    const dto = toDto(r);
+    if (opts.viewerId !== undefined && r.tool.startsWith('docs_') && !(await canDecideDocs(workspaceId, opts.viewerId, dto.input))) {
+      out.push({ ...dto, input: { hidden: true }, result: null, locked: true });
+    } else out.push(dto);
+  }
+  return out;
 }
 
 /** Pendientes por conversación (para marcar la lista). */
@@ -136,7 +163,7 @@ export async function pendingCountsByConversation(workspaceId: string, agentId: 
 
 export type DecideResult =
   | { ok: true; action: AgentPendingActionDto }
-  | { ok: false; error: 'not_found' | 'already_decided' | 'agent_not_found' };
+  | { ok: false; error: 'not_found' | 'already_decided' | 'agent_not_found' | 'not_allowed' };
 
 /**
  * Aprueba (y ejecuta) o rechaza una acción pendiente. El claim es atómico:
@@ -148,12 +175,18 @@ export async function decideAgentAction(
   actionId: string,
   decision: 'approve' | 'reject',
   actorEmail: string,
+  /** Persona que decide: en Docs tiene que poder editar la página, y la escritura corre con su acceso. */
+  approverId?: string,
 ): Promise<DecideResult> {
   const db = getDb();
   const row = (await db
     .prepare('SELECT * FROM agent_pending_actions WHERE id = ? AND user_id = ? AND agent_id = ?')
     .get(actionId, workspaceId, agentId)) as PendingRow | undefined;
   if (!row || !isApprovableTool(row.tool)) return { ok: false, error: 'not_found' };
+  const isDocs = row.tool.startsWith('docs_');
+  if (isDocs && approverId !== undefined && !(await canDecideDocs(workspaceId, approverId, parse(row.input)))) {
+    return { ok: false, error: 'not_allowed' };
+  }
   const ts = new Date().toISOString();
   const claimed = await db
     .prepare(
@@ -187,6 +220,8 @@ export async function decideAgentAction(
         },
         row.tool,
         input,
+        // Docs: con el acceso de quien aprueba (se revalida la página al escribir).
+        isDocs && approverId !== undefined ? approverId : undefined,
       );
     } catch (err) {
       output = { error: err instanceof Error && /^[a-z_]+$/.test(err.message) ? err.message : 'tool_failed' };
@@ -201,7 +236,8 @@ export async function decideAgentAction(
   const error = typeof output.error === 'string' ? output.error : null;
   // Docs: se registra con el acceso de quién corrió (solo esa persona ve el detalle).
   let capturedBy: string | null = null;
-  if (row.tool.startsWith('docs_')) {
+  if (isDocs && approverId !== undefined) capturedBy = approverId;
+  else if (isDocs) {
     const { getAgentRow, toAgentDto } = await import('./agents');
     const { docsActorOf } = await import('./agent-tools');
     const agentRow = await getAgentRow(workspaceId, agentId);

@@ -7,7 +7,7 @@ import { api, errorText, toolName } from './agents-ui';
 
 /** Detalle legible del input de una acción (sin mostrar JSON crudo cuando no hace falta). */
 function inputLines(input: unknown): Array<[string, string]> {
-  if (!input || typeof input !== 'object') return [];
+  if (!input || typeof input !== 'object' || (input as { hidden?: unknown }).hidden === true) return [];
   return Object.entries(input as Record<string, unknown>)
     .filter(([, v]) => v !== undefined && v !== null && v !== '')
     .map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)] as [string, string])
@@ -71,7 +71,8 @@ export default function AgentApprovals({
                   </div>
                 ))}
               </dl>
-              {a.status === 'pending' ? (
+              {a.locked && <p className="ui-help">{t('approvals.locked')}</p>}
+              {a.status === 'pending' && !a.locked ? (
                 <div className="ag-approval-actions">
                   <button
                     type="button"
@@ -86,7 +87,7 @@ export default function AgentApprovals({
                     {t('approvals.reject')}
                   </button>
                 </div>
-              ) : (
+              ) : a.status === 'pending' ? null : (
                 <p className="ui-help">
                   {t('approvals.decided', { who: a.decidedBy || '—' })}
                   {resultError ? ` ${t('approvals.failed', { code: resultError })}` : ''}

@@ -201,6 +201,27 @@ test('D4: Agents muestra las herramientas de Docs con el selector de páginas', 
   void kb;
 });
 
+test('D4: avisa al darle a un agente público páginas de un teamspace privado', async ({ request, page }) => {
+  const ts = (await (await request.post('/api/docs/teamspaces', { data: { name: `Finance ${uid()}`, access: 'private', ai_knowledge: true } })).json()) as {
+    id?: string;
+    teamspace?: { id: string };
+  };
+  const tsId = ts.id ?? ts.teamspace!.id;
+  const title = `Payroll ${uid()}`;
+  const res = await request.post('/api/docs/pages', { data: { title, teamspace_id: tsId } });
+  expect(res.ok(), await res.text()).toBeTruthy();
+  const agent = (await (await request.post('/api/agents', { data: { name: `Public bot ${uid()}` } })).json()) as { id?: string; agent?: { id: string } };
+  const id = agent.id ?? agent.agent!.id;
+  const patched = await request.patch(`/api/agents/${id}`, { data: { publicHandle: `pub-${uid()}` } });
+  expect(patched.ok(), await patched.text()).toBeTruthy();
+  await page.goto(`/en/app/agents/${id}?tab=tools`, { waitUntil: 'networkidle' });
+  await page.getByRole('switch', { name: 'Write Docs pages' }).check();
+  const pages = page.getByTestId('ag-docs-pages');
+  await expect(page.getByTestId('ag-docs-private-public')).toHaveCount(0);
+  await pages.getByLabel(title).check();
+  await expect(page.getByTestId('ag-docs-private-public')).toBeVisible();
+});
+
 test('D4: el menú de IA y el panel de preguntas entran a 390px, en claro y oscuro', async ({ request, page }) => {
   await page.setViewportSize({ width: 390, height: 800 });
   const doc = await pageWith(request, `Mobile ${uid()}`, [{ id: 'a', type: 'paragraph', content: '' }]);

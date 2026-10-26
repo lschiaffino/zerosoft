@@ -32,7 +32,7 @@ import { api, chatLabels, errorText } from './agents-ui';
 import { parseDbUtc } from '@/lib/utils';
 
 export interface EditorRefs {
-  docsPages: Array<{ id: string; title: string; isPublic: boolean }>;
+  docsPages: Array<{ id: string; title: string; isPublic: boolean; restricted?: boolean }>;
   widgets: AgentWidgetOption[];
   eventTypes: Array<{ id: string; title: string; durationMin: number }>;
   projects: Array<{ id: string; name: string }>;
@@ -408,6 +408,11 @@ export default function AgentEditor(props: Props) {
               </ul>
             )}
             <p className="ui-help">{t('tools.docsPagesHint')}</p>
+            {draft.publicHandle !== null && props.docsPages.some((p) => p.restricted && draft.tools.docsPageIds.includes(p.id)) && (
+              <p className="ui-help ag-warn-inline" role="status" data-testid="ag-docs-private-public">
+                {t('tools.docsPrivatePublic')}
+              </p>
+            )}
           </fieldset>
         )}
         {on && key === 'track_create_issue' && (

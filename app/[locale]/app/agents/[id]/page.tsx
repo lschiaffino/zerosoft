@@ -3,7 +3,7 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
-import { aiKnowledgeFilterSql } from '@/lib/docs-access';
+import { aiKnowledgeFilterSql, hiddenTeamspaceIds, teamspaceFilterSql } from '@/lib/docs-access';
 import { getAgentRow, listKnowledgeUrls, listSecretHeaders, listWorkspaceWidgets, toAgentDto } from '@/lib/agents';
 import { listTestCases } from '@/lib/agents-tests';
 import { canEditAgents } from '@/lib/agents-http';
@@ -37,10 +37,18 @@ export default async function AgentEditorPage(props: {
   const [urls, widgets, docsPages, eventTypes, projects, flows, robots, tests] = await Promise.all([
     listKnowledgeUrls(id),
     listWorkspaceWidgets(user.id),
-    db
-      // Para elegir como conocimiento: sin las de teamspaces cerrados o privados sin permiso de IA.
-      .prepare(`SELECT id, title, is_public FROM docs_pages WHERE user_id = ? AND archived = 0${aiKnowledgeFilterSql()} ORDER BY title COLLATE NOCASE LIMIT 300`)
-      .all(user.id) as Promise<Array<{ id: string; title: string; is_public: number }>>,
+    // Para elegir como conocimiento: sin las de teamspaces cerrados o privados sin permiso de IA,
+    // ni las que quien edita no puede ver. `restricted`: de un teamspace cerrado o privado.
+    hiddenTeamspaceIds(user.id, user.actingUser?.id ?? user.id).then((hidden) => {
+      const ts = teamspaceFilterSql(hidden, 'p.teamspace_id');
+      return db
+        .prepare(
+          `SELECT p.id, p.title, p.is_public, CASE WHEN t.access IN ('closed', 'private') AND t.is_default = 0 THEN 1 ELSE 0 END AS restricted
+           FROM docs_pages p LEFT JOIN docs_teamspaces t ON t.id = p.teamspace_id
+           WHERE p.user_id = ? AND p.archived = 0${aiKnowledgeFilterSql('p.teamspace_id')}${ts.sql} ORDER BY p.title COLLATE NOCASE LIMIT 300`,
+        )
+        .all(user.id, ...ts.args) as Promise<Array<{ id: string; title: string; is_public: number; restricted: number }>>;
+    }),
     db
       .prepare('SELECT id, title, duration_min FROM calendar_event_types WHERE user_id = ? AND active = 1 ORDER BY title')
       .all(user.id) as Promise<Array<{ id: string; title: string; duration_min: number }>>,
@@ -61,7 +69,7 @@ export default async function AgentEditorPage(props: {
       agent={agent}
       urls={urls}
       widgets={widgets}
-      docsPages={docsPages.map((p) => ({ id: p.id, title: p.title, isPublic: p.is_public === 1 }))}
+      docsPages={docsPages.map((p) => ({ id: p.id, title: p.title, isPublic: p.is_public === 1, restricted: Number(p.restricted) === 1 }))}
       eventTypes={eventTypes.map((e) => ({ id: e.id, title: e.title, durationMin: e.duration_min }))}
       projects={projects}
       flows={flows}

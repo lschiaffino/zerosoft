@@ -273,7 +273,8 @@
     "noDocsPages": "There are no Docs pages yet.",
     "docsPagesHint": "Subpages are included. Pages in teamspaces that do not allow AI are left out. Outside the playground (Chat, public page, API, Groups, Flow) every Docs write waits for a teammate to approve it. The agent works with the access of the person who last changed it; in the playground, with yours.",
     "needsDocsPages": "Pick at least one Docs page.",
-    "untitledPage": "Untitled"
+    "untitledPage": "Untitled",
+    "docsPrivatePublic": "Some of these pages are in a closed or private teamspace, and this agent has a public page: anyone who talks to it can get answers from them."
   },
   "channels": {
     "chatTitle": "Chat widgets",
@@ -387,7 +388,8 @@
     "already_decided": "Someone already approved or rejected this action.",
     "ai_no_credits": "The AI provider refused the request: the account has no credits or no access to this model. Add credits in the Vercel AI Gateway, or set a model your plan includes under Instructions > Model.",
     "ai_auth": "The AI provider rejected the server credentials. Check AI_GATEWAY_API_KEY in the server settings.",
-    "unavailable": "The assistant can't reply right now. Please try again in a few minutes."
+    "unavailable": "The assistant can't reply right now. Please try again in a few minutes.",
+    "not_allowed": "You need edit access to that Docs page to decide this action."
   },
   "public": {
     "subtitle": "AI assistant",
@@ -510,6 +512,7 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "failed": "Failed"
-    }
+    },
+    "locked": "Only someone who can edit that Docs page can see and decide this action."
   }
 }

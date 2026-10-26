@@ -5523,13 +5523,22 @@ export const MIGRATIONS: Migration[] = [
     // Flow, entrega de webhook y llamada a herramienta de un agente guarda con
     // el acceso de quién se armó. Solo esa persona ve sus datos, aunque el
     // flow, el webhook o el agente pasen después a otra.
+    // Lo anterior: una corrida queda del dueño actual solo si el historial de
+    // versiones muestra que nadie más editó el flow (si no, NULL: nadie ve sus
+    // datos). Los webhooks no guardan historial de quién los cambió: sus
+    // entregas quedan del dueño actual. Las llamadas de agentes quedan en NULL
+    // (las ve quien puede abrir la página que nombran).
     id: '116_captured_by',
     up: async (client) => {
       await addColumn(client, 'ALTER TABLE flow_runs ADD COLUMN captured_by TEXT');
       await addColumn(client, 'ALTER TABLE webhook_deliveries ADD COLUMN captured_by TEXT');
       await addColumn(client, 'ALTER TABLE agent_tool_calls ADD COLUMN captured_by TEXT');
       await client.executeMultiple(`
-        UPDATE flow_runs SET captured_by = (SELECT created_by FROM flow_flows f WHERE f.id = flow_runs.flow_id) WHERE captured_by IS NULL;
+        UPDATE flow_runs SET captured_by = (SELECT f.created_by FROM flow_flows f WHERE f.id = flow_runs.flow_id)
+        WHERE captured_by IS NULL AND NOT EXISTS (
+          SELECT 1 FROM flow_versions v JOIN flow_flows f ON f.id = v.flow_id
+          WHERE v.flow_id = flow_runs.flow_id AND v.created_by IS NOT NULL AND (f.created_by IS NULL OR v.created_by != f.created_by)
+        );
         UPDATE webhook_deliveries SET captured_by = (SELECT created_by FROM webhooks w WHERE w.id = webhook_deliveries.webhook_id) WHERE captured_by IS NULL;
       `);
     },

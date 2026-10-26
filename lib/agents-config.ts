@@ -352,6 +352,8 @@ export interface AgentPendingActionDto {
   decidedBy: string;
   decidedAt: string | null;
   createdAt: string;
+  /** Docs: quien mira no puede editar la página destino (no ve el detalle ni decide). */
+  locked?: boolean;
 }
 
 export interface AgentMessageDto {
