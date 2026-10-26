@@ -17,10 +17,10 @@ describe('Flow: datos de las corridas', () => {
     const now = new Date().toISOString();
     await getDb()
       .prepare(
-        `INSERT INTO flow_runs (id, flow_id, user_id, trigger_type, status, input, step_count, created_at, started_at, finished_at)
-         VALUES (?, ?, ?, 'trigger.event', 'success', ?, 1, ?, ?, ?)`,
+        `INSERT INTO flow_runs (id, flow_id, user_id, trigger_type, status, input, step_count, created_at, started_at, finished_at, captured_by)
+         VALUES (?, ?, ?, 'trigger.event', 'success', ?, 1, ?, ?, ?, ?)`,
       )
-      .run(runId, f.flow.id, owner.id, JSON.stringify({ contact: { email: 'secret@acme.com' } }), now, now, now);
+      .run(runId, f.flow.id, owner.id, JSON.stringify({ contact: { email: 'secret@acme.com' } }), now, now, now, f.flow.createdBy);
     await getDb()
       .prepare(`INSERT INTO flow_steps (id, run_id, node_id, node_type, status, input, output, started_at, finished_at) VALUES (?, ?, 'trigger', 'trigger.manual', 'success', ?, ?, ?, ?)`)
       .run(crypto.randomUUID(), runId, '{"a":"secret@acme.com"}', '{"b":"secret@acme.com"}', now, now);

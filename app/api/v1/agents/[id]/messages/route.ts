@@ -31,6 +31,8 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
       channel: 'api',
       text: parsed.data.message,
       conversationId: parsed.data.conversationId ?? null,
+      // La key actúa como quien la creó: con su acceso trabaja el agente en Docs.
+      createdBy: auth.personId,
     });
     return NextResponse.json({
       conversationId: res.conversation.id,

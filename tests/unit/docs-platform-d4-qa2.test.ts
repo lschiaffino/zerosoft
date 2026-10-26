@@ -69,7 +69,7 @@ describe('D4 re-QA 1 y 2: webhooks', () => {
 });
 
 describe('D4 re-QA 3, 4, 5 y 9: Flow', () => {
-  it('cualquier cambio del grafo o activarlo por otra persona la hace dueña del flow', async () => {
+  it('cualquier cambio del grafo por otra persona la hace dueña del flow; activarlo o pausarlo no', async () => {
     const { owner, bob, dave } = await setup('fg');
     const f = await createFlow(owner.id, bob.id, { name: 'F', graph: graph() });
     if (!f.ok) throw new Error('flow');
@@ -77,9 +77,9 @@ describe('D4 re-QA 3, 4, 5 y 9: Flow', () => {
     expect((await getFlowRow(owner.id, f.flow.id))?.created_by).toBe(bob.id);
     await updateFlow(owner.id, f.flow.id, { graph: graph([{ id: 'h', type: 'action.http', position: { x: 0, y: 100 }, config: { url: 'https://example.com' } }]) }, dave.id);
     expect((await getFlowRow(owner.id, f.flow.id))?.created_by).toBe(dave.id);
-    await updateFlow(owner.id, f.flow.id, { enabled: false }, dave.id);
+    await updateFlow(owner.id, f.flow.id, { enabled: false }, bob.id);
     await updateFlow(owner.id, f.flow.id, { enabled: true }, bob.id);
-    expect((await getFlowRow(owner.id, f.flow.id))?.created_by).toBe(bob.id);
+    expect((await getFlowRow(owner.id, f.flow.id))?.created_by).toBe(dave.id);
   });
 
   it('re-ejecutar solo quien creó el flow; probar un paso corre como quien prueba', async () => {

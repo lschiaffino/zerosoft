@@ -220,18 +220,18 @@ export function isRestrictedEvent(event: string): boolean {
 }
 
 export async function listDeliveries(userId: string, webhookId: string, limit = 50, viewerId?: string): Promise<WebhookDeliveryDto[] | null> {
-  const owns = (await getDb().prepare('SELECT created_by FROM webhooks WHERE id = ? AND user_id = ?').get(webhookId, userId)) as
-    | { created_by: string | null }
-    | undefined;
+  const owns = await getDb().prepare('SELECT 1 FROM webhooks WHERE id = ? AND user_id = ?').get(webhookId, userId);
   if (!owns) return null;
-  const hide = (event: string) => viewerId !== undefined && isRestrictedEvent(event) && owns.created_by !== viewerId;
   const rows = (await getDb()
     .prepare(
       `SELECT id, event, status, attempts, response_code, response_body, last_error, duration_ms, next_attempt_at,
-              created_at, delivered_at, payload
+              created_at, delivered_at, payload, captured_by
        FROM webhook_deliveries WHERE webhook_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?`,
     )
     .all(webhookId, Math.min(Math.max(limit, 1), 200))) as Array<Record<string, unknown>>;
+  // Cuerpo restringido: solo para la persona con cuyo acceso se armó esa entrega
+  // (aunque el webhook haya pasado después a otra).
+  const hidden = (r: Record<string, unknown>) => viewerId !== undefined && isRestrictedEvent(String(r.event)) && (r.captured_by ?? null) !== viewerId;
   return rows.map((r) => ({
     id: String(r.id),
     event: String(r.event),
@@ -239,14 +239,14 @@ export async function listDeliveries(userId: string, webhookId: string, limit = 
     attempts: Number(r.attempts),
     responseCode: r.response_code == null ? null : Number(r.response_code),
     // El endpoint puede devolver el cuerpo: también se oculta.
-    responseBody: hide(String(r.event)) ? '' : String(r.response_body ?? ''),
+    responseBody: hidden(r) ? '' : String(r.response_body ?? ''),
     error: (r.last_error as string | null) ?? null,
     durationMs: r.duration_ms == null ? null : Number(r.duration_ms),
     nextAttemptAt: (r.next_attempt_at as string | null) ?? null,
     createdAt: String(r.created_at),
     deliveredAt: (r.delivered_at as string | null) ?? null,
-    payload: hide(String(r.event)) ? '' : String(r.payload),
-    ...(hide(String(r.event)) ? { payloadHidden: true } : {}),
+    payload: hidden(r) ? '' : String(r.payload),
+    ...(hidden(r) ? { payloadHidden: true } : {}),
   }));
 }
 
@@ -255,16 +255,18 @@ export async function listDeliveries(userId: string, webhookId: string, limit = 
  * con el mismo cuerpo, que se intenta en el momento. Devuelve su id, o null si
  * la entrega no es de un webhook del workspace.
  */
-export async function resendDelivery(userId: string, deliveryId: string): Promise<string | null> {
+export async function resendDelivery(userId: string, deliveryId: string, personId?: string): Promise<string | null | 'not_owner'> {
   const row = (await getDb()
     .prepare(
-      `SELECT d.webhook_id, d.event, d.payload FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhook_id
+      `SELECT d.webhook_id, d.event, d.payload, d.captured_by FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhook_id
        WHERE d.id = ? AND w.user_id = ?`,
     )
-    .get(deliveryId, userId)) as { webhook_id: string; event: string; payload: string } | undefined;
+    .get(deliveryId, userId)) as { webhook_id: string; event: string; payload: string; captured_by: string | null } | undefined;
   if (!row) return null;
+  // Contenido restringido: lo reenvía solo la persona con cuyo acceso se armó.
+  if (isRestrictedEvent(row.event) && personId !== undefined && row.captured_by !== personId) return 'not_owner';
   const id = crypto.randomUUID();
-  await insertDelivery(id, row.webhook_id, row.event, row.payload);
+  await insertDelivery(id, row.webhook_id, row.event, row.payload, row.captured_by);
   await attempt(id, { force: true });
   return id;
 }
@@ -279,11 +281,15 @@ export async function deleteWebhook(userId: string, id: string): Promise<boolean
 /** Mientras una entrega se intenta, el cron no la toma (claim por fila). */
 const CLAIM_MS = 2 * 60_000;
 
-async function insertDelivery(id: string, webhookId: string, event: string, payload: string): Promise<void> {
+/** `capturedBy`: con el acceso de quién se armó el cuerpo (por defecto, quien creó el webhook ahora). */
+async function insertDelivery(id: string, webhookId: string, event: string, payload: string, capturedBy?: string | null): Promise<void> {
   // Nace reclamada: la tiene el intento inmediato; si el proceso muere, el claim vence y la toma el cron.
   await getDb()
-    .prepare('INSERT INTO webhook_deliveries (id, webhook_id, event, payload, claimed_until) VALUES (?, ?, ?, ?, ?)')
-    .run(id, webhookId, event, payload, new Date(Date.now() + CLAIM_MS).toISOString());
+    .prepare(
+      `INSERT INTO webhook_deliveries (id, webhook_id, event, payload, claimed_until, captured_by)
+       VALUES (?, ?, ?, ?, ?, COALESCE(?, (SELECT created_by FROM webhooks WHERE id = ?)))`,
+    )
+    .run(id, webhookId, event, payload, new Date(Date.now() + CLAIM_MS).toISOString(), capturedBy ?? null, webhookId);
 }
 
 /**
@@ -315,7 +321,7 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
        JOIN webhooks w ON w.id = d.webhook_id WHERE d.id = ?`,
     )
     .get(deliveryId)) as
-    | { id: string; payload: string; attempts: number; url: string; secret: string; active: number; event: string; w_user: string; w_creator: string | null }
+    | { id: string; payload: string; attempts: number; url: string; secret: string; active: number; event: string; w_user: string; w_creator: string | null; captured_by: string | null }
     | undefined;
   // Un webhook pausado no envía (salvo prueba o reenvío manual): la entrega queda pendiente.
   if (!row || (row.active !== 1 && !opts.force)) {
@@ -334,7 +340,7 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
     } catch {
       /* sin datos */
     }
-    const capturedBy = (row as { captured_by?: string | null }).captured_by;
+    const capturedBy = row.captured_by ?? null;
     let allowed = !capturedBy || capturedBy === row.w_creator;
     if (allowed && row.event.startsWith('talk.')) {
       const { talkDeliveryAllowed } = await import('./talk');

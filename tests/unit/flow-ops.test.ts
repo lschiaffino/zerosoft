@@ -513,10 +513,10 @@ describe('Flow: avisos de falla y replay', () => {
     const ts = new Date().toISOString();
     await getDb()
       .prepare(
-        `INSERT INTO flow_runs (id, flow_id, user_id, trigger_type, status, input, error, chain_seen, created_at, started_at, finished_at)
-         VALUES ('rl-run', ?, ?, 'trigger.webhook', 'failed', '{"body":{}}', 'rate_limited', '[]', ?, ?, ?)`,
+        `INSERT INTO flow_runs (id, flow_id, user_id, trigger_type, status, input, error, chain_seen, created_at, started_at, finished_at, captured_by)
+         VALUES ('rl-run', ?, ?, 'trigger.webhook', 'failed', '{"body":{}}', 'rate_limited', '[]', ?, ?, ?, (SELECT created_by FROM flow_flows WHERE id = ?))`,
       )
-      .run(flowId, ws, ts, ts, ts);
+      .run(flowId, ws, ts, ts, ts, flowId);
     const full = await replayRun(ws, 'rl-run');
     expect(full).toMatchObject({ ok: true, mode: 'full', status: 'success' });
     expect(await replayRun((await makeUser('nobody')).id, 'rl-run')).toEqual({ ok: false, error: 'not_found' });

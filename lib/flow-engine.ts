@@ -548,7 +548,8 @@ export function webhookReplyOutput(cfg: Record<string, unknown>, tctx: Record<st
 
 // ---------- Agente, código, merge, sub-flow ----------
 
-async function agentNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
+/** El agente trabaja en Docs con el acceso de quien creó el flow (nunca con el de quien configuró el agente). */
+async function agentNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>, createdBy: string | null) {
   const agentId = renderString(cfg.agentId ?? '', tctx).trim();
   if (!agentId) throw new StepError('missing_agent');
   const message = renderString(cfg.message ?? '', tctx).trim();
@@ -558,7 +559,7 @@ async function agentNode(ws: string, cfg: Record<string, unknown>, tctx: Record<
   if (!agent) throw new StepError('agent_not_found');
   const conversationId = renderString(cfg.conversationId ?? '', tctx).trim() || null;
   try {
-    const res = await sendAgentMessage({ agent, channel: 'api', source: 'flow', text: message.slice(0, 4000), conversationId });
+    const res = await sendAgentMessage({ agent, channel: 'api', source: 'flow', text: message.slice(0, 4000), conversationId, createdBy });
     return {
       reply: res.result.text,
       status: res.result.status,
@@ -674,9 +675,11 @@ async function subflowNode(state: RunState, cfg: Record<string, unknown>, tctx: 
   const depth = (parent?.depth ?? state.run.chain_depth) + 1;
   if (depth > MAX_FLOW_CHAIN_DEPTH) throw new StepError('subflow_depth');
   const row = (await getDb()
-    .prepare('SELECT id, user_id FROM flow_flows WHERE id = ? AND user_id = ?')
-    .get(flowId, state.flow.user_id)) as Pick<FlowFlowRow, 'id' | 'user_id'> | undefined;
+    .prepare('SELECT id, user_id, created_by FROM flow_flows WHERE id = ? AND user_id = ?')
+    .get(flowId, state.flow.user_id)) as Pick<FlowFlowRow, 'id' | 'user_id' | 'created_by'> | undefined;
   if (!row) throw new StepError('flow_not_found');
+  // El subflow corre con el acceso de quien lo creó y devuelve sus salidas: solo flows de la misma persona.
+  if (!row.created_by || row.created_by !== state.flow.created_by) throw new StepError('subflow_other_owner');
   const input: Record<string, unknown> = {};
   for (const f of Array.isArray(cfg.inputs) ? (cfg.inputs as Array<{ key?: string; value?: unknown }>) : []) {
     const k = String(f?.key ?? '').trim();
@@ -972,7 +975,7 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
     case 'ai.text':
       return { kind: 'ok', output: await aiNode(ws, cfg, tctx), handles: ['out'] };
     case 'ai.agent':
-      return { kind: 'ok', output: await agentNode(ws, cfg, tctx), handles: ['out'] };
+      return { kind: 'ok', output: await agentNode(ws, cfg, tctx, state.flow.created_by ?? null), handles: ['out'] };
     case 'data.code':
       return { kind: 'ok', output: await codeNode(state, cfg), handles: ['out'] };
     case 'data.merge':
@@ -1258,9 +1261,10 @@ async function enqueueErrorFlow(state: RunState): Promise<void> {
   const depth = state.run.chain_depth + 1;
   if (depth > MAX_FLOW_CHAIN_DEPTH || seen.includes(target)) return;
   const row = (await getDb()
-    .prepare('SELECT id, user_id FROM flow_flows WHERE id = ? AND user_id = ?')
-    .get(target, state.flow.user_id)) as Pick<FlowFlowRow, 'id' | 'user_id'> | undefined;
-  if (!row) return;
+    .prepare('SELECT id, user_id, created_by FROM flow_flows WHERE id = ? AND user_id = ?')
+    .get(target, state.flow.user_id)) as Pick<FlowFlowRow, 'id' | 'user_id' | 'created_by'> | undefined;
+  // Los detalles traen datos de esta corrida: solo a un flow de la misma persona.
+  if (!row || !row.created_by || row.created_by !== state.flow.created_by) return;
   const failed = state.failedNode ? state.ctx.graph.nodes.find((n) => n.id === state.failedNode) : null;
   // flow, run y failedNode van completos (son chicos; la salida del nodo ya
   // viene acotada): solo el trigger se acota aparte. Truncar el objeto entero
@@ -1396,10 +1400,12 @@ export async function executeRun(runId: string): Promise<FlowRunRow['status']> {
   }
   if (await cancelIfDisabled(state)) return 'failed';
   // Sin la persona con cuyo acceso corre, no se ejecuta ningún nodo (nunca como el dueño del workspace).
-  if (!state.flow.created_by) {
+  // Y si el flow pasó a otra persona después de encolarse, no corre con lo que se capturó para la anterior.
+  const ownerError = !state.flow.created_by ? 'no_flow_owner' : run.captured_by && run.captured_by !== state.flow.created_by ? 'owner_changed' : null;
+  if (ownerError) {
     await getDb()
-      .prepare("UPDATE flow_runs SET status = 'failed', error = 'no_flow_owner', finished_at = ?, locked_until = NULL WHERE id = ?")
-      .run(nowIso(), runId);
+      .prepare("UPDATE flow_runs SET status = 'failed', error = ?, finished_at = ?, locked_until = NULL WHERE id = ?")
+      .run(ownerError, nowIso(), runId);
     return 'failed';
   }
   await inChain(run, async () => {
@@ -1619,7 +1625,7 @@ export async function testFlowStep(
 
 // ---------- Re-ejecución desde un paso ----------
 
-export type RerunError = 'not_found' | 'run_active' | 'node_not_found' | 'node_is_trigger' | 'node_in_loop' | 'rate_limited';
+export type RerunError = 'not_found' | 'run_active' | 'node_not_found' | 'node_is_trigger' | 'node_in_loop' | 'rate_limited' | 'owner_changed';
 
 /**
  * Nueva corrida que reusa las salidas de la corrida `runId` para todo lo que
@@ -1642,6 +1648,8 @@ export async function rerunFromStep(
     | FlowFlowRow
     | undefined;
   if (!flow) return { ok: false, error: 'not_found' };
+  // Reusa lo capturado con el acceso de captured_by y corre como quien creó el flow hoy: tienen que coincidir.
+  if (!flow.created_by || old.captured_by !== flow.created_by) return { ok: false, error: 'owner_changed' };
   const graph = parseJson<FlowGraph>(flow.graph, { nodes: [], edges: [] });
   const node = graph.nodes.find((n) => n.id === fromNodeId);
   if (!node) return { ok: false, error: 'node_not_found' };

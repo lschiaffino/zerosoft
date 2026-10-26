@@ -820,7 +820,7 @@
     "table_full": "The data table is full. Delete rows or use another table.",
     "forbidden": "The person who created this flow cannot edit that page.",
     "locked": "The page is locked. Unlock it in Docs so the flow can change it.",
-    "no_flow_owner": "The person who created this flow is no longer in the workspace. Someone who can edit it has to open and save the Docs step.",
+    "no_flow_owner": "The person who created this flow is no longer in the workspace. Someone who can edit it has to change a step and save it, so it runs with their access.",
     "missing_page": "This step has no page. Pick one or use a variable like {{trigger.page.id}}.",
     "missing_content": "This step has no content to write.",
     "missing_title": "This step has no title.",
@@ -835,9 +835,13 @@
     "unknown_property": "The database has no property with that name. Check the names in Properties.",
     "invalid_option": "That status does not exist in the database.",
     "invalid_person": "That person is not in the workspace. Use their email.",
-    "invalid_value": "A value does not match its property type (number or date)."
+    "invalid_value": "A value does not match its property type (number or date).",
+    "owner_changed": "This run used the access of the person who owned the flow back then. It can only run again while that person owns the flow.",
+    "subflow_other_owner": "Run flow only calls flows created by the same person as this one."
   },
   "errors": {
+    "subflow_other_owner": "Run flow only calls flows created by the same person as this one.",
+    "owner_changed": "This run used the access of the person who owned the flow back then. It can only run again while that person owns the flow.",
     "generic": "Something went wrong. Try again.",
     "forbidden": "Only workspace admins and owners can do this.",
     "not_found": "This flow no longer exists.",

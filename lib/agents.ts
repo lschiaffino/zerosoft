@@ -41,7 +41,7 @@ import {
   type AgentUpdatePayload,
   type AgentUsageChannel,
 } from './agents-config';
-import { buildAgentTools, type AgentRunContext } from './agent-tools';
+import { buildAgentTools, docsActorOf, type AgentRunContext } from './agent-tools';
 
 export const AGENT_FEATURE = 'agents';
 const HISTORY_LIMIT = 20;
@@ -295,7 +295,9 @@ async function resolveDocsActor(
   const docsKeys = (t: { enabled: string[]; docsPageIds: string[] }) => JSON.stringify([t.enabled.filter((k) => k.startsWith('docs_')).sort(), [...t.docsPageIds].sort()]);
   const docsOn = tools.docsPageIds.length > 0 && tools.enabled.some((k) => k.startsWith('docs_'));
   const current = prev.docsActorId ?? existing.created_by ?? null;
-  const anyChange = Object.keys(payload).length > 0;
+  // Pausar, renombrar o cambiar el handle no cambia con el acceso de quién trabaja.
+  const TAKEOVER_KEYS = ['instructions', 'tools', 'knowledge', 'handoff', 'guardrails'] as const;
+  const anyChange = TAKEOVER_KEYS.some((k) => payload[k] !== undefined);
   const takeover = Boolean(personId && personId !== current && anyChange && docsOn);
   const changed = docsKeys(tools) !== docsKeys(prev);
   const actorId = takeover || (changed && personId) ? personId! : current;
@@ -836,8 +838,9 @@ export interface AgentConversationDetail {
  * acceso de otra persona. Quien mira la conversación las ve solo si puede
  * abrir esa página (las búsquedas y listados, solo esa misma persona).
  */
-async function redactDocsCalls(workspaceId: string, calls: AgentToolCallDto[], viewerId: string, docsActorId: string | null): Promise<AgentToolCallDto[]> {
-  if (!calls.some((c) => c.tool.startsWith('docs_'))) return calls;
+async function redactDocsCalls(workspaceId: string, calls: Array<AgentToolCallDto & { capturedBy?: string | null }>, viewerId: string): Promise<AgentToolCallDto[]> {
+  const strip = ({ capturedBy, ...c }: AgentToolCallDto & { capturedBy?: string | null }) => (void capturedBy, c);
+  if (!calls.some((c) => c.tool.startsWith('docs_'))) return calls.map(strip);
   const { docsActorFor, pageFor } = await import('./docs-platform-access');
   const viewer = await docsActorFor(workspaceId, viewerId);
   const cache = new Map<string, boolean>();
@@ -848,14 +851,15 @@ async function redactDocsCalls(workspaceId: string, calls: AgentToolCallDto[], v
   const out: AgentToolCallDto[] = [];
   for (const c of calls) {
     if (!c.tool.startsWith('docs_')) {
-      out.push(c);
+      out.push(strip(c));
       continue;
     }
     const input = (c.input ?? {}) as { pageId?: unknown };
     const output = (c.output ?? {}) as { page?: { id?: unknown } };
     const pageId = typeof input.pageId === 'string' ? input.pageId : typeof output.page?.id === 'string' ? output.page.id : '';
-    const visible = pageId ? await canRead(pageId) : viewerId === docsActorId;
-    out.push(visible ? c : { ...c, input: { hidden: true }, output: { hidden: true } });
+    // Quien la corrió (captured_by) la ve; otra persona, solo si puede abrir la página nombrada.
+    const visible = (c.capturedBy && c.capturedBy === viewerId) || (pageId ? await canRead(pageId) : false);
+    out.push(visible ? strip(c) : { ...strip(c), input: { hidden: true }, output: { hidden: true } });
   }
   return out;
 }
@@ -909,10 +913,7 @@ export async function getConversationDetail(
     .prepare('SELECT * FROM agent_tool_calls WHERE conversation_id = ? ORDER BY created_at, rowid')
     .all(conv.id)) as AgentToolCallRow[];
   let toolCalls = calls.map(toToolCallDto);
-  if (viewerId) {
-    const agentRow = await getAgentRow(workspaceId, agentId);
-    toolCalls = await redactDocsCalls(workspaceId, toolCalls, viewerId, agentRow ? parseTools(agentRow.tools).docsActorId ?? null : null);
-  }
+  if (viewerId) toolCalls = await redactDocsCalls(workspaceId, calls.map((r) => ({ ...toToolCallDto(r), capturedBy: r.captured_by ?? null })), viewerId);
   return { conversation: toConversationDto(conv), messages, toolCalls };
 }
 
@@ -1287,7 +1288,10 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
       'SELECT * FROM agent_tool_calls WHERE conversation_id = ? AND error IS NULL ORDER BY created_at DESC, rowid DESC LIMIT 6',
     )
     .all(conversation.id)) as AgentToolCallRow[];
-  const instructions = buildAgentInstructions(agent, channel, enabled, toolHistory.reverse());
+  // Lo que se leyó de Docs con el acceso de otra persona no entra al contexto.
+  const docsActorNow = docsActorOf(channel, conversation.created_by, agent.tools);
+  const ownHistory = toolHistory.filter((c) => !c.tool.startsWith('docs_') || (c.captured_by ?? null) === docsActorNow);
+  const instructions = buildAgentInstructions(agent, channel, enabled, ownHistory.reverse());
   const { model, modelId } = resolveAiModel(agent.model);
   const settings = {
     model,
@@ -1476,7 +1480,9 @@ export async function sendAgentMessage(opts: SendAgentMessageOptions): Promise<S
   if (opts.conversationId) {
     const found = await getConversationRow(opts.conversationId);
     const sameVisitor = channel !== 'public' || (found?.visitor_key && found.visitor_key === (opts.visitorKey ?? null));
-    if (found && found.agent_id === agent.id && found.channel === channel && sameVisitor) conversation = found;
+    // API (Flow, keys): la conversación es de quien la empezó (su historial trae lo que leyó con su acceso).
+    const samePerson = channel !== 'api' || (found?.created_by ?? null) === (opts.createdBy ?? null);
+    if (found && found.agent_id === agent.id && found.channel === channel && sameVisitor && samePerson) conversation = found;
     else throw new AgentError('conversation_not_found', 404);
   }
   conversation ??= await createConversation(agent, channel, {

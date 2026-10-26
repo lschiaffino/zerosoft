@@ -109,7 +109,11 @@ function parseGraph(raw: string): FlowGraph {
   return { nodes: Array.isArray(g.nodes) ? g.nodes : [], edges: Array.isArray(g.edges) ? g.edges : [] };
 }
 
-export function toFlowDto(row: FlowFlowRow): FlowDto {
+/**
+ * `viewerId`: los datos fijados son de quien creó el flow (los copió de sus
+ * corridas o los escribió con su acceso): a otra persona le llegan vacíos.
+ */
+export function toFlowDto(row: FlowFlowRow, viewerId?: string | null): FlowDto {
   return {
     id: row.id,
     name: row.name,
@@ -123,7 +127,7 @@ export function toFlowDto(row: FlowFlowRow): FlowDto {
     errorFlowId: row.error_flow_id ?? null,
     failureAlerts: row.failure_alerts !== 0,
     autoReplay: row.auto_replay === 1,
-    pins: parsePins(row.pinned_data),
+    pins: viewerId === undefined || (viewerId !== null && viewerId === row.created_by) ? parsePins(row.pinned_data) : {},
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -268,7 +272,7 @@ export async function listFlows(workspaceId: string): Promise<FlowListItem[]> {
   return rows.map((row) => {
     const last = lastBy.get(row.id);
     return {
-      ...toFlowDto(row),
+      ...toFlowDto(row, null),
       lastRun: last ? { id: last.id, status: last.status, createdAt: last.created_at } : null,
     };
   });
@@ -280,9 +284,9 @@ export async function getFlowRow(workspaceId: string, id: string): Promise<FlowF
     .get(id, workspaceId)) as FlowFlowRow | undefined) ?? null;
 }
 
-export async function getFlow(workspaceId: string, id: string): Promise<FlowDto | null> {
+export async function getFlow(workspaceId: string, id: string, viewerId?: string | null): Promise<FlowDto | null> {
   const row = await getFlowRow(workspaceId, id);
-  return row ? toFlowDto(row) : null;
+  return row ? toFlowDto(row, viewerId) : null;
 }
 
 export type FlowWriteResult =
@@ -395,7 +399,7 @@ export async function createFlow(
     .run(id, workspaceId, input.name.trim(), input.description ?? '', JSON.stringify(v.graph), tf.type, tf.event, actorId, ts, ts);
   await syncWebhooks(workspaceId, id, v.graph);
   await snapshotVersion(workspaceId, id, 1, input.name.trim(), v.graph, actorId);
-  return { ok: true, flow: (await getFlow(workspaceId, id))! };
+  return { ok: true, flow: (await getFlow(workspaceId, id, actorId))! };
 }
 
 export async function updateFlow(
@@ -432,10 +436,12 @@ export async function updateFlow(
   const prevGraph = parseGraph(row.graph);
   const graphChanged = patch.graph !== undefined && !sameJson(graph, prevGraph);
   // El flow actúa como quien lo creó (Gmail, Docs, HTTP con credenciales,
-  // agentes, subflows): si otra persona cambia el grafo o lo activa, pasa a
-  // actuar como esa persona.
-  const turnsOn = patch.enabled === true && row.enabled !== 1;
-  const createdBy = (graphChanged || turnsOn) && actorId && actorId !== row.created_by ? actorId : row.created_by;
+  // agentes, subflows): si otra persona cambia el grafo, pasa a actuar como
+  // esa persona. Activarlo o pausarlo no cambia de quién es. Lo capturado
+  // antes (corridas, datos fijados) sigue siendo de quien lo capturó: los
+  // datos fijados se descartan.
+  const createdBy = graphChanged && actorId && actorId !== row.created_by ? actorId : row.created_by;
+  const pinnedData = createdBy !== row.created_by ? '{}' : (row.pinned_data ?? '{}');
   const enabled = patch.enabled ?? row.enabled === 1;
   const tf = triggerFields(graph, enabled);
   // Al editar un schedule ya programado, se conserva la próxima corrida si la
@@ -454,7 +460,7 @@ export async function updateFlow(
     .prepare(
       `UPDATE flow_flows SET name = ?, description = ?, enabled = ?, graph = ?, version = version + 1,
          trigger_type = ?, trigger_event = ?, next_run_at = ?, error_flow_id = ?, failure_alerts = ?, auto_replay = ?,
-         created_by = ?, updated_at = ?
+         created_by = ?, pinned_data = ?, updated_at = ?
        WHERE id = ? AND user_id = ? AND version = ?`,
     )
     .run(
@@ -469,6 +475,7 @@ export async function updateFlow(
       patch.failureAlerts === undefined ? (row.failure_alerts === 0 ? 0 : 1) : patch.failureAlerts ? 1 : 0,
       patch.autoReplay === undefined ? (row.auto_replay === 1 ? 1 : 0) : patch.autoReplay ? 1 : 0,
       createdBy,
+      pinnedData,
       nowIso(),
       id,
       workspaceId,
@@ -479,7 +486,7 @@ export async function updateFlow(
   if (graphChanged) {
     await snapshotVersion(workspaceId, id, row.version + 1, patch.name?.trim() || row.name, graph, actorId);
   }
-  return { ok: true, flow: (await getFlow(workspaceId, id))! };
+  return { ok: true, flow: (await getFlow(workspaceId, id, actorId ?? undefined))! };
 }
 
 // ---------- Datos de prueba fijados ----------
@@ -489,16 +496,20 @@ function parsePins(raw: string | undefined): Record<string, unknown> {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 }
 
-export type PinResult = { ok: true; pins: Record<string, unknown> } | { ok: false; error: 'not_found' | 'node_not_found' | 'pin_too_large' };
+export type PinResult =
+  | { ok: true; pins: Record<string, unknown> }
+  | { ok: false; error: 'not_found' | 'node_not_found' | 'pin_too_large' | 'not_flow_owner' };
 
 /**
  * Fija (o suelta con null/undefined) la salida de prueba de un nodo. Solo la
  * usan "Probar paso" y el selector de variables, nunca una corrida real. Se
  * descartan las de nodos que ya no están en el grafo.
  */
-export async function setFlowPin(workspaceId: string, flowId: string, nodeId: string, output: unknown): Promise<PinResult> {
+export async function setFlowPin(workspaceId: string, flowId: string, nodeId: string, output: unknown, personId?: string): Promise<PinResult> {
   const row = await getFlowRow(workspaceId, flowId);
   if (!row) return { ok: false, error: 'not_found' };
+  // Los datos fijados son de quien creó el flow (los usa "Probar paso" con su acceso).
+  if (personId !== undefined && personId !== row.created_by) return { ok: false, error: 'not_flow_owner' };
   const graph = parseGraph(row.graph);
   const ids = new Set(graph.nodes.map((n) => n.id));
   const pins: Record<string, unknown> = {};
@@ -535,24 +546,15 @@ export interface FlowRunViewer {
 
 /**
  * ¿Puede ver los datos de la corrida (entrada del disparador, entrada y
- * salida de cada paso)? Solo quien creó el flow: se capturaron con su acceso.
- * El resto del workspace, admins incluidos, ve el estado, los tiempos y los
- * errores, sin los datos (un evento puede traer registros que esa persona no
- * puede abrir: visibilidad del CRM, páginas privadas, canales).
+ * salida de cada paso)? Solo la persona con cuyo acceso corrió (quien creó el
+ * flow en ese momento, `captured_by`), aunque el flow haya pasado después a
+ * otra. El resto del workspace, admins incluidos, ve el estado, los tiempos y
+ * los errores, sin los datos (un evento puede traer registros que esa persona
+ * no puede abrir: visibilidad del CRM, páginas privadas, canales).
  */
-export async function canSeeRunData(
-  workspaceId: string,
-  viewer: FlowRunViewer | undefined,
-  flowCreator: string | null,
-  run: Pick<FlowRunRow, 'input'>,
-): Promise<boolean> {
+export function canSeeRunData(viewer: FlowRunViewer | undefined, run: Pick<FlowRunRow, 'captured_by'>): boolean {
   if (!viewer) return true;
-  void workspaceId;
-  if (flowCreator && viewer.personId === flowCreator) return true;
-  // Datos capturados con el acceso de quien creó el flow: solo los ve esa persona
-  // (un admin puede no tener acceso a lo mismo: páginas privadas, canales).
-  void run;
-  return false;
+  return Boolean(run.captured_by && run.captured_by === viewer.personId);
 }
 
 function redactRun<T extends FlowRunDto>(run: T): T {
@@ -563,13 +565,7 @@ export async function listRuns(workspaceId: string, flowId: string, limit = 30, 
   const rows = (await getDb()
     .prepare('SELECT * FROM flow_runs WHERE flow_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT ?')
     .all(flowId, workspaceId, Math.min(Math.max(limit, 1), 100))) as FlowRunRow[];
-  if (!viewer) return rows.map(toRunDto);
-  const flow = (await getDb().prepare('SELECT created_by FROM flow_flows WHERE id = ? AND user_id = ?').get(flowId, workspaceId)) as
-    | { created_by: string | null }
-    | undefined;
-  const out: FlowRunDto[] = [];
-  for (const r of rows) out.push((await canSeeRunData(workspaceId, viewer, flow?.created_by ?? null, r)) ? toRunDto(r) : redactRun(toRunDto(r)));
-  return out;
+  return rows.map((r) => (canSeeRunData(viewer, r) ? toRunDto(r) : redactRun(toRunDto(r))));
 }
 
 export async function getRunWithSteps(
@@ -584,8 +580,7 @@ export async function getRunWithSteps(
   const steps = (await getDb()
     .prepare('SELECT * FROM flow_steps WHERE run_id = ? ORDER BY started_at ASC, rowid ASC')
     .all(runId)) as FlowStepRow[];
-  const flow = (await getDb().prepare('SELECT created_by FROM flow_flows WHERE id = ?').get(row.flow_id)) as { created_by: string | null } | undefined;
-  if (!(await canSeeRunData(workspaceId, viewer, flow?.created_by ?? null, row))) {
+  if (!canSeeRunData(viewer, row)) {
     return { ...redactRun(toRunDto(row)), steps: steps.map((s) => ({ ...toStepDto(s), input: null, output: null })) };
   }
   return { ...toRunDto(row), steps: steps.map(toStepDto) };
@@ -617,16 +612,14 @@ export async function cancelRun(
 
 /** Última salida de cada nodo del flow (para el selector de variables). */
 export async function lastOutputs(workspaceId: string, flowId: string, viewer?: FlowRunViewer): Promise<Record<string, unknown>> {
+  // Con quien mira: su última corrida (las capturadas con su acceso), nunca la de otra persona.
   const run = (await getDb()
     .prepare(
-      "SELECT id, input FROM flow_runs WHERE flow_id = ? AND user_id = ? AND status IN ('success', 'failed', 'waiting') ORDER BY created_at DESC LIMIT 1",
+      `SELECT id FROM flow_runs WHERE flow_id = ? AND user_id = ? AND status IN ('success', 'failed', 'waiting')${viewer ? ' AND captured_by = ?' : ''}
+       ORDER BY created_at DESC LIMIT 1`,
     )
-    .get(flowId, workspaceId)) as { id: string; input: string } | undefined;
+    .get(flowId, workspaceId, ...(viewer ? [viewer.personId] : []))) as { id: string } | undefined;
   if (!run) return {};
-  if (viewer) {
-    const flow = (await getDb().prepare('SELECT created_by FROM flow_flows WHERE id = ?').get(flowId)) as { created_by: string | null } | undefined;
-    if (!(await canSeeRunData(workspaceId, viewer, flow?.created_by ?? null, run))) return {};
-  }
   // Una fila por nodo (la última): con Loops una corrida tiene cientos de pasos.
   const steps = (await getDb()
     .prepare(
@@ -693,8 +686,8 @@ export async function enqueueRun(
   await getDb()
     .prepare(
       `INSERT INTO flow_runs (id, flow_id, user_id, trigger_type, status, input, chain_depth, chain_seen, locked_until,
-         parent_run_id, rerun_of, created_at, started_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         parent_run_id, rerun_of, created_at, started_at, captured_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT created_by FROM flow_flows WHERE id = ?))`,
     )
     .run(
       id,
@@ -710,6 +703,7 @@ export async function enqueueRun(
       opts.rerunOf ?? null,
       ts,
       status === 'running' ? ts : null,
+      flow.id,
     );
   return id;
 }
@@ -726,10 +720,10 @@ async function recordRateLimitedRun(flow: Pick<FlowFlowRow, 'id' | 'user_id'>, t
   await getDb()
     .prepare(
       `INSERT INTO flow_runs (id, flow_id, user_id, trigger_type, status, input, error, chain_depth, chain_seen,
-         created_at, started_at, finished_at)
-       VALUES (?, ?, ?, ?, 'failed', ?, 'rate_limited', 0, ?, ?, ?, ?)`,
+         created_at, started_at, finished_at, captured_by)
+       VALUES (?, ?, ?, ?, 'failed', ?, 'rate_limited', 0, ?, ?, ?, ?, (SELECT created_by FROM flow_flows WHERE id = ?))`,
     )
-    .run(crypto.randomUUID(), flow.id, flow.user_id, triggerType, serializeRunInput(input), JSON.stringify([flow.id]), ts, ts, ts);
+    .run(crypto.randomUUID(), flow.id, flow.user_id, triggerType, serializeRunInput(input), JSON.stringify([flow.id]), ts, ts, ts, flow.id);
 }
 
 const KICK_LIMIT = 5;

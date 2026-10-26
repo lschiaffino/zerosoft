@@ -241,7 +241,8 @@
       "redeliver": "Reenviar",
       "close": "Fechar"
     },
-    "payloadHidden": "O corpo foi montado com o acesso de quem criou este webhook: só essa pessoa o vê."
+    "payloadHidden": "O corpo foi montado com o acesso de quem era dono do webhook naquele momento: só essa pessoa o vê.",
+    "resendNotOwner": "Só a pessoa com cujo acesso esta entrega foi montada pode reenviá-la."
   },
   "credentials": {
     "title": "Credenciais",

@@ -1689,6 +1689,8 @@ export interface FlowRunRow {
   rerun_of: string | null; // corrida original (re-ejecución desde un paso)
   parent_run_id: string | null; // corrida que la lanzó (sub-flow o flow de error)
   replay_at?: string | null; // replay automático agendado (corrida fallida)
+  /** Persona con cuyo acceso se armó la corrida (quien creó el flow en ese momento): solo ella ve sus datos. */
+  captured_by?: string | null;
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
@@ -1918,6 +1920,8 @@ export interface AgentToolCallRow {
   output: string | null; // JSON
   error: string | null;
   duration_ms: number;
+  /** Persona con cuyo acceso a Docs corrió la herramienta. */
+  captured_by?: string | null;
   created_at: string;
 }
 

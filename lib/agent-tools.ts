@@ -56,6 +56,17 @@ export interface AgentRunContext {
 
 type ToolOutput = Record<string, unknown>;
 
+/**
+ * Persona con cuyo acceso trabaja el agente en Docs. Si quien le habla está
+ * identificado (playground, Flow con su dueño, API key), esa persona; si no
+ * (Chat, página pública, Groups), quien lo configuró (tools.docsActorId).
+ */
+export function docsActorOf(channel: AgentChannel, conversationCreatedBy: string | null | undefined, cfg: { docsActorId?: string | null }): string | null {
+  if (conversationCreatedBy && (channel === 'playground' || channel === 'api')) return conversationCreatedBy;
+  if (channel === 'playground') return null;
+  return cfg.docsActorId ?? null;
+}
+
 /** run_robot: cuánto espera su turno en la cola del workspace y tope de la corrida. */
 const AGENT_ROBOT_WAIT_MS = 10_000;
 const AGENT_ROBOT_TIMEOUT_MS = 60_000;
@@ -129,8 +140,8 @@ function logged<I>(ctx: AgentRunContext, name: AgentToolKey, fn: (input: I) => P
     try {
       await getDb()
         .prepare(
-          `INSERT INTO agent_tool_calls (id, agent_id, user_id, conversation_id, run_id, tool, input, output, error, duration_ms, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO agent_tool_calls (id, agent_id, user_id, conversation_id, run_id, tool, input, output, error, duration_ms, created_at, captured_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -144,6 +155,7 @@ function logged<I>(ctx: AgentRunContext, name: AgentToolKey, fn: (input: I) => P
           error,
           durationMs,
           createdAt,
+          name.startsWith('docs_') ? docsActorOf(ctx.channel, ctx.conversation.created_by, ctx.agent.tools) : null,
         );
     } catch (err) {
       console.error('[agents] tool log failed', err);
@@ -258,10 +270,9 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
     );
   }
 
-  // Docs: páginas que el dueño le dio al agente (tools.docsPageIds) y sus subpáginas.
-  // En el playground trabaja con el acceso de quien prueba; en los demás canales,
-  // con el de quien lo configuró (tools.docsActorId).
-  const docsActor = ctx.channel === 'playground' ? (ctx.conversation.created_by ?? null) : (cfg.docsActorId ?? null);
+  // Docs: páginas que el dueño le dio al agente (tools.docsPageIds) y sus subpáginas,
+  // con el acceso de quien le habla si está identificado (ver docsActorOf).
+  const docsActor = docsActorOf(ctx.channel, ctx.conversation.created_by, cfg);
   if (cfg.docsPageIds.length && on.has('docs_read_pages')) {
     add(
       'docs_read_pages',
@@ -745,6 +756,8 @@ export interface AgentActionContext {
   conversationId: string;
   channel: AgentChannel;
   secretHeaders: Array<{ name: string; domain: string; value: string }>;
+  /** Persona que inició la conversación (si está identificada): con su acceso trabaja en Docs. */
+  conversationCreatedBy?: string | null;
 }
 
 function actionContext(ctx: AgentRunContext): AgentActionContext {
@@ -754,6 +767,7 @@ function actionContext(ctx: AgentRunContext): AgentActionContext {
     conversationId: ctx.conversation.id,
     channel: ctx.channel,
     secretHeaders: ctx.secretHeaders ?? [],
+    conversationCreatedBy: ctx.conversation.created_by ?? null,
   };
 }
 
@@ -783,8 +797,8 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 export async function performAgentAction(actx: AgentActionContext, tool: ApprovableAgentTool, input: ActionInput, docsActorOverride?: string | null): Promise<ToolOutput> {
   const { agent, workspaceId } = actx;
   const cfg = agent.tools;
-  // Docs: con el acceso de quien prueba (playground) o de quien configuró el agente; nunca el del dueño.
-  const docsActor = docsActorOverride !== undefined ? docsActorOverride : (cfg.docsActorId ?? null);
+  // Docs: con el acceso de quien le habla (si está identificado) o de quien configuró el agente; nunca el del dueño.
+  const docsActor = docsActorOverride !== undefined ? docsActorOverride : docsActorOf(actx.channel, actx.conversationCreatedBy, cfg);
   switch (tool) {
     case 'crm_upsert_contact': {
       const { findOrCreateContact } = await import('./crm-integrations');

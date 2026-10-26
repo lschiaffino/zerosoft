@@ -241,7 +241,8 @@
       "redeliver": "Resend",
       "close": "Close"
     },
-    "payloadHidden": "The body was built with the access of the person who created this webhook: only they can see it."
+    "payloadHidden": "The body was built with the access of the person who owned this webhook then: only they can see it.",
+    "resendNotOwner": "Only the person whose access built this delivery can resend it."
   },
   "credentials": {
     "title": "Credentials",

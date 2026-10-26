@@ -16,7 +16,7 @@ import {
   type FlowGraph,
   type FlowNode,
 } from './flow-schema';
-import { allowRun, enqueueRun, getFlowRow, getRunWithSteps, lastOutputs, parseJson, toFlowDto } from './flow';
+import { allowRun, enqueueRun, getFlowRow, getRunWithSteps, lastOutputs, parseJson, toFlowDto, type FlowRunViewer } from './flow';
 import { executeRun, testFlowStep, type StepTestResult } from './flow-engine';
 
 export function flowError(status: number, error: string, extra: Record<string, unknown> = {}): NextResponse {
@@ -41,15 +41,16 @@ export function runViewer(user: Pick<SessionUser, 'id' | 'actingUser' | 'role'>)
 }
 
 /**
- * ¿La corrida es de un flow creado por esta persona? Re-ejecutar reusa datos
- * capturados con el acceso de quien creó el flow: solo esa persona.
+ * ¿Puede re-ejecutar la corrida? Reusa datos capturados con el acceso de una
+ * persona (captured_by) y la nueva corre con el de quien creó el flow hoy:
+ * tienen que ser la misma, y ser quien lo pide.
  */
 export async function runOwnedBy(workspaceId: string, runId: string, personId: string): Promise<boolean> {
   const { getDb } = await import('./db');
   const row = (await getDb()
-    .prepare('SELECT f.created_by FROM flow_runs r JOIN flow_flows f ON f.id = r.flow_id WHERE r.id = ? AND r.user_id = ?')
-    .get(runId, workspaceId)) as { created_by: string | null } | undefined;
-  return Boolean(row?.created_by && row.created_by === personId);
+    .prepare('SELECT r.captured_by, f.created_by FROM flow_runs r JOIN flow_flows f ON f.id = r.flow_id WHERE r.id = ? AND r.user_id = ?')
+    .get(runId, workspaceId)) as { captured_by: string | null; created_by: string | null } | undefined;
+  return Boolean(row?.created_by && row.created_by === personId && row.captured_by === personId);
 }
 
 /** Persona real logueada (no el dueño del workspace). */
@@ -92,14 +93,15 @@ export function testInput(graph: FlowGraph, input: Record<string, unknown> | und
 }
 
 /** Corrida manual: se ejecuta en el momento (con lock) y devuelve los pasos. */
-export async function runFlowNow(workspaceId: string, flowId: string, input: Record<string, unknown> | undefined) {
+export async function runFlowNow(workspaceId: string, flowId: string, input: Record<string, unknown> | undefined, viewer?: FlowRunViewer) {
   const row = await getFlowRow(workspaceId, flowId);
   if (!row) return { ok: false as const, error: 'not_found' };
   const graph = parseJson<FlowGraph>(row.graph, { nodes: [], edges: [] });
   const runId = await enqueueRun(row, 'manual', testInput(graph, input), { status: 'running', lockMs: 5 * 60_000 });
   if (!runId) return { ok: false as const, error: 'rate_limited' };
   await executeRun(runId);
-  return { ok: true as const, run: await getRunWithSteps(workspaceId, runId) };
+  // Corre con el acceso de quien creó el flow: si lo corre otra persona, ve el estado sin los datos.
+  return { ok: true as const, run: await getRunWithSteps(workspaceId, runId, viewer) };
 }
 
 /**
@@ -126,7 +128,8 @@ export async function testStepNow(
   if (!(await allowRun(workspaceId))) return { ok: false, error: 'rate_limited' };
   let sample = body.context;
   if (!sample) {
-    const { pins } = toFlowDto(row);
+    // Datos fijados y salidas: solo los de quien prueba (lo capturado con su acceso).
+    const { pins } = toFlowDto(row, viewer ? viewer.personId : undefined);
     const trigger = triggerNode(graph);
     sample = {
       trigger: (trigger && pins[trigger.id]) ?? testInput(graph, undefined),

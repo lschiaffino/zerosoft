@@ -183,6 +183,7 @@ export async function decideAgentAction(
           conversationId: conv.id,
           channel: conv.channel,
           secretHeaders: loadSecretHeaders(agentRow),
+          conversationCreatedBy: conv.created_by ?? null,
         },
         row.tool,
         input,
@@ -198,10 +199,21 @@ export async function decideAgentAction(
 
   // La decisión entra al historial de herramientas que el agente ve en su próximo turno.
   const error = typeof output.error === 'string' ? output.error : null;
+  // Docs: se registra con el acceso de quién corrió (solo esa persona ve el detalle).
+  let capturedBy: string | null = null;
+  if (row.tool.startsWith('docs_')) {
+    const { getAgentRow, toAgentDto } = await import('./agents');
+    const { docsActorOf } = await import('./agent-tools');
+    const agentRow = await getAgentRow(workspaceId, agentId);
+    const conv = (await db.prepare('SELECT channel, created_by FROM agent_conversations WHERE id = ?').get(row.conversation_id)) as
+      | Pick<AgentConversationRow, 'channel' | 'created_by'>
+      | undefined;
+    if (agentRow && conv) capturedBy = docsActorOf(conv.channel, conv.created_by, toAgentDto(agentRow).tools);
+  }
   await db
     .prepare(
-      `INSERT INTO agent_tool_calls (id, agent_id, user_id, conversation_id, run_id, tool, input, output, error, duration_ms, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+      `INSERT INTO agent_tool_calls (id, agent_id, user_id, conversation_id, run_id, tool, input, output, error, duration_ms, created_at, captured_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
     )
     .run(
       crypto.randomUUID(),
@@ -215,6 +227,7 @@ export async function decideAgentAction(
       // Un rechazo no es un error de la herramienta: el agente tiene que verlo.
       status === 'failed' ? error : null,
       ts,
+      capturedBy,
     )
     .catch(() => {});
   const updated = (await db.prepare('SELECT * FROM agent_pending_actions WHERE id = ?').get(actionId)) as PendingRow;

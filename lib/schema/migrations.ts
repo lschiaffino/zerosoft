@@ -5518,6 +5518,22 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Datos capturados con el acceso de una persona (re-QA D4): cada corrida de
+    // Flow, entrega de webhook y llamada a herramienta de un agente guarda con
+    // el acceso de quién se armó. Solo esa persona ve sus datos, aunque el
+    // flow, el webhook o el agente pasen después a otra.
+    id: '116_captured_by',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE flow_runs ADD COLUMN captured_by TEXT');
+      await addColumn(client, 'ALTER TABLE webhook_deliveries ADD COLUMN captured_by TEXT');
+      await addColumn(client, 'ALTER TABLE agent_tool_calls ADD COLUMN captured_by TEXT');
+      await client.executeMultiple(`
+        UPDATE flow_runs SET captured_by = (SELECT created_by FROM flow_flows f WHERE f.id = flow_runs.flow_id) WHERE captured_by IS NULL;
+        UPDATE webhook_deliveries SET captured_by = (SELECT created_by FROM webhooks w WHERE w.id = webhook_deliveries.webhook_id) WHERE captured_by IS NULL;
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -241,7 +241,8 @@
       "redeliver": "Reenviar",
       "close": "Cerrar"
     },
-    "payloadHidden": "El cuerpo se armó con el acceso de quien creó este webhook: solo esa persona lo ve."
+    "payloadHidden": "El cuerpo se armó con el acceso de quien era dueño del webhook en ese momento: solo esa persona lo ve.",
+    "resendNotOwner": "Solo la persona con cuyo acceso se armó esta entrega la puede reenviar."
   },
   "credentials": {
     "title": "Credenciales",

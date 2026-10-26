@@ -179,7 +179,7 @@ export async function notifyRunFailure(opts: {
 
 // ---------- Replay ----------
 
-export type ReplayError = 'not_found' | 'run_not_failed' | 'rate_limited';
+export type ReplayError = 'not_found' | 'run_not_failed' | 'rate_limited' | 'owner_changed';
 
 export type ReplayResult =
   | { ok: true; runId: string; status: FlowRunRow['status']; mode: 'from_step' | 'full' }
@@ -209,12 +209,14 @@ export async function replayRun(workspaceId: string, runId: string): Promise<Rep
   if (failed) {
     const res = await rerunFromStep(workspaceId, old.id, failed.node_id);
     if (res.ok) return { ok: true, runId: res.runId, status: res.status, mode: 'from_step' };
-    if (res.error === 'rate_limited' || res.error === 'not_found') return { ok: false, error: res.error };
+    if (res.error === 'rate_limited' || res.error === 'not_found' || res.error === 'owner_changed') return { ok: false, error: res.error };
   }
-  const flow = (await db.prepare('SELECT id, user_id FROM flow_flows WHERE id = ? AND user_id = ?').get(old.flow_id, workspaceId)) as
-    | Pick<FlowFlowRow, 'id' | 'user_id'>
+  const flow = (await db.prepare('SELECT id, user_id, created_by FROM flow_flows WHERE id = ? AND user_id = ?').get(old.flow_id, workspaceId)) as
+    | Pick<FlowFlowRow, 'id' | 'user_id' | 'created_by'>
     | undefined;
   if (!flow) return { ok: false, error: 'not_found' };
+  // El input se capturó con el acceso de captured_by: no se vuelve a correr si el flow pasó a otra persona.
+  if (!flow.created_by || old.captured_by !== flow.created_by) return { ok: false, error: 'owner_changed' };
   const newId = await enqueueRun(flow, old.trigger_type, parseJson(old.input, {}), {
     status: 'running',
     lockMs: 5 * 60_000,

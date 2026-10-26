@@ -820,7 +820,7 @@
     "table_full": "A tabela de dados está cheia. Apague linhas ou use outra tabela.",
     "forbidden": "Quem criou este flow não pode editar essa página.",
     "locked": "A página está bloqueada. Desbloqueie no Docs para o flow poder alterá-la.",
-    "no_flow_owner": "Quem criou este flow não está mais no workspace. Alguém que possa editá-lo precisa abrir e salvar o passo do Docs.",
+    "no_flow_owner": "Quem criou este flow não está mais no workspace. Alguém que possa editá-lo precisa mudar um passo e salvá-lo, para que rode com o seu acesso.",
     "missing_page": "Este passo não tem página. Escolha uma ou use uma variável como {{trigger.page.id}}.",
     "missing_content": "Este passo não tem conteúdo para escrever.",
     "missing_title": "Este passo não tem título.",
@@ -835,9 +835,13 @@
     "unknown_property": "O banco não tem uma propriedade com esse nome. Confira os nomes em Propriedades.",
     "invalid_option": "Esse status não existe no banco.",
     "invalid_person": "Essa pessoa não está no workspace. Use o email dela.",
-    "invalid_value": "Um valor não corresponde ao tipo da propriedade (número ou data)."
+    "invalid_value": "Um valor não corresponde ao tipo da propriedade (número ou data).",
+    "owner_changed": "Esta execução usou o acesso de quem era dono do flow naquele momento. Só pode ser executada de novo enquanto essa pessoa for a dona.",
+    "subflow_other_owner": "Executar flow só chama flows criados pela mesma pessoa que este."
   },
   "errors": {
+    "subflow_other_owner": "Executar flow só chama flows criados pela mesma pessoa que este.",
+    "owner_changed": "Esta execução usou o acesso de quem era dono do flow naquele momento. Só pode ser executada de novo enquanto essa pessoa for a dona.",
     "generic": "Algo deu errado. Tente de novo.",
     "forbidden": "Só admins e donos do workspace podem fazer isso.",
     "not_found": "Este flow não existe mais.",

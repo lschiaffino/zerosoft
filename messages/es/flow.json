@@ -820,7 +820,7 @@
     "table_full": "La tabla de datos está llena. Borrá filas o usá otra tabla.",
     "forbidden": "Quien creó este flow no puede editar esa página.",
     "locked": "La página está bloqueada. Desbloqueala en Docs para que el flow la pueda cambiar.",
-    "no_flow_owner": "Quien creó este flow ya no está en el workspace. Alguien que pueda editarlo tiene que abrir y guardar el paso de Docs.",
+    "no_flow_owner": "Quien creó este flow ya no está en el workspace. Alguien que pueda editarlo tiene que cambiar un paso y guardarlo, así corre con su acceso.",
     "missing_page": "Este paso no tiene página. Elegí una o usá una variable como {{trigger.page.id}}.",
     "missing_content": "Este paso no tiene contenido para escribir.",
     "missing_title": "Este paso no tiene título.",
@@ -835,9 +835,13 @@
     "unknown_property": "La base no tiene una propiedad con ese nombre. Revisá los nombres en Propiedades.",
     "invalid_option": "Ese status no existe en la base.",
     "invalid_person": "Esa persona no está en el workspace. Usá su email.",
-    "invalid_value": "Un valor no coincide con el tipo de su propiedad (número o fecha)."
+    "invalid_value": "Un valor no coincide con el tipo de su propiedad (número o fecha).",
+    "owner_changed": "Esta corrida usó el acceso de quien era dueño del flow en ese momento. Solo se puede volver a correr mientras esa persona sea la dueña.",
+    "subflow_other_owner": "Correr flow solo llama a flows creados por la misma persona que este."
   },
   "errors": {
+    "subflow_other_owner": "Correr flow solo llama a flows creados por la misma persona que este.",
+    "owner_changed": "Esta corrida usó el acceso de quien era dueño del flow en ese momento. Solo se puede volver a correr mientras esa persona sea la dueña.",
     "generic": "Algo salió mal. Probá de nuevo.",
     "forbidden": "Solo los admins y dueños del workspace pueden hacer esto.",
     "not_found": "Este flow ya no existe.",
