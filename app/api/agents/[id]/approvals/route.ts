@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { listAgentActions } from '@/lib/agents-approvals';
-import { agentError, unauthorized } from '@/lib/agents-http';
+import { agentError, canEditAgents, forbidden, unauthorized } from '@/lib/agents-http';
 import type { AgentPendingActionDto } from '@/lib/agents-config';
 
 export const runtime = 'nodejs';
@@ -14,6 +14,8 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  // Las acciones traen datos del visitante (CRM, emails) y efectos de herramientas que configuran los admins.
+  if (!canEditAgents(user)) return forbidden();
   const sp = req.nextUrl.searchParams;
   const status = sp.get('status');
   if (status && !STATUSES.includes(status as AgentPendingActionDto['status'])) return agentError(400, 'invalid_input');
