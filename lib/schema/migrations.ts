@@ -5768,6 +5768,14 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Cal: tipos de evento ocultos. No salen en la página pública del
+    // workspace, pero el link directo sigue reservando.
+    id: '117_cal_hidden_event_types',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE calendar_event_types ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

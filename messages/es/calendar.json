@@ -45,6 +45,7 @@
     "newSub": "Crea un link de reserva. Define duración, reglas y preguntas.",
     "back": "← Todos los tipos de evento",
     "minutes": "min",
+    "hidden": "Oculto",
     "inactive": "Inactivo",
     "emptyTitle": "Todavía no hay tipos de evento",
     "emptySub": "Un tipo de evento es un link de reserva: una reunión con su duración y su horario. Creá uno y compartilo.",
@@ -531,6 +532,8 @@
     "removeConfirm": "¿Desconectar Stripe? Los tipos de evento con precio dejan de tomar reservas."
   },
   "editor": {
+    "hidden": "Ocultar de tu página de reservas",
+    "hiddenHelp": "Solo reserva quien tenga el link directo. No se lista en tu página pública.",
     "acceptsBookings": "Acepta reservas",
     "acceptsOff": "Apagado: el link muestra que no está disponible.",
     "acceptsOn": "El link está abierto para reservar.",

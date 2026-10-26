@@ -45,6 +45,7 @@
     "newSub": "Create a booking link. Set duration, rules and questions.",
     "back": "← All event types",
     "minutes": "min",
+    "hidden": "Hidden",
     "inactive": "Inactive",
     "emptyTitle": "No event types yet",
     "emptySub": "An event type is a booking link: a meeting with its length and hours. Create one and share it.",
@@ -531,6 +532,8 @@
     "removeConfirm": "Disconnect Stripe? Paid event types stop taking bookings."
   },
   "editor": {
+    "hidden": "Hide from your booking page",
+    "hiddenHelp": "Only people with the direct link can book it. It won't be listed on your public page.",
     "acceptsBookings": "Accepting bookings",
     "acceptsOff": "Off: the link says it isn't available.",
     "acceptsOn": "The link is open for booking.",

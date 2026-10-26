@@ -45,6 +45,7 @@
     "newSub": "Crie um link de reserva. Defina duração, regras e perguntas.",
     "back": "← Todos os tipos de evento",
     "minutes": "min",
+    "hidden": "Oculto",
     "inactive": "Inativo",
     "emptyTitle": "Ainda não há tipos de evento",
     "emptySub": "Um tipo de evento é um link de agendamento: uma reunião com duração e horário. Crie um e compartilhe.",
@@ -531,6 +532,8 @@
     "removeConfirm": "Desconectar o Stripe? Os tipos de evento pagos deixam de receber agendamentos."
   },
   "editor": {
+    "hidden": "Ocultar da sua página de agendamento",
+    "hiddenHelp": "Só agenda quem tiver o link direto. Não aparece na sua página pública.",
     "acceptsBookings": "Aceitando agendamentos",
     "acceptsOff": "Desativado: o link mostra que não está disponível.",
     "acceptsOn": "O link está aberto para agendamento.",

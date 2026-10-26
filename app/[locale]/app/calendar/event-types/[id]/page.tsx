@@ -75,6 +75,7 @@ export default async function EventTypeDetailPage(props: {
         welcomeMessage: eventType.welcome_message ?? '',
         logoUrl: eventType.logo_url ?? '',
         singleUse: eventType.single_use === 1,
+        hidden: eventType.hidden === 1,
         used: !!eventType.used_at,
         scheduleId: eventType.schedule_id,
         priceCents: eventType.price_cents,

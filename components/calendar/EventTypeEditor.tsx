@@ -69,6 +69,7 @@ export interface EventTypeEditorProps {
     welcomeMessage: string;
     logoUrl: string;
     singleUse: boolean;
+    hidden: boolean;
     used: boolean;
     scheduleId: string | null;
     priceCents: number;
@@ -158,6 +159,7 @@ interface Draft {
   useDefaults: boolean;
   limits: Limits;
   singleUse: boolean;
+  hidden: boolean;
   fields: QuestionDef[];
   hostIds: string[];
   /** El evento usa otro color o logo que la marca del workspace. */
@@ -225,6 +227,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
       useDefaults: usesDefaultLimits(et.bookingRules),
       limits: initialLimits(et.bookingRules, defaults),
       singleUse: et.singleUse,
+      hidden: et.hidden,
       fields: et.fields,
       hostIds: props.hostIds,
       brandOverride: !!(et.brandColor || et.logoUrl),
@@ -413,6 +416,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
           maxGuests: d.allowGuests ? maxGuests : undefined,
         },
         singleUse: d.singleUse,
+        hidden: d.hidden,
         fields,
         brandColor: d.brandOverride ? d.brandColor || null : null,
         logoUrl: d.brandOverride ? d.logoUrl.trim() || null : null,
@@ -624,6 +628,13 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
               <span>
                 {t('editor.acceptsBookings')}
                 <span className="cal-switch-help">{d.active ? t('editor.acceptsOn') : t('editor.acceptsOff')}</span>
+              </span>
+            </label>
+            <label className="ui-switch">
+              <input type="checkbox" role="switch" checked={d.hidden} onChange={(e) => set('hidden', e.target.checked)} />
+              <span>
+                {t('editor.hidden')}
+                <span className="cal-switch-help">{t('editor.hiddenHelp')}</span>
               </span>
             </label>
           </Panel>
