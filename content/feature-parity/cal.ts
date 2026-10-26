@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Calendly',
   alsoCompared: ['Cal.com'],
-  lastReviewed: '2026-10-22',
+  lastReviewed: '2026-10-26',
   areas: [
     { id: 'event-types', label: { en: 'Event types and availability', es: 'Tipos de evento y disponibilidad', pt: 'Tipos de evento e disponibilidade' } },
     { id: 'booking', label: { en: 'Booking page and payments', es: 'Página de reserva y cobros', pt: 'Página de reserva e cobranças' } },
@@ -100,8 +100,8 @@ const parity: ProductParity = {
       id: 'secret-event-types',
       area: 'event-types',
       label: { en: 'Secret event types hidden from the profile', es: 'Tipos de evento ocultos del perfil', pt: 'Tipos de evento ocultos do perfil' },
-      detail: { en: 'Only single-use links stay off the profile; otherwise a type is on or off', es: 'Solo los links de un uso quedan fuera del perfil; si no, el tipo está activo o apagado', pt: 'Só os links de uso único ficam fora do perfil; senão o tipo fica ativo ou desligado' },
-      status: 'missing',
+      detail: { en: 'A hidden type stays off the public page and still books from its direct link', es: 'Un tipo oculto no sale en la página pública y reserva desde su link directo', pt: 'Um tipo oculto não aparece na página pública e agenda pelo link direto' },
+      status: 'have',
       competitorHas: true,
     },
 

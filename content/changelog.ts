@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-26-cal-hidden',
+    date: '2026-10-26',
+    title: {
+      en: 'Cal: hide event types from your booking page',
+      es: 'Cal: ocultá tipos de evento de tu página de reservas',
+      pt: 'Cal: oculte tipos de evento da sua página de agendamento',
+    },
+    items: [
+      {
+        product: 'cal',
+        en: 'A hidden event type no longer shows on your public booking page, and people with its direct link can still book it. Turn it on in the event type editor; the list shows a Hidden badge.',
+        es: 'Un tipo de evento oculto deja de aparecer en tu página pública de reservas, y quien tenga su link directo puede seguir reservando. Se activa en el editor del tipo de evento; la lista muestra la etiqueta Oculto.',
+        pt: 'Um tipo de evento oculto deixa de aparecer na sua página pública de agendamento, e quem tiver o link direto ainda pode agendar. Ative no editor do tipo de evento; a lista mostra a etiqueta Oculto.',
+      },
+    ],
+  },
+  {
     id: '2026-10-25-voice',
     date: '2026-10-25',
     title: {

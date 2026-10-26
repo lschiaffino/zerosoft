@@ -288,7 +288,7 @@ export async function getPublicProfile(
     name: brand.name || user.handle,
     handle: user.handle,
     brand,
-    eventTypes: (await listEventTypes(user.id, { activeOnly: true })).filter((e) => e.single_use !== 1),
+    eventTypes: (await listEventTypes(user.id, { activeOnly: true })).filter((e) => e.single_use !== 1 && e.hidden !== 1),
   };
 }
 
@@ -451,8 +451,8 @@ export async function createEventType(
       `INSERT INTO calendar_event_types
        (id, user_id, team_id, slug, title, duration_min, location, description, color, active, booking_rules, fields,
         brand_color, welcome_message, logo_url, single_use, created_at, updated_at, schedule_id, price_cents, currency, one_off_times,
-        locations, scheduling, seats)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        locations, scheduling, seats, hidden)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -480,6 +480,7 @@ export async function createEventType(
       JSON.stringify(payload.locations ?? []),
       scheduling,
       seats,
+      booleanToInt(payload.hidden) ?? 0,
     );
   if (payload.hostIds) await setEventHosts(id, payload.hostIds);
   const row = (await getDb().prepare('SELECT * FROM calendar_event_types WHERE id = ?').get(id)) as CalendarEventTypeRow;
@@ -550,6 +551,10 @@ export async function updateEventType(
   if (payload.active !== undefined) {
     sets.push('active = ?');
     values.push(booleanToInt(payload.active)!);
+  }
+  if (payload.hidden !== undefined) {
+    sets.push('hidden = ?');
+    values.push(booleanToInt(payload.hidden)!);
   }
   if (payload.bookingRules !== undefined) {
     sets.push('booking_rules = ?');

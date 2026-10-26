@@ -947,6 +947,8 @@ export interface CalendarEventTypeRow {
   welcome_message: string;
   logo_url: string | null;
   single_use: 0 | 1;
+  /** 1 = no sale en la página pública del workspace (el link directo sigue reservando). */
+  hidden: 0 | 1;
   used_at: string | null;
   rr_cursor: number;
   created_at: string;

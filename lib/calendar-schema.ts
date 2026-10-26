@@ -166,6 +166,8 @@ export const eventTypeCreateSchema = z.object({
   description: longText.optional(),
   color: hexColor.optional(),
   active: z.boolean().optional(),
+  /** Oculto: no aparece en la página pública del workspace, el link directo sigue andando. */
+  hidden: z.boolean().optional(),
   bookingRules,
   fields: z.array(customField).max(20).optional(),
   teamId: id.nullish(),

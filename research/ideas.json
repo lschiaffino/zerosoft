@@ -1480,7 +1480,9 @@
     "description": "Calendly lets an event type stay bookable by its link without being listed on the profile page. Our profile (lib/calendar.ts) lists every active event type that is not single-use, so a team cannot keep an internal or VIP link off the public page without making it single-use. Scope: a 'Show on profile' toggle per event type, respected by the profile page and the embed picker.\n\nPriority: low. Effort: S. Compared with Calendly.",
     "product": "cal",
     "kind": "idea",
-    "parity": "secret-event-types"
+    "parity": "secret-event-types",
+    "status": "done",
+    "changelog": "2026-10-26-cal-hidden"
   },
   {
     "title": "Cal: Summarize meetings into the CRM with a notetaker",
@@ -2241,5 +2243,25 @@
     "parity": "masking",
     "status": "done",
     "changelog": "2026-10-25-groups-platform"
+  },
+  {
+    "title": "Cal: Challenge suspicious public bookings with a captcha",
+    "description": "Calendly shows invitees a Captcha when a booking attempt looks suspicious (https://community.calendly.com/featured-tips-tricks-32/change-log-march-13-2026-5463). Our public booking endpoint at app/api/calendar/bookings/route.ts has a rate limit but no bot challenge, so a team that shares its page widely can get junk bookings that hold real slots and trigger emails. First scope: a workspace toggle that adds a lightweight proof-of-work or Turnstile challenge to the booking form after repeated attempts from one IP, and logs the blocked attempts in settings.\n\nPriority: medium. Effort: M.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Expose scheduling over an MCP server with availability and booking tools",
+    "description": "Calendly ships an MCP server that lets AI assistants view meetings, manage availability and book conversationally (https://community.calendly.com/featured-tips-tricks-32/change-log-march-13-2026-5463). Cal has a REST API under app/api/v1/calendar but no MCP endpoint, while Track already has one in app/api/mcp/track. A small team that works from an assistant cannot ask it for open slots or to create a booking. First scope: read-only tools (list event types, get available slots, list bookings) plus a create_booking tool, scoped by the existing API keys.\n\nPriority: medium. Effort: M.",
+    "product": "cal",
+    "kind": "idea",
+    "parity": "mcp-server"
+  },
+  {
+    "title": "Cal: Sell meeting packages that bundle several sessions into one payment",
+    "description": "Calendly added Meeting Packages and Payment Links in beta as part of its commerce tools (https://community.calendly.com/featured-tips-tricks-32/change-log-march-13-2026-5463). We charge per event type through Stripe (lib/calendar-payments.ts) and each booking is paid on its own. Coaches and consultants who sell five sessions at a price cannot do it without a manual invoice. First scope: a package with a session count and price, a payment link, and a credit counter that is spent as the invitee books each session.\n\nPriority: medium. Effort: M.",
+    "product": "cal",
+    "kind": "idea",
+    "parity": "packages-invoices"
   }
 ]
