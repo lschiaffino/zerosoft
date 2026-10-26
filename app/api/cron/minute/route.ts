@@ -14,6 +14,7 @@ import { retryDueWebhooks } from '@/lib/webhooks';
 import { runSlaChecks } from '@/lib/track-sla';
 import { processPendingAgentSessions } from '@/lib/track-agents';
 import { processTrackIntegrationQueue } from '@/lib/track-events';
+import { processPendingRec } from '@/lib/rec-ai';
 import { runTalkCron } from '@/lib/talk-notify';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
 
@@ -68,6 +69,8 @@ export async function GET(req: NextRequest) {
   const voice = await runVoiceCron({ budgetMs: 20_000, cleanup: false }).catch(() => null);
   // Agentes de datos y prospección del CRM (claim por ítem en claimed_at).
   const crmAiRuns = await processAiRuns({ budgetMs: 20_000 }).catch(() => null);
+  // Rec: transcripción y resumen de los videos que quedaron en cola.
+  const rec = await processPendingRec({ limit: 5, budgetMs: 20_000 }).catch(() => null);
   // Talk: mensajes programados (claim pending → sending), recordatorios (sent_at) y emails de menciones (talk_email_queue.sent_at).
   const talk = await runTalkCron().catch(() => null);
   const flow = await processFlowQueue({ limit: 200, budgetMs: Math.max(0, FLOW_BUDGET_MS - (Date.now() - start)) });
@@ -75,5 +78,5 @@ export async function GET(req: NextRequest) {
   const imports = await processImportJobs({ budgetMs: Math.max(5_000, IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
   // Imports del CRM con lo que queda de los 300 s (dejando margen).
   const crmImports = await processCrmImportJobs({ budgetMs: Math.max(0, CRM_IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, groups, voice, crmAiRuns, talk, flow, imports, crmImports });
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, groups, voice, crmAiRuns, rec, talk, flow, imports, crmImports });
 }

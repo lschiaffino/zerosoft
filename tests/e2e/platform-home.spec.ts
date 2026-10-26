@@ -131,8 +131,8 @@ for (const [width, height] of [[1280, 720], [1440, 900]] as const) {
     await page.goto('/es', { waitUntil: 'networkidle' });
     await page.locator('.site-header .hd-trigger').click();
     const mega = page.locator('#hd-mega');
-    // Las apps en construcción van en una fila compacta aparte.
-    await expect(mega.locator('.hd-building a.hd-prod')).toHaveCount(1);
+    // Ya no quedan apps en construcción: el menú no tiene la fila aparte.
+    await expect(mega.locator('.hd-building')).toHaveCount(0);
     for (const link of await mega.locator('a.hd-prod').all()) await expect(link).toBeInViewport({ ratio: 1 });
   });
 }

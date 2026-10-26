@@ -176,7 +176,7 @@ async function networkFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
   try {
     const res = await fetch(request);
-    if (res && res.ok && res.type === 'basic' && !res.redirected) await cache.put(request, res.clone());
+    if (res && res.ok && res.status === 200 && res.type === 'basic' && !res.redirected) await cache.put(request, res.clone()).catch(() => undefined);
     return res;
   } catch (err) {
     const hit = await cache.match(request, { ignoreVary: true });
@@ -252,9 +252,13 @@ self.addEventListener('fetch', (event) => {
     }
     // GET de la API del CRM (listas, ajustes): network-first. Las páginas RSC
     // (?_rsc=) no se cachean: si fallan, Next hace una navegación completa.
+    // Archivos (videos, PDFs) y pedidos con Range quedan afuera: una respuesta
+    // parcial (206) no se puede guardar en la caché y el video no cargaba.
     if (
       url.pathname.startsWith('/api/crm/') &&
-      !/^\/api\/crm\/(export|voice|extension)(\/|$)/.test(url.pathname)
+      !/^\/api\/crm\/(export|voice|extension)(\/|$)/.test(url.pathname) &&
+      !/\/file$/.test(url.pathname) &&
+      !request.headers.has('range')
     ) {
       event.respondWith(networkFirst(request, PAGES));
     }

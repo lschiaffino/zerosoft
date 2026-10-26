@@ -159,9 +159,10 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
   };
 
   // El indicador va en el hueco de la barra de arriba (AppSidebar › #band-voice-slot).
+  // (El menú no se cierra con el cambio de ruta: apps como Talk reescriben la URL con
+  // history.replaceState y lo cerrarían en la mano; lo cierran Esc, un clic afuera o sus ítems.)
   useEffect(() => {
     setSlot(document.getElementById('band-voice-slot'));
-    setMenuOpen(false);
   }, [pathname]);
 
   const subscribe = useCallback((id: string, onSegments: SegmentsListener, onDone?: DoneListener) => {

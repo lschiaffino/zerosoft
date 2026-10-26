@@ -85,7 +85,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder']}>
+    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'rec.signout']}>
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
@@ -99,6 +99,8 @@ export default async function AppLayout(
             name: user.actingUser?.name ?? user.name,
             email: user.actingUser?.email ?? user.email,
             image: user.actingUser?.image ?? user.image,
+            id: user.actingUser?.id ?? user.id,
+            ws: user.id,
           }}
           teamName={user.actingUser && user.team ? user.team.name : null}
           crumb={
@@ -202,6 +204,8 @@ export default async function AppLayout(
                 { href: '/app/voice', label: tVoice('nav.meetings') },
                 { href: '/app/voice/dictation', label: tVoice('nav.dictation') },
                 { href: '/app/rec', label: tRec('sidebar.home') },
+                { href: '/app/rec/workspace', label: tRec('sidebar.workspace') },
+                { href: '/app/rec/new', label: tRec('sidebar.newVideo') },
                 { href: '/app/talk', label: tTalk('sidebar.home') },
               ]}
             />
@@ -350,7 +354,7 @@ export default async function AppLayout(
               settings: tGroups('sidebar.settings'),
             },
             voice: { meetings: tVoice('nav.meetings'), dictation: tVoice('nav.dictation'), newMeeting: tVoice('meetings.new') },
-            rec: { home: tRec('sidebar.home') },
+            rec: { home: tRec('sidebar.home'), workspace: tRec('sidebar.workspace'), newVideo: tRec('sidebar.newVideo') },
             talk: { home: tTalk('sidebar.home') },
             notifications: {
               title: tTrack('notifications.title'),
@@ -385,6 +389,10 @@ export default async function AppLayout(
                 groupsMention: tTrack.raw('notifications.groupsMention') as string,
                 groupsAssigned: tTrack.raw('notifications.groupsAssigned') as string,
                 groupsAutoAssigned: tTrack.raw('notifications.groupsAutoAssigned') as string,
+                recView: tRec.raw('notifications.view') as string,
+                recComment: tRec.raw('notifications.comment') as string,
+                recReaction: tRec.raw('notifications.reaction') as string,
+                recComments: tRec.raw('notifications.comments') as string,
               },
             },
           }}

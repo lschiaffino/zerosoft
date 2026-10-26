@@ -38,6 +38,16 @@ export async function rateLimit(key: string, limit: number, windowSec: number): 
   return { ok: count <= limit, remaining: Math.max(0, limit - count), resetAt: windowStart + windowMs };
 }
 
+/** Cuántas veces se contó la clave en la ventana actual (sin sumar). */
+export async function peekCount(key: string, windowSec: number): Promise<number> {
+  const windowMs = windowSec * 1000;
+  const windowStart = Math.floor(Date.now() / windowMs) * windowMs;
+  const row = (await getDb()
+    .prepare('SELECT count FROM rate_limits WHERE key = ? AND window_start = ?')
+    .get(key, windowStart)) as { count: number } | undefined;
+  return Number(row?.count ?? 0);
+}
+
 /** ¿La clave ya pasó el límite en la ventana actual? Solo lee (no cuenta este intento). */
 export async function isRateLimited(key: string, limit: number, windowSec: number): Promise<boolean> {
   const windowMs = windowSec * 1000;
@@ -48,10 +58,33 @@ export async function isRateLimited(key: string, limit: number, windowSec: numbe
   return Number(row?.count ?? 0) >= limit;
 }
 
-/** IP del cliente. En Vercel x-forwarded-for la pone el edge (no la controla el cliente). */
+/**
+ * IP del cliente para limitar pedidos.
+ *
+ * - En Vercel: x-vercel-forwarded-for (lo escribe el edge; el cliente no lo controla).
+ * - Fuera de Vercel (self-host detrás de un proxy): la entrada de
+ *   x-forwarded-for que agregó el proxy inmediato, contando desde la derecha
+ *   (TRUST_PROXY_HOPS, por defecto 1). Las de la izquierda las puede inventar
+ *   el cliente; la de la derecha la puso nuestro proxy. Si no hay, x-real-ip.
+ * - TRUST_PROXY=0: no se confía en ningún header (todo cae en 'unknown').
+ * - Sin headers: 'unknown' (un solo cupo, como sin proxy).
+ */
 export function clientIp(req: Request): string {
-  const fwd = req.headers.get('x-vercel-forwarded-for') ?? req.headers.get('x-forwarded-for') ?? '';
-  return fwd.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown';
+  if (process.env.TRUST_PROXY === '0') return 'unknown';
+  const h = req.headers;
+  if (process.env.VERCEL) {
+    const v = h.get('x-vercel-forwarded-for') ?? h.get('x-forwarded-for') ?? '';
+    return v.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown';
+  }
+  const list = (h.get('x-forwarded-for') ?? '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+  if (list.length) {
+    const hops = Math.max(1, Math.floor(Number(process.env.TRUST_PROXY_HOPS) || 1));
+    return list[Math.max(0, list.length - hops)];
+  }
+  return h.get('x-real-ip')?.trim() || 'unknown';
 }
 
 /**

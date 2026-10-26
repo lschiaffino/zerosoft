@@ -34,7 +34,7 @@
       "notes": "Notes, notebooks, checklists and a web clipper",
       "board": "Shared infinite whiteboard",
       "voice": "Voice dictation and meeting notes",
-      "rec": "In the works: screen and camera recording",
+      "rec": "Screen and camera videos shared with a link",
       "talk": "In the works: team messaging"
     },
     "building": "In the works"
@@ -115,6 +115,8 @@
     "startQueue": "Start the task queue",
     "groupCrmDocuments": "Documents",
     "groupCrmVideos": "Videos",
+    "groupRecVideos": "Rec videos",
+    "groupRecFolders": "Rec folders",
     "groupCrmForms": "Forms",
     "groupCrmQuotes": "Quotes",
     "groupCrmApprovals": "Pending approvals",
@@ -200,7 +202,7 @@
       "desc": "Dictation in any field and AI meeting notes."
     },
     "rec": {
-      "desc": "Screen and camera videos to share. In the works."
+      "desc": "Screen and camera videos to share with a link."
     },
     "talk": {
       "desc": "Channels, direct messages and threads. In the works."

@@ -3,7 +3,7 @@ import { useTranslations } from 'next-intl';
 const ROWS = ['r1', 'r2', 'r3'] as const;
 const COMMENTS = ['c1', 'c2'] as const;
 
-/** Boceto de Rec (todavía en construcción): la biblioteca de videos y uno abierto con comentarios por minuto. */
+/** Vista de Rec: la biblioteca de videos y uno abierto con comentarios por minuto. */
 export default function RecMockup() {
   const t = useTranslations('pages.mockups.rec');
 
@@ -12,7 +12,6 @@ export default function RecMockup() {
       <aside className="mk-chat-list">
         <div className="mk-chat-list-head">
           <h4>{t('listTitle')}</h4>
-          <span className="mk-sketch">{t('sketch')}</span>
         </div>
         {ROWS.map((r, i) => (
           <div className={`mk-chat-row${i === 0 ? ' active' : ''}`} key={r}>

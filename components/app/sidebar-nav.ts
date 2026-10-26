@@ -153,8 +153,9 @@ export interface SidebarLabels {
     settings: string;
   };
   voice: { meetings: string; dictation: string; newMeeting: string };
-  /** Apps en construcción (Rec, Talk): por ahora solo su inicio. */
-  rec: { home: string };
+  /** Rec: Mis videos (con las carpetas colgando), Workspace y grabar. */
+  rec: { home: string; workspace: string; newVideo: string };
+  /** Apps en construcción (Talk ya no; queda el shell genérico): por ahora solo su inicio. */
   talk: { home: string };
   notifications: {
     title: string;
@@ -179,7 +180,7 @@ export interface NavItem {
   branch?: boolean;
   /** Solo el hueco del árbol, sin el ítem (Track lista los teams directo bajo "Your teams"). */
   branchOnly?: boolean;
-  /** App en construcción (Rec, Talk): el sidebar le suma la marca "pronto". */
+  /** App en construcción: el sidebar le suma la marca "pronto". */
   soon?: boolean;
 }
 
@@ -610,8 +611,26 @@ export function buildNav(
         appSettingsGroup('/app/voice/settings'),
       ];
 
-    // Apps en construcción: su inicio (el estado "Próximamente") y sus ajustes.
     case 'rec':
+      return [
+        {
+          items: [
+            {
+              href: '/app/rec',
+              label: labels.rec.home,
+              active: pathname === '/app/rec' || (at('/app/rec') && !at('/app/rec/workspace') && !at('/app/rec/new') && !at('/app/rec/settings') && !at('/app/rec/f/')),
+              icon: 'rec',
+              // Carpetas (RecBranch en el hueco #side-branch).
+              branch: true,
+            },
+            { href: '/app/rec/workspace', label: labels.rec.workspace, active: at('/app/rec/workspace'), icon: 'companies' },
+            { href: '/app/rec/new', label: labels.rec.newVideo, active: at('/app/rec/new'), icon: 'recorder' },
+          ],
+        },
+        appSettingsGroup('/app/rec/settings'),
+      ];
+
+    // Shell genérico (inicio y ajustes).
     case 'talk': {
       const base = `/app/${product}`;
       return [
@@ -668,11 +687,9 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
   if (opts.docsCanCreate === false) return buildNewItems(product, labels).filter((i) => !i.href.startsWith('/app/docs'));
   const item = (href: string, label: string, icon: IconName): NavItem => ({ href, label, icon, active: false });
   switch (product) {
-    case 'home':
     case 'voice':
       return [item('/app/voice?new=1', labels.voice.newMeeting, 'voice')];
-    // Las apps en construcción todavía no crean nada: lo más común de las demás.
-    case 'rec':
+    case 'home':
     case 'talk':
       // Sin app activa: crear lo más común de cada una.
       return [
@@ -704,6 +721,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/notes?new=1', labels.notes.newNote, 'notes')];
     case 'board':
       return [item('/app/board?new=1', labels.board.newBoard, 'board')];
+    case 'rec':
+      return [item('/app/rec/new', labels.rec.newVideo, 'rec')];
     case 'agents':
       return [item('/app/agents?new=1', labels.newAgent, 'agents')];
     case 'robots':

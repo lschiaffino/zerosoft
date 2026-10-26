@@ -94,8 +94,17 @@ export function announceQueued(url: string): void {
   window.dispatchEvent(new CustomEvent(QUEUED_EVENT, { detail: { url } }));
 }
 
-/** Al cerrar sesión: borra las vistas guardadas y la cola de este dispositivo. */
-export async function clearOfflineData(): Promise<void> {
+/**
+ * Al cerrar sesión: borra las vistas guardadas y la cola de este
+ * dispositivo, y las grabaciones de Rec guardadas de esa persona (solo las
+ * suyas: cada persona tiene su base, ver components/rec/recStore.ts).
+ */
+export async function clearOfflineData(owner?: { userId: string; ws: string }): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (owner) {
+    const { clearRecData } = await import('@/components/rec/recStore');
+    await clearRecData(owner.userId, owner.ws).catch(() => undefined);
+  }
   if (typeof window === 'undefined') return;
   try {
     if ('caches' in window) {
@@ -106,6 +115,8 @@ export async function clearOfflineData(): Promise<void> {
       indexedDB.deleteDatabase('zs-offline');
       // Trozos de reuniones de Voice que esperaban reintento (components/voice/failedStore.ts).
       indexedDB.deleteDatabase('zs-voice');
+      // Base vieja de Rec, de antes de separarla por persona.
+      indexedDB.deleteDatabase('zs-rec');
     }
   } catch {
     /* almacenamiento bloqueado: no hay nada que borrar */

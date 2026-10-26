@@ -172,8 +172,8 @@
 .hd-building-list { display: flex; flex-wrap: wrap; gap: 4px 8px; }
 .hd-prod.hd-prod-soon { display: inline-flex; align-items: center; gap: 8px; padding: 6px 8px; }
 .hd-prod-soon .hd-prod-icon { margin-top: 0; }
-/* Pantallas de hasta 1000 px de alto (1280×720, 1440×900): la descripción en una línea para que el menú entre sin scroll; completa en el title. */
-@media (max-height: 1000px) {
+/* Pantallas de hasta 960 px de alto (1280×720, 1440×900): la descripción en una línea para que el menú entre sin scroll; completa en el title. */
+@media (max-height: 960px) {
   .hd-mega .hd-prod-desc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hd-mega .hd-prod { padding: 6px 8px; }
 }

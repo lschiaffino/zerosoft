@@ -71,6 +71,24 @@ async function groupsNumber(request: APIRequestContext): Promise<string> {
   return id;
 }
 
+/**
+ * Video de Rec listo, subido por la API como lo hace el grabador sin Blob:
+ * crear, una parte, cerrar la subida y terminar. El título queda fijado por la
+ * persona (si no, el resumen falso de la IA lo reemplaza).
+ */
+async function recVideo(request: APIRequestContext, name: string): Promise<Created> {
+  const { video } = await ok<{ video: { id: string } }>(request.post('/api/rec/videos', { data: { title: name, mode: 'camera', contentType: 'video/webm' } }));
+  const put = await request.put(`/api/rec/videos/${video.id}/parts?kind=video&n=1`, {
+    data: Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x80]),
+    headers: { 'content-type': 'application/octet-stream' },
+  });
+  expect(put.status()).toBe(204);
+  await ok(request.post(`/api/rec/videos/${video.id}/complete`, { data: { kind: 'video', contentType: 'video/webm', parts: 1 } }));
+  await ok(request.post(`/api/rec/videos/${video.id}/finalize`, { data: { durationSec: 12 } }));
+  await ok(request.patch(`/api/rec/videos/${video.id}`, { data: { title: name } }));
+  return { id: video.id, name };
+}
+
 const APPS: AppCase[] = [
   {
     app: 'Talk',
@@ -353,6 +371,23 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/crm/videos/${i.id}`))),
   },
   {
+    app: 'Rec videos',
+    list: '/en/app/rec',
+    create: recVideo,
+    detail: (i) => `/en/app/rec/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/rec/videos/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await request.delete(`/api/rec/videos/${i.id}`)),
+  },
+  {
+    app: 'Rec folders',
+    list: '/en/app/rec',
+    sidebar: true,
+    create: async (request, name) => ({ id: (await ok<{ folder: { id: string } }>(request.post('/api/rec/folders', { data: { name, space: 'personal' } }))).folder.id, name }),
+    detail: (i) => `/en/app/rec/f/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/rec/folders/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await request.delete(`/api/rec/folders/${i.id}`)),
+  },
+  {
     app: 'Groups templates',
     list: '/en/app/groups/templates',
     create: async (request, name) =>
@@ -595,12 +630,10 @@ test.describe('smoke inicio', () => {
   });
 });
 
-// Apps en construcción (Rec): todavía no crean nada, pero el shell
+// Apps en construcción (ahora ninguna): todavía no crean nada, pero el shell
 // cumple lo común: estado vacío claro, ítem activo en el sidebar, ⌘K las abre,
 // claro y oscuro sin errores y 390px sin scroll horizontal.
-for (const app of [
-  { key: 'rec', name: 'Rec' },
-]) {
+for (const app of [] as Array<{ key: string; name: string }>) {
   test.describe(`smoke ${app.name} (en construcción)`, () => {
     const list = `/en/app/${app.key}`;
 

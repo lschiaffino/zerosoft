@@ -13,6 +13,8 @@ import { searchLeads } from '@/lib/crm-leads';
 import { listObjects, searchRecords } from '@/lib/crm-objects';
 import { searchCustomReports } from '@/lib/crm-custom-reports';
 import { searchMedia } from '@/lib/crm-media';
+import { searchRec } from '@/lib/rec';
+import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
 
 export const runtime = 'nodejs';
@@ -39,7 +41,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -65,6 +67,8 @@ export async function GET(req: NextRequest) {
     searchMedia(user.id, q).catch(() => []),
     // Track: plans, initiatives y dashboards por nombre.
     searchPlanning({ teamId: user.team?.id ?? null, ownerId: user.id }, user.actingUser?.id ?? user.id, q).catch(() => []),
+    // Rec: videos y carpetas, con el alcance de la biblioteca (míos y del workspace).
+    searchRec(actorOf(user), q).catch(() => []),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -132,6 +136,16 @@ export async function GET(req: NextRequest) {
       label: m.label,
       meta: '',
       href: m.kind === 'document' ? `/app/crm/documents/${m.id}` : `/app/crm/videos/${m.id}`,
+    });
+  }
+
+  for (const r of rec) {
+    items.push({
+      id: r.id,
+      group: r.kind === 'video' ? 'recVideos' : 'recFolders',
+      label: r.label,
+      meta: r.meta,
+      href: r.kind === 'video' ? `/app/rec/${r.id}` : `/app/rec/f/${r.id}`,
     });
   }
 
