@@ -26,7 +26,9 @@ rutas ≈ 95 + 3 × (rutas dinámicas en app/)
 ```
 
 Validado: main (5bdf2f3c) tiene 647 dinámicas → 2036; con Voice, 663 → 2084,
-el número exacto del error.
+el número exacto del error. Con las familias consolidadas, main quedó en 1022
+(309 dinámicas) y main + Voice + Rec + Docs D4, con el script aplicado a
+`voice`, `rec`, `docs` y `v1`, en 1082 (medido con `vercel build`).
 
 Para medir de verdad: `npx vercel build --prod` (con `.vercel/project.json`
 que tenga `settings.framework = "nextjs"`) y
