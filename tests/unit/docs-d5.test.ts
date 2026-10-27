@@ -542,13 +542,37 @@ describe('Sitio publicado', () => {
     }
     expect((await getDocsSite(u.id)).hostname).toBeNull();
     expect(await removeSiteDomain(other.id)).toBe(true);
-    // Un pendiente de Docs no bloquea a Link (se libera); uno de Link sí bloquea a Docs.
+    // Simétrico con Link (los 5 pasos de la re-QA):
     const third = await makeUser('site3');
     const linkHost = `l-${host}`;
+    // 1. Docs lo agrega (pendiente).
     expect(await addSiteDomain(u.id, linkHost)).toMatchObject({ ok: true });
-    expect(await addDomain(third.id, linkHost)).toMatchObject({ ok: true });
+    // 2. Link de otro workspace no se lo saca sin el TXT: recibe el registro a crear.
+    const squat = await addDomain(third.id, linkHost);
+    expect(squat).toMatchObject({ ok: false, code: 'domain_pending_elsewhere' });
+    expect(!squat.ok && squat.dns?.[0]?.value).toBe(`zerosoft-verify=${claimToken(third.id, linkHost)}`);
+    expect((await getDocsSite(u.id)).hostname).toBe(linkHost);
+    // 3. Con el TXT, Link se lo queda y el pendiente de Docs se libera.
+    process.env.DOCS_DOMAIN_FAKE_TXT = claimToken(third.id, linkHost);
+    try {
+      expect(await addDomain(third.id, linkHost)).toMatchObject({ ok: true });
+    } finally {
+      delete process.env.DOCS_DOMAIN_FAKE_TXT;
+    }
     expect((await getDocsSite(u.id)).hostname).toBeNull();
-    expect(await addSiteDomain(u.id, linkHost)).toEqual({ ok: false, code: 'domain_taken' });
+    // 4. Docs tampoco se lo saca al pendiente de Link sin el TXT.
+    expect(await addSiteDomain(u.id, linkHost)).toMatchObject({ ok: false, code: 'domain_pending_elsewhere' });
+    // 5. Vencido el pendiente de Link (7 días), Docs lo puede agregar.
+    await getDb().prepare("UPDATE link_domains SET created_at = datetime('now', '-8 days') WHERE hostname = ?").run(linkHost);
+    expect(await addSiteDomain(u.id, linkHost)).toMatchObject({ ok: true });
+    expect(await getDb().prepare('SELECT 1 AS x FROM link_domains WHERE hostname = ?').get(linkHost)).toBeUndefined();
+    // Uno verificado de Link sí bloquea a Docs.
+    await removeSiteDomain(u.id);
+    const four = await makeUser('site4');
+    const verifiedLink = `v-${host}`;
+    expect(await addDomain(four.id, verifiedLink)).toMatchObject({ ok: true });
+    await getDb().prepare('UPDATE link_domains SET verified = 1 WHERE hostname = ?').run(verifiedLink);
+    expect(await addSiteDomain(u.id, verifiedLink)).toEqual({ ok: false, code: 'domain_taken' });
     // Vencido (7 días sin verificar): se libera solo.
     expect(await addSiteDomain(u.id, host)).toMatchObject({ ok: true });
     await getDb().prepare("UPDATE docs_sites SET domain_added_at = datetime('now', '-8 days') WHERE workspace_id = ?").run(u.id);

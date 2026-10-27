@@ -137,10 +137,17 @@ export function descendantIds(rootId: string, pages: Array<{ id: string; parent_
   return out;
 }
 
+/** Valor de la cookie zs_who (la pone el middleware con la sesión): el service worker la compara para servir lo guardado. */
+export function whoCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  const m = /(?:^|;\s*)zs_who=([^;]+)/.exec(document.cookie);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
 /** Pide al service worker que guarde estas URLs (navegación de cada página) para `owner`. */
 export function warmOffline(owner: string, urls: string[]): boolean {
   const sw = typeof navigator !== 'undefined' ? navigator.serviceWorker?.controller : null;
   if (!sw || !owner) return false;
-  sw.postMessage({ type: 'zs-warm', user: owner, urls });
+  sw.postMessage({ type: 'zs-warm', user: owner, who: whoCookie(), urls });
   return true;
 }

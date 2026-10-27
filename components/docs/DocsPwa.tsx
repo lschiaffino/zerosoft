@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useLocale } from 'next-intl';
 import { usePathname } from 'next/navigation';
 import { registerAppServiceWorker, serviceWorkerEnabled } from '@/lib/sw-client';
-import { offlinePages } from '@/lib/docs-offline';
+import { offlinePages, whoCookie } from '@/lib/docs-offline';
 
 /**
  * Docs como app instalable y sin conexión: registra el service worker único
@@ -30,7 +30,7 @@ export default function DocsPwa({ owner }: { owner: string }) {
           .filter((u) => u.includes('/_next/static/'));
         urls.push(location.href);
         for (const id of offlinePages(owner)) urls.push(`/${locale}/app/docs/${id}`);
-        target?.postMessage({ type: 'zs-warm', user: owner, urls });
+        target?.postMessage({ type: 'zs-warm', user: owner, who: whoCookie(), urls });
       })
       .catch(() => null);
     return () => {
@@ -41,7 +41,7 @@ export default function DocsPwa({ owner }: { owner: string }) {
   // Navegar dentro de Docs (sin recarga): la vista nueva también queda guardada.
   useEffect(() => {
     if (typeof navigator === 'undefined' || !navigator.onLine) return;
-    const id = window.setTimeout(() => navigator.serviceWorker?.controller?.postMessage({ type: 'zs-warm', user: owner, urls: [location.href] }), 1500);
+    const id = window.setTimeout(() => navigator.serviceWorker?.controller?.postMessage({ type: 'zs-warm', user: owner, who: whoCookie(), urls: [location.href] }), 1500);
     return () => window.clearTimeout(id);
   }, [pathname, owner]);
 

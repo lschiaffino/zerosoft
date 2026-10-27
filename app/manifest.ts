@@ -1,4 +1,8 @@
 import type { MetadataRoute } from 'next';
+import { headers } from 'next/headers';
+import { isAppHost } from '@/lib/hosts';
+import { siteForHost } from '@/lib/docs-site';
+import { getHelpWorkspace } from '@/lib/docs-help';
 
 /**
  * App instalable (PWA) de la suite: una sola, para el CRM, Groups y Docs. Abre en
@@ -7,7 +11,15 @@ import type { MetadataRoute } from 'next';
  * lib/sw-client.ts) guarda el CRM para usarlo sin red y recibe los push de
  * Groups.
  */
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  // Dominio propio de un sitio de Docs: el manifest es del sitio del cliente, no la app de zerosoft.
+  const host = (await headers()).get('host');
+  if (host && !isAppHost(host)) {
+    const site = await siteForHost(host).catch(() => null);
+    const ws = site ? await getHelpWorkspace(site.handle).catch(() => null) : null;
+    const name = ws?.name || host;
+    return { name, short_name: name.slice(0, 30), start_url: '/', scope: '/', display: 'browser', icons: [] };
+  }
   return {
     id: '/app',
     name: 'zerosoft',

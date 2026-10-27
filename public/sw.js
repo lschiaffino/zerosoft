@@ -198,17 +198,29 @@ self.addEventListener('activate', (event) => {
 
 // ---------- Persona de la sesión ----------
 
-let currentUser;
+// La sesión dura 30 días (NextAuth): una persona confirmada hace más que eso no cuenta.
+const IDENTITY_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+// Cookie no httpOnly que el middleware pone con la sesión (hash de la persona) y que
+// se va con ella: si no está o es de otra persona, no se sirve nada guardado.
+const WHO_COOKIE = 'zs_who';
 
-async function getUser() {
-  if (currentUser !== undefined) return currentUser;
+let currentMeta;
+
+async function getMeta() {
+  if (currentMeta !== undefined) return currentMeta;
   try {
     const hit = await (await caches.open(META)).match(USER_KEY);
-    currentUser = hit ? (await hit.json()).id || null : null;
+    const data = hit ? await hit.json() : null;
+    currentMeta = data && data.id ? { id: data.id, who: data.who || null, at: Number(data.at) || 0 } : null;
   } catch {
-    currentUser = null;
+    currentMeta = null;
   }
-  return currentUser;
+  return currentMeta;
+}
+
+async function getUser() {
+  const meta = await getMeta();
+  return meta ? meta.id : null;
 }
 
 async function dropPages() {
@@ -216,22 +228,56 @@ async function dropPages() {
   await Promise.all(keys.filter((k) => k.startsWith(PAGES)).map((k) => caches.delete(k)));
 }
 
-/** Cambió la persona (otra cuenta, otro workspace o cerró sesión): fuera todas las vistas guardadas. */
-async function setUser(id) {
+/**
+ * La app (con red) dice quién es: persona:workspace y el valor de zs_who.
+ * Si cambió la persona (otra cuenta, otro workspace o cerró sesión: id null),
+ * fuera todas las vistas guardadas. Cada aviso renueva la confirmación.
+ */
+async function setUser(id, who) {
   const next = typeof id === 'string' && id ? id.slice(0, 200) : null;
-  const prev = await getUser();
-  if (prev === next) return;
-  await dropPages();
-  currentUser = next;
+  const prevMeta = await getMeta();
+  const prev = prevMeta ? prevMeta.id : null;
+  if (prev !== next) await dropPages();
   const meta = await caches.open(META);
-  if (next) await meta.put(USER_KEY, new Response(JSON.stringify({ id: next }), { headers: { 'content-type': 'application/json' } }));
-  else await meta.delete(USER_KEY);
+  if (!next) {
+    currentMeta = null;
+    await meta.delete(USER_KEY);
+    return;
+  }
+  // Sin `who` en el aviso (mensajes viejos): se mantiene el de la misma persona.
+  const nextWho = typeof who === 'string' && who ? who.slice(0, 100) : prev === next && prevMeta ? prevMeta.who : null;
+  currentMeta = { id: next, who: nextWho, at: Date.now() };
+  await meta.put(USER_KEY, new Response(JSON.stringify(currentMeta), { headers: { 'content-type': 'application/json' } }));
 }
 
-/** Caché de vistas de la persona actual (null: nadie avisó quién es, no se guarda nada). */
+/**
+ * ¿La sesión actual es la de quien guardó las vistas? Con Cookie Store
+ * (Chromium) se compara zs_who: sin la cookie (sesión vencida o cerrada) o con
+ * la de otra persona, no. Sin Cookie Store, alcanza con que la persona se haya
+ * confirmado con red dentro de los 30 días de la sesión.
+ */
+async function sessionMatches() {
+  const meta = await getMeta();
+  if (!meta) return false;
+  if (!meta.at || Date.now() - meta.at > IDENTITY_MAX_AGE_MS) return false;
+  const store = self.cookieStore;
+  if (store && typeof store.get === 'function') {
+    let cookie = null;
+    try {
+      cookie = await store.get(WHO_COOKIE);
+    } catch {
+      cookie = null;
+    }
+    if (!cookie || !cookie.value || !meta.who || cookie.value !== meta.who) return false;
+  }
+  return true;
+}
+
+/** Caché de vistas de la persona actual, solo si la sesión es la suya (null: no se guarda ni se sirve nada). */
 async function pagesCache() {
-  const user = await getUser();
-  return user ? caches.open(`${PAGES}-${encodeURIComponent(user)}`) : null;
+  const meta = await getMeta();
+  if (!meta || !(await sessionMatches())) return null;
+  return caches.open(`${PAGES}-${encodeURIComponent(meta.id)}`);
 }
 
 async function networkFirst(request) {
@@ -339,7 +385,7 @@ self.addEventListener('sync', (event) => {
 
 self.addEventListener('message', (event) => {
   const data = event.data || {};
-  if (data.type === 'zs-user') event.waitUntil(setUser(data.id));
+  if (data.type === 'zs-user') event.waitUntil(setUser(data.id, data.who));
   else if (data.type === 'zs-sync') event.waitUntil(replay());
   else if (data.type === 'zs-count') event.waitUntil(broadcastCount());
   else if (data.type === 'zs-warm' && Array.isArray(data.urls)) {
@@ -347,7 +393,7 @@ self.addEventListener('message', (event) => {
     event.waitUntil(
       (async () => {
         // La página manda quién es junto con lo que hay que guardar.
-        if ('user' in data) await setUser(data.user);
+        if ('user' in data) await setUser(data.user, data.who);
         const statics = await caches.open(STATIC);
         const pages = await pagesCache();
         for (const raw of data.urls.slice(0, 200)) {
@@ -422,4 +468,4 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // Para tests/unit/offline-queue.test.ts (en el navegador no molesta).
-self.__zsOffline = { shouldQueue, replayQueue, NEVER_QUEUE, isOfflineNavigation, setUser, getUser, pagesCache };
+self.__zsOffline = { shouldQueue, replayQueue, NEVER_QUEUE, isOfflineNavigation, setUser, getUser, pagesCache, sessionMatches };

@@ -233,6 +233,67 @@ test('D5: sin conexión lo escrito queda en el dispositivo y se guarda al volver
   await expect(again.getByTestId('docs-offline-toggle')).toHaveAttribute('aria-checked', 'true');
 });
 
+test('D5: lo escrito sin red en una página que se bloqueó queda hasta que la persona lo descarta', async ({ request, page, context }) => {
+  const tag = uid();
+  const doc = await pageWith(request, `Bloqueo ${tag}`, [{ id: 'a', type: 'paragraph', content: 'inicio' }]);
+  await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+  await context.setOffline(true);
+  await page.locator('.docs-blocks .docs-editable').first().click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(` sin red ${tag}`);
+  await expect(page.getByTestId('docs-save-status')).toHaveText('Saved on this device', { timeout: 10_000 });
+  // Mientras tanto la página se bloquea (otra persona, con red).
+  expect((await request.patch(`/api/docs/pages/${doc.id}`, { data: { locked: true } })).ok()).toBeTruthy();
+  await context.setOffline(false);
+  const blocked = page.getByTestId('docs-offline-blocked');
+  await expect(blocked).toBeVisible({ timeout: 15_000 });
+  const hasDraft = () =>
+    page.evaluate((id) => {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)!;
+        if (k.startsWith('zs-docs-draft:') && k.endsWith(`|${id}`)) return true;
+      }
+      return false;
+    }, doc.id);
+  // El borrador sigue guardado hasta que la persona elige Descartar.
+  expect(await hasDraft()).toBe(true);
+  await blocked.getByRole('button', { name: 'Discard' }).click();
+  await expect(blocked).toBeHidden();
+  expect(await hasDraft()).toBe(false);
+});
+
+test('D5: sin conexión no se sirve lo guardado de otra sesión (escenarios A y A2 de la re-QA)', async ({ request, page, context }) => {
+  const tag = uid();
+  const doc = await pageWith(request, `Privada ${tag}`, [{ id: 'a', type: 'paragraph', content: `cuerpo ${tag}` }]);
+  const url = `/en/app/docs/${doc.id}`;
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload({ waitUntil: 'networkidle' });
+  // El worker la guarda para esta sesión (cookie zs_who del middleware).
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async (path) => {
+          for (const k of await caches.keys()) {
+            if (!k.includes('-pages-')) continue;
+            if (await (await caches.open(k)).match(location.origin + path)) return true;
+          }
+          return false;
+        }, url),
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+  // Control: sin red, la misma sesión la abre.
+  await context.setOffline(true);
+  await page.goto(url).catch(() => null);
+  await expect(page.getByText(`cuerpo ${tag}`).first()).toBeVisible();
+  // A2: sin sesión (cookies borradas, sin cerrar sesión): no se sirve.
+  await context.clearCookies();
+  await page.goto(url).catch(() => null);
+  await expect(page.getByText(`cuerpo ${tag}`)).toHaveCount(0);
+  await context.setOffline(false);
+});
+
 test('D5: el cajón de Docs a 390 px no deja scroll horizontal en import ni ajustes del sitio', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   for (const url of ['/en/app/docs/import', '/en/app/docs/settings?tab=site']) {

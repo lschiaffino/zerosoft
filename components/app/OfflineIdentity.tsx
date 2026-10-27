@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { forgetOtherOfflineData, OFFLINE_IDENTITY_KEY } from '@/lib/docs-offline';
+import { forgetOtherOfflineData, OFFLINE_IDENTITY_KEY, whoCookie } from '@/lib/docs-offline';
 
 /**
  * Quién usa la app en este dispositivo (persona:workspace), para lo que se
@@ -20,9 +20,17 @@ export default function OfflineIdentity({ id }: { id: string }) {
       /* sin storage */
     }
     if (prev !== id) forgetOtherOfflineData(id);
-    const post = () => navigator.serviceWorker?.controller?.postMessage({ type: 'zs-user', id });
+    // Solo con red: la página vino del servidor con esta sesión (una copia guardada no confirma a nadie).
+    const msg = () => ({ type: 'zs-user', id, who: whoCookie() });
+    const post = () => {
+      if (navigator.onLine) navigator.serviceWorker?.controller?.postMessage(msg());
+    };
     post();
-    navigator.serviceWorker?.ready.then((reg) => (navigator.serviceWorker.controller ?? reg.active)?.postMessage({ type: 'zs-user', id })).catch(() => undefined);
+    navigator.serviceWorker?.ready
+      .then((reg) => {
+        if (navigator.onLine) (navigator.serviceWorker.controller ?? reg.active)?.postMessage(msg());
+      })
+      .catch(() => undefined);
     navigator.serviceWorker?.addEventListener('controllerchange', post);
     return () => navigator.serviceWorker?.removeEventListener('controllerchange', post);
   }, [id]);

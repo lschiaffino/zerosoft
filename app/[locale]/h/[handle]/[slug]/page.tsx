@@ -57,7 +57,6 @@ export default async function HelpArticlePage(props: Props) {
   const article = await getHelpArticle(ws.id, slug);
   if (!article) notFound();
   const t = await getTranslations({ locale, namespace: 'docs.help' });
-  const tEditor = await getTranslations({ locale, namespace: 'docs.editor' });
   const format = await getFormatter({ locale });
   const base = await helpBase(locale, ws.handle);
   const home = base || '/';
@@ -131,7 +130,7 @@ export default async function HelpArticlePage(props: Props) {
                 )}
               </p>
             </header>
-            <DocsBlocksView blocks={blocks} pageId={article.id} className="docs-prose help-body" boards={false} syncedNoAccess={tEditor('synced.noAccess')} dbForeign={dbForeign} dbDefaultView />
+            <DocsBlocksView blocks={blocks} pageId={article.id} className="docs-prose help-body" boards={false} syncedNoAccess={t('syncedPrivate')} dbForeign={dbForeign} dbDefaultView />
 
             {/* Portada de colección: la lista de sus artículos. */}
             {article.children.length > 0 ? (

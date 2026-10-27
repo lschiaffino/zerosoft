@@ -165,6 +165,8 @@ export default function DocsEditorClient({
   /** Lo escrito sin red que ya no se puede guardar (perdió el acceso o la página está bloqueada). */
   const [blockedDraft, setBlockedDraft] = useState<DocsDraft | null>(null);
   const [draftCopied, setDraftCopied] = useState(false);
+  const blockedRef = useRef(false);
+  blockedRef.current = blockedDraft !== null;
   const openComments = allComments.filter((c) => !c.resolved && !c.parent_id).length;
   const [templateOpen, setTemplateOpen] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
@@ -364,7 +366,7 @@ export default function DocsEditorClient({
    */
   const flushDraft = useCallback(async () => {
     const draft = loadDraft(offlineOwner, page.id);
-    if (!draft || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
+    if (!draft || blockedRef.current || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
     const body = JSON.stringify({ ...draft.patch, base_updated_at: draft.base.updated_at });
     const res = await fetch(`/api/docs/pages/${page.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body }).catch(() => null);
     if (!res) return;
@@ -389,8 +391,14 @@ export default function DocsEditorClient({
     }
     // Ya no puede editarla (sin acceso, solo lectura o bloqueada): no se reintenta más;
     // se avisa y se ofrece copiar lo escrito.
-    if (res.status === 401 || res.status === 403 || res.status === 404 || res.status === 423) {
-      clearDraft(offlineOwner, page.id);
+    // Sesión vencida: el borrador queda intacto y se manda al volver a entrar.
+    if (res.status === 401) {
+      setSaveError('failed');
+      return;
+    }
+    // Sin permiso, borrada o bloqueada: el borrador queda guardado hasta que la
+    // persona elige Descartar (puede copiarlo antes); no se reintenta en esta pestaña.
+    if (res.status === 403 || res.status === 404 || res.status === 423) {
       setOffline(false);
       setSaveError(null);
       setBlockedDraft(draft);
@@ -935,7 +943,14 @@ export default function DocsEditorClient({
           >
             {draftCopied ? t('offline.copied') : t('offline.copy')}
           </button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setBlockedDraft(null)}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              clearDraft(offlineOwner, page.id);
+              setBlockedDraft(null);
+            }}
+          >
             {t('offline.discard')}
           </button>
         </div>

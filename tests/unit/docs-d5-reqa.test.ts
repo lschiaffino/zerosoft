@@ -144,6 +144,52 @@ describe('Service worker: las vistas guardadas son de quien está en la sesión'
   });
 });
 
+describe('Service worker: solo sirve lo guardado a la misma sesión (zs_who)', () => {
+  const load = (cookie: string | null | 'none') => {
+    const code = readFileSync(path.join(process.cwd(), 'public/sw.js'), 'utf8');
+    const caches = memoryCaches();
+    const cookieStore = cookie === 'none' ? undefined : { get: async (n: string) => (n === 'zs_who' && cookie ? { name: n, value: cookie } : null) };
+    const self: Record<string, unknown> = { addEventListener: () => undefined, location: { origin: 'https://app.test' }, cookieStore };
+    vm.runInNewContext(code, { self, URL, Response, console, caches: caches.api });
+    return { sw: self.__zsOffline as { setUser: (id: string | null, who?: string) => Promise<void>; pagesCache: () => Promise<unknown> }, self };
+  };
+
+  it('A: otra sesión sin cerrar la anterior (la cookie no es la de quien guardó): no sirve nada', async () => {
+    const { sw, self } = load('W-OLIVIA');
+    await sw.setUser('olivia:ws1', 'W-OLIVIA');
+    expect(await sw.pagesCache()).not.toBeNull();
+    // Entra Bob (o la sesión cambió sin logout): su zs_who es otro.
+    (self.cookieStore as { get: unknown }).get = async () => ({ name: 'zs_who', value: 'W-BOB' });
+    expect(await sw.pagesCache()).toBeNull();
+  });
+
+  it('A2: sin sesión (cookie vencida o borrada): no sirve nada', async () => {
+    const { sw } = load(null);
+    await sw.setUser('olivia:ws1', 'W-OLIVIA');
+    expect(await sw.pagesCache()).toBeNull();
+  });
+
+  it('sin Cookie Store: vale la confirmación con red de los últimos 30 días', async () => {
+    const code = readFileSync(path.join(process.cwd(), 'public/sw.js'), 'utf8');
+    const caches = memoryCaches();
+    const boot = () => {
+      const self: Record<string, unknown> = { addEventListener: () => undefined, location: { origin: 'https://app.test' } };
+      vm.runInNewContext(code, { self, URL, Response, console, caches: caches.api });
+      return self.__zsOffline as { setUser: (id: string | null, who?: string) => Promise<void>; pagesCache: () => Promise<unknown> };
+    };
+    const sw = boot();
+    await sw.setUser('olivia:ws1', 'W-OLIVIA');
+    expect(await sw.pagesCache()).not.toBeNull();
+    // El worker arranca de nuevo 31 días después de la última confirmación.
+    const metaName = [...caches.all.keys()].find((k) => k.endsWith('-meta'))!;
+    const meta = caches.all.get(metaName)!;
+    const key = [...meta.keys()][0];
+    const old = (await meta.get(key)!.clone().json()) as { at: number };
+    meta.set(key, new Response(JSON.stringify({ ...old, at: Date.now() - 31 * 24 * 60 * 60 * 1000 })));
+    expect(await boot().pagesCache()).toBeNull();
+  });
+});
+
 describe('PDF con otros alfabetos', () => {
   it('detecta lo que las fuentes estándar no muestran (los emoji no cuentan)', () => {
     expect(needsUnicodeFont('Título', [para('a', 'ñandú — “hola” 🚀 €')])).toBe(false);
@@ -182,6 +228,9 @@ describe('Sanitizado de links', () => {
     }
     expect(sanitizeDocsHtml('<a href="https://x.y">ok</a>')).toContain('href="https://x.y"');
     expect(sanitizeDocsHtml('<a href="/app/docs">rel</a>')).toContain('href="/app/docs"');
+    // Sin restos: ni <a> ni <span> vacío; los span con atributos (ecuaciones) quedan.
+    expect(sanitizeDocsHtml('a <a href="data:x">b</a> c')).toBe('a b c');
+    expect(sanitizeDocsHtml('<a href="javascript:x"><span data-tex="x^2">x^2</span></a>')).toBe('<span data-tex="x^2">x^2</span>');
   });
 });
 
@@ -202,6 +251,8 @@ describe('Links a páginas privadas en export, duplicar y analítica', () => {
     for (const e of await listZipEntries(src)) all += (await readZipEntry(src, e, 1e6)).toString('utf8');
     expect(all).not.toContain('ZQTITULO');
     expect(all).toContain('Private page');
+    // Sin el id de la página privada (ni en un href).
+    expect(all).not.toContain(secret.id);
     await updatePagePublishSettings(host.id, { allow_duplicate: true });
     const slug = ((await getDb().prepare('SELECT slug FROM docs_pages WHERE id = ?').get(host.id)) as { slug: string }).slug;
     const other = await makeUser('lpother');

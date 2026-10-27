@@ -93,9 +93,10 @@ plan B.
 
 El middleware no tiene DB. Para un host que no es de la app (dominios de Link
 y del sitio de Docs) pregunta a `/api/docs/site/host` si es el dominio propio
-de un sitio de Docs y guarda la respuesta por instancia: 60 s con o sin sitio,
-10 s si el lookup falla o tarda más de 1 s (en ese caso sigue como dominio de
-Link). Los pedidos a la app (zerosoft.ai, previews, localhost) nunca hacen el
+de un sitio de Docs y guarda la respuesta por instancia (LRU de 500 hosts):
+60 s con o sin sitio. Si el lookup falla o tarda más de 1 s, un host que ya se
+sabía de Docs sigue de Docs 5 min (último valor bueno) y uno desconocido va
+10 s como dominio de Link. Los pedidos a la app (zerosoft.ai, previews, localhost) nunca hacen el
 lookup.
 
 Medido en local con `next start` (2026-10-27, mediana de 10 a 20 pedidos):

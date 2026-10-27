@@ -930,7 +930,8 @@
     "heroTitle": "¿En qué te ayudamos?",
     "collectionOf": "{count, plural, one {Colección de # artículo} other {Colección de # artículos}}",
     "articlesIn": "Artículos de {title}",
-    "duplicate": "Duplicar"
+    "duplicate": "Duplicar",
+    "syncedPrivate": "Esta parte de la página no es pública."
   },
   "versions": {
     "syncedCurrent": "Los bloques sincronizados muestran su contenido actual, no el de esta versión.",

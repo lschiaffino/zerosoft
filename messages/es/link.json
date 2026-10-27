@@ -429,7 +429,8 @@
       "has_links": "Este dominio todavía tiene links. Movelos o borralos primero.",
       "too_many_pending": "Tenés 5 dominios esperando verificación. Verificá o borrá alguno primero.",
       "rate_limited": "Agregaste demasiados dominios. Esperá un rato y probá de nuevo.",
-      "invalid_url": "La URL no es válida."
+      "invalid_url": "La URL no es válida.",
+      "domain_pending_elsewhere": "Otro workspace agregó este dominio y no lo verificó. Para tomarlo, creá un registro TXT con nombre {name} y valor {value} y agregalo de nuevo."
     },
     "txtMissing": "Todavía no vemos el registro TXT. Revisá el nombre y el valor; el DNS puede tardar unos minutos.",
     "pageDesc": "Links cortos con tu marca: go.tuempresa.com/promo.",

@@ -71,7 +71,23 @@ const OPTIONS: sanitizeHtml.IOptions = {
 
 export function sanitizeDocsHtml(html: string): string {
   if (!html || !/[<&]/.test(html)) return html;
-  return sanitizeHtml(html, OPTIONS);
+  return unwrapBareSpans(sanitizeHtml(html, OPTIONS));
+}
+
+/**
+ * Saca los <span> sin atributos (no marcan nada; quedan, por ejemplo, de un
+ * link data: o javascript: que se bajó a texto) y deja su contenido. Respeta
+ * el anidado: solo se cierra el </span> que corresponde a uno sacado.
+ */
+export function unwrapBareSpans(html: string): string {
+  if (!html.includes('<span>')) return html;
+  const stack: boolean[] = [];
+  return html.replace(/<span\b[^>]*>|<\/span>/g, (tag) => {
+    if (tag === '</span>') return stack.pop() ? '' : tag;
+    const bare = tag === '<span>';
+    stack.push(bare);
+    return bare ? '' : tag;
+  });
 }
 
 function plainCell(cell: unknown): string {

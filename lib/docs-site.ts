@@ -17,12 +17,16 @@
  *
  * DOCS_DOMAIN_FAKE=1 (tests): un dominio .test se verifica sin DNS.
  */
-import { createHash, createHmac } from 'crypto';
+import { createHash } from 'crypto';
 import { getDb } from './db';
 import { isAppHost, isValidHostname, normalizeHost } from './hosts';
 import {
   dnsInstructions,
+  claimDns,
+  claimToken,
   hasOwnershipTxt,
+  provesClaim,
+  purgeExpiredLinkPending,
   routingReady,
   UNVERIFIED_TTL_DAYS,
   vercel,
@@ -100,15 +104,7 @@ function cleanHostname(raw: string): string {
   return normalizeHost(raw.trim()).replace(/^https?:\/\//, '').replace(/[/?#].*$/, '');
 }
 
-/**
- * Token del TXT de propiedad de un workspace para un hostname: derivado (no
- * al azar), así quien quiere un dominio que otro dejó sin verificar puede
- * probar que es suyo antes de agregarlo.
- */
-export function claimToken(workspaceId: string, hostname: string): string {
-  const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET ?? 'zerosoft-docs-site';
-  return createHmac('sha256', secret).update(`docs-site|${workspaceId}|${hostname}`).digest('hex').slice(0, 32);
-}
+export { claimToken };
 
 async function vercelRemove(hostname: string): Promise<void> {
   if (vercelConfigured() && !fakeDomains()) {
@@ -149,8 +145,19 @@ export async function addSiteDomain(
   if (current?.hostname) return { ok: false, code: 'domain_exists' };
   const db = getDb();
   await purgeExpiredSiteDomains(hostname);
-  if (await db.prepare('SELECT 1 AS x FROM link_domains WHERE hostname = ?').get(hostname)) return { ok: false, code: 'domain_taken' };
+  // Link: verificado no se comparte; pendiente vencido se libera; pendiente vigente de otro se toma probando el TXT.
+  await purgeExpiredLinkPending(hostname);
+  const link = (await db.prepare('SELECT id, user_id, verified FROM link_domains WHERE hostname = ?').get(hostname)) as
+    | { id: string; user_id: string; verified: number }
+    | undefined;
+  if (link?.verified === 1) return { ok: false, code: 'domain_taken' };
   const token = claimToken(workspaceId, hostname);
+  if (link) {
+    if (link.user_id !== workspaceId && !(await provesClaim(workspaceId, hostname))) {
+      return { ok: false, code: 'domain_pending_elsewhere', dns: claimDns(workspaceId, hostname) };
+    }
+    await db.prepare('DELETE FROM link_domains WHERE id = ? AND verified = 0').run(link.id);
+  }
   const holder = (await db.prepare('SELECT workspace_id, verified FROM docs_sites WHERE hostname = ?').get(hostname)) as
     | { workspace_id: string; verified: number }
     | undefined;
@@ -158,15 +165,12 @@ export async function addSiteDomain(
     if (holder.verified === 1) return { ok: false, code: 'domain_taken' };
     // Otro workspace lo agregó y no lo verificó: se lo queda quien prueba que es
     // suyo con el TXT de su token (lo devuelve este mismo error).
-    const fake = fakeDomains() && hostname.endsWith('.test') && process.env.DOCS_DOMAIN_FAKE_TXT === token;
-    if (!fake && !(await hasOwnershipTxt(hostname, token))) {
-      return { ok: false, code: 'domain_pending_elsewhere', dns: dnsInstructions(hostname, token).filter((d) => d.type === 'TXT') };
-    }
+    if (!(await provesClaim(workspaceId, hostname))) return { ok: false, code: 'domain_pending_elsewhere', dns: claimDns(workspaceId, hostname) };
     await db
       .prepare("UPDATE docs_sites SET hostname = NULL, verify_token = NULL, domain_added_at = NULL, updated_at = datetime('now') WHERE workspace_id = ? AND verified = 0")
       .run(holder.workspace_id);
   }
-  if (vercelConfigured() && !fakeDomains() && !holder) {
+  if (vercelConfigured() && !fakeDomains() && !holder && !link) {
     const res = await vercel(`/v10/projects/${process.env.VERCEL_PROJECT_ID}/domains${vercelQuery()}`, {
       method: 'POST',
       body: JSON.stringify({ name: hostname }),

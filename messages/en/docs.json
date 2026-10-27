@@ -930,7 +930,8 @@
     "heroTitle": "How can we help?",
     "collectionOf": "{count, plural, one {Collection of # article} other {Collection of # articles}}",
     "articlesIn": "Articles in {title}",
-    "duplicate": "Duplicate"
+    "duplicate": "Duplicate",
+    "syncedPrivate": "This part of the page is not public."
   },
   "versions": {
     "syncedCurrent": "Synced blocks show their current content, not the one from this version.",

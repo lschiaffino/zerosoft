@@ -266,7 +266,8 @@ describe('Link: dominios propios exigen probar la propiedad', () => {
     const host = `go-${crypto.randomUUID().slice(0, 8)}.example.org`;
     const first = await addDomain(squatter.id, host);
     if (!first.ok) throw new Error(first.code);
-    expect(await addDomain(owner.id, host)).toEqual({ ok: false, code: 'domain_taken' });
+    // Pendiente vigente de otro workspace: solo se toma probando el TXT (se devuelve el registro).
+    expect(await addDomain(owner.id, host)).toMatchObject({ ok: false, code: 'domain_pending_elsewhere' });
 
     await getDb()
       .prepare(`UPDATE link_domains SET created_at = datetime('now', '-8 days') WHERE id = ?`)

@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto';
+import { createHmac, randomBytes } from 'crypto';
 import { lookup, resolveCname, resolveTxt } from 'dns/promises';
 import { getDb } from './db';
 import { isAppHost, isValidHostname, normalizeHost } from './hosts';
@@ -155,7 +155,34 @@ export async function getVerifiedDomainByHost(host: string): Promise<LinkDomainR
     .get(h)) as LinkDomainRow | undefined;
 }
 
-export type AddDomainError = 'invalid_hostname' | 'domain_taken' | 'app_host' | 'provider_error' | 'too_many_pending';
+export type AddDomainError = 'invalid_hostname' | 'domain_taken' | 'app_host' | 'provider_error' | 'too_many_pending' | 'domain_pending_elsewhere';
+
+/**
+ * Token del TXT con el que un workspace prueba que un hostname es suyo para
+ * quedarse con uno que otro workspace agregó y no verificó (en Link o en el
+ * sitio de Docs). Derivado, no al azar: se muestra antes de agregarlo.
+ */
+export function claimToken(ownerId: string, hostname: string): string {
+  const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET ?? 'zerosoft-docs-site';
+  return createHmac('sha256', secret).update(`docs-site|${ownerId}|${hostname}`).digest('hex').slice(0, 32);
+}
+
+/** ¿`ownerId` probó con el TXT de su token que el hostname es suyo? (DOCS_DOMAIN_FAKE_TXT en tests.) */
+export async function provesClaim(ownerId: string, hostname: string): Promise<boolean> {
+  const token = claimToken(ownerId, hostname);
+  if (process.env.DOCS_DOMAIN_FAKE === '1' && hostname.endsWith('.test') && process.env.DOCS_DOMAIN_FAKE_TXT === token) return true;
+  return hasOwnershipTxt(hostname, token);
+}
+
+/** El TXT que hay que crear para quedarse con un dominio pendiente de otro workspace. */
+export function claimDns(ownerId: string, hostname: string): DnsInstruction[] {
+  return dnsInstructions(hostname, claimToken(ownerId, hostname)).filter((d) => d.type === 'TXT');
+}
+
+/** Pendientes vencidos de Link para este hostname (de cualquiera), como purgeExpiredPending. Lo usa Docs. */
+export async function purgeExpiredLinkPending(hostname: string): Promise<void> {
+  await purgeExpiredPending(hostname, '');
+}
 
 /** Tope de dominios sin verificar por usuario (cada alta también ocupa un lugar en el proyecto de Vercel). */
 export const MAX_PENDING_DOMAINS = 5;
@@ -188,21 +215,40 @@ async function releasePendingSiteDomain(hostname: string): Promise<void> {
     .run(hostname);
 }
 
+/** Pendientes vencidos del sitio de Docs para este hostname (UNVERIFIED_TTL_DAYS, como los de Link). */
+async function purgeExpiredSitePending(hostname: string): Promise<void> {
+  await getDb()
+    .prepare(
+      `UPDATE docs_sites SET hostname = NULL, verify_token = NULL, domain_added_at = NULL, updated_at = datetime('now')
+       WHERE hostname = ? AND verified = 0 AND domain_added_at < datetime('now', ?)`,
+    )
+    .run(hostname, `-${UNVERIFIED_TTL_DAYS} days`);
+}
+
 export async function addDomain(
   userId: string,
   rawHostname: string,
-): Promise<{ ok: true; domain: LinkDomainRow } | { ok: false; code: AddDomainError }> {
+): Promise<{ ok: true; domain: LinkDomainRow } | { ok: false; code: AddDomainError; dns?: DnsInstruction[] }> {
   const hostname = normalizeHost(rawHostname).replace(/^https?:\/\//, '').replace(/\/.*$/, '');
   if (!isValidHostname(hostname)) return { ok: false, code: 'invalid_hostname' };
   if (isAppHost(hostname)) return { ok: false, code: 'app_host' };
   // Un alta que nunca se verificó no bloquea el dominio para siempre.
   await purgeExpiredPending(hostname, userId);
-  const existing = await getDb().prepare('SELECT 1 AS x FROM link_domains WHERE hostname = ?').get(hostname);
-  if (existing) return { ok: false, code: 'domain_taken' };
-  // El dominio verificado del sitio de Docs (lib/docs-site.ts) no se comparte;
-  // uno que Docs no llegó a verificar no bloquea a Link: se libera.
-  const site = (await getDb().prepare('SELECT verified FROM docs_sites WHERE hostname = ?').get(hostname)) as { verified: number } | undefined;
+  const existing = (await getDb().prepare('SELECT id, user_id, verified FROM link_domains WHERE hostname = ?').get(hostname)) as
+    | { id: string; user_id: string; verified: number }
+    | undefined;
+  if (existing?.verified === 1 || existing?.user_id === userId) return { ok: false, code: 'domain_taken' };
+  // El sitio de Docs (lib/docs-site.ts): uno verificado no se comparte; uno
+  // pendiente vencido se libera; uno pendiente vigente de otro workspace se
+  // toma solo probando el TXT (si no, cualquiera podía quitárselo).
+  await purgeExpiredSitePending(hostname);
+  const site = (await getDb().prepare('SELECT workspace_id, verified FROM docs_sites WHERE hostname = ?').get(hostname)) as
+    | { workspace_id: string; verified: number }
+    | undefined;
   if (site?.verified === 1) return { ok: false, code: 'domain_taken' };
+  const contested = Boolean(existing) || Boolean(site && site.workspace_id !== userId);
+  if (contested && !(await provesClaim(userId, hostname))) return { ok: false, code: 'domain_pending_elsewhere', dns: claimDns(userId, hostname) };
+  if (existing) await getDb().prepare('DELETE FROM link_domains WHERE id = ? AND verified = 0').run(existing.id);
   if (site) await releasePendingSiteDomain(hostname);
   const pending = (await getDb()
     .prepare('SELECT COUNT(*) AS n FROM link_domains WHERE user_id = ? AND verified = 0')

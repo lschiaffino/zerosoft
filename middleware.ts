@@ -1,4 +1,5 @@
 import createMiddleware from 'next-intl/middleware';
+import { getToken } from 'next-auth/jwt';
 import { NextRequest, NextResponse } from 'next/server';
 import { routing } from './i18n/routing';
 import { isAppHost } from './lib/hosts';
@@ -70,8 +71,9 @@ function withForcedBrand(req: NextRequest): NextRequest {
  * propios (los de Link y los de Docs), nunca en zerosoft.ai.
  *
  * Cache por instancia: respuesta con sitio o sin sitio (dominio de Link),
- * 60 s; si el lookup falla o tarda más de 1 s, 10 s como dominio de Link
- * (lo de siempre). Medido en local con next start (2026-10-27, mediana):
+ * 60 s; si el lookup falla o tarda más de 1 s, un host que ya se sabía de
+ * Docs sigue de Docs 5 min (último valor bueno) y uno desconocido va 10 s como
+ * dominio de Link (lo de siempre). LRU de 500 hosts. Medido en local con next start (2026-10-27, mediana):
  * /api/docs/site/host 3,7 ms; primer pedido a un dominio propio 59 ms (con
  * el lookup), los siguientes 4,9 ms (cacheado, igual que un pedido a la app:
  * 5,7 ms). En Vercel el lookup es otra invocación de función: se paga una vez
@@ -80,28 +82,50 @@ function withForcedBrand(req: NextRequest): NextRequest {
 const SITE_TTL_MS = 60_000;
 const SITE_FAIL_TTL_MS = 10_000;
 const SITE_LOOKUP_TIMEOUT_MS = 1_000;
+/** Último valor bueno de un host de Docs cuando el lookup falla. */
+const SITE_STALE_TTL_MS = 5 * 60_000;
+const SITE_CACHE_MAX = 500;
 type SiteHit = { handle: string; locale: string | null } | null;
 const siteCache = new Map<string, { until: number; site: SiteHit }>();
 
 async function docsSiteFor(req: NextRequest, host: string): Promise<SiteHit> {
   const now = Date.now();
   const hit = siteCache.get(host);
-  if (hit && now < hit.until) return hit.site;
+  if (hit && now < hit.until) {
+    // LRU: lo usado recién pasa al final (se descarta lo más viejo).
+    siteCache.delete(host);
+    siteCache.set(host, hit);
+    return hit.site;
+  }
   let site: SiteHit = null;
   let ttl = SITE_TTL_MS;
+  let failed = false;
   try {
     // DOCS_SITE_LOOKUP_ORIGIN: tests y self-host detrás de un proxy (el dominio propio no resuelve a localhost).
     const url = new URL('/api/docs/site/host', process.env.DOCS_SITE_LOOKUP_ORIGIN || req.nextUrl.origin);
     url.searchParams.set('host', host);
     const res = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(SITE_LOOKUP_TIMEOUT_MS) });
     if (res.ok) site = ((await res.json()) as { site: SiteHit }).site;
-    else if (res.status !== 404) ttl = SITE_FAIL_TTL_MS;
+    else if (res.status !== 404) failed = true;
   } catch {
-    // Sin respuesta a tiempo: se trata como dominio de Link (lo de siempre), por poco tiempo.
-    ttl = SITE_FAIL_TTL_MS;
+    failed = true;
   }
-  if (siteCache.size > 500) siteCache.clear();
+  if (failed) {
+    // Si el lookup falla, un host que se sabía de Docs sigue siendo de Docs
+    // (último valor bueno, por más tiempo); uno desconocido va como Link, por poco.
+    if (hit?.site) {
+      site = hit.site;
+      ttl = SITE_STALE_TTL_MS;
+    } else ttl = SITE_FAIL_TTL_MS;
+  }
+  siteCache.delete(host);
   siteCache.set(host, { until: now + ttl, site });
+  // LRU simple: el Map guarda el orden de inserción; fuera lo más viejo.
+  while (siteCache.size > SITE_CACHE_MAX) {
+    const oldest = siteCache.keys().next().value;
+    if (oldest === undefined) break;
+    siteCache.delete(oldest);
+  }
   return site;
 }
 
@@ -188,8 +212,34 @@ export default async function middleware(incoming: NextRequest) {
   const quick = quickCreateRedirect(pathname, req.nextUrl.search);
   if (quick) return NextResponse.redirect(new URL(quick, req.url), 307);
 
-  return intlMiddleware(withReturnPath(req));
+  return withWhoCookie(req, await intlMiddleware(withReturnPath(req)));
 }
+
+/**
+ * Cookie zs_who (no httpOnly) en las páginas de la app: un hash de la persona
+ * de la sesión, que se va con ella. El service worker (public/sw.js) solo
+ * sirve vistas guardadas si zs_who es la de quien las guardó: una sesión
+ * vencida, cerrada o de otra persona no ve lo de nadie sin conexión.
+ */
+async function withWhoCookie(req: NextRequest, res: NextResponse): Promise<NextResponse> {
+  if (!/^\/(en|es|pt)\/app(\/|$)/.test(req.nextUrl.pathname)) return res;
+  // Modo demo (lib/session.ts DEMO_MODE): todos son el usuario demo, sin JWT.
+  const demo = process.env.DEMO_MODE === 'true' && (process.env.NODE_ENV !== 'production' || process.env.DEMO_MODE_ALLOW_PRODUCTION === 'true');
+  const token = demo ? { sub: 'demo-mode' } : await getToken({ req, secret: process.env.NEXTAUTH_SECRET }).catch(() => null);
+  const current = req.cookies.get(WHO_COOKIE)?.value;
+  if (!token?.sub) {
+    if (current) res.cookies.delete(WHO_COOKIE);
+    return res;
+  }
+  const data = new TextEncoder().encode(`${process.env.NEXTAUTH_SECRET ?? ''}|zs_who|${token.sub}`);
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', data));
+  const who = Array.from(digest.slice(0, 12), (b) => b.toString(16).padStart(2, '0')).join('');
+  // Siempre: así vence con la sesión (30 días desde la última visita, como el JWT).
+  res.cookies.set(WHO_COOKIE, who, { path: '/', maxAge: 30 * 24 * 60 * 60, sameSite: 'lax', secure: req.nextUrl.protocol === 'https:' });
+  return res;
+}
+
+const WHO_COOKIE = 'zs_who';
 
 /**
  * Path + query de la request en un header interno: si la página pide login,

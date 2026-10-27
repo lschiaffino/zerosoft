@@ -181,7 +181,8 @@ interface RenderCtx {
 export async function exportSinglePage(row: DocsPageRow, ctx: RenderCtx): Promise<ExportResult> {
   const raw = await readerBlocks(ctx.actor, row);
   const titles = await readableLinkTitles(ctx.actor, row, raw);
-  const blocks = resolveBlocksPageLinks(raw, (id) => ({ href: `${ctx.origin}${pageLinkHref(id)}`, title: titles.get(id) ?? null, keepId: false }));
+  // Solo las páginas que quien exporta puede abrir quedan como link; el resto, texto sin id ni href.
+  const blocks = resolveBlocksPageLinks(raw, (id) => (titles.has(id) ? { href: `${ctx.origin}${pageLinkHref(id)}`, title: titles.get(id) ?? null, keepId: false } : null));
   const fileHref = (b: DocsBlock) => `${ctx.origin}${docsFileHref(row.id, b.id)}`;
   const base = slugifyTitle(row.title) || 'page';
   let body: Buffer;
@@ -234,7 +235,8 @@ export async function exportTree(pages: ExportPage[], ctx: RenderCtx, zipName: s
     const blocks = resolveBlocksPageLinks(raw, (id) => {
       const inZip = pathOf.get(id);
       if (inZip) return { href: relativePath(file, inZip), title: titles.get(id) ?? byId.get(id)?.row.title ?? null, keepId: false };
-      return { href: `${ctx.origin}${pageLinkHref(id)}`, title: titles.get(id) ?? null, keepId: false };
+      // Fuera del zip: link solo si la puede abrir; si no, texto ("Página privada"), sin id ni href.
+      return titles.has(id) ? { href: `${ctx.origin}${pageLinkHref(id)}`, title: titles.get(id) ?? null, keepId: false } : null;
     });
     // Adjuntos: a la carpeta de la página (como Notion), si entran en el tope.
     const local = new Map<string, string>();
