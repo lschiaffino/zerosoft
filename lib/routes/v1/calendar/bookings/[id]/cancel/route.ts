@@ -4,6 +4,7 @@ import { apiError, requireApiUser } from '@/lib/api-auth';
 import { CalendarError, getEventTypeById, ownedBooking, updateBooking } from '@/lib/calendar';
 import { afterBookingCancelled, bookingPayload } from '@/lib/calendar-lifecycle';
 import { refundCancelledBooking } from '@/lib/calendar-payments';
+import { bookingInScope, bookingScopeFor } from '@/lib/calendar-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,7 +15,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if ('res' in auth) return auth.res;
   const { id } = await props.params;
   const booking = await ownedBooking(auth.user.id, id);
-  if (!booking) return apiError(404, 'not_found', 'Booking not found.');
+  // Un member (con su key) solo ve y gestiona las reservas que atiende.
+  if (!booking || !bookingInScope(booking, bookingScopeFor(auth.role, auth.personId))) {
+    return apiError(404, 'not_found', 'Booking not found.');
+  }
   if (booking.status !== 'confirmed') return apiError(409, 'not_confirmed', 'Only confirmed bookings can be cancelled.');
   const body = z.object({ reason: z.string().max(500).optional() }).safeParse(await req.json().catch(() => ({})));
   const reason = body.success ? (body.data.reason ?? null) : null;

@@ -4,6 +4,7 @@ import { apiError, requireApiUser } from '@/lib/api-auth';
 import { CalendarError, createBooking, findOfferedSlot, getEventType, listUserBookings } from '@/lib/calendar';
 import { ianaTimezone, personName } from '@/lib/calendar-schema';
 import { afterBookingCreated, bookingPayload } from '@/lib/calendar-lifecycle';
+import { bookingScopeFor } from '@/lib/calendar-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,8 @@ export async function GET(req: NextRequest) {
     from,
     to,
     q: sp.get('q')?.slice(0, 200) || undefined,
+    // La key actúa con el rol de quien la creó: un member ve solo las reservas que atiende.
+    hostId: bookingScopeFor(auth.role, auth.personId) ?? undefined,
   });
   return NextResponse.json({
     bookings: rows.map((b) =>
