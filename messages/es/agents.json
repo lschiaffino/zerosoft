@@ -206,7 +206,7 @@
       },
       "crm_find_contact": {
         "name": "Buscar contacto en el CRM",
-        "desc": "Verifica si el email del visitante ya es un contacto (devuelve solo el nombre y la etapa)."
+        "desc": "Busca al visitante en el CRM (nombre y etapa) solo cuando el sitio verificó su identidad en el widget de Chat. Un email escrito no alcanza."
       },
       "crm_upsert_contact": {
         "name": "Guardar contacto en el CRM",
