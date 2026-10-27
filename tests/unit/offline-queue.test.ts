@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 import {
   NEVER_QUEUE,
   QUEUED_HEADER,
+  clearOfflineData,
+  isOfflineCacheName,
   isQueuedResponse,
   replayQueue,
   shouldQueue,
@@ -140,5 +142,26 @@ describe('public/sw.js', () => {
     });
     expect(seen).toEqual(['/a', '/b']);
     expect(res.remaining).toBe(0);
+  });
+});
+
+describe('clearOfflineData (cerrar sesión)', () => {
+  it('borra todas las cachés del service worker, también las zs-app-* con las vistas de la persona', async () => {
+    const sw = readFileSync(path.join(process.cwd(), 'public/sw.js'), 'utf8');
+    const version = /const VERSION = '([^']+)'/.exec(sw)?.[1] ?? '';
+    const names = [`${version}-pages`, `${version}-static`, 'zs-crm-v1-pages', 'otra-app'];
+    expect(names.filter(isOfflineCacheName)).toEqual([`${version}-pages`, `${version}-static`, 'zs-crm-v1-pages']);
+    const deleted: string[] = [];
+    const g = globalThis as unknown as Record<string, unknown>;
+    const prev = { window: g.window, caches: g.caches };
+    g.window = globalThis;
+    g.caches = { keys: async () => names, delete: async (k: string) => (deleted.push(k), true) };
+    try {
+      await clearOfflineData();
+    } finally {
+      g.window = prev.window;
+      g.caches = prev.caches;
+    }
+    expect(deleted.sort()).toEqual([`${version}-pages`, `${version}-static`, 'zs-crm-v1-pages'].sort());
   });
 });

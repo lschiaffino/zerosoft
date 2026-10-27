@@ -24,7 +24,7 @@ import { AGENT_MAX_STEPS } from '@/lib/agents-config';
 import { clusterTopics, topicKeywords } from '@/lib/agents-topics';
 import { getAgentAnalytics, parseAnalyticsRange } from '@/lib/agents-analytics';
 import { ALERT_MIN, buildAlertEmail, checkAgentAlerts, detectSpikes } from '@/lib/agents-alerts';
-import { GET as analyticsGet, PATCH as analyticsPatch } from '@/app/api/agents/[id]/analytics/route';
+import { GET as analyticsGet, PATCH as analyticsPatch } from '@/lib/routes/agents/[id]/analytics/route';
 import { makeUser } from './helpers';
 import { scriptedModel } from './ai-mock';
 import { NextRequest } from 'next/server';

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getAgentByHandle, listVisitorMessages } from '@/lib/agents';
 import { agentError, streamAgentReply } from '@/lib/agents-http';
 import { limitByIp } from '@/lib/rate-limit';
+import { requestCountry } from '@/lib/agents-privacy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ handle: 
     text: parsed.data.message,
     conversationId: parsed.data.conversationId ?? null,
     visitorKey: parsed.data.visitorKey,
+    country: requestCountry(req),
     abortSignal: req.signal,
   });
 }

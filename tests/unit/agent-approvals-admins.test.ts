@@ -4,8 +4,8 @@ import { NextRequest } from 'next/server';
 const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown> }));
 vi.mock('@/lib/session', async (orig) => ({ ...(await orig<object>()), getCurrentUser: async () => session.user }));
 
-import { GET } from '@/app/api/agents/[id]/approvals/route';
-import { POST } from '@/app/api/agents/[id]/approvals/[aid]/route';
+import { GET } from '@/lib/routes/agents/[id]/approvals/route';
+import { POST } from '@/lib/routes/agents/[id]/approvals/[aid]/route';
 
 beforeEach(() => {
   session.user = null;

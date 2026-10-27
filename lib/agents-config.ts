@@ -20,12 +20,13 @@ export const AGENT_TOOL_KEYS = [
   'run_robot',
   'handoff_to_human',
   'http_request',
+  'mcp_call',
 ] as const;
 
 export type AgentToolKey = (typeof AGENT_TOOL_KEYS)[number];
 
 /** Grupo de cada herramienta (para agrupar en la UI). */
-export const AGENT_TOOL_GROUP: Record<AgentToolKey, 'knowledge' | 'crm' | 'cal' | 'track' | 'flow' | 'robots' | 'handoff' | 'http'> = {
+export const AGENT_TOOL_GROUP: Record<AgentToolKey, 'knowledge' | 'crm' | 'cal' | 'track' | 'flow' | 'robots' | 'handoff' | 'http' | 'mcp'> = {
   search_knowledge: 'knowledge',
   docs_read_pages: 'knowledge',
   docs_write_page: 'knowledge',
@@ -40,6 +41,7 @@ export const AGENT_TOOL_GROUP: Record<AgentToolKey, 'knowledge' | 'crm' | 'cal' 
   run_robot: 'robots',
   handoff_to_human: 'handoff',
   http_request: 'http',
+  mcp_call: 'mcp',
 };
 
 /**
@@ -69,6 +71,7 @@ export const APPROVABLE_AGENT_TOOLS = [
   'http_request',
   'docs_write_page',
   'docs_write_row',
+  'mcp_call',
 ] as const satisfies readonly AgentToolKey[];
 export type ApprovableAgentTool = (typeof APPROVABLE_AGENT_TOOLS)[number];
 
@@ -99,6 +102,9 @@ export function suggestAgentHandle(name: string): string | null {
 /** Máximo de pasos (llamadas al modelo) por respuesta. */
 export const AGENT_MAX_STEPS = 6;
 export const AGENT_MAX_URLS = 20;
+/** Sitemaps por agente y páginas que se toman de cada uno (lib/agents-knowledge.ts). */
+export const AGENT_MAX_SITEMAPS = 3;
+export const AGENT_SITEMAP_MAX_PAGES = 300;
 export const AGENT_HANDLE_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
 /** "proveedor/modelo" del AI Gateway. */
 export const AGENT_MODEL_RE = /^[a-z0-9][a-z0-9-]*\/[A-Za-z0-9][A-Za-z0-9._:-]*$/;
@@ -116,6 +122,20 @@ export const knowledgeConfigSchema = z.object({
   docsPageIds: z.array(id).max(200).default([]),
   urls: z.array(z.string().trim().url().max(2000)).max(AGENT_MAX_URLS).default([]),
   cannedFromWidgetId: id.nullable().default(null),
+  /**
+   * Sitemaps (o la raíz de un sitio: se prueba /sitemap.xml): cada página que
+   * listan, filtrada por `prefix` (un path, opcional), entra como URL de
+   * conocimiento con su sitemap como origen.
+   */
+  sitemaps: z
+    .array(
+      z.object({
+        url: z.string().trim().url().max(2000),
+        prefix: z.string().trim().max(300).default(''),
+      }),
+    )
+    .max(AGENT_MAX_SITEMAPS)
+    .default([]),
 });
 
 export const toolsConfigSchema = z.object({
@@ -154,6 +174,44 @@ export const guardrailsConfigSchema = z.object({
   maxReplyChars: z.number().int().min(100).max(4000).default(800),
 });
 
+const AGENT_CHANNEL_RULE_MAX = 4000;
+const countryCode = z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/);
+
+/**
+ * Ajustes que no son herramientas ni conocimiento: instrucciones por canal,
+ * citas, contexto del visitante identificado, memoria, privacidad, bloqueos
+ * y el scorecard de calidad. Entra en las versiones como el resto.
+ */
+export const settingsConfigSchema = z.object({
+  /** Instrucciones que se suman a las generales según por dónde llega la conversación. */
+  channelInstructions: z
+    .object({
+      chat: z.string().max(AGENT_CHANNEL_RULE_MAX).default(''),
+      public: z.string().max(AGENT_CHANNEL_RULE_MAX).default(''),
+      api: z.string().max(AGENT_CHANNEL_RULE_MAX).default(''),
+    })
+    .default({}),
+  /** Cita la fuente (con link si es pública) cuando responde con el conocimiento. */
+  citations: z.boolean().default(true),
+  /** Lee el CRM, las reservas de Cal y los issues de Track del visitante identificado. */
+  visitorContext: z.boolean().default(false),
+  /** Recuerda datos del visitante identificado entre conversaciones. */
+  memory: z.boolean().default(false),
+  /** Tapa emails, teléfonos, tarjetas y documentos en los transcripts guardados. */
+  redactPii: z.boolean().default(false),
+  /** Países (ISO 3166-1 alfa-2) desde los que la página pública y el widget no responden. */
+  blockedCountries: z.array(countryCode).max(250).default([]),
+  /** Mensajes con alguna de estas palabras se tratan como spam: el agente no corre. */
+  blockedWords: z.array(z.string().trim().min(2).max(60)).max(50).default([]),
+  /** Puntaje con AI de cada conversación (CSAT, sentimiento, tema, scorecard). Apagado: no gasta AI. */
+  aiScoring: z.boolean().default(false),
+  /** Criterios del scorecard de calidad (cada conversación se puntúa contra ellos). */
+  scorecard: z.array(z.string().trim().min(3).max(200)).max(10).default([]),
+});
+
+export type AgentSettingsConfig = z.infer<typeof settingsConfigSchema>;
+export const AGENT_SETTINGS_CHANNELS = ['chat', 'public', 'api'] as const;
+
 export type AgentKnowledgeConfig = z.infer<typeof knowledgeConfigSchema>;
 export type AgentToolsConfig = z.infer<typeof toolsConfigSchema>;
 export type AgentHandoffConfig = z.infer<typeof handoffConfigSchema>;
@@ -172,6 +230,7 @@ export const agentUpdateSchema = z.object({
   tools: toolsConfigSchema.optional(),
   handoff: handoffConfigSchema.optional(),
   guardrails: guardrailsConfigSchema.optional(),
+  settings: settingsConfigSchema.optional(),
 });
 
 export type AgentUpdatePayload = z.infer<typeof agentUpdateSchema>;
@@ -216,6 +275,7 @@ export const parseKnowledge = (raw: string | null | undefined) => parseWith(know
 export const parseTools = (raw: string | null | undefined) => parseWith(toolsConfigSchema, raw);
 export const parseHandoff = (raw: string | null | undefined) => parseWith(handoffConfigSchema, raw);
 export const parseGuardrails = (raw: string | null | undefined) => parseWith(guardrailsConfigSchema, raw);
+export const parseSettings = (raw: string | null | undefined) => parseWith(settingsConfigSchema, raw);
 
 /** Agente listo para la UI (JSON parseado, camelCase). */
 export interface AgentDto {
@@ -230,6 +290,7 @@ export interface AgentDto {
   tools: AgentToolsConfig;
   handoff: AgentHandoffConfig;
   guardrails: AgentGuardrailsConfig;
+  settings: AgentSettingsConfig;
   enabled: boolean;
   publicHandle: string | null;
   createdAt: string;
@@ -303,12 +364,24 @@ export function isSimulatedOutput(output: unknown): output is { simulated: true;
 
 export const AGENT_MAX_TESTS = 50;
 
+export const AGENT_TEST_KINDS = ['single', 'simulation'] as const;
+export type AgentTestKind = (typeof AGENT_TEST_KINDS)[number];
+export const AGENT_SIM_MAX_TURNS = 8;
+
+/**
+ * single: una pregunta y lo esperado. simulation: un cliente AI (persona)
+ * abre con `question` y sigue la charla hasta `maxTurns` turnos; `expected`
+ * es el criterio de éxito de toda la conversación.
+ */
 export const testCaseInputSchema = z.object({
   question: z.string().trim().min(1).max(2000),
   expected: z.string().trim().min(1).max(2000),
+  kind: z.enum(AGENT_TEST_KINDS).default('single'),
+  persona: z.string().trim().max(1000).default(''),
+  maxTurns: z.number().int().min(2).max(AGENT_SIM_MAX_TURNS).default(4),
 });
 
-export type AgentTestCaseInput = z.infer<typeof testCaseInputSchema>;
+export type AgentTestCaseInput = z.input<typeof testCaseInputSchema>;
 
 export interface AgentTestToolSummary {
   tool: string;
@@ -320,6 +393,11 @@ export interface AgentTestCaseDto {
   id: string;
   question: string;
   expected: string;
+  kind: AgentTestKind;
+  persona: string;
+  maxTurns: number;
+  /** Simulación: la conversación de la última corrida (cliente AI y agente). */
+  lastTranscript: Array<{ role: 'user' | 'assistant'; content: string }>;
   lastStatus: 'pass' | 'fail' | 'error' | null;
   lastReason: string;
   lastReply: string;
@@ -379,6 +457,32 @@ export interface AgentConversationDto {
   createdAt: string;
   updatedAt: string;
   messageCount?: number;
+  /** Puntaje con AI (lib/agents-quality.ts), si ya se puntuó. */
+  csat?: number | null;
+  sentiment?: AgentSentiment | null;
+  /** Marcada como revisada en la cola de calidad. */
+  reviewedAt?: string | null;
+  /** Visitante identificado (firma del widget o la API). */
+  visitorEmail?: string | null;
+}
+
+export const AGENT_SENTIMENTS = ['positive', 'neutral', 'negative'] as const;
+export type AgentSentiment = (typeof AGENT_SENTIMENTS)[number];
+
+/** Puntaje de calidad de una conversación (AI). */
+export interface AgentConversationScoreDto {
+  /** 1 a 5, como una encuesta CSAT. */
+  csat: number;
+  sentiment: AgentSentiment;
+  resolved: boolean;
+  topic: string;
+  summary: string;
+  /** Scorecard del dueño: un resultado por criterio. */
+  criteria: Array<{ criterion: string; pass: boolean; note: string }>;
+  scoredAt: string;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  reviewNote: string;
 }
 
 /** Eventos del stream NDJSON de una respuesta (playground y página pública). */

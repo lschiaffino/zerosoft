@@ -2,6 +2,32 @@
 
 Fecha: 2026-10-22. Base: `main` en `644c85b`.
 
+## Actualización 2026-10-27 (tanda de paridad)
+
+Lo que cambió desde el benchmark original. El detalle por fila vive en
+`content/feature-parity/agents.ts`; lo de abajo de esta sección es el
+relevamiento del 22/10 y queda como referencia.
+
+| Área | Antes | Ahora |
+|---|---|---|
+| Construcción | 6 | 8: instrucciones por canal, revisión de reglas que chocan (chequeos fijos + AI), palabras de spam, contexto del visitante identificado (CRM, Cal, Track) y memoria entre conversaciones. Siguen faltando los procedimientos deterministas |
+| Conocimiento | 4 | 7: archivos PDF/DOCX/TXT/MD/CSV (sin OCR; PDF con tope de tamaño y complejidad), pares de pregunta y respuesta con variantes y CSV, sitemaps (3 de hasta 300 páginas, leídos en segundo plano). Faltan la recuperación semántica y los conectores (Notion, Zendesk) |
+| Herramientas | 7 | 8: servidores MCP por streamable HTTP, con el token cifrado y tapado en respuestas y registros, y aprobación de un admin para lo que cambia datos |
+| Pruebas | 5 | 8: simulaciones de varios turnos con un cliente AI y repetición de las últimas 10 conversaciones reales contra el borrador |
+| Canales | 3 | 3: sin cambios (WhatsApp, email, voz y SDK siguen afuera) |
+| Derivación | 7 | 8: motivo de la derivación en Analítica |
+| Versiones | 2 | 6: borrador y publicación con rollback (después de la primera publicación) y registro de cambios. Faltan A/B y roles por agente |
+| Seguridad | 5 | 7: redacción de datos personales por patrón (parcial: no detecta nombres ni direcciones), países y visitantes bloqueados |
+| Analítica | 6 | 8: CSAT, sentimiento y tema con AI (opt-in por agente, hasta 300 por día), desglose por canal con resolución, export CSV |
+| Calidad | 4 | 8: citas con link, scorecard con cola de revisión, preguntas sin respuesta convertidas en pares |
+
+Hallazgos de la QA independiente que se corrigieron en la misma tanda: token
+MCP sin tapar en el contenido estructurado, parser de sitemaps con regex
+vulnerable a ReDoS, PDF que inflaba el mismo stream cientos de veces,
+redacción que rompía JSON y tachaba números que no eran teléfonos, y
+`crm_find_contact` devolviendo datos de cualquier email tipeado (hotfix
+también en `main`: ahora pide identidad verificada).
+
 ## Cómo se hizo
 
 ### Competidores

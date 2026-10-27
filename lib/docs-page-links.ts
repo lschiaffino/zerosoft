@@ -59,6 +59,13 @@ export interface PageLinkTarget {
   href: string;
   /** Título actual; si falta, queda el guardado. */
   title?: string | null;
+  /**
+   * Quien lee no puede abrir la página: en vez del título guardado (que es el
+   * de una página que no ve) va este texto ("Página privada").
+   */
+  hiddenLabel?: string;
+  /** Con hiddenLabel: texto plano, sin link (export, sitio público, duplicar). */
+  plain?: boolean;
   /** false: no se emite data-page, solo class="docs-page-link" (centro de ayuda). */
   keepId?: boolean;
 }
@@ -75,10 +82,12 @@ export function resolvePageLinks(html: string, lookup: (id: string) => PageLinkT
     const target = lookup(id);
     // Texto plano: se sacan las marcas internas, el texto ya viene escapado.
     if (!target) return inner.replace(/<[^>]*>/g, '');
+    if (target.hiddenLabel !== undefined && target.plain) return escapeText(target.hiddenLabel);
     const row = DATA_ROW_RE.exec(attrs)?.[1];
     const rowId = isPageLinkId(row) ? row : null;
     // Link a una fila: queda el título con que se insertó (el de la página es otro).
-    const label = !rowId && target.title?.trim() ? escapeText(target.title.trim()) : inner;
+    const label =
+      target.hiddenLabel !== undefined ? escapeText(target.hiddenLabel) : !rowId && target.title?.trim() ? escapeText(target.title.trim()) : inner;
     // Sin id (centro de ayuda): la clase mantiene el estilo de mención y la fila no se abre.
     if (target.keepId === false) return `<a href="${escapeAttr(target.href)}" class="docs-page-link">${label}</a>`;
     const href = rowId ? `${target.href}${target.href.includes('?') ? '&' : '?'}row=${rowId}` : target.href;
@@ -135,4 +144,72 @@ export interface PageLinkSource {
   labels?: { create: (query: string) => string; empty: string };
   /** Los links pueden apuntar a filas de bases de Docs (data-row): el cuerpo de una fila en Docs. */
   rows?: boolean;
+}
+
+/** Texto que ve quien no puede abrir la página linkeada. */
+export const HIDDEN_PAGE_LABEL: Record<string, string> = { en: 'Private page', es: 'Página privada', pt: 'Página privada' };
+
+export function hiddenPageLabel(locale: string | null | undefined): string {
+  return HIDDEN_PAGE_LABEL[locale ?? ''] ?? HIDDEN_PAGE_LABEL.en;
+}
+
+/** Texto guardado de cada link a página (el primero por id), en los bloques y el cuerpo de las filas. */
+function storedLinkInner(blocks: DocsBlock[], out = new Map<string, string>()): Map<string, string> {
+  for (const b of blocks) {
+    if (b.content && b.content.includes('data-page')) {
+      for (const m of b.content.matchAll(ANCHOR_RE)) {
+        const id = DATA_PAGE_RE.exec(m[1])?.[1];
+        if (isPageLinkId(id) && !out.has(id)) out.set(id, m[2]);
+      }
+    }
+    if (b.type === 'database') for (const r of b.db?.rows ?? []) if (r.body?.length) storedLinkInner(r.body, out);
+  }
+  return out;
+}
+
+/**
+ * Al guardar: un link a una página que quien guarda no puede abrir le llegó
+ * con "Página privada" en vez del título; se le devuelve el texto guardado
+ * (si no, guardar pisaría el título que puso quien sí la ve).
+ */
+export function restoreHiddenLinks(incoming: DocsBlock[], stored: DocsBlock[], readable: (id: string) => boolean): DocsBlock[] {
+  if (!incoming.some((b) => b.content?.includes('data-page') || b.type === 'database')) return incoming;
+  const saved = storedLinkInner(stored);
+  const fix = (html: string) =>
+    html.replace(ANCHOR_RE, (whole, attrs: string, inner: string) => {
+      const id = DATA_PAGE_RE.exec(attrs)?.[1];
+      if (!isPageLinkId(id) || readable(id)) return whole;
+      const prev = saved.get(id);
+      return prev !== undefined && prev !== inner ? `<a${attrs}>${prev}</a>` : whole;
+    });
+  const walk = (list: DocsBlock[]): DocsBlock[] =>
+    list.map((b) => {
+      let out = b.content && b.content.includes('data-page') ? { ...b, content: fix(b.content) } : b;
+      if (b.type === 'database' && b.db?.rows?.some((r) => r.body?.length)) {
+        out = { ...out, db: { ...b.db, rows: b.db.rows.map((r) => (r.body?.length ? { ...r, body: walk(r.body) } : r)) } };
+      }
+      return out;
+    });
+  return walk(incoming);
+}
+
+/**
+ * Cambia el texto de los links a páginas ocultas (`isHidden`) por `label`.
+ * `plain`: además sin link (export, sitio público, duplicar). Los demás links
+ * quedan como están.
+ */
+export function maskPageLinks(blocks: DocsBlock[], isHidden: (id: string) => boolean, label: string, plain = false): DocsBlock[] {
+  const fix = (html: string) =>
+    html.replace(ANCHOR_RE, (whole, attrs: string) => {
+      const id = DATA_PAGE_RE.exec(attrs)?.[1];
+      if (!isPageLinkId(id) || !isHidden(id)) return whole;
+      return plain ? escapeText(label) : `<a${attrs}>${escapeText(label)}</a>`;
+    });
+  return blocks.map((b) => {
+    let out = b.content && b.content.includes('data-page') ? { ...b, content: fix(b.content) } : b;
+    if (b.type === 'database' && b.db?.rows?.some((r) => r.body?.length)) {
+      out = { ...out, db: { ...b.db, rows: b.db.rows.map((r) => (r.body?.length ? { ...r, body: maskPageLinks(r.body, isHidden, label, plain) } : r)) } };
+    }
+    return out;
+  });
 }

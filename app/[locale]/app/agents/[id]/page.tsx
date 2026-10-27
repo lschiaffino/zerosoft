@@ -7,7 +7,11 @@ import { aiKnowledgeFilterSql, hiddenTeamspaceIds, teamspaceFilterSql } from '@/
 import { getAgentRow, listKnowledgeUrls, listSecretHeaders, listWorkspaceWidgets, toAgentDto } from '@/lib/agents';
 import { listTestCases } from '@/lib/agents-tests';
 import { canEditAgents } from '@/lib/agents-http';
-import { aiEnabled } from '@/lib/ai';
+import { agentsAiEnabled } from '@/lib/agents-ai';
+import { withDraft } from '@/lib/agents-draft';
+import { versioningMeta } from '@/lib/agents-versions';
+import { listKnowledgeFiles, listQa, sitemapStatus } from '@/lib/agents-knowledge';
+import { listMcpServers } from '@/lib/agents-mcp';
 import AgentEditor from '@/components/agents/AgentEditor';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +35,8 @@ export default async function AgentEditorPage(props: {
   const user = await requireUser(locale);
   const row = await getAgentRow(user.id, id);
   if (!row) notFound();
-  const agent = toAgentDto(row);
+  // El editor trabaja sobre el borrador (con versiones) o lo guardado.
+  const agent = toAgentDto(withDraft(row));
   const canEdit = canEditAgents(user);
   const db = getDb();
   const [urls, widgets, docsPages, eventTypes, projects, flows, robots, tests] = await Promise.all([
@@ -63,6 +68,7 @@ export default async function AgentEditorPage(props: {
     >,
     listTestCases(user.id, id),
   ]);
+  const [versioning, files, qa, sitemaps] = await Promise.all([versioningMeta(row), listKnowledgeFiles(id), listQa(id), sitemapStatus(id)]);
   // Páginas del agente que quien edita no ve (teamspaces cerrados o privados): no se listan, pero se avisa.
   const visibleIds = new Set(docsPages.map((p) => p.id));
   const hiddenDocsPages = agent.tools.docsPageIds.some((pid) => !visibleIds.has(pid));
@@ -81,7 +87,12 @@ export default async function AgentEditorPage(props: {
       canEdit={canEdit}
       secretHeaders={canEdit ? listSecretHeaders(row) : []}
       tests={tests}
-      aiEnabled={aiEnabled()}
+      versioning={versioning}
+      files={files}
+      qa={qa}
+      sitemaps={sitemaps}
+      mcpServers={canEdit ? listMcpServers(row) : []}
+      aiEnabled={await agentsAiEnabled()}
       origin={await requestOrigin()}
       initialTab={search.tab}
       initialConversationId={search.c ?? null}
