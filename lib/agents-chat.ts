@@ -6,7 +6,7 @@
  * Ante cualquier falla cae al bot por keywords. Server-only.
  */
 import type { ChatConversationRow, ChatMessageRow, ChatWidgetRow } from './db';
-import { aiEnabled } from './ai';
+import { agentsAiEnabled } from './agents-ai';
 import { createChatMessage, getChatConversation, maybeRunChatBot } from './chat-data';
 import {
   clearBotTyping,
@@ -94,6 +94,9 @@ export async function runAgentChatReply(
     // Si un humano contestó mientras el agente pensaba, no se mete.
     if (await humanHasReplied(conversationId)) return { status: 'skipped', message: null };
     const message = result.text ? await createChatMessage(conversationId, 'bot', { body: result.text }) : null;
+    // La conversación del agente queda con actividad (puntaje, memoria y redacción miran updated_at).
+    const { getDb } = await import('./db');
+    await getDb().prepare('UPDATE agent_conversations SET updated_at = ? WHERE id = ?').run(new Date().toISOString(), agentConv.id);
     if (result.handoff) {
       await markHandoff(widget, conversation, `the agent "${agent.name}"`);
       return { status: 'handoff', message };
@@ -112,7 +115,7 @@ export async function dispatchAgentChat(
   schedule?: ScheduleTask,
 ): Promise<ChatMessageRow | null> {
   const agent = await widgetAgent(widget);
-  if (!agent || !aiEnabled()) return maybeRunChatBot(widget, conversation, visitorMessage.body);
+  if (!agent || !(await agentsAiEnabled())) return maybeRunChatBot(widget, conversation, visitorMessage.body);
   if ((await humanHasReplied(conversation.id)) || (await wasHandedOff(conversation.id))) return null;
 
   await setBotTyping(conversation.id).catch(() => {});

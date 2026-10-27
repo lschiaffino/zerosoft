@@ -211,9 +211,40 @@ describe('privacidad, bloqueos y reglas', () => {
     expect(msgs.map((m) => m.content)).toEqual(['I am [email]', 'Thanks [email]']);
   });
 
+  it('vuelve a redactar cuando la conversación se retoma y cubre memoria y puntaje', async () => {
+    const { owner, agent } = await setupAgent('pii-again', {
+      publicHandle: `pa-${crypto.randomUUID().slice(0, 8)}`,
+      settings: { channelInstructions: { chat: '', public: '', api: '' }, citations: true, visitorContext: false, memory: false, redactPii: true, blockedCountries: [], blockedWords: [], scorecard: [], aiScoring: false },
+    });
+    setAiModelOverride(scriptedModel([{ text: 'ok' }]));
+    const row = (await getAgentRow(owner.id, agent.id)) as AgentRow;
+    const first = await sendAgentMessage({ agent: row, channel: 'public', visitorKey: 'r'.repeat(20), text: 'soy ana@acme.com' });
+    const id = first.conversation.id;
+    await getDb().prepare('INSERT INTO agent_memories (id, agent_id, user_id, visitor_ref, fact, conversation_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(crypto.randomUUID(), agent.id, owner.id, 'k', 'Email is ana@acme.com', id, new Date().toISOString());
+    await getDb().prepare("UPDATE agent_conversations SET score = ? WHERE id = ?").run(JSON.stringify({ csat: 4, summary: 'Ana (ana@acme.com) asked', topic: 'x', criteria: [] }), id);
+    const old = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    await getDb().prepare('UPDATE agent_conversations SET updated_at = ? WHERE id = ?').run(old, id);
+    const { redactIdleConversations } = await import('@/lib/agents-privacy');
+    expect(await redactIdleConversations()).toBeGreaterThanOrEqual(1);
+    // Se retoma: un mensaje nuevo con otro email.
+    await sendAgentMessage({ agent: row, channel: 'public', visitorKey: 'r'.repeat(20), conversationId: id, text: 'y también bo@acme.com' });
+    // (Simula el paso del tiempo: la redacción anterior fue hace 3 h y el último mensaje hace 90 min.)
+    await getDb()
+      .prepare('UPDATE agent_conversations SET updated_at = ?, redacted_at = ? WHERE id = ?')
+      .run(new Date(Date.now() - 90 * 60_000).toISOString(), new Date(Date.now() - 3 * 3_600_000).toISOString(), id);
+    expect(await redactIdleConversations()).toBeGreaterThanOrEqual(1);
+    const dump = JSON.stringify([
+      await getDb().prepare('SELECT content FROM agent_messages WHERE conversation_id = ?').all(id),
+      await getDb().prepare('SELECT fact FROM agent_memories WHERE conversation_id = ?').all(id),
+      await getDb().prepare('SELECT score FROM agent_conversations WHERE id = ?').get(id),
+    ]);
+    expect(dump).not.toContain('@acme.com');
+    expect(JSON.parse(((await getDb().prepare('SELECT score FROM agent_conversations WHERE id = ?').get(id)) as { score: string }).score).csat).toBe(4);
+  });
+
   it('las palabras de spam cortan antes del modelo', async () => {
     const { owner, agent } = await setupAgent('spam', {
-      settings: { channelInstructions: { chat: '', public: '', api: '' }, citations: true, visitorContext: false, memory: false, redactPii: false, blockedCountries: [], blockedWords: ['casino'], scorecard: [] },
+      settings: { channelInstructions: { chat: '', public: '', api: '' }, citations: true, visitorContext: false, memory: false, redactPii: false, blockedCountries: [], blockedWords: ['casino'], scorecard: [], aiScoring: false },
     });
     const model = scriptedModel([{ text: 'nope' }]);
     setAiModelOverride(model);
@@ -265,17 +296,32 @@ describe('exportar, memoria y MCP', () => {
       const result =
         body.method === 'initialize'
           ? { protocolVersion: '2025-06-18', capabilities: {} }
-          : { tools: [{ name: 'lookup_order', description: 'Find an order', inputSchema: { type: 'object', properties: { id: { type: 'string' } } }, annotations: { readOnlyHint: true } }] };
+          : body.method === 'tools/call'
+            ? {
+                // Un servidor que hace eco del token, entero y sin el esquema, en el texto y en el JSON.
+                content: [{ type: 'text', text: 'auth was Bearer secret-token-123 (secret-token-123)' }],
+                structuredContent: { headers: { authorization: 'Bearer secret-token-123' }, raw: ['secret-token-123'], total: 42 },
+              }
+            : { tools: [{ name: 'lookup_order', description: 'Find an order', inputSchema: { type: 'object', properties: { id: { type: 'string' } } }, annotations: { readOnlyHint: true } }] };
       return new Response(`data: ${JSON.stringify({ jsonrpc: '2.0', id: body.id, result })}\n\n`, { headers: { 'content-type': 'text/event-stream', 'mcp-session-id': 's1' } });
     });
     const { owner, agent } = await setupAgent('mcp');
-    const servers = await addMcpServer(agent, { name: 'Store', url: 'https://mcp.store.test/mcp', headerValue: 'Bearer secret-token' }, owner.id);
+    const servers = await addMcpServer(agent, { name: 'Store', url: 'https://mcp.store.test/mcp', headerValue: 'Bearer secret-token-123' }, owner.id);
     expect(servers[0]).toMatchObject({ name: 'Store', hasAuth: true, allowed: ['lookup_order'] });
-    expect(JSON.stringify(servers)).not.toContain('secret-token');
+    expect(JSON.stringify(servers)).not.toContain('secret-token-123');
     expect(calls.map((c) => c.method)).toEqual(['initialize', 'notifications/initialized', 'tools/list']);
-    expect(calls.every((c) => c.auth === 'Bearer secret-token')).toBe(true);
+    expect(calls.every((c) => c.auth === 'Bearer secret-token-123')).toBe(true);
     const row = (await getAgentRow(owner.id, agent.id)) as AgentRow;
-    expect(row.mcp_servers).not.toContain('secret-token');
+    expect(row.mcp_servers).not.toContain('secret-token-123');
     expect(listMcpServers(row)[0].tools[0].readOnly).toBe(true);
+
+    // El eco del token no llega al modelo ni al registro de herramientas.
+    await updateAgent(owner.id, agent.id, { tools: { enabled: ['mcp_call'], ...TOOLS } }, owner.id);
+    setAiModelOverride(scriptedModel([{ tool: 'mcp_store_lookup_order', input: { id: '1' } }, { text: 'done' }]));
+    const res = await sendAgentMessage({ agent: (await getAgentRow(owner.id, agent.id)) as AgentRow, channel: 'playground', text: 'order 1', createdBy: owner.id });
+    expect(JSON.stringify(res.result.toolCalls[0].output)).not.toContain('secret-token-123');
+    expect((res.result.toolCalls[0].output as { structured: { total: number } }).structured.total).toBe(42);
+    const stored = (await getDb().prepare('SELECT output FROM agent_tool_calls WHERE conversation_id = ?').all(res.conversation.id)) as Array<{ output: string }>;
+    expect(stored.map((r) => r.output).join(' ')).not.toContain('secret-token-123');
   });
 });

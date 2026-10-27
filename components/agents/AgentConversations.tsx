@@ -7,6 +7,7 @@ import type { AgentMemoryDto } from '@/lib/agents-context';
 import { Link } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import { ToolCalls } from './AgentChat';
+import { useConfirm } from './useConfirm';
 import { api, errorText, toolName } from './agents-ui';
 import AgentApprovals from './AgentApprovals';
 import { parseDbUtc } from '@/lib/utils';
@@ -51,6 +52,7 @@ export default function AgentConversations({
   initialFilter?: ChannelFilter;
 }) {
   const t = useTranslations('agents');
+  const [confirmNode, ask] = useConfirm();
   const format = useFormatter();
   const now = useNow({ updateInterval: 60_000 });
   // El tiempo relativo depende del reloj: se calcula recién en el cliente para no romper la hidratación.
@@ -197,7 +199,7 @@ export default function AgentConversations({
   }
 
   async function block() {
-    if (!detail || !window.confirm(t('conversations.blockConfirm'))) return;
+    if (!detail || !(await ask({ title: t('conversations.blockConfirm'), confirmLabel: t('conversations.block'), danger: true }))) return;
     const res = await api(`/api/agents/${agentId}/conversations/${detail.conversation.id}`, { method: 'PATCH', body: JSON.stringify({ block: true }) });
     if (!res.ok) {
       setError(errorText(t, res.data.error));
@@ -233,6 +235,7 @@ export default function AgentConversations({
 
   return (
     <div className="ag-convs" data-view={selected ? 'detail' : 'list'}>
+      {confirmNode}
       <aside className="ag-convs-list" aria-label={t('tabs.conversations')}>
         <div className="ui-tabs ag-convs-filter" role="group" aria-label={t('conversations.filter')}>
           {CHANNELS.map((c) => (

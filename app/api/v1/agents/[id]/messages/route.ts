@@ -22,6 +22,8 @@ const schema = z.object({
       email: z.string().trim().email().max(200).optional(),
       name: z.string().trim().max(120).optional(),
     })
+    // Solo un nombre no identifica a nadie: hace falta id o email.
+    .refine((u) => Boolean(u.id || u.email), { message: 'user_needs_id_or_email' })
     .optional(),
 });
 

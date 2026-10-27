@@ -32,7 +32,7 @@ export async function POST(_req: NextRequest, props: Ctx) {
     const limited = await rateLimit(`agent-refresh:${id}`, 6, 600);
     if (!limited.ok) return agentError(429, 'rate_limited');
   }
-  // Vuelve a leer los sitemaps (páginas nuevas o que ya no están) y baja las URLs.
-  await syncAgentKnowledgeSources(user.id, row);
+  // Encola releer los sitemaps (los lee el cron de cada minuto) y baja las URLs a mano.
+  await syncAgentKnowledgeSources(user.id, row, { force: true });
   return NextResponse.json({ urls: await refreshKnowledgeUrls(user.id, id), sitemaps: await sitemapStatus(id) });
 }

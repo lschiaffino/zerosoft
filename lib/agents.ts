@@ -442,12 +442,16 @@ export function knowledgeSources(row: AgentRow): { urls: string[]; sitemaps: Arr
   return { urls: [...new Set([...live.urls, ...draft.urls])], sitemaps: [...sitemaps.values()] };
 }
 
-/** Descarga las URLs nuevas y lista los sitemaps después de cambiar el conocimiento. */
-export async function syncAgentKnowledgeSources(workspaceId: string, row: AgentRow): Promise<void> {
+/**
+ * Después de cambiar el conocimiento: deja las URLs a mano en la tabla y
+ * encola los sitemaps (los lee el cron de cada minuto, no este request).
+ * `force` vuelve a leer los sitemaps aunque no cambiaron (botón Actualizar).
+ */
+export async function syncAgentKnowledgeSources(workspaceId: string, row: AgentRow, opts: { force?: boolean } = {}): Promise<void> {
   const sources = knowledgeSources(row);
   await syncKnowledgeUrls(workspaceId, row.id, sources.urls);
   const { syncSitemaps } = await import('./agents-knowledge');
-  await syncSitemaps(workspaceId, row.id, sources.sitemaps).catch((err) => console.error('[agents] sitemap sync failed', err));
+  await syncSitemaps(workspaceId, row.id, sources.sitemaps, opts);
 }
 
 export async function updateAgent(
@@ -1362,6 +1366,14 @@ function normalize(s: string): string {
   return s.normalize('NFD').replace(/\p{M}+/gu, '').toLowerCase();
 }
 
+/** Respuesta a un mensaje con una palabra de spam, en el idioma más probable del visitante. */
+function blockedMessage(lastUser: string): string {
+  const t = normalize(lastUser);
+  if (/\b(hola|gracias|quiero|necesito|tengo|como|cuanto|donde|por favor)\b/.test(t)) return 'No podemos responder este mensaje.';
+  if (/\b(ola|obrigad|preciso|voce|nao|quero|tenho)\b/.test(t)) return 'Não podemos responder a esta mensagem.';
+  return 'We can’t answer this message.';
+}
+
 /** Frase de derivación por defecto, en el idioma más probable del visitante. */
 function defaultHandoffMessage(lastUser: string): string {
   const t = normalize(lastUser);
@@ -1433,11 +1445,18 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
     identifiedEmail: opts.identity?.email ?? null,
     mcpServers: row.mcp_servers ?? '[]',
   };
+  {
+    const { mcpSecretValues } = await import('./agents-mcp');
+    const { allSecretVariants } = await import('./agents-secrets');
+    ctx.secretValues = allSecretVariants([...(ctx.secretHeaders ?? []).map((h) => h.value), ...mcpSecretValues(row)]);
+  }
   // Spam: un mensaje con una palabra bloqueada no pasa por el modelo ni por las herramientas.
   const spam = agent.settings.blockedWords.find((w) => normalize(lastUser).includes(normalize(w)));
   if (spam) {
     await recordRun(row, conversation, channel, runId, 'blocked', 0, { question: lastUser });
-    return { status: 'blocked', text: '', handoff: false, runId, toolCalls: [], steps: 0 };
+    const text = blockedMessage(lastUser);
+    opts.onEvent?.({ type: 'text', delta: text });
+    return { status: 'blocked', text, handoff: false, runId, toolCalls: [], steps: 0 };
   }
   const { tools, enabled, handoff } = await buildAgentTools(ctx);
 

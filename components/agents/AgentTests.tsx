@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { AGENT_MAX_TESTS, AGENT_SIM_MAX_TURNS, type AgentTestCaseDto, type AgentTestKind } from '@/lib/agents-config';
 import FormSection from '@/components/ui/FormSection';
+import { useConfirm } from './useConfirm';
 import { api, errorText, toolName } from './agents-ui';
 
 interface Props {
@@ -35,6 +36,7 @@ export function testSummary(tests: AgentTestCaseDto[]): { passed: number; ran: n
  */
 export default function AgentTests({ agentId, tests, onTestsChange, canEdit, aiEnabled, dirty, prefill }: Props) {
   const t = useTranslations('agents');
+  const [confirmNode, ask] = useConfirm();
   const format = useFormatter();
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -80,7 +82,7 @@ export default function AgentTests({ agentId, tests, onTestsChange, canEdit, aiE
   }
 
   async function remove(test: AgentTestCaseDto) {
-    if (!window.confirm(t('tests.deleteConfirm'))) return;
+    if (!(await ask({ title: t('tests.deleteConfirm'), confirmLabel: t('tests.delete'), danger: true }))) return;
     const res = await api(`/api/agents/${agentId}/tests/${test.id}`, { method: 'DELETE' });
     if (!res.ok) {
       setError(errorText(t, res.data.error));
@@ -166,6 +168,7 @@ export default function AgentTests({ agentId, tests, onTestsChange, canEdit, aiE
       }
     >
       {dirty && total > 0 && <p className="ui-help">{t('tests.dirty')}</p>}
+      {confirmNode}
       {error && (
         <p className="ui-error" role="alert">
           {error}

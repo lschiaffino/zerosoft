@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import type { AgentMcpServerDto } from '@/lib/agents-mcp';
 import { parseDbUtc } from '@/lib/utils';
+import { useConfirm } from './useConfirm';
 import { api, errorText } from './agents-ui';
 
 /**
@@ -21,6 +22,7 @@ export default function AgentMcp({
   readOnly: boolean;
 }) {
   const t = useTranslations('agents');
+  const [confirmNode, ask] = useConfirm();
   const format = useFormatter();
   const [servers, setServers] = useState(initial);
   const [form, setForm] = useState({ name: '', url: '', headerName: 'Authorization', headerValue: '' });
@@ -65,7 +67,7 @@ export default function AgentMcp({
   }
 
   async function remove(s: AgentMcpServerDto) {
-    if (!window.confirm(t('mcp.removeConfirm', { name: s.name }))) return;
+    if (!(await ask({ title: t('mcp.removeConfirm', { name: s.name }), confirmLabel: t('mcp.remove'), danger: true }))) return;
     setBusy(s.id);
     const res = await api<{ servers?: AgentMcpServerDto[] }>(`/api/agents/${agentId}/mcp/${s.id}`, { method: 'DELETE' });
     setBusy(null);
@@ -75,6 +77,7 @@ export default function AgentMcp({
 
   return (
     <div className="ag-mcp">
+      {confirmNode}
       {servers.length === 0 ? (
         <p className="ui-help">{t('mcp.empty')}</p>
       ) : (

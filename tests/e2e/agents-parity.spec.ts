@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 
@@ -85,7 +86,12 @@ test('versiones: publicar, guardar como borrador, publicar de nuevo y volver atr
   await page.goto(`/en/app/agents/${id}`, { waitUntil: 'networkidle' });
   await expect(page.getByText('Changes go live on save')).toBeVisible();
   await page.getByRole('button', { name: 'Publish v1' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog.getByLabel('Note (optional)')).toBeFocused();
+  await dialog.getByLabel('Note (optional)').fill('First release');
+  await dialog.getByRole('button', { name: 'Publish', exact: true }).click();
   await expect(page.getByText('Version 1 is live.')).toBeVisible();
+  await expect(page.locator('.ag-version-status')).toBeFocused();
   await expect(page.getByText('Live: v1', { exact: true })).toBeVisible();
 
   await page.getByLabel('Welcome message').fill('Hi from the draft');
@@ -100,10 +106,11 @@ test('versiones: publicar, guardar como borrador, publicar de nuevo y volver atr
   await expect(page.getByText('Changed welcome message in the draft')).toBeVisible();
 
   await page.getByRole('button', { name: 'Publish', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Publish', exact: true }).click();
   await expect(page.getByText('Version 2 is live.')).toBeVisible();
   await expect(page.locator('.ag-version').filter({ hasText: 'v2' }).getByText('Live')).toBeVisible();
-  page.once('dialog', (d) => void d.accept());
   await page.locator('.ag-version').filter({ hasText: 'v1' }).getByRole('button', { name: 'Go back to this version' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Go back to this version' }).click();
   await expect(page.getByText('Version 1 is live again.')).toBeVisible();
   await expect(page.locator('.ag-version').filter({ hasText: 'v3' }).getByText('Live')).toBeVisible();
   await expect(page.getByText('Put version 1 back live as version 3')).toBeVisible();
@@ -132,7 +139,16 @@ test('conocimiento: archivo, pares con CSV, sitemap y cita en la respuesta', asy
   await page.getByLabel('Only pages under').fill('/help');
   await page.getByRole('button', { name: 'Add sitemap' }).click();
   await page.keyboard.press('ControlOrMeta+s');
-  await expect(page.getByText(/of 2 pages read/)).toBeVisible();
+  // Guardar encola el sitemap; lo lee el cron de cada minuto (y después baja las páginas).
+  await expect(page.getByText('Reading the sitemap…')).toBeVisible();
+  for (let i = 0; i < 2; i++) expect((await page.request.get('/api/cron/minute', { headers: { authorization: 'Bearer e2e-cron' } })).ok()).toBeTruthy();
+  await expect(page.getByText(/2 of 2 pages read/)).toBeVisible({ timeout: 15_000 });
+  // Un sitemap que no existe muestra su error.
+  await page.getByLabel('Sitemap URL').fill(`http://127.0.0.1:${MOCK_PORT + 1}/sitemap.xml`);
+  await page.getByRole('button', { name: 'Add sitemap' }).click();
+  await page.keyboard.press('ControlOrMeta+s');
+  await page.request.get('/api/cron/minute', { headers: { authorization: 'Bearer e2e-cron' } });
+  await expect(page.getByText('No sitemap found at that address.')).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole('tab', { name: 'Playground' }).click();
   await ask(page, 'refunds within 30 days receipt');
@@ -199,7 +215,7 @@ test('calidad: repetir, puntuar, revisar, memoria, bloquear y exportar', async (
   const id = await createAgent(page, `Quality ${uid()}`, { publicHandle: handle });
   // Memoria activa (por el mismo navegador en la página pública).
   const draft = (await (await page.request.get(`/api/agents/${id}`)).json()) as { agent: { settings: Record<string, unknown> } };
-  await page.request.patch(`/api/agents/${id}`, { data: { settings: { ...draft.agent.settings, memory: true } } });
+  await page.request.patch(`/api/agents/${id}`, { data: { settings: { ...draft.agent.settings, memory: true, aiScoring: true } } });
   const key = 'm'.repeat(24);
   const sent = await page.request.post(`/api/agents/public/${handle}`, { data: { visitorKey: key, message: 'Hello, I need help with my order' } });
   await sent.text();
@@ -227,8 +243,8 @@ test('calidad: repetir, puntuar, revisar, memoria, bloquear y exportar', async (
   await page.getByRole('button', { name: 'Mark reviewed' }).click();
   await expect(page.locator('.ag-conv-item').first().getByText('Reviewed')).toBeVisible();
 
-  page.once('dialog', (d) => void d.accept());
   await page.getByRole('button', { name: 'Block visitor' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Block visitor' }).click();
   await expect(page.getByText(/Visitor blocked/)).toBeVisible();
   const again = await page.request.post(`/api/agents/public/${handle}`, { data: { visitorKey: key, message: 'hi again' } });
   expect(await again.text()).toContain('blocked');
@@ -247,6 +263,10 @@ test('reglas que chocan y error claro sin AI', async ({ page }) => {
 
   await page.getByRole('tab', { name: 'Analytics' }).click();
   // Sin conversaciones la pestaña muestra el vacío; el error sin AI se ve al puntuar desde la API.
+  const off = await page.request.post(`/api/agents/${id}/quality`, { data: { action: 'score' } });
+  expect(((await off.json()) as { error: string }).error).toBe('scoring_off');
+  const draft = (await (await page.request.get(`/api/agents/${id}`)).json()) as { agent: { settings: Record<string, unknown> } };
+  await page.request.patch(`/api/agents/${id}`, { data: { settings: { ...draft.agent.settings, aiScoring: true } } });
   const res = await page.request.post(`/api/agents/${id}/quality`, { data: { action: 'score' } });
   expect(res.status()).toBe(503);
   expect(((await res.json()) as { error: string }).error).toBe('ai_disabled');
@@ -261,4 +281,60 @@ test('390 px y modo oscuro: Versiones y Conocimiento sin scroll horizontal', asy
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow, tab).toBeLessThanOrEqual(1);
   }
+});
+
+test('Chat: identidad firmada abre el contacto, sin firma no; memoria y bloqueo', async ({ page, context }) => {
+  await fakeAi(context);
+  const email = `ana-${uid()}@acme.test`;
+  expect((await page.request.post('/api/crm/contacts', { data: { firstName: 'Anabel', email } })).ok()).toBeTruthy();
+  const id = await createAgent(page, `Chat ${uid()}`);
+  const draft = (await (await page.request.get(`/api/agents/${id}`)).json()) as { agent: { settings: Record<string, unknown>; tools: Record<string, unknown> } };
+  await page.request.patch(`/api/agents/${id}`, {
+    data: {
+      settings: { ...draft.agent.settings, visitorContext: true, memory: true, aiScoring: true },
+      tools: { ...draft.agent.tools, enabled: ['crm_find_contact', 'handoff_to_human'] },
+    },
+  });
+  const widget = (await (await page.request.post('/api/chat/widgets', { data: { name: `Agent chat ${uid()}` } })).json()) as { id: string };
+  expect((await page.request.post(`/api/agents/${id}/widgets`, { data: { widgetId: widget.id, assigned: true } })).ok()).toBeTruthy();
+  const { secret } = (await (await page.request.post(`/api/chat/widgets/${widget.id}/identity`)).json()) as { secret: string };
+  const hash = createHmac('sha256', secret).update(email).digest('hex');
+
+  async function say(visitorId: string, body: string, signed: boolean) {
+    const res = await page.request.post('/api/chat/messages', {
+      data: { widgetId: widget.id, visitorId, body, ...(signed ? { email, userHash: hash } : { email }) },
+    });
+    expect(res.ok()).toBeTruthy();
+  }
+  async function botReplies(visitorId: string): Promise<string[]> {
+    const data = (await (await page.request.get(`/api/chat/messages?widgetId=${widget.id}&visitorId=${visitorId}`)).json()) as {
+      messages: Array<{ senderType?: string; sender_type?: string; body: string }>;
+    };
+    return data.messages.filter((m) => (m.senderType ?? m.sender_type) === 'bot').map((m) => m.body);
+  }
+
+  const signedVisitor = `v-${uid()}-signed`;
+  await say(signedVisitor, `/tool crm_find_contact {"email":"${email}"}`, true);
+  await expect.poll(async () => (await botReplies(signedVisitor)).join(' '), { timeout: 15_000 }).toContain('Anabel');
+
+  const anon = `v-${uid()}-anon`;
+  await say(anon, `/tool crm_find_contact {"email":"${email}"}`, false);
+  await expect.poll(async () => (await botReplies(anon)).join(' '), { timeout: 15_000 }).toContain('identity_not_verified');
+  expect((await botReplies(anon)).join(' ')).not.toContain('Anabel');
+
+  // Memoria: al puntuar, el agente guarda datos del visitante firmado.
+  const scored = await page.request.post(`/api/agents/${id}/quality`, { data: { action: 'score' } });
+  expect(scored.ok()).toBeTruthy();
+  const convs = (await (await page.request.get(`/api/agents/${id}/conversations?channel=chat`)).json()) as { conversations: Array<{ id: string; visitorEmail: string | null }> };
+  const signedConv = convs.conversations.find((c) => c.visitorEmail === email);
+  expect(signedConv).toBeTruthy();
+  const detail = (await (await page.request.get(`/api/agents/${id}/conversations/${signedConv!.id}`)).json()) as { memories: Array<{ fact: string }> };
+  expect(detail.memories.length).toBeGreaterThan(0);
+
+  // Bloqueo: el agente deja de contestarle a ese visitante.
+  expect((await page.request.patch(`/api/agents/${id}/conversations/${signedConv!.id}`, { data: { block: true } })).ok()).toBeTruthy();
+  const before = (await botReplies(signedVisitor)).length;
+  await say(signedVisitor, 'hello again', true);
+  await page.waitForTimeout(4000);
+  expect((await botReplies(signedVisitor)).length).toBe(before);
 });

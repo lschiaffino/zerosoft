@@ -203,6 +203,8 @@ export const settingsConfigSchema = z.object({
   blockedCountries: z.array(countryCode).max(250).default([]),
   /** Mensajes con alguna de estas palabras se tratan como spam: el agente no corre. */
   blockedWords: z.array(z.string().trim().min(2).max(60)).max(50).default([]),
+  /** Puntaje con AI de cada conversación (CSAT, sentimiento, tema, scorecard). Apagado: no gasta AI. */
+  aiScoring: z.boolean().default(false),
   /** Criterios del scorecard de calidad (cada conversación se puntúa contra ellos). */
   scorecard: z.array(z.string().trim().min(3).max(200)).max(10).default([]),
 });

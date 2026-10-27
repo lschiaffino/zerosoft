@@ -120,7 +120,8 @@
     "instructionsHelp": "Write it like a brief for someone new on the team.",
     "templateHelp": "Replaces the current instructions.",
     "advancedHint": "Handoff, limits and model",
-    "templateLabel": "Template"
+    "templateLabel": "Template",
+    "replace": "Replace"
   },
   "handoff": {
     "title": "Handoff to a human",
@@ -207,7 +208,7 @@
       },
       "crm_find_contact": {
         "name": "Find CRM contact",
-        "desc": "Checks if the visitor's email is already a contact (returns only first name and lifecycle stage)."
+        "desc": "Finds the visitor in the CRM (first name and lifecycle stage) only when their identity is verified (signed in the Chat widget or sent by your server through the API). A typed email is not enough."
       },
       "crm_upsert_contact": {
         "name": "Save CRM contact",
@@ -441,7 +442,13 @@
     "conflict": "Someone published at the same time. Reload and try again.",
     "blocked": "This conversation is not available.",
     "cannot_block": "This visitor cannot be blocked (no browser or Chat visitor to block).",
-    "empty_conversation": "The conversation has no visitor messages."
+    "empty_conversation": "The conversation has no visitor messages.",
+    "scoring_off": "AI scoring is off for this agent. Turn it on in Instructions › Quality scorecard.",
+    "score_limit": "This agent reached today’s limit of scored conversations.",
+    "pdf_too_complex": "The PDF is too large or complex to read. Split it or export it again.",
+    "mcp_http_error": "The server answered with an error. Check the URL and the token.",
+    "mcp_blocked_url": "That address is not allowed: use a public HTTPS URL.",
+    "identity_not_verified": "The visitor’s identity is not verified."
   },
   "public": {
     "subtitle": "AI assistant",
@@ -671,7 +678,12 @@
       "mcp_edit": "Changed the MCP server {server}",
       "mcp_remove": "Disconnected the MCP server {server}",
       "secret_changed": "Changed a secret header"
-    }
+    },
+    "publishTitle": "Publish version {number}",
+    "publishFirstTitle": "Publish version 1",
+    "publishBody": "Your live channels switch to this version. You can go back to any earlier one.",
+    "note": "Note (optional)",
+    "notePlaceholder": "What changed"
   },
   "files": {
     "title": "Files",
@@ -715,7 +727,8 @@
     "onlyPrefix": "Only {prefix}",
     "progress": "{fetched} of {pages} pages read",
     "failed": "{count, plural, one {# failed} other {# failed}}",
-    "notRead": "Not read yet"
+    "notRead": "Not read yet",
+    "reading": "Reading the sitemap…"
   },
   "suggestions": {
     "title": "Questions without an answer",
@@ -759,10 +772,12 @@
     },
     "unblock": "Unblock",
     "scorecardTitle": "Quality scorecard",
-    "scorecardHint": "Every conversation gets an AI score (satisfaction, sentiment, topic and whether it was resolved) and is checked against these criteria.",
+    "scorecardHint": "Satisfaction, sentiment, topic, resolution and these criteria, scored by AI for each conversation.",
     "scorecard": "Criteria",
     "scorecardPlaceholder": "Greets the visitor by name\nOffers a meeting when the visitor asks about pricing",
-    "scorecardHelp": "One per line, up to 10."
+    "scorecardHelp": "One per line, up to 10.",
+    "aiScoring": "Score conversations with AI",
+    "aiScoringHint": "Off by default. When on, each conversation is scored half an hour after it goes quiet, up to 300 per day, and it uses the workspace AI quota."
   },
   "rules": {
     "check": "Check rules",
@@ -784,7 +799,7 @@
   },
   "quality": {
     "title": "Quality",
-    "hint": "AI score of each conversation half an hour after it goes quiet: satisfaction (1 to 5), sentiment, topic, resolution and your scorecard.",
+    "hint": "AI score of each conversation half an hour after it goes quiet: satisfaction (1 to 5), sentiment, topic, resolution and your scorecard. Turn it on in Instructions › Quality scorecard.",
     "scoreNow": "Score now",
     "scoring": "Scoring…",
     "scored": "{count, plural, =0 {Nothing new to score.} one {# conversation scored.} other {# conversations scored.}}",

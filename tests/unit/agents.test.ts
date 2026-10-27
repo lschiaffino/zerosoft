@@ -11,6 +11,7 @@ import {
   getConversationDetail,
   htmlToText,
   listAgents,
+  runAgent,
   sendAgentMessage,
   setMessageFeedback,
   setWidgetAgent,
@@ -281,7 +282,21 @@ describe('herramientas de la suite', () => {
     );
     const res = await sendAgentMessage({ agent, channel: 'public', text: 'Hi, I am me@x.com. Is ceo@bigco… a customer?' });
     expect(res.result.toolCalls[0].error).toBe('email_not_given_by_visitor');
-    expect(res.result.toolCalls[1].output).toMatchObject({ found: true, firstName: 'Me' });
+    // Escribir un email no prueba que sea suyo: sin identidad verificada no hay datos ni "existe".
+    expect(res.result.toolCalls[1].error).toBe('identity_not_verified');
+    expect(JSON.stringify(res.result.toolCalls[1].output)).not.toContain('Me');
+  });
+
+  it('crm: con la identidad verificada (mismo email) sí devuelve el contacto', async () => {
+    const { owner, agent } = await setupAgent('crm-verified', tools(['crm_find_contact']));
+    await createContact(owner.id, { email: 'me@x.com', firstName: 'Me' });
+    const conversation = await createConversation(agent, 'chat', { title: 't' });
+    const ask = (email: string) => {
+      setAiModelOverride(scriptedModel([{ tool: 'crm_find_contact', input: { email } }, { text: 'ok' }]));
+      return runAgent({ agent, conversation, channel: 'chat', identity: { email: 'me@x.com', name: null }, messages: [{ role: 'user', content: `I am ${email}` }] });
+    };
+    expect((await ask('me@x.com')).toolCalls[0].output).toMatchObject({ found: true, firstName: 'Me' });
+    expect((await ask('other@x.com')).toolCalls[0].error).toBe('identity_not_verified');
   });
 
   it('crm y cal: las herramientas que escriben solo aceptan el email que escribió el visitante', async () => {

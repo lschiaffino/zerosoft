@@ -31,6 +31,7 @@ import {
 import { rankKnowledge, type KnowledgeDoc } from './knowledge-search';
 import { extractDocsText, listCannedResponses } from './chat-data';
 import { safeFetch, UnsafeUrlError } from './safe-fetch';
+import { allSecretVariants, redactDeep, redactText } from './agents-secrets';
 import type { DocsPageWriteInput, DocsRowWriteInput } from './agent-docs-tools';
 
 export interface AgentRunContext {
@@ -60,6 +61,8 @@ export interface AgentRunContext {
   searches?: { calls: number; empty: number };
   /** agents.mcp_servers (JSON con el header cifrado): servidores MCP del agente. */
   mcpServers?: string;
+  /** Valores secretos (y sus partes) que nunca se registran ni vuelven al modelo. */
+  secretValues?: string[];
 }
 
 export interface KnowledgeCitation {
@@ -151,6 +154,8 @@ function logged<I>(ctx: AgentRunContext, name: AgentToolKey, fn: (input: I) => P
       error = err instanceof Error && /^[a-z_]+$/.test(err.message) ? err.message : 'tool_failed';
       output = { error };
     }
+    // Ningún secreto (ni sus partes) entra al registro, a la UI ni al modelo.
+    if (ctx.secretValues?.length) output = redactDeep(output, ctx.secretValues);
     const durationMs = Date.now() - started;
     const createdAt = new Date().toISOString();
     try {
@@ -437,13 +442,17 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
       'crm_find_contact',
       tool({
         description:
-          "Look up the visitor in the CRM by the email address THEY gave you. Returns only whether they exist, their first name and lifecycle stage.",
+          "Look up the visitor in the CRM by their email. Only works when the visitor's identity is verified (or in the playground); otherwise it returns identity_not_verified and you should not claim to know who they are.",
         inputSchema: z.object({ email: z.string().trim().max(200) }),
         execute: logged(ctx, 'crm_find_contact', async ({ email }: { email: string }) => {
           if (!EMAIL_RE.test(email)) return { error: 'invalid_email' };
           // Solo el email que el propio visitante escribió: evita usar al agente
           // para averiguar si un email cualquiera está en el CRM.
           if (!visitorGaveEmail(ctx, email)) return { error: 'email_not_given_by_visitor' };
+          // Un email escrito en el chat lo puede tipear cualquiera: los datos del
+          // contacto (o si existe) solo con la identidad verificada y el mismo email.
+          const verified = ctx.channel === 'playground' || (ctx.identifiedEmail ?? '').trim().toLowerCase() === email.trim().toLowerCase();
+          if (!verified) return { error: 'identity_not_verified' };
           const c = await findContact(workspaceId, email);
           if (!c) return { found: false };
           return { found: true, contactId: c.id, firstName: c.first_name, lifecycleStage: c.lifecycle_stage };
@@ -1057,7 +1066,7 @@ export async function performAgentAction(actx: AgentActionContext, tool: Approva
           8000,
         );
         // Una API que devuelve el header (eco, errores) no se lo filtra al modelo.
-        const text = redactSecrets((await res.text().catch(() => '')).slice(0, 200_000), secrets.map((h) => h.value)).slice(0, 4000);
+        const text = redactText((await res.text().catch(() => '')).slice(0, 200_000), allSecretVariants(secrets.map((h) => h.value))).slice(0, 4000);
         return { status: res.status, ok: res.ok, body: text };
       } catch (err) {
         if (err instanceof UnsafeUrlError) return { error: err.message };

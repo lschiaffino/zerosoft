@@ -6,6 +6,7 @@ import type { AgentDto } from '@/lib/agents-config';
 import type { AgentChangeDto, AgentVersionDto, AgentVersioningDto } from '@/lib/agents-versions';
 import EmptyState from '@/components/ui/EmptyState';
 import { parseDbUtc } from '@/lib/utils';
+import { useConfirm } from './useConfirm';
 import { api, errorText } from './agents-ui';
 
 /**
@@ -28,6 +29,7 @@ export default function AgentVersions({
   onAgent: (agent: AgentDto, versioning: AgentVersioningDto) => void;
 }) {
   const t = useTranslations('agents');
+  const [confirmNode, ask] = useConfirm();
   const format = useFormatter();
   const [versions, setVersions] = useState<AgentVersionDto[] | null>(null);
   const [changes, setChanges] = useState<AgentChangeDto[]>([]);
@@ -55,7 +57,7 @@ export default function AgentVersions({
       setError(t('versions.saveFirst'));
       return;
     }
-    if (!window.confirm(t('versions.restoreConfirm', { number: v.number }))) return;
+    if (!(await ask({ title: t('versions.restoreConfirm', { number: v.number }), confirmLabel: t('versions.restore') }))) return;
     setBusy(v.id);
     setError(null);
     const res = await api<{ agent?: AgentDto; versioning?: AgentVersioningDto }>(`/api/agents/${agentId}/versions/${v.id}`, { method: 'POST' });
@@ -95,6 +97,7 @@ export default function AgentVersions({
 
   return (
     <div className="ag-block ag-versions">
+      {confirmNode}
       <p className="ui-help">{t('versions.hint')}</p>
       {notice && (
         <p className="ui-help" role="status">

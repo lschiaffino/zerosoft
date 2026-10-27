@@ -12,7 +12,7 @@ import { getDb } from './db';
 import type { AgentRow } from './db';
 import { extractDocsText } from './chat-data';
 import { parseCsv } from './csv-parse';
-import { safeFetch, UnsafeUrlError } from './safe-fetch';
+import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
 import { AGENT_SITEMAP_MAX_PAGES } from './agents-config';
 import { searchTokens } from './knowledge-search';
 
@@ -299,20 +299,47 @@ export async function importQaCsv(
 
 const SITEMAP_MAX_BYTES = 5_000_000;
 
-/** URLs de un sitemap (o de un índice de sitemaps). Exportada para tests. */
-export function parseSitemap(xml: string): { urls: string[]; sitemaps: string[] } {
-  const locs = (tag: string) =>
-    [...xml.matchAll(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<loc>\\s*([^<\\s]+)\\s*</loc>`, 'gi'))].map((m) =>
-      m[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'"),
-    );
-  return { urls: locs('url'), sitemaps: locs('sitemap') };
+const XML_ENTITIES: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'" };
+
+/**
+ * URLs de un sitemap (o de un índice de sitemaps). Lineal: recorre los <loc>
+ * con indexOf (nada de regex con retroceso sobre 5 MB de XML ajeno), con tope
+ * de entradas. Exportada para tests.
+ */
+export function parseSitemap(xml: string, max = 50_000): { urls: string[]; sitemaps: string[] } {
+  const head = xml.slice(0, 4096).toLowerCase();
+  const isIndex = head.includes('<sitemapindex');
+  const locs: string[] = [];
+  let pos = 0;
+  while (locs.length < max) {
+    const open = xml.indexOf('<loc', pos);
+    if (open < 0) break;
+    const gt = xml.indexOf('>', open + 4);
+    if (gt < 0) break;
+    // <loc> o <loc …>; otra etiqueta que empieza igual (<location>) se saltea.
+    const next = xml.charCodeAt(open + 4);
+    if (next !== 62 /* > */ && next !== 32 && next !== 9 && next !== 10 && next !== 13) {
+      pos = open + 4;
+      continue;
+    }
+    const close = xml.indexOf('</loc>', gt + 1);
+    if (close < 0) break;
+    const raw = xml.slice(gt + 1, Math.min(close, gt + 1 + 4000)).trim();
+    if (raw) locs.push(raw.replace(/&(amp|lt|gt|quot|apos);/g, (m) => XML_ENTITIES[m] ?? m));
+    pos = close + 6;
+  }
+  return isIndex ? { urls: [], sitemaps: locs } : { urls: locs, sitemaps: [] };
 }
 
 async function fetchText(url: string): Promise<{ text: string; type: string } | null> {
   try {
     const res = await safeFetch(url, { headers: { 'user-agent': 'Zerosoft-Agents/1', accept: 'application/xml,text/xml,text/html' } }, 10_000, { maxRedirects: 3 });
-    if (!res.ok) return null;
-    return { text: (await res.text()).slice(0, SITEMAP_MAX_BYTES), type: res.headers.get('content-type') ?? '' };
+    if (!res.ok) {
+      await res.body?.cancel().catch(() => {});
+      return null;
+    }
+    // Tope leyendo en streaming (un sitemap de varios GB no se descarga entero).
+    return { text: await readTextCapped(res, SITEMAP_MAX_BYTES), type: res.headers.get('content-type') ?? '' };
   } catch (err) {
     if (err instanceof UnsafeUrlError) return null;
     return null;
@@ -366,58 +393,106 @@ export async function expandSitemap(rawUrl: string, prefix = '', max = AGENT_SIT
 }
 
 /**
- * Deja en agent_knowledge_urls las páginas de los sitemaps configurados
- * (origin = URL del sitemap). Las de sitemaps que ya no están se borran; las
- * nuevas quedan pendientes (las baja el cron de cada minuto). Devuelve los
- * errores por sitemap.
+ * Encola los sitemaps de la configuración (agent_sitemaps): los que ya no
+ * están se borran con sus páginas; los nuevos o con otro filtro quedan
+ * pendientes y los lee el cron de cada minuto (processPendingSitemaps). Así
+ * guardar no espera a bajar un sitemap ajeno.
  */
-export async function syncSitemaps(
-  workspaceId: string,
-  agentId: string,
-  sitemaps: Array<{ url: string; prefix: string }>,
-): Promise<Record<string, string>> {
+export async function syncSitemaps(workspaceId: string, agentId: string, sitemaps: Array<{ url: string; prefix: string }>, opts: { force?: boolean } = {}): Promise<void> {
   const db = getDb();
-  const wanted = new Set(sitemaps.map((s) => s.url));
-  const rows = (await db
-    .prepare('SELECT id, url, origin FROM agent_knowledge_urls WHERE agent_id = ? AND origin IS NOT NULL')
-    .all(agentId)) as Array<{ id: string; url: string; origin: string }>;
-  for (const r of rows) if (!wanted.has(r.origin)) await db.prepare('DELETE FROM agent_knowledge_urls WHERE id = ?').run(r.id);
-  const errors: Record<string, string> = {};
-  for (const sm of sitemaps) {
-    const res = await expandSitemap(sm.url, sm.prefix);
-    if (!res.ok) {
-      errors[sm.url] = res.error;
-      continue;
-    }
-    const keep = new Set(res.urls);
-    for (const r of rows) if (r.origin === sm.url && !keep.has(r.url)) await db.prepare('DELETE FROM agent_knowledge_urls WHERE id = ?').run(r.id);
-    const have = new Set(rows.filter((r) => r.origin === sm.url).map((r) => r.url));
-    for (const url of res.urls) {
-      if (have.has(url)) continue;
-      await db
-        .prepare("INSERT OR IGNORE INTO agent_knowledge_urls (id, agent_id, user_id, url, status, origin, created_at) VALUES (?, ?, ?, ?, 'pending', ?, ?)")
-        .run(crypto.randomUUID(), agentId, workspaceId, url, sm.url, nowIso());
-    }
+  const wanted = new Map(sitemaps.map((s) => [s.url, s]));
+  const current = (await db.prepare('SELECT url, prefix FROM agent_sitemaps WHERE agent_id = ?').all(agentId)) as Array<{ url: string; prefix: string }>;
+  for (const c of current) {
+    if (wanted.has(c.url)) continue;
+    await db.prepare('DELETE FROM agent_sitemaps WHERE agent_id = ? AND url = ?').run(agentId, c.url);
+    await db.prepare('DELETE FROM agent_knowledge_urls WHERE agent_id = ? AND origin = ?').run(agentId, c.url);
   }
-  return errors;
+  for (const sm of sitemaps) {
+    const prev = current.find((c) => c.url === sm.url);
+    if (prev && prev.prefix === sm.prefix && !opts.force) continue;
+    await db
+      .prepare(
+        `INSERT INTO agent_sitemaps (agent_id, user_id, url, prefix, status, error, pages, listed_at, claimed_until, created_at)
+         VALUES (?, ?, ?, ?, 'pending', NULL, 0, NULL, NULL, ?)
+         ON CONFLICT (agent_id, url) DO UPDATE SET prefix = excluded.prefix, status = 'pending', error = NULL, claimed_until = NULL`,
+      )
+      .run(agentId, workspaceId, sm.url, sm.prefix, nowIso());
+  }
+}
+
+/** Lista un sitemap y deja sus páginas pendientes de descarga. */
+async function listSitemap(row: { agent_id: string; user_id: string; url: string; prefix: string }): Promise<void> {
+  const db = getDb();
+  const res = await expandSitemap(row.url, row.prefix);
+  if (!res.ok) {
+    await db.prepare("UPDATE agent_sitemaps SET status = 'error', error = ?, listed_at = ?, claimed_until = NULL WHERE agent_id = ? AND url = ?").run(res.error, nowIso(), row.agent_id, row.url);
+    return;
+  }
+  const existing = (await db.prepare('SELECT id, url FROM agent_knowledge_urls WHERE agent_id = ? AND origin = ?').all(row.agent_id, row.url)) as Array<{ id: string; url: string }>;
+  const keep = new Set(res.urls);
+  for (const r of existing) if (!keep.has(r.url)) await db.prepare('DELETE FROM agent_knowledge_urls WHERE id = ?').run(r.id);
+  const have = new Set(existing.map((r) => r.url));
+  for (const url of res.urls) {
+    if (have.has(url)) continue;
+    await db
+      .prepare("INSERT OR IGNORE INTO agent_knowledge_urls (id, agent_id, user_id, url, status, origin, created_at) VALUES (?, ?, ?, ?, 'pending', ?, ?)")
+      .run(crypto.randomUUID(), row.agent_id, row.user_id, url, row.url, nowIso());
+  }
+  await db
+    .prepare("UPDATE agent_sitemaps SET status = 'ok', error = NULL, pages = ?, listed_at = ?, claimed_until = NULL WHERE agent_id = ? AND url = ?")
+    .run(res.urls.length, nowIso(), row.agent_id, row.url);
+}
+
+/**
+ * Cron de cada minuto: lee los sitemaps pendientes (y los listados hace más
+ * de un día, para sumar páginas nuevas). Claim por fila con claimed_until.
+ */
+export async function processPendingSitemaps(opts: { limit?: number; now?: Date } = {}): Promise<number> {
+  const db = getDb();
+  const now = opts.now ?? new Date();
+  const stale = new Date(now.getTime() - 24 * 3_600_000).toISOString();
+  const rows = (await db
+    .prepare(
+      `SELECT agent_id, user_id, url, prefix FROM agent_sitemaps
+       WHERE (status = 'pending' OR listed_at IS NULL OR listed_at < ?) AND (claimed_until IS NULL OR claimed_until < ?)
+       ORDER BY COALESCE(listed_at, '') ASC LIMIT ?`,
+    )
+    .all(stale, now.toISOString(), Math.min(Math.max(opts.limit ?? 3, 1), 20))) as Array<{ agent_id: string; user_id: string; url: string; prefix: string }>;
+  let done = 0;
+  for (const r of rows) {
+    const claimed = await db
+      .prepare('UPDATE agent_sitemaps SET claimed_until = ? WHERE agent_id = ? AND url = ? AND (claimed_until IS NULL OR claimed_until < ?)')
+      .run(new Date(now.getTime() + 5 * 60_000).toISOString(), r.agent_id, r.url, now.toISOString());
+    if (!claimed.changes) continue;
+    await listSitemap(r).catch(async () => {
+      await db.prepare("UPDATE agent_sitemaps SET status = 'error', error = 'sitemap_not_found', claimed_until = NULL WHERE agent_id = ? AND url = ?").run(r.agent_id, r.url);
+    });
+    done++;
+  }
+  return done;
 }
 
 export interface AgentSitemapStatusDto {
   url: string;
+  status: 'pending' | 'ok' | 'error';
+  error: string | null;
   pages: number;
   fetched: number;
   failed: number;
 }
 
-/** Progreso de cada sitemap (páginas listadas, descargadas y con error). */
+/** Estado de cada sitemap: pendiente de leer, con error, o páginas leídas de las listadas. */
 export async function sitemapStatus(agentId: string): Promise<AgentSitemapStatusDto[]> {
   const rows = (await getDb()
     .prepare(
-      `SELECT origin, COUNT(*) AS pages, SUM(CASE WHEN status = 'ok' THEN 1 ELSE 0 END) AS fetched, SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) AS failed
-       FROM agent_knowledge_urls WHERE agent_id = ? AND origin IS NOT NULL GROUP BY origin`,
+      `SELECT s.url, s.status, s.error,
+         (SELECT COUNT(*) FROM agent_knowledge_urls k WHERE k.agent_id = s.agent_id AND k.origin = s.url) AS pages,
+         (SELECT COUNT(*) FROM agent_knowledge_urls k WHERE k.agent_id = s.agent_id AND k.origin = s.url AND k.status = 'ok') AS fetched,
+         (SELECT COUNT(*) FROM agent_knowledge_urls k WHERE k.agent_id = s.agent_id AND k.origin = s.url AND k.status = 'error') AS failed
+       FROM agent_sitemaps s WHERE s.agent_id = ?`,
     )
-    .all(agentId)) as Array<{ origin: string; pages: number; fetched: number; failed: number }>;
-  return rows.map((r) => ({ url: r.origin, pages: Number(r.pages), fetched: Number(r.fetched ?? 0), failed: Number(r.failed ?? 0) }));
+    .all(agentId)) as Array<{ url: string; status: 'pending' | 'ok' | 'error'; error: string | null; pages: number; fetched: number; failed: number }>;
+  return rows.map((r) => ({ url: r.url, status: r.status, error: r.error, pages: Number(r.pages), fetched: Number(r.fetched ?? 0), failed: Number(r.failed ?? 0) }));
 }
 
 // ---------- Preguntas sin respuesta ----------

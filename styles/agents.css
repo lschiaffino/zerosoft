@@ -463,3 +463,8 @@
   .ag-field-narrow, .ag-sitemap-form .ag-field-narrow { max-width: none; flex: 1; }
   .ag-version-status { white-space: normal; }
 }
+
+/* QA: el filtro de conversaciones baja de línea en vez de cortar "Para revisar";
+   el botón flotante de feedback no tapa las acciones de la derecha. */
+.ag-convs-filter { flex-wrap: wrap; row-gap: 4px; }
+.ag-analytics .ag-section-head, .ag-analytics-head { padding-right: 52px; }

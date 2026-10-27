@@ -120,7 +120,8 @@
     "instructionsHelp": "Escreva como um briefing para alguém novo no time.",
     "templateHelp": "Substitui as instruções atuais.",
     "advancedHint": "Transferência, limites e modelo",
-    "templateLabel": "Modelo de agente"
+    "templateLabel": "Modelo de agente",
+    "replace": "Substituir"
   },
   "handoff": {
     "title": "Transferir para uma pessoa",
@@ -207,7 +208,7 @@
       },
       "crm_find_contact": {
         "name": "Buscar contato no CRM",
-        "desc": "Verifica se o e-mail do visitante já é um contato (retorna só o nome e a etapa)."
+        "desc": "Busca o visitante no CRM (nome e etapa) só quando a identidade dele está verificada (assinada no widget do Chat ou enviada pelo seu servidor pela API). Um e-mail digitado não basta."
       },
       "crm_upsert_contact": {
         "name": "Salvar contato no CRM",
@@ -441,7 +442,13 @@
     "conflict": "Alguém publicou ao mesmo tempo. Recarregue e tente de novo.",
     "blocked": "Esta conversa não está disponível.",
     "cannot_block": "Este visitante não pode ser bloqueado (não há navegador nem visitante do Chat para bloquear).",
-    "empty_conversation": "A conversa não tem mensagens do visitante."
+    "empty_conversation": "A conversa não tem mensagens do visitante.",
+    "scoring_off": "A pontuação com IA está desligada neste agente. Ative em Instruções › Scorecard de qualidade.",
+    "score_limit": "Este agente chegou ao limite de conversas pontuadas de hoje.",
+    "pdf_too_complex": "O PDF é grande ou complexo demais para ler. Divida ou exporte de novo.",
+    "mcp_http_error": "O servidor respondeu com um erro. Revise a URL e o token.",
+    "mcp_blocked_url": "Esse endereço não é permitido: use uma URL pública com HTTPS.",
+    "identity_not_verified": "A identidade do visitante não está verificada."
   },
   "public": {
     "subtitle": "Assistente de AI",
@@ -671,7 +678,12 @@
       "mcp_edit": "Mudou o servidor MCP {server}",
       "mcp_remove": "Desconectou o servidor MCP {server}",
       "secret_changed": "Mudou um header secreto"
-    }
+    },
+    "publishTitle": "Publicar a versão {number}",
+    "publishFirstTitle": "Publicar a versão 1",
+    "publishBody": "Os canais ao vivo passam para esta versão. Você pode voltar para qualquer uma anterior.",
+    "note": "Nota (opcional)",
+    "notePlaceholder": "O que mudou"
   },
   "files": {
     "title": "Arquivos",
@@ -715,7 +727,8 @@
     "onlyPrefix": "Só {prefix}",
     "progress": "{fetched} de {pages} páginas lidas",
     "failed": "{count, plural, one {# com erro} other {# com erro}}",
-    "notRead": "Ainda não lido"
+    "notRead": "Ainda não lido",
+    "reading": "Lendo o sitemap…"
   },
   "suggestions": {
     "title": "Perguntas sem resposta",
@@ -759,10 +772,12 @@
     },
     "unblock": "Desbloquear",
     "scorecardTitle": "Scorecard de qualidade",
-    "scorecardHint": "Cada conversa recebe uma nota com IA (satisfação, sentimento, tema e se foi resolvida) e é revisada contra estes critérios.",
+    "scorecardHint": "Satisfação, sentimento, tema, resolução e estes critérios, pontuados com IA em cada conversa.",
     "scorecard": "Critérios",
     "scorecardPlaceholder": "Cumprimenta o visitante pelo nome\nOferece uma reunião quando perguntam sobre preços",
-    "scorecardHelp": "Um por linha, até 10."
+    "scorecardHelp": "Um por linha, até 10.",
+    "aiScoring": "Pontuar as conversas com IA",
+    "aiScoringHint": "Desligado por padrão. Ligado, cada conversa é pontuada meia hora depois que para, até 300 por dia, e usa a cota de IA do workspace."
   },
   "rules": {
     "check": "Revisar regras",
@@ -784,7 +799,7 @@
   },
   "quality": {
     "title": "Qualidade",
-    "hint": "Nota com IA de cada conversa meia hora depois que ela para: satisfação (1 a 5), sentimento, tema, resolução e o seu scorecard.",
+    "hint": "Nota com IA de cada conversa meia hora depois que ela para: satisfação (1 a 5), sentimento, tema, resolução e o seu scorecard. Ative em Instruções › Scorecard de qualidade.",
     "scoreNow": "Pontuar agora",
     "scoring": "Pontuando…",
     "scored": "{count, plural, =0 {Nada novo para pontuar.} one {# conversa pontuada.} other {# conversas pontuadas.}}",

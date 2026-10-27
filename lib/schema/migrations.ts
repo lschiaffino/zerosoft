@@ -5875,6 +5875,19 @@ export const MIGRATIONS: Migration[] = [
           created_at TEXT NOT NULL
         );
         CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_blocked_value ON agent_blocked_visitors(agent_id, kind, value_hash);
+        CREATE TABLE IF NOT EXISTS agent_sitemaps (
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          url TEXT NOT NULL,
+          prefix TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'pending',
+          error TEXT,
+          pages INTEGER NOT NULL DEFAULT 0,
+          listed_at TEXT,
+          claimed_until TEXT,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (agent_id, url)
+        );
         CREATE INDEX IF NOT EXISTS idx_agent_conversations_score ON agent_conversations(agent_id, scored_at);
         CREATE INDEX IF NOT EXISTS idx_agent_conversations_visitor ON agent_conversations(agent_id, visitor_ref);
       `);

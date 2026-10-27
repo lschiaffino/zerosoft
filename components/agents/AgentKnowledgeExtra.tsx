@@ -5,6 +5,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 import type { AgentKnowledgeFileDto, AgentQaDto, AgentSuggestionDto } from '@/lib/agents-knowledge';
 import FormSection from '@/components/ui/FormSection';
 import { parseDbUtc } from '@/lib/utils';
+import { useConfirm } from './useConfirm';
 import { api, errorText } from './agents-ui';
 
 const ACCEPT = '.pdf,.docx,.txt,.md,.markdown,.csv';
@@ -26,6 +27,7 @@ export default function AgentKnowledgeExtra({
   initialQa: AgentQaDto[];
 }) {
   const t = useTranslations('agents');
+  const [confirmNode, ask] = useConfirm();
   const format = useFormatter();
   const [files, setFiles] = useState(initialFiles);
   const [qa, setQa] = useState(initialQa);
@@ -73,7 +75,7 @@ export default function AgentKnowledgeExtra({
   }
 
   async function removeFile(f: AgentKnowledgeFileDto) {
-    if (!window.confirm(t('files.removeConfirm', { name: f.name }))) return;
+    if (!(await ask({ title: t('files.removeConfirm', { name: f.name }), confirmLabel: t('files.remove'), danger: true }))) return;
     const res = await api(`/api/agents/${agentId}/files/${f.id}`, { method: 'DELETE' });
     if (res.ok) setFiles((list) => list.filter((x) => x.id !== f.id));
     else setFileError(errorText(t, res.data.error));
@@ -125,7 +127,7 @@ export default function AgentKnowledgeExtra({
   }
 
   async function removeQa(item: AgentQaDto) {
-    if (!window.confirm(t('qa.removeConfirm'))) return;
+    if (!(await ask({ title: t('qa.removeConfirm'), confirmLabel: t('qa.remove'), danger: true }))) return;
     const res = await api(`/api/agents/${agentId}/qa/${item.id}`, { method: 'DELETE' });
     if (res.ok) setQa((list) => list.filter((x) => x.id !== item.id));
     else setQaError(errorText(t, res.data.error));
@@ -242,6 +244,7 @@ export default function AgentKnowledgeExtra({
 
   return (
     <>
+      {confirmNode}
       <FormSection
         title={t('files.title')}
         description={t('files.hint')}

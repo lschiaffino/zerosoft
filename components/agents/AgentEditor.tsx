@@ -39,6 +39,8 @@ import AgentKnowledgeExtra from './AgentKnowledgeExtra';
 import AgentMcp from './AgentMcp';
 import AgentReplay from './AgentReplay';
 import AgentBlocked from './AgentBlocked';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { useConfirm } from './useConfirm';
 import { api, chatLabels, errorText } from './agents-ui';
 import { parseDbUtc } from '@/lib/utils';
 
@@ -95,6 +97,7 @@ const lines = (raw: string) =>
 export default function AgentEditor(props: Props) {
   const { canEdit, aiEnabled, origin } = props;
   const t = useTranslations('agents');
+  const [confirmNode, ask] = useConfirm();
   const format = useFormatter();
   const router = useRouter();
   const [agent, setAgent] = useState(props.agent);
@@ -114,6 +117,22 @@ export default function AgentEditor(props: Props) {
   const [rules, setRules] = useState<{ issues: AgentRuleIssue[]; aiError?: string } | null>(null);
   const [checkingRules, setCheckingRules] = useState(false);
   const [convFilter, setConvFilter] = useState<'all' | 'review'>('all');
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [publishNote, setPublishNote] = useState('');
+  const statusRef = useRef<HTMLSpanElement>(null);
+  const noteRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (publishOpen) window.setTimeout(() => noteRef.current?.focus(), 0);
+  }, [publishOpen]);
+  const [focusStatus, setFocusStatus] = useState(false);
+  useEffect(() => {
+    if (publishOpen || !focusStatus) return;
+    const timer = window.setTimeout(() => {
+      statusRef.current?.focus();
+      setFocusStatus(false);
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [publishOpen, focusStatus]);
   const [urls, setUrls] = useState(props.urls);
   const [widgets, setWidgets] = useState(props.widgets);
   const [tab, setTab] = useState<Tab>(TABS.includes(props.initialTab as Tab) ? (props.initialTab as Tab) : 'instructions');
@@ -235,8 +254,15 @@ export default function AgentEditor(props: Props) {
     if (versioning.enabled && !versioning.hasDraft) return;
     setPublishing(true);
     setNotice(null);
-    const res = await api<{ agent?: AgentDto; versioning?: AgentVersioningDto }>(`/api/agents/${agent.id}/versions`, { method: 'POST', body: '{}' });
+    const res = await api<{ agent?: AgentDto; versioning?: AgentVersioningDto }>(`/api/agents/${agent.id}/versions`, {
+      method: 'POST',
+      body: JSON.stringify({ note: publishNote.trim() }),
+    });
     setPublishing(false);
+    setPublishOpen(false);
+    setPublishNote('');
+    // El foco queda en el estado de la versión (lo anuncia el lector de pantalla), después de cerrar el diálogo.
+    setFocusStatus(true);
     if (!res.ok || !res.data.agent || !res.data.versioning) {
       setNotice({ kind: 'error', text: errorText(t, res.data.error) });
       return;
@@ -246,7 +272,7 @@ export default function AgentEditor(props: Props) {
   }
 
   async function discardDraft() {
-    if (!canEdit || !versioning.hasDraft || !window.confirm(t('versions.discardConfirm'))) return;
+    if (!canEdit || !versioning.hasDraft || !(await ask({ title: t('versions.discardConfirm'), confirmLabel: t('versions.discard'), danger: true }))) return;
     const res = await api<{ agent?: AgentDto; versioning?: AgentVersioningDto }>(`/api/agents/${agent.id}/versions`, { method: 'DELETE' });
     if (!res.ok || !res.data.agent || !res.data.versioning) {
       setNotice({ kind: 'error', text: errorText(t, res.data.error) });
@@ -295,7 +321,7 @@ export default function AgentEditor(props: Props) {
   saveRef.current = () => void save();
 
   async function remove() {
-    if (!window.confirm(t('editor.deleteConfirm', { name: agent.name }))) return;
+    if (!(await ask({ title: t('editor.deleteConfirm', { name: agent.name }), confirmLabel: t('editor.delete'), danger: true }))) return;
     const res = await api(`/api/agents/${agent.id}`, { method: 'DELETE' });
     if (!res.ok) {
       setNotice({ kind: 'error', text: errorText(t, res.data.error) });
@@ -306,11 +332,24 @@ export default function AgentEditor(props: Props) {
 
   async function refreshUrls() {
     setRefreshing(true);
-    const res = await api<{ urls?: AgentKnowledgeUrlDto[] }>(`/api/agents/${agent.id}/knowledge`, { method: 'POST' });
+    const res = await api<{ urls?: AgentKnowledgeUrlDto[]; sitemaps?: AgentSitemapStatusDto[] }>(`/api/agents/${agent.id}/knowledge`, { method: 'POST' });
     setRefreshing(false);
-    if (res.ok && res.data.urls) setUrls(res.data.urls);
-    else setNotice({ kind: 'error', text: errorText(t, res.data.error) });
+    if (res.ok && res.data.urls) {
+      setUrls(res.data.urls);
+      if (res.data.sitemaps) setSitemaps(res.data.sitemaps);
+    } else setNotice({ kind: 'error', text: errorText(t, res.data.error) });
   }
+
+  // Sitemaps en cola o páginas bajando: se refresca el progreso mientras la pestaña está abierta.
+  const sitemapsBusy = sitemaps.some((s) => s.status === 'pending' || (s.status === 'ok' && s.fetched + s.failed < s.pages));
+  useEffect(() => {
+    if (tab !== 'knowledge' || !sitemapsBusy) return;
+    const timer = window.setInterval(async () => {
+      const res = await api<{ urls?: AgentKnowledgeUrlDto[]; sitemaps?: AgentSitemapStatusDto[] }>(`/api/agents/${agent.id}/knowledge`);
+      if (res.ok && res.data.sitemaps) setSitemaps(res.data.sitemaps);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [tab, sitemapsBusy, agent.id]);
 
   async function assignWidget(widgetId: string, assigned: boolean) {
     const res = await api<{ widgets?: AgentWidgetOption[] }>(`/api/agents/${agent.id}/widgets`, {
@@ -321,8 +360,8 @@ export default function AgentEditor(props: Props) {
     else setNotice({ kind: 'error', text: errorText(t, res.data.error) });
   }
 
-  function applyTemplate(key: AgentTemplateKey) {
-    if (draft.instructions.trim() && !window.confirm(t('instructions.replaceConfirm'))) return;
+  async function applyTemplate(key: AgentTemplateKey) {
+    if (draft.instructions.trim() && !(await ask({ title: t('instructions.replaceConfirm'), confirmLabel: t('instructions.replace') }))) return;
     setDraft((d) => ({
       ...d,
       instructions: t(`templates.${key}.instructions`),
@@ -667,7 +706,7 @@ export default function AgentEditor(props: Props) {
 
   const canPublish = canEdit && !dirty && (!versioning.enabled || versioning.hasDraft);
   const versionStatus = (
-    <span className="ag-version-status" data-tone={versioning.hasDraft ? 'draft' : undefined}>
+    <span className="ag-version-status" ref={statusRef} tabIndex={-1} role="status" data-tone={versioning.hasDraft ? 'draft' : undefined}>
       {versioning.enabled
         ? versioning.hasDraft
           ? t('versions.statusDraft', { number: versioning.liveNumber ?? 1 })
@@ -689,7 +728,7 @@ export default function AgentEditor(props: Props) {
           className="btn btn-secondary"
           aria-busy={publishing || undefined}
           title={versioning.enabled ? undefined : t('versions.publishFirstHint')}
-          onClick={() => void publish()}
+          onClick={() => setPublishOpen(true)}
         >
           {publishing ? t('versions.publishing') : versioning.enabled ? t('versions.publish') : t('versions.publishFirst')}
         </button>
@@ -724,6 +763,39 @@ export default function AgentEditor(props: Props) {
 
   return (
     <div className="app-page ui-page ag-editor">
+      {confirmNode}
+      <ConfirmDialog
+        open={publishOpen}
+        title={versioning.enabled ? t('versions.publishTitle', { number: (versioning.liveNumber ?? 0) + 1 }) : t('versions.publishFirstTitle')}
+        body={
+          <div className="ui-field">
+            <p className="ui-help">{versioning.enabled ? t('versions.publishBody') : t('versions.publishFirstHint')}</p>
+            <label className="label" htmlFor="ag-publish-note">
+              {t('versions.note')}
+            </label>
+            <input
+              id="ag-publish-note"
+              ref={noteRef}
+              className="input"
+              maxLength={300}
+              value={publishNote}
+              placeholder={t('versions.notePlaceholder')}
+              onChange={(e) => setPublishNote(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void publish();
+                }
+              }}
+            />
+          </div>
+        }
+        confirmLabel={publishing ? t('versions.publishing') : t('versions.publish')}
+        cancelLabel={t('qa.cancel')}
+        busy={publishing}
+        onConfirm={() => void publish()}
+        onCancel={() => setPublishOpen(false)}
+      />
       <PageHeader
         back={{ href: '/app/agents', label: t('editor.back') }}
         title={draft.name.trim() || t('editor.untitled')}
@@ -1117,6 +1189,22 @@ export default function AgentEditor(props: Props) {
             </FormSection>
 
             <FormSection title={t('settings.scorecardTitle')} description={t('settings.scorecardHint')}>
+              <div className="ag-setting">
+                <label className="ui-switch">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={draft.settings.aiScoring}
+                    disabled={ro}
+                    aria-describedby="ag-set-aiScoring"
+                    onChange={(e) => set('settings', { ...draft.settings, aiScoring: e.target.checked })}
+                  />
+                  {t('settings.aiScoring')}
+                </label>
+                <p className="ui-help" id="ag-set-aiScoring">
+                  {t('settings.aiScoringHint')}
+                </p>
+              </div>
               <div className="ui-field">
                 <label className="label" htmlFor="ag-scorecard">
                   {t('settings.scorecard')}
@@ -1223,7 +1311,7 @@ export default function AgentEditor(props: Props) {
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
-                      disabled={urls.length === 0 || dirty}
+                      disabled={(urls.length === 0 && sitemaps.length === 0) || dirty}
                       aria-busy={refreshing || undefined}
                       title={dirty ? t('knowledge.saveFirst') : undefined}
                       onClick={refreshUrls}
@@ -1338,12 +1426,17 @@ export default function AgentEditor(props: Props) {
                           </a>
                           <span className="ui-help">
                             {sm.prefix ? `${t('sitemaps.onlyPrefix', { prefix: sm.prefix })} · ` : ''}
-                            {st
-                              ? `${t('sitemaps.progress', { fetched: st.fetched, pages: st.pages })}${st.failed ? ` · ${t('sitemaps.failed', { count: st.failed })}` : ''}`
-                              : dirty
+                            {!st
+                              ? dirty
                                 ? t('knowledge.saveFirst')
-                                : t('sitemaps.notRead')}
+                                : t('sitemaps.notRead')
+                              : st.status === 'pending'
+                                ? t('sitemaps.reading')
+                                : st.status === 'error'
+                                  ? ''
+                                  : `${t('sitemaps.progress', { fetched: st.fetched, pages: st.pages })}${st.failed ? ` · ${t('sitemaps.failed', { count: st.failed })}` : ''}`}
                           </span>
+                          {st?.status === 'error' && <span className="ui-error">{errorText(t, st.error)}</span>}
                         </div>
                         {canEdit && (
                           <button

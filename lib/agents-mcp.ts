@@ -20,7 +20,8 @@
 import { jsonSchema, tool, type Tool } from 'ai';
 import { getDb } from './db';
 import type { AgentRow } from './db';
-import { safeFetch, UnsafeUrlError } from './safe-fetch';
+import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
+import { redactDeep, secretVariants } from './agents-secrets';
 import { open as openSecret, seal } from './secret-box';
 
 export const AGENT_MAX_MCP_SERVERS = 5;
@@ -152,7 +153,8 @@ async function post(conn: McpConnection, message: Record<string, unknown>): Prom
   try {
     return await safeFetch(conn.url, { method: 'POST', headers, body: JSON.stringify(message) }, MCP_TIMEOUT_MS);
   } catch (err) {
-    if (err instanceof UnsafeUrlError) throw new McpError(err.message || 'unsafe_url');
+    // URL interna, sin https o que no resuelve: el detalle no se muestra (es del servidor).
+    if (err instanceof UnsafeUrlError) throw new McpError('mcp_blocked_url');
     throw new McpError(err instanceof Error && err.name === 'TimeoutError' ? 'mcp_timeout' : 'mcp_unreachable');
   }
 }
@@ -161,10 +163,11 @@ async function request(conn: McpConnection, method: string, params: Record<strin
   const id = conn.nextId++;
   const res = await post(conn, { jsonrpc: '2.0', id, method, params });
   if (res.status === 401 || res.status === 403) throw new McpError('mcp_unauthorized');
-  if (!res.ok) throw new McpError(`mcp_http_${res.status}`);
+  if (!res.ok) throw new McpError('mcp_http_error');
   const session = res.headers.get('mcp-session-id');
   if (session) conn.session = session.slice(0, 200);
-  const body = (await res.text()).slice(0, MAX_RESPONSE);
+  // Tope leyendo en streaming: un servidor no puede mandar un cuerpo infinito.
+  const body = await readTextCapped(res, MAX_RESPONSE);
   const msg = readJsonRpc(body, res.headers.get('content-type') ?? '', id);
   if (!msg) throw new McpError('mcp_bad_response');
   if (msg.error) throw new McpError('mcp_error');
@@ -226,17 +229,18 @@ export async function callMcpTool(
     structuredContent?: unknown;
     isError?: unknown;
   };
-  const value = openSecret(server.headerValue);
+  const secrets = secretVariants(openSecret(server.headerValue));
   const parts = (result?.content ?? []).map((c) => {
     if (c.type === 'text' && typeof c.text === 'string') return c.text;
     if (c.type === 'resource' && typeof c.resource?.text === 'string') return c.resource.text;
     if (c.type === 'resource_link' || c.type === 'resource') return `[resource ${String(c.resource?.uri ?? '')}]`;
     return c.type ? `[${c.type}]` : '';
   });
-  let content = parts.filter(Boolean).join('\n').slice(0, 6000);
-  // Un servidor que devuelve el token (eco, errores) no se lo pasa al modelo.
-  if (value && value.length >= 4) content = content.split(value).join('[redacted]');
-  return { isError: result?.isError === true, content, structured: result?.structuredContent ?? null };
+  // Un servidor que devuelve el token (eco, errores) no se lo pasa al modelo:
+  // se tapa el valor y sus partes, en el texto y en el contenido estructurado.
+  const content = redactDeep(parts.filter(Boolean).join('\n'), secrets).slice(0, 6000);
+  const structured = redactDeep(result?.structuredContent ?? null, secrets);
+  return { isError: result?.isError === true, content, structured };
 }
 
 // ---------- Configuración ----------
@@ -249,6 +253,33 @@ async function saveServers(workspaceId: string, agentId: string, list: StoredSer
 }
 
 const HEADER_RE = /^[A-Za-z0-9][A-Za-z0-9-]{0,63}$/;
+/** Headers que maneja el cliente (o fetch): no se pueden pisar con el de autenticación. */
+const RESERVED_HEADERS = new Set([
+  'host',
+  'content-length',
+  'content-type',
+  'accept',
+  'cookie',
+  'connection',
+  'transfer-encoding',
+  'user-agent',
+  'mcp-session-id',
+  'mcp-protocol-version',
+  'expect',
+  'te',
+  'upgrade',
+]);
+
+function validHeaderName(name: string): boolean {
+  return HEADER_RE.test(name) && !RESERVED_HEADERS.has(name.toLowerCase());
+}
+
+/** Valores secretos de los servidores MCP del agente (para taparlos en registros y respuestas). */
+export function mcpSecretValues(row: Pick<AgentRow, 'mcp_servers'>): string[] {
+  return parseServers(row.mcp_servers)
+    .map((s) => openSecret(s.headerValue))
+    .filter(Boolean);
+}
 
 export async function addMcpServer(
   row: AgentRow,
@@ -266,7 +297,7 @@ export async function addMcpServer(
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && process.env.ALLOW_PRIVATE_WEBHOOKS === 'true')) throw new McpError('invalid_url');
   if (list.some((s) => s.url === url.toString())) throw new McpError('mcp_duplicate');
   const headerName = (input.headerName ?? '').trim() || (input.headerValue ? 'Authorization' : '');
-  if (headerName && !HEADER_RE.test(headerName)) throw new McpError('invalid_header');
+  if (headerName && !validHeaderName(headerName)) throw new McpError('invalid_header');
   if (input.headerValue && /[\r\n]/.test(input.headerValue)) throw new McpError('invalid_header');
   const server: StoredServer = {
     id: crypto.randomUUID(),

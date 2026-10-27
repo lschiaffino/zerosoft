@@ -84,7 +84,8 @@ export async function getAgentAnalytics(
          COALESCE(SUM(CASE WHEN answered = 1 AND handed_off = 0 THEN 1 ELSE 0 END), 0) AS resolved
        FROM (
          SELECT c.handed_off,
-           CASE WHEN c.chat_conversation_id IS NOT NULL
+           CASE WHEN EXISTS (SELECT 1 FROM agent_runs r WHERE r.conversation_id = c.id AND r.status = 'blocked') THEN 0
+             WHEN c.chat_conversation_id IS NOT NULL
              THEN EXISTS (SELECT 1 FROM chat_messages m WHERE m.conversation_id = c.chat_conversation_id AND m.sender_type = 'bot')
              ELSE EXISTS (SELECT 1 FROM agent_messages m WHERE m.conversation_id = c.id AND m.role = 'assistant' AND m.author_id IS NULL)
            END AS answered
@@ -101,7 +102,8 @@ export async function getAgentAnalytics(
          COALESCE(SUM(CASE WHEN answered = 1 AND handed_off = 0 THEN 1 ELSE 0 END), 0) AS resolved
        FROM (
          SELECT CASE WHEN c.source = 'flow' THEN 'flow' ELSE c.channel END AS ch, c.handed_off,
-           CASE WHEN c.chat_conversation_id IS NOT NULL
+           CASE WHEN EXISTS (SELECT 1 FROM agent_runs r WHERE r.conversation_id = c.id AND r.status = 'blocked') THEN 0
+             WHEN c.chat_conversation_id IS NOT NULL
              THEN EXISTS (SELECT 1 FROM chat_messages m WHERE m.conversation_id = c.chat_conversation_id AND m.sender_type = 'bot')
              ELSE EXISTS (SELECT 1 FROM agent_messages m WHERE m.conversation_id = c.id AND m.role = 'assistant' AND m.author_id IS NULL)
            END AS answered

@@ -13,12 +13,18 @@
 import { inflateSync } from 'zlib';
 
 export class PdfTextError extends Error {
-  constructor(public code: 'invalid_pdf' | 'pdf_encrypted' | 'pdf_no_text') {
+  constructor(public code: 'invalid_pdf' | 'pdf_encrypted' | 'pdf_no_text' | 'pdf_too_complex') {
     super(code);
   }
 }
 
 const MAX_INFLATED = 20 * 1024 * 1024;
+/** Presupuesto por documento: bytes inflados en total, streams leídos y tiempo. */
+const MAX_TOTAL_INFLATED = 50 * 1024 * 1024;
+const MAX_STREAM_READS = 5000;
+const MAX_CONTENT_REFS = 500;
+const MAX_PAGES = 3000;
+const MAX_MS = 8000;
 const MAX_TEXT = 400_000;
 
 type PdfValue = number | string | boolean | null | PdfName | PdfRef | PdfValue[] | PdfDict | PdfString;
@@ -215,25 +221,53 @@ function nameOf(v: PdfValue | undefined): string | null {
   return v && typeof v === 'object' && !Array.isArray(v) && (v as PdfName).t === 'name' ? (v as PdfName).v : null;
 }
 
-function inflate(buf: Buffer): Buffer {
-  try {
-    return inflateSync(buf, { maxOutputLength: MAX_INFLATED });
-  } catch {
-    // Streams con basura al final: inflar lo que se pueda.
-    try {
-      return inflateSync(buf, { maxOutputLength: MAX_INFLATED, finishFlush: 2 /* Z_SYNC_FLUSH */ });
-    } catch {
-      return Buffer.alloc(0);
-    }
+/**
+ * Presupuesto compartido por todo el documento: un PDF chico que referencia
+ * 300 veces un stream que infla a 20 MB (o anida object streams) no puede
+ * comerse la memoria ni la CPU. Pasado el tope: pdf_too_complex.
+ */
+class Budget {
+  inflated = 0;
+  reads = 0;
+  readonly deadline = Date.now() + MAX_MS;
+  check(): void {
+    if (Date.now() > this.deadline || this.reads > MAX_STREAM_READS) throw new PdfTextError('pdf_too_complex');
+  }
+  room(): number {
+    const left = MAX_TOTAL_INFLATED - this.inflated;
+    if (left <= 0) throw new PdfTextError('pdf_too_complex');
+    return Math.min(MAX_INFLATED, left);
   }
 }
 
-function decodeStream(dict: PdfDict | null, raw: Buffer): Buffer | null {
+function inflate(buf: Buffer, budget: Budget): Buffer {
+  const max = budget.room();
+  let out: Buffer;
+  try {
+    out = inflateSync(buf, { maxOutputLength: max });
+  } catch (err) {
+    if ((err as { code?: string }).code === 'ERR_BUFFER_TOO_LARGE') throw new PdfTextError('pdf_too_complex');
+    // Streams con basura al final: inflar lo que se pueda.
+    try {
+      out = inflateSync(buf, { maxOutputLength: max, finishFlush: 2 /* Z_SYNC_FLUSH */ });
+    } catch (e) {
+      if ((e as { code?: string }).code === 'ERR_BUFFER_TOO_LARGE') throw new PdfTextError('pdf_too_complex');
+      out = Buffer.alloc(0);
+    }
+  }
+  budget.inflated += out.length;
+  return out;
+}
+
+function decodeStream(dict: PdfDict | null, raw: Buffer, budget: Budget): Buffer | null {
+  budget.reads++;
+  budget.check();
   const filter = dict?.v.Filter;
   const filters = Array.isArray(filter) ? filter.map(nameOf) : filter ? [nameOf(filter)] : [];
+  if (filters.length > 4) return null;
   let out = raw;
   for (const f of filters) {
-    if (f === 'FlateDecode' || f === 'Fl') out = inflate(out);
+    if (f === 'FlateDecode' || f === 'Fl') out = inflate(out, budget);
     else if (f === 'ASCIIHexDecode' || f === 'AHx') out = Buffer.from(out.toString('latin1').replace(/[^0-9a-fA-F]/g, ''), 'hex');
     else return null; // LZW, DCT, etc.: no es texto que podamos leer.
   }
@@ -242,6 +276,9 @@ function decodeStream(dict: PdfDict | null, raw: Buffer): Buffer | null {
 
 class PdfDoc {
   objects = new Map<number, PdfObject>();
+  readonly budget = new Budget();
+  /** Streams ya inflados, por número de objeto (un stream referenciado N veces se infla una). */
+  private decoded = new Map<number, Buffer | null>();
 
   constructor(private buf: Buffer) {
     const src = buf.toString('latin1');
@@ -280,7 +317,7 @@ class PdfDoc {
     // Object streams (PDF 1.5+): los objetos chicos (páginas, fuentes) viven ahí.
     for (const obj of [...this.objects.values()]) {
       if (nameOf(obj.dict?.v.Type) !== 'ObjStm' || !obj.stream) continue;
-      const data = decodeStream(obj.dict, obj.stream);
+      const data = decodeStream(obj.dict, obj.stream, this.budget);
       if (!data) continue;
       const text = data.toString('latin1');
       const n = Number(obj.dict?.v.N ?? 0);
@@ -308,9 +345,12 @@ class PdfDoc {
 
   streamOf(v: PdfValue | undefined): Buffer | null {
     if (!isRef(v)) return null;
+    if (this.decoded.has(v.n)) return this.decoded.get(v.n)!;
     const obj = this.objects.get(v.n);
     if (!obj?.stream) return null;
-    return decodeStream(obj.dict, obj.stream);
+    const data = decodeStream(obj.dict, obj.stream, this.budget);
+    this.decoded.set(v.n, data);
+    return data;
   }
 
   get encrypted(): boolean {
@@ -450,7 +490,7 @@ function fontsOf(doc: PdfDoc, page: PdfDict, cache: Map<number, FontMap>): Map<s
 }
 
 /** Texto de un content stream. Exportada para tests. */
-export function contentStreamText(content: string, fonts: Map<string, FontMap> = new Map()): string {
+export function contentStreamText(content: string, fonts: Map<string, FontMap> = new Map(), deadline = Infinity): string {
   const lex = new Lexer(content);
   const stack: PdfValue[] = [];
   let font: FontMap | undefined;
@@ -463,6 +503,7 @@ export function contentStreamText(content: string, fonts: Map<string, FontMap> =
     if (out && !out.endsWith('\n')) out += '\n';
   };
   for (let guard = 0; guard < 2_000_000; guard++) {
+    if ((guard & 4095) === 0 && Date.now() > deadline) throw new PdfTextError('pdf_too_complex');
     lex.skipWs();
     if (lex.pos >= content.length) break;
     const ch = content[lex.pos];
@@ -556,14 +597,20 @@ export function pdfToText(input: ArrayBuffer | Uint8Array | Buffer): string {
   const cache = new Map<number, FontMap>();
   const parts: string[] = [];
   let total = 0;
-  for (const page of doc.pages()) {
+  // Cada content stream se lee una vez aunque varias páginas (o la misma) lo repitan.
+  const seen = new Set<number>();
+  for (const page of doc.pages().slice(0, MAX_PAGES)) {
+    doc.budget.check();
     const fonts = fontsOf(doc, page, cache);
     const contents = doc.resolve(page.v.Contents);
-    const refs = Array.isArray(contents) ? contents : [page.v.Contents];
+    const refs = (Array.isArray(contents) ? contents : [page.v.Contents]).slice(0, MAX_CONTENT_REFS);
     let text = '';
     for (const ref of refs) {
+      if (!isRef(ref as PdfValue) || seen.has((ref as PdfRef).n)) continue;
+      seen.add((ref as PdfRef).n);
       const data = doc.streamOf(ref as PdfValue);
-      if (data) text += contentStreamText(data.toString('latin1'), fonts) + '\n';
+      if (data) text += contentStreamText(data.toString('latin1'), fonts, doc.budget.deadline) + '\n';
+      doc.budget.check();
     }
     const clean = text
       .replace(/[^\S\n]+/g, ' ')

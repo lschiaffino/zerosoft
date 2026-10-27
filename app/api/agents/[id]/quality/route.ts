@@ -33,5 +33,6 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   }
   const res = await scoreAgentNow(ctx.row);
   if (res.error === 'ai_disabled' && res.scored === 0) return agentError(503, 'ai_disabled');
+  if (res.error === 'scoring_off') return agentError(400, 'scoring_off');
   return NextResponse.json(res);
 }

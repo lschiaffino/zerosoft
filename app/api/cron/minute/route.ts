@@ -19,6 +19,7 @@ import { syncDueSources } from '@/lib/docs-sync';
 import { processPendingRec } from '@/lib/rec-ai';
 import { runTalkCron } from '@/lib/talk-notify';
 import { fetchPendingKnowledgeUrls } from '@/lib/agents';
+import { processPendingSitemaps } from '@/lib/agents-knowledge';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
 
 export const runtime = 'nodejs';
@@ -80,11 +81,12 @@ export async function GET(req: NextRequest) {
   // Talk: mensajes programados (claim pending → sending), recordatorios (sent_at) y emails de menciones (talk_email_queue.sent_at).
   const talk = await runTalkCron().catch(() => null);
   // Agents: páginas nuevas de un sitemap (claim por fila en fetched_at).
+  const agentSitemaps = await processPendingSitemaps({ limit: 3 }).catch(() => null);
   const agentPages = await fetchPendingKnowledgeUrls({ limit: 15 }).catch(() => null);
   const flow = await processFlowQueue({ limit: 200, budgetMs: Math.max(0, FLOW_BUDGET_MS - (Date.now() - start)) });
   // Imports grandes (Track, Cal, Docs) que no entraron en el request de la pestaña.
   const imports = await processImportJobs({ budgetMs: Math.max(5_000, IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
   // Imports del CRM con lo que queda de los 300 s (dejando margen).
   const crmImports = await processCrmImportJobs({ budgetMs: Math.max(0, CRM_IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, groups, voice, crmAiRuns, docsEvents, docsSync, rec, talk, agentPages, flow, imports, crmImports });
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, groups, voice, crmAiRuns, docsEvents, docsSync, rec, talk, agentSitemaps, agentPages, flow, imports, crmImports });
 }

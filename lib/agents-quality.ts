@@ -137,18 +137,39 @@ async function claim(convId: string, now: Date): Promise<boolean> {
   return res.changes > 0;
 }
 
-/** Puntaje y memoria de una conversación ya reclamada. Nunca tira. */
-async function processConversation(conv: AgentConversationRow, agent: AgentRow): Promise<ScoreOutcome> {
+function envInt(name: string, fallback: number): number {
+  const n = Number(process.env[name]);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
+/** Tope de conversaciones puntuadas por agente y día (AGENT_SCORE_DAILY_LIMIT, 300 por defecto). */
+async function scoredToday(agentId: string, now: Date): Promise<number> {
+  const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+  const row = (await getDb().prepare('SELECT COUNT(*) AS c FROM agent_conversations WHERE agent_id = ? AND scored_at >= ?').get(agentId, day)) as { c: number };
+  return Number(row.c);
+}
+
+/** Puntaje (si el agente lo tiene activo y no pasó el tope) y memoria de una conversación ya reclamada. Nunca tira. */
+async function processConversation(conv: AgentConversationRow, agent: AgentRow, now = new Date()): Promise<ScoreOutcome & { scored?: boolean }> {
   try {
-    if (!conv.scored_at || conv.scored_at < conv.updated_at) await scoreConversation(conv, agent);
     const settings = parseSettings(agent.settings);
+    let scored = false;
+    if (settings.aiScoring && (!conv.scored_at || conv.scored_at < conv.updated_at)) {
+      if ((await scoredToday(agent.id, now)) >= envInt('AGENT_SCORE_DAILY_LIMIT', 300)) {
+        await getDb().prepare('UPDATE agent_conversations SET score_claimed_until = NULL WHERE id = ?').run(conv.id);
+        return { ok: false, error: 'score_limit' };
+      }
+      await scoreConversation(conv, agent);
+      scored = true;
+    }
     if (settings.memory && conv.visitor_ref && (!conv.memory_at || conv.memory_at < conv.updated_at)) {
       const { extractConversationMemory, listMemories } = await import('./agents-context');
       const known = (await listMemories(agent.id, conv.visitor_ref)).map((m) => m.fact);
       await extractConversationMemory(conv, await conversationTranscript(conv), known);
       await getDb().prepare('UPDATE agent_conversations SET memory_at = ? WHERE id = ?').run(nowIso(), conv.id);
     }
-    return { ok: true };
+    await getDb().prepare('UPDATE agent_conversations SET score_claimed_until = NULL WHERE id = ?').run(conv.id);
+    return { ok: true, scored };
   } catch (err) {
     await getDb().prepare('UPDATE agent_conversations SET score_claimed_until = NULL WHERE id = ?').run(conv.id).catch(() => {});
     const code = err instanceof Error && /^[a-z_]+$/.test(err.message) ? err.message : 'generic';
@@ -157,9 +178,9 @@ async function processConversation(conv: AgentConversationRow, agent: AgentRow):
 }
 
 /**
- * Cron: conversaciones inactivas hace más de media hora, sin puntaje o con
- * mensajes después del último puntaje. Claim por fila. Sin AI configurada no
- * hace nada.
+ * Cron: conversaciones inactivas hace más de media hora de agentes con el
+ * puntaje con AI o la memoria activos, que tengan algo nuevo para puntuar o
+ * recordar. Claim por fila. Sin AI configurada no hace nada.
  */
 export async function processIdleConversations(opts: { now?: Date; limit?: number; budgetMs?: number } = {}): Promise<number> {
   if (!aiEnabled()) return 0;
@@ -168,9 +189,13 @@ export async function processIdleConversations(opts: { now?: Date; limit?: numbe
   const cutoff = new Date(now.getTime() - SCORE_IDLE_MS).toISOString();
   const rows = (await getDb()
     .prepare(
-      `SELECT c.* FROM agent_conversations c
-       WHERE c.channel != 'playground' AND c.updated_at < ? AND (c.scored_at IS NULL OR c.scored_at < c.updated_at)
+      `SELECT c.* FROM agent_conversations c JOIN agents a ON a.id = c.agent_id
+       WHERE c.channel != 'playground' AND c.updated_at < ?
          AND (c.score_claimed_until IS NULL OR c.score_claimed_until < ?)
+         AND (
+           (a.settings LIKE '%"aiScoring":true%' AND (c.scored_at IS NULL OR c.scored_at < c.updated_at))
+           OR (a.settings LIKE '%"memory":true%' AND c.visitor_ref IS NOT NULL AND (c.memory_at IS NULL OR c.memory_at < c.updated_at))
+         )
        ORDER BY c.updated_at DESC LIMIT ?`,
     )
     .all(cutoff, now.toISOString(), Math.min(Math.max(opts.limit ?? 20, 1), 200))) as AgentConversationRow[];
@@ -181,16 +206,18 @@ export async function processIdleConversations(opts: { now?: Date; limit?: numbe
     if (!agents.has(conv.agent_id)) agents.set(conv.agent_id, ((await getDb().prepare('SELECT * FROM agents WHERE id = ?').get(conv.agent_id)) as AgentRow | undefined) ?? null);
     const agent = agents.get(conv.agent_id);
     if (!agent || !(await claim(conv.id, now))) continue;
-    if ((await processConversation(conv, agent)).ok) done++;
+    if ((await processConversation(conv, agent, now)).ok) done++;
   }
   return done;
 }
 
 /**
  * Desde Analítica: puntúa ahora las últimas conversaciones sin puntaje del
- * agente (sin esperar la media hora). Devuelve cuántas y el primer error.
+ * agente (sin esperar la media hora). Solo con el puntaje con AI activo en el
+ * agente y dentro del tope diario. Devuelve cuántas y el primer error.
  */
 export async function scoreAgentNow(agent: AgentRow, limit = 10): Promise<{ scored: number; pending: number; error?: string }> {
+  if (!parseSettings(agent.settings).aiScoring) return { scored: 0, pending: 0, error: 'scoring_off' };
   if (!(await agentsAiEnabled())) return { scored: 0, pending: 0, error: 'ai_disabled' };
   const now = new Date();
   const rows = (await getDb()
@@ -203,11 +230,11 @@ export async function scoreAgentNow(agent: AgentRow, limit = 10): Promise<{ scor
   let error: string | undefined;
   for (const conv of rows.slice(0, limit)) {
     if (!(await claim(conv.id, now))) continue;
-    const res = await processConversation(conv, agent);
-    if (res.ok) scored++;
-    else {
+    const res = await processConversation(conv, agent, now);
+    if (res.ok && res.scored) scored++;
+    else if (!res.ok) {
       error = res.error;
-      if (res.error === 'ai_disabled' || res.error === 'quota_exceeded' || res.error === 'rate_limited') break;
+      if (res.error === 'ai_disabled' || res.error === 'quota_exceeded' || res.error === 'rate_limited' || res.error === 'score_limit') break;
     }
   }
   return { scored, pending: Math.max(0, rows.length - limit), ...(error ? { error } : {}) };
