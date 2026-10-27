@@ -2069,10 +2069,16 @@ export async function listUserBookings(
     limit?: number;
     /** Por inicio; por defecto la más nueva primero. */
     order?: 'asc' | 'desc';
+    /** Solo las que atiende esa persona (anfitriona o co-anfitriona). */
+    hostId?: string;
   } = {},
 ): Promise<CalendarBookingRowWithEvent[]> {
   const conditions: string[] = ['e.user_id = ?'];
   const values: (string | number)[] = [userId];
+  if (opts.hostId) {
+    conditions.push("(b.host_user_id = ? OR (b.co_host_ids != '[]' AND EXISTS (SELECT 1 FROM json_each(b.co_host_ids) j WHERE j.value = ?)))");
+    values.push(opts.hostId, opts.hostId);
+  }
 
   if (opts.status) {
     conditions.push('b.status = ?');
