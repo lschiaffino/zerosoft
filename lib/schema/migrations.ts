@@ -5768,6 +5768,105 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Chat contra Intercom: equipos con su bandeja (y reglas que asignan a un
+    // equipo), vistas guardadas, seguir una conversación, presencia de agentes
+    // (quién mira o responde), canal email (entrante por Resend), mensajes
+    // salientes y encuestas en el widget. workspace_id = dueño del workspace.
+    id: '119_chat_parity',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE chat_conversations ADD COLUMN team_id TEXT');
+      await addColumn(client, "ALTER TABLE chat_conversations ADD COLUMN channel TEXT NOT NULL DEFAULT 'web'");
+      await addColumn(client, 'ALTER TABLE chat_conversations ADD COLUMN outbound_id TEXT');
+      await addColumn(client, 'ALTER TABLE chat_assignment_rules ADD COLUMN assign_team_id TEXT');
+      await addColumn(client, 'ALTER TABLE chat_assignment_rules ADD COLUMN team_round_robin INTEGER NOT NULL DEFAULT 0');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS chat_teams (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_teams_ws ON chat_teams(workspace_id);
+        CREATE TABLE IF NOT EXISTS chat_team_members (
+          team_id TEXT NOT NULL REFERENCES chat_teams(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (team_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_conversations_team ON chat_conversations(team_id) WHERE team_id IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS chat_views (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          filters TEXT NOT NULL DEFAULT '{}',
+          shared INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_views_ws ON chat_views(workspace_id, user_id);
+
+        CREATE TABLE IF NOT EXISTS chat_conversation_followers (
+          conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (conversation_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_followers_user ON chat_conversation_followers(user_id);
+
+        CREATE TABLE IF NOT EXISTS chat_presence (
+          conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          typing INTEGER NOT NULL DEFAULT 0,
+          expires_at TEXT NOT NULL,
+          PRIMARY KEY (conversation_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS chat_outbound (
+          id TEXT PRIMARY KEY,
+          widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          kind TEXT NOT NULL DEFAULT 'chat' CHECK (kind IN ('chat', 'survey')),
+          body TEXT NOT NULL DEFAULT '',
+          url_match TEXT NOT NULL DEFAULT 'any' CHECK (url_match IN ('any', 'contains', 'equals')),
+          url_value TEXT NOT NULL DEFAULT '',
+          delay_seconds INTEGER NOT NULL DEFAULT 0,
+          audience TEXT NOT NULL DEFAULT 'all' CHECK (audience IN ('all', 'new', 'returning', 'identified')),
+          active INTEGER NOT NULL DEFAULT 0,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          shown_count INTEGER NOT NULL DEFAULT 0,
+          reply_count INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_outbound_widget ON chat_outbound(widget_id, active);
+        CREATE TABLE IF NOT EXISTS chat_outbound_seen (
+          outbound_id TEXT NOT NULL REFERENCES chat_outbound(id) ON DELETE CASCADE,
+          visitor_key TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (outbound_id, visitor_key)
+        );
+        CREATE TABLE IF NOT EXISTS chat_outbound_responses (
+          id TEXT PRIMARY KEY,
+          outbound_id TEXT NOT NULL REFERENCES chat_outbound(id) ON DELETE CASCADE,
+          visitor_key TEXT NOT NULL,
+          score INTEGER NOT NULL,
+          comment TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (outbound_id, visitor_key)
+        );
+
+        CREATE TABLE IF NOT EXISTS chat_inbound_emails (
+          email_id TEXT PRIMARY KEY,
+          conversation_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

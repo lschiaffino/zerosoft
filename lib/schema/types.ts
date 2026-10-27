@@ -1424,6 +1424,12 @@ export interface ChatConversationRow {
   csat_comment: string | null;
   /** JSON objeto id de atributo → valor (lib/chat-attributes.ts). */
   attributes?: string;
+  /** Equipo de Chat (chat_teams) al que está asignada; su bandeja la muestra. */
+  team_id?: string | null;
+  /** Por dónde entró: el widget o un email (lib/chat-email.ts). */
+  channel?: 'web' | 'email';
+  /** Mensaje saliente que la originó (lib/chat-outbound.ts). */
+  outbound_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1462,6 +1468,10 @@ export interface ChatAssignmentRuleRow {
   match_type: 'all' | 'keyword' | 'time' | 'round_robin';
   match_value: string | null;
   assign_to: string | null;
+  /** Equipo al que asigna (lib/chat-teams.ts); con round_robin reparte entre sus miembros. */
+  assign_team_id?: string | null;
+  /** 1 = reparte entre los miembros del equipo (round robin), aunque la condición sea por palabra u horario. */
+  team_round_robin?: 0 | 1;
   position: number;
   active: 0 | 1;
   created_at: string;

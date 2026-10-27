@@ -20,6 +20,7 @@ import { verifyVisitorIdentity } from '@/lib/chat-identity';
 import { visitorPageContext } from '@/lib/chat-visitor-context';
 import { afterVisitorMessage } from '@/lib/chat-visitor-message';
 import { visitorMessageLimitsSchema } from '@/lib/chat-schema';
+import { startFromOutbound } from '@/lib/chat-outbound-start';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,6 +100,10 @@ export async function POST(req: Request) {
     const subject = typeof body.subject === 'string' && body.subject.trim() ? body.subject.trim() : null;
     conversation = await createChatConversation(widgetId, visitor.id, subject ?? undefined);
     isNewConversation = true;
+    // Respuesta a un mensaje saliente: la conversación arranca con ese mensaje del equipo.
+    if (typeof body.outboundId === 'string' && body.outboundId) {
+      conversation = (await startFromOutbound(widget, conversation, body.outboundId.slice(0, 64))) ?? conversation;
+    }
   }
 
   // Un mensaje del visitante despierta una conversación snoozed o pendiente

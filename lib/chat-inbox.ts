@@ -44,9 +44,13 @@ export async function listConversationTags(conversationId: string): Promise<stri
 export async function addConversationTag(conversationId: string, raw: string): Promise<string[]> {
   const tag = normalizeTag(raw);
   if (tag) {
-    await getDb()
+    const res = await getDb()
       .prepare('INSERT OR IGNORE INTO chat_conversation_tags (conversation_id, tag) VALUES (?, ?)')
       .run(conversationId, tag);
+    if (res.changes > 0) {
+      const { emitChatEvent } = await import('./chat-api');
+      await emitChatEvent(conversationId, 'chat.conversation.tagged', { tag });
+    }
   }
   return listConversationTags(conversationId);
 }

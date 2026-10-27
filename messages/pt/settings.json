@@ -186,7 +186,10 @@
       "page_archived": "Página na lixeira (Docs)",
       "page_comment_created": "Novo comentário (Docs)",
       "database_row_created": "Nova linha em um banco (Docs)",
-      "database_property_changed": "Propriedade de um banco mudou (Docs)"
+      "database_property_changed": "Propriedade de um banco mudou (Docs)",
+      "chat_conversation_created": "Conversa criada",
+      "chat_conversation_tagged": "Tag em uma conversa",
+      "chat_csat_submitted": "CSAT recebido"
     },
     "errors": {
       "https_required": "A URL precisa usar https.",

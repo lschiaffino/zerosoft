@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import {
   listChatWidgets,
   listChatConversations,
@@ -39,11 +39,20 @@ export async function GET(req: Request) {
   const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '50', 10), 1), 200);
   const offset = Math.max(parseInt(searchParams.get('offset') ?? '0', 10), 0);
 
+  const pick = (k: string, allowed?: string[]) => {
+    const v = searchParams.get(k)?.trim();
+    if (!v) return undefined;
+    return allowed && !allowed.includes(v) ? undefined : v.slice(0, 64);
+  };
   const options = {
     status,
     assignedTo: assignedTo as 'unassigned' | string | undefined,
     tag,
     q,
+    teamId: pick('teamId'),
+    priority: pick('priority', ['low', 'medium', 'high', 'urgent']),
+    channel: pick('channel', ['web', 'email']),
+    followedBy: searchParams.get('following') === '1' ? realUserId(user) : undefined,
     limit,
     offset,
   };

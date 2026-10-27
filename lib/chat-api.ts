@@ -19,6 +19,9 @@ export interface ApiChatConversation {
   priority: ChatConversationRow['priority'];
   subject: string | null;
   assignedTo: string | null;
+  /** Equipo de Chat asignado. */
+  teamId: string | null;
+  channel: 'web' | 'email';
   visitor: { id: string; name: string | null; email: string | null };
   firstResponseAt: string | null;
   resolvedAt: string | null;
@@ -47,6 +50,8 @@ export function toApiConversation(c: ConversationWithVisitor): ApiChatConversati
     priority: c.priority,
     subject: c.subject,
     assignedTo: c.assigned_to,
+    teamId: c.team_id ?? null,
+    channel: c.channel === 'email' ? 'email' : 'web',
     visitor: { id: c.visitor_id, name: c.visitor_name ?? null, email: c.visitor_email ?? null },
     firstResponseAt: c.first_response_at,
     resolvedAt: c.resolved_at,

@@ -711,8 +711,56 @@ export interface ConversationListOptions {
   /** Solo conversaciones con este tag. */
   tag?: string;
   q?: string;
+  /** Bandeja de un equipo de Chat (lib/chat-collab.ts). */
+  teamId?: string;
+  priority?: string;
+  channel?: string;
+  /** Conversaciones que sigue esta persona. */
+  followedBy?: string;
   limit?: number;
   offset?: number;
+}
+
+/** WHERE común de la lista y el conteo de la bandeja. */
+function conversationWhere(widgetIds: string[], options: ConversationListOptions): { where: string[]; args: Array<string | number> } {
+  const where: string[] = [`c.widget_id IN ${inClause(widgetIds.length)}`];
+  const args: Array<string | number> = [...widgetIds];
+  if (options.status) {
+    where.push('c.status = ?');
+    args.push(options.status);
+  }
+  if (options.assignedTo === 'unassigned') {
+    where.push('c.assigned_to IS NULL');
+  } else if (options.assignedTo) {
+    where.push('c.assigned_to = ?');
+    args.push(options.assignedTo);
+  }
+  if (options.tag) {
+    where.push('EXISTS (SELECT 1 FROM chat_conversation_tags t WHERE t.conversation_id = c.id AND t.tag = ?)');
+    args.push(options.tag);
+  }
+  if (options.teamId) {
+    where.push('c.team_id = ?');
+    args.push(options.teamId);
+  }
+  if (options.priority) {
+    where.push('c.priority = ?');
+    args.push(options.priority);
+  }
+  if (options.channel) {
+    where.push("COALESCE(c.channel, 'web') = ?");
+    args.push(options.channel);
+  }
+  if (options.followedBy) {
+    where.push('EXISTS (SELECT 1 FROM chat_conversation_followers f WHERE f.conversation_id = c.id AND f.user_id = ?)');
+    args.push(options.followedBy);
+  }
+  if (options.q) {
+    const search = conversationSearch(options.q);
+    where.push(search.sql);
+    args.push(...search.args);
+  }
+  return { where, args };
 }
 
 export interface ConversationUpdatePayload {
@@ -721,6 +769,8 @@ export interface ConversationUpdatePayload {
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   subject?: string;
   snoozedUntil?: string | null;
+  /** Equipo de Chat (null lo saca). Quien llama valida que sea del workspace. */
+  teamId?: string | null;
 }
 
 // ---------- SLA (campos computados) ----------
@@ -833,6 +883,10 @@ export interface ChatConversationListRow extends ChatConversationRow, SlaCompute
   assigned_email: string | null;
   /** Tags separados por coma (GROUP_CONCAT); ver ConversationList. */
   tags: string | null;
+  /** Equipo de Chat asignado (lib/chat-collab.ts). */
+  team_name?: string | null;
+  /** Quién escribió el último mensaje (el inbox suena si es el visitante). */
+  last_sender_type?: string | null;
   /** Con búsqueda (q): fragmento del mensaje más reciente que coincide. */
   match_snippet?: string | null;
 }
@@ -848,6 +902,7 @@ export interface ChatConversationWithVisitor extends ChatConversationRow, SlaCom
   assigned_name: string | null;
   assigned_email: string | null;
   assigned_image: string | null;
+  team_name?: string | null;
   crm_contact: CrmContactRow | null;
 }
 
@@ -882,28 +937,7 @@ export async function listChatConversations(
 ): Promise<ChatConversationListRow[]> {
   if (widgetIds.length === 0) return [];
   const db = getDb();
-  const where: string[] = [`c.widget_id IN ${inClause(widgetIds.length)}`];
-  const args: Array<string | number> = [...widgetIds];
-
-  if (options.status) {
-    where.push('c.status = ?');
-    args.push(options.status);
-  }
-  if (options.assignedTo === 'unassigned') {
-    where.push('c.assigned_to IS NULL');
-  } else if (options.assignedTo) {
-    where.push('c.assigned_to = ?');
-    args.push(options.assignedTo);
-  }
-  if (options.tag) {
-    where.push('EXISTS (SELECT 1 FROM chat_conversation_tags t WHERE t.conversation_id = c.id AND t.tag = ?)');
-    args.push(options.tag);
-  }
-  if (options.q) {
-    const search = conversationSearch(options.q);
-    where.push(search.sql);
-    args.push(...search.args);
-  }
+  const { where, args } = conversationWhere(widgetIds, options);
 
   const limit = Math.min(Math.max(options.limit ?? 50, 1), 200);
   const offset = Math.max(options.offset ?? 0, 0);
@@ -916,7 +950,9 @@ export async function listChatConversations(
         v.external_id AS visitor_external_id,
         u.name AS assigned_name,
         u.email AS assigned_email,
-        (SELECT body FROM chat_messages m WHERE m.conversation_id = c.id AND m.is_note = 0 AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 1) AS last_message_body,
+        (SELECT name FROM chat_teams ct WHERE ct.id = c.team_id) AS team_name,
+        (SELECT sender_type FROM chat_messages m WHERE m.conversation_id = c.id AND m.is_note = 0 AND m.deleted_at IS NULL AND m.sender_type != 'system' ORDER BY m.created_at DESC LIMIT 1) AS last_sender_type,
+        (SELECT body FROM chat_messages m WHERE m.conversation_id = c.id AND m.is_note = 0 AND m.deleted_at IS NULL AND m.sender_type != 'system' ORDER BY m.created_at DESC LIMIT 1) AS last_message_body,
         (SELECT GROUP_CONCAT(tag, ',') FROM (SELECT tag FROM chat_conversation_tags t WHERE t.conversation_id = c.id ORDER BY tag)) AS tags${
           options.q
             ? `,
@@ -949,28 +985,7 @@ export async function countChatConversations(
 ): Promise<number> {
   if (widgetIds.length === 0) return 0;
   const db = getDb();
-  const where: string[] = [`c.widget_id IN ${inClause(widgetIds.length)}`];
-  const args: Array<string | number> = [...widgetIds];
-
-  if (options.status) {
-    where.push('c.status = ?');
-    args.push(options.status);
-  }
-  if (options.assignedTo === 'unassigned') {
-    where.push('c.assigned_to IS NULL');
-  } else if (options.assignedTo) {
-    where.push('c.assigned_to = ?');
-    args.push(options.assignedTo);
-  }
-  if (options.tag) {
-    where.push('EXISTS (SELECT 1 FROM chat_conversation_tags t WHERE t.conversation_id = c.id AND t.tag = ?)');
-    args.push(options.tag);
-  }
-  if (options.q) {
-    const search = conversationSearch(options.q);
-    where.push(search.sql);
-    args.push(...search.args);
-  }
+  const { where, args } = conversationWhere(widgetIds, options);
 
   const row = (await db
     .prepare(
@@ -998,7 +1013,8 @@ export async function getChatConversationWithVisitor(
       `SELECT
         c.id, c.widget_id, c.visitor_id, c.status, c.assigned_to, c.priority, c.subject,
         c.first_response_at, c.resolved_at, c.sla_breach_at, c.snoozed_until,
-        c.csat_score, c.csat_comment, c.attributes,
+        c.csat_score, c.csat_comment, c.attributes, c.team_id, c.channel, c.outbound_id,
+        (SELECT name FROM chat_teams ct WHERE ct.id = c.team_id) AS team_name,
         c.created_at, c.updated_at,
         v.id AS v_id, v.widget_id AS v_widget_id, v.external_id AS v_external_id,
         v.email AS v_email, v.name AS v_name, v.notes AS v_notes, v.metadata AS v_metadata,
@@ -1095,6 +1111,10 @@ export async function getChatConversationWithVisitor(
     csat_score: (row.csat_score as number | null) ?? null,
     csat_comment: (row.csat_comment as string | null) ?? null,
     attributes: (row.attributes as string | null) ?? '{}',
+    team_id: (row.team_id as string | null) ?? null,
+    team_name: (row.team_name as string | null) ?? null,
+    channel: row.channel === 'email' ? 'email' : 'web',
+    outbound_id: (row.outbound_id as string | null) ?? null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
     ...sla,
@@ -1181,6 +1201,10 @@ export async function updateChatConversation(
   if (payload.subject !== undefined) {
     fields.push('subject = ?');
     args.push(payload.subject.trim() ?? null);
+  }
+  if (payload.teamId !== undefined) {
+    fields.push('team_id = ?');
+    args.push(payload.teamId ?? null);
   }
 
   if (fields.length > 0) {
@@ -1377,6 +1401,10 @@ export interface AssignmentRulePayload {
   matchType: 'all' | 'keyword' | 'time' | 'round_robin';
   matchValue?: string | null;
   assignTo?: string | null;
+  /** Equipo de Chat al que asigna (con round_robin, reparte entre sus miembros). */
+  assignTeamId?: string | null;
+  /** Con equipo: repartir entre sus miembros. */
+  teamRoundRobin?: boolean;
   position?: number;
   active?: boolean;
 }
@@ -1409,7 +1437,7 @@ export async function createAssignmentRule(
 
   await db
     .prepare(
-      'INSERT INTO chat_assignment_rules (id, widget_id, name, match_type, match_value, assign_to, position, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO chat_assignment_rules (id, widget_id, name, match_type, match_value, assign_to, assign_team_id, team_round_robin, position, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(
       id,
@@ -1418,6 +1446,8 @@ export async function createAssignmentRule(
       payload.matchType,
       payload.matchValue?.trim() ?? null,
       payload.assignTo ?? null,
+      payload.assignTeamId ?? null,
+      payload.teamRoundRobin && payload.assignTeamId ? 1 : 0,
       position,
       payload.active === false ? 0 : 1,
       now,
@@ -1453,6 +1483,14 @@ export async function updateAssignmentRule(
   if (payload.assignTo !== undefined) {
     fields.push('assign_to = ?');
     args.push(payload.assignTo ?? null);
+  }
+  if (payload.assignTeamId !== undefined) {
+    fields.push('assign_team_id = ?');
+    args.push(payload.assignTeamId ?? null);
+  }
+  if (payload.teamRoundRobin !== undefined) {
+    fields.push('team_round_robin = ?');
+    args.push(payload.teamRoundRobin ? 1 : 0);
   }
   if (payload.position !== undefined) {
     fields.push('position = ?');
@@ -1560,11 +1598,33 @@ export async function applyAssignmentRules(
     let assignTo: string | null =
       rule.assign_to && teamMembers.some((m) => m.id === rule.assign_to) ? rule.assign_to : null;
 
-    if (rule.match_type === 'round_robin' && teamMembers.length > 0) {
-      // Saltea a los ausentes; si están todos ausentes, la regla no asigna
-      // y sigue la próxima.
-      assignTo = await pickRoundRobinAgent(widgetId, conversationId, teamMembers);
+    // Equipo: la conversación pasa a su bandeja; con round robin se reparte
+    // solo entre los miembros del equipo (ruteo por equipo).
+    let candidates = teamMembers;
+    let teamId: string | null = null;
+    if (rule.assign_team_id) {
+      const team = (await db.prepare('SELECT id FROM chat_teams WHERE id = ?').get(rule.assign_team_id)) as { id: string } | undefined;
+      if (team) {
+        teamId = team.id;
+        const ids = new Set(
+          ((await db.prepare('SELECT user_id FROM chat_team_members WHERE team_id = ?').all(team.id)) as Array<{ user_id: string }>).map((r) => r.user_id),
+        );
+        candidates = teamMembers.filter((m) => ids.has(m.id));
+        if (assignTo && !ids.has(assignTo)) assignTo = null;
+      }
     }
+
+    if ((rule.match_type === 'round_robin' || (teamId && rule.team_round_robin === 1)) && candidates.length > 0) {
+      // Saltea a los ausentes; si están todos ausentes, la regla no asigna
+      // y sigue la próxima (salvo que asigne un equipo).
+      assignTo = await pickRoundRobinAgent(widgetId, conversationId, candidates);
+    }
+
+    if (teamId) {
+      await db.prepare('UPDATE chat_conversations SET team_id = ?, updated_at = ? WHERE id = ? AND team_id IS NULL').run(teamId, nowIso(), conversationId);
+    }
+
+    if (!assignTo && teamId) return null;
 
     if (assignTo) {
       const prev = (await db.prepare('SELECT assigned_to FROM chat_conversations WHERE id = ?').get(conversationId)) as
@@ -2366,6 +2426,7 @@ export async function submitConversationCsat(
         rating: { score, comment: comment ?? '' },
       });
     }
+    await emitChatEvent(conversationId, 'chat.csat.submitted', { csat: { score, comment: comment ?? '' } });
   }
   return conv;
 }

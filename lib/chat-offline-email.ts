@@ -8,13 +8,16 @@
  * reclama con un compare-and-set de offline_email_at: dos crons a la vez no
  * mandan el mismo aviso dos veces.
  *
- * Responder al email no vuelve a la conversación (no hay correo entrante):
- * el email lo dice y lleva al chat.
+ * Con el canal email configurado (CHAT_INBOUND_DOMAIN, lib/chat-email.ts) el
+ * email lleva Reply-To a la conversación y responderlo vuelve al inbox. Las
+ * conversaciones que entraron por email reciben cada respuesta por email en
+ * la próxima corrida, sin esperar los minutos del widget.
  */
 import { getDb } from './db';
 import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { pickWidgetLocale, type WidgetLocale } from './chat-widget-i18n';
 import { readVisitorPage } from './chat-visitor-context';
+import { inboundAddress } from './chat-email';
 import en from '@/messages/en/chat.json';
 import es from '@/messages/es/chat.json';
 import pt from '@/messages/pt/chat.json';
@@ -44,6 +47,9 @@ export interface OfflineReplyCandidate {
   widget_color: string;
   widget_locale: string | null;
   offline_email_minutes: number;
+  /** 'email' si la conversación entró por email: se responde por email enseguida. */
+  channel?: string | null;
+  subject?: string | null;
 }
 
 export interface OfflineReplyGroup {
@@ -71,8 +77,9 @@ export function dueOfflineGroups(rows: OfflineReplyCandidate[], now = new Date()
   }
   const due: OfflineReplyGroup[] = [];
   for (const [conversationId, list] of groups) {
-    const minutes = Number(list[0].offline_email_minutes);
-    if (!(minutes > 0)) continue;
+    const isEmail = list[0].channel === 'email';
+    const minutes = isEmail ? 0 : Number(list[0].offline_email_minutes);
+    if (!isEmail && !(minutes > 0)) continue;
     const newest = Math.max(...list.map((m) => Date.parse(m.created_at)));
     if (!Number.isFinite(newest) || now.getTime() - newest < minutes * 60_000) continue;
     due.push({ conversationId, messages: [...list].sort((a, b) => a.created_at.localeCompare(b.created_at)) });
@@ -105,14 +112,23 @@ function attachmentNames(raw: string): string[] {
 }
 
 /** Asunto, texto y HTML del aviso, en el idioma del widget o del visitante. */
-export function buildOfflineReplyEmail(group: OfflineReplyGroup): { locale: WidgetLocale; subject: string; text: string; html: string } {
+export function buildOfflineReplyEmail(group: OfflineReplyGroup): {
+  locale: WidgetLocale;
+  subject: string;
+  text: string;
+  html: string;
+  replyTo: string | null;
+} {
   const first = group.messages[0];
   const page = readVisitorPage(first.visitor_metadata);
   const locale = pickWidgetLocale(null, first.widget_locale ?? 'auto', null, page?.language ?? null) as WidgetLocale;
   const s = STRINGS[locale] ?? STRINGS.en;
   const agent = group.messages.find((m) => m.agent_name)?.agent_name ?? null;
   const vars = { widget: first.widget_name, agent: agent ?? first.widget_name, name: first.visitor_name ?? '' };
-  const subject = fill(agent ? s.subjectAgent : s.subject, vars);
+  const replyTo = inboundAddress('reply', group.conversationId);
+  const isEmail = first.channel === 'email';
+  const subject = isEmail && first.subject ? `Re: ${first.subject}` : fill(agent ? s.subjectAgent : s.subject, vars);
+  const footer = replyTo ? s.canReply : s.noReply;
   const greeting = first.visitor_name ? fill(s.hi, vars) : s.hiAnonymous;
   const link = chatReturnLink(page?.url);
 
@@ -127,11 +143,13 @@ export function buildOfflineReplyEmail(group: OfflineReplyGroup): { locale: Widg
     fill(s.intro, vars),
     '',
     ...blocks.flatMap((b) => [b, '']),
-    link ? `${s.cta}: ${link}` : s.noLink,
-    '',
-    s.noReply,
-    s.why,
-  ].join('\n');
+    ...(isEmail ? [] : [link ? `${s.cta}: ${link}` : replyTo ? '' : s.noLink, '']),
+    footer,
+    isEmail ? '' : s.why,
+  ]
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 
   const quote = (b: string) =>
     `<span style="display:block;border-left:2px solid #e5e5e5;padding:2px 0 2px 12px;white-space:pre-wrap;">${escapeHtml(b)}</span>`;
@@ -143,11 +161,11 @@ export function buildOfflineReplyEmail(group: OfflineReplyGroup): { locale: Widg
       escapeHtml(greeting),
       escapeHtml(fill(s.intro, vars)),
       ...blocks.map(quote),
-      link ? `<a href="${escapeHtml(link)}">${escapeHtml(s.cta)}</a>` : escapeHtml(s.noLink),
-      `<span style="color:#888888;font-size:12px;">${escapeHtml(s.noReply)} ${escapeHtml(s.why)}</span>`,
-    ],
+      ...(isEmail ? [] : [link ? `<a href="${escapeHtml(link)}">${escapeHtml(s.cta)}</a>` : escapeHtml(replyTo ? '' : s.noLink)]),
+      `<span style="color:#888888;font-size:12px;">${escapeHtml(footer)}${isEmail ? '' : ` ${escapeHtml(s.why)}`}</span>`,
+    ].filter(Boolean),
   });
-  return { locale, subject, text, html };
+  return { locale, subject, text: `${text}\n`, html, replyTo };
 }
 
 async function loadCandidates(now: Date, limit: number): Promise<OfflineReplyCandidate[]> {
@@ -157,7 +175,8 @@ async function loadCandidates(now: Date, limit: number): Promise<OfflineReplyCan
               u.name AS agent_name,
               v.email AS visitor_email, v.name AS visitor_name, v.metadata AS visitor_metadata,
               w.name AS widget_name, w.color AS widget_color, w.locale AS widget_locale,
-              w.offline_email_minutes AS offline_email_minutes
+              w.offline_email_minutes AS offline_email_minutes,
+              c.channel AS channel, c.subject AS subject
        FROM chat_messages m
        JOIN chat_conversations c ON c.id = m.conversation_id
        JOIN chat_visitors v ON v.id = c.visitor_id
@@ -165,7 +184,7 @@ async function loadCandidates(now: Date, limit: number): Promise<OfflineReplyCan
        LEFT JOIN users u ON u.id = m.user_id
        WHERE m.sender_type = 'user' AND m.is_note = 0 AND m.deleted_at IS NULL
          AND m.read_at IS NULL AND m.offline_email_at IS NULL
-         AND v.email IS NOT NULL AND v.email != '' AND w.offline_email_minutes > 0
+         AND v.email IS NOT NULL AND v.email != '' AND (w.offline_email_minutes > 0 OR c.channel = 'email')
          AND m.created_at >= ?
        ORDER BY m.created_at ASC
        LIMIT ?`,
@@ -199,7 +218,13 @@ export async function sendOfflineReplyEmails(
     }
     if (claimed.length === 0) continue;
     const email = buildOfflineReplyEmail({ conversationId: group.conversationId, messages: claimed });
-    const result = await sendEmail({ to: claimed[0].visitor_email, subject: email.subject, text: email.text, html: email.html }).catch(
+    const result = await sendEmail({
+      to: claimed[0].visitor_email,
+      subject: email.subject,
+      text: email.text,
+      html: email.html,
+      ...(email.replyTo ? { replyTo: email.replyTo } : {}),
+    }).catch(
       () => ({ ok: false }),
     );
     if (result.ok) {

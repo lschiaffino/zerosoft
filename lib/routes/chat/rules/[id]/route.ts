@@ -8,6 +8,7 @@ import {
   isChatAgentOfWidget,
   updateAssignmentRule,
 } from '@/lib/chat-data';
+import { teamBelongsTo } from '@/lib/chat-collab';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +57,10 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
     return NextResponse.json({ error: 'invalid_assignee' }, { status: 400 });
   }
 
+  if (typeof body.assignTeamId === 'string' && body.assignTeamId && !(await teamBelongsTo(widget.user_id, body.assignTeamId))) {
+    return NextResponse.json({ error: 'invalid_team' }, { status: 400 });
+  }
+
   const matchType = body.matchType;
   const updated = await updateAssignmentRule(params.id, {
     name: typeof body.name === 'string' ? body.name : undefined,
@@ -68,6 +73,8 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
         : undefined,
     matchValue: typeof body.matchValue === 'string' ? body.matchValue : undefined,
     assignTo: body.assignTo === null ? null : typeof body.assignTo === 'string' ? body.assignTo : undefined,
+    teamRoundRobin: typeof body.teamRoundRobin === 'boolean' ? body.teamRoundRobin : undefined,
+    assignTeamId: body.assignTeamId === null || body.assignTeamId === '' ? null : typeof body.assignTeamId === 'string' ? body.assignTeamId : undefined,
     position: typeof body.position === 'number' ? body.position : undefined,
     active: typeof body.active === 'boolean' ? body.active : undefined,
   });

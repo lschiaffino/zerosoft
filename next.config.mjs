@@ -44,7 +44,7 @@ const nextConfig = {
     ];
     return [
       {
-        source: '/api/chat/:route(identify|messages|csat|read|typing|help)',
+        source: '/api/chat/:route(identify|messages|csat|read|typing|help|history|outbound)',
         headers: cors,
       },
       { source: '/api/chat/messages/upload', headers: cors },

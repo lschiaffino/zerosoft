@@ -6,6 +6,8 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import InboxShell from '@/components/chat/InboxShell';
 import NewWidgetButton from '@/components/chat/NewWidgetButton';
+import { listChatTeams } from '@/lib/chat-collab';
+import { Suspense } from 'react';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,10 +39,13 @@ export default async function ChatInboxLayout(props: { children: ReactNode; para
   // Los widgets del workspace comparten agentes (el dueño o los miembros del team).
   const agents = await listChatAgents(widgets[0].user_id, widgets[0].team_id);
   const away = await isChatAgentAway(realUserId(user));
+  const teams = (await listChatTeams(user.id)).map((x) => ({ id: x.id, name: x.name }));
 
   return (
-    <InboxShell widgetIds={widgets.map((w) => w.id)} currentUserId={realUserId(user)} agents={agents} initialAway={away}>
-      {props.children}
-    </InboxShell>
+    <Suspense fallback={null}>
+      <InboxShell widgetIds={widgets.map((w) => w.id)} currentUserId={realUserId(user)} agents={agents} teams={teams} initialAway={away}>
+        {props.children}
+      </InboxShell>
+    </Suspense>
   );
 }

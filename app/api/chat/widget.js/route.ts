@@ -191,6 +191,20 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   var visitorBubbles = {};
   var renderedEdits = {};
   var formRequest = null;
+  // Mensaje saliente al que responde el visitante (la conversación arranca con él).
+  var pendingOutbound = null;
+  var OB_SEEN_KEY = 'zs_chat_ob_' + WIDGET_ID;
+  var FIRST_KEY = 'zs_chat_first_' + WIDGET_ID;
+  // Visitante nuevo (primera vez en el sitio) o que vuelve (más de 30 min después).
+  var firstSeenAt = (function () {
+    try {
+      var v = Number(localStorage.getItem(FIRST_KEY) || 0);
+      if (!v) localStorage.setItem(FIRST_KEY, String(Date.now()));
+      return v;
+    } catch (e) {
+      return 0;
+    }
+  })();
 
   var root = dom('div', {
     id: 'zs-chat-root',
@@ -238,8 +252,17 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   } else {
     header.appendChild(dom('span', {}, [T('chat')]));
   }
+  var headActions = dom('div', { style: 'display:flex;align-items:center;gap:6px;' });
+  var historyBtn = dom('button', {
+    type: 'button',
+    style: 'background:none;border:none;color:#fff;font:inherit;font-size:12px;font-weight:500;cursor:pointer;padding:2px 6px;border-radius:4px;',
+    'aria-label': T('history'),
+    'aria-expanded': 'false',
+  }, [T('history')]);
   var closeBtn = dom('button', { style: 'background:none;border:none;color:#fff;font-size:18px;cursor:pointer;line-height:1;', 'aria-label': T('close') }, ['×']);
-  header.appendChild(closeBtn);
+  headActions.appendChild(historyBtn);
+  headActions.appendChild(closeBtn);
+  header.appendChild(headActions);
 
   var messages = dom('div', { style: 'flex:1;overflow-y:auto;padding:16px;background:#f8f8f8;' });
 
@@ -349,8 +372,20 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   chatPane.appendChild(suggestWrap);
   chatPane.appendChild(inputWrap);
   chatPane.appendChild(sendError);
+  // Conversaciones anteriores del visitante (y las de su email verificado en otros dispositivos).
+  var historyPane = dom('div', { style: 'flex:1;display:none;flex-direction:column;min-height:0;background:#fff;' });
+  var historyHead = dom('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid rgba(0,0,0,0.06);font-size:13px;font-weight:600;color:#111;' });
+  var historyTitle = dom('span', {}, [T('history')]);
+  var historyBack = dom('button', { type: 'button', style: 'background:none;border:none;color:' + COLOR + ';cursor:pointer;font:inherit;font-size:12px;padding:2px 4px;' }, [T('backToChat')]);
+  historyHead.appendChild(historyTitle);
+  historyHead.appendChild(historyBack);
+  var historyList = dom('div', { style: 'flex:1;overflow-y:auto;padding:4px 12px 8px;' });
+  historyPane.appendChild(historyHead);
+  historyPane.appendChild(historyList);
+
   box.appendChild(chatPane);
   box.appendChild(helpPane);
+  box.appendChild(historyPane);
 
   function articleRow(a, compact) {
     var row = dom(a.url ? 'a' : 'div', {
@@ -450,6 +485,227 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       });
     }, 400);
   }
+  var historyOpen = false;
+  function historyBody() {
+    var b = { widgetId: WIDGET_ID, visitorId: visitorId };
+    if (identity.email && identity.userHash) {
+      b.email = identity.email;
+      b.userHash = identity.userHash;
+    }
+    return b;
+  }
+  function showHistory(on) {
+    historyOpen = on;
+    historyPane.style.display = on ? 'flex' : 'none';
+    chatPane.style.display = on ? 'none' : 'flex';
+    helpPane.style.display = 'none';
+    historyBtn.setAttribute('aria-expanded', on ? 'true' : 'false');
+    if (on) loadHistory();
+    else input.focus();
+  }
+  function loadHistory() {
+    historyTitle.textContent = T('history');
+    historyList.innerHTML = '';
+    historyList.appendChild(dom('p', { style: 'color:#666;font-size:13px;margin:12px 0;' }, [T('loading')]));
+    api('/api/chat/history', { method: 'POST', body: JSON.stringify(historyBody()) })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        historyList.innerHTML = '';
+        var list = (d && d.conversations) || [];
+        if (!d) {
+          historyList.appendChild(dom('p', { role: 'alert', style: 'color:#b00020;font-size:13px;margin:12px 0;' }, [T('historyFailed')]));
+          return;
+        }
+        if (!list.length) {
+          historyList.appendChild(dom('p', { style: 'color:#666;font-size:13px;margin:12px 0;' }, [T('historyEmpty')]));
+          return;
+        }
+        list.forEach(function (c) {
+          var row = dom('button', {
+            type: 'button',
+            style: 'display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid rgba(0,0,0,0.06);padding:10px 0;cursor:pointer;font:inherit;color:#111;',
+          });
+          var when = '';
+          try { when = new Date(c.updated_at).toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' }); } catch (e) {}
+          var top = dom('div', { style: 'display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:600;' }, [
+            dom('span', { style: 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' }, [c.subject || (c.last_sender === 'visitor' ? T('you') : T('team'))]),
+            dom('span', { style: 'font-weight:400;color:#888;font-size:11px;flex-shrink:0;' }, [when + (c.status === 'resolved' ? ' · ' + T('closed') : '')]),
+          ]);
+          row.appendChild(top);
+          row.appendChild(dom('div', { style: 'font-size:12px;color:#555;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' }, [c.last_body]));
+          row.addEventListener('click', function () { openPast(c.id); });
+          historyList.appendChild(row);
+        });
+      })
+      .catch(function () {
+        historyList.innerHTML = '';
+        historyList.appendChild(dom('p', { role: 'alert', style: 'color:#b00020;font-size:13px;margin:12px 0;' }, [T('historyFailed')]));
+      });
+  }
+  function openPast(id) {
+    if (id === conversationId) {
+      showHistory(false);
+      return;
+    }
+    historyList.innerHTML = '';
+    var body = historyBody();
+    body.conversationId = id;
+    api('/api/chat/history', { method: 'POST', body: JSON.stringify(body) })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.messages) {
+          historyList.appendChild(dom('p', { role: 'alert', style: 'color:#b00020;font-size:13px;margin:12px 0;' }, [T('historyFailed')]));
+          return;
+        }
+        historyTitle.textContent = d.conversation.subject || T('pastConversation');
+        var back = dom('button', { type: 'button', style: 'background:none;border:none;color:' + COLOR + ';cursor:pointer;font:inherit;font-size:12px;padding:6px 0;' }, [T('allConversations')]);
+        back.addEventListener('click', loadHistory);
+        historyList.appendChild(back);
+        d.messages.forEach(function (m) {
+          var mine = m.sender_type === 'visitor';
+          var wrap = dom('div', { style: 'display:flex;justify-content:' + (mine ? 'flex-end' : 'flex-start') + ';margin:6px 0;' });
+          var bubble = dom('div', {
+            style: 'max-width:80%;padding:8px 10px;border-radius:12px;font-size:13px;white-space:pre-wrap;word-break:break-word;background:' + (mine ? COLOR : '#f1f1f1') + ';color:' + (mine ? '#fff' : '#111') + ';',
+          }, [m.body || '']);
+          messageAttachments(m).forEach(function (a) {
+            var el = renderAttachment(a);
+            el.style.marginTop = '6px';
+            bubble.appendChild(el);
+          });
+          wrap.appendChild(bubble);
+          historyList.appendChild(wrap);
+        });
+        historyList.appendChild(dom('p', { style: 'color:#888;font-size:11px;margin:10px 0 0;' }, [T('writeToContinue')]));
+      })
+      .catch(function () {});
+  }
+  historyBtn.addEventListener('click', function () { showHistory(!historyOpen); });
+  historyBack.addEventListener('click', function () { showHistory(false); });
+
+  // ---------- Mensajes salientes y encuestas ----------
+  var obCard = dom('div', {
+    role: 'dialog',
+    'aria-live': 'polite',
+    style:
+      'position:fixed;bottom:88px;' + (POSITION === 'bottom-left' ? 'left:20px;' : 'right:20px;') +
+      'width:300px;max-width:calc(100vw - 40px);background:#fff;color:#111;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.15);border:1px solid rgba(0,0,0,0.08);padding:14px;display:none;box-sizing:border-box;',
+  });
+  var obShown = null;
+  function obSeenList() {
+    try { return JSON.parse(localStorage.getItem(OB_SEEN_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function obMarkSeen(id) {
+    var list = obSeenList();
+    if (list.indexOf(id) < 0) list.push(id);
+    try { localStorage.setItem(OB_SEEN_KEY, JSON.stringify(list.slice(-50))); } catch (e) {}
+  }
+  function obUrlMatches(m) {
+    if (m.urlMatch === 'any' || !m.urlValue) return true;
+    var u = String(location.href).split('#')[0].toLowerCase();
+    var v = String(m.urlValue).trim().toLowerCase();
+    if (m.urlMatch === 'equals') return u.replace(/[/]$/, '') === v.replace(/[/]$/, '');
+    return u.indexOf(v) >= 0;
+  }
+  function obAudience(m) {
+    if (m.audience === 'new') return !firstSeenAt;
+    if (m.audience === 'returning') return !!firstSeenAt && Date.now() - firstSeenAt > 30 * 60 * 1000;
+    if (m.audience === 'identified') return !!identity.email;
+    return true;
+  }
+  function obEvent(m, event, extra) {
+    var b = { widgetId: WIDGET_ID, visitorId: visitorId, outboundId: m.id, event: event };
+    for (var k in extra || {}) b[k] = extra[k];
+    return api('/api/chat/outbound', { method: 'POST', body: JSON.stringify(b) });
+  }
+  function obClose() {
+    obCard.style.display = 'none';
+    obShown = null;
+  }
+  function obRender(m) {
+    obCard.innerHTML = '';
+    var x = dom('button', { type: 'button', 'aria-label': T('close'), style: 'float:right;background:none;border:none;color:#888;cursor:pointer;font-size:16px;line-height:1;padding:0 0 0 8px;' }, ['×']);
+    x.addEventListener('click', obClose);
+    obCard.appendChild(x);
+    obCard.appendChild(dom('p', { style: 'margin:0 0 10px;white-space:pre-wrap;word-break:break-word;font-size:14px;' }, [m.body]));
+    if (m.kind === 'survey') {
+      var score = 0;
+      var stars = dom('div', { style: 'display:flex;gap:4px;margin-bottom:8px;', role: 'radiogroup', 'aria-label': m.body });
+      var comment = dom('textarea', { rows: '2', placeholder: T('csatComment'), style: 'width:100%;box-sizing:border-box;border:1px solid rgba(0,0,0,0.1);border-radius:8px;padding:6px 8px;font-size:12px;margin-bottom:8px;resize:none;font-family:inherit;' });
+      var sendBtn = dom('button', { type: 'button', style: 'background:' + COLOR + ';color:#fff;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:500;opacity:0.4;' }, [T('csatSend')]);
+      var paint = function () {
+        stars.innerHTML = '';
+        for (var i = 1; i <= 5; i++) {
+          (function (n) {
+            var b = dom('button', { type: 'button', role: 'radio', 'aria-checked': n === score ? 'true' : 'false', 'aria-label': T('stars', { n: n }), style: 'background:none;border:none;cursor:pointer;font-size:20px;padding:0 2px;line-height:1;color:' + (n <= score ? COLOR : '#bbb') + ';' }, [n <= score ? '★' : '☆']);
+            b.addEventListener('click', function () { score = n; sendBtn.style.opacity = '1'; paint(); });
+            stars.appendChild(b);
+          })(i);
+        }
+      };
+      paint();
+      sendBtn.addEventListener('click', function () {
+        if (!score) return;
+        obEvent(m, 'survey', { score: score, comment: comment.value.trim() || undefined })
+          .then(function () {
+            obCard.innerHTML = '';
+            obCard.appendChild(dom('p', { style: 'margin:0;font-size:14px;' }, [T('csatThanks')]));
+            setTimeout(obClose, 2500);
+          })
+          .catch(function () {});
+      });
+      obCard.appendChild(stars);
+      obCard.appendChild(comment);
+      obCard.appendChild(sendBtn);
+    } else {
+      var reply = dom('button', { type: 'button', style: 'background:' + COLOR + ';color:#fff;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:500;' }, [T('reply')]);
+      reply.addEventListener('click', function () {
+        pendingOutbound = m;
+        obClose();
+        openChat();
+      });
+      obCard.appendChild(reply);
+    }
+    obCard.style.display = 'block';
+  }
+  var obMessages = [];
+  var obTimer = null;
+  var obUrl = '';
+  function obEvaluate() {
+    obUrl = String(location.href);
+    if (obTimer) { clearTimeout(obTimer); obTimer = null; }
+    if (obShown || open) return;
+    var seenIds = obSeenList();
+    for (var i = 0; i < obMessages.length; i++) {
+      var m = obMessages[i];
+      if (seenIds.indexOf(m.id) >= 0) continue;
+      // Un mensaje para empezar a chatear no interrumpe una conversación en curso.
+      if (m.kind === 'chat' && conversationId) continue;
+      if (!obUrlMatches(m) || !obAudience(m)) continue;
+      (function (msg) {
+        obTimer = setTimeout(function () {
+          if (open || obShown || String(location.href) !== obUrl) return;
+          obShown = msg;
+          obMarkSeen(msg.id);
+          obEvent(msg, 'seen').catch(function () {});
+          obRender(msg);
+        }, Math.max(0, Number(msg.delaySeconds) || 0) * 1000);
+      })(m);
+      return;
+    }
+  }
+  api('/api/chat/outbound?widgetId=' + encodeURIComponent(WIDGET_ID), { method: 'GET' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      obMessages = (d && d.messages) || [];
+      if (obMessages.length) {
+        obEvaluate();
+        // Sitios de una sola página: la URL cambia sin recargar.
+        setInterval(function () { if (String(location.href) !== obUrl) obEvaluate(); }, 1500);
+      }
+    })
+    .catch(function () {});
+
+  root.appendChild(obCard);
   root.appendChild(btn);
   root.appendChild(box);
 
@@ -529,6 +785,10 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   }
 
   function showWelcome() {
+    if (pendingOutbound && pendingOutbound.kind === 'chat') {
+      appendMessage({ body: pendingOutbound.body, sender_type: 'agent' });
+      return;
+    }
     appendMessage({ body: WELCOME, sender_type: 'agent' });
   }
 
@@ -692,7 +952,10 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         if (!data) return;
         updateAway(data.office);
         updateCsat(data.csat);
-        if (!data.visitor) return;
+        if (!data.visitor) {
+          if (!messages.childNodes.length && formWrap.style.display === 'none') showWelcome();
+          return;
+        }
         conversationId = data.conversation ? data.conversation.id : null;
         // Con una conversación abierta el formulario pre-chat ya se completó.
         if (conversationId) formWrap.style.display = 'none';
@@ -839,6 +1102,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     }
     if (!body) return;
     var payload = withIdentity({ widgetId: WIDGET_ID, visitorId: visitorId, body: body });
+    if (pendingOutbound && !conversationId) payload.outboundId = pendingOutbound.id;
     api('/api/chat/messages', { method: 'POST', body: JSON.stringify(payload) })
       .then(function (r) {
         return r.json().catch(function () { return null; }).then(function (data) {
@@ -859,6 +1123,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
           return;
         }
         adoptConversation(data.conversation);
+        pendingOutbound = null;
         appendMessage({ id: data.message && data.message.id, body: body, sender_type: 'visitor', read_at: data.message && data.message.read_at });
         if (data.message && data.message.id) lastMessageId = data.message.id;
         if (data.bot) {
@@ -921,6 +1186,8 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
 
   function openChat() {
     open = true;
+    obClose();
+    if (historyOpen) showHistory(false);
     box.style.display = 'flex';
     btn.setAttribute('aria-label', T('closeChat'));
     messages.innerHTML = '';
@@ -979,13 +1246,16 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       // Las respuestas se guardan en el server con las etiquetas de cada campo.
       formRequest = api('/api/chat/messages', {
         method: 'POST',
-        body: JSON.stringify(withIdentity({ widgetId: WIDGET_ID, visitorId: visitorId, fields: answers })),
+        body: JSON.stringify(withIdentity(pendingOutbound ? { widgetId: WIDGET_ID, visitorId: visitorId, fields: answers, outboundId: pendingOutbound.id } : { widgetId: WIDGET_ID, visitorId: visitorId, fields: answers })),
       })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) {
           if (!data) return;
           // Sin conversationId el polling no arranca y no llegan las respuestas del agente.
-          if (data.conversation) conversationId = data.conversation.id;
+          if (data.conversation) {
+            conversationId = data.conversation.id;
+            pendingOutbound = null;
+          }
           if (data.message) {
             appendMessage(data.message);
             if (data.message.id) lastMessageId = data.message.id;

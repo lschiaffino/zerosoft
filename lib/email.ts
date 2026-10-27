@@ -22,6 +22,8 @@ interface SendOptions {
   attachments?: EmailAttachment[];
   /** Remitente; por defecto el de EMAIL_FROM (o el de Calendar). Los avisos de apps usan appSender(). */
   from?: string;
+  /** Reply-To (Chat: la dirección de entrada de la conversación, lib/chat-email.ts). */
+  replyTo?: string;
 }
 
 function fromEmail(): string {
@@ -56,6 +58,7 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
         subject: opts.subject,
         text: opts.text,
         html: opts.html,
+        ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
         attachments: opts.attachments?.map((a) => ({
           filename: a.filename,
           content: Buffer.from(a.content, 'utf8').toString('base64'),

@@ -97,6 +97,12 @@ export default defineConfig({
       DOCS_EVENT_WINDOW_SEC: '0',
       // Talk con polling corto en vez de SSE: con el stream abierto la página nunca llega a networkidle.
       TALK_REALTIME: 'poll',
+      // Chat: AI del agente contra el modelo falso (lib/chat-copilot.ts; con la cookie
+      // chat_ai_fake=off se ve ai_disabled) y el canal email entrante sin firma de Resend
+      // (lib/chat-email.ts, el texto viene en el payload del webhook).
+      CHAT_AI_FAKE: '1',
+      CHAT_INBOUND_FAKE: '1',
+      CHAT_INBOUND_DOMAIN: 'inbound.zerosoft.test',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

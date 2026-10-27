@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-27-chat-intercom',
+    date: '2026-10-27',
+    title: {
+      en: 'Chat: team inboxes, saved views, AI for agents, email and outbound messages',
+      es: 'Chat: bandejas por equipo, vistas guardadas, AI para agentes, email y mensajes salientes',
+      pt: 'Chat: caixas por time, visualizações salvas, IA para agentes, email e mensagens de saída',
+    },
+    items: [
+      { product: 'chat', en: 'Teams with their own inbox in the sidebar, rules that send conversations to a team and spread them among its members, saved views (private or shared) with counts, Follow on any conversation, and a notice when a teammate is viewing or replying to the same conversation.', es: 'Equipos con su bandeja en el sidebar, reglas que mandan conversaciones a un equipo y las reparten entre sus miembros, vistas guardadas (propias o compartidas) con su cantidad, Seguir en cualquier conversación y un aviso cuando otra persona del equipo está mirando o respondiendo la misma conversación.', pt: 'Times com caixa própria no menu lateral, regras que mandam conversas para um time e distribuem entre os membros, visualizações salvas (próprias ou compartilhadas) com contagem, Seguir em qualquer conversa e um aviso quando outra pessoa do time está vendo ou respondendo a mesma conversa.' },
+      { product: 'chat', en: 'In the composer: saved replies fill {{first_name}}, {{agent_name}} and conversation attributes, and the AI menu drafts a reply from your published Docs, summarizes the thread as a note, rephrases, shortens or translates to the visitor language. Ctrl or Cmd + Shift + Y resolves.', es: 'En el compositor: las respuestas guardadas completan {{first_name}}, {{agent_name}} y los atributos de la conversación, y el menú AI redacta con tus Docs publicados, resume el hilo como nota, reformula, acorta o traduce al idioma del visitante. Ctrl o Cmd + Shift + Y resuelve.', pt: 'No compositor: as respostas salvas preenchem {{first_name}}, {{agent_name}} e os atributos da conversa, e o menu IA redige com seus Docs publicados, resume a conversa como nota, reformula, encurta ou traduz para o idioma do visitante. Ctrl ou Cmd + Shift + Y resolve.' },
+      { product: 'chat', en: 'Email channel: forward your support address to the widget and answer from the inbox; replies to our emails return to the conversation. Create or link a Track issue from a conversation, and get push notifications on your phone or a sound in the inbox.', es: 'Canal email: reenviá tu dirección de soporte al widget y respondé desde la bandeja; las respuestas a nuestros emails vuelven a la conversación. Creá o vinculá un issue de Track desde una conversación, y recibí push en el celular o un sonido en la bandeja.', pt: 'Canal email: encaminhe seu endereço de suporte para o widget e responda pela caixa; as respostas aos nossos emails voltam para a conversa. Crie ou vincule uma issue do Track pela conversa, e receba push no celular ou um som na caixa.' },
+      { product: 'chat', en: 'On your site: visitors see their past conversations (across devices with a verified identity), and outbound messages or 1 to 5 surveys show up by page, time on page and audience. Reports add bot resolution, tags, widgets, teams, channels, busiest hours and SLA compliance, plus a CSV or JSON export of conversations. Cmd+K finds conversations and people.', es: 'En tu sitio: los visitantes ven sus conversaciones anteriores (en todos sus dispositivos con identidad verificada), y los mensajes salientes o encuestas de 1 a 5 aparecen por página, tiempo en la página y audiencia. Reportes suma la resolución del bot, tags, widgets, equipos, canales, horas pico y cumplimiento de SLA, y un export de conversaciones en CSV o JSON. Cmd+K encuentra conversaciones y personas.', pt: 'No seu site: os visitantes veem suas conversas anteriores (em todos os dispositivos com identidade verificada), e mensagens de saída ou pesquisas de 1 a 5 aparecem por página, tempo na página e público. Relatórios ganha resolução do bot, tags, widgets, times, canais, horários de pico e cumprimento de SLA, além de exportar conversas em CSV ou JSON. Cmd+K encontra conversas e pessoas.' },
+    ],
+  },
+  {
     id: '2026-10-25-voice',
     date: '2026-10-25',
     title: {

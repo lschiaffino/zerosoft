@@ -94,6 +94,8 @@ export default function ConversationList({
                         : t(`conversation.${c.status}`)}
                     </span>
                   )}
+                  {c.channel === 'email' && <span className="chat-row-channel">{t('channels.email')}</span>}
+                  {c.team_name && <span className="chat-row-team">{c.team_name}</span>}
                   <span className="chat-row-assignee">{assignee ?? t('conversation.unassigned')}</span>
                   {tags.length > 0 && <span className="chat-row-tags">{tags.map((tag) => `#${tag}`).join(' ')}</span>}
                 </span>

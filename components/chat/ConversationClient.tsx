@@ -21,6 +21,9 @@ import ChatIcon, { initials } from './icons';
 import SlaNote from './SlaNote';
 import { useInbox } from './InboxShell';
 import { SNOOZE_OPTIONS } from './inbox-model';
+import { fillReplyVariables } from '@/lib/chat-reply-variables';
+import Copilot from './Copilot';
+import TrackLink from './TrackLink';
 
 interface CurrentUser {
   id: string;
@@ -34,7 +37,18 @@ interface ConversationClientProps {
   initialConversation: ChatConversationWithVisitor;
   initialMessages: ChatMessageWithUser[];
   agents: ChatAgent[];
+  /** Equipos de Chat del workspace. */
+  teams?: Array<{ id: string; name: string }>;
+  /** La persona sigue esta conversación. */
+  initialFollowing?: boolean;
   currentUser: CurrentUser;
+}
+
+interface Presence {
+  user_id: string;
+  name: string | null;
+  email: string;
+  typing: boolean;
 }
 
 function senderName(
@@ -68,6 +82,8 @@ export default function ConversationClient({
   initialConversation,
   initialMessages,
   agents,
+  teams = [],
+  initialFollowing = false,
   currentUser,
 }: ConversationClientProps) {
   const t = useTranslations('chat');
@@ -109,6 +125,43 @@ export default function ConversationClient({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [following, setFollowing] = useState(initialFollowing);
+  /** Otros agentes con la conversación abierta (colisión). */
+  const [others, setOthers] = useState<Presence[]>([]);
+  /** Último momento en que se escribió una respuesta (para avisar "respondiendo"). */
+  const typedAt = useRef(0);
+  const replyRef = useRef('');
+  replyRef.current = reply;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  /** Variables sin dato al insertar una respuesta guardada. */
+  const [missingVars, setMissingVars] = useState<string[]>([]);
+
+  async function heartbeat() {
+    try {
+      const typing = modeRef.current === 'reply' && replyRef.current.trim().length > 0 && Date.now() - typedAt.current < 8000;
+      const res = await fetch(`/api/chat/conversations/${conversationId}/presence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ typing }),
+      });
+      if (!res.ok) return;
+      setOthers(((await res.json()) as { others: Presence[] }).others);
+    } catch {
+      // ignore
+    }
+  }
+
+  async function toggleFollow() {
+    const next = !following;
+    setFollowing(next);
+    const res = await fetch(`/api/chat/conversations/${conversationId}/follow`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ follow: next }),
+    }).catch(() => null);
+    if (!res?.ok) setFollowing(!next);
+  }
 
   function canEdit(m: ChatMessageWithUser): boolean {
     return m.sender_type === 'user' && m.user_id === currentUser.id && !m.deleted_at;
@@ -283,13 +336,19 @@ export default function ConversationClient({
     fetchCanned();
     fetchTags();
     markRead();
+    void heartbeat();
     const interval = setInterval(() => {
       if (document.visibilityState !== 'visible') return;
       fetchMessages();
       fetchTyping();
       fetchConversation();
+      void heartbeat();
     }, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      // Deja de figurar como "mirando" al salir de la conversación.
+      void fetch(`/api/chat/conversations/${conversationId}/presence`, { method: 'DELETE', keepalive: true }).catch(() => {});
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
@@ -315,6 +374,21 @@ export default function ConversationClient({
   }
   useKeyShortcut('j', () => step(1));
   useKeyShortcut('k', () => step(-1));
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || !e.shiftKey) return;
+      const key = e.key.toLowerCase();
+      if (key === 'y') {
+        e.preventDefault();
+        toggleResolvedRef.current();
+      } else if (key === 'n') {
+        e.preventDefault();
+        setMode((m) => (m === 'note' ? 'reply' : 'note'));
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   async function updateConversation(payload: ConversationUpdatePayload) {
     const res = await fetch(`/api/chat/conversations/${conversationId}`, {
@@ -400,6 +474,7 @@ export default function ConversationClient({
         if (res.ok) {
           setReply('');
           setMentions([]);
+          setMissingVars([]);
           macroDone();
           await fetchMessages();
           await fetchList();
@@ -432,6 +507,8 @@ export default function ConversationClient({
     if (next === 'resolved' && blockedByAttributes()) return;
     updateConversation({ status: next });
   }
+  const toggleResolvedRef = useRef(toggleResolved);
+  toggleResolvedRef.current = toggleResolved;
 
   function changeStatus(status: string) {
     if (status === 'resolved' && conversation.status !== 'resolved' && blockedByAttributes()) return;
@@ -490,7 +567,22 @@ export default function ConversationClient({
 
   function insertCanned(response: ChatCannedResponseRow) {
     const before = reply.slice(0, reply.lastIndexOf('/'));
-    setReply((before + response.body).trimStart() + ' ');
+    // Variables ({{first_name}}, {{agent_name}}, atributos…): se completan al insertar, como en Intercom.
+    let attributes: Record<string, string | number | boolean | null> = {};
+    try {
+      attributes = JSON.parse(conversation.attributes || '{}') as typeof attributes;
+    } catch {
+      attributes = {};
+    }
+    const filled = fillReplyVariables(response.body, {
+      visitorName: conversation.visitor.name,
+      visitorEmail: conversation.visitor.email,
+      agentName: currentUser.name || currentUser.email,
+      widgetName: conversation.widget_name,
+      attributes,
+    });
+    setMissingVars(filled.missing);
+    setReply((before + filled.text).trimStart() + ' ');
     setCannedIndex(0);
     // Macro: si la respuesta guardada tiene acciones, se aplican al enviar (no
     // al elegirla: si no, el envío reabría la conversación recién resuelta y
@@ -534,7 +626,7 @@ export default function ConversationClient({
         setCannedIndex((i) => (i - 1 + pickerMatches.length) % pickerMatches.length);
         return;
       }
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
         insertCanned(pickerMatches[cannedIndex]);
         return;
@@ -598,6 +690,7 @@ export default function ConversationClient({
             <p className="chat-thread-sub">
               {visitor.email && visitor.name && <span className="data">{visitor.email}</span>}
               <span>{conversation.widget_name}</span>
+              {conversation.channel === 'email' && <span className="badge badge-outline">{t('channels.email')}</span>}
               <SlaNote c={conversation} />
             </p>
           </div>
@@ -612,6 +705,31 @@ export default function ConversationClient({
             {t('conversation.details')}
           </button>
           <div className="chat-thread-actions">
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm chat-follow"
+              aria-pressed={following}
+              onClick={() => void toggleFollow()}
+              title={t('follow.hint')}
+            >
+              <ChatIcon name="eye" size={14} />
+              {following ? t('follow.following') : t('follow.follow')}
+            </button>
+            {teams.length > 0 && (
+              <select
+                className="select chat-compact-select"
+                aria-label={t('teams.label')}
+                value={conversation.team_id ?? ''}
+                onChange={(e) => updateConversation({ teamId: e.target.value || null })}
+              >
+                <option value="">{t('teams.noTeam')}</option>
+                {teams.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <select
               className="select chat-compact-select"
               aria-label={t('conversation.assignedTo')}
@@ -653,7 +771,13 @@ export default function ConversationClient({
                 </select>
               </>
             )}
-            <button type="button" className={`btn btn-sm ${isResolved ? 'btn-secondary' : 'btn-primary'}`} onClick={toggleResolved}>
+            <button
+              type="button"
+              className={`btn btn-sm ${isResolved ? 'btn-secondary' : 'btn-primary'}`}
+              onClick={toggleResolved}
+              aria-keyshortcuts="Control+Shift+Y Meta+Shift+Y"
+              title={t('conversation.resolveShortcut')}
+            >
               {isResolved ? t('conversation.reopen') : t('conversation.resolve')}
             </button>
           </div>
@@ -852,6 +976,14 @@ export default function ConversationClient({
           )}
         </div>
 
+        {others.length > 0 && (
+          <p className="chat-collision" role="status" data-typing={others.some((o) => o.typing) || undefined}>
+            <ChatIcon name="eye" size={14} />
+            {others.some((o) => o.typing)
+              ? t('collision.replying', { names: others.filter((o) => o.typing).map((o) => o.name || o.email).join(', ') })
+              : t('collision.viewing', { names: others.map((o) => o.name || o.email).join(', ') })}
+          </p>
+        )}
         <div className={`chat-composer${mode === 'note' ? ' is-note' : ''}`}>
           <div className="ui-tabs chat-composer-tabs" role="tablist" aria-label={t('notes.mode')}>
             <button
@@ -900,7 +1032,11 @@ export default function ConversationClient({
               value={reply}
               onChange={(e) => {
                 setReply(e.target.value);
-                if (!e.target.value.trim()) setPendingMacro(null);
+                typedAt.current = Date.now();
+                if (!e.target.value.trim()) {
+                  setPendingMacro(null);
+                  setMissingVars([]);
+                }
                 setCannedIndex(0);
                 sendTyping();
               }}
@@ -933,6 +1069,11 @@ export default function ConversationClient({
             )}
           </div>
 
+          {missingVars.length > 0 && (
+            <p className="ui-help chat-missing-vars" role="status">
+              {t('variables.missing', { names: missingVars.map((v) => `{{${v}}}`).join(', ') })}
+            </p>
+          )}
           {selectedFile && (
             <div className="chat-file-chip">
               <ChatIcon name="attach" size={14} />
@@ -956,6 +1097,23 @@ export default function ConversationClient({
                 <ChatIcon name="attach" />
               </button>
             )}
+            <Copilot
+              conversationId={conversationId}
+              text={reply}
+              onText={(text) => {
+                setReply(text);
+                setMode('reply');
+              }}
+              onNote={async (text) => {
+                const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ body: text, note: true }),
+                });
+                if (res.ok) await fetchMessages();
+                return res.ok;
+              }}
+            />
             <input
               ref={fileInputRef}
               type="file"
@@ -1080,6 +1238,11 @@ export default function ConversationClient({
         />
 
         <VisitorPanel conversation={conversation} />
+
+        <TrackLink
+          conversationId={conversationId}
+          defaultTitle={(conversation.subject || messages.find((m) => m.sender_type === 'visitor')?.body || '').slice(0, 120)}
+        />
 
         <TranscriptActions conversation={conversation} />
 
