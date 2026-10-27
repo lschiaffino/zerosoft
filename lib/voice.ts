@@ -35,14 +35,19 @@ import {
   type VoiceTemplate,
 } from './voice-types';
 import type { TranscriptPiece } from './voice-transcribe';
+import { bookingScopeFor } from './calendar-access';
+import type { TeamRole } from './teams';
 
 export interface VoiceOwner {
   workspaceId: string;
   personId: string;
+  /** Reservas de Cal que ve: null = todas (owner/admin); un id = solo las que atiende esa persona. */
+  bookingScope?: string | null;
 }
 
-export function voiceOwner(user: { id: string; actingUser?: { id: string } | null }): VoiceOwner {
-  return { workspaceId: user.id, personId: user.actingUser?.id ?? user.id };
+export function voiceOwner(user: { id: string; actingUser?: { id: string } | null; role?: TeamRole | null }): VoiceOwner {
+  const personId = user.actingUser?.id ?? user.id;
+  return { workspaceId: user.id, personId, bookingScope: bookingScopeFor(user.role ?? 'owner', personId) };
 }
 
 export class VoiceError extends Error {

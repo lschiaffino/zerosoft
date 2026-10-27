@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { homeCalBookings } from '@/lib/home';
+import { voiceOwner } from '@/lib/voice';
+import { listLinkableBookings } from '@/lib/voice-integrations';
+import { bookingInScope } from '@/lib/calendar-access';
 import {
+  countUpcomingBookings,
+  listUserBookings,
   createBooking,
   createEventType,
   getAvailableSlots,
@@ -551,5 +557,56 @@ describe('SMS por horario y alcance de un member', () => {
     expect(list.result.structuredContent?.bookings?.map((b) => b.id)).toEqual([mine.id]);
     expect((await call('cancel_booking', { bookingId: owners.id })).result.isError).toBe(true);
     expect((await call('cancel_booking', { bookingId: mine.id })).result.isError).toBe(false);
+  });
+});
+
+describe('alcance de member en inicio de Cal, inicio de la plataforma y Voice', () => {
+  async function twoHosts(label: string) {
+    const { u, et } = await setup(label);
+    const member = await makeUser(`${label}-m`);
+    const teamId = crypto.randomUUID();
+    await getDb().prepare('INSERT INTO teams (id, name, owner_id) VALUES (?, ?, ?)').run(teamId, 'T', u.id);
+    await getDb().prepare("INSERT INTO team_members (team_id, user_id, role) VALUES (?, ?, 'member')").run(teamId, member.id);
+    // Hoy (UTC) dentro de un rato: una del owner y una del member.
+    const soon = new Date(Date.now() + 60 * 60_000);
+    if (soon.toISOString().slice(0, 10) !== new Date().toISOString().slice(0, 10)) soon.setTime(Date.now() + 60_000);
+    const insert = async (host: string, email: string) => {
+      const id = crypto.randomUUID();
+      await getDb()
+        .prepare(
+          `INSERT INTO calendar_bookings (id, event_type_id, invitee_email, invitee_name, starts_at, ends_at, status, host_user_id, manage_token)
+           VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?, ?)`,
+        )
+        .run(id, et.id, email, email, soon.toISOString(), new Date(soon.getTime() + 30 * 60_000).toISOString(), host, crypto.randomUUID().replace(/-/g, ''));
+      return id;
+    };
+    const ownerBooking = await insert(u.id, 'own@x.com');
+    const memberBooking = await insert(member.id, 'mem@x.com');
+    return { u, member, ownerBooking, memberBooking };
+  }
+
+  it('inicio de Cal: el contador semanal y las próximas', async () => {
+    const { u, member, memberBooking } = await twoHosts('scopecal');
+    expect(await countUpcomingBookings(u.id, 7)).toBe(2);
+    expect(await countUpcomingBookings(u.id, 7, new Date(), member.id)).toBe(1);
+    const mine = await listUserBookings(u.id, { status: 'confirmed', from: new Date(), hostId: member.id });
+    expect(mine.map((b) => b.id)).toEqual([memberBooking]);
+  });
+
+  it('inicio de la plataforma: reservas de hoy', async () => {
+    const { u, member, memberBooking } = await twoHosts('scopehome');
+    const asMember = await homeCalBookings({ id: u.id, role: 'member', actingUser: { id: member.id } });
+    expect(asMember.items.map((b) => b.id)).toEqual([memberBooking]);
+    const asOwner = await homeCalBookings({ id: u.id, role: 'owner' });
+    expect(asOwner.total).toBe(2);
+  });
+
+  it('Voice: vincular reunión solo con reservas propias', async () => {
+    const { u, member, ownerBooking, memberBooking } = await twoHosts('scopevoice');
+    const owner = voiceOwner({ id: u.id, role: 'member', actingUser: { id: member.id } });
+    expect((await listLinkableBookings(owner)).map((b) => b.id)).toEqual([memberBooking]);
+    expect((await listLinkableBookings(voiceOwner({ id: u.id, role: 'owner' }))).length).toBe(2);
+    expect(bookingInScope({ host_user_id: u.id, co_host_ids: '[]' }, owner.bookingScope ?? null)).toBe(false);
+    void ownerBooking;
   });
 });

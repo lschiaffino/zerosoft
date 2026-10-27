@@ -901,15 +901,19 @@ export async function countBookingsThisWeek(userId: string): Promise<number> {
 }
 
 /** Reservas confirmadas que empiezan en los próximos `days` días. */
-export async function countUpcomingBookings(userId: string, days = 7, from = new Date()): Promise<number> {
+export async function countUpcomingBookings(userId: string, days = 7, from = new Date(), hostId?: string): Promise<number> {
   const end = new Date(from.getTime() + days * 86_400_000);
+  // Con hostId: solo las que atiende esa persona (alcance de un member).
+  const host = hostId
+    ? " AND (b.host_user_id = ? OR (b.co_host_ids != '[]' AND EXISTS (SELECT 1 FROM json_each(b.co_host_ids) j WHERE j.value = ?)))"
+    : '';
   const row = (await getDb()
     .prepare(
       `SELECT COUNT(*) AS c FROM calendar_bookings b
        JOIN calendar_event_types e ON e.id = b.event_type_id
-       WHERE e.user_id = ? AND b.status = 'confirmed' AND b.starts_at >= ? AND b.starts_at < ?`,
+       WHERE e.user_id = ? AND b.status = 'confirmed' AND b.starts_at >= ? AND b.starts_at < ?${host}`,
     )
-    .get(userId, from.toISOString(), end.toISOString())) as { c: number } | undefined;
+    .get(userId, from.toISOString(), end.toISOString(), ...(hostId ? [hostId, hostId] : []))) as { c: number } | undefined;
   return Number(row?.c ?? 0);
 }
 
