@@ -14,10 +14,10 @@
  * la próxima corrida, sin esperar los minutos del widget.
  */
 import { getDb } from './db';
-import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
+import { escapeHtml, namedSender, renderBrandedHtml, sendEmail } from './email';
 import { pickWidgetLocale, type WidgetLocale } from './chat-widget-i18n';
 import { readVisitorPage } from './chat-visitor-context';
-import { inboundAddress } from './chat-email';
+import { inboundAddress, threadHeaders } from './chat-email';
 import en from '@/messages/en/chat.json';
 import es from '@/messages/es/chat.json';
 import pt from '@/messages/pt/chat.json';
@@ -140,7 +140,7 @@ export function buildOfflineReplyEmail(group: OfflineReplyGroup): {
   const text = [
     greeting,
     '',
-    fill(s.intro, vars),
+    fill(isEmail ? s.introEmail : s.intro, vars),
     '',
     ...blocks.flatMap((b) => [b, '']),
     ...(isEmail ? [] : [link ? `${s.cta}: ${link}` : replyTo ? '' : s.noLink, '']),
@@ -159,7 +159,7 @@ export function buildOfflineReplyEmail(group: OfflineReplyGroup): {
     brandColor: first.widget_color,
     paragraphs: [
       escapeHtml(greeting),
-      escapeHtml(fill(s.intro, vars)),
+      escapeHtml(fill(isEmail ? s.introEmail : s.intro, vars)),
       ...blocks.map(quote),
       ...(isEmail ? [] : [link ? `<a href="${escapeHtml(link)}">${escapeHtml(s.cta)}</a>` : escapeHtml(replyTo ? '' : s.noLink)]),
       `<span style="color:#888888;font-size:12px;">${escapeHtml(footer)}${isEmail ? '' : ` ${escapeHtml(s.why)}`}</span>`,
@@ -224,6 +224,9 @@ export async function sendOfflineReplyEmails(
       text: email.text,
       html: email.html,
       ...(email.replyTo ? { replyTo: email.replyTo } : {}),
+      // Sale con el nombre del widget y en el mismo hilo que el email del visitante.
+      from: namedSender(claimed[0].widget_name),
+      headers: await threadHeaders(group.conversationId),
     }).catch(
       () => ({ ok: false }),
     );

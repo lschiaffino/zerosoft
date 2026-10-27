@@ -53,23 +53,33 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   var MAX_FILE_SIZE = 10 * 1024 * 1024;
   var MAX_MESSAGE = ${CHAT_MESSAGE_MAX};
 
+  // Respaldo si el servidor no emitió la clave: aleatoria con crypto (nunca Math.random).
   function uuid() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-      var r = (Math.random() * 16) | 0;
-      return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-    });
+    try {
+      if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+      var b = new Uint8Array(16);
+      window.crypto.getRandomValues(b);
+      b[6] = (b[6] & 0x0f) | 0x40;
+      b[8] = (b[8] & 0x3f) | 0x80;
+      var h = Array.prototype.map.call(b, function (x) { return (x + 0x100).toString(16).slice(1); }).join('');
+      return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
+    } catch (e) {
+      return null;
+    }
   }
 
-  function getVisitorId() {
+  function storedVisitorId() {
     try {
-      var v = localStorage.getItem(STORAGE_KEY);
-      if (v) return v;
-    } catch (e) {}
-    var id = uuid();
+      return localStorage.getItem(STORAGE_KEY);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function storeVisitorId(id) {
     try {
       localStorage.setItem(STORAGE_KEY, id);
     } catch (e) {}
-    return id;
   }
 
   function api(path, opts) {
@@ -178,7 +188,22 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     return ctx;
   }
 
-  var visitorId = getVisitorId();
+  // La clave del visitante la emite el servidor (firmada); mientras llega, nada usa visitorId.
+  var visitorId = storedVisitorId();
+  var visitorReady = visitorId
+    ? Promise.resolve(visitorId)
+    : fetch(ORIGIN + '/api/chat/visitor', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ widgetId: WIDGET_ID }),
+      })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; })
+        .then(function (d) {
+          visitorId = (d && d.visitorId) || uuid();
+          if (visitorId) storeVisitorId(visitorId);
+          return visitorId;
+        });
   var open = false;
   var conversationId = null;
   var lastMessageId = null;
@@ -626,6 +651,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     var x = dom('button', { type: 'button', 'aria-label': T('close'), style: 'float:right;background:none;border:none;color:#888;cursor:pointer;font-size:16px;line-height:1;padding:0 0 0 8px;' }, ['×']);
     x.addEventListener('click', obClose);
     obCard.appendChild(x);
+    if (m.from) obCard.appendChild(dom('div', { style: 'font-size:12px;font-weight:600;color:#555;margin-bottom:4px;' }, [m.from]));
     obCard.appendChild(dom('p', { style: 'margin:0 0 10px;white-space:pre-wrap;word-break:break-word;font-size:14px;' }, [m.body]));
     if (m.kind === 'survey') {
       var score = 0;
@@ -698,7 +724,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     .then(function (d) {
       obMessages = (d && d.messages) || [];
       if (obMessages.length) {
-        obEvaluate();
+        visitorReady.then(obEvaluate);
         // Sitios de una sola página: la URL cambia sin recargar.
         setInterval(function () { if (String(location.href) !== obUrl) obEvaluate(); }, 1500);
       }
@@ -1209,7 +1235,16 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     if (open) closeChat(); else openChat();
   }
 
-  btn.addEventListener('click', toggle);
+  btn.addEventListener('click', function () { visitorReady.then(toggle); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (open) {
+      closeChat();
+      try { btn.focus(); } catch (err) {}
+    } else if (obShown) {
+      obClose();
+    }
+  });
   closeBtn.addEventListener('click', closeChat);
   send.addEventListener('click', function () {
     var v = input.value.trim();
@@ -1276,7 +1311,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
 
   // Link del email de respuestas sin leer: la página con #zs-chat abre el chat.
   try {
-    if (location.hash === '#zs-chat') openChat();
+    if (location.hash === '#zs-chat') visitorReady.then(openChat);
   } catch (e) {}
 })();`;
 }

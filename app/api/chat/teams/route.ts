@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createChatTeam, listChatTeams } from '@/lib/chat-collab';
 import { chatError, chatSession, collabError, readBody } from '@/lib/chat-http';
+import { recordChatAudit } from '@/lib/chat-audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,7 @@ export async function POST(req: Request) {
   if (!body) return chatError(400, 'invalid_input');
   try {
     const team = await createChatTeam(s.ws, { name: body.name, memberIds: body.memberIds }, s.agents.map((a) => a.id));
+    await recordChatAudit(s.ws, s.me, 'team.created', { id: team.id, name: team.name, members: team.member_ids.length });
     return NextResponse.json(team, { status: 201 });
   } catch (err) {
     return collabError(err);

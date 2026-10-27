@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { listChatWidgets, parseOfficeHours } from '@/lib/chat-data';
 import { getChatRangeReport, parseReportRange } from '@/lib/chat-inbox';
 import { getChatBreakdownReport, type BreakdownRow } from '@/lib/chat-reports';
@@ -123,12 +123,16 @@ export default async function ChatReportsPage(props: {
             <a className="btn btn-secondary" href={csvHref} download>
               {t('reports.exportCsv')}
             </a>
-            <a className="btn btn-ghost" href={exportHref('csv')} download>
-              {t('reports.exportConversations')}
-            </a>
-            <a className="btn btn-ghost" href={exportHref('json')} download>
-              {t('reports.exportJson')}
-            </a>
+            {isWorkspaceAdmin(user) && (
+              <>
+                <a className="btn btn-ghost" href={exportHref('csv')} download>
+                  {t('reports.exportConversations')}
+                </a>
+                <a className="btn btn-ghost" href={exportHref('json')} download>
+                  {t('reports.exportJson')}
+                </a>
+              </>
+            )}
           </>
         }
       />

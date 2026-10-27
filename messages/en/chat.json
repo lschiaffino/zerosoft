@@ -617,7 +617,8 @@
     "noLink": "To reply, open the chat on the site where you wrote to us.",
     "noReply": "Replies to this email don’t reach the team; answer in the chat.",
     "why": "You get this email because you left your address in the chat and haven’t seen this reply yet.",
-    "canReply": "You can reply to this email: your answer reaches the team."
+    "canReply": "You can reply to this email: your answer reaches the team.",
+    "introEmail": "{agent} answered your email to {widget}:"
   },
   "attributes": {
     "title": "Attributes",
@@ -761,7 +762,8 @@
     "viewing": "{names} is also viewing"
   },
   "variables": {
-    "missing": "No value for {names}: check the reply before sending."
+    "missing": "No value for {names}: check the reply before sending.",
+    "unknown": "Unknown variable {names}: it goes out as written. Use name, first_name, email, agent_name, agent_first_name, widget or an attribute id."
   },
   "copilot": {
     "label": "AI",
@@ -832,16 +834,17 @@
     "live": "Live",
     "needsBody": "Write the message before turning it on.",
     "deleteTitle": "Delete message",
-    "deleteBody": "Delete {name}? Its counts and survey answers are deleted too."
+    "deleteBody": "Delete {name}? Its counts and survey answers are deleted too.",
+    "adminOnly": "Only workspace admins create and edit outbound messages."
   },
   "emailChannel": {
     "title": "Email",
     "sub": "Bring support emails into the inbox and answer them from here.",
     "address": "Inbox address",
     "forward": "Forward your support address (for example support@yourcompany.com) to this one. Each email opens or continues a conversation on the Email channel.",
-    "pointNew": "Replies from the inbox go out by email right away, from the app’s address, with this conversation as the reply-to.",
+    "pointNew": "Replies from the inbox go out by email within the next minute, with the widget name as the sender and this conversation as the reply-to, in the same email thread.",
     "pointReply": "When a visitor answers an email we sent, the answer lands in the same conversation.",
-    "pointOffline": "Quoted text and signatures are removed. The bot doesn’t answer emails.",
+    "pointOffline": "Quoted text and signatures are removed, attachments are kept and automatic replies or bounces are ignored. The bot doesn’t answer emails.",
     "off": "The email channel isn’t set up on this server.",
     "offHint": "The admin sets CHAT_INBOUND_DOMAIN, points its MX to Resend Inbound and adds the email.received webhook to /api/chat/inbound-email with RESEND_WEBHOOK_SECRET.",
     "copy": "Copy address",

@@ -617,7 +617,8 @@
     "noLink": "Para responder, abrí el chat en el sitio donde nos escribiste.",
     "noReply": "Las respuestas a este email no le llegan al equipo; contestá en el chat.",
     "why": "Te llega este email porque dejaste tu dirección en el chat y todavía no viste esta respuesta.",
-    "canReply": "Podés responder este email: tu respuesta le llega al equipo."
+    "canReply": "Podés responder este email: tu respuesta le llega al equipo.",
+    "introEmail": "{agent} respondió tu email a {widget}:"
   },
   "attributes": {
     "title": "Atributos",
@@ -761,7 +762,8 @@
     "viewing": "{names} también la está mirando"
   },
   "variables": {
-    "missing": "Sin dato para {names}: revisá la respuesta antes de enviarla."
+    "missing": "Sin dato para {names}: revisá la respuesta antes de enviarla.",
+    "unknown": "Variable desconocida {names}: sale tal cual. Usá name, first_name, email, agent_name, agent_first_name, widget o el id de un atributo."
   },
   "copilot": {
     "label": "AI",
@@ -832,16 +834,17 @@
     "live": "Activo",
     "needsBody": "Escribí el mensaje antes de activarlo.",
     "deleteTitle": "Borrar mensaje",
-    "deleteBody": "¿Borrar {name}? También se borran sus conteos y las respuestas de la encuesta."
+    "deleteBody": "¿Borrar {name}? También se borran sus conteos y las respuestas de la encuesta.",
+    "adminOnly": "Solo los admins del workspace crean y editan mensajes salientes."
   },
   "emailChannel": {
     "title": "Email",
     "sub": "Traé los emails de soporte a la bandeja y respondelos desde acá.",
     "address": "Dirección de la bandeja",
     "forward": "Reenviá tu dirección de soporte (por ejemplo soporte@tuempresa.com) a esta. Cada email abre o sigue una conversación del canal Email.",
-    "pointNew": "Las respuestas desde la bandeja salen por email enseguida, desde la dirección de la app, con esta conversación como respuesta.",
+    "pointNew": "Las respuestas desde la bandeja salen por email en el próximo minuto, con el nombre del widget como remitente y esta conversación como respuesta, en el mismo hilo de email.",
     "pointReply": "Cuando un visitante responde un email que le mandamos, la respuesta entra en la misma conversación.",
-    "pointOffline": "Se saca el texto citado y la firma. El bot no responde emails.",
+    "pointOffline": "Se saca el texto citado y la firma, se guardan los adjuntos y se ignoran respuestas automáticas y rebotes. El bot no responde emails.",
     "off": "El canal email no está configurado en este servidor.",
     "offHint": "El admin configura CHAT_INBOUND_DOMAIN, apunta su MX a Resend Inbound y agrega el webhook email.received a /api/chat/inbound-email con RESEND_WEBHOOK_SECRET.",
     "copy": "Copiar dirección",

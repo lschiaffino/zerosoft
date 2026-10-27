@@ -105,7 +105,7 @@ export async function exportConversations(
 function cell(v: string | number | null): string {
   if (v === null) return '';
   const s = String(v);
-  const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
+  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
   return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 

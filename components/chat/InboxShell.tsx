@@ -277,6 +277,9 @@ export default function InboxShell({
   }, [refresh]);
 
   useKeyShortcut('/', () => searchRef.current?.focus());
+  // Con una conversación abierta J/K los maneja la conversación (siguiente y anterior).
+  useKeyShortcut('j', () => rows[0] && router.push(`/app/chat/inbox/${rows[0].id}`), !currentId);
+  useKeyShortcut('k', () => rows.length > 0 && router.push(`/app/chat/inbox/${rows[rows.length - 1].id}`), !currentId);
 
   function changeStatus(next: InboxStatus) {
     setStatus(next);

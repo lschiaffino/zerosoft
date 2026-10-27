@@ -1,10 +1,11 @@
 'use client';
 
+import ClientTime from './ClientTime';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import type { ChatVisitorListRow } from '@/lib/chat-data';
-import { formatTimeAgo, formatDateTime } from '@/lib/datetime';
+import { formatDateTime } from '@/lib/datetime';
 import EmptyState from '@/components/ui/EmptyState';
 
 interface PeopleClientProps {
@@ -141,9 +142,7 @@ export default function PeopleClient({ widgetIds }: PeopleClientProps) {
                   </td>
                   <td data-label={t('people.lastSeen')}>
                     {v.last_conversation_at ? (
-                      <time suppressHydrationWarning dateTime={v.last_conversation_at} title={formatDateTime(v.last_conversation_at, locale)}>
-                        {formatTimeAgo(v.last_conversation_at, locale)}
-                      </time>
+                      <ClientTime iso={v.last_conversation_at} />
                     ) : null}
                   </td>
                 </tr>

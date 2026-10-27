@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, realUserId } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
+import { recordChatAudit } from '@/lib/chat-audit';
 import { canAccessWidget } from '@/lib/chat-access';
 import { getChatWidget } from '@/lib/chat-data';
 import { createOutbound, listOutbound } from '@/lib/chat-outbound';
@@ -27,12 +28,16 @@ export async function POST(req: Request, props: Ctx) {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const widget = await getChatWidget(id);
   if (!canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  // Lo que se muestra en el sitio de todos los visitantes: solo admins.
+  if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const limited = await limitWrites('chat', realUserId(user));
   if (limited) return limited;
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body || typeof body !== 'object') return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   try {
-    return NextResponse.json(await createOutbound(id, realUserId(user), body), { status: 201 });
+    const created = await createOutbound(id, realUserId(user), body);
+    await recordChatAudit(user.id, realUserId(user), 'outbound.created', { id: created.id, widget: id, name: created.name, active: created.active });
+    return NextResponse.json(created, { status: 201 });
   } catch (err) {
     return collabError(err);
   }

@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { canAccessWidget } from '@/lib/chat-access';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { getChatWidget } from '@/lib/chat-data';
 import OutboundClient from '@/components/chat/OutboundClient';
 
@@ -15,7 +15,7 @@ export default async function WidgetOutboundPage(props: { params: Promise<{ loca
   if (!widget || !canAccessWidget(widget, user)) notFound();
   return (
     <Suspense fallback={null}>
-      <OutboundClient widgetId={widget.id} />
+      <OutboundClient widgetId={widget.id} canManage={isWorkspaceAdmin(user)} />
     </Suspense>
   );
 }

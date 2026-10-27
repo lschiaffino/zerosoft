@@ -1,5 +1,6 @@
 'use client';
 
+import ClientTime from './ClientTime';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
@@ -12,7 +13,7 @@ import type {
   ChatMessageWithUser,
   ConversationUpdatePayload,
 } from '@/lib/chat-data';
-import { formatTimeAgo, formatDateTime } from '@/lib/datetime';
+import { formatDateTime } from '@/lib/datetime';
 import { CHAT_MESSAGE_MAX, CHAT_UPLOAD_MAX, sendErrorKey } from '@/lib/chat-schema';
 import VisitorPanel from './VisitorPanel';
 import { ConversationAttributes, MergeConversations, TranscriptActions, missingAttributeNames } from './ConversationTools';
@@ -136,6 +137,7 @@ export default function ConversationClient({
   modeRef.current = mode;
   /** Variables sin dato al insertar una respuesta guardada. */
   const [missingVars, setMissingVars] = useState<string[]>([]);
+  const [unknownVars, setUnknownVars] = useState<string[]>([]);
 
   async function heartbeat() {
     try {
@@ -475,6 +477,7 @@ export default function ConversationClient({
           setReply('');
           setMentions([]);
           setMissingVars([]);
+          setUnknownVars([]);
           macroDone();
           await fetchMessages();
           await fetchList();
@@ -582,6 +585,7 @@ export default function ConversationClient({
       attributes,
     });
     setMissingVars(filled.missing);
+    setUnknownVars(filled.unknown);
     setReply((before + filled.text).trimStart() + ' ');
     setCannedIndex(0);
     // Macro: si la respuesta guardada tiene acciones, se aplican al enviar (no
@@ -828,9 +832,7 @@ export default function ConversationClient({
                       <p className="chat-message-meta">
                         <span className="chat-message-name">{name}</span>
                         {m.is_note ? <span className="badge badge-warn">{t('notes.label')}</span> : null}
-                        <time suppressHydrationWarning className="chat-message-time" dateTime={m.created_at} title={formatDateTime(m.created_at, locale)}>
-                          {formatTimeAgo(m.created_at, locale)}
-                        </time>
+                        <ClientTime className="chat-message-time" iso={m.created_at} />
                         {!isVisitor && !m.is_note && m.read_at && !m.deleted_at && (
                           <span className="chat-message-read" suppressHydrationWarning title={formatDateTime(m.read_at, locale)}>
                             {t('read.read')}
@@ -1036,6 +1038,8 @@ export default function ConversationClient({
                 if (!e.target.value.trim()) {
                   setPendingMacro(null);
                   setMissingVars([]);
+                  setUnknownVars([]);
+          setUnknownVars([]);
                 }
                 setCannedIndex(0);
                 sendTyping();
@@ -1069,6 +1073,11 @@ export default function ConversationClient({
             )}
           </div>
 
+          {unknownVars.length > 0 && (
+            <p className="ui-help chat-missing-vars" role="status">
+              {t('variables.unknown', { names: unknownVars.map((v) => `{{${v}}}`).join(', ') })}
+            </p>
+          )}
           {missingVars.length > 0 && (
             <p className="ui-help chat-missing-vars" role="status">
               {t('variables.missing', { names: missingVars.map((v) => `{{${v}}}`).join(', ') })}

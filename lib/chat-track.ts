@@ -4,7 +4,10 @@
  * Linear). Cada vínculo es un pedido de cliente del issue (track_customer_requests,
  * source 'chat', con el link a la conversación), así Track cuenta cuántos
  * clientes lo piden y la conversación muestra el issue con su estado. Varias
- * conversaciones pueden colgar del mismo issue. Server-only.
+ * conversaciones pueden colgar del mismo issue. Los proyectos privados de
+ * Track se respetan: solo se ven, vinculan o desvinculan issues de proyectos
+ * que la persona puede abrir (canAccessTrackProject), y la nota de sistema
+ * del hilo lleva solo el identificador, nunca el título. Server-only.
  */
 import { getDb } from './db';
 import type { ChatConversationRow } from './db';
@@ -32,10 +35,24 @@ export function conversationHref(conversationId: string): string {
   return `/app/chat/inbox/${conversationId}`;
 }
 
-export async function linkedIssues(conversationId: string): Promise<LinkedIssue[]> {
+/** Quién mira: el workspace y el team activo (para los proyectos privados de Track). */
+export interface TrackScope {
+  teamId: string | null;
+  ownerId: string;
+}
+
+async function canSeeProject(projectId: string, scope: TrackScope, cache: Map<string, boolean>): Promise<boolean> {
+  if (cache.has(projectId)) return cache.get(projectId)!;
+  const project = await getProject(projectId);
+  const ok = !!project && (await canAccessTrackProject(project, scope.teamId, scope.ownerId));
+  cache.set(projectId, ok);
+  return ok;
+}
+
+export async function linkedIssues(conversationId: string, scope: TrackScope): Promise<LinkedIssue[]> {
   const rows = (await getDb()
     .prepare(
-      `SELECT r.id AS request_id, i.id AS issue_id, i.identifier, i.title, s.name AS status_name, s.category AS status_category
+      `SELECT r.id AS request_id, i.id AS issue_id, i.project_id, i.identifier, i.title, s.name AS status_name, s.category AS status_category
        FROM track_customer_requests r
        JOIN track_issues i ON i.id = r.issue_id
        LEFT JOIN track_statuses s ON s.id = i.status_id
@@ -45,12 +62,16 @@ export async function linkedIssues(conversationId: string): Promise<LinkedIssue[
     .all(conversationHref(conversationId))) as Array<{
     request_id: string;
     issue_id: string;
+    project_id: string;
     identifier: string;
     title: string;
     status_name: string | null;
     status_category: string | null;
   }>;
-  return rows.map((r) => ({
+  const cache = new Map<string, boolean>();
+  const visible = [];
+  for (const r of rows) if (await canSeeProject(r.project_id, scope, cache)) visible.push(r);
+  return visible.map((r) => ({
     requestId: r.request_id,
     issueId: r.issue_id,
     identifier: r.identifier,
@@ -87,7 +108,7 @@ async function attachRequest(
     personId,
   );
   // Nota de sistema en el hilo (el visitante no la ve).
-  await createChatMessage(conversation.id, 'system', { body: `Track: ${issue.identifier} ${issue.title}` });
+  await createChatMessage(conversation.id, 'system', { body: `Track: ${issue.identifier}` });
 }
 
 export async function createIssueFromConversation(args: {
@@ -111,7 +132,7 @@ export async function createIssueFromConversation(args: {
     { source: 'app' },
   );
   await attachRequest(args.conversation, issue, project, args.personId);
-  return (await linkedIssues(args.conversation.id)).find((l) => l.issueId === issue.id)!;
+  return (await linkedIssues(args.conversation.id, args)).find((l) => l.issueId === issue.id)!;
 }
 
 /** Vincula la conversación a un issue existente por su identificador (WEB-12). */
@@ -131,13 +152,15 @@ export async function linkConversationToIssue(args: {
     const project = await getProject(c.project_id);
     if (!project || !(await canAccessTrackProject(project, args.teamId, args.ownerId))) continue;
     await attachRequest(args.conversation, c, project, args.personId);
-    return (await linkedIssues(args.conversation.id)).find((l) => l.issueId === c.id)!;
+    return (await linkedIssues(args.conversation.id, args)).find((l) => l.issueId === c.id)!;
   }
   throw new ChatTrackError('issue_not_found', 404);
 }
 
 /** Saca el vínculo (el pedido de cliente) sin tocar el issue. */
-export async function unlinkIssue(conversationId: string, requestId: string): Promise<boolean> {
+export async function unlinkIssue(conversationId: string, requestId: string, scope: TrackScope): Promise<boolean> {
+  // Solo los vínculos que la persona ve (no los de un proyecto privado ajeno).
+  if (!(await linkedIssues(conversationId, scope)).some((l) => l.requestId === requestId)) return false;
   return (
     (await getDb()
       .prepare("DELETE FROM track_customer_requests WHERE id = ? AND source = 'chat' AND source_url = ?")

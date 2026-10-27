@@ -5,6 +5,7 @@ import { inlineHtmlToText } from './docs-markdown';
 import { aiKnowledgeFilterSql } from './docs-access';
 import { mergeVisitorMetadata, type VisitorContextPatch } from './chat-visitor-context';
 import type { ChatAttributeDef } from './chat-attributes';
+import { isReservedVisitorKey } from './chat-visitor-key';
 import type {
   ChatAssignmentRuleRow,
   ChatCannedResponseRow,
@@ -484,6 +485,8 @@ export async function getOrCreateChatVisitor(
   externalId: string,
   payload?: VisitorPayload,
 ): Promise<ChatVisitorRow> {
+  // Las claves reservadas (canal email) no se crean ni se usan por esta vía.
+  if (isReservedVisitorKey(externalId)) throw new Error('reserved_visitor_key');
   const db = getDb();
   const existing = (await db
     .prepare('SELECT * FROM chat_visitors WHERE widget_id = ? AND external_id = ?')
@@ -522,6 +525,8 @@ export async function getOrCreateChatVisitor(
  */
 async function applyVisitorIdentity(existing: ChatVisitorRow, payload?: VisitorPayload): Promise<ChatVisitorRow> {
   const db = getDb();
+  // Un visitante del canal email no cambia de identidad desde el widget.
+  if (isReservedVisitorKey(existing.external_id)) return existing;
   if (payload?.verified && payload.email) {
     await db
       .prepare('UPDATE chat_visitors SET email = ?, name = COALESCE(?, name), email_verified = 1 WHERE id = ?')
@@ -540,6 +545,7 @@ export async function getChatVisitorByExternalId(
   widgetId: string,
   externalId: string,
 ): Promise<ChatVisitorRow | undefined> {
+  if (isReservedVisitorKey(externalId)) return undefined;
   return (await getDb()
     .prepare('SELECT * FROM chat_visitors WHERE widget_id = ? AND external_id = ?')
     .get(widgetId, externalId)) as ChatVisitorRow | undefined;
@@ -2395,6 +2401,7 @@ export async function getConversationForCsat(
   externalId: string,
   conversationId: string,
 ): Promise<ChatConversationRow | undefined> {
+  if (isReservedVisitorKey(externalId)) return undefined;
   return (await getDb()
     .prepare(
       `SELECT c.* FROM chat_conversations c

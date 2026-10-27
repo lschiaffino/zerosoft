@@ -44,7 +44,14 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
 
-  const response = await createCannedResponse(params.id, { shortcut, title, body: responseBody });
+  let response;
+  try {
+    response = await createCannedResponse(params.id, { shortcut, title, body: responseBody });
+  } catch (err) {
+    // El atajo ya existe en el widget: 409 (antes era un 500).
+    if (/UNIQUE/i.test(String((err as Error)?.message ?? ''))) return NextResponse.json({ error: 'duplicate_shortcut' }, { status: 409 });
+    throw err;
+  }
   if (body.actions && typeof body.actions === 'object') {
     await setCannedActions(response.id, body.actions as CannedActions);
   }

@@ -363,7 +363,7 @@ function csvCell(v: string | number | null): string {
   if (v === null) return '';
   const s = String(v);
   // Evita inyección de fórmulas al abrir el CSV en una planilla.
-  const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
+  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
   return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 

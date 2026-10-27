@@ -36,6 +36,27 @@ export default function Copilot({
   const [undo, setUndo] = useState<string | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLUListElement>(null);
+
+  /** Flechas, Inicio y Fin mueven el foco entre las opciones del menú (como un menú nativo). */
+  function onMenuKey(e: React.KeyboardEvent<HTMLUListElement>) {
+    const items = Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []);
+    if (items.length === 0) return;
+    const at = items.indexOf(document.activeElement as HTMLButtonElement);
+    let next = -1;
+    if (e.key === 'ArrowDown') next = (at + 1) % items.length;
+    else if (e.key === 'ArrowUp') next = (at - 1 + items.length) % items.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = items.length - 1;
+    if (next >= 0) {
+      e.preventDefault();
+      items[next].focus();
+    }
+  }
+
+  useEffect(() => {
+    if (open) requestAnimationFrame(() => menu.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus());
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -124,10 +145,10 @@ export default function Copilot({
         {busy ? t('copilot.working') : t('copilot.label')}
       </button>
       {open && (
-        <ul className="chat-copilot-menu" role="menu" aria-label={t('copilot.label')}>
+        <ul ref={menu} className="chat-copilot-menu" role="menu" aria-label={t('copilot.label')} onKeyDown={onMenuKey}>
           {items.map((i) => (
             <li key={i.action} role="none">
-              <button type="button" role="menuitem" onClick={() => void run(i.action)} disabled={NEEDS_TEXT.includes(i.action) && !text.trim()}>
+              <button type="button" role="menuitem" tabIndex={-1} onClick={() => void run(i.action)} disabled={NEEDS_TEXT.includes(i.action) && !text.trim()}>
                 {i.label}
               </button>
             </li>

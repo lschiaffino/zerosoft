@@ -172,13 +172,20 @@ export interface PublicOutbound {
   urlValue: string;
   delaySeconds: number;
   audience: ChatOutboundRow['audience'];
+  /** Quién lo manda en la tarjeta: el nombre de pila de quien lo escribió, o el del widget. */
+  from: string;
 }
 
 export async function listPublicOutbound(widgetId: string): Promise<PublicOutbound[]> {
   const rows = (await getDb()
-    .prepare("SELECT * FROM chat_outbound WHERE widget_id = ? AND active = 1 AND body != '' ORDER BY created_at DESC LIMIT 20")
-    .all(widgetId)) as ChatOutboundRow[];
+    .prepare(
+      `SELECT o.*, u.name AS author_name, w.name AS widget_name FROM chat_outbound o
+       JOIN chat_widgets w ON w.id = o.widget_id LEFT JOIN users u ON u.id = o.created_by
+       WHERE o.widget_id = ? AND o.active = 1 AND o.body != '' ORDER BY o.created_at DESC LIMIT 20`,
+    )
+    .all(widgetId)) as Array<ChatOutboundRow & { author_name: string | null; widget_name: string }>;
   return rows.map((r) => ({
+    from: (r.author_name ?? '').trim().split(/\s+/)[0] ? `${(r.author_name ?? '').trim().split(/\s+/)[0]} · ${r.widget_name}` : r.widget_name,
     id: r.id,
     kind: r.kind,
     body: r.body,

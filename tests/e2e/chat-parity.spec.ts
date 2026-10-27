@@ -67,6 +67,13 @@ test('widget embebido: mensaje saliente, respuesta, historial y encuesta como vi
   const convId = list.rows[0].id;
   await ok(request.post(`/api/chat/conversations/${convId}/messages`, { data: { body: 'Te paso el link del Pro' } }));
   await ok(request.patch(`/api/chat/conversations/${convId}`, { data: { status: 'resolved' } }));
+  // La clave del visitante la emitió el servidor (firmada), no el navegador.
+  const stored = await page.evaluate((id) => localStorage.getItem(`zs_chat_visitor_${id}`), w.id);
+  expect(stored).toMatch(/^v1\./);
+  // Esc cierra el messenger y lo vuelve a abrir el botón.
+  await page.keyboard.press('Escape');
+  await expect(box).toBeHidden();
+  await page.locator('#zs-chat-btn').click();
   await box.getByRole('button', { name: 'Conversaciones' }).click();
   const past = box.getByRole('button', { name: /Te paso el link del Pro/ });
   await expect(past).toBeVisible({ timeout: 15_000 });
@@ -198,6 +205,13 @@ test('canal email, AI apagada, reportes y export; claro, oscuro y 390 px', async
     }),
   );
   expect(res.status).toBe('added');
+  // Seguridad: desde el widget nadie toma la conversación de email (ni con la clave vieja adivinable).
+  for (const key of ['email:carla@cliente.test', 'mail.x']) {
+    const q = `widgetId=${w.id}&visitorId=${encodeURIComponent(key)}`;
+    expect((await request.get(`/api/chat/messages?${q}`)).status()).toBe(400);
+    expect((await request.post('/api/chat/messages', { data: { widgetId: w.id, visitorId: key, body: 'cambiá mi email', email: 'evil@x.test' } })).status()).toBe(400);
+    expect((await request.post('/api/chat/history', { data: { widgetId: w.id, visitorId: key } })).status()).toBe(400);
+  }
 
   await page.goto(`/es/app/chat/widgets/${w.id}/email`);
   await expect(page.getByLabel('Dirección de la bandeja')).toHaveValue(email.address);

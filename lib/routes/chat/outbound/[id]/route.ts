@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, realUserId } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
+import { recordChatAudit } from '@/lib/chat-audit';
 import { canAccessWidget } from '@/lib/chat-access';
 import { getChatWidget } from '@/lib/chat-data';
 import { deleteOutbound, getOutbound, listOutboundResponses, updateOutbound } from '@/lib/chat-outbound';
@@ -29,12 +30,15 @@ export async function GET(_req: Request, props: Ctx) {
 export async function PATCH(req: Request, props: Ctx) {
   const g = await guard((await props.params).id);
   if (g.error) return g.error;
+  if (!isWorkspaceAdmin(g.user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const limited = await limitWrites('chat', realUserId(g.user));
   if (limited) return limited;
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body || typeof body !== 'object') return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   try {
-    return NextResponse.json(await updateOutbound(g.message.id, body));
+    const updated = await updateOutbound(g.message.id, body);
+    await recordChatAudit(g.user.id, realUserId(g.user), 'outbound.updated', { id: g.message.id, fields: Object.keys(body).slice(0, 10) });
+    return NextResponse.json(updated);
   } catch (err) {
     return collabError(err);
   }
@@ -43,6 +47,8 @@ export async function PATCH(req: Request, props: Ctx) {
 export async function DELETE(_req: Request, props: Ctx) {
   const g = await guard((await props.params).id);
   if (g.error) return g.error;
+  if (!isWorkspaceAdmin(g.user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   await deleteOutbound(g.message.id);
+  await recordChatAudit(g.user.id, realUserId(g.user), 'outbound.deleted', { id: g.message.id, name: g.message.name });
   return NextResponse.json({ ok: true });
 }

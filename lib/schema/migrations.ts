@@ -5778,6 +5778,8 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE chat_conversations ADD COLUMN team_id TEXT');
       await addColumn(client, "ALTER TABLE chat_conversations ADD COLUMN channel TEXT NOT NULL DEFAULT 'web'");
       await addColumn(client, 'ALTER TABLE chat_conversations ADD COLUMN outbound_id TEXT');
+      // Message-IDs del hilo de email (JSON), para In-Reply-To y References.
+      await addColumn(client, 'ALTER TABLE chat_conversations ADD COLUMN email_thread TEXT');
       await addColumn(client, 'ALTER TABLE chat_assignment_rules ADD COLUMN assign_team_id TEXT');
       await addColumn(client, 'ALTER TABLE chat_assignment_rules ADD COLUMN team_round_robin INTEGER NOT NULL DEFAULT 0');
       await client.executeMultiple(`
@@ -5858,6 +5860,17 @@ export const MIGRATIONS: Migration[] = [
           created_at TEXT NOT NULL DEFAULT (datetime('now')),
           UNIQUE (outbound_id, visitor_key)
         );
+
+        CREATE TABLE IF NOT EXISTS chat_audit_log (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          actor_id TEXT,
+          action TEXT NOT NULL,
+          detail TEXT NOT NULL DEFAULT '{}',
+          ip TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_audit_ws ON chat_audit_log(workspace_id, created_at DESC);
 
         CREATE TABLE IF NOT EXISTS chat_inbound_emails (
           email_id TEXT PRIMARY KEY,

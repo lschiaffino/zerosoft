@@ -3,8 +3,8 @@
  * Intercom: {{name}}, {{first_name}}, {{email}}, {{agent_name}},
  * {{agent_first_name}}, {{widget}} y cualquier atributo de conversación por su
  * id ({{plan}}). Con respaldo: {{first_name|there}} usa "there" si falta el
- * dato. Lo que no se conoce se deja tal cual (así se nota y se corrige antes
- * de enviar). Puro: lo usan el compositor y el servidor.
+ * dato. Lo que no se conoce se deja tal cual y se avisa en el compositor (así
+ * se corrige antes de enviar). Puro: lo usan el compositor y el servidor.
  */
 
 export interface ReplyVariableContext {
@@ -46,8 +46,9 @@ function lookup(key: string, ctx: ReplyVariableContext): string | undefined {
 }
 
 /** Reemplaza las variables conocidas; devuelve también las que quedaron sin valor. */
-export function fillReplyVariables(text: string, ctx: ReplyVariableContext): { text: string; missing: string[] } {
+export function fillReplyVariables(text: string, ctx: ReplyVariableContext): { text: string; missing: string[]; unknown: string[] } {
   const missing: string[] = [];
+  const unknown: string[] = [];
   const out = text.replace(PATTERN, (whole, key: string, fallback: string | undefined) => {
     const value = lookup(key, ctx);
     if (value !== undefined) return value;
@@ -57,9 +58,10 @@ export function fillReplyVariables(text: string, ctx: ReplyVariableContext): { t
       missing.push(key);
       return '';
     }
+    unknown.push(key);
     return whole;
   });
   // Un hueco vacío deja "Hola ," o dobles espacios: se limpian.
   const cleaned = out.replace(/[ \t]+([,.!?;:])/g, '$1').replace(/[ \t]{2,}/g, ' ');
-  return { text: cleaned, missing };
+  return { text: cleaned, missing, unknown };
 }

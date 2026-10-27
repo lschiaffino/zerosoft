@@ -1,3 +1,4 @@
+import { cleanPublicVisitorKey } from '@/lib/chat-visitor-key';
 import { NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import {
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
   if (limited) return limited;
   const { searchParams } = new URL(req.url);
   const widgetId = searchParams.get('widgetId') ?? '';
-  const visitorExternalId = searchParams.get('visitorId') ?? '';
+  const visitorExternalId = cleanPublicVisitorKey(searchParams.get('visitorId')) ?? '';
   const conversationId = searchParams.get('conversationId') ?? '';
 
   if (!widgetId || !visitorExternalId || !conversationId) {
@@ -58,7 +59,7 @@ export async function POST(req: Request) {
   }
 
   const widgetId = typeof body.widgetId === 'string' ? body.widgetId : '';
-  const visitorExternalId = typeof body.visitorId === 'string' ? body.visitorId : '';
+  const visitorExternalId = cleanPublicVisitorKey(body.visitorId) ?? '';
   const conversationId = typeof body.conversationId === 'string' ? body.conversationId : '';
 
   if (!widgetId || !visitorExternalId || !conversationId) {

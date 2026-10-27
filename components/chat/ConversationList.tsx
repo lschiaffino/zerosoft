@@ -1,9 +1,10 @@
 'use client';
 
+import ClientTime, { useMounted } from './ClientTime';
 import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import type { ChatConversationListRow } from '@/lib/chat-data';
-import { formatTimeAgo, formatDateTime } from '@/lib/datetime';
+import { formatTimeAgo } from '@/lib/datetime';
 import EmptyState from '@/components/ui/EmptyState';
 import { initials } from './icons';
 import SlaNote from './SlaNote';
@@ -39,6 +40,7 @@ export default function ConversationList({
 }: ConversationListProps) {
   const t = useTranslations('chat');
   const locale = useLocale();
+  const mounted = useMounted();
 
   if (conversations.length === 0) {
     return <EmptyState quiet title={emptyTitle ?? t('inbox.empty')} body={emptyBody} product="chat" />;
@@ -77,9 +79,7 @@ export default function ConversationList({
               <span className="chat-row-main">
                 <span className="chat-row-top">
                   <span className="chat-row-name">{name}</span>
-                  <time suppressHydrationWarning className="chat-row-time" dateTime={c.updated_at} title={formatDateTime(c.updated_at, locale)}>
-                    {formatTimeAgo(c.updated_at, locale)}
-                  </time>
+                  <ClientTime className="chat-row-time" iso={c.updated_at} />
                 </span>
                 {c.subject && c.last_message_body && <span className="chat-row-subject">{c.subject}</span>}
                 <span className="chat-row-preview">{text || t('conversation.noMessages')}</span>
@@ -90,7 +90,9 @@ export default function ConversationList({
                   {c.status !== 'open' && (
                     <span className="chat-row-status" suppressHydrationWarning>
                       {c.status === 'snoozed' && c.snoozed_until
-                        ? t('inbox.snoozedUntil', { when: formatTimeAgo(c.snoozed_until, locale) })
+                        ? mounted
+                          ? t('inbox.snoozedUntil', { when: formatTimeAgo(c.snoozed_until, locale) })
+                          : t('conversation.snoozed')
                         : t(`conversation.${c.status}`)}
                     </span>
                   )}

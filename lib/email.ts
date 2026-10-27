@@ -24,10 +24,20 @@ interface SendOptions {
   from?: string;
   /** Reply-To (Chat: la dirección de entrada de la conversación, lib/chat-email.ts). */
   replyTo?: string;
+  /** Headers extra (Chat: In-Reply-To y References para agrupar el hilo). */
+  headers?: Record<string, string>;
 }
 
 function fromEmail(): string {
   return process.env.EMAIL_FROM ?? 'calendar@zerosoft.ai';
+}
+
+/** Remitente con otro nombre visible y la misma dirección (Chat: el nombre del widget). */
+export function namedSender(name: string): string {
+  const base = appSender();
+  const address = base.match(/<([^>]+)>/)?.[1] ?? base.trim();
+  const clean = name.replace(/["\\<>\r\n]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  return clean ? `"${clean}" <${address}>` : base;
 }
 
 /**
@@ -59,6 +69,7 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
         text: opts.text,
         html: opts.html,
         ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
+        ...(opts.headers && Object.keys(opts.headers).length ? { headers: opts.headers } : {}),
         attachments: opts.attachments?.map((a) => ({
           filename: a.filename,
           content: Buffer.from(a.content, 'utf8').toString('base64'),

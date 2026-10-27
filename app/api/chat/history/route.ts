@@ -1,3 +1,4 @@
+import { cleanPublicVisitorKey } from '@/lib/chat-visitor-key';
 import { NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import { getChatWidget } from '@/lib/chat-data';
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
   const widgetId = typeof body?.widgetId === 'string' ? body.widgetId.slice(0, 64) : '';
-  const visitorId = typeof body?.visitorId === 'string' ? body.visitorId.slice(0, 128) : '';
+  const visitorId = cleanPublicVisitorKey(body?.visitorId) ?? '';
   if (!widgetId || !visitorId) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   const widget = await getChatWidget(widgetId);
   if (!widget) return NextResponse.json({ error: 'not_found' }, { status: 404 });

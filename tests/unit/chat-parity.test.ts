@@ -13,10 +13,10 @@ vi.mock('next/server', async (orig) => ({
     void task().catch(() => {});
   },
 }));
-const sentEmails = vi.hoisted(() => [] as Array<{ to: string; subject: string; text: string; replyTo?: string }>);
+const sentEmails = vi.hoisted(() => [] as Array<{ to: string; subject: string; text: string; replyTo?: string; from?: string; headers?: Record<string, string> }>);
 vi.mock('@/lib/email', async (orig) => ({
   ...(await orig<typeof import('@/lib/email')>()),
-  sendEmail: async (opts: { to: string; subject: string; text: string; replyTo?: string }) => {
+  sendEmail: async (opts: { to: string; subject: string; text: string; replyTo?: string; from?: string; headers?: Record<string, string> }) => {
     sentEmails.push(opts);
     return { ok: true, provider: 'test' };
   },
@@ -79,6 +79,16 @@ import { POST as historyPost } from '@/app/api/chat/history/route';
 import { GET as outboundGet, POST as outboundPost } from '@/app/api/chat/outbound/route';
 import { POST as inboundPost } from '@/app/api/chat/inbound-email/route';
 import { addMember, createTeam } from '@/lib/teams';
+import { cleanPublicVisitorKey, issueVisitorToken, isReservedVisitorKey, isSignedVisitorToken } from '@/lib/chat-visitor-key';
+import { GET as messagesGet } from '@/app/api/chat/messages/route';
+import { GET as identifyGet } from '@/app/api/chat/identify/route';
+import { POST as visitorTokenPost } from '@/app/api/chat/visitor/route';
+import { POST as csatPost } from '@/app/api/chat/csat/route';
+import { POST as readPost } from '@/app/api/chat/read/route';
+import { GET as typingGet } from '@/app/api/chat/typing/route';
+import { GET as exportGet } from '@/app/api/chat/export/route';
+import { listChatAudit } from '@/lib/chat-audit';
+import { emailChannelVisitor } from '@/lib/chat-email';
 import { makeUser } from './helpers';
 
 const now = () => new Date().toISOString();
@@ -213,6 +223,7 @@ describe('Chat: variables en respuestas guardadas', () => {
       attributes: { plan: 'Pro' },
     });
     expect(out.text).toBe('Hola Ana, soy Beto. Plan: Pro. ana@x.com {{otra}} Ana Pérez');
+    expect(out.unknown).toEqual(['otra']);
     const empty = fillReplyVariables('Hola {{first_name}}, ¿todo bien? {{first_name|che}}', {});
     expect(empty.text).toBe('Hola, ¿todo bien? che');
     expect(empty.missing).toEqual(['first_name']);
@@ -295,8 +306,17 @@ describe('Chat: mensajes salientes y encuestas', () => {
     expect(((await listed.json()) as { messages: unknown[] }).messages).toHaveLength(1);
     const bad = await outboundPost(post('http://x', { widgetId: widget.id, visitorId: 'v2', outboundId: draft.id, event: 'seen' }));
     expect(bad.status).toBe(404);
-    const oob = await outboundPost(post('http://x', { widgetId: widget.id, visitorId: 'v2', outboundId: survey.id, event: 'survey', score: 9 }));
+    // Un id inventado no cuenta (403); una clave emitida por el servidor sí.
+    const made = await outboundPost(post('http://x', { widgetId: widget.id, visitorId: 'inventado-1', outboundId: survey.id, event: 'seen' }));
+    expect(made.status).toBe(403);
+    const token = issueVisitorToken(widget.id);
+    const oob = await outboundPost(post('http://x', { widgetId: widget.id, visitorId: token, outboundId: survey.id, event: 'survey', score: 9 }));
     expect(oob.status).toBe(400);
+    const seen = await outboundPost(post('http://x', { widgetId: widget.id, visitorId: token, outboundId: survey.id, event: 'seen' }));
+    expect(seen.status).toBe(200);
+    // La firma es por widget.
+    const other = await outboundPost(post('http://x', { widgetId: widget.id, visitorId: issueVisitorToken('otro-widget'), outboundId: survey.id, event: 'seen' }));
+    expect(other.status).toBe(403);
   });
 
   it('responder un mensaje saliente arranca la conversación con ese mensaje del equipo', async () => {
@@ -366,8 +386,17 @@ describe('Chat: canal email (Resend Inbound)', () => {
   it('un email a la dirección del widget abre una conversación de email y la respuesta sale por email enseguida', async () => {
     process.env.CHAT_INBOUND_DOMAIN = 'in.zerosoft.test';
     const { owner, widget } = await setup('inbound2');
+    // Reenviado desde soporte@: el To es el del cliente y nuestra dirección llega en received_for.
     const res = await processInboundEmail(
-      { emailId: `e-${crypto.randomUUID()}`, from: 'Carla <carla@cliente.test>', to: [inboundAddress('inbox', widget.id)!], subject: 'Fwd: No puedo entrar', text: 'Me da error' },
+      {
+        emailId: `e-${crypto.randomUUID()}`,
+        from: 'Carla <carla@cliente.test>',
+        to: ['soporte@cliente.test', inboundAddress('inbox', widget.id)!],
+        subject: 'Fwd: No puedo entrar',
+        text: 'Me da error',
+        messageId: '<abc-1@cliente.test>',
+        attachments: [{ filename: 'captura.png', contentType: 'image/png', data: Buffer.from('89504e470d0a1a0a', 'hex') }],
+      },
       schedule,
     );
     expect(res).toMatchObject({ status: 'added', created: true });
@@ -388,12 +417,52 @@ describe('Chat: canal email (Resend Inbound)', () => {
     expect(mine[0].subject).toBe('Re: No puedo entrar');
     expect(mine[0].replyTo).toBe(inboundAddress('reply', convId));
     expect(mine[0].text).toContain('Probá restablecer la clave');
+    expect(mine[0].text).toContain('answered your email');
+    expect(mine[0].from).toBe('"inbound2 widget" <notifications@zerosoft.ai>');
+    expect(mine[0].headers).toEqual({ 'In-Reply-To': '<abc-1@cliente.test>', References: '<abc-1@cliente.test>' });
+    // El adjunto quedó en el mensaje del visitante.
+    const first = (await getDb().prepare("SELECT attachments FROM chat_messages WHERE conversation_id = ? AND sender_type = 'visitor'").get(convId)) as { attachments: string };
+    expect(JSON.parse(first.attachments)).toEqual([expect.objectContaining({ name: 'captura.png', type: 'image' })]);
+    // El visitante del canal email tiene una clave reservada y aleatoria.
+    const v = (await getDb().prepare('SELECT external_id FROM chat_visitors WHERE id = ?').get(conv!.visitor_id)) as { external_id: string };
+    expect(v.external_id).toMatch(/^mail\.[0-9a-f-]{36}$/);
+  });
+
+  it('descarta respuestas automáticas, rebotes, nuestro propio dominio y fallas de DMARC', async () => {
+    process.env.CHAT_INBOUND_DOMAIN = 'in.zerosoft.test';
+    const { widget } = await setup('inbound4');
+    const to = [inboundAddress('inbox', widget.id)!];
+    const base = { to, subject: 'x', text: 'hola' };
+    const id = () => `e-${crypto.randomUUID()}`;
+    expect(await processInboundEmail({ ...base, emailId: id(), from: 'a@c.test', headers: { 'auto-submitted': 'auto-replied' } }, schedule)).toEqual({ status: 'ignored', reason: 'auto_submitted' });
+    expect(await processInboundEmail({ ...base, emailId: id(), from: 'MAILER-DAEMON@c.test' }, schedule)).toEqual({ status: 'ignored', reason: 'bounce' });
+    expect(await processInboundEmail({ ...base, emailId: id(), from: 'x@in.zerosoft.test' }, schedule)).toEqual({ status: 'ignored', reason: 'own_sender' });
+    expect(await processInboundEmail({ ...base, emailId: id(), from: 'a@c.test', authentication: { spf: 'pass', dkim: 'pass', dmarc: 'fail' } }, schedule)).toEqual({ status: 'ignored', reason: 'auth_failed' });
+    expect(await processInboundEmail({ ...base, emailId: id(), from: 'a@c.test', authentication: { spf: 'fail', dkim: 'fail', dmarc: 'gray' } }, schedule)).toEqual({ status: 'ignored', reason: 'auth_failed' });
+    expect((await processInboundEmail({ ...base, emailId: id(), from: 'a@c.test', headers: { 'auto-submitted': 'no' }, authentication: { spf: 'pass', dkim: 'gray', dmarc: 'pass' } }, schedule)).status).toBe('added');
   });
 
   it('el webhook exige firma (o el modo de prueba) y procesa email.received', async () => {
     process.env.CHAT_INBOUND_DOMAIN = 'in.zerosoft.test';
     const { widget } = await setup('inbound3');
-    const event = { type: 'email.received', data: { email_id: `e-${crypto.randomUUID()}`, from: 'dani@c.test', to: [inboundAddress('inbox', widget.id)], subject: 'Hola', text: 'Consulta' } };
+    // Forma del payload de la doc de Resend (to del cliente, nuestra dirección en received_for).
+    const event = {
+      type: 'email.received',
+      created_at: '2026-02-22T23:41:12.126Z',
+      data: {
+        email_id: `e-${crypto.randomUUID()}`,
+        created_at: '2026-02-22T23:41:11.894Z',
+        from: 'dani@c.test',
+        to: ['soporte@c.test'],
+        bcc: [],
+        cc: [],
+        received_for: [inboundAddress('inbox', widget.id)],
+        message_id: '<111-222-333@c.test>',
+        subject: 'Hola',
+        attachments: [],
+        text: 'Consulta',
+      },
+    };
     expect((await inboundPost(post('http://x/api/chat/inbound-email', event))).status).toBe(503);
     process.env.RESEND_WEBHOOK_SECRET = `whsec_${Buffer.from('s'.repeat(24)).toString('base64')}`;
     expect((await inboundPost(post('http://x/api/chat/inbound-email', event))).status).toBe(401);
@@ -431,6 +500,8 @@ describe('Chat: reportes por desglose y export', () => {
     expect(list).toHaveLength(2);
     expect(list.find((c) => c.id === conversation.id)?.messages?.map((m) => m.from)).toEqual(['visitor', 'bot']);
     expect(exportToCsv(list)).toContain("'=HYPERLINK(1)");
+    await getDb().prepare("UPDATE chat_visitors SET name = ? WHERE id = ?").run('\t=cmd', conversation.visitor_id);
+    expect(exportToCsv(await exportConversations([widget.id], range))).toContain("'\t=cmd");
   });
 });
 
@@ -475,7 +546,11 @@ describe('Chat → Track y ⌘K', () => {
     await expect(linkConversationToIssue({ conversation: second, identifier: linked.identifier, teamId: null, ownerId: owner.id, personId: owner.id })).rejects.toThrow('already_linked');
     const requests = (await getDb().prepare("SELECT COUNT(*) AS c FROM track_customer_requests WHERE issue_id = ? AND source = 'chat'").get(linked.issueId)) as { c: number };
     expect(Number(requests.c)).toBe(2);
-    expect((await linkedIssues(conversation.id)).map((i) => i.identifier)).toEqual([linked.identifier]);
+    expect((await linkedIssues(conversation.id, { teamId: null, ownerId: owner.id })).map((i) => i.identifier)).toEqual([linked.identifier]);
+    // Otro workspace no ve el issue vinculado (proyecto ajeno) ni el título en la nota de sistema.
+    expect(await linkedIssues(conversation.id, { teamId: null, ownerId: 'otro' })).toEqual([]);
+    const system = (await getDb().prepare("SELECT body FROM chat_messages WHERE conversation_id = ? AND sender_type = 'system'").all(conversation.id)) as Array<{ body: string }>;
+    expect(system.map((m) => m.body)).toEqual([`Track: ${linked.identifier}`]);
 
     // Otro workspace no puede vincular ese issue.
     const stranger = await setup('track1b');
@@ -492,3 +567,73 @@ describe('Chat → Track y ⌘K', () => {
 });
 
 void run;
+
+describe('Chat: el widget no puede usar visitantes del canal email', () => {
+  it('ninguna ruta pública acepta claves reservadas ni deja leer, escribir o cambiar la identidad del visitante de email', async () => {
+    process.env.CHAT_INBOUND_DOMAIN = 'in.zerosoft.test';
+    const { owner, widget } = await setup('hijack1');
+    const r = await processInboundEmail(
+      { emailId: `e-${crypto.randomUUID()}`, from: 'victima@cliente.test', to: [inboundAddress('inbox', widget.id)!], subject: 'Factura', text: 'mi factura' },
+      schedule,
+    );
+    const convId = (r as { conversationId: string }).conversationId;
+    await createChatMessage(convId, 'user', { body: 'link secreto', userId: owner.id });
+    const visitor = (await getDb().prepare('SELECT * FROM chat_visitors WHERE id = (SELECT visitor_id FROM chat_conversations WHERE id = ?)').get(convId)) as { id: string; external_id: string; email: string };
+
+    for (const key of ['email:victima@cliente.test', visitor.external_id, ' MAIL.x ']) {
+      expect(isReservedVisitorKey(key)).toBe(true);
+      expect(cleanPublicVisitorKey(key)).toBeNull();
+      const q = `widgetId=${widget.id}&visitorId=${encodeURIComponent(key)}`;
+      expect((await messagesGet(new Request(`http://x/api/chat/messages?${q}`))).status).toBe(400);
+      expect((await visitorPost(post('http://x', { widgetId: widget.id, visitorId: key, body: 'mandalo a evil@x.test', email: 'evil@x.test' }))).status).toBe(400);
+      expect((await historyPost(post('http://x', { widgetId: widget.id, visitorId: key }))).status).toBe(400);
+      expect((await identifyGet(new Request(`http://x/api/chat/identify?widgetId=${widget.id}&externalId=${encodeURIComponent(key)}`))).status).toBe(400);
+      expect((await csatPost(post('http://x', { widgetId: widget.id, visitorId: key, conversationId: convId, score: 1 }))).status).toBe(400);
+      expect((await readPost(post('http://x', { widgetId: widget.id, visitorId: key, conversationId: convId }))).status).toBe(400);
+      expect((await typingGet(new Request(`http://x/api/chat/typing?${q}&conversationId=${convId}`))).status).toBe(400);
+    }
+    // Ni por la capa de datos: crear o tomar un visitante con clave reservada falla.
+    await expect(getOrCreateChatVisitor(widget.id, visitor.external_id, { email: 'evil@x.test' })).rejects.toThrow('reserved_visitor_key');
+    const after = (await getDb().prepare('SELECT email FROM chat_visitors WHERE id = ?').get(visitor.id)) as { email: string };
+    expect(after.email).toBe('victima@cliente.test');
+    // El mismo email vuelve al mismo visitante, sin pasar por las rutas públicas.
+    expect((await emailChannelVisitor(widget.id, 'VICTIMA@cliente.test', null)).id).toBe(visitor.id);
+  });
+
+  it('una identidad declarada no pisa el email de un visitante verificado', async () => {
+    const { widget } = await setup('hijack2');
+    const v = await getOrCreateChatVisitor(widget.id, 'dev-1', { email: 'real@x.test', verified: true });
+    const again = await getOrCreateChatVisitor(widget.id, 'dev-1', { email: 'otro@x.test', name: 'Otro' });
+    expect(again.email).toBe('real@x.test');
+    expect(again.id).toBe(v.id);
+  });
+
+  it('el servidor emite claves firmadas por widget', async () => {
+    const { widget } = await setup('token1');
+    const res = await visitorTokenPost(post('http://x/api/chat/visitor', { widgetId: widget.id }));
+    expect(res.status).toBe(201);
+    const { visitorId } = (await res.json()) as { visitorId: string };
+    expect(visitorId).toMatch(/^v1\./);
+    expect(isSignedVisitorToken(widget.id, visitorId)).toBe(true);
+    expect(isSignedVisitorToken('otro', visitorId)).toBe(false);
+    expect(isSignedVisitorToken(widget.id, visitorId.slice(0, -1) + (visitorId.endsWith('A') ? 'B' : 'A'))).toBe(false);
+    expect(cleanPublicVisitorKey(visitorId)).toBe(visitorId);
+    expect((await visitorTokenPost(post('http://x', { widgetId: 'no-existe' }))).status).toBe(404);
+  });
+});
+
+describe('Chat: export solo para admins, con auditoría', () => {
+  it('un miembro recibe 403; el admin exporta y queda registrado', async () => {
+    const owner = await makeUser('exp1');
+    const widget = await createChatWidget(owner.id, null, { name: 'exp widget' });
+    session.user = { id: owner.id, email: owner.email, role: 'member' };
+    expect((await exportGet(new Request('http://x/api/chat/export?format=json&notes=1'))).status).toBe(403);
+    session.user = { id: owner.id, email: owner.email, role: 'owner' };
+    const ok = await exportGet(new Request('http://x/api/chat/export?format=csv'));
+    expect(ok.status).toBe(200);
+    const log = await listChatAudit(owner.id);
+    expect(log.map((e) => e.action)).toEqual(['export.csv']);
+    void widget;
+    session.user = null;
+  });
+});

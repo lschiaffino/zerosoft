@@ -617,7 +617,8 @@
     "noLink": "Para responder, abra o chat no site onde você nos escreveu.",
     "noReply": "Respostas a este email não chegam à equipe; responda no chat.",
     "why": "Você recebe este email porque deixou seu endereço no chat e ainda não viu esta resposta.",
-    "canReply": "Você pode responder este email: sua resposta chega ao time."
+    "canReply": "Você pode responder este email: sua resposta chega ao time.",
+    "introEmail": "{agent} respondeu seu email para {widget}:"
   },
   "attributes": {
     "title": "Atributos",
@@ -761,7 +762,8 @@
     "viewing": "{names} também está vendo"
   },
   "variables": {
-    "missing": "Sem dado para {names}: revise a resposta antes de enviar."
+    "missing": "Sem dado para {names}: revise a resposta antes de enviar.",
+    "unknown": "Variável desconhecida {names}: sai como está. Use name, first_name, email, agent_name, agent_first_name, widget ou o id de um atributo."
   },
   "copilot": {
     "label": "IA",
@@ -832,16 +834,17 @@
     "live": "Ativa",
     "needsBody": "Escreva a mensagem antes de ativar.",
     "deleteTitle": "Apagar mensagem",
-    "deleteBody": "Apagar {name}? As contagens e as respostas da pesquisa também são apagadas."
+    "deleteBody": "Apagar {name}? As contagens e as respostas da pesquisa também são apagadas.",
+    "adminOnly": "Só os admins do workspace criam e editam mensagens de saída."
   },
   "emailChannel": {
     "title": "Email",
     "sub": "Traga os emails de suporte para a caixa e responda daqui.",
     "address": "Endereço da caixa",
     "forward": "Encaminhe seu endereço de suporte (por exemplo suporte@suaempresa.com) para este. Cada email abre ou continua uma conversa do canal Email.",
-    "pointNew": "As respostas da caixa saem por email na hora, do endereço do app, com esta conversa como resposta.",
+    "pointNew": "As respostas da caixa saem por email no próximo minuto, com o nome do widget como remetente e esta conversa como resposta, no mesmo fio de email.",
     "pointReply": "Quando um visitante responde um email que mandamos, a resposta entra na mesma conversa.",
-    "pointOffline": "O texto citado e a assinatura são removidos. O bot não responde emails.",
+    "pointOffline": "O texto citado e a assinatura são removidos, os anexos ficam salvos e respostas automáticas ou devoluções são ignoradas. O bot não responde emails.",
     "off": "O canal email não está configurado neste servidor.",
     "offHint": "O admin configura CHAT_INBOUND_DOMAIN, aponta o MX para o Resend Inbound e adiciona o webhook email.received em /api/chat/inbound-email com RESEND_WEBHOOK_SECRET.",
     "copy": "Copiar endereço",

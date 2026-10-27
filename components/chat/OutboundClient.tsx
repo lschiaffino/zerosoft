@@ -42,7 +42,7 @@ const EMPTY: Form = { name: '', kind: 'chat', body: '', urlMatch: 'any', urlValu
  * responde, la conversación arranca con él) o una encuesta de 1 a 5, por
  * página, segundos en la página y audiencia. Cada visitante lo ve una vez.
  */
-export default function OutboundClient({ widgetId }: { widgetId: string }) {
+export default function OutboundClient({ widgetId, canManage = true }: { widgetId: string; canManage?: boolean }) {
   const t = useTranslations('chat');
   const locale = useLocale();
   const params = useSearchParams();
@@ -76,11 +76,11 @@ export default function OutboundClient({ widgetId }: { widgetId: string }) {
   useEffect(() => {
     const id = params.get('open');
     const row = id ? rows.find((r) => r.id === id) : null;
-    if (row) startEdit(row);
+    if (row && canManage) startEdit(row);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, rows.length]);
 
-  useKeyShortcut('c', () => startCreate(), editing === null);
+  useKeyShortcut('c', () => startCreate(), canManage && editing === null);
 
   function startCreate() {
     setFormError(null);
@@ -179,7 +179,7 @@ export default function OutboundClient({ widgetId }: { widgetId: string }) {
           </h2>
           <p className="ui-section-desc">{t('outbound.sub')}</p>
         </div>
-        {rows.length > 0 && (
+        {rows.length > 0 && canManage && (
           <button type="button" className="btn btn-primary btn-sm" onClick={startCreate} aria-keyshortcuts="c">
             {t('outbound.add')}
             <kbd className="kbd">C</kbd>
@@ -202,11 +202,13 @@ export default function OutboundClient({ widgetId }: { widgetId: string }) {
       ) : rows.length === 0 ? (
         <EmptyState
           title={t('outbound.empty')}
-          body={t('outbound.emptySub')}
+          body={canManage ? t('outbound.emptySub') : t('outbound.adminOnly')}
           action={
-            <button type="button" className="btn btn-primary" onClick={startCreate}>
-              {t('outbound.add')}
-            </button>
+            canManage ? (
+              <button type="button" className="btn btn-primary" onClick={startCreate}>
+                {t('outbound.add')}
+              </button>
+            ) : undefined
           }
           product="chat"
         />
@@ -234,15 +236,21 @@ export default function OutboundClient({ widgetId }: { widgetId: string }) {
               {rows.map((r) => (
                 <tr key={r.id} data-inactive={r.active === 1 ? undefined : true}>
                   <td>
-                    <button type="button" className="chat-row-button" onClick={() => startEdit(r)}>
-                      {r.name}
-                    </button>
+                    {canManage ? (
+                      <button type="button" className="chat-row-button" onClick={() => startEdit(r)}>
+                        {r.name}
+                      </button>
+                    ) : (
+                      <span className="chat-row-button">{r.name}</span>
+                    )}
                   </td>
                   <td data-label={t('outbound.kind')}>{t(`outbound.kinds.${r.kind}`)}</td>
                   <td data-label={t('outbound.where')}>
-                    {where(r)}
-                    {r.delay_seconds > 0 && <span className="chat-quiet"> · {t('outbound.afterSeconds', { s: r.delay_seconds })}</span>}
-                    <span className="chat-quiet"> · {t(`outbound.audiences.${r.audience}`)}</span>
+                    <span>
+                      {where(r)}
+                      {r.delay_seconds > 0 && <span className="chat-quiet"> · {t('outbound.afterSeconds', { s: r.delay_seconds })}</span>}
+                      <span className="chat-quiet"> · {t(`outbound.audiences.${r.audience}`)}</span>
+                    </span>
                   </td>
                   <td className="num data" data-label={t('outbound.shown')}>
                     {formatNumber(r.shown_count, locale)}
@@ -256,11 +264,12 @@ export default function OutboundClient({ widgetId }: { widgetId: string }) {
                   </td>
                   <td data-label={t('rules.state')}>
                     <label className="ui-switch">
-                      <input type="checkbox" role="switch" checked={r.active === 1} onChange={() => void toggle(r)} aria-label={t('outbound.toggle', { name: r.name })} />
+                      <input type="checkbox" role="switch" checked={r.active === 1} disabled={!canManage} onChange={() => void toggle(r)} aria-label={t('outbound.toggle', { name: r.name })} />
                       <span aria-hidden="true">{r.active === 1 ? t('rules.active') : t('rules.inactive')}</span>
                     </label>
                   </td>
                   <td className="chat-row-actions">
+                    {canManage && (
                     <button
                       type="button"
                       className="btn btn-ghost btn-icon btn-sm"
@@ -270,6 +279,7 @@ export default function OutboundClient({ widgetId }: { widgetId: string }) {
                     >
                       <ChatIcon name="trash" size={14} />
                     </button>
+                    )}
                   </td>
                 </tr>
               ))}

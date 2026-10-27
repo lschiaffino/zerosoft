@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
+import { recordChatAudit } from '@/lib/chat-audit';
+import { clientIp } from '@/lib/rate-limit';
 import { listChatWidgets } from '@/lib/chat-data';
 import { parseReportRange } from '@/lib/chat-inbox';
 import { exportConversations, exportToCsv } from '@/lib/chat-export';
@@ -10,10 +12,13 @@ export const dynamic = 'force-dynamic';
 /**
  * Export masivo: ?from=YYYY-MM-DD&to=YYYY-MM-DD&format=csv|json[&notes=1][&status=…].
  * JSON trae los mensajes; CSV, una fila por conversación. Tope EXPORT_MAX.
+ * Solo admins del workspace (es el historial completo de clientes), y queda
+ * en el registro de auditoría de Chat.
  */
 export async function GET(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const limited = await limitWrites('chat-export', user.actingUser?.id ?? user.id, 10, 60);
   if (limited) return limited;
   const sp = new URL(req.url).searchParams;
@@ -25,6 +30,13 @@ export async function GET(req: Request) {
     widgets.map((w) => w.id),
     range,
     { withMessages: json, withNotes: sp.get('notes') === '1', status },
+  );
+  await recordChatAudit(
+    user.id,
+    realUserId(user),
+    json ? 'export.json' : 'export.csv',
+    { from: range.fromDate, to: range.toDate, status: status ?? null, notes: json && sp.get('notes') === '1', conversations: list.length },
+    clientIp(req),
   );
   const name = `chat-conversations-${range.fromDate}-${range.toDate}`;
   if (json) {

@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from './ClientTime';
 import { useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
@@ -35,6 +36,7 @@ interface VisitorPanelProps {
 export default function VisitorPanel({ conversation }: VisitorPanelProps) {
   const t = useTranslations('chat');
   const locale = useLocale();
+  const mounted = useMounted();
   const [crmBusy, setCrmBusy] = useState(false);
   const [linkedId, setLinkedId] = useState<string | null>(null);
   const [crmNotice, setCrmNotice] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
@@ -133,7 +135,7 @@ export default function VisitorPanel({ conversation }: VisitorPanelProps) {
                 {page.title && <dd className="ui-help data">{shortUrl(page.url)}</dd>}
                 {page.seenAt && (
                   <dd className="ui-help" suppressHydrationWarning>
-                    {t('visitorPanel.pageSeen', { when: formatTimeAgo(page.seenAt, locale) })}
+                    {mounted ? t('visitorPanel.pageSeen', { when: formatTimeAgo(page.seenAt, locale) }) : null}
                   </dd>
                 )}
               </div>

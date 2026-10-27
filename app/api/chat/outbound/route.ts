@@ -1,6 +1,7 @@
+import { cleanPublicVisitorKey, isSignedVisitorToken } from '@/lib/chat-visitor-key';
 import { NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
-import { getChatWidget } from '@/lib/chat-data';
+import { getChatVisitorByExternalId, getChatWidget } from '@/lib/chat-data';
 import { getActiveOutbound, listPublicOutbound, recordOutboundSeen, submitOutboundSurvey } from '@/lib/chat-outbound';
 
 export const dynamic = 'force-dynamic';
@@ -25,11 +26,15 @@ export async function POST(req: Request) {
   if (limited) return limited;
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   const widgetId = typeof body?.widgetId === 'string' ? body.widgetId.slice(0, 64) : '';
-  const visitorId = typeof body?.visitorId === 'string' ? body.visitorId.slice(0, 128) : '';
+  const visitorId = cleanPublicVisitorKey(body?.visitorId) ?? '';
   const outboundId = typeof body?.outboundId === 'string' ? body.outboundId.slice(0, 64) : '';
   if (!body || !widgetId || !visitorId || !outboundId) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   const message = await getActiveOutbound(widgetId, outboundId);
   if (!message) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  // Solo cuenta una clave emitida por el servidor o la de un visitante que ya escribió:
+  // con ids inventados no se inflan vistas ni respuestas.
+  const counted = isSignedVisitorToken(widgetId, visitorId) || !!(await getChatVisitorByExternalId(widgetId, visitorId));
+  if (!counted) return NextResponse.json({ error: 'invalid_visitor' }, { status: 403 });
   if (body.event === 'seen') {
     await recordOutboundSeen(message.id, visitorId);
     return NextResponse.json({ ok: true });
