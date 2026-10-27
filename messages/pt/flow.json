@@ -708,6 +708,7 @@
     "robot_run_failed": "Robots: execução falhou",
     "robot_output_changed": "Robots: dados mudaram",
     "booking_declined": "Cal: solicitação de reserva recusada",
+    "booking_reconfirmed": "Cal: o convidado reconfirmou",
     "booking_refunded": "Cal: pagamento reembolsado",
     "conversation_assigned": "Chat: conversa atribuída",
     "conversation_resolved": "Chat: conversa resolvida",

@@ -7,6 +7,7 @@ import { paymentsEnabled } from '@/lib/calendar-payments';
 import { sanitizeUtm } from '@/lib/calendar-redirect';
 import { parseQuestions, prefillAnswers } from '@/lib/calendar-questions';
 import { publicLocationsJson } from '@/lib/calendar-locations';
+import PublicPageExtras from '@/components/calendar/PublicPageExtras';
 import '@/styles/calendar.css';
 
 export const dynamic = 'force-dynamic';
@@ -43,6 +44,7 @@ export default async function BookPage(props: {
     const t = await getTranslations({ locale, namespace: 'calendar' });
     return (
       <div className="bk" style={{ '--bk': brand.color, '--bk-on': brand.on } as React.CSSProperties}>
+        <PublicPageExtras workspaceId={eventType.user_id} />
         <div className="bk-card">
           <BookingInfo
             hostName={brand.name}
@@ -68,16 +70,21 @@ export default async function BookPage(props: {
     : null;
 
   return (
-    <PublicBookingPage
-      eventType={{ ...eventType, locations: publicLocationsJson(eventType.locations) }}
-      locale={locale}
-      brand={brand}
-      weekStart={calendarUser?.week_start ?? 1}
-      maxFutureDays={oneOffDays ?? effectiveMaxFutureDays(eventType, calendarUser)}
-      prefillName={prefillName}
-      prefillEmail={prefillEmail}
-      prefillAnswers={prefilled}
-      utm={utm}
-    />
+    <>
+      <PublicPageExtras workspaceId={eventType.user_id} />
+      <PublicBookingPage
+        eventType={{ ...eventType, locations: publicLocationsJson(eventType.locations) }}
+        locale={locale}
+        brand={brand}
+        weekStart={calendarUser?.week_start ?? 1}
+        maxFutureDays={oneOffDays ?? effectiveMaxFutureDays(eventType, calendarUser)}
+        prefillName={prefillName}
+        prefillEmail={prefillEmail}
+        prefillAnswers={prefilled}
+        utm={utm}
+        routingSubmissionId={typeof searchParams.rsid === 'string' ? searchParams.rsid.slice(0, 64) : undefined}
+        hostId={typeof searchParams.host === 'string' ? searchParams.host.slice(0, 64) : undefined}
+      />
+    </>
   );
 }

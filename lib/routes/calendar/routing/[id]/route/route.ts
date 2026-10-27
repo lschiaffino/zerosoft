@@ -62,7 +62,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const outcome = await routeAnswers(form, parsed.data.answers);
   const owner = outcome?.kind === 'event' ? await getUserById(form.user_id) : null;
   const usable = outcome && (outcome.kind !== 'event' || owner?.handle) ? outcome : null;
-  await logRoutingSubmission(form, parsed.data.answers, usable);
+  const submissionId = await logRoutingSubmission(form, parsed.data.answers, usable);
   if (!usable) return crmError(404, 'no_route');
   const passed = form.pass_answers === 1 ? answerParams(form, parsed.data.answers) : [];
   if (usable.kind === 'message') return NextResponse.json({ kind: 'message', message: usable.message });
@@ -70,6 +70,11 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   return NextResponse.json({
     kind: 'event',
     eventTypeSlug: usable.slug,
-    bookPath: withParams(`/book/${owner!.handle}/${usable.slug}`, passed),
+    // rsid ata la reserva a este envío (embudo del form); las respuestas prellenan la reserva.
+    bookPath: withParams(`/book/${owner!.handle}/${usable.slug}`, [
+      ...passed,
+      ['rsid', submissionId],
+      ...(usable.hostId ? ([['host', usable.hostId]] as Array<[string, string]>) : []),
+    ]),
   });
 }

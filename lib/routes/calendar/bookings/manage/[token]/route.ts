@@ -4,11 +4,12 @@ import {
   CalendarError,
   findOfferedSlot,
   getBookingByManageToken,
+  reconfirmBooking,
   rescheduleBooking,
   updateBooking,
 } from '@/lib/calendar';
 import { bookingManageSchema } from '@/lib/calendar-schema';
-import { afterBookingCancelled, afterBookingRescheduled } from '@/lib/calendar-lifecycle';
+import { afterBookingCancelled, afterBookingReconfirmed, afterBookingRescheduled } from '@/lib/calendar-lifecycle';
 import { refundCancelledBooking } from '@/lib/calendar-payments';
 import { crmError, invalidBody, notFound } from '@/lib/crm-http';
 
@@ -50,6 +51,11 @@ export async function POST(req: NextRequest, props: { params: Promise<{ token: s
     }
 
     if (awaitingApproval) return crmError(409, 'not_confirmed');
+    if (parsed.data.action === 'reconfirm') {
+      const at = await reconfirmBooking(booking.id);
+      if (at) await afterBookingReconfirmed({ ...booking, reconfirmed_at: at });
+      return NextResponse.json({ status: 'confirmed', reconfirmedAt: at ?? booking.reconfirmed_at });
+    }
     const tz = parsed.data.timezone ?? booking.timezone;
     const offered = await findOfferedSlot(booking.event_type_id, new Date(parsed.data.start), tz, {
       excludeBookingId: booking.id,

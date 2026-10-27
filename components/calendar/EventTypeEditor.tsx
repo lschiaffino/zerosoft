@@ -41,10 +41,13 @@ export interface ScheduleOption {
 }
 
 export interface WorkflowStepView {
+  trigger?: 'start' | 'end' | 'booked' | 'cancelled' | 'rescheduled' | 'no_show';
+  channel?: 'email' | 'sms' | 'webhook';
   recipient: 'guest' | 'host';
   offsetMin: number;
   subject: string;
   body: string;
+  target?: string;
 }
 
 interface TeamMemberOption {
@@ -63,6 +66,8 @@ export interface EventTypeEditorProps {
     description: string;
     color: string;
     active: boolean;
+    /** Secreto: fuera del perfil público. */
+    hidden: boolean;
     bookingRules: Record<string, unknown>;
     fields: QuestionDef[];
     brandColor: string | null;
@@ -89,6 +94,8 @@ export interface EventTypeEditorProps {
   defaults: Limits;
   payments: { configured: boolean; ready: boolean };
   workflowSteps: WorkflowStepView[];
+  /** El workspace tiene Twilio para los pasos por SMS. */
+  smsConfigured?: boolean;
   teamMembers?: TeamMemberOption[];
   teamId?: string | null;
   hostIds: string[];
@@ -121,24 +128,64 @@ const PERIODS = ['day', 'week', 'month'] as const;
 
 type Unit = 'minutes' | 'hours' | 'days';
 const UNIT_MIN: Record<Unit, number> = { minutes: 1, hours: 60, days: 1440 };
+/** Cuándo sale un paso: antes o después del inicio, después del fin o después de un hecho de la reserva. */
+const STEP_WHEN = ['before', 'after', 'end', 'booked', 'cancelled', 'rescheduled', 'no_show'] as const;
+type StepWhen = (typeof STEP_WHEN)[number];
+const STEP_CHANNELS = ['email', 'sms', 'webhook'] as const;
 interface StepDraft {
+  channel: 'email' | 'sms' | 'webhook';
   recipient: 'guest' | 'host';
   amount: number;
   unit: Unit;
-  when: 'before' | 'after';
+  when: StepWhen;
   subject: string;
   body: string;
+  target: string;
 }
-const VARIABLES = ['{{guest.name}}', '{{guest.email}}', '{{host.name}}', '{{event.title}}', '{{start}}', '{{link}}', '{{manage}}'];
+const VARIABLES = [
+  '{{guest.name}}',
+  '{{guest.email}}',
+  '{{guest.phone}}',
+  '{{host.name}}',
+  '{{event.title}}',
+  '{{start}}',
+  '{{end}}',
+  '{{link}}',
+  '{{manage}}',
+  '{{reconfirm}}',
+  '{{cancel_reason}}',
+];
+const SMS_MAX = 612;
 
 function fromOffset(s: WorkflowStepView): StepDraft {
   const abs = Math.abs(s.offsetMin);
   const unit: Unit = abs > 0 && abs % 1440 === 0 ? 'days' : abs > 0 && abs % 60 === 0 ? 'hours' : 'minutes';
-  return { recipient: s.recipient, amount: abs / UNIT_MIN[unit], unit, when: s.offsetMin > 0 ? 'after' : 'before', subject: s.subject, body: s.body };
+  const trigger = s.trigger ?? 'start';
+  return {
+    channel: s.channel ?? 'email',
+    recipient: s.recipient,
+    amount: abs / UNIT_MIN[unit],
+    unit,
+    when: trigger === 'start' ? (s.offsetMin > 0 ? 'after' : 'before') : trigger,
+    subject: s.subject,
+    body: s.body,
+    target: s.target ?? '',
+  };
 }
 function toOffset(d: StepDraft): number {
   const minutes = Math.round(d.amount * UNIT_MIN[d.unit]);
-  return d.when === 'after' ? minutes : -minutes;
+  return d.when === 'before' ? -minutes : minutes;
+}
+function stepPayload(d: StepDraft) {
+  return {
+    trigger: d.when === 'before' || d.when === 'after' ? 'start' : d.when,
+    channel: d.channel,
+    recipient: d.recipient,
+    offsetMin: toOffset(d),
+    subject: d.channel === 'email' ? d.subject : '',
+    body: d.channel === 'webhook' ? '' : d.body,
+    ...(d.channel === 'webhook' ? { target: d.target.trim() } : {}),
+  };
 }
 
 function initialLimits(rules: Record<string, unknown>, defaults: Limits): Limits {
@@ -149,6 +196,7 @@ function initialLimits(rules: Record<string, unknown>, defaults: Limits): Limits
 
 /** Estado del formulario que se compara para saber si hay cambios sin guardar. */
 interface Draft {
+  hidden: boolean;
   title: string;
   slug: string;
   durationMin: number;
@@ -216,6 +264,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
 
   const initial = useMemo<Draft>(
     () => ({
+      hidden: et.hidden,
       title: et.title,
       slug: et.slug,
       durationMin: et.durationMin,
@@ -363,6 +412,11 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
     if (meetingLimits === null || hostMeetingLimits === null) return fail('availability', t('editor.meetingLimitsInvalid'));
     const pErr = priceError();
     if (pErr) return fail('advanced', pErr);
+    for (const s of d.steps) {
+      if (s.channel === 'webhook' && !isValidRedirectUrl(s.target.trim())) return fail('advanced', t('workflows.webhookInvalid'));
+      if (s.channel !== 'webhook' && !s.body.trim()) return fail('advanced', t('workflows.bodyRequired'));
+      if (s.channel === 'email' && !s.subject.trim()) return fail('advanced', t('workflows.subjectRequired'));
+    }
     if (d.requiresConfirmation && charging) return fail('advanced', t('errors.confirmation_paid'));
     const redirectUrl = d.redirectUrl.trim();
     if (redirectUrl && !isValidRedirectUrl(redirectUrl)) return fail('advanced', t('editor.redirectInvalid'));
@@ -400,6 +454,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
         description: d.description.trim(),
         color: d.color,
         active: d.active,
+        hidden: d.hidden,
         bookingRules: {
           ...bookingRulesPayload(et.bookingRules, d.useDefaults, d.limits),
           // undefined = se quita la regla (JSON.stringify no manda la clave).
@@ -451,7 +506,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          steps: d.steps.map((s) => ({ recipient: s.recipient, offsetMin: toOffset(s), subject: s.subject, body: s.body })),
+          steps: d.steps.map(stepPayload),
         }),
       }).catch(() => null);
       if (!r || !r.ok) return fail('advanced', t('editor.remindersError'));
@@ -499,6 +554,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
             <span className="cal-swatch cal-swatch-lg" style={{ background: baseline.color }} aria-hidden="true" />
             {baseline.title}
             {!baseline.active && <span className="badge">{t('eventTypes.inactive')}</span>}
+            {baseline.active && baseline.hidden && <span className="badge badge-outline">{t('secret.badge')}</span>}
           </span>
         }
         description={
@@ -1129,16 +1185,32 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                     return (
                       <li key={i} className="cal-step">
                         <div className="cal-step-when">
-                          <span className="cal-step-word">{t('editor.sendTo')}</span>
                           <select
                             className="select"
-                            aria-label={t('workflows.to')}
-                            value={s.recipient}
-                            onChange={(e) => upd({ recipient: e.target.value as StepDraft['recipient'] })}
+                            aria-label={t('workflows.channel')}
+                            value={s.channel}
+                            onChange={(e) => upd({ channel: e.target.value as StepDraft['channel'] })}
                           >
-                            <option value="guest">{t('workflows.guest')}</option>
-                            <option value="host">{t('workflows.host')}</option>
+                            {STEP_CHANNELS.map((c) => (
+                              <option key={c} value={c}>
+                                {t(`workflows.channel_${c}`)}
+                              </option>
+                            ))}
                           </select>
+                          {s.channel !== 'webhook' && (
+                            <>
+                              <span className="cal-step-word">{t('editor.sendTo')}</span>
+                              <select
+                                className="select"
+                                aria-label={t('workflows.to')}
+                                value={s.recipient}
+                                onChange={(e) => upd({ recipient: e.target.value as StepDraft['recipient'] })}
+                              >
+                                <option value="guest">{t('workflows.guest')}</option>
+                                <option value="host">{t('workflows.host')}</option>
+                              </select>
+                            </>
+                          )}
                           <input
                             className="input data cal-step-amount"
                             type="number"
@@ -1158,8 +1230,11 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                             value={s.when}
                             onChange={(e) => upd({ when: e.target.value as StepDraft['when'] })}
                           >
-                            <option value="before">{t('workflows.before')}</option>
-                            <option value="after">{t('workflows.after')}</option>
+                            {STEP_WHEN.map((w) => (
+                              <option key={w} value={w}>
+                                {t(`workflows.when_${w}`)}
+                              </option>
+                            ))}
                           </select>
                           <button
                             type="button"
@@ -1171,18 +1246,60 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                             <CalIcon name="trash" />
                           </button>
                         </div>
-                        <div className="ui-field">
-                          <label className="label" htmlFor={idFor(`subj-${i}`)}>
-                            {t('workflows.subject')}
-                          </label>
-                          <input id={idFor(`subj-${i}`)} className="input" value={s.subject} maxLength={200} onChange={(e) => upd({ subject: e.target.value })} />
-                        </div>
-                        <div className="ui-field">
-                          <label className="label" htmlFor={idFor(`body-${i}`)}>
-                            {t('workflows.body')}
-                          </label>
-                          <textarea id={idFor(`body-${i}`)} className="textarea" rows={4} value={s.body} maxLength={5000} onChange={(e) => upd({ body: e.target.value })} />
-                        </div>
+                        {s.channel === 'webhook' ? (
+                          <div className="ui-field">
+                            <label className="label" htmlFor={idFor(`target-${i}`)}>
+                              {t('workflows.webhookUrl')}
+                            </label>
+                            <input
+                              id={idFor(`target-${i}`)}
+                              className="input data"
+                              type="url"
+                              placeholder="https://"
+                              value={s.target}
+                              maxLength={2000}
+                              onChange={(e) => upd({ target: e.target.value })}
+                            />
+                            <p className="ui-help">{t('workflows.webhookHelp')}</p>
+                          </div>
+                        ) : (
+                          <>
+                            {s.channel === 'email' && (
+                              <div className="ui-field">
+                                <label className="label" htmlFor={idFor(`subj-${i}`)}>
+                                  {t('workflows.subject')}
+                                </label>
+                                <input id={idFor(`subj-${i}`)} className="input" value={s.subject} maxLength={200} onChange={(e) => upd({ subject: e.target.value })} />
+                              </div>
+                            )}
+                            <div className="ui-field">
+                              <label className="label" htmlFor={idFor(`body-${i}`)}>
+                                {s.channel === 'sms' ? t('workflows.smsText') : t('workflows.body')}
+                              </label>
+                              <textarea
+                                id={idFor(`body-${i}`)}
+                                className="textarea"
+                                rows={s.channel === 'sms' ? 3 : 4}
+                                value={s.body}
+                                maxLength={s.channel === 'sms' ? SMS_MAX : 5000}
+                                onChange={(e) => upd({ body: e.target.value })}
+                              />
+                              {s.channel === 'sms' && (
+                                <p className="ui-help">
+                                  <span className="data">
+                                    {s.body.length}/{SMS_MAX}
+                                  </span>{' '}
+                                  {s.recipient === 'guest' ? t('workflows.smsGuestHelp') : t('workflows.smsHostHelp')}{' '}
+                                  {!props.smsConfigured && (
+                                    <Link href="/app/calendar/settings?tab=connections" className="cal-inline-link">
+                                      {t('workflows.smsSetup')}
+                                    </Link>
+                                  )}
+                                </p>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </li>
                     );
                   })}
@@ -1197,10 +1314,12 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                     set('steps', [
                       ...d.steps,
                       {
+                        channel: 'email',
                         recipient: 'guest',
                         amount: 1,
                         unit: 'hours',
                         when: 'before',
+                        target: '',
                         // Las plantillas llevan {{…}}: se leen crudas para que el formateo de mensajes no las toque.
                         subject: String(t.raw('workflows.defaultSubject')),
                         body: String(t.raw('workflows.defaultBody')),
@@ -1252,6 +1371,15 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
               <span className="data">{publicUrl}</span>
               <CalCopyButton text={publicUrl} />
             </div>
+            {!oneOff && !d.singleUse && (
+              <label className="ui-switch">
+                <input type="checkbox" role="switch" checked={d.hidden} onChange={(e) => set('hidden', e.target.checked)} />
+                <span>
+                  {t('secret.label')}
+                  <span className="cal-switch-help">{t('secret.help', { handle })}</span>
+                </span>
+              </label>
+            )}
             <EmbedSnippet publicUrl={publicUrl} origin={origin} />
           </Panel>
         </div>

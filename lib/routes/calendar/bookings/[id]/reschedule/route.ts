@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { actorIdOf, logCalActivity } from '@/lib/calendar-activity';
 import { CalendarError, findOfferedSlot, ownedBooking, rescheduleBooking } from '@/lib/calendar';
 import { hostRescheduleSchema } from '@/lib/calendar-schema';
 import { afterBookingRescheduled } from '@/lib/calendar-lifecycle';
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   try {
     const moved = await rescheduleBooking(booking.id, slot.start);
     const synced = await afterBookingRescheduled(moved, booking.host_user_id, undefined, { byHost: true });
+    await logCalActivity(user.id, actorIdOf(user), 'booking.rescheduled', { type: 'booking', id: synced.id, summary: synced.invitee_name });
     return NextResponse.json(synced);
   } catch (err) {
     if (err instanceof CalendarError) return crmError(err.status, err.code);

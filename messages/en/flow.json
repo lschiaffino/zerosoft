@@ -708,6 +708,7 @@
     "robot_run_failed": "Robots: run failed",
     "robot_output_changed": "Robots: data changed",
     "booking_declined": "Cal: booking request declined",
+    "booking_reconfirmed": "Cal: guest reconfirmed",
     "booking_refunded": "Cal: payment refunded",
     "conversation_assigned": "Chat: conversation assigned",
     "conversation_resolved": "Chat: conversation resolved",

@@ -32,6 +32,7 @@ export interface AppSearchItem {
     | 'trackLabels'
     | 'eventTypes'
     | 'bookings'
+    | 'calPolls'
     | 'widgets'
     | 'flows'
     | 'agents'
@@ -126,7 +127,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ),
     all(`SELECT id, name AS label FROM track_labels WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, ws, like),
   ]);
-  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates, talkChannels, talkDms, talkPeople, voiceSessions] = await Promise.all([
+  const [boards, projects, issues, eventTypes, bookings, calPolls, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates, talkChannels, talkDms, talkPeople, voiceSessions] = await Promise.all([
     all(
       `SELECT b.id, b.name AS label FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND b.name LIKE ? ESCAPE '\\' ORDER BY b.updated_at DESC LIMIT ?`,
       user.id,
@@ -151,7 +152,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       needle,
     ),
     all(
-      `SELECT id, title AS label, slug AS meta FROM calendar_event_types WHERE user_id = ? AND title LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`,
+      `SELECT id, title AS label, slug AS meta FROM calendar_event_types WHERE user_id = ? AND kind != 'poll' AND title LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`,
       user.id,
       like,
     ),
@@ -166,6 +167,8 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       like,
       like,
     ),
+    // Encuestas de horario de Cal por título.
+    all(`SELECT id, title AS label FROM calendar_polls WHERE user_id = ? AND title LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, user.id, like),
     all(`SELECT id, name AS label FROM chat_widgets WHERE ${widgetWhere} AND name LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, teamId ?? user.id, like),
     all(`SELECT id, name AS label FROM flow_flows WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT ?`, user.id, like),
     all(`SELECT id, name AS label FROM agents WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, user.id, like),
@@ -316,6 +319,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(issues, 'issues', (id) => `/app/track/issues/${id}`),
     ...map(boards, 'boards', (id) => `/app/board/${id}`),
     ...map(eventTypes, 'eventTypes', (id) => `/app/calendar/event-types/${id}`),
+    ...map(calPolls, 'calPolls', (id) => `/app/calendar/polls/${id}`),
     // La reserva se abre en Bookings filtrada por el email del invitado (todas las fechas).
     ...bookings.map((r) => ({
       id: r.id,

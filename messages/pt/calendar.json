@@ -6,7 +6,8 @@
     "routing": "Roteamento",
     "availability": "Disponibilidade",
     "settings": "Configurações",
-    "analytics": "Análises"
+    "analytics": "Análises",
+    "polls": "Enquetes"
   },
   "common": {
     "viewAll": "Ver tudo",
@@ -23,7 +24,8 @@
     "deleting": "Excluindo…",
     "edit": "Editar",
     "yes": "Sim",
-    "no": "Não"
+    "no": "Não",
+    "loading": "Carregando…"
   },
   "overview": {
     "title": "Agenda",
@@ -280,7 +282,11 @@
     "answers": "Respostas",
     "outcome": "Destino",
     "outcomeNone": "Sem correspondência",
-    "messageTitle": "Obrigado"
+    "messageTitle": "Obrigado",
+    "opCrmContact": "é um contato do CRM",
+    "opCrmNoContact": "não é um contato do CRM",
+    "withOwner": "com o dono do contato",
+    "routeToOwner": "Reservar com o dono do contato quando ele atende este tipo de evento"
   },
   "errors": {
     "invalid_slug": "Slug inválido. Use apenas letras minúsculas, números e hífens.",
@@ -308,7 +314,12 @@
     "seats_single_use": "Vagas não funcionam com link de uso único nem com reunião única.",
     "seats_round_robin": "Com vagas, use um só anfitrião ou anfitriões no modo coletivo.",
     "invalid_location": "Escolha onde é a reunião.",
-    "invalid_phone": "Digite um telefone válido."
+    "invalid_phone": "Digite um telefone válido.",
+    "poll_times": "Proponha entre 2 e 20 horários futuros.",
+    "poll_closed": "Esta enquete não recebe mais votos.",
+    "poll_full": "Esta enquete já tem o máximo de participantes.",
+    "poll_no_votes": "Ninguém votou ainda.",
+    "payment_required": "Este tipo de evento cobra: reserve pela página dele."
   },
   "settings": {
     "title": "Configurações",
@@ -336,7 +347,9 @@
     "displayName": "Nome visível",
     "noColor": "Sem cor: usa tinta",
     "clearColor": "Remover cor",
-    "logoHelp": "Uma imagem com fundo transparente, de 40 px de altura ou mais."
+    "logoHelp": "Uma imagem com fundo transparente, de 40 px de altura ou mais.",
+    "hideBranding": "Ocultar “Powered by zerosoft”",
+    "hideBrandingHelp": "Suas páginas de reserva, perfil e roteamento mostram só a sua marca."
   },
   "manage": {
     "title": "Sua reserva",
@@ -351,7 +364,10 @@
     "keep": "Manter o agendamento",
     "awaitingApproval": "O anfitrião ainda não confirmou esta reserva. Avisamos por email quando ele confirmar.",
     "withdraw": "Retirar a solicitação",
-    "declined": "O anfitrião não pôde confirmar esta reserva. Você pode escolher outro horário na página de reservas."
+    "declined": "O anfitrião não pôde confirmar esta reserva. Você pode escolher outro horário na página de reservas.",
+    "reconfirmed": "Obrigado, sua presença está confirmada.",
+    "reconfirmAsk": "Seu anfitrião pede que você confirme que vai participar.",
+    "reconfirmButton": "Sim, vou estar lá"
   },
   "google": {
     "desc": "Conecte sua agenda para que seus horários ocupados bloqueiem suas páginas de agendamento e cada reserva entre na sua agenda, com link do Google Meet quando o evento não tiver outro local.",
@@ -375,7 +391,10 @@
   "profile": {
     "sub": "Escolha um tipo de reunião para ver os horários disponíveis.",
     "empty": "Não há tipos de reunião disponíveis no momento.",
-    "minutes": "{n} min"
+    "minutes": "{n} min",
+    "memberSub": "Reserve uma reunião direto com esta pessoa de {team}.",
+    "backToTeam": "Todo {team}",
+    "team": "Reservar com alguém específico"
   },
   "quick": {
     "eventCrumb": "Novo tipo de evento",
@@ -478,11 +497,13 @@
     "declinedBadge": "Recusada",
     "declineReason": "Motivo para o convidado (opcional)",
     "confirmDecline": "Recusar solicitação",
-    "pendingFilter": "Pendente (pagamento ou confirmação)"
+    "pendingFilter": "Pendente (pagamento ou confirmação)",
+    "reconfirmed": "Reconfirmada",
+    "bookedByTeam": "Agendada pela equipe"
   },
   "workflows": {
-    "title": "Lembretes",
-    "sub": "Emails automáticos antes ou depois da reunião. Ao adicionar passos, eles substituem o lembrete de 24 horas.",
+    "title": "Workflows",
+    "sub": "E-mails, SMS e webhooks antes ou depois da reunião, ou quando se reserva, cancela, remarca ou marca no-show. As etapas ligadas ao início ou ao fim substituem o lembrete de 24 horas.",
     "add": "Adicionar passo",
     "empty": "Sem passos: o convidado recebe um lembrete 24 horas antes.",
     "to": "Para",
@@ -498,7 +519,27 @@
     "variables": "Variáveis: {vars}",
     "cronNote": "São verificados a cada minuto, então chegam no horário. Um passo antes da reunião que sai um pouco atrasado é enviado mesmo assim enquanto a reunião não tiver começado.",
     "defaultSubject": "Lembrete: {{event.title}}",
-    "defaultBody": "Olá {{guest.name}},\n\nTe esperamos em {{event.title}} em {{start}}.\n\n{{link}}"
+    "defaultBody": "Olá {{guest.name}},\n\nTe esperamos em {{event.title}} em {{start}}.\n\n{{link}}",
+    "channel": "Canal",
+    "channel_email": "E-mail",
+    "channel_sms": "SMS",
+    "channel_webhook": "Webhook",
+    "when_before": "antes do início",
+    "when_after": "depois do início",
+    "when_end": "depois do fim",
+    "when_booked": "depois de reservada",
+    "when_cancelled": "depois de um cancelamento",
+    "when_rescheduled": "depois de remarcada",
+    "when_no_show": "depois de um no-show",
+    "webhookUrl": "URL do webhook",
+    "webhookHelp": "Enviamos um POST com a reserva em JSON (evento workflow.<gatilho>).",
+    "webhookInvalid": "O webhook precisa de uma URL http ou https.",
+    "bodyRequired": "Cada etapa por e-mail ou SMS precisa de uma mensagem.",
+    "subjectRequired": "Cada etapa por e-mail precisa de um assunto.",
+    "smsText": "Texto",
+    "smsGuestHelp": "Vai para o telefone que o convidado deixa (uma pergunta de telefone ou “o anfitrião liga”), em formato internacional com +.",
+    "smsHostHelp": "Vai para o telefone do anfitrião em Ajustes › Conexões.",
+    "smsSetup": "Conecte o Twilio para enviar SMS"
   },
   "payments": {
     "title": "Cobrança",
@@ -691,7 +732,12 @@
     "eventType": "Tipo de evento",
     "emptyTitle": "Nenhuma reserva neste período",
     "emptyBody": "Tente um período maior ou compartilhe o link de um tipo de evento para começar a receber reservas.",
-    "note": "Pagamentos retidos que venceram sem pagamento ficam de fora."
+    "note": "Pagamentos retidos que venceram sem pagamento ficam de fora.",
+    "host": "Pessoa",
+    "allHosts": "Todos",
+    "allEventTypes": "Todos os tipos de evento",
+    "byHost": "Por pessoa",
+    "unknownHost": "Sem anfitrião"
   },
   "location": {
     "title": "Local",
@@ -768,5 +814,200 @@
     "openEventTypes": "Ir para tipos de evento",
     "again": "Importar de novo",
     "failedTitle": "A importação parou."
+  },
+  "secret": {
+    "badge": "Secreto",
+    "label": "Tipo de evento secreto",
+    "help": "Quem tiver o link pode reservar, mas ele não aparece em /{handle}."
+  },
+  "tracking": {
+    "title": "Rastreamento",
+    "lead": "Meça visitas e reservas das suas páginas públicas com seu próprio Google Analytics e Meta Pixel.",
+    "ga4": "ID de medição do Google Analytics 4",
+    "metaPixel": "ID do Meta Pixel",
+    "events": "Eventos enviados: visualização de página, cal_date_and_time_selected e cal_event_scheduled no Analytics; PageView e Schedule na Meta. O link de gestão do convidado nunca os carrega.",
+    "invalid": "Confira os IDs: o do Analytics começa com G- e o do pixel tem só números."
+  },
+  "export": {
+    "csv": "Exportar CSV"
+  },
+  "onBehalf": {
+    "open": "Nova reserva",
+    "title": "Agendar em nome de um convidado",
+    "submit": "Reservar",
+    "eventType": "Tipo de evento",
+    "time": "Horário",
+    "name": "Nome do convidado",
+    "email": "E-mail do convidado",
+    "help": "O convidado recebe a confirmação com o link para remarcar ou cancelar, como se tivesse reservado.",
+    "noEventTypes": "Primeiro ative um tipo de evento.",
+    "done": "Reservado para {name}."
+  },
+  "funnel": {
+    "title": "Funil do formulário",
+    "lead": "Quantos envios chegaram a um tipo de evento e reservaram uma reunião.",
+    "submissions": "Envios",
+    "routedToEvent": "Enviados a um tipo de evento",
+    "booked": "Reservaram",
+    "confirmed": "Seguem confirmadas",
+    "other": "{url} foram para uma URL ou mensagem, {none} sem destino.",
+    "route": "Rota",
+    "destination": "Destino",
+    "rate": "Taxa de reserva",
+    "deletedRule": "Regra excluída",
+    "noRoute": "Sem destino",
+    "fallback": "Padrão",
+    "message": "Mensagem",
+    "rule": "Regra {n}"
+  },
+  "privacy": {
+    "tab": "Privacidade",
+    "title": "Excluir dados de um convidado",
+    "lead": "Para pedidos de GDPR ou LGPD: exclui as reservas, envios de formulários e votos em enquetes de um e-mail em todo o workspace.",
+    "note": "As reservas futuras saem da agenda do anfitrião sem avisar ninguém. O contato do CRM é excluído pelo CRM.",
+    "deleted": "Os dados de {email} foram excluídos.",
+    "confirm": "Excluir dados de {email}",
+    "search": "Buscar dados",
+    "email": "E-mail do convidado",
+    "invalidEmail": "Digite um e-mail válido.",
+    "nothing": "Não há dados de {email}.",
+    "found": "Isto é o que temos de {email}:",
+    "bookings": "{n, plural, one {# reserva} other {# reservas}} ({upcoming} futuras)",
+    "guestOf": "{n, plural, one {# reserva} other {# reservas}} como convidado extra",
+    "submissions": "{n, plural, one {# envio de formulário} other {# envios de formulários}}",
+    "votes": "{n, plural, one {# voto em enquetes} other {# votos em enquetes}}",
+    "irreversible": "Não dá para desfazer."
+  },
+  "activity": {
+    "tab": "Atividade",
+    "title": "Registro de atividades",
+    "lead": "Quem criou, mudou ou excluiu o quê no Cal, o mais novo primeiro.",
+    "filter": "Mostrar",
+    "group": {
+      "all": "Tudo",
+      "event_type": "Tipos de evento",
+      "booking": "Reservas",
+      "poll": "Enquetes",
+      "settings": "Ajustes",
+      "integration": "Conexões",
+      "privacy": "Privacidade"
+    },
+    "empty": "Ainda não há atividade",
+    "emptyLead": "As mudanças em tipos de evento, reservas e ajustes aparecem aqui.",
+    "system": "Alguém",
+    "more": "Carregar mais",
+    "action": {
+      "event_type_created": "criou o tipo de evento",
+      "event_type_updated": "mudou o tipo de evento",
+      "event_type_deleted": "excluiu o tipo de evento",
+      "booking_cancelled": "cancelou a reserva de",
+      "booking_no_show": "marcou como no-show",
+      "booking_confirmed": "voltou a confirmar a reserva de",
+      "booking_declined": "recusou a solicitação de",
+      "booking_approved": "aprovou a solicitação de",
+      "booking_rescheduled": "remarcou a reserva de",
+      "booking_scheduled_on_behalf": "agendou em nome de um convidado",
+      "settings_updated": "mudou os ajustes",
+      "integration_connected": "conectou",
+      "integration_disconnected": "desconectou",
+      "privacy_invitee_deleted": "excluiu os dados de um convidado",
+      "poll_created": "criou a enquete",
+      "poll_updated": "mudou a enquete",
+      "poll_deleted": "excluiu a enquete",
+      "poll_booked": "reservou a enquete"
+    }
+  },
+  "connections": {
+    "calendarsTitle": "Agendas",
+    "calendarsLead": "Conecte o Google Calendar, o Outlook ou o iCloud para que o ocupado bloqueie suas páginas de reserva e cada reserva fique na sua agenda. São seus, não do workspace.",
+    "noticeConnected": "{provider} conectado.",
+    "noticeError": "Não foi possível conectar o {provider}. Tente de novo.",
+    "outlookScopes": "Precisamos de permissão para ler e escrever na sua agenda. Tente de novo e aceite.",
+    "loadError": "Não foi possível carregar. ",
+    "retry": "Tentar de novo",
+    "primary": "principal",
+    "connect": "Conectar",
+    "notConfigured_google": "O Google OAuth não está configurado neste servidor. Defina GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET e adicione {uri} como redirect URI autorizada.",
+    "notConfigured_outlook": "A Microsoft não está configurada neste servidor. Defina MS_CLIENT_ID / MS_CLIENT_SECRET e adicione {uri} como redirect URI do app do Entra ID.",
+    "reconnect": "Para escolher agendas, reconecte uma vez para o Google compartilhar a lista.",
+    "reconnectCta": "Reconectar",
+    "listError": "Não foi possível ler a lista de agendas. A principal continua funcionando.",
+    "checkConflicts": "Verificar conflitos em",
+    "addTo": "Adicionar as novas reservas a",
+    "addToDefault": "Padrão (principal do Google, ou Outlook)",
+    "addToHelp": "Uma reunião do Teams é sempre criada no Outlook, que gera o link.",
+    "zoomLead": "Cada reserva com Zoom como local ganha sua própria reunião (se o tipo de evento não tiver um link fixo do Zoom). Usa o app Server-to-Server do Zoom, compartilhado com o CRM.",
+    "zoomHelp": "No Zoom App Marketplace: Develop › Build app › Server-to-Server OAuth, com o escopo meeting:write:meeting:admin.",
+    "zoomConnected": "Zoom conectado: as reuniões são criadas por reserva.",
+    "zoomError": "O Zoom não aceitou essas credenciais.",
+    "zoom_accountId": "Account ID",
+    "zoom_clientId": "Client ID",
+    "zoom_clientSecret": "Client secret",
+    "smsTitle": "SMS (Twilio)",
+    "smsLead": "As etapas de workflow por SMS saem da sua conta do Twilio. O token fica criptografado e não é mostrado de novo.",
+    "smsConnected": "Envia de {from}.",
+    "smsFrom": "Remetente",
+    "smsFromHelp": "Um número do Twilio em formato internacional (+…) ou um Messaging Service SID (MG…).",
+    "smsRemove": "Remover Twilio",
+    "smsInvalid": "Confira o Account SID (AC…), o token e o remetente.",
+    "smsAuthFailed": "O Twilio não aceitou esse Account SID e token.",
+    "mcpTitle": "Assistentes de IA e automações",
+    "mcpLead": "Conecte Claude, ChatGPT ou Cursor ao Cal com este servidor MCP.",
+    "mcpTools": "Ferramentas: listar tipos de evento, ver horários livres, listar reservas, reservar, cancelar e remarcar. Precisa de uma API key com cal:read (e cal:write para mudar).",
+    "apiKeys": "API keys",
+    "zapier": "Zapier e Make: use um webhook (Catch Hook) com os eventos de reserva.",
+    "webhooks": "Webhooks",
+    "icloudHelp": "Use uma senha de app: appleid.apple.com › Início de sessão e segurança › Senhas de apps. Fica criptografada.",
+    "appleId": "Apple ID",
+    "appPassword": "Senha de app",
+    "connectICloud": "Conectar iCloud",
+    "icloudAuthFailed": "A Apple não aceitou esse Apple ID e senha de app.",
+    "icloudInvalid": "Confira o Apple ID e a senha (quatro grupos de quatro letras)."
+  },
+  "polls": {
+    "title": "Enquetes de horário",
+    "lead": "Proponha alguns horários, compartilhe o link e reserve o que serve para a maioria.",
+    "new": "Nova enquete",
+    "create": "Criar enquete",
+    "titlePlaceholder": "Nome, p. ex. Revisão trimestral",
+    "timesTitle": "Horários a propor",
+    "note": "Os participantes votam sem conta. Ao reservar, todos que votaram são convidados.",
+    "emptyTitle": "Ainda não há enquetes",
+    "emptyBody": "Para uma reunião com várias pessoas: proponha horários e deixe votarem.",
+    "counts": "{options} horários · {votes, plural, one {# voto} other {# votos}}",
+    "status": {
+      "open": "Aberta",
+      "booked": "Reservada",
+      "closed": "Fechada"
+    },
+    "rename": "Renomear",
+    "close": "Encerrar votação",
+    "reopen": "Reabrir",
+    "results": "Votos",
+    "resultsLead": "Compartilhe o link. Quando quiser, reserve o horário com mais votos.",
+    "bookedLead": "Reservada: todos receberam o convite.",
+    "closedLead": "A votação está encerrada. Reabra para continuar recebendo votos.",
+    "time": "Horário",
+    "votes": "Votos",
+    "who": "Quem pode",
+    "book": "Reservar este horário",
+    "mostVotes": "(mais votado)",
+    "noVotes": "Ainda não há votos: compartilhe o link com os participantes.",
+    "participants": "{n, plural, one {# participante} other {# participantes}}: {names}",
+    "bookConfirmTitle": "Reservar este horário?",
+    "bookConfirmBody": "{n, plural, one {O participante recebe} other {Os # participantes recebem}} o convite e a enquete é encerrada.",
+    "booked": "Reunião reservada e convites enviados.",
+    "seeBooking": "Ver reservas",
+    "deleteTitle": "Excluir a enquete?",
+    "deleteBody": "“{title}” e os votos são excluídos. Uma reunião já reservada fica em Reservas.",
+    "pickTimes": "Quais horários servem para você?",
+    "voteCount": "{n, plural, =0 {sem votos} one {# voto} other {# votos}}",
+    "emailHelp": "O convite chega neste e-mail. Vote de novo com o mesmo e-mail para mudar sua resposta.",
+    "submitVote": "Enviar meu voto",
+    "thanks": "Obrigado por votar",
+    "thanksSub": "Quando o organizador escolher o horário, você recebe o convite por e-mail.",
+    "changeVote": "Mudar meu voto",
+    "publicBooked": "Esta reunião já está reservada. Confira seu e-mail para ver o convite.",
+    "publicClosed": "Esta enquete está encerrada."
   }
 }

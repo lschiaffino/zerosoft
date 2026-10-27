@@ -5768,6 +5768,96 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Cal: paridad con Calendly / Cal.com. Tipos de evento secretos y de
+    // encuesta (meeting polls), marca sin "Powered by" y píxeles de
+    // seguimiento, calendarios elegidos por persona (Google y Outlook),
+    // reuniones de Zoom / Teams generadas por reserva, workflows con
+    // disparadores (reservar, cancelar, reprogramar, no-show, fin), SMS y
+    // webhook como pasos, reconfirmación, agendar en nombre de otro, embudo de
+    // routing forms, registro de actividad y encuestas de horario.
+    id: '118_cal_parity',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE calendar_event_types ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE calendar_event_types ADD COLUMN kind TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, 'ALTER TABLE calendar_users ADD COLUMN hide_branding INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE calendar_users ADD COLUMN tracking TEXT NOT NULL DEFAULT '{}'");
+      await addColumn(client, "ALTER TABLE calendar_users ADD COLUMN calendars TEXT NOT NULL DEFAULT '{}'");
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN google_calendar_id TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN outlook_event_id TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN zoom_meeting_id TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN icloud_event_url TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN reconfirmed_at TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN routing_submission_id TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN booked_by TEXT');
+      await addColumn(client, "ALTER TABLE calendar_workflow_steps ADD COLUMN trigger TEXT NOT NULL DEFAULT 'start'");
+      await addColumn(client, "ALTER TABLE calendar_workflow_steps ADD COLUMN channel TEXT NOT NULL DEFAULT 'email'");
+      await addColumn(client, "ALTER TABLE calendar_workflow_steps ADD COLUMN target TEXT NOT NULL DEFAULT ''");
+      // Routing por consulta al CRM: la regla mira si el email es un contacto y puede reservar con su owner.
+      await addColumn(client, "ALTER TABLE calendar_routing_rules ADD COLUMN crm_match TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, 'ALTER TABLE calendar_routing_rules ADD COLUMN route_to_owner INTEGER NOT NULL DEFAULT 0');
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_calendar_bookings_routing ON calendar_bookings(routing_submission_id);
+        CREATE INDEX IF NOT EXISTS idx_calendar_bookings_email ON calendar_bookings(invitee_email);
+
+        CREATE TABLE IF NOT EXISTS calendar_sms_settings (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          account_sid TEXT NOT NULL DEFAULT '',
+          auth_token TEXT NOT NULL DEFAULT '',
+          from_number TEXT NOT NULL DEFAULT '',
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS calendar_activity (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          actor_id TEXT,
+          action TEXT NOT NULL,
+          target_type TEXT NOT NULL DEFAULT '',
+          target_id TEXT NOT NULL DEFAULT '',
+          summary TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_activity_user ON calendar_activity(user_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS calendar_polls (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_by TEXT,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          duration_min INTEGER NOT NULL DEFAULT 30,
+          location TEXT NOT NULL DEFAULT '',
+          token TEXT NOT NULL UNIQUE,
+          status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'booked', 'closed')),
+          event_type_id TEXT REFERENCES calendar_event_types(id) ON DELETE SET NULL,
+          booking_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_polls_user ON calendar_polls(user_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS calendar_poll_options (
+          id TEXT PRIMARY KEY,
+          poll_id TEXT NOT NULL REFERENCES calendar_polls(id) ON DELETE CASCADE,
+          starts_at TEXT NOT NULL,
+          position INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_poll_options_poll ON calendar_poll_options(poll_id, position);
+
+        CREATE TABLE IF NOT EXISTS calendar_poll_votes (
+          id TEXT PRIMARY KEY,
+          poll_id TEXT NOT NULL REFERENCES calendar_polls(id) ON DELETE CASCADE,
+          voter_name TEXT NOT NULL,
+          voter_email TEXT NOT NULL,
+          option_ids TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (poll_id, voter_email)
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

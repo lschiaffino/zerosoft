@@ -11,6 +11,9 @@
 
 export const FAKE_OUTLOOK_EMAIL = 'demo.outlook@fake-outlook.test';
 export const FAKE_OUTLOOK_CONTACT = 'ana@fake-outlook.test';
+/** Calendarios del buzón falso para Cal: el principal y uno de equipo con un evento mañana. */
+export const FAKE_OUTLOOK_DEFAULT_CALENDAR = 'fake-cal-default';
+export const FAKE_OUTLOOK_TEAM_CALENDAR = 'fake-cal-team';
 const GRAPH = 'https://graph.microsoft.com/v1.0';
 
 export function fakeMicrosoftAllowed(): boolean {
@@ -39,6 +42,8 @@ interface FakeState {
   sent: FakeMessage[];
   drafts: Map<string, FakeMessage>;
   events: Array<Record<string, unknown>>;
+  /** Calendario de Cal: eventos por calendario (aparte de los del CRM). */
+  calEvents: Array<Record<string, unknown> & { calendarId: string }>;
 }
 
 const g = globalThis as unknown as { __zsFakeGraph?: FakeState };
@@ -83,6 +88,17 @@ function state(): FakeState {
         msg('fake-out-1', 'fake-conv-1', FAKE_OUTLOOK_EMAIL, FAKE_OUTLOOK_CONTACT, 'Re: Question about the proposal', 'Sure, Thursday works for me.', new Date(now - 3_600_000)),
       ],
       drafts: new Map(),
+      calEvents: [
+        {
+          id: 'fake-cal-team-1',
+          calendarId: FAKE_OUTLOOK_TEAM_CALENDAR,
+          subject: 'Team offsite',
+          showAs: 'busy',
+          isCancelled: false,
+          start: { dateTime: new Date(tomorrow.getTime() - 2 * 3_600_000).toISOString().replace('Z', ''), timeZone: 'UTC' },
+          end: { dateTime: new Date(tomorrow.getTime() - 3_600_000).toISOString().replace('Z', ''), timeZone: 'UTC' },
+        },
+      ],
       events: [
         {
           id: 'fake-event-1',
@@ -101,6 +117,11 @@ function state(): FakeState {
     };
   }
   return g.__zsFakeGraph;
+}
+
+/** Eventos que Cal creó en el Outlook falso (para tests). */
+export function fakeOutlookCalEvents(): Array<Record<string, unknown> & { calendarId: string }> {
+  return state().calEvents;
 }
 
 /** Lo enviado por el CRM en el buzón falso (para tests). */
@@ -124,7 +145,7 @@ export function fakeTokenResponse(params: Record<string, string>): {
     access_token: `fake-ms-access-${Date.now()}`,
     refresh_token: 'fake-ms-refresh',
     expires_in: 3600,
-    scope: 'openid email offline_access User.Read Mail.ReadWrite Mail.Send Calendars.Read',
+    scope: params.scope || 'openid email offline_access User.Read Mail.ReadWrite Mail.Send Calendars.Read',
   };
 }
 
@@ -158,6 +179,52 @@ export async function fakeGraphFetch(input: string | URL | Request, init: Reques
     return deltaPage(list.slice(cursor), deltaMatch[1], list.length);
   }
   if (path === '/me/calendarView/delta') return deltaPage(s.events, 'calendar', s.events.length);
+
+  // ---- Calendario de Cal ----
+  if (path === '/me/calendars' && method === 'GET') {
+    return json({
+      value: [
+        { id: FAKE_OUTLOOK_DEFAULT_CALENDAR, name: 'Calendar', isDefaultCalendar: true, canEdit: true },
+        { id: FAKE_OUTLOOK_TEAM_CALENDAR, name: 'Team', isDefaultCalendar: false, canEdit: false },
+      ],
+    });
+  }
+  const viewMatch = /^\/me\/calendars\/([^/]+)\/calendarView$/.exec(path);
+  if (viewMatch && method === 'GET') {
+    const cal = decodeURIComponent(viewMatch[1]);
+    const from = Date.parse(url.searchParams.get('startDateTime') ?? '');
+    const to = Date.parse(url.searchParams.get('endDateTime') ?? '');
+    const at = (d: unknown) => Date.parse(`${String((d as { dateTime?: string })?.dateTime ?? '')}Z`);
+    return json({
+      value: s.calEvents.filter((e) => e.calendarId === cal && at(e.start) < to && at(e.end) > from),
+    });
+  }
+  const createMatch = /^\/me\/calendars\/([^/]+)\/events$/.exec(path);
+  if ((createMatch || path === '/me/events') && method === 'POST') {
+    const body = JSON.parse(String(init.body ?? '{}')) as Record<string, unknown>;
+    s.seq += 1;
+    const id = `fake-cal-event-${s.seq}`;
+    const ev = {
+      ...body,
+      id,
+      calendarId: createMatch ? decodeURIComponent(createMatch[1]) : FAKE_OUTLOOK_DEFAULT_CALENDAR,
+      showAs: 'busy',
+      onlineMeeting: body.isOnlineMeeting ? { joinUrl: `https://teams.microsoft.com/l/meetup-join/fake-${s.seq}` } : null,
+    };
+    s.calEvents.push(ev);
+    return json(ev, 201);
+  }
+  const eventMatch = /^\/me\/events\/([^/]+)$/.exec(path);
+  if (eventMatch && (method === 'PATCH' || method === 'DELETE')) {
+    const i = s.calEvents.findIndex((e) => e.id === decodeURIComponent(eventMatch[1]));
+    if (i < 0) return json({ error: { code: 'ErrorItemNotFound' } }, 404);
+    if (method === 'DELETE') {
+      s.calEvents.splice(i, 1);
+      return new Response(null, { status: 204 });
+    }
+    Object.assign(s.calEvents[i], JSON.parse(String(init.body ?? '{}')));
+    return json(s.calEvents[i]);
+  }
 
   if (path === '/me/messages' && method === 'POST') {
     const body = JSON.parse(String(init.body ?? '{}')) as Partial<FakeMessage>;

@@ -36,14 +36,24 @@ const ACTION_LABEL_KEY: Record<RouteAction, 'actionEvent' | 'actionUrl' | 'actio
 };
 
 type FieldType = 'text' | 'select' | 'boolean';
-type RuleOperator = 'is' | 'is_not' | 'contains' | 'truthy';
-const OPERATORS: RuleOperator[] = ['is', 'is_not', 'contains', 'truthy'];
-const OP_LABEL_KEY: Record<RuleOperator, 'opIs' | 'opIsNot' | 'opContains' | 'opTruthy'> = {
+/** Las dos últimas consultan el CRM: la respuesta (un email) es o no un contacto. */
+type RuleOperator = 'is' | 'is_not' | 'contains' | 'truthy' | 'crm_contact' | 'crm_no_contact';
+const OPERATORS: RuleOperator[] = ['is', 'is_not', 'contains', 'truthy', 'crm_contact', 'crm_no_contact'];
+const OP_LABEL_KEY: Record<RuleOperator, 'opIs' | 'opIsNot' | 'opContains' | 'opTruthy' | 'opCrmContact' | 'opCrmNoContact'> = {
   is: 'opIs',
   is_not: 'opIsNot',
   contains: 'opContains',
   truthy: 'opTruthy',
+  crm_contact: 'opCrmContact',
+  crm_no_contact: 'opCrmNoContact',
 };
+/** Operadores que no llevan valor a comparar. */
+const NO_VALUE: ReadonlySet<RuleOperator> = new Set(['truthy', 'crm_contact', 'crm_no_contact']);
+function ruleOperatorOf(r: { operator: string; crm_match?: string }): RuleOperator {
+  if (r.crm_match === 'contact') return 'crm_contact';
+  if (r.crm_match === 'no_contact') return 'crm_no_contact';
+  return r.operator as RuleOperator;
+}
 const STEPS = ['questions', 'rules', 'publish'] as const;
 type Step = (typeof STEPS)[number];
 
@@ -56,6 +66,7 @@ const emptyRule = (action: RouteAction = 'event') => ({
   eventTypeId: '',
   targetUrl: '',
   message: '',
+  routeToOwner: false,
 });
 
 /**
@@ -152,8 +163,10 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase, sub
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         fieldId: newRule.fieldId,
-        operator: newRule.operator,
-        value: newRule.operator === 'truthy' ? '' : newRule.value.trim(),
+        operator: NO_VALUE.has(newRule.operator) ? 'truthy' : newRule.operator,
+        value: NO_VALUE.has(newRule.operator) ? '' : newRule.value.trim(),
+        crmMatch: newRule.operator === 'crm_contact' ? 'contact' : newRule.operator === 'crm_no_contact' ? 'no_contact' : '',
+        routeToOwner: newRule.operator === 'crm_contact' && newRule.action === 'event' && newRule.routeToOwner,
         action: newRule.action,
         ...(newRule.action === 'event' ? { eventTypeId: newRule.eventTypeId } : {}),
         ...(newRule.action === 'url' ? { targetUrl: newRule.targetUrl.trim() } : {}),
@@ -402,8 +415,8 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase, sub
                   <li key={r.id}>
                     <span className="cal-route-main cal-rule-text">
                       <span className="cal-muted">{t('routing.if')}</span> <strong>{fieldLabel(r.field_id)}</strong>{' '}
-                      {t(`routing.${OP_LABEL_KEY[r.operator]}`)}
-                      {r.operator !== 'truthy' && r.value && (
+                      {t(`routing.${OP_LABEL_KEY[ruleOperatorOf(r)]}`)}
+                      {!NO_VALUE.has(ruleOperatorOf(r)) && r.value && (
                         <>
                           {' '}
                           <strong>{r.value}</strong>
@@ -411,6 +424,7 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase, sub
                       )}
                       <CalIcon name="next" />
                       <strong className={r.action === 'url' ? 'data' : undefined}>{ruleTarget(r)}</strong>
+                      {r.route_to_owner === 1 && <span className="cal-muted"> · {t('routing.withOwner')}</span>}
                     </span>
                     <button
                       type="button"
@@ -466,7 +480,7 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase, sub
                     ))}
                   </select>
                 </div>
-                {newRule.operator !== 'truthy' && (
+                {!NO_VALUE.has(newRule.operator) && (
                   <div className="ui-field">
                     <label className="label" htmlFor={idFor('rval')}>
                       {t('routing.ruleValue')}
@@ -538,6 +552,16 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase, sub
                     </select>
                   </div>
                 )}
+                {newRule.action === 'event' && newRule.operator === 'crm_contact' && (
+                  <label className="ui-check cal-route-full">
+                    <input
+                      type="checkbox"
+                      checked={newRule.routeToOwner}
+                      onChange={(e) => setNewRule((v) => ({ ...v, routeToOwner: e.target.checked }))}
+                    />
+                    <span>{t('routing.routeToOwner')}</span>
+                  </label>
+                )}
                 {newRule.action === 'url' && (
                   <div className="ui-field cal-route-full">
                     <label className="label" htmlFor={idFor('rurl')}>
@@ -572,7 +596,7 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase, sub
                   type="submit"
                   className="btn"
                   aria-busy={busy || undefined}
-                  disabled={!newRule.fieldId || !ruleTargetReady || (newRule.operator !== 'truthy' && !newRule.value.trim())}
+                  disabled={!newRule.fieldId || !ruleTargetReady || (!NO_VALUE.has(newRule.operator) && !newRule.value.trim())}
                 >
                   <CalIcon name="plus" />
                   {t('routing.addRule')}

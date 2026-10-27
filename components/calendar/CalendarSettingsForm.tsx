@@ -18,6 +18,11 @@ export interface CalendarSettingsValues {
   brandColor: string;
   logoUrl: string;
   displayName: string;
+  /** Sin "Powered by zerosoft" en las páginas públicas. */
+  hideBranding: boolean;
+  /** Píxeles de las páginas públicas ('' = sin). */
+  ga4: string;
+  metaPixel: string;
 }
 
 interface Props {
@@ -41,6 +46,9 @@ export default function CalendarSettingsForm({ initial, accountName, origin, loc
   const [brandColor, setBrandColor] = useState(initial.brandColor);
   const [logoUrl, setLogoUrl] = useState(initial.logoUrl);
   const [displayName, setDisplayName] = useState(initial.displayName);
+  const [hideBranding, setHideBranding] = useState(initial.hideBranding);
+  const [ga4, setGa4] = useState(initial.ga4);
+  const [metaPixel, setMetaPixel] = useState(initial.metaPixel);
   const shownColor = brandOr(brandColor, '#111111');
   const shownName = displayName.trim() || accountName;
   const shownLogo = safeLogo(logoUrl);
@@ -72,6 +80,8 @@ export default function CalendarSettingsForm({ initial, accountName, origin, loc
         ? t('settings.handleInvalid')
         : code === 'invalid_timezone'
           ? t('settings.timezoneInvalid')
+          : code === 'invalid_tracking'
+            ? t('tracking.invalid')
           : code === 'forbidden'
             ? t('payments.adminOnly')
             : t('errors.generic');
@@ -119,7 +129,7 @@ export default function CalendarSettingsForm({ initial, accountName, origin, loc
           canEditHandle
             ? () => {
                 if (logoUrl.trim() && !safeLogo(logoUrl)) return t('editor.logoInvalid');
-                return post({ brandColor: brandColor || null, logoUrl: logoUrl.trim() || null, displayName: displayName.trim() || null });
+                return post({ brandColor: brandColor || null, logoUrl: logoUrl.trim() || null, displayName: displayName.trim() || null, hideBranding });
               }
             : undefined
         }
@@ -176,6 +186,19 @@ export default function CalendarSettingsForm({ initial, accountName, origin, loc
               />
               <p className="ui-help">{t('settings.logoHelp')}</p>
             </div>
+            <label className="ui-switch">
+              <input
+                type="checkbox"
+                role="switch"
+                checked={hideBranding}
+                onChange={(e) => setHideBranding(e.target.checked)}
+                disabled={!canEditHandle}
+              />
+              <span>
+                {t('settings.hideBranding')}
+                <span className="cal-switch-help">{t('settings.hideBrandingHelp')}</span>
+              </span>
+            </label>
           </div>
           <figure className="cal-brand-sample" style={{ borderTopColor: shownColor }}>
             <figcaption className="cal-brand-sample-cap">{t('editor.preview')}</figcaption>
@@ -195,6 +218,52 @@ export default function CalendarSettingsForm({ initial, accountName, origin, loc
             </span>
           </figure>
         </div>
+      </FormSection>
+
+      <FormSection
+        title={t('tracking.title')}
+        description={t('tracking.lead')}
+        onSubmit={
+          canEditHandle
+            ? () => {
+                if (ga4.trim() && !/^G-[A-Z0-9]{4,20}$/i.test(ga4.trim())) return t('tracking.invalid');
+                if (metaPixel.trim() && !/^\d{5,20}$/.test(metaPixel.trim())) return t('tracking.invalid');
+                return post({ tracking: { ga4: ga4.trim().toUpperCase(), metaPixel: metaPixel.trim() } });
+              }
+            : undefined
+        }
+        footer={canEditHandle ? undefined : <p className="ui-section-note">{t('payments.adminOnly')}</p>}
+      >
+        <div className="ui-fields-2">
+          <div className="ui-field">
+            <label className="label" htmlFor={`${id}-ga4`}>
+              {t('tracking.ga4')} <span className="ui-optional">{t('editor.optional')}</span>
+            </label>
+            <input
+              id={`${id}-ga4`}
+              className="input data"
+              value={ga4}
+              placeholder="G-XXXXXXXXXX"
+              onChange={(e) => setGa4(e.target.value)}
+              disabled={!canEditHandle}
+            />
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor={`${id}-pixel`}>
+              {t('tracking.metaPixel')} <span className="ui-optional">{t('editor.optional')}</span>
+            </label>
+            <input
+              id={`${id}-pixel`}
+              className="input data"
+              value={metaPixel}
+              inputMode="numeric"
+              placeholder="123456789012345"
+              onChange={(e) => setMetaPixel(e.target.value.replace(/\D/g, ''))}
+              disabled={!canEditHandle}
+            />
+          </div>
+        </div>
+        <p className="ui-help">{t('tracking.events')}</p>
       </FormSection>
 
       <FormSection

@@ -90,7 +90,8 @@ export async function POST(req: NextRequest) {
     if (Number.isNaN(startDate.getTime())) return crmError(400, 'invalid_input');
 
     const guestTz = timezone ?? 'UTC';
-    const matching = await findOfferedSlot(eventTypeId, startDate, guestTz);
+    const hostId = parsed.data.hostId ?? null;
+    const matching = await findOfferedSlot(eventTypeId, startDate, guestTz, { hostId });
     if (!matching) return crmError(409, 'slot_unavailable');
 
     const paid = eventType.price_cents > 0;
@@ -108,16 +109,18 @@ export async function POST(req: NextRequest) {
         location: parsed.data.location,
         locale: parsed.data.locale,
         utm: sanitizeUtm(parsed.data.utm),
+        routingSubmissionId: parsed.data.routingSubmissionId,
       },
       paid
         ? {
+            hostId,
             hold: {
               expiresAt: new Date(Date.now() + HOLD_MINUTES * 60_000),
               amountCents: eventType.price_cents,
               currency: eventType.currency,
             },
           }
-        : {},
+        : { hostId },
     );
 
     // Con precio: la reserva queda retenida hasta que Stripe confirme el pago.

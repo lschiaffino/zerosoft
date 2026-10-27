@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
-import { bookingDateBounds, listUserBookings, localDate } from '@/lib/calendar';
+import { bookingDateBounds, listEventTypes, listUserBookings, localDate } from '@/lib/calendar';
 import { bookingListQuerySchema } from '@/lib/calendar-schema';
 import PageHeader from '@/components/ui/PageHeader';
 import BookingsList from '@/components/calendar/BookingsList';
@@ -46,6 +46,9 @@ export default async function BookingsPage(props: {
         timezone={timezone}
         defaultFrom={today}
         initialFilters={{ q: f.q ?? '', status: f.status ?? '', from: from ?? '', to: f.to ?? '' }}
+        eventTypes={(await listEventTypes(user.id, { activeOnly: true }))
+          .filter((e) => !(e.single_use === 1 && e.used_at))
+          .map((e) => ({ id: e.id, title: e.title, durationMin: e.duration_min }))}
       />
     </div>
   );

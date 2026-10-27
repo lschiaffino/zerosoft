@@ -160,6 +160,7 @@ export default async function AppLayout(
                 { href: '/app/calendar', label: tCalendar('sidebar.overview') },
                 { href: '/app/calendar/event-types', label: tCalendar('sidebar.eventTypes') },
                 { href: '/app/calendar/routing', label: tCalendar('sidebar.routing') },
+                { href: '/app/calendar/polls', label: tCalendar('sidebar.polls') },
                 { href: '/app/calendar/bookings', label: tCalendar('sidebar.bookings') },
                 { href: '/app/calendar/availability', label: tCalendar('sidebar.availability') },
                 { href: '/app/calendar/settings', label: tCalendar('sidebar.settings') },
@@ -302,6 +303,7 @@ export default async function AppLayout(
               availability: tCalendar('sidebar.availability'),
               analytics: tCalendar('sidebar.analytics'),
               settings: tCalendar('sidebar.settings'),
+              polls: tCalendar('sidebar.polls'),
             },
             track: {
               overview: tTrack('sidebar.overview'),

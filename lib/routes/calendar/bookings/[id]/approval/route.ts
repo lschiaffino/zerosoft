@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { actorIdOf, logCalActivity } from '@/lib/calendar-activity';
 import { approveBooking, declineBooking, ownedBooking, CalendarError } from '@/lib/calendar';
 import { bookingApprovalSchema } from '@/lib/calendar-schema';
 import { invalidBody, notFound, unauthorized, crmError } from '@/lib/crm-http';
@@ -26,10 +27,12 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   try {
     if (parsed.data.decision === 'confirm') {
       const booking = await approveBooking(id);
+      await logCalActivity(user.id, actorIdOf(user), 'booking.approved', { type: 'booking', id: booking.id, summary: booking.invitee_name });
       return NextResponse.json(await afterBookingApproved(booking));
     }
     const booking = await declineBooking(id, parsed.data.reason ?? null);
     await afterBookingDeclined(booking, parsed.data.reason ?? null);
+    await logCalActivity(user.id, actorIdOf(user), 'booking.declined', { type: 'booking', id: booking.id, summary: booking.invitee_name });
     return NextResponse.json(booking);
   } catch (err) {
     if (err instanceof CalendarError) return crmError(err.status, err.code);

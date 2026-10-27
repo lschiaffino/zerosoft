@@ -62,6 +62,10 @@ export default defineConfig({
       // Outlook / Microsoft 365 contra Graph falso (lib/microsoft-fake.ts) y llamadas
       // desde el navegador con el dispositivo simulado (lib/crm-voice-fake.ts).
       MS_GRAPH_FAKE: '1',
+      // Cal: Google Calendar falso (lib/google-calendar-fake.ts) y SMS de workflows sin Twilio (lib/calendar-sms.ts).
+      CAL_GOOGLE_FAKE: '1',
+      CAL_SMS_FAKE: '1',
+      CAL_ICLOUD_FAKE: '1',
       CRM_VOICE_FAKE: '1',
       // Autocompletar de las bases de Docs contra el modelo falso (lib/docs-db-ai.ts);
       // con la cookie docs_ai_fake=off se ve el error ai_disabled.

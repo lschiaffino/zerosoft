@@ -29,6 +29,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-27-cal-parity',
+    date: '2026-10-27',
+    title: {
+      en: 'Cal: Outlook and several calendars, Zoom and Teams per booking, SMS and meeting polls',
+      es: 'Cal: Outlook y varios calendarios, Zoom y Teams por reserva, SMS y encuestas de horario',
+      pt: 'Cal: Outlook e várias agendas, Zoom e Teams por reserva, SMS e enquetes de horário',
+    },
+    items: [
+      {
+        product: 'cal',
+        en: 'Connect Outlook / Microsoft 365 next to Google Calendar, pick which calendars block your availability and which one gets new bookings. Zoom (with the workspace Zoom app) and Teams (with Outlook) now create a meeting per booking and move or delete it when the booking changes.',
+        es: 'Conectá Outlook / Microsoft 365 además de Google Calendar, elegí qué calendarios bloquean tu disponibilidad y en cuál entran las reservas nuevas. Zoom (con la app de Zoom del workspace) y Teams (con Outlook) ahora crean una reunión por reserva y la mueven o borran cuando la reserva cambia.',
+        pt: 'Conecte o Outlook / Microsoft 365 além do Google Calendar, escolha quais agendas bloqueiam sua disponibilidade e em qual entram as novas reservas. Zoom (com o app do Zoom do workspace) e Teams (com o Outlook) agora criam uma reunião por reserva e a movem ou excluem quando a reserva muda.',
+      },
+      {
+        product: 'cal',
+        en: 'Workflows fire when a meeting is booked, cancelled, rescheduled, marked as a no-show or ends, and each step can be an email, an SMS from your Twilio account or a webhook. A {{reconfirm}} link lets invitees confirm they will attend.',
+        es: 'Los workflows se disparan al reservar, cancelar, reprogramar, marcar no-show o terminar la reunión, y cada paso puede ser un email, un SMS desde tu cuenta de Twilio o un webhook. Un link {{reconfirm}} deja que el invitado confirme que va.',
+        pt: 'Os workflows disparam ao reservar, cancelar, remarcar, marcar no-show ou terminar a reunião, e cada etapa pode ser um e-mail, um SMS da sua conta do Twilio ou um webhook. Um link {{reconfirm}} deixa o convidado confirmar que vai.',
+      },
+      {
+        product: 'cal',
+        en: 'Meeting polls: propose times, share a link, let people vote without an account and book the winner with everyone invited. Also new: book on behalf of an invitee, secret event types, a team page with a page per person, and routing rules that check the CRM and book with the contact owner.',
+        es: 'Encuestas de horario: proponé horarios, compartí un link, que voten sin cuenta y reservá el ganador con todos invitados. También: agendar en nombre de un invitado, tipos de evento secretos, página del equipo con una página por persona y reglas de routing que consultan el CRM y reservan con el owner del contacto.',
+        pt: 'Enquetes de horário: proponha horários, compartilhe um link, deixe votarem sem conta e reserve o vencedor com todos convidados. Também: agendar em nome de um convidado, tipos de evento secretos, página da equipe com uma página por pessoa e regras de roteamento que consultam o CRM e reservam com o dono do contato.',
+      },
+      {
+        product: 'cal',
+        en: 'CSV export of bookings and analytics, analytics by person, a funnel per routing form, an activity log, invitee data deletion, Google Analytics and Meta Pixel on your pages, hiding “Powered by zerosoft” and an MCP server for AI assistants.',
+        es: 'Export CSV de reservas y analytics, analytics por persona, embudo por routing form, registro de actividad, borrado de datos de invitados, Google Analytics y Meta Pixel en tus páginas, ocultar “Powered by zerosoft” y un servidor MCP para asistentes de IA.',
+        pt: 'Exportação CSV de reservas e analytics, analytics por pessoa, funil por formulário, registro de atividades, exclusão de dados de convidados, Google Analytics e Meta Pixel nas suas páginas, ocultar “Powered by zerosoft” e um servidor MCP para assistentes de IA.',
+      },
+    ],
+  },
+  {
     id: '2026-10-25-voice',
     date: '2026-10-25',
     title: {

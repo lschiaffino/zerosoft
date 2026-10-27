@@ -297,6 +297,17 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/calendar/event-types/${i.id}`))),
   },
   {
+    app: 'Cal meeting polls',
+    list: '/en/app/calendar/polls',
+    create: async (request, name) => {
+      const times = [2, 3].map((d) => new Date(Date.now() + d * 86_400_000).toISOString());
+      return { id: (await ok<{ id: string }>(request.post('/api/calendar/polls', { data: { title: name, durationMin: 30, times } }))).id, name };
+    },
+    detail: (i) => `/en/app/calendar/polls/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/calendar/polls/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/calendar/polls/${i.id}`))),
+  },
+  {
     app: 'Link',
     list: '/en/app/links',
     create: async (request, name) => {

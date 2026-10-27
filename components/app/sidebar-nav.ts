@@ -99,6 +99,8 @@ export interface SidebarLabels {
     availability: string;
     analytics: string;
     settings: string;
+    /** Encuestas de horario (opcional: los tests viejos arman labels sin esta clave). */
+    polls?: string;
   };
   track: {
     overview: string;
@@ -395,6 +397,9 @@ export function buildNav(
           items: [
             { href: '/app/calendar/event-types', label: labels.calendar.eventTypes, active: at('/app/calendar/event-types'), icon: 'tasks' },
             { href: '/app/calendar/routing', label: labels.calendar.routing, active: at('/app/calendar/routing'), icon: 'lists' },
+            ...(labels.calendar.polls
+              ? [{ href: '/app/calendar/polls', label: labels.calendar.polls, active: at('/app/calendar/polls'), icon: 'insights' as const }]
+              : []),
             { href: '/app/calendar/bookings', label: labels.calendar.bookings, active: at('/app/calendar/bookings'), icon: 'contacts' },
             { href: '/app/calendar/availability', label: labels.calendar.availability, active: at('/app/calendar/availability'), icon: 'myTasks' },
           ],

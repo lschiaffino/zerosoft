@@ -1,0 +1,80 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { getCurrentUser, realUserId } from '@/lib/session';
+import { CalendarError, createBooking, findOfferedSlot, getEventType } from '@/lib/calendar';
+import { ianaTimezone, personName, validateBookingAnswers, validateGuests } from '@/lib/calendar-schema';
+import { afterBookingCreated } from '@/lib/calendar-lifecycle';
+import { crmError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
+import { logCalActivity } from '@/lib/calendar-activity';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+const email = z.string().trim().min(3).max(320).regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, { message: 'invalid_email' });
+const schema = z.object({
+  eventTypeId: z.string().min(1).max(64),
+  start: z.string().min(1).max(40),
+  timezone: ianaTimezone.optional(),
+  name: personName.refine((v) => v.length > 0, { message: 'invalid_name' }),
+  email,
+  guests: z.array(email).max(10).optional(),
+  hostId: z.string().min(1).max(64).optional(),
+  locale: z.enum(['en', 'es', 'pt']).optional(),
+  location: z.object({ key: z.string().trim().max(40).optional(), phone: z.string().trim().max(40).optional() }).optional(),
+});
+
+/**
+ * Agendar en nombre de un invitado (como "Schedule on behalf" de Calendly):
+ * alguien del workspace elige el tipo de evento, un horario ofrecido y los
+ * datos del invitado. La reserva queda confirmada (sin pago ni aprobación:
+ * la agenda alguien del equipo), el invitado recibe la confirmación con su
+ * link de gestión y queda registrado quién la agendó.
+ */
+export async function POST(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return unauthorized();
+  const parsed = schema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return invalidBody(parsed.error);
+  const d = parsed.data;
+  const eventType = await getEventType(user.id, d.eventTypeId);
+  if (!eventType || eventType.active !== 1) return notFound();
+  if (eventType.kind === 'poll') return notFound();
+  const guests = validateGuests({ allowGuests: true }, d.guests, d.email);
+  if (!guests) return crmError(400, 'too_many_guests');
+  // Las preguntas obligatorias las completa el invitado; acá no se piden.
+  const answers = validateBookingAnswers(
+    eventType.fieldsParsed.map((f) => ({ ...f, required: false })),
+    {},
+  );
+  const start = new Date(d.start);
+  if (Number.isNaN(start.getTime())) return crmError(400, 'invalid_input');
+  const tz = d.timezone ?? 'UTC';
+  try {
+    const slot = await findOfferedSlot(eventType.id, start, tz, { hostId: d.hostId ?? null });
+    if (!slot) return crmError(409, 'slot_unavailable');
+    const booking = await createBooking(
+      {
+        eventTypeId: eventType.id,
+        email: d.email,
+        name: d.name,
+        start: slot.start.toISOString(),
+        timezone: tz,
+        answers: answers ?? {},
+        guests,
+        locale: d.locale,
+        location: d.location,
+      },
+      { bookedBy: realUserId(user), hostId: d.hostId ?? null, skipApproval: true },
+    );
+    const synced = await afterBookingCreated(booking, d.locale);
+    await logCalActivity(user.id, realUserId(user), 'booking.scheduled_on_behalf', {
+      type: 'booking',
+      id: booking.id,
+      summary: `${eventType.title} · ${d.name}`,
+    });
+    return NextResponse.json(synced, { status: 201 });
+  } catch (err) {
+    if (err instanceof CalendarError) return crmError(err.status, err.code);
+    return crmError(500, 'generic');
+  }
+}

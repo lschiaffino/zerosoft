@@ -357,6 +357,78 @@ export async function createZoomForActivity(userId: string, activityId: string):
   return { joinUrl };
 }
 
+/**
+ * Cal: una reunión de Zoom por reserva con la app Server-to-Server del
+ * workspace. Se crea a nombre del anfitrión si es usuario de esa cuenta de
+ * Zoom (users/{email}); si no, a nombre de la cuenta (users/me). Devuelve el
+ * id y el link, o null si el workspace no tiene Zoom conectado.
+ */
+export async function createZoomMeeting(
+  userId: string,
+  input: { topic: string; start: Date; durationMin: number; hostEmail?: string | null; agenda?: string },
+): Promise<{ id: string; joinUrl: string } | null> {
+  const row = await getRow(userId, 'zoom');
+  if (!row) return null;
+  if (appsFake()) {
+    const id = `9${String(input.start.getTime()).slice(-9)}`;
+    await logApp(userId, 'zoom', 'meeting', 'ok', input.topic);
+    return { id, joinUrl: `https://zoom.us/j/${id}` };
+  }
+  const token = await zoomToken(secretsOf(row));
+  const body = JSON.stringify({
+    topic: input.topic.slice(0, 200),
+    type: 2,
+    start_time: input.start.toISOString().replace(/\.\d{3}Z$/, 'Z'),
+    duration: Math.max(1, input.durationMin),
+    agenda: (input.agenda ?? '').slice(0, 2000),
+    settings: { join_before_host: true, waiting_room: false },
+  });
+  const post = (who: string) =>
+    safeFetch(
+      `https://api.zoom.us/v2/users/${encodeURIComponent(who)}/meetings`,
+      { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body },
+      10_000,
+    );
+  let res = input.hostEmail ? await post(input.hostEmail).catch(() => null) : null;
+  // El anfitrión no es usuario de la cuenta de Zoom: va a nombre de la cuenta.
+  if (!res || !res.ok) res = await post('me').catch(() => null);
+  const data = res ? ((await res.json().catch(() => ({}))) as { id?: number | string; join_url?: string }) : {};
+  if (!res?.ok || !data.join_url || !data.id) {
+    await logApp(userId, 'zoom', 'meeting', 'error', `zoom_${res?.status ?? 0}`);
+    throw new AppError('zoom_error', 502);
+  }
+  await logApp(userId, 'zoom', 'meeting', 'ok', input.topic);
+  return { id: String(data.id), joinUrl: data.join_url };
+}
+
+/** Mueve una reunión de Zoom de Cal (reprogramación). */
+export async function updateZoomMeeting(userId: string, meetingId: string, input: { start: Date; durationMin: number }): Promise<void> {
+  const row = await getRow(userId, 'zoom');
+  if (!row || appsFake()) return;
+  const token = await zoomToken(secretsOf(row));
+  await safeFetch(
+    `https://api.zoom.us/v2/meetings/${encodeURIComponent(meetingId)}`,
+    {
+      method: 'PATCH',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ start_time: input.start.toISOString().replace(/\.\d{3}Z$/, 'Z'), duration: Math.max(1, input.durationMin) }),
+    },
+    10_000,
+  ).catch(() => null);
+}
+
+/** Borra una reunión de Zoom de Cal (cancelación). */
+export async function deleteZoomMeeting(userId: string, meetingId: string): Promise<void> {
+  const row = await getRow(userId, 'zoom');
+  if (!row || appsFake()) return;
+  const token = await zoomToken(secretsOf(row));
+  await safeFetch(
+    `https://api.zoom.us/v2/meetings/${encodeURIComponent(meetingId)}`,
+    { method: 'DELETE', headers: { authorization: `Bearer ${token}` } },
+    10_000,
+  ).catch(() => null);
+}
+
 // ---------- Stripe ----------
 
 const STRIPE_API = 'https://api.stripe.com/v1';

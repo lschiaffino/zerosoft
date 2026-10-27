@@ -340,6 +340,11 @@ section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw,
 
 }
 
+/* Cal: el workspace sacó la marca de sus páginas públicas (components/calendar/PublicPageExtras.tsx). */
+body:has(.cal-hide-powered) .powered-by {
+  display: none;
+}
+
 /* Pie mínimo de las páginas públicas (sin chrome de marketing): sentence case, marca en minúscula. */
 .powered-by {
   text-align: center;

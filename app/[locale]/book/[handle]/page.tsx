@@ -4,6 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { getPublicProfile, legacyBookPath } from '@/lib/calendar';
 import CalIcon from '@/components/calendar/cal-icons';
 import { resolveBrand } from '@/components/calendar/cal-utils';
+import PublicPageExtras from '@/components/calendar/PublicPageExtras';
 import '@/styles/calendar.css';
 
 export const dynamic = 'force-dynamic';
@@ -31,9 +32,15 @@ export default async function BookHandlePage(props: {
   if (!profile) notFound();
   const t = await getTranslations({ locale, namespace: 'calendar.profile' });
   const brand = resolveBrand(profile.brand);
+  // Página de una persona del equipo (?host=): sus tipos de evento, y la reserva va con ella.
+  const hostParam = typeof searchParams.host === 'string' ? searchParams.host : '';
+  const member = profile.members.find((m) => m.id === hostParam) ?? null;
+  const eventTypes = member ? profile.eventTypes.filter((et) => member.eventTypeIds.includes(et.id)) : profile.eventTypes;
+  const hostQs = member ? `?host=${encodeURIComponent(member.id)}` : '';
 
   return (
     <main className="bk bk-profile" style={{ '--bk': brand.color, '--bk-on': brand.on } as React.CSSProperties}>
+      <PublicPageExtras workspaceId={profile.userId} />
       <div className="bk-profile-inner">
         <header className="bk-profile-head">
           {brand.logoUrl ? (
@@ -44,16 +51,21 @@ export default async function BookHandlePage(props: {
               {profile.name.trim().slice(0, 1).toUpperCase()}
             </span>
           )}
-          <h1 className="bk-title">{profile.name}</h1>
-          <p className="bk-muted">{t('sub')}</p>
+          <h1 className="bk-title">{member ? member.name : profile.name}</h1>
+          <p className="bk-muted">{member ? t('memberSub', { team: profile.name }) : t('sub')}</p>
+          {member && (
+            <Link href={`/book/${profile.handle}`} className="bk-link">
+              {t('backToTeam', { team: profile.name })}
+            </Link>
+          )}
         </header>
-        {profile.eventTypes.length === 0 ? (
+        {eventTypes.length === 0 ? (
           <p className="bk-note bk-profile-empty">{t('empty')}</p>
         ) : (
           <ul className="bk-profile-list">
-            {profile.eventTypes.map((et) => (
+            {eventTypes.map((et) => (
               <li key={et.id}>
-                <Link href={`/book/${profile.handle}/${et.slug}`} className="bk-profile-item">
+                <Link href={`/book/${profile.handle}/${et.slug}${hostQs}`} className="bk-profile-item">
                   <span className="bk-profile-swatch" style={{ background: et.brand_color || et.color || brand.color }} aria-hidden="true" />
                   <span className="bk-profile-text">
                     <strong>{et.title}</strong>
@@ -68,6 +80,25 @@ export default async function BookHandlePage(props: {
               </li>
             ))}
           </ul>
+        )}
+        {!member && profile.members.length > 1 && (
+          <section className="bk-team" aria-labelledby="bk-team-title">
+            <h2 id="bk-team-title" className="bk-h2">
+              {t('team')}
+            </h2>
+            <ul className="bk-team-list">
+              {profile.members.map((m) => (
+                <li key={m.id}>
+                  <Link href={`/book/${profile.handle}?host=${encodeURIComponent(m.id)}`} className="bk-team-member">
+                    <span className="bk-monogram" aria-hidden="true">
+                      {m.name.slice(0, 1).toUpperCase()}
+                    </span>
+                    <span>{m.name}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
       </div>
     </main>

@@ -144,6 +144,7 @@ function useGroupOrder() {
         'reports',
         'eventTypes',
         'bookings',
+        'calPolls',
         'widgets',
         'flows',
         'agents',
