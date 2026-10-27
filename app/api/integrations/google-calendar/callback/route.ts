@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { exchangeCode, googleAccountEmail, googleCalendarRedirectUri, upsertIntegration } from '@/lib/integrations';
-import { GOOGLE_CALENDAR_PROVIDER } from '@/lib/google-calendar';
+import { GOOGLE_CALENDAR_PROVIDER, invalidateBusyCache } from '@/lib/google-calendar';
+import { FAKE_GOOGLE_EMAIL, fakeGoogleCalendarAllowed, fakeGoogleTokens } from '@/lib/google-calendar-fake';
+import { logCalActivity } from '@/lib/calendar-activity';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,7 +29,8 @@ export async function GET(req: NextRequest) {
   if (sp.get('error')) return out('denied');
   if (!code || !state || !cookieState || state !== cookieState || !state.startsWith(`${me}.`)) return out('error');
 
-  const tokens = await exchangeCode(code, googleCalendarRedirectUri());
+  const fake = fakeGoogleCalendarAllowed() && code === 'fake-gcal';
+  const tokens = fake ? fakeGoogleTokens() : await exchangeCode(code, googleCalendarRedirectUri());
   if (!tokens.access_token) return out('error');
   // Sin los dos scopes de Calendar no sirve: el usuario destildó permisos.
   const granted = tokens.scope ?? '';
@@ -36,11 +39,13 @@ export async function GET(req: NextRequest) {
   await upsertIntegration({
     userId: me,
     provider: GOOGLE_CALENDAR_PROVIDER,
-    email: await googleAccountEmail(tokens.access_token),
+    email: fake ? FAKE_GOOGLE_EMAIL : await googleAccountEmail(tokens.access_token),
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token ?? '',
     expiresAt: Date.now() + (tokens.expires_in ?? 3600) * 1000,
     scope: granted,
   });
+  invalidateBusyCache(me);
+  await logCalActivity(user.id, me, 'integration.connected', { type: 'integration', id: 'google', summary: 'Google Calendar' });
   return out('connected');
 }

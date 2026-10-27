@@ -7,6 +7,7 @@ import { runImportJob } from '@/lib/import-runner';
 import { importCreateSchema, importError, importUser, importZodCode } from '@/lib/import-http';
 import { isImportBlobUrl, localZipRef } from '@/lib/docs-notion-import';
 import { canAccessTrackProject, getProject } from '@/lib/track-data';
+import { canCreateDocPage } from '@/lib/docs-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -79,13 +80,17 @@ export async function POST(req: NextRequest) {
   } else if (input.app === 'cal') {
     job = await createImportJob({ ...base, secret: input.token, options: { includeBookings: input.includeBookings === true } });
   } else {
+    // Destino: el workspace o un teamspace donde la persona puede crear páginas (privado incluido si es miembro).
+    const teamspaceId = input.teamspace_id ?? null;
+    if (!(await canCreateDocPage(user, { teamspace_id: teamspaceId }))) return importError(403, 'forbidden');
+    const options = { teamspace_id: teamspaceId };
     if (input.blobUrl) {
       if (!isImportBlobUrl(input.blobUrl)) return importError(400, 'invalid_upload');
-      job = await createImportJob({ ...base, payload: `blob:${input.blobUrl}` });
+      job = await createImportJob({ ...base, payload: `blob:${input.blobUrl}`, options });
     } else if (input.size) {
       // Sin Blob en Vercel no hay disco donde juntar las partes.
       if (process.env.VERCEL && !process.env.BLOB_READ_WRITE_TOKEN) return importError(503, 'storage_unavailable');
-      job = await createImportJob({ ...base, status: 'uploading', options: { size: input.size } });
+      job = await createImportJob({ ...base, status: 'uploading', options: { size: input.size, ...options } });
       await updateImportJob(job.id, { payload: localZipRef(job.id) });
       return NextResponse.json({ job: jobView(job) }, { status: 201 });
     } else {

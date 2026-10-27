@@ -928,6 +928,12 @@ export interface CalendarUserRow {
   updated_at: string;
   /** Links fijos del anfitrión, JSON { zoomUrl, teamsUrl, phone } (063). */
   conferencing: string;
+  /** 1 = la página pública no muestra "Powered by zerosoft" (118). */
+  hide_branding: 0 | 1;
+  /** Píxeles de la página pública, JSON { ga4, metaPixel } (118). */
+  tracking: string;
+  /** Calendarios elegidos por persona, JSON { google: { check, write }, outlook: { check, write } } (118). */
+  calendars: string;
 }
 
 export interface CalendarEventTypeRow {
@@ -964,6 +970,10 @@ export interface CalendarEventTypeRow {
   scheduling: 'round_robin' | 'collective';
   /** Lugares por horario (0 = una reserva por horario) (063). */
   seats: number;
+  /** 1 = secreto: se reserva con el link pero no sale en el perfil público (118). */
+  hidden: 0 | 1;
+  /** '' = tipo de evento normal; 'poll' = el que crea una encuesta de horario al reservar (118). */
+  kind: string;
 }
 
 export interface CalendarScheduleRow {
@@ -1001,6 +1011,14 @@ export interface CalendarWorkflowStepRow {
   subject: string;
   body: string;
   created_at: string;
+  /** start | end | booked | cancelled | rescheduled | no_show (118). */
+  trigger: string;
+  /** email | sms | webhook (118). */
+  channel: string;
+  /** URL del paso webhook (118). */
+  target: string;
+  /** Secreto whsec_ cifrado con el que se firma el paso webhook (118). */
+  secret: string;
 }
 
 export interface CalendarWorkflowRunRow {
@@ -1070,6 +1088,22 @@ export interface CalendarBookingRow {
   co_host_ids: string;
   /** 1 = ocupa un lugar de un horario compartido (063). */
   seated: 0 | 1;
+  /** Calendario de Google donde quedó el evento (NULL = principal) (118). */
+  google_calendar_id: string | null;
+  /** Evento de Outlook / Microsoft 365 del host (118). */
+  outlook_event_id: string | null;
+  /** Reunión de Zoom generada para esta reserva (118). */
+  zoom_meeting_id: string | null;
+  /** Evento en el iCloud del host (URL CalDAV) (118). */
+  icloud_event_url: string | null;
+  /** El invitado confirmó que va desde el link de reconfirmación (118). */
+  reconfirmed_at: string | null;
+  /** Envío del routing form que trajo la reserva (118). */
+  routing_submission_id: string | null;
+  /** Persona del workspace que la agendó en nombre del invitado (118). */
+  booked_by: string | null;
+  /** Zona horaria de cada invitado extra, JSON { email: tz } (118). */
+  guest_timezones: string;
 }
 
 export interface CalendarEventHostRow {
@@ -1138,6 +1172,10 @@ export interface CalendarRoutingRuleRow {
   action: 'event' | 'url' | 'message';
   target_url: string;
   message: string;
+  /** '' = compara la respuesta; 'contact' / 'no_contact' = el email es (o no) un contacto del CRM (118). */
+  crm_match: string;
+  /** 1 = con un contacto del CRM, la reserva va con su owner si está en el pool (118). */
+  route_to_owner: 0 | 1;
 }
 
 export interface CalendarRoutingSubmissionRow {
@@ -1424,6 +1462,12 @@ export interface ChatConversationRow {
   csat_comment: string | null;
   /** JSON objeto id de atributo → valor (lib/chat-attributes.ts). */
   attributes?: string;
+  /** Equipo de Chat (chat_teams) al que está asignada; su bandeja la muestra. */
+  team_id?: string | null;
+  /** Por dónde entró: el widget o un email (lib/chat-email.ts). */
+  channel?: 'web' | 'email';
+  /** Mensaje saliente que la originó (lib/chat-outbound.ts). */
+  outbound_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1462,6 +1506,10 @@ export interface ChatAssignmentRuleRow {
   match_type: 'all' | 'keyword' | 'time' | 'round_robin';
   match_value: string | null;
   assign_to: string | null;
+  /** Equipo al que asigna (lib/chat-teams.ts); con round_robin reparte entre sus miembros. */
+  assign_team_id?: string | null;
+  /** 1 = reparte entre los miembros del equipo (round robin), aunque la condición sea por palabra u horario. */
+  team_round_robin?: 0 | 1;
   position: number;
   active: 0 | 1;
   created_at: string;

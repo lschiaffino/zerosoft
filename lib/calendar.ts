@@ -13,6 +13,8 @@ import {
   type CalendarReminderRow,
 } from './db';
 import { googleBusyRanges } from './google-calendar';
+import { outlookBusyRanges } from './outlook-calendar';
+import { icloudBusyRanges } from './icloud-calendar';
 import { priceProblem } from './calendar-price';
 import type {
   CalendarConfigUpdatePayload,
@@ -43,6 +45,7 @@ import {
   type PeriodLimits,
 } from './calendar-limits';
 import { sanitizeUtm } from './calendar-redirect';
+import { parseTracking } from './calendar-tracking';
 import { parseConferencing, parseLocations, pickLocation, resolveLocation, type LocationOption } from './calendar-locations';
 
 // ---------- Helpers ----------
@@ -154,6 +157,15 @@ export async function updateCalendarUser(
     sets.push('display_name = ?');
     values.push(payload.displayName || null);
   }
+  if (payload.hideBranding !== undefined) {
+    sets.push('hide_branding = ?');
+    values.push(payload.hideBranding ? 1 : 0);
+  }
+  if (payload.tracking !== undefined) {
+    const merged = { ...parseTracking(user.tracking), ...payload.tracking };
+    sets.push('tracking = ?');
+    values.push(JSON.stringify(parseTracking(JSON.stringify(merged))));
+  }
   if (payload.conferencing !== undefined) {
     // Se mezcla con lo guardado: un campo ausente no cambia, '' lo borra.
     const merged: Record<string, string> = { ...parseConferencing(user.conferencing) } as Record<string, string>;
@@ -231,11 +243,13 @@ function decorateEventType(row: CalendarEventTypeRow): EventTypeWithRules {
 
 export async function listEventTypes(
   userId: string,
-  opts: { activeOnly?: boolean } = {},
+  opts: { activeOnly?: boolean; includePolls?: boolean } = {},
 ): Promise<EventTypeWithRules[]> {
+  // Los tipos que crea una encuesta de horario al reservarse no son del listado.
+  const kind = opts.includePolls ? '' : " AND kind != 'poll'";
   const sql = opts.activeOnly
-    ? `SELECT * FROM calendar_event_types WHERE user_id = ? AND active = 1 ORDER BY created_at DESC`
-    : `SELECT * FROM calendar_event_types WHERE user_id = ? ORDER BY created_at DESC`;
+    ? `SELECT * FROM calendar_event_types WHERE user_id = ? AND active = 1${kind} ORDER BY created_at DESC`
+    : `SELECT * FROM calendar_event_types WHERE user_id = ?${kind} ORDER BY created_at DESC`;
   const rows = (await getDb().prepare(sql).all(userId)) as CalendarEventTypeRow[];
   return rows.map(decorateEventType);
 }
@@ -255,6 +269,20 @@ export async function getEventTypeById(id: string): Promise<EventTypeWithRules |
     .prepare('SELECT * FROM calendar_event_types WHERE id = ?')
     .get(id)) as CalendarEventTypeRow | undefined;
   return row ? decorateEventType(row) : undefined;
+}
+
+/**
+ * Nombre del equipo para las páginas públicas (página del equipo, encuestas):
+ * el del equipo del workspace si no se puso un nombre visible propio.
+ */
+export async function workspaceTeamName(userId: string): Promise<string> {
+  const own = (await getDb()
+    .prepare(
+      `SELECT c.display_name, (SELECT t.name FROM teams t WHERE t.owner_id = ? ORDER BY t.created_at LIMIT 1) AS team_name
+       FROM users u LEFT JOIN calendar_users c ON c.user_id = u.id WHERE u.id = ?`,
+    )
+    .get(userId, userId)) as { display_name: string | null; team_name: string | null } | undefined;
+  return !own?.display_name?.trim() ? (own?.team_name?.trim() ?? '') : '';
 }
 
 /** Lookup público: /book/<handle>/<slug>. */
@@ -278,17 +306,40 @@ export async function getEventTypeByHandle(
  */
 export async function getPublicProfile(
   handle: string,
-): Promise<{ name: string; handle: string; brand: WorkspaceBrand; eventTypes: EventTypeWithRules[] } | null> {
+): Promise<{
+  userId: string;
+  name: string;
+  handle: string;
+  brand: WorkspaceBrand;
+  eventTypes: EventTypeWithRules[];
+  /** Personas que atienden algún tipo de evento del perfil (página del equipo). */
+  members: Array<{ id: string; name: string; eventTypeIds: string[] }>;
+} | null> {
   const user = (await getDb()
     .prepare('SELECT id, name, email, handle FROM users WHERE handle = ?')
     .get(handle.toLowerCase())) as { id: string; name: string | null; email: string; handle: string } | undefined;
   if (!user) return null;
   const brand = await getWorkspaceBrand(user.id);
+  // Los secretos se reservan con su link pero no se listan.
+  const eventTypes = (await listEventTypes(user.id, { activeOnly: true })).filter((e) => e.single_use !== 1 && e.hidden !== 1);
+  const byPerson = new Map<string, { id: string; name: string; eventTypeIds: string[] }>();
+  for (const et of eventTypes) {
+    for (const h of await listEventHosts(et.id)) {
+      // Solo con nombre: el email de la persona no se publica.
+      if (!h.name?.trim()) continue;
+      const m = byPerson.get(h.user_id) ?? { id: h.user_id, name: h.name.trim(), eventTypeIds: [] };
+      m.eventTypeIds.push(et.id);
+      byPerson.set(h.user_id, m);
+    }
+  }
+  const teamName = byPerson.size > 1 ? await workspaceTeamName(user.id) : '';
   return {
-    name: brand.name || user.handle,
+    userId: user.id,
+    name: teamName || brand.name || user.handle,
     handle: user.handle,
     brand,
-    eventTypes: (await listEventTypes(user.id, { activeOnly: true })).filter((e) => e.single_use !== 1),
+    eventTypes,
+    members: [...byPerson.values()].sort((a, b) => a.name.localeCompare(b.name)),
   };
 }
 
@@ -414,6 +465,7 @@ export function isOneOff(eventType: Pick<CalendarEventTypeRow, 'one_off_times'>)
 export async function createEventType(
   userId: string,
   payload: EventTypeCreatePayload,
+  opts: { kind?: 'poll' } = {},
 ): Promise<EventTypeWithRules> {
   if (await slugExists(userId, payload.slug)) {
     throw new CalendarError('slug_taken', 409);
@@ -451,8 +503,8 @@ export async function createEventType(
       `INSERT INTO calendar_event_types
        (id, user_id, team_id, slug, title, duration_min, location, description, color, active, booking_rules, fields,
         brand_color, welcome_message, logo_url, single_use, created_at, updated_at, schedule_id, price_cents, currency, one_off_times,
-        locations, scheduling, seats)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        locations, scheduling, seats, hidden, kind)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -480,6 +532,8 @@ export async function createEventType(
       JSON.stringify(payload.locations ?? []),
       scheduling,
       seats,
+      booleanToInt(payload.hidden) ?? 0,
+      opts.kind ?? '',
     );
   if (payload.hostIds) await setEventHosts(id, payload.hostIds);
   const row = (await getDb().prepare('SELECT * FROM calendar_event_types WHERE id = ?').get(id)) as CalendarEventTypeRow;
@@ -550,6 +604,10 @@ export async function updateEventType(
   if (payload.active !== undefined) {
     sets.push('active = ?');
     values.push(booleanToInt(payload.active)!);
+  }
+  if (payload.hidden !== undefined) {
+    sets.push('hidden = ?');
+    values.push(booleanToInt(payload.hidden)!);
   }
   if (payload.bookingRules !== undefined) {
     sets.push('booking_rules = ?');
@@ -843,15 +901,19 @@ export async function countBookingsThisWeek(userId: string): Promise<number> {
 }
 
 /** Reservas confirmadas que empiezan en los próximos `days` días. */
-export async function countUpcomingBookings(userId: string, days = 7, from = new Date()): Promise<number> {
+export async function countUpcomingBookings(userId: string, days = 7, from = new Date(), hostId?: string): Promise<number> {
   const end = new Date(from.getTime() + days * 86_400_000);
+  // Con hostId: solo las que atiende esa persona (alcance de un member).
+  const host = hostId
+    ? " AND (b.host_user_id = ? OR (b.co_host_ids != '[]' AND EXISTS (SELECT 1 FROM json_each(b.co_host_ids) j WHERE j.value = ?)))"
+    : '';
   const row = (await getDb()
     .prepare(
       `SELECT COUNT(*) AS c FROM calendar_bookings b
        JOIN calendar_event_types e ON e.id = b.event_type_id
-       WHERE e.user_id = ? AND b.status = 'confirmed' AND b.starts_at >= ? AND b.starts_at < ?`,
+       WHERE e.user_id = ? AND b.status = 'confirmed' AND b.starts_at >= ? AND b.starts_at < ?${host}`,
     )
-    .get(userId, from.toISOString(), end.toISOString())) as { c: number } | undefined;
+    .get(userId, from.toISOString(), end.toISOString(), ...(hostId ? [hostId, hostId] : []))) as { c: number } | undefined;
   return Number(row?.c ?? 0);
 }
 
@@ -864,14 +926,14 @@ export async function getAvailableDays(
   eventTypeId: string,
   timezone: string,
   month: string,
-  opts: { excludeBookingId?: string } = {},
+  opts: { excludeBookingId?: string; hostId?: string | null } = {},
 ): Promise<string[]> {
   const m = /^(\d{4})-(\d{2})$/.exec(month);
   if (!m) return [];
   const year = Number(m[1]);
   const mon = Number(m[2]);
   if (mon < 1 || mon > 12) return [];
-  const ctx = await loadSlotContext(eventTypeId, opts.excludeBookingId);
+  const ctx = await loadSlotContext(eventTypeId, opts.excludeBookingId, opts.hostId);
   if (!ctx) return [];
   const daysInMonth = new Date(Date.UTC(year, mon, 0)).getUTCDate();
   const first = `${m[1]}-${m[2]}-01`;
@@ -905,7 +967,7 @@ export async function findOfferedSlot(
   eventTypeId: string,
   start: Date,
   timezone: string,
-  opts: { excludeBookingId?: string } = {},
+  opts: { excludeBookingId?: string; hostId?: string | null } = {},
 ): Promise<TimeRange | null> {
   const slots = await getAvailableSlots(eventTypeId, timezone, localDate(start, timezone), opts);
   return slots.find((s) => Math.abs(s.start.getTime() - start.getTime()) < 60_000) ?? null;
@@ -1006,15 +1068,21 @@ export function seatsLeftAt(start: Date, groups: SeatGroup[], seats: number): nu
  * sin motivo. Colectivo: todos los hosts del pool tienen que estar libres (y
  * dentro de sus topes); el principal es el primero del pool. El check no es
  * atómico con la asignación: el guard del INSERT/UPDATE (hostsFreeGuard)
- * corta a la segunda de dos reservas simultáneas.
+ * corta a la segunda de dos reservas simultáneas. `onlyHost` (reservar con
+ * una persona puntual del pool: su página o el owner del CRM) deja el
+ * round-robin en ese host; si no es del pool se ignora (reparto de siempre).
  */
 async function pickFreeHost(
   eventType: EventTypeWithRules,
   slot: TimeRange,
   excludeBookingId?: string,
   preferHost?: string | null,
+  onlyHost?: string | null,
 ): Promise<HostAssignment | null> {
-  const pool = await candidateHosts(eventType);
+  const fullPool = await candidateHosts(eventType);
+  const collectiveAll = isCollective(eventType) && fullPool.length > 1;
+  // Fuera del pool (o colectivo): se ignora, igual que en los horarios ofrecidos.
+  const pool = onlyHost && !collectiveAll && fullPool.includes(onlyHost) ? [onlyHost] : fullPool;
   const collective = isCollective(eventType) && pool.length > 1;
   const rotated =
     !collective && pool.length > 1 ? roundRobinOrder(pool, eventType.rr_cursor, await lastAssignedByHost(eventType.id)) : pool;
@@ -1358,7 +1426,7 @@ function limitsGuardSql(
 
 export async function createBooking(
   payload: BookingCreatePayload,
-  opts: { hold?: BookingHold } = {},
+  opts: { hold?: BookingHold; bookedBy?: string | null; hostId?: string | null; skipApproval?: boolean } = {},
 ): Promise<CalendarBookingRow> {
   const eventType = await getEventTypeById(payload.eventTypeId);
   if (!eventType) throw new CalendarError('not_found', 404);
@@ -1376,8 +1444,19 @@ export async function createBooking(
   if (picked && 'error' in picked) throw new CalendarError(picked.error, 400);
 
   const end = new Date(start.getTime() + eventType.duration_min * 60_000);
-  const assignment = await pickFreeHost(eventType, { start, end });
+  const assignment = await pickFreeHost(eventType, { start, end }, undefined, null, opts.hostId ?? null);
   if (!assignment) throw new CalendarError('slot_unavailable', 409);
+  // Envío de un routing form del mismo workspace (embudo); otro id se ignora.
+  const routingSubmissionId =
+    payload.routingSubmissionId &&
+    (await getDb()
+      .prepare(
+        `SELECT 1 AS one FROM calendar_routing_submissions s JOIN calendar_routing_forms f ON f.id = s.form_id
+         WHERE s.id = ? AND f.user_id = ?`,
+      )
+      .get(payload.routingSubmissionId, eventType.user_id))
+      ? payload.routingSubmissionId
+      : null;
   const hostUserId = assignment.host;
   await releaseExpiredHoldAt(hostUserId, start);
   const id = crypto.randomUUID();
@@ -1390,7 +1469,8 @@ export async function createBooking(
   const guard = limitsGuardSql(await loadLimitConfig(eventType), eventType.id, hostUserId, start, id);
   // Con confirmación del anfitrión (y sin pago) la reserva espera su respuesta
   // como 'pending' sin hold: ocupa el horario pero no dispara recordatorios.
-  const awaitingApproval = !opts.hold && requiresConfirmation(eventType);
+  // Agendada por alguien del equipo (en nombre del invitado): no espera aprobación.
+  const awaitingApproval = !opts.hold && !opts.skipApproval && requiresConfirmation(eventType);
   const status = opts.hold || awaitingApproval ? 'pending' : 'confirmed';
   let inserted: number;
   try {
@@ -1399,8 +1479,8 @@ export async function createBooking(
         `INSERT INTO calendar_bookings
          (id, event_type_id, invitee_email, invitee_name, starts_at, ends_at, timezone, status, answers, host_user_id, manage_token, locale, created_at, updated_at,
           payment_status, hold_expires_at, amount_cents, currency, buffer_before_min, buffer_after_min, utm, approval, guests,
-          location, location_kind, co_host_ids, seated)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          location, location_kind, co_host_ids, seated, routing_submission_id, booked_by)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          WHERE ${free.sql}${singleUse ? ` AND ${SINGLE_USE_FREE_SQL}` : ''}${guard.sql}`,
       )
       .run(
@@ -1431,6 +1511,8 @@ export async function createBooking(
         location.kind,
         JSON.stringify(assignment.coHosts),
         seated,
+        routingSubmissionId,
+        opts.bookedBy ?? null,
         ...free.args,
         ...(singleUse ? [eventType.id, new Date().toISOString()] : []),
         ...guard.args,
@@ -1824,6 +1906,19 @@ export async function reassignBookingsOfRemovedHost(ownerId: string, userId: str
   return moved;
 }
 
+/**
+ * El invitado confirmó que va (link de reconfirmación). Devuelve el momento
+ * si recién quedó reconfirmada, null si ya lo estaba o no está confirmada.
+ */
+export async function reconfirmBooking(id: string): Promise<string | null> {
+  // ISO (con zona) para la API y los webhooks.
+  const at = new Date().toISOString();
+  const res = await getDb()
+    .prepare("UPDATE calendar_bookings SET reconfirmed_at = ?, updated_at = ? WHERE id = ? AND status = 'confirmed' AND reconfirmed_at IS NULL")
+    .run(at, now(), id);
+  return res.changes === 1 ? at : null;
+}
+
 export async function getBookingByManageToken(token: string): Promise<CalendarBookingRow | undefined> {
   if (!token || token.length < 32) return undefined;
   return (await getDb()
@@ -1862,7 +1957,7 @@ export async function rescheduleBooking(id: string, newStart: Date): Promise<Cal
       await getDb()
         .prepare(
           `UPDATE calendar_bookings SET starts_at = ?, ends_at = ?, host_user_id = ?, co_host_ids = ?, location = ?, rescheduled_from = ?,
-             buffer_before_min = ?, buffer_after_min = ?, updated_at = ?
+             buffer_before_min = ?, buffer_after_min = ?, updated_at = ?, reconfirmed_at = NULL
            WHERE id = ? AND status = 'confirmed' AND ${free.sql}${guard.sql}`,
         )
         .run(
@@ -2069,10 +2164,16 @@ export async function listUserBookings(
     limit?: number;
     /** Por inicio; por defecto la más nueva primero. */
     order?: 'asc' | 'desc';
+    /** Solo las que atiende esa persona (anfitriona o co-anfitriona). */
+    hostId?: string;
   } = {},
 ): Promise<CalendarBookingRowWithEvent[]> {
   const conditions: string[] = ['e.user_id = ?'];
   const values: (string | number)[] = [userId];
+  if (opts.hostId) {
+    conditions.push("(b.host_user_id = ? OR (b.co_host_ids != '[]' AND EXISTS (SELECT 1 FROM json_each(b.co_host_ids) j WHERE j.value = ?)))");
+    values.push(opts.hostId, opts.hostId);
+  }
 
   if (opts.status) {
     conditions.push('b.status = ?');
@@ -2101,7 +2202,8 @@ export async function listUserBookings(
                WHERE ${conditions.join(' AND ')}
                ORDER BY b.starts_at ${opts.order === 'asc' ? 'ASC' : 'DESC'}
                LIMIT ?`;
-  values.push(Math.min(Math.max(opts.limit ?? 500, 1), 1000));
+  // El export CSV pide hasta 10.000; la lista, hasta 1.000.
+  values.push(Math.min(Math.max(opts.limit ?? 500, 1), opts.limit && opts.limit > 1000 ? 10_000 : 1000));
   return (await getDb().prepare(sql).all(...values)) as CalendarBookingRowWithEvent[];
 }
 
@@ -2224,7 +2326,7 @@ export function applyBuffer(slot: TimeRange, eventType: EventTypeWithRules, cale
  * desde otros módulos para no acoplar el motor a una integración concreta.
  */
 export type ExternalBusyProvider = (userId: string, from: Date, to: Date) => Promise<TimeRange[]>;
-const externalBusyProviders: ExternalBusyProvider[] = [googleBusyRanges];
+const externalBusyProviders: ExternalBusyProvider[] = [googleBusyRanges, outlookBusyRanges, icloudBusyRanges];
 export function registerBusyProvider(provider: ExternalBusyProvider): void {
   externalBusyProviders.push(provider);
 }
@@ -2376,7 +2478,7 @@ interface SlotContext {
  * del mismo event type). Reprogramar no es una reserva nueva: vale aunque el
  * evento esté desactivado o sea un link de un solo uso ya consumido.
  */
-async function loadSlotContext(eventTypeId: string, excludeBookingId?: string): Promise<SlotContext | null> {
+async function loadSlotContext(eventTypeId: string, excludeBookingId?: string, onlyHost?: string | null): Promise<SlotContext | null> {
   const eventType = await getEventTypeById(eventTypeId);
   if (!eventType) return null;
   if (!(excludeBookingId && (await isReschedulableBooking(excludeBookingId, eventTypeId)))) {
@@ -2400,7 +2502,9 @@ async function loadSlotContext(eventTypeId: string, excludeBookingId?: string): 
       }));
 
   const scheduleTimezone = schedule?.timezone ?? calendarUser?.timezone ?? 'UTC';
-  const hosts = await candidateHosts(eventType);
+  const pool = await candidateHosts(eventType);
+  // Con una persona puntual del pool (su página o el owner del CRM), solo su agenda.
+  const hosts = onlyHost && !(isCollective(eventType) && pool.length > 1) && pool.includes(onlyHost) ? [onlyHost] : pool;
   return {
     eventType,
     calendarUser,
@@ -2526,10 +2630,10 @@ export async function getAvailableSlots(
   eventTypeId: string,
   timezone: string,
   date: string,
-  opts: { excludeBookingId?: string } = {},
+  opts: { excludeBookingId?: string; hostId?: string | null } = {},
 ): Promise<OfferedSlot[]> {
   if (!parseDate(date)) return [];
-  const ctx = await loadSlotContext(eventTypeId, opts.excludeBookingId);
+  const ctx = await loadSlotContext(eventTypeId, opts.excludeBookingId, opts.hostId);
   if (!ctx) return [];
   // Margen de 1 día por buffers.
   const dayStart = localToUtc(date, '00:00:00', timezone);

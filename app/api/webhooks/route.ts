@@ -5,6 +5,7 @@ import { createWebhook, listWebhooks, WEBHOOK_EVENTS } from '@/lib/webhooks';
 import { MAX_FILTER_VALUES, normalizeCrmFilter, normalizeLinkFilter } from '@/lib/webhooks-events';
 import { getDb } from '@/lib/db';
 import { UnsafeUrlError } from '@/lib/safe-fetch';
+import { logCalActivity } from '@/lib/calendar-activity';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -68,6 +69,10 @@ export async function POST(req: NextRequest) {
       linkFilter,
       crmFilter: normalizeCrmFilter({ properties: parsed.data.properties ?? [] }),
     });
+    // Webhooks con eventos de reservas: quedan en el registro de actividad de Cal.
+    if (parsed.data.events.some((e) => e.startsWith('booking.'))) {
+      await logCalActivity(user.id, realUserId(user), 'api.webhook_created', { type: 'webhook', id: created.id, summary: new URL(parsed.data.url).host });
+    }
     return NextResponse.json(created, { status: 201 });
   } catch (err) {
     if (err instanceof UnsafeUrlError) return NextResponse.json({ error: err.message }, { status: 400 });

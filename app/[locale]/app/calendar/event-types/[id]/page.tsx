@@ -2,11 +2,12 @@ import { headers } from 'next/headers';
 import { editorLocations } from '@/lib/calendar-locations';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { getEventType, getOrCreateCalendarUser, getWorkspaceBrand, listAvailability, listEventHosts } from '@/lib/calendar';
 import { ensureDefaultSchedule, listSchedules, type ScheduleRule } from '@/lib/calendar-schedules';
 import { getPaymentSettings } from '@/lib/calendar-payments';
 import { listWorkflowSteps } from '@/lib/calendar-workflows';
+import { getSmsSettings } from '@/lib/calendar-sms';
 import { listMembers } from '@/lib/teams';
 import EventTypeEditor from '@/components/calendar/EventTypeEditor';
 import { parseQuestions } from '@/lib/calendar-questions';
@@ -69,6 +70,7 @@ export default async function EventTypeDetailPage(props: {
         description: eventType.description ?? '',
         color: /^#[0-9a-f]{6}$/i.test(eventType.color) ? eventType.color : '#111111',
         active: eventType.active === 1,
+        hidden: eventType.hidden === 1,
         bookingRules: eventType.bookingRulesParsed ?? {},
         fields: parseQuestions(eventType.fieldsParsed),
         brandColor: eventType.brand_color,
@@ -99,7 +101,9 @@ export default async function EventTypeDetailPage(props: {
         maxFutureDays: config.max_booking_days,
       }}
       payments={{ configured: payments.configured, ready: payments.configured && payments.hasWebhookSecret }}
-      workflowSteps={workflowSteps ?? []}
+      workflowSteps={(workflowSteps ?? []).map((s) => (isWorkspaceAdmin(user) ? s : { ...s, secret: '' }))}
+      canEditWorkflows={isWorkspaceAdmin(user)}
+      smsConfigured={(await getSmsSettings(user.id)).configured}
       teamMembers={teamMembers}
       teamId={hostTeamId}
       hostIds={hosts.map((h) => h.user_id)}

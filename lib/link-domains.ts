@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto';
+import { createHmac, randomBytes } from 'crypto';
 import { lookup, resolveCname, resolveTxt } from 'dns/promises';
 import { getDb } from './db';
 import { isAppHost, isValidHostname, normalizeHost } from './hosts';
@@ -41,7 +41,7 @@ export const UNVERIFIED_TTL_DAYS = 7;
 
 export const VERIFY_PREFIX = '_zerosoft-verify';
 
-function newVerifyToken(): string {
+export function newVerifyToken(): string {
   return randomBytes(16).toString('hex');
 }
 
@@ -50,15 +50,15 @@ export function verifyTxtValue(token: string): string {
   return `zerosoft-verify=${token}`;
 }
 
-function vercelConfigured(): boolean {
+export function vercelConfigured(): boolean {
   return Boolean(process.env.VERCEL_TOKEN && process.env.VERCEL_PROJECT_ID);
 }
 
-function vercelQuery(): string {
+export function vercelQuery(): string {
   return process.env.VERCEL_TEAM_ID ? `?teamId=${encodeURIComponent(process.env.VERCEL_TEAM_ID)}` : '';
 }
 
-async function vercel(path: string, init: RequestInit = {}): Promise<Response | null> {
+export async function vercel(path: string, init: RequestInit = {}): Promise<Response | null> {
   return fetch(`${VERCEL_API}${path}`, {
     ...init,
     headers: { authorization: `Bearer ${process.env.VERCEL_TOKEN}`, 'content-type': 'application/json', ...init.headers },
@@ -87,7 +87,7 @@ function recordLabel(hostname: string): string {
   return hostname === zone ? '' : hostname.slice(0, -(zone.length + 1));
 }
 
-function routingInstruction(hostname: string): DnsInstruction {
+export function routingInstruction(hostname: string): DnsInstruction {
   const appHost = (process.env.SHORT_DOMAIN ?? process.env.NEXTAUTH_URL ?? 'zerosoft.ai').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
   const label = recordLabel(hostname);
   if (vercelConfigured()) {
@@ -135,7 +135,7 @@ async function ensureVerifyToken(domain: LinkDomainRow): Promise<string> {
 }
 
 /** El TXT _zerosoft-verify.<host> tiene el token del dominio. */
-async function hasOwnershipTxt(hostname: string, token: string): Promise<boolean> {
+export async function hasOwnershipTxt(hostname: string, token: string): Promise<boolean> {
   const records = await resolveTxt(`${VERIFY_PREFIX}.${hostname}`).catch(() => [] as string[][]);
   const expected = verifyTxtValue(token);
   return records.some((chunks) => chunks.join('').trim() === expected);
@@ -155,7 +155,34 @@ export async function getVerifiedDomainByHost(host: string): Promise<LinkDomainR
     .get(h)) as LinkDomainRow | undefined;
 }
 
-export type AddDomainError = 'invalid_hostname' | 'domain_taken' | 'app_host' | 'provider_error' | 'too_many_pending';
+export type AddDomainError = 'invalid_hostname' | 'domain_taken' | 'app_host' | 'provider_error' | 'too_many_pending' | 'domain_pending_elsewhere';
+
+/**
+ * Token del TXT con el que un workspace prueba que un hostname es suyo para
+ * quedarse con uno que otro workspace agregó y no verificó (en Link o en el
+ * sitio de Docs). Derivado, no al azar: se muestra antes de agregarlo.
+ */
+export function claimToken(ownerId: string, hostname: string): string {
+  const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET ?? 'zerosoft-docs-site';
+  return createHmac('sha256', secret).update(`docs-site|${ownerId}|${hostname}`).digest('hex').slice(0, 32);
+}
+
+/** ¿`ownerId` probó con el TXT de su token que el hostname es suyo? (DOCS_DOMAIN_FAKE_TXT en tests.) */
+export async function provesClaim(ownerId: string, hostname: string): Promise<boolean> {
+  const token = claimToken(ownerId, hostname);
+  if (process.env.DOCS_DOMAIN_FAKE === '1' && hostname.endsWith('.test') && process.env.DOCS_DOMAIN_FAKE_TXT === token) return true;
+  return hasOwnershipTxt(hostname, token);
+}
+
+/** El TXT que hay que crear para quedarse con un dominio pendiente de otro workspace. */
+export function claimDns(ownerId: string, hostname: string): DnsInstruction[] {
+  return dnsInstructions(hostname, claimToken(ownerId, hostname)).filter((d) => d.type === 'TXT');
+}
+
+/** Pendientes vencidos de Link para este hostname (de cualquiera), como purgeExpiredPending. Lo usa Docs. */
+export async function purgeExpiredLinkPending(hostname: string): Promise<void> {
+  await purgeExpiredPending(hostname, '');
+}
 
 /** Tope de dominios sin verificar por usuario (cada alta también ocupa un lugar en el proyecto de Vercel). */
 export const MAX_PENDING_DOMAINS = 5;
@@ -181,17 +208,48 @@ async function purgeExpiredPending(hostname: string, userId: string): Promise<vo
   }
 }
 
+/** Libera el dominio pendiente (sin verificar) de un sitio de Docs. */
+async function releasePendingSiteDomain(hostname: string): Promise<void> {
+  await getDb()
+    .prepare("UPDATE docs_sites SET hostname = NULL, verify_token = NULL, domain_added_at = NULL, updated_at = datetime('now') WHERE hostname = ? AND verified = 0")
+    .run(hostname);
+}
+
+/** Pendientes vencidos del sitio de Docs para este hostname (UNVERIFIED_TTL_DAYS, como los de Link). */
+async function purgeExpiredSitePending(hostname: string): Promise<void> {
+  await getDb()
+    .prepare(
+      `UPDATE docs_sites SET hostname = NULL, verify_token = NULL, domain_added_at = NULL, updated_at = datetime('now')
+       WHERE hostname = ? AND verified = 0 AND domain_added_at < datetime('now', ?)`,
+    )
+    .run(hostname, `-${UNVERIFIED_TTL_DAYS} days`);
+}
+
 export async function addDomain(
   userId: string,
   rawHostname: string,
-): Promise<{ ok: true; domain: LinkDomainRow } | { ok: false; code: AddDomainError }> {
+): Promise<{ ok: true; domain: LinkDomainRow } | { ok: false; code: AddDomainError; dns?: DnsInstruction[] }> {
   const hostname = normalizeHost(rawHostname).replace(/^https?:\/\//, '').replace(/\/.*$/, '');
   if (!isValidHostname(hostname)) return { ok: false, code: 'invalid_hostname' };
   if (isAppHost(hostname)) return { ok: false, code: 'app_host' };
   // Un alta que nunca se verificó no bloquea el dominio para siempre.
   await purgeExpiredPending(hostname, userId);
-  const existing = await getDb().prepare('SELECT 1 AS x FROM link_domains WHERE hostname = ?').get(hostname);
-  if (existing) return { ok: false, code: 'domain_taken' };
+  const existing = (await getDb().prepare('SELECT id, user_id, verified FROM link_domains WHERE hostname = ?').get(hostname)) as
+    | { id: string; user_id: string; verified: number }
+    | undefined;
+  if (existing?.verified === 1 || existing?.user_id === userId) return { ok: false, code: 'domain_taken' };
+  // El sitio de Docs (lib/docs-site.ts): uno verificado no se comparte; uno
+  // pendiente vencido se libera; uno pendiente vigente de otro workspace se
+  // toma solo probando el TXT (si no, cualquiera podía quitárselo).
+  await purgeExpiredSitePending(hostname);
+  const site = (await getDb().prepare('SELECT workspace_id, verified FROM docs_sites WHERE hostname = ?').get(hostname)) as
+    | { workspace_id: string; verified: number }
+    | undefined;
+  if (site?.verified === 1) return { ok: false, code: 'domain_taken' };
+  const contested = Boolean(existing) || Boolean(site && site.workspace_id !== userId);
+  if (contested && !(await provesClaim(userId, hostname))) return { ok: false, code: 'domain_pending_elsewhere', dns: claimDns(userId, hostname) };
+  if (existing) await getDb().prepare('DELETE FROM link_domains WHERE id = ? AND verified = 0').run(existing.id);
+  if (site) await releasePendingSiteDomain(hostname);
   const pending = (await getDb()
     .prepare('SELECT COUNT(*) AS n FROM link_domains WHERE user_id = ? AND verified = 0')
     .get(userId)) as { n: number } | undefined;
@@ -227,23 +285,19 @@ export async function addDomain(
   return { ok: true, domain: (await getUserDomain(userId, id))! };
 }
 
-/** Verifica el DNS (y en Vercel, la config del proyecto). Marca verified si está listo. */
-export async function verifyDomain(userId: string, id: string): Promise<{ verified: boolean; reason?: string }> {
-  const domain = await getUserDomain(userId, id);
-  if (!domain) return { verified: false, reason: 'not_found' };
-  if (domain.verified === 1) return { verified: true };
+/**
+ * ¿El dominio ya llega a este servidor? En Vercel: config sin errores y el
+ * dominio verificado en el proyecto (si falta, se pide la verificación). En
+ * self-host: CNAME a nuestro host o las mismas IPs. Lo usan Link y el sitio
+ * publicado de Docs (lib/docs-site.ts).
+ */
+export async function routingReady(hostname: string): Promise<boolean> {
   let ok = false;
-  let reason: string | undefined;
-
-  // Propiedad: el TXT con el token del dominio. Sin esto no se verifica nada.
-  const token = await ensureVerifyToken(domain);
-  if (!(await hasOwnershipTxt(domain.hostname, token))) return { verified: false, reason: 'txt_missing' };
-
   if (vercelConfigured()) {
-    const res = await vercel(`/v6/domains/${encodeURIComponent(domain.hostname)}/config${vercelQuery()}`);
+    const res = await vercel(`/v6/domains/${encodeURIComponent(hostname)}/config${vercelQuery()}`);
     const cfg = res?.ok ? ((await res.json().catch(() => null)) as { misconfigured?: boolean } | null) : null;
     // Además, Vercel tiene que dar el dominio por verificado en el proyecto.
-    const projectPath = `/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains/${encodeURIComponent(domain.hostname)}`;
+    const projectPath = `/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains/${encodeURIComponent(hostname)}`;
     const pd = await vercel(`${projectPath}${vercelQuery()}`);
     let projectVerified = pd?.ok ? ((await pd.json().catch(() => null)) as { verified?: boolean } | null)?.verified : false;
     if (projectVerified === false && pd?.ok) {
@@ -251,21 +305,35 @@ export async function verifyDomain(userId: string, id: string): Promise<{ verifi
       projectVerified = v?.ok ? ((await v.json().catch(() => null)) as { verified?: boolean } | null)?.verified : false;
     }
     ok = cfg?.misconfigured === false && projectVerified === true;
-    if (!ok) reason = 'dns_not_ready';
   } else {
-    const target = routingInstruction(domain.hostname).value;
-    const cnames = await resolveCname(domain.hostname).catch(() => [] as string[]);
+    const target = routingInstruction(hostname).value;
+    const cnames = await resolveCname(hostname).catch(() => [] as string[]);
     if (cnames.some((c) => c.replace(/\.$/, '') === target)) ok = true;
     else {
       const [mine, theirs] = await Promise.all([
         lookup(target, { all: true }).catch(() => []),
-        lookup(domain.hostname, { all: true }).catch(() => []),
+        lookup(hostname, { all: true }).catch(() => []),
       ]);
       const mineSet = new Set(mine.map((a) => a.address));
       ok = theirs.length > 0 && theirs.every((a) => mineSet.has(a.address));
-      if (!ok) reason = 'dns_not_ready';
     }
   }
+  return ok;
+}
+
+/** Verifica el DNS (y en Vercel, la config del proyecto). Marca verified si está listo. */
+export async function verifyDomain(userId: string, id: string): Promise<{ verified: boolean; reason?: string }> {
+  const domain = await getUserDomain(userId, id);
+  if (!domain) return { verified: false, reason: 'not_found' };
+  if (domain.verified === 1) return { verified: true };
+  let reason: string | undefined;
+
+  // Propiedad: el TXT con el token del dominio. Sin esto no se verifica nada.
+  const token = await ensureVerifyToken(domain);
+  if (!(await hasOwnershipTxt(domain.hostname, token))) return { verified: false, reason: 'txt_missing' };
+
+  const ok = await routingReady(domain.hostname);
+  if (!ok) reason = 'dns_not_ready';
 
   if (ok && domain.verified !== 1) {
     await getDb()

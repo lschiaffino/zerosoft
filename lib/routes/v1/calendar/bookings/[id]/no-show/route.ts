@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { apiError, requireApiUser } from '@/lib/api-auth';
 import { CalendarError, getEventTypeById, ownedBooking, updateBooking } from '@/lib/calendar';
 import { afterBookingNoShow, bookingPayload } from '@/lib/calendar-lifecycle';
+import { bookingInScope, bookingScopeFor } from '@/lib/calendar-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if ('res' in auth) return auth.res;
   const { id } = await props.params;
   const booking = await ownedBooking(auth.user.id, id);
-  if (!booking) return apiError(404, 'not_found', 'Booking not found.');
+  // Un member (con su key) solo ve y gestiona las reservas que atiende.
+  if (!booking || !bookingInScope(booking, bookingScopeFor(auth.role, auth.personId))) {
+    return apiError(404, 'not_found', 'Booking not found.');
+  }
   if (booking.status !== 'confirmed') return apiError(409, 'not_confirmed', 'Only confirmed bookings can be marked as no-show.');
   // Antes del inicio no hay no-show: marcarlo liberaría el horario sin avisar a nadie.
   if (new Date(booking.starts_at).getTime() > Date.now()) {

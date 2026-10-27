@@ -429,7 +429,8 @@
       "has_links": "This domain still has links. Move or delete them first.",
       "too_many_pending": "You have 5 domains waiting for verification. Verify or remove one first.",
       "rate_limited": "Too many domains added. Wait a while and try again.",
-      "invalid_url": "That URL isn't valid."
+      "invalid_url": "That URL isn't valid.",
+      "domain_pending_elsewhere": "Another workspace added this domain and has not verified it. To take it, create a TXT record named {name} with the value {value} and add it again."
     },
     "txtMissing": "We can't see the TXT record yet. Check its name and value; DNS can take a few minutes.",
     "pageDesc": "Branded short links: go.yourcompany.com/promo.",

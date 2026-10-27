@@ -34,6 +34,9 @@ export const DOCS_AUDIT_ACTIONS = [
   'teamspace.member_added',
   'teamspace.member_removed',
   'settings.updated',
+  'settings.exported',
+  'settings.imported',
+  'settings.site',
 ] as const;
 
 export type DocsAuditAction = (typeof DOCS_AUDIT_ACTIONS)[number];

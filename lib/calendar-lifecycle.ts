@@ -4,11 +4,8 @@ import { bookingGuests, cancelReasonWithRefund, notConfirmedReason, notifyBookin
 import { parseUtm } from './calendar-redirect';
 import { recordBookingInCrm } from './crm-integrations';
 import type { CalendarBookingRow } from './db';
-import {
-  createGoogleEventForBooking,
-  deleteGoogleEventForBooking,
-  syncGoogleEventTime,
-} from './google-calendar';
+import { createExternalForBooking, deleteExternalForBooking, syncExternalTime } from './calendar-external';
+import { scheduleTriggeredRuns } from './calendar-workflows';
 
 /**
  * Efectos de cada cambio de una reserva, en un solo lugar: calendario externo
@@ -84,8 +81,9 @@ export async function afterBookingCreated(booking: CalendarBookingRow, locale?: 
     await emitEvent(eventType.user_id, 'booking.requested', bookingPayload(booking, eventType));
     return booking;
   }
-  const synced = await safely('google-create', () => createGoogleEventForBooking(booking, eventType), booking);
+  const synced = await safely('external-create', () => createExternalForBooking(booking, eventType), booking);
   await safely('notify-created', () => notifyBooking(synced, 'created', { locale }), undefined);
+  await safely('workflow-booked', () => scheduleTriggeredRuns(synced.id, 'booked'), 0);
   await safely('crm-created', () => recordBookingInCrm(eventType.user_id, 'created', synced, eventType.title), undefined);
   await emitEvent(eventType.user_id, 'booking.created', bookingPayload(synced, eventType));
   return synced;
@@ -125,7 +123,8 @@ export async function afterBookingRescheduled(
 ): Promise<CalendarBookingRow> {
   const eventType = await getEventTypeById(booking.event_type_id);
   if (!eventType) return booking;
-  const synced = await safely('google-move', () => syncGoogleEventTime(booking, eventType, previousHostId), booking);
+  const synced = await safely('external-move', () => syncExternalTime(booking, eventType, previousHostId), booking);
+  await safely('workflow-rescheduled', () => scheduleTriggeredRuns(synced.id, 'rescheduled'), 0);
   // Round-robin: el host original estaba ocupado en el horario nuevo y la
   // reserva pasó a otro. El anterior recibe la cancelación (con el horario
   // que tenía) y el nuevo la reserva, aunque la haya movido un anfitrión.
@@ -157,7 +156,8 @@ export async function afterBookingRescheduled(
 export async function afterBookingCancelled(booking: CalendarBookingRow, reason: string | null): Promise<void> {
   const eventType = await getEventTypeById(booking.event_type_id);
   if (!eventType) return;
-  await safely('google-delete', () => deleteGoogleEventForBooking(booking, eventType), undefined);
+  await safely('external-delete', () => deleteExternalForBooking(booking, eventType), undefined);
+  await safely('workflow-cancelled', () => scheduleTriggeredRuns(booking.id, 'cancelled'), 0);
   // Reserva paga reembolsada al cancelarla: el aviso lo dice.
   const notice = booking.payment_status === 'refunded' ? cancelReasonWithRefund(reason, booking.locale) : reason;
   await safely('notify-cancelled', () => notifyBooking(booking, 'cancelled', { reason: notice }), undefined);
@@ -172,7 +172,15 @@ export async function afterBookingCancelled(booking: CalendarBookingRow, reason:
 export async function afterBookingNoShow(booking: CalendarBookingRow): Promise<void> {
   const eventType = await getEventTypeById(booking.event_type_id);
   if (!eventType) return;
+  await safely('workflow-no-show', () => scheduleTriggeredRuns(booking.id, 'no_show'), 0);
   await emitEvent(eventType.user_id, 'booking.no_show', bookingPayload(booking, eventType));
+}
+
+/** El invitado confirmó que va: webhook booking.reconfirmed (Flow y webhooks). */
+export async function afterBookingReconfirmed(booking: CalendarBookingRow): Promise<void> {
+  const eventType = await getEventTypeById(booking.event_type_id);
+  if (!eventType) return;
+  await emitEvent(eventType.user_id, 'booking.reconfirmed', { ...bookingPayload(booking, eventType), reconfirmedAt: booking.reconfirmed_at });
 }
 
 /** Pago que llegó tarde y se reembolsó: la reserva sigue cancelada, se avisa al invitado y al anfitrión. */
@@ -194,7 +202,7 @@ export async function reassignRemovedHostBookings(ownerId: string, userId: strin
     if (booking.status !== 'confirmed') continue;
     const eventType = await getEventTypeById(booking.event_type_id);
     if (!eventType) continue;
-    const synced = await safely('google-reassign', () => syncGoogleEventTime(booking, eventType, userId), booking);
+    const synced = await safely('external-reassign', () => syncExternalTime(booking, eventType, userId), booking);
     await safely('notify-host-assigned', () => notifyBooking(synced, 'created', { onlyHost: true }), undefined);
   }
 }

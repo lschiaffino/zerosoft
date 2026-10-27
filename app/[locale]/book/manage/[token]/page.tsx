@@ -11,6 +11,7 @@ import { resolveBrand } from '@/components/calendar/cal-utils';
 import { abandonCheckout, reconcileCheckout } from '@/lib/calendar-payments';
 import { afterBookingCreated } from '@/lib/calendar-lifecycle';
 import ManageBooking from '@/components/calendar/ManageBooking';
+import PublicPageExtras from '@/components/calendar/PublicPageExtras';
 import '@/styles/calendar.css';
 
 export const dynamic = 'force-dynamic';
@@ -20,10 +21,10 @@ export const metadata: Metadata = { robots: { index: false, follow: false }, ref
 
 export default async function ManageBookingPage(props: {
   params: Promise<{ token: string; locale: string }>;
-  searchParams: Promise<{ session_id?: string; paid?: string; checkout?: string }>;
+  searchParams: Promise<{ session_id?: string; paid?: string; checkout?: string; reconfirm?: string }>;
 }) {
   const { token, locale } = await props.params;
-  const { session_id: sessionId, paid, checkout } = await props.searchParams;
+  const { session_id: sessionId, paid, checkout, reconfirm } = await props.searchParams;
   let booking = await getBookingByManageToken(token);
   if (!booking) notFound();
 
@@ -47,24 +48,29 @@ export default async function ManageBookingPage(props: {
   const brand = resolveBrand(await getWorkspaceBrand(eventType.user_id), eventType);
 
   return (
-    <ManageBooking
-      token={token}
-      locale={locale}
-      eventType={eventType}
-      weekStart={calendarUser?.week_start ?? 1}
-      brand={brand}
-      maxFutureDays={effectiveMaxFutureDays(eventType, calendarUser)}
-      paidNotice={paid === '1'}
-      booking={{
-        startsAt: booking.starts_at,
-        endsAt: booking.ends_at,
-        timezone: booking.timezone,
-        status: booking.status,
-        approval: booking.approval,
-        name: booking.invitee_name,
-        email: booking.invitee_email,
-        location: booking.meeting_url || booking.location || '',
-      }}
-    />
+    <>
+      <PublicPageExtras workspaceId={eventType.user_id} pixels={false} />
+      <ManageBooking
+        token={token}
+        locale={locale}
+        eventType={eventType}
+        weekStart={calendarUser?.week_start ?? 1}
+        brand={brand}
+        maxFutureDays={effectiveMaxFutureDays(eventType, calendarUser)}
+        paidNotice={paid === '1'}
+        booking={{
+          startsAt: booking.starts_at,
+          endsAt: booking.ends_at,
+          timezone: booking.timezone,
+          status: booking.status,
+          approval: booking.approval,
+          name: booking.invitee_name,
+          email: booking.invitee_email,
+          location: booking.meeting_url || booking.location || '',
+          reconfirmed: !!booking.reconfirmed_at,
+        }}
+        reconfirmAsked={reconfirm === '1'}
+      />
+    </>
   );
 }

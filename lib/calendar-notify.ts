@@ -349,8 +349,15 @@ export async function notifyBooking(
   // sin el link de gestión, que es del invitado principal.
   if (!opts.onlyHost && !noInvite && guests.length > 0) {
     const guestLine = fill(L.guestOf[kind === 'cancelled' ? 'cancelled' : kind === 'rescheduled' ? 'rescheduled' : 'created'], vars);
-    const paragraphs = [guestLine, ...details(booking.timezone)];
+    // Cada invitado extra ve la hora en su zona si se conoce (encuestas); si no, en la del invitado principal.
+    let guestTzs: Record<string, string> = {};
+    try {
+      guestTzs = JSON.parse(booking.guest_timezones || '{}') as Record<string, string>;
+    } catch {
+      guestTzs = {};
+    }
     for (const to of guests) {
+      const paragraphs = [guestLine, ...details(typeof guestTzs[to.toLowerCase()] === 'string' ? guestTzs[to.toLowerCase()] : booking.timezone)];
       await sendEmail({
         to,
         subject: stripTags(fill(copy.guestSubject, { ...vars, event: eventType.title })),

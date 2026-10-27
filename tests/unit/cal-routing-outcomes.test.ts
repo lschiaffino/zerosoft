@@ -112,7 +112,8 @@ describe('Cal: routing forms que terminan en una URL o un mensaje', () => {
     expect(toUrl).toEqual({ kind: 'url', url: 'https://example.com/ent?size=500%2B&company=Acme' });
     const toEvent = await (await post(form.id, { size: '1-10', company: 'Acme' })).json();
     expect(toEvent.kind).toBe('event');
-    expect(toEvent.bookPath).toMatch(new RegExp(`/book/rt-[a-z0-9-]+/${et.slug}\\?size=1-10&company=Acme$`));
+    // rsid ata la reserva al envío (embudo del form).
+    expect(toEvent.bookPath).toMatch(new RegExp(`/book/rt-[a-z0-9-]+/${et.slug}\\?size=1-10&company=Acme&rsid=[0-9a-f-]{36}$`));
     const none = await post(form.id, { company: 'Nadie' });
     expect(none.status).toBe(404);
 

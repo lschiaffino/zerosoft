@@ -231,6 +231,15 @@ Ordenadas por cuánto pesan en la decisión de volver a Notion.
 | 9 | Favoritos y bloqueo de página | Atajos chicos que se extrañan desde el primer día. | S | No |
 | 10 | Menciones de fecha y recordatorios en una página | Sostiene los to-do con fecha dentro de una página. | S | No |
 
+Estado al 2026-10-27 (tanda D5): importar desde Notion (Markdown/CSV o HTML),
+Confluence, Google Docs, Word y Evernote, exportar Markdown/HTML/PDF de una
+página, sus subpáginas o el workspace, dominio propio, SEO, analítica del
+sitio y por página, duplicar páginas publicadas, cajón y barra táctil en el
+celular y edición sin conexión están construidos (ver
+`content/feature-parity/docs.ts`). Quedan en parcial la fusión tecla por
+tecla de la edición simultánea y las bases sincronizadas con Jira/Salesforce
+sin probar contra las APIs reales.
+
 ## Bugs encontrados
 
 1. **El aviso de conflicto (y el de papelera) ocupa un tercio de la pantalla en páginas cortas.**

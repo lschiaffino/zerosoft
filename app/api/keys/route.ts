@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { createApiKey, listApiKeys } from '@/lib/api-auth';
 import { API_SCOPES } from '@/lib/api-scopes';
+import { logCalActivity } from '@/lib/calendar-activity';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,5 +37,8 @@ export async function POST(req: NextRequest) {
     realUserId(user),
     parsed.data.scopes ?? '*',
   );
+  // Keys que pueden usar Cal (API v1 y servidor MCP): quedan en su registro de actividad.
+  const calScopes = parsed.data.scopes === undefined || parsed.data.scopes.some((s) => s.startsWith('cal:'));
+  if (calScopes) await logCalActivity(user.id, realUserId(user), 'api.key_created', { type: 'api_key', id, summary: parsed.data.name.trim() });
   return NextResponse.json({ id, key, scopes }, { status: 201 });
 }

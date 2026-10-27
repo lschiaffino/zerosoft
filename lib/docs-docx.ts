@@ -9,7 +9,8 @@ import { DOCS_IMPORT_MAX_BLOCKS } from './docs-import';
  * tamaño (nada de zip bombs) y el XML se recorre con un tokenizador acotado
  * (sin DTD ni entidades externas). Entra: headings, párrafos, negrita,
  * itálica, subrayado, tachado, links, listas con viñeta o numeradas (con su
- * nivel), citas y tablas. Imágenes, notas al pie y comentarios no se importan.
+ * nivel), citas, tablas e imágenes (con `imageMarkers`: marcadores que el
+ * importador sube). Notas al pie y comentarios no se importan.
  * Solo servidor (zlib). El HTML que sale pasa igual por sanitizeBlocks.
  */
 
@@ -56,19 +57,55 @@ function readZipEntries(buf: Buffer): Map<string, ZipEntry> {
   return entries;
 }
 
-function readZipPart(buf: Buffer, entries: Map<string, ZipEntry>, name: string): string | null {
+function readZipBytes(buf: Buffer, entries: Map<string, ZipEntry>, name: string, max = PART_MAX_BYTES): Buffer | null {
   const e = entries.get(name);
   if (!e) return null;
   if (e.offset + 30 > buf.length || buf.readUInt32LE(e.offset) !== 0x04034b50) throw new DocxImportError('invalid_docx');
   const start = e.offset + 30 + buf.readUInt16LE(e.offset + 26) + buf.readUInt16LE(e.offset + 28);
   const data = buf.subarray(start, start + e.compressedSize);
   try {
-    if (e.method === 0) return data.toString('utf8');
-    if (e.method === 8) return inflateRawSync(data, { maxOutputLength: PART_MAX_BYTES }).toString('utf8');
+    if (e.method === 0) return data.length > max ? null : Buffer.from(data);
+    if (e.method === 8) return inflateRawSync(data, { maxOutputLength: max });
   } catch {
     throw new DocxImportError('invalid_docx');
   }
   throw new DocxImportError('invalid_docx');
+}
+
+function readZipPart(buf: Buffer, entries: Map<string, ZipEntry>, name: string): string | null {
+  return readZipBytes(buf, entries, name)?.toString('utf8') ?? null;
+}
+
+/** Marcador de una imagen del .docx (párrafo propio); el importador la sube y la cambia por un bloque image. */
+export const DOCX_IMAGE_MARKER = 'zsdocximg:';
+
+/**
+ * Bytes de una imagen del .docx (`word/media/...`), con tope. null si no está
+ * o pasa el tope. El path sale de un marcador de docxToBlocks.
+ */
+export function readDocxMedia(input: ArrayBuffer | Uint8Array, target: string, maxBytes: number): Buffer | null {
+  if (!/^word\/media\/[A-Za-z0-9._-]{1,120}$/.test(target)) return null;
+  const buf = Buffer.from(input instanceof Uint8Array ? input : new Uint8Array(input));
+  try {
+    return readZipBytes(buf, readZipEntries(buf), target, maxBytes);
+  } catch {
+    return null;
+  }
+}
+
+/** Relaciones internas a imágenes (rId → word/media/...). */
+function parseImageRels(xml: string | null): Map<string, string> {
+  const out = new Map<string, string>();
+  if (!xml) return out;
+  for (const m of xml.matchAll(/<Relationship\b([^>]*)\/?>/g)) {
+    const id = attrVal(m[1], 'Id');
+    const target = attrVal(m[1], 'Target');
+    const type = attrVal(m[1], 'Type') ?? '';
+    if (!id || !target || /TargetMode="External"/.test(m[1]) || !/\/image$/.test(type)) continue;
+    const clean = target.replace(/^\/?(word\/)?/, '');
+    if (/^media\/[A-Za-z0-9._-]{1,120}$/.test(clean)) out.set(id, `word/${clean}`);
+  }
+  return out;
 }
 
 function xmlDecode(text: string): string {
@@ -153,7 +190,11 @@ function parseRels(xml: string | null): Map<string, string> {
   return out;
 }
 
-export function docxToBlocks(input: ArrayBuffer | Uint8Array, newId: () => string = () => crypto.randomUUID()): DocsBlock[] {
+export function docxToBlocks(
+  input: ArrayBuffer | Uint8Array,
+  newId: () => string = () => crypto.randomUUID(),
+  opts: { imageMarkers?: boolean } = {},
+): DocsBlock[] {
   const buf = Buffer.from(input instanceof Uint8Array ? input : new Uint8Array(input));
   if (buf.length < 22) throw new DocxImportError('invalid_docx');
   const entries = readZipEntries(buf);
@@ -161,7 +202,11 @@ export function docxToBlocks(input: ArrayBuffer | Uint8Array, newId: () => strin
   if (!doc) throw new DocxImportError('invalid_docx');
   const styles = parseStyles(readZipPart(buf, entries, 'word/styles.xml'));
   const listType = parseNumbering(readZipPart(buf, entries, 'word/numbering.xml'));
-  const rels = parseRels(readZipPart(buf, entries, 'word/_rels/document.xml.rels'));
+  const relsXml = readZipPart(buf, entries, 'word/_rels/document.xml.rels');
+  const rels = parseRels(relsXml);
+  const imageRels = opts.imageMarkers ? parseImageRels(relsXml) : new Map<string, string>();
+  /** Imágenes del párrafo en curso: van como bloques propios después del texto. */
+  let paraImages: string[] = [];
 
   const out: DocsBlock[] = [];
   const push = (b: Omit<DocsBlock, 'id'>) => {
@@ -208,8 +253,16 @@ export function docxToBlocks(input: ArrayBuffer | Uint8Array, newId: () => strin
       if (cell && p.text.trim()) cell.push(p.text.trim());
       return;
     }
+    const images = paraImages;
+    paraImages = [];
     const html = p.html.replace(/\n/g, '<br>').trim();
-    if (!p.text.trim()) return;
+    const pushImages = () => {
+      for (const target of images) push({ type: 'paragraph', content: `${DOCX_IMAGE_MARKER}${target}` });
+    };
+    if (!p.text.trim()) {
+      pushImages();
+      return;
+    }
     const kind = p.style ? styles.get(p.style) ?? null : null;
     const indent = Math.min(p.ilvl, DOCS_MAX_INDENT);
     if (p.numId && p.numId !== '0') {
@@ -219,6 +272,7 @@ export function docxToBlocks(input: ArrayBuffer | Uint8Array, newId: () => strin
     } else {
       push({ type: 'paragraph', content: html });
     }
+    pushImages();
   };
 
   const re = /<(\/?)([\w:]+)((?:[^>"]|"[^"]*")*?)(\/?)>|([^<]+)/g;
@@ -312,6 +366,11 @@ export function docxToBlocks(input: ArrayBuffer | Uint8Array, newId: () => strin
       case 'w:cr':
         if (run && attrVal(attrs, 'w:type') !== 'page') run.text += '\n';
         break;
+      case 'a:blip': {
+        const target = imageRels.get(attrVal(attrs, 'r:embed') ?? '');
+        if (target && para && tableDepth === 0 && paraImages.length < 20) paraImages.push(target);
+        break;
+      }
       case 'w:hyperlink':
         if (!para) break;
         if (closing) {

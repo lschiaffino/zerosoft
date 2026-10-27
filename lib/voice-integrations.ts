@@ -19,6 +19,7 @@ import { getDb } from './db';
 import { transcriptAsText, updateSession, VoiceError, type VoiceOwner } from './voice';
 import { createTeamspace, TeamspaceLimitError } from './docs-access';
 import type { VoiceSessionDetail } from './voice-types';
+import { bookingInScope } from './calendar-access';
 
 export interface MeetingLabels {
   me: string;
@@ -271,6 +272,8 @@ export async function listLinkableBookings(owner: VoiceOwner, now = new Date()):
     to: new Date(now.getTime() + 7 * 86_400_000),
     limit: 100,
     order: 'desc',
+    // Un member vincula solo reservas que atiende (como en Cal).
+    hostId: owner.bookingScope ?? undefined,
   });
   return rows.map((b) => ({
     id: b.id,
@@ -299,10 +302,14 @@ export async function linkBooking(args: {
     // Fuera de la ventana: se busca la reserva en el workspace directamente.
     const row = (await getDb()
       .prepare(
-        `SELECT b.id, b.invitee_name, b.invitee_email, e.title FROM calendar_bookings b JOIN calendar_event_types e ON e.id = b.event_type_id
+        `SELECT b.id, b.invitee_name, b.invitee_email, b.host_user_id, b.co_host_ids, e.title FROM calendar_bookings b
+         JOIN calendar_event_types e ON e.id = b.event_type_id
          WHERE b.id = ? AND e.user_id = ?`,
       )
-      .get(args.bookingId, args.owner.workspaceId)) as { id: string; invitee_name: string; invitee_email: string; title: string } | undefined;
+      .get(args.bookingId, args.owner.workspaceId)) as
+      | { id: string; invitee_name: string; invitee_email: string; host_user_id: string | null; co_host_ids: string; title: string }
+      | undefined;
+    if (row && !bookingInScope(row, args.owner.bookingScope ?? null)) return { ok: false };
     if (!row) return { ok: false };
     return finishLink(args, `${row.title} · ${row.invitee_name}`, row.invitee_email);
   }

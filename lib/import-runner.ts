@@ -68,6 +68,19 @@ const trackAdapter = (fetchStep: ImportAdapter['fetchStep']): ImportAdapter => (
   maxItems: TRACK_IMPORT_MAX_ISSUES * 3,
 });
 
+/** Docs: un solo lector para los exports de Notion, Confluence, Google Docs, Word, Evernote y archivos sueltos. */
+const docsAdapter: ImportAdapter = {
+  fetchStep: (job) => notionFetchStep(job),
+  preview: (job, items) => notionPreview(job, items),
+  writeStages: ['pages'],
+  chunkSize: 10,
+  emptyReport: emptyNotionReport,
+  writeStep: (job, _stage, items, report) => notionWriteStep(job, items, report as NotionImportReport),
+  maxItems: NOTION_MAX_PAGES,
+  keepPayload: true,
+  cleanup: (job) => cleanupNotionPayload(job),
+};
+
 const ADAPTERS: Record<string, ImportAdapter> = {
   'track:linear': trackAdapter((job) => fetchLinearStep(job.secret, job.cursor)),
   'track:github': trackAdapter((job) => fetchGithubStep(job.secret, String(job.options.repo ?? ''), job.cursor)),
@@ -85,17 +98,12 @@ const ADAPTERS: Record<string, ImportAdapter> = {
     emptyReport: emptyCalReport,
     writeStep: (job, _stage, items, report) => calWriteStep(job, items, report as CalImportReport),
   },
-  'docs:notion': {
-    fetchStep: (job) => notionFetchStep(job),
-    preview: (job, items) => notionPreview(job, items),
-    writeStages: ['pages'],
-    chunkSize: 10,
-    emptyReport: emptyNotionReport,
-    writeStep: (job, _stage, items, report) => notionWriteStep(job, items, report as NotionImportReport),
-    maxItems: NOTION_MAX_PAGES,
-    keepPayload: true,
-    cleanup: (job) => cleanupNotionPayload(job),
-  },
+  'docs:notion': docsAdapter,
+  'docs:confluence': docsAdapter,
+  'docs:gdocs': docsAdapter,
+  'docs:word': docsAdapter,
+  'docs:evernote': docsAdapter,
+  'docs:files': docsAdapter,
 };
 
 export function importAdapter(app: string, source: string): ImportAdapter | null {

@@ -7,6 +7,7 @@ import CalIcon from './cal-icons';
 import { formatTimezone, type PublicBrand } from './cal-utils';
 import { guestLimit, isValidPhone, parseQuestions, type Question } from '@/lib/calendar-questions';
 import { isJoinableLocation, locationKey, parseLocations, type LocationOption } from '@/lib/calendar-locations';
+import { trackCalEvent } from '@/lib/calendar-tracking';
 
 interface Props {
   eventType: EventTypeWithRules;
@@ -25,6 +26,10 @@ interface Props {
   maxFutureDays?: number;
   /** utm_* de la URL de la página (ya limpios en el server): se guardan con la reserva. */
   utm?: Record<string, string>;
+  /** Envío del routing form que trajo al invitado (?rsid=): cierra el embudo del form. */
+  routingSubmissionId?: string;
+  /** Reservar con una persona puntual del pool (?host=): su agenda y la reserva van con ella. */
+  hostId?: string;
 }
 
 interface Slot {
@@ -122,6 +127,8 @@ export default function PublicBookingPage({
   reschedule,
   maxFutureDays,
   utm,
+  routingSubmissionId,
+  hostId,
 }: Props) {
   const t = useTranslations('calendar');
   const fields = useMemo(() => parseQuestions(eventType.fieldsParsed).filter((f) => f.name && f.label), [eventType]);
@@ -200,6 +207,7 @@ export default function PublicBookingPage({
   }, []);
 
   const rescheduleQs = reschedule ? `&reschedule=${encodeURIComponent(reschedule.token)}` : '';
+  const hostQs = hostId ? `&host=${encodeURIComponent(hostId)}` : '';
 
   useEffect(() => {
     if (!selectedDate) {
@@ -209,7 +217,7 @@ export default function PublicBookingPage({
     let cancelled = false;
     setLoadingSlots(true);
     setSlotsError(false);
-    fetch(`/api/calendar/event-types/${eventType.id}/slots?date=${selectedDate}&timezone=${encodeURIComponent(timezone)}${rescheduleQs}`)
+    fetch(`/api/calendar/event-types/${eventType.id}/slots?date=${selectedDate}&timezone=${encodeURIComponent(timezone)}${rescheduleQs}${hostQs}`)
       .then((res) => {
         if (!res.ok) throw new Error('slots');
         return res.json();
@@ -229,7 +237,7 @@ export default function PublicBookingPage({
     return () => {
       cancelled = true;
     };
-  }, [selectedDate, timezone, eventType.id, rescheduleQs]);
+  }, [selectedDate, timezone, eventType.id, rescheduleQs, hostQs]);
 
   // Embebido en un iframe (embed.js): avisar el alto y la reserva confirmada.
   const embedded = typeof window !== 'undefined' && window.parent !== window;
@@ -257,7 +265,7 @@ export default function PublicBookingPage({
   useEffect(() => {
     let cancelled = false;
     setOpenDays(null);
-    fetch(`/api/calendar/event-types/${eventType.id}/slots?month=${monthKey}&timezone=${encodeURIComponent(timezone)}${rescheduleQs}`)
+    fetch(`/api/calendar/event-types/${eventType.id}/slots?month=${monthKey}&timezone=${encodeURIComponent(timezone)}${rescheduleQs}${hostQs}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data: { days?: string[] } | null) => {
         if (!cancelled && data?.days) setOpenDays(new Set(data.days));
@@ -266,7 +274,7 @@ export default function PublicBookingPage({
     return () => {
       cancelled = true;
     };
-  }, [monthKey, timezone, eventType.id, rescheduleQs]);
+  }, [monthKey, timezone, eventType.id, rescheduleQs, hostQs]);
 
   // Foco al cambiar de paso: el lector de pantalla anuncia dónde está.
   useEffect(() => {
@@ -316,6 +324,7 @@ export default function PublicBookingPage({
   }
 
   function selectSlot(slot: Slot) {
+    trackCalEvent('date_selected', { event_type: eventType.slug, start: slot.start });
     setSelectedSlot(slot);
     setStep('form');
     setError(null);
@@ -344,6 +353,8 @@ export default function PublicBookingPage({
             answers,
             locale,
             utm,
+            ...(routingSubmissionId ? { routingSubmissionId } : {}),
+            ...(hostId ? { hostId } : {}),
             guests: guests.map((g) => g.trim()).filter(Boolean),
             ...(locations.length > 0
               ? { location: { key: locKey, ...(chosenLocation?.kind === 'phone_host' ? { phone: locPhone.trim() } : {}) } }
@@ -362,6 +373,7 @@ export default function PublicBookingPage({
         meetingUrl?: string | null;
       } | null;
       setBookedLocation(data?.meetingUrl || data?.location || '');
+      if (!reschedule) trackCalEvent('scheduled', { event_type: eventType.slug, start: selectedSlot.start });
       // Evento pago: la reserva queda retenida y se confirma al pagar en Stripe.
       if (data?.checkoutUrl && /^https:\/\//.test(data.checkoutUrl)) {
         if (window.parent !== window) {

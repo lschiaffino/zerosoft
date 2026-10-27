@@ -56,6 +56,15 @@
         ],
         "createdAt": "2026-10-21T04:29:35.034Z",
         "reason": "agent: regex literal matching <img> tags in a Markdown parser, not rendered markup"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "lib/docs-import-formats.ts"
+        ],
+        "createdAt": "2026-10-27T05:16:02.965Z",
+        "reason": "agent: regex in an HTML import parser, not a rendered img"
       }
     ]
   }

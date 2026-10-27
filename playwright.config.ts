@@ -62,10 +62,18 @@ export default defineConfig({
       // Outlook / Microsoft 365 contra Graph falso (lib/microsoft-fake.ts) y llamadas
       // desde el navegador con el dispositivo simulado (lib/crm-voice-fake.ts).
       MS_GRAPH_FAKE: '1',
+      // Cal: Google Calendar falso (lib/google-calendar-fake.ts) y SMS de workflows sin Twilio (lib/calendar-sms.ts).
+      CAL_GOOGLE_FAKE: '1',
+      CAL_SMS_FAKE: '1',
+      CAL_ICLOUD_FAKE: '1',
       CRM_VOICE_FAKE: '1',
       // Autocompletar de las bases de Docs contra el modelo falso (lib/docs-db-ai.ts);
       // con la cookie docs_ai_fake=off se ve el error ai_disabled.
       DOCS_AI_FAKE: '1',
+      // Dominio propio del sitio de Docs: un .test se verifica sin DNS y el
+      // middleware pregunta por el host a este servidor (lib/docs-site.ts).
+      DOCS_DOMAIN_FAKE: '1',
+      DOCS_SITE_LOOKUP_ORIGIN: `http://localhost:${PORT}`,
       // Transcripción, título y resumen de Rec contra el modelo falso (lib/rec-ai.ts);
       // con la cookie rec_ai_fake=off se ve el error ai_disabled.
       REC_AI_FAKE: '1',
@@ -100,6 +108,12 @@ export default defineConfig({
       DOCS_EVENT_WINDOW_SEC: '0',
       // Talk con polling corto en vez de SSE: con el stream abierto la página nunca llega a networkidle.
       TALK_REALTIME: 'poll',
+      // Chat: AI del agente contra el modelo falso (lib/chat-copilot.ts; con la cookie
+      // chat_ai_fake=off se ve ai_disabled) y el canal email entrante sin firma de Resend
+      // (lib/chat-email.ts, el texto viene en el payload del webhook).
+      CHAT_AI_FAKE: '1',
+      CHAT_INBOUND_FAKE: '1',
+      CHAT_INBOUND_DOMAIN: 'inbound.zerosoft.test',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

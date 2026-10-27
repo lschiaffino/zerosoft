@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { createAssignmentRule, getChatWidget, isChatAgentOfWidget, listAssignmentRules } from '@/lib/chat-data';
+import { teamBelongsTo } from '@/lib/chat-collab';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,11 +54,18 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
     return NextResponse.json({ error: 'invalid_assignee' }, { status: 400 });
   }
 
+  const assignTeamId = typeof body.assignTeamId === 'string' && body.assignTeamId ? body.assignTeamId : null;
+  if (assignTeamId && !(await teamBelongsTo(widget!.user_id, assignTeamId))) {
+    return NextResponse.json({ error: 'invalid_team' }, { status: 400 });
+  }
+
   const rule = await createAssignmentRule(params.id, {
     name,
     matchType,
     matchValue: typeof body.matchValue === 'string' ? body.matchValue : null,
     assignTo,
+    assignTeamId,
+    teamRoundRobin: body.teamRoundRobin === true,
     position: typeof body.position === 'number' ? body.position : undefined,
     active: typeof body.active === 'boolean' ? body.active : undefined,
   });

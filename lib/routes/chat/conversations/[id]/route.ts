@@ -10,6 +10,7 @@ import {
 import { conversationPatchSchema } from '@/lib/chat-schema';
 import { applyAttributePatch, parseAttributeDefs, parseAttributeValues } from '@/lib/chat-attributes';
 import { attributesBlockingResolve, saveConversationAttributes } from '@/lib/chat-attributes-db';
+import { teamBelongsTo } from '@/lib/chat-collab';
 import { ingestChatConversation, runAfterResponse, supportWidgetId } from '@/lib/roadmap';
 
 export const dynamic = 'force-dynamic';
@@ -51,6 +52,10 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
     if (!widget || !(await isChatAgentOfWidget(widget, parsed.data.assignedTo))) {
       return NextResponse.json({ error: 'invalid_assignee' }, { status: 400 });
     }
+  }
+
+  if (parsed.data.teamId && (!widget || !(await teamBelongsTo(widget.user_id, parsed.data.teamId)))) {
+    return NextResponse.json({ error: 'invalid_team' }, { status: 400 });
   }
 
   // Atributos primero: el mismo PATCH puede completarlos y resolver.

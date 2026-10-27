@@ -1,59 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
-import { readableLinkTitles, resolveDocAccess, slugifyTitle } from '@/lib/docs';
-import { pageLinkHref, resolveBlocksPageLinks } from '@/lib/docs-page-links';
-import { blocksToMarkdown } from '@/lib/docs-markdown';
-import { docsFileHref } from '@/lib/docs-files';
+import { getCurrentUser, realUserId } from '@/lib/session';
+import { rateLimit } from '@/lib/rate-limit';
+import { resolveDocAccess } from '@/lib/docs';
 import { docsError, notFound, unauthorized } from '@/lib/docs-http';
 import { docsAllowed } from '@/lib/docs-guard';
-import { visibleBlocks } from '@/lib/docs-visible';
 import { logDocsAudit, requestIp } from '@/lib/docs-audit';
-import { cleanForReaders } from '@/lib/docs-marks';
+import { collectExportPages, exportSinglePage, exportTree, isExportFormat, PdfUnicodeError } from '@/lib/docs-export';
+import { requestLocale } from '@/lib/request-locale';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Export de una página: ?format=md (Markdown). El PDF se hace con el diálogo de impresión. */
+/**
+ * Export de una página: ?format=md|html|pdf (PDF generado en el servidor).
+ * ?subpages=1 suma las subpáginas que la persona puede abrir y devuelve un
+ * zip con el árbol, los links entre páginas y los archivos adjuntos.
+ */
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const format = req.nextUrl.searchParams.get('format') ?? 'md';
-  if (format !== 'md') return docsError(400, 'invalid_format');
-  const res = await resolveDocAccess(user, id);
-  if (!res) return notFound();
+  if (!isExportFormat(format)) return docsError(400, 'invalid_format');
+  const subpages = req.nextUrl.searchParams.get('subpages') === '1';
+  // Un zip con subpáginas puede ser pesado: tope por persona.
+  if (subpages && process.env.RATE_LIMIT_DISABLED !== 'true' && !(await rateLimit(`docs-export-tree:${realUserId(user)}`, 30, 600)).ok) {
+    return docsError(429, 'rate_limited');
+  }
+  // Ni "publicada" ni el link público alcanzan: el export es del workspace.
+  const res = await resolveDocAccess(user, id, { includePublished: false });
+  if (!res || res.row.archived === 1) return notFound();
   // Exportar desactivado en Ajustes › Seguridad: solo admins del workspace.
   if (!(await docsAllowed(user, res.row.user_id, 'allow_export'))) return docsError(403, 'export_disabled');
+  const locale = requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
+  const ctx = {
+    actor: user,
+    origin: req.nextUrl.origin,
+    format,
+    locale,
+    footer: new Date().toISOString().slice(0, 10),
+  } as const;
+  let out;
+  try {
+    out = subpages ? await exportTree(await collectExportPages(user, id, true), ctx, res.row.title || 'export') : await exportSinglePage(res.row, ctx);
+  } catch (err) {
+    // Otros alfabetos en un PDF de una página: el editor ofrece Imprimir (PDF del navegador).
+    if (err instanceof PdfUnicodeError) return docsError(422, 'pdf_unicode');
+    throw err;
+  }
   await logDocsAudit({
     workspaceId: res.row.user_id,
     actor: user.actingUser ?? user,
     action: 'page.exported',
     page: { id, title: res.row.title },
-    detail: 'md',
+    detail: subpages ? `${format}+subpages (${out.pages}${out.htmlFallback ? `, ${out.htmlFallback} html` : ''})` : format,
     ip: requestIp(req.headers),
   });
-  // Links `[[` → links Markdown absolutos con el título actual (una página
-  // renombrada no queda con el viejo). A un invitado solo se le resuelven los
-  // títulos de páginas que también puede abrir; el resto queda como se insertó.
-  // Lo sugerido sin aceptar no se exporta (sale el texto vigente) ni los resaltados.
-  // Sincronizados con su contenido actual; sin acceso a su origen, sin contenido.
-  const raw = cleanForReaders(await visibleBlocks(res.row, res.row.content, { actor: user }));
-  const titles = await readableLinkTitles(user, res.row, raw);
-  const origin = req.nextUrl.origin;
-  const blocks = resolveBlocksPageLinks(raw, (pageId) => ({
-    href: `${origin}${pageLinkHref(pageId)}`,
-    title: titles.get(pageId) ?? null,
-  }));
-  // Imágenes y archivos: links al proxy (piden sesión con acceso a la página).
-  const md = blocksToMarkdown(blocks, res.row.title, {
-    fileHref: (blockId) => `${origin}${docsFileHref(id, blockId)}`,
-  });
-  const filename = `${slugifyTitle(res.row.title) || 'page'}.md`;
-  return new NextResponse(md, {
+  return new NextResponse(new Uint8Array(out.body), {
     headers: {
-      'content-type': 'text/markdown; charset=utf-8',
-      'content-disposition': `attachment; filename="${filename}"`,
+      'content-type': out.contentType,
+      'content-disposition': `attachment; filename="${out.filename.replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(out.filename)}`,
       'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
     },
   });
 }

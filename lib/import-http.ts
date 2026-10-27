@@ -90,7 +90,10 @@ export const importCreateSchema = z.discriminatedUnion('source', [
   z.object({ app: z.literal('cal'), source: z.literal('calendly'), token, includeBookings: z.boolean().optional() }),
   z.object({
     app: z.literal('docs'),
-    source: z.literal('notion'),
+    /** De dónde viene el zip (todos usan el mismo lector: Markdown, CSV, HTML, .docx, .txt y .enex). */
+    source: z.enum(['notion', 'confluence', 'gdocs', 'word', 'evernote', 'files']),
+    /** Teamspace de destino (null o ausente: el workspace). */
+    teamspace_id: z.string().min(1).max(64).nullable().optional(),
     /** Subida directa a Blob ya hecha… */
     blobUrl: z.string().max(2048).optional(),
     /** …o subida por partes a disco (sin Blob): el tamaño total. */
