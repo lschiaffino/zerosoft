@@ -43,8 +43,24 @@ export interface AgentAnalytics {
   tools: ToolMetric[];
   thumbsUp: number;
   thumbsDown: number;
-  channels: Array<{ channel: string; conversations: number }>;
+  /** Por canal (Flow aparte de la API): conversaciones, resueltas y derivadas. */
+  channels: Array<{ channel: string; conversations: number; resolved: number; handedOff: number; resolutionRate: number | null }>;
   topics: TopicClusters;
+  /** Motivos de derivación: palabra clave, falla del modelo o decisión del agente (con el texto). */
+  handoffReasons: Array<{ kind: 'keyword' | 'model_failure' | 'agent'; reason: string; count: number }>;
+  /** Puntaje con AI (lib/agents-quality.ts). */
+  quality: {
+    scored: number;
+    avgCsat: number | null;
+    /** % de conversaciones puntuadas con CSAT 4 o 5. */
+    csatRate: number | null;
+    sentiment: Record<'positive' | 'neutral' | 'negative', number>;
+    /** Temas que puso el modelo, los más frecuentes. */
+    aiTopics: Array<{ topic: string; count: number; avgCsat: number | null }>;
+    /** Puntuadas con CSAT ≤ 2 o con un criterio del scorecard en falla, sin revisar. */
+    needsReview: number;
+    criteria: Array<{ criterion: string; pass: number; fail: number }>;
+  };
 }
 
 function rate(n: number, d: number): number | null {
@@ -68,7 +84,8 @@ export async function getAgentAnalytics(
          COALESCE(SUM(CASE WHEN answered = 1 AND handed_off = 0 THEN 1 ELSE 0 END), 0) AS resolved
        FROM (
          SELECT c.handed_off,
-           CASE WHEN c.chat_conversation_id IS NOT NULL
+           CASE WHEN EXISTS (SELECT 1 FROM agent_runs r WHERE r.conversation_id = c.id AND r.status = 'blocked') THEN 0
+             WHEN c.chat_conversation_id IS NOT NULL
              THEN EXISTS (SELECT 1 FROM chat_messages m WHERE m.conversation_id = c.chat_conversation_id AND m.sender_type = 'bot')
              ELSE EXISTS (SELECT 1 FROM agent_messages m WHERE m.conversation_id = c.id AND m.role = 'assistant' AND m.author_id IS NULL)
            END AS answered
@@ -80,11 +97,88 @@ export async function getAgentAnalytics(
 
   const channels = (await db
     .prepare(
-      `SELECT channel, COUNT(*) AS conversations FROM agent_conversations
-       WHERE user_id = ? AND agent_id = ? AND channel != 'playground' AND created_at >= ?
-       GROUP BY channel ORDER BY conversations DESC`,
+      `SELECT ch AS channel, COUNT(*) AS conversations,
+         COALESCE(SUM(handed_off), 0) AS handed_off,
+         COALESCE(SUM(CASE WHEN answered = 1 AND handed_off = 0 THEN 1 ELSE 0 END), 0) AS resolved
+       FROM (
+         SELECT CASE WHEN c.source = 'flow' THEN 'flow' ELSE c.channel END AS ch, c.handed_off,
+           CASE WHEN EXISTS (SELECT 1 FROM agent_runs r WHERE r.conversation_id = c.id AND r.status = 'blocked') THEN 0
+             WHEN c.chat_conversation_id IS NOT NULL
+             THEN EXISTS (SELECT 1 FROM chat_messages m WHERE m.conversation_id = c.chat_conversation_id AND m.sender_type = 'bot')
+             ELSE EXISTS (SELECT 1 FROM agent_messages m WHERE m.conversation_id = c.id AND m.role = 'assistant' AND m.author_id IS NULL)
+           END AS answered
+         FROM agent_conversations c
+         WHERE c.user_id = ? AND c.agent_id = ? AND c.channel != 'playground' AND c.created_at >= ?
+       )
+       GROUP BY ch ORDER BY conversations DESC`,
     )
-    .all(workspaceId, agentId, from)) as Array<{ channel: string; conversations: number }>;
+    .all(workspaceId, agentId, from)) as Array<{ channel: string; conversations: number; handed_off: number; resolved: number }>;
+
+  const reasons = (await db
+    .prepare(
+      `SELECT COALESCE(handoff_reason, '') AS reason, COUNT(*) AS n FROM agent_runs
+       WHERE user_id = ? AND agent_id = ? AND channel != 'playground' AND status = 'handoff' AND created_at >= ?
+       GROUP BY reason ORDER BY n DESC LIMIT 200`,
+    )
+    .all(workspaceId, agentId, from)) as Array<{ reason: string; n: number }>;
+  const reasonMap = new Map<string, { kind: 'keyword' | 'model_failure' | 'agent'; reason: string; count: number }>();
+  for (const r of reasons) {
+    const raw = r.reason.trim();
+    const kind = raw.startsWith('keyword:') ? 'keyword' : raw === 'model_failure' || raw.startsWith('AI unavailable') ? 'model_failure' : 'agent';
+    const reason = kind === 'keyword' ? raw.slice(8).trim() : kind === 'model_failure' ? '' : raw === 'model' ? '' : raw.slice(0, 160);
+    const key = `${kind}:${reason.toLowerCase()}`;
+    const prev = reasonMap.get(key);
+    if (prev) prev.count += Number(r.n);
+    else reasonMap.set(key, { kind, reason, count: Number(r.n) });
+  }
+
+  const scores = (await db
+    .prepare(
+      `SELECT csat, sentiment, topic, score, reviewed_at FROM agent_conversations
+       WHERE user_id = ? AND agent_id = ? AND channel != 'playground' AND created_at >= ? AND scored_at IS NOT NULL LIMIT 5000`,
+    )
+    .all(workspaceId, agentId, from)) as Array<{ csat: number | null; sentiment: string | null; topic: string | null; score: string | null; reviewed_at: string | null }>;
+  const sentiment = { positive: 0, neutral: 0, negative: 0 };
+  const topicsAi = new Map<string, { topic: string; count: number; csat: number }>();
+  const criteria = new Map<string, { criterion: string; pass: number; fail: number }>();
+  let csatSum = 0;
+  let csatN = 0;
+  let csatGood = 0;
+  let needsReview = 0;
+  for (const sc of scores) {
+    const csat = sc.csat == null ? null : Number(sc.csat);
+    if (csat != null) {
+      csatSum += csat;
+      csatN++;
+      if (csat >= 4) csatGood++;
+    }
+    if (sc.sentiment === 'positive' || sc.sentiment === 'neutral' || sc.sentiment === 'negative') sentiment[sc.sentiment]++;
+    const topic = (sc.topic ?? '').trim();
+    if (topic) {
+      const key = topic.toLowerCase();
+      const t = topicsAi.get(key) ?? { topic, count: 0, csat: 0 };
+      t.count++;
+      t.csat += csat ?? 0;
+      topicsAi.set(key, t);
+    }
+    let failed = false;
+    try {
+      const parsed = JSON.parse(sc.score ?? '{}') as { criteria?: Array<{ criterion?: string; pass?: boolean }> };
+      for (const c of parsed.criteria ?? []) {
+        if (!c.criterion) continue;
+        const e = criteria.get(c.criterion) ?? { criterion: c.criterion, pass: 0, fail: 0 };
+        if (c.pass) e.pass++;
+        else {
+          e.fail++;
+          failed = true;
+        }
+        criteria.set(c.criterion, e);
+      }
+    } catch {
+      /* puntaje viejo o roto */
+    }
+    if (!sc.reviewed_at && ((csat != null && csat <= 2) || failed)) needsReview++;
+  }
 
   const runs = (await db
     .prepare(
@@ -155,7 +249,26 @@ export async function getAgentAnalytics(
     })),
     thumbsUp: Number(feedback?.up ?? 0),
     thumbsDown: Number(feedback?.down ?? 0),
-    channels: channels.map((c) => ({ channel: c.channel, conversations: Number(c.conversations) })),
+    channels: channels.map((c) => ({
+      channel: c.channel,
+      conversations: Number(c.conversations),
+      resolved: Number(c.resolved),
+      handedOff: Number(c.handed_off),
+      resolutionRate: rate(Number(c.resolved), Number(c.conversations)),
+    })),
     topics: clusterTopics(docs.map((d) => ({ text: d.title, handedOff: Number(d.handed_off) === 1 }))),
+    handoffReasons: [...reasonMap.values()].sort((a, b) => b.count - a.count).slice(0, 12),
+    quality: {
+      scored: scores.length,
+      avgCsat: csatN ? Math.round((csatSum / csatN) * 10) / 10 : null,
+      csatRate: rate(csatGood, csatN),
+      sentiment,
+      aiTopics: [...topicsAi.values()]
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10)
+        .map((t) => ({ topic: t.topic, count: t.count, avgCsat: t.count ? Math.round((t.csat / t.count) * 10) / 10 : null })),
+      needsReview,
+      criteria: [...criteria.values()],
+    },
   };
 }

@@ -44,6 +44,22 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-27-agents',
+    date: '2026-10-27',
+    title: {
+      en: 'Agents: versions, files and Q&A, MCP, simulations and AI quality scores',
+      es: 'Agents: versiones, archivos y preguntas frecuentes, MCP, simulaciones y puntaje de calidad con IA',
+      pt: 'Agents: versões, arquivos e perguntas frequentes, MCP, simulações e nota de qualidade com IA',
+    },
+    items: [
+      { product: 'agents', en: 'Publish a version and keep editing as a draft: the playground and tests use the draft, your live channels keep the published version, and any version can go back live. The Versions tab shows who changed what.', es: 'Publicá una versión y seguí editando como borrador: el playground y los tests usan el borrador, los canales en vivo siguen con lo publicado y cualquier versión puede volver a estar en vivo. La pestaña Versiones muestra quién cambió qué.', pt: 'Publique uma versão e continue editando como rascunho: o playground e os testes usam o rascunho, os canais ao vivo seguem com o publicado e qualquer versão pode voltar ao vivo. A aba Versões mostra quem mudou o quê.' },
+      { product: 'agents', en: 'Knowledge from PDF, Word, TXT, Markdown and CSV files, questions and answers with variants and CSV import, and sitemaps of up to 300 pages. Replies cite their sources with a link, and questions the agent could not answer become one click answers.', es: 'Conocimiento desde archivos PDF, Word, TXT, Markdown y CSV, preguntas y respuestas con variantes y carga por CSV, y sitemaps de hasta 300 páginas. Las respuestas citan sus fuentes con link, y las preguntas que el agente no supo responder se contestan con un clic.', pt: 'Conhecimento a partir de arquivos PDF, Word, TXT, Markdown e CSV, perguntas e respostas com variantes e importação por CSV, e sitemaps de até 300 páginas. As respostas citam as fontes com link, e as perguntas que o agente não soube responder viram respostas com um clique.' },
+      { product: 'agents', en: 'Connect MCP servers as tools, with the token encrypted and approval from an admin before any tool that changes data. Instructions per channel, a check for rules that collide, spam words and blocked countries or visitors.', es: 'Conectá servidores MCP como herramientas, con el token cifrado y la aprobación de un admin antes de cualquier herramienta que cambie datos. Instrucciones por canal, revisión de reglas que chocan, palabras de spam y países o visitantes bloqueados.', pt: 'Conecte servidores MCP como ferramentas, com o token criptografado e a aprovação de um admin antes de qualquer ferramenta que mude dados. Instruções por canal, revisão de regras que se chocam, palavras de spam e países ou visitantes bloqueados.' },
+      { product: 'agents', en: 'With a signed-in visitor, the agent reads their CRM contact, Cal bookings and Track requests and remembers them between conversations. Personal data can be hidden in saved transcripts.', es: 'Con un visitante identificado, el agente lee su contacto del CRM, sus reservas de Cal y sus pedidos en Track, y lo recuerda entre conversaciones. Los datos personales se pueden tapar en los transcripts guardados.', pt: 'Com um visitante identificado, o agente lê o contato do CRM, as reservas do Cal e os pedidos no Track, e lembra dele entre conversas. Os dados pessoais podem ser ocultados nas transcrições salvas.' },
+      { product: 'agents', en: 'Simulated conversations with an AI customer, replays of your last real conversations against the draft, and an AI score for every conversation (satisfaction, sentiment, topic and your scorecard) with a review queue, handoff reasons, results per channel and CSV export.', es: 'Conversaciones simuladas con un cliente AI, repetición de tus últimas conversaciones reales contra el borrador y un puntaje con AI para cada conversación (satisfacción, sentimiento, tema y tu scorecard) con cola de revisión, motivos de derivación, resultados por canal y exportación a CSV.', pt: 'Conversas simuladas com um cliente de IA, repetição das suas últimas conversas reais contra o rascunho e uma nota com IA para cada conversa (satisfação, sentimento, tema e seu scorecard) com fila de revisão, motivos de transferência, resultados por canal e exportação para CSV.' },
+    ],
+  },
+  {
     id: '2026-10-25-voice',
     date: '2026-10-25',
     title: {

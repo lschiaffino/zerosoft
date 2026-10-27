@@ -98,6 +98,8 @@ export function approvalSummary(tool: ApprovableAgentTool, input: Record<string,
       return s('operation') === 'create' ? `Create the page "${s('title')}"` : `Edit a Docs page (${s('operation') || 'append'})`;
     case 'docs_write_row':
       return s('rowId') ? `Update a row in a Docs database` : `Add the row "${s('title')}" to a Docs database`;
+    case 'mcp_call':
+      return `${s('server')}: ${s('tool')}`;
   }
 }
 
@@ -230,6 +232,7 @@ export async function decideAgentAction(
           channel: conv.channel,
           secretHeaders: loadSecretHeaders(agentRow),
           conversationCreatedBy: conv.created_by ?? null,
+          mcpServers: agentRow.mcp_servers ?? '[]',
         },
         row.tool,
         input,

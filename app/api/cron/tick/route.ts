@@ -9,6 +9,8 @@ import { pruneFlowRuns } from '@/lib/flow';
 import { runDueRobots } from '@/lib/robots';
 import { resyncStaleKnowledgeUrls } from '@/lib/agents';
 import { checkAgentAlerts } from '@/lib/agents-alerts';
+import { processIdleConversations } from '@/lib/agents-quality';
+import { redactIdleConversations } from '@/lib/agents-privacy';
 import { syncDueMailboxes } from '@/lib/crm-email-sync';
 import { syncDueOutlookMailboxes } from '@/lib/crm-outlook-sync';
 import { processSequences } from '@/lib/crm-sequences';
@@ -108,6 +110,9 @@ export async function GET(req: NextRequest) {
   const agentKnowledge = await resyncStaleKnowledgeUrls({ limit: 30 }).catch(() => null);
   // Agents: picos de la última hora → email al dueño (con throttle por agente).
   const agentAlerts = await checkAgentAlerts().catch(() => null);
+  // Agents: puntaje con AI y memoria de las conversaciones inactivas (claim por fila), y redacción de datos personales.
+  const agentQuality = await processIdleConversations({ limit: 40, budgetMs: 40_000 }).catch(() => null);
+  const agentRedacted = await redactIdleConversations({ limit: 100 }).catch(() => null);
   const flow = await processFlowQueue({ limit: 200, budgetMs: Math.max(0, FLOW_BUDGET_MS - (Date.now() - tickStart)) });
   // Robots al final: son lo más lento y usan el tiempo que queda (con margen).
   // En Vercel también los corre /api/cron/robots cada 5 min; self-host puede
@@ -122,5 +127,5 @@ export async function GET(req: NextRequest) {
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
   return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, trashPurged,
-    docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, robots, ideas });
+    docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }
