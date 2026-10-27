@@ -39,6 +39,8 @@ export function DocsSiteSettings({ handle, publicBase }: { handle: string | null
   const [loadError, setLoadError] = useState(false);
   const [domain, setDomain] = useState('');
   const [domainError, setDomainError] = useState<string | null>(null);
+  /** Dominio pendiente en otro workspace: el TXT que prueba que es tuyo. */
+  const [claimDns, setClaimDns] = useState<Site['dns'] | null>(null);
   const [verifyNote, setVerifyNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -70,12 +72,14 @@ export function DocsSiteSettings({ handle, publicBase }: { handle: string | null
     setDomainError(null);
     const res = await fetch('/api/docs/site/domain', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ hostname: domain }) }).catch(() => null);
     setBusy(false);
-    const data = (await res?.json().catch(() => null)) as { site?: Site; error?: string } | null;
+    const data = (await res?.json().catch(() => null)) as { site?: Site; error?: string; dns?: Site['dns'] } | null;
     if (!res?.ok || !data?.site) {
       const code = data?.error ?? 'failed';
       setDomainError(t.has(`domainErrors.${code}`) ? t(`domainErrors.${code}`) : t('domainErrors.failed'));
+      setClaimDns(data?.dns ?? null);
       return;
     }
+    setClaimDns(null);
     setSite(data.site);
     setDomain('');
   }
@@ -89,7 +93,7 @@ export function DocsSiteSettings({ handle, publicBase }: { handle: string | null
     if (data?.verified) {
       setVerifyNote(t('verified'));
       await load();
-    } else setVerifyNote(t(data?.reason === 'txt_missing' ? 'verifyTxt' : data?.reason === 'dns_not_ready' ? 'verifyDns' : 'verifyFailed'));
+    } else setVerifyNote(t(data?.reason === 'txt_missing' ? 'verifyTxt' : data?.reason === 'dns_not_ready' ? 'verifyDns' : data?.reason === 'domain_taken' ? 'domainErrors.domain_taken' : 'verifyFailed'));
   }
 
   async function remove() {
@@ -157,6 +161,21 @@ export function DocsSiteSettings({ handle, publicBase }: { handle: string | null
                 <span className="ui-error" role="alert">
                   {domainError}
                 </span>
+              )}
+              {claimDns && claimDns.length > 0 && (
+                <div className="docs-dns-wrap">
+                  <table className="docs-dns">
+                    <tbody>
+                      {claimDns.map((r) => (
+                        <tr key={r.name}>
+                          <td className="data">{r.type}</td>
+                          <td className="data">{r.name}</td>
+                          <td className="data">{r.value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </form>

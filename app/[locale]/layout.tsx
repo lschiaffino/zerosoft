@@ -8,6 +8,7 @@ import SupportWidget from '@/components/SupportWidget';
 import FeedbackLauncher from '@/components/FeedbackLauncher';
 import { supportWidgetId } from '@/lib/support';
 import { surfaceForHost } from '@/lib/host-rewrite';
+import { DOCS_SITE_HEADER } from '@/lib/docs-site-header';
 import { headers } from 'next/headers';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import BrandProvider from '@/components/brand/BrandProvider';
@@ -80,7 +81,10 @@ export default async function LocaleLayout(
   const supportId = supportWidgetId();
   // feedback.zerosoft.ai / branding.zerosoft.ai: chrome propio (ver ChromeGate).
   // El layout ya es dinámico (el Header lee la sesión), leer el host no cambia eso.
-  const surface = surfaceForHost((await headers()).get('host'));
+  const hdrs = await headers();
+  const surface = surfaceForHost(hdrs.get('host'));
+  // Dominio propio de un sitio de Docs (el middleware marca el pedido): solo el sitio del cliente.
+  const docsSite = Boolean(hdrs.get(DOCS_SITE_HEADER));
   // Tema de marca (hoy solo default; ver lib/brand-theme.ts).
   const brand = await getBrandTheme();
   // Modo de color: cookie zs_theme (light/dark); sin cookie sigue al sistema.
@@ -105,6 +109,7 @@ export default async function LocaleLayout(
             support={supportId ? <SupportWidget widgetId={supportId} /> : null}
             launcher={<FeedbackLauncher locale={locale} hasSupport={Boolean(supportId)} />}
             surface={surface}
+            docsSite={docsSite}
           >
             {children}
           </ChromeGate>

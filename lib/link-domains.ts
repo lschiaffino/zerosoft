@@ -181,6 +181,13 @@ async function purgeExpiredPending(hostname: string, userId: string): Promise<vo
   }
 }
 
+/** Libera el dominio pendiente (sin verificar) de un sitio de Docs. */
+async function releasePendingSiteDomain(hostname: string): Promise<void> {
+  await getDb()
+    .prepare("UPDATE docs_sites SET hostname = NULL, verify_token = NULL, domain_added_at = NULL, updated_at = datetime('now') WHERE hostname = ? AND verified = 0")
+    .run(hostname);
+}
+
 export async function addDomain(
   userId: string,
   rawHostname: string,
@@ -192,9 +199,11 @@ export async function addDomain(
   await purgeExpiredPending(hostname, userId);
   const existing = await getDb().prepare('SELECT 1 AS x FROM link_domains WHERE hostname = ?').get(hostname);
   if (existing) return { ok: false, code: 'domain_taken' };
-  // El dominio del sitio publicado de Docs (lib/docs-site.ts) tampoco se comparte.
-  const site = await getDb().prepare('SELECT 1 AS x FROM docs_sites WHERE hostname = ?').get(hostname);
-  if (site) return { ok: false, code: 'domain_taken' };
+  // El dominio verificado del sitio de Docs (lib/docs-site.ts) no se comparte;
+  // uno que Docs no llegó a verificar no bloquea a Link: se libera.
+  const site = (await getDb().prepare('SELECT verified FROM docs_sites WHERE hostname = ?').get(hostname)) as { verified: number } | undefined;
+  if (site?.verified === 1) return { ok: false, code: 'domain_taken' };
+  if (site) await releasePendingSiteDomain(hostname);
   const pending = (await getDb()
     .prepare('SELECT COUNT(*) AS n FROM link_domains WHERE user_id = ? AND verified = 0')
     .get(userId)) as { n: number } | undefined;

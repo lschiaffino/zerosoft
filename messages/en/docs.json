@@ -989,7 +989,7 @@
     "formatHelp": {
       "md": "Plain text files that any editor opens.",
       "html": "Web pages with their styles, light and dark.",
-      "pdf": "A4 document made on the server, with clickable links and images. Emoji and non-Latin alphabets are left out: use Print for those."
+      "pdf": "A4 document made on the server, with clickable links and images. For pages in other alphabets use Print; in a zip they go as HTML."
     },
     "subpages": "Include subpages",
     "subpagesHelp": "A .zip with the page tree, links between pages and attached files. Only pages you can open.",
@@ -1004,7 +1004,8 @@
       "nothing_to_export": "There are no pages to export.",
       "network": "No connection. Try again when you are back online.",
       "rate_limited": "Too many exports in a row. Wait a few minutes.",
-      "failed": "Could not export. Try again."
+      "failed": "Could not export. Try again.",
+      "pdf_unicode": "This page has text in an alphabet the PDF fonts cannot show. Use Print to save it as PDF from the browser."
     }
   },
   "state": {
@@ -1106,7 +1107,11 @@
     "destination": "Import into",
     "destinationWorkspace": "Workspace",
     "destinationHelp": "Private teamspaces only show up if you are a member. Imported pages keep the access of that teamspace.",
-    "noDestination": "Your role cannot create pages in this workspace. Ask an admin for edit access."
+    "noDestination": "Your role cannot create pages in this workspace. Ask an admin for edit access.",
+    "capped": "The file has more than {max} pages: only the first {max} come in.",
+    "skippedFiles": "Skipped because they are too large: {files}. The rest comes in.",
+    "skippedNote": "{count, plural, one {# page was already imported before and stayed where it is.} other {# pages were already imported before and stayed where they are.}} To import them again, delete those pages first.",
+    "tooLarge": "{count, plural, one {# page came in empty: its file is larger than 8 MB.} other {# pages came in empty: their files are larger than 8 MB.}}"
   },
   "reminderEmail": {
     "subject": "Reminder: {title}",
@@ -1238,7 +1243,7 @@
     "securityHelp": "When something is off, only admins can do it.",
     "allow_export": {
       "label": "Export pages",
-      "help": "Markdown and PDF from the page menu."
+      "help": "Markdown, HTML and PDF of a page, its subpages or the whole workspace. Off: only admins can export."
     },
     "allow_publish": {
       "label": "Publish to the help center",
@@ -1603,7 +1608,11 @@
   },
   "offline": {
     "available": "Available offline",
-    "banner": "No connection. What you write stays on this device and saves when you are back online."
+    "banner": "No connection. What you write stays on this device and saves when you are back online.",
+    "blocked": "What you wrote offline could not be saved: you can no longer edit this page.",
+    "copy": "Copy the text",
+    "copied": "Copied",
+    "discard": "Discard"
   },
   "touchbar": {
     "label": "Formatting",
@@ -1644,7 +1653,7 @@
     "addressHelp": "Published pages live here, with search and collections.",
     "noHandle": "Set a handle in your profile to publish pages.",
     "domainTitle": "Custom domain",
-    "domainHelp": "Serve the site on your own domain, like docs.yourcompany.com. One domain per workspace.",
+    "domainHelp": "Serve the site on your own domain, like docs.yourcompany.com. One domain per workspace. A domain that is not verified within 7 days is released.",
     "domain": "Domain",
     "addDomain": "Add domain",
     "domainVerified": "Verified and serving the site",
@@ -1670,7 +1679,8 @@
       "app_host": "Use a domain of yours, not the app address.",
       "provider_error": "The hosting provider did not accept the domain. Try again in a moment.",
       "rate_limited": "Too many tries. Wait a few minutes.",
-      "failed": "Could not add the domain."
+      "failed": "Could not add the domain.",
+      "domain_pending_elsewhere": "Another workspace added this domain and has not verified it. Create this TXT record to prove it is yours, then add it again."
     },
     "seoTitle": "Search engines",
     "seoHelp": "Each page also has its own description and indexing switch in Share › Publish.",

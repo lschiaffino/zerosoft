@@ -22,7 +22,7 @@ import VersionsPanel from './VersionsPanel';
 import DocsExportDialog from './DocsExportDialog';
 import DocsAnalyticsPanel from './DocsAnalyticsPanel';
 import DocsTouchBar from './DocsTouchBar';
-import { clearDraft, descendantIds, loadDraft, offlinePages, saveDraft, setOfflinePage, warmOffline } from '@/lib/docs-offline';
+import { clearDraft, descendantIds, draftText, loadDraft, offlinePages, saveDraft, setOfflinePage, warmOffline, type DocsDraft } from '@/lib/docs-offline';
 import SaveTemplateDialog from './SaveTemplateDialog';
 import VerifyDialog from './VerifyDialog';
 import Icon from '@/components/app/icons';
@@ -83,6 +83,7 @@ export default function DocsEditorClient({
   canVerify = false,
   allowExport = true,
   memberRoleDefault = 'full',
+  offlineOwner = '',
 }: {
   page: DocsPage;
   ancestors: DocsPage[];
@@ -109,6 +110,8 @@ export default function DocsEditorClient({
   allowExport?: boolean;
   /** Rol que heredan los miembros si la página no fija uno (para el selector de Compartir). */
   memberRoleDefault?: DocsShareRole;
+  /** Persona:workspace dueña de lo guardado sin conexión en este dispositivo (lib/docs-offline.ts). */
+  offlineOwner?: string;
 }) {
   const router = useRouter();
   const t = useTranslations('docs');
@@ -159,6 +162,9 @@ export default function DocsEditorClient({
   /** Sin red: lo escrito queda en este dispositivo (lib/docs-offline.ts) hasta que vuelva. */
   const [offline, setOffline] = useState(false);
   const [offlineOn, setOfflineOn] = useState(false);
+  /** Lo escrito sin red que ya no se puede guardar (perdió el acceso o la página está bloqueada). */
+  const [blockedDraft, setBlockedDraft] = useState<DocsDraft | null>(null);
+  const [draftCopied, setDraftCopied] = useState(false);
   const openComments = allComments.filter((c) => !c.resolved && !c.parent_id).length;
   const [templateOpen, setTemplateOpen] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
@@ -314,7 +320,7 @@ export default function DocsEditorClient({
         if (!('content' in patch) || ('title' in patch && patch.title !== prevTitle)) router.refresh();
       } catch {
         // Sin red: queda en el borrador local y se manda al volver (no es un error).
-        if (typeof navigator !== 'undefined' && navigator.onLine === false && saveDraft(page.id, patch, base.current)) {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false && saveDraft(offlineOwner, page.id, patch, base.current)) {
           setOffline(true);
           setSaveError('offline');
         } else setSaveError('failed');
@@ -324,7 +330,7 @@ export default function DocsEditorClient({
         if (retry) await runSave(retry, false, attempt + 1);
       }
     },
-    [page.id, router, locale, adoptServer, pushMerge, t],
+    [page.id, router, locale, adoptServer, pushMerge, t, offlineOwner],
   );
 
   const savePage = useCallback(
@@ -337,7 +343,7 @@ export default function DocsEditorClient({
       }
       if (patch.content) setSuggestions(listSuggestions(patch.content));
       // Sin red: directo al borrador local (sin esperar a que falle el pedido).
-      if (typeof navigator !== 'undefined' && navigator.onLine === false && saveDraft(page.id, patch, base.current)) {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false && saveDraft(offlineOwner, page.id, patch, base.current)) {
         setOffline(true);
         setSaveError('offline');
         return;
@@ -348,7 +354,7 @@ export default function DocsEditorClient({
       saveChain.current = next;
       await next;
     },
-    [runSave, page.id],
+    [runSave, page.id, offlineOwner],
   );
 
   /**
@@ -357,14 +363,14 @@ export default function DocsEditorClient({
    * no tiene esa versión (409), se rebasa sobre la actual y se guarda normal.
    */
   const flushDraft = useCallback(async () => {
-    const draft = loadDraft(page.id);
+    const draft = loadDraft(offlineOwner, page.id);
     if (!draft || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
     const body = JSON.stringify({ ...draft.patch, base_updated_at: draft.base.updated_at });
     const res = await fetch(`/api/docs/pages/${page.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body }).catch(() => null);
     if (!res) return;
     if (res.ok) {
       const updated = (await res.json().catch(() => null)) as DocsPage | null;
-      clearDraft(page.id);
+      clearDraft(offlineOwner, page.id);
       setOffline(false);
       setSaveError(null);
       if (updated?.updated_at) adoptServer(updated);
@@ -374,20 +380,29 @@ export default function DocsEditorClient({
       const data = (await res.json().catch(() => null)) as { current?: DocsPage | null } | null;
       if (data?.current) {
         const rebased = rebasePatch(draft.patch, { sent: draft.base.content, merged: data.current.content, sentTitle: draft.base.title, title: data.current.title });
-        clearDraft(page.id);
+        clearDraft(offlineOwner, page.id);
         setOffline(false);
         adoptServer(data.current);
         await savePage(rebased);
       }
       return;
     }
-    // Otro error (sin acceso, bloqueada): el borrador queda y se avisa.
+    // Ya no puede editarla (sin acceso, solo lectura o bloqueada): no se reintenta más;
+    // se avisa y se ofrece copiar lo escrito.
+    if (res.status === 401 || res.status === 403 || res.status === 404 || res.status === 423) {
+      clearDraft(offlineOwner, page.id);
+      setOffline(false);
+      setSaveError(null);
+      setBlockedDraft(draft);
+      return;
+    }
+    // Error del servidor: el borrador queda y se reintenta al volver la red o al abrir.
     setSaveError('failed');
-  }, [page.id, adoptServer, savePage]);
+  }, [page.id, adoptServer, savePage, offlineOwner]);
 
   // Al abrir con un borrador pendiente o al volver la red: se manda.
   useEffect(() => {
-    if (loadDraft(page.id)) {
+    if (loadDraft(offlineOwner, page.id)) {
       setOffline(navigator.onLine === false);
       setSaveError(navigator.onLine === false ? 'offline' : null);
       void flushDraft();
@@ -403,26 +418,26 @@ export default function DocsEditorClient({
       window.removeEventListener('online', back);
       window.removeEventListener('offline', goOffline);
     };
-  }, [page.id, flushDraft]);
+  }, [page.id, flushDraft, offlineOwner]);
 
   // Una vista por apertura (Analítica de la página) y la marca de "Disponible sin conexión".
   useEffect(() => {
     void fetch(`/api/docs/pages/${page.id}/views`, { method: 'POST' }).catch(() => undefined);
-    setOfflineOn(offlinePages().includes(page.id));
-  }, [page.id]);
+    setOfflineOn(offlinePages(offlineOwner).includes(page.id));
+  }, [page.id, offlineOwner]);
 
   /** "Disponible sin conexión": guarda la página y sus subpáginas en el service worker. */
   const toggleOffline = useCallback(async () => {
     const on = !offlineOn;
-    setOfflinePage(page.id, on);
+    setOfflinePage(offlineOwner, page.id, on);
     setOfflineOn(on);
     if (!on) return;
     const urls = [`/${locale}/app/docs`, `/${locale}/app/docs/${page.id}`];
     const res = await fetch('/api/docs/pages?limit=500').catch(() => null);
     const data = res?.ok ? ((await res.json().catch(() => null)) as { rows?: Array<{ id: string; parent_id: string | null }> } | null) : null;
     for (const id of descendantIds(page.id, data?.rows ?? [])) urls.push(`/${locale}/app/docs/${id}`);
-    warmOffline(urls);
-  }, [offlineOn, page.id, locale]);
+    warmOffline(offlineOwner, urls);
+  }, [offlineOn, page.id, locale, offlineOwner]);
 
   // Último recurso (3 fusiones seguidas fallaron): traer lo del server o pisar a sabiendas.
   const reloadAfterConflict = useCallback(async () => {
@@ -906,6 +921,23 @@ export default function DocsEditorClient({
       {offline && (
         <div className="docs-banner docs-banner-quiet" role="status" data-testid="docs-offline-banner">
           <span>{t('offline.banner')}</span>
+        </div>
+      )}
+      {blockedDraft && (
+        <div className="docs-banner docs-banner-bad" role="alert" data-testid="docs-offline-blocked">
+          <span>{t('offline.blocked')}</span>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              void navigator.clipboard?.writeText(draftText(blockedDraft)).then(() => setDraftCopied(true)).catch(() => undefined);
+            }}
+          >
+            {draftCopied ? t('offline.copied') : t('offline.copy')}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setBlockedDraft(null)}>
+            {t('offline.discard')}
+          </button>
         </div>
       )}
       {saveError === 'conflict' && (

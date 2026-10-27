@@ -66,27 +66,42 @@ function withForcedBrand(req: NextRequest): NextRequest {
 /**
  * Dominio propio del sitio publicado de Docs (lib/docs-site.ts): el
  * middleware no tiene DB, así que pregunta a /api/docs/site/host (sin
- * middleware) y guarda la respuesta un minuto por instancia.
+ * middleware) por cada host que no es de la app. Solo pasa en dominios
+ * propios (los de Link y los de Docs), nunca en zerosoft.ai.
+ *
+ * Cache por instancia: respuesta con sitio o sin sitio (dominio de Link),
+ * 60 s; si el lookup falla o tarda más de 1 s, 10 s como dominio de Link
+ * (lo de siempre). Medido en local con next start (2026-10-27, mediana):
+ * /api/docs/site/host 3,7 ms; primer pedido a un dominio propio 59 ms (con
+ * el lookup), los siguientes 4,9 ms (cacheado, igual que un pedido a la app:
+ * 5,7 ms). En Vercel el lookup es otra invocación de función: se paga una vez
+ * por host, instancia y minuto. Ver docs/routes-budget.md.
  */
 const SITE_TTL_MS = 60_000;
-const siteCache = new Map<string, { at: number; site: { handle: string; locale: string | null } | null }>();
+const SITE_FAIL_TTL_MS = 10_000;
+const SITE_LOOKUP_TIMEOUT_MS = 1_000;
+type SiteHit = { handle: string; locale: string | null } | null;
+const siteCache = new Map<string, { until: number; site: SiteHit }>();
 
-async function docsSiteFor(req: NextRequest, host: string): Promise<{ handle: string; locale: string | null } | null> {
+async function docsSiteFor(req: NextRequest, host: string): Promise<SiteHit> {
+  const now = Date.now();
   const hit = siteCache.get(host);
-  if (hit && Date.now() - hit.at < SITE_TTL_MS) return hit.site;
-  let site: { handle: string; locale: string | null } | null = null;
+  if (hit && now < hit.until) return hit.site;
+  let site: SiteHit = null;
+  let ttl = SITE_TTL_MS;
   try {
     // DOCS_SITE_LOOKUP_ORIGIN: tests y self-host detrás de un proxy (el dominio propio no resuelve a localhost).
     const url = new URL('/api/docs/site/host', process.env.DOCS_SITE_LOOKUP_ORIGIN || req.nextUrl.origin);
     url.searchParams.set('host', host);
-    const res = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(3000) });
-    if (res.ok) site = ((await res.json()) as { site: { handle: string; locale: string | null } | null }).site;
+    const res = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(SITE_LOOKUP_TIMEOUT_MS) });
+    if (res.ok) site = ((await res.json()) as { site: SiteHit }).site;
+    else if (res.status !== 404) ttl = SITE_FAIL_TTL_MS;
   } catch {
-    // Sin respuesta: se trata como dominio de Link (lo de siempre) y no se guarda.
-    return null;
+    // Sin respuesta a tiempo: se trata como dominio de Link (lo de siempre), por poco tiempo.
+    ttl = SITE_FAIL_TTL_MS;
   }
   if (siteCache.size > 500) siteCache.clear();
-  siteCache.set(host, { at: Date.now(), site });
+  siteCache.set(host, { until: now + ttl, site });
   return site;
 }
 

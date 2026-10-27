@@ -27,7 +27,11 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
   const res = await addSiteDomain(g.user.id, parsed.data.hostname);
-  if (!res.ok) return docsError(res.code === 'provider_error' ? 502 : res.code === 'domain_exists' || res.code === 'domain_taken' ? 409 : 400, res.code);
+  if (!res.ok) {
+    const status = res.code === 'provider_error' ? 502 : res.code === 'invalid_hostname' || res.code === 'app_host' ? 400 : 409;
+    // Pendiente en otro workspace: el TXT con el que se lo puede quedar quien lo pide.
+    return NextResponse.json({ error: res.code, ...(res.dns ? { dns: res.dns } : {}) }, { status });
+  }
   await logDocsAudit({ workspaceId: g.user.id, actor: g.user.actingUser ?? g.user, action: 'settings.site', detail: `domain=${res.site.hostname}`, ip: requestIp(req.headers) });
   return NextResponse.json({ site: res.site }, { status: 201 });
 }
@@ -40,6 +44,7 @@ export async function PATCH(req: NextRequest) {
   if ('error' in g) return g.error;
   const res = await verifySiteDomain(g.user.id);
   if (res.reason === 'not_found') return docsError(404, 'not_found');
+  if (res.reason === 'domain_taken') return NextResponse.json(res, { status: 409 });
   return NextResponse.json(res);
 }
 

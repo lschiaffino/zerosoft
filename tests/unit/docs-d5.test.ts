@@ -30,6 +30,8 @@ import { collectExportPages, exportName, exportTree, relativePath } from '@/lib/
 import { detachSynced, duplicableSource, duplicatePublished } from '@/lib/docs-public-duplicate';
 import {
   addSiteDomain,
+  claimToken,
+  purgeExpiredSiteDomains,
   getDocsSite,
   pageAnalytics,
   recordPageView,
@@ -528,8 +530,31 @@ describe('Sitio publicado', () => {
     }
     expect(await addSiteDomain(u.id, 'otro.acme.test')).toEqual({ ok: false, code: 'domain_exists' });
     const other = await makeUser('site2');
-    expect(await addSiteDomain(other.id, host)).toEqual({ ok: false, code: 'domain_taken' });
-    expect(await addDomain(other.id, host)).toEqual({ ok: false, code: 'domain_taken' });
+    // Sin verificar en otro workspace: se lo queda quien prueba el TXT de su token.
+    const pending = await addSiteDomain(other.id, host);
+    expect(pending).toMatchObject({ ok: false, code: 'domain_pending_elsewhere' });
+    expect(!pending.ok && pending.dns?.[0]).toMatchObject({ type: 'TXT', value: `zerosoft-verify=${claimToken(other.id, host)}` });
+    process.env.DOCS_DOMAIN_FAKE_TXT = claimToken(other.id, host);
+    try {
+      expect(await addSiteDomain(other.id, host)).toMatchObject({ ok: true });
+    } finally {
+      delete process.env.DOCS_DOMAIN_FAKE_TXT;
+    }
+    expect((await getDocsSite(u.id)).hostname).toBeNull();
+    expect(await removeSiteDomain(other.id)).toBe(true);
+    // Un pendiente de Docs no bloquea a Link (se libera); uno de Link sí bloquea a Docs.
+    const third = await makeUser('site3');
+    const linkHost = `l-${host}`;
+    expect(await addSiteDomain(u.id, linkHost)).toMatchObject({ ok: true });
+    expect(await addDomain(third.id, linkHost)).toMatchObject({ ok: true });
+    expect((await getDocsSite(u.id)).hostname).toBeNull();
+    expect(await addSiteDomain(u.id, linkHost)).toEqual({ ok: false, code: 'domain_taken' });
+    // Vencido (7 días sin verificar): se libera solo.
+    expect(await addSiteDomain(u.id, host)).toMatchObject({ ok: true });
+    await getDb().prepare("UPDATE docs_sites SET domain_added_at = datetime('now', '-8 days') WHERE workspace_id = ?").run(u.id);
+    expect(await purgeExpiredSiteDomains()).toBeGreaterThanOrEqual(1);
+    expect((await getDocsSite(u.id)).hostname).toBeNull();
+    expect(await addSiteDomain(u.id, host)).toMatchObject({ ok: true });
     expect(await siteForHost(host)).toBeNull();
     expect(await verifySiteDomain(u.id)).toEqual({ verified: true });
     expect(await siteForHost(`${host.toUpperCase()}:443`)).toMatchObject({ workspaceId: u.id, handle });

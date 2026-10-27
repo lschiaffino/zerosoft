@@ -17,14 +17,14 @@
  *
  * DOCS_DOMAIN_FAKE=1 (tests): un dominio .test se verifica sin DNS.
  */
-import { createHash } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 import { getDb } from './db';
 import { isAppHost, isValidHostname, normalizeHost } from './hosts';
 import {
   dnsInstructions,
   hasOwnershipTxt,
-  newVerifyToken,
   routingReady,
+  UNVERIFIED_TTL_DAYS,
   vercel,
   vercelConfigured,
   vercelQuery,
@@ -94,22 +94,79 @@ export async function updateDocsSite(workspaceId: string, patch: { indexing?: bo
 
 // ---------- Dominio propio ----------
 
-export type SiteDomainError = 'invalid_hostname' | 'domain_taken' | 'app_host' | 'provider_error' | 'domain_exists';
+export type SiteDomainError = 'invalid_hostname' | 'domain_taken' | 'app_host' | 'provider_error' | 'domain_exists' | 'domain_pending_elsewhere';
 
 function cleanHostname(raw: string): string {
   return normalizeHost(raw.trim()).replace(/^https?:\/\//, '').replace(/[/?#].*$/, '');
 }
 
-export async function addSiteDomain(workspaceId: string, raw: string): Promise<{ ok: true; site: DocsSite } | { ok: false; code: SiteDomainError }> {
+/**
+ * Token del TXT de propiedad de un workspace para un hostname: derivado (no
+ * al azar), así quien quiere un dominio que otro dejó sin verificar puede
+ * probar que es suyo antes de agregarlo.
+ */
+export function claimToken(workspaceId: string, hostname: string): string {
+  const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET ?? 'zerosoft-docs-site';
+  return createHmac('sha256', secret).update(`docs-site|${workspaceId}|${hostname}`).digest('hex').slice(0, 32);
+}
+
+async function vercelRemove(hostname: string): Promise<void> {
+  if (vercelConfigured() && !fakeDomains()) {
+    await vercel(`/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains/${encodeURIComponent(hostname)}${vercelQuery()}`, { method: 'DELETE' });
+  }
+}
+
+/**
+ * Libera los dominios sin verificar vencidos (UNVERIFIED_TTL_DAYS, como Link):
+ * un alta que nunca se verificó no ocupa el hostname para siempre.
+ */
+export async function purgeExpiredSiteDomains(hostname?: string): Promise<number> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT workspace_id, hostname FROM docs_sites
+       WHERE hostname IS NOT NULL AND verified = 0 AND domain_added_at < datetime('now', ?)${hostname ? ' AND hostname = ?' : ''}`,
+    )
+    .all(`-${UNVERIFIED_TTL_DAYS} days`, ...(hostname ? [hostname] : []))) as Array<{ workspace_id: string; hostname: string }>;
+  for (const r of rows) {
+    // Si Link lo tomó mientras tanto, no se saca del proyecto.
+    const link = await getDb().prepare('SELECT 1 AS x FROM link_domains WHERE hostname = ?').get(r.hostname);
+    if (!link) await vercelRemove(r.hostname);
+    await getDb()
+      .prepare("UPDATE docs_sites SET hostname = NULL, verify_token = NULL, domain_added_at = NULL, updated_at = datetime('now') WHERE workspace_id = ? AND verified = 0")
+      .run(r.workspace_id);
+  }
+  return rows.length;
+}
+
+export async function addSiteDomain(
+  workspaceId: string,
+  raw: string,
+): Promise<{ ok: true; site: DocsSite } | { ok: false; code: SiteDomainError; dns?: DnsInstruction[] }> {
   const hostname = cleanHostname(raw);
   if (!isValidHostname(hostname)) return { ok: false, code: 'invalid_hostname' };
   if (isAppHost(hostname)) return { ok: false, code: 'app_host' };
   const current = await siteRow(workspaceId);
   if (current?.hostname) return { ok: false, code: 'domain_exists' };
   const db = getDb();
+  await purgeExpiredSiteDomains(hostname);
   if (await db.prepare('SELECT 1 AS x FROM link_domains WHERE hostname = ?').get(hostname)) return { ok: false, code: 'domain_taken' };
-  if (await db.prepare('SELECT 1 AS x FROM docs_sites WHERE hostname = ?').get(hostname)) return { ok: false, code: 'domain_taken' };
-  if (vercelConfigured() && !fakeDomains()) {
+  const token = claimToken(workspaceId, hostname);
+  const holder = (await db.prepare('SELECT workspace_id, verified FROM docs_sites WHERE hostname = ?').get(hostname)) as
+    | { workspace_id: string; verified: number }
+    | undefined;
+  if (holder) {
+    if (holder.verified === 1) return { ok: false, code: 'domain_taken' };
+    // Otro workspace lo agregó y no lo verificó: se lo queda quien prueba que es
+    // suyo con el TXT de su token (lo devuelve este mismo error).
+    const fake = fakeDomains() && hostname.endsWith('.test') && process.env.DOCS_DOMAIN_FAKE_TXT === token;
+    if (!fake && !(await hasOwnershipTxt(hostname, token))) {
+      return { ok: false, code: 'domain_pending_elsewhere', dns: dnsInstructions(hostname, token).filter((d) => d.type === 'TXT') };
+    }
+    await db
+      .prepare("UPDATE docs_sites SET hostname = NULL, verify_token = NULL, domain_added_at = NULL, updated_at = datetime('now') WHERE workspace_id = ? AND verified = 0")
+      .run(holder.workspace_id);
+  }
+  if (vercelConfigured() && !fakeDomains() && !holder) {
     const res = await vercel(`/v10/projects/${process.env.VERCEL_PROJECT_ID}/domains${vercelQuery()}`, {
       method: 'POST',
       body: JSON.stringify({ name: hostname }),
@@ -128,7 +185,7 @@ export async function addSiteDomain(workspaceId: string, raw: string): Promise<{
       .prepare(
         "UPDATE docs_sites SET hostname = ?, verified = 0, verified_at = NULL, verify_token = ?, domain_added_at = datetime('now'), updated_at = datetime('now') WHERE workspace_id = ?",
       )
-      .run(hostname, newVerifyToken(), workspaceId);
+      .run(hostname, token, workspaceId);
   } catch (e) {
     if (/UNIQUE constraint failed/i.test(String(e))) return { ok: false, code: 'domain_taken' };
     throw e;
@@ -136,10 +193,12 @@ export async function addSiteDomain(workspaceId: string, raw: string): Promise<{
   return { ok: true, site: await getDocsSite(workspaceId) };
 }
 
-export async function verifySiteDomain(workspaceId: string): Promise<{ verified: boolean; reason?: 'not_found' | 'txt_missing' | 'dns_not_ready' }> {
+export async function verifySiteDomain(workspaceId: string): Promise<{ verified: boolean; reason?: 'not_found' | 'txt_missing' | 'dns_not_ready' | 'domain_taken' }> {
   const row = await siteRow(workspaceId);
   if (!row?.hostname || !row.verify_token) return { verified: false, reason: 'not_found' };
   if (row.verified === 1) return { verified: true };
+  // Link lo tomó mientras estaba pendiente.
+  if (await getDb().prepare('SELECT 1 AS x FROM link_domains WHERE hostname = ?').get(row.hostname)) return { verified: false, reason: 'domain_taken' };
   const fake = fakeDomains() && row.hostname.endsWith('.test');
   if (!fake) {
     if (!(await hasOwnershipTxt(row.hostname, row.verify_token))) return { verified: false, reason: 'txt_missing' };
@@ -154,9 +213,7 @@ export async function verifySiteDomain(workspaceId: string): Promise<{ verified:
 export async function removeSiteDomain(workspaceId: string): Promise<boolean> {
   const row = await siteRow(workspaceId);
   if (!row?.hostname) return false;
-  if (vercelConfigured() && !fakeDomains()) {
-    await vercel(`/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains/${encodeURIComponent(row.hostname)}${vercelQuery()}`, { method: 'DELETE' });
-  }
+  await vercelRemove(row.hostname);
   await getDb()
     .prepare("UPDATE docs_sites SET hostname = NULL, verified = 0, verified_at = NULL, verify_token = NULL, domain_added_at = NULL, updated_at = datetime('now') WHERE workspace_id = ?")
     .run(workspaceId);
@@ -249,12 +306,13 @@ export async function recordSiteView(input: {
     if (!ok) return false;
   }
   const day = utcDay();
-  const visitor = visitorHash(input.ip ?? '', input.headers.get('user-agent') ?? '', day);
+  // Por IP y día: cambiar de navegador (user agent) no suma visitantes ni vistas sin tope.
+  const visitor = visitorHash(input.ip ?? '', '', day);
   const ref = referrerHost(input.referrer, input.ownHosts);
   await db
     .prepare(
       `INSERT INTO docs_site_views (workspace_id, page_id, day, visitor, views, referrer) VALUES (?, ?, ?, ?, 1, ?)
-       ON CONFLICT(workspace_id, page_id, day, visitor) DO UPDATE SET views = MIN(views + 1, 1000)`,
+       ON CONFLICT(workspace_id, page_id, day, visitor) DO UPDATE SET views = MIN(views + 1, 50)`,
     )
     .run(input.workspaceId, input.pageId, day, visitor, ref);
   return true;
@@ -340,7 +398,8 @@ export interface PageAnalytics {
   views: number;
   viewers: number;
   series: DayCount[];
-  people: Array<{ id: string; name: string | null; email: string | null; views: number; last_at: string }>;
+  /** Nombre (nunca el email: también lo ven invitados con edición). */
+  people: Array<{ id: string; name: string | null; views: number; last_at: string }>;
   /** Vistas en el sitio publicado en el mismo período (si está publicada). */
   site: { views: number; visitors: number } | null;
 }
@@ -358,11 +417,11 @@ export async function pageAnalytics(pageId: string, opts: { days?: number; publi
     .get(pageId, since)) as { views: number; viewers: number };
   const people = (await db
     .prepare(
-      `SELECT v.viewer_id AS id, u.name, u.email, SUM(v.views) AS views, MAX(v.last_at) AS last_at
+      `SELECT v.viewer_id AS id, u.name, SUM(v.views) AS views, MAX(v.last_at) AS last_at
        FROM docs_page_views v LEFT JOIN users u ON u.id = v.viewer_id
-       WHERE v.page_id = ? GROUP BY v.viewer_id ORDER BY last_at DESC LIMIT 50`,
+       WHERE v.page_id = ? AND v.day >= ? GROUP BY v.viewer_id ORDER BY last_at DESC LIMIT 50`,
     )
-    .all(pageId)) as PageAnalytics['people'];
+    .all(pageId, since)) as PageAnalytics['people'];
   let site: PageAnalytics['site'] = null;
   if (opts.published && opts.workspaceId) {
     const s = (await db

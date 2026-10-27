@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { retryDueWebhooks } from '@/lib/webhooks';
 import { fireDueTasks } from '@/lib/crm';
 import { purgeExpiredTrash } from '@/lib/crm-trash';
+import { purgeExpiredSiteDomains } from '@/lib/docs-site';
 import { processFlowQueue } from '@/lib/flow-worker';
 import { pruneFlowRuns } from '@/lib/flow';
 import { runDueRobots } from '@/lib/robots';
@@ -88,6 +89,8 @@ export async function GET(req: NextRequest) {
   const trackDigests = await sendTrackDigests({ limit: 500 }).catch(() => null);
   // Papelera del CRM: lo borrado hace más de 90 días se descarta para siempre.
   const trashPurged = await purgeExpiredTrash().catch(() => null);
+  // Docs: dominios del sitio publicado que nadie verificó en UNVERIFIED_TTL_DAYS se liberan.
+  const docsDomainsPurged = await purgeExpiredSiteDomains().catch(() => null);
   // Flow: corridas y pasos más viejos que la retención del workspace (lotes acotados).
   const flowPruned = await pruneFlowRuns({ budgetMs: 15_000 }).catch(() => null);
   // Primero el sync (detecta respuestas → salen de la secuencia), después los envíos.
@@ -118,5 +121,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, trashPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, robots, ideas });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, trashPurged,
+    docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, robots, ideas });
 }

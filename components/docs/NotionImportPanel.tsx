@@ -33,6 +33,9 @@ interface Preview {
   attachments: number;
   bytes: number;
   alreadyImported: number;
+  skippedFiles?: string[];
+  capped?: boolean;
+  maxPages?: number;
   tree: Array<{ title: string; kind: 'page' | 'database'; depth: number }>;
 }
 
@@ -44,6 +47,7 @@ interface Report {
   filesSkipped: number;
   skipped: number;
   roots: Array<{ id: string; title: string }>;
+  tooLarge?: number;
 }
 
 /**
@@ -272,6 +276,16 @@ function PreviewView({ job, onConfirm, onCancel }: { job: ImportJobView; onConfi
       </div>
       {(p.rows ?? 0) > 0 && <p className="ui-help">{t('rowsNote')}</p>}
       {p.alreadyImported > 0 && <p className="ximp-note">{t('already', { count: p.alreadyImported })}</p>}
+      {p.capped && (
+        <p className="ximp-note" data-tone="warn">
+          {t('capped', { max: p.maxPages ?? 5000 })}
+        </p>
+      )}
+      {(p.skippedFiles?.length ?? 0) > 0 && (
+        <p className="ximp-note" data-tone="warn">
+          {t('skippedFiles', { files: (p.skippedFiles ?? []).join(', ') })}
+        </p>
+      )}
       <section className="ximp-section">
         <h3>{t('treeTitle')}</h3>
         <ul className="ximp-tree">
@@ -298,6 +312,12 @@ function DoneView({ job, onAgain }: { job: ImportJobView; onAgain: () => void })
         <strong>{t('doneTitle')}</strong> {t('doneSummary', { pages: r.pages, databases: r.databases, files: r.files, skipped: r.skipped })}
       </p>
       {(r.rows ?? 0) > 0 && <p className="ui-help">{t('doneRows', { count: r.rows ?? 0 })}</p>}
+      {r.skipped > 0 && <p className="ui-help">{t('skippedNote', { count: r.skipped })}</p>}
+      {(r.tooLarge ?? 0) > 0 && (
+        <p className="ximp-note" data-tone="warn">
+          {t('tooLarge', { count: r.tooLarge ?? 0 })}
+        </p>
+      )}
       {r.filesSkipped > 0 && (
         <p className="ximp-note" data-tone="warn">
           {t('filesSkipped', { count: r.filesSkipped })}

@@ -463,11 +463,20 @@ export async function notionFetchStep(job: ImportJob): Promise<FetchStepResult> 
     ];
     const imported = await getExternalIds(job.workspace_id, provider, 'page', keys);
     const pages = planNotionPages(files, imported, undefined, { confluence, confluenceIndex });
+    /** Archivos que no se pudieron leer (un .enex enorme): se avisan y el resto sigue. */
+    const skippedFiles: string[] = [];
     for (const x of enex) {
       if (pages.length >= NOTION_MAX_PAGES) break;
       const ids = await getExternalIds(job.workspace_id, provider, 'page', [`enex:${x.entry.name}`]);
       // Los ids de las notas se piden juntos (pueden ser miles).
-      const noteItems = await enexItems(x.src, x.entry, x.part, ids, null);
+      let noteItems: NotionPageItem[];
+      try {
+        noteItems = await enexItems(x.src, x.entry, x.part, ids, null);
+      } catch (err) {
+        if (!(err instanceof ZipError)) throw err;
+        skippedFiles.push(path.posix.basename(x.entry.name).slice(0, 200));
+        continue;
+      }
       const noteIds = await getExternalIds(job.workspace_id, provider, 'page', noteItems.slice(1).map((n) => n.path));
       for (const n of noteItems.slice(1)) {
         const mapped = noteIds.get(n.path);
@@ -481,10 +490,13 @@ export async function notionFetchStep(job: ImportJob): Promise<FetchStepResult> 
       noteItems[0].parentPath = folder ? folder.path : null;
       pages.push(...noteItems.slice(0, NOTION_MAX_PAGES - pages.length));
     }
+    if (pages.length === 0) throw new ImportError(skippedFiles.length ? 'file_too_large' : 'notion_empty');
     const ordered = sortTree(pages);
+    // Tope de páginas por import: lo que sobra no entra y se avisa en la vista previa.
+    const capped = files.length + enex.length > NOTION_MAX_PAGES || pages.length >= NOTION_MAX_PAGES;
     return {
       items: [
-        { kind: 'parts', data: { parts, attachments, bytes } },
+        { kind: 'parts', data: { parts, attachments, bytes, skippedFiles, capped } },
         ...ordered.map((p) => ({ kind: p.kind, data: p })),
       ],
       cursor: {},
@@ -502,7 +514,13 @@ function importProvider(job: ImportJob): string {
 }
 
 export async function notionPreview(_job: ImportJob, items: StagedItem[]): Promise<Record<string, unknown>> {
-  const meta = (items.find((i) => i.kind === 'parts')?.data ?? {}) as { parts?: PartRef[]; attachments?: number; bytes?: number };
+  const meta = (items.find((i) => i.kind === 'parts')?.data ?? {}) as {
+    parts?: PartRef[];
+    attachments?: number;
+    bytes?: number;
+    skippedFiles?: string[];
+    capped?: boolean;
+  };
   const pages = items.filter((i) => i.kind === 'page' || i.kind === 'database').map((i) => i.data as unknown as NotionPageItem);
   // Muestra del árbol: profundidad relativa a la página de más arriba.
   const rows = pages.filter((p) => p.rowOf);
@@ -516,6 +534,9 @@ export async function notionPreview(_job: ImportJob, items: StagedItem[]): Promi
     bytes: meta.bytes ?? 0,
     parts: meta.parts?.length ?? 1,
     alreadyImported: own.filter((p) => p.existing).length,
+    skippedFiles: meta.skippedFiles ?? [],
+    capped: meta.capped === true,
+    maxPages: NOTION_MAX_PAGES,
     tree: orderTree(own)
       .slice(0, 40)
       .map((p) => ({ title: p.title, kind: p.kind, depth: p.depth - minDepth })),
@@ -823,10 +844,12 @@ export interface NotionImportReport {
   filesSkipped: number;
   skipped: number;
   roots: Array<{ id: string; title: string }>;
+  /** Páginas con un archivo de texto más grande que el tope: quedaron vacías. */
+  tooLarge?: number;
 }
 
 export function emptyNotionReport(): NotionImportReport {
-  return { pages: 0, databases: 0, rows: 0, files: 0, filesSkipped: 0, skipped: 0, roots: [] };
+  return { pages: 0, databases: 0, rows: 0, files: 0, filesSkipped: 0, skipped: 0, roots: [], tooLarge: 0 };
 }
 
 interface PartIndex {
@@ -944,6 +967,8 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
   const db = getDb();
   // Teamspace de destino (lo validó quien creó el job); las subpáginas toman el de su madre.
   const destTeamspace = typeof job.options.teamspace_id === 'string' ? job.options.teamspace_id : null;
+  // El acceso al teamspace se revalida al escribir (pudo salir de él o borrarse desde que armó el import).
+  if (destTeamspace && !(await canWriteTeamspace(job.workspace_id, job.user_id, destTeamspace))) throw new ImportError('forbidden');
   const enexCache = new Map<string, Buffer>();
 
   /** .md de Notion → bloques, con links internos, callouts y adjuntos subidos. */
@@ -1004,7 +1029,13 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
     let created: string | null = null;
     let updated: string | null = null;
     const format = page.kind === 'database' ? 'csv' : (page.format ?? 'md');
-    if (format === 'csv') {
+    // Un .md/.html/.csv más grande que el tope: la página entra vacía y se avisa.
+    const textHit = format === 'md' || format === 'html' || format === 'txt' || format === 'csv' ? idx.entries.get(page.path) : undefined;
+    const tooLarge = Boolean(textHit && textHit.entry.size > TEXT_MAX_BYTES);
+    if (tooLarge) report.tooLarge = (report.tooLarge ?? 0) + 1;
+    if (tooLarge) {
+      blocks = [];
+    } else if (format === 'csv') {
       const text = await readText(idx, page.path).catch(() => '');
       const block = csvToDatabaseBlock(text, newDbId, splitIcon(page.title).title);
       const columns = block.db?.properties.map((p) => p.name) ?? [];
@@ -1093,4 +1124,22 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
     else report.pages += 1;
     if (!parentId && report.roots.length < 10) report.roots.push({ id: page.localId, title: cleanTitle.slice(0, 200) });
   }
+}
+
+/** ¿Puede `userId` seguir creando páginas en ese teamspace del workspace? (lo mismo que canCreateDocPage, sin sesión). */
+async function canWriteTeamspace(workspaceId: string, userId: string, teamspaceId: string): Promise<boolean> {
+  const { getTeamspace, teamspaceRoleOf, roleRank } = await import('./docs-access');
+  const ts = await getTeamspace(teamspaceId);
+  if (!ts || ts.workspace_id !== workspaceId || ts.deleted_at) return false;
+  const role = await teamspaceRoleOf(ts.id, userId);
+  if (role === 'owner') return true;
+  if (!role && ts.access !== 'open') return false;
+  // Dueño del workspace o admin: como en canCreateDocPage.
+  if (userId === workspaceId) return true;
+  const { isWorkspacePerson } = await import('./crm-refs');
+  if (!(await isWorkspacePerson(workspaceId, userId))) return false;
+  const { workspaceRole } = await import('./api-auth');
+  const wr = await workspaceRole(workspaceId, userId);
+  if (wr === 'owner' || wr === 'admin') return true;
+  return roleRank(ts.member_role) >= roleRank('edit');
 }

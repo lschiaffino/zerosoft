@@ -9,7 +9,7 @@ interface PageAnalytics {
   views: number;
   viewers: number;
   series: ViewsDay[];
-  people: Array<{ id: string; name: string | null; email: string | null; views: number; last_at: string }>;
+  people: Array<{ id: string; name: string | null; views: number; last_at: string }>;
   site: { views: number; visitors: number } | null;
 }
 
@@ -76,7 +76,7 @@ export default function DocsAnalyticsPanel({ pageId }: { pageId: string }) {
             <ul className="docs-analytics-people">
               {data.people.map((p) => (
                 <li key={p.id}>
-                  <span className="docs-analytics-name">{p.name || p.email || t('someone')}</span>
+                  <span className="docs-analytics-name">{p.name || t('someone')}</span>
                   <span className="ui-help">
                     {format.relativeTime(new Date(p.last_at), new Date())} · {t('viewCount', { count: p.views })}
                   </span>

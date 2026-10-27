@@ -77,6 +77,29 @@ export function toWinAnsi(text: string): string {
   return out;
 }
 
+/**
+ * ¿Hay texto que las fuentes estándar del PDF no pueden mostrar (otros
+ * alfabetos)? Los emoji no cuentan (se omiten). El export lo usa para no
+ * entregar "???": esa página sale con Imprimir (o en HTML dentro del zip).
+ */
+export function needsUnicodeFont(title: string, blocks: DocsBlock[]): boolean {
+  const texts: string[] = [title];
+  for (const b of blocks) {
+    texts.push(b.content ?? '', b.caption ?? '', b.name ?? '', b.link?.title ?? '');
+    for (const r of b.rows ?? []) texts.push(...r);
+  }
+  for (const raw of texts) {
+    const text = raw.replace(/<[^>]*>/g, '');
+    if (!text) continue;
+    for (const ch of decodeEntities(text).normalize('NFC')) {
+      const cp = ch.codePointAt(0) ?? 0;
+      if (cp < 256 || WIN_ANSI_EXTRA[cp] || cp === 0x2212 || PICTO.test(ch)) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
 type FontKey = 'F1' | 'F2' | 'F3' | 'F4' | 'F5';
 
 function fontFor(style: { bold?: boolean; italic?: boolean; code?: boolean }): FontKey {

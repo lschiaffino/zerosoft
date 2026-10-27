@@ -989,7 +989,7 @@
     "formatHelp": {
       "md": "Arquivos de texto que qualquer editor abre.",
       "html": "Páginas web com seus estilos, claro e escuro.",
-      "pdf": "Documento A4 feito no servidor, com links clicáveis e imagens. Emoji e alfabetos não latinos ficam de fora: para isso use Imprimir."
+      "pdf": "Documento A4 feito no servidor, com links clicáveis e imagens. Para páginas em outros alfabetos use Imprimir; em um zip vão em HTML."
     },
     "subpages": "Incluir subpáginas",
     "subpagesHelp": "Um .zip com a árvore de páginas, os links entre elas e os arquivos anexos. Só as páginas que você pode abrir.",
@@ -1004,7 +1004,8 @@
       "nothing_to_export": "Não há páginas para exportar.",
       "network": "Sem conexão. Tente de novo quando a rede voltar.",
       "rate_limited": "Exportações demais em sequência. Espere alguns minutos.",
-      "failed": "Não foi possível exportar. Tente de novo."
+      "failed": "Não foi possível exportar. Tente de novo.",
+      "pdf_unicode": "Esta página tem texto em um alfabeto que as fontes do PDF não mostram. Use Imprimir para salvar como PDF pelo navegador."
     }
   },
   "state": {
@@ -1106,7 +1107,11 @@
     "destination": "Importar em",
     "destinationWorkspace": "Workspace",
     "destinationHelp": "Os teamspaces privados aparecem só se você for membro. As páginas importadas ficam com o acesso desse teamspace.",
-    "noDestination": "Seu papel não pode criar páginas neste workspace. Peça acesso de edição a um admin."
+    "noDestination": "Seu papel não pode criar páginas neste workspace. Peça acesso de edição a um admin.",
+    "capped": "O arquivo tem mais de {max} páginas: entram só as primeiras {max}.",
+    "skippedFiles": "Pulados por serem grandes demais: {files}. O resto entra.",
+    "skippedNote": "{count, plural, one {# página já tinha sido importada e ficou onde estava.} other {# páginas já tinham sido importadas e ficaram onde estavam.}} Para importar de novo, apague essas páginas antes.",
+    "tooLarge": "{count, plural, one {# página entrou vazia: seu arquivo tem mais de 8 MB.} other {# páginas entraram vazias: seus arquivos têm mais de 8 MB.}}"
   },
   "reminderEmail": {
     "subject": "Lembrete: {title}",
@@ -1238,7 +1243,7 @@
     "securityHelp": "O que estiver desligado só os admins podem fazer.",
     "allow_export": {
       "label": "Exportar páginas",
-      "help": "Markdown e PDF no menu da página."
+      "help": "Markdown, HTML e PDF de uma página, suas subpáginas ou o workspace inteiro. Desligado: só os admins exportam."
     },
     "allow_publish": {
       "label": "Publicar na central de ajuda",
@@ -1603,7 +1608,11 @@
   },
   "offline": {
     "available": "Disponível offline",
-    "banner": "Sem conexão. O que você escreve fica neste dispositivo e é salvo quando a rede voltar."
+    "banner": "Sem conexão. O que você escreve fica neste dispositivo e é salvo quando a rede voltar.",
+    "blocked": "O que você escreveu offline não pôde ser salvo: você não pode mais editar esta página.",
+    "copy": "Copiar o texto",
+    "copied": "Copiado",
+    "discard": "Descartar"
   },
   "touchbar": {
     "label": "Formatação",
@@ -1644,7 +1653,7 @@
     "addressHelp": "As páginas publicadas ficam aqui, com busca e coleções.",
     "noHandle": "Escolha um usuário no seu perfil para publicar páginas.",
     "domainTitle": "Domínio próprio",
-    "domainHelp": "Sirva o site no seu domínio, como docs.suaempresa.com. Um domínio por workspace.",
+    "domainHelp": "Sirva o site no seu domínio, como docs.suaempresa.com. Um domínio por workspace. Um domínio que não for verificado em 7 dias fica disponível para outros.",
     "domain": "Domínio",
     "addDomain": "Adicionar domínio",
     "domainVerified": "Verificado e servindo o site",
@@ -1670,7 +1679,8 @@
       "app_host": "Use um domínio seu, não o endereço do app.",
       "provider_error": "O provedor de hospedagem não aceitou o domínio. Tente de novo em instantes.",
       "rate_limited": "Tentativas demais. Espere alguns minutos.",
-      "failed": "Não foi possível adicionar o domínio."
+      "failed": "Não foi possível adicionar o domínio.",
+      "domain_pending_elsewhere": "Outro workspace adicionou este domínio e não verificou. Crie este registro TXT para provar que é seu e adicione de novo."
     },
     "seoTitle": "Buscadores",
     "seoHelp": "Cada página também tem sua descrição e sua chave de indexação em Compartilhar › Publicar.",

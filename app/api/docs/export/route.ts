@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import { docsError, unauthorized } from '@/lib/docs-http';
 import { docsAllowed } from '@/lib/docs-guard';
-import { limitByIp } from '@/lib/rate-limit';
+import { rateLimit } from '@/lib/rate-limit';
 import { logDocsAudit, requestIp } from '@/lib/docs-audit';
 import { collectExportPages, exportTree, isExportFormat } from '@/lib/docs-export';
 import { requestLocale } from '@/lib/request-locale';
@@ -21,8 +21,10 @@ export const maxDuration = 300;
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  const limited = await limitByIp(req, 'docs-export-workspace', 10, 600);
-  if (limited) return limited;
+  // Por persona (detrás de una misma IP de oficina hay muchas).
+  if (process.env.RATE_LIMIT_DISABLED !== 'true' && !(await rateLimit(`docs-export-workspace:${realUserId(user)}`, 10, 600)).ok) {
+    return docsError(429, 'rate_limited');
+  }
   const format = req.nextUrl.searchParams.get('format') ?? 'md';
   if (!isExportFormat(format)) return docsError(400, 'invalid_format');
   if (!(await docsAllowed(user, user.id, 'allow_export'))) return docsError(403, 'export_disabled');

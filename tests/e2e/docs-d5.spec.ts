@@ -133,6 +133,11 @@ test('D5: sitio publicado con dominio propio, SEO, visitas y Duplicar a mi works
   const slug = publicHref.split('/').pop()!;
   const home = await request.get('/', { headers: { host } });
   expect(home.status()).toBe(200);
+  // Solo el sitio del cliente: nada del header ni del footer de marketing de zerosoft.
+  const homeHtml = await home.text();
+  expect(homeHtml).not.toContain('class="site-header');
+  expect(homeHtml).not.toContain('class="site-footer"');
+  expect(homeHtml).toContain('Help center');
   const article = await request.get(`/${slug}`, { headers: { host } });
   expect(article.status()).toBe(200);
   const html = await article.text();
@@ -205,14 +210,22 @@ test('D5: sin conexión lo escrito queda en el dispositivo y se guarda al volver
   await page.keyboard.type(` sin red ${tag}`);
   await expect(page.getByTestId('docs-offline-banner')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId('docs-save-status')).toHaveText('Saved on this device', { timeout: 10_000 });
-  const draft = await page.evaluate((id) => localStorage.getItem(`zs-docs-draft:${id}`), doc.id);
+  // El borrador es de esta persona en este workspace (la clave lleva el dueño).
+  const findDraft = (id: string) => {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)!;
+      if (k.startsWith('zs-docs-draft:') && k.endsWith(`|${id}`)) return localStorage.getItem(k);
+    }
+    return null;
+  };
+  const draft = await page.evaluate(findDraft, doc.id);
   expect(draft).toContain(`sin red ${tag}`);
   await context.setOffline(false);
   await expect
     .poll(async () => JSON.stringify(((await (await request.get(`/api/docs/pages/${doc.id}`)).json()) as { content: unknown }).content), { timeout: 15_000 })
     .toContain(`sin red ${tag}`);
   await expect(page.getByTestId('docs-offline-banner')).toBeHidden();
-  expect(await page.evaluate((id) => localStorage.getItem(`zs-docs-draft:${id}`), doc.id)).toBeNull();
+  expect(await page.evaluate(findDraft, doc.id)).toBeNull();
   // "Disponible sin conexión" queda marcado.
   const menu = await openMenu(page);
   await menu.getByTestId('docs-offline-toggle').click();

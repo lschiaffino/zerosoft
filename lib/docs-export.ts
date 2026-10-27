@@ -22,7 +22,7 @@ import { cleanForReaders } from './docs-marks';
 import { pageLinkHref, resolveBlocksPageLinks } from './docs-page-links';
 import { blocksToMarkdown } from './docs-markdown';
 import { blocksToHtmlDocument, escapeHtml } from './docs-html-export';
-import { blocksToPdf, type PdfImageData } from './docs-pdf';
+import { blocksToPdf, needsUnicodeFont, type PdfImageData } from './docs-pdf';
 import { docsFileHref, isDocsUploadUrl, isFileBlockType } from './docs-files';
 import { sanitizeDocsHtml } from './docs-sanitize';
 import { localUploadPath } from './uploads';
@@ -158,6 +158,15 @@ export interface ExportResult {
   filename: string;
   contentType: string;
   pages: number;
+  /** Páginas que en PDF iban a salir con "?" (otros alfabetos): van en HTML dentro del zip. */
+  htmlFallback?: number;
+}
+
+/** PDF de una página con texto que las fuentes estándar no muestran: mejor Imprimir del navegador. */
+export class PdfUnicodeError extends Error {
+  constructor() {
+    super('pdf_unicode');
+  }
 }
 
 interface RenderCtx {
@@ -180,6 +189,7 @@ export async function exportSinglePage(row: DocsPageRow, ctx: RenderCtx): Promis
   else if (ctx.format === 'html') {
     body = Buffer.from(blocksToHtmlDocument(blocks, row.title, { sanitize: sanitizeDocsHtml, fileHref, icon: row.icon, lang: ctx.locale, footer: ctx.footer }), 'utf8');
   } else {
+    if (needsUnicodeFont(row.title, blocks)) throw new PdfUnicodeError();
     body = await blocksToPdf(blocks, row.title, {
       fileHref,
       footer: ctx.footer,
@@ -216,6 +226,7 @@ export async function exportTree(pages: ExportPage[], ctx: RenderCtx, zipName: s
   const files: ZipInput[] = [];
   const usedNames = new Set<string>();
   let fileBytes = 0;
+  let htmlFallback = 0;
   for (const p of pages) {
     const file = pathOf.get(p.row.id)!;
     const raw = await readerBlocks(ctx.actor, p.row);
@@ -256,6 +267,17 @@ export async function exportTree(pages: ExportPage[], ctx: RenderCtx, zipName: s
         blocksToHtmlDocument(blocks, p.row.title, { sanitize: sanitizeDocsHtml, fileHref: hrefFor, icon: p.row.icon, lang: ctx.locale, footer: ctx.footer, extra }),
         'utf8',
       );
+    } else if (needsUnicodeFont(p.row.title, blocks)) {
+      // Otros alfabetos: en PDF saldrían "???"; esta página va en HTML (se imprime desde el navegador).
+      htmlFallback++;
+      const htmlName = file.replace(/\.pdf$/, '.html');
+      files.push({
+        name: htmlName,
+        deflate: true,
+        // Misma carpeta que el .pdf: los links relativos a los adjuntos son los mismos.
+        data: blocksToHtmlDocument(blocks, p.row.title, { sanitize: sanitizeDocsHtml, fileHref: hrefFor, icon: p.row.icon, lang: ctx.locale, footer: ctx.footer }),
+      });
+      continue;
     } else {
       data = await blocksToPdf(blocks, p.row.title, {
         fileHref: hrefFor,
@@ -289,5 +311,6 @@ export async function exportTree(pages: ExportPage[], ctx: RenderCtx, zipName: s
     filename: `${slugifyTitle(zipName) || 'export'}-${ctx.format}.zip`,
     contentType: 'application/zip',
     pages: pages.length,
+    htmlFallback,
   };
 }

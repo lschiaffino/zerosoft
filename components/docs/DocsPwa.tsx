@@ -12,7 +12,7 @@ import { offlinePages } from '@/lib/docs-offline';
  * refresca las páginas marcadas "Disponible sin conexión" cuando hay red.
  * En `next dev` no se registra (como el CRM), salvo con NEXT_PUBLIC_SW_DEV=1.
  */
-export default function DocsPwa() {
+export default function DocsPwa({ owner }: { owner: string }) {
   const locale = useLocale();
   const pathname = usePathname();
 
@@ -29,21 +29,21 @@ export default function DocsPwa() {
           .map((r) => r.name)
           .filter((u) => u.includes('/_next/static/'));
         urls.push(location.href);
-        for (const id of offlinePages()) urls.push(`/${locale}/app/docs/${id}`);
-        target?.postMessage({ type: 'zs-warm', urls });
+        for (const id of offlinePages(owner)) urls.push(`/${locale}/app/docs/${id}`);
+        target?.postMessage({ type: 'zs-warm', user: owner, urls });
       })
       .catch(() => null);
     return () => {
       cancelled = true;
     };
-  }, [locale]);
+  }, [locale, owner]);
 
   // Navegar dentro de Docs (sin recarga): la vista nueva también queda guardada.
   useEffect(() => {
     if (typeof navigator === 'undefined' || !navigator.onLine) return;
-    const id = window.setTimeout(() => navigator.serviceWorker?.controller?.postMessage({ type: 'zs-warm', urls: [location.href] }), 1500);
+    const id = window.setTimeout(() => navigator.serviceWorker?.controller?.postMessage({ type: 'zs-warm', user: owner, urls: [location.href] }), 1500);
     return () => window.clearTimeout(id);
-  }, [pathname]);
+  }, [pathname, owner]);
 
   return null;
 }

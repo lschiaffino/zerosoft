@@ -182,6 +182,7 @@ export default async function DocsPageEditor(
               canVerify={canVerify}
               allowExport={allowExport}
               memberRoleDefault={memberRoleDefault}
+              offlineOwner={`${user.actingUser?.id ?? user.id}:${user.id}`}
               commentsLabels={{
                 title: t('comments.title'),
                 empty: t('comments.empty'),

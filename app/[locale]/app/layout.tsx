@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { canCreateDocPage } from '@/lib/docs-guard';
 import { getTranslations } from 'next-intl/server';
 import { DEMO_MODE, requireUser } from '@/lib/session';
+import OfflineIdentity from '@/components/app/OfflineIdentity';
 import { countDueTasks } from '@/lib/crm';
 import { getWorkspaceMode } from '@/lib/home';
 import AppSidebar from '@/components/app/AppSidebar';
@@ -90,6 +91,7 @@ export default async function AppLayout(
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
+        <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
         <AppSidebar
           docsCanCreate={await canCreateDocPage(user, {}).catch(() => true)}
           demo={DEMO_MODE}

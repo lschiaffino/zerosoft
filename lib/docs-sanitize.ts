@@ -33,7 +33,10 @@ const OPTIONS: sanitizeHtml.IOptions = {
         if (isPageLinkId(row)) return { tagName, attribs: { href: pageLinkHref(page, row), 'data-page': page, 'data-row': row } };
         return { tagName, attribs: { href: pageLinkHref(page), 'data-page': page } };
       }
-      return { tagName, attribs: { href: attribs.href ?? '', target: '_blank', rel: 'noopener noreferrer' } };
+      const href = (attribs.href ?? '').trim();
+      // Esquema no permitido (data:, javascript:, vbscript:…): sin link, queda el texto.
+      if (!href || (/^[a-z][a-z0-9+.-]*:/i.test(href) && !/^(https?|mailto|tel):/i.test(href))) return { tagName: 'span', attribs: {} };
+      return { tagName, attribs: { href, target: '_blank', rel: 'noopener noreferrer' } };
     },
     // Solo spans con forma válida: fecha (con recordatorio) o ecuación. El resto queda sin atributos.
     span: (tagName, attribs): sanitizeHtml.Tag => {

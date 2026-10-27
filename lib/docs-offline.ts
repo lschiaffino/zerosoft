@@ -10,73 +10,114 @@
  *   service worker unificado (public/sw.js) para abrirlas sin red; se
  *   refrescan cada vez que se abre Docs con conexión.
  *
+ * Todo es de una persona en un workspace (`owner` = "<persona>:<workspace>"):
+ * las claves llevan el dueño, lo de otra persona se descarta y al cerrar
+ * sesión se borra (lib/offline-queue.ts clearOfflineData).
+ *
  * localStorage puede fallar (modo privado): todo va en try/catch y sin él
  * solo se pierde el borrador local.
  */
 import type { DocsBlock, DocsPage } from './docs-types';
 
 export interface DocsDraft {
+  owner: string;
   patch: Partial<DocsPage>;
   base: { updated_at: string; title: string; content: DocsBlock[] };
   at: number;
 }
 
+/** Prefijo de todo lo de Docs en localStorage (se borra entero al cerrar sesión). */
+export const DOCS_LOCAL_PREFIX = 'zs-docs-';
+/** Persona:workspace que usó la app por última vez en este dispositivo. */
+export const OFFLINE_IDENTITY_KEY = 'zs-identity';
 const DRAFT_PREFIX = 'zs-docs-draft:';
-const OFFLINE_KEY = 'zs-docs-offline';
+const OFFLINE_PREFIX = 'zs-docs-offline:';
 /** Tope del borrador (localStorage suele dar 5 MB por origen). */
 const DRAFT_MAX_CHARS = 2_000_000;
 
-export function loadDraft(pageId: string): DocsDraft | null {
+const draftKey = (owner: string, pageId: string) => `${DRAFT_PREFIX}${owner}|${pageId}`;
+
+export function loadDraft(owner: string, pageId: string): DocsDraft | null {
+  if (!owner) return null;
   try {
-    const raw = localStorage.getItem(DRAFT_PREFIX + pageId);
+    const raw = localStorage.getItem(draftKey(owner, pageId));
     if (!raw) return null;
     const d = JSON.parse(raw) as DocsDraft;
-    return d && d.patch && d.base ? d : null;
+    // Un borrador de otra persona nunca se usa.
+    return d && d.patch && d.base && d.owner === owner ? d : null;
   } catch {
     return null;
   }
 }
 
 /** Suma `patch` al borrador (la base es la del primer cambio sin red). */
-export function saveDraft(pageId: string, patch: Partial<DocsPage>, base: DocsDraft['base']): boolean {
+export function saveDraft(owner: string, pageId: string, patch: Partial<DocsPage>, base: DocsDraft['base']): boolean {
+  if (!owner) return false;
   try {
-    const prev = loadDraft(pageId);
-    const next: DocsDraft = { patch: { ...(prev?.patch ?? {}), ...patch }, base: prev?.base ?? base, at: Date.now() };
+    const prev = loadDraft(owner, pageId);
+    const next: DocsDraft = { owner, patch: { ...(prev?.patch ?? {}), ...patch }, base: prev?.base ?? base, at: Date.now() };
     const raw = JSON.stringify(next);
     if (raw.length > DRAFT_MAX_CHARS) return false;
-    localStorage.setItem(DRAFT_PREFIX + pageId, raw);
+    localStorage.setItem(draftKey(owner, pageId), raw);
     return true;
   } catch {
     return false;
   }
 }
 
-export function clearDraft(pageId: string): void {
+export function clearDraft(owner: string, pageId: string): void {
   try {
-    localStorage.removeItem(DRAFT_PREFIX + pageId);
+    localStorage.removeItem(draftKey(owner, pageId));
   } catch {
     /* sin storage */
   }
 }
 
-export function offlinePages(): string[] {
+/** Texto plano del borrador (para copiarlo si ya no se puede guardar). */
+export function draftText(d: DocsDraft): string {
+  const lines: string[] = [];
+  if (d.patch.title) lines.push(d.patch.title);
+  for (const b of d.patch.content ?? []) {
+    const text = (b.content ?? '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    if (text.trim()) lines.push(text);
+  }
+  return lines.join('\n\n');
+}
+
+export function offlinePages(owner: string): string[] {
   try {
-    const list = JSON.parse(localStorage.getItem(OFFLINE_KEY) ?? '[]') as unknown;
+    const list = JSON.parse(localStorage.getItem(OFFLINE_PREFIX + owner) ?? '[]') as unknown;
     return Array.isArray(list) ? list.filter((x): x is string => typeof x === 'string').slice(0, 200) : [];
   } catch {
     return [];
   }
 }
 
-export function setOfflinePage(pageId: string, on: boolean): string[] {
-  const list = offlinePages().filter((id) => id !== pageId);
+export function setOfflinePage(owner: string, pageId: string, on: boolean): string[] {
+  const list = offlinePages(owner).filter((id) => id !== pageId);
   if (on) list.unshift(pageId);
   try {
-    localStorage.setItem(OFFLINE_KEY, JSON.stringify(list.slice(0, 200)));
+    localStorage.setItem(OFFLINE_PREFIX + owner, JSON.stringify(list.slice(0, 200)));
   } catch {
     /* sin storage */
   }
   return list;
+}
+
+/** Borra lo de Docs que no es de `owner` (otra persona usó este dispositivo). Sin owner: todo. */
+export function forgetOtherOfflineData(owner: string | null): void {
+  try {
+    const drop: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith(DOCS_LOCAL_PREFIX)) continue;
+      const mine = owner && (k.startsWith(`${DRAFT_PREFIX}${owner}|`) || k === OFFLINE_PREFIX + owner);
+      if (!mine) drop.push(k);
+    }
+    for (const k of drop) localStorage.removeItem(k);
+  } catch {
+    /* sin storage */
+  }
 }
 
 /** Ids de las subpáginas (en orden de árbol) a partir de la lista de páginas con su madre. */
@@ -96,10 +137,10 @@ export function descendantIds(rootId: string, pages: Array<{ id: string; parent_
   return out;
 }
 
-/** Pide al service worker que guarde estas URLs (navegación de cada página). */
-export function warmOffline(urls: string[]): boolean {
+/** Pide al service worker que guarde estas URLs (navegación de cada página) para `owner`. */
+export function warmOffline(owner: string, urls: string[]): boolean {
   const sw = typeof navigator !== 'undefined' ? navigator.serviceWorker?.controller : null;
-  if (!sw) return false;
-  sw.postMessage({ type: 'zs-warm', urls });
+  if (!sw || !owner) return false;
+  sw.postMessage({ type: 'zs-warm', user: owner, urls });
   return true;
 }

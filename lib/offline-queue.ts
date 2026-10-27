@@ -120,6 +120,16 @@ export async function clearOfflineData(owner?: { userId: string; ws: string }): 
       // las vistas quedaban para quien entrara después en el mismo equipo.
       await Promise.all(keys.filter(isOfflineCacheName).map((k) => caches.delete(k)));
     }
+    // El worker olvida a la persona (no guarda ni sirve vistas hasta la próxima sesión).
+    navigator.serviceWorker?.controller?.postMessage({ type: 'zs-user', id: null });
+    // Docs: borradores sin conexión y páginas "disponibles sin conexión" (lib/docs-offline.ts).
+    const { forgetOtherOfflineData, OFFLINE_IDENTITY_KEY } = await import('./docs-offline');
+    forgetOtherOfflineData(null);
+    try {
+      localStorage.removeItem(OFFLINE_IDENTITY_KEY);
+    } catch {
+      /* sin storage */
+    }
     if ('indexedDB' in window) {
       indexedDB.deleteDatabase('zs-offline');
       // Trozos de reuniones de Voice que esperaban reintento (components/voice/failedStore.ts).
