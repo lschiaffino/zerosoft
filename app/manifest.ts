@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 
 /**
- * App instalable (PWA) de la suite: una sola, para el CRM y Groups. Abre en
+ * App instalable (PWA) de la suite: una sola, para el CRM, Groups y Docs. Abre en
  * /app (el middleware agrega el idioma de la persona) y los atajos llevan a
  * cada app. El único service worker (public/sw.js, registrado desde
  * lib/sw-client.ts) guarda el CRM para usarlo sin red y recibe los push de
@@ -12,7 +12,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: '/app',
     name: 'zerosoft',
     short_name: 'zerosoft',
-    description: 'CRM and WhatsApp inbox for teams: contacts, deals, tasks, chats and tickets. The CRM also works offline.',
+    description: 'CRM, WhatsApp inbox and docs for teams: contacts, deals, tasks, chats, tickets and pages. The CRM and Docs also work offline.',
     start_url: '/app',
     scope: '/',
     display: 'standalone',
@@ -32,6 +32,7 @@ export default function manifest(): MetadataRoute.Manifest {
       { name: 'Tasks', url: '/app/crm/tasks' },
       { name: 'Groups inbox', url: '/app/groups/inbox' },
       { name: 'Groups tickets', url: '/app/groups/tickets' },
+      { name: 'Docs', url: '/app/docs' },
     ],
   };
 }

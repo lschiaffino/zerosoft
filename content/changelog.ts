@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-27-docs-d5',
+    date: '2026-10-27',
+    title: {
+      en: 'Docs: import from Confluence, Evernote and Google Docs, PDF export, your own domain and offline',
+      es: 'Docs: importar desde Confluence, Evernote y Google Docs, exportar a PDF, dominio propio y sin conexión',
+      pt: 'Docs: importar do Confluence, Evernote e Google Docs, exportar em PDF, domínio próprio e offline',
+    },
+    items: [
+      { product: 'docs', en: 'Import from Notion (Markdown or HTML), Confluence spaces, Google Docs, Word with its images, Evernote notebooks and loose Markdown or HTML files, with the page tree, links between pages and files, into the workspace or a teamspace.', es: 'Importá desde Notion (Markdown o HTML), espacios de Confluence, Google Docs, Word con sus imágenes, libretas de Evernote y archivos Markdown o HTML sueltos, con el árbol, los links entre páginas y los archivos, al workspace o a un teamspace.', pt: 'Importe do Notion (Markdown ou HTML), espaços do Confluence, Google Docs, Word com suas imagens, cadernos do Evernote e arquivos Markdown ou HTML soltos, com a árvore, os links entre páginas e os arquivos, no workspace ou em um teamspace.' },
+      { product: 'docs', en: 'Export a page, a page with its subpages or the whole workspace as Markdown, HTML or a PDF made on the server. Each export only carries what the person can open.', es: 'Exportá una página, una página con sus subpáginas o el workspace entero en Markdown, HTML o un PDF hecho en el servidor. Cada export lleva solo lo que la persona puede abrir.', pt: 'Exporte uma página, uma página com suas subpáginas ou o workspace inteiro em Markdown, HTML ou um PDF feito no servidor. Cada export leva só o que a pessoa pode abrir.' },
+      { product: 'docs', en: 'The published site gets a custom domain, its own sitemap and robots.txt, a search description per page, visit analytics without cookies and a Duplicate button for pages you share as templates.', es: 'El sitio publicado suma dominio propio, su sitemap y robots.txt, descripción para buscadores por página, analítica de visitas sin cookies y un botón Duplicar para las páginas que compartís como plantilla.', pt: 'O site publicado ganha domínio próprio, seu sitemap e robots.txt, descrição para buscadores por página, análise de visitas sem cookies e um botão Duplicar para as páginas que você compartilha como modelo.' },
+      { product: 'docs', en: 'Each page shows its views and who viewed it. On the phone the page tree is a side drawer and a touch bar above the keyboard formats, and pages open and take edits without a connection.', es: 'Cada página muestra sus vistas y quién la vio. En el celular el árbol es un cajón lateral y una barra táctil arriba del teclado da formato, y las páginas abren y se editan sin conexión.', pt: 'Cada página mostra suas visualizações e quem viu. No celular a árvore é uma gaveta lateral e uma barra de toque acima do teclado formata, e as páginas abrem e aceitam edições sem conexão.' },
+    ],
+  },
+  {
     id: '2026-10-25-voice',
     date: '2026-10-25',
     title: {

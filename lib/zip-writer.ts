@@ -1,9 +1,11 @@
 /**
  * Writer de zip mínimo, sin dependencias: archivos guardados sin comprimir
- * (método STORE) con su crc32. Alcanza para paquetes chicos como la extensión
- * de Chrome (extensions/chrome) que se descarga desde Ajustes del CRM.
- * Lo lee cualquier descompresor y lib/zip-reader.ts.
+ * (método STORE) o comprimidos con deflate (`deflate: true`, el export de
+ * Docs) con su crc32. Alcanza para paquetes como la extensión de Chrome
+ * (extensions/chrome) que se descarga desde Ajustes del CRM. Lo lee
+ * cualquier descompresor y lib/zip-reader.ts. Sin zip64: hasta 4 GB.
  */
+import { deflateRawSync } from 'zlib';
 
 export interface ZipInput {
   /** Ruta dentro del zip con "/" (sin "/" inicial). */
@@ -11,6 +13,8 @@ export interface ZipInput {
   data: Uint8Array | string;
   /** Fecha de modificación (default: 2026-01-01, así el zip es reproducible). */
   date?: Date;
+  /** Comprimir con deflate (texto); las imágenes y PDFs ya vienen comprimidos. */
+  deflate?: boolean;
 }
 
 let crcTable: Uint32Array | null = null;
@@ -56,20 +60,24 @@ export function buildZip(files: ZipInput[]): Buffer {
     if (!name || name.split('/').includes('..') || seen.has(name)) throw new Error(`zip_bad_name:${f.name}`);
     seen.add(name);
     const nameBytes = Buffer.from(enc.encode(name));
-    const data = Buffer.from(typeof f.data === 'string' ? enc.encode(f.data) : f.data);
-    const crc = crc32(data);
+    const raw = Buffer.from(typeof f.data === 'string' ? enc.encode(f.data) : f.data);
+    const crc = crc32(raw);
+    const packed = f.deflate ? deflateRawSync(raw) : null;
+    // Si comprimido no achica, va sin comprimir.
+    const method = packed && packed.length < raw.length ? 8 : 0;
+    const data = method === 8 ? packed! : raw;
     const { time, date } = dosTime(f.date ?? DEFAULT_DATE);
 
     const local = Buffer.alloc(30);
     local.writeUInt32LE(0x04034b50, 0);
     local.writeUInt16LE(20, 4); // versión necesaria
     local.writeUInt16LE(0x0800, 6); // nombres en UTF-8
-    local.writeUInt16LE(0, 8); // STORE
+    local.writeUInt16LE(method, 8); // 0 STORE, 8 deflate
     local.writeUInt16LE(time, 10);
     local.writeUInt16LE(date, 12);
     local.writeUInt32LE(crc, 14);
     local.writeUInt32LE(data.length, 18);
-    local.writeUInt32LE(data.length, 22);
+    local.writeUInt32LE(raw.length, 22);
     local.writeUInt16LE(nameBytes.length, 26);
     local.writeUInt16LE(0, 28);
     locals.push(local, nameBytes, data);
@@ -79,12 +87,12 @@ export function buildZip(files: ZipInput[]): Buffer {
     central.writeUInt16LE(20, 4);
     central.writeUInt16LE(20, 6);
     central.writeUInt16LE(0x0800, 8);
-    central.writeUInt16LE(0, 10);
+    central.writeUInt16LE(method, 10);
     central.writeUInt16LE(time, 12);
     central.writeUInt16LE(date, 14);
     central.writeUInt32LE(crc, 16);
     central.writeUInt32LE(data.length, 20);
-    central.writeUInt32LE(data.length, 24);
+    central.writeUInt32LE(raw.length, 24);
     central.writeUInt16LE(nameBytes.length, 28);
     central.writeUInt32LE(offset, 42);
     centrals.push(central, nameBytes);

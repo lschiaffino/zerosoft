@@ -6,6 +6,7 @@ import { surfaceForHost, surfaceRewritePath } from './lib/host-rewrite';
 import { requestLocale } from './lib/request-locale';
 import { RETURN_PATH_HEADER } from './lib/return-path';
 import { quickCreateRedirect } from './lib/quick-create-redirect';
+import { DOCS_SITE_HEADER } from './lib/docs-site-header';
 import { BRAND_COOKIE, BRAND_HEADER, BRAND_PARAM, DEFAULT_BRAND, forcedBrandForPath, isBrandTheme } from './lib/brand-theme';
 
 const intlMiddleware = createMiddleware(routing);
@@ -49,18 +50,62 @@ function brandSwitch(req: NextRequest): NextResponse | null {
 function withForcedBrand(req: NextRequest): NextRequest {
   const forced = forcedBrandForPath(req.nextUrl.pathname);
   if (!forced) {
-    // Nadie de afuera puede forzar el tema con el header interno.
-    if (!req.headers.has(BRAND_HEADER)) return req;
+    // Nadie de afuera puede forzar el tema ni marcar el pedido como de un sitio de Docs.
+    if (!req.headers.has(BRAND_HEADER) && !req.headers.has(DOCS_SITE_HEADER)) return req;
     const headers = new Headers(req.headers);
     headers.delete(BRAND_HEADER);
+    headers.delete(DOCS_SITE_HEADER);
     return new NextRequest(req, { headers });
   }
   const headers = new Headers(req.headers);
   headers.set(BRAND_HEADER, forced);
+  headers.delete(DOCS_SITE_HEADER);
   return new NextRequest(req, { headers });
 }
 
-export default function middleware(incoming: NextRequest) {
+/**
+ * Dominio propio del sitio publicado de Docs (lib/docs-site.ts): el
+ * middleware no tiene DB, así que pregunta a /api/docs/site/host (sin
+ * middleware) y guarda la respuesta un minuto por instancia.
+ */
+const SITE_TTL_MS = 60_000;
+const siteCache = new Map<string, { at: number; site: { handle: string; locale: string | null } | null }>();
+
+async function docsSiteFor(req: NextRequest, host: string): Promise<{ handle: string; locale: string | null } | null> {
+  const hit = siteCache.get(host);
+  if (hit && Date.now() - hit.at < SITE_TTL_MS) return hit.site;
+  let site: { handle: string; locale: string | null } | null = null;
+  try {
+    // DOCS_SITE_LOOKUP_ORIGIN: tests y self-host detrás de un proxy (el dominio propio no resuelve a localhost).
+    const url = new URL('/api/docs/site/host', process.env.DOCS_SITE_LOOKUP_ORIGIN || req.nextUrl.origin);
+    url.searchParams.set('host', host);
+    const res = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(3000) });
+    if (res.ok) site = ((await res.json()) as { site: { handle: string; locale: string | null } | null }).site;
+  } catch {
+    // Sin respuesta: se trata como dominio de Link (lo de siempre) y no se guarda.
+    return null;
+  }
+  if (siteCache.size > 500) siteCache.clear();
+  siteCache.set(host, { at: Date.now(), site });
+  return site;
+}
+
+/** docs.empresa.com/<slug> → /<locale>/h/<handle>/<slug> (la raíz es la portada del sitio). */
+function docsSiteRewrite(req: NextRequest, site: { handle: string; locale: string | null }): NextResponse | null {
+  const { pathname } = req.nextUrl;
+  const m = /^\/(?:(en|es|pt)(?:\/|$))?(.*)$/.exec(pathname);
+  const rest = (m?.[2] ?? '').replace(/\/+$/, '');
+  if (rest.includes('/') || (rest && !/^[A-Za-z0-9_-]{1,200}$/.test(rest))) return null;
+  const locale = m?.[1] ?? site.locale ?? requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
+  const url = req.nextUrl.clone();
+  url.pathname = `/${locale}/h/${site.handle}${rest ? `/${rest}` : ''}`;
+  const headers = new Headers(req.headers);
+  headers.set('X-NEXT-INTL-LOCALE', locale);
+  headers.set(DOCS_SITE_HEADER, site.handle.toLowerCase());
+  return NextResponse.rewrite(url, { request: { headers } });
+}
+
+export default async function middleware(incoming: NextRequest) {
   const switched = brandSwitch(incoming);
   if (switched) return switched;
   const req = withForcedBrand(incoming);
@@ -91,6 +136,11 @@ export default function middleware(incoming: NextRequest) {
   // resto de la app (bio, booking, formularios, el sitio) no puede salir
   // bajo el dominio de un cliente.
   if (!isAppHost(req.headers.get('host'))) {
+    const host = (req.headers.get('host') ?? '').toLowerCase().replace(/:\d+$/, '');
+    const site = host && !CUSTOM_DOMAIN_PAGES.test(pathname) ? await docsSiteFor(req, host) : null;
+    if (site) {
+      return docsSiteRewrite(req, site) ?? new NextResponse('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+    }
     if (pathname === '/' || pathname === '') {
       return NextResponse.rewrite(new URL('/r/__root', req.url));
     }

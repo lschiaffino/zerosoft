@@ -5767,6 +5767,48 @@ export const MIGRATIONS: Migration[] = [
         UPDATE webhook_deliveries SET captured_by = (SELECT created_by FROM webhooks w WHERE w.id = webhook_deliveries.webhook_id) WHERE captured_by IS NULL;
       `);
     },
+  },  {
+    // Docs D5: sitio publicado (dominio propio, indexación, analítica de
+    // visitas), vistas por página dentro del workspace y, por página
+    // publicada, "duplicar como plantilla" y SEO propio.
+    id: '117_docs_d5',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN allow_duplicate INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN seo_description TEXT');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN seo_noindex INTEGER NOT NULL DEFAULT 0');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS docs_sites (
+          workspace_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          indexing INTEGER NOT NULL DEFAULT 1,
+          locale TEXT,
+          hostname TEXT UNIQUE,
+          verified INTEGER NOT NULL DEFAULT 0,
+          verified_at TEXT,
+          verify_token TEXT,
+          domain_added_at TEXT,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS docs_page_views (
+          page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+          viewer_id TEXT NOT NULL,
+          day TEXT NOT NULL,
+          views INTEGER NOT NULL DEFAULT 1,
+          last_at TEXT NOT NULL,
+          PRIMARY KEY (page_id, viewer_id, day)
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_page_views_page ON docs_page_views(page_id, day);
+        CREATE TABLE IF NOT EXISTS docs_site_views (
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          page_id TEXT NOT NULL,
+          day TEXT NOT NULL,
+          visitor TEXT NOT NULL,
+          views INTEGER NOT NULL DEFAULT 1,
+          referrer TEXT,
+          PRIMARY KEY (workspace_id, page_id, day, visitor)
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_site_views_day ON docs_site_views(workspace_id, day);
+      `);
+    },
   },
 ];
 

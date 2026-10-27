@@ -39,6 +39,7 @@ import DocsSidebar from '@/components/docs/DocsSidebar';
 import DocsEditorClient from '@/components/docs/DocsEditorClient';
 import DocsReadOnlyView from '@/components/docs/DocsReadOnlyView';
 import DocsPageIcon from '@/components/docs/DocsPageIcon';
+import { verifiedSiteHost } from '@/lib/docs-site';
 import '@/styles/help.css';
 
 export const dynamic = 'force-dynamic';
@@ -100,7 +101,9 @@ export default async function DocsPageEditor(
   const people = Object.fromEntries((await listPageMentionables(row)).map((m) => [m.id, m.name?.trim() || m.email]));
   const canVerify = isOwner || (row.page_owner_id === realUserId(user) && access !== 'view' && access !== 'comment');
   const feedback = isOwner && page.published ? await getHelpFeedbackStats(user.id, id) : null;
-  const helpBase = isOwner && user.handle ? `/${locale}/h/${user.handle}` : null;
+  // Con dominio propio verificado, el link público es el del dominio.
+  const siteHost = isOwner && user.handle ? await verifiedSiteHost(user.id) : null;
+  const helpBase = isOwner && user.handle ? (siteHost ? `https://${siteHost}` : `/${locale}/h/${user.handle}`) : null;
   const t = await getTranslations({ locale, namespace: 'docs' });
 
   // Links `[[` con el título actual de la página linkeada (si es del

@@ -26,7 +26,8 @@
     "moveDown": "Bajar",
     "sharedWithMe": "Compartidas conmigo",
     "sharedBy": "Compartida por {name}",
-    "count": "{count, plural, one {# página} other {# páginas}}"
+    "count": "{count, plural, one {# página} other {# páginas}}",
+    "closeDrawer": "Cerrar páginas"
   },
   "editor": {
     "untitled": "Página sin título",
@@ -299,7 +300,8 @@
       "uploadFailed": "No se pudo subir la imagen. Probá de nuevo."
     },
     "favorite": "Agregar a favoritos",
-    "unfavorite": "Quitar de favoritos"
+    "unfavorite": "Quitar de favoritos",
+    "savedOffline": "Guardado en este dispositivo"
   },
   "database": {
     "database": "Base de datos",
@@ -927,7 +929,8 @@
     "emptyBody": "Los artículos aparecen acá cuando el equipo los publica desde Docs.",
     "heroTitle": "¿En qué te ayudamos?",
     "collectionOf": "{count, plural, one {Colección de # artículo} other {Colección de # artículos}}",
-    "articlesIn": "Artículos de {title}"
+    "articlesIn": "Artículos de {title}",
+    "duplicate": "Duplicar"
   },
   "versions": {
     "syncedCurrent": "Los bloques sincronizados muestran su contenido actual, no el de esta versión.",
@@ -972,7 +975,37 @@
     "markdown": "Exportar como Markdown",
     "pdf": "Exportar como PDF",
     "markdownShort": "Markdown",
-    "pdfShort": "PDF"
+    "pdfShort": "PDF",
+    "open": "Exportar…",
+    "print": "Imprimir",
+    "title": "Exportar",
+    "close": "Cerrar",
+    "format": "Formato",
+    "formats": {
+      "md": "Markdown",
+      "html": "HTML",
+      "pdf": "PDF"
+    },
+    "formatHelp": {
+      "md": "Archivos de texto que abre cualquier editor.",
+      "html": "Páginas web con sus estilos, en claro y oscuro.",
+      "pdf": "Documento A4 hecho en el servidor, con links que se pueden tocar e imágenes. Quedan afuera los emoji y los alfabetos no latinos: para eso está Imprimir."
+    },
+    "subpages": "Incluir subpáginas",
+    "subpagesHelp": "Un .zip con el árbol de páginas, los links entre ellas y los archivos adjuntos. Solo las páginas que podés abrir.",
+    "run": "Exportar",
+    "working": "Exportando…",
+    "done": "Listo. El archivo está en tus descargas.",
+    "workspaceTitle": "Exportar todo el workspace",
+    "workspaceHelp": "Todas las páginas que podés abrir, con su árbol y archivos, en un .zip. Las de teamspaces de los que no sos parte quedan afuera.",
+    "workspaceRun": "Exportar workspace",
+    "errors": {
+      "export_disabled": "Un admin desactivó exportar para los miembros.",
+      "nothing_to_export": "No hay páginas para exportar.",
+      "network": "Sin conexión. Probá de nuevo cuando vuelva la red.",
+      "rate_limited": "Demasiados exports seguidos. Esperá unos minutos.",
+      "failed": "No se pudo exportar. Probá de nuevo."
+    }
   },
   "state": {
     "errorTitle": "Docs no cargó",
@@ -992,10 +1025,10 @@
     "shortcut": "⌘P"
   },
   "notionImport": {
-    "link": "Importar desde Notion",
+    "link": "Importar",
     "back": "← Docs",
-    "title": "Importar desde Notion",
-    "lead": "Subí un export de Notion y quedan las mismas páginas en el mismo árbol, con imágenes, archivos y links entre páginas.",
+    "title": "Importar a Docs",
+    "lead": "Traé páginas de Notion, Confluence, Google Docs, Word o Evernote con su árbol, imágenes, archivos y links entre páginas.",
     "loadingJobs": "Cargando…",
     "dismiss": "Cerrar",
     "step1": "En Notion, abrí Settings › Export all workspace content, o ··· › Export en una página.",
@@ -1021,10 +1054,59 @@
     "filesSkipped": "{count} archivos no se subieron (pasan los 10 MB o son de un tipo que no guardamos) y quedan con su nombre.",
     "open": "Abrir {title}",
     "untitled": "Sin título",
-    "again": "Importar otro export",
+    "again": "Importar otro archivo",
     "failedTitle": "El import se cortó.",
     "rowsNote": "La página de cada fila de una base entra como cuerpo de esa fila, no como una página aparte.",
-    "doneRows": "{count, plural, one {# fila de base quedó} other {# filas de bases quedaron}} con su página como cuerpo."
+    "doneRows": "{count, plural, one {# fila de base quedó} other {# filas de bases quedaron}} con su página como cuerpo.",
+    "source": "Desde",
+    "sources": {
+      "notion": {
+        "name": "Notion",
+        "step1": "En Notion, abrí Settings › Export all workspace content, o ··· › Export en una página.",
+        "step2": "Elegí Markdown & CSV (o HTML), con subpáginas y con archivos e imágenes.",
+        "step3": "Subí acá el .zip que te da Notion.",
+        "file": "Archivo del export (.zip)"
+      },
+      "confluence": {
+        "name": "Confluence",
+        "step1": "En Confluence, abrí el espacio y andá a Space settings › Export space.",
+        "step2": "Elegí HTML, exportá todas las páginas (o las que quieras) y bajá el .zip.",
+        "step3": "Subilo acá: el espacio pasa a ser una página con su árbol, imágenes y adjuntos.",
+        "file": "Export del espacio (.zip)"
+      },
+      "gdocs": {
+        "name": "Google Docs",
+        "step1": "Un documento: Archivo › Descargar › Microsoft Word (.docx) o Página web (.html, comprimido).",
+        "step2": "Una carpeta entera: bajala desde Google Drive (o con Google Takeout) y quedate con el .zip.",
+        "step3": "Subí el archivo acá: las carpetas pasan a ser páginas con sus documentos adentro.",
+        "file": "Documento o carpeta (.docx, .html o .zip)"
+      },
+      "word": {
+        "name": "Word (.docx)",
+        "step1": "Guardá el documento como .docx (lo hacen Word, Pages o LibreOffice).",
+        "step2": "Para varios documentos, juntalos en un .zip, con carpetas si querés un árbol.",
+        "step3": "Subilo acá: entran títulos, listas, tablas, links e imágenes.",
+        "file": "Documento (.docx o .zip)"
+      },
+      "evernote": {
+        "name": "Evernote",
+        "step1": "En Evernote, hacé clic derecho en una libreta y elegí Exportar libreta.",
+        "step2": "Elegí ENEX (.enex). Para varias libretas, juntá los .enex en un .zip.",
+        "step3": "Subilo acá: cada libreta pasa a ser una página con una subpágina por nota, con sus imágenes, tareas y etiquetas.",
+        "file": "Libreta (.enex o .zip)"
+      },
+      "files": {
+        "name": "Markdown, HTML u otros archivos",
+        "step1": "Cualquier archivo .md, .txt, .html o .docx, o un .zip con muchos.",
+        "step2": "En un .zip, cada carpeta pasa a ser una página y los links entre archivos, links entre páginas.",
+        "step3": "Las imágenes que están junto a los archivos entran como bloques de imagen.",
+        "file": "Archivo o .zip"
+      }
+    },
+    "destination": "Importar en",
+    "destinationWorkspace": "Workspace",
+    "destinationHelp": "Los teamspaces privados aparecen solo si sos miembro. Las páginas importadas quedan con el acceso de ese teamspace.",
+    "noDestination": "Tu rol no puede crear páginas en este workspace. Pedile a un admin acceso de edición."
   },
   "reminderEmail": {
     "subject": "Recordatorio: {title}",
@@ -1214,7 +1296,8 @@
     "isDefault": "Teamspace por defecto",
     "isDefaultHelp": "Todo el workspace es miembro, ahora y quien se sume después. Uno solo por workspace.",
     "defaultBadge": "Por defecto",
-    "everyone": "todo el workspace"
+    "everyone": "todo el workspace",
+    "siteTab": "Sitio"
   },
   "audit": {
     "group": {
@@ -1264,7 +1347,10 @@
         "member_removed": "Sacó a alguien de un teamspace"
       },
       "settings": {
-        "updated": "Cambió los ajustes de Docs"
+        "updated": "Cambió los ajustes de Docs",
+        "exported": "Exportó el workspace",
+        "imported": "Importó páginas",
+        "site": "Cambió el sitio publicado"
       }
     }
   },
@@ -1500,5 +1586,126 @@
       "load": "No se pudieron cargar estas notas de reunión.",
       "generic": "Algo salió mal. Probá de nuevo."
     }
+  },
+  "analytics": {
+    "title": "Analítica",
+    "loading": "Cargando…",
+    "error": "No se pudieron cargar las vistas.",
+    "views": "Vistas",
+    "viewers": "Personas",
+    "siteViews": "En el sitio publicado",
+    "period": "Últimos {days} días.",
+    "chart": "Vistas por día",
+    "who": "Quién la vio",
+    "nobody": "Nadie la abrió todavía.",
+    "someone": "Alguien",
+    "viewCount": "{count, plural, one {# vista} other {# vistas}}"
+  },
+  "offline": {
+    "available": "Disponible sin conexión",
+    "banner": "Sin conexión. Lo que escribís queda en este dispositivo y se guarda cuando vuelve la red."
+  },
+  "touchbar": {
+    "label": "Formato",
+    "insert": "Insertar bloque",
+    "mention": "Mencionar",
+    "link-page": "Linkear una página",
+    "bold": "Negrita",
+    "italic": "Itálica",
+    "underline": "Subrayado",
+    "link": "Link",
+    "indent": "Anidar",
+    "outdent": "Desanidar",
+    "undo": "Deshacer",
+    "redo": "Rehacer",
+    "done": "Ocultar teclado"
+  },
+  "publish": {
+    "loading": "Cargando…",
+    "error": "No se pudo guardar. Probá de nuevo.",
+    "saved": "Guardado.",
+    "allowDuplicate": "Permitir duplicar como plantilla",
+    "allowDuplicateHelp": "Quien la visita ve un botón Duplicar y copia esta página y sus subpáginas publicadas a su workspace.",
+    "indexing": "Mostrar en buscadores",
+    "indexingHelp": "Apagado: la página les pide a Google y los demás que no la indexen.",
+    "description": "Descripción para buscadores",
+    "descriptionPlaceholder": "Las primeras líneas de la página",
+    "descriptionHelp": "Hasta 300 caracteres. Sale en los resultados de Google y en las vistas previas de links.",
+    "siteSettings": "Ajustes del sitio: dominio y analítica"
+  },
+  "site": {
+    "loading": "Cargando…",
+    "loadError": "No se pudieron cargar los ajustes del sitio.",
+    "retry": "Reintentar",
+    "saveError": "No se pudo guardar. Probá de nuevo.",
+    "cancel": "Cancelar",
+    "untitled": "Sin título",
+    "addressTitle": "Dirección del sitio",
+    "addressHelp": "Las páginas publicadas viven acá, con búsqueda y colecciones.",
+    "noHandle": "Elegí un usuario en tu perfil para publicar páginas.",
+    "domainTitle": "Dominio propio",
+    "domainHelp": "Servís el sitio en tu dominio, como docs.tuempresa.com. Un dominio por workspace.",
+    "domain": "Dominio",
+    "addDomain": "Agregar dominio",
+    "domainVerified": "Verificado, sirviendo el sitio",
+    "domainPending": "Esperando el DNS",
+    "dnsHelp": "Creá estos registros en tu proveedor de DNS y después verificá. El DNS puede tardar unas horas.",
+    "dnsType": "Tipo",
+    "dnsName": "Nombre",
+    "dnsValue": "Valor",
+    "verify": "Verificar",
+    "verifying": "Verificando…",
+    "verified": "Dominio verificado. El sitio ya abre ahí.",
+    "verifyTxt": "El registro TXT todavía no se ve. Revisá su nombre y valor.",
+    "verifyDns": "El dominio todavía no apunta acá. Revisá el registro CNAME o A.",
+    "verifyFailed": "No se pudo verificar. Probá de nuevo en unos minutos.",
+    "openSite": "Abrir sitio",
+    "removeDomain": "Quitar dominio",
+    "removeTitle": "¿Quitar el dominio?",
+    "removeBody": "{domain} deja de servir el sitio. Las páginas siguen publicadas en la dirección del sitio.",
+    "domainErrors": {
+      "invalid_hostname": "Ese no es un dominio válido.",
+      "domain_taken": "Ese dominio ya está en uso.",
+      "domain_exists": "El sitio ya tiene un dominio. Quitalo primero.",
+      "app_host": "Usá un dominio tuyo, no la dirección de la app.",
+      "provider_error": "El proveedor de hosting no aceptó el dominio. Probá de nuevo en un rato.",
+      "rate_limited": "Demasiados intentos. Esperá unos minutos.",
+      "failed": "No se pudo agregar el dominio."
+    },
+    "seoTitle": "Buscadores",
+    "seoHelp": "Cada página tiene además su descripción y su interruptor de indexación en Compartir › Publicar.",
+    "indexing": "Dejar que los buscadores indexen el sitio",
+    "indexingHelp": "Con tu dominio, el sitio sirve su propio sitemap.xml y robots.txt.",
+    "locale": "Idioma en el dominio propio",
+    "localeAuto": "El idioma del navegador de quien visita",
+    "localeHelp": "Botones y textos del sitio. Tus páginas quedan en el idioma en que las escribiste.",
+    "analyticsTitle": "Visitas",
+    "analyticsHelp": "Últimos 30 días. Sin cookies: cada visitante cuenta una vez por página y día, y los bots no cuentan.",
+    "noVisits": "Todavía no hay visitas",
+    "noVisitsBody": "Publicá una página y compartí su link. Las visitas aparecen acá.",
+    "views": "Vistas",
+    "visitors": "Visitantes",
+    "chart": "Vistas por día, últimos {days} días",
+    "topPages": "Páginas más vistas",
+    "page": "Página",
+    "helpful": "Les sirvió",
+    "referrers": "De dónde vienen",
+    "source": "Fuente"
+  },
+  "duplicatePublic": {
+    "back": "← Docs",
+    "title": "Duplicar a tu workspace",
+    "from": "Compartida por {name}",
+    "lead": "Una copia de \"{title}\" y sus subpáginas publicadas llega a tu Docs. Es tuya para editar y queda separada del original.",
+    "destination": "Ponerla en",
+    "workspace": "Workspace",
+    "confirm": "Duplicar",
+    "working": "Duplicando…",
+    "notFound": "Esta página no se puede duplicar",
+    "notFoundBody": "Ya no está publicada, o su dueño desactivó duplicarla.",
+    "forbidden": "Tu rol no puede crear páginas acá",
+    "forbiddenBody": "Pedile a un admin de tu workspace acceso de edición.",
+    "failed": "No se pudo duplicar. Probá de nuevo.",
+    "untitled": "Sin título"
   }
 }

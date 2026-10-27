@@ -19,6 +19,10 @@ import DocsEditor, { type DocsRemoteMerge } from './DocsEditor';
 import ShareDialog, { type ShareRequest } from './ShareDialog';
 import CommentsPanel from './CommentsPanel';
 import VersionsPanel from './VersionsPanel';
+import DocsExportDialog from './DocsExportDialog';
+import DocsAnalyticsPanel from './DocsAnalyticsPanel';
+import DocsTouchBar from './DocsTouchBar';
+import { clearDraft, descendantIds, loadDraft, offlinePages, saveDraft, setOfflinePage, warmOffline } from '@/lib/docs-offline';
 import SaveTemplateDialog from './SaveTemplateDialog';
 import VerifyDialog from './VerifyDialog';
 import Icon from '@/components/app/icons';
@@ -113,7 +117,7 @@ export default function DocsEditorClient({
   const canShare = access === 'owner' || access === 'full';
   const canWrite = access !== 'comment';
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<'tooLong' | 'failed' | 'conflict' | null>(null);
+  const [saveError, setSaveError] = useState<'tooLong' | 'failed' | 'conflict' | 'offline' | null>(null);
   /**
    * Un solo mecanismo de fusión (lib/docs-merge.ts), con el servidor como
    * autoridad: cada guardado viaja con el updated_at de la última versión del
@@ -150,7 +154,11 @@ export default function DocsEditorClient({
   const [commentFocus, setCommentFocus] = useState(0);
   const [allComments, setAllComments] = useState<DocsComment[]>(comments);
   const [blockFilter, setBlockFilter] = useState<string | null>(null);
-  const [side, setSide] = useState<'comments' | 'versions' | null>(null);
+  const [side, setSide] = useState<'comments' | 'versions' | 'analytics' | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  /** Sin red: lo escrito queda en este dispositivo (lib/docs-offline.ts) hasta que vuelva. */
+  const [offline, setOffline] = useState(false);
+  const [offlineOn, setOfflineOn] = useState(false);
   const openComments = allComments.filter((c) => !c.resolved && !c.parent_id).length;
   const [templateOpen, setTemplateOpen] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
@@ -305,7 +313,11 @@ export default function DocsEditorClient({
         // Renombrar (o cualquier cambio que no es solo contenido): el sidebar y las listas se refrescan.
         if (!('content' in patch) || ('title' in patch && patch.title !== prevTitle)) router.refresh();
       } catch {
-        setSaveError('failed');
+        // Sin red: queda en el borrador local y se manda al volver (no es un error).
+        if (typeof navigator !== 'undefined' && navigator.onLine === false && saveDraft(page.id, patch, base.current)) {
+          setOffline(true);
+          setSaveError('offline');
+        } else setSaveError('failed');
       } finally {
         inFlight.current--;
         setSaving(false);
@@ -324,14 +336,93 @@ export default function DocsEditorClient({
         return;
       }
       if (patch.content) setSuggestions(listSuggestions(patch.content));
+      // Sin red: directo al borrador local (sin esperar a que falle el pedido).
+      if (typeof navigator !== 'undefined' && navigator.onLine === false && saveDraft(page.id, patch, base.current)) {
+        setOffline(true);
+        setSaveError('offline');
+        return;
+      }
       const item: SaveItem = { patch, rebase: unapplied.current.map(({ sent, merged, sentTitle, title }) => ({ sent, merged, sentTitle, title })) };
       queued.current.push(item);
       const next = saveChain.current.then(() => runSave(item, false));
       saveChain.current = next;
       await next;
     },
-    [runSave],
+    [runSave, page.id],
   );
+
+  /**
+   * Manda el borrador local (lo escrito sin red) contra la versión sobre la
+   * que se escribió: el servidor lo fusiona con lo que otros guardaron. Si ya
+   * no tiene esa versión (409), se rebasa sobre la actual y se guarda normal.
+   */
+  const flushDraft = useCallback(async () => {
+    const draft = loadDraft(page.id);
+    if (!draft || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
+    const body = JSON.stringify({ ...draft.patch, base_updated_at: draft.base.updated_at });
+    const res = await fetch(`/api/docs/pages/${page.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body }).catch(() => null);
+    if (!res) return;
+    if (res.ok) {
+      const updated = (await res.json().catch(() => null)) as DocsPage | null;
+      clearDraft(page.id);
+      setOffline(false);
+      setSaveError(null);
+      if (updated?.updated_at) adoptServer(updated);
+      return;
+    }
+    if (res.status === 409) {
+      const data = (await res.json().catch(() => null)) as { current?: DocsPage | null } | null;
+      if (data?.current) {
+        const rebased = rebasePatch(draft.patch, { sent: draft.base.content, merged: data.current.content, sentTitle: draft.base.title, title: data.current.title });
+        clearDraft(page.id);
+        setOffline(false);
+        adoptServer(data.current);
+        await savePage(rebased);
+      }
+      return;
+    }
+    // Otro error (sin acceso, bloqueada): el borrador queda y se avisa.
+    setSaveError('failed');
+  }, [page.id, adoptServer, savePage]);
+
+  // Al abrir con un borrador pendiente o al volver la red: se manda.
+  useEffect(() => {
+    if (loadDraft(page.id)) {
+      setOffline(navigator.onLine === false);
+      setSaveError(navigator.onLine === false ? 'offline' : null);
+      void flushDraft();
+    }
+    const goOnline = () => void flushDraft();
+    const goOffline = () => setOffline(true);
+    const back = () => setOffline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('online', back);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('online', back);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, [page.id, flushDraft]);
+
+  // Una vista por apertura (Analítica de la página) y la marca de "Disponible sin conexión".
+  useEffect(() => {
+    void fetch(`/api/docs/pages/${page.id}/views`, { method: 'POST' }).catch(() => undefined);
+    setOfflineOn(offlinePages().includes(page.id));
+  }, [page.id]);
+
+  /** "Disponible sin conexión": guarda la página y sus subpáginas en el service worker. */
+  const toggleOffline = useCallback(async () => {
+    const on = !offlineOn;
+    setOfflinePage(page.id, on);
+    setOfflineOn(on);
+    if (!on) return;
+    const urls = [`/${locale}/app/docs`, `/${locale}/app/docs/${page.id}`];
+    const res = await fetch('/api/docs/pages?limit=500').catch(() => null);
+    const data = res?.ok ? ((await res.json().catch(() => null)) as { rows?: Array<{ id: string; parent_id: string | null }> } | null) : null;
+    for (const id of descendantIds(page.id, data?.rows ?? [])) urls.push(`/${locale}/app/docs/${id}`);
+    warmOffline(urls);
+  }, [offlineOn, page.id, locale]);
 
   // Último recurso (3 fusiones seguidas fallaron): traer lo del server o pisar a sabiendas.
   const reloadAfterConflict = useCallback(async () => {
@@ -581,7 +672,7 @@ export default function DocsEditorClient({
     router.refresh();
   }, [page.id, router]);
 
-  const toggle = (panel: 'comments' | 'versions') => setSide((cur) => (cur === panel ? null : panel));
+  const toggle = (panel: 'comments' | 'versions' | 'analytics') => setSide((cur) => (cur === panel ? null : panel));
   const verified = current.verified_at
     ? current.verified_until && Date.parse(current.verified_until) <= Date.now()
       ? 'expired'
@@ -684,10 +775,46 @@ export default function DocsEditorClient({
       >
         {t('versions.title')}
       </button>
+      {canWrite && (
+        <button
+          type="button"
+          role="menuitem"
+          className="docs-menu-item"
+          data-testid="docs-analytics-open"
+          onClick={() => {
+            close();
+            setSide('analytics');
+          }}
+        >
+          {t('analytics.title')}
+        </button>
+      )}
+      <button
+        type="button"
+        role="menuitemcheckbox"
+        aria-checked={offlineOn}
+        className="docs-menu-item"
+        data-testid="docs-offline-toggle"
+        onClick={() => {
+          close();
+          void toggleOffline();
+        }}
+      >
+        {t('offline.available')}
+      </button>
       {allowExport && (
-        <a role="menuitem" className="docs-menu-item" href={`/api/docs/pages/${page.id}/export?format=md`} download onClick={close}>
-          {t('export.markdown')}
-        </a>
+        <button
+          type="button"
+          role="menuitem"
+          className="docs-menu-item"
+          data-testid="docs-export-open"
+          onClick={() => {
+            close();
+            setExportOpen(true);
+          }}
+        >
+          {t('export.open')}
+        </button>
       )}
       {isOwner && (
         <button
@@ -713,7 +840,7 @@ export default function DocsEditorClient({
             setTimeout(() => window.print(), 50);
           }}
         >
-          {t('export.pdf')}
+          {t('export.print')}
         </button>
       )}
     </>
@@ -776,6 +903,11 @@ export default function DocsEditorClient({
           </button>
         </div>
       )}
+      {offline && (
+        <div className="docs-banner docs-banner-quiet" role="status" data-testid="docs-offline-banner">
+          <span>{t('offline.banner')}</span>
+        </div>
+      )}
       {saveError === 'conflict' && (
         <div className="docs-banner docs-banner-bad" role="alert">
           <span>{t('editor.conflict')}</span>
@@ -828,10 +960,11 @@ export default function DocsEditorClient({
         }
       />
       <DocsPeerCursors peers={peers} containerRef={wrapRef} />
+      <DocsTouchBar enabled={mode === 'edit' || mode === 'suggest'} />
       <aside
         className="docs-side"
         hidden={!side}
-        aria-label={side === 'versions' ? t('versions.title') : t('comments.title')}
+        aria-label={side === 'versions' ? t('versions.title') : side === 'analytics' ? t('analytics.title') : t('comments.title')}
       >
         <button
           type="button"
@@ -842,6 +975,7 @@ export default function DocsEditorClient({
         >
           <Icon name="close" size={16} />
         </button>
+        {side === 'analytics' && <DocsAnalyticsPanel pageId={page.id} />}
         {side === 'versions' && (
           <VersionsPanel
             pageId={page.id}
@@ -880,6 +1014,16 @@ export default function DocsEditorClient({
           />
         </div>
       </aside>
+      {exportOpen && allowExport && (
+        <DocsExportDialog
+          pageId={page.id}
+          onClose={() => setExportOpen(false)}
+          onPrint={() => {
+            setSide(null);
+            setTimeout(() => window.print(), 50);
+          }}
+        />
+      )}
       {templateOpen && isOwner && (
         <SaveTemplateDialog pageId={page.id} defaultTitle={current.title} onClose={() => setTemplateOpen(false)} />
       )}

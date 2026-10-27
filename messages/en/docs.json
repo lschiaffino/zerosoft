@@ -26,7 +26,8 @@
     "moveDown": "Move down",
     "sharedWithMe": "Shared with me",
     "sharedBy": "Shared by {name}",
-    "count": "{count, plural, one {# page} other {# pages}}"
+    "count": "{count, plural, one {# page} other {# pages}}",
+    "closeDrawer": "Close pages"
   },
   "editor": {
     "untitled": "Untitled page",
@@ -299,7 +300,8 @@
       "uploadFailed": "Couldn't upload the image. Try again."
     },
     "favorite": "Add to favorites",
-    "unfavorite": "Remove from favorites"
+    "unfavorite": "Remove from favorites",
+    "savedOffline": "Saved on this device"
   },
   "database": {
     "database": "Database",
@@ -927,7 +929,8 @@
     "emptyBody": "Articles show up here once the team publishes them from Docs.",
     "heroTitle": "How can we help?",
     "collectionOf": "{count, plural, one {Collection of # article} other {Collection of # articles}}",
-    "articlesIn": "Articles in {title}"
+    "articlesIn": "Articles in {title}",
+    "duplicate": "Duplicate"
   },
   "versions": {
     "syncedCurrent": "Synced blocks show their current content, not the one from this version.",
@@ -972,7 +975,37 @@
     "markdown": "Export as Markdown",
     "pdf": "Export as PDF",
     "markdownShort": "Markdown",
-    "pdfShort": "PDF"
+    "pdfShort": "PDF",
+    "open": "Export…",
+    "print": "Print",
+    "title": "Export",
+    "close": "Close",
+    "format": "Format",
+    "formats": {
+      "md": "Markdown",
+      "html": "HTML",
+      "pdf": "PDF"
+    },
+    "formatHelp": {
+      "md": "Plain text files that any editor opens.",
+      "html": "Web pages with their styles, light and dark.",
+      "pdf": "A4 document made on the server, with clickable links and images. Emoji and non-Latin alphabets are left out: use Print for those."
+    },
+    "subpages": "Include subpages",
+    "subpagesHelp": "A .zip with the page tree, links between pages and attached files. Only pages you can open.",
+    "run": "Export",
+    "working": "Exporting…",
+    "done": "Done. The file is in your downloads.",
+    "workspaceTitle": "Export the whole workspace",
+    "workspaceHelp": "Every page you can open, with its tree and files, in one .zip. Pages in teamspaces you are not part of stay out.",
+    "workspaceRun": "Export workspace",
+    "errors": {
+      "export_disabled": "An admin turned off exporting for members.",
+      "nothing_to_export": "There are no pages to export.",
+      "network": "No connection. Try again when you are back online.",
+      "rate_limited": "Too many exports in a row. Wait a few minutes.",
+      "failed": "Could not export. Try again."
+    }
   },
   "state": {
     "errorTitle": "Docs did not load",
@@ -992,10 +1025,10 @@
     "shortcut": "⌘P"
   },
   "notionImport": {
-    "link": "Import from Notion",
+    "link": "Import",
     "back": "← Docs",
-    "title": "Import from Notion",
-    "lead": "Upload a Notion export and get the same pages in the same tree, with images, files and links between pages.",
+    "title": "Import into Docs",
+    "lead": "Bring pages from Notion, Confluence, Google Docs, Word or Evernote with their tree, images, files and links between pages.",
     "loadingJobs": "Loading…",
     "dismiss": "Close",
     "step1": "In Notion, open Settings › Export all workspace content, or ··· › Export on a single page.",
@@ -1021,10 +1054,59 @@
     "filesSkipped": "{count} files were not uploaded (over 10 MB or a type we do not store) and stay as their name.",
     "open": "Open {title}",
     "untitled": "Untitled",
-    "again": "Import another export",
+    "again": "Import another file",
     "failedTitle": "The import stopped.",
     "rowsNote": "The page of each database row goes in as the body of that row, not as a separate page.",
-    "doneRows": "{count, plural, one {# database row kept its page as the body} other {# database rows kept their pages as the body}}."
+    "doneRows": "{count, plural, one {# database row kept its page as the body} other {# database rows kept their pages as the body}}.",
+    "source": "From",
+    "sources": {
+      "notion": {
+        "name": "Notion",
+        "step1": "In Notion, open Settings › Export all workspace content, or ··· › Export on a single page.",
+        "step2": "Choose Markdown & CSV (or HTML), include subpages, and include files and images.",
+        "step3": "Upload the .zip that Notion gives you here.",
+        "file": "Export file (.zip)"
+      },
+      "confluence": {
+        "name": "Confluence",
+        "step1": "In Confluence, open the space and go to Space settings › Export space.",
+        "step2": "Choose HTML, export all pages (or the ones you want) and download the .zip.",
+        "step3": "Upload it here: the space becomes a page with its tree, images and attachments.",
+        "file": "Space export (.zip)"
+      },
+      "gdocs": {
+        "name": "Google Docs",
+        "step1": "One document: File › Download › Microsoft Word (.docx) or Web page (.html, zipped).",
+        "step2": "A whole folder: download it from Google Drive (or use Google Takeout) and keep the .zip.",
+        "step3": "Upload the file here: folders become pages with their documents inside.",
+        "file": "Document or folder (.docx, .html or .zip)"
+      },
+      "word": {
+        "name": "Word (.docx)",
+        "step1": "Save the document as .docx (Word, Pages or LibreOffice can do it).",
+        "step2": "For several documents, put them in a .zip, with folders if you want a tree.",
+        "step3": "Upload it here: headings, lists, tables, links and images come in.",
+        "file": "Document (.docx or .zip)"
+      },
+      "evernote": {
+        "name": "Evernote",
+        "step1": "In Evernote, right-click a notebook and choose Export notebook.",
+        "step2": "Choose ENEX (.enex). For several notebooks, put the .enex files in a .zip.",
+        "step3": "Upload it here: each notebook becomes a page with one subpage per note, with its images, to-dos and tags.",
+        "file": "Notebook (.enex or .zip)"
+      },
+      "files": {
+        "name": "Markdown, HTML or other files",
+        "step1": "Any .md, .txt, .html or .docx file, or a .zip with many of them.",
+        "step2": "In a .zip, each folder becomes a page and links between files become links between pages.",
+        "step3": "Images next to the files come in as image blocks.",
+        "file": "File or .zip"
+      }
+    },
+    "destination": "Import into",
+    "destinationWorkspace": "Workspace",
+    "destinationHelp": "Private teamspaces only show up if you are a member. Imported pages keep the access of that teamspace.",
+    "noDestination": "Your role cannot create pages in this workspace. Ask an admin for edit access."
   },
   "reminderEmail": {
     "subject": "Reminder: {title}",
@@ -1214,7 +1296,8 @@
     "isDefault": "Default teamspace",
     "isDefaultHelp": "Everyone in the workspace is a member, now and when they join. Only one per workspace.",
     "defaultBadge": "Default",
-    "everyone": "everyone in the workspace"
+    "everyone": "everyone in the workspace",
+    "siteTab": "Site"
   },
   "audit": {
     "group": {
@@ -1264,7 +1347,10 @@
         "member_removed": "Removed a teamspace member"
       },
       "settings": {
-        "updated": "Changed Docs settings"
+        "updated": "Changed Docs settings",
+        "exported": "Exported the workspace",
+        "imported": "Imported pages",
+        "site": "Changed the published site"
       }
     }
   },
@@ -1500,5 +1586,126 @@
       "load": "Could not load these meeting notes.",
       "generic": "Something went wrong. Try again."
     }
+  },
+  "analytics": {
+    "title": "Analytics",
+    "loading": "Loading…",
+    "error": "Could not load the views.",
+    "views": "Views",
+    "viewers": "People",
+    "siteViews": "On the published site",
+    "period": "Last {days} days.",
+    "chart": "Views per day",
+    "who": "Who viewed it",
+    "nobody": "Nobody opened it yet.",
+    "someone": "Someone",
+    "viewCount": "{count, plural, one {# view} other {# views}}"
+  },
+  "offline": {
+    "available": "Available offline",
+    "banner": "No connection. What you write stays on this device and saves when you are back online."
+  },
+  "touchbar": {
+    "label": "Formatting",
+    "insert": "Insert block",
+    "mention": "Mention",
+    "link-page": "Link a page",
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "link": "Link",
+    "indent": "Indent",
+    "outdent": "Outdent",
+    "undo": "Undo",
+    "redo": "Redo",
+    "done": "Hide keyboard"
+  },
+  "publish": {
+    "loading": "Loading…",
+    "error": "Could not save. Try again.",
+    "saved": "Saved.",
+    "allowDuplicate": "Allow duplicate as template",
+    "allowDuplicateHelp": "Visitors see a Duplicate button and copy this page and its published subpages to their workspace.",
+    "indexing": "Show in search engines",
+    "indexingHelp": "Off: the page asks Google and others not to index it.",
+    "description": "Search description",
+    "descriptionPlaceholder": "The first lines of the page",
+    "descriptionHelp": "Up to 300 characters. Shows in Google results and link previews.",
+    "siteSettings": "Site settings: domain and analytics"
+  },
+  "site": {
+    "loading": "Loading…",
+    "loadError": "Could not load the site settings.",
+    "retry": "Try again",
+    "saveError": "Could not save. Try again.",
+    "cancel": "Cancel",
+    "untitled": "Untitled",
+    "addressTitle": "Site address",
+    "addressHelp": "Published pages live here, with search and collections.",
+    "noHandle": "Set a handle in your profile to publish pages.",
+    "domainTitle": "Custom domain",
+    "domainHelp": "Serve the site on your own domain, like docs.yourcompany.com. One domain per workspace.",
+    "domain": "Domain",
+    "addDomain": "Add domain",
+    "domainVerified": "Verified and serving the site",
+    "domainPending": "Waiting for DNS",
+    "dnsHelp": "Create these records with your DNS provider, then verify. DNS can take up to a few hours.",
+    "dnsType": "Type",
+    "dnsName": "Name",
+    "dnsValue": "Value",
+    "verify": "Verify",
+    "verifying": "Verifying…",
+    "verified": "Domain verified. The site now opens there.",
+    "verifyTxt": "The TXT record is not visible yet. Check its name and value.",
+    "verifyDns": "The domain does not point here yet. Check the CNAME or A record.",
+    "verifyFailed": "Could not verify. Try again in a few minutes.",
+    "openSite": "Open site",
+    "removeDomain": "Remove domain",
+    "removeTitle": "Remove the domain?",
+    "removeBody": "{domain} stops serving the site. The pages stay published at the site address.",
+    "domainErrors": {
+      "invalid_hostname": "That is not a valid domain.",
+      "domain_taken": "That domain is already in use.",
+      "domain_exists": "The site already has a domain. Remove it first.",
+      "app_host": "Use a domain of yours, not the app address.",
+      "provider_error": "The hosting provider did not accept the domain. Try again in a moment.",
+      "rate_limited": "Too many tries. Wait a few minutes.",
+      "failed": "Could not add the domain."
+    },
+    "seoTitle": "Search engines",
+    "seoHelp": "Each page also has its own description and indexing switch in Share › Publish.",
+    "indexing": "Let search engines index the site",
+    "indexingHelp": "With your domain, the site serves its own sitemap.xml and robots.txt.",
+    "locale": "Language on the custom domain",
+    "localeAuto": "The visitor’s browser language",
+    "localeHelp": "Buttons and labels of the site. Your pages keep the language you wrote them in.",
+    "analyticsTitle": "Visits",
+    "analyticsHelp": "Last 30 days. No cookies: each visitor is counted once per page and day, and bots do not count.",
+    "noVisits": "No visits yet",
+    "noVisitsBody": "Publish a page and share its link. Visits show up here.",
+    "views": "Views",
+    "visitors": "Visitors",
+    "chart": "Views per day, last {days} days",
+    "topPages": "Most viewed pages",
+    "page": "Page",
+    "helpful": "Helpful",
+    "referrers": "Where visitors come from",
+    "source": "Source"
+  },
+  "duplicatePublic": {
+    "back": "← Docs",
+    "title": "Duplicate to your workspace",
+    "from": "Shared by {name}",
+    "lead": "A copy of \"{title}\" and its published subpages lands in your Docs. It is yours to edit and stays separate from the original.",
+    "destination": "Put it in",
+    "workspace": "Workspace",
+    "confirm": "Duplicate",
+    "working": "Duplicating…",
+    "notFound": "This page cannot be duplicated",
+    "notFoundBody": "It is no longer published, or its owner turned off duplicating.",
+    "forbidden": "Your role cannot create pages here",
+    "forbiddenBody": "Ask an admin of your workspace for edit access.",
+    "failed": "Could not duplicate. Try again.",
+    "untitled": "Untitled"
   }
 }

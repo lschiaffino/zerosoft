@@ -15,6 +15,13 @@
  * - El inicio de la app instalada (/app, start_url de app/manifest.ts) también
  *   es network-first con la última versión guardada.
  *
+ * Docs sin conexión (D5):
+ * - Navegaciones a /<locale>/app/docs/**: network-first con la última versión
+ *   guardada, así una página ya abierta (o marcada "Disponible sin conexión",
+ *   que la página manda a guardar con zs-warm junto con sus subpáginas) se lee
+ *   sin red. Lo que se escribe sin red lo guarda el editor en el dispositivo
+ *   (lib/docs-offline.ts) y lo manda al volver: acá no se encola nada de Docs.
+ *
  * Push de Groups (lib/groups-push.ts):
  * - push: el servidor manda un push vacío (firma VAPID). Acá se piden los
  *   avisos pendientes con la sesión (/api/groups/push/pending) y se muestran.
@@ -22,7 +29,7 @@
  * - notificationclick: abre (o enfoca) el chat del aviso.
  * - La bandeja de Groups no se cachea: siempre se ve al día.
  */
-const VERSION = 'zs-app-v2';
+const VERSION = 'zs-app-v3';
 const PAGES = `${VERSION}-pages`;
 const STATIC = `${VERSION}-static`;
 const DB_NAME = 'zs-offline';
@@ -73,8 +80,17 @@ async function replayQueue(store, doFetch) {
 const CRM_PAGE = /^\/(en|es|pt)\/app(\/crm(\/|$)|\/?$)/;
 const CRM_ROOT = /^\/app(\/crm(\/|$)|\/?$)/;
 
+// Docs: el editor y la lista (D5).
+const DOCS_PAGE = /^\/(en|es|pt)\/app\/docs(\/|$)/;
+const DOCS_ROOT = /^\/app\/docs(\/|$)/;
+
 function isCrmNavigation(url) {
   return CRM_PAGE.test(url.pathname) || CRM_ROOT.test(url.pathname);
+}
+
+/** Navegaciones que se guardan para abrir sin red: el CRM, el inicio y Docs. */
+function isOfflineNavigation(url) {
+  return isCrmNavigation(url) || DOCS_PAGE.test(url.pathname) || DOCS_ROOT.test(url.pathname);
 }
 
 // ---------- IndexedDB ----------
@@ -191,8 +207,8 @@ async function crmNavigation(request) {
     return await networkFirst(request, PAGES);
   } catch {
     const cache = await caches.open(PAGES);
-    // /app o /app/crm sin locale (como abre la app instalada): la versión cacheada en cualquier idioma.
-    if (CRM_ROOT.test(url.pathname)) {
+    // /app, /app/crm o /app/docs sin locale (como abre la app instalada): la versión cacheada en cualquier idioma.
+    if (CRM_ROOT.test(url.pathname) || DOCS_ROOT.test(url.pathname)) {
       for (const l of ['en', 'es', 'pt']) {
         const hit = await cache.match(`${url.origin}/${l}${url.pathname}`, { ignoreSearch: true });
         if (hit) return hit;
@@ -200,7 +216,7 @@ async function crmNavigation(request) {
     }
     const loose = await cache.match(request, { ignoreSearch: true, ignoreVary: true });
     if (loose) return loose;
-    const locale = (CRM_PAGE.exec(url.pathname) || [])[1] || 'en';
+    const locale = (CRM_PAGE.exec(url.pathname) || DOCS_PAGE.exec(url.pathname) || [])[1] || 'en';
     return new Response(offlineHtml(locale), { status: 503, headers: { 'content-type': 'text/html; charset=utf-8' } });
   }
 }
@@ -246,7 +262,7 @@ self.addEventListener('fetch', (event) => {
       event.respondWith(cacheFirst(request));
       return;
     }
-    if (request.mode === 'navigate' && isCrmNavigation(url)) {
+    if (request.mode === 'navigate' && isOfflineNavigation(url)) {
       event.respondWith(crmNavigation(request));
       return;
     }
@@ -290,7 +306,7 @@ self.addEventListener('message', (event) => {
             if (u.origin !== self.location.origin) continue;
             if (u.pathname.startsWith('/_next/static/')) {
               if (!(await statics.match(u.href))) await statics.add(u.href);
-            } else if (isCrmNavigation(u)) {
+            } else if (isOfflineNavigation(u)) {
               const res = await fetch(u.href, { credentials: 'same-origin' });
               if (res.ok && !res.redirected) await pages.put(u.href, res);
             }
@@ -356,4 +372,4 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // Para tests/unit/offline-queue.test.ts (en el navegador no molesta).
-self.__zsOffline = { shouldQueue, replayQueue, NEVER_QUEUE };
+self.__zsOffline = { shouldQueue, replayQueue, NEVER_QUEUE, isOfflineNavigation };

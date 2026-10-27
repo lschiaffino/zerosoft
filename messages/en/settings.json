@@ -398,7 +398,8 @@
       "desc": "Who and what accesses the workspace.",
       "empty": "There are no workspace security settings yet. API keys are revoked in API and webhooks, and custom domains are verified in Link.",
       "apiKeys": "API keys",
-      "domains": "Link custom domains"
+      "domains": "Link custom domains",
+      "docsSite": "Docs site domain"
     },
     "notifications": {
       "title": "Notifications",

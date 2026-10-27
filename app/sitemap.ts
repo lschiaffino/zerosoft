@@ -3,6 +3,9 @@ import { routing } from '@/i18n/routing';
 import { getAllPosts } from '@/lib/blog';
 import { PRODUCT_KEYS } from '@/lib/products';
 import { siteUrl, TOOLS } from '@/lib/tools/registry';
+import { headers } from 'next/headers';
+import { isAppHost } from '@/lib/hosts';
+import { siteForHost, siteSitemap } from '@/lib/docs-site';
 
 /**
  * sitemap.xml del sitio público: cada página en los tres idiomas, con
@@ -25,7 +28,13 @@ const STATIC_PAGES: Array<{ path: string; priority: number; freq: MetadataRoute.
   { path: '/terms', priority: 0.2, freq: 'yearly' },
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Dominio propio de un sitio de Docs: el sitemap de ese sitio (sus páginas publicadas).
+  const host = (await headers()).get('host');
+  if (host && !isAppHost(host)) {
+    const site = await siteForHost(host);
+    return site ? siteSitemap(site.workspaceId, `https://${host.toLowerCase()}`) : [];
+  }
   const base = siteUrl();
   const now = new Date();
 

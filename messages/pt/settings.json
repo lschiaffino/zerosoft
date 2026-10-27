@@ -398,7 +398,8 @@
       "desc": "Quem e o que acessa o workspace.",
       "empty": "Ainda não há ajustes de segurança do workspace. As API keys são revogadas em API e webhooks, e os domínios próprios são verificados no Link.",
       "apiKeys": "API keys",
-      "domains": "Domínios próprios do Link"
+      "domains": "Domínios próprios do Link",
+      "docsSite": "Domínio do site do Docs"
     },
     "notifications": {
       "title": "Avisos",
