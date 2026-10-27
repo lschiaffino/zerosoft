@@ -4,7 +4,8 @@
  */
 import type { SessionUser } from './session';
 import type { DocsPageRow } from './db';
-import { DOC_INTERNAL_READ, getDocAccess, getDocPageRow, parseBlocks, readableLinkTitles, type DocsActor } from './docs';
+import { DOC_INTERNAL_READ, getDocAccess, getDocPageRow, hiddenLinkIds, parseBlocks, readableLinkTitles, type DocsActor } from './docs';
+import { requestHiddenLabel } from './docs-hidden-label';
 import { getDb } from './db';
 import {
   aiKnowledgeFilterSql,
@@ -17,7 +18,7 @@ import {
   type DocsSettings,
 } from './docs-access';
 import { hydrateSyncedBlocks, markUneditableSynced, unreadableSyncedIds, type SyncedReader } from './docs-synced';
-import { pageLinkHref, resolveBlocksPageLinks } from './docs-page-links';
+import { maskPageLinks, pageLinkHref, resolveBlocksPageLinks, restoreHiddenLinks } from './docs-page-links';
 import type { DocsAccess, DocsBlock } from './docs-types';
 
 /** Persona real (no el dueño del workspace en el que actúa). */
@@ -207,7 +208,20 @@ export async function docsAllowed(
 export async function editorBlocks(row: DocsPageRow, actor: DocsActor, blocks?: DocsBlock[]): Promise<DocsBlock[]> {
   const hydrated = await markUneditableSynced(row.user_id, await hydrateSyncedBlocks(row.user_id, blocks ?? parseBlocks(row.content), syncedReader(actor, row)), syncedEditor(actor, row));
   const titles = await readableLinkTitles(actor, row, hydrated);
-  return resolveBlocksPageLinks(hydrated, (id) => ({ href: pageLinkHref(id), title: titles.get(id) ?? null }));
+  const resolved = resolveBlocksPageLinks(hydrated, (id) => ({ href: pageLinkHref(id), title: titles.get(id) ?? null }));
+  // Links a páginas que no puede abrir: "Página privada" (al guardar, restoreForActor devuelve el texto guardado).
+  const hidden = await hiddenLinkIds(actor, row, resolved);
+  return hidden.size ? maskPageLinks(resolved, (id) => hidden.has(id), await requestHiddenLabel()) : resolved;
+}
+
+/**
+ * Antes de guardar lo que mandó quien edita: los links a páginas que no puede
+ * abrir le llegaron como "Página privada"; vuelven al texto guardado.
+ */
+export async function restoreForActor(actor: DocsActor, row: DocsPageRow, incoming: DocsBlock[]): Promise<DocsBlock[]> {
+  const hidden = await hiddenLinkIds(actor, row, incoming);
+  if (hidden.size === 0) return incoming;
+  return restoreHiddenLinks(incoming, parseBlocks(row.content), (id) => !hidden.has(id));
 }
 
 export type { DocsAccess };
