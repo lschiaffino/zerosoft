@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { viewerScope } from '@/lib/calendar-access';
 import { bookingDateBounds, countUpcomingBookings, listEventTypes, listUserBookings } from '@/lib/calendar';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
@@ -16,9 +17,11 @@ export default async function CalendarLandingPage(props: { params: Promise<{ loc
 
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'calendar' });
-  const [eventTypes, nextWeek] = await Promise.all([listEventTypes(user.id), countUpcomingBookings(user.id, 7)]);
+  // Un member ve solo las reservas que atiende (owner y admins, todas).
+  const hostId = viewerScope(user) ?? undefined;
+  const [eventTypes, nextWeek] = await Promise.all([listEventTypes(user.id), countUpcomingBookings(user.id, 7, new Date(), hostId)]);
   const { timezone } = await bookingDateBounds(user.id, undefined, undefined);
-  const upcoming = await listUserBookings(user.id, { status: 'confirmed', from: new Date(), order: 'asc', limit: 5 });
+  const upcoming = await listUserBookings(user.id, { status: 'confirmed', from: new Date(), order: 'asc', limit: 5, hostId });
   const origin = publicOrigin((await headers()).get('host'));
   const active = eventTypes.filter((e) => e.active === 1).length;
 

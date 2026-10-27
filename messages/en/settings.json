@@ -186,7 +186,10 @@
       "page_archived": "Page moved to trash (Docs)",
       "page_comment_created": "Comment added (Docs)",
       "database_row_created": "Database row added (Docs)",
-      "database_property_changed": "Database property changed (Docs)"
+      "database_property_changed": "Database property changed (Docs)",
+      "chat_conversation_created": "Conversation created",
+      "chat_conversation_tagged": "Conversation tagged",
+      "chat_csat_submitted": "CSAT received"
     },
     "errors": {
       "https_required": "The URL must use https.",

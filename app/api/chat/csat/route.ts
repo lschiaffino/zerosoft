@@ -1,3 +1,4 @@
+import { cleanPublicVisitorKey } from '@/lib/chat-visitor-key';
 import { NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import { getConversationForCsat, submitConversationCsat } from '@/lib/chat-data';
@@ -22,7 +23,9 @@ export async function POST(req: Request) {
 
   const { widgetId, visitorId, conversationId, score, comment } = parsed.data;
 
-  const conversation = await getConversationForCsat(widgetId, visitorId, conversationId);
+  const visitorKey = cleanPublicVisitorKey(visitorId);
+  if (!visitorKey) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+  const conversation = await getConversationForCsat(widgetId, visitorKey, conversationId);
   if (!conversation) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   if (conversation.status !== 'resolved') {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });

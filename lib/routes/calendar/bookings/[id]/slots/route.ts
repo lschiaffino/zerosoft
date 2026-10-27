@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/session';
 import { getAvailableSlots, ownedBooking } from '@/lib/calendar';
 import { ianaTimezone } from '@/lib/calendar-schema';
 import { notFound, unauthorized } from '@/lib/crm-http';
+import { bookingInScope, viewerScope } from '@/lib/calendar-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const booking = await ownedBooking(user.id, id);
+  if (booking && !bookingInScope(booking, viewerScope(user))) return notFound();
   if (!booking) return notFound();
   const sp = req.nextUrl.searchParams;
   const tz = ianaTimezone.safeParse(sp.get('timezone') ?? booking.timezone);

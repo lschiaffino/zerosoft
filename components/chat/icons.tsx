@@ -2,7 +2,7 @@
  * Íconos de Chat: trazo de 2px, misma caja de 24 que components/app/icons.
  * Reemplazan los glifos Unicode (📎 ⊕ ‹ › ↑ ↓ ×) que hacían de íconos.
  */
-type ChatIconName = 'attach' | 'up' | 'down' | 'close' | 'back' | 'copy' | 'trash' | 'plus' | 'bot' | 'system';
+type ChatIconName = 'attach' | 'up' | 'down' | 'close' | 'back' | 'copy' | 'trash' | 'plus' | 'bot' | 'system' | 'bell' | 'eye' | 'spark';
 
 const PATHS: Record<ChatIconName, string> = {
   attach: 'M20 11.5l-8.2 8.2a5 5 0 01-7.1-7.1l8.5-8.5a3.3 3.3 0 014.7 4.7l-8.5 8.5a1.7 1.7 0 01-2.4-2.4l7.8-7.8',
@@ -16,6 +16,10 @@ const PATHS: Record<ChatIconName, string> = {
   // Bot: cabeza cuadrada con antena. Sistema: placa con una marca de aviso.
   bot: 'M5 9h14v10H5zM12 4v5M9 13v2M15 13v2',
   system: 'M5 5h14v14H5zM12 8v5M12 15.5v.5',
+  bell: 'M6 16V11a6 6 0 0112 0v5l2 2H4zM10 20h4',
+  eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9.5a2.5 2.5 0 110 5 2.5 2.5 0 010-5z',
+  // Copilot: destello de cuatro puntas.
+  spark: 'M12 3v6M12 15v6M3 12h6M15 12h6',
 };
 
 export default function ChatIcon({ name, size = 16 }: { name: ChatIconName; size?: number }) {

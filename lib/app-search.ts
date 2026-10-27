@@ -5,6 +5,7 @@ import { boardViewer, boardVisibleSql } from '@/lib/board-access';
 import type { TeamRole } from '@/lib/teams';
 import { chatAccessSql, groupsViewer } from '@/lib/groups-access';
 import { maskPhoneText } from '@/lib/groups-mask';
+import { bookingScopeFor } from './calendar-access';
 
 /**
  * Búsqueda global (⌘K) en las apps que no tienen una propia: pizarras,
@@ -32,7 +33,13 @@ export interface AppSearchItem {
     | 'trackLabels'
     | 'eventTypes'
     | 'bookings'
+    | 'calPolls'
     | 'widgets'
+    | 'chatConversations'
+    | 'chatPeople'
+    | 'chatViews'
+    | 'chatTeams'
+    | 'chatOutbound'
     | 'flows'
     | 'agents'
     | 'robots'
@@ -88,6 +95,8 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
 
   const waGroup = WA_GROUP[locale] ?? WA_GROUP.en;
   // Groups: acceso por etiqueta y teléfonos ocultos, como la bandeja.
+  // Reservas: un member encuentra solo las que atiende (owner y admins, todas).
+  const bookingScope = bookingScopeFor(user.role ?? 'owner', user.actingUser?.id ?? user.id) ?? '';
   const gViewer = await groupsViewer(user.id, user.actingUser?.id ?? user.id, user.role ?? 'owner').catch(() => null);
   const gAccess = chatAccessSql(gViewer, 'c');
   const gWhere = gAccess ? ` AND ${gAccess.sql}` : '';
@@ -126,7 +135,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ),
     all(`SELECT id, name AS label FROM track_labels WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, ws, like),
   ]);
-  const [boards, projects, issues, eventTypes, bookings, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates, talkChannels, talkDms, talkPeople, voiceSessions] = await Promise.all([
+  const [boards, projects, issues, eventTypes, bookings, calPolls, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates, talkChannels, talkDms, talkPeople, voiceSessions] = await Promise.all([
     all(
       `SELECT b.id, b.name AS label FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND b.name LIKE ? ESCAPE '\\' ORDER BY b.updated_at DESC LIMIT ?`,
       user.id,
@@ -151,7 +160,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       needle,
     ),
     all(
-      `SELECT id, title AS label, slug AS meta FROM calendar_event_types WHERE user_id = ? AND title LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`,
+      `SELECT id, title AS label, slug AS meta FROM calendar_event_types WHERE user_id = ? AND kind != 'poll' AND title LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`,
       user.id,
       like,
     ),
@@ -161,11 +170,17 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       `SELECT b.id, b.invitee_name AS label, b.invitee_email AS email, b.invitee_email || ' · ' || e.title AS meta
        FROM calendar_bookings b JOIN calendar_event_types e ON e.id = b.event_type_id
        WHERE e.user_id = ? AND (b.invitee_name LIKE ? ESCAPE '\\' OR b.invitee_email LIKE ? ESCAPE '\\')
+         AND (? = '' OR b.host_user_id = ? OR EXISTS (SELECT 1 FROM json_each(b.co_host_ids) j WHERE j.value = ?))
        ORDER BY b.starts_at DESC LIMIT ?`,
       user.id,
       like,
       like,
+      bookingScope,
+      bookingScope,
+      bookingScope,
     ),
+    // Encuestas de horario de Cal por título.
+    all(`SELECT id, title AS label FROM calendar_polls WHERE user_id = ? AND title LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, user.id, like),
     all(`SELECT id, name AS label FROM chat_widgets WHERE ${widgetWhere} AND name LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, teamId ?? user.id, like),
     all(`SELECT id, name AS label FROM flow_flows WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT ?`, user.id, like),
     all(`SELECT id, name AS label FROM agents WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, user.id, like),
@@ -290,6 +305,44 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ),
   ]);
 
+  // Chat: conversaciones (asunto, visitante o texto), personas, vistas guardadas y equipos.
+  const chatWidgets = `SELECT id FROM chat_widgets WHERE ${widgetWhere}`;
+  const [chatConversations, chatPeople, chatViews, chatTeams, chatOutbound] = await Promise.all([
+    all(
+      `SELECT c.id, COALESCE(NULLIF(v.name, ''), NULLIF(v.email, ''), NULLIF(c.subject, ''), 'Visitor') AS label,
+              COALESCE(NULLIF(c.subject, ''), substr((SELECT m.body FROM chat_messages m WHERE m.conversation_id = c.id AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 1), 1, 80)) AS meta
+       FROM chat_conversations c JOIN chat_visitors v ON v.id = c.visitor_id
+       WHERE c.widget_id IN (${chatWidgets}) AND (c.subject LIKE ? ESCAPE '\\' OR v.name LIKE ? ESCAPE '\\' OR v.email LIKE ? ESCAPE '\\'
+         OR EXISTS (SELECT 1 FROM chat_messages sm WHERE sm.conversation_id = c.id AND sm.deleted_at IS NULL AND sm.body LIKE ? ESCAPE '\\'))
+       ORDER BY c.updated_at DESC LIMIT ?`,
+      teamId ?? user.id,
+      like,
+      like,
+      like,
+      like,
+    ),
+    all(
+      `SELECT v.id, COALESCE(NULLIF(v.name, ''), v.email) AS label, v.email AS meta FROM chat_visitors v
+       WHERE v.widget_id IN (${chatWidgets}) AND (v.name LIKE ? ESCAPE '\\' OR v.email LIKE ? ESCAPE '\\')
+       ORDER BY v.created_at DESC LIMIT ?`,
+      teamId ?? user.id,
+      like,
+      like,
+    ),
+    all(
+      `SELECT id, name AS label FROM chat_views WHERE workspace_id = ? AND (user_id = ? OR shared = 1) AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`,
+      user.id,
+      person,
+      like,
+    ),
+    all(`SELECT id, name AS label FROM chat_teams WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, like),
+    all(
+      `SELECT id, name AS label, widget_id AS meta FROM chat_outbound WHERE widget_id IN (${chatWidgets}) AND name LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT ?`,
+      teamId ?? user.id,
+      like,
+    ),
+  ]);
+
   const map = (rows: Row[], group: AppSearchItem['group'], href: (id: string) => string): AppSearchItem[] =>
     rows.map((r) => ({ id: r.id, group, label: r.label, meta: r.meta ?? '', href: href(r.id) }));
 
@@ -316,6 +369,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(issues, 'issues', (id) => `/app/track/issues/${id}`),
     ...map(boards, 'boards', (id) => `/app/board/${id}`),
     ...map(eventTypes, 'eventTypes', (id) => `/app/calendar/event-types/${id}`),
+    ...map(calPolls, 'calPolls', (id) => `/app/calendar/polls/${id}`),
     // La reserva se abre en Bookings filtrada por el email del invitado (todas las fechas).
     ...bookings.map((r) => ({
       id: r.id,
@@ -325,6 +379,11 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       href: `/app/calendar/bookings?q=${encodeURIComponent(r.email || r.label)}`,
     })),
     ...map(widgets, 'widgets', (id) => `/app/chat/widgets/${id}`),
+    ...map(chatConversations, 'chatConversations', (id) => `/app/chat/inbox/${id}`),
+    ...map(chatPeople, 'chatPeople', (id) => `/app/chat/people/${id}`),
+    ...map(chatViews, 'chatViews', (id) => `/app/chat/inbox?view=${id}`),
+    ...map(chatTeams, 'chatTeams', (id) => `/app/chat/inbox?team=${id}`),
+    ...chatOutbound.map((r) => ({ id: r.id, group: 'chatOutbound' as const, label: r.label, meta: '', href: `/app/chat/widgets/${r.meta}/outbound?open=${r.id}` })),
     ...map(flows, 'flows', (id) => `/app/flow/${id}`),
     ...map(agents, 'agents', (id) => `/app/agents/${id}`),
     ...map(robots, 'robots', (id) => `/app/robots/${id}`),

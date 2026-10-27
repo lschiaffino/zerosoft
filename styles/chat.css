@@ -246,7 +246,6 @@
 .chat-inbox-search .input { width: 100%; padding-right: 32px; }
 .chat-inbox-search .kbd { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); pointer-events: none; }
 .chat-inbox-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.chat-inbox-filters .select:nth-of-type(3) { grid-column: 1 / -1; }
 .chat-inbox-filters .select,
 .chat-compact-select {
   min-width: 0;
@@ -826,3 +825,131 @@ body:has(.chat-composer) #zs-chat-root { display: none !important; }
   .chat-canned-macro { width: auto; }
   .chat-range-custom .input { width: 140px; }
 }
+
+/* ---------- Paridad Intercom: equipos, vistas, avisos, colisión, AI y salientes ---------- */
+.chat-row-channel,
+.chat-row-team { color: var(--brand-gray-1); }
+.chat-branch-count { margin-left: auto; font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); }
+
+.chat-view-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.chat-view-form { display: grid; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.chat-view-form .input { width: 100%; }
+.chat-view-form-actions { display: flex; justify-content: flex-end; gap: 6px; }
+
+.chat-alerts { position: relative; }
+.chat-alerts > .btn[data-on] { color: var(--ink); }
+.chat-alerts-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 8px;
+  width: min(300px, calc(100vw - 32px));
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+}
+.chat-alerts-panel .ui-help { margin: 0; }
+.chat-alerts-push { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); justify-items: start; }
+.chat-alerts-label { margin: 0; font-size: 0.8125rem; font-weight: 600; }
+
+.chat-follow { display: inline-flex; align-items: center; gap: 6px; }
+.chat-follow[aria-pressed='true'] { color: var(--ink); font-weight: 600; }
+
+.chat-collision {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 16px;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-1);
+  border-top: 1px solid var(--line);
+}
+.chat-collision[data-typing] { color: var(--warn-ink); background: var(--warn-soft); }
+.chat-missing-vars { margin: 6px 0 0; color: var(--warn-ink); }
+
+.chat-copilot { position: relative; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.chat-copilot > .btn { display: inline-flex; align-items: center; gap: 6px; }
+.chat-copilot-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  min-width: 220px;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+}
+.chat-copilot-menu button {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--ink);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.chat-copilot-menu button:hover,
+.chat-copilot-menu button:focus-visible { background: var(--ui-hover); }
+.chat-copilot-menu button:disabled { color: var(--brand-gray-2); cursor: default; background: none; }
+.chat-copilot-note { margin: 0; font-size: 0.75rem; }
+.chat-copilot-summary {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  width: min(420px, calc(100vw - 48px));
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+}
+.chat-copilot-summary-title { margin: 0 0 4px; font-size: 0.8125rem; font-weight: 600; }
+.chat-copilot-summary-text { margin: 0 0 8px; font-size: 0.875rem; white-space: pre-wrap; }
+.chat-copilot-summary-actions { display: flex; justify-content: flex-end; gap: 6px; }
+
+.chat-rule-switch { align-self: end; min-height: 36px; }
+.chat-team-members { display: grid; gap: 6px; border: 0; padding: 0; margin: 0; }
+
+.chat-copy-field { display: flex; gap: 8px; align-items: center; }
+.chat-copy-field .input { flex: 1; min-width: 0; }
+.chat-email-points { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 0.875rem; color: var(--brand-gray-1); }
+.chat-email-off p { margin: 0 0 4px; }
+
+.chat-hours-wrap { position: relative; overflow-x: auto; width: 100%; max-width: calc(100vw - 32px); }
+.chat-hours td { position: relative; }
+.chat-hours { border-collapse: separate; border-spacing: 2px; font-size: 0.6875rem; }
+.chat-hours th { font-weight: 400; color: var(--brand-gray-2); text-align: left; padding: 0 4px 0 0; }
+.chat-hours thead th { text-align: center; padding: 0; min-width: 14px; }
+.chat-hours td { width: 14px; height: 14px; min-width: 14px; background: color-mix(in srgb, var(--ink) 7%, var(--bg)); border-radius: 2px; }
+.chat-hours td[data-level='1'] { background: color-mix(in srgb, var(--ink) 20%, var(--bg)); }
+.chat-hours td[data-level='2'] { background: color-mix(in srgb, var(--ink) 40%, var(--bg)); }
+.chat-hours td[data-level='3'] { background: color-mix(in srgb, var(--ink) 65%, var(--bg)); }
+.chat-hours td[data-level='4'] { background: var(--ink); }
+
+@media (max-width: 720px) {
+  .chat-copy-field { flex-wrap: wrap; }
+  .chat-copy-field .btn { width: 100%; }
+}
+
+.chat-track-list { display: grid; gap: 6px; margin: 0 0 8px; padding: 0; list-style: none; }
+.chat-track-list li { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 0.8125rem; }
+.chat-track-issue { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.chat-track-status { flex-shrink: 0; font-size: 0.75rem; color: var(--brand-gray-1); }
+.chat-track-status[data-category='done'] { color: var(--ok-ink); }
+.chat-track-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.chat-track-form { display: grid; gap: 6px; }
+.chat-track-form .input,
+.chat-track-form .select { width: 100%; }
+
+/* Equipos y Vistas: el encabezado de la sección solo lleva la acción. */
+#chat-teams-title + *, #chat-views-title + * { margin-left: auto; }

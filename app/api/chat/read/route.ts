@@ -1,3 +1,4 @@
+import { cleanPublicVisitorKey } from '@/lib/chat-visitor-key';
 import { NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import {
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
   }
 
   const widgetId = typeof body.widgetId === 'string' ? body.widgetId : '';
-  const visitorExternalId = typeof body.visitorId === 'string' ? body.visitorId : '';
+  const visitorExternalId = cleanPublicVisitorKey(body.visitorId) ?? '';
   const conversationId = typeof body.conversationId === 'string' ? body.conversationId : '';
 
   if (!widgetId || !visitorExternalId || !conversationId) {

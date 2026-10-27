@@ -28,7 +28,7 @@
  * (zs-app-<v>-pages-<id>), sin persona no se guarda ni se sirve nada, y si
  * cambia (o cierra sesión: id null) se borran todas las vistas guardadas.
  *
- * Push de Groups (lib/groups-push.ts):
+ * Push de Groups y Chat (lib/groups-push.ts):
  * - push: el servidor manda un push vacío (firma VAPID). Acá se piden los
  *   avisos pendientes con la sesión (/api/groups/push/pending) y se muestran.
  *   El texto nunca pasa por el servicio de push.
@@ -456,7 +456,7 @@ self.addEventListener('notificationclick', (event) => {
     (async () => {
       const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       for (const c of all) {
-        if ('focus' in c && new URL(c.url).pathname.includes('/app/groups')) {
+        if ('focus' in c && new URL(c.url).pathname.includes('/app/')) {
           await c.focus();
           if ('navigate' in c) await c.navigate(url).catch(() => null);
           return;

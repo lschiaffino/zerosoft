@@ -4,6 +4,7 @@ import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { deleteWebhook, updateWebhook, WEBHOOK_EVENTS } from '@/lib/webhooks';
 import { MAX_FILTER_VALUES, normalizeCrmFilter } from '@/lib/webhooks-events';
 import { UnsafeUrlError } from '@/lib/safe-fetch';
+import { logCalActivity } from '@/lib/calendar-activity';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,5 +50,6 @@ export async function DELETE(_req: Request, props: { params: Promise<{ id: strin
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   if (!(await deleteWebhook(user.id, id))) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  await logCalActivity(user.id, user.actingUser?.id ?? user.id, 'api.webhook_deleted', { type: 'webhook', id });
   return new NextResponse(null, { status: 204 });
 }

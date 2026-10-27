@@ -16,6 +16,8 @@ export interface EventTypeListItem {
   durationMin: number;
   color: string;
   active: boolean;
+  /** Secreto: no sale en el perfil público. */
+  hidden?: boolean;
   /** Reunión única (horarios elegidos a mano). */
   oneOff?: boolean;
   /** Link de un solo uso ya reservado. */
@@ -133,6 +135,7 @@ export default function EventTypesView({ items, handle, bookBase, openNew, limit
                     /{handle}/{et.slug}
                   </span>
                   {!et.active && <span className="badge">{t('eventTypes.inactive')}</span>}
+                  {et.active && et.hidden && <span className="badge badge-outline">{t('secret.badge')}</span>}
                   {et.oneOff && <span className="badge badge-outline">{t('oneOff.badge')}</span>}
                   {et.oneOff && et.used && <span className="badge">{t('oneOff.booked')}</span>}
                 </span>

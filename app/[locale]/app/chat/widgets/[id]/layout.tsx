@@ -16,7 +16,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Cabecera y navegación de un widget: Widget (apariencia, formulario, bot,
- * horario), Reglas, Respuestas guardadas y SLA como secciones a la izquierda.
+ * horario), Reglas, Respuestas guardadas, SLA, Mensajes salientes y Email
+ * como secciones a la izquierda.
  */
 export default async function WidgetLayout(props: { children: ReactNode; params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await props.params;
@@ -54,6 +55,8 @@ export default async function WidgetLayout(props: { children: ReactNode; params:
             { key: 'rules', href: `${base}/rules`, label: t('widgetNav.rules') },
             { key: 'canned', href: `${base}/canned`, label: t('widgetNav.canned') },
             { key: 'sla', href: `${base}/sla`, label: t('widgetNav.sla') },
+            { key: 'outbound', href: `${base}/outbound`, label: t('widgetNav.outbound') },
+            { key: 'email', href: `${base}/email`, label: t('widgetNav.email') },
           ]}
         >
           {props.children}

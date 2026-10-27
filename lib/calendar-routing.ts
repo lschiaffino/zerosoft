@@ -349,8 +349,8 @@ export async function addRoutingRule(
   const position = payload.position ?? (await nextPosition('calendar_routing_rules', formId));
   await getDb()
     .prepare(
-      `INSERT INTO calendar_routing_rules (id, form_id, field_id, operator, value, event_type_id, position, action, target_url, message)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO calendar_routing_rules (id, form_id, field_id, operator, value, event_type_id, position, action, target_url, message, crm_match, route_to_owner)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -363,6 +363,8 @@ export async function addRoutingRule(
       action,
       action === 'url' ? (payload.targetUrl ?? '') : '',
       action === 'message' ? (payload.message ?? '') : '',
+      payload.crmMatch ?? '',
+      payload.routeToOwner ? 1 : 0,
     );
   return (await getDb()
     .prepare('SELECT * FROM calendar_routing_rules WHERE id = ?')
@@ -426,6 +428,14 @@ export async function updateRoutingRule(
   if (payload.position !== undefined) {
     sets.push('position = ?');
     values.push(payload.position);
+  }
+  if (payload.crmMatch !== undefined) {
+    sets.push('crm_match = ?');
+    values.push(payload.crmMatch);
+  }
+  if (payload.routeToOwner !== undefined) {
+    sets.push('route_to_owner = ?');
+    values.push(payload.routeToOwner ? 1 : 0);
   }
   if (sets.length === 0) return existing;
 
@@ -492,7 +502,7 @@ function ruleMatches(rule: CalendarRoutingRuleRow, field: CalendarRoutingFieldRo
 
 /** A dónde termina un envío: un evento (slug), una URL o un mensaje. */
 export type RoutingOutcome =
-  | { kind: 'event'; slug: string; ruleId: string | null }
+  | { kind: 'event'; slug: string; ruleId: string | null; hostId?: string | null }
   | { kind: 'url'; url: string; ruleId: string | null }
   | { kind: 'message'; message: string; ruleId: string | null };
 
@@ -516,22 +526,62 @@ async function outcomeFor(
  */
 export async function routeAnswers(form: RoutingFormWithChildren, answers: RoutingAnswers): Promise<RoutingOutcome | null> {
   const sorted = [...form.rules].sort((a, b) => a.position - b.position);
+  const contacts = new Map<string, CrmContactMatch | null>();
+  const contactFor = async (email: string) => {
+    if (!contacts.has(email)) contacts.set(email, await findCrmContact(form.user_id, email));
+    return contacts.get(email) ?? null;
+  };
   for (const rule of sorted) {
     const field = form.fields.find((f) => f.id === rule.field_id);
     if (!field) continue;
-    if (!ruleMatches(rule, field, answers)) continue;
+    let contact: CrmContactMatch | null = null;
+    if (rule.crm_match === 'contact' || rule.crm_match === 'no_contact') {
+      const email = normalizeAnswer(answers[field.name]);
+      contact = email.includes('@') ? await contactFor(email) : null;
+      if ((rule.crm_match === 'contact') !== !!contact) continue;
+    } else if (!ruleMatches(rule, field, answers)) {
+      continue;
+    }
     const out = await outcomeFor(
       rule.action ?? 'event',
       { eventTypeId: rule.event_type_id, url: rule.target_url, message: rule.message },
       rule.id,
     );
-    if (out) return out;
+    if (!out) continue;
+    // Reservar con el owner del contacto (si es anfitrión del evento; si no, el reparto de siempre).
+    if (out.kind === 'event' && rule.route_to_owner === 1 && contact?.ownerId && rule.event_type_id) {
+      if (await isHostOf(rule.event_type_id, contact.ownerId)) return { ...out, hostId: contact.ownerId };
+    }
+    return out;
   }
   return outcomeFor(
     form.fallback_action ?? 'event',
     { eventTypeId: form.default_event_type_id, url: form.fallback_url, message: form.fallback_message },
     null,
   );
+}
+
+export interface CrmContactMatch {
+  id: string;
+  ownerId: string | null;
+}
+
+/** Contacto del CRM del workspace con ese email (el más viejo si hay duplicados). */
+export async function findCrmContact(workspaceId: string, email: string): Promise<CrmContactMatch | null> {
+  const row = (await getDb()
+    .prepare('SELECT id, owner_id FROM crm_contacts WHERE user_id = ? AND lower(email) = ? ORDER BY created_at LIMIT 1')
+    .get(workspaceId, email.trim().toLowerCase())) as { id: string; owner_id: string | null } | undefined;
+  return row ? { id: row.id, ownerId: row.owner_id } : null;
+}
+
+/** La persona atiende ese tipo de evento (está en su pool, o es su dueño sin pool). */
+async function isHostOf(eventTypeId: string, userId: string): Promise<boolean> {
+  const pool = (await getDb().prepare('SELECT user_id FROM calendar_event_hosts WHERE event_type_id = ?').all(eventTypeId)) as Array<{
+    user_id: string;
+  }>;
+  if (pool.length > 0) return pool.some((h) => h.user_id === userId);
+  const et = await getEventTypeById(eventTypeId);
+  return et?.user_id === userId;
 }
 
 /** Compat: slug del evento de destino (null si el destino no es un evento). */
@@ -592,20 +642,21 @@ function storedAnswers(form: RoutingFormWithChildren, answers: RoutingAnswers): 
 /** Cuántos envíos se guardan por form (los más viejos se borran). */
 export const MAX_SUBMISSIONS_PER_FORM = 5000;
 
-/** Registra un envío del form público y a dónde terminó. */
+/** Registra un envío del form público y a dónde terminó. Devuelve su id (viaja al link de reserva como rsid). */
 export async function logRoutingSubmission(
   form: RoutingFormWithChildren,
   answers: RoutingAnswers,
   outcome: RoutingOutcome | null,
-): Promise<void> {
+): Promise<string> {
   const target = !outcome ? '' : outcome.kind === 'event' ? outcome.slug : outcome.kind === 'url' ? outcome.url : '';
+  const id = crypto.randomUUID();
   await getDb()
     .prepare(
       `INSERT INTO calendar_routing_submissions (id, form_id, answers, outcome, target, rule_id, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
-      crypto.randomUUID(),
+      id,
       form.id,
       JSON.stringify(storedAnswers(form, answers)),
       outcome?.kind ?? 'none',
@@ -619,6 +670,94 @@ export async function logRoutingSubmission(
          SELECT id FROM calendar_routing_submissions WHERE form_id = ? ORDER BY created_at DESC LIMIT ?)`,
     )
     .run(form.id, form.id, MAX_SUBMISSIONS_PER_FORM);
+  return id;
+}
+
+// ---------- Embudo (analytics del form) ----------
+
+export interface RoutingFunnel {
+  submissions: number;
+  /** Terminaron en un tipo de evento. */
+  routedToEvent: number;
+  /** De esos, cuántos reservaron (con el link que trae rsid). */
+  booked: number;
+  /** Reservas que siguen en pie (confirmadas o ya pasadas, sin cancelar ni no-show). */
+  confirmed: number;
+  /** Terminaron en una URL externa o en un mensaje. */
+  routedElsewhere: number;
+  /** Sin destino (ninguna regla ni respaldo). */
+  unrouted: number;
+  /** Reservas / envíos que fueron a un evento (null sin envíos a eventos). */
+  bookingRate: number | null;
+  /** Por destino: regla (o respaldo) y su conversión a reserva. */
+  byRoute: Array<{ ruleId: string | null; outcome: string; target: string; submissions: number; booked: number }>;
+}
+
+/** Cuenta el embudo de envíos → evento → reserva. Puro. */
+export function computeRoutingFunnel(
+  rows: Array<{ outcome: string; target: string; rule_id: string | null; booking_status: string | null }>,
+): RoutingFunnel {
+  const byRoute = new Map<string, RoutingFunnel['byRoute'][number]>();
+  let routedToEvent = 0;
+  let booked = 0;
+  let confirmed = 0;
+  let routedElsewhere = 0;
+  let unrouted = 0;
+  for (const r of rows) {
+    const key = `${r.rule_id ?? ''}|${r.outcome}|${r.target}`;
+    const route = byRoute.get(key) ?? { ruleId: r.rule_id, outcome: r.outcome, target: r.target, submissions: 0, booked: 0 };
+    route.submissions++;
+    if (r.outcome === 'event') {
+      routedToEvent++;
+      if (r.booking_status) {
+        booked++;
+        route.booked++;
+        if (r.booking_status === 'confirmed') confirmed++;
+      }
+    } else if (r.outcome === 'url' || r.outcome === 'message') {
+      routedElsewhere++;
+    } else {
+      unrouted++;
+    }
+    byRoute.set(key, route);
+  }
+  return {
+    submissions: rows.length,
+    routedToEvent,
+    booked,
+    confirmed,
+    routedElsewhere,
+    unrouted,
+    bookingRate: routedToEvent ? booked / routedToEvent : null,
+    byRoute: [...byRoute.values()].sort((a, b) => b.submissions - a.submissions),
+  };
+}
+
+/** Embudo de un form del workspace (envíos guardados, hasta MAX_SUBMISSIONS_PER_FORM). */
+export async function loadRoutingFunnel(userId: string, formId: string): Promise<RoutingFunnel | undefined> {
+  const form = await getRoutingForm(userId, formId);
+  if (!form) return undefined;
+  // Una reserva por envío: la primera que lo trajo (los holds de pago vencidos no cuentan).
+  const rows = (await getDb()
+    .prepare(
+      `SELECT s.outcome, s.target, s.rule_id,
+         (SELECT b.status FROM calendar_bookings b
+          WHERE b.routing_submission_id = s.id AND NOT (b.status = 'cancelled' AND b.payment_status = 'expired')
+          ORDER BY b.created_at LIMIT 1) AS booking_status
+       FROM calendar_routing_submissions s WHERE s.form_id = ?`,
+    )
+    .all(formId)) as Array<{ outcome: string; target: string; rule_id: string | null; booking_status: string | null }>;
+  return computeRoutingFunnel(rows);
+}
+
+/** El envío es de un form del workspace (para atar una reserva a su envío). */
+export async function submissionBelongsTo(userId: string, submissionId: string): Promise<boolean> {
+  return !!(await getDb()
+    .prepare(
+      `SELECT 1 AS one FROM calendar_routing_submissions s JOIN calendar_routing_forms f ON f.id = s.form_id
+       WHERE s.id = ? AND f.user_id = ?`,
+    )
+    .get(submissionId, userId));
 }
 
 export interface RoutingSubmission extends CalendarRoutingSubmissionRow {

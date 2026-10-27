@@ -18,6 +18,9 @@ export interface AnalyticsBookingRow {
   payment_status: string | null;
   event_type_id: string;
   event_type_title: string;
+  /** Anfitrión asignado (para el reparto por persona). */
+  host_user_id?: string | null;
+  host_name?: string | null;
 }
 
 export interface BookingAnalytics {
@@ -39,6 +42,8 @@ export interface BookingAnalytics {
   topSlots: Array<{ dow: number; hour: number; count: number }>;
   /** Por tipo de evento, de más a menos reservas. */
   byEventType: Array<{ id: string; title: string; created: number; cancelled: number; noShow: number }>;
+  /** Por anfitrión, de más a menos reservas. */
+  byHost: Array<{ id: string; name: string; created: number; cancelled: number; noShow: number }>;
 }
 
 /** 'YYYY-MM-DD HH:MM:SS' (UTC, como guarda created_at) o ISO → Date. */
@@ -84,6 +89,7 @@ export function computeBookingAnalytics(
   const perDay = new Map(days.map((d) => [d, 0]));
   const heatmap = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
   const byType = new Map<string, { id: string; title: string; created: number; cancelled: number; noShow: number }>();
+  const byHost = new Map<string, { id: string; name: string; created: number; cancelled: number; noShow: number }>();
   let cancelled = 0;
   let noShow = 0;
   let pending = 0;
@@ -92,17 +98,23 @@ export function computeBookingAnalytics(
     const day = partsInTz(parseDbDate(r.created_at), opts.timezone).date;
     if (perDay.has(day)) perDay.set(day, (perDay.get(day) ?? 0) + 1);
     const type = byType.get(r.event_type_id) ?? { id: r.event_type_id, title: r.event_type_title, created: 0, cancelled: 0, noShow: 0 };
+    const hostKey = r.host_user_id ?? '';
+    const host = byHost.get(hostKey) ?? { id: hostKey, name: r.host_name || '', created: 0, cancelled: 0, noShow: 0 };
     type.created++;
+    host.created++;
     if (r.status === 'cancelled') {
       cancelled++;
       type.cancelled++;
+      host.cancelled++;
     } else if (r.status === 'no_show') {
       noShow++;
       type.noShow++;
+      host.noShow++;
     } else if (r.status === 'pending') {
       pending++;
     }
     byType.set(r.event_type_id, type);
+    byHost.set(hostKey, host);
     if (r.status === 'confirmed' || r.status === 'no_show') {
       const start = partsInTz(parseDbDate(r.starts_at), opts.timezone);
       heatmap[start.dow][start.hour]++;
@@ -130,6 +142,7 @@ export function computeBookingAnalytics(
     heatmap,
     topSlots: topSlots.slice(0, 5),
     byEventType: [...byType.values()].sort((a, b) => b.created - a.created || a.title.localeCompare(b.title)),
+    byHost: [...byHost.values()].sort((a, b) => b.created - a.created || a.name.localeCompare(b.name)),
   };
 }
 
@@ -138,16 +151,50 @@ function dbStamp(d: Date): string {
   return d.toISOString().slice(0, 19).replace('T', ' ');
 }
 
-/** Reservas de los event types del workspace creadas en [from, to]. */
-export async function loadAnalyticsRows(userId: string, from: Date, to: Date): Promise<AnalyticsBookingRow[]> {
+/**
+ * Reservas de los event types del workspace creadas en [from, to]. Con
+ * `hostId`, solo las de esa persona (anfitriona o co-anfitriona) y con
+ * `eventTypeId`, solo las de ese tipo de evento.
+ */
+export async function loadAnalyticsRows(
+  userId: string,
+  from: Date,
+  to: Date,
+  opts: { hostId?: string | null; eventTypeId?: string | null } = {},
+): Promise<AnalyticsBookingRow[]> {
+  const where = ['e.user_id = ?', 'b.created_at >= ?', 'b.created_at <= ?'];
+  const args: string[] = [userId, dbStamp(from), dbStamp(to)];
+  if (opts.hostId) {
+    where.push("(b.host_user_id = ? OR (b.co_host_ids != '[]' AND EXISTS (SELECT 1 FROM json_each(b.co_host_ids) j WHERE j.value = ?)))");
+    args.push(opts.hostId, opts.hostId);
+  }
+  if (opts.eventTypeId) {
+    where.push('b.event_type_id = ?');
+    args.push(opts.eventTypeId);
+  }
   return (await getDb()
     .prepare(
-      `SELECT b.created_at, b.starts_at, b.status, b.payment_status, b.event_type_id, e.title AS event_type_title
+      `SELECT b.created_at, b.starts_at, b.status, b.payment_status, b.event_type_id, e.title AS event_type_title,
+              b.host_user_id, COALESCE(NULLIF(h.name, ''), h.email) AS host_name
        FROM calendar_bookings b JOIN calendar_event_types e ON e.id = b.event_type_id
-       WHERE e.user_id = ? AND b.created_at >= ? AND b.created_at <= ?
+       LEFT JOIN users h ON h.id = b.host_user_id
+       WHERE ${where.join(' AND ')}
        LIMIT 20000`,
     )
-    .all(userId, dbStamp(from), dbStamp(to))) as AnalyticsBookingRow[];
+    .all(...args)) as AnalyticsBookingRow[];
+}
+
+/** Personas que atendieron reservas del workspace (para el filtro "por persona"). */
+export async function analyticsHosts(userId: string): Promise<Array<{ id: string; name: string }>> {
+  return (await getDb()
+    .prepare(
+      `SELECT DISTINCT b.host_user_id AS id, COALESCE(NULLIF(h.name, ''), h.email) AS name
+       FROM calendar_bookings b JOIN calendar_event_types e ON e.id = b.event_type_id
+       JOIN users h ON h.id = b.host_user_id
+       WHERE e.user_id = ? AND b.host_user_id IS NOT NULL
+       ORDER BY name LIMIT 200`,
+    )
+    .all(userId)) as Array<{ id: string; name: string }>;
 }
 
 /** Rango del reporte: días YYYY-MM-DD válidos, `to` hoy por defecto y 30 días hacia atrás. */

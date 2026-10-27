@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
-import { bookingDateBounds, getCalendarUser, localDate } from '@/lib/calendar';
-import { computeBookingAnalytics, loadAnalyticsRows, parseAnalyticsRange } from '@/lib/calendar-analytics';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
+import { bookingDateBounds, getCalendarUser, listEventTypes, localDate } from '@/lib/calendar';
+import { analyticsHosts, computeBookingAnalytics, loadAnalyticsRows, parseAnalyticsRange } from '@/lib/calendar-analytics';
 import { chartDateLabel, spansYears } from '@/lib/chart-dates';
 import { formatNumber } from '@/lib/utils';
 import PageHeader from '@/components/ui/PageHeader';
@@ -31,7 +31,7 @@ function dayLabel(dow: number, locale: string, style: 'short' | 'long' = 'short'
 
 export default async function CalendarAnalyticsPage(props: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; host?: string; et?: string }>;
 }) {
   const { locale } = await props.params;
   const sp = await props.searchParams;
@@ -44,8 +44,17 @@ export default async function CalendarAnalyticsPage(props: {
   const today = localDate(new Date(), timezone);
   const range = parseAnalyticsRange(sp.from, sp.to, today);
   const bounds = await bookingDateBounds(user.id, range.fromDate, range.toDate);
+  const [allHosts, eventTypes] = await Promise.all([analyticsHosts(user.id), listEventTypes(user.id, { includePolls: true })]);
+  // Un member ve solo lo suyo (como en Calendly); un admin, a cualquiera del equipo.
+  const admin = isWorkspaceAdmin(user);
+  const me = realUserId(user);
+  const hosts = admin ? allHosts : [];
+  // Filtros por persona y por tipo de evento: solo valores del workspace.
+  const hostId = admin ? (hosts.some((h) => h.id === sp.host) ? (sp.host as string) : '') : me;
+  const eventTypeId = eventTypes.some((e) => e.id === sp.et) ? (sp.et as string) : '';
   const rows =
-    bounds.from && bounds.to ? await loadAnalyticsRows(user.id, bounds.from, bounds.to) : [];
+    bounds.from && bounds.to ? await loadAnalyticsRows(user.id, bounds.from, bounds.to, { hostId, eventTypeId }) : [];
+  const filterQs = `${admin && hostId ? `&host=${encodeURIComponent(hostId)}` : ''}${eventTypeId ? `&et=${encodeURIComponent(eventTypeId)}` : ''}`;
   const a = computeBookingAnalytics(rows, { ...range, timezone });
 
   const presetFrom = (days: number) =>
@@ -85,6 +94,11 @@ export default async function CalendarAnalyticsPage(props: {
       <PageHeader
         title={t('analytics.title')}
         description={t('analytics.lead', { timezone: formatTimezone(timezone, locale) })}
+        actions={
+          <a className="btn btn-sm" href={`/api/calendar/analytics/export?from=${range.fromDate}&to=${range.toDate}${filterQs}`} download>
+            {t('export.csv')}
+          </a>
+        }
       />
 
       <form className="cal-an-range" method="get" aria-label={t('analytics.range')}>
@@ -92,7 +106,7 @@ export default async function CalendarAnalyticsPage(props: {
           {PRESETS.map((d) => {
             const active = range.toDate === today && range.fromDate === presetFrom(d);
             return (
-              <a key={d} href={`?from=${presetFrom(d)}&to=${today}`} className="btn btn-sm" aria-current={active ? 'true' : undefined}>
+              <a key={d} href={`?from=${presetFrom(d)}&to=${today}${filterQs}`} className="btn btn-sm" aria-current={active ? 'true' : undefined}>
                 {t('analytics.lastDays', { days: d })}
               </a>
             );
@@ -110,6 +124,34 @@ export default async function CalendarAnalyticsPage(props: {
               {t('analytics.to')}
             </label>
             <input id="cal-an-to" type="date" name="to" defaultValue={range.toDate} max={today} className="input data" />
+          </div>
+          {hosts.length > 0 && (
+            <div className="ui-field">
+              <label className="label" htmlFor="cal-an-host">
+                {t('analytics.host')}
+              </label>
+              <select id="cal-an-host" name="host" defaultValue={hostId} className="select">
+                <option value="">{t('analytics.allHosts')}</option>
+                {hosts.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="ui-field">
+            <label className="label" htmlFor="cal-an-et">
+              {t('analytics.eventType')}
+            </label>
+            <select id="cal-an-et" name="et" defaultValue={eventTypeId} className="select">
+              <option value="">{t('analytics.allEventTypes')}</option>
+              {eventTypes.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.kind === 'poll' ? t('analytics.pollPrefix', { title: e.title }) : e.title}
+                </option>
+              ))}
+            </select>
           </div>
           <button type="submit" className="btn btn-secondary">
             {t('analytics.apply')}
@@ -246,6 +288,58 @@ export default async function CalendarAnalyticsPage(props: {
             </div>
             <p className="ui-help">{t('analytics.note')}</p>
           </section>
+
+          {admin && a.byHost.length > 0 && (
+            <section className="cal-block" aria-labelledby="cal-an-hosts">
+              <div className="cal-block-head">
+                <h2 id="cal-an-hosts" className="cal-block-title">
+                  {t('analytics.byHost')}
+                </h2>
+              </div>
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th scope="col">{t('analytics.host')}</th>
+                      <th scope="col" className="num">
+                        {t('analytics.created')}
+                      </th>
+                      <th scope="col" className="num">
+                        {t('analytics.cancelled')}
+                      </th>
+                      <th scope="col" className="num">
+                        {t('analytics.noShow')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {a.byHost.map((h) => (
+                      <tr key={h.id || 'none'}>
+                        <td>
+                          {h.id ? (
+                            <a href={`?from=${range.fromDate}&to=${range.toDate}&host=${encodeURIComponent(h.id)}${eventTypeId ? `&et=${eventTypeId}` : ''}`}>
+                              {h.name || t('analytics.unknownHost')}
+                            </a>
+                          ) : (
+                            t('analytics.unknownHost')
+                          )}
+                        </td>
+                        <td className="num data" data-label={t('analytics.created')}>
+                          {formatNumber(h.created, locale)}
+                        </td>
+                        <td className="num data" data-label={t('analytics.cancelled')}>
+                          {formatNumber(h.cancelled, locale)}
+                        </td>
+                        <td className="num data" data-label={t('analytics.noShow')}>
+                          {formatNumber(h.noShow, locale)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
         </>
       )}
     </div>

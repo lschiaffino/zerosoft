@@ -5,7 +5,7 @@ import ClientMessages from '@/components/i18n/ClientMessages';
 export default async function BookingLayout(props: { children: ReactNode; params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   return (
-    <ClientMessages locale={locale} namespaces={['calendar.booking', 'calendar.editor', 'calendar.errors', 'calendar.location', 'calendar.manage']}>
+    <ClientMessages locale={locale} namespaces={['calendar.booking', 'calendar.editor', 'calendar.errors', 'calendar.location', 'calendar.manage', 'calendar.polls', 'calendar.common', 'calendar.oneOff']}>
       {props.children}
     </ClientMessages>
   );

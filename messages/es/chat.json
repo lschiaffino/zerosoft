@@ -5,7 +5,9 @@
     "people": "Personas",
     "settings": "Widgets",
     "reports": "Reportes",
-    "widgets": "Widgets"
+    "widgets": "Widgets",
+    "teams": "Equipos",
+    "views": "Vistas"
   },
   "overview": {
     "title": "Chat",
@@ -94,7 +96,8 @@
     "addAttribute": "Agregar atributo",
     "fieldTypeSelect": "Lista",
     "fieldTypeBoolean": "Sí / no",
-    "attributeNeedsOptions": "Cada atributo de lista necesita al menos una opción."
+    "attributeNeedsOptions": "Cada atributo de lista necesita al menos una opción.",
+    "nameAdminOnly": "Solo los admins del workspace renombran un widget: su nombre es el remitente de los emails de Chat."
   },
   "embed": {
     "title": "Código de instalación",
@@ -190,7 +193,8 @@
     "replyPlaceholder": "Escribí tu respuesta…",
     "hintSend": "envía",
     "hintCanned": "respuestas guardadas",
-    "nobody": "Nadie"
+    "nobody": "Nadie",
+    "resolveShortcut": "Resolver (Ctrl o Cmd + Shift + Y)"
   },
   "visitorPanel": {
     "title": "Visitante",
@@ -374,7 +378,13 @@
     "upload": "Adjuntar archivo",
     "remove": "Quitar archivo",
     "dragDrop": "Arrastra y suelta un archivo aquí",
-    "maxSize": "Máx. 10 MB"
+    "maxSize": "Máx. 10 MB",
+    "skipped": "{count, plural, one {# adjunto no se guardó} other {# adjuntos no se guardaron}}: {reason}.",
+    "skipReason": {
+      "type": "tipo no permitido",
+      "size": "muy grande (máx. 10 MB, 5 por email)",
+      "download": "no se pudo descargar"
+    }
   },
   "typing": {
     "visitorTyping": "El visitante está escribiendo…",
@@ -419,7 +429,9 @@
     "settings": "Widget",
     "rules": "Reglas",
     "canned": "Respuestas guardadas",
-    "sla": "SLA"
+    "sla": "SLA",
+    "outbound": "Salientes",
+    "email": "Email"
   },
   "reports": {
     "title": "Reportes",
@@ -441,7 +453,33 @@
     "csatLabel": "CSAT ({count, plural, one {# respuesta} other {# respuestas}})",
     "range": "Rango del reporte",
     "presets": "Rangos rápidos",
-    "emptyBody": "Probá con un rango más largo."
+    "emptyBody": "Probá con un rango más largo.",
+    "breakdownEmpty": "No hay nada en este rango.",
+    "exportConversations": "Exportar conversaciones",
+    "exportJson": "JSON con mensajes",
+    "botTitle": "Bot",
+    "botConversations": "Respondidas por el bot",
+    "botResolved": "Resueltas sin el equipo",
+    "botRate": "Tasa de resolución del bot",
+    "botHandedOff": "Derivadas a una persona",
+    "botNote": "Una conversación cuenta como resuelta por el bot cuando se resolvió y nadie del equipo respondió.",
+    "slaTitle": "Cumplimiento de SLA",
+    "slaFirst": "Primera respuesta a tiempo",
+    "slaFirstBreached": "Primera respuesta tarde",
+    "slaResolution": "Resueltas a tiempo",
+    "slaResolutionBreached": "Resueltas tarde",
+    "slaNote": "Contra el SLA de cada widget para la prioridad (60 minutos para la primera respuesta si no hay uno). Las abiertas que pasaron el objetivo cuentan como tarde.",
+    "byTag": "Por tag",
+    "byWidget": "Por widget",
+    "byTeam": "Por equipo",
+    "byChannel": "Por canal",
+    "hoursTitle": "Horas pico",
+    "hoursCaption": "Conversaciones nuevas por día y hora ({zone})",
+    "day": "Día",
+    "hourCell": "{day} {hour}:00: {count}",
+    "hoursNote": "Conversaciones nuevas por día y hora, en {zone}.",
+    "colTag": "Tag",
+    "colWidget": "Widget"
   },
   "tags": {
     "title": "Tags",
@@ -527,7 +565,19 @@
     "fileType": "Este tipo de archivo no está permitido",
     "fileFailed": "No pudimos enviar el archivo. Probá de nuevo.",
     "suggestions": "Estos artículos te pueden ayudar:",
-    "edited": "Editado"
+    "edited": "Editado",
+    "history": "Conversaciones",
+    "backToChat": "Volver al chat",
+    "loading": "Cargando…",
+    "historyFailed": "No se pudieron cargar tus conversaciones.",
+    "historyEmpty": "Todavía no hay conversaciones anteriores.",
+    "you": "Vos",
+    "team": "Equipo",
+    "closed": "cerrada",
+    "pastConversation": "Conversación anterior",
+    "allConversations": "Todas las conversaciones",
+    "writeToContinue": "Para seguir, escribí en el chat.",
+    "reply": "Responder"
   },
   "bulk": {
     "label": "Acciones en lote",
@@ -562,7 +612,7 @@
     "setting": "Mandar por email las respuestas que el visitante no vio",
     "off": "Nunca",
     "after": "A los {minutes} minutos sin leer",
-    "hint": "Si el visitante dejó su email y no lee a tiempo una respuesta del equipo, se la mandamos con un link para volver al chat. Responder ese email no llega a la bandeja.",
+    "hint": "Si el visitante dejó su email y no lee a tiempo la respuesta de alguien del equipo, se la mandamos con un link de vuelta al chat. Con el canal email configurado (pestaña Email), responder ese email llega a la bandeja.",
     "subject": "Nueva respuesta de {widget}",
     "subjectAgent": "{agent} respondió tu chat con {widget}",
     "heading": "Tenés una respuesta nueva",
@@ -573,7 +623,9 @@
     "cta": "Seguir en el chat",
     "noLink": "Para responder, abrí el chat en el sitio donde nos escribiste.",
     "noReply": "Las respuestas a este email no le llegan al equipo; contestá en el chat.",
-    "why": "Te llega este email porque dejaste tu dirección en el chat y todavía no viste esta respuesta."
+    "why": "Te llega este email porque dejaste tu dirección en el chat y todavía no viste esta respuesta.",
+    "canReply": "Podés responder este email: tu respuesta le llega al equipo.",
+    "introEmail": "{agent} respondió tu email a {widget}:"
   },
   "attributes": {
     "title": "Atributos",
@@ -623,5 +675,203 @@
     "done": "{count, plural, one {Se sumó # mensaje a esta conversación.} other {Se sumaron # mensajes a esta conversación.}}",
     "failed": "No se pudieron unir las conversaciones. Probá de nuevo.",
     "systemNote": "{count, plural, one {Se sumó # mensaje de una conversación que empezó el {when}.} other {Se sumaron # mensajes de una conversación que empezó el {when}.}}"
+  },
+  "channels": {
+    "label": "Canal",
+    "all": "Canal",
+    "web": "Chat",
+    "email": "Email"
+  },
+  "teams": {
+    "invalid": "Ese equipo no es de este workspace.",
+    "roundRobinIn": "Round robin en {team}",
+    "inboxOf": "Bandeja de {team}",
+    "assignTeam": "Equipo",
+    "noTeam": "Sin equipo",
+    "spread": "Repartir entre los miembros del equipo",
+    "filter": "Equipo",
+    "all": "Equipo",
+    "label": "Equipo",
+    "title": "Equipos",
+    "sub": "Cada equipo tiene su bandeja en el sidebar. Las reglas pueden mandar conversaciones a un equipo y repartirlas entre sus miembros.",
+    "add": "Nuevo equipo",
+    "adminOnly": "Solo los admins del workspace crean y editan equipos.",
+    "empty": "Todavía no hay equipos",
+    "emptySub": "Creá equipos como Soporte o Ventas para separar la bandeja y mandar cada conversación a quien corresponde.",
+    "name": "Nombre",
+    "members": "Miembros",
+    "open": "Abiertas",
+    "noMembers": "Sin miembros",
+    "editNamed": "Editar {name}",
+    "deleteNamed": "Borrar {name}",
+    "newTitle": "Nuevo equipo",
+    "editTitle": "Editar equipo",
+    "create": "Crear equipo",
+    "namePlaceholder": "Soporte",
+    "deleteTitle": "Borrar equipo",
+    "deleteBody": "¿Borrar {name}? Sus conversaciones quedan en la bandeja sin equipo y las reglas que le mandaban trabajo dejan de asignar equipo.",
+    "pageTitle": "Equipos",
+    "pageSub": "Bandejas por equipo y ruteo de Chat."
+  },
+  "views": {
+    "following": "Siguiendo",
+    "missing": "Esta vista ya no existe o no está compartida con vos.",
+    "anyPriority": "Prioridad",
+    "update": "Actualizar vista",
+    "saveAs": "Guardar como vista",
+    "name": "Nombre de la vista",
+    "namePlaceholder": "Urgentes sin asignar",
+    "share": "Compartir con el workspace",
+    "save": "Guardar vista",
+    "followingEmpty": "No seguís ninguna conversación que coincida. Usá Seguir en una conversación para recibir sus mensajes nuevos.",
+    "sidebar": "Vistas de la bandeja",
+    "title": "Vistas guardadas",
+    "sub": "Filtros con nombre, debajo de Bandeja en el sidebar. Las compartidas las ve todo el workspace.",
+    "create": "Crear desde la bandeja",
+    "empty": "No hay vistas guardadas",
+    "emptySub": "Poné en la bandeja los filtros que usás todos los días y elegí Guardar como vista.",
+    "filters": "Filtros",
+    "sharing": "Acceso",
+    "noFilters": "Todas las conversaciones",
+    "shareNamed": "Compartir {name}",
+    "shared": "Compartida",
+    "private": "Solo vos",
+    "sharedWithYou": "Compartida con vos",
+    "renameNamed": "Renombrar {name}",
+    "rename": "Renombrar",
+    "deleteNamed": "Borrar {name}",
+    "deleteTitle": "Borrar vista",
+    "deleteBody": "¿Borrar la vista {name}? Las conversaciones quedan como están.",
+    "pageTitle": "Vistas",
+    "pageSub": "Filtros guardados de la bandeja."
+  },
+  "alerts": {
+    "title": "Avisos",
+    "sound": "Sonido cuando escribe un visitante",
+    "soundHint": "Suena en este navegador con la bandeja abierta.",
+    "push": "Notificaciones push",
+    "unsupported": "Este navegador no admite notificaciones push.",
+    "pushDisabled": "El push no está configurado en este servidor.",
+    "pushOff": "Apagar en este dispositivo",
+    "pushEnable": "Activar en este dispositivo",
+    "pushHint": "Te llega un aviso de las conversaciones asignadas a vos, las que seguís y las nuevas de tus widgets, también con la bandeja cerrada. En el celular, primero agregá la app a la pantalla de inicio.",
+    "denied": "El navegador bloqueó las notificaciones. Permitilas en los ajustes del sitio.",
+    "pushOn": "El push quedó activado en este dispositivo.",
+    "pushFailed": "No se pudo activar el push. Probá de nuevo."
+  },
+  "follow": {
+    "hint": "Recibir los mensajes nuevos sin estar asignado",
+    "following": "Siguiendo",
+    "follow": "Seguir"
+  },
+  "collision": {
+    "replying": "{names} está respondiendo",
+    "viewing": "{names} también la está mirando"
+  },
+  "variables": {
+    "missing": "Sin dato para {names}: revisá la respuesta antes de enviarla.",
+    "unknown": "Variable desconocida {names}: sale tal cual. Usá name, first_name, email, agent_name, agent_first_name, widget o el id de un atributo."
+  },
+  "copilot": {
+    "label": "AI",
+    "working": "Escribiendo…",
+    "writeFirst": "Escribí algo primero.",
+    "disabled": "La AI está apagada en este workspace.",
+    "quota": "Se usó la cuota de AI de este mes.",
+    "rateLimited": "Demasiados pedidos a la AI. Esperá un minuto.",
+    "noMessages": "Todavía no hay mensajes para trabajar.",
+    "failed": "La AI no pudo responder. Probá de nuevo.",
+    "draft": "Redactar respuesta",
+    "summarize": "Resumir como nota",
+    "rephrase": "Reformular",
+    "friendlier": "Más amable",
+    "shorter": "Más corto",
+    "translate": "Traducir al idioma del visitante",
+    "usedSources": "Redactado con: {sources}.",
+    "replaced": "Se reescribió la respuesta.",
+    "undo": "Deshacer",
+    "summaryTitle": "Resumen",
+    "discard": "Descartar",
+    "addNote": "Agregar como nota interna"
+  },
+  "outbound": {
+    "title": "Mensajes salientes",
+    "sub": "Un mensaje o una encuesta de 1 a 5 que aparece en tu sitio según la página, el tiempo en la página y la audiencia. Cada visitante lo ve una vez.",
+    "add": "Nuevo mensaje",
+    "empty": "No hay mensajes salientes",
+    "emptySub": "Saludá a quien entra a precios o preguntá cómo le fue en la visita.",
+    "name": "Nombre",
+    "kind": "Tipo",
+    "kinds": {
+      "chat": "Mensaje de chat",
+      "survey": "Encuesta"
+    },
+    "where": "Página",
+    "anyPage": "Cualquier página",
+    "match": {
+      "contains": "La URL contiene",
+      "equals": "La URL es"
+    },
+    "url": "URL",
+    "shown": "Vistas",
+    "results": "Resultado",
+    "afterSeconds": "a los {s} s",
+    "audience": "Audiencia",
+    "audiences": {
+      "all": "Todos",
+      "new": "Primera visita",
+      "returning": "Visitantes que vuelven",
+      "identified": "Visitantes identificados"
+    },
+    "surveyResult": "{avg} / 5 ({n})",
+    "replies": "{n, plural, one {# respuesta} other {# respuestas}}",
+    "toggle": "Activo: {name}",
+    "deleteNamed": "Borrar {name}",
+    "newTitle": "Nuevo mensaje saliente",
+    "editTitle": "Editar mensaje saliente",
+    "create": "Crear",
+    "namePlaceholder": "Saludo en precios",
+    "message": "Mensaje",
+    "question": "Pregunta",
+    "messagePlaceholder": "¿Dudas con los planes? Estamos acá.",
+    "questionPlaceholder": "¿Qué tan fácil fue encontrar lo que buscabas?",
+    "chatHint": "Si el visitante responde, la conversación arranca con este mensaje y la ves en la bandeja.",
+    "surveyHint": "Respuestas de 1 a 5 con un comentario opcional. El promedio aparece en esta lista.",
+    "delay": "Segundos en la página",
+    "live": "Activo",
+    "needsBody": "Escribí el mensaje antes de activarlo.",
+    "deleteTitle": "Borrar mensaje",
+    "deleteBody": "¿Borrar {name}? También se borran sus conteos y las respuestas de la encuesta.",
+    "adminOnly": "Solo los admins del workspace crean y editan mensajes salientes."
+  },
+  "emailChannel": {
+    "title": "Email",
+    "sub": "Traé los emails de soporte a la bandeja y respondelos desde acá.",
+    "address": "Dirección de la bandeja",
+    "forward": "Reenviá tu dirección de soporte (por ejemplo soporte@tuempresa.com) a esta. Cada email abre o sigue una conversación del canal Email.",
+    "pointNew": "Las respuestas desde la bandeja salen por email en el próximo minuto, con el nombre del widget como remitente y esta conversación como respuesta, en el mismo hilo de email.",
+    "pointReply": "Cuando un visitante responde un email que le mandamos, la respuesta entra en la misma conversación.",
+    "pointOffline": "Se saca el texto citado y la firma, se guardan los adjuntos y se ignoran respuestas automáticas y rebotes. El bot no responde emails.",
+    "off": "El canal email no está configurado en este servidor.",
+    "offHint": "El admin configura CHAT_INBOUND_DOMAIN, apunta su MX a Resend Inbound y agrega el webhook email.received a /api/chat/inbound-email con RESEND_WEBHOOK_SECRET.",
+    "copy": "Copiar dirección",
+    "copied": "Dirección copiada"
+  },
+  "track": {
+    "title": "Track",
+    "none": "Sin issues vinculados.",
+    "create": "Crear issue",
+    "link": "Vincular issue",
+    "project": "Team",
+    "issueTitle": "Título",
+    "identifier": "ID del issue",
+    "createSubmit": "Crear",
+    "linkSubmit": "Vincular",
+    "unlink": "Desvincular {id}",
+    "alreadyLinked": "Esta conversación ya está vinculada a ese issue.",
+    "notFound": "No hay un issue con ese ID en tu workspace.",
+    "invalidId": "Escribí un ID como WEB-12.",
+    "noProject": "Elegí un team al que tengas acceso.",
+    "noProjects": "Todavía no tenés teams en Track."
   }
 }

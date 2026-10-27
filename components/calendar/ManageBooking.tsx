@@ -26,13 +26,27 @@ interface Props {
     email: string;
     /** Ubicación ya resuelta de la reserva (link, dirección o teléfono); '' = la del evento. */
     location?: string;
+    /** El invitado ya confirmó que va (link de reconfirmación). */
+    reconfirmed?: boolean;
   };
   /** Vuelve de Stripe Checkout con el pago hecho. */
   paidNotice?: boolean;
+  /** Llegó desde el link de reconfirmación de un workflow (?reconfirm=1). */
+  reconfirmAsked?: boolean;
 }
 
 /** Página del invitado para ver, cancelar o reprogramar su reserva (sin cuenta). */
-export default function ManageBooking({ token, locale, eventType, weekStart, brand, maxFutureDays, booking, paidNotice = false }: Props) {
+export default function ManageBooking({
+  token,
+  locale,
+  eventType,
+  weekStart,
+  brand,
+  maxFutureDays,
+  booking,
+  paidNotice = false,
+  reconfirmAsked = false,
+}: Props) {
   const t = useTranslations('calendar');
   const [mode, setMode] = useState<'view' | 'cancel' | 'reschedule' | 'cancelled'>(
     booking.status === 'cancelled' ? 'cancelled' : 'view',
@@ -40,6 +54,7 @@ export default function ManageBooking({ token, locale, eventType, weekStart, bra
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reconfirmed, setReconfirmed] = useState(!!booking.reconfirmed);
   const past = parseDbUtc(booking.startsAt).getTime() < Date.now();
 
   if (mode === 'reschedule') {
@@ -70,6 +85,19 @@ export default function ManageBooking({ token, locale, eventType, weekStart, bra
       return;
     }
     setError(t('errors.generic'));
+  }
+
+  async function reconfirm() {
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/calendar/bookings/manage/${encodeURIComponent(token)}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'reconfirm' }),
+    }).catch(() => null);
+    setBusy(false);
+    if (res?.ok) setReconfirmed(true);
+    else setError(t('errors.generic'));
   }
 
   const tz = booking.timezone;
@@ -161,14 +189,35 @@ export default function ManageBooking({ token, locale, eventType, weekStart, bra
                 </div>
               </>
             ) : (
-              <div className="bk-actions">
-                <button type="button" className="btn btn-ghost" onClick={() => setMode('cancel')}>
-                  {t('manage.cancel')}
-                </button>
-                <button type="button" className="btn bk-cta" onClick={() => setMode('reschedule')}>
-                  {t('manage.reschedule')}
-                </button>
-              </div>
+              <>
+                {reconfirmed ? (
+                  <p className="bk-status bk-status-ok" role="status">
+                    {t('manage.reconfirmed')}
+                  </p>
+                ) : (
+                  reconfirmAsked && (
+                    <div className="bk-reconfirm">
+                      <p className="bk-muted">{t('manage.reconfirmAsk')}</p>
+                      {error && (
+                        <p className="ui-error" role="alert">
+                          {error}
+                        </p>
+                      )}
+                      <button type="button" className="btn bk-cta" onClick={() => void reconfirm()} aria-busy={busy || undefined}>
+                        {t('manage.reconfirmButton')}
+                      </button>
+                    </div>
+                  )
+                )}
+                <div className="bk-actions">
+                  <button type="button" className="btn btn-ghost" onClick={() => setMode('cancel')}>
+                    {t('manage.cancel')}
+                  </button>
+                  <button type="button" className={reconfirmAsked && !reconfirmed ? 'btn btn-ghost' : 'btn bk-cta'} onClick={() => setMode('reschedule')}>
+                    {t('manage.reschedule')}
+                  </button>
+                </div>
+              </>
             )}
           </section>
         </div>

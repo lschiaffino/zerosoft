@@ -1,19 +1,26 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { usePathname } from '@/i18n/navigation';
+import { usePathname, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import type { ChatAgent, ChatConversationListRow } from '@/lib/chat-data';
 import ConversationList from './ConversationList';
 import BulkBar from './BulkBar';
 import AwayStatus from './AwayStatus';
+import InboxAlerts, { playNewMessageSound, soundEnabled } from './InboxAlerts';
+import { notifyChatViewsChanged } from './ChatInboxBranch';
 import {
   INBOX_STATUSES,
   conversationIdFromPath,
+  filtersToView,
+  hasCustomFilters,
   inboxQuery,
   parseSavedFilters,
+  viewToFilters,
   type InboxAssignee,
+  type InboxFilters,
   type InboxStatus,
 } from './inbox-model';
 
@@ -49,16 +56,29 @@ function writeFilters(status: InboxStatus, assignee: InboxAssignee) {
   }
 }
 
+interface SavedView {
+  id: string;
+  name: string;
+  shared: boolean;
+  user_id: string;
+  filters: Record<string, string>;
+}
+
 /**
  * La bandeja en tres columnas: la lista con sus filtros (esta columna), la
  * conversación y el panel del visitante (los pone la página hija). Vive en el
  * layout de /app/chat/inbox, así la lista no se recarga ni pierde el scroll al
  * pasar de una conversación a otra. En mobile se ve una columna por vez.
+ *
+ * El alcance sale de la URL, como en Intercom: ?view=<id> (vista guardada),
+ * ?team=<id> (bandeja de un equipo) o ?following=1 (las que sigo). Los links
+ * del sidebar (ChatInboxBranch) los ponen.
  */
 export default function InboxShell({
   widgetIds,
   currentUserId,
   agents,
+  teams = [],
   initialAway,
   children,
 }: {
@@ -66,16 +86,30 @@ export default function InboxShell({
   currentUserId: string;
   /** Agentes del workspace (asignar en lote). */
   agents: ChatAgent[];
+  /** Equipos de Chat del workspace. */
+  teams?: Array<{ id: string; name: string }>;
   /** El agente logueado está marcado como ausente. */
   initialAway: boolean;
   children: ReactNode;
 }) {
   const t = useTranslations('chat');
   const pathname = usePathname();
+  const router = useRouter();
+  const params = useSearchParams();
   const currentId = conversationIdFromPath(pathname);
+  const viewParam = params.get('view');
+  const teamParam = params.get('team');
+  const followingParam = params.get('following') === '1';
 
   const [status, setStatus] = useState<InboxStatus>('open');
   const [assignee, setAssignee] = useState<InboxAssignee>('any');
+  const [assigneeId, setAssigneeId] = useState<string | undefined>(undefined);
+  const [teamId, setTeamId] = useState('');
+  const [priority, setPriority] = useState('');
+  const [channel, setChannel] = useState('');
+  const [following, setFollowing] = useState(false);
+  const [view, setView] = useState<SavedView | null>(null);
+  const [viewMissing, setViewMissing] = useState(false);
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
   const [tag, setTag] = useState('');
@@ -85,6 +119,8 @@ export default function InboxShell({
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
+  /** Guardar los filtros actuales como vista. */
+  const [saving, setSaving] = useState<null | { name: string; shared: boolean; busy: boolean; error: string | null }>(null);
   /** Conversaciones elegidas para una acción en lote. */
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const searchRef = useRef<HTMLInputElement>(null);
@@ -92,24 +128,87 @@ export default function InboxShell({
   rowsCount.current = rows.length;
   /** Id del último pedido: una respuesta vieja no pisa a la nueva. */
   const requestSeq = useRef(0);
+  /** Última actividad vista por conversación: suena cuando un visitante escribe. */
+  const seen = useRef<Map<string, string> | null>(null);
+  const currentIdRef = useRef(currentId);
+  currentIdRef.current = currentId;
 
   useEffect(() => {
     const saved = readFilters();
-    if (saved) {
+    if (saved && !viewParam) {
       setStatus(saved.status);
       setAssignee(saved.assignee);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Alcance desde la URL. Al abrir una conversación la URL pierde los
+  // parámetros: ahí se conserva lo que había.
+  useEffect(() => {
+    if (currentId && !viewParam && !teamParam && !followingParam) return;
+    let alive = true;
+    setViewMissing(false);
+    if (viewParam) {
+      fetch(`/api/chat/views/${encodeURIComponent(viewParam)}`)
+        .then((r) => (r.ok ? (r.json() as Promise<SavedView>) : null))
+        .then((v) => {
+          if (!alive) return;
+          if (!v) {
+            setView(null);
+            setViewMissing(true);
+            return;
+          }
+          const f = viewToFilters(v.filters);
+          setView(v);
+          setStatus(f.status);
+          setAssignee(f.assignee);
+          setAssigneeId(f.assigneeId);
+          setTeamId(f.teamId ?? '');
+          setPriority(f.priority ?? '');
+          setChannel(f.channel ?? '');
+          setTag(f.tag);
+          setQ(f.q);
+          setFollowing(false);
+        })
+        .catch(() => alive && setViewMissing(true));
+    } else {
+      setView(null);
+      setAssigneeId(undefined);
+      setTeamId(teamParam ?? '');
+      setFollowing(followingParam);
+      if (teamParam || followingParam) {
+        setPriority('');
+        setChannel('');
+      }
+    }
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewParam, teamParam, followingParam]);
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedQ(q.trim()), 250);
     return () => clearTimeout(id);
   }, [q]);
 
-  const query = useMemo(
-    () => inboxQuery({ status, assignee, q: debouncedQ, tag }, widgetIds, currentUserId),
-    [status, assignee, debouncedQ, tag, widgetIds, currentUserId],
+  const filters: InboxFilters = useMemo(
+    () => ({ status, assignee, assigneeId, q: debouncedQ, tag, teamId: teamId || undefined, priority: priority || undefined, channel: channel || undefined, following }),
+    [status, assignee, assigneeId, debouncedQ, tag, teamId, priority, channel, following],
   );
+  const query = useMemo(() => inboxQuery(filters, widgetIds, currentUserId), [filters, widgetIds, currentUserId]);
+
+  /** Suena (si está activado) cuando un visitante escribe en otra conversación o llega una nueva. */
+  const detectNew = useCallback((list: ChatConversationListRow[]) => {
+    const prev = seen.current;
+    const next = new Map(list.map((r) => [r.id, r.updated_at]));
+    seen.current = next;
+    if (!prev || !soundEnabled()) return;
+    const fresh = list.some(
+      (r) => r.last_sender_type === 'visitor' && prev.get(r.id) !== r.updated_at && (r.id !== currentIdRef.current || document.visibilityState !== 'visible'),
+    );
+    if (fresh) playNewMessageSound();
+  }, []);
 
   const fetchRows = useCallback(
     async (offset: number, append: boolean) => {
@@ -117,13 +216,14 @@ export default function InboxShell({
       setLoading(true);
       setError(false);
       try {
-        const params = new URLSearchParams({ ...query, limit: String(PAGE_SIZE), offset: String(offset) });
-        const res = await fetch(`/api/chat/conversations?${params.toString()}`);
+        const sp = new URLSearchParams({ ...query, limit: String(PAGE_SIZE), offset: String(offset) });
+        const res = await fetch(`/api/chat/conversations?${sp.toString()}`);
         if (!res.ok) throw new Error('fetch_failed');
         const data = (await res.json()) as { rows: ChatConversationListRow[]; total: number };
         if (seq !== requestSeq.current) return;
         setRows((prev) => (append ? [...prev, ...data.rows] : data.rows));
         setTotal(data.total);
+        if (!append) seen.current = new Map(data.rows.map((r) => [r.id, r.updated_at]));
       } catch {
         if (seq === requestSeq.current) setError(true);
       } finally {
@@ -155,26 +255,31 @@ export default function InboxShell({
   const refresh = useCallback(() => {
     if (rowsCount.current > PAGE_SIZE) return;
     const seq = requestSeq.current;
-    const params = new URLSearchParams({ ...query, limit: String(PAGE_SIZE), offset: '0' });
-    fetch(`/api/chat/conversations?${params.toString()}`)
+    const sp = new URLSearchParams({ ...query, limit: String(PAGE_SIZE), offset: '0' });
+    fetch(`/api/chat/conversations?${sp.toString()}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data: { rows: ChatConversationListRow[]; total: number } | null) => {
         if (!data || seq !== requestSeq.current) return;
         setRows(data.rows);
         setTotal(data.total);
+        detectNew(data.rows);
       })
       .catch(() => {});
     fetchTags();
-  }, [query, fetchTags]);
+  }, [query, fetchTags, detectNew]);
 
   useEffect(() => {
+    // Con la pestaña oculta también se consulta (más lento), así suena el aviso.
     const id = setInterval(() => {
-      if (document.visibilityState === 'visible') refresh();
+      if (document.visibilityState === 'visible' || soundEnabled()) refresh();
     }, 10_000);
     return () => clearInterval(id);
   }, [refresh]);
 
   useKeyShortcut('/', () => searchRef.current?.focus());
+  // Con una conversación abierta J/K los maneja la conversación (siguiente y anterior).
+  useKeyShortcut('j', () => rows[0] && router.push(`/app/chat/inbox/${rows[0].id}`), !currentId);
+  useKeyShortcut('k', () => rows.length > 0 && router.push(`/app/chat/inbox/${rows[rows.length - 1].id}`), !currentId);
 
   function changeStatus(next: InboxStatus) {
     setStatus(next);
@@ -183,7 +288,14 @@ export default function InboxShell({
 
   function changeAssignee(next: InboxAssignee) {
     setAssignee(next);
+    setAssigneeId(undefined);
     writeFilters(status, next);
+  }
+
+  function changeTeam(next: string) {
+    setTeamId(next);
+    // La URL refleja la bandeja del equipo (el sidebar la marca).
+    if (!view && !currentId) router.replace(next ? `/app/chat/inbox?team=${next}` : '/app/chat/inbox');
   }
 
   // Lo elegido que ya no está en la lista (otro filtro, se resolvió) sale de la selección.
@@ -210,7 +322,44 @@ export default function InboxShell({
     });
   }
 
-  const filtered = status !== 'open' || assignee !== 'any' || !!tag || !!debouncedQ;
+  const viewFilters = filtersToView({ ...filters, q: q.trim() });
+  const viewChanged = !!view && JSON.stringify(viewFilters) !== JSON.stringify(filtersToView(viewToFilters(view.filters)));
+
+  async function saveView() {
+    if (!saving || !saving.name.trim() || saving.busy) return;
+    setSaving({ ...saving, busy: true, error: null });
+    try {
+      const res = await fetch('/api/chat/views', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: saving.name.trim(), filters: viewFilters, shared: saving.shared }),
+      });
+      if (!res.ok) throw new Error('save_failed');
+      const created = (await res.json()) as SavedView;
+      setSaving(null);
+      notifyChatViewsChanged();
+      router.replace(`/app/chat/inbox?view=${created.id}`);
+    } catch {
+      setSaving((s) => (s ? { ...s, busy: false, error: t('errors.generic') } : s));
+    }
+  }
+
+  async function updateView() {
+    if (!view) return;
+    const res = await fetch(`/api/chat/views/${view.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filters: viewFilters }),
+    }).catch(() => null);
+    if (res?.ok) {
+      setView((await res.json()) as SavedView);
+      notifyChatViewsChanged();
+    }
+  }
+
+  const team = teams.find((x) => x.id === teamId);
+  const title = view ? view.name : following ? t('views.following') : team && !view ? team.name : t('inbox.title');
+  const filtered = hasCustomFilters(filters) || following;
   const ctx = useMemo(() => ({ rows, refresh }), [rows, refresh]);
 
   return (
@@ -220,15 +369,21 @@ export default function InboxShell({
           <div className="chat-inbox-head">
             <div className="chat-inbox-titlebar">
               <h1 id="chat-inbox-title" className="chat-inbox-title">
-                {t('inbox.title')}
+                {title}
               </h1>
               {loaded && (
                 <span className="chat-inbox-count data" aria-live="polite">
                   {total}
                 </span>
               )}
+              <InboxAlerts />
               <AwayStatus initialAway={initialAway} onChange={refresh} />
             </div>
+            {viewMissing && (
+              <p className="ui-error" role="alert">
+                {t('views.missing')}
+              </p>
+            )}
             <div className="chat-inbox-search">
               <input
                 ref={searchRef}
@@ -268,12 +423,59 @@ export default function InboxShell({
               <select
                 id="chat-filter-assignee"
                 className="select"
-                value={assignee}
-                onChange={(e) => changeAssignee(e.target.value as InboxAssignee)}
+                value={assigneeId ? `id:${assigneeId}` : assignee}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v.startsWith('id:')) {
+                    setAssignee('any');
+                    setAssigneeId(v.slice(3));
+                  } else changeAssignee(v as InboxAssignee);
+                }}
               >
                 <option value="any">{t('inbox.filters.anyone')}</option>
                 <option value="mine">{t('inbox.filters.mine')}</option>
                 <option value="unassigned">{t('inbox.filters.unassigned')}</option>
+                {agents
+                  .filter((a) => a.id !== currentUserId)
+                  .map((a) => (
+                    <option key={a.id} value={`id:${a.id}`}>
+                      {a.name || a.email}
+                    </option>
+                  ))}
+              </select>
+              {teams.length > 0 && (
+                <>
+                  <label className="sr-only" htmlFor="chat-filter-team">
+                    {t('teams.filter')}
+                  </label>
+                  <select id="chat-filter-team" className="select" value={teamId} onChange={(e) => changeTeam(e.target.value)}>
+                    <option value="">{t('teams.all')}</option>
+                    {teams.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.name}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+              <label className="sr-only" htmlFor="chat-filter-priority">
+                {t('conversation.priority')}
+              </label>
+              <select id="chat-filter-priority" className="select" value={priority} onChange={(e) => setPriority(e.target.value)}>
+                <option value="">{t('views.anyPriority')}</option>
+                {(['urgent', 'high', 'medium', 'low'] as const).map((p) => (
+                  <option key={p} value={p}>
+                    {t(`priorities.${p}`)}
+                  </option>
+                ))}
+              </select>
+              <label className="sr-only" htmlFor="chat-filter-channel">
+                {t('channels.label')}
+              </label>
+              <select id="chat-filter-channel" className="select" value={channel} onChange={(e) => setChannel(e.target.value)}>
+                <option value="">{t('channels.all')}</option>
+                <option value="web">{t('channels.web')}</option>
+                <option value="email">{t('channels.email')}</option>
               </select>
               {tags.length > 0 && (
                 <>
@@ -291,6 +493,64 @@ export default function InboxShell({
                 </>
               )}
             </div>
+            {(view ? viewChanged : hasCustomFilters({ ...filters, q: q.trim() })) && !saving && (
+              <div className="chat-view-actions">
+                {view && viewChanged && (
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => void updateView()}>
+                    {t('views.update')}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setSaving({ name: '', shared: false, busy: false, error: null })}
+                >
+                  {t('views.saveAs')}
+                </button>
+              </div>
+            )}
+            {saving && (
+              <form
+                className="chat-view-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void saveView();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setSaving(null);
+                }}
+              >
+                <label className="sr-only" htmlFor="chat-view-name">
+                  {t('views.name')}
+                </label>
+                <input
+                  id="chat-view-name"
+                  className="input"
+                  autoFocus
+                  maxLength={80}
+                  placeholder={t('views.namePlaceholder')}
+                  value={saving.name}
+                  onChange={(e) => setSaving({ ...saving, name: e.target.value })}
+                />
+                <label className="ui-check">
+                  <input type="checkbox" checked={saving.shared} onChange={(e) => setSaving({ ...saving, shared: e.target.checked })} />
+                  {t('views.share')}
+                </label>
+                <div className="chat-view-form-actions">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSaving(null)}>
+                    {t('common.cancel')}
+                  </button>
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={!saving.name.trim() || saving.busy} aria-busy={saving.busy || undefined}>
+                    {t('views.save')}
+                  </button>
+                </div>
+                {saving.error && (
+                  <p className="ui-error" role="alert">
+                    {saving.error}
+                  </p>
+                )}
+              </form>
+            )}
           </div>
 
           {selected.size > 0 && (
@@ -324,7 +584,7 @@ export default function InboxShell({
               <ConversationList
                 conversations={rows}
                 currentId={currentId}
-                emptyTitle={filtered ? t('inbox.empty') : t('inbox.emptyOpen')}
+                emptyTitle={following ? t('views.followingEmpty') : filtered ? t('inbox.empty') : t('inbox.emptyOpen')}
                 selected={selected}
                 onToggle={toggleSelected}
               />

@@ -883,3 +883,98 @@ html.zs-embed .bk-card { border-color: transparent; border-top-color: var(--bk);
   .cal-location-row { grid-template-columns: minmax(0, 1fr) auto; }
   .cal-location-row > .input, .cal-location-row > .cal-location-note { grid-column: 1 / -1; grid-row: 2; }
 }
+
+/* ---------- Paridad (118): conexiones, encuestas, embudo, actividad, privacidad ---------- */
+.cal-conn-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.cal-conn { display: flex; flex-direction: column; gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.cal-conn-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.cal-conn-head p { margin: 2px 0 0; font-size: 0.8125rem; }
+.cal-conn-cals { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.cal-conn-cals .ui-check span { overflow-wrap: anywhere; }
+.cal-pre {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+}
+.cal-toolbar-actions { display: flex; align-items: center; gap: 8px; }
+.cal-onbehalf { display: flex; flex-direction: column; gap: 14px; }
+.cal-onbehalf-slots { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.cal-onbehalf-slots .btn[aria-checked='true'] { outline: 2px solid var(--ink); outline-offset: 1px; }
+.cal-funnel { margin-top: 24px; }
+.cal-funnel-steps { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; max-width: 720px; }
+.cal-funnel-step { display: grid; grid-template-columns: minmax(140px, 220px) 64px minmax(0, 1fr) 56px; align-items: center; gap: 12px; font-size: 0.875rem; }
+.cal-funnel-n { text-align: right; }
+.cal-funnel-bar { display: block; height: 8px; background: var(--brand-enamel); border-radius: var(--radius-1); overflow: hidden; }
+.cal-funnel-bar > span { display: block; height: 100%; background: var(--ink); }
+.cal-activity { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.cal-activity-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 0.875rem; }
+.cal-activity-what { min-width: 0; overflow-wrap: anywhere; }
+.cal-activity-target { color: var(--brand-gray-1); }
+.cal-activity-row time { flex: 0 0 auto; font-size: 0.75rem; white-space: nowrap; }
+.cal-activity-filter { max-width: 240px; }
+.cal-privacy-list { margin: 8px 0; padding-left: 18px; }
+.cal-inline-rename { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cal-inline-rename .input { min-width: 0; flex: 1 1 220px; }
+.cal-poll-grid td:first-child { white-space: nowrap; }
+.cal-poll-best td { background: var(--brand-enamel); }
+.bk-poll { grid-template-columns: minmax(0, 1fr); max-width: 640px; }
+.bk-poll-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+.bk-poll-head p { margin: 0; }
+.bk-poll-options { display: flex; flex-direction: column; gap: 8px; margin: 0 0 8px; padding: 0; border: 0; min-width: 0; }
+.bk-poll-options legend { padding: 0; margin-bottom: 4px; }
+.bk-poll-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+  transition: border-color var(--ui-dur) var(--ease);
+}
+.bk-poll-option:hover { border-color: var(--ink); }
+.bk-poll-option.is-on { border-color: var(--bk); box-shadow: inset 3px 0 0 var(--bk); }
+.bk-poll-option input { width: 16px; height: 16px; accent-color: var(--bk); }
+.bk-poll-option:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
+.bk-poll-when { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.bk-team { margin-top: 32px; }
+.bk-team-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.bk-team-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 6px 6px;
+  color: var(--ink);
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.bk-team-member:hover { border-color: var(--ink); }
+.bk-team-member:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.bk-team-member .bk-monogram { width: 28px; height: 28px; font-size: 0.875rem; }
+.bk-link { font-size: 0.875rem; color: var(--ink); }
+.bk-reconfirm { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 12px; }
+@media (max-width: 560px) {
+  .cal-funnel-step { grid-template-columns: minmax(0, 1fr) 48px; }
+  .cal-funnel-bar { grid-column: 1 / -1; }
+  .cal-activity-row { flex-direction: column; gap: 2px; }
+  .cal-toolbar-actions { width: 100%; }
+  .cal-toolbar-actions .btn { flex: 1; justify-content: center; }
+}
+
+/* Mapa de calor a 390 px: la tabla entra en el ancho (sin scroll horizontal). */
+@media (max-width: 560px) {
+  .cal-heat-wrap { overflow-x: visible; }
+  .cal-heat { width: 100%; table-layout: fixed; border-spacing: 1px; font-size: 0.5625rem; }
+  .cal-heat th:first-child { width: 28px; padding: 0 2px 0 0; }
+  .cal-heat thead th { padding: 0; overflow: visible; }
+  .cal-heat td { width: auto; min-width: 0; height: 14px; }
+}
+/* Página del equipo en oscuro: el color del evento puede ser negro; el borde lo deja ver. */
+.bk-profile-swatch { box-shadow: inset 0 0 0 1px var(--line); }

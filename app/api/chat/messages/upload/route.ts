@@ -19,6 +19,7 @@ import { MAX_UPLOAD_SIZE, isAllowedUpload, saveUpload, UploadError } from '@/lib
 import { verifyVisitorIdentity } from '@/lib/chat-identity';
 import { afterVisitorMessage } from '@/lib/chat-visitor-message';
 import { visitorPageContext } from '@/lib/chat-visitor-context';
+import { cleanPublicVisitorKey } from '@/lib/chat-visitor-key';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,8 +31,7 @@ export async function POST(req: Request) {
   if (!form) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
 
   const widgetId = typeof form.get('widgetId') === 'string' ? (form.get('widgetId') as string) : '';
-  const visitorExternalId =
-    typeof form.get('visitorId') === 'string' ? (form.get('visitorId') as string) : '';
+  const visitorExternalId = cleanPublicVisitorKey(form.get('visitorId')) ?? '';
   const file = form.get('file');
 
   if (!widgetId || !visitorExternalId) {

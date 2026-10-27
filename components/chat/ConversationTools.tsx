@@ -1,5 +1,6 @@
 'use client';
 
+import ClientTime from './ClientTime';
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -12,7 +13,7 @@ import {
   type ChatAttributeDef,
   type ChatAttributeValue,
 } from '@/lib/chat-attributes';
-import { formatDateTime, formatTimeAgo } from '@/lib/datetime';
+import { formatDateTime } from '@/lib/datetime';
 import { sendErrorKey } from '@/lib/chat-schema';
 
 type Patch = Record<string, ChatAttributeValue | null>;
@@ -296,7 +297,7 @@ export function MergeConversations({
               <span className="chat-merge-title">{c.subject || c.last_message_body || t('conversation.noMessages')}</span>
               <span className="ui-help" suppressHydrationWarning title={formatDateTime(c.created_at, locale)}>
                 {t(`conversation.${c.status}`)} · {t('merge.messages', { count: c.message_count })} ·{' '}
-                {formatTimeAgo(c.updated_at, locale)}
+                <ClientTime iso={c.updated_at} />
               </span>
             </Link>
             {confirmId === c.id ? (

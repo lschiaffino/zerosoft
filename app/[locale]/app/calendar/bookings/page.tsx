@@ -1,6 +1,10 @@
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
-import { bookingDateBounds, listUserBookings, localDate } from '@/lib/calendar';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
+import { bookingDateBounds, listEventHosts, listEventTypes, listUserBookings, localDate } from '@/lib/calendar';
+import { locationKey, parseLocations } from '@/lib/calendar-locations';
+import { hostToken } from '@/lib/calendar-host-token';
+import { viewerScope } from '@/lib/calendar-access';
+import type { OnBehalfEventType } from '@/components/calendar/ScheduleOnBehalfModal';
 import { bookingListQuerySchema } from '@/lib/calendar-schema';
 import PageHeader from '@/components/ui/PageHeader';
 import BookingsList from '@/components/calendar/BookingsList';
@@ -35,7 +39,31 @@ export default async function BookingsPage(props: {
     to: bounds.to,
     // Con fecha "desde": la más cercana primero (como la API).
     order: from ? 'asc' : 'desc',
+    // Un member ve solo las reservas que atiende (owner y admins, todas).
+    hostId: viewerScope(user) ?? undefined,
   });
+
+  // "Nueva reserva": un admin agenda para cualquier anfitrión; un member, en los eventos que atiende.
+  const admin = isWorkspaceAdmin(user);
+  const me = realUserId(user);
+  const onBehalf: OnBehalfEventType[] = [];
+  for (const e of await listEventTypes(user.id, { activeOnly: true })) {
+    if (e.single_use === 1 && e.used_at) continue;
+    const pool = await listEventHosts(e.id);
+    const hosts = pool.length > 0 ? pool.map((h) => ({ id: h.user_id, name: h.name?.trim() || h.email })) : [];
+    if (!admin && !(pool.length > 0 ? pool.some((h) => h.user_id === me) : e.user_id === me)) continue;
+    onBehalf.push({
+      id: e.id,
+      title: e.title,
+      durationMin: e.duration_min,
+      hosts: (admin ? hosts : hosts.filter((h) => h.id === me)).map((h) => ({ token: hostToken(h.id), name: h.name })),
+      locations: parseLocations(e.locations).map((o, i) => ({
+        key: locationKey(o, i),
+        label: o.kind === 'in_person' || o.kind === 'link' ? o.value : t(`location.kind.${o.kind}`),
+        needsPhone: o.kind === 'phone_host',
+      })),
+    });
+  }
 
   return (
     <div className="ui-page">
@@ -46,6 +74,8 @@ export default async function BookingsPage(props: {
         timezone={timezone}
         defaultFrom={today}
         initialFilters={{ q: f.q ?? '', status: f.status ?? '', from: from ?? '', to: f.to ?? '' }}
+        eventTypes={onBehalf}
+        canChooseHost={admin}
       />
     </div>
   );
