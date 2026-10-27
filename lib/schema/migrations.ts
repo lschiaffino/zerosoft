@@ -5819,6 +5819,7 @@ export const MIGRATIONS: Migration[] = [
           user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
           booking_id TEXT,
           step_id TEXT,
+          starts_at TEXT,
           sent_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_calendar_sms_sends_user ON calendar_sms_sends(user_id, sent_at);

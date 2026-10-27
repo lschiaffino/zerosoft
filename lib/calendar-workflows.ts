@@ -450,7 +450,11 @@ async function dispatchRun(run: DueRunRow): Promise<SendOutcome> {
     }
     // Sin teléfono (o sin Twilio) no hay a quién mandarlo: se saltea sin reintentar.
     if (!to) return 'skipped';
-    const res = await sendCalSms(run.owner_id, to, renderWorkflowTemplate(run.body, vars), { bookingId: run.booking_id, stepId: run.step_id });
+    const res = await sendCalSms(run.owner_id, to, renderWorkflowTemplate(run.body, vars), {
+      bookingId: run.booking_id,
+      stepId: run.step_id,
+      startsAt: run.starts_at,
+    });
     if (res.ok) return 'sent';
     return res.retry ? 'failed' : 'skipped';
   }

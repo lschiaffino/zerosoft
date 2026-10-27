@@ -453,9 +453,6 @@ describe('borrado de datos del invitado: no queda nada en la base', () => {
     const b = await createBooking({ eventTypeId: et.id, email, name, start: `${dayAhead(12)}T10:00:00.000Z`, answers: {} });
     await afterBookingCreated(b);
     await logCalActivity(u.id, u.id, 'booking.cancelled', { type: 'booking', id: b.id, summary: name });
-    await getDb()
-      .prepare("INSERT INTO crm_app_log (id, user_id, app, event, status, detail) VALUES (?, ?, 'zoom', 'meeting', 'ok', ?)")
-      .run(crypto.randomUUID(), u.id, `Intro — ${name}`);
     const poll = await createPoll(u.id, u.id, { title: 'Scan', durationMin: 30, times: [`${dayAhead(13)}T10:00:00.000Z`, `${dayAhead(13)}T11:00:00.000Z`] });
     await votePoll(poll.token, { name, email, optionIds: [poll.options[0].id] });
     const other = await createBooking({
@@ -496,5 +493,63 @@ describe('host opaco', () => {
     expect(parseHostToken('h1:user-123')).toBeNull();
     expect(parseHostToken('user-123')).toBeNull();
     expect(parseHostToken(`${tok.slice(0, -2)}xx`)).toBeNull();
+  });
+});
+
+describe('borrado de datos: solo lo de esa persona', () => {
+  it('a@ no toca a ana@ y un nombre dentro de otro texto queda intacto', async () => {
+    const { u, et } = await setup('exact');
+    await getDb().prepare('UPDATE calendar_event_types SET title = ? WHERE id = ?').run('Intro Call', et.id);
+    const hook = crypto.randomUUID();
+    await getDb()
+      .prepare("INSERT INTO webhooks (id, user_id, url, events, secret) VALUES (?, ?, 'https://example.com/h', '[\"booking.created\"]', 'whsec_x')")
+      .run(hook, u.id);
+    const a = await createBooking({ eventTypeId: et.id, email: 'a@example.com', name: 'Call', start: `${dayAhead(14)}T10:00:00.000Z`, answers: {} });
+    const ana = await createBooking({ eventTypeId: et.id, email: 'ana@example.com', name: 'Ana', start: `${dayAhead(14)}T12:00:00.000Z`, answers: {} });
+    await afterBookingCreated(a);
+    await afterBookingCreated(ana);
+    const payloadOf = async (like: string) =>
+      ((await getDb().prepare('SELECT payload FROM webhook_deliveries WHERE webhook_id = ? AND payload LIKE ?').get(hook, like)) as { payload: string }).payload;
+    const anaBefore = await payloadOf('%ana@example.com%');
+    await deleteInviteeData(u.id, 'a@example.com', u.id);
+    expect(await getDb().prepare('SELECT 1 FROM calendar_bookings WHERE id = ?').get(a.id)).toBeUndefined();
+    expect(await getDb().prepare('SELECT 1 FROM calendar_bookings WHERE id = ?').get(ana.id)).toBeTruthy();
+    expect(await payloadOf('%ana@example.com%')).toBe(anaBefore);
+    const aPayload = await payloadOf('%[deleted]%');
+    expect(aPayload).not.toContain('"a@example.com"');
+    // El nombre "Call" se borró como valor, pero el título "Intro Call" sigue igual.
+    expect(aPayload).toContain('Intro Call');
+    expect(aPayload).not.toContain('"Call"');
+  });
+});
+
+describe('SMS por horario y alcance de un member', () => {
+  it('reprogramar al mismo horario no repite el SMS; a otro horario, sí', async () => {
+    const u = await makeUser('smsh');
+    await saveSmsSettings(u.id, { accountSid: `AC${'e'.repeat(32)}`, authToken: 'f'.repeat(32), fromNumber: '+5491100000001' });
+    const base = { bookingId: 'bk', stepId: 'st' };
+    expect((await sendCalSms(u.id, '+5491155551111', 'x', { ...base, startsAt: '2026-11-01T10:00:00.000Z' })).ok).toBe(true);
+    expect(await sendCalSms(u.id, '+5491155551111', 'x', { ...base, startsAt: '2026-11-01T10:00:00.000Z' })).toMatchObject({ code: 'duplicate' });
+    expect((await sendCalSms(u.id, '+5491155551111', 'x', { ...base, startsAt: '2026-11-02T10:00:00.000Z' })).ok).toBe(true);
+  });
+
+  it('MCP: la key de un member lista y cancela solo lo que atiende', async () => {
+    const { u, et } = await setup('mcpm');
+    const member = await makeUser('mcpm-m');
+    const teamId = crypto.randomUUID();
+    await getDb().prepare('INSERT INTO teams (id, name, owner_id) VALUES (?, ?, ?)').run(teamId, 'T', u.id);
+    await getDb().prepare("INSERT INTO team_members (team_id, user_id, role) VALUES (?, ?, 'member')").run(teamId, member.id);
+    const owners = await createBooking({ eventTypeId: et.id, email: 'o@x.com', name: 'O', start: `${dayAhead(15)}T10:00:00.000Z`, answers: {} });
+    const mine = await createBooking({ eventTypeId: et.id, email: 'm@x.com', name: 'M', start: `${dayAhead(15)}T12:00:00.000Z`, answers: {} });
+    await getDb().prepare('UPDATE calendar_bookings SET host_user_id = ? WHERE id = ?').run(member.id, mine.id);
+    const ctx = { ws: u.id, personId: member.id, handle: null, scopes: ['cal:read', 'cal:write'] as never, role: 'member' as const };
+    const call = (name: string, args: Record<string, unknown>) =>
+      handleCalRpc(ctx, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }) as Promise<{
+        result: { isError: boolean; structuredContent?: { bookings?: Array<{ id: string }> } };
+      }>;
+    const list = await call('list_bookings', {});
+    expect(list.result.structuredContent?.bookings?.map((b) => b.id)).toEqual([mine.id]);
+    expect((await call('cancel_booking', { bookingId: owners.id })).result.isError).toBe(true);
+    expect((await call('cancel_booking', { bookingId: mine.id })).result.isError).toBe(false);
   });
 });

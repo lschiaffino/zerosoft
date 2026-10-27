@@ -271,6 +271,20 @@ export async function getEventTypeById(id: string): Promise<EventTypeWithRules |
   return row ? decorateEventType(row) : undefined;
 }
 
+/**
+ * Nombre del equipo para las páginas públicas (página del equipo, encuestas):
+ * el del equipo del workspace si no se puso un nombre visible propio.
+ */
+export async function workspaceTeamName(userId: string): Promise<string> {
+  const own = (await getDb()
+    .prepare(
+      `SELECT c.display_name, (SELECT t.name FROM teams t WHERE t.owner_id = ? ORDER BY t.created_at LIMIT 1) AS team_name
+       FROM users u LEFT JOIN calendar_users c ON c.user_id = u.id WHERE u.id = ?`,
+    )
+    .get(userId, userId)) as { display_name: string | null; team_name: string | null } | undefined;
+  return !own?.display_name?.trim() ? (own?.team_name?.trim() ?? '') : '';
+}
+
 /** Lookup público: /book/<handle>/<slug>. */
 export async function getEventTypeByHandle(
   handle: string,
@@ -318,14 +332,7 @@ export async function getPublicProfile(
       byPerson.set(h.user_id, m);
     }
   }
-  // Página del equipo: el nombre visible del workspace o, si no tiene, el del equipo.
-  const own = (await getDb()
-    .prepare(
-      `SELECT c.display_name, (SELECT t.name FROM teams t WHERE t.owner_id = ? ORDER BY t.created_at LIMIT 1) AS team_name
-       FROM users u LEFT JOIN calendar_users c ON c.user_id = u.id WHERE u.id = ?`,
-    )
-    .get(user.id, user.id)) as { display_name: string | null; team_name: string | null } | undefined;
-  const teamName = !own?.display_name?.trim() && byPerson.size > 1 ? own?.team_name?.trim() : '';
+  const teamName = byPerson.size > 1 ? await workspaceTeamName(user.id) : '';
   return {
     userId: user.id,
     name: teamName || brand.name || user.handle,

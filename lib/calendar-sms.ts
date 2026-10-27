@@ -197,7 +197,7 @@ export async function sendCalSms(
   workspaceId: string,
   to: string,
   body: string,
-  ctx: { bookingId?: string; stepId?: string } = {},
+  ctx: { bookingId?: string; stepId?: string; startsAt?: string } = {},
 ): Promise<SmsResult> {
   const phone = toE164(to);
   if (!phone) return { ok: false, code: 'invalid_phone', retry: false };
@@ -207,17 +207,22 @@ export async function sendCalSms(
   const code = callingCode(phone);
   if (!code || !allowedCodesOf(r).includes(code)) return { ok: false, code: 'country_blocked', retry: false };
   if (ctx.stepId && ctx.bookingId) {
-    const dup = await getDb()
-      .prepare('SELECT 1 AS one FROM calendar_sms_sends WHERE step_id = ? AND booking_id = ? AND sent_at > ?')
-      .get(ctx.stepId, ctx.bookingId, new Date(Date.now() - SMS_DEDUPE_MS).toISOString());
+    // Una vez por paso, reserva y horario: reprogramar al mismo horario no lo repite; a otro horario, sí.
+    const dup = ctx.startsAt
+      ? await getDb()
+          .prepare('SELECT 1 AS one FROM calendar_sms_sends WHERE step_id = ? AND booking_id = ? AND starts_at = ?')
+          .get(ctx.stepId, ctx.bookingId, ctx.startsAt)
+      : await getDb()
+          .prepare('SELECT 1 AS one FROM calendar_sms_sends WHERE step_id = ? AND booking_id = ? AND sent_at > ?')
+          .get(ctx.stepId, ctx.bookingId, new Date(Date.now() - SMS_DEDUPE_MS).toISOString());
     if (dup) return { ok: false, code: 'duplicate', retry: false };
   }
   if ((await sentInLastDay(workspaceId)) >= (r.daily_limit || SMS_DEFAULT_DAILY_LIMIT)) return { ok: false, code: 'daily_limit', retry: false };
   const text = body.slice(0, SMS_MAX_CHARS);
   const record = () =>
     getDb()
-      .prepare('INSERT INTO calendar_sms_sends (id, user_id, booking_id, step_id, sent_at) VALUES (?, ?, ?, ?, ?)')
-      .run(crypto.randomUUID(), workspaceId, ctx.bookingId ?? null, ctx.stepId ?? null, new Date().toISOString());
+      .prepare('INSERT INTO calendar_sms_sends (id, user_id, booking_id, step_id, starts_at, sent_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(crypto.randomUUID(), workspaceId, ctx.bookingId ?? null, ctx.stepId ?? null, ctx.startsAt ?? null, new Date().toISOString());
   if (fakeSmsAllowed()) {
     fakeSmsOutbox().push({ workspaceId, to: phone, from: r.from_number, body: text });
     await record();

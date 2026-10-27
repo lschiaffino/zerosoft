@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getPollByToken } from '@/lib/calendar-polls';
-import { getWorkspaceBrand } from '@/lib/calendar';
+import { getWorkspaceBrand, workspaceTeamName } from '@/lib/calendar';
 import { resolveBrand } from '@/components/calendar/cal-utils';
 import PublicPoll from '@/components/calendar/PublicPoll';
 import PublicPageExtras from '@/components/calendar/PublicPageExtras';
@@ -24,7 +24,7 @@ export default async function PublicPollPage(props: { params: Promise<{ token: s
       <PublicPageExtras workspaceId={poll.user_id} pixels={false} />
       <PublicPoll
         token={token}
-        brand={{ color: brand.color, on: brand.on, name: brand.name }}
+        brand={{ color: brand.color, on: brand.on, name: (await workspaceTeamName(poll.user_id)) || brand.name }}
         initial={{
           title: poll.title,
           description: poll.description,

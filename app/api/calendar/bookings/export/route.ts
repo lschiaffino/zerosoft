@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
+import { getCurrentUser } from '@/lib/session';
+import { viewerScope } from '@/lib/calendar-access';
 import { bookingDateBounds, listUserBookings } from '@/lib/calendar';
 import { bookingListQuerySchema } from '@/lib/calendar-schema';
 import { bookingsCsv } from '@/lib/calendar-export';
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
     to: bounds.to,
     limit: 10_000,
     order: 'asc',
-    hostId: isWorkspaceAdmin(user) ? undefined : realUserId(user),
+    hostId: viewerScope(user) ?? undefined,
   });
   const day = new Date().toISOString().slice(0, 10);
   return new NextResponse(`﻿${bookingsCsv(rows, bounds.timezone)}`, {

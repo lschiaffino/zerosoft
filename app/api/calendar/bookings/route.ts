@@ -15,6 +15,7 @@ import { invalidBody, crmError, unauthorized } from '@/lib/crm-http';
 import { afterBookingCreated } from '@/lib/calendar-lifecycle';
 import { parseHostToken } from '@/lib/calendar-host-token';
 import { getCurrentUser } from '@/lib/session';
+import { viewerScope } from '@/lib/calendar-access';
 import { appBaseUrl } from '@/lib/calendar-notify';
 import { createCheckoutForBooking, HOLD_MINUTES, paymentsEnabled, PaymentError } from '@/lib/calendar-payments';
 import { buildRedirectUrl, parseUtm, sanitizeUtm } from '@/lib/calendar-redirect';
@@ -42,6 +43,8 @@ export async function GET(req: NextRequest) {
     to: bounds.to,
     limit,
     order: from ? 'asc' : 'desc',
+    // Un member ve solo las reservas que atiende (owner y admins, todas).
+    hostId: viewerScope(user) ?? undefined,
   });
   return NextResponse.json({ bookings: rows });
 }

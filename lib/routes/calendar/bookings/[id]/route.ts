@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { actorIdOf, logCalActivity } from '@/lib/calendar-activity';
 import { updateBooking, hostSlotFree, ownedBooking, declineBooking, CalendarError } from '@/lib/calendar';
+import { bookingInScope, viewerScope } from '@/lib/calendar-access';
 import { bookingUpdateSchema } from '@/lib/calendar-schema';
 import { invalidBody, notFound, unauthorized, crmError } from '@/lib/crm-http';
 import { getDb, type CalendarBookingRow } from '@/lib/db';
@@ -12,8 +13,10 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /** Dueño del event type o host asignado (mientras siga en el team). */
-async function ownsBooking(userId: string, bookingId: string): Promise<boolean> {
-  return (await ownedBooking(userId, bookingId)) !== null;
+async function ownsBooking(user: Parameters<typeof viewerScope>[0], bookingId: string): Promise<boolean> {
+  const booking = await ownedBooking(user.id, bookingId);
+  // Un member gestiona solo las reservas que atiende.
+  return booking !== null && bookingInScope(booking, viewerScope(user));
 }
 
 /**
@@ -36,7 +39,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!(await ownsBooking(user.id, params.id))) return notFound();
+  if (!(await ownsBooking(user, params.id))) return notFound();
   const row = (await getDb()
     .prepare(
       `SELECT b.*, e.title as event_type_title, e.duration_min as event_type_duration_min
@@ -54,7 +57,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  if (!(await ownsBooking(user.id, params.id))) return notFound();
+  if (!(await ownsBooking(user, params.id))) return notFound();
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = bookingUpdateSchema.safeParse(body);

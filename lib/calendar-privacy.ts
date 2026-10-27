@@ -8,8 +8,10 @@
  * votos en encuestas, y saca su email de la lista de invitados extra de otras
  * reservas. Después anonimiza las copias que quedaron en los registros del
  * workspace: entregas de webhooks, corridas de Flow, el log de apps del CRM,
- * el registro de actividad de Cal y las notificaciones (el email y el nombre
- * pasan a "[deleted]"). El registro de actividad deja el email enmascarado.
+ * el registro de actividad de Cal y las notificaciones. Solo se tocan filas de
+ * esa persona (las que tienen su email exacto o están atadas a sus reservas):
+ * ahí el email y el nombre (como valor completo) pasan a "[deleted]"; un texto
+ * ajeno que contenga su nombre o un email parecido queda intacto. El registro de actividad deja el email enmascarado.
  * El contacto del CRM es otra app: se borra desde el CRM. Server-only.
  */
 import { getDb, type CalendarBookingRow } from './db';
@@ -52,9 +54,9 @@ export async function previewInviteeData(workspaceId: string, rawEmail: string):
   const submissions = (await db
     .prepare(
       `SELECT COUNT(*) AS n FROM calendar_routing_submissions s JOIN calendar_routing_forms f ON f.id = s.form_id
-       WHERE f.user_id = ? AND lower(s.answers) LIKE ?`,
+       WHERE f.user_id = ? AND EXISTS (SELECT 1 FROM json_each(s.answers) j WHERE lower(trim(j.value)) = ?)`,
     )
-    .get(workspaceId, `%${email}%`)) as { n: number };
+    .get(workspaceId, email)) as { n: number };
   const votes = (await db
     .prepare(
       `SELECT COUNT(*) AS n FROM calendar_poll_votes v JOIN calendar_polls p ON p.id = v.poll_id
@@ -70,19 +72,36 @@ export async function previewInviteeData(workspaceId: string, rawEmail: string):
   };
 }
 
-/** `text` con cada término reemplazado por [deleted] (sin distinguir mayúsculas). */
-export function redactTerms(text: string, terms: string[]): string {
-  let out = text;
-  for (const term of terms) {
-    if (!term) continue;
-    out = out.replace(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), REDACTED);
+function escapeRe(v: string): string {
+  return v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * El email exacto, no como parte de otro (a@example.com no es
+ * ana@example.com): ni antes ni después puede haber un carácter de email.
+ */
+export function emailPattern(email: string): RegExp {
+  return new RegExp(`(?<![A-Za-z0-9._%+-])${escapeRe(email)}(?![A-Za-z0-9.-])`, 'gi');
+}
+
+/**
+ * Anonimiza el texto de una fila de esta persona: su email exacto y su nombre
+ * solo como valor JSON completo ("name":"Ana" → "[deleted]"), nunca como
+ * parte de otro texto (un título que contenga el nombre queda intacto).
+ */
+export function redactRow(text: string, email: string, names: string[]): string {
+  let out = text.replace(emailPattern(email), REDACTED);
+  for (const name of names) {
+    if (!name) continue;
+    const quoted = JSON.stringify(name);
+    out = out.replace(new RegExp(escapeRe(quoted), 'gi'), JSON.stringify(REDACTED));
   }
   return out;
 }
 
 /**
- * Anonimiza las filas de `table` del workspace (filtro `scope`) cuyas columnas
- * contienen el email (o el nombre, si `byName`). Devuelve cuántas cambió.
+ * Anonimiza las filas de `table` del workspace (filtro `scope`) donde aparece
+ * el email exacto de la persona. Solo esas filas: son de ella. Devuelve cuántas cambió.
  */
 async function scrub(
   table: string,
@@ -91,22 +110,22 @@ async function scrub(
   scope: { sql: string; args: string[] },
   email: string,
   names: string[],
-  byName: boolean,
 ): Promise<number> {
   const db = getDb();
-  const likes = [email, ...(byName ? names : [])].filter(Boolean);
-  if (likes.length === 0) return 0;
-  const match = cols.map((c) => likes.map(() => `lower(COALESCE(${c}, '')) LIKE ?`).join(' OR ')).join(' OR ');
+  const match = cols.map((c) => `lower(COALESCE(${c}, '')) LIKE ?`).join(' OR ');
   const rows = (await db
     .prepare(`SELECT ${idCol} AS rid, ${cols.join(', ')} FROM ${table} WHERE (${scope.sql}) AND (${match})`)
-    .all(...scope.args, ...cols.flatMap(() => likes.map((l) => `%${l.toLowerCase()}%`)))) as Array<Record<string, unknown>>;
+    .all(...scope.args, ...cols.map(() => `%${email}%`))) as Array<Record<string, unknown>>;
+  let changed = 0;
   for (const r of rows) {
+    // El LIKE es un prefiltro: la fila cuenta solo si tiene el email exacto.
+    if (!cols.some((c) => typeof r[c] === 'string' && emailPattern(email).test(r[c] as string))) continue;
     const sets = cols.map((c) => `${c} = ?`).join(', ');
-    // En las filas que tienen el email también se borra el nombre (son de esta persona).
-    const values = cols.map((c) => (typeof r[c] === 'string' ? redactTerms(r[c] as string, [email, ...names]) : r[c]));
+    const values = cols.map((c) => (typeof r[c] === 'string' ? redactRow(r[c] as string, email, names) : r[c]));
     await db.prepare(`UPDATE ${table} SET ${sets} WHERE ${idCol} = ?`).run(...(values as Array<string | null>), r.rid as string);
+    changed++;
   }
-  return rows.length;
+  return changed;
 }
 
 /** Borra todo lo del invitado en el workspace. Devuelve lo que había. */
@@ -168,9 +187,9 @@ export async function deleteInviteeData(workspaceId: string, rawEmail: string, a
     .prepare(
       `DELETE FROM calendar_routing_submissions WHERE id IN (
          SELECT s.id FROM calendar_routing_submissions s JOIN calendar_routing_forms f ON f.id = s.form_id
-         WHERE f.user_id = ? AND lower(s.answers) LIKE ?)`,
+         WHERE f.user_id = ? AND EXISTS (SELECT 1 FROM json_each(s.answers) j WHERE lower(trim(j.value)) = ?))`,
     )
-    .run(workspaceId, `%${email}%`);
+    .run(workspaceId, email);
   await db
     .prepare(
       `DELETE FROM calendar_poll_votes WHERE id IN (
@@ -185,8 +204,8 @@ export async function deleteInviteeData(workspaceId: string, rawEmail: string, a
     sql: `user_id = ? OR user_id IN (SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ?)`,
     args: [workspaceId, workspaceId],
   };
-  await scrub('webhook_deliveries', 'id', ['payload', 'response_body', 'last_error'], { sql: 'webhook_id IN (SELECT id FROM webhooks WHERE user_id = ?)', args: [workspaceId] }, email, names, false);
-  await scrub('flow_runs', 'id', ['input', 'context', 'error'], ws, email, names, false);
+  await scrub('webhook_deliveries', 'id', ['payload', 'response_body', 'last_error'], { sql: 'webhook_id IN (SELECT id FROM webhooks WHERE user_id = ?)', args: [workspaceId] }, email, names);
+  await scrub('flow_runs', 'id', ['input', 'context', 'error'], ws, email, names);
   await scrub(
     'flow_steps',
     'id',
@@ -194,18 +213,18 @@ export async function deleteInviteeData(workspaceId: string, rawEmail: string, a
     { sql: 'run_id IN (SELECT id FROM flow_runs WHERE user_id = ?)', args: [workspaceId] },
     email,
     names,
-    false,
   );
-  await scrub('flow_jobs', 'id', ['payload'], { sql: 'run_id IN (SELECT id FROM flow_runs WHERE user_id = ?)', args: [workspaceId] }, email, names, false);
-  // El log de apps (Zoom) y la actividad de Cal guardan el nombre sin el email.
-  await scrub('crm_app_log', 'id', ['detail'], ws, email, names, true);
+  await scrub('flow_jobs', 'id', ['payload'], { sql: 'run_id IN (SELECT id FROM flow_runs WHERE user_id = ?)', args: [workspaceId] }, email, names);
+  // El log de apps solo se toca si tiene el email (Cal no guarda ahí el nombre del invitado).
+  await scrub('crm_app_log', 'id', ['detail'], ws, email, names);
   if (bookingIds.length > 0) {
     await db
       .prepare(`UPDATE calendar_activity SET summary = ? WHERE user_id = ? AND target_id IN (${bookingIds.map(() => '?').join(', ')})`)
       .run(REDACTED, workspaceId, ...bookingIds);
   }
-  await scrub('calendar_activity', 'id', ['summary'], ws, email, names, true);
-  await scrub('notifications', 'id', ['title', 'body', 'href', 'meta'], people, email, names, false);
+  // La actividad atada a sus reservas ya quedó en [deleted]; el resto, solo con el email exacto.
+  await scrub('calendar_activity', 'id', ['summary'], ws, email, names);
+  await scrub('notifications', 'id', ['title', 'body', 'href', 'meta'], people, email, names);
 
   await logCalActivity(workspaceId, actorId, 'privacy.invitee_deleted', {
     type: 'invitee',

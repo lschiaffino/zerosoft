@@ -365,13 +365,13 @@ export async function createZoomForActivity(userId: string, activityId: string):
  */
 export async function createZoomMeeting(
   userId: string,
-  input: { topic: string; start: Date; durationMin: number; hostEmail?: string | null; agenda?: string },
+  input: { topic: string; start: Date; durationMin: number; hostEmail?: string | null; agenda?: string; logLabel?: string },
 ): Promise<{ id: string; joinUrl: string } | null> {
   const row = await getRow(userId, 'zoom');
   if (!row) return null;
   if (appsFake()) {
     const id = `9${String(input.start.getTime()).slice(-9)}`;
-    await logApp(userId, 'zoom', 'meeting', 'ok', input.topic);
+    await logApp(userId, 'zoom', 'meeting', 'ok', input.logLabel ?? input.topic);
     return { id, joinUrl: `https://zoom.us/j/${id}` };
   }
   const token = await zoomToken(secretsOf(row));
@@ -397,7 +397,7 @@ export async function createZoomMeeting(
     await logApp(userId, 'zoom', 'meeting', 'error', `zoom_${res?.status ?? 0}`);
     throw new AppError('zoom_error', 502);
   }
-  await logApp(userId, 'zoom', 'meeting', 'ok', input.topic);
+  await logApp(userId, 'zoom', 'meeting', 'ok', input.logLabel ?? input.topic);
   return { id: String(data.id), joinUrl: data.join_url };
 }
 

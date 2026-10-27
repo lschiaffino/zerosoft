@@ -60,6 +60,8 @@ async function withZoom(booking: CalendarBookingRow, eventType: EventTypeWithRul
     durationMin: Math.round((Date.parse(booking.ends_at) - Date.parse(booking.starts_at)) / 60_000),
     hostEmail: host?.email ?? null,
     agenda: eventType.description,
+    // El log de la app guarda solo el tipo de evento: nada del invitado.
+    logLabel: `Cal: ${eventType.title}`,
   }).catch(() => null);
   if (!meeting) return booking;
   await getDb()

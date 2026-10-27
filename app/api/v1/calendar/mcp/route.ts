@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   if (Array.isArray(body)) {
     return NextResponse.json({ jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Batching is not supported' } }, { status: 400 });
   }
-  const ctx = { ws: auth.user.id, personId: auth.personId, handle: auth.user.handle ?? null, scopes: auth.scopes };
+  const ctx = { ws: auth.user.id, personId: auth.personId, handle: auth.user.handle ?? null, scopes: auth.scopes, role: auth.role };
   const res = await handleCalRpc(ctx, (body && typeof body === 'object' ? body : {}) as Parameters<typeof handleCalRpc>[1]);
   if (!res) return new NextResponse(null, { status: 202 });
   return NextResponse.json(res, { headers: { 'cache-control': 'no-store' } });

@@ -3,6 +3,7 @@ import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { bookingDateBounds, listEventHosts, listEventTypes, listUserBookings, localDate } from '@/lib/calendar';
 import { locationKey, parseLocations } from '@/lib/calendar-locations';
 import { hostToken } from '@/lib/calendar-host-token';
+import { viewerScope } from '@/lib/calendar-access';
 import type { OnBehalfEventType } from '@/components/calendar/ScheduleOnBehalfModal';
 import { bookingListQuerySchema } from '@/lib/calendar-schema';
 import PageHeader from '@/components/ui/PageHeader';
@@ -38,6 +39,8 @@ export default async function BookingsPage(props: {
     to: bounds.to,
     // Con fecha "desde": la más cercana primero (como la API).
     order: from ? 'asc' : 'desc',
+    // Un member ve solo las reservas que atiende (owner y admins, todas).
+    hostId: viewerScope(user) ?? undefined,
   });
 
   // "Nueva reserva": un admin agenda para cualquier anfitrión; un member, en los eventos que atiende.

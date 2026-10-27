@@ -23,3 +23,8 @@ export function bookingInScope(booking: Pick<CalendarBookingRow, 'host_user_id' 
     return false;
   }
 }
+
+/** Alcance de una sesión de la app (sin rol = workspace personal, dueño). */
+export function viewerScope(user: { id: string; role?: TeamRole | null; actingUser?: { id: string } | null }): string | null {
+  return bookingScopeFor(user.role ?? 'owner', user.actingUser?.id ?? user.id);
+}

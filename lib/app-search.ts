@@ -5,6 +5,7 @@ import { boardViewer, boardVisibleSql } from '@/lib/board-access';
 import type { TeamRole } from '@/lib/teams';
 import { chatAccessSql, groupsViewer } from '@/lib/groups-access';
 import { maskPhoneText } from '@/lib/groups-mask';
+import { bookingScopeFor } from './calendar-access';
 
 /**
  * Búsqueda global (⌘K) en las apps que no tienen una propia: pizarras,
@@ -89,6 +90,8 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
 
   const waGroup = WA_GROUP[locale] ?? WA_GROUP.en;
   // Groups: acceso por etiqueta y teléfonos ocultos, como la bandeja.
+  // Reservas: un member encuentra solo las que atiende (owner y admins, todas).
+  const bookingScope = bookingScopeFor(user.role ?? 'owner', user.actingUser?.id ?? user.id) ?? '';
   const gViewer = await groupsViewer(user.id, user.actingUser?.id ?? user.id, user.role ?? 'owner').catch(() => null);
   const gAccess = chatAccessSql(gViewer, 'c');
   const gWhere = gAccess ? ` AND ${gAccess.sql}` : '';
@@ -162,10 +165,14 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       `SELECT b.id, b.invitee_name AS label, b.invitee_email AS email, b.invitee_email || ' · ' || e.title AS meta
        FROM calendar_bookings b JOIN calendar_event_types e ON e.id = b.event_type_id
        WHERE e.user_id = ? AND (b.invitee_name LIKE ? ESCAPE '\\' OR b.invitee_email LIKE ? ESCAPE '\\')
+         AND (? = '' OR b.host_user_id = ? OR EXISTS (SELECT 1 FROM json_each(b.co_host_ids) j WHERE j.value = ?))
        ORDER BY b.starts_at DESC LIMIT ?`,
       user.id,
       like,
       like,
+      bookingScope,
+      bookingScope,
+      bookingScope,
     ),
     // Encuestas de horario de Cal por título.
     all(`SELECT id, title AS label FROM calendar_polls WHERE user_id = ? AND title LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, user.id, like),

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { actorIdOf, logCalActivity } from '@/lib/calendar-activity';
 import { approveBooking, declineBooking, ownedBooking, CalendarError } from '@/lib/calendar';
+import { bookingInScope, viewerScope } from '@/lib/calendar-access';
 import { bookingApprovalSchema } from '@/lib/calendar-schema';
 import { invalidBody, notFound, unauthorized, crmError } from '@/lib/crm-http';
 import { afterBookingApproved, afterBookingDeclined } from '@/lib/calendar-lifecycle';
@@ -19,7 +20,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!(await ownedBooking(user.id, id))) return notFound();
+  const owned = await ownedBooking(user.id, id);
+  if (!owned || !bookingInScope(owned, viewerScope(user))) return notFound();
 
   const parsed = bookingApprovalSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);

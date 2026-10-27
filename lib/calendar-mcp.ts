@@ -6,6 +6,8 @@
  * para reservar, cancelar y reprogramar. Solo JSON-RPC por POST. Server-only.
  */
 import { hasScope, type ApiScope } from './api-scopes';
+import type { TeamRole } from './teams';
+import { bookingInScope, bookingScopeFor } from './calendar-access';
 import {
   CalendarError,
   bookingDateBounds,
@@ -13,6 +15,7 @@ import {
   findOfferedSlot,
   getAvailableSlots,
   getEventType,
+  listEventHosts,
   listEventTypes,
   listUserBookings,
   ownedBooking,
@@ -31,6 +34,18 @@ export interface CalMcpContext {
   personId: string;
   handle: string | null;
   scopes: ApiScope[];
+  /** Rol de quien creó la key: un member ve y gestiona solo las reservas que atiende. */
+  role?: TeamRole;
+}
+
+function scopeOf(ctx: CalMcpContext): string | null {
+  return bookingScopeFor(ctx.role ?? 'member', ctx.personId);
+}
+
+/** La reserva del workspace, si entra en el alcance de la key. */
+async function scopedBooking(ctx: CalMcpContext, id: string) {
+  const booking = await ownedBooking(ctx.ws, id);
+  return booking && bookingInScope(booking, scopeOf(ctx)) ? booking : null;
 }
 
 type Json = Record<string, unknown>;
@@ -132,6 +147,7 @@ const TOOLS: ToolDef[] = [
         to: bounds.to,
         limit: Math.min(100, Math.max(1, Number(a.limit) || 25)),
         order: from ? 'asc' : 'desc',
+        hostId: scopeOf(ctx) ?? undefined,
       });
       return {
         bookings: rows.map((b) =>
@@ -168,11 +184,19 @@ const TOOLS: ToolDef[] = [
       const tz = validTz(str(a.timezone, 64));
       const start = new Date(str(a.start, 40) ?? '');
       if (Number.isNaN(start.getTime())) throw new CalendarError('invalid_input', 400);
-      const slot = await findOfferedSlot(et.id, start, tz);
+      // Un member agenda solo reuniones que atiende él (como en la app).
+      let hostId: string | null = null;
+      if (scopeOf(ctx) !== null) {
+        const pool = (await listEventHosts(et.id)).map((h) => h.user_id);
+        const hosts = pool.length > 0 ? pool : [et.user_id];
+        if (!hosts.includes(ctx.personId)) throw new CalendarError('forbidden', 403);
+        hostId = ctx.personId;
+      }
+      const slot = await findOfferedSlot(et.id, start, tz, { hostId });
       if (!slot) throw new CalendarError('slot_unavailable', 409);
       const booking = await createBooking(
         { eventTypeId: et.id, email, name, start: slot.start.toISOString(), timezone: tz, answers: {}, guests: [] },
-        { bookedBy: ctx.personId, skipApproval: true },
+        { bookedBy: ctx.personId, skipApproval: true, hostId },
       );
       const synced = await afterBookingCreated(booking);
       await logCalActivity(ctx.ws, ctx.personId, 'booking.scheduled_on_behalf', { type: 'booking', id: booking.id, summary: `${et.title} · ${name} (MCP)` });
@@ -188,7 +212,7 @@ const TOOLS: ToolDef[] = [
     destructive: true,
     inputSchema: { type: 'object', required: ['bookingId'], properties: { bookingId: { type: 'string' }, reason: { type: 'string' } } },
     run: async (ctx, a) => {
-      const before = await ownedBooking(ctx.ws, str(a.bookingId, 64) ?? '');
+      const before = await scopedBooking(ctx, str(a.bookingId, 64) ?? '');
       if (!before) throw new CalendarError('not_found', 404);
       if (before.status !== 'confirmed') throw new CalendarError('not_confirmed', 409);
       const reason = str(a.reason, 500) ?? null;
@@ -212,7 +236,7 @@ const TOOLS: ToolDef[] = [
       properties: { bookingId: { type: 'string' }, start: { type: 'string' }, timezone: { type: 'string' } },
     },
     run: async (ctx, a) => {
-      const booking = await ownedBooking(ctx.ws, str(a.bookingId, 64) ?? '');
+      const booking = await scopedBooking(ctx, str(a.bookingId, 64) ?? '');
       if (!booking) throw new CalendarError('not_found', 404);
       if (booking.status !== 'confirmed') throw new CalendarError('not_confirmed', 409);
       const start = new Date(str(a.start, 40) ?? '');
