@@ -11,7 +11,7 @@
 import { z } from 'zod';
 import { getDb } from './db';
 import type { AgentRow, AgentTestCaseRow } from './db';
-import { aiGenerateObject } from './ai';
+import { agentsObject } from './agents-ai';
 import {
   AGENT_MAX_TESTS,
   isSimulatedOutput,
@@ -20,7 +20,7 @@ import {
   type AgentTestToolSummary,
   type AgentToolCallDto,
 } from './agents-config';
-import { AGENT_FEATURE, sendAgentMessage } from './agents';
+import { sendAgentMessage } from './agents';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -35,11 +35,24 @@ function parseTools(raw: string): AgentTestToolSummary[] {
   }
 }
 
+function parseTranscript(raw: string | undefined): AgentTestCaseDto['lastTranscript'] {
+  try {
+    const list = JSON.parse(raw || '[]') as unknown;
+    return Array.isArray(list) ? (list as AgentTestCaseDto['lastTranscript']) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function toTestCaseDto(row: AgentTestCaseRow): AgentTestCaseDto {
   return {
     id: row.id,
     question: row.question,
     expected: row.expected,
+    kind: row.kind === 'simulation' ? 'simulation' : 'single',
+    persona: row.persona ?? '',
+    maxTurns: Number(row.max_turns ?? 4),
+    lastTranscript: parseTranscript(row.last_transcript),
     lastStatus: row.last_status,
     lastReason: row.last_reason,
     lastReply: row.last_reply,
@@ -79,10 +92,10 @@ export async function createTestCase(
   const ts = nowIso();
   await db
     .prepare(
-      `INSERT INTO agent_test_cases (id, agent_id, user_id, question, expected, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO agent_test_cases (id, agent_id, user_id, question, expected, kind, persona, max_turns, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, agent.id, agent.user_id, input.question, input.expected, createdBy, ts, ts);
+    .run(id, agent.id, agent.user_id, input.question, input.expected, input.kind ?? 'single', input.persona ?? '', input.maxTurns ?? 4, createdBy, ts, ts);
   return { ok: true, test: toTestCaseDto((await getTestCaseRow(agent.user_id, agent.id, id)) as AgentTestCaseRow) };
 }
 
@@ -95,14 +108,22 @@ export async function updateTestCase(
 ): Promise<TestCaseWriteResult> {
   const row = await getTestCaseRow(workspaceId, agentId, id);
   if (!row) return { ok: false, error: 'not_found' };
-  const changed = row.question !== input.question || row.expected !== input.expected;
+  const kind = input.kind ?? 'single';
+  const persona = input.persona ?? '';
+  const maxTurns = input.maxTurns ?? 4;
+  const changed =
+    row.question !== input.question ||
+    row.expected !== input.expected ||
+    (row.kind ?? 'single') !== kind ||
+    (row.persona ?? '') !== persona ||
+    Number(row.max_turns ?? 4) !== maxTurns;
   await getDb()
     .prepare(
-      `UPDATE agent_test_cases SET question = ?, expected = ?, updated_at = ?${
-        changed ? ", last_status = NULL, last_reason = '', last_reply = '', last_tools = '[]', last_run_at = NULL" : ''
+      `UPDATE agent_test_cases SET question = ?, expected = ?, kind = ?, persona = ?, max_turns = ?, updated_at = ?${
+        changed ? ", last_status = NULL, last_reason = '', last_reply = '', last_tools = '[]', last_transcript = '[]', last_run_at = NULL" : ''
       } WHERE id = ?`,
     )
-    .run(input.question, input.expected, nowIso(), id);
+    .run(input.question, input.expected, kind, persona, maxTurns, nowIso(), id);
   return { ok: true, test: toTestCaseDto((await getTestCaseRow(workspaceId, agentId, id)) as AgentTestCaseRow) };
 }
 
@@ -154,15 +175,15 @@ export async function judgeReply(opts: {
     `<tool_calls>\n${tools}\n</tool_calls>`,
     `<handed_off_to_human>${opts.handoff ? 'yes' : 'no'}</handed_off_to_human>`,
   ].join('\n');
-  const { object } = await aiGenerateObject({
+  const object = await agentsObject({
     workspaceId: opts.workspaceId,
-    feature: AGENT_FEATURE,
     instructions: JUDGE_INSTRUCTIONS,
     prompt,
     schema: verdictSchema,
     schemaName: 'verdict',
     temperature: 0,
     maxOutputTokens: 300,
+    fake: () => ({ pass: true, reason: 'Fake judge: the reply matches.' }),
   });
   return { pass: object.pass === true, reason: object.reason.trim().slice(0, 500) };
 }
@@ -176,6 +197,15 @@ export async function runTestCase(agent: AgentRow, testId: string, runBy: string
   const row = await getTestCaseRow(agent.user_id, agent.id, testId);
   if (!row) return { ok: false, error: 'not_found' };
   const db = getDb();
+  if (row.kind === 'simulation') {
+    const { runSimulation } = await import('./agents-sim');
+    const sim = await runSimulation(agent, { question: row.question, expected: row.expected, persona: row.persona ?? '', maxTurns: Number(row.max_turns ?? 4) }, runBy);
+    const lastReply = [...sim.transcript].reverse().find((t) => t.role === 'assistant')?.content ?? '';
+    await db
+      .prepare('UPDATE agent_test_cases SET last_status = ?, last_reason = ?, last_reply = ?, last_tools = ?, last_transcript = ?, last_run_at = ? WHERE id = ?')
+      .run(sim.status, sim.reason, lastReply.slice(0, 4000), JSON.stringify(sim.tools), JSON.stringify(sim.transcript).slice(0, 40_000), nowIso(), row.id);
+    return { ok: true, test: toTestCaseDto((await getTestCaseRow(agent.user_id, agent.id, row.id)) as AgentTestCaseRow) };
+  }
   let status: 'pass' | 'fail' | 'error' = 'error';
   let reason = '';
   let reply = '';

@@ -94,6 +94,11 @@ export function announceQueued(url: string): void {
   window.dispatchEvent(new CustomEvent(QUEUED_EVENT, { detail: { url } }));
 }
 
+/** Cachés del service worker de la app (las de antes del rename y las actuales). */
+export function isOfflineCacheName(name: string): boolean {
+  return name.startsWith('zs-crm') || name.startsWith('zs-app-');
+}
+
 /**
  * Al cerrar sesión: borra las vistas guardadas y la cola de este
  * dispositivo, y las grabaciones de Rec guardadas de esa persona (solo las
@@ -109,7 +114,11 @@ export async function clearOfflineData(owner?: { userId: string; ws: string }): 
   try {
     if ('caches' in window) {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k.startsWith('zs-crm')).map((k) => caches.delete(k)));
+      // Todo lo que guardó el service worker (public/sw.js): las vistas de
+      // la app (zs-app-<versión>-pages, con datos de esta persona) y los
+      // estáticos. Antes solo se borraban los zs-crm* de la versión vieja y
+      // las vistas quedaban para quien entrara después en el mismo equipo.
+      await Promise.all(keys.filter(isOfflineCacheName).map((k) => caches.delete(k)));
     }
     if ('indexedDB' in window) {
       indexedDB.deleteDatabase('zs-offline');

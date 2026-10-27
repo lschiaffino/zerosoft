@@ -270,7 +270,7 @@ export async function updatePage(actor: DocsActor, pageId: string, input: Update
     const res = await pageForWrite(actor, pageId, { includeArchived: input.archived === false, content: touchesContent });
     if (res.access !== 'owner' && input.archived !== undefined) throw new DocsPlatformError('forbidden', 403);
     // La página como la ve el editor de esta persona (sincronizados con su contenido): base del cambio.
-    const { editorBlocks, syncedLocks } = await import('./docs-guard');
+    const { editorBlocks, restoreForActor, syncedLocks } = await import('./docs-guard');
     const current = await editorBlocks(res.row, actor);
     let next: DocsBlock[] | undefined;
     const replace = input.blocks?.length ? input.blocks : input.markdown !== undefined ? mdToBlocks(input.markdown) : undefined;
@@ -289,6 +289,8 @@ export async function updatePage(actor: DocsActor, pageId: string, input: Update
       const trimmed = at === -1 && base.length === 1 && base[0].type === 'paragraph' && !base[0].content?.trim() ? [] : base;
       next = at === -1 ? [...trimmed, ...fresh] : [...base.slice(0, at + 1), ...fresh, ...base.slice(at + 1)];
     }
+    // Links a páginas que no puede abrir: vuelven al texto guardado (editorBlocks los muestra como "Página privada").
+    if (next) next = await restoreForActor(actor, res.row, next);
     // Sincronizados que esta persona no puede editar en su origen: no se tocan (como en el editor).
     const locks = next ? await syncedLocks(actor, res.row, next) : undefined;
     try {

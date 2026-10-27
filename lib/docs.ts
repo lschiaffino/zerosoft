@@ -277,6 +277,28 @@ export async function readableLinkTitles(
   return titles;
 }
 
+/**
+ * Páginas linkeadas (`[[`) en `blocks` que existen pero el actor no puede
+ * abrir: su link se muestra como "Página privada" y no con el título que
+ * puso quien la linkeó (lib/docs-page-links.ts maskPageLinks). Una página
+ * borrada del todo no cuenta (queda el texto, no revela nada que exista).
+ */
+export async function hiddenLinkIds(actor: DocsActor, host: Pick<DocsPageRow, 'user_id'>, blocks: DocsBlock[]): Promise<Set<string>> {
+  const ids: string[] = [];
+  for (const b of withDatabaseBodies(blocks)) {
+    if (!b.content) continue;
+    for (const id of pageLinkIds(b.content)) if (!ids.includes(id)) ids.push(id);
+  }
+  const hidden = new Set<string>();
+  if (ids.length === 0) return hidden;
+  const readable = await readableLinkTitles(actor, host, blocks);
+  for (const id of ids.filter((x) => !readable.has(x)).slice(0, LINK_TITLES_MAX)) {
+    const row = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(id)) as DocsPageRow | undefined;
+    if (row && !(await getDocAccess(row, actor))) hidden.add(id);
+  }
+  return hidden;
+}
+
 /** Verifica si el actor puede leer una página (ver getDocAccess). */
 export async function canReadPage(
   page: DocsPageRow,

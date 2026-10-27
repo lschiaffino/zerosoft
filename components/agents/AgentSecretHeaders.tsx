@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { AgentSecretHeaderDto } from '@/lib/agents-config';
+import { useConfirm } from './useConfirm';
 import { api, errorText } from './agents-ui';
 
 interface Props {
@@ -23,6 +24,7 @@ interface Props {
  */
 export default function AgentSecretHeaders({ agentId, headers, onChange, savedDomains, draftDomains, readOnly }: Props) {
   const t = useTranslations('agents');
+  const [confirmNode, ask] = useConfirm();
   const [name, setName] = useState('Authorization');
   const [domain, setDomain] = useState(savedDomains[0] ?? '');
   const [value, setValue] = useState('');
@@ -50,7 +52,7 @@ export default function AgentSecretHeaders({ agentId, headers, onChange, savedDo
   }
 
   async function remove(h: AgentSecretHeaderDto) {
-    if (!window.confirm(t('secrets.removeConfirm', { name: h.name, domain: h.domain }))) return;
+    if (!(await ask({ title: t('secrets.removeConfirm', { name: h.name, domain: h.domain }), confirmLabel: t('qa.remove'), danger: true }))) return;
     const res = await api<{ headers?: AgentSecretHeaderDto[] }>(`/api/agents/${agentId}/secrets/${h.id}`, { method: 'DELETE' });
     if (!res.ok || !res.data.headers) {
       setError(errorText(t, res.data.error));
@@ -61,6 +63,7 @@ export default function AgentSecretHeaders({ agentId, headers, onChange, savedDo
 
   return (
     <fieldset className="ag-fieldset ag-secrets">
+      {confirmNode}
       <legend className="label">{t('secrets.title')}</legend>
       <p className="ui-help">{t('secrets.hint')}</p>
       {headers.length > 0 && (

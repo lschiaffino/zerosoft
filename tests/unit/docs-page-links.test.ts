@@ -104,7 +104,9 @@ describe('Docs: links a página — guardado y resolución', () => {
     expect(b.content).toContain(`href="/en/h/x/${article.linkTargets[pub.id].slug}"`);
     expect(b.content).not.toContain(draft.id);
     expect(b.content).not.toContain('Borrador secreto');
-    expect(b.content).toMatch(/<\/a> Borrador$/);
+    // El título con que se linkeó una página sin publicar tampoco sale: "Private page".
+    expect(b.content).toMatch(/<\/a> Private page$/);
+    expect(b.content).not.toContain('Borrador');
   });
 
   it('backlinks: páginas del workspace que linkean a esta', async () => {

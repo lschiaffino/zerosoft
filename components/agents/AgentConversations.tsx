@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
-import type { AgentConversationDto, AgentMessageDto, AgentPendingActionDto, AgentToolCallDto } from '@/lib/agents-config';
+import type { AgentConversationDto, AgentConversationScoreDto, AgentMessageDto, AgentPendingActionDto, AgentToolCallDto } from '@/lib/agents-config';
+import type { AgentMemoryDto } from '@/lib/agents-context';
 import { Link } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import { ToolCalls } from './AgentChat';
+import { useConfirm } from './useConfirm';
 import { api, errorText, toolName } from './agents-ui';
 import AgentApprovals from './AgentApprovals';
 import { parseDbUtc } from '@/lib/utils';
@@ -14,9 +16,13 @@ interface Detail {
   conversation: AgentConversationDto;
   messages: AgentMessageDto[];
   toolCalls: AgentToolCallDto[];
+  score: AgentConversationScoreDto | null;
+  memories: AgentMemoryDto[];
+  hasVisitor: boolean;
 }
 
-const CHANNELS = ['all', 'chat', 'public', 'api', 'playground'] as const;
+const CHANNELS = ['all', 'chat', 'public', 'api', 'playground', 'review'] as const;
+type ChannelFilter = (typeof CHANNELS)[number];
 
 function Thumb({ down = false }: { down?: boolean }) {
   return (
@@ -36,18 +42,25 @@ export default function AgentConversations({
   agentId,
   initialConversationId,
   onOpenPlayground,
+  canEdit = false,
+  initialFilter = 'all',
 }: {
   agentId: string;
   initialConversationId: string | null;
   onOpenPlayground?: () => void;
+  canEdit?: boolean;
+  initialFilter?: ChannelFilter;
 }) {
   const t = useTranslations('agents');
+  const [confirmNode, ask] = useConfirm();
   const format = useFormatter();
   const now = useNow({ updateInterval: 60_000 });
   // El tiempo relativo depende del reloj: se calcula recién en el cliente para no romper la hidratación.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const [channel, setChannel] = useState<(typeof CHANNELS)[number]>('all');
+  const [channel, setChannel] = useState<ChannelFilter>(initialFilter);
+  const [reviewNote, setReviewNote] = useState('');
+  const [reviewBusy, setReviewBusy] = useState(false);
   const [list, setList] = useState<AgentConversationDto[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -55,6 +68,7 @@ export default function AgentConversations({
   const [detail, setDetail] = useState<Detail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [noticeText, setNoticeText] = useState<string | null>(null);
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
   const [reply, setReply] = useState('');
@@ -70,7 +84,7 @@ export default function AgentConversations({
     let cancelled = false;
     setList(null);
     setListError(null);
-    const q = channel === 'all' ? '' : `?channel=${channel}`;
+    const q = channel === 'all' ? '' : channel === 'review' ? '?review=1' : `?channel=${channel}`;
     void api<{ conversations?: AgentConversationDto[] }>(`/api/agents/${agentId}/conversations${q}`).then((res) => {
       if (cancelled) return;
       if (res.ok) setList(res.data.conversations ?? []);
@@ -91,14 +105,17 @@ export default function AgentConversations({
     async (id: string) => {
       setDetailLoading(true);
       setError(null);
+      setNoticeText(null);
       const [res, acts] = await Promise.all([
         api<Detail>(`/api/agents/${agentId}/conversations/${id}`),
         api<{ actions?: AgentPendingActionDto[] }>(`/api/agents/${agentId}/approvals?conversationId=${encodeURIComponent(id)}`),
       ]);
       setDetailLoading(false);
       setActions(acts.ok ? (acts.data.actions ?? []) : []);
-      if (res.ok) setDetail(res.data);
-      else setError(errorText(t, res.data.error));
+      if (res.ok) {
+        setDetail(res.data);
+        setReviewNote(res.data.score?.reviewNote ?? '');
+      } else setError(errorText(t, res.data.error));
     },
     [agentId, t],
   );
@@ -165,6 +182,39 @@ export default function AgentConversations({
     );
   }
 
+  async function review(reviewed: boolean) {
+    if (!detail) return;
+    setReviewBusy(true);
+    const res = await api<{ score?: AgentConversationScoreDto | null; reviewedAt?: string | null }>(`/api/agents/${agentId}/conversations/${detail.conversation.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reviewed, reviewNote }),
+    });
+    setReviewBusy(false);
+    if (!res.ok) {
+      setError(errorText(t, res.data.error));
+      return;
+    }
+    setDetail((d) => (d ? { ...d, score: res.data.score ?? d.score, conversation: { ...d.conversation, reviewedAt: res.data.reviewedAt ?? null } } : d));
+    setList((l) => (l ? l.map((c) => (c.id === detail.conversation.id ? { ...c, reviewedAt: res.data.reviewedAt ?? null } : c)) : l));
+  }
+
+  async function block() {
+    if (!detail || !(await ask({ title: t('conversations.blockConfirm'), confirmLabel: t('conversations.block'), danger: true }))) return;
+    const res = await api(`/api/agents/${agentId}/conversations/${detail.conversation.id}`, { method: 'PATCH', body: JSON.stringify({ block: true }) });
+    if (!res.ok) {
+      setError(errorText(t, res.data.error));
+      return;
+    }
+    setError(null);
+    setNoticeText(t('conversations.blocked'));
+  }
+
+  async function forget(m: AgentMemoryDto) {
+    const res = await api(`/api/agents/${agentId}/memories/${m.id}`, { method: 'DELETE' });
+    if (res.ok) setDetail((d) => (d ? { ...d, memories: d.memories.filter((x) => x.id !== m.id) } : d));
+    else setError(errorText(t, res.data.error));
+  }
+
   async function sendReply() {
     if (!detail || replying || !reply.trim()) return;
     setReplying(true);
@@ -185,6 +235,7 @@ export default function AgentConversations({
 
   return (
     <div className="ag-convs" data-view={selected ? 'detail' : 'list'}>
+      {confirmNode}
       <aside className="ag-convs-list" aria-label={t('tabs.conversations')}>
         <div className="ui-tabs ag-convs-filter" role="group" aria-label={t('conversations.filter')}>
           {CHANNELS.map((c) => (
@@ -195,7 +246,7 @@ export default function AgentConversations({
               aria-pressed={channel === c}
               onClick={() => setChannel(c)}
             >
-              {c === 'all' ? t('conversations.all') : t(`channelNames.${c}`)}
+              {c === 'all' ? t('conversations.all') : c === 'review' ? t('conversations.needsReview') : t(`channelNames.${c}`)}
             </button>
           ))}
         </div>
@@ -233,6 +284,10 @@ export default function AgentConversations({
                     <time dateTime={c.updatedAt}>{mounted ? format.relativeTime(parseDbUtc(c.updatedAt), now) : ''}</time>
                   </span>
                   {c.handedOff && <span className="badge badge-warn ag-conv-badge">{t('conversations.handedOff')}</span>}
+                  {c.csat != null && (
+                    <span className={`badge ag-conv-badge${c.csat <= 2 ? ' badge-bad' : c.csat >= 4 ? ' badge-ok' : ''}`}>{t('conversations.csatBadge', { csat: c.csat })}</span>
+                  )}
+                  {c.reviewedAt && <span className="badge ag-conv-badge">{t('conversations.reviewed')}</span>}
                   {(pendingBy.get(c.id) ?? 0) > 0 && (
                     <span className="badge badge-warn ag-conv-badge">{t('approvals.pendingBadge', { count: pendingBy.get(c.id) ?? 0 })}</span>
                   )}
@@ -257,6 +312,11 @@ export default function AgentConversations({
             {error}
           </p>
         )}
+        {noticeText && !error && (
+          <p className="ui-help ag-pad" role="status">
+            {noticeText}
+          </p>
+        )}
         {!selected ? (
           <p className="ui-help ag-pad">{t('conversations.pick')}</p>
         ) : detailLoading && !detail ? (
@@ -277,7 +337,76 @@ export default function AgentConversations({
                   {t('conversations.openInbox')}
                 </Link>
               )}
+              {canEdit && detail.hasVisitor && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => void block()}>
+                  {t('conversations.block')}
+                </button>
+              )}
             </header>
+            {(detail.score || detail.conversation.visitorEmail || detail.memories.length > 0) && (
+              <div className="ag-conv-insights ag-pad">
+                {detail.conversation.visitorEmail && (
+                  <p className="ui-help">
+                    {t('conversations.visitor')}: <span className="data">{detail.conversation.visitorEmail}</span>
+                  </p>
+                )}
+                {detail.score && (
+                  <section className="ag-score" aria-label={t('conversations.score')}>
+                    <p className="ag-score-line">
+                      <span className="badge">{t('conversations.csatBadge', { csat: detail.score.csat })}</span>
+                      <span className="badge">{t(`quality.sentiments.${detail.score.sentiment}`)}</span>
+                      <span className={`badge${detail.score.resolved ? ' badge-ok' : ' badge-warn'}`}>
+                        {detail.score.resolved ? t('conversations.resolved') : t('conversations.notResolved')}
+                      </span>
+                      {detail.score.topic && <span className="badge">{detail.score.topic}</span>}
+                    </p>
+                    {detail.score.summary && <p className="ui-help">{detail.score.summary}</p>}
+                    {detail.score.criteria.length > 0 && (
+                      <ul className="ag-score-criteria">
+                        {detail.score.criteria.map((c) => (
+                          <li key={c.criterion} data-pass={c.pass || undefined}>
+                            <span className={`badge${c.pass ? ' badge-ok' : ' badge-bad'}`}>{c.pass ? t('conversations.pass') : t('conversations.fail')}</span> {c.criterion}
+                            {c.note && <span className="ui-help"> {c.note}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {canEdit && (
+                      <div className="ag-add-row">
+                        <input
+                          className="input"
+                          value={reviewNote}
+                          maxLength={1000}
+                          aria-label={t('conversations.reviewNote')}
+                          placeholder={t('conversations.reviewNote')}
+                          onChange={(e) => setReviewNote(e.target.value)}
+                        />
+                        <button type="button" className="btn btn-secondary btn-sm" aria-busy={reviewBusy || undefined} onClick={() => void review(!detail.conversation.reviewedAt || reviewNote !== (detail.score?.reviewNote ?? ''))}>
+                          {detail.conversation.reviewedAt && reviewNote === (detail.score?.reviewNote ?? '') ? t('conversations.unmarkReviewed') : t('conversations.markReviewed')}
+                        </button>
+                      </div>
+                    )}
+                  </section>
+                )}
+                {detail.memories.length > 0 && (
+                  <section aria-label={t('conversations.memory')}>
+                    <h4 className="label">{t('conversations.memory')}</h4>
+                    <ul className="ag-memories">
+                      {detail.memories.map((m) => (
+                        <li key={m.id}>
+                          <span>{m.fact}</span>
+                          {canEdit && (
+                            <button type="button" className="btn btn-ghost btn-sm" aria-label={`${t('conversations.forget')}: ${m.fact}`} onClick={() => void forget(m)}>
+                              {t('conversations.forget')}
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </div>
+            )}
             <AgentApprovals
               agentId={agentId}
               actions={actions}
